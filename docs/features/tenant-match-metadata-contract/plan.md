@@ -36,7 +36,7 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 
 正本への反映なし。承認済みmetadata契約の製品追随として、要件/design/ADR/development/opsの正本は改訂しない。
 
-正本体系外だが同じPRで更新するもの：backendのtenant_access・app応答middleware・errors・players/team-records routersとAPI/roster/auth出口の固有試験、frontendの単一client・roster・既存管理画面のretry/結果未確認境界と各spec、本計画/research、C1の完了記録、U-F13の依存記録、作業ログ。共有凍結資産/認可catalog/権限・DTO・operation_idは不変で、実検査で必要が判明した差分だけを個別ゲートへ提示する。
+正本体系外だが同じPRで更新するもの：backendのtenant_access・app応答middleware・errors・players/team-records routersとAPI/roster/auth出口の固有試験、frontendの単一client・roster・既存管理画面のretry/結果未確認境界と各spec、本計画/research・接続判断資料・未承認のC1最小追補案・PR準備資料、C1の完了記録、U-F13の依存記録、作業ログ。追補案の同梱は製品への採用ではない。共有凍結資産/認可catalog/権限・DTO・operation_idは不変で、実検査で必要が判明した差分だけを個別ゲートへ提示する。
 
 ## 3. 承認対象となる metadata 契約
 

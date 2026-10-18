@@ -458,3 +458,28 @@ PR #147は実SHA493342be37d4383ca572f8d1c826a3f184a4d213へ統合。最終d56c17
 C2/U-F3からU-F13接続と実画面/API/DB通しまでの自律指示を受領。非共有実装は専用worktreeで並行し、接続は確定C2契約に従う。現在open PRは143/142/138で、C2/U-F3同範囲のPR/worktreeは無い。#143が共有core3ファイルとauthz/repository凍結資産を所有するため無断変更しない。agmsgは本プロジェクトの登録が無く別チーム候補のみだったため未登録の送信や所有移管を行わず、open PR/worktreeの実差分から所有を照合した。
 
 U-F3は経路未登録の正規auth接続と24固有試験/全frontend1,261試験が成功。C2は共通server metadata境界と7routeを実装し、backend対象365件の初回検査が成功、frontend固有185件/追加56件が成功。最終全検査・正式レビュー・機械core登録・本人確認/統合/通し受入は未了であり、完了を先行記録しない。TSK-528/TSK-520全体未完了を維持する。
+
+### 2026-10-18 C2正式レビュー採否と最終試験追随（Codex D）
+
+- 第1周: 正規ラッパーによるCodex敵対はP0=0/P1=0/P2=0、実Claude反対側は可決表記P0=0/P1=1/P2=3。P1（valid mutation本文＋不正metadataのoperation 0証跡）とP2三件（C1本人確認HEAD限定、researchのroute class追随、ログDEBUG捕捉）をすべて採用した。本人確認は`a3934fb7`全18ファイルの既存回答に限定し、方法を推定していない。plan statusは規約どおり`in-review`を維持した。
+- 第2周は修正差分と影響箇所だけを対象とし、Codex敵対P0=0/P1=0/P2=0、実Claude反対側P0=0/P1=0/P2=1。残P2は正常本文ケースで一覧queryの必須limitが不足する点で、正本schemaの既定なしを実確認して採用した。`bad_input="query"`以外ではvalid `limit=20`を送り、metadata故障だけを与える。動的kwargsのty指摘8件は明示json/content keywordへの等価変更で解消し、型検査抑制は加えていない。
+- 最終候補のmetadata module全448件成功（5.58秒）、backend Ruff/format/ty成功、diff check成功。並走中の全backendは変更前module343件を収集済みであり、その結果を修正後448件の全件証跡へ読み替えない。同worktreeで修正後moduleを独立再検査した。製品sourceはレビュー後不変で、frontend全69ファイル1,272件成功、型/lint/build/depcruise成功を維持する。
+- レビュー上限に従い追加周は実施していない。最後のvalid query limit追加とty互換keyword化は未再レビューの最終反映として人間逐行確認対象に残す。レビュー結果を本人逐行確認・公開・マージへ流用しない。
+- 旧protected/session応答のSet-Cookie巻戻りは両レビューが既存契約の残余と判断した。C2の7経路は検証済みBに対してCookie Aならoperation前404で拒否する。Bのsession確認前の巻戻りまで解消済みとは扱わず、認証state無効化や延長Cookie規則の拡張はPO判断に残す。
+- 実行証跡は`/home/ymdms/.cache/pitchlog/c2-reviews/round1-*`・`round2-*`・`final-metadata-*`に固定。Codex第2周log SHA-256 `d662a6385140b1e7d9d7a587419673ea023c6cf06e1979f0dfa323b383469138`、Claude第2周log SHA-256 `bcb4a30975e91c55d15f540cfe06fc09791e24bd53851b5e54cf3e460c721b82`。コミット・push・PR操作は本レビュー担当では実施していない。
+
+### C2最終sourceのHEAD依存検査と標準route hookへの追随
+
+- 上の「製品sourceはレビュー後不変」は第2周直後の記録。その後、未コミット製品5ファイルを独立した一時Git候補724390feへ固定して、コミット済みHEADを走査するtenant-boundary検査を実行したところ、`original(request)`の閉包callableがTB007で拒否された。以前の実branch HEAD検査成功を未コミット製品差分の合格へ読み替えない。検査器・allowlist・共有凍結資産を変更して通すことはしない。
+- `TenantMatchedRoute`を標準`APIRoute.handle` overrideへ等価移動した。対象7 operationかつmethod一致時だけCookie/CSRF/context/metadataを評価し、標準`super().handle`へ渡す。method/path不一致は既存405/404、対象外routeは元の認証/validationを維持する。本文・業務operation前という承認済み優先順位を変えず、FastAPIハンドラをコピーしない。
+- 最終metadata458件（従来448件+method/path境界10件）、tenant access5件、roster25件の計488件が17.39秒で成功。Ruff format/check・backend全tyも成功。並走中の全backendは旧source・旧343metadata件を収集済みなので、新source全件成功とは扱わない。最終sourceの実DB auth出口6件を別途必須として実施する。
+- 最終製品/試験17ファイルを固定した一時候補f4a5c7c973dfa02a5b407f9fa7eed243333f0f3cで、core基線検査成功・17ファイル検出・本人逐行確認未記入なら17ファイルすべて拒否を確認した。これは検査用detached履歴でありfeature branchの完了ステップとはしない。通常ブランチの最終コミット後にも同じHEAD依存検査を行う。
+- 追加の第3周は行わない。標準route hookへの追随、method/path試験10件とresearch更新を、既定上限後の未再レビュー差分として人間逐行確認へ明示する。既存2周の可決を、この後追加差分の独立レビュー済みと偽らない。
+
+### 全件候補の固定と、別件Cookie追補案の初回レビュー
+
+- 旧sourceのbackend全件は441成功・失敗0の時点で正常中断（2870収集、22分26秒、exit2）し、専用クラスタをfinallyで撤去した。製品不具合やtimeoutによる中断ではない。標準handleとmetadata458件へ固定した最終sourceで、別専用クラスタ・並列1の全2985件を再開始した。最終sourceのauth出口6件・login6件は成功済みだが、全件完走前にステップ1完了とは記録しない。
+- root初回は29,665成功・2 skip・3失敗、20分22秒。source更新中のcensus比較が旧閉包の走査結果を保持し、現sourceの行位置と不一致になった。source固定後の同3件は3成功（169.57秒、他57件は当該診断実行の非選択）となった。全件成功へ読み替えず、CPU12・利用可能メモリを確認してroot全件を4並列で再開始した。試験・timeout・期待値の緩和なし。
+- Cookie追補案の初回レビューは、今回のC2/U-F3実装レビューの第3周ではなく、未承認の新しい局所契約案だけへの独立レビュー。実Claude・正規Codexとも否決した。背景タブではCookie適用とJS通知をepochだけで結べず、7経路外のCookie更新、旧403/405、再確認状態の寿命、採用先C1計画への対応が不足した。全指摘を採用し、初案を製品へ入れない。
+- 詳細はC2 feature内`auth-cookie-uncertainty-review.md`へ固定。既受理C1や承認済みC2の7経路を一括未了へ戻さず、NFR-011のスライディング延長も変更しない。公開前の追加方向としてlogin/session相関を保証する最小C1追補の具体化を提示する。具体DTO/header/literal・権限・凍結改訂は未承認/未実装。共有core3ファイルと他担当PRの編集も行っていない。
+- 台帳への追記なし。新規ハーネスではなく、既存HEAD依存検査・source固定・既存レビューと個別ゲートを用いるタスク内の是正である。Claude向け申し送りは本コミット対象worklogへ集約し、別ファイル復元とは扱わない。

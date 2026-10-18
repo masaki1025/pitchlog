@@ -119,7 +119,7 @@ PR #119 の login Cookie 発行後に、サーバーが検証した tenant 情�
 - [x] tenant ID と正規表示名を利用者入力から生成しない。
 - [x] 共有実行器Aの実統合後のdevelopからC1のrepository契約・base allowlist・7.7前後値を再導出し、異なるbranchの同じrevisionを流用していない。
 - [x] 第1・第2段では未受理履歴・sealをfail-closedのまま維持し、第3段の正式受理前に承認者・承認日を入力していない。
-- [x] コア adversarial review、反対側レビュー、人間逐行確認、backend / frontend 品質 gate、凍結資産検査を通す。
+- [x] コア adversarial review、反対側レビュー、人間逐行確認、backend / frontend 品質 gate、凍結資産検査を通す。本人逐行確認は `a3934fb7283f194ba5544e542bbddc056ff9645b` の全18ファイルに限定し、最終HEAD追加差分の扱いは§14を正とする。確認方法は未申告であり推定しない。
 
 ## 8. 人間承認が必要な判断
 
