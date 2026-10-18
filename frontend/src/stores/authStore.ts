@@ -82,6 +82,21 @@ export const useAuthStore = defineStore('auth', () => {
   let correlatedTenantId: string | null = null
   const explicitLoginRequired = ref(false)
   const environmentReason = ref<AuthEnvironmentReason | null>(null)
+  const canReverify = computed(() => {
+    void authEpoch.value
+    if (explicitLoginRequired.value) return false
+    try {
+      const marker = readAuthIntent()
+      return (
+        marker?.tenantId !== null &&
+        marker?.tenantId !== undefined &&
+        (marker.phase === 'expected' ||
+          marker.phase === 'verification-required')
+      )
+    } catch {
+      return false
+    }
+  })
   let sessionId: string | null = null
   let detached = false
   let detachedRaw: string | null = null
@@ -190,10 +205,18 @@ export const useAuthStore = defineStore('auth', () => {
   function beginCorrelatedVerification(intentId: string | null): number {
     correlated = true
     observedIntentId = intentId
+    // 旧形式を採用しない。消去不能時もメモリ/cache破棄を先行する。
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+    } catch {
+      /* 旧形式は既に無効。 */
+    }
     environmentReason.value = null
     const marker = intentId === null ? null : readAuthIntent()
     if (marker?.intentId === intentId && marker?.tenantId)
       correlatedTenantId = marker.tenantId
+    if (marker?.intentId === intentId && marker?.phase === 'pending')
+      explicitLoginRequired.value = false
     beginAuthChange()
     setUnauthenticated(false)
     return authEpoch.value
@@ -229,9 +252,22 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function failAuthEnvironment(reason: AuthEnvironmentReason): void {
-    beginCorrelatedVerification(null)
+    if (reason === 'lock-busy') {
+      // 取得競合は一時的。期待IDを壊さず利用者の明示GETで再確認できる。
+      let marker = null
+      try {
+        marker = readAuthIntent()
+      } catch {
+        /* 読取失敗は別の回復案内にする。 */
+      }
+      const required = explicitLoginRequired.value
+      beginCorrelatedVerification(marker?.intentId ?? null)
+      explicitLoginRequired.value = required
+    } else {
+      beginCorrelatedVerification(null)
+      explicitLoginRequired.value = true
+    }
     environmentReason.value = reason
-    explicitLoginRequired.value = true
   }
 
   function syncFromStorage(): void {
@@ -343,5 +379,6 @@ export const useAuthStore = defineStore('auth', () => {
     failAuthEnvironment,
     explicitLoginRequired,
     environmentReason,
+    canReverify,
   }
 })

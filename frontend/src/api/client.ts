@@ -228,7 +228,7 @@ async function requestResponse<T>(
   auth.syncFromStorage()
   const stale = auth.authEpoch !== epoch
   if (res.ok && options.onAuthCookieUncertain) {
-    options.onAuthCookieUncertain()
+    await options.onAuthCookieUncertain()
     if (!stale) epoch = auth.authEpoch
   }
   if (stale) throw new ApiStaleAuthError(method, path, res.status)

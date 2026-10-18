@@ -1,6 +1,7 @@
 """チームのログイン経路を提供する。"""
 
 import ipaddress
+import logging
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -28,6 +29,7 @@ from pitchlog.repositories.transaction import tenant_transaction_scope
 
 router = APIRouter(tags=["認証"])
 _COOKIE_NAME = "__Host-pitchlog_token"
+_LOGGER = logging.getLogger(__name__)
 
 
 def _source(request: Request) -> str:
@@ -78,7 +80,9 @@ async def login(
                 value, request.app.state.token_presentation, get_login_connection()
             )
         )
-    except (RuntimeError, TypeError, ValueError):
+    except Exception as error:
+        # 値・例外本文・tracebackを記録しない。
+        _LOGGER.warning("ログインの追加照合を完了できません (%s)", type(error).__name__)
         verified = None
     if verified is None:
         # 先行するtoken発行transactionまで全取消になったとは主張しない。

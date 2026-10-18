@@ -429,7 +429,13 @@ def test_boundary_rejects_other_signer_and_hides_database_error() -> None:
 
 @pytest.mark.anyio
 @pytest.mark.parametrize(
-    "failure", [None, RuntimeError("internal-private"), TypeError("internal-private")]
+    "failure",
+    [
+        None,
+        RuntimeError("internal-private"),
+        TypeError("internal-private"),
+        OSError("internal-private"),
+    ],
 )
 async def test_login_correlation_failure_never_issues_http_cookie(
     monkeypatch: pytest.MonkeyPatch,

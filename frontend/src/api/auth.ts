@@ -330,9 +330,13 @@ export async function login(
     if (
       result.status !== 'stale' &&
       error instanceof ApiError &&
-      error.status === 401
+      (error.status === 401 || error.status === 429)
     )
-      return { status: 'rejected', authEpoch: auth.authEpoch, httpStatus: 401 }
+      return {
+        status: 'rejected',
+        authEpoch: auth.authEpoch,
+        httpStatus: error.status,
+      }
     return result
   } finally {
     if (mutations.get(auth) === entry) mutations.delete(auth)

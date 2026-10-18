@@ -132,7 +132,7 @@ describe('承認済みlogin/session相関', () => {
       respond({}, status)
       const result = await login(credentials)
       expect(result.status).toBe(
-        status === 401 ? 'rejected' : 'verification-unknown',
+        status === 401 || status === 429 ? 'rejected' : 'verification-unknown',
       )
       empty()
       expect(readAuthIntent()).toMatchObject({
