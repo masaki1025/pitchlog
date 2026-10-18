@@ -239,7 +239,7 @@ TSK-545 側の引き渡し票(TSK-563 発・2026-10-18。`feature-tsk545-game-en
 
 POが指名したTSK-544の実装担当は、2026-10-18の本枝の現行化を実施・記録して受諾済み。この指名を未決へ戻さない。FR-040延期・限定計画承認、P-1/P-3/P-4/P-5/P-9成立も維持する。最新develop `5bb1ff89306712c1de61c3a0152141c8f771b3a0` を取り込み、計画枝と正式正本の差分を別に保つ。
 
-Draft PR #153の公開HEADは`a5a2aa38005a0d1940692fb23ecc00d56c74a1d4`、コード/候補固定点は`5a9e37bd263787106f08bb05224f01333e79ffc3`。TSK-544正式カードへの送付コメント`3fd93b75-e687-81b7-ba17-001df82d8f4b`と[受渡し資料](../t2-provenance-checker/handoff-and-gates-2026-10-19.md)を確認した。送付は正式契約の受理ではない。#153はT2 provenanceの現物digestと旧署名の不一致を残すDraftで、P-8候補5件はfeature配下にあり正式行/case/schema/descriptorへ未適用。これを全P-8成立へ繰り入れない。
+Draft PR #153の公開HEADは`a5a2aa38005a0d1940692fb23ecc00d56c74a1d4`、コード/候補固定点は`5a9e37bd263787106f08bb05224f01333e79ffc3`。TSK-544正式カードへの送付コメント`3fd93b75-e687-81b7-ba17-001df82d8f4b`と、同PRの`docs/features/t2-provenance-checker/handoff-and-gates-2026-10-19.md`を確認した。送付は正式契約の受理ではない。#153はT2 provenanceの現物digestと旧署名の不一致を残すDraftで、P-8候補5件はfeature配下にあり正式行/case/schema/descriptorへ未適用。これを全P-8成立へ繰り入れない。
 
 | TSK-544として受け取る範囲 | 受理区分・残る境界 |
 | --- | --- |
