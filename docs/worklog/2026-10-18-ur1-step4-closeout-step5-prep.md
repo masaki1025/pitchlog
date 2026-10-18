@@ -17,6 +17,8 @@
 
 既存の[D4裁定案](../features/ur1-recording-rights/d4-decision-proposal.md)と[接続依存表](../features/ur1-recording-rights/port-connection-dependency.md)を引き継ぐ。方式調査を重複開始しない。別担当のTSK-250は永続化写像の正本、TSK-411は復元運用の後続担当で、D4生成アルゴリズム/物理出所の製品実装はU-R1。U-G1は試合開始transaction、U-S1は同期核。これらの担当worktreeを変更しない。
 
+追加の所有照合: NotionのD4非再利用調査検索ではTSK-411の復元手順カード以外に、採用済みの物理発行方式・専用実装担当の記録を確認できなかった。ローカル`probe/beta-d4`枝は2026-10-05の凍結受理ドライランで、D4発行源の調査枝ではない。別担当の未公開調査が存在する可能性は否定せず、新5着手時には提示された調査・裁定を先行資料として照合する。
+
 | 要素 | 既承認の意味・既存の器 | 新5着手前に必要な未承認の物理契約 |
 | --- | --- | --- |
 | D4 | `bigint`、rollback・過去backup復元後も再利用禁止。試合内`issuance_order`は別の単調列。現通常世代は試合内高々1件。`recording_generations.generation`/`issuance_order`は既存 | 復元外の予約源と永続化成功境界、応答不明時の識別・再照会、配置/障害時の停止、schema/API/認可/凍結資産。二台同期PostgreSQLは**推奨案で未採用** |

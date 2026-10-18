@@ -41,7 +41,7 @@ def issue_initial_recording_right(
 
 - RG1 は**二つの operation**に分ける。`read_rg1_open` は認可後・D5 の前に永続状態を**ロックせず**読む。`assert_rg1_open_before_commit` は同じ transaction のコミット直前に同じ状態行を共有ロックして再読し、そのロックを commit/rollback まで保持する。先の読み取り後に復元調整へ移行した場合は後者が検出して全取消。後者のロック取得後の移行は待機し、通常書き込みの確定が直列化順で先行する。初回から共有ロックを保持すると「事前検査後に移行→直前検査で全取消」の競合を実現できないため、その方式は採らない。`game_id=None` は試合作成前の共通ゲート、ID ありは認可済み試合の作成後変更。状態行の欠損・不明・読取失敗・調整中は再試行可能な例外（U-G1 で B7 相当、U-S1 の P3 は B10 へ写像）を返し、成功時は `None`。例外型・HTTP 写像は担当合意待ち。
 - `issue_initial_recording_right` は、U-G1 が認可し試合行を `FOR UPDATE` した同じ scope 内でだけ呼ぶ。対象が自テナントの `preparing` 試合で、通常現世代が存在しないことを検査し、初期通常世代 1 行を挿入する。戻り値は**コミット前の仮結果**であり、U-G1 は scope の正常終了後にだけ証明値を利用者へ返す。二重開始・不在・越境では追加発行しない。例外結果の詳細は担当合意待ち。
-- U-S1 向けには PortWriter の token 経由で現 D4/保持端末/V12、復旧世代と RG1 を判定する実装を U-R1 が提供する。U-S1 が独自に D4/V12/RG1 の規則を持たない。RG1 Port は `read_rg1_before_d5(writer: PortWriter) -> bool` と `check_rg1_before_commit(writer: PortWriter) -> bool` の 2 口を U-S1 が受理済み。後者だけが同一 RG1 行を `FOR SHARE` で再読する。`PortWriter.run_function(token)` は exact 固定関数 token を同一 scope の実行器へ渡す条件で受理済み。U-R1 が本物の port を登録する段階は承認済み計画の新ステップ 6 であり、**U-S1 全体の完成は本接続契約の受理条件ではない**。
+- U-S1 向けには PortWriter の token 経由で現 D4/保持端末/V12、復旧世代と RG1 を判定する実装を U-R1 が提供する。U-S1 が独自に D4/V12/RG1 の規則を持たない。RG1 Port は `read_rg1_before_d5(writer: PortWriter) -> bool` と `check_rg1_before_commit(writer: PortWriter) -> bool` の 2 口を U-S1 が受理済み。後者だけが同一 RG1 行を `FOR SHARE` で再読する。`PortWriter.run_function(token)` は exact 固定関数 token を同一 scope の実行器へ渡す条件で受理済み。U-R1 が本物の port を登録する段階は承認済み計画の**新ステップ 8**であり、**U-S1 全体の完成は本接続契約の受理条件ではない**。
 
 ## 3. 操作別の成功境界とロック順案
 
