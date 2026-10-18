@@ -32,6 +32,7 @@
 - ハーネス(リポジトリルートで): `uv run ruff check .` / `uv run ty check` / `uv run pytest tests/`(**`ruff format` は未導入 — 走らせない**。検査対象は `scripts/` と `tests/`)
 - バックエンド(backend/ で): `uv run ruff format` / `uv run ruff check --fix` / `uv run ty check` / `uv run pytest`
 - フロントエンド(frontend/ で): `pnpm exec prettier --write .` / `pnpm exec eslint .` / `pnpm exec vue-tsc --noEmit` / `pnpm test`
+- 一時ディレクトリ: pytest の basetemp は既定でディスク側へ移る(`~/.cache/pitchlog/pytest-tmp`。優先順は `PYTEST_DEBUG_TEMPROOT` > `PITCHLOG_PYTEST_TMPDIR` > `TMPDIR` > 既定 — pytest 自身の優先度に一致)。起動時に 3 日(`PITCHLOG_PYTEST_TMP_KEEP_DAYS`、0 で無効)より古い自前の世代(上書き・既定由来)を掃除する — **3 日を超えて走り続けた実行の世代は掃除の対象になりうる**。`PYTEST_DEBUG_TEMPROOT` や `TMPDIR` を明示した場合は移送も掃除も効かず、その配下には蓄積の上限が立たない(利用者の指定を尊重)。共有 /tmp が満杯になったときは、稼働中の pytest が無いことを確認して古い世代を手動で削除する(直近 3 世代は残す)
 - 開発 DB: `docker compose up -d`
 
 ## リポジトリ構成
