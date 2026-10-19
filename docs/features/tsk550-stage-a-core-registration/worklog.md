@@ -1,5 +1,10 @@
 # TSK-550 段階A起動入口のコア領域先行登録 作業ログ
 
+## 2026-10-19: 最新develop取り込みと競合解消
+
+- 本人逐行確認は未実施のまま、`origin/develop=ba339cf8`を通常mergeで取り込んだ。競合は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`の3ファイル。developのU-R1/RG1、LoginScreen、router/Appの登録を保持し、登録済みRG1とrouter/Appの宣言を追加層から回転させた。#158固有の`stage_a_startup.py`だけをgame-state・tenant-isolationの追加層に残し、両領域のJSON末尾へ各1件登録した。#158の宣言・JSON別コミット履歴は通常mergeで保持し、履歴を書き換えない。
+- 最新developの既定試験と#158の起動入口試験を統合し、宣言済み追加層・基線据置き・未宣言追加拒否・後続の試験パスへの回転を確認した。`uv run pytest tests/test_core_guard.py -q`は268成功、`uv run ruff check scripts/core_guard.py tests/test_core_guard.py`と`uv run ty check`は成功。コア領域の追加差分レビュー・PR最終HEADのCI・本人逐行確認は別ゲート。以前のレビューや本人確認をこの競合解消差分へ自動延長しない。
+
 ## 2026-10-19: 計画承認
 
 - 山田正輝が比較元`015dfa9d`、計画SHA-256 `8739118d47a2274371e40bebff44b0bd1ff9b29ec0e9df661ad91613aeaced95`の専用2ステップ計画を承認した。承認欄追記後のファイルSHAは承認対象の原案SHAと異なるため、原案の識別値をここに保持する。

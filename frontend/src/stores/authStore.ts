@@ -1,66 +1,25 @@
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref } from 'vue'
+import {
+  AUTH_INTENT_KEY,
+  AUTH_UNCERTAIN_KEY,
+  AUTH_UNCERTAIN_ACK_KEY,
+  readAuthUncertainty,
+  publishAuthUncertainty,
+  acknowledgeAuthUncertainty,
+  AuthEnvironmentError,
+  assertAuthIntentLockHeld,
+  readAuthIntent,
+  withAuthIntent,
+  writeAuthIntent,
+  type AuthEnvironmentReason,
+} from '../api/authIntent'
 import { queryClient } from '../lib/queryClient'
 
+/** 旧形式は移行時に破棄し、認証情報として復元しない。 */
 export const AUTH_STORAGE_KEY = 'bb.auth'
 
-type StoredAuth = {
-  version: 1
-  sessionId: string
-  teamName: string
-  teamId: string | null
-}
-
-const storageWarning = 'bb.auth の保存に失敗しました'
-const storedAuthKeys = ['version', 'sessionId', 'teamName', 'teamId']
-const sessionIdPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-
-function parseStoredAuth(raw: string): StoredAuth | null {
-  if (raw.length > 4096) {
-    return null
-  }
-
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
-    return null
-  }
-
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return null
-  }
-
-  const value = parsed as Record<string, unknown>
-  if (
-    Object.keys(value).length !== storedAuthKeys.length ||
-    !storedAuthKeys.every((key) => Object.hasOwn(value, key)) ||
-    value.version !== 1 ||
-    typeof value.sessionId !== 'string' ||
-    !sessionIdPattern.test(value.sessionId) ||
-    typeof value.teamName !== 'string' ||
-    value.teamName.length === 0 ||
-    (typeof value.teamId !== 'string' && value.teamId !== null)
-  ) {
-    return null
-  }
-
-  return value as StoredAuth
-}
-
-function removeStoredAuth(): boolean {
-  try {
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    return true
-  } catch {
-    console.warn(storageWarning)
-    return false
-  }
-}
-
 export const useAuthStore = defineStore('auth', () => {
-  // 新しいstoreは未検証。前providerのメモリcacheも認証の証拠にしない。
   queryClient.clear()
   const teamName = ref<string | null>(null)
   const teamId = ref<string | null>(null)
@@ -68,166 +27,287 @@ export const useAuthStore = defineStore('auth', () => {
   const hasHydrated = ref(false)
   const authEpoch = ref(0)
   const sessionVerified = ref(false)
-  const isAuthenticated = computed(
-    () => sessionVerified.value && teamName.value !== null,
-  )
-  let sessionId: string | null = null
-  let detached = false
-  let detachedRaw: string | null = null
+  const explicitLoginRequired = ref(false)
+  const automaticVerificationBlocked = ref(false)
+  const environmentReason = ref<AuthEnvironmentReason | null>(null)
+  const isAuthenticated = computed(() => sessionVerified.value)
+  let observedIntentId: string | null = null
+  let expectedTenantId: string | null = null
+  let observedLegacy: string | null = null
+  let observedNotice: string | null = null
+  let observedAck: string | null = null
+  let lastRejectedNoticeEvent: string | null = null
 
-  // 保存値は厳密に検査し、旧形式や壊れた値を認証状態へ取り込まない。
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (raw !== null) {
-      const saved = parseStoredAuth(raw)
-      if (saved === null) {
-        removeStoredAuth()
-      } else {
-        sessionId = saved.sessionId
-        // 保存値は認証の証拠にせず、変更検出用の識別値だけを保持する。
-      }
-    }
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    observedIntentId = readAuthIntent()?.intentId ?? null
+    const uncertainty = readAuthUncertainty()
+    observedNotice = uncertainty.notice
+    observedAck = uncertainty.ack
+    if (!uncertainty.confirmed) automaticVerificationBlocked.value = true
   } catch {
-    // ストレージを読めない場合は、未認証の初期状態を維持する。
+    // 復元はしない。具体的な環境失敗は認証操作で表示する。
   } finally {
     hasHydrated.value = true
   }
 
-  function beginAuthChange(): void {
+  const canReverify = computed(() => {
+    void authEpoch.value
+    if (explicitLoginRequired.value) return false
+    try {
+      const marker = readAuthIntent()
+      return (
+        marker?.tenantId !== null &&
+        marker?.tenantId !== undefined &&
+        (marker.phase === 'expected' ||
+          marker.phase === 'verification-required')
+      )
+    } catch {
+      return false
+    }
+  })
+
+  function discard(expired = false): void {
     queryClient.clear()
     authEpoch.value += 1
-  }
-
-  function enterDetachedState(): void {
-    detached = true
-    try {
-      detachedRaw = localStorage.getItem(AUTH_STORAGE_KEY)
-    } catch {
-      detachedRaw = null
-    }
-  }
-
-  function leaveDetachedState(): void {
-    detached = false
-    detachedRaw = null
-  }
-
-  function signIn(team: { teamName: string; teamId?: string | null }): void {
-    beginAuthChange()
-    sessionVerified.value = true
-    sessionId = crypto.randomUUID()
-    teamName.value = team.teamName
-    teamId.value = team.teamId ?? null
-    sessionExpired.value = false
-
-    try {
-      localStorage.setItem(
-        AUTH_STORAGE_KEY,
-        JSON.stringify({
-          version: 1,
-          sessionId,
-          teamName: teamName.value,
-          teamId: teamId.value,
-        }),
-      )
-      leaveDetachedState()
-    } catch {
-      // 前のチームの保存値が残ることを避ける。
-      try {
-        localStorage.removeItem(AUTH_STORAGE_KEY)
-      } catch {
-        // 警告は値や例外を含めず、まとめて一度だけ出す。
-      }
-      console.warn(storageWarning)
-      enterDetachedState()
-    }
-  }
-
-  function setUnauthenticated(expired: boolean): void {
     sessionVerified.value = false
     teamName.value = null
     teamId.value = null
-    sessionId = null
     sessionExpired.value = expired
   }
 
-  function clearAuth(expired: boolean): void {
-    setUnauthenticated(expired)
-    if (removeStoredAuth()) {
-      leaveDetachedState()
-    } else {
-      enterDetachedState()
+  function beginCorrelatedVerification(intentId: string | null): number {
+    discard()
+    observedIntentId = intentId
+    environmentReason.value = null
+    const marker = intentId === null ? null : readAuthIntent()
+    if (marker?.intentId === intentId && marker?.tenantId)
+      expectedTenantId = marker.tenantId
+    if (marker?.intentId === intentId && marker?.phase === 'pending')
+      explicitLoginRequired.value = false
+    try {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      observedLegacy = null
+    } catch {
+      /* 旧形式は認証へ採用しない。 */
     }
-  }
-
-  function beginSessionVerification(): number {
-    beginAuthChange()
-    clearAuth(false)
     return authEpoch.value
   }
 
-  function signOut(): void {
-    beginAuthChange()
-    clearAuth(false)
+  function adoptCorrelatedSession(
+    intentId: string,
+    tenantId: string,
+    name: string,
+    notice: string | null,
+  ): void {
+    // 公開旧signInを廃止。相関検査を行った同期lock内だけから採用する。
+    assertAuthIntentLockHeld()
+    const marker = readAuthIntent()
+    if (
+      marker?.intentId !== intentId ||
+      marker.phase !== 'expected' ||
+      marker.tenantId !== tenantId ||
+      name.length === 0 ||
+      observedIntentId !== intentId
+    )
+      throw new Error('認証意図とsessionを照合できません')
+    acknowledgeAuthUncertainty(notice)
+    observedNotice = notice
+    observedAck = notice
+    expectedTenantId = tenantId
+    teamId.value = tenantId
+    teamName.value = name
+    sessionVerified.value = true
+    sessionExpired.value = false
+    explicitLoginRequired.value = false
+    automaticVerificationBlocked.value = false
+    environmentReason.value = null
   }
 
-  function expireSession(): void {
-    beginAuthChange()
-    clearAuth(true)
+  function observeUnconfirmedIntent(intentId: string): void {
+    if (isAuthenticated.value) beginCorrelatedVerification(intentId)
+    else if (observedIntentId !== intentId) {
+      // cacheは既に破棄済みでも、確認待ちの旧要求と入力は新しい意図へ持ち越さない。
+      authEpoch.value += 1
+      observedIntentId = intentId
+    }
+  }
+
+  async function invalidateUncertainCookie(): Promise<void> {
+    let notificationFailure: unknown
+    // 通知保存が失敗しても、既存の意図無効化経路を独立に試みる。
+    try {
+      publishAuthUncertainty()
+    } catch (error) {
+      notificationFailure = error
+    }
+    try {
+      syncFromStorage()
+      await withAuthIntent((marker) => {
+        syncFromStorage()
+        // 1要求から1回だけ呼ぶ。異なる旧Cookie応答は未確認中でも新しい意図にする。
+        const next = writeAuthIntent(
+          'verification-required',
+          marker?.tenantId ?? null,
+        )
+        observeUnconfirmedIntent(next.intentId)
+        automaticVerificationBlocked.value = true
+      })
+    } catch (error) {
+      if (error instanceof AuthEnvironmentError)
+        failAuthEnvironment(error.reason)
+      else {
+        discard()
+        requireExplicitLogin()
+      }
+    } finally {
+      if (notificationFailure)
+        failAuthEnvironment(
+          notificationFailure instanceof AuthEnvironmentError
+            ? notificationFailure.reason
+            : 'storage-unavailable',
+        )
+    }
+  }
+
+  function requireExplicitLogin(): void {
+    explicitLoginRequired.value = true
+  }
+
+  function failAuthEnvironment(reason: AuthEnvironmentReason): void {
+    if (reason === 'lock-busy') {
+      let marker = null
+      try {
+        marker = readAuthIntent()
+      } catch {
+        /* 読取不能時は採用しない。 */
+      }
+      const required = explicitLoginRequired.value
+      const nextId = marker?.intentId ?? null
+      if (sessionVerified.value) beginCorrelatedVerification(nextId)
+      else if (nextId !== observedIntentId) {
+        authEpoch.value += 1
+        observedIntentId = nextId
+      }
+      explicitLoginRequired.value = required
+    } else {
+      discard()
+      explicitLoginRequired.value = true
+    }
+    environmentReason.value = reason
+    automaticVerificationBlocked.value = true
   }
 
   function syncFromStorage(): void {
-    let raw: string | null
+    let marker, legacy, uncertainty
     try {
-      raw = localStorage.getItem(AUTH_STORAGE_KEY)
+      marker = readAuthIntent()
+      legacy = localStorage.getItem(AUTH_STORAGE_KEY)
+      uncertainty = readAuthUncertainty()
     } catch {
-      if (!detached && isAuthenticated.value) {
-        // 認証済みで保存値を照合できないときは、保存値を触らず失効させる。
-        beginAuthChange()
-        setUnauthenticated(true)
-      }
+      if (sessionVerified.value) discard()
+      environmentReason.value = 'storage-unavailable'
+      explicitLoginRequired.value = true
+      automaticVerificationBlocked.value = true
       return
     }
-
-    if (detached) {
-      if (raw === detachedRaw) {
-        return
-      }
-      // 別タブの新しい保存値は採らず、認証状態だけを失効させる。
-      beginAuthChange()
-      setUnauthenticated(true)
-      detachedRaw = raw
+    const noticeChanged = uncertainty.notice !== observedNotice
+    const ackRegressed =
+      uncertainty.ack !== observedAck && !uncertainty.confirmed
+    if (noticeChanged || !uncertainty.confirmed) {
+      if (sessionVerified.value) discard()
+      else if (noticeChanged || ackRegressed) authEpoch.value += 1
+      observedNotice = uncertainty.notice
+      automaticVerificationBlocked.value = true
+    }
+    observedAck = uncertainty.ack
+    if (
+      sessionVerified.value &&
+      typeof globalThis.crypto?.randomUUID !== 'function'
+    ) {
+      failAuthEnvironment('identity-unavailable')
       return
     }
-
-    const saved = raw === null ? null : parseStoredAuth(raw)
-    if (raw !== null && saved === null) {
-      removeStoredAuth()
-    }
-    if ((saved?.sessionId ?? null) === sessionId) {
+    if (sessionVerified.value && !navigator.locks?.request) {
+      failAuthEnvironment('lock-unavailable')
       return
     }
+    if (
+      (marker?.intentId ?? null) !== observedIntentId ||
+      legacy !== observedLegacy ||
+      (sessionVerified.value &&
+        (marker?.phase !== 'expected' || marker.tenantId !== teamId.value))
+    ) {
+      const legacyChanged = legacy !== observedLegacy
+      discard()
+      observedIntentId = marker?.intentId ?? null
+      observedLegacy = legacy
+      automaticVerificationBlocked.value = true
+      explicitLoginRequired.value =
+        legacyChanged ||
+        !(
+          (marker?.phase === 'expected' ||
+            marker?.phase === 'verification-required') &&
+          marker.tenantId !== null &&
+          marker.tenantId === expectedTenantId
+        )
+    }
+  }
 
-    beginAuthChange()
-    // 別タブの保存値もサーバー確認までは採用しない。
-    setUnauthenticated(false)
-    sessionId = saved?.sessionId ?? null
+  // これらの既存APIは無効化だけを行い、検証済み状態を作らない。
+  function beginSessionVerification(): number {
+    try {
+      const marker = readAuthIntent()
+      return beginCorrelatedVerification(marker?.intentId ?? null)
+    } catch {
+      failAuthEnvironment('storage-unavailable')
+      return authEpoch.value
+    }
+  }
+  function signOut(): void {
+    discard()
+  }
+  function expireSession(): void {
+    discard(true)
   }
 
   function onStorage(event: StorageEvent): void {
-    if (event.key !== AUTH_STORAGE_KEY && event.key !== null) {
+    if (
+      event.key !== AUTH_INTENT_KEY &&
+      event.key !== AUTH_UNCERTAIN_KEY &&
+      event.key !== AUTH_UNCERTAIN_ACK_KEY &&
+      event.key !== AUTH_STORAGE_KEY &&
+      event.key !== null
+    )
       return
-    }
     try {
-      if (event.storageArea !== null && event.storageArea !== localStorage) {
+      if (event.storageArea !== null && event.storageArea !== localStorage)
         return
-      }
     } catch {
       return
     }
+    // 現在値を先に照合。既に処理した通知/ackの再配送で二重破棄しない。
+    const previousEpoch = authEpoch.value
     syncFromStorage()
+    // 設定→削除が配送前に終わっても、イベントは拒否だけに使う。
+    const noticeEvent =
+      event.key === AUTH_UNCERTAIN_KEY || event.key === AUTH_UNCERTAIN_ACK_KEY
+    const observed =
+      event.key === AUTH_UNCERTAIN_KEY ? observedNotice : observedAck
+    const fingerprint = `${event.key}:${event.newValue}`
+    if (
+      noticeEvent &&
+      event.newValue !== observed &&
+      fingerprint !== lastRejectedNoticeEvent
+    ) {
+      lastRejectedNoticeEvent = fingerprint
+      if (authEpoch.value === previousEpoch) {
+        if (sessionVerified.value) discard()
+        else authEpoch.value += 1
+      }
+      automaticVerificationBlocked.value = true
+    }
   }
-
   window.addEventListener('storage', onStorage)
   onScopeDispose(() => window.removeEventListener('storage', onStorage))
 
@@ -238,7 +318,16 @@ export const useAuthStore = defineStore('auth', () => {
     hasHydrated,
     authEpoch,
     isAuthenticated,
-    signIn,
+    explicitLoginRequired,
+    automaticVerificationBlocked,
+    environmentReason,
+    canReverify,
+    beginCorrelatedVerification,
+    adoptCorrelatedSession,
+    observeUnconfirmedIntent,
+    invalidateUncertainCookie,
+    requireExplicitLogin,
+    failAuthEnvironment,
     beginSessionVerification,
     signOut,
     expireSession,

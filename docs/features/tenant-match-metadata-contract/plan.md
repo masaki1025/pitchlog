@@ -1,9 +1,9 @@
 ---
 feature: tenant-match-metadata-contract
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝)
 重さ分類: コア領域
-worktree: /tmp/pitchlog-tenant-match-metadata-contract
+worktree: /home/ymdms/projects/pitchlog-worktrees/feature-tenant-match-metadata-contract
 notion: "U-F13（TSK-528）追補 C2"
 branch: feature/tenant-match-metadata-contract
 created: 2026-10-14
@@ -31,6 +31,12 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 3. C1 が検証済み tenant ID を U-F2 store に供給する契約として統合済みである。
 4. PR #129・#131・#132の共有凍結資産の所有と統合順が確定している。
 5. header、literal、適用route、error/ackの意味を本計画の承認対象として人間が承認している。
+
+## 2.1 影響する正本
+
+正本への反映なし。承認済みmetadata契約の製品追随として、要件/design/ADR/development/opsの正本は改訂しない。
+
+正本体系外だが同じPRで更新するもの：backendのtenant_access・app応答middleware・errors・players/team-records routersとAPI/roster/auth出口の固有試験、frontendの単一client・roster・既存管理画面のretry/結果未確認境界と各spec、本計画/research・接続判断資料・未承認のC1最小追補案・PR準備資料、C1の完了記録、U-F13の依存記録、作業ログ。追補案の同梱は製品への採用ではない。共有凍結資産/認可catalog/権限・DTO・operation_idは不変で、実検査で必要が判明した差分だけを個別ゲートへ提示する。
 
 ## 3. 承認対象となる metadata 契約
 
@@ -114,14 +120,14 @@ U-F5 が使う tenant-bound APIで、clientが保持する検証済みtenant ID�
 
 ## 9. DoD
 
-- [ ] 7routeすべてで業務operation前にexpected tenantを照合する。
-- [ ] mismatch時にrepository/transaction/mutationが0件である。
-- [ ] success ackは比較とoperationの両方が成功した2xxだけにある。
-- [ ] 2xx ack/challenge欠落・不正・別要求値を本文返却前に拒否する。
-- [ ] A→B切替中のAの遅延response/mutationがBの画面/cache/noticeを変更しない。
-- [ ] 結果未確認mutationを成功表示・自動再送しない。
-- [ ] 7routeが`Cache-Control: no-store`を返し、要求ごとのchallenge exact matchによりAの過去2xxをB要求へ注入する故障を拒否する。
-- [ ] DTOへtenant IDを追加せず、header値を表示・log出力しない。
+- [x] 7routeすべてで業務operation前にexpected tenantを照合する。
+- [x] mismatch時にrepository/transaction/mutationが0件である。
+- [x] success ackは比較とoperationの両方が成功した2xxだけにある。
+- [x] 2xx ack/challenge欠落・不正・別要求値を本文返却前に拒否する。
+- [x] A→B切替中のAの遅延response/mutationがBの画面/cache/noticeを変更しない。
+- [x] 結果未確認mutationを成功表示・自動再送しない。
+- [x] 7routeが`Cache-Control: no-store`を返し、要求ごとのchallenge exact matchによりAの過去2xxをB要求へ注入する故障を拒否する。
+- [x] DTOへtenant IDを追加せず、header値を表示・log出力しない。
 - [ ] コア adversarial review、反対側レビュー、人間逐行確認、server/client品質gate、越境試験、凍結資産検査を通す。
 
 ## 10. 人間承認が必要な判断
@@ -153,3 +159,37 @@ C1ステップ1はPR #144 / develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`�
 ### C1遅延Cookie追補の接続条件（2026-10-17）
 
 山田正輝がC1の安全側への例外を承認した。旧login/logoutのCookie変更可能性を観測した場合、新世代も`verification-unknown`へ戻しcacheを破棄する。旧ユーザー/tenant/成功は採用せず、tenant-bound通信を止め、明示session GETだけで再確認する。資格情報やmutationの自動再送は行わない。UIは`stale`だけでなく新世代の`verification-unknown`も成功として扱わず、結果epochを照合する。C2はこの破棄境界を維持して業務operation前の応答tenant照合を追加する。C1が共有client/storeを一時所有し、統合後に後続が基線から引き継ぐ。今回C2/U-F3/保護routeの製品実装は行わない。
+
+## 13. C1統合後の開始条件・所有（2026-10-18）
+
+PR #147の実統合SHA493342be37d4383ca572f8d1c826a3f184a4d213を最新developとして再照合した。C1ステップ2の完了を確認し、C1待ちは解消した。PR #119/#129/#131/#132/#137および共有実行器Aは統合済みの資産だけを利用し、未統合PR #143の候補は基線に含めない。
+
+山田正輝はC2/U-F3の実装・関連試験・既定レビュー・PR準備、その後のU-F13接続と専用環境の通し試験まで自律進行を指示した。各ステップ別の検証/コミットを維持し、以前の最初のステップのみという停止条件を今回の指示の範囲で解消する。人間逐行確認・正式受理・公開・マージを代行しない。U-F13の既定統合順は維持する。
+
+C2は既存tenant_access、players/team-records router、共通app応答middleware/errorsの必要最小限とbackend固有試験、およびfrontend共通client/roster・既存TeamScreen/TeamMembersContentのretry/結果未確認境界と固有specを所有する。C1のauth.ts/authStore.ts、共有Pinia/QueryClientは変更しない。U-F3はLoginScreen/固有specだけを独立所有し、route登録はU-F13が所有する。
+
+open PR #143はcore-areas.json/core_guard.py/test_core_guard.pyとrepository/authzの共有凍結資産を所有している。本C2は当該共有資産を変更しない。7routeのoperation_id/経路/DTO/認可対象/DB実行器/権限は不変であり、既存HTTP境界へ承認済みmetadata照合を追加する。必要な資産差分が実検査で判明した場合だけ、具体差分の正式ゲートを維持する。
+
+## 14. 実装2ステップの成果・PR準備（2026-10-18）
+
+ステップ1を97c7a7fd、ステップ2をc9664747へ別コミットした。製品検査基準HEADはc9664747ad85c0e8623d4df3803a55cec7ec8e8b。backend全2,981成功/4 skip（2,985収集、36分25秒）、root全29,668成功/2 skip、frontend全69ファイル1,279成功。各層の型/lint/整形、frontend build/dependency/closureも成功。backend固定9ファイルの開始/終了hash一致と隔離クラスタ撤去を確認した。skip4は製品化後には行わない既存切替dry-runで、RLS/application role/TOCTOU/認証出口/C2照合はskipなし。
+
+同実HEADでtenant-boundary・frozen invariants・authz catalog成功。基線core検査成功、製品/試験17ファイル検出、本人逐行確認未記入なら17件すべて拒否を確認した。共有registry/認可/凍結/guard資産は未変更。最終sourceのroute hookと2xx解釈失敗分類等は既定2周後の未再レビュー差分として人間確認へ残す（PR準備資料/作業ログ参照）。
+
+PR準備のためin-reviewへ移すが、人間逐行確認・CI・公開・マージの完了ではない。通常push/PR作成は未実施。TSK-528全体、U-F3のcore登録、U-F13の接続/実画面/API/DB通し、TSK-520の実API受入は未完了。別件Cookie追補初案の否決と、login/session相関に関する追加判断を本C2へ無断で実装しない。
+
+
+## 15. 最新基線と再検証・現在の待ち（2026-10-18）
+
+PR #143は`156dd139a893845428a1ecab69632143f7694e0b`へ実統合済みで、本branchは通常merge済み（製品検査HEAD `77d20da729994564b802cb33fbf14dc9ef26785d`）。旧/tmp worktreeの消失後、コミット済み成果をディスク側へ復元した。C1/#119/#129/#131/#132/#137/#143の統合待ちを現在の停止理由にしない。17製品/試験ファイルのSHA-256は固定済みで、その後の記録更新で製品を変えない。
+
+最新基線のfrontend69ファイル1,279成功、root全29,670成功/2 skip、型/lint/整形/build・tenant境界・frozen不変量・認可catalog成功。backend全件は外部venvリンク構成のため子変異試験のartifact fixtureが失敗（3,030成功/2失敗/4 skip）。通常位置へvenvを再作成し、変異module全7成功を確認、期待値や検査器を変えず3,036件の全件を専用clusterで再実行中。全件の失敗・中断を成功と記録しない。
+
+C2の承認済み2ステップと既定2経路各2周の採否は維持する。未再レビューの最終反映は引き続き本人確認対象。新しいlogin/session相関候補は別の未承認C1局所追補であり、本C2に新DTO・新storage契約・ACLを混ぜない。共有clientは本C2の入力固定後にだけ次所有へ渡し、U-F3は画面/spec、U-F13はrouter/App/core3ファイルを順次所有する。550/D4/544/545を本縦断の待ちにしない。push/Draft PR作成・本人確認・公開・マージは今回の検証結果で代行しない。
+
+
+### 最新基線の再検証完走・引渡し（2026-10-18）
+
+同じ固定製品HEAD`77d20da729994564b802cb33fbf14dc9ef26785d`のbackend全3,036件は、3,032成功/4 skip/1 warning、2534.68秒、終了コード0で完走し専用clusterを撤去した。root全29,670成功/2 skip、frontend69ファイル1,279成功と合わせ、最新develop156dd139上のローカル全件検査を完了した。環境不備の失敗・中断履歴は保持し、除外・timeout・検出・人間確認の検証を弱めていない。
+
+17製品/試験blobは検査開始時のmanifestと同一。基線検査成功、17件コア検出、本人欄未記入で拒否を再確認した。全差分26ファイルを本人対象とし、既定レビュー後の未再レビュー反映を含める。製品/clientの編集をここで固定し、次の局所追補へ所有を渡す場合も新契約の承認と固定コミットを前提にする。push/Draft PR作成の許可、本人逐行確認、CI、U-F13結合/実ブラウザ受入、公開・マージは未実施。

@@ -1,6 +1,7 @@
 """チームのログイン経路を提供する。"""
 
 import ipaddress
+import logging
 from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
@@ -21,13 +22,14 @@ from pitchlog.api.schemas.auth import (
 from pitchlog.api.tenant_access import require_tenant_access
 from pitchlog.authz.password_change import change_password_token
 from pitchlog.authz.team_login import get_login_connection, login_attempt
-from pitchlog.authz.verified_tenant import logout_token
+from pitchlog.authz.verified_tenant import logout_token, verify_tenant_id
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tenant_profile import TenantProfileReadToken
 from pitchlog.repositories.transaction import tenant_transaction_scope
 
 router = APIRouter(tags=["認証"])
 _COOKIE_NAME = "__Host-pitchlog_token"
+_LOGGER = logging.getLogger(__name__)
 
 
 def _source(request: Request) -> str:
@@ -70,7 +72,22 @@ async def login(
             await anyio.sleep(result / 1000)
         raise HTTPException(status_code=401)
 
-    value, expires_at = result
+    value, _issued_expires_at = result
+    # 発行済み提示値を既存の署名・DB境界で照合し、入力名からIDを推測しない。
+    try:
+        verified = await run_in_threadpool(
+            lambda: verify_tenant_id(
+                value, request.app.state.token_presentation, get_login_connection()
+            )
+        )
+    except Exception as error:
+        # 値・例外本文・tracebackを記録しない。
+        _LOGGER.warning("ログインの追加照合を完了できません (%s)", type(error).__name__)
+        verified = None
+    if verified is None:
+        # 先行するtoken発行transactionまで全取消になったとは主張しない。
+        raise HTTPException(status_code=503)
+    tenant_id, expires_at = verified
     max_age = max(0, int((expires_at - datetime.now(UTC)).total_seconds()))
     response.set_cookie(
         key=_COOKIE_NAME,
@@ -81,7 +98,7 @@ async def login(
         httponly=True,
         samesite="strict",
     )
-    return LoginResponse()
+    return LoginResponse(tenant_id=tenant_id)
 
 
 @router.get(

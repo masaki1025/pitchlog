@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from pitchlog.api.request_presentation import RequestGateError
 from pitchlog.api.schemas.base import ErrorDetail, ErrorEnvelope, ErrorField
+from pitchlog.api.tenant_access import tenant_match_response_headers
 
 _LOGGER = logging.getLogger(__name__)
 _VALIDATION_ERROR_MESSAGE = "入力に誤りがあります"
@@ -143,7 +144,11 @@ async def _unhandled_exception_handler(
         固定文言だけを含む 500 応答。
     """
     _LOGGER.exception("未捕捉例外を処理しました。")
-    return _error_response(status_code=500, message=_INTERNAL_SERVER_ERROR_MESSAGE)
+    response = _error_response(status_code=500, message=_INTERNAL_SERVER_ERROR_MESSAGE)
+    response.raw_headers = tenant_match_response_headers(
+        _request.scope, response.status_code, response.raw_headers
+    )
+    return response
 
 
 async def _team_delete_exception_handler(

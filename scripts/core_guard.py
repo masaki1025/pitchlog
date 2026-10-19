@@ -51,33 +51,6 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
     "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
     "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
-    "sync-protocol": (
-        "backend/src/pitchlog/repositories/rg1.py",
-        "backend/src/pitchlog/repositories/operation_registry.py",
-        "backend/tests/test_rg1_*",
-        "contracts/tenant_boundary/repository-contract.json",
-        "contracts/tenant_boundary/base-allowlist.json",
-        "contracts/authz/product/function-bodies/*rg1*",
-    ),
-    "recording-rights": (
-        "backend/src/pitchlog/repositories/rg1.py",
-        "backend/src/pitchlog/repositories/operation_registry.py",
-        "backend/src/pitchlog/authz/classification.py",
-        "backend/src/pitchlog/authz/product_control_access.py",
-        "backend/src/pitchlog/authz/product_table_access.py",
-        "backend/src/pitchlog/authz/product_catalog.py",
-        "backend/src/pitchlog/authz/product_provisioning.py",
-        "backend/src/pitchlog/authz/product_function_acl.py",
-        "backend/tests/test_rg1_*",
-        "contracts/authz/product/ddl-elements.json",
-        "contracts/authz/product/table-classification.json",
-        "contracts/authz/product/exposure-facts.json",
-        "contracts/authz/product/function-bodies/*rg1*",
-        "contracts/tenant_boundary/repository-contract.json",
-        "contracts/tenant_boundary/base-allowlist.json",
-        "scripts/check_authz_catalog.py",
-        "tests/test_check_authz_catalog.py",
-    ),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
