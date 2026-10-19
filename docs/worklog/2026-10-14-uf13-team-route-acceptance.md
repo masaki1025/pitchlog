@@ -450,3 +450,82 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 前HEADの最終検査：ローカルroot 29,668 passed/2 skipped、両CI root 29,409 passed/2 skipped、backend 2,523 passed/4 skipped・coverage89%、frontend68ファイル1,237 passed。全必須チェックの成功前に完了やDraft解除を記録しない。
 - 既存履歴の別1件は同期故障試験の母集合における固定試験ID。backend/frontend双方のペア集合検査用途を照合し、詳細をstep2-gitleaks-decision.mdへ固定した。この1件は未判定・未登録で、承認済み2件と別管理する。
 - 新HEADの通常push・PR CI更新を進め、全必須チェック成功後だけDraft解除する承認を受領。マージ・公開、C2/U-F3実装は行わない。台帳への追記なし：既存の誤検知登録運用の承認反映であり、新たなハーネス知見は追加しない。
+
+### C1ステップ2統合完了・C2/U-F3への引継ぎ（2026-10-18）
+
+PR #147は実SHA493342be37d4383ca572f8d1c826a3f184a4d213へ統合。最終d56c178eの必須チェック成功、本人完了回答の対象a3934fb7全18ファイル（方法未申告）、承認済みhash2件限定登録、既済みレビュー採否を照合しC1ステップ2を完了とした。C1待ちとC1一時所有を解消し、clientはC2へ、auth/storeは後続による単一実装再利用へ移る。
+
+C2/U-F3からU-F13接続と実画面/API/DB通しまでの自律指示を受領。非共有実装は専用worktreeで並行し、接続は確定C2契約に従う。現在open PRは143/142/138で、C2/U-F3同範囲のPR/worktreeは無い。#143が共有core3ファイルとauthz/repository凍結資産を所有するため無断変更しない。agmsgは本プロジェクトの登録が無く別チーム候補のみだったため未登録の送信や所有移管を行わず、open PR/worktreeの実差分から所有を照合した。
+
+U-F3は経路未登録の正規auth接続と24固有試験/全frontend1,261試験が成功。C2は共通server metadata境界と7routeを実装し、backend対象365件の初回検査が成功、frontend固有185件/追加56件が成功。最終全検査・正式レビュー・機械core登録・本人確認/統合/通し受入は未了であり、完了を先行記録しない。TSK-528/TSK-520全体未完了を維持する。
+
+### 2026-10-18 C2正式レビュー採否と最終試験追随（Codex D）
+
+- 第1周: 正規ラッパーによるCodex敵対はP0=0/P1=0/P2=0、実Claude反対側は可決表記P0=0/P1=1/P2=3。P1（valid mutation本文＋不正metadataのoperation 0証跡）とP2三件（C1本人確認HEAD限定、researchのroute class追随、ログDEBUG捕捉）をすべて採用した。本人確認は`a3934fb7`全18ファイルの既存回答に限定し、方法を推定していない。plan statusは規約どおり`in-review`を維持した。
+- 第2周は修正差分と影響箇所だけを対象とし、Codex敵対P0=0/P1=0/P2=0、実Claude反対側P0=0/P1=0/P2=1。残P2は正常本文ケースで一覧queryの必須limitが不足する点で、正本schemaの既定なしを実確認して採用した。`bad_input="query"`以外ではvalid `limit=20`を送り、metadata故障だけを与える。動的kwargsのty指摘8件は明示json/content keywordへの等価変更で解消し、型検査抑制は加えていない。
+- 最終候補のmetadata module全448件成功（5.58秒）、backend Ruff/format/ty成功、diff check成功。並走中の全backendは変更前module343件を収集済みであり、その結果を修正後448件の全件証跡へ読み替えない。同worktreeで修正後moduleを独立再検査した。製品sourceはレビュー後不変で、frontend全69ファイル1,272件成功、型/lint/build/depcruise成功を維持する。
+- レビュー上限に従い追加周は実施していない。最後のvalid query limit追加とty互換keyword化は未再レビューの最終反映として人間逐行確認対象に残す。レビュー結果を本人逐行確認・公開・マージへ流用しない。
+- 旧protected/session応答のSet-Cookie巻戻りは両レビューが既存契約の残余と判断した。C2の7経路は検証済みBに対してCookie Aならoperation前404で拒否する。Bのsession確認前の巻戻りまで解消済みとは扱わず、認証state無効化や延長Cookie規則の拡張はPO判断に残す。
+- 実行証跡は`/home/ymdms/.cache/pitchlog/c2-reviews/round1-*`・`round2-*`・`final-metadata-*`に固定。Codex第2周log SHA-256 `d662a6385140b1e7d9d7a587419673ea023c6cf06e1979f0dfa323b383469138`、Claude第2周log SHA-256 `bcb4a30975e91c55d15f540cfe06fc09791e24bd53851b5e54cf3e460c721b82`。コミット・push・PR操作は本レビュー担当では実施していない。
+
+### C2最終sourceのHEAD依存検査と標準route hookへの追随
+
+- 上の「製品sourceはレビュー後不変」は第2周直後の記録。その後、未コミット製品5ファイルを独立した一時Git候補724390feへ固定して、コミット済みHEADを走査するtenant-boundary検査を実行したところ、`original(request)`の閉包callableがTB007で拒否された。以前の実branch HEAD検査成功を未コミット製品差分の合格へ読み替えない。検査器・allowlist・共有凍結資産を変更して通すことはしない。
+- `TenantMatchedRoute`を標準`APIRoute.handle` overrideへ等価移動した。対象7 operationかつmethod一致時だけCookie/CSRF/context/metadataを評価し、標準`super().handle`へ渡す。method/path不一致は既存405/404、対象外routeは元の認証/validationを維持する。本文・業務operation前という承認済み優先順位を変えず、FastAPIハンドラをコピーしない。
+- 最終metadata458件（従来448件+method/path境界10件）、tenant access5件、roster25件の計488件が17.39秒で成功。Ruff format/check・backend全tyも成功。並走中の全backendは旧source・旧343metadata件を収集済みなので、新source全件成功とは扱わない。最終sourceの実DB auth出口6件を別途必須として実施する。
+- 最終製品/試験17ファイルを固定した一時候補f4a5c7c973dfa02a5b407f9fa7eed243333f0f3cで、core基線検査成功・17ファイル検出・本人逐行確認未記入なら17ファイルすべて拒否を確認した。これは検査用detached履歴でありfeature branchの完了ステップとはしない。通常ブランチの最終コミット後にも同じHEAD依存検査を行う。
+- 追加の第3周は行わない。標準route hookへの追随、method/path試験10件とresearch更新を、既定上限後の未再レビュー差分として人間逐行確認へ明示する。既存2周の可決を、この後追加差分の独立レビュー済みと偽らない。
+
+### 全件候補の固定と、別件Cookie追補案の初回レビュー
+
+- 旧sourceのbackend全件は441成功・失敗0の時点で正常中断（2870収集、22分26秒、exit2）し、専用クラスタをfinallyで撤去した。製品不具合やtimeoutによる中断ではない。標準handleとmetadata458件へ固定した最終sourceで、別専用クラスタ・並列1の全2985件を再開始した。最終sourceのauth出口6件・login6件は成功済みだが、全件完走前にステップ1完了とは記録しない。
+- root初回は29,665成功・2 skip・3失敗、20分22秒。source更新中のcensus比較が旧閉包の走査結果を保持し、現sourceの行位置と不一致になった。source固定後の同3件は3成功（169.57秒、他57件は当該診断実行の非選択）となった。全件成功へ読み替えず、CPU12・利用可能メモリを確認してroot全件を4並列で再開始した。試験・timeout・期待値の緩和なし。
+- Cookie追補案の初回レビューは、今回のC2/U-F3実装レビューの第3周ではなく、未承認の新しい局所契約案だけへの独立レビュー。実Claude・正規Codexとも否決した。背景タブではCookie適用とJS通知をepochだけで結べず、7経路外のCookie更新、旧403/405、再確認状態の寿命、採用先C1計画への対応が不足した。全指摘を採用し、初案を製品へ入れない。
+- 詳細はC2 feature内`auth-cookie-uncertainty-review.md`へ固定。既受理C1や承認済みC2の7経路を一括未了へ戻さず、NFR-011のスライディング延長も変更しない。公開前の追加方向としてlogin/session相関を保証する最小C1追補の具体化を提示する。具体DTO/header/literal・権限・凍結改訂は未承認/未実装。共有core3ファイルと他担当PRの編集も行っていない。
+- 台帳への追記なし。新規ハーネスではなく、既存HEAD依存検査・source固定・既存レビューと個別ゲートを用いるタスク内の是正である。Claude向け申し送りは本コミット対象worklogへ集約し、別ファイル復元とは扱わない。
+
+### C2のroot完走と最終mutation分類
+
+- source固定後のroot全件が29,668 passed / 2 skipped、900.57秒、exit0で完走した。Ruff/ty・正本同期も成功。最初の3失敗を環境timeoutや試験除外で隠さず、censusの同3件成功と全件再成功をそれぞれ記録した。
+- 最終照合で、正しいack/challengeでも2xxの本文をJSON等として解釈できないmutationが汎用失敗文言へ落ちることを確認し、承認済みの結果未確認契約に合わせて2xxのApiErrorも5xxと同じ不明結果へ分類した。変更は既存TeamMembersContent製品/specの2ファイルのみ。server/auth/store/共有資産を変更しない。
+- 固有23件・全frontend69ファイル1,279件（70.31秒）、Prettier/ESLint/vue-tsc/dependency-cruiser/build/closure/diff成功。実clientを使う200/201のinvalid JSON・text本文、遅延した解釈失敗とtenant切替を検証し、送信1回・success notice0・cache invalidation0・cache保持・一覧自動再取得0を確認した。
+- この最終分類と試験も既定2周後の未再レビュー差分として人間逐行確認へ含め、追加正式レビューは行わない。backendの固定9ファイルは変更しておらず、最終sourceでの全件検査を継続している。
+
+### C2ステップ別コミット・全品質完走・最終申し送り
+
+- ステップ1を`97c7a7fd`、ステップ2を`c9664747ad85c0e8623d4df3803a55cec7ec8e8b`へ別コミットした。最終backendは2,985収集=2,981 passed/4 skipped、2,185.55秒、exit0。Ruff format/check・ty成功、製品5+試験4の開始/終了SHA一致、専用クラスタ撤去完了。4 skipは`test_authz_runtime_contract_switch.py`の製品化済み切替dry-runだけで、RLS/application role/TOCTOU/認証出口/C2照合はskipなし。共有DBは変更しない。
+- root29,668 passed/2 skipped、frontend69ファイル1,279 passed、型/lint/整形/build/dependency/closure成功を回収した。旧backend441成功の中断、root初回3失敗、診断3成功、最終全件成功を別記録で保持し、試験除外やtimeout変更で通していない。
+- 製品固定の実branch HEAD c9664747でtenant-boundary、frozen invariants、authz catalog成功。core基線成功・17製品/試験ファイル検出・本人確認未記入なら全17件拒否を確認。再fetch後のorigin/developは493342beでHEADの祖先、競合なし。検査用detached worktreeはclean確認後撤去した。
+- 計画はPR準備のin-reviewへ移し、実装/ローカル検査のDoDだけを記録した。C2本人対象は製品9・試験8・資料9の全26ファイルで、標準route hook、valid本文/query追加、2xx本文解釈失敗分類等の上限後未再レビュー差分を明示。本人チェック・対象/範囲/方法欄は未記入。C1の本人回答はC2へ流用しない。通常push・PR作成・CI・公開・マージは未実施。
+- U-F3は別worktreeのHEAD `18e5ea0f8db90ae6ef5f393946750e68659e8233`へ実装/資料をコミット済み。経路未登録LoginScreen、固有30件/全1,267件と型/lint/build成功、既定2周指摘全採用。coreの`LoginScreen*`未登録と本人6ファイル確認は未了でactiveを維持する。U-F13専用worktreeは最新developへfast-forwardし、HEAD a7bf780eで#119/C1の充足済み開始条件を明記したが、router/Appは未変更。
+- 次の新規判断は、LoginScreen1パターンのT登録追補と#143共有3ファイルの順序、ならびにCookie追補初案の否決を受けたlogin/session相関契約の具体化。既承認router/App登録や既受理C1を再承認待ちには戻さない。未統合の他担当branchを基線にせず、#143資産を無断編集しない。U-F13のC2/U-F3着地条件、15経路+catch-all残部、TSK-520実API受入は未完了。実画面→実API→実DBの通し試験は未実施であり、ブラウザの存在確認を受入証跡にしない。
+
+
+## 2026-10-18: C2最新基線の現在地・引継ぎ更新
+
+C2は156dd139基線へ通常merge済み、固定製品HEAD77d20da7。旧/tmp成果はコミットからディスク側worktreeへ復元し、17製品/試験blobのSHA-256を保持。最新frontend1,279成功、root全29,670成功/2 skip、型/lint/build/tenant-boundary/frozen不変量/認可catalog/plan正本同期成功。backend環境不備2件（3,030成功/2失敗/4 skip）は通常venvへ修正し、変異module7成功を確認して全3,036件を再実行中。全件greenやCI成功へ代用しない。
+
+C1/#119/#143等の解消済み統合待ちを現行の停止理由から外し、shared client=C2、LoginScreen=U-F3、router/App/core3=U-F13の順で所有を固定した。C2への新auth DTO/保存契約の追加なし。C1相関の未承認具体候補はU-F13 branch379aef25へ一本化し、既C1の受理やC2/U-F3レビューを再承認待ちへ戻さない。push/Draft PR作成・本人逐行確認・公開・マージはまだ代行しない。
+
+
+## 2026-10-18: C2最新候補の全件再成功・Claude向け申し送り
+
+- 製品検査HEAD77d20da729994564b802cb33fbf14dc9ef26785d、実基線156dd139a893845428a1ecab69632143f7694e0b。通常backend/.venvと既存の隔離PostgreSQL fixtureを使い、全3,036件を除外なしで再実行。3,032 passed / 4 skipped / 1 warning、2534.68秒、exit0。専用cluster撤去を確認した。
+- root全29,670成功/2 skip、frontend全69ファイル1,279成功、各型/lint/整形/buildとtenant境界/frozen/認可catalogも成功。skip4は既存製品化後切替dry-run、warning1は既存db_fixtures再読込。前段の環境不備2件・中断・root初回失敗を履歴から消さない。既存DBや他担当worktreeを変更しない。
+- 最終source17ファイルのSHA-256が固定manifestと同一。全26変更パスのcore機械検出17件、基線成功、本人未記入なら17件すべて拒否。未再レビュー反映を含む全26件が本人確認対象で、方法は推定記入しない。
+- C2の承認済み2ステップと既定レビュー採否は維持する。C1/#119/#143待ちは解消済み。U-F3は別の固定候補で全件検査済みだがLoginScreen*のT登録不足、U-F13は宣言ステップ1だけ。新login/session相関候補は別の人間判断でありC2へ混ぜない。
+- 既存の他PR向け許可を本C2へ流用せず、通常push/Draft PR作成は未実施。CI・本人確認・実画面/API/DB通し・TSK-520受入・TSK-528全体・公開・マージは未完了。申し送りはこのコミット済み作業ログへ集約する。
+
+
+### C2 Draft作成の承認反映
+
+2026-10-18、山田正輝が現承認済み範囲の通常push/Draft PR作成を許可。C2はローカル全件と既定レビュー採否が揃ったため既定/pr手順で進める。新C1相関は混ぜず、人間チェック欄は未記入、公開・マージはしない。台帳への追記なし（既存ゲートの局所運用）。
+
+
+## 2026-10-19: マージ許可後のC2追随
+
+山田正輝が#157→#150→#151→#154のマージを許可。#157は実統合a87510e6c431fbb4ee14c91775204a5c91bec745で完了。C2はこの実developを取り込み、事前報告のclient.ts/roster.spec.ts/TeamMembersContent.spec.ts競合を解消した。承認済み専用結合9e85fd66のC2所有5ファイル（上記3件、client.tenant.spec.ts、TeamScreen.spec.ts）とbyte一致させ、680c2a27のmetadata不正時無効化、C1のCookie observer、厳密fixture/通知相関を同時に保持した。未統合枝を基線へmergeしていない。
+
+既存本人確認の旧HEAD3eb3a0d3から製品/試験差分があるため、今回のマージ許可を新HEADの本人逐行確認実施済みとは記録しない。各2/2のレビュー使用履歴を維持し、後発追随は未再レビューとして新差分資料へ提示する。自チームAPIの未承認差分は追加しない。
+
+C2追随のローカル検査: frontend70ファイル1,323成功（70.93秒）、Prettier/ESLint/vue-tsc/build/製品閉域検査成功。docs-status20件違反0、plan-docs-sync・diff検査成功。backend製品はC2既検査候補とC1実統合の合成であり、最終HEADのCIを別に回収する。

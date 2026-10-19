@@ -31,8 +31,8 @@ created: 2026-10-14
 **製品実装の開始条件**:
 
 1. adversarial review 2 周の採否記録と最終 C2 反映差分を人間が確認し、本計画を承認する。**2026-10-14 承認済み**。
-2. PR #119 が develop へ統合される。
-3. C1（認証成功から検証済み tenant ID を供給）が承認済み契約として develop に着地する。
+2. PR #119 が develop へ統合される。**充足済み**（8294a1b602ae1c99d6d10d02780fa8fcfc7e8e24）。現行の待ちから除外する。
+3. C1（認証成功から検証済み tenant ID を供給）が承認済み契約として develop に着地する。**充足済み**（#144と#147、最終493342be37d4383ca572f8d1c826a3f184a4d213）。現行の待ちから除外する。
 4. C2（応答 tenant の独立証跡と U-F6 client の exact match）が承認済み契約として develop に着地する。
 5. C3（U-F3の`LoginScreen`、失敗表示、C1 auth clientへの接続）がdevelopに着地する。`api/auth.ts`はC1、`/login`と`/team`のroute登録は本計画ステップ2/3が所有する。
 
@@ -191,3 +191,9 @@ C1ステップ1はPR #144 / develop `3052e0db743877c7f15c0ec10daa0142cba7ab7e`�
 ### C1遅延Cookie追補の接続条件（2026-10-17）
 
 山田正輝がC1の安全側への例外を承認した。旧login/logoutのCookie変更可能性を観測した場合、新世代も`verification-unknown`へ戻しcacheを破棄する。旧ユーザー/tenant/成功は採用せず、tenant-bound通信を止め、明示session GETだけで再確認する。資格情報やmutationの自動再送は行わない。UIは`stale`だけでなく新世代の`verification-unknown`も成功として扱わず、結果epochを照合する。C2はこの破棄境界を維持して業務operation前の応答tenant照合を追加する。C1が共有client/storeを一時所有し、統合後に後続が基線から引き継ぐ。今回C2/U-F3/保護routeの製品実装は行わない。
+
+## C1ステップ2統合後の依存照合（2026-10-18）
+
+PR #147は493342be37d4383ca572f8d1c826a3f184a4d213へ実統合済みであり、C1完了・統合待ちは解消した。C2/U-F3はCodex Dが専用worktreeで製品/試験を実装中。共通clientはC2、LoginScreenはU-F3、router/Appは本計画の所有とし、C1のauth/storeと共有providerを再利用する。
+
+最新指示は既存計画のC2→U-F3→U-F13接続→専用環境の実画面/API/DB通しまでを自律進行するもの。各ステップ/レビュー/個別受理と本人確認を維持する。C2/U-F3のdevelop統合前という本計画既定の開始条件、共有3ファイルを編集中のopen PR #143との所有順は、C1待ちとは別に管理する。core path宣言→製品と同時JSON登録の順序を変えず、仮認証/tenant・未統合の他担当branchを使わない。

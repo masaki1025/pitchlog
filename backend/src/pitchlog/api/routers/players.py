@@ -20,7 +20,7 @@ from pitchlog.api.schemas.roster import (
     PlayerStatusPreview,
     PlayerUpdate,
 )
-from pitchlog.api.tenant_access import require_tenant_access
+from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.repositories.cache_invalidation import (
     CacheInvalidationTrigger,
     SharedAggregateTargetSelector,
@@ -41,7 +41,7 @@ from pitchlog.repositories.roster import (
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import tenant_transaction_scope
 
-router = APIRouter(tags=["選手"])
+router = APIRouter(tags=["選手"], route_class=TenantMatchedRoute)
 _PLAYER_FIELDS = (
     "id",
     "team_record_id",
