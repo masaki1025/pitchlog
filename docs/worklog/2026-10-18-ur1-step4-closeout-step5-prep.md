@@ -231,3 +231,9 @@ ORM判定転記後、生成器の`parse_sheet_rows`で4シートをHEADと比較
 反映時点で`origin/develop`は承認比較元`015dfa9d`から`ba339cf8`へ進んでいた。9資産と凍結外部検査器は同一だが、`.claude/core-areas.json`と`scripts/core_guard.py`には別PRのLoginScreen/router/App登録が追加された。受理記録のbeforeと比較元SHAは承認時の`015dfa9d`を維持する。新developを取り込むまでの関連pytestは**782件成功・core guard7件失敗**で、7件ともtenant-isolationの追加パス順が新しいdevelop基線と不一致である。これは7.7値や製品試験の失敗と分ける。最新develop統合後に共有パスの順序を保持して再検査し、統合差分を元の独立レビュー済み範囲と混同しない。
 
 `origin/develop=ba339cf8`のmerge競合は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`の3ファイルに限定された。U-F13のLoginScreen/router/App登録済み基線をそのまま保持し、`initial_grant.py`をsync-protocol・recording-rights・tenant-isolation各領域の末尾へ1パスずつ加えた。追加層の宣言はその1パスだけとし、U-F13登録とRG1旧層を消さない。双方の回帰試験を保持した解決でcore guard **266件成功**。この3ファイルの統合時差分は元の独立レビュー0/0/0の対象外であり、本人逐行確認へ含める。凍結9資産と外部検査器には統合差分がないので、改訂7.7のrevision・digest・snapshot・corpusは不変として実ファイルから再照合する。
+
+### 2026-10-19: 改訂反映後の全件検査で見つかった追随先
+
+承認済み`runtime-authz-contract` revision 18の実`source_digest=fa4bd7776c1e16bf4ddf5aa96601dc87e6788da7d52c636d56ed6bacc7c92b83`に対し、生成済み`backend/src/pitchlog/authz/runtime_contract.py`が旧revision 17・旧digestのままだった。既存generatorのrenderによる候補差分はこの定数2行だけで、認可条件やAPIは変わらない。対象の認可catalog試験は候補上で成功した。この生成差分は旧独立レビューの対象外であり、未コミット候補として識別する。
+
+root全件検査は約42%・12,571件成功/2件skipの時点で2件失敗を検出し、`--maxfail=1`で停止したため**全件完走ではない**。1件は上記生成漏れで解消した。残る`test_checker_census_matches_declared_anchor`は`unadjudicated_removed_tb002_remains_in_current_census`が`initial_grant.py:397`等の承認済み限定所見を、広域のowner pathに含まれないという理由で拒否する。検査器本体はファイルSHA・行・シンボルの完全一致で47箇所だけ許すが、凍結対象のcensus試験はその限定条件をまだ解釈しない。対応案は既存の限定条件と完全一致する所見だけを減分検査から除き、他パス・他行・他シンボル・SHA不一致の拒否を負例で維持すること。`tests/test_census_baseline_check.py`はcensus凍結射影の外部ファイルなので、変更にはrevision 15→16、snapshot・corpus・#156単一未マージ記録after側の再導出、別の7.7実値受理が必要。広域owner追加や検査削除は行わない。現時点ではこの追加差分を編集せず、候補作成の人間判断待ちとする。元レビューP0/P1/P2=0/0/0はこの追随差分を含まない。
