@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import psycopg
 import pytest
 from alembic import command
 from psycopg.types.json import Jsonb
+
+from pitchlog.db.game_state.models import Game
 
 from .conftest import DisposablePostgres
 from .test_alembic_migrations import _alembic_config, _sqlalchemy_url
@@ -228,3 +232,13 @@ def test_games_applied_rules_rejects_change_after_insert(
                 "WHERE tenant_id = %s AND id = %s",
                 (tenant_id, game_id),
             ).fetchone() == (initial,)
+
+
+def test_games_applied_rules_manifest_and_orm_declare_same_protection() -> None:
+    """保護列をmanifestとORMの双方で同じ値に固定する。"""
+    manifest: dict[str, Any] = json.loads(
+        (_ROOT / "contracts/db/schema-manifest.json").read_text(encoding="utf-8")
+    )
+    games = next(table for table in manifest["tables"] if table["name"] == "games")
+    assert games["immutability"]["protected_columns"] == ["applied_rules"]
+    assert Game.immutability.protected_columns == frozenset({"applied_rules"})

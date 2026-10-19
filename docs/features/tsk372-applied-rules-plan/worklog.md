@@ -64,3 +64,25 @@
 - **認可・復旧**: 製品ロール`pitchlog_app`は現行`games`のUPDATE権限を持つが、追加するトリガは異値UPDATEをSQLSTATE`23514`で拒否する。通常製品に解除入口を置かない。正当な訂正migration・復旧で異値が必要な場合は、対象行・理由・排他区間・全取消・変更後照合を限定した別ゲートとする。トリガ関数の認可分類（`pitchlog_app`からのEXECUTE剥奪）とruntime contractへの登録要否は、実装後にカタログ検査で判定する。
 - **編集枠（共有パス）**: #156のPR head`836232d6`の差分に`contracts/db/schema-manifest.json`・`docs/features/orm-schema-migration/acceptance-sheets/`は**含まれない**（worktreeもclean）。ただし#156は`docs/design/data-model.md`をv0.12で変更しており、本限定単位の正本改訂（候補v0.12）と**版番号が衝突**する。統合順は **#156実統合 → canonical正本（v0.13へ繰下げ）→ 本実装 → #152追随** とし、同一ファイルを同時に編集しない。manifest・シートは本単位が編集所有を持つが、正本SHA・blob digestの確定値はcanonical実統合後に同一境界で追随させる。
 - **7.7対象の判定**: `schema-manifest.json`の`canonical_source.sha256`と`shared-preconditions.json`の`mapping_target.git_blob_digest`は`data-model.md`の内容に連動する。canonical正本の実統合で値が変わるため、その受理単位で7.7の前後識別値・変更内容・理由・snapshot・受理記録案を確定し、**人間の正式受理後に追記のみで反映**する。本ステップでは既受理値を変更せず、未受理値を記入しない。他系列（tenant/seed/oracle）の受理履歴は変更しない。
+
+## 2026-10-19 ステップ2: DB拒否機構と恒久実DB試験
+
+- 候補`feature/orm-applied-rules-immutability-candidate`（未コミット・HEAD`d8cc9448`）のmigrationと実DB試験を受諾して再利用した。候補のAFTER単独案は既存のmanifest全表監査が`BEFORE UPDATE OF`を要求するため、BEFORE/AFTERの2トリガ構成を維持した。
+- **受諾しなかった点**: 候補は2トリガで1関数を共有していたが、製品認可の1対1検査（`product_authz_cross_cutting_cases`・`test_product_authz_cross_cutting`）が「migrationトリガ関数は1トリガに1関数」を要求するため、`prevent_games_applied_rules_update()`と`verify_games_applied_rules_final()`の2関数へ分割した。両関数ともSQLSTATE`23514`で拒否する。
+- revisionは`0033_game_rules_immutable`、親は実develop単一headの`0032_rg1_restore_gate`。`alembic_version.version_num`は`varchar(32)`のため32字以内の名前にした。#152未統合の`0033_stage_a_rule_defaults`は親にせず、適用もしていない。
+- 専用使い捨てPostgreSQLで恒久試験2件が合格。検証した経路は、初回INSERT許容、同値UPDATE許容、他列UPDATE許容、異値UPDATE拒否（`pitchlog_app`最小権限・特権接続の双方）、同一transaction全取消、別列BEFOREトリガによるすり替えのAFTER拒否、既存行の異値訂正拒否と値不変、downgradeでトリガ2本と関数2本だけを撤去、再upgrade後の拒否、既存行の`applied_rules`不変。
+
+## 2026-10-19 ステップ3（実装済み・人間判定と認可受諾は未了）
+
+- `contracts/db/schema-manifest.json`の`games.immutability.protected_columns`を`["applied_rules"]`、`backend/src/pitchlog/db/game_state/models.py`の`Game.immutability.protected_columns`を同値へ変更した。`coverage=partial`と`unclassified_handoff=TSK-372`は維持する（23表全体へ拡大しない）。
+- 受入シートを`--carry-judgments-from origin/develop`で再生成した。変更はN3の6行（出現084・085・091・092・093・094）だけで、`games: protected=[]`→`['applied_rules']`の1点のみが変わった。生成器の安全則により旧判定は持ち越されず、**未判定6行**として人間の再判定を待つ。件数（N1 103 / N3 105 / N4 55 / N7 100）は不変。
+- **旧判定の保全**（人間の再判定材料。新しい判定は記入していない）:
+  - 084: 対象外「削除の前提条件を同一トランザクションで判定するという不変条件であり、列の不変性ではない」`data-model.md:11-1`
+  - 085: 対象外「述語と不変条件だけを本書で決めるという射程の記述であり、列の不変性ではない」`data-model.md:11-1`
+  - 091: 対象外「移行が要求する不変条件表の表頭であり、列の不変性ではない」`data-model.md:12-3`
+  - 092: 対象外「D5は退役後も消費済みという業務上の不変条件であり、列の不変性ではない」`data-model.md:12-3`
+  - 093: 対象外「退役述語を一意性へ加えるという不変条件であり、列の不変性ではない」`data-model.md:12-3`
+  - 094: 対象外「退役述語を一意性へ加えるという不変条件であり、列の不変性ではない」`data-model.md:12-3`
+  - N3-061（`team_records.kind`）を含む他の判定は変更していない。**N3-061は恒久是正と正式受理の成立前に`一致`へ変えない。**
+- **未了（意図的に書いていない）**: `games.source_sections`への`6-5`追加（canonical正本の人間承認・実統合が前提）、正本SHA・`shared-preconditions`blob digest、製品認可資産（`ddl-elements`・関数本体・`probe-product-map`）、runtime contract revisionと7.7履歴、7.7の実値。
+- 検査結果: 専用実DBの恒久試験2件・`test_schema_manifest.py`・`test_game_state_models.py`は合格。`tests/test_orm_acceptance_sheets.py::test_acceptance_sheet_judgments_are_complete`は上記の未判定6行で不合格（人間判定待ち）。`check_authz_catalog`は新規migrationトリガ関数2本が製品認可資産未登録のため不合格（認可所有側の受諾待ち）。
