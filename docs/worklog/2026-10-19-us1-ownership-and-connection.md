@@ -389,3 +389,7 @@ U-F8/01a15387本人が中継票を実読し、非機密停止表示/未確認件
 - frontend の `R-BOUNDARY に未知の ID があります: O5` 8ファイル: 承認済み v0.9 の射程外 `O5` 行を `canonOracle.ts` へ製品候補と同一内容で追加。新規意味・公開型は無い。
 
 ローカル検証（このworktree）: `check_design_propagation` / `check_doc_coverage` / ruff / ty 成功。docs-status は索引の版・日付2件のみ未通過。frontend は prettier / eslint / vue-tsc / depcruise / domain build（差分0）/ build / Vitest 71ファイル1382件が成功。backend差分なし。索引が未同期のため docs-lint と harness は赤のまま、全グリーンとは記録しない。core-guard の人間逐行確認は未実施のまま空欄を保持する。
+
+### #159 索引1行の同期（POによる対象行限定の編集許可）
+
+POが `docs/README.md` の sync-protocol 行だけを #159 担当の限定編集範囲として許可した（U-R1からの明示的な所有返却ではない）。着手直前に `origin/develop`・`origin/feature/ur1-initial-rights` 双方の同一行が `0.9 / 2026-10-18` で編集中差分が無いことを確認した。handoff.md に固定した完全な1行（`0.11 / 2026-10-19`）を適用し、data-model行・他の索引行・正本本文は変更していない。適用後、ローカルで docs-status 0違反・設計伝播・文書カバレッジ成功、doc/plan/design/census/frozen 系 pytest は884成功/1skip。限定編集はここで終了し、人間逐行確認と反対側レビューは未完了のまま維持する。Draft解除・マージは行わない。U-R1への通知はMCP接続エラーのため handoff.md を原文として保全した。
