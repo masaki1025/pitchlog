@@ -56,3 +56,11 @@
 - POは現行§6-5から試合行自身の異値UPDATE禁止を既承認とは解釈せず、別の限定改訂として明文化する方針を採用した。`docs/design/data-model.md`候補は専用`feature/tsk372-applied-rules-canonical`で`in-review`化して7.3審査中。正式確定・具体資産承認・7.7受理ではない。
 - 7.6-3後段の版繰り上げを要する新規範として扱う。最終本文は初回INSERT、同値・他列UPDATE、異値拒否、正当なmigration・復旧の別ゲートへ限定し、人間承認へ提示する。共有manifest・シートは現時点で変更していない。
 - #156へmanifest・N3の編集所有と解除条件を[コメント](https://github.com/masaki1025/pitchlog/pull/156#issuecomment-6264448857)で、#152へN3の編集所有と後続追随の受諾条件を[コメント](https://github.com/masaki1025/pitchlog/pull/152#issuecomment-6264449206)で照会した。提示順は#156対象パス解除・実統合→本限定単位→#152追随。回答前につき順序の合意・所有解除は未確認。
+
+## 2026-10-19 ステップ1: 所有側判定・実基線・編集枠・7.7対象
+
+- **所有側判定**: POは2026-10-19、現行`data-model.md`§6-5が試合行自身の保存後異値UPDATE禁止を含むとは解釈せず、別の限定改訂として明文化する方針を採用した（本文・版・確定は未承認）。専用`feature/tsk372-applied-rules-canonical`の候補v0.12は`in-review`で、7.3は基本枠2回（第1回全文: P0=0/P1=1/P2=1、第2回差分: 可決 P0/P1/P2=0）で収束し、`確定ゲート周回=1`。**正式承認・approved化・索引・manifest正本SHA・`shared-preconditions`のblob digest・受入シート・7.7は未実施**。本限定単位はこの別ゲートの人間承認と実統合を前提にし、正本・派生値は本worktreeで変更しない。
+- **実基線**: `origin/develop`=`7c1afeba`（#158統合後）を本featureへ取り込み（merge `5f52bfd8`、競合なし）。Alembic単一headは`0032_rg1_restore_gate`で、既存候補`0033_game_rules_immutable.py`の親と一致する。**#152の`0033_stage_a_rule_defaults`は未統合であり親にしない**。本単位のrevisionは`0033_games_applied_rules_immutable`（`down_revision=0032_rg1_restore_gate`）とし、#152は本単位の実統合後に単一headから再導出する。未確定revisionは適用しない。
+- **認可・復旧**: 製品ロール`pitchlog_app`は現行`games`のUPDATE権限を持つが、追加するトリガは異値UPDATEをSQLSTATE`23514`で拒否する。通常製品に解除入口を置かない。正当な訂正migration・復旧で異値が必要な場合は、対象行・理由・排他区間・全取消・変更後照合を限定した別ゲートとする。トリガ関数の認可分類（`pitchlog_app`からのEXECUTE剥奪）とruntime contractへの登録要否は、実装後にカタログ検査で判定する。
+- **編集枠（共有パス）**: #156のPR head`836232d6`の差分に`contracts/db/schema-manifest.json`・`docs/features/orm-schema-migration/acceptance-sheets/`は**含まれない**（worktreeもclean）。ただし#156は`docs/design/data-model.md`をv0.12で変更しており、本限定単位の正本改訂（候補v0.12）と**版番号が衝突**する。統合順は **#156実統合 → canonical正本（v0.13へ繰下げ）→ 本実装 → #152追随** とし、同一ファイルを同時に編集しない。manifest・シートは本単位が編集所有を持つが、正本SHA・blob digestの確定値はcanonical実統合後に同一境界で追随させる。
+- **7.7対象の判定**: `schema-manifest.json`の`canonical_source.sha256`と`shared-preconditions.json`の`mapping_target.git_blob_digest`は`data-model.md`の内容に連動する。canonical正本の実統合で値が変わるため、その受理単位で7.7の前後識別値・変更内容・理由・snapshot・受理記録案を確定し、**人間の正式受理後に追記のみで反映**する。本ステップでは既受理値を変更せず、未受理値を記入しない。他系列（tenant/seed/oracle）の受理履歴は変更しない。
