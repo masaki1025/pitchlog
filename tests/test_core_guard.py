@@ -490,7 +490,6 @@ UR1_REGISTERED_PATHS: dict[str, tuple[str, ...]] = {
     ),
 }
 UF13_TENANT_ROUTE_PATHS = (
-    "frontend/src/screens/LoginScreen*",
     "frontend/src/router*",
     "frontend/src/App*",
 )
@@ -2907,6 +2906,10 @@ def test_uf13_declaration_retains_json_and_checks_product_registration() -> None
     configuration = load_actual_core_areas()
     core_guard.validate_area_path_layers(baseline, configuration)
     tenant = next(area for area in configuration["areas"] if area["id"] == "tenant-isolation")
+    baseline_tenant = next(area for area in baseline["areas"] if area["id"] == "tenant-isolation")
+    # 先行統合済みのLoginScreenは据え置き層として両方に保持する。
+    assert "frontend/src/screens/LoginScreen*" in baseline_tenant["paths"]
+    assert "frontend/src/screens/LoginScreen*" in tenant["paths"]
     presence = [pattern in tenant["paths"] for pattern in UF13_TENANT_ROUTE_PATHS]
     assert len(set(presence)) == 1
     if not any(presence):
