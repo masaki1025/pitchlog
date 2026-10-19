@@ -246,11 +246,17 @@ describe('確定の経路を 1 つの排他で包む', () => {
   it('応答が遅延している間も追記済みのスロットを保持し、ACKまで排他を解放しない', async () => {
     const queue = await openIsolatedQueue()
     const lockLog: string[] = []
-    const response = Promise.withResolvers<Response>()
-    const sending = Promise.withResolvers<void>()
+    let resolveResponse!: (value: Response) => void
+    let markSending!: () => void
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve
+    })
+    const sending = new Promise<void>((resolve) => {
+      markSending = resolve
+    })
     vi.mocked(fetch).mockImplementation(() => {
-      sending.resolve()
-      return response.promise
+      markSending()
+      return response
     })
 
     const pending = commitPitchEvent(
@@ -262,7 +268,7 @@ describe('確定の経路を 1 つの排他で包む', () => {
         readAck: ackFromResponse(CANON_ACK_STATE_RESULT.ACCEPTED),
       }),
     )
-    await sending.promise
+    await sending
 
     try {
       expect((await queue.readSlot(scope, 1))?.state).toBe(
@@ -271,7 +277,7 @@ describe('確定の経路を 1 つの排他で包む', () => {
       expect(await queue.readNextD1(scope)).toBe(2)
       expect(lockLog).toEqual([`acquire:pitchlog:game:${gameId}`])
     } finally {
-      response.resolve(
+      resolveResponse(
         new Response('{}', {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
