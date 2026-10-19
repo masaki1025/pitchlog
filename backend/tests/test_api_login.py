@@ -41,6 +41,9 @@ async def test_success_sets_cookie_without_exposing_presentation(
     app = create_app()
     value = app.state.token_presentation.encode(uuid4())
     expires_at = datetime.now(UTC) + timedelta(seconds=ttl_seconds)
+    tenant_id = uuid4()
+    verified = MagicMock(return_value=(tenant_id, expires_at))
+    monkeypatch.setattr(auth, "verify_tenant_id", verified)
     connector = object()
     received: list[tuple[str, str, str, object, object]] = []
 
@@ -66,7 +69,7 @@ async def test_success_sets_cookie_without_exposing_presentation(
         )
 
     assert response.status_code == 200
-    assert response.json() == {"status": "authenticated"}
+    assert response.json() == {"status": "authenticated", "tenant_id": str(tenant_id)}
     assert received == [
         (
             "known-team",
@@ -76,6 +79,7 @@ async def test_success_sets_cookie_without_exposing_presentation(
             connector,
         )
     ]
+    verified.assert_called_once_with(value, app.state.token_presentation, connector)
     cookie = response.headers["set-cookie"]
     assert cookie.startswith(f"__Host-pitchlog_token={value};")
     assert response.headers["cache-control"] == "no-store"
@@ -209,6 +213,11 @@ async def test_max_age_is_zero_when_expiry_has_passed(
         lambda *_args: (value, datetime.now(UTC) - timedelta(seconds=1)),
     )
     monkeypatch.setattr(auth, "get_login_connection", object)
+    monkeypatch.setattr(
+        auth,
+        "verify_tenant_id",
+        lambda *_args: (uuid4(), datetime.now(UTC) - timedelta(seconds=1)),
+    )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.post(
@@ -299,6 +308,7 @@ async def test_waiting_failures_do_not_delay_success(
         await release.wait()
 
     monkeypatch.setattr(auth, "login_attempt", attempt)
+    monkeypatch.setattr(auth, "verify_tenant_id", lambda *_args: (uuid4(), expires_at))
     monkeypatch.setattr(auth, "get_login_connection", object)
     monkeypatch.setattr(auth, "run_in_threadpool", complete_work)
     monkeypatch.setattr(auth, "anyio", SimpleNamespace(sleep=wait_without_worker))
@@ -415,3 +425,75 @@ def test_boundary_rejects_other_signer_and_hides_database_error() -> None:
         )
     assert "private-password" not in str(error.value)
     assert error.value.__context__ is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "failure",
+    [
+        None,
+        RuntimeError("internal-private"),
+        TypeError("internal-private"),
+        OSError("internal-private"),
+    ],
+)
+async def test_login_correlation_failure_never_issues_http_cookie(
+    monkeypatch: pytest.MonkeyPatch,
+    failure: object,
+) -> None:
+    """追加照合が失敗したら固定503とし、成功や内部情報を返さない。"""
+    app = create_app()
+    value = app.state.token_presentation.encode(uuid4())
+    monkeypatch.setattr(auth, "get_login_connection", object)
+    monkeypatch.setattr(
+        auth, "login_attempt", lambda *_args: (value, datetime.now(UTC))
+    )
+
+    def verify(*_args: object) -> None:
+        """照合不能と処理失敗を同一の公開結果へまとめる。"""
+        if isinstance(failure, Exception):
+            raise failure
+        return None
+
+    monkeypatch.setattr(auth, "verify_tenant_id", verify)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as client:
+        response = await client.post(
+            "/auth/login", json={"team_name": "name", "password": "password"}
+        )
+    assert response.status_code == 503
+    assert "set-cookie" not in response.headers
+    assert "internal-private" not in response.text
+    assert value not in response.text
+
+
+@pytest.mark.anyio
+async def test_login_cookie_uses_verified_expiry_not_issue_expiry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cookie期限は追加照合の結果だけから決める。"""
+    app = create_app()
+    tenant_id = uuid4()
+    value = app.state.token_presentation.encode(uuid4())
+    monkeypatch.setattr(auth, "get_login_connection", object)
+    monkeypatch.setattr(
+        auth,
+        "login_attempt",
+        lambda *_args: (value, datetime.now(UTC) + timedelta(days=1)),
+    )
+    monkeypatch.setattr(
+        auth,
+        "verify_tenant_id",
+        lambda *_args: (tenant_id, datetime.now(UTC) + timedelta(seconds=17)),
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as client:
+        response = await client.post(
+            "/auth/login", json={"team_name": "not-an-id", "password": "password"}
+        )
+    assert response.status_code == 200
+    assert response.json() == {"status": "authenticated", "tenant_id": str(tenant_id)}
+    max_age = int(response.headers["set-cookie"].split("Max-Age=")[1].split(";")[0])
+    assert 15 <= max_age <= 17

@@ -14,6 +14,7 @@ import pytest
 from fastapi import Depends, HTTPException
 from httpx import ASGITransport, AsyncClient
 
+import pitchlog.api.tenant_access as tenant_access
 from pitchlog.api.app import create_app
 from pitchlog.api.routers import players
 from pitchlog.api.tenant_access import require_tenant_access
@@ -30,6 +31,7 @@ def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(fastapi.dependencies.utils, "run_in_threadpool", inline_call)
     monkeypatch.setattr(fastapi.routing, "run_in_threadpool", inline_call)
+    monkeypatch.setattr(tenant_access, "run_in_threadpool", inline_call)
     monkeypatch.setenv(
         "PITCHLOG_TOKEN_SIGNING_KEY_B64",
         base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
@@ -43,7 +45,7 @@ async def test_protected_request_renews_cookie_from_verified_expiry(
     """同じ提示値の期限が延びるたび応答 Cookie の Max-Age も伸びる。"""
     app = create_app()
     value = app.state.token_presentation.encode(uuid4())
-    context = MagicMock()
+    context = MagicMock(tenant_id=uuid4())
     expires_at = [
         datetime.now(UTC) + timedelta(seconds=30),
         datetime.now(UTC) + timedelta(seconds=150),
@@ -59,7 +61,11 @@ async def test_protected_request_renews_cookie_from_verified_expiry(
         tenant_context_issuance, "issue_tenant_context_from_presented_token", issue
     )
     monkeypatch.setattr(players, "_run", lambda *_: SimpleNamespace(rows=()))
-    headers = {"Cookie": f"__Host-pitchlog_token={value}"}
+    headers = {
+        "Cookie": f"__Host-pitchlog_token={value}",
+        "X-Pitchlog-Expected-Tenant": str(context.tenant_id),
+        "X-Pitchlog-Tenant-Challenge": str(uuid4()),
+    }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test"
     ) as client:
@@ -116,10 +122,16 @@ async def test_requests_without_extension_do_not_set_cookie(
         )
 
     assert public.status_code == version.status_code == 200
+    assert (
+        missing.headers["cache-control"]
+        == rejected.headers["cache-control"]
+        == "no-store"
+    )
+    assert "set-cookie" not in missing.headers and "set-cookie" not in rejected.headers
     assert missing.status_code == rejected.status_code == 401
     assert all(
         "set-cookie" not in response.headers and "cache-control" not in response.headers
-        for response in (public, version, missing, rejected)
+        for response in (public, version)
     )
 
 
@@ -137,14 +149,19 @@ async def test_not_found_after_verified_access_preserves_renewed_cookie(
 
     value = app.state.token_presentation.encode(uuid4())
     expiry = datetime.now(UTC) + timedelta(seconds=120)
-    issued = [(MagicMock(), expiry), (MagicMock(), expiry), None]
+    context = MagicMock(tenant_id=uuid4())
+    issued = [(context, expiry), (context, expiry), None]
     monkeypatch.setattr(
         tenant_context_issuance,
         "issue_tenant_context_from_presented_token",
         lambda *_: issued.pop(0),
     )
     monkeypatch.setattr(players, "_run", lambda *_: SimpleNamespace(rows=()))
-    headers = {"Cookie": f"__Host-pitchlog_token={value}"}
+    headers = {
+        "Cookie": f"__Host-pitchlog_token={value}",
+        "X-Pitchlog-Expected-Tenant": str(context.tenant_id),
+        "X-Pitchlog-Tenant-Challenge": str(uuid4()),
+    }
     path = f"/players/{uuid4()}"
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test"
@@ -164,7 +181,7 @@ async def test_not_found_after_verified_access_preserves_renewed_cookie(
     assert hidden.headers["cache-control"] == "no-store"
     assert rejected.status_code == 401
     assert "set-cookie" not in rejected.headers
-    assert "cache-control" not in rejected.headers
+    assert rejected.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.anyio
@@ -175,10 +192,16 @@ async def test_unhandled_error_after_verified_access_does_not_renew_cookie(
     app = create_app()
     value = app.state.token_presentation.encode(uuid4())
     expiry = datetime.now(UTC) + timedelta(seconds=120)
+    context = MagicMock(tenant_id=uuid4())
+    headers = {
+        "Cookie": f"__Host-pitchlog_token={value}",
+        "X-Pitchlog-Expected-Tenant": str(context.tenant_id),
+        "X-Pitchlog-Tenant-Challenge": str(uuid4()),
+    }
     monkeypatch.setattr(
         tenant_context_issuance,
         "issue_tenant_context_from_presented_token",
-        lambda *_: (MagicMock(), expiry),
+        lambda *_: (context, expiry),
     )
 
     def fail_after_access(*_: object) -> None:
@@ -188,20 +211,16 @@ async def test_unhandled_error_after_verified_access_does_not_renew_cookie(
     monkeypatch.setattr(players, "_run", fail_after_access)
     transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="https://test") as client:
-        failed = await client.get(
-            "/players?limit=1", headers={"Cookie": f"__Host-pitchlog_token={value}"}
-        )
+        failed = await client.get("/players?limit=1", headers=headers)
 
     assert failed.status_code == 500
     assert failed.json() == {"error": {"message": "サーバー内部でエラーが発生しました"}}
     assert "set-cookie" not in failed.headers
-    assert "cache-control" not in failed.headers
+    assert failed.headers["cache-control"] == "no-store"
 
     monkeypatch.setattr(players, "_run", lambda *_: SimpleNamespace(rows=()))
     async with AsyncClient(transport=transport, base_url="https://test") as client:
-        recovered = await client.get(
-            "/players?limit=1", headers={"Cookie": f"__Host-pitchlog_token={value}"}
-        )
+        recovered = await client.get("/players?limit=1", headers=headers)
     assert recovered.status_code == 200
     assert recovered.headers["set-cookie"].startswith(f"__Host-pitchlog_token={value};")
     assert recovered.headers["cache-control"] == "no-store"

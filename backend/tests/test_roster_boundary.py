@@ -33,6 +33,7 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import IntegrityError
 
+import pitchlog.api.tenant_access as tenant_access
 from pitchlog.api.app import create_app
 from pitchlog.api.routers import players, team_records
 from pitchlog.authz.token_presentation import TokenPresentation
@@ -170,6 +171,7 @@ def _client_app(monkeypatch: pytest.MonkeyPatch, store: _PlayerStore) -> FastAPI
 
     monkeypatch.setattr(fastapi.dependencies.utils, "run_in_threadpool", inline_call)
     monkeypatch.setattr(fastapi.routing, "run_in_threadpool", inline_call)
+    monkeypatch.setattr(tenant_access, "run_in_threadpool", inline_call)
     monkeypatch.setenv(
         "PITCHLOG_TOKEN_SIGNING_KEY_B64",
         base64.b64encode(b"r" * 32).decode("ascii"),
@@ -201,6 +203,14 @@ def _client_app(monkeypatch: pytest.MonkeyPatch, store: _PlayerStore) -> FastAPI
     monkeypatch.setattr(players, "tenant_transaction_scope", scope)
     monkeypatch.setattr(players, "create_roster_player", store.create)
     return app
+
+
+def _metadata_headers(tenant_id: UUID) -> dict[str, str]:
+    """照合対象の要求へ検証済みテナントと要求別challengeを明示する。"""
+    return {
+        "X-Pitchlog-Expected-Tenant": str(tenant_id),
+        "X-Pitchlog-Tenant-Challenge": str(uuid4()),
+    }
 
 
 def _headers() -> dict[str, str]:
@@ -312,6 +322,7 @@ async def test_team_record_http_routes_warn_and_guard_deletion(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         created = await client.post(
             "/team-records", json={"name": "東京"}, headers=_headers()
         )
@@ -348,6 +359,7 @@ async def test_team_record_http_routes_warn_and_guard_deletion(
         missing = await client.delete(f"/team-records/{created_id}", headers=_headers())
         assert missing.status_code == 404
         client.cookies.set("__Host-pitchlog_token", "token-b")
+        client.headers.update(_metadata_headers(_TENANT_B))
         foreign = await client.delete(f"/team-records/{_TEAM_A}", headers=_headers())
         absent = await client.delete(f"/team-records/{uuid4()}", headers=_headers())
         assert foreign.status_code == absent.status_code == 404
@@ -373,6 +385,7 @@ async def test_team_record_http_routes_apply_request_gate(
             missing = await client.request(method, path, json=body, headers=_headers())
             assert missing.status_code == 401
             client.cookies.set("__Host-pitchlog_token", "token-a")
+            client.headers.update(_metadata_headers(_TENANT_A))
             if method != "GET":
                 no_header = await client.request(method, path, json=body)
                 assert no_header.status_code == 403
@@ -445,6 +458,7 @@ async def test_real_player_http_boundary_enforces_tenant_and_request_gates(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", presented_a)
+        client.headers.update(_metadata_headers(tenant_a.tenant_id))
         own = await client.get(f"/players/{player_a}")
         assert own.status_code == 200
         assert own.json()["id"] == str(player_a)
@@ -499,6 +513,7 @@ async def test_real_player_http_boundary_enforces_tenant_and_request_gates(
             assert blocked.status_code == 422
 
         client.cookies.set("__Host-pitchlog_token", presented_b)
+        client.headers.update(_metadata_headers(tenant_b.tenant_id))
         other = await client.get(f"/players/{player_b}")
         assert other.status_code == 200
         assert other.json()["id"] == str(player_b)
@@ -531,6 +546,7 @@ async def test_real_player_http_boundary_enforces_tenant_and_request_gates(
         assert foreign_create.json() == missing_create.json() == expected_404
 
         client.cookies.set("__Host-pitchlog_token", presented_a)
+        client.headers.update(_metadata_headers(tenant_a.tenant_id))
         unchanged = await client.get(f"/players/{player_a}")
         assert unchanged.status_code == 200
         assert unchanged.json()["name"] == "甲改"
@@ -552,11 +568,13 @@ async def test_real_player_http_boundary_enforces_tenant_and_request_gates(
             }
 
             client.cookies.set("__Host-pitchlog_token", presented_b + "x")
+            client.headers.update(_metadata_headers(tenant_b.tenant_id))
             tampered = await client.request(method, path, json=body, headers=_headers())
             assert tampered.status_code == 401
             assert tampered.json() == missing_cookie.json()
 
         client.cookies.set("__Host-pitchlog_token", presented_b)
+        client.headers.update(_metadata_headers(tenant_b.tenant_id))
         for method, path, body in cases:
             if method == "GET":
                 continue
@@ -694,6 +712,7 @@ async def test_real_team_record_http_boundary_and_delete_guards(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", presented_a)
+        client.headers.update(_metadata_headers(tenant_a.tenant_id))
         created = await client.post(
             "/team-records", json={"name": "東京"}, headers=_headers()
         )
@@ -741,6 +760,7 @@ async def test_real_team_record_http_boundary_and_delete_guards(
             await client.delete(f"/team-records/{created_id}", headers=_headers())
         ).status_code == 404
         client.cookies.set("__Host-pitchlog_token", presented_b)
+        client.headers.update(_metadata_headers(tenant_b.tenant_id))
         own_list = await client.get("/team-records", params={"limit": 20})
         assert own_list.status_code == 200
         assert {row["id"] for row in own_list.json()["items"]} == {
@@ -774,6 +794,7 @@ async def test_real_team_record_http_boundary_and_delete_guards(
             response = await client.request(method, path, json=body, headers=_headers())
             assert response.status_code == 401
         client.cookies.set("__Host-pitchlog_token", presented_b)
+        client.headers.update(_metadata_headers(tenant_b.tenant_id))
         for method, path, body in (
             ("POST", "/team-records", {"name": "新規"}),
             ("PATCH", f"/team-records/{team_b}", {"name": "変更"}),
@@ -809,6 +830,7 @@ async def test_player_entry_accepts_verified_tenant_and_rejects_missing_gate(
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         response = await client.request(
             method,
             path,
@@ -830,6 +852,7 @@ async def test_player_entry_accepts_verified_tenant_and_rejects_missing_gate(
 
         if method in {"POST", "PATCH"}:
             client.cookies.set("__Host-pitchlog_token", "token-a")
+            client.headers.update(_metadata_headers(_TENANT_A))
             no_csrf = await client.request(
                 method,
                 path,
@@ -851,6 +874,7 @@ async def test_player_patch_rejects_status_fields_before_storage(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         response = await client.patch(
             f"/players/{_PLAYER_A}",
             json={"name": "変更", field: "other"},
@@ -892,6 +916,7 @@ async def test_player_create_reports_only_active_same_tenant_number(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         response = await client.post(
             "/players",
             json=_body() | {"uniform_number": "7"},
@@ -929,6 +954,7 @@ async def test_player_entry_does_not_expose_other_tenant_rows(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-b")
+        client.headers.update(_metadata_headers(_TENANT_B))
         response = await client.request(
             method,
             path,
@@ -970,6 +996,7 @@ async def test_player_update_rejects_invalid_body(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         response = await client.patch(
             f"/players/{_PLAYER_A}",
             json=body,
@@ -989,6 +1016,7 @@ async def test_player_create_rejects_empty_name(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         response = await client.post(
             "/players",
             json=body,
@@ -1013,6 +1041,7 @@ async def test_non_reference_integrity_failure_uses_fixed_error_envelope(
         base_url="http://test",
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         response = await client.post("/players", json=_body(), headers=_headers())
     assert response.status_code == 500
     assert response.json() == {
@@ -1060,6 +1089,7 @@ async def test_player_list_uses_cursor_and_limit_bound(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         client.cookies.set("__Host-pitchlog_token", "token-a")
+        client.headers.update(_metadata_headers(_TENANT_A))
         first = await client.get("/players?limit=1")
         assert first.status_code == 200
         assert [item["id"] for item in first.json()["items"]] == [str(_PLAYER_A)]
@@ -1160,7 +1190,7 @@ def test_issuance_and_verification_callers_are_exact_sets() -> None:
     """発行入口と照合入口の製品コード内呼び出し元を固定する。"""
     targets = {
         _ISSUER_TARGET: {"pitchlog.api.tenant_access.require_tenant_access"},
-        _VERIFIER_TARGET: {_ISSUER_TARGET},
+        _VERIFIER_TARGET: {_ISSUER_TARGET, "pitchlog.api.routers.auth.login"},
     }
     callers: dict[str, set[str]] = {name: set() for name in targets}
     for path in _SOURCE_ROOT.rglob("*.py"):
@@ -1184,3 +1214,21 @@ def rogue():
 """
     callers = _callers(ast.parse(source), "pitchlog.api.rogue")
     assert callers[_ISSUER_TARGET] == {"pitchlog.api.rogue.rogue"}
+
+
+@pytest.mark.parametrize("caller_name", ["logout", "read_session"])
+def test_verification_caller_scan_rejects_other_auth_routes(caller_name: str) -> None:
+    """同じauthモジュールでもlogin以外へ照合許可を広げない。
+
+    Args:
+        caller_name: 新たな呼出を許していない関数名。
+    """
+    source = (
+        "from pitchlog.authz.verified_tenant import verify_tenant_id as check\n"
+        f"def {caller_name}():\n"
+        "    return check('opaque', object(), object())\n"
+    )
+    callers = _callers(ast.parse(source), "pitchlog.api.routers.auth")
+    allowed = {_ISSUER_TARGET, "pitchlog.api.routers.auth.login"}
+    assert callers[_VERIFIER_TARGET] == {f"pitchlog.api.routers.auth.{caller_name}"}
+    assert not callers[_VERIFIER_TARGET] <= allowed
