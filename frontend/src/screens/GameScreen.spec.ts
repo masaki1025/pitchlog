@@ -424,6 +424,36 @@ describe('GameScreen の入力可否と下書きの配線', () => {
     ).toContain('組み立てました')
   })
 
+  it('観測が入力不可へ変われば下書き組み立て成功を表示しない', async () => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        pitchTypes,
+        results,
+        eventIdentity: identity,
+        inputObservation: allowed(),
+      },
+    })
+    await wrapper.get('[data-testid="pitch-type"]').setValue('fastball')
+    await wrapper.get('[data-testid="pitch-result"]').setValue('ball')
+    expect(
+      wrapper.get('[data-testid="draft-assembly-status"]').text(),
+    ).toContain('組み立てました')
+
+    await wrapper.setProps({
+      inputObservation: { ...allowed(), battedBall: true },
+    })
+    expect(wrapper.find('[data-testid="draft-assembly-status"]').exists()).toBe(
+      false,
+    )
+    expect(
+      wrapper.get('[data-testid="input-ineligible-reasons"]').text(),
+    ).toContain('打球が発生したプレイ')
+    expect(
+      wrapper.get<HTMLButtonElement>('[data-testid="commit-pitch"]').element
+        .disabled,
+    ).toBe(true)
+  })
+
   it('識別子が正規形でなければ、理由つきで組み立てられないと示す', async () => {
     const wrapper = mount(GameScreen, {
       props: {

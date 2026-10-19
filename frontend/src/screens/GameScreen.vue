@@ -155,6 +155,9 @@ watch(
 
 // 確定値が揃ったときだけ下書きを組み立てる。確定はしない(封鎖はゲートが持つ)。
 const draftAssembly = computed(() => {
+  if (eligibility.value?.eligible === false) {
+    return undefined
+  }
   const identity = props.eventIdentity
   if (!identity || !pitchTypeId.value || !resultId.value) {
     return undefined
