@@ -852,3 +852,17 @@ agmsg skillを確認したが本projectの登録はなく、別project todoapp�
 想定外複数件の検証は、採用済みLIMIT1を無断で2へ広げず、実DBの既存unique拒否とmaterialized結果の2行故障注入→5xx拒否を別証跡とする案を計画に明記した。制約を壊したDBの重複までLIMIT1で検出したとは主張しない。API/認可レビューはこれが要件・DoDと対応するかも確認対象とする。
 
 今回の開始は計画/契約レビューのみ。7.7の完全値は候補固定後の実基線から導出する。実承認者/日付は先行入力せず、本人確認・公開・マージは代行しない。
+
+
+### 自チーム計画/API・認可契約の敵対レビュー第1周
+
+対象f7608ad6、適用する計画レビュー規律は現行ハーネス6.1/6.3。正規codex_run.py review adversarial/read-onlyで実施し、P0=0/P1=2/P2=0。受理範囲は正本違反/ステップ緑不能/DoDと成果物不対応の3種類のみ。既存PRのレビュー枠は消費し直さず、本追補の計画第1周とする。
+
+| 指摘 | 採否・反映 |
+| --- | --- |
+| P1-1: 旧候補に最小claim追加の選択肢が残り、既存権限内という計画と不一致 | 採用。既存CAP:team_records:read/ROUTE:RECORD:team_records:readを再利用すると統一。新claim/route_id/権限を追加しない。具体的な充足不能が判明したときだけその差分を別ゲートへ提示 |
+| P1-2: self応答の画面側検証がステップ2/試験へ落ちず、共通apiRequestはJSONの型キャストのみ | 採用。roster.tsのself入口でunknown結果を既存DTOの4項目として実行時検査し、不正UUID/kind/hidden/name/欠落/余剰を200で注入して非採用を検証。共通clientは変更しない。新self queryのretry=falseを明記し自動再送禁止を具体化 |
+
+レビューはLIMIT1＋実DBunique拒否＋materialized複数故障注入の分担、業務SQL前C2照合、既存opponent固定、#152のパス別所有、Draft/7.7/本人確認の分離が成立すると確認した。新権限・DB構造変更は必要とされなかった。計画レビュー周回を採用反映1へ更新し、確定ゲート周回は0のまま。次の第2周はこの反映差分と影響節だけを対象にする。
+
+第1周の完全ログSHA-256: `e5d45106d9069cd980d1f98da00b27903ddb9d2af1b64b41e21d128ff6863308`（~/.cache/pitchlog/self-team-read-plan-review/round1.log）。製品/凍結資産/承認値は未変更、自己批准や最終承認済みとは記録しない。

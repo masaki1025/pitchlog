@@ -7,7 +7,7 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf13-postmerge-accepta
 notion: https://app.notion.com/p/3f493b75e68781628422c331bfebc350
 branch: feature/uf13-postmerge-acceptance-followup
 created: 2026-10-19
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -49,7 +49,7 @@ created: 2026-10-19
 - `frontend/src/api/roster.ts`、`lib/rosterQueryKeys.ts`、`screens/TeamScreen.vue`と各spec。共通client/auth/storeをコピー・改変しない。
 - backendの既存roster repository/boundary、HTTP/metadata、隔離DB試験。rootのcaller/HTTP exact-set・契約検査は、新入口/型への必要な期待値追加だけを行い既存拒否例を残す。
 - `contracts/tenant_boundary/repository-contract.json`、`base-allowlist.json`、対応する基準snapshot/受理記録。必要な公開型/登録builder差分とsource_digestだけ。7.7前後値は最終実基線から機械導出する。
-- 必要性が確定した場合だけ`contracts/authz/route-registry.json`、`http-route-matrix.json`、各lock、`oracle-seal.lock.json`、`oracle-meaning-change-approvals.json`と対応snapshot/受理記録。既存ROUTE:RECORD:team_records:readが充足するなら新route_id/claimは増やさない。
+- 必要性が確定した場合だけ`contracts/authz/route-registry.json`、`http-route-matrix.json`、各lock、`oracle-seal.lock.json`、`oracle-meaning-change-approvals.json`と対応snapshot/受理記録。既存CAP:team_records:read/ROUTE:RECORD:team_records:readを再利用し、新route_id/claimは追加しない。充足不能な具体的事実が後で判明した場合だけ、その差分を別ゲートへ提示する。
 - 本計画、既存self候補資料、既存PR依存表/U-F13計画、同一のコミット済み作業ログ。新カード・新しい作業タブを作らない。台帳への追記は/pr前に既定の基準で判断する。
 
 ## 4. 実装方針
@@ -76,7 +76,9 @@ T（tenant-isolation）と、既存TeamScreen/query keyのD（data-migration）�
 
 ### 4.3 UI・旧応答の境界
 
-self query keyは検証済みtenant+authEpochを含め、opponentページ群と分離する。未確認ではquery/mutationを開始しない。self成功時は初期自動選択するが、利用者が明示選択済みのopponentを後着selfで上書きしない。selfのpending/0件/通信失敗を独立表示し、opponent成功をself成功に見せない。
+self query keyは検証済みtenant+authEpochを含め、opponentページ群と分離する。未確認ではquery/mutationを開始しない。新しいself取得入口では共通clientの返却をunknownとして受け、既存TeamRecordReadの4項目（UUIDのid、kind=self、stringのname、hidden_at=null。欠落/余剰キーなし）を実行時検査してからqueryへ返す。共通apiRequestの型キャストだけをDTO検証としない。roster.tsへこの入口の検査を集約し、共通clientをコピー/改変しない。不正な200本文はqueryを失敗とし、その値を選択肢/cache/players要求へ渡さない。metadata不正の認証/cache無効化は既存C2に任せ、新たな認証状態遷移は追加しない。self queryはretry=falseとし、再確認は利用者の明示操作だけにする。
+
+self成功時は初期自動選択するが、利用者が明示選択済みのopponentを後着selfで上書きしない。selfのpending/0件/通信失敗を独立表示し、opponent成功をself成功に見せない。
 
 切替時に一覧/選択/cacheを破棄する既存境界を維持し、旧self query・遅延mutationは新世代へ適用しない。clientの世代/metadata拒否を保持する。新しい自動再送は追加せず、結果未確認の操作を成功と表示しない。既存選手登録/編集とopponentページングの処理を再利用する。
 
@@ -93,7 +95,7 @@ self query keyは検証済みtenant+authEpochを含め、opponentページ群と
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
 | 1 | backend self token/固定登録/HTTP/C2適用と固有試験、必要な共有資産の候補差分 | 0/1/異常複数、tenant/未認証/metadata前照合、SQL形/固定bind/既存opponent拒否が成功。共有候補は所有受理済み範囲だけとし、未受理7.7は統合前ゲートへ明示する |
-| 2 | 正規roster client/query key/既存TeamScreenへのself接続と固有spec | self取得/選択/欠損表示、認証切替/旧query・mutation/再送なし、opponentページング回帰、全frontend/type/lint/整形/build成功 |
+| 2 | 正規roster client/query key/既存TeamScreenへのself接続と固有spec | selfの4項目実行時検査と不正200の非採用、取得/選択/欠損表示、認証切替/旧query・mutation/再送なし、opponentページング回帰、全frontend/type/lint/整形/build成功 |
 | 3 | 実画面/API/隔離DB受入、必要な全品質検査・既定レビュー/是正、PR資料固定 | 自チーム一覧/登録/編集/reload保存、越境/遅延/未確認/通信失敗、opponent回帰の実証。root/backend/frontend全件と品質ゲートの結果・HEADを固定。正式受理/本人確認の未了を隠さず、通常push/Draftと最終資料へ進む |
 
 表は実装候補の合格条件。TSK-528全体の完了を意味しない。7.7反映/再封印の確定ゲート周コミットはステップ記法を付けず既定手順に従う。追加修正も承認済み範囲・既定レビュー回数を保持する。
@@ -112,7 +114,7 @@ self query keyは検証済みtenant+authEpochを含め、opponentページ群と
 
 - backend単体: token引数不可、既存opponent固定、tenant WHERE/kind/self/hidden/limit1、既存DTO/行形のstrict確認、0/1/複数注入、metadataと認証の優先順位、非2xxに成功ackなし。
 - 隔離PostgreSQL: 既存fixtureでA/Bのself/opponent、selfなしtenant、同tenant二重self INSERT拒否、文脈なし/他tenant SELECT拒否。共有DB・制約を変更しない。異常materialized行はmock/fault injectionと明記する。
-- frontend Vitest: self取得pending/0/失敗/成功、初期選択と明示opponent選択、ページング/登録/通常編集・再取得、遅延self queryと遅延mutationの世代切替、未確認中通信0、自動再送0。
+- frontend Vitest: self応答の不正UUID/kind=opponent/hidden非null/name非string/欠落/余剰キーを200で返して拒否し、query成功/選択肢/cacheへの採用とplayers通信を起こさないことを確認する。共通clientを通した1回送信/自動retry0を確認する。self取得pending/0/失敗/成功、初期選択と明示opponent選択、ページング/登録/通常編集・再取得、遅延self queryと遅延mutationの世代切替、未確認中通信0、自動再送0。
 - 実画面/API/隔離DB: production preview/既存Chromium手順、self名/kindを確認→一覧→追加→編集→reload→DB observer確認。別tenant・2タブ/遅延/通信断の既存手順を必要な影響範囲で再利用し、opponent経路も別に回帰確認する。資格情報/Cookie値を証跡へ残さず自分の環境だけ撤去する。
 - 全件品質: root Ruff/ty/pytest、backend Ruff format/check/ty/pytestと既存migration/DB契約検査、frontend Prettier/ESLint/vue-tsc/Vitest/build/depcruise/閉域。frozen/tenant-boundary/authz/caller/HTTP/coreの既存検査。試験除外・timeout緩和・検出漏れを許可しない。
 - レビュー: 本計画とAPI/認可意味契約は6.1/6.3の敵対レビュー（原則2回、P0例外のみ）。実装は別枠の反対側/コア敵対レビューを既定回数で実施。既存PRの枠/可決/本人確認は流用しない。

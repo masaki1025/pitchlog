@@ -45,12 +45,12 @@
 | selfなし | 同じ汎用404。別tenantのself、推測ID、opponentへフォールバックしない |
 | DB/通信/DTO不正 | 既存エラー分類へ従う。成功表示・旧cache復元・mutation自動再送なし。2xx metadata不正は承認済みC2無効化境界へ接続 |
 
-`/team-records/{team_record_id:uuid}` と文字列selfは識別できるが、実route exact-set/OpenAPI試験で曖昧性がないことを証明する。HTTP route_id等の凍結資産上の識別子は、既存read claimの利用か最小claim追加かを正式審査で決め、ここで受理済み値を予約しない。
+`/team-records/{team_record_id:uuid}` と文字列selfは識別できるが、実route exact-set/OpenAPI試験で曖昧性がないことを証明する。API/認可計画レビュー第1周で、既存CAP:team_records:readとROUTE:RECORD:team_records:read、app roleのSELECT/tenant RLSで本readを表せることを確認した。既存IDを再利用し、新route_id/claim/権限は追加しない。具体的な充足不能が後で判明した場合だけ、その差分を別ゲートへ出す。
 
 ## 4. 画面への接続とPR境界
 
 - 正規roster clientへ `readSelfTeamRecord(options?)` を追加する候補。既存apiRequestのtenantBound、C1の認証世代/意図、C2の応答照合を使う。呼出側からtenantを指定する新入口は作らない。
-- shared Pinia/QueryClientを維持。self query keyは検証済みtenantとauthEpochを含め、opponentページ群とは別に保持。結果DTOのUUID/kind=self/hidden_at=nullを確認してから選択肢へ結合する。実装上のdecoderは既存検証経路に集約し、コピーを作らない。
+- shared Pinia/QueryClientを維持。self query keyは検証済みtenantとauthEpochを含め、opponentページ群とは別に保持。共通clientからのunknown結果をroster.tsのself取得入口で既存DTOの4項目（UUIDのid/kind=self/stringのname/hidden_at=null、欠落・余剰キーなし）として実行時検査してからqueryへ返し、選択肢へ結合する。型キャストだけを検証としない。不正な200は選択/cacheへ採用せず、players通信を始めない。共通clientはコピー/改変しない。self queryの自動retryは無効とし、明示再確認だけを許す。
 - self取得待ち/失敗を独立表示し、自チームが未取得なのに対戦相手で成功を代用しない。自チームが取得できた場合に自動選択するが、利用者が選択済みの対戦相手を後着selfで上書きしない。
 - 認証未確認ではquery/mutationを起動しない。世代切替で選択と全旧cacheを破棄し、旧query/mutationが新画面を更新しない。登録/編集は既存選手APIと既存部品を使用する。
 
@@ -69,7 +69,7 @@
 | 時点 | ゲート・具体的差分 | 担当・必要な人間判断 |
 | --- | --- | --- |
 | 実装開始前 | **最小計画追補**。採用済みの本書§2–4を具体化する最小計画のステップ・失敗境界・試験・Draft先行条件をレビューへ出す | 起案・実装候補はCodex D。採用済み方針は再照会せず、レビュー採否と実装前の最終差分だけ人間承認へ一括提示。既存4PRの計画・レビューを再作成しない |
-| 実装開始前 | **API・認可の意味契約**。`GET /team-records/self`を新公開入口にし、既存`CAP:team_records:read`と`ROUTE:RECORD:team_records:read`の利用を推奨。既存claimで充足するかを正式照合し、不要な新claim/literalを増やさない | Codex Dが正本/認可担当へ差分を提示。7.6により正本への規範追加・構造改訂が必要なら、その本文だけ7.3審査→人間承認。該当しない場合も理由と権限対応をPRレビュー記録へ残す。既存RLS・SELECT grantは維持 |
+| 実装開始前 | **API・認可の意味契約**。`GET /team-records/self`を新公開入口にし、既存`CAP:team_records:read`と`ROUTE:RECORD:team_records:read`を再利用する。第1周の静的照合で充足を確認し、新claim/literal/権限を増やさない | Codex Dが正本/認可担当へ差分を提示。7.6により正本への規範追加・構造改訂が必要なら、その本文だけ7.3審査→人間承認。該当しない場合も理由と権限対応をPRレビュー記録へ残す。既存RLS・SELECT grantは維持 |
 | 共有資産編集前 | **所有・順序**。#152と重なるbase-allowlist、authz registry/matrix/lock/seal等の一時担当と統合順を確定 | 共有資産の担当受理が必要。返事なしを所有移管としない。#152全体をすべての準備作業の停止条件にはしない |
 | 候補固定後・正式受理前 | **tenant-boundary / 7.7**。repository-contractのproduct_operation_token_typesへ新型1件、source_digest、必要なbuilder symbolだけbase-allowlistへ追加。現基線revisionは21/33だが、最終実基線から再導出し、今は次番号を予約しない | Codex Dが実ファイル/blob・前後値・2系列の必要snapshot/理由/受理記録案を機械導出。7.7の正式受理者・日付を先行入力せず人間判断へ提示。inventory/context発行入口を広げない |
 | 候補固定後・正式受理前 | **authz / 7.7**。実際に変わるroute registry / HTTP matrix / 各lock、oracle seal、meaning-change記録の差分と入力・sealed digestを完全値で提示。既存read claimをそのまま使えて不変の資産は変更しない | Codex Dと認可資産担当が対象を特定し、人間が変更対象だけを正式受理。C1/#154の受理・本人確認は流用しない |
