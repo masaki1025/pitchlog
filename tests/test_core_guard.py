@@ -490,6 +490,7 @@ UR1_REGISTERED_PATHS: dict[str, tuple[str, ...]] = {
     ),
 }
 UF13_TENANT_ROUTE_PATHS = (
+    "frontend/src/screens/LoginScreen*",
     "frontend/src/router*",
     "frontend/src/App*",
 )
