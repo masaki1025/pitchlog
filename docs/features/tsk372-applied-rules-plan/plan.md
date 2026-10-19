@@ -1,7 +1,7 @@
 ---
 feature: tsk372-applied-rules-plan
 status: active
-承認: 未
+承認: 済(2026-10-19・山田正輝、候補コミット8a45168a・SHA-256 e56e3ad535e556b710fc8bd1645fd63d52a59245a87a88f0338cab5d47254a7e)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3d993b75e687818ea93bf8ddb087fe97
