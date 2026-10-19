@@ -438,7 +438,7 @@ function clearDraft() {
         }}
       </p>
 
-      <div class="grid gap-5 lg:grid-cols-2">
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div class="space-y-4">
           <div>
             <label for="pitch-type" class="mb-1 block text-sm font-bold"

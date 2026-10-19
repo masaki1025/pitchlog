@@ -79,7 +79,14 @@ describe('375px 幅で横溢れを生む構造を持たない', () => {
   })
 
   it('2 列の並びを狭い幅では 1 列にする', () => {
-    const html = mountNarrow().html()
+    const wrapper = mountNarrow()
+    const html = wrapper.html()
+
+    // 暗黙のauto列は、日本語フォントの入力/消去ボタンの最小内容幅で広がる。
+    // 明示した1fr列の最小幅0を使い、375pxの内容幅に収める。
+    expect(
+      wrapper.get('[aria-label="投球入力の下書き"] .grid').classes(),
+    ).toContain('grid-cols-1')
 
     // sm: の接頭辞が無い grid-cols-N（N >= 3）は 375px で詰まる。
     expect(html).not.toMatch(/(?<!:)\bgrid-cols-(?:[3-9]|1[0-2])\b/)
