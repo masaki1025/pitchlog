@@ -42,28 +42,31 @@ interface CourseView {
   viewpoint: CourseInputView
 }
 
-const props = defineProps<{
-  state?: Partial<GameDisplayState> | null
-  pitchTypes?: readonly InputCandidate[]
-  results?: readonly InputCandidate[]
-  courseView?: CourseView | null
-  /** 未送信の件数。索引集計の結果を渡す(画面では数えない)。 */
-  unsentCount?: number
-  actionRequired?: ActionRequiredSummary
-  evacuatedCount?: number
-  syncedCount?: number
-  /** 同期境界から受け取る通知。区分の判定は通信・キュー側が持つ。 */
-  receivedNotices?: readonly SyncNoticeDescriptor[]
-  /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
-  unsentWarning?: boolean
-  // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
-  // 未確定を表せる文字列で受け取る。
-  storagePersistence?: 'granted' | 'denied'
-  /** 1 球の入力に対する記録者の観測。可否の判定にだけ使う。 */
-  inputObservation?: PitchInputObservation
-  /** 確定値のうち、画面の下書き欄の外から来るもの。 */
-  eventIdentity?: { d5: string; d4: string; gameId: string; d2: unknown }
-}>()
+const props = withDefaults(
+  defineProps<{
+    state?: Partial<GameDisplayState> | null
+    pitchTypes?: readonly InputCandidate[]
+    results?: readonly InputCandidate[]
+    courseView?: CourseView | null
+    /** 未送信の件数。索引集計の結果を渡す(画面では数えない)。 */
+    unsentCount?: number
+    actionRequired?: ActionRequiredSummary
+    evacuatedCount?: number
+    syncedCount?: number
+    /** 同期境界から受け取る通知。区分の判定は通信・キュー側が持つ。 */
+    receivedNotices?: readonly SyncNoticeDescriptor[]
+    /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
+    unsentWarning?: boolean
+    // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
+    // 未確定を表せる文字列で受け取る。
+    storagePersistence?: 'granted' | 'denied'
+    /** 1 球の入力に対する記録者の観測。可否の判定にだけ使う。 */
+    inputObservation?: PitchInputObservation
+    /** 確定値のうち、画面の下書き欄の外から来るもの。 */
+    eventIdentity?: { d5: string; d4: string; gameId: string; d2: unknown }
+  }>(),
+  { unsentWarning: undefined },
+)
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
 const queueStatus = computed(() =>
@@ -300,7 +303,7 @@ function clearDraft() {
             class="mt-1 text-2xl font-extrabold tabular-nums"
             data-testid="action-required-count"
           >
-            {{ queueStatus.actionRequiredCount }}
+            {{ queueStatus.actionRequiredCount ?? '未取得' }}
           </dd>
         </div>
         <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
@@ -309,7 +312,7 @@ function clearDraft() {
             class="mt-1 text-2xl font-extrabold tabular-nums"
             data-testid="evacuated-count"
           >
-            {{ queueStatus.evacuatedCount }}
+            {{ queueStatus.evacuatedCount ?? '未取得' }}
           </dd>
         </div>
       </dl>

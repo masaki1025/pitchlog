@@ -65,8 +65,10 @@ describe('キューの状態の導出', () => {
       storagePersistenceGranted: true,
     })
 
-    // 同期済みは供給していないので、0 と見せず未供給として出す。
+    // 件数未取得を0と見せず、状態ごとに未供給として出す。
     expect(view.unsuppliedStates).toContain(queueStateId('同期済み'))
+    expect(view.unsuppliedStates).toContain(queueStateId('要操作'))
+    expect(view.unsuppliedStates).toContain(queueStateId('退避済み'))
     expect(view.countsByState[queueStateId('同期済み')]).toBeUndefined()
   })
 
@@ -212,11 +214,20 @@ describe('画面に出る同期の状態', () => {
     const wrapper = mount(GameScreen)
 
     expect(wrapper.get('[data-testid="unsent-count"]').text()).toBe('未取得')
+    expect(wrapper.get('[data-testid="action-required-count"]').text()).toBe(
+      '未取得',
+    )
+    expect(wrapper.get('[data-testid="evacuated-count"]').text()).toBe('未取得')
   })
 
-  it('未送信の警告は渡されたときだけ出す', () => {
+  it('未送信警告の判定が未指定なら件数から導き、明示falseは尊重する', () => {
     expect(
       mount(GameScreen, { props: { unsentCount: 400 } })
+        .find('[data-testid="unsent-warning"]')
+        .exists(),
+    ).toBe(true)
+    expect(
+      mount(GameScreen, { props: { unsentCount: 400, unsentWarning: false } })
         .find('[data-testid="unsent-warning"]')
         .exists(),
     ).toBe(false)

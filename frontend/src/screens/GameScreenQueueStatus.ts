@@ -67,9 +67,9 @@ export type QueueStatusView = Readonly<{
   /** 正本の状態のうち件数が供給されていないもの。黙って 0 と見せない。 */
   unsuppliedStates: readonly QueueStateId[]
   unsentCount: number | undefined
-  actionRequiredCount: number
+  actionRequiredCount: number | undefined
   actionRequiredLabels: readonly QueueActionRequiredLabel['id'][]
-  evacuatedCount: number
+  evacuatedCount: number | undefined
   unsentWarning: boolean
   notices: readonly SyncNoticeDescriptor[]
 }>
@@ -84,8 +84,8 @@ export type QueueStatusView = Readonly<{
  *     状態ごとの件数・未送信の警告・並べる通知。
  */
 export function deriveQueueStatus(input: QueueStatusInput): QueueStatusView {
-  const actionRequiredCount = input.actionRequired?.count ?? 0
-  const evacuatedCount = input.evacuatedCount ?? 0
+  const actionRequiredCount = input.actionRequired?.count
+  const evacuatedCount = input.evacuatedCount
 
   // 正本の状態集合を起点に組み立てる。状態が増えたら未供給として現れる。
   const supplied: Partial<Record<QueueStateId, number>> = {
