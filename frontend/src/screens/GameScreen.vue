@@ -2,7 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import type { CourseInputView } from '../lib/courseInputView'
-import { SYNC_NOTICE_CATALOG } from '../lib/sync/syncNotices'
+import {
+  SYNC_NOTICE_CATALOG,
+  type SyncNoticeDescriptor,
+} from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
 import {
   judgePitchInputEligibility,
@@ -49,6 +52,8 @@ const props = defineProps<{
   actionRequired?: ActionRequiredSummary
   evacuatedCount?: number
   syncedCount?: number
+  /** 同期境界から受け取る通知。区分の判定は通信・キュー側が持つ。 */
+  receivedNotices?: readonly SyncNoticeDescriptor[]
   /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
   unsentWarning?: boolean
   // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -68,6 +73,7 @@ const queueStatus = computed(() =>
     evacuatedCount: props.evacuatedCount,
     syncedCount: props.syncedCount,
     unsentWarning: props.unsentWarning,
+    receivedNotices: props.receivedNotices,
     storagePersistenceGranted:
       props.storagePersistence === undefined
         ? undefined

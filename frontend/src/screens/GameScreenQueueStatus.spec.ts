@@ -6,12 +6,42 @@ import {
   QUEUE_STATES,
   queueStateId,
 } from '../lib/sync/queueState'
-import { createSyncNotice } from '../lib/sync/syncNotices'
+import { createSyncNotice, SYNC_NOTICE_CATALOG } from '../lib/sync/syncNotices'
 import GameScreen from './GameScreen.vue'
 import { deriveQueueStatus } from './GameScreenQueueStatus'
 import queueStatusSource from './GameScreenQueueStatus.ts?raw'
 
 describe('キューの状態の導出', () => {
+  it('B区分の通知を画面へ渡し、更新後も件数と併せて表示する', async () => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        unsentCount: 2,
+        receivedNotices: [createSyncNotice('B5', {})],
+      },
+    })
+
+    expect(wrapper.get('[data-notice-id="B5"]').text()).toBe(
+      SYNC_NOTICE_CATALOG.B5,
+    )
+    expect(wrapper.get('[data-testid="unsent-count"]').text()).toBe('2')
+    expect(
+      wrapper.get<HTMLButtonElement>('[data-testid="commit-pitch"]').element
+        .disabled,
+    ).toBe(true)
+
+    await wrapper.setProps({
+      unsentCount: 0,
+      evacuatedCount: 2,
+      receivedNotices: [createSyncNotice('B4', {})],
+    })
+
+    expect(wrapper.find('[data-notice-id="B5"]').exists()).toBe(false)
+    expect(wrapper.get('[data-notice-id="B4"]').text()).toBe(
+      SYNC_NOTICE_CATALOG.B4,
+    )
+    expect(wrapper.get('[data-testid="evacuated-count"]').text()).toBe('2')
+  })
+
   it('件数を受け取り、状態ごとに正本の ID で引ける形で返す', () => {
     const view = deriveQueueStatus({
       unsentCount: 2,
