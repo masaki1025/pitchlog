@@ -599,7 +599,9 @@
         "frontend/src/components/settings/TeamMembersContent*",
         "frontend/src/lib/rosterQueryKeys*",
         "frontend/src/screens/TeamScreen*",
-        "frontend/src/screens/LoginScreen*"
+        "frontend/src/screens/LoginScreen*",
+        "frontend/src/router*",
+        "frontend/src/App*"
       ]
     },
     {

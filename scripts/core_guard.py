@@ -50,7 +50,8 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
     "tenant-isolation": (
-        "frontend/src/screens/LoginScreen*",
+        "frontend/src/router*",
+        "frontend/src/App*",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(

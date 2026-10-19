@@ -451,6 +451,244 @@ PR #132と#137は本記録時点でも未統合であり、追補承認後も共
 - 既存履歴の別1件は同期故障試験の母集合における固定試験ID。backend/frontend双方のペア集合検査用途を照合し、詳細をstep2-gitleaks-decision.mdへ固定した。この1件は未判定・未登録で、承認済み2件と別管理する。
 - 新HEADの通常push・PR CI更新を進め、全必須チェック成功後だけDraft解除する承認を受領。マージ・公開、C2/U-F3実装は行わない。台帳への追記なし：既存の誤検知登録運用の承認反映であり、新たなハーネス知見は追加しない。
 
+### U-F13専用worktreeの基線追随（2026-10-18）
+
+PR #147の実統合SHA493342be37d4383ca572f8d1c826a3f184a4d213を再照合し、cleanな本worktreeを6b09503dからfast-forwardした。C1ステップ2完了とC1待ち解消を計画へ反映した。C1の承認・逐行確認は維持し、方法を推定しない。C2/U-F3は別のdevelop起点worktreeで実装/試験/正式レビュー中であり、それらの未統合候補を本worktreeの基線にはしていない。
+
+U-F13のrouter/App/core path製品変更は未着手。開始条件はC2/U-F3のdevelop統合と共有core3ファイルの所有順であり、解消済みの#119/C1待ちを停止理由として繰り返さない。#143の共有差分を無断編集せず、core検出不足を回避しない。TSK-528全体・TSK-520実API受入・15経路+catch-all全体は未完了。実画面/API/DBの受入はまだ実施していない。
+
+
+## 2026-10-18: 最新develop・編集所有の再照合とステップ1
+
+- PR #143は`156dd139a893845428a1ecab69632143f7694e0b`へ統合済み。共有3ファイルの待ちを外し、消失した`/tmp` worktreeのコミット済み成果をディスク側へ復元し、専用branchへ通常mergeした。他担当worktree/既存DBは未変更。
+- C2/U-F3の製品・固有試験と既定2周のレビューは保持。共通clientはC2、LoginScreenはU-F3、router/App/登録3ファイルはU-F13の順序でDが編集する。C1の完了や既受理を再承認待ちに戻さない。
+- 最新指示の独立準備として、既承認router/Appの2パターンをtenant-isolation追加層へ宣言。JSON登録だけの先行は行わず、実JSONは不変。RG1登録済み層は保持し、宣言回転後の削除負例を全パターンで検査する。
+- 初回の新試験は存在しない検査helper名を参照して1失敗/262成功。実CLIによる合成製品4ファイルの本人未記入拒否/記入済み正例へ修正し、**core-guard全264件成功**。検出や人間ゲートを弱めていない。root Ruff/tyも成功。Ruffの既存docstring警告は別記し、root formatterは使用しない。
+- LoginScreenの追加1パターンと、C2/U-F3の自分の固定コミットだけを検証環境へ結合する最小追補は依頼者回答待ち。回答に依存しない宣言・API/DTO照合・専用受入環境準備を継続する。
+- 新規の実装レビュー枠を無断で増やさず、本ステップの宣言/試験はU-F13実装PRの既定レビューと本人逐行確認へ含める。既存C2/U-F3レビュー後の反映差分は未再レビューという履歴を維持する。
+
+
+## 2026-10-18: C1相関の新しい局所差分（未承認・独立作業は継続）
+
+- [具体候補](../features/uf13-team-route-acceptance/login-session-correlation-decision.md)と[採否・固定SHA](../features/uf13-team-route-acceptance/login-session-correlation-review.md)へ集約。新login DTOのserver検証済みtenant_id、既存verify関数の限定caller1組、初回例外なしの非秘密意図状態、Web Locksによる更新/採用直列化、固定503/必須UI/配布境界を具体化した。製品には未反映。
+- 第2周Codex P0=2/P1=3、実Claude P1=3/P2=6を採用。自動P0限定第3周はP0=0で終了。P1/P2の最終反映と後追加の局所1ステップ/追加PR境界は未再レビューとして人間確認へ残す。既存C2/U-F3コードレビューの追加周ではなく、否決済みCookie局所案の継続である。
+- C2は最新基線の全件検査を継続。最初のbackend全件はsymlink仮想環境が文言走査へ列挙される環境不備で中断し、製品/検査器を変えず通常のignore対象ディレクトリへ修正して再実行した。root初回の3失敗（bytecode生成検出と、SQL変異の既存ロール接続拒否）は失敗として保持し、専用PostgreSQL・bytecode無効化で全件を再実行中。選択診断もDB fixtureの既定接続時に拒否されて未実行であり、成功へ数えない。既存DBへSQL実行する経路には到達せず、以後の全検査は専用クラスタだけを使う。
+- U-F3のfrontend 1,267成功、C2のfrontend 1,279成功は最新基線で実測済み。U-F3のroot/backendも専用クラスタで実行中。実画面通し、追加core登録、通常push/Draft PR作成の未許可を完了扱いにしない。
+
+
+## 2026-10-18: U-F5実経路照合・受入環境の独立準備
+
+- 実APIは`api/routers/{players,team_records}.py`と単一`repositories/roster.py`、DTOは`api/schemas/roster.py`。C2の正規`api/roster.ts`は選手/対戦相手の一覧・登録・通常編集だけを対象7経路へ接続し、tenant_idをroster DTOへ追加しない。対戦相手POSTは`/team-records`であり、認証用チーム作成を実装しない。
+- `TeamScreen`は共有VueQuery providerのcursor一覧、選択したself/opponent、limit25を再利用。`TeamMembersContent`は登録/通常編集・same_number_players/similar_names・同tenant/世代のcache再取得を持つ。状態変更・削除・試合中登録は新しい入口に含めない。上の実製品経路にはRG1/D4/段階A規則解決/試合作成の参照なし。550・D4・544/545は本縦断の待ちにしない。
+- 共有Piniaは`appProviders.ts`のexport、既存QueryClientも同providerから供給される。U-F13の認証guardはC1 ensureSessionVerifiedを再利用する予定で、仮tenantやlocalStorage認証済み判定を作らない。
+- 既存Playwright実行環境とChromium149を確認。専用blank context・OS割当の空きportだけを使う能力確認で、localhostのSecure/HttpOnly/__Host Cookie受理を実測し、context/serverを終了した。実製品ログイン・/team・DB受入はまだ未実施であり、この環境確認を受入成功と扱わない。TLS鍵や既存ブラウザprofile/既存DBを読み込まない。
+- 実受入は既存disposable DB fixtureで正規認可/seedを適用し、テスト専用tenant/self recordを設定して、実APIと実画面へ接続する。未統合の他担当枝を使わず、D自身の固定候補を検証用に結合する局所条件への回答を待つ。新しい常設E2Eハーネスは追加しない。
+
+
+### 固定候補の全件検査（2026-10-18、継続）
+
+C2の17製品/試験入力は`77d20da729994564b802cb33fbf14dc9ef26785d`、U-F3の2製品/試験入力は`a4b982441b25b260a4532b5148bc8fb1c08166d7`で固定し、SHA-256 manifestを個別cacheへ保存した。C2のroot全件は専用DB/4workerで**29,670成功・2 skip、1218.28秒、終了コード0**、U-F3のroot全件も専用DB/2workerで**29,670成功・2 skip、1698.99秒、終了コード0**。両rootの専用クラスタcleanupを確認。C2の初回失敗・中断を成功へ流用せず、同じ全件集合を除外なしで再実行した。C2 rootの一時runner記録に残ったnested worker記述2は実設定4と不一致だったため、実行argv/設定に基づく訂正記録を別保全した（試験実行自体は変更なし）。両backend全件はまだ実行中であり、この欄で完了を主張しない。
+
+本collaboration treeも再確認し、実行中はCodex Dのrootのみ。他の実装サブエージェントによる同時編集はない。新たなsub-agentは起動していない。
+
+
+### backend全件の追加診断（2026-10-18）
+
+U-F3は通常配置venvで**2,574成功/4 skip/1 warning、3049.63秒、終了コード0**、専用cluster cleanup完了。C2は**3,030成功/2失敗/4 skip/1 warning、3048.08秒**で、失敗は署名・未署名呼出しの変異2件。子pytestのtracebackを診断用に捕捉したところ、期待する認証guardの失敗ではなく、fixtureのcreate_appが一時sourceコピーのdomain artifact不在でERRORになり、failed件数が不足していた。
+
+C2のbackend/.venvは外部cacheへのリンク構成で、pytestスクリプトのshebang/sys.prefixがcache側になっていた。`domainrt.host._product_root`は一時コピーの場合に通常のbackend/.venvから製品ルートを選ぶ既存契約であり、これに合わない環境だった。D自身のvenvリンクだけを除き、通常位置へuv sync --lockedで再作成（cache/ソース/他担当環境は保持）。製品・既存試験を一切変更せず、変異module全**7成功、17.49秒**を確認。red/greenの期待数・artifact照合を緩和していない。診断成功を全件成功へ流用せず、同じ3,036件のbackend全件を専用clusterで再実行中。C2の17製品/試験blobは固定SHA-256と全一致している。
+
+
+## 2026-10-18: 独立作業の最終成果と接続前の残判断（Claude向け）
+
+基線は#143実統合156dd139a893845428a1ecab69632143f7694e0b。C1/#119/#129/#131/#132/#137/#143の統合待ちは解消済み。C2の最終記録HEADは193400d68e852bce14cee4ff65038c4a92a57c47、U-F3は8f2f1531fd7d1f639872ae21a711817d5c581779で、双方の製品/試験SHA-256は各検査HEAD77d20da7/a4b98244と不変。
+
+| 対象 | 最新基線の検査・状態 |
+| --- | --- |
+| C2 | root29,670成功/2 skip、backend3,032成功/4 skip/1 warning（2534.68秒、exit0）、frontend69ファイル1,279成功、型/lint/整形/build・境界/frozen/catalog成功。全件後に専用cluster撤去済み。全26差分中コア17件、本人未記入拒否を確認 |
+| U-F3 | root29,670成功/2 skip、backend2,574成功/4 skip/1 warning、frontend69ファイル1,267成功、型/lint/整形/build・境界/frozen/catalog成功。全6差分、意味上TのLoginScreen2ファイルが機械検出0で登録不足 |
+| U-F13 | e5fcff3cの宣言ステップ1/3。core全264成功、Ruff/ty/基線成功、JSON未変更、合成履歴の4製品ファイル検出/本人未記入拒否。router/Appの製品接続はまだ未実装 |
+
+両C2/U-F3の既定反対側・敵対レビュー各2周と指摘採用を維持し、上限後の反映は未再レビューとして本人確認へ明記する。C2環境不備2件とroot初回失敗・中断は履歴を保持し、今回全件成功へ置換して消さない。除外/timeout緩和/検査器変更なし。
+
+### 本当に残る人間判断と推奨
+
+1. U-F3の意味範囲漏れを閉じる`frontend/src/screens/LoginScreen*`のtenant-isolationだけへの追加1パターン。既承認router/Appは再承認不要。宣言・試験を先にコミットし、別コミットでJSONと当該製品を登録する順を守る。未登録を非コアや本人ゲート成功とは扱わない。
+2. U-F13計画§2/§3.2/§5のdevelop着地条件に対し、D自身の固定C2/U-F3/U-F13成果だけを専用検証worktreeへ結合する局所例外。製品PR境界・正式統合順・他担当未統合枝を基線にしない条件は維持する。承認前にステップ2/3の製品接続・JSON登録へ進めない。
+3. 379aef2585bfca95d044e09d2c387b97e1887c41のlogin/session相関1ステップ/追加PR案。候補SHA-256は8c05872d4fae6940404c3d49c98345633ddd12e0d56fb3bc03e8412b1680ae77。新login DTO・固定503/限定caller・Web Locks/認証意図・拒否時cache非復元・初回再login/可用性低下を明示した未承認差分。既C1の受理を取り消さず、C2に無断で混ぜない。P0限定第3周0、最終P1/P2等は未再レビュー。
+4. 現C2/U-F3/U-F13に対する通常push/Draft PR作成の許可は未取得。既存のC1他PR向け許可を流用しない。C2は資料とローカル全件検査が揃ったが、U-F3は上記登録、U-F13は接続と受入が残るため、それぞれ条件成立後だけ進める。
+
+実画面でのlogin→session→/team→一覧/追加/編集→reloadはまだ通していない。既存Chromium/Playwrightの能力確認を製品受入へ読み替えない。共有providerと正規API/DTOを再利用する準備・実経路照合は完了しており、550/D4/544/545を無関係な停止条件にしない。本人逐行確認の実施/方法、公開、マージを代行しない。
+
+
+## 2026-10-18: 接続準備の追加承認と新契約の具体提示
+
+山田正輝がLoginScreen*登録、自分の固定候補の専用検証結合、現承認範囲の通常push/Draft作成を承認。C2はDraft #150へ通常push済み（HEAD146c774c）。U-F3は宣言8a73dd21→試験追随45f6acd6→JSON単独a794a637→記録ea1b3bda。core全264成功、機械検出と本人未記入拒否。追加のcore変更に対応したroot全件を専用DBで実行中。初回起動はroot環境にpsycopgがなくDB起動前に停止し、既存backend Pythonから正規runnerを再起動した。
+
+結合元は実develop156dd139、C2 193400d68e852bce14cee4ff65038c4a92a57c47、U-F3 ea1b3bda681b689c9b8fe1b56fae7dce8f9d5d7f。専用feature/uf13-team-route-verificationだけへ結合（merge0793fa16）。他担当未統合枝は不使用。router/Appの編集所有はU-F13へ移り、元PR/他担当worktreeへ結合差分を逆流させない。
+
+新login/session相関のDTO前後・意図識別/保持・旧Cookie順序・再確認手順と現C1との差は[具体比較資料](../features/uf13-team-route-acceptance/login-session-correlation-comparison.md)へ提示。新契約は未承認・未実装のまま、既承認の経路/JSON/試験を進める。相関の既知残余を通し受入成功で隠さず、本人確認・公開・マージは代行しない。
+
+
+### U-F13ステップ2の製品接続（結合候補だけで検証）
+
+宣言e5fcff3c/試験追随e8907eceと別のコミットでJSON2パターン＋router/Appを接続。保護/teamは共有PiniaのC1 ensureSessionVerifiedを呼び、hydration・DTO成功・現epoch/tenant一致までTeamScreenを開始しない。公開/loginは既存LoginScreen、/helpは公開/backを保持。認証切替で保護画面のkeyをauthEpochとしcache/observerを旧世代から切る。LoginScreenは正規login→session進行中のepoch変更でunmountすると結果を失うため、認証操作中のkey再生成をせず、画面内の既存epoch照合と正規authenticated emitを使う。戻り先は実在する/teamだけで、外部/未完成pathを受け付けない。
+
+結合候補で初回frontend全70ファイル1,322成功・build成功。ESLintの動的import禁止を検出しルールを変えず静的importへ修正、再度ESLint/vue-tsc/全frontend1,322成功/build成功。さらに保存済みbb.authで通過しない固有試験を追加しrouter/App全17件を確認する。元の単独C2/U-F3の試験結果ではなく、専用結合候補の結果である。新login/session相関契約・実画面/実API/実DBの通し試験・本人確認・公開・マージは未実施。
+
+
+### U-F13実装レビュー第1周と差分是正
+
+反対側（実Claude）はP0=0/P1=2/P2=8、正規Codex敵対はP0=0/P1=0/P2=1。全指摘の対処を採用。P1は同tenant2タブのsession確認/storage削除による画面解除と、別tenant2タブでの検証済みBへの自動遷移という既存C1接合の残余で、記録と受入項目を追加したが根本解消や公開許容を受理済みとはしない。新C1相関の承認/実装/実ブラウザ実証前に通し受入を完了しない。
+
+製品是正は公開トップの不要なepoch再生成停止、Appの注入Pinia利用とguardの共有Pinia一致確認。追加試験は旧A一覧のB切替後到着、provider不一致、epoch/tenant不一致、認証操作進行中、tenant-bound401、storage削除、公開画面instance保持。wrapper.vmの比較はwrapperごとのproxyの違いに依存しない内部uidへ修正し、旧保護画面の再生成も実際のinstanceで検証。関連router/App25件成功。afterEachでhydrationを復元。
+
+coreの重複検証を除き、合成基線の空commit許容を明示。U-F3先行登録を持つ隔離Git履歴からrouter/Appを登録し、本人未記入拒否/合成チェック済み正例/既存LoginScreen削除拒否を実CLIで検査する。実PRの本人欄は未記入。planのworktreeは相対表記へ追随。
+
+旧結合2337157dのroot全件はレビューによる製品是正で検査対象が変わるためDのpytestだけを正常中断。14,204成功/2 skip、605.42秒、exit2で専用cluster撤去済み。完走成功へ数えずログを保持。別の専用結合検証worktreeで最終修正を固定し、全件を再開始する。U-F3単独の固定候補/root全件は変更せず継続。
+
+
+### U-F13既定レビュー第2周・最終追補（未再レビュー）
+
+第2周はCodex新規P0=0/P1=0/P2=1、実Claude新規P0=0/P1=0/P2=4（任意nit1含む）。第1周P1残余2件は未解消、人間の具体契約判断/実ブラウザ観察を公開前条件として保持する。第3周は追加しない。
+
+最終P2は全採用。401/storage試験をTeamScreen表示・実tenant要求がある状態から開始し、明示401応答と旧tenant IDを表明。spyの実呼出しを固定し、hydration後のprovider拒否も追加。合成基線の宣言をLoginScreenとし、router/Appへの宣言回転をJSONより先の別commitで行う実CLI隔離履歴へ是正。既存LoginScreen除去だけの負例は拒否。複数タブの受入表/未チェック欄と安全側合否・可用性観察を計画§6.1へ追加。
+
+router/App26件は専用feature/uf13-team-route-verification（C0583e3aの後に試験だけを追加した候補）で成功、core265件はU-F13単独worktreeの最新試験で成功。帰属を混同しない。結合候補の追加後core/全frontend再検査を別に実行中。root全件はC0583e3aの固定候補で実行中。8e9d77c8以降は製品/実検査器の変更なしで、試験と資料だけの追補。最新反映は独立未再レビューとして本人対象へ残す。
+
+| レビューログ（ローカルcache保全） | SHA-256 |
+| --- | --- |
+| round1-codex.log | `bfb365ad7ffe9f3c0452a0a5ae707753307e02657199a1ea6f97e4b89da3b4f1` |
+| round1-claude.log | `923548809ce8796ee8452062c9e58e7bb7443a7757f0b851ee4d2fa8b5f58eda` |
+| round2-codex.log | `8cde046179fb5a774c4893a1882729006bd6ff3186b0cdc199f5a9604e9a331d` |
+| round2-claude.log | `723002e1214c53292f7d0b6eac81cfe2d37990de9e60abb9bab804f3e5889b5c` |
+
+Codex利用量は第1周38,212・第2周25,743 tokens、Claude利用量は未取得。既定2経路2周の範囲を維持し、新しいレビュー裁定やモデル代替なし。
+
+C2はDraft #150（146c774c）、U-F3はDraft #151（db2bc2c7）。後者は登録後root29,672成功/2 skip/1500.71秒で専用DB撤去済み。NotionのTSK-528は進行中と旧#147リンクを保持してURL 1へ#150を追記、TSK-518は古い未着手から進行中へ追随して#151を登録した。カード全体を確認済み/完了へ変更しない。
+
+
+### 結合側の最終試験fixture是正（規約/製品変更なし）
+
+最終frontend70ファイル1,332成功（98.57秒）、Prettier/ESLint/型/build成功。最後のcore結合側は264成功/1失敗で、将来の宣言回転用fixtureがホスト側の現在3パターン宣言を実行していた。隔離Git履歴の候補スクリプトをその試験スコープだけで実行するよう是正し、U-F13単独/結合の各core全265成功（14.03秒/13.82秒）、Ruff/ty成功。runtimeのcore_guard/登録/認証処理は変えず、期待値も緩和しない。
+
+同じfixtureを含む旧C0583e3aのroot全件は未完走のままDの実行だけを正常中断し、cleanupと途中件数を別保全する。旧結果を最終全件成功へ代用せず、最新の固定結合候補で全件を再実行する。最終追補は独立未再レビュー、既定レビュー第3周は行わない。
+
+
+## 2026-10-18: 最終成果・検査・Claude向け申し送り
+
+### 元HEADと結合候補の帰属
+
+- 最終実develop再確認: `156dd139a893845428a1ecab69632143f7694e0b`（変更なし）。他担当未統合枝は不使用。
+- C2元HEAD: `193400d68e852bce14cee4ff65038c4a92a57c47`。公開Draft #150のHEADは`146c774c4805790fe9e68eb3eb5413d8d7d7ba4f`、後続は資料だけで製品17blob不変。
+- U-F3元HEAD: `ea1b3bda681b689c9b8fe1b56fae7dce8f9d5d7f`。公開Draft #151のHEADは`db2bc2c7fa6d02b2f667cc07e66b020c0611878a`、後続は資料だけで製品2blob不変。LoginScreen宣言/登録は別commit、先行登録不足は解消。
+- U-F13実装固定: `5a94bad8710c9f62624f02f790d1e4e5ec06f2e4`（ステップ2と最終未再レビュー追補まで）。通常push済み。
+- 最終結合検査: `e24c5c4eeda8a8b54d974cbe3aed6d1c3951c52d`。C2/U-F3の固定SHA-256と全一致、U-F13 frontend4ファイルは実装固定とbyte一致。結合だけでLoginScreen/router/Appの承認済み3パターンへ宣言/期待宣言を揃え、JSONでは先行LoginScreenを保持する。これ以外の結合固有資産差分はないことを機械照合。
+
+| 対象 | root全件 | backend全件 | frontend全件 |
+| --- | --- | --- | --- |
+| C2単独 | 29,670成功/2 skip | 3,032成功/4 skip | 1,279成功 |
+| U-F3単独（登録後） | 29,672成功/2 skip、1500.71秒 | 2,574成功/4 skip（backend不変） | 1,267成功（製品不変） |
+| 最終結合e24c5c4e | **29,673成功/2 skip、1275.25秒、exit0** | C2のbackend blob不変を照合。別の結合全件実施と偽らない | **70ファイル1,332成功、98.57秒** |
+
+最終のPrettier/ESLint/vue-tsc/build、root Ruff/tyが成功。core全265はU-F13単独/結合の双方で成功。実基線検査成功、U-F13差分12中コア7件が本人未記入なら拒否。全専用cluster cleanup確認。試験除外・timeout緩和・ACL/migration追加・新ハーネスなし。
+
+旧結合2337157dのrootは14,204成功/2 skip、605.42秒、exit2で中断。旧C0583e3aは15,088成功/1失敗/2 skip、944.32秒、exit2で中断（失敗は隔離fixtureの参照スクリプト混同）。両方の未完走/失敗ログを保持し、最終成功へ流用しない。最後は修正済み全件を完走した。
+
+### PR・レビュー・本人確認
+
+- Draft [#150](https://github.com/masaki1025/pitchlog/pull/150)と[#151](https://github.com/masaki1025/pitchlog/pull/151)は、各最終HEADのCIでcore-guard以外成功（#151 backendは変更なしの正規skip）。coreの失敗ログを照合し、#150は17件・#151は5件の本人チェック未記入だけで、他のcore_guardエラーなし。チェックを代記しない。
+- U-F13の反対側/敵対は既定各2周。新規P0は両周とも0。第1周P1残余2件は未解消で、人間判断/実ブラウザ確認を公開前に必須とする。最終P2の試験/受入表追補は採用済み・未再レビュー。第3周なし。
+- 本人対象はC2全26ファイル、U-F3全9ファイル、現U-F13全12ファイル。C1の本人回答/今回の登録・結合・push許可を確認実施へ流用せず、対象/範囲/方法は未記入。U-F13は後続接続で変わる最終差分も本人対象にする。
+- U-F13は計画の3ステップPR境界を維持する。step3未実施のためactive、作業branchは通常pushしたがPRはまだ作らない。単独HEADには未統合LoginScreen等への依存があり、結合検査を単独/check成功へ読み替えてPRゲートを通さない。
+
+### 残る判断と次の作業
+
+承認済みLoginScreen登録・自分の固定候補の専用検証結合・通常push/Draft許可はすべて反映済み。解消済みC1/#119/#143待ちは復活させない。現在の新規判断は[login/session相関の具体比較](../features/uf13-team-route-acceptance/login-session-correlation-comparison.md)（SHA-256 `592d733a4986c02daba9d03f3a2d894a1dc05a6a78c078f81aaf453d158c84a2`）。login DTOのtenant_id/固定503/限定caller、非秘密意図の保持とWeb Locks、意図なし/保存不可の明示再login、拒否後cache非復元、局所1ステップ/追加PR1本は未承認・未実装。必要性の承認を具体値の承認へ読み替えない。
+
+P1の2タブ挙動は静的レビューの推論であり、単一DOMのStorageEvent試験を実ブラウザ2タブ実証とは扱わない。実画面login→session→/team→一覧/追加/編集→reloadの通しは**未実施**。15経路/catch-all、TSK-528全体、TSK-518全体、TSK-520実API受入は未完了。今後は具体契約の人間判断後に所有を再照合し、既存client/providers/API/DTOを再利用して実DB/実画面受入を進める。公開・Draft解除・マージは代行しない。
+
+## 2026-10-19 相関追補の初回実画面受入（部分）・Claude向け申し送り
+
+- 人間が04ecb061比較資料の追補を承認。相関の追加PRは専用枝feature/auth-login-session-correlation、基線5bb1ff89。C2 HEAD146c774c、U-F3 HEAD407c8199、U-F13製品HEAD04ecb061を専用検証枝で結合。実受入HEADは **4656f868c09e1528e03ea2b9b9dc2d2f849b4363**（相関元2efc3938）。元単独HEADの結果とは区別する。
+- 既存disposable_postgres_cluster/provisioned_product_catalog fixtureで新しいDBを作り、認証主体・credential・自チームを同一transactionで準備。実app role、実署名Cookie、実HTTP API、Vite（envDir:false）、Chromium **149.0.7827.0**、共有provider/router/既存画面を使用。仮認証・仮tenant・仮DTOは使わない。専用環境・ブラウザ・API・DBを試験後に終了した。
+- 成功8項目: 未認証/team→/login、login→session→管理画面、実画面で対戦相手登録/選択、選手登録とquery再取得、選手編集とreload保持、同tenant2タブで旧画面が落ちない、実APIによる明示logoutの前提操作、別tenant login後の旧タブ非自動切替/旧一覧非表示。
+- observer接続でもAの選手は「受入選手編集済」/背番号17、Bの選手件数0を確認。これは対戦相手選手の経路であり、自チーム選手の経路を受入済みとはしない。
+- 実契約の制限: TeamRecordReadTokenはkind=opponent固定（required binding/CAP登録も同じ）で、GET /team-recordsはselfを返さない。最初のself fixtureだけの要求はitems=[]となった。これを試験期待値の緩和や仮APIで解消せず、実画面の対戦相手登録から既存APIの経路を検証した。
+- 確定認証からlogoutするUIは初期分割の範囲外という既存記録を維持。複数tenantの切替前提に既存の実/auth/logoutをHTTPで明示実行した。画面だけのアカウント切替を完了扱いにしない。
+- 初回受入の失敗履歴も保持: 1回目は専用環境のPITCHLOG_DATABASE_POOLED未設定、2/3回目はopponent専用APIへself一覧を期待したfixture/契約不一致、4回目は計画範囲外logout UIを使わずBの入力画面へ到達しようとした。5回目で上記8項目成功。環境・契約の制限と製品不具合を混同しない。
+- ログは~/.cache/pitchlog/correlation-browser-acceptance/attempt05へ保全。実API Cookie値・生成資格情報・DB接続値はコミットしない。
+- 新相関の実装第1周はCodex P0=0/P1=4/P2=1、実Claude P0=0/P1=3/P2=8。後発修正・実画面結果は第2周未レビュー。旧U-F13の両経路2回は消費済みを維持。
+- lock-busy時に旧Cookieの不確実化を他タブへ伝える不足は、6de49595の拒否専用2キー追補として人間判断待ち・未実装。既受理済みのDTO/意図管理を再承認待ちには戻さない。
+- 遅延Cookie・通信断・storage/lock拒否の実ブラウザ受入、最終結合全件検査、レビュー採否、人間逐行確認は未完了。ステップ3全体/TSK-528/TSK-520を完了にしない。公開・Draft解除・マージは未実施。
+
+## 2026-10-19: 最新固定候補の実測・Draft申し送り
+
+- 最新develop5bb1ff89を通常merge。共有資産の別候補を基線にしない。C1は7e18a91a（後続d12642a3は資料のみ）、C2は146c774c、U-F3の製品ac748ed5（現単独37c41110も同一製品）、本枝のrouter/Appは5de46ec6/463f792bと同一。専用結合0cb5ab4bで各元の製品バイト一致を照合し、client.tsのC1/C2接合だけを別管理する。
+- 結合frontend71ファイル1,352成功（74.83秒）、build閉域conforming。本人未記入のsynthetic PRイベントはLoginScreen/router/Appを検出しexit1。チェック文言や検査を緩和しない。
+- attempt13: 実画面/API/隔離DB、Chromium149.0.7827.0で正常8項目成功、8.48秒。ログイン→session→対戦相手登録/選択→選手登録→編集→reloadの実DB保存をobserverで確認。A選手「受入選手編集済」番号17、B選手0。same tenant2タブ維持、別tenant旧タブ非自動切替も成功。確定認証のlogoutはUIではなく実APIの明示前提操作。通常系はVite開発server、故障系はproduction previewで、それぞれを区別する。
+- attempt12: production previewで実応答/Set-Cookieを遅延配送。旧login/logout/session/選手登録の4ケースは実ブラウザfetchでCookie A/なしを確認し、B cache3→0・旧採用拒否。lock保持中のsessionケースはBが/teamに残り失敗。6de49595の追加2キーを未承認で実装しない。
+- attempt09/10は実行器timeout、attempt11はPlaywright response.finished待機timeoutで不合格。fulfilled完了待機と実Cookieのserver確認に修正したattempt12を別記し、過去の未完走を成功扱いにしない。試験除外・timeout緩和なし。全cluster/serverを自分のfixtureでcleanup。
+- storage/lock/UUID非対応、認証拒否、通信断、明示再確認のproduction7項目は既記録の結合候補で成功。全ブラウザ互換や自チームread受入を推定しない。
+- 既承認の方式・P1の2タブ問題は新相関で通常ケースの解消を実測。lock-busyと2xx metadata失敗は別の追加契約判断として残す。新相関のレビュー第2周は未消費、旧U-F13各2周は維持する。本人確認未実施。
+- 本枝単独はC2/U-F3の統合待ち、結合結果を単独品質へ読み替えない。許可済みDraftへ全未完了条件を明示し、plan active維持。台帳追記なし（製品相関・既存ハーネスによる局所受入で、新ハーネス機能は追加しない）。TSK-528/520全体・ステップ3の完了、公開・Draft解除・マージは行わない。
+
+## 2026-10-19: 限定追補後の最終申し送り
+
+- C1相関#157は92410120（製品108c7562・fixture912585d1）。C2#150は146c774c、U-F3#151は37c41110を固定し、専用結合の資料HEAD600e998bから各製品バイトを照合した。combined clientだけがC1/C2接合で、コピーの共通clientを作らない。
+- 単独C1 frontend1,278成功、backend2,581成功4skip、root29,670成功2skip（後者2つの入力不変）。結合frontend1,382成功、型/lint/整形/build成功。失敗した初期検査とdriverはC1ログに区別して保持し、除外/timeout緩和なし。
+- 最終結合製品cdaf49fdで実画面/API/隔離DB/productionのopponent正常8項目・Cookie遅延5・metadata2・環境/通信断7・storage event欠落1が成功。CookieのA巻戻り/消去をserver確認、B cache3→0、POST自動再送なし。fixtureだけの後続差分はproduction閉域外。自チームread/受入は未実装で、opponent成功を代用しない。
+- 新相関レビュー第2周はCodex0/4/0、Claude0/2/7。全P1採用修正、最終差分は未再レビューで本人確認対象。既存各2周をリセットせず、第3周なし。保留P2案はPO受理済みとしない。
+- 正規統合は#157→#150→#151→#154。#154単独のfrontend TS2307は未統合LoginScreen依存、core-guardは本人未記入の拒否。結合成功を単独CIへ読み替えない。人間逐行確認/公開/Draft解除/マージは未実施、plan active維持。
+
+
+## 2026-10-19: 統合順固定と自チームread候補の具体化
+
+人間指示により順序を#157→#150→#151→#154へ固定した。#157の現HEAD c9df3dacは変更せず、最終CIと残指摘/未再レビュー6ファイル/本人全28ファイルをPRコメントへ集約する。本人チェックは未記入のまま。後続は先行PRの実develop統合後に通常mergeし、必要な承認済みconsumer追随を行う。未統合枝を通常基線にせず、結合HEAD成功を単独CI成功としない。
+
+自チーム不足は同feature内self-team-read-addendum-candidate.mdへ具体化した。既存表SELECT/RLS/CAP:team_records:readでの取得範囲、引数なしSelfTeamRecordReadToken、既存TeamRecordReadの再利用、contextからのtenant導出、C2前照合、他tenant拒否、担当/PR境界、個別ゲート/試験条件を整理。初期のROSTER:self_team_read仮ラベルは現OperationRegistrationに欄がなく、追加しない候補へ訂正した（未承認候補の訂正であり、採用済みliteralの置換ではない）。
+
+製品・API・認可・凍結資産は編集していない。自チーム実画面受入/ステップ3/TSK-528全体は未完了。既承認4PRの再承認、追加レビュー、人間逐行確認、公開、Draft解除、マージを代行していない。候補資料の追加は#154の本人確認対象に含める。
+
+自チーム候補の配置を明確化: #154の自チーム受入が#154統合後の追加API待ちとなる循環を避け、#157/#150/#151の実統合後、正式ゲートを経て#154へ最小追補を同梱する案を第一候補とした。既存PR番号を使えるため新PRは原則増やさず、正式正本の前提統合等で別PRが必須と判明した場合だけ最小に分ける。範囲追加は未承認で製品差分は未追加。#154を部分受入として先に統合する裁定も代行していない。
+
+
+## 2026-10-19: #157最終CIと統合判断資料の固定
+
+#157 HEAD c9df3dacd4c6ee73793d8e0bd752dc827f3f4807のCI run39161634873は全12ジョブ成功。harness既存分割29,411成功/2skip（2501.08秒）、backend2,581成功/4skip/1warning・coverage89%・migration/配布イメージ成功、frontend69ファイル1,278成功・型/lint/build成功。secrets/docs/core/tenant-boundary/consistency/mutation/append-onlyも成功。本文外部更新で中断した旧run39160767143を完走扱いにせず、新たな除外/timeout緩和なし。
+
+#157コメント6254522965へ最終CI・R2採否・未再レビュー6ファイル（254追加/19削除）・本人対象全28ファイルを集約。Codex敵対/Claude反対側は各2/2消費、P0なし、第3周は未実施。P2①将来Cookie経路/②readonly・test-support lint/④idle警告の保留案はPO未裁定。自チームP1は別契約ゲートで未解消、相手チーム成功と区別する。本文の本人チェックは外部更新でチェック済みとなった事実だけ記録し、対象/範囲/方法の空欄へ推定を記入していない。Draft維持・競合なしで、公開/マージを代行していない。
+
+読み取り専用merge-treeでC1→C2はclient.ts/roster.spec.ts/TeamMembersContent.spec.tsの3ファイル、U-F3→U-F13はcore-areas.json/core_guard.py/test_core_guard.pyの共有3ファイルが競合。実branch/worktreeへ結合していない。#157→#150→#151→#154の順を各PRコメントに固定し、先行実統合後に両機能/全追加パスを保持して解消・必要検査を行う。C1→U-F3の機械merge競合はないが、実store型/厳密DTO/notice fixtureの意味追随は残る。後発差分に現在の本人確認を流用しない。
+
+本日の製品変更はなく、U-F13候補資料と本作業ログだけをコミット・通常push。自チームreadの最小追補は正式ゲート待ちで未実装・未受入。新PR作成、Draft解除、公開、マージは実施していない。
+
+
+## 2026-10-19: 指定順の統合に向けたU-F13のC1追随
+
+#157実統合a87510e6を通常merge。App.vue/router.tsの製品コードは不変。router.spec.tsは検証済み専用結合9e85fd66とbyte一致する厳密login DTO/認証fixtureへ追随し、存在しなくなったsignInを使わない。未統合の#150/#151を通常基線には取り込まず、LoginScreen待ちをコピーや試験弱体化で隠さない。
+
+userは#150→#151→#154を順にマージし競合を都度解消するよう再指示した。マージ許可を保持する一方、新しい本人逐行確認の実施済み記録を代記しない。自チームread候補は正式ゲート未了のまま製品へ追加せず、TSK-528全体/自チーム受入を完了にしない。
+
+
+### 実統合後固定候補の結合再検証
+
+専用検証worktree feature-uf13-post-c1-merge-verificationのf99e0a8771948f3996a7af37f4ee91b4e8576f48で、frontend71ファイル1,382成功（70.65秒）、Prettier/ESLint/vue-tsc/build/製品閉域検査成功、core265成功（11.06秒）。実develop a87510e6起点に、自分の固定C2 078564d4・U-F3 ac40bc81・U-F13 3fad89c2だけを結合した承認済み例外。各所有11ファイルが各元HEADとbyte一致し、core3ファイルは既検証9e85fd66と完全一致。結合台帳SHA256は43f73ebdf45d667074d83bf7f128dc0df1b9187dd4e90cd96b2f7d00a55835aa。結合成功を各単独CIや実DB/実画面再受入へ読み替えない。自チームAPI/受入は未実装/未実施のまま。
+
+#150 078564d4と#151 ac40bc81は通常push済み、frontend CI成功。追加本人差分は#150コメント6255130488（5ファイル）/#151コメント6255130780（2ファイル）へ固定し、旧HEADの確認を維持しつつ新差分へ流用しない。core-guardは新差分チェック未記入で失敗、他の長時間CIは回収中。#154のC1追随と本記録はローカルコミットで保全し、#150/#151の実統合後に通常基線へ追随する。未統合枝を通常PRへ取り込まず、人間確認を代記せず、指定統合順を維持する。
+
+
+### マージ指示に対する最終CI・残る本人確認記録
+
+#150 HEAD078564d4e0b9530b8e38771cab4488a11ee1fe67のrun39165827593: harness29,411成功/2skip（1797.90秒）、backend3,039成功/4skip/1warning（1671.78秒）・coverage89%、frontend70ファイル1,323成功。#151 HEADac40bc81743be0fa25b76813cf14226626134bdeのrun39165839770: harness29,413成功/2skip（1416.94秒）、frontend70ファイル1,314成功、backendは対象外skip。両者の型/lint/build/凍結/境界等は成功し、新しい試験除外やtimeout緩和なし。
+
+両CIの失敗はcore-guardの本人確認チェック未記入のみ。実ログとPR本文を照合し、旧HEADの確認を新しい5/2ファイルへ流用していないことを確認。追加本人確認差分は#150コメント6255130488、#151コメント6255130780、#154の固定解消候補4ファイルはコメント6255210070に収録した。マージ許可は受領済みのまま維持し、本人確認方法を推定記入していない。
+
+#157の実統合はa87510e6c431fbb4ee14c91775204a5c91bec745。#150/#151をReadyへ移したがGitHubのmergeStateStatusはBLOCKED。CIゲートを迂回せず、#150→#151→#154の順を維持して未統合。#154は先行実統合後の通常基線追随を待ち、C1追随router fixture・結合結果・本記録を専用worktreeのローカルコミットで保全した。自チームread候補の正式採用/API/認可/凍結変更とTSK-528全体の完了は含まない。
+
+
+## C2側の未包含記録を保持
+
 ### C1ステップ2統合完了・C2/U-F3への引継ぎ（2026-10-18）
 
 PR #147は実SHA493342be37d4383ca572f8d1c826a3f184a4d213へ統合。最終d56c178eの必須チェック成功、本人完了回答の対象a3934fb7全18ファイル（方法未申告）、承認済みhash2件限定登録、既済みレビュー採否を照合しC1ステップ2を完了とした。C1待ちとC1一時所有を解消し、clientはC2へ、auth/storeは後続による単一実装再利用へ移る。
@@ -529,3 +767,27 @@ C1/#119/#143等の解消済み統合待ちを現行の停止理由から外し�
 既存本人確認の旧HEAD3eb3a0d3から製品/試験差分があるため、今回のマージ許可を新HEADの本人逐行確認実施済みとは記録しない。各2/2のレビュー使用履歴を維持し、後発追随は未再レビューとして新差分資料へ提示する。自チームAPIの未承認差分は追加しない。
 
 C2追随のローカル検査: frontend70ファイル1,323成功（70.93秒）、Prettier/ESLint/vue-tsc/build/製品閉域検査成功。docs-status20件違反0、plan-docs-sync・diff検査成功。backend製品はC2既検査候補とC1実統合の合成であり、最終HEADのCIを別に回収する。
+
+
+## 2026-10-19: 追加本人確認回答の受領とC2実統合
+
+ユーザー回答「許可します」を、直前提示した#150の追加5ファイル/#151の追加2ファイル/#154の固定解消候補4ファイルへの確認回答として受領。確認方法は補記しない。#150はcore-guardを含む全CI成功（run39197628835）後、b4047e31645217ea7b93c08fa2ab4a7533d729b4へ通常mergeした。この実developを本枝へ取り込み、計画の追記はU-F13側を保持、作業ログはC2/U-F13両方の未包含記録を保持して競合を解消した。承認済みの3ステップと製品コードは変えていない。
+
+#151は実C2基線へ追随した9bf077ceで最終CI中。本枝は未統合のLoginScreenをコピーせず、#151の実統合後にcoreの全既存対象とLoginScreen*/router*/App*を保持して最終接合する。追加本人確認は受領済みで再質問せず、固定内容との一致を機械照合する。新API/認可/凍結変更、自チームread採用・自チーム受入完了は含まない。
+
+
+## 2026-10-19: #151実統合後の最終接合・Claude向け申し送り
+
+- #151はsource9bf077ceの最終CI39201162867で全必須チェック成功後、b64d6aa1709310704658415ad09a86898bfdcb2aへ通常mergeした。root29,413成功/2skip、frontend71ファイル1,359成功。backendはworkflowの差分判定で対象外skipであり、新たなbackend実行成功とは主張しない。
+- #154はこの実developを通常mergeした。競合はcore3ファイルだけ。actual baseの3ファイルが確認済みUF3基線ac40bc81と同一であることを先に確認し、LoginScreen*/router*/App*と全既存対象を保持するf99e0a87の固定解消候補へ一致させた。宣言e5fcff3c→JSON/製品登録の既存別コミット履歴を保持し、squashしていない。
+- 接合コミット7b1d45aaでfrontend全体とcore3ファイルがf99e0a8771948f3996a7af37f4ee91b4e8576f48とbyte一致。専用結合検証のfrontend1,382成功、型/lint/整形/build、core265成功は同じ入力の既済み検査として区別し、最終単独HEADのCIを別に回収する。古いブラウザ受入を新HEADで再実行したとは記録しない。
+- ユーザー確認回答「許可します」は直前提示した追加11ファイルのうち本PRの固定4ファイルに対応。追加差分資料はPRコメント6255210070。確認方法は未提示のため補記しない。既定レビュー上限と後発差分未再レビューの履歴を保持する。
+- 台帳への追記なし。既存手順による統合追随であり、新しいハーネス運用上の傾向を追加しない。
+- #154は既存部分実装の統合準備で、self API/認可/凍結差分を追加しない。自チーム受入とTSK-528全体は未完了。公開・デプロイは実施しない。
+
+
+### 実統合基線に対する追加層回転（293f83d6）
+
+7b1d45aa時点の固定候補一致だけでは、新しいorigin/developにLoginScreenが着地済みとなったことに対応できず、core全265件中8件が「追加層が一部だけ基線へ取り込まれている」と拒否した。既存検査を緩和せず、scripts/core_guard.pyの宣言とtests/test_core_guard.pyの期待値から着地済みLoginScreenの1行ずつを外し、同試験へ実基線/実候補の両方でLoginScreen登録を保持するassert等4行を追加した。JSON・全frontend・検査器の判定ロジックは不変。既存の隔離履歴試験も未宣言追加・旧層削除・人間未記入の拒否を維持し、全265成功（11.03秒）と実HEAD基線検査成功を確認した。
+
+この2ファイル4追加/2削除だけが直前の本人確認固定候補に対する後発差分。293f83d6の本人逐行確認を追加依頼し、回答前に実施済みと記録しない。既確認の4ファイル全体を未了へ戻さず、既定レビュー使用回数も変更しない。通常pushと最終CIは許可済み範囲で進める。
