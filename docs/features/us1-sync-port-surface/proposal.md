@@ -510,7 +510,7 @@ QueueTransitionInjections に confirmO5Correction?: (slot) => boolean | undefine
 
 ### 7-6. この差分が無いと 506 の何が止まるか
 
-D-4 を入れても、端末は O5 の ACK を解釈できず(`rejectionReason.ts:90`)キューを変えないので、**利用者から見た挙動は B7 の永久再送と同じ**(先頭詰まりも解けない)。D-4 と D-6 は組でしか承認できない(0 節)。506 の codec(506 所有)は `parseB3Rejection` に委ねているので、D-6 が入れば 506 側の codec の変更は要らない見込み [推論](境界に依らない分類は別 — 4-4)。
+D-4 を入れても、端末は O5 の ACK を解釈できず(`rejectionReason.ts:90`)キューを変えないので、**利用者から見た挙動は B7 の永久再送と同じ**(先頭詰まりも解けない)。D-4 と D-6 は組でしか承認できない(0 節)。506 の codec(506 所有)は `parseB3Rejection` に委ねているので、D-6 が入れば 506 側の codec の変更は要らない見込み [推論]（境界に依らない分類は別 — 4-4）。
 
 ---
 
