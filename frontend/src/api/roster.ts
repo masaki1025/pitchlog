@@ -68,6 +68,7 @@ export function listTeamRecords(
   return apiRequest('GET', '/team-records', {
     query: { ...query },
     signal: options?.signal,
+    tenantBound: true,
   })
 }
 
@@ -75,7 +76,11 @@ export function createTeamRecord(
   body: TeamRecordCreate,
   options?: RosterOptions,
 ): Promise<TeamRecordCreated> {
-  return apiRequest('POST', '/team-records', { body, signal: options?.signal })
+  return apiRequest('POST', '/team-records', {
+    body,
+    signal: options?.signal,
+    tenantBound: true,
+  })
 }
 
 export function updateTeamRecord(
@@ -86,6 +91,7 @@ export function updateTeamRecord(
   return apiRequest('PATCH', `/team-records/${encodeURIComponent(id)}`, {
     body,
     signal: options?.signal,
+    tenantBound: true,
   })
 }
 
@@ -105,6 +111,7 @@ export function listPlayers(
   return apiRequest('GET', '/players', {
     query: { ...query },
     signal: options?.signal,
+    tenantBound: true,
   })
 }
 
@@ -114,6 +121,7 @@ export function getPlayer(
 ): Promise<PlayerRead> {
   return apiRequest('GET', `/players/${encodeURIComponent(id)}`, {
     signal: options?.signal,
+    tenantBound: true,
   })
 }
 
@@ -121,7 +129,11 @@ export function createPlayer(
   body: PlayerCreate,
   options?: RosterOptions,
 ): Promise<PlayerCreated> {
-  return apiRequest('POST', '/players', { body, signal: options?.signal })
+  return apiRequest('POST', '/players', {
+    body,
+    signal: options?.signal,
+    tenantBound: true,
+  })
 }
 
 export function updatePlayer(
@@ -132,5 +144,6 @@ export function updatePlayer(
   return apiRequest('PATCH', `/players/${encodeURIComponent(id)}`, {
     body,
     signal: options?.signal,
+    tenantBound: true,
   })
 }

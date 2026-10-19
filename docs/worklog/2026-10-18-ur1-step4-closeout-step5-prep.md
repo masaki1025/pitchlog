@@ -229,3 +229,5 @@ ORM判定転記後、生成器の`parse_sheet_rows`で4シートをHEADと比較
 正式集約台帳の履歴末尾は受理前に#143で、#156は0件だった。承認済み改訂記録を承認者`山田正輝`・承認日`2026-10-19`として**1件だけ追記**し、既存23件とbeforeを保持した。8資産のrevision・5依存digest、9資産のafter射影、必要な新snapshot、corpusを実ファイルから再生成し、改訂payloadの全after値と一致した。`frozen-inputs`の識別値・snapshotは不変。現在の変更はまだローカルで、共有DBや運用openへ適用していない。
 
 反映時点で`origin/develop`は承認比較元`015dfa9d`から`ba339cf8`へ進んでいた。9資産と凍結外部検査器は同一だが、`.claude/core-areas.json`と`scripts/core_guard.py`には別PRのLoginScreen/router/App登録が追加された。受理記録のbeforeと比較元SHAは承認時の`015dfa9d`を維持する。新developを取り込むまでの関連pytestは**782件成功・core guard7件失敗**で、7件ともtenant-isolationの追加パス順が新しいdevelop基線と不一致である。これは7.7値や製品試験の失敗と分ける。最新develop統合後に共有パスの順序を保持して再検査し、統合差分を元の独立レビュー済み範囲と混同しない。
+
+`origin/develop=ba339cf8`のmerge競合は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`の3ファイルに限定された。U-F13のLoginScreen/router/App登録済み基線をそのまま保持し、`initial_grant.py`をsync-protocol・recording-rights・tenant-isolation各領域の末尾へ1パスずつ加えた。追加層の宣言はその1パスだけとし、U-F13登録とRG1旧層を消さない。双方の回帰試験を保持した解決でcore guard **266件成功**。この3ファイルの統合時差分は元の独立レビュー0/0/0の対象外であり、本人逐行確認へ含める。凍結9資産と外部検査器には統合差分がないので、改訂7.7のrevision・digest・snapshot・corpusは不変として実ファイルから再照合する。

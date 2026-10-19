@@ -97,7 +97,10 @@ async def test_login_entry_reaches_database_and_keeps_failures_uniform(
             )
 
         assert success.status_code == 200
-        assert success.json() == {"status": "authenticated"}
+        assert success.json() == {
+            "status": "authenticated",
+            "tenant_id": str(identity.tenant_id),
+        }
         token_id = app.state.token_presentation.decode(
             success.cookies["__Host-pitchlog_token"]
         )

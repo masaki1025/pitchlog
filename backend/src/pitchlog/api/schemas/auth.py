@@ -17,6 +17,7 @@ class LoginResponse(BaseSchema):
     """提示値を含めずにログインの成功を伝える。"""
 
     status: Literal["authenticated"] = "authenticated"
+    tenant_id: UUID
 
 
 class AuthSessionResponse(BaseSchema):
