@@ -1,0 +1,1022 @@
+{
+  "status": "受理待ち・正式台帳ではない",
+  "comparison_base": "015dfa9db0b7b8740369911a9cb5195dd59a62ea",
+  "acceptance_id": "masaki1025/pitchlog#156",
+  "previous_baseline_identifiers": {
+    "contracts/tenant_boundary/base-allowlist.json": [
+      "contract_revision:33"
+    ],
+    "contracts/tenant_boundary/cache-invalidation-contract.json": [
+      "contract_revision:15"
+    ],
+    "contracts/tenant_boundary/census-baseline.json": [
+      "contract_revision:14"
+    ],
+    "contracts/tenant_boundary/db-api-inventory.json": [
+      "inventory_revision:15"
+    ],
+    "contracts/tenant_boundary/frozen-inputs.json": [
+      "contract_revision:4"
+    ],
+    "contracts/tenant_boundary/negative-fixtures.json": [
+      "fixture_set_revision:17"
+    ],
+    "contracts/tenant_boundary/repository-contract.json": [
+      "contract_revision:21"
+    ],
+    "contracts/tenant_boundary/runtime-authz-contract.json": [
+      "runtime_contract_revision:17"
+    ],
+    "contracts/tenant_boundary/tenant-context-allowlist.json": [
+      "contract_revision:16"
+    ]
+  },
+  "new_baseline_identifiers": {
+    "contracts/tenant_boundary/base-allowlist.json": [
+      "contract_revision:34"
+    ],
+    "contracts/tenant_boundary/cache-invalidation-contract.json": [
+      "contract_revision:16"
+    ],
+    "contracts/tenant_boundary/census-baseline.json": [
+      "contract_revision:15"
+    ],
+    "contracts/tenant_boundary/db-api-inventory.json": [
+      "inventory_revision:16"
+    ],
+    "contracts/tenant_boundary/frozen-inputs.json": [
+      "contract_revision:4"
+    ],
+    "contracts/tenant_boundary/negative-fixtures.json": [
+      "fixture_set_revision:18"
+    ],
+    "contracts/tenant_boundary/repository-contract.json": [
+      "contract_revision:22"
+    ],
+    "contracts/tenant_boundary/runtime-authz-contract.json": [
+      "runtime_contract_revision:18"
+    ],
+    "contracts/tenant_boundary/tenant-context-allowlist.json": [
+      "contract_revision:17"
+    ]
+  },
+  "change": {
+    "subject": "PR #156 の初期付与TB002限定登録と検査器・core経路の受理",
+    "aspect": [
+      "asset_snapshots",
+      "declaration",
+      "external_snapshots"
+    ],
+    "before": {
+      "declaration": {
+        "contracts/tenant_boundary/base-allowlist.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:33"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": true
+        },
+        "contracts/tenant_boundary/cache-invalidation-contract.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:15"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/census-baseline.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:14"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml",
+                "tests/test_census_baseline_check.py"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/db-api-inventory.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "inventory_revision",
+            "current_identifiers": [
+              "inventory_revision:15"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/frozen-inputs.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:4"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/frozen_archive.py",
+                "tests/domain/test_boot_seal.py",
+                "tests/test_ci_wiring.py",
+                "tests/test_plan_generation.py"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/negative-fixtures.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "fixture_set_revision",
+            "current_identifiers": [
+              "fixture_set_revision:17"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/repository-contract.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:21"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/runtime-authz-contract.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "runtime_contract_revision",
+            "current_identifiers": [
+              "runtime_contract_revision:17"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/tenant-context-allowlist.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:16"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        }
+      },
+      "movement_policy": {
+        "contracts/tenant_boundary/base-allowlist.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/cache-invalidation-contract.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/census-baseline.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/db-api-inventory.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/frozen-inputs.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/negative-fixtures.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/repository-contract.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/runtime-authz-contract.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/tenant-context-allowlist.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        }
+      },
+      "external_snapshots": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8"
+        },
+        {
+          "path": "scripts/check_tenant_boundary_bypass.py",
+          "sha256": "3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3e2cec0a25096b010973f3734c2746bd4386e413ebf44519ad8db0851846b883"
+        },
+        {
+          "path": "scripts/frozen_archive.py",
+          "sha256": "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6"
+        },
+        {
+          "path": "scripts/frozen_history.py",
+          "sha256": "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8"
+        },
+        {
+          "path": "tests/domain/test_boot_seal.py",
+          "sha256": "bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2"
+        },
+        {
+          "path": "tests/test_census_baseline_check.py",
+          "sha256": "163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd"
+        },
+        {
+          "path": "tests/test_ci_wiring.py",
+          "sha256": "36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396"
+        },
+        {
+          "path": "tests/test_plan_generation.py",
+          "sha256": "9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe"
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "path": "contracts/tenant_boundary/base-allowlist.json",
+          "sha256": "e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e3dcdd745a721431a5ecdfd0cfa43f9f5839a79678d34e81fa76a3ea15746046"
+        },
+        {
+          "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
+          "sha256": "161d2815a06778fbac0bb679b5a5aa1d1295db2e7e0ed971d2b343a654daf32f",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/161d2815a06778fbac0bb679b5a5aa1d1295db2e7e0ed971d2b343a654daf32f"
+        },
+        {
+          "path": "contracts/tenant_boundary/census-baseline.json",
+          "sha256": "c717da79aee3504ab5176f88cd502ad40170389df7ad1aa60d4fb5c86e5f241f",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c717da79aee3504ab5176f88cd502ad40170389df7ad1aa60d4fb5c86e5f241f"
+        },
+        {
+          "path": "contracts/tenant_boundary/db-api-inventory.json",
+          "sha256": "66ec5e8410adeab61f78bcb4ce72ec4ea55b32588d96e95d172013b2a8658999",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66ec5e8410adeab61f78bcb4ce72ec4ea55b32588d96e95d172013b2a8658999"
+        },
+        {
+          "path": "contracts/tenant_boundary/frozen-inputs.json",
+          "sha256": "c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63"
+        },
+        {
+          "path": "contracts/tenant_boundary/negative-fixtures.json",
+          "sha256": "3513677e5ea3dff4db6471ef2b4ade93c91095ef5a3f43e085a5b8ee59c43d82",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3513677e5ea3dff4db6471ef2b4ade93c91095ef5a3f43e085a5b8ee59c43d82"
+        },
+        {
+          "path": "contracts/tenant_boundary/repository-contract.json",
+          "sha256": "0daf9ec4b9d5dc7eea364a0001804ba187f3bed87e02850f2da5b21613dc0e11",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0daf9ec4b9d5dc7eea364a0001804ba187f3bed87e02850f2da5b21613dc0e11"
+        },
+        {
+          "path": "contracts/tenant_boundary/runtime-authz-contract.json",
+          "sha256": "061eeb9e96f110e059ad51bf3026d9b420f7c636a24045809afa33e7a0f6b393",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/061eeb9e96f110e059ad51bf3026d9b420f7c636a24045809afa33e7a0f6b393"
+        },
+        {
+          "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
+          "sha256": "16e7a9a6a263f00381a327d8f05bce597dd036d67333ebfc55e035f1e8f9e2c2",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/16e7a9a6a263f00381a327d8f05bce597dd036d67333ebfc55e035f1e8f9e2c2"
+        }
+      ]
+    },
+    "after": {
+      "declaration": {
+        "contracts/tenant_boundary/base-allowlist.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:34"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": true
+        },
+        "contracts/tenant_boundary/cache-invalidation-contract.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:16"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/census-baseline.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:15"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml",
+                "tests/test_census_baseline_check.py"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/db-api-inventory.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "inventory_revision",
+            "current_identifiers": [
+              "inventory_revision:16"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/frozen-inputs.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:4"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/frozen_archive.py",
+                "tests/domain/test_boot_seal.py",
+                "tests/test_ci_wiring.py",
+                "tests/test_plan_generation.py"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/negative-fixtures.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "fixture_set_revision",
+            "current_identifiers": [
+              "fixture_set_revision:18"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/repository-contract.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:22"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/runtime-authz-contract.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "runtime_contract_revision",
+            "current_identifiers": [
+              "runtime_contract_revision:18"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        },
+        "contracts/tenant_boundary/tenant-context-allowlist.json": {
+          "identity": {
+            "scheme": "integer_revision_field",
+            "field": "contract_revision",
+            "current_identifiers": [
+              "contract_revision:17"
+            ],
+            "no_baseline_marker": "NO_BASELINE",
+            "frozen_projection": {
+              "algorithm": "sha256-canonical-json-and-external-files-v1",
+              "included": "all_top_level_fields",
+              "excluded": [
+                "baseline_control",
+                "source_digest"
+              ],
+              "external_files": [
+                "scripts/check_tenant_boundary_bypass.py",
+                "scripts/frozen_history.py",
+                "scripts/frozen_archive.py",
+                ".github/workflows/ci.yml"
+              ]
+            }
+          },
+          "history_authority": false
+        }
+      },
+      "movement_policy": {
+        "contracts/tenant_boundary/base-allowlist.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/cache-invalidation-contract.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/census-baseline.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/db-api-inventory.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/frozen-inputs.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/negative-fixtures.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/repository-contract.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/runtime-authz-contract.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        },
+        "contracts/tenant_boundary/tenant-context-allowlist.json": {
+          "acceptance_unit": "single_review_acceptance",
+          "previous_state": "state_immediately_before_review_acceptance",
+          "new_state": "state_immediately_after_review_acceptance",
+          "intermediate_commits_are_records": false,
+          "movement_triggers": [
+            "baseline_set",
+            "baseline_value",
+            "declaration_location",
+            "frozen_target_mapping",
+            "identity_granularity",
+            "identifier_interpretation",
+            "pass_fail_mapping"
+          ],
+          "affected_baselines": "all_baselines_matching_any_declared_trigger",
+          "history_append_only": true
+        }
+      },
+      "external_snapshots": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8"
+        },
+        {
+          "path": "scripts/check_tenant_boundary_bypass.py",
+          "sha256": "3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e"
+        },
+        {
+          "path": "scripts/frozen_archive.py",
+          "sha256": "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6"
+        },
+        {
+          "path": "scripts/frozen_history.py",
+          "sha256": "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8"
+        },
+        {
+          "path": "tests/domain/test_boot_seal.py",
+          "sha256": "bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2"
+        },
+        {
+          "path": "tests/test_census_baseline_check.py",
+          "sha256": "163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/163cb41e19e9d24ee2b30037f5f6614800ed193c21d1c31cc325371f25e9edfd"
+        },
+        {
+          "path": "tests/test_ci_wiring.py",
+          "sha256": "36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/36cc456a38247546859e7d06e0c5006ae1e7b3165cfc312d25e62c0fadf0a396"
+        },
+        {
+          "path": "tests/test_plan_generation.py",
+          "sha256": "9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe"
+        }
+      ],
+      "asset_snapshots": [
+        {
+          "path": "contracts/tenant_boundary/base-allowlist.json",
+          "sha256": "8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e"
+        },
+        {
+          "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
+          "sha256": "c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9"
+        },
+        {
+          "path": "contracts/tenant_boundary/census-baseline.json",
+          "sha256": "f74d9491dae3daf08f01ed1ea20ac50ca4043c4feb567cc551d71e0c650a1d3e",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f74d9491dae3daf08f01ed1ea20ac50ca4043c4feb567cc551d71e0c650a1d3e"
+        },
+        {
+          "path": "contracts/tenant_boundary/db-api-inventory.json",
+          "sha256": "21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7"
+        },
+        {
+          "path": "contracts/tenant_boundary/frozen-inputs.json",
+          "sha256": "c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c2bdb0c1f59b61c537173dba45d428951de00688613770fc16940f1b01c6bb63"
+        },
+        {
+          "path": "contracts/tenant_boundary/negative-fixtures.json",
+          "sha256": "9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02"
+        },
+        {
+          "path": "contracts/tenant_boundary/repository-contract.json",
+          "sha256": "586f21e1d5c16f302f1a21eab7d8d8a49fe7438a5a144b1d29c8b3c97e52bd45",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/586f21e1d5c16f302f1a21eab7d8d8a49fe7438a5a144b1d29c8b3c97e52bd45"
+        },
+        {
+          "path": "contracts/tenant_boundary/runtime-authz-contract.json",
+          "sha256": "0007c3f333a5d2c95cb7af118731818d49b033814fafcb635bd583e7c280cee3",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0007c3f333a5d2c95cb7af118731818d49b033814fafcb635bd583e7c280cee3"
+        },
+        {
+          "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
+          "sha256": "fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129",
+          "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129"
+        }
+      ]
+    }
+  },
+  "movement_fact": "initial_grant.pyのTB002の47箇所だけを実SHA・行・シンボルに束縛し、凍結検査器変更の影響を受ける8資産のrevisionを更新する。",
+  "reason": "D4・復旧世代の必要操作を限定許可し、ファイル全体・他操作・他経路の免除を拒否するため。",
+  "archive_corpus_digest": "51264ae66762fc42e5e789ecf3e7c4067528e2869c36939394b91ed6af95bdf1"
+}

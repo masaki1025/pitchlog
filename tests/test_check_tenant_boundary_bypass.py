@@ -1993,6 +1993,58 @@ def test_condition_2_outside_sync_owner_paths_is_red() -> None:
     assert {violation.code for violation in violations} == {"TB002"}
 
 
+def test_initial_grant_condition_2_exact_findings_only() -> None:
+    """初期付与の実ファイルに固定した47箇所だけを許す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/recording_rights/initial_grant.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert len(contract.condition2_scoped_findings) == 47
+    assert checker.scan_source(source, path=path, contract=contract) == []
+
+    # 同じファイルへの1操作追加はハッシュ不一致となり、既存47件も再び拒否する。
+    changed = source + "\ngeneration = 1\n"
+    findings = checker.scan_source(changed, path=path, contract=contract)
+    assert len([item for item in findings if item.code == "TB002"]) >= 48
+
+    # ファイル名、禁止条件1、別の操作をこの登録で免除しない。
+    assert "TB002" in {
+        item.code
+        for item in checker.scan_source(
+            "generation = 1\n",
+            path="pitchlog/recording_rights/neighbor.py",
+            contract=contract,
+        )
+    }
+    assert "TB001" in {
+        item.code
+        for item in checker.scan_source(
+            source + "\ndef can_record():\n    pass\n", path=path, contract=contract
+        )
+    }
+    assert "TB005" in {
+        item.code
+        for item in checker.scan_source(
+            source + '\nfrom sqlalchemy import text\ntext("SELECT 1")\n',
+            path=path,
+            contract=contract,
+        )
+    }
+
+
+def test_initial_grant_condition_2_registration_rejects_other_target() -> None:
+    """限定登録の対象ファイルを変更しても検査契約を広げられない。"""
+    allowlist = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    allowlist["condition_2_scoped_findings"]["path"] = (
+        "backend/src/pitchlog/repositories/roster.py"
+    )
+    inventory, inventory_bytes = checker._read_json(
+        REPOSITORY_ROOT / checker.DEFAULT_INVENTORY
+    )
+    apis, _, _, _ = checker._load_inventory(inventory)
+    with pytest.raises(checker.ContractError, match="初期付与1ファイル"):
+        checker._load_allowlist(allowlist, inventory_bytes, apis)
+
+
 @pytest.mark.parametrize(
     "owner_paths",
     (

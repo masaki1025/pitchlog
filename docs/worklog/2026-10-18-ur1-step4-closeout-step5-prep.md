@@ -179,3 +179,53 @@ U-S1の墓標改訂とは並行編集せず、正本・索引の編集所有は�
 山田正輝が本会話で、固定HEAD`8f18b61f3b93ac997df1d0e594450818301cfedb`のdata-model v0.12候補につき、§6-1・審査で対象とした直接影響節（§3-2・§3-4・§5-4・§12-8）・変更履歴を**2026-10-19に承認**した。審査は第1回全文P0=1/P1=5、第2回反映差分と影響節P0=1/P1=1、第3回P0限定P0=0。8件全採用・不採用0、反映2周。**第2回の担当境界P1反映差分は独立再レビュー未実施**のまま承認対象として確認された。本人逐行確認の実施記録はない。これを根拠に同正本を`approved`へ変更し、索引・計画・本ログを同期する。
 
 U-S1の墓標改訂は後続とし、U-R1統合後の実developから版番号を決める。今回の正本承認は具体DDL/認可・凍結資産、接続契約の担当受理、P-6、実D4台帳の耐久性、鍵・端末資格の提供、運用openには及ばない。認可・凍結資産への影響は別途照合し、7.7の実値が必要なら正式受理資料として独立提示する。
+
+### 2026-10-19 PR #156の正本参照・ORM・TB002切り分け
+
+最新`origin/develop=015dfa9d`をローカルmerge `8a2f3326`で取り込んだ。公開中のDraft HEADは`836232d6`であり、ローカルの未push候補とは区別する。依頼者は`shared-preconditions.json`と`schema-manifest.json`の**正本参照だけ**の候補作成・検証を許可した。前後の完全値、ORMシートの新規2行、TB002の47箇所/21シンボルと条件2登録の必要差分、7.7の影響8資産と条件付試算、#156の提出範囲を[閉鎖判断資料](../features/ur1-recording-rights/step5-pr156-closure-gates.md)へ固定した。正式認可台帳、凍結履歴、snapshotは未編集であり、条件付試算を受理値とはしない。
+
+ORMシートは既存363行の判定・理由を全件一致で維持し、N3/N7各1新規行の判定欄を空欄にした。関連試験21件成功、未判定検出試験1件はこの2行の人間判定待ちとして赤。`check_shared_preconditions.py`、schema manifest試験14件、関連authz2件、TB002条件2既存試験32件、変更試験のRuffとroot ty、凍結invariantsは成功。現TB002実走査は47件で赤。読取専用の限定所有パス試算では、allowlistとsync-protocolコア登録の片方だけでは47件のまま、双方を同じファイルへ限定すると0件で、隣接ファイルのTB002と同ファイルのTB001は残る。これは製品認可の正式変更や7.7受理を代替しない。
+
+U-S1主担当`01a14f9e-f825-7441-b7e1-1179a938254f`へ4項目を直接回答した。検証済み端末文脈、False/照合不能例外、FunctionWriter固定関数口、fenceのcommit結果確定までの保持・不明時隔離は**接続方針として受理**。後者の耐久相関、実台帳、隔離解除と権威あるcommit結果照会はU-R1候補で未提供として明記した。契約受理を実Port提供や耐久性合格へ読み替えない。U-S1の受領をもって認証・U-G1の未回答を受理済みにしない。本人逐行確認・Draft解除・マージは未実施。
+
+### 2026-10-19: #156 正本参照の正式差分承認と TB002 限定候補
+
+POは`shared-preconditions.json`のdata-model Git blob `21a85f5e794baaa05376b06aec7185cada6c33c8→b1dc01f4f263fb31e1d257b2f1e937dc45a99dc0`、`schema-manifest.json`の同書SHA-256 `a4504bbb2cf3fcbec13ea4fbb0ccd7d8ab2b9b66dafec3fc01f763ed06b16bfc→1f25908d029887ddfcbad213cf66ee9fdb1311b7e7cf8a62e47c1396f36dfdc3`を承認。実ファイルと一致を再確認した。意味行・権限・既存履歴は変更しない。ORMの既存363判定は保持、新N3/N7の判定は空欄。U-S1主担当の項目別契約待ちは解消済みだが、実Port・実台帳の未提供は別条件。
+
+前節の「条件2のowner pathへファイル1本を追加する」試算・値は今回のPO指定により**不採用・失効**。TB002の47件を型/DTO 14、検証/直列化10、再交付7、復旧世代再照合9、予約/claim/保存7へ分類し、実ソースSHAと47組の行番号・シンボルに固定した限定登録候補へ置換した。`condition_2_owner_paths`とSQL API許可は不変。同ファイルだけをcore3領域へ加える候補も用意した。候補ソースの変更、隣接ファイル、別条件を拒否する試験を追加。詳細は[閉鎖判断資料](../features/ur1-recording-rights/step5-pr156-closure-gates.md)。認可/凍結契約と7.7は正式受理前で、履歴・承認者/日付は未入力。
+
+限定候補のcore guard全262件、TB002対象の負例6件、ORM/正本参照の既判定21件、root Ruff/tyが成功。TB002検査器の全372件中371件は成功、残り`test_repository_is_green`は8凍結資産のrevision/履歴未受理で予定どおり赤。ORM完了検査はN3/N7の人間未判定2件で赤。隔離候補の初期付与20件は成功。8資産の候補revision・射影・snapshot名とcorpus digestは[受理payload案](../features/ur1-recording-rights/step5-pr156-7.7-payload-proposal.json)へ比較元`origin/develop=015dfa9d`から再導出した。正式履歴・snapshot・manifestは未変更。新5隔離候補の独立レビューは前段3回を使用済みで、今回の認可検査器・core guard差分の独立レビューは未実施。6.3追加1回のPO裁定と、ORM N3/N7の人間判定を依頼済み。どちらも回答前に実施・記入しない。#156はDraftを維持し、push/merge/本人逐行確認を代行しない。
+
+固定候補の識別: ローカルHEAD`8a2f332626a57762cab90d6957a56624a5e8e650`、比較元`origin/develop=015dfa9db0b7b8740369911a9cb5195dd59a62ea`、限定契約候補のbase-allowlist SHA-256`34fcac4d81af1b78389c263363709eaf04eaff00a0bc8846ed233a557cf3f338`と検査器SHA-256`3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e`、未追跡7.7 payload案SHA-256`34915e053e6804df9c9385f98d8702b7595505a1276b595e65baac0e46e33e3c`。レビュー・ORM回答で差分が変われば識別を再計算する。8資産の候補after射影とsnapshot名、archive corpus候補digest`1535ff098defae52a7cdd653e54032d9244f118f62c6801f8fc4fc3c1f085085`を閉鎖判断資料へ記載した。後者は既存corpus関数を隔離コピーへ適用して再確認済み。正式7.7受理値として台帳に転記していない。
+
+### 2026-10-19: #156 追加独立レビュー第4回のPO裁定・対象固定
+
+POは既存新5候補レビュー3回を保持し、今回の認可検査器・core-guard限定差分、TB002 47箇所の許可条件と負例、直接影響する7.7候補に対する**独立レビュー追加1回**を規約6.3で承認した。対象tracked diffは`.claude/core-areas.json`、`contracts/tenant_boundary/base-allowlist.json`、`scripts/check_tenant_boundary_bypass.py`、`scripts/core_guard.py`、`tests/test_check_tenant_boundary_bypass.py`、`tests/test_core_guard.py`のHEADとの差分で、SHA-256は`d054e2397564c314505a808bb099e55f593576d2740840915bd3a9939cf75d27`。直接影響の受理payload案SHA-256は`34915e053e6804df9c9385f98d8702b7595505a1276b595e65baac0e46e33e3c`、47件分類・資料SHA-256は`e882c5fc1af002f052ed603e15c396a8f982c56c1b4f3e3f7df6dfcd6a75d5a6`、固定対象の製品候補ソースSHA-256は`c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3`。比較元`origin/develop=015dfa9db0b7b8740369911a9cb5195dd59a62ea`、ローカルHEAD`8a2f332626a57762cab90d6957a56624a5e8e650`。レビューではP0/P1/P2を判定し、シンボル・操作・経路限定、別操作・別経路・任意DB APIの拒否、7.7 before/after・snapshot・corpusの算定を確認する。レビュー後の追加変更は元SHAとの差分を記録して候補を再固定し、自動で次の独立レビューは行わない。
+
+同日POはORM新規N3出現106・N7候補038をそれぞれ「対象外」と判定した。理由はN3がプロトコル・担当境界で列更新禁止ではないこと、N7が外部fence保持期間で必須列・NULL性・defaultではないこと。両シートの新規行へ人間の判定と典拠を転記し、既存363行の判定・理由は維持。D4非再利用とfence保持の実検証は U-R1 新5・新7とU-S1の契約・試験に残す。ORMシート試験13件は成功。今回の裁定は7.7 payload`34915e05…`の正式受理ではなく、正式台帳とsnapshotは未変更。
+
+ORM判定転記後、生成器の`parse_sheet_rows`で4シートをHEADと比較し、`(正本側,実装側,判定,理由)`のmultisetで旧363行の欠落・変更0、新規N3/N7各1行だけの追加を確認した。`uv run pytest -q -n 0 tests/test_orm_acceptance_sheets.py`は13件成功。新行の「対象外」はD4/fenceの別経路検証を消さない。
+
+### 2026-10-19: #156 限定差分の追加独立レビュー結果と7.7記録案
+
+上記のPO裁定による追加1回を、候補作成に関与していないread-only Codex CLIの独立セッション`01a150ad-9b1c-73c2-b1fc-495b60eebebc`で実施した。対象は上記tracked diff SHA-256`d054e2397564c314505a808bb099e55f593576d2740840915bd3a9939cf75d27`、7.7 payload SHA-256`34915e053e6804df9c9385f98d8702b7595505a1276b595e65baac0e46e33e3c`、閉鎖判断資料SHA-256`e882c5fc1af002f052ed603e15c396a8f982c56c1b4f3e3f7df6dfcd6a75d5a6`、固定製品候補ソースSHA-256`c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3`。先行3回の履歴は保持し、本件は第4回として別計上する。
+
+結果は**可決 P0=0/P1=0/P2=0、指摘0、採否・反映なし**。検査器の許可をソース実測47行・シンボルとの完全一致で確認し、別経路・別行・別シンボル、TB001、任意の`Session.execute`と生SQL `text`の拒否も確認した。core登録は既存基線からの追加1経路に限定される。9資産のbefore/after、うち8資産のrevision・射影、外部検査器digestと候補corpus digestを再計算して一致した。レビュー用read-only環境では`uv`のcache lockを作れずpytest実行はできなかったため、試験成功の根拠は作業環境での別実行に限定する。レビュー対象のコード・契約差分はレビュー後に変更していない。追加レビュー枠は消費済みで、自動追加周回はしない。
+
+7.7の単一履歴権威`contracts/tenant_boundary/base-allowlist.json`へ後で入力する**受理待ちの記録案**を[別JSON](../features/ur1-recording-rights/step5-pr156-7.7-record-proposal.json)に切り出した。これはレビュー済みpayloadの`acceptance_id`、前後識別子、change、movement_fact、reasonから機械的に導出した提案で、SHA-256は`c13ef970c4d24a73549f9d5b3ec9befdbc44b90a882aa2e0db13c027e31cf7ed`。記録案には承認者・日付を入れず、正式台帳・snapshot・archiveは未変更。レビュー後の追加はこの派生資料と本作業ログだけで、固定候補の再レビューを要するコード変更はない。現payload`34915e05…`はPOの正式7.7受理待ちであり、受理済みとは扱わない。
+
+### 2026-10-19: #156 7.7受理後の反映検査で検出した連動digest漏れ
+
+山田正輝は2026-10-19に、比較元`015dfa9d`・ローカルHEAD`8a2f3326`、限定差分`d054e239…`、payload`34915e05…`、単一記録案`c13ef970…`、照合表`e882c5fc…`、corpus候補`1535ff09…`を指定して7.7を正式受理した。宣言コミット`f43d749e`、JSON登録コミット`a94a220c`をこの順で作成した。どちらも新5完了コミットではなく、通常pushは未実施。
+
+正式反映の診断中、`test_check_tenant_boundary_bypass.py::test_generated_provenance_corpus_never_weakens_develop`が`base-allowlist.inventory.sha256`の不一致を検出した。`db-api-inventory.json`のrevision 15→16で実ファイルSHA-256は`b103a48b6190e6e18cb45e456c75ec26321571c10fafc5d2c2152011f0bed8d3→522b6351474f200da48451edd511ba944c05d5159142b675f9ccec095d76b636`となる。さらに、revision追随した4資産の`source_digest`も更新が必要である。診断用の連動修正後、TB002検査は371件目まで進み、残る`test_repository_is_green`は旧候補base snapshotが新規孤児として残ったために失敗。旧候補snapshotを除いた診断用状態では同試験が成功し、archive関連36件も成功した。
+
+**受理対象値が変わるため、旧受理を改訂案へ流用しない。** 必要な追加差分は[改訂判断資料](../features/ur1-recording-rights/step5-pr156-7.7-amendment-brief.md)へ固定し、元payload・元記録案は保持した。改訂payload SHA-256`8559617ed7714bc85a8dfa51f6bfad866aa43d40eaf39d266eeba4a2a90e96dd`、改訂単一記録案SHA-256`550d5c78aa77597c52459514f017205580b23ab03c3026432519c41fb6d41025`、base after snapshot`8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e`、corpus after`51264ae66762fc42e5e789ecf3e7c4067528e2869c36939394b91ed6af95bdf1`。正式台帳・資産revision・snapshot・archiveへ加えた診断用の未コミット変更はすべて戻し、受理済み履歴とbeforeは保持。新受理まで再反映・製品コード追加・push・CI・PR本文変更を停止する。追加の独立レビューは行っておらず、従来0/0/0は旧固定差分の結果として維持する。
+
+### 2026-10-19: 改訂7.7の正式受理・反映と移動したdevelop
+
+山田正輝は本会話で改訂payload SHA-256`8559617ed7714bc85a8dfa51f6bfad866aa43d40eaf39d266eeba4a2a90e96dd`と改訂単一記録案SHA-256`550d5c78aa77597c52459514f017205580b23ab03c3026432519c41fb6d41025`を**2026-10-19に正式受理**した。元payload`34915e05…`・元記録案`c13ef970…`・元照合表`e882c5fc…`は修正せず保持する。旧案のinventory参照と4件の自己封印digest漏れが訂正理由であり、元レビュー0/0/0は訂正差分の独立レビューを意味しない。
+
+正式集約台帳の履歴末尾は受理前に#143で、#156は0件だった。承認済み改訂記録を承認者`山田正輝`・承認日`2026-10-19`として**1件だけ追記**し、既存23件とbeforeを保持した。8資産のrevision・5依存digest、9資産のafter射影、必要な新snapshot、corpusを実ファイルから再生成し、改訂payloadの全after値と一致した。`frozen-inputs`の識別値・snapshotは不変。現在の変更はまだローカルで、共有DBや運用openへ適用していない。
+
+反映時点で`origin/develop`は承認比較元`015dfa9d`から`ba339cf8`へ進んでいた。9資産と凍結外部検査器は同一だが、`.claude/core-areas.json`と`scripts/core_guard.py`には別PRのLoginScreen/router/App登録が追加された。受理記録のbeforeと比較元SHAは承認時の`015dfa9d`を維持する。新developを取り込むまでの関連pytestは**782件成功・core guard7件失敗**で、7件ともtenant-isolationの追加パス順が新しいdevelop基線と不一致である。これは7.7値や製品試験の失敗と分ける。最新develop統合後に共有パスの順序を保持して再検査し、統合差分を元の独立レビュー済み範囲と混同しない。
