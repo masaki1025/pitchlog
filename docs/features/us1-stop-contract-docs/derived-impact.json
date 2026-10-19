@@ -1,5 +1,5 @@
 {
-  "status": "proposal-only-not-applied",
+  "status": "applied-non-frozen-ci-sync-2026-10-19",
   "asset_path": "scripts/design_relations/sync-protocol.json",
   "relation": "R-BOUNDARY",
   "comparison": "6 fields; changed fields listed separately",

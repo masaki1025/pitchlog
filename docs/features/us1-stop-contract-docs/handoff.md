@@ -29,3 +29,15 @@ U-S1はrecover_sync_attempt/prepare_sync_resume/prepare_sync_replacementのHTTP�
 独立したdevelop起点の文書treeでは、6フィールドを比較するR-BOUNDARY検査に不一致1件がある。実際に変わるフィールドはsource_elementsとexpected_elementsの2個で、既承認O5の定義/伝播に対応する。scripts/design_relations/sync-protocol.jsonの完全な旧/候補値、git blob、ファイルSHA256をderived-impact.jsonへ保存した。提案値は元U-S1枝の固定資産を出典とし、この文書PRで適用していない。認可共通前提と凍結不変条件は両方成功、認可/凍結のpin変更は今回0。このマニフェストは凍結資産として登録されていないため、7.7再pinを勝手に要求/実施せず、guard/core該当の所有側受理・PRレビュー・人間逐行確認へ分離する。新制御用DDL/認可/固定関数/正式試験資産は未提供の別ゲートで、今回の本文承認を流用しない。
 
 `derived-impact.patch`は完全値候補を元ファイルへ再現する未適用パッチ。実際のscripts/配下やpinへ適用していない。相対リンクのため506固定点93f70668のresearch/design/追補候補も文書として同梱するが、製品提供/担当受理/旧候補値の最終採用にはしない。最新の承認済み値はsync-protocol v0.11とwire設計が正である。
+
+## #159 CI追随（2026-10-19）
+
+最新develop ba339cf8を通常mergeし、既承認O5の非凍結R-BOUNDARYマニフェスト追随を今回のCI解消依頼に基づき適用した。上記「未適用」は初回提出時の記録。認可/凍結pin/製品挙動は変更しない。
+
+残る共有差分は索引1行とfrontend/src/lib/sync/processingStages.snapshot.jsonのd1Stages[7].stopBoundaryResultのみ。後者の旧値は「B3a 恒久的な内容拒否」、正本の新値は「B3a 恒久的な内容拒否。原本解決中の限定5理由は6-3-AのS-STOPが優先」。U-R1/506への新規同期依頼は連絡MCPエラーで未送達。所有側の固定差分/適用許可なしには編集しない。索引行は現developのTSK-547 v0.9履歴を削除せず、本票冒頭のU-S1 v0.11説明を先頭に追加して末尾版/日付を更新すること。
+
+U-F8/01a15387本人が中継票を実読し、上記受入項目を項目別に条件付き受領した。条件は506の公開型/耐久保持/照会再開結果/提供SHAと承認計画追補。GameScreen限定/第1期封鎖を維持し、製品提供・正式資産受理・UI開始へ拡張しない。既済照会は再送しない。
+
+共有差分の完全値はshared-ci-sync-proposal.patch（未適用）へ集約した。処理段階は3セルで、frontendの既存TS定数も同じ3文字列を保持するため、snapshotのみ変えるとVitestが失敗する。提案はTS/JSONの表示・逐語検査用メタデータだけで、送信/キュー/HTTPロジックの変更を含まない。索引の現developにあるTSK-547履歴も保全する。冒頭の旧完全行は初回提出の記録であり、実統合には今回の差分を用いる。
+
+未適用の共有差分を検証用コピーへだけ適用した場合、関連pytest294件全成功（6.13秒）。実提出枝は292成功/索引・処理段階2失敗。実PRの全CI成功や所有側反映完了とは扱わない。

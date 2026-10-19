@@ -19,7 +19,7 @@ U-S1停止契約の承認対象9349f893・最終反映21ca7285を、製品候補
 
 ## 2. スコープ
 
-承認済み正本、wire設計、採否/承認記録、関連feature文書と506の固定承認計画を文書1PRへ集約する。正本承認待ちは解消済み。backend/frontend、認可・凍結資産・DB、実Port/耐久provider、HTTP公開、各担当受理、人間逐行確認、Draft解除/マージを含めない。元feature/us1-sync-port-surfaceのコード/履歴/退避を保持し、担当/タブは増やさない。
+承認済み正本、wire設計、採否/承認記録、関連feature文書と506の固定承認計画を文書1PRへ集約する。正本承認待ちは解消済み。製品挙動の変更、認可・凍結資産・DB、実Port/耐久provider、HTTP公開、各担当受理、人間逐行確認、Draft解除/マージを含めない。元feature/us1-sync-port-surfaceのコード/履歴/退避を保持し、担当/タブは増やさない。
 
 ## 3. 影響する正本
 
@@ -30,19 +30,19 @@ U-S1停止契約の承認対象9349f893・最終反映21ca7285を、製品候補
 | `docs/design/data-model.md` | **反映なし**。U-R1先行枠を維持 | — |
 | 要件書・ADR・他の正本 | **反映なし** | — |
 
-正本体系外の同一PR対象: docs/features/sync-wire-schema/design.md、docs/features/us1-sync-port-surface/、docs/features/tsk506-sync-http-entry/の固定文書、docs/features/us1-stop-contract-docs/、対応docs/worklog/。認可/凍結派生は変更せず完全値と必要ゲートを別記する。
+正本体系外の同一PR対象: scripts/design_relations/sync-protocol.json（既承認O5の非凍結検査マニフェストのみ、2026-10-19のCI解消依頼に追随）、 docs/features/sync-wire-schema/design.md、docs/features/us1-sync-port-surface/、docs/features/tsk506-sync-http-entry/の固定文書、docs/features/us1-stop-contract-docs/、対応docs/worklog/。認可/凍結派生は変更せず完全値と必要ゲートを別記する。
 
 ## 4. 実装方針（文書提出作業のみ）
 
 | ステップ | 内容 | 完了条件 |
 | --- | --- | --- |
-| 1 | develop起点の文書限定treeへ承認本文/採否/依存受理を保全し、検査・通常push・Draft PR作成 | 変更はdocsのみ。未通過検査/索引同期/担当受理を明示し、チェックや署名を代記しない |
+| 1 | develop起点の文書限定treeへ承認本文/採否/依存受理を保全し、検査・通常push・Draft PR作成 | 製品挙動変更なし。非凍結マニフェストの追随を含む。未通過検査/索引同期/担当受理を明示し、チェックや署名を代記しない |
 
 実装計画を新たに承認したものではなく、すでに許可された文書提出の追跡用メタデータ。製品作業は元featureで別ゲート。
 
 ## 5. DoD
 
-正本approvedと承認記録が一致すること。最終回を全文再レビューとしないこと。製品コード/正式資産の差分0、索引所有枠保持、中継先/受入項目と耐久provider未提供の明示、Draftを人間判断まで維持すること。索引同期/正式受理/派生資産ゲートは未完了として提示し、完了を偽装しない。
+正本approvedと承認記録が一致すること。最終回を全文再レビューとしないこと。製品挙動/凍結資産の差分0（非凍結の伝播マニフェストは承認本文に追随）、索引所有枠保持、中継先/受入項目と耐久provider未提供の明示、Draftを人間判断まで維持すること。索引同期/正式受理/派生資産ゲートは未完了として提示し、完了を偽装しない。
 
 ## 6. テスト計画
 
