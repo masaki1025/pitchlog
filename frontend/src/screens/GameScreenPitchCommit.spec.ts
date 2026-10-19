@@ -243,6 +243,52 @@ describe('確定の経路を 1 つの排他で包む', () => {
     )
   })
 
+  it('応答が遅延している間も追記済みのスロットを保持し、ACKまで排他を解放しない', async () => {
+    const queue = await openIsolatedQueue()
+    const lockLog: string[] = []
+    const response = Promise.withResolvers<Response>()
+    const sending = Promise.withResolvers<void>()
+    vi.mocked(fetch).mockImplementation(() => {
+      sending.resolve()
+      return response.promise
+    })
+
+    const pending = commitPitchEvent(
+      input(),
+      dependencies(queue, {
+        singleWriterInjections: singleWriterInjections({
+          lockManager: recordingLockManager(lockLog),
+        }),
+        readAck: ackFromResponse(CANON_ACK_STATE_RESULT.ACCEPTED),
+      }),
+    )
+    await sending.promise
+
+    try {
+      expect((await queue.readSlot(scope, 1))?.state).toBe(
+        queueStateId('未送信'),
+      )
+      expect(await queue.readNextD1(scope)).toBe(2)
+      expect(lockLog).toEqual([`acquire:pitchlog:game:${gameId}`])
+    } finally {
+      response.resolve(
+        new Response('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    }
+
+    const result = await pending
+    expect(result.outcome).toBe('attempted')
+    if (result.outcome !== 'attempted') return
+    expect(result.latestSlot?.state).toBe(queueStateId('同期済み'))
+    expect(lockLog).toEqual([
+      `acquire:pitchlog:game:${gameId}`,
+      `release:pitchlog:game:${gameId}`,
+    ])
+  })
+
   it('B3 を含む ACK の拒否でスロットが要操作になる', async () => {
     const queue = await openIsolatedQueue()
     respond('{}')
