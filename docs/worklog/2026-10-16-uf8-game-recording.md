@@ -309,3 +309,70 @@ V12 検査の撤回は正しい / D5 の L-1 強制は受理の判定を壊し�
 ### 周回の状態
 
 **6.3 の基本枠 2 回 + P0 例外 1 回を使い切った。** 本周の反映は再レビューを受けないため、**承認者が採否一覧とともに最終反映の差分を確認する**(7.3-8 の残余リスク)。さらに回す場合は PO 裁定が要る。
+
+## 後任引継ぎと残検査(2026-10-19)
+
+- ユーザーが本タブ `01a15387-504c-7ea2-b79b-369f80481b02` を後任主担当へ指名。実HEAD `dff749c5`、未コミット差分0、ホスト上の旧Claudeプロセスなしと対象の同時編集なしを確認して所有受諾した。差分破棄・履歴書換えはない。最新develop `ba339cf8` を通常mergeした `b26703e7` から継続する。対象枝の既存PRは検索結果0件。
+- 計画レビュー3周、実装敵対レビューの基本2回+P0例外1回と全採否を引き継ぐ。追加の敵対レビューは行わない。旧Claude実装への既定の反対側レビューは `codex_run.py review normal` のread-only経路で実行中。最初の起動はstdin指定誤りで実行前終了、`- < /tmp/uf8-normal-review.txt` へ直して起動した。未実施のレビューを完了と記録しない。
+- 初回の全frontendは82ファイル/1,545件中12失敗。最新認証契約が未検証sessionのAPI呼出を拒否するため、旧fixtureの送信前提が不足していた。既存 `auth.test-support.ts` の `setVerifiedAuthForTest` を2 specへ供給し、対象37件が成功した。HTTP/codec/ACK規則は変更していない。追随をステップ4 `6ddefba9`、ステップ9 `da8b185e` として分けてコミットした。
+- B区分通知が導出関数から画面へ渡せない配線漏れを修正。`receivedNotices` propを既存の単一導出へ渡し、B5→B4更新と件数/確定封鎖をDOMで検証した。関連29件成功、ステップ7 `66e5b519`。通知文面・分類・キュー状態規則の複製はない。
+- 既存Chromium/Playwrightで実Vue/CSSを描画する隔離fixtureを使用。375pxで `scrollWidth=375`、320pxで `scrollWidth=320`、横溢れ要素0、pageerror0。未送信/要操作件数・確定封鎖、直接click dispatch、再読込後の下書き消去、同一contextの別タブ、通信断中の下書き操作を確認した。証跡は `/tmp/uf8-browser-result.json` と `/tmp/uf8-width-{375,320}.png`。実HTTP/計算核/Portの受入と区別する。
+- backend全件用に自分専用の使い捨てPostgreSQL `pitchlog-uf8-check-20261019`、localhost:15423を作成。共有DB/共有ロール/.envは使用しない。検査ログは `/tmp/uf8-{harness,backend,frontend}-check.log`、normalレビューは `/tmp/uf8-normal-review.log`。
+- 正式TSK-523・544・545カードと、#159/#153の固定資料を直接照合し、受領範囲/提供待ち/担当をdesign 8節へ記録した。#153には523後任本人の候補限定受領を正式カードへ返信済み(comment `3fe93b75-e687-8183-8fa4-001d9d0b0249`)、564担当が直接再取得を確認。GAP-05 open/正式型・oracle・製品比較未了を維持した。
+- #159の停止表示/未確認件数/再開訂正分離を自担当責務としてU-S1主担当01a14f9eへ項目別回答。506所有のHTTP/wire codec/ACK変換/限定キューを重複実装せず、提供→画面追随→結合試験の編集順を提案した。提供SHA・実Port・再読込GETは未提供/未確定。新停止UIは現計画外なので、次期追補案をdesign 8節に用意した。現第1期の封鎖を外さない。
+- 台帳への追記なし。今回のfixture追随と画面通知配線は既存の制御目的で扱える実装不備であり、新たなハーネス運用規則・確定した傾向として採番する根拠はない。
+- ステップ9へ遅延応答試験を追加し、fetch待機中にD1=1の未送信スロットが既に永続化され、次D1=2かつ排他未解放、ACK適用後に初めて解放することを固定した。対象14件成功、`cab39b5a`。全frontendはこの追加直前に82ファイル/1,546件成功しており、追加分の対象検査と区別する。
+- 実ChromiumのWeb Locks/IndexedDBで、主タブがロックを保持中の待機タブは約1.2msで不受理、追記0件/次D1=1/通知Q2-b。主タブ終了と実ロック解放を観測してから、明示再試行でD1=1を受理し、再読込後も未送信1件/次D1=2を保持した。証跡 `/tmp/uf8-browser-queue-result.json`。前提/再検証は注入し、状態差分も隔離fixtureなので、実記録権・計算核・全E5の実経路合格へ拡張しない。初回の試験スクリプトのAPI名誤記と、タブ終了直後の解放未観測を修正してから成功した。製品の待機拒否を自動待機再試行へ変更していない。
+- ステップ10で120文字の英数字名による横溢れを再現し、mainへ `wrap-anywhere` を追加した。fixtureのTailwind走査元がworktree外にあり、初回の計測ではutilitiesが生成されていなかったことも発見した。`@source` を実srcへ明示して実CSSのpadding=16pxを確認し、通常375/320pxの操作・表示も再実行した。正しいCSSで折り返しクラスを外すとscrollWidth=3193、修正を有効にすると375。`overflow-wrap:anywhere`を実測した。関連19件成功、`9e19e59a`。証跡 `/tmp/uf8-browser-long-result.json`、`/tmp/uf8-width-long-375.png`。初回fixtureの寸法だけを狭幅合格の根拠にしない。
+
+### 既定normalレビューと指摘対応
+
+`codex_run.py review normal` / gpt-6-sol / max / read-only、session `01a1538c-9ddb-7ce3-9fa6-9b74d39adfe0`。対象は `origin/develop...cab39b5a`、結果P1=3/P2=4、7件全採用。これは旧Claude実装への既定の反対側レビューで、消費済みの敵対3周を追加・リセットするものではない。レビュア側のVitestはread-only一時領域で失敗したため、成功の証跡は後任が実行した結果を使う。指摘反映後の追加レビューは未実施であり、最終反映差分も人間へ提示する。
+
+| 指摘 | 採否と具体的な反映 |
+| --- | --- |
+| P1 本体V1とキューD5の不一致を受理してから送信不能になる | 採用。採番/追記の前にD5/D4/gameを本体と照合。3反例でprepareAppend未呼出・スロット0/次D1=1を固定。旧2件目fixtureにも不一致があり、双方を同じ正規D5へ是正。`a71572ec`、関連35件成功 |
+| P1 省略Boolean propがfalseへ変換され、350件以上の警告が再表示時に消える | 採用。withDefaultsで省略をundefinedに保持し、単一導出の閾値判定を使用。400件/省略=警告、明示false=なしを固定。`22af80f6`、関連29件成功 |
+| P1 待機タブ試験が待たない管理機構を自ら注入し、製品の既定経路を検査していない | 採用。navigator.locksだけを差し替え、呼出側のlockManager注入を除去。`3b539aa0`、対象4件成功。実Web Locks試験の省略経路とも照合 |
+| P2 入力不可へ変わっても下書き成功表示が残る | 採用。既存可否判定がfalseなら組立を行わず、理由表示と封鎖を維持。許可→打球発生のDOM試験。`999bf3a9`、関連29件成功 |
+| P2 未取得の要操作/退避済み件数が0に見える | 採用。undefinedを単一導出から画面まで保持し、未取得表示/unsuppliedStatesへ反映。`22af80f6` |
+| P2 長い英数字名が375pxで横溢れ | 採用。`9e19e59a`と上記の実CSSによる3193→375測定 |
+| P2 ESLint禁止規則が計画のファイル宣言から漏れている | 採用。旧担当が追加済みの封鎖機構を、今回の「既存ハーネスを維持し、検査を弱めず」というユーザー指示に従い保全。計画3/4節へ宣言し、新機能・検査例外の追加や制御削除をしない |
+
+後任が追加した遅延試験の `Promise.withResolvers` が現TSターゲットでは使えずbuildが失敗したため、通常のPromiseへ直して型検査成功を確認した(`5a7a02fa`)。TS設定を緩めていない。
+
+### 全harness検査のSQL接続先
+
+全件は29,671 passed / 2 failed / 2 skipped、847.84秒。失敗は `test_actual_measurement_is_generated_and_passes_both_budgets` とSQLの `test_each_language_mutants_are_actually_killed` で、localhost:5432へ接続不能だった。自分専用の別PostgreSQL `pitchlog-uf8-mutation-20261019` / localhost:15424を作成し、接続先を明示して当該2件を再実行し、2 passed / 3.19秒。試験除外・SQL代替・共有DB/ロールの変更はしていない。全件を最初から全緑だったとは記録しない。ログ `/tmp/uf8-harness-recheck.log`。
+
+### 是正の実効性と最終frontend
+
+最終コード `5a7a02fa` のfrontend全体は82ファイル/1,552 passed、80.17秒。Prettier/ESLint/vue-tsc/buildも成功し、production build closureはconforming(9ファイル/外部参照0/違反0)。400件・警告prop省略で実Chromiumの警告が表示され、要操作/退避済み未供給は「未取得」、375pxで横溢れなしを確認した。
+
+是正の実効性は `/tmp/uf8-correction-mutants` の専用checkoutで測定した。①既定の待たないロック適用を除去 ②受理前の識別値照合を除去 ③省略警告をfalseへ戻す ④未取得件数を0へ戻す ⑤入力不可時の組立抑止を除去、の5変異すべてをAssertionErrorでkillした。専用checkout以外のソースを変異させず、製品の差分は保持した。初回のpnpm起動は共有node_modulesの解決先保護で実行前拒否されたため、既存Vitestの実体をNodeで直接起動し、インストールや保護解除はしていない。ログと結果は同ディレクトリの各logとresult.json。これは自分による反例検証で、追加の独立レビュー・P-6とは記録しない。
+
+計画5-1は、技術的な項目を実測に基づき更新し、人間逐行確認を含む最終項目だけ未チェック。計画5-2/5-3、TSK-523全体、実HTTP/Port/計算核、正式資産受理、署名は未完のまま保持した。
+
+最終のLintでwithDefaults使用時の任意prop既定値を求められたため、全任意propの未供給をundefinedで明示した(`712ff3d6`)。検査規則は変更せず、型/Lint/画面関連44件成功。以後の全frontendは82ファイル/1,552 passed、79.59秒、build closure conforming。最終コードのログは `/tmp/uf8-final-code-{frontend,build}.log`。
+
+normal初回報告の最終判定行が欠けていたため、6.3(6)に従い同一回の様式補完だけをラッパーへ再依頼し、`否決 P0=0 / P1=3 / P2=4`を取得した(`/tmp/uf8-normal-format.log`)。既存報告の内容/対象/件数は不変で、是正後コードの追加査読には数えない。
+
+506の最終返信も回収した。最新develop取込後の候補HEADは `250d24cf`、ステップ4未完了、front 1,431件成功。元wire/codec版/要求指紋/試行IDの検査候補を固定したが、実Port・耐久的旧試行遮断・結果照会・公開型/提供SHAは未提供、HTTP接続/内容訂正/公開は未受理との回答を保持する。キュー/通信候補をこちらへ無断取り込みせず、共有client*の変更は提供・編集順確定後とする。
+
+### 日本語フォントでの最終寸法・目視
+
+Linux側に日本語フォントがなく、一部文字が代替字形になっていたため、検証fixtureへ既存WindowsのMeiryoを供給した。製品のフォント設定・配布物は変更しない。実際に日本語を描画すると暗黙grid列の最小内容幅によりscrollWidth=447となる反例が追加で判明した。狭幅の下書きgridを明示した1列に変更し、375px/320pxで各scrollWidth=375/320、横溢れ0を再測定した(`242337e4`、関連19件成功)。スクリーンショットを実際に開き、未送信/要操作・警告・確定封鎖理由・下書き欄が日本語で読め、消去ボタンが列内に収まることを確認した。
+
+同じ日本語フォントで長い英数字名の折り返しを外すとscrollWidth=2896、修正後は375。400件警告/未取得件数表示も再実行し横溢れなし。フォント未供給時の計測だけを最終の読めることの証拠にせず、最終の `/tmp/uf8-width-375.png` / `/tmp/uf8-width-320.png` / `/tmp/uf8-browser-result.json` とlong/warningの結果を使う。
+
+### 提出前の全backend結果
+
+自分専用の隔離PostgreSQLでbackend全件を完走し、**3,039 passed / 4 skipped / 1 warning、2,498.20秒(41分38秒)**、終了値0。4件skipは既存の `test_authz_runtime_contract_switch.py` の「製品化済みのリポジトリでは切り替えドライランを行わない」という条件で、今回の除外/無効化ではない。warningは既存db_fixturesのimport時assert rewrite警告。Ruff format/check・tyも成功。実Portや計算核の接続試験をこの全件結果で代替しない。
+
+最終のブラウザ反例は、同じ日本語フォントでgrid列指定を外すと447px、指定ありで375px、`japaneseFontLoaded=true`を記録した。画面操作・通信断・再読込・複数タブを同じfixtureで再確認した。全コードはコミット済みで、残る提出変更は計画status/採否・検査記録/担当契約の文書だけである。最終反映の追加独立査読、本人逐行確認、次期の停止UI追補承認・正式型/Port/核の提供・実HTTP通し受入は未実施/未提供として残す。
+
+### 第1期のDraft提出状態
+
+最終コード `242337e4` の全frontendは **82ファイル/1,552 passed、93.15秒**。最終Prettier/ESLint/vue-tsc/buildは成功。build closureはconforming、9ファイル/外部参照0/違反0。コードの追加変更後にも全件を再実行し、以前の1,552件の結果を最終コードへ流用していない。最終ログは `/tmp/uf8-ready-{frontend,build}.log`。
+
+計画statusをin-reviewへ更新し、第1期の技術項目と既存レビュー/今回のnormal採否をPRへ提示する。正本・索引・backend・contracts・lib/sync・core-areas.jsonのPR差分は0。既存PRが無いことを照合し、1PRで提出する既存PO判断に従って通常push/Draft作成へ進む。人間逐行確認の欄・未実施のcodex_run.py敵対経路の欄は代記せず、承認済みClaude代替3周の実施記録を併記する。計画5-2/5-3、停止UI追補と実Port/計算核の接続、GAP-05、正式資産受理・署名・公開・マージは完了としない。

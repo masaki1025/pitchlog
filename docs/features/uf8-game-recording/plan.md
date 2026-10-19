@@ -1,6 +1,6 @@
 ---
 feature: uf8-game-recording
-status: active            # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
+status: in-review         # active | in-review(/pr が PR 内で更新。完了は PR 状態・Notion・worktree 除去から導出。codex_run.py implement は active 以外を拒否)
 承認: 済(2026-10-16・山田正輝)                  # 未 | 済(YYYY-MM-DD・承認者)— codex_run.py が「済」でないと実行を拒否する
 重さ分類: コア領域        # 軽微 | 通常 | コア領域 | 機械的軽作業 — /plan が必ず置換する(空値・欠落はラッパーが停止。ADR-001 のモデルをラッパーが自動選択)
 worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対)。/task-start が設定
@@ -73,11 +73,11 @@ created: 2026-10-16
 | `docs/design/data-model.md` | **反映なし** | — |
 | `docs/adr/*` | **反映なし** | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
-| `docs/development/harness-evaluation.md` | **`/pr` のクローズ処理で判断**(候補あり —— 保全クローンの版ずれの実測 2 件目は master が別途記録する) | PR レビュー |
-| `docs/README.md` | 台帳へ追記した場合のみ現行化 | PR レビュー |
+| `docs/development/harness-evaluation.md` | **反映なし**。クローズ処理で判断し、新たな運用規則・確定した傾向として採番する根拠なし。保全クローンの版ずれは既存worklogへ保持 | — |
+| `docs/README.md` | **反映なし**。正本・台帳の改訂なし | — |
 | `.claude/core-areas.json` | **変更しない** —— 第 1 期は登録済み paths の範囲に収める | — |
 
-**正本体系外だが同一 PR で更新するもの**: `frontend/src/screens/GameScreen*`(`GameScreen.vue` と同 `.spec.ts` に加え、登録済み glob に収まる `GameScreen*.ts` の新設分)/ `frontend/src/api/client*` / `frontend/src/lib/sync/` への呼び出し(**`lib/sync` 自体は変更しない**)/ `docs/features/uf8-game-recording/{plan,research,design}.md` / `docs/worklog/2026-10-16-uf8-game-recording.md`
+**正本体系外だが同一 PR で更新するもの**: `frontend/src/screens/GameScreen*`(`GameScreen.vue` と同 `.spec.ts` に加え、登録済み glob に収まる `GameScreen*.ts` の新設分)/ `frontend/src/api/client*` / `frontend/src/lib/sync/` への呼び出し(**`lib/sync` 自体は変更しない**)/ `frontend/eslint.config.js`(ステップ6の封鎖を守る禁止規則。既存敵対レビューで採用した是正)/ `docs/features/uf8-game-recording/{plan,research,design}.md` / `docs/worklog/2026-10-16-uf8-game-recording.md`
 
 ## 4. 実装方針
 
@@ -113,6 +113,8 @@ created: 2026-10-16
 
 **10 ステップとも `frontend/src/screens/GameScreen*` と `frontend/src/api/client*` の範囲に収める**(登録済み paths)。`core-areas.json` を触らない。
 
+**封鎖の検査機構の維持(2026-10-19の引継ぎ整理)**: 既存敵対レビューで追加済みの `frontend/eslint.config.js` の禁止規則は、引継ぎ指示「既存ハーネスを維持し、検査を弱めず」に従って保全する。実装ファイルの範囲と検査機構を区別し、3節の同一PRの宣言にも追記した。後任による新しい検査例外・禁止の解除は行わない。
+
 **ステップ 9・10 の追加(2026-10-17)**: 実装後の DoD 突合で、**DoD 5-1 の 2 項目(単一書き手の射程・`NFR-020`)がステップ表のどの合格条件にも対応していない**ことが分かった(計画レビュー 3 回目の P0 と同じ型の、逆向きの食い違い)。DoD は変えず、**不足していた段を足して承認済みの合格条件を満たす**。山田さんの判断(2026-10-17)で第 1 期に残す(選択肢を提示したうえでの指示。経緯は worklog)。
 
 ## 5. DoD
@@ -121,21 +123,21 @@ created: 2026-10-16
 
 ### 5-1. 第 1 期で満たす(本計画の完了条件)
 
-- [ ] **入力下書きの組み立て**が動く —— 確定値から同期イベントの下書き(`state_diff` を除く部分)を作る。**[design.md 2 節](./design.md)の表が許す入力に限り、条件外を拒む**
-- [ ] **配線が契約どおりに動く**(採番 → 追記 → 受理 → 送信 → ACK 適用)。**合否はモックの `state_diff` を注入した隔離試験でのみ判定する。実運用のキューへモック差分を積まない**
-- [ ] **利用者の確定操作から永続追記・送信へ進めない**(計算核との接続まで)。塞ぐ理由が画面に出る。**塞ぎを外す箇所が 1 つに閉じている**
-- [ ] **順序が「採番・永続追記 → 受理 → 送信 → ACK の適用」である**(要件書 `:329` の `E0`)。送信を先に置いていない
-- [ ] **確定先が E-1 `POST /games/{game_id}/sync/events`** である(旧経路 `POST /games/{id}/plays` ではない)
-- [ ] **対象計算のコードを 1 行も置いていない**(D-2 未発効・`ADR-003:1175`)
-- [ ] キューへの受け渡しが `lib/sync` の既存 API を呼ぶだけで、**`lib/sync` を変更していない**
-- [ ] **`B3` を含む ACK で `要操作` へ遷移する**。**ACK が返らないときは `未送信` のまま**(恒久エラーを無限再送しない —— 山田さんの指示)
-- [ ] **単一書き手が採番・追記・送信の全体に掛かる**(旧実装は再送だけに鍵を掛けていた)
-- [ ] 未同期判定が `queueState` の単一の導出から来ている(旧実装の欠陥 3 の是正)
-- [ ] `NFR-007`/`E4` —— **追記の成立をもって受理とし、追記不成立を受理成功として見せない**
-- [ ] `E5` の 3 シナリオに対する画面側の反応を**契約相手で**確認した
-- [ ] `NFR-020` —— 375px 幅で動作する
-- [ ] **`.claude/core-areas.json` の差分が 0 行**
-- [ ] `frontend` の `pnpm exec prettier --check .` / `eslint .` / `vue-tsc --noEmit` / `pnpm test` が green
+- [x] **入力下書きの組み立て**が動く —— 確定値から同期イベントの下書き(`state_diff` を除く部分)を作る。**[design.md 2 節](./design.md)の表が許す入力に限り、条件外を拒む**
+- [x] **配線が契約どおりに動く**(採番 → 追記 → 受理 → 送信 → ACK 適用)。**合否はモックの `state_diff` を注入した隔離試験でのみ判定する。実運用のキューへモック差分を積まない**
+- [x] **利用者の確定操作から永続追記・送信へ進めない**(計算核との接続まで)。塞ぐ理由が画面に出る。**塞ぎを外す箇所が 1 つに閉じている**
+- [x] **順序が「採番・永続追記 → 受理 → 送信 → ACK の適用」である**(要件書 `:329` の `E0`)。送信を先に置いていない
+- [x] **確定先が E-1 `POST /games/{game_id}/sync/events`** である(旧経路 `POST /games/{id}/plays` ではない)
+- [x] **対象計算のコードを 1 行も置いていない**(D-2 未発効・`ADR-003:1175`)
+- [x] キューへの受け渡しが `lib/sync` の既存 API を呼ぶだけで、**`lib/sync` を変更していない**
+- [x] **`B3` を含む ACK で `要操作` へ遷移する**。**ACK が返らないときは `未送信` のまま**(恒久エラーを無限再送しない —— 山田さんの指示)
+- [x] **単一書き手が採番・追記・送信の全体に掛かる**(旧実装は再送だけに鍵を掛けていた)
+- [x] 未同期判定が `queueState` の単一の導出から来ている(旧実装の欠陥 3 の是正)
+- [x] `NFR-007`/`E4` —— **追記の成立をもって受理とし、追記不成立を受理成功として見せない**
+- [x] `E5` の 3 シナリオに対する画面側の反応を**契約相手で**確認した
+- [x] `NFR-020` —— 375px 幅で動作する
+- [x] **`.claude/core-areas.json` の差分が 0 行**
+- [x] `frontend` の `pnpm exec prettier --check .` / `eslint .` / `vue-tsc --noEmit` / `pnpm test` が green
 - [ ] 敵対レビューを通した / 人間の逐行確認のチェックと実施記録を PR 本文に記入した
 
 ### 5-2. U-X1 の凍結解除まで満たせない(後続計画へ送る)
