@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from '../../api/auth.test-support'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import {
   flushPromises,
@@ -7,7 +8,13 @@ import {
 } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiNetworkError, ApiStaleAuthError } from '../../api/client'
+import {
+  apiRequest,
+  ApiError,
+  ApiNetworkError,
+  ApiStaleAuthError,
+  ApiTenantVerificationError,
+} from '../../api/client'
 import {
   createPlayer,
   createTeamRecord,
@@ -89,7 +96,7 @@ function deferred<T>(): {
   return { promise, reject, resolve }
 }
 
-function mountScreen(): {
+function mountScreen(teamId = '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0'): {
   auth: ReturnType<typeof useAuthStore>
   wrapper: VueWrapper
 } {
@@ -97,7 +104,7 @@ function mountScreen(): {
   piniaInstances.push(pinia)
   setActivePinia(pinia)
   const auth = useAuthStore(pinia)
-  auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+  setVerifiedAuthForTest(auth, { teamId, teamName: 'チーム A' })
   const wrapper = mount(TeamScreen, {
     global: {
       plugins: [pinia, [VueQueryPlugin, { queryClient }]],
@@ -208,7 +215,9 @@ describe('TeamMembersContent', () => {
     expect(wrapper.text()).toContain('同じ背番号の在籍選手がいます')
     expect(wrapper.text()).toContain('18 既存選手')
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: rosterQueryKeys.players.all('tenant-a'),
+      queryKey: rosterQueryKeys.players.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     expect(listPlayersMock.mock.calls.length).toBeGreaterThanOrEqual(2)
 
@@ -273,7 +282,9 @@ describe('TeamMembersContent', () => {
     expect(wrapper.text()).toContain('類似する登録済み名称があります')
     expect(wrapper.text()).toContain('東京クラブ')
     expect(invalidate).toHaveBeenCalledWith({
-      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
 
     await buttonWithText(wrapper, '登録した対戦相手名を編集').trigger('click')
@@ -389,7 +400,10 @@ describe('TeamMembersContent', () => {
     await buttonWithText(wrapper, '対戦相手を登録').trigger('click')
 
     activeTenant = 'b'
-    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('チーム Bの選手管理'),
     )
@@ -498,14 +512,23 @@ describe('TeamMembersContent', () => {
 
     await vi.waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({
-        queryKey: rosterQueryKeys.players.all('tenant-a'),
+        queryKey: rosterQueryKeys.players.all(
+          '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+        ),
       }),
     )
     expect(wrapper.text()).toContain('対戦相手 Aの選手管理')
     expect(wrapper.text()).not.toContain('選手「遅延選手」を登録しました')
   })
 
-  it.each(['success', 'failure'] as const)(
+  it.each([
+    'success',
+    'failure',
+    'verification',
+    'server-error',
+    'response-error',
+    'abort',
+  ] as const)(
     '認証切替中の遅延 mutation %s が新 tenant の画面・cacheを変更しない',
     async (outcome) => {
       const selfA = teamRecord('self-a', 'チーム A', 'self')
@@ -534,10 +557,13 @@ describe('TeamMembersContent', () => {
       expect(createPlayerMock).toHaveBeenCalledTimes(1)
 
       activeTenant = 'b'
-      auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+      setVerifiedAuthForTest(auth, {
+        teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+        teamName: 'チーム B',
+      })
       await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B'))
       queryClient.setQueryData(
-        ['players', 'tenant-b', 'sentinel'],
+        ['players', '659a85f2-ccb4-5725-a7b8-81c34caf8870', 'sentinel'],
         'keep-b-cache',
       )
 
@@ -546,6 +572,16 @@ describe('TeamMembersContent', () => {
           ...player('player-delayed', selfA.id, '遅延選手 A'),
           same_number_players: [],
         })
+      } else if (outcome === 'verification') {
+        delayed.reject(new ApiTenantVerificationError('POST', '/players', 201))
+      } else if (outcome === 'abort') {
+        delayed.reject(new DOMException('通信中止', 'AbortError'))
+      } else if (outcome === 'response-error') {
+        delayed.reject(
+          new ApiError(201, '応答を解釈できません', [], undefined, '{'),
+        )
+      } else if (outcome === 'server-error') {
+        delayed.reject(new ApiError(500, '失敗', [], undefined, undefined))
       } else {
         delayed.reject(new ApiNetworkError(new Error('A の通信失敗')))
       }
@@ -560,7 +596,11 @@ describe('TeamMembersContent', () => {
       )
       expect(invalidate).not.toHaveBeenCalled()
       expect(
-        queryClient.getQueryData(['players', 'tenant-b', 'sentinel']),
+        queryClient.getQueryData([
+          'players',
+          '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+          'sentinel',
+        ]),
       ).toBe('keep-b-cache')
       expect(createPlayerMock).toHaveBeenCalledTimes(1)
       expect(wrapper.text()).not.toContain(
@@ -568,7 +608,10 @@ describe('TeamMembersContent', () => {
       )
 
       activeTenant = 'a'
-      auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+      setVerifiedAuthForTest(auth, {
+        teamId: '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+        teamName: 'チーム A',
+      })
       await vi.waitFor(() =>
         expect(wrapper.text()).toContain(
           'チーム Aでの選手の登録は結果未確認です',
@@ -579,26 +622,95 @@ describe('TeamMembersContent', () => {
     },
   )
 
-  it('結果未確認の mutation を成功表示せず、自動再送しない', async () => {
-    const self = teamRecord('self-a', 'チーム A', 'self')
-    listTeamRecordsMock.mockResolvedValue(page([self]))
-    listPlayersMock.mockResolvedValue(page([]))
-    createPlayerMock.mockRejectedValue(
-      new ApiStaleAuthError('POST', '/players', 201),
-    )
+  it.each([
+    [200, 'application/json'],
+    [201, 'application/json'],
+    [200, 'text/plain'],
+    [201, 'text/plain'],
+  ] as const)(
+    '実clientのack一致%s/%sでも解釈不能本文は未確認として再送・成功・cache更新をしない',
+    async (status, contentType) => {
+      const self = teamRecord('self-a', 'チーム A', 'self')
+      const tenant = '11111111-1111-1111-1111-111111111111'
+      listTeamRecordsMock.mockResolvedValue(page([self]))
+      listPlayersMock.mockResolvedValue(page([]))
+      createPlayerMock.mockImplementation((body) =>
+        apiRequest('POST', '/players', { body, tenantBound: true }),
+      )
+      const fetchSpy = vi
+        .spyOn(globalThis, 'fetch')
+        .mockImplementation(async (_url, init) => {
+          const headers = new Headers(init?.headers)
+          expect(headers.get('X-Pitchlog-Expected-Tenant')).toBe(tenant)
+          return new Response('{', {
+            status,
+            headers: {
+              'Content-Type': contentType,
+              'X-Pitchlog-Tenant-Match': '1',
+              'X-Pitchlog-Tenant-Challenge': headers.get(
+                'X-Pitchlog-Tenant-Challenge',
+              )!,
+            },
+          })
+        })
+      const { wrapper } = mountScreen(tenant)
+      await vi.waitFor(() =>
+        expect(wrapper.text()).toContain('チーム Aの選手管理'),
+      )
+      queryClient.setQueryData(['players', tenant, 'sentinel'], '保存済みcache')
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+      await wrapper.get('input[name="player-name"]').setValue('未確認選手')
+      await wrapper.get('select[name="player-throws"]').setValue('right')
+      await wrapper.get('select[name="player-bats"]').setValue('left')
+      await buttonWithText(wrapper, '選手を登録').trigger('click')
+      await vi.waitFor(() =>
+        expect(wrapper.text()).toContain('結果は未確認です'),
+      )
+      await flushPromises()
+      expect(wrapper.text()).toContain('自動再送はしていません')
+      expect(wrapper.text()).not.toContain('登録しました')
+      expect(wrapper.text()).not.toContain('に失敗しました')
+      expect(createPlayerMock).toHaveBeenCalledTimes(1)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(invalidate).not.toHaveBeenCalled()
+      expect(queryClient.getQueryData(['players', tenant, 'sentinel'])).toBe(
+        '保存済みcache',
+      )
+      expect(listPlayersMock).toHaveBeenCalledTimes(1)
+      expect(listTeamRecordsMock).toHaveBeenCalledTimes(1)
+    },
+  )
 
-    const { wrapper } = mountScreen()
-    await vi.waitFor(() =>
-      expect(wrapper.text()).toContain('チーム Aの選手管理'),
-    )
-    await wrapper.get('input[name="player-name"]').setValue('未確認選手')
-    await wrapper.get('select[name="player-throws"]').setValue('right')
-    await wrapper.get('select[name="player-bats"]').setValue('left')
-    await buttonWithText(wrapper, '選手を登録').trigger('click')
+  it.each([
+    new ApiStaleAuthError('POST', '/players', 201),
+    new ApiTenantVerificationError('POST', '/players', 201),
+    new ApiError(500, '失敗', [], undefined, undefined),
+    new ApiError(200, '応答を解釈できません', [], undefined, '{'),
+    new ApiError(201, '応答を解釈できません', [], undefined, '{'),
+    new DOMException('通信中止', 'AbortError'),
+  ])(
+    '結果未確認の mutation %s を成功表示せず、自動再送しない',
+    async (error) => {
+      const self = teamRecord('self-a', 'チーム A', 'self')
+      listTeamRecordsMock.mockResolvedValue(page([self]))
+      listPlayersMock.mockResolvedValue(page([]))
+      createPlayerMock.mockRejectedValue(error)
 
-    await vi.waitFor(() => expect(wrapper.text()).toContain('結果は未確認です'))
-    expect(wrapper.text()).toContain('送信元チームへ戻って一覧を再読込')
-    expect(wrapper.text()).not.toContain('登録しました')
-    expect(createPlayerMock).toHaveBeenCalledTimes(1)
-  })
+      const { wrapper } = mountScreen()
+      await vi.waitFor(() =>
+        expect(wrapper.text()).toContain('チーム Aの選手管理'),
+      )
+      await wrapper.get('input[name="player-name"]').setValue('未確認選手')
+      await wrapper.get('select[name="player-throws"]').setValue('right')
+      await wrapper.get('select[name="player-bats"]').setValue('left')
+      await buttonWithText(wrapper, '選手を登録').trigger('click')
+
+      await vi.waitFor(() =>
+        expect(wrapper.text()).toContain('結果は未確認です'),
+      )
+      expect(wrapper.text()).toContain('一覧を再読込')
+      expect(wrapper.text()).not.toContain('登録しました')
+      expect(createPlayerMock).toHaveBeenCalledTimes(1)
+    },
+  )
 })

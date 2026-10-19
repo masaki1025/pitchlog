@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import 'fake-indexeddb/auto'
 
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
@@ -19,7 +20,7 @@ type QueueRecord = {
 
 const queueRecord: QueueRecord = {
   id: 'q1',
-  ownerTeamId: 'team-a',
+  ownerTeamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
   payload: { kind: 'pitch', count: 3 },
 }
 
@@ -119,7 +120,10 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
-  useAuthStore().signIn({ teamName: '検証済み試験チーム', teamId: 'team-test' })
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamName: '検証済み試験チーム',
+    teamId: '6efca380-dea3-5a4e-9749-40dfb1dbd65e',
+  })
   queryClient.clear()
   vi.stubGlobal('fetch', vi.fn())
 })
@@ -151,7 +155,10 @@ describe('apiRequest の認証越境', () => {
     }
 
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     queryClient.setQueryData(['games', 4], 'A のデータ')
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
     vi.mocked(fetch).mockResolvedValue(
@@ -175,7 +182,10 @@ describe('apiRequest の認証越境', () => {
 
   it('送信前に別タブ変更を検出したらAを消して再検証まで送らない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     queryClient.setQueryData(['games', 4], 'A のデータ')
     const previousEpoch = auth.authEpoch
     const savedB = writeOtherTabAuth('B')
@@ -193,7 +203,10 @@ describe('apiRequest の認証越境', () => {
 
   it('noAuthExpiry の 401 は認証とキャッシュを失効させない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const savedA = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['games', 4], 'A のデータ')
     vi.mocked(fetch).mockResolvedValue(
@@ -213,7 +226,10 @@ describe('apiRequest の認証越境', () => {
 
   it('往復中の認証切り替えでは A の応答を破棄し、呼び出し側は A のキャッシュへ入れない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
     const setQueryData = vi.spyOn(queryClient, 'setQueryData')
@@ -235,7 +251,10 @@ describe('apiRequest の認証越境', () => {
 
   it('本文の読み取り中に B へ切り替わると A の応答をキャッシュへ入れない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const reading = deferredValue<void>()
     const body = deferredValue<string>()
     const response = jsonResponse({ id: 4 })
@@ -264,7 +283,10 @@ describe('apiRequest の認証越境', () => {
 
   it('往復中の切り替え後に古い 401 が届いても B の認証とキャッシュを保つ', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expireSession = vi.spyOn(auth, 'expireSession')
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
@@ -272,7 +294,10 @@ describe('apiRequest の認証越境', () => {
     writeOtherTabAuth('B')
     window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
     expect(auth.teamName).toBeNull()
-    auth.signIn({ teamName: 'B', teamId: 'team-b' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
     const verifiedB = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['team', 'B'], 'B のデータ')
     const response = jsonResponse({ error: { message: '古い認証' } }, 401)
@@ -298,7 +323,10 @@ describe('apiRequest の認証越境', () => {
 
   it('401 の本文読み取り中に B へ切り替わっても B の認証とキャッシュを保つ', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expireSession = vi.spyOn(auth, 'expireSession')
     const reading = deferredValue<void>()
     const body = deferredValue<string>()
@@ -313,7 +341,10 @@ describe('apiRequest の認証越境', () => {
     await reading.promise
     writeOtherTabAuth('B')
     window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
-    auth.signIn({ teamName: 'B', teamId: 'team-b' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
     const verifiedB = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['team', 'B'], 'B のデータ')
     body.resolve('{"error":{"message":"古い認証"}}')

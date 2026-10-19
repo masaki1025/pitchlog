@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { useInfiniteQuery } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/vue-query'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { ApiError, ApiNetworkError, ApiStaleAuthError } from '../api/client'
+import {
+  ApiError,
+  ApiNetworkError,
+  ApiStaleAuthError,
+  ApiTenantVerificationError,
+  ApiSessionUnverifiedError,
+} from '../api/client'
 import {
   listPlayers,
   listTeamRecords,
@@ -15,6 +21,19 @@ import { rosterQueryKeys } from '../lib/rosterQueryKeys'
 import { useAuthStore } from '../stores/authStore'
 
 const PAGE_LIMIT = 25
+const queryClient = useQueryClient()
+
+function retryRosterQuery(failureCount: number, error: Error): boolean {
+  if (
+    error instanceof ApiStaleAuthError ||
+    error instanceof ApiSessionUnverifiedError
+  )
+    return false
+  const configured = queryClient.getDefaultOptions().queries?.retry
+  if (typeof configured === 'function') return configured(failureCount, error)
+  if (typeof configured === 'boolean') return configured
+  return failureCount < (configured ?? 3)
+}
 
 const auth = useAuthStore()
 const { authEpoch, teamId, teamName } = storeToRefs(auth)
@@ -29,6 +48,7 @@ const teamRecordsQuery = useInfiniteQuery({
     ),
   ),
   enabled: computed(() => teamId.value !== null),
+  retry: retryRosterQuery,
   initialPageParam: null as string | null,
   queryFn: async ({ pageParam, signal }) => {
     const requestEpoch = authEpoch.value
@@ -107,6 +127,7 @@ const playersQuery = useInfiniteQuery({
   enabled: computed(
     () => teamId.value !== null && selectedTeamRecordId.value !== null,
   ),
+  retry: retryRosterQuery,
   initialPageParam: null as string | null,
   queryFn: async ({ pageParam, signal }) => {
     const requestEpoch = authEpoch.value
@@ -170,6 +191,9 @@ function retryPlayers(): void {
 }
 
 function listErrorMessage(error: unknown, target: string): string {
+  if (error instanceof ApiTenantVerificationError) {
+    return 'テナントの照合を確認できないため一覧の応答を破棄しました。再読込して確認してください。'
+  }
   if (error instanceof ApiStaleAuthError) {
     return '認証が切り替わったため、古い一覧の応答を破棄しました。'
   }

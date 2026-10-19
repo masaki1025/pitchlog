@@ -12,7 +12,12 @@ const unconfirmedMutationNotices = createReactiveState(
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { ApiError, ApiNetworkError, ApiStaleAuthError } from '../../api/client'
+import {
+  ApiError,
+  ApiNetworkError,
+  ApiStaleAuthError,
+  ApiTenantVerificationError,
+} from '../../api/client'
 import {
   createPlayer,
   createTeamRecord,
@@ -130,7 +135,30 @@ function normalizeUniformNumber(value: string): string | null {
   return normalized === '' ? null : normalized
 }
 
+function isAbortedMutation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'AbortError'
+  )
+}
+
+function isUnconfirmedApiError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    ((error.status >= 200 && error.status < 300) || error.status >= 500)
+  )
+}
+
 function mutationErrorMessage(error: unknown, target: string): string {
+  if (
+    error instanceof ApiTenantVerificationError ||
+    isAbortedMutation(error) ||
+    isUnconfirmedApiError(error)
+  ) {
+    return `${target}の結果は未確認です。自動再送はしていません。一覧を再読込して確認してください。`
+  }
   if (error instanceof ApiStaleAuthError) {
     return '認証が切り替わったため結果は未確認です。自動再送せず、送信元チームへ戻って一覧を再読込してください。'
   }
@@ -152,7 +180,9 @@ function preserveUnconfirmedResult(
 ): boolean {
   if (
     (!(error instanceof ApiStaleAuthError) &&
-      !(error instanceof ApiNetworkError)) ||
+      !(error instanceof ApiNetworkError) &&
+      !isAbortedMutation(error) &&
+      !isUnconfirmedApiError(error)) ||
     isCurrentTenant(scope)
   ) {
     return false
