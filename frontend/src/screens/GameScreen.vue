@@ -65,7 +65,21 @@ const props = withDefaults(
     /** 確定値のうち、画面の下書き欄の外から来るもの。 */
     eventIdentity?: { d5: string; d4: string; gameId: string; d2: unknown }
   }>(),
-  { unsentWarning: undefined },
+  {
+    state: undefined,
+    pitchTypes: undefined,
+    results: undefined,
+    courseView: undefined,
+    unsentCount: undefined,
+    actionRequired: undefined,
+    evacuatedCount: undefined,
+    syncedCount: undefined,
+    receivedNotices: undefined,
+    unsentWarning: undefined,
+    storagePersistence: undefined,
+    inputObservation: undefined,
+    eventIdentity: undefined,
+  },
 )
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
