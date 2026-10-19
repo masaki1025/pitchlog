@@ -179,7 +179,7 @@ function clearDraft() {
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl space-y-5 p-4 pb-12">
+  <main class="mx-auto max-w-5xl space-y-5 p-4 pb-12 wrap-anywhere">
     <header class="space-y-2">
       <p class="text-sm font-semibold text-sky-700 dark:text-sky-300">
         試合状態 · 表示のみ

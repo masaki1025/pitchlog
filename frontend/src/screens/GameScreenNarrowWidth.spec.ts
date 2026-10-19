@@ -87,6 +87,20 @@ describe('375px 幅で横溢れを生む構造を持たない', () => {
 })
 
 describe('375px 幅で読めている必要がある表示', () => {
+  it('長い英数字の試合名・選手名を省略せず、単語内でも折り返せる', () => {
+    const name = 'W'.repeat(120)
+    const wrapper = mount(GameScreen, {
+      props: { state: { gameName: name, batter: name, pitcher: name } },
+    })
+
+    for (const testId of ['game-name', 'batter', 'pitcher']) {
+      expect(wrapper.get(`[data-testid="${testId}"]`).text()).toBe(name)
+    }
+    // jsdomは実幅を計算しない。実ブラウザで横溢れを再現した入力を保持し、
+    // 単語内の折り返しを各表示へ継承する。実寸は別途Chromiumで測る。
+    expect(wrapper.get('main').classes()).toContain('wrap-anywhere')
+  })
+
   it('未送信件数・要操作・確定できない理由がすべて出ている', () => {
     const wrapper = mountNarrow()
 
