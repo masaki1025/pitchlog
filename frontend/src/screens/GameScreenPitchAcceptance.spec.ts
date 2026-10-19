@@ -87,6 +87,36 @@ function input(event: SyncEvent = eventWithMockStateDiff()) {
 }
 
 describe('排他の下での採番・永続追記・受理', () => {
+  it.each([
+    ['V1', '11111111-1111-4111-8111-111111111111'],
+    ['V3', 'different-generation'],
+    ['V4', '11111111-1111-4111-8111-111111111111'],
+  ])(
+    '本体の%sがキュー識別と違えば追記前に拒みD1を消費しない',
+    async (slotId, value) => {
+      const queue = await openIsolatedQueue()
+      const event = eventWithMockStateDiff()
+      const append = vi.spyOn(queue, 'prepareAppend')
+      const result = await acceptPitchEvent(
+        input({
+          fields: { ...event.fields, [slotId]: value },
+        }),
+        {
+          queue,
+          singleWriterInjections: singleWriterInjections(),
+        },
+      )
+
+      expect(result).toEqual({
+        outcome: 'not-accepted',
+        reason: PITCH_ACCEPTANCE_FAILURE.EVENT_IDENTITY_MISMATCH,
+      })
+      expect(append).not.toHaveBeenCalled()
+      expect(await queue.countSlots()).toBe(0)
+      expect(await queue.readNextD1(scope)).toBe(1)
+    },
+  )
+
   it('追記が成立した時点を受理とし、D1 は durableQueue が採番する', async () => {
     const queue = await openIsolatedQueue()
 
@@ -111,10 +141,14 @@ describe('排他の下での採番・永続追記・受理', () => {
       queue,
       singleWriterInjections: injections,
     })
+    const secondD5 = '11111111-1111-4111-8111-111111111111'
     const second = await acceptPitchEvent(
-      input({
-        fields: { ...eventWithMockStateDiff('second').fields, V1: 'second-d5' },
-      }),
+      {
+        ...input({
+          fields: { ...eventWithMockStateDiff('second').fields, V1: secondD5 },
+        }),
+        d5: secondD5,
+      },
       { queue, singleWriterInjections: injections },
     )
 

@@ -23,7 +23,7 @@ import {
   type SingleWriterStartFailure,
 } from '../lib/sync/singleWriter'
 import type { SyncEvent } from '../lib/sync/syncEvent'
-import { isCanonicalUuid } from './GameScreenPitchEvent'
+import { isCanonicalUuid, PITCH_EVENT_SLOT_ID } from './GameScreenPitchEvent'
 import { withNonBlockingSingleWriter } from './GameScreenSingleWriter'
 
 /** 本モジュールが使うキューの面。読取りは成否の照合にだけ使う。 */
@@ -59,6 +59,8 @@ export const PITCH_ACCEPTANCE_FAILURE = {
   SCOPE_MISMATCH: 'scope-mismatch',
   /** D5 が L-1 の UUID 正規形でない。キューへ入れない。 */
   INVALID_D5: 'invalid-d5',
+  /** キューの識別値とイベント本体が一致しない。追記前に拒む。 */
+  EVENT_IDENTITY_MISMATCH: 'event-identity-mismatch',
 } as const
 
 export type PitchAcceptanceFailure =
@@ -196,6 +198,22 @@ export async function appendPitchEventUnderLock(
     return {
       outcome: 'not-accepted',
       reason: PITCH_ACCEPTANCE_FAILURE.INVALID_D5,
+    }
+  }
+
+  // 送信時の拒否より前に止める。追記成立後は端末が保持責任を負うため、
+  // 本体とキューの識別値が違う送信不能なスロットを受理しない。
+  if (
+    !Object.is(input.event.fields[PITCH_EVENT_SLOT_ID.D5], input.d5) ||
+    !Object.is(input.event.fields[PITCH_EVENT_SLOT_ID.D4], input.scope.d4) ||
+    !Object.is(
+      input.event.fields[PITCH_EVENT_SLOT_ID.GAME_ID],
+      input.scope.game,
+    )
+  ) {
+    return {
+      outcome: 'not-accepted',
+      reason: PITCH_ACCEPTANCE_FAILURE.EVENT_IDENTITY_MISMATCH,
     }
   }
 
