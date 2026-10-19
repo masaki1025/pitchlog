@@ -587,7 +587,7 @@ def test_changed_canonical_digest_is_reported_as_stale() -> None:
 
 
 def test_all_manifest_tables_have_models_and_migrations() -> None:
-    """Manifest 全45表が models と migration の両方に存在する。"""
+    """Manifest 全46表が models と migration の両方に存在する。"""
     assert all_models.IMPORTED_MODEL_MODULE_NAMES
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
     model_tables = set(Base.metadata.tables)

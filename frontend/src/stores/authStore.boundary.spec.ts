@@ -1,3 +1,4 @@
+import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import 'fake-indexeddb/auto'
 
 import { VueQueryPlugin, useQuery } from '@tanstack/vue-query'
@@ -16,7 +17,7 @@ type QueueRecord = {
 
 const queueRecord: QueueRecord = {
   id: 'q1',
-  ownerTeamId: 'team-a',
+  ownerTeamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
   payload: { kind: 'pitch', count: 3 },
 }
 const otherStorageValues = {
@@ -65,7 +66,10 @@ function mountQueryView(keyed: boolean): ReturnType<typeof mount> {
 
 async function showTeamA(keyed: boolean): Promise<ReturnType<typeof mount>> {
   const store = useAuthStore()
-  store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+  setVerifiedAuthForTest(store, {
+    teamName: 'チーム A',
+    teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+  })
   const wrapper = mountQueryView(keyed)
   await flushPromises()
   expect(wrapper.text()).toContain('チーム A のデータ')
@@ -79,7 +83,7 @@ function switchOtherTabToB(): void {
       version: 1,
       sessionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       teamName: 'チーム B',
-      teamId: 'team-b',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
     }),
   )
   window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
@@ -187,11 +191,17 @@ afterEach(async () => {
 describe('authStore の越境', () => {
   it('signOut を経た A から B への切り替えで A のキャッシュを消す', () => {
     const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     queryClient.setQueryData(['games', 4], 'A のデータ')
 
     store.signOut()
-    store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
 
     expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
     expect(queryClient.getQueryCache().getAll()).toEqual([])
@@ -199,10 +209,16 @@ describe('authStore の越境', () => {
 
   it('直接 signIn する A から B への切り替えで A のキャッシュを消す', () => {
     const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     queryClient.setQueryData(['games', 4], 'A のデータ')
 
-    store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
 
     expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
     expect(queryClient.getQueryCache().getAll()).toEqual([])
@@ -212,7 +228,10 @@ describe('authStore の越境', () => {
     const wrapper = await showTeamA(true)
     const store = useAuthStore()
 
-    store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
     await nextTick()
     await flushPromises()
 
@@ -228,14 +247,19 @@ describe('authStore の越境', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('チーム A のデータ')
-    expect(wrapper.text()).toContain('チーム B のデータ')
+    expect(wrapper.text()).not.toContain('チーム B のデータ')
+    expect(useAuthStore().isAuthenticated).toBe(false)
+    expect(useAuthStore().teamId).toBeNull()
   })
 
   it('authEpoch の鍵がない画面はキャッシュ消去後も A の表示が残る', async () => {
     const wrapper = await showTeamA(false)
     const store = useAuthStore()
 
-    store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
     await nextTick()
     await flushPromises()
 
@@ -246,10 +270,16 @@ describe('authStore の越境', () => {
   it('失効後に A へ再ログインしても未同期キューと他のキーを保つ', async () => {
     const databaseName = await prepareQueueFixture()
     const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
 
     store.expireSession()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
 
     await expectQueueAndOtherKeysUntouched(databaseName)
   })
@@ -257,10 +287,16 @@ describe('authStore の越境', () => {
   it('signOut 後に B へログインしても未同期キューと他のキーを保つ', async () => {
     const databaseName = await prepareQueueFixture()
     const store = useAuthStore()
-    store.signIn({ teamName: 'チーム A', teamId: 'team-a' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
 
     store.signOut()
-    store.signIn({ teamName: 'チーム B', teamId: 'team-b' })
+    setVerifiedAuthForTest(store, {
+      teamName: 'チーム B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
 
     await expectQueueAndOtherKeysUntouched(databaseName)
   })

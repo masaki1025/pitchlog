@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { createMemoryHistory } from 'vue-router'
 import { describe, expect, it } from 'vitest'
 import App from './App.vue'
+import { installAppProviders } from './appProviders'
 import { createAppRouter } from './router'
 
 describe('App', () => {
@@ -9,7 +10,9 @@ describe('App', () => {
     const router = createAppRouter(createMemoryHistory())
     await router.push('/')
     await router.isReady()
-    const wrapper = mount(App, { global: { plugins: [router] } })
+    const wrapper = mount(App, {
+      global: { plugins: [{ install: installAppProviders }, router] },
+    })
 
     expect(wrapper.text()).toContain('PitchLog')
     wrapper.unmount()

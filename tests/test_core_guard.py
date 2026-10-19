@@ -459,10 +459,44 @@ US1_SYNC_APPLY_AREA_PATH_ADDITIONS = (
     "backend/src/pitchlog/repositories/sync_apply.py",
     "backend/tests/test_sync_apply_*.py",
 )
-# 先行追加層の窓口は回転式で、着地済みの宣言は JSON 側へ移る。
-# TSK-238(#137)の領域契約の分は develop の core-areas.json へ着地済みのため、
-# 現在宣言されているのは U-S1(TSK-391)の同期適用核の分である。
+# 登録済みRG1層は履歴の検証に保持し、現在の追加層と混同しない。
+UR1_REGISTERED_PATHS: dict[str, tuple[str, ...]] = {
+    "sync-protocol": (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/tests/test_rg1_*",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/authz/product/function-bodies/*rg1*",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/authz/classification.py",
+        "backend/src/pitchlog/authz/product_control_access.py",
+        "backend/src/pitchlog/authz/product_table_access.py",
+        "backend/src/pitchlog/authz/product_catalog.py",
+        "backend/src/pitchlog/authz/product_provisioning.py",
+        "backend/src/pitchlog/authz/product_function_acl.py",
+        "backend/tests/test_rg1_*",
+        "contracts/authz/product/ddl-elements.json",
+        "contracts/authz/product/table-classification.json",
+        "contracts/authz/product/exposure-facts.json",
+        "contracts/authz/product/function-bodies/*rg1*",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "scripts/check_authz_catalog.py",
+        "tests/test_check_authz_catalog.py",
+    ),
+}
+UF13_TENANT_ROUTE_PATHS = (
+    "frontend/src/router*",
+    "frontend/src/App*",
+)
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "tenant-isolation": UF13_TENANT_ROUTE_PATHS,
+}
+REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
     "recording-rights": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
 }
@@ -713,7 +747,7 @@ def make_repo_with_actual_core_areas(tmp_path: Path) -> Path:
             assert_registered_block(paths, additions)
         else:
             paths.extend(additions)
-    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in REGISTERED_BEFORE_UR1.items():
         assert_registered_block(areas[area_id]["paths"], additions)
     write_text(
         root,
@@ -2362,8 +2396,8 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
         )
 
 
-def test_us1_declaration_accepts_json_before_registration(tmp_path: Path) -> None:
-    """隔離履歴で未登録、宣言のみ、登録済みの順に受理する。"""
+def test_current_declaration_accepts_json_after_us1_baseline(tmp_path: Path) -> None:
+    """U-S1登録済みの基線から宣言のみ・登録済みを順に受理する。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
@@ -2583,7 +2617,7 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
 
 
 def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
-    """U-S1 の追加層が両領域の末尾にあり、代表パスが両方に当たる。"""
+    """U-S1の登録済み層を保ち、その後にRG1層だけを追加する。"""
     core_guard = load_core_guard_module()
     base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
@@ -2607,24 +2641,18 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
     for area_id in ("sync-protocol", "recording-rights"):
         paths = tuple(current_areas[area_id]["paths"])
         base_paths = tuple(base_areas[area_id]["paths"])
-        absorbed = base_paths[-len(US1_SYNC_APPLY_AREA_PATH_ADDITIONS) :] == (
-            US1_SYNC_APPLY_AREA_PATH_ADDITIONS
-        )
-        expected_paths = (
-            base_paths
-            if absorbed
-            else (*base_paths, *US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
-        )
-        assert paths == expected_paths
-        assert paths[-len(US1_SYNC_APPLY_AREA_PATH_ADDITIONS) :] == (
-            US1_SYNC_APPLY_AREA_PATH_ADDITIONS
-        )
+        assert_registered_block(base_paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
+        assert_registered_block(paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
+        assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
+        assert_registered_block(paths, UR1_REGISTERED_PATHS[area_id])
+        assert paths == base_paths
         for path, pattern in representatives:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
     for area_id in ("game-state", "tenant-isolation", "data-migration"):
-        assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
-
+        if area_id not in core_guard.AREA_PATH_ADDITIONS:
+            assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+    # 宣言済み追加だけを許し、据え置き層の削除・未宣言追加を拒否する。
     core_guard.validate_area_path_layers(baseline, configuration)
 
 
@@ -2784,7 +2812,7 @@ def test_area_registration() -> None:
         base_paths = tuple(baseline_areas[area_id]["paths"])
         assert_registered_block(base_paths, registered)
         assert_registered_block(current_paths, registered)
-        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        additions = REGISTERED_BEFORE_UR1.get(area_id, ())
         if additions:
             assert_registered_block(current_paths, additions)
         assert len(registered) == len(set(registered))
@@ -2792,11 +2820,12 @@ def test_area_registration() -> None:
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in registered
         )
-    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in REGISTERED_BEFORE_UR1.items():
         base_paths = tuple(baseline_areas[area_id]["paths"])
         current_paths = tuple(areas[area_id]["paths"])
-        # ステップ 8 の未登録状態と、ステップ 9 の宣言順での末尾追加を受理する。
-        assert current_paths in (base_paths, (*base_paths, *additions))
+        assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
+        assert_registered_block(current_paths, UR1_REGISTERED_PATHS[area_id])
+        assert current_paths == base_paths
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
@@ -2831,10 +2860,10 @@ def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
-    for area_id, additions in EXPECTED_AREA_PATH_ADDITIONS.items():
+    for area_id, additions in REGISTERED_BEFORE_UR1.items():
         patterns = areas[area_id]["paths"]
-        assert tuple(patterns[-len(additions) :]) == additions
-        earlier_patterns = patterns[: -len(additions)]
+        assert_registered_block(tuple(patterns), additions)
+        earlier_patterns = patterns[: patterns.index(additions[0])]
         assert not set(additions) & set(earlier_patterns)
         for pattern in additions:
             matched = [
@@ -2845,6 +2874,203 @@ def test_registered_d2_paths_match_tracked_files_without_overlap() -> None:
                 not any(fnmatch.fnmatchcase(path, old) for old in earlier_patterns)
                 for path in matched
             ), f"既存 glob が被覆済み: {area_id}: {pattern}"
+
+
+def test_ur1_registered_paths_are_retained_after_declaration_rotation() -> None:
+    """追加層が回転した後も実基線・実候補のRG1登録を保持する。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    baseline = core_guard.load_core_areas_at_revision(
+        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    )
+    for document in (baseline, configuration):
+        areas = {area["id"]: area for area in document["areas"]}
+        for area_id, additions in UR1_REGISTERED_PATHS.items():
+            assert_registered_block(areas[area_id]["paths"], additions)
+    core_guard.validate_area_path_layers(baseline, configuration)
+    for area_id in UR1_REGISTERED_PATHS:
+        for pattern in UR1_REGISTERED_PATHS[area_id]:
+            partial = json.loads(json.dumps(configuration))
+            area = next(area for area in partial["areas"] if area["id"] == area_id)
+            area["paths"].remove(pattern)
+            with pytest.raises(core_guard.GuardError, match=rf"{area_id}\.paths"):
+                core_guard.validate_area_path_layers(baseline, partial)
+
+
+def test_uf13_declaration_retains_json_and_checks_product_registration() -> None:
+    """宣言だけではJSONを変えず、合成登録でrouter/Appの全4実例を検出する。"""
+    core_guard = load_core_guard_module()
+    baseline = core_guard.load_core_areas_at_revision(
+        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    )
+    configuration = load_actual_core_areas()
+    core_guard.validate_area_path_layers(baseline, configuration)
+    tenant = next(area for area in configuration["areas"] if area["id"] == "tenant-isolation")
+    baseline_tenant = next(area for area in baseline["areas"] if area["id"] == "tenant-isolation")
+    # 先行統合済みのLoginScreenは据え置き層として両方に保持する。
+    assert "frontend/src/screens/LoginScreen*" in baseline_tenant["paths"]
+    assert "frontend/src/screens/LoginScreen*" in tenant["paths"]
+    presence = [pattern in tenant["paths"] for pattern in UF13_TENANT_ROUTE_PATHS]
+    assert len(set(presence)) == 1
+    if not any(presence):
+        assert configuration == baseline
+        tenant["paths"].extend(UF13_TENANT_ROUTE_PATHS)
+    else:
+        assert_registered_block(tenant["paths"], UF13_TENANT_ROUTE_PATHS)
+    core_guard.validate_area_path_layers(baseline, configuration)
+    candidate_areas = core_guard.CoreAreas(tuple(tenant["paths"]), frozenset())
+    paths = [
+        "frontend/src/router.ts", "frontend/src/router.spec.ts",
+        "frontend/src/App.vue", "frontend/src/App.spec.ts",
+    ]
+    assert core_guard.matched_paths(paths, candidate_areas) == paths
+    for pattern in UF13_TENANT_ROUTE_PATHS:
+        missing = json.loads(json.dumps(configuration))
+        area = next(area for area in missing["areas"] if area["id"] == "tenant-isolation")
+        area["paths"].remove(pattern)
+        with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+            core_guard.validate_area_path_layers(baseline, missing)
+
+
+def test_uf13_registered_products_require_human_confirmation(tmp_path: Path) -> None:
+    """合成履歴へ登録した4製品・試験パスは本人未記入なら実CLIで拒否する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    configuration = load_actual_core_areas()
+    tenant = next(area for area in configuration["areas"] if area["id"] == "tenant-isolation")
+    for pattern in UF13_TENANT_ROUTE_PATHS:
+        if pattern not in tenant["paths"]:
+            tenant["paths"].append(pattern)
+    write_json(root, ".claude/core-areas.json", configuration)
+    run_git(root, "add", ".claude/core-areas.json")
+    run_git(
+        root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+        "commit", "--allow-empty", "-qm", "registered synthetic baseline",
+    )
+    base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    paths = (
+        "frontend/src/router.ts", "frontend/src/router.spec.ts",
+        "frontend/src/App.vue", "frontend/src/App.spec.ts",
+    )
+    for path in paths:
+        write_text(root, path, "product change\n")
+    run_git(root, "add", ".")
+    run_git(
+        root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+        "commit", "-qm", "synthetic products",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+    assert result.returncode == 1
+    assert all(f"{path}: PR 本文に必須チェックがない" in result.stderr for path in paths)
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+    assert result.returncode == 0, result.stderr
+
+
+def test_uf13_retains_login_registration_after_predecessor_merge(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """先行LoginScreen統合済みの隔離履歴で登録と旧層削除拒否を実CLI検証する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    baseline = load_actual_core_areas()
+    login = "frontend/src/screens/LoginScreen*"
+    additions = tuple(pattern for pattern in UF13_TENANT_ROUTE_PATHS if pattern != login)
+    tenant = next(area for area in baseline["areas"] if area["id"] == "tenant-isolation")
+    tenant["paths"] = [pattern for pattern in tenant["paths"] if pattern not in additions]
+    if login not in tenant["paths"]:
+        tenant["paths"].append(login)
+    write_json(root, ".claude/core-areas.json", baseline)
+    write_text(root, "scripts/core_guard.py", core_guard_source_with_additions({
+        "tenant-isolation": (login,),
+    }))
+    run_git(root, "add", ".")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "--allow-empty", "-qm", "synthetic merged LoginScreen baseline")
+    base_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    # 実PRと同じく、先行LoginScreen宣言からrouter/Appへ先に回転する。
+    write_text(root, "scripts/core_guard.py", core_guard_source_with_additions({
+        "tenant-isolation": additions,
+    }))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-qm", "synthetic declaration rotation before JSON")
+    tenant["paths"].extend(additions)
+    write_json(root, ".claude/core-areas.json", baseline)
+    write_text(root, "frontend/src/router.ts", "product change\n")
+    run_git(root, "add", ".")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-qm", "synthetic route registration")
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    # 将来の回転を再現した候補実体を実行し、ホストの現在追加層には依存させない。
+    monkeypatch.setattr(sys.modules[__name__], "SCRIPT", root / "scripts/core_guard.py")
+    event = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 1
+    assert "frontend/src/router.ts: PR 本文に必須チェックがない" in result.stderr
+    event = write_event(tmp_path, base_sha, head_sha, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 0, result.stderr
+    assert login in tenant["paths"]
+    tenant["paths"].remove(login)
+    assert login not in tenant["paths"]
+    write_json(root, ".claude/core-areas.json", baseline)
+    run_git(root, "add", ".")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-qm", "synthetic forbidden LoginScreen removal")
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    event = write_event(tmp_path, base_sha, head_sha, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 1
+    assert "tenant-isolation.paths" in result.stderr
+
+
+def test_ur1_actual_path_set_is_guarded_in_both_meaning_areas() -> None:
+    """RG1の製品・認可・試験差分を実登録で記録権と同期へ帰属させる。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area["paths"] for area in configuration["areas"]}
+    rg1_paths = (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/authz/classification.py",
+        "backend/src/pitchlog/authz/product_control_access.py",
+        "backend/src/pitchlog/authz/product_table_access.py",
+        "backend/src/pitchlog/authz/product_catalog.py",
+        "backend/src/pitchlog/authz/product_provisioning.py",
+        "backend/src/pitchlog/authz/product_function_acl.py",
+        "backend/tests/test_rg1_lock_contract.py",
+        "contracts/authz/product/ddl-elements.json",
+        "contracts/authz/product/table-classification.json",
+        "contracts/authz/product/exposure-facts.json",
+        "contracts/authz/product/function-bodies/functions/"
+        "FUNCTION:rg1_api:rg1_read_open(uuid).sql",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "scripts/check_authz_catalog.py",
+        "tests/test_check_authz_catalog.py",
+    )
+    sync_paths = (
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/tests/test_rg1_lock_contract.py",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/authz/product/function-bodies/functions/"
+        "FUNCTION:rg1_api:rg1_read_open(uuid).sql",
+    )
+    assert core_guard.matched_paths(rg1_paths, core_guard.load_core_areas(REPO)) == list(
+        rg1_paths
+    )
+    assert all(
+        any(fnmatch.fnmatchcase(path, pattern) for pattern in areas["recording-rights"])
+        for path in rg1_paths
+    )
+    assert all(
+        any(fnmatch.fnmatchcase(path, pattern) for pattern in areas["sync-protocol"])
+        for path in sync_paths
+    )
 
 
 @pytest.mark.parametrize(

@@ -1,10 +1,16 @@
+import { setVerifiedAuthForTest } from './auth.test-support'
 import 'fake-indexeddb/auto'
 
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
 import { AUTH_STORAGE_KEY, useAuthStore } from '../stores/authStore'
-import { ApiError, ApiStaleAuthError, apiRequest } from './client'
+import {
+  ApiError,
+  ApiStaleAuthError,
+  ApiSessionUnverifiedError,
+  apiRequest,
+} from './client'
 
 type QueueRecord = {
   id: string
@@ -14,7 +20,7 @@ type QueueRecord = {
 
 const queueRecord: QueueRecord = {
   id: 'q1',
-  ownerTeamId: 'team-a',
+  ownerTeamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
   payload: { kind: 'pitch', count: 3 },
 }
 
@@ -114,6 +120,10 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamName: '検証済み試験チーム',
+    teamId: '6efca380-dea3-5a4e-9749-40dfb1dbd65e',
+  })
   queryClient.clear()
   vi.stubGlobal('fetch', vi.fn())
 })
@@ -145,7 +155,10 @@ describe('apiRequest の認証越境', () => {
     }
 
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     queryClient.setQueryData(['games', 4], 'A のデータ')
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
     vi.mocked(fetch).mockResolvedValue(
@@ -167,53 +180,33 @@ describe('apiRequest の認証越境', () => {
     }
   })
 
-  it('送信前に別タブの B へ切り替え、A のキャッシュを消してから送る', async () => {
+  it('送信前に別タブ変更を検出したらAを消して再検証まで送らない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     queryClient.setQueryData(['games', 4], 'A のデータ')
     const previousEpoch = auth.authEpoch
     const savedB = writeOtherTabAuth('B')
     expect(auth.teamName).toBe('A')
 
-    let stateAtFetch:
-      | {
-          teamName: string | null
-          authEpoch: number
-          cacheSize: number
-        }
-      | undefined
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => {
-        stateAtFetch = {
-          teamName: auth.teamName,
-          authEpoch: auth.authEpoch,
-          cacheSize: queryClient.getQueryCache().getAll().length,
-        }
-        return Promise.resolve(jsonResponse({ id: 4 }))
-      }),
+    await expect(apiRequest('GET', '/games/4')).rejects.toBeInstanceOf(
+      ApiSessionUnverifiedError,
     )
-
-    await expect(apiRequest('GET', '/games/4')).resolves.toStrictEqual({
-      id: 4,
-    })
-
-    expect(stateAtFetch).toStrictEqual({
-      teamName: 'B',
-      authEpoch: previousEpoch + 1,
-      cacheSize: 0,
-    })
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
     expect(auth.authEpoch).toBe(previousEpoch + 1)
     expect(queryClient.getQueryCache().getAll()).toEqual([])
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
-    expect(vi.mocked(fetch).mock.calls[0]?.[1]?.credentials).toBe('include')
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('noAuthExpiry の 401 は認証とキャッシュを失効させない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const savedA = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['games', 4], 'A のデータ')
     vi.mocked(fetch).mockResolvedValue(
@@ -233,7 +226,10 @@ describe('apiRequest の認証越境', () => {
 
   it('往復中の認証切り替えでは A の応答を破棄し、呼び出し側は A のキャッシュへ入れない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
     const setQueryData = vi.spyOn(queryClient, 'setQueryData')
@@ -250,12 +246,15 @@ describe('apiRequest の認証越境', () => {
 
     expect(setQueryData).not.toHaveBeenCalled()
     expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
   })
 
   it('本文の読み取り中に B へ切り替わると A の応答をキャッシュへ入れない', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const reading = deferredValue<void>()
     const body = deferredValue<string>()
     const response = jsonResponse({ id: 4 })
@@ -279,19 +278,27 @@ describe('apiRequest の認証越境', () => {
     await expect(request).rejects.toBeInstanceOf(ApiStaleAuthError)
     expect(setQueryData).not.toHaveBeenCalled()
     expect(queryClient.getQueryData(['games', 4])).toBeUndefined()
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
   })
 
   it('往復中の切り替え後に古い 401 が届いても B の認証とキャッシュを保つ', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expireSession = vi.spyOn(auth, 'expireSession')
     const pending = deferredResponse()
     vi.mocked(fetch).mockReturnValue(pending.promise)
     const request = apiRequest('GET', '/games/4')
-    const savedB = writeOtherTabAuth('B')
+    writeOtherTabAuth('B')
     window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
-    expect(auth.teamName).toBe('B')
+    expect(auth.teamName).toBeNull()
+    setVerifiedAuthForTest(auth, {
+      teamName: 'B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
+    const verifiedB = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['team', 'B'], 'B のデータ')
     const response = jsonResponse({ error: { message: '古い認証' } }, 401)
     const readBody = vi.spyOn(response, 'text')
@@ -309,14 +316,17 @@ describe('apiRequest の認証越境', () => {
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.teamName).toBe('B')
     expect(auth.sessionExpired).toBe(false)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(verifiedB)
     expect(queryClient.getQueryData(['team', 'B'])).toBe('B のデータ')
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })
 
   it('401 の本文読み取り中に B へ切り替わっても B の認証とキャッシュを保つ', async () => {
     const auth = useAuthStore(pinia)
-    auth.signIn({ teamName: 'A', teamId: 'team-a' })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'A',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
     const expireSession = vi.spyOn(auth, 'expireSession')
     const reading = deferredValue<void>()
     const body = deferredValue<string>()
@@ -329,8 +339,13 @@ describe('apiRequest の認証越境', () => {
     const request = apiRequest('GET', '/games/4')
 
     await reading.promise
-    const savedB = writeOtherTabAuth('B')
+    writeOtherTabAuth('B')
     window.dispatchEvent(new StorageEvent('storage', { key: AUTH_STORAGE_KEY }))
+    setVerifiedAuthForTest(auth, {
+      teamName: 'B',
+      teamId: '978a2127-d036-55a0-8439-611e06e4376f',
+    })
+    const verifiedB = localStorage.getItem(AUTH_STORAGE_KEY)
     queryClient.setQueryData(['team', 'B'], 'B のデータ')
     body.resolve('{"error":{"message":"古い認証"}}')
 
@@ -344,7 +359,7 @@ describe('apiRequest の認証越境', () => {
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.teamName).toBe('B')
     expect(auth.sessionExpired).toBe(false)
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(verifiedB)
     expect(queryClient.getQueryData(['team', 'B'])).toBe('B のデータ')
     expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
   })

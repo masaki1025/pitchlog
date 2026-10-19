@@ -1,8 +1,13 @@
+import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import { VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, ApiNetworkError } from '../api/client'
+import {
+  ApiError,
+  ApiNetworkError,
+  ApiTenantVerificationError,
+} from '../api/client'
 import type { Page } from '../api/types'
 import {
   listPlayers,
@@ -71,7 +76,10 @@ function mountScreen(authenticated = true): {
   setActivePinia(pinia)
   const auth = useAuthStore(pinia)
   if (authenticated) {
-    auth.signIn({ teamId: 'tenant-a', teamName: 'チーム A' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      teamName: 'チーム A',
+    })
   }
   const wrapper = mount(TeamScreen, {
     global: {
@@ -125,6 +133,33 @@ describe('TeamScreen', () => {
     expect(listTeamRecordsMock).not.toHaveBeenCalled()
     expect(listPlayersMock).not.toHaveBeenCalled()
   })
+
+  it.each(['teams', 'players'] as const)(
+    '%sのtenant照合失敗はquery既定retryが有効でも自動再送しない',
+    async (target) => {
+      queryClient.setDefaultOptions({ queries: { retry: 2, retryDelay: 0 } })
+      if (target === 'teams') {
+        listTeamRecordsMock.mockRejectedValue(
+          new ApiTenantVerificationError('GET', '/team-records', 200),
+        )
+      } else {
+        listTeamRecordsMock.mockResolvedValue(
+          page([teamRecord('self-a', 'チーム A', 'self')]),
+        )
+        listPlayersMock.mockRejectedValue(
+          new ApiTenantVerificationError('GET', '/players', 200),
+        )
+      }
+      const { wrapper } = mountScreen()
+      await vi.waitFor(() =>
+        expect(wrapper.text()).toContain('テナントの照合を確認できない'),
+      )
+      await flushPromises()
+      expect(
+        target === 'teams' ? listTeamRecordsMock : listPlayersMock,
+      ).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('取得したチーム一覧が空なら空状態を表示する', async () => {
     const { wrapper } = mountScreen()
@@ -180,7 +215,9 @@ describe('TeamScreen', () => {
     )
 
     void queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中の情報は古い可能性があります'),
@@ -212,7 +249,9 @@ describe('TeamScreen', () => {
     expect(wrapper.find('input[name="player-edit-name"]').exists()).toBe(true)
 
     void queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.players.all('tenant-a'),
+      queryKey: rosterQueryKeys.players.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中だった情報を隠しました'),
@@ -243,7 +282,9 @@ describe('TeamScreen', () => {
     expect(wrapper.find('input[name="opponent-edit-name"]').exists()).toBe(true)
 
     void queryClient.invalidateQueries({
-      queryKey: rosterQueryKeys.teamRecords.all('tenant-a'),
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
     })
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中だった情報を隠しました'),
@@ -391,7 +432,10 @@ describe('TeamScreen', () => {
     const { auth, wrapper } = mountScreen()
     await vi.waitFor(() => expect(wrapper.text()).toContain('選手 A1'))
 
-    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('選手 A1')
@@ -424,7 +468,10 @@ describe('TeamScreen', () => {
     const { auth, wrapper } = mountScreen()
     await vi.waitFor(() => expect(listTeamRecordsMock).toHaveBeenCalledTimes(1))
 
-    auth.signIn({ teamId: 'tenant-b', teamName: 'チーム B' })
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
     await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B1'))
 
     oldResponse.resolve(page([teamRecord('self-a', '古いチーム A', 'self')]))

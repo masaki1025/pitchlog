@@ -8465,14 +8465,31 @@ def test_0028_preflight_restores_product_force_rls_after_success(
     assert _force_rls_states(catalog.observer) == force_before
     catalog.observer.rollback()
     with psycopg.connect(catalog.owner_dsn) as owner, owner.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM alembic_version")
+        assert cursor.fetchone() == ("0028_tenant_login_identity",)
+        cursor.execute("SELECT to_regclass('public.rg1_restore_gate')")
+        assert cursor.fetchone() == (None,)
         cursor.execute("SELECT count(*) FROM public.tenants")
         assert cursor.fetchone() == (0,)
+
+    # 0032 の表が存在しない 0028 の状態を検証した後、現行構成も別途検証する。
+    command.upgrade(config, "head")
+    with psycopg.connect(catalog.owner_dsn) as owner, owner.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM alembic_version")
+        assert cursor.fetchone() == ("0032_rg1_restore_gate",)
+        cursor.execute("SELECT singleton_id, state FROM public.rg1_restore_gate")
+        assert cursor.fetchall() == [(1, "closed")]
 
     # downgrade が削除した生成列と関数の ACL だけを資産から再適用する。
     restored_ids = {
         "FUNCTION:public:authn_normalize_team_name(text)",
         "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner",
         "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner",
+        "rg1_restore_gate",
+        "POLICY:rg1_restore_gate:rg1_fn_select_singleton",
+        "POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
+        "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner",
     }
     statements = [
         statement

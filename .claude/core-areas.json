@@ -259,7 +259,13 @@
         "tests/test_field_geometry_numeric_lexemes.py",
         "backend/src/pitchlog/sync/*",
         "backend/src/pitchlog/repositories/sync_apply.py",
-        "backend/tests/test_sync_apply_*.py"
+        "backend/tests/test_sync_apply_*.py",
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/tests/test_rg1_*",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/authz/product/function-bodies/*rg1*"
       ]
     },
     {
@@ -480,7 +486,24 @@
         "frontend/src/screens/GameScreen*",
         "backend/src/pitchlog/sync/*",
         "backend/src/pitchlog/repositories/sync_apply.py",
-        "backend/tests/test_sync_apply_*.py"
+        "backend/tests/test_sync_apply_*.py",
+        "backend/src/pitchlog/repositories/rg1.py",
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/authz/classification.py",
+        "backend/src/pitchlog/authz/product_control_access.py",
+        "backend/src/pitchlog/authz/product_table_access.py",
+        "backend/src/pitchlog/authz/product_catalog.py",
+        "backend/src/pitchlog/authz/product_provisioning.py",
+        "backend/src/pitchlog/authz/product_function_acl.py",
+        "backend/tests/test_rg1_*",
+        "contracts/authz/product/ddl-elements.json",
+        "contracts/authz/product/table-classification.json",
+        "contracts/authz/product/exposure-facts.json",
+        "contracts/authz/product/function-bodies/*rg1*",
+        "contracts/tenant_boundary/repository-contract.json",
+        "contracts/tenant_boundary/base-allowlist.json",
+        "scripts/check_authz_catalog.py",
+        "tests/test_check_authz_catalog.py"
       ]
     },
     {
@@ -575,7 +598,10 @@
         "frontend/src/screens/GameScreen*",
         "frontend/src/components/settings/TeamMembersContent*",
         "frontend/src/lib/rosterQueryKeys*",
-        "frontend/src/screens/TeamScreen*"
+        "frontend/src/screens/TeamScreen*",
+        "frontend/src/screens/LoginScreen*",
+        "frontend/src/router*",
+        "frontend/src/App*"
       ]
     },
     {

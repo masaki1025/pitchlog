@@ -49,15 +49,9 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": (
-        "backend/src/pitchlog/sync/*",
-        "backend/src/pitchlog/repositories/sync_apply.py",
-        "backend/tests/test_sync_apply_*.py",
-    ),
-    "recording-rights": (
-        "backend/src/pitchlog/sync/*",
-        "backend/src/pitchlog/repositories/sync_apply.py",
-        "backend/tests/test_sync_apply_*.py",
+    "tenant-isolation": (
+        "frontend/src/router*",
+        "frontend/src/App*",
     ),
 }
 REQUIRED_CHECK_RE = re.compile(

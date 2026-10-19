@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 16
+RUNTIME_CONTRACT_REVISION = 17
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "27eface15742e1f312abebd3b18fd80536c1311e41e587993fc4e9467c29400a"
+SOURCE_DIGEST = "13eeb95f54a8a713620a12c369505311349e72148c521141ed524ece91b0f62d"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -35,7 +35,7 @@ APPLICATION_ROLE_ATTRIBUTES = ApplicationRoleAttributes(
     rolinherit=False,
 )
 
-PROTECTED_SCHEMAS = ("authn", "authn_crypto", "authz_private", "public")
+PROTECTED_SCHEMAS = ("authn", "authn_crypto", "authz_private", "public", "rg1_api")
 PROTECTED_TABLES = (
     ("public", "admin_credentials"),
     ("public", "admin_operation_logs"),
@@ -70,6 +70,7 @@ PROTECTED_TABLES = (
     ("public", "rate_limit_counters"),
     ("public", "recording_generations"),
     ("public", "rejected_event_originals"),
+    ("public", "rg1_restore_gate"),
     ("public", "rule_sets"),
     ("public", "sharing_grants"),
     ("public", "system_settings"),
@@ -135,6 +136,8 @@ PROTECTED_FUNCTIONS = (
     ("public", "prevent_tenant_tokens_identity_update", ""),
     ("public", "prevent_tenant_vocabularies_identity_update", ""),
     ("public", "protect_recording_generations_updates", ""),
+    ("rg1_api", "rg1_assert_open_before_commit", "uuid"),
+    ("rg1_api", "rg1_read_open", "uuid"),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (
