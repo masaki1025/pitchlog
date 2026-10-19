@@ -7,7 +7,7 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-uf13-postmerge-accepta
 notion: https://app.notion.com/p/3f493b75e68781628422c331bfebc350
 branch: feature/uf13-postmerge-acceptance-followup
 created: 2026-10-19
-計画レビュー周回: 1
+計画レビュー周回: 2
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -76,7 +76,7 @@ T（tenant-isolation）と、既存TeamScreen/query keyのD（data-migration）�
 
 ### 4.3 UI・旧応答の境界
 
-self query keyは検証済みtenant+authEpochを含め、opponentページ群と分離する。未確認ではquery/mutationを開始しない。新しいself取得入口では共通clientの返却をunknownとして受け、既存TeamRecordReadの4項目（UUIDのid、kind=self、stringのname、hidden_at=null。欠落/余剰キーなし）を実行時検査してからqueryへ返す。共通apiRequestの型キャストだけをDTO検証としない。roster.tsへこの入口の検査を集約し、共通clientをコピー/改変しない。不正な200本文はqueryを失敗とし、その値を選択肢/cache/players要求へ渡さない。metadata不正の認証/cache無効化は既存C2に任せ、新たな認証状態遷移は追加しない。self queryはretry=falseとし、再確認は利用者の明示操作だけにする。
+self query keyは検証済みtenant+authEpochを含め、opponentページ群と分離する。未確認ではquery/mutationを開始しない。新しいself取得入口では共通clientの返却をunknownとして受け、既存TeamRecordReadの4項目（UUIDのid、kind=self、stringのname、hidden_at=null。欠落/余剰キーなし）を実行時検査してからqueryへ返す。共通apiRequestの型キャストだけをDTO検証としない。roster.tsへこの入口の検査を集約し、共通clientをコピー/改変しない。不正な200本文はqueryを失敗とし、その値を選択肢/cache/players要求へ渡さない。metadata不正の認証/cache無効化は既存C2に任せ、新たな認証状態遷移は追加しない。self queryはretry=false、retryOnMount=false、refetchOnMount=false、refetchOnReconnect=false、refetchOnWindowFocus=false、refetchInterval=falseとし、失敗後の再確認は利用者の明示操作だけにする。失敗状態も同じ認証世代では共有QueryClient内に保持し、self queryだけgcTime=InfinityとしてGC後の再マウントで暗黙に再送しない。認証世代切替時は既存cache clearによりこの失敗状態も破棄する。新たな検証済み認証世代の初回GETは新しい読取りとして区別する。storageや新しい認証状態は追加しない。
 
 self成功時は初期自動選択するが、利用者が明示選択済みのopponentを後着selfで上書きしない。selfのpending/0件/通信失敗を独立表示し、opponent成功をself成功に見せない。
 
@@ -95,7 +95,7 @@ self成功時は初期自動選択するが、利用者が明示選択済みのo
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
 | 1 | backend self token/固定登録/HTTP/C2適用と固有試験、必要な共有資産の候補差分 | 0/1/異常複数、tenant/未認証/metadata前照合、SQL形/固定bind/既存opponent拒否が成功。共有候補は所有受理済み範囲だけとし、未受理7.7は統合前ゲートへ明示する |
-| 2 | 正規roster client/query key/既存TeamScreenへのself接続と固有spec | selfの4項目実行時検査と不正200の非採用、取得/選択/欠損表示、認証切替/旧query・mutation/再送なし、opponentページング回帰、全frontend/type/lint/整形/build成功 |
+| 2 | 正規roster client/query key/既存TeamScreenへのself接続と固有spec | selfの4項目実行時検査と不正200の非採用、失敗後の再接続/再マウント等で明示操作までGET増加0、取得/選択/欠損表示、認証切替/旧query・mutation/再送なし、opponentページング回帰、全frontend/type/lint/整形/build成功 |
 | 3 | 実画面/API/隔離DB受入、必要な全品質検査・既定レビュー/是正、PR資料固定 | 自チーム一覧/登録/編集/reload保存、越境/遅延/未確認/通信失敗、opponent回帰の実証。root/backend/frontend全件と品質ゲートの結果・HEADを固定。正式受理/本人確認の未了を隠さず、通常push/Draftと最終資料へ進む |
 
 表は実装候補の合格条件。TSK-528全体の完了を意味しない。7.7反映/再封印の確定ゲート周コミットはステップ記法を付けず既定手順に従う。追加修正も承認済み範囲・既定レビュー回数を保持する。
@@ -114,7 +114,17 @@ self成功時は初期自動選択するが、利用者が明示選択済みのo
 
 - backend単体: token引数不可、既存opponent固定、tenant WHERE/kind/self/hidden/limit1、既存DTO/行形のstrict確認、0/1/複数注入、metadataと認証の優先順位、非2xxに成功ackなし。
 - 隔離PostgreSQL: 既存fixtureでA/Bのself/opponent、selfなしtenant、同tenant二重self INSERT拒否、文脈なし/他tenant SELECT拒否。共有DB・制約を変更しない。異常materialized行はmock/fault injectionと明記する。
-- frontend Vitest: self応答の不正UUID/kind=opponent/hidden非null/name非string/欠落/余剰キーを200で返して拒否し、query成功/選択肢/cacheへの採用とplayers通信を起こさないことを確認する。共通clientを通した1回送信/自動retry0を確認する。self取得pending/0/失敗/成功、初期選択と明示opponent選択、ページング/登録/通常編集・再取得、遅延self queryと遅延mutationの世代切替、未確認中通信0、自動再送0。
+- frontend Vitest: self応答の不正UUID/kind=opponent/hidden非null/name非string/欠落/余剰キーを200で返して拒否し、query成功/選択肢/cacheへの採用とplayers通信を起こさないことを確認する。共通clientを通した1回送信/自動retry0を確認する。不正200または通信失敗後にonline切替・window focus・unmount/remount・既定GC期限を超える時間進行を与え、同じ認証世代では明示再確認までGETが増えないこと、明示操作で1回だけ取得することを確認する。認証切替のcache clear後は旧失敗状態を持ち越さず、新しい検証済み世代の初回取得と区別する。self取得pending/0/失敗/成功、初期選択と明示opponent選択、ページング/登録/通常編集・再取得、遅延self queryと遅延mutationの世代切替、未確認中通信0、自動再送0。
 - 実画面/API/隔離DB: production preview/既存Chromium手順、self名/kindを確認→一覧→追加→編集→reload→DB observer確認。別tenant・2タブ/遅延/通信断の既存手順を必要な影響範囲で再利用し、opponent経路も別に回帰確認する。資格情報/Cookie値を証跡へ残さず自分の環境だけ撤去する。
 - 全件品質: root Ruff/ty/pytest、backend Ruff format/check/ty/pytestと既存migration/DB契約検査、frontend Prettier/ESLint/vue-tsc/Vitest/build/depcruise/閉域。frozen/tenant-boundary/authz/caller/HTTP/coreの既存検査。試験除外・timeout緩和・検出漏れを許可しない。
 - レビュー: 本計画とAPI/認可意味契約は6.1/6.3の敵対レビュー（原則2回、P0例外のみ）。実装は別枠の反対側/コア敵対レビューを既定回数で実施。既存PRの枠/可決/本人確認は流用しない。
+
+
+## 7. 実装前の最終承認対象（採用済み方針の再照会ではない）
+
+1. **本計画の3ステップ・合格条件とレビュー反映差分**。0件404/1件200/想定外materialized複数5xx、実DB一意制約の拒否との分担、self応答4項目の実行時検証、失敗後の暗黙再取得を防ぐself query限定設定/試験を含む。採用済みtoken/endpoint/既存権限/DTO/client/tenant前照合の方針は再承認待ちへ戻さない。
+2. **本追補だけのDraft先行条件**。正式7.7の実PR番号取得が必要な場合、承認後に通常push・Draft PR1本を作成し、plan active・7.7未受理・未通過検査・本人確認未実施を明記する。受理値/承認者/日付/チェックの先行代記、Draft解除/公開/マージはしない。正式受理は候補固定後の完全値で別途提示する。既存C1限定例外を継承した扱いにはしない。
+
+承認後は許可済みの実装/試験/既定レビュー/是正/通常push/Draft準備を連続実行する。共有パスの所有受理は別の開始条件であり、無回答を所有移管としない。非共有範囲は合意待ちへ一括で戻さない。新権限/意味変更が必要と判明した場合だけ、その具体差分をまとめて提示する。
+
+**計画レビュー履歴**: 第1周f7608ad6はP0=0/P1=2/P2=0を全採用。第2周d7a16feaはP0=0/P1=1/P2=0（失敗後の自動再取得試験不足）を採用反映。基本2周を使用し、第2周最終反映は未再レビューである。独立可決済み/製品実装済み/人間承認済みとは記録しない。6.1/6.3に従い採否・最終差分を人間承認へ提示し、追加の第3周は行わない。

@@ -866,3 +866,16 @@ agmsg skillを確認したが本projectの登録はなく、別project todoapp�
 レビューはLIMIT1＋実DBunique拒否＋materialized複数故障注入の分担、業務SQL前C2照合、既存opponent固定、#152のパス別所有、Draft/7.7/本人確認の分離が成立すると確認した。新権限・DB構造変更は必要とされなかった。計画レビュー周回を採用反映1へ更新し、確定ゲート周回は0のまま。次の第2周はこの反映差分と影響節だけを対象にする。
 
 第1周の完全ログSHA-256: `e5d45106d9069cd980d1f98da00b27903ddb9d2af1b64b41e21d128ff6863308`（~/.cache/pitchlog/self-team-read-plan-review/round1.log）。製品/凍結資産/承認値は未変更、自己批准や最終承認済みとは記録しない。
+
+
+### 自チーム計画/API・認可契約の敵対レビュー第2周と最終承認対象
+
+対象d7a16feaの第1周反映差分/影響節だけを正規ラッパーで独立レビューした。判定は否決、P0=0/P1=1/P2=0。P1は「retry=falseだけでは再接続/再マウント等の暗黙再取得が止まらず、1回送信specだけでは明示再確認だけというDoDと対応しない」。採用し、self query限定のretry/retryOnMount/refetchOnMount/refetchOnReconnect/refetchOnWindowFocus/refetchIntervalをfalse、gcTime=Infinityとして同一世代の失敗cacheを保持し、既存認証切替clearで破棄する具体設定と、通信/不正200失敗後の再接続・focus・再マウント・GC期限超過でGET増加0、明示操作で1回という試験を追記した。共通QueryClient/認証/storage/権限は改変しない。
+
+第1周の既存権限/read claim再利用と、DTO実行時検証の反映については、ほかに受理範囲内の指摘はないとの回答だった。新capability/route_id/grant/role/migrationや正本の構造改訂は本追補に必要とされなかった。
+
+基本2周は使用済み。計画レビュー周回は採用反映2、確定ゲート周回は0。本P1最終反映を未再レビューの人間確認対象へ明示し、勝手に第3周/可決扱いへ進めない。実装前の最終承認対象は計画§7の2点（3ステップ/合格条件と最終反映、実番号取得用Draft先行条件）。採用済みの最小方針自体は再照会しない。正式7.7完全値は候補固定後の別受理、人間逐行確認/公開/マージは代行しない。
+
+#152へのパス別依頼は未回答。後続のTSK-372側コメントは本依頼への受理回答ではなく、所有移管と扱っていない。共有資産/他担当worktreeは未変更。非共有実装は最終計画承認後に進める条件を維持する。
+
+第2周の完全ログSHA-256: `fb2b5a8508b502ee660c61b976ad6210b0d7b6d59f4d6e39acb0e09e25092162`（~/.cache/pitchlog/self-team-read-plan-review/round2.log）。最終反映の製品試験を実行した意味ではない。ba339cf8正常8項目はユーザー受領済みの統合後機能として維持し、故障系は再実行済みにしない。
