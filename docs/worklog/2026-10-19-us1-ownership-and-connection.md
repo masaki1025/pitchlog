@@ -393,3 +393,11 @@ U-F8/01a15387本人が中継票を実読し、非機密停止表示/未確認件
 ### #159 索引1行の同期（POによる対象行限定の編集許可）
 
 POが `docs/README.md` の sync-protocol 行だけを #159 担当の限定編集範囲として許可した（U-R1からの明示的な所有返却ではない）。着手直前に `origin/develop`・`origin/feature/ur1-initial-rights` 双方の同一行が `0.9 / 2026-10-18` で編集中差分が無いことを確認した。handoff.md に固定した完全な1行（`0.11 / 2026-10-19`）を適用し、data-model行・他の索引行・正本本文は変更していない。適用後、ローカルで docs-status 0違反・設計伝播・文書カバレッジ成功、doc/plan/design/census/frozen 系 pytest は884成功/1skip。限定編集はここで終了し、人間逐行確認と反対側レビューは未完了のまま維持する。Draft解除・マージは行わない。U-R1への通知はMCP接続エラーのため handoff.md を原文として保全した。
+
+### #159 索引行の訂正（敵対レビュー P1-1、2026-10-19 後続）
+
+glmによる敵対レビュー（PR #159 の全差分、base `7c1afeba` → head `64abe728`）は P0 0・P1 2・P2 3 を返した。P1-1 は、索引の sync-protocol 行の初回適用が `origin/develop` の v0.9 説明（TSK-547）を落とし、別の v0.9 説明（TSK-506 の O5）へ差し替えていた、というもの。作業ログの「既存 v0.9 以下の説明は保持する」・plan.md の「`0.9 / 2026-10-18` → `0.11 / 2026-10-19` へ同期」・handoff.md 45 行の「TSK-547 v0.9 履歴を削除せず」に反する。`docs/README.md` の sync-protocol 行を、develop の説明群（v0.9 TSK-547・v0.8・v0.6・v0.5）を保ったまま v0.11 説明を先頭追加し末尾の版/日付のみ `0.11 / 2026-10-19` に更新する形へ直し、handoff.md の完全な新行も同値へ更新した。data-model行・他の索引行・正本本文・v0.11 説明文は変更していない。`docs-status` は索引の最大版/日付しか見ないため、この v0.9 説明の欠落は機械検知されなかった（v0.9 の O5 説明は develop の索引にも無く、正本 `docs/design/sync-protocol.md` の変更履歴には残る）。
+
+残る P1（wire 設計 4-1 の ⑤ 行の「D-2追補候補」と 4-4-A の「正本v0.11承認済み」の字面の不整合）と P2 3件は、意味・状態・検査の判断に関わるため勝手に改めず PO へ提示した。P2 の内訳: (a) `canonOracle.ts` の O5 理由の「実装済み」は製品枝 `backend/src/pitchlog/sync/invariants.py` 等で実際に実装済みのため事実（本PRは製品コードを含まないため、文書差分だけを見たレビューでは確かめられない）。(b) 文書枝の初回コミット `4393cde4` の `(ステップ 1/1)` が `us1-sync-port-surface/plan.md` にも掛かり、`feature_status.py` が `us1-sync-port-surface: 実装状況: 不整合(ステップ記法が不正)` と出す（harness ジョブは緑で CI 阻害なし。push 済み履歴の書き換えを避けるため未修正）。(c) `canonOracle.spec.ts` の射程外理由の逐語検査（見出し「4 ID」）に O5 が入っておらず、O5 行は ID 集合と理由の非空だけが検査される（製品枝と同一で、本PR由来の欠落ではない）。
+
+core-guard の人間逐行確認行は未チェックのまま維持する。Draft解除・マージは行わない。glmの使用モデルは `opencode/glm-5.3-flash-free`（サブエージェント実行）。
