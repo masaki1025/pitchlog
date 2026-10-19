@@ -273,13 +273,20 @@ DB必須検査の環境診断では、最初の使い捨てPostgreSQLが`en_US.u
 - root `uv run pytest tests/ -q`（既定の`-n auto`）は**29,669件成功・2件skip・10件失敗**（598.90秒）。失敗の内訳は、census基線8件とDB必須2件。
 - census基線8件（`test_checker_census_matches_declared_anchor`、`test_measured_suppression_accepts_develop_without_growth`、`test_removed_tb002_accepts_prefix_related_current_symbol`、`test_independent_added_predicate_rejects_candidate_checker_omission`、`test_declaration_to_implementation_rejects_unused_field_and_recovers`、`test_implementation_to_declaration_rejects_undeclared_input_and_recovers`、`test_each_declared_census_predicate_rejects_its_input_mutation[added_equals...]`、同`[unadjudicated...]`）は同じ原因。参照側検査器が`initial_grant.py`の47箇所をTB002として検出し、現行検査器は`condition_2_scoped_findings`のSHA・パス・行・シンボル完全一致で除外するため、census差分の`removed`に47件が残り、同時に`added_equals_independently_derived_condition_2_candidates`では47件が`missing`になる。凍結census試験は`condition_2_scoped_findings`を解釈しない。負例試験の一部は、この既存不一致が先に発生して期待メッセージへ到達しない。
 - DB必須2件（`test_actual_measurement_is_generated_and_passes_both_budgets`、`test_each_language_mutants_are_actually_killed[sql]`）は、設定済みDSNの`127.0.0.1:5432`にサーバーが無く`connection refused`。コード原因ではない。CIのDBサービスで再確認する。ローカルには`127.0.0.1:55432`の別クラスタがあるが、共有・他担当の実行と混同しないため、今回の判定に流用しない。
-- 8件の修正は、`tests/test_census_baseline_check.py`（census凍結射影の外部ファイル）で`condition_2_scoped_findings`の完全一致所見を`removed`/`added`の両差分から除外し、他パス・他行・他シンボル・SHA不一致を拒否する負例を維持する形。これはcensus-baseline revision 15→16、censusの新snapshot、#156単一記録の`new_baseline_identifiers`と`asset_snapshots`（censusとbase自身）、base-allowlistの新snapshot、corpusとmanifest digestの再導出を伴う。
+- 8件の修正は、`tests/test_census_baseline_check.py`（census凍結射影の外部ファイル）で`condition_2_scoped_findings`の完全一致所見を`removed`の判定から除外し、`added_equals_independently_derived_condition_2_candidates`の独立導出候補からも同じ所見を除外し、他パス・他行・他シンボル・SHA不一致を拒否する負例を維持する形。これはcensus-baseline revision 15→16、censusの新snapshot、#156単一記録の`new_baseline_identifiers`と`asset_snapshots`（censusとbase自身）、base-allowlistの新snapshot、corpusとmanifest digestの再導出を伴う。
 - 上記は既存の#156記録の差替えになるため、本人確認・別7.7受理なしには適用しない。今回は修正せず、影響範囲だけを一括判断へ提示する。広域`owner_paths`追加・検査削除・個別テスト名の除外は行わない。
 - backendの限定検査は`test_initial_recording_right_candidate.py`・`test_authz_runtime_contract_generator.py`・`test_authz_connection_guard.py`の114件成功。backend Ruff format/check・ty成功。frontendは本差分に変更が無いため個別実行せず、CIに委ねる。
 
 ### 2026-10-19: 未レビュー差分・本人確認対象・残ゲート
 
-- 未レビュー差分: `73f90cf8`のcore3ファイル解決、`629b2b11`の改訂7.7反映（値は受理済み、差分の独立レビューなし）、`14b0a4fa`の`runtime_contract.py`生成定数2行、data-model v0.12第2回P1反映、manifest/shared-preconditions/ORM N3・N7行（PO判定済み、独立コードレビューなし）。旧レビューP0/P1/P2=0/0/0をこれらへ延長しない。
-- 本人逐行確認: core3ファイルの解決差分、data-model v0.12の承認範囲、ORM N3/N7新規2行。
+- 未レビュー差分: `73f90cf8`のcore3ファイル解決、`629b2b11`の改訂7.7反映（値は受理済み、差分の独立レビューなし）、`9aec9a72`の生成モジュール2ファイル追随、`14b0a4fa`の`runtime_contract.py`生成定数2行、data-model v0.12第2回P1反映、manifest/shared-preconditions/ORM N3・N7行（PO判定済み、独立コードレビューなし）。旧レビューP0/P1/P2=0/0/0をこれらへ延長しない。
+- 本人逐行確認: core3ファイルの解決差分、`repository_contract.py`・`tenant_context_contract.py`の資産追随、data-model v0.12の承認範囲、ORM N3/N7新規2行。
 - 未成立: census限定47箇所の凍結census試験対応と別7.7受理、U-G1/U-S1の項目別受理、実台帳・鍵・端末資格、P-6/実入口結合、最終HEAD CI。
 - 未実施: 本人確認・署名の代記、Draft解除・マージ、共有DB適用、運用open。
+
+### 2026-10-19: CI回収（HEAD 3519de0b）と生成モジュールの追随
+
+- `3519de0b` のCI（run 39270975096）は docs-lint・consistency・secrets・nfr021-append-only・tenant-boundary-bypass・frontend-changes・mutation・frontend が成功。harness は census 8件、core-guard は本人逐行確認行の未記入、backend は生成モジュール2件の不整合で失敗した。
+- backend の失敗は、改訂7.7で `contracts/tenant_boundary/repository-contract.json`（revision 22）と `contracts/tenant_boundary/tenant-context-allowlist.json`（revision 17）の資産値だけを更新し、`backend/src/pitchlog/repositories/repository_contract.py`（21）と `tenant_context_contract.py`（16）の `CONTRACT_REVISION`・`SOURCE_DIGEST` を追随させていなかったため。資産値は受理済みで、新しい実値変更ではない。生成モジュールを資産へ追随させ、対象2ファイル70件の試験とbackend Ruff/tyを成功させた。
+- core-guard の失敗は `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` の未記入であり、コード不一致ではない。本人確認の代記は行わない。
+- harness の失敗は上記 census 限定47箇所の凍結census試験対応（別7.7受理）に一致する。生成モジュール追随後の最終HEADでCIを再回収する。
