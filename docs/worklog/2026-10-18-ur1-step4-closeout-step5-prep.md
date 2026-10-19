@@ -241,3 +241,45 @@ root全件検査は約42%・12,571件成功/2件skipの時点で2件失敗を検
 DB必須検査の環境診断では、最初の使い捨てPostgreSQLが`en_US.utf8`で起動し、凍結期待値`C.UTF-8`と不一致で149件成功後に停止した。localeを指定した別の使い捨てクラスタでは環境検査3件が成功したが、次のバックエンド全件試行はfrontend依存`typescript`未導入で152件成功後に停止した。`pnpm install --frozen-lockfile`後、該当DB試験4件は成功した。rootの別試行での`test_actual_measurement_is_generated_and_passes_both_budgets`失敗は、SQL変異の実PostgreSQL DSN未指定に起因し、専用使い捨てDBのDSNを渡した単独再試験は成功した。これらの診断・単独成功は全件成功と区別する。共有DB・共有/tmpは変更していない。
 
 適切な隔離DBのDSNを付け、既知のcensus本体1件だけをdeselectしたroot再試行でも、`test_measured_suppression_accepts_develop_without_growth`が同じ`unadjudicated_removed_tb002_remains_in_current_census`のため失敗した。13,386件成功・2件skipの時点で停止し、全件完走ではない。必要な修正は個別テスト名の除外ではなく、共有述語の限定47箇所を正しく扱うこと。検査を弱めない負例と凍結改訂の別承認を維持する。
+
+### 2026-10-19: 旧担当の停止確認・所有受諾と実HEADの再照合
+
+- 作業開始時点の対象worktreeは`feature-ur1-initial-rights`、実HEAD`e2a9ce82`、未コミット差分0件、上流`origin/feature/ur1-initial-rights`に対して113先行・0遅れ。公開Draft PR #156のheadRefOidは`836232d6`、レビュー0件、Draftのまま。ローカル成果は未pushで、PR側の記録は古い。
+- 旧Codex担当は、前節末尾の「現時点ではこの追加差分を編集せず、候補作成の人間判断待ちとする」で停止し、以後の成果をローカルコミットとして保全していた。停止・所有解除の独立文書はリポジトリ・Notionセッション検索・PRコメントには無い。本会話の引継ぎ指示を所有移管として受諾し、既存成果・旧資料・before・先行履歴を削除・改変しない。新5全体・実Port・実台帳の完成とは扱わない。
+- 承認記録は[改訂payload](../features/ur1-recording-rights/step5-pr156-7.7-amendment-payload-proposal.json)と[改訂単一記録案](../features/ur1-recording-rights/step5-pr156-7.7-amendment-record-proposal.json)にあり、実ファイルSHA-256は指定の`8559617ed7714bc85a8dfa51f6bfad866aa43d40eaf39d266eeba4a2a90e96dd`・`550d5c78aa77597c52459514f017205580b23ab03c3026432519c41fb6d41025`と一致した。
+
+### 2026-10-19: 改訂7.7の実ファイル照合（再反映なし）
+
+- 反映前の`origin/develop`とPR head`836232d6`はbase-allowlist revision 33・履歴23件・`#156`0件。旧payload`34915e05…`・旧記録案`c13ef970…`は保持し、旧記録は正式履歴へ一度も入っていない。`git log --all -S 'masaki1025/pitchlog#156'`が示す追加は`629b2b11`だけである。
+- 現HEADはrevision 34・履歴24件・`#156`1件。その1件は改訂記録案の`record`と`approved_by=山田正輝`・`approved_on=2026-10-19`を除いて完全一致し、履歴末尾にある。旧#156ドラフトに固有のbase snapshot`7c62db13…`は履歴に存在しない（`inventory_revision:15`自体は既存履歴のprevious識別子にも現れるため、単独の識別子にしない）。既存記録の削除・差替えは行っていない。
+- 9資産の識別子、9資産のafter射影と`history-snapshots`、8外部snapshot、archive corpus`51264ae66762fc42e5e789ecf3e7c4067528e2869c36939394b91ed6af95bdf1`を実ファイルから再計算し、改訂payloadの全after値と一致した。`census-baseline` revision 15と`frozen-inputs` revision 4は不変。
+- 反映は既存コミット`629b2b11`で完了しており、今回の作業では7.7履歴を再追記していない。改訂payload・記録案自体も変更していない。
+
+### 2026-10-19: 最新develop（#158）統合とcore登録の回転
+
+- `origin/develop=7c1afeba`（#158 TSK-550段階A起動入口のコア領域登録）を通常mergeで取り込み、`73f90cf8`。競合は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`の3ファイルだけ。
+- develop基線に登録済みの`stage_a_startup.py`は追加層から回転し、U-R1の`initial_grant.py`だけをsync-protocol・recording-rights・tenant-isolationの追加層に残した。tenant-isolationのJSON末尾は`stage_a_startup.py`→`initial_grant.py`の順で両方を保持し、game-stateはdevelopの登録をそのまま保持した。#158の登録試験は、回転後の実態に合わせて宣言試験1件を改名・追随し、合成登録試験3か所へ明示の追加層を渡した。他の試験は変更していない。
+- `uv run pytest tests/test_core_guard.py -q`は269件成功、rootの`uv run ruff check .`と`uv run ty check`は成功。凍結9資産・外部検査器・corpusに統合差分は無く、改訂7.7のrevision・digest・snapshot・corpusは不変。
+- この3ファイルの解決差分は既存の独立レビュー0/0/0の対象外であり、本人逐行確認へ送る。旧レビューをこの差分へ延長しない。
+
+### 2026-10-19: TSK-372が引き取れる共有パスと条件
+
+- #156が現在編集所有する共有パスは、`contracts/db/schema-manifest.json`（data-model v0.12のcanonical sha256）、`docs/features/orm-schema-migration/acceptance-sheets/`のN3・N7・README、`tests/test_orm_acceptance_sheets.py`の固定件数、`contracts/authz/shared-preconditions.json`（data-model blob）、`.claude/core-areas.json`・`scripts/core_guard.py`・`tests/test_core_guard.py`（`initial_grant.py`登録）、`backend/src/pitchlog/authz/runtime_contract.py`（revision 18生成定数）、`contracts/tenant_boundary/`の凍結9資産・snapshot・corpus。
+- TSK-372が引き取れる範囲はmanifestとORM受理シート（N1/N3/N4/N7・README・固定件数）。条件は、#156が実developへ統合された後の実developを基線に再導出すること、PR head`836232d6`や本枝の未統合値を比較元にしないこと、data-model v0.12のcanonical sha256と#156の受理履歴・7.7値を保持すること、共有パスの単一編集者として並行編集しないこと、TSK-372側の正本版は#156統合後のdevelopから版番号を再導出すること、manifest/shared-preconditionsの新実値にはTSK-372側の7.7受理を取ること。
+- #156が引き渡さない範囲は、`contracts/tenant_boundary/`の凍結9資産・単一#156履歴・検査器、`initial_grant.py`とその試験、`runtime_contract.py`の生成定数、core登録3ファイルのU-R1分。TSK-372はこれらを削除・上書きしない。この引取りは新5全体・実Port・実台帳・運用openの完了を意味しない。
+
+### 2026-10-19: 全件検査の結果と新しい実値変更の一括判断送り
+
+- root `uv run pytest tests/ -q`（既定の`-n auto`）は**29,669件成功・2件skip・10件失敗**（598.90秒）。失敗の内訳は、census基線8件とDB必須2件。
+- census基線8件（`test_checker_census_matches_declared_anchor`、`test_measured_suppression_accepts_develop_without_growth`、`test_removed_tb002_accepts_prefix_related_current_symbol`、`test_independent_added_predicate_rejects_candidate_checker_omission`、`test_declaration_to_implementation_rejects_unused_field_and_recovers`、`test_implementation_to_declaration_rejects_undeclared_input_and_recovers`、`test_each_declared_census_predicate_rejects_its_input_mutation[added_equals...]`、同`[unadjudicated...]`）は同じ原因。参照側検査器が`initial_grant.py`の47箇所をTB002として検出し、現行検査器は`condition_2_scoped_findings`のSHA・パス・行・シンボル完全一致で除外するため、census差分の`removed`に47件が残り、同時に`added_equals_independently_derived_condition_2_candidates`では47件が`missing`になる。凍結census試験は`condition_2_scoped_findings`を解釈しない。負例試験の一部は、この既存不一致が先に発生して期待メッセージへ到達しない。
+- DB必須2件（`test_actual_measurement_is_generated_and_passes_both_budgets`、`test_each_language_mutants_are_actually_killed[sql]`）は、設定済みDSNの`127.0.0.1:5432`にサーバーが無く`connection refused`。コード原因ではない。CIのDBサービスで再確認する。ローカルには`127.0.0.1:55432`の別クラスタがあるが、共有・他担当の実行と混同しないため、今回の判定に流用しない。
+- 8件の修正は、`tests/test_census_baseline_check.py`（census凍結射影の外部ファイル）で`condition_2_scoped_findings`の完全一致所見を`removed`/`added`の両差分から除外し、他パス・他行・他シンボル・SHA不一致を拒否する負例を維持する形。これはcensus-baseline revision 15→16、censusの新snapshot、#156単一記録の`new_baseline_identifiers`と`asset_snapshots`（censusとbase自身）、base-allowlistの新snapshot、corpusとmanifest digestの再導出を伴う。
+- 上記は既存の#156記録の差替えになるため、本人確認・別7.7受理なしには適用しない。今回は修正せず、影響範囲だけを一括判断へ提示する。広域`owner_paths`追加・検査削除・個別テスト名の除外は行わない。
+- backendの限定検査は`test_initial_recording_right_candidate.py`・`test_authz_runtime_contract_generator.py`・`test_authz_connection_guard.py`の114件成功。backend Ruff format/check・ty成功。frontendは本差分に変更が無いため個別実行せず、CIに委ねる。
+
+### 2026-10-19: 未レビュー差分・本人確認対象・残ゲート
+
+- 未レビュー差分: `73f90cf8`のcore3ファイル解決、`629b2b11`の改訂7.7反映（値は受理済み、差分の独立レビューなし）、`14b0a4fa`の`runtime_contract.py`生成定数2行、data-model v0.12第2回P1反映、manifest/shared-preconditions/ORM N3・N7行（PO判定済み、独立コードレビューなし）。旧レビューP0/P1/P2=0/0/0をこれらへ延長しない。
+- 本人逐行確認: core3ファイルの解決差分、data-model v0.12の承認範囲、ORM N3/N7新規2行。
+- 未成立: census限定47箇所の凍結census試験対応と別7.7受理、U-G1/U-S1の項目別受理、実台帳・鍵・端末資格、P-6/実入口結合、最終HEAD CI。
+- 未実施: 本人確認・署名の代記、Draft解除・マージ、共有DB適用、運用open。
