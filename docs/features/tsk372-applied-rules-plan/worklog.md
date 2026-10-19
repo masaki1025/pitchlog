@@ -50,3 +50,9 @@
 - `data-model.md`§6-5の現文は、保存時スナップショットと規則マスタの後日変更の非遡及を規定するが、試合行自身の保存後異値UPDATE禁止は明記しない。所有側にこの限定解釈と7.6判定を求める。現文に含まれない判断なら、計画どおり§6-5の限定正本ゲートを先行する。無回答を受理としない。認可・復旧の通常経路に解除入口を設けず、正当な訂正migration・復旧の例外が必要なら別ゲートとする。
 - 既存候補worktreeを変更せず、専用の使い捨てPostgreSQLとテスト内の使い捨てクラスタで`uv run pytest -q tests/db/test_games_applied_rules_immutability.py`を再実行して**2成功**。最初の再試験は接続用DB未起動によるsetup error 2件でcall未到達、その後の隔離再試験で解消した。旧候補の実DB結果であり、最新developへ正式に組み込んだHEADの品質ゲート結果ではない。候補の製品ロール確認は`SET ROLE`による最小権限検査であり、認証済み製品ロールの恒久試験要件を満たしたとは記録しない。
 - #158はDraft HEAD`618fba2e67e267b815a8767311167bcecedd9bf5`を維持。本人逐行確認の回答・チェックは未受領であり、代記・core-guardの確認後再実行・Draft解除・マージは行わない。現時点でGitHubは#158を`CONFLICTING`と表示するため、本人確認後も統合前に最新developとの競合解消と新HEADの検査が要る。
+
+## 2026-10-19 §6-5限定改訂の方針と共有パス照会
+
+- POは現行§6-5から試合行自身の異値UPDATE禁止を既承認とは解釈せず、別の限定改訂として明文化する方針を採用した。`docs/design/data-model.md`候補は専用`feature/tsk372-applied-rules-canonical`で`in-review`化して7.3審査中。正式確定・具体資産承認・7.7受理ではない。
+- 7.6-3後段の版繰り上げを要する新規範として扱う。最終本文は初回INSERT、同値・他列UPDATE、異値拒否、正当なmigration・復旧の別ゲートへ限定し、人間承認へ提示する。共有manifest・シートは現時点で変更していない。
+- #156へmanifest・N3の編集所有と解除条件を[コメント](https://github.com/masaki1025/pitchlog/pull/156#issuecomment-6264448857)で、#152へN3の編集所有と後続追随の受諾条件を[コメント](https://github.com/masaki1025/pitchlog/pull/152#issuecomment-6264449206)で照会した。提示順は#156対象パス解除・実統合→本限定単位→#152追随。回答前につき順序の合意・所有解除は未確認。
