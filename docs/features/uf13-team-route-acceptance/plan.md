@@ -1,6 +1,6 @@
 ---
 feature: uf13-team-route-acceptance
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝、3ステップ再編を含む)
 重さ分類: コア領域
 worktree: ../pitchlog-worktrees/feature-uf13-team-route-acceptance
@@ -262,3 +262,19 @@ C1のsession開始がbb.authを削除するため、同tenantの新規タブの�
 6de49595/680c2a27は本会話で承認済み。拒否通知2キーとmetadata不正時の無効化を専用結合へ実装し、source C1はDraft #157。未承認待ちへ戻さない。実統合順は#157→#150→#151→#154。#150のmetadata680と#151の新store直接型/consumer試験は#157の実develop統合後に追随し、未統合枝を通常基線にしない。依存一枚表の編集元は#157のdocs/features/auth-login-session-correlation/pr-dependency-map.md。
 
 専用結合製品cdaf49fd/fixture d1f467f5・資料600e998bでfrontend1,382成功。実画面/API/隔離DB/productionのopponent正常8項目、Cookie遅延5、metadata2、環境/通信断7、storage event欠落1が成功。全て単独CIとは分ける。自チームのID取得には既存opponent readを緩めない最小追加契約が必要で、別判断待ち。自チーム受入/ステップ3/TSK-528全体は未完了。
+
+
+## 2026-10-19: 実統合基線への接合と既存部分PRのクローズ準備
+
+C1相関#157（a87510e6c431fbb4ee14c91775204a5c91bec745）、C2 #150（b4047e31645217ea7b93c08fa2ab4a7533d729b4）、U-F3 #151（b64d6aa1709310704658415ad09a86898bfdcb2a）はすべて実developへ統合済み。各実SHAを順に取り込み、開始条件の統合待ちは解消した。未統合枝を通常基線にしていない。
+
+後続のユーザーによる順次マージ指示に従い、既存#154を保護/login・/team接続と対戦相手配下の既存選手管理に限る部分実装としてin-reviewへ戻す。ステップ3の自チームを含む受入、TSK-528全体、15経路+catch-all全体は未完了を維持する。self最小追補は候補だけで、API・認可・凍結資産の範囲追加は採用しない。
+
+追加本人確認回答「許可します」の対象は、#154の固定解消候補f99e0a87に対するcore3ファイルとrouter.spec.tsの4ファイル。実統合後のfrontend全体・core3ファイルが同候補とbyte一致することを確認した。確認方法を推定しない。既定レビュー各2/2と未再レビュー差分の履歴は保持し、既存可決を後発差分へ流用しない。最終単独HEADのCIは別に取得する。
+
+
+### 実統合基線に対する追加層回転（293f83d6）
+
+7b1d45aa時点の固定候補一致だけでは、新しいorigin/developにLoginScreenが着地済みとなったことに対応できず、core全265件中8件が「追加層が一部だけ基線へ取り込まれている」と拒否した。既存検査を緩和せず、scripts/core_guard.pyの宣言とtests/test_core_guard.pyの期待値から着地済みLoginScreenの1行ずつを外し、同試験へ実基線/実候補の両方でLoginScreen登録を保持するassert等4行を追加した。JSON・全frontend・検査器の判定ロジックは不変。既存の隔離履歴試験も未宣言追加・旧層削除・人間未記入の拒否を維持し、全265成功（11.03秒）と実HEAD基線検査成功を確認した。
+
+この2ファイル4追加/2削除だけが直前の本人確認固定候補に対する後発差分。293f83d6の本人逐行確認を追加依頼し、回答前に実施済みと記録しない。既確認の4ファイル全体を未了へ戻さず、既定レビュー使用回数も変更しない。通常pushと最終CIは許可済み範囲で進める。
