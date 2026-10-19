@@ -406,7 +406,8 @@
         "contracts/display-geometry/*",
         "tests/test_field_geometry_numeric_lexemes.py",
         "tests/test_fielder_estimation_contract.py",
-        "tests/test_field_geometry_ci_wiring.py"
+        "tests/test_field_geometry_ci_wiring.py",
+        "backend/src/pitchlog/db/stage_a_startup.py"
       ]
     },
     {
@@ -601,7 +602,8 @@
         "frontend/src/screens/TeamScreen*",
         "frontend/src/screens/LoginScreen*",
         "frontend/src/router*",
-        "frontend/src/App*"
+        "frontend/src/App*",
+        "backend/src/pitchlog/db/stage_a_startup.py"
       ]
     },
     {
