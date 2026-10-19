@@ -3,7 +3,11 @@ import { VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, ApiNetworkError } from '../api/client'
+import {
+  ApiError,
+  ApiNetworkError,
+  ApiTenantVerificationError,
+} from '../api/client'
 import type { Page } from '../api/types'
 import {
   listPlayers,
@@ -129,6 +133,33 @@ describe('TeamScreen', () => {
     expect(listTeamRecordsMock).not.toHaveBeenCalled()
     expect(listPlayersMock).not.toHaveBeenCalled()
   })
+
+  it.each(['teams', 'players'] as const)(
+    '%sのtenant照合失敗はquery既定retryが有効でも自動再送しない',
+    async (target) => {
+      queryClient.setDefaultOptions({ queries: { retry: 2, retryDelay: 0 } })
+      if (target === 'teams') {
+        listTeamRecordsMock.mockRejectedValue(
+          new ApiTenantVerificationError('GET', '/team-records', 200),
+        )
+      } else {
+        listTeamRecordsMock.mockResolvedValue(
+          page([teamRecord('self-a', 'チーム A', 'self')]),
+        )
+        listPlayersMock.mockRejectedValue(
+          new ApiTenantVerificationError('GET', '/players', 200),
+        )
+      }
+      const { wrapper } = mountScreen()
+      await vi.waitFor(() =>
+        expect(wrapper.text()).toContain('テナントの照合を確認できない'),
+      )
+      await flushPromises()
+      expect(
+        target === 'teams' ? listTeamRecordsMock : listPlayersMock,
+      ).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('取得したチーム一覧が空なら空状態を表示する', async () => {
     const { wrapper } = mountScreen()

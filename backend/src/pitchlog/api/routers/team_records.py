@@ -18,7 +18,7 @@ from pitchlog.api.schemas.roster import (
     TeamRecordRead,
     TeamRecordUpdate,
 )
-from pitchlog.api.tenant_access import require_tenant_access
+from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.roster import (
     GameTeamLinkReadToken,
@@ -31,7 +31,7 @@ from pitchlog.repositories.roster import (
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import tenant_transaction_scope
 
-router = APIRouter(tags=["対戦相手チーム"])
+router = APIRouter(tags=["対戦相手チーム"], route_class=TenantMatchedRoute)
 _TEAM_FIELDS = ("id", "kind", "name", "hidden_at")
 
 
