@@ -791,3 +791,51 @@ C2追随のローカル検査: frontend70ファイル1,323成功（70.93秒）�
 7b1d45aa時点の固定候補一致だけでは、新しいorigin/developにLoginScreenが着地済みとなったことに対応できず、core全265件中8件が「追加層が一部だけ基線へ取り込まれている」と拒否した。既存検査を緩和せず、scripts/core_guard.pyの宣言とtests/test_core_guard.pyの期待値から着地済みLoginScreenの1行ずつを外し、同試験へ実基線/実候補の両方でLoginScreen登録を保持するassert等4行を追加した。JSON・全frontend・検査器の判定ロジックは不変。既存の隔離履歴試験も未宣言追加・旧層削除・人間未記入の拒否を維持し、全265成功（11.03秒）と実HEAD基線検査成功を確認した。
 
 この2ファイル4追加/2削除だけが直前の本人確認固定候補に対する後発差分。293f83d6の本人逐行確認を追加依頼し、回答前に実施済みと記録しない。既確認の4ファイル全体を未了へ戻さず、既定レビュー使用回数も変更しない。通常pushと最終CIは許可済み範囲で進める。
+
+
+## 2026-10-19: #154実統合後の再受入・Claude向け申し送り（現在値）
+
+### 統合待ちの解消
+
+ユーザーが#154実統合SHAと最終CI成功を受領し、#150→#151→#154の統合待ちを解消済みとする指示を受領した。#157=a87510e6c431fbb4ee14c91775204a5c91bec745、#150=b4047e31645217ea7b93c08fa2ab4a7533d729b4、#151=b64d6aa1709310704658415ad09a86898bfdcb2a、#154=ba339cf8bdaac4761b8cf437abaf21763617d064。実developを再fetchして同SHAを確認した。#154 source52abb32dと実統合のtreeは一致し、最終CI39205855069成功を受領済み。過去節の未統合・本人確認待ち・CI待ちは時点の履歴であり、現行の停止理由にはしない。新しい確認方法の推定入力は行わない。
+
+### 統合後の実画面/API/DB再受入
+
+実develop ba339cf8から専用feature/uf13-postmerge-acceptance-followup worktreeを作成し、製品・契約・ハーネスを変更せず、既存run_final25.py/browser-normal-production.mjsの手順を再利用した。runnerの差分はROOTと出力先だけと機械照合済み。backendの既存disposable_postgres_cluster/provisioned_product_catalog、実application role、実API、production build/preview（envDir:false）、Chromium149.0.7827.0を使用した。共有DB・他担当worktree・未統合枝を利用/変更しない。frontend依存はfrozen lockfile/offline、型検査とproduction build/閉域検査が成功した。
+
+| 証跡 | 対象HEAD | 実行結果 | 今回との区別 |
+| --- | --- | --- | --- |
+| 旧候補 attempt25-qualified-normal | cdaf49fdf517062493d7440b87573dc851f93350 | 正常8項目成功、9.25秒 | 候補での既済み結果 |
+| 今回 postmerge-ba339cf8-normal | ba339cf8bdaac4761b8cf437abaf21763617d064 | 正常8項目成功、9.34秒、exit0 | 実統合後の新しい実行証跡 |
+| 遅延Cookie5・metadata2・環境/通信7・通知欠落1 | 以前の専用結合候補 | 既済み成功を保持 | 今回の統合後HEADでは再実行していない |
+| 自チーム取得・自チーム配下の実画面受入 | なし | 未実装/未実施 | 対戦相手成功で代用しない |
+
+今回成功した8項目:
+
+1. 未認証/teamは/loginへ遷移。
+2. 実login→session確認→実application roleで一覧表示。
+3. 対戦相手を実APIで登録・選択。
+4. その対戦相手配下に選手を登録し、query再取得で表示。
+5. 選手通常編集→ブラウザ再読込後も保存内容を表示。
+6. 同tenantの2タブで認証・一覧を維持。
+7. 切替前提の明示logoutを実APIで実行（確定認証からのlogout UIを実装/受入した意味ではない）。
+8. 別tenantでloginすると旧タブは自動切替せず旧一覧を破棄し、新tenantへ旧選手を表示しない。
+
+DB observerでAの選手「受入選手編集済」・番号17、Bの選手0件を確認した。試験後は自分のAPI/browser/previewを終了し、own_acceptance_cluster_cleaned_upを確認した。資格情報・Cookie・接続値は本記録へ転記しない。出力は~/.cache/pitchlog/correlation-browser-acceptance配下。完全な結果と操作名のSHA-256は次のとおり。
+
+| 証跡（同cache配下） | SHA-256 |
+| --- | --- |
+| `postmerge-ba339cf8-normal/result.json` | `6c6ecfb5f7012eb8ac15f31bc899b9aba7c4191ce0c16841f630c698e0c630a3` |
+| `postmerge-ba339cf8-normal/browser.stdout.log` | `3dafb1253300624c27978ffd0db5908ab0a156dccb0a01ac980bd81872c78cc6` |
+| `run_postmerge_ba339cf8_normal.py` | `be8955e161d481c1e2bafb5e5a8e5721312c0b580be3c66113a33a96236febbe` |
+| `browser-normal-production.mjs` | `450084cc02b8929873f1a4c55f28b217f4d78c0b0be678b933840e6f9a70c68f` |
+
+### 自チーム取得の残る正式ゲートと所有
+
+候補の編集元は既存self-team-read-addendum-candidate.mdだけとし、最新実developによる再照合、統合済み境界、残る正式ゲートを同書§0/§4/§5へ更新した。新しい全体計画・承認済み成果は再作成しない。推奨は引数なしSelfTeamRecordReadToken＋GET /team-records/self、既存CAP:team_records:read・TeamRecordRead DTO・検証済みcontextのtenant bind、self限定/hidden NULL/limit1。既存opponent tokenと一覧は変更しない。
+
+開始前は最小計画/意味契約のレビューと人間承認、共有資産の所有・順序を確定する。候補固定後は変更対象だけのtenant-boundary/authz 7.7の前後値・snapshot・記録案を機械導出して正式受理へ出す。実装後は隔離DB・app role・越境/遅延/未確認の拒否・自チーム実画面を検証し、新追補自身の既定レビュー/本人確認/CIを満たす。旧4PRの承認やレビューを未了へ戻さず、同時に新APIの承認へ流用しない。
+
+open #152はbase-allowlist/route registry/matrix/lock/seal等に重なる。共有資産は一切編集せず、未統合枝を基線にせず、着手時の所有調整を残す。#158のcore3も変更しない。今回の想定製品パスは既登録のT（一部T/D）であり、新たなcore path先行登録は不要。#154は閉じたため新追補の最小PR1本を推奨するが、作成/push/実装には進んでいない。
+
+**残るもの**: 自チームread契約の正式化と実装/受入、TSK-528全体/15経路+catch-all。今回の成功を対戦相手管理の全機能・TSK-520全体の完了へも広げない。新ACL/DB構造/認可緩和/正式凍結変更はなし。台帳への追記なし（既存受入手順の統合後再実行であり、新しいハーネス運用上の傾向を追加しない）。
