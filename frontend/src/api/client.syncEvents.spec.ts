@@ -3,6 +3,8 @@ import 'fake-indexeddb/auto'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
+import { useAuthStore } from '../stores/authStore'
+import { setVerifiedAuthForTest } from './auth.test-support'
 import {
   openDurableQueue,
   type DurableQueue,
@@ -32,6 +34,7 @@ beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
   localStorage.clear()
+  setVerifiedAuthForTest(useAuthStore(), { teamName: '試験チーム' })
   vi.stubGlobal('fetch', vi.fn())
 })
 
