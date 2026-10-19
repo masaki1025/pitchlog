@@ -1,4 +1,4 @@
-"""試合の規則snapshotが初回保存後にDBで不変となる候補を検査する。"""
+"""試合の規則snapshotが初回保存後にDBで不変となることを検査する恒久試験。"""
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ _BEFORE_TRIGGER = "trg_games_applied_rules_immutable"
 _AFTER_TRIGGER = "trg_games_applied_rules_final_immutable"
 _BEFORE_FUNCTION = "prevent_games_applied_rules_update"
 _AFTER_FUNCTION = "verify_games_applied_rules_final"
+_REJECTION = "games.applied_rules is immutable after insert"
 
 
 def test_games_applied_rules_rejects_change_after_insert(
@@ -92,7 +93,9 @@ def test_games_applied_rules_rejects_change_after_insert(
                 "WHERE tenant_id = %s AND id = %s",
                 (Jsonb(initial), tenant_id, game_id),
             )
-            with pytest.raises(psycopg.errors.CheckViolation) as changed:
+            with pytest.raises(
+                psycopg.errors.CheckViolation, match=_REJECTION
+            ) as changed:
                 connection.execute(
                     "UPDATE public.games SET applied_rules = %s "
                     "WHERE tenant_id = %s AND id = %s",
@@ -105,7 +108,7 @@ def test_games_applied_rules_rejects_change_after_insert(
                 (tenant_id, game_id),
             ).fetchone() == (initial,)
 
-            with pytest.raises(psycopg.errors.CheckViolation):
+            with pytest.raises(psycopg.errors.CheckViolation, match=_REJECTION):
                 with connection.transaction():
                     connection.execute(
                         "UPDATE public.games SET status = 'finished' "
@@ -143,7 +146,7 @@ def test_games_applied_rules_rejects_change_after_insert(
                 EXECUTE FUNCTION public.probe_change_rules_during_status_update()
                 """
             )
-            with pytest.raises(psycopg.errors.CheckViolation):
+            with pytest.raises(psycopg.errors.CheckViolation, match=_REJECTION):
                 connection.execute(
                     "UPDATE public.games SET status = 'finished' "
                     "WHERE tenant_id = %s AND id = %s",
@@ -190,7 +193,7 @@ def test_games_applied_rules_rejects_change_after_insert(
                 assert function is not None and "23514" in function[0]
 
             # 既存行の異値訂正は、特権接続でも拒否される（正当な訂正・復旧は別ゲート）。
-            with pytest.raises(psycopg.errors.CheckViolation):
+            with pytest.raises(psycopg.errors.CheckViolation, match=_REJECTION):
                 connection.execute(
                     "UPDATE public.games SET applied_rules = %s "
                     "WHERE tenant_id = %s AND id = %s",
@@ -221,7 +224,7 @@ def test_games_applied_rules_rejects_change_after_insert(
             ).fetchone() == (initial,)
         command.upgrade(_alembic_config(), "head")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            with pytest.raises(psycopg.errors.CheckViolation):
+            with pytest.raises(psycopg.errors.CheckViolation, match=_REJECTION):
                 connection.execute(
                     "UPDATE public.games SET applied_rules = %s "
                     "WHERE tenant_id = %s AND id = %s",

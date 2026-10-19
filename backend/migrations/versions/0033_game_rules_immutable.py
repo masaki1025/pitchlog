@@ -3,6 +3,12 @@
 初回 INSERT と同値更新を許し、保存後の異値 UPDATE を拒否する。BEFORE トリガは
 保護列の直接更新を、AFTER トリガは別列更新に連鎖する BEFORE トリガが最終行で
 値を書き換える経路を塞ぐ。どちらも SQLSTATE 23514 で拒否する。
+
+既存の全表不変性監査は BEFORE UPDATE トリガだけを突合するため、AFTER の第2層は
+この migration と恒久試験 `tests/db/test_games_applied_rules_immutability.py` が
+pin する。owner/superuser の `DISABLE TRIGGER`・`session_replication_role=replica`・
+`TRUNCATE` 後の再 INSERT・関数 drop は通常の製品ロールでは到達できない。訂正・復旧で
+異値が必要な場合は、対象行・理由・排他・全取消・変更後の照合を限定した別ゲートで扱う。
 """
 
 from collections.abc import Sequence

@@ -86,3 +86,13 @@
   - N3-061（`team_records.kind`）を含む他の判定は変更していない。**N3-061は恒久是正と正式受理の成立前に`一致`へ変えない。**
 - **未了（意図的に書いていない）**: `games.source_sections`への`6-5`追加（canonical正本の人間承認・実統合が前提）、正本SHA・`shared-preconditions`blob digest、製品認可資産（`ddl-elements`・関数本体・`probe-product-map`）、runtime contract revisionと7.7履歴、7.7の実値。
 - 検査結果: 専用実DBの恒久試験2件・`test_schema_manifest.py`・`test_game_state_models.py`は合格。`tests/test_orm_acceptance_sheets.py::test_acceptance_sheet_judgments_are_complete`は上記の未判定6行で不合格（人間判定待ち）。`check_authz_catalog`は新規migrationトリガ関数2本が製品認可資産未登録のため不合格（認可所有側の受諾待ち）。
+
+## 2026-10-19 実装後 敵対レビュー（GLM）と反映
+
+- PO指示により、実装後レビューをGLM（`opencode/glm-5.3-flash-free`・max）へ委任した。対象は`7c1afeba..HEAD`の全差分と承認済み計画。主要な主張は使い捨てPostgreSQLで再実測された（直接UPDATE・`MERGE WHEN MATCHED`・`INSERT … ON CONFLICT DO UPDATE`・別列BEFOREトリガによるすり替えを、トリガ名順序の前後双方で拒否）。
+- **判定: 可決（P0=0 / P1=0 / P2=4）**。P2 4件は全件採用・不採用0。
+  - P2-1: owner/superuserの残存経路（`DISABLE TRIGGER`・`session_replication_role=replica`・`TRUNCATE`後の再INSERT・関数drop）は通常製品ロールで到達できない。migrationのdocstringへ明記し、訂正・復旧は別ゲートとする。
+  - P2-2: 既存の全表不変性監査はBEFORE UPDATEトリガのみを突合するため、AFTER第2層は本migrationと恒久試験がpinすることを明記した。
+  - P2-3: 拒否rootがSQLSTATEのみだったため、全拒否アサーションでメッセージ`games.applied_rules is immutable after insert`を照合するよう強化した。
+  - P2-4: 恒久試験のdocstringの「候補」を「恒久試験」へ修正した。
+- 反映後の再実行: 恒久試験2件＋`test_schema_audit`・`test_immutability_enforcement`・`test_immutability_matrix`・`test_migration_round_trip`の計8件が合格。ruff/tyも合格。
