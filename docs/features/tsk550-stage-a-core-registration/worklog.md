@@ -4,6 +4,7 @@
 
 - 本人逐行確認は未実施のまま、`origin/develop=ba339cf8`を通常mergeで取り込んだ。競合は`.claude/core-areas.json`、`scripts/core_guard.py`、`tests/test_core_guard.py`の3ファイル。developのU-R1/RG1、LoginScreen、router/Appの登録を保持し、登録済みRG1とrouter/Appの宣言を追加層から回転させた。#158固有の`stage_a_startup.py`だけをgame-state・tenant-isolationの追加層に残し、両領域のJSON末尾へ各1件登録した。#158の宣言・JSON別コミット履歴は通常mergeで保持し、履歴を書き換えない。
 - 最新developの既定試験と#158の起動入口試験を統合し、宣言済み追加層・基線据置き・未宣言追加拒否・後続の試験パスへの回転を確認した。`uv run pytest tests/test_core_guard.py -q`は268成功、`uv run ruff check scripts/core_guard.py tests/test_core_guard.py`と`uv run ty check`は成功。コア領域の追加差分レビュー・PR最終HEADのCI・本人逐行確認は別ゲート。以前のレビューや本人確認をこの競合解消差分へ自動延長しない。
+- 競合解消差分の限定敵対レビューを`154ce5b4`対`ba339cf8`で実施した。実モデル`gpt-6-sol`・effort`xhigh`、判定は可決、P0/P1/P2は各0。レビュアは既存登録の全保持、2領域の宣言とJSON、未宣言追加拒否、後続の宣言回転、未記入の人間確認拒否を確認した。既済みの全文レビューを繰り返さず、過去のレビューを今回の差分へ自動延長していない。rootの`uv run ruff check .`と`uv run ty check`も成功した。
 
 ## 2026-10-19: 計画承認
 
