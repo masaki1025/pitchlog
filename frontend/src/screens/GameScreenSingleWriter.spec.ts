@@ -147,6 +147,9 @@ describe('待機中の非所有タブの確定(E5 の契約資産)', () => {
   })
 
   it('他のタブが鍵を保持していたら、追記も採番も送信もしない', async () => {
+    // 呼出元の注入ではなく、ブラウザ既定のWeb Locksを差し替える。
+    // withNonBlockingSingleWriterを確定経路から外すと追記され、この試験が落ちる。
+    vi.stubGlobal('navigator', { locks: heldLocks() })
     const queue = await openIsolatedQueue()
     const nextD1Before = await queue.readNextD1(scope)
 
@@ -166,9 +169,6 @@ describe('待機中の非所有タブの確定(E5 の契約資産)', () => {
         singleWriterInjections: {
           resolvePreconditions: preconditions,
           revalidateSingleWriter: () => true,
-          lockManager: createNonBlockingLockManager(
-            heldLocks().request as never,
-          ),
         },
         readAck: () => undefined,
       },
