@@ -379,3 +379,13 @@ U-F8/01a15387本人が中継票を実読し、非機密停止表示/未確認件
 ### #159 CI追随の検証結果
 
 文書提出枝ではマニフェスト追随後、関連pytestは292成功/共有同期起因2失敗。未適用のshared-ci-sync-proposal.patchを独立検証用コピーへだけ適用し、同じ関連pytestは294件全成功（6.13秒）。これは所有側への反映や実PRのCI成功ではない。索引/TS定数/JSONは実提出枝で未変更。全文再レビュー/人間確認や担当受理として転用しない。
+
+### #159 統合準備（2026-10-19 後続）
+
+最新develop `7c1afeba`（PR #158 マージ後）を文書提出枝へ通常mergeした。CI失败を原因別に再確認し、次の3点だけを意味不変の追随として適用した。
+
+- docs-lint / harness の索引2件: 変更なし。U-R1の索引先行枠が返却されていないため、`docs/README.md` は引き続き未編集。完全な1行は handoff.md に保持。
+- harness の処理段階1件: `processingStages.ts` / `processingStages.snapshot.json` の3セルを承認本文（B7・B3a）へ同期し、Prettier 折返しを適用。
+- frontend の `R-BOUNDARY に未知の ID があります: O5` 8ファイル: 承認済み v0.9 の射程外 `O5` 行を `canonOracle.ts` へ製品候補と同一内容で追加。新規意味・公開型は無い。
+
+ローカル検証（このworktree）: `check_design_propagation` / `check_doc_coverage` / ruff / ty 成功。docs-status は索引の版・日付2件のみ未通過。frontend は prettier / eslint / vue-tsc / depcruise / domain build（差分0）/ build / Vitest 71ファイル1382件が成功。backend差分なし。索引が未同期のため docs-lint と harness は赤のまま、全グリーンとは記録しない。core-guard の人間逐行確認は未実施のまま空欄を保持する。

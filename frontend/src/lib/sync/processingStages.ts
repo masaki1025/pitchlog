@@ -150,7 +150,8 @@ export const D1_PROCESSING_STAGES: readonly D1ProcessingStage[] = Object.freeze(
     Object.freeze({
       stage: '① トランスポート・処理系',
       check: '要求が届き、処理が完了したか',
-      stopBoundaryResult: 'B7 一時障害',
+      stopBoundaryResult:
+        'B7 一時障害。ただし⑦の原本解決で6-3-Aの限定理由を検出した場合は同節S-STOPが優先',
       stopBoundaryResultIds: freezeResultIds(d1TemporaryFailure),
     }),
     Object.freeze({
@@ -196,8 +197,10 @@ export const D1_PROCESSING_STAGES: readonly D1ProcessingStage[] = Object.freeze(
     }),
     Object.freeze({
       stage: D1_CONTENT_STAGE,
-      check: '⑥を通過した未使用 D5 のイベント内容が受理できるか',
-      stopBoundaryResult: 'B3a 恒久的な内容拒否',
+      check:
+        '⑥を通過した未使用 D5 のイベント内容が受理できるか。wire改訂はこの位置で原本を解決する',
+      stopBoundaryResult:
+        'B3a 恒久的な内容拒否。原本解決中の限定5理由は6-3-AのS-STOPが優先',
       stopBoundaryResultIds: freezeResultIds(d1UnusedD5Rejection),
     }),
     Object.freeze({

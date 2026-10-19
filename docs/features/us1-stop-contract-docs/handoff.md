@@ -4,6 +4,8 @@
 
 sync-protocol v0.11本文/採否は山田正輝・2026-10-19承認済み。data-model/索引先行枠を維持し、当方ではREADMEを変更しない。以下の完全な新行を、所有側で旧sync-protocol行と置換してほしい。data-model行や既存説明は変更しない。適用SHA/完了通知を主担当01a14f9eへ返す。
 
+**2026-10-19 再確認**: U-R1側の計画（`docs/features/ur1-recording-rights/plan.md` 242行）は「`data-model.md`と索引の編集を停止してU-R1へ先行枠を引き渡した」と記録しており、索引先行枠の返却・対象行の引き渡し記録はまだ無い。PR #156 のコメントにも索引同期の完了通知は無い。したがって本PRでは引き続きREADMEを変更せず、この1行を未適用のまま残す。docs-lint の2件（版・最終更新）はこの未同期だけを原因とする。
+
 ```markdown
 | [同期プロトコル設計](design/sync-protocol.md) | **approved**(**v0.11 — D-2停止契約。山田正輝・2026-10-19承認。審査3回〔全文/差分/P0限定〕・7件全採用・不採用0・最終P0限定残存0。正本本文/採否のみで実装/公開は別ゲート**) / **approved**(**v0.9 — TSK-506 への接続契約: 恒久的な失敗の受け皿 O5〔決定的な不変条件違反を B3 + 要操作(管理者対応待ち)で ACK に載せ、内容も D5 も変えずに再送〕と、B7・B10 の回復しない場合の顕在化・Q8。敵対レビュー 2 回・反映 2 周 → PO 承認 2026-10-17**) / **approved**(**v0.8 — TSK-391 R-10: 10-3 の故障系資産契約の資産構造〔case 構造・共通の期待フィールド・`tElementCommitment`・到達性・注入点の組とトランザクション外の 3 注入点の exact-set・契約検査と結果検査の分離・母集合〕と比較単位を `scenarioId × caseId × 注入対象 × 観測点 × expected の全フィールド` へ。引き継ぎ後に B4 になった要求の既存異内容は未処理(10-2・7-2・6-3)。敵対レビュー 2 回・反映 2 周 → PO 承認 2026-10-15**) / **approved**(**v0.6 — TSK-391: 無効化意図の「1 件だけ永続化」を対象範囲ごとの 1 件へ追随し、P1・P2 の故障系資産に D1 付き経路の意図の観測を追加**。意味規則は不変。data-model v0.10 と単一の確定ゲート → PO 承認 2026-10-14 / v0.5 — TSK-236: **S2 の状況判定の正を「`ADR-003` D-6 で登録された状況判定ベクタ全体」へ**改め、規範行の内訳を **3 層**(`matrixRows[]` / `operationRows[]` / `undoRows[]`)で明記。**D-8 を状態効果の正にしない**。典拠トレース表を追随。敵対レビュー 12 周 → PO 承認) | 0.11 | 2026-10-19 |
 ```
@@ -23,6 +25,10 @@ U-S1はrecover_sync_attempt/prepare_sync_resume/prepare_sync_replacementのHTTP�
 ## 状態
 
 新規依頼はタブ連絡MCP接続エラーにより未送達。本文をPO中継用に返す。506計画の固定93f70668に人間承認記録があることと、上記新契約の担当受理は区別する。担当受理・人間逐行確認を代記しない。
+
+## 消費側同期（適用済み・意味不変）
+
+承認済み本文の消費側だけを本PRへ適用した。`shared-ci-sync-proposal.patch` のうち processingStages の3セル（B7・B3a の文言）を `frontend/src/lib/sync/processingStages.ts` と同 `processingStages.snapshot.json` へ適用し、Prettier の折返しだけを追加した。`frontend/src/lib/sync/canonOracle.ts` へは、承認済み v0.9 の射程外 `O5` 行を製品候補と同一内容で追加した。新規の意味・公開型・製品挙動は無く、CI の frontend ジョブが `scripts/design_relations/sync-protocol.json` の変更だけで起動するための追随である。`lib/sync` の共有所有は維持し、U-F8 の画面実装には触れない。
 
 ## 派生影響（完全値はderived-impact.json）
 
