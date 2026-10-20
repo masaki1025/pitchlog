@@ -1,6 +1,6 @@
 ---
 feature: uf8-full-game-followup
-status: active
+status: in-review
 承認: 済(2026-10-20・山田正輝)
 重さ分類: コア領域
 worktree: ../../..
