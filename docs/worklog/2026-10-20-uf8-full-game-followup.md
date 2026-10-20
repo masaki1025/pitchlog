@@ -340,3 +340,9 @@ NFR-020の観測可能な前提1/5/6は提供された成立/不成立/不明を
 一覧の`selectedGameId`と`requestedPageKey`は認証世代/tenant/pathの実変更時だけ消去する。同じscopeへの同内容新参照では選択とページ要求を保持する。旧tenantで次ページを要求したあと新tenantの初期`requestKey=null`ページを表示できること、同一instanceで経路を往復した場合に旧選択を戻さないことを確認した。ページ移動の意味や実APIは追加していない。`existingStateLabel`は文字列かつown既知キーに限り、`constructor`/`__proto__`/`toString`やnullを未取得にする。候補・ページ・詳細のnull、疎配列、未知状態、不正datumも取得済みへ採用せず、別の閲覧表示と`GameScreen`の確定封鎖を維持した。既存のdense検査を再利用し、計算/通信/保存Portは追加していない。
 
 NFR-020前提1/5/6の全不足列挙、persist要求のみ拒否とサイトストレージ不可の区別、未送信キュー保持の文言は**表示上の候補**であり、実Web Locks/IDB・再起動を通したキュー耐久の証拠ではない。実開始/再開/確定/保存/送信は引き続き封鎖し、直接dispatchでもHTTP 0。最終実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts`で**18ファイル334件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ/フロントエンド全件試験と既定レビューは主担当補完。正式API未提供、`App.vue`追補未承認による通常ナビゲーション/ログイン復帰未達は維持する。次ステップ、コミット、push、外部連絡は行っていない。
+
+### 2026-10-21 入口/検査経路の独立検証継続
+
+- #160 の人間操作によるdevelop統合9136c2daを確認。#164はdevelopへ付け替え、比較用HEAD第1親の旧base残留を検査が拒否したため、検査器を維持し通常merge/pushした（fb12a9a1）。当担当はマージ/本人確認を代行していない。
+- root全件検査とbackend静的検査を開始。backendの通常pytestは既存PITCHLOG_TEST_* DSNの継承があると判明して中断（28 passedでKeyboardInterrupt、全件成功ではない）。既存DSN値を出力せず、自分専用outerクラスタを生成し継承PITCHLOG_*を除いた実行へ切り替えた。既存autouseの実認証と各試験の専用innerクラスタを維持し、共有DB/ロールを使う前提を追加しない。再実行の結果は完了後に別記する。
+- 544担当の最新提供状況をsupply-mapへ追記。J5/J6文書確定の報告と、正式型/Port/製品計算の提供・当担当受理を区別する。T5/T6等の未提供は継続。7の追加6資産とApp.vueの具体追補は未承認のままで、独立作業のみ進める。
