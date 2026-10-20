@@ -23,12 +23,14 @@
 | 担当 | 着手前に受理が足りない公開型・署名・責任境界 | 実装後の証跡 |
 | --- | --- | --- |
 | U-F8/523 | 1球確定からT1への正規化入力、scope/event/prefix・規則snapshot、表示への受取型 | 実画面→HTTP→再読込 |
-| U-S1/391後続 | 単一`apply_sync_request`のT1投影/検証Port注入点、P1/P2混在と失敗分類、同一transaction所有 | D5・再送・全取消の隔離DB試験 |
+| U-S1/391後続 | 単一路は`apply_sync_request`、P1/P2混在は`apply_sync_events`。T1投影/検証Port注入点、イベント単位の失敗分類・transaction所有。前方確定を維持する | D5・再送・イベント単位の全取消・前方確定の隔離DB試験 |
 | U-R1 | `RecordingRightsPort`の4メソッドの具体登録元とRG1/失効/不保持の失敗分類 | 実Portで閉鎖・失効・越境拒否 |
 | U-X1/544 | `ProjectionPort.apply(event, writer)`と`ContentValidationPort.validate(event, writer)`へのT1入力・拒否理由・単一writerの接続型 | 実計算1回、投影/保存の全取消 |
 | TSK-506 | E-1/E-2 DTO/route、単一適用核への引渡し、ACK/拒否型、認可と配線担当 | 実HTTP/DBで1球保存・再読込 |
 
 現developの3 PortはProtocol、`PORT_IMPLEMENTATIONS`は空。「実Port未提供」は実装・マージ前の状態で、上記「公開契約・担当受理の未成立」と区別する。実Port完成・結合試験を計画外の着手前条件に加えない。HTTP側で混在バッチを分割しない。
+
+2026-10-20の項目別回答: U-S1は`ProjectionPort.apply(event, writer)`と`ContentValidationPort.validate(event, writer)`、同一イベントwriter、既存B3a/T9・DI2・B7/P3 B10境界、配線責任を受理した。**訂正**: 混在バッチの入口は`apply_sync_events`であり、イベントごとに確定する。旧表現「単一`apply_sync_request`で混在」「バッチ全体が単一transaction」は採らない。T1正規化入力・履歴・規則snapshot・結果受渡し型は未提供。U-F8/523は観測入力の保持、scope/event/prefix・規則snapshotの受渡し、得点表示と失敗表示の責任を受理したが、製品normalizer関数・TS型・版・提供SHAは未提供。U-R1は既存Protocol/呼出位置とRG1失敗境界を回答したが、具体`RecordingRightsPort`と登録は未提供であり、terminal context不足の公開署名改訂が残る。TSK-506の現受取担当・正式回答は未確認。これらの項目別回答は**P-7全成立ではない**。各実Port・実HTTP/DB証跡は実装後に確認する。
 
 ## P-8：T1入力・規範caseの正式化待ち
 
