@@ -517,6 +517,88 @@ describe('打球・走者観測の表示契約', () => {
     }
   })
 
+  it('非投球の任意プロパティがundefinedだけなら入力要求を受ける', async () => {
+    const request: PlayObservationRequest = {
+      contextKey: 'game-1/play-2',
+      mode: 'non-pitch',
+      actions: [
+        {
+          id: 'steal',
+          label: '盗塁',
+          observation: {
+            runners: [
+              {
+                runnerKey: 'r1',
+                displayName: '一塁走者',
+                advanceResult: choice('result', '走者の結果', ['safe']),
+              },
+            ],
+            playResult: undefined,
+            battedBall: undefined,
+          },
+        },
+      ],
+    }
+    const wrapper = mount(GameScreen, {
+      props: {
+        observationRequest: request,
+        observationContextKey: request.contextKey,
+      },
+    })
+    expect(
+      wrapper.find('[data-testid="observation-unavailable"]').exists(),
+    ).toBe(false)
+    expect(wrapper.find('[data-testid="pitch-type"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="non-pitch-action"]').setValue('steal')
+    await wrapper.get('[data-question-key="result"] select').setValue('safe')
+    expect(raw(wrapper)?.runnerEventsByRunner.r1?.resultId).toBe('safe')
+    expect(raw(wrapper)?.playResultId).toBeNull()
+    expect(raw(wrapper)?.battedBall).toBeNull()
+  })
+
+  it.each([
+    null,
+    undefined,
+    {},
+    [],
+    false,
+    { runners: null },
+    { runners: [null] },
+    {
+      runners: [
+        {
+          runnerKey: 'r1',
+          displayName: '走者',
+          advanceResult: {
+            key: 'result',
+            label: '結果',
+            required: true,
+            options: [null],
+          },
+        },
+      ],
+    },
+  ])('非投球の不正なobservation %jを例外なく拒否する', (observation) => {
+    const request = {
+      contextKey: 'game-1/play-2',
+      mode: 'non-pitch',
+      actions: [{ id: 'steal', label: '盗塁', observation }],
+    } as unknown as PlayObservationRequest
+    const wrapper = mount(GameScreen, {
+      props: {
+        observationRequest: request,
+        observationContextKey: 'game-1/play-2',
+      },
+    })
+    expect(
+      wrapper.find('[data-testid="observation-unavailable"]').exists(),
+    ).toBe(true)
+    expect(wrapper.find('[data-testid="non-pitch-action"]').exists()).toBe(
+      false,
+    )
+    expect(raw(wrapper)).toBeNull()
+  })
+
   it('種別・候補・試合文脈の切替で古い値を新しい走者へ移さない', async () => {
     const wrapper = mount(GameScreen, {
       props: {
