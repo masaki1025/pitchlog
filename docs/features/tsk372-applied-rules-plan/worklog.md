@@ -107,3 +107,10 @@
 - `tests/test_check_authz_catalog.py` の未発効状態の複製は暫定契約の版で固定するため、0033 も複製から外した（0028 と同じ扱い）。
 - 検査: backend 非DB 2391 passed / 4 skipped / 650 deselected、root `test_check_authz_catalog.py` 25820 passed、`test_frozen_history.py` passed、`check_tenant_boundary_bypass.py --base-ref origin/develop` ok、`test_orm_acceptance_sheets.py` 13 passed、backend `ruff format --check`・`ruff check`・`ty` と root `ruff check`・`ty` 合格。実DB群は migration を変えていないため前回実測のままとし、ステップ4後の認可DB試験はCIで再実行する。
 - 未了（人間）: core-guard の逐行確認、マージ、既存DBへの0033適用（別ゲート）。
+
+## 2026-10-21 #161 引継ぎ・CI是正・基線追随
+
+- DeepSeek担当の専用worktreeを引き継いだ。公開HEAD `0681e64e`に残っていた未コミット4ファイルを保全し、CI run `39421525534` の backend失敗2件に対応付けた。`test_0028_preflight_restores_product_force_rls_after_success` は復元する関数ACLの列挙不足、`test_all_trigger_functions_fire_without_app_execute_privilege` はAFTERトリガを含むmigration接続集合とBEFOREだけを発火させる横断試験の混同である。
+- `ed15724d`で migration を既存の監査器が解析できる識別形式に合わせ、復元ACLの2関数を追加し、migration接続済み全トリガ関数のexact-set照合とBEFORE発火試験を分けた。AFTER層の実挙動は恒久実DB試験で維持する。使い捨てPostgreSQLで当該2失敗の再試験は各1件成功し、不変性の恒久実DB試験2件も成功した。共有DBの既存ロールは変更していない。
+- 最新 `origin/develop=9136c2da`（#160統合後）を `fb47d483`で通常mergeし、競合はなかった。取り込みで本PRの凍結資産・7.7履歴への差分はなく、既受理値は変更していない。`runtime_contract_generator check`、rootのruff/ty・限定pytest 380件、backendのruff format/check・ty・限定pytest 17件は合格した。
+- 旧HEADのCI成功や既存の人間チェックを新HEADの確認へ自動延長しない。CI全件、修正差分のレビュー、最新HEADの本人逐行確認は別の最終ゲートで確認する。既存DB適用・TSK-372全23表・#152の作業は含めない。
