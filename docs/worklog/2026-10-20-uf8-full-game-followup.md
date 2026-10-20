@@ -57,6 +57,27 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 
 主担当は実Vue/CSS・既存Meiryoの隔離Chromium fixtureで375/320px各scrollWidth一致、POST0、pageerror0を実測し、画像を開いて確認した。0/未取得/読取失敗、fixture再供給の再読込、独立2タブの表示分離、断中封鎖を確認。再読込はfixture再供給であり、耐久provider・実Port/HTTP/DB受入ではない。結果`/tmp/uf8-followup-stop-browser-result.json`、画像`/tmp/uf8-followup-stop-{375,320}.png`。コードログは`/tmp/uf8-followup-step1{,-correction}.log`。全frontend検査は別途実行中で、完了前に成功とは記録しない。
 
+## ステップ1の一次/敵対レビュー第1回と採否
+
+固定比較97e6eeec...13d04a91にClaude一次（実モデルclaude-opus-5-5、read-only、`/tmp/uf8-stop-claude-review.json`）を実施し、P0=0/P1=0/P2=4。別に既定ラッパー敵対基本第1回（gpt-6-sol/xhigh、`/tmp/uf8-stop-adversarial1.log`）を実施し、否決P0=0/P1=1/P2=1。対象は停止UIコードPRであり計画レビュー/第1期#160の回数をリセットしない。レビュー者は自らテスト実行せず、主担当の実測と区別した。
+
+| 指摘 | 採否・反映 |
+| --- | --- |
+| Claude P2/敵対P1: phaseにconstructor/__proto__等を渡すと継承値を拾う | 採用。文字列かつObject.hasOwnで自前キーを確認してからラベルを読み、未知/継承/非文字列の6件を追加。関連177件成功 |
+| Claude P2: 現在地が第1期のステップ総数を読む | 採用。stacked比較元#160の旧8/10段をdevelopとの差として継承する警告とPR本文へ記し、#160統合後に再導出。新9ステップの件名は正規、機構を改変しない |
+| Claude P2: 平常非停止状態が未定義 | 採用（接続時の受渡し）。506/U-S1の正式型提供時に非停止時の表示/非表示を合わせる。今回の表示専用型に新しい停止判定を発明しない |
+| Claude P2/敵対P2: 全件結果・幅実測の記録不足 | 採用。13d04a91の全frontend83ファイル1567件/93.18秒、Prettier/ESLint/vue-tsc/build、closure9ファイル/外部0/違反0成功を記録。ブラウザ375/320=scroll375/320、POST0/error0、日本語フォント読込を実測済み。結果要旨をPRにも固定記載 |
+
+是正は同ステップのimplement --resumeで実施し、関連177件・型/lint/整形/diff-checkが成功。全frontendは是正後にも別途実行する。ここでコード敵対の採用反映は1周、計画レビュー周回2/確定ゲート周回0は不変。追加の独立一次再レビューや人間逐行確認を代記しない。
+
+## 停止UI提出状態（ステップ1のみ）
+
+敵対基本第2回は13d04a91...df2f8935の反映差分と影響箇所を読み取り専用で確認し、**可決 P0=0/P1=0/P2=0**。ログ`/tmp/uf8-stop-adversarial2.log`。コード敵対は基本2回を消費、採用反映1周で終了。計画レビューは実行3回/採用反映2周、確定ゲート0のまま保持。第1期の敵対/normal回数へ流用しない。人間逐行確認は未実施。
+
+最終コードdf2f8935のfrontend全件は **83ファイル/1,573 passed/124.44秒**。Prettier/ESLint/vue-tsc/build成功、closure9ファイル/外部0/違反0。root Ruff/ty・docs-status/計画同期/diff-check成功、影響するguard/計画同期のpytest **280 passed/25.72秒**。backend/lib/sync/contractsの変更は0で、第1期の隔離backend実測を再利用し今回再実行とは記録しない。実Port/HTTP/DB通しは未提供のまま。
+
+提出比較元は第1期の固定97e6eeec（feature/uf8-game-recording）。このPRは停止UIのステップ1と承認/依存/採否文書だけで、残り8ステップや1試合完遂の完了ではない。台帳への追記なし: 新たな運用規則・確定傾向ではなく、既知のstacked枝の派生警告と未提供依存の個別記録である。計画statusをこの提出枝でin-reviewとし、次ステップは別の承認済み計画紐付け枝で進める。
+
 ### ステップ2の独立提出枝
 
 計画のPR分割に従い、ステップ1の固定コミット13d04a91を比較元にした`feature/uf8-play-observations` worktreeでステップ2のみを実施する。計画本文・9ステップ・承認対象SHA・レビュー回数は維持し、実行枝のfrontmatter branchだけを更新した。ステップ1のレビュー/是正は親枝側で行い、必要な是正だけを明示的に取り込む。
