@@ -169,8 +169,10 @@ def _one_ball_body(
     *,
     d1: int = 1,
     d4: str = "1",
+    d2: int = 0,
     event_kind: object = "1",
     proof: object = "spike-proof",
+    payload: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """計画の最小本文を 1 球分だけ組み立てる。"""
     event: dict[str, object] = {
@@ -179,8 +181,8 @@ def _one_ball_body(
         "d4": d4,
         "game_id": str(game_id),
         "event_kind": event_kind,
-        "d2": 0,
-        "payload": {},
+        "d2": d2,
+        "payload": payload or {},
         "state_diff": {},
     }
     return {"recording_right_proof": proof, "events": [event]}
@@ -235,9 +237,13 @@ async def test_one_ball_slice_persists_once_and_replays_as_duplicate(
         state = await client.get(f"/games/{db.game_a}/sync/state")
         assert state.status_code == 200
         state_body = state.json()
+        game_state = state_body.pop("game_state")
         # 再 POST せずに GET だけで適用済みの水位と受理済みの 1 球が見える。
         # 再読込の 1 件は墓標除外（is_tombstone = False）と現行世代
         # （generation = 1）の絞り込みを通過して残り、打ち切りは起きない。
+        # payload が空の 1 球は T1 の入力にならないため、畳み込みは 0 件。
+        assert game_state["appliedEvents"] == 0
+        assert game_state["stateFields"]["state.runners"] == "empty"
         assert state_body == {
             "confirmed_watermark": 1,
             "events": [
@@ -315,12 +321,16 @@ async def test_state_before_any_apply_reports_zero_watermark_and_empty_events(
         state = await client.get(f"/games/{db.game_a}/sync/state")
         assert state.status_code == 200
         state_body = state.json()
+        game_state = state_body.pop("game_state")
         # 応答形は既存形（水位 0・イベント空）に打ち切りがないことを足した形。
         assert state_body == {
             "confirmed_watermark": 0,
             "events": [],
             "truncated": False,
         }
+        # 状態は先頭（初期状態）で、適用できたイベントは 0 件。
+        assert game_state["appliedEvents"] == 0
+        assert game_state["stateFields"]["state.inning"] == 1
         assert state_body["confirmed_watermark"] == 0
         assert state_body["events"] == []
 
@@ -347,3 +357,68 @@ async def test_other_tenant_game_is_identical_404_and_writes_nothing(
         assert response.content == not_found.content
     after = _snapshot(db, db.tenant_b, db.game_b)
     assert after == before
+
+
+@pytest.mark.anyio
+async def test_saved_ball_is_folded_into_state_on_ack_and_reload(
+    one_ball_database: SyncDatabase,
+) -> None:
+    """1 球保存の応答と再読込が同じ T1 の畳み込み結果を返す。"""
+    db = one_ball_database
+    app = create_app()
+    spike_http.install(app, tenant_access=require_tenant_access)
+    app.dependency_overrides[require_tenant_access] = lambda: make_tenant_context(
+        db.tenant_a
+    )
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
+        first = await _post_one_ball(
+            client,
+            db.game_a,
+            _one_ball_body(
+                db.game_a,
+                uuid4(),
+                d1=1,
+                payload={
+                    "resultId": "batting-result.single",
+                    "pitchEventKind": "pitch-event",
+                },
+            ),
+        )
+        assert first.status_code == 200
+        state = first.json()["game_state"]
+        assert state["appliedEvents"] == 1
+        assert state["stateFields"]["state.runners"] == "first"
+        assert state["stateFields"]["state.battingOrder"] == 2
+        assert state["stateFields"]["state.count.strikes"] == 0
+        assert state["stateFields"]["state.outs"] == 0
+
+        reload = await client.get(f"/games/{db.game_a}/sync/state")
+        assert reload.status_code == 200
+        assert reload.json()["game_state"] == state
+
+        second = await _post_one_ball(
+            client,
+            db.game_a,
+            _one_ball_body(
+                db.game_a,
+                uuid4(),
+                d1=2,
+                d2=1,
+                payload={
+                    "resultId": "batting-result.home-run",
+                    "pitchEventKind": "pitch-event",
+                },
+            ),
+        )
+        assert second.status_code == 200
+        state2 = second.json()["game_state"]
+        assert state2["appliedEvents"] == 2
+        assert state2["stateFields"]["state.runners"] == "empty"
+        # 単打で出た一塁走者と打者の 2 人が生還する（付録E-2 本塁打）。
+        assert state2["stateFields"]["state.score"] == {"home": 0, "away": 2}
+        assert state2["stateFields"]["state.battingOrder"] == 3
+
+        reload2 = await client.get(f"/games/{db.game_a}/sync/state")
+        assert reload2.status_code == 200
+        assert reload2.json()["game_state"] == state2

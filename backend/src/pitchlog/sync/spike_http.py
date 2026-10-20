@@ -15,7 +15,7 @@ monkeypatch）に接続する前提で、ここでは渡されたまたは既定
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -26,6 +26,7 @@ from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.transaction import tenant_transaction_scope
+from pitchlog.sync import spike_domain
 from pitchlog.sync.apply import apply_sync_request
 from pitchlog.sync.model import (
     AcceptedChangeResult,
@@ -93,6 +94,8 @@ class SpikeSyncAckModel(BaseModel):
     reason: str | None = None
     temporary_id_mapping: dict[str, str] = {}
     event_results: list[SpikeEventResultModel]
+    # 1 球保存の後にドメイン計算（T1）で畳み込んだ現在の状態。
+    game_state: dict[str, object] | None = None
 
 
 class SpikeSyncStateEventModel(BaseModel):
@@ -113,6 +116,8 @@ class SpikeSyncStateModel(BaseModel):
     events: list[SpikeSyncStateEventModel]
     # 打ち切り判別。絞り込み後の現行イベントが limit を超えたとき真にする。
     truncated: bool = False
+    # 受理済みイベントを T1 で畳み込んだ現在の状態（再読込の再現）。
+    game_state: dict[str, object] | None = None
 
 
 def _build_sync_router(
@@ -160,7 +165,10 @@ def _build_sync_router(
                 # 未対応の明示として 501 Not Implemented を返す。
                 raise HTTPException(status_code=_NOT_IMPLEMENTED_STATUS)
             case AckResult():
-                return _ack_model(result)
+                # 保存の後に、同じ試合の現行イベントを読み直して T1 で畳み込む。
+                # 状態は保存しない（DB スキーマを増やさず、イベント列から再現する）。
+                _watermark, rows, _truncated = _read_current_rows(context, game_id)
+                return _ack_model(result, _fold_state(rows, request, result))
             case _:
                 raise RuntimeError("spike 入口が対応しない同期結果")
 
@@ -182,51 +190,9 @@ def _build_sync_router(
         製品経路を作る提案ではない。spike の横スライスの観察用に、DB セッション
         の取り方だけ既存ルータの作法に合わせる。
         """
-        with tenant_transaction_scope(context) as scope:
-            game_rows = scope.run(GameReadToken(game_id)).rows
-            if not game_rows:
-                raise HTTPException(status_code=_GAME_NOT_FOUND_STATUS)
-            state_rows = scope.run(RecordingGenerationReadToken(game_id)).rows
-            if len(state_rows) > 1:
-                # 部分一意索引が守る前提。lambda 2 件以上は契約違反として残す。
-                raise RuntimeError("spike 入口は現行の記録権世代を 1 件だけに絞る")
-            if not state_rows:
-                # 世代行が無い＝まだ一度も同期適用していない試合。404 にすると
-                # 自テナント不存在の 404 と混ざり列挙防止の意味が濁るため、
-                # 既存の応答形のまま水位 0・イベント空として返す。
-                return SpikeSyncStateModel(
-                    confirmed_watermark=0, events=[], truncated=False
-                )
-            watermark = _cell(state_rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
-            if type(watermark) is not int:
-                raise RuntimeError("確定水位が整数ではない")
-            current_generation = _cell(state_rows[0], _GENERATION_COLUMNS, "generation")
-            if type(current_generation) is not int:
-                raise RuntimeError("現行世代番号が整数ではない")
-            # OperationEventOrderReadToken の本来の目的は D2 の局所再採番（D2 の
-            # 設計）である。spike ではこのトークンを再読込に流用する。ここでの
-            # 絞り込み（ tombstone を落とし、現行世代に絞る）はトークンの読み方
-            # を spike 側で加工する割り切りであり、トークンの設計変更は同期核
-            # に触れるためしない。limit + 1 件（= 256、token の束縿内）を要求
-            # して打ち切りを判別する。
-            event_rows = scope.run(
-                OperationEventOrderReadToken(game_id, -1, _STATE_READ_LIMIT + 1)
-            ).rows
-            filtered: list[tuple[object, ...]] = []
-            for row in event_rows:
-                tombstone = _cell(row, _EVENT_COLUMNS, "is_tombstone")
-                if tombstone is True:
-                    # 論理削除済みの墓標は「状態」ではない（破棄された操作を
-                    # 再読込の答えに混ぜない）。
-                    continue
-                row_generation = _cell(row, _EVENT_COLUMNS, "generation")
-                if row_generation != current_generation:
-                    # 世代を跨いだ現行行（復旧世代など）を混ぜない。
-                    continue
-                filtered.append(row)
+        watermark, current_rows, truncated = _read_current_rows(context, game_id)
         events: list[SpikeSyncStateEventModel] = []
-        truncated = len(filtered) > _STATE_READ_LIMIT
-        for row in filtered[:_STATE_READ_LIMIT]:
+        for row in current_rows:
             d1 = _cell(row, _EVENT_COLUMNS, "d1")
             d2 = _cell(row, _EVENT_COLUMNS, "d2")
             generation = _cell(row, _EVENT_COLUMNS, "generation")
@@ -242,13 +208,106 @@ def _build_sync_router(
                 )
             )
         return SpikeSyncStateModel(
-            confirmed_watermark=watermark, events=events, truncated=truncated
+            confirmed_watermark=watermark,
+            events=events,
+            truncated=truncated,
+            game_state=_fold_state(current_rows),
         )
 
     return router
 
 
-def _ack_model(result: AckResult) -> SpikeSyncAckModel:
+def _read_current_rows(
+    context: TenantContext, game_id: UUID
+) -> tuple[int, list[tuple[object, ...]], bool]:
+    """現在の確定水位と、再読込に出す現行イベント行を読む。
+
+    Args:
+        context: 認可済みのテナント文脈。
+        game_id: 対象試合。
+
+    Returns:
+        (確定水位, 現行世代の非墓標行（上限まで）, 打ち切り判定)。
+
+    Raises:
+        HTTPException: 試合が自テナントに存在しない場合（404）。
+        RuntimeError: 現行世代行が複数ある場合（契約違反）。
+    """
+    with tenant_transaction_scope(context) as scope:
+        game_rows = scope.run(GameReadToken(game_id)).rows
+        if not game_rows:
+            raise HTTPException(status_code=_GAME_NOT_FOUND_STATUS)
+        state_rows = scope.run(RecordingGenerationReadToken(game_id)).rows
+        if len(state_rows) > 1:
+            # 部分一意索引が守る前提。2 件以上は契約違反として残す。
+            raise RuntimeError("spike 入口は現行の記録権世代を 1 件だけに絞る")
+        if not state_rows:
+            # 世代行が無い＝まだ一度も同期適用していない試合。404 にすると
+            # 自テナント不存在の 404 と混ざり列挙防止の意味が濁るため、
+            # 既存の応答形のまま水位 0・イベント空として返す。
+            return 0, [], False
+        watermark = _cell(state_rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
+        if type(watermark) is not int:
+            raise RuntimeError("確定水位が整数ではない")
+        current_generation = _cell(state_rows[0], _GENERATION_COLUMNS, "generation")
+        if type(current_generation) is not int:
+            raise RuntimeError("現行世代番号が整数ではない")
+        # OperationEventOrderReadToken の本来の目的は D2 の局所再採番（D2 の
+        # 設計）である。spike ではこのトークンを再読込に流用する。ここでの
+        # 絞り込み（tombstone を落とし、現行世代に絞る）はトークンの読み方を
+        # spike 側で加工する割り切りであり、トークンの設計変更は同期核に
+        # 触れるためしない。limit + 1 件を要求して打ち切りを判別する。
+        event_rows = scope.run(
+            OperationEventOrderReadToken(game_id, -1, _STATE_READ_LIMIT + 1)
+        ).rows
+        filtered: list[tuple[object, ...]] = []
+        for row in event_rows:
+            tombstone = _cell(row, _EVENT_COLUMNS, "is_tombstone")
+            if tombstone is True:
+                # 論理削除済みの墓標は「状態」ではない（破棄された操作を
+                # 再読込の答えに混ぜない）。
+                continue
+            row_generation = _cell(row, _EVENT_COLUMNS, "generation")
+            if row_generation != current_generation:
+                # 世代を跨いだ現行行（復旧世代など）を混ぜない。
+                continue
+            filtered.append(row)
+    truncated = len(filtered) > _STATE_READ_LIMIT
+    return watermark, filtered[:_STATE_READ_LIMIT], truncated
+
+
+def _fold_state(
+    rows: list[tuple[object, ...]],
+    request: SyncRequest | None = None,
+    result: AckResult | None = None,
+) -> dict[str, object]:
+    """現行イベントの payload を T1 で畳み込み、現在の状態を返す。
+
+    状態は保存せず、イベント列から毎回再現する（再読込と保存後応答が同じ
+    計算を通る）。保存の直後は、適用トランザクションがまだ確定していない
+    場合があるため、今回の要求で受理されたイベント（D5 が未読のもの）を
+    末尾に足して畳み込む。重複（再送）は既読 D5 と一致するため足さない。
+    """
+    payloads: list[dict[str, Any]] = []
+    seen_d5: set[str] = set()
+    for row in rows:
+        seen_d5.add(str(_cell(row, _EVENT_COLUMNS, "d5")))
+        payload = _cell(row, _EVENT_COLUMNS, "payload")
+        if isinstance(payload, Mapping):
+            payloads.append(dict(payload))
+    if request is not None and result is not None:
+        accepted = {item.d5 for item in result.a5 if item.state == "受理"}
+        for event in request.events:
+            if event.d5 in seen_d5 or event.d5 not in accepted:
+                continue
+            if isinstance(event.v7, Mapping):
+                payloads.append(dict(event.v7))
+    return spike_domain.fold(payloads)
+
+
+def _ack_model(
+    result: AckResult, state: dict[str, object] | None = None
+) -> SpikeSyncAckModel:
     """ACK 結果を応答の封筒へ写す。"""
     return SpikeSyncAckModel(
         boundary_result=result.boundary,
@@ -266,6 +325,7 @@ def _ack_model(result: AckResult) -> SpikeSyncAckModel:
             )
             for item in result.a5
         ],
+        game_state=state,
     )
 
 
