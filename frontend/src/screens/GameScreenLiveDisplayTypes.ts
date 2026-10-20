@@ -65,6 +65,8 @@ export interface PitcherDay {
 }
 
 export interface PitcherSeason {
+  /** 生成formatterが供給する期間表示。画面で年度を導出しない。 */
+  periodLabel: string
   vsLeftAverage: string | null
   vsRightAverage: string | null
   inningsPitched: string | null
@@ -85,6 +87,8 @@ export interface BatterDay {
 }
 
 export interface BatterSeason {
+  /** 生成formatterが供給する期間表示。画面で年度を導出しない。 */
+  periodLabel: string
   vsLeftAverage: string | null
   vsRightAverage: string | null
   homeRuns: string | null

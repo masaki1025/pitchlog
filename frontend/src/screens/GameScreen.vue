@@ -9,6 +9,7 @@ import {
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
 import GameScreenPastCorrection from './GameScreenPastCorrection.vue'
 import type {
+  CorrectionDraft,
   CorrectionPrerequisites,
   CorrectionPreview,
   CorrectionRequest,
@@ -93,6 +94,7 @@ const props = withDefaults(
     observationContextKey?: string | null
     /** 正式履歴提供側が選んだ取消対象。undo 自身は含めない。 */
     undoOffer?: UndoOffer | null
+    undoContextKey?: string | null
     /** 過去修正は表示専用契約。正式 API の提供前は実操作しない。 */
     correctionRequest?: CorrectionRequest | null
     correctionContextKey?: string | null
@@ -133,6 +135,7 @@ const props = withDefaults(
     observationRequest: undefined,
     observationContextKey: undefined,
     undoOffer: undefined,
+    undoContextKey: undefined,
     correctionRequest: undefined,
     correctionContextKey: undefined,
     correctionPrerequisites: undefined,
@@ -153,14 +156,24 @@ const props = withDefaults(
   },
 )
 
-/** 画面下書きの通知だけを公開する。実操作・保存・送信のイベントではない。 */
+/** ローカル下書きの表示通知。保存・送信・確定イベントではない。 */
 const emit = defineEmits<{
+  correctionDraftChange: [draft: CorrectionDraft | null]
   'substitution-draft-change': [snapshot: SubstitutionDraftsSnapshot]
 }>()
 
 function relaySubstitutionDraft(snapshot: SubstitutionDraftsSnapshot) {
   emit('substitution-draft-change', snapshot)
 }
+
+// 交代文脈がある画面では、直前取消欄と交代ロックの参照先を揃える。
+const undoDisplayContextKey = computed(() =>
+  props.substitutionContextKey !== undefined &&
+  props.substitutionContextKey !== null &&
+  props.substitutionContextKey !== props.undoContextKey
+    ? null
+    : props.undoContextKey,
+)
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
 const queueStatus = computed(() =>
@@ -429,11 +442,7 @@ watch(
       >
         <dt class="text-sm text-slate-500 dark:text-slate-400">打者</dt>
         <dd class="mt-1 text-lg font-bold" data-testid="batter">
-          {{
-            display(
-              props.liveIdentity?.currentBatterName ?? props.state?.batter,
-            )
-          }}
+          {{ display(props.state?.batter) }}
         </dd>
       </dl>
       <dl
@@ -441,7 +450,7 @@ watch(
       >
         <dt class="text-sm text-slate-500 dark:text-slate-400">投手</dt>
         <dd class="mt-1 text-lg font-bold" data-testid="pitcher">
-          {{ display(props.liveIdentity?.pitcherName ?? props.state?.pitcher) }}
+          {{ display(props.state?.pitcher) }}
         </dd>
       </dl>
     </section>
@@ -587,18 +596,23 @@ watch(
       :event-identity="props.eventIdentity"
     />
 
-    <GameScreenUndo :offer="props.undoOffer" />
+    <GameScreenUndo
+      :offer="props.undoOffer"
+      :active-context-key="undoDisplayContextKey"
+    />
     <GameScreenPastCorrection
       :request="props.correctionRequest"
       :active-context-key="props.correctionContextKey"
       :prerequisites="props.correctionPrerequisites"
       :preview="props.correctionPreview"
+      @draft-change="emit('correctionDraftChange', $event)"
     />
     <GameScreenSubstitutions
       :request="props.substitutionRequest"
       :tiebreak-request="props.tiebreakRequest"
       :past-request="props.pastSubstitutionRequest"
       :active-context-key="props.substitutionContextKey"
+      :undo-context-key="undoDisplayContextKey"
       :lock-state="props.substitutionLockState"
       :undo-offer="props.undoOffer"
       :validation="props.substitutionValidation"
