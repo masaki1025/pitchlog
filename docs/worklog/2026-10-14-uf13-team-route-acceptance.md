@@ -1041,3 +1041,13 @@ POが限定先行を指定（新実値の受理ではない）。候補HEAD `0ba
 backend関連試験はtest_authz_repository_contract.pyが48件、capability登録/self固有が113件、計161件成功。Ruff check/formatとbackend仮想環境を明示したtyが成功。最初のtyは環境の誤認で失敗し、正しいbackend .venv指定で再実行成功（製品修正による解消ではない）。証跡は専用cacheのimplementation.log。全件backend・最終CIの再実行は正式受理後に行い、旧HEADの失敗を成功へ読み替えない。
 
 実装レビュー基本枠は両経路2/2使用済み。本限定差分と7.7記録案は旧レビューの対象外で、独立再レビュー済みと記録しない。追加レビューが必要なら6.3のPO限定追加裁定へまとめて提示する。正式受理・本人確認はいずれも未実施。
+
+### 7.7候補固定（正式受理前）
+
+製品修正コミット0ffe83b6bb89d92a9922bddfe21eae95ab08b50b。tenant-boundaryの全9資産と外部4実装を実develop8e4698f6から機械導出し、repositoryのみ21→22の変更と確認。既存23履歴は同一、#165の正式記録0件、同じ受理IDの重複なし。base allowlist revision33・許可symbol・射影は不変、正式受理後に履歴だけ追記する。authz新実値なし。
+
+[完全値判断資料](../features/uf13-postmerge-acceptance-followup/shared-registration-77/README.md)へ全前後値、2候補snapshot、記録案、SHA-256を固定。判断資料JSON SHA-256 `2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c`、記録案SHA-256 `f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9`。承認者・日付はnull。正式assetへの履歴/snapshot追記なし。実検査は履歴末尾の識別値不一致で拒否され、正式受理前の未通過として保持する。
+
+後発共有差分は旧2/2レビューに含まれず、独立再レビュー済みとは扱わない。追加レビューを自動で起動せず、この限定差分・影響箇所1回を必要なPO判断として提示する。本人確認も未実施。正式受理後に必要全検査・通常push・最終CIを回収する。旧backend全件3053成功/4skip/1失敗および旧CI結果は書換えず、今回の関連161件成功と区別する。
+
+最終限定差分で、公開契約・登録・self固有・tenant middleware・API route exact-setをまとめて再検査し200件成功（2.08秒、backend-impact.log）。これはbackend全件の代わりではなく、正式受理後の全件・最終CIは未実施のまま。今回のfixでfrontend差分は増えていない。
