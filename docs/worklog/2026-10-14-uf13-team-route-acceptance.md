@@ -1008,3 +1008,14 @@ Notion既存TSK-528へ#165の部分追補/受入範囲/共有2パス/未確認�
 - root全件完全ログSHA-256: `d0bf2e63d05bec0a6964ae49ddb57b79d893b093ad350acfd1cc220afce3b375`
 - backend全件完全ログSHA-256: `860e91ccb6f477be5a63d5703d5575d443f95fb85a56a58923ddda761b0dfca5`
 - frontend修正後全件完全ログSHA-256: `b8e639f36caeb5d905d1ab40ecd3ff14fdc2541e6b7785a27f49c29a24c2ab77`
+
+
+### 7.7単一履歴の所有対象を補正（許可symbol追加とは区別）
+
+「base-allowlistは変更不要で共有待ちが2パスだけ」という直前までの説明を補正する。tenant bypass成功から証明できたのは**許可symbol追加が不要**という点であり、正式7.7の履歴追記まで不要とは証明しない。実ファイルのbaseline_control.history_authorityを機械照合すると、単一履歴の正はcontracts/tenant_boundary/base-allowlist.json（現実基線revision33、既存23記録）。repository-contract.jsonの正式更新にはこの履歴へのappend-only追記が必要になる。現時点では値/履歴を一切編集していない。
+
+現在の保留は、製品登録2パス（repository_contract.py、repository-contract.json）に加え、**7.7履歴用のbase-allowlist.json**。同ファイルは#156/#152/#161にも変更があるためパス別受理・統合順を再照合する。許可symbolや凍結射影の不要な変更を追加する意味ではなく、履歴だけを口実にrevisionを自動増加させることもしない。新snapshot/完全値/記録案は所有と実基線確定後に導出する。#152先行案は依然未確定、未回答を受理にしない。authz資産本体の変更は現時点で不要。
+
+本補正は既承認計画§3/§4.4に含まれる「対応する基準snapshot/受理記録」の正しいパスを明記するもので、新権限/認可意味/実装スコープは変えない。実装レビュー2周後の資料訂正であり、当該追補を独立再レビュー済みとは扱わない。製品/試験はc2301827以後不変。最終7.7候補と限定差分レビューの対象へこの履歴を含め、人間承認・本人確認を先行記入しない。
+
+追加の独立migration検証は最終製品内容の専用clusterでalembic upgrade head/current --check-heads/checkすべて成功し、自分のcluster撤去を確認。CIのbackend未通過による後続migration/D-2イメージ検査未実施と混同しない。後者のCIステップは当該HEADの実結果をPRへ記載する。
