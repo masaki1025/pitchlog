@@ -1,7 +1,33 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { UndoOffer } from './GameScreenCorrectionTypes'
 
-defineProps<{ offer?: UndoOffer | null }>()
+const props = defineProps<{
+  offer?: UndoOffer | null
+  activeContextKey?: string | null
+}>()
+
+// 取消対象の選定は供給側が行う。画面では文脈と表示値だけを照合する。
+const visibleOffer = computed(() => {
+  const offer = props.offer
+  if (
+    !offer ||
+    !props.activeContextKey ||
+    typeof offer.contextKey !== 'string' ||
+    offer.contextKey !== props.activeContextKey
+  )
+    return null
+  if (offer.kind === 'none') return offer
+  if (
+    offer.kind === 'available' &&
+    typeof offer.operationLabel === 'string' &&
+    offer.operationLabel.trim() &&
+    typeof offer.targetLabel === 'string' &&
+    offer.targetLabel.trim()
+  )
+    return offer
+  return null
+})
 </script>
 
 <template>
@@ -10,23 +36,25 @@ defineProps<{ offer?: UndoOffer | null }>()
     class="min-w-0 space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30"
   >
     <h2 class="text-lg font-extrabold">直前の操作を取り消す</h2>
-    <p
-      v-if="!offer || offer.kind === 'unknown'"
-      data-testid="undo-target-status"
-    >
+    <p v-if="!visibleOffer" data-testid="undo-target-status">
       取消対象は未取得です。
     </p>
-    <p v-else-if="offer.kind === 'none'" data-testid="undo-target-status">
+    <p
+      v-else-if="visibleOffer.kind === 'none'"
+      data-testid="undo-target-status"
+    >
       取り消せる直前の操作はありません。
     </p>
     <dl v-else class="min-w-0 space-y-2" data-testid="undo-target-status">
       <div class="min-w-0">
         <dt class="text-sm">操作</dt>
-        <dd class="font-bold wrap-anywhere">{{ offer.operationLabel }}</dd>
+        <dd class="font-bold wrap-anywhere">
+          {{ visibleOffer.operationLabel }}
+        </dd>
       </div>
       <div class="min-w-0">
         <dt class="text-sm">対象</dt>
-        <dd class="font-bold wrap-anywhere">{{ offer.targetLabel }}</dd>
+        <dd class="font-bold wrap-anywhere">{{ visibleOffer.targetLabel }}</dd>
       </div>
     </dl>
     <p id="undo-blocked-reason" class="text-sm">

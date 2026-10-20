@@ -80,67 +80,105 @@ watch(
   },
 )
 
-function uniqueOptions(question: PlayObservationQuestion): boolean {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function uniqueOptions(question: unknown): question is PlayObservationQuestion {
+  if (!isRecord(question) || !Array.isArray(question.options)) return false
   return (
-    !!question.key &&
+    typeof question.key === 'string' &&
+    question.key.length > 0 &&
+    typeof question.label === 'string' &&
+    typeof question.required === 'boolean' &&
     (question.multiple === undefined ||
       typeof question.multiple === 'boolean') &&
-    Array.isArray(question.options) &&
-    question.options.every((option) => !!option.id) &&
-    new Set(question.options.map((option) => option.id)).size ===
-      question.options.length
+    question.options.every(
+      (option) =>
+        isRecord(option) &&
+        typeof option.id === 'string' &&
+        option.id.length > 0 &&
+        typeof option.label === 'string',
+    ) &&
+    new Set(question.options.map((option: { id: string }) => option.id))
+      .size === question.options.length
   )
 }
 
-function validSingleQuestion(question: SingleObservationQuestion): boolean {
+function validSingleQuestion(
+  question: unknown,
+): question is SingleObservationQuestion {
   return (
     uniqueOptions(question) &&
     (question.multiple === undefined || question.multiple === false)
   )
 }
 
-function validQuestions(questions: readonly PlayObservationQuestion[] = []) {
+function validQuestions(questions: unknown): boolean {
+  if (questions === undefined) return true
+  if (!Array.isArray(questions) || !questions.every(uniqueOptions)) return false
   return (
-    Array.isArray(questions) &&
-    new Set(questions.map((question) => question.key)).size ===
-      questions.length &&
-    questions.every(uniqueOptions)
+    new Set(questions.map((question) => question.key)).size === questions.length
   )
 }
 
-function validCase(observation: PlayObservationCase): boolean {
-  if (!observation) return false
+function validCase(observation: unknown): observation is PlayObservationCase {
+  if (!isRecord(observation)) return false
   const runners = observation.runners
   if (
     !Array.isArray(runners) ||
-    runners.some((runner) => !runner.runnerKey) ||
-    new Set(runners.map((runner) => runner.runnerKey)).size !== runners.length
+    runners.some(
+      (runner) =>
+        !isRecord(runner) ||
+        typeof runner.runnerKey !== 'string' ||
+        runner.runnerKey.length === 0 ||
+        typeof runner.displayName !== 'string',
+    ) ||
+    new Set(runners.map((runner: { runnerKey: string }) => runner.runnerKey))
+      .size !== runners.length
   )
     return false
+  if (observation.battedBall !== undefined) {
+    const ball = observation.battedBall
+    if (
+      !isRecord(ball) ||
+      !Array.isArray(ball.fielderCandidates) ||
+      ball.fielderCandidates.some(
+        (item) =>
+          !isRecord(item) ||
+          typeof item.id !== 'string' ||
+          item.id.length === 0 ||
+          typeof item.label !== 'string',
+      ) ||
+      new Set(ball.fielderCandidates.map((item: { id: string }) => item.id))
+        .size !== ball.fielderCandidates.length ||
+      (ball.suggestedFielderId !== undefined &&
+        ball.suggestedFielderId !== null &&
+        typeof ball.suggestedFielderId !== 'string')
+    ) {
+      return false
+    }
+  }
   if (
-    observation.battedBall &&
-    (!Array.isArray(observation.battedBall.fielderCandidates) ||
-      observation.battedBall.fielderCandidates.some((item) => !item.id) ||
-      new Set(observation.battedBall.fielderCandidates.map((item) => item.id))
-        .size !== observation.battedBall.fielderCandidates.length)
-  )
-    return false
-  if (
-    (observation.playResult && !validSingleQuestion(observation.playResult)) ||
-    (observation.rbiRuling && !validSingleQuestion(observation.rbiRuling)) ||
+    (observation.playResult !== undefined &&
+      !validSingleQuestion(observation.playResult)) ||
+    (observation.rbiRuling !== undefined &&
+      !validSingleQuestion(observation.rbiRuling)) ||
     !validQuestions(observation.interferenceQuestions) ||
     !validQuestions(observation.officialScoringQuestions)
   )
     return false
   return runners.every(
-    (runner) =>
+    (runner: Record<string, unknown>) =>
       [
         runner.advanceResult,
         runner.destinationBase,
         runner.attemptedBase,
         runner.thirdOutTiming,
         runner.rbiRuling,
-      ].every((question) => !question || validSingleQuestion(question)) &&
+      ].every(
+        (question) => question === undefined || validSingleQuestion(question),
+      ) &&
       validQuestions(runner.interferenceQuestions) &&
       validQuestions(runner.officialScoringQuestions),
   )
@@ -159,15 +197,19 @@ const requestReady = computed(() => {
   if (request.mode !== 'non-pitch') return false
   return (
     Array.isArray(request.actions) &&
-    new Set(request.actions.map((action) => action.id)).size ===
-      request.actions.length &&
     request.actions.every(
       (action) =>
-        !!action.id &&
-        !('playResult' in action.observation) &&
-        !('battedBall' in action.observation) &&
+        isRecord(action) &&
+        typeof action.id === 'string' &&
+        action.id.length > 0 &&
+        typeof action.label === 'string' &&
+        isRecord(action.observation) &&
+        action.observation.playResult === undefined &&
+        action.observation.battedBall === undefined &&
         validCase(action.observation),
-    )
+    ) &&
+    new Set(request.actions.map((action) => action.id)).size ===
+      request.actions.length
   )
 })
 

@@ -1,7 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import GameScreen from './GameScreen.vue'
-import GameScreenPastCorrection from './GameScreenPastCorrection.vue'
 import type {
   CorrectionDraft,
   CorrectionPrerequisites,
@@ -60,6 +59,17 @@ const ready: CorrectionPrerequisites = {
   connection: 'online',
 }
 
+/** 穴を余分な列挙プロパティで隠した表示fixture。 */
+function sparseWithDecoy<T>(item: T): T[] {
+  const values = new Array<T>(2)
+  values[1] = item
+  Object.defineProperty(values, 'decoy', {
+    value: '余分な値',
+    enumerable: true,
+  })
+  return values
+}
+
 function mountCorrection(overrides: Record<string, unknown> = {}) {
   return mount(GameScreen, {
     props: {
@@ -74,12 +84,17 @@ function mountCorrection(overrides: Record<string, unknown> = {}) {
 function draft(
   wrapper: ReturnType<typeof mountCorrection>,
 ): CorrectionDraft | null {
-  return wrapper.findComponent(GameScreenPastCorrection).vm.getDraft()
+  const events = wrapper.emitted('correctionDraftChange')
+  expect(events?.length).toBeGreaterThan(0)
+  return events!.at(-1)![0] as CorrectionDraft | null
 }
 
+const initialInnerWidth = window.innerWidth
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  window.innerWidth = initialInnerWidth
+  window.dispatchEvent(new Event('resize'))
 })
 
 describe('直前の取消', () => {
@@ -92,7 +107,10 @@ describe('直前の取消', () => {
       wrapper.get<HTMLButtonElement>('[data-testid="undo-action"]').element
         .disabled,
     ).toBe(true)
-    await wrapper.setProps({ undoOffer: { kind: 'none' } })
+    await wrapper.setProps({
+      undoOffer: { kind: 'none', contextKey: 'game-a' },
+      undoContextKey: 'game-a',
+    })
     expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
       'ありません',
     )
@@ -107,11 +125,14 @@ describe('直前の取消', () => {
     { unsentCount: 0, syncedCount: 1 },
   ])('未送信/同期済みの件数で取消表示を分岐しない', (queue) => {
     const offer: UndoOffer = {
+      contextKey: 'game-a',
       kind: 'available',
       operationLabel: '直前のプレイ',
       targetLabel: '7回表の記録',
     }
-    const wrapper = mount(GameScreen, { props: { undoOffer: offer, ...queue } })
+    const wrapper = mount(GameScreen, {
+      props: { undoOffer: offer, undoContextKey: 'game-a', ...queue },
+    })
     expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
       '7回表の記録',
     )
@@ -124,14 +145,84 @@ describe('直前の取消', () => {
     ).not.toMatch(/未送信|同期済み/)
   })
 
-  it('利用者には画面でできることを示し、実装用語を出さない', () => {
+  it.each([
+    { kind: 'unknown', contextKey: 'game-a' },
+    { kind: 'none', contextKey: 'game-b' },
+    {
+      kind: 'available',
+      contextKey: 'game-b',
+      operationLabel: '旧試合',
+      targetLabel: '旧記録',
+    },
+    {
+      kind: 'available',
+      contextKey: 'game-a',
+      operationLabel: ' ',
+      targetLabel: '記録',
+    },
+    {
+      kind: 'available',
+      contextKey: 'game-a',
+      operationLabel: '記録',
+      targetLabel: '',
+    },
+    {
+      kind: 'unexpected',
+      contextKey: 'game-a',
+      operationLabel: '記録',
+      targetLabel: '対象',
+    },
+  ])('未知・旧文脈・空表示の取消対象 %j を未取得に倒す', (offer) => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        undoOffer: offer as UndoOffer,
+        undoContextKey: 'game-a',
+      },
+    })
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '未取得',
+    )
+    expect(
+      wrapper.get<HTMLButtonElement>('[data-testid="undo-action"]').element
+        .disabled,
+    ).toBe(true)
+    expect(wrapper.text()).not.toContain('旧試合')
+  })
+
+  it('画面の文脈変更で旧取消対象を表示しない', async () => {
     const wrapper = mount(GameScreen, {
       props: {
         undoOffer: {
           kind: 'available',
+          contextKey: 'game-a',
+          operationLabel: '記録',
+          targetLabel: '対象A',
+        },
+        undoContextKey: 'game-a',
+      },
+    })
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '対象A',
+    )
+    await wrapper.setProps({ undoContextKey: 'game-b' })
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '未取得',
+    )
+    expect(
+      wrapper.get('[aria-label="直前の操作を取り消す"]').text(),
+    ).not.toContain('対象A')
+  })
+
+  it('利用者には画面でできることを示し、実装用語を出さない', () => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        undoOffer: {
+          contextKey: 'game-a',
+          kind: 'available',
           operationLabel: '直前のプレイ',
           targetLabel: '7回表の記録',
         },
+        undoContextKey: 'game-a',
       },
     })
     const text = wrapper.get('[aria-label="直前の操作を取り消す"]').text()
@@ -141,6 +232,145 @@ describe('直前の取消', () => {
 })
 
 describe('過去プレイ修正の表示専用受取口', () => {
+  it('GameScreenの通知で初期・更新・クリア・文脈変更の下書きを受け取る', async () => {
+    const wrapper = mountCorrection()
+    expect(draft(wrapper)).toBeNull()
+    await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
+    expect(draft(wrapper)).toBeNull()
+    await wrapper.get('[data-testid="correction-operation"]').setValue('modify')
+    const selected = draft(wrapper)!
+    expect(selected.identity.targetId).toBe('play-a')
+    expect(selected.answers.note).toBeNull()
+    // 通知済みsnapshotへの外部変更を画面内Mapへ反映させない。
+    ;(selected.answers as Record<string, string | null>).note = '外部変更'
+    await wrapper.get('[data-question-key="note"]').setValue('画面入力')
+    expect(draft(wrapper)?.answers.note).toBe('画面入力')
+    await wrapper.get('[data-testid="correction-target"]').setValue('')
+    expect(draft(wrapper)).toBeNull()
+    await wrapper.get('[data-testid="correction-target"]').setValue('play-b')
+    const beforeContext = wrapper.emitted('correctionDraftChange')!.length
+    await wrapper.setProps({ correctionContextKey: 'game-b' })
+    expect(draft(wrapper)).toBeNull()
+    expect(wrapper.emitted('correctionDraftChange')!.length).toBeGreaterThan(
+      beforeContext,
+    )
+    expect(
+      wrapper
+        .get('[data-testid="correction-draft-cleared"]')
+        .attributes('role'),
+    ).toBe('status')
+  })
+
+  it('質問が空の操作では確認へ進まず、下書き通知も未取得に保つ', async () => {
+    const wrapper = mountCorrection({
+      correctionRequest: {
+        ...request,
+        questions: { ...request.questions, delete: [] },
+      },
+    })
+    await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
+    await wrapper.get('[data-testid="correction-operation"]').setValue('delete')
+    expect(
+      wrapper.get('[data-testid="correction-questions-unavailable"]').text(),
+    ).toContain('確認できません')
+    expect(
+      wrapper.get<HTMLButtonElement>('[data-testid="correction-review"]')
+        .element.disabled,
+    ).toBe(true)
+    wrapper
+      .get('[data-testid="correction-review"]')
+      .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(
+      wrapper.find('[data-testid="correction-confirmation"]').exists(),
+    ).toBe(false)
+    expect(draft(wrapper)).toBeNull()
+  })
+
+  it.each([
+    { page: { ...request.page, targets: [null] } },
+    { page: null },
+    { questions: { ...request.questions, modify: [null] } },
+    {
+      questions: {
+        ...request.questions,
+        modify: [{ ...request.questions.modify[0], options: [null] }],
+      },
+    },
+  ])('不正な表示要求 %j でも停止UIを描画し、訂正を閉じる', (bad) => {
+    const wrapper = mountCorrection({
+      correctionRequest: { ...request, ...bad },
+    })
+    expect(wrapper.find('[data-testid="stop-status"]').exists()).toBe(true)
+    expect(
+      wrapper.get('[data-testid="correction-request-unavailable"]').text(),
+    ).toContain('未取得')
+    expect(wrapper.find('[data-testid="correction-target"]').exists()).toBe(
+      false,
+    )
+    expect(draft(wrapper)).toBeNull()
+  })
+
+  it.each([
+    [
+      'targets',
+      () => ({
+        ...request,
+        page: {
+          ...request.page,
+          targets: sparseWithDecoy(request.page.targets[0]!),
+        },
+      }),
+    ],
+    [
+      'questions',
+      () => ({
+        ...request,
+        questions: {
+          ...request.questions,
+          modify: sparseWithDecoy(request.questions.modify[0]!),
+        },
+      }),
+    ],
+    [
+      'options',
+      () => ({
+        ...request,
+        questions: {
+          ...request.questions,
+          modify: [
+            {
+              ...request.questions.modify[0]!,
+              options: sparseWithDecoy(
+                request.questions.modify[0]!.options![0]!,
+              ),
+            },
+          ],
+        },
+      }),
+    ],
+  ] as const)(
+    '%sの疎配列を未取得に倒し、停止UIを描画し続ける',
+    (_name, makeRequest) => {
+      const correctionRequest = makeRequest()
+      const values =
+        _name === 'targets'
+          ? correctionRequest.page.targets
+          : _name === 'questions'
+            ? correctionRequest.questions.modify
+            : correctionRequest.questions.modify[0]!.options!
+      expect(Object.keys(values)).toHaveLength(values.length)
+      const wrapper = mountCorrection({ correctionRequest })
+      expect(wrapper.find('[data-testid="stop-status"]').exists()).toBe(true)
+      expect(
+        wrapper.get('[data-testid="correction-request-unavailable"]').text(),
+      ).toContain('未取得')
+      expect(wrapper.find('[data-testid="correction-target"]').exists()).toBe(
+        false,
+      )
+      expect(draft(wrapper)).toBeNull()
+    },
+  )
+
   it('利用者に状態と保存されないことを示し、実装用語を出さない', async () => {
     const wrapper = mountCorrection()
     await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
@@ -295,7 +525,7 @@ describe('過去プレイ修正の表示専用受取口', () => {
     const identity = draft(wrapper)!.identity
     expect(
       wrapper.get('[data-testid="correction-preview-status"]').text(),
-    ).toContain('準備中')
+    ).toContain('未取得')
     for (const kind of ['pending', 'failed', 'conflict'] as const) {
       const preview: CorrectionPreview = {
         identity,
@@ -337,6 +567,54 @@ describe('過去プレイ修正の表示専用受取口', () => {
     ).toContain('&lt;img')
   })
 
+  it.each([
+    { kind: 'unknown' },
+    { kind: 'ready', rows: null },
+    { kind: 'ready', rows: [] },
+    { kind: 'ready', rows: [null] },
+    { kind: 'ready', rows: [{ label: '得点', before: 0, after: '1' }] },
+  ])('不正なプレビュー %j は未取得とし成功説明を出さない', async (invalid) => {
+    const wrapper = mountCorrection()
+    await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
+    await wrapper.get('[data-testid="correction-operation"]').setValue('modify')
+    await wrapper.setProps({
+      correctionPreview: {
+        identity: draft(wrapper)!.identity,
+        ...invalid,
+      } as unknown as CorrectionPreview,
+    })
+    expect(
+      wrapper.get('[data-testid="correction-preview-status"]').text(),
+    ).toContain('未取得')
+    expect(wrapper.text()).not.toContain('変更前後の内容を確認できます')
+    expect(wrapper.find('[data-testid="correction-diff-rows"]').exists()).toBe(
+      false,
+    )
+  })
+
+  it('readyの差分行が疎配列でも未取得に倒し、停止UIを描画し続ける', async () => {
+    const wrapper = mountCorrection()
+    await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
+    await wrapper.get('[data-testid="correction-operation"]').setValue('modify')
+    const rows = sparseWithDecoy({ label: '得点', before: '0', after: '1' })
+    expect(Object.keys(rows)).toHaveLength(rows.length)
+    await wrapper.setProps({
+      correctionPreview: {
+        identity: draft(wrapper)!.identity,
+        kind: 'ready',
+        rows,
+      },
+    })
+    expect(wrapper.find('[data-testid="stop-status"]').exists()).toBe(true)
+    expect(
+      wrapper.get('[data-testid="correction-preview-status"]').text(),
+    ).toContain('未取得')
+    expect(wrapper.text()).not.toContain('変更前後の内容を確認できます')
+    expect(wrapper.find('[data-testid="correction-diff-rows"]').exists()).toBe(
+      false,
+    )
+  })
+
   it('対象・操作・下書き・文脈の変更で前のプレビューを遮断する', async () => {
     const wrapper = mountCorrection()
     await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
@@ -352,7 +630,7 @@ describe('過去プレイ修正の表示専用受取口', () => {
     await wrapper.get('[data-question-key="note"]').setValue('変更')
     expect(
       wrapper.get('[data-testid="correction-preview-status"]').text(),
-    ).toContain('準備中')
+    ).toContain('未取得')
     expect(wrapper.text()).not.toContain('旧応答')
     await wrapper.get('[data-testid="correction-operation"]').setValue('insert')
     expect(wrapper.text()).not.toContain('旧応答')
@@ -456,7 +734,7 @@ describe('過去プレイ修正の表示専用受取口', () => {
     )
     expect(
       second.get('[data-testid="correction-preview-status"]').text(),
-    ).toContain('準備中')
+    ).toContain('未取得')
     expect(second.text()).not.toContain('前画面の差分')
     expect(randomUUID).toHaveBeenCalledTimes(2)
   })
@@ -513,7 +791,7 @@ describe('過去プレイ修正の表示専用受取口', () => {
     })
     expect(
       wrapper.get('[data-testid="correction-preview-status"]').text(),
-    ).toContain('準備中')
+    ).toContain('未取得')
     expect(wrapper.text()).not.toContain('別要求の差分')
   })
 
@@ -523,10 +801,12 @@ describe('過去プレイ修正の表示専用受取口', () => {
     const save = vi.spyOn(Storage.prototype, 'setItem')
     const wrapper = mountCorrection({
       undoOffer: {
+        contextKey: 'game-a',
         kind: 'available',
         operationLabel: '直前',
         targetLabel: 'プレイ',
       },
+      undoContextKey: 'game-a',
     })
     await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
     await wrapper.get('[data-testid="correction-operation"]').setValue('delete')
