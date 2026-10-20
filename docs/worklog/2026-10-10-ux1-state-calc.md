@@ -253,3 +253,16 @@ Draft PR #153の公開HEADは`a5a2aa38005a0d1940692fb23ecc00d56c74a1d4`、コー
 
 実runner/manifestへの登録、全case消費、正規化後の共有核投入、実Port・HTTP/隔離DBでのFR-012原子性/再送/拒否/全取消、表示との実比較は**対象製品PRのマージ前または段階公開前に得る証跡**で、着手前条件へ増やさない。T2(PR-1b)は既存計画どおりT1(PR-1a)のマージも待つ。D-2全体発効・分析40行完了・無条件の凍結解除は主張しない。
 
+## 2026-10-20 TSK-544 主担当再開・T1専用作業先
+
+POは本タブをTSK-544主担当へ指名した。今回の直前に進めていたTSK-506の再開指示は取り消し。506の検査プロセスは終了済みで、同枝の通常merge後HEAD `d9f3abb1db3706dbc63e01a0466aeae1bd9a7b6a` はクリーン。変更を破棄・巻き戻しせず、506/U-F8の編集はここで行わない。旧TSK-237 worktree `feature-tsk237-appendix-a-vectors` (`0c15dac7`) とD-2(iv) worktree `feature-adr003-d2iv-applicability` (`e61832d8`) もクリーンな別成果物として保持する。
+
+本タブの既存履歴はTSK-237固定ベクタ調査、D-2(iv)判定、T1/T2限定経過措置の正本・計画調整、#155の計画統合、TSK-544着手条件の現行化である。2026-10-20のCodexセッション一覧に本タブ以外の稼働中TSK-544担当は無く、TSK-544製品実装用worktreeも無かった。既存の計画枝 `fix/ux1-state-calc` は転用しない。`origin/develop` `7c1afebab31facc71e8cfc2731da1a9fa392de4e` からT1専用の `feature/tsk544-t1-state-calculation` worktreeを作成した。#155統合SHAは `015dfa9db0b7b8740369911a9cb5195dd59a62ea`。他担当の担当解除を推定する記録ではなく、このPO指名の範囲だけを所有する。
+
+開始条件は承認済み[design.md](../features/ux1-state-calc/design.md) §4に従う。P-1/P-3/P-4/P-5/P-9は成立済みで再承認待ちへ戻さない。P-2は基盤の実在分だけ成立し、独立期待値・契約所有側受理は未了。P-6は `contracts/state-transition/state_transition_contract_v1.json` の `independentVerifierId: not-performed` を維持し、別タブの独立検証者による原典再計算と契約所有側の範囲・結果受理を待つ。自分の契約修正や期待値確認を独立検証へ数えない。
+
+P-8のT1側未了は、S05/S07/S09/S32の閉payload・軸間制約・観測入力・負例、G6-S01〜S11、S20のサヨナラ得点上限、GAP-02/06と関連規範行/case・所有側受理である。#153はDraftで候補送付済みだが、正式契約への収録・署名・受理を代替しない。TSK-538のCOLD-09・D+1 undo・tiebreak-start等の既済み成果は保持し、S11/S13/S22はTSK-546の裁定後に扱う。P-7はU-F8の1球確定、U-S1単一適用核、U-R1実記録権Port、U-X1投影/検証Port、506 HTTPの公開署名・失敗境界・配線担当の受理が未了。現developの`PORT_IMPLEMENTATIONS`は空であり、Protocolを実Portと呼ばない。実HTTP/隔離DB試験は実装後のマージ前条件として維持し、着手前条件へ追加しない。
+
+以上から計画の「P-1〜P-9のどれかが欠けたら /implement に入らない」に従い、T1製品計算・正式契約/凍結資産変更は開始しない。待機中は既存契約とT1入力制約の照合、必要な負例・runner証跡の試験設計、実Portの受取条件の整理をこの専用枝で進める。FR-040は11/12段階提供から延期し、未採用宣言はT1製品manifestを作る際の成果物である。D-2全体発効、分析40行の完成、無条件の凍結解除は記録しない。
+
+再開時の既存契約検査はroot pytest（consumer handoff・入力descriptor・状態契約schema・gap register）414件成功、frontendのvectorRunner/handoffLoader 67件成功、docs-status 20文書・違反0。計画同期はこのT1専用枝名から旧共通planを自動導出できないため、`--plan docs/features/ux1-state-calc/plan.md` を明示して成功した。既定のbranch導出のままでは計画書不在として失敗するため、正式PR/CIの前に計画を複製せず既存計画へ紐付ける提出方法を確定する。検査を緩めない。これらの成功はP-6/P-8の独立期待値・正式受理ではない。
