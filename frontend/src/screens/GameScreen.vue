@@ -17,6 +17,7 @@ import {
   deriveQueueStatus,
   type ActionRequiredSummary,
 } from './GameScreenQueueStatus'
+import type { StopDisplay } from './GameScreenStopDisplay'
 
 interface GameDisplayState {
   gameName: string | null
@@ -55,6 +56,8 @@ const props = withDefaults(
     syncedCount?: number
     /** 同期境界から受け取る通知。区分の判定は通信・キュー側が持つ。 */
     receivedNotices?: readonly SyncNoticeDescriptor[]
+    /** 停止UIの表示fixture。正式なPort/停止型とは接続していない。 */
+    stopDisplay?: StopDisplay
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -75,6 +78,7 @@ const props = withDefaults(
     evacuatedCount: undefined,
     syncedCount: undefined,
     receivedNotices: undefined,
+    stopDisplay: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -112,6 +116,32 @@ const inputEnabled = computed(() => eligibility.value?.eligible !== false)
 function noticeMessage(noticeId: keyof typeof SYNC_NOTICE_CATALOG): string {
   return SYNC_NOTICE_CATALOG[noticeId]
 }
+
+const stopPhaseLabel: Record<StopDisplay['phase'], string> = {
+  unavailable: '未取得',
+  'read-failed': '読取失敗',
+  'sending-stopped': '送信停止',
+  'confirmation-pending': '確認待ち（送信停止）',
+  'resume-inquiry': '再開照会中（送信停止）',
+}
+
+// 表示契約にない値が混入しても、停止が解除されたとは見せない。
+const stopStatusText = computed(
+  () => stopPhaseLabel[props.stopDisplay?.phase ?? 'unavailable'] ?? '未取得',
+)
+
+const deviceUnconfirmedText = computed(() => {
+  const received = props.stopDisplay?.deviceUnconfirmed
+  if (received?.kind === 'read-failed') return '読取失敗'
+  if (
+    received?.kind === 'count' &&
+    Number.isSafeInteger(received.value) &&
+    received.value >= 0
+  ) {
+    return String(received.value)
+  }
+  return '未取得'
+})
 
 // 確定の可否は単一のゲートから読む。画面側で封鎖の判断を複製しない。
 const commitGate = resolvePitchCommitGate()
@@ -366,6 +396,72 @@ function clearDraft() {
           {{ noticeMessage(notice.noticeId) }}
         </li>
       </ul>
+    </section>
+
+    <section
+      aria-label="送信停止と再開"
+      class="min-w-0 space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
+    >
+      <h2 class="text-lg font-extrabold">送信停止と再開</h2>
+      <dl class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="min-w-0 rounded-xl bg-white p-4 dark:bg-slate-900">
+          <dt class="text-sm">送信の状態</dt>
+          <dd class="mt-1 font-bold" data-testid="stop-status">
+            {{ stopStatusText }}
+          </dd>
+        </div>
+        <div class="min-w-0 rounded-xl bg-white p-4 dark:bg-slate-900">
+          <dt class="text-sm">この端末の未確認件数</dt>
+          <dd
+            class="mt-1 font-bold tabular-nums"
+            data-testid="device-unconfirmed-count"
+          >
+            {{ deviceUnconfirmedText }}
+          </dd>
+        </div>
+      </dl>
+      <p class="text-sm" data-testid="stop-hold-note">
+        この画面では、停止中の記録と後続記録を消したり、自動送信したりしません。
+      </p>
+      <p class="text-sm">
+        同内容の送信再開は照会結果を確認してから明示的に行います。終了した試合の再開とは別の操作です。
+      </p>
+      <p
+        id="stop-actions-blocked"
+        class="text-sm"
+        data-testid="stop-actions-blocked"
+      >
+        送信の状態を十分に確認できないため、今は送信の再開も内容の訂正もできません。
+      </p>
+      <p class="text-sm" data-testid="correction-status">
+        {{
+          props.stopDisplay?.correctionNotice
+            ? '訂正の安全確認が完了していません。'
+            : '訂正の安全確認は未取得です。'
+        }}
+      </p>
+      <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled
+          aria-describedby="stop-actions-blocked"
+          class="min-w-0 rounded-lg border border-amber-600 px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="resume-same-content"
+          @click.stop.prevent
+        >
+          同内容で送信を再開
+        </button>
+        <button
+          type="button"
+          disabled
+          aria-describedby="stop-actions-blocked"
+          class="min-w-0 rounded-lg border border-amber-600 px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="correct-stopped-content"
+          @click.stop.prevent
+        >
+          内容を訂正して再送
+        </button>
+      </div>
     </section>
 
     <section

@@ -50,3 +50,9 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 ステップ1〜6は正式接続を待たず表示/フォーム/入口を実装し、未接続操作の実送信/成功表示は封鎖する。ステップ7は完全な前後値の候補準備まで進め、7.7正式受理を別途人間へ提示する。当日/シーズン成績の未提供は担当と必要な計算を明示し、分析40項目全完成を暗黙の前提にしない。
 
 第1期GameScreenが未統合なので#160の固定HEADを通常取り込みし、後続PRは比較元をfeature/uf8-game-recordingにしたstacked Draftとして差分を分離する。#160の人間統合後に比較元をdevelopへ変更する。#160自身の差分/レビュー/本人確認資料を後続の実施記録へ混在させない。
+
+## ステップ1 停止UI
+
+既定implementラッパーでステップ1のみを実装し、同ステップの再開で表示専用のexport型を切り出し、利用者文言を是正した。`GameScreenStopDisplay.ts`は正式runtime DTO/停止判定/耐久索引ではない。0/未取得/読取失敗/停止/照会中、訂正注意3種、同内容再開/内容訂正の封鎖、直接dispatchでemit/送信/保存がないことをDOMで固定。関連Vitest12ファイル171件、Prettier/ESLint/vue-tsc/diff-check成功。
+
+主担当は実Vue/CSS・既存Meiryoの隔離Chromium fixtureで375/320px各scrollWidth一致、POST0、pageerror0を実測し、画像を開いて確認した。0/未取得/読取失敗、fixture再供給の再読込、独立2タブの表示分離、断中封鎖を確認。再読込はfixture再供給であり、耐久provider・実Port/HTTP/DB受入ではない。結果`/tmp/uf8-followup-stop-browser-result.json`、画像`/tmp/uf8-followup-stop-{375,320}.png`。コードログは`/tmp/uf8-followup-step1{,-correction}.log`。全frontend検査は別途実行中で、完了前に成功とは記録しない。

@@ -13,8 +13,8 @@ import { PITCH_COMMIT_BLOCK_REASON } from './GameScreenCommitGate'
  */
 const NARROW_WIDTH = 375
 
-function mountNarrow() {
-  window.innerWidth = NARROW_WIDTH
+function mountNarrow(width = NARROW_WIDTH) {
+  window.innerWidth = width
   window.dispatchEvent(new Event('resize'))
   return mount(GameScreen, {
     props: {
@@ -40,6 +40,10 @@ function mountNarrow() {
       },
       evacuatedCount: 0,
       storagePersistence: 'denied',
+      stopDisplay: {
+        phase: 'confirmation-pending',
+        deviceUnconfirmed: { kind: 'count', value: 12 },
+      },
     },
   })
 }
@@ -140,4 +144,33 @@ describe('375px 幅で読めている必要がある表示', () => {
       }
     }
   })
+
+  it.each([375, 320])(
+    '%dpx で停止表示と別操作の縮む構造を保つ',
+    async (width) => {
+      const wrapper = mountNarrow(width)
+      const section = wrapper.get('section[aria-label="送信停止と再開"]')
+      const longName = 'W'.repeat(120)
+      await wrapper.setProps({
+        state: { gameName: longName, batter: longName, pitcher: longName },
+      })
+
+      expect(section.classes()).toContain('min-w-0')
+      expect(section.get('dl').classes()).toContain('grid-cols-1')
+      expect(section.get('div.grid').classes()).toContain('grid-cols-1')
+      for (const card of section.findAll('dl > div')) {
+        expect(card.classes()).toContain('min-w-0')
+      }
+      for (const button of section.findAll('button')) {
+        expect(button.classes()).toContain('min-w-0')
+      }
+      expect(wrapper.get('main').classes()).toContain('wrap-anywhere')
+      expect(wrapper.get('[data-testid="game-name"]').text()).toBe(longName)
+      expect(section.text()).toContain('この端末の未確認件数')
+      expect(section.text()).toContain('後続記録')
+      expect(section.html()).not.toMatch(
+        /\b(?:whitespace-nowrap|truncate|min-w-\[\d+px\])\b/,
+      )
+    },
+  )
 })
