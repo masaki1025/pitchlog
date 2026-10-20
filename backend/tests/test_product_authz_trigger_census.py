@@ -13,17 +13,17 @@ def test_migration_trigger_census_applies_drop_and_preserves_duplicate_connectio
     """削除済み接続を除き、AFTERを含む同一関数の複数接続を残す。"""
     (tmp_path / "0001.py").write_text(
         "def upgrade():\n"
-        "    op.execute('CREATE TRIGGER retired BEFORE UPDATE ON games "
-        "FOR EACH ROW EXECUTE FUNCTION retired_fn()')\n",
+        "    op.execute('CREATE TRIGGER retired BEFORE UPDATE ON public.games "
+        "FOR EACH ROW EXECUTE FUNCTION public.retired_fn()')\n",
         encoding="utf-8",
     )
     (tmp_path / "0002.py").write_text(
         "def upgrade():\n"
-        "    op.execute('DROP TRIGGER retired ON games')\n"
-        "    op.execute('CREATE TRIGGER before_guard BEFORE UPDATE ON games "
-        "FOR EACH ROW EXECUTE FUNCTION guard_fn()')\n"
-        "    op.execute('CREATE TRIGGER after_guard AFTER UPDATE ON games "
-        "FOR EACH ROW EXECUTE FUNCTION guard_fn()')\n",
+        "    op.execute('DROP TRIGGER retired ON public.games')\n"
+        "    op.execute('CREATE TRIGGER before_guard BEFORE UPDATE ON public.games "
+        "FOR EACH ROW EXECUTE FUNCTION public.guard_fn()')\n"
+        "    op.execute('CREATE TRIGGER after_guard AFTER UPDATE ON public.games "
+        "FOR EACH ROW EXECUTE FUNCTION public.guard_fn()')\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(tenant_owned_cases, "_MIGRATIONS_PATH", tmp_path)

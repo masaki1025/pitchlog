@@ -20,10 +20,8 @@ down_revision: str | Sequence[str] | None = "0032_rg1_restore_gate"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# 不変性監査は migration の CREATE FUNCTION / CREATE TRIGGER を schema 修飾なしで
-# 解析するため、他のトリガ migration（0015・0024）と同じく public を省略する。
-_BEFORE_FUNCTION = "prevent_games_applied_rules_update"
-_AFTER_FUNCTION = "verify_games_applied_rules_final"
+_BEFORE_FUNCTION = "public.prevent_games_applied_rules_update"
+_AFTER_FUNCTION = "public.verify_games_applied_rules_final"
 _BEFORE_TRIGGER = "trg_games_applied_rules_immutable"
 _AFTER_TRIGGER = "trg_games_applied_rules_final_immutable"
 
@@ -65,7 +63,7 @@ def upgrade() -> None:
     op.execute(
         f"""
         CREATE TRIGGER {_BEFORE_TRIGGER}
-        BEFORE UPDATE OF applied_rules ON games
+        BEFORE UPDATE OF applied_rules ON public.games
         FOR EACH ROW
         EXECUTE FUNCTION {_BEFORE_FUNCTION}()
         """
@@ -73,7 +71,7 @@ def upgrade() -> None:
     op.execute(
         f"""
         CREATE TRIGGER {_AFTER_TRIGGER}
-        AFTER UPDATE ON games
+        AFTER UPDATE ON public.games
         FOR EACH ROW
         WHEN (OLD.applied_rules IS DISTINCT FROM NEW.applied_rules)
         EXECUTE FUNCTION {_AFTER_FUNCTION}()
@@ -83,7 +81,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """追加したトリガと関数だけを除去し、既存行には触れない。"""
-    op.execute(f"DROP TRIGGER {_AFTER_TRIGGER} ON games")
-    op.execute(f"DROP TRIGGER {_BEFORE_TRIGGER} ON games")
+    op.execute(f"DROP TRIGGER {_AFTER_TRIGGER} ON public.games")
+    op.execute(f"DROP TRIGGER {_BEFORE_TRIGGER} ON public.games")
     op.execute(f"DROP FUNCTION {_AFTER_FUNCTION}()")
     op.execute(f"DROP FUNCTION {_BEFORE_FUNCTION}()")
