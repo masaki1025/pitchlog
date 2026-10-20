@@ -49,10 +49,8 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "tenant-isolation": (
-        "frontend/src/router*",
-        "frontend/src/App*",
-    ),
+    "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
+    "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
