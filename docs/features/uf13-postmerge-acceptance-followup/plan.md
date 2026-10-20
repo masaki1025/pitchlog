@@ -148,3 +148,7 @@ self成功時は初期自動選択するが、利用者が明示選択済みのo
 ### 2026-10-21 PO指定による共有3パスの限定先行
 
 候補 `0ba9fd36b6ef014446a888eb82aaa8bc127a79eb`、実develop `8e4698f6dc254439b7d5e0c273cc2aef70cda657` を固定。POはD先行を指定した。対象は `backend/src/pitchlog/repositories/repository_contract.py`、`contracts/tenant_boundary/repository-contract.json`、`contracts/tenant_boundary/base-allowlist.json` の3パス。公開型・JSON・45登録の内容一致を修復し、base allowlistは許可symbolを追加せず7.7履歴のみ正式受理後に追記する。実際の並行未コミット変更があるパスだけ停止する。未回答を所有解除・担当受理とは扱わない。既存23履歴は保持し、新実値の正式受理・本人逐行確認は別ゲートのまま。
+
+### 2026-10-21 PO限定追加レビュー1回の実施記録
+
+POはHEAD5295956fの共有3パス・直接影響箇所・45登録の内容/権限境界/既存登録の保持・既存23履歴・7.7記録案/完全値に限定して追加1回を許可。既定2/2を維持し、敵対レビュー基本2回＋PO追加1回、反対側基本2回の履歴はリセットしない。限定レビュー結果はP0/P1/P2各0件、修正不要。製品/契約/2 snapshot/記録案/判断資料JSONの値は不変。7.7の新実値と本人逐行確認は未受理・未実施のまま。後発の未再レビュー範囲は本計画・README・worklogのレビュー結果記録のみ。正式回答後の反映・全検査・通常push・CI確認は既承認手順で進める。

@@ -1051,3 +1051,15 @@ backend関連試験はtest_authz_repository_contract.pyが48件、capability登�
 後発共有差分は旧2/2レビューに含まれず、独立再レビュー済みとは扱わない。追加レビューを自動で起動せず、この限定差分・影響箇所1回を必要なPO判断として提示する。本人確認も未実施。正式受理後に必要全検査・通常push・最終CIを回収する。旧backend全件3053成功/4skip/1失敗および旧CI結果は書換えず、今回の関連161件成功と区別する。
 
 最終限定差分で、公開契約・登録・self固有・tenant middleware・API route exact-setをまとめて再検査し200件成功（2.08秒、backend-impact.log）。これはbackend全件の代わりではなく、正式受理後の全件・最終CIは未実施のまま。今回のfixでfrontend差分は増えていない。
+
+## 2026-10-21 #165 PO限定追加レビュー1回の結果
+
+ユーザーはHEAD5295956f9b883d20776f27bb4acfe47fc15a756dの共有3パス・直接影響箇所・45型の内容/権限境界/既存登録・既存23履歴・7.7記録案/完全値資料に限定して追加1回を許可。新実値の正式受理・本人確認の許可ではない。既定の計画2周、実装反対側2/2・敵対2/2は保持し、今回の敵対1回はPO指定の上限外追加として区別した。
+
+既存codex_run.py review adversarialのread-only経路を1回だけ実行。P0=0/P1=0/P2=0、採用/不採用指摘0、製品是正不要。全45型の順序・各capabilityと公開tuple/契約JSON/実registryを照合。SelfTeamRecordReadTokenは引数なし・既存CAP:team_records:read・認証context tenant/self/hidden除外/LIMIT1、未知型/偽造token拒否を確認。他44型と権限は維持。基線・製品候補・現ファイルのbase allowlist bytesが同一、既受理23履歴が保持され、#165既存記録0件。
+
+9資産の前後宣言/識別値/movement policy/外部4実装/全snapshot参照、source digestと記録案を既存導出へ照合。repositoryだけ21→22、base allowlist33と他8射影は不変。候補2snapshotの完全bytesが一致。null承認者/日付は正式検査が拒否する。メモリ内の仮承認値・仮eventによる構造照合は自己不一致を検出しなかったが、実履歴への反映や正式受理・検査成功の証跡とは扱わない。
+
+レビュー証跡: cache self-team-read-shared-followup/limited-review.log、SHA-256 `a7ab325b26b4a63790adb955d43ff998b4b96c4d62a5e230968f4acf364e7892`。関連200件の成功は5295956f固定前の同一製品差分に対する前回実行で、今回レビューでは再実行していない。
+
+判断資料JSON SHA-256 `2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c`、記録案SHA-256 `f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9` は変更なし。作り直さず同資料を正式受理へ提示する。レビュー後の未再レビュー差分はplan/README/worklogの結果記録だけで、製品・契約・snapshot・JSON記録案の変更はない。承認者/日付はnull、正式受理・本人確認・正式反映後の全検査/通常push/最終HEAD CIは未実施。Draft解除・公開・マージも行わない。
