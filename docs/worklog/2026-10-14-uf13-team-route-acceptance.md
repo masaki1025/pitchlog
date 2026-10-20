@@ -1071,3 +1071,11 @@ backend関連試験はtest_authz_repository_contract.pyが48件、capability登�
 承認者/日付だけを記録案へ反映してbase allowlistの末尾へ#165を1件追記（23→24、既存prefix同一、同ID1件）。許可symbol・revision33・凍結射影は変えない。after snapshot9872b2b0d5233193b3e3d76b37b144599d5d2ea8c14a93f1df6cd20a834bd3b0を正式archiveへ新規1件追加。before 0daf9ec4…は既存bytes同一のため追加しない。他8資産・authzは不変。正式記録の整形canonical JSON SHA-256は06a48c1ed6bbae5aed4ef0effdd60c283edef997a243477dbfa3b8fe09651639。固定資料自体は変更しない。
 
 正式反映後のtenant-boundary bypass検査は成功。本人確認は未実施でチェック代記しない。既定2周＋限定1回、レビュー後の結果記録3ファイルが未再レビューである履歴を保持。本正式反映も追加レビュー済みではなく、最終本人確認差分に含める。全件・CI・PR資料更新を続ける。planはactive、TSK-528/520全体は未完了。
+
+### 実develop #160追随と最終検査の固定
+
+最新origin/developは9136c2dad916313c28698f49f8668f3edbe36b4a（#160 U-F8）。追加はU-F8画面/固有client/spec/eslintと資料で、tenant-boundary/authzの契約全bytesは承認基線8e4698f6と同一。承認値不一致なし。専用枝へ通常mergeし、他担当の未統合枝は取り込まない。正式受理単位・値・既存履歴は変更しない。
+
+5c0226bdで開始したローカル全件は基線追随前に自分の検査プロセスだけへ中断を要求。root/backendはexit2、backend専用DBの破棄を確認。frontendは1402件の出力を得たが中断時のpnpm終了失敗があり、今回の完走成功に数えない。隔離一時領域final-localに証跡を保存したまま、基線追随後の専用final-local-integratedへ全件を再実行する。試験除外・timeout緩和は行わない。
+
+ローカルrootの並列は利用可能メモリに合わせ4、backend本体は1・内部autoは2、frontendは既存設定のfileParallelism=falseを維持。共有DBや他担当プロセスは変更・停止しない。最終HEADの検査/CI証跡と本人確認の固定diffは専用cacheおよび既存PR #165の最終報告へ集約する。本人チェックは未記入、plan activeを維持する。台帳への追記なし（製品経路の既存手順による追随・受理であり新しいハーネス運用知見の追加ではない）。
