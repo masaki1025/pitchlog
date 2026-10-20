@@ -284,9 +284,9 @@ DB必須検査の環境診断では、最初の使い捨てPostgreSQLが`en_US.u
 - 未成立: census限定47箇所の凍結census試験対応と別7.7受理、U-G1/U-S1の項目別受理、実台帳・鍵・端末資格、P-6/実入口結合、最終HEAD CI。
 - 未実施: 本人確認・署名の代記、Draft解除・マージ、共有DB適用、運用open。
 
-### 2026-10-19: CI回収（HEAD 3519de0b）と生成モジュールの追随
+### 2026-10-19: CI回収（HEAD 3519de0b → 2851b87d）と生成モジュールの追随
 
-- `3519de0b` のCI（run 39270975096）は docs-lint・consistency・secrets・nfr021-append-only・tenant-boundary-bypass・frontend-changes・mutation・frontend が成功。harness は census 8件、core-guard は本人逐行確認行の未記入、backend は生成モジュール2件の不整合で失敗した。
+- `3519de0b` のCI（run 39270975096）は docs-lint・consistency・secrets・nfr021-append-only・tenant-boundary-bypass・frontend-changes・mutation・frontend が成功。harness は census の最初の未裁定removed所見（`unadjudicated_removed_tb002_remains_in_current_census`。ローカルpytestでは同原因8件）で失敗し、core-guard は本人逐行確認行の未記入、backend は生成モジュール2件の不整合で失敗した。
 - backend の失敗は、改訂7.7で `contracts/tenant_boundary/repository-contract.json`（revision 22）と `contracts/tenant_boundary/tenant-context-allowlist.json`（revision 17）の資産値だけを更新し、`backend/src/pitchlog/repositories/repository_contract.py`（21）と `tenant_context_contract.py`（16）の `CONTRACT_REVISION`・`SOURCE_DIGEST` を追随させていなかったため。資産値は受理済みで、新しい実値変更ではない。生成モジュールを資産へ追随させ、対象2ファイル70件の試験とbackend Ruff/tyを成功させた。
 - core-guard の失敗は `- [x] コア領域/検査経路の変更: 人間による逐行確認を実施した` の未記入であり、コード不一致ではない。本人確認の代記は行わない。
-- harness の失敗は上記 census 限定47箇所の凍結census試験対応（別7.7受理）に一致する。生成モジュール追随後の最終HEADでCIを再回収する。
+- 生成モジュール追随後の最終HEAD `2851b87d`（run 39276114028）で再回収した。backend は**3,059件成功・4件skip**、docs-lint・consistency・secrets・nfr021-append-only・tenant-boundary-bypass・mutation・frontend・frontend-changes・backend-changes は成功。harness と core-guard だけが上記の既知の残ゲートで失敗し、いずれもコード不一致ではない。
