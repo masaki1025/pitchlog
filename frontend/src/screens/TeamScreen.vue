@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useInfiniteQuery, useQueryClient } from '@tanstack/vue-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import {
@@ -12,6 +12,7 @@ import {
 import {
   listPlayers,
   listTeamRecords,
+  readSelfTeamRecord,
   type PlayerRead,
   type TeamRecordRead,
 } from '../api/roster'
@@ -36,8 +37,36 @@ function retryRosterQuery(failureCount: number, error: Error): boolean {
 }
 
 const auth = useAuthStore()
-const { authEpoch, teamId, teamName } = storeToRefs(auth)
+const { authEpoch, isAuthenticated, teamId, teamName } = storeToRefs(auth)
 const selectedTeamRecordId = ref<string | null>(null)
+const hasExplicitTeamSelection = ref(false)
+
+const selfTeamQuery = useQuery({
+  queryKey: computed(() =>
+    rosterQueryKeys.selfTeamRecord(teamId.value, authEpoch.value),
+  ),
+  enabled: computed(() => isAuthenticated.value && teamId.value !== null),
+  retry: false,
+  retryOnMount: false,
+  refetchOnMount: false,
+  refetchOnReconnect: false,
+  refetchOnWindowFocus: false,
+  refetchInterval: false,
+  gcTime: Infinity,
+  queryFn: async ({ signal }) => {
+    const requestEpoch = authEpoch.value
+    const requestTenant = teamId.value
+    const record = await readSelfTeamRecord({ signal })
+    if (
+      !isAuthenticated.value ||
+      authEpoch.value !== requestEpoch ||
+      teamId.value !== requestTenant
+    ) {
+      throw new ApiStaleAuthError('GET', '/team-records/self')
+    }
+    return record
+  },
+})
 
 const teamRecordsQuery = useInfiniteQuery({
   queryKey: computed(() =>
@@ -47,7 +76,7 @@ const teamRecordsQuery = useInfiniteQuery({
       PAGE_LIMIT,
     ),
   ),
-  enabled: computed(() => teamId.value !== null),
+  enabled: computed(() => isAuthenticated.value && teamId.value !== null),
   retry: retryRosterQuery,
   initialPageParam: null as string | null,
   queryFn: async ({ pageParam, signal }) => {
@@ -68,10 +97,23 @@ function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404
 }
 
-const teamRecords = computed<TeamRecordRead[]>(() => {
+const opponentRecords = computed<TeamRecordRead[]>(() => {
   if (isNotFound(teamRecordsQuery.error.value)) return []
-  return teamRecordsQuery.data.value?.pages.flatMap((page) => page.items) ?? []
+  return (
+    teamRecordsQuery.data.value?.pages
+      .flatMap((page) => page.items)
+      .filter((record) => record.kind === 'opponent') ?? []
+  )
 })
+
+const selfTeamRecord = computed<TeamRecordRead | null>(() =>
+  selfTeamQuery.isSuccess.value ? (selfTeamQuery.data.value ?? null) : null,
+)
+
+const teamRecords = computed<TeamRecordRead[]>(() => [
+  ...(selfTeamRecord.value === null ? [] : [selfTeamRecord.value]),
+  ...opponentRecords.value,
+])
 
 const showTeamRecordsRefetchWarning = computed(
   () =>
@@ -83,6 +125,7 @@ watch(
   [teamId, authEpoch],
   () => {
     selectedTeamRecordId.value = null
+    hasExplicitTeamSelection.value = false
   },
   { flush: 'sync' },
 )
@@ -95,15 +138,15 @@ watch(
       return
     }
     if (
+      hasExplicitTeamSelection.value &&
       selectedTeamRecordId.value !== null &&
       records.some((record) => record.id === selectedTeamRecordId.value)
     ) {
       return
     }
+    hasExplicitTeamSelection.value = false
     selectedTeamRecordId.value =
-      records.find((record) => record.kind === 'self')?.id ??
-      records[0]?.id ??
-      null
+      selfTeamRecord.value?.id ?? records[0]?.id ?? null
   },
   { flush: 'sync' },
 )
@@ -125,7 +168,10 @@ const playersQuery = useInfiniteQuery({
     ),
   ),
   enabled: computed(
-    () => teamId.value !== null && selectedTeamRecordId.value !== null,
+    () =>
+      isAuthenticated.value &&
+      teamId.value !== null &&
+      selectedTeamRecordId.value !== null,
   ),
   retry: retryRosterQuery,
   initialPageParam: null as string | null,
@@ -163,7 +209,12 @@ const showPlayersRefetchWarning = computed(
 )
 
 function selectTeam(recordId: string): void {
+  hasExplicitTeamSelection.value = true
   selectedTeamRecordId.value = recordId
+}
+
+function retrySelfTeam(): void {
+  void selfTeamQuery.refetch()
 }
 
 function loadMoreTeamRecords(): void {
@@ -230,7 +281,7 @@ function battingLabel(value: PlayerRead['bats']): string {
     </header>
 
     <p
-      v-if="teamId === null"
+      v-if="!isAuthenticated || teamId === null"
       class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
       role="status"
     >
@@ -246,6 +297,35 @@ function battingLabel(value: PlayerRead['bats']): string {
         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
           自チームと登録済みの対戦相手
         </p>
+
+        <p
+          v-if="selfTeamQuery.isPending.value"
+          class="mt-4 text-sm text-slate-500"
+          role="status"
+          data-testid="self-team-pending"
+        >
+          自チームを読み込んでいます。
+        </p>
+        <div
+          v-else-if="selfTeamQuery.isError.value"
+          class="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          role="alert"
+          data-testid="self-team-error"
+        >
+          <p v-if="isNotFound(selfTeamQuery.error.value)">
+            自チームが見つかりません。対戦相手は引き続き利用できます。
+          </p>
+          <p v-else>
+            {{ listErrorMessage(selfTeamQuery.error.value, '自チーム') }}
+          </p>
+          <Button
+            class="mt-3"
+            :disabled="selfTeamQuery.isFetching.value"
+            @click="retrySelfTeam"
+          >
+            自チームを再確認
+          </Button>
+        </div>
 
         <div
           v-if="showTeamRecordsRefetchWarning"
@@ -264,10 +344,12 @@ function battingLabel(value: PlayerRead['bats']): string {
           class="mt-4 text-sm text-slate-500"
           role="status"
         >
-          チームを読み込んでいます。
+          対戦相手を読み込んでいます。
         </p>
         <div
-          v-else-if="teamRecordsQuery.isError.value && teamRecords.length === 0"
+          v-else-if="
+            teamRecordsQuery.isError.value && opponentRecords.length === 0
+          "
           class="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950/40 dark:text-red-200"
           role="alert"
         >
@@ -277,13 +359,17 @@ function battingLabel(value: PlayerRead['bats']): string {
           <Button class="mt-3" @click="retryTeamRecords">再試行</Button>
         </div>
         <p
-          v-else-if="teamRecords.length === 0"
+          v-else-if="opponentRecords.length === 0"
           class="mt-4 text-sm text-slate-500"
           role="status"
         >
-          表示できるチームがありません。
+          表示できる対戦相手がありません。
         </p>
-        <ul v-else class="mt-4 space-y-2" data-testid="team-record-list">
+        <ul
+          v-if="teamRecords.length > 0"
+          class="mt-4 space-y-2"
+          data-testid="team-record-list"
+        >
           <li v-for="record in teamRecords" :key="record.id">
             <button
               type="button"
@@ -435,7 +521,7 @@ function battingLabel(value: PlayerRead['bats']): string {
     </div>
 
     <TeamMembersContent
-      v-if="teamId !== null"
+      v-if="isAuthenticated && teamId !== null"
       :players="players"
       :selected-team="selectedTeamRecord"
       :team-records="teamRecords"
