@@ -442,11 +442,7 @@ watch(
       >
         <dt class="text-sm text-slate-500 dark:text-slate-400">打者</dt>
         <dd class="mt-1 text-lg font-bold" data-testid="batter">
-          {{
-            display(
-              props.liveIdentity?.currentBatterName ?? props.state?.batter,
-            )
-          }}
+          {{ display(props.state?.batter) }}
         </dd>
       </dl>
       <dl
@@ -454,7 +450,7 @@ watch(
       >
         <dt class="text-sm text-slate-500 dark:text-slate-400">投手</dt>
         <dd class="mt-1 text-lg font-bold" data-testid="pitcher">
-          {{ display(props.liveIdentity?.pitcherName ?? props.state?.pitcher) }}
+          {{ display(props.state?.pitcher) }}
         </dd>
       </dl>
     </section>

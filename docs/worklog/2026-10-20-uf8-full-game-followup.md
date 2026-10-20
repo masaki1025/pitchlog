@@ -259,3 +259,22 @@ Vitestの#153**候補fixture**で5セル`X / 空欄 / 3 / 空欄 / 0`を順に�
 描画に必要なUI形だけを`GameScreenLiveDisplayShape.ts`で検査する。得点表の2チーム、開始回、各2セル、成績欄、打席履歴、球種列、終了状態・boolean、正式鮮度の文字列/booleanを対象にし、`ready`でもnull・欠損・型不一致・未知終了状態は未取得へ倒す。配列は各own添字を確認し、追加の非添字keyを穴の代わりに数えない。壊れた得点表/履歴/球種のnull要素と疎配列、異常な表示値をDOMへ渡しても例外や取得済み表示にせず、別の有効な成績・得点と既存の送信停止UIを維持する試験を追加した。選手用供給の`playerId`欠落、identityの対象ID欠落をglobal表示と誤認せず、その人物だけ未取得にする。旧選手応答のscope・文脈・ID照合は維持した。これは表示形の検査で、正式wire validatorや得点・アウト・成績・終了条件の計算ではない。
 
 最終実測: `pnpm exec vitest run src/screens/GameScreen*.spec.ts`は**16ファイル260件成功**。`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`、`pnpm exec prettier --check .`、`git diff --check`成功。壊れた供給時にもdisabledボタンへの直接dispatchでfetch 0・実保存/送信emit 0を確認した。frontend全件、実ブラウザ、正式提供型/生成formatterとの結合、レビューは主担当補完。ステップ6以降、コミット、push、他枝編集、外部連絡は行っていない。
+
+### ステップ5固定0a8a8002のClaude一次指摘と同範囲是正
+
+親ステップ4の是正は`4da55bcf`で通常merge済み。ステップ5の固定`0a8a8002`に対するClaude一次（`/tmp/uf8-stage5-claude-review.json`）は**否決 P0=0/P1=2/P2=6**。以下8件を全採用した。ステップ5の敵対レビューは**0回**のまま。親ステップ4と計画の査読・反映回数をリセットも流用もしない。
+
+| 指摘 | 同ステップの是正 |
+| --- | --- |
+| P1-1 シーズン期間ラベル欠落 | リアルタイム成績の共通定義・付録A-1とFR-021/022を照合し、投手・現在/次打者のUI専用シーズン値に`periodLabel`を要求して表示。2026/2025/2024年度通算など提供文字列をそのまま使用し、試合日・端末時刻から年度を導出しない。欠落は未取得へ倒す。 |
+| P1-2 球種割合の投手帰属欠落 | 見出しに現投手名を表示し、球種割合/球数の供給も現投手`playerId`、scope、文脈で照合。ID欠落・旧投手の遅延応答を拒否し、交代記録時点で新投手のシーズン値と球種を初球前に表示するfixtureを追加。 |
+| P2-1 概要の選手名上書き | `GameScreen.vue`の概要は従来の`state.batter/pitcher`だけを表示し、liveカードは独立して新選手を表示。live名が空・不正でも有効な概要値を上書きしない。正式接続時に両供給のscope/prefixを揃えるアダプタ契約は未提供として残す。 |
+| P2-2 鮮度・未prefetch | 閲覧端末の最終反映をready/読取失敗/データなし/未取得で分離。シーズンのオフラインかつ未取得・取得時刻なしは「オフラインのため未取得」と表示し、端末時計から補完しない。 |
+| P2-3 空文字 | `kind:text`セルは非空の提供文字列だけ受け、`blank`だけ可視空文字と`aria-label='空欄'`。合計/H/E/K/B等の空文字は未取得へ倒し、正常な密配列・0・Xは保持する。数値の検算や0補完はない。 |
+| P2-4 防御の整合 | 表示対象の構造・文字列・密配列を取得時に一度だけ読み、独立したUI snapshotを作る。供給の同じ可変オブジェクトやgetterを描画側に戻さない。liveIdentityも表示用に複製し、getter例外でも既存停止UIを維持。Vue reactiveの通常供給が更新された場合は新snapshotへ追従する。通信codec/要求指紋/正式Portは追加しない。 |
+| P2-5 試験の穴 | 現在/次打者の暫定ラベル、旧投手球種・新投手シーズン/球種の交代時点切替、期間ラベルをDOMで追加検査。 |
+| P2-6 実ブラウザ記録漏れ | 主担当がコード`0a8a8002`時点で実施した`/tmp/uf8-live-browser-result.json`を下記へ採録。今回の内側作業で再実行したと記録しない。 |
+
+主担当の`0a8a8002`時点の実ブラウザ証跡: Chromium・実Vue/CSS・Meiryoで375/320pxのviewport/document/body幅が各375/320に一致し、POST 0・pageerror 0。blankの可視空文字とaria、打席履歴7列、旧投手拒否と提供された新投手の即表示、終了宣言未同期/追記再開/再終了、不正score供給時の停止UI維持を確認した。これは**fixtureの表示**の実測であり、実計算・実HTTP/DB・GAP-05・FR-012原子性・全試合完遂の合格ではない。是正後の再実ブラウザは主担当補完へ残す。
+
+是正後の実測: `pnpm exec vitest run src/screens/GameScreen*.spec.ts`は**16ファイル306件成功**。`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。全frontend試験・是正後実ブラウザ・レビューは主担当補完。候補#153を正式資産扱いせず、全実操作disabled・実HTTP/保存0と成績計算の非複製を維持した。新ステップ、コミット、push、他枝編集、外部連絡は行っていない。

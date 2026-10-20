@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { safeLiveSources } from './GameScreenLiveDisplayShape'
+import {
+  safeLiveSources,
+  snapshotLiveIdentity,
+} from './GameScreenLiveDisplayShape'
 import type {
   BatterDay,
   BatterSeason,
@@ -16,18 +19,15 @@ const props = defineProps<{
   sources?: LiveDisplaySources | null
 }>()
 const sources = computed(() => safeLiveSources(props.sources))
+const identity = computed(() => snapshotLiveIdentity(props.identity))
 
 function matches<T>(supply: DisplaySupply<T> | undefined, playerId?: string) {
-  const identity = props.identity
+  const current = identity.value
   return !!(
-    identity &&
+    current &&
     supply &&
-    typeof identity.scopeKey === 'string' &&
-    identity.scopeKey !== '' &&
-    typeof identity.contextKey === 'string' &&
-    identity.contextKey !== '' &&
-    supply.scopeKey === identity.scopeKey &&
-    supply.contextKey === identity.contextKey &&
+    supply.scopeKey === current.scopeKey &&
+    supply.contextKey === current.contextKey &&
     ((supply.playerId === undefined && playerId === undefined) ||
       (typeof playerId === 'string' &&
         !!playerId &&
@@ -64,7 +64,7 @@ function status<T>(
 }
 
 function shown(value: string | null | undefined): string {
-  return typeof value === 'string' ? value : '未取得'
+  return typeof value === 'string' && value !== '' ? value : '未取得'
 }
 
 function cell(value: InningCell | undefined): string {
@@ -85,6 +85,12 @@ function seasonNote<T>(
   playerId?: string,
 ): string {
   if (!matches(supply, playerId)) return '最終取得: 未取得 / オフライン: 未取得'
+  if (
+    supply?.status === 'unavailable' &&
+    supply.offline === true &&
+    !supply.fetchedAt
+  )
+    return 'オフラインのため未取得'
   const fetched =
     typeof supply?.fetchedAt === 'string' && supply.fetchedAt !== ''
       ? supply.fetchedAt
@@ -99,7 +105,7 @@ function seasonNote<T>(
 }
 
 const score = computed(() => ready(sources.value.scoreboard))
-const pitcherId = computed(() => props.identity?.pitcherId ?? '')
+const pitcherId = computed(() => identity.value?.pitcherId ?? '')
 const pitcherDay = computed(() =>
   ready(sources.value.pitcherDay, pitcherId.value),
 )
@@ -152,13 +158,13 @@ function batterSeasonFields(season: BatterSeason | null) {
 }
 const batters = computed(() => {
   const supplied = sources.value
-  const identity = props.identity
+  const current = identity.value
   return [
     {
       slot: 'current',
       title: '現在打者',
-      id: identity?.currentBatterId ?? '',
-      name: identity?.currentBatterName,
+      id: current?.currentBatterId ?? '',
+      name: current?.currentBatterName,
       day: supplied.currentBatterDay,
       season: supplied.currentBatterSeason,
       history: supplied.currentBatterHistory,
@@ -166,8 +172,8 @@ const batters = computed(() => {
     {
       slot: 'next',
       title: '次打者',
-      id: identity?.nextBatterId ?? '',
-      name: identity?.nextBatterName,
+      id: current?.nextBatterId ?? '',
+      name: current?.nextBatterName,
       day: supplied.nextBatterDay,
       season: supplied.nextBatterSeason,
       history: supplied.nextBatterHistory,
@@ -202,6 +208,10 @@ const inputOfflineText = computed(() => {
     : value === false
       ? 'オンライン'
       : status(supplied)
+})
+const viewerAppliedText = computed(() => {
+  const supplied = sources.value.viewerAppliedAt
+  return ready(supplied) ?? status(supplied)
 })
 </script>
 
@@ -288,7 +298,7 @@ const inputOfflineText = computed(() => {
       class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
     >
       <h2 class="text-lg font-extrabold">
-        現投手: {{ shown(props.identity?.pitcherName) }}
+        現投手: {{ shown(identity?.pitcherName) }}
       </h2>
       <h3 class="mt-3 font-bold">当日</h3>
       <p data-testid="pitcher-day-status">
@@ -310,7 +320,12 @@ const inputOfflineText = computed(() => {
           <dd class="font-bold">{{ shown(value) }}</dd>
         </div>
       </dl>
-      <h3 class="mt-3 font-bold">シーズン</h3>
+      <h3 class="mt-3 font-bold">
+        シーズン
+        <span data-testid="pitcher-season-period">{{
+          shown(pitcherSeason?.periodLabel)
+        }}</span>
+      </h3>
       <p data-testid="pitcher-season-status">
         {{ status(sources.pitcherSeason, pitcherId) }}
       </p>
@@ -343,7 +358,12 @@ const inputOfflineText = computed(() => {
       <p :data-testid="`${batter.slot}-day-status`">
         {{ status(batter.day, batter.id) }}
       </p>
-      <p v-if="provisional(batter.day, batter.id)">当日表示は暫定</p>
+      <p
+        v-if="provisional(batter.day, batter.id)"
+        :data-testid="`${batter.slot}-day-provisional`"
+      >
+        当日表示は暫定
+      </p>
       <dl class="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3">
         <div
           v-for="[label, value] in batterDayFields(
@@ -356,7 +376,12 @@ const inputOfflineText = computed(() => {
           <dd class="font-bold">{{ shown(value) }}</dd>
         </div>
       </dl>
-      <h3 class="mt-3 font-bold">シーズン</h3>
+      <h3 class="mt-3 font-bold">
+        シーズン
+        <span :data-testid="`${batter.slot}-season-period`">{{
+          shown(ready(batter.season, batter.id)?.periodLabel)
+        }}</span>
+      </h3>
       <p :data-testid="`${batter.slot}-season-status`">
         {{ status(batter.season, batter.id) }}
       </p>
@@ -413,19 +438,21 @@ const inputOfflineText = computed(() => {
       aria-label="当日の球種"
       class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
     >
-      <h2 class="text-lg font-extrabold">当日の球種</h2>
+      <h2 class="text-lg font-extrabold">
+        当日の球種: {{ shown(identity?.pitcherName) }}
+      </h2>
       <p data-testid="pitch-types-status">
-        {{ status(sources.pitchTypes) }}
+        {{ status(sources.pitchTypes, pitcherId) }}
       </p>
       <p
-        v-if="provisional(sources.pitchTypes)"
+        v-if="provisional(sources.pitchTypes, pitcherId)"
         data-testid="pitch-types-provisional"
       >
         当日表示は暫定
       </p>
       <dl class="grid min-w-0 gap-2 sm:grid-cols-2">
         <div
-          v-for="pitch in ready(sources.pitchTypes) ?? []"
+          v-for="pitch in ready(sources.pitchTypes, pitcherId) ?? []"
           :key="pitch.key"
           class="min-w-0 rounded-lg bg-slate-50 p-2 dark:bg-slate-800"
           data-testid="pitch-type-share"
@@ -474,7 +501,7 @@ const inputOfflineText = computed(() => {
         <div>
           <dt>閲覧端末の最終反映</dt>
           <dd data-testid="viewer-applied-at">
-            {{ shown(ready(sources.viewerAppliedAt)) }}
+            {{ viewerAppliedText }}
           </dd>
         </div>
         <div>
