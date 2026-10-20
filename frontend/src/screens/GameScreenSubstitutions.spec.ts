@@ -143,12 +143,255 @@ function raw(wrapper: ReturnType<typeof mountScreen>) {
   return events!.at(-1)![0] as SubstitutionDraftsSnapshot
 }
 
+// 穴と余分な列挙keyを同時に作り、キー数だけの検査をすり抜けないことを確かめる。
+function sparseWithExtra<T>(item: T): T[] {
+  const values = new Array<T>(2)
+  values[1] = item
+  Object.defineProperty(values, 'extra', {
+    value: item,
+    enumerable: true,
+  })
+  return values
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
 })
 
 describe('交代とタイブレークの画面下書き', () => {
+  it('候補・質問・交代種別・履歴の全供給配列の穴を未取得として閉じ、停止表示を保つ', () => {
+    const base = operation('pitcher')
+    const normal = (change: Partial<SubstitutionOperationSupply>) => ({
+      ...request,
+      operations: [{ ...base, ...change }],
+    })
+    const sparseCases: readonly {
+      name: string
+      props: Record<string, unknown>
+      unavailable: string
+    }[] = [
+      {
+        name: '交代種別',
+        props: {
+          substitutionRequest: {
+            ...request,
+            operations: sparseWithExtra(base),
+          },
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '交代前候補',
+        props: {
+          substitutionRequest: normal({
+            outgoing: sparseWithExtra(base.outgoing[0]!),
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '交代後候補',
+        props: {
+          substitutionRequest: normal({
+            incoming: sparseWithExtra(base.incoming[0]!),
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '登録質問',
+        props: {
+          substitutionRequest: normal({
+            registrationQuestions: sparseWithExtra(
+              base.registrationQuestions[0]!,
+            ),
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '配置質問',
+        props: {
+          substitutionRequest: normal({
+            placementQuestions: sparseWithExtra(base.placementQuestions[0]!),
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '交代質問',
+        props: {
+          substitutionRequest: normal({
+            questions: sparseWithExtra(base.questions[0]!),
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '交代選択肢',
+        props: {
+          substitutionRequest: normal({
+            placementQuestions: [
+              {
+                ...base.placementQuestions[0]!,
+                options: sparseWithExtra(
+                  base.placementQuestions[0]!.options![0]!,
+                ),
+              },
+            ],
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '文字質問の余分な選択肢',
+        props: {
+          substitutionRequest: normal({
+            registrationQuestions: [
+              {
+                ...base.registrationQuestions[0]!,
+                options: sparseWithExtra({ id: 'x', label: '不正' }),
+              },
+            ],
+          }),
+        },
+        unavailable: 'substitution-unavailable',
+      },
+      {
+        name: '走者配置質問',
+        props: {
+          tiebreakRequest: {
+            ...tiebreakRequest,
+            placementQuestions: sparseWithExtra(
+              tiebreakRequest.placementQuestions[0]!,
+            ),
+          },
+        },
+        unavailable: 'tiebreak-unavailable',
+      },
+      {
+        name: '先頭打者質問',
+        props: {
+          tiebreakRequest: {
+            ...tiebreakRequest,
+            leadBatterQuestions: sparseWithExtra(
+              tiebreakRequest.leadBatterQuestions[0]!,
+            ),
+          },
+        },
+        unavailable: 'tiebreak-unavailable',
+      },
+      {
+        name: '回指定質問',
+        props: {
+          tiebreakRequest: {
+            ...tiebreakRequest,
+            inningQuestions: sparseWithExtra(
+              tiebreakRequest.inningQuestions[0]!,
+            ),
+          },
+        },
+        unavailable: 'tiebreak-unavailable',
+      },
+      {
+        name: '先頭打者選択肢',
+        props: {
+          tiebreakRequest: {
+            ...tiebreakRequest,
+            leadBatterQuestions: [
+              {
+                ...tiebreakRequest.leadBatterQuestions[0]!,
+                options: sparseWithExtra(
+                  tiebreakRequest.leadBatterQuestions[0]!.options![0]!,
+                ),
+              },
+            ],
+          },
+        },
+        unavailable: 'tiebreak-unavailable',
+      },
+      {
+        name: '交代履歴',
+        props: {
+          pastSubstitutionRequest: {
+            ...pastRequest,
+            page: {
+              ...pastRequest.page,
+              targets: sparseWithExtra(pastRequest.page.targets[0]!),
+            },
+          },
+        },
+        unavailable: 'past-substitution-unavailable',
+      },
+      {
+        name: '選手訂正質問',
+        props: {
+          pastSubstitutionRequest: {
+            ...pastRequest,
+            personQuestions: sparseWithExtra(pastRequest.personQuestions[0]!),
+          },
+        },
+        unavailable: 'past-substitution-unavailable',
+      },
+      {
+        name: '回訂正質問',
+        props: {
+          pastSubstitutionRequest: {
+            ...pastRequest,
+            inningQuestions: sparseWithExtra(pastRequest.inningQuestions[0]!),
+          },
+        },
+        unavailable: 'past-substitution-unavailable',
+      },
+      {
+        name: '時点訂正質問',
+        props: {
+          pastSubstitutionRequest: {
+            ...pastRequest,
+            timingQuestions: sparseWithExtra(pastRequest.timingQuestions[0]!),
+          },
+        },
+        unavailable: 'past-substitution-unavailable',
+      },
+      {
+        name: '選手訂正選択肢',
+        props: {
+          pastSubstitutionRequest: {
+            ...pastRequest,
+            personQuestions: [
+              {
+                ...pastRequest.personQuestions[0]!,
+                options: sparseWithExtra(
+                  pastRequest.personQuestions[0]!.options![0]!,
+                ),
+              },
+            ],
+          },
+        },
+        unavailable: 'past-substitution-unavailable',
+      },
+    ]
+    for (const item of sparseCases) {
+      const wrapper = mountScreen(item.props)
+      expect(
+        wrapper.get(`[data-testid="${item.unavailable}"]`).text(),
+        item.name,
+      ).toContain('未取得')
+      expect(
+        wrapper.get('[data-testid="stop-status"]').text(),
+        item.name,
+      ).toContain('未取得')
+      expect(
+        wrapper.get<HTMLButtonElement>('[data-testid="substitution-apply"]')
+          .element.disabled,
+        item.name,
+      ).toBe(true)
+      wrapper.unmount()
+    }
+    expect(Object.keys(sparseWithExtra(base))).toHaveLength(2)
+  })
+
   it('親の公開通知で不変下書きを毎変更・消去・文脈変更ごとに渡し、実操作を発行しない', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
@@ -672,6 +915,61 @@ describe('交代とタイブレークの画面下書き', () => {
     ).toContain('準備中')
   })
 
+  it('検証文言と変更行の疎配列は提供結果として描画しない', async () => {
+    const wrapper = mountScreen()
+    await wrapper.get('[data-testid="substitution-kind"]').setValue('pitcher')
+    await wrapper
+      .get('[data-testid="substitution-outgoing"]')
+      .setValue('pitcher-out')
+    await wrapper
+      .get('[data-testid="substitution-incoming-mode"]')
+      .setValue('existing')
+    await wrapper
+      .get('[data-testid="substitution-incoming"]')
+      .setValue('pitcher-in')
+    await wrapper.get('[data-normal-question="place"]').setValue('provided-p')
+    await wrapper
+      .get('[data-normal-question="order"]')
+      .setValue('provided-order')
+    await wrapper.setProps({
+      substitutionValidation: {
+        identity: raw(wrapper).normal!.identity,
+        kind: 'valid',
+        messages: sparseWithExtra('穴の後の検証文言'),
+      },
+    })
+    expect(
+      wrapper.get('[data-testid="substitution-validation"]').text(),
+    ).toContain('未取得')
+    expect(wrapper.text()).not.toContain('穴の後の検証文言')
+    await wrapper
+      .get('[data-testid="past-substitution-target"]')
+      .setValue('history-a')
+    await wrapper.get('[data-past-question="person"]').setValue('person-a')
+    await wrapper
+      .get('[data-past-question="past-inning"]')
+      .setValue('past-inning-a')
+    await wrapper.get('[data-past-question="timing"]').setValue('交代後')
+    await wrapper.setProps({
+      pastSubstitutionPreview: {
+        identity: raw(wrapper).past!.identity,
+        kind: 'ready',
+        rows: sparseWithExtra({
+          label: '穴の後の変更行',
+          before: '前',
+          after: '後',
+        }),
+      },
+    })
+    expect(
+      wrapper.get('[data-testid="past-substitution-preview-status"]').text(),
+    ).toContain('未取得')
+    expect(wrapper.text()).not.toContain('穴の後の変更行')
+    expect(wrapper.get('[data-testid="stop-status"]').text()).toContain(
+      '未取得',
+    )
+  })
+
   it('終了ロックと既存undo表示を整合させ、実操作は常に封鎖する', async () => {
     const wrapper = mountScreen({
       substitutionLockState: 'ending-locked-undo-available',
@@ -688,7 +986,7 @@ describe('交代とタイブレークの画面下書き', () => {
       wrapper.get('[data-testid="substitution-lock-status"]').text(),
     ).toContain('対象は確認できていません')
     expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
-      '直前の操作',
+      '未取得',
     )
     const staleOffer = {
       kind: 'available' as const,
@@ -696,20 +994,53 @@ describe('交代とタイブレークの画面下書き', () => {
       operationLabel: '交代',
       targetLabel: '古い試合の操作',
     }
-    await wrapper.setProps({ undoOffer: staleOffer })
+    await wrapper.setProps({ undoOffer: staleOffer, undoContextKey: 'game-a' })
     expect(
       wrapper.get('[data-testid="substitution-lock-status"]').text(),
     ).toContain('対象は確認できていません')
-    const currentOffer = { ...staleOffer, contextKey: 'game-a' }
-    await wrapper.setProps({ undoOffer: currentOffer })
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '未取得',
+    )
+    await wrapper.setProps({ undoContextKey: 'game-b' })
+    expect(
+      wrapper.get('[data-testid="substitution-lock-status"]').text(),
+    ).toContain('対象は確認できていません')
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '未取得',
+    )
+    const currentOffer = {
+      ...staleOffer,
+      contextKey: 'game-a',
+      targetLabel: '直前の操作',
+    }
+    await wrapper.setProps({
+      undoOffer: currentOffer,
+      undoContextKey: 'game-a',
+    })
     expect(
       wrapper.get('[data-testid="substitution-lock-status"]').text(),
     ).toContain('対象は上の欄にあります')
-    const noTarget = { kind: 'none' as const, contextKey: 'game-a' }
-    await wrapper.setProps({ undoOffer: noTarget })
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '直前の操作',
+    )
+    await wrapper.setProps({ undoOffer: { ...currentOffer, targetLabel: '' } })
     expect(
       wrapper.get('[data-testid="substitution-lock-status"]').text(),
     ).toContain('対象は確認できていません')
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      '未取得',
+    )
+    const noTarget = { kind: 'none' as const, contextKey: 'game-a' }
+    await wrapper.setProps({
+      undoOffer: noTarget,
+      substitutionLockState: 'ending-locked-undo-unavailable',
+    })
+    expect(
+      wrapper.get('[data-testid="substitution-lock-status"]').text(),
+    ).toContain('対象もありません')
+    expect(wrapper.get('[data-testid="undo-target-status"]').text()).toContain(
+      'ありません',
+    )
     await wrapper.setProps({
       substitutionLockState: 'nonsense' as SubstitutionLockState,
     })

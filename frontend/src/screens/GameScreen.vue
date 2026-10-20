@@ -156,6 +156,15 @@ function relaySubstitutionDraft(snapshot: SubstitutionDraftsSnapshot) {
   emit('substitution-draft-change', snapshot)
 }
 
+// 交代文脈がある画面では、直前取消欄と交代ロックの参照先を揃える。
+const undoDisplayContextKey = computed(() =>
+  props.substitutionContextKey !== undefined &&
+  props.substitutionContextKey !== null &&
+  props.substitutionContextKey !== props.undoContextKey
+    ? null
+    : props.undoContextKey,
+)
+
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
 const queueStatus = computed(() =>
   deriveQueueStatus({
@@ -574,7 +583,7 @@ watch(
 
     <GameScreenUndo
       :offer="props.undoOffer"
-      :active-context-key="props.undoContextKey"
+      :active-context-key="undoDisplayContextKey"
     />
     <GameScreenPastCorrection
       :request="props.correctionRequest"
@@ -588,6 +597,7 @@ watch(
       :tiebreak-request="props.tiebreakRequest"
       :past-request="props.pastSubstitutionRequest"
       :active-context-key="props.substitutionContextKey"
+      :undo-context-key="undoDisplayContextKey"
       :lock-state="props.substitutionLockState"
       :undo-offer="props.undoOffer"
       :validation="props.substitutionValidation"

@@ -26,6 +26,7 @@ const props = defineProps<{
   tiebreakRequest?: TiebreakRequest | null
   pastRequest?: PastSubstitutionRequest | null
   activeContextKey?: string | null
+  undoContextKey?: string | null
   lockState?: SubstitutionLockState | null
   undoOffer?: UndoOffer | null
   validation?: SubstitutionValidation | null
@@ -63,16 +64,31 @@ function createUiInstanceId(): string | null {
 }
 const uiInstanceId = createUiInstanceId()
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isLabel(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+// 添字の自前要素をすべて検査し、穴を余分な列挙keyで埋めた形も拒否する。
+function denseEvery(
+  values: readonly unknown[],
+  test: (value: unknown) => boolean,
+): boolean {
+  for (let index = 0; index < values.length; index += 1) {
+    if (!Object.hasOwn(values, index) || !test(values[index])) return false
+  }
+  return true
+}
+
 function choicesReady(value: unknown): value is readonly SubstitutionChoice[] {
   return (
     Array.isArray(value) &&
-    value.every(
-      (item) =>
-        item &&
-        typeof item.id === 'string' &&
-        !!item.id &&
-        typeof item.label === 'string' &&
-        !!item.label,
+    denseEvery(
+      value,
+      (item) => isRecord(item) && isLabel(item.id) && isLabel(item.label),
     ) &&
     new Set(value.map((item) => item.id)).size === value.length
   )
@@ -83,19 +99,23 @@ function questionsReady(
 ): value is readonly SubstitutionQuestion[] {
   return (
     Array.isArray(value) &&
-    value.every(
-      (item) =>
-        item &&
-        typeof item.key === 'string' &&
-        !!item.key &&
-        typeof item.label === 'string' &&
-        !!item.label &&
-        typeof item.required === 'boolean' &&
-        (item.input === 'text' ||
-          (item.input === 'choice' &&
-            choicesReady(item.options) &&
-            item.options.length > 0)),
-    ) &&
+    denseEvery(value, (item) => {
+      if (
+        !isRecord(item) ||
+        !isLabel(item.key) ||
+        !isLabel(item.label) ||
+        typeof item.required !== 'boolean'
+      )
+        return false
+      if (item.input === 'text') {
+        return item.options === undefined || choicesReady(item.options)
+      }
+      return (
+        item.input === 'choice' &&
+        choicesReady(item.options) &&
+        item.options.length > 0
+      )
+    }) &&
     new Set(value.map((item) => item.key)).size === value.length
   )
 }
@@ -118,9 +138,10 @@ const requestReady = computed(() => {
     request?.contextKey === props.activeContextKey &&
     Array.isArray(request.operations) &&
     request.operations.length > 0 &&
-    request.operations.every(
-      (item) =>
-        kinds.includes(item.kind) &&
+    denseEvery(request.operations, (item) => {
+      if (!isRecord(item) || !kinds.some((kind) => kind === item.kind))
+        return false
+      return (
         choicesReady(item.outgoing) &&
         item.outgoing.length > 0 &&
         choicesReady(item.incoming) &&
@@ -131,8 +152,9 @@ const requestReady = computed(() => {
           item.registrationQuestions,
           item.placementQuestions,
           item.questions,
-        ]),
-    ) &&
+        ])
+      )
+    }) &&
     new Set(request.operations.map((item) => item.kind)).size ===
       request.operations.length
   )
@@ -166,7 +188,10 @@ const pastReady = computed(() => {
     typeof request.page.label === 'string' &&
     !!request.page.label &&
     choicesReady(request.page.targets) &&
-    request.page.targets.every((item) => typeof item.detail === 'string') &&
+    denseEvery(
+      request.page.targets,
+      (item) => isRecord(item) && typeof item.detail === 'string',
+    ) &&
     typeof request.page.hasPrevious === 'boolean' &&
     typeof request.page.hasNext === 'boolean' &&
     questionsReady(request.personQuestions) &&
@@ -467,7 +492,10 @@ const currentValidation = computed(() =>
   ['pending', 'failed', 'invalid', 'valid'].includes(props.validation!.kind) &&
   (props.validation!.messages === undefined ||
     (Array.isArray(props.validation!.messages) &&
-      props.validation!.messages.every((item) => typeof item === 'string')))
+      denseEvery(
+        props.validation!.messages,
+        (item) => typeof item === 'string',
+      )))
     ? props.validation
     : null,
 )
@@ -478,11 +506,11 @@ const currentPreview = computed(() =>
   (props.preview!.kind !== 'ready' ||
     (Array.isArray(props.preview!.rows) &&
       props.preview!.rows.length > 0 &&
-      props.preview!.rows.every(
+      denseEvery(
+        props.preview!.rows,
         (row) =>
-          !!row &&
-          typeof row.label === 'string' &&
-          !!row.label &&
+          isRecord(row) &&
+          isLabel(row.label) &&
           typeof row.before === 'string' &&
           typeof row.after === 'string',
       )))
@@ -490,18 +518,26 @@ const currentPreview = computed(() =>
     : null,
 )
 
-// 親のUndoOffer文脈付き型が取り込まれるまで、実行時に存在を確かめて安全側へ倒す。
+// 直前取消欄と同じ供給文脈・表示条件だけを読む。
 const matchedUndoOffer = computed(() => {
   const offer = props.undoOffer
   const active = props.activeContextKey
-  return offer &&
-    typeof active === 'string' &&
-    !!active &&
-    'contextKey' in offer &&
-    typeof offer.contextKey === 'string' &&
-    offer.contextKey === active
-    ? offer
-    : null
+  const undoContext = props.undoContextKey
+  if (
+    !offer ||
+    !isLabel(active) ||
+    undoContext !== active ||
+    offer.contextKey !== active
+  )
+    return null
+  if (offer.kind === 'none') return offer
+  if (
+    offer.kind === 'available' &&
+    isLabel(offer.operationLabel) &&
+    isLabel(offer.targetLabel)
+  )
+    return offer
+  return null
 })
 const lockExplanation = computed(() => {
   switch (props.lockState) {
