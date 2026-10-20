@@ -59,6 +59,17 @@ const ready: CorrectionPrerequisites = {
   connection: 'online',
 }
 
+/** 穴を余分な列挙プロパティで隠した表示fixture。 */
+function sparseWithDecoy<T>(item: T): T[] {
+  const values = new Array<T>(2)
+  values[1] = item
+  Object.defineProperty(values, 'decoy', {
+    value: '余分な値',
+    enumerable: true,
+  })
+  return values
+}
+
 function mountCorrection(overrides: Record<string, unknown> = {}) {
   return mount(GameScreen, {
     props: {
@@ -298,6 +309,68 @@ describe('過去プレイ修正の表示専用受取口', () => {
     )
     expect(draft(wrapper)).toBeNull()
   })
+
+  it.each([
+    [
+      'targets',
+      () => ({
+        ...request,
+        page: {
+          ...request.page,
+          targets: sparseWithDecoy(request.page.targets[0]!),
+        },
+      }),
+    ],
+    [
+      'questions',
+      () => ({
+        ...request,
+        questions: {
+          ...request.questions,
+          modify: sparseWithDecoy(request.questions.modify[0]!),
+        },
+      }),
+    ],
+    [
+      'options',
+      () => ({
+        ...request,
+        questions: {
+          ...request.questions,
+          modify: [
+            {
+              ...request.questions.modify[0]!,
+              options: sparseWithDecoy(
+                request.questions.modify[0]!.options![0]!,
+              ),
+            },
+          ],
+        },
+      }),
+    ],
+  ] as const)(
+    '%sの疎配列を未取得に倒し、停止UIを描画し続ける',
+    (_name, makeRequest) => {
+      const correctionRequest = makeRequest()
+      const values =
+        _name === 'targets'
+          ? correctionRequest.page.targets
+          : _name === 'questions'
+            ? correctionRequest.questions.modify
+            : correctionRequest.questions.modify[0]!.options!
+      expect(Object.keys(values)).toHaveLength(values.length)
+      const wrapper = mountCorrection({ correctionRequest })
+      expect(wrapper.find('[data-testid="stop-status"]').exists()).toBe(true)
+      expect(
+        wrapper.get('[data-testid="correction-request-unavailable"]').text(),
+      ).toContain('未取得')
+      expect(wrapper.find('[data-testid="correction-target"]').exists()).toBe(
+        false,
+      )
+      expect(draft(wrapper)).toBeNull()
+    },
+  )
+
   it('利用者に状態と保存されないことを示し、実装用語を出さない', async () => {
     const wrapper = mountCorrection()
     await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
@@ -510,6 +583,29 @@ describe('過去プレイ修正の表示専用受取口', () => {
         ...invalid,
       } as unknown as CorrectionPreview,
     })
+    expect(
+      wrapper.get('[data-testid="correction-preview-status"]').text(),
+    ).toContain('未取得')
+    expect(wrapper.text()).not.toContain('変更前後の内容を確認できます')
+    expect(wrapper.find('[data-testid="correction-diff-rows"]').exists()).toBe(
+      false,
+    )
+  })
+
+  it('readyの差分行が疎配列でも未取得に倒し、停止UIを描画し続ける', async () => {
+    const wrapper = mountCorrection()
+    await wrapper.get('[data-testid="correction-target"]').setValue('play-a')
+    await wrapper.get('[data-testid="correction-operation"]').setValue('modify')
+    const rows = sparseWithDecoy({ label: '得点', before: '0', after: '1' })
+    expect(Object.keys(rows)).toHaveLength(rows.length)
+    await wrapper.setProps({
+      correctionPreview: {
+        identity: draft(wrapper)!.identity,
+        kind: 'ready',
+        rows,
+      },
+    })
+    expect(wrapper.find('[data-testid="stop-status"]').exists()).toBe(true)
     expect(
       wrapper.get('[data-testid="correction-preview-status"]').text(),
     ).toContain('未取得')

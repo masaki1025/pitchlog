@@ -105,6 +105,17 @@ function isLabel(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+// 添字を全て訪問する。疎配列の穴や余分な列挙プロパティは有効要素に数えない。
+function denseEvery(
+  values: readonly unknown[],
+  test: (value: unknown) => boolean,
+): boolean {
+  for (let index = 0; index < values.length; index += 1) {
+    if (!Object.hasOwn(values, index) || !test(values[index])) return false
+  }
+  return true
+}
+
 const requestReady = computed(() => {
   const request: unknown = props.request
   if (
@@ -122,7 +133,8 @@ const requestReady = computed(() => {
     return false
   const targets: unknown[] = request.page.targets
   if (
-    !targets.every(
+    !denseEvery(
+      targets,
       (target) =>
         isRecord(target) &&
         isLabel(target.id) &&
@@ -139,7 +151,7 @@ const requestReady = computed(() => {
     if (!Array.isArray(questions)) return false
     const entries: unknown[] = questions
     if (
-      !entries.every((question) => {
+      !denseEvery(entries, (question) => {
         if (
           !isRecord(question) ||
           !isLabel(question.key) ||
@@ -151,7 +163,8 @@ const requestReady = computed(() => {
         if (!Array.isArray(question.options)) return false
         const options: unknown[] = question.options
         return (
-          options.every(
+          denseEvery(
+            options,
             (option) =>
               isRecord(option) && isLabel(option.id) && isLabel(option.label),
           ) &&
@@ -296,7 +309,8 @@ const currentPreview = computed<CorrectionPreview | null>(() => {
     received.kind === 'ready' &&
     Array.isArray(received.rows) &&
     received.rows.length > 0 &&
-    received.rows.every(
+    denseEvery(
+      received.rows,
       (row) =>
         isRecord(row) &&
         isLabel(row.label) &&
