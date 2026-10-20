@@ -1,0 +1,55 @@
+# C2・U-F3からU-F13へ接続する際の差分判断
+
+2026-10-18、基線 `493342be37d4383ca572f8d1c826a3f184a4d213`。C1ステップ2はPR #147で統合・完了済み。本資料はC1の既済み受理・本人確認を取り消すものではない。以下は新たに判明した差分と、既存の統合条件を区別する資料であり、未承認案を実装済みとは扱わない。
+
+## 1. LoginScreenのコア登録不足
+
+- `frontend/src/screens/LoginScreen.vue` / `LoginScreen.spec.ts` は認証・tenant確定の意味範囲Tに該当するが、現基線のcore pathsには一致しない。既定の反対側・敵対レビューは実施しても、機械検出の不足をそのままにしない。
+- 最小案：tenant-isolationへ **`frontend/src/screens/LoginScreen*` だけ**を追加する。D/S/G/Rへ広げず、既存U-F5/U-F6/U-F8の登録を保持する。
+- 変更対象：`scripts/core_guard.py` の回転式追加層宣言、`tests/test_core_guard.py` の対応宣言・隔離履歴/検出/未記入拒否試験、その後の別コミットで `.claude/core-areas.json` の登録。既定の宣言→JSON順を維持する。
+- U-F13既承認の `frontend/src/router*` / `frontend/src/App*` と混同しない。今回の1パターンをU-F3の最小追補として扱う案を提示する。追加登録の正式採否は未記録。
+
+## 2. 共有3ファイルの編集所有・順序
+
+open PR #143 / U-R1が上の3ファイルを編集していることを実PR差分から確認した。Dはこれらをまだ編集していない。#143の未統合候補・revisionを自分のdevelop基線とは扱わない。agmsgにはPitchLogの登録がなく、別チームへの送信や無回答による所有移管も行っていない。
+
+順序案は **#143統合→Dが実developから宣言/登録を導出** とする。#143を待たずDを先行させる場合は、当該3ファイルに限定した一時所有と、#143担当が統合後の基線へ追随する受理が必要である。C2の製品・試験やU-F3の画面・試験はこの待ちとは独立して進める。
+
+## 3. 既存Cookie更新の競合：新たな認証契約判断
+
+### 実コードと再現条件
+
+現基線の `backend/src/pitchlog/api/tenant_access.py` の `require_tenant_access` は、認可済み提示値を `Set-Cookie` に再設定して期限を更新する。sessionと保護APIが対象で、今回新設した処理ではない。C1の承認済み安全側無効化例外は旧login/logoutのCookie変更可能性に限られる。共通clientもCookie通知フックをこの2操作に限定している。
+
+1. Aで開始したsession/保護API応答を遅延させる。
+2. BのloginがCookie Bを発行する。
+3. 旧A応答が到着し、JSの世代検査より前にブラウザがCookie Aへ更新する。
+4. Bのsession確認前なら、その確認はCookie Aを使い得る。B確認後であればC2のexpected Bとserver Context Aの不一致により、対象7業務経路はoperation前404で閉じる。
+
+両独立レビュアはC2の7経路をfail closedと評価し、この残余を基線由来の別認証契約判断としている。C1の完了を未了へ戻したり、旧tenantを新世代へ採用する許可へ読み替えたりしない。
+
+### 初回の最小追補案（未実装・初回レビュー否決）
+
+以下は最初の候補であり、そのままの採用を推奨する現在案ではない。[初回レビュー結果](auth-cookie-uncertainty-review.md)のとおり、別タブのCookie適用とJS観測順、対象外のCookie変更、明示再確認状態の寿命が不足した。既受理C1を戻さず、login/session相関を保証できる最小C1追補の具体化・レビューを次の判断方向として提示する。
+
+- Cookieを更新し得る旧session・今回の7tenant-bound経路についても、到着/通信結果不明時に **安全側の未確認化だけ**を許す。旧ユーザー・tenant・本文・成功は採用しない。
+- 新世代のstore/cacheを未確認へ戻し、tenant通信を止め、利用者の明示session再確認を求める。資格情報・mutation・sessionの自動再送はしない。
+- JavaScriptから`Set-Cookie`を読める前提にしない。対象経路・Cookie発行前と証明できる失敗・結果不明時の扱いを追補レビューで固定し、同一要求からの重複通知/破棄を禁止する。
+- 変更候補はD所有の共通client/auth helperと固有spec、C1/C2/U-F3/U-F13の接続記録。API/DTO/ACL/凍結資産/認証期限は変更しない。既存Cookie更新を廃止する案はidle期限に影響するため今回の推奨に含めない。
+- 必須試験：A応答とB login/sessionの前後、複数世代、旧sessionの本文遅延、Cookie更新可能な失敗/通信結果不明、同一要求の通知1回、未確認中tenant通信0、自動再送0。承認前にこの契約拡張を製品へ入れない。
+
+## 4. 新規判断と区別する既存条件
+
+- U-F13計画§2/§3.2/§5は、C2とU-F3がdevelopへ着地した後に開始する条件を明記している。C1の待ちは解消済みであり、C2/U-F3の人間逐行確認・人間による統合を残条件として扱う。
+- 最新指示は既存計画の順序を維持しており、Dによるマージは含まない。未統合の自分の候補を接続したローカル通し試験を先行する例外は、承認済みとは記録しない。
+- C2/U-F3の候補作成・試験・正式レビュー・コミット・PR準備を先に完了する。/team接続、実画面/API/DB通し受入、公開済みの主張はまだしない。
+- TSK-528全体、TSK-520の実API受入、15経路+catch-all全体は未完了のまま保持する。
+
+
+## 5. 現在の依存・所有（2026-10-18、156dd139）
+
+§1〜4は493342be調査時点の履歴。最新developには#143が156dd139で統合され、Dの3専用worktreeへ通常mergeした。旧#143共有編集待ちは解消済み。U-F13が承認済みrouter/Appの宣言のみをe5fcff3cへコミットし、core試験264件・Ruff/ty・実基線照合が成功、JSON差分0。現在のcore3ファイルはU-F13側が所有し、C2/U-F3から同時編集しない。
+
+LoginScreen*の意味範囲T登録不足は別の追加1パターンとして人間判断待ち。C2/U-F3は承認済みコードと既定レビューを持ち、最新基線の検証を進めている。U-F13のC2/U-F3 develop着地条件と、自分の固定候補だけを専用検証環境へ結合する最小例外の依頼は区別し、未回答を承認と扱わない。
+
+旧frontendだけのCookie案は不採用のまま。新しいlogin/session相関の具体候補と採否は、U-F13 branchのコミット379aef25内 `docs/features/uf13-team-route-acceptance/login-session-correlation-decision.md` / `login-session-correlation-review.md`へ一本化した。login DTO・意図保存/直列化・初回再login・固定503・限定caller1組・追加局所PR1本の人間判断を求めているが未承認/未実装。C1既済み承認・C2/U-F3製品レビューを取り消さず、新候補をC2へ無断実装しない。TSK-528全体・TSK-520実API受入・15経路全体は未完了。

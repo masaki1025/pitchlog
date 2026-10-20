@@ -7,6 +7,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from pitchlog.api.errors import register_exception_handlers
 from pitchlog.api.routers import auth, lineup_memory, meta, players, team_records
+from pitchlog.api.tenant_access import tenant_match_response_headers
 from pitchlog.authz.signing_key_config import require_signing_key_configuration
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import _activate_presentation
@@ -50,6 +51,9 @@ class _RenewedCookieMiddleware:
                         for name, value in headers
                         if name.lower() != b"cache-control"
                     ] + [(b"cache-control", b"no-store")]
+                message["headers"] = tenant_match_response_headers(
+                    scope, message["status"], list(message.get("headers", headers))
+                )
             await send(message)
 
         await self.app(scope, receive, send_with_cookie)
