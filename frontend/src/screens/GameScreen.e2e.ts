@@ -16,9 +16,16 @@ function isResponse(
   method: string,
   pathname: string,
 ): boolean {
+  return isRequest(response.request(), method, pathname)
+}
+
+function isRequest(
+  request: Request,
+  method: string,
+  pathname: string,
+): boolean {
   return (
-    response.request().method() === method &&
-    new URL(response.url()).pathname === pathname
+    request.method() === method && new URL(request.url()).pathname === pathname
   )
 }
 
@@ -161,6 +168,139 @@ async function requireTenantResponse(
     throw new Error('実認証応答のtenantが一致しない')
 }
 
+function watchInitialRosterRequests(
+  page: Page,
+  finalSessionSeen: () => boolean,
+): {
+  teamStart: Promise<Request | null>
+  team: Promise<Response | null>
+  players: Promise<Request | null>
+} {
+  let finalTeamRequest: Request | null = null
+  let teamResponseSeen = false
+  const teamStart = page
+    .waitForRequest((request) => {
+      if (
+        !finalSessionSeen() ||
+        !isRequest(request, 'GET', '/api/team-records')
+      )
+        return false
+      finalTeamRequest = request
+      return true
+    })
+    .catch(() => null)
+  const team = page
+    .waitForResponse((response) => {
+      if (finalTeamRequest === null || response.request() !== finalTeamRequest)
+        return false
+      teamResponseSeen = true
+      return true
+    })
+    .catch(() => null)
+  const players = page
+    .waitForRequest(
+      (request) =>
+        teamResponseSeen && isRequest(request, 'GET', '/api/players'),
+    )
+    .catch(() => null)
+  return { teamStart, team, players }
+}
+
+async function requireInitialRosterReady(
+  page: Page,
+  requests: ReturnType<typeof watchInitialRosterRequests>,
+  opponentName: string,
+): Promise<void> {
+  if (!(await requests.teamStart))
+    throw new Error('最終認証後の実チーム一覧GETがない')
+  const teamResponse = await requests.team
+  if (!teamResponse || teamResponse.status() !== 200)
+    throw new Error('実チーム一覧GETが200ではない')
+  if (teamResponse.headers()['x-pitchlog-tenant-match'] !== '1')
+    throw new Error('実チーム一覧GETのtenant照合がない')
+  if ((await teamResponse.finished()) !== null)
+    throw new Error('実チーム一覧GETが完了しない')
+  let teamBody: unknown
+  try {
+    teamBody = await teamResponse.json()
+  } catch {
+    throw new Error('実チーム一覧応答の読取に失敗')
+  }
+  const records =
+    typeof teamBody === 'object' &&
+    teamBody !== null &&
+    'items' in teamBody &&
+    Array.isArray(teamBody.items)
+      ? teamBody.items
+      : null
+  const opponent = records?.find(
+    (record: unknown) =>
+      typeof record === 'object' &&
+      record !== null &&
+      'kind' in record &&
+      record.kind === 'opponent' &&
+      'name' in record &&
+      record.name === opponentName,
+  ) as { id?: unknown } | undefined
+  if (typeof opponent?.id !== 'string')
+    throw new Error('現在tenantの対戦相手を実チーム一覧で確認できない')
+
+  const playersRequest = await requests.players
+  if (
+    !playersRequest ||
+    new URL(playersRequest.url()).searchParams.get('team_record_id') !==
+      opponent.id
+  )
+    throw new Error('選択中の対戦相手に対応する実選手GETがない')
+  const playersResponse = await playersRequest.response().catch(() => null)
+  if (!playersResponse || playersResponse.status() !== 200)
+    throw new Error('実選手GETが200ではない')
+  if (playersResponse.headers()['x-pitchlog-tenant-match'] !== '1')
+    throw new Error('実選手GETのtenant照合がない')
+  if ((await playersResponse.finished()) !== null)
+    throw new Error('実選手GETが完了しない')
+  let playersBody: unknown
+  try {
+    playersBody = await playersResponse.json()
+  } catch {
+    throw new Error('実選手一覧応答の読取に失敗')
+  }
+  if (
+    typeof playersBody !== 'object' ||
+    playersBody === null ||
+    !('items' in playersBody) ||
+    !Array.isArray(playersBody.items) ||
+    playersBody.items.length !== 0
+  )
+    throw new Error('専用fixtureの選手一覧読取結果が一致しない')
+  await expect(page.getByText('チームを読み込んでいます。')).toBeHidden()
+  await expect
+    .poll(() =>
+      page
+        .getByTestId('team-record-list')
+        .locator('button[aria-pressed="true"]')
+        .getByText(opponentName, { exact: true })
+        .isVisible(),
+    )
+    .toBe(true)
+  await expect
+    .poll(() => page.getByRole('heading', { name: opponentName }).isVisible())
+    .toBe(true)
+  await expect(page.getByText('選手を読み込んでいます。')).toBeHidden()
+  await expect(page.getByText('登録済みの選手はいません。')).toBeVisible()
+  if (pathname(page) !== '/team') throw new Error('実team画面に到達しない')
+  // 初期認証に連動した読取が静まってから、別の保護経路へ移る。
+  await page.waitForLoadState('networkidle')
+}
+
+async function requireNoHorizontalOverflow(page: Page): Promise<void> {
+  const width = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+  }))
+  expect(width.document).toBe(width.viewport)
+}
+
 test.afterEach(async ({ context }) => {
   // 失敗時の自動画面snapshotへ使い捨て認証主体を残さない。
   for (const page of context.pages()) {
@@ -189,7 +329,7 @@ async function login(page: Page, index = 0): Promise<void> {
     await passwordInput.fill(identity.password)
     const submit = page.getByRole('button', { name: 'ログイン' })
     await expect(submit).toBeEnabled()
-    // 三つの待機は、失敗時にpageを閉じても未処理rejectionを出さない。
+    // 待機は失敗時にpageを閉じても未処理rejectionを出さない。
     let loginPostSeen = false
     let sessionGetSeen = false
     const post = page
@@ -207,12 +347,7 @@ async function login(page: Page, index = 0): Promise<void> {
         return true
       })
       .catch(() => null)
-    const teamList = page
-      .waitForResponse(
-        (response) =>
-          sessionGetSeen && isGetResponse(response, '/api/team-records'),
-      )
-      .catch(() => null)
+    const initialRoster = watchInitialRosterRequests(page, () => sessionGetSeen)
     await submit.click()
     await requireTenantResponse(await post, identity.tenantId)
     phase = 'correlated-session-get'
@@ -226,15 +361,20 @@ async function login(page: Page, index = 0): Promise<void> {
       hasText: uncertaintyText,
     })
     await expect(teamHeading.or(uncertainty)).toBeVisible()
+    let finalRoster = initialRoster
     if (await uncertainty.isVisible()) {
       phase = 'explicit-session-reverification'
       const reverify = page.getByRole('button', { name: '状態を再確認' })
       await expect(reverify).toBeEnabled()
+      let manualSessionSeen = false
       const manualGet = page
-        .waitForResponse((response) =>
-          isGetResponse(response, '/api/auth/session'),
-        )
+        .waitForResponse((response) => {
+          if (!isGetResponse(response, '/api/auth/session')) return false
+          manualSessionSeen = true
+          return true
+        })
         .catch(() => null)
+      finalRoster = watchInitialRosterRequests(page, () => manualSessionSeen)
       await reverify.click()
       await requireTenantResponse(await manualGet, identity.tenantId)
       await expect(teamHeading).toBeVisible()
@@ -242,16 +382,8 @@ async function login(page: Page, index = 0): Promise<void> {
       throw new Error('相関した実session GETの成功がない')
     }
 
-    phase = 'team-list-get'
-    const teamListResponse = await teamList
-    if (!teamListResponse || teamListResponse.status() !== 200)
-      throw new Error('実チーム一覧GETが200ではない')
-    if (teamListResponse.headers()['x-pitchlog-tenant-match'] !== '1')
-      throw new Error('実チーム一覧GETのtenant照合がない')
-    if ((await teamListResponse.finished()) !== null)
-      throw new Error('実チーム一覧GETが完了しない')
-    await expect(page.getByText('チームを読み込んでいます。')).toBeHidden()
-    if (pathname(page) !== '/team') throw new Error('実team画面に到達しない')
+    phase = 'team-and-players-initial-read'
+    await requireInitialRosterReady(page, finalRoster, identity.name)
     const cookies = await page.context().cookies(runtime.baseURL)
     if (!cookies.some((cookie) => cookie.secure && cookie.httpOnly))
       throw new Error('SecureかつHttpOnlyの実Cookieがない')
@@ -286,16 +418,15 @@ test('認証なし・失効時に実 App の保護 route が開かない', async
     (value) => value.secure && value.httpOnly,
   )
   if (!cookie) throw new Error('製品認証 Cookie を取得できない')
-  const logoutStatus = await page.evaluate(
-    async () =>
-      (
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'X-Pitchlog-Request': '1' },
-        })
-      ).status,
-  )
+  const logoutStatus = await page.evaluate(async () => {
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-Pitchlog-Request': '1' },
+    })
+    await response.text()
+    return response.status
+  })
   expect(logoutStatus).toBe(200)
   // 実 logout が失効させた旧提示値を再提示し、サーバーの拒否を確認する。
   await page.context().addCookies([cookie])
@@ -323,6 +454,7 @@ test('実認証で封鎖された一覧と正規 ID の記録入口を表示す�
   await expect(
     page.getByRole('button', { name: 'スタメンを確認・設定（未提供）' }),
   ).toBeDisabled()
+  await requireNoHorizontalOverflow(page)
   await expect(
     page.getByRole('region', { name: '記録開始前提' }),
   ).toContainText('前提1')
@@ -330,7 +462,6 @@ test('実認証で封鎖された一覧と正規 ID の記録入口を表示す�
   await expect(
     page.getByRole('button', { name: '試合を開始（未提供）' }),
   ).toBeDisabled()
-  await page.setViewportSize({ width: 320, height: 700 })
   await page.goto(
     `${baseURL}/games/00000000-0000-4000-8000-000000000001/record`,
   )
@@ -339,6 +470,9 @@ test('実認証で封鎖された一覧と正規 ID の記録入口を表示す�
   ).toBeDisabled()
   await expect(page.getByRole('button', { name: '1球を確定' })).toBeDisabled()
   await expect(page.getByText('記録内容は未取得です。')).toBeVisible()
+  await requireNoHorizontalOverflow(page)
+  await page.setViewportSize({ width: 320, height: 700 })
+  await requireNoHorizontalOverflow(page)
 })
 
 test('未知・不正 ID、複数タブ、認証通信失敗を封鎖する', async ({
@@ -394,9 +528,9 @@ test('認証応答の遅延後も封鎖状態で表示する', async ({ page }) 
     releaseResponse()
     await page.unroute('**/api/auth/session', delaySession)
   }
-  const tenantId = readGameScreenE2eRuntime().identities[0]?.tenantId
-  if (!tenantId) throw new Error('使い捨てDBの認証fixtureがない')
-  await requireTenantResponse(delayedResponse ?? null, tenantId)
+  const identity = readGameScreenE2eRuntime().identities[0]
+  if (!identity) throw new Error('使い捨てDBの認証fixtureがない')
+  await requireTenantResponse(delayedResponse ?? null, identity.tenantId)
 
   const uncertainty = page
     .getByRole('alert')
@@ -405,27 +539,21 @@ test('認証応答の遅延後も封鎖状態で表示する', async ({ page }) 
   if (await uncertainty.isVisible()) {
     await expect.poll(() => pathname(page)).toBe('/login')
     await expect(startButton).toHaveCount(0)
+    let manualSessionSeen = false
     const sessionResponse = page
-      .waitForResponse((response) =>
-        isGetResponse(response, '/api/auth/session'),
-      )
+      .waitForResponse((response) => {
+        if (!isGetResponse(response, '/api/auth/session')) return false
+        manualSessionSeen = true
+        return true
+      })
       .catch(() => null)
-    const teamList = page
-      .waitForResponse((response) =>
-        isGetResponse(response, '/api/team-records'),
-      )
-      .catch(() => null)
+    const finalRoster = watchInitialRosterRequests(
+      page,
+      () => manualSessionSeen,
+    )
     await page.getByRole('button', { name: '状態を再確認' }).click()
-    await requireTenantResponse(await sessionResponse, tenantId)
-    const teamListResponse = await teamList
-    if (!teamListResponse || teamListResponse.status() !== 200)
-      throw new Error('実チーム一覧GETが200ではない')
-    if (teamListResponse.headers()['x-pitchlog-tenant-match'] !== '1')
-      throw new Error('実チーム一覧GETのtenant照合がない')
-    if ((await teamListResponse.finished()) !== null)
-      throw new Error('実チーム一覧GETが完了しない')
-    await expect.poll(() => pathname(page)).toBe('/team')
-    await expect(page.getByText('チームを読み込んでいます。')).toBeHidden()
+    await requireTenantResponse(await sessionResponse, identity.tenantId)
+    await requireInitialRosterReady(page, finalRoster, identity.name)
     await page.goto(`${baseURL}/games`)
   }
   await expect.poll(() => pathname(page)).toBe('/games')

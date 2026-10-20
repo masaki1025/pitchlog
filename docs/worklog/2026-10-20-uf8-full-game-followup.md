@@ -454,3 +454,15 @@ CI候補frontend filterへ既存 `backend/**` を保持し、明示Python対象 
 source6 normal反映`182ec62c`、backend/ブラウザ結果記録`797ee73d`、normal7支援`51758c41`を保全したEntry WTのHEAD `1c2e2783`から、`GameScreenE2eSupport.py`の専用DB seedだけを是正した。主担当実hostログ`/tmp/uf8-stage7-normal-host-e2e.log`は強化後source 5 hash不変の封鎖E2E **4成功/1失敗・22.6秒**。失敗はtenant試験の最初の実team一覧に旧tenant名が見えないpositive assertであり、全件成功ではない。製品`_prepare_team_record_read`は`kind='opponent'`を束縛する一方、fixtureは`kind='self'`を挿入していた。既存APIの供給に合わせてSQL引数を`opponent`へ変更し、コメントと既存P2-5記録の「自チーム」を「対戦相手」に訂正した。候補READMEには該当する誤記がないことを確認した。
 
 両tenantで異なる識別名をseedする構造と、実GETで旧値が見え、新tenantで新値が見えて旧値が消えるE2Eのpositive assertは変更していない。製品API/UI・role/RLS、Game API/Port、計算、codec、キュー、生成器、候補、metadata、正式CI/資産は変更していない。明示`ruff check`、backend設定とtests検索パスを指定した`ty check`、Pythonの`compile`は成功。差分はfixtureと当worklogだけ。内側のDocker制約下では実host 5件を再測定せず、この修正後の結果は**未測定**で主担当の再実行待ち。計画査読3回13件採用・normal一次1回11件採用・敵対0回、親PR枠を保持し、commit/push/外部連絡/次ステップは行っていない。
+
+### ステップ7 実fixture初期読取の完了待ち是正（2026-10-21）
+
+Entry HEAD `3ea7d9e0`、core source `1194ab6e`（normal反映済）、対戦相手fixture `ec942578`を前提に、主担当の安全な記録を読んだ。`/tmp/uf8-entry-strengthened-e2e.log`はsource 5件の前後SHA不変で封鎖E2E **0成功/5失敗**。login helperは正当なteam画面に達したが、その直後に別の保護経路へ移る5ケースが失敗し、初回の旧Cookie再提示後session GETも発生しなかった。独立probe `/tmp/uf8-transport-probe/seeded-result.log`は実HTTPS App/Auth HTTP/専用DBで **1成功/11.2秒**、login POST200→session GET200→team一覧 GET200→players GET200→初期通信完了→games/session GET200→再読込/session GET200の順で成功した。`width-result.log`も **1成功/12.0秒**で、正規記録URLの実viewport/scroll幅375/375と320/320を測った。probeは本体5件の成功やゲーム完遂には数えない。
+
+製品`TeamScreen`は一覧の初期選択レコードIDで`/api/players`を自動取得する。旧login helperはteam一覧GET/DOMだけを待ち、追加された対戦相手fixtureの選手GET・Cookie更新を伴う読取が残り得た。`GameScreen.e2e.ts`だけで、最終session応答後に**発行された**team一覧GETを捕捉し、その応答200・tenant-match・本文読取から現在tenantの対戦相手IDを照合する。続く同IDの実players GET200・tenant-match・本文読取、選択中の対戦相手と空選手一覧のUI、初期通信のnetwork idleを全て確認してからhelperを返す。正確な認証不確実UIが明示された場合だけ手動再確認し、その最終sessionに対してteam/players要求の待機を張り直す。古い要求を最終成功に転用せず、資格情報の自動再送や認証state/Cookie強制変更をしない。登録した待機Promiseのrejectionを捕捉し、安全診断は固定UI/匿名化pathname/method/statusのみを維持する。
+
+初期保護GETの完了後に旧Cookieを捕え、実logout応答本文を読み切った200→旧Cookie再提示→実session401を必須とする既存ケースを保つ。正常/拒否/遅延/再読込/複数タブ/tenant旧値消失の5ケースとpositive assertは緩めていない。既存正常経路で実`document.documentElement.scrollWidth`と`window.innerWidth`を375px一覧・375px記録・320px記録で比較し、横溢れ0を要求する。これは実ゲームPort未提供の閲覧・封鎖画面の測定であり、試合完遂ではない。timeout伸長、sleep、retry、skip、network検知無効化はない。
+
+隔離実測は関連Vitest **20ファイル402件成功**、`vue-tsc --noEmit`、frontend全`eslint .`、対象Prettier、`git diff --check`成功。`pnpm run test:browser --list`は固定sealed-ui **5件**。内側Docker制約のため、変更後の実host5件は**未再測定**で主担当補完待ち。候補`generate.py --check`はこの差分で再生成せず、既報のcommit/merge後成功を今回の実測へ再計上しない。固定scope提案v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`と旧`899...`の文書、人間回答欄、候補generator/metadata/patch、製品・正式資産は不変。
+
+敵対基本第1回は固定base `2fc46ddc901079e4e2f71b91ae3319c2e1c10631`→HEAD `1194ab6e572e9798bacf1d63d779527d1a238876`で**確定P0=0/P1=0/P2=0**だが、実E2E成功未確認のため**通過判定保留**。今回の自己診断是正は新規レビュー・第2回・P0例外・可決に数えない。計画査読3回13件採用/最終P0限定/未再査読、親PR枠、normal一次1回11件全採用を維持する。変更は`GameScreen.e2e.ts`と当worklogだけで、commit/push/外部連絡/次ステップは行っていない。
