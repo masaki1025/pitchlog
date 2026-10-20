@@ -56,3 +56,7 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 既定implementラッパーでステップ1のみを実装し、同ステップの再開で表示専用のexport型を切り出し、利用者文言を是正した。`GameScreenStopDisplay.ts`は正式runtime DTO/停止判定/耐久索引ではない。0/未取得/読取失敗/停止/照会中、訂正注意3種、同内容再開/内容訂正の封鎖、直接dispatchでemit/送信/保存がないことをDOMで固定。関連Vitest12ファイル171件、Prettier/ESLint/vue-tsc/diff-check成功。
 
 主担当は実Vue/CSS・既存Meiryoの隔離Chromium fixtureで375/320px各scrollWidth一致、POST0、pageerror0を実測し、画像を開いて確認した。0/未取得/読取失敗、fixture再供給の再読込、独立2タブの表示分離、断中封鎖を確認。再読込はfixture再供給であり、耐久provider・実Port/HTTP/DB受入ではない。結果`/tmp/uf8-followup-stop-browser-result.json`、画像`/tmp/uf8-followup-stop-{375,320}.png`。コードログは`/tmp/uf8-followup-step1{,-correction}.log`。全frontend検査は別途実行中で、完了前に成功とは記録しない。
+
+### ステップ2の独立提出枝
+
+計画のPR分割に従い、ステップ1の固定コミット13d04a91を比較元にした`feature/uf8-play-observations` worktreeでステップ2のみを実施する。計画本文・9ステップ・承認対象SHA・レビュー回数は維持し、実行枝のfrontmatter branchだけを更新した。ステップ1のレビュー/是正は親枝側で行い、必要な是正だけを明示的に取り込む。
