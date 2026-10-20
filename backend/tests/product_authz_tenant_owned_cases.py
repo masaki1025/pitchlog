@@ -315,7 +315,7 @@ def _migration_trigger_facts() -> tuple[
 
 
 def _migration_attached_trigger_functions() -> tuple[str, ...]:
-    """全 upgrade の最終接続を発火方式に依らず返し、重複も保持する。"""
+    """直接op.executeした単純CREATE/DROPの最終接続を返し、重複も保持する。"""
     attached: dict[tuple[str, str], str] = {}
     for path in sorted(_MIGRATIONS_PATH.glob("*.py")):
         for statement in _upgrade_sql(path):

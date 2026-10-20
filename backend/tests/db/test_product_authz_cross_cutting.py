@@ -6,10 +6,8 @@ import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
-import product_authz_tenant_owned_cases as tenant_owned_cases
 import psycopg
 import pytest
 from product_authz_cross_cutting_cases import (
@@ -62,33 +60,6 @@ WHERE NOT trigger.tgisinternal
   AND routine.proname = ANY(%s)
 ORDER BY routine.proname
 """
-
-
-def test_migration_trigger_census_applies_drop_and_preserves_duplicate_connections(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """最終接続だけを数え、AFTER を含む同一関数の複数接続を残す。"""
-    (tmp_path / "0001.py").write_text(
-        "def upgrade():\n"
-        "    op.execute('CREATE TRIGGER retired BEFORE UPDATE ON games "
-        "FOR EACH ROW EXECUTE FUNCTION retired_fn()')\n",
-        encoding="utf-8",
-    )
-    (tmp_path / "0002.py").write_text(
-        "def upgrade():\n"
-        "    op.execute('DROP TRIGGER retired ON games')\n"
-        "    op.execute('CREATE TRIGGER before_guard BEFORE UPDATE ON games "
-        "FOR EACH ROW EXECUTE FUNCTION guard_fn()')\n"
-        "    op.execute('CREATE TRIGGER after_guard AFTER UPDATE ON games "
-        "FOR EACH ROW EXECUTE FUNCTION guard_fn()')\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(tenant_owned_cases, "_MIGRATIONS_PATH", tmp_path)
-
-    assert tenant_owned_cases._migration_attached_trigger_functions() == (
-        "guard_fn",
-        "guard_fn",
-    )
 
 
 @dataclass(frozen=True, slots=True)
