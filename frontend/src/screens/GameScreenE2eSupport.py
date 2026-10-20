@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+import signal
 import socket
 import stat
 import time
@@ -15,7 +16,9 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from pathlib import Path
 from threading import Thread
+from types import FrameType
 from typing import cast
+from uuid import uuid4
 
 import psycopg
 import pytest
@@ -53,13 +56,24 @@ def test_sealed_ui_product_server(
     app_dsn = _app_dsn(catalog)
     first = _seed_identity(catalog, app_dsn)
     second = _seed_identity(catalog, app_dsn)
+    # 既存製品migrationの表へ、この専用DBだけの識別可能な自チーム値を置く。
+    with catalog.applicator.cursor() as cursor:
+        for identity in (first, second):
+            cursor.execute(
+                "INSERT INTO public.team_records (tenant_id, id, kind, name) "
+                "VALUES (%s, %s, %s, %s)",
+                (identity.tenant_id, uuid4(), "self", identity.name),
+            )
+    catalog.applicator.commit()
     with psycopg.connect(app_dsn) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT current_user, current_database()")
             if cursor.fetchone() != ("pitchlog_app", "pitchlog_product"):
                 pytest.fail("製品アプリロールの接続確認に失敗")
 
-    os.environ["PITCHLOG_DATABASE_URL"] = f"{_product_migration_url(app_dsn)}?sslmode=disable"
+    os.environ["PITCHLOG_DATABASE_URL"] = (
+        f"{_product_migration_url(app_dsn)}?sslmode=disable"
+    )
     os.environ["PITCHLOG_DATABASE_POOLED"] = "false"
     os.environ["PITCHLOG_TOKEN_SIGNING_KEY_B64"] = base64.b64encode(
         secrets.token_bytes(32)
@@ -93,7 +107,11 @@ def test_sealed_ui_product_server(
         {
             "port": port,
             "identities": [
-                {"name": item.name, "password": item.password, "tenantId": str(item.tenant_id)}
+                {
+                    "name": item.name,
+                    "password": item.password,
+                    "tenantId": str(item.tenant_id),
+                }
                 for item in (first, second)
             ],
         }
@@ -110,14 +128,18 @@ def test_sealed_ui_product_server(
     finally:
         server.should_exit = True
         thread.join(timeout=15)
+        if thread.is_alive():
+            pytest.fail("製品 App の停止期限を超過")
 
 
 def main() -> int:
-    """pytest 前に外側の専用クラスタを作り、既存 autouse の実認証を成立させる。
+    """Pytest 前に外側の専用クラスタを作り、既存 autouse の実認証を成立させる。
 
     Returns:
         既存 pytest 設定で実行した試験の終了値。
     """
+    # pytest fixture と二つの専用クラスタの with/finally を通して停止する。
+    signal.signal(signal.SIGTERM, _graceful_termination)
     ready = Path(os.environ["PITCHLOG_E2E_READY_FILE"])
     stop = Path(os.environ["PITCHLOG_E2E_STOP_FILE"])
     directory = ready.parent
@@ -175,7 +197,9 @@ def main() -> int:
                 password=role_password,
             )
             role = conninfo_to_dict(role_dsn)
-            if any(role.get(key) != admin.get(key) for key in ("host", "port", "dbname")):
+            if any(
+                role.get(key) != admin.get(key) for key in ("host", "port", "dbname")
+            ):
                 raise AssertionError("外側の管理接続と被検査ロールのクラスタが異なる")
             os.environ[admin_name] = outer.admin_dsn
             os.environ[role_name] = role_dsn
@@ -183,7 +207,10 @@ def main() -> int:
                 pytest.main(
                     [
                         "-c",
-                        str(Path(__file__).resolve().parents[3] / "backend/pyproject.toml"),
+                        str(
+                            Path(__file__).resolve().parents[3]
+                            / "backend/pyproject.toml"
+                        ),
                         str(Path(__file__).resolve()),
                         "-q",
                         "-s",
@@ -193,6 +220,11 @@ def main() -> int:
     finally:
         os.environ.pop(admin_name, None)
         os.environ.pop(role_name, None)
+
+
+def _graceful_termination(_signum: int, _frame: FrameType | None) -> None:
+    """SIGTERMをpytestの通常の割込み・fixture後始末へ渡す。"""
+    raise KeyboardInterrupt
 
 
 if __name__ == "__main__":

@@ -1,43 +1,45 @@
 # ステップ7: CI・凍結資産の未受理候補
 
-このディレクトリは **2026-10-21 時点の候補**であり、正式7.7受理記録ではない。実 `.github/workflows/ci.yml`、`contracts/tenant_boundary/`、比較corpusには適用していない。計画承認を実値の受理へ流用しない。`accepted_by`、`accepted_date`、`accepted_on`、`signature`、追記履歴の `acceptance_id`、`approved_by`、`approved_on` は空欄である。既存23件の履歴と署名は `before` / `after` の共通prefixにそのまま保持し、追記24件目へ転記していない。
+このディレクトリは正式7.7受理前の**候補**である。実`.github/workflows/ci.yml`、実`contracts/tenant_boundary/`、実比較corpus manifest、backend製品モジュールには適用していない。計画承認を実値受理へ流用しない。`accepted_by`、`accepted_date`、`accepted_on`、`signature`、追記履歴の`acceptance_id`、`approved_by`、`approved_on`は空欄。旧23履歴・旧署名はbefore/after共通prefixで不変であり、追記へ転記していない。旧候補はGitの`b303eae226881942804f611e1a8ef820bc0a2c6d`に保全されている。
 
-## 候補の単位と適用範囲
+## 出所と完全影響
 
-- ソース側 Git base: `8e4698f6dc254439b7d5e0c273cc2aef70cda657`。候補計算時の枝HEADは `a6f9783670d3eeb044b86d49ca61937d63829160`。Draft 6〜7の同一PR番号、受理直前・直後のSHAは未割当。PR時点の差分を元に再固定する。
-- 宣言済み範囲: `.github/workflows/ci.yml`、`base-allowlist.json`、`census-baseline.json`、`history-snapshots/`、比較corpus `manifest.json`。CI候補は既存必須 `frontend` job の同じ検査列へ `uv` / 製品backend依存 / pinned PostgreSQL 17.11 / Chromium / `pnpm run test:browser` を追加する。既存の `mise`、Node、pnpm、eslint、Prettier、型、domain build、Vitestは保持する。
-- 逆依存の実測: CIは計8資産の `baseline_control.identity.frozen_projection.external_files` に含まれる。未宣言の波及は `cache-invalidation-contract.json`、`db-api-inventory.json`、`negative-fixtures.json`、`repository-contract.json`、`runtime-authz-contract.json`、`tenant-context-allowlist.json` の6資産。正式適用にはこの具体範囲の計画追補が必要。対象集合や検査器を縮小しない。
-- `frozen-inputs.json` は同じ検査の資産だがCIを外部凍結対象に持たず、識別子 `contract_revision:4` を維持する。候補のv2履歴は9資産全体の前後識別子を保持する。
+`metadata.json`の`source_git_base`は現在のGitで得たmerge-base `7c1afebab31facc71e8cfc2731da1a9fa392de4e`、`candidate_checkout_head`は`b303eae226881942804f611e1a8ef820bc0a2c6d`。全正式入力のbefore bytesをそのHEADとbaseのblobへ照合し、dirtyなら生成を拒否する。Draft 6〜7の同一PR番号、正式受理直前・直後SHAは未割当である。
 
-## 実値とファイル
+- 宣言済み: CI、`base-allowlist.json`、`census-baseline.json`、history snapshot、比較corpus manifest。
+- 凍結逆依存: CIは8資産の`frozen_projection.external_files`に入る。未宣言の6資産は`cache-invalidation-contract.json`、`db-api-inventory.json`、`negative-fixtures.json`、`repository-contract.json`、`runtime-authz-contract.json`、`tenant-context-allowlist.json`。
+- 生成コード逆依存: `.env.example`を含む2,277個の非secret・非legacy tracked fileを機械走査し、固定`SOURCE_ASSET`・`SOURCE_DIGEST`・revisionを持つ`backend/src/pitchlog/authz/runtime_contract.py`、`backend/src/pitchlog/repositories/repository_contract.py`、`backend/src/pitchlog/repositories/tenant_context_contract.py`を追加で検出した。これらも**before/afterの完全bytesとpatchだけ**で、実製品は0差分。追加9対象を含む具体追補と質問は主担当が別途提示する。旧`step7-scope-extension.md`は不完全・未承認のまま固定し、本候補の承認根拠へ数えない。
+- `frozen-inputs.json`は9資産集合に残るがCIを外部凍結対象に含まず、識別子`contract_revision:4`は不変。
 
-`metadata.json` は9資産の宣言場所・識別解釈・前後識別子・射影digest、外部8ファイルすべての前後SHA-256、発火trigger、oldhistoryとsnapshotの件数、比較corpus digestを列挙する。`before/` と `after/` はCI、影響8資産、manifestの全ファイルを保存する。`candidate.patch` はこれらの差分と新規snapshot9件の完全な統一patchであり、元の資産を消さない。`new-snapshots/` の各ファイル名は内容SHA-256である。
+`metadata.json`には宣言場所、前後識別子、射影digest、全外部hash、before blob ID、全13前後ファイルhash、資産path・固定digestの逆参照先、旧履歴・snapshot件数、corpus digestを置く。`before/`と`after/`はCI、影響8資産、manifest、生成済み3モジュールの完全bytesを保存する。`candidate.patch`はこれら13ファイルの差分と新規snapshot9件を含み、`new-snapshots/`の各ファイル名は内容SHA-256である。
 
-主要値:
-
-| 対象 | 前 | 後候補 |
+| 対象 | before | after候補 |
 | --- | --- | --- |
-| CI SHA-256 | `f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8` | `0206d208474482e4e50dbb6993b9771a7ae86282a4d8e5e2598a7a52ec863718` |
-| base識別子 | `contract_revision:33` | `contract_revision:34` |
-| census識別子 | `contract_revision:14` | `contract_revision:15` |
-| 既存履歴 / 新履歴 | 23件、最終旧record SHA-256 `b9f4c05b5899225392deb9350ef5c05543c4ad90c493ab77905572d180761b55` | 旧23件の同一prefix + 未受理候補1件 |
-| snapshot件数 | 179件 | 旧179件保持 + 9件候補 |
-| corpus入力digest | `b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce` | `21334bcd53f38962c50a5c968a48a2465ca526e6673e2596b3ba8457898cf835` |
+| CI SHA-256 | `f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8` | `1a2082bc3abfcb9f3396abbb282762c0e2203b1f9621d9621a9dd4fb3d5d154d` |
+| base / census識別子 | `contract_revision:33` / `contract_revision:14` | `contract_revision:34` / `contract_revision:15` |
+| 履歴・snapshot | 23件・179件 | 旧prefix23件+未受理1件・旧179件+新9件 |
+| corpus入力digest | `b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce` | `1356037ce602f4004007b8cfd4177a4bbd809d9ecf0d3f7df0885304fdd7177f` |
+| 完全patch SHA-256 | 旧候補`4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fc` | `b39c5a6970b2fb8411b3ae0296cc17833d5d262090408a83fc56e2b1ce2ededf` |
 
-`generate.py` は既存 `scripts/frozen_history.py` の `frozen_projection_content` を含む射影・movement・snapshot関数と、比較corpusの `runner.corpus_input_digest` を呼ぶ。独自の凍結射影・corpus digest手順を作らない。再生成コマンドはリポジトリルートで `PYTHONPATH=scripts:tests/fixtures/frozen-archive-cases .venv/bin/python docs/features/uf8-full-game-followup/step7-candidate/generate.py`。旧比較corpusの固定prefix（履歴6件、宣言済みsnapshot名）は維持し、新snapshotを固定済みprefixへ混入させない。新しい比較ケースfixtureは現時点で不要で、manifestの入力digestのみが変わる。
+## 再生成と検証
 
-候補検査は `GameScreenCandidate.spec.ts`（元ファイルと候補beforeの同一性、対象集合、旧履歴prefix、未受理欄、新snapshot SHA、patch対象）と、隔離一時ディレクトリでの `git apply --check`・適用後bytes一致で行う。正式受理検査は、実PRの単一受理単位と人間本人の記録を得た後に別途実施する。空欄のまま正式履歴検査へ投入すると不合格になる設計であり、候補検査の成功を正式受理済みと扱わない。
+リポジトリルートで次を実行する。生成器は自分の一時stagingで構成し、既存出力がGit保全値またはhash検証済みの前回未受理出力である場合だけ置き換える。新旧snapshotの混入を拒否し、同一入力で`--check`を再実行しても全bytesは同じである。
 
-既存 `scripts/frozen_archive.py` の `validate_snapshot_archive` を候補前後と隔離したsnapshot集合へ実行した結果、前179件・後188件、孤児snapshotは前後とも33件だった。新規9件に参照漏れはない。既存 `runner.validate_corpus_inputs` も候補afterの隔離ツリーで成功した。これらの検査は人間受理欄やPR受理単位を検証する正式検査の代替ではない。
+```sh
+PYTHONPATH=backend/src:scripts:tests/fixtures/frozen-archive-cases backend/.venv/bin/python docs/features/uf8-full-game-followup/step7-candidate/generate.py
+PYTHONPATH=backend/src:scripts:tests/fixtures/frozen-archive-cases backend/.venv/bin/python docs/features/uf8-full-game-followup/step7-candidate/generate.py --check
+```
 
-主担当ホストの封鎖検査は `cd frontend && pnpm run test:browser`、同義の直接経路は `pnpm exec playwright test --config src/screens/GameScreen.playwright.config.ts --project sealed-ui`。`test:browser` は既存必須frontend jobへのCI候補でも同じ封鎖経路を指す。事前に `cd backend && uv sync --locked --dev`、frontendの固定lockによる `pnpm install --frozen-lockfile`、既存hostブラウザ1.61.0と `postgres:17.11-bookworm` imageの存在を確認する。追加downloadは内側sandboxで行わない。Python driver は pytest 開始前に自分の outer 使い捨てDBクラスタを立て、既存 `verify_connection_identities` autouse に実管理・実被検査ロール DSN を渡す。既存 `provisioned_product_catalog` は別の inner 専用クラスタを立て、実 `create_app`・実ログイン・Secure CookieをHTTPS画面で通す。外部/shared DSN は継承しない。
+`--check`は現在の正式入力のGit出所と候補全bytesを照合し、隔離copyへpatchを実適用して全after bytes・新snapshotと比較する。常設`GameScreenCandidate.spec.ts`は実ツリーの可変CI/資産/manifestや新snapshot不存在を前提にせず、候補内部の固定before/after hash、対象集合、旧履歴prefix、人間欄、patch hashと対象を検査する。正式適用後や無関係なdevelop進行で常設frontend試験を赤にしない。`generate.py`は既存`frozen_history`の射影・movement・snapshot関数、`runner.corpus_input_digest`、`runtime_contract_state.asset_digest`と`render_runtime_contract`を利用する。repository/tenant-contextの配布モジュールは今回変更されるrevisionとcanonical digestの二定数だけを前bytesから置換し、隔離適用後の既存完全一致試験で全生成値を照合する。
 
-`pnpm run test:browser:real` または直接 `--project real-game` は、正式ゲームPort・シナリオdriverが未接続のため SHA/ID の環境文字列を与えても必ず未達で失敗する。`--project` を付けない直接コマンドは両projectを実行するため、同じく現段階では失敗する。これは封鎖検査の合否を実試合完遂へ流用しないための境界であり、実driverはステップ8〜9で接続する。主担当ホストの旧試行2回は、初回がPython import、2回目が outer DB の `ADMIN_DSN` 未設定によってsetupで失敗した。bootstrap是正後、主担当ホストで実HTTPS画面・実Auth HTTP・専用outer/inner DBの起動は実測した。初回は封鎖5件中3成功/2失敗、是正後の最終安定ソースでの試行は1成功/4失敗。別の安全な通信診断でChromiumのERR_NETWORK_CHANGEDを確認した。並行する全件DB検査のコンテナ作成/撤去との関係を切り分けるため、全件DB検査の終了後にブラウザを直列実行する。現時点で封鎖5件全成功、実ゲームPort受入、1試合完遂とは記録しない。
+既存`validate_snapshot_archive`で前179・後188snapshot、孤児33件は不変、新9件の参照漏れなし。既存`runner.validate_corpus_inputs`は候補afterで成功。隔離Git archiveへpatchを適用した`test_generated_runtime_contract_matches_active_asset`、`test_generated_repository_contract_matches_asset`、`test_generated_allowlist_matches_asset`の3件が成功した。これは空の人間受理欄を通す正式history受理検査ではない。
 
-候補patchのSHA-256は `4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fc`。主担当は隔離環境で `git apply --check`、実適用後の全after bytes、9 snapshot SHAの一致を確認済み。この補完は `test:browser` scriptの意味を封鎖projectへ限定するだけで、CI候補の `pnpm run test:browser` 行とpatch bytesは変えない。未宣言6資産の計画追補案 `step7-scope-extension.md` は未回答・未受理であり、実CI・凍結資産・人間欄は変更していない。
+## CI候補とブラウザの未達
 
-主担当ホストの次の実測では実 Auth HTTP・HTTPS・専用 outer/inner DB の起動が成功し、sealed-ui は5件中3件成功・2件失敗（25.3秒）。logout要求の403は実 CSRF ゲートが要求する `X-Pitchlog-Request: 1` と自分の HTTPS Origin の許可不足、遅延テストは初期 `/team` GET と reload の重なりによる既存の認証不確実性が疑われる。候補サポートは先に自分用loopbackポートを選び、`strictPort:true` で衝突時は起動失敗にし、その厳密な `https://127.0.0.1:<port>` だけを backend の `PITCHLOG_ALLOWED_ORIGINS` に渡す。logoutの実ヘッダと旧Cookieの401、初期GET完了後の遅延、必要時の画面上の明示再確認GETから最終 `/games` 封鎖表示を検証する。修正後の host E2E 合否は主担当の再実行待ちであり、3成功2失敗を成功へ書き換えない。正式ゲームPort・1試合完遂は未提供のまま。
+CI候補は既存必須frontend jobに`backend/**`の保守的filter、40分のjob上限、既存backend依存同期、明示Ruff/tyで`GameScreenE2eSupport.py`と`generate.py`を検査する行、固定PostgreSQL imageとChromium、`pnpm run test:browser`を追加する。既存mise/uv pin、frontend必須列、backend起動方式、検査器は維持する。明示Ruff/tyはリポジトリルートから実行して成功した。実CIには適用していない。
 
-主担当ホストの続く2回の実測は `/tmp/uf8-entry-real-e2e-host2.log`（変更途上、36.9秒）と `/tmp/uf8-entry-real-e2e-host3.log`（前回wrapper終了後のsource、30.5秒）で、どちらも封鎖5件中3成功・2失敗。host3は通常route・未知ID/複数タブ・tenant変更が成功した一方、匿名/失効と遅延の2件はログイン補助の`/team`を先に5秒待って失敗した。先行していたteam一覧の待機は試験終了後に追加rejectionを出した。host2の匿名routeには初回表示が空のまま5秒経過した記録がある。この時点で初期Vite compile/host負荷と認証相関のどちらが原因かは未確定。logout 200と旧Cookie 401も未実測である。
+封鎖検査は`cd frontend && pnpm run test:browser`、直接経路は`pnpm exec playwright test --config src/screens/GameScreen.playwright.config.ts --project sealed-ui`。実App・実Auth HTTP・HTTPS・専用outer/inner DBを使用し、別`real-game`は正式Port/driver未提供のためdummy SHA/IDでも明示失敗する。`--project`なしの全projectも未達である。使い捨て認証主体・鍵・Cookie・nonce・本文・チーム名をconsoleやDOM snapshotへ出さず、0700/0600の自前一時領域を後始末する。Playwrightが子出力を消しても親の所有markerを維持し、失敗時DOMコピーを限定抑止する。last-run reporterの状態は`/dev/null`へ捨て、teardown後に出力先を再作成させない。
 
-補助を初回フォームの`aria-busy=false`と入力可能状態、実POST login 200とfixture tenant、POST後に始まる実session GETの応答、実team一覧GET 200・tenant照合・読取完了、最終画面の順に確認する形へ改めた。通常のsession GETは200・同tenantを要求する。実製品が認証不確実を示す場合に限り、画面の「状態を再確認」を1回操作して別の実session GET 200と同tenant、team一覧GET成功を要求する。資格情報の自動再送やmock認証は行わない。失敗時はHTTP method・queryを除いたpathname・status・経過msと固定UI状態のみを記録し、IDをpathnameから伏せる。初回ロードの通信が残っているのか、POST/GET応答は完了したのに画面が採用しないのかを次のhost実測で区別する。待機時間だけの緩和や失敗の成功扱いはしていない。修正後のhost合否とlogout 200/旧Cookie 401は主担当の再測定待ちである。
+遅延応答試験の手動再確認は`docs/features/auth-login-session-correlation/plan.md`と既存`LoginScreen.vue`・`auth.ts`の相関契約に従う。不確実な応答時は認証情報を再送せず、実UIの「状態を再確認」を押した実session GET 200・tenant一致とteam一覧GET完了を確認してから`/games`へ戻る。通常の遅延成功時も実session GET 200・tenant一致と最終`/games`の封鎖表示が必要で、任意の画面への着地を成功にしない。
+
+主担当の最終安定sourceに対するhost5実測は封鎖5件中**1成功・4失敗**で、並行DB検査中のChromium`net::ERR_NETWORK_CHANGED`が安全probeで確認された。変更途中のhost4は最終証拠へ数えない。全件DB終了後の直列browser再測定は主担当待ちであり、封鎖5件全成功、logout旧Cookie拒否の最終確認、実gamePort、GAP-05、原子性、1試合完遂、正式7.7受理はいずれも未達である。旧計画査読3回13採用と6〜7コードPR/敵対査読の枠は別管理し、6〜7敵対はまだ0回。人間記録・新scope承認を代記しない。

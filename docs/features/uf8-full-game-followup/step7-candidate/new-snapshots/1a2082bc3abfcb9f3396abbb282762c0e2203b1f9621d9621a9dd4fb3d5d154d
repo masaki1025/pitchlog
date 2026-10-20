@@ -264,8 +264,10 @@ jobs:
               - 'scripts/design_relations/sync-protocol.json'
               - 'tests/domain/runners/**'
               - 'backend/src/pitchlog/domaincheck/runners/**'
+              - 'backend/**'
 
   frontend:
+    timeout-minutes: 40
     needs: frontend-changes
     if: >-
       github.event_name == 'workflow_dispatch' ||
@@ -301,6 +303,19 @@ jobs:
       - run: uv python install
         working-directory: .
       - run: uv sync --project backend --locked --dev
+        working-directory: .
+      - run: >-
+          backend/.venv/bin/ruff check --config backend/pyproject.toml
+          frontend/src/screens/GameScreenE2eSupport.py
+          docs/features/uf8-full-game-followup/step7-candidate/generate.py
+        working-directory: .
+      - run: >-
+          backend/.venv/bin/ty check --project backend
+          --extra-search-path backend/src --extra-search-path backend/tests
+          --extra-search-path scripts
+          --extra-search-path tests/fixtures/frozen-archive-cases
+          frontend/src/screens/GameScreenE2eSupport.py
+          docs/features/uf8-full-game-followup/step7-candidate/generate.py
         working-directory: .
       - run: docker pull postgres:17.11-bookworm
         working-directory: .

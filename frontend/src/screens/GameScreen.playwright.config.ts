@@ -1,7 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { resolve } from 'node:path'
+import { gameScreenOutputDirectory } from './GameScreenE2eProcess'
+
+// Playwright 1.61 の失敗時DOMコピーだけを抑え、試験のassertionは維持する。
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = '1'
+// reporterがteardown後に出力先を再作成しないよう、last-run状態は保持しない。
+process.env.PLAYWRIGHT_LAST_RUN_OUTPUT_FILE = '/dev/null'
 
 export default defineConfig({
   testDir: '.',
@@ -21,5 +24,5 @@ export default defineConfig({
     { name: 'real-game', testMatch: 'GameScreen.real.e2e.ts' },
   ],
   reporter: 'list',
-  outputDir: mkdtempSync(resolve(tmpdir(), 'pitchlog-game-e2e-output-')),
+  outputDir: gameScreenOutputDirectory(),
 })

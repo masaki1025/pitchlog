@@ -438,10 +438,34 @@ test('tenant の変更後も旧画面から記録を開始しない', async ({
 }) => {
   const { baseURL, identities } = readGameScreenE2eRuntime()
   await login(page)
+  const first = identities[0]
+  const second = identities[1]
+  if (!first || !second) throw new Error('二つの使い捨て認証fixtureがない')
+  await expect
+    .poll(() =>
+      page
+        .getByTestId('team-record-list')
+        .getByText(first.name, { exact: true })
+        .isVisible(),
+    )
+    .toBe(true)
   await page.goto(`${baseURL}/games`)
   await context.clearCookies()
-  if (!identities[1]) throw new Error('二つ目の使い捨て認証fixtureがない')
   await login(page, 1)
+  await expect
+    .poll(() =>
+      page
+        .getByTestId('team-record-list')
+        .getByText(second.name, { exact: true })
+        .isVisible(),
+    )
+    .toBe(true)
+  await expect
+    .poll(
+      async () =>
+        (await page.getByText(first.name, { exact: true }).count()) === 0,
+    )
+    .toBe(true)
   await page.goto(`${baseURL}/games`)
   await expect(
     page.getByRole('button', { name: '試合を開始（未提供）' }),
