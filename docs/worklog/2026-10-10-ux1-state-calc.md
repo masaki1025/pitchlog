@@ -266,3 +266,5 @@ P-8のT1側未了は、S05/S07/S09/S32の閉payload・軸間制約・観測入�
 以上から計画の「P-1〜P-9のどれかが欠けたら /implement に入らない」に従い、T1製品計算・正式契約/凍結資産変更は開始しない。待機中は既存契約とT1入力制約の照合、必要な負例・runner証跡の試験設計、実Portの受取条件の整理をこの専用枝で進める。FR-040は11/12段階提供から延期し、未採用宣言はT1製品manifestを作る際の成果物である。D-2全体発効、分析40行の完成、無条件の凍結解除は記録しない。
 
 再開時の既存契約検査はroot pytest（consumer handoff・入力descriptor・状態契約schema・gap register）414件成功、frontendのvectorRunner/handoffLoader 67件成功、docs-status 20文書・違反0。計画同期はこのT1専用枝名から旧共通planを自動導出できないため、`--plan docs/features/ux1-state-calc/plan.md` を明示して成功した。既定のbranch導出のままでは計画書不在として失敗するため、正式PR/CIの前に計画を複製せず既存計画へ紐付ける提出方法を確定する。検査を緩めない。これらの成功はP-6/P-8の独立期待値・正式受理ではない。
+
+P-6用の入力専用109case JSONと[P-6/P-7/P-8受渡し](../features/ux1-state-calc/tsk544-p6-p7-p8-handoff.md)を固定した。入力JSONのSHA-256は`9bef18e61bd45cf5c078688a2d6d6fbe0a83c1ed599fb7d2a5a5682591844435`。`expected`/`normalized`を渡さず、未収録P-8分は後続に分ける。受取人の実返信・独立導出結果・契約所有側受理は未取得。#153のT1候補受領は正式資産受理ではない。既存ハーネスは`check_plan_docs_sync.py --plan`を提供し、CIに同検査の暗黙起動は無いため、計画複製や機構変更なしに明示コマンドで提出する。枝由来のfeature_status表示は派生であり正式条件に流用しない。
