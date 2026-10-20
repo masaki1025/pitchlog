@@ -9,6 +9,7 @@ import {
   entryStatusLabel,
   existingStateLabel,
   areStartCandidates,
+  isEntryEnvironment,
   isGameListPage,
   type EntryEnvironment,
   type EntrySupply,
@@ -21,10 +22,12 @@ const props = defineProps<{
   starts?: EntrySupply<readonly StartCandidate[]> | null
   environment?: EntrySupply<EntryEnvironment> | null
 }>()
-const emit = defineEmits<{ 'page-request': [key: string] }>()
+const emit = defineEmits<{ 'page-request': [key: string | null] }>()
 const auth = useAuthStore()
 const route = useRoute()
 const requestedPageKey = ref<string | null>(null)
+const priorPageKey = ref<string | null | undefined>(undefined)
+const pageRequestPending = ref(false)
 const selectedGameId = ref('')
 
 // 供給値の参照交換では保持し、認証または経路の実変更時だけ旧選択を破棄する。
@@ -32,6 +35,8 @@ watch(
   () => [auth.authEpoch, auth.teamId, route.path],
   () => {
     requestedPageKey.value = null
+    priorPageKey.value = undefined
+    pageRequestPending.value = false
     selectedGameId.value = ''
   },
   { flush: 'sync' },
@@ -39,6 +44,18 @@ watch(
 
 const pageSource = computed(() =>
   currentEntrySupply(props.page, auth, route, requestedPageKey.value),
+)
+watch(
+  () => props.page,
+  (next, previous) => {
+    if (
+      pageRequestPending.value &&
+      next !== previous &&
+      currentEntrySupply(next, auth, route, requestedPageKey.value) !== null
+    )
+      pageRequestPending.value = false
+  },
+  { flush: 'sync' },
 )
 const visiblePage = computed(() => {
   const source = pageSource.value
@@ -49,12 +66,27 @@ const visiblePage = computed(() => {
     ? source.data
     : null
 })
+const pageMessage = computed(() => {
+  if (pageRequestPending.value) return '確認中'
+  if (pageSource.value?.status === 'pending') return '確認中'
+  if (pageSource.value?.status === 'failed') return '読み取れません'
+  if (pageSource.value?.status === 'denied') return 'このページを確認できません'
+  return '未取得'
+})
+const pageRecoveryAvailable = computed(
+  () =>
+    !pageRequestPending.value &&
+    (pageSource.value?.status === 'failed' ||
+      pageSource.value?.status === 'denied'),
+)
 const startSource = computed(() =>
   currentEntrySupply(props.starts, auth, route),
 )
 const environment = computed(() => {
-  const source = currentEntrySupply(props.environment, auth, route)
-  return source?.status === 'ready' ? source.data : null
+  const source = currentEntrySupply(props.environment, auth, route, null)
+  return source?.status === 'ready' && isEntryEnvironment(source.data)
+    ? source.data
+    : null
 })
 const candidates = computed(() => {
   const source = startSource.value
@@ -78,8 +110,26 @@ function requestPage(key: string | null): void {
     (key !== visiblePage.value.previousKey && key !== visiblePage.value.nextKey)
   )
     return
+  priorPageKey.value = requestedPageKey.value
+  issuePageRequest(key)
+}
+
+function issuePageRequest(key: string | null): void {
+  pageRequestPending.value = true
   requestedPageKey.value = key
   emit('page-request', key)
+}
+
+function retryPage(): void {
+  if (!pageRecoveryAvailable.value) return
+  issuePageRequest(requestedPageKey.value)
+}
+
+function returnToPriorPage(): void {
+  if (!pageRecoveryAvailable.value || priorPageKey.value === undefined) return
+  const key = priorPageKey.value
+  priorPageKey.value = undefined
+  issuePageRequest(key)
 }
 </script>
 
@@ -99,9 +149,29 @@ function requestPage(key: string | null): void {
       class="min-w-0 space-y-3 rounded-2xl border p-4"
     >
       <h2 class="text-lg font-bold">試合一覧</h2>
-      <p v-if="visiblePage === null" role="status">
-        試合一覧：{{ entryStatusLabel(pageSource?.status) }}
-      </p>
+      <template v-if="visiblePage === null">
+        <p role="status">試合一覧：{{ pageMessage }}</p>
+        <div
+          v-if="pageRecoveryAvailable"
+          class="flex flex-col gap-2 sm:flex-row"
+        >
+          <button
+            type="button"
+            class="min-h-11 rounded-lg border px-3 py-2"
+            @click="retryPage"
+          >
+            このページを再試行
+          </button>
+          <button
+            v-if="priorPageKey !== undefined"
+            type="button"
+            class="min-h-11 rounded-lg border px-3 py-2"
+            @click="returnToPriorPage"
+          >
+            直前のページに戻る
+          </button>
+        </div>
+      </template>
       <template v-else>
         <p>表示ページ：{{ visiblePage.pageLabel }}</p>
         <p v-if="visiblePage.items.length === 0">

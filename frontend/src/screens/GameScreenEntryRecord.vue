@@ -10,6 +10,7 @@ import {
   datumLabel,
   entryStatusLabel,
   existingStateLabel,
+  isEntryEnvironment,
   isRecordDetail,
   type EntryEnvironment,
   type EntrySupply,
@@ -34,8 +35,10 @@ const source = computed(() =>
   validId.value ? currentEntrySupply(props.detail, auth, route) : null,
 )
 const environment = computed(() => {
-  const received = currentEntrySupply(props.environment, auth, route)
-  return received?.status === 'ready' ? received.data : null
+  const received = currentEntrySupply(props.environment, auth, route, null)
+  return received?.status === 'ready' && isEntryEnvironment(received.data)
+    ? received.data
+    : null
 })
 const visibleDetail = computed(() => {
   const received = source.value
@@ -47,6 +50,20 @@ const visibleDetail = computed(() => {
     ? received.data
     : null
 })
+const recordEntryDenied = computed(
+  () =>
+    source.value?.status === 'denied' ||
+    visibleDetail.value?.recordingRight === 'denied',
+)
+const showDraftForm = computed(
+  () =>
+    validId.value &&
+    auth.hasHydrated &&
+    auth.isAuthenticated &&
+    auth.teamId !== null &&
+    canonicalUuid.test(auth.teamId) &&
+    !recordEntryDenied.value,
+)
 </script>
 
 <template>
@@ -100,7 +117,7 @@ const visibleDetail = computed(() => {
         </div>
       </dl>
       <p v-if="visibleDetail?.recordingRight === 'denied'">
-        記録権を確認できないため、記録を再開できません。
+        記録権を保持していません。記録を再開できません。
       </p>
       <p v-if="visibleDetail?.existingState === 'suspended'">
         中断中の試合です。再開状態の正式提供を待っています。
@@ -117,7 +134,16 @@ const visibleDetail = computed(() => {
     <section aria-label="試合の閲覧" class="space-y-2">
       <h2 class="text-lg font-bold">試合の閲覧</h2>
       <p>記録内容は未取得です。記録の確定・保存・送信はできません。</p>
-      <GameScreen :key="recordScopeKey" />
+      <p v-if="!validId">
+        正しい試合IDで開くと、閲覧を続けられます。未送信キューは変更しません。
+      </p>
+      <p v-else-if="visibleDetail?.recordingRight === 'denied'">
+        記録権がないため入力欄は表示しません。閲覧と未送信キューの保持は続けられます。
+      </p>
+      <p v-else-if="recordEntryDenied">
+        この試合の情報を確認できないため入力欄は表示しません。閲覧と未送信キューの保持は続けられます。
+      </p>
+      <GameScreen v-if="showDraftForm" :key="recordScopeKey" />
     </section>
   </main>
 </template>

@@ -401,3 +401,14 @@ CI候補は既存必須frontend jobの後段へ同じ`test:browser`経路を足�
 - #160 の人間操作によるdevelop統合9136c2daを確認。#164はdevelopへ付け替え、比較用HEAD第1親の旧base残留を検査が拒否したため、検査器を維持し通常merge/pushした（fb12a9a1）。当担当はマージ/本人確認を代行していない。
 - root全件検査とbackend静的検査を開始。backendの通常pytestは既存PITCHLOG_TEST_* DSNの継承があると判明して中断（28 passedでKeyboardInterrupt、全件成功ではない）。既存DSN値を出力せず、自分専用outerクラスタを生成し継承PITCHLOG_*を除いた実行へ切り替えた。既存autouseの実認証と各試験の専用innerクラスタを維持し、共有DB/ロールを使う前提を追加しない。再実行の結果は完了後に別記する。
 - 544担当の最新提供状況をsupply-mapへ追記。J5/J6文書確定の報告と、正式型/Port/製品計算の提供・当担当受理を区別する。T5/T6等の未提供は継続。7の追加6資産とApp.vueの具体追補は未承認のままで、独立作業のみ進める。
+
+### ステップ6 Claude通常一次指摘の採用分是正（2026-10-21）
+
+固定base `2fc46...`・HEAD `39fadbba` の通常一次レビューは P0=0/P1=3/P2=8。今回採用したのは P1-3、P2-6、P2-8、P2-5の表示・契約試験側だけである。敵対6〜7枠は0回のまま。計画査読3回・13件採用・最終P0限定/未再査読、親PR枠とその履歴を変更しない。P1-1/P1-2、ステップ7支援・生成器・候補に関する残りの指摘は、このステップ6是正に混ぜず次の別callへ残した。
+
+- P1-3: 表示供給`EntryEnvironment`に`online/offline/unknown`を加え、オフラインと未取得では開始・再開できない理由を一覧・記録入口に明示した。「中断中」は既存試合の状態として別表示する。`navigator.onLine`から意味を推定せず、供給型の欠落・破損、非ready、他tenant、旧認証世代、別経路、古いrequest keyをオンラインへ昇格させない。前提1/5/6の単独・複合不足とpersist拒否の組合せをDOMで確認した。persistのみ拒否の警告とサイトストレージ不可を分け、未知前提を成立にしない。未送信キューの保持文言・件数は表示供給の候補であり、実Web Locks/IDBや再起動を通した耐久証拠ではない。
+- P2-6: 不正試合IDと明示的な記録権非保持、または詳細供給の拒否時には`GameScreen`入力フォームを出さない。非保持と未取得を区別し、閲覧と未送信キュー保持の説明を残した。認証再検証中もフォームを外し、再認証後に旧球速が戻らない。詳細未取得・未知権利での入力欄は従来どおり未保存の局所下書きに限り、確定ゲートは維持する。正式な記録権取得・型判断は未提供のまま。
+- P2-8: ページ要求中は「確認中」、現在の要求に一致する失敗/拒否は別文言と明示再試行・直前ページへの戻りを表示する。通知はローカル`page-request`だけで、HTTPや自動再送をしない。保持するのは現供給ページと要求キー・直前キー・待機フラグであり、過去ページのデータや全件集計は蓄積しない。tenant/認証世代/path変更でキーと選択を消し、旧scopeの供給を表示しない。
+- P2-5: 実球速入力を伴うroute/tenant/authEpoch切替・認証再検証での旧フォーム消去、選択とページ要求のscope切替、failed/deniedからの再試行と復帰、不正ID・非保持のフォーム不在をVitestで確認した。実tenantのAuth HTTP/E2Eはステップ7の別callと主担当の直列実ブラウザ検査へ残す。仮Game API/Portは登録していない。
+
+この差分は`GameScreenEntry*`と当worklogに限定し、`router*`は既存認証guardと安全な内部pathname制約を変更せず維持した。実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts` **19ファイル398件成功**、最後の隔離試験ケース追加後の入口/router **2ファイル86件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ375/320px・frontend全件・既定再レビューは今回未実測で、主担当の全件専用DB検査後の直列実行待ち。Chromiumの`ERR_NETWORK_CHANGED`観測を成功へ丸めず、timeout拡張/retry/network observer無効化はしていない。実ゲームPort/計算/通信/キューは未提供、実開始/再開/確定/保存/送信は全条件で封鎖し、隔離DOMの直接dispatchでもfetch/POST 0。`App.vue`追補未承認のため通常ヘッダー導線とログイン後のゲームroute復帰は未達。次ステップ、commit、push、外部連絡は行っていない。

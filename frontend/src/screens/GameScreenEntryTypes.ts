@@ -51,10 +51,40 @@ export interface RecordDetail extends StartCandidate {
 }
 
 export type PremiseStatus = 'met' | 'unmet' | 'unknown'
+export type EntryConnectivity = 'online' | 'offline' | 'unknown'
 export interface EntryEnvironment {
   premises: { 1: PremiseStatus; 5: PremiseStatus; 6: PremiseStatus }
   persistence: 'granted' | 'denied' | 'unknown'
+  connectivity: EntryConnectivity
   queuedCount: number | null
+}
+
+/** 表示供給の欠落・破損をオンラインの確認済み状態へ採用しない。 */
+export function isEntryEnvironment(value: unknown): value is EntryEnvironment {
+  if (typeof value !== 'object' || value === null) return false
+  const received = value as Partial<EntryEnvironment>
+  const premises = received.premises
+  if (typeof premises !== 'object' || premises === null) return false
+  return (
+    ['premises', 'persistence', 'connectivity', 'queuedCount'].every((key) =>
+      Object.hasOwn(value, key),
+    ) &&
+    [1, 5, 6].every(
+      (number) =>
+        Object.hasOwn(premises, number) &&
+        ['met', 'unmet', 'unknown'].includes(premises[number as 1 | 5 | 6]),
+    ) &&
+    (received.persistence === 'granted' ||
+      received.persistence === 'denied' ||
+      received.persistence === 'unknown') &&
+    (received.connectivity === 'online' ||
+      received.connectivity === 'offline' ||
+      received.connectivity === 'unknown') &&
+    (received.queuedCount === null ||
+      (typeof received.queuedCount === 'number' &&
+        Number.isSafeInteger(received.queuedCount) &&
+        received.queuedCount >= 0))
+  )
 }
 
 type AuthStore = ReturnType<typeof useAuthStore>

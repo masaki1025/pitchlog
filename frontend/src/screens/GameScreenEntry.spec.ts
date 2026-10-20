@@ -29,6 +29,7 @@ const provider = { install: installAppProviders }
 const environment: EntryEnvironment = {
   premises: { 1: 'met', 5: 'met', 6: 'met' },
   persistence: 'granted',
+  connectivity: 'online',
   queuedCount: 4,
 }
 const candidate: StartCandidate = {
@@ -258,7 +259,7 @@ describe('一覧・開始・再開の隔離表示', () => {
     expect(previous.attributes('disabled')).toBeDefined()
     await wrapper.get('nav button:last-child').trigger('click')
     expect(wrapper.emitted('page-request')?.[0]).toEqual(['next'])
-    expect(wrapper.text()).toContain('試合一覧：未取得')
+    expect(wrapper.text()).toContain('試合一覧：確認中')
     await wrapper.setProps({ page: supply('/games', page(), null) })
     expect(wrapper.text()).not.toContain('試合A')
     await wrapper.setProps({
@@ -287,9 +288,74 @@ describe('一覧・開始・再開の隔離表示', () => {
     ).toBeDefined()
     await wrapper.get('nav button:first-child').trigger('click')
     expect(wrapper.emitted('page-request')?.[1]).toEqual(['previous'])
-    expect(wrapper.text()).toContain('試合一覧：未取得')
+    expect(wrapper.text()).toContain('試合一覧：確認中')
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it.each(['failed', 'denied'] as const)(
+    '%sのページ要求を明示再試行・直前のページへ戻せるが通信はしない',
+    async (status) => {
+      const { wrapper } = await mountedEntry({ page: supply('/games', page()) })
+      await wrapper.get('nav button:last-child').trigger('click')
+      expect(wrapper.text()).toContain('試合一覧：確認中')
+      expect(wrapper.text()).not.toContain('試合A')
+      expect(wrapper.find('nav').exists()).toBe(false)
+      await wrapper.setProps({
+        page: { ...supply('/games', page(), 'next'), status },
+      })
+      expect(wrapper.text()).toContain(
+        status === 'failed'
+          ? '試合一覧：読み取れません'
+          : '試合一覧：このページを確認できません',
+      )
+      expect(wrapper.text()).not.toContain('試合A')
+      const retry = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'このページを再試行')!
+      const back = wrapper
+        .findAll('button')
+        .find((button) => button.text() === '直前のページに戻る')!
+      await retry.trigger('click')
+      expect(wrapper.emitted('page-request')?.at(-1)).toEqual(['next'])
+      expect(wrapper.text()).toContain('試合一覧：確認中')
+      expect(wrapper.text()).not.toContain('試合A')
+      await wrapper.setProps({
+        page: { ...supply('/games', page(), 'next'), status },
+      })
+      await back.trigger('click')
+      expect(wrapper.emitted('page-request')?.at(-1)).toEqual([null])
+      expect(wrapper.text()).toContain('試合一覧：確認中')
+      await wrapper.setProps({ page: supply('/games', page()) })
+      expect(wrapper.text()).toContain('試合A')
+      expect(wrapper.text()).not.toContain('直前のページに戻る')
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['failed', 'denied'] as const)(
+    '初期ページ%sは未取得と区別して再試行し、他scopeの応答は表示しない',
+    async (status) => {
+      const { wrapper } = await mountedEntry({
+        page: { ...supply('/games', page()), status },
+      })
+      expect(wrapper.text()).not.toContain('試合一覧：未取得')
+      expect(wrapper.text()).toContain('このページを再試行')
+      expect(wrapper.text()).not.toContain('直前のページに戻る')
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'このページを再試行')!
+        .trigger('click')
+      expect(wrapper.emitted('page-request')?.at(-1)).toEqual([null])
+      expect(wrapper.text()).toContain('試合一覧：確認中')
+      const auth = useAuthStore(pinia)
+      setVerifiedAuthForTest(auth, { teamId: tenantB, teamName: 'B' })
+      await flushPromises()
+      expect(wrapper.text()).toContain('試合一覧：未取得')
+      expect(wrapper.text()).not.toContain('このページを再試行')
+      expect(wrapper.text()).not.toContain('試合A')
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
 
   it('供給された一覧の閲覧リンクは登録済み記録routeへ遷移する', async () => {
     const { wrapper, router } = await mountedEntry({
@@ -309,13 +375,13 @@ describe('一覧・開始・再開の隔離表示', () => {
     })
     await wrapper.get('select').setValue(gameId)
     await wrapper.get('nav button:last-child').trigger('click')
-    expect(wrapper.text()).toContain('試合一覧：未取得')
+    expect(wrapper.text()).toContain('試合一覧：確認中')
     await wrapper.setProps({
       page: supply('/games', { ...page(), items: [...page().items] }),
       starts: supply('/games', [{ ...candidate }]),
     })
     expect(wrapper.get<HTMLSelectElement>('select').element.value).toBe(gameId)
-    expect(wrapper.text()).toContain('試合一覧：未取得')
+    expect(wrapper.text()).toContain('試合一覧：確認中')
 
     const auth = useAuthStore(pinia)
     setVerifiedAuthForTest(auth, { teamId: tenantB, teamName: 'B' })
@@ -447,8 +513,11 @@ describe('一覧・開始・再開の隔離表示', () => {
       detail: supply(path, detail),
     })
     expect(wrapper.text()).toContain('中断中の試合です')
-    expect(wrapper.text()).toContain('記録権を確認できない')
+    expect(wrapper.text()).toContain('記録権を保持していません')
     expect(wrapper.text()).toContain('下書き復元確認中')
+    expect(wrapper.findComponent(GameScreen).exists()).toBe(false)
+    expect(wrapper.find('[data-testid="pitch-speed"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('閲覧と未送信キューの保持は続けられます')
     const reopen = wrapper
       .findAll('button')
       .find((button) => button.text().includes('記録を再開'))!
@@ -480,6 +549,40 @@ describe('一覧・開始・再開の隔離表示', () => {
     })
     expect(bad.wrapper.text()).toContain('試合IDが正しくありません')
     expect(bad.wrapper.text()).not.toContain('下書きあり')
+    expect(bad.wrapper.find('[data-testid="pitch-speed"]').exists()).toBe(false)
+    expect(bad.wrapper.text()).toContain('未送信キューは変更しません')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('記録権の非保持は未取得と分け、非保持への切替で旧入力を破棄する', async () => {
+    const path = `/games/${gameId}/record`
+    const held: RecordDetail = {
+      ...candidate,
+      draftRestoration: { status: 'pending' },
+    }
+    const { wrapper } = await mountedRecord(path, {
+      detail: supply(path, held),
+    })
+    await wrapper
+      .get<HTMLInputElement>('[data-testid="pitch-speed"]')
+      .setValue('151')
+    await wrapper.setProps({
+      detail: supply(path, { ...held, recordingRight: 'denied' }),
+    })
+    expect(wrapper.text()).toContain('記録権を保持していません')
+    expect(wrapper.text()).toContain('非保持')
+    expect(wrapper.find('[data-testid="pitch-speed"]').exists()).toBe(false)
+    await wrapper.setProps({ detail: supply(path, held) })
+    expect(
+      wrapper.get<HTMLInputElement>('[data-testid="pitch-speed"]').element
+        .value,
+    ).toBe('')
+    await wrapper.setProps({
+      detail: { ...supply(path, held), status: 'denied' },
+    })
+    expect(wrapper.find('[data-testid="pitch-speed"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('閲覧と未送信キューの保持は続けられます')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('実GameScreenの球速下書きは同じ試合の再供給で残し、試合route変更で消す', async () => {
@@ -544,11 +647,7 @@ describe('一覧・開始・再開の隔離表示', () => {
     const auth = useAuthStore(pinia)
     auth.beginSessionVerification()
     await flushPromises()
-    expect(wrapper.getComponent(GameScreen).vm.$.uid).not.toBe(initialInstance)
-    expect(
-      wrapper.get<HTMLInputElement>('[data-testid="pitch-speed"]').element
-        .value,
-    ).toBe('')
+    expect(wrapper.findComponent(GameScreen).exists()).toBe(false)
     expect(wrapper.text()).not.toContain('旧tenantの試合')
     expect(wrapper.text()).not.toContain('旧下書き')
     expect(wrapper.text()).toContain('未送信件数：未取得')
@@ -556,6 +655,7 @@ describe('一覧・開始・再開の隔離表示', () => {
     setVerifiedAuthForTest(auth, { teamId: tenantB, teamName: 'B' })
     await flushPromises()
     expect(wrapper.text()).not.toContain('旧tenantの試合')
+    expect(wrapper.getComponent(GameScreen).vm.$.uid).not.toBe(initialInstance)
     expect(
       wrapper.get<HTMLInputElement>('[data-testid="pitch-speed"]').element
         .value,
@@ -781,6 +881,126 @@ describe('一覧・開始・再開の隔離表示', () => {
 
 describe('NFR-020 の提供済み前提表示', () => {
   it.each([
+    ['offline', [1], 'granted'],
+    ['unknown', [5], 'granted'],
+    ['offline', [6], 'denied'],
+    ['unknown', [1, 5, 6], 'denied'],
+    ['offline', [], 'denied'],
+  ] as const)(
+    '通信%s・前提不足%j・永続化%sを別々に示し、開始を封鎖する',
+    async (connectivity, missing, persistence) => {
+      const premises: EntryEnvironment['premises'] = {
+        1: 'met',
+        5: 'met',
+        6: 'met',
+      }
+      for (const number of missing) premises[number] = 'unmet'
+      const { wrapper } = await mountedEntry({
+        page: supply('/games', page()),
+        environment: supply('/games', {
+          ...environment,
+          connectivity,
+          premises,
+          persistence,
+        }),
+      })
+      expect(wrapper.text()).toContain(
+        connectivity === 'offline'
+          ? '通信状態：オフライン'
+          : '通信状態：未取得',
+      )
+      expect(wrapper.text()).toContain('試合を開始・再開できません')
+      for (const number of missing) {
+        const content =
+          number === 1
+            ? 'トップレベルの HTTPS 表示'
+            : number === 5
+              ? 'サイトストレージが利用可能'
+              : 'Lockdown Mode 非適用'
+        expect(wrapper.text()).toContain(`前提${number} ${content}：不成立`)
+      }
+      expect(wrapper.text().includes('永続化保証の要求が拒否されました')).toBe(
+        persistence === 'denied' && !missing.some((number) => number === 5),
+      )
+      expect(wrapper.text()).toContain('未送信件数：4')
+      expect(wrapper.text()).toContain('試合の閲覧はできます')
+      expect(wrapper.text()).toContain('試合A')
+      const start = wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('試合を開始'))!
+      expect(start.attributes('disabled')).toBeDefined()
+      start.element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
+  it('通信状態を省略・不正・他tenant・旧認証世代・別経路からオンラインに昇格しない', async () => {
+    const { wrapper } = await mountedEntry({
+      environment: supply('/games', environment),
+    })
+    expect(wrapper.text()).toContain('通信状態：オンライン（提供された状態）')
+    await wrapper.setProps({ environment: undefined })
+    expect(wrapper.text()).toContain('通信状態：未取得')
+    for (const malformed of [
+      { ...environment, connectivity: 'bad' },
+      { ...environment, premises: null },
+      { ...environment, persistence: 'bad' },
+      { ...environment, queuedCount: -1 },
+    ]) {
+      await wrapper.setProps({
+        environment: supply('/games', malformed as unknown as EntryEnvironment),
+      })
+      expect(wrapper.text()).toContain('通信状態：未取得')
+      expect(wrapper.text()).not.toContain('通信状態：オンライン')
+    }
+    for (const status of ['pending', 'failed', 'denied'] as const) {
+      await wrapper.setProps({
+        environment: { ...supply('/games', environment), status },
+      })
+      expect(wrapper.text()).toContain('通信状態：未取得')
+      expect(wrapper.text()).not.toContain('通信状態：オンライン')
+    }
+    for (const stale of [
+      { ...supply('/games', environment), tenantId: tenantB },
+      { ...supply('/games', environment), authEpoch: -1 },
+      supply('/games/other', environment),
+      supply('/games', environment, 'old-request'),
+    ]) {
+      await wrapper.setProps({ environment: stale })
+      expect(wrapper.text()).toContain('通信状態：未取得')
+      expect(wrapper.text()).not.toContain('通信状態：オンライン')
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('中断した試合と通信断を区別し、記録画面でも再開を封鎖する', async () => {
+    const path = `/games/${gameId}/record`
+    const { wrapper } = await mountedRecord(path, {
+      detail: supply(path, {
+        ...candidate,
+        existingState: 'suspended',
+        draftRestoration: { status: 'pending' },
+      }),
+      environment: supply(path, { ...environment, connectivity: 'offline' }),
+    })
+    expect(wrapper.text()).toContain('中断中の試合です')
+    expect(wrapper.text()).toContain('通信状態：オフライン')
+    expect(wrapper.text()).toContain(
+      '通信が切れているため、試合を開始・再開できません',
+    )
+    expect(
+      wrapper
+        .findAll('button')
+        .find((button) => button.text().includes('記録を再開'))
+        ?.attributes('disabled'),
+    ).toBeDefined()
+    expect(
+      wrapper.get('[data-testid="commit-pitch"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
     [[1], 'トップレベルの HTTPS 表示'],
     [[5], 'サイトストレージが利用可能'],
     [[6], 'Lockdown Mode 非適用'],
@@ -840,7 +1060,7 @@ describe('NFR-020 の提供済み前提表示', () => {
       '前提5 サイトストレージが利用可能：不成立',
     )
     expect(wrapper.text()).toContain(
-      'この警告だけでは開始前提5の不成立ではなく',
+      'この警告だけでは開始前提5の不成立ではありません',
     )
     await wrapper.setProps({
       environment: supply('/games', {
@@ -851,7 +1071,7 @@ describe('NFR-020 の提供済み前提表示', () => {
     })
     expect(wrapper.text()).toContain('前提5 サイトストレージが利用可能：不成立')
     expect(wrapper.text()).not.toContain(
-      'この警告だけでは開始前提5の不成立ではなく',
+      'この警告だけでは開始前提5の不成立ではありません',
     )
   })
 })
