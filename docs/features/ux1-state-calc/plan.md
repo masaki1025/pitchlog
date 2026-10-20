@@ -7,7 +7,7 @@ worktree: ../../..        # worktree ルート(plan.md からの相対 or 絶対
 notion: https://app.notion.com/p/3f593b75e68781318e64de84074994c2
 branch: fix/ux1-state-calc
 created: 2026-10-10
-計画レビュー周回: 5        # 旧計画3周 + D-14-m限定改訂1・2周目の採用反映各1周。回数はリセットしない
+計画レビュー周回: 7        # 旧計画5周 + TSK-544 P-8最小追補2周（全文、反映差分）。最終P1修正は未再レビュー
 確定ゲート周回: 0          # 指摘反映を伴う敵対レビュー 1 周ごとに +1(同前。/finalize-doc が更新)
 実行方式: 通常             # 通常 | fast(fast path 適用時に fast へ — 人間の事前 OK 必須。現在地導出が識別)
 反映周コミット: 適用       # 適用 | 規約制定前(必須・既定値なし。確定ゲートの反映周コミット突合の適用境界 — 設計書 6.1)
@@ -20,6 +20,8 @@ created: 2026-10-10
 **2026-10-18 TSK-544 着手時の現行化**(着手条件の現行化は TSK-544 カードの指示): P-1 は決着(ADR-003 v0.8・要件書 v2.15 の確定〔2026-10-17〕と本限定改訂の 6.1 レビュー・PO 承認)、P-3 は ADR-003 v0.8 の D-14-m 確定、P-4 は TSK-541(v0.6)の条文化と v0.8 の対象別読み替えで成立、P-5 は TSK-538 の完了として成立し、P-5 の基盤の公開型・版は TSK-544 が照合した([design.md](design.md) §4・`docs/worklog/2026-10-10-ux1-state-calc.md` 2026-10-18 節)。**PR-1 は T1(TSK-544)と T2(TSK-545)の 2 本に分ける** — 段階 2 判定器 `backend/src/pitchlog/domaincheck/boot/phase2.py:395-398` が 1 変更で 2 対象以上の完成を違反とするため。T2(PR-1b)の着手条件は P-1〜P-9 に加えて **PR-1a のマージ**。P-2/P-6 の独立期待値と契約所有側の受理、P-7 の実入口の公開境界受理、P-8 の契約残件は未成立であり、製品計算コードは未着手である。
 
 **2026-10-19 の受渡し照合**: TSK-544担当への指名・受諾記録とP-5の成立を維持する。Draft PR #153（公開HEAD `a5a2aa38`、コード/候補固定点 `5a9e37bd`）のT1得点観測・操作境界は責任分担の検討材料として受け取るが、P-8の正式契約収録・P-6独立期待値・担当間の公開境界受理とは区別する。着手前に必要な残件と実装後の結合証跡は[design.md](design.md) §4および[作業ログ](../../worklog/2026-10-10-ux1-state-calc.md)の2026-10-19節に分けて記録する。
+
+**2026-10-20 TSK-544 P-8最小追補承認**: 山田正輝が固定HEAD `35a7f5761a105c77cbfee7820cf01ca2af84a37c` の[追補候補](tsk544-p8-plan-amendment-candidate.md)とJ1〜J6の方針を承認した。第1回Claude計画レビューはP0=0/P1=8/P2=5、第2回は新規P0=0/残存P1=1/P2=3。指摘を採用し、最終P1文言修正は未再レビューとして維持する。旧計画5周と今回2周を通算7周とし、履歴をリセットしない。承認はfeature文書でのT1契約**候補作成**と着手前/実装後の分界に限り、正式契約・正本・7.7の受理、製品計算開始を許可しない。
 
 ## 1. 背景・目的
 
@@ -38,6 +40,7 @@ created: 2026-10-10
 - U-X1 の対象計算 6 件(T1〜T6)の棚卸しと、**ベクタ・契約が揃う順に 4 本の PR へ分ける**設計([design.md](design.md) §1〜§2 — PR-4 は FR-007/011 の下流再計算 ①)
 - **PR-1a/PR-1b(T1 状況判定・T2 終了判定)の実装ステップ表**(本書 4 節)と、その**着手条件 P-1〜P-9 の列挙**([design.md](design.md) §4)
 - PO 判断事項 J-1〜J-8 の整理と送り先の明示([design.md](design.md) §8)— **FR-014 の規則関数の切り出し案(J-3)を含む**
+- TSK-544はPR-1aに先立ち、T1のP-8不足について原典照合と閉入力・規範行/case/負例の**正式契約外の別ファイル候補**を作る。TSK-545/T2、分析40行、TSK-538既済み行は対象外。未裁定事項の値を推測で埋めない
 
 PR-1a/PR-1b(着手条件がすべて満たされたあと — 後続の実装):
 
@@ -50,7 +53,7 @@ PR-1a/PR-1b(着手条件がすべて満たされたあと — 後続の実装):
 - **段階2実行基盤の再設計・TSK-538の成果の再実装**(既存の基盤を受け取る。実T1/T2のentry/source/artifactは後続のPR-1の成果物)
 - **D-6・D-12 の改訂**(TSK-338・TSK-275)、ADR-003 `:900-906` の是正 2 件(送り先不明 — J-6)
 - **T3〜T6 と FR-007/011 下流再計算の実装ステップ**(PR-2〜PR-4 は別タスクとして、それぞれのベクタ契約・契約是正の完成時に起票 — [design.md](design.md) §2)
-- **T1・T2 の残る契約整備**(TSK-538のCOLD-09・D+1 undo・tiebreak-start・walk-off終了検知は既済み。P-8の残G6-S/E、GAP-02/06、DRAW未被覆等は契約担当の持ち物)
+- **T1・T2 の残る正式契約整備**(TSK-538のCOLD-09・D+1 undo・tiebreak-start・walk-off終了検知は既済み。P-8の残G6-S/E、GAP-02/06、DRAW未被覆等は正式契約担当の持ち物。ただし、TSK-544が正式契約に触れずT1候補をfeature文書に作る先行単位は除く)
 - **FR-014 の規則関数・帰属列**(切り出しの裁定 J-3 を待つ。PR-1a/PR-1b に含めない)
 - **表示面・永続化・キュー**(U-F8・U-G1・U-S1 の持ち物 — [design.md](design.md) §1-1)
 - `.claude/core-areas.json`・`scripts/core_guard.py` の変更(計画段階では触らない。D-2 で既存 glob に入らない場合は着手時に計画改訂で宣言ステップを足す — [design.md](design.md) §5-2)
@@ -64,9 +67,9 @@ PR-1a/PR-1b(着手条件がすべて満たされたあと — 後続の実装):
 | `docs/adr/ADR-003-domain-calc-method.md` | **反映なし**(条文に触れない) | — |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | — |
 | `docs/README.md`(索引) | **反映なし**(feature 配下の計画書・調査メモ・詳細設計は索引の対象外) | — |
-| `contracts/` | **本タスクは反映なし**。独立検証記録・P-8の入力制約/行/caseは所有側の別ゲートで受け取り、PR-1では実T1/T2 entry・runner/CI宣言のmanifest schema/収集器追随・3層検査に参照する。TSK-237/分析40行の凍結契約には触れない | PR レビュー(第 1 PR) |
+| `contracts/` | **本タスクは反映なし**。独立検証記録・P-8の入力制約/行/caseは所有側の別ゲートで受け取り、PR-1では実T1/T2 entry・runner/CI宣言のmanifest schema/収集器追随・3層検査に参照する。TSK-237/分析40行の凍結契約には触れない。TSK-544先行単位はfeature文書の候補だけ。正式編集・受理者は[design.md](design.md) §8 J-7に従いPO/Claude調整役が指名し、未指名の間は共有契約を編集しない。正本・7.7・P-6ゲートを別に維持する | PR レビュー(第 1 PR) |
 | `.claude/core-areas.json` | **本タスクは反映なし**。D-2 で既存 glob に入らない場合は第 1 PR の着手時に計画改訂 | 設計書 6.3-⑤(敵対レビュー + 人間承認) |
-| `docs/features/ux1-state-calc/{plan,research,design}.md`・`docs/worklog/2026-10-10-ux1-state-calc.md` | 新設(正本ではない) | 計画レビュー(敵対)+ 人間承認 |
+| `docs/features/ux1-state-calc/{plan,research,design}.md`・`docs/features/ux1-state-calc/tsk544-p8-plan-amendment-candidate.md`・`docs/features/ux1-state-calc/tsk544-p8-candidates/`・`docs/worklog/2026-10-10-ux1-state-calc.md` | feature文書のT1候補・計画承認記録。正本・正式契約ではない | 計画レビュー(敵対)+ 人間承認 |
 
 ## 4. 実装方針
 
@@ -85,7 +88,7 @@ PR-1a/PR-1b(着手条件がすべて満たされたあと — 後続の実装):
 
 | # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
 | --- | --- | --- |
-| 1 | **PR-1a: T1 状況判定の同一変更**(TSK-544): TSK-538基盤を使い、TS正本、再現ビルドした同一JS artifact、T1 manifest entry（source/generated/entrypoints/生成物参照と内容hashを持つ1論理directTargetId/vectors/properties/mutation/層runner識別子・起動CIジョブ名）と、それを受けるmanifest schema/収集器の追随、U-F8とU-S1の製品入口接合、独立カタログ、3層検査を対象ごとに揃える。FR-040を11/12段階提供で未採用としたPO裁定をentryに宣言する。TSK-538から受け取ったreceiverDoD 1〜5の残りと(a) S01/S04/S29/S33の残り、(b) S05〜S32のT1分を照合し、契約資産の変更は契約所有側の受理ゲートへ送る(S08/S09は実機での確定、S11/S13/S22はTSK-546の裁定後) | 両runnerの付録E全case消費、descriptorとTS正本の入力軸宣言のexact-set/値域/digest照合および宣言外入力の実行体への流入拒否、製品入口・直接呼出し・期待値の5判定と独立収集器の実行時hash/出力、宣言したrunner識別子・CIジョブ名と実際の必須CI起動証跡の突合、T1の片側出力改変で比較不一致を理由に必須CIが失敗するnegative check、D+1 `liveness-only`の`operationResult=applied`と履歴要素数がちょうど1減る判定、サヨナラ得点の本塁打/非本塁打、D-14-eの数値境界・D-14-g(iii)の表示、D-14-hの実artifact構成拒否系、生成器入力allowlistとカタログ独立性、非等価変異生存0を必須CIで確認。FR-040は11/12段階提供から延期するため、状態補正の規範caseを実装済み扱いにせず未採用を宣言する。実入口とFR-012原子性は結合ゲートで実測 |
+| 1 | **PR-1a: T1 状況判定の同一変更**(TSK-544): TSK-538基盤を使い、TS正本、再現ビルドした同一JS artifact、T1 manifest entry（source/generated/entrypoints/生成物参照と内容hashを持つ1論理directTargetId/vectors/properties/mutation/層runner識別子・起動CIジョブ名）と、それを受けるmanifest schema/収集器の追随、U-F8とU-S1の製品入口接合、独立カタログ、3層検査を対象ごとに揃える。FR-040を11/12段階提供で未採用としたPO裁定をentryに宣言する。TSK-538から受け取ったreceiverDoD 1〜5の残りと(a) S01/S04/S29/S33の残り、(b) S05〜S32のT1分を照合し、契約資産の変更は契約所有側の受理ゲートへ送る(S08/S09の実機接続・検証はPR-1a内、閉入力・規範caseは着手前。S11/S13/S22はTSK-546の裁定後) | 両runnerの付録E全case消費、descriptorとTS正本の入力軸宣言のexact-set/値域/digest照合および宣言外入力の実行体への流入拒否、製品入口・直接呼出し・期待値の5判定と独立収集器の実行時hash/出力、宣言したrunner識別子・CIジョブ名と実際の必須CI起動証跡の突合、T1の片側出力改変で比較不一致を理由に必須CIが失敗するnegative check、D+1 `liveness-only`の`operationResult=applied`と履歴要素数がちょうど1減る判定、サヨナラ得点の本塁打/非本塁打、D-14-eの数値境界・D-14-g(iii)の表示、D-14-hの実artifact構成拒否系、生成器入力allowlistとカタログ独立性、非等価変異生存0を必須CIで確認。FR-040は11/12段階提供から延期するため、状態補正の規範caseを実装済み扱いにせず未採用を宣言する。実入口とFR-012原子性は結合ゲートで実測 |
 | 2 | **PR-1b: T2 終了判定の同一変更**(TSK-545。着手条件は P-1〜P-9 に加えて PR-1a のマージ): ステップ1と同型のTS正本・同一JS artifact・manifest entry（runner識別子・起動CIジョブ名を含む）・必要なmanifest schema/収集器追随・U-F8/U-S1実入口・独立カタログ・3層検査をT2について揃え、規則スナップショット(付録F)を入力する | 終了判定契約の全case、validationErrorsの期待拒否、サヨナラ終了検知、X表記、得点値はT1で比較する境界、descriptorとTS正本の入力軸宣言の照合と宣言外入力拒否、両runner/5判定/実行時hash、宣言したrunner識別子・CIジョブ名と必須CI起動証跡の突合、T2の片側出力改変で比較不一致を理由に必須CIが失敗するnegative check、D-14-e/g/h、独立カタログ、非等価変異生存0をT2で必須CI確認。T2追加で共有artifactのhashが変わる場合はT1のmanifest/directTarget参照を更新し、T1/T2双方の必須検査を再実行する。実Port・実HTTP/隔離DB、再送/閉鎖/失効/全取消/越境は関係担当と系列(PR-1a/PR-1b)のマージ前に実測する。U-F7断中耐久キューは段階公開前の別結合ゲートとする |
 
 **PR としての合格条件**(各対象ステップの後): 対象とする T1/T2 の全検査、対象別negative check、実artifactのD-14-h検査が必須CIで緑であること(`ADR-003:931`)。関係担当が提供した**本物のU-R1記録権PortとU-S1単一適用核・U-X1投影/検証Portを接合**し、506の実HTTPと隔離DBで1球保存・再読込、FR-012の単一transaction、再送/閉鎖/失効/全取消/越境を系列(PR-1a/PR-1b)のマージ前に実証する。仮Port・コピー計算を認めない。BOOTの段階2判定でT1/T2不合格が免除されないことを確認する(要件書 `:962`)。U-F7断中耐久キューとU-F8画面の通信断試験は段階提供の公開条件であり、未受理ならFR-012達成とMVP完成を主張しない。
@@ -98,6 +101,8 @@ PR-1a/PR-1b(着手条件がすべて満たされたあと — 後続の実装):
 
 - [ ] 調査メモ [research.md](research.md) が典拠付きで揃っている
 - [x] 計画書は敵対レビュー3回（全文、反映差分、P0限定）を通過し、2026-10-17に山田正輝がc8bd9512を承認した。P-8等の着手条件は別
+- [x] TSK-544 P-8の別ファイル候補作成を追加する最小追補は、Claudeレビュー2回の採否と最終P1修正の未再レビューを記録し、2026-10-20に山田正輝が固定HEAD `35a7f576` に対して承認した。正式契約受理・製品着手は別
+- [ ] T1候補単位ごとに原典ID、正常/欠落/重複/矛盾、規範行/case/負例ID、未裁定項目、候補作成者、独立検証対象、正式受取者の指名・受領状況を`tsk544-p8-candidates/`へ記録する。未裁定のIDは「未裁定」と記し、値を創作しない。候補コミットに正式契約・製品コードを含めない。このDoD達成だけでP-8成立とはしない
 - [ ] 13 FRの射程、T1/T2のD-14-m対象別開始とPR-2〜4に残る段階①全体/D-2発効条件の境界が明記されている([design.md](design.md) §1・§4・§5-3)
 - [ ] 計画書の PR が develop へマージされている
 
