@@ -8,7 +8,7 @@ notion: https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f
 branch: feature/tsk544-t1-state-calculation
 created: 2026-10-20
 計画レビュー周回: 10
-確定ゲート周回: 1
+確定ゲート周回: 2
 実行方式: 通常
 反映周コミット: 適用
 ---
