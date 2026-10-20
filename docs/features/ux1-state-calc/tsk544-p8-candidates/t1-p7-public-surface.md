@@ -18,3 +18,5 @@ U-S1の2026-10-20回答（`tsk544-p7-us1-response.md`、コミット`5ca7ef2e`�
 **失敗分類の未決**: 入力の内容起因と確定した拒否だけU-S1のB3a/T9へ渡す。DB読取不能、保存規則・投影状態破損、artifact障害を入力不備や`False`へ変換しない。P3内容拒否はB14であり、D1付きと統一しない。Port例外一般が自動でB7になるとは仮定しない。commit不明を未適用と断定しない。
 
 **着手前に必要**: U-X1の上記候補型・版/失敗分類と、U-S1/U-F8/U-R1/506の項目別責任受理。`T1NormalizedInputV1`の具体fieldと拒否理由enumはP-8正式契約と同時に確定し、架空のSHAを記載しない。**実装後に必要**: 本物のPort登録、同一scope全取消と前方確定、DI2二重適用防止、画面→実HTTP→隔離DB保存/再読込を実測する。2026-10-20のU-F8回答は文脈保持・観測入力・描画・拒否表示の責任を受理したが、D4と下書き/適用文脈の区別を要修正としたため本候補へ反映した。具体型の正式受理ではない。
+
+**2026-10-20のU-S1追加回答（HEAD `695a4faf`）**: `T1PreparedEvaluationV1`を一イベント取引の不変局所値としてprepare→T4へ渡す責任境界は条件付き受理。現⑦内容検査→T5/O4の拒否優先順を維持する案が推奨される。ただし⑦入力とT4の写像/採番後入力の論理同値性は未証明であり、変わるなら意味変更をPO/正本へ提示する。U-S1が同一認可scopeで読取tokenから`T1AppliedContextV1`を組み立てる案が推奨され、U-X1が型、506がHTTP composition/実adapter注入を所有する。提案署名は`prepare_t1(event, writer, *, context) -> Result<prepared, rejection>`/`apply_prepared_t1(event, prepared, writer) -> None`で、既存Portへ無断追加せず版付き接続を審査する。J6の観測順序保持・同D5の順序変更拒否・保存観測からのundo再評価の責任はU-S1が受理したが、原wire/codec保存、正式field/参照解決、undo実接続と実Port SHAは未提供。**責任受理は正式V1型・P-7全成立・製品接続の受理ではない。**
