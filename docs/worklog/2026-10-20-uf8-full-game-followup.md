@@ -91,3 +91,7 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 実ブラウザのピクセル幅は未実測。隔離fixtureのVite起動が`listen EPERM`、ローカルChromium起動がsandboxの`Operation not permitted`で拒否された。付録B座標へのタップ変換、捕球推定、FR-003の対象走者/質問判定、妨害/公式記録の正式入力要求、単一計算の製品型/署名と正式wire変換・保存経路は未提供であり、仮実装で埋めていない。実試合・実送信・再読込復元の受入は未実施。ステップ3以降、コミット、push、PR、連絡は実施していない。
 
 主担当による補完検証: 内側のimplement sandboxではローカルbind/Chromium起動が拒否されたため、主担当の許可済みホスト環境で同じ観測フォームの実Vue/CSS fixtureを起動し直した。HTTP localhost:15325・日本語Meiryoで375/320pxのdocument/body scrollWidthが各375/320、POST0・pageerror0・日本語フォント読込trueを実測。フォームの確定とタップ変換はdisabledのまま。結果`/tmp/uf8-observation-browser-result.json`、画像`/tmp/uf8-play-observation-{375,320}.png`。これは表示入力fixtureの検証で実Port/HTTP/DB受入ではない。
+
+### ステップ3の実行枝
+
+計画のPR分割に従い、観測入力の584a0322を基線にしたfeature/uf8-play-correctionsでステップ3を独立実装する。承認済み計画の本文/9ステップ/査読回数は維持し、実行枝のfrontmatter branchのみ変更。親の観測入力のレビュー是正は必要な差分だけ後で追随する。
