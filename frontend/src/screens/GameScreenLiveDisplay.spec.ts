@@ -102,17 +102,10 @@ const score: Scoreboard = {
   ],
 }
 function candidateScore(
-  awayTotal: string,
-  homeTotal: string,
+  teams: Scoreboard['teams'],
   innings: Scoreboard['innings'],
 ): Scoreboard {
-  return {
-    teams: [
-      { ...score.teams[0], total: awayTotal },
-      { ...score.teams[1], total: homeTotal },
-    ],
-    innings,
-  }
+  return { teams, innings }
 }
 const row = {
   key: 'pa-1',
@@ -208,119 +201,166 @@ describe('GameScreen の記録中表示契約', () => {
     const candidates: readonly {
       scopeKey: string
       contextKey: string
+      scene: string
       scoreboard: Scoreboard
       cellId: string
       text: string
       blank: boolean
+      inningCount: number
+      teamTexts: readonly [string, string]
     }[] = [
       {
         scopeKey: 'candidate-x',
         contextKey: 'top-completed-home-ahead',
-        scoreboard: candidateScore('0', '1', [
-          {
-            key: '1',
-            label: '一回',
-            cells: [
-              { kind: 'text', text: '0' },
-              { kind: 'text', text: '1' },
-            ],
-          },
-          ...Array.from({ length: 7 }, (_, index) => ({
-            key: String(index + 2),
-            label: `${index + 2}回`,
-            cells: [
-              { kind: 'text' as const, text: '0' },
-              { kind: 'text' as const, text: '0' },
-            ] as const,
-          })),
-          {
-            key: '9',
-            label: '九回',
-            cells: [
-              { kind: 'text', text: '0' },
-              { kind: 'text', text: 'X' },
-            ],
-          },
-        ]),
+        scene: '9回表完了、後攻が1回の本塁打1安打でリード、9回裏は未開始',
+        scoreboard: candidateScore(
+          [
+            { name: '先攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+            { name: '後攻', total: '1', h: '1', e: '0', k: '0', b: '0' },
+          ],
+          [
+            {
+              key: '1',
+              label: '一回',
+              cells: [
+                { kind: 'text', text: '0' },
+                { kind: 'text', text: '1' },
+              ],
+            },
+            ...Array.from({ length: 7 }, (_, index) => ({
+              key: String(index + 2),
+              label: `${index + 2}回`,
+              cells: [
+                { kind: 'text' as const, text: '0' },
+                { kind: 'text' as const, text: '0' },
+              ] as const,
+            })),
+            {
+              key: '9',
+              label: '九回',
+              cells: [
+                { kind: 'text', text: '0' },
+                { kind: 'text', text: 'X' },
+              ],
+            },
+          ],
+        ),
         cellId: 'inning-9-1',
         text: 'X',
         blank: false,
+        inningCount: 9,
+        teamTexts: ['合計0H0E0K0B0', '合計1H1E0K0B0'],
       },
       {
-        scopeKey: 'candidate-future-blank',
-        contextKey: 'future-inning-not-started',
-        scoreboard: candidateScore('3', '0', [
-          score.innings[0],
-          {
-            key: '2',
-            label: '二回',
-            cells: [{ kind: 'blank' }, { kind: 'blank' }],
-          },
-        ]),
-        cellId: 'inning-2-0',
+        scopeKey: 'candidate-waiting-blank',
+        contextKey: 'first-top-in-progress-home-waiting',
+        scene: '1回表進行中、1回裏は通常の未開始待ち',
+        scoreboard: candidateScore(
+          [
+            { name: '先攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+            { name: '後攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+          ],
+          [
+            {
+              key: '1',
+              label: '一回',
+              cells: [{ kind: 'text', text: '0' }, { kind: 'blank' }],
+            },
+          ],
+        ),
+        cellId: 'inning-1-1',
         text: '',
         blank: true,
+        inningCount: 1,
+        teamTexts: ['合計0H0E0K0B0', '合計0H0E0K0B0'],
       },
       {
         scopeKey: 'candidate-three',
         contextKey: 'top-started',
-        scoreboard: candidateScore('3', '0', [
-          {
-            key: '1',
-            label: '一回',
-            cells: [{ kind: 'text', text: '3' }, { kind: 'blank' }],
-          },
-        ]),
+        scene: '1回表進行中に先攻が3安打で3点、1回裏は未開始',
+        scoreboard: candidateScore(
+          [
+            { name: '先攻', total: '3', h: '3', e: '0', k: '0', b: '0' },
+            { name: '後攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+          ],
+          [
+            {
+              key: '1',
+              label: '一回',
+              cells: [{ kind: 'text', text: '3' }, { kind: 'blank' }],
+            },
+          ],
+        ),
         cellId: 'inning-1-0',
         text: '3',
         blank: false,
+        inningCount: 1,
+        teamTexts: ['合計3H3E0K0B0', '合計0H0E0K0B0'],
       },
       {
         scopeKey: 'candidate-home-blank',
-        contextKey: 'second-top-in-progress',
-        scoreboard: candidateScore('0', '0', [
-          {
-            key: '1',
-            label: '一回',
-            cells: [
-              { kind: 'text', text: '0' },
-              { kind: 'text', text: '0' },
-            ],
-          },
-          {
-            key: '2',
-            label: '二回',
-            cells: [{ kind: 'text', text: '0' }, { kind: 'blank' }],
-          },
-        ]),
+        contextKey: 'second-top-stopped-before-home',
+        scene: '1回は完了、2回表の途中打切りで2回裏は未開始',
+        scoreboard: candidateScore(
+          [
+            { name: '先攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+            { name: '後攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+          ],
+          [
+            {
+              key: '1',
+              label: '一回',
+              cells: [
+                { kind: 'text', text: '0' },
+                { kind: 'text', text: '0' },
+              ],
+            },
+            {
+              key: '2',
+              label: '二回',
+              cells: [{ kind: 'text', text: '0' }, { kind: 'blank' }],
+            },
+          ],
+        ),
         cellId: 'inning-2-1',
         text: '',
         blank: true,
+        inningCount: 2,
+        teamTexts: ['合計0H0E0K0B0', '合計0H0E0K0B0'],
       },
       {
         scopeKey: 'candidate-zero',
         contextKey: 'third-bottom-started',
-        scoreboard: candidateScore('3', '0', [
-          ...Array.from({ length: 2 }, (_, index) => ({
-            key: String(index + 1),
-            label: `${index + 1}回`,
-            cells: [
-              { kind: 'text' as const, text: index === 0 ? '3' : '0' },
-              { kind: 'text' as const, text: '0' },
-            ] as const,
-          })),
-          {
-            key: '3',
-            label: '三回',
-            cells: [
-              { kind: 'text', text: '0' },
-              { kind: 'text', text: '0' },
-            ],
-          },
-        ]),
+        scene: '1回表3安打3点、3回裏は開始済みで0点',
+        scoreboard: candidateScore(
+          [
+            { name: '先攻', total: '3', h: '3', e: '0', k: '0', b: '0' },
+            { name: '後攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+          ],
+          [
+            ...Array.from({ length: 2 }, (_, index) => ({
+              key: String(index + 1),
+              label: `${index + 1}回`,
+              cells: [
+                { kind: 'text' as const, text: index === 0 ? '3' : '0' },
+                { kind: 'text' as const, text: '0' },
+              ] as const,
+            })),
+            {
+              key: '3',
+              label: '三回',
+              cells: [
+                { kind: 'text', text: '0' },
+                { kind: 'text', text: '0' },
+              ],
+            },
+          ],
+        ),
         cellId: 'inning-3-1',
         text: '0',
         blank: false,
+        inningCount: 3,
+        teamTexts: ['合計3H3E0K0B0', '合計0H0E0K0B0'],
       },
     ]
     const shownCells = candidates.map((candidate) => {
@@ -340,10 +380,38 @@ describe('GameScreen の記録中表示契約', () => {
           },
         },
       })
-      expect(wrapper.find('[data-testid="score-status"]').exists()).toBe(false)
+      expect(
+        wrapper.find('[data-testid="score-status"]').exists(),
+        candidate.scene,
+      ).toBe(false)
+      expect(
+        wrapper.findAll('[data-testid="inning-card"]'),
+        candidate.scene,
+      ).toHaveLength(candidate.inningCount)
+      if (candidate.scopeKey === 'candidate-x')
+        expect(
+          wrapper
+            .findAll('[data-testid="inning-card"] h3')
+            .map((heading) => heading.text()),
+          candidate.scene,
+        ).toEqual([
+          '一回',
+          '2回',
+          '3回',
+          '4回',
+          '5回',
+          '6回',
+          '7回',
+          '8回',
+          '九回',
+        ])
+      for (const [index, expected] of candidate.teamTexts.entries())
+        expect(at(wrapper, `team-${index}`), candidate.scene).toContain(
+          expected,
+        )
       const cell = wrapper.get(`[data-testid="${candidate.cellId}"]`)
-      expect(cell.element.textContent).toBe(candidate.text)
-      expect(cell.attributes('aria-label')).toBe(
+      expect(cell.element.textContent, candidate.scene).toBe(candidate.text)
+      expect(cell.attributes('aria-label'), candidate.scene).toBe(
         candidate.blank ? '空欄' : undefined,
       )
       return cell.element.textContent
@@ -475,7 +543,17 @@ describe('GameScreen の記録中表示契約', () => {
     const wrapper = mount(GameScreenLiveDisplay, {
       props: {
         identity,
-        sources: { scoreboard: supplied(candidateScore('11', '0', innings)) },
+        sources: {
+          scoreboard: supplied(
+            candidateScore(
+              [
+                { name: '先攻', total: '11', h: '11', e: '0', k: '0', b: '0' },
+                { name: '後攻', total: '0', h: '0', e: '0', k: '0', b: '0' },
+              ],
+              innings,
+            ),
+          ),
+        },
       },
     })
     expect(wrapper.findAll('[data-testid="inning-card"]')).toHaveLength(12)
