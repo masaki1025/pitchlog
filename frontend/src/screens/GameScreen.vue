@@ -33,6 +33,11 @@ import {
 } from './GameScreenQueueStatus'
 import type { StopDisplay } from './GameScreenStopDisplay'
 import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
+import GameScreenLiveDisplay from './GameScreenLiveDisplay.vue'
+import type {
+  LiveDisplaySources,
+  LiveIdentity,
+} from './GameScreenLiveDisplayTypes'
 import type {
   PastSubstitutionPreview,
   PastSubstitutionRequest,
@@ -101,6 +106,9 @@ const props = withDefaults(
     substitutionLockState?: SubstitutionLockState | null
     substitutionValidation?: SubstitutionValidation | null
     pastSubstitutionPreview?: PastSubstitutionPreview | null
+    /** 投影・生成formatterから受けるUI専用の表示値。 */
+    liveIdentity?: LiveIdentity | null
+    liveSources?: LiveDisplaySources | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -136,6 +144,8 @@ const props = withDefaults(
     substitutionLockState: undefined,
     substitutionValidation: undefined,
     pastSubstitutionPreview: undefined,
+    liveIdentity: undefined,
+    liveSources: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -408,13 +418,22 @@ watch(
       </dl>
     </section>
 
+    <GameScreenLiveDisplay
+      :identity="props.liveIdentity"
+      :sources="props.liveSources"
+    />
+
     <section aria-label="対戦中の選手" class="grid gap-3 sm:grid-cols-2">
       <dl
         class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
       >
         <dt class="text-sm text-slate-500 dark:text-slate-400">打者</dt>
         <dd class="mt-1 text-lg font-bold" data-testid="batter">
-          {{ display(props.state?.batter) }}
+          {{
+            display(
+              props.liveIdentity?.currentBatterName ?? props.state?.batter,
+            )
+          }}
         </dd>
       </dl>
       <dl
@@ -422,7 +441,7 @@ watch(
       >
         <dt class="text-sm text-slate-500 dark:text-slate-400">投手</dt>
         <dd class="mt-1 text-lg font-bold" data-testid="pitcher">
-          {{ display(props.state?.pitcher) }}
+          {{ display(props.liveIdentity?.pitcherName ?? props.state?.pitcher) }}
         </dd>
       </dl>
     </section>

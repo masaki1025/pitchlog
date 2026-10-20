@@ -151,3 +151,23 @@ frontend全件試験、実ブラウザの375/320pxピクセル幅、実HTTP/DB�
 ### ステップ5の実行枝
 
 交代入力32c4085aを継承し、feature/uf8-game-live-displayで承認済みステップ5を実行する。計画frontmatterの実行枝のみ変更し承認/査読履歴/本文は保持。親のレビュー是正は追随する。
+
+## ステップ5 回・打順・終了・鮮度・FR-020〜023の表示
+
+`feature/uf8-game-live-display`で`GameScreenLiveDisplayTypes.ts`にUI専用表示契約、`GameScreenLiveDisplay.vue`に専用表示部品、`GameScreenLiveDisplay.spec.ts`に隔離fixture試験を追加し、`GameScreen.vue`にはpropと部品統合だけを加えた。正式Port、生成formatter、計算、通信、保存、終了宣言、再開処理は追加していない。投影のscope・文脈キーと選手IDが一致した提供値だけを描画し、代打・投手交代の選手選択が変わった時点で旧成績を外す。既存の打者・投手見出しも新選手名へ切り替える。読取失敗、未取得、データなし、当日暫定、シーズン最終取得時刻とオフラインを提供状態のまま表示する。閲覧端末の最終反映時刻、入力端末オフラインも提供値以外から推測しない。
+
+FR-020は両チームの提供済み開始回を順序・件数そのままで回別カードへ折り返し、X・空欄・0・未取得を別表示し、提供済み合計/H/E/K/Bを表示する。FR-021は現投手の当日8欄とシーズン5欄、FR-022は現在/次打者の当日9欄・シーズン3欄・打席履歴7欄、FR-023は当日球種ごとの割合と球数を表示する。値や打席結果名は提供済み表示文字列をそのままVue補間で描画し、合算・率・回切替・終了判定・打順推定・打席履歴からの再集計をしない。回切替、終了宣言、試合追記再開の入口はdisabled。同内容の送信再開は既存の別入口のままdisabled。終了検知、宣言未同期、宣言同期済み、追記再開、再終了未同期/同期済みを別表示とし、未同期を試合完了へ読み替えない。
+
+Vitestの#153**候補fixture**で5セル`X / 空欄 / 3 / 空欄 / 0`を順に確認し、E02の宣言後prompt=false、E09のロック中undo可・交代不可、E10の追記再開後prompt=falseと再終了後ロックを表示契約として確認した。正式#153受理・独立oracle・GAP-05実製品比較・FR-012原子性・全試合完遂の証跡には数えない。別fixtureで12回全表示、両チーム全合計、投手/打者全欄と7列、未取得/読取失敗/0件、現在/次打者と代打/投手交代の初球前切替、遅延した旧選手・旧文脈・別scope応答の排除、Vue自動escapeを確認した。断中fixtureは**提供側が新しい当日投影値を渡した場合**のスコア4・投球82・安打3・球種61%/49球への更新を確認し、古い値への暫定ラベル追加だけを合格としない。これはfixture更新試験であり、共有計算核からの実断中追従合格ではない。シーズンの最終取得12:34+オフライン、初登場未prefetchの未取得、データなしを分けた。
+
+実測: 関連Vitestは`GameScreenLiveDisplay.spec.ts`、`GameScreen.spec.ts`、`GameScreenNarrowWidth.spec.ts`、`GameScreenSubstitutions.spec.ts`、`GameScreenStopDisplay.spec.ts`の**5ファイル67件成功**。最終差分の`GameScreen*.spec.ts`は**16ファイル256件成功**。`pnpm exec vue-tsc --noEmit`、変更4ファイルのESLint/Prettier check、`git diff --check`成功。375/320はjsdomの幅設定下で長文・回別折返しclassと直接dispatch時のfetch/Storage保存/実操作emit 0を確認した構造試験で、実ブラウザのピクセル幅測定ではない。同内容の新参照のlive propsを再供給しても既存投球下書きが残る試験が成功。frontend全件・実ブラウザ・実HTTP/DBは主担当補完へ残す。
+
+不足と接続条件: 544/545の正式投影・生成formatterの公開型/SHA、#153正式セル/独立oracle、U-X1 T3〜T6の当日/シーズン成績とページ付き履歴、断中の共有計算核更新、シーズンprefetch/最終取得時刻、NFR-006の入力/閲覧2端末の正式鮮度契約、終了宣言/再開/再終了の正式提供状態は未受領。これらを仮Portや画面内計算で補っていない。M-T1/M-T2の共同実測、GAP-05、原子性、1試合完遂、全40分析製品の完成は未達。ステップ6以降、コミット、push、外部連絡は行っていない。
+
+### ステップ5確定前の主担当確認への同範囲補完
+
+`InningCell.kind=blank`は可視`textContent`を空文字に保ち、セルの`aria-label`だけで「空欄」と説明するよう是正した。`text`セルは提供文字列をそのまま表示し、X/0/未取得と分離した。DOMで#153**候補fixture**の5セル`X / '' / 3 / '' / 0`、両blankの`textContent=''`と`aria-label='空欄'`、12回目のblank、合計の提供空文字/0の保持を確認した。候補fixtureを正式セル型・独立oracle・GAP-05の受理へ昇格していない。
+
+描画に必要なUI形だけを`GameScreenLiveDisplayShape.ts`で検査する。得点表の2チーム、開始回、各2セル、成績欄、打席履歴、球種列、終了状態・boolean、正式鮮度の文字列/booleanを対象にし、`ready`でもnull・欠損・型不一致・未知終了状態は未取得へ倒す。配列は各own添字を確認し、追加の非添字keyを穴の代わりに数えない。壊れた得点表/履歴/球種のnull要素と疎配列、異常な表示値をDOMへ渡しても例外や取得済み表示にせず、別の有効な成績・得点と既存の送信停止UIを維持する試験を追加した。選手用供給の`playerId`欠落、identityの対象ID欠落をglobal表示と誤認せず、その人物だけ未取得にする。旧選手応答のscope・文脈・ID照合は維持した。これは表示形の検査で、正式wire validatorや得点・アウト・成績・終了条件の計算ではない。
+
+最終実測: `pnpm exec vitest run src/screens/GameScreen*.spec.ts`は**16ファイル260件成功**。`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`、`pnpm exec prettier --check .`、`git diff --check`成功。壊れた供給時にもdisabledボタンへの直接dispatchでfetch 0・実保存/送信emit 0を確認した。frontend全件、実ブラウザ、正式提供型/生成formatterとの結合、レビューは主担当補完。ステップ6以降、コミット、push、他枝編集、外部連絡は行っていない。

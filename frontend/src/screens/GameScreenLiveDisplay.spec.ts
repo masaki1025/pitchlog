@@ -1,0 +1,832 @@
+import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import GameScreen from './GameScreen.vue'
+import GameScreenLiveDisplay from './GameScreenLiveDisplay.vue'
+import type {
+  BatterDay,
+  BatterSeason,
+  DisplaySupply,
+  GameFlow,
+  LiveDisplaySources,
+  LiveIdentity,
+  PitchTypeShare,
+  PitcherDay,
+  PitcherSeason,
+  PlateAppearanceRow,
+  Scoreboard,
+} from './GameScreenLiveDisplayTypes'
+
+const identity: LiveIdentity = {
+  scopeKey: 'tenant-a/game-1',
+  contextKey: 'event-8',
+  pitcherId: 'p-1',
+  currentBatterId: 'b-1',
+  nextBatterId: 'b-2',
+  pitcherName: '投手甲',
+  currentBatterName: '打者乙',
+  nextBatterName: '打者丙',
+}
+function supplied<T>(value: T, playerId?: string): DisplaySupply<T> {
+  return {
+    scopeKey: identity.scopeKey,
+    contextKey: identity.contextKey,
+    playerId,
+    status: 'ready',
+    value,
+  }
+}
+const dayPitcher: PitcherDay = {
+  pitchCount: '81',
+  inningsPitched: '6 1/3',
+  fastestSpeed: '149',
+  averageSpeed: '139',
+  hitsAllowed: '4',
+  strikeouts: '7',
+  walks: '2',
+  runsAllowed: '1',
+}
+const seasonPitcher: PitcherSeason = {
+  vsLeftAverage: '.202',
+  vsRightAverage: '.255',
+  inningsPitched: '58 2/3',
+  whip: '1.03',
+  fip: '2.97',
+}
+const dayBatter: BatterDay = {
+  plateAppearances: '4',
+  atBats: '3',
+  hits: '2',
+  rbi: '1',
+  walks: '1',
+  hitByPitch: '0',
+  strikeouts: '1',
+  sacrificeBunts: '0',
+  sacrificeFlies: '0',
+}
+const seasonBatter: BatterSeason = {
+  vsLeftAverage: '.300',
+  vsRightAverage: '.271',
+  homeRuns: '8',
+}
+const score: Scoreboard = {
+  teams: [
+    { name: '先攻', total: '3', h: '7', e: '0', k: '5', b: '4' },
+    { name: '後攻', total: '0', h: '2', e: '1', k: '7', b: '2' },
+  ],
+  innings: [
+    {
+      key: '1',
+      label: '一回',
+      cells: [{ kind: 'text', text: 'X' }, { kind: 'blank' }],
+    },
+    {
+      key: '2',
+      label: '二回',
+      cells: [{ kind: 'text', text: '3' }, { kind: 'blank' }],
+    },
+    {
+      key: '3',
+      label: '三回',
+      cells: [{ kind: 'text', text: '0' }, { kind: 'unavailable' }],
+    },
+  ],
+}
+const row = {
+  key: 'pa-1',
+  number: '4',
+  inning: '7回表',
+  resultName: '左前安打',
+  atBat: '算入',
+  hitType: '単打',
+  rbi: '1',
+  onBaseType: '安打',
+}
+function sources(): LiveDisplaySources {
+  return {
+    scoreboard: supplied(score),
+    pitcherDay: supplied(dayPitcher, 'p-1'),
+    pitcherSeason: {
+      ...supplied(seasonPitcher, 'p-1'),
+      fetchedAt: '12:34',
+      offline: false,
+    },
+    currentBatterDay: supplied(dayBatter, 'b-1'),
+    currentBatterSeason: {
+      ...supplied(seasonBatter, 'b-1'),
+      fetchedAt: '12:35',
+      offline: false,
+    },
+    currentBatterHistory: supplied([row], 'b-1'),
+    nextBatterDay: supplied({ ...dayBatter, hits: '0' }, 'b-2'),
+    nextBatterSeason: {
+      ...supplied({ ...seasonBatter, homeRuns: '2' }, 'b-2'),
+      fetchedAt: '12:36',
+      offline: false,
+    },
+    nextBatterHistory: supplied(
+      [{ ...row, key: 'pa-2', resultName: '四球' }],
+      'b-2',
+    ),
+    pitchTypes: supplied([
+      { key: 'fast', name: '直球', share: '60%', count: '48' },
+    ]),
+    flow: supplied({
+      inning: '7回表',
+      battingOrder: '4番',
+      endState: 'detected',
+      promptRequired: true,
+      undoAllowed: true,
+      substitutionAllowed: false,
+    }),
+    viewerAppliedAt: supplied('12:37'),
+    inputOffline: supplied(false),
+  }
+}
+function at(wrapper: ReturnType<typeof mount>, id: string) {
+  return wrapper.get(`[data-testid="${id}"]`).text()
+}
+
+afterEach(() => vi.restoreAllMocks())
+
+describe('GameScreen の記録中表示契約', () => {
+  it('FR020: #153候補5セルを含む提供順の全回と両チーム合計/H/E/K/Bを描画する', () => {
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: { identity, sources: sources() },
+    })
+    expect(wrapper.findAll('[data-testid="inning-card"]')).toHaveLength(3)
+    expect(
+      [
+        'inning-1-0',
+        'inning-1-1',
+        'inning-2-0',
+        'inning-2-1',
+        'inning-3-0',
+        'inning-3-1',
+      ].map((id) => at(wrapper, id)),
+    ).toEqual(['X', '', '3', '', '0', '未取得'])
+    for (const id of ['inning-1-1', 'inning-2-1']) {
+      const blank = wrapper.get(`[data-testid="${id}"]`)
+      expect(blank.element.textContent).toBe('')
+      expect(blank.attributes('aria-label')).toBe('空欄')
+    }
+    for (const id of ['inning-1-0', 'inning-2-0', 'inning-3-0', 'inning-3-1']) {
+      expect(
+        wrapper.get(`[data-testid="${id}"]`).attributes('aria-label'),
+      ).toBeUndefined()
+    }
+    expect(at(wrapper, 'team-0')).toContain('合計3H7E0K5B4')
+    expect(at(wrapper, 'team-1')).toContain('合計0H2E1K7B2')
+    expect(wrapper.get('[data-testid="inning-list"]').classes()).toContain(
+      'flex-wrap',
+    )
+    expect(wrapper.get('[data-testid="inning-card"]').classes()).toContain(
+      'w-full',
+    )
+  })
+
+  it('FR021/022/023: 現投手と現在・次打者の全欄、7列、球種割合と球数を提供値で表示する', () => {
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: { identity, sources: sources() },
+    })
+    const text = wrapper.text()
+    for (const [label, value] of [
+      ['当日投球数', '81'],
+      ['投球回', '6 1/3'],
+      ['最速球速', '149'],
+      ['平均球速', '139'],
+      ['被安打', '4'],
+      ['奪三振', '7'],
+      ['与四球', '2'],
+      ['失点', '1'],
+      ['対左被打率', '.202'],
+      ['対右被打率', '.255'],
+      ['WHIP', '1.03'],
+      ['FIP', '2.97'],
+    ])
+      expect(text).toContain(`${label}${value}`)
+    for (const label of [
+      '当日投球数',
+      '投球回',
+      '最速球速',
+      '平均球速',
+      '被安打',
+      '奪三振',
+      '与四球',
+      '失点',
+      '対左被打率',
+      '対右被打率',
+      'WHIP',
+      'FIP',
+    ])
+      expect(text).toContain(label)
+    for (const label of [
+      '打席数',
+      '打数',
+      '安打',
+      '打点',
+      '四球',
+      '死球',
+      '三振',
+      '犠打',
+      '犠飛',
+      '対左打率',
+      '対右打率',
+      '本塁打',
+    ])
+      expect(at(wrapper, 'current-batter')).toContain(label)
+    for (const [label, value] of [
+      ['打席数', '4'],
+      ['打数', '3'],
+      ['安打', '2'],
+      ['打点', '1'],
+      ['四球', '1'],
+      ['死球', '0'],
+      ['三振', '1'],
+      ['犠打', '0'],
+      ['犠飛', '0'],
+      ['対左打率', '.300'],
+      ['対右打率', '.271'],
+      ['本塁打', '8'],
+    ])
+      expect(at(wrapper, 'current-batter')).toContain(`${label}${value}`)
+    for (const [label, value] of [
+      ['番号', '4'],
+      ['イニング', '7回表'],
+      ['結果表示名', '左前安打'],
+      ['打数算入', '算入'],
+      ['安打種別', '単打'],
+      ['打点', '1'],
+      ['出塁別', '安打'],
+    ])
+      expect(
+        wrapper
+          .get('[data-testid="current-history"] [data-testid="plate-row"]')
+          .text(),
+      ).toContain(`${label}${value}`)
+    for (const label of [
+      '番号',
+      'イニング',
+      '結果表示名',
+      '打数算入',
+      '安打種別',
+      '打点',
+      '出塁別',
+    ])
+      expect(
+        wrapper
+          .get('[data-testid="current-history"] [data-testid="plate-row"]')
+          .text(),
+      ).toContain(label)
+    expect(at(wrapper, 'current-batter')).toContain('左前安打')
+    expect(at(wrapper, 'next-batter')).toContain('四球')
+    expect(at(wrapper, 'pitch-types-status')).toBe('')
+    expect(wrapper.get('[data-testid="pitch-type-share"]').text()).toContain(
+      '割合 60% / 球数 48',
+    )
+    expect(at(wrapper, 'pitcher-season-note')).toBe(
+      '最終取得: 12:34 / オンライン',
+    )
+    expect(at(wrapper, 'viewer-applied-at')).toBe('12:37')
+    expect(at(wrapper, 'input-offline')).toBe('オンライン')
+  })
+
+  it('提供された開始済み12回を最後まで省略せず描画する', () => {
+    const innings = Array.from({ length: 12 }, (_, index) => ({
+      key: String(index + 1),
+      label: `${index + 1}回`,
+      cells: [
+        { kind: 'text' as const, text: String(index) },
+        { kind: 'blank' as const },
+      ] as const,
+    }))
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: {
+        identity,
+        sources: { scoreboard: supplied({ ...score, innings }) },
+      },
+    })
+    expect(wrapper.findAll('[data-testid="inning-card"]')).toHaveLength(12)
+    expect(at(wrapper, 'inning-12-0')).toBe('11')
+    expect(at(wrapper, 'inning-12-1')).toBe('')
+    expect(
+      wrapper.get('[data-testid="inning-12-1"]').attributes('aria-label'),
+    ).toBe('空欄')
+  })
+
+  it('正常な表示文字列の空文字と0を合成・補完せず保持する', () => {
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: {
+        identity,
+        sources: {
+          scoreboard: supplied({
+            ...score,
+            teams: [
+              { ...score.teams[0], total: '', h: '0' },
+              score.teams[1],
+            ] as Scoreboard['teams'],
+          }),
+        },
+      },
+    })
+    const totals = wrapper
+      .get('[data-testid="team-0"]')
+      .findAll('dl > div > dd')
+    expect(totals[0].element.textContent).toBe('')
+    expect(totals[1].element.textContent).toBe('0')
+  })
+
+  it('未取得・読取失敗・0件を区別し、0や空欄を補完しない', async () => {
+    const wrapper = mount(GameScreenLiveDisplay, { props: { identity } })
+    expect(at(wrapper, 'score-status')).toBe('未取得')
+    expect(at(wrapper, 'pitcher-day-status')).toBe('未取得')
+    expect(at(wrapper, 'pitch-types-status')).toBe('未取得')
+    await wrapper.setProps({
+      sources: {
+        scoreboard: { ...supplied(score), status: 'read-failed' },
+        pitcherDay: { ...supplied(dayPitcher, 'p-1'), status: 'empty' },
+        pitchTypes: { ...supplied([], undefined), status: 'empty' },
+      },
+    })
+    expect(at(wrapper, 'score-status')).toBe('読取失敗')
+    expect(at(wrapper, 'pitcher-day-status')).toBe('データなし')
+    expect(at(wrapper, 'pitch-types-status')).toBe('データなし')
+    expect(wrapper.findAll('[data-testid="pitch-type-share"]')).toHaveLength(0)
+  })
+
+  it('壊れた得点表の行・セル・疎配列は未取得へ倒し、停止表示と他の提供値を保つ', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true } as Response)
+    const sparseTeams: unknown[] = [score.teams[0]]
+    sparseTeams.length = 2
+    Object.assign(sparseTeams, { extra: score.teams[1] })
+    const sparseInnings: unknown[] = [score.innings[0]]
+    sparseInnings.length = 2
+    Object.assign(sparseInnings, { extra: score.innings[1] })
+    const sparseCells: unknown[] = [score.innings[0].cells[0]]
+    sparseCells.length = 2
+    Object.assign(sparseCells, { extra: score.innings[0].cells[1] })
+    const invalid: readonly unknown[] = [
+      null,
+      { ...score, teams: null },
+      { ...score, teams: sparseTeams },
+      { ...score, teams: [score.teams[0], null] },
+      { ...score, teams: [{ ...score.teams[0], total: 3 }, score.teams[1]] },
+      { ...score, innings: null },
+      { ...score, innings: sparseInnings },
+      { ...score, innings: [null] },
+      { ...score, innings: [{ ...score.innings[0], cells: sparseCells }] },
+      {
+        ...score,
+        innings: [
+          { ...score.innings[0], cells: [null, score.innings[0].cells[1]] },
+        ],
+      },
+      {
+        ...score,
+        innings: [
+          {
+            ...score.innings[0],
+            cells: [{ kind: 'text', text: 0 }, score.innings[0].cells[1]],
+          },
+        ],
+      },
+    ]
+    const data = sources()
+    const wrapper = mount(GameScreen, {
+      props: {
+        liveIdentity: identity,
+        liveSources: data,
+        stopDisplay: {
+          phase: 'sending-stopped',
+          deviceUnconfirmed: { kind: 'count', value: 2 },
+        },
+      },
+    })
+    for (const value of invalid) {
+      await wrapper.setProps({
+        liveSources: { ...data, scoreboard: supplied(value as Scoreboard) },
+      })
+      expect(at(wrapper, 'score-status')).toBe('未取得')
+      expect(wrapper.find('[data-testid="inning-card"]').exists()).toBe(false)
+      expect(at(wrapper, 'pitcher-day-status')).toBe('')
+      expect(at(wrapper, 'stop-status')).toBe('送信停止')
+      expect(at(wrapper, 'device-unconfirmed-count')).toBe('2')
+      expect(
+        wrapper
+          .get('[data-testid="resume-same-content"]')
+          .attributes('disabled'),
+      ).toBeDefined()
+    }
+    for (const id of ['resume-same-content', 'commit-pitch', 'declare-end']) {
+      wrapper
+        .get(`[data-testid="${id}"]`)
+        .element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    }
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(wrapper.emitted('save')).toBeUndefined()
+  })
+
+  it('壊れた成績・履歴・球種・終了・鮮度のreadyは成功扱いせず未取得へ倒す', async () => {
+    const data = sources()
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: { identity, sources: data },
+    })
+    const sparseHistory: unknown[] = [row]
+    sparseHistory.length = 2
+    Object.assign(sparseHistory, { extra: row })
+    const sparsePitchTypes: unknown[] = []
+    sparsePitchTypes.length = 1
+    Object.assign(sparsePitchTypes, {
+      extra: { key: 'x', name: '球種', share: '1%', count: '1' },
+    })
+    for (const value of [null, [null], sparseHistory, [{ ...row, rbi: 1 }]]) {
+      await wrapper.setProps({
+        sources: {
+          ...data,
+          currentBatterHistory: supplied(
+            value as readonly PlateAppearanceRow[],
+            'b-1',
+          ),
+        },
+      })
+      expect(at(wrapper, 'current-history-status')).toBe('未取得')
+      expect(
+        wrapper
+          .find('[data-testid="current-history"] [data-testid="plate-row"]')
+          .exists(),
+      ).toBe(false)
+    }
+    for (const value of [
+      null,
+      [null],
+      sparsePitchTypes,
+      [{ key: 'x', name: '球種', share: 1, count: '1' }],
+    ]) {
+      await wrapper.setProps({
+        sources: {
+          ...data,
+          pitchTypes: supplied(value as readonly PitchTypeShare[]),
+        },
+      })
+      expect(at(wrapper, 'pitch-types-status')).toBe('未取得')
+      expect(wrapper.find('[data-testid="pitch-type-share"]').exists()).toBe(
+        false,
+      )
+    }
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        pitcherDay: supplied(
+          { ...dayPitcher, pitchCount: 81 } as unknown as PitcherDay,
+          'p-1',
+        ),
+        pitcherSeason: supplied(null as unknown as PitcherSeason, 'p-1'),
+        currentBatterDay: supplied(
+          { ...dayBatter, atBats: undefined } as unknown as BatterDay,
+          'b-1',
+        ),
+        currentBatterSeason: supplied(
+          { ...seasonBatter, homeRuns: 8 } as unknown as BatterSeason,
+          'b-1',
+        ),
+        flow: supplied({
+          ...data.flow!.value!,
+          endState: 'constructor',
+        } as unknown as GameFlow),
+        viewerAppliedAt: supplied(123 as unknown as string),
+        inputOffline: supplied('offline' as unknown as boolean),
+      },
+    })
+    for (const id of [
+      'pitcher-day-status',
+      'pitcher-season-status',
+      'current-day-status',
+      'current-season-status',
+      'flow-status',
+    ])
+      expect(at(wrapper, id)).toBe('未取得')
+    expect(at(wrapper, 'end-state')).toBe('未取得')
+    expect(at(wrapper, 'viewer-applied-at')).toBe('未取得')
+    expect(at(wrapper, 'input-offline')).toBe('未取得')
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        flow: supplied({
+          ...data.flow!.value!,
+          promptRequired: 'false',
+        } as unknown as GameFlow),
+      },
+    })
+    expect(at(wrapper, 'flow-status')).toBe('未取得')
+    expect(at(wrapper, 'end-state')).toBe('未取得')
+  })
+
+  it('選手供給のplayerId欠落とidentity対象ID未取得はその人物だけ未取得へ倒す', async () => {
+    const data = sources()
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: {
+        identity,
+        sources: {
+          ...data,
+          pitcherDay: supplied(dayPitcher),
+          currentBatterDay: supplied(dayBatter),
+        },
+      },
+    })
+    expect(at(wrapper, 'pitcher-day-status')).toBe('未取得')
+    expect(at(wrapper, 'current-day-status')).toBe('未取得')
+    expect(at(wrapper, 'next-day-status')).toBe('')
+    expect(at(wrapper, 'team-0')).toContain('合計3')
+    await wrapper.setProps({
+      identity: {
+        ...identity,
+        pitcherId: undefined,
+        currentBatterId: undefined,
+      } as unknown as LiveIdentity,
+      sources: data,
+    })
+    expect(at(wrapper, 'pitcher-day-status')).toBe('未取得')
+    expect(at(wrapper, 'current-day-status')).toBe('未取得')
+    expect(at(wrapper, 'next-day-status')).toBe('')
+    expect(at(wrapper, 'team-0')).toContain('合計3')
+  })
+
+  it('代打・投手交代時点で選手を切り替え、遅延した旧選手・旧scopeの応答を混ぜない', async () => {
+    const data = sources()
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: { identity, sources: data },
+    })
+    await wrapper.setProps({
+      identity: {
+        ...identity,
+        contextKey: 'event-9',
+        pitcherId: 'p-3',
+        pitcherName: '新投手',
+        currentBatterId: 'b-3',
+        currentBatterName: '代打丁',
+        nextBatterId: 'b-4',
+        nextBatterName: '次打者戊',
+      },
+    })
+    expect(at(wrapper, 'current-batter')).toContain('代打丁')
+    expect(at(wrapper, 'next-batter')).toContain('次打者戊')
+    expect(wrapper.text()).toContain('新投手')
+    expect(at(wrapper, 'current-day-status')).toBe('未取得')
+    expect(at(wrapper, 'pitcher-day-status')).toBe('未取得')
+    expect(wrapper.find('[data-testid="plate-row"]').exists()).toBe(false)
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        currentBatterDay: {
+          ...supplied(dayBatter, 'b-1'),
+          contextKey: 'event-9',
+        },
+        pitcherDay: { ...supplied(dayPitcher, 'p-1'), contextKey: 'event-9' },
+      },
+    })
+    expect(at(wrapper, 'current-day-status')).toBe('未取得')
+    expect(at(wrapper, 'pitcher-day-status')).toBe('未取得')
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        currentBatterDay: {
+          ...supplied({ ...dayBatter, hits: '1' }, 'b-3'),
+          contextKey: 'event-9',
+        },
+        pitcherDay: {
+          ...supplied({ ...dayPitcher, pitchCount: '0' }, 'p-3'),
+          contextKey: 'event-9',
+        },
+        nextBatterDay: {
+          ...supplied({ ...dayBatter, hits: '0' }, 'b-4'),
+          contextKey: 'event-9',
+        },
+      },
+    })
+    expect(at(wrapper, 'current-batter')).toContain('安打1')
+    expect(at(wrapper, 'next-batter')).toContain('安打0')
+    expect(wrapper.text()).toContain('当日投球数0')
+    expect(at(wrapper, 'current-season-status')).toBe('未取得')
+    await wrapper.setProps({
+      identity: { ...identity, scopeKey: 'tenant-b/game-1' },
+    })
+    expect(at(wrapper, 'score-status')).toBe('未取得')
+  })
+
+  it('断中の提供最新当日投影更新を表示し、古い値への暫定ラベルだけでは合格にしない', async () => {
+    const data = sources()
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: { identity, sources: data },
+    })
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        scoreboard: {
+          ...supplied({
+            ...score,
+            teams: [
+              { ...score.teams[0], total: '4' },
+              score.teams[1],
+            ] as Scoreboard['teams'],
+          }),
+          provisional: true,
+        },
+        pitcherDay: {
+          ...supplied({ ...dayPitcher, pitchCount: '82' }, 'p-1'),
+          provisional: true,
+        },
+        currentBatterDay: {
+          ...supplied({ ...dayBatter, hits: '3' }, 'b-1'),
+          provisional: true,
+        },
+        pitchTypes: {
+          ...supplied([
+            { key: 'fast', name: '直球', share: '61%', count: '49' },
+          ]),
+          provisional: true,
+        },
+        pitcherSeason: { ...data.pitcherSeason!, offline: true },
+      },
+    })
+    expect(at(wrapper, 'team-0')).toContain('合計4')
+    expect(wrapper.text()).toContain('当日投球数82')
+    expect(at(wrapper, 'current-batter')).toContain('安打3')
+    expect(wrapper.get('[data-testid="pitch-type-share"]').text()).toContain(
+      '61% / 球数 49',
+    )
+    expect(at(wrapper, 'pitcher-season-note')).toBe(
+      '最終取得: 12:34 / オフライン',
+    )
+    expect(wrapper.find('[data-testid="score-provisional"]').exists()).toBe(
+      true,
+    )
+    expect(
+      wrapper.find('[data-testid="pitcher-day-provisional"]').exists(),
+    ).toBe(true)
+    expect(
+      wrapper.find('[data-testid="pitch-types-provisional"]').exists(),
+    ).toBe(true)
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        pitcherSeason: {
+          ...supplied(seasonPitcher, 'p-1'),
+          status: 'unavailable',
+          offline: true,
+        },
+      },
+    })
+    expect(at(wrapper, 'pitcher-season-status')).toBe('未取得')
+    expect(at(wrapper, 'pitcher-season-note')).toContain(
+      '最終取得: 未取得 / オフライン',
+    )
+  })
+
+  it('終了検知・未同期宣言・追記再開・再終了を別表示し、#153 E02/E09/E10候補を表示する', async () => {
+    const data = sources()
+    const wrapper = mount(GameScreenLiveDisplay, {
+      props: { identity, sources: data },
+    })
+    expect(at(wrapper, 'end-state')).toBe('終了候補を検知（未宣言）')
+    const flow = data.flow!.value!
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        flow: supplied({
+          ...flow,
+          endState: 'declared-unsynced',
+          promptRequired: false,
+          undoAllowed: true,
+          substitutionAllowed: false,
+        }),
+      },
+    })
+    expect(at(wrapper, 'end-state')).toBe('終了宣言済み・未同期')
+    expect(wrapper.text()).not.toContain('試合完了')
+    expect(at(wrapper, 'end-prompt')).toBe('なし')
+    expect(at(wrapper, 'flow-undo')).toBe('あり')
+    expect(at(wrapper, 'flow-substitution')).toBe('なし')
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        flow: supplied({
+          ...flow,
+          endState: 'reopened',
+          promptRequired: false,
+          substitutionAllowed: true,
+        }),
+      },
+    })
+    expect(at(wrapper, 'end-state')).toBe('試合追記再開中')
+    expect(at(wrapper, 'end-prompt')).toBe('なし')
+    expect(at(wrapper, 'flow-substitution')).toBe('あり')
+    await wrapper.setProps({
+      sources: {
+        ...data,
+        flow: supplied({
+          ...flow,
+          endState: 'reclosed-unsynced',
+          promptRequired: false,
+          substitutionAllowed: false,
+        }),
+      },
+    })
+    expect(at(wrapper, 'end-state')).toBe('再終了宣言済み・未同期')
+    expect(at(wrapper, 'end-prompt')).toBe('なし')
+    expect(at(wrapper, 'flow-substitution')).toBe('なし')
+  })
+
+  it('正式鮮度が未提供なら未取得。長文は折返し、直接dispatchしても実操作0', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue({ ok: true } as Response)
+    const saveSpy = vi.spyOn(Storage.prototype, 'setItem')
+    const data = sources()
+    delete data.viewerAppliedAt
+    delete data.inputOffline
+    data.scoreboard = supplied({
+      ...score,
+      teams: [
+        { ...score.teams[0], name: '<img src=x onerror=alert(1)>'.repeat(8) },
+        score.teams[1],
+      ],
+    })
+    const oldWidth = window.innerWidth
+    try {
+      for (const width of [375, 320]) {
+        Object.defineProperty(window, 'innerWidth', {
+          configurable: true,
+          value: width,
+        })
+        const wrapper = mount(GameScreen, {
+          props: { liveIdentity: identity, liveSources: data },
+        })
+        expect(at(wrapper, 'viewer-applied-at')).toBe('未取得')
+        expect(at(wrapper, 'input-offline')).toBe('未取得')
+        expect(wrapper.find('img').exists()).toBe(false)
+        expect(wrapper.get('[data-testid="live-display"]').classes()).toContain(
+          'wrap-anywhere',
+        )
+        expect(wrapper.get('[data-testid="inning-list"]').classes()).toContain(
+          'flex-wrap',
+        )
+        expect(wrapper.get('[data-testid="inning-card"]').classes()).toContain(
+          'w-full',
+        )
+        for (const id of [
+          'switch-inning',
+          'declare-end',
+          'reopen-game',
+          'resume-same-content',
+          'correct-stopped-content',
+          'commit-pitch',
+        ]) {
+          const button = wrapper.get(`[data-testid="${id}"]`)
+          expect(button.attributes('disabled')).toBeDefined()
+          button.element.dispatchEvent(
+            new MouseEvent('click', { bubbles: true }),
+          )
+        }
+        expect(wrapper.emitted('save')).toBeUndefined()
+        expect(wrapper.emitted('commit')).toBeUndefined()
+        wrapper.unmount()
+      }
+    } finally {
+      Object.defineProperty(window, 'innerWidth', {
+        configurable: true,
+        value: oldWidth,
+      })
+    }
+    expect(fetchSpy).not.toHaveBeenCalled()
+    expect(saveSpy).not.toHaveBeenCalled()
+  })
+
+  it('同内容props再供給で既存投球下書きを消さない', async () => {
+    const wrapper = mount(GameScreen, {
+      props: {
+        liveIdentity: identity,
+        liveSources: sources(),
+        state: { batter: '旧打者', pitcher: '旧投手' },
+        pitchTypes: [{ id: 'fast', displayName: '直球', enabled: true }],
+        results: [{ id: 'ball', displayName: 'ボール', enabled: true }],
+      },
+    })
+    await wrapper.get('[data-testid="pitch-type"]').setValue('fast')
+    await wrapper.get('[data-testid="pitch-speed"]').setValue('140')
+    await wrapper.setProps({
+      liveIdentity: { ...identity },
+      liveSources: sources(),
+    })
+    expect(at(wrapper, 'batter')).toBe('打者乙')
+    expect(at(wrapper, 'pitcher')).toBe('投手甲')
+    expect(
+      (wrapper.get('[data-testid="pitch-type"]').element as HTMLSelectElement)
+        .value,
+    ).toBe('fast')
+    expect(
+      (wrapper.get('[data-testid="pitch-speed"]').element as HTMLInputElement)
+        .value,
+    ).toBe('140')
+  })
+})
