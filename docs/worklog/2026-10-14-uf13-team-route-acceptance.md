@@ -890,3 +890,14 @@ agmsg skillを確認したが本projectの登録はなく、別project todoapp�
 最新実developは#158の7c1afebab31facc71e8cfc2731da1a9fa392de4eで、通常merge済み。core3/TSK-550記録だけの変更で、承認済み自チームread方針への影響なし。#152/156/159/160/161/162/163の実PR差分をパス別照合。API/roster/TeamScreenと固有試験の同一パス変更は見つからない。共有repository_contract.py/jsonは#156/一部#152、base-allowlistは#156/#161/#152、必要なauthz共有資産は#152/#156/#161/#162と重なるため編集を保留する。#152先行案は未受理の提案であり確定順序ではない。未回答を受理/所有移管とは扱わない。他担当枝は基線にしていない。
 
 共有以外は既存implement手順でステップ1から進める。共有資産の未更新による静的/frozen失敗が残る場合は実装不具合と分け、期待値を緩めたり未受理値で通したりしない。
+
+
+### 自チームステップ1: 非共有backend実装・固有試験
+
+引数なしSelfTeamRecordReadToken、既存read capabilityの固定登録、self/hidden NULL/limit1の単一statement、GET /team-records/selfとC2前照合を実装。0行404、1行は4項目のstrict検査後200、複数行/異常形は非2xxで情報を返さない。新capability・既存opponent token・実行器は変更しない。
+
+正規implementのステップ1委任→非共有追随で関連unit/HTTP771成功、requires_dbの既存2件はその局所実行では非選択。HTTP exact-setは旧経路を全部残して17→18、新tokenは既存capability集合のまま登録数44→45とした。追加のtest_api_conventions.py/test_authz_capability_registration.pyは#152/#156/#161実PR差分との同一パス重複がないことを確認して追随し、共有扱いを理由に放置しなかった。Ruff format/check・ty成功。
+
+子sandboxではDB初期接続が失敗し、親の直接pytestでも既定5432への接続が拒否された（製品経路未実行）。既存run_isolated.pyを再利用し、自分の使い捨てanchorクラスタからadmin/tested role DSNを環境内だけで渡す既存手順に切り替え、self固有の実DB試験1成功（3.80秒）。A/Bのselfだけ、selfなし0件、同tenant重複self制約拒否、app roleの無文脈/他tenant拒否とopponent固定を確認し、dedicated_cluster_cleaned_upを確認した。共有DBへ代替していない。失敗した初回を成功へ読み替えない。
+
+repository_contract.py/jsonの公開token面とbase-allowlistは担当受理待ちで未編集。test_authz_repository_contract.pyの実registry/契約一致はこの未登録により不一致を保持する。HEAD依存検査の旧HEAD成功を候補成功とは主張しない。コミットするのは非共有実装候補であり、ステップ1の正式登録/7.7や追補全体の完了ではない。共有待ちは統合前条件へ明示し、承認済み非共有画面実装へ継続する。
