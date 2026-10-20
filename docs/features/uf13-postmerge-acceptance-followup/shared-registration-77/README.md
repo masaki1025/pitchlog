@@ -26,7 +26,7 @@
 ## 機械照合と未通過検査
 
 - 実baselineからgit showでbeforeを取得し、製品候補の実ファイルからafterを取得した。既存frozen_historyの射影・snapshot・movement導出関数を使用し、独自の凍結定義や検査器変更は追加しない。
-- 変更資産はrepository-contract.jsonのみ。外部4実装は同一、他8射影と既存23履歴は同一、#165記録の重複なし、追加型はself1型のみ。全snapshot参照を既存archive＋候補bytesで解決・照合した。
+- 変更資産はrepository-contract.jsonのみ。外部凍結対象8ファイル（完全値JSONの全列挙）は同一、他8射影と既存23履歴は同一、#165記録の重複なし、追加型はself1型のみ。全snapshot参照を既存archive＋候補bytesで解決・照合した。
 - 候補snapshotは本資料配下にのみ置く。正式history-snapshotsへの追加、base allowlistへの履歴反映は正式受理後に行う。
 - backend関連は最初の161件に加え、API/tenant/route影響を含む統合選択200件（2.08秒）が成功。Ruff format/check、ty成功。全件検査・最終HEAD CIは正式反映後に再実行する。frontend製品・試験は本限定差分で変更なし。
 - tenant-boundary実検査は受理記録未反映のため「履歴末尾と7資産の識別値が不一致」で拒否。期待どおりの未通過として保持し、緩和しない。core-guard本人チェックも未実施のまま維持する。
@@ -57,3 +57,9 @@
 base allowlistの既受理23履歴をそのまま保持して#165を1件追記し、正式history-snapshotsへafterの9872b2…を1件追加した。beforeの0daf9e…は既存bytes一致を確認して再追加しない。base allowlist33/許可symbol/射影、他8資産・authzは不変。正式反映後のtenant-boundary検査は成功。必要全検査・最終CIは別途実行記録へ残し、旧成功を今回の成功へ読み替えない。
 
 レビュー履歴は基本2回＋限定追加1回を維持する。旧レビュー後の結果記録3ファイルと、本正式反映/記録は未再レビューのまま最終本人確認対象へ含める。本受理は本人逐行確認・Draft解除・マージ・公開を含まない。
+
+## manifest参照digestの限定追随
+
+第4共有パスはtests/fixtures/frozen-archive-cases/manifest.jsonのcorpus_inputs.digestのみ。正式反映済みrepository契約に対応し、旧b3accebe…からf50b17a2…へ1値だけ追随する。比較manifestの正規化内容・case/期待値/prefix/snapshot集合・runnerは不変。全9資産の射影、完全値JSONに列挙された全8外部参照、全24履歴、承認資料2件を照合し、7.7受理値への影響なし。旧説明の外部対象数「4」は「8」へ訂正したが、受理済みJSONはもともと全8件を収録しており変更しない。
+
+旧失敗33件を含む関連65試験は成功。固定前版ec02a0dのowner_paths非対応による既存残余は維持し、前版の再実行成功とはしない。新しい7.7記録や同じ#165の重複記録は追加しない。PO指定の限定追加レビューは追加2回目であり基本2周＋前回追加1回を保持する。

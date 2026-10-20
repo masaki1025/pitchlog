@@ -1079,3 +1079,23 @@ backend関連試験はtest_authz_repository_contract.pyが48件、capability登�
 5c0226bdで開始したローカル全件は基線追随前に自分の検査プロセスだけへ中断を要求。root/backendはexit2、backend専用DBの破棄を確認。frontendは1402件の出力を得たが中断時のpnpm終了失敗があり、今回の完走成功に数えない。隔離一時領域final-localに証跡を保存したまま、基線追随後の専用final-local-integratedへ全件を再実行する。試験除外・timeout緩和は行わない。
 
 ローカルrootの並列は利用可能メモリに合わせ4、backend本体は1・内部autoは2、frontendは既存設定のfileParallelism=falseを維持。共有DBや他担当プロセスは変更・停止しない。最終HEADの検査/CI証跡と本人確認の固定diffは専用cacheおよび既存PR #165の最終報告へ集約する。本人チェックは未記入、plan activeを維持する。台帳への追記なし（製品経路の既存手順による追随・受理であり新しいハーネス運用知見の追加ではない）。
+
+## #165 manifest連動の限定追随承認と開始
+
+POは第4共有パスのD先行、corpus_inputs.digestの1フィールド、直接影響の比較fixture/digestに限定した独立レビュー1回を許可。基本2周＋前回追加1回を保持し、今回は追加2回目と数える。現HEAD157ace4dd43fdab114b1a355473b75b66a2559c6。変更前b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce、変更後f50b17a2bb95e95828ced277c4288dd64a0be11a2e5132fdee691683a877634b。対象はtests/fixtures/frozen-archive-cases/manifest.jsonのみ。
+
+通知: #152コメント6295746198、#156コメント6295746668、#161コメント6295747245。通知を担当受理・所有解除としない。3担当worktreeの当該ファイルを読み取り専用で2回確認し、未コミット差分なし・SHA-256/mtime不変。未統合枝を基線にせず他担当worktreeも変更しない。
+
+157ace4dの最終CIは10成功/2失敗。backend3055成功/4skip・coverage89%、frontend82ファイル1572成功、実画面/API/隔離DB14項目成功。harnessは29386成功/33失敗/2skip、ローカルroot全件は29645成功/33失敗/2skip（2053.31秒）で同じcorpus digest拒否。backendローカル重複全件は同一backendのCI全件成功後に終了しexit2、専用cluster破棄を確認（完走成功に数えない）。証跡はPR最終報告コメント6295701690と専用cache。
+
+既存runnerでcache候補の現行11ケースは全件期待一致。固定前版ec02a0dの再実行ではowner_paths非対応で9/11が歴史的期待に不一致だった。今回、比較revisionや期待値表の変更・前版互換性の修正は許可範囲に加えず、その成功も主張しない。今回の修正で前版残余が解消したとは扱わない。
+
+7.7影響確認では全tenant-boundary/authzファイル、公開契約py、承認資料2件のSHA-256を事前固定した。完全値JSONに列挙された外部凍結対象は8ファイルであり、旧説明の「外部4実装」は数え違いだった。正式受理された完全値JSONと記録案自体は当初から全8件を含み変更しない。今回の直接影響資料で数の説明だけを訂正し、受理値の変更とは扱わない。
+
+### 1フィールド追随の反映前後確認と関連検査
+
+manifestだけのold/new bytesを照合し、digest1値以外の差分がないことを確認。正規化した比較manifest内容は前後同一で、実ファイルから再計算したcorpus digestがf50b17a2…と一致。正式資産/authz/snapshot/公開py/承認資料の465ファイルは事前SHA-256と完全一致、追加・欠落もなし。全9射影・全8外部参照・全識別値が受理資料と一致し、履歴は24件・#165は1件のまま。7.7の追加受理や同ID再追記は不要と判断する根拠をcache manifest-impact-proof.jsonへ固定した。
+
+旧CIの33個の失敗summaryは全て同じold/new corpus digestのValueErrorだった。今回の2ファイル全65試験の収集集合に旧33件が全て含まれることを照合し、65件成功（35.97秒）。既存の改竄/削除/未参照/不正prefix等の拒否を含み、除外なし。CLI sandboxでは指定cache tempへ書けず、ディスク側cacheでの実行は未達。実行は専用/tmp/pitchlog-uf13-manifest-targeted-tmp-20261021（TMPDIR指定）へ退避した。試験自体は同じ、auto worker上限4、timeout緩和なし。/tmp空き3.9GiBを確認。完走結果と環境の退避を区別する。
+
+修正実体はmanifest.jsonのcorpus_inputs.digestだけ。plan/worklogの承認・証跡記録、およびREADMEの「外部4」→「全8参照」訂正は直接影響する説明として同梱する。固定された判断資料/記録案JSONのSHA-256は変えない。これから候補HEADへPO追加2回目の独立レビュー1回を実施し、結果を記録する。
