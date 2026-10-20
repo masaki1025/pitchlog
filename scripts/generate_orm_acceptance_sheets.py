@@ -6,7 +6,7 @@ import argparse
 import json
 import re
 import subprocess
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence, cast
@@ -760,8 +760,9 @@ def _render_readme(row_counts: Mapping[str, int]) -> str:
             "```",
             "",
             (
-                "持ち越しモードは突合キーが不変・旧判定が差分でない・旧理由が"
-                "契約 diff の変更識別子を含まない行だけを引き継ぐ。"
+                "持ち越しモードは出現番号を除く突合キー(語・正本側・実装側)が同じ・"
+                "旧判定が差分でない・旧理由が契約 diff の変更識別子を含まない行だけを"
+                "引き継ぐ。正本への挿入で番号が繰り上がっても判定は保持される。"
             ),
             "",
             "## シート",
@@ -900,8 +901,25 @@ def parse_sheet_rows(content: str) -> tuple[SheetRow, ...]:
 
 
 def _row_key(row: SheetRow) -> tuple[str, str, str]:
-    """判定持ち越しに使う三つ組を返す。"""
+    """生成本文への置換に使う三つ組を返す。"""
     return row.target, row.canonical, row.implementation
+
+
+def _row_match_key(row: SheetRow) -> tuple[str, str, str]:
+    """判定持ち越しに使う出現番号非依存の三つ組を返す。
+
+    正本への挿入で``出現 NNN``が繰り上がっても、語・正本側・実装側が同じ行は
+    同じ判定対象とみなす。番号を突合キーに含めると、無関係な行の判定まで
+    空欄へ戻ってしまうため。
+
+    Args:
+        row: 突合シートの1行。
+
+    Returns:
+        語・正本側・実装側の三つ組。
+    """
+    _, separator, word = row.target.partition(":")
+    return (word.strip() if separator else row.target, row.canonical, row.implementation)
 
 
 def _replace_sheet_rows(content: str, rows: Sequence[SheetRow]) -> str:
@@ -983,25 +1001,29 @@ def carry_forward_sheet(
     previous: str,
     changed_identifiers: set[str],
 ) -> tuple[str, CarryForwardStats]:
-    """3 条件を満たす旧判定だけを新しい生成本文へ持ち越す。"""
-    previous_by_key = {_row_key(row): row for row in parse_sheet_rows(previous)}
-    previous_by_target = {
-        row.target: row for row in parse_sheet_rows(previous)
-    }
+    """3 条件を満たす旧判定だけを新しい生成本文へ持ち越す。
+
+    旧行は出現番号を除いた三つ組で対応づける。同じ三つ組が複数ある場合は
+    出現順に対応させる。番号の繰り上がりだけでは判定を失わない。
+    """
+    pending: dict[tuple[str, str, str], deque[SheetRow]] = {}
+    for previous_row in parse_sheet_rows(previous):
+        pending.setdefault(_row_match_key(previous_row), deque()).append(
+            previous_row
+        )
     carried_rows: list[SheetRow] = []
     counts: Counter[str] = Counter()
     for row in parse_sheet_rows(generated):
-        previous_row = previous_by_key.get(_row_key(row))
-        comparable_previous = previous_row or previous_by_target.get(row.target)
+        candidates = pending.get(_row_match_key(row))
+        previous_row = candidates.popleft() if candidates else None
         key_changed = previous_row is None
         was_difference = (
-            comparable_previous is not None
-            and comparable_previous.judgment == "差分"
+            previous_row is not None and previous_row.judgment == "差分"
         )
         mentions_changed_identifier = (
-            comparable_previous is not None
+            previous_row is not None
             and _rationale_mentions_identifier(
-                comparable_previous.rationale, changed_identifiers
+                previous_row.rationale, changed_identifiers
             )
         )
         if key_changed:
