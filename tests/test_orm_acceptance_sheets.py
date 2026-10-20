@@ -321,6 +321,57 @@ def test_carry_forward_preserves_eligible_judgment() -> None:
     assert stats.reset == 0
 
 
+def _occurrence_sheet(rows: tuple[tuple[str, str, str], ...]) -> str:
+    """出現番号付きの行を持つ最小のシートを作る。"""
+    lines = [
+        "| 対象 | 正本側 | 実装側 | 判定 | 理由と典拠 |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    lines.extend(
+        f"| {target} | data-model.md §7-1 | manifest: games "
+        f"| {judgment} | {rationale} |"
+        for target, judgment, rationale in rows
+    )
+    return "\n".join(lines)
+
+
+def test_carry_forward_preserves_judgment_across_occurrence_renumbering() -> None:
+    """出現番号の繰り上がりだけでは判定を空欄に戻さない。"""
+    previous = _occurrence_sheet(
+        (("出現 062: 不変", "一致", "既存の判定 data-model.md:7-1"),)
+    )
+    generated = _occurrence_sheet((("出現 064: 不変", "", ""),))
+
+    carried, stats = generator.carry_forward_sheet(generated, previous, set())
+
+    row = generator.parse_sheet_rows(carried)[0]
+    assert row.judgment == "一致"
+    assert row.rationale == "既存の判定 data-model.md:7-1"
+    assert stats.carried == 1
+    assert stats.key_changed == 0
+    assert stats.reset == 0
+
+
+def test_carry_forward_matches_duplicate_keys_in_occurrence_order() -> None:
+    """同じ三つ組が複数あるときは出現順に対応させる。"""
+    previous = _occurrence_sheet(
+        (
+            ("出現 001: 不変", "一致", "先行 data-model.md:7-1"),
+            ("出現 002: 不変", "対象外", "後続 data-model.md:7-1"),
+        )
+    )
+    generated = _occurrence_sheet(
+        (("出現 003: 不変", "", ""), ("出現 004: 不変", "", ""))
+    )
+
+    carried, stats = generator.carry_forward_sheet(generated, previous, set())
+
+    rows = generator.parse_sheet_rows(carried)
+    assert [row.judgment for row in rows] == ["一致", "対象外"]
+    assert stats.carried == 2
+    assert stats.reset == 0
+
+
 def test_changed_identifiers_are_derived_from_contract_diff_lines() -> None:
     """追加・削除行から宣言名・値・CHECK 変更を抽出する。"""
     diff = "\n".join(
