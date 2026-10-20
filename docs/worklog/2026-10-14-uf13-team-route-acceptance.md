@@ -1019,3 +1019,25 @@ Notion既存TSK-528へ#165の部分追補/受入範囲/共有2パス/未確認�
 本補正は既承認計画§3/§4.4に含まれる「対応する基準snapshot/受理記録」の正しいパスを明記するもので、新権限/認可意味/実装スコープは変えない。実装レビュー2周後の資料訂正であり、当該追補を独立再レビュー済みとは扱わない。製品/試験はc2301827以後不変。最終7.7候補と限定差分レビューの対象へこの履歴を含め、人間承認・本人確認を先行記入しない。
 
 追加の独立migration検証は最終製品内容の専用clusterでalembic upgrade head/current --check-heads/checkすべて成功し、自分のcluster撤去を確認。CIのbackend未通過による後続migration/D-2イメージ検査未実施と混同しない。後者のCIステップは当該HEADの実結果をPRへ記載する。
+
+## 2026-10-21 #165 共有3パス D先行指定と編集前固定
+
+POが限定先行を指定（新実値の受理ではない）。候補HEAD `0ba9fd36b6ef014446a888eb82aaa8bc127a79eb`、実develop `8e4698f6dc254439b7d5e0c273cc2aef70cda657`。
+
+| 対象 | 編集前SHA-256 | 範囲 |
+|---|---|---|
+| backend/src/pitchlog/repositories/repository_contract.py | 2b4d53c4f14a6fc8c1afd83ddcccf65d97675a1304a736e59e7e1169f90e98f4 | 公開型とsource digest |
+| contracts/tenant_boundary/repository-contract.json | 331c1a4c15e46196a48f3d758d697d42fe923a854b1a2748294d89b14b596cce | 公開型・凍結候補 |
+| contracts/tenant_boundary/base-allowlist.json | 8481bb75c1fac980d5e8b24d89ddf81e2abfaf6c59bcc916d0fe14a667d7f701 | 許可symbol追加なし。正式受理後の単一履歴追記のみ |
+
+通知: [#152](https://github.com/masaki1025/pitchlog/pull/152#issuecomment-6294455147)、[#156](https://github.com/masaki1025/pitchlog/pull/156#issuecomment-6294455638)、[#161](https://github.com/masaki1025/pitchlog/pull/161#issuecomment-6294456217)。通知と担当受理・所有解除を区別する。対象担当3worktreeの各3パスを読み取り専用で2回確認し、未コミット変更なし・SHA-256とmtime不変。未統合枝は基線に取り込まず、他担当worktreeは変更しない。後続はD反映後の実developから値を再導出する。
+
+編集前証跡は専用cache `self-team-read-shared-followup/initial-paths.json`、`owner-observation-before.json`、`owner-observation-after.json`、`accepted-history-before.json` に保持。exact-set検査の期待件数だけを増やす修正は禁止。既存受理記録の保持・#165の重複有無を機械確認し、最終前後値と未受理記録案を提示する。新承認者・承認日は先行入力しない。
+
+### 共有登録の限定修正と関連検証
+
+公開型tupleと契約JSONへSelfTeamRecordReadTokenをTeamRecordReadTokenの直後に1型追加。registryの45型・各capabilityの全対応を厳密一致させ、既存CAP:team_records:readを再利用。任意object・statement・callable・偽造tokenをsession前に拒否する検査を維持・追加した。JSONのrevisionは実基線21から22へ、source_digestは既存canonical手順で再計算し生成pyと一致。許可symbol・authz・ACL・migration・実registryは変更なし。
+
+backend関連試験はtest_authz_repository_contract.pyが48件、capability登録/self固有が113件、計161件成功。Ruff check/formatとbackend仮想環境を明示したtyが成功。最初のtyは環境の誤認で失敗し、正しいbackend .venv指定で再実行成功（製品修正による解消ではない）。証跡は専用cacheのimplementation.log。全件backend・最終CIの再実行は正式受理後に行い、旧HEADの失敗を成功へ読み替えない。
+
+実装レビュー基本枠は両経路2/2使用済み。本限定差分と7.7記録案は旧レビューの対象外で、独立再レビュー済みと記録しない。追加レビューが必要なら6.3のPO限定追加裁定へまとめて提示する。正式受理・本人確認はいずれも未実施。

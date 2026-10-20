@@ -144,3 +144,7 @@ self成功時は初期自動選択するが、利用者が明示選択済みのo
 最新実develop8e4698f6（#163）を通常merge済み。非共有backend/画面/固有試験と自チーム・opponentの実画面14項目は成功した。core登録は既存検出16パスで足り、新宣言/JSON登録は不要。base-allowlistの許可symbolとauthz資産本体は既存契約で不変。製品登録はrepository_contract.py公開token一覧とtenant-boundary/repository-contract.jsonの2パスが保留（#156/#152の所有返信待ち、未編集）。ただし正式7.7ではhistory_authority=trueのcontracts/tenant_boundary/base-allowlist.jsonへの単一履歴追記が必要で、この履歴編集も#156/#152/#161の所有・順序照合対象に残す。許可symbol追加不要と履歴更新不要を混同しない。7.7完全値はその順序と実基線確定後に機械導出する。新revisionや正式承認者/承認日を先行記入しない。
 
 実装レビューは第1周全差分→第2周a60fdf5dの反映差分/影響箇所を敵対・反対側とも使用し、新規P0/P1/P2=0。計画レビューの最終P1反映の承認済み履歴は保持する。全品質/正式7.7/本人確認/単独CIは別条件であり、現時点のplan active・Draft先行は§7の承認例外による。全体/カード完了は記録しない。詳細と未再レビューの実行証跡はworklogを正とする。
+
+### 2026-10-21 PO指定による共有3パスの限定先行
+
+候補 `0ba9fd36b6ef014446a888eb82aaa8bc127a79eb`、実develop `8e4698f6dc254439b7d5e0c273cc2aef70cda657` を固定。POはD先行を指定した。対象は `backend/src/pitchlog/repositories/repository_contract.py`、`contracts/tenant_boundary/repository-contract.json`、`contracts/tenant_boundary/base-allowlist.json` の3パス。公開型・JSON・45登録の内容一致を修復し、base allowlistは許可symbolを追加せず7.7履歴のみ正式受理後に追記する。実際の並行未コミット変更があるパスだけ停止する。未回答を所有解除・担当受理とは扱わない。既存23履歴は保持し、新実値の正式受理・本人逐行確認は別ゲートのまま。
