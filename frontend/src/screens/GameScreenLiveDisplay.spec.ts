@@ -81,19 +81,38 @@ const score: Scoreboard = {
     {
       key: '1',
       label: '一回',
-      cells: [{ kind: 'text', text: 'X' }, { kind: 'blank' }],
+      cells: [
+        { kind: 'text', text: '3' },
+        { kind: 'text', text: '0' },
+      ],
     },
+    ...Array.from({ length: 5 }, (_, index) => ({
+      key: String(index + 2),
+      label: `${index + 2}回`,
+      cells: [
+        { kind: 'text' as const, text: '0' },
+        { kind: 'text' as const, text: '0' },
+      ] as const,
+    })),
     {
-      key: '2',
-      label: '二回',
-      cells: [{ kind: 'text', text: '3' }, { kind: 'blank' }],
-    },
-    {
-      key: '3',
-      label: '三回',
-      cells: [{ kind: 'text', text: '0' }, { kind: 'unavailable' }],
+      key: '7',
+      label: '七回',
+      cells: [{ kind: 'text', text: '0' }, { kind: 'blank' }],
     },
   ],
+}
+function candidateScore(
+  awayTotal: string,
+  homeTotal: string,
+  innings: Scoreboard['innings'],
+): Scoreboard {
+  return {
+    teams: [
+      { ...score.teams[0], total: awayTotal },
+      { ...score.teams[1], total: homeTotal },
+    ],
+    innings,
+  }
 }
 const row = {
   key: 'pa-1',
@@ -157,27 +176,20 @@ function at(wrapper: ReturnType<typeof mount>, id: string) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('GameScreen の記録中表示契約', () => {
-  it('FR020: #153候補5セルを含む提供順の全回と両チーム合計/H/E/K/Bを描画する', () => {
+  it('FR020: 提供順の開始済み回と両チーム合計/H/E/K/Bを描画する', () => {
     const wrapper = mount(GameScreenLiveDisplay, {
       props: { identity, sources: sources() },
     })
-    expect(wrapper.findAll('[data-testid="inning-card"]')).toHaveLength(3)
-    expect(
-      [
-        'inning-1-0',
-        'inning-1-1',
-        'inning-2-0',
-        'inning-2-1',
-        'inning-3-0',
-        'inning-3-1',
-      ].map((id) => at(wrapper, id)),
-    ).toEqual(['X', '', '3', '', '0', '未取得'])
-    for (const id of ['inning-1-1', 'inning-2-1']) {
-      const blank = wrapper.get(`[data-testid="${id}"]`)
-      expect(blank.element.textContent).toBe('')
-      expect(blank.attributes('aria-label')).toBe('空欄')
-    }
-    for (const id of ['inning-1-0', 'inning-2-0', 'inning-3-0', 'inning-3-1']) {
+    expect(wrapper.findAll('[data-testid="inning-card"]')).toHaveLength(7)
+    expect(['inning-1-0', 'inning-1-1'].map((id) => at(wrapper, id))).toEqual([
+      '3',
+      '0',
+    ])
+    expect(at(wrapper, 'inning-7-0')).toBe('0')
+    const blank = wrapper.get('[data-testid="inning-7-1"]')
+    expect(blank.element.textContent).toBe('')
+    expect(blank.attributes('aria-label')).toBe('空欄')
+    for (const id of ['inning-1-0', 'inning-1-1']) {
       expect(
         wrapper.get(`[data-testid="${id}"]`).attributes('aria-label'),
       ).toBeUndefined()
@@ -190,6 +202,153 @@ describe('GameScreen の記録中表示契約', () => {
     expect(wrapper.get('[data-testid="inning-card"]').classes()).toContain(
       'w-full',
     )
+  })
+
+  it('#153候補のX/空欄/3/空欄/0を成立場面ごとの別scope・文脈・セルで表示する', () => {
+    const candidates: readonly {
+      scopeKey: string
+      contextKey: string
+      scoreboard: Scoreboard
+      cellId: string
+      text: string
+      blank: boolean
+    }[] = [
+      {
+        scopeKey: 'candidate-x',
+        contextKey: 'top-completed-home-ahead',
+        scoreboard: candidateScore('0', '1', [
+          {
+            key: '1',
+            label: '一回',
+            cells: [
+              { kind: 'text', text: '0' },
+              { kind: 'text', text: '1' },
+            ],
+          },
+          ...Array.from({ length: 7 }, (_, index) => ({
+            key: String(index + 2),
+            label: `${index + 2}回`,
+            cells: [
+              { kind: 'text' as const, text: '0' },
+              { kind: 'text' as const, text: '0' },
+            ] as const,
+          })),
+          {
+            key: '9',
+            label: '九回',
+            cells: [
+              { kind: 'text', text: '0' },
+              { kind: 'text', text: 'X' },
+            ],
+          },
+        ]),
+        cellId: 'inning-9-1',
+        text: 'X',
+        blank: false,
+      },
+      {
+        scopeKey: 'candidate-future-blank',
+        contextKey: 'future-inning-not-started',
+        scoreboard: candidateScore('3', '0', [
+          score.innings[0],
+          {
+            key: '2',
+            label: '二回',
+            cells: [{ kind: 'blank' }, { kind: 'blank' }],
+          },
+        ]),
+        cellId: 'inning-2-0',
+        text: '',
+        blank: true,
+      },
+      {
+        scopeKey: 'candidate-three',
+        contextKey: 'top-started',
+        scoreboard: candidateScore('3', '0', [
+          {
+            key: '1',
+            label: '一回',
+            cells: [{ kind: 'text', text: '3' }, { kind: 'blank' }],
+          },
+        ]),
+        cellId: 'inning-1-0',
+        text: '3',
+        blank: false,
+      },
+      {
+        scopeKey: 'candidate-home-blank',
+        contextKey: 'second-top-in-progress',
+        scoreboard: candidateScore('0', '0', [
+          {
+            key: '1',
+            label: '一回',
+            cells: [
+              { kind: 'text', text: '0' },
+              { kind: 'text', text: '0' },
+            ],
+          },
+          {
+            key: '2',
+            label: '二回',
+            cells: [{ kind: 'text', text: '0' }, { kind: 'blank' }],
+          },
+        ]),
+        cellId: 'inning-2-1',
+        text: '',
+        blank: true,
+      },
+      {
+        scopeKey: 'candidate-zero',
+        contextKey: 'third-bottom-started',
+        scoreboard: candidateScore('3', '0', [
+          ...Array.from({ length: 2 }, (_, index) => ({
+            key: String(index + 1),
+            label: `${index + 1}回`,
+            cells: [
+              { kind: 'text' as const, text: index === 0 ? '3' : '0' },
+              { kind: 'text' as const, text: '0' },
+            ] as const,
+          })),
+          {
+            key: '3',
+            label: '三回',
+            cells: [
+              { kind: 'text', text: '0' },
+              { kind: 'text', text: '0' },
+            ],
+          },
+        ]),
+        cellId: 'inning-3-1',
+        text: '0',
+        blank: false,
+      },
+    ]
+    const shownCells = candidates.map((candidate) => {
+      const wrapper = mount(GameScreenLiveDisplay, {
+        props: {
+          identity: {
+            ...identity,
+            scopeKey: candidate.scopeKey,
+            contextKey: candidate.contextKey,
+          },
+          sources: {
+            scoreboard: {
+              ...supplied(candidate.scoreboard),
+              scopeKey: candidate.scopeKey,
+              contextKey: candidate.contextKey,
+            },
+          },
+        },
+      })
+      expect(wrapper.find('[data-testid="score-status"]').exists()).toBe(false)
+      const cell = wrapper.get(`[data-testid="${candidate.cellId}"]`)
+      expect(cell.element.textContent).toBe(candidate.text)
+      expect(cell.attributes('aria-label')).toBe(
+        candidate.blank ? '空欄' : undefined,
+      )
+      return cell.element.textContent
+    })
+    expect(shownCells).toEqual(['X', '', '3', '', '0'])
   })
 
   it('FR021/022/023: 現投手と現在・次打者の全欄、7列、球種割合と球数を提供値で表示する', () => {
@@ -305,15 +464,18 @@ describe('GameScreen の記録中表示契約', () => {
     const innings = Array.from({ length: 12 }, (_, index) => ({
       key: String(index + 1),
       label: `${index + 1}回`,
-      cells: [
-        { kind: 'text' as const, text: String(index) },
-        { kind: 'blank' as const },
-      ] as const,
+      cells:
+        index === 11
+          ? ([{ kind: 'text', text: '11' }, { kind: 'blank' }] as const)
+          : ([
+              { kind: 'text', text: '0' },
+              { kind: 'text', text: '0' },
+            ] as const),
     }))
     const wrapper = mount(GameScreenLiveDisplay, {
       props: {
         identity,
-        sources: { scoreboard: supplied({ ...score, innings }) },
+        sources: { scoreboard: supplied(candidateScore('11', '0', innings)) },
       },
     })
     expect(wrapper.findAll('[data-testid="inning-card"]')).toHaveLength(12)
@@ -407,6 +569,72 @@ describe('GameScreen の記録中表示契約', () => {
     }
   })
 
+  it('投手・現在打者・次打者の断中シーズンreadyで取得時刻が欠けると値を隠す', async () => {
+    for (const [slot, sourceKey, period, rate] of [
+      ['pitcher', 'pitcherSeason', '2026年度通算', '.202'],
+      ['current', 'currentBatterSeason', '2026年度通算', '.300'],
+      ['next', 'nextBatterSeason', '2025年度通算', '.300'],
+    ] as const) {
+      const data = sources()
+      const suppliedSeason = data[sourceKey]!
+      const wrapper = mount(GameScreenLiveDisplay, {
+        props: { identity, sources: data },
+      })
+      const seasonValues = () => {
+        const section =
+          slot === 'pitcher'
+            ? wrapper.get('[aria-label="現投手の成績"]')
+            : wrapper.get(`[data-testid="${slot}-batter"]`)
+        return section
+          .findAll('dl')[1]
+          .findAll('dd')
+          .map((field) => field.text())
+      }
+      for (const boundary of [
+        { name: '欠落' },
+        { name: 'null', fetchedAt: null },
+        { name: '空文字', fetchedAt: '' },
+        { name: '空白', fetchedAt: '   ' },
+      ] as const) {
+        const offlineSeason = { ...suppliedSeason, offline: true }
+        delete offlineSeason.fetchedAt
+        if (Object.hasOwn(boundary, 'fetchedAt'))
+          offlineSeason.fetchedAt = boundary.fetchedAt
+        await wrapper.setProps({
+          sources: { ...data, [sourceKey]: offlineSeason },
+        })
+        expect(at(wrapper, `${slot}-season-status`), boundary.name).toBe(
+          '未取得',
+        )
+        expect(at(wrapper, `${slot}-season-note`), boundary.name).toBe(
+          'オフラインのため未取得',
+        )
+        expect(at(wrapper, `${slot}-season-period`), boundary.name).toBe(
+          '未取得',
+        )
+        expect(seasonValues(), boundary.name).toEqual(
+          Array(slot === 'pitcher' ? 5 : 3).fill('未取得'),
+        )
+      }
+      await wrapper.setProps({
+        sources: {
+          ...data,
+          [sourceKey]: {
+            ...suppliedSeason,
+            offline: true,
+            fetchedAt: '12:34',
+          },
+        },
+      })
+      expect(at(wrapper, `${slot}-season-status`)).toBe('')
+      expect(at(wrapper, `${slot}-season-note`)).toBe(
+        '最終取得: 12:34 / オフライン',
+      )
+      expect(at(wrapper, `${slot}-season-period`)).toBe(period)
+      expect(seasonValues()).toContain(rate)
+    }
+  })
+
   it('壊れた得点表の行・セル・疎配列は未取得へ倒し、停止表示と他の提供値を保つ', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -416,7 +644,7 @@ describe('GameScreen の記録中表示契約', () => {
     Object.assign(sparseTeams, { extra: score.teams[1] })
     const sparseInnings: unknown[] = [score.innings[0]]
     sparseInnings.length = 2
-    Object.assign(sparseInnings, { extra: score.innings[1] })
+    Object.assign(sparseInnings, { extra: score.innings[0] })
     const sparseCells: unknown[] = [score.innings[0].cells[0]]
     sparseCells.length = 2
     Object.assign(sparseCells, { extra: score.innings[0].cells[1] })
@@ -740,6 +968,12 @@ describe('GameScreen の記録中表示契約', () => {
               { ...score.teams[0], total: '4' },
               score.teams[1],
             ] as Scoreboard['teams'],
+            innings: [
+              {
+                ...score.innings[0],
+                cells: [{ kind: 'text', text: '4' }, score.innings[0].cells[1]],
+              },
+            ],
           }),
           provisional: true,
         },
@@ -1020,6 +1254,12 @@ describe('GameScreen の記録中表示契約', () => {
         { ...score.teams[0], total: '4' },
         score.teams[1],
       ] as Scoreboard['teams'],
+      innings: [
+        {
+          ...score.innings[0],
+          cells: [{ kind: 'text', text: '4' }, score.innings[0].cells[1]],
+        },
+      ],
     })
     await nextTick()
     expect(at(reactiveWrapper, 'team-0')).toContain('合計4')

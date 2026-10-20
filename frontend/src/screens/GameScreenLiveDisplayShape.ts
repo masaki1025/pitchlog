@@ -246,6 +246,7 @@ function copyString(value: unknown): string | undefined {
 function snapshotSupply<T>(
   value: unknown,
   parse: (value: unknown) => T | undefined,
+  season = false,
 ): DisplaySupply<T> | undefined {
   try {
     if (!record(value)) return undefined
@@ -262,13 +263,30 @@ function snapshotSupply<T>(
       (playerId !== undefined && !nonEmpty(playerId)) ||
       (provisional !== undefined && typeof provisional !== 'boolean') ||
       (offline !== undefined && typeof offline !== 'boolean') ||
-      (fetchedAt !== undefined && fetchedAt !== null && !nonEmpty(fetchedAt)) ||
+      (fetchedAt !== undefined &&
+        fetchedAt !== null &&
+        typeof fetchedAt !== 'string') ||
       (status !== 'ready' &&
         status !== 'unavailable' &&
         status !== 'read-failed' &&
         status !== 'empty')
     )
       return undefined
+    if (
+      season &&
+      status === 'ready' &&
+      offline === true &&
+      (typeof fetchedAt !== 'string' || fetchedAt.trim() === '')
+    ) {
+      // 断中の最終取得時刻がないシーズン値は表示せず未取得へ倒す。
+      return {
+        scopeKey,
+        contextKey,
+        status: 'unavailable',
+        ...(playerId !== undefined && { playerId }),
+        offline: true,
+      }
+    }
     const snapshot: DisplaySupply<T> = {
       scopeKey,
       contextKey,
@@ -339,6 +357,7 @@ export function safeLiveSources(sources: unknown): LiveDisplaySources {
       pitcherSeason: snapshotSupply(
         sourceField(sources, 'pitcherSeason'),
         (value) => copySeason<PitcherSeason>(value, pitcherSeasonKeys),
+        true,
       ),
       currentBatterDay: snapshotSupply(
         sourceField(sources, 'currentBatterDay'),
@@ -347,6 +366,7 @@ export function safeLiveSources(sources: unknown): LiveDisplaySources {
       currentBatterSeason: snapshotSupply(
         sourceField(sources, 'currentBatterSeason'),
         (value) => copySeason<BatterSeason>(value, batterSeasonKeys),
+        true,
       ),
       currentBatterHistory: snapshotSupply(
         sourceField(sources, 'currentBatterHistory'),
@@ -359,6 +379,7 @@ export function safeLiveSources(sources: unknown): LiveDisplaySources {
       nextBatterSeason: snapshotSupply(
         sourceField(sources, 'nextBatterSeason'),
         (value) => copySeason<BatterSeason>(value, batterSeasonKeys),
+        true,
       ),
       nextBatterHistory: snapshotSupply(
         sourceField(sources, 'nextBatterHistory'),

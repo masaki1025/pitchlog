@@ -288,3 +288,15 @@ Vitestの#153**候補fixture**で5セル`X / 空欄 / 3 / 空欄 / 0`を順に�
 主担当の`0a8a8002`時点の実ブラウザ証跡: Chromium・実Vue/CSS・Meiryoで375/320pxのviewport/document/body幅が各375/320に一致し、POST 0・pageerror 0。blankの可視空文字とaria、打席履歴7列、旧投手拒否と提供された新投手の即表示、終了宣言未同期/追記再開/再終了、不正score供給時の停止UI維持を確認した。これは**fixtureの表示**の実測であり、実計算・実HTTP/DB・GAP-05・FR-012原子性・全試合完遂の合格ではない。是正後の再実ブラウザは主担当補完へ残す。
 
 是正後の実測: `pnpm exec vitest run src/screens/GameScreen*.spec.ts`は**16ファイル306件成功**。`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。全frontend試験・是正後実ブラウザ・レビューは主担当補完。候補#153を正式資産扱いせず、全実操作disabled・実HTTP/保存0と成績計算の非複製を維持した。新ステップ、コミット、push、他枝編集、外部連絡は行っていない。
+
+### ステップ5固定39ad0ba7…41268c24の敵対基本第1回是正
+
+固定対象`39ad0ba7…41268c24`の敵対基本第1回は**否決 P0=0/P1=1/P2=1**。2件を全採用した。これは基本第1回の反映差分であり、新しいレビューではない。基本レビュー回数は**1回**のまま、親・計画の査読/反映回数はリセットしない。次は基本第2回で、この反映差分だけを対象とする。
+
+P1: 投手・現在打者・次打者のシーズン供給が`ready`かつ`offline=true`で、`fetchedAt`が欠落・null・空文字・空白だけの場合は、表示用snapshotを「オフラインのため未取得」へ倒し、期間と全成績値を隠す。取得時刻が提供された正当な断中最終取得値は期間・成績・取得時刻注記を保持する。3人物×4欠落境界と3人物の正当値をDOMで確認した。画面で時刻・年度・成績を導出しない。
+
+P2: 汎用得点表fixtureを、1回表3/裏0、2〜6回0/0、7回表0/裏未開始の提供行と合計3/0へ直した。#153の`X / 空欄 / 3 / 空欄 / 0`は5つの別scope・文脈・セルの**候補fixture**へ分割した。Xは9回表完了・後攻1点リード・9回裏未開始、空欄は未来回または未開始裏、3/0は開始済み回の提供文字列としてDOMで確認した。blankの可視textは空文字、ariaは「空欄」。X/0は提供textを保持し、画面内でX条件や回開始を判定しない。候補の順序値を保つが、正式formatter・独立oracle・GAP-05・全試合の証跡ではない。
+
+主担当がコード`41268c24`時点で行った実Vue/Chromium/CSS/Meiryoブラウザ実測では、375/320pxのdocument/body幅一致、blankの可視空文字とaria、打席履歴7列、旧投手拒否と提供された新投手の当日/シーズン/球種即表示、終了未同期/追記再開/再終了、不正供給時の停止UI維持、POST 0・pageerror 0を確認した。これは主担当の既存実測であり、この是正作業での再実行として数えない。fixture表示の証跡で、実計算・実HTTP/DB・GAP-05・FR-012原子性・全試合完遂の合格ではない。今回修正後の再実ブラウザは主担当が補完する。
+
+今回の実測: `pnpm exec vitest run src/screens/GameScreen*.spec.ts`は**16ファイル308件成功**。`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。全frontend試験と修正後実ブラウザは主担当補完。全実操作disabled、直接dispatch時のfetch/保存/実イベント0の既存試験を維持し、計算・通信を複製していない。ステップ6以降、コミット、push、他枝編集、外部連絡は行っていない。
