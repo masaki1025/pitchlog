@@ -37,7 +37,7 @@ created: 2026-10-20
 | --- | --- | --- |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **in-review候補へ追随** | J5のXC-13時点分界とJ6の付録A-1/E-1入力は最終本文・7.3レビュー・PO承認後に別コミットで反映 |
 | `docs/adr/ADR-003-domain-calc-method.md` | **in-review候補へ追随** | D-11のT1限定検証時点を同じ7.3ゲートで追随。D-2全体は維持 |
-| `docs/README.md` | **反映なし** | 正本確定時のみ版・索引を追随 |
+| `docs/README.md` | **in-review状態を追随** | 正本確定時の版・索引は別途追随 |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | 機構変更は予定しない |
 | `contracts/state-transition/`、凍結履歴・署名 | **反映なし** | 正本確定後、T1行/case/schema/descriptor/負例・T2参照・派生資産の候補を作り、コアレビュー、所有側受理、7.7実値の人間確認後に正式反映 |
 | `.claude/core-areas.json`、検査器 | **反映なし** | 検査緩和・例外追加はしない。必要な変更は別計画・ゲート |
