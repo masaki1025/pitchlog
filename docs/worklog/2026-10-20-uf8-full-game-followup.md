@@ -237,3 +237,11 @@ frontend全件試験、実ブラウザの375/320pxピクセル幅、実HTTP/DB�
 承認計画のPR分割では、親・子の実行枝ごとにbranch/statusを保持する。stacked親の通常mergeやPR retargetの際は、承認済みplan本文の重複を機械的に一つへ縮退し、子枝のbranch/statusを親の値で上書きしない。親枝のmetadataも子の値で上書きしない。本文・承認・回数を手でリセットせず、差分でそれぞれの実行枝の現在地を確認する。検査器・計画本文は変更しない。
 
 是正後実測: `pnpm exec vitest run src/screens/GameScreen*.spec.ts` **15ファイル290件成功**、`pnpm exec vue-tsc --noEmit`、`pnpm exec eslint .`、変更GameScreen6ファイルのPrettier check、`git diff --check`成功。旧文脈・空白キー・欠落・未知状態、両欄の矛盾時表示、全種質問の必須ラベル、指定方法変更の消去理由、ロック中の検証文言をDOMで確認した。既存の直接dispatch試験でfetch 0/Storage保存0/実保存・送信・確定イベント0も維持した。frontend全件と実ブラウザは主担当が補完し、この枝の実測に含めない。次の基本第2回は今回の反映差分に限定する。今回の作業でレビュー回数は増やさず、ステップ4は**Claude一次1回、敵対基本第1回1回**のまま。新ステップ、コミット、push、外部連絡は行っていない。
+
+## ステップ4の提出確定
+
+最終コードb5896d12に対する敵対基本第2回（固定81d6ccf3...b5896d12）は可決P0=0/P1=0/P2=0。Claude一次P1一/P2五、敵対基本第1回P1一/P2一は全採用。基本2回を消費済み、例外追加なし。最終反映後の再一次査読は未実施、是正は敵対第2回の対象。査読者が読取diff-checkを一度実行した事実は実行ログに残し、製品試験を再実行したとは記録しない。親の観測f7dc0ad0と取消訂正3d5ee5a2の未再査読範囲・計画査読3回13件は別管理で保持。
+
+frontend全件86ファイル1686件/87.99秒、全Prettier/ESLint/vue-tsc/build/closure成功（9ファイル/外部参照0/違反0）。実Vue/CSS/Meiryo375/320のdocument/body幅一致、POST0/pageerror0、提供検証・終了ロック・断中封鎖・再読込下書き消去・別タブ分離を最終コードで確認（/tmp/uf8-substitutions-browser-result.json）。正式計算/Port/HTTP/DB/全試合の合格ではない。親5943a254の後追いは文書だけで製品コード不変。root Ruff/ty・文書状態/伝播/被覆/計画同期/diff成功。harness/backend実装差分0につき#160/#164の既存実測を再利用し本枝で再実行とはしない。
+
+#167を親としてステップ4だけを独立Draft提出する。正本反映なし、台帳への追記なし（個別の表示文脈・表示形状の修正で新しいハーネス運用課題を確定しない）。stacked baseのdevelop条件を満たさない既存tenant-boundary受理検査は不合格を保持し、親が人間統合された後にdevelopへretargetして再検査する。検査緩和/本人確認代記/正式型受理/公開/Draft解除/マージ/共有DB操作なし。正式カード主URL#160確認待ちを維持する。
