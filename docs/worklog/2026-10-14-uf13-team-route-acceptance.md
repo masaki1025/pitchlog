@@ -979,3 +979,32 @@ Claudeは既存clientのAbortErrorでもCookie変更可能性を理由に未確�
 
 - round2-codex.log: SHA-256 `006a420b311c6d42995911f1bbd55edda60b1e8dde4fc30bc63783536b4c855d`
 - round2-claude.log: SHA-256 `80d7286b3e352344fd1f93f0aa0f166a1593448ee6a685e9f9b03ddc1ec49d87`
+
+
+### Draft #165と独立検証の終了・共有2パスへの申し送り
+
+通常pushと最小1本のDraft PR #165を作成した: https://github.com/masaki1025/pitchlog/pull/165 。初回HEAD32be6dfc312eb2066a2dcbbbcb017b353df5860a、製品最終候補c2301827と同じ製品/試験内容。planは承認済み§7例外によりactiveのまま。本人確認チェック/実施方法/正式7.7受理は未入力で、Draft解除/公開/マージはしていない。ステップ3の正式完了トークンも付けず、機械上の2/3進捗を全DoD完了へ読み替えない。
+
+| 層 | 完走結果 | 入力/制約 |
+| --- | --- | --- |
+| root全件・ローカル | 29,676成功/2 skip、1,504.16秒 | e9ab0807で開始。実行中に#163の3ファイルを通常mergeしたため、最終単独HEAD全件証跡とは扱わない。#163固有15成功を別実行。最終HEADのharness/consistency/mutation CIと区別する |
+| backend全件・隔離DB | 3,053成功/4 skip/1失敗、2,722.54秒 | 5aeca5e8で収集。製品backend/試験本文は以後不変、試験名のみroster規則へ変更。失敗はtest_authz_repository_contract.py:612の公開登録一致（実registry45に対し未追随契約44）。全件成功とはしない。自分の専用cluster撤去済み |
+| frontend全件・修正後 | 71ファイル/1,402成功、85.13秒 | c2301827。第1周指摘を反映した単独製品候補の全件、除外/timeout緩和なし |
+| 静的/追加品質 | 成功 | root/backend Ruff/ty、backend format、frontend Prettier/ESLint/vue-tsc/depcruise、production build/閉域、docs/計画同期、NFR021、tenant-boundary bypass、frozen invariants-only |
+| 実画面/API/隔離DB | 14項目成功、11.11秒 | c2301827の観測なし。観測付き14成功/30.39秒とは別証跡。self/opponent双方の保存をDB observerで区別 |
+
+初回32be6dfc CIではfrontend/secrets/docs/tenant bypass/NFR021/consistency/mutationが成功、backend/harnessは回収中、core-guardは本人未記入で拒否。これは期待される人間ゲートであり代記しない。後続の資料コミットを含む最終HEADのCIと結果/本人確認一覧は同PRのコメントへ固定する。本文更新による再実行の途中結果を最終CI成功へ読み替えない。
+
+Notion既存TSK-528へ#165の部分追補/受入範囲/共有2パス/未確認ゲートを追記し、PR URLを更新、確認待ちにした。#123の既存記録と他のプロパティ/DoDチェックは保持、完了日や全体完了を入力していない。新カード/タブは作っていない。
+
+**次に必要な回答/受理**:
+
+1. #156/#152所有担当からrepository_contract.pyの公開型一覧1件、#156からrepository-contract.jsonの同型/source_digestについて、現編集者・残編集・解除/統合後引渡しの時点をパス別に回答。両PRは確認時点OPEN、照会未回答。#152先行案は未確定。未統合枝は取り込まない。
+2. 順序が確定したら、先行履歴を保持した実developから公開登録と対応するexact-set期待値を追随し、必要な7.7の完全前後値/snapshot/記録案を固定候補で一括提示する。現段階では新しいrevision/source_digestや正式承認者/日付を作らない。共通client/認可資産/base allowlistを待ち条件へ戻さない。
+3. 最終21ファイルの本人逐行確認（製品6/試験10/資料5）。GitHub Files changedでtenant SQL/業務SQL前照合/DTO検査/世代・cache/旧queryとmutation/試験検出力/既存中断時の安全側未確認化を確認対象にする。方法は本人が記入する。今回の計画承認や旧PR本人確認を流用しない。
+
+残る2パス以外の独立実装/試験/レビューは完了。正式登録/7.7/本人確認/最終CIの未了は追補全体の未完了として保持し、TSK-528全15経路+catch-all/TSK-520全体の完了には広げない。
+
+- root全件完全ログSHA-256: `d0bf2e63d05bec0a6964ae49ddb57b79d893b093ad350acfd1cc220afce3b375`
+- backend全件完全ログSHA-256: `860e91ccb6f477be5a63d5703d5575d443f95fb85a56a58923ddda761b0dfca5`
+- frontend修正後全件完全ログSHA-256: `b8e639f36caeb5d905d1ab40ecd3ff14fdc2541e6b7785a27f49c29a24c2ab77`
