@@ -84,8 +84,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+/** 配列の列挙key数だけでは穴を隠せるため、全添字の自前要素を確かめる。 */
+function isDenseArray(value: unknown): value is readonly unknown[] {
+  if (!Array.isArray(value) || Object.keys(value).length !== value.length) {
+    return false
+  }
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) return false
+  }
+  return true
+}
+
 function uniqueOptions(question: unknown): question is PlayObservationQuestion {
-  if (!isRecord(question) || !Array.isArray(question.options)) return false
+  if (!isRecord(question) || !isDenseArray(question.options)) return false
   return (
     typeof question.key === 'string' &&
     question.key.length > 0 &&
@@ -100,7 +111,7 @@ function uniqueOptions(question: unknown): question is PlayObservationQuestion {
         option.id.length > 0 &&
         typeof option.label === 'string',
     ) &&
-    new Set(question.options.map((option: { id: string }) => option.id))
+    new Set(question.options.map((option) => (option as { id: string }).id))
       .size === question.options.length
   )
 }
@@ -116,7 +127,7 @@ function validSingleQuestion(
 
 function validQuestions(questions: unknown): boolean {
   if (questions === undefined) return true
-  if (!Array.isArray(questions) || !questions.every(uniqueOptions)) return false
+  if (!isDenseArray(questions) || !questions.every(uniqueOptions)) return false
   return (
     new Set(questions.map((question) => question.key)).size === questions.length
   )
@@ -126,7 +137,7 @@ function validCase(observation: unknown): observation is PlayObservationCase {
   if (!isRecord(observation)) return false
   const runners = observation.runners
   if (
-    !Array.isArray(runners) ||
+    !isDenseArray(runners) ||
     runners.some(
       (runner) =>
         !isRecord(runner) ||
@@ -134,15 +145,16 @@ function validCase(observation: unknown): observation is PlayObservationCase {
         runner.runnerKey.length === 0 ||
         typeof runner.displayName !== 'string',
     ) ||
-    new Set(runners.map((runner: { runnerKey: string }) => runner.runnerKey))
-      .size !== runners.length
+    new Set(
+      runners.map((runner) => (runner as { runnerKey: string }).runnerKey),
+    ).size !== runners.length
   )
     return false
   if (observation.battedBall !== undefined) {
     const ball = observation.battedBall
     if (
       !isRecord(ball) ||
-      !Array.isArray(ball.fielderCandidates) ||
+      !isDenseArray(ball.fielderCandidates) ||
       ball.fielderCandidates.some(
         (item) =>
           !isRecord(item) ||
@@ -150,7 +162,7 @@ function validCase(observation: unknown): observation is PlayObservationCase {
           item.id.length === 0 ||
           typeof item.label !== 'string',
       ) ||
-      new Set(ball.fielderCandidates.map((item: { id: string }) => item.id))
+      new Set(ball.fielderCandidates.map((item) => (item as { id: string }).id))
         .size !== ball.fielderCandidates.length ||
       (ball.suggestedFielderId !== undefined &&
         ball.suggestedFielderId !== null &&
@@ -169,7 +181,8 @@ function validCase(observation: unknown): observation is PlayObservationCase {
   )
     return false
   return runners.every(
-    (runner: Record<string, unknown>) =>
+    (runner) =>
+      isRecord(runner) &&
       [
         runner.advanceResult,
         runner.destinationBase,
@@ -196,7 +209,7 @@ const requestReady = computed(() => {
   if (request.mode === 'pitch') return validCase(request.observation)
   if (request.mode !== 'non-pitch') return false
   return (
-    Array.isArray(request.actions) &&
+    isDenseArray(request.actions) &&
     request.actions.every(
       (action) =>
         isRecord(action) &&
