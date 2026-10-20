@@ -1,0 +1,65 @@
+{
+  "packetId": "tsk544-t1-rbi-new-blind-v1",
+  "status": "candidate-input-only",
+  "relationshipToOldCases": "P6-T1-005とP6-T1-007の不足入力を埋めた版ではない。別の試験用場面であり、旧2件のblockedを維持する。",
+  "sourceSet": {
+    "requirementsPath": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "sourceVersion": "v2.16",
+    "sourceCommit": "52625ed6a6d7d27a212acfee16b97c8a97d987a5",
+    "sourceBlob": "297f8cf2653c65c846ea3feff7b7a9c563afbe3e",
+    "sha256": "569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a",
+    "sections": [
+      "付録A-1 OUT3-01〜05",
+      "付録A-3 RBI-01〜09",
+      "付録E-1 XC-13"
+    ]
+  },
+  "inputRule": "これは著者が設計した試験場面の観測事実だけを示す。役割名は正式PlayerRef型ではない。期待得点・打点・分岐判定・正式case IDは含めない。P-6は比較資料より先に本入力と固定原典だけを受け取る。",
+  "sharedRulesContext": {
+    "regulationInnings": 9,
+    "tiebreakActive": false
+  },
+  "cases": [
+    {
+      "candidateCaseId": "P6-T1-NEW-005A",
+      "preState": {
+        "inning": 6,
+        "half": "top",
+        "outs": 2,
+        "score": "1対1",
+        "bases": "二塁=R2、三塁=R3、打者=B"
+      },
+      "observedPlay": {
+        "officialResultId": "batting-result.single",
+        "batter": "Bは一塁へ到達",
+        "runnerAtThird": "R3は正規に本塁へ到達",
+        "runnerAtSecond": "R2は三塁で触球アウト",
+        "outOrder": "R3の本塁接触がR2の触球アウトより前。R2のアウトは第3アウトで、フォースアウトでも踏み忘れアピールでもない",
+        "officialErrors": "なし",
+        "fieldersChoice": "なし",
+        "heldBallOrUnnecessaryThrow": "なし",
+        "otherOuts": "なし"
+      }
+    },
+    {
+      "candidateCaseId": "P6-T1-NEW-007A",
+      "preState": {
+        "inning": 6,
+        "half": "top",
+        "outs": 1,
+        "score": "1対1",
+        "bases": "三塁=R3、打者=B"
+      },
+      "observedPlay": {
+        "officialResultId": "batting-result.batted-out",
+        "battedBallTypeId": "batted-ball-type.ground",
+        "batter": "Bは一塁到達前にアウト。このアウトは第2アウト",
+        "runnerAtThird": "R3は同じプレイで正規に本塁へ到達",
+        "officialErrors": "なし",
+        "fieldersChoice": "なし",
+        "heldBallOrUnnecessaryThrow": "なし",
+        "otherOuts": "なし。第3アウトは成立しない"
+      }
+    }
+  ]
+}
