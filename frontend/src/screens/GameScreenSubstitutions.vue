@@ -2,8 +2,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { UndoOffer } from './GameScreenCorrectionTypes'
 import {
+  denseEvery,
+  isLabel,
   sameDisplayValue,
   snapshotDisplayValue,
+  visibleUndoOffer,
 } from './GameScreenDisplayValue'
 import type {
   PastSubstitutionPreview,
@@ -26,6 +29,7 @@ const props = defineProps<{
   tiebreakRequest?: TiebreakRequest | null
   pastRequest?: PastSubstitutionRequest | null
   activeContextKey?: string | null
+  undoContextKey?: string | null
   lockState?: SubstitutionLockState | null
   undoOffer?: UndoOffer | null
   validation?: SubstitutionValidation | null
@@ -63,16 +67,16 @@ function createUiInstanceId(): string | null {
 }
 const uiInstanceId = createUiInstanceId()
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function choicesReady(value: unknown): value is readonly SubstitutionChoice[] {
   return (
     Array.isArray(value) &&
-    value.every(
-      (item) =>
-        item &&
-        typeof item.id === 'string' &&
-        !!item.id &&
-        typeof item.label === 'string' &&
-        !!item.label,
+    denseEvery(
+      value,
+      (item) => isRecord(item) && isLabel(item.id) && isLabel(item.label),
     ) &&
     new Set(value.map((item) => item.id)).size === value.length
   )
@@ -83,19 +87,23 @@ function questionsReady(
 ): value is readonly SubstitutionQuestion[] {
   return (
     Array.isArray(value) &&
-    value.every(
-      (item) =>
-        item &&
-        typeof item.key === 'string' &&
-        !!item.key &&
-        typeof item.label === 'string' &&
-        !!item.label &&
-        typeof item.required === 'boolean' &&
-        (item.input === 'text' ||
-          (item.input === 'choice' &&
-            choicesReady(item.options) &&
-            item.options.length > 0)),
-    ) &&
+    denseEvery(value, (item) => {
+      if (
+        !isRecord(item) ||
+        !isLabel(item.key) ||
+        !isLabel(item.label) ||
+        typeof item.required !== 'boolean'
+      )
+        return false
+      if (item.input === 'text') {
+        return item.options === undefined || choicesReady(item.options)
+      }
+      return (
+        item.input === 'choice' &&
+        choicesReady(item.options) &&
+        item.options.length > 0
+      )
+    }) &&
     new Set(value.map((item) => item.key)).size === value.length
   )
 }
@@ -107,9 +115,7 @@ function distinctQuestions(
   return new Set(keys).size === keys.length
 }
 
-const contextReady = computed(
-  () => typeof props.activeContextKey === 'string' && !!props.activeContextKey,
-)
+const contextReady = computed(() => isLabel(props.activeContextKey))
 const requestReady = computed(() => {
   const request = props.request
   if (!request) return false
@@ -118,9 +124,10 @@ const requestReady = computed(() => {
     request?.contextKey === props.activeContextKey &&
     Array.isArray(request.operations) &&
     request.operations.length > 0 &&
-    request.operations.every(
-      (item) =>
-        kinds.includes(item.kind) &&
+    denseEvery(request.operations, (item) => {
+      if (!isRecord(item) || !kinds.some((kind) => kind === item.kind))
+        return false
+      return (
         choicesReady(item.outgoing) &&
         item.outgoing.length > 0 &&
         choicesReady(item.incoming) &&
@@ -131,8 +138,9 @@ const requestReady = computed(() => {
           item.registrationQuestions,
           item.placementQuestions,
           item.questions,
-        ]),
-    ) &&
+        ])
+      )
+    }) &&
     new Set(request.operations.map((item) => item.kind)).size ===
       request.operations.length
   )
@@ -166,7 +174,10 @@ const pastReady = computed(() => {
     typeof request.page.label === 'string' &&
     !!request.page.label &&
     choicesReady(request.page.targets) &&
-    request.page.targets.every((item) => typeof item.detail === 'string') &&
+    denseEvery(
+      request.page.targets,
+      (item) => isRecord(item) && typeof item.detail === 'string',
+    ) &&
     typeof request.page.hasPrevious === 'boolean' &&
     typeof request.page.hasNext === 'boolean' &&
     questionsReady(request.personQuestions) &&
@@ -196,6 +207,7 @@ const tiebreakAnswers = ref(new Map<string, string>())
 const pastTargetId = ref<string | null>(null)
 const pastAnswers = ref(new Map<string, string>())
 const normalCleared = ref(false)
+const incomingModeCleared = ref(false)
 const tiebreakCleared = ref(false)
 const pastCleared = ref(false)
 
@@ -213,6 +225,7 @@ function resetNormal() {
   normalAnswers.value = new Map()
   normalDraftId.value = ++nextDraftId
   normalCleared.value = hadDraft
+  incomingModeCleared.value = false
 }
 function resetTiebreak() {
   const hadDraft = tiebreakAnswers.value.size > 0
@@ -329,6 +342,7 @@ function selectKind(event: Event) {
   normalAnswers.value = new Map()
   normalDraftId.value = ++nextDraftId
   normalCleared.value = false
+  incomingModeCleared.value = false
   emitDraftChange()
 }
 function selectOutgoing(event: Event) {
@@ -341,13 +355,17 @@ function selectOutgoing(event: Event) {
 }
 function selectIncomingMode(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  incomingMode.value =
+  const nextMode =
     value === 'existing'
       ? 'existing'
       : value === 'new' &&
           !!selectedOperation.value?.registrationQuestions.length
         ? 'new'
         : null
+  if (nextMode === incomingMode.value) return
+  incomingModeCleared.value =
+    incomingId.value !== null || normalAnswers.value.size > 0
+  incomingMode.value = nextMode
   incomingId.value = null
   normalAnswers.value = new Map()
   normalDraftId.value = ++nextDraftId
@@ -467,7 +485,10 @@ const currentValidation = computed(() =>
   ['pending', 'failed', 'invalid', 'valid'].includes(props.validation!.kind) &&
   (props.validation!.messages === undefined ||
     (Array.isArray(props.validation!.messages) &&
-      props.validation!.messages.every((item) => typeof item === 'string')))
+      denseEvery(
+        props.validation!.messages,
+        (item) => typeof item === 'string',
+      )))
     ? props.validation
     : null,
 )
@@ -478,11 +499,11 @@ const currentPreview = computed(() =>
   (props.preview!.kind !== 'ready' ||
     (Array.isArray(props.preview!.rows) &&
       props.preview!.rows.length > 0 &&
-      props.preview!.rows.every(
+      denseEvery(
+        props.preview!.rows,
         (row) =>
-          !!row &&
-          typeof row.label === 'string' &&
-          !!row.label &&
+          isRecord(row) &&
+          isLabel(row.label) &&
           typeof row.before === 'string' &&
           typeof row.after === 'string',
       )))
@@ -490,33 +511,61 @@ const currentPreview = computed(() =>
     : null,
 )
 
-// 親のUndoOffer文脈付き型が取り込まれるまで、実行時に存在を確かめて安全側へ倒す。
-const matchedUndoOffer = computed(() => {
-  const offer = props.undoOffer
-  const active = props.activeContextKey
-  return offer &&
-    typeof active === 'string' &&
-    !!active &&
-    'contextKey' in offer &&
-    typeof offer.contextKey === 'string' &&
-    offer.contextKey === active
-    ? offer
-    : null
+const matchedUndoOffer = computed(() =>
+  visibleUndoOffer(
+    props.undoOffer,
+    props.activeContextKey,
+    props.undoContextKey,
+  ),
+)
+const currentLockState = computed(() => {
+  const supplied = props.lockState
+  if (
+    !supplied ||
+    !isLabel(props.activeContextKey) ||
+    !isLabel(supplied.contextKey) ||
+    supplied.contextKey !== props.activeContextKey
+  )
+    return 'unknown'
+  switch (supplied.state) {
+    case 'open':
+    case 'ending-locked-undo-available':
+    case 'ending-locked-undo-unavailable':
+      return supplied.state
+    default:
+      return 'unknown'
+  }
 })
 const lockExplanation = computed(() => {
-  switch (props.lockState) {
+  const offer = matchedUndoOffer.value
+  switch (currentLockState.value) {
     case 'open':
       return '終了条件による交代の制限はありません。この画面ではまだ交代を記録できません。'
     case 'ending-locked-undo-available':
-      return matchedUndoOffer.value?.kind === 'available'
+      return offer?.kind === 'available'
         ? '終了条件により交代できません。直前取消の対象は上の欄にありますが、この画面ではまだ取り消せません。'
-        : '終了条件により交代できません。直前取消の対象は確認できていません。上の欄を確認してください。'
+        : offer?.kind === 'none'
+          ? '終了条件により交代できません。直前取消の対象はありません。取消可否は確認できません。'
+          : '終了条件により交代できません。直前取消の対象は未取得です。取消可否は確認できません。'
     case 'ending-locked-undo-unavailable':
-      return matchedUndoOffer.value?.kind === 'none'
+      return offer?.kind === 'none'
         ? '終了条件により交代できません。直前取消の対象もありません。'
-        : '終了条件により交代できません。直前取消の対象は確認できていません。上の欄を確認してください。'
+        : offer?.kind === 'available'
+          ? '終了条件により交代できません。直前取消の対象は上の欄にあります。取消可否は確認できません。'
+          : '終了条件により交代できません。直前取消の対象は未取得です。取消可否は確認できません。'
     default:
-      return '終了条件の状態は未取得です。交代できるか確認できません。取消の対象は上の直前取消欄で確認してください。'
+      return '終了条件の状態は未取得です。交代できるか確認できません。直前取消の対象は上の欄で確認してください。'
+  }
+})
+const validValidationMessage = computed(() => {
+  switch (currentLockState.value) {
+    case 'open':
+      return '提供された入力内容の確認結果は有効です。この画面ではまだ交代を記録できず、変更は行われていません。'
+    case 'ending-locked-undo-available':
+    case 'ending-locked-undo-unavailable':
+      return '提供された入力内容の確認結果は有効ですが、終了条件により交代できません。変更は行われていません。'
+    default:
+      return '提供された入力内容の確認結果は有効ですが、終了条件の状態は未取得です。交代できるか確認できず、変更は行われていません。'
   }
 })
 
@@ -609,6 +658,14 @@ onMounted(() => {
         class="text-sm"
       >
         試合または入力項目が変わったため、未保存の交代下書きを消去しました。
+      </p>
+      <p
+        v-if="incomingModeCleared"
+        data-testid="substitution-mode-draft-cleared"
+        role="status"
+        class="wrap-anywhere text-sm"
+      >
+        入る選手の指定方法を変えたため、入力済みの選手と追加項目を消去しました。
       </p>
       <p v-if="!requestReady" data-testid="substitution-unavailable">
         交代の候補と入力項目は未取得です。確認できるまで操作できません。
@@ -723,7 +780,7 @@ onMounted(() => {
               :key="question.key"
               class="block min-w-0 font-bold"
             >
-              {{ question.label }}
+              {{ question.label }}<span v-if="question.required">（必須）</span>
               <input
                 v-if="question.input === 'text'"
                 type="text"
@@ -773,9 +830,7 @@ onMounted(() => {
             <p v-else-if="!normalFieldsSelected">
               必要な選択または入力が未完了です。検証済みとして扱えません。
             </p>
-            <p v-else>
-              入力内容の確認が終わりました。変更はまだ行われていません。
-            </p>
+            <p v-else>{{ validValidationMessage }}</p>
             <ul
               v-if="
                 currentValidation?.messages?.length &&
@@ -847,7 +902,7 @@ onMounted(() => {
             :key="question.key"
             class="block min-w-0 font-bold"
           >
-            {{ question.label }}
+            {{ question.label }}<span v-if="question.required">（必須）</span>
             <input
               v-if="question.input === 'text'"
               type="text"
@@ -979,7 +1034,7 @@ onMounted(() => {
             :key="question.key"
             class="block min-w-0 font-bold"
           >
-            {{ question.label }}
+            {{ question.label }}<span v-if="question.required">（必須）</span>
             <input
               v-if="question.input === 'text'"
               type="text"

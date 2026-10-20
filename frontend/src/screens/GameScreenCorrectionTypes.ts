@@ -1,8 +1,9 @@
 /** 正式な履歴提供側が undo 自身を除外して選んだ直前の取消可能な操作。 */
-export type UndoOffer =
+export type UndoOffer = { contextKey: string } & (
   | { kind: 'unknown' }
   | { kind: 'none' }
   | { kind: 'available'; operationLabel: string; targetLabel: string }
+)
 
 /** 表示専用の提供状態。記録権・キュー・接続の判定を画面で行わない。 */
 export interface CorrectionPrerequisites {

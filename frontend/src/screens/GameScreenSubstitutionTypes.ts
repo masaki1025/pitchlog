@@ -102,9 +102,12 @@ export type PastSubstitutionPreview =
       rows: readonly SubstitutionPreviewRow[]
     }
 
-/** 終了条件の判定結果は提供側の状態。undoの実操作は既存部品に委ねる。 */
-export type SubstitutionLockState =
-  | 'unknown'
-  | 'open'
-  | 'ending-locked-undo-available'
-  | 'ending-locked-undo-unavailable'
+/** 終了条件の判定結果とその文脈は提供側の状態。画面では判定しない。 */
+export interface SubstitutionLockState {
+  contextKey: string
+  state:
+    | 'unknown'
+    | 'open'
+    | 'ending-locked-undo-available'
+    | 'ending-locked-undo-unavailable'
+}
