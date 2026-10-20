@@ -376,3 +376,17 @@ Linux側に日本語フォントがなく、一部文字が代替字形になっ
 最終コード `242337e4` の全frontendは **82ファイル/1,552 passed、93.15秒**。最終Prettier/ESLint/vue-tsc/buildは成功。build closureはconforming、9ファイル/外部参照0/違反0。コードの追加変更後にも全件を再実行し、以前の1,552件の結果を最終コードへ流用していない。最終ログは `/tmp/uf8-ready-{frontend,build}.log`。
 
 計画statusをin-reviewへ更新し、第1期の技術項目と既存レビュー/今回のnormal採否をPRへ提示する。正本・索引・backend・contracts・lib/sync・core-areas.jsonのPR差分は0。既存PRが無いことを照合し、1PRで提出する既存PO判断に従って通常push/Draft作成へ進む。人間逐行確認の欄・未実施のcodex_run.py敵対経路の欄は代記せず、承認済みClaude代替3周の実施記録を併記する。計画5-2/5-3、停止UI追補と実Port/計算核の接続、GAP-05、正式資産受理・署名・公開・マージは完了としない。
+
+## 2026-10-20 主担当再開・統合判断準備
+
+ユーザーの再指名により、実HEAD `ce309be1fa6ffe891081b6d9662c8a0bdeacc68e`、未コミット差分0、originと一致を確認した。OpenCodeのセッション所在・稼働メタデータを読み取り専用で照合し、U-F8名/対象worktreeの移管セッションなし、非idleセッションなしを確認した。main repoで起動しているOpenCodeは別のハーネスレビュー等のセッションであり、U-F8の並行編集はない。停止や成果の破棄は行わず、このCodexタブが主担当を再受諾した。
+
+再開時の#160はOPEN/Draft、CI run `39237861022`のharness/frontend・文書・秘密情報・整合性・変異・append-only・越境検査は成功、backendはパス条件によるskip。core-guardだけが人間逐行確認欄未記入のため失敗している。既存敵対3周とnormal1回の採否・未再査読範囲は前節のまま保持し、追加レビューや本人確認を実施済みにしない。
+
+最新develop `7c1afebab31facc71e8cfc2731da1a9fa392de4e`を通常merge `96579edda48431f01da060cdc6efb5f072d5fa88`で取り込んだ。競合なし。増分は#158のコア登録/検査と資料だけで、`ce309be1`からfrontend/backend/contractsの差分0。取り込んだguardを含む `tests/test_core_guard.py` は **268 passed / 10.63秒**。root Ruff/ty、docs-status/計画正本同期/設計伝播/被覆/diff-checkは成功（Ruffに取り込み済みテストのdocstring連結の既存警告あり）。
+
+U-S1主担当から、#159 `d1f3aa8c`まででも新実行時型・耐久providerの担当/保存先/公開署名/提供SHA、実Port、旧要求遮断証拠は**提供更新なし**と回答された。旧506担当は現在544主担当で、506作業は停止・クリーンな `d9f3abb1` に保全済みと記録されている。未提供物を所在HEADから取り込まず、通信/キュー/計算の重複実装を行わない。
+
+11/12の打球・走者・undo/過去修正・交代・回切替・終了/再開・停止UIの不足は、develop起点の別worktree `feature-uf8-full-game-followup` の未承認計画へ分離した。第1期の射程は変えない。停止UIとフォームの封鎖付き先行、T1/T2の各同一変更での実呼出部接続、実画面/実HTTP/隔離DBの通し検証を段階化し、計画6.1のレビューと人間承認へ提示する。後続計画の承認や正式資産受理を代記しない。
+
+取り込み後のfrontend全件は **82ファイル / 1,552 passed / 79.41秒**。Prettier/ESLint/vue-tsc/build成功、build closureはconforming（9ファイル/外部参照0/違反0）。ログは `/tmp/uf8-resume-frontend-{static,tests}.log` と `/tmp/uf8-resume-build.log`。製品コードに変更のないbackend全件/実ブラウザ試験は前節の実測を再利用し、今回再実行したとは記録しない。最終差分の人間逐行確認とPRのCI結果はPR本文へ固定HEAD付きで提示する。
