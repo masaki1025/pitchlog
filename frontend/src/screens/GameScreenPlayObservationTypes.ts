@@ -5,48 +5,69 @@ export interface PlayObservationOption {
 }
 
 /** 必要な質問と選択肢は呼出元が決める。未選択は null。 */
-export interface PlayObservationQuestion {
+interface ObservationQuestionBase {
   key: string
   label: string
   options: readonly PlayObservationOption[]
   required: boolean
-  multiple?: boolean
 }
+
+export interface SingleObservationQuestion extends ObservationQuestionBase {
+  multiple?: false
+}
+
+export interface MultipleObservationQuestion extends ObservationQuestionBase {
+  multiple: true
+}
+
+export type PlayObservationQuestion =
+  SingleObservationQuestion | MultipleObservationQuestion
 
 export interface RunnerObservationRequest {
   runnerKey: string
   displayName: string
-  advanceResult?: PlayObservationQuestion
-  destinationBase?: PlayObservationQuestion
-  attemptedBase?: PlayObservationQuestion
-  thirdOutTiming?: PlayObservationQuestion
-  rbiRuling?: PlayObservationQuestion
+  advanceResult?: SingleObservationQuestion
+  destinationBase?: SingleObservationQuestion
+  attemptedBase?: SingleObservationQuestion
+  thirdOutTiming?: SingleObservationQuestion
+  rbiRuling?: SingleObservationQuestion
   interferenceQuestions?: readonly PlayObservationQuestion[]
   officialScoringQuestions?: readonly PlayObservationQuestion[]
 }
 
-export interface PlayObservationCase {
+interface ObservationCaseBase {
+  runners: readonly RunnerObservationRequest[]
+  rbiRuling?: SingleObservationQuestion
+  interferenceQuestions?: readonly PlayObservationQuestion[]
+  officialScoringQuestions?: readonly PlayObservationQuestion[]
+}
+
+export interface PitchObservationCase extends ObservationCaseBase {
   /** 座標は供給側の座標系の値を文字列として受ける。画面では変換しない。 */
   battedBall?: {
     fielderCandidates: readonly PlayObservationOption[]
     suggestedFielderId?: string | null
   }
-  playResult?: PlayObservationQuestion
-  runners: readonly RunnerObservationRequest[]
-  rbiRuling?: PlayObservationQuestion
-  interferenceQuestions?: readonly PlayObservationQuestion[]
-  officialScoringQuestions?: readonly PlayObservationQuestion[]
+  playResult?: SingleObservationQuestion
 }
+
+/** 非投球の要求に打撃結果・打球欄を混入させない。 */
+export interface NonPitchObservationCase extends ObservationCaseBase {
+  playResult?: never
+  battedBall?: never
+}
+
+export type PlayObservationCase = PitchObservationCase | NonPitchObservationCase
 
 export interface NonPitchActionRequest {
   id: string
   label: string
-  observation: PlayObservationCase
+  observation: NonPitchObservationCase
 }
 
 /** 正式 wire DTO ではない、隔離された表示用入力要求。 */
 export type PlayObservationRequest =
-  | { contextKey: string; mode: 'pitch'; observation: PlayObservationCase }
+  | { contextKey: string; mode: 'pitch'; observation: PitchObservationCase }
   | {
       contextKey: string
       mode: 'non-pitch'
@@ -68,7 +89,11 @@ export interface RawPlayObservation {
   } | null
   runnerAdvanceOverridesByRunner: Record<
     string,
-    { resultId: string | null; destinationBaseId: string | null }
+    {
+      resultId: string | null
+      destinationBaseId: string | null
+      attemptedBaseId: string | null
+    }
   >
   runnerEventsByRunner: Record<
     string,
