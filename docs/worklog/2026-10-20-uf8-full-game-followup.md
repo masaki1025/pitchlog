@@ -77,3 +77,9 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 最終コードdf2f8935のfrontend全件は **83ファイル/1,573 passed/124.44秒**。Prettier/ESLint/vue-tsc/build成功、closure9ファイル/外部0/違反0。root Ruff/ty・docs-status/計画同期/diff-check成功、影響するguard/計画同期のpytest **280 passed/25.72秒**。backend/lib/sync/contractsの変更は0で、第1期の隔離backend実測を再利用し今回再実行とは記録しない。実Port/HTTP/DB通しは未提供のまま。
 
 提出比較元は第1期の固定97e6eeec（feature/uf8-game-recording）。このPRは停止UIのステップ1と承認/依存/採否文書だけで、残り8ステップや1試合完遂の完了ではない。台帳への追記なし: 新たな運用規則・確定傾向ではなく、既知のstacked枝の派生警告と未提供依存の個別記録である。計画statusをこの提出枝でin-reviewとし、次ステップは別の承認済み計画紐付け枝で進める。
+
+### 2026-10-21 第1期統合後の停止UI再提出
+
+- 人間操作で #160 が merge `9136c2dad916313c28698f49f8668f3edbe36b4a` として develop へ統合されたことを確認。本人確認・署名・マージを代行したとは記録しない。
+- #164 の base を develop へ変更。製品コード・試験・レビュー対象の変更は0。retarget直後のCI run39449086017では、GitHubの比較用HEAD第1親が旧base97e6eeeを保持し、新base9136c2daとの不一致でfrozen-baselinesが停止した。検査器や基準を緩めず、最新developを通常mergeしてsynchronizeを起こす。
+- 基本敵対2回・最終P0/P1/P2=0、Claude一次の既存履歴を維持。人間逐行確認は後続#164自身について未実施のまま。統合コミットと本追記以外の実装差分はない。通常push後にCIを再回収する。
