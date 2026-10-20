@@ -34,3 +34,23 @@
 TSK-564の実回答（2026-10-21）では#153が`game_end_contract_v1.json`・同schema・`appendix_e_consumer_handoff_v1.json`を編集し、共通descriptorは変更していない。推奨順は**#153の正式統合→本T1の共通descriptor/schema追随**。ただし#153の統合は未確認で、合意済みの所有解除ではない。T1変更後はT2の`inputAxesDescriptor.digest`、schema const、両loaderの定数、handoff artifactsへ機械的に波及しうる。T2の意味・本人署名を代行せず、参照hashの計算法（RFC8785とファイルbytes）を区別する。
 
 P-6段階Aの固定結果/未検証範囲、G6-S01〜S08の担当別受理、P-7の公開入力同値性・認可済み読取口・J6原入力保存型が未成立。正式契約の編集はこれらのうち計画が要求する先行条件と編集所有を満たした後、コアレビュー・所有側受理・7.7完全前後値の人間確認の順で行う。製品計算コードと正式7.7は本候補では開始しない。
+
+## P-7の実コード境界と残る受理
+
+U-S1担当枝の`prefix_path.py`では、⑦の`validator.validate(event, writer)`は原イベントを受け、T5/O4の後に`_projection_event()`がC2の選手参照写像とP2のD2採番を入れたイベントを作り、T4の`projection.apply(projected_event, writer)`へ渡す。この二つはPython値として同一ではない。T1が参照する論理入力について、①一時/正式IDを同scopeの同じ選手へ結ぶこと、②D2確定前後でT1の結果に関与する順序値が同値であること、③⑦のT1評価は後段C2の未解決拒否を前倒しせず、O4とC2の既存順を保持することをU-X1の入力型とU-S1の接続契約で証明する必要がある。成り立たなければT5後への評価移動とO4対内容拒否の優先順差分をPOへ示す。コードを読んだだけで同値性を受理済みとしない。
+
+同scopeの既存の部品には、`GameReadToken`（`games.applied_rules`を含む単一試合行）、`PlayerReadToken`（最大200件・選手ID等の絞込）、`OperationEventOrderReadToken`（D2順の有限範囲）がある。しかし、これだけでは**適用済みT1履歴prefixの定義、投影前状態の確定版、名簿の時点、規則snapshotの閉型**を公開したことにならない。D3/confirmed_watermarkを履歴prefixへ流用しない。認可済みの登録token・戻り型・同scope寿命はデータ所有側とU-S1から項目別に受ける。原wire/codec版/homeTouchOrderの保存表・型版・限定resolver・codec許容集合は未提供で、既存`OperationEvent.payload/state_diff`を原本保存へ読み替えない。公開契約の受理と実Port SHA/HTTP・DB結合試験を別に扱う。
+
+**U-S1差分回答（担当枝`2ed6ced8`）**: 同担当は、⑦でC2成功を必須にすると現状O4より後のC2失敗が前倒しとなり、prepareをT5後へ移すと現状⑦の内容拒否がO4より後になる、と具体的な競合条件を示した。したがって「同値性は未証明」のまま。T1側の閉型/normalizerは、タグ付きPlayerRefとC2後の正式IDを同scopeで同一人物へ結ぶこと、assigned D2が論理位置を変えないこと、規則・名簿・投影前状態・履歴prefixが一イベント内で固定されること、preparedを同一event/contextだけで使うことを示す必要がある。この証明が不成立なら、拒否優先順の新判断をPOへ出す。U-S1は原本保存要求の集約窓口を受理したが、物理保存・認可・型版の実装担当は未指定。data-model所有の窓口はU-R1、wire/codecの窓口は506・U-S1、閉意味型はTSK-544であり、U-R1のdata-model所有を新adapter実装受諾と扱わない。
+
+## P-8残件の分類（同一論点は一行へ集約）
+
+| 分類 | 対象と現在の到達点 | 次の完成物・担当 |
+| --- | --- | --- |
+| 候補完成・正式反映待ち | J5の着手前/実装後分界とJ6の`HomeTouchOrderV1`、OUT3後の有効候補だけの順序、RBIへの後段受渡しは正本v2.16/ADR v0.9で確定。S20のHR/非HR/早期回/OUT3/反転・欠落・重複・越境の候補caseは本書へ固定 | TSK-544が正式規範行・schema・負例へ射影し、契約所有側/コアレビュー・7.7へ。P-6の期待値は別検証者 |
+| 候補未完成 | S05の操作payloadのID/条件依存閉包、S07/S32の走者イベントと進塁上書きの相反排除、S09/GAP-06の第3アウト型付き観測、S08/GAP-02の23フラグ各キーの入力必要十分条件と双方向負例、RBI-01〜09の条件付き観測field | TSK-544が既存[入力・case候補](../ux1-state-calc/tsk544-p8-candidates/t1-input-and-cases.md)と[23フラグ/RBI/G6表](../ux1-state-calc/tsk544-p8-candidates/t1-flag-rbi-g6-matrix.md)の`pending`を原典照合し、閉じない箇所を具体的に裁定へ出す。判定不能を`false`にしない |
+| 担当回答待ち | G6-S01/03/06の選手・打順と保存規則snapshotの公開型、S02/07/08の回不一致・Given拒否の結果ID/D5境界、P-7の⑦/T4入力同値性・読取口・J6原本保存 | U-G1/データ所有側、U-S1、必要時506が各公開契約を回答。TSK-544は候補の入力軸と拒否caseを保持し、実Port完成を着手前条件に足さない |
+| 新しい仕様判断待ち | G6-S04/05の再開始および半回・アウト・カウントの適格条件、S09〜S11のD+1以外の履歴長、S11/S13/S22の原典不足 | PO/TSK-546へ具体分岐を提示。既決のD+1内だけを候補へ含め、他履歴長へ一般化しない |
+| 独立検証待ち | 正式109件のP-6段階A固定範囲と未検証範囲、追加7件の全10列正式case（005/007の打点入力不足を含む） | P-6担当がblind入力から導出・封印し、TSK-544は後からID対応/比較射影を渡す。著者の自己計算は独立検証に算入しない |
+
+#153の編集順は**共通資産を正式反映する時点**の制約であり、上記の候補完成、入力packet設計、P-7回答回収まで止める条件ではない。developに#153が統合されたら実統合SHAを確認し、T1 descriptor・T2参照・派生値・要件書source blobをその基線で再導出する。既存受理履歴を書き換えない。

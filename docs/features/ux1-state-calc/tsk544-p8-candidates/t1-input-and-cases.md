@@ -70,3 +70,33 @@ S20の第1候補は新しいE-1列を足さず、既存の10列で生還候補�
 | 要件書付録E-1、ADR-003 D-8/D-11 | S20の既存10列表現が不能な場合だけ最小改訂を提案。具体型の新条文化が要る場合は7.3確定ゲート | **未編集**。J1〜J6の方針承認を条文確定へ流用しない |
 
 正式契約の指名受取者が、候補の各行について原典・完全な正常/拒否出力・入力schemaの閉包・既存caseとの非重複・digest前後値・7.7の要否を確認する。P-6の独立検証者は作成者と分け、現行109件と追加パケットの範囲・結果を別に記録する。正式受理時には固定版・原典対応・独立レビュー採否・P-6結果/未検証範囲をPOへ提示する。
+
+## v2.16確定後のS09/GAP-06・S32負例候補（正式schema外）
+
+要件書v2.16 A-1の`OUT3-01`〜`05`とE-1のJ6閉入力に従い、**生還候補が1人以上いるプレイで第3アウトが存在するか**、存在する場合の**種類と対象**、`OUT3-01`〜`03`の例外に該当しない有効候補走者ごとの**第3アウトとの前後**を別観測にする。既存`event.perPitch.thirdOutTimingByRunner`の`home-before-third-out`/`not-before-third-out`を維持し、同時は後者。タグ付き`PlayerRef`と当該試合・攻撃側・適用scopeを照合する。以下の`ThirdOutObservationV1`は**正式field名/enumではなく、既存軸への射影を検証する候補**である。
+
+```text
+ThirdOutObservationV1 =
+  | {kind: "none"}
+  | {kind: "batter-before-first", batter: PlayerRef}
+  | {kind: "force", runner: PlayerRef, forced_base: "first"|"second"|"third"|"home"}
+  | {kind: "missed-base-appeal", runner: PlayerRef,
+     missed_base: "first"|"second"|"third"|"home", appeal_succeeded: true}
+  | {kind: "other-third-out", out_person: PlayerRef}
+```
+
+`OUT3-03`の「前位」は観測enumにせず、塁順と同scope選手参照から判定対象ごとに導出する。例外3種のどれかに該当した得点候補には時機値を要求しない。例外外の得点候補には`thirdOutTimingByRunner`を必須とし、欠落を位置/時刻/最終得点で補わない。生還候補がいるが第1/第2アウトだけのプレイは`kind=none`とし、OUT3時機軸を要求しない。生還候補が無い第3アウトの入力要否は、この得点判定候補から一般化しない。実際のアウト数と`kind`、アウト対象と得点候補の同一性、アピール成立と対象塁の整合を同scopeで検査する。`kind=force`で進塁義務が無い対象を指定した場合も「一般アウト」へ補正しない。
+
+| 候補負例 | 単独で変える入力 | 拒否/対向条件 |
+| --- | --- | --- |
+| `T1-OUT3-N-MISSING-KIND` | 第3アウト成立を示す状態のまま`kind=none` | 第3アウト種別不足。第2アウトの`kind=none`は正常 |
+| `T1-OUT3-N-BAD-FORCE` | 進塁義務のない走者を`force`とする | 相反観測を拒否。適格フォースはOUT3-02 |
+| `T1-OUT3-N-APPEAL-REF` | アピール対象ID・塁・成立真のいずれかを欠く | OUT3-03を推測せず拒否。全て揃った成立アピールは正常 |
+| `T1-OUT3-N-TIMING` | 例外3種以外の有効候補の時機を欠く | OUT3-04/05を推測せず拒否。`not-before`は同時も含む |
+| `T1-OUT3-N-CROSS` | アウト対象または時機軸の走者だけを別試合/別チーム/別scopeへ変える | 参照越境拒否。得点とRBIを保存しない |
+| `T1-S32-N-ABSENT-RUNNER` | 開始時不在の塁の走者に上書きを付ける | 不在走者を作らず拒否 |
+| `T1-S32-N-CONFLICT` | 同一走者に安全進塁とアウトを同時指定 | 相反指定を拒否。片方だけなら対応する正常分岐 |
+| `T1-S32-N-UNREACHABLE` | XC-08で到達不能な塁へ上書き | 既定進塁へ黙って戻さず拒否 |
+| `T1-S32-N-DUP-RAW` | 原wireで同じrunner keyを2回出す | 506のparse前外形で拒否。parse済みobjectのT1試験へ流用しない |
+
+これらは入力と拒否境界を閉じるための**作成者候補**であり、正式結果ID、D5消費、全10列期待値、独立P-6を含まない。正式schemaが`ThirdOutObservationV1`相当の識別子を必要とするか、既存複数軸で損失なく表せるかを契約レビューで判定する。新しい出力列やT1独自ACKを増やさない。

@@ -446,3 +446,13 @@ U-S1担当の2026-10-21の現行回答（`docs/features/us1-sync-port-surface/ts
 TSK-564から、#153候補がT2の`game_end_contract_v1.json`・同schema・`appendix_e_consumer_handoff_v1.json`を所有し、共通descriptorは変更していないとの実回答を受領した。共有資産の推奨順は#153正式統合後にT1 descriptor/schema追随、T2の参照digest/loader/handoffへ機械的に反映して所有側へ渡す案。#153の統合やT2署名・受理は未成立であり、今回のT1枝から上書きしない。後続の#153統合準備指示は既存TSK-564担当タブへ転送し、当方のT1編集所有に変更はない。
 
 全件pytestの既報8失敗は過去HEADの実測値として保持する。うち環境由来2件の再検証のため、このworktreeに`uv sync --frozen`でbackend `.venv`を用意し、共有`pitchlog-db-1`を使わず、`postgres:17.11-bookworm`の使い捨てコンテナ`pitchlog-tsk544-sqltest-20261021`（127.0.0.1:55449、tmpfs）で`tests/domain/mut/test_lang_operators.py`を実行して**13件成功**。試験後にコンテナを停止・自動削除した。全件pytestを再実行していないため、新HEAD全件成功とは記録しない。認可台帳由来6件は正式ゲート待ちで未解消。要件書の既存台帳source blob `ee6d2508dbdecf34d90c34fc022ff162f73dd3d2`に対し確定後の実blobは`297f8cf2653c65c846ea3feff7b7a9c563afbe3e`。これは7.7候補の入力値であり、人間受理や派生資産の再封印を意味しない。
+
+### #153待機中に進めたT1候補（2026-10-21）
+
+#153は公開PRの状態がopenで、実統合SHAは未取得。編集順は共有契約への**正式反映時**に適用し、T1内の候補・case設計は継続する。[追加7件の比較候補](../features/ux1-state-calc/tsk544-p8-candidates/t1-p6-additional-comparison-candidate.md)へ、各blind IDから規範分岐・既知入力・不足観測・比較射影への対応を追記した。正式case IDは`rowRef.coordinate`の閉包から展開器が生成するため、未指定の公式結果IDやRBI観測を仮定して発行しない。005/007のRBIは未確定で、得点面のみの比較候補を全10列の正式caseやP-6成立へ読み替えない。旧blindパケットとP-6の既存段階A封印は書き換えていない。
+
+[入力・case候補](../features/ux1-state-calc/tsk544-p8-candidates/t1-input-and-cases.md)には、S09/GAP-06の第3アウト種別・対象の閉型**候補**とS32の参照/相反拒否を追加した。正式field/結果ID・D5消費をこの候補で確定しない。[契約射影候補](../features/tsk544-t1-state-calculation/t1-contract-projection-candidate.md)では、U-S1の実コード境界（⑦原イベント、T5/O4後のC2/P2投影、T4へのprojected event）を照合した。U-S1担当枝`2ed6ced8`は⑦/T5間でC2を移すと拒否優先順が変わる反例を回答したため、同一イベントの入力同値性は未証明。登録済みの個別読取tokenをT1全入力の認可済みPortへ読み替えない。U-S1はJ6原本保存要求の集約窓口を受領したが、物理保存・型版・認可/adapter担当は未指定。U-R1へデータモデル境界を一度照会したが、項目別受理は未取得。公開契約の回答と実Port実装SHA/結合試験を分けて保持する。
+
+P-8は候補完成、候補未完成、担当回答待ち、新仕様判断待ち、独立検証待ちに分類した。#153統合後に実`origin/develop`を取り込み、T1契約/descriptor、T2参照、派生値、要件書source blobの前後値を再導出して7.7へ提示する。未受理値と既存履歴は正式資産へ変更していない。製品計算コードは着手前条件が未成立で追加していない。
+
+候補文書のみの差分に対し、`check_plan_docs_sync.py --plan docs/features/tsk544-t1-state-calculation/plan.md`成功、`check_docs_status.py`20文書/違反0、該当文書検査pytest 84件成功、`ruff check .`成功、`git diff --check`成功。製品・正式契約は未変更のため全件pytestや7.7検査の成功へ読み替えない。
