@@ -412,3 +412,10 @@ CI候補は既存必須frontend jobの後段へ同じ`test:browser`経路を足�
 - P2-5: 実球速入力を伴うroute/tenant/authEpoch切替・認証再検証での旧フォーム消去、選択とページ要求のscope切替、failed/deniedからの再試行と復帰、不正ID・非保持のフォーム不在をVitestで確認した。実tenantのAuth HTTP/E2Eはステップ7の別callと主担当の直列実ブラウザ検査へ残す。仮Game API/Portは登録していない。
 
 この差分は`GameScreenEntry*`と当worklogに限定し、`router*`は既存認証guardと安全な内部pathname制約を変更せず維持した。実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts` **19ファイル398件成功**、最後の隔離試験ケース追加後の入口/router **2ファイル86件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ375/320px・frontend全件・既定再レビューは今回未実測で、主担当の全件専用DB検査後の直列実行待ち。Chromiumの`ERR_NETWORK_CHANGED`観測を成功へ丸めず、timeout拡張/retry/network observer無効化はしていない。実ゲームPort/計算/通信/キューは未提供、実開始/再開/確定/保存/送信は全条件で封鎖し、隔離DOMの直接dispatchでもfetch/POST 0。`App.vue`追補未承認のため通常ヘッダー導線とログイン後のゲームroute復帰は未達。次ステップ、commit、push、外部連絡は行っていない。
+
+### 2026-10-21 全件DB終了後の実ブラウザ再測定
+
+- 継承PITCHLOG_*を除き自分専用outerクラスタ/被検査ロールを生成した全件backend pytestは、3,039 passed・既存4 skipped・既存warning1、2,893.70秒で終了値0。ログは主担当の `/tmp/uf8-entry-backend-isolated-pytest.log`。既存autouseと製品用inner専用クラスタを維持した。初回の28 passed/中断を全件成功へ読み替えない。backend製品コードは第1期と同一である。
+- コンテナ生成/撤去の並行検査が終了した後、入口修正済みHEAD182ec62cで `pnpm run test:browser` を再実行し、実HTTPS画面・実Auth HTTP・専用outer/inner DBで5 passed/26.6秒。実logout 200と旧Cookieによるsession 401、正規/不正ID、認証拒否/通信abort、遅延後の明示再確認、再読込・複数タブ、tenant切替後の封鎖を確認した。対象6sourceの実行前後SHAはすべて不変。timeout/retry/OSnetwork検知は変更していない。
+- 上記はnormal反映前のステップ7試験支援を使った中間HEADの検査。強化中のtenant実値廃棄、異常exit回収、出力秘密抑止を含む最終7の統合後にも再実測する。実ゲームPort/GAP-05/原子性/1試合完遂ではない。
+- #164のHEADfb12a9a1についてCI39449996692のfrontend/harness/越境/mutation等通常検査がすべて成功し、未実施の人間逐行確認を要求するcore-guardだけ失敗した。人間欄は代記せずDraft維持。最終CI資料はPRコメント6295751750へ追記した。
