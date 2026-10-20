@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f493b75e68781b49976fc6c5ed970d5
-branch: feature/uf8-game-entry
+branch: feature/uf8-game-browser-candidate
 created: 2026-10-20
 計画レビュー周回: 2
 確定ゲート周回: 0

@@ -193,3 +193,7 @@ NFR-020の観測可能な前提1/5/6は提供された成立/不成立/不明を
 一覧の`selectedGameId`と`requestedPageKey`は認証世代/tenant/pathの実変更時だけ消去する。同じscopeへの同内容新参照では選択とページ要求を保持する。旧tenantで次ページを要求したあと新tenantの初期`requestKey=null`ページを表示できること、同一instanceで経路を往復した場合に旧選択を戻さないことを確認した。ページ移動の意味や実APIは追加していない。`existingStateLabel`は文字列かつown既知キーに限り、`constructor`/`__proto__`/`toString`やnullを未取得にする。候補・ページ・詳細のnull、疎配列、未知状態、不正datumも取得済みへ採用せず、別の閲覧表示と`GameScreen`の確定封鎖を維持した。既存のdense検査を再利用し、計算/通信/保存Portは追加していない。
 
 NFR-020前提1/5/6の全不足列挙、persist要求のみ拒否とサイトストレージ不可の区別、未送信キュー保持の文言は**表示上の候補**であり、実Web Locks/IDB・再起動を通したキュー耐久の証拠ではない。実開始/再開/確定/保存/送信は引き続き封鎖し、直接dispatchでもHTTP 0。最終実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts`で**18ファイル334件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ/フロントエンド全件試験と既定レビューは主担当補完。正式API未提供、`App.vue`追補未承認による通常ナビゲーション/ログイン復帰未達は維持する。次ステップ、コミット、push、外部連絡は行っていない。
+
+### ステップ7候補の実行枝
+
+入口142003cbを継承し、feature/uf8-game-browser-candidateで承認済みステップ7の候補作成のみ実行する。正式7.7受理・CI/凍結基準の有効化は行わない。計画branchだけ変更し本文/承認/回数は保持。6〜7は同一最小PRとしてentry枝へ通常mergeして提出するため、コードPR査読枠は両ステップを通じた同一枠として管理し、ステップでリセットしない。
