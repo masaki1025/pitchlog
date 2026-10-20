@@ -360,7 +360,7 @@ P-6向けには現行109件v2と同一の正式契約109caseを順序/IDで照�
 
 ## 2026-10-20 TSK-544専用実行計画への移行候補
 
-POは`docs/features/tsk544-t1-state-calculation/plan.md`の新設と、上記第3回P0の是正・移行差分に限定した追加独立レビュー1回を許可した。これは新計画の最終承認、J5/J6意味仕様、7.3/7.7、製品実装開始の承認ではない。旧計画の未承認plan/design追補を`docs/features/tsk544-t1-state-calculation/old-j5-j6-unapproved-candidate.patch`（SHA-256 `65decd6b0eddaecb5c494353070db05be1a18b985175f5ded40a6438d28e49a6`）へ保全し、旧パスの作業ツリー変更のみ戻した。既存の候補ファイル・本ログ・承認済み旧計画の履歴は保持した。新計画がT1実行のみを引き受け、旧計画は上位方針とT2以降の参照とする。レビュー通算9周と第3回P0の否決履歴を移行先へ明記した。
+POは`docs/features/tsk544-t1-state-calculation/plan.md`の新設と、上記第3回P0の是正・移行差分に限定した追加独立レビュー1回を許可した。これは新計画の最終承認、J5/J6意味仕様、7.3/7.7、製品実装開始の承認ではない。旧計画の未承認plan/design追補を`docs/features/tsk544-t1-state-calculation/old-j5-j6-unapproved-candidate.patch.b64`（SHA-256 `65decd6b0eddaecb5c494353070db05be1a18b985175f5ded40a6438d28e49a6`）へ保全し、旧パスの作業ツリー変更のみ戻した。既存の候補ファイル・本ログ・承認済み旧計画の履歴は保持した。新計画がT1実行のみを引き受け、旧計画は上位方針とT2以降の参照とする。レビュー通算9周と第3回P0の否決履歴を移行先へ明記した。
 
 新パスでは`check_plan_docs_sync.py --plan docs/features/tsk544-t1-state-calculation/plan.md`が成功。`feature_status.py`は現枝を「計画段階・9周・承認待ち」と認識し、`codex_run.py`の解析はworktree/branch一致・ステップ表OK、実装起動は未承認ゲートで拒否した。旧計画§3が未来の正本反映を現在の差分として宣言していた3失敗は、新計画§3で今回の反映なしと将来の正式ゲートを分離して解消した。検査例外・枝照合の緩和はしていない。
 
