@@ -144,3 +144,22 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 frontend全件試験、実ブラウザのピクセル幅、実HTTP/DB、正式undo/記録権/空キュー/過去修正/プレビューAPIとの接続は未実施。内側sandboxのローカルbind制限があるため、実ブラウザ補完は主担当のホスト検証へ残す。実画面HTTP/DBの証跡を先方の着手前条件へ追加しない。次ステップ、コミット、push、PR、外部連絡は実施していない。
 
 主担当の確定前検査で、再mount時に旧プレビューが再一致する点、同内容の新参照で下書きが消える点、利用者向け実装用語を検出し、同ステップで是正した。画面インスタンス識別子を提供プレビューの照合に追加し、生成不能時はプレビューだけを封鎖する。同内容は保持、条件変更時は消去理由を表示。関連Vitest94件、型検査・ESLint・Prettier・diff検査が成功（/tmp/uf8-corrections-selfcheck.log）。正式取消/訂正API・保存・送信は未接続、成功扱いなし。
+
+## ステップ3 コードレビュー第1回の採否と同ステップ是正
+
+親#166の最終`57c8f2fb`は主担当が通常merge済みで、当枝HEADは`a0a48735`。本節は取消訂正ステップ3の新規コードPRだけを対象とし、計画レビュー2周、停止ステップ1、観測ステップ2、親#166の査読回数へ加算しない。Claude一次（claude-opus-5-5、read-only、`/tmp/uf8-stage3-claude-review.json`）は**P0=0/P1=2/P2=5**。別の`codex_run review adversarial`基本第1回（gpt-6-sol/xhigh、read-only、`/tmp/uf8-stage3-adversarial1.log`）は**P0=1/P1=2/P2=0**。後者の依頼表題は「一次コードレビュー」だったが、実行モードは`review adversarial`であり、Claude一次とは別の敵対基本1回として数える。両レビューは試験を再実行していない。計10件を全件採用し、不採用0件。
+
+| レビュー・指摘 | 採用反映 |
+| --- | --- |
+| 敵対P0: 子部品の`getDraft`だけではGameScreen外に照合IDが届かない | ローカル下書き変更通知を`GameScreen`の`correctionDraftChange`へ中継。初期/対象/操作/入力/クリア/文脈変更でコピーまたは`null`を渡す。外部から通知済み値を書き換えても内部Mapへ反映しない公開境界の回帰試験を追加。通信・保存・確定イベントではない |
+| 敵対P1: 未提供previewも準備中になる | 対応する明示`pending`だけ準備中とし、未提供/旧応答/不正応答は未取得へ倒す |
+| 敵対P1: 質問`[]`でも確認へ進める | 空質問の意味を推定せず入力項目未取得として下書き確認とプレビュー照合を閉じる |
+| Claude P1: undo対象の旧試合文脈 | `UndoOffer.contextKey`と画面の`undoContextKey`を照合し、不一致/未取得は対象表示を閉じる。履歴解釈・同期件数による分岐は追加しない |
+| Claude P1: 消去通知の読み上げ | 下書き消去通知に`role="status"`を付け、文脈変更時のDOMで検査 |
+| Claude P2: undo未知kind/空ラベル | 契約外または空の対象表示を未取得へ倒す |
+| Claude P2: preview未知kind/不正ready.rows | 不明状態、行なし、非配列、null行、不正値は未取得にし、差分成功文を出さない |
+| Claude P2: targets/options等のnull要素で描画例外 | 表示前の要求形状検査で安全に拒否し、停止UIを描画し続ける負例を追加 |
+| Claude P2: 表示値比較の重複 | 観測フォームと共通の`GameScreenDisplayValue`のsnapshot/sameへ寄せた。通信codec・要求指紋・ドメイン判定は作らない |
+| Claude P2: 狭幅試験のwindow幅漏れ | `afterEach`で`innerWidth`を元へ戻す |
+
+是正後の関連Vitestは**6ファイル136件成功**。`pnpm exec vue-tsc --noEmit`、対象5ファイルのESLint/Prettier check、`git diff --check`成功。停止表示の既存試験は、訂正要求がない初期画面にまで空の下書き通知を出した時点では失敗したため、初期通知を訂正要求ありに限って再実行し成功を確認した。全frontend試験・実ブラウザは主担当の統合後補完へ残し、今回の成功件数に含めない。正式undo/訂正API、HTTP/DB、保存・送信、実計算は未接続。次ステップ、コミット、push、外部連絡は実施していない。

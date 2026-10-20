@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  sameDisplayValue,
+  snapshotDisplayValue,
+} from './GameScreenDisplayValue'
 import type {
   CorrectionDraft,
   CorrectionDraftIdentity,
@@ -15,6 +19,9 @@ const props = defineProps<{
   activeContextKey?: string | null
   prerequisites?: CorrectionPrerequisites | null
   preview?: CorrectionPreview | null
+}>()
+const emit = defineEmits<{
+  draftChange: [draft: CorrectionDraft | null]
 }>()
 
 const operationLabels: Record<CorrectionOperation, string> = {
@@ -49,121 +56,6 @@ function createUiInstanceId(): string | null {
 
 const uiInstanceId = createUiInstanceId()
 
-interface UiInputConditions {
-  activeContextKey: string | null | undefined
-  contextKey: string
-  page: {
-    label: string
-    hasPrevious: boolean
-    hasNext: boolean
-    targets: readonly { id: string; label: string; detail: string }[]
-  }
-  questions: Readonly<
-    Record<
-      CorrectionOperation,
-      readonly {
-        key: string
-        label: string
-        input: 'text' | 'choice'
-        options: readonly { id: string; label: string }[]
-      }[]
-    >
-  >
-}
-
-// 入力欄と対象一覧に使う値だけをコピーする。通信形式の変換・指紋化はしない。
-function copyUiInputConditions(
-  request: CorrectionRequest | null | undefined,
-  activeContextKey: string | null | undefined,
-): UiInputConditions | null {
-  if (
-    !request ||
-    !request.page ||
-    !Array.isArray(request.page.targets) ||
-    !request.questions ||
-    !operations.every((item) => Array.isArray(request.questions[item]))
-  )
-    return null
-  const copyQuestions = (item: CorrectionOperation) =>
-    request.questions[item].map((question) => ({
-      key: question.key,
-      label: question.label,
-      input: question.input,
-      options: Array.isArray(question.options)
-        ? question.options.map((option: { id: string; label: string }) => ({
-            id: option.id,
-            label: option.label,
-          }))
-        : [],
-    }))
-  return {
-    activeContextKey,
-    contextKey: request.contextKey,
-    page: {
-      label: request.page.label,
-      hasPrevious: request.page.hasPrevious,
-      hasNext: request.page.hasNext,
-      targets: request.page.targets.map((target) => ({
-        id: target.id,
-        label: target.label,
-        detail: target.detail,
-      })),
-    },
-    questions: {
-      modify: copyQuestions('modify'),
-      insert: copyQuestions('insert'),
-      delete: copyQuestions('delete'),
-    },
-  }
-}
-
-function sameItems<T>(
-  left: readonly T[],
-  right: readonly T[],
-  same: (a: T, b: T) => boolean,
-): boolean {
-  return (
-    left.length === right.length &&
-    left.every((item, index) => same(item, right[index]!))
-  )
-}
-
-function sameUiInputConditions(
-  left: UiInputConditions | null,
-  right: UiInputConditions | null,
-): boolean {
-  if (!left || !right) return left === right
-  if (
-    left.activeContextKey !== right.activeContextKey ||
-    left.contextKey !== right.contextKey ||
-    left.page.label !== right.page.label ||
-    left.page.hasPrevious !== right.page.hasPrevious ||
-    left.page.hasNext !== right.page.hasNext ||
-    !sameItems(
-      left.page.targets,
-      right.page.targets,
-      (a, b) => a.id === b.id && a.label === b.label && a.detail === b.detail,
-    )
-  )
-    return false
-  return operations.every((item) =>
-    sameItems(
-      left.questions[item],
-      right.questions[item],
-      (a, b) =>
-        a.key === b.key &&
-        a.label === b.label &&
-        a.input === b.input &&
-        sameItems(
-          a.options,
-          b.options,
-          (first, second) =>
-            first.id === second.id && first.label === second.label,
-        ),
-    ),
-  )
-}
-
 // 下書きを戻しても旧応答を再表示しないよう、変更ごとに世代を進める。
 let nextDraftId = 0
 const draftId = ref(++nextDraftId)
@@ -179,17 +71,19 @@ function reset() {
   answers.value = new Map()
   screen.value = 'edit'
   draftId.value = ++nextDraftId
+  publishDraft()
 }
 
-let previousConditions = copyUiInputConditions(
+// 比較は既存の画面表示値ヘルパーと同一。参照の再供給では下書きを消さない。
+let previousConditions = snapshotDisplayValue([
   props.request,
   props.activeContextKey,
-)
+])
 watch(
   () => [props.request, props.activeContextKey],
   () => {
-    const next = copyUiInputConditions(props.request, props.activeContextKey)
-    if (!sameUiInputConditions(previousConditions, next)) {
+    const next = [props.request, props.activeContextKey]
+    if (!sameDisplayValue(previousConditions, next)) {
       const hadDraft =
         targetId.value !== null ||
         operation.value !== null ||
@@ -198,47 +92,80 @@ watch(
       reset()
       draftClearedNotice.value = hadDraft
     }
-    previousConditions = next
+    previousConditions = snapshotDisplayValue(next)
   },
   { deep: true, flush: 'sync' },
 )
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isLabel(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
 const requestReady = computed(() => {
-  const request = props.request
+  const request: unknown = props.request
   if (
-    !request ||
-    !request.contextKey ||
+    !isRecord(request) ||
+    !isLabel(request.contextKey) ||
     !props.activeContextKey ||
     request.contextKey !== props.activeContextKey ||
-    !request.page ||
+    !isRecord(request.page) ||
+    !isLabel(request.page.label) ||
+    typeof request.page.hasPrevious !== 'boolean' ||
+    typeof request.page.hasNext !== 'boolean' ||
     !Array.isArray(request.page.targets) ||
-    !request.questions
+    !isRecord(request.questions)
   )
     return false
+  const targets: unknown[] = request.page.targets
   if (
-    request.page.targets.some((target) => !target.id) ||
-    new Set(request.page.targets.map((target) => target.id)).size !==
-      request.page.targets.length
+    !targets.every(
+      (target) =>
+        isRecord(target) &&
+        isLabel(target.id) &&
+        isLabel(target.label) &&
+        typeof target.detail === 'string',
+    ) ||
+    new Set(targets.map((target) => (target as Record<string, unknown>).id))
+      .size !== targets.length
   )
     return false
+  const questionGroups = request.questions
   return operations.every((item) => {
-    const questions = request.questions[item]
-    return (
-      Array.isArray(questions) &&
-      questions.every(
-        (question) =>
-          !!question.key &&
-          (question.input === 'text' ||
-            (question.input === 'choice' &&
-              Array.isArray(question.options) &&
-              question.options.every((option: { id: string }) => !!option.id) &&
-              new Set(
-                question.options.map((option: { id: string }) => option.id),
-              ).size === question.options.length)),
-      ) &&
-      new Set(questions.map((question) => question.key)).size ===
-        questions.length
+    const questions = questionGroups[item]
+    if (!Array.isArray(questions)) return false
+    const entries: unknown[] = questions
+    if (
+      !entries.every((question) => {
+        if (
+          !isRecord(question) ||
+          !isLabel(question.key) ||
+          !isLabel(question.label) ||
+          (question.input !== 'text' && question.input !== 'choice')
+        )
+          return false
+        if (question.options === undefined) return question.input === 'text'
+        if (!Array.isArray(question.options)) return false
+        const options: unknown[] = question.options
+        return (
+          options.every(
+            (option) =>
+              isRecord(option) && isLabel(option.id) && isLabel(option.label),
+          ) &&
+          new Set(
+            options.map((option) => (option as Record<string, unknown>).id),
+          ).size === options.length
+        )
+      }) ||
+      new Set(
+        entries.map((question) => (question as Record<string, unknown>).key),
+      ).size !== entries.length
     )
+      return false
+    return true
   })
 })
 
@@ -254,10 +181,15 @@ const selectedQuestions = computed<readonly CorrectionQuestion[]>(() =>
     : [],
 )
 const canReview = computed(
-  () => requestReady.value && !!selectedTarget.value && !!operation.value,
+  () =>
+    requestReady.value &&
+    !!selectedTarget.value &&
+    !!operation.value &&
+    selectedQuestions.value.length > 0,
 )
 
 function selectTarget(event: Event) {
+  if (!requestReady.value) return
   const id = (event.target as HTMLSelectElement).value
   targetId.value = props.request?.page.targets.some((item) => item.id === id)
     ? id
@@ -266,15 +198,18 @@ function selectTarget(event: Event) {
   screen.value = 'edit'
   draftId.value = ++nextDraftId
   draftClearedNotice.value = false
+  publishDraft()
 }
 
 function selectOperation(event: Event) {
+  if (!requestReady.value) return
   const value = (event.target as HTMLSelectElement).value
   operation.value = operations.find((item) => item === value) ?? null
   answers.value = new Map()
   screen.value = 'edit'
   draftId.value = ++nextDraftId
   draftClearedNotice.value = false
+  publishDraft()
 }
 
 function setAnswer(question: CorrectionQuestion, event: Event) {
@@ -292,12 +227,13 @@ function setAnswer(question: CorrectionQuestion, event: Event) {
   answers.value = updated
   draftId.value = ++nextDraftId
   draftClearedNotice.value = false
+  publishDraft()
 }
 
 const identity = computed<CorrectionDraftIdentity | null>(() => {
   if (
     !uiInstanceId ||
-    !requestReady.value ||
+    !canReview.value ||
     !selectedTarget.value ||
     !operation.value
   )
@@ -325,20 +261,51 @@ function getDraft(): CorrectionDraft | null {
   }
 }
 
-defineExpose({ getDraft })
+function publishDraft() {
+  emit('draftChange', getDraft())
+}
 
-const currentPreview = computed(() => {
+onMounted(() => {
+  if (props.request) publishDraft()
+})
+onBeforeUnmount(() => {
+  if (props.request) emit('draftChange', null)
+})
+
+const currentPreview = computed<CorrectionPreview | null>(() => {
   const expected = identity.value
   const received = props.preview
-  if (!expected || !received?.identity) return null
+  if (!expected || !isRecord(received) || !isRecord(received.identity))
+    return null
   const actual = received.identity
-  return actual.contextKey === expected.contextKey &&
+  if (!(
+    actual.contextKey === expected.contextKey &&
     actual.uiInstanceId === expected.uiInstanceId &&
     actual.draftId === expected.draftId &&
     actual.targetId === expected.targetId &&
     actual.operation === expected.operation
-    ? received
-    : null
+  ))
+    return null
+  if (
+    received.kind === 'pending' ||
+    received.kind === 'failed' ||
+    received.kind === 'conflict'
+  )
+    return received
+  if (
+    received.kind === 'ready' &&
+    Array.isArray(received.rows) &&
+    received.rows.length > 0 &&
+    received.rows.every(
+      (row) =>
+        isRecord(row) &&
+        isLabel(row.label) &&
+        typeof row.before === 'string' &&
+        typeof row.after === 'string',
+    )
+  )
+    return received
+  return null
 })
 
 const prerequisites = computed<CorrectionPrerequisites>(
@@ -394,6 +361,7 @@ const connectionText = computed(() => {
     <p
       v-if="draftClearedNotice"
       data-testid="correction-draft-cleared"
+      role="status"
       class="text-sm"
     >
       対象または入力項目が変わったため、前の下書きを消去しました。変更は保存されていません。
@@ -494,7 +462,11 @@ const connectionText = computed(() => {
           class="min-w-0 space-y-3"
           data-testid="correction-questions"
         >
-          <p v-if="!selectedQuestions.length" class="text-sm">
+          <p
+            v-if="!selectedQuestions.length"
+            class="text-sm"
+            data-testid="correction-questions-unavailable"
+          >
             この操作の入力項目を確認できません。
           </p>
           <label
@@ -601,8 +573,11 @@ const connectionText = computed(() => {
         data-testid="correction-preview"
       >
         <h3 class="font-bold">差分プレビュー</h3>
+        <p v-if="!currentPreview" data-testid="correction-preview-status">
+          現在の下書きに対応するプレビューは未取得です。
+        </p>
         <p
-          v-if="!currentPreview || currentPreview.kind === 'pending'"
+          v-else-if="currentPreview.kind === 'pending'"
           data-testid="correction-preview-status"
         >
           現在の下書きに対応するプレビューは準備中です。

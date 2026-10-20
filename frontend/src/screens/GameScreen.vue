@@ -9,6 +9,7 @@ import {
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
 import GameScreenPastCorrection from './GameScreenPastCorrection.vue'
 import type {
+  CorrectionDraft,
   CorrectionPrerequisites,
   CorrectionPreview,
   CorrectionRequest,
@@ -78,6 +79,7 @@ const props = withDefaults(
     observationContextKey?: string | null
     /** 正式履歴提供側が選んだ取消対象。undo 自身は含めない。 */
     undoOffer?: UndoOffer | null
+    undoContextKey?: string | null
     /** 過去修正は表示専用契約。正式 API の提供前は実操作しない。 */
     correctionRequest?: CorrectionRequest | null
     correctionContextKey?: string | null
@@ -107,6 +109,7 @@ const props = withDefaults(
     observationRequest: undefined,
     observationContextKey: undefined,
     undoOffer: undefined,
+    undoContextKey: undefined,
     correctionRequest: undefined,
     correctionContextKey: undefined,
     correctionPrerequisites: undefined,
@@ -117,6 +120,11 @@ const props = withDefaults(
     eventIdentity: undefined,
   },
 )
+
+/** ローカル下書きの表示専用通知。保存・送信・確定イベントではない。 */
+const emit = defineEmits<{
+  correctionDraftChange: [draft: CorrectionDraft | null]
+}>()
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
 const queueStatus = computed(() =>
@@ -534,12 +542,16 @@ watch(
       :event-identity="props.eventIdentity"
     />
 
-    <GameScreenUndo :offer="props.undoOffer" />
+    <GameScreenUndo
+      :offer="props.undoOffer"
+      :active-context-key="props.undoContextKey"
+    />
     <GameScreenPastCorrection
       :request="props.correctionRequest"
       :active-context-key="props.correctionContextKey"
       :prerequisites="props.correctionPrerequisites"
       :preview="props.correctionPreview"
+      @draft-change="emit('correctionDraftChange', $event)"
     />
 
     <section
