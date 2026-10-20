@@ -111,6 +111,20 @@ describe('GameScreen の停止表示契約', () => {
     )
   })
 
+  it.each(['unknown', 'constructor', '__proto__', 'toString', 123, null])(
+    '未知または継承プロパティの phase %s は未取得に倒し、操作を封鎖する',
+    (phase) => {
+      const wrapper = mount(GameScreen, {
+        props: {
+          stopDisplay: { phase: phase as StopDisplay['phase'] },
+        },
+      })
+
+      expect(wrapper.get('[data-testid="stop-status"]').text()).toBe('未取得')
+      expectActionsBlocked(wrapper)
+    },
+  )
+
   it('表示契約外の内部文言や他tenantの存在情報をそのまま出さない', () => {
     const secret = '他tenantの原本が存在する <img src=x>'
     const wrapper = mount(GameScreen, {

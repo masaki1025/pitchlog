@@ -56,3 +56,16 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 既定implementラッパーでステップ1のみを実装し、同ステップの再開で表示専用のexport型を切り出し、利用者文言を是正した。`GameScreenStopDisplay.ts`は正式runtime DTO/停止判定/耐久索引ではない。0/未取得/読取失敗/停止/照会中、訂正注意3種、同内容再開/内容訂正の封鎖、直接dispatchでemit/送信/保存がないことをDOMで固定。関連Vitest12ファイル171件、Prettier/ESLint/vue-tsc/diff-check成功。
 
 主担当は実Vue/CSS・既存Meiryoの隔離Chromium fixtureで375/320px各scrollWidth一致、POST0、pageerror0を実測し、画像を開いて確認した。0/未取得/読取失敗、fixture再供給の再読込、独立2タブの表示分離、断中封鎖を確認。再読込はfixture再供給であり、耐久provider・実Port/HTTP/DB受入ではない。結果`/tmp/uf8-followup-stop-browser-result.json`、画像`/tmp/uf8-followup-stop-{375,320}.png`。コードログは`/tmp/uf8-followup-step1{,-correction}.log`。全frontend検査は別途実行中で、完了前に成功とは記録しない。
+
+## ステップ1の一次/敵対レビュー第1回と採否
+
+固定比較97e6eeec...13d04a91にClaude一次（実モデルclaude-opus-5-5、read-only、`/tmp/uf8-stop-claude-review.json`）を実施し、P0=0/P1=0/P2=4。別に既定ラッパー敵対基本第1回（gpt-6-sol/xhigh、`/tmp/uf8-stop-adversarial1.log`）を実施し、否決P0=0/P1=1/P2=1。対象は停止UIコードPRであり計画レビュー/第1期#160の回数をリセットしない。レビュー者は自らテスト実行せず、主担当の実測と区別した。
+
+| 指摘 | 採否・反映 |
+| --- | --- |
+| Claude P2/敵対P1: phaseにconstructor/__proto__等を渡すと継承値を拾う | 採用。文字列かつObject.hasOwnで自前キーを確認してからラベルを読み、未知/継承/非文字列の6件を追加。関連177件成功 |
+| Claude P2: 現在地が第1期のステップ総数を読む | 採用。stacked比較元#160の旧8/10段をdevelopとの差として継承する警告とPR本文へ記し、#160統合後に再導出。新9ステップの件名は正規、機構を改変しない |
+| Claude P2: 平常非停止状態が未定義 | 採用（接続時の受渡し）。506/U-S1の正式型提供時に非停止時の表示/非表示を合わせる。今回の表示専用型に新しい停止判定を発明しない |
+| Claude P2/敵対P2: 全件結果・幅実測の記録不足 | 採用。13d04a91の全frontend83ファイル1567件/93.18秒、Prettier/ESLint/vue-tsc/build、closure9ファイル/外部0/違反0成功を記録。ブラウザ375/320=scroll375/320、POST0/error0、日本語フォント読込を実測済み。結果要旨をPRにも固定記載 |
+
+是正は同ステップのimplement --resumeで実施し、関連177件・型/lint/整形/diff-checkが成功。全frontendは是正後にも別途実行する。ここでコード敵対の採用反映は1周、計画レビュー周回2/確定ゲート周回0は不変。追加の独立一次再レビューや人間逐行確認を代記しない。

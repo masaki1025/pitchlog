@@ -126,9 +126,12 @@ const stopPhaseLabel: Record<StopDisplay['phase'], string> = {
 }
 
 // 表示契約にない値が混入しても、停止が解除されたとは見せない。
-const stopStatusText = computed(
-  () => stopPhaseLabel[props.stopDisplay?.phase ?? 'unavailable'] ?? '未取得',
-)
+const stopStatusText = computed(() => {
+  const phase: unknown = props.stopDisplay?.phase
+  return typeof phase === 'string' && Object.hasOwn(stopPhaseLabel, phase)
+    ? stopPhaseLabel[phase as StopDisplay['phase']]
+    : '未取得'
+})
 
 const deviceUnconfirmedText = computed(() => {
   const received = props.stopDisplay?.deviceUnconfirmed
