@@ -16,6 +16,10 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { createServer as createPortReservation } from 'node:net'
 import { createServer, type ViteDevServer } from 'vite'
 import { stripApiPrefix } from '../../vite.config.ts'
+import {
+  cleanupGameScreenOutputDirectory,
+  finishGameScreenChild,
+} from './GameScreenE2eProcess'
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const repositoryRoot = resolve(frontendRoot, '..')
@@ -40,10 +44,14 @@ export function readGameScreenE2eRuntime(): GameScreenE2eRuntime {
   ) as GameScreenE2eRuntime
 }
 
-async function awaitReady(path: string, child: ChildProcess): Promise<void> {
+async function awaitReady(
+  path: string,
+  child: ChildProcess,
+  spawnFailed: () => boolean,
+): Promise<void> {
   for (let attempt = 0; attempt < 900; attempt += 1) {
     if (existsSync(path)) return
-    if (child.exitCode !== null)
+    if (spawnFailed() || child.exitCode !== null || child.signalCode !== null)
       throw new Error('製品 DB または App の起動に失敗')
     await delay(100)
   }
@@ -70,6 +78,8 @@ async function chooseOwnFrontendPort(): Promise<number> {
 export default async function setupGameScreenE2e(): Promise<
   () => Promise<void>
 > {
+  if (process.env.PLAYWRIGHT_NO_COPY_PROMPT !== '1')
+    throw new Error('失敗時DOM snapshotの抑止設定がない')
   const frontendPort = await chooseOwnFrontendPort()
   const frontendOrigin = `https://127.0.0.1:${frontendPort}`
   const directory = mkdtempSync(resolve(tmpdir(), 'pitchlog-e2e-'))
@@ -129,9 +139,37 @@ export default async function setupGameScreenE2e(): Promise<
       },
     },
   )
+  let spawnFailed = false
+  backend.once('error', () => {
+    spawnFailed = true
+  })
   let vite: ViteDevServer | undefined
+  const cleanup = async (): Promise<void> => {
+    let failed = false
+    try {
+      await vite?.close()
+    } catch {
+      failed = true
+    }
+    try {
+      writeFileSync(stopPath, '', { flag: 'wx', mode: 0o600 })
+    } catch {
+      failed = true
+    }
+    try {
+      if (spawnFailed) throw new Error('自分の補助プロセスを起動できない')
+      await finishGameScreenChild(backend, 90_000, 90_000)
+    } catch {
+      failed = true
+    } finally {
+      delete process.env.PITCHLOG_E2E_RUNTIME_FILE
+      rmSync(directory, { recursive: true, force: true })
+      cleanupGameScreenOutputDirectory()
+    }
+    if (failed) throw new Error('E2Eの自分専用DBまたはAppの終了・後始末に失敗')
+  }
   try {
-    await awaitReady(readyPath, backend)
+    await awaitReady(readyPath, backend, () => spawnFailed)
     const supplied = JSON.parse(readFileSync(readyPath, 'utf8')) as {
       port: number
       identities: GameScreenE2eRuntime['identities']
@@ -174,31 +212,13 @@ export default async function setupGameScreenE2e(): Promise<
       { mode: 0o600 },
     )
     process.env.PITCHLOG_E2E_RUNTIME_FILE = runtimePath
-    return async () => {
-      await vite?.close()
-      writeFileSync(stopPath, '')
-      for (
-        let attempt = 0;
-        attempt < 150 && backend.exitCode === null;
-        attempt += 1
-      ) {
-        await delay(100)
-      }
-      if (backend.exitCode === null) backend.kill('SIGTERM')
-      rmSync(directory, { recursive: true, force: true })
-    }
+    return cleanup
   } catch {
-    await vite?.close()
-    writeFileSync(stopPath, '')
-    for (
-      let attempt = 0;
-      attempt < 150 && backend.exitCode === null;
-      attempt += 1
-    ) {
-      await delay(100)
+    try {
+      await cleanup()
+    } catch {
+      // setup失敗自体を成功へ変えず、秘密と自前出力の削除を先に行う。
     }
-    if (backend.exitCode === null) backend.kill('SIGTERM')
-    rmSync(directory, { recursive: true, force: true })
     throw new Error(
       'E2E の専用クラスタ・既存認証fixture・実製品 App の起動に失敗',
     )
