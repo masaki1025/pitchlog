@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from product_authz_other_profiles_cases import other_profile_seed_rows
-from product_authz_tenant_owned_cases import _migration_trigger_facts
+from product_authz_tenant_owned_cases import (
+    _migration_attached_trigger_functions,
+    _migration_trigger_facts,
+)
 from test_authz_runtime_contract_repository import product_spec_for_repository
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -53,17 +56,24 @@ def _asset_trigger_function_names() -> frozenset[str]:
 
 
 def trigger_expectations() -> tuple[TriggerExpectation, ...]:
-    """資産と migration が一致する全トリガ関数の拒否期待値を返す。"""
+    """汎用 UPDATE で発火できる BEFORE トリガ関数の拒否期待値を返す。
+
+    AFTER 層（AFTER トリガ）は保護列の異値更新でしか発火せず、アプリロールの
+    汎用 UPDATE では BEFORE 側が先に拒否するため、ここでは発火対象にしない。
+    資産との exact-set 照合は発火方式に依らず全接続関数で行い、AFTER 層の挙動は
+    `tests/db/test_games_applied_rules_immutability.py` が担保する。
+    """
     migration_functions, migration_triggers = _migration_trigger_facts()
     asset_names = _asset_trigger_function_names()
-    attached_names = [trigger.function_name for trigger in migration_triggers.values()]
-    if len(attached_names) != len(set(attached_names)):
+    attached_names = _migration_attached_trigger_functions()
+    fireable_names = [trigger.function_name for trigger in migration_triggers.values()]
+    if len(fireable_names) != len(set(fireable_names)):
         raise AssertionError("1 個の migration トリガ関数が複数箇所に接続されている")
-    if asset_names != set(attached_names):
+    if asset_names != attached_names:
         raise AssertionError(
             "製品資産と migration の接続済みトリガ関数が一致しない: "
-            f"asset_only={sorted(asset_names - set(attached_names))}, "
-            f"migration_only={sorted(set(attached_names) - asset_names)}"
+            f"asset_only={sorted(asset_names - attached_names)}, "
+            f"migration_only={sorted(attached_names - asset_names)}"
         )
 
     result: list[TriggerExpectation] = []
@@ -73,6 +83,8 @@ def trigger_expectations() -> tuple[TriggerExpectation, ...]:
             raise AssertionError(
                 f"トリガ関数の RAISE EXCEPTION が migration に無い: {function_name}"
             )
+        if function_name not in fireable_names:
+            continue
         result.append(
             TriggerExpectation(
                 function_name=function_name,

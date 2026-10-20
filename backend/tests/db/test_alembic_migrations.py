@@ -8483,6 +8483,8 @@ def test_0028_preflight_restores_product_force_rls_after_success(
     # downgrade が削除した生成列と関数の ACL だけを資産から再適用する。
     restored_ids = {
         "FUNCTION:public:authn_normalize_team_name(text)",
+        "FUNCTION:public:prevent_games_applied_rules_update()",
+        "FUNCTION:public:verify_games_applied_rules_final()",
         "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner",
         "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner",
         "rg1_restore_gate",

@@ -44,6 +44,15 @@ _CREATE_TRIGGER_PATTERN = re.compile(
     r"(?P<function>[a-z_][a-z0-9_]*)\s*\(\s*\)",
     re.IGNORECASE | re.DOTALL,
 )
+# BEFORE UPDATE 以外（AFTER など）も含め、migration が接続したトリガ関数を拾う。
+# 発火試験は BEFORE UPDATE だけを対象にするが、資産との exact-set 照合は全接続を見る。
+_ANY_CREATE_TRIGGER_PATTERN = re.compile(
+    r"CREATE\s+TRIGGER\s+[a-z_][a-z0-9_]*\s+.*?"
+    r"\s+ON\s+[a-z_][a-z0-9_]*\s+.*?"
+    r"EXECUTE\s+(?:FUNCTION|PROCEDURE)\s+"
+    r"(?P<function>[a-z_][a-z0-9_]*)\s*\(\s*\)",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,6 +312,16 @@ def _migration_trigger_facts() -> tuple[
                     update_columns=_trigger_update_columns(match.group("scope")),
                 )
     return functions, triggers
+
+
+def _migration_attached_trigger_functions() -> frozenset[str]:
+    """全 upgrade がトリガへ接続する関数名を発火方式に依らず返す。"""
+    names: set[str] = set()
+    for path in sorted(_MIGRATIONS_PATH.glob("*.py")):
+        for statement in _upgrade_sql(path):
+            for match in _ANY_CREATE_TRIGGER_PATTERN.finditer(statement):
+                names.add(match.group("function").lower())
+    return frozenset(names)
 
 
 def _tenant_update_candidate_names() -> tuple[str, ...]:
