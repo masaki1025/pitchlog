@@ -175,3 +175,21 @@ Vitestの#153**候補fixture**で5セル`X / 空欄 / 3 / 空欄 / 0`を順に�
 ### ステップ6の実行枝
 
 記録中表示0a8a8002を継承し、feature/uf8-game-entryで承認済みステップ6のみ実行する。実行枝metadataだけ更新し計画本文/承認/レビュー履歴は保持。App.vueの最小追補は未承認なので適用せず、承認済みrouter/Entry範囲で進める。親是正は後で追随する。
+
+## ステップ6 試合一覧・開始/スタメン・再開入口と記録route
+
+`feature/uf8-game-entry`で、`GameScreenEntry*`と`router*`だけに`/games`・`/games/:gameId/record`を追加した。両routeは既存の`requiresAuth`ガードを通し、`getActivePinia`/共有`pinia`、hydration待機、`ensureSessionVerified`、`authEpoch`、tenant一致の条件を維持する。認証前の`redirect`は`GameScreenEntryNavigation`で`/team`・`/games`・canonical UUIDの記録pathnameだけへ制限し、query/hash、外部URL、二重slash、不正IDは`/team`へ倒す。`App.vue`は未承認の追補を適用していないため、ログイン完了後の試合route復帰と通常ヘッダーからの試合導線は**未達**。router側の後追い再遷移は追加していない。
+
+製品routeではU-G1/U-G2の実一覧・詳細・スタメン・規則・権利・下書き復元が未提供であることを表示し、開始/スタメン設定/再開/記録/保存/送信を全条件で封鎖する。`GameScreen`はprops未供給で全機能を未取得表示にし、既存の確定封鎖を保つ。新規HTTP、仮Port、計算、Web Locks・IDB判定や永続化処理はない。表示用の`EntrySupply`はtenant、認証世代、経路、ページ要求キーで文脈を照合し、隔離fixtureで1ページの項目・前後ページキー・開始候補/スタメン/規則/権利/既存状態・再開詳細を供給する。異tenant項目、不正ID、壊れたページ、旧応答は取得済み成功にしない。他tenantの存在と内部原因は表示しない。ページ送りは供給側への表示要求イベントだけで、実取得や全件集計はしない。
+
+NFR-020の観測可能な前提1/5/6は提供された成立/不成立/不明をそのまま受け、単独/複合不足の全番号と内容、開始不可、既存キュー件数/保持、閲覧可能を表示する。未知を成立にしない。前提5のサイトストレージ不可とpersist要求だけの拒否を分け、後者は警告と前提上の継続可能性を表示するが、製品の実開始は未接続のため封鎖したまま。キューを読み書き・消去しない。
+
+隔離DOM試験で、実routeの未取得、保護境界と再検証失敗/異tenant/認証世代変更、正規/不正IDと安全な戻り先、1ページのみの表示と前後要求、正常/拒否/通信失敗/遅延、旧文脈遮断、前提1/5/6単独・複合、persist区別、全実操作の直接dispatchでもfetch/POST 0、Vue escape、375/320pxの縦積み・折返し構造を確認した。jsdomは実ピクセル幅を測れない。最終実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts`で**18ファイル320件成功**。`pnpm exec vue-tsc --noEmit`、対象`GameScreenEntry*`/`router.ts`のESLint・Prettier check、`git diff --check`成功。実ブラウザ375/320pxとfrontend全件は主担当補完。正式API/実HTTP・DB接続、ログイン後復帰/通常ナビゲーション、記録権取得、実開始/再開/保存/送信、1試合完遂は未達。ステップ7以降、コミット、push、外部連絡は行っていない。
+
+### ステップ6確定前の主担当検査への同範囲補完
+
+`GameScreenEntryRecord`が同一instanceで別試合routeや認証切替後も内側`GameScreen`を再利用し、未供給の`eventIdentity`/観測文脈では球速などの未保存下書きを消せない欠陥を是正した。現在の`authEpoch`、`teamId`、route pathname、gameIdを表示instanceのキーにし、いずれかが変われば実`GameScreen`を作り直す。同じscopeへの同内容新参照ではinstanceと下書きを保持する。実球速入力で試合route変更、tenantと認証世代の個別変更、再検証中とtenant切替を試験し、旧入力・旧metadata・旧未送信件数が残らないことを確認した。画面文言は未保存の入力欄と矛盾しないよう「記録の確定・保存・送信はできません」とした。
+
+一覧の`selectedGameId`と`requestedPageKey`は認証世代/tenant/pathの実変更時だけ消去する。同じscopeへの同内容新参照では選択とページ要求を保持する。旧tenantで次ページを要求したあと新tenantの初期`requestKey=null`ページを表示できること、同一instanceで経路を往復した場合に旧選択を戻さないことを確認した。ページ移動の意味や実APIは追加していない。`existingStateLabel`は文字列かつown既知キーに限り、`constructor`/`__proto__`/`toString`やnullを未取得にする。候補・ページ・詳細のnull、疎配列、未知状態、不正datumも取得済みへ採用せず、別の閲覧表示と`GameScreen`の確定封鎖を維持した。既存のdense検査を再利用し、計算/通信/保存Portは追加していない。
+
+NFR-020前提1/5/6の全不足列挙、persist要求のみ拒否とサイトストレージ不可の区別、未送信キュー保持の文言は**表示上の候補**であり、実Web Locks/IDB・再起動を通したキュー耐久の証拠ではない。実開始/再開/確定/保存/送信は引き続き封鎖し、直接dispatchでもHTTP 0。最終実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts`で**18ファイル334件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ/フロントエンド全件試験と既定レビューは主担当補完。正式API未提供、`App.vue`追補未承認による通常ナビゲーション/ログイン復帰未達は維持する。次ステップ、コミット、push、外部連絡は行っていない。
