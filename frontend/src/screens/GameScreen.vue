@@ -7,7 +7,15 @@ import {
   type SyncNoticeDescriptor,
 } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import GameScreenPastCorrection from './GameScreenPastCorrection.vue'
+import type {
+  CorrectionPrerequisites,
+  CorrectionPreview,
+  CorrectionRequest,
+  UndoOffer,
+} from './GameScreenCorrectionTypes'
 import GameScreenPlayObservation from './GameScreenPlayObservation.vue'
+import GameScreenUndo from './GameScreenUndo.vue'
 import type { PlayObservationRequest } from './GameScreenPlayObservationTypes'
 import {
   judgePitchInputEligibility,
@@ -64,6 +72,13 @@ const props = withDefaults(
     observationRequest?: PlayObservationRequest | null
     /** 要求と照合する現在の試合・プレイ文脈キー。 */
     observationContextKey?: string | null
+    /** 正式履歴提供側が選んだ取消対象。undo 自身は含めない。 */
+    undoOffer?: UndoOffer | null
+    /** 過去修正は表示専用契約。正式 API の提供前は実操作しない。 */
+    correctionRequest?: CorrectionRequest | null
+    correctionContextKey?: string | null
+    correctionPrerequisites?: CorrectionPrerequisites | null
+    correctionPreview?: CorrectionPreview | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -87,6 +102,11 @@ const props = withDefaults(
     stopDisplay: undefined,
     observationRequest: undefined,
     observationContextKey: undefined,
+    undoOffer: undefined,
+    correctionRequest: undefined,
+    correctionContextKey: undefined,
+    correctionPrerequisites: undefined,
+    correctionPreview: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -489,6 +509,14 @@ watch(
     <GameScreenPlayObservation
       :request="props.observationRequest"
       :active-context-key="props.observationContextKey"
+    />
+
+    <GameScreenUndo :offer="props.undoOffer" />
+    <GameScreenPastCorrection
+      :request="props.correctionRequest"
+      :active-context-key="props.correctionContextKey"
+      :prerequisites="props.correctionPrerequisites"
+      :preview="props.correctionPreview"
     />
 
     <section
