@@ -1063,3 +1063,11 @@ backend関連試験はtest_authz_repository_contract.pyが48件、capability登�
 レビュー証跡: cache self-team-read-shared-followup/limited-review.log、SHA-256 `a7ab325b26b4a63790adb955d43ff998b4b96c4d62a5e230968f4acf364e7892`。関連200件の成功は5295956f固定前の同一製品差分に対する前回実行で、今回レビューでは再実行していない。
 
 判断資料JSON SHA-256 `2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c`、記録案SHA-256 `f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9` は変更なし。作り直さず同資料を正式受理へ提示する。レビュー後の未再レビュー差分はplan/README/worklogの結果記録だけで、製品・契約・snapshot・JSON記録案の変更はない。承認者/日付はnull、正式受理・本人確認・正式反映後の全検査/通常push/最終HEAD CIは未実施。Draft解除・公開・マージも行わない。
+
+## 2026-10-21 #165 7.7正式受理と正式反映
+
+山田正輝から実承認日2026-10-21、対象ba23630a1772bd3595e3042a434376175d3aa56bの正式受理回答を受領。判断資料2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c、記録案f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9を再hashし一致。3共有パスの承認時after SHA-256、9資産の全射影・外部4実装、既存23履歴・#165記録0件を反映直前に再照合した。新値不一致はなかった。
+
+承認者/日付だけを記録案へ反映してbase allowlistの末尾へ#165を1件追記（23→24、既存prefix同一、同ID1件）。許可symbol・revision33・凍結射影は変えない。after snapshot9872b2b0d5233193b3e3d76b37b144599d5d2ea8c14a93f1df6cd20a834bd3b0を正式archiveへ新規1件追加。before 0daf9ec4…は既存bytes同一のため追加しない。他8資産・authzは不変。正式記録の整形canonical JSON SHA-256は06a48c1ed6bbae5aed4ef0effdd60c283edef997a243477dbfa3b8fe09651639。固定資料自体は変更しない。
+
+正式反映後のtenant-boundary bypass検査は成功。本人確認は未実施でチェック代記しない。既定2周＋限定1回、レビュー後の結果記録3ファイルが未再レビューである履歴を保持。本正式反映も追加レビュー済みではなく、最終本人確認差分に含める。全件・CI・PR資料更新を続ける。planはactive、TSK-528/520全体は未完了。
