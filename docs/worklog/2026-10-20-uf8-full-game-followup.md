@@ -69,3 +69,11 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 | Claude P2/敵対P2: 全件結果・幅実測の記録不足 | 採用。13d04a91の全frontend83ファイル1567件/93.18秒、Prettier/ESLint/vue-tsc/build、closure9ファイル/外部0/違反0成功を記録。ブラウザ375/320=scroll375/320、POST0/error0、日本語フォント読込を実測済み。結果要旨をPRにも固定記載 |
 
 是正は同ステップのimplement --resumeで実施し、関連177件・型/lint/整形/diff-checkが成功。全frontendは是正後にも別途実行する。ここでコード敵対の採用反映は1周、計画レビュー周回2/確定ゲート周回0は不変。追加の独立一次再レビューや人間逐行確認を代記しない。
+
+## 停止UI提出状態（ステップ1のみ）
+
+敵対基本第2回は13d04a91...df2f8935の反映差分と影響箇所を読み取り専用で確認し、**可決 P0=0/P1=0/P2=0**。ログ`/tmp/uf8-stop-adversarial2.log`。コード敵対は基本2回を消費、採用反映1周で終了。計画レビューは実行3回/採用反映2周、確定ゲート0のまま保持。第1期の敵対/normal回数へ流用しない。人間逐行確認は未実施。
+
+最終コードdf2f8935のfrontend全件は **83ファイル/1,573 passed/124.44秒**。Prettier/ESLint/vue-tsc/build成功、closure9ファイル/外部0/違反0。root Ruff/ty・docs-status/計画同期/diff-check成功、影響するguard/計画同期のpytest **280 passed/25.72秒**。backend/lib/sync/contractsの変更は0で、第1期の隔離backend実測を再利用し今回再実行とは記録しない。実Port/HTTP/DB通しは未提供のまま。
+
+提出比較元は第1期の固定97e6eeec（feature/uf8-game-recording）。このPRは停止UIのステップ1と承認/依存/採否文書だけで、残り8ステップや1試合完遂の完了ではない。台帳への追記なし: 新たな運用規則・確定傾向ではなく、既知のstacked枝の派生警告と未提供依存の個別記録である。計画statusをこの提出枝でin-reviewとし、次ステップは別の承認済み計画紐付け枝で進める。
