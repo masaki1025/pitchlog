@@ -1,6 +1,6 @@
 # TSK-564 / #153 統合残ゲート・受理・後続範囲（一枚）
 
-**照合基線**: develop `8e4698f6dc254439b7d5e0c273cc2aef70cda657`を既存枝へ通常merge=`908b983d833edc614b897931d1f964f07a09649b`（競合なし）。コード/候補固定点=`5a9e37bd263787106f08bb05224f01333e79ffc3`、署名対象T2 digest=`sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4`。本人確認者は本会話で**山田正輝**と指定（未実施）。条文/対象資産との対応と最終差分の提示方法は[本人確認依頼](human-review-request.md)、固定P-6入力/原典/提出先は[P-6パケット](p6-transfer/README.md)。新規PRなし、[既存Draft #153](https://github.com/masaki1025/pitchlog/pull/153)で継続。U-S1の担当整理とは別。
+**照合基線**: develop `9136c2dad916313c28698f49f8668f3edbe36b4a`（#160統合）を既存枝へ通常merge=`fb9ae66c18e00c3e02fd3f1f669afed9d6751e83`（競合なし）。コード/候補固定点=`5a9e37bd263787106f08bb05224f01333e79ffc3`、署名対象T2 digest=`sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4`。本人確認者は本会話で**山田正輝**と指定（未実施）。条文/対象資産との対応と最終差分の提示方法は[本人確認依頼](human-review-request.md)、固定P-6入力/原典/提出先は[P-6パケット](p6-transfer/README.md)。新規PRなし、[既存Draft #153](https://github.com/masaki1025/pitchlog/pull/153)で継続。U-S1の担当整理とは別。
 
 ## 2026-10-21 統合直前の更新（以下の旧観察より優先）
 
@@ -56,3 +56,46 @@ P-6は元provenance計画の実施対象外で、未実施の閉じた形を正�
 **今回の直接依頼（資料固定49c018ee、コード5a9e37bd）**: 544へ再照会せず、545へ#155後の得点受取/phase認可/DRAW収容の差分確認（comment `3fd93b75-e687-81a0-82b8-001decaaf1a0`）、523へ得点/状態/表示の分界とGAP担当確認（`3fd93b75-e687-811a-bfcb-001d00148857`）、546へDRAW-06/10の分担線確認（`3fd93b75-e687-8138-b3e3-001d6740b7e0`）、POへ上記指名の一括依頼（564カード `3fd93b75-e687-819e-bbfd-001dd43ea178`）を送付。新回答の受理ではない。受理状態は本文表のまま。
 
 更新: 山田正輝さんへの本人確認依頼とP-6引継ぎ資料を固定した。P-6は未関与Codex担当の確保待ちで、集合確定と検証可能性を区別し、WALK-OFF前得点不足/評価文脈/未正式DRAW・GAP-05を推定verifiedにしない。
+
+## 最終提出の対象・未再レビュー差分・採否
+
+最終HEAD/全binary diff SHA-256/固定比較リンクは、この資料のcommit後に既存#153本文先頭へ記載する。比較元は9136c2da。旧8de07d98以降はdevelopの通常merge2件と、この一枚/本人確認依頼/既存worklogの資料更新だけ。本担当の実装・正式T2・候補に新しい差分はない。追加資料差分は未再レビューとして本人確認対象へ明示し、既存レビュー0/0/0を資料まで拡張しない。
+
+採否: 基本第1回CLI予約値偽装P1は採用し26f5c949で是正、基本第2回0/0/0。追加第1回の表示入力/典拠結合P1は採用し5a9e37bdで是正、追加第2回0/0/0。未解消の実装指摘は0件、不採用はなし。一次レビュー成立の根拠不足と未再レビュー資料を隠さない。
+
+全対象ファイル（比較元9136c2da対提出HEAD、既存32件）:
+
+```text
+backend/src/pitchlog/domaincheck/runners/handoff.py
+contracts/state-transition/appendix_e_consumer_handoff_v1.json
+contracts/state-transition/game_end_contract_schema_v1.json
+contracts/state-transition/game_end_contract_v1.json
+docs/features/t2-provenance-checker/candidates/README.md
+docs/features/t2-provenance-checker/candidates/adopted-boundaries-2026-10-19.md
+docs/features/t2-provenance-checker/candidates/p8_boundary_evidence_v1.json
+docs/features/t2-provenance-checker/candidates/p8_candidate_schema_v1.json
+docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json
+docs/features/t2-provenance-checker/candidates/requirements-followup.patch
+docs/features/t2-provenance-checker/handoff-and-gates-2026-10-19.md
+docs/features/t2-provenance-checker/harness-failure-disposition-2026-10-18.md
+docs/features/t2-provenance-checker/human-review-request.md
+docs/features/t2-provenance-checker/p6-transfer/README.md
+docs/features/t2-provenance-checker/p6-transfer/inputs-without-decisions.json
+docs/features/t2-provenance-checker/p6-transfer/manifest.json
+docs/features/t2-provenance-checker/p8-fixed-candidate-report-2026-10-19.md
+docs/features/t2-provenance-checker/p8-followup-scope-candidate-2026-10-18.md
+docs/features/t2-provenance-checker/p8-human-decisions-and-receivers-2026-10-18.md
+docs/features/t2-provenance-checker/plan.md
+docs/features/t2-provenance-checker/pr153-merge-gates-onepage.md
+docs/features/t2-provenance-checker/research.md
+docs/worklog/2026-10-17-t2-provenance-checker.md
+docs/worklog/2026-10-18-t2-provenance-checker.md
+frontend/src/testing/handoffLoader.spec.ts
+frontend/src/testing/handoffLoader.ts
+scripts/check_deriver_dependencies.py
+scripts/check_provenance.py
+scripts/check_required_set_coverage.py
+tests/domain/runners/fixtures/handoff-loader/mutations.json
+tests/domain/runners/test_handoff_loader.py
+tests/test_game_end_contract_schema.py
+```
