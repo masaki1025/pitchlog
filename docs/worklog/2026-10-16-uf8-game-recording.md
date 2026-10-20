@@ -390,3 +390,11 @@ U-S1主担当から、#159 `d1f3aa8c`まででも新実行時型・耐久provide
 11/12の打球・走者・undo/過去修正・交代・回切替・終了/再開・停止UIの不足は、develop起点の別worktree `feature-uf8-full-game-followup` の未承認計画へ分離した。第1期の射程は変えない。停止UIとフォームの封鎖付き先行、T1/T2の各同一変更での実呼出部接続、実画面/実HTTP/隔離DBの通し検証を段階化し、計画6.1のレビューと人間承認へ提示する。後続計画の承認や正式資産受理を代記しない。
 
 取り込み後のfrontend全件は **82ファイル / 1,552 passed / 79.41秒**。Prettier/ESLint/vue-tsc/build成功、build closureはconforming（9ファイル/外部参照0/違反0）。ログは `/tmp/uf8-resume-frontend-{static,tests}.log` と `/tmp/uf8-resume-build.log`。製品コードに変更のないbackend全件/実ブラウザ試験は前節の実測を再利用し、今回再実行したとは記録しない。最終差分の人間逐行確認とPRのCI結果はPR本文へ固定HEAD付きで提示する。
+
+### 再開中のdevelop更新と後続計画提示
+
+#163の統合によりdevelopが `8e4698f6dc254439b7d5e0c273cc2aef70cda657` へ進んだため、受入シート生成器/試験の差分を通常mergeした。製品コード差分0を再確認し、影響する `tests/test_orm_acceptance_sheets.py` **15 passed / 0.97秒**、root Ruff/ty、計画正本同期/diff-check成功。frontend全1,552件の直前実測と取り込み後のコードは同一である。
+
+後続計画は別worktree `feature-uf8-full-game-followup` でレビュー実行3回（基本2回＋P0例外1回）、第1回P0=3/P1=6、第2回P0=2/P1=2を全13件採用し、第3回P0限定は **可決 P0=0**。計画レビュー周回は採用反映2周なので2。最終P1反映の追加査読は未実施として人間へ提示した。計画SHA-256は `935bac90426571acf1c9a66b8d41ff0097e14232421fc5f80ff966e9f5551cf4`、承認は未。停止UI、各入力/表示、route/検査経路、提供済みAPIの接続と通し検証の9ステップで、T1/T2は外部前提として各所有PRに渡す。CI凍結資産の正式受理は計画承認と分離する。
+
+544のP-7項目別受理依頼にも、523の観測入力/文脈保持/投影描画/失敗表示の責任を受領して回答した。具体的な製品型/関数署名/版/提供SHAは未提供とし、既存handoffのnormalizer等nullを埋めない。別worktreeの `docs/features/uf8-full-game-followup/p7-receipt.md` に保存し544へ送付済み。P-7全体成立・正式資産受理・実Port提供・実画面HTTP/DB完了は記録しない。第1期の実装と封鎖は変更していない。
