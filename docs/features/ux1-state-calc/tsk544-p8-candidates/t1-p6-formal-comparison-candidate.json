@@ -1,0 +1,1606 @@
+{
+  "status": "comparison-candidate-not-for-blind-input",
+  "sourceCommit": "7c1afebab31facc71e8cfc2731da1a9fa392de4e",
+  "formalPath": "contracts/state-transition/state_transition_contract_v1.json",
+  "formalSha256": "54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb",
+  "formalBlob": "b178ff9cbed997866989eb7dc93476683f762e4a",
+  "blindPacketPath": "docs/features/ux1-state-calc/tsk544-p8-candidates/t1-p6-base-109-input-v2.json",
+  "blindPacketSha256": "e88b65c85c2dbde9496d4e7f543b2812d4a4845d164cb815f47b055b6fc91f7f",
+  "links": [
+    {
+      "blindCaseId": "P6-T1-BASE-001",
+      "formalCaseId": "ST-MATRIX-07c1f26a645dae53",
+      "casePointer": "/cases/0",
+      "rowPointer": "/matrixRows/0",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-002",
+      "formalCaseId": "ST-MATRIX-fc643ce7a079df4f",
+      "casePointer": "/cases/1",
+      "rowPointer": "/matrixRows/1",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-003",
+      "formalCaseId": "ST-MATRIX-2bc8d110689a88e4",
+      "casePointer": "/cases/2",
+      "rowPointer": "/matrixRows/2",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-004",
+      "formalCaseId": "ST-MATRIX-0529a0eb116d64a9",
+      "casePointer": "/cases/3",
+      "rowPointer": "/matrixRows/3",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-005",
+      "formalCaseId": "ST-MATRIX-0aae1f25887419f6",
+      "casePointer": "/cases/4",
+      "rowPointer": "/matrixRows/4",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-006",
+      "formalCaseId": "ST-MATRIX-be6cf322ead7a493",
+      "casePointer": "/cases/5",
+      "rowPointer": "/matrixRows/5",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-007",
+      "formalCaseId": "ST-MATRIX-c6cbcee3731109e9",
+      "casePointer": "/cases/6",
+      "rowPointer": "/matrixRows/6",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-008",
+      "formalCaseId": "ST-MATRIX-b8fdc9ccd93906e4",
+      "casePointer": "/cases/7",
+      "rowPointer": "/matrixRows/7",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-009",
+      "formalCaseId": "ST-MATRIX-380bc59a0b4ff67a",
+      "casePointer": "/cases/8",
+      "rowPointer": "/matrixRows/8",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-010",
+      "formalCaseId": "ST-MATRIX-5b16ca2951847cc5",
+      "casePointer": "/cases/9",
+      "rowPointer": "/matrixRows/9",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-011",
+      "formalCaseId": "ST-MATRIX-d7bae910205d3759",
+      "casePointer": "/cases/10",
+      "rowPointer": "/matrixRows/10",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-012",
+      "formalCaseId": "ST-MATRIX-9971ebafa8bb7fda",
+      "casePointer": "/cases/11",
+      "rowPointer": "/matrixRows/11",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-013",
+      "formalCaseId": "ST-MATRIX-3a7d441bcfbe9bea",
+      "casePointer": "/cases/12",
+      "rowPointer": "/matrixRows/12",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-014",
+      "formalCaseId": "ST-MATRIX-77c7133e72814e0a",
+      "casePointer": "/cases/13",
+      "rowPointer": "/matrixRows/13",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-015",
+      "formalCaseId": "ST-MATRIX-50a4497fffb425ee",
+      "casePointer": "/cases/14",
+      "rowPointer": "/matrixRows/14",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-016",
+      "formalCaseId": "ST-MATRIX-e7e9f402f1b80eb0",
+      "casePointer": "/cases/15",
+      "rowPointer": "/matrixRows/15",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-017",
+      "formalCaseId": "ST-MATRIX-fc2fd18095f1d43f",
+      "casePointer": "/cases/16",
+      "rowPointer": "/matrixRows/16",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-018",
+      "formalCaseId": "ST-MATRIX-b848a3411356ed39",
+      "casePointer": "/cases/17",
+      "rowPointer": "/matrixRows/17",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-019",
+      "formalCaseId": "ST-MATRIX-2340101ecb37b999",
+      "casePointer": "/cases/18",
+      "rowPointer": "/matrixRows/18",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-020",
+      "formalCaseId": "ST-MATRIX-68b89f19faa5c761",
+      "casePointer": "/cases/19",
+      "rowPointer": "/matrixRows/19",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-021",
+      "formalCaseId": "ST-MATRIX-cdfd8a084c302e90",
+      "casePointer": "/cases/20",
+      "rowPointer": "/matrixRows/20",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-022",
+      "formalCaseId": "ST-MATRIX-25b586f74ed482f6",
+      "casePointer": "/cases/21",
+      "rowPointer": "/matrixRows/21",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-023",
+      "formalCaseId": "ST-MATRIX-7891b46a78b39095",
+      "casePointer": "/cases/22",
+      "rowPointer": "/matrixRows/22",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-024",
+      "formalCaseId": "ST-MATRIX-8180d01ce4ed2cd9",
+      "casePointer": "/cases/23",
+      "rowPointer": "/matrixRows/23",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-025",
+      "formalCaseId": "ST-MATRIX-8a814185a0477c6b",
+      "casePointer": "/cases/24",
+      "rowPointer": "/matrixRows/24",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-026",
+      "formalCaseId": "ST-MATRIX-8374d4d9c01bd370",
+      "casePointer": "/cases/25",
+      "rowPointer": "/matrixRows/25",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-027",
+      "formalCaseId": "ST-MATRIX-d6f10ba77c4afebf",
+      "casePointer": "/cases/26",
+      "rowPointer": "/matrixRows/26",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-028",
+      "formalCaseId": "ST-MATRIX-1e3eb32c2185cd47",
+      "casePointer": "/cases/27",
+      "rowPointer": "/matrixRows/27",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-029",
+      "formalCaseId": "ST-MATRIX-c3dc57ac4180d9ed",
+      "casePointer": "/cases/28",
+      "rowPointer": "/matrixRows/28",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-030",
+      "formalCaseId": "ST-MATRIX-8e287aa5931d86e0",
+      "casePointer": "/cases/29",
+      "rowPointer": "/matrixRows/29",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-031",
+      "formalCaseId": "ST-MATRIX-c798608d39c9f474",
+      "casePointer": "/cases/30",
+      "rowPointer": "/matrixRows/30",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-032",
+      "formalCaseId": "ST-MATRIX-c6271c7324ed6023",
+      "casePointer": "/cases/31",
+      "rowPointer": "/matrixRows/31",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-033",
+      "formalCaseId": "ST-MATRIX-eaeae69e6752fa66",
+      "casePointer": "/cases/32",
+      "rowPointer": "/matrixRows/32",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-034",
+      "formalCaseId": "ST-MATRIX-ad4cfc0f63a6dbf8",
+      "casePointer": "/cases/33",
+      "rowPointer": "/matrixRows/33",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-035",
+      "formalCaseId": "ST-MATRIX-ec995399e886276d",
+      "casePointer": "/cases/34",
+      "rowPointer": "/matrixRows/34",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-036",
+      "formalCaseId": "ST-MATRIX-bbfeef52f448a4a4",
+      "casePointer": "/cases/35",
+      "rowPointer": "/matrixRows/35",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-037",
+      "formalCaseId": "ST-MATRIX-c5ea9a0c4942c164",
+      "casePointer": "/cases/36",
+      "rowPointer": "/matrixRows/36",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-038",
+      "formalCaseId": "ST-MATRIX-c296017359b80d17",
+      "casePointer": "/cases/37",
+      "rowPointer": "/matrixRows/37",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-039",
+      "formalCaseId": "ST-MATRIX-ee523e12b7a3a2a4",
+      "casePointer": "/cases/38",
+      "rowPointer": "/matrixRows/38",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-040",
+      "formalCaseId": "ST-MATRIX-68713bec0a38a3b3",
+      "casePointer": "/cases/39",
+      "rowPointer": "/matrixRows/39",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-041",
+      "formalCaseId": "ST-MATRIX-2ef61429b8dd655f",
+      "casePointer": "/cases/40",
+      "rowPointer": "/matrixRows/40",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-042",
+      "formalCaseId": "ST-MATRIX-d9ec54465de8ff5a",
+      "casePointer": "/cases/41",
+      "rowPointer": "/matrixRows/41",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-043",
+      "formalCaseId": "ST-COVERAGE-5ffabae886307443",
+      "casePointer": "/cases/42",
+      "rowPointer": "/matrixRows/0",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-044",
+      "formalCaseId": "ST-COVERAGE-07195169e423e561",
+      "casePointer": "/cases/43",
+      "rowPointer": "/matrixRows/1",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-045",
+      "formalCaseId": "ST-COVERAGE-9e3198e12b1d2e23",
+      "casePointer": "/cases/44",
+      "rowPointer": "/matrixRows/2",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-046",
+      "formalCaseId": "ST-COVERAGE-9999f9fbf18b91f6",
+      "casePointer": "/cases/45",
+      "rowPointer": "/matrixRows/3",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-047",
+      "formalCaseId": "ST-COVERAGE-cd649f97d08cd25e",
+      "casePointer": "/cases/46",
+      "rowPointer": "/matrixRows/4",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-048",
+      "formalCaseId": "ST-COVERAGE-7dd0d8a26b99a59f",
+      "casePointer": "/cases/47",
+      "rowPointer": "/matrixRows/5",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-049",
+      "formalCaseId": "ST-COVERAGE-9cd7383921b519f1",
+      "casePointer": "/cases/48",
+      "rowPointer": "/matrixRows/6",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-050",
+      "formalCaseId": "ST-COVERAGE-92df2dc6f3d65633",
+      "casePointer": "/cases/49",
+      "rowPointer": "/matrixRows/7",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-051",
+      "formalCaseId": "ST-COVERAGE-c1cab00ff64c05d4",
+      "casePointer": "/cases/50",
+      "rowPointer": "/matrixRows/8",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-052",
+      "formalCaseId": "ST-COVERAGE-46b323eb34acae8d",
+      "casePointer": "/cases/51",
+      "rowPointer": "/matrixRows/9",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-053",
+      "formalCaseId": "ST-COVERAGE-2be9820bea7168c8",
+      "casePointer": "/cases/52",
+      "rowPointer": "/matrixRows/10",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-054",
+      "formalCaseId": "ST-COVERAGE-e397032a14b73104",
+      "casePointer": "/cases/53",
+      "rowPointer": "/matrixRows/11",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-055",
+      "formalCaseId": "ST-COVERAGE-4d6bcefdeb2816ad",
+      "casePointer": "/cases/54",
+      "rowPointer": "/matrixRows/12",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-056",
+      "formalCaseId": "ST-COVERAGE-8c54e088bc469f94",
+      "casePointer": "/cases/55",
+      "rowPointer": "/matrixRows/13",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-057",
+      "formalCaseId": "ST-COVERAGE-2a88304d83d71ee0",
+      "casePointer": "/cases/56",
+      "rowPointer": "/matrixRows/14",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-058",
+      "formalCaseId": "ST-COVERAGE-097553ae4323a61e",
+      "casePointer": "/cases/57",
+      "rowPointer": "/matrixRows/15",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-059",
+      "formalCaseId": "ST-COVERAGE-b5f21380f4347699",
+      "casePointer": "/cases/58",
+      "rowPointer": "/matrixRows/16",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-060",
+      "formalCaseId": "ST-COVERAGE-870aac85bda45206",
+      "casePointer": "/cases/59",
+      "rowPointer": "/matrixRows/17",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-061",
+      "formalCaseId": "ST-COVERAGE-7ec9beb7a503ee29",
+      "casePointer": "/cases/60",
+      "rowPointer": "/matrixRows/18",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-062",
+      "formalCaseId": "ST-COVERAGE-7401ae5d5fe3798b",
+      "casePointer": "/cases/61",
+      "rowPointer": "/matrixRows/19",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-063",
+      "formalCaseId": "ST-COVERAGE-0dd72e35c30d685a",
+      "casePointer": "/cases/62",
+      "rowPointer": "/matrixRows/20",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-064",
+      "formalCaseId": "ST-COVERAGE-455b4bd73e7b7b55",
+      "casePointer": "/cases/63",
+      "rowPointer": "/matrixRows/21",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-065",
+      "formalCaseId": "ST-COVERAGE-ab622e447eb8120b",
+      "casePointer": "/cases/64",
+      "rowPointer": "/matrixRows/22",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-066",
+      "formalCaseId": "ST-COVERAGE-e8cdbca72db48a03",
+      "casePointer": "/cases/65",
+      "rowPointer": "/matrixRows/23",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-067",
+      "formalCaseId": "ST-COVERAGE-97d07a145183a4a4",
+      "casePointer": "/cases/66",
+      "rowPointer": "/matrixRows/24",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-068",
+      "formalCaseId": "ST-COVERAGE-cd938bc6c848c4f1",
+      "casePointer": "/cases/67",
+      "rowPointer": "/matrixRows/25",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-069",
+      "formalCaseId": "ST-COVERAGE-031fd6fdd1222770",
+      "casePointer": "/cases/68",
+      "rowPointer": "/matrixRows/26",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-070",
+      "formalCaseId": "ST-COVERAGE-badb54fdba41a1cf",
+      "casePointer": "/cases/69",
+      "rowPointer": "/matrixRows/27",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-071",
+      "formalCaseId": "ST-COVERAGE-c8730b07716bcca9",
+      "casePointer": "/cases/70",
+      "rowPointer": "/matrixRows/28",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-072",
+      "formalCaseId": "ST-COVERAGE-9a180a81d6736b43",
+      "casePointer": "/cases/71",
+      "rowPointer": "/matrixRows/29",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-073",
+      "formalCaseId": "ST-COVERAGE-e5956802141ee0ab",
+      "casePointer": "/cases/72",
+      "rowPointer": "/matrixRows/30",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-074",
+      "formalCaseId": "ST-COVERAGE-ca420331b552d1a4",
+      "casePointer": "/cases/73",
+      "rowPointer": "/matrixRows/31",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-075",
+      "formalCaseId": "ST-COVERAGE-ba1be93e180751ea",
+      "casePointer": "/cases/74",
+      "rowPointer": "/matrixRows/33",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-076",
+      "formalCaseId": "ST-COVERAGE-c4782366672c6914",
+      "casePointer": "/cases/75",
+      "rowPointer": "/matrixRows/34",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-077",
+      "formalCaseId": "ST-COVERAGE-9f87ed6e089e9bdc",
+      "casePointer": "/cases/76",
+      "rowPointer": "/matrixRows/35",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-078",
+      "formalCaseId": "ST-COVERAGE-1aad4eca712db303",
+      "casePointer": "/cases/77",
+      "rowPointer": "/matrixRows/36",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-079",
+      "formalCaseId": "ST-COVERAGE-7896c33d74cdcb16",
+      "casePointer": "/cases/78",
+      "rowPointer": "/matrixRows/37",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-080",
+      "formalCaseId": "ST-COVERAGE-0944f3267908dea0",
+      "casePointer": "/cases/79",
+      "rowPointer": "/matrixRows/38",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-081",
+      "formalCaseId": "ST-COVERAGE-1508915abc45328f",
+      "casePointer": "/cases/80",
+      "rowPointer": "/matrixRows/39",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-082",
+      "formalCaseId": "ST-COVERAGE-65c9a0eb1c75db4d",
+      "casePointer": "/cases/81",
+      "rowPointer": "/matrixRows/40",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-083",
+      "formalCaseId": "ST-COVERAGE-96dfb9e633353f18",
+      "casePointer": "/cases/82",
+      "rowPointer": "/matrixRows/41",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-084",
+      "formalCaseId": "ST-COVERAGE-459bc92fd7655892",
+      "casePointer": "/cases/83",
+      "rowPointer": "/matrixRows/0",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-085",
+      "formalCaseId": "ST-COVERAGE-a6919767c2d92d6c",
+      "casePointer": "/cases/84",
+      "rowPointer": "/matrixRows/1",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-086",
+      "formalCaseId": "ST-COVERAGE-68907918cdcec80e",
+      "casePointer": "/cases/85",
+      "rowPointer": "/matrixRows/2",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-087",
+      "formalCaseId": "ST-COVERAGE-74908e4c51a7dd84",
+      "casePointer": "/cases/86",
+      "rowPointer": "/matrixRows/3",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-088",
+      "formalCaseId": "ST-COVERAGE-fef715e2bfd98c87",
+      "casePointer": "/cases/87",
+      "rowPointer": "/matrixRows/4",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-089",
+      "formalCaseId": "ST-COVERAGE-98248365563bcca0",
+      "casePointer": "/cases/88",
+      "rowPointer": "/matrixRows/5",
+      "projectionKeys": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-090",
+      "formalCaseId": "ST-OPERATION-242b042f3726e50d",
+      "casePointer": "/cases/89",
+      "rowPointer": "/operationRows/0",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-091",
+      "formalCaseId": "ST-OPERATION-5285ade7a59b52c8",
+      "casePointer": "/cases/90",
+      "rowPointer": "/operationRows/1",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-092",
+      "formalCaseId": "ST-OPERATION-91968463532cf5cb",
+      "casePointer": "/cases/91",
+      "rowPointer": "/operationRows/2",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-093",
+      "formalCaseId": "ST-OPERATION-cbebab7ff8370531",
+      "casePointer": "/cases/92",
+      "rowPointer": "/operationRows/3",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-094",
+      "formalCaseId": "ST-OPERATION-3bcb85a37f374416",
+      "casePointer": "/cases/93",
+      "rowPointer": "/operationRows/4",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-095",
+      "formalCaseId": "ST-OPERATION-13b289e742593f90",
+      "casePointer": "/cases/94",
+      "rowPointer": "/operationRows/5",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-096",
+      "formalCaseId": "ST-OPERATION-e6c67c06707d5759",
+      "casePointer": "/cases/95",
+      "rowPointer": "/operationRows/6",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-097",
+      "formalCaseId": "ST-OPERATION-93799cd3c928a723",
+      "casePointer": "/cases/96",
+      "rowPointer": "/operationRows/7",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-098",
+      "formalCaseId": "ST-OPERATION-6e73a96c10ecd75c",
+      "casePointer": "/cases/97",
+      "rowPointer": "/operationRows/8",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-099",
+      "formalCaseId": "ST-OPERATION-2133d452dd1be1f3",
+      "casePointer": "/cases/98",
+      "rowPointer": "/operationRows/9",
+      "projectionKeys": [
+        "clauseId",
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-100",
+      "formalCaseId": "ST-UNDO-7086f02e0ed5594b",
+      "casePointer": "/cases/99",
+      "rowPointer": "/undoRows/0",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-101",
+      "formalCaseId": "ST-UNDO-13cd1c499f1a12f6",
+      "casePointer": "/cases/100",
+      "rowPointer": "/undoRows/1",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-102",
+      "formalCaseId": "ST-UNDO-14aaae76b32b897d",
+      "casePointer": "/cases/101",
+      "rowPointer": "/undoRows/2",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-103",
+      "formalCaseId": "ST-UNDO-0097b0deff19b9a3",
+      "casePointer": "/cases/102",
+      "rowPointer": "/undoRows/3",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-104",
+      "formalCaseId": "ST-UNDO-80ff461f46b47e22",
+      "casePointer": "/cases/103",
+      "rowPointer": "/undoRows/4",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-105",
+      "formalCaseId": "ST-UNDO-fe044f398d161921",
+      "casePointer": "/cases/104",
+      "rowPointer": "/undoRows/5",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-106",
+      "formalCaseId": "ST-UNDO-697a8e0de202ff20",
+      "casePointer": "/cases/105",
+      "rowPointer": "/undoRows/6",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-107",
+      "formalCaseId": "ST-UNDO-b76d1a2fcda64c97",
+      "casePointer": "/cases/106",
+      "rowPointer": "/undoRows/7",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-108",
+      "formalCaseId": "ST-UNDO-2b2d0c0e5747c41c",
+      "casePointer": "/cases/107",
+      "rowPointer": "/undoRows/8",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    },
+    {
+      "blindCaseId": "P6-T1-BASE-109",
+      "formalCaseId": "ST-UNDO-1f88841418ec222f",
+      "casePointer": "/cases/108",
+      "rowPointer": "/undoRows/9",
+      "projectionKeys": [
+        "stateEffect",
+        "historyEffect",
+        "operationResult",
+        "guaranteeMode",
+        "historyContext"
+      ]
+    }
+  ],
+  "additionalSeven": "現行正式契約に対応する新規caseがなく、J5/J6およびP-8正式受理後に別集合として対応を固定する"
+}
