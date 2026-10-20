@@ -46,15 +46,15 @@ U-S1の2026-10-20回答（`tsk544-p7-us1-response.md`、コミット`5ca7ef2e`�
 
 ## 条件付き受理を閉じる接続表（2026-10-21・候補）
 
-`read_t1_context_v1`の`writer`引数は現状のままなら書込tokenも受けられるため、読取専用である証明にはならない。候補`T1ReadScopeV1`は適用核が同じtenant・game・transactionで発行し、登録済みの固定SELECT tokenだけを通し、書込token/任意SQL/別Sessionを拒否する能力型とする。公開署名候補は`read_t1_context_v1(scope: T1ReadScopeV1, *, game_id: UUID, wire_d4: str, internal_generation: int, d1: int, d5: UUID) -> Result[T1AppliedContextV1, T1ContextReadFailureV1]`。U-S1が発行/失効・同scope組立・固定読取接続、U-X1が4値の閉型と必要な射影、規則/名簿/履歴のデータ所有側が版・認可・上限を受ける案。既存登録済みtokenだけでは4値は完成せず、この署名も**未提供**である。
+`read_t1_context_v1`の`writer`引数は現状のままなら書込tokenも受けられるため、読取専用である証明にはならない。候補`T1ReadScopeV1`は適用核が同じtenant・game・transactionで発行・失効する別wrapperとし、登録済みの固定SELECT tokenの**型完全一致allowlist**だけを通し、書込token・副作用関数・任意SQL・別Sessionを拒否する能力型とする。`read_t1_context_v1`はこのwrapperで読取のみ行い、`prepare_t1_v1(raw_event, immutable_context)`へscope/writer/Session/callbackを渡さない。型注釈だけで無書込を証明せず、登録SQLと実wrapperの負例試験を要する。公開署名候補は`read_t1_context_v1(scope: T1ReadScopeV1, *, game_id: UUID, wire_d4: str, internal_generation: int, d1: int, d5: UUID) -> Result[T1AppliedContextV1, T1ContextReadFailureV1]`。U-S1が発行/失効・同scope組立・固定読取接続、U-X1が4値の閉型と必要な射影、規則/名簿/履歴のデータ所有側が版・認可・上限を受ける案。既存登録済みtokenだけでは4値は完成せず、この署名も**未提供**である。
 
 | 時点 | この時点で確定する値・検査 | まだ確定しない値・副作用 |
 | --- | --- | --- |
 | ④既存D5照合後、⑦の読取・prepare | 原イベントの欠落/null/タグ付き参照、`HomeTouchOrderV1`観測、wire D4・codec版1・新wireの正規化イベント指紋、同scopeで固定した規則snapshot・時点名簿・**投影前**状態・有効履歴prefix。既知の同scope参照とOUT3/RBI等の意味入力だけを一回評価し、不変`T1PreparedEvaluationV1`に原event/D1/D5/4値の版印・参照対応・評価結果を束縛する | C2の一時ID→正式ID、P2の割当D2、C2の成否、後段投影は未確定。C2 pendingを⑦の内容拒否にしない。prepareはDB書込・event保存・D5台帳挿入/消費・D3更新・T4投影をしない。純関数の評価と上記固定SELECT読取を分離する |
 | T5/O4通過後のC2 | 割当D2と限定resolverによる正式参照、同game/team/scope照合。O4が先で、C2単独未解決は既存B7意味/現実装の例外伝搬を維持する | C2結果を⑦へ遡及して内容拒否にしない。T1用の新規書込/受理はまだ行わない |
-| C2後・T4/ledger挿入前 | `assert_t1_equivalent_v1`で下記の閉射影を比較し、成功時だけpreparedをT4へ渡す。失敗時は後段書込へ進まず、同イベント取引の取消を要求 | 不一致をB3a/T9・O5・B7・S-STOPのどれかへ**推測分類しない**。局所取消の確認とcommit不明は区別し、公開結果/再送/復旧をU-S1と確定するまでは接続しない |
+| C2後・T4/ledger挿入前 | `assert_t1_equivalent_v1`で下記の閉射影を比較し、成功時だけpreparedをT4へ渡す。失敗時は後段書込へ進まず、既に行われ得るT5を含む同イベント取引全体の取消を要求 | 不一致をB3a/T9・O5・B7・S-STOPのどれかへ**推測分類しない**。局所取消の確認とcommit不明は区別し、公開結果/再送/復旧をU-S1と確定するまでは接続しない |
 
-同値比較の候補射影は `(tenant, game, internal_generation, D1, D5, logical_slot, normalized_player_refs, rules_version, roster_version, pre_state_version, prefix_version, home_touch_order, evaluation_input_hash)`。タグ付き一時IDとC2後の正式IDは同じ限定写像・時点名簿の同一人物で照合し、UUID文字列や現在名簿の見た目だけを比較しない。assigned D2は数値一致でなく同じ論理位置と有効prefixを証明する。版印/タグ付き順序/新wire指紋のどれかが異なる、または証明に必要な写像が欠けるなら`T1EquivalenceFailureV1`候補へ進め、T4の再計算で隠さない。⑦で意味評価を完了できない参照がある場合は、⑦の内容判定とC2成功条件を両立できるかが**未証明**であり、U-X1/U-S1が具体反例を提示するまでは条件付き受理のままにする。
+同値比較の候補射影は `(tenant, game, wire_d4, internal_generation, wire_codec_version, D1, D5, logical_slot, normalized_player_refs, rules_content_hash, roster_content_hash, pre_state_content_hash, prefix_content_hash, home_touch_order, evaluation_input_hash)`。タグ付き一時IDとC2後の正式IDは同じ限定写像・時点名簿の同一人物で照合し、UUID文字列や現在名簿の見た目だけを比較しない。assigned D2は数値一致でなく同じ論理位置と有効prefixを証明する。版印だけでなく同じ内容の証拠/タグ付き順序/不透明wire D4/codec版/新wire指紋のどれかが異なる、または証明に必要な写像が欠けるなら`T1EquivalenceFailureV1`候補へ進め、T4の再計算で隠さない。⑦で意味評価を完了できないpending参照がある場合は、**許容される全C2写像で同じ評価結果・同じ内容拒否になる証明**が必要。別の選手/攻撃team/出場slotへの写像で得点者・OUT3/RBI・観測順が変わる反例では⑦完了条件は成立せず、⑦の内容判定とC2成功条件を両立できるかが**未証明**であり、U-X1/U-S1が具体反例を提示するまでは条件付き受理のままにする。
 
 ### J6原入力の結果別保存表（新wire限定・未受理候補）
 
@@ -63,12 +63,14 @@ U-S1の2026-10-20回答（`tsk544-p7-us1-response.md`、コミット`5ca7ef2e`�
 | 結果・D5種別 | 新規サーバー原本行の候補 | 取引・保持/取消・再送時の利用 |
 | --- | --- | --- |
 | 新規成功（P1/P2） | 当該イベント原値/codec版/順序観測とD5指紋を1行 | ledger受理・event・T4と同じイベント取引で確定。失敗なら全取消。DI2では行を増やさず、保存済み結果を再掲。原本は再実行/下流再計算用 |
-| 新規B3a/T9内容拒否 | 当該イベント原値/codec版/順序観測を、既存拒否原本とは役割を分けて1行とする候補 | T9のledger拒否・拒否原本と同じ取引だけで確定。取消なら0行。後続のW2照合/DI2は既存原本と台帳指紋を権威とし、新行で既決結果を変えない |
-| 新規B4/T8退避 | 当該イベント原値/codec版/順序観測を1行とする候補 | T8のledger退避・退避原本と同じ取引だけで確定。旧世代の取扱いはT8契約に従う。DI2は再挿入せず退避結果を再掲 |
+| 新規B3a/T9内容拒否 | 当該イベント原値/codec版/順序観測を、既存拒否原本とは役割を分けて1行とする候補 | 元の適用取引を取消した後、同じ不変原event/codec/指紋をT9の別取引へ明示的に渡し、ledger拒否・拒否原本と不可分に確定。取消なら0行。後続のW2照合/DI2は既存原本と台帳指紋を権威とし、新行で既決結果を変えない |
+| 新規B4/T8退避 | 当該イベント原値/codec版/順序観測を1行とする候補 | 元の適用取引を取消した後、同じ不変原event/codec/指紋をT8の別取引へ明示的に渡し、ledger退避・退避原本と不可分に確定。原wire D4と現在内部世代の同値を要求せず、旧世代との関係はT8契約に従う。DI2は再挿入せず退避結果を再掲 |
 | 既存D5・同指紋（DI2） | **追加0行・既存行変更0** | ④で保存済み結果を再掲。新たに⑦prepare/C2/原本解決へ進まず、既存原本があっても上書きしない。表現差だけの同内容再送も同様 |
 | 既存D5・異指紋（B3b）、O4、B2、後続未処理 | **追加0行** | B3bは先着行と結果を維持、O4/B2はT9を開始しない。前方確定は保持し、後続を勝手に保存しない。再送は既存の各境界に従う |
 | `S-STOP`の5限定理由（改訂元不在/不整合/読取失敗/権限失敗/未提供墓標） | `rollback_confirmed`なら当該イベントの業務原本行は**0**。停止/試行の耐久制御記録は別契約 | 当該取引取消/未開始の権威ある確認時だけD5未消費。前方確定は残り、端末は要求全体を未確認保持。自動再送せず、前提回復後の明示再開で同じD1/D5/内容/codec版を再提示 |
-| `S-STOP`または通常障害の`commit_unknown` | **0行とも1行とも断定しない** | 業務原本・ledger・eventの確定/取消を耐久照会で解決するまで保持/訂正/再送を推測しない。確定済みなら既存D5はDI2、取消確認済みなら前提再検査後の許可された同内容再開。停止のままなら自動再送禁止 |
+| `S-STOP`または通常障害の`commit_unknown` | **0行とも1行とも断定しない** | 業務原本・ledger・eventの確定/取消を耐久照会で解決するまで保持/訂正/再送を推測しない。確定済みなら既存D5はDI2。S-STOPは`prepare_sync_resume`候補の明示再開、非S-STOPの応答不明は`recover_sync_attempt`候補による旧試行終結・後着遮断確認後の`retry_allowed`と新attemptでの元要求全体の照合再送を区別する。停止のままなら自動再送禁止 |
 | 既存通常B7・保存状態破損・認証/認可拒否・外形拒否 | 原則、新しいT1業務原本行を起こさない**候補**。取引途中の障害は取消確認/commit不明で分ける | B7を一律S-STOPへ変えない。認証/認可前に原本行を作らない。既存台帳破損を新しい未使用D5として再解釈しない。B7の再送可否は既存契約/試行バリアに従う |
 
 同一バッチでは前方の確定行だけ保持し、停止対象の原本・ledger・投影は対象取引の取消確認に従い、後続は未処理とする。原本行の挿入順、競合後の再照合、T8等の全経路で原値をどう引き回すか、保存/読取token・RLS/ACL・物理実装担当はU-S1/U-R1/506の項目別回答まで未確定。原本行を全結果へ一律保存する宣言ではない。
+
+**U-S1差分回答（`b74808ef`）**: 読取専用wrapperと能力なし純粋prepareの責任案、T8/T9原本の別取引内不可分保存、DI2/O4/B2で追加0を候補として受けた。`T1EquivalenceFailureV1`は、T5を含む当該イベントscopeの取消が権威ある方法で確認された場合だけ既存B7へ写し、恒久不一致はQ8顕在化へ送る案を提示したが、**未採用**であり結果分類のPO/接続ゲートが残る。取消/commit不明時はD5未消費と断定せず、旧試行終結・後着遮断の実providerは未指定・未提供。新wire原本の物理型・RLS/ACL・7.7も未確定。
