@@ -482,3 +482,13 @@ HEAD `18930499`の主担当実host `/tmp/uf8-entry-final-browser.log` は、対�
 - 9893706dに対する実App・実Auth HTTP・HTTPS・専用outer/inner DBのsealed-uiは **5 passed/20.4秒**。logout200/旧Cookie401、正規/不正ID、認証拒否/通信abort、遅延/明示再確認、再読込・複数タブ、旧tenant実一覧値の消失/新値表示、実375/320pxのscrollWidth一致を確認した。5runtime sourceの実行前後SHAはすべて不変。backend pytest非0/timeoutを成功扱いにせず、秘密DOMsnapshotを抑止し自分の出力/資格情報を後始末する支援を使った。
 - 同一UI/候補/子process契約のfrontend全件は90ファイル **1,773 passed/92.00秒**。全Prettier/ESLint/vue-tsc/build成功、build closureは9ファイル/外部参照0/違反0。root Ruff/ty、docs-status/plan-docs-sync、候補generate --checkも成功。backend実装/既存fixtureは不変で、専用DB3039成功4既存skipと同一harness29678成功2skipの本セッション実測を再利用する。
 - 7.7受理用の候補説明をfeature内に用意し、完全前後値/patch/単一PRへの紐付けと未割当の正式適用SHA・本人欄を区別した。実CI・正式資産・backend製品の差分0、候補追補v2の承認とApp追補は未回答。P0例外や新レビュー枠、7.7受理・署名・GAP-05・原子性・1試合完遂を記録していない。次は基本第2回の差分と影響範囲のレビューである。
+
+### 2026-10-21 後続6〜7の独立Draft提出へクローズ
+
+敵対基本第2回は1194ab6e..固定b5dd4972の差分と影響箇所だけを査読し、確定P0=0/P1=0/P2=0、今回差分の技術査読を通過した。ログは主担当の/tmp/uf8-entry-adversarial2.log。レビュー者はテストや実DB接続を実行していない。6〜7の基本2枠を消費、P0限定例外は未発動で、追加レビュー/normal再実施はしていない。Claude一次11件全採用とprimary自己検査是正の履歴、計画3回13採用/最終P0限定/未再査読、親PRの回数は保持する。
+
+最終コードのsealed-uiは実App/Auth HTTP/HTTPS/自分専用outer・inner DBで5成功20.4秒。最終のreal-game負例もdummy SHA/IDを渡して実行1件・正式driver未接続による失敗1件となり、skipやゲーム完遂成功にはしていない。backend製品/既存fixturesは同一コードの専用DB3039成功4既存skip、本harness同一コード29678成功2skipを再利用し、90ファイル1773成功と全frontend静的検査/build・root Ruff/ty・文書/候補検査を揃えた。封鎖の意味を弱める変更や形式資産の適用はない。
+
+台帳への追記なし。今回是正したのは当該featureの候補生成とE2E初期化/秘密抑止/終了回収であり、既存harness・検査器の規範変更を要する欠陥は確認していない。Dockerに伴うホストnetwork-changeの証跡と直列実行の手順はfeature内に保存した。新しい評価項目として優先度を確定する横断知見とはしていない。
+
+計画statusをin-reviewへ変更し、6の封鎖付き入口と7のローカル検査/完全候補だけを部分提出する。7.7正式受理とCI適用、Appと追加9ファイルのscope判断、正式Port/計算/API・成績供給と対象計算同一変更の呼出部、GAP-05/原子性/実1試合、カード全体DoDは未達。本人逐行確認/担当受理/署名は代記せず、通常push/Draftのみを行う。公開・Draft解除・マージ・共有DB/ロール変更は行わない。クローズメタデータ以降の製品/試験/候補コードはb5dd4972から不変である。
