@@ -96,3 +96,14 @@
   - P2-3: 拒否rootがSQLSTATEのみだったため、全拒否アサーションでメッセージ`games.applied_rules is immutable after insert`を照合するよう強化した。
   - P2-4: 恒久試験のdocstringの「候補」を「恒久試験」へ修正した。
 - 反映後の再実行: 恒久試験2件＋`test_schema_audit`・`test_immutability_enforcement`・`test_immutability_matrix`・`test_migration_round_trip`の計8件が合格。ruff/tyも合格。
+
+## 2026-10-20 ステップ4（認可資産・7.7受理）と最終追随
+
+- 統合順をPO判断で **#163 → #161 → #162** に入れ替えた。#162（§6-5正本）が本PRを取り込み、`games.applied_rules` の保護宣言が入った状態で受入シートを1回だけ判定できるようにするため。
+- 認可資産: トリガ関数2本（`prevent_games_applied_rules_update`・`verify_games_applied_rules_final`）を `ddl-elements.json`・関数本体SQL・`function-bodies/manifest.json`・`probe-product-map.json` へ登録した。
+- 7.7: `rederive --base 7c1afeba` → `render` → `check` rc=0。`runtime_contract_revision` 17→18、保護関数 53→55、`source_digest` `7d681ae1…`、`application_role.attributes` は変更なし。
+- 受理記録: `base-allowlist.json` の履歴へ追記のみ（24件目）。`acceptance_id=masaki1025/pitchlog#161` / `approved_by=masaki1025` / `approved_on=2026-10-20`、snapshot `f4fcc729…`。
+- 併せて: `test_alembic_migrations.py` の head 固定を `0033_game_rules_immutable` へ追随。N3 105行の判定を確定（出現084/085/091〜094 は PO 承認 2026-10-20 の「対象外」）。
+- `tests/test_check_authz_catalog.py` の未発効状態の複製は暫定契約の版で固定するため、0033 も複製から外した（0028 と同じ扱い）。
+- 検査: backend 非DB 2391 passed / 4 skipped / 650 deselected、root `test_check_authz_catalog.py` 25820 passed、`test_frozen_history.py` passed、`check_tenant_boundary_bypass.py --base-ref origin/develop` ok、`test_orm_acceptance_sheets.py` 13 passed、backend `ruff format --check`・`ruff check`・`ty` と root `ruff check`・`ty` 合格。実DB群は migration を変えていないため前回実測のままとし、ステップ4後の認可DB試験はCIで再実行する。
+- 未了（人間）: core-guard の逐行確認、マージ、既存DBへの0033適用（別ゲート）。
