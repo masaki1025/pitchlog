@@ -8476,7 +8476,7 @@ def test_0028_preflight_restores_product_force_rls_after_success(
     command.upgrade(config, "head")
     with psycopg.connect(catalog.owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT version_num FROM alembic_version")
-        assert cursor.fetchone() == ("0032_rg1_restore_gate",)
+        assert cursor.fetchone() == ("0033_game_rules_immutable",)
         cursor.execute("SELECT singleton_id, state FROM public.rg1_restore_gate")
         assert cursor.fetchall() == [(1, "closed")]
 
