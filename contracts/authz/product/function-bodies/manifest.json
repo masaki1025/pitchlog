@@ -985,6 +985,16 @@
       "element_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"
     },
     {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:prevent_games_applied_rules_update().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:public:prevent_games_applied_rules_update()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:verify_games_applied_rules_final().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:public:verify_games_applied_rules_final()"
+    },
+    {
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner"

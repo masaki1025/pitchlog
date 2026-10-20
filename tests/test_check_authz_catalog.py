@@ -312,7 +312,13 @@ def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     provisional_revision = runtime_contract_support.provisional_reference_revision(
         REPOSITORY_ROOT
     )
-    (root / checker.PRODUCT_MIGRATION_VERSIONS / "0028_tenant_login_identity.py").unlink()
+    # 未発効候補は暫定契約の版で固定する。暫定契約より後に足した migration の関数は
+    # その版の契約に無いため、候補の複製からは外す(0028・0033)。
+    for filename in (
+        "0028_tenant_login_identity.py",
+        "0033_game_rules_immutable.py",
+    ):
+        (root / checker.PRODUCT_MIGRATION_VERSIONS / filename).unlink()
     steps_path = root / checker.PRODUCT_SPEC.application_steps_path
     steps = _read_json_at(root, checker.PRODUCT_SPEC.application_steps_path)
     for step in steps["application_steps"]:
