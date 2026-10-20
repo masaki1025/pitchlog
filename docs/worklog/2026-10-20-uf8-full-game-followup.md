@@ -474,3 +474,11 @@ HEAD `18930499`の主担当実host `/tmp/uf8-entry-final-browser.log` は、対�
 `GameScreen.e2e.ts`の選択中選手欄だけを、製品`TeamScreen.vue`の`#players-heading`の文字列をtrimした完全一致Booleanで確認するよう変更した。任意の先頭・番号指定の要素は使わず、失敗ログへ対戦相手名を出さない。実API200・tenant・読取完了・UI・通信idle、logoutの旧Cookie再提示、遅延/再確認、viewport幅、封鎖E2Eの5ケースは維持する。製品UI/API、実Game Port、計算、codec、キュー、候補bytesは変更していない。
 
 対象Prettier、対象ESLint、`vue-tsc --noEmit`、候補`generate.py --check`、`git diff --check`は成功。候補checkは必要な既存`PYTHONPATH=scripts:tests/fixtures/frozen-archive-cases:backend/src`を指定して実行し、再生成・公開はしていない。この修正後の実host5件は**未再測定**で、主担当の再実行待ち。敵対基本第1回の確定P0/P1/P2=0と通過判定保留、第2回未実施、計画査読3回13件採用、normal一次11件全採用、未承認scope v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`と旧899文書の不変更を保持する。変更は当E2Eとworklogのみ。commit/push/外部連絡/次ステップは行っていない。
+
+### 2026-10-21 最終入口/E2E検査と第2回敵対への提出
+
+- 敵対基本第1回は固定2fc46ddc..1194ab6eの60ファイル全差分を確認し、確定P0=0/P1=0/P2=0。ただし最終実ブラウザが未成功のため通過判定保留。新scope文書3ea7d9e0は固定対象外だった。レビュー者はテスト・DB接続を実行していない。親PR/計画枠を流用せず、6〜7基本1回を消費した。
+- 初期players読取の完了待ちを追加した18930499の実E2Eは0/5だった。安全な同一helper診断で、実HTTP/DTO/tenant/query/読取完了は正常、失敗原因は同名を含むheading2件のstrict modeと判明。意図したplayers-headingの文字列完全一致に限定する9893706dをコミットし、任意first/nth選択やassert削除をしていない。
+- 9893706dに対する実App・実Auth HTTP・HTTPS・専用outer/inner DBのsealed-uiは **5 passed/20.4秒**。logout200/旧Cookie401、正規/不正ID、認証拒否/通信abort、遅延/明示再確認、再読込・複数タブ、旧tenant実一覧値の消失/新値表示、実375/320pxのscrollWidth一致を確認した。5runtime sourceの実行前後SHAはすべて不変。backend pytest非0/timeoutを成功扱いにせず、秘密DOMsnapshotを抑止し自分の出力/資格情報を後始末する支援を使った。
+- 同一UI/候補/子process契約のfrontend全件は90ファイル **1,773 passed/92.00秒**。全Prettier/ESLint/vue-tsc/build成功、build closureは9ファイル/外部参照0/違反0。root Ruff/ty、docs-status/plan-docs-sync、候補generate --checkも成功。backend実装/既存fixtureは不変で、専用DB3039成功4既存skipと同一harness29678成功2skipの本セッション実測を再利用する。
+- 7.7受理用の候補説明をfeature内に用意し、完全前後値/patch/単一PRへの紐付けと未割当の正式適用SHA・本人欄を区別した。実CI・正式資産・backend製品の差分0、候補追補v2の承認とApp追補は未回答。P0例外や新レビュー枠、7.7受理・署名・GAP-05・原子性・1試合完遂を記録していない。次は基本第2回の差分と影響範囲のレビューである。
