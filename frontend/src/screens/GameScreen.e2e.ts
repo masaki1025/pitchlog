@@ -284,7 +284,11 @@ async function requireInitialRosterReady(
     )
     .toBe(true)
   await expect
-    .poll(() => page.getByRole('heading', { name: opponentName }).isVisible())
+    .poll(
+      async () =>
+        (await page.locator('#players-heading').textContent())?.trim() ===
+        opponentName,
+    )
     .toBe(true)
   await expect(page.getByText('選手を読み込んでいます。')).toBeHidden()
   await expect(page.getByText('登録済みの選手はいません。')).toBeVisible()

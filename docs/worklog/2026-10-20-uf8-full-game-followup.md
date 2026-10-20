@@ -466,3 +466,11 @@ Entry HEAD `3ea7d9e0`、core source `1194ab6e`（normal反映済）、対戦相�
 隔離実測は関連Vitest **20ファイル402件成功**、`vue-tsc --noEmit`、frontend全`eslint .`、対象Prettier、`git diff --check`成功。`pnpm run test:browser --list`は固定sealed-ui **5件**。内側Docker制約のため、変更後の実host5件は**未再測定**で主担当補完待ち。候補`generate.py --check`はこの差分で再生成せず、既報のcommit/merge後成功を今回の実測へ再計上しない。固定scope提案v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`と旧`899...`の文書、人間回答欄、候補generator/metadata/patch、製品・正式資産は不変。
 
 敵対基本第1回は固定base `2fc46ddc901079e4e2f71b91ae3319c2e1c10631`→HEAD `1194ab6e572e9798bacf1d63d779527d1a238876`で**確定P0=0/P1=0/P2=0**だが、実E2E成功未確認のため**通過判定保留**。今回の自己診断是正は新規レビュー・第2回・P0例外・可決に数えない。計画査読3回13件採用/最終P0限定/未再査読、親PR枠、normal一次1回11件全採用を維持する。変更は`GameScreen.e2e.ts`と当worklogだけで、commit/push/外部連絡/次ステップは行っていない。
+
+### ステップ7 E2E選択中選手欄の厳密照合是正（2026-10-21）
+
+HEAD `18930499`の主担当実host `/tmp/uf8-entry-final-browser.log` は、対象source 5件の前後SHA不変で封鎖E2E **0成功/5失敗**。全件がlogin helperの`team-and-players-initial-read`段階で失敗した。Auth POST、session GET、team GET、players GETはいずれも200、未完了APIは0、team画面は正常だった。安全な一時probe `/tmp/uf8-transport-probe/helper-result.log` は、当該選手欄の選択件数1に対して同名を部分一致で拾う見出し件数2とPlaywright strict mode失敗を確認した。`shape-result.log` は対戦相手1件の期待名・kind・ID、空の選手一覧と対応するteam ID、両応答のtenant一致と読取完了を確認した。実HTTPのpositive条件は緩めない。
+
+`GameScreen.e2e.ts`の選択中選手欄だけを、製品`TeamScreen.vue`の`#players-heading`の文字列をtrimした完全一致Booleanで確認するよう変更した。任意の先頭・番号指定の要素は使わず、失敗ログへ対戦相手名を出さない。実API200・tenant・読取完了・UI・通信idle、logoutの旧Cookie再提示、遅延/再確認、viewport幅、封鎖E2Eの5ケースは維持する。製品UI/API、実Game Port、計算、codec、キュー、候補bytesは変更していない。
+
+対象Prettier、対象ESLint、`vue-tsc --noEmit`、候補`generate.py --check`、`git diff --check`は成功。候補checkは必要な既存`PYTHONPATH=scripts:tests/fixtures/frozen-archive-cases:backend/src`を指定して実行し、再生成・公開はしていない。この修正後の実host5件は**未再測定**で、主担当の再実行待ち。敵対基本第1回の確定P0/P1/P2=0と通過判定保留、第2回未実施、計画査読3回13件採用、normal一次11件全採用、未承認scope v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`と旧899文書の不変更を保持する。変更は当E2Eとworklogのみ。commit/push/外部連絡/次ステップは行っていない。
