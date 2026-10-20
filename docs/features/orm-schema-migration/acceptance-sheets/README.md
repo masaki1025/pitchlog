@@ -16,7 +16,7 @@ uv run python scripts/generate_orm_acceptance_sheets.py
 uv run python scripts/generate_orm_acceptance_sheets.py --carry-judgments-from <是正前のrevision>
 ```
 
-持ち越しモードは突合キーが不変・旧判定が差分でない・旧理由が契約 diff の変更識別子を含まない行だけを引き継ぐ。
+持ち越しモードは出現番号を除く突合キー(語・正本側・実装側)が同じ・旧判定が差分でない・旧理由が契約 diff の変更識別子を含まない行だけを引き継ぐ。正本への挿入で番号が繰り上がっても判定は保持される。
 
 ## シート
 
