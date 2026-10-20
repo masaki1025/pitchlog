@@ -1,0 +1,43 @@
+{
+  "packetId": "tsk544-t1-rbi-new-author-comparison-v1",
+  "status": "author-comparison-candidate-after-stage-a-seal",
+  "inputCommit": "6e0e5835d639c47759639214bf7b66bb1072dc01",
+  "inputSha256": "41b65a9b01fb24242fc076faa3cb7c8606ea146f355dc2dfc85963159dd6dbf8",
+  "sourceVersion": "v2.16",
+  "sourceCommit": "52625ed6a6d7d27a212acfee16b97c8a97d987a5",
+  "sourceSha256": "569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a",
+  "p6StageA": {
+    "sealedBeforeThisComparison": true,
+    "stageASha256": "a3754e876acd89acd73e1a879d3fa03fa9394fc41e38e6d24d5f11aeada30e61",
+    "independenceQualification": "旧005/007の不足指摘・反例レビュー歴を保持し、厳密なcase設計独立性の受理は別判断"
+  },
+  "scopeLimit": "新2件の指定射影だけ。全23フラグ、全10列正式case、旧005/007、旧追加7件、既存439レコードは対象外",
+  "cases": [
+    {
+      "candidateCaseId": "P6-T1-NEW-005A",
+      "authorBasis": ["付録A-1 OUT3-04", "付録A-3 RBI-08"],
+      "authorProjection": {
+        "runnerScoringValidity": {"R3": true},
+        "scoredRoles": ["R3"],
+        "teamRunsThisPlay": 1,
+        "scoreAfter": {"away": 2, "home": 1},
+        "scoreboardInningScoreDelta": {"away": 1, "home": 0},
+        "batterRbi": {"role": "B", "count": 1},
+        "statFlagsProjection": {"得点": true, "打点": true}
+      }
+    },
+    {
+      "candidateCaseId": "P6-T1-NEW-007A",
+      "authorBasis": ["付録A-1 第3アウト以外はOUT3対象外", "付録A-3 RBI-08"],
+      "authorProjection": {
+        "runnerScoringValidity": {"R3": true},
+        "scoredRoles": ["R3"],
+        "teamRunsThisPlay": 1,
+        "scoreAfter": {"away": 2, "home": 1},
+        "scoreboardInningScoreDelta": {"away": 1, "home": 0},
+        "batterRbi": {"role": "B", "count": 1},
+        "statFlagsProjection": {"得点": true, "打点": true}
+      }
+    }
+  ]
+}
