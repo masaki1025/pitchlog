@@ -7,6 +7,10 @@ import {
   type SyncNoticeDescriptor,
 } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import {
+  sameDisplayValue,
+  snapshotDisplayValue,
+} from './GameScreenDisplayValue'
 import GameScreenPlayObservation from './GameScreenPlayObservation.vue'
 import type { PlayObservationRequest } from './GameScreenPlayObservationTypes'
 import {
@@ -161,6 +165,7 @@ const pitchTypeId = ref<string | null>(null)
 const speed = ref('')
 const course = ref<{ x: number; y: number } | null>(null)
 const resultId = ref<string | null>(null)
+const pitchDraftClearedNotice = ref(false)
 
 // 呼出元が表示用に整形した文字列だけを描画する。
 function display(value: unknown): string {
@@ -236,16 +241,33 @@ function clearDraft() {
   speed.value = ''
   course.value = null
   resultId.value = null
+  pitchDraftClearedNotice.value = false
 }
 
-// 観測要求や試合文脈の切替後に旧投球下書きを再表示しない。
+let previousDraftContext = snapshotDisplayValue([
+  props.observationRequest,
+  props.observationContextKey,
+  props.eventIdentity,
+])
+
+// 内容が変わった場合だけ旧投球下書きを破棄する。
 watch(
   () => [
     props.observationRequest,
     props.observationContextKey,
     props.eventIdentity,
   ],
-  clearDraft,
+  (current) => {
+    if (sameDisplayValue(previousDraftContext, current)) return
+    const discarded =
+      pitchTypeId.value !== null ||
+      speed.value !== '' ||
+      course.value !== null ||
+      resultId.value !== null
+    clearDraft()
+    if (discarded) pitchDraftClearedNotice.value = true
+    previousDraftContext = snapshotDisplayValue(current)
+  },
   { deep: true, flush: 'sync' },
 )
 </script>
@@ -489,10 +511,13 @@ watch(
     <GameScreenPlayObservation
       :request="props.observationRequest"
       :active-context-key="props.observationContextKey"
+      :event-identity="props.eventIdentity"
     />
 
     <section
-      v-if="props.observationRequest?.mode !== 'non-pitch'"
+      v-if="
+        !props.observationRequest || props.observationRequest.mode === 'pitch'
+      "
       aria-label="投球入力の下書き"
       class="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
     >
@@ -504,6 +529,14 @@ watch(
             class="mt-1 text-sm text-amber-900 dark:text-amber-200"
           >
             この入力は保存・送信されません。画面を離れると消えます。
+          </p>
+          <p
+            v-if="pitchDraftClearedNotice"
+            role="status"
+            data-testid="pitch-draft-cleared"
+            class="mt-1 text-sm font-bold"
+          >
+            試合文脈または入力対象が変わったため、未保存の投球下書きを消去しました。
           </p>
         </div>
         <button

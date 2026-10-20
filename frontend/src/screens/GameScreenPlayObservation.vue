@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import {
+  sameDisplayValue,
+  snapshotDisplayValue,
+} from './GameScreenDisplayValue'
 import GameScreenObservationField from './GameScreenObservationField.vue'
 import type {
   ObservationAnswer,
@@ -7,12 +11,15 @@ import type {
   PlayObservationQuestion,
   PlayObservationRequest,
   RawPlayObservation,
+  SingleObservationQuestion,
 } from './GameScreenPlayObservationTypes'
 
 const props = defineProps<{
   request?: PlayObservationRequest | null
   /** 試合・プレイ文脈の識別子。要求側のキーと一致しなければ入力を閉じる。 */
   activeContextKey?: string | null
+  /** 旧投球下書きと同じ試合・プレイ識別子。変更時は観測も破棄する。 */
+  eventIdentity?: unknown
 }>()
 
 const actionId = ref<string | null>(null)
@@ -20,6 +27,19 @@ const ballX = ref('')
 const ballY = ref('')
 const fielderId = ref<string | null>(null)
 const answers = ref(new Map<string, Map<string, ObservationAnswer>>())
+const draftClearedNotice = ref(false)
+
+function hasDraft(): boolean {
+  return (
+    actionId.value !== null ||
+    ballX.value !== '' ||
+    ballY.value !== '' ||
+    fielderId.value !== null ||
+    [...answers.value.values()].some((fields) =>
+      [...fields.values()].some((value) => value !== null),
+    )
+  )
+}
 
 function reset() {
   actionId.value = null
@@ -29,19 +49,53 @@ function reset() {
   answers.value = new Map()
 }
 
-// 候補・質問・文脈が変われば旧下書きを全破棄する。キーの再利用でも値を復活させない。
-watch(() => [props.request, props.activeContextKey], reset, {
-  deep: true,
-  flush: 'sync',
-})
+function clearObservation() {
+  reset()
+  draftClearedNotice.value = false
+}
+
+function discardChangedDraft() {
+  const discarded = hasDraft()
+  reset()
+  draftClearedNotice.value = discarded
+}
+
+let previousInputs = snapshotDisplayValue([
+  props.request,
+  props.activeContextKey,
+  props.eventIdentity,
+])
+
+// 表示契約の内容または試合文脈が変わった場合だけ旧下書きを破棄する。
+watch(
+  () => [props.request, props.activeContextKey, props.eventIdentity],
+  (current) => {
+    if (sameDisplayValue(previousInputs, current)) return
+    discardChangedDraft()
+    previousInputs = snapshotDisplayValue(current)
+  },
+  {
+    deep: true,
+    flush: 'sync',
+  },
+)
 
 function uniqueOptions(question: PlayObservationQuestion): boolean {
   return (
     !!question.key &&
+    (question.multiple === undefined ||
+      typeof question.multiple === 'boolean') &&
     Array.isArray(question.options) &&
     question.options.every((option) => !!option.id) &&
     new Set(question.options.map((option) => option.id)).size ===
       question.options.length
+  )
+}
+
+function validSingleQuestion(question: SingleObservationQuestion): boolean {
+  return (
+    uniqueOptions(question) &&
+    (question.multiple === undefined || question.multiple === false)
   )
 }
 
@@ -72,8 +126,8 @@ function validCase(observation: PlayObservationCase): boolean {
   )
     return false
   if (
-    (observation.playResult && !uniqueOptions(observation.playResult)) ||
-    (observation.rbiRuling && !uniqueOptions(observation.rbiRuling)) ||
+    (observation.playResult && !validSingleQuestion(observation.playResult)) ||
+    (observation.rbiRuling && !validSingleQuestion(observation.rbiRuling)) ||
     !validQuestions(observation.interferenceQuestions) ||
     !validQuestions(observation.officialScoringQuestions)
   )
@@ -86,7 +140,7 @@ function validCase(observation: PlayObservationCase): boolean {
         runner.attemptedBase,
         runner.thirdOutTiming,
         runner.rbiRuling,
-      ].every((question) => !question || uniqueOptions(question)) &&
+      ].every((question) => !question || validSingleQuestion(question)) &&
       validQuestions(runner.interferenceQuestions) &&
       validQuestions(runner.officialScoringQuestions),
   )
@@ -102,12 +156,17 @@ const requestReady = computed(() => {
   )
     return false
   if (request.mode === 'pitch') return validCase(request.observation)
+  if (request.mode !== 'non-pitch') return false
   return (
     Array.isArray(request.actions) &&
     new Set(request.actions.map((action) => action.id)).size ===
       request.actions.length &&
     request.actions.every(
-      (action) => !!action.id && validCase(action.observation),
+      (action) =>
+        !!action.id &&
+        !('playResult' in action.observation) &&
+        !('battedBall' in action.observation) &&
+        validCase(action.observation),
     )
   )
 })
@@ -130,8 +189,23 @@ const suggestedFielder = computed(() => {
   )
 })
 
+const suggestedFielderId = computed(() => {
+  const ball = observationCase.value?.battedBall
+  return (
+    ball?.fielderCandidates.find(
+      (candidate) => candidate.id === ball.suggestedFielderId,
+    )?.id ?? null
+  )
+})
+
+function chooseSuggestedFielder() {
+  if (suggestedFielderId.value !== null) {
+    fielderId.value = suggestedFielderId.value
+  }
+}
+
 function selectAction(event: Event) {
-  reset()
+  discardChangedDraft()
   const id = (event.target as HTMLSelectElement).value
   if (
     props.request?.mode === 'non-pitch' &&
@@ -178,12 +252,13 @@ function setAnswer(
 
 function single(
   category: string,
-  question?: PlayObservationQuestion,
+  question?: SingleObservationQuestion,
   runnerKey?: string,
 ): string | null {
   if (!question) return null
   const value = answer(category, question, runnerKey)
-  return typeof value === 'string' ? value : null
+  if (typeof value === 'string' || value === null) return value
+  throw new Error('単一選択の観測に複数値が含まれています')
 }
 
 function questionAnswers(
@@ -246,10 +321,15 @@ function getRawObservation(): RawPlayObservation | null {
         destinationBaseId,
         attemptedBaseId,
       }
-    } else if (resultId !== null || destinationBaseId !== null) {
+    } else if (
+      resultId !== null ||
+      destinationBaseId !== null ||
+      attemptedBaseId !== null
+    ) {
       runnerAdvanceOverridesByRunner[runner.runnerKey] = {
         resultId,
         destinationBaseId,
+        attemptedBaseId,
       }
     }
     if (runner.thirdOutTiming) {
@@ -323,6 +403,14 @@ defineExpose({ getRawObservation })
     <h2 class="text-lg font-extrabold">打球・走者観測の下書き</h2>
     <p class="text-sm">
       この入力は保存・送信されません。画面を離れると消えます。
+    </p>
+    <p
+      v-if="draftClearedNotice"
+      role="status"
+      data-testid="observation-draft-cleared"
+      class="text-sm font-bold"
+    >
+      入力対象または試合文脈が変わったため、未保存の観測下書きを消去しました。
     </p>
     <p
       v-if="!requestReady"
@@ -411,6 +499,15 @@ defineExpose({ getRawObservation })
           <p class="text-sm" data-testid="suggested-fielder">
             提供された捕球候補: {{ suggestedFielder }}
           </p>
+          <button
+            v-if="suggestedFielderId"
+            type="button"
+            data-testid="choose-suggested-fielder"
+            class="min-w-0 rounded border border-slate-400 p-2 text-sm"
+            @click="chooseSuggestedFielder"
+          >
+            この候補を選ぶ
+          </button>
           <label class="block min-w-0 text-sm font-bold"
             >捕球選手を手動選択
             <select
@@ -557,7 +654,7 @@ defineExpose({ getRawObservation })
           type="button"
           data-testid="clear-observation"
           class="min-w-0 rounded border border-amber-600 p-2 text-sm font-bold"
-          @click="reset"
+          @click="clearObservation"
         >
           観測下書きを消去
         </button>

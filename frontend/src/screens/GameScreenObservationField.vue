@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useId } from 'vue'
 import type {
   ObservationAnswer,
   PlayObservationQuestion,
@@ -9,6 +10,7 @@ const props = defineProps<{
   value: ObservationAnswer
 }>()
 const emit = defineEmits<{ change: [value: ObservationAnswer] }>()
+const fieldId = useId()
 
 function choose(event: Event) {
   const id = (event.target as HTMLSelectElement).value
@@ -21,19 +23,19 @@ function choose(event: Event) {
 function toggle(id: string, checked: boolean) {
   if (!props.question.options.some((option) => option.id === id)) return
   const selected = Array.isArray(props.value) ? props.value : []
-  emit(
-    'change',
-    checked ? [...selected, id] : selected.filter((item) => item !== id),
-  )
+  const next = checked
+    ? [...selected, id]
+    : selected.filter((item) => item !== id)
+  emit('change', next.length ? next : null)
 }
 </script>
 
 <template>
   <div class="min-w-0 space-y-1" :data-question-key="question.key">
-    <p class="text-sm font-bold">
-      {{ question.label }} <span v-if="question.required">（入力対象）</span>
-    </p>
-    <div v-if="question.multiple" class="grid min-w-0 gap-1">
+    <fieldset v-if="question.multiple" class="grid min-w-0 gap-1">
+      <legend class="text-sm font-bold">
+        {{ question.label }} <span v-if="question.required">（入力対象）</span>
+      </legend>
       <label
         v-for="option in question.options"
         :key="option.id"
@@ -49,21 +51,26 @@ function toggle(id: string, checked: boolean) {
         />
         <span class="min-w-0 wrap-anywhere">{{ option.label }}</span>
       </label>
-    </div>
-    <select
-      v-else
-      :value="typeof value === 'string' ? value : ''"
-      class="w-full min-w-0 rounded border border-slate-300 bg-white p-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-      @change="choose"
-    >
-      <option value="">未選択</option>
-      <option
-        v-for="option in question.options"
-        :key="option.id"
-        :value="option.id"
+    </fieldset>
+    <template v-else>
+      <label :for="fieldId" class="block text-sm font-bold">
+        {{ question.label }} <span v-if="question.required">（入力対象）</span>
+      </label>
+      <select
+        :id="fieldId"
+        :value="typeof value === 'string' ? value : ''"
+        class="w-full min-w-0 rounded border border-slate-300 bg-white p-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+        @change="choose"
       >
-        {{ option.label }}
-      </option>
-    </select>
+        <option value="">未選択</option>
+        <option
+          v-for="option in question.options"
+          :key="option.id"
+          :value="option.id"
+        >
+          {{ option.label }}
+        </option>
+      </select>
+    </template>
   </div>
 </template>
