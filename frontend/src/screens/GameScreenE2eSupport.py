@@ -56,13 +56,13 @@ def test_sealed_ui_product_server(
     app_dsn = _app_dsn(catalog)
     first = _seed_identity(catalog, app_dsn)
     second = _seed_identity(catalog, app_dsn)
-    # 既存製品migrationの表へ、この専用DBだけの識別可能な自チーム値を置く。
+    # 既存製品migrationの表へ、この専用DBだけの識別可能な対戦相手値を置く。
     with catalog.applicator.cursor() as cursor:
         for identity in (first, second):
             cursor.execute(
                 "INSERT INTO public.team_records (tenant_id, id, kind, name) "
                 "VALUES (%s, %s, %s, %s)",
-                (identity.tenant_id, uuid4(), "self", identity.name),
+                (identity.tenant_id, uuid4(), "opponent", identity.name),
             )
     catalog.applicator.commit()
     with psycopg.connect(app_dsn) as connection:
