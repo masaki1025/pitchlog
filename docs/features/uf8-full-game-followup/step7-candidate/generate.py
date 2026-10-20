@@ -30,6 +30,15 @@ CI_NEEDLE = "      - run: pnpm test -- --run\n"
 FRONTEND_FILTER_NEEDLE = (
     "              - 'backend/src/pitchlog/domaincheck/runners/**'\n"
 )
+FRONTEND_FILTER_ADDITION = (
+    "              - 'backend/**'\n"
+    "              - 'docs/features/uf8-full-game-followup/"
+    "step7-candidate/generate.py'\n"
+    "              - 'pyproject.toml'\n"
+    "              - 'uv.lock'\n"
+    "              - 'mise.toml'\n"
+    "              - '.github/workflows/ci.yml'\n"
+)
 FRONTEND_JOB_NEEDLE = "  frontend:\n    needs: frontend-changes\n"
 CI_ADDITION = """      # 製品 App と認証 fixture は使い捨て PostgreSQL にだけ接続する。
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -96,7 +105,9 @@ def write_patch(output: Path) -> None:
 
     def append_lines(lines: Iterable[str]) -> None:
         for line in lines:
-            if line.endswith("\n"):
+            if line == " \n":
+                chunks.append("\n")
+            elif line.endswith("\n"):
                 chunks.append(line)
             else:
                 chunks.extend((line + "\n", "\\ No newline at end of file\n"))
@@ -164,21 +175,57 @@ def git_text(*args: str) -> str:
     return git_bytes(*args).decode().strip()
 
 
-def prove_before(paths: set[str]) -> dict[str, object]:
-    """正式入力の dirty 状態と base/HEAD blob の前値を照合する。"""
+def prove_before(
+    paths: set[str], previous: dict[str, Any] | None, *, check: bool
+) -> dict[str, object]:
+    """現HEAD・公表develop・生成時HEADで正式入力の同一bytesを証明する。"""
     head = git_text("rev-parse", "HEAD")
-    base = git_text("merge-base", head, "develop")
+    published = git_text("rev-parse", "origin/develop")
+    source_sha = digest(Path(__file__).read_bytes())
     blobs: dict[str, str] = {}
     for path in sorted(paths):
         current = (ROOT / path).read_bytes()
         if current != git_bytes("show", f"{head}:{path}"):
             raise AssertionError(f"正式入力が dirty: {path}")
-        if current != git_bytes("show", f"{base}:{path}"):
-            raise AssertionError(f"比較元 Git base と前値が異なる: {path}")
+        if current != git_bytes("show", f"{published}:{path}"):
+            raise AssertionError(f"公表済み origin/develop と前値が異なる: {path}")
         blobs[path] = git_text("rev-parse", f"{head}:{path}")
+    if (
+        previous is not None
+        and previous.get("provenance_schema_version") == 2
+        and previous.get("published_develop_head") == published
+        and previous.get("generator_source_sha256") == source_sha
+        and previous.get("before_git_blobs") == blobs
+    ):
+        recorded_head = previous.get("candidate_checkout_head")
+        recorded_base = previous.get("source_git_base")
+        if not isinstance(recorded_head, str) or not isinstance(
+            recorded_base, str
+        ):
+            raise AssertionError("候補の生成時Git出所が不正")
+        if git_text("merge-base", recorded_head, published) != recorded_base:
+            raise AssertionError("候補の生成時merge-baseが不正")
+        for path in sorted(paths):
+            if (ROOT / path).read_bytes() != git_bytes(
+                "show", f"{recorded_head}:{path}"
+            ):
+                raise AssertionError(f"生成時 Git blob と前値が異なる: {path}")
+        return {
+            "provenance_schema_version": 2,
+            "source_git_base": recorded_base,
+            "published_develop_head": published,
+            "candidate_checkout_head": recorded_head,
+            "generator_source_sha256": source_sha,
+            "before_git_blobs": blobs,
+        }
+    if check:
+        raise AssertionError("候補の生成出所または正式入力の鮮度が失われた")
     return {
-        "source_git_base": base,
+        "provenance_schema_version": 2,
+        "source_git_base": git_text("merge-base", head, published),
+        "published_develop_head": published,
         "candidate_checkout_head": head,
+        "generator_source_sha256": source_sha,
         "before_git_blobs": blobs,
     }
 
@@ -227,8 +274,8 @@ def reverse_dependencies(
     generated = set(GENERATED_SOURCE_ASSETS.values())
     for paths_for_asset in digest_references.values():
         for path in paths_for_asset:
-            if path.endswith(".py") and path not in generated:
-                raise AssertionError(f"未候補のPython固定digest参照: {path}")
+            if path.endswith((".py", ".ts", ".js", ".vue")) and path not in generated:
+                raise AssertionError(f"未候補のコード固定digest参照: {path}")
     return {
         "tracked_nonsecret_nonlegacy_files_scanned": scanned,
         "generated_modules": discovered,
@@ -238,6 +285,22 @@ def reverse_dependencies(
         "fixed_digest_reference_paths": {
             path: sorted(items) for path, items in sorted(digest_references.items())
         },
+    }
+
+
+def functional_references(scan: dict[str, object]) -> dict[str, object]:
+    """情報用の文書件数と、実装コードの逆依存閉包を分ける。"""
+    roots = ("backend/src/", "frontend/src/", "scripts/")
+    return {
+        field: {
+            asset: [path for path in paths if path.startswith(roots)]
+            for asset, paths in cast(dict[str, list[str]], scan[field]).items()
+        }
+        for field in (
+            "generated_modules",
+            "asset_path_reference_paths",
+            "fixed_digest_reference_paths",
+        )
     }
 
 
@@ -389,7 +452,9 @@ def publish_stage(stage: Path, *, check: bool) -> None:
             shutil.copy2(proposed, existing)
 
 
-def generate(output: Path) -> None:
+def generate(
+    output: Path, previous: dict[str, Any] | None, *, check: bool
+) -> None:
     """未宣言波及を含む前後候補を隔離stagingへ構成する。"""
     before: dict[str, dict[str, Any]] = {
         path.relative_to(ROOT).as_posix(): json.loads(path.read_bytes())
@@ -403,7 +468,7 @@ def generate(output: Path) -> None:
     new_ci = old_ci.replace(CI_NEEDLE.encode(), (CI_NEEDLE + CI_ADDITION).encode())
     new_ci = new_ci.replace(
         FRONTEND_FILTER_NEEDLE.encode(),
-        (FRONTEND_FILTER_NEEDLE + "              - 'backend/**'\n").encode(),
+        (FRONTEND_FILTER_NEEDLE + FRONTEND_FILTER_ADDITION).encode(),
     )
     new_ci = new_ci.replace(
         FRONTEND_JOB_NEEDLE.encode(),
@@ -448,9 +513,32 @@ def generate(output: Path) -> None:
         *targets,
         *manifest_input["corpus_inputs"]["files"],
         *old_snapshot_paths,
+        *(
+            path.relative_to(ROOT).as_posix()
+            for tree in manifest_input["corpus_inputs"]["trees"]
+            for path in (ROOT / tree).rglob("*")
+            if path.is_file()
+        ),
     }
-    provenance = prove_before(formal_paths)
-    reverse_scan = reverse_dependencies(affected, before)
+    provenance = prove_before(formal_paths, previous, check=check)
+    current_reverse_scan = reverse_dependencies(affected, before)
+    reusable_scan = (
+        previous is not None
+        and previous.get("provenance_schema_version") == 2
+        and previous.get("candidate_checkout_head")
+        == provenance["candidate_checkout_head"]
+        and previous.get("generator_source_sha256")
+        == provenance["generator_source_sha256"]
+    )
+    if reusable_scan:
+        recorded_scan = previous.get("reverse_dependency_scan")
+        if not isinstance(recorded_scan, dict) or functional_references(
+            current_reverse_scan
+        ) != functional_references(recorded_scan):
+            raise AssertionError("現在の実装コード逆依存閉包が候補記録と異なる")
+        reverse_scan = recorded_scan
+    else:
+        reverse_scan = current_reverse_scan
 
     for asset, path in GENERATED_SOURCE_ASSETS.items():
         old = (ROOT / path).read_bytes()
@@ -647,9 +735,15 @@ def main() -> None:
         "--check", action="store_true", help="現候補の鮮度・全bytesを照合"
     )
     options = parser.parse_args()
+    previous_path = OUTPUT / "metadata.json"
+    previous = (
+        cast(dict[str, Any], json.loads(previous_path.read_bytes()))
+        if previous_path.is_file()
+        else None
+    )
     with tempfile.TemporaryDirectory(prefix="pitchlog-step7-stage-") as directory:
         stage = Path(directory)
-        generate(stage)
+        generate(stage, previous, check=options.check)
         verify_patch_application(stage)
         publish_stage(stage, check=options.check)
 

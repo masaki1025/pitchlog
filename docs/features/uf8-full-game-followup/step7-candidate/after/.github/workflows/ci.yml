@@ -265,6 +265,11 @@ jobs:
               - 'tests/domain/runners/**'
               - 'backend/src/pitchlog/domaincheck/runners/**'
               - 'backend/**'
+              - 'docs/features/uf8-full-game-followup/step7-candidate/generate.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'mise.toml'
+              - '.github/workflows/ci.yml'
 
   frontend:
     timeout-minutes: 40

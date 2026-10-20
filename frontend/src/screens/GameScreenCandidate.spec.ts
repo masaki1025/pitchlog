@@ -64,6 +64,12 @@ describe('ステップ7の未受理凍結候補', () => {
   it('CI候補は必須frontend jobでbackend変更とPython支援も検査する', () => {
     const after = candidateBytes('after', ci).toString('utf8')
     expect(after).toContain("- 'backend/**'")
+    expect(after).toContain(
+      "- 'docs/features/uf8-full-game-followup/step7-candidate/generate.py'",
+    )
+    expect(after).toContain("- 'pyproject.toml'")
+    expect(after).toContain("- 'uv.lock'")
+    expect(after).toContain("- 'mise.toml'")
     expect(after).toContain('timeout-minutes: 40')
     expect(after).toContain('GameScreenE2eSupport.py')
     expect(after).toContain('step7-candidate/generate.py')
@@ -101,6 +107,7 @@ describe('ステップ7の未受理凍結候補', () => {
     const patchPath = resolve(candidate, 'candidate.patch')
     const patch = readFileSync(patchPath)
     expect(sha256(patch)).toBe(metadata.patch_sha256)
+    expect(patch.toString('utf8')).not.toMatch(/^ $/m)
     const snapshotNames = metadata.new_snapshot_names as string[]
     expect(readdirSync(resolve(candidate, 'new-snapshots')).sort()).toEqual(
       snapshotNames,

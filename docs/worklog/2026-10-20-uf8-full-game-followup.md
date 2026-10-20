@@ -413,6 +413,18 @@ Claude の通常一次レビューは P0=0 / P1=3 / P2=8。主担当が全件採
 
 最終安定 source に対する主担当 host5 は封鎖 **1/5**。並行 Docker 操作下の Chromium `net::ERR_NETWORK_CHANGED` は安全probeで確認済みで、今回の修正後に host 実ブラウザ5件は未再測定。主担当がDB全件終了後に直列実行する。logout 200→旧Cookie401の最終測定、実ゲーム Port/1試合完遂、GAP-05、原子性、正式7.7受理はいずれも未達。retry・timeout拡張・skip・仮Portは加えていない。commit/push/次ステップ/外部連絡なしで候補是正に停止する。
 
+### 2026-10-21 ステップ7候補の保全commit後 self-check 是正
+
+直前の normal7 成果は主担当が `51758c411b10022e1a08f9a73248772bcd61b010` として保全した。直後の主担当 `generate.py --check` は、正式入力13ファイルが不変なのに `AssertionError: 候補の鮮度が失われた: metadata.json` で失敗した（`/tmp/uf8-candidate-postcommit-check.log`）。原因は旧metadataの生成時HEAD `b303eae2` を毎実行の現在HEADで上書きする自己参照と、古いローカル `develop=7c1afebab` を基準にした記録である。この失敗を候補の正式入力変化や受理済みへ読み替えない。
+
+是正後の生成出所は、実 `origin/develop=9136c2dad916313c28698f49f8668f3edbe36b4a`、そのrefと生成時HEADのmerge-base `97e6eeec869cd2f4a0cef0a448821db02bea330b`、生成時HEAD `51758c411b10022e1a08f9a73248772bcd61b010`。生成器内容SHAもmetadataに固定する。影響13前後ファイルを含む339正式入力（全外部凍結対象、corpus tree、旧179snapshotを含む）の現在bytesを現在HEAD・公表済みorigin・記録済み生成時HEADのblobへ照合し、dirtyや公表値差異は拒否する。後続commit/mergeで現在HEADのみが変わる場合は記録済み生成時HEADを保持する。逆依存は現在の全非secret・非legacy tracked fileを毎回走査し、実装コードの資産path/固定digest/生成モジュール閉包を記録と比較する。走査件数・文書参照の情報値は生成時記録として保持する。実HEADを旧 `b303eae2` に差し替える隔離関数検査で候補全bytesとpatch適用が一致し、情報用件数+1/文書参照だけの変化は一致、実装コードpath参照追加は明示失敗した。自分でcommitは作っていない。主担当の実commit後とEntry merge後の再 `--check` は未実測。
+
+CI候補frontend filterへ既存 `backend/**` を保持し、明示Python対象 `docs/features/uf8-full-game-followup/step7-candidate/generate.py`、root `pyproject.toml`/`uv.lock`/`mise.toml`、CI設定pathを追加した。実CIは0差分。統一patchの空context行だけを通常空行へ正規化し、特別flagのない `git apply --check`・実適用、全13 after bytes・新9 snapshot SHA比較、通常 `git diff --check` を通す。旧patch `b39c5a6970b2fb8411b3ae0296cc17833d5d262090408a83fc56e2b1ce2ededf` → 新patch `ad6642d2dd4cdaa37e1e0aeb92f42efadb506a40208e22b9b224911cb877a118`。CI前後SHAは `f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8` → `9bafa8ae1cb7b22b2b47301f2ffb8a5b2a7aeebad3f2f4d5faa5dd937dc2bd65`、corpus入力digestは `b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce` → `7279ca0247dd41e2b294151daac4361a1ae2a9b8ec364248495748a04bc7977c`。旧23履歴・179snapshotのprefix、新未受理1履歴・9snapshot、生成3moduleの完全before/after bytesを再生成し、人間欄は空。
+
+別件の主担当実測として、自分専用DBのbackend全件は **3039成功・4既存skip・2893.70秒・終了値0**。Docker churn終了後のEntry `182ec62c`（旧7支援+新6）では実HTTPS/Auth HTTP/専用DB sealed-ui **5/5成功・26.6秒**で、6 source SHAの前後不変を確認した（`/tmp/uf8-entry-quiescent-e2e.log`）。現 `51758c41` の7支援・tenant実値・非0終了値回収に対する主担当host再測定はまだなく、前の5/5を現候補の成功として記録しない。real-game未提供1件は明示不合格のまま。正式7.7受理・実CI/資産適用・人間署名・1試合完遂は未達。旧scope提案SHA `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59`、計画原本 `935...`、既存レビュー回数を保持し、6〜7敵対レビューは0回。今回も同ステップのprimary自己検査是正で、commit/push/次ステップ/人間承認/外部連絡は行っていない。
+
+是正後の内側検査では、`generate.py`と`--check`の連続実行で全候補bytes同一。通常`git apply --check`・実適用後の13 after bytesと9 snapshot SHA一致。隔離Git archiveに適用したbackend生成整合3試験ファイル **83件成功**、既存snapshot archiveは前179/後188・孤児33件不変、既存corpus入力検査も候補digest `7279ca02…` で成功した。常設候補Vitest **1ファイル4件成功**、frontend型/全ESLint/対象Prettier、生成器の明示Ruff/ty/compile、通常`git diff --check`も成功。生成器以外のE2E支援/runtime sourceはこの是正で編集しておらず、実ブラウザは主担当host未再測定。
+
 ### 2026-10-21 入口/検査経路の独立検証継続
 
 - #160 の人間操作によるdevelop統合9136c2daを確認。#164はdevelopへ付け替え、比較用HEAD第1親の旧base残留を検査が拒否したため、検査器を維持し通常merge/pushした（fb12a9a1）。当担当はマージ/本人確認を代行していない。
