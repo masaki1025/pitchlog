@@ -66,12 +66,15 @@ function page<T>(items: T[], nextCursor: string | null = null): Page<T> {
 function deferred<T>(): {
   promise: Promise<T>
   resolve: (value: T) => void
+  reject: (reason: unknown) => void
 } {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((currentResolve) => {
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((currentResolve, currentReject) => {
     resolve = currentResolve
+    reject = currentReject
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 function mountScreen(authenticated = true): {
@@ -253,10 +256,8 @@ describe('TeamScreen', () => {
     const { wrapper } = mountScreen()
     await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
     expect(wrapper.text()).toContain('自チームを読み込んでいます')
-    expect(listPlayersMock).toHaveBeenCalledWith(
-      expect.objectContaining({ team_record_id: 'opponent-a' }),
-      { signal: expect.any(AbortSignal) },
-    )
+    expect(wrapper.get('#players-heading').text()).toBe('選手')
+    expect(listPlayersMock).not.toHaveBeenCalled()
 
     selfResponse.resolve(teamRecord('self-a', 'チーム A', 'self'))
     await vi.waitFor(() =>
@@ -296,16 +297,58 @@ describe('TeamScreen', () => {
     const opponent = wrapper
       .findAll('[data-testid="team-record-list"] button')
       .find((button) => button.text().includes('対戦相手 B'))
+    expect(listPlayersMock).not.toHaveBeenCalled()
     await opponent!.trigger('click')
+    await vi.waitFor(() =>
+      expect(listPlayersMock).toHaveBeenCalledWith(
+        expect.objectContaining({ team_record_id: 'opponent-b' }),
+        { signal: expect.any(AbortSignal) },
+      ),
+    )
+    await wrapper.get('input[name="player-name"]').setValue('入力中の選手')
     selfResponse.resolve(teamRecord('self-a', 'チーム A', 'self'))
-    await vi.waitFor(() => expect(wrapper.text()).toContain('チーム A'))
+    await vi.waitFor(() => expect(wrapper.text()).toContain('チーム A自チーム'))
 
     expect(wrapper.get('#players-heading').text()).toContain('対戦相手 B')
+    expect(
+      (wrapper.get('input[name="player-name"]').element as HTMLInputElement)
+        .value,
+    ).toBe('入力中の選手')
     expect(listPlayersMock).not.toHaveBeenCalledWith(
       expect.objectContaining({ team_record_id: 'self-a' }),
       expect.anything(),
     )
   })
+
+  it.each(['404', 'network'] as const)(
+    'self待機後の%s失敗で既存対戦相手を自動選択する',
+    async (failureKind) => {
+      const selfResponse = deferred<TeamRecordRead>()
+      readSelfTeamRecordMock.mockImplementation(() => selfResponse.promise)
+      listTeamRecordsMock.mockResolvedValue(
+        page([teamRecord('opponent-a', '対戦相手 A')]),
+      )
+
+      const { wrapper } = mountScreen()
+      await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
+      expect(wrapper.get('#players-heading').text()).toBe('選手')
+      expect(listPlayersMock).not.toHaveBeenCalled()
+
+      selfResponse.reject(
+        failureKind === '404'
+          ? new ApiError(404, 'not found', [], undefined, null)
+          : new ApiNetworkError(new Error('接続失敗')),
+      )
+      await vi.waitFor(() =>
+        expect(wrapper.get('#players-heading').text()).toContain('対戦相手 A'),
+      )
+      expect(listTeamRecordsMock).toHaveBeenCalledTimes(1)
+      expect(listPlayersMock).toHaveBeenCalledWith(
+        expect.objectContaining({ team_record_id: 'opponent-a' }),
+        { signal: expect.any(AbortSignal) },
+      )
+    },
+  )
 
   it.each(['dto', 'network'] as const)(
     'selfの%s失敗後は再接続・focus・remount・GC後も明示操作まで再送しない',
@@ -595,7 +638,7 @@ describe('TeamScreen', () => {
   it('追加取得の失敗時に取得済み行を残して同じ cursor を再試行する', async () => {
     listTeamRecordsMock
       .mockResolvedValueOnce(
-        page([teamRecord('self-a', 'チーム A', 'self')], 'teams-next'),
+        page([teamRecord('opponent-a', '既存の対戦相手 A')], 'teams-next'),
       )
       .mockRejectedValueOnce(new Error('接続失敗'))
       .mockResolvedValueOnce(page([teamRecord('opponent-b', '対戦相手 B')]))
@@ -613,6 +656,7 @@ describe('TeamScreen', () => {
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('次のチームを取得できませんでした'),
     )
+    expect(wrapper.text()).toContain('既存の対戦相手 A')
     expect(wrapper.text()).toContain('チーム A')
 
     const retry = wrapper
@@ -621,6 +665,7 @@ describe('TeamScreen', () => {
     expect(retry).toBeDefined()
     await retry!.trigger('click')
     await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 B'))
+    expect(wrapper.text()).toContain('既存の対戦相手 A')
 
     expect(listTeamRecordsMock).toHaveBeenNthCalledWith(
       3,
@@ -635,14 +680,17 @@ describe('TeamScreen', () => {
       .mockResolvedValueOnce(teamRecord('self-a', 'チーム A', 'self'))
       .mockResolvedValueOnce(teamRecord('self-b', 'チーム B', 'self'))
     listTeamRecordsMock
-      .mockResolvedValueOnce(page([teamRecord('self-a', 'チーム A', 'self')]))
+      .mockResolvedValueOnce(page([teamRecord('opponent-a', '旧対戦相手 A')]))
       .mockImplementationOnce(() => teamB.promise)
     listPlayersMock
       .mockResolvedValueOnce(page([player('player-a1', 'self-a', '選手 A1')]))
       .mockResolvedValueOnce(page([player('player-b1', 'self-b', '選手 B1')]))
 
     const { auth, wrapper } = mountScreen()
-    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 A1'))
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('選手 A1')
+      expect(wrapper.text()).toContain('旧対戦相手 A')
+    })
 
     setVerifiedAuthForTest(auth, {
       teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
@@ -651,11 +699,16 @@ describe('TeamScreen', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('選手 A1')
+    expect(wrapper.text()).not.toContain('旧対戦相手 A')
     expect(wrapper.text()).not.toContain('チーム A自チーム')
     expect(wrapper.text()).toContain('対戦相手を読み込んでいます')
 
-    teamB.resolve(page([teamRecord('self-b', 'チーム B', 'self')]))
-    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B1'))
+    teamB.resolve(page([teamRecord('opponent-b', '新対戦相手 B')]))
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('新対戦相手 B')
+      expect(wrapper.text()).toContain('選手 B1')
+    })
+    expect(wrapper.text()).not.toContain('旧対戦相手 A')
     expect(wrapper.text()).not.toContain('選手 A1')
     expect(listPlayersMock).toHaveBeenLastCalledWith(
       {
@@ -675,7 +728,7 @@ describe('TeamScreen', () => {
       .mockResolvedValueOnce(teamRecord('self-b', 'チーム B', 'self'))
     listTeamRecordsMock
       .mockImplementationOnce(() => oldResponse.promise)
-      .mockResolvedValueOnce(page([teamRecord('self-b', 'チーム B', 'self')]))
+      .mockResolvedValueOnce(page([teamRecord('opponent-b', '新対戦相手 B')]))
     listPlayersMock.mockResolvedValue(
       page([player('player-b1', 'self-b', '選手 B1')]),
     )
@@ -687,13 +740,17 @@ describe('TeamScreen', () => {
       teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
       teamName: 'チーム B',
     })
-    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B1'))
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('選手 B1')
+      expect(wrapper.text()).toContain('新対戦相手 B')
+    })
 
-    oldResponse.resolve(page([teamRecord('self-a', '古いチーム A', 'self')]))
+    oldResponse.resolve(page([teamRecord('opponent-a', '古い対戦相手 A')]))
     await flushPromises()
 
     expect(wrapper.text()).toContain('選手 B1')
-    expect(wrapper.text()).not.toContain('古いチーム A')
+    expect(wrapper.text()).toContain('新対戦相手 B')
+    expect(wrapper.text()).not.toContain('古い対戦相手 A')
     expect(listPlayersMock).toHaveBeenCalledTimes(1)
   })
 

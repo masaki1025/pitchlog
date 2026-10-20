@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
 import { installAppProviders, pinia } from './appProviders'
 import { queryClient } from './lib/queryClient'
+import { rosterQueryKeys } from './lib/rosterQueryKeys'
 import { createAppRouter } from './router'
 import TeamScreen from './screens/TeamScreen.vue'
 import { AUTH_STORAGE_KEY, useAuthStore } from './stores/authStore'
@@ -426,6 +427,60 @@ describe('公開ガイドと保護チーム経路', () => {
       publicScreen,
     )
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+  it('正常なtenant metadataでも不正200のselfを選択とcacheへ採用しない', async () => {
+    const auth = useAuthStore(pinia)
+    fetchMock.mockImplementation(async (url, init) => {
+      const path = routePath(url)
+      const headers = new Headers(init?.headers)
+      const tenantHeaders = {
+        'X-Pitchlog-Tenant-Match': '1',
+        'X-Pitchlog-Tenant-Challenge':
+          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
+      }
+      if (path === '/api/team-records/self')
+        return reply(
+          {
+            id: '32345678-1234-4234-8234-123456789abc',
+            kind: 'opponent',
+            name: '不正な自チーム候補',
+            hidden_at: null,
+          },
+          200,
+          tenantHeaders,
+        )
+      if (path === '/api/team-records')
+        return reply({ items: [], next_cursor: null }, 200, tenantHeaders)
+      if (path === '/api/players')
+        return reply({ items: [], next_cursor: null }, 200, tenantHeaders)
+      throw new Error(`想定外の経路: ${path}`)
+    })
+    setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/team')
+    const wrapper = view(router)
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="self-team-error"]').exists()).toBe(
+        true,
+      ),
+    )
+
+    expect(rosterCalls('/api/team-records/self', tenantA)).toHaveLength(1)
+    expect(rosterCalls('/api/team-records', tenantA)).toHaveLength(1)
+    expect(auth.isAuthenticated).toBe(true)
+    expect(
+      queryClient.getQueryData(
+        rosterQueryKeys.selfTeamRecord(tenantA, auth.authEpoch),
+      ),
+    ).toBeUndefined()
+    expect(wrapper.text()).not.toContain('不正な自チーム候補')
+    expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
+      false,
+    )
+    expect(wrapper.get('#players-heading').text()).toBe('選手')
+    expect(
+      fetchMock.mock.calls.filter(([url]) => routePath(url) === '/api/players'),
+    ).toHaveLength(0)
   })
   it('tenant-bound401は保護画面を解除して/loginへ移す', async () => {
     const pendingSelf = deferred()

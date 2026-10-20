@@ -131,8 +131,8 @@ watch(
 )
 
 watch(
-  teamRecords,
-  (records) => {
+  [teamRecords, () => selfTeamQuery.isPending.value],
+  ([records, selfPending]) => {
     if (records.length === 0) {
       selectedTeamRecordId.value = null
       return
@@ -142,6 +142,10 @@ watch(
       selectedTeamRecordId.value !== null &&
       records.some((record) => record.id === selectedTeamRecordId.value)
     ) {
+      return
+    }
+    if (selfPending) {
+      selectedTeamRecordId.value = null
       return
     }
     hasExplicitTeamSelection.value = false

@@ -919,3 +919,24 @@ roster.tsに専用self readを追加し、正規clientのunknown結果を既存T
 子sandbox全件の最終17失敗はrouterの必要追随3件と閉域の子プロセスEPERM14件。親のsandbox外で、修正済み全71ファイルを試験除外/timeout緩和なしに実行し、1,399成功（246.54秒）。Prettier/ESLint/vue-tsc/depcruise成功、親のproduction build/閉域検査成功（externalReferences=0/policyViolations=0）。初回失敗や子sandbox結果を最終成功へ読み替えず、親の実行として区別する。
 
 backend全件は5aeca5e8の固定backend入力で並走中。ステップ2でbackend/共有契約は変更していない。次はこの全製品候補を固定し、既存productionブラウザ/実API/隔離DBによるself保存とopponent回帰、既定レビューを行う。7.7/担当受理/本人確認を代記しない。
+
+
+### 自チーム共有追随の実検査と保留範囲の縮小
+
+5aeca5e8でtenant-boundary bypass検査成功、frozen invariants-only成功。既存roster._build_roster_statementの内部拡張なのでbase-allowlistのsymbol追加は不要、既存read claimの再利用によりauthz registry/matrix/lock/seal/role/grantの変更も不要だった。これらを待ち条件から外す。base-allowlistの#152先行は提案のままで確定順序にしない。実際の編集保留はrepository_contract.pyのPRODUCT_OPERATION_TOKEN_TYPESとcontracts/tenant_boundary/repository-contract.jsonの新公開型/source_digest/対応7.7の2パスだけ。#156/#152へ縮小した依頼を投稿した（#156コメント6291119750）。返信は未取得、担当受理や所有移管とはしない。実registryと公開契約の一致検査は未登録のまま保持する。
+
+### 自チーム実装レビュー第1周と採否（e9ab0807）
+
+実基線7c1afeba、候補e9ab08074bed6b1a06bb856ec129a525ce4c4b87の製品/試験全差分を対象とする。計画レビュー2周とは別枠。Codex敵対はP0=0/P1=0/P2=1、実Claude反対側はP0=0/P1=1/P2=2。新たな権限・API意味変更・共有資産の無断変更は求められなかった。
+
+| 指摘 | 採否 |
+| --- | --- |
+| Claude P1: 一覧フィクスチャのkind=selfが新opponentフィルタに除かれ、既存の次ページ保持/切替/遅延3試験が素通り | 採用。kind=opponentとselfとは別の固有名へ変更し、肯定/否定の検出力を復元する |
+| Codex P2: 不正200の正規client→self API→画面/cache/players非採用を接続試験で確認していない | 採用。既存router結合specへ1例追加。各不正形のAPI単体試験も維持 |
+| Claude P2-1: self待機中のopponent自動選択から後着selfへの切替で入力中フォームが消える | 採用。明示選択がなければpending中だけ自動選択を保留。明示opponent選択/失敗時opponent利用は維持 |
+| Claude P2-2: UUID検査正規表現の重複 | 不採用（レビューも不採用推奨）。ドメイン計算重複ではなく、共有clientのexport改訂は承認範囲外のため今回の最小追補へ含めない |
+
+採用修正は正規implement --resumeでステップ2へ差戻し中。第1周は後発の修正/実画面結果をレビュー済みとは扱わず、第2周を反映差分/影響箇所へ限定する。既知の公開型未登録/正式7.7/本人逐行確認は別ゲートとして保持する。
+
+- round1-codex.log: SHA-256 `86d8a4261379fe979c0f3a7b3ac78e4dd2129f6d2cfce15fd212e3018808b09b`
+- round1-claude.log: SHA-256 `0078d9970b1784c21f4af3ae88555dd4c20ed3358d70d20f2148236cfb2627ee`
