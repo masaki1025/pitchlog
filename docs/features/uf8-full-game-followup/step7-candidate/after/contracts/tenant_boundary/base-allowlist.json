@@ -22199,8 +22199,8 @@
             "external_snapshots": [
               {
                 "path": ".github/workflows/ci.yml",
-                "sha256": "1a2082bc3abfcb9f3396abbb282762c0e2203b1f9621d9621a9dd4fb3d5d154d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1a2082bc3abfcb9f3396abbb282762c0e2203b1f9621d9621a9dd4fb3d5d154d"
+                "sha256": "9bafa8ae1cb7b22b2b47301f2ffb8a5b2a7aeebad3f2f4d5faa5dd937dc2bd65",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9bafa8ae1cb7b22b2b47301f2ffb8a5b2a7aeebad3f2f4d5faa5dd937dc2bd65"
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
@@ -22241,23 +22241,23 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "9998760080c9fd47ca0080fe335fc994cb2291b0ecb070613b4b4dcc3b323253",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9998760080c9fd47ca0080fe335fc994cb2291b0ecb070613b4b4dcc3b323253"
+                "sha256": "8731c9f92c0f607ae83833fbe7810857d0682114650a8bfee86583298f322451",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8731c9f92c0f607ae83833fbe7810857d0682114650a8bfee86583298f322451"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "711d76160d20413ce52da03ea73711652398d17cfb034ed22fe2b7f576be4fe8",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/711d76160d20413ce52da03ea73711652398d17cfb034ed22fe2b7f576be4fe8"
+                "sha256": "e326eae154f2413afe2062ebb516406913fcbb7c4f16ca81f4a1ef17c9ed4958",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e326eae154f2413afe2062ebb516406913fcbb7c4f16ca81f4a1ef17c9ed4958"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "135283658bc96c225eeb3d904ee35f5e53b3aeca4e4e71682bc4d2f6fe9c715e",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/135283658bc96c225eeb3d904ee35f5e53b3aeca4e4e71682bc4d2f6fe9c715e"
+                "sha256": "23c0837cfbc3fa6ef83f5486fb696c4bd1301615a0f9150b84ff2c3256b64e38",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/23c0837cfbc3fa6ef83f5486fb696c4bd1301615a0f9150b84ff2c3256b64e38"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "77b5fce3092286c7fc528b2dbe6850eb5466493f876031d9f4411fd8cd4c2492",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/77b5fce3092286c7fc528b2dbe6850eb5466493f876031d9f4411fd8cd4c2492"
+                "sha256": "4a0882b566f85f3bde986bba2380cdc80f2331834e7afb8dc33e50b3439e913c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4a0882b566f85f3bde986bba2380cdc80f2331834e7afb8dc33e50b3439e913c"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
@@ -22266,23 +22266,23 @@
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "3c53f14533e06ed3a9ce2369282867b1c4ad10c94d960cde18c6fe954e3691f5",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3c53f14533e06ed3a9ce2369282867b1c4ad10c94d960cde18c6fe954e3691f5"
+                "sha256": "faaf3f27c5c1bc169501cba5d85cb13e18730cb4dc8b6017291732c99ff58094",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/faaf3f27c5c1bc169501cba5d85cb13e18730cb4dc8b6017291732c99ff58094"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "3bfefa2344dac84aca777c7ba9ef1854934d8daf7fbdd064da0b8009b9189df4",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3bfefa2344dac84aca777c7ba9ef1854934d8daf7fbdd064da0b8009b9189df4"
+                "sha256": "451d53dcd8248cc78ed7eecda7322e10f0bf4a5c8b8350558155d9d929bdd24b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/451d53dcd8248cc78ed7eecda7322e10f0bf4a5c8b8350558155d9d929bdd24b"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "d2309f78f336c0422d61883005492d8727b0047e731fb178ab6fae94c1259c0f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d2309f78f336c0422d61883005492d8727b0047e731fb178ab6fae94c1259c0f"
+                "sha256": "8bf0589f5e229e4aabf8070f4f0c4d305b24437b89929ff9bc24b736e79f3c3f",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8bf0589f5e229e4aabf8070f4f0c4d305b24437b89929ff9bc24b736e79f3c3f"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "2bfeae4292d18b6b613f408bbaa531289eb8d8406d14826c051c190cf6dc894a",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2bfeae4292d18b6b613f408bbaa531289eb8d8406d14826c051c190cf6dc894a"
+                "sha256": "17c743fb1a7c23cb9afe5d859b7739dcf4737380de436a4f044b91fa009f04b0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/17c743fb1a7c23cb9afe5d859b7739dcf4737380de436a4f044b91fa009f04b0"
               }
             ]
           }
