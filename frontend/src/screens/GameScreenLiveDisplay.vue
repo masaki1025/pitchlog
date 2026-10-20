@@ -88,7 +88,7 @@ function seasonNote<T>(
   if (
     supply?.status === 'unavailable' &&
     supply.offline === true &&
-    !supply.fetchedAt
+    (typeof supply.fetchedAt !== 'string' || supply.fetchedAt.trim() === '')
   )
     return 'オフラインのため未取得'
   const fetched =
