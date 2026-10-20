@@ -940,3 +940,42 @@ backend全件は5aeca5e8の固定backend入力で並走中。ステップ2でbac
 
 - round1-codex.log: SHA-256 `86d8a4261379fe979c0f3a7b3ac78e4dd2129f6d2cfce15fd212e3018808b09b`
 - round1-claude.log: SHA-256 `0078d9970b1784c21f4af3ae88555dd4c20ed3358d70d20f2148236cfb2627ee`
+
+
+### 自チームステップ3: 実画面/実API/隔離DBの受入と途中失敗の保持
+
+現製品候補c23018270eca74564bde27f2ec730c6cb57ddfd9。a60fdf5dで第1周採用3件の反映をコミット（関連49成功、Prettier/ESLint/vue-tsc成功）。最新実develop8e4698f6dc254439b7d5e0c273cc2aef70cda657（#163、ORM受入シート3ファイル）を通常mergeした。自チーム/共有凍結差分との競合なし、#163影響試験15成功。production build/閉域も成功。root/backend全件はそれぞれe9ab0807/5aeca5e8の入力で開始しており、現HEADの全件成功へ読み替えない。
+
+既存のproduction preview・Chromium149.0.7827.0・使い捨てPostgreSQL fixture・実FastAPI/app roleを再利用した。自チームのUUIDを画面へ注入せず専用実APIから取得し、self名を認証team_nameと異なる値にして照合した。資格情報/Cookie/接続値は証跡へ記録せず、共有DBや既存環境へ変更を加えない。
+
+**失敗の記録**: e9ab0807の最初の実行ではself一覧/追加/編集/reloadは成功し、opponent作成とその選手編集の保存はDB確認できたが、opponent編集後reloadでC1がlock-busyによる未確認状態へ戻り受入失敗。次の手順は保存成功時に編集フォーム/保存ボタンが消える挙動を誤認し、再有効化を待ってtimeout（手順の誤り）。保存完了表示とnetworkidleを待つ修正手順でも旧e9では同じreload失敗が再現した。これらを正常完走とは扱わない。self待機中のopponent自動選択→後着selfへの切替による旧players中断/C1未確認化は可能性であり、原因を確定済みとはしない。認証コード/検査を緩和していない。
+
+**修正後の実行**: c2301827はWeb Locksの要求/取得だけを観測する診断付き14項目が成功（30.39秒）。観測によるタイミング影響の可能性を残し、同じ候補/production成果物を観測なしでも実行し、14項目が成功（11.11秒）。両実行のDB observerはself=受入選手編集済/17、opponent=対戦相手選手編集済/27を別チームとして確認し、B tenantの選手0件。POST /playersは2回、PATCHは2回ちょうどで、変更操作の自動再送はなかった。自身のcluster/server/browserの後始末完了を確認した。
+
+成功した14項目: 未認証self401、未認証/team→login、実login→session→app role一覧、期待tenant不一致self404、専用self取得/初期選択、自チーム選手追加/再取得、自チーム編集/reload永続化、opponent作成/明示選択、opponent選手追加/編集/reload、自他選手一覧の区別、同一tenant2タブ、実API明示logoutによる切替前提、別tenant旧タブの自動切替/旧一覧拒否、A実self応答を保持してB login後へ到着させた遅延拒否。logout UIは初期対象外でAPI操作の前提と明示し、画面機能として成功に数えない。
+
+| 受入ディレクトリ（既存一時手順配下） | 実結果 | browser.stdout.log SHA-256 |
+| --- | --- | --- |
+| self-team-e9ab08074bed-normal | failed / 8 checkpoint | `695445238cfb4b91aaa64a0082711da1c24f735e673a216d7d699b5a5837f14c` |
+| self-team-e9ab08074bed-normal-settled | failed / 6 checkpoint | `7468eaf01044a1c3fe80afd9e7f9f7985de2261c8b884ae9436107c4d04592d9` |
+| self-team-e9ab08074bed-normal-status-idle | failed / 8 checkpoint | `594b5df9f95e95a5aab3f9dd1bd5a3d85aa687e110931e67667e546dd68c6e9c` |
+| self-team-c2301827-lock-diagnostic | passed / 14 checkpoint | `462d7fbaf40f0c6c46ec6cd2fe5d7be9b78446d52e517dcb80e1a200626d3205` |
+| self-team-c2301827-normal-status-idle | passed / 14 checkpoint | `022dde5d381627b4662c4d75bacef78a8c48b99b6abcfc1522ab2928fb7ad199` |
+
+旧ba339cf8正常8項目とは別候補の結果。全15経路やTSK-528/TSK-520全体の完了へ広げない。既存故障系すべてを今回実画面で再試験した意味でもない。self通信失敗/不正200/明示再取得/世代切替/遅延mutationは固有/既存Vitestの影響試験へ対応付ける。
+
+core検出はc2301827対実develop8e4698f6で16パスすべてを検出し、基線検査成功。実core_guardへ本人チェック未記入のPRイベントを与えexit1となることを確認した。新しいcore登録や既存対象の除外はない。本人確認対象は製品6・試験10・資料5の21ファイル（git diff --no-renames --name-only origin/develop...HEAD）。チェック/方法は人間が実施するまで未記入。
+
+台帳への追記なし。今回の受入と手順誤認/環境失敗は個別実行の証跡として記録し、新たなハーネス改修や一般的傾向としての知見を追加しない。
+
+
+### 自チーム実装レビュー第2周（基本枠終了）
+
+c2301827を対象に、e9ab0807→a60fdf5dの採用反映差分/影響箇所だけを査読。実Claude反対側・正規Codex敵対の両方で新規P0=0/P1=0/P2=0。第1周の既存3試験の検出力復元、不正200の接続拒否、self pending中自動選択保留の採用反映を確認した。UUID式共通化の不採用も妥当と回答。既定2周を使用済みで追加周を勝手に行わない。7.7/本人確認/公開/マージの承認には流用しない。
+
+Claudeは既存clientのAbortErrorでもCookie変更可能性を理由に未確認へ戻す契約と、query観測者消失で中断される経路を確認した。読込中の明示チーム切替・画面離脱、opponent query無効化、self明示再確認後の自動選択でも安全側無効化/入力破棄が起こり得る。本追補では既存C1契約やqueryの中断方針を変更しない。今回のpending自動切替保留は初回入口だけを避けるもので、残入口を解消済みとは扱わずPRの既知制約/本人確認対象へ提示する。もし中断を止める追加変更を求めるなら、Cookie不確実性・旧応答排除への影響と既存計画の具体差分を別判断へ出す。資格情報/変更要求の自動再送は禁止のまま。
+
+レビュー時点で観測なし受入と修正後frontend全件、旧入力root/backend全件は進行中だった。後発の成功/失敗結果の収録は実行証跡の追記であり、レビュー担当が再実行/再レビューした意味ではない。後発の製品変更はない。
+
+- round2-codex.log: SHA-256 `006a420b311c6d42995911f1bbd55edda60b1e8dde4fc30bc63783536b4c855d`
+- round2-claude.log: SHA-256 `80d7286b3e352344fd1f93f0aa0f166a1593448ee6a685e9f9b03ddc1ec49d87`
