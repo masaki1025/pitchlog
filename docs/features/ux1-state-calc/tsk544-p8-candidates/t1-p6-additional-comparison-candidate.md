@@ -3,7 +3,7 @@
 状態: **比較資料の候補**。blind入力v2 `t1-p6-additional-blind-v2.json` を変更しない。本資料はP-6担当が入力だけから段階Aを固定した後に渡す。作成者の対応づけと期待値を独立導出として扱わない。正式109件の対応表とは別集合を維持する。
 
 - blind入力v2 SHA-256: `e12ae8b589aa48971a9b7ba4a408cc4b90aaa6ae9c27df9ca328493a18df04e4`
-- 比較元の承認済み要件書: v2.15（同blind入力の`sourceSet.sha256=d4f911db884d33455d633b8c16364ea8609df807ee3103f59697200c2b75f93b`）。現在のv2.16候補は未承認のため、これを正式比較元へ読み替えない。
+- 旧blind入力の比較元は承認済み要件書v2.15（`sourceSet.sha256=d4f911db884d33455d633b8c16364ea8609df807ee3103f59697200c2b75f93b`）のまま保持する。要件書v2.16は2026-10-21に7.3確定したが、旧入力の出所を後から付け替えない。v2.16対応の正式case・ID対応・比較射影は別版で固定する。
 - 正式契約: `contracts/state-transition/state_transition_contract_v1.json`、commit `7c1afebab31facc71e8cfc2731da1a9fa392de4e`、blob `b178ff9cbed997866989eb7dc93476683f762e4a`、SHA-256 `54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb`。既存109 caseには下表の場面全体へ一意に対応する正式case IDが無い。`formalCaseId=null`は対応未成立であり、意味上の規範IDとの一致を正式caseの存在とみなさない。
 
 | blind ID | 原典に照らす規範ID | 現行正式case ID | 不足する比較面・入力 |

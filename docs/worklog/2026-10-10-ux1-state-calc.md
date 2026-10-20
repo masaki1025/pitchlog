@@ -434,3 +434,15 @@ P-7の残4項目をU-S1主担当へ照会し、同担当枝HEAD `9ecb437024fab3d
 山田正輝(PO)が最終HEAD `ae0dd6690608de6d558ee90d7ace83258ae69054`のJ5/J6本文・入力型・直接影響する整合差分を正式7.3承認した。承認対象の要件書v2.16候補SHA-256は`535fab9236641e85ca74ac647b45dc4c8c876530791a1c6c505a368055a1c083`、ADR-003 v0.9候補は`05d3f236e0b9346bd83a9c5c6d1a6e94f4c0d6db2f26f3150c63bc2121b471f3`。レビューは第1回全文P0 2/P1 5、第2回反映差分と影響節P0 3/P1 1を全件採用・不採用0、第3回P0限定はP0 0。採用反映2周、レビュー実行3回の履歴を維持する。第2回P1採用反映の独立再レビュー未実施をPOが残余として受容した。本人逐行確認を実施したという申告は無い。
 
 `finalize-doc`手順6に従い、両文書を`approved`化して版・変更履歴を確定し、`docs/README.md`の状態・版・日付を更新する。計画の正本ゲートと作業ログだけを同期する確定コミットであり、凍結JSON・認可台帳・製品コードは含めない。既存の全件pytest 8失敗は本承認で解消しない。6件の認可台帳追随はTSK-424所有側・7.7の別ゲート、環境由来2件は専用隔離環境での再検証を要する。P-6/P-7/P-8、7.7実値、製品計算コードの開始条件は引き続き別判定とする。
+
+### 確定後の限定追随と受取（2026-10-21）
+
+正本確定コミットは`52625ed6a6d7d27a212acfee16b97c8a97d987a5`。正式契約・凍結JSONを変更せず、[T1契約射影候補](../features/tsk544-t1-state-calculation/t1-contract-projection-candidate.md)でJ5/J6のdescriptor/schema、正常/拒否/境界case、P-6追加7件の未割当を整理した。旧J6型候補のcamelCaseと無効者を含む観測順は正本v2.16に反するため、旧候補へ明示の参照注記を付け、旧資料自体は保全した。旧P-6 blind v2の出所v2.15をv2.16へ書き換えず、新版比較資料と分離する。
+
+P-6担当からは、既存段階Aの封印SHA-256`9997ef0a284c912abe6dea10f952081f6051f6b593fd1b03a9dc904062042fee`は維持、新正本のcommit/hash/差分は未照合、追加7件は5件導出・005/007のRBI不定で**0 verified/7 blocked**のままとの回答を受領した。新版は純入力＋原典固定→影響/独立性確認→A hash封印→著者のID対応・期待射影の順を受領可としたが、正式受理や署名ではない。005/007の観測を期待値から逆算しない。
+
+U-S1担当の2026-10-21の現行回答（`docs/features/us1-sync-port-surface/tsk544-p7-us1-response.md`）（担当枝`9b5eda00`）を読み取りで確認した。⑦→T5/O4→T4の順序と配線分担は受理済み。同一イベントの入力同値性は未証明、規則snapshot・名簿・投影前状態・T1履歴prefixの認可済み読取Port署名/型は未提供、J6原wire/codec版/homeTouchOrderの物理保存型・版・限定resolverも未確定。U-X1が型/評価、U-S1が同scope接続、506がHTTP注入。実Port SHAとHTTP/DBは実装後ゲートのまま。
+
+TSK-564から、#153候補がT2の`game_end_contract_v1.json`・同schema・`appendix_e_consumer_handoff_v1.json`を所有し、共通descriptorは変更していないとの実回答を受領した。共有資産の推奨順は#153正式統合後にT1 descriptor/schema追随、T2の参照digest/loader/handoffへ機械的に反映して所有側へ渡す案。#153の統合やT2署名・受理は未成立であり、今回のT1枝から上書きしない。後続の#153統合準備指示は既存TSK-564担当タブへ転送し、当方のT1編集所有に変更はない。
+
+全件pytestの既報8失敗は過去HEADの実測値として保持する。うち環境由来2件の再検証のため、このworktreeに`uv sync --frozen`でbackend `.venv`を用意し、共有`pitchlog-db-1`を使わず、`postgres:17.11-bookworm`の使い捨てコンテナ`pitchlog-tsk544-sqltest-20261021`（127.0.0.1:55449、tmpfs）で`tests/domain/mut/test_lang_operators.py`を実行して**13件成功**。試験後にコンテナを停止・自動削除した。全件pytestを再実行していないため、新HEAD全件成功とは記録しない。認可台帳由来6件は正式ゲート待ちで未解消。要件書の既存台帳source blob `ee6d2508dbdecf34d90c34fc022ff162f73dd3d2`に対し確定後の実blobは`297f8cf2653c65c846ea3feff7b7a9c563afbe3e`。これは7.7候補の入力値であり、人間受理や派生資産の再封印を意味しない。
