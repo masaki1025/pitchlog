@@ -7,6 +7,8 @@ import {
   type SyncNoticeDescriptor,
 } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import GameScreenPlayObservation from './GameScreenPlayObservation.vue'
+import type { PlayObservationRequest } from './GameScreenPlayObservationTypes'
 import {
   judgePitchInputEligibility,
   PITCH_INPUT_INELIGIBILITY_MESSAGE,
@@ -58,6 +60,10 @@ const props = withDefaults(
     receivedNotices?: readonly SyncNoticeDescriptor[]
     /** 停止UIの表示fixture。正式なPort/停止型とは接続していない。 */
     stopDisplay?: StopDisplay
+    /** 表示専用の観測入力要求。正式 wire DTO ではない。 */
+    observationRequest?: PlayObservationRequest | null
+    /** 要求と照合する現在の試合・プレイ文脈キー。 */
+    observationContextKey?: string | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -79,6 +85,8 @@ const props = withDefaults(
     syncedCount: undefined,
     receivedNotices: undefined,
     stopDisplay: undefined,
+    observationRequest: undefined,
+    observationContextKey: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -226,6 +234,17 @@ function clearDraft() {
   course.value = null
   resultId.value = null
 }
+
+// 観測要求や試合文脈の切替後に旧投球下書きを再表示しない。
+watch(
+  () => [
+    props.observationRequest,
+    props.observationContextKey,
+    props.eventIdentity,
+  ],
+  clearDraft,
+  { deep: true, flush: 'sync' },
+)
 </script>
 
 <template>
@@ -464,7 +483,13 @@ function clearDraft() {
       </div>
     </section>
 
+    <GameScreenPlayObservation
+      :request="props.observationRequest"
+      :active-context-key="props.observationContextKey"
+    />
+
     <section
+      v-if="props.observationRequest?.mode !== 'non-pitch'"
       aria-label="投球入力の下書き"
       class="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
     >

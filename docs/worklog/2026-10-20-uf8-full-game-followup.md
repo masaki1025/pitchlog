@@ -60,3 +60,13 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 ### ステップ2の独立提出枝
 
 計画のPR分割に従い、ステップ1の固定コミット13d04a91を比較元にした`feature/uf8-play-observations` worktreeでステップ2のみを実施する。計画本文・9ステップ・承認対象SHA・レビュー回数は維持し、実行枝のfrontmatter branchだけを更新した。ステップ1のレビュー/是正は親枝側で行い、必要な是正だけを明示的に取り込む。
+
+## ステップ2 打球・走者観測の下書き（独立枝）
+
+`GameScreenPlayObservation.vue`と表示専用型・質問部品・DOM試験を`GameScreen*`内に追加し、`GameScreen.vue`へ表示統合した。公開する表示契約は`PlayObservationRequest`（文脈キー、投球/非投球、非投球種別別の対象走者、質問、候補）と`RawPlayObservation`（payloadのraw観測のコピー）であり、正式wire DTOではない。非投球で旧投球欄を隠し、種別別の結果/到達・企図塁を受ける。打球座標は付録Bの値の手入力だけを保持し、タップ変換は封鎖。供給された捕球候補を表示して手動選択できるが、推定候補を既定選択しない。走者キーごとの進塁上書き・第三アウト時機・打点因果、妨害裁定、付随失策の質問は未選択を保持する。候補/文脈変更で下書きを破棄し、重複走者キーの要求は閉じる。実確定/保存/送信ボタンは封鎖を維持した。
+
+実測: `pnpm test`は84ファイル1576件成功（後述の追加1試験より前）。最終の関連Vitestは`GameScreenPlayObservation.spec.ts`、`GameScreen.spec.ts`、`GameScreenStopDisplay.spec.ts`、`GameScreenNarrowWidth.spec.ts`の4ファイル46件成功。`pnpm exec eslint .`、`pnpm exec vue-tsc --noEmit`、対象5ファイルの`pnpm exec prettier --check`、`pnpm build`（build closure conforming）、`git diff --check`が成功。DOMでは投球/非投球、3種別、複数走者、未選択、提供質問の反映、候補/文脈切替、直接dispatchでfetch 0、停止/確定封鎖、375/320pxの縦積み・折返し構造を確認した。
+
+実ブラウザのピクセル幅は未実測。隔離fixtureのVite起動が`listen EPERM`、ローカルChromium起動がsandboxの`Operation not permitted`で拒否された。付録B座標へのタップ変換、捕球推定、FR-003の対象走者/質問判定、妨害/公式記録の正式入力要求、単一計算の製品型/署名と正式wire変換・保存経路は未提供であり、仮実装で埋めていない。実試合・実送信・再読込復元の受入は未実施。ステップ3以降、コミット、push、PR、連絡は実施していない。
+
+主担当による補完検証: 内側のimplement sandboxではローカルbind/Chromium起動が拒否されたため、主担当の許可済みホスト環境で同じ観測フォームの実Vue/CSS fixtureを起動し直した。HTTP localhost:15325・日本語Meiryoで375/320pxのdocument/body scrollWidthが各375/320、POST0・pageerror0・日本語フォント読込trueを実測。フォームの確定とタップ変換はdisabledのまま。結果`/tmp/uf8-observation-browser-result.json`、画像`/tmp/uf8-play-observation-{375,320}.png`。これは表示入力fixtureの検証で実Port/HTTP/DB受入ではない。
