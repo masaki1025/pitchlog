@@ -1,5 +1,7 @@
 # J6: 非本塁打サヨナラの生還順・最小型改訂候補
 
+
+**7.3審査後の参照点**: 本書はJ6の初期型候補であり、`runnerId`/`batterId`や「本塁に触れた全員を順序列に残す」部分は最終判断対象ではない。最新の[要件書v2.16 in-review](../../../requirements/requirements-pitchlog-2026-07-22.md)付録A-1/E-1と[ADR-003 v0.9 in-review](../../../adr/ADR-003-domain-calc-method.md) D-11を参照する。順序列はOUT3後の有効得点候補だけに限定し、正式wire位置・保存方式・resolver・7.7値は未承認。
 状態: **候補、正本7.3/正式契約7.7未受理**。要件書v2.15付録A-1のサヨナラ得点、OUT3-01〜05、付録E-1の10列exact型、ADR-003 D-8/D-11、[未解決台帳](../../appendix-e-golden-vectors/unresolved-report.md)S20を対象とする。現行`ST-MATRIX-e7e9f402f1b80eb0`は最終得点の前後比較を保持するが、`inputCoordinate`に同一プレイの生還順はなく、S20の「有効得点確定後の上限」も現行列で表せない。**位置・時刻・最終得点から順序を推定しない**。
 
 ## 型差分候補
