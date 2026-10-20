@@ -2,8 +2,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import type { UndoOffer } from './GameScreenCorrectionTypes'
 import {
+  denseEvery,
+  isLabel,
   sameDisplayValue,
   snapshotDisplayValue,
+  visibleUndoOffer,
 } from './GameScreenDisplayValue'
 import type {
   PastSubstitutionPreview,
@@ -68,21 +71,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function isLabel(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
-// 添字の自前要素をすべて検査し、穴を余分な列挙keyで埋めた形も拒否する。
-function denseEvery(
-  values: readonly unknown[],
-  test: (value: unknown) => boolean,
-): boolean {
-  for (let index = 0; index < values.length; index += 1) {
-    if (!Object.hasOwn(values, index) || !test(values[index])) return false
-  }
-  return true
-}
-
 function choicesReady(value: unknown): value is readonly SubstitutionChoice[] {
   return (
     Array.isArray(value) &&
@@ -127,9 +115,7 @@ function distinctQuestions(
   return new Set(keys).size === keys.length
 }
 
-const contextReady = computed(
-  () => typeof props.activeContextKey === 'string' && !!props.activeContextKey,
-)
+const contextReady = computed(() => isLabel(props.activeContextKey))
 const requestReady = computed(() => {
   const request = props.request
   if (!request) return false
@@ -221,6 +207,7 @@ const tiebreakAnswers = ref(new Map<string, string>())
 const pastTargetId = ref<string | null>(null)
 const pastAnswers = ref(new Map<string, string>())
 const normalCleared = ref(false)
+const incomingModeCleared = ref(false)
 const tiebreakCleared = ref(false)
 const pastCleared = ref(false)
 
@@ -238,6 +225,7 @@ function resetNormal() {
   normalAnswers.value = new Map()
   normalDraftId.value = ++nextDraftId
   normalCleared.value = hadDraft
+  incomingModeCleared.value = false
 }
 function resetTiebreak() {
   const hadDraft = tiebreakAnswers.value.size > 0
@@ -354,6 +342,7 @@ function selectKind(event: Event) {
   normalAnswers.value = new Map()
   normalDraftId.value = ++nextDraftId
   normalCleared.value = false
+  incomingModeCleared.value = false
   emitDraftChange()
 }
 function selectOutgoing(event: Event) {
@@ -366,13 +355,17 @@ function selectOutgoing(event: Event) {
 }
 function selectIncomingMode(event: Event) {
   const value = (event.target as HTMLSelectElement).value
-  incomingMode.value =
+  const nextMode =
     value === 'existing'
       ? 'existing'
       : value === 'new' &&
           !!selectedOperation.value?.registrationQuestions.length
         ? 'new'
         : null
+  if (nextMode === incomingMode.value) return
+  incomingModeCleared.value =
+    incomingId.value !== null || normalAnswers.value.size > 0
+  incomingMode.value = nextMode
   incomingId.value = null
   normalAnswers.value = new Map()
   normalDraftId.value = ++nextDraftId
@@ -518,41 +511,61 @@ const currentPreview = computed(() =>
     : null,
 )
 
-// 直前取消欄と同じ供給文脈・表示条件だけを読む。
-const matchedUndoOffer = computed(() => {
-  const offer = props.undoOffer
-  const active = props.activeContextKey
-  const undoContext = props.undoContextKey
+const matchedUndoOffer = computed(() =>
+  visibleUndoOffer(
+    props.undoOffer,
+    props.activeContextKey,
+    props.undoContextKey,
+  ),
+)
+const currentLockState = computed(() => {
+  const supplied = props.lockState
   if (
-    !offer ||
-    !isLabel(active) ||
-    undoContext !== active ||
-    offer.contextKey !== active
+    !supplied ||
+    !isLabel(props.activeContextKey) ||
+    !isLabel(supplied.contextKey) ||
+    supplied.contextKey !== props.activeContextKey
   )
-    return null
-  if (offer.kind === 'none') return offer
-  if (
-    offer.kind === 'available' &&
-    isLabel(offer.operationLabel) &&
-    isLabel(offer.targetLabel)
-  )
-    return offer
-  return null
+    return 'unknown'
+  switch (supplied.state) {
+    case 'open':
+    case 'ending-locked-undo-available':
+    case 'ending-locked-undo-unavailable':
+      return supplied.state
+    default:
+      return 'unknown'
+  }
 })
 const lockExplanation = computed(() => {
-  switch (props.lockState) {
+  const offer = matchedUndoOffer.value
+  switch (currentLockState.value) {
     case 'open':
       return '終了条件による交代の制限はありません。この画面ではまだ交代を記録できません。'
     case 'ending-locked-undo-available':
-      return matchedUndoOffer.value?.kind === 'available'
+      return offer?.kind === 'available'
         ? '終了条件により交代できません。直前取消の対象は上の欄にありますが、この画面ではまだ取り消せません。'
-        : '終了条件により交代できません。直前取消の対象は確認できていません。上の欄を確認してください。'
+        : offer?.kind === 'none'
+          ? '終了条件により交代できません。直前取消の対象はありません。取消可否は確認できません。'
+          : '終了条件により交代できません。直前取消の対象は未取得です。取消可否は確認できません。'
     case 'ending-locked-undo-unavailable':
-      return matchedUndoOffer.value?.kind === 'none'
+      return offer?.kind === 'none'
         ? '終了条件により交代できません。直前取消の対象もありません。'
-        : '終了条件により交代できません。直前取消の対象は確認できていません。上の欄を確認してください。'
+        : offer?.kind === 'available'
+          ? '終了条件により交代できません。直前取消の対象は上の欄にあります。取消可否は確認できません。'
+          : '終了条件により交代できません。直前取消の対象は未取得です。取消可否は確認できません。'
     default:
-      return '終了条件の状態は未取得です。交代できるか確認できません。取消の対象は上の直前取消欄で確認してください。'
+      return '終了条件の状態は未取得です。交代できるか確認できません。直前取消の対象は上の欄で確認してください。'
+  }
+})
+const validValidationMessage = computed(() => {
+  switch (currentLockState.value) {
+    case 'open':
+      return '提供された入力内容の確認結果は有効です。この画面ではまだ交代を記録できず、変更は行われていません。'
+    case 'ending-locked-undo-available':
+    case 'ending-locked-undo-unavailable':
+      return '提供された入力内容の確認結果は有効ですが、終了条件により交代できません。変更は行われていません。'
+    default:
+      return '提供された入力内容の確認結果は有効ですが、終了条件の状態は未取得です。交代できるか確認できず、変更は行われていません。'
   }
 })
 
@@ -645,6 +658,14 @@ onMounted(() => {
         class="text-sm"
       >
         試合または入力項目が変わったため、未保存の交代下書きを消去しました。
+      </p>
+      <p
+        v-if="incomingModeCleared"
+        data-testid="substitution-mode-draft-cleared"
+        role="status"
+        class="wrap-anywhere text-sm"
+      >
+        入る選手の指定方法を変えたため、入力済みの選手と追加項目を消去しました。
       </p>
       <p v-if="!requestReady" data-testid="substitution-unavailable">
         交代の候補と入力項目は未取得です。確認できるまで操作できません。
@@ -759,7 +780,7 @@ onMounted(() => {
               :key="question.key"
               class="block min-w-0 font-bold"
             >
-              {{ question.label }}
+              {{ question.label }}<span v-if="question.required">（必須）</span>
               <input
                 v-if="question.input === 'text'"
                 type="text"
@@ -809,9 +830,7 @@ onMounted(() => {
             <p v-else-if="!normalFieldsSelected">
               必要な選択または入力が未完了です。検証済みとして扱えません。
             </p>
-            <p v-else>
-              入力内容の確認が終わりました。変更はまだ行われていません。
-            </p>
+            <p v-else>{{ validValidationMessage }}</p>
             <ul
               v-if="
                 currentValidation?.messages?.length &&
@@ -883,7 +902,7 @@ onMounted(() => {
             :key="question.key"
             class="block min-w-0 font-bold"
           >
-            {{ question.label }}
+            {{ question.label }}<span v-if="question.required">（必須）</span>
             <input
               v-if="question.input === 'text'"
               type="text"
@@ -1015,7 +1034,7 @@ onMounted(() => {
             :key="question.key"
             class="block min-w-0 font-bold"
           >
-            {{ question.label }}
+            {{ question.label }}<span v-if="question.required">（必須）</span>
             <input
               v-if="question.input === 'text'"
               type="text"
