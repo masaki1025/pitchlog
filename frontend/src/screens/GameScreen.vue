@@ -1,7 +1,22 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import type { CourseInputView } from '../lib/courseInputView'
+import {
+  SYNC_NOTICE_CATALOG,
+  type SyncNoticeDescriptor,
+} from '../lib/sync/syncNotices'
+import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import {
+  judgePitchInputEligibility,
+  PITCH_INPUT_INELIGIBILITY_MESSAGE,
+  type PitchInputObservation,
+} from './GameScreenPitchEligibility'
+import { buildPitchEventDraft } from './GameScreenPitchEvent'
+import {
+  deriveQueueStatus,
+  type ActionRequiredSummary,
+} from './GameScreenQueueStatus'
 
 interface GameDisplayState {
   gameName: string | null
@@ -27,12 +42,79 @@ interface CourseView {
   viewpoint: CourseInputView
 }
 
-const props = defineProps<{
-  state?: Partial<GameDisplayState> | null
-  pitchTypes?: readonly InputCandidate[]
-  results?: readonly InputCandidate[]
-  courseView?: CourseView | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    state?: Partial<GameDisplayState> | null
+    pitchTypes?: readonly InputCandidate[]
+    results?: readonly InputCandidate[]
+    courseView?: CourseView | null
+    /** 未送信の件数。索引集計の結果を渡す(画面では数えない)。 */
+    unsentCount?: number
+    actionRequired?: ActionRequiredSummary
+    evacuatedCount?: number
+    syncedCount?: number
+    /** 同期境界から受け取る通知。区分の判定は通信・キュー側が持つ。 */
+    receivedNotices?: readonly SyncNoticeDescriptor[]
+    /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
+    unsentWarning?: boolean
+    // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
+    // 未確定を表せる文字列で受け取る。
+    storagePersistence?: 'granted' | 'denied'
+    /** 1 球の入力に対する記録者の観測。可否の判定にだけ使う。 */
+    inputObservation?: PitchInputObservation
+    /** 確定値のうち、画面の下書き欄の外から来るもの。 */
+    eventIdentity?: { d5: string; d4: string; gameId: string; d2: unknown }
+  }>(),
+  {
+    state: undefined,
+    pitchTypes: undefined,
+    results: undefined,
+    courseView: undefined,
+    unsentCount: undefined,
+    actionRequired: undefined,
+    evacuatedCount: undefined,
+    syncedCount: undefined,
+    receivedNotices: undefined,
+    unsentWarning: undefined,
+    storagePersistence: undefined,
+    inputObservation: undefined,
+    eventIdentity: undefined,
+  },
+)
+
+// 未同期の判定を画面で作り直さず、単一の導出から読む。
+const queueStatus = computed(() =>
+  deriveQueueStatus({
+    unsentCount: props.unsentCount,
+    actionRequired: props.actionRequired,
+    evacuatedCount: props.evacuatedCount,
+    syncedCount: props.syncedCount,
+    unsentWarning: props.unsentWarning,
+    receivedNotices: props.receivedNotices,
+    storagePersistenceGranted:
+      props.storagePersistence === undefined
+        ? undefined
+        : props.storagePersistence === 'granted',
+  }),
+)
+
+// 第 1 期で許す入力かどうか。結果は入力欄の活性と理由の表示にだけ使う。
+const eligibility = computed(() =>
+  props.inputObservation
+    ? judgePitchInputEligibility(props.inputObservation)
+    : undefined,
+)
+
+// 観測が渡されていなければ判定の対象外として活性のままにする(判定を求めた
+// のに観測が欠けている場合は、判定側が不可へ倒す)。方針は design.md 6-3。
+const inputEnabled = computed(() => eligibility.value?.eligible !== false)
+
+function noticeMessage(noticeId: keyof typeof SYNC_NOTICE_CATALOG): string {
+  return SYNC_NOTICE_CATALOG[noticeId]
+}
+
+// 確定の可否は単一のゲートから読む。画面側で封鎖の判断を複製しない。
+const commitGate = resolvePitchCommitGate()
 
 const pitchTypeId = ref<string | null>(null)
 const speed = ref('')
@@ -85,6 +167,29 @@ watch(
   { deep: true, flush: 'sync' },
 )
 
+// 確定値が揃ったときだけ下書きを組み立てる。確定はしない(封鎖はゲートが持つ)。
+const draftAssembly = computed(() => {
+  if (eligibility.value?.eligible === false) {
+    return undefined
+  }
+  const identity = props.eventIdentity
+  if (!identity || !pitchTypeId.value || !resultId.value) {
+    return undefined
+  }
+  return buildPitchEventDraft({
+    d5: identity.d5,
+    d4: identity.d4,
+    gameId: identity.gameId,
+    d2: identity.d2,
+    payload: {
+      pitchTypeId: pitchTypeId.value,
+      resultId: resultId.value,
+      speed: speed.value,
+      course: course.value,
+    },
+  })
+})
+
 function clearDraft() {
   pitchTypeId.value = null
   speed.value = ''
@@ -94,7 +199,7 @@ function clearDraft() {
 </script>
 
 <template>
-  <main class="mx-auto max-w-5xl space-y-5 p-4 pb-12">
+  <main class="mx-auto max-w-5xl space-y-5 p-4 pb-12 wrap-anywhere">
     <header class="space-y-2">
       <p class="text-sm font-semibold text-sky-700 dark:text-sky-300">
         試合状態 · 表示のみ
@@ -195,6 +300,75 @@ function clearDraft() {
     </section>
 
     <section
+      aria-label="同期の状態"
+      class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+    >
+      <h2 class="mb-3 text-lg font-extrabold">同期の状態</h2>
+      <dl class="grid gap-3 sm:grid-cols-2">
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">未送信</dt>
+          <dd
+            class="mt-1 text-2xl font-extrabold tabular-nums"
+            data-testid="unsent-count"
+          >
+            {{ queueStatus.unsentCount ?? '未取得' }}
+          </dd>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">要操作</dt>
+          <dd
+            class="mt-1 text-2xl font-extrabold tabular-nums"
+            data-testid="action-required-count"
+          >
+            {{ queueStatus.actionRequiredCount ?? '未取得' }}
+          </dd>
+        </div>
+        <div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
+          <dt class="text-sm text-slate-500 dark:text-slate-400">退避済み</dt>
+          <dd
+            class="mt-1 text-2xl font-extrabold tabular-nums"
+            data-testid="evacuated-count"
+          >
+            {{ queueStatus.evacuatedCount ?? '未取得' }}
+          </dd>
+        </div>
+      </dl>
+
+      <p
+        v-if="queueStatus.unsentWarning"
+        class="mt-3 rounded-lg border border-amber-500 p-3 text-sm font-bold text-amber-900 dark:text-amber-200"
+        data-testid="unsent-warning"
+      >
+        未送信が多くたまっています。同期できる状態か確認してください。
+      </p>
+
+      <ul
+        v-if="queueStatus.actionRequiredLabels.length"
+        class="mt-3 list-disc space-y-1 pl-5 text-sm"
+        data-testid="action-required-labels"
+      >
+        <li
+          v-for="(label, index) in queueStatus.actionRequiredLabels"
+          :key="`${label}-${index}`"
+        >
+          {{ label }}
+        </li>
+      </ul>
+
+      <ul class="mt-3 space-y-2 text-sm" data-testid="sync-notices">
+        <li
+          v-for="(notice, index) in queueStatus.notices.filter(
+            (item) => item.noticeId !== 'Q4',
+          )"
+          :key="`${notice.noticeId}-${index}`"
+          :data-notice-id="notice.noticeId"
+        >
+          {{ noticeMessage(notice.noticeId) }}
+        </li>
+      </ul>
+    </section>
+
+    <section
       aria-label="投球入力の下書き"
       class="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
     >
@@ -218,7 +392,53 @@ function clearDraft() {
         </button>
       </div>
 
-      <div class="grid gap-5 lg:grid-cols-2">
+      <div
+        class="mb-5 rounded-xl border border-slate-300 bg-white p-4 dark:border-slate-600 dark:bg-slate-900"
+      >
+        <button
+          type="button"
+          class="rounded-lg border border-slate-400 px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500"
+          data-testid="commit-pitch"
+          :disabled="!commitGate.committable"
+          :aria-describedby="
+            commitGate.committable ? undefined : 'commit-blocked-reason'
+          "
+        >
+          1球を確定
+        </button>
+        <p
+          v-if="!commitGate.committable"
+          id="commit-blocked-reason"
+          class="mt-2 text-sm text-slate-700 dark:text-slate-300"
+          data-testid="commit-blocked-reason"
+        >
+          {{ commitGate.reason }}
+        </p>
+      </div>
+
+      <ul
+        v-if="eligibility && !eligibility.eligible"
+        class="mb-4 list-disc space-y-1 rounded-lg border border-amber-500 p-3 pl-8 text-sm"
+        data-testid="input-ineligible-reasons"
+      >
+        <li v-for="reason in eligibility.reasons" :key="reason">
+          {{ PITCH_INPUT_INELIGIBILITY_MESSAGE[reason] }}
+        </li>
+      </ul>
+
+      <p
+        v-if="draftAssembly"
+        class="mb-4 text-sm"
+        data-testid="draft-assembly-status"
+      >
+        {{
+          draftAssembly.ok
+            ? '下書きを組み立てました（保存も送信もしていません）'
+            : `下書きを組み立てられません: ${draftAssembly.reason.target}`
+        }}
+      </p>
+
+      <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div class="space-y-4">
           <div>
             <label for="pitch-type" class="mb-1 block text-sm font-bold"
@@ -231,6 +451,7 @@ function clearDraft() {
                 :value="pitchTypeId ?? ''"
                 class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 data-testid="pitch-type"
+                :disabled="!inputEnabled"
                 @change="pitchTypeId = selectedId($event, props.pitchTypes)"
               >
                 <option value="">未選択</option>
@@ -268,6 +489,7 @@ function clearDraft() {
                 autocomplete="off"
                 class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 data-testid="pitch-speed"
+                :disabled="!inputEnabled"
                 placeholder="km/h"
               />
               <button
@@ -291,6 +513,7 @@ function clearDraft() {
                 :value="resultId ?? ''"
                 class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 data-testid="pitch-result"
+                :disabled="!inputEnabled"
                 @change="resultId = selectedId($event, props.results)"
               >
                 <option value="">未選択</option>
