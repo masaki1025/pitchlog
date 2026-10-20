@@ -22,3 +22,22 @@ U-S1の2026-10-20回答（`tsk544-p7-us1-response.md`、コミット`5ca7ef2e`�
 **2026-10-20のU-S1追加回答（HEAD `695a4faf`）**: `T1PreparedEvaluationV1`を一イベント取引の不変局所値としてprepare→T4へ渡す責任境界は条件付き受理。現⑦内容検査→T5/O4の拒否優先順を維持する案が推奨される。ただし⑦入力とT4の写像/採番後入力の論理同値性は未証明であり、変わるなら意味変更をPO/正本へ提示する。U-S1が同一認可scopeで読取tokenから`T1AppliedContextV1`を組み立てる案が推奨され、U-X1が型、506がHTTP composition/実adapter注入を所有する。提案署名は`prepare_t1(event, writer, *, context) -> Result<prepared, rejection>`/`apply_prepared_t1(event, prepared, writer) -> None`で、既存Portへ無断追加せず版付き接続を審査する。J6の観測順序保持・同D5の順序変更拒否・保存観測からのundo再評価の責任はU-S1が受理したが、原wire/codec保存、正式field/参照解決、undo実接続と実Port SHAは未提供。**責任受理は正式V1型・P-7全成立・製品接続の受理ではない。**
 
 **2026-10-20残4項目のU-S1回答（同担当枝HEAD `9ecb437024fab3da31783164e2b9a835b9d53501`）**: 版付き`prepare_t1(event, writer, *, context)`/`apply_prepared_t1(event, prepared, writer)`の署名案は維持するが、contextの規則snapshot・名簿・投影前状態・T1履歴prefixの同scope読取口が未提供。D3とT1履歴prefixを同一視しない。現行の⑦prepare→T5/O4→T4を推奨し、⑦入力と写像/採番後のT4入力の意味同値が未証明なら拒否優先順を確定しない。preparedのscope内配線はU-S1、評価adapterはU-X1、HTTP注入は506の担当。J6順序/原wire/codec版の保存と限定resolverの接続責任はU-S1が受理したが、物理保存方式・正式型・提供SHAは未確定。責任受理はP-7着手前公開契約の全成立でも実Port完成でもない。
+
+## 2026-10-21の項目別受理用契約案（未承認）
+
+既存の⑦→O4→C2を変えないというPO指示と[拒否順判断票](../../tsk544-t1-state-calculation/t1-p7-rejection-order-decision.md)を前提にする。以下は**544が要求する候補型**であり、Python/TSの既存実装・登録済みtoken・正式schemaの宣言ではない。既存`GameReadToken`は`games.applied_rules`を読めるが閉型ではなく、`PlayerReadToken`の最大200行読取も時点名簿の保証ではなく、`OperationEventOrderReadToken`の有限D2範囲もT1適用済みprefixの完全性を保証しない。
+
+| 要求値と候補型 | 最低限の閉入力・失敗条件 | 読取境界と回答先 |
+| --- | --- | --- |
+| `T1RulesSnapshotV1` | 対象`game_id`と保存済み`games.applied_rules`の同一版、規定回・タイブレーク適格/配置・コールド等T1が使うF-1規則を、未知/欠落を拒否する閉型へ投影。要求中の設定値を上書きに使わない | U-G1は保存snapshotの型・版・固定時点、U-S1は同scopeの`GameReadToken`からの認可済み読取/返却型を回答 |
+| `T1RosterAtEventV1` | `game_id`、攻撃/守備team、当該プレイの選手ID・打順slot・有効な出場/交代状態・参照時点を閉じる。タグ付き一時IDは同scopeのC2写像と突合し、名前/背番号では照合しない。別試合・別team・時点不明を拒否 | 名簿データ所有側/U-G1とU-R1が時点・ACL・実データ境界、U-S1が読取token・返却型/参照上限を回答 |
+| `T1PreStateV1` | 規範descriptorの`state.*`軸（半回、count、out、走者、打順）と計上済みscore/投手・打者の同一版。現在イベントの投影**前**を指し、古い画面下書きやV8差分を前状態へ流用しない | U-X1が消費する型、U-S1が同scopeの投影状態読取token/版識別とT4への束縛を回答 |
+| `T1AppliedPrefixV1` | `game_id`/記録権世代/現D1より前の**受理・有効版**の論理列、D2/変更版/墓標を区別した順序と完了境界。有限ページまたは一貫したsnapshot参照の閉型にし、全件集計や`confirmed_watermark=D3`を履歴とみなさない。欠落・同値D2・scope越境を拒否 | U-X1が必要な履歴射影、U-R1が世代/保存版、U-S1が登録済み読取token・有限範囲/一貫性保証を回答 |
+
+候補の集約署名は`read_t1_context_v1(writer: PortWriter, *, game_id: UUID, generation: int, d1: int, d5: UUID) -> Result[T1AppliedContextV1, T1ContextReadFailureV1]`。`T1AppliedContextV1`は上記4値と、認可済みtenant/game・現世代/D1/D5・同transactionの版印を含む**一イベント限定の不変値**とする。`writer`は適用核発行のものだけを受け、T1からSession/任意SQLを注入しない。読取不能・破損・参照不足は入力内容拒否へ丸めない。4値それぞれの実token、返却フィールド/版、RLS/ACLと同scope寿命は所有側の回答後に確定する。Port完成SHA・実DB試験は実装後ゲートである。
+
+**評価と拒否の候補責任**: U-X1の`prepare_t1_v1(raw_event, context) -> Result[T1PreparedEvaluationV1, T1ContentRejectionV1]`は⑦で元のタグ付きPlayerRefを使い、J6/OUT3/RBI等の内容に限って拒否する。C2未解決を⑦の内容拒否へ変えない。U-S1はT5/O4後、C2とassigned D2を得た時に`assert_t1_equivalent_v1(prepared, projected_event, context) -> Result[None, T1EquivalenceFailureV1]`で、①同一scopeの一時/正式IDが同じ選手、②D2の番号変更が同じ論理位置/前状態を保持、③規則/名簿/前状態/prefixが同じ版、④元eventのD5指紋と`HomeTouchOrderV1`の順序が不変、を検証してT4に同じprepared値を渡す。T4で再計算して差を隠さない。同値が証明できない場合は書込み前に安全側で止める**候補**とし、境界結果・D5消費・保存/復旧操作をU-S1との正式接続契約で分類する。現行⑦内容B3a/T9、O4 B3/新台帳0、C2単独状態依存B7を混ぜない。
+
+**J6原入力の保存候補**: 既存`operation_events.payload/state_diff`は投影後JSON/V8であり元wireではない。`idempotency_ledger`は指紋/結果だけで原wire bytes・codec版・順序の原形を持たない。3種類の結果表へ重複列を加えるより、**新wire経路だけに、tenant+D5を一意キーとする追記専用の原本行**を第一候補とする。候補`T1WireOriginalV1 = {tenant_id, game_id, generation, d1, d5, raw_wire_bytes, wire_codec_version, home_touch_order_raw, source_fingerprint, record_version}`。`raw_wire_bytes`は元wireを損失なく保全し、`home_touch_order_raw`はタグ付き順序を原形で照合する。`HomeTouchOrderV1`の意味版とwire codec/保存record版は別。新wireのD5指紋は承認済みのcodec版+元wire入力の規則に従い、既存DTO経路/保存済み指紋を再解釈しない。受理はledger・原本行・event・T4を同一transactionで、T9に進んだ内容拒否はledger・拒否原本・原本行を同一transactionで保存する候補。0行更新/rollbackなら原本行も0、DI2再掲で再挿入しない。原本読取は同テナント同scopeの登録済み限定resolverだけ、利用者へ表直接INSERT/SELECTを与えない。これは**DDL/RLS/ACL/凍結ゲート前の場所候補**であり、テーブル名・FK/全結果種別・旧行移行・実装担当は未確定。U-S1が取引/接続要件を集約、U-R1がdata-model/ACL/編集境界、506がwire bytes/codec版の供給、544が閉意味型、原本Port/DDLの実装担当は項目別回答で確定する。
+
+各受取担当には、上の該当行を**「受理／修正案（具体型・差分）／担当外（受取先）」**で返してもらう。特に「既存tokenで4値が足りる」という回答には登録箇所・返却型・認可scope・不足時結果の証跡を求める。所有窓口の受理は実Portの実装SHAや結合試験の完了を意味しない。
