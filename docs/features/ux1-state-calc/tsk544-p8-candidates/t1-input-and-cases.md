@@ -44,6 +44,8 @@
 
 S20の第1候補は新しいE-1列を足さず、既存の10列で生還候補とアウトを判定した**後**に、共有T1核の得点効果としてサヨナラ上限を評価すること。既存caseの`expected.historyContext[].difference.scoreboard.inningScores`は得点のbefore/afterを表現できる（既存`ST-MATRIX-e7e9f402f1b80eb0`で実在）。この同じ比較面へ上のHR/非HR/OUT3組合せを載せれば、得点0/1/3の最終値を追加列なしで検証できる候補となる。ただし**評価順そのもの**の規範表現が既存schemaで足りるかは契約所有側が検査する。T1は保存済み規則、裏/表、適用前スコアから有効得点と上限後スコアを計算し、T2は**T1の上限後スコア**を受けて終了を判定する候補とする。T2の終了結果をT1の得点計算へ逆流させない。`OUT3-01`〜`05`の評価結果を先に入力し、無効得点へRBI/サヨナラ上限を適用しない。表現不能ならE-1 exact型の最小正本改訂と7.3レビューを別に提示する。無断で第11列を作らない。
 
+**J6の既存型による読取検証（2026-10-20）**: 現行`state_transition_contract_v1.json`の`ST-MATRIX-e7e9f402f1b80eb0`を実際に読むと、`historyInput.before/after.stateFields.state.score`と`expected.historyContext[0].difference`内の`state.score`・`scoreboard.inningScores`に前後値がある。したがって**確定した最終得点の比較面**は既存型で表現できる。他方、同caseの`inputCoordinate`は`eventKind`・`resultId`・カウント・アウト・走者配置・投球種別だけで、同プレイ中の複数走者の**生還順**は表していない。[未解決台帳](../../appendix-e-golden-vectors/unresolved-report.md)S20も「既存の列では有効得点の確定後に上限をかける順序を表せない」と明記する。ゆえにHR例の最終値が表現できることをもって、非HR例の閉入力と評価順までJ6成立とは判定しない。契約所有側は、既存`historyContext`と既存descriptor軸を組み合わせた非HR例の**完全な入力・前後得点・評価順の識別**を1件の候補caseで示すか、不能ならE-1の最小型/正本改訂を7.3へ出す。どちらも未受理であり、この節は凍結JSONを変更しない。
+
 ## C-3 負例とゲートの対応
 
 | 負例群 | 拒否位置の候補 | 未確定の実値・所有者 |
