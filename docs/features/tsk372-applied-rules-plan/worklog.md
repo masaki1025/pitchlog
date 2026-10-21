@@ -156,3 +156,11 @@
 - #172は`origin/develop=caf56347`を実基線とし、Alembic単一headは`0032_rg1_restore_gate`。旧#161の`0033_game_rules_immutable`は同じ親で、未統合#152の配置revisionを親にしない。旧#161との差分は#165の自チームreadとrepository契約・受理履歴であり、移植した本単位の製品差分そのものに変更を加えない。
 - #165の受理済み履歴24件を直前状態とする。`base-allowlist`の旧#161記録（同じ24件目）は移さない。#172が必要とする遷移は`runtime_contract_revision:17→18`、関数53→55で、#165の`repository-contract` revision22は直前・直後とも保持する。新受理行の`acceptance_id`は実PR ID `masaki1025/pitchlog#172`。正式な承認者・承認日は新実値の人間受理まで未記入。
 - #162へは「#165→#172→#162、後続#152」の統合順と旧#161由来値の再導出を送付済み。送付は受理と別に扱う。新7.7値の正式受理、既存DB適用、本人逐行確認、Draft解除・マージは未了。
+
+## 2026-10-21 置換単位ステップ2・3と新7.7候補
+
+- `b42c8dc5`で旧#161と同一の0033 migration・恒久実DB試験を移植した。隔離DBの不変性試験2件、schema manifest・Alembic試験45件が成功した。親は実developの`0032_rg1_restore_gate`で、#152未統合revisionを親にしていない。
+- `185b2c1b`で旧#161と同一のmanifest・ORM保護宣言、head固定試験、N3シートを移植した。root ORMシート試験15件が成功し、既存の人間判定・理由を保持する。
+- 製品・契約・試験の移植対象17ファイルは旧#161の`cfed4347`とバイト単位で一致する。ファイル集合SHA-256は`2e90b294f12f2d7b2d3c8c5b838f28e1dede6a53b02c53b1d6417b175750f925`。旧計画・製品レビューは不変の内容に限り維持し、新履歴処理と最終差分の追加確認は未了。
+- 新PR #172の候補入力treeは`a03a53bb49d23d7bd22b90fad828f3e67d818401`。7.7完全値は`replacement-77/decision-packet.json`、25件目の受理記録案は`replacement-77/record-proposal.json`へ固定した。案のSHA-256はそれぞれ`110a2ce24127d2c99c84caf757073504de00fbdf054652c4c7fc90d9cbde0acd`、`50531a87072e66e0dfebdd6ec4d154c78c3b68ebba5ccd62b45dff629e9f5e9b`。承認者・承認日は未記入。正式履歴・snapshot・corpus manifestは未変更。
+- 比較元#165の受理履歴24件と前後値を維持する。runtime-authz射影だけ`061eeb9e…→f4fcc729…`、corpus入力digestは`f50b17a2…→b80afca5…`へ変わる候補。9資産・外部8ファイルの省略しない値は判断資料へ収録した。#161の24件目をそのまま連結しない。
