@@ -34,6 +34,11 @@ import {
 } from './GameScreenQueueStatus'
 import type { StopDisplay } from './GameScreenStopDisplay'
 import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
+import GameScreenLiveDisplay from './GameScreenLiveDisplay.vue'
+import type {
+  LiveDisplaySources,
+  LiveIdentity,
+} from './GameScreenLiveDisplayTypes'
 import type {
   PastSubstitutionPreview,
   PastSubstitutionRequest,
@@ -103,6 +108,9 @@ const props = withDefaults(
     substitutionLockState?: SubstitutionLockState | null
     substitutionValidation?: SubstitutionValidation | null
     pastSubstitutionPreview?: PastSubstitutionPreview | null
+    /** 投影・生成formatterから受けるUI専用の表示値。 */
+    liveIdentity?: LiveIdentity | null
+    liveSources?: LiveDisplaySources | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -139,6 +147,8 @@ const props = withDefaults(
     substitutionLockState: undefined,
     substitutionValidation: undefined,
     pastSubstitutionPreview: undefined,
+    liveIdentity: undefined,
+    liveSources: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -420,6 +430,11 @@ watch(
         </div>
       </dl>
     </section>
+
+    <GameScreenLiveDisplay
+      :identity="props.liveIdentity"
+      :sources="props.liveSources"
+    />
 
     <section aria-label="対戦中の選手" class="grid gap-3 sm:grid-cols-2">
       <dl
