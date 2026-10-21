@@ -207,3 +207,9 @@ branch: feature/t2-provenance-checker
 - 直前HEAD137bf57cの完走CI run39613738082はharness/tenant-boundaryで失敗。ログはそれぞれtest merge第一親とevent base.sha、PR workspace明示base_refとevent base.shaの不一致。進んだ基線とのずれを通常取り込みで解消し、新HEADの実CIを確認する。検査そのものは変更しない。
 - 取り込み後ruff/ty/docs-status/計画正本同期合格、D1〜D4全true。署名対象RFC8785 e93f30f7…は不変で、旧署名3514e1c6…との不一致は別に未解消。本人の空欄指示を保ち、旧氏名/日付/方法/宣誓の転記や署名検査の緩和は行わない。
 - 取り込み後の関連6ファイル736 passed/19.13秒。署名単独試験は既知digest不一致で1 failed、空欄指示のまま未解消であることを再確認。通常push後の新CIを別に確認し、失敗を無視するマージ操作はしない。
+
+## 本人の限定再署名実回答の反映
+
+- 本人から署名者山田正輝、範囲T2契約provenance追加のみ、追加内容/D1〜D4確認と再署名、方法「目視」、実施日「20261021」、P-6/正式DRAW-GAP除外の明示回答を受領。氏名の重複は1件、日付は2026-10-21に正規化し、gate6-game-end.jsonの対象digest/recordedOn/reviewScopeへ転記。旧署名の氏名/日付/行為を今回の新実施とする転記ではない。
+- 旧直接条文照合の履歴は旧digest/日付と区別し、今回の目視確認・限定範囲を記録。正式provenanceのnot-performedは変更しない。署名記録の追加差分を本会話で提示。署名13試験は13 passed/3.21秒で、従来のrepository署名不一致を解消。契約/実装/候補は変更なし。
+- ユーザーの既存「mergeまで」と今回の「これだけ入れてマージ」指示に基づき、通常push・最終CI・base/head照合後のマージまで進める。P-6全成立/正式DRAW-GAP/所有側受理は今回の統合条件へ追加も代記もしない。
