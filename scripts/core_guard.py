@@ -49,8 +49,9 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
-    "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
+    "sync-protocol": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
+    "recording-rights": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
+    "tenant-isolation": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
