@@ -144,7 +144,7 @@
       "unique_constraints": [{"name": "pk_games", "kind": "PRIMARY KEY", "columns": ["tenant_id", "id"], "predicate": null, "roles": ["primary_key", "fk_target"]}],
       "indexes": [{"name": "ix_games_list", "columns": ["tenant_id", "scheduled_at DESC", "id DESC"], "predicate": "trashed_at IS NULL AND hidden_at IS NULL", "purpose": "range_sort"}],
       "forbidden_columns": ["v12", "created_by", "created_by_user_id", "inputter_id"],
-      "immutability": {"protected_columns": [], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
+      "immutability": {"protected_columns": ["applied_rules"], "allowed_update_columns": ["status", "started_at", "trashed_at", "hidden_at"], "conditional_update_columns": [], "coverage": "partial", "unclassified_handoff": "TSK-372"}
     },
     {
       "name": "lineup_memories",
