@@ -245,3 +245,43 @@ frontend全件試験、実ブラウザの375/320pxピクセル幅、実HTTP/DB�
 frontend全件86ファイル1686件/87.99秒、全Prettier/ESLint/vue-tsc/build/closure成功（9ファイル/外部参照0/違反0）。実Vue/CSS/Meiryo375/320のdocument/body幅一致、POST0/pageerror0、提供検証・終了ロック・断中封鎖・再読込下書き消去・別タブ分離を最終コードで確認（/tmp/uf8-substitutions-browser-result.json）。正式計算/Port/HTTP/DB/全試合の合格ではない。親5943a254の後追いは文書だけで製品コード不変。root Ruff/ty・文書状態/伝播/被覆/計画同期/diff成功。harness/backend実装差分0につき#160/#164の既存実測を再利用し本枝で再実行とはしない。
 
 #167を親としてステップ4だけを独立Draft提出する。正本反映なし、台帳への追記なし（個別の表示文脈・表示形状の修正で新しいハーネス運用課題を確定しない）。stacked baseのdevelop条件を満たさない既存tenant-boundary受理検査は不合格を保持し、親が人間統合された後にdevelopへretargetして再検査する。検査緩和/本人確認代記/正式型受理/公開/Draft解除/マージ/共有DB操作なし。正式カード主URL#160確認待ちを維持する。
+
+### 2026-10-21 第1期統合後の停止UI再提出
+
+- 人間操作で #160 が merge `9136c2dad916313c28698f49f8668f3edbe36b4a` として develop へ統合されたことを確認。本人確認・署名・マージを代行したとは記録しない。
+- #164 の base を develop へ変更。製品コード・試験・レビュー対象の変更は0。retarget直後のCI run39449086017では、GitHubの比較用HEAD第1親が旧base97e6eeeを保持し、新base9136c2daとの不一致でfrozen-baselinesが停止した。検査器や基準を緩めず、最新developを通常mergeしてsynchronizeを起こす。
+- 基本敵対2回・最終P0/P1/P2=0、Claude一次の既存履歴を維持。人間逐行確認は後続#164自身について未実施のまま。統合コミットと本追記以外の実装差分はない。通常push後にCIを再回収する。
+
+### 2026-10-21 #165統合後のdevelop追随（#164）
+
+- ユーザーから#165統合後の最新化とCI確認を指示された。#165の人間merge `caf5634787aeb60f692254fdcc179bb4fe34decf` を確認し、#164の固定旧HEAD `fb12a9a1e66b4ecfa83f19c46a999068e48e9338` に最新origin/developを通常mergeした。開始時は未コミット差分0、競合なし。既存成果・履歴を破棄せず、force pushしない。
+- 停止UIの製品/試験4ファイルは旧HEADから差分0。backend・contracts・CI・harness等も最新developから追加差分0で、#165の正式受理・署名をU-F8の受理として転記していない。レビュー回数・既存の指摘採否と未再査読範囲は維持する。新たな実装是正や追加レビュー枠はない。
+- 統合後のfrontend全件は **83ファイル/1,593 passed/81.66秒**。全Prettier/ESLint/vue-tsc/build成功、build closureは9ファイル/外部参照0/違反0。root Ruff/ty・計画と正本の突合・diff-check、backend format/ruff/tyも成功。backend全pytest/実ブラウザは今回再実行しておらず、過去結果と区別する。
+- #164本文の人間チェックは外部でチェック済み、実施記録欄は空欄の状態を取得した。その状態を保持し、人間逐行確認を自分が実施したとは記録しない。新HEAD/比較元/diff digestだけを更新し、通常push後の最終CIを回収する。Draft解除・マージ・共有DB変更は行わない。
+
+### 2026-10-21 #164人間統合後の#166再提出
+
+- ユーザーが#164を人間操作で統合したと通知。GitHubの実merge `043e7ad30f87041bd85d0600091b53f43c5024fc` と最新origin/developへの包含を確認した。#166の開始HEAD ac67b139・未コミット差分0を確認して通常mergeした。唯一の競合は当worklogの追記で、両側の記録を削らず保持した。#165由来の正式資産/履歴もdevelopと同一に保持し、U-F8の正式受理へ転記しない。
+- 計画7節へ実統合・提出順の状態記録を追加し、カード主URLが最新部分提出#171で確認待ち・全体未完であることを追随した。承認原本SHA、9ステップ、DoD、計画査読3回13件全採用/最終P0限定/最終反映未再査読、各PRの採否・レビュー枠は変えない。
+- 観測入力の製品/試験コードは既存HEADから差分0。最新developとの差分は計画/本ログとGameScreen.vue、GameScreenDisplayValue.ts、GameScreenObservationField.vue、GameScreenPlayObservation.vue/.spec.ts/Types.tsの8ファイルだけ。親#164の停止UI差分を本人確認へ重ねない。独立未再査読は56611d17→f7dc0ad0のPlayObservation.vue/.spec.tsの疎配列是正2ファイルであり、最終P0限定例外の可決を当該是正へ流用しない。
+- 統合後の全frontendは **84ファイル/1,633 passed/82.32秒**、全Prettier/ESLint/vue-tsc/buildとclosure9/外部0/違反0が成功。root Ruff/ty・計画正本同期・diff-checkも成功。backend/harness/正式資産/CIは最新developと同一で追加変更なし。今回、実ブラウザ・backend全pytestを新規実施したとは記録しない。
+- PR#166の比較先をdevelopへ変更し、通常push後の最終HEADの必須CIを回収する。本人チェック・実施記録を代記せず、Draft解除/マージ/共有DB適用は行わない。全試合完成は封鎖付きUIの統合条件へ追加しない。後続#167→#168→#169→#171の実比較先を確認し、新規PRを増やさず親統合後に各固有差分で確認する。
+
+#166の比較先変更直後のCI39583670831は、画面/API上のbase=developに対しevent payloadが旧stacked baseを保持し、tenant検査がbase.ref条件で停止した。比較先がdevelopへ確定済みであることを再確認し、この記録だけを通常pushして新しいsynchronizeで再検査する。製品/試験/正式資産・合否条件は変更せず、前実行を最終CI成功へ数えない。
+
+### 2026-10-21 #166人間統合後の#167再提出
+
+- #166の人間merge `fb719e368f6dbc8a178cba9d42af875553c1bc1f` と実origin/developへの包含を確認。#167旧HEAD5943a254、開始時未コミット差分0から通常mergeした。唯一の競合は当ログ追記で、両側の成果・レビュー・実行記録を保持して解消した。他担当の共有登録/正式契約/既受理履歴はdevelopと同一で、U-F8固有の変更なし。
+- 計画7節を#166統合済み・次#167へ追随。承認SHA・9ステップ・DoD・レビュー回数/採否は変更しない。#167固有差分は取消/過去訂正の製品/試験5ファイルと計画/ログ/依存・App未適用候補の4文書、計9ファイルだけ。親の観測入力・停止UIを本人確認へ重ねない。
+- 製品/試験5ファイルは旧HEADから不変。独立未再査読は敵対基本第2回対象844fba601854ba0592dbe705e67efe1a7624e8a2→最終P1是正3d5ee5a2cecc740b6f85ce538e1580bbbe27d613のGameScreenPastCorrection.vue/Correction.spec.tsと記録文書。一次P1二/P2五、敵対1回目P0一/P1二、2回目P1一の11件全採用、基本2枠消費・P0例外なしを保持し、新たな可決/レビューを代記しない。親f7dc0ad0の履歴は親の統合記録として保持し、#167の確認対象へ足さない。
+- 統合後の全frontendは **85ファイル/1,684 passed/83.12秒**。全Prettier/ESLint/vue-tsc/build成功、closure9ファイル/外部0/違反0。root Ruff/ty/文書状態/計画同期/diff-check成功。実ブラウザ・全backend pytestを今回再実行したとは記録しない。正式資産/CI/harness/backendの最新developとの差分0。
+- 比較先は先にdevelopへ確定し、最終HEADの固定比較/全9対象/未再査読範囲をPRへ記載後に通常pushする。最終HEADの必須CIを回収し、本人確認チェック/実施記録は代記しない。未接続の取消/訂正/確定/保存/送信は封鎖、全試合完成は今回の封鎖付きUIの統合条件に加えない。新PR・Draft解除・マージ・公開・共有DB適用なし。
+
+### 2026-10-21 #167人間統合後の#168再提出
+
+- #167の人間merge `32a4d828d6afe748e72ea16623711525f4912b6c` と実origin/developへの包含を確認。#167最終HEAD9a3e1590のCI39591054577 attempt 2は全実行対象成功（harness29419成功2skip/24分10秒、同一HEAD frontend1684成功）。attempt 1の主担当取消と再実行の履歴はPR#167コメント6315926742に残し、取消されたCIを合格へ計上しない。
+- ユーザー指示として、以後CIの取消・中断は必ず事前許可を得る。長時間実行だけを理由に取り下げず、今回の最終CIも自然完了を待つ。
+- #168は旧HEAD39ad0ba7・未コミット差分0から通常merge。唯一の競合は当ログの追記で、両側の成果/実測/採否を保持した。最新developと比べ、backend・共有登録・正式契約/既受理履歴・CI/harnessは追加変更0。親の取消/観測/停止UIを本人確認対象へ重ねない。
+- 計画7節を#167統合済み・次#168へ追随。#168固有の9ファイルは交代/タイブレークUIと文脈共有の製品/試験7、計画/本ログ2だけ。製品/試験は既存HEADおよび最終敵対対象b5896d12から不変で、独立未再査読コードの追加0。今回のmerge/状態記録には追加独立査読を実施していない。一次P1一/P2五と敵対基本1回目P1一/P2一を全採用、基本2回目P0/P1/P2=0、基本2枠消費・例外なしを維持。親の未再査読という履歴は保持し、子の確認対象へ足さない。
+- 統合後の全frontendは **86ファイル/1,706 passed/83.49秒**。全Prettier/ESLint/vue-tsc/build、closure9/外部0/違反0成功。root Ruff/ty/文書状態/計画同期/diff-check成功。実ブラウザ/全backend pytestを今回新規実行したとは記録しない。
+- baseをdevelopへ先に確定し、最終HEADの固定比較・対象一覧・レビュー範囲をPR本文へ更新後、通常pushでCIを起動する。人間チェックの外部状態と空欄の実施記録を保持し、本人確認/署名を代記しない。正式Port/計算/provider未提供と実操作封鎖を維持し、全試合完成を封鎖付きUI統合条件へ追加しない。新規PR/Draft解除/マージ/公開/共有DB適用なし。
