@@ -50,6 +50,45 @@ P-6の `independentVerifierId`/独立宣誓はこの再署名で変更しない�
 
 これは未記入の依頼書であり、署名記録・P-6報告書・正式受理記録ではない。
 
+## 本人回答の受領と空欄での転記準備
+
+本会話で本人から「確認した」、続いて「空欄でいいから作業を開始して」と回答を受領した。直前の提出対象はHEAD `72e1c1472b3905d37f541c63ed53f50789744e0e`、比較元 `fb719e368f6dbc8a178cba9d42af875553c1bc1f`、全binary diff SHA-256=`3b547e15c6d594e1548da64d5bfe9fa8d8d1d23cf59c4703e98503ecd16c3210`。確認応答の受領を記録するが、未回答の範囲/方法/実施日/限定再署名は空欄で保持する。
+
+```text
+確認応答原文：確認した
+確認者：山田正輝
+確認対象・範囲：
+実際の確認方法：
+実施日：
+provenance限定再署名の実施回答：
+留保・修正要求：
+```
+
+### 署名記録への転記準備欄（未適用）
+
+適用先は `docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json`。下記は既存資料内の準備欄であり、正式署名schemaへ投入する完成済み記録ではない。`subject.digest`は再計算済みの値を用意し、実施情報は空欄、今回の宣誓回答は未記入とする。
+
+```json
+{
+  "subject": {
+    "path": "contracts/state-transition/game_end_contract_v1.json",
+    "digest": "sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4"
+  },
+  "recordedReviewerId": "山田正輝",
+  "recordedOn": "",
+  "recordedMethod": "",
+  "reviewScope": "",
+  "attestations": [
+    {
+      "attestationId": "direct-clause-review-declared",
+      "recordedResponse": null
+    }
+  ]
+}
+```
+
+転記予定の限定対象は追加provenanceのみ。正式8行/248case/拒否12と逐行シートSHA-256=`9041f14c4b2a7d06440bb1278e31e8fe48e03f1ebedaa352a5b25685b62b1325`、旧確認履歴は保持する。旧2026-10-15の実施日/直接照合/宣誓を今回の実施情報には転記しない。新しい実施情報が届いた後、その範囲だけ適用し、署名記録の追加差分を別提示して最終CIを確認する。この準備追記も72e1c147の本人確認対象へ自動延長しない。
+
 ## 2026-10-21の現況と回答形式
 
 一枚資料の[最新更新](pr153-merge-gates-onepage.md)を優先する。PRの既存チェックだけでは、空欄の対象/範囲/方法を埋めたことにならない。P-6部分結果の提出や523の候補受領も、今回の署名・本人確認とは別である。
