@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { UndoOffer } from './GameScreenCorrectionTypes'
+import { visibleUndoOffer } from './GameScreenDisplayValue'
 
 const props = defineProps<{
   offer?: UndoOffer | null
@@ -8,26 +9,9 @@ const props = defineProps<{
 }>()
 
 // 取消対象の選定は供給側が行う。画面では文脈と表示値だけを照合する。
-const visibleOffer = computed(() => {
-  const offer = props.offer
-  if (
-    !offer ||
-    !props.activeContextKey ||
-    typeof offer.contextKey !== 'string' ||
-    offer.contextKey !== props.activeContextKey
-  )
-    return null
-  if (offer.kind === 'none') return offer
-  if (
-    offer.kind === 'available' &&
-    typeof offer.operationLabel === 'string' &&
-    offer.operationLabel.trim() &&
-    typeof offer.targetLabel === 'string' &&
-    offer.targetLabel.trim()
-  )
-    return offer
-  return null
-})
+const visibleOffer = computed(() =>
+  visibleUndoOffer(props.offer, props.activeContextKey, props.activeContextKey),
+)
 </script>
 
 <template>

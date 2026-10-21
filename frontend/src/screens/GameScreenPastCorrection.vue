@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  denseEvery,
+  isLabel,
   sameDisplayValue,
   snapshotDisplayValue,
 } from './GameScreenDisplayValue'
@@ -99,21 +101,6 @@ watch(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isLabel(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0
-}
-
-// 添字を全て訪問する。疎配列の穴や余分な列挙プロパティは有効要素に数えない。
-function denseEvery(
-  values: readonly unknown[],
-  test: (value: unknown) => boolean,
-): boolean {
-  for (let index = 0; index < values.length; index += 1) {
-    if (!Object.hasOwn(values, index) || !test(values[index])) return false
-  }
-  return true
 }
 
 const requestReady = computed(() => {

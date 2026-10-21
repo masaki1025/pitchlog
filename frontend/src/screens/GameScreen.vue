@@ -33,6 +33,16 @@ import {
   type ActionRequiredSummary,
 } from './GameScreenQueueStatus'
 import type { StopDisplay } from './GameScreenStopDisplay'
+import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
+import type {
+  PastSubstitutionPreview,
+  PastSubstitutionRequest,
+  SubstitutionDraftsSnapshot,
+  SubstitutionLockState,
+  SubstitutionRequest,
+  SubstitutionValidation,
+  TiebreakRequest,
+} from './GameScreenSubstitutionTypes'
 
 interface GameDisplayState {
   gameName: string | null
@@ -85,6 +95,14 @@ const props = withDefaults(
     correctionContextKey?: string | null
     correctionPrerequisites?: CorrectionPrerequisites | null
     correctionPreview?: CorrectionPreview | null
+    /** UI専用の交代・回・過去訂正要求。正式 wire DTO ではない。 */
+    substitutionRequest?: SubstitutionRequest | null
+    tiebreakRequest?: TiebreakRequest | null
+    pastSubstitutionRequest?: PastSubstitutionRequest | null
+    substitutionContextKey?: string | null
+    substitutionLockState?: SubstitutionLockState | null
+    substitutionValidation?: SubstitutionValidation | null
+    pastSubstitutionPreview?: PastSubstitutionPreview | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -114,6 +132,13 @@ const props = withDefaults(
     correctionContextKey: undefined,
     correctionPrerequisites: undefined,
     correctionPreview: undefined,
+    substitutionRequest: undefined,
+    tiebreakRequest: undefined,
+    pastSubstitutionRequest: undefined,
+    substitutionContextKey: undefined,
+    substitutionLockState: undefined,
+    substitutionValidation: undefined,
+    pastSubstitutionPreview: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -121,10 +146,24 @@ const props = withDefaults(
   },
 )
 
-/** ローカル下書きの表示専用通知。保存・送信・確定イベントではない。 */
+/** ローカル下書きの表示通知。保存・送信・確定イベントではない。 */
 const emit = defineEmits<{
   correctionDraftChange: [draft: CorrectionDraft | null]
+  'substitution-draft-change': [snapshot: SubstitutionDraftsSnapshot]
 }>()
+
+function relaySubstitutionDraft(snapshot: SubstitutionDraftsSnapshot) {
+  emit('substitution-draft-change', snapshot)
+}
+
+// 交代文脈がある画面では、直前取消欄と交代ロックの参照先を揃える。
+const undoDisplayContextKey = computed(() =>
+  props.substitutionContextKey !== undefined &&
+  props.substitutionContextKey !== null &&
+  props.substitutionContextKey !== props.undoContextKey
+    ? null
+    : props.undoContextKey,
+)
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
 const queueStatus = computed(() =>
@@ -544,7 +583,7 @@ watch(
 
     <GameScreenUndo
       :offer="props.undoOffer"
-      :active-context-key="props.undoContextKey"
+      :active-context-key="undoDisplayContextKey"
     />
     <GameScreenPastCorrection
       :request="props.correctionRequest"
@@ -552,6 +591,18 @@ watch(
       :prerequisites="props.correctionPrerequisites"
       :preview="props.correctionPreview"
       @draft-change="emit('correctionDraftChange', $event)"
+    />
+    <GameScreenSubstitutions
+      :request="props.substitutionRequest"
+      :tiebreak-request="props.tiebreakRequest"
+      :past-request="props.pastSubstitutionRequest"
+      :active-context-key="props.substitutionContextKey"
+      :undo-context-key="undoDisplayContextKey"
+      :lock-state="props.substitutionLockState"
+      :undo-offer="props.undoOffer"
+      :validation="props.substitutionValidation"
+      :preview="props.pastSubstitutionPreview"
+      @draft-change="relaySubstitutionDraft"
     />
 
     <section

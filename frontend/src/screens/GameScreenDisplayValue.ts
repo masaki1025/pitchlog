@@ -1,3 +1,55 @@
+import type { UndoOffer } from './GameScreenCorrectionTypes'
+
+/** 画面に表示できる空白でない文字列。 */
+export function isLabel(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+/** 配列の穴を飛ばさず、各添字の供給値を検査する。 */
+export function denseEvery(
+  values: readonly unknown[],
+  test: (value: unknown) => boolean,
+): boolean {
+  for (let index = 0; index < values.length; index += 1) {
+    if (!Object.hasOwn(values, index) || !test(values[index])) return false
+  }
+  return true
+}
+
+type VisibleUndoOffer =
+  | { contextKey: string; kind: 'none' }
+  | {
+      contextKey: string
+      kind: 'available'
+      operationLabel: string
+      targetLabel: string
+    }
+
+/** 直前取消欄と交代欄で同じ文脈・表示条件を使う。 */
+export function visibleUndoOffer(
+  offer: UndoOffer | null | undefined,
+  activeContextKey: string | null | undefined,
+  undoContextKey: string | null | undefined,
+): VisibleUndoOffer | null {
+  if (
+    !offer ||
+    !isLabel(activeContextKey) ||
+    !isLabel(undoContextKey) ||
+    undoContextKey !== activeContextKey ||
+    !isLabel(offer.contextKey) ||
+    offer.contextKey !== activeContextKey
+  )
+    return null
+  if (offer.kind === 'none') return offer
+  if (
+    offer.kind === 'available' &&
+    isLabel(offer.operationLabel) &&
+    isLabel(offer.targetLabel)
+  )
+    return offer
+  return null
+}
+
 /** 画面の入力要求と下書き文脈だけを比較する。通信形式や要求IDは作らない。 */
 function isPlainObject(value: object): boolean {
   const prototype: unknown = Object.getPrototypeOf(value)
