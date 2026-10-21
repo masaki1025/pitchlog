@@ -7,6 +7,7 @@
   {"id":"unknown-parity-field","operation":"add","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/descriptorParity/unexpected","value":true,"code":"UNKNOWN_FIELD"},
   {"id":"unknown-execution-field","operation":"add","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/consumerBindings/0/executionPaths/0/unexpected","value":true,"code":"UNKNOWN_FIELD"},
   {"id":"unknown-handoff-field","operation":"add","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/unexpected","value":true,"code":"UNKNOWN_FIELD"},
+  {"id":"missing-provenance","operation":"remove","target":"contracts/state-transition/game_end_contract_v1.json","pointer":"/provenance","code":"UNKNOWN_FIELD"},
   {"id":"unknown-case-field","operation":"add","target":"contracts/state-transition/game_end_contract_v1.json","pointer":"/cases/0/unexpected","value":true,"code":"UNKNOWN_FIELD"},
   {"id":"invalid-mapping","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/consumerBindings/1/caseFieldMapping/expected/contractPointer","value":"/expected","code":"MAPPING"},
   {"id":"dependency-oid","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/dependencies/0/commitOid","value":"0000000000000000000000000000000000000000","code":"DEPENDENCY_MISMATCH"},

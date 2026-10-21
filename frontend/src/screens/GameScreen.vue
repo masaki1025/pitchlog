@@ -7,6 +7,21 @@ import {
   type SyncNoticeDescriptor,
 } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import GameScreenPastCorrection from './GameScreenPastCorrection.vue'
+import type {
+  CorrectionDraft,
+  CorrectionPrerequisites,
+  CorrectionPreview,
+  CorrectionRequest,
+  UndoOffer,
+} from './GameScreenCorrectionTypes'
+import {
+  sameDisplayValue,
+  snapshotDisplayValue,
+} from './GameScreenDisplayValue'
+import GameScreenPlayObservation from './GameScreenPlayObservation.vue'
+import GameScreenUndo from './GameScreenUndo.vue'
+import type { PlayObservationRequest } from './GameScreenPlayObservationTypes'
 import {
   judgePitchInputEligibility,
   PITCH_INPUT_INELIGIBILITY_MESSAGE,
@@ -17,6 +32,22 @@ import {
   deriveQueueStatus,
   type ActionRequiredSummary,
 } from './GameScreenQueueStatus'
+import type { StopDisplay } from './GameScreenStopDisplay'
+import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
+import GameScreenLiveDisplay from './GameScreenLiveDisplay.vue'
+import type {
+  LiveDisplaySources,
+  LiveIdentity,
+} from './GameScreenLiveDisplayTypes'
+import type {
+  PastSubstitutionPreview,
+  PastSubstitutionRequest,
+  SubstitutionDraftsSnapshot,
+  SubstitutionLockState,
+  SubstitutionRequest,
+  SubstitutionValidation,
+  TiebreakRequest,
+} from './GameScreenSubstitutionTypes'
 
 interface GameDisplayState {
   gameName: string | null
@@ -55,6 +86,31 @@ const props = withDefaults(
     syncedCount?: number
     /** 同期境界から受け取る通知。区分の判定は通信・キュー側が持つ。 */
     receivedNotices?: readonly SyncNoticeDescriptor[]
+    /** 停止UIの表示fixture。正式なPort/停止型とは接続していない。 */
+    stopDisplay?: StopDisplay
+    /** 表示専用の観測入力要求。正式 wire DTO ではない。 */
+    observationRequest?: PlayObservationRequest | null
+    /** 要求と照合する現在の試合・プレイ文脈キー。 */
+    observationContextKey?: string | null
+    /** 正式履歴提供側が選んだ取消対象。undo 自身は含めない。 */
+    undoOffer?: UndoOffer | null
+    undoContextKey?: string | null
+    /** 過去修正は表示専用契約。正式 API の提供前は実操作しない。 */
+    correctionRequest?: CorrectionRequest | null
+    correctionContextKey?: string | null
+    correctionPrerequisites?: CorrectionPrerequisites | null
+    correctionPreview?: CorrectionPreview | null
+    /** UI専用の交代・回・過去訂正要求。正式 wire DTO ではない。 */
+    substitutionRequest?: SubstitutionRequest | null
+    tiebreakRequest?: TiebreakRequest | null
+    pastSubstitutionRequest?: PastSubstitutionRequest | null
+    substitutionContextKey?: string | null
+    substitutionLockState?: SubstitutionLockState | null
+    substitutionValidation?: SubstitutionValidation | null
+    pastSubstitutionPreview?: PastSubstitutionPreview | null
+    /** 投影・生成formatterから受けるUI専用の表示値。 */
+    liveIdentity?: LiveIdentity | null
+    liveSources?: LiveDisplaySources | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -75,11 +131,48 @@ const props = withDefaults(
     evacuatedCount: undefined,
     syncedCount: undefined,
     receivedNotices: undefined,
+    stopDisplay: undefined,
+    observationRequest: undefined,
+    observationContextKey: undefined,
+    undoOffer: undefined,
+    undoContextKey: undefined,
+    correctionRequest: undefined,
+    correctionContextKey: undefined,
+    correctionPrerequisites: undefined,
+    correctionPreview: undefined,
+    substitutionRequest: undefined,
+    tiebreakRequest: undefined,
+    pastSubstitutionRequest: undefined,
+    substitutionContextKey: undefined,
+    substitutionLockState: undefined,
+    substitutionValidation: undefined,
+    pastSubstitutionPreview: undefined,
+    liveIdentity: undefined,
+    liveSources: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
     eventIdentity: undefined,
   },
+)
+
+/** ローカル下書きの表示通知。保存・送信・確定イベントではない。 */
+const emit = defineEmits<{
+  correctionDraftChange: [draft: CorrectionDraft | null]
+  'substitution-draft-change': [snapshot: SubstitutionDraftsSnapshot]
+}>()
+
+function relaySubstitutionDraft(snapshot: SubstitutionDraftsSnapshot) {
+  emit('substitution-draft-change', snapshot)
+}
+
+// 交代文脈がある画面では、直前取消欄と交代ロックの参照先を揃える。
+const undoDisplayContextKey = computed(() =>
+  props.substitutionContextKey !== undefined &&
+  props.substitutionContextKey !== null &&
+  props.substitutionContextKey !== props.undoContextKey
+    ? null
+    : props.undoContextKey,
 )
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
@@ -113,6 +206,35 @@ function noticeMessage(noticeId: keyof typeof SYNC_NOTICE_CATALOG): string {
   return SYNC_NOTICE_CATALOG[noticeId]
 }
 
+const stopPhaseLabel: Record<StopDisplay['phase'], string> = {
+  unavailable: '未取得',
+  'read-failed': '読取失敗',
+  'sending-stopped': '送信停止',
+  'confirmation-pending': '確認待ち（送信停止）',
+  'resume-inquiry': '再開照会中（送信停止）',
+}
+
+// 表示契約にない値が混入しても、停止が解除されたとは見せない。
+const stopStatusText = computed(() => {
+  const phase: unknown = props.stopDisplay?.phase
+  return typeof phase === 'string' && Object.hasOwn(stopPhaseLabel, phase)
+    ? stopPhaseLabel[phase as StopDisplay['phase']]
+    : '未取得'
+})
+
+const deviceUnconfirmedText = computed(() => {
+  const received = props.stopDisplay?.deviceUnconfirmed
+  if (received?.kind === 'read-failed') return '読取失敗'
+  if (
+    received?.kind === 'count' &&
+    Number.isSafeInteger(received.value) &&
+    received.value >= 0
+  ) {
+    return String(received.value)
+  }
+  return '未取得'
+})
+
 // 確定の可否は単一のゲートから読む。画面側で封鎖の判断を複製しない。
 const commitGate = resolvePitchCommitGate()
 
@@ -120,6 +242,7 @@ const pitchTypeId = ref<string | null>(null)
 const speed = ref('')
 const course = ref<{ x: number; y: number } | null>(null)
 const resultId = ref<string | null>(null)
+const pitchDraftClearedNotice = ref(false)
 
 // 呼出元が表示用に整形した文字列だけを描画する。
 function display(value: unknown): string {
@@ -195,7 +318,35 @@ function clearDraft() {
   speed.value = ''
   course.value = null
   resultId.value = null
+  pitchDraftClearedNotice.value = false
 }
+
+let previousDraftContext = snapshotDisplayValue([
+  props.observationRequest,
+  props.observationContextKey,
+  props.eventIdentity,
+])
+
+// 内容が変わった場合だけ旧投球下書きを破棄する。
+watch(
+  () => [
+    props.observationRequest,
+    props.observationContextKey,
+    props.eventIdentity,
+  ],
+  (current) => {
+    if (sameDisplayValue(previousDraftContext, current)) return
+    const discarded =
+      pitchTypeId.value !== null ||
+      speed.value !== '' ||
+      course.value !== null ||
+      resultId.value !== null
+    clearDraft()
+    if (discarded) pitchDraftClearedNotice.value = true
+    previousDraftContext = snapshotDisplayValue(current)
+  },
+  { deep: true, flush: 'sync' },
+)
 </script>
 
 <template>
@@ -279,6 +430,11 @@ function clearDraft() {
         </div>
       </dl>
     </section>
+
+    <GameScreenLiveDisplay
+      :identity="props.liveIdentity"
+      :sources="props.liveSources"
+    />
 
     <section aria-label="対戦中の選手" class="grid gap-3 sm:grid-cols-2">
       <dl
@@ -369,6 +525,105 @@ function clearDraft() {
     </section>
 
     <section
+      aria-label="送信停止と再開"
+      class="min-w-0 space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
+    >
+      <h2 class="text-lg font-extrabold">送信停止と再開</h2>
+      <dl class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="min-w-0 rounded-xl bg-white p-4 dark:bg-slate-900">
+          <dt class="text-sm">送信の状態</dt>
+          <dd class="mt-1 font-bold" data-testid="stop-status">
+            {{ stopStatusText }}
+          </dd>
+        </div>
+        <div class="min-w-0 rounded-xl bg-white p-4 dark:bg-slate-900">
+          <dt class="text-sm">この端末の未確認件数</dt>
+          <dd
+            class="mt-1 font-bold tabular-nums"
+            data-testid="device-unconfirmed-count"
+          >
+            {{ deviceUnconfirmedText }}
+          </dd>
+        </div>
+      </dl>
+      <p class="text-sm" data-testid="stop-hold-note">
+        この画面では、停止中の記録と後続記録を消したり、自動送信したりしません。
+      </p>
+      <p class="text-sm">
+        同内容の送信再開は照会結果を確認してから明示的に行います。終了した試合の再開とは別の操作です。
+      </p>
+      <p
+        id="stop-actions-blocked"
+        class="text-sm"
+        data-testid="stop-actions-blocked"
+      >
+        送信の状態を十分に確認できないため、今は送信の再開も内容の訂正もできません。
+      </p>
+      <p class="text-sm" data-testid="correction-status">
+        {{
+          props.stopDisplay?.correctionNotice
+            ? '訂正の安全確認が完了していません。'
+            : '訂正の安全確認は未取得です。'
+        }}
+      </p>
+      <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          disabled
+          aria-describedby="stop-actions-blocked"
+          class="min-w-0 rounded-lg border border-amber-600 px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="resume-same-content"
+          @click.stop.prevent
+        >
+          同内容で送信を再開
+        </button>
+        <button
+          type="button"
+          disabled
+          aria-describedby="stop-actions-blocked"
+          class="min-w-0 rounded-lg border border-amber-600 px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="correct-stopped-content"
+          @click.stop.prevent
+        >
+          内容を訂正して再送
+        </button>
+      </div>
+    </section>
+
+    <GameScreenPlayObservation
+      :request="props.observationRequest"
+      :active-context-key="props.observationContextKey"
+      :event-identity="props.eventIdentity"
+    />
+
+    <GameScreenUndo
+      :offer="props.undoOffer"
+      :active-context-key="undoDisplayContextKey"
+    />
+    <GameScreenPastCorrection
+      :request="props.correctionRequest"
+      :active-context-key="props.correctionContextKey"
+      :prerequisites="props.correctionPrerequisites"
+      :preview="props.correctionPreview"
+      @draft-change="emit('correctionDraftChange', $event)"
+    />
+    <GameScreenSubstitutions
+      :request="props.substitutionRequest"
+      :tiebreak-request="props.tiebreakRequest"
+      :past-request="props.pastSubstitutionRequest"
+      :active-context-key="props.substitutionContextKey"
+      :undo-context-key="undoDisplayContextKey"
+      :lock-state="props.substitutionLockState"
+      :undo-offer="props.undoOffer"
+      :validation="props.substitutionValidation"
+      :preview="props.pastSubstitutionPreview"
+      @draft-change="relaySubstitutionDraft"
+    />
+
+    <section
+      v-if="
+        !props.observationRequest || props.observationRequest.mode === 'pitch'
+      "
       aria-label="投球入力の下書き"
       class="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
     >
@@ -380,6 +635,14 @@ function clearDraft() {
             class="mt-1 text-sm text-amber-900 dark:text-amber-200"
           >
             この入力は保存・送信されません。画面を離れると消えます。
+          </p>
+          <p
+            v-if="pitchDraftClearedNotice"
+            role="status"
+            data-testid="pitch-draft-cleared"
+            class="mt-1 text-sm font-bold"
+          >
+            試合文脈または入力対象が変わったため、未保存の投球下書きを消去しました。
           </p>
         </div>
         <button

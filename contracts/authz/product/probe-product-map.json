@@ -300,6 +300,8 @@
     {"product": "function:FUNCTION:authn:revoke_tenant_tokens(uuid)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:setting_positive_integer(text)", "reason": "product_only"},
     {"product": "function:FUNCTION:authn:verify_token(uuid)", "reason": "product_only"},
+    {"product": "function:FUNCTION:public:prevent_games_applied_rules_update()", "reason": "product_only"},
+    {"product": "function:FUNCTION:public:verify_games_applied_rules_final()", "reason": "product_only"},
     {"product": "role:pitchlog_auth_fn_owner", "reason": "product_only"},
     {"product": "role:pitchlog_rg1_fn_owner", "reason": "product_only"},
     {"product": "schema:authn", "reason": "product_only"},

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import subprocess
@@ -507,7 +508,7 @@ def _check_liveness_case_depth(root: Path, cases: list[dict[str, Any]]) -> None:
         )
         depth = expand_state_transition_cases.history_checker.resolve_history_depth(history)
     except (
-        OSError, UnicodeError, json.JSONDecodeError,
+        OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError,
         expand_state_transition_cases.history_checker.HistoryEffectError,
     ) as error:
         raise RequiredSetCoverageError("XC-09: 履歴深さDを解決できない") from error
@@ -2036,9 +2037,520 @@ def check_game_end_coverage(
     return result
 
 
-def main() -> int:
-    """実資産に状況判定と終了判定の検査を適用する。"""
+class CandidateNormalizationError(RequiredSetCoverageError):
+    """既存handoffの拒否分類と候補境界の詳細理由を保持する。"""
+
+    def __init__(self, code: str, detail: str) -> None:
+        """拒否分類と理由を記録する。"""
+        super().__init__(f"{code}: {detail}")
+        self.code = code
+        self.detail = detail
+
+
+def _candidate_object(value: object, keys: set[str], label: str) -> dict[str, Any]:
+    """要求の欠落と未知fieldを区別し、推測補完しない。"""
+    if not isinstance(value, dict) or not keys <= set(value):
+        raise CandidateNormalizationError("HANDOFF_SHAPE", f"{label}: missing-or-type")
+    if set(value) != keys:
+        raise CandidateNormalizationError("UNKNOWN_FIELD", label)
+    return value
+
+
+def _candidate_same(actual: object, expected: object, label: str) -> None:
+    """boolと整数を混同せず投影との完全一致を検査する。"""
+    if _game_end_identity(actual) != _game_end_identity(expected):
+        raise CandidateNormalizationError("MAPPING", label)
+
+
+def replay_p8_candidate_projection(
+    projection: dict[str, Any], authorizations: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """共有計算核の投影receipt列の整合性を検査し、最後の投影を返す。
+
+    得点・終了条件を再計算しない。receiptのafterは信頼境界内の共有核投影器が
+    供給し、本関数は順序・参照・採用済みphase/保持条件だけを検証する。
+
+    Args:
+        projection: 信頼された投影adapterが渡すscopeとreceipt列。
+        authorizations: 同adapterが認可済み記録から解決した操作receipt。
+
+    Returns:
+        再生した末尾のafterと投影revision。
+
+    Raises:
+        CandidateNormalizationError: 投影列の順序・認可参照・phaseが不整合の場合。
+    """
+    _candidate_object(projection, {"scope", "receipts"}, "projection")
+    scope = _candidate_object(projection["scope"], {"tenantId", "gameId"}, "scope")
+    if any(not isinstance(value, str) or not value for value in scope.values()):
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "scope-id")
+    decision_schema = _document(ROOT, "game_end_contract_schema_v1.json")
+    if not isinstance(authorizations, list) or any(not isinstance(x, dict) for x in authorizations):
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "authorizations")
+    for authorization in authorizations:
+        _candidate_object(authorization, {
+            "authorizationId", "scope", "eventRef", "action", "expectedRevision", "decision",
+        }, "authorization")
+        if type(authorization["expectedRevision"]) is not int:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "authorization-revision")
+    receipts = projection["receipts"]
+    if not isinstance(receipts, list) or not receipts:
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "empty-projection")
+    previous: dict[str, Any] | None = None
+    final: dict[str, Any] | None = None
+    pending: dict[str, Any] | None = None
+    seen: set[str] = set()
+    version = 0
+    for sequence, receipt in enumerate(receipts, 1):
+        _candidate_object(receipt, {
+            "sequence", "receiptId", "eventRef", "eventVersion", "kind", "timing",
+            "thirdOut", "authorizationRef", "basedOnEvaluationRef", "after",
+        }, "receipt")
+        if type(receipt["sequence"]) is not int or receipt["sequence"] != sequence:
+            raise CandidateNormalizationError("MAPPING", "projection-sequence")
+        if not isinstance(receipt["receiptId"], str) or not receipt["receiptId"]:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "receipt-id")
+        if receipt["receiptId"] in seen:
+            raise CandidateNormalizationError("MAPPING", "duplicate-receipt")
+        seen.add(receipt["receiptId"])
+        after = _candidate_object(receipt["after"], {
+            "phase", "gameEnded", "decision", "evaluationRef",
+        }, "after")
+        decision = _candidate_object(after["decision"], {
+            "outcome", "endConditionDetected", "lockFurtherPlayInput",
+            "promptEndDeclaration", "automaticallyEndsGame", "xMark",
+        }, "decision")
+        try:
+            deriver.descriptor_checker._validate_instance(
+                decision, decision_schema["$defs"]["gameEndDecision"], decision_schema,
+                "candidate.decision",
+            )
+        except deriver.descriptor_checker.DescriptorCheckError as error:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "decision-schema") from error
+        if any(type(decision[field]) is not bool for field in (
+            "endConditionDetected", "lockFurtherPlayInput", "promptEndDeclaration",
+            "automaticallyEndsGame",
+        )) or type(after["gameEnded"]) is not bool or type(receipt["thirdOut"]) is not bool:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "boolean-fields")
+        if decision["automaticallyEndsGame"]:
+            raise CandidateNormalizationError("MAPPING", "automatic-ending")
+        if type(receipt["eventVersion"]) is not int:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "event-version")
+        if not isinstance(receipt["eventRef"], str) or not receipt["eventRef"]:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "event-ref")
+        kind = receipt["kind"]
+        if kind == "evaluation":
+            if (
+                receipt["authorizationRef"] is not None
+                or receipt["basedOnEvaluationRef"] is not None
+            ):
+                raise CandidateNormalizationError("HANDOFF_SHAPE", "evaluation-action-fields")
+            if previous is not None and previous["phase"] == "declared":
+                raise CandidateNormalizationError("MAPPING", "evaluation-before-reopen")
+            timing = receipt["timing"]
+            if timing == "post-turn":
+                if pending is None or not receipt["thirdOut"]:
+                    raise CandidateNormalizationError("MAPPING", "post-turn-without-third-out")
+                _candidate_same(receipt["eventRef"], pending["eventRef"], "turn-event")
+                _candidate_same(receipt["eventVersion"], version, "turn-version")
+                pending = None
+            elif timing == "post-play":
+                if pending is not None or receipt["eventVersion"] != version + 1:
+                    raise CandidateNormalizationError("MAPPING", "incomplete-or-skipped-prefix")
+                version = receipt["eventVersion"]
+                if receipt["thirdOut"]:
+                    pending = receipt
+            else:
+                raise CandidateNormalizationError("HANDOFF_SHAPE", "evaluation-timing")
+            if after["evaluationRef"] != receipt["receiptId"] or after["gameEnded"]:
+                raise CandidateNormalizationError("MAPPING", "evaluation-state")
+            if previous is not None and previous["phase"] == "reopened":
+                expected_phase = "reopened"
+            elif decision["endConditionDetected"] and decision["lockFurtherPlayInput"]:
+                expected_phase = "condition-locked"
+            else:
+                expected_phase = "playing"
+                if decision["endConditionDetected"] or decision["lockFurtherPlayInput"]:
+                    raise CandidateNormalizationError("MAPPING", "playing-lock")
+            _candidate_same(after["phase"], expected_phase, "evaluation-phase")
+            if after["phase"] == "reopened" and (
+                decision["lockFurtherPlayInput"]
+                or (decision["endConditionDetected"] and not decision["promptEndDeclaration"])
+            ):
+                raise CandidateNormalizationError("MAPPING", "reopened-flags")
+            if pending is None:
+                final = after
+        elif kind in {"declaration", "reopen"}:
+            if pending is not None or final is None or receipt["eventVersion"] != version + 1:
+                raise CandidateNormalizationError("MAPPING", "action-before-final-evaluation")
+            if receipt["timing"] is not None or receipt["thirdOut"]:
+                raise CandidateNormalizationError("HANDOFF_SHAPE", "action-timing")
+            _candidate_same(receipt["basedOnEvaluationRef"], final["evaluationRef"], "latest-final")
+            matches = [item for item in authorizations if (
+                item.get("authorizationId") == receipt["authorizationRef"]
+                and item.get("scope") == scope and item.get("eventRef") == receipt["eventRef"]
+                and item.get("action") == kind and item.get("expectedRevision") == version
+                and item.get("decision") == "allow"
+            )]
+            if len(matches) != 1:
+                raise CandidateNormalizationError("MAPPING", "missing-authorized-action")
+            if kind == "declaration":
+                if previous is None or previous["phase"] == "declared":
+                    raise CandidateNormalizationError("MAPPING", "already-declared")
+                _candidate_same(
+                    {key: decision[key] for key in (
+                        "endConditionDetected", "lockFurtherPlayInput", "outcome",
+                    )},
+                    {key: final["decision"][key] for key in (
+                        "endConditionDetected", "lockFurtherPlayInput", "outcome",
+                    )}, "retained-before-declaration",
+                )
+                if after["phase"] != "declared" or not after["gameEnded"] or (
+                    decision["promptEndDeclaration"]
+                ):
+                    raise CandidateNormalizationError("MAPPING", "declaration-state")
+                _candidate_same(after["evaluationRef"], final["evaluationRef"], "retained-ref")
+            else:
+                if previous is None or previous["phase"] != "declared":
+                    raise CandidateNormalizationError("MAPPING", "reopen-without-declaration")
+                if after["phase"] != "reopened" or after["gameEnded"] or (
+                    decision["lockFurtherPlayInput"]
+                ) or (decision["endConditionDetected"] and not decision["promptEndDeclaration"]):
+                    raise CandidateNormalizationError("MAPPING", "reopen-state")
+                if after["evaluationRef"] != receipt["receiptId"]:
+                    raise CandidateNormalizationError("MAPPING", "reopen-evaluation-ref")
+                final = after
+            version = receipt["eventVersion"]
+        else:
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "unknown-receipt-kind")
+        previous = after
+    if pending is not None or previous is None:
+        raise CandidateNormalizationError("MAPPING", "unfinished-evaluation")
+    return {"scope": scope, "projectionRevision": version, **previous}
+
+
+def normalize_p8_candidate_context(
+    raw: object, *, projection: dict[str, Any], authorizations: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """要求のphaseを信頼された投影列と照合する。入力権限は付与しない。"""
+    request = _candidate_object(raw, {
+        "scope", "projectionRevision", "phase", "gameEnded",
+    }, "context-request")
+    expected = replay_p8_candidate_projection(projection, authorizations)
+    _candidate_same(request, {key: expected[key] for key in request}, "projection-context")
+    return {**expected, "permissionSource": "existing-operation-authorization"}
+
+
+def normalize_p8_candidate_score(
+    raw: object, *, authoritative_observation: dict[str, Any],
+) -> dict[str, Any]:
+    """対象プレイ直前/直後の共有核観測へ照合し、得点を再計算しない。"""
+    request = _candidate_object(raw, {
+        "scope", "projectionRevision", "eventRef", "beforeScore", "afterScore",
+    }, "score-request")
+    source = _candidate_object(authoritative_observation, {
+        "producer", "scope", "eventRef", "beforeAppliedVersion", "afterAppliedVersion",
+        "beforeScore", "afterScore",
+    }, "score-source")
+    source_scope = _candidate_object(source["scope"], {"tenantId", "gameId"}, "score-scope")
+    if any(not isinstance(value, str) or not value for value in source_scope.values()) or (
+        not isinstance(source["eventRef"], str) or not source["eventRef"]
+    ):
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "score-source-id")
+    if source.get("producer") != "shared-state-transition-projection" or (
+        type(source.get("beforeAppliedVersion")) is not int
+        or type(source.get("afterAppliedVersion")) is not int
+        or source["beforeAppliedVersion"] < 0
+        or source["afterAppliedVersion"] != source["beforeAppliedVersion"] + 1
+    ):
+        raise CandidateNormalizationError("MAPPING", "score-projection-prefix")
+    for field in ("beforeScore", "afterScore"):
+        scores = _candidate_object(source[field], {"home", "away"}, field)
+        if any(type(value) is not int or value < 0 for value in scores.values()):
+            raise CandidateNormalizationError("HANDOFF_SHAPE", "score-value")
+    expected = {key: source[key] for key in request if key != "projectionRevision"}
+    expected["projectionRevision"] = source["afterAppliedVersion"]
+    _candidate_same(request, expected, "authoritative-score-observation")
+    return expected
+
+
+def normalize_p8_candidate_operation(
+    raw: object, *, descriptor: dict[str, Any], adopted_clauses: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
+    """既存descriptorの操作種別とpayloadタグを正規化前に照合する。"""
+    request = _candidate_object(raw, {"operationKind", "operationPayload"}, "operation")
+    axes = {axis["axisId"]: axis for axis in descriptor["stateTransitionAxes"]}
+    kind = request["operationKind"]
+    tag = request["operationPayload"]
+    if (
+        not isinstance(kind, str) or kind not in axes["event.operationKind"]["values"]
+        or not isinstance(tag, str) or tag not in axes["event.operationPayload"]["boundaryValues"]
+    ):
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "unknown-kind-or-payload-tag")
+    if kind == "state-correction" and "req:FR-040" not in adopted_clauses:
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "conditional-operation-not-active")
+    expected_tag = "not-applicable" if kind in {"per-pitch", "undo"} else kind
+    if tag != expected_tag:
+        raise CandidateNormalizationError("HANDOFF_SHAPE", "operation-payload-kind-mismatch")
+    return dict(request)
+
+
+def compare_p8_candidate_display(expected: object, output: object) -> None:
+    """表示oracleと出力の対象・投影版・表示を比較する。由来を認証しない。"""
+    fields = {"scope", "projectionRevision", "targetCell", "display"}
+    _candidate_object(expected, fields, "display-expected")
+    _candidate_object(output, fields, "display-output")
+    _candidate_same(output, expected, "display-comparison")
+
+
+def _check_p8_boundary_evidence(root: Path, bundle: dict[str, Any]) -> dict[str, int]:
+    """採用済み境界の人工fixtureを実行し、製品/P-6検証と区別する。"""
+    path = root / "docs/features/t2-provenance-checker/candidates/p8_boundary_evidence_v1.json"
+    content = path.read_bytes()
+    if "sha256:" + hashlib.sha256(content).hexdigest() != bundle["boundaryEvidenceDigest"]:
+        raise RequiredSetCoverageError("候補境界fixtureのdigestが不一致")
+    evidence = json.loads(content)
+    if (
+        evidence["evidenceKind"] != "author-synthetic-fixtures"
+        or evidence["independentVerification"] != "not-performed"
+        or evidence["productOutputVerification"] != "not-performed"
+    ):
+        raise RequiredSetCoverageError("人工fixtureを独立/製品検証へ転用できない")
+    for case in evidence["contextCases"]:
+        result = normalize_p8_candidate_context(
+            case["request"], projection=case["projection"], authorizations=case["authorizations"],
+        )
+        _candidate_same(result, case["expected"], "context-expected")
+    for case in evidence["scoreObservationCases"]:
+        result = normalize_p8_candidate_score(
+            case["request"], authoritative_observation=case["source"],
+        )
+        _candidate_same(result, case["expected"], "score-expected")
+    descriptor = _document(root, "input_axes_descriptor_v1.json")
+    for case in evidence["operationCases"]:
+        try:
+            normalized = normalize_p8_candidate_operation(case["request"], descriptor=descriptor)
+        except CandidateNormalizationError as error:
+            if error.code != case["expected"]:
+                raise RequiredSetCoverageError("操作拒否分類が候補と不一致") from error
+        else:
+            if case["expected"] != "accepted" or normalized != case["request"]:
+                raise RequiredSetCoverageError("操作候補が拒否境界と不一致")
+    display_by_id = {case["caseId"]: case for case in bundle["displayCases"]}
+    for case in evidence["displayComparisons"]:
+        compare_p8_candidate_display(case["expected"], case["syntheticOutput"])
+        fixture = display_by_id[case["caseId"]]
+        _candidate_same(
+            {"sourceBranch": fixture["sourceBranch"], "input": fixture["input"]},
+            {"sourceBranch": case["sourceBranch"], "input": case["input"]},
+            "display-approved-input",
+        )
+        _candidate_same(
+            case["expected"]["targetCell"], fixture["input"]["targetCell"], "display-cell",
+        )
+        token = {"blank": "", "x-mark": "X", "recorded-score": str(
+            fixture["input"]["recordedScore"]
+        )}[fixture["expected"]]
+        _candidate_same(case["expected"]["display"], token, "display-token")
+    return {key: len(evidence[key]) for key in (
+        "contextCases", "scoreObservationCases", "operationCases", "displayComparisons",
+    )}
+
+
+def check_game_end_candidate(root: Path, candidate_path: Path) -> dict[str, object]:
+    """未受理候補だけを検査し、正式被覆やP-6の成立とは区別して返す。
+
+    Args:
+        root: リポジトリルート。
+        candidate_path: feature配下の候補bundle。
+
+    Returns:
+        相関要求、既承認出力の候補、未成立ゲートの件数と状態。
+
+    Raises:
+        RequiredSetCoverageError: schema、要求集合、実入力、期待値が不整合の場合。
+    """
+    import check_human_review_signature as signature_checker
+
     try:
+        bundle = json.loads(candidate_path.read_text(encoding="utf-8"))
+        schema = json.loads((root / (
+            "docs/features/t2-provenance-checker/candidates/p8_candidate_schema_v1.json"
+        )).read_text(encoding="utf-8"))
+        deriver.descriptor_checker._validate_instance(bundle, schema, schema, "candidate")
+        base = _document(root, "game_end_contract_v1.json")
+        signature_schema = _document(root, "human_review_signature_schema_v1.json")
+        limit = signature_schema["x-pitchlog-human-review-signature-policy"][
+            "subjectDigest"
+        ]["safeIntegerLimit"]
+        if signature_checker.compute_subject_digest(base, limit) != bundle["baseContractDigest"]:
+            raise RequiredSetCoverageError("候補の基準T2契約digestが現物と不一致")
+        base_schema_path = root / ASSET_DIR / "game_end_contract_schema_v1.json"
+        schema_digest = "sha256:" + hashlib.sha256(base_schema_path.read_bytes()).hexdigest()
+        if schema_digest != bundle["baseSchemaDigest"]:
+            raise RequiredSetCoverageError("候補の基準T2 schema digestが現物と不一致")
+        base_schema = _document(root, "game_end_contract_schema_v1.json")
+        if set(schema["$defs"]) != {
+            "ruleSnapshot", "coldConditionTier", "tiebreakRule", "gameEndDecision",
+            "normalizedCase",
+        } or any(
+            definition != base_schema["$defs"][name]
+            for name, definition in schema["$defs"].items()
+        ):
+            raise RequiredSetCoverageError("候補schemaの参照閉包が基準T2 schemaと不一致")
+        requirements = deriver.derive_game_end_rule_correlations(bundle["sourceDescriptor"])
+        expected = {
+            item.case_id: {
+                "caseId": item.case_id,
+                "ruleSnapshot": dict(item.rule_snapshot),
+                "expected": item.expected,
+                "sourceClauseIds": list(item.source_clause_ids),
+            }
+            for item in requirements
+        }
+        entries = bundle["ruleValidationCases"]
+        actual = {item["caseId"]: item for item in entries}
+        if len(actual) != len(entries) or actual != expected:
+            raise RequiredSetCoverageError("相関候補が導出要求とexact-set不一致")
+
+        rows = {row["branchId"]: row for row in base["decisionRows"]}
+        expected_ids = {
+            "GE-CANDIDATE-E08-COLD-PRIORITY", "GE-CANDIDATE-E06-ONE-OF-TWO",
+            "GE-CANDIDATE-E06-NONE", "GE-CANDIDATE-E04-ORDER-A",
+            "GE-CANDIDATE-E04-ORDER-B",
+        }
+        cases = bundle["decisionCases"]
+        if len(cases) != len(expected_ids) or {case["caseId"] for case in cases} != expected_ids:
+            raise RequiredSetCoverageError("裁定追随候補のcase集合が不一致")
+        for case in cases:
+            source_branch = case["branchId"]
+            if case["caseId"] == "GE-CANDIDATE-E08-COLD-PRIORITY":
+                source_branch = "GAME-END-NORMAL"
+                expected_decision = dict(rows["GAME-END-NORMAL"]["decision"])
+                expected_decision["outcome"] = rows["COLD-08"]["decision"]["outcome"]
+            else:
+                branch = rows.get(case["branchId"])
+                if branch is None:
+                    raise RequiredSetCoverageError("裁定追随候補の基準分岐が未知")
+                expected_decision = branch["decision"]
+            if case["decision"] != expected_decision:
+                raise RequiredSetCoverageError("裁定追随候補の期待値が基準行と不一致")
+            reference_case = next(
+                item for item in base["cases"] if item["caseId"] == f"GE-{source_branch}"
+            )
+            if (
+                set(case) != set(reference_case)
+                or case["rowRef"] != {
+                    "layer": "decisionRows", "coordinate": {"branchId": case["branchId"]}
+                }
+                or set(case["inputCoordinate"]) != set(reference_case["inputCoordinate"])
+            ):
+                raise RequiredSetCoverageError("裁定追随候補のキー集合または行参照が不一致")
+            for field in ("raw", "normalized"):
+                if case[field] != case["inputCoordinate"]:
+                    raise RequiredSetCoverageError("裁定追随候補の正規化トリプルが不一致")
+        descriptor = _document(root, "input_axes_descriptor_v1.json")
+        check_derived_axis_cases({"cases": cases}, descriptor)
+        check_game_end_concrete_case_consistency({"cases": cases})
+        ordered = {case["caseId"]: case for case in cases}
+        # 一般のコールド計算を複製せず、E06の「設定2段・成立1段」を示す固定入力を拘束する。
+        # 5回裏7対0では7点差@5回だけが成立し、10点差@7回はまだ成立しない。
+        if ordered["GE-CANDIDATE-E06-ONE-OF-TWO"]["derivedSourceInput"] != {
+            "gameEnd.coldConditions": [
+                {"pointDifference": 7, "startInning": 5},
+                {"pointDifference": 10, "startInning": 7},
+            ],
+            "state.inning": 5,
+            "state.half": "bottom",
+            "state.score": {"home": 7, "away": 0},
+        }:
+            raise RequiredSetCoverageError("E06候補の設定2段・成立1段の固定入力が不一致")
+        overlap = ordered["GE-CANDIDATE-E08-COLD-PRIORITY"]
+        overlap_input = overlap["inputCoordinate"]
+        if (
+            overlap["branchId"] != "COLD-NORMAL-OVERLAP"
+            or overlap_input["gameEnd.extensionLimit"] != "finite:R"
+            or overlap_input["state.inning"] != "L+1"
+            or overlap_input["state.half"] != "top"
+            or overlap["derivedSourceInput"]["state.inning"]
+            != overlap_input["gameEnd.regulationInnings"] + 1
+            or overlap["derivedSourceInput"]["gameEnd.coldConditions"] != [
+                {"pointDifference": 10, "startInning": 9}
+            ]
+            or overlap["derivedSourceInput"]["state.score"] != {"home": 0, "away": 10}
+        ):
+            raise RequiredSetCoverageError("E08候補が規定最終回裏完了の競合を保持していない")
+        for case_id, branch, satisfied in (
+            ("GE-CANDIDATE-E06-ONE-OF-TWO", "COLD-08", 1),
+            ("GE-CANDIDATE-E06-NONE", "GAME-END-EXTRA-CONTINUE", 0),
+            ("GE-CANDIDATE-E04-ORDER-A", "COLD-09", 2),
+            ("GE-CANDIDATE-E04-ORDER-B", "COLD-09", 2),
+        ):
+            case = ordered[case_id]
+            if (
+                case["branchId"] != branch
+                or case["inputCoordinate"]["gameEnd.coldConditions"] != "tier-count:2"
+                or case["inputCoordinate"]["gameEnd.satisfiedColdTierCount"] != satisfied
+            ):
+                raise RequiredSetCoverageError("コールド設定段数と成立段数の候補が不一致")
+        left = ordered["GE-CANDIDATE-E04-ORDER-A"]
+        right = ordered["GE-CANDIDATE-E04-ORDER-B"]
+        left_source = left["derivedSourceInput"]
+        right_source = right["derivedSourceInput"]
+        if (
+            left["inputCoordinate"] != right["inputCoordinate"]
+            or left["decision"] != right["decision"]
+            or {k: v for k, v in left_source.items() if k != "gameEnd.coldConditions"}
+            != {k: v for k, v in right_source.items() if k != "gameEnd.coldConditions"}
+            or left_source["gameEnd.coldConditions"]
+            != list(reversed(right_source["gameEnd.coldConditions"]))
+        ):
+            raise RequiredSetCoverageError("段配列逆順の候補入力または期待値が不一致")
+        for collection, expected_case_ids in (
+            ("lifecycleCases", {
+                "GE-CANDIDATE-E02-DECLARED", "GE-CANDIDATE-E10-REOPENED",
+                "GE-CANDIDATE-E09-LOCKED",
+            }),
+            ("displayCases", {
+                "DISPLAY-COLD-AFTER-TOP", "DISPLAY-FUTURE", "DISPLAY-STARTED-BOTTOM",
+                "DISPLAY-DECLARED-UNSTARTED", "DISPLAY-STARTED-BEFORE-FIRST-PITCH",
+            }),
+        ):
+            entries_by_id = {case["caseId"]: case for case in bundle[collection]}
+            if (
+                len(bundle[collection]) != len(expected_case_ids)
+                or set(entries_by_id) != expected_case_ids
+            ):
+                raise RequiredSetCoverageError(f"{collection}の候補集合がexact-set不一致")
+        boundary_counts = _check_p8_boundary_evidence(root, bundle)
+    except (
+        OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError,
+        deriver.descriptor_checker.DescriptorCheckError,
+    ) as error:
+        raise RequiredSetCoverageError(f"候補を検査できない: {error}") from error
+    return {
+        "publication": "candidate-only",
+        "independentVerification": "not-performed",
+        "ruleCorrelations": len(entries),
+        "decisionCases": len(cases),
+        "lifecycleCases": len(bundle["lifecycleCases"]),
+        "displayCases": len(bundle["displayCases"]),
+        **boundary_counts,
+        "runtimeOutputsCompared": False,
+        "formalCoverageUpdated": False,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """実資産に状況判定と終了判定の検査を適用する。"""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--candidate", type=Path, help="未受理のP-8候補のみを検査する")
+    args = parser.parse_args(argv)
+    try:
+        if args.candidate is not None:
+            result = check_game_end_candidate(ROOT, args.candidate)
+            print(f"P-8候補検査（正式被覆・P-6未成立）: {result}")
+            return 0
         sizes = check_contract_sizes(ROOT)
         rows = check_row_requirements(ROOT)
         coverage = check_input_coverage(ROOT)

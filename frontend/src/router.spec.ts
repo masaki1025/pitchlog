@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
 import { installAppProviders, pinia } from './appProviders'
 import { queryClient } from './lib/queryClient'
+import { rosterQueryKeys } from './lib/rosterQueryKeys'
 import { createAppRouter } from './router'
 import TeamScreen from './screens/TeamScreen.vue'
 import { AUTH_STORAGE_KEY, useAuthStore } from './stores/authStore'
@@ -23,6 +24,38 @@ const reply = (body: unknown, status = 200, headers = {}) =>
     status,
     headers: { 'Content-Type': 'application/json', ...headers },
   })
+const routePath = (url: RequestInfo | URL) =>
+  new URL(String(url), 'http://localhost').pathname
+const rosterCalls = (
+  path: '/api/team-records/self' | '/api/team-records',
+  tenantId?: string,
+) =>
+  fetchMock.mock.calls.filter(
+    ([url, init]) =>
+      routePath(url) === path &&
+      (tenantId === undefined ||
+        new Headers(init?.headers).get('X-Pitchlog-Expected-Tenant') ===
+          tenantId),
+  )
+function rosterReply(url: RequestInfo | URL, init?: RequestInit, id = tenantA) {
+  const path = routePath(url)
+  if (
+    path !== '/api/team-records/self' &&
+    path !== '/api/team-records' &&
+    path !== '/api/players'
+  )
+    throw new Error(`想定外のroster経路: ${path}`)
+  const body =
+    path === '/api/team-records/self'
+      ? { id, kind: 'self', name: 'チーム', hidden_at: null }
+      : { items: [], next_cursor: null }
+  const headers = new Headers(init?.headers)
+  return reply(body, 200, {
+    'X-Pitchlog-Tenant-Match': '1',
+    'X-Pitchlog-Tenant-Challenge':
+      headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
+  })
+}
 function deferred() {
   let resolve!: (value: Response) => void
   const promise = new Promise<Response>((done) => {
@@ -160,14 +193,13 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
   it('認証切替でTeamScreenを再生成し、旧cacheを保持しない', async () => {
-    fetchMock.mockImplementation(async (_url, init) => {
-      const headers = new Headers(init?.headers)
-      return reply({ items: [], next_cursor: null }, 200, {
-        'X-Pitchlog-Tenant-Match': '1',
-        'X-Pitchlog-Tenant-Challenge':
-          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
-      })
-    })
+    fetchMock.mockImplementation(async (url, init) =>
+      rosterReply(
+        url,
+        init,
+        new Headers(init?.headers).get('X-Pitchlog-Expected-Tenant') ?? tenantA,
+      ),
+    )
     const auth = useAuthStore(pinia)
     setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
     const router = createAppRouter(createMemoryHistory())
@@ -198,12 +230,7 @@ describe('公開ガイドと保護チーム経路', () => {
           return reply({ status: 'authenticated', tenant_id: tenantA })
         if (String(url).endsWith('/auth/session'))
           return reply({ tenant_id: tenantA, team_name: 'A' })
-        const headers = new Headers(init?.headers)
-        return reply({ items: [], next_cursor: null }, 200, {
-          'X-Pitchlog-Tenant-Match': '1',
-          'X-Pitchlog-Tenant-Challenge':
-            headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
-        })
+        return rosterReply(url, init)
       })
       await wrapper.get('input[name="team_name"]').setValue('A')
       await wrapper.get('input[name="password"]').setValue('test-password')
@@ -224,12 +251,7 @@ describe('公開ガイドと保護チーム経路', () => {
       if (String(url).endsWith('/auth/login'))
         return reply({ status: 'authenticated', tenant_id: tenantA })
       if (String(url).endsWith('/auth/session')) return pending.promise
-      const headers = new Headers(init?.headers)
-      return reply({ items: [], next_cursor: null }, 200, {
-        'X-Pitchlog-Tenant-Match': '1',
-        'X-Pitchlog-Tenant-Challenge':
-          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
-      })
+      return rosterReply(url, init)
     })
     await wrapper.get('input[name="team_name"]').setValue('A')
     await wrapper.get('input[name="password"]').setValue('test-password')
@@ -271,38 +293,60 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(auth.teamId).toBeNull()
     expect(fetchMock).not.toHaveBeenCalled()
   })
-  it('旧A一覧がBへの切替後に届いても画面/cacheへ採用しない', async () => {
+  it('旧Aのselfと一覧がBへの切替後に届いても画面/cacheへ採用しない', async () => {
     const auth = useAuthStore(pinia)
-    const pendingA = deferred()
-    let oldHeaders: Headers | undefined
-    fetchMock.mockImplementation(async (_url, init) => {
+    const pendingSelfA = deferred()
+    const pendingOpponentsA = deferred()
+    let oldSelfHeaders: Headers | undefined
+    let oldOpponentsHeaders: Headers | undefined
+    fetchMock.mockImplementation(async (url, init) => {
       const headers = new Headers(init?.headers)
       if (headers.get('X-Pitchlog-Expected-Tenant') === tenantA) {
-        oldHeaders = headers
-        return pendingA.promise
+        if (routePath(url) === '/api/team-records/self') {
+          oldSelfHeaders = headers
+          return pendingSelfA.promise
+        }
+        oldOpponentsHeaders = headers
+        return pendingOpponentsA.promise
       }
-      return reply({ items: [], next_cursor: null }, 200, {
-        'X-Pitchlog-Tenant-Match': '1',
-        'X-Pitchlog-Tenant-Challenge':
-          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
-      })
+      return rosterReply(url, init, tenantB)
     })
     setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
     const router = createAppRouter(createMemoryHistory())
     await router.push('/team')
     const wrapper = view(router)
     await flushPromises()
-    expect(oldHeaders).toBeDefined()
+    expect(oldSelfHeaders).toBeDefined()
+    expect(oldOpponentsHeaders).toBeDefined()
+    expect(rosterCalls('/api/team-records/self', tenantA)).toHaveLength(1)
+    expect(rosterCalls('/api/team-records', tenantA)).toHaveLength(1)
     setVerifiedAuthForTest(auth, { teamId: tenantB, teamName: 'B' })
     await flushPromises()
-    pendingA.resolve(
+    pendingSelfA.resolve(
+      reply(
+        {
+          id: '32345678-1234-4234-8234-123456789abc',
+          kind: 'self',
+          name: '旧A自己応答の固有名',
+          hidden_at: null,
+        },
+        200,
+        {
+          'X-Pitchlog-Tenant-Match': '1',
+          'X-Pitchlog-Tenant-Challenge': oldSelfHeaders!.get(
+            'X-Pitchlog-Tenant-Challenge',
+          )!,
+        },
+      ),
+    )
+    pendingOpponentsA.resolve(
       reply(
         {
           items: [
             {
-              id: '32345678-1234-4234-8234-123456789abc',
-              kind: 'self',
-              name: '旧A応答の固有名',
+              id: '42345678-1234-4234-8234-123456789abc',
+              kind: 'opponent',
+              name: '旧A一覧応答の固有名',
               hidden_at: null,
             },
           ],
@@ -311,7 +355,7 @@ describe('公開ガイドと保護チーム経路', () => {
         200,
         {
           'X-Pitchlog-Tenant-Match': '1',
-          'X-Pitchlog-Tenant-Challenge': oldHeaders!.get(
+          'X-Pitchlog-Tenant-Challenge': oldOpponentsHeaders!.get(
             'X-Pitchlog-Tenant-Challenge',
           )!,
         },
@@ -321,22 +365,18 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(auth.teamId).toBeNull()
     expect(auth.isAuthenticated).toBe(false)
     expect(router.currentRoute.value.name).toBe('login')
-    expect(wrapper.text()).not.toContain('旧A応答の固有名')
-    expect(
-      JSON.stringify(
-        queryClient
-          .getQueryCache()
-          .getAll()
-          .map((q) => q.state.data),
-      ),
-    ).not.toContain('旧A応答の固有名')
-    expect(
-      fetchMock.mock.calls.filter(
-        ([, init]) =>
-          new Headers(init?.headers).get('X-Pitchlog-Expected-Tenant') ===
-          tenantA,
-      ),
-    ).toHaveLength(1)
+    const cachedData = JSON.stringify(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map((q) => q.state.data),
+    )
+    for (const staleName of ['旧A自己応答の固有名', '旧A一覧応答の固有名']) {
+      expect(wrapper.text()).not.toContain(staleName)
+      expect(cachedData).not.toContain(staleName)
+    }
+    expect(rosterCalls('/api/team-records/self', tenantA)).toHaveLength(1)
+    expect(rosterCalls('/api/team-records', tenantA)).toHaveLength(1)
   })
   it('providerが異なる場合はsession/tenant通信を開始しない', async () => {
     const foreign = createPinia()
@@ -388,11 +428,70 @@ describe('公開ガイドと保護チーム経路', () => {
     )
     expect(fetchMock).not.toHaveBeenCalled()
   })
-  it('tenant-bound401は保護画面を解除して/loginへ移す', async () => {
-    const pending = deferred()
-    fetchMock.mockImplementation(async (url) =>
-      String(url).includes('/team-records') ? pending.promise : reply({}, 401),
+  it('正常なtenant metadataでも不正200のselfを選択とcacheへ採用しない', async () => {
+    const auth = useAuthStore(pinia)
+    fetchMock.mockImplementation(async (url, init) => {
+      const path = routePath(url)
+      const headers = new Headers(init?.headers)
+      const tenantHeaders = {
+        'X-Pitchlog-Tenant-Match': '1',
+        'X-Pitchlog-Tenant-Challenge':
+          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
+      }
+      if (path === '/api/team-records/self')
+        return reply(
+          {
+            id: '32345678-1234-4234-8234-123456789abc',
+            kind: 'opponent',
+            name: '不正な自チーム候補',
+            hidden_at: null,
+          },
+          200,
+          tenantHeaders,
+        )
+      if (path === '/api/team-records')
+        return reply({ items: [], next_cursor: null }, 200, tenantHeaders)
+      if (path === '/api/players')
+        return reply({ items: [], next_cursor: null }, 200, tenantHeaders)
+      throw new Error(`想定外の経路: ${path}`)
+    })
+    setVerifiedAuthForTest(auth, { teamId: tenantA, teamName: 'A' })
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/team')
+    const wrapper = view(router)
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="self-team-error"]').exists()).toBe(
+        true,
+      ),
     )
+
+    expect(rosterCalls('/api/team-records/self', tenantA)).toHaveLength(1)
+    expect(rosterCalls('/api/team-records', tenantA)).toHaveLength(1)
+    expect(auth.isAuthenticated).toBe(true)
+    expect(
+      queryClient.getQueryData(
+        rosterQueryKeys.selfTeamRecord(tenantA, auth.authEpoch),
+      ),
+    ).toBeUndefined()
+    expect(wrapper.text()).not.toContain('不正な自チーム候補')
+    expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
+      false,
+    )
+    expect(wrapper.get('#players-heading').text()).toBe('選手')
+    expect(
+      fetchMock.mock.calls.filter(([url]) => routePath(url) === '/api/players'),
+    ).toHaveLength(0)
+  })
+  it('tenant-bound401は保護画面を解除して/loginへ移す', async () => {
+    const pendingSelf = deferred()
+    const pendingOpponents = deferred()
+    fetchMock.mockImplementation(async (url) => {
+      if (routePath(url) === '/api/team-records/self')
+        return pendingSelf.promise
+      if (routePath(url) === '/api/team-records')
+        return pendingOpponents.promise
+      return reply({}, 401)
+    })
     setVerifiedAuthForTest(useAuthStore(pinia), {
       teamId: tenantA,
       teamName: 'A',
@@ -402,20 +501,18 @@ describe('公開ガイドと保護チーム経路', () => {
     const wrapper = view(router)
     await flushPromises()
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
-    expect(
-      fetchMock.mock.calls.filter(([url]) =>
-        String(url).includes('/team-records'),
-      ),
-    ).toHaveLength(1)
-    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('GET')
-    expect(
-      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get(
-        'X-Pitchlog-Expected-Tenant',
-      ),
-    ).toBe(tenantA)
+    expect(rosterCalls('/api/team-records/self', tenantA)).toHaveLength(1)
+    expect(rosterCalls('/api/team-records', tenantA)).toHaveLength(1)
+    for (const call of [
+      ...rosterCalls('/api/team-records/self', tenantA),
+      ...rosterCalls('/api/team-records', tenantA),
+    ]) {
+      expect(call[1]?.method).toBe('GET')
+    }
     const unauthenticated = reply({}, 401)
     expect(unauthenticated.status).toBe(401)
-    pending.resolve(unauthenticated)
+    pendingSelf.resolve(unauthenticated)
+    pendingOpponents.resolve(reply({}, 401))
     await flushPromises()
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(false)
     expect(router.currentRoute.value.name).toBe('login')
@@ -423,21 +520,13 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(
       fetchMock.mock.calls.every(([, init]) => init?.method === 'GET'),
     ).toBe(true)
-    expect(
-      fetchMock.mock.calls.filter(([url]) =>
-        String(url).includes('/team-records'),
-      ),
-    ).toHaveLength(1)
+    expect(rosterCalls('/api/team-records/self')).toHaveLength(1)
+    expect(rosterCalls('/api/team-records')).toHaveLength(1)
   })
   it('別タブのstorage削除で保護画面を解除しtenant通信を再開しない', async () => {
     fetchMock.mockImplementation(async (url, init) => {
       if (String(url).endsWith('/auth/session')) return reply({}, 503)
-      const headers = new Headers(init?.headers)
-      return reply({ items: [], next_cursor: null }, 200, {
-        'X-Pitchlog-Tenant-Match': '1',
-        'X-Pitchlog-Tenant-Challenge':
-          headers.get('X-Pitchlog-Tenant-Challenge') ?? '',
-      })
+      return rosterReply(url, init)
     })
     setVerifiedAuthForTest(useAuthStore(pinia), {
       teamId: tenantA,
@@ -447,13 +536,9 @@ describe('公開ガイドと保護チーム経路', () => {
     await router.push('/team')
     const wrapper = view(router)
     await flushPromises()
-    const tenantCalls = () =>
-      fetchMock.mock.calls.filter(([url]) =>
-        String(url).includes('/team-records'),
-      ).length
-    const before = tenantCalls()
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
-    expect(before).toBe(1)
+    expect(rosterCalls('/api/team-records/self', tenantA)).toHaveLength(1)
+    expect(rosterCalls('/api/team-records', tenantA)).toHaveLength(1)
     expect(useAuthStore(pinia).teamId).toBe(tenantA)
     localStorage.removeItem('bb.auth.intent')
     window.dispatchEvent(
@@ -467,7 +552,8 @@ describe('公開ガイドと保護チーム経路', () => {
     expect(wrapper.findComponent(TeamScreen).exists()).toBe(false)
     expect(router.currentRoute.value.name).toBe('login')
     expect(wrapper.text()).toContain('認証')
-    expect(tenantCalls()).toBe(before)
+    expect(rosterCalls('/api/team-records/self')).toHaveLength(1)
+    expect(rosterCalls('/api/team-records')).toHaveLength(1)
   })
   it('hydration待ちの後でもprovider不一致なら通信しない', async () => {
     const auth = useAuthStore(pinia)

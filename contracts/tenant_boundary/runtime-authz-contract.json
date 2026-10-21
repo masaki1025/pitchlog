@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 17,
+  "runtime_contract_revision": 18,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:17"
+        "runtime_contract_revision:18"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -391,6 +391,11 @@
       ],
       [
         "public",
+        "prevent_games_applied_rules_update",
+        ""
+      ],
+      [
+        "public",
         "prevent_group_invitations_identity_update",
         ""
       ],
@@ -535,6 +540,11 @@
         ""
       ],
       [
+        "public",
+        "verify_games_applied_rules_final",
+        ""
+      ],
+      [
         "rg1_api",
         "rg1_assert_open_before_commit",
         "uuid"
@@ -569,5 +579,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "13eeb95f54a8a713620a12c369505311349e72148c521141ed524ece91b0f62d"
+  "source_digest": "7d681ae11cfde080d46e4722f288b438bf4f93869120b4ae58dc1f8c0fd04f4a"
 }
