@@ -1747,6 +1747,34 @@ def test_p8_candidate_mutations_fail_closed(mutation: str, tmp_path: Path) -> No
         _check_p8_candidate(bundle, tmp_path)
 
 
+@pytest.mark.parametrize("mutation", [
+    "review-counterexample", "below-threshold", "before-start",
+])
+def test_e06_candidate_rejects_inputs_without_one_satisfied_tier(
+    mutation: str, tmp_path: Path,
+) -> None:
+    """成立段数ラベルだけでは通った旧反例と、点差不足・開始回前を拒否する。"""
+    bundle = deepcopy(_load_object(P8_CANDIDATE_PATH))
+    case = next(item for item in bundle["decisionCases"] if item["caseId"] == (
+        "GE-CANDIDATE-E06-ONE-OF-TWO"
+    ))
+    source = case["derivedSourceInput"]
+    if mutation == "review-counterexample":
+        source["gameEnd.coldConditions"] = [
+            {"pointDifference": 10, "startInning": 5},
+            {"pointDifference": 7, "startInning": 7},
+        ]
+    elif mutation == "below-threshold":
+        source["state.score"]["home"] = 6
+    else:
+        source["state.inning"] = 4
+    with pytest.raises(
+        p8_coverage_checker.RequiredSetCoverageError,
+        match="E06候補の設定2段・成立1段の固定入力が不一致",
+    ):
+        _check_p8_candidate(bundle, tmp_path)
+
+
 def test_e12_candidate_covers_equality_and_one_bad_tier_in_both_orders() -> None:
     """N=R非拒否と、他段が有効でもN>Rなら拒否する要求を具体入力で保持する。"""
     bundle = _load_object(P8_CANDIDATE_PATH)

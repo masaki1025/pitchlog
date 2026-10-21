@@ -656,11 +656,11 @@
       "derivedSourceInput": {
         "gameEnd.coldConditions": [
           {
-            "pointDifference": 10,
+            "pointDifference": 7,
             "startInning": 5
           },
           {
-            "pointDifference": 7,
+            "pointDifference": 10,
             "startInning": 7
           }
         ],

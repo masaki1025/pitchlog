@@ -2453,6 +2453,18 @@ def check_game_end_candidate(root: Path, candidate_path: Path) -> dict[str, obje
         check_derived_axis_cases({"cases": cases}, descriptor)
         check_game_end_concrete_case_consistency({"cases": cases})
         ordered = {case["caseId"]: case for case in cases}
+        # 一般のコールド計算を複製せず、E06の「設定2段・成立1段」を示す固定入力を拘束する。
+        # 5回裏7対0では7点差@5回だけが成立し、10点差@7回はまだ成立しない。
+        if ordered["GE-CANDIDATE-E06-ONE-OF-TWO"]["derivedSourceInput"] != {
+            "gameEnd.coldConditions": [
+                {"pointDifference": 7, "startInning": 5},
+                {"pointDifference": 10, "startInning": 7},
+            ],
+            "state.inning": 5,
+            "state.half": "bottom",
+            "state.score": {"home": 7, "away": 0},
+        }:
+            raise RequiredSetCoverageError("E06候補の設定2段・成立1段の固定入力が不一致")
         overlap = ordered["GE-CANDIDATE-E08-COLD-PRIORITY"]
         overlap_input = overlap["inputCoordinate"]
         if (
