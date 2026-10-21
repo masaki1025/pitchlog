@@ -7,11 +7,20 @@ import {
   type SyncNoticeDescriptor,
 } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
+import GameScreenPastCorrection from './GameScreenPastCorrection.vue'
+import type {
+  CorrectionDraft,
+  CorrectionPrerequisites,
+  CorrectionPreview,
+  CorrectionRequest,
+  UndoOffer,
+} from './GameScreenCorrectionTypes'
 import {
   sameDisplayValue,
   snapshotDisplayValue,
 } from './GameScreenDisplayValue'
 import GameScreenPlayObservation from './GameScreenPlayObservation.vue'
+import GameScreenUndo from './GameScreenUndo.vue'
 import type { PlayObservationRequest } from './GameScreenPlayObservationTypes'
 import {
   judgePitchInputEligibility,
@@ -24,6 +33,21 @@ import {
   type ActionRequiredSummary,
 } from './GameScreenQueueStatus'
 import type { StopDisplay } from './GameScreenStopDisplay'
+import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
+import GameScreenLiveDisplay from './GameScreenLiveDisplay.vue'
+import type {
+  LiveDisplaySources,
+  LiveIdentity,
+} from './GameScreenLiveDisplayTypes'
+import type {
+  PastSubstitutionPreview,
+  PastSubstitutionRequest,
+  SubstitutionDraftsSnapshot,
+  SubstitutionLockState,
+  SubstitutionRequest,
+  SubstitutionValidation,
+  TiebreakRequest,
+} from './GameScreenSubstitutionTypes'
 
 interface GameDisplayState {
   gameName: string | null
@@ -68,6 +92,25 @@ const props = withDefaults(
     observationRequest?: PlayObservationRequest | null
     /** 要求と照合する現在の試合・プレイ文脈キー。 */
     observationContextKey?: string | null
+    /** 正式履歴提供側が選んだ取消対象。undo 自身は含めない。 */
+    undoOffer?: UndoOffer | null
+    undoContextKey?: string | null
+    /** 過去修正は表示専用契約。正式 API の提供前は実操作しない。 */
+    correctionRequest?: CorrectionRequest | null
+    correctionContextKey?: string | null
+    correctionPrerequisites?: CorrectionPrerequisites | null
+    correctionPreview?: CorrectionPreview | null
+    /** UI専用の交代・回・過去訂正要求。正式 wire DTO ではない。 */
+    substitutionRequest?: SubstitutionRequest | null
+    tiebreakRequest?: TiebreakRequest | null
+    pastSubstitutionRequest?: PastSubstitutionRequest | null
+    substitutionContextKey?: string | null
+    substitutionLockState?: SubstitutionLockState | null
+    substitutionValidation?: SubstitutionValidation | null
+    pastSubstitutionPreview?: PastSubstitutionPreview | null
+    /** 投影・生成formatterから受けるUI専用の表示値。 */
+    liveIdentity?: LiveIdentity | null
+    liveSources?: LiveDisplaySources | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -91,11 +134,45 @@ const props = withDefaults(
     stopDisplay: undefined,
     observationRequest: undefined,
     observationContextKey: undefined,
+    undoOffer: undefined,
+    undoContextKey: undefined,
+    correctionRequest: undefined,
+    correctionContextKey: undefined,
+    correctionPrerequisites: undefined,
+    correctionPreview: undefined,
+    substitutionRequest: undefined,
+    tiebreakRequest: undefined,
+    pastSubstitutionRequest: undefined,
+    substitutionContextKey: undefined,
+    substitutionLockState: undefined,
+    substitutionValidation: undefined,
+    pastSubstitutionPreview: undefined,
+    liveIdentity: undefined,
+    liveSources: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
     eventIdentity: undefined,
   },
+)
+
+/** ローカル下書きの表示通知。保存・送信・確定イベントではない。 */
+const emit = defineEmits<{
+  correctionDraftChange: [draft: CorrectionDraft | null]
+  'substitution-draft-change': [snapshot: SubstitutionDraftsSnapshot]
+}>()
+
+function relaySubstitutionDraft(snapshot: SubstitutionDraftsSnapshot) {
+  emit('substitution-draft-change', snapshot)
+}
+
+// 交代文脈がある画面では、直前取消欄と交代ロックの参照先を揃える。
+const undoDisplayContextKey = computed(() =>
+  props.substitutionContextKey !== undefined &&
+  props.substitutionContextKey !== null &&
+  props.substitutionContextKey !== props.undoContextKey
+    ? null
+    : props.undoContextKey,
 )
 
 // 未同期の判定を画面で作り直さず、単一の導出から読む。
@@ -354,6 +431,11 @@ watch(
       </dl>
     </section>
 
+    <GameScreenLiveDisplay
+      :identity="props.liveIdentity"
+      :sources="props.liveSources"
+    />
+
     <section aria-label="対戦中の選手" class="grid gap-3 sm:grid-cols-2">
       <dl
         class="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
@@ -512,6 +594,30 @@ watch(
       :request="props.observationRequest"
       :active-context-key="props.observationContextKey"
       :event-identity="props.eventIdentity"
+    />
+
+    <GameScreenUndo
+      :offer="props.undoOffer"
+      :active-context-key="undoDisplayContextKey"
+    />
+    <GameScreenPastCorrection
+      :request="props.correctionRequest"
+      :active-context-key="props.correctionContextKey"
+      :prerequisites="props.correctionPrerequisites"
+      :preview="props.correctionPreview"
+      @draft-change="emit('correctionDraftChange', $event)"
+    />
+    <GameScreenSubstitutions
+      :request="props.substitutionRequest"
+      :tiebreak-request="props.tiebreakRequest"
+      :past-request="props.pastSubstitutionRequest"
+      :active-context-key="props.substitutionContextKey"
+      :undo-context-key="undoDisplayContextKey"
+      :lock-state="props.substitutionLockState"
+      :undo-offer="props.undoOffer"
+      :validation="props.substitutionValidation"
+      :preview="props.pastSubstitutionPreview"
+      @draft-change="relaySubstitutionDraft"
     />
 
     <section
