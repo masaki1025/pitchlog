@@ -1,6 +1,6 @@
 # TSK-544 T1正式契約への射影候補（J5/J6）
 
-状態: **7.7未受理・正式契約未編集の候補**。正本は要件書v2.16とADR-003 v0.9（2026-10-21の単一7.3ゲート、確定コミット`52625ed6a6d7d27a212acfee16b97c8a97d987a5`）。比較元は`origin/develop`の`contracts/state-transition/`であり、TSK-564の#153候補は未統合として直列追随する。本書は期待値の独立導出、契約所有側の受理、7.7実値の人間確認を代行しない。
+状態: **7.7未受理・正式契約未編集の候補**。正本は要件書v2.16とADR-003 v0.9（2026-10-21の単一7.3ゲート、確定コミット`52625ed6a6d7d27a212acfee16b97c8a97d987a5`）。契約比較元は#153統合後の`origin/develop`=`cad0f1eb6a66103321d99a369c5cbb17b57087cd`であり、T1枝への取込HEADは`73f5a8e8faacea88edfacde9139ae38ddd84e5b8`。本書は期待値の独立導出、契約所有側の受理、7.7実値の人間確認を代行しない。
 
 ## 入力と検証器の最小差分
 
@@ -31,7 +31,7 @@
 
 ## 直列統合・停止点
 
-TSK-564の実回答（2026-10-21）では#153が`game_end_contract_v1.json`・同schema・`appendix_e_consumer_handoff_v1.json`を編集し、共通descriptorは変更していない。推奨順は**#153の正式統合→本T1の共通descriptor/schema追随**。ただし#153の統合は未確認で、合意済みの所有解除ではない。T1変更後はT2の`inputAxesDescriptor.digest`、schema const、両loaderの定数、handoff artifactsへ機械的に波及しうる。T2の意味・本人署名を代行せず、参照hashの計算法（RFC8785とファイルbytes）を区別する。
+TSK-564の#153は2026-10-21に`cad0f1eb6a66103321d99a369c5cbb17b57087cd`で統合された。`game_end_contract_v1.json`・同schema・`appendix_e_consumer_handoff_v1.json`を編集し、共通descriptorとT1契約/schemaのblobは変更していない。**直列順の前段だけ成立**し、T1正式編集・T2追随・7.7は未成立。T1変更後はT2の`inputAxesDescriptor.digest`、schema const、両loaderの定数、handoff artifactsへ機械的に波及しうる。T2の意味・本人署名を代行せず、参照hashの計算法（RFC8785とファイルbytes）を区別する。
 
 P-6段階Aの固定結果/未検証範囲、G6-S01〜S08の担当別受理、P-7の公開入力同値性・認可済み読取口・J6原入力保存型が未成立。正式契約の編集はこれらのうち計画が要求する先行条件と編集所有を満たした後、コアレビュー・所有側受理・7.7完全前後値の人間確認の順で行う。製品計算コードと正式7.7は本候補では開始しない。
 
@@ -53,4 +53,15 @@ U-S1担当枝の`prefix_path.py`では、⑦の`validator.validate(event, writer
 | 新しい仕様判断待ち | G6-S04/05の再開始および半回・アウト・カウントの適格条件、S09〜S11のD+1以外の履歴長、S11/S13/S22の原典不足 | PO/TSK-546へ具体分岐を提示。既決のD+1内だけを候補へ含め、他履歴長へ一般化しない |
 | 独立検証待ち | 正式109件のP-6段階A固定範囲と未検証範囲、追加7件の全10列正式case（005/007の打点入力不足を含む） | P-6担当がblind入力から導出・封印し、TSK-544は後からID対応/比較射影を渡す。著者の自己計算は独立検証に算入しない |
 
-#153の編集順は**共通資産を正式反映する時点**の制約であり、上記の候補完成、入力packet設計、P-7回答回収まで止める条件ではない。developに#153が統合されたら実統合SHAを確認し、T1 descriptor・T2参照・派生値・要件書source blobをその基線で再導出する。既存受理履歴を書き換えない。
+#153統合後の実値は次表のとおり。Git blobとファイルbytesのSHA-256、descriptor自身のRFC8785 digestを混同しない。**右列は#153統合による実差分であり、未完成のT1正式候補のafter値ではない。**
+
+| 資産 | #153直前`cad0f1eb^1` | 統合後`cad0f1eb` |
+| --- | --- | --- |
+| 要件書source blob（develop） | `ee6d2508dbdecf34d90c34fc022ff162f73dd3d2` | 同左。T1枝の承認済みv2.16 blobは別に`297f8cf2653c65c846ea3feff7b7a9c563afbe3e`、SHA-256 `569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a`。**develop未統合** |
+| 共通descriptor blob/ファイルSHA-256/自己digest | `d971360817271f91ddc73c2e674e0c760ead7baf` / `fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56` / `sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57` | 全値同左 |
+| T1契約blob/ファイルSHA-256 | `b178ff9cbed997866989eb7dc93476683f762e4a` / `54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb` | 全値同左 |
+| T2契約blob/ファイルSHA-256 | `bac1dae002cb51ae7cc215f51dbd86897dd9823b` / `87052798e37dbc78e687c6be65e9d194aadbaffa77d38df8151f72fa8c6808a2` | `c73a01e72fca5eb8a7e4765d2abdc335eb8a9c68` / `4a777153143788c111bbdec0097268f5aae45af050388509fd02350da9d0ace4` |
+| T2 schema blob/ファイルSHA-256 | `0054ba48bbe6b41a4483bbed2ab146550cfa147a` / `253849d4eea5d7bee65f5a7d715124ee3e8ab54a0890ec4b5d98b5790e366840` | `a4aea4c4ff2e2ea164fe4f1d17a0a5e705823fb7` / `2fa7fb0dc0e0f9f389054ec4825fcb3f341e64aa7a36d932bf31a0ff53813c26` |
+| handoff blob/ファイルSHA-256 | `41515de45491c8f3533e9ca0cd19e952cdd766e5` / `d2b5aa439eef4af51d5ae0601e6f8e1d9d79e84d772706b2c0c11d2da0e6f510` | `e735556fed769514a52b99158cd0ec6df83aa986` / `9f0ed33c6bf029ed50b604be7b4b5757f598cc2ccb9964833d98a24ff5e79a7e` |
+
+現T2契約/schema、T1契約/schema、両loaderは同じdescriptor自己digest `sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57`を参照し、handoffはT1契約・T2契約・descriptorの各**ファイルbytes** digestを参照する。T1の新`homeTouchOrder`軸・閉入力・case・負例、23フラグ表、G6-S01〜S08の担当別受理が未完了のため、**T1正式候補のafter digestはまだ存在しない**。値を仮置きして7.7受理へ出さず、確定差分から再計算する。既存#153の受理履歴・T2意味・署名は変更しない。
