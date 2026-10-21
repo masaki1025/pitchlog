@@ -60,6 +60,7 @@ const CONTRACTS = {
       'version',
       'calculation',
       'inputAxesDescriptor',
+      'provenance',
       'decisionRows',
       'requiredSet',
       'cases',

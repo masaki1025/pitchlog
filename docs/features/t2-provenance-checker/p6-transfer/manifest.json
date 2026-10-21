@@ -1,0 +1,1609 @@
+{
+  "packetId": "tsk564-p6-t2-v1",
+  "publicationStatus": "handoff-only",
+  "independentVerification": "not-performed",
+  "assignedVerifier": null,
+  "requestedVerifier": "未関与Codex担当（本会話/作成セッションを継承しない）",
+  "sourceCommit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+  "target": {
+    "path": "contracts/state-transition/game_end_contract_v1.json",
+    "version": "game_end_contract_v1",
+    "schemaVersion": 1,
+    "rfc8785Digest": "sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4",
+    "rows": 8,
+    "cases": 248,
+    "invalidRuleInputs": 12
+  },
+  "inputFile": {
+    "path": "inputs-without-decisions.json",
+    "byteSha256": "035da88e4d9f08ddcda40f3a2daca8105e75004793d0596f3267f637a8363052",
+    "includesExpectedDecisions": false
+  },
+  "sourceFiles": [
+    {
+      "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "d4f911db884d33455d633b8c16364ea8609df807ee3103f59697200c2b75f93b",
+      "readPhase": "A"
+    },
+    {
+      "path": "docs/adr/ADR-003-domain-calc-method.md",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "c414c806be15ca2474ce2860dd93490f80fced2f901b7c6b60a057dd22c4c435",
+      "readPhase": "A"
+    },
+    {
+      "path": "docs/features/ux1-state-calc/design.md",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "f18b178a2e8203b2bf3d4963b11c4503207af3e2cff2a475d7f838e79412f655",
+      "readPhase": "A"
+    },
+    {
+      "path": "contracts/state-transition/input_axes_descriptor_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56",
+      "readPhase": "A"
+    },
+    {
+      "path": "contracts/state-transition/game_end_contract_schema_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "2fa7fb0dc0e0f9f389054ec4825fcb3f341e64aa7a36d932bf31a0ff53813c26",
+      "readPhase": "A"
+    },
+    {
+      "path": "contracts/state-transition/game_end_coverage_declaration_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "bcce3de9834265ca759796a78bbea6c941d1ffe7696cd7b3a1e7a272a053c185",
+      "readPhase": "B"
+    },
+    {
+      "path": "contracts/state-transition/appendix_e_consumer_handoff_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "9f0ed33c6bf029ed50b604be7b4b5757f598cc2ccb9964833d98a24ff5e79a7e",
+      "readPhase": "A"
+    },
+    {
+      "path": "contracts/vocabulary/input_vocabulary_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "fd1e445a2c3fad15aee9798ea0e6aa63b90c7c278b235d835aacebd12be56fef",
+      "readPhase": "A"
+    },
+    {
+      "path": "contracts/vocabulary/vocabulary_manifest_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "06018ec0c0a1e2a876df8aa262227dd3db74c6a7c7ea439d082c0b08eeba44a1",
+      "readPhase": "A"
+    },
+    {
+      "path": "contracts/state-transition/game_end_contract_v1.json",
+      "commit": "a314dc7822ad3126cff2c4e427a227dbf0d8ae31",
+      "byteSha256": "4a777153143788c111bbdec0097268f5aae45af050388509fd02350da9d0ace4",
+      "readPhase": "B"
+    }
+  ],
+  "authorTriageNotIndependentVerification": true,
+  "caseInventory": [
+    {
+      "caseId": "GE-GAME-END-NORMAL",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-001",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-002",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-003",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-004",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-005",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-006",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-007",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-008",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-009",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-010",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-011",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-012",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-013",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-014",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-015",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-016",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-017",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-018",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-019",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-020",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-021",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-022",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-023",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-024",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-025",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-026",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-027",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-028",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-029",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-030",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-031",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-032",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-NORMAL-COVERAGE-033",
+      "branchId": "GAME-END-NORMAL",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-001",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-002",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-003",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-004",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-005",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-006",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-007",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-008",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-009",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-010",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-011",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-012",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-013",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-014",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-015",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-016",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-017",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-018",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-019",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-020",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-021",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-022",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-023",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-024",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-025",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-026",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-027",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-028",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-029",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-030",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-031",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-032",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-EXTRA-CONTINUE-COVERAGE-033",
+      "branchId": "GAME-END-EXTRA-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-001",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-002",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-003",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-004",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-005",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-006",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-007",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-008",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-009",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-010",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-011",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-012",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-013",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-014",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-015",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-016",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-017",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-018",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-019",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-020",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-021",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-022",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-023",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-024",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-025",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-026",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-027",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-028",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-029",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-030",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-031",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-032",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-LIMIT-DRAW-COVERAGE-033",
+      "branchId": "GAME-END-LIMIT-DRAW",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-001",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-002",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-003",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-004",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-005",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-006",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-007",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-008",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-009",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-010",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-011",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-012",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-013",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-014",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-015",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-016",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-017",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-018",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-019",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-020",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-021",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-022",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-023",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-024",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-025",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-026",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-027",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-028",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-029",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-030",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-031",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-032",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-TIEBREAK-CONTINUE-COVERAGE-033",
+      "branchId": "GAME-END-TIEBREAK-CONTINUE",
+      "authorTriage": "ready-for-source-review",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-001",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-002",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-003",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-004",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-005",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-006",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-007",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-008",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-009",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-010",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-011",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-012",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-013",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-014",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-015",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-016",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-017",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-018",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-019",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-020",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-021",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-022",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-023",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-024",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-025",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-026",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-027",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-028",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-029",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-030",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-031",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-032",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-08-COVERAGE-033",
+      "branchId": "COLD-08",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-001",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-002",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-003",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-004",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-005",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-006",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-007",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-008",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-009",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-010",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-011",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-012",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-013",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-014",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-015",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-016",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-017",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-018",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-019",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-020",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-021",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-022",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-023",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-024",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-025",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-026",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-027",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-028",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-029",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-030",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-031",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-032",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-COLD-09-COVERAGE-033",
+      "branchId": "COLD-09",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-001",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-002",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-003",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-004",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-005",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-006",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-007",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-008",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-GAME-END-WALK-OFF-COVERAGE-009",
+      "branchId": "GAME-END-WALK-OFF",
+      "authorTriage": "pre-play-score-input-missing",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-001",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-002",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-003",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-004",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-005",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-006",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-007",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-008",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-009",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-010",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-011",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-012",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-013",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-014",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-015",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-016",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-017",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-018",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-019",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-020",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-021",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-022",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-023",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-024",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-025",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-026",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-027",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-028",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-029",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-030",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-031",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-032",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    },
+    {
+      "caseId": "GE-XMARK-02-COVERAGE-033",
+      "branchId": "XMARK-02",
+      "authorTriage": "evaluation-context-review-required",
+      "independentResult": "not-performed"
+    }
+  ],
+  "notReadyForFormalP6": [
+    {
+      "scope": "GAME-END-WALK-OFF 全10caseの無条件終了判定",
+      "reason": "確定プレイ直前の得点観測が正式入力にない。候補score2件で補完せず、原典から不整合が導ければmismatch、判定不能ならblockedとして報告する"
+    },
+    {
+      "scope": "COLD-08/COLD-09/XMARK-02 全102caseの開始/評価文脈",
+      "reason": "E11=Aで行維持は採用済みだが限定明文の正式追補は未適用。xMarkの前提をrawだけで判断できると推定せず、条件付きの根拠または不足を記録"
+    },
+    {
+      "scope": "DRAW-01〜10全体の完全性",
+      "reason": "既存decisionの条文照合と、全DRAW行/相関/正常拒否/台帳の正式収容は別。未被覆10件を確認済みにしない"
+    },
+    {
+      "scope": "GAP-05/XMARK-03",
+      "reason": "対象cell表示の正式型/担当受理/独立oracle/製品出力が未成立。正式T2のblankは0行/0case"
+    },
+    {
+      "scope": "candidates/配下の相関21/decision5/lifecycle3/context5/score2/operation42/display5",
+      "reason": "意味裁定の採用は維持するが正式契約/schema/descriptorへの反映と所有側受理は未成立。作者人工fixtureは独立期待値ではない"
+    },
+    {
+      "scope": "T1全体",
+      "reason": "本パケットはTSK-564のT2のみ。T1は544が対象版/原典/入力を別途固定する。T2のscore/操作候補をT1の全件検証へ流用しない"
+    }
+  ],
+  "submission": {
+    "reportDirectory": "/home/ymdms/projects/pitchlog-tsk564-p6-report/",
+    "reportTo": "この報告先へ結果を保存し、既存TSK-564正式カード/PR #153に参照を提出。P-6正式受理は236/538側の実受理担当（未指定）が行う",
+    "formalReceiverPage": "https://app.notion.com/p/3f593b75e687817085ddefcaeff3687b",
+    "page": "https://app.notion.com/p/3fc93b75e687812d83bdd45890f4844a",
+    "pr": "https://github.com/masaki1025/pitchlog/pull/153",
+    "formalAcceptance": "not-performed"
+  }
+}

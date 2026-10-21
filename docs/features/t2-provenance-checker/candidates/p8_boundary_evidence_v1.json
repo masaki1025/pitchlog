@@ -1,0 +1,1305 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "author-synthetic-fixtures",
+  "independentVerification": "not-performed",
+  "productOutputVerification": "not-performed",
+  "contextCases": [
+    {
+      "caseId": "CONTEXT-LOCKED",
+      "projection": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "receipts": [
+          {
+            "sequence": 1,
+            "receiptId": "receipt-1",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-play",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "playing",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-1"
+            }
+          },
+          {
+            "sequence": 2,
+            "receiptId": "receipt-2",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-turn",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "condition-locked",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": true,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          }
+        ]
+      },
+      "authorizations": [],
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 1,
+        "phase": "condition-locked",
+        "gameEnded": false
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 1,
+        "phase": "condition-locked",
+        "gameEnded": false,
+        "decision": {
+          "outcome": "normal-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
+        },
+        "evaluationRef": "receipt-2",
+        "permissionSource": "existing-operation-authorization"
+      }
+    },
+    {
+      "caseId": "CONTEXT-DECLARED",
+      "projection": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "receipts": [
+          {
+            "sequence": 1,
+            "receiptId": "receipt-1",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-play",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "playing",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-1"
+            }
+          },
+          {
+            "sequence": 2,
+            "receiptId": "receipt-2",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-turn",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "condition-locked",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": true,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          },
+          {
+            "sequence": 3,
+            "receiptId": "receipt-3",
+            "eventRef": "event-2",
+            "eventVersion": 2,
+            "kind": "declaration",
+            "timing": null,
+            "thirdOut": false,
+            "authorizationRef": "authorization-3",
+            "basedOnEvaluationRef": "receipt-2",
+            "after": {
+              "phase": "declared",
+              "gameEnded": true,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          }
+        ]
+      },
+      "authorizations": [
+        {
+          "authorizationId": "authorization-3",
+          "scope": {
+            "tenantId": "synthetic-tenant",
+            "gameId": "synthetic-game"
+          },
+          "eventRef": "event-2",
+          "action": "declaration",
+          "expectedRevision": 1,
+          "decision": "allow"
+        }
+      ],
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 2,
+        "phase": "declared",
+        "gameEnded": true
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 2,
+        "phase": "declared",
+        "gameEnded": true,
+        "decision": {
+          "outcome": "normal-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": true,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
+        },
+        "evaluationRef": "receipt-2",
+        "permissionSource": "existing-operation-authorization"
+      }
+    },
+    {
+      "caseId": "CONTEXT-REOPENED",
+      "projection": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "receipts": [
+          {
+            "sequence": 1,
+            "receiptId": "receipt-1",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-play",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "playing",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-1"
+            }
+          },
+          {
+            "sequence": 2,
+            "receiptId": "receipt-2",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-turn",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "condition-locked",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": true,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          },
+          {
+            "sequence": 3,
+            "receiptId": "receipt-3",
+            "eventRef": "event-2",
+            "eventVersion": 2,
+            "kind": "declaration",
+            "timing": null,
+            "thirdOut": false,
+            "authorizationRef": "authorization-3",
+            "basedOnEvaluationRef": "receipt-2",
+            "after": {
+              "phase": "declared",
+              "gameEnded": true,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          },
+          {
+            "sequence": 4,
+            "receiptId": "receipt-4",
+            "eventRef": "event-3",
+            "eventVersion": 3,
+            "kind": "reopen",
+            "timing": null,
+            "thirdOut": false,
+            "authorizationRef": "authorization-4",
+            "basedOnEvaluationRef": "receipt-2",
+            "after": {
+              "phase": "reopened",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": true,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-4"
+            }
+          }
+        ]
+      },
+      "authorizations": [
+        {
+          "authorizationId": "authorization-3",
+          "scope": {
+            "tenantId": "synthetic-tenant",
+            "gameId": "synthetic-game"
+          },
+          "eventRef": "event-2",
+          "action": "declaration",
+          "expectedRevision": 1,
+          "decision": "allow"
+        },
+        {
+          "authorizationId": "authorization-4",
+          "scope": {
+            "tenantId": "synthetic-tenant",
+            "gameId": "synthetic-game"
+          },
+          "eventRef": "event-3",
+          "action": "reopen",
+          "expectedRevision": 2,
+          "decision": "allow"
+        }
+      ],
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 3,
+        "phase": "reopened",
+        "gameEnded": false
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 3,
+        "phase": "reopened",
+        "gameEnded": false,
+        "decision": {
+          "outcome": "normal-end",
+          "endConditionDetected": true,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": true,
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
+        },
+        "evaluationRef": "receipt-4",
+        "permissionSource": "existing-operation-authorization"
+      }
+    },
+    {
+      "caseId": "CONTEXT-REOPENED-CLEARED",
+      "projection": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "receipts": [
+          {
+            "sequence": 1,
+            "receiptId": "receipt-1",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-play",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "playing",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-1"
+            }
+          },
+          {
+            "sequence": 2,
+            "receiptId": "receipt-2",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-turn",
+            "thirdOut": true,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "condition-locked",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": true,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          },
+          {
+            "sequence": 3,
+            "receiptId": "receipt-3",
+            "eventRef": "event-2",
+            "eventVersion": 2,
+            "kind": "declaration",
+            "timing": null,
+            "thirdOut": false,
+            "authorizationRef": "authorization-3",
+            "basedOnEvaluationRef": "receipt-2",
+            "after": {
+              "phase": "declared",
+              "gameEnded": true,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": true,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-2"
+            }
+          },
+          {
+            "sequence": 4,
+            "receiptId": "receipt-4",
+            "eventRef": "event-3",
+            "eventVersion": 3,
+            "kind": "reopen",
+            "timing": null,
+            "thirdOut": false,
+            "authorizationRef": "authorization-4",
+            "basedOnEvaluationRef": "receipt-2",
+            "after": {
+              "phase": "reopened",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "normal-end",
+                "endConditionDetected": true,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": true,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-4"
+            }
+          },
+          {
+            "sequence": 5,
+            "receiptId": "receipt-5",
+            "eventRef": "event-4",
+            "eventVersion": 4,
+            "kind": "evaluation",
+            "timing": "post-play",
+            "thirdOut": false,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "reopened",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-5"
+            }
+          }
+        ]
+      },
+      "authorizations": [
+        {
+          "authorizationId": "authorization-3",
+          "scope": {
+            "tenantId": "synthetic-tenant",
+            "gameId": "synthetic-game"
+          },
+          "eventRef": "event-2",
+          "action": "declaration",
+          "expectedRevision": 1,
+          "decision": "allow"
+        },
+        {
+          "authorizationId": "authorization-4",
+          "scope": {
+            "tenantId": "synthetic-tenant",
+            "gameId": "synthetic-game"
+          },
+          "eventRef": "event-3",
+          "action": "reopen",
+          "expectedRevision": 2,
+          "decision": "allow"
+        }
+      ],
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 4,
+        "phase": "reopened",
+        "gameEnded": false
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 4,
+        "phase": "reopened",
+        "gameEnded": false,
+        "decision": {
+          "outcome": "extra-continue",
+          "endConditionDetected": false,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
+        },
+        "evaluationRef": "receipt-5",
+        "permissionSource": "existing-operation-authorization"
+      }
+    },
+    {
+      "caseId": "CONTEXT-DECLARED-WITHOUT-CONDITION",
+      "projection": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "receipts": [
+          {
+            "sequence": 1,
+            "receiptId": "receipt-1",
+            "eventRef": "event-1",
+            "eventVersion": 1,
+            "kind": "evaluation",
+            "timing": "post-play",
+            "thirdOut": false,
+            "authorizationRef": null,
+            "basedOnEvaluationRef": null,
+            "after": {
+              "phase": "playing",
+              "gameEnded": false,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-1"
+            }
+          },
+          {
+            "sequence": 2,
+            "receiptId": "receipt-2",
+            "eventRef": "event-2",
+            "eventVersion": 2,
+            "kind": "declaration",
+            "timing": null,
+            "thirdOut": false,
+            "authorizationRef": "authorization-2",
+            "basedOnEvaluationRef": "receipt-1",
+            "after": {
+              "phase": "declared",
+              "gameEnded": true,
+              "decision": {
+                "outcome": "extra-continue",
+                "endConditionDetected": false,
+                "lockFurtherPlayInput": false,
+                "promptEndDeclaration": false,
+                "automaticallyEndsGame": false,
+                "xMark": "recorded-score"
+              },
+              "evaluationRef": "receipt-1"
+            }
+          }
+        ]
+      },
+      "authorizations": [
+        {
+          "authorizationId": "authorization-2",
+          "scope": {
+            "tenantId": "synthetic-tenant",
+            "gameId": "synthetic-game"
+          },
+          "eventRef": "event-2",
+          "action": "declaration",
+          "expectedRevision": 1,
+          "decision": "allow"
+        }
+      ],
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 2,
+        "phase": "declared",
+        "gameEnded": true
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 2,
+        "phase": "declared",
+        "gameEnded": true,
+        "decision": {
+          "outcome": "extra-continue",
+          "endConditionDetected": false,
+          "lockFurtherPlayInput": false,
+          "promptEndDeclaration": false,
+          "automaticallyEndsGame": false,
+          "xMark": "recorded-score"
+        },
+        "evaluationRef": "receipt-1",
+        "permissionSource": "existing-operation-authorization"
+      }
+    }
+  ],
+  "scoreObservationCases": [
+    {
+      "caseId": "SCORE-WALKOFF",
+      "source": {
+        "producer": "shared-state-transition-projection",
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "eventRef": "target-play",
+        "beforeAppliedVersion": 40,
+        "afterAppliedVersion": 41,
+        "beforeScore": {
+          "home": 2,
+          "away": 3
+        },
+        "afterScore": {
+          "home": 4,
+          "away": 3
+        }
+      },
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "eventRef": "target-play",
+        "beforeScore": {
+          "home": 2,
+          "away": 3
+        },
+        "afterScore": {
+          "home": 4,
+          "away": 3
+        }
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "eventRef": "target-play",
+        "beforeScore": {
+          "home": 2,
+          "away": 3
+        },
+        "afterScore": {
+          "home": 4,
+          "away": 3
+        }
+      }
+    },
+    {
+      "caseId": "SCORE-NO-LEAD",
+      "source": {
+        "producer": "shared-state-transition-projection",
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "eventRef": "target-play",
+        "beforeAppliedVersion": 40,
+        "afterAppliedVersion": 41,
+        "beforeScore": {
+          "home": 2,
+          "away": 3
+        },
+        "afterScore": {
+          "home": 3,
+          "away": 3
+        }
+      },
+      "request": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "eventRef": "target-play",
+        "beforeScore": {
+          "home": 2,
+          "away": 3
+        },
+        "afterScore": {
+          "home": 3,
+          "away": 3
+        }
+      },
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "eventRef": "target-play",
+        "beforeScore": {
+          "home": 2,
+          "away": 3
+        },
+        "afterScore": {
+          "home": 3,
+          "away": 3
+        }
+      }
+    }
+  ],
+  "operationCases": [
+    {
+      "caseId": "OP-per-pitch-not-applicable",
+      "request": {
+        "operationKind": "per-pitch",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "accepted"
+    },
+    {
+      "caseId": "OP-per-pitch-substitution",
+      "request": {
+        "operationKind": "per-pitch",
+        "operationPayload": "substitution"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-per-pitch-tiebreak-start",
+      "request": {
+        "operationKind": "per-pitch",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-per-pitch-game-end-declaration",
+      "request": {
+        "operationKind": "per-pitch",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-per-pitch-adhoc-registration",
+      "request": {
+        "operationKind": "per-pitch",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-per-pitch-state-correction",
+      "request": {
+        "operationKind": "per-pitch",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-substitution-not-applicable",
+      "request": {
+        "operationKind": "substitution",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-substitution-substitution",
+      "request": {
+        "operationKind": "substitution",
+        "operationPayload": "substitution"
+      },
+      "expected": "accepted"
+    },
+    {
+      "caseId": "OP-substitution-tiebreak-start",
+      "request": {
+        "operationKind": "substitution",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-substitution-game-end-declaration",
+      "request": {
+        "operationKind": "substitution",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-substitution-adhoc-registration",
+      "request": {
+        "operationKind": "substitution",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-substitution-state-correction",
+      "request": {
+        "operationKind": "substitution",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-tiebreak-start-not-applicable",
+      "request": {
+        "operationKind": "tiebreak-start",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-tiebreak-start-substitution",
+      "request": {
+        "operationKind": "tiebreak-start",
+        "operationPayload": "substitution"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-tiebreak-start-tiebreak-start",
+      "request": {
+        "operationKind": "tiebreak-start",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "accepted"
+    },
+    {
+      "caseId": "OP-tiebreak-start-game-end-declaration",
+      "request": {
+        "operationKind": "tiebreak-start",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-tiebreak-start-adhoc-registration",
+      "request": {
+        "operationKind": "tiebreak-start",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-tiebreak-start-state-correction",
+      "request": {
+        "operationKind": "tiebreak-start",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-game-end-declaration-not-applicable",
+      "request": {
+        "operationKind": "game-end-declaration",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-game-end-declaration-substitution",
+      "request": {
+        "operationKind": "game-end-declaration",
+        "operationPayload": "substitution"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-game-end-declaration-tiebreak-start",
+      "request": {
+        "operationKind": "game-end-declaration",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-game-end-declaration-game-end-declaration",
+      "request": {
+        "operationKind": "game-end-declaration",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "accepted"
+    },
+    {
+      "caseId": "OP-game-end-declaration-adhoc-registration",
+      "request": {
+        "operationKind": "game-end-declaration",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-game-end-declaration-state-correction",
+      "request": {
+        "operationKind": "game-end-declaration",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-adhoc-registration-not-applicable",
+      "request": {
+        "operationKind": "adhoc-registration",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-adhoc-registration-substitution",
+      "request": {
+        "operationKind": "adhoc-registration",
+        "operationPayload": "substitution"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-adhoc-registration-tiebreak-start",
+      "request": {
+        "operationKind": "adhoc-registration",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-adhoc-registration-game-end-declaration",
+      "request": {
+        "operationKind": "adhoc-registration",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-adhoc-registration-adhoc-registration",
+      "request": {
+        "operationKind": "adhoc-registration",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "accepted"
+    },
+    {
+      "caseId": "OP-adhoc-registration-state-correction",
+      "request": {
+        "operationKind": "adhoc-registration",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-state-correction-not-applicable",
+      "request": {
+        "operationKind": "state-correction",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-state-correction-substitution",
+      "request": {
+        "operationKind": "state-correction",
+        "operationPayload": "substitution"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-state-correction-tiebreak-start",
+      "request": {
+        "operationKind": "state-correction",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-state-correction-game-end-declaration",
+      "request": {
+        "operationKind": "state-correction",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-state-correction-adhoc-registration",
+      "request": {
+        "operationKind": "state-correction",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-state-correction-state-correction",
+      "request": {
+        "operationKind": "state-correction",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-undo-not-applicable",
+      "request": {
+        "operationKind": "undo",
+        "operationPayload": "not-applicable"
+      },
+      "expected": "accepted"
+    },
+    {
+      "caseId": "OP-undo-substitution",
+      "request": {
+        "operationKind": "undo",
+        "operationPayload": "substitution"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-undo-tiebreak-start",
+      "request": {
+        "operationKind": "undo",
+        "operationPayload": "tiebreak-start"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-undo-game-end-declaration",
+      "request": {
+        "operationKind": "undo",
+        "operationPayload": "game-end-declaration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-undo-adhoc-registration",
+      "request": {
+        "operationKind": "undo",
+        "operationPayload": "adhoc-registration"
+      },
+      "expected": "HANDOFF_SHAPE"
+    },
+    {
+      "caseId": "OP-undo-state-correction",
+      "request": {
+        "operationKind": "undo",
+        "operationPayload": "state-correction"
+      },
+      "expected": "HANDOFF_SHAPE"
+    }
+  ],
+  "displayComparisons": [
+    {
+      "caseId": "DISPLAY-COLD-AFTER-TOP",
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "display": "X"
+      },
+      "syntheticOutput": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "display": "X"
+      },
+      "sourceBranch": "XMARK-02",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "started": false,
+        "pairedTopCompleted": true,
+        "endConditionMakesBottomUnnecessary": true,
+        "recordedScore": 0
+      }
+    },
+    {
+      "caseId": "DISPLAY-FUTURE",
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 6,
+          "half": "top"
+        },
+        "display": ""
+      },
+      "syntheticOutput": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 6,
+          "half": "top"
+        },
+        "display": ""
+      },
+      "sourceBranch": "XMARK-03",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 6,
+          "half": "top"
+        },
+        "started": false,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
+      }
+    },
+    {
+      "caseId": "DISPLAY-STARTED-BOTTOM",
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "display": "3"
+      },
+      "syntheticOutput": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "display": "3"
+      },
+      "sourceBranch": "XMARK-01",
+      "input": {
+        "evaluationHalf": "bottom",
+        "targetCell": {
+          "inning": 5,
+          "half": "bottom"
+        },
+        "started": true,
+        "pairedTopCompleted": true,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 3
+      }
+    },
+    {
+      "caseId": "DISPLAY-DECLARED-UNSTARTED",
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 7,
+          "half": "bottom"
+        },
+        "display": ""
+      },
+      "syntheticOutput": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 7,
+          "half": "bottom"
+        },
+        "display": ""
+      },
+      "sourceBranch": "XMARK-03",
+      "input": {
+        "evaluationHalf": "top",
+        "targetCell": {
+          "inning": 7,
+          "half": "bottom"
+        },
+        "started": false,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
+      }
+    },
+    {
+      "caseId": "DISPLAY-STARTED-BEFORE-FIRST-PITCH",
+      "expected": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 1,
+          "half": "top"
+        },
+        "display": "0"
+      },
+      "syntheticOutput": {
+        "scope": {
+          "tenantId": "synthetic-tenant",
+          "gameId": "synthetic-game"
+        },
+        "projectionRevision": 41,
+        "targetCell": {
+          "inning": 1,
+          "half": "top"
+        },
+        "display": "0"
+      },
+      "sourceBranch": "XMARK-01",
+      "input": {
+        "evaluationHalf": "top",
+        "targetCell": {
+          "inning": 1,
+          "half": "top"
+        },
+        "started": true,
+        "pairedTopCompleted": false,
+        "endConditionMakesBottomUnnecessary": false,
+        "recordedScore": 0
+      }
+    }
+  ]
+}
