@@ -589,6 +589,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.roster.PlayerRosterStatusUpdateToken",
         "pitchlog.repositories.roster.PlayerRosterLabelUpdateToken",
         "pitchlog.repositories.roster.TeamRecordReadToken",
+        "pitchlog.repositories.roster.SelfTeamRecordReadToken",
         "pitchlog.repositories.roster.TeamRecordCreateToken",
         "pitchlog.repositories.roster.TeamRecordUpdateToken",
         "pitchlog.repositories.roster.TeamRecordDeleteToken",
@@ -604,6 +605,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
+    assert len(expected_token_types) == 45
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -619,7 +621,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 *expected_capabilities[:3],
                 "CAP:players:update",
                 "CAP:players:update",
-                *expected_capabilities[3:6],
+                expected_capabilities[3],
+                expected_capabilities[3],
+                *expected_capabilities[4:6],
                 "CAP:team_records:update",
                 expected_capabilities[6],
                 expected_capabilities[7],
@@ -736,6 +740,7 @@ def test_unsafe_return_type_mutations_are_red(return_type: object) -> None:
 @pytest.mark.parametrize(
     "candidate",
     (
+        object(),
         text("SELECT 1"),
         lambda: None,
         _ForgedToken(),

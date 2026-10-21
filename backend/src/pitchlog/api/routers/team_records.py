@@ -1,4 +1,4 @@
-"""対戦相手チームレコードの登録・一覧・変更・削除の入口。"""
+"""自チームの取得と対戦相手チームレコードの操作入口。"""
 
 import base64
 import binascii
@@ -23,6 +23,7 @@ from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.roster import (
     GameTeamLinkReadToken,
     PlayerReadToken,
+    SelfTeamRecordReadToken,
     TeamRecordCreateToken,
     TeamRecordDeleteToken,
     TeamRecordReadToken,
@@ -129,6 +130,37 @@ def list_team_records(
     return Page(
         items=items,
         next_cursor=_encode_cursor(items[-1]) if len(rows) > query.limit else None,
+    )
+
+
+@router.get(
+    "/team-records/self",
+    response_model=TeamRecordRead,
+    operation_id="roster_self_team_read",
+)
+def read_self_team_record(
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> TeamRecordRead:
+    """認証済みテナントの公開中の自チームを取得する。"""
+    rows = _run(context, SelfTeamRecordReadToken()).rows
+    if type(rows) is not tuple:
+        raise RuntimeError("自チーム取得結果の行集合が不正")
+    if not rows:
+        raise HTTPException(status_code=404)
+    if len(rows) != 1:
+        raise RuntimeError("自チーム取得結果の行数が不正")
+    row = rows[0]
+    if (
+        type(row) is not tuple
+        or len(row) != 4
+        or type(row[0]) is not UUID
+        or row[1] != "self"
+        or type(row[2]) is not str
+        or row[3] is not None
+    ):
+        raise RuntimeError("自チーム取得結果の形が不正")
+    return TeamRecordRead.model_validate(
+        dict(zip(_TEAM_FIELDS, row, strict=True)), strict=True
     )
 
 

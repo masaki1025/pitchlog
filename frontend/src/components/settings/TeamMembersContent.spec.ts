@@ -20,6 +20,7 @@ import {
   createTeamRecord,
   listPlayers,
   listTeamRecords,
+  readSelfTeamRecord,
   updatePlayer,
   updateTeamRecord,
   type PlayerCreated,
@@ -38,6 +39,7 @@ vi.mock('../../api/roster', () => ({
   createTeamRecord: vi.fn(),
   listPlayers: vi.fn(),
   listTeamRecords: vi.fn(),
+  readSelfTeamRecord: vi.fn(),
   updatePlayer: vi.fn(),
   updateTeamRecord: vi.fn(),
 }))
@@ -48,6 +50,7 @@ const createPlayerMock = vi.mocked(createPlayer)
 const createTeamRecordMock = vi.mocked(createTeamRecord)
 const listPlayersMock = vi.mocked(listPlayers)
 const listTeamRecordsMock = vi.mocked(listTeamRecords)
+const readSelfTeamRecordMock = vi.mocked(readSelfTeamRecord)
 const updatePlayerMock = vi.mocked(updatePlayer)
 const updateTeamRecordMock = vi.mocked(updateTeamRecord)
 
@@ -140,6 +143,10 @@ beforeEach(() => {
   createTeamRecordMock.mockReset()
   listPlayersMock.mockReset()
   listTeamRecordsMock.mockReset()
+  readSelfTeamRecordMock.mockReset()
+  readSelfTeamRecordMock.mockResolvedValue(
+    teamRecord('self-a', 'チーム A', 'self'),
+  )
   updatePlayerMock.mockReset()
   updateTeamRecordMock.mockReset()
 })
@@ -375,6 +382,9 @@ describe('TeamMembersContent', () => {
     const selfB = teamRecord('self-b', 'チーム B', 'self')
     const delayedA = deferred<TeamRecordCreated>()
     let activeTenant: 'a' | 'b' = 'a'
+    readSelfTeamRecordMock.mockImplementation(async () =>
+      activeTenant === 'a' ? selfA : selfB,
+    )
     listTeamRecordsMock.mockImplementation(async () =>
       page([activeTenant === 'a' ? selfA : selfB]),
     )
