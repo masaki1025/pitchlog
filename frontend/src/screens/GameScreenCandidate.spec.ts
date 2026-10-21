@@ -12,6 +12,32 @@ const candidate = resolve(
 const authority = 'contracts/tenant_boundary/base-allowlist.json'
 const manifest = 'tests/fixtures/frozen-archive-cases/manifest.json'
 const ci = '.github/workflows/ci.yml'
+const baselineHistorySha256 = [
+  '01b562abdd4a36ce7a912e0a0da7ee894461ecfc1d5792f6e73552aa6c109811',
+  '38d2cc07a45b96c940498e79e9281cf578d7cbd0d96eee9a70f8937ccdf21e35',
+  '879f570ed17f87195ca226773ee50fbe20bd70fc07f99390647a19af46b949e7',
+  'e94351f5b55bec417d6c099a0f0564996e34d4c76d579dd94bc21f9370679238',
+  'ad14bfc343f73416bf6399d3dda2bf1a8e4cb5cec313c9ae9afd0c29427c5a26',
+  'cbea483400812d264c1ee693f7a2443ad616d0293ad946a73dfe3fdd1962a4b4',
+  '031cfad26c9b8a055a8bae050bf171c920497bb3a8d810b691ad277959a55862',
+  'de209b128ce1e70cffbb020bb45cdad08fccb88c022b3035323c15d53db66f5b',
+  '4768e1fed92ebf821cec977d1939f444cecd527bfe62c6b58cdee1fd6793cfd6',
+  '025a14a9f073c8f62786f5898f861853bd8d6441b3bd4445580e4382dd348928',
+  '2a50f0d07b7765d44f2bfe26dbc72c42d15107995435b89f28dcdc42f9b2bf2a',
+  'a5bfe64104cba757e57730cb080d7e26e5c98d0f50e9a3c765e0519938f586e4',
+  '00bebcde101fb5727fe36f0c40664503c11850d891163b01f20de5ae3a72f417',
+  'bc7fa149d631258b5ceedaacaece948fbbd51618e308a60df7ab577384e8af6c',
+  '787440bdf068bcd8953bbaceee6bf8717ad605b37470d7a21bb777876f6b59bd',
+  '0d9711eccf91592ae0b733f15951698f5204cbcf2c4fc68e4f09ed8d1cdafcc7',
+  'cb4b921be3056856bbcd01deffc38a651daae3267755c3fd01ea2e6ad0baee60',
+  'b600ecc1145f0222e174d3616e68bba5151d8202346ca79bb688ba3417f34978',
+  '509e497845665c81621e295e19c752846a6571ca0a34f5942f5d248d9d0b3b47',
+  '65fb0c981ba2a85473b1c3eaef556e755ad9fab1d9bcfa84fcd400a7b7ce6171',
+  '7fe796cc8e5fad42680cf664478239fddc35cc02fe8ec7ac0ddbadf734da38bf',
+  'c8c8164c494677f036442de561eb1b9178a78d7126b6147aff55fa545b748582',
+  '3b7fd08ecc2649673f73faaf5877037760e8bf887287b1936f5d69da77613da2',
+  '42e8b18456daa39bf5370d7757ee281e35211b7cc15ca9bdeb1ad5d0fcffdc8a',
+] as const
 
 function candidateBytes(stage: 'before' | 'after', path: string): Buffer {
   return readFileSync(resolve(candidate, stage, path))
@@ -87,7 +113,10 @@ describe('ステップ7の未受理凍結候補', () => {
     const newHistory = (newAsset.baseline_control as Record<string, unknown>)[
       'history'
     ] as Record<string, unknown>[]
-    expect(oldHistory).toHaveLength(23)
+    expect(oldHistory).toHaveLength(baselineHistorySha256.length)
+    expect(
+      oldHistory.map((record) => sha256(Buffer.from(JSON.stringify(record)))),
+    ).toEqual(baselineHistorySha256)
     expect(newHistory.slice(0, oldHistory.length)).toEqual(oldHistory)
     expect(newHistory).toHaveLength(oldHistory.length + 1)
     expect(newHistory.at(-1)).toMatchObject({

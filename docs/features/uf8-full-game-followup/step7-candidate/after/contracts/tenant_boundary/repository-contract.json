@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 22,
+  "contract_revision": 23,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:22"
+        "contract_revision:23"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -175,6 +175,7 @@
     "pitchlog.repositories.roster.PlayerRosterStatusUpdateToken",
     "pitchlog.repositories.roster.PlayerRosterLabelUpdateToken",
     "pitchlog.repositories.roster.TeamRecordReadToken",
+    "pitchlog.repositories.roster.SelfTeamRecordReadToken",
     "pitchlog.repositories.roster.TeamRecordCreateToken",
     "pitchlog.repositories.roster.TeamRecordUpdateToken",
     "pitchlog.repositories.roster.TeamRecordDeleteToken",
@@ -223,5 +224,5 @@
     "RG1:precheck",
     "RG1:commit_check"
   ],
-  "source_digest": "5a961d7acca738d13fca0cd96d79c6b004854f521acce4415d6ed16c06faa2b5"
+  "source_digest": "1a63da87392116cb60bbd5b770bdd250624ef4eb20d1bc031fd041bd3a588ead"
 }
