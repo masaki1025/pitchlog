@@ -41,7 +41,7 @@
 | 対象 | 正本側 | 実装側 | 判定 | 理由と典拠 |
 | --- | --- | --- | --- | --- |
 | 正本に直接割当なし候補: rg1_restore_gate | data-model.md §11-1 の直接割当有無を人間確認; 個別典拠候補 §3-2 | manifest rg1_restore_gate.lifecycle.deletion=対象外 | 一致 | data-model.md §3-2 の削除操作を持たない単一状態行と manifest の lifecycle.deletion=`対象外` が整合する。§11-1 に直接割当はない（PO 判定 2026-10-17）。 |
-| 正本に直接割当なし候補: games | data-model.md §11-1 の直接割当有無を人間確認; 個別典拠候補 §5-1, 11-1, 12-3 | manifest games.lifecycle.deletion=ゴミ箱 | 一致 | 11-1 節の 4 系統表に直接現れる(対象 01 試合のみ)。軸1=`ゴミ箱` が正本と一致 data-model.md:11-1 |
+| 正本に直接割当なし候補: games | data-model.md §11-1 の直接割当有無を人間確認; 個別典拠候補 §5-1, 6-5, 11-1, 12-3 | manifest games.lifecycle.deletion=ゴミ箱 |  |  |
 | 正本に直接割当なし候補: play_rows | data-model.md §11-1 の直接割当有無を人間確認; 個別典拠候補 §5-2, 12-1, 12-3 | manifest play_rows.lifecycle.deletion=非表示 | 一致 | 11-1 節の 4 系統表に直接現れる(対象 03 プレイ行)。軸1=`非表示` が正本と一致 data-model.md:11-1 |
 | 正本に直接割当なし候補: play_runners | data-model.md §11-1 の直接割当有無を人間確認; 個別典拠候補 §5-2, 12-3 | manifest play_runners.lifecycle.deletion=親に従う | 一致 | 正本 11-1 節に直接割当が無く、manifest が `親に従う` を宣言している。親は `play_rows`(主 FK 先)。design.md 3-4 節が `親に従う` を「親オブジェクトの系統に従う投影・付随表」と定義する。両側を特定できる data-model.md:5-2 |
 | 正本に直接割当なし候補: event_slots | data-model.md §11-1 の直接割当有無を人間確認; 個別典拠候補 §5-3, 12-3 | manifest event_slots.lifecycle.deletion=親に従う | 一致 | 正本 11-1 節に直接割当が無く、manifest が `親に従う` を宣言している。親は `games`(主 FK 先)。design.md 3-4 節が `親に従う` を「親オブジェクトの系統に従う投影・付随表」と定義する。両側を特定できる data-model.md:5-3 |
