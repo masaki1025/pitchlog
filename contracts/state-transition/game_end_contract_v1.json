@@ -7,6 +7,111 @@
     "version": "input_axes_descriptor_v1",
     "digest": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57"
   },
+  "provenance": {
+    "subjectKind": "normative-branch-or-state-effect",
+    "sources": [
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:F-1"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-005"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-009"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-014"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:FR-020"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-01"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-02"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-03"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-04"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-05"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-06"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-07"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-08"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:COLD-09"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-01"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-02"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-03"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-07"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-08"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-09"
+      },
+      {
+        "sourceKind": "requirements",
+        "sourceId": "req:DRAW-10"
+      }
+    ],
+    "authorId": "codex",
+    "independentVerifierId": "not-performed",
+    "attestations": [
+      {
+        "attestationId": "direct-source-clause-review",
+        "response": false
+      },
+      {
+        "attestationId": "author-work-exposure",
+        "response": "not-performed"
+      },
+      {
+        "attestationId": "source-support-judgment",
+        "response": false
+      }
+    ]
+  },
   "decisionRows": [
     {
       "branchId": "GAME-END-NORMAL",
