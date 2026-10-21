@@ -1,4 +1,4 @@
-import { apiRequest } from './client'
+import { ApiError, apiRequest } from './client'
 import type { Page, PageRequest } from './types'
 
 export interface TeamRecordRead {
@@ -59,6 +59,50 @@ export type TeamRecordListQuery = PageRequest & { include_hidden?: boolean }
 
 interface RosterOptions {
   signal?: AbortSignal
+}
+
+const SELF_TEAM_FIELDS = ['hidden_at', 'id', 'kind', 'name'] as const
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function isSelfTeamRecordRead(value: unknown): value is TeamRecordRead {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    (Object.getPrototypeOf(value) !== Object.prototype &&
+      Object.getPrototypeOf(value) !== null)
+  )
+    return false
+  const record = value as Record<string, unknown>
+  const fields = Object.keys(record).sort()
+  return (
+    fields.length === SELF_TEAM_FIELDS.length &&
+    fields.every((field, index) => field === SELF_TEAM_FIELDS[index]) &&
+    typeof record.id === 'string' &&
+    UUID_PATTERN.test(record.id) &&
+    record.kind === 'self' &&
+    typeof record.name === 'string' &&
+    record.hidden_at === null
+  )
+}
+
+export async function readSelfTeamRecord(
+  options?: RosterOptions,
+): Promise<TeamRecordRead> {
+  const result = await apiRequest<unknown>('GET', '/team-records/self', {
+    signal: options?.signal,
+    tenantBound: true,
+  })
+  if (!isSelfTeamRecordRead(result)) {
+    throw new ApiError(
+      200,
+      '自チームの応答を確認できません',
+      [],
+      undefined,
+      undefined,
+    )
+  }
+  return result
 }
 
 export function listTeamRecords(

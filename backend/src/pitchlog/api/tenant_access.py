@@ -21,6 +21,7 @@ _ACK_HEADER = b"x-pitchlog-tenant-match"
 _CHALLENGE_RESPONSE_HEADER = b"x-pitchlog-tenant-challenge"
 _MATCH_OPERATIONS = frozenset(
     {
+        "roster_self_team_read",
         "roster_team_list",
         "roster_team_create",
         "roster_team_update",
@@ -55,7 +56,7 @@ def _canonical_header(request: Request, name: str) -> str:
 
 
 class TenantMatchedRoute(APIRoute):
-    """指定7経路で本文検証より先に認証とtenant照合を行う。"""
+    """指定経路で本文検証より先に認証とtenant照合を行う。"""
 
     async def handle(self, scope: Scope, receive: Receive, send: Send) -> None:
         """本文を解釈する標準ASGI経路へ照合済み要求だけを渡す。"""

@@ -97,4 +97,71 @@ export default [
   },
   // Prettier と競合する整形規則だけを最後に無効化する。
   eslintConfigPrettier,
+  {
+    // 第 1 期の U-F8 は、利用者の確定操作から永続追記・送信へ進ませない
+    // (docs/features/uf8-game-recording/design.md 6-2)。到達の禁止を試験の
+    // 文字列照合に頼ると、表記違い・動的 import・再 export で迂回できるため、
+    // 機構(lint)で落とす。解除は封鎖を外す PR で同時に行う。
+    files: ['src/screens/GameScreen.vue'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '**/GameScreenPitchCommit*',
+                '**/GameScreenPitchAcceptance*',
+                '**/GameScreenAckApplication*',
+                '**/client.syncEvents*',
+                '**/api/client',
+                '**/lib/sync/durableQueue*',
+                '**/lib/sync/singleWriter*',
+                '**/lib/sync/clientDiscipline*',
+              ],
+              message:
+                '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+            },
+            {
+              // flat config の後勝ちは規則ごとオプションを置換するため、
+              // 一般ブロックの禁止をここへ書き戻さないとこのファイルだけ消える。
+              group: ['**/lib/generated/*', '**/lib/generated/artifacts/**'],
+              message:
+                '生成物は generated/wrappers 配下の生成ラッパーを経由してください。',
+            },
+          ],
+        },
+      ],
+      // import を塞いでも、素の fetch / indexedDB で到達できてしまう。
+      // 2 周目 P0 の反例がまさにこれだったので、グローバルも落とす。
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'fetch',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'XMLHttpRequest',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'indexedDB',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'caches',
+          message:
+            '第 1 期は確定の経路へ到達させない(uf8-game-recording/design.md 6-2)。',
+        },
+        {
+          name: 'PitchlogDomain',
+          message:
+            'ドメイン計算は generated/wrappers の公開口から呼び出してください。',
+        },
+      ],
+    },
+  },
 ]
