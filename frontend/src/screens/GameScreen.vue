@@ -8,6 +8,12 @@ import {
 } from '../lib/sync/syncNotices'
 import { resolvePitchCommitGate } from './GameScreenCommitGate'
 import {
+  sameDisplayValue,
+  snapshotDisplayValue,
+} from './GameScreenDisplayValue'
+import GameScreenPlayObservation from './GameScreenPlayObservation.vue'
+import type { PlayObservationRequest } from './GameScreenPlayObservationTypes'
+import {
   judgePitchInputEligibility,
   PITCH_INPUT_INELIGIBILITY_MESSAGE,
   type PitchInputObservation,
@@ -58,6 +64,10 @@ const props = withDefaults(
     receivedNotices?: readonly SyncNoticeDescriptor[]
     /** 停止UIの表示fixture。正式なPort/停止型とは接続していない。 */
     stopDisplay?: StopDisplay
+    /** 表示専用の観測入力要求。正式 wire DTO ではない。 */
+    observationRequest?: PlayObservationRequest | null
+    /** 要求と照合する現在の試合・プレイ文脈キー。 */
+    observationContextKey?: string | null
     /** 未送信が警告の閾値へ達したか。clientDiscipline の判定を渡す。 */
     unsentWarning?: boolean
     // boolean の prop は未指定が false へキャストされ「拒否」と区別できないため、
@@ -79,6 +89,8 @@ const props = withDefaults(
     syncedCount: undefined,
     receivedNotices: undefined,
     stopDisplay: undefined,
+    observationRequest: undefined,
+    observationContextKey: undefined,
     unsentWarning: undefined,
     storagePersistence: undefined,
     inputObservation: undefined,
@@ -153,6 +165,7 @@ const pitchTypeId = ref<string | null>(null)
 const speed = ref('')
 const course = ref<{ x: number; y: number } | null>(null)
 const resultId = ref<string | null>(null)
+const pitchDraftClearedNotice = ref(false)
 
 // 呼出元が表示用に整形した文字列だけを描画する。
 function display(value: unknown): string {
@@ -228,7 +241,35 @@ function clearDraft() {
   speed.value = ''
   course.value = null
   resultId.value = null
+  pitchDraftClearedNotice.value = false
 }
+
+let previousDraftContext = snapshotDisplayValue([
+  props.observationRequest,
+  props.observationContextKey,
+  props.eventIdentity,
+])
+
+// 内容が変わった場合だけ旧投球下書きを破棄する。
+watch(
+  () => [
+    props.observationRequest,
+    props.observationContextKey,
+    props.eventIdentity,
+  ],
+  (current) => {
+    if (sameDisplayValue(previousDraftContext, current)) return
+    const discarded =
+      pitchTypeId.value !== null ||
+      speed.value !== '' ||
+      course.value !== null ||
+      resultId.value !== null
+    clearDraft()
+    if (discarded) pitchDraftClearedNotice.value = true
+    previousDraftContext = snapshotDisplayValue(current)
+  },
+  { deep: true, flush: 'sync' },
+)
 </script>
 
 <template>
@@ -467,7 +508,16 @@ function clearDraft() {
       </div>
     </section>
 
+    <GameScreenPlayObservation
+      :request="props.observationRequest"
+      :active-context-key="props.observationContextKey"
+      :event-identity="props.eventIdentity"
+    />
+
     <section
+      v-if="
+        !props.observationRequest || props.observationRequest.mode === 'pitch'
+      "
       aria-label="投球入力の下書き"
       class="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30"
     >
@@ -479,6 +529,14 @@ function clearDraft() {
             class="mt-1 text-sm text-amber-900 dark:text-amber-200"
           >
             この入力は保存・送信されません。画面を離れると消えます。
+          </p>
+          <p
+            v-if="pitchDraftClearedNotice"
+            role="status"
+            data-testid="pitch-draft-cleared"
+            class="mt-1 text-sm font-bold"
+          >
+            試合文脈または入力対象が変わったため、未保存の投球下書きを消去しました。
           </p>
         </div>
         <button
