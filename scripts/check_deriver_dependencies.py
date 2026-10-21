@@ -199,6 +199,78 @@ GameEndRequirement = (
 
 
 @dataclass(frozen=True)
+class GameEndRuleCorrelationRequirement:
+    """単一軸境界とは別に保持する、候補規則スナップショットの相関要求。"""
+
+    case_id: str
+    rule_snapshot: Mapping[str, Any]
+    expected: str
+    source_clause_ids: tuple[str, ...]
+
+
+def derive_game_end_rule_correlations(
+    declaration: Mapping[str, Any],
+) -> tuple[GameEndRuleCorrelationRequirement, ...]:
+    """候補descriptorからE12の拒否・条件単独の非拒否要求を導出する。
+
+    正式契約の要求集合にはまだ接続しない。値域内の相関を具体入力で表し、
+    禁止された単一軸のinvalidBoundaryValues宣言は作らない。
+    これは契約の要求導出であり、製品の規則保存関数や独立期待値検証ではない。
+
+    Args:
+        declaration: 候補schemaで閉じた相関要求の宣言。
+
+    Returns:
+        代表規定回・適用回の関係・段順ごとの要求。
+
+    Raises:
+        DeriverDependencyError: 未知の規則、典拠、代表値または宣言形式の場合。
+    """
+    _exact_keys(declaration, {
+        "ruleId", "sourceClauseIds", "regulationRepresentatives",
+        "startInningOffsets", "tierOrders",
+    }, "相関要求宣言")
+    expected_declaration = {
+        "ruleId": "cold-start-not-after-regulation",
+        "sourceClauseIds": ["req:FR-014", "req:DRAW-03"],
+        "regulationRepresentatives": [1, 9, 99],
+        "startInningOffsets": [-1, 0, 1],
+        "tierOrders": ["single", "first", "last"],
+    }
+    if descriptor_checker.canonicalize_json(dict(declaration)) != (
+        descriptor_checker.canonicalize_json(expected_declaration)
+    ):
+        raise DeriverDependencyError("相関要求宣言がE12候補の閉じた形式と不一致")
+    requirements: list[GameEndRuleCorrelationRequirement] = []
+    for regulation in declaration["regulationRepresentatives"]:
+        for offset in declaration["startInningOffsets"]:
+            start = regulation + offset
+            if not 1 <= start <= 99:
+                continue
+            for order in declaration["tierOrders"]:
+                tier = {"pointDifference": 1, "startInning": start}
+                valid_tier = {"pointDifference": 2, "startInning": 1}
+                tiers = {
+                    "single": [tier],
+                    "first": [tier, valid_tier],
+                    "last": [valid_tier, tier],
+                }[order]
+                requirements.append(GameEndRuleCorrelationRequirement(
+                    case_id=f"GE-RULE-COLD-R{regulation}-OFFSET{offset}-{order}",
+                    rule_snapshot={
+                        "regulationInnings": regulation,
+                        "coldConditions": tiers,
+                        "extensionLimit": None,
+                        "tiebreak": None,
+                        "dh": False,
+                    },
+                    expected="reject" if start > regulation else "not-rejected-by-this-rule",
+                    source_clause_ids=tuple(declaration["sourceClauseIds"]),
+                ))
+    return tuple(requirements)
+
+
+@dataclass(frozen=True)
 class GameEndRequiredSet:
     """descriptor と付録 F-1 から独立導出した終了判定要求集合。"""
 

@@ -14,6 +14,7 @@ type Mutation = Readonly<{
     | 'negativeZero'
     | 'replace'
     | 'add'
+    | 'remove'
   target: string
   pointer?: string
   value?: unknown
@@ -59,7 +60,10 @@ function changed(scenario: Mutation): Uint8Array {
   }
   const final = tokens.at(-1)
   if (!final) throw new Error('変異 pointer が空')
-  if (Array.isArray(current)) current[Number(final)] = scenario.value
+  if (scenario.operation === 'remove') {
+    if (Array.isArray(current)) current.splice(Number(final), 1)
+    else delete (current as Record<string, unknown>)[final]
+  } else if (Array.isArray(current)) current[Number(final)] = scenario.value
   else (current as Record<string, unknown>)[final] = scenario.value
   return Buffer.from(JSON.stringify(document))
 }

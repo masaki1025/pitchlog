@@ -47,7 +47,12 @@ def _mutated_bytes(scenario: dict[str, Any]) -> bytes:
     for token in tokens[:-1]:
         item = item[int(token)] if isinstance(item, list) else item[token]
     final = tokens[-1]
-    if isinstance(item, list):
+    if scenario["operation"] == "remove":
+        if isinstance(item, list):
+            del item[int(final)]
+        else:
+            del item[final]
+    elif isinstance(item, list):
         item[int(final)] = scenario["value"]
     else:
         item[final] = scenario["value"]
