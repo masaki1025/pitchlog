@@ -1,5 +1,9 @@
 import { setVerifiedAuthForTest } from '../api/auth.test-support'
-import { VueQueryPlugin } from '@tanstack/vue-query'
+import {
+  focusManager,
+  onlineManager,
+  VueQueryPlugin,
+} from '@tanstack/vue-query'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +16,7 @@ import type { Page } from '../api/types'
 import {
   listPlayers,
   listTeamRecords,
+  readSelfTeamRecord,
   type PlayerRead,
   type TeamRecordRead,
 } from '../api/roster'
@@ -23,12 +28,14 @@ import TeamScreen from './TeamScreen.vue'
 vi.mock('../api/roster', () => ({
   listPlayers: vi.fn(),
   listTeamRecords: vi.fn(),
+  readSelfTeamRecord: vi.fn(),
 }))
 
 const wrappers: VueWrapper[] = []
 const piniaInstances: Pinia[] = []
 const listPlayersMock = vi.mocked(listPlayers)
 const listTeamRecordsMock = vi.mocked(listTeamRecords)
+const readSelfTeamRecordMock = vi.mocked(readSelfTeamRecord)
 
 function teamRecord(
   id: string,
@@ -59,16 +66,20 @@ function page<T>(items: T[], nextCursor: string | null = null): Page<T> {
 function deferred<T>(): {
   promise: Promise<T>
   resolve: (value: T) => void
+  reject: (reason: unknown) => void
 } {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((currentResolve) => {
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((currentResolve, currentReject) => {
     resolve = currentResolve
+    reject = currentReject
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 function mountScreen(authenticated = true): {
   auth: ReturnType<typeof useAuthStore>
+  pinia: Pinia
   wrapper: VueWrapper
 } {
   const pinia = createPinia()
@@ -87,12 +98,14 @@ function mountScreen(authenticated = true): {
     },
   })
   wrappers.push(wrapper)
-  return { auth, wrapper }
+  return { auth, pinia, wrapper }
 }
 
 beforeEach(() => {
   localStorage.clear()
   queryClient.clear()
+  focusManager.setFocused(true)
+  onlineManager.setOnline(true)
   queryClient.setDefaultOptions({
     queries: {
       refetchOnWindowFocus: false,
@@ -102,8 +115,12 @@ beforeEach(() => {
   })
   listPlayersMock.mockReset()
   listTeamRecordsMock.mockReset()
+  readSelfTeamRecordMock.mockReset()
   listPlayersMock.mockResolvedValue(page([]))
   listTeamRecordsMock.mockResolvedValue(page([]))
+  readSelfTeamRecordMock.mockResolvedValue(
+    teamRecord('self-a', 'チーム A', 'self'),
+  )
 })
 
 afterEach(() => {
@@ -112,6 +129,8 @@ afterEach(() => {
   for (const pinia of piniaInstances) disposePinia(pinia)
   piniaInstances.length = 0
   queryClient.clear()
+  focusManager.setFocused(true)
+  onlineManager.setOnline(true)
   queryClient.setDefaultOptions({
     queries: {
       refetchOnWindowFocus: false,
@@ -130,6 +149,7 @@ describe('TeamScreen', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('認証済みチーム情報の確認待ちです')
+    expect(readSelfTeamRecordMock).not.toHaveBeenCalled()
     expect(listTeamRecordsMock).not.toHaveBeenCalled()
     expect(listPlayersMock).not.toHaveBeenCalled()
   })
@@ -165,46 +185,279 @@ describe('TeamScreen', () => {
     const { wrapper } = mountScreen()
 
     await vi.waitFor(() =>
-      expect(wrapper.text()).toContain('表示できるチームがありません'),
+      expect(wrapper.text()).toContain('表示できる対戦相手がありません'),
     )
 
+    expect(readSelfTeamRecordMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('チーム A')
     expect(listTeamRecordsMock).toHaveBeenCalledTimes(1)
-    expect(listPlayersMock).not.toHaveBeenCalled()
+    expect(listPlayersMock).toHaveBeenCalledWith(
+      {
+        cursor: null,
+        include_hidden: false,
+        limit: 25,
+        team_record_id: 'self-a',
+      },
+      { signal: expect.any(AbortSignal) },
+    )
   })
+
+  it('selfが404でも対戦相手を別に表示し、selfを捏造しない', async () => {
+    readSelfTeamRecordMock.mockRejectedValue(
+      new ApiError(404, 'not found', [], undefined, null),
+    )
+    listTeamRecordsMock.mockResolvedValue(
+      page([
+        teamRecord('fake-self', '一覧のself', 'self'),
+        teamRecord('opponent-a', '対戦相手 A'),
+      ]),
+    )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('自チームが見つかりません'),
+    )
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
+
+    expect(wrapper.text()).not.toContain('一覧のself')
+    expect(listPlayersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ team_record_id: 'opponent-a' }),
+      { signal: expect.any(AbortSignal) },
+    )
+    expect(listPlayersMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ team_record_id: 'fake-self' }),
+      expect.anything(),
+    )
+  })
+
+  it('self通信失敗を対戦相手成功と独立表示する', async () => {
+    readSelfTeamRecordMock.mockRejectedValue(
+      new ApiNetworkError(new Error('接続失敗')),
+    )
+    listTeamRecordsMock.mockResolvedValue(
+      page([teamRecord('opponent-a', '対戦相手 A')]),
+    )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.text()).toContain('自チームを取得できませんでした'),
+    )
+    expect(wrapper.text()).toContain('対戦相手 A')
+    expect(readSelfTeamRecordMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('後着selfを初回優先選択し、明示した対戦相手は上書きしない', async () => {
+    const selfResponse = deferred<TeamRecordRead>()
+    readSelfTeamRecordMock.mockImplementation(() => selfResponse.promise)
+    listTeamRecordsMock.mockResolvedValue(
+      page([teamRecord('opponent-a', '対戦相手 A')]),
+    )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
+    expect(wrapper.text()).toContain('自チームを読み込んでいます')
+    expect(wrapper.get('#players-heading').text()).toBe('選手')
+    expect(listPlayersMock).not.toHaveBeenCalled()
+
+    selfResponse.resolve(teamRecord('self-a', 'チーム A', 'self'))
+    await vi.waitFor(() =>
+      expect(wrapper.get('#players-heading').text()).toContain('チーム A'),
+    )
+    expect(listPlayersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ team_record_id: 'self-a' }),
+      { signal: expect.any(AbortSignal) },
+    )
+
+    const opponent = wrapper
+      .findAll('[data-testid="team-record-list"] button')
+      .find((button) => button.text().includes('対戦相手 A'))
+    await opponent!.trigger('click')
+    expect(wrapper.get('#players-heading').text()).toContain('対戦相手 A')
+    void queryClient.invalidateQueries({
+      queryKey: rosterQueryKeys.teamRecords.all(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+      ),
+    })
+    await flushPromises()
+    expect(wrapper.get('#players-heading').text()).toContain('対戦相手 A')
+  })
+
+  it('self待機中に明示選択した対戦相手を後着selfで上書きしない', async () => {
+    const selfResponse = deferred<TeamRecordRead>()
+    readSelfTeamRecordMock.mockImplementation(() => selfResponse.promise)
+    listTeamRecordsMock.mockResolvedValue(
+      page([
+        teamRecord('opponent-a', '対戦相手 A'),
+        teamRecord('opponent-b', '対戦相手 B'),
+      ]),
+    )
+
+    const { wrapper } = mountScreen()
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 B'))
+    const opponent = wrapper
+      .findAll('[data-testid="team-record-list"] button')
+      .find((button) => button.text().includes('対戦相手 B'))
+    expect(listPlayersMock).not.toHaveBeenCalled()
+    await opponent!.trigger('click')
+    await vi.waitFor(() =>
+      expect(listPlayersMock).toHaveBeenCalledWith(
+        expect.objectContaining({ team_record_id: 'opponent-b' }),
+        { signal: expect.any(AbortSignal) },
+      ),
+    )
+    await wrapper.get('input[name="player-name"]').setValue('入力中の選手')
+    selfResponse.resolve(teamRecord('self-a', 'チーム A', 'self'))
+    await vi.waitFor(() => expect(wrapper.text()).toContain('チーム A自チーム'))
+
+    expect(wrapper.get('#players-heading').text()).toContain('対戦相手 B')
+    expect(
+      (wrapper.get('input[name="player-name"]').element as HTMLInputElement)
+        .value,
+    ).toBe('入力中の選手')
+    expect(listPlayersMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ team_record_id: 'self-a' }),
+      expect.anything(),
+    )
+  })
+
+  it.each(['404', 'network'] as const)(
+    'self待機後の%s失敗で既存対戦相手を自動選択する',
+    async (failureKind) => {
+      const selfResponse = deferred<TeamRecordRead>()
+      readSelfTeamRecordMock.mockImplementation(() => selfResponse.promise)
+      listTeamRecordsMock.mockResolvedValue(
+        page([teamRecord('opponent-a', '対戦相手 A')]),
+      )
+
+      const { wrapper } = mountScreen()
+      await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
+      expect(wrapper.get('#players-heading').text()).toBe('選手')
+      expect(listPlayersMock).not.toHaveBeenCalled()
+
+      selfResponse.reject(
+        failureKind === '404'
+          ? new ApiError(404, 'not found', [], undefined, null)
+          : new ApiNetworkError(new Error('接続失敗')),
+      )
+      await vi.waitFor(() =>
+        expect(wrapper.get('#players-heading').text()).toContain('対戦相手 A'),
+      )
+      expect(listTeamRecordsMock).toHaveBeenCalledTimes(1)
+      expect(listPlayersMock).toHaveBeenCalledWith(
+        expect.objectContaining({ team_record_id: 'opponent-a' }),
+        { signal: expect.any(AbortSignal) },
+      )
+    },
+  )
+
+  it.each(['dto', 'network'] as const)(
+    'selfの%s失敗後は再接続・focus・remount・GC後も明示操作まで再送しない',
+    async (failureKind) => {
+      queryClient.setDefaultOptions({
+        queries: {
+          gcTime: 10,
+          refetchOnMount: true,
+          refetchOnReconnect: true,
+          refetchOnWindowFocus: true,
+          retry: 2,
+          retryDelay: 0,
+          staleTime: 0,
+        },
+      })
+      const failure =
+        failureKind === 'dto'
+          ? new ApiError(
+              200,
+              '自チームの応答を確認できません',
+              [],
+              undefined,
+              undefined,
+            )
+          : new ApiNetworkError(new Error('接続失敗'))
+      readSelfTeamRecordMock
+        .mockRejectedValueOnce(failure)
+        .mockResolvedValueOnce(teamRecord('self-a', 'チーム A', 'self'))
+
+      const { pinia, wrapper } = mountScreen()
+      await vi.waitFor(() =>
+        expect(wrapper.find('[data-testid="self-team-error"]').exists()).toBe(
+          true,
+        ),
+      )
+      const key = rosterQueryKeys.selfTeamRecord(
+        '9a5850ac-ec9f-5d1e-92d9-be2cb61ccbb0',
+        useAuthStore(pinia).authEpoch,
+      )
+      expect(
+        queryClient.getQueryCache().find({ queryKey: key })?.options,
+      ).toMatchObject({
+        gcTime: Infinity,
+        retry: false,
+        retryOnMount: false,
+        refetchOnMount: false,
+        refetchOnReconnect: false,
+        refetchOnWindowFocus: false,
+        refetchInterval: false,
+      })
+      expect(listPlayersMock).not.toHaveBeenCalled()
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+      onlineManager.setOnline(false)
+      onlineManager.setOnline(true)
+      await flushPromises()
+      wrapper.unmount()
+      await new Promise((resolve) => setTimeout(resolve, 30))
+      expect(queryClient.getQueryState(key)?.status).toBe('error')
+
+      const remounted = mount(TeamScreen, {
+        global: { plugins: [pinia, [VueQueryPlugin, { queryClient }]] },
+      })
+      wrappers.push(remounted)
+      await flushPromises()
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+      onlineManager.setOnline(false)
+      onlineManager.setOnline(true)
+      await flushPromises()
+      expect(readSelfTeamRecordMock).toHaveBeenCalledTimes(1)
+
+      await remounted
+        .get('[data-testid="self-team-error"] button')
+        .trigger('click')
+      await vi.waitFor(() =>
+        expect(remounted.get('#players-heading').text()).toContain('チーム A'),
+      )
+      expect(readSelfTeamRecordMock).toHaveBeenCalledTimes(2)
+    },
+  )
 
   it('初回取得に失敗した一覧を旧データなしで再試行する', async () => {
     listTeamRecordsMock
       .mockRejectedValueOnce(new Error('初回取得失敗'))
-      .mockResolvedValueOnce(page([teamRecord('self-a', 'チーム A', 'self')]))
+      .mockResolvedValueOnce(page([teamRecord('opponent-a', '対戦相手 A')]))
 
     const { wrapper } = mountScreen()
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('チーム一覧を取得できませんでした'),
     )
-    expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
-      false,
-    )
+    expect(wrapper.text()).not.toContain('対戦相手 A')
 
     const retry = wrapper
       .findAll('button')
       .find((button) => button.text() === '再試行')
     expect(retry).toBeDefined()
     await retry!.trigger('click')
-    await vi.waitFor(() =>
-      expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
-        true,
-      ),
-    )
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A'))
 
     expect(listTeamRecordsMock).toHaveBeenCalledTimes(2)
   })
 
   it('一覧の再取得失敗時は旧データの鮮度を警告して再試行する', async () => {
     listTeamRecordsMock
-      .mockResolvedValueOnce(page([teamRecord('self-a', 'チーム A', 'self')]))
+      .mockResolvedValueOnce(page([teamRecord('opponent-a', '対戦相手 A')]))
       .mockRejectedValueOnce(new ApiNetworkError(new Error('接続失敗')))
       .mockResolvedValueOnce(
-        page([teamRecord('self-a', 'チーム A 更新', 'self')]),
+        page([teamRecord('opponent-a', '対戦相手 A 更新')]),
       )
 
     const { wrapper } = mountScreen()
@@ -222,14 +475,14 @@ describe('TeamScreen', () => {
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('表示中の情報は古い可能性があります'),
     )
-    expect(wrapper.text()).toContain('チーム A')
+    expect(wrapper.text()).toContain('対戦相手 A')
 
     const retry = wrapper
       .findAll('[role="alert"] button')
       .find((button) => button.text() === '再試行')
     expect(retry).toBeDefined()
     await retry!.trigger('click')
-    await vi.waitFor(() => expect(wrapper.text()).toContain('チーム A 更新'))
+    await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 A 更新'))
     expect(wrapper.text()).not.toContain('表示中の情報は古い可能性があります')
   })
 
@@ -291,9 +544,8 @@ describe('TeamScreen', () => {
     )
 
     expect(wrapper.text()).not.toContain('対戦相手 A')
-    expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(
-      false,
-    )
+    expect(wrapper.find('[data-testid="team-record-list"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('チーム A')
     expect(wrapper.find('input[name="opponent-edit-name"]').exists()).toBe(
       false,
     )
@@ -386,7 +638,7 @@ describe('TeamScreen', () => {
   it('追加取得の失敗時に取得済み行を残して同じ cursor を再試行する', async () => {
     listTeamRecordsMock
       .mockResolvedValueOnce(
-        page([teamRecord('self-a', 'チーム A', 'self')], 'teams-next'),
+        page([teamRecord('opponent-a', '既存の対戦相手 A')], 'teams-next'),
       )
       .mockRejectedValueOnce(new Error('接続失敗'))
       .mockResolvedValueOnce(page([teamRecord('opponent-b', '対戦相手 B')]))
@@ -404,6 +656,7 @@ describe('TeamScreen', () => {
     await vi.waitFor(() =>
       expect(wrapper.text()).toContain('次のチームを取得できませんでした'),
     )
+    expect(wrapper.text()).toContain('既存の対戦相手 A')
     expect(wrapper.text()).toContain('チーム A')
 
     const retry = wrapper
@@ -412,6 +665,7 @@ describe('TeamScreen', () => {
     expect(retry).toBeDefined()
     await retry!.trigger('click')
     await vi.waitFor(() => expect(wrapper.text()).toContain('対戦相手 B'))
+    expect(wrapper.text()).toContain('既存の対戦相手 A')
 
     expect(listTeamRecordsMock).toHaveBeenNthCalledWith(
       3,
@@ -422,15 +676,21 @@ describe('TeamScreen', () => {
 
   it('認証切替時に旧一覧と選択を直ちに隠して新チームだけを表示する', async () => {
     const teamB = deferred<Page<TeamRecordRead>>()
+    readSelfTeamRecordMock
+      .mockResolvedValueOnce(teamRecord('self-a', 'チーム A', 'self'))
+      .mockResolvedValueOnce(teamRecord('self-b', 'チーム B', 'self'))
     listTeamRecordsMock
-      .mockResolvedValueOnce(page([teamRecord('self-a', 'チーム A', 'self')]))
+      .mockResolvedValueOnce(page([teamRecord('opponent-a', '旧対戦相手 A')]))
       .mockImplementationOnce(() => teamB.promise)
     listPlayersMock
       .mockResolvedValueOnce(page([player('player-a1', 'self-a', '選手 A1')]))
       .mockResolvedValueOnce(page([player('player-b1', 'self-b', '選手 B1')]))
 
     const { auth, wrapper } = mountScreen()
-    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 A1'))
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('選手 A1')
+      expect(wrapper.text()).toContain('旧対戦相手 A')
+    })
 
     setVerifiedAuthForTest(auth, {
       teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
@@ -439,11 +699,16 @@ describe('TeamScreen', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('選手 A1')
+    expect(wrapper.text()).not.toContain('旧対戦相手 A')
     expect(wrapper.text()).not.toContain('チーム A自チーム')
-    expect(wrapper.text()).toContain('チームを読み込んでいます')
+    expect(wrapper.text()).toContain('対戦相手を読み込んでいます')
 
-    teamB.resolve(page([teamRecord('self-b', 'チーム B', 'self')]))
-    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B1'))
+    teamB.resolve(page([teamRecord('opponent-b', '新対戦相手 B')]))
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('新対戦相手 B')
+      expect(wrapper.text()).toContain('選手 B1')
+    })
+    expect(wrapper.text()).not.toContain('旧対戦相手 A')
     expect(wrapper.text()).not.toContain('選手 A1')
     expect(listPlayersMock).toHaveBeenLastCalledWith(
       {
@@ -458,9 +723,12 @@ describe('TeamScreen', () => {
 
   it('切替前の遅延応答が後から完了しても新認証の表示へ混ぜない', async () => {
     const oldResponse = deferred<Page<TeamRecordRead>>()
+    readSelfTeamRecordMock
+      .mockResolvedValueOnce(teamRecord('self-a', 'チーム A', 'self'))
+      .mockResolvedValueOnce(teamRecord('self-b', 'チーム B', 'self'))
     listTeamRecordsMock
       .mockImplementationOnce(() => oldResponse.promise)
-      .mockResolvedValueOnce(page([teamRecord('self-b', 'チーム B', 'self')]))
+      .mockResolvedValueOnce(page([teamRecord('opponent-b', '新対戦相手 B')]))
     listPlayersMock.mockResolvedValue(
       page([player('player-b1', 'self-b', '選手 B1')]),
     )
@@ -472,17 +740,83 @@ describe('TeamScreen', () => {
       teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
       teamName: 'チーム B',
     })
-    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B1'))
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain('選手 B1')
+      expect(wrapper.text()).toContain('新対戦相手 B')
+    })
 
-    oldResponse.resolve(page([teamRecord('self-a', '古いチーム A', 'self')]))
+    oldResponse.resolve(page([teamRecord('opponent-a', '古い対戦相手 A')]))
     await flushPromises()
 
     expect(wrapper.text()).toContain('選手 B1')
-    expect(wrapper.text()).not.toContain('古いチーム A')
+    expect(wrapper.text()).toContain('新対戦相手 B')
+    expect(wrapper.text()).not.toContain('古い対戦相手 A')
     expect(listPlayersMock).toHaveBeenCalledTimes(1)
   })
 
+  it('遅延self応答を別tenant・新epochへ採用しない', async () => {
+    const oldSelf = deferred<TeamRecordRead>()
+    readSelfTeamRecordMock
+      .mockImplementationOnce(() => oldSelf.promise)
+      .mockResolvedValueOnce(teamRecord('self-b', 'チーム B', 'self'))
+    listPlayersMock.mockResolvedValue(
+      page([player('player-b', 'self-b', '選手 B')]),
+    )
+
+    const { auth, wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(readSelfTeamRecordMock).toHaveBeenCalledTimes(1),
+    )
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
+    await vi.waitFor(() => expect(wrapper.text()).toContain('選手 B'))
+
+    oldSelf.resolve(teamRecord('self-a', '古い自チーム A', 'self'))
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('古い自チーム A')
+    expect(wrapper.get('#players-heading').text()).toContain('チーム B')
+    expect(listPlayersMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ team_record_id: 'self-a' }),
+      expect.anything(),
+    )
+  })
+
+  it('旧epochのself失敗cacheを新しい検証済みtenantへ引き継がない', async () => {
+    readSelfTeamRecordMock
+      .mockRejectedValueOnce(
+        new ApiError(
+          200,
+          '自チームの応答を確認できません',
+          [],
+          undefined,
+          undefined,
+        ),
+      )
+      .mockResolvedValueOnce(teamRecord('self-b', 'チーム B', 'self'))
+    const { auth, wrapper } = mountScreen()
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="self-team-error"]').exists()).toBe(
+        true,
+      ),
+    )
+
+    setVerifiedAuthForTest(auth, {
+      teamId: '659a85f2-ccb4-5725-a7b8-81c34caf8870',
+      teamName: 'チーム B',
+    })
+    await vi.waitFor(() =>
+      expect(wrapper.get('#players-heading').text()).toContain('チーム B'),
+    )
+    expect(wrapper.find('[data-testid="self-team-error"]').exists()).toBe(false)
+    expect(readSelfTeamRecordMock).toHaveBeenCalledTimes(2)
+  })
+
   it('利用者入力を HTML として挿入しない', async () => {
+    readSelfTeamRecordMock.mockResolvedValue(
+      teamRecord('self-a', '<img src=x onerror=alert(1)>', 'self'),
+    )
     listTeamRecordsMock.mockResolvedValue(
       page([teamRecord('self-a', '<img src=x onerror=alert(1)>', 'self')]),
     )

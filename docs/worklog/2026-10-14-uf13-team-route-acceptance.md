@@ -791,3 +791,323 @@ C2追随のローカル検査: frontend70ファイル1,323成功（70.93秒）�
 7b1d45aa時点の固定候補一致だけでは、新しいorigin/developにLoginScreenが着地済みとなったことに対応できず、core全265件中8件が「追加層が一部だけ基線へ取り込まれている」と拒否した。既存検査を緩和せず、scripts/core_guard.pyの宣言とtests/test_core_guard.pyの期待値から着地済みLoginScreenの1行ずつを外し、同試験へ実基線/実候補の両方でLoginScreen登録を保持するassert等4行を追加した。JSON・全frontend・検査器の判定ロジックは不変。既存の隔離履歴試験も未宣言追加・旧層削除・人間未記入の拒否を維持し、全265成功（11.03秒）と実HEAD基線検査成功を確認した。
 
 この2ファイル4追加/2削除だけが直前の本人確認固定候補に対する後発差分。293f83d6の本人逐行確認を追加依頼し、回答前に実施済みと記録しない。既確認の4ファイル全体を未了へ戻さず、既定レビュー使用回数も変更しない。通常pushと最終CIは許可済み範囲で進める。
+
+
+## 2026-10-19: #154実統合後の再受入・Claude向け申し送り（現在値）
+
+### 統合待ちの解消
+
+ユーザーが#154実統合SHAと最終CI成功を受領し、#150→#151→#154の統合待ちを解消済みとする指示を受領した。#157=a87510e6c431fbb4ee14c91775204a5c91bec745、#150=b4047e31645217ea7b93c08fa2ab4a7533d729b4、#151=b64d6aa1709310704658415ad09a86898bfdcb2a、#154=ba339cf8bdaac4761b8cf437abaf21763617d064。実developを再fetchして同SHAを確認した。#154 source52abb32dと実統合のtreeは一致し、最終CI39205855069成功を受領済み。過去節の未統合・本人確認待ち・CI待ちは時点の履歴であり、現行の停止理由にはしない。新しい確認方法の推定入力は行わない。
+
+### 統合後の実画面/API/DB再受入
+
+実develop ba339cf8から専用feature/uf13-postmerge-acceptance-followup worktreeを作成し、製品・契約・ハーネスを変更せず、既存run_final25.py/browser-normal-production.mjsの手順を再利用した。runnerの差分はROOTと出力先だけと機械照合済み。backendの既存disposable_postgres_cluster/provisioned_product_catalog、実application role、実API、production build/preview（envDir:false）、Chromium149.0.7827.0を使用した。共有DB・他担当worktree・未統合枝を利用/変更しない。frontend依存はfrozen lockfile/offline、型検査とproduction build/閉域検査が成功した。
+
+| 証跡 | 対象HEAD | 実行結果 | 今回との区別 |
+| --- | --- | --- | --- |
+| 旧候補 attempt25-qualified-normal | cdaf49fdf517062493d7440b87573dc851f93350 | 正常8項目成功、9.25秒 | 候補での既済み結果 |
+| 今回 postmerge-ba339cf8-normal | ba339cf8bdaac4761b8cf437abaf21763617d064 | 正常8項目成功、9.34秒、exit0 | 実統合後の新しい実行証跡 |
+| 遅延Cookie5・metadata2・環境/通信7・通知欠落1 | 以前の専用結合候補 | 既済み成功を保持 | 今回の統合後HEADでは再実行していない |
+| 自チーム取得・自チーム配下の実画面受入 | なし | 未実装/未実施 | 対戦相手成功で代用しない |
+
+今回成功した8項目:
+
+1. 未認証/teamは/loginへ遷移。
+2. 実login→session確認→実application roleで一覧表示。
+3. 対戦相手を実APIで登録・選択。
+4. その対戦相手配下に選手を登録し、query再取得で表示。
+5. 選手通常編集→ブラウザ再読込後も保存内容を表示。
+6. 同tenantの2タブで認証・一覧を維持。
+7. 切替前提の明示logoutを実APIで実行（確定認証からのlogout UIを実装/受入した意味ではない）。
+8. 別tenantでloginすると旧タブは自動切替せず旧一覧を破棄し、新tenantへ旧選手を表示しない。
+
+DB observerでAの選手「受入選手編集済」・番号17、Bの選手0件を確認した。試験後は自分のAPI/browser/previewを終了し、own_acceptance_cluster_cleaned_upを確認した。資格情報・Cookie・接続値は本記録へ転記しない。出力は~/.cache/pitchlog/correlation-browser-acceptance配下。完全な結果と操作名のSHA-256は次のとおり。
+
+| 証跡（同cache配下） | SHA-256 |
+| --- | --- |
+| `postmerge-ba339cf8-normal/result.json` | `6c6ecfb5f7012eb8ac15f31bc899b9aba7c4191ce0c16841f630c698e0c630a3` |
+| `postmerge-ba339cf8-normal/browser.stdout.log` | `3dafb1253300624c27978ffd0db5908ab0a156dccb0a01ac980bd81872c78cc6` |
+| `run_postmerge_ba339cf8_normal.py` | `be8955e161d481c1e2bafb5e5a8e5721312c0b580be3c66113a33a96236febbe` |
+| `browser-normal-production.mjs` | `450084cc02b8929873f1a4c55f28b217f4d78c0b0be678b933840e6f9a70c68f` |
+
+### 自チーム取得の残る正式ゲートと所有
+
+候補の編集元は既存self-team-read-addendum-candidate.mdだけとし、最新実developによる再照合、統合済み境界、残る正式ゲートを同書§0/§4/§5へ更新した。新しい全体計画・承認済み成果は再作成しない。推奨は引数なしSelfTeamRecordReadToken＋GET /team-records/self、既存CAP:team_records:read・TeamRecordRead DTO・検証済みcontextのtenant bind、self限定/hidden NULL/limit1。既存opponent tokenと一覧は変更しない。
+
+開始前は最小計画/意味契約のレビューと人間承認、共有資産の所有・順序を確定する。候補固定後は変更対象だけのtenant-boundary/authz 7.7の前後値・snapshot・記録案を機械導出して正式受理へ出す。実装後は隔離DB・app role・越境/遅延/未確認の拒否・自チーム実画面を検証し、新追補自身の既定レビュー/本人確認/CIを満たす。旧4PRの承認やレビューを未了へ戻さず、同時に新APIの承認へ流用しない。
+
+open #152はbase-allowlist/route registry/matrix/lock/seal等に重なる。共有資産は一切編集せず、未統合枝を基線にせず、着手時の所有調整を残す。#158のcore3も変更しない。今回の想定製品パスは既登録のT（一部T/D）であり、新たなcore path先行登録は不要。#154は閉じたため新追補の最小PR1本を推奨するが、作成/push/実装には進んでいない。
+
+**残るもの**: 自チームread契約の正式化と実装/受入、TSK-528全体/15経路+catch-all。今回の成功を対戦相手管理の全機能・TSK-520全体の完了へも広げない。新ACL/DB構造/認可緩和/正式凍結変更はなし。台帳への追記なし（既存受入手順の統合後再実行であり、新しいハーネス運用上の傾向を追加しない）。
+
+
+## 2026-10-19: 自チーム最小案の採用と計画レビュー開始
+
+ユーザーはba339cf8正常8項目を統合後の確認済み機能として受領。故障系をその実行で再試験したとは扱わない。引数なしSelfTeamRecordReadToken/GET /team-records/self/認証済みcontextによるself限定・上限1/既存権限・DTO・client再利用/tenant不一致を業務SQL前に拒否・自動再送なしの最小方針を採用した。方針自体を再照会せず、具体的な最小計画・API/認可契約をレビューし、実装前の最終承認事項を一括提示する指示である。製品実装はその最終承認後。
+
+既存のfeature-uf13-postmerge-acceptance-followup worktree/branchを継続し、計画だけ同slugのplan.mdへ配置した。新カード・別作業タブ・追加worktreeは作らない。契約詳細の編集元は既存self候補資料を維持し、採用状態と計画参照だけ追随した。承認後に最小1PRで実装/試験/既定レビュー/是正/通常push/Draftまで連続実施する条件と、未受理7.7/本人確認の明示を具体化した。
+
+agmsg skillを確認したが本projectの登録はなく、別project todoappのreviewer候補だけだった。連絡環境の新設/別projectへの送信は行わず、明示された担当調整の既存経路として#152へパス別依頼を投稿した: https://github.com/masaki1025/pitchlog/pull/152#issuecomment-6264299257 。base-allowlist/authz共有資産は#152先行→D再導出を提案。repository-contract JSONの消費関係、非共有製品パスの予定重複も照会した。回答前に受理/所有移管扱いにしない。共有資産/他担当枝は未変更。
+
+想定外複数件の検証は、採用済みLIMIT1を無断で2へ広げず、実DBの既存unique拒否とmaterialized結果の2行故障注入→5xx拒否を別証跡とする案を計画に明記した。制約を壊したDBの重複までLIMIT1で検出したとは主張しない。API/認可レビューはこれが要件・DoDと対応するかも確認対象とする。
+
+今回の開始は計画/契約レビューのみ。7.7の完全値は候補固定後の実基線から導出する。実承認者/日付は先行入力せず、本人確認・公開・マージは代行しない。
+
+
+### 自チーム計画/API・認可契約の敵対レビュー第1周
+
+対象f7608ad6、適用する計画レビュー規律は現行ハーネス6.1/6.3。正規codex_run.py review adversarial/read-onlyで実施し、P0=0/P1=2/P2=0。受理範囲は正本違反/ステップ緑不能/DoDと成果物不対応の3種類のみ。既存PRのレビュー枠は消費し直さず、本追補の計画第1周とする。
+
+| 指摘 | 採否・反映 |
+| --- | --- |
+| P1-1: 旧候補に最小claim追加の選択肢が残り、既存権限内という計画と不一致 | 採用。既存CAP:team_records:read/ROUTE:RECORD:team_records:readを再利用すると統一。新claim/route_id/権限を追加しない。具体的な充足不能が判明したときだけその差分を別ゲートへ提示 |
+| P1-2: self応答の画面側検証がステップ2/試験へ落ちず、共通apiRequestはJSONの型キャストのみ | 採用。roster.tsのself入口でunknown結果を既存DTOの4項目として実行時検査し、不正UUID/kind/hidden/name/欠落/余剰を200で注入して非採用を検証。共通clientは変更しない。新self queryのretry=falseを明記し自動再送禁止を具体化 |
+
+レビューはLIMIT1＋実DBunique拒否＋materialized複数故障注入の分担、業務SQL前C2照合、既存opponent固定、#152のパス別所有、Draft/7.7/本人確認の分離が成立すると確認した。新権限・DB構造変更は必要とされなかった。計画レビュー周回を採用反映1へ更新し、確定ゲート周回は0のまま。次の第2周はこの反映差分と影響節だけを対象にする。
+
+第1周の完全ログSHA-256: `e5d45106d9069cd980d1f98da00b27903ddb9d2af1b64b41e21d128ff6863308`（~/.cache/pitchlog/self-team-read-plan-review/round1.log）。製品/凍結資産/承認値は未変更、自己批准や最終承認済みとは記録しない。
+
+
+### 自チーム計画/API・認可契約の敵対レビュー第2周と最終承認対象
+
+対象d7a16feaの第1周反映差分/影響節だけを正規ラッパーで独立レビューした。判定は否決、P0=0/P1=1/P2=0。P1は「retry=falseだけでは再接続/再マウント等の暗黙再取得が止まらず、1回送信specだけでは明示再確認だけというDoDと対応しない」。採用し、self query限定のretry/retryOnMount/refetchOnMount/refetchOnReconnect/refetchOnWindowFocus/refetchIntervalをfalse、gcTime=Infinityとして同一世代の失敗cacheを保持し、既存認証切替clearで破棄する具体設定と、通信/不正200失敗後の再接続・focus・再マウント・GC期限超過でGET増加0、明示操作で1回という試験を追記した。共通QueryClient/認証/storage/権限は改変しない。
+
+第1周の既存権限/read claim再利用と、DTO実行時検証の反映については、ほかに受理範囲内の指摘はないとの回答だった。新capability/route_id/grant/role/migrationや正本の構造改訂は本追補に必要とされなかった。
+
+基本2周は使用済み。計画レビュー周回は採用反映2、確定ゲート周回は0。本P1最終反映を未再レビューの人間確認対象へ明示し、勝手に第3周/可決扱いへ進めない。実装前の最終承認対象は計画§7の2点（3ステップ/合格条件と最終反映、実番号取得用Draft先行条件）。採用済みの最小方針自体は再照会しない。正式7.7完全値は候補固定後の別受理、人間逐行確認/公開/マージは代行しない。
+
+#152へのパス別依頼は未回答。後続のTSK-372側コメントは本依頼への受理回答ではなく、所有移管と扱っていない。共有資産/他担当worktreeは未変更。非共有実装は最終計画承認後に進める条件を維持する。
+
+第2周の完全ログSHA-256: `fb2b5a8508b502ee660c61b976ad6210b0d7b6d59f4d6e39acb0e09e25092162`（~/.cache/pitchlog/self-team-read-plan-review/round2.log）。最終反映の製品試験を実行した意味ではない。ba339cf8正常8項目はユーザー受領済みの統合後機能として維持し、故障系は再実行済みにしない。
+
+
+## 2026-10-20: 自チーム追補実装の承認受領・再開
+
+承認者=山田正輝、承認日=2026-10-20。計画§7の3ステップ/合格条件/最終反映と実番号取得用Draft先行条件を承認。タブ/既存worktreeを継続し、新カード/作業タブを増やさない。通常push/Draft1PRまでの連続実行を許可された。plan active、未受理/未通過/本人未確認の明記、正式受理/チェックを先行代記しない条件を保持する。公開/Draft解除/マージは人間に残す。
+
+レビューは第1周f7608ad6（P1=2）→第2周d7a16fea（P1=1）を全採用。最後のretryだけでなく再接続/再マウント/focus/GCを抑える設定/試験の反映は未再レビューとして明示された状態で承認された。独立可決済み・製品レビュー済み・本人逐行確認済みとは扱わない。
+
+最新実developは#158の7c1afebab31facc71e8cfc2731da1a9fa392de4eで、通常merge済み。core3/TSK-550記録だけの変更で、承認済み自チームread方針への影響なし。#152/156/159/160/161/162/163の実PR差分をパス別照合。API/roster/TeamScreenと固有試験の同一パス変更は見つからない。共有repository_contract.py/jsonは#156/一部#152、base-allowlistは#156/#161/#152、必要なauthz共有資産は#152/#156/#161/#162と重なるため編集を保留する。#152先行案は未受理の提案であり確定順序ではない。未回答を受理/所有移管とは扱わない。他担当枝は基線にしていない。
+
+共有以外は既存implement手順でステップ1から進める。共有資産の未更新による静的/frozen失敗が残る場合は実装不具合と分け、期待値を緩めたり未受理値で通したりしない。
+
+
+### 自チームステップ1: 非共有backend実装・固有試験
+
+引数なしSelfTeamRecordReadToken、既存read capabilityの固定登録、self/hidden NULL/limit1の単一statement、GET /team-records/selfとC2前照合を実装。0行404、1行は4項目のstrict検査後200、複数行/異常形は非2xxで情報を返さない。新capability・既存opponent token・実行器は変更しない。
+
+正規implementのステップ1委任→非共有追随で関連unit/HTTP771成功、requires_dbの既存2件はその局所実行では非選択。HTTP exact-setは旧経路を全部残して17→18、新tokenは既存capability集合のまま登録数44→45とした。追加のtest_api_conventions.py/test_authz_capability_registration.pyは#152/#156/#161実PR差分との同一パス重複がないことを確認して追随し、共有扱いを理由に放置しなかった。Ruff format/check・ty成功。
+
+子sandboxではDB初期接続が失敗し、親の直接pytestでも既定5432への接続が拒否された（製品経路未実行）。既存run_isolated.pyを再利用し、自分の使い捨てanchorクラスタからadmin/tested role DSNを環境内だけで渡す既存手順に切り替え、self固有の実DB試験1成功（3.80秒）。A/Bのselfだけ、selfなし0件、同tenant重複self制約拒否、app roleの無文脈/他tenant拒否とopponent固定を確認し、dedicated_cluster_cleaned_upを確認した。共有DBへ代替していない。失敗した初回を成功へ読み替えない。
+
+repository_contract.py/jsonの公開token面とbase-allowlistは担当受理待ちで未編集。test_authz_repository_contract.pyの実registry/契約一致はこの未登録により不一致を保持する。HEAD依存検査の旧HEAD成功を候補成功とは主張しない。コミットするのは非共有実装候補であり、ステップ1の正式登録/7.7や追補全体の完了ではない。共有待ちは統合前条件へ明示し、承認済み非共有画面実装へ継続する。
+
+
+### self固有単体試験の検出名を既存roster規則へ統一
+
+新規単体試験test_self_team_read.pyはTの意味領域だが既存path未一致だったため、rosterドメインの既存規則backend/tests/test_roster_*.pyに沿うtest_roster_self_team_read.pyへリネームした。全内容SHA-256は前後同一`3b2f855672949e17d6e036ee96c56aed921c251904837cb8b94a44ebfe15e419`。機械検出はtenant-isolationに一致し、core3定義/既存対象は変更しない。DB側test_self_team_read.pyは既存backend/tests/db/*で検出済みのためそのまま。本人確認対象へ両方含める。
+
+並走中のbackend全件は5aeca5e8で収集済みの旧node名に対する実行であり、最終HEADの再実行とは読み替えない。製品backend/試験本文は不変で、最終CIでは新node名で実行する。
+
+
+### 自チームステップ2: 正規client・画面接続と全frontend成功
+
+roster.tsに専用self readを追加し、正規clientのunknown結果を既存TeamRecordReadの4項目へ実行時検査する。共通client/auth/store/QueryClient/router製品は不変。self queryはtenant+epochの独立keyと承認済みretry/refetch/GC設定を使い、未認証通信0・明示再確認だけ・旧応答非採用を維持した。Selfは専用API成功値だけを一覧へ結合し、後着selfが明示選択したopponentを上書きしない。自チームのpending/欠損/失敗は独立表示する。
+
+固有44とTeamMembersContent23を確認した後、全件で旧fixtureのself供給とrouter通信数への追随漏れを検出。opponent契約を緩めず、テストfixtureを専用self応答へ追随した。router.spec.tsは実PR一覧でパス重複なしを確認し、selfとopponentを別経路で各1回、旧世代の両応答/両cache拒否を検証した。共有状態のcleanupもfixture側で正しく行い、製品認証ガードへ迂回を足していない。関連5ファイル92成功、最終router25成功。
+
+子sandbox全件の最終17失敗はrouterの必要追随3件と閉域の子プロセスEPERM14件。親のsandbox外で、修正済み全71ファイルを試験除外/timeout緩和なしに実行し、1,399成功（246.54秒）。Prettier/ESLint/vue-tsc/depcruise成功、親のproduction build/閉域検査成功（externalReferences=0/policyViolations=0）。初回失敗や子sandbox結果を最終成功へ読み替えず、親の実行として区別する。
+
+backend全件は5aeca5e8の固定backend入力で並走中。ステップ2でbackend/共有契約は変更していない。次はこの全製品候補を固定し、既存productionブラウザ/実API/隔離DBによるself保存とopponent回帰、既定レビューを行う。7.7/担当受理/本人確認を代記しない。
+
+
+### 自チーム共有追随の実検査と保留範囲の縮小
+
+5aeca5e8でtenant-boundary bypass検査成功、frozen invariants-only成功。既存roster._build_roster_statementの内部拡張なのでbase-allowlistのsymbol追加は不要、既存read claimの再利用によりauthz registry/matrix/lock/seal/role/grantの変更も不要だった。これらを待ち条件から外す。base-allowlistの#152先行は提案のままで確定順序にしない。実際の編集保留はrepository_contract.pyのPRODUCT_OPERATION_TOKEN_TYPESとcontracts/tenant_boundary/repository-contract.jsonの新公開型/source_digest/対応7.7の2パスだけ。#156/#152へ縮小した依頼を投稿した（#156コメント6291119750）。返信は未取得、担当受理や所有移管とはしない。実registryと公開契約の一致検査は未登録のまま保持する。
+
+### 自チーム実装レビュー第1周と採否（e9ab0807）
+
+実基線7c1afeba、候補e9ab08074bed6b1a06bb856ec129a525ce4c4b87の製品/試験全差分を対象とする。計画レビュー2周とは別枠。Codex敵対はP0=0/P1=0/P2=1、実Claude反対側はP0=0/P1=1/P2=2。新たな権限・API意味変更・共有資産の無断変更は求められなかった。
+
+| 指摘 | 採否 |
+| --- | --- |
+| Claude P1: 一覧フィクスチャのkind=selfが新opponentフィルタに除かれ、既存の次ページ保持/切替/遅延3試験が素通り | 採用。kind=opponentとselfとは別の固有名へ変更し、肯定/否定の検出力を復元する |
+| Codex P2: 不正200の正規client→self API→画面/cache/players非採用を接続試験で確認していない | 採用。既存router結合specへ1例追加。各不正形のAPI単体試験も維持 |
+| Claude P2-1: self待機中のopponent自動選択から後着selfへの切替で入力中フォームが消える | 採用。明示選択がなければpending中だけ自動選択を保留。明示opponent選択/失敗時opponent利用は維持 |
+| Claude P2-2: UUID検査正規表現の重複 | 不採用（レビューも不採用推奨）。ドメイン計算重複ではなく、共有clientのexport改訂は承認範囲外のため今回の最小追補へ含めない |
+
+採用修正は正規implement --resumeでステップ2へ差戻し中。第1周は後発の修正/実画面結果をレビュー済みとは扱わず、第2周を反映差分/影響箇所へ限定する。既知の公開型未登録/正式7.7/本人逐行確認は別ゲートとして保持する。
+
+- round1-codex.log: SHA-256 `86d8a4261379fe979c0f3a7b3ac78e4dd2129f6d2cfce15fd212e3018808b09b`
+- round1-claude.log: SHA-256 `0078d9970b1784c21f4af3ae88555dd4c20ed3358d70d20f2148236cfb2627ee`
+
+
+### 自チームステップ3: 実画面/実API/隔離DBの受入と途中失敗の保持
+
+現製品候補c23018270eca74564bde27f2ec730c6cb57ddfd9。a60fdf5dで第1周採用3件の反映をコミット（関連49成功、Prettier/ESLint/vue-tsc成功）。最新実develop8e4698f6dc254439b7d5e0c273cc2aef70cda657（#163、ORM受入シート3ファイル）を通常mergeした。自チーム/共有凍結差分との競合なし、#163影響試験15成功。production build/閉域も成功。root/backend全件はそれぞれe9ab0807/5aeca5e8の入力で開始しており、現HEADの全件成功へ読み替えない。
+
+既存のproduction preview・Chromium149.0.7827.0・使い捨てPostgreSQL fixture・実FastAPI/app roleを再利用した。自チームのUUIDを画面へ注入せず専用実APIから取得し、self名を認証team_nameと異なる値にして照合した。資格情報/Cookie/接続値は証跡へ記録せず、共有DBや既存環境へ変更を加えない。
+
+**失敗の記録**: e9ab0807の最初の実行ではself一覧/追加/編集/reloadは成功し、opponent作成とその選手編集の保存はDB確認できたが、opponent編集後reloadでC1がlock-busyによる未確認状態へ戻り受入失敗。次の手順は保存成功時に編集フォーム/保存ボタンが消える挙動を誤認し、再有効化を待ってtimeout（手順の誤り）。保存完了表示とnetworkidleを待つ修正手順でも旧e9では同じreload失敗が再現した。これらを正常完走とは扱わない。self待機中のopponent自動選択→後着selfへの切替による旧players中断/C1未確認化は可能性であり、原因を確定済みとはしない。認証コード/検査を緩和していない。
+
+**修正後の実行**: c2301827はWeb Locksの要求/取得だけを観測する診断付き14項目が成功（30.39秒）。観測によるタイミング影響の可能性を残し、同じ候補/production成果物を観測なしでも実行し、14項目が成功（11.11秒）。両実行のDB observerはself=受入選手編集済/17、opponent=対戦相手選手編集済/27を別チームとして確認し、B tenantの選手0件。POST /playersは2回、PATCHは2回ちょうどで、変更操作の自動再送はなかった。自身のcluster/server/browserの後始末完了を確認した。
+
+成功した14項目: 未認証self401、未認証/team→login、実login→session→app role一覧、期待tenant不一致self404、専用self取得/初期選択、自チーム選手追加/再取得、自チーム編集/reload永続化、opponent作成/明示選択、opponent選手追加/編集/reload、自他選手一覧の区別、同一tenant2タブ、実API明示logoutによる切替前提、別tenant旧タブの自動切替/旧一覧拒否、A実self応答を保持してB login後へ到着させた遅延拒否。logout UIは初期対象外でAPI操作の前提と明示し、画面機能として成功に数えない。
+
+| 受入ディレクトリ（既存一時手順配下） | 実結果 | browser.stdout.log SHA-256 |
+| --- | --- | --- |
+| self-team-e9ab08074bed-normal | failed / 8 checkpoint | `695445238cfb4b91aaa64a0082711da1c24f735e673a216d7d699b5a5837f14c` |
+| self-team-e9ab08074bed-normal-settled | failed / 6 checkpoint | `7468eaf01044a1c3fe80afd9e7f9f7985de2261c8b884ae9436107c4d04592d9` |
+| self-team-e9ab08074bed-normal-status-idle | failed / 8 checkpoint | `594b5df9f95e95a5aab3f9dd1bd5a3d85aa687e110931e67667e546dd68c6e9c` |
+| self-team-c2301827-lock-diagnostic | passed / 14 checkpoint | `462d7fbaf40f0c6c46ec6cd2fe5d7be9b78446d52e517dcb80e1a200626d3205` |
+| self-team-c2301827-normal-status-idle | passed / 14 checkpoint | `022dde5d381627b4662c4d75bacef78a8c48b99b6abcfc1522ab2928fb7ad199` |
+
+旧ba339cf8正常8項目とは別候補の結果。全15経路やTSK-528/TSK-520全体の完了へ広げない。既存故障系すべてを今回実画面で再試験した意味でもない。self通信失敗/不正200/明示再取得/世代切替/遅延mutationは固有/既存Vitestの影響試験へ対応付ける。
+
+core検出はc2301827対実develop8e4698f6で16パスすべてを検出し、基線検査成功。実core_guardへ本人チェック未記入のPRイベントを与えexit1となることを確認した。新しいcore登録や既存対象の除外はない。本人確認対象は製品6・試験10・資料5の21ファイル（git diff --no-renames --name-only origin/develop...HEAD）。チェック/方法は人間が実施するまで未記入。
+
+台帳への追記なし。今回の受入と手順誤認/環境失敗は個別実行の証跡として記録し、新たなハーネス改修や一般的傾向としての知見を追加しない。
+
+
+### 自チーム実装レビュー第2周（基本枠終了）
+
+c2301827を対象に、e9ab0807→a60fdf5dの採用反映差分/影響箇所だけを査読。実Claude反対側・正規Codex敵対の両方で新規P0=0/P1=0/P2=0。第1周の既存3試験の検出力復元、不正200の接続拒否、self pending中自動選択保留の採用反映を確認した。UUID式共通化の不採用も妥当と回答。既定2周を使用済みで追加周を勝手に行わない。7.7/本人確認/公開/マージの承認には流用しない。
+
+Claudeは既存clientのAbortErrorでもCookie変更可能性を理由に未確認へ戻す契約と、query観測者消失で中断される経路を確認した。読込中の明示チーム切替・画面離脱、opponent query無効化、self明示再確認後の自動選択でも安全側無効化/入力破棄が起こり得る。本追補では既存C1契約やqueryの中断方針を変更しない。今回のpending自動切替保留は初回入口だけを避けるもので、残入口を解消済みとは扱わずPRの既知制約/本人確認対象へ提示する。もし中断を止める追加変更を求めるなら、Cookie不確実性・旧応答排除への影響と既存計画の具体差分を別判断へ出す。資格情報/変更要求の自動再送は禁止のまま。
+
+レビュー時点で観測なし受入と修正後frontend全件、旧入力root/backend全件は進行中だった。後発の成功/失敗結果の収録は実行証跡の追記であり、レビュー担当が再実行/再レビューした意味ではない。後発の製品変更はない。
+
+- round2-codex.log: SHA-256 `006a420b311c6d42995911f1bbd55edda60b1e8dde4fc30bc63783536b4c855d`
+- round2-claude.log: SHA-256 `80d7286b3e352344fd1f93f0aa0f166a1593448ee6a685e9f9b03ddc1ec49d87`
+
+
+### Draft #165と独立検証の終了・共有2パスへの申し送り
+
+通常pushと最小1本のDraft PR #165を作成した: https://github.com/masaki1025/pitchlog/pull/165 。初回HEAD32be6dfc312eb2066a2dcbbbcb017b353df5860a、製品最終候補c2301827と同じ製品/試験内容。planは承認済み§7例外によりactiveのまま。本人確認チェック/実施方法/正式7.7受理は未入力で、Draft解除/公開/マージはしていない。ステップ3の正式完了トークンも付けず、機械上の2/3進捗を全DoD完了へ読み替えない。
+
+| 層 | 完走結果 | 入力/制約 |
+| --- | --- | --- |
+| root全件・ローカル | 29,676成功/2 skip、1,504.16秒 | e9ab0807で開始。実行中に#163の3ファイルを通常mergeしたため、最終単独HEAD全件証跡とは扱わない。#163固有15成功を別実行。最終HEADのharness/consistency/mutation CIと区別する |
+| backend全件・隔離DB | 3,053成功/4 skip/1失敗、2,722.54秒 | 5aeca5e8で収集。製品backend/試験本文は以後不変、試験名のみroster規則へ変更。失敗はtest_authz_repository_contract.py:612の公開登録一致（実registry45に対し未追随契約44）。全件成功とはしない。自分の専用cluster撤去済み |
+| frontend全件・修正後 | 71ファイル/1,402成功、85.13秒 | c2301827。第1周指摘を反映した単独製品候補の全件、除外/timeout緩和なし |
+| 静的/追加品質 | 成功 | root/backend Ruff/ty、backend format、frontend Prettier/ESLint/vue-tsc/depcruise、production build/閉域、docs/計画同期、NFR021、tenant-boundary bypass、frozen invariants-only |
+| 実画面/API/隔離DB | 14項目成功、11.11秒 | c2301827の観測なし。観測付き14成功/30.39秒とは別証跡。self/opponent双方の保存をDB observerで区別 |
+
+初回32be6dfc CIではfrontend/secrets/docs/tenant bypass/NFR021/consistency/mutationが成功、backend/harnessは回収中、core-guardは本人未記入で拒否。これは期待される人間ゲートであり代記しない。後続の資料コミットを含む最終HEADのCIと結果/本人確認一覧は同PRのコメントへ固定する。本文更新による再実行の途中結果を最終CI成功へ読み替えない。
+
+Notion既存TSK-528へ#165の部分追補/受入範囲/共有2パス/未確認ゲートを追記し、PR URLを更新、確認待ちにした。#123の既存記録と他のプロパティ/DoDチェックは保持、完了日や全体完了を入力していない。新カード/タブは作っていない。
+
+**次に必要な回答/受理**:
+
+1. #156/#152所有担当からrepository_contract.pyの公開型一覧1件、#156からrepository-contract.jsonの同型/source_digestについて、現編集者・残編集・解除/統合後引渡しの時点をパス別に回答。両PRは確認時点OPEN、照会未回答。#152先行案は未確定。未統合枝は取り込まない。
+2. 順序が確定したら、先行履歴を保持した実developから公開登録と対応するexact-set期待値を追随し、必要な7.7の完全前後値/snapshot/記録案を固定候補で一括提示する。現段階では新しいrevision/source_digestや正式承認者/日付を作らない。共通client/認可資産/base allowlistを待ち条件へ戻さない。
+3. 最終21ファイルの本人逐行確認（製品6/試験10/資料5）。GitHub Files changedでtenant SQL/業務SQL前照合/DTO検査/世代・cache/旧queryとmutation/試験検出力/既存中断時の安全側未確認化を確認対象にする。方法は本人が記入する。今回の計画承認や旧PR本人確認を流用しない。
+
+残る2パス以外の独立実装/試験/レビューは完了。正式登録/7.7/本人確認/最終CIの未了は追補全体の未完了として保持し、TSK-528全15経路+catch-all/TSK-520全体の完了には広げない。
+
+- root全件完全ログSHA-256: `d0bf2e63d05bec0a6964ae49ddb57b79d893b093ad350acfd1cc220afce3b375`
+- backend全件完全ログSHA-256: `860e91ccb6f477be5a63d5703d5575d443f95fb85a56a58923ddda761b0dfca5`
+- frontend修正後全件完全ログSHA-256: `b8e639f36caeb5d905d1ab40ecd3ff14fdc2541e6b7785a27f49c29a24c2ab77`
+
+
+### 7.7単一履歴の所有対象を補正（許可symbol追加とは区別）
+
+「base-allowlistは変更不要で共有待ちが2パスだけ」という直前までの説明を補正する。tenant bypass成功から証明できたのは**許可symbol追加が不要**という点であり、正式7.7の履歴追記まで不要とは証明しない。実ファイルのbaseline_control.history_authorityを機械照合すると、単一履歴の正はcontracts/tenant_boundary/base-allowlist.json（現実基線revision33、既存23記録）。repository-contract.jsonの正式更新にはこの履歴へのappend-only追記が必要になる。現時点では値/履歴を一切編集していない。
+
+現在の保留は、製品登録2パス（repository_contract.py、repository-contract.json）に加え、**7.7履歴用のbase-allowlist.json**。同ファイルは#156/#152/#161にも変更があるためパス別受理・統合順を再照合する。許可symbolや凍結射影の不要な変更を追加する意味ではなく、履歴だけを口実にrevisionを自動増加させることもしない。新snapshot/完全値/記録案は所有と実基線確定後に導出する。#152先行案は依然未確定、未回答を受理にしない。authz資産本体の変更は現時点で不要。
+
+本補正は既承認計画§3/§4.4に含まれる「対応する基準snapshot/受理記録」の正しいパスを明記するもので、新権限/認可意味/実装スコープは変えない。実装レビュー2周後の資料訂正であり、当該追補を独立再レビュー済みとは扱わない。製品/試験はc2301827以後不変。最終7.7候補と限定差分レビューの対象へこの履歴を含め、人間承認・本人確認を先行記入しない。
+
+追加の独立migration検証は最終製品内容の専用clusterでalembic upgrade head/current --check-heads/checkすべて成功し、自分のcluster撤去を確認。CIのbackend未通過による後続migration/D-2イメージ検査未実施と混同しない。後者のCIステップは当該HEADの実結果をPRへ記載する。
+
+## 2026-10-21 #165 共有3パス D先行指定と編集前固定
+
+POが限定先行を指定（新実値の受理ではない）。候補HEAD `0ba9fd36b6ef014446a888eb82aaa8bc127a79eb`、実develop `8e4698f6dc254439b7d5e0c273cc2aef70cda657`。
+
+| 対象 | 編集前SHA-256 | 範囲 |
+|---|---|---|
+| backend/src/pitchlog/repositories/repository_contract.py | 2b4d53c4f14a6fc8c1afd83ddcccf65d97675a1304a736e59e7e1169f90e98f4 | 公開型とsource digest |
+| contracts/tenant_boundary/repository-contract.json | 331c1a4c15e46196a48f3d758d697d42fe923a854b1a2748294d89b14b596cce | 公開型・凍結候補 |
+| contracts/tenant_boundary/base-allowlist.json | 8481bb75c1fac980d5e8b24d89ddf81e2abfaf6c59bcc916d0fe14a667d7f701 | 許可symbol追加なし。正式受理後の単一履歴追記のみ |
+
+通知: [#152](https://github.com/masaki1025/pitchlog/pull/152#issuecomment-6294455147)、[#156](https://github.com/masaki1025/pitchlog/pull/156#issuecomment-6294455638)、[#161](https://github.com/masaki1025/pitchlog/pull/161#issuecomment-6294456217)。通知と担当受理・所有解除を区別する。対象担当3worktreeの各3パスを読み取り専用で2回確認し、未コミット変更なし・SHA-256とmtime不変。未統合枝は基線に取り込まず、他担当worktreeは変更しない。後続はD反映後の実developから値を再導出する。
+
+編集前証跡は専用cache `self-team-read-shared-followup/initial-paths.json`、`owner-observation-before.json`、`owner-observation-after.json`、`accepted-history-before.json` に保持。exact-set検査の期待件数だけを増やす修正は禁止。既存受理記録の保持・#165の重複有無を機械確認し、最終前後値と未受理記録案を提示する。新承認者・承認日は先行入力しない。
+
+### 共有登録の限定修正と関連検証
+
+公開型tupleと契約JSONへSelfTeamRecordReadTokenをTeamRecordReadTokenの直後に1型追加。registryの45型・各capabilityの全対応を厳密一致させ、既存CAP:team_records:readを再利用。任意object・statement・callable・偽造tokenをsession前に拒否する検査を維持・追加した。JSONのrevisionは実基線21から22へ、source_digestは既存canonical手順で再計算し生成pyと一致。許可symbol・authz・ACL・migration・実registryは変更なし。
+
+backend関連試験はtest_authz_repository_contract.pyが48件、capability登録/self固有が113件、計161件成功。Ruff check/formatとbackend仮想環境を明示したtyが成功。最初のtyは環境の誤認で失敗し、正しいbackend .venv指定で再実行成功（製品修正による解消ではない）。証跡は専用cacheのimplementation.log。全件backend・最終CIの再実行は正式受理後に行い、旧HEADの失敗を成功へ読み替えない。
+
+実装レビュー基本枠は両経路2/2使用済み。本限定差分と7.7記録案は旧レビューの対象外で、独立再レビュー済みと記録しない。追加レビューが必要なら6.3のPO限定追加裁定へまとめて提示する。正式受理・本人確認はいずれも未実施。
+
+### 7.7候補固定（正式受理前）
+
+製品修正コミット0ffe83b6bb89d92a9922bddfe21eae95ab08b50b。tenant-boundaryの全9資産と外部4実装を実develop8e4698f6から機械導出し、repositoryのみ21→22の変更と確認。既存23履歴は同一、#165の正式記録0件、同じ受理IDの重複なし。base allowlist revision33・許可symbol・射影は不変、正式受理後に履歴だけ追記する。authz新実値なし。
+
+[完全値判断資料](../features/uf13-postmerge-acceptance-followup/shared-registration-77/README.md)へ全前後値、2候補snapshot、記録案、SHA-256を固定。判断資料JSON SHA-256 `2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c`、記録案SHA-256 `f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9`。承認者・日付はnull。正式assetへの履歴/snapshot追記なし。実検査は履歴末尾の識別値不一致で拒否され、正式受理前の未通過として保持する。
+
+後発共有差分は旧2/2レビューに含まれず、独立再レビュー済みとは扱わない。追加レビューを自動で起動せず、この限定差分・影響箇所1回を必要なPO判断として提示する。本人確認も未実施。正式受理後に必要全検査・通常push・最終CIを回収する。旧backend全件3053成功/4skip/1失敗および旧CI結果は書換えず、今回の関連161件成功と区別する。
+
+最終限定差分で、公開契約・登録・self固有・tenant middleware・API route exact-setをまとめて再検査し200件成功（2.08秒、backend-impact.log）。これはbackend全件の代わりではなく、正式受理後の全件・最終CIは未実施のまま。今回のfixでfrontend差分は増えていない。
+
+## 2026-10-21 #165 PO限定追加レビュー1回の結果
+
+ユーザーはHEAD5295956f9b883d20776f27bb4acfe47fc15a756dの共有3パス・直接影響箇所・45型の内容/権限境界/既存登録・既存23履歴・7.7記録案/完全値資料に限定して追加1回を許可。新実値の正式受理・本人確認の許可ではない。既定の計画2周、実装反対側2/2・敵対2/2は保持し、今回の敵対1回はPO指定の上限外追加として区別した。
+
+既存codex_run.py review adversarialのread-only経路を1回だけ実行。P0=0/P1=0/P2=0、採用/不採用指摘0、製品是正不要。全45型の順序・各capabilityと公開tuple/契約JSON/実registryを照合。SelfTeamRecordReadTokenは引数なし・既存CAP:team_records:read・認証context tenant/self/hidden除外/LIMIT1、未知型/偽造token拒否を確認。他44型と権限は維持。基線・製品候補・現ファイルのbase allowlist bytesが同一、既受理23履歴が保持され、#165既存記録0件。
+
+9資産の前後宣言/識別値/movement policy/外部4実装/全snapshot参照、source digestと記録案を既存導出へ照合。repositoryだけ21→22、base allowlist33と他8射影は不変。候補2snapshotの完全bytesが一致。null承認者/日付は正式検査が拒否する。メモリ内の仮承認値・仮eventによる構造照合は自己不一致を検出しなかったが、実履歴への反映や正式受理・検査成功の証跡とは扱わない。
+
+レビュー証跡: cache self-team-read-shared-followup/limited-review.log、SHA-256 `a7ab325b26b4a63790adb955d43ff998b4b96c4d62a5e230968f4acf364e7892`。関連200件の成功は5295956f固定前の同一製品差分に対する前回実行で、今回レビューでは再実行していない。
+
+判断資料JSON SHA-256 `2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c`、記録案SHA-256 `f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9` は変更なし。作り直さず同資料を正式受理へ提示する。レビュー後の未再レビュー差分はplan/README/worklogの結果記録だけで、製品・契約・snapshot・JSON記録案の変更はない。承認者/日付はnull、正式受理・本人確認・正式反映後の全検査/通常push/最終HEAD CIは未実施。Draft解除・公開・マージも行わない。
+
+## 2026-10-21 #165 7.7正式受理と正式反映
+
+山田正輝から実承認日2026-10-21、対象ba23630a1772bd3595e3042a434376175d3aa56bの正式受理回答を受領。判断資料2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c、記録案f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9を再hashし一致。3共有パスの承認時after SHA-256、9資産の全射影・外部4実装、既存23履歴・#165記録0件を反映直前に再照合した。新値不一致はなかった。
+
+承認者/日付だけを記録案へ反映してbase allowlistの末尾へ#165を1件追記（23→24、既存prefix同一、同ID1件）。許可symbol・revision33・凍結射影は変えない。after snapshot9872b2b0d5233193b3e3d76b37b144599d5d2ea8c14a93f1df6cd20a834bd3b0を正式archiveへ新規1件追加。before 0daf9ec4…は既存bytes同一のため追加しない。他8資産・authzは不変。正式記録の整形canonical JSON SHA-256は06a48c1ed6bbae5aed4ef0effdd60c283edef997a243477dbfa3b8fe09651639。固定資料自体は変更しない。
+
+正式反映後のtenant-boundary bypass検査は成功。本人確認は未実施でチェック代記しない。既定2周＋限定1回、レビュー後の結果記録3ファイルが未再レビューである履歴を保持。本正式反映も追加レビュー済みではなく、最終本人確認差分に含める。全件・CI・PR資料更新を続ける。planはactive、TSK-528/520全体は未完了。
+
+### 実develop #160追随と最終検査の固定
+
+最新origin/developは9136c2dad916313c28698f49f8668f3edbe36b4a（#160 U-F8）。追加はU-F8画面/固有client/spec/eslintと資料で、tenant-boundary/authzの契約全bytesは承認基線8e4698f6と同一。承認値不一致なし。専用枝へ通常mergeし、他担当の未統合枝は取り込まない。正式受理単位・値・既存履歴は変更しない。
+
+5c0226bdで開始したローカル全件は基線追随前に自分の検査プロセスだけへ中断を要求。root/backendはexit2、backend専用DBの破棄を確認。frontendは1402件の出力を得たが中断時のpnpm終了失敗があり、今回の完走成功に数えない。隔離一時領域final-localに証跡を保存したまま、基線追随後の専用final-local-integratedへ全件を再実行する。試験除外・timeout緩和は行わない。
+
+ローカルrootの並列は利用可能メモリに合わせ4、backend本体は1・内部autoは2、frontendは既存設定のfileParallelism=falseを維持。共有DBや他担当プロセスは変更・停止しない。最終HEADの検査/CI証跡と本人確認の固定diffは専用cacheおよび既存PR #165の最終報告へ集約する。本人チェックは未記入、plan activeを維持する。台帳への追記なし（製品経路の既存手順による追随・受理であり新しいハーネス運用知見の追加ではない）。
+
+## #165 manifest連動の限定追随承認と開始
+
+POは第4共有パスのD先行、corpus_inputs.digestの1フィールド、直接影響の比較fixture/digestに限定した独立レビュー1回を許可。基本2周＋前回追加1回を保持し、今回は追加2回目と数える。現HEAD157ace4dd43fdab114b1a355473b75b66a2559c6。変更前b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce、変更後f50b17a2bb95e95828ced277c4288dd64a0be11a2e5132fdee691683a877634b。対象はtests/fixtures/frozen-archive-cases/manifest.jsonのみ。
+
+通知: #152コメント6295746198、#156コメント6295746668、#161コメント6295747245。通知を担当受理・所有解除としない。3担当worktreeの当該ファイルを読み取り専用で2回確認し、未コミット差分なし・SHA-256/mtime不変。未統合枝を基線にせず他担当worktreeも変更しない。
+
+157ace4dの最終CIは10成功/2失敗。backend3055成功/4skip・coverage89%、frontend82ファイル1572成功、実画面/API/隔離DB14項目成功。harnessは29386成功/33失敗/2skip、ローカルroot全件は29645成功/33失敗/2skip（2053.31秒）で同じcorpus digest拒否。backendローカル重複全件は同一backendのCI全件成功後に終了しexit2、専用cluster破棄を確認（完走成功に数えない）。証跡はPR最終報告コメント6295701690と専用cache。
+
+既存runnerでcache候補の現行11ケースは全件期待一致。固定前版ec02a0dの再実行ではowner_paths非対応で9/11が歴史的期待に不一致だった。今回、比較revisionや期待値表の変更・前版互換性の修正は許可範囲に加えず、その成功も主張しない。今回の修正で前版残余が解消したとは扱わない。
+
+7.7影響確認では全tenant-boundary/authzファイル、公開契約py、承認資料2件のSHA-256を事前固定した。完全値JSONに列挙された外部凍結対象は8ファイルであり、旧説明の「外部4実装」は数え違いだった。正式受理された完全値JSONと記録案自体は当初から全8件を含み変更しない。今回の直接影響資料で数の説明だけを訂正し、受理値の変更とは扱わない。
+
+### 1フィールド追随の反映前後確認と関連検査
+
+manifestだけのold/new bytesを照合し、digest1値以外の差分がないことを確認。正規化した比較manifest内容は前後同一で、実ファイルから再計算したcorpus digestがf50b17a2…と一致。正式資産/authz/snapshot/公開py/承認資料の465ファイルは事前SHA-256と完全一致、追加・欠落もなし。全9射影・全8外部参照・全識別値が受理資料と一致し、履歴は24件・#165は1件のまま。7.7の追加受理や同ID再追記は不要と判断する根拠をcache manifest-impact-proof.jsonへ固定した。
+
+旧CIの33個の失敗summaryは全て同じold/new corpus digestのValueErrorだった。今回の2ファイル全65試験の収集集合に旧33件が全て含まれることを照合し、65件成功（35.97秒）。既存の改竄/削除/未参照/不正prefix等の拒否を含み、除外なし。CLI sandboxでは指定cache tempへ書けず、ディスク側cacheでの実行は未達。実行は専用/tmp/pitchlog-uf13-manifest-targeted-tmp-20261021（TMPDIR指定）へ退避した。試験自体は同じ、auto worker上限4、timeout緩和なし。/tmp空き3.9GiBを確認。完走結果と環境の退避を区別する。
+
+修正実体はmanifest.jsonのcorpus_inputs.digestだけ。plan/worklogの承認・証跡記録、およびREADMEの「外部4」→「全8参照」訂正は直接影響する説明として同梱する。固定された判断資料/記録案JSONのSHA-256は変えない。これから候補HEADへPO追加2回目の独立レビュー1回を実施し、結果を記録する。
+
+### PO限定追加2回目の独立レビュー結果と最終検査方針
+
+候補HEAD26acd0b614c91dbfeeba036e3b1d04e53e66b798をread-onlyで1回レビューし、P0=0/P1=0/P2=0、採用可・修正不要。基本の反対側2/2・敵対2/2と前回追加1回を維持し、今回を敵対レビュー追加2回目（通算4回）として記録。回数をリセットしない。証跡manifest-review2.log SHA-256 `8da25070ffbf950546ec9ec4ebe3d882c6f7e9ffffee0b363cb4be792b657f4f`。
+
+査読はmanifest1値のbytes一致、実corpus digest一致、正規化された比較内容の不変、旧CI/ローカル33失敗の集合/理由一致、65試験への全包含と成功ログを確認した（査読担当自身が65試験を再実行したとはしない）。全465保護ファイル、9射影、8外部参照、全識別値、既23履歴保持＋#1651件、snapshot内容を独立照合した。通知を担当受理/所有解除とはしていないことも確認。7.7の新受理・既存記録変更・重複登録は不要。
+
+固定前版の9/11不一致は本限定追随で悪化・隠蔽していないとの判定。前版11件の一致を新たな最終受入条件にするなら残余の扱いは別途人間判断とし、今回その互換成功や修正を主張しない。現行の必須CI上の失敗と歴史的前版の互換性残余を区別する。
+
+本レビュー後の未再レビュー差分は、plan/README/worklogへの同じ結果記録だけ。製品とfixture1値はレビュー候補から変えない。先のレビュー後に生じた結果記録3ファイルの未再レビュー履歴も消さず、本周が確認したのは今回の限定差分と直接影響だけとする。
+
+今回のdeltaはmanifest1値と資料のみで、backend/frontend/DB契約/正本・正式7.7値は157ace4dから不変。関連65試験を再利用し、新HEADの全必須CIで全件・統合を検証する。理由なく同一製品のローカルbackend/frontend全件や実画面受入を繰り返さず、157ace4dでのbackend CI3055成功/4skip・frontend1572成功・実画面14成功と新HEADのCI結果を区別する。旧root/CI33失敗を成功へ読み替えない。本人確認は新HEADの全差分と追加1値へ更新し、本人の方法を推測せず未チェックを維持。Draft解除・公開・マージは行わない。

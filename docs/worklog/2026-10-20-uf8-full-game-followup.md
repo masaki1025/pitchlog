@@ -83,3 +83,10 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 - 人間操作で #160 が merge `9136c2dad916313c28698f49f8668f3edbe36b4a` として develop へ統合されたことを確認。本人確認・署名・マージを代行したとは記録しない。
 - #164 の base を develop へ変更。製品コード・試験・レビュー対象の変更は0。retarget直後のCI run39449086017では、GitHubの比較用HEAD第1親が旧base97e6eeeを保持し、新base9136c2daとの不一致でfrozen-baselinesが停止した。検査器や基準を緩めず、最新developを通常mergeしてsynchronizeを起こす。
 - 基本敵対2回・最終P0/P1/P2=0、Claude一次の既存履歴を維持。人間逐行確認は後続#164自身について未実施のまま。統合コミットと本追記以外の実装差分はない。通常push後にCIを再回収する。
+
+### 2026-10-21 #165統合後のdevelop追随（#164）
+
+- ユーザーから#165統合後の最新化とCI確認を指示された。#165の人間merge `caf5634787aeb60f692254fdcc179bb4fe34decf` を確認し、#164の固定旧HEAD `fb12a9a1e66b4ecfa83f19c46a999068e48e9338` に最新origin/developを通常mergeした。開始時は未コミット差分0、競合なし。既存成果・履歴を破棄せず、force pushしない。
+- 停止UIの製品/試験4ファイルは旧HEADから差分0。backend・contracts・CI・harness等も最新developから追加差分0で、#165の正式受理・署名をU-F8の受理として転記していない。レビュー回数・既存の指摘採否と未再査読範囲は維持する。新たな実装是正や追加レビュー枠はない。
+- 統合後のfrontend全件は **83ファイル/1,593 passed/81.66秒**。全Prettier/ESLint/vue-tsc/build成功、build closureは9ファイル/外部参照0/違反0。root Ruff/ty・計画と正本の突合・diff-check、backend format/ruff/tyも成功。backend全pytest/実ブラウザは今回再実行しておらず、過去結果と区別する。
+- #164本文の人間チェックは外部でチェック済み、実施記録欄は空欄の状態を取得した。その状態を保持し、人間逐行確認を自分が実施したとは記録しない。新HEAD/比較元/diff digestだけを更新し、通常push後の最終CIを回収する。Draft解除・マージ・共有DB変更は行わない。
