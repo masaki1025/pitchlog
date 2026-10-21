@@ -157,3 +157,5 @@ P0を2件採用したため、6.3の自動例外1回で第3回を**P0限定**の
 - 観測入力の製品/試験コードは既存HEADから差分0。最新developとの差分は計画/本ログとGameScreen.vue、GameScreenDisplayValue.ts、GameScreenObservationField.vue、GameScreenPlayObservation.vue/.spec.ts/Types.tsの8ファイルだけ。親#164の停止UI差分を本人確認へ重ねない。独立未再査読は56611d17→f7dc0ad0のPlayObservation.vue/.spec.tsの疎配列是正2ファイルであり、最終P0限定例外の可決を当該是正へ流用しない。
 - 統合後の全frontendは **84ファイル/1,633 passed/82.32秒**、全Prettier/ESLint/vue-tsc/buildとclosure9/外部0/違反0が成功。root Ruff/ty・計画正本同期・diff-checkも成功。backend/harness/正式資産/CIは最新developと同一で追加変更なし。今回、実ブラウザ・backend全pytestを新規実施したとは記録しない。
 - PR#166の比較先をdevelopへ変更し、通常push後の最終HEADの必須CIを回収する。本人チェック・実施記録を代記せず、Draft解除/マージ/共有DB適用は行わない。全試合完成は封鎖付きUIの統合条件へ追加しない。後続#167→#168→#169→#171の実比較先を確認し、新規PRを増やさず親統合後に各固有差分で確認する。
+
+#166の比較先変更直後のCI39583670831は、画面/API上のbase=developに対しevent payloadが旧stacked baseを保持し、tenant検査がbase.ref条件で停止した。比較先がdevelopへ確定済みであることを再確認し、この記録だけを通常pushして新しいsynchronizeで再検査する。製品/試験/正式資産・合否条件は変更せず、前実行を最終CI成功へ数えない。
