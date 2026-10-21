@@ -3,6 +3,7 @@ import { useAuthStore } from '../stores/authStore'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '../lib/queryClient'
+import { ApiError } from './client'
 import {
   createPlayer,
   createTeamRecord,
@@ -10,6 +11,7 @@ import {
   hideTeamRecord,
   listPlayers,
   listTeamRecords,
+  readSelfTeamRecord,
   updatePlayer,
   updateTeamRecord,
   type PlayerRead,
@@ -20,6 +22,13 @@ const team: TeamRecordRead = {
   id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   kind: 'opponent',
   name: '相手',
+  hidden_at: null,
+}
+
+const selfTeam: TeamRecordRead = {
+  id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+  kind: 'self',
+  name: '自チーム',
   hidden_at: null,
 }
 
@@ -100,6 +109,35 @@ afterEach(() => {
 })
 
 describe('roster API', () => {
+  it('readSelfTeamRecord は共通clientでtenant照合とsignalを使う', async () => {
+    const signal = new AbortController().signal
+    respond(selfTeam)
+
+    const result = await readSelfTeamRecord({ signal })
+
+    expectRequest('GET', '/api/team-records/self', undefined, signal)
+    expect(result).toStrictEqual(selfTeam)
+  })
+
+  it.each([
+    ['不正UUID', { ...selfTeam, id: 'not-a-uuid' }],
+    ['対戦相手', { ...selfTeam, kind: 'opponent' }],
+    ['非表示', { ...selfTeam, hidden_at: '2026-10-20T00:00:00Z' }],
+    ['名前型', { ...selfTeam, name: 123 }],
+    ['ID欠落', { kind: 'self', name: '自チーム', hidden_at: null }],
+    ['余剰キー', { ...selfTeam, tenant_id: 'secret-tenant' }],
+    ['配列', [selfTeam]],
+  ])('readSelfTeamRecord は不正200の%sを採用しない', async (_name, body) => {
+    respond(body)
+
+    const error = await readSelfTeamRecord().catch((cause: unknown) => cause)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 200, body: undefined })
+    expect((error as ApiError).message).not.toContain('secret-tenant')
+    expectRequest('GET', '/api/team-records/self')
+  })
+
   it('listTeamRecords は GET とページ query を送り、ページを返す', async () => {
     const page = { items: [team], next_cursor: 'next' }
     const signal = new AbortController().signal

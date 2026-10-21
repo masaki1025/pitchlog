@@ -1,4 +1,6 @@
 export const rosterQueryKeys = {
+  selfTeamRecord: (teamId: string | null, authEpoch: number) =>
+    ['self-team-record', teamId, { authEpoch }] as const,
   teamRecords: {
     all: (teamId: string) => ['team-records', teamId] as const,
     pages: (teamId: string | null, authEpoch: number, limit: number) =>

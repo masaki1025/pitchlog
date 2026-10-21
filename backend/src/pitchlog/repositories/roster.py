@@ -60,6 +60,7 @@ __all__ = (
     "PlayerRosterLabelUpdateToken",
     "TeamRecordCreateToken",
     "TeamRecordReadToken",
+    "SelfTeamRecordReadToken",
     "TeamRecordUpdateToken",
     "TeamRecordDeleteToken",
     "GameTeamLinkReadToken",
@@ -345,6 +346,16 @@ class TeamRecordReadToken(TenantOperationToken):
 
 
 @dataclass(frozen=True, slots=True)
+class SelfTeamRecordReadToken(TenantOperationToken):
+    """認証済みテナントの公開中の自チームを取得する。"""
+
+    @property
+    def capability_id(self) -> str:
+        """既存のチームレコード読み取り capability を返す。"""
+        return "CAP:team_records:read"
+
+
+@dataclass(frozen=True, slots=True)
 class TeamRecordCreateToken(TenantOperationToken):
     """対戦相手の kind をサーバー側で固定して 1 行作成する。"""
 
@@ -421,6 +432,7 @@ type _RosterBuilderOperation = (
     | PlayerRosterStatusUpdateToken
     | PlayerRosterLabelUpdateToken
     | TeamRecordReadToken
+    | SelfTeamRecordReadToken
     | GameTeamLinkReadToken
     | TeamRecordUpdateToken
     | TeamRecordDeleteToken
@@ -678,6 +690,21 @@ def _build_roster_statement(
         return statement.order_by(_TEAM_RECORDS.c.id).limit(
             bindparam("limit", type_=Integer)
         )
+    if kind == "team_self_read":
+        if operation is not None and not isinstance(operation, SelfTeamRecordReadToken):
+            raise ValueError("team_self_read には SelfTeamRecordReadToken が必要")
+        return (
+            select(
+                _TEAM_RECORDS.c.id,
+                _TEAM_RECORDS.c.kind,
+                _TEAM_RECORDS.c.name,
+                _TEAM_RECORDS.c.hidden_at,
+            )
+            .where(_TEAM_RECORDS.c.tenant_id == bindparam("tenant_id"))
+            .where(_TEAM_RECORDS.c.kind == bindparam("kind", type_=Text))
+            .where(_TEAM_RECORDS.c.hidden_at.is_(None))
+            .limit(bindparam("limit", type_=Integer))
+        )
     if kind == "team_create":
         if operation is not None:
             raise ValueError("team_create には operation を渡せない")
@@ -804,6 +831,18 @@ def _prepare_team_record_read(operation: TenantOperationToken) -> PreparedOperat
     return team_record_read_statement(token), parameters
 
 
+def _prepare_self_team_record_read(
+    operation: TenantOperationToken,
+) -> PreparedOperation:
+    """自チームだけを1件読む固定条件を準備する。"""
+    return _build_roster_statement(
+        "team_self_read", cast(SelfTeamRecordReadToken, operation)
+    ), {
+        "kind": "self",
+        "limit": 1,
+    }
+
+
 def _prepare_team_record_create(operation: TenantOperationToken) -> PreparedOperation:
     """対戦相手の固定種別と追加値を準備する。"""
     return _build_roster_statement("team_create", None), {
@@ -893,6 +932,16 @@ ROSTER_OPERATIONS: tuple[OperationRegistration, ...] = (
         required_bindings=(RequiredBinding(_TEAM_RECORDS.c.kind, "kind", "opponent"),),
         required_limit_parameter="limit",
         required_limit_max=ROSTER_PAGE_SIZE_MAX + 1,
+    ),
+    OperationRegistration(
+        SelfTeamRecordReadToken,
+        "CAP:team_records:read",
+        _build_roster_statement("team_self_read", None),
+        _TEAM_RECORDS.c.tenant_id,
+        _prepare_self_team_record_read,
+        required_bindings=(RequiredBinding(_TEAM_RECORDS.c.kind, "kind", "self"),),
+        required_limit_parameter="limit",
+        required_limit_max=1,
     ),
     OperationRegistration(
         TeamRecordCreateToken,
