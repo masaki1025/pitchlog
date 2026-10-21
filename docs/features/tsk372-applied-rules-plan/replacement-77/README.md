@@ -5,6 +5,7 @@
 - 移植した製品・契約・試験17ファイルは旧#161の最終候補とバイト単位で一致する。ファイル集合のSHA-256は`2e90b294f12f2d7b2d3c8c5b838f28e1dede6a53b02c53b1d6417b175750f925`。
 - `decision-packet.json`に9資産・外部8ファイルの完全な前後射影digest、識別値、corpus digest、移植ファイル一覧を収録する。同ファイルのSHA-256は`110a2ce24127d2c99c84caf757073504de00fbdf054652c4c7fc90d9cbde0acd`。
 - `record-proposal.json`は新PR ID `masaki1025/pitchlog#172`による25件目の案で、SHA-256は`50531a87072e66e0dfebdd6ec4d154c78c3b68ebba5ccd62b45dff629e9f5e9b`。`approved_by`と`approved_on`は未記入。
+- `step4-candidate.patch.gz`はステップ3の公開HEADへ適用する、未受理の認可資産・試験11ファイルの候補差分を`gzip -n`で圧縮したもの。圧縮ファイルのSHA-256は`3a276fbebc26d538d41821a4e1580ee204098c24b19738edbeec5a4f654c9a2b`、展開したpatchのSHA-256は`24295dc5d0be6b0f16ddbf2d4eeef19b01d1cc1300ba5f151acb0a34526ac0ee`。実ファイルの正式履歴には反映していない。
 - corpus入力digestは`f50b17a2bb95e95828ced277c4288dd64a0be11a2e5132fdee691683a877634b`から`b80afca5ca0249990661f0e02ffbe2bd6b53b82271d6204b471a84ddf816cef1`への候補遷移。正式corpus manifestは未変更。
 
 このディレクトリは判断資料であり、正式7.7履歴・正式snapshot・corpus manifestではない。新実値の正式受理後にだけ、計画ステップ4で反映する。旧#161の承認を新実値へ流用しない。#162へ置換順は送付済みで、担当の受諾は別途確認する。
