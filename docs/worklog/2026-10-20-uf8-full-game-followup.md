@@ -319,6 +319,180 @@ Claude一次P1二/P2六、敵対基本第1回P1一/P2一、基本第2回P1二を
 
 #168を親にステップ5だけを独立Draft提出する。正本への反映なし、台帳への追記なし（個別の供給表示/fixtureの是正で新たなハーネス運用課題を確定しない）。harness/backend実装差分0のため#160/#164等の全件実測/CIを再利用し、本枝での再実行とはしない。既存CIのdevelop base条件を緩めず、stacked PRは親が人間統合された後にretargetして再検査する。T5/T6/U-P1供給未提供、40分析製品全完成を着手前提にせず、正式接続/一致性/GAP05/原子性/全試合は未達。主カードURL#160確認待ちを維持。公開/Draft解除/マージ/本人記録代記/共有DB操作は行わない。
 
+### ステップ6の実行枝
+
+記録中表示0a8a8002を継承し、feature/uf8-game-entryで承認済みステップ6のみ実行する。実行枝metadataだけ更新し計画本文/承認/レビュー履歴は保持。App.vueの最小追補は未承認なので適用せず、承認済みrouter/Entry範囲で進める。親是正は後で追随する。
+
+## ステップ6 試合一覧・開始/スタメン・再開入口と記録route
+
+`feature/uf8-game-entry`で、`GameScreenEntry*`と`router*`だけに`/games`・`/games/:gameId/record`を追加した。両routeは既存の`requiresAuth`ガードを通し、`getActivePinia`/共有`pinia`、hydration待機、`ensureSessionVerified`、`authEpoch`、tenant一致の条件を維持する。認証前の`redirect`は`GameScreenEntryNavigation`で`/team`・`/games`・canonical UUIDの記録pathnameだけへ制限し、query/hash、外部URL、二重slash、不正IDは`/team`へ倒す。`App.vue`は未承認の追補を適用していないため、ログイン完了後の試合route復帰と通常ヘッダーからの試合導線は**未達**。router側の後追い再遷移は追加していない。
+
+製品routeではU-G1/U-G2の実一覧・詳細・スタメン・規則・権利・下書き復元が未提供であることを表示し、開始/スタメン設定/再開/記録/保存/送信を全条件で封鎖する。`GameScreen`はprops未供給で全機能を未取得表示にし、既存の確定封鎖を保つ。新規HTTP、仮Port、計算、Web Locks・IDB判定や永続化処理はない。表示用の`EntrySupply`はtenant、認証世代、経路、ページ要求キーで文脈を照合し、隔離fixtureで1ページの項目・前後ページキー・開始候補/スタメン/規則/権利/既存状態・再開詳細を供給する。異tenant項目、不正ID、壊れたページ、旧応答は取得済み成功にしない。他tenantの存在と内部原因は表示しない。ページ送りは供給側への表示要求イベントだけで、実取得や全件集計はしない。
+
+NFR-020の観測可能な前提1/5/6は提供された成立/不成立/不明をそのまま受け、単独/複合不足の全番号と内容、開始不可、既存キュー件数/保持、閲覧可能を表示する。未知を成立にしない。前提5のサイトストレージ不可とpersist要求だけの拒否を分け、後者は警告と前提上の継続可能性を表示するが、製品の実開始は未接続のため封鎖したまま。キューを読み書き・消去しない。
+
+隔離DOM試験で、実routeの未取得、保護境界と再検証失敗/異tenant/認証世代変更、正規/不正IDと安全な戻り先、1ページのみの表示と前後要求、正常/拒否/通信失敗/遅延、旧文脈遮断、前提1/5/6単独・複合、persist区別、全実操作の直接dispatchでもfetch/POST 0、Vue escape、375/320pxの縦積み・折返し構造を確認した。jsdomは実ピクセル幅を測れない。最終実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts`で**18ファイル320件成功**。`pnpm exec vue-tsc --noEmit`、対象`GameScreenEntry*`/`router.ts`のESLint・Prettier check、`git diff --check`成功。実ブラウザ375/320pxとfrontend全件は主担当補完。正式API/実HTTP・DB接続、ログイン後復帰/通常ナビゲーション、記録権取得、実開始/再開/保存/送信、1試合完遂は未達。ステップ7以降、コミット、push、外部連絡は行っていない。
+
+### ステップ6確定前の主担当検査への同範囲補完
+
+`GameScreenEntryRecord`が同一instanceで別試合routeや認証切替後も内側`GameScreen`を再利用し、未供給の`eventIdentity`/観測文脈では球速などの未保存下書きを消せない欠陥を是正した。現在の`authEpoch`、`teamId`、route pathname、gameIdを表示instanceのキーにし、いずれかが変われば実`GameScreen`を作り直す。同じscopeへの同内容新参照ではinstanceと下書きを保持する。実球速入力で試合route変更、tenantと認証世代の個別変更、再検証中とtenant切替を試験し、旧入力・旧metadata・旧未送信件数が残らないことを確認した。画面文言は未保存の入力欄と矛盾しないよう「記録の確定・保存・送信はできません」とした。
+
+一覧の`selectedGameId`と`requestedPageKey`は認証世代/tenant/pathの実変更時だけ消去する。同じscopeへの同内容新参照では選択とページ要求を保持する。旧tenantで次ページを要求したあと新tenantの初期`requestKey=null`ページを表示できること、同一instanceで経路を往復した場合に旧選択を戻さないことを確認した。ページ移動の意味や実APIは追加していない。`existingStateLabel`は文字列かつown既知キーに限り、`constructor`/`__proto__`/`toString`やnullを未取得にする。候補・ページ・詳細のnull、疎配列、未知状態、不正datumも取得済みへ採用せず、別の閲覧表示と`GameScreen`の確定封鎖を維持した。既存のdense検査を再利用し、計算/通信/保存Portは追加していない。
+
+NFR-020前提1/5/6の全不足列挙、persist要求のみ拒否とサイトストレージ不可の区別、未送信キュー保持の文言は**表示上の候補**であり、実Web Locks/IDB・再起動を通したキュー耐久の証拠ではない。実開始/再開/確定/保存/送信は引き続き封鎖し、直接dispatchでもHTTP 0。最終実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts`で**18ファイル334件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ/フロントエンド全件試験と既定レビューは主担当補完。正式API未提供、`App.vue`追補未承認による通常ナビゲーション/ログイン復帰未達は維持する。次ステップ、コミット、push、外部連絡は行っていない。
+
+### ステップ7候補の実行枝
+
+入口142003cbを継承し、feature/uf8-game-browser-candidateで承認済みステップ7の候補作成のみ実行する。正式7.7受理・CI/凍結基準の有効化は行わない。計画branchだけ変更し本文/承認/回数は保持。6〜7は同一最小PRとしてentry枝へ通常mergeして提出するため、コードPR査読枠は両ステップを通じた同一枠として管理し、ステップでリセットしない。
+
+## ステップ7 Playwright・CI/凍結候補（正式受理前）
+
+`GameScreen.playwright.config.ts`、`GameScreen.e2e.ts`、`GameScreenE2eSupport.ts/.py`、`GameScreen.real.e2e.ts`と候補境界のVitestを追加した。親が先に加えた`@playwright/test` 1.61.0 のpackage/lock変更は保全し、`test:browser`/`test:browser:real`を追加した。必須封鎖経路は実Vue Appのroute、実 `create_app` / auth/login/session、既存`provisioned_product_catalog`による`--pull=never`の使い捨てPostgreSQL・製品migration/認可DDL・実アプリロールを使う。自前のランダムな認証主体・署名鍵は0700一時ディレクトリとプロセス環境だけに置き、標準出力・artifactへ出さない。製品Portのmock登録、schema/計算の複製、共有DB/role変更、製品側からTestSupportのimportはない。Viteの`envDir:false`と一時HTTPS証明書を使い、Secure Cookieを実ブラウザで検査する設計にした。
+
+封鎖projectは認証なし/失効、正規・不正・未知ID、試合一覧/記録入口の開始・再開・確定disabled、reload、2タブ、auth通信失敗/遅延、tenant切替、375/320幅を対象とする。NFR-020前提1/5/6の単独・複合は既存`GameScreenEntry.spec.ts`の隔離表示fixtureで検査し、実Appからの正式環境供給と混同しない。別`real-game` projectは正式driver未接続の間、SHA/IDの環境文字列があっても明示失敗する。実ゲームfixtureとゲーム作成Portが未提供なので、1試合完遂の合格は主張しない。
+
+CI候補は既存必須frontend jobの後段へ同じ`test:browser`経路を足す。逆依存を機械確認した結果、CIはテナント境界9資産中8資産の外部凍結対象だった。計画で明示されたbase/census以外の6資産にも識別値・投影snapshot更新が必要と判明した。`docs/features/uf8-full-game-followup/step7-candidate/`にCI・影響8資産・比較corpus manifestの全前後ファイル、完全patch、メタデータ、新snapshot9件を保存し、実資産は変更していない。旧履歴23件・旧署名はbefore/after共通prefixとして不変、新1件の人間欄とacceptance IDは空。ソースGit baseは`8e4698f6dc254439b7d5e0c273cc2aef70cda657`、Draft6〜7の単一PR受理単位は未割当。CI前後SHAは`f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`→`0206d208474482e4e50dbb6993b9771a7ae86282a4d8e5e2598a7a52ec863718`、corpus入力digestは`b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce`→`21334bcd53f38962c50a5c968a48a2465ca526e6673e2596b3ba8457898cf835`。他の全識別子、外部hash、射影digest、対象集合は同候補の`metadata.json`に実値を置いた。
+
+初回実測: `pnpm exec playwright test --config src/screens/GameScreen.playwright.config.ts --list`は当時のsealed-ui **5件**、切替式の`real-game --list`は別project **1件**を列挙。frontend全体のVitestは**89ファイル1708件成功**（候補試験追加後）、関連候補・入口のVitestは2ファイル52件成功。`pnpm exec vue-tsc --noEmit`、全ESLint/Prettier、`pnpm exec depcruise src --validate`、`pnpm run build`（build closure conforming）、Python支援/生成器のRuffは成功。候補patchは隔離一時ディレクトリで`git apply --check`成功・適用後の全after bytesと新snapshot bytes一致。既存`validate_snapshot_archive`では前179・後188snapshot、孤児33件は増加せず、新9件の参照漏れなし。候補afterの隔離ツリーで既存`runner.validate_corpus_inputs`成功。`git diff --check`成功。候補を使った正式7.7受理検査は人間欄が空のため未実施・不合格予定であり、候補試験と分ける。
+
+追加downloadは内側sandboxで試みていない。正式ゲームの公開SHAと実入力、前提1/5/6の実供給、未宣言6資産を含む計画追補、PR受理単位と人間本人の7.7記録、CI/凍結実ファイルへの適用は未達。M-T1/M-T2、GAP-05、FR-012原子性、1試合完遂は未達のまま。親ステップ5の是正はこの枝へ先取りせず、主担当の通常mergeに委ねる。次ステップ、コミット、push、外部連絡は行っていない。
+
+### ステップ7確定前の同ステップ補完（2026-10-21）
+
+主担当ホストの封鎖E2E初回はPython import経路不足でsetup失敗、2回目は正しい`PYTHONPATH`で診断して既存`db_fixtures.verify_connection_identities` autouseの`PITCHLOG_TEST_ADMIN_DSN`不足と確定した。Docker/Port不足とは記録しない。初回生成されたrepo内Playwright出力は主担当が`~/.cache/pitchlog-523/uf8-e2e-initial-output-20261021`へ移動保全済み。`outputDir`は自分で生成する0700一時ディレクトリへ移し、ignore規則は追加していない。
+
+是正: Python driverはpytest開始前に既存`disposable_postgres_cluster` factoryから自分のouterクラスタを作り、実管理DSNと、既存fixtureが専用クラスタで作成・破棄する実被検査ロールのDSNを供給する。既存`requires_db` marker、autouse、pytest設定を維持し、接続ID検査の後に既存`provisioned_product_catalog`が別のinner製品クラスタを用意する。外部`PITCHLOG_*` DSNは継承・信頼せず、backendのlocked `.venv/bin/python`でdriverを実行する。runtime資格情報とTLS keyは自分の0700領域内の0600ファイルに置き、標準出力・trace・video・screenshotへ出さない。両クラスタは既存fixtureとfactoryの自前後始末だけで破棄する。`real-game`の旧検査は、任意のSHA/IDから匿名/login redirectと未取得text不在だけで成功し得たため撤去した。固定名`sealed-ui`/`real-game`の二projectを静的定義し、`test:browser`とCI候補は`--project sealed-ui`を明示、realと全projectは正式Port・完全シナリオdriver未接続中に必ず失敗する。環境文字列だけを供給証拠へ数えない。
+
+是正後の実測: 関連Vitest **2ファイル53件成功**、`vue-tsc --noEmit`、全ESLint/Prettier、dependency-cruiser **125 modules/256 dependencies**、build closure conforming、root Ruff、Python helperの明示ty・compile、`git diff --check`成功。Playwright `--list`は両project計6件、`pnpm run test:browser --list`はsealed-ui 5件のみ。backend既定pytest設定でhelper 1件をcollectし、未知marker警告はなく、既にimport済みの`db_fixtures`のassert rewrite警告だけが出た。内側sandboxの`pnpm run test:browser`はsetupで失敗し、診断で共有uv cacheの書込み不可を確認したためlocked `.venv/bin/python`へ切替えた。切替後もsetup失敗するが、同Pythonの秘匿診断は`ADMIN_DSN`欠落やimport不足ではなく専用Docker `run`到達を示し、`docker info`はDocker socket権限拒否を返した。実ブラウザ・実Auth HTTP・専用DBの成功は**未実測**で、主担当ホストの再実行を待つ。
+
+主担当による候補patchの隔離`git apply --check`・実適用・after全bytes・9 snapshot SHA一致は確認済み。patch SHA-256は`4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fc`のまま。`test:browser` scriptの封鎖project明示化はCI候補の`pnpm run test:browser`の意味と一致し、patchを再生成していない。未宣言6資産の計画追補案`step7-scope-extension.md`（SHA-256 `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59`）は主担当が人間へ照会中で、編集・承認記録・実資産適用はしていない。6〜7コードPR査読は**0回**で、計画・親・ステップ5の枠を流用しない。正式7.7受理・CI接続・1試合完遂は未達のまま、この候補是正で停止する。
+
+### ステップ7候補の実host封鎖E2E再測定と是正（同ステップ）
+
+主担当ホストの `pnpm run test:browser` 実測（`/tmp/uf8-entry-real-e2e-bootstrap.log`）は、実 Auth HTTP・HTTPS・自分専用 outer/inner PostgreSQL の起動に成功し、sealed-ui **5件中3成功・2失敗、25.3秒**。これは実ゲームPortや1試合完遂の証拠ではない。失敗1はlogoutの素のPOSTが403で、製品 `request_presentation.py` の `X-Pitchlog-Request: 1` と厳密なOrigin許可が欠けていた。失敗2はsession応答遅延後、期待した `/games` ではなく `/login` の「認証状態を確認できません。状態を再確認するか、ログアウトしてやり直してください。」へ着地した。旧Cookieが更新され得る応答の認証相関・不確実性と自動再送禁止を尊重する。
+
+是正では、Nodeがbackend起動前に自分用freeportを選び、Viteを `strictPort:true` で同じloopbackポートへbindする。衝突なら失敗として閉じる。自分の子プロセス環境で渡す `https://127.0.0.1:<port>` をPython driverで形式・範囲検証し、外部 `PITCHLOG_*` を除去した後の `PITCHLOG_ALLOWED_ORIGINS` にその1件だけ設定する。製品CSRF判定は変更しない。logout要求に実custom headerを付け、200応答・保存旧Cookie再提示後の実session 401・保護routeから/loginへの拒否を要求する。login helperは実 `/team-records` GETの200・tenant match証跡・完了と画面の読み込み完了を待つ。遅延テストはその後 `/games` のsession GETを保持してpending中の開始封鎖を確認し、実GET 200後に `/games` のpositive封鎖表示を要求する。既存仕様どおり不確実性へ遷移した場合だけ、画面の「状態を再確認」を明示操作して別の実session GET 200とteam GET成功を確認し、最後に `/games` へ戻す。認証状態注入・自動資格情報再送・旧Cookie復旧・どの画面でも成功という条件緩和はない。失敗時の自動画面snapshotへ使い捨て認証主体を残さないよう、自分のbrowser pageを試験後に閉じる。
+
+この修正後の実host sealed-ui 合否は**主担当の再実行待ち**。内側sandboxのbind/Docker制約を成功値へ転記しない。固定 `real-game` は正式Port・1試合driver未接続のためSHA/ID文字列に関係なく失敗するまま。候補patch・人間欄・実CI・正式凍結資産・scope追補文書は変更しない。6〜7コードPR査読は引き続き**0回**で、この同ステップ検査是正は回数消費に数えない。
+
+内側での是正後検査は関連Vitest **2ファイル53件成功**、`vue-tsc --noEmit`、全ESLint/Prettier、dependency-cruiser **126 modules/257 dependencies**、`pnpm run build` のclosure conforming、root Ruff、Python helperの明示ty・compile、`git diff --check`、sealed/real各projectの`--list`に成功。非loopback OriginのPython driver入力はDocker起動前に拒否されることを確認した。候補patch SHA-256 `4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fc` と未回答追補SHA-256 `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59` は保持した。
+
+### ステップ7候補の主担当host2/host3検査への同ステップ是正
+
+主担当ホストの `/tmp/uf8-entry-real-e2e-host2.log` は変更途中のsourceでsealed-ui **3成功・2失敗、36.9秒**。匿名 `/games` の初回表示が空のまま5秒経過した失敗と、ログイン補助の `/team` 待機失敗だった。最終sourceでの `/tmp/uf8-entry-real-e2e-host3.log` も **3成功・2失敗、30.5秒**。正常route、未知/不正ID・複数タブ・認証通信失敗、tenant変更の3件が成功し、匿名/失効と遅延の2件は共にログイン補助の `/team` 5秒待機で失敗した。先に作成したteam一覧GETの待機が失敗後に未処理rejectionを出していた。これらのログにはPOST loginや相関session GETの成否がなく、初期Vite compile/並行host負荷と認証相関のどちらが原因か断定できない。並行root pytest 8 workerのCPU使用は事実だが、timeoutだけを伸ばす根拠にはしない。実logout 200と旧Cookie再提示後401は未測定。
+
+是正したログイン補助は、実LoginScreenの初回 `ensureSessionVerified()` が終わった `form[aria-busy=false]` と入力可能状態を確認してから1回だけ明示loginを押す。実POST `/api/auth/login` 200と自分のfixture tenant、続く実GET `/api/auth/session` の応答とtenantを先に確認し、team画面又は製品の正確な認証不確実表示を待つ。不確実表示かつ再確認ボタンが利用可能なときだけ、資格情報の自動再送なしでUI上の「状態を再確認」を押し、別の実session GET 200・tenant一致を要求する。最終team一覧GET 200・tenant照合・読取完了、画面読み込み完了、Secure/HttpOnly Cookieとsecure contextをすべて要求する。失敗時は段階、method、IDを伏せqueryを除いたpathname、status、経過ms、固定UI状態だけを出し、資格情報・Cookie・nonce・本文・header値を出さない。匿名初回表示も同じ安全な通信観測を使う。team一覧等の全先行待機は終了時rejectionを捕捉する。遅延testの保留GETと明示再確認GETはtenant一致を追加確認し、5件のシナリオと成功条件は維持した。`App.vue`・auth製品・backend製品の変更はない。
+
+この補完後に内側で実測したのは関連Vitest **2ファイル53件成功**、`pnpm exec vue-tsc --noEmit`、frontend全ESLint/Prettier、dependency-cruiser **126 modules/257 dependencies**、`pnpm run build` とclosure conforming、root Ruff、`git diff --check`、封鎖projectの `pnpm run test:browser --list` **5件**。内側ではDocker/socketとbindに制約があるため実Auth HTTP・own DB・browser 5件を再実行しておらず、修正後のhost合否は主担当の再測定待ち。host実測値は3/5のまま、logout 200/旧Cookie 401、正式ゲームPort、1試合完遂はいずれも未達。候補patch SHA-256 `4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fc` と未回答scope追補SHA-256 `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59` は不変。実CI・正式資産・人間受理欄は未変更、6〜7コードPR査読は**0回**。次ステップ、commit、push、外部連絡は行わず、この同ステップ候補是正で停止する。
+
+
+### 2026-10-21 ステップ7候補の保全・結合レビュー準備
+
+- Python import/outer ADMIN DSNの起動不備を是正し、実HTTPS画面・実Auth HTTP・専用outer/inner PostgreSQL起動を主担当hostで実測。既存autouse・製品create_app・実認証を維持し、仮Port/計算/HTTP codec/ACK/キューを追加していない。
+- 初回bootstrap試行は5件中3成功/2失敗（logoutのCSRF提示と遅延時認証確認）。必須X-Pitchlog-Requestと自分のHTTPS Originだけの許可、初回確認とPOST/GET/tenant一致・一覧完了、必要時の明示再確認を試験側で是正。製品auth/App/既存チェック器は未変更。
+- 変更途上host2/host4はsource変更と重なったので最終検査証跡にはしない。host4はhash照合でもE2E試験ファイル変更を検出した。host3は3成功/2失敗。変更終了後のhost5はsource4ファイルSHA不変で1成功/4失敗。最終ソースの全成功とは記録しない。
+- 安全な一時probeでChromiumが配信中にnet::ERR_NETWORK_CHANGEDを返すことを確認（method/path/固定networkエラーのみ、資格情報・Cookie・nonce・応答本文を出力しない）。並行する自分専用の全件DB検査のコンテナ生成/撤去との関係を切り分け、同検査完了後に実ブラウザを直列実行する。retry丸め・timeout拡張・network検知無効化・skipは行わない。DB全件検査とブラウザ全成功はそれぞれ結果回収待ち。
+- real-game projectはdummy SHA/IDを与えても未接続driverの明示失敗となった（実行1件/失敗1件）。これは期待どおりの未達検出で、実1試合成功には数えない。
+- 関連Vitest53件、型・全ESLint/Prettier・dependency-cruiser・build・root Ruff・明示Python ty/compileは成功。候補patch SHA4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fcと追補提案SHA899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59は不変。実CI/正式資産の差分は0、新しい受理・署名欄は空。App.vueと追加6資産の追補は未承認のまま。
+- 本コミットは7の候補保全であり、7.7正式受理・ステップ7完了ではない。6〜7を同じPR/同じ既定レビュー枠で提出する準備を続ける。既承認原本935bac90、査読3回13件全採用/最終P0限定/最終反映未再査読、親PR群の既存回数を保持する。
+
+### 2026-10-21 ステップ7候補 Claude 一次指摘の同ステップ是正
+
+Claude の通常一次レビューは P0=0 / P1=3 / P2=8。主担当が全件採用を決定し、この専用 WT は P1-1、P1-2、P2-1〜5、P2-7 と主担当自己指摘の teardown 異常終了を担当した。P1-3、P2-6、P2-8、tenant DOM 契約試験は Entry WT のステップ6担当で、当 WT の製品 UI・App・router・認証製品には触れていない。これは一次レビューへの修正であり、6〜7敵対コード PR レビューは依然0回。旧計画査読3回13件採用・最終 P0 限定・最終反映未再査読と親 PR の枠を流用しない。
+
+- P1-1: 常設 `GameScreenCandidate.spec.ts` は候補内の固定前後 SHA、対象集合、旧履歴 prefix、新人間欄空、patch と snapshot の整合だけを検査する。可変の実 CI・正式資産・manifest・新 snapshot 不在には依存しない。現在の実入力との鮮度、Git blob 出所、patch 実適用は明示 `generate.py --check`へ分離した。
+- P1-2 / P2-4: 全非secret・非legacy tracked file 2,277件を走査し、資産 path と固定 digest の逆参照先を metadata に保存。CI が動かす8資産に加え、生成済み `runtime_contract.py`、`repository_contract.py`、`tenant_context_contract.py`の3本を発見した。実モジュールは0差分で、候補 `before/`・`after/`に各完全 bytes と patch を追加。source_digest は既存 `runtime_contract_state.asset_digest`を用い、runtime の全描画は同 `render_runtime_contract`、他2本は前 bytes の revision・canonical digest だけを置換した。隔離 Git archive への patch 適用後、既存の3つの生成整合試験ファイルは **83件成功**。旧 `b303eae2` は Git の前候補保全値。base `7c1afebab31facc71e8cfc2731da1a9fa392de4e` と checkout HEAD `b303eae226881942804f611e1a8ef820bc0a2c6d`を Git から取得し、影響9資産・CI・manifest・3生成モジュール・全外部凍結対象・corpus入力・旧179 snapshot の前 bytes が両 blob と一致することを生成時に証明した。dirty 入力は拒否し、清潔な一時 staging で再生成して旧 snapshot の混入を防ぐ。
+- P2-3 / P2-7: CI 候補の必須 frontend job filter に保守的な `backend/**`、job 上限40分、既存 backend の locked 依存同期、Python 補助と生成器の明示 Ruff/ty を加えた。実 CI は0差分。CI 候補の `pnpm run test:browser`は固定 `sealed-ui` 5件であり、real-game 1件・全 project は正式 driver 未提供で明示失敗のまま。
+- P2-1 / 主担当自己指摘: Python SIGTERM を KeyboardInterrupt へ変換し、既存 pytest autouse/fixture・outer/inner 専用クラスタの終了処理を通す。Node teardown は停止通知後の自然終了を最大90秒待ち、必要時に自分の子だけ SIGTERM、さらに最大90秒で終了値を回収し、**code 0 / signalなしだけ成功**。非0・signal・期限超過と製品 App thread 停止超過は失敗にする。自分の Node child の0/7/SIGTERM、同一 run の出力0700・所有 marker0600・削除の契約試験を追加。fixture teardown を緑へ変換しない。
+- P2-2: config・worker の出力は所有 marker と PID を持つ一つの自前0700 tmp 親領域を共有し、自分の終端でだけ削除する。Playwright が出力子ディレクトリを消しても親の marker は残る。Playwright 1.61 の `PLAYWRIGHT_NO_COPY_PROMPT`で失敗時DOMコピーを抑え、last-run reporter は `/dev/null`に向けて teardown 後の出力先再作成を防ぐ。既存 afterEach page close、trace/video/screenshot off と assertion は保持。runtime 資格情報・TLS 鍵は0700/0600の自前領域に置き、console・reportへ値を出さない。修正前の試行由来の一時ディレクトリは他プロセス由来との区別なく一括削除せず、最終修正の `--list` 前後で同 prefix 件数 **37→37**、新規残置なしを実測した。
+- P2-5: inner 専用製品 DB の既存 migration 表に、既存 `_seed_identity` から得た tenant ごとの異なる対戦相手 record を作る。実ログイン/GET後のteam一覧に旧名が存在し、新 session・新 tenant の一覧で新名が可視かつ旧名が無いことを Boolean として確認し、最後に /games の開始封鎖を検査する。実ゲーム draft 破棄・開始成功を主張しない。遅延時の手動再確認は既存 auth-login-session-correlation 計画と LoginScreen/auth.ts の不確実応答契約に基づき、資格情報を自動再送せず、実 session GET 200・tenant 一致、team一覧GET成功後に /games の封鎖表示へ戻す。
+
+候補新 patch SHA-256 は `b39c5a6970b2fb8411b3ae0296cc17833d5d262090408a83fc56e2b1ce2ededf`（旧 `4d0f254c91d124a553a3416cdf95c1a6cd994eb81ce67b0b80d26319f37953fc`）。CI 前後 SHA は `f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8` → `1a2082bc3abfcb9f3396abbb282762c0e2203b1f9621d9621a9dd4fb3d5d154d`。corpus 入力 digest は `b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce` → `1356037ce602f4004007b8cfd4177a4bbd809d9ecf0d3f7df0885304fdd7177f`。旧23履歴・179 snapshot・旧署名は prefix として保持、新しい履歴1件・snapshot9件は未受理。13前後ファイルの完全 SHA と bytes、全外部 hash・識別子・射影、全新 snapshot は候補 metadata/ディレクトリにある。正式7.7受理検査は人間欄が空のため未達であり、新人間欄・PR番号・受理SHAは記入していない。旧追補 `step7-scope-extension.md` SHA `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59` は不完全・未承認のまま不変で、追加9対象の新しい人間判断は主担当が別途提示する。
+
+この source の内側実測は関連 Vitest **20ファイル342件成功**、`vue-tsc --noEmit`、全 ESLint/Prettier、dependency-cruiser **127 modules / 260 dependencies**、build closure **9ファイル/外部0/違反0**、root Ruff、Python 2ファイルの明示 Ruff/ty/compile、Playwright `--list` **sealed 5・real 1**、`generate.py --check`の隔離 patch 適用・after全 bytes・新9 snapshot一致、隔離適用後の backend 生成整合 **83件成功**。正式基線の実CI・実contracts・manifest・backend製品、App.vue、既承認計画、旧追補は0差分。候補patchは統一diff自身に空のcontext行 `" "`を持つため、外側の `git diff --check` がその入れ子行だけを trailing whitespace と誤検出する。patchを除いた差分checkと隔離 `git apply --check`・実適用・全after一致を併用する。
+
+最終安定 source に対する主担当 host5 は封鎖 **1/5**。並行 Docker 操作下の Chromium `net::ERR_NETWORK_CHANGED` は安全probeで確認済みで、今回の修正後に host 実ブラウザ5件は未再測定。主担当がDB全件終了後に直列実行する。logout 200→旧Cookie401の最終測定、実ゲーム Port/1試合完遂、GAP-05、原子性、正式7.7受理はいずれも未達。retry・timeout拡張・skip・仮Portは加えていない。commit/push/次ステップ/外部連絡なしで候補是正に停止する。
+
+### 2026-10-21 ステップ7候補の保全commit後 self-check 是正
+
+直前の normal7 成果は主担当が `51758c411b10022e1a08f9a73248772bcd61b010` として保全した。直後の主担当 `generate.py --check` は、正式入力13ファイルが不変なのに `AssertionError: 候補の鮮度が失われた: metadata.json` で失敗した（`/tmp/uf8-candidate-postcommit-check.log`）。原因は旧metadataの生成時HEAD `b303eae2` を毎実行の現在HEADで上書きする自己参照と、古いローカル `develop=7c1afebab` を基準にした記録である。この失敗を候補の正式入力変化や受理済みへ読み替えない。
+
+是正後の生成出所は、実 `origin/develop=9136c2dad916313c28698f49f8668f3edbe36b4a`、そのrefと生成時HEADのmerge-base `97e6eeec869cd2f4a0cef0a448821db02bea330b`、生成時HEAD `51758c411b10022e1a08f9a73248772bcd61b010`。生成器内容SHAもmetadataに固定する。影響13前後ファイルを含む339正式入力（全外部凍結対象、corpus tree、旧179snapshotを含む）の現在bytesを現在HEAD・公表済みorigin・記録済み生成時HEADのblobへ照合し、dirtyや公表値差異は拒否する。後続commit/mergeで現在HEADのみが変わる場合は記録済み生成時HEADを保持する。逆依存は現在の全非secret・非legacy tracked fileを毎回走査し、実装コードの資産path/固定digest/生成モジュール閉包を記録と比較する。走査件数・文書参照の情報値は生成時記録として保持する。実HEADを旧 `b303eae2` に差し替える隔離関数検査で候補全bytesとpatch適用が一致し、情報用件数+1/文書参照だけの変化は一致、実装コードpath参照追加は明示失敗した。自分でcommitは作っていない。主担当の実commit後とEntry merge後の再 `--check` は未実測。
+
+CI候補frontend filterへ既存 `backend/**` を保持し、明示Python対象 `docs/features/uf8-full-game-followup/step7-candidate/generate.py`、root `pyproject.toml`/`uv.lock`/`mise.toml`、CI設定pathを追加した。実CIは0差分。統一patchの空context行だけを通常空行へ正規化し、特別flagのない `git apply --check`・実適用、全13 after bytes・新9 snapshot SHA比較、通常 `git diff --check` を通す。旧patch `b39c5a6970b2fb8411b3ae0296cc17833d5d262090408a83fc56e2b1ce2ededf` → 新patch `ad6642d2dd4cdaa37e1e0aeb92f42efadb506a40208e22b9b224911cb877a118`。CI前後SHAは `f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8` → `9bafa8ae1cb7b22b2b47301f2ffb8a5b2a7aeebad3f2f4d5faa5dd937dc2bd65`、corpus入力digestは `b3accebe79a37392e96be2053fbd83b4b4471e204d4aee67d20094b9525e03ce` → `7279ca0247dd41e2b294151daac4361a1ae2a9b8ec364248495748a04bc7977c`。旧23履歴・179snapshotのprefix、新未受理1履歴・9snapshot、生成3moduleの完全before/after bytesを再生成し、人間欄は空。
+
+別件の主担当実測として、自分専用DBのbackend全件は **3039成功・4既存skip・2893.70秒・終了値0**。Docker churn終了後のEntry `182ec62c`（旧7支援+新6）では実HTTPS/Auth HTTP/専用DB sealed-ui **5/5成功・26.6秒**で、6 source SHAの前後不変を確認した（`/tmp/uf8-entry-quiescent-e2e.log`）。現 `51758c41` の7支援・tenant実値・非0終了値回収に対する主担当host再測定はまだなく、前の5/5を現候補の成功として記録しない。real-game未提供1件は明示不合格のまま。正式7.7受理・実CI/資産適用・人間署名・1試合完遂は未達。旧scope提案SHA `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59`、計画原本 `935...`、既存レビュー回数を保持し、6〜7敵対レビューは0回。今回も同ステップのprimary自己検査是正で、commit/push/次ステップ/人間承認/外部連絡は行っていない。
+
+是正後の内側検査では、`generate.py`と`--check`の連続実行で全候補bytes同一。通常`git apply --check`・実適用後の13 after bytesと9 snapshot SHA一致。隔離Git archiveに適用したbackend生成整合3試験ファイル **83件成功**、既存snapshot archiveは前179/後188・孤児33件不変、既存corpus入力検査も候補digest `7279ca02…` で成功した。常設候補Vitest **1ファイル4件成功**、frontend型/全ESLint/対象Prettier、生成器の明示Ruff/ty/compile、通常`git diff --check`も成功。生成器以外のE2E支援/runtime sourceはこの是正で編集しておらず、実ブラウザは主担当host未再測定。
+
+### 2026-10-21 入口/検査経路の独立検証継続
+
+- #160 の人間操作によるdevelop統合9136c2daを確認。#164はdevelopへ付け替え、比較用HEAD第1親の旧base残留を検査が拒否したため、検査器を維持し通常merge/pushした（fb12a9a1）。当担当はマージ/本人確認を代行していない。
+- root全件検査とbackend静的検査を開始。backendの通常pytestは既存PITCHLOG_TEST_* DSNの継承があると判明して中断（28 passedでKeyboardInterrupt、全件成功ではない）。既存DSN値を出力せず、自分専用outerクラスタを生成し継承PITCHLOG_*を除いた実行へ切り替えた。既存autouseの実認証と各試験の専用innerクラスタを維持し、共有DB/ロールを使う前提を追加しない。再実行の結果は完了後に別記する。
+- 544担当の最新提供状況をsupply-mapへ追記。J5/J6文書確定の報告と、正式型/Port/製品計算の提供・当担当受理を区別する。T5/T6等の未提供は継続。7の追加6資産とApp.vueの具体追補は未承認のままで、独立作業のみ進める。
+
+### ステップ6 Claude通常一次指摘の採用分是正（2026-10-21）
+
+固定base `2fc46...`・HEAD `39fadbba` の通常一次レビューは P0=0/P1=3/P2=8。今回採用したのは P1-3、P2-6、P2-8、P2-5の表示・契約試験側だけである。敵対6〜7枠は0回のまま。計画査読3回・13件採用・最終P0限定/未再査読、親PR枠とその履歴を変更しない。P1-1/P1-2、ステップ7支援・生成器・候補に関する残りの指摘は、このステップ6是正に混ぜず次の別callへ残した。
+
+- P1-3: 表示供給`EntryEnvironment`に`online/offline/unknown`を加え、オフラインと未取得では開始・再開できない理由を一覧・記録入口に明示した。「中断中」は既存試合の状態として別表示する。`navigator.onLine`から意味を推定せず、供給型の欠落・破損、非ready、他tenant、旧認証世代、別経路、古いrequest keyをオンラインへ昇格させない。前提1/5/6の単独・複合不足とpersist拒否の組合せをDOMで確認した。persistのみ拒否の警告とサイトストレージ不可を分け、未知前提を成立にしない。未送信キューの保持文言・件数は表示供給の候補であり、実Web Locks/IDBや再起動を通した耐久証拠ではない。
+- P2-6: 不正試合IDと明示的な記録権非保持、または詳細供給の拒否時には`GameScreen`入力フォームを出さない。非保持と未取得を区別し、閲覧と未送信キュー保持の説明を残した。認証再検証中もフォームを外し、再認証後に旧球速が戻らない。詳細未取得・未知権利での入力欄は従来どおり未保存の局所下書きに限り、確定ゲートは維持する。正式な記録権取得・型判断は未提供のまま。
+- P2-8: ページ要求中は「確認中」、現在の要求に一致する失敗/拒否は別文言と明示再試行・直前ページへの戻りを表示する。通知はローカル`page-request`だけで、HTTPや自動再送をしない。保持するのは現供給ページと要求キー・直前キー・待機フラグであり、過去ページのデータや全件集計は蓄積しない。tenant/認証世代/path変更でキーと選択を消し、旧scopeの供給を表示しない。
+- P2-5: 実球速入力を伴うroute/tenant/authEpoch切替・認証再検証での旧フォーム消去、選択とページ要求のscope切替、failed/deniedからの再試行と復帰、不正ID・非保持のフォーム不在をVitestで確認した。実tenantのAuth HTTP/E2Eはステップ7の別callと主担当の直列実ブラウザ検査へ残す。仮Game API/Portは登録していない。
+
+この差分は`GameScreenEntry*`と当worklogに限定し、`router*`は既存認証guardと安全な内部pathname制約を変更せず維持した。実測は`pnpm exec vitest run src/screens/GameScreen*.spec.ts src/router.spec.ts` **19ファイル398件成功**、最後の隔離試験ケース追加後の入口/router **2ファイル86件成功**、`pnpm exec vue-tsc --noEmit`、frontend全体の`pnpm exec eslint .`と`pnpm exec prettier --check .`、`git diff --check`成功。実ブラウザ375/320px・frontend全件・既定再レビューは今回未実測で、主担当の全件専用DB検査後の直列実行待ち。Chromiumの`ERR_NETWORK_CHANGED`観測を成功へ丸めず、timeout拡張/retry/network observer無効化はしていない。実ゲームPort/計算/通信/キューは未提供、実開始/再開/確定/保存/送信は全条件で封鎖し、隔離DOMの直接dispatchでもfetch/POST 0。`App.vue`追補未承認のため通常ヘッダー導線とログイン後のゲームroute復帰は未達。次ステップ、commit、push、外部連絡は行っていない。
+
+### 2026-10-21 全件DB終了後の実ブラウザ再測定
+
+- 継承PITCHLOG_*を除き自分専用outerクラスタ/被検査ロールを生成した全件backend pytestは、3,039 passed・既存4 skipped・既存warning1、2,893.70秒で終了値0。ログは主担当の `/tmp/uf8-entry-backend-isolated-pytest.log`。既存autouseと製品用inner専用クラスタを維持した。初回の28 passed/中断を全件成功へ読み替えない。backend製品コードは第1期と同一である。
+- コンテナ生成/撤去の並行検査が終了した後、入口修正済みHEAD182ec62cで `pnpm run test:browser` を再実行し、実HTTPS画面・実Auth HTTP・専用outer/inner DBで5 passed/26.6秒。実logout 200と旧Cookieによるsession 401、正規/不正ID、認証拒否/通信abort、遅延後の明示再確認、再読込・複数タブ、tenant切替後の封鎖を確認した。対象6sourceの実行前後SHAはすべて不変。timeout/retry/OSnetwork検知は変更していない。
+- 上記はnormal反映前のステップ7試験支援を使った中間HEADの検査。強化中のtenant実値廃棄、異常exit回収、出力秘密抑止を含む最終7の統合後にも再実測する。実ゲームPort/GAP-05/原子性/1試合完遂ではない。
+- #164のHEADfb12a9a1についてCI39449996692のfrontend/harness/越境/mutation等通常検査がすべて成功し、未実施の人間逐行確認を要求するcore-guardだけ失敗した。人間欄は代記せずDraft維持。最終CI資料はPRコメント6295751750へ追記した。
+
+### ステップ7 専用DBの対戦相手fixture最小是正（2026-10-21）
+
+source6 normal反映`182ec62c`、backend/ブラウザ結果記録`797ee73d`、normal7支援`51758c41`を保全したEntry WTのHEAD `1c2e2783`から、`GameScreenE2eSupport.py`の専用DB seedだけを是正した。主担当実hostログ`/tmp/uf8-stage7-normal-host-e2e.log`は強化後source 5 hash不変の封鎖E2E **4成功/1失敗・22.6秒**。失敗はtenant試験の最初の実team一覧に旧tenant名が見えないpositive assertであり、全件成功ではない。製品`_prepare_team_record_read`は`kind='opponent'`を束縛する一方、fixtureは`kind='self'`を挿入していた。既存APIの供給に合わせてSQL引数を`opponent`へ変更し、コメントと既存P2-5記録の「自チーム」を「対戦相手」に訂正した。候補READMEには該当する誤記がないことを確認した。
+
+両tenantで異なる識別名をseedする構造と、実GETで旧値が見え、新tenantで新値が見えて旧値が消えるE2Eのpositive assertは変更していない。製品API/UI・role/RLS、Game API/Port、計算、codec、キュー、生成器、候補、metadata、正式CI/資産は変更していない。明示`ruff check`、backend設定とtests検索パスを指定した`ty check`、Pythonの`compile`は成功。差分はfixtureと当worklogだけ。内側のDocker制約下では実host 5件を再測定せず、この修正後の結果は**未測定**で主担当の再実行待ち。計画査読3回13件採用・normal一次1回11件採用・敵対0回、親PR枠を保持し、commit/push/外部連絡/次ステップは行っていない。
+
+### ステップ7 実fixture初期読取の完了待ち是正（2026-10-21）
+
+Entry HEAD `3ea7d9e0`、core source `1194ab6e`（normal反映済）、対戦相手fixture `ec942578`を前提に、主担当の安全な記録を読んだ。`/tmp/uf8-entry-strengthened-e2e.log`はsource 5件の前後SHA不変で封鎖E2E **0成功/5失敗**。login helperは正当なteam画面に達したが、その直後に別の保護経路へ移る5ケースが失敗し、初回の旧Cookie再提示後session GETも発生しなかった。独立probe `/tmp/uf8-transport-probe/seeded-result.log`は実HTTPS App/Auth HTTP/専用DBで **1成功/11.2秒**、login POST200→session GET200→team一覧 GET200→players GET200→初期通信完了→games/session GET200→再読込/session GET200の順で成功した。`width-result.log`も **1成功/12.0秒**で、正規記録URLの実viewport/scroll幅375/375と320/320を測った。probeは本体5件の成功やゲーム完遂には数えない。
+
+製品`TeamScreen`は一覧の初期選択レコードIDで`/api/players`を自動取得する。旧login helperはteam一覧GET/DOMだけを待ち、追加された対戦相手fixtureの選手GET・Cookie更新を伴う読取が残り得た。`GameScreen.e2e.ts`だけで、最終session応答後に**発行された**team一覧GETを捕捉し、その応答200・tenant-match・本文読取から現在tenantの対戦相手IDを照合する。続く同IDの実players GET200・tenant-match・本文読取、選択中の対戦相手と空選手一覧のUI、初期通信のnetwork idleを全て確認してからhelperを返す。正確な認証不確実UIが明示された場合だけ手動再確認し、その最終sessionに対してteam/players要求の待機を張り直す。古い要求を最終成功に転用せず、資格情報の自動再送や認証state/Cookie強制変更をしない。登録した待機Promiseのrejectionを捕捉し、安全診断は固定UI/匿名化pathname/method/statusのみを維持する。
+
+初期保護GETの完了後に旧Cookieを捕え、実logout応答本文を読み切った200→旧Cookie再提示→実session401を必須とする既存ケースを保つ。正常/拒否/遅延/再読込/複数タブ/tenant旧値消失の5ケースとpositive assertは緩めていない。既存正常経路で実`document.documentElement.scrollWidth`と`window.innerWidth`を375px一覧・375px記録・320px記録で比較し、横溢れ0を要求する。これは実ゲームPort未提供の閲覧・封鎖画面の測定であり、試合完遂ではない。timeout伸長、sleep、retry、skip、network検知無効化はない。
+
+隔離実測は関連Vitest **20ファイル402件成功**、`vue-tsc --noEmit`、frontend全`eslint .`、対象Prettier、`git diff --check`成功。`pnpm run test:browser --list`は固定sealed-ui **5件**。内側Docker制約のため、変更後の実host5件は**未再測定**で主担当補完待ち。候補`generate.py --check`はこの差分で再生成せず、既報のcommit/merge後成功を今回の実測へ再計上しない。固定scope提案v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`と旧`899...`の文書、人間回答欄、候補generator/metadata/patch、製品・正式資産は不変。
+
+敵対基本第1回は固定base `2fc46ddc901079e4e2f71b91ae3319c2e1c10631`→HEAD `1194ab6e572e9798bacf1d63d779527d1a238876`で**確定P0=0/P1=0/P2=0**だが、実E2E成功未確認のため**通過判定保留**。今回の自己診断是正は新規レビュー・第2回・P0例外・可決に数えない。計画査読3回13件採用/最終P0限定/未再査読、親PR枠、normal一次1回11件全採用を維持する。変更は`GameScreen.e2e.ts`と当worklogだけで、commit/push/外部連絡/次ステップは行っていない。
+
+### ステップ7 E2E選択中選手欄の厳密照合是正（2026-10-21）
+
+HEAD `18930499`の主担当実host `/tmp/uf8-entry-final-browser.log` は、対象source 5件の前後SHA不変で封鎖E2E **0成功/5失敗**。全件がlogin helperの`team-and-players-initial-read`段階で失敗した。Auth POST、session GET、team GET、players GETはいずれも200、未完了APIは0、team画面は正常だった。安全な一時probe `/tmp/uf8-transport-probe/helper-result.log` は、当該選手欄の選択件数1に対して同名を部分一致で拾う見出し件数2とPlaywright strict mode失敗を確認した。`shape-result.log` は対戦相手1件の期待名・kind・ID、空の選手一覧と対応するteam ID、両応答のtenant一致と読取完了を確認した。実HTTPのpositive条件は緩めない。
+
+`GameScreen.e2e.ts`の選択中選手欄だけを、製品`TeamScreen.vue`の`#players-heading`の文字列をtrimした完全一致Booleanで確認するよう変更した。任意の先頭・番号指定の要素は使わず、失敗ログへ対戦相手名を出さない。実API200・tenant・読取完了・UI・通信idle、logoutの旧Cookie再提示、遅延/再確認、viewport幅、封鎖E2Eの5ケースは維持する。製品UI/API、実Game Port、計算、codec、キュー、候補bytesは変更していない。
+
+対象Prettier、対象ESLint、`vue-tsc --noEmit`、候補`generate.py --check`、`git diff --check`は成功。候補checkは必要な既存`PYTHONPATH=scripts:tests/fixtures/frozen-archive-cases:backend/src`を指定して実行し、再生成・公開はしていない。この修正後の実host5件は**未再測定**で、主担当の再実行待ち。敵対基本第1回の確定P0/P1/P2=0と通過判定保留、第2回未実施、計画査読3回13件採用、normal一次11件全採用、未承認scope v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`と旧899文書の不変更を保持する。変更は当E2Eとworklogのみ。commit/push/外部連絡/次ステップは行っていない。
+
+### 2026-10-21 最終入口/E2E検査と第2回敵対への提出
+
+- 敵対基本第1回は固定2fc46ddc..1194ab6eの60ファイル全差分を確認し、確定P0=0/P1=0/P2=0。ただし最終実ブラウザが未成功のため通過判定保留。新scope文書3ea7d9e0は固定対象外だった。レビュー者はテスト・DB接続を実行していない。親PR/計画枠を流用せず、6〜7基本1回を消費した。
+- 初期players読取の完了待ちを追加した18930499の実E2Eは0/5だった。安全な同一helper診断で、実HTTP/DTO/tenant/query/読取完了は正常、失敗原因は同名を含むheading2件のstrict modeと判明。意図したplayers-headingの文字列完全一致に限定する9893706dをコミットし、任意first/nth選択やassert削除をしていない。
+- 9893706dに対する実App・実Auth HTTP・HTTPS・専用outer/inner DBのsealed-uiは **5 passed/20.4秒**。logout200/旧Cookie401、正規/不正ID、認証拒否/通信abort、遅延/明示再確認、再読込・複数タブ、旧tenant実一覧値の消失/新値表示、実375/320pxのscrollWidth一致を確認した。5runtime sourceの実行前後SHAはすべて不変。backend pytest非0/timeoutを成功扱いにせず、秘密DOMsnapshotを抑止し自分の出力/資格情報を後始末する支援を使った。
+- 同一UI/候補/子process契約のfrontend全件は90ファイル **1,773 passed/92.00秒**。全Prettier/ESLint/vue-tsc/build成功、build closureは9ファイル/外部参照0/違反0。root Ruff/ty、docs-status/plan-docs-sync、候補generate --checkも成功。backend実装/既存fixtureは不変で、専用DB3039成功4既存skipと同一harness29678成功2skipの本セッション実測を再利用する。
+- 7.7受理用の候補説明をfeature内に用意し、完全前後値/patch/単一PRへの紐付けと未割当の正式適用SHA・本人欄を区別した。実CI・正式資産・backend製品の差分0、候補追補v2の承認とApp追補は未回答。P0例外や新レビュー枠、7.7受理・署名・GAP-05・原子性・1試合完遂を記録していない。次は基本第2回の差分と影響範囲のレビューである。
+
+### 2026-10-21 後続6〜7の独立Draft提出へクローズ
+
+敵対基本第2回は1194ab6e..固定b5dd4972の差分と影響箇所だけを査読し、確定P0=0/P1=0/P2=0、今回差分の技術査読を通過した。ログは主担当の/tmp/uf8-entry-adversarial2.log。レビュー者はテストや実DB接続を実行していない。6〜7の基本2枠を消費、P0限定例外は未発動で、追加レビュー/normal再実施はしていない。Claude一次11件全採用とprimary自己検査是正の履歴、計画3回13採用/最終P0限定/未再査読、親PRの回数は保持する。
+
+最終コードのsealed-uiは実App/Auth HTTP/HTTPS/自分専用outer・inner DBで5成功20.4秒。最終のreal-game負例もdummy SHA/IDを渡して実行1件・正式driver未接続による失敗1件となり、skipやゲーム完遂成功にはしていない。backend製品/既存fixturesは同一コードの専用DB3039成功4既存skip、本harness同一コード29678成功2skipを再利用し、90ファイル1773成功と全frontend静的検査/build・root Ruff/ty・文書/候補検査を揃えた。封鎖の意味を弱める変更や形式資産の適用はない。
+
+台帳への追記なし。今回是正したのは当該featureの候補生成とE2E初期化/秘密抑止/終了回収であり、既存harness・検査器の規範変更を要する欠陥は確認していない。Dockerに伴うホストnetwork-changeの証跡と直列実行の手順はfeature内に保存した。新しい評価項目として優先度を確定する横断知見とはしていない。
+
+計画statusをin-reviewへ変更し、6の封鎖付き入口と7のローカル検査/完全候補だけを部分提出する。7.7正式受理とCI適用、Appと追加9ファイルのscope判断、正式Port/計算/API・成績供給と対象計算同一変更の呼出部、GAP-05/原子性/実1試合、カード全体DoDは未達。本人逐行確認/担当受理/署名は代記せず、通常push/Draftのみを行う。公開・Draft解除・マージ・共有DB/ロール変更は行わない。クローズメタデータ以降の製品/試験/候補コードはb5dd4972から不変である。
+
 ### 2026-10-21 第1期統合後の停止UI再提出
 
 - 人間操作で #160 が merge `9136c2dad916313c28698f49f8668f3edbe36b4a` として develop へ統合されたことを確認。本人確認・署名・マージを代行したとは記録しない。
@@ -367,3 +541,28 @@ Claude一次P1二/P2六、敵対基本第1回P1一/P2一、基本第2回P1二を
 - 製品/試験5ファイルは旧HEADから不変。一次P1二/P2六、敵対1回目P1一/P2一、2回目P1二を全採用し基本2枠消費・追加なしを維持。表示実装b7bbf49dは不変、最終10c5efbbの候補fixture/記録だけのP1反映は独立未再査読のまま。今回のmerge/状態記録にも追加独立査読を実施していない。親f7dc0ad0/3d5ee5a2の歴史は保持するが、#169固有の本人確認へ親コードを足さない。
 - 統合後の全frontendは **87ファイル/1,724 passed/85.49秒**。全Prettier/ESLint/vue-tsc/build、closure9/外部0/違反0成功。root Ruff/ty/文書状態/計画同期/diff-check成功。実ブラウザ・全backend pytestを今回再実行したとは記録しない。
 - baseをdevelopへ先に確定し、固定HEAD/比較元/7対象/未再査読箇所をPRへ更新後に通常pushする。最終HEADの必須CIを自然完了まで回収し、CI取消・中断は事前許可なしに行わない。人間チェック/実施記録を代記せず、Draft解除/マージ/公開/共有DB適用なし。正式Port/計算/provider/成績の未提供と全実操作封鎖、GAP-05/原子性/全試合未達を維持し、全試合完成を封鎖付き表示UIの追加統合条件にしない。
+
+### 2026-10-21 #169人間統合後の#171追随開始
+
+#169実merge161ab6182577e8d4875406d5e48f42f9f2c2c130とorigin/developへの包含を確認し、旧HEAD786036e4/未コミット差分0から通常mergeした。worklog追記だけの競合を両側保持で解消。計画7節は#169統合済み・次#171へ追随し、ステップ7の基線/検査追随が必要なためactiveへ戻す。承認範囲・回数・採否を変えず、既存6〜7一次1回11件全採用・敵対基本2回/最終P0/P1/P2=0の履歴を保持する。
+
+旧step7候補はdevelop9136基線であり、#165以後の正式入力との差を再照合する。候補内の再生成・試験支援追随だけを進め、実CI/正式資産/backend製品は変更しない。scope-v2固定SHA253c06e8...と旧899文書、未承認App提案は書き換えず、必要な新候補は別提案へ提示する。scope承認と7.7実値受理は区別し、人間欄/署名/受理を代記しない。CI取消・中断は必ず事前許可を得る。今回の実測はこれから行い、旧成果を新基線の合格へ転記しない。
+
+### 2026-10-21 ステップ7候補の#169後基線追随（同ステップ、未受理）
+
+- 開始HEAD `1c3f000a8a76494df3410dde541487396a3d0370`、公表`origin/develop` `161ab6182577e8d4875406d5e48f42f9f2c2c130`。主担当はこのHEADでfrontend **90ファイル1793成功/87.26秒**、実App・実Auth HTTP・HTTPS・自分専用outer/inner DBのsealed-ui **5成功/21.0秒**を実測した。E2E/Support/EntryUI sourceは不変。今回の候補再生成後に自分が実ブラウザ・frontend全件を再測定したとは数えない。real-gameは正式Port/driver未提供で明示失敗のままであり、実開始/再開/確定/保存/送信/訂正、GAP-05・原子性・1試合完遂は未達。
+- 旧候補の`generate.py --check`は公表基線`9136...`との出所・正式入力鮮度不一致をexit1で検出した。既存生成器を**無変更**で実行し、現在の正式入力340パスのworking tree・HEAD・公表基線・生成時HEAD blob一致と実装コード逆依存閉包を検査して候補だけを再固定した。旧受理履歴23件/snapshot179件を現値とみなさず、#165等を含む既存履歴**24件**・snapshot**180件**を全値/署名・bytesごとprefix保持し、空のU-F8履歴1件・新snapshot9件を候補へ加えた。候補はCI・8資産・3生成モジュール・manifestの完全13前後ファイル、patch SHA-256 `5a012348e3a08b47513804f3a6740094182a025065dbb285c37fa0af12d8306b`。CI SHA-256 `f12d1277a8f5815d1c0f9367d34ecee08b5593b255b37ab098dcf88e550bcff8`→`9bafa8ae1cb7b22b2b47301f2ffb8a5b2a7aeebad3f2f4d5faa5dd937dc2bd65`、corpus入力digest `f50b17a2bb95e95828ced277c4288dd64a0be11a2e5132fdee691683a877634b`→`688d3ac99709b36bc09b9bd8c51711f001191d146fc8d12fc03a3bc66ca376d0`。全13 SHAは候補metadata/READMEと未承認v3/7.7説明へ固定した。
+- 常設`GameScreenCandidate.spec.ts`の旧23固定だけを現24へ追随し、24履歴それぞれの独立した固定SHAと全値prefix、after追加1件、空の人間欄を照合した。通常`git apply --check`成功。現HEADの自分専用隔離Git copyへpatchを実適用し、13 after bytes/各SHA、既存snapshot180件の全bytes保持、新9件の名前/内容SHA、履歴全値/受理欄空、既存archive検査（180→189、孤児33→33）と既存corpus入力検査に成功。隔離copyのbackend整合3ファイルは**今回84件成功/0失敗**。最初の隔離検証スクリプトはシステムPythonにpytestがなくimportで停止したため、既存backend venvで同じ検証を再実行して成功した。古い83件を今回値に転記していない。
+- 関連Vitest **2ファイル8件成功**、frontend全ESLint、全Prettier（対象試験1件を整形後）、`vue-tsc --noEmit`、root Ruff、生成器と既存Python支援の明示Ruff/ty、候補`--check`成功。同一入力で候補所有37ファイルを再生成して全SHA不変、再度`--check`成功。`git diff --check`成功。固定v2/旧提案のSHAはそれぞれ`253c06e8...`/`899abea1...`と一致し、entry-navigation-scopeとともに変更0、差分は許可範囲内。今回の全frontend/全backend/実ブラウザを自分で新規実施したとはしない。
+- 新`step7-scope-extension-v3.md`は追加6 JSON＋生成3 Pythonの同じ9正式パスについて**未承認の新基線提案**だけを示す。固定v2 SHA `253c06e8debb7e399d309a2dd6a0968b05325ecc983543bd7762663767efe63b`、旧提案 SHA `899abea1cdd8e7e3ea069a65c8b8ff79eaf0fdfe40ce2687ccf2559011200f59`、entry-navigation-scopeは変更しない。9パスのscope判断と7.7の正式実値受理は別ゲートで、人間の受理欄/署名は全て空。両判断待ちは独立した封鎖UI/ローカル候補提出の停止条件にしない。実CI・正式資産・backend製品の差分0。506/544/545やPort/計算/queueは変更しない。
+- 計画査読3回13件採用/最終P0限定/最終反映未再査読と各親PR履歴を保持。6〜7はClaude一次1回P1=3/P2=8の11件全採用、敵対基本第1回`1194...`対象P0/P1/P2=0（当時E2E保留）、第2回`b5dd...`対象P0/P1/P2=0（技術査読通過）で基本2枠消費、P0例外なし・追加枠未取得。**今回の候補/試験/文書差分は独立未再査読**であり、新規査読済み・可決とは記録しない。レビューコマンド、CI取消、commit/push/PR更新/外部連絡/人間確認・受理・署名/次ステップは行っていない。
+
+### 2026-10-21 #171現基線の独立提出へクローズ
+
+- ステップ7追随473671100ea927168c1fe5434f315dd7e7d8381aのコミット後も候補generate --checkが成功し、生成時HEADを現HEADで上書きする自照合の破綻はない。主担当が未承認v3の全13前後SHAをmetadataへ照合し、固定v2/旧899のSHA不変、人間欄空、24→25履歴/既存180snapshot保持、実CI/正式資産/backend製品差分0を確認した。既存生成器とE2E/Support/EntryUI/routerのソースは変更0。
+- 追随後の最終全frontendは **90ファイル1,793成功/102.15秒**。build成功、closure9/外部0/違反0。内側実行の全Prettier/ESLint/vue-tsc、root Ruffと明示Python Ruff/ty、関連8件・隔離候補backend84件の成功を保持し、主担当root ty/文書状態/計画同期/diff-checkも成功した。最終runtimeは1c3f000a時のsealed-ui5成功21秒のソースと完全同一で、候補再生成後の新規E2E実測とは呼ばない。real-gameは主担当がdummy SHA/IDで実行1件・未接続driverによる期待どおり失敗1件を再確認し、成功/skipへ計上しない。
+- backend製品/tests/configの全treeは#165の最終HEAD af2fcb9e2595abe101d0a0d5b3aee05ba7b84085と同一をgit diffで確認。その同一コードの既存CI39509331644/backend118926194441は3055成功4skip1warning/37分50秒で成功しており、依存の検査履歴として再利用する。旧9136基線の本セッション3039成功は現在のbackend全件値へ流用せず、今回自分がbackend全走を再実行したとも記録しない。今回の実Auth HTTP/専用DB5件は現コードの実測である。
+- 新scope-v3 SHA1002b6ca303948aed454ed0207b2bbcdabd9e466475657f86e1b6a6ae8730da7は同じ追加9正式パスの未承認提案。patch5a012348e3a08b47513804f3a6740094182a025065dbb285c37fa0af12d8306bと全前後値を#171単一候補へ結び付ける。scope判断・7.7実値受理・App追補は未回答の別判断、今回の封鎖UI/ローカル候補の統合条件へは増やさない。人間欄・適用後SHA・受理単位を代記せず、正式提供後の実HTTP/専用DB1試合とGAP-05/原子性は未達。
+- 6〜7の一次1回11件全採用・敵対基本2回/最終b5dd4972に対するP0/P1/P2=0、例外/追加枠なしを保持。47367110のCandidate.spec固定24履歴fingerprint・候補機械再生成・v3/7.7説明・本記録は独立未再査読として人間へ明示する。主担当の差分検査を独立査読や本人確認へ読み替えない。各親PRの未再査読歴も保持するが、統合済みの親コードを#171本人確認へ重ねない。
+- 台帳への追記なし。今回の是正は公表基線進行に対するfeature候補の再固定と受入済み履歴の厳密保持であり、既存harness/検査器の規範欠陥や優先度を確定する横断知見は検出していない。#167のCI取消・再実行の操作記録と、以後のCI取消は事前許可必須というユーザー指示は既存ログに保持する。
+- 計画をin-reviewへ戻し、#171をdevelop基点のステップ6封鎖入口/7ローカル候補だけの独立提出へ更新する。最終CIは通常push後に自然完了まで回収する。全体DoD/正式7.7/ステップ8〜9は未完。本人チェック/実施記録を代記せず、Draft解除/マージ/公開/共有DB適用/新規PRは行わない。
