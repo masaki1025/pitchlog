@@ -166,3 +166,12 @@
 - 比較元#165の受理履歴24件と前後値を維持する。runtime-authz射影だけ`061eeb9e…→f4fcc729…`、corpus入力digestは`f50b17a2…→b80afca5…`へ変わる候補。9資産・外部8ファイルの省略しない値は判断資料へ収録した。#161の24件目をそのまま連結しない。
 - ステップ4の未受理実ファイル差分11件は`replacement-77/step4-candidate.patch.gz`へ固定した。圧縮ファイルSHA-256は`3a276fbebc26d538d41821a4e1580ee204098c24b19738edbeec5a4f654c9a2b`、展開patch SHA-256は`24295dc5d0be6b0f16ddbf2d4eeef19b01d1cc1300ba5f151acb0a34526ac0ee`。現在の候補worktreeで展開patchの`git apply --reverse --check`が成功した。正式資産・受理履歴は新実値の人間受理まで未変更。
 - #172の公開HEAD`5bd6aa65`で移植実装・候補patch・7.7判断資料の公開を確認し、旧#161を**未マージ**のままクローズした。旧ブランチとローカル`cfed4347`を削除せず、旧7.7受理記録・承認/レビュー履歴も保持する。#172の本人逐行確認、Draft解除、マージは未実施。
+
+## 2026-10-21 #172最新develop追随と7.7再導出
+
+- 最新`origin/develop=fb719e368f6dbc8a178cba9d42af875553c1bc1f`は#164・#166を含む。未受理ステップ4の11ファイルを退避して`ed9aa966`で通常mergeし、退避内容を復元した。差分はU-F8のfrontend・文書15ファイルだけで、#172対象ファイルとの競合・意味変更はない。旧#161と一致する移植17ファイルを再度バイト照合した。
+- 新比較元の9資産・外部8ファイルの完全射影を`frozen_history._asset_projection_snapshots`と実ファイルSHAで再計算し、全17値が前候補と一致した。corpus入力digestも再計算して`b80afca5ca0249990661f0e02ffbe2bd6b53b82271d6204b471a84ddf816cef1`で不変。受理記録案SHA-256`50531a87072e66e0dfebdd6ec4d154c78c3b68ebba5ccd62b45dff629e9f5e9b`も不変。
+- 新候補入力tree`c2bfbdf7f96f1414c0fa9f5c1625f54bfbc64a36`と完全値を`replacement-77/decision-packet-fb719e36.json`へ固定した（SHA-256`77c18f343ed8a554852606be960b1ddbba2eca5b62b4d95266ea81e9d7becd80`）。前回packetと#165の既受理24件は証跡として保持し、正式履歴・snapshot・corpus manifestは未変更。
+- 旧公開HEAD`fffe298a`のCIではharness 3件、backend 51件が失敗した。両者は0033 migrationに対してステップ4の認可関数2件が正式資産へ未反映であることに起因する同じ不整合で、別々の製品欠陥として重複計上しない。core-guardは本人逐行確認チェック未記入による拒否。新merge後のCIは未実施。
+- 計画レビュー4回と旧#161の製品レビューは不変差分の証跡として保持する。置換・新履歴処理の限定独立レビューに使用できる未消費枠は確認できず、6.3に従う追加1回のPO裁定が必要。対象は新比較元への追随、#172新受理行の直列化と完全値、候補patchと旧#161同一性、#162引渡しの直接影響のみ。既済み全文レビューを反復しない。
+- 最新候補の限定検査: 文書検査333件、隔離DBの不変性・Alembic試験33件、旧CI失敗と対応するroot認可試験3件・backend認可試験2件が成功。9資産・外部8ファイルと既受理履歴24件の再計算照合も成功。正式受理後のroot/backend全件・凍結/corpus検査・新HEAD CIは未実施。
