@@ -1,4 +1,4 @@
-"""状況判定契約の由来記録を宣言済みの機械保証範囲で検証する。"""
+"""状態遷移契約(状況判定・終了判定)の由来記録を宣言済みの機械保証範囲で検証する。"""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import re
 import sys
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, Literal
 
 try:
     import check_input_axes_descriptor as descriptor_checker
@@ -19,6 +19,31 @@ except ModuleNotFoundError:  # pragma: no cover - packageとして読み込む�
 SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/state_transition_contract_schema_v1.json"
 )
+CONTRACT_SIZE_LIMIT_PATH = PurePosixPath(
+    "contracts/state-transition/contract_size_limit_v1.json"
+)
+# 由来記録を検査する契約の閉じた登録表(種別 → 契約パス・schemaパス・表示名)。
+# 契約の集合はcontract_size_limit_v1.jsonのcontractPathsと一致させる。
+CONTRACTS: dict[str, tuple[PurePosixPath, PurePosixPath, str]] = {
+    "state-transition": (
+        PurePosixPath("contracts/state-transition/state_transition_contract_v1.json"),
+        SCHEMA_PATH,
+        "状況判定契約",
+    ),
+    "game-end": (
+        PurePosixPath("contracts/state-transition/game_end_contract_v1.json"),
+        PurePosixPath("contracts/state-transition/game_end_contract_schema_v1.json"),
+        "終了判定契約",
+    ),
+}
+NOT_PERFORMED = "not-performed"
+# 独立確認が未実施であることを表す宣誓の閉じた形。
+NOT_PERFORMED_ATTESTATIONS: dict[str, object] = {
+    "direct-source-clause-review": False,
+    "author-work-exposure": NOT_PERFORMED,
+    "source-support-judgment": False,
+}
+ProvenanceStatus = Literal["not-performed", "verified"]
 
 
 class ProvenanceCheckError(ValueError):
@@ -60,13 +85,24 @@ def _exact_keys(value: Mapping[str, Any], expected: set[str], label: str) -> Non
         )
 
 
-def _load_schema(root: Path) -> dict[str, Any]:
-    """状況判定契約schemaを重複キー拒否付きで読み込む。"""
+def _registration(
+    contract_kind: str,
+) -> tuple[PurePosixPath, PurePosixPath, str]:
+    """登録表から契約種別の登録を返す。"""
+    registration = CONTRACTS.get(contract_kind)
+    if registration is None:
+        raise ProvenanceCheckError(f"登録表に無い契約種別: {contract_kind!r}")
+    return registration
+
+
+def _load_schema(root: Path, contract_kind: str = "state-transition") -> dict[str, Any]:
+    """契約種別のschemaを重複キー拒否付きで読み込む。"""
+    _, schema_path, label = _registration(contract_kind)
     try:
-        value = descriptor_checker.load_json(root / SCHEMA_PATH, "状況判定契約schema")
+        value = descriptor_checker.load_json(root / schema_path, f"{label}schema")
     except descriptor_checker.DescriptorCheckError as error:
         raise ProvenanceCheckError(str(error)) from error
-    return _object(value, "状況判定契約schema")
+    return _object(value, f"{label}schema")
 
 
 def _policy(schema: Mapping[str, Any]) -> dict[str, Any]:
@@ -286,28 +322,19 @@ def _response_is_accepted(response: object, accepted: list[object]) -> bool:
     )
 
 
-def validate_provenance(
+def _validated_policy(
     root: Path,
     provenance: Mapping[str, Any],
-    *,
-    schema_value: Mapping[str, Any] | None = None,
-) -> None:
-    """由来記録をschemaと宣言済みの機械保証範囲で検証する。
-
-    Args:
-        root: リポジトリルート。
-        provenance: 検証する契約単位の由来記録。
-        schema_value: テスト用の状況判定契約schema差し替え。
-
-    Raises:
-        ProvenanceCheckError: schema、典拠参照、記録上の独立性、または宣誓の
-            充足を宣言済みの範囲で確認できない場合。
-
-    Note:
-        実際の独立確認、宣誓の真実性、典拠による主張の支持、および公認
-        野球規則の条番号の実在・内容は人間統制であり、本関数は保証しない。
-    """
-    schema = _load_schema(root) if schema_value is None else dict(schema_value)
+    schema_value: Mapping[str, Any] | None,
+    contract_kind: str,
+) -> dict[str, Any]:
+    """schemaを読み、由来記録をschemaへ適合させて由来記録方針を返す。"""
+    _registration(contract_kind)
+    schema = (
+        _load_schema(root, contract_kind)
+        if schema_value is None
+        else dict(schema_value)
+    )
     policy = _policy(schema)
     definitions = _object(schema.get("$defs"), "schema.$defs")
     provenance_schema = _object(definitions.get("provenance"), "$defs.provenance")
@@ -317,15 +344,13 @@ def validate_provenance(
         )
     except descriptor_checker.DescriptorCheckError as error:
         raise ProvenanceCheckError(str(error)) from error
+    return policy
 
-    author_id = _string(provenance.get("authorId"), "provenance.authorId")
-    verifier_id = _string(
-        provenance.get("independentVerifierId"),
-        "provenance.independentVerifierId",
-    )
-    if author_id == verifier_id:
-        raise ProvenanceCheckError("作成者と独立確認者が記録上同一である")
 
+def _validate_sources_and_subject(
+    root: Path, provenance: Mapping[str, Any], policy: Mapping[str, Any]
+) -> None:
+    """典拠参照の実在と、対象種別を支える優先典拠の存在を検証する。"""
     source_kinds = _object(policy["sourceKinds"], "provenance.sourceKinds")
     actual_source_kinds: set[str] = set()
     for index, raw_source in enumerate(provenance["sources"]):
@@ -357,6 +382,46 @@ def validate_provenance(
         raise ProvenanceCheckError(
             f"対象種別を支える優先典拠が無い: subjectKind={subject_kind!r}"
         )
+
+
+def validate_provenance(
+    root: Path,
+    provenance: Mapping[str, Any],
+    *,
+    schema_value: Mapping[str, Any] | None = None,
+    contract_kind: str = "state-transition",
+) -> None:
+    """由来記録をschemaと宣言済みの機械保証範囲で検証する。
+
+    独立確認を実施済みとして主張する記録を検証する。未実施の記録は
+    宣誓が充足値でないため本関数では失敗する(3状態の判定は
+    ``classify_provenance``)。
+
+    Args:
+        root: リポジトリルート。
+        provenance: 検証する契約単位の由来記録。
+        schema_value: テスト用の契約schema差し替え。
+        contract_kind: 登録表の契約種別。既定は状況判定契約。
+
+    Raises:
+        ProvenanceCheckError: schema、典拠参照、記録上の独立性、または宣誓の
+            充足を宣言済みの範囲で確認できない場合。
+
+    Note:
+        実際の独立確認、宣誓の真実性、典拠による主張の支持、および公認
+        野球規則の条番号の実在・内容は人間統制であり、本関数は保証しない。
+    """
+    policy = _validated_policy(root, provenance, schema_value, contract_kind)
+
+    author_id = _string(provenance.get("authorId"), "provenance.authorId")
+    verifier_id = _string(
+        provenance.get("independentVerifierId"),
+        "provenance.independentVerifierId",
+    )
+    if author_id == verifier_id:
+        raise ProvenanceCheckError("作成者と独立確認者が記録上同一である")
+
+    _validate_sources_and_subject(root, provenance, policy)
 
     declared_attestations = _object(
         policy["attestationItems"], "provenance.attestationItems"
@@ -391,6 +456,14 @@ def validate_provenance(
             raise ProvenanceCheckError(
                 f"宣誓応答が充足値でない: {attestation_id!r}"
             )
+
+    # 未実施記録に対する既存の宣誓診断を保ち、実施済み主張の予約値偽装を拒否する。
+    reserved = _reserved_locations(provenance)
+    if reserved:
+        raise ProvenanceCheckError(
+            "実施済みの主張に予約値not-performedが使われている: "
+            + ", ".join(reserved)
+        )
 
     independent_review = _object(
         provenance.get("independentReview"),
@@ -429,19 +502,234 @@ def validate_provenance(
         )
 
 
+def _same_json(actual: object, expected: object) -> bool:
+    """JSON型を含めて2値が一致するかを返す。"""
+    return descriptor_checker.canonicalize_json(
+        actual
+    ) == descriptor_checker.canonicalize_json(expected)
+
+
+def _reserved_locations(provenance: Mapping[str, Any]) -> list[str]:
+    """予約値not-performedが現れる判定キーの位置を返す。
+
+    判定キーは閉じた4か所(authorId・independentVerifierId・
+    attestations[].response・independentReview.chronology[].actorId)。
+    """
+    locations: list[str] = []
+    for key in ("authorId", "independentVerifierId"):
+        if _same_json(provenance.get(key), NOT_PERFORMED):
+            locations.append(key)
+    for index, attestation in enumerate(provenance.get("attestations", [])):
+        if isinstance(attestation, dict) and _same_json(
+            attestation.get("response"), NOT_PERFORMED
+        ):
+            locations.append(f"attestations[{index}].response")
+    review = provenance.get("independentReview")
+    if isinstance(review, dict):
+        for index, event in enumerate(review.get("chronology", [])):
+            if isinstance(event, dict) and _same_json(
+                event.get("actorId"), NOT_PERFORMED
+            ):
+                locations.append(f"independentReview.chronology[{index}].actorId")
+    return locations
+
+
+def _require_not_performed_form(
+    provenance: Mapping[str, Any], policy: Mapping[str, Any]
+) -> None:
+    """予約値を含む記録が未実施の閉じた形と完全一致することを検証する。"""
+    declared = _object(policy["attestationItems"], "provenance.attestationItems")
+    if set(declared) != set(NOT_PERFORMED_ATTESTATIONS):
+        raise ProvenanceCheckError(
+            "未実施の閉じた形が宣誓項目の宣言とexact-set不一致"
+        )
+    mismatch = "予約値not-performedを含むが未実施の閉じた形と一致しない"
+    if not _same_json(provenance.get("independentVerifierId"), NOT_PERFORMED):
+        raise ProvenanceCheckError(f"{mismatch}: independentVerifierId")
+    if "independentReview" in provenance:
+        raise ProvenanceCheckError(f"{mismatch}: independentReviewがある")
+    recorded: dict[str, object] = {}
+    for index, raw_attestation in enumerate(provenance["attestations"]):
+        attestation = _object(raw_attestation, f"provenance.attestations[{index}]")
+        attestation_id = _string(
+            attestation.get("attestationId"),
+            f"provenance.attestations[{index}].attestationId",
+        )
+        if attestation_id in recorded:
+            raise ProvenanceCheckError(f"宣誓項目が重複している: {attestation_id!r}")
+        recorded[attestation_id] = attestation.get("response")
+    if set(recorded) != set(NOT_PERFORMED_ATTESTATIONS) or not all(
+        _same_json(recorded[attestation_id], expected)
+        for attestation_id, expected in NOT_PERFORMED_ATTESTATIONS.items()
+    ):
+        raise ProvenanceCheckError(f"{mismatch}: attestations")
+
+
+def classify_provenance(
+    root: Path,
+    provenance: Mapping[str, Any],
+    *,
+    schema_value: Mapping[str, Any] | None = None,
+    contract_kind: str = "state-transition",
+) -> ProvenanceStatus:
+    """由来記録を未実施・実施済みのいずれかに分類し、不正なら失敗する。
+
+    未実施の記録も、schema・典拠参照・対象種別・優先典拠は全件検証する。
+    免除するのは記録上の独立性・宣誓の充足・独立確認の経緯だけで、
+    予約値not-performedを含む記録は未実施の閉じた形と完全一致する場合に
+    限って未実施とする。
+
+    Args:
+        root: リポジトリルート。
+        provenance: 分類する契約単位の由来記録。
+        schema_value: テスト用の契約schema差し替え。
+        contract_kind: 登録表の契約種別。既定は状況判定契約。
+
+    Returns:
+        未実施の閉じた形なら ``"not-performed"``、実施済みの主張として全項目を
+        満たせば ``"verified"``。
+
+    Raises:
+        ProvenanceCheckError: schema・典拠・対象種別が不正、予約値の位置が
+            未実施の閉じた形と一致しない、または実施済みの主張が
+            ``validate_provenance`` を満たさない場合。
+    """
+    policy = _validated_policy(root, provenance, schema_value, contract_kind)
+    reserved = _reserved_locations(provenance)
+    if "authorId" in reserved:
+        raise ProvenanceCheckError("作成者IDに予約値not-performedが使われている")
+    if not reserved:
+        validate_provenance(
+            root,
+            provenance,
+            schema_value=schema_value,
+            contract_kind=contract_kind,
+        )
+        return "verified"
+    _require_not_performed_form(provenance, policy)
+    _validate_sources_and_subject(root, provenance, policy)
+    return "not-performed"
+
+
+def check_registry_closure(
+    root: Path,
+    registry: Mapping[str, tuple[PurePosixPath, PurePosixPath, str]] | None = None,
+) -> None:
+    """登録表の契約集合が契約一覧の宣言と一致することを検証する。
+
+    Args:
+        root: リポジトリルート。
+        registry: 検証する登録表。省略時は呼び出し時点の本モジュールの登録表。
+
+    Raises:
+        ProvenanceCheckError: 契約一覧に載る契約が登録表に無い、または
+            登録表に契約一覧に無い契約がある場合。
+    """
+    try:
+        declaration = _object(
+            descriptor_checker.load_json(
+                root / CONTRACT_SIZE_LIMIT_PATH, "契約サイズ上限"
+            ),
+            "契約サイズ上限",
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise ProvenanceCheckError(str(error)) from error
+    declared = set(_string_list(declaration.get("contractPaths"), "contractPaths"))
+    if registry is None:
+        registry = CONTRACTS
+    registered = {str(contract_path) for contract_path, _, _ in registry.values()}
+    if registered != declared:
+        raise ProvenanceCheckError(
+            "provenance登録表と契約一覧がexact-set不一致: "
+            f"unregistered={sorted(declared - registered)!r}; "
+            f"undeclared={sorted(registered - declared)!r}"
+        )
+
+
+def check_repository(root: Path) -> dict[str, ProvenanceStatus]:
+    """登録表のすべての契約について由来記録の状態を返す。
+
+    Args:
+        root: リポジトリルート。
+
+    Returns:
+        契約種別ごとの状態(未実施・実施済み)。
+
+    Raises:
+        ProvenanceCheckError: 登録表の閉包が崩れている、由来記録が無い
+            (未記載)、または由来記録が不正な場合。
+    """
+    check_registry_closure(root, CONTRACTS)
+    statuses: dict[str, ProvenanceStatus] = {}
+    for contract_kind, (contract_path, _, label) in CONTRACTS.items():
+        try:
+            contract = _object(
+                descriptor_checker.load_json(root / contract_path, label), label
+            )
+        except descriptor_checker.DescriptorCheckError as error:
+            raise ProvenanceCheckError(str(error)) from error
+        if "provenance" not in contract:
+            raise ProvenanceCheckError(f"{label}にprovenanceが無い: {contract_path}")
+        statuses[contract_kind] = classify_provenance(
+            root,
+            _object(contract["provenance"], f"{label}.provenance"),
+            contract_kind=contract_kind,
+        )
+    return statuses
+
+
+def contract_kind_for_path(root: Path, contract: Path) -> str:
+    """契約ファイルのパスを登録表に照らして契約種別を返す。
+
+    Args:
+        root: リポジトリルート。
+        contract: 契約ファイルのパス。
+
+    Returns:
+        登録表の契約種別。
+
+    Raises:
+        ProvenanceCheckError: 登録表に無いパスの場合。
+    """
+    resolved = contract.resolve()
+    for contract_kind, (contract_path, _, _) in CONTRACTS.items():
+        if resolved == (root / contract_path).resolve():
+            return contract_kind
+    raise ProvenanceCheckError(f"登録表に無い契約: {contract}")
+
+
 def main(argv: list[str] | None = None) -> int:
-    """指定した状況判定契約の由来記録を検証する。"""
+    """指定した契約、またはリポジトリの全契約の由来記録を検証する。
+
+    契約を指定した場合は実施済みの主張として検証する(未実施は失敗)。
+    ``--repository`` は登録表の全契約を3状態で判定し、未実施を列挙する。
+    """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("contract", type=Path, help="検証する状況判定契約JSON")
+    parser.add_argument(
+        "contract", type=Path, nargs="?", help="検証する登録済み契約JSON"
+    )
+    parser.add_argument(
+        "--repository",
+        action="store_true",
+        help="登録表の全契約を未記載・未実施・実施済みの3状態で判定する",
+    )
     args = parser.parse_args(argv)
+    if args.repository == (args.contract is not None):
+        parser.error("契約JSONか--repositoryのどちらか一方を指定する")
     root = Path(__file__).resolve().parents[1]
     try:
-        contract = _object(
-            descriptor_checker.load_json(args.contract, "状況判定契約"),
-            "状況判定契約",
-        )
-        provenance = _object(contract.get("provenance"), "provenance")
-        validate_provenance(root, provenance)
+        if args.repository:
+            statuses = check_repository(root)
+            for contract_kind, status in statuses.items():
+                print(f"provenance状態: {contract_kind}={status}")
+        else:
+            contract_kind = contract_kind_for_path(root, args.contract)
+            label = _registration(contract_kind)[2]
+            contract = _object(
+                descriptor_checker.load_json(args.contract, label), label
+            )
+            provenance = _object(contract.get("provenance"), "provenance")
+            validate_provenance(root, provenance, contract_kind=contract_kind)
     except (descriptor_checker.DescriptorCheckError, ProvenanceCheckError) as error:
         print(f"provenance検査失敗: {error}", file=sys.stderr)
         return 1
