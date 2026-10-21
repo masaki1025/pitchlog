@@ -265,7 +265,8 @@
         "backend/tests/test_rg1_*",
         "contracts/tenant_boundary/repository-contract.json",
         "contracts/tenant_boundary/base-allowlist.json",
-        "contracts/authz/product/function-bodies/*rg1*"
+        "contracts/authz/product/function-bodies/*rg1*",
+        "backend/src/pitchlog/recording_rights/initial_grant.py"
       ]
     },
     {
@@ -504,7 +505,8 @@
         "contracts/tenant_boundary/repository-contract.json",
         "contracts/tenant_boundary/base-allowlist.json",
         "scripts/check_authz_catalog.py",
-        "tests/test_check_authz_catalog.py"
+        "tests/test_check_authz_catalog.py",
+        "backend/src/pitchlog/recording_rights/initial_grant.py"
       ]
     },
     {
@@ -603,7 +605,8 @@
         "frontend/src/screens/LoginScreen*",
         "frontend/src/router*",
         "frontend/src/App*",
-        "backend/src/pitchlog/db/stage_a_startup.py"
+        "backend/src/pitchlog/db/stage_a_startup.py",
+        "backend/src/pitchlog/recording_rights/initial_grant.py"
       ]
     },
     {

@@ -494,8 +494,9 @@ UF13_TENANT_ROUTE_PATHS = (
     "frontend/src/App*",
 )
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
-    "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
+    "sync-protocol": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
+    "recording-rights": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
+    "tenant-isolation": ("backend/src/pitchlog/recording_rights/initial_grant.py",),
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -2260,17 +2261,15 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     assert used_revision == base_sha
 
 
-def test_stage_a_startup_declaration_keeps_json_baseline_stationary(tmp_path: Path) -> None:
-    """宣言コミットの時点では二領域とも既存JSONの据置きを許す。"""
+def test_stage_a_startup_is_rotated_after_registration(tmp_path: Path) -> None:
+    """登録済み起動入口は追加層から外れ、基線の据置きとして残る。"""
     core_guard = load_core_guard_module()
     root, base_sha = make_layered_core_repo(tmp_path)
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
 
-    assert core_guard.AREA_PATH_ADDITIONS["game-state"] == (
-        "backend/src/pitchlog/db/stage_a_startup.py",
-    )
+    assert "game-state" not in core_guard.AREA_PATH_ADDITIONS
     assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
-        "backend/src/pitchlog/db/stage_a_startup.py",
+        "backend/src/pitchlog/recording_rights/initial_grant.py",
     )
     core_guard.validate_area_path_layers(baseline, baseline)
 
@@ -2282,12 +2281,16 @@ def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = json.loads(json.dumps(baseline))
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
+    stage_a_declaration = {
+        "game-state": (startup,),
+        "tenant-isolation": (startup,),
+    }
     test_path = "backend/tests/test_rule_resolution.py"
     for area in candidate["areas"]:
         if area["id"] in ("game-state", "tenant-isolation"):
             area["paths"].append(startup)
 
-    core_guard.validate_area_path_layers(baseline, candidate)
+    core_guard.validate_area_path_layers(baseline, candidate, stage_a_declaration)
     assert all(
         core_guard.matched_paths(
             (startup,),
@@ -2304,14 +2307,14 @@ def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None
     next(area for area in one_area["areas"] if area["id"] == "game-state")[
         "paths"
     ].append(startup)
-    core_guard.validate_area_path_layers(baseline, one_area)
+    core_guard.validate_area_path_layers(baseline, one_area, stage_a_declaration)
 
     invalid = json.loads(json.dumps(candidate))
     next(area for area in invalid["areas"] if area["id"] == "tenant-isolation")[
         "paths"
     ].append("backend/src/pitchlog/db/unregistered.py")
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
-        core_guard.validate_area_path_layers(baseline, invalid)
+        core_guard.validate_area_path_layers(baseline, invalid, stage_a_declaration)
 
     rotated = json.loads(json.dumps(candidate))
     for area in rotated["areas"]:
@@ -2749,13 +2752,17 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
         assert_registered_block(paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
         assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
         assert_registered_block(paths, UR1_REGISTERED_PATHS[area_id])
-        assert paths == base_paths
+        assert paths == (*base_paths, *EXPECTED_AREA_PATH_ADDITIONS[area_id])
         for path, pattern in representatives:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
     for area_id in ("game-state", "tenant-isolation", "data-migration"):
         if area_id not in core_guard.AREA_PATH_ADDITIONS:
             assert current_areas[area_id]["paths"] == base_areas[area_id]["paths"]
+    assert tuple(current_areas["tenant-isolation"]["paths"]) == (
+        *tuple(base_areas["tenant-isolation"]["paths"]),
+        *EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"],
+    )
     # 宣言済み追加だけを許し、据え置き層の削除・未宣言追加を拒否する。
     core_guard.validate_area_path_layers(baseline, configuration)
 
@@ -2929,7 +2936,7 @@ def test_area_registration() -> None:
         current_paths = tuple(areas[area_id]["paths"])
         assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
         assert_registered_block(current_paths, UR1_REGISTERED_PATHS[area_id])
-        assert current_paths == base_paths
+        assert current_paths == (*base_paths, *EXPECTED_AREA_PATH_ADDITIONS[area_id])
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
@@ -2999,6 +3006,28 @@ def test_ur1_registered_paths_are_retained_after_declaration_rotation() -> None:
             area["paths"].remove(pattern)
             with pytest.raises(core_guard.GuardError, match=rf"{area_id}\.paths"):
                 core_guard.validate_area_path_layers(baseline, partial)
+
+
+def test_ur1_initial_grant_is_the_only_new_suffix() -> None:
+    """既存のUF13登録を保持し、初期付与1パスだけを各コア領域へ追加する。"""
+    core_guard = load_core_guard_module()
+    baseline = core_guard.load_core_areas_at_revision(
+        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    )
+    configuration = load_actual_core_areas()
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    for area_id, addition in EXPECTED_AREA_PATH_ADDITIONS.items():
+        base_area = next(area for area in baseline["areas"] if area["id"] == area_id)
+        current_area = next(
+            area for area in configuration["areas"] if area["id"] == area_id
+        )
+        assert tuple(current_area["paths"]) == (*base_area["paths"], *addition)
+    core_guard.validate_area_path_layers(baseline, configuration)
+    altered = json.loads(json.dumps(configuration))
+    target = next(area for area in altered["areas"] if area["id"] == "tenant-isolation")
+    target["paths"][-1] = "backend/src/pitchlog/recording_rights/other.py"
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, altered)
 
 
 def test_uf13_declaration_retains_json_and_checks_product_registration() -> None:
