@@ -1,8 +1,10 @@
 # TSK-564 / #153 統合残ゲート・受理・後続範囲（一枚）
 
-**照合基線**: develop `fb719e368f6dbc8a178cba9d42af875553c1bc1f`を既存枝へ通常merge=`2b83471ad14151c554f1407caaf25d261d30ec8f`（競合なし）。旧コード/候補固定点=`5a9e37bd263787106f08bb05224f01333e79ffc3`、今回一次是正=`e0eb936f`、署名対象T2 digest=`sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4`。本人確認者は本会話で**山田正輝**と指定（未実施）。条文/対象資産との対応と最終差分の提示方法は[本人確認依頼](human-review-request.md)、固定P-6入力/原典/提出先は[P-6パケット](p6-transfer/README.md)。新規PRなし、[既存Draft #153](https://github.com/masaki1025/pitchlog/pull/153)で継続。U-S1の担当整理とは別。
+**照合基線**: develop `e648fbe9abaad4c3fd94f1d02898db71996493df`を既存枝へ通常merge=`505e132fff523be2780713dfa0b923b26dfbf781`（競合なし）。旧コード/候補固定点=`5a9e37bd263787106f08bb05224f01333e79ffc3`、今回一次是正=`e0eb936f`、署名対象T2 digest=`sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4`。本人確認者は本会話で**山田正輝**と指定（未実施）。条文/対象資産との対応と最終差分の提示方法は[本人確認依頼](human-review-request.md)、固定P-6入力/原典/提出先は[P-6パケット](p6-transfer/README.md)。新規PRなし、[既存Draft #153](https://github.com/masaki1025/pitchlog/pull/153)で継続。U-S1の担当整理とは別。
 
 ## 今回の明示許可・一次レビュー結果・本人確認依頼（現況）
+
+**最新の統合指示**: 本人から「developを取り込み153をmergeまで」を受領。通常取り込みとマージ操作は今回の指示で許可された。e648fbe9を505e132fへ競合なく取り込んだ。直前CI run39613738082のtenant-boundary/frozen-baselines失敗はevent base.shaと進んだdevelop/test merge第一親の不一致だったため、新HEADで再実行する。正式T2/署名対象/候補は直前137bf57cから不変。署名の空欄を実施事実へ置換せず、署名照合の未解消を残したままマージしない。
 
 **本人回答の更新**: 本人から「確認した」「空欄でいいから作業を開始して」を受領。旧固定HEAD72e1c147への確認応答は受領済み、範囲/方法/実施日/限定再署名は空欄で保持する。既存[本人確認依頼の転記準備欄](human-review-request.md)に再計算digestと空欄の転記案を用意した。正式署名記録は未更新で、署名不一致は未解消。未回答情報や宣誓の推定補完、旧署名の転記、ゲートの緩和は行わない。
 
