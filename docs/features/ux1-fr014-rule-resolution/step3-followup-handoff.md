@@ -42,6 +42,30 @@
 - 受理直前に比較元、候補実ファイル、完全値、既受理履歴25/3/12件を照合。`1536f054`で#174の単一新記録、snapshot 11ファイル、corpus pinを反映した。反映後の履歴は26/4/13件。tenant 9資産・外部8ファイル、認可8入力・seal、corpus入力digest `f1c30f7a03d1d377b593df7857c5805364630f3984eef32c1ab1c409c90c5dc1`を実ファイルから再照合した。
 - v2のrevision 22→23と直接影響の追加独立レビュー1回はP0/P1/P2=0/0/0で是正なし。旧レビュー履歴・回数は維持する。正式反映後の`465d2023`（共通DB fixtureの0033追随、試験のrevision是正、認可派生参照、索引、ORMシート）と`f3bc293b`のREADME競合解消はこの限定レビューの対象外。
 - `origin/develop=1ab398cc`（#159）を通常mergeで取り込み、共有受理資産・履歴・snapshot・corpus・意味仕様に変更がないことを照合した。#174→#173の統合順は確定済みで、#173は#174の実統合後の履歴から再導出する。通知を受諾済みと記録しない。
-- root初回全件は29,904成功/6失敗/2 skip。認可派生digest3資産、docs索引、ORM生成シートの構造追随で5失敗の原因を是正した。ORMシートは旧判定を保持し、新規N3 3行・N7 1行だけ本人判定を空欄に残す。この判定完了検査は未通過であり、代記・検査除外はしない。
+- root初回全件は29,904成功/6失敗/2 skip。認可派生digest3資産、docs索引、ORM生成シートの構造追随で5失敗の原因を是正した。ORMシートは対象・典拠・内容で照合し、N3旧107行とN7旧100行の人間判定・理由を全件保持した。新規N3 3行・N7 1行だけ本人判定を空欄に残す。この判定完了検査は未通過であり、代記・検査除外はしない。
 - backend初回全件は共通fixtureの旧0032適用で中断。0033追随後の対象6件とmigration往復対象1件は通過した。次の全件はこのworktreeの`frontend/node_modules/typescript`不足による4失敗で中断し、lockfile固定導入後に4件が通過した。backend全件の再実行は進行中で、完走前に成功とは記録しない。
+- `feature_status.py`は#174の候補コード・受理値反映を含む無記法の実装コミットを検出し、`実装状況: 不明（確定ゲート3周）`と反映周集合の警告を表示する。別名planは既承認9ステップ表への参照であり、旧#152の実装ステップ・反映周コミットを#174へ移植した証跡ではない。実施前のステップ完了記録や検査除外で緑にしない。現状とコミット対応をPRへ明示し、必要な規約上の判断を分離する。
 - 公開resolver request/result型、製品固定operation登録、試合作成の同一scope保存接続は本PRでは未提供。U-G1へはDB関数・厳格codec・非公開S0〜S3だけを供給する。既存DB適用、S4公開、本人逐行確認、Draft解除、マージは未実施。
+
+新規ORM判定の対象はN3の「変更履歴v1.0にある不変」「§6-5の6-key不変snapshot」「§10-5の出所不明行を昇格させない」と、N7の「§10-5でロックをscope終了まで保持する」の4行。旧N3-061の番号を新行へ転記しない。判定完了検査を通すための本人回答待ちとして扱う。
+
+2026-10-23の全件検査では、正式受理候補内の整合不足を追加検出した。`repository-contract.json`のrevision 23は内部`source_digest`が旧`938a704d…`で、実内容の再計算値は`1a63da87…`。正本`data-model.md`の受理候補tree上SHAは`dda66a52…`で、`schema-manifest.json`の参照SHAは旧`ece05954…`。変更履歴表の余分な空行を除くと正本SHAは`c7547b2d…`になり、ORMシート生成もそれに追随する。これらを検査緩和で消さず、repository-contractとschema-manifestの正式資産差分・7.7値への影響を再導出して人間判断へ提示する。受理済みv2値・履歴は差し替えない。空行を削除した後発差分は候補treeの正本現物へ戻して保全した。
+
+内部digest・生成モジュールrevision 23・schema-manifest正本参照を候補是正すると、repository-contractとschema-manifestの限定試験は通過する。`repository-contract.source_digest`は凍結射影から除外されるためtenantのafter 9資産・外部8ファイルと全snapshotは旧受理値のまま一致し、認可8入力も一致する。一方、比較corpusはrepository-contract JSONの生ファイルを入力とするため、旧`f1c30f7a03d1d377b593df7857c5805364630f3984eef32c1ab1c409c90c5dc1`から新`8fa501a4c6f9b2736160f7c49b60630f23505ae9a71590004062b97c74c8a0a3`へ変わる。旧JSONだけを読み替える機械試験では旧digestが再現する。**v2のcorpus実値は不変ではない**ため、正式manifest pin・候補差分のpushはcorpusの7.7再受理まで保留。3記録案・受理履歴は変更せず、後発候補の独立レビューも未実施と区別する。
+
+候補の正確な追加差分は、`repository-contract.json`の`source_digest` `938a704d…→1a63da87…`、生成モジュールの同値と`CONTRACT_REVISION` `22→23`、`schema-manifest.json`の`canonical_source.sha256` `ece05954…→c7547b2d…`、data-model変更履歴の空行1件の除去である。前3者の対応限定試験3件と凍結不変検査は通過。corpusのpinは旧受理値のまま保持している。backend DB非依存の再全件は2,444成功・1失敗・4 skipで、残る失敗は#159で正本の(d)表に追加された「O5 の決定的な不変条件違反」行（22→23）を`OBSERVATION_KEYS`試験が未追随のもの。正本・試験とも実developと同一で、#174の担当ファイルとして無断変更しない。rootのORM新規4行本人判定も未了。
+
+後発候補の識別: v2完全値資料SHA-256 `1e3a495d07c3dd7d92cd2b3cffbe80fb6057ad75ded8e7a78bf05e921624ed70`は保全。repository-contract JSONのファイルSHA-256は`2f4134217c9d10bea0a43f24140afb2c4bb127bd50e2f3a0159ce5888c591d78→98db085a4f58f5bfde191bc31305eb0f7b0f12030fe5d1fbed48a6842dfc851c`。tenant・seed・oracleの記録案SHA-256は順に`757498421e9e2efe0d9ce7d382f1406ab2332bb4210227a8c3004410703b3dc5`、`025aa9a386c49258d8b4b87f8138ba8fd350deec7bdc536207f94890d633881e`、`fa6ef1fb6bcd63e946ea87bb99454a57a270bb2b8b8b1a0f1b1a916f89586f8f`で不変。履歴の既受理prefix25/3/12件と#174追記後26/4/13件も不変。追加レビューはv2限定1回を消費済みで、後発候補の独立再レビューは未実施。
+
+root全件は29,909成功・1失敗・2 skip（新規ORM4行の本人判定空欄）。その後、data-modelを受理候補treeへ戻した状態のORM限定15件は13成功・2失敗（判定空欄と、変更履歴表の空行による生成シート不一致）。backendのDB非依存全件は2,442成功・3失敗・4 skipで、失敗は上記digest2件と#159統合後の同期契約表23行／試験期待22行（当該2ファイルはdevelopと同一）。DBの対象5件とseed衛生対象1件は成功したが、DB全件の直列実行は80件/8分の時点で並列化方針の確認のため中断。共有`pitchlog_test_role`を使うためxdist並列は互いに衝突し、並列全件の結果は採用しない。再度のDB直列実行も21件時点で受理対象の不整合を発見して停止した。DB全件・最終HEAD CIは未完走。製品差分のpush、旧#152クローズ、本人確認、Draft解除、マージは未実施。
+
+
+## 2026-10-23 後発corpus限定受理と検査
+
+- 山田正輝が2026-10-23に、固定HEAD `a38387ccbaead5148d78458e7e97cfca09e6f5fd`、候補tree `8b6b247482926d565055be900bb9c4a20656f12e`、8ファイル差分SHA-256 `1cc3862a9d434d4b6fd4960c8f4462f0a851f19b541b18be186e8e21ea2e94ce`の後発corpus値 `f1c30f7a03d1d377b593df7857c5805364630f3984eef32c1ab1c409c90c5dc1` → `8fa501a4c6f9b2736160f7c49b60630f23505ae9a71590004062b97c74c8a0a3`を限定7.7正式受理。理由、承認根拠、前後値、受理単位を[作業ログ](../../worklog/2026-10-14-ux1-fr014-rule-resolution.md)へ追記した。既存tenant・seed・oracle履歴は書換・重複追記せず、比較corpus manifestのpinだけを実入力値へ追随した。
+- 実装担当と別のCodex（GPT-6.1-sol）が、上記8ファイル差分に対する今回許可の追加独立レビュー1回を実施。P0/P1/P2=0/0/0。9資産射影・外部8ファイル・17 snapshot・3記録案のv2不変と、corpusのみ新値への変化を照合した。今回のpin・ORM分類・受理記録の後発反映は、そのレビュー対象外として維持する。旧レビュー回数はリセットしない。
+- 同じ人間メッセージでORM新規4行の分類を受理。対象・典拠・内容で照合しN3 001/061/088を対象外/一致/対象外、N7 094を対象外とした。N3旧107行・N7旧100行の人間判定と理由は保持。分類判定をPR全体の本人逐行確認へ転用しない。対象ORMとcorpus試験44件、root全件29,910件（skip2）、root Ruff・ty、backend Ruff format/check・ty、tenant bypass、frozen-baselines不変検査は通過。
+- develop基線のO5観点欠落はU-S1の統合済みPR #132の[コメント](https://github.com/masaki1025/pitchlog/pull/132#issuecomment-6347779015)へ具体差分を送付した。送付と担当受諾は別で、現時点の受諾は未確認。正本23行と母集合の固有観点22件の不整合を、件数だけ変更して通さない。backend全件・最新HEAD CI、製品差分のpush、旧#152クローズ、本人逐行確認、Draft解除、マージ、既存DB適用はこの記録時点では未了。
+
+
+- backend全件は3,126成功・5失敗・4 skipで完走（37分19秒）。DB4失敗は0033の`prevent_games_applied_rules_update`と認可カタログを要求する往復試験が、ブランチ内の旧0032へ復帰していた直接原因を確認。該当4箇所だけ0033へ直し、4件の隔離DB限定再試験は全通過。残る1失敗`test_observation_keys_match_the_canon_table`はdevelopのO5表23行に対する母集合22観点の不足で、U-S1の返信・是正待ち。全件の初回5失敗を遡ってgreenと記録しない。今回の4試験追随と受理後pin・ORM分類・資料追記は後発8ファイル独立レビューの対象外であり、最終差分の本人確認対象へ含める。
