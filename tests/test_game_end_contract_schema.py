@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from collections.abc import Mapping
 from copy import deepcopy
@@ -391,6 +392,7 @@ def _minimal_contract() -> dict[str, Any]:
             "version": descriptor["version"],
             "digest": descriptor["digest"],
         },
+        "provenance": deepcopy(_repository_contract()["provenance"]),
         "decisionRows": [],
         "requiredSet": {},
         "cases": [],
@@ -457,6 +459,7 @@ def test_contract_has_d6_game_end_collections_and_descriptor_binding() -> None:
         "version",
         "calculation",
         "inputAxesDescriptor",
+        "provenance",
         "decisionRows",
         "requiredSet",
         "cases",
@@ -828,3 +831,1235 @@ def test_non_coverage_tiebreak_leaf_is_still_required() -> None:
         match="oneOfに一意に一致しない",
     ):
         _validate_rule_snapshot(snapshot)
+
+
+# --- 終了判定契約の由来記録(provenance)の検査器 ---------------------------------
+# 置き場は本ファイル(両コア領域に登録済み)。T1の試験ファイルは変更しない。
+
+PROVENANCE_CHECKER_PATH = REPOSITORY_ROOT / "scripts/check_provenance.py"
+STATE_TRANSITION_SCHEMA_PATH = (
+    REPOSITORY_ROOT
+    / "contracts/state-transition/state_transition_contract_schema_v1.json"
+)
+STATE_TRANSITION_CONTRACT_PATH = (
+    REPOSITORY_ROOT / "contracts/state-transition/state_transition_contract_v1.json"
+)
+GAME_END_SUBJECT_KIND = "normative-branch-or-state-effect"
+REPOSITORY_ARTIFACT_AUTHOR = _load_object(
+    REPOSITORY_ROOT / "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json"
+)["artifactAuthorId"]
+# 検査器が名前で import する依存を、未読み込みのときだけ同じ名前で読み込む。
+for _dependency_name, _dependency_path in (
+    ("check_input_axes_descriptor", DESCRIPTOR_CHECKER_PATH),
+    (
+        "check_vocabulary_manifest",
+        REPOSITORY_ROOT / "scripts/check_vocabulary_manifest.py",
+    ),
+):
+    if _dependency_name not in sys.modules:
+        _load_module(_dependency_name, _dependency_path)
+provenance_checker = _load_module(
+    "game_end_provenance_checker", PROVENANCE_CHECKER_PATH
+)
+
+
+DEFINITION_REFERENCE = re.compile(r"^#/\$defs/(?P<name>[^/]+)$")
+
+
+def _schema_references(value: object) -> list[str]:
+    """schemaの値に現れる ``$ref`` の値を、入れ子を再帰でたどって返す。"""
+    if isinstance(value, dict):
+        found = [value["$ref"]] if isinstance(value.get("$ref"), str) else []
+        for item in value.values():
+            found.extend(_schema_references(item))
+        return found
+    if isinstance(value, list):
+        return [reference for item in value for reference in _schema_references(item)]
+    return []
+
+
+def _provenance_definition_closure(schema: Mapping[str, Any]) -> dict[str, Any]:
+    """``$defs.provenance`` から ``$ref`` で到達する定義の閉包を返す。
+
+    Raises:
+        KeyError: 参照先の定義が無い場合。
+        ValueError: ``#/$defs/<名前>`` 以外の形の参照がある場合(閉包の外を
+            指しうるため照合できない)。
+    """
+    definitions = schema["$defs"]
+    closure: dict[str, Any] = {}
+    pending = ["provenance"]
+    while pending:
+        name = pending.pop()
+        if name in closure:
+            continue
+        closure[name] = definitions[name]
+        for reference in _schema_references(definitions[name]):
+            match = DEFINITION_REFERENCE.fullmatch(reference)
+            if match is None:
+                raise ValueError(f"閉包の外を指しうる参照: {reference}")
+            pending.append(match.group("name"))
+    return closure
+
+
+def _provenance_schema() -> dict[str, Any]:
+    """由来記録の器を持つ終了判定契約schemaの写しを返す。"""
+    return deepcopy(_schema())
+
+
+def _provenance_container_drift(
+    t1_schema: Mapping[str, Any], t2_schema: Mapping[str, Any]
+) -> list[str]:
+    """由来記録の器(閉包・policy・配置)のT1とのずれを列挙する。"""
+    drift: list[str] = []
+    t1_closure = _provenance_definition_closure(t1_schema)
+    try:
+        t2_closure = _provenance_definition_closure(t2_schema)
+    except (KeyError, ValueError) as error:
+        return [f"T2の閉包が解決できない: {error}"]
+    if t1_closure != t2_closure:
+        names = sorted(set(t1_closure) | set(t2_closure))
+        drift.extend(
+            f"$defs.{name}"
+            for name in names
+            if t1_closure.get(name) != t2_closure.get(name)
+        )
+    if t1_schema.get("x-pitchlog-provenance-policy") != t2_schema.get(
+        "x-pitchlog-provenance-policy"
+    ):
+        drift.append("x-pitchlog-provenance-policy")
+    if t2_schema.get("properties", {}).get("provenance") != {
+        "$ref": "#/$defs/provenance"
+    }:
+        drift.append("properties.provenance")
+    if "provenance" not in t2_schema.get("required", []):
+        drift.append("required.provenance")
+    return drift
+
+
+def _verified_provenance() -> dict[str, Any]:
+    """実施済みの主張として全項目を満たす合成の由来記録を返す。"""
+    return {
+        "subjectKind": GAME_END_SUBJECT_KIND,
+        "sources": [{"sourceKind": "requirements", "sourceId": "req:FR-005"}],
+        "authorId": "contract-author",
+        "independentVerifierId": "independent-verifier",
+        "independentReview": {
+            "verifiedOn": "2026-10-17",
+            "reviewerRole": "reviewer",
+            "authorWorkExposure": "not-seen-before-source-review",
+            "chronology": [
+                {
+                    "sequence": 1,
+                    "actorId": "independent-verifier",
+                    "activity": "典拠を確認した",
+                }
+            ],
+            "findings": ["典拠が対象を支持する"],
+        },
+        "attestations": [
+            {"attestationId": "direct-source-clause-review", "response": True},
+            {
+                "attestationId": "author-work-exposure",
+                "response": "not-seen-before-source-review",
+            },
+            {"attestationId": "source-support-judgment", "response": True},
+        ],
+    }
+
+
+def _not_performed_provenance() -> dict[str, Any]:
+    """未実施の閉じた形の合成の由来記録を返す。"""
+    provenance = _verified_provenance()
+    del provenance["independentReview"]
+    provenance["independentVerifierId"] = "not-performed"
+    provenance["attestations"] = [
+        {"attestationId": "source-support-judgment", "response": False},
+        {"attestationId": "direct-source-clause-review", "response": False},
+        {"attestationId": "author-work-exposure", "response": "not-performed"},
+    ]
+    return provenance
+
+
+def _classify_game_end(provenance: Mapping[str, Any]) -> str:
+    """合成schemaで終了判定契約の由来記録を分類する。"""
+    return provenance_checker.classify_provenance(
+        REPOSITORY_ROOT,
+        provenance,
+        schema_value=_provenance_schema(),
+        contract_kind="game-end",
+    )
+
+
+def _attestation(provenance: dict[str, Any], attestation_id: str) -> dict[str, Any]:
+    """宣誓項目を返す。"""
+    return next(
+        item
+        for item in provenance["attestations"]
+        if item["attestationId"] == attestation_id
+    )
+
+
+def test_game_end_verified_provenance_is_classified_verified() -> None:
+    """全項目を満たす終了判定の由来記録を実施済みとして受理する(P4)。"""
+    assert _classify_game_end(_verified_provenance()) == "verified"
+
+
+def test_game_end_not_performed_closed_form_is_accepted() -> None:
+    """未実施の閉じた形を宣誓の順序に依らず未実施として受理する。"""
+    assert _classify_game_end(_not_performed_provenance()) == "not-performed"
+
+
+def test_default_contract_kind_keeps_state_transition_schema() -> None:
+    """種別を省略した検証は状況判定契約のschemaで行う(P2)。"""
+    t1_record = deepcopy(_verified_provenance())
+    t1_record["subjectKind"] = "normative-branch-or-state-effect"
+    provenance_checker.validate_provenance(REPOSITORY_ROOT, t1_record)
+
+    repository_record = _load_object(STATE_TRANSITION_CONTRACT_PATH)["provenance"]
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="宣誓応答が充足値でない",
+    ):
+        provenance_checker.validate_provenance(REPOSITORY_ROOT, repository_record)
+    assert (
+        provenance_checker.classify_provenance(REPOSITORY_ROOT, repository_record)
+        == "not-performed"
+    )
+
+
+def _same_author_and_verifier(provenance: dict[str, Any]) -> None:
+    provenance["independentVerifierId"] = provenance["authorId"]
+    provenance["independentReview"]["chronology"][0]["actorId"] = provenance[
+        "authorId"
+    ]
+
+
+def _half_signed(provenance: dict[str, Any]) -> None:
+    del provenance["independentReview"]
+    provenance["attestations"] = _not_performed_provenance()["attestations"]
+
+
+def _not_performed_with_review(provenance: dict[str, Any]) -> None:
+    review = deepcopy(_verified_provenance()["independentReview"])
+    provenance.update(_not_performed_provenance())
+    provenance["independentReview"] = review
+
+
+def _not_performed_with_satisfied_attestations(provenance: dict[str, Any]) -> None:
+    attestations = deepcopy(_verified_provenance()["attestations"])
+    provenance.update(_not_performed_provenance())
+    provenance["attestations"] = attestations
+
+
+def _conflicting_duplicate_attestation(provenance: dict[str, Any]) -> None:
+    """矛盾する値の重複宣誓を足す(後の値が閉じた形に一致する並び)。"""
+    provenance["attestations"] = [
+        {"attestationId": "direct-source-clause-review", "response": False},
+        {"attestationId": "author-work-exposure", "response": "not-performed"},
+        {"attestationId": "source-support-judgment", "response": True},
+        {"attestationId": "source-support-judgment", "response": False},
+    ]
+
+
+def _missing_attestation(provenance: dict[str, Any]) -> None:
+    provenance["attestations"].pop()
+
+
+def _duplicate_attestation(provenance: dict[str, Any]) -> None:
+    provenance["attestations"].append(deepcopy(provenance["attestations"][0]))
+
+
+def _unknown_attestation(provenance: dict[str, Any]) -> None:
+    provenance["attestations"][0]["attestationId"] = "unknown-attestation"
+
+
+def _review_missing(provenance: dict[str, Any]) -> None:
+    del provenance["independentReview"]
+
+
+def _chronology_not_contiguous(provenance: dict[str, Any]) -> None:
+    provenance["independentReview"]["chronology"][0]["sequence"] = 2
+
+
+def _verifier_not_in_chronology(provenance: dict[str, Any]) -> None:
+    provenance["independentReview"]["chronology"][0]["actorId"] = "someone-else"
+
+
+def _exposure_mismatch(provenance: dict[str, Any]) -> None:
+    provenance["independentReview"]["authorWorkExposure"] = (
+        "seen-before-source-review"
+    )
+
+
+def _unknown_source_kind(provenance: dict[str, Any]) -> None:
+    provenance["sources"][0]["sourceKind"] = "unknown-source"
+
+
+def _missing_requirement(provenance: dict[str, Any]) -> None:
+    provenance["sources"][0]["sourceId"] = "req:NOT-EXISTS"
+
+
+def _legacy_research_only(provenance: dict[str, Any]) -> None:
+    provenance["sources"] = [
+        {
+            "sourceKind": "legacy-research",
+            "sourceId": "docs/legacy/research/input-screen.md:70",
+        }
+    ]
+
+
+def _unknown_subject_kind(provenance: dict[str, Any]) -> None:
+    provenance["subjectKind"] = "unknown-subject"
+
+
+def _reserved_value_spoof(provenance: dict[str, Any]) -> None:
+    provenance["independentVerifierId"] = "not-performed"
+    provenance["independentReview"]["chronology"][0]["actorId"] = "not-performed"
+
+
+def _reserved_actor_only(provenance: dict[str, Any]) -> None:
+    provenance["independentReview"]["chronology"].append(
+        {"sequence": 2, "actorId": "not-performed", "activity": "記録した"}
+    )
+
+
+def _reserved_response_only(provenance: dict[str, Any]) -> None:
+    _attestation(provenance, "author-work-exposure")["response"] = "not-performed"
+
+
+def _reserved_author(provenance: dict[str, Any]) -> None:
+    provenance["authorId"] = "not-performed"
+
+
+VERIFIED_RECORD_NEGATIVES = {
+    "S1-same-author-verifier": (_same_author_and_verifier, "作成者と独立確認者"),
+    "S2-half-signed": (
+        _half_signed,
+        "予約値not-performedを含むが未実施の閉じた形と一致しない: independentVerifierId",
+    ),
+    "S4-missing-attestation": (_missing_attestation, "宣誓項目がexact-set不一致"),
+    "S4-duplicate-attestation": (_duplicate_attestation, "宣誓項目が重複"),
+    "S4-unknown-attestation": (_unknown_attestation, "宣誓項目がexact-set不一致"),
+    "S5-review-missing": (
+        _review_missing,
+        "provenance.independentReviewがobjectでない",
+    ),
+    "S6-chronology-order": (_chronology_not_contiguous, "連続順序でない"),
+    "S6-verifier-not-actor": (_verifier_not_in_chronology, "actorIdに現れない"),
+    "S7-exposure-mismatch": (
+        _exposure_mismatch,
+        "作業結果の閲覧順序とauthor-work-exposure宣誓が一致しない",
+    ),
+    "S8-unknown-source-kind": (_unknown_source_kind, "未知の典拠種別"),
+    "S8-missing-requirement": (_missing_requirement, "典拠IDが実在しない"),
+    "S8-legacy-research-only": (_legacy_research_only, "優先典拠が無い"),
+    "S9-unknown-subject-kind": (_unknown_subject_kind, "未知の対象種別"),
+    "S11-reserved-spoof": (_reserved_value_spoof, "未実施の閉じた形と一致しない"),
+    "S11a-reserved-actor-only": (_reserved_actor_only, "未実施の閉じた形と一致しない"),
+    "S11b-reserved-response-only": (
+        _reserved_response_only,
+        "未実施の閉じた形と一致しない",
+    ),
+    "S11c-reserved-author": (_reserved_author, "作成者IDに予約値"),
+}
+
+
+@pytest.mark.parametrize("case_id", sorted(VERIFIED_RECORD_NEGATIVES))
+def test_game_end_invalid_signature_is_red(case_id: str) -> None:
+    """終了判定の不正署名・偽の典拠・予約値の偽装を拒否する(S1〜S11c)。"""
+    change, message = VERIFIED_RECORD_NEGATIVES[case_id]
+    provenance = _verified_provenance()
+    change(provenance)
+
+    with pytest.raises(provenance_checker.ProvenanceCheckError, match=message):
+        _classify_game_end(provenance)
+
+
+NOT_PERFORMED_RECORD_NEGATIVES = {
+    "S3-not-performed-with-review": (
+        _not_performed_with_review,
+        "予約値not-performedを含むが未実施の閉じた形と一致しない: independentReviewがある",
+    ),
+    "S4p-conflicting-duplicate-attestation": (
+        _conflicting_duplicate_attestation,
+        "宣誓項目が重複している: 'source-support-judgment'",
+    ),
+    "S3b-not-performed-with-satisfied-attestations": (
+        _not_performed_with_satisfied_attestations,
+        "未実施の閉じた形と一致しない: attestations",
+    ),
+    "S8p-unknown-source-kind": (_unknown_source_kind, "未知の典拠種別"),
+    "S8p-missing-requirement": (_missing_requirement, "典拠IDが実在しない"),
+    "S10p-legacy-research-only": (_legacy_research_only, "優先典拠が無い"),
+    "S9p-unknown-subject-kind": (_unknown_subject_kind, "未知の対象種別"),
+    "S11c-reserved-author": (_reserved_author, "作成者IDに予約値"),
+}
+
+
+@pytest.mark.parametrize("case_id", sorted(NOT_PERFORMED_RECORD_NEGATIVES))
+def test_game_end_not_performed_record_still_checks_sources(case_id: str) -> None:
+    """未実施の記録でも典拠・対象種別・閉じた形を検証する(S3・S8'〜S10')。"""
+    change, message = NOT_PERFORMED_RECORD_NEGATIVES[case_id]
+    provenance = _not_performed_provenance()
+    change(provenance)
+
+    with pytest.raises(provenance_checker.ProvenanceCheckError, match=message):
+        _classify_game_end(provenance)
+
+
+def test_game_end_provenance_schema_rejects_unknown_key() -> None:
+    """合成schemaで由来記録の未知キーを拒否する(器の閉じ方)。"""
+    provenance = _verified_provenance()
+    provenance["unexpected"] = True
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="未知キー: .*unexpected"
+    ):
+        _classify_game_end(provenance)
+
+
+def test_not_performed_form_requires_declared_attestation_items() -> None:
+    """宣誓項目の宣言が閉じた形とずれたら未実施の記録も拒否する。"""
+    schema = _provenance_schema()
+    items = schema["x-pitchlog-provenance-policy"]["attestationItems"]
+    items["extra-attestation"] = {
+        "acceptedResponses": [True],
+        "humanMeaning": "追加の宣誓",
+    }
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="未実施の閉じた形が宣誓項目の宣言とexact-set不一致",
+    ):
+        provenance_checker.classify_provenance(
+            REPOSITORY_ROOT,
+            _not_performed_provenance(),
+            schema_value=schema,
+            contract_kind="game-end",
+        )
+
+
+def test_unregistered_contract_kind_is_red() -> None:
+    """登録表に無い契約種別を拒否する。"""
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="登録表に無い契約種別"
+    ):
+        provenance_checker.classify_provenance(
+            REPOSITORY_ROOT, _verified_provenance(), contract_kind="unknown"
+        )
+
+
+def test_game_end_provenance_container_matches_state_transition() -> None:
+    """T2の由来記録の器(閉包・policy・配置)がT1と完全一致する(D1〜D3)。"""
+    t1_schema = _load_object(STATE_TRANSITION_SCHEMA_PATH)
+    assert set(_provenance_definition_closure(t1_schema)) == {
+        "provenance",
+        "provenanceIndependentReview",
+        "provenanceReviewEvent",
+        "provenanceSource",
+        "provenanceAttestation",
+    }
+    assert _provenance_container_drift(t1_schema, _schema()) == []
+
+
+def _drift_definition(schema: dict[str, Any]) -> None:
+    schema["$defs"]["provenanceReviewEvent"]["required"].append("extra")
+
+
+def _drop_definition(schema: dict[str, Any]) -> None:
+    del schema["$defs"]["provenanceReviewEvent"]
+
+
+def _drift_policy(schema: dict[str, Any]) -> None:
+    schema["x-pitchlog-provenance-policy"]["subjectKinds"]["extra-kind"] = {
+        "sufficientSourceKinds": ["requirements"]
+    }
+
+
+def _non_definition_reference(schema: dict[str, Any]) -> None:
+    review = schema["$defs"]["provenanceIndependentReview"]
+    review["properties"]["chronology"]["items"] = {"$ref": "#/x-shared/event"}
+
+
+def _drop_required(schema: dict[str, Any]) -> None:
+    schema["required"].remove("provenance")
+
+
+def _drop_property(schema: dict[str, Any]) -> None:
+    del schema["properties"]["provenance"]
+
+
+@pytest.mark.parametrize(
+    ("change", "expected"),
+    [
+        (_drift_definition, ["$defs.provenanceReviewEvent"]),
+        (_drop_definition, ["T2の閉包が解決できない: 'provenanceReviewEvent'"]),
+        (_drift_policy, ["x-pitchlog-provenance-policy"]),
+        (
+            _non_definition_reference,
+            ["T2の閉包が解決できない: 閉包の外を指しうる参照: #/x-shared/event"],
+        ),
+        (_drop_required, ["required.provenance"]),
+        (_drop_property, ["properties.provenance"]),
+    ],
+    ids=[
+        "D1-drift",
+        "D1-drop",
+        "D2-policy",
+        "D1-non-definition-reference",
+        "D3-required",
+        "D3-property",
+    ],
+)
+def test_game_end_provenance_container_drift_is_detected(
+    change: Any, expected: list[str]
+) -> None:
+    """器の閉包・policy・配置のずれを照合で検出する(D1〜D3)。"""
+    schema = deepcopy(_schema())
+    change(schema)
+
+    assert (
+        _provenance_container_drift(_load_object(STATE_TRANSITION_SCHEMA_PATH), schema)
+        == expected
+    )
+
+
+@pytest.mark.parametrize("change", ["drop-policy", "drop-required"])
+def test_checker_rejects_schema_without_provenance_declaration(change: str) -> None:
+    """policyや必須宣言を外したschemaでは検査器が検証を拒否する(D3)。"""
+    schema = _provenance_schema()
+    if change == "drop-policy":
+        del schema["x-pitchlog-provenance-policy"]
+    else:
+        schema["required"].remove("provenance")
+
+    with pytest.raises(provenance_checker.ProvenanceCheckError):
+        provenance_checker.classify_provenance(
+            REPOSITORY_ROOT,
+            _not_performed_provenance(),
+            schema_value=schema,
+            contract_kind="game-end",
+        )
+
+
+# 由来記録に出さない構造化引用(policyに受ける典拠種別が無い — research.md 6節の6)
+UNRECORDED_CITATIONS = {"adr:D-11"}
+SOURCE_KIND_BY_PREFIX = {
+    "req": "requirements",
+    "obr": "official-baseball-rules",
+}
+
+
+def _structured_clause_citations(value: object) -> set[str]:
+    """契約に現れる ``sourceClauseIds`` の値を、接頭辞を問わずすべて集める。"""
+    if isinstance(value, dict):
+        found: set[str] = set()
+        for key, item in value.items():
+            if key == "sourceClauseIds":
+                assert isinstance(item, list)
+                found.update(item)
+            else:
+                found |= _structured_clause_citations(item)
+        return found
+    if isinstance(value, list):
+        return {
+            citation for item in value for citation in _structured_clause_citations(item)
+        }
+    return set()
+
+
+def test_structured_citation_population_catches_unrecorded_prefixes() -> None:
+    """構造化引用の母集団は、req:以外の典拠が増えれば記録漏れとして現れる。"""
+    body = {
+        key: value
+        for key, value in deepcopy(_repository_contract()).items()
+        if key != "provenance"
+    }
+    body["validationErrors"][0]["sourceClauseIds"].append("obr:7.01(a)")
+    body["validationErrors"][1]["sourceClauseIds"].append("adr:D-12")
+    recorded = {
+        source["sourceId"] for source in _repository_contract()["provenance"]["sources"]
+    }
+
+    assert _structured_clause_citations(body) - recorded == {
+        "adr:D-11",
+        "adr:D-12",
+        "obr:7.01(a)",
+    }
+
+
+def test_repository_game_end_provenance_is_not_performed() -> None:
+    """実資産の終了判定契約は未実施の閉じた形と、契約が引く要件書の典拠を記録する。"""
+    contract = _repository_contract()
+    provenance = contract["provenance"]
+
+    assert provenance["subjectKind"] == "normative-branch-or-state-effect"
+    assert provenance["authorId"] == REPOSITORY_ARTIFACT_AUTHOR
+    assert "independentReview" not in provenance
+    assert (
+        provenance_checker.classify_provenance(
+            REPOSITORY_ROOT, provenance, contract_kind="game-end"
+        )
+        == "not-performed"
+    )
+    body = {key: value for key, value in contract.items() if key != "provenance"}
+    cited = _structured_clause_citations(body)
+    recorded = {source["sourceId"] for source in provenance["sources"]}
+    # 母集団は接頭辞を問わない構造化引用(sourceClauseIds)のすべて。記録しない典拠は
+    # 閉じた除外集合だけ(research.md 6節の6)。地の文(remarks)の言及は母集団に含めない
+    assert cited - recorded == UNRECORDED_CITATIONS
+    assert recorded <= cited
+    assert len(recorded) == len(provenance["sources"]) == 21
+    for source in provenance["sources"]:
+        prefix = source["sourceId"].split(":", 1)[0]
+        assert SOURCE_KIND_BY_PREFIX[prefix] == source["sourceKind"]
+
+
+def test_contract_without_provenance_violates_schema() -> None:
+    """由来記録の無い終了判定契約をschemaで拒否する(N1)。"""
+    contract = _minimal_contract()
+    del contract["provenance"]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError, match="必須キー不足: .*provenance"
+    ):
+        _validate_contract(contract)
+
+
+@pytest.mark.parametrize("value", [None, [], {}], ids=["null", "array", "empty-object"])
+def test_contract_with_malformed_provenance_violates_schema(value: Any) -> None:
+    """由来記録がobjectでない、または空のときschemaで拒否する(N2)。"""
+    contract = _minimal_contract()
+    contract["provenance"] = value
+
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        _validate_contract(contract)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["subjectKind", "sources", "authorId", "independentVerifierId", "attestations"],
+)
+def test_provenance_missing_required_field_violates_schema(field: str) -> None:
+    """由来記録の必須5キーのいずれかを欠くとschemaで拒否する(N3)。"""
+    contract = _minimal_contract()
+    del contract["provenance"][field]
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError, match=rf"必須キー不足: .*{field}"
+    ):
+        _validate_contract(contract)
+
+
+def test_provenance_unknown_field_violates_schema() -> None:
+    """由来記録の未知キーをschemaで拒否する(N4)。"""
+    contract = _minimal_contract()
+    contract["provenance"]["unexpected"] = True
+
+    with pytest.raises(
+        schema_checker.DescriptorCheckError, match="未知キー: .*unexpected"
+    ):
+        _validate_contract(contract)
+
+
+def test_registry_matches_declared_contract_list() -> None:
+    """登録表の契約集合が契約一覧の宣言と一致する(閉包)。"""
+    provenance_checker.check_registry_closure(REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize("change", ["drop-game-end", "extra-contract"])
+def test_registry_closure_drift_is_red(change: str) -> None:
+    """登録表から契約が欠けても、余分な契約があっても拒否する。"""
+    registry = dict(provenance_checker.CONTRACTS)
+    if change == "drop-game-end":
+        del registry["game-end"]
+    else:
+        registry["extra"] = (
+            PurePosixPath("contracts/state-transition/extra_contract_v1.json"),
+            PurePosixPath("contracts/state-transition/extra_schema_v1.json"),
+            "追加契約",
+        )
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="exact-set不一致"
+    ):
+        provenance_checker.check_registry_closure(REPOSITORY_ROOT, registry)
+
+
+def test_repository_check_rejects_registry_closure_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--repositoryの経路でも登録表と契約一覧のずれを拒否する。"""
+    registry = dict(provenance_checker.CONTRACTS)
+    del registry["game-end"]
+    monkeypatch.setattr(provenance_checker, "CONTRACTS", registry)
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="exact-set不一致"
+    ):
+        provenance_checker.check_repository(REPOSITORY_ROOT)
+
+
+def test_main_passes_contract_kind_to_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLIは登録表で決めた契約種別で検証する(種別の取り違えを防ぐ)。"""
+    calls: list[str] = []
+
+    def spy(root: Path, provenance: Mapping[str, Any], **kwargs: Any) -> None:
+        calls.append(kwargs["contract_kind"])
+
+    monkeypatch.setattr(provenance_checker, "validate_provenance", spy)
+    contract = _repository_contract()
+    contract["provenance"] = _verified_provenance()
+    monkeypatch.setattr(
+        provenance_checker.descriptor_checker,
+        "load_json",
+        lambda path, label: deepcopy(contract),
+    )
+
+    assert provenance_checker.main([str(CONTRACT_PATH)]) == 0
+    assert calls == ["game-end"]
+
+
+@pytest.mark.parametrize(
+    "argv", [[], [str(CONTRACT_PATH), "--repository"]], ids=["none", "both"]
+)
+def test_main_requires_exactly_one_target(argv: list[str]) -> None:
+    """CLIは契約JSONと--repositoryのどちらか一方だけを受け付ける。"""
+    with pytest.raises(SystemExit) as raised:
+        provenance_checker.main(argv)
+    assert raised.value.code == 2
+
+
+def test_repository_check_lists_both_contracts_as_not_performed() -> None:
+    """--repositoryの経路で両契約を未実施として列挙する(P3)。"""
+    assert provenance_checker.check_repository(REPOSITORY_ROOT) == {
+        "state-transition": "not-performed",
+        "game-end": "not-performed",
+    }
+    assert provenance_checker.main(["--repository"]) == 0
+
+
+def test_repository_check_reports_missing_game_end_provenance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """終了判定契約から由来記録が消えたら--repositoryの経路で赤にする(未記載)。"""
+    original = provenance_checker.descriptor_checker.load_json
+
+    def load_without_provenance(path: Path, label: str) -> object:
+        value = original(path, label)
+        if Path(path).resolve() == CONTRACT_PATH.resolve():
+            assert isinstance(value, dict)
+            value = {key: item for key, item in value.items() if key != "provenance"}
+        return value
+
+    monkeypatch.setattr(
+        provenance_checker.descriptor_checker, "load_json", load_without_provenance
+    )
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError,
+        match="終了判定契約にprovenanceが無い",
+    ):
+        provenance_checker.check_repository(REPOSITORY_ROOT)
+
+
+def test_contract_kind_for_path_rejects_unregistered_path(tmp_path: Path) -> None:
+    """登録表に無いパスの契約を種別判定で拒否する(N6)。"""
+    assert (
+        provenance_checker.contract_kind_for_path(REPOSITORY_ROOT, CONTRACT_PATH)
+        == "game-end"
+    )
+    unregistered = tmp_path / "game_end_contract_v1.json"
+    unregistered.write_text(CONTRACT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+
+    with pytest.raises(
+        provenance_checker.ProvenanceCheckError, match="登録表に無い契約"
+    ):
+        provenance_checker.contract_kind_for_path(REPOSITORY_ROOT, unregistered)
+    assert provenance_checker.main([str(unregistered)]) == 1
+
+
+@pytest.mark.parametrize("contract_kind", ["state-transition", "game-end"])
+@pytest.mark.parametrize("entry_point", ["validator", "single-cli", "repository"])
+@pytest.mark.parametrize("reserved_location", ["author", "verifier", "extra-actor"])
+def test_reserved_identity_is_rejected_at_every_entry_point(
+    monkeypatch: pytest.MonkeyPatch,
+    contract_kind: str,
+    entry_point: str,
+    reserved_location: str,
+) -> None:
+    """実施済み主張の予約ID偽装を両契約の全検査入口で拒否する。"""
+    provenance = _verified_provenance()
+    if reserved_location == "author":
+        provenance["authorId"] = "not-performed"
+    elif reserved_location == "verifier":
+        provenance["independentVerifierId"] = "not-performed"
+        provenance["independentReview"]["chronology"][0]["actorId"] = "not-performed"
+    else:
+        provenance["independentReview"]["chronology"].append(
+            {"sequence": 2, "actorId": "not-performed", "activity": "追加記録"}
+        )
+    contract_path = REPOSITORY_ROOT / provenance_checker.CONTRACTS[contract_kind][0]
+    original_load = provenance_checker.descriptor_checker.load_json
+
+    def load_with_forged_record(path: Path, label: str) -> Any:
+        value = original_load(path, label)
+        if Path(path) == contract_path:
+            value = deepcopy(value)
+            value["provenance"] = deepcopy(provenance)
+        return value
+
+    monkeypatch.setattr(
+        provenance_checker.descriptor_checker, "load_json", load_with_forged_record
+    )
+    if entry_point == "single-cli":
+        assert provenance_checker.main([str(contract_path)]) == 1
+        return
+    with pytest.raises(provenance_checker.ProvenanceCheckError, match="予約値not-performed"):
+        if entry_point == "validator":
+            provenance_checker.validate_provenance(
+                REPOSITORY_ROOT, provenance, contract_kind=contract_kind
+            )
+        else:
+            provenance_checker.check_repository(REPOSITORY_ROOT)
+
+
+# --- P-8候補（正式資産・独立期待値には未昇格） -------------------------------
+P8_CANDIDATE_PATH = REPOSITORY_ROOT / (
+    "docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json"
+)
+sys.path.insert(0, str(REPOSITORY_ROOT / "scripts"))
+p8_coverage_checker = _load_module(
+    "p8_candidate_coverage_checker",
+    REPOSITORY_ROOT / "scripts/check_required_set_coverage.py",
+)
+
+
+def _check_p8_candidate(value: dict[str, Any], tmp_path: Path) -> dict[str, Any]:
+    """変更した候補を一時ファイル経由で実検査器へ投入する。"""
+    path = tmp_path / "candidate.json"
+    path.write_text(json.dumps(value, ensure_ascii=False), encoding="utf-8")
+    return p8_coverage_checker.check_game_end_candidate(REPOSITORY_ROOT, path)
+
+
+def test_p8_candidate_checks_correlations_without_claiming_formal_acceptance() -> None:
+    """拒否・非拒否と裁定追随の候補を検査し、未成立ゲートを明示する。"""
+    result = p8_coverage_checker.check_game_end_candidate(REPOSITORY_ROOT, P8_CANDIDATE_PATH)
+    assert result == {
+        "publication": "candidate-only",
+        "independentVerification": "not-performed",
+        "ruleCorrelations": 21,
+        "decisionCases": 5,
+        "lifecycleCases": 3,
+        "displayCases": 5,
+        "contextCases": 5,
+        "scoreObservationCases": 2,
+        "operationCases": 42,
+        "displayComparisons": 5,
+        "runtimeOutputsCompared": False,
+        "formalCoverageUpdated": False,
+    }
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing", "duplicate", "flip-reject", "flip-equal", "wrong-input",
+    "unknown-case-field", "unknown-snapshot-field", "boolean-regulation",
+    "all-reject", "all-pass", "missing-source", "changed-source",
+    "past-domain", "stale-base", "stale-schema", "lifecycle-duplicate", "lifecycle-prompt",
+    "decision-output", "normalization", "lost-overlap", "lost-partial-tier",
+    "reversed-score", "lost-reversal", "missing-display", "forged-verification",
+    "unknown-decision-field", "unknown-coordinate-field", "wrong-row-reference",
+    "forbidden-boundary",
+])
+def test_p8_candidate_mutations_fail_closed(mutation: str, tmp_path: Path) -> None:
+    """相関の欠落・逆転・入力偽装と既承認候補の欠落を能動的に拒否する。"""
+    bundle = deepcopy(_load_object(P8_CANDIDATE_PATH))
+    cases = bundle["ruleValidationCases"]
+    rejected = next(case for case in cases if case["expected"] == "reject")
+    equal = next(case for case in cases if "OFFSET0-single" in case["caseId"])
+    if mutation == "missing":
+        cases.pop()
+    elif mutation == "duplicate":
+        cases.append(deepcopy(cases[0]))
+    elif mutation == "flip-reject":
+        rejected["expected"] = "not-rejected-by-this-rule"
+    elif mutation == "flip-equal":
+        equal["expected"] = "reject"
+    elif mutation == "wrong-input":
+        rejected["ruleSnapshot"]["coldConditions"][0]["startInning"] -= 1
+    elif mutation == "unknown-case-field":
+        equal["unknown"] = True
+    elif mutation == "unknown-snapshot-field":
+        equal["ruleSnapshot"]["unknown"] = True
+    elif mutation == "boolean-regulation":
+        equal["ruleSnapshot"]["regulationInnings"] = True
+    elif mutation == "all-reject":
+        for case in cases:
+            case["expected"] = "reject"
+    elif mutation == "all-pass":
+        for case in cases:
+            case["expected"] = "not-rejected-by-this-rule"
+    elif mutation == "missing-source":
+        del bundle["sourceDescriptor"]
+    elif mutation == "changed-source":
+        bundle["sourceDescriptor"]["startInningOffsets"] = [0]
+    elif mutation == "past-domain":
+        rejected["ruleSnapshot"]["coldConditions"][0]["startInning"] = 100
+    elif mutation == "stale-base":
+        bundle["baseContractDigest"] = "sha256:" + "0" * 64
+    elif mutation == "stale-schema":
+        bundle["baseSchemaDigest"] = "sha256:" + "0" * 64
+    elif mutation == "lifecycle-duplicate":
+        bundle["lifecycleCases"][1] = deepcopy(bundle["lifecycleCases"][0])
+    elif mutation == "lifecycle-prompt":
+        bundle["lifecycleCases"][0]["expectedFields"]["promptEndDeclaration"] = True
+    elif mutation == "decision-output":
+        bundle["decisionCases"][0]["decision"]["outcome"] = "normal-end"
+    elif mutation == "normalization":
+        normalized = bundle["decisionCases"][0]["normalized"]
+        normalized["state.half"] = "bottom" if normalized["state.half"] == "top" else "top"
+    elif mutation == "lost-overlap":
+        bundle["decisionCases"][0]["derivedSourceInput"]["state.inning"] = 5
+    elif mutation == "lost-partial-tier":
+        for field in ("inputCoordinate", "raw", "normalized"):
+            bundle["decisionCases"][1][field]["gameEnd.satisfiedColdTierCount"] = 2
+    elif mutation == "reversed-score":
+        bundle["decisionCases"][4]["derivedSourceInput"]["state.score"]["home"] = 20
+    elif mutation == "lost-reversal":
+        bundle["decisionCases"][4]["derivedSourceInput"]["gameEnd.coldConditions"].reverse()
+    elif mutation == "missing-display":
+        bundle["displayCases"].pop()
+    elif mutation == "forged-verification":
+        bundle["independentVerification"] = "verified"
+    elif mutation == "unknown-decision-field":
+        bundle["decisionCases"][0]["unknown"] = True
+    elif mutation == "unknown-coordinate-field":
+        for field in ("inputCoordinate", "raw", "normalized"):
+            bundle["decisionCases"][0][field]["unknown"] = True
+    elif mutation == "wrong-row-reference":
+        bundle["decisionCases"][0]["rowRef"]["coordinate"]["branchId"] = "COLD-08"
+    elif mutation == "forbidden-boundary":
+        bundle["sourceDescriptor"]["invalidBoundaryValues"] = ["start-inning:R+1"]
+    with pytest.raises(p8_coverage_checker.RequiredSetCoverageError):
+        _check_p8_candidate(bundle, tmp_path)
+
+
+@pytest.mark.parametrize("mutation", [
+    "review-counterexample", "below-threshold", "before-start",
+])
+def test_e06_candidate_rejects_inputs_without_one_satisfied_tier(
+    mutation: str, tmp_path: Path,
+) -> None:
+    """成立段数ラベルだけでは通った旧反例と、点差不足・開始回前を拒否する。"""
+    bundle = deepcopy(_load_object(P8_CANDIDATE_PATH))
+    case = next(item for item in bundle["decisionCases"] if item["caseId"] == (
+        "GE-CANDIDATE-E06-ONE-OF-TWO"
+    ))
+    source = case["derivedSourceInput"]
+    if mutation == "review-counterexample":
+        source["gameEnd.coldConditions"] = [
+            {"pointDifference": 10, "startInning": 5},
+            {"pointDifference": 7, "startInning": 7},
+        ]
+    elif mutation == "below-threshold":
+        source["state.score"]["home"] = 6
+    else:
+        source["state.inning"] = 4
+    with pytest.raises(
+        p8_coverage_checker.RequiredSetCoverageError,
+        match="E06候補の設定2段・成立1段の固定入力が不一致",
+    ):
+        _check_p8_candidate(bundle, tmp_path)
+
+
+def test_e12_candidate_covers_equality_and_one_bad_tier_in_both_orders() -> None:
+    """N=R非拒否と、他段が有効でもN>Rなら拒否する要求を具体入力で保持する。"""
+    bundle = _load_object(P8_CANDIDATE_PATH)
+    cases = bundle["ruleValidationCases"]
+    for regulation in (1, 9, 99):
+        equal = [case for case in cases if case["caseId"].startswith(
+            f"GE-RULE-COLD-R{regulation}-OFFSET0-"
+        )]
+        assert len(equal) == 3
+        assert {case["expected"] for case in equal} == {"not-rejected-by-this-rule"}
+    for order in ("first", "last"):
+        rejected = next(case for case in cases if case["caseId"] == (
+            f"GE-RULE-COLD-R9-OFFSET1-{order}"
+        ))
+        assert rejected["expected"] == "reject"
+        starts = [tier["startInning"] for tier in rejected["ruleSnapshot"]["coldConditions"]]
+        assert sorted(starts) == [1, 10]
+    assert not any("R99-OFFSET1" in case["caseId"] for case in cases)
+
+
+@pytest.mark.parametrize("mutation", ["missing-rule", "unknown-rule", "shrunk-domain"])
+def test_e12_deriver_rejects_unrecognized_source_declaration(mutation: str) -> None:
+    """導出器単体も未知規則や代表値欠落で要求を黙って減らさない。"""
+    declaration = deepcopy(_load_object(P8_CANDIDATE_PATH)["sourceDescriptor"])
+    if mutation == "missing-rule":
+        del declaration["ruleId"]
+    elif mutation == "unknown-rule":
+        declaration["ruleId"] = "other-rule"
+    else:
+        declaration["regulationRepresentatives"] = [9]
+    with pytest.raises(p8_coverage_checker.deriver.DeriverDependencyError):
+        p8_coverage_checker.deriver.derive_game_end_rule_correlations(declaration)
+
+
+def test_p8_candidate_cli_marks_unaccepted_scope(capsys: pytest.CaptureFixture[str]) -> None:
+    """候補CLIは成功しても正式被覆やP-6成立とは表示しない。"""
+    assert p8_coverage_checker.main(["--candidate", str(P8_CANDIDATE_PATH)]) == 0
+    output = capsys.readouterr().out
+    assert "正式被覆・P-6未成立" in output
+    assert "candidate-only" in output
+    assert "not-performed" in output
+
+
+P8_BOUNDARY_EVIDENCE_PATH = P8_CANDIDATE_PATH.with_name("p8_boundary_evidence_v1.json")
+
+
+def _p8_boundary_evidence() -> dict[str, Any]:
+    """候補作者の人工fixtureを読む。独立期待値として扱わない。"""
+    return json.loads(P8_BOUNDARY_EVIDENCE_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("index", range(5))
+def test_p8_context_replays_persisted_prefix_after_restart(index: int) -> None:
+    """永続化と再読込で保持3値とphaseが変わらず、権限を付与しない。"""
+    case = _p8_boundary_evidence()["contextCases"][index]
+    projection = json.loads(json.dumps(case["projection"]))
+    result = p8_coverage_checker.normalize_p8_candidate_context(
+        case["request"], projection=projection, authorizations=case["authorizations"],
+    )
+    assert result == case["expected"]
+    assert "undoAllowed" not in result and "substitutionAllowed" not in result
+    assert result["permissionSource"] == "existing-operation-authorization"
+
+
+@pytest.mark.parametrize("mutation,code", [
+    ("device-reopen", "MAPPING"), ("game-ended", "MAPPING"),
+    ("wrong-tenant", "MAPPING"), ("wrong-game", "MAPPING"),
+    ("stale-revision", "MAPPING"), ("boolean-revision", "MAPPING"),
+    ("missing-field", "HANDOFF_SHAPE"), ("unknown-field", "UNKNOWN_FIELD"),
+    ("missing-auth", "MAPPING"), ("denied-auth", "MAPPING"),
+    ("wrong-auth-tenant", "MAPPING"), ("stale-auth", "MAPPING"),
+    ("bool-auth", "HANDOFF_SHAPE"), ("duplicate-auth", "MAPPING"),
+    ("held-detected", "MAPPING"), ("held-lock", "MAPPING"),
+    ("held-outcome", "MAPPING"), ("prompt", "MAPPING"),
+    ("pre-turn-binding", "MAPPING"), ("missing-turn", "MAPPING"),
+    ("truncated-third-out", "MAPPING"), ("reordered", "MAPPING"),
+    ("duplicate-receipt", "MAPPING"), ("wrong-event", "MAPPING"),
+    ("unknown-outcome", "HANDOFF_SHAPE"), ("unknown-phase", "MAPPING"),
+    ("automatic-end", "MAPPING"), ("evaluation-after-declaration", "MAPPING"),
+    ("reopen-lock", "MAPPING"), ("reopen-prompt", "MAPPING"),
+])
+def test_p8_context_rejects_spoofed_or_incomplete_evidence(mutation: str, code: str) -> None:
+    """要求の自己申告、未完評価、認可や保持値の偽装を拒否する。"""
+    case = _p8_boundary_evidence()["contextCases"][2]
+    request, projection, auth = case["request"], case["projection"], case["authorizations"]
+    rs = projection["receipts"]
+    if mutation == "device-reopen":
+        projection["receipts"] = rs[:3]
+    elif mutation == "game-ended":
+        request["gameEnded"] = True
+    elif mutation in {"wrong-tenant", "wrong-game"}:
+        request["scope"]["tenantId" if mutation == "wrong-tenant" else "gameId"] = "forged"
+    elif mutation in {"stale-revision", "boolean-revision"}:
+        request["projectionRevision"] = 1 if mutation == "stale-revision" else True
+    elif mutation == "missing-field":
+        del request["phase"]
+    elif mutation == "unknown-field":
+        request["clientAuthorized"] = True
+    elif mutation == "missing-auth":
+        auth.clear()
+    elif mutation == "denied-auth":
+        auth[0]["decision"] = "deny"
+    elif mutation == "wrong-auth-tenant":
+        auth[0]["scope"]["tenantId"] = "forged"
+    elif mutation in {"stale-auth", "bool-auth"}:
+        auth[0]["expectedRevision"] = 0 if mutation == "stale-auth" else True
+    elif mutation == "duplicate-auth":
+        auth.append(deepcopy(auth[0]))
+    elif mutation.startswith("held-"):
+        key = {
+            "held-detected": "endConditionDetected", "held-lock": "lockFurtherPlayInput",
+            "held-outcome": "outcome",
+        }[mutation]
+        rs[2]["after"]["decision"][key] = "cold-end" if mutation == "held-outcome" else False
+    elif mutation == "prompt":
+        rs[2]["after"]["decision"]["promptEndDeclaration"] = True
+    elif mutation == "pre-turn-binding":
+        rs[2]["basedOnEvaluationRef"] = "receipt-1"
+    elif mutation == "missing-turn":
+        del rs[1]
+        for i, row in enumerate(rs, 1):
+            row["sequence"] = i
+    elif mutation == "truncated-third-out":
+        projection["receipts"] = rs[:1]
+    elif mutation == "reordered":
+        rs[0], rs[1] = rs[1], rs[0]
+    elif mutation == "duplicate-receipt":
+        rs[1]["receiptId"] = rs[0]["receiptId"]
+    elif mutation == "wrong-event":
+        rs[1]["eventRef"] = "other-play"
+    elif mutation == "unknown-outcome":
+        rs[0]["after"]["decision"]["outcome"] = "invented"
+    elif mutation == "unknown-phase":
+        rs[0]["after"]["phase"] = "device-reopened"
+    elif mutation == "automatic-end":
+        rs[0]["after"]["decision"]["automaticallyEndsGame"] = True
+    elif mutation == "evaluation-after-declaration":
+        rs[3]["kind"] = "evaluation"
+        rs[3]["authorizationRef"] = rs[3]["basedOnEvaluationRef"] = None
+        rs[3]["timing"] = "post-play"
+    elif mutation in {"reopen-lock", "reopen-prompt"}:
+        key = "lockFurtherPlayInput" if mutation == "reopen-lock" else "promptEndDeclaration"
+        rs[3]["after"]["decision"][key] = mutation == "reopen-lock"
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+        p8_coverage_checker.normalize_p8_candidate_context(
+            request, projection=projection, authorizations=auth,
+        )
+    assert error.value.code == code
+
+
+@pytest.mark.parametrize("index", range(2))
+def test_p8_score_observation_uses_shared_projection_without_recalculation(index: int) -> None:
+    """対象プレイの直前/直後得点を観測入力として照合する。"""
+    case = _p8_boundary_evidence()["scoreObservationCases"][index]
+    assert p8_coverage_checker.normalize_p8_candidate_score(
+        case["request"], authoritative_observation=case["source"],
+    ) == case["expected"]
+
+
+@pytest.mark.parametrize("mutation,code", [
+    ("before-score", "MAPPING"), ("after-score", "MAPPING"),
+    ("wrong-event", "MAPPING"), ("wrong-scope", "MAPPING"),
+    ("stale-revision", "MAPPING"), ("skipped-prefix", "MAPPING"),
+    ("untrusted-producer", "MAPPING"), ("negative-score", "HANDOFF_SHAPE"),
+    ("bool-score", "HANDOFF_SHAPE"), ("missing-source", "HANDOFF_SHAPE"),
+    ("unknown-input", "UNKNOWN_FIELD"),
+])
+def test_p8_score_observation_rejects_unverified_client_values(mutation: str, code: str) -> None:
+    """クライアント得点の無検証採用と対象プレイの取り違えを拒否する。"""
+    case = _p8_boundary_evidence()["scoreObservationCases"][0]
+    request, source = case["request"], case["source"]
+    if mutation in {"before-score", "after-score"}:
+        request["beforeScore" if mutation == "before-score" else "afterScore"]["home"] = 999
+    elif mutation == "wrong-event":
+        request["eventRef"] = "another-play"
+    elif mutation == "wrong-scope":
+        request["scope"]["gameId"] = "another-game"
+    elif mutation == "stale-revision":
+        request["projectionRevision"] = 40
+    elif mutation == "skipped-prefix":
+        source["beforeAppliedVersion"] = 39
+    elif mutation == "untrusted-producer":
+        source["producer"] = "client"
+    elif mutation in {"negative-score", "bool-score"}:
+        source["beforeScore"]["home"] = -1 if mutation == "negative-score" else True
+    elif mutation == "missing-source":
+        del source["beforeScore"]
+    elif mutation == "unknown-input":
+        request["clientAuthorized"] = True
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+        p8_coverage_checker.normalize_p8_candidate_score(request, authoritative_observation=source)
+    assert error.value.code == code
+
+
+@pytest.mark.parametrize("index", range(42))
+def test_p8_operation_kind_payload_matrix_is_not_silently_corrected(index: int) -> None:
+    """既存7種×6タグを正常6/拒否36へ分類し、入力を変更しない。"""
+    case = _p8_boundary_evidence()["operationCases"][index]
+    descriptor = json.loads((
+        REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
+    ).read_text())
+    original = deepcopy(case["request"])
+    if case["expected"] == "accepted":
+        assert p8_coverage_checker.normalize_p8_candidate_operation(
+            case["request"], descriptor=descriptor,
+        ) == original
+    else:
+        with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+            p8_coverage_checker.normalize_p8_candidate_operation(
+                case["request"], descriptor=descriptor,
+            )
+        assert error.value.code == case["expected"]
+    assert case["request"] == original
+
+
+@pytest.mark.parametrize("mutation", [
+    "blank-as-zero", "wrong-cell", "wrong-prefix", "wrong-scope", "x-as-blank",
+])
+def test_p8_display_comparison_detects_wrong_cell_and_blank(mutation: str) -> None:
+    """比較器を人工出力で検査する。製品出力や独立期待値の検証とは扱わない。"""
+    cases = _p8_boundary_evidence()["displayComparisons"]
+    case = cases[0 if mutation == "x-as-blank" else 1]
+    output = case["syntheticOutput"]
+    if mutation == "blank-as-zero":
+        output["display"] = "0"
+    elif mutation == "wrong-cell":
+        output["targetCell"]["inning"] += 1
+    elif mutation == "wrong-prefix":
+        output["projectionRevision"] -= 1
+    elif mutation == "wrong-scope":
+        output["scope"]["gameId"] = "another-game"
+    else:
+        output["display"] = ""
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError, match="display-comparison"):
+        p8_coverage_checker.compare_p8_candidate_display(case["expected"], output)
+
+
+@pytest.mark.parametrize("raw,code", [
+    ({"operationKind": "per-pitch"}, "HANDOFF_SHAPE"),
+    ({"operationKind": "invented", "operationPayload": "not-applicable"}, "HANDOFF_SHAPE"),
+    ({"operationKind": "undo", "operationPayload": {}}, "HANDOFF_SHAPE"),
+    ({"operationKind": True, "operationPayload": "not-applicable"}, "HANDOFF_SHAPE"),
+    ({"operationKind": "undo", "operationPayload": "not-applicable", "ignored": 1},
+     "UNKNOWN_FIELD"),
+])
+def test_p8_operation_rejection_classes_match_existing_handoff_names(
+    raw: dict[str, Any], code: str,
+) -> None:
+    """境界の形と未知fieldを既存拒否分類名へ対応させる。"""
+    descriptor = json.loads((
+        REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
+    ).read_text())
+    with pytest.raises(p8_coverage_checker.CandidateNormalizationError) as error:
+        p8_coverage_checker.normalize_p8_candidate_operation(raw, descriptor=descriptor)
+    assert error.value.code == code
+
+
+def test_p8_conditional_state_correction_requires_adopted_clause() -> None:
+    """既存FR-040の条件付き種別は採用宣言のある試験だけで通す。"""
+    descriptor = json.loads((
+        REPOSITORY_ROOT / "contracts/state-transition/input_axes_descriptor_v1.json"
+    ).read_text())
+    raw = {"operationKind": "state-correction", "operationPayload": "state-correction"}
+    assert p8_coverage_checker.normalize_p8_candidate_operation(
+        raw, descriptor=descriptor, adopted_clauses=frozenset({"req:FR-040"}),
+    ) == raw
+
+
+@pytest.mark.parametrize("mutation", [
+    "started", "pairedTopCompleted", "endConditionMakesBottomUnnecessary",
+    "evaluationHalf", "sourceBranch", "recordedScore",
+])
+def test_p8_display_candidate_binds_all_approved_inputs(mutation: str, tmp_path: Path) -> None:
+    """開始済みblank等の矛盾を人工出力との自己一致で通さない。"""
+    bundle = json.loads(P8_CANDIDATE_PATH.read_text(encoding="utf-8"))
+    case = next(x for x in bundle["displayCases"] if x["caseId"] == "DISPLAY-FUTURE")
+    if mutation == "sourceBranch":
+        case["sourceBranch"] = "XMARK-01"
+    elif mutation == "evaluationHalf":
+        case["input"][mutation] = "top"
+    elif mutation == "recordedScore":
+        case["input"][mutation] = 1
+    else:
+        case["input"][mutation] = not case["input"][mutation]
+    with pytest.raises(
+        p8_coverage_checker.RequiredSetCoverageError, match="display-approved-input",
+    ):
+        _check_p8_candidate(bundle, tmp_path)
