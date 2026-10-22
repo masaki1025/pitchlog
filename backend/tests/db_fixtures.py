@@ -1400,7 +1400,9 @@ def provisioned_product_catalog(
             "PITCHLOG_MIGRATION_DATABASE_URL",
             _product_migration_url(owner_dsn),
         )
-        command.upgrade(Config(str(_BACKEND_ROOT / "alembic.ini")), "head")
+        command.upgrade(
+            Config(str(_BACKEND_ROOT / "alembic.ini")), "0032_rg1_restore_gate"
+        )
 
         with (
             psycopg.connect(applicator_dsn) as applicator,

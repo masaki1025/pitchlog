@@ -346,6 +346,9 @@ def test_reapplication_normalizes_all_seven_role_attributes(
     }
     with catalog.applicator.cursor() as cursor:
         for role_id, declaration in roles.items():
+            if role_id == "pitchlog_rule_resolution_fn_owner":
+                # 規則関数ownerは既存ロールの属性衝突を正規化せず拒否する。
+                continue
             reversed_attributes = [
                 negative_tokens[name]
                 if bool(declaration[name])

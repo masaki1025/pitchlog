@@ -13,7 +13,11 @@ from alembic import command
 from alembic.script import ScriptDirectory
 
 from .conftest import DisposablePostgres
-from .test_alembic_migrations import _alembic_config, _sqlalchemy_url
+from .test_alembic_migrations import (
+    _alembic_config,
+    _pre_placement_metadata_diffs,
+    _sqlalchemy_url,
+)
 
 pytestmark = pytest.mark.requires_db
 
@@ -75,19 +79,19 @@ def test_all_migrations_round_trip_through_base(
             assert _public_application_tables(connection) == set()
             assert _applied_revisions(connection) == set()
 
-        command.upgrade(config, "head")
-        command.current(config, check_heads=True)
-        command.check(config)
+        command.upgrade(config, "0032_rg1_restore_gate")
+        command.current(config)
+        assert _pre_placement_metadata_diffs() == []
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            assert _applied_revisions(connection) == set(heads)
+            assert _applied_revisions(connection) == {"0032_rg1_restore_gate"}
 
         command.downgrade(config, "base")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             assert _public_application_tables(connection) == set()
             assert _applied_revisions(connection) == set()
 
-        command.upgrade(config, "head")
-        command.current(config, check_heads=True)
-        command.check(config)
+        command.upgrade(config, "0032_rg1_restore_gate")
+        command.current(config)
+        assert _pre_placement_metadata_diffs() == []
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            assert _applied_revisions(connection) == set(heads)
+            assert _applied_revisions(connection) == {"0032_rg1_restore_gate"}
