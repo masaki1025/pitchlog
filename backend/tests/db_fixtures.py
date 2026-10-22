@@ -1401,7 +1401,7 @@ def provisioned_product_catalog(
             _product_migration_url(owner_dsn),
         )
         command.upgrade(
-            Config(str(_BACKEND_ROOT / "alembic.ini")), "0032_rg1_restore_gate"
+            Config(str(_BACKEND_ROOT / "alembic.ini")), "0033_game_rules_immutable"
         )
 
         with (

@@ -8485,7 +8485,7 @@ def test_0028_preflight_restores_product_force_rls_after_success(
         assert cursor.fetchone() == (0,)
 
     # 0032 の表が存在しない 0028 の状態を検証した後、現行構成も別途検証する。
-    command.upgrade(config, "0032_rg1_restore_gate")
+    command.upgrade(config, "0033_game_rules_immutable")
     with psycopg.connect(catalog.owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT version_num FROM alembic_version")
         assert cursor.fetchone() == ("0033_game_rules_immutable",)
