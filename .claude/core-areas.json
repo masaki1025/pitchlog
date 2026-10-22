@@ -603,7 +603,9 @@
         "frontend/src/screens/LoginScreen*",
         "frontend/src/router*",
         "frontend/src/App*",
-        "backend/src/pitchlog/db/stage_a_startup.py"
+        "backend/src/pitchlog/db/stage_a_startup.py",
+        "backend/src/pitchlog/services/game_creation.py",
+        "backend/tests/test_game_preparing*.py"
       ]
     },
     {
