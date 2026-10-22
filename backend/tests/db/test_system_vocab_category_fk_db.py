@@ -374,8 +374,8 @@ def test_force_rls_upgrade_preserves_catalog_and_states(
             for case, identity in zip(_CASES, identities, strict=True)
         )
     catalog.observer.rollback()
-    # 0029 では RG1 表が未作成なので、現行製品カタログは HEAD 復帰後に照合する。
-    command.upgrade(config, "0032_rg1_restore_gate")
+    # 0029 では RG1 表と規則不変トリガが未作成なので、0033 復帰後に照合する。
+    command.upgrade(config, "0033_game_rules_immutable")
     apply_product_authz_ddl(catalog.applicator)
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations
@@ -414,7 +414,7 @@ def test_category_foreign_keys_round_trip(
     catalog.observer.rollback()
     assert _force_states(catalog.observer) == force_before
     catalog.observer.rollback()
-    command.upgrade(config, "0032_rg1_restore_gate")
+    command.upgrade(config, "0033_game_rules_immutable")
     apply_product_authz_ddl(catalog.applicator)
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations

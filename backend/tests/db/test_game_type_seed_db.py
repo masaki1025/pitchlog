@@ -355,7 +355,7 @@ def test_game_type_seed_round_trip_under_product_rls(
             "pitchlog_owner_game_type_seed_delete",
         }
     command.upgrade(config, "0030_seed_game_type")
-    command.upgrade(config, "0032_rg1_restore_gate")
+    command.upgrade(config, "0033_game_rules_immutable")
     apply_product_authz_ddl(catalog.applicator)
     command.current(config)
 

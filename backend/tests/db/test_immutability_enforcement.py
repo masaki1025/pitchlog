@@ -457,7 +457,7 @@ def test_all_manifest_immutability_declarations_are_enforced(
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
-        command.upgrade(_alembic_config(), "0032_rg1_restore_gate")
+        command.upgrade(_alembic_config(), "0033_game_rules_immutable")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             manifest, population, database_tables, triggers = _observed_contract(
                 connection
@@ -539,7 +539,7 @@ def test_immutability_enforcement_mutations_are_detected(
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
-        command.upgrade(_alembic_config(), "0032_rg1_restore_gate")
+        command.upgrade(_alembic_config(), "0033_game_rules_immutable")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             manifest, population, database_tables, triggers = _observed_contract(
                 connection

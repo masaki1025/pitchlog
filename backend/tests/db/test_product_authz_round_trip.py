@@ -140,7 +140,7 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
 
     config = _alembic_config()
     command.downgrade(config, "base")
-    command.upgrade(config, "0032_rg1_restore_gate")
+    command.upgrade(config, "0033_game_rules_immutable")
 
     migration_report = _inspect(catalog, privileged_role_oid)
     migration_snapshot = _snapshot(catalog)

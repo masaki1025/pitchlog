@@ -74,9 +74,13 @@ def _stage_a_seed_formal_ledger() -> dict[str, Any]:
     """正式受理済みの0034宣言を変異試験へ渡す。"""
     ledger = copy.deepcopy(_load_seed_allowlist())
     assert "stage_a_fixed_defaults" in ledger["declarations"]
-    assert ledger["history"][-1]["series"] == "stage_a_fixed_defaults"
-    assert ledger["history"][-1]["approved_by"] == "山田正輝"
-    assert ledger["history"][-1]["approved_at"] == "2026-10-18"
+    accepted = [
+        row for row in ledger["history"] if row["series"] == "stage_a_fixed_defaults"
+    ]
+    assert len(accepted) == 1
+    assert accepted[0]["series"] == "stage_a_fixed_defaults"
+    assert accepted[0]["approved_by"] == "山田正輝"
+    assert accepted[0]["approved_at"] == "2026-10-23"
     return ledger
 
 

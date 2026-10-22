@@ -430,7 +430,7 @@ def test_null_trigger_function_acl_is_red(
     try:
         config = Config(str(_BACKEND_ROOT / "alembic.ini"))
         command.downgrade(config, "base")
-        command.upgrade(config, "0032_rg1_restore_gate")
+        command.upgrade(config, "0033_game_rules_immutable")
 
         with catalog.observer.cursor() as cursor:
             cursor.execute(
