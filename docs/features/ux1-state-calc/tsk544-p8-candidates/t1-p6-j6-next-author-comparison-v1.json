@@ -1,0 +1,53 @@
+{
+  "packetId": "tsk544-t1-j6-next-author-comparison-v1",
+  "status": "candidate-comparison-after-stage-a",
+  "independenceClaim": "none: 著者比較は段階A封印後に作成した。射影の根拠は段階A前に固定済みのTSK-544契約射影候補と要件書v2.16であり、P-6結果との一致を独立した二重導出とは呼ばない。",
+  "inputCommit": "79f2b122158631f9fa5eed862c81c46748e01129",
+  "inputSha256": "6514260fdfbf5ca3fccc755040119a1d9e21ee262bbd8e4f593279f843874b6c",
+  "sourceCommit": "52625ed6a6d7d27a212acfee16b97c8a97d987a5",
+  "sourceSha256": "569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a",
+  "authorPreSealReference": {
+    "commit": "75919357c77b927d8409da65c77fafbe4d0692c9",
+    "path": "docs/features/tsk544-t1-state-calculation/t1-contract-projection-candidate.md",
+    "section": "J6正常・拒否・境界caseの候補"
+  },
+  "formalCaseIdRule": "未発行。candidateInputIdは正式IDではなく、規範行のrowRef.coordinateが閉じてから展開器で採番する。",
+  "comparisons": [
+    {
+      "candidateInputId": "T1-J6-BLIND-001",
+      "authorCandidateId": "T1-S20-ORDER-A",
+      "compareProjection": {"creditedScorers": ["R3"], "teamScoreDelta": 1},
+      "excludedProjection": ["RBI", "全23フラグ", "全10列", "T2終了検知"]
+    },
+    {
+      "candidateInputId": "T1-J6-BLIND-002",
+      "authorCandidateId": "T1-S20-ORDER-B",
+      "compareProjection": {"creditedScorers": ["R2"], "teamScoreDelta": 1},
+      "excludedProjection": ["RBI", "全23フラグ", "全10列", "T2終了検知"]
+    },
+    {
+      "candidateInputId": "T1-J6-BLIND-003",
+      "authorCandidateId": "T1-S20-MISSING",
+      "compareProjection": {"inputJudgment": "reject-missing-required-order"},
+      "excludedProjection": ["同期結果ID", "D5消費", "数値状態"]
+    },
+    {
+      "candidateInputId": "T1-J6-BLIND-004",
+      "authorCandidateId": "T1-S20-DUP",
+      "compareProjection": {"inputJudgment": "reject-duplicate-and-missing-scorer"},
+      "excludedProjection": ["同期結果ID", "D5消費", "数値状態"]
+    },
+    {
+      "candidateInputId": "T1-J6-BLIND-005",
+      "authorCandidateId": "T1-S20-HR",
+      "compareProjection": {"creditedScorers": ["R1", "R2", "B"], "teamScoreDelta": 3, "batterRbi": 3},
+      "excludedProjection": ["他のフラグ", "全10列", "T2終了検知"]
+    },
+    {
+      "candidateInputId": "T1-J6-BLIND-006",
+      "authorCandidateId": "T1-S20-EARLY",
+      "compareProjection": {"creditedScorers": ["R2", "R3"], "teamScoreDelta": 2},
+      "excludedProjection": ["RBI", "全23フラグ", "全10列", "T2終了検知"]
+    }
+  ]
+}
