@@ -1,0 +1,29 @@
+{
+  "packetId": "T1-J6-REMAINING-AUTHOR-COMPARISON-v1",
+  "status": "retrospective-author-candidate-after-stage-a",
+  "independenceCaveat": "544作成者はP-6 Stage Aの全26値を既に閲覧している。以下は固定入力と要件書v2.16の照合値だが、新しい事前封印・blind独立期待値には数えない。P-6側の同一検証者によるsource-reviewも新しい著者比較ではない。正式採用には曝露留保を別途受理する。",
+  "inputCommit": "79f2b122158631f9fa5eed862c81c46748e01129",
+  "inputSha256": "6514260fdfbf5ca3fccc755040119a1d9e21ee262bbd8e4f593279f843874b6c",
+  "sourceSet": {
+    "requirementsVersion": "v2.16",
+    "requirementsCommit": "52625ed6a6d7d27a212acfee16b97c8a97d987a5",
+    "requirementsBlob": "297f8cf2653c65c846ea3feff7b7a9c563afbe3e",
+    "clauses": ["付録A-1 サヨナラ・OUT3-01〜05", "付録E-1 J6"]
+  },
+  "semantics": {
+    "validCandidateSet": "配列順を無視する役割ID集合。実本塁触塁順序の一致を主張しない。",
+    "requiredCandidateSet": "拒否前の入力から必要と決まる候補の役割ID集合。",
+    "scoreAfter": "試合の攻撃側が後攻で初期2対2の固定入力から、そのプレイの計上得点だけを加算した値。",
+    "scoreboardInningScoreDelta": "当該プレイの表/裏得点増分であり、既存回セルの絶対値を主張しない。",
+    "statFlagsProjection": "得点/打点の指定キーに限る。他21キーを導出済みとしない。拒否入力に数値面を与えない。"
+  },
+  "cases": [
+    {"candidateInputId":"T1-J6-BLIND-001","authorValues":{"homeTouchOrderRequired":true,"validCandidateSet":["R2","R3"],"scoreAfter":{"away":2,"home":3},"scoreboardInningScoreDelta":{"away":0,"home":1},"statFlagsProjection":{"得点":true}}},
+    {"candidateInputId":"T1-J6-BLIND-002","authorValues":{"homeTouchOrderRequired":true,"validCandidateSet":["R2","R3"],"scoreAfter":{"away":2,"home":3},"scoreboardInningScoreDelta":{"away":0,"home":1},"statFlagsProjection":{"得点":true}}},
+    {"candidateInputId":"T1-J6-BLIND-003","authorValues":{"homeTouchOrderRequired":true,"requiredCandidateSet":["R2","R3"],"winningRunOrdinal":1}},
+    {"candidateInputId":"T1-J6-BLIND-004","authorValues":{"homeTouchOrderRequired":true,"requiredCandidateSet":["R2","R3"],"winningRunOrdinal":1}},
+    {"candidateInputId":"T1-J6-BLIND-005","authorValues":{"homeTouchOrderRequired":false,"validCandidateSet":["B","R1","R2"],"scoreAfter":{"away":2,"home":5},"scoreboardInningScoreDelta":{"away":0,"home":3},"statFlagsProjection":{"得点":true,"打点":true}}},
+    {"candidateInputId":"T1-J6-BLIND-006","authorValues":{"homeTouchOrderRequired":false,"validCandidateSet":["R2","R3"],"scoreAfter":{"away":2,"home":4},"scoreboardInningScoreDelta":{"away":0,"home":2},"statFlagsProjection":{"得点":true}}}
+  ],
+  "excluded": ["T1-J6-BLIND-001/002/006 RBIと打点フラグは公式失策・ミスプレイ・走者別因果観測不足", "拒否003/004の得点・score・RBIは未定義", "全23フラグ・正式case全体・T2終了検知は未比較"]
+}
