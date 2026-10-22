@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "input_manifest": {
-    "commit": "96dcb38f1746eb22abbf7cd6027782165b27151f",
+    "commit": "4dd989a3f84f83e82525a75c9112b3b569ac7375",
     "source_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
     "scan_start_heading_id": "DOC",
     "scan_end_heading_id": "APPENDIX-ITEM-F-2",
-    "source_blob_digest": "57f5e8f8be9946009151a4354a88176dd3ed630a",
+    "source_blob_digest": "e4542f9d1dff88cb6a8016f83a6b989285775477",
     "heading_ids": [
       "DOC",
       "CHANGELOG",
@@ -498,9 +498,9 @@
       "source_id": "CHANGELOG/table_row-002",
       "source_kind": "table_row",
       "source_heading_id": "CHANGELOG",
-      "source_text": "| **2.15** | 2026-10-16 | **確定ゲート通過（approved、TSK-550・FR-014/DRAW-04矛盾の限定改訂）**。**本改訂で確定する範囲**: 付録F-1の`DRAW-03`に「いずれかのコールド段で適用開始回Nが規定回Rを超えるなら保存拒否」を追加し、`DRAW-04`の有効判定はその非該当時に限る。`N=R`はこの条件では拒否しない。FR-014受入基準・既存DRAW分岐ID・付録F-2の固定5組と値は変更しない。**実装時に検証する範囲**: 単一相関検証と保存入口、関連ゴールデンケース。正式7.3第1回全文レビューはP0/P1/P2=0で収束（反映0周）。**POが2026-10-16に今回の最終本文と変更履歴を承認**。計画・採否: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | 山田正輝 + TSK-550担当 |",
-      "source_text_digest": "9f8888b8d447c07b70d47178e0b91a5178e47191ca191350a3c2f411a08eee19",
-      "decision_digest": "0b42a0ce55cc1315a684a60515c585fbf1140e56ee6be14f0ccda92da71deeb0"
+      "source_text": "| **2.16** | 2026-10-16 | **確定ゲート通過（approved、TSK-550・FR-014/DRAW-04矛盾の限定改訂）**。**本改訂で確定する範囲**: 付録F-1の`DRAW-03`に「いずれかのコールド段で適用開始回Nが規定回Rを超えるなら保存拒否」を追加し、`DRAW-04`の有効判定はその非該当時に限る。`N=R`はこの条件では拒否しない。FR-014受入基準・既存DRAW分岐ID・付録F-2の固定5組と値は変更しない。**実装時に検証する範囲**: 単一相関検証と保存入口、関連ゴールデンケース。正式7.3第1回全文レビューはP0/P1/P2=0で収束（反映0周）。**POが2026-10-16に今回の最終本文と変更履歴を承認**。計画・採否: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | 山田正輝 + TSK-550担当 |",
+      "source_text_digest": "3187cc279885952c3872eef81ac4c6923a6433e02265494a8cdde941af61e5eb",
+      "decision_digest": "70cd8eb81c5d9c6f587670dff074e646cabb91f501549ceefd70acdd13ba1dc6"
     },
     {
       "source_id": "CHANGELOG/table_row-003",
