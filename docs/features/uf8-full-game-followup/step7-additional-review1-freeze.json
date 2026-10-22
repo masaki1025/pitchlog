@@ -1,0 +1,20 @@
+{
+  "review_authorization": "2026-10-22 PO:追加独立レビュー1回、追補と既存9パス直接影響限定",
+  "review_head": "69bf83f5b94e3a529039da9b1d5eb5f2aac5953f",
+  "review_base": "cf9702abfc35b6a8d4dac157da60784993e9a7ea",
+  "review_tree": "0065f1e7c40094823353aa45404cb83d4151f27f",
+  "review_binary_diff_sha256": "908af9d2b4274b79fbf0c0b95b64a5aab62f473544067b922d8f0f33cec81774",
+  "develop_observed": "760c04d540b22190cab076165f1b4e35ae473a1f",
+  "files": {
+    "docs/features/uf8-full-game-followup/step7-plan-addendum-2026-10-22.md": "71231b528619c5e255eb86d82f81623b143b8506c61dce91ded968e5a047a7ad",
+    "docs/features/uf8-full-game-followup/step7-candidate/candidate.patch": "5a012348e3a08b47513804f3a6740094182a025065dbb285c37fa0af12d8306b",
+    "docs/features/uf8-full-game-followup/step7-nine-paths-published.patch": "b666700c7a1ad4ea152e35a41425fb281a992f80afed87f8ea0a0b102c5a73ee",
+    "docs/features/uf8-full-game-followup/step7-scope-extension-v3.md": "1002b6ca303948aed454ed0207b2bbcdabd9e466475657f86e1b6a6ae8730da7",
+    "docs/features/uf8-full-game-followup/step7-candidate/generate.py": "bab5140635e056640271af7044e0b4a121b51d860c32922f8bbb3e8b1ac4e604",
+    "docs/features/uf8-full-game-followup/step7-sequencing-2026-10-22.md": "3071bba600b07c0acd89ceedfe3aada5fc8b44d7126bbdb18a32ae60358233ca",
+    "docs/features/uf8-full-game-followup/step7-review-evidence-2026-10-22.md": "216123b4d6ec3d0c237bf92dbb705297b5e2f28af35e992f5c18f5b354214226"
+  },
+  "formal_shared_values_generated": false,
+  "formal_scope_approved": false,
+  "formal_77_accepted": false
+}
