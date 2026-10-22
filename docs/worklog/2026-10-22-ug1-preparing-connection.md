@@ -46,3 +46,31 @@
 - 初回委任は担当側プロンプトの「登録済み宣言保持」と追加層契約の矛盾、再委任は正確なglob指定欠落で確認待ちとなり、いずれも自分のプロセスだけを終了。製品/宣言の変更前で、268成功は変更前基線の結果として区別する。確定した2パターンを渡した最終委任は完走した。`--resume`は保存ID未生成のため起動前拒否され、新規実行で継続した。
 - 最終委任の初回検査にはuv共有cache書込不可と型注釈2件があった。自分の一時cache指定/注釈是正後に再実行して成功。検査を除外・緩和していない。前2委任の中断を成功扱いしない。
 - JSON登録の初回検査では268成功/1失敗。新規試験に実JSON未登録固定の前提が残っていたため、JSON候補を保全して宣言段階へ戻し、当該試験を隔離履歴での前後/後続登録検証へ是正した。修正後269成功、Ruff/ty/diff-check成功。登録後候補の一時JSONでも検査通過。未公開のステップ1コミットへ是正を含め、JSON登録とのコミット分離を維持した。検出や人間確認拒否は弱めていない。
+
+### ステップ2/6: JSON登録
+
+- ステップ1の確定コミット`8ece74b9`の後、`.claude/core-areas.json`だけを`57e73473`へコミット。tenant-isolation末尾に宣言済み2件を追加し、stage_a/U-F5/U-F6/U-F8/U-F13等の既存登録・全guard_pathsは不変。
+- 是正後の実JSONでcore全269成功（48.46秒）。コミット後の`verify_area_path_baseline(origin/develop,HEAD)`は760c04d5を返して成功。新規パスの検出と未記入逐行確認の拒否は既存main/隔離試験で確認。frozen-baselines --invariants-onlyも成功。人間のチェック/方法を代記していない。
+
+### ステップ3/6: DTO/read component・拒否境界
+
+- 新規`api/schemas/games.py`に作成入力（5区分・aware日時・両側UUID・既存大会key/新名称の排他・既存任意ラベル）とlimit20/最大100・cursorを実装。既存BaseSchema/PageRequest/Timestampを再利用し、予約/余剰fieldを拒否。独自の大会名称正規化・重複判定・既定大会を追加していない。
+- 新規`repositories/games.py`はPreparingGameListToken/DetailTokenと既存CAP:games:readの登録準備候補2件。context由来tenant bind、preparing・可視条件、索引順keyset、一覧limit+1/詳細1件を強制。候補はPRODUCT_OPERATIONSへ追加せず、現実行器の未登録拒否を試験した。SQLを構築/検査したcomponentの成果と、DB読取実接続を区別する。
+- `test_game_preparing_components.py`固有45成功、既存API schema/roster schema/repositoryを含む影響試験216成功。backend Ruff format --checkは370ファイル適合、Ruff/ty成功。途中のpytest -n 2はbackendのxdist不在で終了4、通常のserial実行へ戻して完走。型/整形/lintの初回指摘は是正済み、試験除外・timeout緩和なし。
+- 正式codec未提供のため、snapshot成功応答DTO/出所・相関証明を新作せず、旧snapshotの補完もしない。旧snapshotの実HTTP/DB拒否、正式read登録・API公開とproviderはステップ4へ残す。登録済みの実resolverと安全なRG1許可が必要な保存・実画面reloadはステップ5〜6へ残す。仮Port/fixtureによる成功を製品接続済みに数えない。
+- 承認後の予定UIパス/責任案は[#171の同じ照会](https://github.com/masaki1025/pitchlog/pull/171#issuecomment-6337294852)へ追記。新しい同内容照会は増やさず、未回答を担当受理・所有解除にしない。実際の共有パス並行変更は観測されず、他担当worktreeは変更していない。
+
+### 外部提供・正式ゲート・公開状態
+
+- #152: 正式codec公開型/入力結果、固定operation登録と提供担当/提出単位の回答待ち。#162統合待ちは解消済みだが、#152自体の実提供を成立済みにしない。
+- U-R1/#173: 既存RG1呼出し2件/具体例外は提供済み。SQLの常時falseを変更せず、安全な成功許可の条件・担当/提出単位は未提供。D4は作成component/readの一律待機条件ではない。
+- U-F8: フォーム/必須大会/providerの具体分担回答は未受領。Dの限定主担当指定と送付済みを相手の受理へ読み替えない。実競合があるパスのみ調整する。
+- read/作成HTTPをappへ登録する前に、既存capabilityに閉じたroute/matrix、operation/生成契約・tenant-boundary連動値の候補固定と必要な7.7が残る。今回正式台帳/受理履歴/snapshotを変更せず、承認者/日付・人間確認を先行入力しない。
+- 本限定枝のpush/Draft PR許可は未確認。実装候補をローカルcommitで固定し、必要なら通常pushと最小1Draftの操作許可をまとめて求める。実装の最終レビュー・全件/DB/E2Eは後続接続後のゲートであり、今回計画レビュー2回をコード査読や本人確認へ流用しない。
+
+### 最終候補の追跡済み検査と提供状況の差分
+
+- 新3ファイルが未追跡の段階ではtenant-boundary checkerは成功したが、commit後の最終検査は**TB005 2件・終了1**。新`repositories.games.preparing_game_list_statement`と`preparing_game_detail_statement`の`sqlalchemy.select`は、正式な基底symbol許可の外である。前段の成功を最終HEADの成功に流用しない。新しいsource/factory許可と2 tokenのoperation/公開型契約を、ステップ4の基線・認可/7.7候補へ含める必要がある。今回checker/許可台帳を変更して回避せず、全品質ゲート通過・read公開完了とはしない。
+- この2件はsnapshot公開型未提供とは別の正式ゲート。既存CAP:games:readのまま2つの閉じたreadだけを許す候補を固定し、既存登録の不変性・未登録拒否・全前後値/snapshot/履歴を照合して7.7へ出す。現時点で実値を正式受理済みにせず、既存履歴へ追記しない。
+- 最終候補でcoreの基線照合と実製品3ファイル検出、凍結基線不変量、計画同期、文書状態20件0違反、diff-checkは成功。backendの固有45/影響216・format/Ruff/ty成功とは分けて記録する。
+- 外部状況: [#173コメント6337880708](https://github.com/masaki1025/pitchlog/pull/173#issuecomment-6337880708)で#152後続の[#174](https://github.com/masaki1025/pitchlog/pull/174)作成を確認。公開HEAD4caa88c3は引継ぎ文書のみで、公開resolver型/製品operationはステップ3の対象外と明記。#174→#173統合順は先方の提案であり、両担当の受理として代記しない。#152の旧受理値を最新25履歴へ流用しない。Dから同じ照会を再送せず、型/operation/提出単位の実提供待ちを保持する。
