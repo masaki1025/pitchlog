@@ -154,7 +154,7 @@ class Game(TenantMixin, ImportBatchMixin, LifecycleMixin, Base):
         migration_retirement=MigrationRetirement.NONE,
     )
     immutability = Immutability(
-        protected_columns=frozenset(),
+        protected_columns=frozenset({"applied_rules"}),
         allowed_update_columns=frozenset(
             {"status", "started_at", "trashed_at", "hidden_at"}
         ),

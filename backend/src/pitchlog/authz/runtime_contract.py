@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 17
+RUNTIME_CONTRACT_REVISION = 18
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "13eeb95f54a8a713620a12c369505311349e72148c521141ed524ece91b0f62d"
+SOURCE_DIGEST = "7d681ae11cfde080d46e4722f288b438bf4f93869120b4ae58dc1f8c0fd04f4a"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -107,6 +107,7 @@ PROTECTED_FUNCTIONS = (
     ("public", "prevent_evacuated_event_originals_identity_update", ""),
     ("public", "prevent_event_slots_key_update", ""),
     ("public", "prevent_game_lineups_entries_update", ""),
+    ("public", "prevent_games_applied_rules_update", ""),
     ("public", "prevent_group_invitations_identity_update", ""),
     ("public", "prevent_group_memberships_identity_update", ""),
     ("public", "prevent_idempotency_ledger_result_update", ""),
@@ -136,6 +137,7 @@ PROTECTED_FUNCTIONS = (
     ("public", "prevent_tenant_tokens_identity_update", ""),
     ("public", "prevent_tenant_vocabularies_identity_update", ""),
     ("public", "protect_recording_generations_updates", ""),
+    ("public", "verify_games_applied_rules_final", ""),
     ("rg1_api", "rg1_assert_open_before_commit", "uuid"),
     ("rg1_api", "rg1_read_open", "uuid"),
 )

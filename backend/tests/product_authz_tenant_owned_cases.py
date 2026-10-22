@@ -22,7 +22,7 @@ _UUID_NAMESPACE = UUID("a65d8e4b-e8ac-4faa-a6a1-40e0d6ef618c")
 _RECORDED_AT = datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc)
 _FUNCTION_PATTERN = re.compile(
     r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+"
-    r"(?P<name>[a-z_][a-z0-9_]*)\s*\(\s*\).*?"
+    r"(?:public\.)?(?P<name>[a-z_][a-z0-9_]*)\s*\(\s*\).*?"
     r"AS\s+\$\$(?P<body>.*?)\$\$",
     re.IGNORECASE | re.DOTALL,
 )
@@ -33,15 +33,24 @@ _RAISE_PATTERN = re.compile(
 )
 _DROP_TRIGGER_PATTERN = re.compile(
     r"DROP\s+TRIGGER\s+(?P<trigger>[a-z_][a-z0-9_]*)\s+"
-    r"ON\s+(?P<table>[a-z_][a-z0-9_]*)",
+    r"ON\s+(?:public\.)?(?P<table>[a-z_][a-z0-9_]*)(?=\s|;|$)",
     re.IGNORECASE,
 )
 _CREATE_TRIGGER_PATTERN = re.compile(
     r"CREATE\s+TRIGGER\s+(?P<trigger>[a-z_][a-z0-9_]*)\s+"
     r"BEFORE\s+UPDATE(?P<scope>.*?)\s+"
-    r"ON\s+(?P<table>[a-z_][a-z0-9_]*)\s+"
+    r"ON\s+(?:public\.)?(?P<table>[a-z_][a-z0-9_]*)\s+"
     r"FOR\s+EACH\s+ROW\s+EXECUTE\s+FUNCTION\s+"
-    r"(?P<function>[a-z_][a-z0-9_]*)\s*\(\s*\)",
+    r"(?:public\.)?(?P<function>[a-z_][a-z0-9_]*)\s*\(\s*\)",
+    re.IGNORECASE | re.DOTALL,
+)
+# BEFORE UPDATE 以外（AFTER など）も含め、migration が接続したトリガ関数を拾う。
+# 発火試験は BEFORE UPDATE だけを対象にするが、資産との exact-set 照合は全接続を見る。
+_ANY_CREATE_TRIGGER_PATTERN = re.compile(
+    r"CREATE\s+TRIGGER\s+(?P<trigger>[a-z_][a-z0-9_]*)\s+.*?"
+    r"\s+ON\s+(?:public\.)?(?P<table>[a-z_][a-z0-9_]*)\s+.*?"
+    r"EXECUTE\s+(?:FUNCTION|PROCEDURE)\s+"
+    r"(?:public\.)?(?P<function>[a-z_][a-z0-9_]*)\s*\(\s*\)",
     re.IGNORECASE | re.DOTALL,
 )
 
@@ -303,6 +312,23 @@ def _migration_trigger_facts() -> tuple[
                     update_columns=_trigger_update_columns(match.group("scope")),
                 )
     return functions, triggers
+
+
+def _migration_attached_trigger_functions() -> tuple[str, ...]:
+    """直接op.executeした単純CREATE/DROPの最終接続を返し、重複も保持する。"""
+    attached: dict[tuple[str, str], str] = {}
+    for path in sorted(_MIGRATIONS_PATH.glob("*.py")):
+        for statement in _upgrade_sql(path):
+            for match in _DROP_TRIGGER_PATTERN.finditer(statement):
+                attached.pop(
+                    (match.group("table").lower(), match.group("trigger").lower()),
+                    None,
+                )
+            for match in _ANY_CREATE_TRIGGER_PATTERN.finditer(statement):
+                attached[
+                    (match.group("table").lower(), match.group("trigger").lower())
+                ] = match.group("function").lower()
+    return tuple(attached.values())
 
 
 def _tenant_update_candidate_names() -> tuple[str, ...]:

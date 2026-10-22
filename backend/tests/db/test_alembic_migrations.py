@@ -8476,13 +8476,15 @@ def test_0028_preflight_restores_product_force_rls_after_success(
     command.upgrade(config, "head")
     with psycopg.connect(catalog.owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT version_num FROM alembic_version")
-        assert cursor.fetchone() == ("0032_rg1_restore_gate",)
+        assert cursor.fetchone() == ("0033_game_rules_immutable",)
         cursor.execute("SELECT singleton_id, state FROM public.rg1_restore_gate")
         assert cursor.fetchall() == [(1, "closed")]
 
     # downgrade が削除した生成列と関数の ACL だけを資産から再適用する。
     restored_ids = {
         "FUNCTION:public:authn_normalize_team_name(text)",
+        "FUNCTION:public:prevent_games_applied_rules_update()",
+        "FUNCTION:public:verify_games_applied_rules_final()",
         "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner",
         "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner",
         "rg1_restore_gate",

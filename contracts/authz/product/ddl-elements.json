@@ -2439,6 +2439,48 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:public:prevent_games_applied_rules_update()",
+      "schema_name": "public",
+      "function_name": "prevent_games_applied_rules_update",
+      "identity_args": "",
+      "function_kind": "migration_trigger",
+      "owner_role_id": "pitchlog_owner",
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:public:verify_games_applied_rules_final()",
+      "schema_name": "public",
+      "function_name": "verify_games_applied_rules_final",
+      "identity_args": "",
+      "function_kind": "migration_trigger",
+      "owner_role_id": "pitchlog_owner",
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [
