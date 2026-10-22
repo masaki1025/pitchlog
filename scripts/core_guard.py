@@ -50,7 +50,10 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
     "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
-    "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
+    "tenant-isolation": (
+        "backend/src/pitchlog/services/game_creation.py",
+        "backend/tests/test_game_preparing*.py",
+    ),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
