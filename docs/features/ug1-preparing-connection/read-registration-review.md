@@ -85,3 +85,24 @@ route接合時はextra forbidのQuery modelへ共通clientが想定外queryを�
 - 正式履歴への反映は完全値固定→レビュー/7.7受理後のみ。現在は記録本文の準備であり、正式受理を求められる完成した記録案ではない。
 
 修正後の正例パス2本は専用一時ディレクトリへ最小fixtureを置き、既存scan_directoryで通常違反0、reject_all_db_calls=TrueでTB900を2件検出した。正確symbol/署名・許可APIの対応と全拒否変異の効力を確認したもので、実fixtureを共有正例集合へ登録した証拠ではない。
+
+## 2026-10-22追加許可とread専用供給の具体化
+
+追加敵対1回はPO許可済み・**未消費**。実行条件は#174→#173実統合後の実基線・正式read接続候補・差分SHAの固定であり、現在の資料/仮定した提供物で前倒し実行しない。先行2回と採否は保持する。
+
+| readに必要な供給 | 確認できた候補名・責任 | 提供元/状態 |
+| --- | --- | --- |
+| 保存JSONBのstrict decoder | `pitchlog.db.game_state.rule_snapshot.decode_applied_rules(value: object) -> DomainValidatedRuleSnapshot`。内部は`decode_structure -> StructuralRuleSnapshot`、`validate_correlations -> DomainValidatedRuleSnapshot`。旧{}・5-key/余剰・不正UUID/値域/相関/未裁定コールド条件を拒否する。構造型だけを成功readへ昇格させない | TSK-550本体/#174担当。ローカル候補426d0ec84249d5940e7e2de5660a213d45401d0e内の実ソースをread-only確認。正式公開/実統合提供SHAは未成立 |
+| 保存値の応答投影 | 同module `encode_applied_rules(value: DomainValidatedRuleSnapshot) -> dict[str, object]` を再利用する接合候補。再解決せず保存値と同じ6-keyを返す。規則計算やcodecを複製しない | 同担当/同候補。正式import契約は受領時に再照合 |
+| 失敗境界 | `RuleSnapshotInvalid`（`RuleSnapshotFailure.SHAPE/VALUE/CORRELATION/UNRESOLVED`）、`RuleSnapshotContractUnavailable`。不正/読取不能を成功DTOへしない。DB原本/内部メッセージを外部へ出さない | 同担当。現時点の具体HTTPエラー契約を新たに確定したものではない |
+| 規則行出所 | codecは規則行の出所を証明しない。作成側が検証済みresolverと同一scopeで確定保存し、readはtenant/可視性と保存済み値のstrict検証を行う。6-keyの形だけを出所証明にしない | TSK-550が保存前resolver、Dが保存・再取得。正規fixtureでのread検証と作成成功証拠は別 |
+
+候補moduleのGit blobは`e30256c33d2ff2fc7a660715d7d7da3b787e153e`、SHA-256は`e587a8f1e01d4d28a39f5f943b2d811b388282f782063e25fe20203a8c6c6e23`。候補に対する識別値であり、#175の基線/供給済み認定ではない。実develop760c04d5に当該moduleがないことをGitで確認済み。他担当枝を取り込まず、モジュールもコピーしていない。
+
+**readには不要な供給**：`public.resolve_stage_a_rule(uuid,text,text,boolean)`、公開resolver request/result、固定function operation、RG1書込成功許可。これらは新規作成時の規則解決/保存全取消に必要で、一覧/詳細readを止める同一条件へ束ねない。旧snapshotを現在のresolverで再計算して補完しない。
+
+### 実行結果とcodec入力の接合
+
+既存`TenantOperationResult.rows`のJSONBは`repositories.base._materialize_rows`によりdict/listからMappingProxyType/tupleへ不変化される。候補codecの`decode_structure`はexact dictとJSON listを要求するため、そのままでは読めない。D側でJSONコンテナだけを新dict/listへ戻し、正式codecへ一度渡す。未受領decoderの代用品を注入した成功試験は作らない。変換では旧{}・5-keyを補完せず、型/値も矯正せず、構造/相関/出所が検証済みという型やフラグを返さない。UUID/date/bytes等の非JSON値を文字列化して有効snapshotへ化けさせない。
+
+正式codec提供後の確認は、実行器が返す不変行→JSON復元→正式decode→正式encode→応答DTOの全経路、旧/破損snapshotの拒否、同tenant/別tenant/未認証、不可視/別状態、page/cursor、古い認証世代の応答拒否とする。保存済みsnapshotの再取得は現在の規則を再解決しない。
