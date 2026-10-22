@@ -49,7 +49,7 @@
 ## 2026-10-22 #172実統合後の最終再導出（候補）
 
 - #172は2026-10-21に実統合（merge `8a43d044`、head `8b10073e`）。developは当該mergeを含む。`8a43d044`を比較元に本ブランチを載せ替え、§6-5本文・変更履歴・派生値・受入シートを再導出した。
-- 版は実developの変更履歴から決めた。最新approvedはv0.11で、v0.12はdevelopに存在しないため、候補は**v0.12**。#170は未統合なので含まれていると仮定せず、将来の後続変更として扱う（v0.13を先決めしない）。
+- 版は実developの変更履歴から決めた。最新approvedはv0.11で、v0.12はdevelopに存在しないため、候補は**v0.12**。#170は2026-10-21に`7717b986`で実統合され、対象ファイル（data-model・manifest・shared-preconditions・シート）を変更しなかった。本候補は`7717b986`上へ再適用し、v0.12・派生値・6行判定の不変を確認した（v0.13を先決めしない）。
 - 正本: `docs/design/data-model.md` §6-5（本文は旧候補と同一）と変更履歴v0.12（in-review）。frontmatterと索引もin-review。本文の人間承認・状態確定は未了で、マージを承認の記録にしない。
 - 派生値（最終候補）: `canonical_source.sha256` `e49690fe…`、`source_documents`のdata-model行`git_blob_digest` `c9405534…`、`games.source_sections` `["5-1","6-5","11-1","12-3"]`。
 - 受入シート: N1 103 / N3 107 / N4 55 / N7 100。比較元`8a43d044`と意味・対応が同一の既存判定だけを持ち越した。**新規・意味変更の6行は判定空欄**: N1 見出し023/029、N3 出現060/061、N4 `games`、N7 候補046。旧候補の一致5・対象外1は再掲しない。本人の逐行確認は未了。
@@ -58,3 +58,13 @@
 - 旧#161構成の暫定値（`7394428…`/`c4b22e3…`/旧シート判定）は履歴であり最終値ではない。
 - ローカル検査: `check_docs_status` 0 violations、backend `test_schema_manifest.py` 14 passed、root `ruff check` / `ty check` 合格。`test_orm_acceptance_sheets.py::test_acceptance_sheet_judgments_are_complete`は上記6行が未判定のため失敗する（人間記入待ち。空欄を判定で埋めて回避しない）。
 - 残（人間）: 本文の承認・状態確定、6行の判定、本人逐行確認、Draft解除・マージ、既存DB適用。
+
+## 2026-10-22 人間承認と正式反映（マージ前）
+
+- 本会話のプロダクトオーナーが §6-5 本文の正式承認・状態確定と、判定空欄6行の旧候補どおりの判定（一致5・対象外1）を明示承認した。マージは別手続きとして未実施。
+- `data-model.md` を `approved` へ、変更履歴 v0.12 を `approved` へ、索引も `approved` へ更新した。
+- 6行を記入: N1 見出し023/029=一致、N3 出現060/061=一致、N4 `games`=一致、N7 候補046=対象外（理由に `data-model.md:6-5`）。判定の意味は旧候補と同じで、実装欄・正本側は本再導出の現行値に対する。
+- 承認後の派生値: `canonical_source.sha256` `ece05954…`、data-model行`git_blob_digest` `9788788e…`。manifestとshared-preconditionsを追随した。
+- 比較元は#170統合後のdevelop `7717b986`。対象ファイルの変更はなく、承認済みの版・派生値・6行判定は不変。
+- 検査: シート・shared-preconditions・doc coverage 70 passed、backend `test_schema_manifest.py` 14 passed、`check_docs_status` 0 violations、root `ruff check` / `ty check` 合格。
+- 未了（人間）: マージ、既存DB適用（本PRでは行わない）。

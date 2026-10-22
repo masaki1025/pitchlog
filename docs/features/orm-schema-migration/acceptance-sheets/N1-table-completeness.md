@@ -48,13 +48,13 @@
 | 見出し 020: クラッシュ注入点が定義できる配置(WAIT-06 = 同 11-4 の U-8 構造側 / M20) | data-model.md §5-4 | manifest tables: operation_events, idempotency_ledger, rejected_event_originals | 一致 | §5-4 に束縛された manifest 表を特定できる: operation_events, idempotency_ledger, rejected_event_originals |
 | 見出し 021: 9-2 境界表 17 行の写像先(WAIT-08 の全数対応) | data-model.md §5-4 | manifest tables: operation_events, idempotency_ledger, rejected_event_originals | 一致 | §5-4 に束縛された manifest 表を特定できる: operation_events, idempotency_ledger, rejected_event_originals |
 | 見出し 022: 5-5. 本節の禁止事項照合 | data-model.md §5-5 | manifest tables: 該当候補なし | 対象外 | 禁止事項の照合表であり表を定義しない data-model.md:5-5 |
-| 見出し 023: 6. 記録権・交代・状態補正・退避・適用規則スナップショット(ブロック 1 ②) | data-model.md §6 | manifest tables: games, participation_intervals, rule_sets, game_type_rule_defaults, tournament_rule_assignments, evacuated_event_originals, recording_generations |  |  |
+| 見出し 023: 6. 記録権・交代・状態補正・退避・適用規則スナップショット(ブロック 1 ②) | data-model.md §6 | manifest tables: games, participation_intervals, rule_sets, game_type_rule_defaults, tournament_rule_assignments, evacuated_event_originals, recording_generations | 一致 | §6 の見出しに対応する manifest 表（games・participation_intervals・rule_sets ほか 7 表）が存在する data-model.md:6 |
 | 見出し 024: 6-1. 記録権は「世代」を行として持つ(FR-013) | data-model.md §6-1 | manifest tables: recording_generations | 一致 | §6-1 に束縛された manifest 表を特定できる: recording_generations |
 | 見出し 025: 6-2. 交代はイベントとして永続化し、投影として「出場区間」を持つ(FR-011) | data-model.md §6-2 | manifest tables: participation_intervals | 一致 | §6-2 に束縛された manifest 表を特定できる: participation_intervals |
 | 見出し 026: 6-3. 状態補正は差分を持つイベント(FR-040・Should) | data-model.md §6-3 | manifest tables: 該当候補なし | 対象外 | 状態補正は「操作イベントの種別の 1 つとして持つ(別表を作らない)」と正本が明記 data-model.md:6-3 |
 | 見出し 027: 6-4. 退避イベントは原本を残し、取り込みは新規行として採番する(FR-013・FR-035) | data-model.md §6-4 | manifest tables: evacuated_event_originals | 一致 | §6-4 に束縛された manifest 表を特定できる: evacuated_event_originals |
 | 見出し 028: 退避と復元の構造側(C07・C15・M11〜M13・WAIT-02・WAIT-04) | data-model.md §6-4 | manifest tables: evacuated_event_originals | 一致 | §6-4 に束縛された manifest 表を特定できる: evacuated_event_originals |
-| 見出し 029: 6-5. 規則セットと適用規則スナップショット(FR-014・付録F) | data-model.md §6-5 | manifest tables: games, rule_sets, game_type_rule_defaults, tournament_rule_assignments |  |  |
+| 見出し 029: 6-5. 規則セットと適用規則スナップショット(FR-014・付録F) | data-model.md §6-5 | manifest tables: games, rule_sets, game_type_rule_defaults, tournament_rule_assignments | 一致 | §6-5 の見出しに対応する manifest 表（games・rule_sets・game_type_rule_defaults・tournament_rule_assignments）が存在する data-model.md:6-5 |
 | 見出し 030: 6-6. 本節の禁止事項照合 | data-model.md §6-6 | manifest tables: 該当候補なし | 対象外 | 禁止事項の照合表であり表を定義しない data-model.md:6-6 |
 | 見出し 031: 7. チーム・選手・在籍区分・スタメン・対戦相手チーム(ブロック 2 / 論点 5・8) | data-model.md §7 | manifest tables: team_records, players, lineup_memories, game_lineups, participation_intervals, migrated_final_lineups | 一致 | §7 に束縛された manifest 表を特定できる: team_records, players, lineup_memories, game_lineups, participation_intervals, migrated_final_lineups |
 | 見出し 032: 7-1. 「チーム」を 2 つの表に分ける(論点 5) | data-model.md §7-1 | manifest tables: team_records | 一致 | §7-1 に束縛された manifest 表を特定できる: team_records |
