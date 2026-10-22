@@ -4,7 +4,7 @@
 
 ## tenant-boundary の最小許可候補
 
-`read-registration-candidate.json` は `contracts/tenant_boundary/base-allowlist.json` の `allowed_symbols` 末尾にだけ追加する RFC 6902 形式の2操作。`760c04d5` の実ファイル SHA-256 は `0aeff342a6d27c8b065e75f280a0259319296ccec17d2b6b86d5a3ebd07096a5`。現作業木の同ファイルは base とバイト一致し、既存21 symbol、既存の履歴・他フィールドはパッチで変更しない。2件追加のみを既存の2空白インデント JSON として直列化した候補ファイル SHA-256 は `714920fcb0a61c8c265dad6fa26e6ed5f2e9b674c32306d3d33d242c5be1aa2d`、symbol は23件となる。この digest は**受理後の最終値ではない**。
+`read-registration-candidate.json` は `contracts/tenant_boundary/base-allowlist.json` の `allowed_symbols` 末尾にだけ追加する RFC 6902 形式の2操作。`760c04d5` の実ファイル SHA-256 は `0aeff342a6d27c8b065e75f280a0259319296ccec17d2b6b86d5a3ebd07096a5`。現作業木の同ファイルは base とバイト一致し、既存21 symbol、既存の履歴・他フィールドはパッチで変更しない。2件追加のみを既存の2空白インデント JSON として直列化した候補ファイル SHA-256 は `1d0a5e5a19767c5fec5b4a88636d7e8c5fb585b44e548546979a25715622e364`、symbol は23件となる。この digest は**受理後の最終値ではない**。
 
 許可するのは `pitchlog.repositories.games._preparing_game_list_statement(cursor_position: tuple[datetime, UUID] | None=None) -> Select[Any]` と `pitchlog.repositories.games._preparing_game_detail_statement() -> Select[Any]` の各 `SQLA_SELECT` だけ。関数単位の正確な署名は既存 checker の `_function_signature` による AST 正規化値。任意の `select`、`text`、`update`、module 全体を許可しない。候補 fixture パス2件は将来の正例用で、現時点では存在しない。正式反映時は正例 fixture の exact-set、凍結 revision・履歴・snapshot を一緒に整合させる必要がある。今回のパッチだけを実 allowlist へ適用しても `load_contract` の fixture exact-set に合格しない。
 
@@ -68,4 +68,20 @@ U-F8回答 [6338616580](https://github.com/masaki1025/pitchlog/pull/171#issuecom
 
 ## レビュー対象と残ゲート
 
-本資料は正式な7.7受理依頼の完成版ではない。既存コードの反対側一次の対象は固定36e7129dで、この資料/新境界試験はその査読対象外。製品の敵対基本枠は未消費のため、今回の限定候補を含む第1回で審査する。7.7完全前後値・snapshot・記録案は共有パスの先行統合後に固定する。不足枠が生じた場合は既存回数を保持して対象差分だけをPOへ提示し、既受理事項の全面再審査へ戻さない。
+本資料は正式な7.7受理依頼の完成版ではない。既存コードの反対側一次の対象は固定36e7129dで、この資料/新境界試験はその査読対象外。資料初版時は製品敵対基本枠は未消費だった。反対側（Claude一次）と敵対（codex_run）は別系列で数え、計画査読とも区別する。9807c22cの敵対基本第1回はP0/P1/P2=0、同HEADの反対側差分第2回はP0/P1=0・P2=5だった。7.7完全前後値・snapshot・記録案は共有パスの先行統合後に固定する。不足枠が生じた場合は既存回数を保持して対象差分だけをPOへ提示し、既受理事項の全面再審査へ戻さない。
+
+### 反対側第2回後の候補是正
+
+正例候補のパスをgames.pyとgames/__init__.pyへ修正した。両者は同じpitchlog.repositories.gamesへ解決され、fixtureパスの一意性と元の完全修飾symbol照合を両立する。実fixture配置はまだ行わず、正式登録時のexact-set/全拒否変異の検査条件を維持する。候補ファイルdigestだけが上記の値へ変わり、正式7.7値・snapshot・履歴は変更0。前候補digestは受理済み値ではない。
+
+route接合時はextra forbidのQuery modelへ共通clientが想定外queryを付けないことも検証する。これを理由にextra拒否を緩めない。
+
+### 7.7記録案に固定できる項目と未確定欄
+
+- 単一受理単位案：`masaki1025/pitchlog#175`。承認者・承認日：未記入。
+- 対象：SQL構築2関数のSQLA_SELECT限定許可、repository公開2tokenと実registry、2 GET認可連動、必要な派生契約・fixture・snapshot・seal。新capabilityやPOST/作成/開始は含めない。
+- 前状態：本資料の760c04d5機械照合値は準備基線のみ。正式な直前状態は#174→#173実統合後のdevelopと保持すべき受理済み履歴から再取得する。
+- 後状態・revision・凍結射影・snapshot・8入力/派生seal・record digest：共有パスの正式引渡し後に一括生成する未確定欄。現在の生ファイルSHAやメモリscanをその代用にしない。
+- 正式履歴への反映は完全値固定→レビュー/7.7受理後のみ。現在は記録本文の準備であり、正式受理を求められる完成した記録案ではない。
+
+修正後の正例パス2本は専用一時ディレクトリへ最小fixtureを置き、既存scan_directoryで通常違反0、reject_all_db_calls=TrueでTB900を2件検出した。正確symbol/署名・許可APIの対応と全拒否変異の効力を確認したもので、実fixtureを共有正例集合へ登録した証拠ではない。

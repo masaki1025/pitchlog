@@ -8,7 +8,7 @@
       "allowed_api_ids": [
         "SQLA_SELECT"
       ],
-      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games_list.py"
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games.py"
     }
   },
   {
@@ -20,7 +20,7 @@
       "allowed_api_ids": [
         "SQLA_SELECT"
       ],
-      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games_detail.py"
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games/__init__.py"
     }
   }
 ]
