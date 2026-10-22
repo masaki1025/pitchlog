@@ -597,3 +597,5 @@ HEAD `18930499`の主担当実host `/tmp/uf8-entry-final-browser.log` は、対�
 Dの部分提出#175（取得36e7129d）は既存D担当によるDraftで、U-F8の新規PRではない。U-F8は共有資産を#174→#173→D read登録の実統合/引渡し後に置くと回答。#174担当は正しい生成パスで再確認し、9対象中8件（JSON6＋runtime/tenant_context）が重複と訂正した。repository_contract生成のみ差分なし。既存EntryDatumの閉型を踏まえ、preparing詳細用表示型の分離か既存RecordDetail未供給を維持する補足をDへ送付し、架空pendingでのready化も禁止した。
 
 今回の検査は文書状態20件0違反、計画正本同期、diff-check、公開9ブロック完全一致/固定v3 SHA/旧候補不変、追加文書のローカル参照、origin/develop比で製品/frontend/backend/共有資産/harness/legacyの固有差分0を確認して成功。新規製品実装・全テスト/CI・追加独立査読は実行していない。過去の実測結果と今回の文書検査を分離する。
+
+追補照合：#173のworktreeへ対象パス限定read-only差分照合を行い、U-F8追加9パスは9件全て、ほかbase/census/比較manifestが重複と確認。CIにはその時点で差分なし。#174は担当訂正済み8件、#173は9件という実測を順序票へ追記した。先行候補は未公開であり、U-F8へパス別引渡し受諾/実統合SHAは未取得。正式候補値の導出/履歴追記は引き続き0。
