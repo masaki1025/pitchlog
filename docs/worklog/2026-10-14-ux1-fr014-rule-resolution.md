@@ -191,3 +191,12 @@
 
 - **2026-10-18・固定候補への追加独立レビュー（既定2回＋追加1回、枠消費済み）**: 対象HEAD `39fdcb6d0ffd3d6c22565f26621e5eb65750491f`、候補資料（旧#149ブランチに保全、未移植） SHA-256 `9cdac78eadc067182ce375e5d7921062a72dc643c05a358fe5be07452dfcbe70`を独立担当が限定査読。P0=1/P1=0/P2=1。P0は上記「#149末尾1件を差し替える」方針で、§7.7-2の既存記録書換・削除禁止と衝突する。§7.7-4は受理単位の委任であり例外化ではない。旧#149の正式行をログへ退避しても書換えは許されないため、この差替え案を**不採用**に訂正する。旧#149ブランチと記録を未マージのまま不変保全し、最新developの既受理23件を基線とする**別PR ID**で必要差分を移植して、tenant-boundary・seed・oracle_inputの各履歴へそのPRの1件を初めて追記する案を推奨。新PRの実ID・tree・oracle入力commitと全値は再導出し、別途7.7正式受理前に履歴へ書かない。現候補資料の#149を再使用した3記録案は採用しない。P2は全体資料SHAに加えて各記録案JSONの独立SHAを次の正式受理資料で固定すること。TB005の限定7関数・5 DB API ID、未登録/別module/余分API/署名変更の負例を確認し、独立再実行4件合格。認可派生8入力・oracle sealのblobを候補HEADおよび入力commitと照合し、oracle本文の意味行不変を確認。通常認可検査は新実値未受理のため引き続き拒否。今回のレビューを既済み全文レビューや本人逐行確認に読み替えない。
 - **同日・N3-061候補の別単位実DB検証**: 別worktree `feature/orm-applied-rules-immutability-candidate`（最新develop起点）を使用し、既存0032を適用した使い捨てPostgreSQLへ、`games`の`AFTER UPDATE`で`OLD.applied_rules IS DISTINCT FROM NEW.applied_rules`をSQLSTATE `23514`で拒否する一時triggerを作成。初回INSERT、別列更新、同値更新は成功し、異値UPDATEは23514で拒否、保存値は変わらないことを確認した。これは一時検証であり、正式migration・manifest宣言・恒久試験・所有側受理は未実施。候補設計と権限/復旧影響は別worktreeの資料へ記す。N3-061は未解消、ステップ3完了・試合作成公開の前提から外さない。
+
+
+## 2026-10-23・PR #174後発corpus入力の限定7.7受理（追記記録）
+
+- 対象版: PR #174 v2後発corpus是正。対象HEAD `a38387ccbaead5148d78458e7e97cfca09e6f5fd`、候補tree `8b6b247482926d565055be900bb9c4a20656f12e`、8ファイル差分SHA-256 `1cc3862a9d434d4b6fd4960c8f4462f0a851f19b541b18be186e8e21ea2e94ce`。受理単位は比較corpus入力digestの後発是正に限る。v2本体の完全値資料SHA-256 `1e3a495d07c3dd7d92cd2b3cffbe80fb6057ad75ded8e7a78bf05e921624ed70`とtenant・seed・oracle 3記録案を再受理し直すものではない。
+- 直前の基準: `f1c30f7a03d1d377b593df7857c5805364630f3984eef32c1ab1c409c90c5dc1`。直後の基準: `8fa501a4c6f9b2736160f7c49b60630f23505ae9a71590004062b97c74c8a0a3`。変更内容は`tests/fixtures/frozen-archive-cases/manifest.json`の`corpus_inputs.digest`再pin 1値。入力集合、比較規則、pinned_prefixesは不変。
+- 理由: `contracts/tenant_boundary/repository-contract.json`の内部`source_digest`を実計算値へ是正した。tenant凍結射影はこの内部値を除外する一方、比較corpusはJSON生ファイルを入力に含むためdigestのみ変わる。旧JSONへ読み替えた再計算で旧digestを再現。9資産射影・外部8ファイル・17 snapshot・3記録案はv2値と一致。既存tenant・seed・oracle履歴行は書換・重複追記しない。
+- 承認者: 山田正輝。承認日: 2026-10-23。根拠: 本セッションの利用者メッセージ「#174の後発是正について、以下を判断します」中の「corpusの限定7.7受理」。独立Codex（GPT-6.1-sol）の今回1回の限定レビューはP0/P1/P2=0/0/0。レビュー対象は上記候補treeと8ファイル差分であり、この受理後のpin・ORMシート・本記録の追記差分には自動延長しない。
+- 同メッセージでORM新規4行も本人が分類判定した。N3の001/061/088は対象外/一致/対象外、N7の094は対象外。旧行の人間判定と理由は保持し、今回の分類をPR全体の本人逐行確認へ流用しない。

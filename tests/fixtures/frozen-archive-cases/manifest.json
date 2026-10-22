@@ -4,7 +4,7 @@
   "repository_full_name": "masaki1025/pitchlog",
   "pull_request_number": 83,
   "corpus_inputs": {
-    "digest": "f1c30f7a03d1d377b593df7857c5805364630f3984eef32c1ab1c409c90c5dc1",
+    "digest": "8fa501a4c6f9b2736160f7c49b60630f23505ae9a71590004062b97c74c8a0a3",
     "files": [
       ".github/workflows/ci.yml",
       "scripts/check_tenant_boundary_bypass.py",
