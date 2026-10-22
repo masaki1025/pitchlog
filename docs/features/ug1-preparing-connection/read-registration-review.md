@@ -106,3 +106,19 @@ route接合時はextra forbidのQuery modelへ共通clientが想定外queryを�
 既存`TenantOperationResult.rows`のJSONBは`repositories.base._materialize_rows`によりdict/listからMappingProxyType/tupleへ不変化される。候補codecの`decode_structure`はexact dictとJSON listを要求するため、そのままでは読めない。D側でJSONコンテナだけを新dict/listへ戻し、正式codecへ一度渡す。未受領decoderの代用品を注入した成功試験は作らない。変換では旧{}・5-keyを補完せず、型/値も矯正せず、構造/相関/出所が検証済みという型やフラグを返さない。UUID/date/bytes等の非JSON値を文字列化して有効snapshotへ化けさせない。
 
 正式codec提供後の確認は、実行器が返す不変行→JSON復元→正式decode→正式encode→応答DTOの全経路、旧/破損snapshotの拒否、同tenant/別tenant/未認証、不可視/別状態、page/cursor、古い認証世代の応答拒否とする。保存済みsnapshotの再取得は現在の規則を再解決しない。
+
+## 2026-10-23 受取物と着手条件の照合
+
+共有資産の反映順はPO指示どおり **#174 → #173 → #175**。#174公開HEAD `e30edc79a7f90aa27cb14303910676e414c2cab6` と#173公開HEAD `dac2ff15cd35b63a7c9f5bc69cd6a87f15e2ed5f` はともにOPEN・mergeCommit=null。最新実developは`1ab398cc7b2e0f54eafc038fc761a8a8ab42d2a0`（#159統合）で、前回760c04d5以降のAPI/repository/今回対象共有資産差分はなく、正式codecも未収録。今はfetchによる確認だけとし、未統合候補を基線として使わない。
+
+| 受取物/作業 | 担当・確認できた内容 | 不足/解除条件 | readの停止条件か |
+| --- | --- | --- | --- |
+| 保存値codecの正式供給 | TSK-550/#174。公開e30edc79内の`db/game_state/rule_snapshot.py`をGitHub contentsで照合し、blob e30256c33d2ff2fc7a660715d7d7da3b787e153e・11227 bytesが前回候補と同一と確認。decode_applied_rules/DomainValidatedRuleSnapshot/encode_applied_rulesと例外の候補名は既述のとおり | **公開済み、未統合**。#174の実統合SHAを含むdevelopから同一module/公開型/実行依存を再照合する。未公開だから待つという旧分類を現時点へ流用しない | 正式readのsnapshot検証に必要。新規作成resolverの完成待ちとは別 |
+| #174の共有正式履歴 | #174担当。製品・7.7履歴を含む候補が公開済み。最新受渡コメント6348761806/6349413559 | 実統合SHA・最終共有内容が未成立。未マージHEADの履歴位置を予約しない | 後続#173の正式再導出に必要 |
+| #173の共有資産引渡し | U-R1/#173。#174実統合後の再導出方針は受領済み、同じ順序を再照会しない | #174後の実基線からのbase/repository契約・派生Python・snapshot・corpus・受理履歴を含む実統合SHA/最終内容が未提供 | #175の最終登録/7.7基線の条件。RG1の業務成功許可をread条件へ追加しない |
+| read登録・HTTP/認可接合と試験 | D/#175。SELECT限定2関数、公開2token、2 GET、既存CAP:games:read、JSON復元の準備済み | 上記実引渡し後、Dが実基線から登録/認可/TB005解消・旧snapshot拒否の候補を実装/固定する。これはDの残作業であり、他担当の未提供物と混同しない | 正式readに必要 |
+| 7.7完全値・単一記録案 | D/#175。既受理履歴を保持して導出する | #174→#173後の実基線と最終接続候補から前後射影/外部入力/snapshot/派生値/単一記録案を固定。旧プレビューSHAを正式値へ転用しない | 正式受理前の反映は禁止 |
+| 許可済み追加敵対1回 | Dが既定ラッパーで依頼。基本2回の結果は保持、追加は未消費 | 実基線SHA・接続候補HEAD・最終差分SHA固定後のみ実行。JSON復元2ファイルも含め、結果と7.7資料を一括提示する | 条件成立前に実行しない |
+| 新規作成resolver・安全RG1成功 | TSK-550の公開resolver/固定function operation、U-R1のRG1。作成保存の外部条件 | resolverの公開request/result・登録operation、安全なRG1書込成功の実提供 | **readには不要**。POST作成・開始・初期権・1球の完成を#175の提出結果へ含めない |
+
+JSON復元の後発差分は審査済み305d61ddから公開6bed7cf2の製品2ファイルに限定して識別し、`git diff --binary --full-index 305d61dd085cc0dd421b397140f07ef26e0bbf72..6bed7cf2f8ffd5c1fe95fd9e14b19a8d8a1ffa82 -- backend/src/pitchlog/api/schemas/games.py backend/tests/test_game_preparing_components.py` のSHA-256は`c5ec699c3ffa7e391955e1158fe505b9e87b5ecbdadbdaa69c5ba8c7a1cca70a`。**未再レビュー**であり、これは将来の正式read接続全体の最終差分SHAではない。

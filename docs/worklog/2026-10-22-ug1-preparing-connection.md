@@ -132,3 +132,14 @@
 - actual _materialize_rows由来の結果で同値/新container/相互変更独立、{}・5-key・余剰/不正値の非補完、非JSON型/キー・非有限数・例外への原本非漏洩を検証。固有/境界**91成功**、変更2ファイルformat/Ruff/ty/diff-check成功。正式codec試験・DB read・API公開・作成成功の証拠には数えない。
 - この製品2ファイルと今回の計画/資料/結果記録は305d61ddの既済みレビューより後の差分で、未再レビュー。基本2回の既結果・採否を保持し、PO許可の追加敵対1回を前倒し消費しない。正式read候補が固定された際の直接影響差分へ含める。
 - 正式codec候補の実名とimmutable入力差分を既存#174コメント6338633410へ集約した。readはresolver request/result・固定関数operation・RG1書込成功を待つ条件から分離し、正式codecの実提供/共有資産の実引渡しだけをreadの未成立条件として保持する。
+
+### 2026-10-23: 公開6bed7cf2の最終CIと受取物確認
+
+- 対象HEADは`6bed7cf2f8ffd5c1fe95fd9e14b19a8d8a1ffa82`。最終完走runは[39786451902](https://github.com/masaki1025/pitchlog/actions/runs/39786451902)。先行run39786333056のbackend/harnessはCANCELLEDで、最終の成功/失敗へ混同しない。
+- backend: **3150 passed / 4 skipped / 1 warning**、coverage **89%**、1675.46秒。format/Ruff/tyの完走も成功。旧2922536fの3126成功とは別のHEAD結果である。
+- harness: **29644 passed / 2 skipped / 2 failed**、2124.22秒。失敗はtest_repository_is_greenとtest_repository_application_population_is_nonempty_and_greenで、双方ともgames.py 88/114行の既知TB005を検出。timeoutではなく検査失敗。全件成功にしない。
+- tenant-boundary-bypassは同じTB005 2件、core-guardは本人逐行確認未チェックで拒否。secrets/docs-lint/consistency/mutation/nfr021-append-onlyと変更判定は成功、frontendは差分なしSKIPPED。既知TB005のローカル再実行・CI再実行は行っていない。
+- 最新origin/developは1ab398cc7b2e0f54eafc038fc761a8a8ab42d2a0（#159統合）。#174/#173はなお未マージ。今はfetchとread-only照合のみで、両者の未統合枝を取り込まず共有正式資産も変更0。
+- codecは#174の公開e30edc79に存在し、候補blobは前回e30256c33d2ff2fc7a660715d7d7da3b787e153eと一致。**保存値codec公開済み/実統合待ち**へ不足分類を更新し、作成用resolver提供とは分離した。項目別不足・担当・解除条件はread-registration-review.mdの2026-10-23表へ集約。新たな同内容照会/別PRは作成しない。
+- JSON復元2ファイルは305d61dd..6bed7cf2で識別し、diff SHA-256 c5ec699c3ffa7e391955e1158fe505b9e87b5ecbdadbdaa69c5ba8c7a1cca70a。未再レビューを保持。基本2回の履歴/採否・追加敵対1回の許可を維持し、追加は**未消費**。両共有PRの実統合後、実基線/接続候補/最終差分SHAを固定するまで実行しない。
+- 今回はCI回収と受取物整理の資料だけを記録。製品コード・正式資産・受理記録/snapshotの反映なし。公開6bed7cf2のCI結果を確定記録し、資料変更だけで既知の失敗CIを反復起動しないため、本記録はローカルコミットで保全し、PRコメントで報告する。後続の正式接続差分とまとめて通常pushする。
