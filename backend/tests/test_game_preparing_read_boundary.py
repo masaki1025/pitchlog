@@ -77,7 +77,7 @@ def test_preparing_read_rejects_other_table(index: int) -> None:
         .where(teams.c.tenant_id == bindparam("tenant_id"))
         .limit(bindparam("limit"))
     )
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="参照表がカタログの1表と一致しない"):
         _validate_prepared_statement(spec, statement)
 
 
@@ -93,7 +93,7 @@ class _FakeReadToken(TenantOperationToken):
 
 @dataclass(frozen=True, slots=True)
 class _ListTokenSubclass(PreparingGameListToken):
-    """登録候補の継承型で exact 型検査を試す。"""
+    """未登録の継承型も拒否する。"""
 
 
 @pytest.mark.parametrize(

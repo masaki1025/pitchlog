@@ -96,3 +96,13 @@
 - 委任内の同期TestClientは中断130。非同期httpx ASGITransportによる同じFastAPI Query束縛へ置換後、委任内の固有54成功、format/Ruff/ty成功。試験自体は除外せずQueryの受理/拒否を維持した。親も最終の固有54＋新境界13＝67成功を再確認し、3ファイルformat/Ruff・backend全ty成功。最初の58成功の前にtenant欠落を_validate_prepared_statement単独へ期待した2失敗があり、実行器の連続検査である_TenantScopedOperationの責任へ試験を是正した。拒否能力の緩和ではない。
 - 新しい境界試験は未登録read componentの拒否条件の補強であり、ステップ3付記として保持する。ステップ4の正式登録/7.7/HTTP/read成功を完了コミットとして扱わない。
 - U-F8補足は#171コメント6338805507へ集約された。EntryDatumに未取得literalがないため架空pendingでRecordDetailをreadyにしない。Dのpreparing専用型分離またはRecordDetail未供給維持を受理。共有順序#174→#173→Dへの照合はU-F8側が受理し、他2担当の受理とは区別する。
+
+### 現候補のレビュー採否
+
+- 敵対基本第1回（9807c22c対760c04d5、差分12ファイル）はP0/P1/P2=0。メモリscanの現2/候補0と別関数拒否も実施。正式load_contract/7.7/API/保存の成功には数えていない。
+- 反対側基本第2回（9807c22c、一次指摘反映差分・影響）はP0=0/P1=0/P2=5。前P1は解消。新P2は全採用：①正例候補をgames.py/games/__init__.pyへ是正、②cursor付きSQLへ実行時tenant検査を追加、③別表拒否の原因限定と継承型docstringの是正、④空白大会の後続確認を計画にも明記、⑤一次/敵対の回数系列を分離記録。
+- ①の未適用allowlistプレビュー生ファイルSHAは714920fcb0a61c8c265dad6fa26e6ed5f2e9b674c32306d3d33d242c5be1aa2d→1d0a5e5a19767c5fec5b4a88636d7e8c5fb585b44e548546979a25715622e364。正式な受理値ではなく、実資産・履歴・snapshot変更0。
+- 反対側2回、敵対基本1回を消費。査読後の是正・結果記録はこの時点で未再レビューで、回数をリセットしない。
+
+- 第2回指摘の試験是正後もbackend固有/境界67成功、変更2ファイルformat/Ruff/ty/diff-check成功。codeのfixture未登録を「exact型の登録後拒否の証明」とは記録しない。
+- 正例候補2本を隔離一時領域でscan_directoryへ通し違反0、全拒否変異はTB900 2件。初回の呼出名scan_treeは実在せずAttributeErrorで失敗、正しい既存関数名へ是正して再実行成功。実fixture/台帳/検査器変更0。新しい検査器は作成していない。

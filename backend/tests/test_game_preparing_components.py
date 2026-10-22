@@ -259,6 +259,9 @@ def test_candidate_statements_bind_tenant_visibility_state_limit_and_keyset() ->
     detail_statement, detail_parameters = detail_spec.prepare(
         PreparingGameDetailToken(_GAME_ID)
     )
+    _TenantScopedOperation(
+        list_spec.capability_id, list_statement, list_spec.tenant_column
+    )
     _validate_prepared_statement(
         list_spec, list_statement, list_parameters | {"tenant_id": uuid4()}
     )
