@@ -95,7 +95,7 @@ def decode_preparing_game_cursor(cursor: str) -> tuple[datetime, UUID]:
         降順 keyset の比較位置。
 
     Raises:
-        ValueError: 壊れた形式、改変、型、または naive 日時の場合。
+        ValueError: 破損した形式、非正規形、型、または naive 日時の場合。
     """
     if type(cursor) is not str or not 1 <= len(cursor) <= 256:
         raise ValueError("カーソルの形式が不正")
@@ -124,6 +124,14 @@ class PreparingGameListRequest(PageRequest):
     """preparing 試合の一覧件数と不透明なページ位置を指定する。"""
 
     limit: int = Field(default=20, ge=1, le=PREPARING_GAME_PAGE_SIZE_MAX, strict=True)
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def parse_query_limit(cls, value: object) -> object:
+        """HTTP query の ASCII 十進表記だけを strict int へ変換する。"""
+        if type(value) is str and value.isascii() and value.isdecimal():
+            return int(value)
+        return value
 
     @field_validator("cursor")
     @classmethod

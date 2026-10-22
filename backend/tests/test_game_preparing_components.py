@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
+import json
 from dataclasses import fields
 from datetime import datetime, timedelta, timezone
-from typing import Any, cast
+from pathlib import Path
+from typing import Annotated, Any, cast, get_args
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
+from fastapi import FastAPI, Query
 from pydantic import ValidationError
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.selectable import Select
@@ -84,6 +89,16 @@ def test_create_input_uses_shared_schema_and_accepts_five_types() -> None:
     assert isinstance(new.tournament, NewTournament)
     assert new.tournament.display_name == "春季"
     assert PreparingGameListRequest().limit == 20
+
+
+def test_game_type_literal_matches_seed_keys() -> None:
+    """作成 DTO の固定5区分が正本 seed の key 集合と一致する。"""
+    seed_path = Path(__file__).resolve().parents[2] / "contracts/seeds/game-type.json"
+    seed = json.loads(seed_path.read_text(encoding="utf-8"))
+    keys = [entry["key"] for entry in seed]
+    literal = PreparingGameCreate.model_fields["game_type_key"].annotation
+    assert len(keys) == len(set(keys)) == 5
+    assert set(get_args(literal)) == set(keys)
 
 
 @pytest.mark.parametrize(
@@ -161,23 +176,57 @@ def test_cursor_rejects_invalid_type_partial_and_naive_values(cursor: object) ->
         PreparingGameListToken(cursor=cast(Any, cursor))
 
 
-def test_cursor_rejects_modified_payload() -> None:
-    """整形式カーソルの1文字改変も検出する。"""
+def test_cursor_rejects_payload_with_stale_checksum() -> None:
+    """位置だけを変更した破損カーソルのチェックサム不一致を拒否する。"""
     cursor = encode_preparing_game_cursor(_SCHEDULED_AT, _GAME_ID)
     raw = base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4))
     altered = raw.replace(_GAME_ID.hex.encode("ascii"), uuid4().hex.encode("ascii"))
-    tampered = base64.urlsafe_b64encode(altered).decode("ascii").rstrip("=")
+    corrupted = base64.urlsafe_b64encode(altered).decode("ascii").rstrip("=")
     with pytest.raises(ValueError):
-        decode_preparing_game_cursor(tampered)
+        decode_preparing_game_cursor(corrupted)
 
 
-@pytest.mark.parametrize("limit", [0, 101, True, 1.5, "20"])
-def test_list_limit_rejects_out_of_range_or_coerced_values(limit: object) -> None:
-    """DTO と token の双方で上限・真偽値・型変換を拒否する。"""
+@pytest.mark.parametrize(
+    "limit", [0, 101, True, 1.5, "0", "101", "1.5", "２０", "+20", ""]
+)
+def test_list_limit_rejects_out_of_range_or_invalid_values(limit: object) -> None:
+    """DTO と token の双方で範囲外・bool・float・非十進表記を拒否する。"""
     with pytest.raises(ValidationError):
         PreparingGameListRequest.model_validate({"limit": limit})
     with pytest.raises(ValueError):
         PreparingGameListToken(limit=cast(Any, limit))
+
+
+@pytest.mark.parametrize("limit", ["20", "020"])
+def test_query_decimal_limit_is_dto_only_coercion(limit: str) -> None:
+    """HTTP の数値文字列を DTO は受け、token は exact int を要求する。"""
+    assert PreparingGameListRequest.model_validate({"limit": limit}).limit == 20
+    with pytest.raises(ValueError):
+        PreparingGameListToken(limit=cast(Any, limit))
+
+
+def test_fastapi_query_binding_accepts_decimal_and_rejects_invalid_limit() -> None:
+    """試験専用 app の Query 束縛だけを測り、製品 route 公開とは扱わない。"""
+    app = FastAPI()
+
+    @app.get("/games")
+    async def list_games(
+        query: Annotated[PreparingGameListRequest, Query()],
+    ) -> dict[str, int]:
+        return {"limit": query.limit}
+
+    async def exercise() -> None:
+        """ASGI transport で query を実際の FastAPI 束縛へ通す。"""
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+        ) as client:
+            response = await client.get("/games?limit=20")
+            assert response.status_code == 200
+            assert response.json() == {"limit": 20}
+            for limit in ("0", "101", "1.5", "true", "%2B20", "%EF%BC%92%EF%BC%90"):
+                assert (await client.get(f"/games?limit={limit}")).status_code == 422
+
+    asyncio.run(exercise())
 
 
 def test_tokens_have_no_tenant_argument_and_validate_game_id() -> None:

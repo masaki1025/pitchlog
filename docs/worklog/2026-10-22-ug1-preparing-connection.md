@@ -81,3 +81,18 @@
 - DTO/read componentまで実装済み。正式registry/APIは未接続、TB005は2件、保存成功・実画面reload・本人確認は未実施。マージ不可。計画レビュー2回を製品レビューへ流用しない。
 - 台帳への追記なし。未追跡時の検査との差は追跡対象の確認で解決すべき本候補の注意点で、今回新しいハーネス機能・一般化した運用改訂は追加しない。
 - 共有パスは#174と#173の双方でbase-allowlist/repository-contract等の実編集を観測した。Dは当該共有ファイルを編集せず、特徴単位の候補資料/拒否試験を独立して準備する。先行提案・通知と担当受理・実統合を区別する。
+
+### #175公開・担当回答と反対側一次
+
+- Draft #175 https://github.com/masaki1025/pitchlog/pull/175 、公開36e7129d17d584a4898d3ae0a212145e9373e65b。GitHubのfiles一覧でschemas/games.py・repositories/games.py・test_game_preparing_components.pyの実在を照合した。番号取得用文書だけの候補ではない。Notionへ部分候補/未達を追記した。
+- U-F8の回答6338616580を受領。GameScreenEntry/Record/Types各spec、新api/games.ts、薄いProvider、必須大会フォームのpreparing限定分担はDの編集を受理。U-F8はこの製品UIを並行編集しておらず予約は追跡資料のみ。DTOと表示供給を分離し、readだけで記録権held/前提met/queue0を作らない。routerは既存経路を再利用し、必要なprops接合差分だけ照合。既存照会6337294852へ受領を集約した。
+- 共有順序は#174→#173の既存進行を維持し、Dが必要とするbase/repository契約・派生資産はその後の実developから再導出する案を既存#173照会と#174コメント6338633410へ通知した。実編集を観測したパスは保留。通知を各担当の受理・所有解除へ読み替えない。
+- 反対側一次（Claude、read-only、固定36e7129d対760c04d5、提示製品/試験/coreの6ファイルと計画影響）はP0=0/P1=1/P2=5。試験は査読者未実行。計画レビュー2回と別の製品一次基本1回目。機能ローカルの登録候補/新境界試験は対象外で未再レビュー。
+- P1は採用：ステップ3の旧snapshot拒否未達をplan/PR冒頭へ明記。合格条件を移動せず、component実装済みとステップ全充足を区別する。P2のquery limit、カーソル表現、5区分seedドリフト、索引効率、入力長は具体影響を照合して採否を後記する。
+
+- 反対側P2の採否：query limitはDTOだけでASCII十進文字列をintへ変換し、bool/float拒否とtoken exact intを維持。実FastAPIの試験専用appでQuery束縛を検証する。カーソル説明を鍵なしchecksumの破損/非正規形検査へ是正し、5区分はseedとのドリフト試験を追加。索引効率はmigrationを追加せず所見として保持。入力長は現Text契約のまま独自上限を作らず、空白だけの新大会名の扱いは正式語彙規則に沿ってステップ5で検証する。未提供の正規化を今回独自実装しない。
+- query試験を含む委任sandbox内pytestが通常の固有試験時間を超えて停止したため、親から同じ2ファイルを制約外の専用worktree環境で実行し**67成功/0失敗（0.62秒）、Starlette既存非推奨警告1**。製品変更/試験除外/timeout緩和なし。親が自分のsandbox pytest PID3443181へのTERMを試みた時点では既に終了しており、No such processだった。親が停止成功したとは記録せず、委任側の終了状態を別途照合する。製品HTTP公開/DB readの成功ではなく試験専用Query束縛の結果である。
+
+- 委任内の同期TestClientは中断130。非同期httpx ASGITransportによる同じFastAPI Query束縛へ置換後、委任内の固有54成功、format/Ruff/ty成功。試験自体は除外せずQueryの受理/拒否を維持した。親も最終の固有54＋新境界13＝67成功を再確認し、3ファイルformat/Ruff・backend全ty成功。最初の58成功の前にtenant欠落を_validate_prepared_statement単独へ期待した2失敗があり、実行器の連続検査である_TenantScopedOperationの責任へ試験を是正した。拒否能力の緩和ではない。
+- 新しい境界試験は未登録read componentの拒否条件の補強であり、ステップ3付記として保持する。ステップ4の正式登録/7.7/HTTP/read成功を完了コミットとして扱わない。
+- U-F8補足は#171コメント6338805507へ集約された。EntryDatumに未取得literalがないため架空pendingでRecordDetailをreadyにしない。Dのpreparing専用型分離またはRecordDetail未供給維持を受理。共有順序#174→#173→Dへの照合はU-F8側が受理し、他2担当の受理とは区別する。
