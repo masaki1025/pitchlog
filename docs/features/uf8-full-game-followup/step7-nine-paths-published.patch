@@ -1,0 +1,187 @@
+diff --git a/backend/src/pitchlog/authz/runtime_contract.py b/backend/src/pitchlog/authz/runtime_contract.py
+--- a/backend/src/pitchlog/authz/runtime_contract.py
++++ b/backend/src/pitchlog/authz/runtime_contract.py
+@@ -3,11 +3,11 @@
+ from dataclasses import dataclass
+
+ SCHEMA_VERSION = 1
+-RUNTIME_CONTRACT_REVISION = 17
++RUNTIME_CONTRACT_REVISION = 18
+ PROVISIONAL = False
+ SUPERSEDED_BY = None
+ SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
+-SOURCE_DIGEST = "13eeb95f54a8a713620a12c369505311349e72148c521141ed524ece91b0f62d"
++SOURCE_DIGEST = "fa4bd7776c1e16bf4ddf5aa96601dc87e6788da7d52c636d56ed6bacc7c92b83"
+ DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
+
+
+diff --git a/backend/src/pitchlog/repositories/repository_contract.py b/backend/src/pitchlog/repositories/repository_contract.py
+--- a/backend/src/pitchlog/repositories/repository_contract.py
++++ b/backend/src/pitchlog/repositories/repository_contract.py
+@@ -1,11 +1,11 @@
+ """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
+
+ SCHEMA_VERSION = 1
+-CONTRACT_REVISION = 22
++CONTRACT_REVISION = 23
+ ASSET_KIND = "tenant_repository_contract"
+ CANONICALIZATION = "json-sort-keys-utf8-v1"
+ SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
+-SOURCE_DIGEST = "938a704da00d506487831c06785aadec549071110bb7b67f3a8b9b3cfb25db38"
++SOURCE_DIGEST = "1a63da87392116cb60bbd5b770bdd250624ef4eb20d1bc031fd041bd3a588ead"
+
+ REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
+ CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
+diff --git a/backend/src/pitchlog/repositories/tenant_context_contract.py b/backend/src/pitchlog/repositories/tenant_context_contract.py
+--- a/backend/src/pitchlog/repositories/tenant_context_contract.py
++++ b/backend/src/pitchlog/repositories/tenant_context_contract.py
+@@ -1,11 +1,11 @@
+ """テナント文脈の生成元 allowlist を提供する生成モジュール。"""
+
+ SCHEMA_VERSION = 1
+-CONTRACT_REVISION = 16
++CONTRACT_REVISION = 17
+ ASSET_KIND = "tenant_context_construction_allowlist"
+ CANONICALIZATION = "json-sort-keys-utf8-v1"
+ SOURCE_ASSET = "contracts/tenant_boundary/tenant-context-allowlist.json"
+-SOURCE_DIGEST = "fc213ee3133d0463df96f8d71e68ce93487926373508853d5636fc284ec191cc"
++SOURCE_DIGEST = "a7eaf9a0498ef43d0741a20221ead0f3ad47b5f0d91f64b50817202a8399b260"
+ CONSTRUCTOR_SYMBOL = "pitchlog.repositories.context.TenantContext"
+ FORBIDDEN_CONSTRUCTION_SYMBOLS = (
+     "builtins.object.__new__",
+diff --git a/contracts/tenant_boundary/cache-invalidation-contract.json b/contracts/tenant_boundary/cache-invalidation-contract.json
+--- a/contracts/tenant_boundary/cache-invalidation-contract.json
++++ b/contracts/tenant_boundary/cache-invalidation-contract.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "contract_revision": 15,
++  "contract_revision": 16,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "contract_revision",
+       "current_identifiers": [
+-        "contract_revision:15"
++        "contract_revision:16"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+@@ -654,5 +654,5 @@
+     "downstream_owners": "U-D1 and the units that own each triggering operation"
+   },
+   "preaggregation_independent": true,
+-  "source_digest": "fe17aaac414b51043ae1c978b8dd054c48d005aa824454d29ff8ec308cf9be7c"
++  "source_digest": "21fccdb4522166611918694fe32de05d437ccd5705b1d0eafedaddcb099e5cd7"
+ }
+diff --git a/contracts/tenant_boundary/db-api-inventory.json b/contracts/tenant_boundary/db-api-inventory.json
+--- a/contracts/tenant_boundary/db-api-inventory.json
++++ b/contracts/tenant_boundary/db-api-inventory.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "inventory_revision": 15,
++  "inventory_revision": 16,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "inventory_revision",
+       "current_identifiers": [
+-        "inventory_revision:15"
++        "inventory_revision:16"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+diff --git a/contracts/tenant_boundary/negative-fixtures.json b/contracts/tenant_boundary/negative-fixtures.json
+--- a/contracts/tenant_boundary/negative-fixtures.json
++++ b/contracts/tenant_boundary/negative-fixtures.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "fixture_set_revision": 17,
++  "fixture_set_revision": 18,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "fixture_set_revision",
+       "current_identifiers": [
+-        "fixture_set_revision:17"
++        "fixture_set_revision:18"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+diff --git a/contracts/tenant_boundary/repository-contract.json b/contracts/tenant_boundary/repository-contract.json
+--- a/contracts/tenant_boundary/repository-contract.json
++++ b/contracts/tenant_boundary/repository-contract.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "contract_revision": 22,
++  "contract_revision": 23,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "contract_revision",
+       "current_identifiers": [
+-        "contract_revision:22"
++        "contract_revision:23"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+@@ -224,5 +224,5 @@
+     "RG1:precheck",
+     "RG1:commit_check"
+   ],
+-  "source_digest": "938a704da00d506487831c06785aadec549071110bb7b67f3a8b9b3cfb25db38"
++  "source_digest": "1a63da87392116cb60bbd5b770bdd250624ef4eb20d1bc031fd041bd3a588ead"
+ }
+diff --git a/contracts/tenant_boundary/runtime-authz-contract.json b/contracts/tenant_boundary/runtime-authz-contract.json
+--- a/contracts/tenant_boundary/runtime-authz-contract.json
++++ b/contracts/tenant_boundary/runtime-authz-contract.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "runtime_contract_revision": 17,
++  "runtime_contract_revision": 18,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "runtime_contract_revision",
+       "current_identifiers": [
+-        "runtime_contract_revision:17"
++        "runtime_contract_revision:18"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+@@ -569,5 +569,5 @@
+     }
+   ],
+   "derived_from": "contracts/authz/product/ddl-elements.json",
+-  "source_digest": "13eeb95f54a8a713620a12c369505311349e72148c521141ed524ece91b0f62d"
++  "source_digest": "fa4bd7776c1e16bf4ddf5aa96601dc87e6788da7d52c636d56ed6bacc7c92b83"
+ }
+diff --git a/contracts/tenant_boundary/tenant-context-allowlist.json b/contracts/tenant_boundary/tenant-context-allowlist.json
+--- a/contracts/tenant_boundary/tenant-context-allowlist.json
++++ b/contracts/tenant_boundary/tenant-context-allowlist.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "contract_revision": 16,
++  "contract_revision": 17,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "contract_revision",
+       "current_identifiers": [
+-        "contract_revision:16"
++        "contract_revision:17"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+@@ -101,5 +101,5 @@
+   "allowed_product_modules": [
+     "pitchlog.repositories.tenant_context_issuance"
+   ],
+-  "source_digest": "fc213ee3133d0463df96f8d71e68ce93487926373508853d5636fc284ec191cc"
++  "source_digest": "a7eaf9a0498ef43d0741a20221ead0f3ad47b5f0d91f64b50817202a8399b260"
+ }
