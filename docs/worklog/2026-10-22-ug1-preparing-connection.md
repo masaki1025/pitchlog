@@ -117,3 +117,18 @@
 - #174コメント6338633410へ供給回答を受領した旨とread固有のdecoder不足だけを集約し、公開resolver型/operationの同じ照会は再送していない。U-F8限定パスは受理済み、共有契約実編集は保留。
 - 7.7完全前後値・snapshot・正式記録案は未完成であり、現生ファイルSHAやパッチのプレビューを正式受理対象として提出しない。承認者/承認日未入力・受理済み履歴変更0。
 - 後続の正式read接続/凍結候補が固定された時点で未査読差分が増えるため、基本2回を消費した敵対系列にはその差分/影響に限る追加1回のPO裁定が必要。計画全体の再承認や既受理事項の再照会は求めない。現準備資料の採否/正式7.7/本人確認は別物である。
+
+### 2922536fのCI回収と追加敵対許可
+
+- 対象は公開2922536f4463431f402f1478071dd20ea76f60e5のCI run39766828237。backendは3126成功/4skip/1warning、coverage89%、format/Ruff/tyも成功。harnessは29644成功/2skip/**2失敗**（1150.71秒）。test_repository_is_greenとtest_repository_application_population_is_nonempty_and_greenがともにSQL2関数の既知TB005を検出した。timeout/別の新障害として扱わず、全件成功とはしない。
+- 同HEADのtenant-boundaryはTB0052件、core-guardは本人チェック未記入で拒否。secrets/docs-lint/consistency/mutation/nfr021成功、frontendは差分なしskip。以前のHEADの結果と混同しない。
+- 既存の反対側2回/敵対基本2回/採否を保持し、POが正式read差分の追加敵対1回を許可。条件付き未消費としてplan/準備資料へ反映。#174→#173の実基線/正式候補/差分SHAが固定されるまで実行しない。
+- #174/#173はなおOPEN・mergeCommit=null、origin/develop760c04d5。#173回答6339090455で#174→#173順序と実統合後の再導出を受領。順序そのものの再照会はしない。共有ファイルの実編集を確認し、Dは変更0。
+- 正式codec待ちの中身を候補の実名・型・例外・供給担当へ分解した（準備資料参照）。作成用resolver/RG1とread用strict decoderを分離し、MappingProxy/tuple→codec入力のJSON復元を独立した接合準備として進める。未統合codecのコピーや偽の成功は行わない。
+
+### 独立したread入力変換の成果（追加敵対は未消費）
+
+- api/schemas/games.pyのprivate `_copy_preparing_snapshot_json`は既存実行器のMappingProxyType/tupleだけを新dict/listへ戻す。JSONスカラーは型/値を変えず、非JSON型や非有限数は固定の非機密例外で拒否する。6-key/値域/相関を検証するcodecではなく、成功snapshotや出所を証明する型も返さない。正式moduleのコピー/仮decoderなし。
+- actual _materialize_rows由来の結果で同値/新container/相互変更独立、{}・5-key・余剰/不正値の非補完、非JSON型/キー・非有限数・例外への原本非漏洩を検証。固有/境界**91成功**、変更2ファイルformat/Ruff/ty/diff-check成功。正式codec試験・DB read・API公開・作成成功の証拠には数えない。
+- この製品2ファイルと今回の計画/資料/結果記録は305d61ddの既済みレビューより後の差分で、未再レビュー。基本2回の既結果・採否を保持し、PO許可の追加敵対1回を前倒し消費しない。正式read候補が固定された際の直接影響差分へ含める。
+- 正式codec候補の実名とimmutable入力差分を既存#174コメント6338633410へ集約した。readはresolver request/result・固定関数operation・RG1書込成功を待つ条件から分離し、正式codecの実提供/共有資産の実引渡しだけをreadの未成立条件として保持する。

@@ -6,9 +6,12 @@ import asyncio
 import base64
 import hashlib
 import json
+from collections import UserDict
 from dataclasses import fields
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
+from types import MappingProxyType
 from typing import Annotated, Any, cast, get_args
 from uuid import UUID, uuid4
 
@@ -25,11 +28,13 @@ from pitchlog.api.schemas.games import (
     NewTournament,
     PreparingGameCreate,
     PreparingGameListRequest,
+    _copy_preparing_snapshot_json,
     decode_preparing_game_cursor,
     encode_preparing_game_cursor,
 )
 from pitchlog.db.game_state.models import Game
 from pitchlog.repositories.base import (
+    _materialize_rows,
     _operation_spec,
     _prepare_operation,
     _TenantScopedOperation,
@@ -41,6 +46,7 @@ from pitchlog.repositories.games import (
     PreparingGameListToken,
 )
 from pitchlog.repositories.operation_registry import PRODUCT_OPERATIONS
+from pitchlog.repositories.tokens import ImmutableValue
 
 _SCHEDULED_AT = datetime(2026, 11, 1, 10, 30, tzinfo=timezone(timedelta(hours=9)))
 _GAME_ID = UUID("11111111-1111-4111-8111-111111111111")
@@ -99,6 +105,102 @@ def test_game_type_literal_matches_seed_keys() -> None:
     literal = PreparingGameCreate.model_fields["game_type_key"].annotation
     assert len(keys) == len(set(keys)) == 5
     assert set(get_args(literal)) == set(keys)
+
+
+def test_snapshot_json_copy_reverses_real_materialization_without_sharing() -> None:
+    """実行器の不変行から新コンテナを作るだけで、codec 検証成功ではない。"""
+    source: dict[str, Any] = {
+        "coldConditions": [{"wind": "calm"}, [None, True, 7, "raw", 1.25]],
+        "empty": {},
+    }
+    source_cold = cast(list[Any], source["coldConditions"])
+    materialized = _materialize_rows(((source,),))
+    immutable = cast(Any, materialized.rows[0][0])
+    assert type(immutable) is MappingProxyType
+    assert type(immutable["coldConditions"]) is tuple
+    assert type(immutable["coldConditions"][0]) is MappingProxyType
+
+    copied_value = _copy_preparing_snapshot_json(immutable)
+    assert copied_value == source
+    assert type(copied_value) is dict
+    copied = cast(dict[str, Any], copied_value)
+    assert type(copied["coldConditions"]) is list
+    assert type(copied["coldConditions"][0]) is dict
+    assert type(copied["coldConditions"][1]) is list
+    assert copied is not source
+    assert copied["coldConditions"] is not source["coldConditions"]
+    assert copied["coldConditions"][0] is not source["coldConditions"][0]
+
+    copied["coldConditions"][0]["wind"] = "gust"
+    copied["coldConditions"][1].append("added")
+    copied["empty"]["new"] = "copy-only"
+    assert source_cold[0]["wind"] == "calm"
+    assert len(source_cold[1]) == 5
+    assert source["empty"] == {}
+    assert immutable["coldConditions"][0]["wind"] == "calm"
+    assert len(immutable["coldConditions"][1]) == 5
+    assert immutable["empty"] == {}
+    with pytest.raises(TypeError):
+        immutable["new"] = "rejected"
+    with pytest.raises(TypeError):
+        immutable["coldConditions"][0]["wind"] = "rejected"
+
+    source_cold[0]["wind"] = "rain"
+    source_cold[1].append("source-only")
+    assert copied["coldConditions"][0]["wind"] == "gust"
+    assert len(copied["coldConditions"][1]) == 6
+    assert immutable["coldConditions"][0]["wind"] == "calm"
+    assert len(immutable["coldConditions"][1]) == 5
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {},
+        {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5},
+        {"unexpected": "raw", "coldConditions": True},
+        {"coldConditions": 42, "extra": [False, 0]},
+    ],
+)
+def test_snapshot_json_copy_preserves_unvalidated_shape(raw: dict[str, object]) -> None:
+    """欠損・余分・不正な値を補完せず、codec 検証成功とは扱わない。"""
+    immutable = _materialize_rows(((raw,),)).rows[0][0]
+    copied_value = _copy_preparing_snapshot_json(immutable)
+    assert type(copied_value) is dict
+    copied = cast(dict[str, object], copied_value)
+    assert copied == raw
+    assert len(copied) == len(raw)
+
+
+@pytest.mark.parametrize("value", [None, True, False, 0, 17, "raw", 1.25, -0.0])
+def test_snapshot_json_copy_preserves_scalar_identity(value: object) -> None:
+    """JSON スカラーを型変換せず同じ値として返す。"""
+    assert _copy_preparing_snapshot_json(cast(ImmutableValue, value)) is value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        UUID("11111111-1111-4111-8111-111111111111"),
+        date(2026, 11, 1),
+        b"secret-raw",
+        Decimal("1.25"),
+        frozenset({"secret-raw"}),
+        UserDict({"secret-raw": 1}),
+        MappingProxyType({1: "secret-raw"}),
+        MappingProxyType({"nested": (b"secret-raw",)}),
+        float("inf"),
+        float("-inf"),
+        float("nan"),
+    ],
+)
+def test_snapshot_json_copy_rejects_unsupported_without_value_leak(
+    value: object,
+) -> None:
+    """非 JSON 型と非有限数を値を含まない固定例外で拒否する。"""
+    with pytest.raises(ValueError, match="^snapshot JSON 値の型が不正$") as error:
+        _copy_preparing_snapshot_json(cast(ImmutableValue, value))
+    assert "secret-raw" not in str(error.value)
 
 
 @pytest.mark.parametrize(

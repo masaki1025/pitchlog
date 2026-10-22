@@ -6,13 +6,16 @@ import base64
 import binascii
 import hashlib
 import hmac
+import math
 from datetime import datetime, timezone
+from types import MappingProxyType
 from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import Field, field_validator
 
 from pitchlog.api.schemas.base import BaseSchema, EntityId, PageRequest, Timestamp
+from pitchlog.repositories.tokens import ImmutableValue
 
 PREPARING_GAME_PAGE_SIZE_MAX = 100
 
@@ -55,6 +58,31 @@ class PreparingGameCreate(BaseSchema):
     week_label: str | None = None
     day_label: str | None = None
     game_number_label: str | None = None
+
+
+def _copy_preparing_snapshot_json(value: ImmutableValue) -> object:
+    """実行器の不変 JSON コンテナを codec に渡せる新しいコンテナへ写す。
+
+    Args:
+        value: 実行器が不変化した JSON 値。
+
+    Returns:
+        新しい dict/list、または型を変えない JSON スカラー。
+
+    Raises:
+        ValueError: JSON 以外の型や非有限数が含まれる場合。
+    """
+    if value is None or type(value) in (bool, int, str):
+        return value
+    if type(value) is float and math.isfinite(value):
+        return value
+    if type(value) is MappingProxyType:
+        if any(type(key) is not str for key in value):
+            raise ValueError("snapshot JSON 値の型が不正")
+        return {key: _copy_preparing_snapshot_json(item) for key, item in value.items()}
+    if type(value) is tuple:
+        return [_copy_preparing_snapshot_json(item) for item in value]
+    raise ValueError("snapshot JSON 値の型が不正")
 
 
 def encode_preparing_game_cursor(scheduled_at: datetime, game_id: UUID) -> str:
