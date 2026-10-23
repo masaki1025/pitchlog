@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 34,
+  "contract_revision": 35,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:34"
+        "contract_revision:35"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -24611,6 +24611,14 @@
         "PSYCOPG_CONNECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/advance_stage_a_from_s0.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.rule_resolution._build_stage_a_rule_statement",
+      "signature": "_build_stage_a_rule_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/rule_resolution.py"
     }
   ],
   "conditions": [

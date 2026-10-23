@@ -7422,3 +7422,53 @@ def test_default_base_ref_belongs_only_to_frozen_checker_procedure() -> None:
         "scripts/frozen_archive.py",
         ".github/workflows/ci.yml",
     ]
+
+
+def test_stage_a_factory_is_the_only_new_select_permission() -> None:
+    """実sourceと正例を同じ完全修飾factory/SELECTだけで受理する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = 'pitchlog/repositories/rule_resolution.py'
+    rows = [row for row in contract.allowed_symbols if row.symbol ==
+            'pitchlog.repositories.rule_resolution._build_stage_a_rule_statement']
+    assert len(rows) == 1
+    assert rows[0].signature == '_build_stage_a_rule_statement() -> Select[Any]'
+    assert rows[0].allowed_api_ids == frozenset({'SQLA_SELECT'})
+    for root in (REPOSITORY_ROOT / 'backend/src', POSITIVE_ROOT):
+        assert checker.scan_source(_fixture_source(root / relative), path=relative,
+                                   contract=contract) == []
+
+
+@pytest.mark.parametrize('mutation', (
+    'module', 'function', 'signature', 'sql', 'insert', 'update', 'execution',
+))
+def test_stage_a_factory_does_not_allow_other_access(mutation: str) -> None:
+    """別module/関数/署名/任意SQL/DMLへSELECT許可を広げない。"""
+    relative = 'pitchlog/repositories/rule_resolution.py'
+    source = _fixture_source(POSITIVE_ROOT / relative)
+    if mutation == 'module':
+        relative = 'pitchlog/repositories/unregistered_rule_resolution.py'
+    elif mutation == 'function':
+        source = source.replace('_build_stage_a_rule_statement', '_unregistered_statement')
+    elif mutation == 'signature':
+        source = source.replace('_build_stage_a_rule_statement()',
+                                '_build_stage_a_rule_statement(unregistered: str)')
+    elif mutation == 'execution':
+        source += ('\n\ndef _unlisted_execution(session: Session) -> None:\n'
+                   '    session.execute(_build_stage_a_rule_statement())\n')
+        source = 'from sqlalchemy.orm import Session\n' + source.replace(
+            'from __future__ import annotations', '',
+        )
+    elif mutation == 'sql':
+        source = source.replace('    return select(', '    return select(text("SELECT 1"),', 1)
+        source = 'from sqlalchemy import text\n' + source.replace(
+            'from __future__ import annotations', '',
+        )
+    else:
+        source = source.replace('    return select(', f'    return {mutation}(', 1)
+        source = f'from sqlalchemy import {mutation}\n' + source.replace(
+            'from __future__ import annotations', '',
+        )
+    violations = checker.scan_source(
+        source, path=relative, contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert any(row.code == 'TB005' for row in violations)
