@@ -58,6 +58,7 @@ UI `9e5c59c3b57012547b3e32932bf8d850cb63eee5`、browser `4977c1b640713b4907ebdad
 | `tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games/__init__.py` | detail factoryの正確symbol/signatureとSELECT限定正例。同名moduleへ解決する既存fixture方式を使う |
 | `contracts/authz/route-registry.json` | `ROUTE:RECORD:games:read`、record_and_aggregate/design/readの1行と本計画を指す正確provenance。必要なclaim対応は実入力と照合し、要件主張や既存dispositionを架空追加しない |
 | `contracts/authz/http-route-matrix.json` | 同routeに`HTTP:ROUTE:RECORD:games:read`/conditional/test_ownerを対応。新3軸cell/resource_kindは追加しない |
+| `scripts/check_authz_catalog.py` | `_validate_record_and_aggregate_route_ids`の期待集合へ本計画の`ROUTE:RECORD:games:read`1件だけを追加。既存7経路・不足/未登録/重複/provenance/lock拒否と他の検査を維持し、包括的許可に変えない |
 | `backend/tests/test_authz_repository_contract.py` | JSON↔生成全field、既存+read2型/既存CAP・実registryのexact集合と対応を検査。旧登録実在/順序/拒否を保持 |
 | `tests/test_check_tenant_boundary_bypass.py` | 正例exact-set、SELECT許可と全拒否変異、署名/別module/別factory/SQL API逸脱の拒否を追加 |
 | `tests/test_check_authz_catalog.py` | route/matrix exact-set、provenance/test_ownerと候補差分の正負例。既存closed-set/lock検査を緩めない |
@@ -146,3 +147,9 @@ DoDはレビュー可能な未受理metadata候補であり、#175正式提供/7
 ### 計画承認
 
 2026-10-23T17:13:09.266744+00:00、Codex主担当/rootはPO委任4/5/6/7/8/10に基づきplan b9c01f62dd1150ed0a05fd666f11e515e8b2919eac625af2e43918ca7c9fbb02 / research1cddce040102f3dc1334834840a5c56658517f0c3f2d7b194e3d9eeeabe8d280を承認。独立非作者/root/independent_reviewの第1回P1=1（oracle anchor/6context手順不足）を全採用、第2回反映差分/影響は可決0/0/0。正常な記録権置換候補HEADの供給と個別指示後に本ステップ1を実施し、旧1730aaa系をmergeしない。正式7.7値/履歴/snapshot/最終sealは実統合後の実baseでroot直列受理。親175追加敵対1回と旧レビュー系列を保持し、今回計画/候補準備の成功を正式read提供・実機・人間署名へ広げない。
+
+### read経路のexact-set検査器追随（限定追補・PO委任承認済み）
+
+実装調査で`_validate_record_and_aggregate_route_ids`（固定組立f5bda183の2278行）が既存7経路を閉集合としていることを確認した。本計画で既に対象としたgames:readをroute/matrixへ追加するだけでは構造検査が拒否するため、第3節へ既存checker sourceの同集合1件追記を追加する。経路の意味・CAP・認可・DB権限・入力source/2GET・正式受理時期は変更しない。新core pathはなく既存guard捕捉を維持する。既存`tests/test_check_authz_catalog.py`で正規8件、games:read欠落、旧7経路の各欠落、余剰routeの拒否を検証し、exact-setを動的入力へ追随して弱めない。独立限定計画レビューとrootのPO委任承認前にはこのchecker差分を実装しない。前計画レビュー2回・初回oracle P1採用履歴・親175追加敵対1回未消費を維持する。
+
+2026-10-23T17:19:48.188174+00:00、Codex主担当/rootはPO委任4/5/7/8/10に基づき追補plan SHA256 c06fe3c3bd808e9ae11969b43dff5f675887c3a7d1fa32f3541dfa89087bcab3を承認。非作者/root/independent_reviewの限定差分レビュー0/0/0を受領し、既計画のgames:read1行に必要な検査器の固定集合追随と全旧拒否保持だけを許可する。過去2回と今回限定1回を別に保持し、親175正式追加敵対1回は未消費。人間本人の逐行確認・署名を代記しない。checker差分はこの承認後に実装可、正式値/履歴/封印のゲートは前節どおり。
