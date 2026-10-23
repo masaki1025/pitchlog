@@ -587,13 +587,19 @@ def durable_ledger_supplier_revision() -> str:
         first_has_plan = run_git(
             REPO, "ls-tree", "--name-only", parents[0], "--", plan,
         ).stdout.strip()
+        first_has_source = run_git(
+            REPO, "ls-tree", "--name-only", parents[0], "--", source,
+        ).stdout.strip()
         second_has_plan = run_git(
             REPO, "ls-tree", "--name-only", parents[1], "--", plan,
         ).stdout.strip()
         second_has_source = run_git(
             REPO, "ls-tree", "--name-only", parents[1], "--", source,
         ).stdout.strip()
-        if first_has_plan and not second_has_plan and second_has_source:
+        if (
+            first_has_plan and not first_has_source
+            and not second_has_plan and second_has_source
+        ):
             candidates.append(parents[1])
     assert len(set(candidates)) == 1, "正常initialの固定供給mergeを一意に特定できない"
     return candidates[0]
@@ -4770,3 +4776,41 @@ def test_durable_ledger_core_comparison_respects_actual_merge_base(
             select_durable_ledger_comparison_revision(root, supplier, 'missing-revision')
         return
     assert select_durable_ledger_comparison_revision(root, supplier, actual) == expected
+
+
+def test_durable_ledger_core_supplier_discovery_survives_normal_integration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実discoveryで元供給とmain統合後の通常追随mergeを区別する。"""
+    root = tmp_path / 'discovery'
+    root.mkdir()
+    run_git(root, 'init', '-q', '-b', 'main')
+    write_text(root, 'README.md', 'synthetic baseline\n')
+    run_git(root, 'add', '.')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-qm', 'synthetic baseline')
+    base = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    run_git(root, 'checkout', '-q', '-b', 'supplier')
+    _, supplier = commit_change(root, INITIAL_RIGHTS_PATHS[0], '# synthetic Protocol\n')
+    run_git(root, 'checkout', '-q', '-b', 'ledger', base)
+    commit_change(root, 'docs/features/mvp-durable-rights-ledger/plan.md', 'synthetic plan\n')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'merge', '--no-ff', '-qm', 'original supply', supplier)
+    monkeypatch.setattr(sys.modules[__name__], 'REPO', root)
+    durable_ledger_supplier_revision.cache_clear()
+    try:
+        assert durable_ledger_supplier_revision() == supplier
+        run_git(root, 'checkout', '-q', 'main')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'merge', '--no-ff', '-qm', 'main integrates supplier', supplier)
+        integrated = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+        run_git(root, 'update-ref', 'refs/remotes/origin/develop', integrated)
+        run_git(root, 'checkout', '-q', 'ledger')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'merge', '--no-ff', '-qm', 'ledger follows main', integrated)
+        # 別pytest過程から実再開した場合と同じく、過去cacheで誤検出を隠さない。
+        durable_ledger_supplier_revision.cache_clear()
+        assert durable_ledger_supplier_revision() == supplier
+        assert durable_ledger_comparison_revision() == integrated
+    finally:
+        durable_ledger_supplier_revision.cache_clear()

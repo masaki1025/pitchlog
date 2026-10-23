@@ -107,3 +107,15 @@ rootは上記6failedの原因を確認し、plan契約を変えず「試験の�
 先行試験是正commitは`4bf26c3fa3605822e38907027d13c471cb892904`で、変更集合はtests/test_core_guard.pyと本researchのみ、JSONなし。保全JSONのSHA256を再確認してbyte完全一致で復元した。登録済み実JSON状態での最終core全件は**415 passed / 27.02秒**、失敗/skip/timeout0。この登録済み最終全件は1回で、中間409pass/6failを消去していない。登録前の対象6成功と、登録済み全415成功を別の段階として記録する。
 
 最終root Ruff/ty、docs-status21件/違反0、design propagation/doc coverage、局所plan sync、diff検査成功。実JSONはsource glob/contract exact path/positive globをsync/record各3・tenant2の計8だけ追加し、全旧paths/順序/領域/guard_paths/metadataを保持した。新source/testは依然不在、宣言/既存試験/source/policyは先行是正4bfからbyte不変。step2commitはJSONと本researchだけとし、commit後の局所95d受理/実311拒否/履歴共変更0を引渡しで確認する。stage3adapter/SQL/DB/正本/7.7/policy新target/push/PRへ進まない。
+
+## 独立先行登録レビューP1: 元供給mergeの実discovery是正
+
+非作者/root/resolver_ledger_plan_reviewの先行登録全文レビューはb146f033に対してP0=0/P1=1/P2=0、独立415成功/27.84秒。対象b1ab→b146のbinary差分SHA256 `8f797abdcee4cc6fc61a04a6b4e9007b11d30ffaae7232ea3241ce969a6a3a9c`を再計算して一致した。旧レビュー/中間74/6failedと採用履歴を保持し、このレビューを416版の成功へ転用しない。
+
+P1はsupplier discoveryが「planあり第1親/planなしsourceあり第2親」の全mergeを集めるため、正常供給のあとmainにinitialが統合され、branchがmainへ通常追随すると、元supplierとmainの2候補を返す問題。415成功では実discoveryを通す正常追随履歴を覆っていなかった。rootは全採用し、step3より先にtesthelperだけの同step1是正commitを指示した。
+
+実Git回帰を追加し、supplier導入→main通常統合→branch通常追随を作った。実discoveryのcacheを更新間で明示破棄し、古いcacheで失敗を隠さない。source未修正でこの新1件を実行し、追随後の候補数2によるassert失敗を再現した。修正は「sourceが第1親に存在せず、第2親で初めて供給される元merge」だけに限定する条件の追加。元supplierを一意に導出し、統合後actual merge-baseへ復帰することまで同回帰で確認する。独立分岐/不明OID/部分登録/既存拒否は保持する。
+
+修正後root Ruff/ty成功、全core **416 passed / 28.43秒**、失敗/skip/timeout0。今回はstep3のProtocol/inventory/同期取消調査だけで、新package/DBsupport等の実WIP資産はまだ作成していなかった。従って新資産を削除/隠さず、同wtの固定是正版で全件確認した。製品guard/JSON/source/正式資産/policyはb146byte不変、commitは既存core試験と本researchだけとする。
+
+修正test SHA256 `fd610845f7b7c0986078ad77ea7670a4a5d835dda1ebd2295ef4b78e596bd462`、b146から試験だけのfull-index binary差分SHA256 `514fb1cda0a148359868b7a5a5576ec7acad2f736b5a1792e57d81591f91a7c1`。HEAD/全差分は引渡しへ固定し、その後root指示済みstep3の独立部分を継続する。取消APIのinventory不足は別の最小追補/独立確認待ちで、未知memberを素通りする実装はしない。
