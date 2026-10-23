@@ -207,3 +207,6 @@ U-F8固定/現HEAD eb83787cのRawPlayObservation/RawSubstitutionDraftは表示�
 root Ruff/ty、専用pytest（`-k p7_context_candidate`）、既存core試験/候補5パス被覆、旧保持hash、docs-status/計画同期/差分検査を必要範囲で行い、固定コード版を非作者レビューへ渡す。7d80の実施済み検査/中間失敗・既存レビューは履歴として保持し、今回の追補は未レビューである。
 
 旧codecの観測/対象半回欠落、元scope不明の既存行、新状態拒否とO4の競合、新P3公開分岐・一般同値不成立の公開分類、未裁定の野球分岐はこの単位で決めない。FR-040は延期のまま。D2は正本のbigint構造域とordering.py実経路の非負域を分け、実装だけを根拠に原典の域を狭めない。membership/半回印/P3原本/undo差分/selection/terminalの実閉内容・真正issuer/有限読了は後続で具体化する。実Port/HTTP/DB完成をこの候補整備の開始条件へ追加せず、正式7.7/23フラグ/G6閉包/P6/P7・全T1計算の開始条件を代替しない。
+
+
+2026-10-23T20:27:05.012303+00:00、Codex主担当/rootはPO4/5/7/8/10と縦断優先指示に基づき、限定追補HEAD6b821b6f/plan c469e4d7b1bfbb0bca9523d72fa8217f7fbaec422611489382606b32b775452d/research726a57e0b415497ea0640f9eebd9c284adf19d23294aa46b4ee723d26f93f61aを承認。非作者rights_replacement_reviewの限定計画確認P0=0/P1=0/P2=0、full-index binarydiffebd7f6aa2ce34a3ad290f974cf77693df86c142394e8c04f33328fd5f1d03751一致と根拠を受領した。既存第8節のcandidate5files/既存専用試験/researchへ操作4型・既採用毎球観測・閉union/原典射影を具体化する同step3/3の作業だけを指示する。D8/namecarrierの正式整合/旧codec欠落/新拒否意味は未採用のまま後段へ返し、旧レビュー/原典/23フラグ・P6/P7/P8全条件を保持。実Port/HTTP/DB/耐久完成を本候補着手条件へ追加せず、製品計算本体/正式7.7/Readyの開始許可とはしない。PO委任によるCodex判断であり、人間本人の逐行確認/署名を代記していない。
