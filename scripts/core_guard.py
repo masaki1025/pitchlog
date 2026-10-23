@@ -69,10 +69,15 @@ INITIAL_RIGHTS_PATH_ADDITIONS = (
     "backend/src/pitchlog/recording_rights/initial_grant.py",
     "backend/tests/test_initial_recording_right_candidate.py",
 )
+RG1_LIFECYCLE_PATH_ADDITIONS = (
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": INITIAL_RIGHTS_PATH_ADDITIONS,
-    "recording-rights": INITIAL_RIGHTS_PATH_ADDITIONS,
-    "tenant-isolation": INITIAL_RIGHTS_PATH_ADDITIONS,
+    "sync-protocol": RG1_LIFECYCLE_PATH_ADDITIONS,
+    "recording-rights": RG1_LIFECYCLE_PATH_ADDITIONS,
+    "tenant-isolation": RG1_LIFECYCLE_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

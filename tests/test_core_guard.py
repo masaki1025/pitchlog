@@ -507,10 +507,19 @@ INITIAL_RIGHTS_PATHS = (
     "backend/src/pitchlog/recording_rights/initial_grant.py",
     "backend/tests/test_initial_recording_right_candidate.py",
 )
-EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+INITIAL_RIGHTS_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "sync-protocol": INITIAL_RIGHTS_PATHS,
     "recording-rights": INITIAL_RIGHTS_PATHS,
     "tenant-isolation": INITIAL_RIGHTS_PATHS,
+}
+RG1_LIFECYCLE_PATHS = (
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+)
+EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    area_id: RG1_LIFECYCLE_PATHS
+    for area_id in INITIAL_RIGHTS_AREA_PATH_ADDITIONS
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -1018,6 +1027,7 @@ def run_guard(
     *,
     event_name: str | None = None,
     event_path: Path | None = None,
+    script_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """指定イベント環境で core_guard.py をサブプロセス実行する。
 
@@ -1025,6 +1035,7 @@ def run_guard(
         root: ``--root`` に渡す一時リポジトリのルート。
         event_name: GITHUB_EVENT_NAME に設定する値。
         event_path: GITHUB_EVENT_PATH に設定する JSON パス。
+        script_path: 歴史的段階では同じ宣言に固定した検査器。
 
     Returns:
         標準出力・標準エラーを取得したサブプロセスの結果。
@@ -1037,7 +1048,7 @@ def run_guard(
     if event_path is not None:
         env["GITHUB_EVENT_PATH"] = str(event_path)
     return subprocess.run(
-        [sys.executable, str(SCRIPT), "--root", str(root)],
+        [sys.executable, str(SCRIPT if script_path is None else script_path), "--root", str(root)],
         cwd=REPO,
         env=env,
         capture_output=True,
@@ -4271,7 +4282,6 @@ def assert_initial_rights_registration(
             registered.append(all(present))
             if all(present):
                 assert_registered_block(paths, INITIAL_RIGHTS_PATHS)
-                assert tuple(paths[-2:]) == INITIAL_RIGHTS_PATHS
         else:
             assert not any(present), f'{area_id}: 初期付与の対象外登録'
     assert len(registered) == 3 and len(set(registered)) == 1, '初期付与の片側領域登録'
@@ -4371,7 +4381,7 @@ def test_initial_rights_core_invalid_registration_is_rejected(
     else:
         areas['sync-protocol'].append('unregistered/probe.py')
     with pytest.raises((AssertionError, guard.GuardError)):
-        guard.validate_area_path_layers(baseline, candidate)
+        guard.validate_area_path_layers(baseline, candidate, INITIAL_RIGHTS_AREA_PATH_ADDITIONS)
         assert_initial_rights_registration(candidate, tmp_path)
 
 
@@ -4380,7 +4390,7 @@ def test_initial_rights_core_exact_scope_and_metadata_are_preserved() -> None:
     guard = load_core_guard_module()
     before = initial_rights_configuration(registered=False)
     after = initial_rights_configuration(registered=True)
-    guard.validate_area_path_layers(before, after)
+    guard.validate_area_path_layers(before, after, INITIAL_RIGHTS_AREA_PATH_ADDITIONS)
     for a, b in zip(before['areas'], after['areas'], strict=True):
         extra = list(INITIAL_RIGHTS_PATHS) if a['id'] in EXPECTED_AREA_PATH_ADDITIONS else []
         expected = a['paths'] + extra
@@ -4408,19 +4418,31 @@ def test_initial_rights_core_declaration_then_separate_registration(tmp_path: Pa
         root, 'scripts/core_guard.py',
         core_guard_source_with_additions(PRE_INITIAL_RIGHTS_PATH_ADDITIONS),
     )
-    _, declaration = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    _, declaration = commit_change(
+        root, 'scripts/core_guard.py',
+        core_guard_source_with_additions(INITIAL_RIGHTS_AREA_PATH_ADDITIONS),
+    )
+    historical_script = tmp_path / 'initial_rights_guard.py'
+    historical_script.write_text(core_guard_source_with_additions(
+        INITIAL_RIGHTS_AREA_PATH_ADDITIONS,
+    ))
+    guard = load_core_guard_module(
+        historical_script, module_name='historical_initial_rights_guard',
+    )
     assert guard.verify_area_path_baseline(root, base, declaration) == base
     event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
-    result = run_guard(root, event_name='pull_request', event_path=event)
+    result = run_guard(root, event_name='pull_request', event_path=event,
+                       script_path=root / 'scripts/core_guard.py')
     assert result.returncode == 0, result.stderr
-    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = commit_area_path_changes(root, INITIAL_RIGHTS_AREA_PATH_ADDITIONS)
     assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
     assert guard._changed_paths_in_commit(root, registered) == frozenset(
         {'.claude/core-areas.json'}
     )
     assert guard.verify_area_path_baseline(root, base, registered) == base
     event = write_event(tmp_path, base, registered, f'- [x] {REQUIRED_CHECK_TEXT}')
-    result = run_guard(root, event_name='pull_request', event_path=event)
+    result = run_guard(root, event_name='pull_request', event_path=event,
+                       script_path=root / 'scripts/core_guard.py')
     assert result.returncode == 0, result.stderr
 
 
@@ -4431,8 +4453,17 @@ def test_initial_rights_core_same_commit_predicate_rejects_old_shape(
     """旧f48型のJSON/基線定義同居を新対象でも拒否する。"""
     guard = load_core_guard_module()
     root, base = make_layered_core_repo(tmp_path)
+    commit_change(root, 'scripts/core_guard.py',
+                  core_guard_source_with_additions(INITIAL_RIGHTS_AREA_PATH_ADDITIONS))
+    historical_script = tmp_path / 'initial_rights_guard.py'
+    historical_script.write_text(core_guard_source_with_additions(
+        INITIAL_RIGHTS_AREA_PATH_ADDITIONS,
+    ))
+    guard = load_core_guard_module(
+        historical_script, module_name='historical_initial_cochange_' + cochanged,
+    )
     head = commit_area_path_changes(
-        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(cochanged,),
+        root, INITIAL_RIGHTS_AREA_PATH_ADDITIONS, cochanged_paths=(cochanged,),
     )
     with pytest.raises(guard.GuardError, match='同一コミット'):
         guard.verify_area_path_baseline(root, base, head)
@@ -4454,6 +4485,118 @@ def test_initial_rights_core_each_future_file_requires_check(
     base, head = commit_change(root, path)
     body = f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}"
     event = write_event(tmp_path, base, head, body)
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == (0 if checked else 1), result.stderr
+    if not checked:
+        assert path in result.stderr
+
+
+def rg1_lifecycle_configuration(*, registered: bool) -> dict[str, Any]:
+    """既存登録を保持してRG1実制御の三領域だけを合成する。"""
+    configuration = load_actual_core_areas()
+    for area in configuration['areas']:
+        area['paths'] = [p for p in area['paths'] if p not in RG1_LIFECYCLE_PATHS]
+        if registered and area['id'] in EXPECTED_AREA_PATH_ADDITIONS:
+            area['paths'].extend(RG1_LIFECYCLE_PATHS)
+    return configuration
+
+
+def test_rg1_lifecycle_declaration_actual_phase_preserves_existing_assets() -> None:
+    """宣言のみ/全登録を分け、実在部品と既存資産の捕捉を必須にする。"""
+    guard = load_core_guard_module()
+    actual = load_actual_core_areas()
+    before = rg1_lifecycle_configuration(registered=False)
+    after = rg1_lifecycle_configuration(registered=True)
+    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert guard.RG1_LIFECYCLE_PATH_ADDITIONS == RG1_LIFECYCLE_PATHS
+    assert actual in (before, after)
+    if any((REPO / path).exists() for path in RG1_LIFECYCLE_PATHS):
+        assert actual == after, '実在するRG1制御部品が未登録'
+    guard.validate_area_path_layers(before, after)
+    assert_initial_rights_registration(actual)
+    assert {k: v for k, v in before.items() if k != 'areas'} == {
+        k: v for k, v in after.items() if k != 'areas'
+    }
+    for old, new in zip(before['areas'], after['areas'], strict=True):
+        suffix = list(RG1_LIFECYCLE_PATHS) if old['id'] in EXPECTED_AREA_PATH_ADDITIONS else []
+        assert new == {**old, 'paths': old['paths'] + suffix}
+    assert guard.matched_paths(
+        ['backend/src/pitchlog/recording_rights/rg1_lifecycle_other.py'],
+        guard.CoreAreas(RG1_LIFECYCLE_PATHS, frozenset()),
+    ) == []
+
+
+@pytest.mark.parametrize('area_id', tuple(EXPECTED_AREA_PATH_ADDITIONS))
+@pytest.mark.parametrize(
+    'mutation', ('partial', 'reverse', 'duplicate', 'delete-old', 'replace', 'extra'),
+)
+def test_rg1_lifecycle_registration_rejects_inexact_layers(
+    area_id: str, mutation: str,
+) -> None:
+    """一件欠落/逆順/重複/旧削除/置換/余剰を領域ごとに拒否する。"""
+    guard = load_core_guard_module()
+    baseline = rg1_lifecycle_configuration(registered=False)
+    candidate = rg1_lifecycle_configuration(registered=True)
+    area = next(a for a in candidate['areas'] if a['id'] == area_id)
+    paths = area['paths']
+    if mutation == 'partial':
+        paths.pop()
+    elif mutation == 'reverse':
+        paths[-3:] = reversed(RG1_LIFECYCLE_PATHS)
+    elif mutation == 'duplicate':
+        paths.append(RG1_LIFECYCLE_PATHS[0])
+    elif mutation == 'delete-old':
+        paths.pop(0)
+    elif mutation == 'replace':
+        paths[-1] = 'unregistered/replacement.json'
+    else:
+        paths.append('unregistered/extra.py')
+    with pytest.raises(guard.GuardError):
+        guard.validate_area_path_layers(baseline, candidate)
+
+
+def test_rg1_lifecycle_declaration_precedes_json_in_real_history(tmp_path: Path) -> None:
+    """部品未作成でも実履歴の宣言→別JSONだけを受理する。"""
+    guard = load_core_guard_module()
+    root, base = make_layered_core_repo(tmp_path)
+    _, declaration = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    assert guard.verify_area_path_baseline(root, base, declaration) == base
+    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    assert guard._changed_paths_in_commit(root, registered) == frozenset(
+        {'.claude/core-areas.json'}
+    )
+    assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
+    assert guard.verify_area_path_baseline(root, base, registered) == base
+    assert all(not (root / path).exists() for path in RG1_LIFECYCLE_PATHS)
+
+
+@pytest.mark.parametrize('cochanged', ('scripts/core_guard.py', 'tests/test_core_guard.py'))
+def test_rg1_lifecycle_json_and_baseline_definitions_cannot_cochange(
+    tmp_path: Path, cochanged: str,
+) -> None:
+    """新三パスでも旧f48型の共変更拒否を維持する。"""
+    guard = load_core_guard_module()
+    root, base = make_layered_core_repo(tmp_path)
+    head = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS,
+                                    cochanged_paths=(cochanged,))
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize('path', RG1_LIFECYCLE_PATHS)
+@pytest.mark.parametrize('checked', (False, True))
+def test_rg1_lifecycle_each_future_file_requires_core_confirmation(
+    tmp_path: Path, path: str, checked: bool,
+) -> None:
+    """登録後はPython/SQL/manifest各単独変更を実CLIが検知する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    write_json(root, '.claude/core-areas.json', rg1_lifecycle_configuration(registered=True))
+    run_git(root, 'add', '.claude/core-areas.json')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-qm', 'synthetic registration')
+    base, head = commit_change(root, path)
+    event = write_event(tmp_path, base, head,
+                        f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}")
     result = run_guard(root, event_name='pull_request', event_path=event)
     assert result.returncode == (0 if checked else 1), result.stderr
     if not checked:

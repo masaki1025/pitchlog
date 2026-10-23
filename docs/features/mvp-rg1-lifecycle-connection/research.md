@@ -5,3 +5,10 @@
 台帳作者creation_pathはidentity専用observerの維持、別能力の実closeProof照合、close commit後からauthority INTENT→同期PG→CONFIRMEDまで再openを防ぐ実lease保持を必要境界として提示。通常enroll/startupだけで自動openしない。rootが新sourceをこのworktreeへ分離し、既存authority packageの同時編集は行わない。現在はplan/researchだけでsource・正式資産未変更。
 
 実business identityはsystem_id/databaseだけでなくpostmaster started_atも束縛する。台帳作者の追加確認: business postmaster変更は同systemの古いbackupとの識別ができないため、別の実close/drain proofを受理するまで停止する。ledger pair/daemonの正常再起動照合と混同しない。現source未追加・plan独立確認前。
+
+
+## ステップ1：新3sourceの先行宣言
+
+実JSON/全guard function・class ASTは正式base547と同一。追加層を新3source×sync/recording/tenantへ回転し、旧initial2pathの定数・登録/拒否履歴を保持。旧初期付与の歴史的試験は同じ当時の宣言を明示したCLI/照合器で検査する。既存SCRIPT monkeypatchの挙動も保持する。旧登録の末尾固定は後続が増えるため、旧blockの位置/順序と全JSON差分の完全照合へ分けた。
+
+初回全coreは398成功/10失敗/1error/212.75秒。9件は既存git/subprocess30秒timeoutで、T1候補のcore同時実行も全体遅延していた。2件は本root追随の実不具合（合成repo内へのimport pyc混入、default引数がSCRIPT monkeypatchを固定）として修正。タイムアウトは伸ばさず、一時ファイル/宣言CLIの対象だけ是正した。新/影響54件の直列検査54成功/6.51秒後、専用tmp/2workerの最終core全件409成功/26.84秒。Ruff/ty成功、guard関数/拒否変更0、実JSON/source製品追加0。原失敗と最終結果はcache/rg1-lifecycle-connection/core-step1*.logへ保持する。
