@@ -6,6 +6,7 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.2 | 2026-10-23 | 版不変・初回MVPのPO委任確認への限定参照を2章に追記。一般手続きは維持。 | approved |
 | 1.2 | 2026-10-11 | **TSK-538 ステップ 15 の実装追随(版は上げない)**: 既存 CI ジョブに D-2 artifact の再現ビルド、Node を使う Python 試験、x86_64 配布イメージの起動と `ping` を追加。2 章に 3 分類ごとの実行内容と paths filter の対象を追記。必須チェック名と分類は変更なし。 | **approved** |
 | 0.1 | 2026-08-10 | 初版起案(ci-foundation / Phase 3): ブランチ保護のプラン制約と実測・暫定運用・再開手順・CI 必須チェック名・Secrets 方針を正本化 | draft |
 | 0.2 | 2026-08-10 | 敵対レビュー(判定=要修正・P0×3/P1×6)の全件反映: 暫定運用を「機械的強制でなく管理手続」として正確化(git_guard の適用範囲・チェック対象 = コア領域∪guard_paths・最新 HEAD 基準)/ core-guard 循環参照は**保護有効化後も未解消**と境界を明記 / gitleaks ローカル監査コマンドを worktree 対応 + `--redact=100` 必須へ修正(NFR-014)/ Ruleset 冪等適用の前提・検証・復旧手順 / context 名の将来変更耐性 / `--no-ff` 整合(allowed_merge_methods)/ 10.2 自動再現要件の未達を明示 / NFR-019 参照修正 | draft |
@@ -68,6 +69,15 @@ status: approved
      当面は**競合単位ごとに直列**に扱う。先行 PR のマージ後、後続 PR へ develop を取り込んで(= head SHA を更新して)CI を再実行してからマージする。**再実行が red になった場合はマージしない** — 例えば先行の予約が未閉塞のまま後続の予約を残していると (e-2) で red になる。その場合は**先行試行を結果証跡で閉じて develop へ統合し**、後続の予約を**新しい `attempt_seq`・`attempt_id`・ファイル名で作り直して**から取り込み・再実行する(不要になった重複 PR は閉じる)。**3 章の Ruleset を適用すれば `strict_required_status_checks_policy: true` が base 最新化を必須にするため、本手続きは終了できる**
 - **D-2 の CI 配線(TSK-538 ステップ 15)**: **常時実行**の `harness` は mise.toml の Node 24.16.0 で runtime/runner 試験を行う。**変更検知**の `frontend-changes` は適合ベクタ・runner・契約・D-2 資産の変更も検出し、`backend-changes` は配布 artifact・`.dockerignore`・mise.toml の変更も検出する。**paths filter 配下**の `frontend` は artifact を再生成してコミット済みファイルとの差分を検査し、`backend` は Node を使う DB/domainrt 試験と x86_64 配布イメージの FastAPI 起動・`ping` を検査する。ジョブ数は常時実行 8、変更検知 2、paths filter 配下 2 のままである。
 - **core-guard の残余リスク(循環参照)**: `pull_request` は PR 側(head のマージブランチ)の workflow・スクリプトを実行するため、PR 自身が `ci.yml` / `core_guard.py` / `core-areas.json` を書き換えると検査そのものを無効化・形骸化できる(必須チェックは**ジョブ名の存在と結果**を強制するが、**ジョブの意味は固定しない**)。guard_paths は「未改変 PR への検知」であり防止ではない
+
+
+**今回限定の実施注記（2026-10-23・初回MVP）**: PO委任によるCodex判断は
+[限定policy](../features/mvp-delegated-core-review/policy.json)に完全一致するPRだけへ適用する。
+上記一般手続きを変更せず、人間確認のチェック・実施記録は代筆しない。
+最終HEAD/実差分・同一PRの証拠コメント・独立レビューtaskをcore-guardで照合し、
+必須CI・正式受理・重大指摘解消を満たした通常mergeだけを委任対象とする。
+マージ直前に委任の未撤回と証拠の現存/同内容を再取得して照合する。
+撤回または今回MVP終了で失効する。詳細は[限定計画](../features/mvp-delegated-core-review/plan.md)。
 
 ## 3. ブランチ保護の適用手順(2026-09-19 適用済み — 運用実地検証は未完)
 

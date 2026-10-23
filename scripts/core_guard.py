@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import json
 import os
 import re
 import subprocess
 import sys
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -21,6 +23,21 @@ NO_CORE_PATHS_MESSAGE = (
 )
 DIFF_TIMEOUT_SECONDS = 30
 CORE_AREAS_RELATIVE_PATH = ".claude/core-areas.json"
+DELEGATION_POLICY_PATH = "docs/features/mvp-delegated-core-review/policy.json"
+# JSON登録前・登録削除後も、この検査経路自体の変更を対象から外さない。
+DELEGATION_GUARD_PATH_ADDITIONS = (DELEGATION_POLICY_PATH,)
+DELEGATION_REPOSITORY = "masaki1025/pitchlog"
+DELEGATION_SOURCE = "01a1686c-7000-7683-965d-0cb7d58ebb7c/user20261023"
+DELEGATION_POINTER = "PO-DELEGATION-EVIDENCE:"
+DELEGATION_COMMENT_MARKER = "PITCHLOG-PO-DELEGATION-V1\n"
+DELEGATION_API_RESPONSE_MAX_BYTES = 1024 * 1024
+DELEGATION_QUOTES = (
+    "コア領域を含む最終差分の確認と是正判断",
+    "条件を満たしたPRのDraft解除・通常マージ",
+    "今回のMVP作業と対象PRへ限定してください",
+    "委任証拠欠落・対象版不一致・重大指摘未解消を拒否する仕組みを維持してください",
+)
+
 BASELINE_DEFINITION_PATHS = frozenset(
     {
         "scripts/core_guard.py",
@@ -49,6 +66,7 @@ DOMAIN_RUNTIME_PATH_ADDITIONS = (
     "backend/Dockerfile",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "sync-protocol": ("tests/fixtures/sync-protocol-population_v1.json",),
     "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
     "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
 }
@@ -82,11 +100,19 @@ class PullRequestEvent:
         base_sha: PR の base コミット SHA。
         head_sha: PR の head コミット SHA。
         body: PR 本文。
+        number: 委任確認で必須となるPR番号。
+        repository: イベントの対象リポジトリ。
+        head_repository: headブランチの所属リポジトリ。
+        head_branch: headブランチ名。
     """
 
     base_sha: str
     head_sha: str
     body: str
+    number: int | None = None
+    repository: str | None = None
+    head_repository: str | None = None
+    head_branch: str | None = None
 
 
 def load_json(path: Path, label: str) -> Any:
@@ -433,7 +459,16 @@ def load_pull_request_event() -> PullRequestEvent:
         raise GuardError("PR 本文(body)が null")
     if not isinstance(body, str):
         raise GuardError("PR 本文(body)が文字列ではない")
-    return PullRequestEvent(base["sha"], head["sha"], body)
+    repository = data.get("repository", {})
+    head_repository = head.get("repo", {})
+    number = pull_request.get("number")
+    return PullRequestEvent(
+        base["sha"], head["sha"], body,
+        number if type(number) is int else None,
+        repository.get("full_name") if type(repository) is dict else None,
+        head_repository.get("full_name") if type(head_repository) is dict else None,
+        head.get("ref"),
+    )
 
 
 def changed_paths(root: Path, base_sha: str, head_sha: str) -> list[str]:
@@ -494,9 +529,259 @@ def matched_paths(paths: Sequence[str], core_areas: CoreAreas) -> list[str]:
     return [
         path
         for path in paths
-        if path in core_areas.guard_paths
+        if path in DELEGATION_GUARD_PATH_ADDITIONS
+        or path in core_areas.guard_paths
         or any(fnmatch.fnmatchcase(path, pattern) for pattern in core_areas.path_patterns)
     ]
+
+
+
+def _strict_json_object(value: str, label: str) -> dict[str, Any]:
+    """重複キーを許さず、委任資料をJSONオブジェクトとして読む。"""
+    def unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in result:
+                raise GuardError(f"{label} に重複キーがある")
+            result[key] = item
+        return result
+
+    try:
+        parsed = json.loads(value, object_pairs_hook=unique_pairs)
+    except (ValueError, RecursionError) as error:
+        raise GuardError(f"{label} のJSONが不正") from error
+    if type(parsed) is not dict:
+        raise GuardError(f"{label} がオブジェクトではない")
+    return parsed
+
+
+def _require_exact_keys(value: dict[str, Any], keys: set[str], label: str) -> None:
+    """欠落・余分なキーを持つ委任資料を拒否する。"""
+    if set(value) != keys:
+        raise GuardError(f"{label} のキー集合が不一致")
+
+
+def _nonempty_text(value: Any) -> bool:
+    """空白だけの自己申告を証拠として扱わない。"""
+    return type(value) is str and bool(value.strip())
+
+
+def _load_delegation_policy(root: Path, head_sha: str) -> tuple[dict[str, Any], str]:
+    """最終HEADにコミットされた今回限定policyとその識別値を読む。"""
+    raw_bytes = _delegation_git_bytes(
+        root, ["show", f"{head_sha}:{DELEGATION_POLICY_PATH}"], "委任policy読取",
+    )
+    try:
+        raw = raw_bytes.decode("utf-8")
+    except UnicodeError as error:
+        raise GuardError("委任policyがUTF-8ではない") from error
+    policy = _strict_json_object(raw, "委任policy")
+    _require_exact_keys(policy, {
+        "schema_version", "enabled", "repository", "source", "source_kind",
+        "delegated_at", "expires", "quotes", "publisher", "publisher_role", "targets",
+    }, "委任policy")
+    if (
+        type(policy["schema_version"]) is not int or policy["schema_version"] != 1
+        or policy["enabled"] is not True
+        or policy["repository"] != DELEGATION_REPOSITORY
+        or policy["source"] != DELEGATION_SOURCE
+        or policy["source_kind"] != "local_goal_thread_not_ui_identity_proof"
+        or policy["delegated_at"] != "2026-10-23"
+        or policy["expires"] != "revoked_or_mvp_completed"
+        or policy["quotes"] != list(DELEGATION_QUOTES)
+        or policy["publisher_role"] != "github_publisher_not_po_signature"
+        or policy["publisher"] != "masaki1025"
+    ):
+        raise GuardError("委任policyの権限根拠・有効状態が不正")
+    targets = policy["targets"]
+    if type(targets) is not list or not targets:
+        raise GuardError("委任policyの対象表が不正")
+    numbers: set[int] = set()
+    for target in targets:
+        if type(target) is not dict:
+            raise GuardError("委任policyの対象行が不正")
+        _require_exact_keys(target, {"pr", "branch"}, "委任policy対象行")
+        if (
+            type(target["pr"]) is not int or target["pr"] <= 0 or target["pr"] in numbers
+            or not _nonempty_text(target["branch"])
+            or not target["branch"].startswith(("feature/", "fix/"))
+        ):
+            raise GuardError("委任policyの対象識別が不正")
+        numbers.add(target["pr"])
+    return policy, hashlib.sha256(raw_bytes).hexdigest()
+
+
+
+def _verify_delegation_base_policy(root: Path, event: PullRequestEvent) -> None:
+    """baseの失効済みpolicyを古いheadの有効policyで復活させない。"""
+    present = _delegation_git_bytes(
+        root, ["ls-tree", "--format=%(objecttype)", event.base_sha,
+               "--", DELEGATION_POLICY_PATH], "base委任policy存在確認",
+    )
+    if present == b"":
+        if event.number != 177 or event.head_branch != "feature/mvp-delegated-core-review":
+            raise GuardError("baseに委任policyがない。導入PR以外は委任を使用できない")
+        return
+    if present != b"blob\n":
+        raise GuardError("base委任policyの種別が不正")
+    _load_delegation_policy(root, event.base_sha)
+
+
+def _delegation_git_bytes(root: Path, arguments: list[str], label: str) -> bytes:
+    """委任資料のGit識別値を、文字コード置換せず固定バイト列から得る。"""
+    try:
+        result = subprocess.run(
+            ["git", *arguments], cwd=root, capture_output=True,
+            timeout=DIFF_TIMEOUT_SECONDS, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise GuardError(f"{label}を取得できない") from error
+    if result.returncode != 0:
+        raise GuardError(f"{label}の取得に失敗")
+    return result.stdout
+
+
+def _delegation_diff(root: Path, event: PullRequestEvent) -> str:
+    """実Git差分のバイト列を、外部diffを無効にして識別する。"""
+    raw = _delegation_git_bytes(
+        root, ["diff", "--no-ext-diff", "--binary", "--no-renames",
+               f"{event.base_sha}...{event.head_sha}"], "委任対象差分",
+    )
+    return hashlib.sha256(raw).hexdigest()
+
+
+class _RejectDelegationRedirects(urllib.request.HTTPRedirectHandler):
+    """固定GitHub API以外へ証拠取得を転送しない。"""
+
+    def redirect_request(
+        self, req: urllib.request.Request, fp: Any, code: int,
+        msg: str, headers: Any, newurl: str,
+    ) -> None:
+        """HTTPリダイレクトは追従せず、urllibのHTTPErrorへ委ねる。"""
+        return None
+
+
+def _fetch_delegation_comment(comment_id: str) -> dict[str, Any]:
+    """公開GitHub APIを無認証・既定TLSで読み、失敗や本文をログへ漏らさない。"""
+    if type(comment_id) is not str or re.fullmatch(r"[1-9][0-9]*", comment_id) is None:
+        raise GuardError("委任証拠APIのcomment IDが不正")
+    url = (
+        f"https://api.github.com/repos/{DELEGATION_REPOSITORY}"
+        f"/issues/comments/{comment_id}"
+    )
+    request = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "PitchLog-Core-Guard",
+    }, method="GET")
+    # HTTPSHandlerは標準の証明書/hostname検証を使う。認証headerは付けない。
+    opener = urllib.request.build_opener(_RejectDelegationRedirects())
+    try:
+        with opener.open(request, timeout=DIFF_TIMEOUT_SECONDS) as response:
+            if response.status != 200 or response.geturl() != url:
+                raise GuardError("委任証拠APIの応答状態・所在が不正")
+            raw = response.read(DELEGATION_API_RESPONSE_MAX_BYTES + 1)
+        if len(raw) > DELEGATION_API_RESPONSE_MAX_BYTES:
+            raise GuardError("委任証拠APIの応答が上限を超えた")
+        content = raw.decode("utf-8")
+    except (OSError, UnicodeError, ValueError) as error:
+        raise GuardError("委任証拠APIを取得できない") from error
+    return _strict_json_object(content, "委任証拠API")
+
+
+def verify_delegated_confirmation(root: Path, event: PullRequestEvent) -> None:
+    """今回MVPの対象版・独立レビュー資料を照合する。意味的正しさは認証しない。
+
+    Args:
+        root: Gitリポジトリのルート。
+        event: 検査対象のPRイベント。
+
+    Raises:
+        GuardError: 委任資料の欠落・対象不一致・重大指摘未解消・取得不能。
+    """
+    if (
+        type(event.number) is not int or event.number <= 0
+        or event.repository != DELEGATION_REPOSITORY
+        or event.head_repository != DELEGATION_REPOSITORY
+        or not _nonempty_text(event.head_branch)
+        or re.fullmatch(r"[0-9a-f]{40}", event.base_sha) is None
+        or re.fullmatch(r"[0-9a-f]{40}", event.head_sha) is None
+    ):
+        raise GuardError("委任対象のPRイベント識別が不正")
+    if event.body.count(DELEGATION_POINTER) != 1:
+        raise GuardError("委任証拠markerは正確に1件が必要")
+    match = re.search(
+        rf"(?m)^{re.escape(DELEGATION_POINTER)} "
+        rf"(https://github\.com/{re.escape(DELEGATION_REPOSITORY)}/pull/"
+        rf"{event.number}#issuecomment-([1-9][0-9]*))[ \t\r]*$", event.body,
+    )
+    if match is None:
+        raise GuardError("委任証拠URLが対象PRと不一致")
+    policy, policy_digest = _load_delegation_policy(root, event.head_sha)
+    _verify_delegation_base_policy(root, event)
+    if {"pr": event.number, "branch": event.head_branch} not in policy["targets"]:
+        raise GuardError("委任policyの対象PR・branchと不一致")
+    comment = _fetch_delegation_comment(match[2])
+    user = comment.get("user")
+    comment_body = comment.get("body")
+    if (
+        comment.get("id") != int(match[2]) or type(comment.get("id")) is not int
+        or comment.get("html_url") != match[1]
+        or comment.get("issue_url") != (
+            f"https://api.github.com/repos/{DELEGATION_REPOSITORY}/issues/{event.number}"
+        )
+        or comment.get("author_association") not in ("OWNER", "MEMBER", "COLLABORATOR")
+        or type(user) is not dict or user.get("login") != policy["publisher"]
+        or type(comment_body) is not str
+        or not comment_body.startswith(DELEGATION_COMMENT_MARKER)
+    ):
+        raise GuardError("委任証拠の所在・掲載主体・markerが不正")
+    evidence = _strict_json_object(
+        comment_body[len(DELEGATION_COMMENT_MARKER):], "委任証拠本文",
+    )
+    _require_exact_keys(evidence, {
+        "authority_sha256", "pr", "base", "head", "diff_sha256", "paths",
+        "reviewer_agent", "candidate_agents", "independent", "verdict", "findings", "report",
+    }, "委任証拠本文")
+    if (
+        evidence["authority_sha256"] != policy_digest
+        or type(evidence["pr"]) is not int or evidence["pr"] != event.number
+        or evidence["base"] != event.base_sha or evidence["head"] != event.head_sha
+        or evidence["diff_sha256"] != _delegation_diff(root, event)
+        or evidence["paths"] != changed_paths(root, event.base_sha, event.head_sha)
+    ):
+        raise GuardError("委任証拠の根拠・対象版・実差分が不一致")
+    candidates = evidence["candidate_agents"]
+    reviewer = evidence["reviewer_agent"]
+    report = evidence["report"]
+    if (
+        not _nonempty_text(reviewer)
+        or type(candidates) is not list or not candidates
+        or any(not _nonempty_text(candidate) for candidate in candidates)
+        or len(candidates) != len(set(candidates)) or reviewer in candidates
+        or evidence["independent"] is not True or evidence["verdict"] != "approved"
+        or type(report) is not dict
+    ):
+        raise GuardError("独立レビューの識別・判定・報告が不正")
+    _require_exact_keys(report, {"task", "reviewed_head", "text"}, "独立レビュー報告")
+    if (
+        report["task"] != reviewer or report["reviewed_head"] != event.head_sha
+        or not _nonempty_text(report["text"])
+    ):
+        raise GuardError("独立レビュー報告の出典・対象版が不正")
+    findings = evidence["findings"]
+    if type(findings) is not list:
+        raise GuardError("独立レビュー指摘一覧が不正")
+    for finding in findings:
+        if type(finding) is not dict:
+            raise GuardError("独立レビュー指摘が不正")
+        _require_exact_keys(finding, {"severity", "resolved", "detail"}, "独立レビュー指摘")
+        if (
+            finding["severity"] not in ("P0", "P1", "P2")
+            or type(finding["resolved"]) is not bool or not _nonempty_text(finding["detail"])
+            or (finding["severity"] in ("P0", "P1") and not finding["resolved"])
+        ):
+            raise GuardError("独立レビューの重大未解消または指摘形式不正")
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -545,6 +830,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(NO_CORE_PATHS_MESSAGE)
 
     detected = matched_paths(paths, core_areas)
+    if DELEGATION_POINTER in event.body:
+        try:
+            verify_delegated_confirmation(root, event)
+        except GuardError as error:
+            print(f"core_guard: {error}", file=sys.stderr)
+            return 1
+        return 0
     if detected and not is_required_check_completed(event.body):
         required_line = f"- [x] {REQUIRED_CHECK_TEXT}"
         for path in detected:
