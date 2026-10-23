@@ -98,7 +98,8 @@
     "uv.lock",
     ".python-version",
     "conftest.py",
-    "tests/conftest.py"
+    "tests/conftest.py",
+    "docs/features/mvp-delegated-core-review/policy.json"
   ],
   "areas": [
     {
