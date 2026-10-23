@@ -37,3 +37,7 @@ TenantContextは既存allowlist内の `test_authz_tenant_context.make_tenant_con
 - 対象試験ファイルSHA-256: `f0da4cc9cd35bc7ce610511c8565f39131c8d60efb0e664d55e51c76d94bf97b`。
 
 この候補は実DBのresolver transaction終結とlockを検証したもので、正式閉集合/7.7受理、S4公開、実API認証、RG1、game INSERT/新語彙を含む全取消、実画面/reload、正式step5/6完成やMVP完成を宣言しない。次は固定差分の独立コードレビュー。push/PR・公開は未実施。
+
+## 独立コード・実DB再実行
+
+2026-10-23T14:55:35.046773+00:00、候補作成非関与/root/o5_final_reviewは可決P0=0/P1=0/P2=0。対象7af797c73e98136356d2f836d268a27111c51b48/base97946ea7、binary full-index差分8b20f65beab05118168f22aa3123c922e9ec114e35a8795e61e363f66d1556e8一致。指定2paths・fixture・identity検査を読み、PG17.11の別一時資格/動的port/専用一時領域で155 passed/86.32s/exit0を独立再実行、残存対象コンテナ0・tree cleanを確認。DSN/資格出力なし。正式閉集合/7.7/S4/実API認証/RG1/game INSERT/UIの未達は継続。後発差分は本記録だけで、独立再実行を正式develop成功へ拡張しない。
