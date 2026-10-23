@@ -26,3 +26,9 @@ decoderは、Aが不変化した単一オブジェクトについて、`resolved
 - backend Ruff/ty成功、対象3ファイルのRuff format適用。初回はSQLAlchemyのString bind表示に不要なVARCHAR castを期待した試験1件が失敗し、実固定SQL表現に合わせて修正後69件成功。
 - 試験は実registry/token・実scope制御へ合成Sessionを接続し、tenant注入・入力型・未知戻り・失効scope・decoder異常のrollbackを確認した単体境界試験。実API／実DB保存の証拠ではない。
 - 正式checkerは上記の未受理ID閉集合で拒否。全件green、ステップ4完了、正式提供、push、PR、DB適用は未実施。新resolverの公開・規則snapshot検証はステップ5へ進んでいない。
+
+## 限定独立レビュー
+
+`/root/product_connection`（候補作者/root/o5_registrationおよび主担当から独立）が3sourceを全文照合し可決P0=0/P1=0/P2=0。69対象試験を独立再実行して69 passed/2.05s/exit0。既存正式checkerのexit2は未解消で、正式受理/統合/step4完成ではない。
+
+固定SHA256: module `5cd834679a64500f08abdb8dece0a9909d1d497f98a4f36ae5c9e1563f126590`、registry `7e2d72f8d28dfef7498d78ed41ec65dc04025cdee3ff9b022ed82c26be95a945`、test `7868a53933c04441f0e08cfccba913f994ad8aea8d3c5692bd15730c389120d4`。review diffSHA `6aaab4f6c3eda3aa0417f2146db1582517698c9fcd7efb4b0a80475b6ac9313c`（3パスをmodule/registry/test順でbinary/full-index差分連結、未追跡moduleだけno-index /dev/null比較）。レビュー後は本記録だけを追記し、製品差分は不変。
