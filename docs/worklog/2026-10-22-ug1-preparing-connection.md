@@ -143,3 +143,95 @@
 - codecは#174の公開e30edc79に存在し、候補blobは前回e30256c33d2ff2fc7a660715d7d7da3b787e153eと一致。**保存値codec公開済み/実統合待ち**へ不足分類を更新し、作成用resolver提供とは分離した。項目別不足・担当・解除条件はread-registration-review.mdの2026-10-23表へ集約。新たな同内容照会/別PRは作成しない。
 - JSON復元2ファイルは305d61dd..6bed7cf2で識別し、diff SHA-256 c5ec699c3ffa7e391955e1158fe505b9e87b5ecbdadbdaa69c5ba8c7a1cca70a。未再レビューを保持。基本2回の履歴/採否・追加敵対1回の許可を維持し、追加は**未消費**。両共有PRの実統合後、実基線/接続候補/最終差分SHAを固定するまで実行しない。
 - 今回はCI回収と受取物整理の資料だけを記録。製品コード・正式資産・受理記録/snapshotの反映なし。公開6bed7cf2のCI結果を確定記録し、資料変更だけで既知の失敗CIを反復起動しないため、本記録はローカルコミットで保全し、PRコメントで報告する。後続の正式接続差分とまとめて通常pushする。
+
+
+## 2026-10-23 主担当集約への引継ぎ固定記録
+
+本節はPOの「既存worktreeのまま新主担当へ集約」指示による。既存承認/採否/履歴は上書きせず、本節以降は新主担当の引受確認まで旧担当の新実装・共有資産編集・push・PR操作を停止する。本タブは#175担当であり、#176/P-6の継続例外を自分へ適用しない。
+
+### 1. 担当・配置・固定点
+
+- 担当: Codex D。TSK-395/U-G1の**preparing作成・再取得の限定接続**。U-G1全体/試合開始の所有移管ではない。現在の#175提出単位はDTO/read component・正式read接合準備で、作成成功/開始/初期権/1球保存の完成を含めない。
+- worktree: `/home/ymdms/projects/pitchlog-worktrees/feature-ug1-preparing-connection`
+- branch: `feature/ug1-preparing-connection`
+- 引継ぎ記録前HEAD: `d0468aa6c8f8ecf9cb43bcb898723ad0af1606f3`。本節を追加するローカル記録コミットの最終SHAは下記`handoff-manifest.json`と最終報告で固定する（自身のコミットSHAを本文へ先行記入しない）。
+- 公開PR: https://github.com/masaki1025/pitchlog/pull/175 （OPEN/Draft）
+- 公開HEAD: `6bed7cf2f8ffd5c1fe95fd9e14b19a8d8a1ffa82`。この引継ぎではpush/PR操作を行わない。
+- 最新fetch済み実develop: `1ab398cc7b2e0f54eafc038fc761a8a8ab42d2a0`（#159統合）。本枝へ最後に取り込んだ基線は`760c04d540b22190cab076165f1b4e35ae473a1f`。最新developの取得と本枝へのmergeを混同しない。
+
+### 2. 差分と保全場所
+
+- 記録開始前はtracked/untrackedとも未コミット0。製品差分はすべて公開6bed7cf2に含まれ、番号取得用文書だけのPRではない。
+- 製品/固有試験4ファイル: `backend/src/pitchlog/api/schemas/games.py`、`backend/src/pitchlog/repositories/games.py`、`backend/tests/test_game_preparing_components.py`、`backend/tests/test_game_preparing_read_boundary.py`。
+- 未pushは既存`d0468aa6`の資料2ファイルと、本引継ぎ記録コミットだけ。d0468aa6はCI回収/不足表で製品変更0。本節の記録後も製品コードは変更しない。
+- 保全ディレクトリ: `/home/ymdms/.cache/pitchlog/ug1-preparing-connection/handoff-20261023/`。記録コミット後に次を生成し、manifestへ最終HEAD/ファイルSHA-256を固定する。
+  - `ug1-preparing-connection.bundle`: `760c04d5..最終HEAD`の作業履歴（公開製品と未push資料を含む）。前提コミット760c04d5を持つ同repoで`git bundle verify`して使用。
+  - `task-from-760c04d5.patch`: 同基線からの全差分。
+  - `unpublished-from-6bed7cf2.patch`: 公開HEADからの未push資料差分。
+  - `unstaged.patch` / `staged.patch` / `untracked-paths.txt`: 最終状態の証跡。今回の予定は空で、未コミット差分を隠すためのstash/reset/cleanはしない。
+  - `handoff-manifest.json`: 最終ローカルHEAD、公開HEAD、基線、保全ファイルのhash、bundle検証結果。
+- 既存の委任/査読/検査証拠: `/home/ymdms/.cache/pitchlog/ug1-preparing-connection/` の `plan-review-r1/r2.log`、`claude-code-review-r1/r2.json`、`code-adversarial-r1/r2.log`、`read-json-preparation.log`、各prompt/stepログ。原本を保持し、秘密値を本文へ転載しない。CI根拠はrun URLを優先する。
+- 親U-G1 worktree `/home/ymdms/projects/pitchlog-worktrees/feature-ug1-game-lifecycle`、固定67dff5f7、親8ステップは他担当成果として保持し、編集/破棄/所有解除しない。
+
+### 3. 統合・実装・候補・未着手
+
+| 区分 | 現状 |
+| --- | --- |
+| develop統合済みの土台 | 既存C1/C2/共通client/Pinia/QueryClient、U-F8の封鎖付き画面、既存ORM/tenant実行器を再利用。本PRは未統合。旧タブの成果を新規実装し直す必要はないが、過去全PRの再監査は今回未実施 |
+| 実装済み/公開 | ステップ1 core宣言/試験、2 別コミットのJSON登録、3 入力DTO・read SQL/token候補・未登録拒否・page/cursor・JSON復元。主コミット8ece74b9/57e73473/9c4f8f02、修正f8e28bcd/b2366c24、JSON準備a442770c。ステップ3の旧snapshot拒否条件は未達なので3/6表示を全条件合格へ読み替えない |
+| 未適用候補 | `read-registration-candidate.json`はSQLA_SELECT限定2関数のJSON Patch。`read-registration-review.md`は公開2token/2GET/認可・7.7準備/受取物表。正式assets/履歴/fixtureへ未適用 |
+| 未着手/未成立 | 正式read registry/API・認可接合、正式codec経由の旧snapshot拒否、DB read/providerの実接続、7.7完全値/正式記録、必須大会供給/作成API/フォーム、実resolver/RG1成功との保存・全取消、実画面作成/reload。開始/1球は本限定範囲外 |
+
+### 4. 承認済みと未承認
+
+- plan: `docs/features/ug1-preparing-connection/plan.md`、status activeを維持。PO山田正輝が2026-10-22に`98cd9974178a2271235d737afb24f019f9142bb0`/基線760c04d5の6追加実行単位・合格条件を承認。親8ステップは保持。plan末尾と本ログに会話の承認記録を固定済み。
+- 意味: preparingだけ/既存権限/tenantをcontextから束縛/実resolver単一実装/6-key保存・非遡及/全取消/結果不明の成功禁止・自動再送禁止。D4は開始時で作成時に代用発行しない。RG1常閉SQLをtrueへ変更して成功させない。必須大会を架空既定値で埋めない。
+- Draft先行・通常pushは9c4f8f02受領後のPO指示で許可済み。未完成条件をPR冒頭へ明記しplan activeを維持する限定例外。今回の停止指示以降は権限があっても旧担当はpushしない。
+- **#175独自の正式7.7受理値は0件**。完全前後値/正式記録案はまだ作成不能、承認者/承認日未入力。候補のraw SHA・現資産SHA・プレビュー1d0a5e5a...は受理値ではない。既存正式台帳/履歴/snapshot変更0。#174の受理を#175へ流用しない。
+- 正式受理/本人確認/Draft解除/公開/マージ/共有DB適用は未実施。TSK-395/U-G1全体も未完了。
+
+### 5. レビュー履歴と残枠
+
+- 6.1計画: 実行2回。第1回P0/P1/P2=0/2/0を全採用、第2回0/0/0。指摘反映1周（frontmatter周回1）と実行2回を区別。査読後の基線記録/結果記録は未再レビューでPO承認時に残余として明示済み。
+- 反対側Claude: 基本2回。第1回36e7129dで0/1/5、第2回9807c22cで0/0/5。全指摘採用。第2回後のP2是正は同系列未再レビュー、敵対第2回の差分対象。
+- コア敵対: 基本2回。第1回9807c22c対760c04d5、第2回305d61dd対9807c22c、いずれも0/0/0。計画レビューとの回数流用/リセットなし。
+- **追加敵対1回はPO許可済み・未消費**。#174→#173の実統合後の実基線・正式read接続候補HEAD・最終差分SHA固定後だけ実行。対象はSELECT限定2関数、公開2token、認可/TB005、registry/API、旧snapshot拒否、JSON復元と直接影響する試験/7.7資料。未提供物を仮定して前倒し消費しない。
+- 未再レビューの製品はJSON復元2ファイル（schemas/games.pyとtest_game_preparing_components.py）。305d61dd..6bed7cf2のbinary/full-index diff SHA-256=`c5ec699c3ffa7e391955e1158fe505b9e87b5ecbdadbdaa69c5ba8c7a1cca70a`。後続の正式接続全体のSHAではない。
+- 以後のplan/準備資料/worklog（d0468aa6と本引継ぎも含む）は結果/条件記録として独立未再レビュー。既済み審査を後発差分へ拡張しない。
+
+### 6. 検査・実環境・稼働状態
+
+- 公開6bed7cf2最終CI: https://github.com/masaki1025/pitchlog/actions/runs/39786451902 （completed/failureを再照合）。backend3150成功/4skip/1warning、coverage89%。harness29644成功/2skip/2失敗（既知TB005由来）、tenant-boundary TB0052件、core-guard本人未チェック、他実行対象チェック成功、frontend差分なしskip。
+- 同HEAD先行39786333056はbackend/harness CANCELLED。旧2922536fの3126成功は別結果。失敗をtimeout/未完走とせず、完走失敗として保持する。
+- 最終関連unit: 公開a442770c/6bed7cf2の固有/境界91成功、format/Ruff/ty成功。core269成功は宣言/登録時の結果。既知TB005を待機中に再実行しない。
+- 同期TestClientが委任sandboxで停止し中断130、async ASGITransportで同じ束縛検査を保って成功。中断を成功へ変更せず、試験除外/timeout緩和なし。詳細は前節・ログを参照。
+- **本worktreeに該当する実行中pytest/委任/Claude/uv/pnpmは引継ぎ前の/proc調査で0件**。長時間CIも上記最終runは完了済み。今回新たな全件試験は起動しない。再起動で中断したのは引継ぎ記録のターンで、製品検査を中断したものではない。
+- backend/.venv・root .venvは保持。backend pytestはserial（xdistなし）、rootは既存設定に従う。uvは必要なら既存専用cache/ネットワーク制約を使い、`.env`を読まない。DB/E2Eは新主担当の専用隔離PostgreSQLと実認証/API/画面が必要。共有DB適用は未実施、fixture readを作成成功の証拠にしない。
+
+### 7. 担当受理・共有所有・提供物
+
+- **統合順はPO指定で#174→#173→#175**。両先行PRは直前照合でOPEN/mergeCommit=null。#173回答6339090455は#174実統合後の共有値再導出を明記。順序を再照会しない。
+- #174公開e30edc79の保存値codec `pitchlog.db.game_state.rule_snapshot`（blob e30256c33d2ff2fc7a660715d7d7da3b787e153e）は候補から不変。decode_applied_rules→DomainValidatedRuleSnapshot/encode_applied_rules/RuleSnapshotInvalid/RuleSnapshotContractUnavailableがreadに必要。公開済み・未統合であり、実提供/基線認定は実統合後に確認する。
+- codecは相関を検査しても規則行の出所を証明しない。正規保存前resolverと保存側が別責任で証明。作成用resolver request/result/固定operationとRG1書込成功はreadの条件ではない。保存成功には両方が必要で未提供。
+- #174既存照会6338633410へread供給差分を集約済み。形式的なread import契約への明示受理回答は未確認。未回答を受理/所有移管にしない。未送達を示す証拠はなく、GitHub投稿/編集は成功したが読了は未確認。#152照会6337294532、#173照会6337333569の同内容を再送しない。
+- U-F8受理: #171コメント6338616580/6338805507。GameScreenEntry/Record/Types各spec、新api/games.ts、薄いProvider、必須大会フォームはDへのpreparing限定分担を受理。既存U-F8意味/開始・記録封鎖は維持。readだけでheld/met/queue0を作らず、架空pendingでRecordDetailをready化しない。routerは既存経路を再利用し、必要props差分のみ照合。新主担当へ編集分担が自動再受理されたとは代記せず、この既受理境界を引き継ぐ。
+- 共有正式資産（tenant-boundary8資産/派生Python/履歴snapshot/corpus、authz入力/route/matrix/lock/seal）は先行担当の変更を上書きしない。実競合を観測したbase/repository契約・生成Python・oracle-seal等だけ所有/順序の保留とし、非共有作業まで一律停止しない。現Dは正式共有資産変更0。
+- 他worktreeの未コミット差分・所有解除・担当不在は推定しない。送付/受理/実提供を別欄として扱う。
+
+### 8. 新主担当が次に行うこと・停止条件
+
+1. 本worktree/branchをそのまま引き受け、公開6bed7cf2と未push資料2コミットを確認。保全bundle/patchは予備であり、無断で既存worktreeを作り直さない。引受を明示するまで旧担当は保持する。
+2. #174と#173の実統合SHA/最終内容を確認するまでは、正式共有資産を並行編集しない。提供済み候補を実基線とみなさない。同じ質問や既知TB005の再試験を繰り返さない。
+3. 実統合後のdevelopを**既存方針の通常mergeで**取り込み、履歴/受理値を保持する。自動rebaseを前提にしない。競合/新仕様/新権限が判明したらその差分だけをPOへ示す。
+4. 正式codecのmodule/型/依存を検証し、既存JSON復元→正式decode/encode→応答DTOを接合。SELECT限定2関数と正例fixture、公開2token・実registry、既存CAP:games:readの2GET/C2/認可を候補実装。POST/別操作・越境・不正token・旧行を拒否。偽codec/仮Port成功は作らない。
+5. 実基線/最終候補HEAD/最終diff SHAを固定し、JSON復元を含む許可済み追加敵対1回を実行。実履歴から7.7完全前後値・snapshot・記録案を導出して採否と一括提示。**正式受理前は履歴/snapshot/承認者・承認日を正式反映しない**。
+6. 正式受理後のみ承認範囲を反映・必要検査・通常push・最終CI・本人確認対象資料へ進む。本人チェック/方法は代記せず、Draft解除・マージ・公開・共有DB適用は人間のゲートへ残す。
+7. 作成resolver/RG1・大会供給・作成保存/実画面reloadは後続条件として別管理。開始/初期権/1球保存やMVP全体完成へこの成果を拡張しない。
+
+### 9. 会話指示・採用理由・確認できていない点
+
+- 9c4f8f02受領後の「通常push/最小1Draft」許可、限定追加敵対1回、#174→#173→#175順序、既知TB005再検査不要、今回の引継ぎ後停止はPO会話が承認根拠。正式カードの新承認欄や外部人間チェックを別途取得済みとはしない。
+- 本タブ集約の理由は、MVP実装/接続を新主担当へ一本化し二重編集を避けること。途中成果を破棄/隠す指示ではない。計画承認・既レビュー・履歴をリセットする根拠でもない。
+- 旧snapshot拒否未達は指摘採用により明示し、条件の勝手な後段移動はしなかった。コンテナ復元は実行器とcodec候補の型差を埋めるだけで、規則検証/出所証明の複製を避ける採用理由がある。
+- 過去のU-F13/C1/C2/U-F3/U-F5等の統合経緯は会話にあるが、今回その全PR・Notion完了状態を再照合していない。本handoffを過去カード全体の完了認定へ使わない。消失した別申し送りファイルを復元済みと扱わず、本コミット済みworklogへ集約する方針を維持する。
+- 新主担当の本人/引受時刻/新たな担当受理は**未確認**。#176/P-6の例外対象が本タブである証拠はなく、他担当への指示/所有移管を代記しない。
