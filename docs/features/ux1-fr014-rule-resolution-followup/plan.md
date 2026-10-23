@@ -1,6 +1,6 @@
 ---
 feature: ux1-fr014-rule-resolution-followup
-status: active
+status: in-review
 承認: 済(2026-10-14・山田正輝・TSK-550本体計画と承認済み追補を継承)
 重さ分類: コア領域
 worktree: ../../..
