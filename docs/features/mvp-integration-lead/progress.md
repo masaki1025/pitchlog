@@ -140,3 +140,19 @@ P6から引継ぎ受領・独立担当継続の実返信を受領。候補編集
 - U-S1旧担当から引受了解・停止維持の実回答。F2はe41f7c35の隔離構成承認済み、正本/DDL-ACL/必要7.7のゲートが残る。P7結果ID/wire/O4優先/J6型ACLの最終受理は未取得、B+D/除外Aの方針採用だけを確認。F2準備全体を止める条件へ広げない。
 
 MVP-D01〜05のPO回答は未取得。待ちを承認に置換しない。Goal管理は再開時点でpausedを返すため、実作業の再開と自動継続状態は区別してユーザーへ通知した。
+
+
+## 2026-10-23 再開後の実統合・候補接続更新
+
+- Goalはユーザーの再開操作でactiveを受領。最初のpaused応答は履歴であり、以降の停止条件ではない。
+- #178は最終e1de6fef、base28c5aee6、diff a5be5fa79f2b65ec0d26cbb2ff57c7863032b6367448ec1ec314d54c26559894、独立最終レビュー0件と委任証拠6365550993を照合。CI39958695745全必須成功後、PO委任によるCodex主担当判断で通常merge。正式develop **a67b9364bd613b2118a28810bc25756384687cb9**。O5母集合core登録だけで、O5製品runner完成ではない。
+- #176は元3未コミット文書を保全後、8b12534eで元計画範囲だけ引受・同PR2登録commit案を取下げ。a67b9364をf0e6bdffへ取り込み。backend O5契約71成功、frontend全1794成功/88.38s・ESLint/vue-tsc成功、3実変更ファイルが元c1413b25とbyte一致。統合後限定追加レビュー・最終CIを準備中。旧レビュー履歴/未再レビューc141/現在地不明警告を保持。
+- CSV #179のCI39957996342はbackend1失敗/3112成功/4skip。原因は既存O5正本23対母集合22（#176対象）。serializer単体54成功と混同せず、#176実統合後の実基線で是正を確認して最終レビュー/CIする。失敗をgreenに置換しない。
+- resolver固定operation: 空キーの実行前拒否不足を再現、94ad459aで限定追補をPO委任承認しbffa1f96で是正。対象81成功、独立再実行81成功/0.83s・指摘0。保全e1bc3e01、bundle candidate-after-empty-key.bundle。正式閉集合/7.7未反映exit2は継続。
+- 公開resolver step5は専用worktree feature-mvp-rule-resolver-serviceへ分離、2回の独立計画レビュー（初回P1偽scope対策を採用、2回目0）後bf512445でPO委任承認。固定operation/単一codec/4失敗接続を実装中。候補作成者/root/creation_pathとレビュー/root/o5_final_reviewを分離。実DB/HTTP/保存成功とは未判定。
+- T5/T6専用計画は初回P1（3文書限定と後続工程表/DoD不整合）を採用し2回目0。8f67bbb2で3文書候補を保全、docs-status20/0・計画同期成功。方式正本の正式化/契約/製品の各ゲートは後続で、D02〜05未回答は不変。
+- J6新6件は新配布dirだけを渡した/root/p6_j6_derivationがA封印、主担当SHA256SUMS全件OK。derivation6329f7bf7c0f3d0e7159f9bf5605b2ad2145bcffd10d1ea0789255769452fee4、seal6dd3078b21ae07841900f9b796f94166c9f15a405df946a44d53dc07742640d7。旧P6が別役割でB比較をv26へ保存、結果fcfae3b96d7b41ccdda8066099ac4117e9a02d82a7790113a7369e806cc213b8を主担当再計算照合。適用root56=一致30/blocked26/不一致0、条件外16、全6recordはblocked。正式PlayerRef/観測真正性/潜在手掛かり/モデル同定等の資格留保を維持。新agentだけでblind/P6成立としない。
+- 同A担当の封印後理由説明で、本塁打RBIまでblockedとした根拠に弱さ・過剰blocked可能性を申告。原A/Bを変更せず、旧P6は別補足v27に留保（9fd2e5655a29fc30046aff9ca2884fe1c0b7a78197fa94d45ef6f7a502601918）を保存。旧期待値補完/新再導出/正式受理はしていない。
+- US1 F2は共通tenant/D5排他と権威ある新規ledger+marker同取引保存の不足を限定照合。独立技術検討で永続coordination行追加案を推奨。feature-mvp-sync-control-contractで3文書契約候補の計画レビュー中。13→14表は未受理構造候補、正本/DDL/ACL/7.7未反映。P7厳密優先/P3公開値/原wireを仮採用せず、HTTP/Port成功を契約整備の前提にしない。
+
+到達点A（実画面から試合作成しpreparing再取得）は未達。実製品games router/service/form/provider、公開resolverの正式登録、安全なRG1成功許可の供給を接続する。component/合成Session成功を実画面→実API→実DBの証拠としない。

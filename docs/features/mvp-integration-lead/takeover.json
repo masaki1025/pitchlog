@@ -102,5 +102,30 @@
       "status": "",
       "ownership": "保存点一致・担当停止根拠を確認中。編集未着手"
     }
-  ]
+  ],
+  "lead_updates": {
+    "observed_at": "2026-10-23T13:53:35.491708+00:00",
+    "integrated_develop": "a67b9364bd613b2118a28810bc25756384687cb9",
+    "active_units": [
+      {
+        "scope": "#176 O5母集合追随",
+        "worktree": "/home/ymdms/projects/pitchlog-worktrees/fix-us1-o5-observation-population",
+        "head": "f0e6bdff685ac938ccd33b8b9a90e8ae4a06a68d",
+        "ownership": "Codex主担当・既存停止確認後引受",
+        "state": "#178統合後の最終レビュー/CI準備"
+      },
+      {
+        "scope": "resolver公開step5",
+        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-rule-resolver-service",
+        "approval": "bf512445c9fa164b5452e9f1c30f5f14ea188df1",
+        "editing": "/root/creation_path（計画指定pathsのみ）",
+        "review": "/root/o5_final_review（候補非関与）"
+      },
+      {
+        "scope": "F2固定保存契約候補",
+        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-sync-control-contract",
+        "editing": "Codex主担当（feature3文書のみ、計画レビュー中）"
+      }
+    ]
+  }
 }
