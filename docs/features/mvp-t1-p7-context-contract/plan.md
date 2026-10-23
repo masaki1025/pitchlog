@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-p7-context-contract
 status: active
-承認: 済（外殻候補・第7/8/9節。PO委任によるCodex判断、対象版は各節に固定）
+承認: 済（外殻候補・第7/8/9節。第10節の正式不足case候補追補だけ未承認）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-t1-p7-context-contract
@@ -232,3 +232,30 @@ V10はS-2の処理段階値である。本型の負例をHTTP入口の新S-1拒�
 
 
 2026-10-23T22:07:50Z、PO委任によるCodex主担当/root判断として、676dffe442be8a866b0ec688360ad827dbc50835の第9節（plan SHA2a15f03436142a632be31fd8bd2dbe1425c61275e75d5d689a25fb3d69f7fe98、research SHAfba01039f4d5eda005d6f82e3ffae1bd5b22e353ea3a66c5b8d20c157d7463f9、標準binarydiff178173c3345800a48f45091e906f4a658e43d2b90f9009d083f1794a41ce1d9a）だけを承認し、同step3/3の3閉型候補実装を指示する。新追補作成に非関与のcsv_reviewによる新節限定第1回レビュー0/0/0と規範対応/実数照合を根拠にする。レビュアーの旧外殻作成関与は開示されており、旧外殻全体の独立再確認やP6 blind資格には広げない。旧第8節/空型是正の非作者系列・正式T1全開始条件を保持し、7marker消去0/残4kind閉包0を覆さない。人間本人の個別実値確認・署名を代記しない。
+
+## 10. ステップ3/3後続：OUT3-04/05の純入力・作者導出を分離した最小case候補（未承認）
+
+基線`6a579374c190a76b7be4107d27f1c2e2a5584c2e`の3閉型は非作者rights限定0（独立415件/292schema+9edge/実TS7正16負/旧hash一致）をroot経由で受領した。旧第9節と全レビュー通算を保持する。本節は正式不足15分岐のうちOUT3-04/05の2分岐へ向けた**規範case候補**を供給する別単位で、第8/9節の構造case承認を意味期待値作成へ流用しない。旧ステップ総数3は変えず、非作者確認・rootの対象版承認後に同ステップ3/3の後続候補として実装する。今はplan/researchだけを編集する。
+
+### 対向2入力と今回閉じる不足
+
+要件v2.16 FR-003/FR-005・A-1 OUT3-04/05・A-3、E-1、ADR-003 v0.9 D-6/D-8/D-11が採用済み原典である。1回表・二死二三塁・単打、打者は一塁へ到達済み、二塁走者は三塁で非フォースのタッグアウトとなり第3アウト、三塁走者は本塁到達という同一入力を作る。変更点は`thirdOutTimingByRunner.third`の`home-before-third-out`/`not-before-third-out`だけとする。実走者のPlayerRef、手動上書き、`thirdOutObservation={kind:"other-third-out",out_person:二塁走者}`を明示し、OUT3-01/02/03を除外できる原観測を保持する。非サヨナラ・妨害/失策なし・TB非適用で固定し、不要J6/RBI観測は既存の明示variantで保持する。missing値をfalse等へ補完せず、現有の閉観測型を再利用する。
+
+正式manual fixtureのinputCoordinateは7基本軸とinterferenceRuling文字列だけを許すため、この実走者/手動結果/第3アウト種別/時機を現在の正式fixtureへ格納できない。正式descriptorにも第3アウト種別の閉入力が未反映で、OUT3の得点可否を区別する規範行/case bindingと比較面の具体化が未供給である。本単位はその不足を2つの純入力・作者導出・原典対応で具体化し、rootの後段正式化へ渡す。新外殻3型等だけを増やす単位にはしない。
+
+| 編集パス（本feature配下。実装は承認後） | 成果・境界 |
+| --- | --- |
+| `candidate/t1-pure-inputs-v1.json`（新規） | 中立format版・中立input ID・入力だけを持つ2件。既存閉型で表せる投影前10状態軸/同一試合・攻撃側の正式PlayerRefと名簿/保存規則snapshotの必要値/毎球観測を固定する。入力にbranch ID、作者case名、期待値、採否、導出理由、author資料へのリンク/hashを入れない。完全Ready発行証拠を捏造しない |
+| `candidate/t1-author-derived-v1.json`（新規） | 中立input IDで対応する作者側branch対応、原典・row参照候補、期待値、導出根拠、正式化の不足を保持する。既存正式case/P6期待値を参照・コピーせず原典から作る。OUT3適用前後の候補/計上得点者・得点数/RBI対象・打点数、実適用後のアウト/攻守交代/カウント/走者/得点などを区別し、正式E-1の6比較field・23flag全キーを省略しない。基礎matrix行の既定効果と手動結果/OUT3後の適用値を混同しない。既存規範で導けないfieldが出ればそのfieldだけを未解決としてrootへ返し、推測値で完全caseとしない |
+| 既存`candidate/source-ownership.md`・`constructor-contract.md`・research | 上記2入力・観測の既存型対応、作者側の正式schema/descriptor/row binding差分案、比較面・未達と安全な将来packet切出し手順を追記。期待値の実値/逐件理由はauthor JSONだけに置き、純入力fileへ混ぜない |
+| 既存`tests/test_state_transition_contract_schema.py`の候補専用部分 | 新2fileの厳格shape/中立ID対応、2入力の差が時機1箇所だけであること、既存観測/状態部分の構造、author outputの全field・23key・source対応、純入力に作者資料や判定fieldがないこと、旧50定義/292case/11constructor/旧宣言byte保持を確認する。既存core被覆試験のexact file集合だけを旧5+新2へ増やす（既存`candidate/*`登録範囲内）。新型・renderer変更や別の計算実装は作らない |
+
+現有schema/d.ts/structure-casesは変更0。新2fileは既登録`candidate/*`でgame-state/sync-protocol両方に検出されるため、core定義/JSONの追加変更は不要。formal assets、旧544/UF8/US1、主担当台帳、正本、製品source、P6の旧封印/期待値・所有不明JSONは編集/参照しない。既存6mapping/各2case・missing15を保持し、当候補作成だけでmissing15→13を宣言しない。root後段の正式schema/descriptor/行/case/派生資産整合・独立受理・7.7実値反映後にのみ該当不足を閉じる。
+
+### 検証・独立性・停止点
+
+2つの合法入力は互いにOUT3-04/05の対向負例にもなり、必要時機の欠落/別走者への付替えはローカル変異入力で観測欠落として検出する。HTTP公開結果ID・P7D06・新拒否優先/D5消費は採用しない。計算器を作って作者期待値を自己生成せず、原典による作者導出を明示する。既存専用pytest/保持hash・Ruff/ty/docs/計画同期で固定し、重いcore/DB/本体を起動しない。新case群が完全比較面を満たさなければ、部分oracleをformal completeと称さず具体field不足を返す。
+
+将来blind検証へ渡せるのは、純入力fileの**内容だけ**を中立名`inputs.json`へコピーしたpacket、採用済み規範原典、固定版・範囲だけである。本plan/research/author file/著者会話/branch mapping・旧case比較を同梱しない。非継承の未曝露検証者が導出を封印・hash固定した後に、rootが別の作者資料で比較する。候補作者や本会話を新検証者へ継承させず、新規agentだから未曝露とは認定しない。本単位ではpacketの手順/入力保持を準備するだけで、P6blind起動・封印・受理を実施したとは記録しない。
+
+**case供給の到達点は不足2分岐に対応する新純入力2件と分離作者導出、正式closureは後段ゲート待ち。** 7markerやT1全開始条件を減らすものではなく、全23flags/G6/残13分岐の規範case/P7/7.7/Ready/T1計算は別残件を維持する。実Port/HTTP/DB完成をこの候補準備の着手条件にしない。

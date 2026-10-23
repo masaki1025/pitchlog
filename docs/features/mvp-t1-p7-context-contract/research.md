@@ -236,3 +236,28 @@ branch_row_mapping SHA256 `ac9541c860820ac8855a6c72c439d03d8d8bd0d5832a810192f66
 今回閉じたものはwire V10の3field・内部対応2field・4tagの住所射影という3閉型であり、**operation-content残4kind完全閉包0/7marker消去0**。V7/P3 V11/undo差分・依存/membership/元半回/有限prefix・P7D06等の未採用意味は未供給。operation-content5/9、正式21分岐の既存6mapping/不足15・全23flags/G6/正式7.7/Ready/P6/P7/T1製品計算の未達を保持する。構造fixture生成成功を規範case・P6blind・正式受理へ代替しない。実Port/DB/HTTPを契約準備の前条件に追加しない。
 
 是正後の最終局所全件は同コマンドで**415 passed/282 deselected/41.42s**。最後に加えた旧d.ts全byte保持回帰も含む。Ruff/ty成功、docs-status20文書/違反0、差分空白検査成功。基線はb112承認後、rootがplan冒頭の既成立承認表示だけを整合した`d577bc64`へ進んでいる。本実装はそのplan変更を含めず、候補5files/専用試験/researchの7pathsだけで固定する。重いcore全件・DB・製品本体・正式shared資産・P6封印/期待値には触れていない。計画同期と固定差分/hash・保全物はコミット後に主担当へ返す。
+
+### OUT3-04/05の正式不足caseへ向かう最小追補（plan第10節、起案のみ）
+
+6a579374についてrootから非作者rights限定0を受領。独立415件、292schema+9edge、実TS7正/16負、旧hash一致、証拠`review-t1-v10-6a579374-evidence.json` SHA256 `dae9f95d5f6f3439038aa587b54f2443ea4cdfea716047044f1205e68a16da73`と通知された。この受領を候補作者の自己レビューやP6blindへ読み替えない。
+
+新たな正式case純入力は旧planの構造scope外である（第2節のstructure-casesは得点/RBI/拒否期待値を禁止、第8/9節も構造のみ）。544承認済みplanのstep1はOUT3規範行/case/双方向負例と正式追随を所有するが、本枝へ無断でその全scopeを移さない。rootの指示により、この第10節で2入力/分離作者導出/必要観測差分案だけを追加し、非作者確認と対象版root判断の前に候補を実装しない。
+
+| 観測/固定source | 今回使う採用済み部分・不足 |
+| --- | --- |
+| 要件v2.16（本枝blob SHA256 `569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a`） | FR-003は必要走者ごとの時機必須/欠落拒否、手動上書き優先と原観測保持。FR-005は第3アウト後の攻守交代/共通count reset。A-1 OUT3-01..03除外後、04/05はthirdOutTimingの2値で得点有効を分け、無効得点者をRBI入力域へ渡さない。1回表とすればJ6サヨナラ上限は不要。E-1/付録A-3から単打・公式失策なしの比較値を導く。将来の分離author JSONへ逐件の根拠を置き、この起案に期待値実値を生成しない |
+| ADR-003 v0.9（SHA256 `375900aa9acc7e728cc3e28640418a37c4cd97a5f0de81cad130b74c5599684c`） | D-6の規範行/派生caseの主従、D-8の比較面、D-11の唯一descriptor/閉入力・23flagのT1前置ゲートを保持。作者の入力・期待値同時作成を独立導出にしない |
+| 544採用済みplan（SHA256 `1361976b9061aa10dc2c5f00d97a1cb98b36395e48233d1f9b0c3f428422deda`） | step1のOUT3/RBI/G6-S/S20規範行/case/全比較、P6段階A→7.7→段階B等の順序は残る。新2case候補はその一部への供給物で、T1本体/全step1を完了にしない |
+| 正式descriptor（SHA256 `fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56`） | thirdOutTimingByRunnerの走者別2値schemaは存在。runnerAdvanceOverridesは表現能力/境界値のみで、stage2のthird-out-type-observation-inputが未解消。新kindの観測を採用済みT1候補から正式descriptorへ受けるexact位置/差分はroot後段で確定する。勝手なdescriptor軸追加/新拒否を採用しない |
+| 正式manual fixture schema（SHA256 `7ab76688abe5d5987c2dff611f7a9ed3c9349babd0be27b4e88bbef1d5ddedd3`） | inputCoordinateの7必須fieldはeventKind/resultId/state.outs/state.runners/strikes/balls/pitchEventKind。任意interferenceRulingはstring。additionalProperties=falseで閉観測/実走者/手動out/時機を表せず、OUT3-04/05をdeferredに列挙。正例比較は6field/23flagで、実適用後の得点数/対象者/状態まで保証したことにはならない |
+| 正式contract schema（SHA256 `9170b82ee91f521f15770e8704f629984519c15052034923072c05a226fd3a0c`） | caseのraw/normalized等には自由JSONが残り、その構造受理だけでは観測消費・branch binding・完全比較を保証しない。generic propertiesを通しただけで不足が閉じたと記録しない |
+
+**最小純入力群。** 二死二三塁の単打で打者一塁到達、二塁走者を三塁で非フォースのタッグアウト、三塁走者を本塁到達とする。`T1RunnerAdvanceOverridesV1`/PlayerRef、`T1ThirdOutObservationV1`のother-third-out、`T1ThirdOutTimingV1.third`、公式失策/妨害なし・RBI不要観測/J6不要の既存明示variantで原観測を全て表せる。両入力の差はthirdの時機2値だけで、OUT3の新意味・P7D06・取消/元codecに依存しない。既存の型追加を反復せず、具体入力を供給する。入力にはbranch名/作者case名/期待値/理由・作者fileの参照を置かず中立IDでのみ作者資料へ対応する。
+
+**root後段の正式差分案（本単位では未編集/未受理）。** (1) 正式manual/input schemaへ今回使う既存の閉観測（実PlayerRef/手動結果/thirdOutObservation/thirdOutTiming）を損失なく置く。任意propertyを開放する案は不可。(2) 唯一descriptorのthird-out-typeと既存軸の値schema/必要条件・射影、共通T2参照digest影響を実差分で整合する。(3) 単打の基礎matrix既定効果と、override→OUT3→得点/RBI→攻守交代の適用結果を混同せず、採用済み順序のOUT3規範行/case binding・全比較出力の具体表現を固定する。新しい第4層/計算器を勝手に作らない。(4) 独立導出・所有受理と7.7完全前後値/関連資産反映後に、2分岐のdeferred/missingとmappingを整合する。作者がJSONを作るだけではmissing15→13にしない。
+
+既存6mapping/各2caseとmissing15を保持する。branch_row_mapping SHA256 `ac9541c860820ac8855a6c72c439d03d8d8bd0d5832a810192f668be90ffef81`、manual coverage `f3235b82661a57dee50b9f32ddda44a19ab0fe3120790e946ba0d115c1981564`、branch register `26098aee10cc23c5585ecdcf68c0ee9244a5f4fd143f1afe456a9c33b39b7637`。既存正式caseやP6期待値を新2caseの導出根拠として使わない。本確認はnorm/schema/descriptorと既存件数記録の参照で、P6封印/未知JSONは未閲覧。初回検索には既知の作者側RBI案の表断片も表示されたが、このOUT3入力/期待値の根拠として使用しておらず、候補作者である本agentにblind資格を主張しない。未来検証者にはこの会話/作者資料を渡さない。
+
+保持対象: 全50定義正準SHA256 `f4173a64ed138937b78b47d12a5e28823632c6c6c249ab588b9541585ee6a491`、全292case `b4d20def86caa4b7a24e87442fd42d1a836d05868ec00810c7d94757d7f7bcd7`、11constructor `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`。現schema SHA256 `f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7`/d.ts `e42ecb70888d4df36df1a629bc8e4b8a00f75d175fec6b630f205190f0bc5996`は変更しない。既登録candidate/*の両core被覆を維持し、旧file集合5に新2だけを加える専用試験以外、guard/core3へ触れない。正式closure前、全7markerと全T1着手条件を保持する。
+
+起案検証はdocs-status20文書/違反0・差分空白検査成功。今回変更はplan/researchだけで、pytest/重いcore・候補実装は実施しない。対象版をコミット固定して限定計画レビュー/root委任判断へ返す。
