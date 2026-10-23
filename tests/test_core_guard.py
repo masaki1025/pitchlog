@@ -4409,7 +4409,7 @@ def test_policy_guard_declaration_accepts_only_one_exact_registration_suffix() -
             assert_authz_guard_paths_are_exact(configuration)
 
 
-INITIAL_RIGHTS_HISTORICAL_ADDITIONS = {
+INITIAL_RIGHTS_HISTORICAL_ADDITIONS: dict[str, tuple[str, ...]] = {
     area_id: INITIAL_RIGHTS_PATHS
     for area_id in ("sync-protocol", "recording-rights", "tenant-isolation")
 }
