@@ -28,3 +28,9 @@ UI供給は83e62a17→型是正bb0973d1→caller是正9e5c59c3を個別の通常
 専用setupはenvDir:falseのViteと明示HTTP loopback readモード。TLS生成器と既存ランダム署名素材生成器を呼ばず、既存非秘密固定素材をApp生成前に置く。既存sealed-ui defaultとreal-game未達sentinelは維持し、sealed-ui全件は新鍵発行器を伴うため本委任では未実行。
 
 共用Processの最終Vitestは8passed/3.26秒。HTTP/HTTPS modeと異常port、Python実bootstrapのモード外/非loopback OriginがDB起動前に拒否される3例、0700所有、正常/異常子終了・自分の資源cleanupを検査。対象Prettier/ESLint/vue-tsc、driver Pythonのbackend Ruff format/check/tyは成功。最初のRuff import整列1件は--fixで是正した。正式登録/7.7/TB005と親175正式追加枠は本単位では成立させない。
+
+## 独立コードレビュー第1回P1の反映
+
+非作者/root/csv_reviewは372bc169・base12a5dbb0・diff3e590d26を確認。独立browser3成功/12.7秒・Process8成功/3.48秒・資源残存0だったが、cursor送信漏れで先頭20件が繰り返されてもページ番号だけなら通る検査不足P1を指摘。P0/P1/P2=0/1/0として採用し、成功試験数だけでページ境界成立とはしない。
+
+同scopeのE2e1関数と検査補助だけを強化。最初20IDはfixture66〜47、次9IDは46〜41と3/2/1のexact順、送信cursor=直前応答next_cursor、ページ内/間非重複、末尾cursor null/次無効、戻りcursor nullと先頭ID集合/表示RouterLinkの完全一致を確認する。root是正後の実browser3件は全成功/12.7秒、Prettier/ESLint/vue-tsc成功。prod UI/API/DB/helper起動/署名/Processは変更せず、過去失敗・第1回指摘・留保を保持。修正後の独立差分レビューへ提出する。

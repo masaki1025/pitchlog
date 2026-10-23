@@ -1,4 +1,10 @@
-import { expect, test, type Page, type Response } from '@playwright/test'
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type Response,
+} from '@playwright/test'
 import { readGameScreenE2eRuntime } from './GameScreenE2eSupport'
 
 function matches(res: Response, method: string, path: string): boolean {
@@ -34,6 +40,50 @@ async function displayedRulesMatch(page: Page, game: unknown): Promise<void> {
   expect(JSON.parse((await shown.textContent()) ?? 'null')).toEqual(
     game.applied_rules,
   )
+}
+
+async function receivedPage(
+  res: Response,
+): Promise<{ ids: string[]; cursor: string | null }> {
+  const body: unknown = await res.json()
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('items' in body) ||
+    !Array.isArray(body.items) ||
+    !('next_cursor' in body) ||
+    (body.next_cursor !== null && typeof body.next_cursor !== 'string')
+  )
+    throw new Error('実pageの応答形を確認できない')
+  const ids = body.items.map((item: unknown) => {
+    if (
+      typeof item !== 'object' ||
+      item === null ||
+      !('id' in item) ||
+      typeof item.id !== 'string'
+    )
+      throw new Error('実pageに試合IDがない')
+    return item.id
+  })
+  expect(new Set(ids).size).toBe(ids.length)
+  return { ids, cursor: body.next_cursor }
+}
+
+async function renderedIdsMatch(
+  list: Locator,
+  ids: readonly string[],
+): Promise<void> {
+  const links = list.getByRole('link', { name: '閲覧画面へ' })
+  await expect(links).toHaveCount(ids.length)
+  expect(
+    await links.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute('href')),
+    ),
+  ).toEqual(ids.map((id) => `/games/${id}/record`))
+}
+
+function seededId(number: number): string {
+  return `00000000-0000-0000-0000-${number.toString(16).padStart(12, '0')}`
 }
 
 async function login(page: Page): Promise<void> {
@@ -104,18 +154,38 @@ test('実loginから一覧・詳細・再読込を実APIと専用DBへ通す', a
   })
   const first = read(page, '/api/games')
   await login(page)
-  await success(await first)
+  const firstResponse = await success(await first)
+  expect(new URL(firstResponse.url()).searchParams.get('cursor')).toBeNull()
+  const firstPage = await receivedPage(firstResponse)
+  expect(firstPage.ids).toEqual(
+    Array.from({ length: 20 }, (_, index) => seededId(66 - index)),
+  )
+  expect(firstPage.cursor).not.toBeNull()
   const list = page.getByRole('region', { name: '試合一覧', exact: true })
-  await expect(list.getByRole('link', { name: '閲覧画面へ' })).toHaveCount(20)
+  await renderedIdsMatch(list, firstPage.ids)
   await expect(list).toContainText('<b>保存ラベル</b>')
   await expect(list.locator('b')).toHaveCount(0)
   const next = read(page, '/api/games')
   await page.getByRole('button', { name: '次のページ', exact: true }).click()
-  await success(await next)
+  const nextResponse = await success(await next)
+  expect(new URL(nextResponse.url()).searchParams.get('cursor')).toBe(
+    firstPage.cursor,
+  )
+  const nextPage = await receivedPage(nextResponse)
+  expect(nextPage.ids).toEqual([46, 45, 44, 43, 42, 41, 3, 2, 1].map(seededId))
+  expect(nextPage.ids.filter((id) => firstPage.ids.includes(id))).toEqual([])
+  expect(nextPage.cursor).toBeNull()
+  await renderedIdsMatch(list, nextPage.ids)
+  await expect(
+    page.getByRole('button', { name: '次のページ', exact: true }),
+  ).toBeDisabled()
   await expect(list).toContainText('2ページ目')
   const previous = read(page, '/api/games')
   await page.getByRole('button', { name: '前のページ', exact: true }).click()
-  await success(await previous)
+  const previousResponse = await success(await previous)
+  expect(new URL(previousResponse.url()).searchParams.get('cursor')).toBeNull()
+  expect(await receivedPage(previousResponse)).toEqual(firstPage)
+  await renderedIdsMatch(list, firstPage.ids)
   await expect(list).toContainText('1ページ目')
   const path = `/api/games/${runtime.preparingGameId}`
   const detail = read(page, path)
