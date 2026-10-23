@@ -4562,9 +4562,18 @@ def test_initial_rights_core_exact_scope_and_metadata_are_preserved() -> None:
     ) == []
 
 
-def test_initial_rights_core_declaration_then_separate_registration(tmp_path: Path) -> None:
+def test_initial_rights_core_declaration_then_separate_registration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """実基線から宣言→別JSONの実CLIを受理し、共変更は拒否する。"""
-    guard = load_core_guard_module()
+    historical_script = tmp_path / "initial_historical_guard.py"
+    historical_script.write_text(
+        core_guard_source_with_additions(INITIAL_RIGHTS_HISTORICAL_ADDITIONS),
+        encoding="utf-8",
+    )
+    guard = load_core_guard_module(historical_script, module_name="initial_historical_guard")
+    # 歴史的初期付与層のCLIも同じ歴史的宣言で検査する。
+    monkeypatch.setattr(sys.modules[__name__], "SCRIPT", historical_script)
     root, _ = make_layered_core_repo(tmp_path)
     commit_change(
         root, '.claude/core-areas.json',
@@ -4574,7 +4583,7 @@ def test_initial_rights_core_declaration_then_separate_registration(tmp_path: Pa
         root, 'scripts/core_guard.py',
         core_guard_source_with_additions(PRE_INITIAL_RIGHTS_PATH_ADDITIONS),
     )
-    _, declaration = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    _, declaration = commit_change(root, 'scripts/core_guard.py', historical_script.read_text())
     assert guard.verify_area_path_baseline(root, base, declaration) == base
     event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
     result = run_guard(root, event_name='pull_request', event_path=event)
@@ -4595,7 +4604,12 @@ def test_initial_rights_core_same_commit_predicate_rejects_old_shape(
     tmp_path: Path, cochanged: str,
 ) -> None:
     """旧f48型のJSON/基線定義同居を新対象でも拒否する。"""
-    guard = load_core_guard_module()
+    historical_script = tmp_path / "initial_historical_guard.py"
+    historical_script.write_text(
+        core_guard_source_with_additions(INITIAL_RIGHTS_HISTORICAL_ADDITIONS),
+        encoding="utf-8",
+    )
+    guard = load_core_guard_module(historical_script, module_name="initial_historical_guard")
     root, base = make_layered_core_repo(tmp_path)
     head = commit_area_path_changes(
         root, INITIAL_RIGHTS_HISTORICAL_ADDITIONS, cochanged_paths=(cochanged,),
