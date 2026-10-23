@@ -198,3 +198,8 @@ CI40011535070は最終的にfailure。frontend3失敗のほか、backendは3379�
 
 
 backend/harnessの確定3+3失敗を回収し、同ステップの通常追随scopeをplanへ固定した。token先頭にread2が入るため、既存拒否fixtureのregistrations[0/1/5]は原来のplayers read/insert/team readを指さなくなっていた。型指定へ直して同じ拒否を実行する。派生参照2fieldは旧blob→現blobの差分がoracle_context.oracle_commitだけかGit objectで検証してから追随する。
+
+
+既存登録追随の局所検査はbackend120成功/1.40秒、harness23成功/2.12秒。backend Ruff/format成功、failure-injection5点/MC/DC47決定の更新flagなしCLI成功。routeは旧18tuple全保持+GET2、capability30集合不変の全47文を引き続き検査。拒否変異はPlayerReadToken/PlayerCreateToken/TeamRecordReadTokenを明示参照し、全6変異の元の拒否診断を保持した。派生参照2件はGit旧blobを実取得し、現原典との意味差がoracle_context.oracle_commitだけと確認して更新した。failure-injectionの40f26b3d→16fa279d、MC/DC claim-mapのbe450946→fa9432db。チェック対象・試験・例外を落としていない。
+
+6caa→現候補の全tenant JSON/正式9射影/外部8 bytesは独立再導出手順で全同一（frozen-unchanged.jsonへ固定）。したがってこのCI是正を理由とする同値7.7の再受理は行わない。旧28history/204snapshot/oracle6/seal/Cのbytesを保持する。新固定版の非作者限定確認と最終HEAD全必須CIは未実施。
