@@ -231,5 +231,5 @@ PO委任4/5/6/8/9/10によるCodex主担当/root判断で、拒否条件/対象p
 ### 同時に進めた製品接続
 
 - 公開resolverは正式develop31194へ既存f537を通常mergeした **3da4e441**（12関連paths・手動競合0/正式資産・正本差分0）。限定planを独立全文0後 **2b436633**でPO委任承認。登録step1 **efe497ec05ca8784d6f570480ba6970c7134e149**は1factory/SELECT正例・RULE ID1件・生成全fieldと既存試験の7paths。作者backend177/root27/正式S3実app scope DB5成功、source5/codec/startup/RG1/DML/権限不変。非作者resolver_ledger_plan_reviewも全文0・独立177/27成功、他7射影/外部8不変。正式7.7未受理exit2を保持し、180実統合後に実baseでrootがstep2を直列受理する。
-- read登録候補はWIPを外部保全後、正常dfa→95dだけを通常merge。core3ファイルは両供給の既存宣言/登録を合流し全関数AST/旧paths保持、382成功。実history predicate/31194基線検査成功、旧f48/8037祖先なし。局所23/backend162成功、保存read専用browserを最終接合で再実行中。広い旧状態検査26206成功/既知5失敗で407秒中断した結果を保持し、同一状態の全件を反復しない。正式175追加敵対1回は未消費。180実統合後はinitialを据置き層へ回転しAPI2だけpendingへ追随する。
+- read登録候補はWIPを外部保全後、正常dfa→95dだけを通常merge。core3ファイルは両供給の既存宣言/登録を合流し全関数AST/旧paths保持、382成功。実history predicate/31194基線検査成功、旧f48/8037祖先なし。局所23/backend162成功、保存read専用browserの最終接合再実行を指示済み（起動/完走結果は未受領）。広い旧状態検査26206成功/既知5失敗で407秒中断した結果を保持し、同一状態の全件を反復しない。正式175追加敵対1回は未消費。180実統合後はinitialを据置き層へ回転しAPI2だけpendingへ追随する。
 - 外部耐久台帳は技術具体化の限定planを6288dfaaでPO委任承認（非作者全文P1=1 policy不足採用、限定差分第2回0）。source/実行資産の先行宣言→別JSON→実adapter/同期保全→実故障/正本7.3/7.7の4段階。正常95dをb1ab75caへ競合0で供給し、Protocol/27履歴/202snapshot/core/policyを完全保持してstep1先行宣言を実装中。隔離構成の承認で運用配置/共有DB/費用/新秘密を承認したとはしない。対象0だけへMVPを縮めず、非0全世代・新D4同確定/回収退避の後続を残す。
