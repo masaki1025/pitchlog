@@ -1,6 +1,6 @@
 ---
 feature: ur1-initial-rights-history-repair
-status: active
+status: in-review
 承認: 済（PO委任によるCodex判断・限定履歴修復）
 重さ分類: コア領域
 worktree: ../../..
