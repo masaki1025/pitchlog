@@ -102,3 +102,5 @@ serviceに独自の整数変換/業務検証を追加していない。既存境
 是正候補の対象 `uv run pytest tests/test_function_operations_boundary.py -q` は **124 passed / 0.57s / exit0**（旧117＋追加7）、失敗なし。対象試験のRuff format、全backend Ruff/ty、差分空白検査は成功。変更3パスだけを固定する。codec113件の専用検証/独立レビューを再利用し、無関係な全件試験は繰り返していない。
 
 次は第2回独立コード差分/影響レビュー。初回P1の最終採否確認、正式閉集合・7.7・実DB/HTTP・push/PR・正式step5完成は未達のまま保持する。
+
+第2回コード差分/影響レビュー: 2026-10-23T14:14:37.957407+00:00、候補作成非関与/root/o5_final_reviewは可決P0=0/P1=0/P2=0。対象0ee701f10f29ce56d192536f70e8f50b7c56649d/base7471040f、binary full-index差分73140290cb1c63d25794eee70a7acddbea4371d7419afb2fffb629a05c192f38。codecは是正9bdとbyte一致、公開resolver本体は初回から不変、5field exactint/null/encode接合を確認、独立124 passed/0.91s。初回P1は解消し履歴を維持。後発差分は本記録だけ。正式閉集合/7.7/実DB/HTTP未達は継続。
