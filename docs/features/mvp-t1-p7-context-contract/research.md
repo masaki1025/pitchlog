@@ -189,3 +189,31 @@ rootから非作者rightsのP1を受領し全採用した。対象`7b7620d095ad7
 修正後の実TSは空objectとunion空payloadの正例2件、否定10件（string/number/bool/配列/余剰object/変数経由余剰/null/undefined/union数値/union余剰）を確認。`@ts-expect-error`付きはexit0、注記を除いた同じ否定入力はexit2/診断10件で、無効な型を通して注記だけ消費したとはしない。実プローブ/コピー宣言/結果は`/home/ymdms/.cache/pitchlog/reviews/t1-empty-payload-7b7620d0/`へ保存。before-types SHA256 `feb2f69bcebea65fcd2ac04ff744a8dd614e248444470bc9aefcfbbc8f8a82e3`、after-types `4b1fd92f003b21cb5bc53b82125c743fd745c2963ff78b97c9e71c9f6676e545`、after.ts `bfa97791d655d61e791bcf0241b8c1d75bd78c211543f5f7e885f2d32d6f9f73`、after-negative.ts `cb002fdb162ee443a627edd0146c823cbf02fdcbaf196738f667661a13135b41`。新しいTS製品artifact/runtime/整数ABI全体の適合証拠には広げない。
 
 影響pytestは`-k 'p7_context_candidate and (empty_payload or readonly or closed_operation or operation_shapes or partial_content or prior_definitions or legacy_cases)' -n 0`で**58 passed / 2.98s**。空型renderer・schema値域・{} / object / unknownへの逆戻り拒否を専用試験に追加し、既存宣言照合はexact比較を維持した。root harness CIにfrontend依存を暗黙追加せず、skip/弱化を導入していない。Ruff/ty・差分空白検査成功。新しい重いcore全件は未実行。正式7.7/Ready/P6/P7/T1開始の境界、未閉marker・旧中間失敗・レビュー通算は不変で、本是正は独立再確認前である。
+
+
+### 残4kindの次単位：V10参照型の限定追補起案（実装前）
+
+rootから3c23の非作者rights限定0（58局所/実TS正例2・負例10）の受領を通知された。7bのP1=1と3c23是正、旧全レビュー・3段階を保持する。第8節は残4kind原本を留保しており、新しいV10閉型/4variantの追加はその実装scope外なので、plan9節だけを起案した。今回の編集はplan/research2files。候補/source/試験/正式shared資産をまだ変更していない。
+
+| 固定出所 | hash/今回使う採用済み部分と限界 |
+| --- | --- |
+| 観測origin/develop a10bcd5eのsync-protocol | SHA256 `46b61a9a1a6f0ef595631002ca217e353a6ae04df642aee849a6507cca783994`。V10三要素、種別2/10/11/12、undoは対象D2へ従属・P3はD1なし/変更版順/V11必須。新しいO4/P7状態拒否の採否は含めない |
+| 同sync-wire-schema/design | SHA256 `c2e2ad6f9956277ea98a5a70a02d0d4b7c59f32d429f36aa731087425acd1381`。L-1/2/3/6、V10のwire名と値域、S-2、3-4のV7/V8/V9/V11内部の留保。旧T1枝のwire文書SHA `dfda134bbd58054e802a6288c990a5d8ddb140837d7b7df0cafcc0096c1eba82`を正式最新として流用しない。該当規約は正式blobで照合した |
+| 現branch/同developのsync/change_path.py | SHA256 `6e89708a591050edd39e492d42366df36c67e15468cb459dbe69b57028291cf1`。内部V10=game/d4/d1、期待版のint検査は実経路の事実。wire名・V11の正式物理型の根拠へ昇格させない |
+
+次の候補はV10 wire3field、wire/内部世代対応2field、4kindのV5/V10投影の3定義だけとし、旧entry/contentにはまだ接続しない。V7を空型や任意JSONで埋めず、V11・undo差分/依存・P7D06などの新公開拒否/優先は未提供として残す。これは型/APIの既採用意味内具体化で、既存wire S-2を新S-1へ動かさず、実Port/HTTPを準備待ち条件にしない。
+
+**正式21分岐の実数照合。** 3c23と観測a10の正式state contractはbyte/辞書一致、109case、SHA256 `54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb`。branch register/row mapping/manual coverageのメタデータを突合し、期待値やP6封印の導出はしていない。
+
+| 対象 | 既存正式row mapping | missingFixtureBranchesの実件数/ID |
+| --- | --- | --- |
+| OUT3 5分岐 | 0 | 5: OUT3-01..05 |
+| INT 7分岐 | 3: INT-02/04/06 | 4: INT-01/03/05/07 |
+| RBI 9分岐 | 3: RBI-06/08/09 | 6: RBI-01/02/03/04/05/07 |
+| 合計21 | 6 branch mapping。各rowRefに2case、計12 case参照（全109内） | 15分岐。branchId文字列がcasesに無いことだけで全21不足と数えない |
+
+branch_row_mapping SHA256 `ac9541c860820ac8855a6c72c439d03d8d8bd0d5832a810192f668be90ffef81`、manual_fixture_branch_coverage `f3235b82661a57dee50b9f32ddda44a19ab0fe3120790e946ba0d115c1981564`、clause_branch_register `26098aee10cc23c5585ecdcf68c0ee9244a5f4fd143f1afe456a9c33b39b7637`で全て観測developとbyte一致。case inputにthirdOutTiming/thirdOutObservation/homeTouchOrder/RBI3観測/officialScoringを明示するものは各0。interferenceRuling明示は7case（INT-02相当2/04相当2/06相当2/not-required1）で、閉裁定型の全branch提供を表さない。既存6 mappingを本候補作者の新case成功へ数えず、missing15を勝手に解消しない。今回追加予定も構造caseだけで、正式行/case/P6blind/独立受理の追加は0。
+
+保持対象の正準hashは全47定義 `d1b46a28aec598d265100c9c97c96e38e744d382918aea8315b59223c8e8d9e6`、全238case `1900c78a8a0569ef4797526702a3254d638337144f7554615ec1a3e3efdb6647`、11constructor対応 `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`。新3型の構造準備でもoperation-content5/9と7markerは継続する。第9節は非作者確認/対象版root承認前で、今回起案を計算本体着手や正式contract反映としない。
+
+起案検証: docs-status20文書/違反0、計画同期（base3c23）・差分空白検査成功。候補/試験に変更がないためpytestは再実行せず、実装は本追補の独立確認とroot承認・個別指示後とする。
