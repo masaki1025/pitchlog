@@ -200,3 +200,25 @@
 - 理由: `contracts/tenant_boundary/repository-contract.json`の内部`source_digest`を実計算値へ是正した。tenant凍結射影はこの内部値を除外する一方、比較corpusはJSON生ファイルを入力に含むためdigestのみ変わる。旧JSONへ読み替えた再計算で旧digestを再現。9資産射影・外部8ファイル・17 snapshot・3記録案はv2値と一致。既存tenant・seed・oracle履歴行は書換・重複追記しない。
 - 承認者: 山田正輝。承認日: 2026-10-23。根拠: 本セッションの利用者メッセージ「#174の後発是正について、以下を判断します」中の「corpusの限定7.7受理」。独立Codex（GPT-6.1-sol）の今回1回の限定レビューはP0/P1/P2=0/0/0。レビュー対象は上記候補treeと8ファイル差分であり、この受理後のpin・ORMシート・本記録の追記差分には自動延長しない。
 - 同メッセージでORM新規4行も本人が分類判定した。N3の001/061/088は対象外/一致/対象外、N7の094は対象外。旧行の人間判定と理由は保持し、今回の分類をPR全体の本人逐行確認へ流用しない。
+
+## 2026-10-23 主担当引受・O5正式統合後の最終接合
+
+観測日時: 2026-10-23T14:53:21.539368+00:00、判断者Codex主担当/root（PO指示4/5/6/10）。
+#178はa67b9364、#176は658865ddbec44e9f194e976ac6346f9c9154d6faへ、固定最終HEADの独立レビュー/委任証拠/全必須CI成功後に通常mergeした。
+#174はbc436803で単一codecのint型P1を是正。計画d683f25f・候補9bd559dfを独立可決0/113成功で確認し、codec/既存試験2パスだけを採用した。
+JSONSchemaで有効な整数値floatを同値intへ正規化し、typed DTOの直接構築/改ざんはexactintで拒否する。値/相関/出所/権限/schemaの意味は不変。
+元未コミットhandoffはSHA d98b09cd299fd181895d8dc898671511add8f42ae7edb7ec7671baf6661b1019を変えず9287d476へ保存。
+45cd5952で正式develop658865ddを取り込み。README2箇所の競合は#174のdata-model v1.1/product-authz/deploymentと、developのharness/github-setup各行を所有元のbyteで保持して解消した。
+
+受理値照合: e30edc79から正式資産640パスとtenant-boundary外部8ファイルは全てbyte不変。tenant/seed/oracle既受理prefixと#174単一受理記録を変更していない。
+実基線origin/develop（658865dd）に対するtenant-boundary checkerはexit0。受理実値/履歴が変わっていないため、新受理を重複追記せず旧完全値/根拠を保持する。
+検査: backend codec/同期契約184成功、backend Ruff/format373files/ty成功。root core-guard/ORM受入/startup境界375成功/11.25s、Ruff/ty成功、docs21/0。
+現在地用followup planに正本影響節がなかったため計画同期がexit1となり、本体の既承認5文書の機械可読参照だけを同写しへ追随。元9ステップ/承認/レビューを変更しない。
+
+レビューは旧ステップ3基本2回、0033/probe追加1、#174移植追加1、v2 revision追加1、後発digest8ファイル追加1を保持する。
+今回の引受後最終接合について、PO委任により限定追加1回を実施すると判断する。対象は最終HEADと差分SHA、後発corpus pin/ORM分類/受理記録/0033試験/リンク・現在地plan、codec型是正、正式O5基線取込とREADME競合解消、および既受理値不変の接合。
+変更のない旧全文審査をリセットせず、候補作成に関与しないレビュアーへ最終版を提示する。本人逐行確認/山田正輝署名を代記しない。
+
+本PRが供給するのはDB関数・単一codec・非公開S0〜S3で、製品operationは0件。公開resolver/固定operation/実DB接合は別隔離候補であり本PRの正式提供へ含めない。
+新しい現在地表示2/9是正だけでステップ3・全TSK-550完成を導出しない。S4公開/実HTTP/RG1/game INSERT/運用・共有DBは未実施/別条件。
+最終必須CIは公開後に回収し、旧backend失敗（O5の1件/他3130成功/4skip）を遡って成功にしない。

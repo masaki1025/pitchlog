@@ -30,3 +30,17 @@ created: 2026-10-22
 | 7 | `backend/tests/test_rule_resolution.py` の `AREA_PATH_ADDITIONS` 宣言と guard 試験 | tenant-isolation・game-state で新規試験パスが検出される。既存3パスは JSON 基線に残し、`tenant-isolation` 宣言は新規パスだけへ差し替える。`validate_area_path_layers` の一部 overlap 拒否を再現し、差し替え後に通過することを試験で確認 |
 | 8 | `.claude/core-areas.json` 登録 | ステップ 7 とは別コミット。head 側の core-guard が全対象を検出し、未記入の人間逐行確認を拒否 |
 | 9 | 最終の正本追随・検査・申し送り | pytest/ruff/ty、DB/認可/基線/guard 検査を通し、TSK-395 へ公開契約と実経路試験条件を引き渡す。**PR 作成後**の敵対レビューと人間逐行確認は本ステップの完了条件に含めず、PR マージ前ゲートで記録する |
+
+## 影響する正本（本体の既承認範囲の参照追随）
+
+現在地用の写しにも本体§3と同じ既承認対象を機械可読で明示する。範囲/DoD/9ステップ・旧承認・レビュー回数は変更しない。
+
+| 正本 | 本PRでの既承認反映 |
+| --- | --- |
+| [要件書](../../requirements/requirements-pitchlog-2026-07-22.md) | FR-014/DRAW-03/04と既受理の版整合。本体計画と旧確定記録が正 |
+| [データモデル](../../design/data-model.md) | 6-key snapshot/規則出所/専用owner/ロック・最小権限。既承認v1.1の本文/履歴を保持 |
+| [規則解決認可面](../../design/product-authz-surface.md) | 受理済み段階Aの認可/残余脅威。本体計画の個別ゲートを保持 |
+| [配備前提](../../ops/deployment.md) | 非公開S0〜S3段階起動の追随。共有DB適用/S4公開の許可ではない |
+| [索引](../../README.md) | 上記版・参照と正式developのMVP委任実施注記を両方保持 |
+
+PO委任によるCodex判断: 写しにこの節がなかったため計画同期がexit1となった。元の本体§3と同じ対象の参照追随だけを行い、検査を緩めない。
