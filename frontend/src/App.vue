@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CircleHelp } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
+import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
@@ -15,7 +16,10 @@ watch(
   () => [auth.authEpoch, protectedReady.value, route.name],
   () => {
     if (route.meta.requiresAuth === true && !protectedReady.value) {
-      void router.replace({ name: 'login', query: { redirect: '/team' } })
+      void router.replace({
+        name: 'login',
+        query: { redirect: resolveGameEntryReturnPath(route.fullPath) },
+      })
     }
   },
 )
@@ -23,8 +27,8 @@ watch(
 async function finishLogin(): Promise<void> {
   auth.syncFromStorage()
   if (!protectedReady.value) return
-  // この縦断で許す戻り先は/teamだけ。外部URLや未完成経路を解釈しない。
-  await router.replace({ name: 'team' })
+  // 登録済みの許可pathnameだけへ戻し、任意URLや配列を解釈しない。
+  await router.replace(resolveGameEntryReturnPath(route.query.redirect))
 }
 
 async function returnToHome(): Promise<void> {
@@ -51,6 +55,18 @@ async function returnToHome(): Promise<void> {
         使い方
       </RouterLink>
     </header>
+    <nav
+      v-if="route.meta.requiresAuth === true && protectedReady"
+      aria-label="画面移動"
+      class="flex gap-3 p-4"
+    >
+      <RouterLink :to="{ name: 'team' }" class="min-h-11 px-3 py-2 underline"
+        >チーム</RouterLink
+      >
+      <RouterLink :to="{ name: 'games' }" class="min-h-11 px-3 py-2 underline"
+        >試合</RouterLink
+      >
+    </nav>
     <RouterView v-slot="{ Component }">
       <component
         :is="Component"

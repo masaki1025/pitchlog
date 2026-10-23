@@ -592,3 +592,234 @@ it.each(['/games', '/games/32345678-1234-4234-8234-123456789abc/record'])(
     ])
   },
 )
+
+const preparingGameId = '32345678-1234-4234-8234-123456789abc'
+function preparingLoginReply(url: RequestInfo | URL, init?: RequestInit) {
+  const path = routePath(url)
+  if (path === '/api/auth/login')
+    return reply({ status: 'authenticated', tenant_id: tenantA })
+  if (path === '/api/auth/session')
+    return reply({ tenant_id: tenantA, team_name: 'A' })
+  if (path.startsWith('/api/games')) {
+    const saved = {
+      id: preparingGameId,
+      scheduled_at: '2026-10-24T10:00:00Z',
+      game_type_key: 'game_open',
+      tournament_key: '保存大会',
+      away_team_record_id: tenantB,
+      home_team_record_id: tenantA,
+      plate_umpire: null,
+      section_label: '保存試合',
+      week_label: null,
+      day_label: null,
+      game_number_label: null,
+      status: 'preparing',
+      applied_rules: { regulationInnings: 9 },
+    }
+    return reply(
+      path === '/api/games' ? { items: [saved], next_cursor: null } : saved,
+      200,
+      {
+        'X-Pitchlog-Tenant-Match': '1',
+        'X-Pitchlog-Tenant-Challenge':
+          new Headers(init?.headers).get('X-Pitchlog-Tenant-Challenge') ?? '',
+      },
+    )
+  }
+  return rosterReply(url, init)
+}
+async function submitLogin(wrapper: VueWrapper) {
+  await wrapper.get('input[name="team_name"]').setValue('A')
+  await wrapper.get('input[name="password"]').setValue('test-password')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+}
+
+it.each(['/games', `/games/${preparingGameId}/record`])(
+  'loginから許可戻り先%sへはsession確認後だけ移動しreadを開始する',
+  async (path) => {
+    const router = createAppRouter(createMemoryHistory())
+    await router.push({ name: 'login', query: { redirect: path } })
+    const wrapper = view(router)
+    await flushPromises()
+    const pending = deferred()
+    fetchMock.mockClear()
+    fetchMock.mockImplementation(async (url, init) =>
+      routePath(url) === '/api/auth/session'
+        ? pending.promise
+        : preparingLoginReply(url, init),
+    )
+    await submitLogin(wrapper)
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(wrapper.find('nav[aria-label="画面移動"]').exists()).toBe(false)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/auth/login',
+      '/api/auth/session',
+    ])
+    pending.resolve(reply({ tenant_id: tenantA, team_name: 'A' }))
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe(path)
+    expect(wrapper.text()).toContain('保存試合')
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/auth/login',
+      '/api/auth/session',
+      path === '/games'
+        ? '/api/games?limit=20'
+        : `/api/games/${preparingGameId}`,
+    ])
+    expect(wrapper.find('input').exists()).toBe(false)
+  },
+)
+
+it.each(['/games', `/games/${preparingGameId}/record`])(
+  '%sでの失効は同pathnameを保持し再login後に戻る',
+  async (path) => {
+    fetchMock.mockImplementation(async (url, init) =>
+      preparingLoginReply(url, init),
+    )
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamId: tenantA,
+      teamName: 'A',
+    })
+    const router = createAppRouter(createMemoryHistory())
+    await router.push(path)
+    const wrapper = view(router)
+    await flushPromises()
+    expect(wrapper.text()).toContain('保存試合')
+    let sessionAvailable = false
+    fetchMock.mockImplementation(async (url, init) => {
+      if (routePath(url) === '/api/auth/login') sessionAvailable = true
+      if (routePath(url) === '/api/auth/session' && !sessionAvailable)
+        return reply({}, 401)
+      return preparingLoginReply(url, init)
+    })
+    useAuthStore(pinia).expireSession()
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe(path)
+    expect(wrapper.text()).not.toContain('保存試合')
+    expect(wrapper.find('nav[aria-label="画面移動"]').exists()).toBe(false)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    await submitLogin(wrapper)
+    expect(router.currentRoute.value.path).toBe(path)
+    expect(wrapper.text()).toContain('保存試合')
+  },
+)
+
+it.each([
+  { redirect: undefined },
+  { redirect: ['/games', '/team'] },
+  { redirect: '/games?cursor=x' },
+  { redirect: `/games/${preparingGameId}/record#part` },
+  { redirect: '/games/not-a-uuid/record' },
+])('戻り先の欠落/配列/許可外構文を/teamへ閉じる: %j', async ({ redirect }) => {
+  const router = createAppRouter(createMemoryHistory())
+  await router.push({ name: 'login', query: { redirect } })
+  const wrapper = view(router)
+  await flushPromises()
+  fetchMock.mockImplementation(async (url, init) =>
+    preparingLoginReply(url, init),
+  )
+  await submitLogin(wrapper)
+  expect(router.currentRoute.value.path).toBe('/team')
+  expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
+  expect(
+    fetchMock.mock.calls.some(([url]) =>
+      routePath(url).startsWith('/api/games'),
+    ),
+  ).toBe(false)
+})
+
+it.each(['/games?cursor=x', `/games/${preparingGameId}/record#part`])(
+  '失効時の許可外fullPath%sは/teamへ正規化する',
+  async (path) => {
+    fetchMock.mockImplementation(async (url, init) =>
+      preparingLoginReply(url, init),
+    )
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamId: tenantA,
+      teamName: 'A',
+    })
+    const router = createAppRouter(createMemoryHistory())
+    await router.push(path)
+    const wrapper = view(router)
+    await flushPromises()
+    fetchMock.mockImplementation(async (url, init) =>
+      routePath(url) === '/api/auth/session'
+        ? reply({}, 401)
+        : preparingLoginReply(url, init),
+    )
+    useAuthStore(pinia).expireSession()
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe('/team')
+    expect(wrapper.find('nav[aria-label="画面移動"]').exists()).toBe(false)
+  },
+)
+
+it('保護画面navのチーム/試合を実RouterLinkで往復し未認証では表示しない', async () => {
+  fetchMock.mockImplementation(async (url, init) =>
+    preparingLoginReply(url, init),
+  )
+  setVerifiedAuthForTest(useAuthStore(pinia), {
+    teamId: tenantA,
+    teamName: 'A',
+  })
+  const router = createAppRouter(createMemoryHistory())
+  await router.push('/team')
+  const wrapper = view(router)
+  await flushPromises()
+  expect(
+    wrapper
+      .get('nav[aria-label="画面移動"]')
+      .findAll('a')
+      .map((link) => link.text()),
+  ).toEqual(['チーム', '試合'])
+  await wrapper
+    .get('nav[aria-label="画面移動"] a[href="/games"]')
+    .trigger('click')
+  await flushPromises()
+  expect(router.currentRoute.value.path).toBe('/games')
+  expect(wrapper.text()).toContain('準備中の試合')
+  expect(wrapper.text()).toContain('保存試合')
+  expect(wrapper.find('input').exists()).toBe(false)
+  await wrapper
+    .get('nav[aria-label="画面移動"] a[href="/team"]')
+    .trigger('click')
+  await flushPromises()
+  expect(router.currentRoute.value.path).toBe('/team')
+  expect(wrapper.findComponent(TeamScreen).exists()).toBe(true)
+  fetchMock.mockImplementation(async (url, init) =>
+    routePath(url) === '/api/auth/session'
+      ? reply({}, 401)
+      : preparingLoginReply(url, init),
+  )
+  useAuthStore(pinia).expireSession()
+  await flushPromises()
+  expect(wrapper.find('nav[aria-label="画面移動"]').exists()).toBe(false)
+})
+
+it.each([401, 503])(
+  '許可戻り先でもlogin後のsessionが%sなら保護host/read/navを開始しない',
+  async (status) => {
+    const router = createAppRouter(createMemoryHistory())
+    await router.push('/login?redirect=/games')
+    const wrapper = view(router)
+    await flushPromises()
+    fetchMock.mockClear()
+    fetchMock.mockImplementation(async (url, init) =>
+      routePath(url) === '/api/auth/session'
+        ? reply({}, status)
+        : preparingLoginReply(url, init),
+    )
+    await submitLogin(wrapper)
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(wrapper.find('nav[aria-label="画面移動"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('準備中の試合だけを表示します')
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/auth/login',
+      '/api/auth/session',
+    ])
+    expect(useAuthStore(pinia).isAuthenticated).toBe(false)
+  },
+)
