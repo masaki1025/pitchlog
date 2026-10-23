@@ -75,3 +75,8 @@ pathsの先頭は`backend/src/pitchlog/`。指定14実装/試験候補の機械�
 
 
 2026-10-23T21:27:34.427271+00:00、Codex主担当/rootはPO4/5/8/10に基づきd156e605/plan50efb40ea978aed089c4847c2558471f549e64be7ffb1ee783161e53dd768fa2のステップ3最初小単位を承認。非作者rightsの限定第1回0/0/0、標準binarydiffa3cdc6ee397ea879f5f82912ec87c7d8524acd0941fce85132b68be00d9ef959を照合した。まずSQL/機械manifest/実Unix client・scope保持を候補実装し、実fresh供給未提供では閉じる。SQLの固定内部名はrg1_control.{try_controller_lease,release_controller_lease,close_gate,open_fresh_gate,controller_lease_alive,read_closed_gate}、いずれも引数なし、最後だけjsonb/他booleanと具体化する。controller排他leaseとopen生存leaseを別keyにし、closed確定後・実fresh照合後だけopen leaseを得る。新roleの7属性/列ACL/RLS/固定search_path・完全修飾を維持する。編集分担はroot=Python/manifest/transaction/rg1/API/共有資産/文書・Git操作、csv_review=rg1_lifecycle.sqlと専用test_rg1_lifecycle_sql.pyだけ（同一worktree別path、Git/index操作禁止、完了handoff後rootがcommit）。追加の人間承認待ちや過去承認再取得ではなく実装具体化。実201/正式7.3/7.7/全MVPはまだ未達。
+
+
+### 同一Sessionの実DB束縛（ステップ3の技術具体化）
+
+2026-10-23T21:48Z、PO委任によるCodex主担当/root判断。制御peerのDBと作成scopeのDBをcaller値ではなく双方の実観測で一致させるため、固定読取 `rg1_control.scope_binding(p_tenant_id uuid) RETURNS text` を追加する。既存tenant GUCとの一致を検査し、system_identifier/database_oid/database_name/postmaster_started_at/backend_pidの5要素だけを実PGから返す。appはこの1関数のEXECUTEとschema USAGEのみを持ち、制御6関数・DML・membership・汎用EXECUTEを持たない。既存RG1の2token/2ID/署名は保持し、新token `RG1ScopeBindingToken` / ID `RG1:scope_binding` / capability `CAP:rg1:scope_binding` / factory `_build_rg1_scope_binding_statement` を同じ閉じたregistryへ登録する。必要な追加編集は `repositories/operation_registry.py` とこの登録に対応するexact metadata/正負例のみ。新HTTP経路、任意SQL、独自tenant選択を追加しない。完全正式値の受理・非作者レビュー・実PG検証は従前のステップ3〜4の条件を維持する。これは新たな記録意味・安全条件の変更ではなく、すでに承認された実business識別の補完不能な観測手段である。

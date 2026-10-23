@@ -19,3 +19,8 @@
 先行05631c1c/標準diff66c131c0は非作者resolverが0/0/0、独立56成功/7.01秒と追加4拒否変異を確認。rootは承認済み順で6c338328へJSON1fileだけを別commitし、新3sourceを三領域へ完全追記。旧paths/順序/guard/metadata保持、製品sourceはまだ不存在。実547→6c338の履歴検査は547を返し、追加後全core409成功/28.16秒。
 
 その後、正式175がa10bcd5eへ通常統合された。現branchは当時の547固定であり、次の製品候補化前に新正式基線を通常mergeしてAPI read登録/受理履歴を保持し、追加層を回転する。新しい意味の承認を繰返さず、変化した値と接合だけを再確認する。
+
+
+## ステップ3最初の固定候補
+
+実Unix clientと制御SQL7関数を追加。clientはroot管理config/inode、kernel peer UID、有限frame・閉じた型、同DB四要素とscopeの同一channel生存を要求する。未設定は常閉。SQLは専用actor/owner、controller key1/open key2、同DB/同PID/actorの実lockを要求し、未確定closeをopen/release証拠にしない。SQL単位19成功、client単位39成功/2.35秒。これはtransport/SQL構造の候補であり、実fresh API、controller本体、scope保持、実PG ACL/競合、実UI新規201はまだ未提供・未検証。旧open行を安全成功へ読み替えない。
