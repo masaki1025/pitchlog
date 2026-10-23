@@ -1,3 +1,4 @@
+import type { PreparingGame } from '../api/games'
 import { getActivePinia } from 'pinia'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { canonicalUuid } from '../api/authIntent'
@@ -29,6 +30,7 @@ export interface GameListItem {
 export interface GameListPage {
   items: readonly GameListItem[]
   pageLabel: string
+  canPrevious?: boolean
   previousKey: string | null
   nextKey: string | null
 }
@@ -44,6 +46,13 @@ export interface StartCandidate {
   rules: EntryDatum<string>
   recordingRight: 'held' | 'denied' | 'unknown'
   existingState: ExistingGameState
+}
+
+export interface PreparingReadDetail {
+  gameId: string
+  tenantId: string
+  label: string
+  saved: PreparingGame
 }
 
 export interface RecordDetail extends StartCandidate {
@@ -161,6 +170,8 @@ export function isGameListPage(value: GameListPage, tenantId: string): boolean {
     value === null ||
     !Array.isArray(value.items) ||
     typeof value.pageLabel !== 'string' ||
+    (value.canPrevious !== undefined &&
+      typeof value.canPrevious !== 'boolean') ||
     (value.previousKey !== null && typeof value.previousKey !== 'string') ||
     (value.nextKey !== null && typeof value.nextKey !== 'string')
   )

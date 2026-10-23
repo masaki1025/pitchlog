@@ -115,21 +115,41 @@ afterEach(() => {
 })
 
 describe('登録済みrouteと認証境界', () => {
-  it('製品routeは実一覧・詳細・記録内容を未取得で描画し、通信しない', async () => {
+  it('製品routeは準備中readだけを供給し、記録入力は開かない', async () => {
+    fetchMock.mockImplementation(
+      async (url, init) =>
+        new Response(
+          JSON.stringify(
+            String(url).includes('?') ? { items: [], next_cursor: null } : {},
+          ),
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Pitchlog-Tenant-Match': '1',
+              'X-Pitchlog-Tenant-Challenge':
+                new Headers(init?.headers).get('X-Pitchlog-Tenant-Challenge') ??
+                '',
+            },
+          },
+        ),
+    )
     const router = createAppRouter(createMemoryHistory())
     await router.push('/games')
     const wrapper = mount(App, { global: { plugins: [provider, router] } })
     wrappers.push(wrapper)
-    expect(router.currentRoute.value.name).toBe('games')
-    expect(wrapper.text()).toContain('試合一覧：未取得')
-    expect(wrapper.text()).toContain('開始候補・スタメン・適用規則：未取得')
+    await flushPromises()
+    expect(wrapper.text()).toContain('準備中の試合')
+    expect(wrapper.text()).toContain('このページに試合はありません。')
     await router.push(`/games/${gameId}/record`)
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('game-record')
-    expect(wrapper.text()).toContain('試合詳細・記録権・下書き復元：未取得')
-    expect(wrapper.text()).toContain('この画面は表示データの接続前です')
-    expect(wrapper.get('[data-testid="game-name"]').text()).toBe('未取得')
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('準備中試合の保存情報：読み取れません')
+    expect(wrapper.text()).toContain('スタメン・記録権・下書き復元：未取得')
+    expect(wrapper.findComponent(GameScreen).exists()).toBe(false)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/games?limit=20',
+      `/api/games/${gameId}`,
+    ])
   })
 
   it.each(['/games', `/games/${gameId}/record`])(

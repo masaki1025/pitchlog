@@ -44,3 +44,37 @@ rootからの追加実測報告では、Chromium149.0.7827.0が非認証のHTTP 
 独立計画レビュー・PO委任承認前であり、製品未着手。APIレビュー是正が必要なら固定依存更新をrootへ返す。親#175の正式追加敵対1回は#174→#173後の実基線条件が未成立で未消費。今回の計画/候補コードのレビューをその枠や既存回数のリセットへ使わない。実ブラウザの能力/受入・正式7.7/実統合・公開は未達として残す。
 
 独立計画レビュー第1回: /root/independent_review、上記plan894c9d59/research2e0786d6、可決0/0/0。rootはPO委任によって同scopeステップ1を承認（日時/根拠/対象はplan末尾）。既存レビュー回数・正式追加枠を保持。
+
+## 承認ステップ1の実装・検査記録
+
+実装基線はPO委任承認commit `e885c58988cc3f6f03a813ca4a96c158fd42c22d`（API sourceはb3a8固定と同じ）。承認済みステップ1/1のfrontend 14pathsと本researchだけを変更した。plan、API/backend、正式assets、親#175、他worktree、frontend依存宣言/lockを変更していない。pnpm frozen installは作業wtのセットアップだけであり、最初にrepo rootからpnpm execを実行した際の「No package found」はfrontendへcwdを修正して解消した。
+
+実装は正規GET2 wrapper、共有Pinia/QueryClient上の供給composable、既存route名を維持する2host、明示preparing-read表示mode。fetchQueryはobserverを作らずretry:false/gcTime:0、要求ごとの固有keyを使用し、完了/終了時に自分のqueryだけを除去する。認証・tenant・path・ID変更時の表示/履歴破棄は同期、通信開始はnextTickで一連の認証store変更後に行う。非協調abortの遅延結果も内部要求世代で拒否する。cancelは実query signalへ伝播し、既存clientのCookie不確実性処理を抑制しない。
+
+一覧はサーバーの不透明cursorをそのまま利用し、成功した訪問だけ履歴に加える。canPrevious?:booleanを既存GameListPageへ追加し、初期null cursorへ戻れるようにした（nullは従来「前なし」にも使われていた）。同フラグは既存表示guardでも型確認する。送信中の多重操作を拒否し、失敗時は同page retry/直前の訪問pageへの復帰だけを行う。
+
+詳細は別PreparingReadDetail propsで保存列と適用規則JSONをVue text表示する。規則の再解決・値域/相関codec複製はない。RecordDetailを捏造せず、スタメン・記録権・下書き復元は未取得、端末/永続化/queue前提も未取得のまま。read modeでは成功/確認中/拒否/故障の全状態でGameScreen入力をmountしない。GET以外の作成・開始・再開・保存・送信処理は追加していない。
+
+### 途中版の失敗と是正
+
+- V1（最初のsource/新spec追加後）: 対象147件中146成功/1失敗。既存route試験の「未接続・通信なし」期待値が新接続と不一致。また同期watchが認証storeの中間状態から通信を再開し、storage同期→認証破棄へ再入してstack overflow出力を生じた。既存routeの期待をread接続へ更新し、同期破棄/nextTick開始へ分離して是正した。
+- V2: 対象154件成功。cursor二重操作等を追加したV3は159件のassertion成功だが、旧DOMの二重click handlerが消去後のvisiblePage.nextKeyを参照して未処理例外1件、exit1。handlerの参照をnull安全にし、requestPage内の実状態照合で拒否した。例外をテスト期待へ変更していない。
+- V4: 対象159件成功・未処理例外0。ESLintは試験内2つのdefineComponentにone-component-per-file違反2件。共通probe factory1箇所へまとめたV5では未使用capture1件を検出し、その不要変数だけ除去した。
+
+### 最終検査
+
+2026-10-24 JST、最終版の対象Vitestは5files/159件成功、skip/timeout/未処理例外0（実測4.70秒、tests889ms）。対象: api/games.spec.ts、screens/GameScreenEntryProvider.spec.ts、screens/GameScreenEntry.spec.ts、router.spec.ts、api/client.tenant.spec.ts。新規GET wrapper/C2、保存値の非再計算とXSS text表示、list/detail route host、未知前提/全入力封鎖、opaque cursor往復/null初期page/失敗履歴非追加/明示retry/多重操作、A→B→A/ID切替/tenant/epoch/path/unmount/遅延headers・body/非協調abortによる旧内容/cache拒否、401/403/404/503/不正transport、games Cookie不確実性/metadata/旧headers/abort/非games分類を検査した。unitのfetch mockと既存認証単体fixtureは単体証拠であり、実HTTP認証の証拠に数えない。
+
+同じ最終sourceで対象14pathsのPrettier check、frontend全体ESLint、vue-tsc --noEmit、pnpm run buildがexit0。build closureはscannedFiles9、externalReferences0、policyViolations0、Vite build457ms。新実装後の全Vitest再走は行わず、対象既存+追加に限定した。root docs status/plan sync/diff検査結果は下記固定時の記録とする。
+
+frontend固定差分（`git diff --cached --binary --full-index e885c589 -- frontend`）SHA256: `6230a8b2fdd441b6bdd41e529b9621c50301dd7661f14042b496d6e79fef378b`。
+
+- games.ts SHA256 `b1e3e91d87c2dba42da76b6273ed93e96761dc2acac2f7a5913ce13106899191`
+- GameScreenEntryProvider.ts SHA256 `334029d9661436679218c3db92527adb67ef975191b243732ddda12c2fe99fec`
+- GameScreenEntryRecord.vue SHA256 `7605525bcbe076d5a17e787b155bf1ac081f6c7fe88607f8eb1b4b5c8ec7c0a1`
+
+実装commitのHEAD/全差分SHAは自己参照を避けて引渡し応答で固定する。親#175の正式追加敵対1回は未消費、正式#174→#173→#175/7.7/閉集合登録・運用提供・作成保存・実機完了を主張しない。本単位でDB/browser/HTTP serverは起動していない。既存鍵生成helperを実行せず、新TLS/運用署名鍵・secretを生成していない。実browser driverはrootの別worktree/別承認単位が担当し、本UI固定HEADの受入後に評価する。
+
+browser受入との表示接合: 既存accessible label「試合一覧」「次のページ」「前のページ」「閲覧画面へ」は維持。新詳細見出し「準備中試合の保存情報」、保存規則項目「保存された適用規則」、詳細再試行「この試合を再試行」。保存ラベルはraw HTML挿入せずtext表示する。
+
+固定前のroot検査はcheck_docs_status.py（20 documents/0 violations）、check_plan_docs_sync.py --plan docs/features/mvp-preparing-read-ui/plan.md --base e885c589 --head HEAD、git diff --checkがすべてexit0。正式assets/default閉集合の検査成功をこの結果に含めない。
