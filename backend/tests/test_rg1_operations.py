@@ -23,6 +23,7 @@ from pitchlog.repositories.rg1 import (
     assert_rg1_open_before_commit,
     read_rg1_open,
 )
+from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import _TenantTransaction
 
@@ -39,11 +40,12 @@ class _UnknownToken(TenantOperationToken):
         return "CAP:rg1:precheck"
 
 
-def test_rg1_registers_only_two_fixed_tenant_bound_functions() -> None:
-    """実行器がscopeのtenant IDだけをbindし固定関数を選ぶ。"""
+def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> None:
+    """resolver1件追加後も、RG1のtenant固定2関数と未知token拒否を保つ。"""
     assert set(FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
         RG1CommitCheckToken,
+        StageAResolveRuleToken,
     }
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),
