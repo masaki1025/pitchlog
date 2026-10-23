@@ -265,7 +265,8 @@
         "backend/tests/test_rg1_*",
         "contracts/tenant_boundary/repository-contract.json",
         "contracts/tenant_boundary/base-allowlist.json",
-        "contracts/authz/product/function-bodies/*rg1*"
+        "contracts/authz/product/function-bodies/*rg1*",
+        "tests/fixtures/sync-protocol-population_v1.json"
       ]
     },
     {
