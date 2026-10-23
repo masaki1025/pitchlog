@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "postgres_version": 170011,
+  "schema": "pitchlog_ledger",
+  "ddl_sha256": "acdc77b44f8557bc1006f270a7fbee80c65ab345a15287144439b4f8097f35e1",
+  "tables": [
+    "state",
+    "highwater",
+    "reservations"
+  ],
+  "roles": {
+    "owner": "pitchlog_ledger_owner",
+    "app": "pitchlog_ledger_app",
+    "control": "pitchlog_ledger_control",
+    "peer": "pitchlog_ledger_replicator"
+  },
+  "functions": {
+    "identity()": [
+      "app",
+      "control"
+    ],
+    "epoch_fence()": [
+      "app"
+    ],
+    "reservation(uuid,uuid,uuid,uuid)": [
+      "app"
+    ],
+    "reserve(uuid,uuid,uuid,uuid)": [
+      "app"
+    ],
+    "claim(uuid,uuid,uuid,uuid)": [
+      "app"
+    ],
+    "advance_epoch(bigint)": [
+      "control"
+    ]
+  },
+  "synchronous_peer": {
+    "application_name": "ledger_standby",
+    "count": 1,
+    "mode": "FIRST 1 (ledger_standby)",
+    "commit": "on",
+    "flush_and_replay_required": true
+  },
+  "client": {
+    "psycopg": "3.3.4",
+    "minimum_libpq": 170000,
+    "cancel_safe_required": true
+  },
+  "boundaries": {
+    "business_cluster_must_differ": true,
+    "reconnect_after_restart": false,
+    "promotion_issuance": false,
+    "cold_attach_proof_port": "NOT_PROVIDED",
+    "operational_deployment": false,
+    "distributed_commit": false
+  },
+  "protocol_source": {
+    "path": "backend/src/pitchlog/recording_rights/initial_grant.py",
+    "supplier_head": "95d766f5d20234b1d534538b96fc369eda1cc6f1",
+    "sha256": "c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3"
+  },
+  "required_settings": {
+    "fsync": "on",
+    "full_page_writes": "on",
+    "synchronous_commit": "on",
+    "synchronous_standby_names": "FIRST 1 (ledger_standby)"
+  },
+  "identity": {
+    "physical_pair_system_id": "same",
+    "business_system_id": "different",
+    "timeline": 1,
+    "pin_until_close": [
+      "system_id",
+      "timeline",
+      "started_at"
+    ],
+    "peer_address": "standby server address",
+    "primary_recovery": false,
+    "standby_recovery": true
+  },
+  "timeout_seconds": {
+    "minimum": 0.1,
+    "maximum": 30,
+    "read_statement_and_lock": "finite",
+    "commit": "cancel_safe with finite deadline; unknown after cancel",
+    "reconnect_cancelled_connection": false
+  }
+}

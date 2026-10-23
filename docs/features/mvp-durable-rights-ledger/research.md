@@ -130,3 +130,56 @@ step3で実package/contract/正例が出現した接合検査は408 passed / 7 f
 同wtにはstep3の未stage source/fixture/契約候補WIPがある。この是正commitは既存core試験と本節だけ、JSON/新package/資産を含めない。step3実DBの中間/失敗記録は別のWIPとして保持し、後続のstep3固定時へ戻す。対象回帰結果は引渡しへ記録する。
 
 是正後の台帳core対象35件は`-n 2 -k durable_ledger`で **35 passed / 13.88秒**。既存core試験Ruff成功（既存docstring連結warningのみ）。全coreはstep3最終候補で直列に一度まとめ、未実施をこの35件で置き換えない。
+
+
+## step3実装中の正常pairと故障検証
+
+承認plan追補bdfe27cf（取消API限定）はstep3へ供給された。依存追加なし、実clientはpsycopg3.3.4/libpq180000/cancel_safe capability成立。170000未満/不明capabilityは接続前拒否する。私有helperは`_cancel_commit(connection: psycopg.Connection[Any], timeout: float) -> None`、許可APIは`PSYCOPG_CONNECTION_CANCEL_SAFE`だけ。既存inventory駆動の型/alias/保守member検出で対応でき、取消検出のためのchecker本体変更は不要だった。新ID/保守member各1件と既存ID全順序を保持し、base許可は接続/固定操作/commit/取消のexact4関数・4正例へ限定した。
+
+新packageのDDLはepoch共有ロック行と高水位更新行を分け、外部fenceを保持しながら予約を行える。claimは同owner/current epochに一度だけ、制御roleのepoch前進はCASである。全6関数はNOLOGIN owner/固定search_path、PUBLICとapp/controlの直接DMLは剥奪する。単一initial供給のReservedGeneration/DurableGenerationSource/RecoveryEpochFenceを直接importし、型コピーや常時成功発行源を作らない。
+
+専用実primary/物理同期standby/業務別clusterの3コンテナ・3volume・1networkを各実行が所有する。公開済み試験専用の固定非秘密素材だけを使用し、運用秘密/TLS/署名鍵は発行しない。portはloopbackの専用番号、継承DSNは使用しない。既存verify_connection_identitiesを保持し、module専用fixtureのDSNを明示供給して実admin/app認証主体の検査を通す。後始末は自分が作った資源だけをfinallyで行う。資格文字列を本記録へ転記しない。
+
+初回実DBは3 passed / 1 failed / 59.57秒。同期取消後のstandby再起動でDockerの自動公開portが変わり、fixtureの旧port待機が失敗した。製品成功条件は変更せず、起動時にOS選択のloopback portを固定して再起動にも同番号を使うfixtureへ修正。次の契約20+実DB4は24 passed / 35.52秒。DDL更新後にmanifest hashを追随し忘れた中間版は契約1 failed / 0.11秒・DB未実行として残し、実DDLのhashを再固定した。
+
+実DBをACL全数/同期設定不一致/replay遅延/成功直後primary停止へ拡張した版は7 call成功 / teardown 1 error / 40.91秒。停止前の共通identity実接続が切れた後にlocal fixtureが暗黙COMMITしてAdminShutdownとなった。identity検査を無効化せず、当該module専用fixtureだけをyield/finally closeへ変更し、読取identity接続を暗黙commitしないよう是正した。最終再検査結果は後続へ記録する。取消新IDのexact正例/未登録receiver/alias/getattr/署名違い/他API拒否と既存正例・全拒否変異・inventory封印の限定対象は9 passed / 1.80秒。
+
+正常pairでは実system identifier/timeline/postmaster起動時刻/peer addressとreplicator名を照合し、COMMIT後のprimary flush WAL以上を指定peerのflushと実standby replayで確認してowner-bound行を再読する。期限発火/取消発行後はCOMMITが正常に戻ってもoutcome-unconfirmed。接続を廃棄し、取消結果をrollback済み/未使用として扱わない。standby/primary再起動、promotion、identity不明は固定済みinstanceが発行を拒否する。
+
+cold attach・正常process再起動・所有controller外の最新成功集合の証明供給Portは未提供である。2台が同じ古いbackupへ戻るとDB内sysid/epoch/高水位の自己整合だけでは最新性を証明できない。新constructorを運用のcold再開承認へ使用した、またはfresh pair試験を全adapter復元保証の完成へ置換したとは主張しない。後続に必要なのは、既存運用責任者に拘束された実制御主体から、対象system/timeline/起動identity、既成功累積集合/高水位/epoch、旧primary実停止状態、証拠の非巻戻し前後関係を同一取得で検証してライブ借用するPortである。型のauthorityと非巻戻し元が未提供なので、単純bool/任意JSON/自己署名を採用せず、新第3永続資産や秘密方式をこのstepへ追加しない。step3全DoD/step4/実RG1/本物Port/MVP完成は未達を維持する。
+
+局所source検査で、新adapterの必須Protocol/generation署名にTB002が13所見発生した。既存initial47のsourcehash限定免除は別fileへ効かず、DB API許可もこれを解除しない。名前を隠したりProtocolを複製せず、adapter単一file/hash/exact所見と既存負例/censusの最小追補をrootへ返した。この追加のchecker/資産実装は未承認の間待機する。既存initial47/正式27履歴/202snapshot/policy/全親review・中間/6failを保持し、未受理checker赤を成功へ読み替えない。
+
+### step3接合の再検査と固定点（正式提供未達）
+
+重い検査を直列へ戻した後、契約20+実DB7は27 passed / 39.88秒、COMMIT後最初のprimary再読故障の秘匿/未確定回帰を追加した契約21件は21 passed / 0.21秒。さらに並列予約の実attemptを保持して旧epochの実claim拒否を検査し、他owner claim拒否・bigint MAX発行/次回枯渇拒否を加えた版は契約21+実DB7で **28 passed / 39.24秒**。sourceはfaa1ab04e2282a8654bedffd7053cb9062d9257d6d6d58488863d6b850bd1e90。この実DB版で全所有3コンテナ/3volume/1networkをcleanupし、既存共有資源へ触れていない。実identity autouseを通したままでteardown errorも0となった。
+
+core最終直列`-n 2`は **416 passed / 36.16秒**。上記408/7/1と35対象結果を保持し、既存期限を緩めず再確認した。root/backend各Ruff/ty成功、docs-status21件/違反0、supplier95dを局所比較とするplan同期成功、runtime生成check成功。source未変更の既存長時間census/fullbackend全反復は実施しておらず、最終必須CIへ残す。origin/developがPR180の547d199eへ実統合されて95dとtree同一になった事実はrootから受領したが、実origin参照の更新/正式7.7受理をこのWIPで代行しない。
+
+取消callbackのschedule遅延を再点検し、callback未実行でCOMMITが実期限を超えて戻る負例を追加した。旧faa1版は **1 failed / 21 deselected / 0.19秒**（OutcomeUnconfirmedを出さない）を再現。既承認の「期限到来後は見かけ上の正常戻りも未確定」の範囲で、monotonic実期限も判定する最小source是正を行った。最新版は **22 passed / 0.26秒**、backend Ruff/ty成功。追加のclassはtimer schedule遅延/故障分類の単体再現用だけであり、実source/実同期耐久性の成功証拠へ代用しない。影響する実同期取消1件の再接合結果は後続で追記する。
+
+最新source SHA256は`53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d`。exact13所見JSONはrepo外cache `/home/ymdms/.cache/pitchlog/durable-ledger-tb002-53bdb9d5/findings.json`（SHA256 `f1929e42effce198d3abd2eb2a0d1727fc74eecb1faac61f2e63d688a97e067b`）と同dir source byteへ固定しrootへ渡した。旧faa1の同様cacheも保持。いずれも正規sourceの現所見であり、独立P6資料/封印期待値を読まない。TB002 checker/censusへの新免除実装はroot追補判断まで変更しない。
+
+old inventoryの全API/memberと全順序を機械照合し、追加がcancel_safeの1ID/1保守memberだけであることを確認。initial source、core JSON、policy、正式履歴27行/202snapshotを保持する。変更は候補source/exact許可だけで、正式row/snapshot/policy新target/正本7.3はstep4後続・未受理である。
+
+最終53bdb9d5版の影響実同期取消だけを直列で再確認し、**1 passed / 6 deselected / 29.03秒**。実standby停止→有限COMMIT取消→未確定→起動identity変更拒否/primary予約残存を再検査し、全所有資源をcleanupした。通常7件を含む28成功はfaa1版、最終53b版は契約22成功と影響実DB1成功であり、同じ全件完走と代記しない。実origin/developは共有ref更新後547d199e、実merge-baseは95d766f5で、製品verify_area_path_baseline(actual merge-base, HEAD)は95dを受理。局所供給fallbackだけによる成功ではなく、統合後actual基線へ戻った状態を確認した。旧311拒否はその時点の履歴として保持する。
+
+### 条件2限定追補の実装とstep3候補引渡し
+
+root承認8bd071a820aaab97d3e57f45c57689b87dd7ca19を読み、非作者rights_replacement_reviewのscope限定第1回0/0/0と、53b sourceの免除なし13identity一致を受領した。これは最終製品コード全体の独立レビューではない。既存initial47/source hashを互換保持し、新adapter単一path・source hash・正の行番号/完全symbolの13exact-setをchecker定数と新専用登録へ固定した。欠落/余剰/重複・未知identity・別path/別SHAを契約読取で拒否し、sourceの改変は免除しない。別条件/DB APIの違反を同時に検出する。condition2 owner_paths/既存検出ルールは不変で、module全体の許可は増やしていない。
+
+実censusは新sourceに対して旧anchor checkerの除去11identityと独立AST候補1identityを別々に導出した（checkerの現13件とは粒度が違う）。新明示キー`ledger_removed_checker`=`661033093b9db4a1e8a51933edeb9e7f44f3c3f042fab6d9f85b56885858edb2`、`ledger_added_independent_ast`=`1a1a72edad14d9742b621516fa4c03bb80b214b6fa7092325640f83edb2f31c9`へ固定。旧`removed_checker_43`/`added_independent_ast_18`とその値は変更0。新旧path間の移し替え/欠損/余剰/改変digestは拒否し、独立AST候補の実13所見への帰属も検査する。導出した全identityはrepo外cache `durable-ledger-census-53b.json`へ保存した。
+
+- 新API/新条件2の登録・検出/拒否と既存正例/全拒否変異等: 20 passed / 2.62秒。
+- 新旧scoped digest/条件2限定census対象: 23 passed / 54.16秒。
+- 全sourceを実測するcensus主述語1件: 1 passed / 82 deselected / 105.85秒。長いcensus全83件は反復せず最終CIへ残す。
+- 既存bypass試験file全件: **383 passed / 3 failed / 166.55秒**。3失敗は`test_repository_is_green`（7資産IDと履歴末尾不一致）と、base35→36/inventory17→18の`test_every_frozen_baseline_asset_has_a_valid_chained_history`各1件。正式未受理を検知した赤であり、試験期待や履歴を変更して通さない。source/登録の正負例は成功し、全件greenとは記録しない。
+- 最終変更固定版core全件: **416 passed / 33.79秒**（-n2、DBと直列）。先行中間版の全失敗/35対象/36.16秒版も保持する。
+- root/backendのRuff/ty、runtime生成check、docs-status21件/0違反、design-propagation、doc-coverage、局所95d plan同期、diff checkは成功。既存supplier source/core JSON/policyはbyte不変。
+- 正式bypass CLIもexit2、理由は履歴末尾と7資産IDの不一致。未受理を成功へ写さない。
+
+9資産/外部8の実候補射影はrepo外cache `durable-ledger-step3-projections.json`へ保存。実base95dに対して8資産の射影が変わり、frozen-inputsは同値。外部変更はchecker/census試験の2files。JSON本文の編集は許可済みbase/inventory候補だけで、他7JSON・旧27行履歴・202snapshot・policy新target・正式7.7は変更0。生成3の入力は不変で、runtime checkおよび既存契約読取で整合を確認した。正式identifier/完全値受理と必要生成/履歴/archiveの最終整合はroot所有step4へ残す。
+
+固定source SHA256 `53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d`、DDL `acdc77b44f8557bc1006f270a7fbee80c65ab345a15287144439b4f8097f35e1`、manifest `7657e982cc525956d711501424749a6cf189703eefd5bc981b73af9922b37326`。PG17.11-bookwormの専用実primary/物理standby/業務cluster、psycopg3.3.4/libpq180000を使用した。新source53bの実試験は契約22＋影響取消DB1、先行faa1の通常全DB7と区別する。
+
+このcommitは正常pairのsource/DB候補部分の保存であり、step3全DoD達成を宣言しない。cold attach/正常再起動の非巻戻しauthority、業務identityの製品観測主体、所有controller外のlatest集合証明は未提供。全復元・昇格/両系喪失の故障行列、正式正本7.3/7.7/最終非作者コードレビュー・全必須CI、実RecordingRightsPort/RG1/HTTP接合とMVPは未完である。push/PR/共有DB/運用適用なし、運用秘密/TLS/署名鍵の新発行なし。所有DB資源は全cleanup済みで、共有containerは不変更。

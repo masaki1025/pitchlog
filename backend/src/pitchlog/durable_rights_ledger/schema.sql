@@ -1,0 +1,136 @@
+-- 業務DBへ適用しない外部耐久台帳専用DDL。資格は配置側で供給する。
+CREATE ROLE pitchlog_ledger_owner NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE pitchlog_ledger_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+CREATE ROLE pitchlog_ledger_control LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+GRANT pg_read_all_stats TO pitchlog_ledger_owner;
+GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_system() TO pitchlog_ledger_owner;
+GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_checkpoint() TO pitchlog_ledger_owner;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+CREATE SCHEMA pitchlog_ledger AUTHORIZATION pitchlog_ledger_owner;
+REVOKE ALL ON SCHEMA pitchlog_ledger FROM PUBLIC;
+GRANT USAGE ON SCHEMA pitchlog_ledger TO pitchlog_ledger_app, pitchlog_ledger_control;
+SET ROLE pitchlog_ledger_owner;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pitchlog_ledger REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+CREATE TABLE pitchlog_ledger.state (
+    singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+    epoch bigint NOT NULL CHECK (epoch > 0)
+);
+INSERT INTO pitchlog_ledger.state VALUES (true, 1);
+CREATE TABLE pitchlog_ledger.highwater (
+    singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+    value bigint NOT NULL CHECK (value >= 0)
+);
+INSERT INTO pitchlog_ledger.highwater VALUES (true, 0);
+CREATE TABLE pitchlog_ledger.reservations (
+    attempt_id uuid PRIMARY KEY,
+    tenant_id uuid NOT NULL,
+    game_id uuid NOT NULL,
+    start_request_id uuid NOT NULL,
+    generation bigint NOT NULL UNIQUE CHECK (generation > 0),
+    recovery_generation bigint NOT NULL CHECK (recovery_generation > 0),
+    claimed boolean NOT NULL DEFAULT false,
+    UNIQUE (tenant_id, game_id, start_request_id)
+);
+CREATE FUNCTION pitchlog_ledger.identity() RETURNS jsonb
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger AS $$
+SELECT jsonb_build_object(
+    'system_id', (SELECT system_identifier::text FROM pg_control_system()),
+    'timeline', (SELECT timeline_id FROM pg_control_checkpoint()),
+    'started_at', pg_postmaster_start_time()::text,
+    'address', inet_server_addr()::text, 'recovery', pg_is_in_recovery(), 'version', current_setting('server_version_num')::integer,
+    'fsync', current_setting('fsync'), 'full_page_writes', current_setting('full_page_writes'),
+    'synchronous_commit', current_setting('synchronous_commit'),
+    'synchronous_standby_names', current_setting('synchronous_standby_names'),
+    'wal', CASE WHEN pg_is_in_recovery() THEN pg_last_wal_replay_lsn()::text
+               ELSE pg_current_wal_flush_lsn()::text END,
+    'epoch', (SELECT epoch FROM state), 'highwater', (SELECT value FROM highwater),
+    'peers', COALESCE((SELECT jsonb_agg(jsonb_build_object(
+        'name', application_name, 'state', state, 'sync_state', sync_state,
+        'flush', flush_lsn::text, 'address', client_addr::text, 'user', usename)) FROM pg_stat_replication), '[]'::jsonb)
+)
+$$;
+CREATE FUNCTION pitchlog_ledger.epoch_fence() RETURNS bigint
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger AS $$
+SELECT epoch FROM state WHERE singleton FOR SHARE
+$$;
+CREATE FUNCTION pitchlog_ledger.reservation(p_attempt uuid, p_tenant uuid, p_game uuid, p_start uuid)
+RETURNS TABLE(generation bigint, recovery_generation bigint, tenant_id uuid,
+             game_id uuid, start_request_id uuid, claimed boolean)
+LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger AS $$
+SELECT r.generation, r.recovery_generation, r.tenant_id, r.game_id, r.start_request_id, r.claimed
+FROM reservations r WHERE r.attempt_id = p_attempt AND r.tenant_id = p_tenant
+    AND r.game_id = p_game AND r.start_request_id = p_start
+$$;
+CREATE FUNCTION pitchlog_ledger.reserve(p_attempt uuid, p_tenant uuid, p_game uuid, p_start uuid)
+RETURNS TABLE(generation bigint, recovery_generation bigint, tenant_id uuid,
+             game_id uuid, start_request_id uuid, claimed boolean)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger AS $$
+DECLARE s state%ROWTYPE; r reservations%ROWTYPE; h bigint;
+BEGIN
+    IF p_attempt IS NULL OR p_tenant IS NULL OR p_game IS NULL OR p_start IS NULL
+       OR current_setting('synchronous_commit') <> 'on' THEN
+        RAISE EXCEPTION 'ledger operation refused';
+    END IF;
+    SELECT * INTO STRICT s FROM state WHERE singleton FOR SHARE;
+    SELECT value INTO STRICT h FROM highwater WHERE singleton FOR UPDATE;
+    SELECT * INTO r FROM reservations WHERE attempt_id = p_attempt;
+    IF FOUND THEN
+        IF r.tenant_id <> p_tenant OR r.game_id <> p_game OR r.start_request_id <> p_start
+           OR r.recovery_generation <> s.epoch OR r.claimed THEN
+            RAISE EXCEPTION 'ledger operation refused';
+        END IF;
+    ELSE
+        IF h = 9223372036854775807 THEN
+            RAISE EXCEPTION 'ledger operation refused';
+        END IF;
+        UPDATE highwater SET value = value + 1 WHERE singleton;
+        INSERT INTO reservations VALUES
+            (p_attempt, p_tenant, p_game, p_start, h + 1, s.epoch, false)
+            RETURNING * INTO r;
+    END IF;
+    RETURN QUERY SELECT r.generation, r.recovery_generation, r.tenant_id,
+                        r.game_id, r.start_request_id, r.claimed;
+END $$;
+CREATE FUNCTION pitchlog_ledger.claim(p_attempt uuid, p_tenant uuid, p_game uuid, p_start uuid)
+RETURNS TABLE(generation bigint, recovery_generation bigint, tenant_id uuid,
+             game_id uuid, start_request_id uuid, claimed boolean)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger AS $$
+DECLARE e bigint; r reservations%ROWTYPE;
+BEGIN
+    IF current_setting('synchronous_commit') <> 'on' THEN
+        RAISE EXCEPTION 'ledger operation refused';
+    END IF;
+    SELECT epoch INTO STRICT e FROM state WHERE singleton FOR SHARE;
+    SELECT * INTO STRICT r FROM reservations WHERE attempt_id = p_attempt FOR UPDATE;
+    IF p_tenant IS NULL OR p_game IS NULL OR p_start IS NULL OR r.tenant_id <> p_tenant
+       OR r.game_id <> p_game OR r.start_request_id <> p_start
+       OR r.recovery_generation <> e OR r.claimed THEN
+        RAISE EXCEPTION 'ledger operation refused';
+    END IF;
+    UPDATE reservations SET claimed = true WHERE attempt_id = p_attempt;
+    RETURN QUERY SELECT r.generation, r.recovery_generation, r.tenant_id,
+                        r.game_id, r.start_request_id, true;
+END $$;
+CREATE FUNCTION pitchlog_ledger.advance_epoch(p_previous bigint) RETURNS bigint
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger AS $$
+DECLARE e bigint;
+BEGIN
+    IF current_setting('synchronous_commit') <> 'on' THEN
+        RAISE EXCEPTION 'ledger operation refused';
+    END IF;
+    SELECT epoch INTO STRICT e FROM state WHERE singleton FOR UPDATE;
+    IF p_previous IS NULL OR e <> p_previous OR e = 9223372036854775807 THEN
+        RAISE EXCEPTION 'ledger operation refused';
+    END IF;
+    UPDATE state SET epoch = e + 1 WHERE singleton;
+    RETURN e + 1;
+END $$;
+REVOKE ALL ON ALL TABLES IN SCHEMA pitchlog_ledger FROM PUBLIC, pitchlog_ledger_app, pitchlog_ledger_control;
+REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pitchlog_ledger FROM PUBLIC, pitchlog_ledger_app, pitchlog_ledger_control;
+GRANT EXECUTE ON FUNCTION pitchlog_ledger.identity() TO pitchlog_ledger_app, pitchlog_ledger_control;
+GRANT EXECUTE ON FUNCTION pitchlog_ledger.epoch_fence() TO pitchlog_ledger_app;
+GRANT EXECUTE ON FUNCTION pitchlog_ledger.reservation(uuid, uuid, uuid, uuid) TO pitchlog_ledger_app;
+GRANT EXECUTE ON FUNCTION pitchlog_ledger.reserve(uuid, uuid, uuid, uuid) TO pitchlog_ledger_app;
+GRANT EXECUTE ON FUNCTION pitchlog_ledger.claim(uuid, uuid, uuid, uuid) TO pitchlog_ledger_app;
+GRANT EXECUTE ON FUNCTION pitchlog_ledger.advance_epoch(bigint) TO pitchlog_ledger_control;
+RESET ROLE;
