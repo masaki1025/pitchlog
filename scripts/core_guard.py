@@ -78,10 +78,17 @@ RG1_LIFECYCLE_PATH_ADDITIONS = (
     "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
     "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
 )
+DURABLE_LEDGER_PATH_ADDITIONS = (
+    "backend/src/pitchlog/durable_rights_ledger/*",
+    "backend/tests/test_durable_rights_ledger_contract.py",
+)
+DURABLE_LEDGER_FIXTURE_ADDITION = (
+    "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": RG1_LIFECYCLE_PATH_ADDITIONS,
-    "recording-rights": RG1_LIFECYCLE_PATH_ADDITIONS,
-    "tenant-isolation": RG1_LIFECYCLE_PATH_ADDITIONS,
+    "sync-protocol": (*RG1_LIFECYCLE_PATH_ADDITIONS, *DURABLE_LEDGER_PATH_ADDITIONS, *DURABLE_LEDGER_FIXTURE_ADDITION),
+    "recording-rights": (*RG1_LIFECYCLE_PATH_ADDITIONS, *DURABLE_LEDGER_PATH_ADDITIONS, *DURABLE_LEDGER_FIXTURE_ADDITION),
+    "tenant-isolation": (*RG1_LIFECYCLE_PATH_ADDITIONS, *DURABLE_LEDGER_PATH_ADDITIONS),
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

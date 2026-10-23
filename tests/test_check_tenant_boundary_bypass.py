@@ -7510,3 +7510,111 @@ def test_preparing_read_other_function_still_rejects_select() -> None:
     )
     assert len(violations) == 1
     assert violations[0].code == 'TB005'
+
+
+def test_ledger_cancel_private_permission_is_exact() -> None:
+    """有限取消は一つの私有関数と一つのAPIだけに許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    rows = [row for row in contract.allowed_symbols if row.symbol ==
+            'pitchlog.durable_rights_ledger.adapter._cancel_commit']
+    assert len(rows) == 1
+    assert rows[0].allowed_api_ids == frozenset({'PSYCOPG_CONNECTION_CANCEL_SAFE'})
+    apis = [row for row in contract.apis if row.id == 'PSYCOPG_CONNECTION_CANCEL_SAFE']
+    assert len(apis) == 1 and apis[0].symbol == 'psycopg.Connection.cancel_safe'
+    assert 'cancel_safe' in contract.conservative_member_names
+    source = '''from typing import Any
+import psycopg
+
+def _cancel_commit(connection: psycopg.Connection[Any], timeout: float) -> None:
+    connection.cancel_safe(timeout=timeout)
+'''
+    path = 'pitchlog/durable_rights_ledger/adapter.py'
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    for mutated in (
+        source.replace('_cancel_commit(', '_other('),
+        source.replace('timeout: float)', 'timeout: float, extra: bool)'),
+        source.replace('connection.cancel_safe(timeout=timeout)', 'connection.commit()'),
+        source.replace('connection.cancel_safe(timeout=timeout)', 'connection.execute("SELECT 1")'),
+    ):
+        assert checker.scan_source(mutated, path=path, contract=contract)
+    assert checker.scan_source(source, path='pitchlog/services/cancel.py', contract=contract)
+
+
+@pytest.mark.parametrize('body', [
+    'connection.cancel_safe(timeout=1)',
+    'alias = connection.cancel_safe\n    alias(timeout=1)',
+    'getattr(connection, "cancel_safe")(timeout=1)',
+    'unknown.cancel_safe(timeout=1)',
+])
+def test_unregistered_cancel_receiver_and_alias_are_red(body: str) -> None:
+    """接続種別/alias/getattr/保守memberで未登録取消を取り逃さない。"""
+    source = ('import psycopg\n'
+              'def other(connection: psycopg.Connection, unknown):\n    ' + body + '\n')
+    violations = checker.scan_source(source, path='pitchlog/services/cancel.py',
+                                     contract=checker.load_contract(REPOSITORY_ROOT))
+    assert any(row.code == 'TB005' for row in violations)
+
+
+@pytest.mark.parametrize('mutation', [
+    'missing', 'path', 'sha', 'missing_finding', 'extra_finding', 'duplicate',
+    'line_zero', 'line_bool', 'symbol', 'move_initial',
+])
+def test_ledger_condition2_registration_rejects_every_nonexact_shape(mutation: str) -> None:
+    """台帳登録は単一path/hash/13全identityの一致だけを受理する。"""
+    value = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
+    key = 'condition_2_ledger_scoped_findings'
+    entry = value[key]
+    if mutation == 'missing':
+        value.pop(key)
+    elif mutation == 'path':
+        entry['path'] = 'backend/src/pitchlog/durable_rights_ledger/other.py'
+    elif mutation == 'sha':
+        entry['source_sha256'] = '0' * 64
+    elif mutation == 'missing_finding':
+        entry['findings'].pop()
+    elif mutation == 'extra_finding':
+        entry['findings'].append({'line': 999999, 'symbol': 'unapproved_generation'})
+    elif mutation == 'duplicate':
+        entry['findings'].append(entry['findings'][0])
+    elif mutation == 'line_zero':
+        entry['findings'][0]['line'] = 0
+    elif mutation == 'line_bool':
+        entry['findings'][0]['line'] = True
+    elif mutation == 'symbol':
+        entry['findings'][0]['symbol'] = 'unapproved_generation'
+    elif mutation == 'move_initial':
+        entry['path'] = value['condition_2_scoped_findings']['path']
+    inventory_bytes = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis, *_ = checker._load_inventory(json.loads(inventory_bytes))
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory_bytes, apis)
+
+
+def test_ledger_condition2_source_path_hash_and_each_identity_are_required() -> None:
+    """source変更・別path・未知identityは免除せず、既存47を保持する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = 'pitchlog/durable_rights_ledger/adapter.py'
+    source = (REPOSITORY_ROOT / 'backend/src' / relative).read_text()
+    assert hashlib.sha256(source.encode()).hexdigest() == checker.LEDGER_CONDITION2_SOURCE_SHA256
+    assert checker.scan_source(source, path=relative, contract=contract) == []
+    unsuppressed = replace(contract, ledger_condition2_findings=frozenset())
+    original = checker.scan_source(source, path=relative, contract=unsuppressed)
+    actual = {(v.line, v.symbol) for v in original if v.code == 'TB002'}
+    assert actual == contract.ledger_condition2_findings
+    mutations = ((source + '\n', relative), (source, 'pitchlog/services/copied_ledger.py'))
+    for changed, path in mutations:
+        violations = checker.scan_source(changed, path=path, contract=contract)
+        assert any(v.code == 'TB002' for v in violations)
+    first = next(iter(contract.ledger_condition2_findings))
+    incomplete = replace(
+        contract, ledger_condition2_findings=contract.ledger_condition2_findings - {first}
+    )
+    remaining = checker.scan_source(source, path=relative, contract=incomplete)
+    assert {(v.line, v.symbol) for v in remaining if v.code == 'TB002'} == {first}
+    injected = source + '\nimport psycopg\npsycopg.connect("not-an-operational-dsn")\n'
+    violations = checker.scan_source(injected, path=relative, contract=contract)
+    assert any(v.code == 'TB005' for v in violations)
+    assert len(contract.condition2_scoped_findings) == 47
+    assert contract.condition2_scoped_source_sha256 == (
+        'c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3'
+    )

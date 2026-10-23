@@ -62,6 +62,27 @@ APPROVED_CONDITION2_OWNER_PATHS = frozenset(
         "backend/src/pitchlog/repositories/sync_apply.py",
     }
 )
+# 外部台帳候補のProtocol実装だけを、独立確認したsource/全所見へ固定する。
+LEDGER_CONDITION2_PATH = "backend/src/pitchlog/durable_rights_ledger/adapter.py"
+LEDGER_CONDITION2_SOURCE_SHA256 = "53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d"
+LEDGER_CONDITION2_FINDINGS = frozenset(
+    {
+        (17, 'DurableGenerationSource'),
+        (17, 'ReservedGeneration'),
+        (224, 'generation'),
+        (228, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (228, 'pitchlog.durable_rights_ledger.adapter._Fence.generation'),
+        (232, 'generation'),
+        (235, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (245, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (249, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (360, 'current_recovery_generation'),
+        (400, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (407, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (421, 'advance_recovery_generation'),
+    }
+)
+
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
@@ -217,6 +238,8 @@ class Contract:
     condition2_owner_paths: tuple[str, ...]
     condition2_scoped_findings: frozenset[tuple[int, str]]
     condition2_scoped_source_sha256: str
+    ledger_condition2_findings: frozenset[tuple[int, str]]
+    ledger_condition2_source_sha256: str
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
@@ -798,6 +821,8 @@ def _load_allowlist(
     tuple[str, ...],
     frozenset[tuple[int, str]],
     str,
+    frozenset[tuple[int, str]],
+    str,
     tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
@@ -813,6 +838,7 @@ def _load_allowlist(
             "conditions",
             "condition_2_adjudications",
             "condition_2_scoped_findings",
+            "condition_2_ledger_scoped_findings",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1036,6 +1062,25 @@ def _load_allowlist(
         scoped_findings.add((line, symbol))
     if len(scoped_findings) != 47:
         raise ContractError("条件 2 の限定登録は審査済み47箇所のexact-setが必要")
+    ledger_location = "allowlist.condition_2_ledger_scoped_findings"
+    ledger = _object(value["condition_2_ledger_scoped_findings"], ledger_location)
+    _strict_keys(ledger, {"path", "source_sha256", "findings"}, ledger_location)
+    if ledger["path"] != LEDGER_CONDITION2_PATH:
+        raise ContractError("台帳条件2登録はadapter単一pathに限る")
+    ledger_digest = _string(ledger["source_sha256"], ledger_location)
+    if ledger_digest != LEDGER_CONDITION2_SOURCE_SHA256:
+        raise ContractError("台帳条件2登録のsource SHAが独立確認値と不一致")
+    ledger_findings: set[tuple[int, str]] = set()
+    for raw in _array(ledger["findings"], ledger_location):
+        finding = _object(raw, ledger_location)
+        _strict_keys(finding, {"line", "symbol"}, ledger_location)
+        line = _integer(finding["line"], ledger_location)
+        symbol = _string(finding["symbol"], ledger_location)
+        if line < 1 or (line, symbol) in ledger_findings:
+            raise ContractError("台帳条件2登録は正の行番号と一意の記号が必要")
+        ledger_findings.add((line, symbol))
+    if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
+        raise ContractError("台帳条件2登録は独立確認済み13所見のexact-setが必要")
     return (
         tuple(allowed_symbols),
         tuple(rules),
@@ -1043,6 +1088,8 @@ def _load_allowlist(
         condition2_owner_paths,
         frozenset(scoped_findings),
         scoped_digest,
+        frozenset(ledger_findings),
+        ledger_digest,
         command,
     )
 
@@ -1595,6 +1642,8 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_owner_paths,
         condition2_scoped_findings,
         condition2_scoped_source_sha256,
+        ledger_condition2_findings,
+        ledger_condition2_source_sha256,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1639,6 +1688,8 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_owner_paths=condition2_owner_paths,
         condition2_scoped_findings=condition2_scoped_findings,
         condition2_scoped_source_sha256=condition2_scoped_source_sha256,
+        ledger_condition2_findings=ledger_condition2_findings,
+        ledger_condition2_source_sha256=ledger_condition2_source_sha256,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
@@ -5777,6 +5828,16 @@ def scan_source(
             if violation.code != "TB002"
             or (violation.line, violation.symbol)
             not in contract.condition2_scoped_findings
+        ]
+    if (
+        path == LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
+        and hashlib.sha256(source.encode("utf-8")).hexdigest()
+        == contract.ledger_condition2_source_sha256
+    ):
+        violations = [
+            violation for violation in violations
+            if violation.code != "TB002"
+            or (violation.line, violation.symbol) not in contract.ledger_condition2_findings
         ]
     return sorted(violations)
 

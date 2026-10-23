@@ -1,0 +1,845 @@
+"""実peer主体/保護journal/同期PGを通すauthorityの接合を検査する。"""
+
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Iterator
+from uuid import uuid4
+
+import psycopg
+import pytest
+from db_fixtures import _dsn_names
+
+from pitchlog.durable_rights_ledger import adapter
+
+from .durable_rights_ledger_support import (
+    AuthorityDatabase,
+    AuthorityResources,
+    LedgerDatabase,
+)
+
+pytestmark = pytest.mark.requires_db
+
+
+@pytest.fixture(scope="module")
+def authority_resources() -> Iterator[AuthorityResources]:
+    """独立シナリオごとの所有資源を一組ずつ保持する。"""
+    resources = AuthorityResources()
+    try:
+        yield resources
+    finally:
+        resources.close()
+
+
+@pytest.fixture
+def authority_database(
+    request: pytest.FixtureRequest, authority_resources: AuthorityResources
+) -> AuthorityDatabase:
+    """normal群を共有し、fresh故障群は別cluster/witnessへ直列に切り替える。"""
+    key = (
+        "fresh:" + request.getfixturevalue("fresh_scenario")
+        if "fresh_scenario" in request.fixturenames
+        else "normal"
+    )
+    return authority_resources.get(key)
+
+
+@pytest.fixture
+def ledger_connections(
+    authority_database: AuthorityDatabase, monkeypatch: pytest.MonkeyPatch
+) -> LedgerDatabase:
+    """既存identity autouseを実接続DSNで実施し、無効化しない。"""
+    database = authority_database.database
+    admin_name, role_name = _dsn_names()
+    monkeypatch.setenv(admin_name, database.primary_admin)
+    monkeypatch.setenv(role_name, database.endpoints.primary_dsn)
+    return database
+
+
+@pytest.fixture
+def admin_connection(
+    ledger_connections: LedgerDatabase,
+) -> Iterator[psycopg.Connection]:
+    """共通identity検査へ専用の管理接続を渡す。"""
+    connection = psycopg.connect(ledger_connections.primary_admin)
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
+@pytest.fixture
+def tested_role_connection(
+    ledger_connections: LedgerDatabase,
+) -> Iterator[psycopg.Connection]:
+    """共通identity検査へ実制限app接続を渡す。"""
+    connection = psycopg.connect(ledger_connections.endpoints.primary_dsn)
+    try:
+        yield connection
+    finally:
+        connection.close()
+
+
+def test_real_normal_admission_requires_original_database_and_legacy_refuses(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """実同cluster/同postmasterの別DBと旧欠落genesisをstartup前に拒否する。"""
+    from pathlib import Path
+
+    from psycopg.conninfo import make_conninfo
+
+    authority_database.stop()
+    original_digest = authority_database.journal_digest()
+    authority_database.prepare_legacy_genesis()
+    legacy_digest = authority_database.journal_digest("legacy")
+    try:
+        assert authority_database.start(check=False) is False
+        assert authority_database.journal_digest() == original_digest
+        assert authority_database.journal_digest("legacy") == legacy_digest
+    finally:
+        authority_database.stop()
+        authority_database.prepare_legacy_genesis(restore=True)
+    authority_database.start()
+    with psycopg.connect(
+        ledger_connections.business_admin, autocommit=True
+    ) as connection:
+        connection.execute("CREATE DATABASE ledger_other")
+    alternate = make_conninfo(ledger_connections.business_admin, dbname="ledger_other")
+    ddl = (Path(adapter.__file__).parent / "business_identity.sql").read_text()
+    # cluster roleは既存の実roleを使い、別DBへ同一正規observerだけを適用する。
+    ddl = re.sub(r"^CREATE ROLE .*;\n", "", ddl, flags=re.MULTILINE)
+    with psycopg.connect(alternate) as connection:
+        connection.execute(ddl.encode())
+    identity_query = (
+        "SELECT pitchlog_ledger_observer.identity()->>'system_id',"
+        "current_database(),"
+        "pitchlog_ledger_observer.identity()->>'started_at'"
+    )
+    original = authority_database.probe(identity_query).split("|")
+    other = authority_database.probe(identity_query, database="ledger_other").split("|")
+    assert original[0] == other[0] and original[2] == other[2]
+    assert original[1] == "ledger_fixture" and other[1] == "ledger_other"
+    authority_database.stop()
+    original_digest = authority_database.journal_digest()
+    authority_database.switch_business_database("ledger_other")
+    try:
+        assert authority_database.start(check=False) is False
+        assert authority_database.journal_digest() == original_digest
+    finally:
+        authority_database.stop()
+        authority_database.switch_business_database("ledger_fixture")
+    authority_database.start()
+    assert (
+        authority_database.client(
+            "assert s.current_recovery_generation()==1; print('BOUND')"
+        )
+        == "BOUND"
+    )
+
+
+def test_real_authority_reservation_claim_fence_and_business_rollback(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """実Unix資格/共有fence/冪等予約/単一消費を実peerまで照合する。"""
+    params = tuple(str(uuid4()) for _ in range(4))
+    code = f"""
+p=tuple(UUID(v) for v in {params!r})
+with s.recovery_fence() as fence:
+    reserved=s.reserve(*p)
+    assert reserved.recovery_generation == fence.generation == 1
+    assert s.reserve(*p) == reserved
+    try: s.reserve(p[0],uuid4(),*p[2:])
+    except LedgerUnavailable: pass
+    else: raise AssertionError('owner accepted')
+    s.claim(*p)
+    import psycopg
+    with psycopg.connect(host={ledger_connections.business!r},dbname='ledger_fixture',
+                         user='pitchlog_fixture_business_writer',
+                         password='pitchlog-public-disposable-ledger-fixture'
+                         ) as business:
+        business.execute('CREATE TEMP TABLE business_attempt (value bigint)')
+        business.execute('INSERT INTO business_attempt VALUES (%s)',
+                         (reserved.generation,))
+        business.rollback()
+        fence.assert_held()
+    from concurrent.futures import ThreadPoolExecutor
+    def reserve(_): return s.reserve(*(uuid4() for _ in range(4))).generation
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        concurrent=list(pool.map(reserve,range(3)))
+    assert len(set(concurrent)) == 3
+    fence.assert_held()
+try: fence.assert_held()
+except LedgerUnavailable: pass
+else: raise AssertionError('expired fence accepted')
+for operation in (s.reserve,s.claim):
+    try: operation(*p)
+    except LedgerUnavailable: pass
+    else: raise AssertionError('consumed reservation reused')
+assert s.reserve(*(uuid4() for _ in range(4))).generation > reserved.generation
+print(reserved.generation)
+"""
+    generation = int(authority_database.client(code))
+    with psycopg.connect(ledger_connections.business_admin) as connection:
+        connection.execute("CREATE TEMP TABLE business_attempt (value bigint)")
+        connection.execute("INSERT INTO business_attempt VALUES (%s)", (generation,))
+        connection.rollback()
+    with psycopg.connect(ledger_connections.endpoints.standby_dsn) as connection:
+        row = connection.execute(
+            "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", params
+        ).fetchone()
+        assert row is not None and row[0] == generation and row[5:] == (True, False)
+
+
+def test_real_authority_parallel_and_clean_restart(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """authority再起動は保護された成功集合を再照合し、高水位を下げない。"""
+    params = tuple(str(uuid4()) for _ in range(4))
+    first = int(
+        authority_database.client(f"""
+p=tuple(UUID(v) for v in {params!r})
+print(s.reserve(*p).generation)
+""")
+    )
+    authority_database.stop()
+    authority_database.start()
+    assert (
+        int(
+            authority_database.client(f"""
+p=tuple(UUID(v) for v in {params!r})
+assert s.reserve(*p).generation == {first}
+from concurrent.futures import ThreadPoolExecutor
+def reserve(_): return s.reserve(*(uuid4() for _ in range(4))).generation
+with ThreadPoolExecutor(max_workers=3) as pool:
+    values=list(pool.map(reserve,range(6)))
+assert len(set(values)) == 6
+assert min(values) > {first}
+print(max(values))
+""")
+        )
+        > first
+    )
+    # 実RG1 close proof未接合のepoch更新は通常運転中も閉じたまま。
+    assert (
+        authority_database.client("""
+try: s.advance_recovery_generation(1)
+except LedgerUnavailable: print('CLOSED')
+else: raise AssertionError('epoch opened')
+""")
+        == "CLOSED"
+    )
+
+
+def test_real_roles_and_business_observer_are_limited(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """別UID拒否と直接DML/制御操作拒否、専用observerだけの権限を照合する。"""
+    assert not authority_database.client("print('FORBIDDEN')", uid=20003, check=False)
+    assert authority_database.probe("SELECT session_user,current_user") == (
+        "pitchlog_ledger_identity_probe|pitchlog_ledger_identity_probe"
+    )
+    for statement in (
+        "SELECT * FROM public.tenants",
+        "INSERT INTO public.tenants DEFAULT VALUES",
+        "UPDATE public.tenants SET enabled=false",
+        "SELECT * FROM authn.login_attempt('x','x','x')",
+    ):
+        assert authority_database.probe(statement, refused=True) == "DENIED"
+    endpoints = ledger_connections.endpoints
+    for dsn, sql in (
+        (endpoints.primary_dsn, "UPDATE pitchlog_ledger.highwater SET value=0"),
+        (endpoints.primary_dsn, "SELECT * FROM pitchlog_ledger.reservations"),
+        (endpoints.primary_dsn, "SELECT pitchlog_ledger.audit_page(0,256)"),
+        (endpoints.primary_dsn, "SELECT pitchlog_ledger.confirm_state(1,0,0)"),
+        (endpoints.primary_dsn, "SELECT pitchlog_ledger.advance_epoch(1)"),
+        (endpoints.control_dsn, "SELECT pitchlog_ledger.epoch_fence()"),
+        (endpoints.control_dsn, "DELETE FROM pitchlog_ledger.reservations"),
+    ):
+        with psycopg.connect(dsn) as connection:
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                connection.execute(sql)
+            connection.rollback()
+    with psycopg.connect(ledger_connections.business_admin) as connection:
+        # PostgreSQL既定PUBLIC権限は拡張/取消せず、新probeへの直接grantを拒否する。
+        assert connection.execute(
+            "SELECT has_function_privilege('pitchlog_ledger_identity_probe',"
+            "'pg_catalog.pg_control_system()','EXECUTE')"
+        ).fetchone() == (True,)
+        assert connection.execute(
+            "SELECT count(*) FROM pg_proc p CROSS JOIN LATERAL aclexplode(p.proacl) a "
+            "WHERE p.oid='pg_catalog.pg_control_system()'::regprocedure "
+            "AND a.grantee=(SELECT oid FROM pg_roles WHERE "
+            "rolname='pitchlog_ledger_identity_probe')"
+        ).fetchone() == (0,)
+        assert connection.execute(
+            "SELECT has_schema_privilege('pitchlog_ledger_identity_probe',"
+            "'pitchlog_ledger_observer','USAGE')"
+        ).fetchone() == (True,)
+        assert connection.execute(
+            "SELECT count(*) FROM pg_auth_members WHERE member IN ("
+            "SELECT oid FROM pg_roles WHERE rolname LIKE 'pitchlog_ledger_identity_%')"
+        ).fetchone() == (0,)
+        assert connection.execute(
+            "SELECT has_table_privilege('pitchlog_ledger_identity_probe',"
+            "'public.tenants','SELECT,INSERT,UPDATE,DELETE')"
+        ).fetchone() == (False,)
+        assert connection.execute(
+            "SELECT has_function_privilege('pitchlog_ledger_identity_probe',"
+            "'authn.login_attempt(text,text,text)','EXECUTE')"
+        ).fetchone() == (False,)
+        roles = connection.execute(
+            "SELECT rolname,rolsuper,rolbypassrls,rolcreatedb,"
+            "rolcreaterole,rolreplication "
+            "FROM pg_roles WHERE rolname LIKE 'pitchlog_ledger_identity_%' "
+            "ORDER BY rolname"
+        ).fetchall()
+        assert roles == [
+            (name, False, False, False, False, False)
+            for name in (
+                "pitchlog_ledger_identity_owner",
+                "pitchlog_ledger_identity_probe",
+            )
+        ]
+
+
+def test_real_manifest_acl_and_function_owners(
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """全関数/所有role/search_pathを実カタログとmanifestで照合する。"""
+    from pathlib import Path
+
+    manifest = json.loads((Path(adapter.__file__).parent / "manifest.json").read_text())
+    with psycopg.connect(ledger_connections.primary_admin) as connection:
+        functions = connection.execute(
+            "SELECT p.proname,r.rolname,p.prosecdef,p.proconfig,p.oid FROM pg_proc p "
+            "JOIN pg_namespace n ON n.oid=p.pronamespace JOIN pg_roles r ON "
+            "r.oid=p.proowner WHERE n.nspname='pitchlog_ledger'"
+        ).fetchall()
+        assert len(functions) == len(manifest["functions"]) == 9
+        for name, owner, security_definer, configuration, oid in functions:
+            assert owner == "pitchlog_ledger_owner" and security_definer is True
+            assert configuration == ["search_path=pg_catalog, pitchlog_ledger, pg_temp"]
+            acl = connection.execute(
+                "SELECT CASE WHEN x.grantee=0 THEN 'PUBLIC' ELSE "
+                "pg_get_userbyid(x.grantee) END FROM pg_proc p CROSS JOIN LATERAL "
+                "aclexplode(p.proacl) x WHERE p.oid=%s AND x.privilege_type='EXECUTE'",
+                (oid,),
+            ).fetchall()
+            expected = {"pitchlog_ledger_owner"} | {
+                "pitchlog_ledger_" + role
+                for signature, allowed in manifest["functions"].items()
+                if signature.split("(")[0] == name
+                for role in allowed
+            }
+            assert {row[0] for row in acl} == expected
+
+
+def test_real_control_barrier_changes_no_domain_values(
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """実CAS不一致は拒否し、同期barrier成功でもepoch/H/countを変えない。"""
+    with psycopg.connect(ledger_connections.endpoints.control_dsn) as connection:
+        before = connection.execute("SELECT pitchlog_ledger.identity()").fetchone()
+        assert before is not None
+        identity = before[0]
+        expected = (
+            identity["epoch"],
+            identity["highwater"],
+            identity["reservation_count"],
+        )
+        with pytest.raises(psycopg.errors.RaiseException):
+            connection.execute(
+                "SELECT pitchlog_ledger.confirm_state(%s,%s,%s)",
+                (expected[0], expected[1] + 1, expected[2]),
+            )
+        connection.rollback()
+        assert connection.execute(
+            "SELECT pitchlog_ledger.confirm_state(%s,%s,%s)", expected
+        ).fetchone() == (1,)
+        connection.commit()
+        after = connection.execute("SELECT pitchlog_ledger.identity()").fetchone()
+        assert after is not None
+        assert (
+            tuple(after[0][key] for key in ("epoch", "highwater", "reservation_count"))
+            == expected
+        )
+
+
+def test_real_peer_stop_refuses_issuance_then_attaches_known_pair(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """実peer不在を非同期へ降格せず、peer再起動後もjournal照合なしで再開しない。"""
+    with psycopg.connect(ledger_connections.primary_admin) as connection:
+        before = connection.execute(
+            "SELECT value FROM pitchlog_ledger.highwater"
+        ).fetchone()
+    ledger_connections.standby_running(False)
+    try:
+        assert (
+            authority_database.client("""
+try: s.reserve(*(uuid4() for _ in range(4)))
+except LedgerUnavailable: print('CLOSED')
+else: raise AssertionError('missing peer accepted')
+""")
+            == "CLOSED"
+        )
+    finally:
+        ledger_connections.standby_running(True)
+    assert (
+        authority_database.client("""
+try: s.reserve(*(uuid4() for _ in range(4)))
+except LedgerUnavailable: print('CLOSED')
+else: raise AssertionError('peer restart silently accepted')
+""")
+        == "CLOSED"
+    )
+    with psycopg.connect(ledger_connections.primary_admin) as connection:
+        assert (
+            connection.execute("SELECT value FROM pitchlog_ledger.highwater").fetchone()
+            == before
+        )
+    authority_database.stop()
+    authority_database.start()
+    assert (
+        authority_database.client(
+            "assert s.current_recovery_generation()==1; print('ATTACHED')"
+        )
+        == "ATTACHED"
+    )
+
+
+def test_real_pair_rollback_reconciles_from_protected_success_set(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """両PGを実旧backupへ戻しても独立witnessの予約/claimを取り戻す。"""
+    params = tuple(str(uuid4()) for _ in range(4))
+    authority_database.copy_pair()
+    authority_database.start()
+    generation = int(
+        authority_database.client(f"""
+p=tuple(UUID(v) for v in {params!r})
+r=s.reserve(*p)
+s.claim(*p)
+print(r.generation)
+""")
+    )
+    authority_database.copy_pair(restore=True)
+    authority_database.start()
+    assert (
+        authority_database.client(f"""
+p=tuple(UUID(v) for v in {params!r})
+for op in (s.reserve,s.claim):
+    try: op(*p)
+    except LedgerUnavailable: pass
+    else: raise AssertionError('restored consumed generation reused')
+assert s.reserve(*(uuid4() for _ in range(4))).generation > {generation}
+print('RESTORED')
+""")
+        == "RESTORED"
+    )
+    with psycopg.connect(ledger_connections.endpoints.standby_dsn) as connection:
+        row = connection.execute(
+            "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", params
+        ).fetchone()
+        assert row is not None and row[0] == generation and row[5:] == (True, False)
+
+
+def test_real_replay_failure_is_unconfirmed_and_restart_reconciles(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """実peer replay停止後の応答は未確定、再開時は同attemptだけ照合する。"""
+    params = tuple(str(uuid4()) for _ in range(4))
+    with psycopg.connect(
+        ledger_connections.standby_admin, autocommit=True
+    ) as connection:
+        connection.execute("SELECT pg_wal_replay_pause()")
+        try:
+            assert (
+                authority_database.client(f"""
+p=tuple(UUID(v) for v in {params!r})
+try: s.reserve(*p)
+except LedgerOutcomeUnconfirmed: print('UNCONFIRMED')
+else: raise AssertionError('unconfirmed reservation acknowledged')
+""")
+                == "UNCONFIRMED"
+            )
+            # clientの期限だけでなく、停止を維持したまま実authorityの閉状態を確認する。
+            assert not authority_database.client(
+                "print(s.current_recovery_generation())", check=False
+            )
+        finally:
+            connection.execute("SELECT pg_wal_replay_resume()")
+    authority_database.stop()
+    authority_database.start()
+    assert (
+        authority_database.client(f"""
+p=tuple(UUID(v) for v in {params!r})
+r=s.reserve(*p)
+assert s.reserve(*p)==r
+print('RECONCILED')
+""")
+        == "RECONCILED"
+    )
+
+
+def _install_attacker_temp_tables(connection: psycopg.Connection) -> tuple:
+    """呼出role所有の偽表とdefinerへの実ACLを作り、攻撃前提を成立させる。"""
+    params = tuple(uuid4() for _ in range(4))
+    connection.execute("CREATE TEMP TABLE state (singleton boolean,epoch bigint)")
+    connection.execute("CREATE TEMP TABLE highwater (singleton boolean,value bigint)")
+    connection.execute(
+        "CREATE TEMP TABLE reservations (attempt_id uuid,tenant_id uuid,"
+        "game_id uuid,start_request_id uuid,generation bigint,"
+        "recovery_generation bigint,claimed boolean,quarantined boolean)"
+    )
+    connection.execute("INSERT INTO pg_temp.state VALUES(true,999)")
+    connection.execute("INSERT INTO pg_temp.highwater VALUES(true,8888)")
+    connection.execute(
+        "INSERT INTO pg_temp.reservations VALUES(%s,%s,%s,%s,8888,999,false,false)",
+        params,
+    )
+    # pg_tempはGRANTのschema名aliasではない。実namespaceへの有効USAGEを検証する。
+    assert connection.execute(
+        "SELECT has_schema_privilege('pitchlog_ledger_owner',"
+        "pg_my_temp_schema(),'USAGE')"
+    ).fetchone() == (True,)
+    connection.execute(
+        "GRANT ALL ON TABLE pg_temp.state,pg_temp.highwater,"
+        "pg_temp.reservations TO pitchlog_ledger_owner"
+    )
+    connection.execute("SET LOCAL search_path=pg_catalog,pitchlog_ledger")
+    # pg_tempを明示しない危険な解決では実際に偽表を読むことを確認する。
+    assert connection.execute("SELECT epoch FROM state").fetchone() == (999,)
+    assert connection.execute("SELECT value FROM highwater").fetchone() == (8888,)
+    return params
+
+
+def test_real_security_definers_resist_temp_shadowing_for_app_and_control(
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """PUBLIC TEMPを保持し、偽表にdefiner ACLがあっても全9関数は正規表を使う。"""
+    with psycopg.connect(ledger_connections.primary_admin) as administrator:
+        before = administrator.execute(
+            "SELECT (SELECT epoch FROM pitchlog_ledger.state),"
+            "(SELECT value FROM pitchlog_ledger.highwater),"
+            "(SELECT count(*) FROM pitchlog_ledger.reservations)"
+        ).fetchone()
+        assert before is not None
+        assert administrator.execute(
+            "SELECT count(*) FROM pg_database d CROSS JOIN LATERAL "
+            "aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) a "
+            "WHERE d.datname=current_database() AND a.grantee=0 "
+            "AND a.privilege_type='TEMPORARY'"
+        ).fetchone() == (1,)
+    epoch, highwater, count = before
+    with psycopg.connect(ledger_connections.endpoints.primary_dsn) as connection:
+        fake = _install_attacker_temp_tables(connection)
+        identity = connection.execute("SELECT pitchlog_ledger.identity()").fetchone()
+        assert identity is not None
+        assert (
+            identity[0]["epoch"],
+            identity[0]["highwater"],
+            identity[0]["reservation_count"],
+        ) == before
+        assert connection.execute(
+            "SELECT pitchlog_ledger.epoch_fence()"
+        ).fetchone() == (epoch,)
+        assert (
+            connection.execute(
+                "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", fake
+            ).fetchone()
+            is None
+        )
+        params = tuple(uuid4() for _ in range(4))
+        reserved = connection.execute(
+            "SELECT * FROM pitchlog_ledger.reserve(%s,%s,%s,%s)", params
+        ).fetchone()
+        assert reserved is not None and reserved[:2] == (highwater + 1, epoch)
+        claimed = connection.execute(
+            "SELECT * FROM pitchlog_ledger.claim(%s,%s,%s,%s)", params
+        ).fetchone()
+        assert claimed is not None and claimed[:2] == (highwater + 1, epoch)
+        assert claimed[5:] == (True, False)
+        assert (
+            connection.execute(
+                "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", params
+            ).fetchone()
+            == claimed
+        )
+        assert connection.execute("SELECT value FROM pg_temp.highwater").fetchone() == (
+            8888,
+        )
+        assert connection.execute(
+            "SELECT claimed FROM pg_temp.reservations"
+        ).fetchone() == (False,)
+        connection.rollback()
+    with psycopg.connect(ledger_connections.endpoints.control_dsn) as connection:
+        fake = _install_attacker_temp_tables(connection)
+        assert connection.execute(
+            "SELECT pitchlog_ledger.confirm_state(%s,%s,%s)", before
+        ).fetchone() == (epoch,)
+        page = connection.execute("SELECT pitchlog_ledger.audit_page(0,256)").fetchone()
+        assert page is not None and all(
+            row["attempt_id"] != str(fake[0]) for row in page[0]
+        )
+        assert connection.execute(
+            "SELECT pitchlog_ledger.advance_epoch(%s)", (epoch,)
+        ).fetchone() == (epoch + 1,)
+        params = tuple(uuid4() for _ in range(4))
+        with pytest.raises(psycopg.errors.RaiseException), connection.transaction():
+            connection.execute(
+                "SELECT * FROM pitchlog_ledger.reconcile(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (*params, highwater + 1, 999, False, True, highwater),
+            )
+        row = connection.execute(
+            "SELECT * FROM pitchlog_ledger.reconcile(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (*params, highwater + 1, epoch + 1, False, True, highwater),
+        ).fetchone()
+        assert (
+            row is not None
+            and row[:2] == (highwater + 1, epoch + 1)
+            and row[5:] == (False, True)
+        )
+        identity = connection.execute("SELECT pitchlog_ledger.identity()").fetchone()
+        assert identity is not None
+        assert (
+            identity[0]["epoch"],
+            identity[0]["highwater"],
+            identity[0]["reservation_count"],
+        ) == (epoch + 1, highwater + 1, count + 1)
+        assert connection.execute("SELECT epoch FROM pg_temp.state").fetchone() == (
+            999,
+        )
+        assert connection.execute("SELECT value FROM pg_temp.highwater").fetchone() == (
+            8888,
+        )
+        assert connection.execute(
+            "SELECT count(*) FROM pg_temp.reservations"
+        ).fetchone() == (1,)
+        connection.rollback()
+    with psycopg.connect(ledger_connections.primary_admin) as administrator:
+        assert (
+            administrator.execute(
+                "SELECT (SELECT epoch FROM pitchlog_ledger.state),"
+                "(SELECT value FROM pitchlog_ledger.highwater),"
+                "(SELECT count(*) FROM pitchlog_ledger.reservations)"
+            ).fetchone()
+            == before
+        )
+
+
+def test_real_unterminated_lease_blocks_live_and_restart(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """業務終了不明の実leaseを自己判断で閉じず、live/再起動とも拒否する。"""
+    assert (
+        authority_database.client("""
+import os
+context=s.recovery_fence()
+fence=context.__enter__()
+assert fence.generation == 1
+print('LEASE_HELD',flush=True)
+os._exit(0)
+""")
+        == "LEASE_HELD"
+    )
+    assert not authority_database.client(
+        "print(s.current_recovery_generation())", check=False
+    )
+    authority_database.stop()
+    assert authority_database.start(check=False) is False
+
+
+@pytest.mark.parametrize(
+    "fresh_scenario",
+    ["success_concurrent", "restore_zero", "ack_loss", "body_exception", "past_intent"],
+)
+def test_real_fresh_activation_boundary(
+    fresh_scenario: str,
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """実journal/peer/PGの一度限り証拠、同居、応答喪失と旧0復元拒否を検査する。"""
+    if fresh_scenario == "success_concurrent":
+        _fresh_activation_success_and_concurrency(
+            authority_database, ledger_connections
+        )
+    elif fresh_scenario == "restore_zero":
+        authority_database.copy_pair()
+        authority_database.start()
+        assert (
+            authority_database.client("""
+with s.fresh_activation() as (att,fence):
+    assert att.highwater == att.reservation_count == 0
+    assert fence.generation == att.pair_epoch == 1
+print('ACTIVATED')
+""")
+            == "ACTIVATED"
+        )
+        authority_database.copy_pair(restore=True)
+        authority_database.start()
+        with psycopg.connect(ledger_connections.primary_admin) as connection:
+            assert connection.execute(
+                "SELECT value FROM pitchlog_ledger.highwater"
+            ).fetchone() == (0,)
+            assert connection.execute(
+                "SELECT count(*) FROM pitchlog_ledger.reservations"
+            ).fetchone() == (0,)
+        assert (
+            authority_database.client("""
+try:
+    with s.fresh_activation(): raise AssertionError('old zero restored as fresh')
+except LedgerUnavailable: pass
+assert s.reserve(*(uuid4() for _ in range(4))).generation == 1
+print('PAST_ACTIVATION_CLOSED')
+""")
+            == "PAST_ACTIVATION_CLOSED"
+        )
+        assert authority_database.event_counts().get("activation_open") == 1
+    elif fresh_scenario in ("ack_loss", "body_exception"):
+        if fresh_scenario == "ack_loss":
+            operation = """
+import socket
+with s._channel() as lost:
+    lost.sendall(b'{"operation":"fresh_activation_open"}\\n')
+    lost.shutdown(socket.SHUT_RD)
+    await_closed()
+"""
+        else:
+            operation = """
+try:
+    with s.fresh_activation() as (att,fence):
+        assert fence.generation == 1
+        raise RuntimeError('test business result unconfirmed')
+except RuntimeError: pass
+await_closed()
+"""
+        assert (
+            authority_database.client(
+                """
+from time import monotonic,sleep
+def await_closed():
+    deadline=monotonic()+6
+    while monotonic()<deadline:
+        try: s.current_recovery_generation()
+        except LedgerUnavailable: return
+        sleep(.01)
+    raise AssertionError('unterminated activation served as normal')
+"""
+                + operation
+                + """
+try:
+    with s.fresh_activation(): raise AssertionError('in-doubt fresh repeated')
+except LedgerUnavailable: pass
+print('IN_DOUBT_CLOSED')
+"""
+            )
+            == "IN_DOUBT_CLOSED"
+        )
+        counts = authority_database.event_counts()
+        assert counts.get("activation_open") == 1 and counts.get("lease_close", 0) == 0
+        authority_database.stop()
+        assert authority_database.start(check=False) is False
+    else:
+        assert fresh_scenario == "past_intent"
+        assert (
+            authority_database.client("""
+p=tuple(uuid4() for _ in range(4))
+s.reserve(*p)
+s.claim(*p)
+try:
+    with s.fresh_activation(): raise AssertionError('used history accepted as fresh')
+except LedgerUnavailable: pass
+print('INTENT_CLOSED')
+""")
+            == "INTENT_CLOSED"
+        )
+        assert authority_database.event_counts().get("activation_open", 0) == 0
+
+
+def _fresh_activation_success_and_concurrency(
+    authority: AuthorityDatabase,
+    database: LedgerDatabase,
+) -> None:
+    """同じ実channelのmetadata/fenceを保持し、別主体の排他lock拒否を照合する。"""
+    import select
+
+    code = """
+import json,sys
+from dataclasses import asdict,FrozenInstanceError
+from concurrent.futures import ThreadPoolExecutor
+from pitchlog.durable_rights_ledger import adapter
+with s._channel() as raw:
+    try: adapter._request(raw,{'operation':'fresh_activation_open','highwater':0})
+    except LedgerUnavailable: pass
+    else: raise AssertionError('caller proof accepted')
+with s.recovery_fence():
+    try:
+        with s.fresh_activation(): raise AssertionError('another active lease accepted')
+    except LedgerUnavailable: pass
+with s.fresh_activation() as (att,fence):
+    assert type(att) is FreshActivationAttestation
+    assert att.pair_epoch == fence.generation == 1
+    assert att.highwater == att.reservation_count == 0
+    assert att.activation_ordinal > 0
+    try: att.database='forged'
+    except FrozenInstanceError: pass
+    else: raise AssertionError('attestation mutable')
+    print(json.dumps(asdict(att),default=str),flush=True)
+    assert sys.stdin.readline().strip() == 'CONTINUE'
+    fence.assert_held()
+    def issue(_):
+        params=tuple(uuid4() for _ in range(4))
+        result=s.reserve(*params)
+        s.claim(*params)
+        return result.generation
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        values=list(pool.map(issue,range(3)))
+    assert len(set(values)) == 3
+    assert att.highwater == att.reservation_count == 0
+    fence.assert_held()
+    try:
+        with s.fresh_activation(): raise AssertionError('second fresh accepted')
+    except LedgerUnavailable: pass
+try: fence.assert_held()
+except LedgerUnavailable: pass
+else: raise AssertionError('expired activation fence accepted')
+try:
+    with s.fresh_activation(): raise AssertionError('past activation accepted')
+except LedgerUnavailable: pass
+print('FRESH_AND_D4',flush=True)
+"""
+    process = authority.client_process(code)
+    try:
+        assert process.stdout is not None
+        readable, _, _ = select.select([process.stdout], [], [], 15)
+        assert readable, "real fresh client did not acquire lease"
+        line = process.stdout.readline()
+        assert line.startswith("{"), "real fresh client did not return metadata"
+        att = json.loads(line)
+        actual = authority.probe(
+            "SELECT pitchlog_ledger_observer.identity()->>'system_id',"
+            "current_database(),"
+            "pitchlog_ledger_observer.identity()->>'started_at'"
+        ).split("|")
+        assert (
+            att["business_system_id"],
+            att["database"],
+            att["postmaster_started_at"],
+        ) == tuple(actual)
+        with psycopg.connect(database.primary_admin) as controller:
+            controller.execute("SET lock_timeout='150ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                controller.execute(
+                    "SELECT epoch FROM pitchlog_ledger.state WHERE singleton FOR UPDATE"
+                )
+            controller.rollback()
+        output, error = process.communicate("CONTINUE\n", timeout=20)
+        assert process.returncode == 0, "real fresh client failed: " + error[-1200:]
+        assert output.strip() == "FRESH_AND_D4"
+        assert authority.event_counts().get("activation_open") == 1
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.communicate(timeout=5)

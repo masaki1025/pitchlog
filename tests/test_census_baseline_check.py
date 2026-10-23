@@ -1944,6 +1944,28 @@ def _validated_scoped_condition2_path(
     return relative_path
 
 
+def _validated_ledger_condition2_path(
+    *, source_root: Path, current_contract: Any
+) -> str | None:
+    """台帳の単一source hashと免除なし実13件を固定する。"""
+    relative = checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
+    path = source_root / relative
+    if not path.is_file():
+        return None
+    source = path.read_text(encoding="utf-8")
+    expected_sha = current_contract.ledger_condition2_source_sha256
+    if hashlib.sha256(source.encode()).hexdigest() != expected_sha:
+        return None
+    unsuppressed = replace(current_contract, ledger_condition2_findings=frozenset())
+    actual = frozenset(
+        (v.line, v.symbol)
+        for v in checker.scan_source(source, path=relative, contract=unsuppressed)
+        if v.code == "TB002"
+    )
+    assert actual == current_contract.ledger_condition2_findings, "台帳の実13所見が一致しない"
+    return relative
+
+
 def _scoped_identity_digest(identities: frozenset[CensusIdentity]) -> str:
     """限定所見の完全な identity 集合を順序非依存で固定する。"""
     encoded = json.dumps(
@@ -1956,7 +1978,8 @@ _SCOPED_DIGEST_FIXTURE = (
     REPOSITORY_ROOT / "tests/fixtures/tenant_boundary/census-scoped-digests.json"
 )
 _SCOPED_DIGEST_KEYS = frozenset(
-    {"removed_checker_43", "added_independent_ast_18"}
+    {"removed_checker_43", "added_independent_ast_18",
+     "ledger_removed_checker", "ledger_added_independent_ast"}
 )
 
 
@@ -2009,6 +2032,8 @@ def _assert_scoped_identity_digest(
         if key == "removed_checker_43"
         else "独立AST由来の限定18 identityが一致しない"
     )
+    if key.startswith("ledger_"):
+        label = "台帳限定identityが一致しない: " + key
     assert actual == expected, label
 
 
@@ -2050,6 +2075,11 @@ def test_scoped_digest_fixture_rejects_invalid_content(
 ) -> None:
     """欠損・余剰・重複・不正な正解値を拒否する。"""
     fixture_path = tmp_path / "scoped-digests.json"
+    if message in {"schema_versionが不正", "値が不正"}:
+        content = content[:-1] + (
+            ",\"ledger_removed_checker\":\"" + "0" * 64 + "\","
+            "\"ledger_added_independent_ast\":\"" + "0" * 64 + "\"}"
+        )
     fixture_path.write_text(content, encoding="utf-8")
     with pytest.raises(AssertionError, match=message):
         _load_scoped_digest_fixture(fixture_path)
@@ -2067,8 +2097,9 @@ def test_scoped_digest_fixture_rejects_changed_valid_value(
 ) -> None:
     """形式が正しくても正解値の改変を実測集合との照合で拒否する。"""
     context = census_predicate_context
-    scoped_path = "pitchlog/recording_rights/initial_grant.py"
-    if key == "removed_checker_43":
+    scoped_path = ("pitchlog/durable_rights_ledger/adapter.py"
+                   if key.startswith("ledger_") else "pitchlog/recording_rights/initial_grant.py")
+    if key in {"removed_checker_43", "ledger_removed_checker"}:
         identities = frozenset(
             identity
             for identity in context["data_sets"]["removed"]
@@ -2331,8 +2362,17 @@ def _assert_unadjudicated_removed_remains(
         scoped_removed or reference_repository_root is not None
     ):
         _assert_scoped_identity_digest(scoped_removed, "removed_checker_43")
+    ledger_path = _validated_ledger_condition2_path(
+        source_root=source_root, current_contract=current_contract
+    )
+    ledger_removed = frozenset(
+        identity for identity in data_sets[set_name]
+        if identity[code_index] == "TB002" and identity[identity_indexes["path"]] == ledger_path
+    )
+    if ledger_path is not None:
+        _assert_scoped_identity_digest(ledger_removed, "ledger_removed_checker")
     for identity in data_sets[set_name]:
-        if identity in scoped_removed:
+        if identity in scoped_removed or identity in ledger_removed:
             continue
         if _condition2_owned_path(
             str(identity[identity_indexes["path"]]), current_contract
@@ -2411,6 +2451,19 @@ def _assert_added_equals_independently_derived_candidates(
         expected = frozenset(
             identity for identity in expected if identity not in scoped_candidates
         )
+    ledger_path = _validated_ledger_condition2_path(
+        source_root=source_root, current_contract=current_contract
+    )
+    if ledger_path is not None:
+        ledger_candidates = frozenset(
+            identity for identity in expected if identity[0] == ledger_path
+        )
+        _assert_scoped_identity_digest(ledger_candidates, "ledger_added_independent_ast")
+        assert all(
+            (identity[1], identity[5]) in current_contract.ledger_condition2_findings
+            for identity in ledger_candidates
+        ), "台帳AST候補が実13所見へ帰属しない"
+        expected = expected - ledger_candidates
     actual = data_sets[set_name]
     assert actual == expected, (
         f"missing={sorted(expected - actual)}, extra={sorted(actual - expected)}"
@@ -4305,3 +4358,97 @@ def test_implementation_to_declaration_rejects_undeclared_input_and_recovers(
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def test_ledger_scoped_condition2_requires_exact_source_and_findings(tmp_path: Path) -> None:
+    """台帳の13件実測に失敗した場合はcensusのpath免除を作らない。"""
+    relative = Path('pitchlog/durable_rights_ledger/adapter.py')
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_bytes((REPOSITORY_ROOT / 'backend/src' / relative).read_bytes())
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    actual_path = _validated_ledger_condition2_path(
+        source_root=tmp_path, current_contract=contract
+    )
+    assert actual_path == relative.as_posix()
+    altered = replace(
+        contract,
+        ledger_condition2_findings=frozenset(sorted(contract.ledger_condition2_findings)[1:]),
+    )
+    with pytest.raises(AssertionError, match='実13所見が一致しない'):
+        _validated_ledger_condition2_path(source_root=tmp_path, current_contract=altered)
+    path.write_text(path.read_text() + '\n')
+    assert _validated_ledger_condition2_path(
+        source_root=tmp_path, current_contract=contract
+    ) is None
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'extra', 'cross_path'])
+def test_ledger_scoped_census_rejects_changed_removed_identity(
+    census_predicate_context: dict[str, Any], mutation: str
+) -> None:
+    """旧11件の台帳所見を欠損/追加/別pathへ移し替えて通さない。"""
+    context = census_predicate_context
+    data_sets = dict(context['data_sets'])
+    original = next(
+        i for i in data_sets['removed']
+        if i[0] == 'pitchlog/durable_rights_ledger/adapter.py' and i[4] == 'TB002'
+    )
+    removed = data_sets['removed'] - {original}
+    if mutation == 'extra':
+        removed = data_sets['removed'] | {
+            _replace_identity_field(original, index=5, value='unapproved_generation')
+        }
+    elif mutation == 'cross_path':
+        removed = removed | {
+            _replace_identity_field(
+                original, index=0, value='pitchlog/recording_rights/initial_grant.py'
+            )
+        }
+    data_sets['removed'] = removed
+    declaration = context['declaration']
+    with pytest.raises(AssertionError, match='identityが一致しない'):
+        _assert_declared_predicate(
+            _unadjudicated_removed_tb002_predicate(declaration), declaration=declaration,
+            data_sets=data_sets, source_root=context['source_root'],
+            current_contract=context['current_contract'],
+            anchor_contract=context['anchor_contract'],
+            reference_repository_root=context['reference_repository_root'],
+        )
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'extra', 'cross_path'])
+def test_ledger_scoped_census_rejects_changed_independent_identity(
+    census_predicate_context: dict[str, Any], monkeypatch: pytest.MonkeyPatch, mutation: str
+) -> None:
+    """独立AST1件も旧18へ混ぜず、欠損/余剰/移し替えを拒否する。"""
+    context = census_predicate_context
+    original_derive = _independently_derived_added
+
+    def mutated(**kwargs: Any) -> frozenset[CensusIdentity]:
+        candidates = original_derive(**kwargs)
+        original = next(
+            i for i in candidates if i[0] == 'pitchlog/durable_rights_ledger/adapter.py'
+        )
+        if mutation == 'missing':
+            return candidates - {original}
+        if mutation == 'extra':
+            return candidates | {
+                _replace_identity_field(original, index=5, value='unapproved_generation')
+            }
+        return (candidates - {original}) | {
+            _replace_identity_field(
+                original, index=0, value='pitchlog/recording_rights/initial_grant.py'
+            )
+        }
+
+    monkeypatch.setattr(sys.modules[__name__], '_independently_derived_added', mutated)
+    declaration = context['declaration']
+    with pytest.raises(AssertionError, match='identityが一致しない'):
+        _assert_declared_predicate(
+            _condition2_candidate_predicate(declaration), declaration=declaration,
+            data_sets=context['data_sets'], source_root=context['source_root'],
+            current_contract=context['current_contract'],
+            anchor_contract=context['anchor_contract'],
+            reference_repository_root=context['reference_repository_root'],
+        )

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 36,
+  "contract_revision": 37,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:36"
+        "contract_revision:37"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -26396,7 +26396,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "ea9c46479fc31e3c3230699e4e91ff6e0a42057c36651262b77af2782a7ad401"
+    "sha256": "5b211b94917007fbe7500a890e193739b799c90e27030cb703976fd005e37448"
   },
   "allowed_symbols": [
     {
@@ -26670,6 +26670,38 @@
         "SQLA_SELECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games/__init__.py"
+    },
+    {
+      "symbol": "pitchlog.durable_rights_ledger.adapter._connect",
+      "signature": "_connect(dsn: str, timeout: float) -> psycopg.Connection[Any]",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/_connect.py"
+    },
+    {
+      "symbol": "pitchlog.durable_rights_ledger.adapter._query",
+      "signature": "_query(connection: psycopg.Connection[Any], operation: Operation, params: tuple[object, ...]=()) -> tuple[Any, ...]",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/_query.py"
+    },
+    {
+      "symbol": "pitchlog.durable_rights_ledger.adapter._cancel_commit",
+      "signature": "_cancel_commit(connection: psycopg.Connection[Any], timeout: float) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_CANCEL_SAFE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/_cancel_commit.py"
+    },
+    {
+      "symbol": "pitchlog.durable_rights_ledger.adapter._commit",
+      "signature": "_commit(connection: psycopg.Connection[Any], timeout: float) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_COMMIT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/_commit.py"
     }
   ],
   "conditions": [
@@ -26963,5 +26995,64 @@
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration.generation"
       }
     ]
-  }
+  },
+  "condition_2_ledger_scoped_findings": {
+    "path": "backend/src/pitchlog/durable_rights_ledger/adapter.py",
+    "source_sha256": "53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d",
+    "findings": [
+      {
+        "line": 17,
+        "symbol": "DurableGenerationSource"
+      },
+      {
+        "line": 17,
+        "symbol": "ReservedGeneration"
+      },
+      {
+        "line": 224,
+        "symbol": "generation"
+      },
+      {
+        "line": 228,
+        "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
+      },
+      {
+        "line": 228,
+        "symbol": "pitchlog.durable_rights_ledger.adapter._Fence.generation"
+      },
+      {
+        "line": 232,
+        "symbol": "generation"
+      },
+      {
+        "line": 235,
+        "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
+      },
+      {
+        "line": 245,
+        "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
+      },
+      {
+        "line": 249,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
+      },
+      {
+        "line": 360,
+        "symbol": "current_recovery_generation"
+      },
+      {
+        "line": 400,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
+      },
+      {
+        "line": 407,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
+      },
+      {
+        "line": 421,
+        "symbol": "advance_recovery_generation"
+      }
+    ]
+  },
+  "source_digest": "3a0e3c91633444e6c0902b171eb6d64e7ae2fa79ce34f092b30fa22250b34a5f"
 }

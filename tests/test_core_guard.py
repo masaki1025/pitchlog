@@ -4761,3 +4761,406 @@ def test_rg1_lifecycle_each_future_file_requires_core_confirmation(
     assert result.returncode == (0 if checked else 1), result.stderr
     if not checked:
         assert path in result.stderr
+
+
+INITIAL_RIGHTS_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "sync-protocol": INITIAL_RIGHTS_PATHS,
+    "recording-rights": INITIAL_RIGHTS_PATHS,
+    "tenant-isolation": INITIAL_RIGHTS_PATHS,
+}
+
+
+DURABLE_LEDGER_PATHS = (
+    "backend/src/pitchlog/durable_rights_ledger/*",
+    "backend/tests/test_durable_rights_ledger_contract.py",
+)
+
+
+DURABLE_LEDGER_FIXTURE = (
+    "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+)
+
+
+DURABLE_LEDGER_EXAMPLES = (
+    "backend/src/pitchlog/durable_rights_ledger/adapter.py",
+    "backend/tests/test_durable_rights_ledger_contract.py",
+    "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/adapter.py",
+)
+
+
+@cache
+def durable_ledger_supplier_revision() -> str:
+    """本単位planへの供給merge第2親を、変更不能なGit履歴から取得する。"""
+    plan = "docs/features/mvp-durable-rights-ledger/plan.md"
+    source = INITIAL_RIGHTS_PATHS[0]
+    candidates = []
+    for revision in run_git(REPO, "rev-list", "--merges", "HEAD").stdout.splitlines():
+        parents = run_git(REPO, "show", "-s", "--format=%P", revision).stdout.split()
+        if len(parents) != 2:
+            continue
+        first_has_plan = run_git(
+            REPO, "ls-tree", "--name-only", parents[0], "--", plan,
+        ).stdout.strip()
+        first_has_source = run_git(
+            REPO, "ls-tree", "--name-only", parents[0], "--", source,
+        ).stdout.strip()
+        second_has_plan = run_git(
+            REPO, "ls-tree", "--name-only", parents[1], "--", plan,
+        ).stdout.strip()
+        second_has_source = run_git(
+            REPO, "ls-tree", "--name-only", parents[1], "--", source,
+        ).stdout.strip()
+        if (
+            first_has_plan and not first_has_source
+            and not second_has_plan and second_has_source
+        ):
+            candidates.append(parents[1])
+    assert len(set(candidates)) == 1, "正常initialの固定供給mergeを一意に特定できない"
+    return candidates[0]
+
+
+def select_durable_ledger_comparison_revision(
+    root: Path, supplier: str, actual_merge_base: str,
+) -> str:
+    """統合後は実merge-base、未統合の祖先関係だけ供給点へ局所補完する。"""
+    def ancestor(before: str, after: str) -> bool:
+        result = subprocess.run(
+            ['git', 'merge-base', '--is-ancestor', before, after],
+            cwd=root, capture_output=True, text=True, timeout=30,
+        )
+        assert result.returncode in (0, 1), '比較基線のGit祖先関係を検証できない'
+        return result.returncode == 0
+
+    if ancestor(supplier, actual_merge_base):
+        return actual_merge_base
+    assert ancestor(actual_merge_base, supplier), '供給点と実merge-baseが独立分岐している'
+    return supplier
+
+
+def durable_ledger_comparison_revision() -> str:
+    """実originとHEADの共通基線を優先し、隔離中だけ正常供給点を使う。"""
+    actual = run_git(REPO, 'merge-base', 'origin/develop', 'HEAD').stdout.strip()
+    return select_durable_ledger_comparison_revision(
+        REPO, durable_ledger_supplier_revision(), actual,
+    )
+
+
+def test_current_declaration_accepts_json_after_us1_baseline(tmp_path: Path) -> None:
+    """U-S1登録済みの基線から宣言のみ・登録済みを順に受理する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    assert core_guard.verify_area_path_baseline(root, base_sha, base_sha) == base_sha
+
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "declaration only",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+
+    assert candidate == baseline
+    tenant_area = next(
+        area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert tenant_area["paths"] == ["base/tenant-isolation.py"]
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        assert area["paths"] == [
+            f"base/{area_id}.py",
+            *EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ()),
+        ]
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
+
+
+def durable_ledger_configuration(*, registered: bool) -> dict[str, Any]:
+    """正常initialを保持し、外部台帳の宣言済み8追記だけを合成する。"""
+    configuration = load_actual_core_areas()
+    patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
+    for area in configuration['areas']:
+        area['paths'] = [p for p in area['paths'] if p not in patterns]
+        if registered:
+            area['paths'].extend(EXPECTED_AREA_PATH_ADDITIONS.get(area['id'], ()))
+    return configuration
+
+
+def assert_durable_ledger_registration(
+    configuration: dict[str, Any], root: Path = REPO,
+) -> bool:
+    """登録前の不在と登録後の実行資産捕捉を、全3領域で照合する。"""
+    guard = load_core_guard_module()
+    areas = {area['id']: area['paths'] for area in configuration['areas']}
+    patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
+    states = []
+    for area_id, paths in areas.items():
+        expected = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        assert not (patterns - set(expected)) & set(paths), '台帳の対象外登録'
+        if not expected:
+            continue
+        present = tuple(p in paths for p in expected)
+        assert len(set(present)) == 1, '台帳の部分登録'
+        states.append(all(present))
+        if all(present):
+            assert_registered_block(paths, expected)
+            assert tuple(paths[-len(expected):]) == expected
+    assert len(states) == 3 and len(set(states)) == 1, '台帳の片側領域登録'
+    actual = (
+        tuple((root / 'backend/src/pitchlog/durable_rights_ledger').glob('*')),
+        tuple([root / DURABLE_LEDGER_PATHS[1]])
+        if (root / DURABLE_LEDGER_PATHS[1]).is_file() else (),
+        tuple((root / 'tests/fixtures/tenant_boundary/positive/pitchlog/'
+               'durable_rights_ledger').glob('*')),
+    )
+    exists = tuple(bool(paths) for paths in actual)
+    assert len(set(exists)) == 1, '台帳実行資産の片側実在'
+    if any(exists):
+        assert all(states), '実在する台帳資産が未登録'
+        files = [p.relative_to(root).as_posix() for paths in actual for p in paths]
+        for area_id in EXPECTED_AREA_PATH_ADDITIONS:
+            captured = guard.matched_paths(
+                files, guard.CoreAreas(tuple(areas[area_id]), frozenset()),
+            )
+            assert sorted(captured) == sorted(files)
+    return all(states)
+
+
+def test_durable_ledger_core_actual_phase_preserves_initial_supplier() -> None:
+    """固定供給の全登録を保持し、新台帳実行資産の未登録を許容しない。"""
+    guard = load_core_guard_module()
+    baseline = guard.load_core_areas_at_revision(REPO, durable_ledger_comparison_revision())
+    actual = load_actual_core_areas()
+    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert tuple(guard.DURABLE_LEDGER_PATH_ADDITIONS) == DURABLE_LEDGER_PATHS
+    assert tuple(guard.DURABLE_LEDGER_FIXTURE_ADDITION) == DURABLE_LEDGER_FIXTURE
+    guard.validate_area_path_layers(baseline, actual)
+    assert_initial_rights_registration(actual)
+    assert_durable_ledger_registration(actual)
+    for area in baseline['areas']:
+        current = next(a for a in actual['areas'] if a['id'] == area['id'])
+        expected = area['paths']
+        if current['paths'] != expected:
+            expected = expected + list(EXPECTED_AREA_PATH_ADDITIONS[area['id']])
+        assert current == {**area, 'paths': expected}
+    assert {k: v for k, v in actual.items() if k != 'areas'} == {
+        k: v for k, v in baseline.items() if k != 'areas'
+    }
+
+
+@pytest.mark.parametrize('registered,exists', ((False, False), (True, False), (True, True)))
+def test_durable_ledger_core_valid_phases(
+    tmp_path: Path, registered: bool, exists: bool,
+) -> None:
+    """宣言のみ/別JSON/将来実在後を、実ファイルの有無と共に検査する。"""
+    if exists:
+        for path in DURABLE_LEDGER_EXAMPLES:
+            write_text(tmp_path, path, '# 合成した実行資産\n')
+    assert assert_durable_ledger_registration(
+        durable_ledger_configuration(registered=registered), tmp_path,
+    ) is registered
+
+
+@pytest.mark.parametrize('registered', (False, True))
+@pytest.mark.parametrize('index', (0, 1, 2))
+def test_durable_ledger_core_partial_existing_assets_are_rejected(
+    tmp_path: Path, registered: bool, index: int,
+) -> None:
+    """package/contract/正例の片側実在を登録前後とも黙認しない。"""
+    write_text(tmp_path, DURABLE_LEDGER_EXAMPLES[index], '# 合成した片側資産\n')
+    with pytest.raises(AssertionError, match='片側実在'):
+        assert_durable_ledger_registration(
+            durable_ledger_configuration(registered=registered), tmp_path,
+        )
+
+
+def test_durable_ledger_core_unregistered_existing_assets_are_rejected(tmp_path: Path) -> None:
+    """実行資産が揃っていても未登録の実JSONなら拒否する。"""
+    for path in DURABLE_LEDGER_EXAMPLES:
+        write_text(tmp_path, path, '# 合成した実行資産\n')
+    with pytest.raises(AssertionError, match='未登録'):
+        assert_durable_ledger_registration(
+            durable_ledger_configuration(registered=False), tmp_path,
+        )
+
+
+@pytest.mark.parametrize('mutation', (
+    'partial', 'one-area', 'wrong-area', 'reverse', 'duplicate',
+    'delete', 'replace', 'undeclared', 'tenant-extra-fixture',
+))
+def test_durable_ledger_core_invalid_registration_is_rejected(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """新8追記の部分/範囲外と、既存登録の削除/置換/順序違反を拒否する。"""
+    guard = load_core_guard_module()
+    baseline = durable_ledger_configuration(registered=False)
+    candidate = durable_ledger_configuration(registered=True)
+    areas = {area['id']: area['paths'] for area in candidate['areas']}
+    if mutation == 'partial':
+        areas['sync-protocol'].pop()
+    elif mutation == 'one-area':
+        del areas['recording-rights'][-3:]
+    elif mutation == 'wrong-area':
+        areas['game-state'].extend(DURABLE_LEDGER_PATHS)
+    elif mutation == 'reverse':
+        areas['sync-protocol'][-3:] = reversed(EXPECTED_AREA_PATH_ADDITIONS['sync-protocol'])
+    elif mutation == 'duplicate':
+        areas['sync-protocol'].append(DURABLE_LEDGER_PATHS[0])
+    elif mutation == 'delete':
+        areas['sync-protocol'].pop(0)
+    elif mutation == 'replace':
+        areas['sync-protocol'][0] = 'unregistered/replacement.py'
+    elif mutation == 'tenant-extra-fixture':
+        areas['tenant-isolation'].extend(DURABLE_LEDGER_FIXTURE)
+    else:
+        areas['sync-protocol'].append('unregistered/probe.py')
+    with pytest.raises((AssertionError, guard.GuardError)):
+        guard.validate_area_path_layers(baseline, candidate)
+        assert_durable_ledger_registration(candidate, tmp_path)
+
+
+def test_durable_ledger_core_exact_patterns_and_outside_paths() -> None:
+    """専用package/試験/正例だけを追加し、隣接資産へ対象を広げない。"""
+    guard = load_core_guard_module()
+    assert sum(map(len, EXPECTED_AREA_PATH_ADDITIONS.values())) == 8
+    outside = (
+        'backend/src/pitchlog/durable_rights_ledger_other/adapter.py',
+        'backend/tests/test_durable_rights_ledger_contract_other.py',
+        'tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger_other/x.py',
+    )
+    for patterns in EXPECTED_AREA_PATH_ADDITIONS.values():
+        assert guard.matched_paths(outside, guard.CoreAreas(patterns, frozenset())) == []
+
+
+def test_durable_ledger_core_declaration_and_separate_json_cli(tmp_path: Path) -> None:
+    """正常initialを基線に、宣言→別JSONの実CLIと履歴規則を検証する。"""
+    guard = load_core_guard_module()
+    root, _ = make_layered_core_repo(tmp_path)
+    commit_change(root, '.claude/core-areas.json',
+                  json.dumps(durable_ledger_configuration(registered=False)))
+    _, base = commit_change(root, 'scripts/core_guard.py',
+                            core_guard_source_with_additions(INITIAL_RIGHTS_AREA_PATH_ADDITIONS))
+    _, declaration = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    assert guard.verify_area_path_baseline(root, base, declaration) == base
+    event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == 0, result.stderr
+    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
+    assert guard._changed_paths_in_commit(root, registered) == frozenset(
+        {'.claude/core-areas.json'}
+    )
+    assert guard.verify_area_path_baseline(root, base, registered) == base
+    event = write_event(tmp_path, base, registered, f'- [x] {REQUIRED_CHECK_TEXT}')
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize('definition', ('scripts/core_guard.py', 'tests/test_core_guard.py'))
+def test_durable_ledger_core_cochange_is_rejected(tmp_path: Path, definition: str) -> None:
+    """新8登録でもJSONと基線定義の同commit変更を拒否する。"""
+    guard = load_core_guard_module()
+    root, base = make_layered_core_repo(tmp_path)
+    head = commit_area_path_changes(
+        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(definition,),
+    )
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize('path', DURABLE_LEDGER_EXAMPLES)
+@pytest.mark.parametrize('checked', (False, True))
+def test_durable_ledger_core_each_single_future_asset_requires_check(
+    tmp_path: Path, path: str, checked: bool,
+) -> None:
+    """新製品/contract/正例の後発単独変更も実CLIで必須確認を要求する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    configuration = json.loads((root / '.claude/core-areas.json').read_text())
+    if not assert_durable_ledger_registration(configuration, root):
+        commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    base, head = commit_change(root, path)
+    event = write_event(tmp_path, base, head,
+                        f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == (0 if checked else 1), result.stderr
+    if not checked:
+        assert path in result.stderr
+
+
+@pytest.mark.parametrize('phase', ('isolated', 'integrated', 'diverged', 'invalid'))
+def test_durable_ledger_core_comparison_respects_actual_merge_base(
+    tmp_path: Path, phase: str,
+) -> None:
+    """供給統合後の新基線を保持し、無関係/検証不能な祖先は拒否する。"""
+    root, base = make_layered_core_repo(tmp_path)
+    _, supplier = commit_change(root, 'initial_supplier.py')
+    if phase == 'isolated':
+        actual = base
+        expected = supplier
+    elif phase == 'integrated':
+        _, actual = commit_change(root, 'registered_after_supplier.py')
+        expected = actual
+    elif phase == 'diverged':
+        run_git(root, 'checkout', '-q', '-b', 'diverged', base)
+        _, actual = commit_change(root, 'unrelated_registration.py')
+        with pytest.raises(AssertionError, match='独立分岐'):
+            select_durable_ledger_comparison_revision(root, supplier, actual)
+        return
+    else:
+        with pytest.raises(AssertionError, match='検証できない'):
+            select_durable_ledger_comparison_revision(root, supplier, 'missing-revision')
+        return
+    assert select_durable_ledger_comparison_revision(root, supplier, actual) == expected
+
+
+def test_durable_ledger_core_supplier_discovery_survives_normal_integration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実discoveryで元供給とmain統合後の通常追随mergeを区別する。"""
+    root = tmp_path / 'discovery'
+    root.mkdir()
+    run_git(root, 'init', '-q', '-b', 'main')
+    write_text(root, 'README.md', 'synthetic baseline\n')
+    run_git(root, 'add', '.')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-qm', 'synthetic baseline')
+    base = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    run_git(root, 'checkout', '-q', '-b', 'supplier')
+    _, supplier = commit_change(root, INITIAL_RIGHTS_PATHS[0], '# synthetic Protocol\n')
+    run_git(root, 'checkout', '-q', '-b', 'ledger', base)
+    commit_change(root, 'docs/features/mvp-durable-rights-ledger/plan.md', 'synthetic plan\n')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'merge', '--no-ff', '-qm', 'original supply', supplier)
+    monkeypatch.setattr(sys.modules[__name__], 'REPO', root)
+    durable_ledger_supplier_revision.cache_clear()
+    try:
+        assert durable_ledger_supplier_revision() == supplier
+        run_git(root, 'checkout', '-q', 'main')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'merge', '--no-ff', '-qm', 'main integrates supplier', supplier)
+        integrated = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+        run_git(root, 'update-ref', 'refs/remotes/origin/develop', integrated)
+        run_git(root, 'checkout', '-q', 'ledger')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'merge', '--no-ff', '-qm', 'ledger follows main', integrated)
+        # 別pytest過程から実再開した場合と同じく、過去cacheで誤検出を隠さない。
+        durable_ledger_supplier_revision.cache_clear()
+        assert durable_ledger_supplier_revision() == supplier
+        assert durable_ledger_comparison_revision() == integrated
+    finally:
+        durable_ledger_supplier_revision.cache_clear()

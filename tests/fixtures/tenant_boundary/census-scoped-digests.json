@@ -1,5 +1,7 @@
 {
   "schema_version": 1,
   "removed_checker_43": "a869a0d893090d8da4d6061ed7584ace69e016f69503d668947b7998cc7f7189",
-  "added_independent_ast_18": "203cb5691221e841acb1db63f559b83b2f0743b8292bf46bcda2b49054980881"
+  "added_independent_ast_18": "203cb5691221e841acb1db63f559b83b2f0743b8292bf46bcda2b49054980881",
+  "ledger_removed_checker": "661033093b9db4a1e8a51933edeb9e7f44f3c3f042fab6d9f85b56885858edb2",
+  "ledger_added_independent_ast": "1a1a72edad14d9742b621516fa4c03bb80b214b6fa7092325640f83edb2f31c9"
 }
