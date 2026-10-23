@@ -6364,7 +6364,7 @@ def test_p7_context_candidate_matches_only_fixed_source_outer_definitions() -> N
     assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema'
     assert schema['$ref'] == '#/$defs/T1ContextRefsV1'
     assert tuple(schema['$defs'])[:4] == _P7_CONTEXT_DEFINITIONS
-    assert len(schema['$defs']) == 47
+    assert len(schema['$defs']) == 50
     definitions = json.dumps(
         {name: schema['$defs'][name] for name in _P7_CONTEXT_DEFINITIONS},
         ensure_ascii=False, sort_keys=True, separators=(',', ':'),
@@ -7076,3 +7076,88 @@ def test_p7_context_candidate_empty_payload_declaration_is_not_broad_object() ->
         changed = text.replace(expected, 'export type T1GameEndPayloadV1 = ' + widened + ';')
         with pytest.raises(ValueError):
             _p7_context_candidate_check_declarations(schema, changed)
+
+
+def test_p7_context_candidate_v10_preserves_all_prior_definitions_and_inputs() -> None:
+    """V10単位は既存47定義・238入力・11構築条件を変更せず追加する。"""
+    schema = _p7_context_candidate_schema()
+    definitions = schema['$defs']
+    assert list(definitions)[47:] == [
+        'T1WireTargetReferenceV1', 'T1ResolvedTargetReferenceV1',
+        'T1DependentAddressProjectionV1',
+    ]
+    fixture = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 'structure-cases.json')
+    for value, expected in (
+        ({name: definitions[name] for name in list(definitions)[:47]},
+         'd1b46a28aec598d265100c9c97c96e38e744d382918aea8315b59223c8e8d9e6'),
+        (fixture['cases'][:238],
+         '1900c78a8a0569ef4797526702a3254d638337144f7554615ec1a3e3efdb6647'),
+        (fixture['constructor_cases'],
+         '8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2'),
+    ):
+        assert hashlib.sha256(json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+        ).encode()).hexdigest() == expected
+    assert len(fixture['constructor_cases']) == 11
+    assert schema['$ref'] == '#/$defs/T1ContextRefsV1'
+    declarations = (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.d.ts').read_bytes()
+    old_declarations = declarations.split('/** V10の構造射影。'.encode(), 1)[0]
+    assert hashlib.sha256(old_declarations).hexdigest() == (
+        '4b1fd92f003b21cb5bc53b82125c743fd745c2963ff78b97c9e71c9f6676e545'
+    )
+
+
+def test_p7_context_candidate_v10_wire_and_internal_domains_are_distinct() -> None:
+    """正式wireの安全整数域だけを閉じ、既存内部域やopaque D4を狭めない。"""
+    definitions = _p7_context_candidate_schema()['$defs']
+    wire = definitions['T1WireTargetReferenceV1']['properties']
+    assert set(wire) == {'game_id', 'd4', 'd1'}
+    assert wire['d1'] == {'type': 'integer', 'minimum': 1, 'maximum': 2**53 - 1}
+    assert wire['d4'] == {'type': 'string', 'minLength': 1}
+    assert wire['game_id']['format'] == 'uuid'
+    internal = definitions['T1ResolvedTargetReferenceV1']['properties']
+    assert internal == {
+        'wire': {'$ref': '#/$defs/T1WireTargetReferenceV1'},
+        'internal_generation': definitions['T1ReadKeyV1']['properties']['internal_generation'],
+    }
+    assert 'maximum' not in internal['internal_generation']
+    assert 'maximum' not in definitions['T1ReadKeyV1']['properties']['d1']
+    assert 'pattern' not in definitions['T1ReadKeyV1']['properties']['game_id']
+    # 対応を並べただけでは、同scope/実D4写像を検証したことにならない。
+    value = _p7_context_candidate_input('T1ResolvedTargetReferenceV1')
+    value['wire']['d4'] = '000123\nopaque'
+    value['internal_generation'] = 2**100
+    before = copy.deepcopy(value)
+    _p7_context_candidate_validate(value, 'T1ResolvedTargetReferenceV1')
+    assert value == before
+    for node in definitions['T1DependentAddressProjectionV1']['oneOf']:
+        assert set(node['properties']) == {'event_kind', 'target_reference'}
+        assert node['properties']['target_reference'] == {
+            '$ref': '#/$defs/T1WireTargetReferenceV1',
+        }
+    assert [node['properties']['event_kind']['const'] for node in
+            definitions['T1DependentAddressProjectionV1']['oneOf']] == ['2', '10', '11', '12']
+    # 旧entry/contentは新参照型へまだ接続せず、7marker/残4kindを保持する。
+    old_nodes = {name: definitions[name] for name in list(definitions)[:47]}
+    old_text = json.dumps(old_nodes, ensure_ascii=False)
+    for name in list(definitions)[47:]:
+        assert '#/$defs/' + name not in old_text
+
+
+@pytest.mark.parametrize(('before', 'after'), (
+    ('readonly game_id: string; readonly d4: string;', 'game_id: string; readonly d4: string;'),
+    ('readonly wire: T1WireTargetReferenceV1;', 'readonly wire: T1ReadKeyV1;'),
+    ('readonly internal_generation: number; };', 'internal_generation: number; };'),
+    ('readonly event_kind: "10";', 'readonly event_kind: 10;'),
+    ('readonly target_reference: T1WireTargetReferenceV1;',
+     'readonly target_reference: string;'),
+))
+def test_p7_context_candidate_v10_readonly_and_projection_drift_is_rejected(
+    before: str, after: str,
+) -> None:
+    """新3型のreadonly/参照/文字列tagがrendererとのexact照合から逃げない。"""
+    text = (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.d.ts').read_text()
+    assert before in text
+    changed = text.replace(before, after, 1)
+    with pytest.raises(ValueError):
+        _p7_context_candidate_check_declarations(_p7_context_candidate_schema(), changed)

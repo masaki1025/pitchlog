@@ -8058,6 +8058,618 @@
         ],
         "batter_before_first": false
       }
+    },
+    {
+      "id": "shape-T1WireTargetReferenceV1",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-missing-T1WireTargetReferenceV1-game_id",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-missing-T1WireTargetReferenceV1-d4",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-missing-T1WireTargetReferenceV1-d1",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4"
+      }
+    },
+    {
+      "id": "v10-extra-T1WireTargetReferenceV1",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1,
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "shape-T1ResolvedTargetReferenceV1",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": 1
+      }
+    },
+    {
+      "id": "v10-missing-T1ResolvedTargetReferenceV1-wire",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "internal_generation": 1
+      }
+    },
+    {
+      "id": "v10-missing-T1ResolvedTargetReferenceV1-internal_generation",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-extra-T1ResolvedTargetReferenceV1",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": 1,
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "shape-T1DependentAddressProjectionV1",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "accept",
+      "input": {
+        "event_kind": "2",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-missing-T1DependentAddressProjectionV1-event_kind",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-missing-T1DependentAddressProjectionV1-target_reference",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "2"
+      }
+    },
+    {
+      "id": "v10-extra-T1DependentAddressProjectionV1",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "2",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "v10-d1-maximum",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 9007199254740991
+      }
+    },
+    {
+      "id": "v10-d1-zero",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 0
+      }
+    },
+    {
+      "id": "v10-d1-negative",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": -1
+      }
+    },
+    {
+      "id": "v10-d1-too-large",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 9007199254740992
+      }
+    },
+    {
+      "id": "v10-d1-bool",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": true
+      }
+    },
+    {
+      "id": "v10-d1-fraction",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1.5
+      }
+    },
+    {
+      "id": "v10-d1-string",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": "1"
+      }
+    },
+    {
+      "id": "v10-d1-null",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": null
+      }
+    },
+    {
+      "id": "v10-game-uppercase",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "ABCDEF01-2345-6789-ABCD-EF0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-game-compact",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef0123456789abcdef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-game-braces",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "{abcdef01-2345-6789-abcd-ef0123456789}",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-game-suffix-newline",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789\n",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-game-prefix-space",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": " abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-game-wrong-character",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "gbcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "synthetic-opaque-D4",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-numeric-looking",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "000123",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-space",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": " ",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-unicode",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "世代A",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-linebreak",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "a\nb",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-empty",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": "",
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-number",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": 123,
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-bool",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": true,
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-d4-null",
+      "definition": "T1WireTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+        "d4": null,
+        "d1": 1
+      }
+    },
+    {
+      "id": "v10-generation-large",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "accept",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": 1267650600228229401496703205376
+      }
+    },
+    {
+      "id": "v10-generation-zero",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": 0
+      }
+    },
+    {
+      "id": "v10-generation-negative",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": -1
+      }
+    },
+    {
+      "id": "v10-generation-bool",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": true
+      }
+    },
+    {
+      "id": "v10-generation-fraction",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": 1.5
+      }
+    },
+    {
+      "id": "v10-generation-string",
+      "definition": "T1ResolvedTargetReferenceV1",
+      "expected_structure": "reject",
+      "input": {
+        "wire": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "internal_generation": "1"
+      }
+    },
+    {
+      "id": "v10-projection-kind-2",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "accept",
+      "input": {
+        "event_kind": "2",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-10",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "accept",
+      "input": {
+        "event_kind": "10",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-11",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "accept",
+      "input": {
+        "event_kind": "11",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-12",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "accept",
+      "input": {
+        "event_kind": "12",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-number",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": 2,
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-bool",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": true,
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-unknown",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "9",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-leading-zero",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "02",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-word",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "undo",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-kind-null",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": null,
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        }
+      }
+    },
+    {
+      "id": "v10-projection-not-envelope-d5",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "2",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "d5": "not-part-of-projection"
+      }
+    },
+    {
+      "id": "v10-projection-not-envelope-payload",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "2",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "payload": "not-part-of-projection"
+      }
+    },
+    {
+      "id": "v10-projection-not-envelope-expected_version",
+      "definition": "T1DependentAddressProjectionV1",
+      "expected_structure": "reject",
+      "input": {
+        "event_kind": "2",
+        "target_reference": {
+          "game_id": "abcdef01-2345-6789-abcd-ef0123456789",
+          "d4": "synthetic-opaque-D4",
+          "d1": 1
+        },
+        "expected_version": "not-part-of-projection"
+      }
     }
   ],
   "constructor_cases": [

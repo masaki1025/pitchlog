@@ -217,3 +217,22 @@ branch_row_mapping SHA256 `ac9541c860820ac8855a6c72c439d03d8d8bd0d5832a810192f66
 保持対象の正準hashは全47定義 `d1b46a28aec598d265100c9c97c96e38e744d382918aea8315b59223c8e8d9e6`、全238case `1900c78a8a0569ef4797526702a3254d638337144f7554615ec1a3e3efdb6647`、11constructor対応 `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`。新3型の構造準備でもoperation-content5/9と7markerは継続する。第9節は非作者確認/対象版root承認前で、今回起案を計算本体着手や正式contract反映としない。
 
 起案検証: docs-status20文書/違反0、計画同期（base3c23）・差分空白検査成功。候補/試験に変更がないためpytestは再実行せず、実装は本追補の独立確認とroot承認・個別指示後とする。
+
+### 第9節のV10参照3閉型を候補実装（同ステップ3/3、正式受理前）
+
+承認コミット`b112a102e05700cfb4af5f661e7d58644c7e4d54`を基線に、plan第9節の3型だけを候補5files/既存専用試験へ追加した。rootの対象版再導出一致とcsv_reviewの新節限定0を承認根拠として受領したが、旧外殻作成関与の開示を保持し、旧全体独立再確認/P6資格へ広げない。本実装は候補作者による作成・検査であり、独立コードレビューはこれからである。
+
+- 定義は47→50。`T1WireTargetReferenceV1`のgame_id/d4/d1（3field）を全必須・余剰拒否/正規小文字UUID/不透明非空文字列/1..2^53−1整数で表す。UUIDの末尾改行/余剰文字・大小文字変換・D4数値化/trim・丸めを許さず、原値を保存する。内部key/D2の域は変更しない。
+- `T1ResolvedTargetReferenceV1`はwire参照と既存T1ReadKeyV1同名fieldと辞書同一のinternal_generationの2field。実写像・認可済み同tenant/game/lineage/対象時点・対象版・発行権威/失効は未実装で、構造上の組合せを解決成功としない。
+- `T1DependentAddressProjectionV1`は種別文字列2/10/11/12の4variantで、それぞれevent_kind/target_referenceだけを表す。V5/V10の射影で、全envelope/操作内容に昇格させず、D5/V7/P3のV11を不要にしない。旧entry/contentへの参照追加も0。V10 S-2→HTTP入口S-1や公開B14/D5消費/新失敗分類へ前倒ししない。
+- 新規合成入力は54（構造accept13/reject41）、238→292。安全整数の両端/上限超過/0/負数/bool/小数/文字列、UUID大文字/コンパクト/括弧/改行/不正字、opaque D4原値、内部正整数域・4tagの型/未知値、必須欠落・余剰を検査する。新型の入れ子欠落/余剰/型違いは既存閉構造の再帰試験も利用する。schema/readonly rendererは既存文法のままで、helper・キーワード対応範囲を広げていない。
+
+保持回帰は旧47定義の正準SHA256 `d1b46a28aec598d265100c9c97c96e38e744d382918aea8315b59223c8e8d9e6`、旧238case `1900c78a8a0569ef4797526702a3254d638337144f7554615ec1a3e3efdb6647`、11constructor対応 `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`を照合する。新宣言の前までの旧d.ts全byte SHA256も`4b1fd92f003b21cb5bc53b82125c743fd745c2963ff78b97c9e71c9f6676e545`で固定し、空型Readonly<Record<string, never>>是正を保持する。旧4外殻/25case/147case/旧レビュー・失敗履歴も残す。
+
+局所初回は`-k p7_context_candidate -n 0`で413 passed/2 failed/51.47s。失敗は旧定義総数47の追随漏れとsource表で新型名をfieldまで同じbacktickへ含めた表記漏れであり、50件assert/独立した型名表記へ是正した。該当2件は2 passed/0.84s。skipや拒否条件の削除で緑にせず、他413件の成功とこの初回結果を保持する。
+
+実TS6.0.2の`--strict --noEmit --skipLibCheck`では7つの代入例（wire/対応/4tagと、TSは値域を保証しないことを示す1例）・16の負例を確認した。readonly5箇所、欠落・誤型・数値/未知tag・未知target・射影外fieldを`@ts-expect-error`で照合しexit0、同注記を除去した入力はexit2/診断16件。正規UUID/安全整数/余剰変数の一般拒否/真正性/失効をTS代入から保証しない。実プローブ/コピー宣言/出力は`/home/ymdms/.cache/pitchlog/reviews/t1-v10-b112a102/`へ保存。results.json SHA256 `465c80a5f08355542fdc5360061c5cbded9a738f49828d45b065bf83cd2a60a8`、probe.ts `cdfb5fb2f62e27b16cb38686cd81396267c86d5fd9f8d2ecef09340801813403`、negative.ts `e1857192368ae932ede4e835bf628bb5289231e7425b1a7d83b67ebc0c843d1b`。root pytestへfrontend依存・skipは追加しない。
+
+今回閉じたものはwire V10の3field・内部対応2field・4tagの住所射影という3閉型であり、**operation-content残4kind完全閉包0/7marker消去0**。V7/P3 V11/undo差分・依存/membership/元半回/有限prefix・P7D06等の未採用意味は未供給。operation-content5/9、正式21分岐の既存6mapping/不足15・全23flags/G6/正式7.7/Ready/P6/P7/T1製品計算の未達を保持する。構造fixture生成成功を規範case・P6blind・正式受理へ代替しない。実Port/DB/HTTPを契約準備の前条件に追加しない。
+
+是正後の最終局所全件は同コマンドで**415 passed/282 deselected/41.42s**。最後に加えた旧d.ts全byte保持回帰も含む。Ruff/ty成功、docs-status20文書/違反0、差分空白検査成功。基線はb112承認後、rootがplan冒頭の既成立承認表示だけを整合した`d577bc64`へ進んでいる。本実装はそのplan変更を含めず、候補5files/専用試験/researchの7pathsだけで固定する。重いcore全件・DB・製品本体・正式shared資産・P6封印/期待値には触れていない。計画同期と固定差分/hash・保全物はコミット後に主担当へ返す。

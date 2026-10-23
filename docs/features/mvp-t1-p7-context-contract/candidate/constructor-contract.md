@@ -100,3 +100,13 @@ O4は希望D2の1行占有ではなく永続D2重複であり、完全Ready＋O4
 構造caseの追加91件は合成入力だけで、規範分岐の正常/拒否出力や実出所を採点しない。旧147case/11constructor対応/4外殻digestを保持する。OUT3の5分岐、INTの7分岐、RBIの9分岐は原典の意味を参照するが、それら21分岐の正式全列case/負例を本候補が新たに供給した件数は0である。構造入力の生成件数を規範/独立P6成立件数へ読み替えない。
 
 operation-contentは5/9 kindの内容を表す候補になったが、未供給状態・残4kind・他6markerは継続する。出所発行/有限読了/実constructor、正式descriptor/T2/7.7・23flags/G6閉包/P6/P7は未達で、完全Ready・製品T1計算・実画面入力の全接続は提供していない。実Port/DB/HTTP完成を契約準備の開始条件に追加しない。
+
+## 6. V10対象参照の構造と解決権威を分離する後続候補
+
+plan第9節の承認b112a102に基づき、`T1WireTargetReferenceV1`・`T1ResolvedTargetReferenceV1`・`T1DependentAddressProjectionV1`を追加する。既存47定義/entry/content/7marker/構築条件は変更しない。wire参照は全必須のgame_id/d4/d1で、正規小文字UUID・非空不透明D4・1..2^53−1の整数D1を構造検査する。大小文字変換、D4数値化/trim、整数丸めはしない。既存内部key/D2の域は狭めない。
+
+`T1ResolvedTargetReferenceV1`はwire参照と既存内部世代の二つを並べるDTO候補で、名称や入力値の一致だけで解決済みを表明できない。供給者の実写像、対象event/版、認可済み同tenant/game/lineage/対象時点、失効していない読取権威への束縛が別途必要である。このconstructor/実発行検証は未提供で、合成入力ではどの正整数とD4の組も構造上表せる。schema成功を実写像・同scope成功へ昇格しない。
+
+種別2/10/11/12の文字列tagとtarget_referenceを持つ`T1DependentAddressProjectionV1`はV5/V10だけの射影である。D5/V7/P3のV11等が不要になった全イベント型ではなく、同型へpayload等を追加すると構造rejectになることも、実wireがそれらを拒否する証拠ではない。V10は既存S-2段階の値であり、本試験からHTTP入口のS-1拒否・公開B14・D5消費・新undo失敗分類を作らない。
+
+今回追加54caseは構造正負だけで、4操作のV7/P3 V11/undo差分・全依存集合やmembership/元半回/有限prefix・P7D06等の新結果/優先順を供給しない。operation-contentは5/9、残4kindの完全閉包追加0、7marker消去0。正式21分岐の既存6mapping/未供給15・全23flags/G6/P6/P7/7.7・Ready/T1製品計算の未達を保持する。実Port/HTTP/DB完成をこの型準備の前条件に追加しない。

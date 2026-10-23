@@ -134,3 +134,15 @@ U-F8 raw入力のmode/actionId/playResultId/runner-keyed resultId等は未正規
 今回閉じたのは操作4型の13fieldの**構造**と毎球8観測群/11fieldの候補、5/9 kindの内容を格納できる閉unionである。7 obligation markerのうち完全消去は0、operation-contentを部分具体化した1件/他6件は未閉のまま。旧codec観測/対象半回欠落、元scope不明、新O4/状態拒否競合・P3公開分岐、D8/namecarrierは未裁定または後段正式整合として保持する。
 
 妨害の追加field `third_base_scoring_attempt`はINT-02のスクイズ/本盗という既採用事実を`not-required`または`observed.value=none/squeeze/steal-home`で保持するDTO候補。`batter_before_first`はINT-04の一塁前事実をnot-required/false/trueで保持する候補で、未回答をnone/falseへ補完しない。必要性は同scopeの状態・採用結果から確認する。INT-05の最終裁定は授与先が空でもアウト対象があり得るため、schemaだけで授与先1件以上を要求せず、実対象exact-set/空裁定不可否はconstructor照合の残件とする。
+
+## 7. 残4操作のV10対象参照だけを閉じる後続候補
+
+plan第9節の承認b112a102に基づく追加3定義であり、既存47定義・全238構造case・11constructor対応・空payloadのnever是正を保持する。対象規範は観測develop `a10bcd5efa74f6c0f8b5ba5fef0721f4b58b89ec`の正式blobで、現worktreeへ正式改訂を供給済みとする記録ではない。
+
+| 型/field | 固定source・対応・検証境界 |
+| --- | --- |
+| `T1WireTargetReferenceV1`の`game_id/d4/d1` | sync-protocol4-3/5-5/7-6/8-1のV10とwire設計2-3 L-1/L-2/L-3/L-6・2-6。game_idは小文字ハイフン付きUUID、d4は非空不透明string、d1は整数1..2^53−1。原値を保持し、UUID小文字化・D4数値化/trim・丸めを行わない。UUIDpatternは末尾改行を含め余剰文字を認めない。これはwire構造の局所検査でありV10/S-2を新S-1へ前倒ししない |
+| `T1ResolvedTargetReferenceV1`の`wire/internal_generation` | wire/内部世代を分離する既存T1ReadKeyV1と同じDTO具体化。internal_generationは同名fieldと辞書同一の正整数で、wire D1の安全整数上限を移さない。実写像/発行権威/対象版・同tenant/game/lineage/対象時点/失効は未実装のconstructor責任。構造acceptを解決成功としない |
+| `T1DependentAddressProjectionV1`の`event_kind/target_reference` | 同sync-protocolの種別2=undo、10=プレイ修正、11=プレイ論理削除、12=交代修正のV5/V10射影。tagは数値でなく文字列、各variantはV10だけを参照する。全raw wire/envelope・操作内容ではなく、D5/V7/V11不要や新拒否分類を意味しない。旧entry/contentには未接続で、残4kind閉包0/7marker消去0 |
+
+固定source完全SHA256: sync-protocol `46b61a9a1a6f0ef595631002ca217e353a6ae04df642aee849a6507cca783994`、wire設計 `c2e2ad6f9956277ea98a5a70a02d0d4b7c59f32d429f36aa731087425acd1381`。内部change_pathの`game/d4/d1`は別面で、`game_id/d4/d1`のwire値から既存parserへの実変換やV11物理型を本候補で採用しない。正式型/7.7/規範case/P6/P7・T1製品計算は提供済みにならない。

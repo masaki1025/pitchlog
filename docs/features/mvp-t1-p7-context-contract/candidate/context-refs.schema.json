@@ -2964,6 +2964,116 @@
           "additionalProperties": false
         }
       ]
+    },
+    "T1WireTargetReferenceV1": {
+      "type": "object",
+      "properties": {
+        "game_id": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "d4": {
+          "type": "string",
+          "minLength": 1
+        },
+        "d1": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "game_id",
+        "d4",
+        "d1"
+      ],
+      "additionalProperties": false
+    },
+    "T1ResolvedTargetReferenceV1": {
+      "type": "object",
+      "properties": {
+        "wire": {
+          "$ref": "#/$defs/T1WireTargetReferenceV1"
+        },
+        "internal_generation": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "wire",
+        "internal_generation"
+      ],
+      "additionalProperties": false
+    },
+    "T1DependentAddressProjectionV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "event_kind": {
+              "const": "2"
+            },
+            "target_reference": {
+              "$ref": "#/$defs/T1WireTargetReferenceV1"
+            }
+          },
+          "required": [
+            "event_kind",
+            "target_reference"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_kind": {
+              "const": "10"
+            },
+            "target_reference": {
+              "$ref": "#/$defs/T1WireTargetReferenceV1"
+            }
+          },
+          "required": [
+            "event_kind",
+            "target_reference"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_kind": {
+              "const": "11"
+            },
+            "target_reference": {
+              "$ref": "#/$defs/T1WireTargetReferenceV1"
+            }
+          },
+          "required": [
+            "event_kind",
+            "target_reference"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "event_kind": {
+              "const": "12"
+            },
+            "target_reference": {
+              "$ref": "#/$defs/T1WireTargetReferenceV1"
+            }
+          },
+          "required": [
+            "event_kind",
+            "target_reference"
+          ],
+          "additionalProperties": false
+        }
+      ]
     }
   }
 }
