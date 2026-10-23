@@ -55,3 +55,15 @@ MVP-FR-001〜017 / MVP-NFR-001〜012の個別対応は実装場所確認時に�
 | MVP-D01 | 9回裏2対2→3対2、9回から1点差でコールド可という有効規則。サヨナラとコールドが同時成立。T2引継ぎはoutcome優先だけを未採用と明記。既採用E08はコールド対通常終了だけで、サヨナラには拡張しない | B推奨: walk-off（サヨナラ）を返す。A: cold-end（コールド）を返す。どちらも検知/ロック/宣言促しtrue、自動終了falseは既存方針維持 | 終了理由の正式値・画面表示・契約case/独立期待値が変わる。PO回答後にその範囲だけ正本/契約へ反映。未回答中は仮仕様で確定せず、保存接合・guard等を継続 |
 
 実機/運用資源は製品経路準備と並行で具体化し、利用直前の委任外承認が必要なものだけ同表へ追記する。
+
+## 接続・故障検証の証拠追記
+
+2026-10-23、#174固定HEAD `e30edc79a7f90aa27cb14303910676e414c2cab6`（未コミット差分は既存引継ぎ文書のみ）のbackendで、既存使い捨てPostgreSQL fixtureを使った実DB検査を主担当が実行。Docker Server29.1.3、既存postgres:17.11-bookworm。共有DB/利用者データへ適用なし。
+
+コマンド: `uv run pytest tests/db/test_stage_a_rule_candidates.py -q -k 'formal_stage_a_startup_preserves_closed_publication or formal_stage_a_startup_authz_failure_keeps_placement_closed or stage_a_staged_startup_from_empty_database_and_retry or stage_a_candidate_insert_fault_rolls_back_everything or stage_a_function_candidate_rejects_override_and_guc_mismatch'`
+
+結果: **5 passed, 21 deselected in 33.82s / exit0**。正式段階起動、認可失敗の非公開保持、空DB→配置→再試行、配置途中故障の全取消、override/GUC不一致拒否を実測。DBの独立接続試験であり実HTTP/画面作成成功ではない。O5製品runner/実耐久provider完成/実機受入の代替ではない。
+
+#178コード候補 `719bb308`は独立実装レビュー第1回可決（P0/P1/P2=0/0/0）。reviewer `/root/independent_review`、候補作者 `/root/o5_registration`と主担当。対象base1ab398cc、diff SHA256 `dab69624aad19aeaf093d8fc2968cb165c23808d4a5bbb14fb0bda989546c13f`（git diff --no-ext-diff --binary base head）。JSON登録時の旧試験1件失敗は隠さず51a030d3のステップ1範囲是正に記録し、公開履歴を書き換えていない。最終274件成功・履歴基線成功。root全件は実行中。#177手続実統合後の基線追随と最終版の限定確認を残す。
+
+成績引継ぎ文書・台帳のSHA256はPO提示値とそれぞれ一致。未追跡は引継ぎ2＋候補4の計6文書で原状保存。現候補の配信層をT5/T6実装と混同しない。暦年は既決、登板/打者数など未裁定境界は既採用判断の追加照合を続ける。
