@@ -57,6 +57,22 @@ def test_actual_fresh_controller_borrow_heartbeat_release_and_disconnect(
     controller = FreshControllerDatabase(authority_database)
     try:
         controller.prepare()
+        closed = controller.application("""
+from uuid import uuid4
+import psycopg
+with psycopg.connect(host='/business-socket',dbname='ledger_fixture',
+                     user='pitchlog_app',passfile='/dev/null',connect_timeout=3) as pg:
+    tenant=uuid4()
+    pg.execute("SELECT pg_catalog.set_config('app.tenant_id',%s,true)",(str(tenant),))
+    assert pg.execute('SELECT rg1_api.rg1_read_open(%s)',(tenant,)).fetchone()==(False,)
+    commit_read=pg.execute(
+        'SELECT rg1_api.rg1_assert_open_before_commit(%s)',(tenant,)
+    ).fetchone()
+    assert commit_read==(False,)
+    pg.rollback()
+print('CLOSED_BEFORE_FRESH')
+""")
+        assert closed == "CLOSED_BEFORE_FRESH"
         controller.start()
         output = controller.application("""
 import os,time
@@ -74,6 +90,11 @@ with psycopg.connect(host='/business-socket',dbname='ledger_fixture',
         'pitchlog_app','pitchlog_app')
     tenant=uuid4()
     pg.execute("SELECT pg_catalog.set_config('app.tenant_id',%s,true)",(str(tenant),))
+    assert pg.execute('SELECT rg1_api.rg1_read_open(%s)',(tenant,)).fetchone()==(True,)
+    commit_read=pg.execute(
+        'SELECT rg1_api.rg1_assert_open_before_commit(%s)',(tenant,)
+    ).fetchone()
+    assert commit_read==(True,)
     body=pg.execute('SELECT rg1_control.scope_binding(%s)',(tenant,)).fetchone()
     assert body is not None and type(body[0]) is str
     binding=BusinessBinding.from_text(body[0])
