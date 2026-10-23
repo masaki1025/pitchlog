@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-p7-context-contract
 status: active
-承認: 済（外殻候補・第7/8節。第9節V10対象参照追補だけ未承認）
+承認: 済（外殻候補・第7/8/9節。PO委任によるCodex判断、対象版は各節に固定）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-t1-p7-context-contract
