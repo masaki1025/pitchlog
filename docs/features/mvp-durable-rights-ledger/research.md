@@ -78,7 +78,7 @@ JSON登録step2、ledger source/正本7.3/7.7/policy新target/新PR/pushは未�
 
 ## 同step1の比較基線是正（中間74c36a75を保持）
 
-最初のstep1は`74c36a75d...`（完全OIDはGit履歴で参照）としてローカルcommit済み、未公開だった。rootのWIP確認で「全旧試験を供給95dへ固定し続けると、統合後に新しいorigin/develop基線を検査しない」不足が指摘され、全採用した。rootの個別指示により74c36a75と中間411成功/26.43秒を保持し、amend/rebase/force pushせず、同step1の是正を別commitへ記録する。これは計画scope内の試験helper是正で、製品判定/API/source追加ではない。
+最初のstep1は`74c36a750938efbf5884d9d612e6a178ee2824ee`としてローカルcommit済み、未公開だった。rootのWIP確認で「全旧試験を供給95dへ固定し続けると、統合後に新しいorigin/develop基線を検査しない」不足が指摘され、全採用した。rootの個別指示により74c36a75と中間411成功/26.43秒を保持し、amend/rebase/force pushせず、同step1の是正を別commitへ記録する。これは計画scope内の試験helper是正で、製品判定/API/source追加ではない。
 
 供給OIDのGit一意導出はそのままに、比較元選択を分離した。毎回の実origin/HEAD merge-baseが供給95dを含む場合は、その実merge-baseを選び、統合後の新しい共通基線保護へ戻す。供給未統合の隔離段階だけ、実merge-baseが供給95dの祖先であることをGitで検証して95dを局所比較に使う。独立分岐/検証不能OIDはfail-closed、固定供給への無条件fallbackはない。全旧比較呼出しと新実設定試験をこの選択へ接続した。
 
