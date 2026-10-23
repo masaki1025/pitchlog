@@ -195,3 +195,6 @@ root補助の初回は旧271f corpus不変という誤ったassertで停止し�
 旧入口のstdlib-only再現は3失敗（依存psycopg読込が先行し拒否理由不一致）、是正後process8成功/1.28秒。全frontend92files/1856成功/164.27秒、ESLint/vue-tsc/root Ruff/ty成功。envDir:falseのrepo外configを使い.envを読まない。実browser3成功/27.2秒（login→Cookie/C2→API→専用PG、一覧/詳細/reload、越境404、通信断→明示確認）。実行後docker稼働は共有pitchlog-db-1のみで自前資源cleanup済み。正式9資産/外部8のbytesは6caaと同一。実新規作成/初球/実機成功ではない。証拠はcache/pitchlog/read175-bootstrap-fix/{before-origin,after-process,frontend-full,browser-read}.log。
 
 CI40011535070は最終的にfailure。frontend3失敗のほか、backendは3379成功/3失敗/4skip（route期待18対20、registry期待45対47、位置依存の拒否fixture）、harnessは29798成功/3失敗/2skip（failure-injectionのDDL blobとMC/DCのclaim-map blobの派生参照未追随）。元ログをcache/preparing-read-175-acceptance/ci-{frontend,backend,harness}-job.logへ保持。新HEADの全件CIは別途必要であり、旧結果を成功へ読み替えない。
+
+
+backend/harnessの確定3+3失敗を回収し、同ステップの通常追随scopeをplanへ固定した。token先頭にread2が入るため、既存拒否fixtureのregistrations[0/1/5]は原来のplayers read/insert/team readを指さなくなっていた。型指定へ直して同じ拒否を実行する。派生参照2fieldは旧blob→現blobの差分がoracle_context.oracle_commitだけかGit objectで検証してから追随する。

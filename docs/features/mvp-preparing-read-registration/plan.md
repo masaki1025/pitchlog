@@ -181,3 +181,10 @@ JSONはAPI由来tenant2patternと初期付与2patternを双方保持し、guard�
 
 
 2026-10-23T19:55:44.188147+00:00、Codex主担当/rootはPO4/5/8/10の通常不具合是正・最小追補委任に基づき、ec90aa50/plan SHA256 55a410fbcfe6637f42170dc99cf3b6af1e73f5eab40d1d9189d0c3dbdde88e2dの上記限定追補を承認。非作者rights_replacement_reviewのCI是正限定計画第1回0/0/0、親比較diff5ec9f6e131715fe79d5927a1e80c51ddcb52f8fd65608af685218809bc364b5dを照合した。旧親追加1回/後発metadata1回/全CI失敗は保持し、実装後の狭い非作者確認・全Vitest・正常browser・新HEAD CIを必要とする。人間確認/署名を代記しない。
+
+
+## CI後の既存試験・派生参照の機械追随
+
+CI40011535070の確定失敗を根拠に、PO4/8/10の通常不具合・生成値追随委任によるCodex主担当/root判断（2026-10-23T20:16Z）として同ステップの範囲を最小追補する。backend/tests/test_api_conventions.pyは既存18経路を全保持しread2経路を正確に追加する。backend/tests/test_authz_capability_registration.pyは既存capability集合を保持した47 tokenの全SQL検査とし、拒否変異に使う既存3文を位置番号から明示token型へ変更して、未登録ID/別表/別操作/DELETE拒否を維持する。contracts/authz/failure-injection-points.jsonのsource_asset.git_blob_digestとcontracts/authz/mcdc-map.jsonのsources.claim_mutant_map.blob_digestだけを、受理済Cのoracle_context以外意味不変の現blobへ追随する。
+
+検査器・拒否条件・期待拒否・oracle内容/commit/封印・正式受理9資産/外部8は変更しない。旧digestと新blobの差分がcontextのみであること、派生参照の2field以外不変、全局所拒否試験成功を確認する。既受理値に実変化があればその範囲だけ正式ゲートへ返す。コード/派生差分は新固定HEADで非作者限定確認し、旧review回数/全CI失敗を保持する。旧全件失敗を再走してから直すことはしない。
