@@ -90,3 +90,21 @@ browser受入との表示接合: 既存accessible label「試合一覧」「次�
 是正後の同対象5specは161件成功（旧159+追加2）、skip/timeout/未処理例外0、実測4.66秒/tests918ms。変更2pathsのPrettier、frontend全体ESLint、vue-tsc --noEmit、pnpm run buildもexit0。build462ms、closure scannedFiles9/externalReferences0/policyViolations0。全Vitest・DB/browserは再走していない。rootの別browser候補は旧83eのsource受入済み/実行未着手との通知を受け、是正HEAD固定後にrootが接合更新する。本wtから別候補へ反映しない。
 
 旧83eからのfrontend是正差分SHA256（full-index binary）`30320f56c2a51cac07b7f555c39807d6b5867e641b727f4313ac8d2522ac6851`。是正games.ts SHA256 `ae7978a6d3f50ada0abbe63e627b68cdc0f9955ab65edcbf52649a9ef023f019`。是正HEAD/全差分SHAはcommit後の引渡しで固定する。新secret/運用鍵・push・DB/実browser・正式7.7・親追加敵対枠について、前記の未実施/未消費を維持する。
+
+## 実browserで発見したApp caller不足の限定是正
+
+独立第2回差分コードレビューはbb0973d1で可決0/0/0、独立対象161件成功/5.56秒とのroot通知を受領。その後rootの別browser単位の初回2件は実POST /auth/login=200後の遷移期待で失敗した。App.vueのfinishLoginと認証失効watchが/team固定であり、既存resolveGameEntryReturnPathの許可集合がcallerへ接続されていなかった。この2failedを認証成功stub/手製Cookie/期待値の/team変更で迂回せず、発見履歴として保持する。単体159→161/P1是正・独立コードレビュー2回も保持する。
+
+最小追補plan SHA256 `4157f098d56a8cfeacfa89c91d7be2953d6aea6ef1eade424425575edc7dd62a` は非作者o5の限定計画追加1回で可決0/0/0。rootのPO委任承認commit `b9bdbfc4c6f98eff53be5e7158ee74b88ac5287c` を基線に、同ステップ1/1のcaller是正を実施した。変更はApp.vue、既存router.spec.ts、本researchの3pathsだけ。planの追加承認反映・API/正式assets/他worktree・authStore/helper/client/route/権限は変更していない。
+
+Appは既存storage同期/protectedReady確認の後にroute.query.redirectを既存helperへunknownのまま渡し、許可pathnameへだけ戻る。失効時はroute.fullPathの同helper結果をlogin queryへ保持する。外部URL/配列/欠落/不正UUID/query/hash付き値を独自に文字列化/切詰めせず/teamへ閉じる。認証済み保護画面に既存team/games named routeへの「チーム」「試合」2linksだけを追加し、既存guard経由で往復する。navのaccessible labelは「画面移動」。新データ権限/route/記録入力/書込処理を追加していない。
+
+### 限定試験・途中失敗
+
+router.specへ14件追加し、許可一覧/詳細へのlogin→session待ち→GET開始、同pathnameでの失効→再login、欠落/配列/不正UUID/query/hashのfallback、失効時fullPathのfallback、navの実RouterLink往復/未認証非表示、session401/503時のhost/read非開始を検査した。既存の外部URL/二重slash/未登録値と/team login回帰も保持。unitは既存正規Pinia/QueryClient/router/clientとfetch応答を使い、実browserや実HTTP authの証拠には数えない。
+
+初回router単独版は40件中33成功/7失敗。nav欠落を検出した一方、追加fixtureにlogin画面初期session通信が残り要求数2件で不一致、失効試験のfake serverが引き続きsession200を返して自動再確認する不整合も含まれた。初期画面処理完了後にcall記録を区切り、失効時はserver session401・明示login後に200へ戻す応答へ修正した。製品の認証成功/失効処理をoverrideせず、実際のexpired session状態に試験入力を揃えた。App caller是正＋同fixtureでrouter40件成功。その後session401/503の2件を加えた最終対象5specは175件成功（旧161+追加14）、skip/timeout/未処理例外0、実測5.85秒/tests1.23秒。
+
+最終sourceで変更2pathsのPrettier check、frontend全体ESLint、vue-tsc --noEmit、pnpm run buildがexit0。Vite build521ms、closure scannedFiles9/externalReferences0/policyViolations0。全Vitest/DB/browserは実行していない。browser再接合/再実行はrootの別承認単位へ引き渡し、初回2failedを消去せず次回実測を別記録にする。
+
+frontend caller差分（b9bdbfc4→是正版、full-index binary）SHA256 `ad837dbbe62d719eb7d1a83c40c96ed76a03dbedd9475f988697c75670251cfb`、App.vue SHA256 `65a9334bf8af826dd4fd1faccdb99bb51d45dcf97fc796fbaa52747061eca465`。HEAD/全差分SHAはcommit後引渡し応答で固定する。正式7.7/親#175追加敵対1回/作成保存/運用公開/実機は未達・未消費を保持。新秘密/運用鍵の発行、push、DB/browser起動は行っていない。
