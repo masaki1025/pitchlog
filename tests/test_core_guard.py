@@ -494,6 +494,7 @@ UF13_TENANT_ROUTE_PATHS = (
     "frontend/src/App*",
 )
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "sync-protocol": ("tests/fixtures/sync-protocol-population_v1.json",),
     "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
     "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
 }
@@ -2275,6 +2276,72 @@ def test_stage_a_startup_declaration_keeps_json_baseline_stationary(tmp_path: Pa
     core_guard.validate_area_path_layers(baseline, baseline)
 
 
+def test_o5_population_declaration_keeps_existing_layers(tmp_path: Path) -> None:
+    """O5宣言だけではJSONを変えず、既登録層を保って合成登録を検出する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    core_guard.validate_area_path_layers(baseline, baseline)
+    path = "tests/fixtures/sync-protocol-population_v1.json"
+    assert core_guard.AREA_PATH_ADDITIONS["sync-protocol"] == (path,)
+    registered_sha = commit_area_path_changes(root, {"sync-protocol": (path,)})
+    candidate = core_guard.load_core_areas_at_revision(root, registered_sha)
+    core_guard.verify_area_path_baseline(root, base_sha, registered_sha)
+    baseline_areas = {area["id"]: area for area in baseline["areas"]}
+    for area in candidate["areas"]:
+        if area["id"] == "sync-protocol":
+            assert area["paths"] == [*baseline_areas[area["id"]]["paths"], path]
+            assert core_guard.matched_paths(
+                (path,),
+                core_guard.CoreAreas(tuple(area["paths"]), frozenset()),
+            ) == [path]
+        else:
+            assert area == baseline_areas[area["id"]]
+
+
+@pytest.mark.parametrize("mutation", ("undeclared", "wrong-area", "delete", "replace"))
+def test_o5_population_registration_rejects_invalid_changes(
+    tmp_path: Path, mutation: str
+) -> None:
+    """O5登録でも未宣言追加・誤領域・既存削除・パス置換を拒否する。"""
+    core_guard = load_core_guard_module()
+    root, base_sha = make_layered_core_repo(tmp_path)
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = json.loads(json.dumps(baseline))
+    areas = {area["id"]: area for area in candidate["areas"]}
+    path = "tests/fixtures/sync-protocol-population_v1.json"
+    areas["sync-protocol"]["paths"].append(path)
+    if mutation == "undeclared":
+        areas["sync-protocol"]["paths"].append("tests/fixtures/undeclared.json")
+    elif mutation == "wrong-area":
+        areas["recording-rights"]["paths"].append(path)
+    elif mutation == "delete":
+        areas["sync-protocol"]["paths"].pop(0)
+    else:
+        areas["sync-protocol"]["paths"][-1] = path.replace("_v1", "_v2")
+    with pytest.raises(core_guard.GuardError, match=r"\.paths"):
+        core_guard.validate_area_path_layers(baseline, candidate)
+
+
+def test_o5_population_registration_requires_human_check(tmp_path: Path) -> None:
+    """実設定にO5だけを補った合成PRで未確認のfixture変更を拒否する。"""
+    path = "tests/fixtures/sync-protocol-population_v1.json"
+    root = make_repo_with_actual_core_areas(tmp_path)
+    configuration = json.loads((root / ".claude/core-areas.json").read_text())
+    sync = next(area for area in configuration["areas"] if area["id"] == "sync-protocol")
+    assert sync["paths"].count(path) in (0, 1)
+    if path not in sync["paths"]:
+        commit_area_path_changes(root, {"sync-protocol": (path,)})
+    base_sha, head_sha = commit_change(root, path)
+    event_path = write_event(tmp_path, base_sha, head_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+
+    assert result.returncode == 1
+    assert path in result.stderr
+    assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
+
+
 def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None:
     """起動入口は二領域に一致し、後続宣言は登録済み層を残さず回転する。"""
     core_guard = load_core_guard_module()
@@ -2929,7 +2996,10 @@ def test_area_registration() -> None:
         current_paths = tuple(areas[area_id]["paths"])
         assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
         assert_registered_block(current_paths, UR1_REGISTERED_PATHS[area_id])
-        assert current_paths == base_paths
+        pending = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        if set(pending) <= set(base_paths):
+            pending = ()
+        assert current_paths in (base_paths, (*base_paths, *pending))
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
