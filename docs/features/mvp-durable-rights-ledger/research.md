@@ -101,3 +101,9 @@ rootは最終step1 HEAD7f75a2f1を確認してstep2だけを許可した。実co
 rootは上記6failedの原因を確認し、plan契約を変えず「試験のみstep1是正commit→保全JSONを復元してstep2commit」の順を個別指示した。候補JSONを`/home/ymdms/.cache/pitchlog/durable-ledger-step2-preservation-2a8fx3op/`へmanifest付き保全し、SHA256 `714b0605e1818b2fe2110f81110f2b6b5e3d0ab5153ce011e863617ecbe79aa2`を確認後、実JSONの当該pathだけHEADのe555432fへ戻した。
 
 対象試験は合成repoの実configを既存assert_durable_ledger_registrationで検証し、exact全8登録済みなら二重追記しない、未登録なら従来の別JSONcommitで追加する形へ是正。部分/重複/対象外は同helperが拒否し、任意欠落をskipしない。将来3資産の未記入確認拒否/記入済受理のassertはそのまま保持した。登録前JSONで当該6例を実行し6成功/3.41秒、対象Ruff/ty成功。先行是正commitの変更は既存core試験と本researchだけで、JSON/製品guard/sourceは不変。保全候補復元後の登録済み全core結果は次のstep2記録へ分ける。
+
+### step2登録の最終結果
+
+先行試験是正commitは`4bf26c3fa3605822e38907027d13c471cb892904`で、変更集合はtests/test_core_guard.pyと本researchのみ、JSONなし。保全JSONのSHA256を再確認してbyte完全一致で復元した。登録済み実JSON状態での最終core全件は**415 passed / 27.02秒**、失敗/skip/timeout0。この登録済み最終全件は1回で、中間409pass/6failを消去していない。登録前の対象6成功と、登録済み全415成功を別の段階として記録する。
+
+最終root Ruff/ty、docs-status21件/違反0、design propagation/doc coverage、局所plan sync、diff検査成功。実JSONはsource glob/contract exact path/positive globをsync/record各3・tenant2の計8だけ追加し、全旧paths/順序/領域/guard_paths/metadataを保持した。新source/testは依然不在、宣言/既存試験/source/policyは先行是正4bfからbyte不変。step2commitはJSONと本researchだけとし、commit後の局所95d受理/実311拒否/履歴共変更0を引渡しで確認する。stage3adapter/SQL/DB/正本/7.7/policy新target/push/PRへ進まない。
