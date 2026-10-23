@@ -972,6 +972,8 @@ def validate_population(
     pair_set = set(pairs)
     if len(pair_set) != len(pairs):
         _fail("観点と scenarioId の組が重複しています")
+    if pair_set != set(OBSERVATION_SCENARIO_PAIRS):
+        _fail("組が母集合の正と一致しません")
     scenario_ids = [scenario_id for _, scenario_id in pairs]
     if len(set(scenario_ids)) != len(scenario_ids):
         _fail("scenarioId が複数の観点に属しています")
@@ -1758,7 +1760,7 @@ def test_result_check_compares_hook_calls_with_reachability(
 
 
 def test_population_is_an_exact_set_of_pairs() -> None:
-    """母集合: 26 組・観点 22 種・scenarioId 26 件、作成 16 件と繰り延べ 10 件。"""
+    """母集合: 27 組・観点 23 種・scenarioId 27 件、作成 16 件と繰り延べ 11 件。"""
     validate_population()
     assert _POPULATION["schemaVersion"] == 1
     assert all(
@@ -1771,12 +1773,16 @@ def test_population_is_an_exact_set_of_pairs() -> None:
         for row in _POPULATION_ROWS
     )
     assert all(row["status"] in {"owned", "deferred"} for row in _POPULATION_ROWS)
-    assert len(OBSERVATION_SCENARIO_PAIRS) == 26
-    assert len(OBSERVATION_KEYS) == 22
+    assert len(OBSERVATION_SCENARIO_PAIRS) == 27
+    assert len(OBSERVATION_KEYS) == 23
     assert len(OWNED_SCENARIO_IDS) == 16
-    assert len(DEFERRED_SCENARIO_IDS) == 10
+    assert len(DEFERRED_SCENARIO_IDS) == 11
+    assert DEFERRED_SCENARIO_IDS["o5-invariant-violation"] == (
+        "TSK-506 への接続契約(us1-sync-port-surface)のステップ 14"
+    )
     assert all(
-        scenario_id.startswith("restore-") for scenario_id in DEFERRED_SCENARIO_IDS
+        scenario_id.startswith("restore-") or scenario_id == "o5-invariant-violation"
+        for scenario_id in DEFERRED_SCENARIO_IDS
     )
 
 
@@ -1790,6 +1796,14 @@ def test_population_rejects_each_single_mutation() -> None:
     ]
     with pytest.raises(FailureScenarioContractError):
         validate_population(moved)
+    same_count_moved = [
+        ("p2", scenario_id)
+        if scenario_id == "p3-invalidation-consumed-before-complete"
+        else (key, scenario_id)
+        for key, scenario_id in pairs
+    ]
+    with pytest.raises(FailureScenarioContractError, match="母集合の正"):
+        validate_population(same_count_moved)
     with pytest.raises(FailureScenarioContractError):
         validate_population(pairs, OBSERVATION_KEYS - {"p1"})
     with pytest.raises(FailureScenarioContractError):
@@ -2059,8 +2073,26 @@ def test_aspect_deferrals_name_existing_evidence() -> None:
     assert deferred == p3_boundaries
 
 
+def _assert_o5_canon_row(row: str) -> None:
+    """O5 の正本行をシナリオと期待結果の全文で固定する。"""
+    _, label, scenario, expected, _ = row.split("|")
+    assert label.strip() == "**O5 の決定的な不変条件違反**(v0.9)"
+    assert scenario.strip() == (
+        "実装が O5 として列挙した不変条件違反を起こす永続状態で、"
+        "未使用 D5 の P1・P2 を前方のイベントと同じ要求で送り、"
+        "応答・D3・台帳・キュー・投影を観測する"
+    )
+    assert expected.strip() == (
+        "前方のイベントは確定済みで同じ ACK に載る。"
+        "当該イベントは**B3 と A5「拒否」**を理由 O5 とともに返し、"
+        "取引を全取消して D3 を進めない(D5 を消費しない・T9 を開始しない)。"
+        "後続は未処理。キューは**要操作(管理者対応待ち)**となり自動再送しない。"
+        "是正確認後に**同じ D5** の再送が通る。列挙の外の失敗は B7 のまま"
+    )
+
+
 def test_observation_keys_match_the_canon_table() -> None:
-    """観点 key の数が正本 10-2 の (d) の観点表の行数と一致する(表に行が増えたら赤)。"""
+    """正本の観点数と O5 のシナリオ・期待結果を母集合へ対応づける。"""
     lines = (
         (_REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md")
         .read_text(encoding="utf-8")
@@ -2074,6 +2106,15 @@ def test_observation_keys_match_the_canon_table() -> None:
             break
         rows.append(line)
     assert len(rows) == len(OBSERVATION_KEYS)
+    assert ("o5-deterministic-invariant", "o5-invariant-violation") in (
+        OBSERVATION_SCENARIO_PAIRS
+    )
+    o5_rows = [row for row in rows if row.startswith("| **O5 の決定的な不変条件違反**")]
+    assert len(o5_rows) == 1
+    _assert_o5_canon_row(o5_rows[0])
+    reversed_d3 = o5_rows[0].replace("D3 を進めない", "D3 を進めないとは限らない")
+    with pytest.raises(AssertionError):
+        _assert_o5_canon_row(reversed_d3)
 
 
 def test_contract_binds_injection_point_to_the_t_element(
