@@ -135,3 +135,7 @@ root Ruff/ty、docs-status/計画同期、差分/JSON参照検査を行う。新
 ### 計画承認
 
 2026-10-23T15:45:14.146059+00:00、Codex主担当/rootはPO委任4/5/7/8/10に基づきplan e02226a20e4fba9f1946ed09d9d59fc3507cb2c25a6d01307f41ddc5359fb1a5 / research2cd2562b36e48ea0bf56aaeb8d1d0e13cf5e7c8eca1456ff98bae5ec51fe7a96を承認。非作者/root/independent_reviewの第1回P1=1（新候補資産のcore捕捉不足）は全採用、第2回差分/影響は可決0/0/0。3ステップのうち個別指示する1ステップずつ実行し、共有書込を重複させない。未閉鎖意味・完全Ready・正式7.7/P6/T1製品未着手の境界は不変。山田正輝の個別値確認/署名・人間逐行確認は代記しない。
+
+### 固定候補の検査基線追補
+
+2026-10-23T15:47:43.171942+00:00、Codex主担当/rootはPO委任4/8/10により、ステップ1対象tests/test_core_guard.pyの2既存試験（actual_core_area_paths_follow_merge_base_layers、area_registration）がorigin/develop先端の未取得O5登録を固定枝の削除と誤認する不整合へ限定是正を許可。比較をこの枝とorigin/developの実merge-baseへ揃え、固定比較元の全paths/順序・許可層以外拒否・既存登録実在を保持する。製品core_guardのPR実base照合/拒否条件を変更しない。先端O5登録を取得済みとは記録せず、正式統合前に実baseから全登録/guard_pathsを保持して照合するゲートを残す。現ステップのJSON不変・別ステップJSON反映を維持。2既存試験で再現した2failedを履歴保持し、最終コード独立レビューで是正差分/非緩和を確認する。新意味/新編集path/ステップ総数の変更なし。

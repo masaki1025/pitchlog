@@ -59,3 +59,5 @@ docs-statusは20文書/違反0、計画同期（base 7d6ce544）はexit0、両�
 - 改訂後の起案検証: docs-statusは20文書/違反0、計画同期（base `7d6ce5443d71f6f7803d2ceed7e04c7ff87422ad`）はexit0。未追跡のplan/research以外に差分なし。実装試験はまだ作成・実行しない。
 
 独立第2回差分/影響レビュー: /root/independent_review、上記plan e02226a2/research2cd2562b、可決0/0/0、初回P1解消。主担当はplan末尾の対象版と日時でPO委任承認。旧counts/留保維持。
+
+固定7d6のJSON未変更でorigin/develop658先端と直接比較する2既存core試験が2failed。差はO5母集合登録1件とguard_paths先端追加で、候補が削除したものではない。rootがplan末尾の日時/理由で2試験の実merge-base比較への限定追随を委任承認。実PR base拒否は変更せず、先端登録保持は統合前の別ゲート。コード反映は未レビューとして最終差分レビューへ渡す。
