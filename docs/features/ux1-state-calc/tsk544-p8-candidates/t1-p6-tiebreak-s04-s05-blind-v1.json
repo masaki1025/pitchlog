@@ -1,0 +1,121 @@
+{
+  "packetId": "tsk544-t1-tiebreak-s04-s05-blind-v1",
+  "status": "candidate-input-only; not a formal case or independent result",
+  "source": {
+    "requirementsVersion": "v2.16",
+    "requirementsCommit": "52625ed6a6d7d27a212acfee16b97c8a97d987a5",
+    "requirementsBlob": "297f8cf2653c65c846ea3feff7b7a9c563afbe3e",
+    "sections": ["FR-005", "FR-006", "FR-007", "FR-009", "付録F-1"],
+    "existingContractPath": "contracts/state-transition/state_transition_contract_v1.json",
+    "existingContractBlob": "b178ff9cbed997866989eb7dc93476683f762e4a",
+    "existingTiebreakCaseIds": [
+      "ST-OPERATION-93799cd3c928a723",
+      "ST-OPERATION-6e73a96c10ecd75c",
+      "ST-OPERATION-2133d452dd1be1f3"
+    ],
+    "adoptedPolicy": "2026-10-23時点のPO採用方針: 次の適格半回には再配置可能、同半回の二重配置は不可。開始は半回先頭のouts=0/count=0-0/配置前空塁に限定。正式本文・結果wireは未受理。"
+  },
+  "inputRule": "著者が設計した試験用の純入力。期待状態・結果分類・D5消費の期待値・著者の分岐対応表を含めない。H/L/走者ラベルは意味座標であり未承認のwire/schema fieldではない。P-6の独立導出封印後に別の比較資料を渡す。旧109件、旧追加7件、既存P-6証跡を変更しない。",
+  "common": {
+    "tenant": "T1",
+    "game": "G1",
+    "canonicalLineage": "L1",
+    "rulesSnapshot": {
+      "regulationInnings": 9,
+      "tiebreakStartInning": 10,
+      "tiebreakRunnerPlacement": "first-second",
+      "targetHalves": ["10-top", "10-bottom"]
+    },
+    "rosterAtEvent": {
+      "batterSlot1": "B1",
+      "eligibleRunnerForFirst": "R1",
+      "eligibleRunnerForSecond": "R2",
+      "allReferencesBelongToGame": true
+    },
+    "operation": {
+      "kind": "tiebreak-start",
+      "inning": 10,
+      "runnerPlacement": "first-second",
+      "leadoffBatter": 1
+    },
+    "before": {
+      "half": "10-top",
+      "outs": 0,
+      "balls": 0,
+      "strikes": 0,
+      "bases": "empty",
+      "gameEnded": false,
+      "tiebreakActive": false,
+      "appliedHalfMarkers": [],
+      "battingOrderSlot": 2
+    }
+  },
+  "cases": [
+    {
+      "inputId": "TB-IN-01",
+      "beforePatch": {
+        "half": "10-bottom",
+        "tiebreakActive": true,
+        "appliedHalfMarkers": [{"half": "10-top", "lineage": "L1", "originD5": "D5-top"}]
+      },
+      "request": {"d5": "D5-bottom", "fingerprint": "FP-bottom"}
+    },
+    {
+      "inputId": "TB-IN-02",
+      "beforePatch": {
+        "half": "10-bottom",
+        "tiebreakActive": true,
+        "bases": {"first": "R1", "second": "R2"},
+        "appliedHalfMarkers": [{"half": "10-bottom", "lineage": "L1", "originD5": "D5-first"}]
+      },
+      "request": {"d5": "D5-second", "fingerprint": "FP-second", "ledgerHasD5": false}
+    },
+    {
+      "inputId": "TB-IN-03",
+      "beforePatch": {
+        "half": "10-bottom",
+        "tiebreakActive": true,
+        "bases": {"first": "R1", "second": "R2"},
+        "appliedHalfMarkers": [{"half": "10-bottom", "lineage": "L1", "originD5": "D5-first"}]
+      },
+      "request": {"d5": "D5-first", "fingerprint": "FP-first", "ledgerHasSameD5AndFingerprint": true}
+    },
+    {
+      "inputId": "TB-IN-04",
+      "request": {"d5": "D5-lead", "fingerprint": "FP-lead"}
+    },
+    {
+      "inputId": "TB-IN-05",
+      "priorWithinScope": {
+        "kind": "substitution",
+        "legality": "confirmed",
+        "replacedBatterAtSlot1": "B1",
+        "replacementBatterAtSlot1": "B2",
+        "effectiveBeforeTiebreakStart": true
+      },
+      "rosterAtEventPatch": {"batterSlot1": "B2"},
+      "request": {"d5": "D5-after-substitution", "fingerprint": "FP-after-substitution"}
+    },
+    {
+      "inputId": "TB-IN-06",
+      "beforePatch": {"outs": 1},
+      "request": {"d5": "D5-outs", "fingerprint": "FP-outs"}
+    },
+    {
+      "inputId": "TB-IN-07",
+      "beforePatch": {"balls": 1},
+      "request": {"d5": "D5-count", "fingerprint": "FP-count"}
+    },
+    {
+      "inputId": "TB-IN-08",
+      "beforePatch": {"bases": {"first": "R1"}},
+      "request": {"d5": "D5-bases", "fingerprint": "FP-bases"}
+    },
+    {
+      "inputId": "TB-IN-09",
+      "beforePatch": {"half": "9-bottom"},
+      "request": {"d5": "D5-half", "fingerprint": "FP-half"},
+      "formalInputGap": "現operationPayloadには対象halfがない。これは9回裏と要求inning=10の不一致としては評価できるが、half単独不一致の独立caseとは数えない。"
+    }
+  ]
+}
