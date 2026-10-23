@@ -46,3 +46,29 @@ PO委任に基づく独立確認・root承認後、指定された1ステップ�
 
 
 2026-10-23T20:37:51.253623+00:00、Codex主担当/rootはPO4/5/8/10に基づき、対象583735f1/plan6ca62a21116e8afb1de7ed8385ccca37579c6498222f64777e2819eed60cc47eを承認。非作者rights_replacement_reviewの限定第1回0/0/0、標準binarydiffd1ef3fd344aa4113eafaff6e0b875922830fdc535fbcff881988cce0a841aa68を照合した。まずstep1の新3source先行宣言/試験だけを実施し、検査後にstep2の別JSON登録を行う。step3の既存関数body/認可資産/migration/起動接合先はその着手前に同じ局所追補へ具体化して確認する。過去承認の再取得や新しい人間待ちではなく、PO委任による対象版の実装具体化。人間本人の逐行確認/署名、実open/保存成功/正式7.3/7.7を代記しない。
+
+## ステップ3の最初の物理小単位（候補・独立確認前）
+
+まず**fresh初回開放の実制限制御面と実scopeへの保持**を作り、既存全復元制御/全正常経路のfence証明とは分ける。新規作成のD4/V12なしを維持する。未知/既設/過去activation/旧backup・business再起動をfreshとして解除しない。非0復元/全write-path停止の証明が未提供なら復元epoch前進へ使える全域closeProofを発行せず、旧advanceの閉鎖を維持する。
+
+### 実source・主体・起動口
+
+| 担当path | 具体化する内容 |
+| --- | --- |
+| `recording_rights/rg1_lifecycle.py` | root専用のUnix controllerとapp client。閉operation/有限frame/deadline/両方向SO_PEERCRED・root所有非可変config/親dir検査。callerの任意JSON/ID/boolを証拠としない。controllerが実DurableLedger.fresh_activation()からattestationとlive fenceを得る。必要境界未提供時はfail-closed。rootconfigはendpoint/UID/peer接続等の非秘密値だけで新秘密/署名鍵を生成しない |
+| `recording_rights/rg1_lifecycle.sql` | 新schema `rg1_control`、NOLOGIN/NOBYPASSRLS/NOINHERIT owner `pitchlog_rg1_control_owner` と専用peer LOGIN/NOBYPASSRLS/NOINHERIT actor `pitchlog_rg1_control_actor`。actorへowner membership/表DML/汎用EXECUTEを与えない。固定controller排他lease・closed確定・fresh open・生存/closed観測だけの制限関数。既存singleton行を使用し新table/column/migrationは初小単位では追加しない |
+| `recording_rights/rg1_lifecycle_manifest.json` | schema/role属性・固定関数/引数/戻り・SQL hash・最小列ACL/RLS・実供給依存の非秘密宣言。DSN/資格実値・署名/任意expected集合を保存しない |
+| `repositories/rg1.py` | 既存2token/2function IDを保持し、正規controllerの実borrow/確認を同scopeへ結ぶ。default未設定/切断はRG1Unavailable。任意callbackの成功注入口を製品へ追加しない |
+| `repositories/transaction.py` | RG1を明示照合したscopeだけに不透明leaseを登録し、PG commit直前確認・commit/rollback/結果不明後まで保持して最後に解放。GET/read一般や認証SQLへ一律RG1を前倒ししない。lease解放がcommitより先にならないExitStack順を実測 |
+| `api/app.py` / `api/errors.py` | startupでroot所有configを検査しclientを設定（設定欠落は通常readを維持しRG1書込は閉鎖）。RG1Unavailableをscope rollback後に固定503外形へ。HTTP新経路・tenant選択・認可/C2迂回は追加しない |
+| `authz/{classification,product_role_contract,product_control_access,product_table_access,product_catalog,product_provisioning,product_function_acl}.py` | 上記新2subject/schema/固定関数・singleton限定列ACL/RLSだけ。旧read ownerのUPDATE(state)を許さず、helperの限定EXECUTEで生存を照合。全旧role/ACL/policy・製品全数比較/拒否を保持 |
+
+pathsの先頭は`backend/src/pitchlog/`。指定14実装/試験候補の機械被覆は現coreで14/14、新3sourceはstep2により捕捉済み。既存authzはtenant領域、RG1 function bodiesはsync/recording/tenantに捕捉されることを実pathで再確認する。実装所有はroot。SQLを別作者へ分割する場合はそのpathだけ引受台帳へ記録し、同時書込みをしない。
+
+### 正式入力と試験の必要追随
+
+正式反映はrootだけ：既存`contracts/authz/product/{ddl-elements,application-steps,exposure-facts,probe-product-map,failure-injection-points}.json`、`function-bodies/manifest.json`と`roles/rg1_control*`ではなく上記実role名のSQL、`schemas/rg1_control.sql`、`functions/FUNCTION:rg1_control:*`、singletonの追加owner列ACL/policy、既存RG1読取2関数bodyを実生成器/全catalog比較へ合わせる。capability/routeを不要に増やさない。tenant9資産/既存8外部・必要census/生成物/履歴/snapshotは実差分が変わる部分だけ完全値で受理。新tableを作らないためschema manifestの表数を仮増ししない。data-model3-2/索引は新2subject/制限境界の最小構造7.3候補を同単位で審査する。
+
+試験：新`backend/tests/test_rg1_lifecycle.py`と必要なら`test_rg1_lifecycle_sql.py`、`backend/tests/db/{rg1_lifecycle_support,test_rg1_lifecycle_connection}.py`。既存`test_rg1_operations.py`/`test_rg1_lock_contract.py`/`test_authz_product_roles.py`/`test_authz_product_control_access.py`/`test_authz_product_function_acls.py`/`test_product_authz_catalog.py`、`tests/test_check_tenant_boundary_bypass.py`、既存実browser source`frontend/src/screens/GameScreenE2eServer.py`とread側のcreate操作case追加だけを必要範囲で追随する。source/testと期待を同時に緩めて通さず、unitの偽transport検査と実fresh/実PG/実UI成功を分離する。共有conftestの成功固定やRG1のalways trueを作らない。
+
+最初の成功証拠はroot所有の隔離構成で、実genesis/identity/同期pair/未発行・不明0→実controller→実認証/C2→作成INSERT→commit後201→同ID GET/reload全値一致。直前閉鎖・controller/authority/PG切断・未知結果で201を返さず全取消し、古いopen行だけでも拒否する。controller喪失時のDB session lease解放、scope commit中の外部lease保持、peer偽装/不正frame/未設定を拒否する。非0復旧・全旧writer排出・全9-5経路/T8接合は親新7/8の次小単位へ残し、初回fresh成功でそれらを受理済みにしない。
