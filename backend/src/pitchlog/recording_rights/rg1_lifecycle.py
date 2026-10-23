@@ -16,7 +16,7 @@ import struct
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, LiteralString, cast
 from uuid import UUID
 
 _MAX_FRAME_BYTES = 8192
@@ -104,6 +104,7 @@ class BusinessBinding:
         }
         if type(value) is not dict or set(value) != keys:
             raise _unavailable()
+        value = cast("dict[str, object]", value)
         system_id = value["system_identifier"]
         database = value["database_name"]
         started = value["postmaster_started_at"]
@@ -301,6 +302,7 @@ class _Activation:
             "epoch",
         }:
             raise _unavailable()
+        value = cast("dict[str, object]", value)
         identifier = value["authority_id"]
         try:
             parsed = UUID(identifier) if type(identifier) is str else None
@@ -370,6 +372,13 @@ class _GateLoan:
             self._socket = None
             if sock is not None:
                 sock.close()
+
+    def abandon(self) -> None:
+        """PG終結不明時は正常解放を送らず、実channelの未終端を残す。"""
+        sock = self._socket
+        self._socket = None
+        if sock is not None:
+            sock.close()
 
 
 class _RuntimeClient:
@@ -446,3 +455,268 @@ def borrow_gate(binding: BusinessBinding) -> _GateLoan:
     if client is None:
         raise _unavailable()
     return client.borrow(binding)
+
+
+def serve_fresh_controller(config_path: Path) -> None:
+    """root配置と実authorityだけで一度限りのfresh controllerを起動する。
+
+    設定は接続先・UIDの非秘密値だけで、fresh証明の入力ではない。
+    通常再起動・旧DB復元・非zero復旧の自動解除はこの入口に含めない。
+    """
+    import ctypes
+    import importlib
+    import select
+    import threading
+
+    import psycopg
+
+    if os.geteuid() != 0:
+        raise _unavailable()
+    body, fingerprint = _configuration_bytes(config_path)
+    config = _decode_object(body)
+    if (
+        set(config)
+        != {
+            "schema_version",
+            "socket_path",
+            "controller_uid",
+            "application_uid",
+            "business_socket_directory",
+            "business_port",
+            "business_database",
+            "business_server_uid",
+            "ledger_endpoint",
+        }
+        or type(config["schema_version"]) is not int
+        or config["schema_version"] != 1
+    ):
+        raise _unavailable()
+    controller_uid = _positive_integer(config["controller_uid"], 2**32 - 1)
+    app_uid = _positive_integer(config["application_uid"], 2**32 - 1)
+    server_uid = _positive_integer(config["business_server_uid"], 2**32 - 1)
+    port = _positive_integer(config["business_port"], 65535)
+    if len({controller_uid, app_uid, server_uid}) != 3:
+        raise _unavailable()
+    for name in ("socket_path", "business_socket_directory", "ledger_endpoint"):
+        value = config[name]
+        if type(value) is not str or "\0" in value or not Path(value).is_absolute():
+            raise _unavailable()
+    database = config["business_database"]
+    if type(database) is not str or not database or "\0" in database:
+        raise _unavailable()
+    socket_path = Path(config["socket_path"])
+    if not 0 < len(os.fsencode(socket_path)) < 108:
+        raise _unavailable()
+    parent, _name = _parent_descriptor(socket_path)
+    os.close(parent)
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        # 既存entryをunlinkして再起動・別controllerを乗っ取らない。
+        listener.bind(str(socket_path))
+        os.chmod(socket_path, 0o666)
+        listener.listen(64)
+        listener.settimeout(0.2)
+        os.setgroups([])
+        os.setgid(controller_uid)
+        os.setuid(controller_uid)
+        libc = ctypes.CDLL(None, use_errno=True)
+        if libc.prctl(38, 1, 0, 0, 0) != 0 or os.geteuid() != controller_uid:
+            raise _unavailable()
+        # 動的解決先はこの固定製品packageだけ。未供給を代替実装で補完しない。
+        package = importlib.import_module("pitchlog.durable_rights_ledger")
+        ledger = package.DurableLedger(Path(config["ledger_endpoint"]))
+        with psycopg.connect(
+            host=config["business_socket_directory"],
+            port=port,
+            dbname=database,
+            user="pitchlog_rg1_control_actor",
+            passfile="/dev/null",
+            connect_timeout=3,
+            autocommit=True,
+        ) as connection:
+            with socket.fromfd(
+                connection.fileno(), socket.AF_UNIX, socket.SOCK_STREAM
+            ) as peer:
+                _pid, peer_uid, _gid = struct.unpack(
+                    "3i", peer.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+                )
+                if peer_uid != server_uid:
+                    raise _unavailable()
+            row = connection.execute("SELECT session_user, current_user").fetchone()
+            if row != ("pitchlog_rg1_control_actor", "pitchlog_rg1_control_actor"):
+                raise _unavailable()
+            connection.execute("SET statement_timeout = '3s'")
+
+            def control(name: str) -> object:
+                # callerのSQLや引数は受け取らない有限の制御面。
+                statements: dict[str, LiteralString] = {
+                    "take": "SELECT rg1_control.try_controller_lease()",
+                    "close": "SELECT rg1_control.close_gate()",
+                    "closed": "SELECT rg1_control.read_closed_gate()",
+                    "open": "SELECT rg1_control.open_fresh_gate()",
+                    "alive": "SELECT rg1_control.controller_lease_alive()",
+                    "release": "SELECT rg1_control.release_controller_lease()",
+                }
+                result = connection.execute(statements[name]).fetchone()
+                if result is None or len(result) != 1:
+                    raise _unavailable()
+                return result[0]
+
+            if control("take") is not True or control("close") is not True:
+                raise _unavailable()
+            closed = control("closed")
+            if type(closed) is not dict or closed.get("gate_state") != "closed":
+                raise _unavailable()
+            binding = BusinessBinding._from_mapping(
+                {key: value for key, value in closed.items() if key != "gate_state"}
+            )
+            if binding.database_name != database:
+                raise _unavailable()
+            with ledger.fresh_activation() as (attestation, fence):
+                if (
+                    attestation.business_system_id != binding.system_identifier
+                    or attestation.database != binding.database_name
+                    or datetime.fromisoformat(
+                        attestation.postmaster_started_at
+                    ).astimezone(timezone.utc)
+                    != binding.postmaster_started_at
+                    or type(attestation.highwater) is not int
+                    or attestation.highwater != 0
+                    or type(attestation.reservation_count) is not int
+                    or attestation.reservation_count != 0
+                ):
+                    raise _unavailable()
+                activation = _Activation.parse(
+                    {
+                        "authority_id": str(attestation.authority_id),
+                        "ordinal": attestation.activation_ordinal,
+                        "epoch": attestation.pair_epoch,
+                    }
+                )
+                fence.assert_held()
+                if control("open") is not True:
+                    raise _unavailable()
+                mutex = threading.RLock()
+                stop = threading.Event()
+                loans: dict[int, socket.socket] = {}
+                workers: list[threading.Thread] = []
+                sequence = 0
+
+                def assert_live() -> None:
+                    if (
+                        stop.is_set()
+                        or _configuration_bytes(config_path)[1] != fingerprint
+                    ):
+                        raise _unavailable()
+                    fence.assert_held()
+                    if control("alive") is not True:
+                        raise _unavailable()
+
+                def reply(status: str, loan_id: int) -> dict[str, object]:
+                    return {
+                        "status": status,
+                        "loan_id": loan_id,
+                        "activation": {
+                            "authority_id": str(activation.authority_id),
+                            "ordinal": activation.ordinal,
+                            "epoch": activation.epoch,
+                        },
+                    }
+
+                def session(channel: socket.socket) -> None:
+                    nonlocal sequence
+                    loan_id: int | None = None
+                    released = False
+                    try:
+                        channel.settimeout(_SOCKET_TIMEOUT_SECONDS)
+                        _pid, uid, _gid = struct.unpack(
+                            "3i",
+                            channel.getsockopt(
+                                socket.SOL_SOCKET, socket.SO_PEERCRED, 12
+                            ),
+                        )
+                        if uid != app_uid:
+                            return
+                        if _receive(channel) != {"op": "borrow"}:
+                            raise _unavailable()
+                        with mutex:
+                            assert_live()
+                            if len(loans) >= 128:
+                                raise _unavailable()
+                            sequence += 1
+                            loan_id = sequence
+                            loans[loan_id] = channel
+                            response = reply("active", loan_id)
+                            response["binding"] = {
+                                "system_identifier": binding.system_identifier,
+                                "database_oid": binding.database_oid,
+                                "database_name": binding.database_name,
+                                "postmaster_started_at": (
+                                    binding.postmaster_started_at.isoformat()
+                                ),
+                                "backend_pid": binding.backend_pid,
+                            }
+                            _send(channel, response)
+                        while not stop.is_set():
+                            if not select.select([channel], [], [], 0.2)[0]:
+                                continue
+                            request = _receive(channel)
+                            if (
+                                set(request) != {"op", "loan_id"}
+                                or _positive_integer(request["loan_id"], 2**63 - 1)
+                                != loan_id
+                            ):
+                                raise _unavailable()
+                            with mutex:
+                                assert_live()
+                                if loans.get(loan_id) is not channel:
+                                    raise _unavailable()
+                                if request["op"] == "assert-held":
+                                    _send(channel, reply("held", loan_id))
+                                elif request["op"] == "release":
+                                    loans.pop(loan_id)
+                                    released = True
+                                    _send(channel, reply("released", loan_id))
+                                    return
+                                else:
+                                    raise _unavailable()
+                    except Exception:
+                        # 内部応答・SQL・資格をログ/外形へ漏らさない。
+                        stop.set()
+                    finally:
+                        with mutex:
+                            if loan_id is not None:
+                                loans.pop(loan_id, None)
+                                if not released:
+                                    stop.set()
+                        channel.close()
+
+                try:
+                    while not stop.is_set():
+                        with mutex:
+                            assert_live()
+                        try:
+                            channel, _address = listener.accept()
+                        except TimeoutError:
+                            continue
+                        workers[:] = [worker for worker in workers if worker.is_alive()]
+                        if len(workers) >= 128:
+                            channel.close()
+                            continue
+                        worker = threading.Thread(
+                            target=session, args=(channel,), daemon=True
+                        )
+                        workers.append(worker)
+                        worker.start()
+                finally:
+                    stop.set()
+                    # closeは同PG sessionで確定。途中故障時はfresh ENDへ補完しない。
+                    with mutex:
+                        if control("close") is not True:
+                            raise _unavailable()
+                    for worker in workers:
+                        worker.join(timeout=3)
+                # この最初小単位は再起動を解除しない。異常停止の未終端を残す。
+                raise _unavailable()
+    finally:
+        listener.close()

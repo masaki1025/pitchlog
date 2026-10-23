@@ -1,0 +1,154 @@
+{
+  "format_version": 1,
+  "status": "unintegrated_candidate",
+  "source_sql_sha256": "8b8b36e9ea97bf2f22c0f6c9dcdc44e692e0d56d6bd38dd8a19ce1e157a26f99",
+  "controller_entry": "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller",
+  "required_supplier": "pitchlog.durable_rights_ledger.DurableLedger.fresh_activation",
+  "client_configuration": {
+    "default_path": "/run/pitchlog/rg1-client.json",
+    "fields": [
+      "schema_version",
+      "socket_path",
+      "controller_uid",
+      "application_uid"
+    ],
+    "owner_uid": 0,
+    "group_other_write": false
+  },
+  "controller_configuration": {
+    "fields": [
+      "schema_version",
+      "socket_path",
+      "controller_uid",
+      "application_uid",
+      "business_socket_directory",
+      "business_port",
+      "business_database",
+      "business_server_uid",
+      "ledger_endpoint"
+    ],
+    "owner_uid": 0,
+    "group_other_write": false,
+    "startup_uid": 0,
+    "runtime_identity": "controller_uid:controller_uid",
+    "supplementary_groups": [],
+    "no_new_privileges": true
+  },
+  "roles": {
+    "pitchlog_rg1_control_owner": {
+      "login": false,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "createrole": false,
+      "createdb": false,
+      "replication": false
+    },
+    "pitchlog_rg1_control_actor": {
+      "login": true,
+      "superuser": false,
+      "bypassrls": false,
+      "inherit": false,
+      "createrole": false,
+      "createdb": false,
+      "replication": false
+    }
+  },
+  "functions": [
+    {
+      "name": "rg1_control.try_controller_lease",
+      "arguments": [],
+      "returns": "boolean",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor"
+      ]
+    },
+    {
+      "name": "rg1_control.release_controller_lease",
+      "arguments": [],
+      "returns": "boolean",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor"
+      ]
+    },
+    {
+      "name": "rg1_control.close_gate",
+      "arguments": [],
+      "returns": "boolean",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor"
+      ]
+    },
+    {
+      "name": "rg1_control.open_fresh_gate",
+      "arguments": [],
+      "returns": "boolean",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor"
+      ]
+    },
+    {
+      "name": "rg1_control.controller_lease_alive",
+      "arguments": [],
+      "returns": "boolean",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor",
+        "pitchlog_rg1_fn_owner"
+      ]
+    },
+    {
+      "name": "rg1_control.read_closed_gate",
+      "arguments": [],
+      "returns": "jsonb",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor"
+      ]
+    },
+    {
+      "name": "rg1_control.scope_binding",
+      "arguments": [
+        {
+          "name": "p_tenant_id",
+          "type": "uuid"
+        }
+      ],
+      "returns": "text",
+      "execute_roles": [
+        "pitchlog_app"
+      ]
+    }
+  ],
+  "gate_access": {
+    "table": "public.rg1_restore_gate",
+    "role": "pitchlog_rg1_control_owner",
+    "select_columns": [
+      "singleton_id",
+      "state"
+    ],
+    "update_columns": [
+      "state"
+    ],
+    "singleton_id": 1,
+    "force_rls": true
+  },
+  "advisory_lease": {
+    "namespace": 1380397379,
+    "controller_key": 1,
+    "open_key": 2,
+    "objsubid": 2,
+    "mode": "ExclusiveLock",
+    "same_database_pid_and_actor": true
+  },
+  "unsupported": [
+    "global_close_proof",
+    "epoch_advance",
+    "nonzero_restore",
+    "automatic_restart_reopen"
+  ],
+  "evidence_boundaries": {
+    "sql_primitive": "dedicated_postgresql_only",
+    "fresh_activation": "requires_actual_supplier_attestation_and_live_fence",
+    "scope_release": "not_a_database_drain_or_quiescence_proof",
+    "pg_completion_unknown": "abandon_without_release_ack"
+  }
+}

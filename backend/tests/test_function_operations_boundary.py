@@ -96,18 +96,21 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_has_only_rg1_and_dml_is_unchanged() -> None:
-    """製品関数登録はRG1の2件に限り既存DML登録を維持する。"""
+    """製品関数登録はRG1の2照合と1実識別読取に限り既存DMLを維持する。"""
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
+        RG1ScopeBindingToken,
     )
 
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-    ) == ("RG1:precheck", "RG1:commit_check")
+    ) == ("RG1:precheck", "RG1:commit_check", "RG1:scope_binding")
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
+        RG1ScopeBindingToken,
         RG1CommitCheckToken,
+        RG1ScopeBindingToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 

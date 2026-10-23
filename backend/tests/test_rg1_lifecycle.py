@@ -228,7 +228,9 @@ def test_live_loan_rejects_false_primitive_equivalence(
         server.close()
 
 
-@pytest.mark.parametrize("failure", ("none", "body", "held", "commit", "release"))
+@pytest.mark.parametrize(
+    "failure", ("none", "body", "held", "commit", "rollback", "close", "release")
+)
 def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
     monkeypatch: pytest.MonkeyPatch, failure: str
 ) -> None:
@@ -252,6 +254,8 @@ def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
         def close(self) -> None:
             """PG接続解放時点を記録する。"""
             events.append("session-close")
+            if failure == "close":
+                raise RuntimeError("close unknown")
 
     class LoanProbe:
         """scope終了順の単体試験だけに使う借用。"""
@@ -269,6 +273,11 @@ def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
             if failure == "release":
                 raise lifecycle.RG1ControlUnavailable("release unknown")
 
+        def abandon(self) -> None:
+            """PGの不明結果を正常releaseへ補完しない。"""
+            assert "session-close" in events
+            events.append("abandon")
+
     @contextmanager
     def pg_boundary(_session: object, _context: object) -> Iterator[None]:
         events.append("begin")
@@ -276,6 +285,8 @@ def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
             yield
         except BaseException:
             events.append("rollback")
+            if failure == "rollback":
+                raise RuntimeError("rollback unknown")
             raise
         else:
             events.append("commit")
@@ -293,7 +304,7 @@ def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
             assert key is not None
             assert key not in transaction._RG1_LOANS
             transaction._RG1_LOANS[key] = cast("Any", LoanProbe())
-            if failure == "body":
+            if failure in {"body", "rollback"}:
                 raise RuntimeError("body failed")
         assert handle._state_key is None
 
@@ -302,11 +313,12 @@ def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
     else:
         with pytest.raises(RuntimeError):
             exercise()
-    if failure in {"body", "held"}:
+    if failure in {"body", "held", "rollback"}:
         assert "rollback" in events and "commit" not in events
     else:
         assert "commit" in events and "rollback" not in events
-    assert events[-2:] == ["session-close", "release"]
+    expected = "abandon" if failure in {"commit", "rollback", "close"} else "release"
+    assert events[-2:] == ["session-close", expected]
     assert not transaction._RG1_LOANS
 
 
@@ -337,3 +349,56 @@ def test_unchecked_read_scope_does_not_borrow_control(
     with transaction.tenant_transaction_scope(context):
         pass
     assert not transaction._RG1_LOANS
+
+
+def test_abandon_closes_channel_without_sending_normal_release() -> None:
+    """結果不明はrelease frame/ACKを持たず、server側でEOFとして観測する。"""
+    client, server = socket.socketpair()
+    try:
+        loan = object.__new__(lifecycle._GateLoan)
+        loan._socket = client
+        loan.abandon()
+        assert server.recv(1) == b""
+        with pytest.raises(lifecycle.RG1ControlUnavailable):
+            loan.assert_held()
+    finally:
+        client.close()
+        server.close()
+
+
+def test_machine_manifest_pins_sql_and_limits_application_control_access() -> None:
+    """機械供給宣言が実SQLに一致し、appへ制御6関数を与えない。"""
+    import hashlib
+
+    source = Path(lifecycle.__file__).parent
+    manifest = json.loads((source / "rg1_lifecycle_manifest.json").read_text())
+    assert (
+        manifest["source_sql_sha256"]
+        == hashlib.sha256((source / "rg1_lifecycle.sql").read_bytes()).hexdigest()
+    )
+    functions = manifest["functions"]
+    assert len(functions) == 7
+    assert {function["name"] for function in functions} == {
+        "rg1_control.try_controller_lease",
+        "rg1_control.release_controller_lease",
+        "rg1_control.close_gate",
+        "rg1_control.open_fresh_gate",
+        "rg1_control.controller_lease_alive",
+        "rg1_control.read_closed_gate",
+        "rg1_control.scope_binding",
+    }
+    assert [f["name"] for f in functions if "pitchlog_app" in f["execute_roles"]] == [
+        "rg1_control.scope_binding"
+    ]
+    assert manifest["evidence_boundaries"]["pg_completion_unknown"] == (
+        "abandon_without_release_ack"
+    )
+
+
+def test_controller_rejects_unprivileged_start_before_reading_configuration(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """root保護のbootstrapを、一般callerの設定値だけで開始しない。"""
+    monkeypatch.setattr(lifecycle.os, "geteuid", lambda: 20002)
+    with pytest.raises(lifecycle.RG1ControlUnavailable):
+        lifecycle.serve_fresh_controller(tmp_path / "not-created.json")

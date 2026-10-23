@@ -80,3 +80,6 @@ pathsの先頭は`backend/src/pitchlog/`。指定14実装/試験候補の機械�
 ### 同一Sessionの実DB束縛（ステップ3の技術具体化）
 
 2026-10-23T21:48Z、PO委任によるCodex主担当/root判断。制御peerのDBと作成scopeのDBをcaller値ではなく双方の実観測で一致させるため、固定読取 `rg1_control.scope_binding(p_tenant_id uuid) RETURNS text` を追加する。既存tenant GUCとの一致を検査し、system_identifier/database_oid/database_name/postmaster_started_at/backend_pidの5要素だけを実PGから返す。appはこの1関数のEXECUTEとschema USAGEのみを持ち、制御6関数・DML・membership・汎用EXECUTEを持たない。既存RG1の2token/2ID/署名は保持し、新token `RG1ScopeBindingToken` / ID `RG1:scope_binding` / capability `CAP:rg1:scope_binding` / factory `_build_rg1_scope_binding_statement` を同じ閉じたregistryへ登録する。必要な追加編集は `repositories/operation_registry.py` とこの登録に対応するexact metadata/正負例のみ。新HTTP経路、任意SQL、独自tenant選択を追加しない。完全正式値の受理・非作者レビュー・実PG検証は従前のステップ3〜4の条件を維持する。これは新たな記録意味・安全条件の変更ではなく、すでに承認された実business識別の補完不能な観測手段である。
+
+
+同じステップ3の影響試験は既存 `test_function_operations_boundary.py` の新1登録exact追随と `test_api_app.py` / `test_api_errors.py` の未配置read維持・未信頼config拒否・PG終結不明503非漏洩を含む。既存DML集合/旧bool2登録と拒否を維持する通常追随であり、新HTTP製品経路・認可成功条件を追加しない。

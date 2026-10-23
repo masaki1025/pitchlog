@@ -124,3 +124,31 @@ async def test_unhandled_exception_does_not_log_request_secrets(
 
     assert response.status_code == 500
     assert toxic_value not in caplog.text
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("kind", ("control", "gate"))
+async def test_rg1_failures_remain_unavailable_and_hide_internal_details(
+    kind: str,
+) -> None:
+    """実HTTP envelopeで、controller/PG不明を201や内部詳細付き応答にしない。"""
+    from fastapi import FastAPI
+
+    from pitchlog.api.errors import register_exception_handlers
+    from pitchlog.recording_rights.rg1_lifecycle import RG1ControlUnavailable
+    from pitchlog.repositories.rg1 import RG1Unavailable
+
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/rg1-boundary-probe")
+    def fail_control() -> None:
+        error_type = RG1ControlUnavailable if kind == "control" else RG1Unavailable
+        raise error_type("internal-controller-identity")
+
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/rg1-boundary-probe")
+    assert response.status_code == 503
+    assert response.json() == {"error": {"message": "リクエストを処理できません"}}
+    assert "internal-controller-identity" not in response.text

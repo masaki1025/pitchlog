@@ -339,9 +339,9 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         except BaseException as primary_error:
             if loan is not None:
                 try:
-                    loan.release()
-                except BaseException as release_error:
-                    raise primary_error from release_error
+                    loan.abandon()
+                except BaseException as abandon_error:
+                    raise primary_error from abandon_error
             raise
         if loan is not None:
             try:
