@@ -46,7 +46,12 @@ from pitchlog.db import all_models
 from pitchlog.db.base import Base
 from pitchlog.repositories import base as repository_base
 from pitchlog.repositories import repository_contract
-from pitchlog.repositories.roster import SelfTeamRecordReadToken
+from pitchlog.repositories.roster import (
+    PlayerCreateToken,
+    PlayerReadToken,
+    SelfTeamRecordReadToken,
+    TeamRecordReadToken,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_PATH = (
@@ -1084,7 +1089,7 @@ def test_unreferenced_dml_cte_is_rejected(
 
 
 def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> None:
-    """45 token の各文と 29 capability の対応を個別に検査する。"""
+    """47 token の各文と 30 capability の対応を個別に検査する。"""
     expected = {
         "CAP:players:read",
         "CAP:players:insert",
@@ -1121,7 +1126,7 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    assert len(repository_base._OPERATION_REGISTRY) == 45
+    assert len(repository_base._OPERATION_REGISTRY) == 47
     assert (
         repository_base._OPERATION_REGISTRY[SelfTeamRecordReadToken].capability_id
         == "CAP:team_records:read"
@@ -1143,10 +1148,9 @@ def test_roster_catalog_mismatches_are_rejected(
     catalog: dict[str, Any], tables: tuple[Table, Table]
 ) -> None:
     """未登録 ID、別表、別操作を製品文に混ぜると拒否する。"""
-    registrations = list(repository_base._OPERATION_REGISTRY.values())
-    players_read = registrations[0]
-    players_insert = registrations[1]
-    team_read = registrations[5]
+    players_read = repository_base._OPERATION_REGISTRY[PlayerReadToken]
+    players_insert = repository_base._OPERATION_REGISTRY[PlayerCreateToken]
+    team_read = repository_base._OPERATION_REGISTRY[TeamRecordReadToken]
     unknown_table = Table("unlisted_roster_table", MetaData(), Column("id", Integer))
     mutations = (
         (_Registration("CAP:unknown:read", players_read.statement), "カタログにない"),

@@ -44,3 +44,10 @@ DBは既存disposable fixtureを使い、外側1clusterの専用admin/tested DSN
 正式tenant-boundary checkerは`--base-ref 31194a39...`で**exit2（履歴末尾と7資産の識別値が不一致）**。関数ID不足は登録したが、新IDの7.7行がないため履歴赤は継続する。期待値/検査器/既存historyを緩めない。PR_ACCEPTANCE、180実統合後の正式値受理、snapshot/policy/manifest、新PR公開/全必須CIはrootの後続ゲートであり未実施。
 
 metadata/正例/試験6paths（本researchを除く）のfull-index binary差分SHA256 `f5bb83a182039511d0baa0a2d1a796d85f478d78d68c641e7f8f3f404bdad596`。生成repository_contract.py SHA256 `e71b42afd6cf1b911afb8a053b71c62945f642d7dda849a24230d6a5ea1bf3a4`、新正例SHA256 `71d58c3452020ddf738cc2ef1bfd9a7f58ad9018423849c881c917854b9bb5f8`。commit後のHEAD/全7paths/全差分SHA・実履歴predicateを引渡しへ固定する。元operation/service/DB・親TSK550のレビュー/未完履歴を保持し、実create/HTTP/RG1解除/S4/MVPを完成扱いしない。秘密/P6/他wt編集、新運用鍵、push/PRは行っていない。
+
+
+## 実175統合後の正常基線追随
+
+175最終c891のCI40018894038全12job成功・非作者CI是正0/実2親core証拠検査成功後、rootがPO委任で通常mergeし、正式developはa10bcd5e（treeはc891と同一）。この実履歴を本branchへ通常mergeし、競合4fileを主担当が機械整合した。mainの正式28history/204snapshot/9資産全旧fieldを保持し、resolverのSELECT factory1行/function ID1件だけを追加。candidate revisionは実36→37/25→26へ再導出し、repository source_digest/生成module3fieldを全field比較に対応させた。正式新PR値の受理・履歴追記はまだ行っていない。両sourceの正負fixture/試験は全て合流し、旧read2factory/47token/GET2/C2や初期付与を落としていない。
+
+backend公開resolver/登録対象177成功/1.69秒。rootのstage_a/preparing_read/fixed_function/positive_fixtures局所を同じ新候補で実施。旧7.7実値を新基線へ転記せず、実新PR番号と完全before/after、非作者照合・PO委任受理を次段で行う。公開resolver登録だけの単位を保ち、新規作成/実RG1成功/T1/1球への提供済み主張はしない。

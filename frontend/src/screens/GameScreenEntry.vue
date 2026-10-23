@@ -18,6 +18,7 @@ import {
 } from './GameScreenEntryTypes'
 
 const props = defineProps<{
+  mode?: 'preparing-read'
   page?: EntrySupply<GameListPage> | null
   starts?: EntrySupply<readonly StartCandidate[]> | null
   environment?: EntrySupply<EntryEnvironment> | null
@@ -105,8 +106,9 @@ const selected = computed(
 
 function requestPage(key: string | null): void {
   if (
+    pageRequestPending.value ||
     visiblePage.value === null ||
-    key === null ||
+    (key === null && !visiblePage.value.canPrevious) ||
     (key !== visiblePage.value.previousKey && key !== visiblePage.value.nextKey)
   )
     return
@@ -136,8 +138,13 @@ function returnToPriorPage(): void {
 <template>
   <main class="mx-auto max-w-4xl space-y-5 p-4 pb-12 wrap-anywhere">
     <header class="space-y-2">
-      <h1 class="text-2xl font-extrabold">試合</h1>
-      <p>
+      <h1 class="text-2xl font-extrabold">
+        {{ mode === 'preparing-read' ? '準備中の試合' : '試合' }}
+      </h1>
+      <p v-if="mode === 'preparing-read'">
+        準備中の試合だけを表示します。開始・再開・保存・送信はできません。
+      </p>
+      <p v-else>
         正式な試合一覧・開始情報は未接続です。ここから試合の開始・再開・保存・送信はできません。
       </p>
     </header>
@@ -205,9 +212,11 @@ function returnToPriorPage(): void {
         >
           <button
             type="button"
-            :disabled="visiblePage.previousKey === null"
+            :disabled="
+              !visiblePage.canPrevious && visiblePage.previousKey === null
+            "
             class="min-h-11 rounded-lg border px-3 py-2 disabled:opacity-50"
-            @click="requestPage(visiblePage.previousKey)"
+            @click="requestPage(visiblePage?.previousKey ?? null)"
           >
             前のページ
           </button>
@@ -215,7 +224,7 @@ function returnToPriorPage(): void {
             type="button"
             :disabled="visiblePage.nextKey === null"
             class="min-h-11 rounded-lg border px-3 py-2 disabled:opacity-50"
-            @click="requestPage(visiblePage.nextKey)"
+            @click="requestPage(visiblePage?.nextKey ?? null)"
           >
             次のページ
           </button>
@@ -224,6 +233,7 @@ function returnToPriorPage(): void {
     </section>
 
     <section
+      v-if="mode !== 'preparing-read'"
       aria-label="試合開始"
       class="min-w-0 space-y-3 rounded-2xl border p-4"
     >

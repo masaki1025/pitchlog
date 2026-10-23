@@ -215,6 +215,8 @@ class Contract:
     rules: tuple[ConditionRule, ...]
     condition2_adjudications: tuple[Condition2Adjudication, ...]
     condition2_owner_paths: tuple[str, ...]
+    condition2_scoped_findings: frozenset[tuple[int, str]]
+    condition2_scoped_source_sha256: str
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
@@ -794,6 +796,8 @@ def _load_allowlist(
     tuple[ConditionRule, ...],
     tuple[Condition2Adjudication, ...],
     tuple[str, ...],
+    frozenset[tuple[int, str]],
+    str,
     tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
@@ -808,6 +812,7 @@ def _load_allowlist(
             "allowed_symbols",
             "conditions",
             "condition_2_adjudications",
+            "condition_2_scoped_findings",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1012,11 +1017,32 @@ def _load_allowlist(
                 "condition_2_adjudications.symbol は条件 2 の候補でなければならない: "
                 f"{adjudication.symbol}"
             )
+    scoped_location = "allowlist.condition_2_scoped_findings"
+    scoped = _object(value["condition_2_scoped_findings"], scoped_location)
+    _strict_keys(scoped, {"path", "source_sha256", "findings"}, scoped_location)
+    if scoped["path"] != "backend/src/pitchlog/recording_rights/initial_grant.py":
+        raise ContractError("条件 2 の限定登録は初期付与1ファイルに限る")
+    scoped_digest = _string(scoped["source_sha256"], f"{scoped_location}.source_sha256")
+    if re.fullmatch(r"[0-9a-f]{64}", scoped_digest) is None:
+        raise ContractError("条件 2 の限定登録には実ソースSHA-256が必要")
+    scoped_findings: set[tuple[int, str]] = set()
+    for index, raw in enumerate(_array(scoped["findings"], f"{scoped_location}.findings")):
+        finding = _object(raw, f"{scoped_location}.findings[{index}]")
+        _strict_keys(finding, {"line", "symbol"}, f"{scoped_location}.finding")
+        line = _integer(finding["line"], f"{scoped_location}.line")
+        symbol = _string(finding["symbol"], f"{scoped_location}.symbol")
+        if line < 1 or not symbol or (line, symbol) in scoped_findings:
+            raise ContractError("条件 2 の限定登録は正の行番号と一意の記号が必要")
+        scoped_findings.add((line, symbol))
+    if len(scoped_findings) != 47:
+        raise ContractError("条件 2 の限定登録は審査済み47箇所のexact-setが必要")
     return (
         tuple(allowed_symbols),
         tuple(rules),
         tuple(condition2_adjudications),
         condition2_owner_paths,
+        frozenset(scoped_findings),
+        scoped_digest,
         command,
     )
 
@@ -1567,6 +1593,8 @@ def load_contract(repository_root: Path) -> Contract:
         rules,
         condition2_adjudications,
         condition2_owner_paths,
+        condition2_scoped_findings,
+        condition2_scoped_source_sha256,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1609,6 +1637,8 @@ def load_contract(repository_root: Path) -> Contract:
         rules=rules,
         condition2_adjudications=condition2_adjudications,
         condition2_owner_paths=condition2_owner_paths,
+        condition2_scoped_findings=condition2_scoped_findings,
+        condition2_scoped_source_sha256=condition2_scoped_source_sha256,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
@@ -5735,7 +5765,20 @@ def scan_source(
     )
     scanner.visit(tree)
     scanner._validate_call_coverage(tree)
-    return sorted(scanner.violations)
+    violations = scanner.violations
+    if (
+        path == "pitchlog/recording_rights/initial_grant.py"
+        and hashlib.sha256(source.encode("utf-8")).hexdigest()
+        == contract.condition2_scoped_source_sha256
+    ):
+        violations = [
+            violation
+            for violation in violations
+            if violation.code != "TB002"
+            or (violation.line, violation.symbol)
+            not in contract.condition2_scoped_findings
+        ]
+    return sorted(violations)
 
 
 def scan_source_change(
