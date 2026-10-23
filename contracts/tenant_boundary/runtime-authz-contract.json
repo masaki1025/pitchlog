@@ -541,6 +541,11 @@
       ],
       [
         "public",
+        "resolve_stage_a_rule",
+        "uuid, text, text, boolean"
+      ],
+      [
+        "public",
         "verify_games_applied_rules_final",
         ""
       ],
@@ -579,5 +584,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "44d721676c8fb95dd4c00bb74566318ff6fb03123a538a987ad5c0e6618db62f"
+  "source_digest": "49f9206b96c1ff2fe9da7710eefebf7c918dcce983a9ec6613c53d71218703e0"
 }

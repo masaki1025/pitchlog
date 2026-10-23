@@ -31,6 +31,12 @@ _RG1_PRODUCT_ATOMS = frozenset(
         "table:rg1_restore_gate",
     }
 )
+_STAGE_A_PRODUCT_ATOMS = frozenset(
+    {
+        "function:FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)",
+        "role:pitchlog_rule_resolution_fn_owner",
+    }
+)
 
 
 def _product_path() -> Path:
@@ -99,6 +105,7 @@ def test_probe_product_map_is_bidirectionally_exact() -> None:
     assert summary.product_atoms == summary.mapped_product_atoms | summary.product_only
     assert not summary.mapped_product_atoms & summary.product_only
     assert _RG1_PRODUCT_ATOMS <= summary.product_only
+    assert _STAGE_A_PRODUCT_ATOMS <= summary.product_only
     assert {
         str(row["product"])
         for row in _rows(mapping, "product_only")
@@ -149,6 +156,31 @@ def test_removing_one_rg1_product_only_atom_is_red() -> None:
             key="product",
             value="policy:POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
         )
+    )
+
+    with pytest.raises(ProbeProductMapError, match="製品原子要素"):
+        validate_probe_product_map(mutated, probe, product)
+
+
+@pytest.mark.parametrize("atom", sorted(_STAGE_A_PRODUCT_ATOMS))
+def test_removing_stage_a_product_only_atom_is_red(atom: str) -> None:
+    """段階Aのownerと固定関数のどちらの欠落も拒否する。"""
+    mapping, probe, product = _documents()
+    mutated = copy.deepcopy(mapping)
+    rows = _rows(mutated, "product_only")
+    rows.remove(_row_by_value(rows, key="product", value=atom))
+
+    with pytest.raises(ProbeProductMapError, match="製品原子要素"):
+        validate_probe_product_map(mutated, probe, product)
+
+
+@pytest.mark.parametrize("atom", sorted(_STAGE_A_PRODUCT_ATOMS))
+def test_unapproved_stage_a_product_only_atom_is_red(atom: str) -> None:
+    """似た未登録owner・関数を写像で勝手に増やせない。"""
+    mapping, probe, product = _documents()
+    mutated = copy.deepcopy(mapping)
+    _rows(mutated, "product_only").append(
+        {"product": atom + "_outside", "reason": "product_only"}
     )
 
     with pytest.raises(ProbeProductMapError, match="製品原子要素"):

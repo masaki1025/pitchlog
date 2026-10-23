@@ -75,7 +75,9 @@ def test_product_extension_and_new_schema_declarations() -> None:
     extra["schema_id"] = "test_extension_schema"
     extra["schema_name"] = "test_extension_schema"
     schemas.append(extra)
-    checker._validate_product_schema_expectations(schemas, authn_enabled=True)
+    checker._validate_product_schema_expectations(
+        schemas, authn_enabled=True, rg1_required=True, rule_resolution_required=True
+    )
     extensions = [
         {
             "extension_id": "test_extension",
@@ -1402,7 +1404,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1417 auth_claim=187 out_of_scope=1230" in result.stdout
+    assert "total=1418 auth_claim=187 out_of_scope=1231" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1919,8 +1921,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1230
-    assert attempts == 1230
+    assert len(out_claims) == 1231
+    assert attempts == 1231
     assert escaped == []
 
 

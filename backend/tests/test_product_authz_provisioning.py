@@ -40,6 +40,7 @@ _PUBLIC_IMPORT_NAMES = frozenset(
     {
         "ProductOperation",
         "apply_product_authz_ddl",
+        "apply_product_authz_before_rule_placement",
         "unapply_product_authz_ddl",
     }
 )
@@ -416,6 +417,7 @@ def _validate_terminal_boundary(source_root: Path) -> None:
             raise AssertionError("製品適用器の末端が直接呼び出し以外で参照された")
         references.append(function_name)
     if sorted(references) != [
+        "apply_product_authz_before_rule_placement",
         "apply_product_authz_ddl",
         "unapply_product_authz_ddl",
     ]:

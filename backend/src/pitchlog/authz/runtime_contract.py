@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 19
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "44d721676c8fb95dd4c00bb74566318ff6fb03123a538a987ad5c0e6618db62f"
+SOURCE_DIGEST = "49f9206b96c1ff2fe9da7710eefebf7c918dcce983a9ec6613c53d71218703e0"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -137,6 +137,7 @@ PROTECTED_FUNCTIONS = (
     ("public", "prevent_tenant_tokens_identity_update", ""),
     ("public", "prevent_tenant_vocabularies_identity_update", ""),
     ("public", "protect_recording_generations_updates", ""),
+    ("public", "resolve_stage_a_rule", "uuid, text, text, boolean"),
     ("public", "verify_games_applied_rules_final", ""),
     ("rg1_api", "rg1_assert_open_before_commit", "uuid"),
     ("rg1_api", "rg1_read_open", "uuid"),

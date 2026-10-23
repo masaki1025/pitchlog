@@ -173,6 +173,7 @@ jobs:
       PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
       PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
       PITCHLOG_MIGRATION_DATABASE_URL: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_STAGE_A_OWNER_DSN: postgresql://pitchlog_owner:pitchlog-owner-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_stage_a_ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -343,6 +344,7 @@ jobs:
       PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
       PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
       PITCHLOG_MIGRATION_DATABASE_URL: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_STAGE_A_OWNER_DSN: postgresql://pitchlog_owner:pitchlog-owner-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_stage_a_ci
     defaults:
       run:
         working-directory: backend
@@ -375,9 +377,57 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ty check
       - run: uv run pytest -c pyproject.toml --cov
-      - run: uv run alembic upgrade head
+      # pytest用DBと分離し、実migrationの所有者とS0を一致させる。
+      - run: |
+          uv run python - <<'PY'
+          import os
+          import psycopg
+          from psycopg import sql
+          from psycopg.conninfo import conninfo_to_dict
+
+          admin_dsn = os.environ['PITCHLOG_TEST_ADMIN_DSN']
+          owner_dsn = os.environ['PITCHLOG_STAGE_A_OWNER_DSN']
+          owner_password = conninfo_to_dict(owner_dsn)['password']
+          with psycopg.connect(admin_dsn, autocommit=True) as connection:
+              connection.execute(
+                  sql.SQL('CREATE ROLE pitchlog_owner LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB NOREPLICATION NOINHERIT PASSWORD {}').format(
+                      sql.Literal(owner_password)
+                  )
+              )
+              connection.execute(
+                  sql.SQL('CREATE DATABASE {} OWNER {}').format(
+                      sql.Identifier('pitchlog_stage_a_ci'),
+                      sql.Identifier('pitchlog_owner'),
+                  )
+              )
+          PY
+      - run: uv run alembic upgrade 0033_game_rules_immutable
+        env:
+          PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}
+      # S1認可後にだけ0033をownerで適用する。S4公開判定は行わない。
+      - run: |
+          uv run python - <<'PY'
+          import os
+          import psycopg
+          from psycopg.conninfo import conninfo_to_dict, make_conninfo
+          from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
+
+          admin_dsn = os.environ['PITCHLOG_TEST_ADMIN_DSN']
+          owner_dsn = os.environ['PITCHLOG_STAGE_A_OWNER_DSN']
+          stage_db = conninfo_to_dict(owner_dsn)['dbname']
+          stage_admin_dsn = make_conninfo(admin_dsn, dbname=stage_db)
+          result = advance_stage_a_from_s0(
+              owner_dsn=owner_dsn, applicator_dsn=stage_admin_dsn
+          )
+          assert result.completed_stage == 'S3'
+          assert result.publishable is False
+          PY
       - run: uv run alembic current --check-heads
+        env:
+          PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}
       - run: uv run alembic check
+        env:
+          PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}
       # x86_64 の配布イメージで起動時の hash 照合と常駐 Node の疎通を検証する。
       - name: D-2 配布イメージの疎通
         run: |

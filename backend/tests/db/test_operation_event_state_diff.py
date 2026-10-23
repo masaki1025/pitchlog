@@ -23,6 +23,7 @@ from .test_alembic_migrations import (
     _alembic_config,
     _insert_recording_generation,
     _insert_test_vocabularies,
+    _pre_placement_metadata_diffs,
     _sqlalchemy_url,
 )
 
@@ -236,7 +237,7 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
             _sqlalchemy_url(cluster.admin_dsn),
         )
         config = _alembic_config()
-        command.upgrade(config, "head")
+        command.upgrade(config, "0032_rg1_restore_gate")
 
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:
@@ -439,6 +440,10 @@ def test_operation_event_kind_and_state_diff_checks_round_trip(
                     "fk_operation_events_target": "FULL",
                 }
 
-        command.upgrade(config, "head")
-        command.current(config, check_heads=True)
-        command.check(config)
+        command.upgrade(config, "0032_rg1_restore_gate")
+        # 本試験の復帰先は0032。現行headへの段階起動は専用試験で検査する。
+        with psycopg.connect(cluster.admin_dsn) as connection:
+            assert connection.execute(
+                "SELECT version_num FROM public.alembic_version"
+            ).fetchall() == [("0032_rg1_restore_gate",)]
+        assert _pre_placement_metadata_diffs() == []

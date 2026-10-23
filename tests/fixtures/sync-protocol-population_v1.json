@@ -107,6 +107,12 @@
       "status": "owned"
     },
     {
+      "observationKey": "o5-deterministic-invariant",
+      "scenarioId": "o5-invariant-violation",
+      "status": "deferred",
+      "owner": "TSK-506 への接続契約(us1-sync-port-surface)のステップ 14"
+    },
+    {
       "observationKey": "multi-tab-single-writer",
       "scenarioId": "multi-tab-single-writer",
       "status": "owned"
