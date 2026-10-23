@@ -1,7 +1,7 @@
 ---
 feature: mvp-delegated-core-review
 status: active
-承認: 未
+承認: 済(2026-10-23・PO委任によるCodex判断)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://chatgpt.com/space/page_711a9b1ac7d88191a6b0bc313a60db01
@@ -63,3 +63,7 @@ policy.jsonは新しい検査経路であるため、ステップ1で必須パ�
 ## 計画レビュー採否
 
 第1回全文レビュー: `/root/product_connection`、SHA256 `aefa9cf7559c7c085c342c915898a5312074618ee2beca4fae3922c88736f5ad`、否決P0=0/P1=2/P2=1。全件採用。PR番号のexact対応を必須化、policy自体の検査経路としての宣言・別JSON登録と欠落拒否を追加、正本は今回委任参照注記に限定。
+
+第2回反映差分・影響節: `/root/product_connection`、対象11b07fd1、plan SHA256 `735094855097a2ab617b89799bca4883f2ac257d6f42c3f8df705a2d193b1478`、可決 P0=0/P1=0/P2=0。
+
+PO委任によるCodex判断: 2026-10-23T11:49:01.269922+00:00、Codex主担当 `/root`。上記対象版を2026-10-23 PO指示4/5/10の限定例外整備許可に基づき承認する。6.3一般体制を変更せず、本人逐行確認/署名を代記しない。対象PRは#177およびpolicyの明示対応表に限る。
