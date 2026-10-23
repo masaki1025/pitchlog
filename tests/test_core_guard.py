@@ -493,9 +493,24 @@ UF13_TENANT_ROUTE_PATHS = (
     "frontend/src/router*",
     "frontend/src/App*",
 )
-EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+STAGE_A_STARTUP_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "game-state": ("backend/src/pitchlog/db/stage_a_startup.py",),
     "tenant-isolation": ("backend/src/pitchlog/db/stage_a_startup.py",),
+}
+P7_CONTEXT_CANDIDATE_GLOB = "docs/features/mvp-t1-p7-context-contract/candidate/*"
+P7_CONTEXT_CANDIDATE_FILES = tuple(
+    "docs/features/mvp-t1-p7-context-contract/candidate/" + filename
+    for filename in (
+        "context-refs.schema.json",
+        "context-refs.d.ts",
+        "constructor-contract.md",
+        "structure-cases.json",
+        "source-ownership.md",
+    )
+)
+EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "game-state": (P7_CONTEXT_CANDIDATE_GLOB,),
+    "sync-protocol": (P7_CONTEXT_CANDIDATE_GLOB,),
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -1040,6 +1055,22 @@ def load_actual_core_areas() -> dict[str, Any]:
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
+
+
+def assert_p7_context_candidate_registration(configuration: dict[str, Any]) -> bool:
+    """候補globの未登録/二領域完全登録だけを許し、片側登録を拒否する。"""
+    areas = {area["id"]: area for area in configuration["areas"]}
+    counts = tuple(
+        areas[area_id]["paths"].count(P7_CONTEXT_CANDIDATE_GLOB)
+        for area_id in ("game-state", "sync-protocol")
+    )
+    assert counts in ((0, 0), (1, 1)), "P7候補globの重複または片側登録"
+    assert all(
+        P7_CONTEXT_CANDIDATE_GLOB not in area["paths"]
+        for area_id, area in areas.items()
+        if area_id not in EXPECTED_AREA_PATH_ADDITIONS
+    ), "P7候補globの対象外領域への登録"
+    return counts == (1, 1)
 
 
 def _require_reference_discovery_policy(
@@ -2018,10 +2049,135 @@ def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
     assert not has_expected_data_model_registrations(copied_configuration)
 
 
+def test_p7_context_candidate_core_declaration_retains_registered_startup() -> None:
+    """旧追加層が実JSONへ着地済みのときだけ新候補の宣言へ回転する。"""
+    core_guard = load_core_guard_module()
+    configuration = load_actual_core_areas()
+    areas = {area["id"]: area for area in configuration["areas"]}
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert tuple(core_guard.P7_CONTEXT_CANDIDATE_PATH_ADDITIONS) == (
+        P7_CONTEXT_CANDIDATE_GLOB,
+    )
+    for area_id, additions in STAGE_A_STARTUP_AREA_PATH_ADDITIONS.items():
+        assert_registered_block(areas[area_id]["paths"], additions)
+    assert_p7_context_candidate_registration(configuration)
+
+
+@pytest.mark.parametrize("registered", (False, True))
+def test_p7_context_candidate_core_two_phases_and_limited_scope(registered: bool) -> None:
+    """実JSONからの二段階登録を、候補の実在に依存せず限定範囲だけ受理する。"""
+    core_guard = load_core_guard_module()
+    baseline = load_actual_core_areas()
+    assert_p7_context_candidate_registration(baseline)
+    for area in baseline["areas"]:
+        area["paths"] = [p for p in area["paths"] if p != P7_CONTEXT_CANDIDATE_GLOB]
+    candidate = json.loads(json.dumps(baseline))
+    for area in candidate["areas"]:
+        if registered and area["id"] in EXPECTED_AREA_PATH_ADDITIONS:
+            area["paths"].append(P7_CONTEXT_CANDIDATE_GLOB)
+    assert assert_p7_context_candidate_registration(candidate) is registered
+    core_guard.validate_area_path_layers(baseline, candidate)
+    for before, after in zip(baseline["areas"], candidate["areas"], strict=True):
+        expected = [*before["paths"]]
+        if registered and before["id"] in EXPECTED_AREA_PATH_ADDITIONS:
+            expected.append(P7_CONTEXT_CANDIDATE_GLOB)
+        assert after == {**before, "paths": expected}
+        if before["id"] in EXPECTED_AREA_PATH_ADDITIONS:
+            area = core_guard.CoreAreas(tuple(after["paths"]), frozenset())
+            assert core_guard.matched_paths(P7_CONTEXT_CANDIDATE_FILES, area) == (
+                list(P7_CONTEXT_CANDIDATE_FILES) if registered else []
+            )
+    assert candidate["guard_paths"] == baseline["guard_paths"]
+    outside = (
+        "docs/features/mvp-t1-p7-context-contract/plan.md",
+        "docs/features/mvp-t1-p7-context-contract/research.md",
+        "docs/features/mvp-t1-p7-context-contract/candidate-other/context-refs.schema.json",
+        "docs/features/other-context-contract/candidate/context-refs.schema.json",
+    )
+    assert core_guard.matched_paths(
+        outside, core_guard.CoreAreas((P7_CONTEXT_CANDIDATE_GLOB,), frozenset())
+    ) == []
+
+
+@pytest.mark.parametrize("area_id", ("game-state", "sync-protocol"))
+def test_p7_context_candidate_core_one_sided_registration_is_rejected(area_id: str) -> None:
+    """片側だけの登録を実設定の集合試験で拒否する。"""
+    configuration = load_actual_core_areas()
+    for area in configuration["areas"]:
+        area["paths"] = [p for p in area["paths"] if p != P7_CONTEXT_CANDIDATE_GLOB]
+        if area["id"] == area_id:
+            area["paths"].append(P7_CONTEXT_CANDIDATE_GLOB)
+    with pytest.raises(AssertionError, match="片側登録"):
+        assert_p7_context_candidate_registration(configuration)
+
+
+def test_p7_context_candidate_core_declaration_then_separate_json_commit(tmp_path: Path):
+    """実JSONを基線に、宣言と別JSON登録の履歴を実CLIで受理する。"""
+    root, _ = make_layered_core_repo(tmp_path)
+    configuration = load_actual_core_areas()
+    assert_p7_context_candidate_registration(configuration)
+    for area in configuration["areas"]:
+        area["paths"] = [p for p in area["paths"] if p != P7_CONTEXT_CANDIDATE_GLOB]
+    commit_change(root, ".claude/core-areas.json", json.dumps(configuration))
+    _, base_sha = commit_change(
+        root, "scripts/core_guard.py",
+        core_guard_source_with_additions(STAGE_A_STARTUP_AREA_PATH_ADDITIONS),
+    )
+    _, declaration_sha = commit_change(
+        root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8")
+    )
+    event_path = write_event(
+        tmp_path, base_sha, declaration_sha, f"- [x] {REQUIRED_CHECK_TEXT}"
+    )
+    declared = run_guard(root, event_name="pull_request", event_path=event_path)
+    assert declared.returncode == 0, declared.stderr
+    assert json.loads((root / ".claude/core-areas.json").read_text()) == configuration
+
+    registered_sha = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    assert run_git(root, "rev-parse", f"{registered_sha}^").stdout.strip() == declaration_sha
+    core_guard = load_core_guard_module()
+    assert core_guard._changed_paths_in_commit(root, registered_sha) == frozenset(
+        {".claude/core-areas.json"}
+    )
+    for checked in (False, True):
+        event_path = write_event(
+            tmp_path, base_sha, registered_sha,
+            f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}",
+        )
+        result = run_guard(root, event_name="pull_request", event_path=event_path)
+        assert result.returncode == (0 if checked else 1), result.stderr
+        if not checked:
+            assert ".claude/core-areas.json" in result.stderr
+
+
+@pytest.mark.parametrize("core_path", P7_CONTEXT_CANDIDATE_FILES)
+@pytest.mark.parametrize("checked", (False, True))
+def test_p7_context_candidate_core_single_future_file_requires_human_check(
+    tmp_path: Path, core_path: str, checked: bool,
+) -> None:
+    """実JSONへ限定追加した後は、将来候補の各単独変更にも必須確認を要求する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    configuration = json.loads((root / ".claude/core-areas.json").read_text())
+    if not assert_p7_context_candidate_registration(configuration):
+        commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    base_sha, head_sha = commit_change(root, core_path)
+    core_guard = load_core_guard_module()
+    assert core_guard.changed_paths(root, base_sha, head_sha) == [core_path]
+    event_path = write_event(
+        tmp_path, base_sha, head_sha,
+        f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}",
+    )
+    result = run_guard(root, event_name="pull_request", event_path=event_path)
+    assert result.returncode == (0 if checked else 1), result.stderr
+    if not checked:
+        assert core_path in result.stderr
+        assert f"- [x] {REQUIRED_CHECK_TEXT}" in result.stderr
+
+
 def test_actual_core_area_paths_follow_merge_base_layers():
     """マージ作業ツリーを取り込み後の比較元 blob と突合する。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     baseline_ids = {area["id"] for area in baseline["areas"]}
@@ -2266,13 +2422,12 @@ def test_stage_a_startup_declaration_keeps_json_baseline_stationary(tmp_path: Pa
     root, base_sha = make_layered_core_repo(tmp_path)
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
 
-    assert core_guard.AREA_PATH_ADDITIONS["game-state"] == (
-        "backend/src/pitchlog/db/stage_a_startup.py",
+    core_guard.validate_area_path_layers(
+        baseline, baseline, STAGE_A_STARTUP_AREA_PATH_ADDITIONS
     )
-    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
-        "backend/src/pitchlog/db/stage_a_startup.py",
-    )
-    core_guard.validate_area_path_layers(baseline, baseline)
+    actual_areas = {area["id"]: area for area in load_actual_core_areas()["areas"]}
+    for area_id, additions in STAGE_A_STARTUP_AREA_PATH_ADDITIONS.items():
+        assert_registered_block(actual_areas[area_id]["paths"], additions)
 
 
 def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None:
@@ -2287,7 +2442,9 @@ def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None
         if area["id"] in ("game-state", "tenant-isolation"):
             area["paths"].append(startup)
 
-    core_guard.validate_area_path_layers(baseline, candidate)
+    core_guard.validate_area_path_layers(
+        baseline, candidate, STAGE_A_STARTUP_AREA_PATH_ADDITIONS
+    )
     assert all(
         core_guard.matched_paths(
             (startup,),
@@ -2304,20 +2461,24 @@ def test_stage_a_startup_registration_and_later_rotation(tmp_path: Path) -> None
     next(area for area in one_area["areas"] if area["id"] == "game-state")[
         "paths"
     ].append(startup)
-    core_guard.validate_area_path_layers(baseline, one_area)
+    core_guard.validate_area_path_layers(
+        baseline, one_area, STAGE_A_STARTUP_AREA_PATH_ADDITIONS
+    )
 
     invalid = json.loads(json.dumps(candidate))
     next(area for area in invalid["areas"] if area["id"] == "tenant-isolation")[
         "paths"
     ].append("backend/src/pitchlog/db/unregistered.py")
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
-        core_guard.validate_area_path_layers(baseline, invalid)
+        core_guard.validate_area_path_layers(
+            baseline, invalid, STAGE_A_STARTUP_AREA_PATH_ADDITIONS
+        )
 
     rotated = json.loads(json.dumps(candidate))
     for area in rotated["areas"]:
         if area["id"] in ("game-state", "tenant-isolation"):
             area["paths"].append(test_path)
-    rotated_declaration = dict(core_guard.AREA_PATH_ADDITIONS)
+    rotated_declaration = dict(STAGE_A_STARTUP_AREA_PATH_ADDITIONS)
     for area_id in ("game-state", "tenant-isolation"):
         rotated_declaration[area_id] = (test_path,)
     core_guard.validate_area_path_layers(candidate, rotated, rotated_declaration)
@@ -2614,7 +2775,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
     """着地済み RLS から U-F5 までの登録順を末尾に依存せず保つ。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
     registered_tail = (*PRODUCT_RLS_AREA_PATH_ADDITIONS, ADR_001_PATH)
@@ -2700,7 +2861,7 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     """比較元に登録済みの画面と spec を全領域で保持する。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     pattern = UF8_GAME_SCREEN_AREA_PATH_ADDITIONS[0]
@@ -2723,9 +2884,10 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
 def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
     """U-S1の登録済み層を保ち、その後にRG1層だけを追加する。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
+    registered_p7 = assert_p7_context_candidate_registration(configuration)
     base_areas = {area["id"]: area for area in baseline["areas"]}
     current_areas = {area["id"]: area for area in configuration["areas"]}
     representatives = (
@@ -2749,7 +2911,11 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
         assert_registered_block(paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
         assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
         assert_registered_block(paths, UR1_REGISTERED_PATHS[area_id])
-        assert paths == base_paths
+        pending = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        if registered_p7 and pending and not set(pending) <= set(base_paths):
+            assert paths == (*base_paths, *pending)
+        else:
+            assert paths == base_paths
         for path, pattern in representatives:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
@@ -2763,7 +2929,7 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
 def test_uf5_team_paths_are_registered_for_tenant_and_migration() -> None:
     """U-F5 の製品6ファイルをT・Dだけへ宣言順で登録済みと示す。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     expected_files = (
@@ -2856,7 +3022,7 @@ def test_area_registration() -> None:
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
@@ -2903,6 +3069,7 @@ def test_area_registration() -> None:
         ),
     }
 
+    registered_p7 = assert_p7_context_candidate_registration(configuration)
     assert len(areas) == len(configuration["areas"]) == 5
     assert len(DOMAIN_CALC_GLOBS) == 15
     assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
@@ -2929,7 +3096,11 @@ def test_area_registration() -> None:
         current_paths = tuple(areas[area_id]["paths"])
         assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
         assert_registered_block(current_paths, UR1_REGISTERED_PATHS[area_id])
-        assert current_paths == base_paths
+        pending = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        if registered_p7 and pending and not set(pending) <= set(base_paths):
+            assert current_paths == (*base_paths, *pending)
+        else:
+            assert current_paths == base_paths
         assert all(
             any(fnmatch.fnmatchcase(path, pattern) for path in tracked_files)
             for pattern in additions
@@ -2985,7 +3156,7 @@ def test_ur1_registered_paths_are_retained_after_declaration_rotation() -> None:
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     baseline = core_guard.load_core_areas_at_revision(
-        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+        REPO, run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     )
     for document in (baseline, configuration):
         areas = {area["id"]: area for area in document["areas"]}
@@ -3005,7 +3176,7 @@ def test_uf13_declaration_retains_json_and_checks_product_registration() -> None
     """宣言だけではJSONを変えず、合成登録でrouter/Appの全4実例を検出する。"""
     core_guard = load_core_guard_module()
     baseline = core_guard.load_core_areas_at_revision(
-        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+        REPO, run_git(REPO, "merge-base", "origin/develop", "HEAD").stdout.strip()
     )
     configuration = load_actual_core_areas()
     core_guard.validate_area_path_layers(baseline, configuration)

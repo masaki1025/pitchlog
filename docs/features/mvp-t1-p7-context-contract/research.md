@@ -61,3 +61,12 @@ docs-statusは20文書/違反0、計画同期（base 7d6ce544）はexit0、両�
 独立第2回差分/影響レビュー: /root/independent_review、上記plan e02226a2/research2cd2562b、可決0/0/0、初回P1解消。主担当はplan末尾の対象版と日時でPO委任承認。旧counts/留保維持。
 
 固定7d6のJSON未変更でorigin/develop658先端と直接比較する2既存core試験が2failed。差はO5母集合登録1件とguard_paths先端追加で、候補が削除したものではない。rootがplan末尾の日時/理由で2試験の実merge-base比較への限定追随を委任承認。実PR base拒否は変更せず、先端登録保持は統合前の別ゲート。コード反映は未レビューとして最終差分レビューへ渡す。
+
+2026-10-24 00:49 JST記録、全`tests/test_core_guard.py`で276 passed / 8 failed（既報2件込み）を確認。残る6件も同じ先端sync母集団登録1件差であり、主担当/rootはPO委任により同scope内計8件を実merge-base比較へ揃える限定追補を指示した。追加対象はplan末尾に実名列挙した6件。元2件から8件へ拡張した履歴を保持し、失敗を隠さない。固定比較元全paths/順序・許可層以外拒否・旧登録実在を保持し、先端O5の取得済み/正式統合可とは記録しない。実PR guard/JSONは変更せず、統合前に実base登録/guard_paths全保持を照合する。今回差分はステップ1終端の独立コードレビュー待ち。
+
+## ステップ1/3：限定追加層の先行宣言
+
+既存`stage_a_startup.py`が現JSONのgame-state/tenant-isolationへ各1件登録済みであることを照合したうえで、追加層を今回の限定candidate globへ回転した。製品guardの判定関数/拒否条件、JSON、candidate、既存544/P6・正式資産・製品は変更していない。
+新試験は候補未実在の宣言状態と登録状態、両領域への帰属、片側登録拒否、限定外非包含、別コミットの宣言→JSON登録、候補5パス各単独変更の未確認拒否/確認済み受理を検証する。旧追加層の登録・実在と拒否試験は保持した。
+
+検証: `uv run pytest tests/test_core_guard.py -n 4 -q`は**284 passed / 10.96s**。root Ruff/ty、docs-status（20文書/違反0）、計画同期、差分空白検査は成功。失敗8件の比較基線是正後、同対象で無関係な失敗はなかった。実JSONの登録や候補作成は未着手で、ステップ1のコード独立レビューへ引き継いで停止する。
