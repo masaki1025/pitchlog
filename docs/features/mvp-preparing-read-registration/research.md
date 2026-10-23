@@ -146,3 +146,8 @@ frontendはfrozen installのみで宣言/lock差分0。現在の実候補でread
 追随の初回は379成功/3失敗/26.27秒、歴史的fixtureが新pending宣言を使ったtenant不一致。合成fixtureの当時宣言を保持した次回は381成功/1失敗/24.20秒で、CLIも現在scriptを呼んでいた1件を確認。同一の当時scriptをCLIへ渡す局所fixture是正後は全core382成功/26.35秒。製品拒否条件・判定関数・例外は変更せず、旧部分/片側/順序/共変更拒否を保持した。3実行を単一成功と書かず旧失敗logをcache/preparing-read-core-after180*.logへ保持する。
 
 正式9/8値・7.7・認可lock/oracle/175親追加レビュー1回/必須CI/実新規作成は未達。これは無関係な基線追随・必要な機械是正を既PO委任で行った記録であり、本人の逐行確認/署名ではない。
+
+
+非作者rights_replacement_reviewは741bb698/比較6f60983cの機械追随限定確認0/0/0、独立core382成功/22.72秒。binary diff78742cfed90802c2bf4b7d0c70b6dc0e24901f0e09b5ee63b18b1ba55aca3141（full-index576a1788ad40d10b4ad04b395234746d98ae019ce76e55bb027707e55de75384）。親175正式追加枠は未消費。
+
+実547の完全9射影/外部8をrootが再計算し、readで動いた射影はallowlist/repository2件だけ、他7/外部8は同一と確認。候補識別はallowlist35→36/repository24→25とし、repositoryのsource_digestと生成moduleの全fieldを対応させる。初回はJSON source_digestの追随漏れで47成功/1失敗/1秒、生成とJSONを同じ正規化digestへ是正して局所再検証した。履歴27prefix/202snapshotはこの候補段階で不変、正式受理は未成立。新値の独立照合/根拠/承認を後続に記録し、古い180受理をread差分へ自動延長しない。
