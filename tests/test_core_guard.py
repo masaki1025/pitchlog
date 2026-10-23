@@ -514,7 +514,7 @@ PREPARING_READ_PATHS = (
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "sync-protocol": INITIAL_RIGHTS_PATHS,
     "recording-rights": INITIAL_RIGHTS_PATHS,
-    "tenant-isolation": (*PREPARING_READ_PATHS, *INITIAL_RIGHTS_PATHS),
+    "tenant-isolation": PREPARING_READ_PATHS,
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -2291,9 +2291,7 @@ def test_stage_a_startup_declaration_keeps_json_baseline_stationary() -> None:
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
 
     assert PRE_INITIAL_RIGHTS_PATH_ADDITIONS["game-state"] == (startup,)
-    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == (
-        *PREPARING_READ_PATHS, *INITIAL_RIGHTS_PATHS,
-    )
+    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == PREPARING_READ_PATHS
     for document in (baseline, configuration):
         for area in document["areas"]:
             if area["id"] in ("game-state", "tenant-isolation"):
@@ -4411,6 +4409,12 @@ def test_policy_guard_declaration_accepts_only_one_exact_registration_suffix() -
             assert_authz_guard_paths_are_exact(configuration)
 
 
+INITIAL_RIGHTS_HISTORICAL_ADDITIONS = {
+    area_id: INITIAL_RIGHTS_PATHS
+    for area_id in ("sync-protocol", "recording-rights", "tenant-isolation")
+}
+
+
 def assert_initial_rights_registration(
     configuration: dict[str, Any], root: Path = REPO,
 ) -> bool:
@@ -4419,12 +4423,16 @@ def assert_initial_rights_registration(
     registered = []
     for area_id, paths in areas.items():
         present = tuple(path in paths for path in INITIAL_RIGHTS_PATHS)
-        if area_id in EXPECTED_AREA_PATH_ADDITIONS:
+        if area_id in INITIAL_RIGHTS_HISTORICAL_ADDITIONS:
             assert len(set(present)) == 1, f'{area_id}: 初期付与の部分登録'
             registered.append(all(present))
             if all(present):
                 assert_registered_block(paths, INITIAL_RIGHTS_PATHS)
-                assert tuple(paths[-2:]) == INITIAL_RIGHTS_PATHS
+                suffix = PREPARING_READ_PATHS if (
+                    area_id == "tenant-isolation"
+                    and all(path in paths for path in PREPARING_READ_PATHS)
+                ) else ()
+                assert tuple(paths[-(2 + len(suffix)):]) == (*INITIAL_RIGHTS_PATHS, *suffix)
         else:
             assert not any(present), f'{area_id}: 初期付与の対象外登録'
     assert len(registered) == 3 and len(set(registered)) == 1, '初期付与の片側領域登録'
@@ -4433,7 +4441,7 @@ def assert_initial_rights_registration(
     if any(exists):
         assert all(registered), '実在する初期付与source/testが未登録'
         guard = load_core_guard_module()
-        for area_id in EXPECTED_AREA_PATH_ADDITIONS:
+        for area_id in INITIAL_RIGHTS_HISTORICAL_ADDITIONS:
             assert guard.matched_paths(
                 INITIAL_RIGHTS_PATHS, guard.CoreAreas(tuple(areas[area_id]), frozenset()),
             ) == list(INITIAL_RIGHTS_PATHS)
@@ -4444,8 +4452,12 @@ def initial_rights_configuration(*, registered: bool) -> dict[str, Any]:
     """旧全登録を保持したまま初期付与の段階だけを合成する。"""
     configuration = load_actual_core_areas()
     for area in configuration['areas']:
-        additions = EXPECTED_AREA_PATH_ADDITIONS.get(area['id'], ())
-        area['paths'] = [p for p in area['paths'] if p not in additions]
+        additions = INITIAL_RIGHTS_HISTORICAL_ADDITIONS.get(area['id'], ())
+        area['paths'] = [
+            p for p in area['paths']
+            if p not in additions
+            and not (area['id'] == 'tenant-isolation' and p in PREPARING_READ_PATHS)
+        ]
         if registered:
             area['paths'].extend(additions)
     return configuration
@@ -4525,7 +4537,7 @@ def test_initial_rights_core_invalid_registration_is_rejected(
     else:
         areas['sync-protocol'].append('unregistered/probe.py')
     with pytest.raises((AssertionError, guard.GuardError)):
-        guard.validate_area_path_layers(baseline, candidate)
+        guard.validate_area_path_layers(baseline, candidate, INITIAL_RIGHTS_HISTORICAL_ADDITIONS)
         assert_initial_rights_registration(candidate, tmp_path)
 
 
@@ -4534,9 +4546,9 @@ def test_initial_rights_core_exact_scope_and_metadata_are_preserved() -> None:
     guard = load_core_guard_module()
     before = initial_rights_configuration(registered=False)
     after = initial_rights_configuration(registered=True)
-    guard.validate_area_path_layers(before, after)
+    guard.validate_area_path_layers(before, after, INITIAL_RIGHTS_HISTORICAL_ADDITIONS)
     for a, b in zip(before['areas'], after['areas'], strict=True):
-        extra = list(EXPECTED_AREA_PATH_ADDITIONS.get(a['id'], ()))
+        extra = list(INITIAL_RIGHTS_HISTORICAL_ADDITIONS.get(a['id'], ()))
         expected = a['paths'] + extra
         assert b == {**a, 'paths': expected}
     metadata = {k: v for k, v in before.items() if k != 'areas'}
@@ -4567,7 +4579,7 @@ def test_initial_rights_core_declaration_then_separate_registration(tmp_path: Pa
     event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
     result = run_guard(root, event_name='pull_request', event_path=event)
     assert result.returncode == 0, result.stderr
-    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = commit_area_path_changes(root, INITIAL_RIGHTS_HISTORICAL_ADDITIONS)
     assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
     assert guard._changed_paths_in_commit(root, registered) == frozenset(
         {'.claude/core-areas.json'}
@@ -4586,7 +4598,7 @@ def test_initial_rights_core_same_commit_predicate_rejects_old_shape(
     guard = load_core_guard_module()
     root, base = make_layered_core_repo(tmp_path)
     head = commit_area_path_changes(
-        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(cochanged,),
+        root, INITIAL_RIGHTS_HISTORICAL_ADDITIONS, cochanged_paths=(cochanged,),
     )
     with pytest.raises(guard.GuardError, match='同一コミット'):
         guard.verify_area_path_baseline(root, base, head)

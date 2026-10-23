@@ -76,7 +76,7 @@ PREPARING_READ_PATH_ADDITIONS = (
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
     "sync-protocol": INITIAL_RIGHTS_PATH_ADDITIONS,
     "recording-rights": INITIAL_RIGHTS_PATH_ADDITIONS,
-    "tenant-isolation": (*PREPARING_READ_PATH_ADDITIONS, *INITIAL_RIGHTS_PATH_ADDITIONS),
+    "tenant-isolation": PREPARING_READ_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
