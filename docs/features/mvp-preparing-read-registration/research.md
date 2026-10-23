@@ -154,3 +154,8 @@ frontendはfrozen installのみで宣言/lock差分0。現在の実候補でread
 
 
 認可の通常派生導出`--asset-spec product --reseal-derived`は1418項目検査成功、route/matrixのlock2件だけ更新、auth-catalog/claims/権限/意味は不変。oracleの入力8blobを含む次commit Cを固定し、context6/sealと既存oracle_input台帳の実識別値を同じCへ前進させる。C固定は正式受理/封印そのものではなく、後続の限定差分・完全値レビューとPO委任受理後に反映する。
+
+
+正式受理前の完全値候補はcache/preparing-read-175-acceptance/proposal.json（SHA325e1a0803f021378c1ef0ad9cb7358dbe0c38b365fa45faf57de52df5cb9412）。実547→4c5b3794で9射影を全導出、変化2/不変7、外部8不変、27history/202snapshot全bytes不変。C=bda1262947ba284374a5e14b532c2ef3c3859544は追加の認可lock2件と研究記録だけなので、9/8の提案値は同一。aspectは実derive_aspectsのdeclaration/asset_snapshotsだけであり、外部不変を変更に数えない。
+
+oracle6context/sealのcommit文字列を旧426d→同じCへ前進した候補を固定。6意味行は全不変で、ここではseal再導出・oracle_input系列行の正式追記をしない。必要な既存frozen-baselines.json系列の末尾1行追随をroot後続scopeへ明記し、旧全行・配置・target・拒否は保持する。cache/oracle-ledger-row-proposal.jsonのSHA1a9fa6733b2143dc566e376f66807047c8b7ee69bcff511e538c68024f0449d5は承認者/日付なしの未受理提案。全実値とこの最小scopeの非作者照合後、PO委任判断を根拠付きで正式記録してから必要行/封印を反映する。本人の個別確認を代記しない。
