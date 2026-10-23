@@ -1,6 +1,15 @@
-import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, rmSync, statSync } from 'node:fs'
+// @vitest-environment node
+
+import { spawn, spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import {
+  gameScreenE2eOrigin,
+  type GameScreenE2eMode,
+} from './GameScreenE2eSupport'
 import {
   cleanupGameScreenOutputDirectory,
   finishGameScreenChild,
@@ -9,6 +18,58 @@ import {
 } from './GameScreenE2eProcess'
 
 describe('自分のE2E子プロセスの終了契約', () => {
+  it.each([
+    ['preparing-read', 'https://127.0.0.1:43210'],
+    ['sealed-ui', 'http://127.0.0.1:43210'],
+    ['preparing-read', 'http://example.test:43210'],
+  ])('%sはモード外origin %sをDB起動前に拒否する', (mode, origin) => {
+    const backend = fileURLToPath(new URL('../../../backend/', import.meta.url))
+    const script = fileURLToPath(
+      new URL('./GameScreenE2eSupport.py', import.meta.url),
+    )
+    const directory = mkdtempSync(
+      resolve(tmpdir(), 'pitchlog-e2e-origin-check-'),
+    )
+    try {
+      chmodSync(directory, 0o700)
+      const result = spawnSync('python3', ['-I', '-S', script], {
+        cwd: backend,
+        encoding: 'utf8',
+        timeout: 10_000,
+        env: {
+          PATH: process.env.PATH,
+          PITCHLOG_E2E_READY_FILE: resolve(directory, 'backend-ready.json'),
+          PITCHLOG_E2E_STOP_FILE: resolve(directory, 'stop'),
+          PITCHLOG_E2E_MODE: mode,
+          PITCHLOG_E2E_FRONTEND_ORIGIN: origin,
+        },
+      })
+      expect(result.error).toBeUndefined()
+      expect(result.signal).toBeNull()
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain(
+        'E2E origin は明示モードの専用loopbackポートだけ許す',
+      )
+      expect(existsSync(resolve(directory, 'backend-ready.json'))).toBe(false)
+    } finally {
+      rmSync(directory, { recursive: true })
+    }
+  })
+  it('readだけHTTPのloopbackを使い、封鎖画面のHTTPSを保持する', () => {
+    expect(gameScreenE2eOrigin('preparing-read', 43210)).toBe(
+      'http://127.0.0.1:43210',
+    )
+    expect(gameScreenE2eOrigin('sealed-ui', 43210)).toBe(
+      'https://127.0.0.1:43210',
+    )
+    expect(() =>
+      gameScreenE2eOrigin('unknown' as GameScreenE2eMode, 43210),
+    ).toThrow('明示モード')
+    for (const port of [0, -1, 65536, 1.5, NaN, Infinity])
+      expect(() => gameScreenE2eOrigin('preparing-read', port)).toThrow(
+        '専用ポート',
+      )
+  })
   it('config再評価は同じ0700出力先を使い、自分の終端で消す', () => {
     const names = [
       'PITCHLOG_E2E_OUTPUT_DIR',

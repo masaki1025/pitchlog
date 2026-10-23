@@ -1,0 +1,26 @@
+[
+  {
+    "op": "add",
+    "path": "/allowed_symbols/-",
+    "value": {
+      "symbol": "pitchlog.repositories.games._preparing_game_list_statement",
+      "signature": "_preparing_game_list_statement(cursor_position: tuple[datetime, UUID] | None=None) -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games.py"
+    }
+  },
+  {
+    "op": "add",
+    "path": "/allowed_symbols/-",
+    "value": {
+      "symbol": "pitchlog.repositories.games._preparing_game_detail_statement",
+      "signature": "_preparing_game_detail_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games/__init__.py"
+    }
+  }
+]

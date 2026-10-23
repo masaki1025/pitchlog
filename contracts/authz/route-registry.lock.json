@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "e47ce2eefa568608bc7ed1bebf26045706b1c0c0a1c8516eb524565f11a8e0e6",
-  "entry_count": 245,
-  "aggregate_decision_digest": "d9ee57638d8cd2350f5af5835e00301f4d12df54af639f73f44155b7cbd8328b",
+  "asset_digest": "7ff74b3aaa20b50f2c4fb74f4caa6939dd622a28bcafd3354e56128d88be5422",
+  "entry_count": 246,
+  "aggregate_decision_digest": "5567132e29d2c6874cf52a573d5cadd5b10ae62b503c5ae4925f1310ea54e0f6",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -783,6 +783,21 @@
         ]
       },
       "decision_digest": "12a01aed344764032b538de30c7b7225234173ad08993bcad381618cb1146bed"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:games:read",
+      "decision": {
+        "route_id": "ROUTE:RECORD:games:read",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE",
+          "PLAN-MVP-PREPARING-READ-REGISTRATION"
+        ],
+        "operation": "read"
+      },
+      "decision_digest": "c203d6213b2d2e265e37c1b2ea713ded5920fe7e8d29b0e1e90e383b78e77a9b"
     },
     {
       "entry_id": "operation:create_group",

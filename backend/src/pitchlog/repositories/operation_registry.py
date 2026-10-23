@@ -6,6 +6,7 @@ from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     build_function_registry,
 )
+from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
@@ -20,6 +21,7 @@ from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
 
 PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
+    *PREPARING_GAME_READ_OPERATIONS,
     *ROSTER_OPERATIONS,
     *INVALIDATION_INTENT_OPERATIONS,
     *LINEUP_MEMORY_OPERATIONS,
