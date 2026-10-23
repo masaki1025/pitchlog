@@ -53,3 +53,22 @@ controller候補はroot保護の非秘密configからsocketをbindし、専用UI
 対象はdata-model3-2のRG1制御2主体/同Session読取/安全な成功条件とロール数参照だけ。固定直前HEAD91e90cf15abbb253f4915a2f7acb3274784965a4のdata-model1.1を改訂基線とし、初回敵対レビュー適用条文はapprovedハーネス1.19、条文コミット91e90cf15abbb253f4915a2f7acb3274784965a4（同時in-review化の第一親、暫定）。初回開始時に版を照合し固定する。finalize-doc手順を使い、今回PO指示4/5の独立subagent・委任承認代替を適用、一般規約/検出/対象paths/拒否条件を変えない。基本枠/起因/採否/(B)送り/反映周を既存7.3どおり保持し、人間本人の確認/署名を代記しない。初回全文レビューと採否はこれからであり、approvedではない。
 
 91e90最終限定非作者0の証拠review-rg1-controller-e280fd18-91e90cf1-evidence.json SHAb2f888ab216ac8c2d290a26e15f5eafafd14c6b71b246eb045c182cc24ec9aebを受領。別の固定隔離候補69836e33ではcsv_reviewがactualsupplierc07→rootbind/20002降格listen→実app20003 PG peer/binding→borrow/held/3.2秒idle保持/release→再borrow/abandon→PGclosed/lease消滅/保護journal未終端拒否まで1成功48.59秒で確認した。sourceは供給2候補のbyteを保持し、fakeauthority/常trueを使わず、全所有資源回収済み。test/supportは隔離枝だけ、正式受理/HTTP201/画面成功ではない。
+
+
+### 正本ゲート第1回の採否・反映1周目
+
+9038全文/基本2回枠の第1回はP0=0/P1=1/P2=1、否決。非作者rightsの証拠review-rg1-data-model-9038cba8-evidence.json SHAa53ce2facfc763f64d60306a0a7a362854aabde03e363787cf3a7e5e239a62daを受領、適用approved1.19/91e90条文は受付時同一。P1・起因・(-): data-model1.2履歴行の『実装時に確定する範囲』欠落を採用し、有限DDL/適用撤去/認可tenant生成/正式7.7値/実DB HTTP検証を既存step3/4で具体化する境界を履歴行へ追記した。7.3-7の条文/当該行の典拠を照合し、plan参照で代替しない。P2・非起因・(-): 3-2の規則解決owner2行重複を採用し、既採用の明示列grant/ロック/owner隔離/本文DML禁止/GUC限界を持つ行を残して重複1行を整理した。新意味や権限を追加せず、(B)送り/不採用/未終結は0件。採用反映を伴うのでcounter0→1、反映1周目とする。次は本反映差分+影響節の第2回を同適用版で実施する。付随read2コードの独立0/0/0と非DB22成功/2.28秒は正本の否決と別に保持し、正式201/7.7へ転写しない。
+
+
+### 正本ゲート第2回・PO委任による確定
+
+da78a862/差分8714419cの第2回（反映差分+影響節、基本2回枠）は可決0/0/0。前P1/P2は採用反映で双方解消、未終結/不採用/B送り0。非作者rights証拠review-rg1-data-model-da78a862-round2-evidence.json SHA6813167e3f0733a986c5a3b9dc77fa05abf45f02a7f5df74f1a7da3d0a44f7e3。適用harness1.19/91e90を最後まで保持し、反映回数1を増やさない。
+
+2026-10-23T22:36:26.379898+00:00、PO委任によるCodex主担当/root判断。対象da78a862の最終反映差分/採否/既採用列grant保持/actor分離/同scope実保持/未供給fail-closedを確認し、今回PO4/5の委任範囲でdata-model1.2を確定する。旧正本/既決意味の再裁定や本人署名の代行はない。approved反映後の正本SHAa8dbd05c75957a9d4c8ca48018c84ffab09621cabef6a4298cc60f071b9c6126、索引は現行1.2/2026-10-24へ追随し旧全履歴を保持。正式role/function/tenant生成と完全7.7/CI/正常201は別条件で未達、正本確定だけで製品完成を主張しない。
+
+
+## 正常INSERTの件数保持是正候補
+
+隔離API接合は実login200/実Cookie/C2/realfresh RG1を通過した後、新大会INSERTの_materialize_execution_result戻りが整数-1であることを非改変のreturn観測で実測（1failed/35.71秒、SQL例外0、PG内取引はoutcome_unconfirmedとしてrollback）。ロック済みSQLAlchemy engine/cursor.py2110〜2145とdefault.py1853〜1854の一次実装から、INSERTのcursor件数をclose前に保持するpreserve_rowcount option不足と一致した。
+
+rootは通常不具合是正として、単発基底とtenant scopeの実行で、検証済みstatementのSQL/bind/lock/表identityを保つcloneへpreserve_rowcount=Trueだけを指定した。_materialize_execution_resultとサービスのexact1要求/不明・0・複数拒否は変更0。0/-1/1/2を補正せず保持し、None/bool/float/stringをint成功へ変換しない8負例を既存roster境界へ追加。影響非DB208成功/2.36秒、Ruff/対象ty成功。実API正常201での回帰と非作者コード確認はsource固定後の別条件で、現時点は未実証。C1/D5/認可/RLS/正式metadata/免除を緩めず、SQLをINSERT成功へ置き換えない。
