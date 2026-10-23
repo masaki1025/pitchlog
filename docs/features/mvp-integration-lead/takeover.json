@@ -132,11 +132,27 @@
       }
     ]
   },
-  "latest_update_at": "2026-10-23T16:59:55.994893+00:00",
+  "latest_update_at": "2026-10-23T17:22:29.980772+00:00",
   "product_read_candidate": {
     "api": "270347f0658a9c233ce788ad11424b652e564a1c",
     "ui": "9e5c59c3b57012547b3e32932bf8d850cb63eee5",
     "browser": "4977c1b640713b4907ebdad7c99a62f18dd982e3",
     "real_browser_read": "3成功、非作者独立再実行3成功、正式175/7.7未達"
+  },
+  "history_repair": {
+    "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-ur1-initial-rights-history-repair",
+    "base": "31194a39c9083bbef6c14bde19c24a3e49d09f2e",
+    "step1": "0dd1102600d63ffb830970a3915e6635c8b85f71",
+    "step2": "22eb6fc352ab866d86f62c1bd94645cc03a05029",
+    "ownership": "creation_path: step3のみ実装中、root: 7.7正式受理/公開の唯一writer",
+    "review": "independent_review: step1 381成功/0指摘",
+    "new_pr": null
+  },
+  "read_registration": {
+    "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-preparing-read-registration",
+    "approval": "140a920d",
+    "limited_checker_approval": "677481cc5c85bd050d0aad0f577671cecb87b866",
+    "ownership": "csv_review: 承認済step1独立部分の候補source/metadata。root: 正式履歴/最終lock/oracleは未実施",
+    "formal_parent_extra_review": "未消費1回"
   }
 }

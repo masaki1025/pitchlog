@@ -213,3 +213,10 @@ rootは旧173の委任確認comment6370013795を後発P1未解消/rejectedへ更
 PO委任4/5/6/8/9/10によるCodex主担当/root判断で、拒否条件/対象pathを弱めず、forcepush/旧history書換も行わず、記録権1単位だけを実develop31194起点のfeature-ur1-initial-rights-history-repairへ正常な宣言→別JSON→製品→新実PR受理の4stepで再構成する計画を起案中。旧63paths全部の重複docsを再掲せず、必要source/test/候補値と旧公開HEAD/blob/SHA参照を使う。旧173rowを新PRへ移さず、実base26prefixから新PRの1行だけを別受理する。新PR/branch1件だけのpolicy targets追加は既存head-policy機構内で独立レビューし、検査ロジックや人間欄を変更しない。
 
 追加観測としてinitial_grantの既存テストファイルも実baseではcore未捕捉。新計画ではsource/test exact2pathsをsync/recording-rights/tenantへ追加し、既存対象を保持して捕捉を強化する。新policy/登録を含む実候補で値の変化を照合し、同値を仮定しない。175準備はこの履歴不整合の影響を受けず継続する。
+
+### 2026-10-24 JST: 正常履歴の再構成とread登録を並行開始
+
+- 履歴修復専用branchのplanを15d5d7eeでPO委任承認（計画全文独立1回0）。step1の先行宣言/段階試験は0dd11026、381成功/23.32秒、非作者independent_reviewも381成功/22.53秒・0/0/0。全関数/class AST・core JSONは承認base不変、source/test双方不存在、旧f48の共変更拒否を保持。step2は22eb6fc3で別JSONにsource/test exact2paths×3領域の6追記だけ、381成功/21.96秒。rootは実diffと宣言/試験byte不変・部品不在を再確認し、step3の部品/限定未受理候補再構成を指示した。新PR番号・7.7・policy・通常mergeはまだ。
+- read登録planは140a920dで独立2回（初回oracle P1採用→第2回0）後にPO委任承認。正常置換の供給前でも独立可能な2factory/fixture/token/route対応を開始し、旧0aaa/8037のmergeは禁止。実調査で既存checkerの7route固定集合がgames:readを拒否する不足を特定したため、rootは固定集合へ既計画の1行だけ追随する限定追補を作成。plan SHA c06fe3c3bd808e9ae11969b43dff5f675887c3a7d1fa32f3541dfa89087bcab3、非作者independent_review限定0/0/0を経て677481ccでPO委任承認。旧7route/各欠落/余剰拒否・全認可/DB権限を保持し、正式履歴/snapshot/oracle/最終lockを候補作者へ拡張していない。親175正式追加敵対1回は未消費。
+- 旧173 CI39989787712のdocs-lintも失敗と確認した。7件は旧tab-handoff内の未収録資料/ローカルcacheへのリンクであり、core失敗とは別の未達。新候補は必要sourceと固定公開blob参照だけを持ち、旧handoffや重複資料全体を取り込まない。旧CIを成功として流用しない。
+- RG1成功化の独立一次調査で、実31194のsync-protocol1769–1773に「既存D4対象0件なら発行0件で全域RG1解除可、preparingには解除時初期権なし」を確認。ただし復元DB現在行0件だけでは対象なしの証明にしない。復元外台帳/epoch/manifestと制限された完了遷移が必要。PO委任により保証を弱めない外部耐久台帳adapterの隔離実装計画を別単位として起案し、運用配置/共有DB/有料/秘密新発行は未実施として保持する。常閉falseの単純変更や試験専用成功Portを使わず、非0世代の復元・新D4同確定もMVP完了範囲に残す。
