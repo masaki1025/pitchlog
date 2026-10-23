@@ -130,3 +130,41 @@ censusでは新adapterの実checker identityと独立AST候補の粒度を照合
 これは同一の採用済みProtocolを単一実装するための検査上の限定具体化で、D4/epoch/fence/RG1/耐久性や意味規範の変更ではない。作業中は未受理を記録し、実9射影/外部8blob/履歴・corpusの正式化をroot所有step4で実施する。全最終差分は非作者レビュー対象とする。旧計画/取消追補/core系列のレビュー回数・指摘履歴・冷起動authority未提供を保持する。
 
 2026-10-23T18:47:39.799141+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24の優先指示に基づき、追補対象plan cb9ed1123abe711d879e93a5ce4a91603eee5b1a8b1e03a3969884dd9a8c83bf（HEAD d59be7f4）を承認する。非作者/root/rights_replacement_reviewの限定追加第1回0/0/0、source53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758dの免除なし13identity独立再検出一致を確認した。旧faa1との差は既承認期限是正による行移動で13symbol多重集合は不変。今回の許可は登録機構・censusの限定具体化であり、旧47所見/43・18集合/拒否を保持する。正式値7.7・製品全最終差分/耐久性レビュー・cold attach・RG1成功・MVP完成は別の未完ゲートとし、本人確認/署名を代記しない。旧計画2回/反映1周と取消追補/先行coreのレビュー系列はリセットしない。
+
+### 正常再起動authorityと復元外witnessの技術追補案（独立追加レビュー・PO判断待ち）
+
+5a321b6aは正常pair候補の保存点である。「cold attach/business identity未提供」を外部回答待ちにせず、以下を本packageが実装する製品依存とする。今回は本plan/researchだけを編集し、新sourceは独立追加レビューとrootの個別実装委任まで変更しない。元の4ステップ表/全DoD、旧全レビュー/失敗系列と正式7.3/7.7未達は維持する。
+
+**技術選択。** ①専用の保護されたlocal journal、②別volumeのSQLite WAL、③第3PostgreSQLを比較し、MVP候補は①とする。既存sourceには起動をまたぐ耐久witness/単一writer機構は無い。`runtime_contract_generator._atomic_write`の短書込処理とfile fsyncは参考にするが、置換方式/親dir fsync不足のままwitnessへ転用しない。②は新DB API面とWAL管理を増やし、③も別の最新性保全を必要とするため、今回の最小単位に選ばない。単なるowner権限/呼出者のexpected集合/hash鎖だけを巻戻し防止としない。
+
+**保存/authority。** 業務DB・台帳primary/standbyのdata/backup/VM復元に含めない専用volumeへ、root管理のenrollment descriptor、固定journal inode、lock fileを置く。Linuxの実`FS_APPEND_FL`でjournalの上書き/truncateと親dirのunlink/renameを禁じ、authority workerは別UIDで動き、そのflag解除権限`CAP_LINUX_IMMUTABLE`を持たない。業務app UIDにはdir/journal/台帳control資格を与えない。候補modeはdir0750(root:authority)、journal0600(authority、append-only)、descriptor0640(root:authority、immutable)、lock0600(authority)とし、workerに親dirの書込権限を与えない。固定rootから`O_NOFOLLOW`/dirfdで開き、owner/mode・regular file・link count・device/inode・mount識別・実append属性を検査する。file/dir fsyncや必要な保護を提供しないfilesystemは起動拒否。flag設定は隔離fixture/別の初回配置主体だけが所有資源へ行い、製品workerが権限を昇格したり既存host設定を変更しない。
+
+通常`open`は既存enrollmentを要求し、欠落時の自動初期化/旧backupからのjournal再生成を持たない。初回enrollは通常APIと分離した配置操作で、新設authorityの保護領域、実識別済みの別business cluster、空の台帳（highwater0/epoch1/予約0件）を実観測して一度だけ行い、root所有descriptorと親dirを耐久化する。既存導入の復旧を「新設」へ読み替える操作は提供しない。OS/ストレージ管理主体による保護領域の巻戻しまでhash鎖で検知できるとは主張しない。保護volumeはDB/host image復元の対象外に置き、journalの連続性または全設備喪失後のenrollmentを証明できなければ発行停止のままとする。未知の媒体/旧witness imageへ無人で再enrollして再開しない。新署名鍵/運用秘密は生成しない。journalにDSN/資格/V12/Cookieを保存しない。
+
+**単一writerと書込順序。** `flock(LOCK_EX|LOCK_NB)`を期限付き取得し、同一inode上で全mutationとattachを直列化する。journalはversion/length/sequence/previous digest/checksumを持つbounded frameを完全書込してfile fsync、初回enrollment作成は親dir fsyncも完了する。hashは欠損/破損の検出用で、署名/権限証明として使わない。失敗/ENOSPC/EIO/短書込/未知versionは成功にしない。未完末尾を勝手にtruncateせず停止する。この候補は固定journal1本を追記・保持し、自動rotation/truncate/交換を行わない。容量不足は停止し、起動時はbounded memoryで連鎖を走査する。derived index/cacheは再生成可能でauthorityの正本ではない。
+
+予約/claim/epochの正のbigint算出は既存SQL側に一元化する。authorityは実DB transactionが返したprovisional行とowner/前後stateを`INTENT`としてfsyncしてからCOMMITを送る。COMMIT/指定standby flush・replay/実再読が成功した後に`CONFIRMED`をfsyncし、その後だけ成功応答する。INTENT前の失敗はCOMMITを送らない。INTENT後は取消/応答喪失/RESULT fsync失敗を含め未確定であり、「未使用/rollback済み」へ変えない。
+
+**再起動/復元照合。** authority自身が保護journalから成功集合と未確定INTENTを再構成し、実primary/standbyのowner-bound予約/claim/epoch/highwaterを固定cursorのDBページで照合する。全件をメモリへ読み込まず、DBのgeneration一意索引を使う。正常process/DB再起動で実起動identityが変わっても、同じenrollment、完全journal、実同期peer、全確定集合の一致と未確定処理の完了を確認してから、新旧system/timeline/postmaster identityを`ATTACH`へfsyncして借用を発行する。`expected set`を呼出者から受け取らない。
+
+未確定予約/claimは実両系の同一owner状態で確定できれば同じ結果を記録し、確定できなければ当該D4/attemptを使用禁止のquarantineとして耐久保持する。未使用と断定せず、新attemptや同D4の業務INSERTを自動許可しない。DBがjournalより古ければ、authorityだけの固定制御関数でjournal由来の各行をCAS照合して前進再構成する。quarantine列/固定reconcile操作で不明D4も高水位以下に留め、減算/履歴削除/別ownerへの再束縛は拒否する。witnessは別のD4 allocatorを作らない。epochの不明結果はRG1 close確定→外部epoch更新の順を保持し、任意の低い値への復元や推測によるopenをしない。証明不能な旧/未知行、分岐したjournal、指定外peer/旧primary停止未確認は停止する。
+
+**借用と製品入口。** 別UIDのauthorityをpackage内の実Unix socket serviceとして実装し、root所有socket/設定と両方向`SO_PEERCRED`で主体を検査する。要求は閉じたoperationとowner UUID/接続に束縛されたleaseだけ。bool/任意JSON/期待集合/DSNを証明として受け取らない。`DurableLedger`は既存3 Protocolを直接再利用する入口のまま、正常public構築をこの実service接合へ移し、fresh pairを再度newして復旧検査を迂回する経路を閉じる。低層PG操作とdomain journal照合は既存adapter内、汎用frame/排他は`witness.py`、socket transportは`authority.py`に分け、ドメイン型/計算をコピーしない。
+
+外部fenceは実共有epoch transactionをauthorityが保持し、同一接続のleaseを業務commit終了まで借用する。lease開始/終了もjournalへ残す。authority停止で失われたleaseを再起動後もheldと偽らず、未終端leaseがあれば既存RG1 close/旧writer fenceを実行・確認する後続接合まで発行を停止する。この追補で分散commit/RG1全実装を完了扱いしない。正常に全leaseが終了した再起動、および業務writerを持たないmutationのcrash/reconcileを実提供範囲として先に実装する。
+
+**業務identity専用subject。** `business_identity.sql`で専用schema `pitchlog_ledger_observer`、NOLOGIN/NOBYPASSRLSの`pitchlog_ledger_identity_owner`、NOINHERIT/NOBYPASSRLSの限定LOGIN `pitchlog_ledger_identity_probe`、引数なし`pitchlog_ledger_observer.identity()`だけを設置する。ownerだけにbuiltin `pg_control_system()`のEXECUTE、probeだけに専用schema USAGE/同関数EXECUTEを与える。関数は固定`search_path=pg_catalog,pg_temp`のSECURITY DEFINERで、cluster system ID/database/実起動identity/version/recoveryだけを返す。製品表/tenant/authn関数への権限・membershipは0、PUBLICと既存appからEXECUTE剥奪、appへのpg_control_system権限拡大なし。実session_user/current_userが専用probeであることを接続外側で照合する。
+
+MVPの実観測providerはauthority UIDに束縛したPostgreSQL Unix socket peer認証とし、隔離fixtureで実role/OS主体/拒否を検査する。新password/署名鍵/TLS証明書は発行せず、運用主体/共有DBへ適用しない。remote配置がこの既存信頼接続を提供しない場合は接続失敗として閉じる。observerは専用manifestで全数検査し、既存製品56関数集合へ黙って混入させない。既存product catalogの対象schema/role/関数は宣言集合で絞るため、独立schema/無権限probeで既存S3の判定/ACL集合を維持できることも実fixtureで検証する。実閉集合との衝突が出た時だけ具体的対象をrootへ返し、判定を弱めない。
+
+**必要scopeと最初のコード単位。** 既存4ステップのstep3内で、追加レビュー後にrootが指示する小単位だけを実装する。
+
+| 小単位 | exact編集候補/DoD |
+| --- | --- |
+| 最初: 保護journal | 新package内`witness.py`、既存`manifest.json`と`backend/tests/test_durable_rights_ledger_contract.py`、本researchだけ。実file/dir fsync・実process間lock・frame/short write/欠損/権限/未知format拒否を提供。隔離所有volumeで実append保護の成立と解除権限なしを検証し、unsupportedをskip/常時成功stubで提供済みにしない。DB/source53b/正式資産はまだ変更しない |
+| 次: 実authority接合 | package内`adapter.py`/`authority.py`/`schema.sql`/`business_identity.sql`/`manifest.json`/`__init__.py`、既存contract/DB試験・DBsupport、既存base allowlist/正例/関連checker/census、research。実journal→PG→peer→journalのACK順、fixed reconcile/quarantine、実subject/IPC、正常再起動と古い両DB復元拒否/前進を接続 |
+| 最終: 既存step4 | clean/crash再起動、各write/fsync/commit/peer/ACK境界のkill、2回業務復元、両台帳古い復元・witness破損/喪失/lock競合・未知peer・未終端leaseの拒否を実証。data-model/READMEへwitness/role/復元・authority境界を最小追随し、7.3/7.7/実PR/policy/全最終独立レビュー/CIを既存step4のまま満たす |
+
+package wildcard/既存contract試験/DB試験は先行core登録済みで追加core pathは不要。file/IPC syscallはDB APIではなく、新DB API IDを予定しない。固定SELECT/制御SQL/配置だけを既存PSYCOPG APIのexact私有helper/signatureへ必要最小登録し、汎用SQL/新member包括許可はしない。domain名の条件2所見はadapter単一sourceで再実測し、更新SHA/全identityと独立AST/censusを個別確認する。旧initial47/43・18、旧53b候補と新全検出を保持し、予想件数で免除を増やさない。witness/transportに実際の追加所見や新APIが必要ならその具体差分だけ再提示する。9/8の正式値/履歴/snapshot/policyのwriterはroot、機械候補と正式受理を分ける。
+
+一次根拠: [fileとdirectoryのfsync](https://man7.org/linux/man-pages/man2/fsync.2.html)、[実append-only属性と解除権限](https://man7.org/linux/man-pages/man2/FS_IOC_SETFLAGS.2const.html)、[Pythonのflock](https://docs.python.org/3.12/library/fcntl.html)、[PostgreSQLのcontrol情報/権限](https://www.postgresql.org/docs/17/functions-info.html)。この追補案の起案は新たな運用配置/本人署名/全設備喪失後の再発行承認ではない。

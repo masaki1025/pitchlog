@@ -183,3 +183,25 @@ root承認8bd071a820aaab97d3e57f45c57689b87dd7ca19を読み、非作者rights_re
 固定source SHA256 `53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d`、DDL `acdc77b44f8557bc1006f270a7fbee80c65ab345a15287144439b4f8097f35e1`、manifest `7657e982cc525956d711501424749a6cf189703eefd5bc981b73af9922b37326`。PG17.11-bookwormの専用実primary/物理standby/業務cluster、psycopg3.3.4/libpq180000を使用した。新source53bの実試験は契約22＋影響取消DB1、先行faa1の通常全DB7と区別する。
 
 このcommitは正常pairのsource/DB候補部分の保存であり、step3全DoD達成を宣言しない。cold attach/正常再起動の非巻戻しauthority、業務identityの製品観測主体、所有controller外のlatest集合証明は未提供。全復元・昇格/両系喪失の故障行列、正式正本7.3/7.7/最終非作者コードレビュー・全必須CI、実RecordingRightsPort/RG1/HTTP接合とMVPは未完である。push/PR/共有DB/運用適用なし、運用秘密/TLS/署名鍵の新発行なし。所有DB資源は全cleanup済みで、共有containerは不変更。
+
+## 再起動authorityの製品依存化に向けた限定追補案
+
+rootは5a321b6a受領後、cold attach/正常再起動authority/business identity観測主体を外部回答待ちにせず本製品が実装する依存として、既存plan/researchだけの技術追補を指示した。source/DB起動/正式資産を変更せず、既存source内の再利用箇所に限定して調査した。
+
+`backend/src/pitchlog/authz/runtime_contract_generator.py:433`の`_atomic_write`は短書込ループとfile fsyncを持つが、witness/起動間flock/append-only/親dir fsync/INTENT照合は無い。生成物の置換・unlinkをwitnessへそのまま流用できない。現在adapterのbusiness identityはpg_control_system直読で、隔離business adminへ依存する。これを専用subjectと固定SECURITY DEFINER関数へ替える。既存`product_provisioning.py:558`のsession_user/current_user照合原則を再利用し、appへの権限付与やSET ROLEでの代用をしない。
+
+`product_catalog.py:1257`のカタログ要求は宣言schema/table/function/role集合で絞り、`:292`の危険LOGIN検査も製品集合への権限/所有を調べる。したがって専用observer schemaと製品表/関数権限0のprobeを別manifestで検査する候補とし、既存56関数の値を先行で変えない。実S3不変と新role/function/ACL全数の実検証をDoDへ置き、衝突が出た場合はactual path/fieldだけ戻す。
+
+候補は保護された独立volumeのjournal、SQLite WAL、第3PGを比較した。最小候補はLinuxの実append-only保護を持つjournalで、fsyncとdir fsync/期限付き単一writer lock/INTENTと結果記録を実装する。SQLiteや第3PGへ問題を移すだけでは古い復元の最新性は証明できない。hash鎖は破損検出であり、旧正常prefixの巻戻し検出器ではないことを明記した。DBとhost image復元からwitness volumeを分離し、workerに保護解除能力を与えず、連続性不明/全設備喪失では自動再初期化せず停止する。運用rootが旧witness imageを復元した事実までsoftwareだけで検知すると約束しない。
+
+plan追補は別UID authority/実peer認証/既存Protocol借用、SQL provisional値→INTENT fsync→同期COMMIT/peer実再読→CONFIRMED fsync→ACK、未確定D4のquarantine/単調reconcile、実restart identity更新を具体化した。witness自身に別の世代算出実装を持たせない。callerのexpected集合やbool/任意JSONで復旧を開かない。最初の実装候補は`witness.py`+既存manifest/contract試験/researchだけで、DB/source53bの変更を後段へ分離した。実append保護が使えない環境の正例をstub/skipで成功にしない。
+
+正常全lease終端後の再起動と、業務writerを持たないmutationのcrash照合から実装する。authority crashで失われたleaseをheldと偽らず、未終端leaseは実RG1 close/旧writer fence接合まで発行停止とする。既存4ステップ/全故障DoDを消さず、正常pair/fresh controllerだけで完成扱いしない。新設enrollは通常openから分け、既存導入のwitness喪失を新設へ読み替えない。署名鍵/運用秘密は追加しない。
+
+参照した一次資料: [fsyncのdirectory要件](https://man7.org/linux/man-pages/man2/fsync.2.html)、[FS_APPEND_FLとCAP_LINUX_IMMUTABLE](https://man7.org/linux/man-pages/man2/FS_IOC_SETFLAGS.2const.html)、[Python3.12 flock](https://docs.python.org/3.12/library/fcntl.html)、[PG17 control data functions](https://www.postgresql.org/docs/17/functions-info.html)、[SQLite WALの保存/共有制約](https://www.sqlite.org/wal.html)。独立P6資料/封印期待値/.env/運用資格は読んでいない。
+
+旧初回plan2回/反映1周、取消追補1回、条件2追加1回、coreの各P1→是正/中間失敗と最終416、5aのbypass383成功/正式未受理3失敗、全source/DB版差とcold attach未達の過去記録は全保持。この追補案はまだ独立追加レビュー/PO判断前で、製品コード変更を許可済みとは扱わない。
+
+通常pushはrootが許可した中断復元点5a321b6aefa7d11700b67a90f5e2bfefdac7ced1だけを`feature/mvp-durable-rights-ledger`へ実行し成功した。番号用PRは作成していない。製品未完成/正式未受理のラベルとなる本文を維持する。本追補案commitはこのpushに含めず、独立追加レビュー用にローカル固定して引き渡す。
+
+本追補の検査はdocs-status21件/違反0、5a比較のplan同期、diff checkが成功。製品/source/DB/正式assetsは変更0、DB起動/新secret発行も0。追補は独立追加レビュー/PO委任前の案として記載し、既承認部分の承認状態を新source実装許可へ広げていない。
