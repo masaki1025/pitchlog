@@ -85,3 +85,27 @@ docs-statusは20文書/違反0、計画同期（base 7d6ce544）はexit0、両�
 候補5ファイルと既存`tests/test_state_transition_contract_schema.py`の専用試験を追加した。外殻4定義はUS1固定sourceとの辞書同一性を実照合し、CIでは4定義の固定digestにより別worktree/未統合commitへ依存せず同一性を検査する。readonly宣言のfield/型/必須性と構造25caseを局所検査し、意味出所/同scope/完全性は構造受理から証明できないことをconstructor/source所有文書に残した。規則codecは固定供給点への参照のみ。Ready/3payload/終端証拠/J6タグ/O4新優先/P3新結果/ACK/recoveryは補完していない。
 
 検証: `uv run pytest tests/test_state_transition_contract_schema.py -k p7_context_candidate -n 4 -q`は**51 passed / 0.84s**、`uv run pytest tests/test_core_guard.py -n 4 -q`は**284 passed / 11.49s**。root Ruff/ty、docs-status（20文書/違反0）、計画同期、JSON/宣言/参照・差分空白検査は成功。新候補5ファイルの両core領域被覆と、ステップ2のcore3パス不変を確認した。正式期待値/P6封印・正式contracts・製品・旧544planへ変更せず、局所候補として独立最終レビューへ渡して停止する。T1/P7全成立、先端O5取得済み、正式7.7/統合可の主張はしない。
+
+
+## ステップ3/3後続の閉payload計画追補起案（2026-10-24）
+
+主担当/rootから、読取結果に基づく最小追補を本plan/researchだけへ起案する指示を受領。起案者はCodex `/root/resolver_ledger_plan_review`。今回は候補作者となるため、この追補の非作者レビューは担当しない。独立計画レビュー/対象版を指定したPO委任承認は未実施。候補5パス/既存試験/core3パス/正式contracts/P6/製品へ変更していない。
+
+### 固定点・読取根拠
+
+- この枝のHEADは`b2b825a4d48dbda34358733680c164f618444557`、開始時clean。先行宣言`7f8d333e`→別JSON`6c09082b`→外殻候補`b2b825a4`の3段階/総数3を維持し、追補はステップ3/3の後続候補範囲とした。
+- 既存計画レビュー2回（第1回0/1/0、第2回0/0/0）/採否、ステップ1コードレビュー0/0/0、既存記録の最終候補レビュー待ちを保持する。今回新scopeの計画レビューは未実施。旧544/P7/正本/P6系列へ加算・代用しない。
+- 採用済み正本はこの枝の`52625ed6`由来の要件v2.16/ADR v0.9。実統合済みと記録するものではない。file SHA256: 要件`569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a`、ADR`375900aa9acc7e728cc3e28640418a37c4cd97a5f0de81cad130b74c5599684c`。FR-001/005/007/011/015、付録E-1 J6とF-1を根拠とする。544同固定点`plan.md`§4/step1の全開始条件を保持する。
+- 正式`contracts/state-transition/input_axes_descriptor_v1.json`（この枝HEAD）file SHA256 `fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56`、記載digest `sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57`。`stateTransitionAxes`のstate10軸だけを読取照合。outs/Sは0..2、Bは0..3、打順1..9、half2値、runner occupancy8値、tiebreak/gameEnded booleanを保持。inning/scoreの境界記号は実値範囲そのものとは扱わない。J6はこのdescriptorに正式反映済みとは扱わない。
+- 544 `t1-g6-rbi-review-candidate.md`99〜108行の4値payload表は意味候補であって正式型ではない。この枝同file SHA256 `aec0a3d9f60a7d254fad985c088d1be2ca90d9ae1c72f73394991586a3aec7e3`。旧US1接続契約が記録する過去の別版hashと混同しない。
+- US1固定`cb0b1601f2ec76265f317e5104d4df387cf44344`の`docs/features/us1-sync-port-surface/p7-connection-contract-2026-10-22.md`§3-1/3-2を照合。既記録schema/接続契約hashを維持。名簿は時点読取、prefixは有限ページ/有効版/変更/墓標の射影、mapping終端は履歴全体の終端ではない。実Port未供給を型具体化の前提にはしない。
+- 実develop観測固定`547d199e0c68f3c7d73b6996056cf10ef5fb09fb`の`docs/design/sync-protocol.md`O4/D2段落を照合（file SHA256 `46b61a9a1a6f0ef595631002ca217e353a6ae04df642aee849a6507cca783994`）。従属/同期専用はD2なし、置換旧版は有効集合外、再生順はD2でD1/D4/変更版順ではない。⑦→O4→C2の既定順と新状態拒否との未裁定競合を区別する。本枝へ当該developを取得済みとは記録しない。
+- 同developの単一`backend/src/pitchlog/db/game_state/rule_snapshot.py`はfile SHA256 `d646c0bbc73b7ff2507aa440e81effdd1e37debb4d5d767971608110853cdfc4`で既記録供給点と同一。規則5値キーとruleSetIdの既存6-key保存形への参照だけとし、schema/normalizerを複製しない。
+
+### 具体化と未裁定の境界
+
+採用済みJ6はsnake `runner_id/batter_id`で、1〜4の順序付き一意列と有効候補exact-setが意味要件。PlayerRefタグのliteral/ID格納、版/cursor/manifest/閉参照のDTOは候補として独立レビュー・root委任判断へ送る。prefixの自己申告bool/件数/digestだけでは真正な全有限ページ終端を証明しないため、供給側集合との照合とscope失効までconstructor必要条件に含める。実行constructor/発行証拠/Ready成功は未提供のまま。
+
+guardや正式descriptorを変更せず、外殻4定義と旧caseを保持して同5候補/既存構造試験へ閉型・出所対応・構築不可条件だけを後続具体化する。未閉のoperation/diff参照先を文字列で隠して全意味閉包としない。旧codec移行、Ready+O4や新P3/失敗結果の新意味は別判断としてrootへ返す。正式7.7、23フラグ/OUT3/RBI/G6閉包、P6/P7受理、T1製品着手は未達である。P6封印/著者期待値・所有不明JSONにはアクセスしていない。
+
+起案検証: docs-statusは20文書/違反0、計画同期（base `7d6ce5443d71f6f7803d2ceed7e04c7ff87422ad`）はexit0、`git diff --check`成功。実差分はplan/researchだけ。実装差分がないため構造試験/core試験は再実行せず、後続実装の検証計画として残した。

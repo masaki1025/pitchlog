@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-p7-context-contract
 status: active
-承認: 済（PO委任によるCodex判断・局所契約候補）
+承認: 済（PO委任によるCodex判断・当初の局所外殻候補。第7節追補は未承認）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-t1-p7-context-contract
@@ -141,3 +141,36 @@ root Ruff/ty、docs-status/計画同期、差分/JSON参照検査を行う。新
 2026-10-23T15:47:43.171942+00:00、Codex主担当/rootはPO委任4/8/10により、ステップ1対象tests/test_core_guard.pyの2既存試験（actual_core_area_paths_follow_merge_base_layers、area_registration）がorigin/develop先端の未取得O5登録を固定枝の削除と誤認する不整合へ限定是正を許可。比較をこの枝とorigin/developの実merge-baseへ揃え、固定比較元の全paths/順序・許可層以外拒否・既存登録実在を保持する。製品core_guardのPR実base照合/拒否条件を変更しない。先端O5登録を取得済みとは記録せず、正式統合前に実baseから全登録/guard_pathsを保持して照合するゲートを残す。現ステップのJSON不変・別ステップJSON反映を維持。2既存試験で再現した2failedを履歴保持し、最終コード独立レビューで是正差分/非緩和を確認する。新意味/新編集path/ステップ総数の変更なし。
 
 2026-10-24 00:49 JST記録、主担当/rootは同じPO委任で、全対象試験の276 passed / 8 failed（既報2件を含む）を受け、実merge-base比較への限定是正を計8件へ拡張する指示を出した。追加6件は`test_product_rls_paths_remain_in_develop_baseline`、`test_uf8_game_screen_paths_are_registered_in_all_areas`、`test_us1_sync_apply_paths_are_registered_in_both_areas`、`test_uf5_team_paths_are_registered_for_tenant_and_migration`、`test_ur1_registered_paths_are_retained_after_declaration_rotation`、`test_uf13_declaration_retains_json_and_checks_product_registration`。各件も先端だけのsync母集団登録による同原因の不一致であり、新登録を固定枝へ取得したことにはしない。従来層の全保持・順序・実在と許可層以外の拒否を残す。ステップ1終端のコード独立レビューへ、この8件の是正と元の失敗を渡す。JSON不変、実PR guard不変、正式統合前の全登録/guard_paths保持ゲートは上記のまま。
+
+
+## 7. ステップ3/3後続：閉payload候補の限定追補（未承認）
+
+2026-10-24、PO委任4/5/7/8/10に基づく主担当/rootの起案指示。対象基線は`b2b825a4d48dbda34358733680c164f618444557`。
+当初の外殻だけという制限（第1/2/4/5/6節）を、以下の**候補整備だけ**へ拡張する追補である。既存ステップ表の総数3、1→2→3の実コミット、承認・計画レビュー2回と採否、コードレビューの実施済み/待ちを保持し、過去を閉payload提供済みに書き換えない。新しい第4ステップを作らない。
+今回の編集はplan/researchの2ファイルだけ。追補の非作者レビューと対象版を指定したrootのPO委任承認後にのみ、個別指示されたステップ3/3の後続候補を作る。この追補を起案したCodexはその非作者レビューを担当しない。
+
+### 成果物・fieldと根拠
+
+候補5パスと既存`tests/test_state_transition_contract_schema.py`の専用試験だけを後続編集範囲とする。core3パス・正式contracts/descriptor/T2 digest・旧544計画・製品・P6は変更0。
+既存外殻4定義とそのdigest、既存caseは保持し、同じschema内の別`$defs`とreadonly宣言へ次の閉型を追加する。既存根`T1ContextRefsV1`の受理をReadyへ拡張しない。
+下表の型名/field名/参照の格納表現は**新しいDTO候補**であり、正本で採用済みの名前・保存方式とは記録しない。`additionalProperties:false`・必須field・閉unionを用い、未知の内容を自由JSON、任意`any/object`、省略可能な穴で受理しない。
+
+| 後続候補の範囲 | 意味・値域の固定根拠と、具体化する構造 |
+| --- | --- |
+| `PlayerRefV1`、`ScorerRefV1`、`HomeTouchOrderV1` | 要件v2.16付録E-1のJ6段落（1374行）/FR-015が正式IDと一時UUIDのタグ区別を要求。PlayerRefのliteral/ID格納キーは委任内の候補として明示してUUIDを検査する。ScorerRefの`kind:runner/runner_id`と`kind:batter/batter_id`、HomeTouchOrderの`kind:not-required`または`kind:observed/scorers`は正本どおり。観測列は1〜4、一意、順序を保持し同着variantを作らない。有効候補exact-set/攻撃側/同scope/C2照合はconstructor境界へ分け、構造だけで得点/RBIを確定しない |
+| `T1RosterAtEventV1` | 544同固定点G6/RBI候補99〜108行、要件FR-001/007/011/015。同key・source参照・名簿版/適用時点、team別の選手参照、打順枠、守備/交代の有効関係を閉entry列で表す。打順1〜9は正式descriptor `state.battingOrder`、守備位置は既存FR-011/対応する採用済み語彙に対応付ける。警告だけの守備不足を新たな合法性拒否へ変えない。現在players一覧から過去名簿を生成せず、同一枠重複/越境/未証明写像を構築不可とする |
+| `T1PreStateV1` | 正式`input_axes_descriptor_v1.json`のstate10軸を欠落なく対応。half=top/bottom、outs=0..2、strikes=0..2、balls=0..3、battingOrder=1..9、tiebreakActive/gameEnded=boolean。inning/両得点は正本FR-005/F-1の回/得点に対応し、descriptorの境界記号N/R/L/Mを実値としない。塁はfirst/second/thirdの閉じた在不在＋PlayerRefで表し、8 occupancy値との対応を示す。同key/source/状態版/名簿版、打者、半回適用印・membershipへの閉参照を持ち、C2後の投影を事前状態にしない |
+| `T1EffectivePrefixV1`と有限ページ/終端証拠 | 544同候補105〜108行、US1 `cb0b1601`接続契約§3-1/3-2、同期正本のD1/D2/D5・有効版/墓標/変更版・O4。snapshot/lineage/対象境界/内容版、全ページの順序、各有効entryのevent参照・D1/D2の種別上の有無・D5・版/membership・origin参照、undo/replay窓の差分/印参照を閉じる。任意event JSONを埋めず、採用済み操作分類と閉じた内容参照へ対応し、監査に残る旧D5/旧版を現有効集合へ混ぜない。D2のない従属/同期専用種別へD2を捏造せず、D1を再生順にしない |
+| `constructor-contract.md`/`source-ownership.md` | 各fieldに固定source・採用状態・意味版/内容digest・供給/消費者を記録。規則値は単一`rule_snapshot.py`/F-1参照だけとし、4値の同key/scope/世代/対象D1/lineage/時点/版とcontent参照を照合する。規則型/codecをコピーしない。実装関数、read token、署名、ACL/新wire/resultIDは追加しない |
+
+ページ型の候補はsnapshot/版/境界を全ページへ束縛し、先頭・安定cursor連鎖・抜け/重複のない順序・最終cursor・供給側の全対象集合との照合証拠を表す閉manifestとして設計する。空prefixにも先頭=終端の証拠が必要で、単なる`complete:true`、自己申告件数/digest、D3、mappingの`continuation:null`を全履歴終端としない。schemaはmanifestの構造しか検査できない。供給側の真正な発行・同scope全ページの実読了/集合一致はconstructorの必要条件として残し、架空の発行済み証拠や実Ready成功caseを作らない。
+版識別子・cursor・manifest・PlayerRefタグliteralの表現や正本が指定しない数値格納型は委任内具体化の**候補**としてsource所有表へ明記し、意味に基づかない上限/既定値を足さない。event/変更/墓標/差分の参照先が未閉型なら、その型/供給証拠を未閉鎖として列挙し、参照文字列の非空性を意味閉包と採点しない。
+
+### 合格条件・停止点
+
+既存5成果物を更新し、schema/d.tsの対応、新定義の必須/余剰/union/値域/UUID、PlayerRefのタグ取り違え、J6の長さ/重複/順序、state10軸/runner occupancy対応、名簿・版・scope・prefix参照の出所対応を既存専用試験で検査する。新しい構造正負caseとconstructor条件対応を分け、ページ抜け/重複/混在snapshot/版/cursor不連鎖/早い終端/未証明originが**構築条件を満たさない**ことを記録する。構造成功でも出所・完全性未証明のcaseはReady成功にせず、runtime検証未実装を明記する。既存checkerが未対応のkeywordは黙って無視せず、既存試験内で対応可能な閉表現/局所検査を使い、新validatorや共通helperを増設しない。
+
+既存外殻4定義digest/旧caseの保持、root Ruff/ty、専用構造試験（`-k p7_context_candidate`）、core既存試験と5パス被覆、docs-status/計画同期/差分検査を行う。意味計算の期待値・P6資料を試験入力にせず、正式契約への反映や全23フラグ/OUT3/RBI/G6-S閉包・P6/P7担当別受理・7.7を代替しない。後続のコード固定版を非作者レビューへ渡し、現基線の未取得登録は実統合前に実baseへ追随して全保持を再検査する。
+
+新しいO4順/Ready+O4到達性の断定、状態拒否とO4が同時成立する場合の新優先、旧codecにない観測/半回の移行既定値、因果だけで拒否する新P3結果、未知依存の公的失敗分類は今回のDTO選択に含めない。既採用⑦→O4→C2/B+D/除外Aを維持し、必要な新意味だけを根拠・具体入力・影響付きでrootへ返す。正式descriptorに未反映のJ6や新候補fieldを正式採用済みにしない。
+**本追補は実Port/HTTP/DB完成を契約準備の開始条件へ追加せず、完全Ready実装・製品T1計算・初球だけの開始許可も与えない。** 544の全開始条件、正式7.7/全23フラグ/G6閉包/P6/P7未達は継続する。今回の追補は独立レビュー未実施・未承認であり、旧承認を新scopeへ流用しない。
