@@ -514,7 +514,6 @@ def serve_fresh_controller(config_path: Path) -> None:
         # 既存entryをunlinkして再起動・別controllerを乗っ取らない。
         listener.bind(str(socket_path))
         os.chmod(socket_path, 0o666)
-        listener.listen(64)
         listener.settimeout(0.2)
         os.setgroups([])
         os.setgid(controller_uid)
@@ -522,6 +521,8 @@ def serve_fresh_controller(config_path: Path) -> None:
         libc = ctypes.CDLL(None, use_errno=True)
         if libc.prctl(38, 1, 0, 0, 0) != 0 or os.geteuid() != controller_uid:
             raise _unavailable()
+        # inodeはroot bindの所有を保持し、peercredは降格後のlisten資格へ結ぶ。
+        listener.listen(64)
         # 動的解決先はこの固定製品packageだけ。未供給を代替実装で補完しない。
         package = importlib.import_module("pitchlog.durable_rights_ledger")
         ledger = package.DurableLedger(Path(config["ledger_endpoint"]))
