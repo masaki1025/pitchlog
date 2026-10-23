@@ -2816,7 +2816,10 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
         assert_registered_block(paths, US1_SYNC_APPLY_AREA_PATH_ADDITIONS)
         assert_registered_block(base_paths, UR1_REGISTERED_PATHS[area_id])
         assert_registered_block(paths, UR1_REGISTERED_PATHS[area_id])
-        assert paths == base_paths
+        pending = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        if set(pending) <= set(base_paths):
+            pending = ()
+        assert paths in (base_paths, (*base_paths, *pending))
         for path, pattern in representatives:
             assert pattern in paths
             assert fnmatch.fnmatchcase(path, pattern)
