@@ -6,7 +6,7 @@ status: active
 branch: feature/mvp-rg1-lifecycle-connection
 created: 2026-10-24
 計画レビュー周回: 1
-確定ゲート周回: 0
+確定ゲート周回: 1
 実行方式: 通常
 反映周コミット: 適用
 ---

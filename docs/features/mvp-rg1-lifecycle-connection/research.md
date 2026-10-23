@@ -53,3 +53,8 @@ controller候補はroot保護の非秘密configからsocketをbindし、専用UI
 対象はdata-model3-2のRG1制御2主体/同Session読取/安全な成功条件とロール数参照だけ。固定直前HEAD91e90cf15abbb253f4915a2f7acb3274784965a4のdata-model1.1を改訂基線とし、初回敵対レビュー適用条文はapprovedハーネス1.19、条文コミット91e90cf15abbb253f4915a2f7acb3274784965a4（同時in-review化の第一親、暫定）。初回開始時に版を照合し固定する。finalize-doc手順を使い、今回PO指示4/5の独立subagent・委任承認代替を適用、一般規約/検出/対象paths/拒否条件を変えない。基本枠/起因/採否/(B)送り/反映周を既存7.3どおり保持し、人間本人の確認/署名を代記しない。初回全文レビューと採否はこれからであり、approvedではない。
 
 91e90最終限定非作者0の証拠review-rg1-controller-e280fd18-91e90cf1-evidence.json SHAb2f888ab216ac8c2d290a26e15f5eafafd14c6b71b246eb045c182cc24ec9aebを受領。別の固定隔離候補69836e33ではcsv_reviewがactualsupplierc07→rootbind/20002降格listen→実app20003 PG peer/binding→borrow/held/3.2秒idle保持/release→再borrow/abandon→PGclosed/lease消滅/保護journal未終端拒否まで1成功48.59秒で確認した。sourceは供給2候補のbyteを保持し、fakeauthority/常trueを使わず、全所有資源回収済み。test/supportは隔離枝だけ、正式受理/HTTP201/画面成功ではない。
+
+
+### 正本ゲート第1回の採否・反映1周目
+
+9038全文/基本2回枠の第1回はP0=0/P1=1/P2=1、否決。非作者rightsの証拠review-rg1-data-model-9038cba8-evidence.json SHAa53ce2facfc763f64d60306a0a7a362854aabde03e363787cf3a7e5e239a62daを受領、適用approved1.19/91e90条文は受付時同一。P1・起因・(-): data-model1.2履歴行の『実装時に確定する範囲』欠落を採用し、有限DDL/適用撤去/認可tenant生成/正式7.7値/実DB HTTP検証を既存step3/4で具体化する境界を履歴行へ追記した。7.3-7の条文/当該行の典拠を照合し、plan参照で代替しない。P2・非起因・(-): 3-2の規則解決owner2行重複を採用し、既採用の明示列grant/ロック/owner隔離/本文DML禁止/GUC限界を持つ行を残して重複1行を整理した。新意味や権限を追加せず、(B)送り/不採用/未終結は0件。採用反映を伴うのでcounter0→1、反映1周目とする。次は本反映差分+影響節の第2回を同適用版で実施する。付随read2コードの独立0/0/0と非DB22成功/2.28秒は正本の否決と別に保持し、正式201/7.7へ転写しない。
