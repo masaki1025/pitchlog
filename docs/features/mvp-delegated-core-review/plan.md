@@ -1,6 +1,6 @@
 ---
 feature: mvp-delegated-core-review
-status: in-review
+status: active
 承認: 済(2026-10-23・PO委任によるCodex判断)
 重さ分類: コア領域
 worktree: ../../..
@@ -21,13 +21,13 @@ POの2026-10-23 /goal第4・5・10節は今回MVPの最終差分確認と通常�
 
 ## 2. スコープ
 
-今回MVPだけのrepo+PR番号+headブランチの完全一致対応表へ限定。既存検出パス・拒否条件・通常人間確認経路は保持する。委任資料が存在する場合は不正資料を人間チェックで迂回させない。実装はscripts/core_guard.py内に限定（新helperへの検査漏れを避ける）、tests/test_core_guard.py、既存CI core-guardのGH_TOKEN設定、PR templateとpr skillの委任分岐、根拠を収める本feature/policy.jsonと、その検査経路登録用の.claude/core-areas.json。署名鍵/秘密新規発行・意味仕様・7.7基準・共有DB・運用公開は対象外。
+今回MVPだけのrepo+PR番号+headブランチの完全一致対応表へ限定。既存検出パス・拒否条件・通常人間確認経路は保持する。委任資料が存在する場合は不正資料を人間チェックで迂回させない。実装はscripts/core_guard.py内に限定（新helperへの検査漏れを避ける）、tests/test_core_guard.py、既存CIを変更しない公開GitHub APIへの無認証GET、PR templateとpr skillの委任分岐、根拠を収める本feature/policy.jsonと、その検査経路登録用の.claude/core-areas.json。署名鍵/秘密新規発行・意味仕様・7.7基準・共有DB・運用公開は対象外。
 
 ## 3. 影響する正本
 
 `docs/development/dev-harness-design-2026-08-07.md`6.3/10.1、`docs/development/github-setup.md`2章、`docs/README.md`へ今回限定例外の参照を反映（既存体制全体は再設計しない）。POの明示指示の追随節更新として7.6-3前段のPRレビューで処理する。既存正本の版番号・別件in-review v1.20は動かさない。6.3一般規則は書換えず、今回MVP/PO委任日/対象対応表/失効条件への限定注記を置くだけとする。独立レビューでこのゲート解釈も確認する。
 
-正本外の対象: 本feature文書、core_guard.py、test_core_guard.py、.github/workflows/ci.yml、.github/pull_request_template.md、.claude/skills/pr/SKILL.md。
+正本外の対象: 本feature文書、core_guard.py、test_core_guard.py、.github/pull_request_template.md、.claude/skills/pr/SKILL.md。
 
 ## 4. 実装方針
 
@@ -35,7 +35,7 @@ POの2026-10-23 /goal第4・5・10節は今回MVPの最終差分確認と通常�
 
 policy.jsonに今回のPO指示の原文抜粋・日時・この会話を根拠とする旨・対象repo/PR番号/headブランチのexact対応表・有効状態・証拠掲載GitHub主体を明記。候補HEADのcommitted blobを読む。撤回/MVP終了後はenabled=falseで拒否。新PRへの対象追加はレビュー対象差分とする。通常マージ直前に主担当も撤回の有無を確認する。
 
-証拠はGitHub APIで取得する。同一PRへのOWNER/MEMBER/COLLABORATORコメント・policyの掲載主体・マーカー直後の重複キーなしJSONであることを検査。本文marker複数/不正URL/API失敗は拒否。構造はauthority_sha256、pr、base、head、diff_sha256、paths、reviewer_agent、candidate_agents、independent、verdict、findings、report。base/headはイベントと完全一致、diff/pathsはgit diff --no-ext-diff --binary --no-renames base...headから再計算。authority_sha256はpolicy blobと一致。対象PR番号/branch/repo・純正40桁SHA・独立したagent識別（candidate_agentsにreviewerがいない）・independent=true・可決・未解消P0/P1ゼロ・非空の具体レビュー報告を必須とする。著者の『承認済み』だけでは通らない。認証値をログ出力しない。
+証拠は固定公開GitHub APIへ、既定TLS・無認証・timeout・redirect拒否・1MiB上限付きGETで取得する。同一PRへのOWNER/MEMBER/COLLABORATORコメント・policyの掲載主体・マーカー直後の重複キーなしJSONであることを検査。本文marker複数/不正URL/API失敗は拒否。構造はauthority_sha256、pr、base、head、diff_sha256、paths、reviewer_agent、candidate_agents、independent、verdict、findings、report。base/headはイベントと完全一致、diff/pathsはgit diff --no-ext-diff --binary --no-renames base...headから再計算。authority_sha256はpolicy blobと一致。対象PR番号/branch/repo・純正40桁SHA・独立したagent識別（candidate_agentsにreviewerがいない）・independent=true・可決・未解消P0/P1ゼロ・非空の具体レビュー報告を必須とする。著者の『承認済み』だけでは通らない。認証値をログ出力しない。
 
 機械保証の限界: 会話のPO本人性、レビューの意味的正しさ・実際の曝露履歴や、列挙されたagent情報の真実性は暗号認証しない。実際の独立taskに最終差分を渡して得た結果だけを掲載し、その出典を報告に記す。既存人間チェックも自己申告であるが、新経路は版・差分・証拠所在・重大未解消を構造検査する。人間が逐行確認/署名したとは表示しない。P6 blind/本人暗号署名の代替には使わない。
 
@@ -45,7 +45,7 @@ policy.jsonは新しい検査経路であるため、ステップ1で必須パ�
 
 | # | ステップ | 合格条件 |
 | --- | --- | --- |
-| 1 | 委任検査と拒否試験、policyパス宣言、既存CIへの接続、文書/テンプレート整合（JSON未変更） | Git実差分+模擬GitHub応答で正常経路/各欠落/版不一致/自己レビュー/未解消重大/API失敗/不正URLを検証。既存core guard試験維持。root Ruff/ty/pytest成功。独立レビュー後、実最終HEADの証拠コメントを掲載してCI評価 |
+| 1 | 委任検査と拒否試験、policyパス宣言、既存CI経路での無認証照合、文書/テンプレート整合（JSON未変更） | Git実差分+模擬GitHub応答で正常経路/各欠落/版不一致/自己レビュー/未解消重大/API失敗/不正URLを検証。既存core guard試験維持。root Ruff/ty/pytest成功。独立レビュー後、実最終HEADの証拠コメントを掲載してCI評価 |
 | 2 | policyパスをguard_pathsへ登録 | 宣言親コミットが先行し、JSON末尾1件のみ追加。policy単独変更の未確認拒否、全既存登録不変、基線検査/対象pytest成功 |
 
 ## 5. DoD
@@ -75,3 +75,20 @@ PO委任によるCodex判断: 2026-10-23T11:49:01.269922+00:00、Codex主担当 
 ハーネス評価台帳への追記なし。本件はPOの期間限定MVP委任への明示対応で、恒久的統制の評価/再設計は行わない。実際の独立レビューtaskの報告だけをGitHub証拠コメントに掲載し、作成者の自己判定で代用しない。
 
 本段階で通常マージ許可を成立扱いにしない。独立レビュー後に最終HEAD/実diff/authority hashへ結び付けたコメントを掲載し、CIの全必須結果を回収して判断する。根拠は2026-10-23 PO委任、判断者はCodex主担当。山田正輝の個別確認・署名とは扱わない。
+
+
+## ステップ1の差戻し修正（2026-10-23）
+
+初回CI run39950625656のtenant-boundary-bypassは、GH_TOKEN設定のためのci.yml変更が
+既存8資産の外部凍結観測を動かし、履歴追記0件で拒否された。既存レビュー回数は維持する。
+PO委任によるCodex主担当判断で、ステップ1範囲の取得実装を公開APIへの無認証GETへ変更し、
+ci.ymlを実PR基線1ab398ccとバイト同一へ復元する。正式資産・revision・履歴・snapshotは変更しない。
+非公開化・rate limit・HTTP/ネット/TLS/JSON異常はfail-closedとし、保証を緩めない。
+後発差分は新固定HEADへの第2回差分レビュー対象とする。旧HEADの証拠は履歴として残し、
+新HEADの確認に流用しない。初回失敗と根拠はresearch.mdに記録する。
+
+### CI起因の取得方法是正（ステップ1範囲の差戻し）
+
+CI run39950625656のtenant-boundary-bypassは、認証用CI2行が既存8資産の外部凍結対象を動かし未受理だったため失敗。失敗を保持する。公開APIを無認証・固定URL・既定TLS・redirect拒否・サイズ上限・取得不能拒否で読む方式へ是正し、CIを基線とバイト同一へ復元するPO委任判断で、新たな7.7基準更新を作らない。
+
+修正実装開始時のactive遷移が後追いとなったため、コードコミット前にこのメタデータ遷移を記録する。未レビューの変更を旧固定HEADの確認済みと扱わない。意味仕様・既存拒否能力の緩和なし、最終新HEADの第2回差分レビューと証拠再固定を行う。
