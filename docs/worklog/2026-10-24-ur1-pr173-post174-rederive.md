@@ -47,3 +47,9 @@ P1是正後のroot実行はcore357 passed/27.08秒・Ruff成功。9資産/外部
 反映補助の初回は新row・8追加・今回8整理の後、v2参照だけと全snapshotの等値を過剰要求して停止した。v2抽出は旧保全snapshot全体を含まないことを確認し、実base192全bytes保持・新規10参照・欠落0/未参照新規0を検証して反映を完結。新rowの二重追加/基線snapshot削除はしていない。
 
 提出前の整合: ブランチslugに対応する現在地写しplanを追加しin-reviewへ揃えた。元U-R1の9ステップ表/レビュー7回/DoDをbyte同一で参照し、親は全体未完のためactiveを保持。ローカル全件driverはcacheに準備済み未実行。必須CIのbackend/root全件で同じ最終HEADを検査し、同じ入力のローカル全件重複を増やさない。CI失敗・実DB診断が必要な場合だけ専用driverを用いる。ハーネス評価台帳への追記なし: 既存6.3⑤の宣言回転/既登録保持へ追随した実装試験の接合であり、検査モデルや運用規則の新知見・再設計はない。
+
+## 提出候補の受理後検証
+
+受理反映24eaa88bを対象にrootがarchive36成功/22.37秒、backend初期付与＋生成/tenant/runtime契約104成功/13.70秒、root/backend Ruff・ty、backend format379 files、docs-status21/0・計画同期・実origin/develop比tenant checkerexit0を確認。census74成功/514.27秒とP1是正後core357成功/27.08秒・独立357成功/10.71秒はsource/corpus不変の証拠として保持し、同じ全件を反復しない。実PR_ACCEPTANCEのGitHub合成mergeに対する検査、最終CIのbackend/root全件、最終headの非作者確認は提出時の別条件。
+
+本追記を含む提出HEAD・binary差分・実baseはPR本文/委任証拠へ固定する。主担当は正式row27/承認メタデータ/新参照snapshot・旧base192全保全/今回未参照8整理/現在地写しとCSV実base追随の最終メタデータ差分に限定する独立追加3回目を必要と判断し許可する。旧156/170/173の系列と今回追加1回のP1・2回目の解消を保持しリセットしない。source変更や追加意味をこの最終確認へ紛れ込ませない。
