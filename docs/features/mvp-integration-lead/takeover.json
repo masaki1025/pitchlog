@@ -40,7 +40,9 @@
       "observed_head": "6af8c80156ceec615e0749ace1187129e95bd642",
       "pin_matches": null,
       "status": "M backend/pyproject.toml\n M backend/src/pitchlog/authz/runtime_contract.py\n M backend/src/pitchlog/repositories/repository_contract.py\n M backend/src/pitchlog/repositories/tenant_context_contract.py\n M backend/uv.lock\n M contracts/tenant_boundary/base-allowlist.json\n M contracts/tenant_boundary/cache-invalidation-contract.json\n M contracts/tenant_boundary/census-baseline.json\n M contracts/tenant_boundary/db-api-inventory.json\n M contracts/tenant_boundary/negative-fixtures.json\n M contracts/tenant_boundary/repository-contract.json\n M contracts/tenant_boundary/runtime-authz-contract.json\n M contracts/tenant_boundary/tenant-context-allowlist.json\n M docs/features/ur1-recording-rights/step5-followup-handoff.md\n M scripts/check_tenant_boundary_bypass.py\n M tests/fixtures/frozen-archive-cases/manifest.json\n M tests/test_census_baseline_check.py\n?? backend/src/pitchlog/recording_rights/\n?? backend/tests/test_initial_recording_right_candidate.py\n?? contracts/tenant_boundary/history-snapshots/21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7\n?? contracts/tenant_boundary/history-snapshots/3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e\n?? contracts/tenant_boundary/history-snapshots/8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e\n?? contracts/tenant_boundary/history-snapshots/9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02\n?? contracts/tenant_boundary/history-snapshots/ae5e4d9e4ed0145374acd8036ca13410785f6890fb4e29a0ac93a6b8d0078f01\n?? contracts/tenant_boundary/history-snapshots/b93408f31683e671e03e89ffbeda10999ac54226de3b78a7643a2a1622955040\n?? contracts/tenant_boundary/history-snapshots/bebc29609e9dfd7e453c22f411710b38e0b79e9fc31e63c95397990c175b8565\n?? contracts/tenant_boundary/history-snapshots/c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9\n?? contracts/tenant_boundary/history-snapshots/e20c325bc4ae4742e9e06adab4306fd3e1280be3ef19e707e2402cfb24725128\n?? contracts/tenant_boundary/history-snapshots/fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-acceptance-brief.md\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-payload-proposal.json\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-record-proposal.json\n?? docs/features/ur1-recording-rights/step5-pr173-candidate-snapshots/\n?? docs/features/ur1-recording-rights/step5-pr173-tab-handoff-2026-10-23.md\n?? docs/worklog/2026-10-22-ur1-pr173-review.md\n?? tests/fixtures/tenant_boundary/census-scoped-digests.json",
-      "ownership": "Codex主担当（PO委任）"
+      "ownership": "Codex主担当（PO委任）",
+      "latest_owned_head": "5239e3ee",
+      "latest_owned_status": "46ファイル原状保全コミット済み、#174実統合後の再導出待ち"
     },
     {
       "scope": "TSK-550",
@@ -129,5 +131,6 @@
         "scope_limit": "DDL/ACL/7.7/運用未成立"
       }
     ]
-  }
+  },
+  "latest_update_at": "2026-10-23T15:29:59.635598+00:00"
 }
