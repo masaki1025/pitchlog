@@ -12,3 +12,10 @@
 実JSON/全guard function・class ASTは正式base547と同一。追加層を新3source×sync/recording/tenantへ回転し、旧initial2pathの定数・登録/拒否履歴を保持。旧初期付与の歴史的試験は同じ当時の宣言を明示したCLI/照合器で検査する。既存SCRIPT monkeypatchの挙動も保持する。旧登録の末尾固定は後続が増えるため、旧blockの位置/順序と全JSON差分の完全照合へ分けた。
 
 初回全coreは398成功/10失敗/1error/212.75秒。9件は既存git/subprocess30秒timeoutで、T1候補のcore同時実行も全体遅延していた。2件は本root追随の実不具合（合成repo内へのimport pyc混入、default引数がSCRIPT monkeypatchを固定）として修正。タイムアウトは伸ばさず、一時ファイル/宣言CLIの対象だけ是正した。新/影響54件の直列検査54成功/6.51秒後、専用tmp/2workerの最終core全件409成功/26.84秒。Ruff/ty成功、guard関数/拒否変更0、実JSON/source製品追加0。原失敗と最終結果はcache/rg1-lifecycle-connection/core-step1*.logへ保持する。
+
+
+## ステップ2：別JSON登録
+
+先行05631c1c/標準diff66c131c0は非作者resolverが0/0/0、独立56成功/7.01秒と追加4拒否変異を確認。rootは承認済み順で6c338328へJSON1fileだけを別commitし、新3sourceを三領域へ完全追記。旧paths/順序/guard/metadata保持、製品sourceはまだ不存在。実547→6c338の履歴検査は547を返し、追加後全core409成功/28.16秒。
+
+その後、正式175がa10bcd5eへ通常統合された。現branchは当時の547固定であり、次の製品候補化前に新正式基線を通常mergeしてAPI read登録/受理履歴を保持し、追加層を回転する。新しい意味の承認を繰返さず、変化した値と接合だけを再確認する。
