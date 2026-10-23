@@ -100,7 +100,10 @@ def test_fixed_manifest_and_single_supplier_protocol() -> None:
     assert hashlib.sha256(source).hexdigest() == manifest["protocol_source"]["sha256"]
     assert b"FOR SHARE" in ddl and b"FOR UPDATE" in ddl
     assert (
-        ddl.count(b"SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger")
+        ddl.count(
+            b"SECURITY DEFINER SET search_path = pg_catalog, "
+            b"pitchlog_ledger, pg_temp AS"
+        )
         == 9
     )
     assert b"REVOKE ALL ON ALL TABLES" in ddl

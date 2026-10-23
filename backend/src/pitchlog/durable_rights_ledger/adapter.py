@@ -653,7 +653,10 @@ def _metadata(pair: _PgLedgerPair) -> dict[str, Any]:
     return {
         "primary": projection(pair._primary),
         "standby": projection(pair._standby),
-        "business": projection(pair._business),
+        "business": {
+            **projection(pair._business),
+            "database": pair._business["database"],
+        },
     }
 
 
@@ -682,7 +685,7 @@ class _AuthorityRuntime:
         for key in metadata:
             if (
                 type(enrollment[key]) is not dict
-                or set(enrollment[key]) != {"system_id", "started_at"}
+                or set(enrollment[key]) != set(metadata[key])
                 or enrollment[key]["system_id"] != metadata[key]["system_id"]
                 or (key == "business" and enrollment[key] != metadata[key])
             ):
@@ -746,10 +749,10 @@ class _AuthorityRuntime:
                     previous = event[key]
                     if (
                         type(previous) is not dict
-                        or set(previous) != {"system_id", "started_at"}
+                        or set(previous) != set(metadata[key])
                         or any(
                             type(previous[field]) is not str or not previous[field]
-                            for field in ("system_id", "started_at")
+                            for field in metadata[key]
                         )
                         or previous["system_id"] != metadata[key]["system_id"]
                         or (key == "business" and previous != metadata[key])

@@ -441,6 +441,19 @@ def _launch(mode: str, config_path: Path) -> None:
                 os.waitpid(pid, 0)
             except ChildProcessError:
                 pass
+        if mode == "serve":
+            # 起動拒否でもbind用の一時group-writeを残さず、次回の安全な再試行を保つ。
+            run_fd = os.open(
+                Path(value["socket_path"]).parent,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+            )
+            try:
+                if os.fstat(run_fd).st_uid != 0:
+                    raise AuthorityUnavailable("authority unavailable")
+                os.fchmod(run_fd, 0o755)
+                os.fsync(run_fd)
+            finally:
+                os.close(run_fd)
 
 
 def main() -> int:

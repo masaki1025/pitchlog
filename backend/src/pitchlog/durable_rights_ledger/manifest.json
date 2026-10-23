@@ -2,7 +2,7 @@
   "schema_version": 1,
   "postgres_version": 170011,
   "schema": "pitchlog_ledger",
-  "ddl_sha256": "3a49fea19ef5f699a8bc20bfdb3fb67a26d0655bb4d912431deac0ff73ab60ef",
+  "ddl_sha256": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe",
   "tables": [
     "state",
     "highwater",
@@ -90,7 +90,12 @@
     ],
     "peer_address": "standby server address",
     "primary_recovery": false,
-    "standby_recovery": true
+    "standby_recovery": true,
+    "business_genesis_fields": [
+      "system_id",
+      "database",
+      "started_at"
+    ]
   },
   "timeout_seconds": {
     "minimum": 0.1,
@@ -160,8 +165,19 @@
     "builtin_pg_control_system_effective_public_execute": true,
     "builtin_pg_control_system_explicit_new_grantee": "pitchlog_ledger_identity_owner",
     "startup_barrier": "journal-derived state CAS; no domain change; synchronous no-op WAL before peer row audit; no live leases",
-    "source_sha256": "574f1dc1fc6ec9d69f3008d9b02e135bfa17c89c64b1facf90f84b873737e73b",
-    "adapter_sha256": "57c7d9691f8a6058554fde80ece940e75318943675ad15db8b03f78472e198a6",
-    "business_connect_grantee": "pitchlog_ledger_identity_probe; CONNECT only, no TEMP or product-table/authn grant"
+    "source_sha256": "8451e90c828de5b10ca9f866a6153129b0ccd70678f578f0537ac38119121060",
+    "adapter_sha256": "bba427c7cfcc5706a09f8e1a86b2bb98ca183afe0633f061263e2b4b9f9f39f1",
+    "business_connect_grantee": "pitchlog_ledger_identity_probe; CONNECT only, no TEMP or product-table/authn grant",
+    "legacy_genesis_missing_database_admission": false,
+    "sql_search_path": [
+      "pg_catalog",
+      "pitchlog_ledger",
+      "pg_temp"
+    ],
+    "canonical_tables": [
+      "pitchlog_ledger.state",
+      "pitchlog_ledger.highwater",
+      "pitchlog_ledger.reservations"
+    ]
   }
 }

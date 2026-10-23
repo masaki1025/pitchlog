@@ -202,7 +202,7 @@ def isolated_ledger_database() -> Iterator[LedgerDatabase]:
             "-c",
             "groupadd -g 20001 witness_authority && "
             "useradd -u 20001 -g 20001 -M witness_authority && "
-            "sed -i '1ilocal ledger_fixture pitchlog_ledger_identity_probe "
+            "sed -i '1ilocal all pitchlog_ledger_identity_probe "
             "peer map=witness_probe' "
             "/var/lib/postgresql/data/pg_hba.conf && "
             "echo 'witness_probe witness_authority "
@@ -491,7 +491,9 @@ except Exception as exc:
         )
         self.start()
 
-    def probe(self, statement: str, *, refused: bool = False) -> str:
+    def probe(
+        self, statement: str, *, refused: bool = False, database: str = "ledger_fixture"
+    ) -> str:
         """実OS UID→PG peerを通し、製品表/authnの実拒否を検査する。"""
         result = subprocess.run(
             [
@@ -508,7 +510,7 @@ except Exception as exc:
                 "-U",
                 "pitchlog_ledger_identity_probe",
                 "-d",
-                "ledger_fixture",
+                database,
                 "-c",
                 statement,
             ],
@@ -522,6 +524,70 @@ except Exception as exc:
             return "DENIED"
         assert result.returncode == 0, "actual identity probe failed"
         return result.stdout.strip()
+
+    def journal_digest(self, store: str = "state") -> str:
+        """所有journalのbyte不変を確認し、資格を出力しない。"""
+        assert store in ("state", "legacy")
+        return docker(
+            *self.command(root=True),
+            "-c",
+            "import hashlib; "
+            f"f=open('/w/{store}/journal','rb'); "
+            "print(hashlib.file_digest(f,'sha256').hexdigest())",
+        )
+
+    def switch_business_database(self, database: str) -> None:
+        """所有したimmutable fixture設定だけを別DBへ向ける負例を作る。"""
+        assert database in ("ledger_fixture", "ledger_other")
+        code = f"""
+from pathlib import Path
+from psycopg.conninfo import make_conninfo
+from pitchlog.durable_rights_ledger.authority import _config,_write_root_json
+path=Path('/control/settings/config.json')
+v=_config(path)
+v['business_dsn']=make_conninfo(v['business_dsn'],dbname={database!r})
+_write_root_json(path,v,0o640,v['authority_gid'])
+"""
+        docker(*self.command(root=True), "-c", code)
+
+    def prepare_legacy_genesis(self, *, restore: bool = False) -> None:
+        """旧database欠落frameを別の所有dirへ構成し、現journalは変更しない。"""
+        code = f"""
+import json,os
+from pathlib import Path
+from pitchlog.durable_rights_ledger.authority import (
+    _config,_create_store,_write_root_json)
+from pitchlog.durable_rights_ledger.witness import _frames,_encoded
+path=Path('/control/settings/config.json')
+v=_config(path)
+if {restore!r}:
+    v['witness_path']='/w/state'
+else:
+    fd=os.open('/w/state/journal',os.O_RDONLY|os.O_NOFOLLOW)
+    try: genesis=json.loads(next(_frames(fd,os.fstat(fd).st_size)).payload)
+    finally: os.close(fd)
+    assert genesis['event']=='enrolled' and 'database' in genesis['business']
+    v['witness_path']='/w/legacy'
+    _create_store(v)
+    descriptor=json.loads(Path('/w/legacy/enrollment.json').read_bytes())
+    genesis['authority_id']=descriptor['authority_id']
+    del genesis['business']['database']
+    encoded,_=_encoded(1,bytes(32),json.dumps(genesis).encode())
+    fd=os.open('/w/legacy/journal',os.O_WRONLY|os.O_APPEND|os.O_NOFOLLOW)
+    try:
+        offset=0
+        while offset<len(encoded):
+            count=os.write(fd,encoded[offset:])
+            assert count>0
+            offset+=count
+        os.fsync(fd)
+    finally: os.close(fd)
+    fd=os.open('/w/legacy',os.O_RDONLY|os.O_DIRECTORY)
+    try: os.fsync(fd)
+    finally: os.close(fd)
+_write_root_json(path,v,0o640,v['authority_gid'])
+"""
+        docker(*self.command(root=True), "-c", code)
 
     def copy_pair(self, *, restore: bool = False) -> None:
         """停止した自分の二data volumeだけを退避/復元しwitnessへ触れない。"""

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterator
 from uuid import uuid4
 
@@ -62,6 +63,62 @@ def tested_role_connection(
         yield connection
     finally:
         connection.close()
+
+
+def test_real_normal_admission_requires_original_database_and_legacy_refuses(
+    authority_database: AuthorityDatabase, ledger_connections: LedgerDatabase
+) -> None:
+    """実同cluster/同postmasterの別DBと旧欠落genesisをstartup前に拒否する。"""
+    from pathlib import Path
+
+    from psycopg.conninfo import make_conninfo
+
+    authority_database.stop()
+    original_digest = authority_database.journal_digest()
+    authority_database.prepare_legacy_genesis()
+    legacy_digest = authority_database.journal_digest("legacy")
+    try:
+        assert authority_database.start(check=False) is False
+        assert authority_database.journal_digest() == original_digest
+        assert authority_database.journal_digest("legacy") == legacy_digest
+    finally:
+        authority_database.stop()
+        authority_database.prepare_legacy_genesis(restore=True)
+    authority_database.start()
+    with psycopg.connect(
+        ledger_connections.business_admin, autocommit=True
+    ) as connection:
+        connection.execute("CREATE DATABASE ledger_other")
+    alternate = make_conninfo(ledger_connections.business_admin, dbname="ledger_other")
+    ddl = (Path(adapter.__file__).parent / "business_identity.sql").read_text()
+    # cluster roleは既存の実roleを使い、別DBへ同一正規observerだけを適用する。
+    ddl = re.sub(r"^CREATE ROLE .*;\n", "", ddl, flags=re.MULTILINE)
+    with psycopg.connect(alternate) as connection:
+        connection.execute(ddl.encode())
+    identity_query = (
+        "SELECT pitchlog_ledger_observer.identity()->>'system_id',current_database(),"
+        "pitchlog_ledger_observer.identity()->>'started_at'"
+    )
+    original = authority_database.probe(identity_query).split("|")
+    other = authority_database.probe(identity_query, database="ledger_other").split("|")
+    assert original[0] == other[0] and original[2] == other[2]
+    assert original[1] == "ledger_fixture" and other[1] == "ledger_other"
+    authority_database.stop()
+    original_digest = authority_database.journal_digest()
+    authority_database.switch_business_database("ledger_other")
+    try:
+        assert authority_database.start(check=False) is False
+        assert authority_database.journal_digest() == original_digest
+    finally:
+        authority_database.stop()
+        authority_database.switch_business_database("ledger_fixture")
+    authority_database.start()
+    assert (
+        authority_database.client(
+            "assert s.current_recovery_generation()==1; print('BOUND')"
+        )
+        == "BOUND"
+    )
 
 
 def test_real_authority_reservation_claim_fence_and_business_rollback(
@@ -245,7 +302,7 @@ def test_real_manifest_acl_and_function_owners(
         assert len(functions) == len(manifest["functions"]) == 9
         for name, owner, security_definer, configuration, oid in functions:
             assert owner == "pitchlog_ledger_owner" and security_definer is True
-            assert configuration == ["search_path=pg_catalog, pitchlog_ledger"]
+            assert configuration == ["search_path=pg_catalog, pitchlog_ledger, pg_temp"]
             acl = connection.execute(
                 "SELECT CASE WHEN x.grantee=0 THEN 'PUBLIC' ELSE "
                 "pg_get_userbyid(x.grantee) END FROM pg_proc p CROSS JOIN LATERAL "
@@ -407,6 +464,152 @@ print('RECONCILED')
 """)
         == "RECONCILED"
     )
+
+
+def _install_attacker_temp_tables(connection: psycopg.Connection) -> tuple:
+    """呼出role所有の偽表とdefinerへの実ACLを作り、攻撃前提を成立させる。"""
+    params = tuple(uuid4() for _ in range(4))
+    connection.execute("CREATE TEMP TABLE state (singleton boolean,epoch bigint)")
+    connection.execute("CREATE TEMP TABLE highwater (singleton boolean,value bigint)")
+    connection.execute(
+        "CREATE TEMP TABLE reservations (attempt_id uuid,tenant_id uuid,"
+        "game_id uuid,start_request_id uuid,generation bigint,"
+        "recovery_generation bigint,claimed boolean,quarantined boolean)"
+    )
+    connection.execute("INSERT INTO pg_temp.state VALUES(true,999)")
+    connection.execute("INSERT INTO pg_temp.highwater VALUES(true,8888)")
+    connection.execute(
+        "INSERT INTO pg_temp.reservations VALUES(%s,%s,%s,%s,8888,999,false,false)",
+        params,
+    )
+    # pg_tempはGRANTのschema名aliasではない。実namespaceへの有効USAGEを検証する。
+    assert connection.execute(
+        "SELECT has_schema_privilege('pitchlog_ledger_owner',"
+        "pg_my_temp_schema(),'USAGE')"
+    ).fetchone() == (True,)
+    connection.execute(
+        "GRANT ALL ON TABLE pg_temp.state,pg_temp.highwater,"
+        "pg_temp.reservations TO pitchlog_ledger_owner"
+    )
+    connection.execute("SET LOCAL search_path=pg_catalog,pitchlog_ledger")
+    # pg_tempを明示しない危険な解決では実際に偽表を読むことを確認する。
+    assert connection.execute("SELECT epoch FROM state").fetchone() == (999,)
+    assert connection.execute("SELECT value FROM highwater").fetchone() == (8888,)
+    return params
+
+
+def test_real_security_definers_resist_temp_shadowing_for_app_and_control(
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """PUBLIC TEMPを保持し、偽表にdefiner ACLがあっても全9関数は正規表を使う。"""
+    with psycopg.connect(ledger_connections.primary_admin) as administrator:
+        before = administrator.execute(
+            "SELECT (SELECT epoch FROM pitchlog_ledger.state),"
+            "(SELECT value FROM pitchlog_ledger.highwater),"
+            "(SELECT count(*) FROM pitchlog_ledger.reservations)"
+        ).fetchone()
+        assert before is not None
+        assert administrator.execute(
+            "SELECT count(*) FROM pg_database d CROSS JOIN LATERAL "
+            "aclexplode(COALESCE(d.datacl,acldefault('d',d.datdba))) a "
+            "WHERE d.datname=current_database() AND a.grantee=0 "
+            "AND a.privilege_type='TEMPORARY'"
+        ).fetchone() == (1,)
+    epoch, highwater, count = before
+    with psycopg.connect(ledger_connections.endpoints.primary_dsn) as connection:
+        fake = _install_attacker_temp_tables(connection)
+        identity = connection.execute("SELECT pitchlog_ledger.identity()").fetchone()
+        assert identity is not None
+        assert (
+            identity[0]["epoch"],
+            identity[0]["highwater"],
+            identity[0]["reservation_count"],
+        ) == before
+        assert connection.execute(
+            "SELECT pitchlog_ledger.epoch_fence()"
+        ).fetchone() == (epoch,)
+        assert (
+            connection.execute(
+                "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", fake
+            ).fetchone()
+            is None
+        )
+        params = tuple(uuid4() for _ in range(4))
+        reserved = connection.execute(
+            "SELECT * FROM pitchlog_ledger.reserve(%s,%s,%s,%s)", params
+        ).fetchone()
+        assert reserved is not None and reserved[:2] == (highwater + 1, epoch)
+        claimed = connection.execute(
+            "SELECT * FROM pitchlog_ledger.claim(%s,%s,%s,%s)", params
+        ).fetchone()
+        assert claimed is not None and claimed[:2] == (highwater + 1, epoch)
+        assert claimed[5:] == (True, False)
+        assert (
+            connection.execute(
+                "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", params
+            ).fetchone()
+            == claimed
+        )
+        assert connection.execute("SELECT value FROM pg_temp.highwater").fetchone() == (
+            8888,
+        )
+        assert connection.execute(
+            "SELECT claimed FROM pg_temp.reservations"
+        ).fetchone() == (False,)
+        connection.rollback()
+    with psycopg.connect(ledger_connections.endpoints.control_dsn) as connection:
+        fake = _install_attacker_temp_tables(connection)
+        assert connection.execute(
+            "SELECT pitchlog_ledger.confirm_state(%s,%s,%s)", before
+        ).fetchone() == (epoch,)
+        page = connection.execute("SELECT pitchlog_ledger.audit_page(0,256)").fetchone()
+        assert page is not None and all(
+            row["attempt_id"] != str(fake[0]) for row in page[0]
+        )
+        assert connection.execute(
+            "SELECT pitchlog_ledger.advance_epoch(%s)", (epoch,)
+        ).fetchone() == (epoch + 1,)
+        params = tuple(uuid4() for _ in range(4))
+        with pytest.raises(psycopg.errors.RaiseException), connection.transaction():
+            connection.execute(
+                "SELECT * FROM pitchlog_ledger.reconcile(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (*params, highwater + 1, 999, False, True, highwater),
+            )
+        row = connection.execute(
+            "SELECT * FROM pitchlog_ledger.reconcile(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (*params, highwater + 1, epoch + 1, False, True, highwater),
+        ).fetchone()
+        assert (
+            row is not None
+            and row[:2] == (highwater + 1, epoch + 1)
+            and row[5:] == (False, True)
+        )
+        identity = connection.execute("SELECT pitchlog_ledger.identity()").fetchone()
+        assert identity is not None
+        assert (
+            identity[0]["epoch"],
+            identity[0]["highwater"],
+            identity[0]["reservation_count"],
+        ) == (epoch + 1, highwater + 1, count + 1)
+        assert connection.execute("SELECT epoch FROM pg_temp.state").fetchone() == (
+            999,
+        )
+        assert connection.execute("SELECT value FROM pg_temp.highwater").fetchone() == (
+            8888,
+        )
+        assert connection.execute(
+            "SELECT count(*) FROM pg_temp.reservations"
+        ).fetchone() == (1,)
+        connection.rollback()
+    with psycopg.connect(ledger_connections.primary_admin) as administrator:
+        assert (
+            administrator.execute(
+                "SELECT (SELECT epoch FROM pitchlog_ledger.state),"
+                "(SELECT value FROM pitchlog_ledger.highwater),"
+                "(SELECT count(*) FROM pitchlog_ledger.reservations)"
+            ).fetchone()
+            == before
+        )
 
 
 def test_real_unterminated_lease_blocks_live_and_restart(
