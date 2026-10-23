@@ -43,13 +43,14 @@ export function isPreparingGame(value: unknown): value is PreparingGame {
     typeof value.scheduled_at === 'string' &&
     /T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value.scheduled_at) &&
     Number.isFinite(Date.parse(value.scheduled_at)) &&
+    typeof value.game_type_key === 'string' &&
     [
       'game_official',
       'game_semi_official',
       'game_open',
       'game_intrasquad',
       'game_other',
-    ].includes(String(value.game_type_key)) &&
+    ].includes(value.game_type_key) &&
     typeof value.tournament_key === 'string' &&
     value.tournament_key.length > 0 &&
     [
