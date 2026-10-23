@@ -1,7 +1,7 @@
 ---
 feature: mvp-integration-lead
 status: active
-承認: 未
+承認: 済(2026-10-23・PO委任によるCodex判断)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://chatgpt.com/space/page_711a9b1ac7d88191a6b0bc313a60db01
@@ -50,3 +50,9 @@ POの2026-10-23 /goalに基づき主担当を移管する。初回MVP-NFR-009と
 ## 6. テスト計画
 
 `uv run pytest tests/test_core_guard.py` で合成Git履歴・実設定・拒否を検証。`uv run ruff check .`、`uv run ty check`、文書検査を実行。root全件は実装区切りで実施し、frontend一時ファイル生成と並行しない。製品DB/HTTPのO5成功はここで主張しない。
+
+## 計画レビューと承認
+
+第1回全文敵対レビュー: `/root/independent_review`、入力SHA256 `4c7be8f78eddd7206ae3e0ec9683ba03feee2d0da06c55bf76714dd35b7e69b3`、可決 P0=0/P1=0/P2=0。候補作成不関与、読取専用。既存sync-protocol据置き試験をステップ1で先行対応することを実施注意として確認。
+
+PO委任によるCodex判断: 2026-10-23T11:43:40.452874+00:00、判断者Codex主担当 `/root`。上記対象版と独立レビューを根拠に、O5の1パス宣言・登録を本独立計画の2ステップとして承認する。#176内完結の旧方針は今回PO指示4・10の編集/統合順委任に基づき変更。山田正輝が個別実値を直接確認したとは扱わない。登録の通常mergeは最終CI・レビュー・適切な確認手続き成立後。
