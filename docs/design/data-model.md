@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: approved
 ---
 # 詳細設計: データモデル(論理モデル・識別子・一意性・削除の系統・移行の行き先)
 
@@ -7,6 +7,7 @@ status: in-review
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| **1.2** | 2026-10-24 | **RG1制限制御の主体分離と安全な成功条件（初回MVP）を確定**。本改訂で確定する範囲: 3-2の制御owner/peer actor・singleton限定列ACL/RLS・appの同Session実識別読取・実authority/lease/commitの安全条件、およびロール数の参照追随。実装時に確定する範囲: 有限DDL/適用・撤去、認可/tenant生成資産、正式7.7の実値、実DB/HTTP検証を既存featureステップ3/4で具体化する。本改訂で確定しない範囲: 全域closeProof/epoch更新・非zero復元の具体的Port、野球の結果意味、D5消費/拒否優先順。既存RG1 read ownerの状態更新権・app直接表権・継承/SET ROLEを増やさない。確定ゲートは全文1回＋反映差分1回、反映1周、P1=1/P2=1を全採用・不採用0、最終0/0/0。PO委任によるCodex主担当/root判断でda78a862の実値・採否を確認し承認（人間本人の個別確認/署名ではない）。具体記録はmvp-rg1-lifecycle-connection/research。 | **approved** |
 | **1.2** | 2026-10-24 | **RG1制限制御の主体分離と安全な成功条件（初回MVP）を起案**。本改訂で確定する範囲: 3-2の制御owner/peer actor・singleton限定列ACL/RLS・appの同Session実識別読取・実authority/lease/commitの安全条件、およびロール数の参照追随。実装時に確定する範囲: 有限DDL/適用・撤去、認可/tenant生成資産、正式7.7の実値、実DB/HTTP検証を既存featureステップ3/4で具体化する。本改訂で確定しない範囲: 全域closeProof/epoch更新・非zero復元の具体的Port、野球の結果意味、D5消費/拒否優先順。既存RG1 read ownerの状態更新権・app直接表権・継承/SET ROLEを増やさない。実装追随の根拠とゲートはmvp-rg1-lifecycle-connection/plan・researchへ固定。 | in-review |
 | **1.1** | 2026-10-15 | **TSK-550・FR-014段階Aの出所と専用owner**。**本改訂で確定する範囲** = §3-2の規則解決関数所有用ロール1件と既存ロール数の参照追随、§10-5のF-2固定5組だけの出所証明・割当あり拒否・閉じた製品書込入口。**2026-10-16正式確定**: 親`FOR UPDATE`後の別SQL割当読取、既定・規則`FOR SHARE`のscope終了までの保持と専用ownerの最小2列`UPDATE`を追加限定7.3で審査（P0=0/P1=1/P2=1、2件採用して判断資料を修正）。本会話のPOが今回の改訂範囲の最終本文とレビュー後修正差分を確認し正式確定を承認。§6-5・UUID・F-2値は対象外。具体列grant・配置・起動器の資産承認と7.7は別ゲート。**実装時に確定する範囲** = 関数SQL、F-2配置migration、一時RLS、認可資産と適用/取り外し、実DBの2接続・故障試験、U-G1の同一scope保存。§6-5 v1.0、F-2の値、採用済み5 UUID・機械文字列は変更しない。FR-014/DRAW-04のコールド矛盾は別の要件正本ゲートで裁定する。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | approved |
 | **1.0** | 2026-10-14 | **TSK-550・FR-014の6-key保存契約を確定**: 6-5節で、新規試合の`games.applied_rules`を`ruleSetId`と既存`ruleSnapshot`のcamelCase 5値から成るexact-setとして固定する。IDはcanonical UUIDとして、5値は既存の凍結schemaへのprojectionで形・値域を検証し、付録F-1の値間相関を単一経路で追加検証する。旧`{}`、5値だけの行、未知key、不正ID・値・相関を解決済みへ推定補完しない。**本書で確定した範囲** = 6-keyの保存形、IDと5値の検証境界、同一時点の不変snapshot、旧行の不補完、新規物理列と第2の規則計算を追加しないこと。**実装時に確定する範囲** = codecの関数・公開型・例外/失敗表現、モジュール配置、単体試験の具体。**本改訂で扱わない範囲** = owner・列grant・規則データ配置migration・一時RLS・配置/認可検査器・制限関数・固定function operation・resolver・U-G1接続。付録F-2の値、PO採用済み5 UUIDと`no_out_first_second`／`continue_lineup`は変更しない。正式7.3は敵対レビュー2回（第1回P0 0/P1 1/P2 0、第2回P0 0/P1 0/P2 0）、反映1周、指摘1件を採用。最終HEAD `ca0a51ef7832a4dff58e54993c161076cf270f35`を**2026-10-14 本会話の利用者が逐行確認し、正本確定と当該保存契約に限定したPO代替受理を承認**。計画: `../features/ux1-fr014-rule-resolution/plan.md` | **approved** |
