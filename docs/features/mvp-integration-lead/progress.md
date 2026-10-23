@@ -87,9 +87,9 @@ MVP-FR-001〜017 / MVP-NFR-001〜012の個別対応は実装場所確認時に�
 
 | Page ID | 実装場所・供給単位 | 接続・検証状態 / 残件 |
 | --- | --- | --- |
-| MVP-FR-001 | develop: api/routers/auth.py、frontend LoginScreen/authStore | チーム共有認証部品あり。今回リハーサル経路未検証 |
+| MVP-FR-001 | develop: api/routers/auth.py、frontend LoginScreen/authStore | チーム共有認証を実browser→Cookie/C2→preparing readで候補検証。1試合リハーサルは未実施 |
 | MVP-FR-002 | develop: repositories/roster.py、api/schemas/roster.py | 名簿部品あり。作成/開始への名簿供給と実画面接続未検証 |
-| MVP-FR-003 | #174/#175、隔離6ddbc341/b4b8aaf2 | strict codec接合100成功、固定resolver operation69成功。実作成API/DB/画面未完 |
+| MVP-FR-003 | #174/実develop1f506675、隔離resolver/GET/UI/browser | 正式単一codec/段階A DB供給済み。候補resolver155・実read API127/DB11・実browser3。作成POST/RG1/game INSERT/画面作成は未完 |
 | MVP-FR-004 | U-R1 #173、新5 / U-G1 | 初期権利候補。開始同一取引と再取得の実接合未完 |
 | MVP-FR-005 | U-F8 GameScreenPitchEvent / T1 / U-S1 sync | 封鎖UIと同期核部品。実T1計算・Port・保存接合未完 |
 | MVP-FR-006 | U-F8 GameScreenSubstitutions / T1/T2 | 交代/特殊進行の候補。7/9回・延長・cold/TBの実製品受入未完 |
@@ -102,8 +102,8 @@ MVP-FR-001〜017 / MVP-NFR-001〜012の個別対応は実装場所確認時に�
 | MVP-FR-013 | U-F8 live display/閲覧入口 | 保存済み版・最終更新時刻・10秒更新の実API接続未完 |
 | MVP-FR-014 | U-F8スコア表示、T5、成績配信 | 公式試合成績の製品提供未完。fixture表示だけを完成にしない |
 | MVP-FR-015 | 暦年整合4517a33e、T5/T6、成績配信候補 | 暦年は既決。方式/固定ベクタ/投影/集計未実装。D02〜05回答待ち範囲を区別 |
-| MVP-FR-016 | U-D2/FR031 | 毎球/プレイCSVの製品実装なし。成績CSVとは別資源 |
-| MVP-FR-017 | 基本成績配信候補/新CSV契約 | 製品実装なし。画面と同一対象版・集計条件を維持して供給予定 |
+| MVP-FR-016 | U-D2/FR031、共通serializer #179/31194a39 | 共通部品は正式統合・54成功。毎球/プレイCSV資源・HTTPは未提供、成績CSVと別資源 |
+| MVP-FR-017 | 基本成績配信候補/共通serializer #179 | 共通部品は正式統合。公式成績計算/資源・CSV HTTPは未提供。画面と同一対象版・集計条件を維持する |
 | MVP-NFR-001 | 実画面入力/単一計算 | 実機250球以上のp95/入力15秒測定未実施 |
 | MVP-NFR-002 | 同期/サーバー確定時刻 | p95 5秒以内の実負荷測定未実施 |
 | MVP-NFR-003 | 保存済み閲覧版 | 保存→閲覧10秒の同時負荷測定未実施 |
@@ -192,3 +192,14 @@ MVP-D01〜05のPO回答は未取得。待ちを承認に置換しない。Goal�
 - read APIは独立0指摘・独立127/11成功を270347f0で限定受領。実UI限定planは独立第1回0指摘後e885c589でroot委任承認。画面供給候補83e62a17は159成功/静的build成功だったが、独立o5第1回は不正game_type_key配列のString強制変換受理P1を再現。全採用してbb0973d1でtypeofstring先行へ是正、追加回帰は修正前2failed→修正後161passed、静的build成功。第2回差分レビュー中。親175正式追加枠は未消費。
 - 実ブラウザread検証は別単位feature-mvp-preparing-browser-read。plan初回2P1（status不正/明示起動方式scope不足）を全採用し、第2回独立0指摘後6827dee8でroot委任承認。既存bootstrapへ明示HTTP loopback readモードを追加し、既存非秘密固定署名素材と実read DBfixtureを共有する候補を実装。TLS生成器はreadモードで呼ばず、実login画面/Cookie/C2/API/専用PGへ接続中。現時点では**実行中・未成功**。初回file追加コマンドはfrontend cwdで余剰frontend/を付けて失敗・追加前停止、絶対path patchで是正した。既存sealed-ui/1試合未達sentinel・実機/運用未実施は維持。
 - T1/P7外殻候補は先行core捕捉不足の計画P1を全採用し、3ステップのplanを567197faでroot委任承認。step1 7f8d333eは284成功、独立284成功/13.28秒・0指摘。固定枝の既存8試験だけmerge-baseへ比較追随、製品guardの実PR-base拒否は不変で実origin未取得O5を今も拒否。step2 6c09082bの候補glob両領域exact2追記/全旧paths/guard_paths不変を主担当が機械確認、284成功。step3候補/構造試験を実装中。完全Ready/未閉鎖3payload/prefix終端/J6tag/正式7.7/P6/T1製品の未達を解除しない。
+
+### 2026-10-24 JST: 実ブラウザreadの独立受領と173正式反映
+
+- CSV #179は最終41258fe2、CI39981871883全必須成功後、実base1f506675/同diffa65a949f/独立追加0を再照合しrootがPO委任で通常merge。実develop **31194a39c9083bbef6c14bde19c24a3e49d09f2e**。共通直列化部品の提供であり毎球・成績CSV資源完成ではない。
+- read UI最終9e5c59c3は元コード基本2回（P1採用後0）、App caller計画限定1/コード限定1（0）を保持し、独立175成功/5.35秒。既存許可pathnameへlogin/失効後の戻り先を接合し保護navのteam/gamesを追加。rootがPO委任で候補を限定受領。正式175/7.7/親追加枠は未達。
+- browser候補372bc169は主担当3/12.4秒・独立3/12.7秒/Process8成功だったが、独立第1回でページ番号だけではcursor漏れを検出しないP1を採用。4977c1b6でopaque cursor送信、fixture先頭exact20/末尾exact9、ページ内/間非重複、末尾null/次無効、往復のAPI ID/表示link一致を強化。root3成功/12.7秒、独立第2回0指摘・3成功/12.6秒、残資源0。rootがPO委任で同候補を限定受領。実loginフォーム→Secure/HttpOnly Cookie/C2→実API/専用PG→一覧/詳細/保存snapshot全値/reload、越境/不存在404、通信abort→旧表示破棄/自動再送なし→明示session確認回復を実測。実create/1球保存/1試合/実機/運用HTTPSの合格ではない。
+- T1/P7局所外殻候補b2b825a4は先行宣言7f8d333e/別JSON6c09082bを保持し、最終creation_path非作者レビュー0指摘・独立schema51成功/0.36秒/core284成功/11.36秒。rootはPO委任で局所候補を受領。source cb0bの4定義との一致、readonly、純構造負例、候補のみ変更のcore捕捉を確認。先端O5未取得の統合前保持ゲート/完全Ready/3payload/終端/J6/正式7.7/P6/T1計算の未達は不変。
+- #173はrootからindependent_reviewへ限定候補生成の編集所有を移管し（同担当はその時点から候補作者）、e456treeへ9資産/外部8の完全提案を固定。新実値はrootと非作者o5が全再計算一致。初回追加レビューP1=1（O5試験の最新追加層固定仮定）をrootが採用し、11c19159で正規候補成功後の4拒否と既存O5保持へ是正。root357成功/27.08秒・独立357成功/10.71秒、第2回0。全凍結実値/payload9150071c/record492b1a09/corpus271fは不変。
+- CSV実統合後8037e1d9へ追随、1fから9資産/外部8/history26のbytes不変を機械確認し不要な新値導出を反復しなかった。2026-10-23T16:34:21Z、rootが**PO委任によるCodex判断**で新173値を受理。正式rowは提案全値にapproved_by/approved_on2fieldだけを追加し27件目1行へ反映。新asset snapshot8追加、今回base不在の未参照8だけ再保全後正式dirから整理。base192全bytes保全＋新規参照10=202、v2参照169以外の33もbase旧保全資産として維持。適用補助が過剰なv2参照=全archive assertで一度停止した経緯と、基線保全/欠落0/新規未参照0の復帰検証はworklogに保持。本人署名/山田正輝個別実値確認は代記していない。
+- #173受理後archive36成功/22.37秒、backend初期付与/生成/tenant/runtime104成功/13.70秒、root/backend Ruff/ty・backend format379・docs21/0・計画同期/実base checker0。提出HEAD **0aaa22e09d7e1a0301d03f7c63d188d9bba76844**、base31194a39、binary diff6de00b29d4c9ca429f4a7fa6971763227144e5edad20f9c2490fe6984deb138b（63paths）。現在地proxyはin-review・承認済み親9表byte同一/レビュー7回維持、親全体はactive。最終メタデータ独立追加3回目確認中、source製品差分の公開/最終CIはまだ。backend/root全件はこの最終HEADの必須CIで回し、local全件driverは故障再現用に準備済み未実行。
+- #175次候補は別wt feature-mvp-preparing-read-registration、実develop31194起点にAPI270347f0/UI9e5c59c3/browser4977c1b6だけを通常merge、手動競合0・正式assets/正本差分0、組立f5bda183。plan/research起案中。固定173候補で隔離準備を継続できるが、正式新値/履歴/seal確定は173実統合後の実baseでrootが直列受理する。未統合173成果を無断移植しない。
