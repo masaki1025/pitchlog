@@ -235,3 +235,136 @@
 - 旧snapshot拒否未達は指摘採用により明示し、条件の勝手な後段移動はしなかった。コンテナ復元は実行器とcodec候補の型差を埋めるだけで、規則検証/出所証明の複製を避ける採用理由がある。
 - 過去のU-F13/C1/C2/U-F3/U-F5等の統合経緯は会話にあるが、今回その全PR・Notion完了状態を再照合していない。本handoffを過去カード全体の完了認定へ使わない。消失した別申し送りファイルを復元済みと扱わず、本コミット済みworklogへ集約する方針を維持する。
 - 新主担当の本人/引受時刻/新たな担当受理は**未確認**。#176/P-6の例外対象が本タブである証拠はなく、他担当への指示/所有移管を代記しない。
+
+
+## 2026-10-23 全作業棚卸し補遺（直近#175限定の引継ぎを補完）
+
+前の引継ぎは#175の詳細に偏っていたため、ユーザーの再指示に従い**このタブの会話全体・保存枝・worktree・既存資料・公開PRを横断**した。以下は不足分の追記であり、前節の承認・レビュー・正式履歴は書き換えない。全作業引継ぎ前HEADはd430d839。本節の最終コミットは保全manifestと最終報告で固定する。新主担当へ直接送信しない。
+
+### A. このタブから引き継ぐ全作業一覧
+
+| ID | 作業・範囲・関連PR | 状態と残る責任 |
+| --- | --- | --- |
+| A01 | U-D2/FR-031 毎球CSV・既存88列契約の担当候補 | **保留**。POが実装前提不足により一時保留。正式実装/承認済み計画・担当カードIDは本調査で確認できず、独自API/CSV契約を作らない。後任は正本/実記録read/単位表・所有成立後だけ再開 |
+| A02 | #119/#120のブロッカー調査・独立実装候補選定 | **調査終了**。POが終了を明示し再調査禁止。両PRは統合済み。元PRの編集所有は取得していない。後続C1/C2/画面の実装で旧待ちは解消、同じ調査を再開しない |
+| A03 | U-F13/TSK-528 公開ガイド入口 #123 | **部分実装統合済み**。/help直達/往復・共有Pinia/QueryClient、tenantデータなし暫定トップ。タスク全体完了ではない。15経路＋catch-all残部はA10へ引継ぐ |
+| A04 | U-F5/TSK-520 選手・対戦相手管理 #127 | **初期分割統合済み**。ページング一覧/登録/通常編集/警告/遅延mutation防御。route/認証は後のA06〜A11で接続。正式カード全体は未完了、在籍/削除/試合中登録/移行等を勝手に初期範囲へ追加しない |
+| A05 | #127後のcore-guard登録試験fix #133 | **統合済み**。末尾固定をやめ実登録保持と隔離履歴/未宣言拒否/本人未チェック拒否を検証。検出を緩める後続はない |
+| A06 | C1/TSK-528追補 認証session・検証済みtenant供給 #144/#147 | **2ステップ統合済み**。tenant_profile/tenant read、session DTO検証、auth/store/cache、旧Cookie応答の安全側未確認化。別の既存履歴fingerprint1件の判定は残余として別管理。C1統合待ちを再作成しない |
+| A07 | C2/TSK-528追補 応答tenant照合 #150 | **統合済み**。業務operation前expected-tenant照合、2xx metadata/ack検証、認証世代と旧応答拒否。新しいtenant-bound経路への適用はA15等の接続責任として引継ぐ |
+| A08 | C3/U-F3/TSK-518 ログイン画面 #151 | **先行分割統合済み**。C1 session確認後だけ認証済み、失敗理由/未確認/環境回復表示。routeはA10、相関はA09。カード全体・移植全DoD完了は未確認 |
+| A09 | login/session相関・複数タブ・Cookie不確実性 #157 | **追補統合済み**。サーバー検証済みlogin tenantと意図/sessionの相関、Web Locks、拒否専用通知2キー。期待tenant/storageを認証証明にしない。旧応答で新identity採用禁止、Cookie変更可能性だけ安全側無効化。新経路のconsumerは再利用 |
+| A10 | U-F13/TSK-528 /login・/team接続 #154、結合/統合後受入 | **狭い縦断は統合済み、U-F13全体は未完了**。15経路＋catch-all全一致、未接続画面等は残る。候補結合/単独CI/統合後受入を区別。検証専用3枝の成果も保全 |
+| A11 | 自チーム取得API・受入 #165 | **最小追補統合済み**。SelfTeamRecordReadToken/GET /team-records/self、認証context限定/最大1・既存権限/DTO/client、self選手一覧→追加→編集→reload。TSK-520/528全体は未完了。正式7.7履歴と比較fixture1フィールド追随、固定前checker互換残余・本人確認記録の空欄を保持 |
+| A12 | TSK-550独立受理・契約/証跡分離・保存契約ゲート・重複codec是正 | **受理回答/旧候補を保全、後続は本体へ接続待ち**。独立受理5枝、007631c3→88bf3479→e19f8651、保存契約ca0a51efの審査/承認、636b4c2a非採用codecを含む。現在の本体#174を本タブの所有と推定しない。役割/独立性留保は後述 |
+| A13 | U-R1/TSK-392 #143統合準備支援・共有実行器A/#141・core登録#158等の追跡 | **先行成果統合済み、U-R1全体未完了**。会話で一時的に#143統合準備を指示された履歴と供給消費を引継ぐ。物理新5/#156→#170→#173の実編集はU-R1側。TSK-550置換#149→#152→#174との共有順序/保全物も追跡対象であり、捨てない |
+| A14 | 10/25向け試合作成→開始→1球保存→reloadの読み取り専用接続監査 | **調査報告受領済み**。開始/D4/T1/T2/同期/原子保存/read復元を省略しない。初回1枚表の独立原本保存先は未特定（会話で受領確認）。具体的後続はA15へ。新たな全経路監査を今回実施したとはしない |
+| A15 | U-G1/TSK-395 preparing作成・再取得限定接続 #175 | **進行中・外部実統合待ち**。前節の9項目が詳細本体。公開6bed7cf2、未push資料、未再レビューJSON復元、基本2回＋未消費追加1回、#174→#173→#175をそのまま引継ぐ |
+
+### B. 配置・ローカル/公開HEAD・差分の確定情報
+
+以下は今回GitHub/ローカルGitで照合した値。worktreeなしはGit登録と旧/tmp実在の両方で確認し、再作成していない。元資料の古いworktreeパスは現存を保証しない。完全一覧/dirtyファイルは保全dirのall-worktrees.json、全local branchはall-local-branches.txt、PR対応はrelated-pr-worktree-map.jsonにある。
+
+| PR | branch | worktree絶対パス | ローカルHEAD | 公開PR HEAD | 実統合SHA |
+| --- | --- | --- | --- | --- | --- |
+| #123 | feature/uf13-help-entry | 登録worktreeなし（枝は保持） | 260f3306951fea0c83c46ff76fa71b76ddd0f94c | 260f3306951fea0c83c46ff76fa71b76ddd0f94c | 928280e6b78c5e87049d164aa1f8f9538ef30edf |
+| #127 | feature/uf5-team-player-management | 登録worktreeなし（枝は保持） | 434612850ac73277b6ee6fdcd75616176b9c8d15 | 434612850ac73277b6ee6fdcd75616176b9c8d15 | b81ae1ac3c957870e0c7a4722a921785a239ab82 |
+| #133 | fix/core-guard-uf5-postmerge-tests | 登録worktreeなし（枝は保持） | eb928060896bce38ca3df8028692e63a5d1fd8bf | eb928060896bce38ca3df8028692e63a5d1fd8bf | fd7445cb7e5bd1d5a75137f48c2237c9126dbea5 |
+| #144 | feature/auth-session-verification-contract | 登録worktreeなし（枝は保持） | d56c178e567efd8c7179763408724f8704ea43bb | a417d2a54af55ce82921212e29f02f211c54279d | 3052e0db743877c7f15c0ec10daa0142cba7ab7e |
+| #147 | feature/auth-session-verification-contract | 登録worktreeなし（枝は保持） | d56c178e567efd8c7179763408724f8704ea43bb | d56c178e567efd8c7179763408724f8704ea43bb | 493342be37d4383ca572f8d1c826a3f184a4d213 |
+| #150 | feature/tenant-match-metadata-contract | /home/ymdms/projects/pitchlog-worktrees/feature-tenant-match-metadata-contract | 078564d4e0b9530b8e38771cab4488a11ee1fe67 | 078564d4e0b9530b8e38771cab4488a11ee1fe67 | b4047e31645217ea7b93c08fa2ab4a7533d729b4 |
+| #151 | feature/uf3-login-screen | /home/ymdms/projects/pitchlog-worktrees/feature-uf3-login-screen | 9bf077cebe3ab9f8c05fa1a8e9ad25ec19aca975 | 9bf077cebe3ab9f8c05fa1a8e9ad25ec19aca975 | b64d6aa1709310704658415ad09a86898bfdcb2a |
+| #154 | feature/uf13-team-route-acceptance | /home/ymdms/projects/pitchlog-worktrees/feature-uf13-team-route-acceptance | 52abb32d7dccb1276615a628ea6f1140c53a671c | 52abb32d7dccb1276615a628ea6f1140c53a671c | ba339cf8bdaac4761b8cf437abaf21763617d064 |
+| #157 | feature/auth-login-session-correlation | /home/ymdms/projects/pitchlog-worktrees/feature-auth-login-session-correlation | c9df3dacd4c6ee73793d8e0bd752dc827f3f4807 | c9df3dacd4c6ee73793d8e0bd752dc827f3f4807 | a87510e6c431fbb4ee14c91775204a5c91bec745 |
+| #165 | feature/uf13-postmerge-acceptance-followup | 登録worktreeなし（枝は保持） | af2fcb9e2595abe101d0a0d5b3aee05ba7b84085 | af2fcb9e2595abe101d0a0d5b3aee05ba7b84085 | caf5634787aeb60f692254fdcc179bb4fe34decf |
+| #143 | feature/ur1-recording-rights | /home/ymdms/projects/pitchlog-worktrees/feature-ur1-recording-rights | b06971deceeb86711f73859592357ff0482e2f51 | b06971deceeb86711f73859592357ff0482e2f51 | 156dd139a893845428a1ecab69632143f7694e0b |
+| #141 | feature/tsk550-shared-function-executor | 登録worktreeなし（枝は保持） | f06a3dc7c61dc9c274ea3485e8d25031fcaa66b7 | f06a3dc7c61dc9c274ea3485e8d25031fcaa66b7 | e7e8d3a4324687ada828b1e4b49692c087af5c44 |
+| #158 | feature/tsk550-stage-a-core-registration | 登録worktreeなし（枝は保持） | ad761ead3e89a1cde476f988f227b39e3ac92818 | ad761ead3e89a1cde476f988f227b39e3ac92818 | 7c1afebab31facc71e8cfc2731da1a9fa392de4e |
+| #149 | feature/ux1-fr014-rule-resolution | /home/ymdms/projects/pitchlog-worktrees/feature-ux1-fr014-rule-resolution | 67a6a68b73970d2dfc53d35d10a979cbc2441a97 | 96dcb38f1746eb22abbf7cd6027782165b27151f | 未統合 |
+| #152 | feature/ux1-fr014-rule-resolution-replacement | /home/ymdms/projects/pitchlog-worktrees/feature-ux1-fr014-rule-resolution-replacement | 86045abfa28a0960ddeb6e7469ce89c762029e80 | 401ea4280f3a4c9ae252fade33165acae8b81cdc | 未統合 |
+| #174 | feature/ux1-fr014-rule-resolution-followup | /home/ymdms/projects/pitchlog-worktrees/feature-ux1-fr014-rule-resolution-followup | e30edc79a7f90aa27cb14303910676e414c2cab6 | e30edc79a7f90aa27cb14303910676e414c2cab6 | 未統合 |
+| #173 | feature/ur1-initial-rights-followup | /home/ymdms/projects/pitchlog-worktrees/feature-ur1-initial-rights-followup | 6af8c80156ceec615e0749ace1187129e95bd642 | dac2ff15cd35b63a7c9f5bc69cd6a87f15e2ed5f | 未統合 |
+| #175 | feature/ug1-preparing-connection | /home/ymdms/projects/pitchlog-worktrees/feature-ug1-preparing-connection | d430d839b5623ff0b395f91ebffc9b30de512b35 | 6bed7cf2f8ffd5c1fe95fd9e14b19a8d8a1ffa82 | 未統合 |
+
+- A03/A04/A05/A06/A11は旧worktreeがなくてもlocal枝・公開HEADが残る。C1の旧`/tmp/pitchlog-auth-session-verification-contract`、U-F13旧`/tmp/pitchlog-uf13-team-route-acceptance`等は存在しない。削除原因/実施者は今回未確認。成果はGitで再取得できるが、旧/tmp専用の未保存ファイルが無いことまでは証明しない。
+- A07/A08/A09/A10の現存worktreeはclean・upstreamとの差0。A03/A04/A05/A06/A11もlocal枝と現公開枝headは一致（C1は#147が現head。#144との45コミット差は後続#147等で、未push製品45件ではない）。
+- A15の前引継ぎ時未pushは資料2コミット。今回の補遺記録がさらに加わる。製品/固有試験4ファイルは6bed7cf2まで公開済みで、今回も製品未コミット0。資料以外を新たに作成/変更しない。
+- #149/#152のlocal-aheadは各4/112コミットで、後続基線mergeも含む。未公開の新製品4/112件と数えない。#152はtracked6ファイルdirty（ORM受入sheet3、worklog、生成script、試験）を観測し、他担当の手元で保持する。既存保全patch/bundleを後述で参照し、新担当へ無条件cherry-pickを勧めない。
+- U-R1旧/置換/後続にdirtyが存在：#173 worktreeは36 status行、#170置換worktreeは54行、#143枝に未追跡claude-handoff.md。完全パスはall-worktrees.jsonに固定。これらを本タブの未コミット0という主張へ隠さず、現U-R1担当の成果として保全/所有を区別する。
+- 専用結合枝: `/home/ymdms/projects/pitchlog-worktrees/feature-uf13-team-route-verification`=9e85fd660791864aef08abe7cbc361f9d2a25506（upstreamなし）、同`-verification-review`=c0583e3a583b4a8a5dd98d642f61b8c97b9c2fc5（upstreamなし）、`feature-uf13-post-c1-merge-verification`=f99e0a8771948f3996a7af37f4ee91b4e8576f48（origin/developより固有2コミット）。3つともclean。製品統合基線ではなく、専用結合検証の保存候補。
+- 独立受理/非採用枝5本（現worktree登録なし、公開PR未確認、保全bundleあり）: `feature/tsk550-independent-acceptance`=3550bf2b5f32944b878eb57de1cb7807387c8c67、`feature/tsk550-delta-acceptance-a1c11248`=24566d723e440f4df79d7fb3a958c8d3bd5473c3、`feature/tsk550-contract-evidence-split`=df0db54b1d2e50cdda236460453e3c1baced29b8、`feature/tsk550-stagea-contract-acceptance`=06f7834fa8ba9a5689e8f9191e8669e28d397a9c、`feature/tsk550-step1-gate-materials`=636b4c2ada8fcc90c337dddd06563f89e75c89aa。後者には非採用`backend/src/pitchlog/rule_snapshot.py`が存在し、正式採用moduleと併存させない。
+
+### C. 各作業の承認・レビュー・検査・残条件・証跡
+
+**A01/A02**: U-D2はPOの一時保留/別機能優先という会話が根拠。正式DoD/計画/CSV実装の承認は未確認。#119/#120の調査は終了指示済み。元PRは各8294a1b6/1160e5ddに統合済みで、今後の停止条件へ戻さない。実装/独立試験を実施したことにしない。証跡は本会話とA03の選定背景。専用worktree/未公開CSV成果はこの棚卸しでは見つからなかった。
+
+**A03**: `docs/features/uf13-help-entry/plan.md`と`docs/worklog/2026-10-13-uf13-help-entry.md`。2026-10-13の先行分割・暫定トップ公開承認。計画実行2回、敵対2回（最終0/0/0）、Claude制限時のCodex代替は**#123限定**。Vitest50ファイル865件、型/lint/build/共有instance/HTTP /help 200。古いcore-guard/本文の人間記録空欄を実施方法まで推定しない。残りはA10。証跡はlocal260f3306と公開#123、最初の計画/規約の適用は後続に無条件流用しない。
+
+**A04**: `uf5-team-player-management/plan.md`とworklog2026-10-13同slug。2026-10-13の4判断（経路未登録/#120待ち/公開条件/TSK-520未完了）と3パターンのtenant-isolation/data-migration登録追補を承認済み。正式カードはTSK-520。Vitest57ファイル971件/core239件、型/lint/build成功。PR本文は反対側2回/敵対3回、最終P1反映を本人対象へ残した記録を保持。全て再レビュー済みへ書き換えず、残DoD（在籍等）を正式カード/plan§6で後任が確認する。現在API受入待ちはA10/A11で部分解消しており、当時の未接続を再び停止条件にしない。
+
+**A05**: `core-guard-uf5-postmerge-tests/{plan.md,claude-handoff.md}`、worklog2026-10-14同slug。POが30a1b2deの計画/step1を承認。計画2回、代替反対側1回（P1=2採用）、敵対1回0/0/0、変異8件が赤、core全242件成功。CI38518294052完走。実施記録の対象/範囲/方法が空の残余を補完しない。core-areas/core_guard動作を変えない制約のfixで、統合後に同じ末尾固定を再導入しない。
+
+**A06**: `auth-session-verification-contract/{plan.md,step1-stage3-7.7-review-material.md,step1-stage3-7.7-record-proposals.json,step2-review-material.md,step2-review-manifest.json,step2-gitleaks-decision.md}`。e42a2ddbでC1/C2/C3計画をPO一括承認、最終P1/後発契約の未再レビューを保持。C1 step1はA→C1の3段限定例外と7.7正式受理、step2は遅延login/logoutがCookieを変更し得る場合に**新identityを採用せず安全側の未確認/clearだけを許す**追補を承認。資格情報/mutationを自動再送せず未確認中tenant通信拒否。team_nameは認可済みserverデータでtenantキーではない。
+
+- #144の7.7は山田正輝/2026-10-16、判断資料SHA `75b65bf4f9f92a97e771e305bcd0c9a9b270d39467f71b5f25280562033d1f69`、記録案SHA `43acdfa1b1e88ad235af019fd230615a702a191d91c3c158ca7b1466b4a0e141`を対象。今回も実ファイルSHAを照合し一致。2資産/2snapshot/8入力blob/6sealの完全値は原本を参照し再転記/再受理しない。#147は新7.7差分なし。
+- 計画周回2、step2反対側/敵対基本各2回、最終P2採用。step1の限定追加独立レビュー2件等の詳細はplan/step1資料の履歴を保持（今回すべての実行ログを再集計して新総数を認定してはいない）。本人確認はa3934fb7の18ファイルについてPO回答済み・方法未申告。公開hash2件のfingerprint限定登録も同回答で承認済み。追加登録差分が18ファイル本人確認に含まれるとはしない。
+- #147最終d56c178eはfrontend1237/root29409/backend2523成功というplan固定結果。先行timeout/中断は維持。既存同期fixture由来の別fingerprint1件は用途を提示済みだがPO判定未承認という記録が残る。値は転載せずstep2-gitleaks-decision参照。C1完了/本人確認済み2件を未了へ戻さず、その残件だけU-S1原担当/POと照合する。#147統合によりC1待ちは解消済み。
+
+**A07/A08**: `tenant-match-metadata-contract/{plan.md,connection-decisions.md,pr-preparation.md}`、`uf3-login-screen/{plan.md,pr-preparation.md}`、worklog2026-10-18-uf3-login-screen。e42a2ddb一括承認。C2が正規共通clientのmetadata、C1がauth/store、U-F3がLoginScreen、U-F13がroute/redirectという境界で実装。response tenantは業務SQL前のcontext照合、成功2xxだけack、エラーでtenant存在を漏らさない。LoginScreenはlogin応答だけで認証済みにしない。
+
+- 各計画レビュー2回、実装の反対側/敵対は各2/2使用済み。後発UI/core/fixture差分を機械再レビュー済みとしない。C2の同一製品77d20da7基線でroot29670/2skip、backend3032/4skip、frontend1279成功。U-F3候補の単独1273成功は旧C1基線の値で、相関結合後・実統合後の値と分ける。最終branch/headとPR snapshotsは保全dirのpr-150.json/pr-151.json。
+- 実統合順#157→#150→#151→#154は完了済み。C2/U-F3の元の未統合待ち・仮guard禁止は後続にそのまま新待ちとして戻さない。新endpointのtenantBound適用/世代・古い応答拒否は新主担当の接続時責任として残る。C3/TSK-518全体の残DoDはカード再取得未確認。
+
+**A09/A10**: `auth-login-session-correlation/{plan.md,worklog.md,review-round2.md,pr-dependency-map.md}`、`uf13-team-route-acceptance/{plan.md,login-session-correlation-comparison.md}`、worklog2026-10-14-uf13-team-route-acceptance。04ecb061比較資料の相関追補をPO承認。6de49595の拒否専用storage2キー、680c2a27の2xx metadata不正時認証/cache無効化を限定承認。
+
+- Web LocksがCookie適用自体を防ぐとはしない。意図が通信中に変わった応答は拒否し、storage通知の欠落/削除/破損/逆転で認証昇格しない。成功・tenant正当性をstorageから証明しない。storage/lock非対応は失敗理由と明示再loginの回復手順を表示し、自動再送/循環を作らない。必要browser/HTTPS条件を維持。
+- 相関系列の実装基本枠は反対側/敵対各2/2、第2周後の差分は未再レビュー（review-round2参照）。既存C2/U-F3/U-F13の枠は別に消費済みでリセットしない。U-F13の計画周回4、コード各系列の正確な全実行はpr-preparation/ログを参照し、古いfrontmatterを全回数と同一視しない。
+- 許可された**自分の固定候補のみ**を結合した専用3枝が残る。他担当未統合枝の製品基線化は禁止。単独/結合のHEAD・試験成功を混同しない。生の結合環境は現存保証せず、cacheのsource manifests/combined-inputsを参照。
+- 統合後ba339cf8で実画面/API/隔離DB正常8項目を再確認済み。対戦相手配下の一覧/追加/編集/reloadの証拠で、当時の自チーム・故障系全体を再実施した証拠ではない。15経路＋catch-all全一致、残未接続画面・各tenant受入はTSK-528全体の残部。認証guardそのものは既に実装統合済みで作り直さない。
+
+**A11**: `uf13-postmerge-acceptance-followup/plan.md`、同`shared-registration-77/{README.md,decision-packet.json,record-proposal.json,candidate-snapshots/**}`。2026-10-20山田正輝が3ステップ・最終P1反映と1Draft先行例外を承認。tenantからselfを上限1で特定、0件404・1件200・想定外複数は非成功、認可/tenant照合は業務SQL前、自動再送なし。C2/client/TeamRecordRead/既存権限を使い、新ACL/migrationなし。
+
+- 7.7は2026-10-21/山田正輝、対象ba23630a、単一ID `masaki1025/pitchlog#165`、repository revision21→22、判断SHA `2e20c20e16bb8d0a0566405b3592a55892f83462716afe5b4322c031a273ff8c`/記録案SHA `f35b6bf0230064ec8817302f05c3e752972e3d90807067eab70b81a4656439a9`。実ファイル照合一致。base revision33/許可symbol/他8射影/authz不変、既受理23履歴を保持した条件は原本参照。書換え/同ID二重追記しない。
+- 実装反対側2/2・敵対2/2、共有3パスのPO追加1回、その後manifest1フィールドのPO追加2回目を消費（限定レビュー各0/0/0）。33失敗の参照digest原因是正は関連65件成功、結果記録3ファイルは未再レビュー。前版ec02a0dのowner_paths非対応で11件中9不一致という残余は今回解消していない。
+- 製品157ace4dで実画面/API/隔離DB14項目成功。selfとopponentの一覧→追加→編集→reload/DB確認を分け、POST2/PATCH2、別tenant/遅延self拒否を記録。最終af2fcb9eと製品blob不変だが、manifest変更後/実統合後に実画面を再実行したとはしない。backend3055/4skip/coverage89%、frontend1572、最終関連65成功の帰属もPR最終コメントを参照。
+- PRコメント6311954226は本人check/最新core-guard成功を観測したが対象/範囲/方法空欄の残件を明記。マージを本人の実施方法確認済みと同一視しない。TSK-520/528全体と統合後の全fault再試験は未完了/未実施のまま。新主担当は完了済みself APIを再作成せず残DoDと回帰だけ照合する。
+
+**A12**: 独立受理の根拠はPOのd5f2ac26/a1c11248差分受理指示とa2b8a5b5の契約/実装後証跡分離。独立5枝のplan・受理記録が保存されている（git showで参照）。06f7834fの閉鎖モデル・resolver入力・4失敗分類・固定operation方式の受理を、具体資産未承認を理由に再び一括待ちへ戻さない。未実装の管理/大会割当書込をACLで閉じ、RULE:upsert_tournament_rule新規実装を条件にしない。DB2接続/故障/timeout/deadlock/serialization failureの実証は後続公開前の必須条件で、step1に循環待ちを作らない。
+
+- 007631c3→88bf3479→e19f8651は本体との差分統一/codec先行条件の追補。固定UUID・no_out_first_second/continue_lineupを無断置換しない。保存contract §6-5/変更履歴だけの7.3とPO代替受理をca0a51ef資料で承認、approved確定が後続48e8a562。owner/列grant/配置migration/一時RLS/実行器の各個別ゲートはこの承認に含まれない。新全体計画を最初から作り直さない。
+- 8f2d60a4と636b4c2aのcodec重複が会話にあり、唯一の本体編集担当へ集約する指示を受領。非採用`pitchlog/rule_snapshot.py`を復活させず、正式候補`db/game_state/rule_snapshot.py`を利用する。本体側の採用b0ea2c13等は本体handoffに記録されるが、本タブがそれを独立検証済みとはしない。
+- **独立性留保**：このタブは独立受理役を指名された一方、636b4c2a等の候補作成に関与した履歴もある。対象/版ごとの作成関与を確認せず、新主担当への集約で候補作成者から独立した査読者になったとは認めない。既存受理/レビュー履歴を書き換えないが、新規独立資格は新しい作成者/検証者分離で確認する。P-6の役割を本タブが持つ根拠はない。
+- この履歴の正本審査全回数/全DB証跡を今回再認定していない。初期独立planのreview周回0は本体の9ステップreviewを0へ戻す意味ではない。未検証事項/本体残ステップはTSK-550の受理sheet/planと現在#174を正とし、資料の古い「未実装」を現在へ機械転記しない。
+- #149 CLOSED（local67a6a68b、公開96dcb38f）、#152 CLOSED（local86045abf、公開401ea428）→#174 OPEN（e30edc79）の置換履歴を保持。#174の現編集は本体担当で、このタブの名前だけで所有と独立受理を兼任しない。#174はstage3のDB関数/codec/非公開S0〜S3、公開resolver/固定operationは後続4/5。A15のread供給と作成成功を分離する。
+
+**A13**: #143は156dd139に統合済み。会話の「DeepSeek停止中はU-R1/#143統合準備優先」という一時支援指示は引継ぐが、 earlier誤送信撤回の発行契約依頼だけを所有移管根拠にしない。RG1 read/assert2口、常閉・FOR SHARE NOWAIT/順序は既存module/正本を再利用し、falseをtrueへ変更しない。U-R1全体/新D4/物理発行/復元解除を#143の統合だけで完成扱いにしない。
+
+- #141共有実行器Aと#158コア登録はMERGED、plan/記録は`tsk550-shared-function-executor`/`tsk550-stage-a-core-registration`。製品関数登録0件のAと後続B/Cの個別受理、A→C1順を混同しない。両者の実装全所有を本タブへ移す新指示は未確認。独立資料/消費側依存として保持する。
+- #156 OPEN→置換#170 MERGED（文書のみ）→後続#173 OPEN。#173の製品候補は未コミット36 status行、公開dac2ff15は番号取得文書。#173独自handoff/manifestは`/home/ymdms/.cache/pitchlog/pr173-tab-handoff-20261023/`。そのmanifestはroot29919成功/2skip・backend全件未完走、760c04d5候補への受理値/パッチ/未追跡tarを保持。現在の#174後候補へ試験/受理を流用しない。
+- 共有順はPO指定#174→#173→#175。#174の実統合後に#173が履歴/値を再導出し、#173の実引渡し後にA15が最終read候補を固定。U-R1の受理/最新判定を本タブで代記しない。新5の編集担当はU-R1タブ、現モデル/人名の特定は未確認。未回答を所有解除にしない。
+
+**A14/A15**: A14の最初の1枚表原本は保存先未特定、会話の「受領」を根拠とする。後続の実証/不足はA15のplan/本worklog前節へ固定済み。A15を再起案しない。元のU-G1全体8step/開始所有は別、Dのpreparing追加6単位だけを引継ぐ。次の具体作業・停止条件・検査環境・7.7未成立・追加review未消費は前節§8とread-registration-review.mdの2026-10-23表を参照する。
+
+### D. 保全物・証跡・未コミット・プロセス
+
+- 全体保全dir: `/home/ymdms/.cache/pitchlog/ug1-preparing-connection/all-work-handoff-20261023/`。all-worktrees.json（全worktree HEAD/dirty/plan位置）、all-local-branches.txt、all-prs.json、related-branches.json、related-pr-worktree-map.json、pr-123/127/133/141/143/144/147/150/151/154/157/158/165.json、pr-165-comments.jsonを保存。PRのrollupには古い失敗/中断が混在するため、集計を最終CI結果とみなさず固定HEAD/実run/コメントを正とする。
+- 独立受理5枝と結合検証3枝は`archival-candidates.bundle`（218405 bytes、git bundle verify成功）に保全し、archival-refs.jsonに正確なref/HEADを保存した。**保全は採用ではない**。正式codecの複製、古い検証枝の製品基線化、旧受理値の流用は禁止。
+- C1/C2/相関/U-F3/U-F13/selfの検査/レビュー/候補patchの保存先は`/home/ymdms/.cache/pitchlog/`配下。evidence-locations.jsonが297件の場所/種類/サイズを列挙。c2-product-and-records-preserved.patch、c2-final-product-and-records-preserved.patch、c1-step2-20261018、c2-reviews、cookie-addendum-reviews、correlation-implementation-reviews、correlation-browser-acceptance、uf3-reviews、uf13-oct18-implementation-reviews、self-team-read-{implementation,tests,reviews,shared-followup,plan-review}等。生のDB/資格情報/ブラウザprofileを引継ぎ資料へ転載せず、ログ原本は既存位置を保持する。
+- 既存の他担当保全を再利用する参照: `/home/ymdms/.cache/pitchlog/handoff/tab-wide-2026-10-23/{pr149-local-ahead.bundle,pr152-local-ahead.bundle,pr152-uncommitted-6files.patch,ur1-abc-plan-sync-local.bundle,ug1-original-local.bundle}`、`/home/ymdms/.cache/pitchlog/pr173-tab-handoff-20261023/{manifest.json,tracked.patch,staged.patch,untracked.tar}`、`pr173-pre174-preservation-20261022/`。存在を確認したが既存packageの全内容を今回再検証したとはしない。所有担当の保全物を上書きしない。
+- 本タブの現役/旧clean worktreeで未コミット成果は見つからない。別担当のdirtyは全体snapshotに明示し、隠すためのstash/reset/cleanをしていない。所有不明のdirtyをこのタブの変更としてコミット/移動しない。追加の保全manifestには今回の資料/枝bundleと各snapshotのhashを保存する。
+- 該当する現役#175/C2/U-F3/相関/U-F13検証worktreeに、実行中のpytest/委任/Claude検査は今回観測されない。#175最終CIはcompleted/failure。他worktreeのVite/node候補はU-F8 full-game-followup（PID771116/771147）とplay-observations（PID1001469/1001543）を観測し、停止しない。rootのbash候補は他セッション/調査プロセスの可能性があり所有・検査内容未確認。時点依存の全観測はprocesses-observed.jsonであり、他担当が今後起動する検査までは凍結しない。
+
+### E. 対象外にした実編集と、追跡を残す境界
+
+- **#174の現本体コード・#173新5の現候補**：提供物/置換履歴/受理待ちはA12/A13/A15に含めるが、実編集はそれぞれTSK-550本体/U-R1担当タブ。会話の担当名Codex Dやworktree名だけで移管としない。所有者の最新人名・セッションIDは未確認、担当タブ単位まで確認。
+- **#176/O5、P-6、U-F8、U-S1、T1/T2、U-D1、U-M1/U-M2、seed/ORM/認可等**：この会話で本タブへの実装所有を受諾した証拠がない。#176は別の是正担当、P-6は独立検証担当として継続する例外を尊重。U-F8は自担当全体と開始/封鎖を保持し、preparing限定UIだけ既受理境界を引継ぐ。U-S1/T1/T2等は既存担当タブの成果として、必要なPort/正式提供だけを消費する。現在の担当の個人名は推定しない。
+- 全worktree60件程度の棚卸しは**所有を取得する操作ではない**。無関係なfeature-mvp-basic-stats-connectionの未追跡plan、U-G2の未追跡plan、T2 checkerの稼働差分、P-6等の曝露/封印/資格留保は当該担当のhandoffを正とし、候補作成側へ統合したことで独立性が成立したとは扱わない。
+- #119/#120の製品再調査/変更はPOが終了指定、A02の履歴としてのみ対象。旧担当のbranch/worktreeへ指示・上書きはしない。
+
+### F. 引継ぎ漏れ照合結果と未確認範囲
+
+1. 会話の担当候補→公開ガイド→U-F5→guard fix→C1/C2/C3→相関→/team→self取得→接続監査→preparing、TSK-550独立受理/codec重複、U-R1一時支援の全系列をA01〜A15へ対応させた。統合済みPRもカード/供給責任が残るものは除外していない。
+2. Git全worktree/local ref、関連公開PR、root/branchのplan/worklog、home cacheと/tmp技術成果の場所を照合。旧worktree消失、未push枝、専用結合候補、非採用codec、他担当dirtyを明示した。今回把握した系列に未分類の実装候補は残さない。
+3. ただし**完全性の証明ではない**。削除済み/tmp/未保存会話・別サーバーのログ、未列挙外部ディレクトリ、Notionカード全更新履歴・個人担当識別、過去全コメントの真正な本人記入者/方法、各正本レビュー全実行回数は今回確認しきれていない。初回接続監査表原本/消失した別申し送りファイルは未特定。復元済みとはしない。
+4. PR/planの古い「本人未実施」「未統合」と現在のMERGEDが食い違うものは、統合というGit事実と当時の記録を分ける。全CIが現時点で緑/本人確認全完了と推定しない。各PRに残る本人の記録空欄、C1の別fingerprint1件、#165固定前checker互換残余は新主担当へ引継ぐ。
+5. 本補遺の記録/保全を最後に、**新主担当の明示的な引受まで本タブの編集所有と成果を保持し、実装・共有資産編集・push・PR操作を停止**する。公開#175は6bed7cf2のまま。新主担当への直接送信、他担当への新たな依頼、task全体完了の代記は行わない。
