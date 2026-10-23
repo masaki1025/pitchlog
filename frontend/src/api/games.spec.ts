@@ -2,7 +2,13 @@ import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../stores/authStore'
 import { setVerifiedAuthForTest } from './auth.test-support'
-import { listPreparingGames, readPreparingGame } from './games'
+import {
+  createPreparingGame,
+  readPreparationOptions,
+  listPreparingGames,
+  readPreparingGame,
+  type PreparingGameCreate,
+} from './games'
 const tenant = '11111111-1111-4111-8111-111111111111'
 const id = '22222222-2222-4222-8222-222222222222'
 let pinia: Pinia
@@ -124,3 +130,90 @@ it.each(['list', 'detail'] as const)(
     expect(useAuthStore().isAuthenticated).toBe(true)
   },
 )
+
+const options = {
+  game_types: [
+    'game_official',
+    'game_semi_official',
+    'game_open',
+    'game_intrasquad',
+    'game_other',
+  ].map((key) => ({ key, display_name: `<b>${key}</b>` })),
+  tournaments: {
+    items: [{ key: 'opaque', display_name: '<img src=x>' }],
+    next_cursor: 'opaque/+=',
+  },
+}
+const createBody: PreparingGameCreate = {
+  scheduled_at: game.scheduled_at,
+  game_type_key: 'game_open',
+  away_team_record_id: tenant,
+  home_team_record_id: id,
+  tournament: { kind: 'new', display_name: ' 大会　' },
+  plate_umpire: null,
+  section_label: game.section_label,
+  week_label: null,
+  day_label: null,
+  game_number_label: null,
+}
+it('作成選択肢GETとPOSTを既存clientのCookie/C2/signalで一度だけ送る', async () => {
+  body = options
+  const signal = new AbortController().signal
+  expect(await readPreparationOptions('previous/+==', signal)).toEqual(options)
+  expect(fetch).toHaveBeenLastCalledWith(
+    '/api/games/preparation-options?limit=20&cursor=previous%2F%2B%3D%3D',
+    expect.objectContaining({ method: 'GET', credentials: 'include', signal }),
+  )
+  body = game
+  expect(await createPreparingGame(createBody, signal)).toEqual(game)
+  expect(fetch).toHaveBeenLastCalledWith(
+    '/api/games',
+    expect.objectContaining({
+      method: 'POST',
+      credentials: 'include',
+      signal,
+      body: JSON.stringify(createBody),
+    }),
+  )
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
+it.each([
+  {},
+  { ...options, game_types: options.game_types.slice(1) },
+  {
+    ...options,
+    game_types: options.game_types.map(() => options.game_types[0]),
+  },
+  {
+    ...options,
+    tournaments: {
+      items: Array(21).fill({ key: 'x', display_name: 'x' }),
+      next_cursor: null,
+    },
+  },
+  {
+    ...options,
+    tournaments: {
+      items: [
+        { key: 'x', display_name: 'x' },
+        { key: 'x', display_name: 'x' },
+      ],
+      next_cursor: null,
+    },
+  },
+  { ...options, tournaments: { items: [], next_cursor: '' } },
+])('選択肢transport不正は有効な作成供給にしない: %j', async (invalid) => {
+  body = invalid
+  await expect(readPreparationOptions(null)).rejects.toThrow()
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+it.each([
+  { game_type_key: 'game_other' },
+  { away_team_record_id: id },
+  { section_label: 'changed' },
+  { status: 'in_progress' },
+])('POST結果の不正/入力不一致を作成済みへ採用しない: %j', async (patch) => {
+  body = { ...game, ...patch }
+  await expect(createPreparingGame(createBody)).rejects.toThrow()
+  expect(fetch).toHaveBeenCalledTimes(1)
+})

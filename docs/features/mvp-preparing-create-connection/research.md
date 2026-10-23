@@ -129,3 +129,27 @@ rootの実装指示と承認commit `e7e34ef6`を確認し、指定ステップ1�
 ステップ1保全commitは`1ce56813`（source5＋plan末尾機械追随＋researchの7paths）。root所有の型注釈是正`10fd2fb6d7177c6d2e1c59638e165f27e4d1b988`を明示供給許可に従ってcherry-pickし、`bd8c861fed6698fd5e0d661c93f5b73a77fb8d2d`へ固定した。tests/test_core_guard.pyの定数型注釈1行だけで、製品guard/JSON・全関数/class ASTへの変更0。後続root全tyは成功し、元4診断はこの供給で解消した（元失敗記録は保持）。同じpytest/DB/core全件を反復しない。固定HEADの正式tenant checkerはactual547比較でexit2、base-allowlistの射影が動いたのに識別値未更新として拒否した。候補の供給融合を正式受理へ読み替えず、識別値/履歴をこちらで更新しない。
 
 rootは1ce56813の既承認planとの作者側照合を受領し、独立レビュー代替ではないと明示した。型注釈供給/局所結果の固定後、既承認ステップ2の独立frontend実装開始を指示した。stage1の正式登録/実RG1成功待ちをfrontend準備の開始条件に加えない。
+
+## ステップ2/3: 作成フォーム・通常client/provider（2026-10-24）
+
+rootはstage1追加固定`5b4d2218cc4676b5835fa209a1d0b1239c8f4410`を候補として限定受領し、既承認ステップ2実装を指示した。stage1の正式7.7・実RG1成功・独立最終レビューを達成扱いにせず、独立frontend開始の前条件にも加えない。同branchへの中断復元用通常push許可を受け、5b4d2218をorigin/feature/mvp-preparing-create-connectionへ通常pushした。番号取得だけのPRは作らない。
+
+### 今回の実装
+
+- 既存`frontend/src/api/games.ts`へ作成/optionsのtransport型・形検査と通常`apiRequest`接続を追加。Cookie/C2/tenantBound/signal・既存Cookie不確実性破棄をそのまま使い、shared client/authへ変更0。既存GET2のtransport検査も保持する。POST応答は実UUID/preparing/入力保存値との一致を検査し、生成IDを捏造しない。規則の業務検証/計算はfrontendへコピーしない。
+- 新`GameScreenPreparingCreateProvider.ts`は既存Pinia/QueryClientでoptions/self/opponentを最大20件ずつ取得、区分はserver供給。大会/相手のcursorを別管理し、全件ロード/先読みなし。GETはretry=falseで明示操作だけ。tenant/authEpoch/経路/要求世代の一致後だけ供給する。切替/unmountは旧選択供給・結果・queryを破棄し、遅いPOST/GETで新認証の表示/cache/経路を変えない。
+- 新`GameScreenPreparingCreate.vue`を既存EntryHostの「新規作成」操作でだけ開く。defaultのreadはフォーム未表示のまま保つ。日時JST/5区分/両team/同team/既存又は新大会名/5任意labelを通常formから送る。新名/labelは無変換、表示はVue通常textのみ。大会/チームの同名異keyを区別して選択し、選択済み参照だけをページを跨いで保持する（全リスト蓄積なし）。認証/経路切替でdraftも消去する。
+- online必須、POST前の同期status変更で二重submit即時遮断、POST自動再送0。503等結果不明はunknownで入力/再送を止め、明示一覧確認へ戻す。通常clientのネット断時Cookie不確実性/認証破棄も維持する。404/409/422の既存確定拒否は入力修正へ戻すが、自動POSTはしない。
+- 有効な作成応答後も自動遷移せず、応答の実game IDを使った明示GETが通った後に既存record詳細へ進む。確認GET失敗は同IDへの明示GETだけ再試行可能。開始・1球の封鎖は保持する。Entryのread説明だけを新規作成入口と整合させた。
+
+### 局所試験と失敗履歴
+
+最初の5specは115成功/2失敗（9.06秒）。いずれも実client/ルータの既存挙動と試験assertの食違いだった。①POSTネット断ではgamesもCookie更新可能なので通常clientが認証を未確認へ戻し、providerは旧供給/結果を破棄してloadingへ戻る。試験はunknown保持を誤って要求していたため、実認証破棄/供給破棄/POST再送0を確認するよう修正。Cookie不確実性や認証をoverrideせず、別に503のunknown保持/再送0を検証した。②wrapper unmountはrouterを初期/へ戻すため、late POST後の経路を常に/gamesとするassertを、unmount直後の実経路から変化しないassertへ是正。誤認を既存機能の成功/実保存成功とは記録しない。
+
+provider specの重複defineComponentに対するESLint2件は、同じProbeを2経路へ登録して解消した。認証/コード検査の緩和なし。その後5spec119成功/10.54秒、実App host追加1件を含むEntryProvider18成功/2.63秒を確認。確定拒否409の入力復帰/自動POST0を加えた最終対象は以下である。
+
+`node --input-type=module`から既存Vitest API `startVitest("test", ["src/api/games.spec.ts", "src/screens/GameScreenPreparingCreate.spec.ts", "src/screens/GameScreenPreparingCreateProvider.spec.ts", "src/screens/GameScreenEntryProvider.spec.ts", "src/screens/GameScreenEntry.spec.ts"], {watch:false}, {envDir:false})`を実行し、**5spec/121成功/7.96秒/exit0**。各targetのPrettier、ESLint、全frontend vue-tscも成功。`vite.build({envDir:false})`は**conforming/scannedFiles9/externalReferences0/policyViolations0**。既存.envを読まず、pnpm installはoffline/frozen-lockfileで依存lock差分0。backend/DB/coreの重い同一試験は再走していない。
+
+正規clientのfetchをUI試験用Responseで置き換えた局所試験であり、実HTTPログイン/Cookie/DB保存成功ではない。実App host→作成form→通常client POST1回→応答IDの明示GET→既存record詳細の配線を確認した範囲で、fixtureのapplied_rulesを正規resolver出所/計算結果と主張しない。認証/C2のfixture成功を製品認証overrideとして導入していない。ブラウザdriver/新TLS/署名鍵生成器/旧sealed全件/P6を実行していない。
+
+今回の変更はfrontend予定9pathsと本researchだけ。backend/正常供給/正式metadata/9射影8入力受理/履歴/snapshot/lock/oracle/共有台帳への新変更0。step3の実RG1成功供給、通常7token/6factory/6正例/POST/options登録と7.7、実HTTPの新語彙+game保存/両全取消は未達のまま保持する。ステップ2のUI配線成功を新規保存・開始・1球・reloadの実達成へ拡張しない。
