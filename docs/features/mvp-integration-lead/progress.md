@@ -156,3 +156,12 @@ MVP-D01〜05のPO回答は未取得。待ちを承認に置換しない。Goal�
 - US1 F2は共通tenant/D5排他と権威ある新規ledger+marker同取引保存の不足を限定照合。独立技術検討で永続coordination行追加案を推奨。feature-mvp-sync-control-contractで3文書契約候補の計画レビュー中。13→14表は未受理構造候補、正本/DDL/ACL/7.7未反映。P7厳密優先/P3公開値/原wireを仮採用せず、HTTP/Port成功を契約整備の前提にしない。
 
 到達点A（実画面から試合作成しpreparing再取得）は未達。実製品games router/service/form/provider、公開resolverの正式登録、安全なRG1成功許可の供給を接続する。component/合成Session成功を実画面→実API→実DBの証拠としない。
+
+### 後続接続と既知不一致の解消
+
+- #176最終caafc8e01526ec551ea79893731b4cd4d7ef000c、basea67b9364、diff346a1da72003ba8fb3dfaed423dbac32bea2cb077d454de38cb43040ee83d269。限定追加独立レビュー1回可決0/0/0、独立backend71/frontend対象53成功、証拠6366568252を実本文と照合し公開。実PR-context core-guard exit0。最終CI39965522850はcore/tenant/frontend等成功、backend/harness待ち。人間確認欄は未チェック、PO委任証拠で確認。
+- #174旧CI39835429345のbackend失敗はO5の23対22の1件、他3130成功/4skipと実ログ確認。旧成功を最終へ読み替えない。加えて公開resolverのレビューで供給codecのint型不足P1を発見・独立再現したため、最終統合前に是正する。
+- 整数型是正は専用fix plan d683f25fをPO委任承認、候補9bd559df（codecSHA d646c0bbc73b7ff2507aa440e81effdd1e37debb4d5d767971608110853cdfc4）を独立0指摘/113成功で確認。JSONSchemaの整数として受理済みの9.0等は同値intへ正規化し、typed DTOの直接構築/改ざんはexactintを保証。新しいwire拒否やF-1意味変更なし。#174へcodec/既存試験2pathsだけをbc436803で採用、元引継ぎ未コミット文書SHA d98b09cd299fd181895d8dc898671511add8f42ae7edb7ec7671baf6661b1019は不変・保持。正式基線追随/公開/最終CIは#176統合後。
+- 公開resolverは初回独立コードレビューP1を採用。最小追補7471040f承認後、0ee701f1で同codecを供給し接合7ケースを追加、対象124成功・独立124成功/0.91s、第2回差分/影響レビュー0指摘。保全89b57ee9。正式閉集合7.7未反映exit2、実DB/HTTP未実証は継続。
+- F2保存契約は64829bdaを独立全文レビュー0指摘、3c834fcdで正本起案用の候補として限定受領。13→14表の構造/権威/caller不足は正式正本/DDL-ACL/7.7/実保存器完成とはしない。次の正本追補plan30ad77ccはworklog同commit記録の初回P1を採用し独立2回目0、PO委任承認。正式developの3正本を対象に7.3候補を起案中。finalize-docの適用版/ゲート/委任記録を保持する。
+- U-D1既知不一致を独立一次照合で解消: feature-ud1-game-trash/657dee6fは未承認plan・4文書のみ、製品0・公開枝/PRなし。実装/正式統合済みはU-T1契約#129/93e1482aと保存器#140/3f6a935a（正式develop祖先）。U-D1の削除/復元API・ゴミ箱UI・UPDATE由来変更IDと5意図行同取引は未接続。期限/U-T1契約未確定という旧記録は一部古く、保守認可/同期RG1/移行は未了。仕様方針承認と実装計画承認を混同しない。
