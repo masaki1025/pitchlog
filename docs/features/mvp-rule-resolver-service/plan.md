@@ -68,3 +68,14 @@ rootからの今回の委任は新worktreeで本計画と調査記録を作る�
 - backend対象pytest/Ruff format対象限定/check/ty、root Ruff/ty、正式tenant-boundary checker。既知の閉集合不一致exit2、skip/timeout/中断を成功へ数えない。実DB・二接続と実HTTP・game INSERT/RG1全取消は後続の既存550 step6/U-G1へ残す。
 
 承認記録: 2026-10-23T13:46:57.377081+00:00、Codex主担当/root。対象plan SHA-256 1ce7c99744063eac5c9582db9a719a7798e6818daf50517939bdaa3eacdaa351、research adec833745dfcebb54f71840e93350f45822d3c81097e7a938f88300440521d3。第2回独立レビュー/root/o5_final_reviewは可決P0=0/P1=0/P2=0、第1回P1解消。PO指示4・5・6・10に基づく同一step5の隔離実装を承認する。正式閉集合・7.7・実DB・HTTPの残条件は不変。山田正輝の個別実値確認や署名とは記録しない。
+
+## 単一codec固定依存の型是正追補
+
+PO委任によるCodex主担当/root判断（2026-10-23T14:08:19.231202+00:00）。対象は公開resolver候補ed29e96d。
+独立コードレビュー第1回はP0=0/P1=1/P2=0、単一codecがinteger値floatを公開intへ残す上流不備を採用する。
+元#174 blob無変更供給という当初計画はその時点の事実として保持し、固定依存を是正版へ更新する。
+別承認計画d683f25fの是正候補9bd559df（独立レビュー0、113成功）から、同じ正規パスのcodecだけをbyte一致で供給する。
+元#174側への同2path是正はbc436803902a9cde2b54e6a72636acbe522e9e20、是正codec SHA256 d646c0bbc73b7ff2507aa440e81effdd1e37debb4d5d767971608110853cdfc4。
+service側の業務検証/数値変換は追加せず、既存境界試験へ5fieldの整数値float→exactint回帰を追加する。
+本1ステップの差戻し是正として、codec依存の更新・既存試験・researchだけを変更する。型保証以外の意味・schema・4失敗・scope・正式ゲートは変更しない。
+次の第2回独立コード差分/影響レビューで接合を確認する。山田正輝の個別確認・署名の代記なし。
