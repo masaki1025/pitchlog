@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "repository": "masaki1025/pitchlog",
+  "source": "01a1686c-7000-7683-965d-0cb7d58ebb7c/user20261023",
+  "source_kind": "local_goal_thread_not_ui_identity_proof",
+  "delegated_at": "2026-10-23",
+  "expires": "revoked_or_mvp_completed",
+  "quotes": [
+    "コア領域を含む最終差分の確認と是正判断",
+    "条件を満たしたPRのDraft解除・通常マージ",
+    "今回のMVP作業と対象PRへ限定してください",
+    "委任証拠欠落・対象版不一致・重大指摘未解消を拒否する仕組みを維持してください"
+  ],
+  "publisher": "masaki1025",
+  "publisher_role": "github_publisher_not_po_signature",
+  "targets": [
+    {
+      "pr": 177,
+      "branch": "feature/mvp-delegated-core-review"
+    },
+    {
+      "pr": 178,
+      "branch": "feature/mvp-integration-lead"
+    },
+    {
+      "pr": 176,
+      "branch": "fix/us1-o5-observation-population"
+    },
+    {
+      "pr": 174,
+      "branch": "feature/ux1-fr014-rule-resolution-followup"
+    },
+    {
+      "pr": 173,
+      "branch": "feature/ur1-initial-rights-followup"
+    },
+    {
+      "pr": 175,
+      "branch": "feature/ug1-preparing-connection"
+    }
+  ]
+}
