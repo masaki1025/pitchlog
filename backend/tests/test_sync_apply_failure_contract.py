@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
@@ -217,7 +216,6 @@ OBSERVATION_SCENARIO_PAIRS: tuple[tuple[str, str], ...] = tuple(
     (row["observationKey"], row["scenarioId"]) for row in _POPULATION_ROWS
 )
 OBSERVATION_KEYS = frozenset(key for key, _ in OBSERVATION_SCENARIO_PAIRS)
-O5_CANON_ROW_SHA256 = "e69c4ef3f58ecbf96021eb8bfa1a2bd5f509d020ab74d1688f1825bb0d6788f0"
 OWNED_SCENARIO_IDS = frozenset(
     row["scenarioId"] for row in _POPULATION_ROWS if row["status"] == "owned"
 )
@@ -2075,6 +2073,24 @@ def test_aspect_deferrals_name_existing_evidence() -> None:
     assert deferred == p3_boundaries
 
 
+def _assert_o5_canon_row(row: str) -> None:
+    """O5 の正本行をシナリオと期待結果の全文で固定する。"""
+    _, label, scenario, expected, _ = row.split("|")
+    assert label.strip() == "**O5 の決定的な不変条件違反**(v0.9)"
+    assert scenario.strip() == (
+        "実装が O5 として列挙した不変条件違反を起こす永続状態で、"
+        "未使用 D5 の P1・P2 を前方のイベントと同じ要求で送り、"
+        "応答・D3・台帳・キュー・投影を観測する"
+    )
+    assert expected.strip() == (
+        "前方のイベントは確定済みで同じ ACK に載る。"
+        "当該イベントは**B3 と A5「拒否」**を理由 O5 とともに返し、"
+        "取引を全取消して D3 を進めない(D5 を消費しない・T9 を開始しない)。"
+        "後続は未処理。キューは**要操作(管理者対応待ち)**となり自動再送しない。"
+        "是正確認後に**同じ D5** の再送が通る。列挙の外の失敗は B7 のまま"
+    )
+
+
 def test_observation_keys_match_the_canon_table() -> None:
     """正本の観点数と O5 のシナリオ・期待結果を母集合へ対応づける。"""
     lines = (
@@ -2095,36 +2111,10 @@ def test_observation_keys_match_the_canon_table() -> None:
     )
     o5_rows = [row for row in rows if row.startswith("| **O5 の決定的な不変条件違反**")]
     assert len(o5_rows) == 1
-    assert hashlib.sha256(o5_rows[0].encode("utf-8")).hexdigest() == (
-        O5_CANON_ROW_SHA256
-    )
-    _, _, scenario, expected, _ = o5_rows[0].split("|")
-    assert all(
-        item in scenario
-        for item in ("列挙した不変条件違反", "未使用 D5", "P1・P2", "前方のイベント")
-    )
-    assert all(
-        item in expected
-        for item in (
-            "前方のイベントは確定済み",
-            "同じ ACK に載る",
-            "B3 と A5「拒否」",
-            "理由 O5",
-            "全取消",
-            "D3 を進めない",
-            "D5 を消費しない",
-            "T9 を開始しない",
-            "後続は未処理",
-            "要操作(管理者対応待ち)",
-            "自動再送しない",
-            "同じ D5",
-            "列挙の外の失敗は B7",
-        )
-    )
+    _assert_o5_canon_row(o5_rows[0])
     reversed_d3 = o5_rows[0].replace("D3 を進めない", "D3 を進めないとは限らない")
-    assert hashlib.sha256(reversed_d3.encode("utf-8")).hexdigest() != (
-        O5_CANON_ROW_SHA256
-    )
+    with pytest.raises(AssertionError):
+        _assert_o5_canon_row(reversed_d3)
 
 
 def test_contract_binds_injection_point_to_the_t_element(
