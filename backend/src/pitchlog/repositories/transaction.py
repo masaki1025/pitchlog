@@ -145,7 +145,9 @@ class _TenantTransaction:
             ):
                 raise RuntimeError("実行前検証の再帰は許可されない")
             preflight.validate(tuple(self.run(check) for check in preflight.operations))
-        execution_result = session.execute(statement, parameters)
+        execution_result = session.execute(
+            statement.execution_options(preserve_rowcount=True), parameters
+        )
         return _materialize_execution_result(statement, execution_result)
 
     def run_function(self, operation: TenantOperationToken) -> TenantOperationResult:

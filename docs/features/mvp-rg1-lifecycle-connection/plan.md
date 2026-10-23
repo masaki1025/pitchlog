@@ -86,3 +86,8 @@ pathsの先頭は`backend/src/pitchlog/`。指定14実装/試験候補の機械�
 
 
 ステップ3の実接続に必要な同単位の正本7.3候補準備は並行して進める。第4ステップの正式受理/全最終CI/通常統合条件は維持する。2026-10-24、rootは今回PO委任の計画順判断として、実fresh→controller→app peerの1接合成功と非作者91e90限定0に基づきdata-model3-2の最小構造候補と旧読取2SQLの安全な成功条件候補を作成する。単一行openをTrueに置換するのではなく、実actor同DB/PIDの二重leaseと同scopeの実borrow/fence/commit保持を揃える。正式authz/manifest/7.7未受理、最終201/reload未実証は保持する。
+
+
+### 実INSERT件数の保持（通常不具合是正の最小追補）
+
+2026-10-24、PO委任によるCodex主担当/root判断。実HTTP接合で新大会INSERTがSQL例外なしにrowcount=-1を返し、既存_require_insertedがoutcome_unconfirmed/rollback503へ閉じる不具合を実測した。ロック済みSQLAlchemyのpreserve_rowcountの動作根拠と整数件数だけの非改変観測を照合し、`repositories/base.py`の単発実行と`repositories/transaction.py`のscope実行が、検証済みCore statementの実件数をclose前に保持する実行optionだけを指定する。型/SQL/bind/tenant/ロック/順序/未知・0・複数の拒否は変更せず、件数を1へ補完しない。追加編集範囲はbase.pyと対応する既存基底/transaction試験、既承認の隔離実HTTP/DB接合試験だけ。別計算/新API/認可成功注入口/凍結免除追加はしない。sourceの非作者限定確認と、実POSTで新規INSERT→201/GETを通す回帰を必要とし、正式metadata/全件CI/最終通常統合は既存条件のまま。

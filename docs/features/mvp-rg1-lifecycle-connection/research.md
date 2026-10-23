@@ -65,3 +65,10 @@ controller候補はroot保護の非秘密configからsocketをbindし、専用UI
 da78a862/差分8714419cの第2回（反映差分+影響節、基本2回枠）は可決0/0/0。前P1/P2は採用反映で双方解消、未終結/不採用/B送り0。非作者rights証拠review-rg1-data-model-da78a862-round2-evidence.json SHA6813167e3f0733a986c5a3b9dc77fa05abf45f02a7f5df74f1a7da3d0a44f7e3。適用harness1.19/91e90を最後まで保持し、反映回数1を増やさない。
 
 2026-10-23T22:36:26.379898+00:00、PO委任によるCodex主担当/root判断。対象da78a862の最終反映差分/採否/既採用列grant保持/actor分離/同scope実保持/未供給fail-closedを確認し、今回PO4/5の委任範囲でdata-model1.2を確定する。旧正本/既決意味の再裁定や本人署名の代行はない。approved反映後の正本SHAa8dbd05c75957a9d4c8ca48018c84ffab09621cabef6a4298cc60f071b9c6126、索引は現行1.2/2026-10-24へ追随し旧全履歴を保持。正式role/function/tenant生成と完全7.7/CI/正常201は別条件で未達、正本確定だけで製品完成を主張しない。
+
+
+## 正常INSERTの件数保持是正候補
+
+隔離API接合は実login200/実Cookie/C2/realfresh RG1を通過した後、新大会INSERTの_materialize_execution_result戻りが整数-1であることを非改変のreturn観測で実測（1failed/35.71秒、SQL例外0、PG内取引はoutcome_unconfirmedとしてrollback）。ロック済みSQLAlchemy engine/cursor.py2110〜2145とdefault.py1853〜1854の一次実装から、INSERTのcursor件数をclose前に保持するpreserve_rowcount option不足と一致した。
+
+rootは通常不具合是正として、単発基底とtenant scopeの実行で、検証済みstatementのSQL/bind/lock/表identityを保つcloneへpreserve_rowcount=Trueだけを指定した。_materialize_execution_resultとサービスのexact1要求/不明・0・複数拒否は変更0。0/-1/1/2を補正せず保持し、None/bool/float/stringをint成功へ変換しない8負例を既存roster境界へ追加。影響非DB208成功/2.36秒、Ruff/対象ty成功。実API正常201での回帰と非作者コード確認はsource固定後の別条件で、現時点は未実証。C1/D5/認可/RLS/正式metadata/免除を緩めず、SQLをINSERT成功へ置き換えない。
