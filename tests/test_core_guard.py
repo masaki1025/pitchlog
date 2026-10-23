@@ -4587,7 +4587,7 @@ def assert_durable_ledger_registration(
             captured = guard.matched_paths(
                 files, guard.CoreAreas(tuple(areas[area_id]), frozenset()),
             )
-            assert captured == sorted(files)
+            assert sorted(captured) == sorted(files)
     return all(states)
 
 

@@ -119,3 +119,14 @@ P1はsupplier discoveryが「planあり第1親/planなしsourceあり第2親」�
 修正後root Ruff/ty成功、全core **416 passed / 28.43秒**、失敗/skip/timeout0。今回はstep3のProtocol/inventory/同期取消調査だけで、新package/DBsupport等の実WIP資産はまだ作成していなかった。従って新資産を削除/隠さず、同wtの固定是正版で全件確認した。製品guard/JSON/source/正式資産/policyはb146byte不変、commitは既存core試験と本researchだけとする。
 
 修正test SHA256 `fd610845f7b7c0986078ad77ea7670a4a5d835dda1ebd2295ef4b78e596bd462`、b146から試験だけのfull-index binary差分SHA256 `514fb1cda0a148359868b7a5a5576ec7acad2f736b5a1792e57d81591f91a7c1`。HEAD/全差分は引渡しへ固定し、その後root指示済みstep3の独立部分を継続する。取消APIのinventory不足は別の最小追補/独立確認待ちで、未知memberを素通りする実装はしない。
+
+
+## 実資産出現後の先行core試験の順序是正
+
+step3で実package/contract/正例が出現した接合検査は408 passed / 7 failed / 1 error / 273.66秒だった。6 failedと1 errorは全て既存Git/guard subprocessの30秒期限超過。重い実DBとcore auto並列を重ねてしまったため、以後直列・core -n2とし、既存timeout/判定を緩めない。backend同時版もprimary起動25秒期限超過で40 passed / 7 setup errors / 93.60秒、DB call未実行であり成功へ代記しない。
+
+残るcore1件は実在後の全集合検査がglob入力順のcapturedとsorted(files)を比較していた試験setup不足である。製品matched_pathsは入力順を保持する。rootが最小是正を許可し、比較だけをsorted(captured)==sorted(files)へ変更した。要素数/重複を含め同一リストのexact比較であり、登録前/片側/partial/範囲外/未捕捉拒否・対象path/製品guard関数/JSONは一切変えない。今後も同種の機械的setup是正だけを別commitへ分離する事前許可を受けた。
+
+同wtにはstep3の未stage source/fixture/契約候補WIPがある。この是正commitは既存core試験と本節だけ、JSON/新package/資産を含めない。step3実DBの中間/失敗記録は別のWIPとして保持し、後続のstep3固定時へ戻す。対象回帰結果は引渡しへ記録する。
+
+是正後の台帳core対象35件は`-n 2 -k durable_ledger`で **35 passed / 13.88秒**。既存core試験Ruff成功（既存docstring連結warningのみ）。全coreはstep3最終候補で直列に一度まとめ、未実施をこの35件で置き換えない。
