@@ -15,6 +15,7 @@ import urllib.error
 from collections.abc import Sequence
 from dataclasses import replace
 from email.message import Message
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -507,10 +508,27 @@ INITIAL_RIGHTS_PATHS = (
     "backend/src/pitchlog/recording_rights/initial_grant.py",
     "backend/tests/test_initial_recording_right_candidate.py",
 )
-EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+INITIAL_RIGHTS_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "sync-protocol": INITIAL_RIGHTS_PATHS,
     "recording-rights": INITIAL_RIGHTS_PATHS,
     "tenant-isolation": INITIAL_RIGHTS_PATHS,
+}
+DURABLE_LEDGER_PATHS = (
+    "backend/src/pitchlog/durable_rights_ledger/*",
+    "backend/tests/test_durable_rights_ledger_contract.py",
+)
+DURABLE_LEDGER_FIXTURE = (
+    "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+)
+DURABLE_LEDGER_EXAMPLES = (
+    "backend/src/pitchlog/durable_rights_ledger/adapter.py",
+    "backend/tests/test_durable_rights_ledger_contract.py",
+    "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/adapter.py",
+)
+EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "sync-protocol": (*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE),
+    "recording-rights": (*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE),
+    "tenant-isolation": DURABLE_LEDGER_PATHS,
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -554,6 +572,31 @@ PRODUCT_RLS_PATTERN_EXAMPLES = (
     ("scripts/product-rls-real-schema-targets.json",),
 )
 
+
+
+@cache
+def durable_ledger_supplier_revision() -> str:
+    """本単位planへの供給merge第2親を、変更不能なGit履歴から取得する。"""
+    plan = "docs/features/mvp-durable-rights-ledger/plan.md"
+    source = INITIAL_RIGHTS_PATHS[0]
+    candidates = []
+    for revision in run_git(REPO, "rev-list", "--merges", "HEAD").stdout.splitlines():
+        parents = run_git(REPO, "show", "-s", "--format=%P", revision).stdout.split()
+        if len(parents) != 2:
+            continue
+        first_has_plan = run_git(
+            REPO, "ls-tree", "--name-only", parents[0], "--", plan,
+        ).stdout.strip()
+        second_has_plan = run_git(
+            REPO, "ls-tree", "--name-only", parents[1], "--", plan,
+        ).stdout.strip()
+        second_has_source = run_git(
+            REPO, "ls-tree", "--name-only", parents[1], "--", source,
+        ).stdout.strip()
+        if first_has_plan and not second_has_plan and second_has_source:
+            candidates.append(parents[1])
+    assert len(set(candidates)) == 1, "正常initialの固定供給mergeを一意に特定できない"
+    return candidates[0]
 
 def assert_registered_block(paths: Sequence[str], block: tuple[str, ...]) -> int:
     """登録ブロックが一意かつ宣言順の連続列として残ることを確認する。
@@ -2038,7 +2081,7 @@ def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
 def test_actual_core_area_paths_follow_merge_base_layers():
     """マージ作業ツリーを取り込み後の比較元 blob と突合する。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = durable_ledger_supplier_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     baseline_ids = {area["id"] for area in baseline["areas"]}
@@ -2697,7 +2740,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
     """着地済み RLS から U-F5 までの登録順を末尾に依存せず保つ。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = durable_ledger_supplier_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
     registered_tail = (*PRODUCT_RLS_AREA_PATH_ADDITIONS, ADR_001_PATH)
@@ -2783,7 +2826,7 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     """比較元に登録済みの画面と spec を全領域で保持する。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = durable_ledger_supplier_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     pattern = UF8_GAME_SCREEN_AREA_PATH_ADDITIONS[0]
@@ -2806,7 +2849,7 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
 def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
     """U-S1の登録済み層を保ち、その後にRG1層だけを追加する。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = durable_ledger_supplier_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
     base_areas = {area["id"]: area for area in baseline["areas"]}
@@ -2849,7 +2892,7 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
 def test_uf5_team_paths_are_registered_for_tenant_and_migration() -> None:
     """U-F5 の製品6ファイルをT・Dだけへ宣言順で登録済みと示す。"""
     core_guard = load_core_guard_module()
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = durable_ledger_supplier_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     expected_files = (
@@ -2942,7 +2985,7 @@ def test_area_registration() -> None:
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
-    base_sha = run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+    base_sha = durable_ledger_supplier_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
@@ -3074,7 +3117,7 @@ def test_ur1_registered_paths_are_retained_after_declaration_rotation() -> None:
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     baseline = core_guard.load_core_areas_at_revision(
-        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+        REPO, durable_ledger_supplier_revision()
     )
     for document in (baseline, configuration):
         areas = {area["id"]: area for area in document["areas"]}
@@ -3094,7 +3137,7 @@ def test_uf13_declaration_retains_json_and_checks_product_registration() -> None
     """宣言だけではJSONを変えず、合成登録でrouter/Appの全4実例を検出する。"""
     core_guard = load_core_guard_module()
     baseline = core_guard.load_core_areas_at_revision(
-        REPO, run_git(REPO, "rev-parse", "origin/develop").stdout.strip()
+        REPO, durable_ledger_supplier_revision()
     )
     configuration = load_actual_core_areas()
     core_guard.validate_area_path_layers(baseline, configuration)
@@ -4266,12 +4309,11 @@ def assert_initial_rights_registration(
     registered = []
     for area_id, paths in areas.items():
         present = tuple(path in paths for path in INITIAL_RIGHTS_PATHS)
-        if area_id in EXPECTED_AREA_PATH_ADDITIONS:
+        if area_id in INITIAL_RIGHTS_AREA_PATH_ADDITIONS:
             assert len(set(present)) == 1, f'{area_id}: 初期付与の部分登録'
             registered.append(all(present))
             if all(present):
                 assert_registered_block(paths, INITIAL_RIGHTS_PATHS)
-                assert tuple(paths[-2:]) == INITIAL_RIGHTS_PATHS
         else:
             assert not any(present), f'{area_id}: 初期付与の対象外登録'
     assert len(registered) == 3 and len(set(registered)) == 1, '初期付与の片側領域登録'
@@ -4280,7 +4322,7 @@ def assert_initial_rights_registration(
     if any(exists):
         assert all(registered), '実在する初期付与source/testが未登録'
         guard = load_core_guard_module()
-        for area_id in EXPECTED_AREA_PATH_ADDITIONS:
+        for area_id in INITIAL_RIGHTS_AREA_PATH_ADDITIONS:
             assert guard.matched_paths(
                 INITIAL_RIGHTS_PATHS, guard.CoreAreas(tuple(areas[area_id]), frozenset()),
             ) == list(INITIAL_RIGHTS_PATHS)
@@ -4292,7 +4334,7 @@ def initial_rights_configuration(*, registered: bool) -> dict[str, Any]:
     configuration = load_actual_core_areas()
     for area in configuration['areas']:
         area['paths'] = [p for p in area['paths'] if p not in INITIAL_RIGHTS_PATHS]
-        if registered and area['id'] in EXPECTED_AREA_PATH_ADDITIONS:
+        if registered and area['id'] in INITIAL_RIGHTS_AREA_PATH_ADDITIONS:
             area['paths'].extend(INITIAL_RIGHTS_PATHS)
     return configuration
 
@@ -4301,7 +4343,6 @@ def test_initial_rights_core_actual_phase_and_previous_layers() -> None:
     """登録前は部品不在、実在後は実JSONの完全登録/捕捉を必須にする。"""
     guard = load_core_guard_module()
     configuration = load_actual_core_areas()
-    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert tuple(guard.INITIAL_RIGHTS_PATH_ADDITIONS) == INITIAL_RIGHTS_PATHS
     assert_initial_rights_registration(configuration)
     areas = {area['id']: area['paths'] for area in configuration['areas']}
@@ -4371,7 +4412,7 @@ def test_initial_rights_core_invalid_registration_is_rejected(
     else:
         areas['sync-protocol'].append('unregistered/probe.py')
     with pytest.raises((AssertionError, guard.GuardError)):
-        guard.validate_area_path_layers(baseline, candidate)
+        guard.validate_area_path_layers(baseline, candidate, INITIAL_RIGHTS_AREA_PATH_ADDITIONS)
         assert_initial_rights_registration(candidate, tmp_path)
 
 
@@ -4380,9 +4421,9 @@ def test_initial_rights_core_exact_scope_and_metadata_are_preserved() -> None:
     guard = load_core_guard_module()
     before = initial_rights_configuration(registered=False)
     after = initial_rights_configuration(registered=True)
-    guard.validate_area_path_layers(before, after)
+    guard.validate_area_path_layers(before, after, INITIAL_RIGHTS_AREA_PATH_ADDITIONS)
     for a, b in zip(before['areas'], after['areas'], strict=True):
-        extra = list(INITIAL_RIGHTS_PATHS) if a['id'] in EXPECTED_AREA_PATH_ADDITIONS else []
+        extra = list(INITIAL_RIGHTS_PATHS) if a['id'] in INITIAL_RIGHTS_AREA_PATH_ADDITIONS else []
         expected = a['paths'] + extra
         assert b == {**a, 'paths': expected}
     metadata = {k: v for k, v in before.items() if k != 'areas'}
@@ -4396,9 +4437,14 @@ def test_initial_rights_core_exact_scope_and_metadata_are_preserved() -> None:
     ) == []
 
 
-def test_initial_rights_core_declaration_then_separate_registration(tmp_path: Path) -> None:
+def test_initial_rights_core_declaration_then_separate_registration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """実基線から宣言→別JSONの実CLIを受理し、共変更は拒否する。"""
-    guard = load_core_guard_module()
+    historical = tmp_path / 'initial_guard.py'
+    historical.write_text(core_guard_source_with_additions(INITIAL_RIGHTS_AREA_PATH_ADDITIONS))
+    guard = load_core_guard_module(historical, module_name='historical_initial_registration')
+    monkeypatch.setattr(sys.modules[__name__], 'SCRIPT', historical)
     root, _ = make_layered_core_repo(tmp_path)
     commit_change(
         root, '.claude/core-areas.json',
@@ -4413,7 +4459,7 @@ def test_initial_rights_core_declaration_then_separate_registration(tmp_path: Pa
     event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
     result = run_guard(root, event_name='pull_request', event_path=event)
     assert result.returncode == 0, result.stderr
-    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = commit_area_path_changes(root, INITIAL_RIGHTS_AREA_PATH_ADDITIONS)
     assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
     assert guard._changed_paths_in_commit(root, registered) == frozenset(
         {'.claude/core-areas.json'}
@@ -4429,10 +4475,12 @@ def test_initial_rights_core_same_commit_predicate_rejects_old_shape(
     tmp_path: Path, cochanged: str,
 ) -> None:
     """旧f48型のJSON/基線定義同居を新対象でも拒否する。"""
-    guard = load_core_guard_module()
+    historical = tmp_path / 'initial_guard.py'
+    historical.write_text(core_guard_source_with_additions(INITIAL_RIGHTS_AREA_PATH_ADDITIONS))
+    guard = load_core_guard_module(historical, module_name='historical_initial_cochange')
     root, base = make_layered_core_repo(tmp_path)
     head = commit_area_path_changes(
-        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(cochanged,),
+        root, INITIAL_RIGHTS_AREA_PATH_ADDITIONS, cochanged_paths=(cochanged,),
     )
     with pytest.raises(guard.GuardError, match='同一コミット'):
         guard.verify_area_path_baseline(root, base, head)
@@ -4454,6 +4502,216 @@ def test_initial_rights_core_each_future_file_requires_check(
     base, head = commit_change(root, path)
     body = f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}"
     event = write_event(tmp_path, base, head, body)
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == (0 if checked else 1), result.stderr
+    if not checked:
+        assert path in result.stderr
+
+
+def durable_ledger_configuration(*, registered: bool) -> dict[str, Any]:
+    """正常initialを保持し、外部台帳の宣言済み8追記だけを合成する。"""
+    configuration = load_actual_core_areas()
+    patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
+    for area in configuration['areas']:
+        area['paths'] = [p for p in area['paths'] if p not in patterns]
+        if registered:
+            area['paths'].extend(EXPECTED_AREA_PATH_ADDITIONS.get(area['id'], ()))
+    return configuration
+
+
+def assert_durable_ledger_registration(
+    configuration: dict[str, Any], root: Path = REPO,
+) -> bool:
+    """登録前の不在と登録後の実行資産捕捉を、全3領域で照合する。"""
+    guard = load_core_guard_module()
+    areas = {area['id']: area['paths'] for area in configuration['areas']}
+    patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
+    states = []
+    for area_id, paths in areas.items():
+        expected = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        assert not (patterns - set(expected)) & set(paths), '台帳の対象外登録'
+        if not expected:
+            continue
+        present = tuple(p in paths for p in expected)
+        assert len(set(present)) == 1, '台帳の部分登録'
+        states.append(all(present))
+        if all(present):
+            assert_registered_block(paths, expected)
+            assert tuple(paths[-len(expected):]) == expected
+    assert len(states) == 3 and len(set(states)) == 1, '台帳の片側領域登録'
+    actual = (
+        tuple((root / 'backend/src/pitchlog/durable_rights_ledger').glob('*')),
+        tuple([root / DURABLE_LEDGER_PATHS[1]])
+        if (root / DURABLE_LEDGER_PATHS[1]).is_file() else (),
+        tuple((root / 'tests/fixtures/tenant_boundary/positive/pitchlog/'
+               'durable_rights_ledger').glob('*')),
+    )
+    exists = tuple(bool(paths) for paths in actual)
+    assert len(set(exists)) == 1, '台帳実行資産の片側実在'
+    if any(exists):
+        assert all(states), '実在する台帳資産が未登録'
+        files = [p.relative_to(root).as_posix() for paths in actual for p in paths]
+        for area_id in EXPECTED_AREA_PATH_ADDITIONS:
+            captured = guard.matched_paths(
+                files, guard.CoreAreas(tuple(areas[area_id]), frozenset()),
+            )
+            assert captured == sorted(files)
+    return all(states)
+
+
+def test_durable_ledger_core_actual_phase_preserves_initial_supplier() -> None:
+    """固定供給の全登録を保持し、新台帳実行資産の未登録を許容しない。"""
+    guard = load_core_guard_module()
+    baseline = guard.load_core_areas_at_revision(REPO, durable_ledger_supplier_revision())
+    actual = load_actual_core_areas()
+    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert tuple(guard.DURABLE_LEDGER_PATH_ADDITIONS) == DURABLE_LEDGER_PATHS
+    assert tuple(guard.DURABLE_LEDGER_FIXTURE_ADDITION) == DURABLE_LEDGER_FIXTURE
+    guard.validate_area_path_layers(baseline, actual)
+    assert_initial_rights_registration(actual)
+    assert_durable_ledger_registration(actual)
+    for area in baseline['areas']:
+        current = next(a for a in actual['areas'] if a['id'] == area['id'])
+        expected = area['paths']
+        if current['paths'] != expected:
+            expected = expected + list(EXPECTED_AREA_PATH_ADDITIONS[area['id']])
+        assert current == {**area, 'paths': expected}
+    assert {k: v for k, v in actual.items() if k != 'areas'} == {
+        k: v for k, v in baseline.items() if k != 'areas'
+    }
+
+
+@pytest.mark.parametrize('registered,exists', ((False, False), (True, False), (True, True)))
+def test_durable_ledger_core_valid_phases(
+    tmp_path: Path, registered: bool, exists: bool,
+) -> None:
+    """宣言のみ/別JSON/将来実在後を、実ファイルの有無と共に検査する。"""
+    if exists:
+        for path in DURABLE_LEDGER_EXAMPLES:
+            write_text(tmp_path, path, '# 合成した実行資産\n')
+    assert assert_durable_ledger_registration(
+        durable_ledger_configuration(registered=registered), tmp_path,
+    ) is registered
+
+
+@pytest.mark.parametrize('registered', (False, True))
+@pytest.mark.parametrize('index', (0, 1, 2))
+def test_durable_ledger_core_partial_existing_assets_are_rejected(
+    tmp_path: Path, registered: bool, index: int,
+) -> None:
+    """package/contract/正例の片側実在を登録前後とも黙認しない。"""
+    write_text(tmp_path, DURABLE_LEDGER_EXAMPLES[index], '# 合成した片側資産\n')
+    with pytest.raises(AssertionError, match='片側実在'):
+        assert_durable_ledger_registration(
+            durable_ledger_configuration(registered=registered), tmp_path,
+        )
+
+
+def test_durable_ledger_core_unregistered_existing_assets_are_rejected(tmp_path: Path) -> None:
+    """実行資産が揃っていても未登録の実JSONなら拒否する。"""
+    for path in DURABLE_LEDGER_EXAMPLES:
+        write_text(tmp_path, path, '# 合成した実行資産\n')
+    with pytest.raises(AssertionError, match='未登録'):
+        assert_durable_ledger_registration(
+            durable_ledger_configuration(registered=False), tmp_path,
+        )
+
+
+@pytest.mark.parametrize('mutation', (
+    'partial', 'one-area', 'wrong-area', 'reverse', 'duplicate',
+    'delete', 'replace', 'undeclared', 'tenant-extra-fixture',
+))
+def test_durable_ledger_core_invalid_registration_is_rejected(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """新8追記の部分/範囲外と、既存登録の削除/置換/順序違反を拒否する。"""
+    guard = load_core_guard_module()
+    baseline = durable_ledger_configuration(registered=False)
+    candidate = durable_ledger_configuration(registered=True)
+    areas = {area['id']: area['paths'] for area in candidate['areas']}
+    if mutation == 'partial':
+        areas['sync-protocol'].pop()
+    elif mutation == 'one-area':
+        del areas['recording-rights'][-3:]
+    elif mutation == 'wrong-area':
+        areas['game-state'].extend(DURABLE_LEDGER_PATHS)
+    elif mutation == 'reverse':
+        areas['sync-protocol'][-3:] = reversed(EXPECTED_AREA_PATH_ADDITIONS['sync-protocol'])
+    elif mutation == 'duplicate':
+        areas['sync-protocol'].append(DURABLE_LEDGER_PATHS[0])
+    elif mutation == 'delete':
+        areas['sync-protocol'].pop(0)
+    elif mutation == 'replace':
+        areas['sync-protocol'][0] = 'unregistered/replacement.py'
+    elif mutation == 'tenant-extra-fixture':
+        areas['tenant-isolation'].extend(DURABLE_LEDGER_FIXTURE)
+    else:
+        areas['sync-protocol'].append('unregistered/probe.py')
+    with pytest.raises((AssertionError, guard.GuardError)):
+        guard.validate_area_path_layers(baseline, candidate)
+        assert_durable_ledger_registration(candidate, tmp_path)
+
+
+def test_durable_ledger_core_exact_patterns_and_outside_paths() -> None:
+    """専用package/試験/正例だけを追加し、隣接資産へ対象を広げない。"""
+    guard = load_core_guard_module()
+    assert sum(map(len, EXPECTED_AREA_PATH_ADDITIONS.values())) == 8
+    outside = (
+        'backend/src/pitchlog/durable_rights_ledger_other/adapter.py',
+        'backend/tests/test_durable_rights_ledger_contract_other.py',
+        'tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger_other/x.py',
+    )
+    for patterns in EXPECTED_AREA_PATH_ADDITIONS.values():
+        assert guard.matched_paths(outside, guard.CoreAreas(patterns, frozenset())) == []
+
+
+def test_durable_ledger_core_declaration_and_separate_json_cli(tmp_path: Path) -> None:
+    """正常initialを基線に、宣言→別JSONの実CLIと履歴規則を検証する。"""
+    guard = load_core_guard_module()
+    root, _ = make_layered_core_repo(tmp_path)
+    commit_change(root, '.claude/core-areas.json',
+                  json.dumps(durable_ledger_configuration(registered=False)))
+    _, base = commit_change(root, 'scripts/core_guard.py',
+                            core_guard_source_with_additions(INITIAL_RIGHTS_AREA_PATH_ADDITIONS))
+    _, declaration = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    assert guard.verify_area_path_baseline(root, base, declaration) == base
+    event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == 0, result.stderr
+    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
+    assert guard._changed_paths_in_commit(root, registered) == frozenset(
+        {'.claude/core-areas.json'}
+    )
+    assert guard.verify_area_path_baseline(root, base, registered) == base
+    event = write_event(tmp_path, base, registered, f'- [x] {REQUIRED_CHECK_TEXT}')
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize('definition', ('scripts/core_guard.py', 'tests/test_core_guard.py'))
+def test_durable_ledger_core_cochange_is_rejected(tmp_path: Path, definition: str) -> None:
+    """新8登録でもJSONと基線定義の同commit変更を拒否する。"""
+    guard = load_core_guard_module()
+    root, base = make_layered_core_repo(tmp_path)
+    head = commit_area_path_changes(
+        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(definition,),
+    )
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize('path', DURABLE_LEDGER_EXAMPLES)
+@pytest.mark.parametrize('checked', (False, True))
+def test_durable_ledger_core_each_single_future_asset_requires_check(
+    tmp_path: Path, path: str, checked: bool,
+) -> None:
+    """新製品/contract/正例の後発単独変更も実CLIで必須確認を要求する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    base, head = commit_change(root, path)
+    event = write_event(tmp_path, base, head,
+                        f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}")
     result = run_guard(root, event_name='pull_request', event_path=event)
     assert result.returncode == (0 if checked else 1), result.stderr
     if not checked:

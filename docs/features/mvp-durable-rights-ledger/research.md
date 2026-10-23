@@ -43,3 +43,35 @@ docs-statusは21文書/違反0、局所plan同期は指定base31194でexit0。�
 /root/resolver_ledger_plan_reviewの全文レビューはP0=0/P1=1/P2=0。実31194 policyに新branch対象がなく、core_guardが新実PRを拒否するP1をrootが採用。planへ実番号取得後の同PR/branch1組追加とデータ自体の非作者最終確認だけを追補した。全旧target/authority/失効/拒否は不変。第2回限定差分確認前で、まだ計画未承認/製品未実装。正本順序自体は7.6根拠に一律違反とはしないとの非作者判定を保持する。
 
 計画第2回限定反映差分/影響は非作者/root/resolver_ledger_plan_reviewの可決0/0/0。rootはplan末尾に対象SHA/日時/PO委任採用を記録。計画承認で運用設備・費用・共有DB・新秘密・正本確定/正式値受理・RG1成功が成立したとはしない。製品は未着手で個別step指示後に進める。
+
+## 承認ステップ1/4: 正常initial供給と台帳追加層の宣言
+
+rootの個別指示を受け、承認`6288dfaab7aa58089d929172906c307f6eb7ccf2`から正常initial供給HEAD `95d766f5d20234b1d534538b96fc369eda1cc6f1`（PR180）を通常mergeした。供給mergeは`b1ab75cac62984106222c4ec51d0f1ec03a35d2c`、手動競合0、旧f48/0aaaを直接merge/cherry-pickしていない。これは隔離供給であり、実develop31194へのPR180統合済みとは記録しない。
+
+merge直後はcore JSON/guard/旧試験/initial source/test/policyをsupplier byteと照合。権威履歴は26prefix＋180の計27件・末尾masaki1025/pitchlog#180、全202snapshotもsupplier blobとbyte完全一致だった。以後は本stepの宣言/既存core試験と本researchだけを変更し、initial/frozen assets/policyへ追加編集していない。
+
+### 実供給Protocol
+
+固定sourceは95d766f5の`backend/src/pitchlog/recording_rights/initial_grant.py`、SHA256 `c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3`。`DurableGenerationSource`はcurrent_recovery_generation()→int、reserve(attempt_id, tenant_id, game_id, start_request_id)→ReservedGeneration、claim(同owner tuple)→None。`RecoveryEpochFence`はgeneration:intとassert_held()→None。ReservedGenerationはgeneration/recovery_generationとtenant/game/start_requestへ束縛する既存不変値である。本stepではProtocolを実装/変更せず、後続adapterの実署名接合の固定入力として保持する。
+
+供給initial試験SHA256 `3f1009973bd890ce3ac6507117ec2227555d57ec4c7e8f4c9a009902acec8cdc`、供給policy SHA256 `86397671d61aaa9bafda562c0b1450db9a5ab68bec9ce4947e28e4d38cbe0d66`。これらもstep中byte不変。実台帳/role/複製/運用鍵/実Port提供をこの供給成功へ読み替えない。
+
+### exact8追加と局所比較基線
+
+新追加層は計画どおりsync-protocol/recording-rights各3patterns（専用package、contract試験、専用positive fixture）、tenant-isolationは前2patternsの計8追記分を宣言した。実core JSONは不変で、SHA256 `e555432f14c87524e5c3bf2bda86fa55b55ed59635345449713b662468b3d159`。新ledger package/contract試験/positive fixture/DB試験とsupportは作成していない。
+
+initialのexact2×3登録は据置き層として保持する。旧initial段階の合成試験は当時の追加層を明示し、旧宣言の隔離checkerで実CLI/共変更拒否も残した。initialが末尾層から据置きへ移るため、旧試験の「末尾2件」だけは「一意な連続ブロック/宣言順」の検査にし、source/test実在・全3領域捕捉、旧全paths/順序保持を外していない。
+
+実origin31194はinitial未統合のため、そのまま比較すると旧initial登録を取り逃した差として拒否される。局所core試験の比較元は、本feature planへの供給merge第2親95d766f5をGitの変更不能な親関係から一意に導出するhelperへ揃えた。無関係な可変branch先端や未登録をfallbackで許可しない。供給mergeを一意に特定できなければ試験を拒否する。テスト内に新しい実SHAを直書きして固定基準を増やしていない。
+
+手動局所照合でhelperの導出値が95d766f5と一致し、verify_area_path_baseline(supplier95d,HEAD)は受理。対してverify_area_path_baseline(real31194,HEAD)は`sync-protocol.paths が merge-base の据え置き層と宣言済み追加層に不一致`を引き続き拒否した。これは期待する未統合差であり、局所試験greenを実PR/実developのgreenへ読み替えない。製品guard全関数/classのASTは供給95dと完全同一、共変更predicate/委任検証/BASELINE_DEFINITION_PATHS/人間確認条件の変更0。
+
+### 検証結果
+
+core全件 **411 passed / 26.43秒**（旧381＋新30）、失敗/skip/timeout0。登録前不在、別JSONのみ、将来のpackage/contract/正例実在と全登録、片側実在/未登録/部分/片側領域/対象外/順序反転/重複/旧削除/置換/未宣言/tenantへの余分なfixture登録拒否を確認した。合成Git履歴の宣言→別JSON実CLI、新8登録のJSON+基線定義同commit拒否、将来3実行資産の各単独変更の必須確認拒否/記入済受理を検査した。新実行資産は合成tmpにだけ作り、実wtでは不在を確認する。
+
+root全体Ruff/ty、docs-status21件/違反0、design propagation/doc coverage、供給mergeb1abを局所baseとするplan sync、git diff --check成功。今回の検査に失敗版はない。core全件や静的検査は一度ずつの対象実行で、backend/DB/複製/故障試験を起動していない。
+
+宣言/既存試験2pathsのfull-index binary差分（供給mergeb1ab→step1）SHA256 `77b18f66306102223198408f28826164fb2bfb69dcc4661469ba4123c511672b`。core_guard.py SHA256 `ac0dfbc97d492226a4a0172d2b9d9857b01f17c22c89f2efdc0d073bed23835d`、test_core_guard.py SHA256 `e4f0d09c9fa795a3238600f4820b6924edfe5138a0bfac368ebea21e00078999`。step1commit後にHEAD/全差分SHA/変更集合/局所履歴predicateを引渡しへ固定する。
+
+JSON登録step2、ledger source/正本7.3/7.7/policy新target/新PR/pushは未着手。供給先が正常initialであることと、実originへの統合・運用資源・秘密発行・共有DB適用・MVP完成は区別する。旧レビュー/初回P1policy不足→第2回0の履歴と全未完条件を保持する。
