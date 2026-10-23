@@ -1,7 +1,7 @@
 ---
 feature: mvp-rule-resolver-operation
 status: active
-承認: 済(2026-10-23・PO委任によるCodex判断)
+承認: PO委任によるCodex判断（限定追補を含む）
 重さ分類: コア領域
 worktree: ../../..
 notion: https://chatgpt.com/space/page_711a9b1ac7d88191a6b0bc313a60db01
@@ -44,3 +44,13 @@ created: 2026-10-23
 ## 6. テスト計画
 
 backend test_function_operations_boundary.pyで実registry/scopeを通す単体・拒否試験。固定登録1件、input exact型、戻り外形、未登録/偽造/Session/失効scope等の既存検査を保持。backend Ruff format/check/tyとroot Ruff/ty。閉集合検査の不一致（exit2）は正式未反映を拒否した結果として明記し、成功へ読み替えない。
+
+## 既承認の空キー拒否を満たす限定追補案
+
+元の承認・69件成功・独立レビュー結果はresearch.mdに保持する。後続照合で、step1-contract-acceptance.mdの受理済み固定operation契約が要求する『空keyを実行直前に拒否』に対し、現候補は型だけを検査し空文字列をprepare済みbindへ渡すことを実再現した。DB関数は拒否するが、実行前拒否の証拠にはならない。
+
+追加編集は既存function_operations.pyの登録型とprepareだけ。登録型にデフォルト空tupleのnonempty_inputsを追加し、既存RG1登録の振る舞いは不変。登録時に重複/未宣言名/非str入力指定を拒否し、実行直前の既存exact型検証と同じbind値に対して指定フィールドの空文字を拒否する。resolver1件はgame_type_key/tournament_keyだけを宣言する。任意validator/SQLをcallerから受けず、文字列トリム/キー推測/全strへの一律制限を加えない。forced mutation後もSQLへ渡す前に拒否を試験する。
+
+この追補の対象は元step4の同一1操作だけで、表の番号/総数1は維持し、不備の差戻し修正を1コミットにまとめる。scopeへfunction_operations.pyを追加し、必要な正式資産差分の追加有無は候補研究へ反映するが正式資産そのものは変更しない。step5公開型/4失敗の実装はまだ行わない。source/対象pytest/既存RG1・DML非緩和を独立レビューし、今回追補の対象版にPO委任による承認を記録してからコードを編集する。
+
+承認記録: 2026-10-23T13:37:00Z、判断者Codex主担当/root。対象は追補前コードb4b8aaf25821fb866a524e0f1028c828b3f47fb5と本計画の追補案SHA-256 dae898e98a81a307addff064a63b3a1b425ec3de050c97e1966d8de04ad57351。候補作成に関与しない/root/o5_final_reviewの限定計画レビューは指摘0。PO指示4・5・10の委任内で、採用済み空キー拒否契約を満たす最小是正として承認する。山田正輝による個別実値確認・署名とは記録しない。
