@@ -618,6 +618,8 @@
         "backend/src/pitchlog/db/stage_a_startup.py",
         "backend/src/pitchlog/recording_rights/initial_grant.py",
         "backend/tests/test_initial_recording_right_candidate.py",
+        "backend/src/pitchlog/services/game_creation.py",
+        "backend/tests/test_game_preparing*.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
