@@ -1,0 +1,75 @@
+{
+  "status": "candidate-not-accepted",
+  "base": "1ab398cc7b2e0f54eafc038fc761a8a8ab42d2a0",
+  "scope": "TSK-550 existing approved plan step 4 only",
+  "fixedProvider": {
+    "head": "e30edc79a7f90aa27cb14303910676e414c2cab6",
+    "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean).sql",
+    "blob": "13de1e4a576d70df2220040f1e61ad7993b0ef18",
+    "sha256": "f5bbd863d072b95931efc73ea0da984bb4723df0e900e2dca745aa6e4dd71af8",
+    "copiedIntoProduct": false
+  },
+  "fieldChanges": [
+    {
+      "asset": "contracts/tenant_boundary/repository-contract.json",
+      "path": "/product_function_operation_ids",
+      "before": [
+        "RG1:precheck",
+        "RG1:commit_check"
+      ],
+      "after": [
+        "RG1:precheck",
+        "RG1:commit_check",
+        "RULE:resolve_stage_a"
+      ]
+    },
+    {
+      "asset": "contracts/tenant_boundary/base-allowlist.json",
+      "path": "/allowed_symbols",
+      "beforeAppendedEntries": [],
+      "afterAppendedEntries": [
+        {
+          "symbol": "pitchlog.repositories.rule_resolution._build_stage_a_rule_statement",
+          "signature": "_build_stage_a_rule_statement() -> Select[Any]",
+          "allowed_api_ids": [
+            "SQLA_SELECT"
+          ],
+          "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/rule_resolution.py"
+        }
+      ]
+    },
+    {
+      "asset": "backend/src/pitchlog/repositories/repository_contract.py",
+      "path": "PRODUCT_FUNCTION_OPERATION_IDS",
+      "before": [
+        "RG1:precheck",
+        "RG1:commit_check"
+      ],
+      "after": [
+        "RG1:precheck",
+        "RG1:commit_check",
+        "RULE:resolve_stage_a"
+      ]
+    }
+  ],
+  "unchanged": [
+    "DB function SQL/owner/EXECUTE ACL",
+    "existing RG1 operations",
+    "existing DML registry/run",
+    "transaction scope/session lifetime",
+    "formal asset files and acceptance histories"
+  ],
+  "notDerived": [
+    "final integrated develop baseline after #174/#173",
+    "formal contract revision/digest/snapshots",
+    "7.7 complete before/after state/acceptance unit",
+    "positive fixture and frozen corpus repin",
+    "public resolver DTO/failure mapping/codec application (step 5)",
+    "real DB/HTTP proof (step 6 and U-G1)"
+  ],
+  "observedChecker": {
+    "command": "uv run python scripts/check_tenant_boundary_bypass.py",
+    "exit": 2,
+    "message": "固定関数製品ID集合が資産と不一致"
+  }
+}
