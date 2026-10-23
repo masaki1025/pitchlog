@@ -203,3 +203,13 @@ MVP-D01〜05のPO回答は未取得。待ちを承認に置換しない。Goal�
 - CSV実統合後8037e1d9へ追随、1fから9資産/外部8/history26のbytes不変を機械確認し不要な新値導出を反復しなかった。2026-10-23T16:34:21Z、rootが**PO委任によるCodex判断**で新173値を受理。正式rowは提案全値にapproved_by/approved_on2fieldだけを追加し27件目1行へ反映。新asset snapshot8追加、今回base不在の未参照8だけ再保全後正式dirから整理。base192全bytes保全＋新規参照10=202、v2参照169以外の33もbase旧保全資産として維持。適用補助が過剰なv2参照=全archive assertで一度停止した経緯と、基線保全/欠落0/新規未参照0の復帰検証はworklogに保持。本人署名/山田正輝個別実値確認は代記していない。
 - #173受理後archive36成功/22.37秒、backend初期付与/生成/tenant/runtime104成功/13.70秒、root/backend Ruff/ty・backend format379・docs21/0・計画同期/実base checker0。提出HEAD **0aaa22e09d7e1a0301d03f7c63d188d9bba76844**、base31194a39、binary diff6de00b29d4c9ca429f4a7fa6971763227144e5edad20f9c2490fe6984deb138b（63paths）。現在地proxyはin-review・承認済み親9表byte同一/レビュー7回維持、親全体はactive。最終メタデータ独立追加3回目確認中、source製品差分の公開/最終CIはまだ。backend/root全件はこの最終HEADの必須CIで回し、local全件driverは故障再現用に準備済み未実行。
 - #175次候補は別wt feature-mvp-preparing-read-registration、実develop31194起点にAPI270347f0/UI9e5c59c3/browser4977c1b6だけを通常merge、手動競合0・正式assets/正本差分0、組立f5bda183。plan/research起案中。固定173候補で隔離準備を継続できるが、正式新値/履歴/seal確定は173実統合後の実baseでrootが直列受理する。未統合173成果を無断移植しない。
+
+### 2026-10-24 JST: 実PR履歴ゲート拒否と限定置換
+
+#173の製品差分0aaa22e0を通常pushし、実GitHub生成merge1d709e8b（親31194/0aaa）を隔離取得した。core_guardは旧f48b5944fd94777bd132cd12a2da8e4727cfee8dのcore JSON+tests/test_core_guard.py同commit変更を拒否。単体357成功・最終メタデータ0と別の履歴条件で、受理済みという文字列やMERGEABLEで成立扱いしない。独立監査cache/pr173-core-history-audit.jsonでも173の10commit中この1件だけを確認。旧175/API/UI/browser/組立f5は同predicate違反0（各15〜35commitを完全SHAで走査）。
+
+rootは旧173の委任確認comment6370013795を後発P1未解消/rejectedへ更新し、旧実値受理・限定review結果はその対象版の履歴として保全。CI39989787712は実core-guard失敗を確認後に中止、全件成功へ転用しない。新しい説明commentを173へ公開した。現HEADでnormalmerge不可、旧173/156は置換公開までopen/Draft保全。
+
+PO委任4/5/6/8/9/10によるCodex主担当/root判断で、拒否条件/対象pathを弱めず、forcepush/旧history書換も行わず、記録権1単位だけを実develop31194起点のfeature-ur1-initial-rights-history-repairへ正常な宣言→別JSON→製品→新実PR受理の4stepで再構成する計画を起案中。旧63paths全部の重複docsを再掲せず、必要source/test/候補値と旧公開HEAD/blob/SHA参照を使う。旧173rowを新PRへ移さず、実base26prefixから新PRの1行だけを別受理する。新PR/branch1件だけのpolicy targets追加は既存head-policy機構内で独立レビューし、検査ロジックや人間欄を変更しない。
+
+追加観測としてinitial_grantの既存テストファイルも実baseではcore未捕捉。新計画ではsource/test exact2pathsをsync/recording-rights/tenantへ追加し、既存対象を保持して捕捉を強化する。新policy/登録を含む実候補で値の変化を照合し、同値を仮定しない。175準備はこの履歴不整合の影響を受けず継続する。
