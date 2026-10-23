@@ -6510,12 +6510,13 @@ def test_p7_context_candidate_readonly_declaration_drift_is_rejected(change: str
 
 
 def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> None:
-    """先行登録globが実在した候補5ファイルを双方の領域で覆うことを確認する。"""
+    """先行登録globが旧5・新2候補ファイルを双方の領域で覆うことを確認する。"""
     import fnmatch
 
     names = {
         'context-refs.schema.json', 'context-refs.d.ts', 'constructor-contract.md',
         'structure-cases.json', 'source-ownership.md',
+        't1-pure-inputs-v1.json', 't1-author-derived-v1.json',
     }
     assert {path.name for path in _P7_CONTEXT_CANDIDATE_PATH.iterdir()} == names
     configuration = _load_object(REPOSITORY_ROOT / '.claude/core-areas.json')
@@ -7161,3 +7162,202 @@ def test_p7_context_candidate_v10_readonly_and_projection_drift_is_rejected(
     changed = text.replace(before, after, 1)
     with pytest.raises(ValueError):
         _p7_context_candidate_check_declarations(_p7_context_candidate_schema(), changed)
+
+
+def _p7_context_candidate_pure_state_validate(value: object) -> None:
+    """既存状態型の意味値10fieldだけを構造検査し、出所証明とはしない。"""
+    schema = _p7_context_candidate_schema()
+    properties = schema['$defs']['T1PreStateV1']['properties']
+    names = ('inning', 'half', 'outs', 'count', 'runners', 'score', 'batting_order',
+             'batter', 'tiebreak_active', 'game_ended')
+    # 新しい保存型は作らず、候補の同じfield定義を試験内で参照する。
+    projection = 'T1PureStateProjectionForTest'
+    schema['$defs'][projection] = {
+        'type': 'object', 'properties': {name: properties[name] for name in names},
+        'required': list(names), 'additionalProperties': False,
+    }
+    _p7_context_candidate_validate(value, projection, schema=schema)
+
+
+def _p7_context_candidate_check_pure_packet(packet: dict[str, Any]) -> None:
+    """限定2入力の閉構造・中立メタデータ・必要観測を点検する。"""
+    assert set(packet) == {'format_version', 'inputs'}
+    assert packet['format_version'] == 'pitchlog.t1-pure-input-candidate.v1'
+    assert [entry['input_id'] for entry in packet['inputs']] == ['p0001', 'p0002']
+    rules_schema = _load_object(
+        REPOSITORY_ROOT / 'contracts/state-transition/game_end_contract_schema_v1.json',
+    )
+    for entry in packet['inputs']:
+        assert set(entry) == {'input_id', 'input'}
+        value = entry['input']
+        assert set(value) == {'rules', 'roster', 'pre_state', 'per_pitch'}
+        schema_checker._validate_instance(
+            value['rules'], rules_schema['$defs']['ruleSnapshot'], rules_schema, '$',
+        )
+        _p7_context_candidate_validate(value['roster'], 'T1RosterAtEventV1')
+        _p7_context_candidate_pure_state_validate(value['pre_state'])
+        _p7_context_candidate_validate(value['per_pitch'], 'T1PerPitchPayloadV1')
+        # この限定fixtureのgivenに必要な観測だけを要求する。製品validatorではない。
+        timing = value['per_pitch']['thirdOutTimingByRunner']
+        assert set(timing) == {'third'}
+        state = value['pre_state']
+        assert (state['inning'], state['half'], state['outs']) == (1, 'top', 2)
+        assert state['runners']['first'] == {'kind': 'empty'}
+        runners = state['runners']
+        outcomes = value['per_pitch']['runnerAdvanceOverridesByRunner']['by_runner']
+        assert set(outcomes) == {'second', 'third'}
+        for base in ('second', 'third'):
+            assert outcomes[base]['runner'] == runners[base]['player']
+        assert value['per_pitch']['thirdOutObservation']['out_person'] == (
+            runners['second']['player']
+        )
+        team = next(team for team in value['roster']['teams'] if team['side'] == 'away')
+        active = [participant['player'] for participant in team['participants']]
+        assert state['batter'] in active
+        assert all(runners[base]['player'] in active for base in ('second', 'third'))
+    first, second = (copy.deepcopy(entry['input']) for entry in packet['inputs'])
+    first['per_pitch']['thirdOutTimingByRunner'].pop('third')
+    second['per_pitch']['thirdOutTimingByRunner'].pop('third')
+    assert first == second
+    raw = json.dumps(packet, ensure_ascii=False)
+    for forbidden in ('branch_id', 'branchId', 'expected', 'derivation', 'OUT3-',
+                      't1-author-derived', 'counterexample', 'formal_closure'):
+        assert forbidden not in raw
+
+
+def test_p7_context_candidate_pure_packet_is_two_observation_inputs_only() -> None:
+    """純入力に期待値/作者分類を入れず、実観測の差1箇所だけを固定する。"""
+    packet = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-pure-inputs-v1.json')
+    before = copy.deepcopy(packet)
+    _p7_context_candidate_check_pure_packet(packet)
+    assert packet == before
+    timings = [item['input']['per_pitch']['thirdOutTimingByRunner']['third']
+               for item in packet['inputs']]
+    assert timings == ['home-before-third-out', 'not-before-third-out']
+    author = (_P7_CONTEXT_CANDIDATE_PATH / 't1-author-derived-v1.json').read_bytes()
+    assert hashlib.sha256(author).hexdigest() not in json.dumps(packet)
+
+
+@pytest.mark.parametrize('change', (
+    'root-expected', 'entry-branch', 'input-reason', 'state-extra', 'rules-extra',
+    'per-pitch-extra', 'missing-timing', 'other-runner-timing', 'null-timing',
+    'third-runner-mismatch', 'out-person-mismatch', 'other-team-batter', 'extra-input',
+    'one-more-input-difference',
+))
+def test_p7_context_candidate_pure_packet_rejects_contamination_and_missing_observation(
+    change: str,
+) -> None:
+    """作者情報・必要観測欠落・今回givenの不一致をfixtureの検査で見逃さない。"""
+    packet = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-pure-inputs-v1.json')
+    value = packet['inputs'][0]['input']
+    if change == 'root-expected':
+        packet['expected'] = {}
+    elif change == 'entry-branch':
+        packet['inputs'][0]['branch_id'] = 'OUT3-04'
+    elif change == 'input-reason':
+        value['reason'] = 'author rationale'
+    elif change == 'state-extra':
+        value['pre_state']['expected_score'] = 1
+    elif change == 'rules-extra':
+        value['rules']['author_reason'] = 'rationale'
+    elif change == 'per-pitch-extra':
+        value['per_pitch']['expected'] = {}
+    elif change == 'missing-timing':
+        value['per_pitch']['thirdOutTimingByRunner'] = {}
+    elif change == 'other-runner-timing':
+        value['per_pitch']['thirdOutTimingByRunner'] = {'second': 'home-before-third-out'}
+    elif change == 'null-timing':
+        value['per_pitch']['thirdOutTimingByRunner']['third'] = None
+    elif change == 'third-runner-mismatch':
+        value['per_pitch']['runnerAdvanceOverridesByRunner']['by_runner']['third']['runner'] = (
+            value['pre_state']['batter']
+        )
+    elif change == 'out-person-mismatch':
+        value['per_pitch']['thirdOutObservation']['out_person'] = value['pre_state']['batter']
+    elif change == 'other-team-batter':
+        home = next(team for team in value['roster']['teams'] if team['side'] == 'home')
+        value['pre_state']['batter'] = home['participants'][0]['player']
+    elif change == 'extra-input':
+        packet['inputs'].append(copy.deepcopy(packet['inputs'][0]))
+    else:
+        value['pre_state']['count']['balls'] = 3
+    with pytest.raises((AssertionError, ValueError, schema_checker.DescriptorCheckError)):
+        _p7_context_candidate_check_pure_packet(packet)
+
+
+def test_p7_context_candidate_pure_unit_preserves_all_old_artifacts() -> None:
+    """case供給単位で既存50定義・292入力・11条件・宣言を変更しない。"""
+    fixture = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 'structure-cases.json')
+    for value, expected in (
+        (_p7_context_candidate_schema()['$defs'],
+         'f4173a64ed138937b78b47d12a5e28823632c6c6c249ab588b9541585ee6a491'),
+        (fixture['cases'],
+         'b4d20def86caa4b7a24e87442fd42d1a836d05868ec00810c7d94757d7f7bcd7'),
+        (fixture['constructor_cases'],
+         '8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2'),
+    ):
+        assert hashlib.sha256(json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+        ).encode()).hexdigest() == expected
+    for name, expected in (
+        ('context-refs.schema.json',
+         'f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7'),
+        ('context-refs.d.ts',
+         'e42ecb70888d4df36df1a629bc8e4b8a00f75d175fec6b630f205190f0bc5996'),
+    ):
+        digest = hashlib.sha256((_P7_CONTEXT_CANDIDATE_PATH / name).read_bytes()).hexdigest()
+        assert digest == expected
+
+
+def test_p7_context_candidate_author_derivation_is_separate_and_incomplete() -> None:
+    """作者導出の全比較keyを構造点検し、欠けた正式row/defaultを埋めない。"""
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-author-derived-v1.json')
+    assert set(author) == {'format_version', 'status', 'pure_input_path', 'pure_input_sha256',
+                           'sources', 'derivations', 'formal_closure'}
+    assert author['format_version'] == 'pitchlog.t1-author-derived-candidate.v1'
+    assert author['status'] == 'author-derived-not-independent-not-formally-complete'
+    assert author['pure_input_path'] == 't1-pure-inputs-v1.json'
+    pure_path = _P7_CONTEXT_CANDIDATE_PATH / author['pure_input_path']
+    assert author['pure_input_sha256'] == hashlib.sha256(pure_path.read_bytes()).hexdigest()
+    for source in author['sources'].values():
+        assert set(source) == {'path', 'sha256'}
+        assert hashlib.sha256((REPOSITORY_ROOT / source['path']).read_bytes()).hexdigest() == (
+            source['sha256']
+        )
+    assert [entry['input_id'] for entry in author['derivations']] == ['p0001', 'p0002']
+    assert [entry['branch_id'] for entry in author['derivations']] == ['OUT3-04', 'OUT3-05']
+    formal = _load_object(SCHEMA_PATH)
+    comparison = {'countEffect', 'plateAppearanceEnded', 'batterDestination',
+                  'runnerDefaultAdvance', 'outEffect', 'statFlags'}
+    for entry in author['derivations']:
+        assert set(entry) == {'input_id', 'branch_id', 'counterexample_to',
+                              'normative_row_binding', 'matrix_comparison_candidate',
+                              'applied_result', 'derivation', 'unresolved_fields'}
+        assert entry['normative_row_binding']['status'] == 'unavailable'
+        assert entry['unresolved_fields'] == [
+            'runnerDefaultAdvance.second', 'runnerDefaultAdvance.third',
+        ]
+        effects = entry['matrix_comparison_candidate']
+        assert set(effects) == comparison
+        for name in comparison - {'runnerDefaultAdvance'}:
+            node = formal['$defs'][name]
+            schema_checker._validate_instance(effects[name], node, formal, '$')
+        # 未解決markerは正式6fieldのadvance型には入らない。通過済みとしない。
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                effects['runnerDefaultAdvance'], formal['$defs']['runnerDefaultAdvance'],
+                formal, '$',
+            )
+        for base in ('second', 'third'):
+            unresolved = effects['runnerDefaultAdvance'][base]
+            assert set(unresolved) == {'kind', 'field', 'reason'}
+            assert unresolved['kind'] == 'unresolved'
+            assert unresolved['field'] == 'runnerDefaultAdvance.' + base
+        applied = entry['applied_result']
+        assert set(applied) == {'valid_scorers', 'credited_scorers', 'runs', 'rbi_input_scorers',
+                               'rbi_scorers', 'rbi', 'added_outs', 'out_targets',
+                               'batter_reached', 'post_state'}
+        _p7_context_candidate_pure_state_validate(applied['post_state'])
+        assert all(set(reason) == {'source', 'reason'} for reason in entry['derivation'])
+    assert author['formal_closure']['current_missing_branches'] == 15
+    assert author['formal_closure']['new_formally_closed_branches'] == 0

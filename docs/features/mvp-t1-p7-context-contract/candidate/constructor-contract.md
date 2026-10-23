@@ -110,3 +110,11 @@ plan第9節の承認b112a102に基づき、`T1WireTargetReferenceV1`・`T1Resolv
 種別2/10/11/12の文字列tagとtarget_referenceを持つ`T1DependentAddressProjectionV1`はV5/V10だけの射影である。D5/V7/P3のV11等が不要になった全イベント型ではなく、同型へpayload等を追加すると構造rejectになることも、実wireがそれらを拒否する証拠ではない。V10は既存S-2段階の値であり、本試験からHTTP入口のS-1拒否・公開B14・D5消費・新undo失敗分類を作らない。
 
 今回追加54caseは構造正負だけで、4操作のV7/P3 V11/undo差分・全依存集合やmembership/元半回/有限prefix・P7D06等の新結果/優先順を供給しない。operation-contentは5/9、残4kindの完全閉包追加0、7marker消去0。正式21分岐の既存6mapping/未供給15・全23flags/G6/P6/P7/7.7・Ready/T1製品計算の未達を保持する。実Port/HTTP/DB完成をこの型準備の前条件に追加しない。
+
+## 7. 純入力packetと作者資料を分離する（第10節後続、未正式受理）
+
+`candidate/t1-pure-inputs-v1.json`は中立format版と中立input IDの2件に、規則保存値5field/両側時点名簿/投影前状態10field/毎球の実観測だけを持つ。入力差はthirdOutTimingByRunner.thirdの2値だけ。期待値・branch・採否・作者case名/説明・作者資料への参照/hashを入れない。型/原値/同じGivenの相関を局所検査するが、真正出所/有限prefix/Readyや製品Portの成功とはしない。必要時機を外すローカル変異は、この固定Givenへの観測不足として検出するもので、新しい製品エラー型/公開拒否ではない。
+
+`candidate/t1-author-derived-v1.json`は同IDの作者側期待値・branch対応/対向例・原典/source hash・理由・未解決fieldを別に固定する。全6比較key/23flagを列挙しても、既定進塁2fieldと正式row bindingが未提供のためformal completeではない。単打の現正式代表行から与えられていない走者配置を補完したり、実overrideを既定値の根拠にしない。実適用結果とmatrixの既定効果も同じ値としてまとめない。作者が導出した結果を独立比較/P6blindと称さない。
+
+将来の新blindへは、rootが純入力fileの内容だけを独立した場所の中立名`inputs.json`へbyte同一でコピーし、その内容hash、採用済み規範原典、対象版・範囲だけを渡す。本ディレクトリの参照権/全体bundle/作者JSON/plan/research/本会話/branch mapping/比較資料は渡さない。候補作者と本会話を継承しない未曝露検証者が結果を封印してhashを固定した後に、rootが作者資料との比較を行う。新しいエージェントであることや期待値fileを削除することだけでは未曝露を証明しない。本単位は入力を準備しただけで、その検証者起動/封印/資格確認/正式受理を実施していない。

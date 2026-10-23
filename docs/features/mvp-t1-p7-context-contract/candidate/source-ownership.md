@@ -146,3 +146,13 @@ plan第9節の承認b112a102に基づく追加3定義であり、既存47定義�
 | `T1DependentAddressProjectionV1`の`event_kind/target_reference` | 同sync-protocolの種別2=undo、10=プレイ修正、11=プレイ論理削除、12=交代修正のV5/V10射影。tagは数値でなく文字列、各variantはV10だけを参照する。全raw wire/envelope・操作内容ではなく、D5/V7/V11不要や新拒否分類を意味しない。旧entry/contentには未接続で、残4kind閉包0/7marker消去0 |
 
 固定source完全SHA256: sync-protocol `46b61a9a1a6f0ef595631002ca217e353a6ae04df642aee849a6507cca783994`、wire設計 `c2e2ad6f9956277ea98a5a70a02d0d4b7c59f32d429f36aa731087425acd1381`。内部change_pathの`game/d4/d1`は別面で、`game_id/d4/d1`のwire値から既存parserへの実変換やV11物理型を本候補で採用しない。正式型/7.7/規範case/P6/P7・T1製品計算は提供済みにならない。
+
+## 8. 純入力2件と作者導出の分離候補（正式比較面は未完）
+
+plan第10節の承認71b78742に基づき、`t1-pure-inputs-v1.json`は中立format版/input IDと実入力だけ、`t1-author-derived-v1.json`は対応ID・branch・原典/source hash・期待値・理由・正式化残件だけを持つ。旧50定義/292構造入力/11constructor/schema/d.tsは不変。新2fileも既登録candidate/*の両core領域に含まれ、正式資産ではない。
+
+純入力の`rules`は正式game_end_contract_schema_v1.jsonの単一ruleSnapshot定義に従う5値だけ。保存済み値を与えるpure calculationのGivenであり、ruleSetId/DB保存/既存codec/真正出所を新実装した型ではない。`roster`は既存T1RosterAtEventV1、`pre_state`はT1PreStateV1の意味値10fieldだけ、`per_pitch`はT1PerPitchPayloadV1を再利用する。point/source/digestの合成値は発行能力や実prefix完全性を証明せず、Readyとして渡すものではない。名簿は同一試合の両側9人を固定し、PlayerRefは全て正式IDとする。半回印/membership等の7markerを省略により解消したとはしない。
+
+作者資料のmatrix_comparison_candidateはE-1の6field/23flagを列挙するが、runnerDefaultAdvance.second/thirdと一致する正式row bindingは未解決である。無死走者なしの現正式単打rowを二死二三塁へ適合偽装しない。実手動結果・OUT3後の得点者/得点/RBIと攻守交代後状態は別のapplied_resultへ分離する。既定進塁の値域だけから採用値を選ばず、完全な正式caseではない状態を明示する。
+
+この供給は純入力2件であり、正式missing15→13/6mapping更新や独立P6/7.7成立ではない。純入力の安全な将来packetはconstructor第7節の分離手順を使い、作者資料・本文・会話・branch対応を検証者へ混ぜない。

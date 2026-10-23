@@ -1,0 +1,468 @@
+{
+  "format_version": "pitchlog.t1-author-derived-candidate.v1",
+  "status": "author-derived-not-independent-not-formally-complete",
+  "pure_input_path": "t1-pure-inputs-v1.json",
+  "pure_input_sha256": "3ba80694316e6eb1db940fd8e6cce200313ef1291f2e193b6f375c62d7af4664",
+  "sources": {
+    "requirements": {
+      "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+      "sha256": "569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a"
+    },
+    "adr": {
+      "path": "docs/adr/ADR-003-domain-calc-method.md",
+      "sha256": "375900aa9acc7e728cc3e28640418a37c4cd97a5f0de81cad130b74c5599684c"
+    },
+    "descriptor": {
+      "path": "contracts/state-transition/input_axes_descriptor_v1.json",
+      "sha256": "fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56"
+    },
+    "manual_fixture_schema": {
+      "path": "contracts/state-transition/state_transition_manual_fixture_schema_v1.json",
+      "sha256": "7ab76688abe5d5987c2dff611f7a9ed3c9349babd0be27b4e88bbef1d5ddedd3"
+    },
+    "contract_schema": {
+      "path": "contracts/state-transition/state_transition_contract_schema_v1.json",
+      "sha256": "9170b82ee91f521f15770e8704f629984519c15052034923072c05a226fd3a0c"
+    },
+    "rule_schema": {
+      "path": "contracts/state-transition/game_end_contract_schema_v1.json",
+      "sha256": "2fa7fb0dc0e0f9f389054ec4825fcb3f341e64aa7a36d932bf31a0ff53813c26"
+    },
+    "normative_contract": {
+      "path": "contracts/state-transition/state_transition_contract_v1.json",
+      "sha256": "54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb"
+    }
+  },
+  "derivations": [
+    {
+      "input_id": "p0001",
+      "branch_id": "OUT3-04",
+      "counterexample_to": "OUT3-05",
+      "normative_row_binding": {
+        "status": "unavailable",
+        "layer": "matrixRows",
+        "eventKind": "batting-result",
+        "resultId": "batting-result.single",
+        "reason": "現正式単打rowの前提はouts0/runners empty/count0-0。二死二三塁の本入力に一致する採用済rowRefはない。",
+        "observed_single_coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.single",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "empty"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "matrix_comparison_candidate": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "second": {
+            "kind": "unresolved",
+            "field": "runnerDefaultAdvance.second",
+            "reason": "既存の単打規範行は無死走者なしだけで、この走者配置の既定停止/進塁・到達塁の採用値を固定していない。実結果は両走者の明示overrideから確定できる。"
+          },
+          "third": {
+            "kind": "unresolved",
+            "field": "runnerDefaultAdvance.third",
+            "reason": "既存の単打規範行は無死走者なしだけで、この走者配置の既定停止/進塁・到達塁の採用値を固定していない。実結果は両走者の明示overrideから確定できる。"
+          }
+        },
+        "outEffect": {
+          "count": 1,
+          "targets": [
+            {
+              "runner": 2
+            }
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": true,
+          "被本塁打": false,
+          "失点": true,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": true,
+          "本塁打": false,
+          "塁打": true,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": true,
+          "打点": true
+        }
+      },
+      "applied_result": {
+        "valid_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "runs": 1,
+        "rbi_input_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "rbi_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "rbi": 1,
+        "added_outs": 1,
+        "out_targets": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000065"
+          }
+        ],
+        "batter_reached": {
+          "base": 1,
+          "player": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000069"
+          }
+        },
+        "post_state": {
+          "inning": 1,
+          "half": "bottom",
+          "outs": 0,
+          "count": {
+            "strikes": 0,
+            "balls": 0
+          },
+          "runners": {
+            "first": {
+              "kind": "empty"
+            },
+            "second": {
+              "kind": "empty"
+            },
+            "third": {
+              "kind": "empty"
+            }
+          },
+          "score": {
+            "away": 1,
+            "home": 0
+          },
+          "batting_order": 1,
+          "batter": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-0000000000c9"
+          },
+          "tiebreak_active": false,
+          "game_ended": false
+        }
+      },
+      "derivation": [
+        {
+          "source": "req:FR-003",
+          "reason": "二塁走者の三塁でのタッグアウト/三塁走者の本塁到達は走者別手動上書きの実観測。単打既定から推測しない。"
+        },
+        {
+          "source": "req:OUT3-01..03",
+          "reason": "打者は一塁到達、事前一塁不在でフォース連鎖なし、踏み忘れアピールでなく非フォースのタッグアウトを明示している。"
+        },
+        {
+          "source": "req:A-1",
+          "reason": "1回表・規定9回で非サヨナラ。coldConditions空/TBなしの保存値を明示し、J6順序を要求する局面ではない。"
+        },
+        {
+          "source": "req:FR-005",
+          "reason": "二死に二塁走者1アウトを加え第3アウト。1回裏・アウト0・カウント0/0・走者なしへ交代し、後攻の初回先頭打者を使う。試合終了ではない。"
+        },
+        {
+          "source": "req:E-1/E-2/A-2/A-3",
+          "reason": "単打・投球あり・打席終了・打数/安打/塁打1・被安打1・実アウト1を計上する。三振/四死球/犠打犠飛/本塁打/妨害/公式失策は該当しない。"
+        },
+        {
+          "source": "req:OUT3-04",
+          "reason": "thirdOutTimingByRunner.thirdの明示観測により三塁走者の得点を認める。"
+        },
+        {
+          "source": "req:RBI-08",
+          "reason": "有効得点者は単打による得点。先行RBI-01..07に該当しないので打点1。"
+        }
+      ],
+      "unresolved_fields": [
+        "runnerDefaultAdvance.second",
+        "runnerDefaultAdvance.third"
+      ]
+    },
+    {
+      "input_id": "p0002",
+      "branch_id": "OUT3-05",
+      "counterexample_to": "OUT3-04",
+      "normative_row_binding": {
+        "status": "unavailable",
+        "layer": "matrixRows",
+        "eventKind": "batting-result",
+        "resultId": "batting-result.single",
+        "reason": "現正式単打rowの前提はouts0/runners empty/count0-0。二死二三塁の本入力に一致する採用済rowRefはない。",
+        "observed_single_coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.single",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "empty"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "matrix_comparison_candidate": {
+        "countEffect": {
+          "strikes": {
+            "kind": "reset"
+          },
+          "balls": {
+            "kind": "reset"
+          }
+        },
+        "plateAppearanceEnded": true,
+        "batterDestination": {
+          "kind": "reach",
+          "base": 1
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "second": {
+            "kind": "unresolved",
+            "field": "runnerDefaultAdvance.second",
+            "reason": "既存の単打規範行は無死走者なしだけで、この走者配置の既定停止/進塁・到達塁の採用値を固定していない。実結果は両走者の明示overrideから確定できる。"
+          },
+          "third": {
+            "kind": "unresolved",
+            "field": "runnerDefaultAdvance.third",
+            "reason": "既存の単打規範行は無死走者なしだけで、この走者配置の既定停止/進塁・到達塁の採用値を固定していない。実結果は両走者の明示overrideから確定できる。"
+          }
+        },
+        "outEffect": {
+          "count": 1,
+          "targets": [
+            {
+              "runner": 2
+            }
+          ]
+        },
+        "statFlags": {
+          "投球回算入アウト": true,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": true,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": true,
+          "打数": true,
+          "安打": true,
+          "本塁打": false,
+          "塁打": true,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        }
+      },
+      "applied_result": {
+        "valid_scorers": [],
+        "credited_scorers": [],
+        "runs": 0,
+        "rbi_input_scorers": [],
+        "rbi_scorers": [],
+        "rbi": 0,
+        "added_outs": 1,
+        "out_targets": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000065"
+          }
+        ],
+        "batter_reached": {
+          "base": 1,
+          "player": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000069"
+          }
+        },
+        "post_state": {
+          "inning": 1,
+          "half": "bottom",
+          "outs": 0,
+          "count": {
+            "strikes": 0,
+            "balls": 0
+          },
+          "runners": {
+            "first": {
+              "kind": "empty"
+            },
+            "second": {
+              "kind": "empty"
+            },
+            "third": {
+              "kind": "empty"
+            }
+          },
+          "score": {
+            "away": 0,
+            "home": 0
+          },
+          "batting_order": 1,
+          "batter": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-0000000000c9"
+          },
+          "tiebreak_active": false,
+          "game_ended": false
+        }
+      },
+      "derivation": [
+        {
+          "source": "req:FR-003",
+          "reason": "二塁走者の三塁でのタッグアウト/三塁走者の本塁到達は走者別手動上書きの実観測。単打既定から推測しない。"
+        },
+        {
+          "source": "req:OUT3-01..03",
+          "reason": "打者は一塁到達、事前一塁不在でフォース連鎖なし、踏み忘れアピールでなく非フォースのタッグアウトを明示している。"
+        },
+        {
+          "source": "req:A-1",
+          "reason": "1回表・規定9回で非サヨナラ。coldConditions空/TBなしの保存値を明示し、J6順序を要求する局面ではない。"
+        },
+        {
+          "source": "req:FR-005",
+          "reason": "二死に二塁走者1アウトを加え第3アウト。1回裏・アウト0・カウント0/0・走者なしへ交代し、後攻の初回先頭打者を使う。試合終了ではない。"
+        },
+        {
+          "source": "req:E-1/E-2/A-2/A-3",
+          "reason": "単打・投球あり・打席終了・打数/安打/塁打1・被安打1・実アウト1を計上する。三振/四死球/犠打犠飛/本塁打/妨害/公式失策は該当しない。"
+        },
+        {
+          "source": "req:OUT3-05",
+          "reason": "thirdOutTimingByRunner.thirdの明示観測は同時/後を表すため得点を認めずRBI入力域へ渡さない。"
+        },
+        {
+          "source": "req:A-1 OUT3→RBI入力域",
+          "reason": "無効得点者をRBI-09等へ回さずRBI判定前に除外し、打点0。"
+        }
+      ],
+      "unresolved_fields": [
+        "runnerDefaultAdvance.second",
+        "runnerDefaultAdvance.third"
+      ]
+    }
+  ],
+  "formal_closure": {
+    "current_missing_branches": 15,
+    "new_formally_closed_branches": 0,
+    "candidate_target_branches": [
+      "OUT3-04",
+      "OUT3-05"
+    ],
+    "pending": [
+      "closed-observation-input-schema-and-descriptor",
+      "new-normative-single-row-and-binding",
+      "resolved-single-default-advance-fields",
+      "full-comparison-surface-acceptance",
+      "unexposed-independent-derivation-and-seal",
+      "ownership-acceptance-and-7.7"
+    ]
+  }
+}

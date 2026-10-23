@@ -261,3 +261,24 @@ branch_row_mapping SHA256 `ac9541c860820ac8855a6c72c439d03d8d8bd0d5832a810192f66
 保持対象: 全50定義正準SHA256 `f4173a64ed138937b78b47d12a5e28823632c6c6c249ab588b9541585ee6a491`、全292case `b4d20def86caa4b7a24e87442fd42d1a836d05868ec00810c7d94757d7f7bcd7`、11constructor `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`。現schema SHA256 `f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7`/d.ts `e42ecb70888d4df36df1a629bc8e4b8a00f75d175fec6b630f205190f0bc5996`は変更しない。既登録candidate/*の両core被覆を維持し、旧file集合5に新2だけを加える専用試験以外、guard/core3へ触れない。正式closure前、全7markerと全T1着手条件を保持する。
 
 起案検証はdocs-status20文書/違反0・差分空白検査成功。今回変更はplan/researchだけで、pytest/重いcore・候補実装は実施しない。対象版をコミット固定して限定計画レビュー/root委任判断へ返す。
+
+### 第10節の純入力2件を実装（正式比較面/closureは未完）
+
+承認71b78742、表示整合`982a24005111172a13138de20bc44572eabdd076`を基線に指定単位を実装した。新規2fileは中立入力`t1-pure-inputs-v1.json`と作者資料`t1-author-derived-v1.json`。入力は中立ID2件の規則保存値5field・両側9人名簿・投影前状態10field・毎球の実観測だけで、差はthirdOutTimingByRunner.thirdの2値1箇所だけ。branch・期待/理由・作者資料へのリンク/hashは純入力へ含めない。規則は既存game-end契約のruleSnapshotを参照検証し、source保存codecや計算器をコピーしない。名簿/状態/毎球も既存閉型のfieldを試験内で参照し、新しい50+外殻定義/rendererを追加していない。
+
+作者資料に原典からの得点者/得点/RBI入力域/打点・実アウトと攻守交代後状態、6比較key/23flagを分離した。これは新しい盲検結果ではなく作者側の導出で、完全な正式caseではない。候補作者の検査では入力/型/相関/資料の形と保持だけを点検し、入力から得点を計算する別実行体は作っていない。新純入力を旧structure-casesへ混ぜず、50定義/292case/11constructor/schema/d.tsの全hashを保持する。
+
+**実装中に特定した正式case不足。** 正式matrixRowsの単打は1行だけで、前提は無死・走者なし・count0-0・pitch-event。本入力に一致する二死二三塁のsingle rowRefは存在しない。作者資料はrow bindingをunavailableとし、現代表行の観測coordinateを比較資料にだけ記録する。代表行を暗黙に広げたり、caseの自由JSONを通しただけで正式binding済みにしない。runnerDefaultAdvanceのsecond/thirdは2つの異なるfieldとして未解決（2caseで4cell）を明記する。firstの不在値と他5比較fieldの構造は確定できても、全6比較面が正式schemaを通過したとは記録しない。未解決advanceが正式schemaから拒否されることも局所試験で保持する。
+
+rootからこの不足を受領し、純入力を固定・missing15/比較未完を維持して先行すると指示された。追照合ではTSK-237の現worktreeが固定`0c15dac7b9d7d87ac9eec1d85901d6b120811583`、plan承認未・固定ベクタ実装未成立のままと確認した（plan SHA256 `e15d5fd5dfecce5da89f8c8f80b4cf55cda7279d7c9166c8b7f3c53a0c69566d`）。同計画と544引継ぎだけを読み、237の期待値資料は読んでいない。要件E-1 ADV-03は、既定として移動するならsecond→{3,4}/third→{4}を許し、ADV-04は既定停止ならhold/nullとするが、単打時の配置別既定選択を一意に固定していない。既存expander（SHA256 `55874d7e5662f53586c9f1f1e98a0488bb5cbdbae9049452f521936c81e90cfa`）は既存matrixRows/rowRefを消費し、新single row/defaultを生む規範ではない。旧設計のフォース連鎖の節（design SHA256 `38088319f372c594efd35bb00643920a0542c12174063ebce0eef39ee40d6d27`）も単打の非force到達塁を追加確定していない。全旧会話/キャッシュ/P6封印/未知JSONは監査していない。
+
+| 未採用の選択例（採用判断ではない） | 本入力と実装への影響・必要な時点 |
+| --- | --- |
+| A: 単打は各1塁進める（second optional/3、third optional/4） | 今回は両走者の実overrideがあるため得点/実状態の導出は変わらない。overrideがないsingleの既定表示/保存・派生caseはこの進塁になる。既採用原典の追加提示か、新single rowの正式受理前の意味判断が必要 |
+| B: 非force走者は既定停止（second/third hold/null） | 今回の実結果は同じだが、overrideのないsingleは停止となり、進塁入力の必要箇所と既定表示がAと異なる。一般規則の値域に収まるという理由だけで採用しない |
+
+rootへ2field・具体例/選択肢/影響/必要時点を報告した。これは採用済みOUT3-04/05の再裁定ではなく、既定進塁原典の不足である。実overrideを既定値の証拠にしない。最小候補を完全formalへ押し上げるためにP7D06/新公開結果/新拒否/D5消費を仮採用しない。現正式6mapping/各2case・missing15は不変で、該当2分岐の正式closureも0。正式観測schema/唯一descriptor/新規範row/binding/全比較面・独立未曝露導出/封印/所有受理/7.7が未達である。
+
+局所先行は新packet/作者資料・旧core被覆・保持の18件が1.96sで成功。Ruff初回は追加試験の1行が103桁で失敗し、改行だけで是正した。Ruff/tyは是正後成功。旧重いcore全件・DB・T1製品コード/正式shared資産/P6旧期待値には触れていない。
+
+最終候補全局所は`-k p7_context_candidate -n 0`で**432 passed/282 deselected/49.05s**。この起動後に加えた「未解決advanceは正式schemaが拒否する」断言の対象1件も別に1 passed/0.87sで確認した。旧formal case expectedは導出に使わず、正式matrixRowsの単打1行は規範行の前提/比較面だけを一次照合した。純入力だけを将来packet用の中立名inputs.jsonへbyte同一で保全し、作者資料は同梱しない。これは新blindの実施証拠ではない。
