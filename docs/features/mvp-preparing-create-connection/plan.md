@@ -133,7 +133,7 @@ oracleはroute/matrix等更新済み8入力を確定するcommit Cを先に固�
 | 実HTTP/DB | 新db試験は既存migration/製品認可DDL/実アプリ接続fixtureを再利用し共有DB禁止。server側のみをseedして保存成功と称さず、実Cookie/C2/登録scope/正規resolver/RG1を通す。正常201全値、別tenant/無効親/割当あり/上書き拒否/unknown拒否、新名を含む故障別の新語彙0・新game0、既存語彙不変、二接続の復元先行/作成先行を実測。RG1未供給時は未実行として残す |
 | metadata/root | 既存test_check_tenant_boundary_bypass/test_authz_repository_contractの全fieldと上記新6factory/7token/一意6fixture、旧read2件を含む全許可保持、各新正例の全拒否TB900、誤module/関数/署名・fixture重複・SELECT/INSERT種別混入・text/update・欠落/余剰拒否。authz checker旧route全保持+新2件、C2 prematch順。root Ruff/ty、対象pytest、docs-status/局所plan-sync/core_guard、正式no-flag checker。既知未受理と実装不備を分け、skip/timeout/中断を成功にしない |
 
-調査の固定根拠・未裁定境界・既存レビュー回数は[research.md](research.md)。本計画はレビュー第1回P0=0/P1=1/P2=0を採用し反映済み、改訂差分は未再レビュー・承認未。旧#175の基本2回・read追加1回未消費を継承しつつ、本計画の新しい局所レビューをその追加枠へ算入しない。
+調査の固定根拠・未裁定境界・既存レビュー回数は[research.md](research.md)。本計画は第1回P0=0/P1=1/P2=0を全採用して反映し、第2回差分・影響は可決0/0/0。末尾のe7e34ef6承認記録に基づきPO委任承認済み。旧#175の基本2回・read追加1回未消費を継承しつつ、本計画の新しい局所レビューをその追加枠へ算入しない。
 
 ## 限定計画のPO委任承認
 

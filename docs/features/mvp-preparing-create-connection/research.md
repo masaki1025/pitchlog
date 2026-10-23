@@ -89,3 +89,39 @@ coreは固定6f60983cの実JSONで照合する。新sourceは`backend/src/pitchl
 ## 計画承認と第2回受領
 
 2026-10-23T18:35:59.893253+00:00、非作者rights_replacement_reviewの第2回限定反映差分/影響0/0/0を受領。6正例のclass-qualified実行可能性を独立メモリ内確認し、初回P1は解消。rootはplan末尾の固定SHA/PO委任根拠で計画と名称のAPI具体化を承認。source/fixture/JSON/DBはまだ未実装、指定されたステップだけ実施する。親/既存供給の全レビュー系列・未達を保持する。
+
+## 承認後ステップ1/3の実装・検証（2026-10-24）
+
+rootの実装指示と承認commit `e7e34ef6`を確認し、指定ステップ1だけを実施した。第2回非作者差分レビューは0/0/0、rootによる大会名入力の具体化を含む委任承認はplan末尾に保持する。plan末尾の古い「未再レビュー・承認未」1文だけを現況へ機械追随した。初回P1・採否・親基本2回/追加read1回未消費の履歴は消さない。
+
+### 正常供給の通常接合
+
+- read6f60983cを`2ae8d80b8077855c6f0e1a3dde41b2ff1ac74f47`で通常merge。競合0。
+- resolver efe497ecを`073ff31036a8c2468ce0b0db6770e16750127764`で通常merge。競合4パスはallowlist末尾のread2関数とresolver1関数、repository-contractの関数ID/派生digest、生成moduleのdigest、root試験末尾の独立群。read/initial側の旧全field/順序/履歴を保持して追加をunionし、SOURCE_DIGESTは現JSONの正規canonical化から再計算した。新しい受理行/識別値を作らない。全field対応試験成功を別途確認する。
+- initial95d766f5はread祖先のためAlready up to date。実develop `547d199e0c68f3c7d73b6996056cf10ef5fb09fb`を`22327c4dd8a0b6fc3ba152a1ddfae429e16cf73d`で通常merge、競合0。
+- root供給の実547追随read `741bb698ff746a9fde799f2a8ca5653acea7f029`を`6f2d69abe83367ba4cad095d2fdbb65ed133c1c0`で通常merge、競合0。core3は供給bytesのまま、tenant pendingはAPI2だけでactual547全prefix/旧全登録を保持する。新たなcore/拒否ロジック変更は行わない。先の連絡に書いた「9ab...」は未取得の誤記であり、同日直後に実6f2d69abへ訂正連絡済み。
+
+正常mergeに伴う供給JSON/派生値の機械融合と、本単位の新create metadata/正式9/8受理を区別する。新create metadata/fixture/production registry/route/C2追加・正式履歴/snapshot/lock/oracleの独自編集0。現在の候補tokenは通常registry未登録で、POST/optionsはappへ公開していない。
+
+### 実装済みの局所境界
+
+既存schemaへ空白only大会名拒否、無変換保持、options query/cursorと区分・大会Page DTOを追加した。新repositoryに計画どおり6factory/7tokenと候補OperationRegistrationを置く。tenant注入、固定category/status/disabled、ページ上限、UUID/aware日時/余剰入力、強制変更後の単一DTO/codec再検証、teamの固定kindと主キー全束縛を維持する。game INSERTのstarted_at/rule_overrideは利用者入力にせず、既存nullable/no-default列をINSERTから省略してSQL NULLを保存する。
+
+新serviceは実scope exact型だけを受ける。大会名の完全一致既存衝突、既存有効親、self/opponentの既存lookup、UUID順・同ID重複除去の限定team行ロック、正規resolver/単一encode、game INSERT、実RG1前後を同scopeへ接続する。例外をscope内で握り潰さず、戻り値もcommit前候補と明記する。常閉を変えず、現供給で保存成功には到達しない。optionsは正本game-type seedの表示値と、SQLで最大limit+1に制限した大会を返す。codec/計算/auth/実行器コピー・成功stubなし。
+
+### 対象検査と失敗の採否
+
+- 初回backend Ruff format/checkはimports等を是正。初回tyのunion narrowing/行DTO引数、次の試験用type注釈を是正し、最終backend Ruff/tyは成功。
+- 初回新局所pytestは63成功/1失敗（4.40秒）。失敗は独自JSONB(none_as_null=True) bind型が既存exact検査に拒否されたこと。検査緩和を行わず、既存nullable/no-defaultのrule_override/started_atをINSERTから省略する既存SQL NULL表現へ是正した。2件のNULL bind前提を列省略/ORM default不在の確認へ置換し、新局所62成功/1.74秒。これを64成功とは記録しない。
+- 最終局所回帰: `uv run pytest tests/test_game_preparing_create_boundary.py tests/test_game_preparing_components.py tests/test_game_preparing_read_boundary.py tests/test_api_app.py tests/test_authz_repository_contract.py -q --tb=short` は **229成功/1.65秒/exit0**。未登録7token、tenant/型/列/条件/上限/文種別拒否、real scope＋合成Session(false)での実RG1登録拒否/rollback、下位処理の大会名/親/team拒否、options Page/seed/不正行の非成功、旧read/実API構成/生成全fieldを確認した。下位処理・合成Sessionを実HTTP/保存成功へ数えない。
+- root/creation_pathと重いslotを調整し、実DBは新1件だけ実行。commandは `PITCHLOG_PYTEST_TMPDIR=/home/ymdms/.cache/pitchlog/create-step1-pg-6f2d69ab uv run pytest tests/db/test_game_preparing_create_db.py::test_create_service_real_closed_rg1_rolls_back_before_business_sql -q --tb=short`（backend cwd、unified exec session99399）。**1成功/8.26秒/exit0**。既存provisioned_product_catalogを使いmigration0033/製品認可DDL/実appロール/実scope/実RG1常閉を通し、service拒否・DB rollback・業務INSERTなし・当該tenantのgame/語彙0を確認した。HTTP認証/登録/保存成功の実証ではない。共有DB不使用、TLS/署名鍵生成/運用open/成功stubなし。
+- DB完走後はfixture所有pitchlog-authz-*コンテナ0、所有pytest tmp削除済みを確認してroot/creation_pathへ通知。実行前後に既存共有pitchlog-db-1だけが残り、不変更。backend/resourcesを閉じて重いslotを解放済み。
+- 同じ広いDB/core全件は再走しない。coreは供給側382成功の既結果を保持し、こちらでは実547との本物verify_area_path_baseline/通常merge述語だけを固定点で確認する。root Ruff/ty、docs-status/局所plan-sync、正式checker未受理拒否は最終固定点の結果を後続報告に残す。
+
+### 残りと次段の入力
+
+ステップ1はDTO/SQL/token/serviceと拒否境界の候補まで。実RG1成功供給・新7token/6allowlist/6正例登録・POST/options認可/C2・7.7/履歴/snapshot/lock/oracle・実HTTP保存/両INSERT全取消はステップ3/root所有の未達。現常閉による業務INSERT0を新大会語彙+gameを実保存後に取消した証明へ読み替えない。
+
+ステップ2へ渡せるrequestは既存PreparingGameCreateの全field、new/existing排他、名称無変換/空白only拒否、optionsはgame_typesとtournaments(items,next_cursor)のPage構成、既存roster self/opponent選択、送信中POST1回・旧authEpoch拒否・結果不明自動再送0である。フォームsourceはまだ変更していない。backendの実公開待ちを仮保存成功へ置き換えず、正規client/providerと入力/拒否境界を次の個別指示で実装できる。
+
+固定点前pure検査: root Ruff成功（既存docstringのimplicit string concatenation warning1件）、backend Ruff/ty成功、docs-status21件/違反0。root tyは供給741bb698のtests/test_core_guard.py:4571/4591/4609/4615で4診断。INITIAL_RIGHTS_HISTORICAL_ADDITIONSのdict[str,tuple[str,str]]推論とhelper引数dict[str,tuple[str,...]]の不変性によるもので、本単位のbackend変更ではない。core3はroot所有のため無断修正せず通知し、未達を保持する。本物verify_area_path_baseline(actual547,6f2d69ab)は成功、正常merge073ff310/22327c4d/6f2d69abの_changed_paths_in_commitはいずれも空、旧f48b5944/8037e1d9は祖先でない（各exit1）。通常mergeの述語を迂回していない。
