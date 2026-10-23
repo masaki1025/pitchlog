@@ -63,3 +63,8 @@ corpus入力の通常追随は、非作者rightsによるGit blob全入力独立
 
 
 正式反映後の更新flagなしtenant/probe oracle/product/frozen invariantsは全exit0。全archive/runner65成功/70.94秒、旧期待case/pinned集合をそのまま通した。局所planをin-reviewへ戻す。新PRの最終HEAD非作者・実GitHub2親merge証拠検査・最終必須CIは未成立で、旧Draft CIや旧source成功を転用しない。正本反映なし、今回も既存統制/生成の局所運用で恒久ルール新設を行わずハーネス評価台帳の追加は不要と判断し、根拠/失敗を本researchへ保持する。
+
+
+## 最終CI40029804931の是正
+
+11job成功、backendのみ1失敗/3463成功/4skip/1770.57秒。失敗は既存test_rg1_operationsのregistry全体=RG1の2件という旧expectationで、正式追加したStageAResolveRuleToken1件を含めていなかった。対象局所の取り漏れとしてrootが是正し、既存RG1の2関数SQL/tenant bind/戻りbool/偽token拒否は変更しない。新resolver1件だけをexact集合へ追加、製品source/全正式9/8・29history206snapshot/oracle/seal/corpus/policyは変更しない。通常不具合修正として既委任で処理し、同じ受理を再取得しない。新HEADの独立限定確認と必須CIを別に実施し、旧CI失敗/skipを成功へ転写しない。
