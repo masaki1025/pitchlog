@@ -54,3 +54,12 @@ backend公開resolver/登録対象177成功/1.69秒。rootのstage_a/preparing_r
 
 
 追随後のroot局所39成功/6.24秒、backend177成功、Ruff/format/計画同期/実a10→HEAD履歴predicate成功。実branchを50c1fcd9へ通常pushし、製品source/検査を含むDraft PR #181を作成した。新実番号に対応するpolicy target1組だけを候補追記し、次に全9射影/外部8/28prefix/204snapshotを同sourceで導出・非作者照合する。作成時の未受理CIは成功と数えず、最終版のCIを別に必要とする。
+
+
+2026-10-23T21:15:47.683357+00:00、Codex主担当/rootはPO4/5/7/8/10によりfff98dcb/実a10の提案d9b7468bを受理。非作者rightsが全9/8・全前後値・19payload・28prefix/204snapshot/policy181を独立再計算して一致、0/0/0（証拠8ef5b6de）。提案に承認者/日付2fieldだけを加え正式181 row1/snapshot2を反映し29/206とした。変更射影はallowlist36→37/repository25→26だけ、他7/ext8同一。oracle入力8/6context/seal/既存oracle_input14行は変更0で再封印しない。corpus生成値は別の通常追随として独立実計算後に1fieldだけ反映する。本人の署名/個別確認・最終CI/統合は代記しない。
+
+
+corpus入力の通常追随は、非作者rightsによるGit blob全入力独立計算と既存runnerが58fdcaf0aa22676bac02746433a66cdb8914252035be874cb7f16173775d8198で一致（証拠6eb4a6bb）。旧6e362f63から変わる入力は既存3ファイルと正例factory追加1、245→246件。pinned履歴6/旧snapshot名/manifest選択/全case期待/runnerは不変、新29row/2snapshotも対象外。manifest.corpus_inputs.digestの1fieldだけ更新し、同じ7.7受理を繰返さない。
+
+
+正式反映後の更新flagなしtenant/probe oracle/product/frozen invariantsは全exit0。全archive/runner65成功/70.94秒、旧期待case/pinned集合をそのまま通した。局所planをin-reviewへ戻す。新PRの最終HEAD非作者・実GitHub2親merge証拠検査・最終必須CIは未成立で、旧Draft CIや旧source成功を転用しない。正本反映なし、今回も既存統制/生成の局所運用で恒久ルール新設を行わずハーネス評価台帳の追加は不要と判断し、根拠/失敗を本researchへ保持する。
