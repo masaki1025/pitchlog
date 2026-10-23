@@ -51,3 +51,6 @@ metadata/正例/試験6paths（本researchを除く）のfull-index binary差分
 175最終c891のCI40018894038全12job成功・非作者CI是正0/実2親core証拠検査成功後、rootがPO委任で通常mergeし、正式developはa10bcd5e（treeはc891と同一）。この実履歴を本branchへ通常mergeし、競合4fileを主担当が機械整合した。mainの正式28history/204snapshot/9資産全旧fieldを保持し、resolverのSELECT factory1行/function ID1件だけを追加。candidate revisionは実36→37/25→26へ再導出し、repository source_digest/生成module3fieldを全field比較に対応させた。正式新PR値の受理・履歴追記はまだ行っていない。両sourceの正負fixture/試験は全て合流し、旧read2factory/47token/GET2/C2や初期付与を落としていない。
 
 backend公開resolver/登録対象177成功/1.69秒。rootのstage_a/preparing_read/fixed_function/positive_fixtures局所を同じ新候補で実施。旧7.7実値を新基線へ転記せず、実新PR番号と完全before/after、非作者照合・PO委任受理を次段で行う。公開resolver登録だけの単位を保ち、新規作成/実RG1成功/T1/1球への提供済み主張はしない。
+
+
+追随後のroot局所39成功/6.24秒、backend177成功、Ruff/format/計画同期/実a10→HEAD履歴predicate成功。実branchを50c1fcd9へ通常pushし、製品source/検査を含むDraft PR #181を作成した。新実番号に対応するpolicy target1組だけを候補追記し、次に全9射影/外部8/28prefix/204snapshotを同sourceで導出・非作者照合する。作成時の未受理CIは成功と数えず、最終版のCIを別に必要とする。
