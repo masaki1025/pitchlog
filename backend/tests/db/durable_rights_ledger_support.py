@@ -6,7 +6,7 @@ import socket
 import subprocess
 import sys
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic, sleep
@@ -254,6 +254,7 @@ def isolated_ledger_database() -> Iterator[LedgerDatabase]:
             "-X",
             "stream",
             "-w",
+            "--checkpoint=fast",
         )
         standby_admin = start(names[1], volumes[1], standby=True)
         with psycopg.connect(primary_admin, autocommit=True) as connection:
@@ -369,6 +370,42 @@ class AuthorityDatabase:
             "s=DurableLedger(Path('/control/public/endpoint.json'));\n"
         )
         return docker(*self.command(uid=uid), "-c", prefix + code, check=check)
+
+    def client_process(self, code: str) -> subprocess.Popen[str]:
+        """実clientのstdin/stdoutを制御し、lease中の実排他lockを別主体で照合する。"""
+        prefix = (
+            "from pathlib import Path; from uuid import UUID, uuid4; "
+            "from pitchlog.durable_rights_ledger import DurableLedger, "
+            "FreshActivationAttestation,LedgerUnavailable,LedgerOutcomeUnconfirmed; "
+            "s=DurableLedger(Path('/control/public/endpoint.json'));\n"
+        )
+        command = self.command()
+        command.insert(1, "--interactive")
+        return subprocess.Popen(
+            ["docker", *command, "-u", "-c", prefix + code],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+    def event_counts(self) -> dict[str, int]:
+        """所有する実journalのframe数を読取り、期待集合をauthorityへ供給しない。"""
+        import json
+
+        code = """
+import json,os
+from pitchlog.durable_rights_ledger.witness import _frames
+fd=os.open('/w/state/journal',os.O_RDONLY|os.O_NOFOLLOW)
+try:
+    counts={}
+    for frame in _frames(fd,os.fstat(fd).st_size):
+        event=json.loads(frame.payload)['event']
+        counts[event]=counts.get(event,0)+1
+    print(json.dumps(counts))
+finally: os.close(fd)
+"""
+        return json.loads(docker(*self.command(root=True), "-c", code))
 
     def start(self, *, check: bool = True) -> bool:
         """既存の保護journalを照合して起動し、失敗を成功扱いしない。"""
@@ -680,3 +717,29 @@ def isolated_authority_database() -> Iterator[AuthorityDatabase]:
             yield authority
         finally:
             authority.close()
+
+
+class AuthorityResources:
+    """試験シナリオが変わる前に旧所有3PGを片付け、重い起動を直列化する。"""
+
+    def __init__(self) -> None:
+        """同一normal群だけ共有する所有contextを初期化する。"""
+        self._key: str | None = None
+        self._value: AuthorityDatabase | None = None
+        self._stack = ExitStack()
+
+    def get(self, key: str) -> AuthorityDatabase:
+        """新シナリオは別cluster/witnessで開始し、既存pairをfreshへ再初期化しない。"""
+        if key != self._key:
+            self.close()
+            self._stack = ExitStack()
+            self._value = self._stack.enter_context(isolated_authority_database())
+            self._key = key
+        assert self._value is not None
+        return self._value
+
+    def close(self) -> None:
+        """登録済み所有contextだけを閉じる。"""
+        self._stack.close()
+        self._key = None
+        self._value = None

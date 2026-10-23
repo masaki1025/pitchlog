@@ -789,3 +789,69 @@ def test_public_constructor_does_not_accept_uncontrolled_pg_endpoints() -> None:
     endpoints = LedgerEndpoints("primary", "standby", "business", "control")
     with pytest.raises(LedgerUnavailable):
         DurableLedger(cast(Path, endpoints))
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("authority_id", str(UUID(int=1))),
+        ("activation_ordinal", True),
+        ("activation_ordinal", 1.0),
+        ("activation_ordinal", 0),
+        ("activation_ordinal", 2**64),
+        ("business_system_id", ["123"]),
+        ("database", ["ledger_fixture"]),
+        ("postmaster_started_at", None),
+        ("pair_epoch", True),
+        ("pair_epoch", 2),
+        ("highwater", False),
+        ("highwater", 1),
+        ("reservation_count", 0.0),
+    ],
+)
+def test_fresh_attestation_direct_construction_has_exact_types(
+    field: str,
+    value: Any,
+) -> None:
+    """型付きDTOにもbool/float/非fresh状態を通さず、認証証拠とは混同しない。"""
+    from pitchlog.durable_rights_ledger import FreshActivationAttestation
+
+    fields: dict[str, Any] = dict(
+        authority_id=UUID(int=1),
+        activation_ordinal=3,
+        business_system_id="123",
+        database="ledger_fixture",
+        postmaster_started_at="actual-postmaster",
+        pair_epoch=1,
+        highwater=0,
+        reservation_count=0,
+    )
+    fields[field] = value
+    with pytest.raises(LedgerUnavailable):
+        FreshActivationAttestation(**fields)
+
+
+def test_fresh_attestation_codec_is_closed_and_immutable() -> None:
+    """検証済みmetadata以外のfield/型を補完せず、単一Protocolのfenceを使う。"""
+    from dataclasses import FrozenInstanceError
+
+    from pitchlog.durable_rights_ledger import FreshActivationAttestation
+
+    value = FreshActivationAttestation(
+        UUID(int=1), 3, "123", "ledger_fixture", "postmaster", 1, 0, 0
+    )
+    assert adapter._activation_from(adapter._activation_wire(value)) == value
+    with pytest.raises(FrozenInstanceError):
+        setattr(value, "database", "forged")
+    for changed in (
+        {**adapter._activation_wire(value), "extra": True},
+        {**adapter._activation_wire(value), "database": ["ledger_fixture"]},
+        {**adapter._activation_wire(value), "pair_epoch": True},
+        {
+            k: v
+            for k, v in adapter._activation_wire(value).items()
+            if k != "authority_id"
+        },
+    ):
+        with pytest.raises(LedgerUnavailable):
+            adapter._activation_from(changed)

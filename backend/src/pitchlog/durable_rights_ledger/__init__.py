@@ -2,6 +2,7 @@
 
 from .adapter import (
     DurableLedger,
+    FreshActivationAttestation,
     LedgerEndpoints,
     LedgerOutcomeUnconfirmed,
     LedgerUnavailable,
@@ -9,6 +10,7 @@ from .adapter import (
 
 __all__ = (
     "DurableLedger",
+    "FreshActivationAttestation",
     "LedgerEndpoints",
     "LedgerOutcomeUnconfirmed",
     "LedgerUnavailable",

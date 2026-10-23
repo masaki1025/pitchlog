@@ -166,7 +166,7 @@
     "builtin_pg_control_system_explicit_new_grantee": "pitchlog_ledger_identity_owner",
     "startup_barrier": "journal-derived state CAS; no domain change; synchronous no-op WAL before peer row audit; no live leases",
     "source_sha256": "8451e90c828de5b10ca9f866a6153129b0ccd70678f578f0537ac38119121060",
-    "adapter_sha256": "bba427c7cfcc5706a09f8e1a86b2bb98ca183afe0633f061263e2b4b9f9f39f1",
+    "adapter_sha256": "10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2",
     "business_connect_grantee": "pitchlog_ledger_identity_probe; CONNECT only, no TEMP or product-table/authn grant",
     "legacy_genesis_missing_database_admission": false,
     "sql_search_path": [
@@ -178,6 +178,32 @@
       "pitchlog_ledger.state",
       "pitchlog_ledger.highwater",
       "pitchlog_ledger.reservations"
-    ]
+    ],
+    "fresh_activation": {
+      "method": "DurableLedger.fresh_activation()",
+      "rpc": "fresh_activation_open",
+      "attestation_fields": [
+        "authority_id",
+        "activation_ordinal",
+        "business_system_id",
+        "database",
+        "postmaster_started_at",
+        "pair_epoch",
+        "highwater",
+        "reservation_count"
+      ],
+      "identity": [
+        "authority_id",
+        "protected_start_frame_ordinal"
+      ],
+      "begin_event": "activation_open",
+      "same_peer_channel": true,
+      "writer_mutex": "begin_check_fsync_and_lease_registration_only",
+      "ordinary_reserve_claim_while_held": true,
+      "eligibility": "verified genesis/current identity; E1 H0 reservations0; no past INTENT/activation/unterminated lease",
+      "in_doubt": "no automatic fresh retry; real unterminated lease blocks live/startup",
+      "past_activation": "fresh denied even after normal close or restored zero",
+      "opens_business_rg1": false
+    }
   }
 }

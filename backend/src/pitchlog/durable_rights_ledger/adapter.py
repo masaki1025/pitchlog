@@ -58,6 +58,117 @@ class LedgerOutcomeUnconfirmed(LedgerUnavailable):
 
 
 @dataclass(frozen=True, slots=True)
+class FreshActivationAttestation:
+    """実開始frameに束縛された初回時点のmetadata。単体では認可証明ではない。"""
+
+    authority_id: UUID
+    activation_ordinal: int
+    business_system_id: str
+    database: str
+    postmaster_started_at: str
+    pair_epoch: int
+    highwater: int
+    reservation_count: int
+
+    def __post_init__(self) -> None:
+        """JSON風の型や未知のfresh値を実証metadataへ変換しない。"""
+        if (
+            type(self.authority_id) is not UUID
+            or type(self.activation_ordinal) is not int
+            or not 0 < self.activation_ordinal < 2**64
+            or any(
+                type(v) is not str or not v
+                for v in (
+                    self.business_system_id,
+                    self.database,
+                    self.postmaster_started_at,
+                )
+            )
+            or type(self.pair_epoch) is not int
+            or self.pair_epoch != 1
+            or type(self.highwater) is not int
+            or self.highwater != 0
+            or type(self.reservation_count) is not int
+            or self.reservation_count != 0
+        ):
+            raise LedgerUnavailable("ledger unavailable")
+
+
+def _activation_wire(value: FreshActivationAttestation) -> dict[str, Any]:
+    return {
+        "authority_id": str(value.authority_id),
+        "activation_ordinal": value.activation_ordinal,
+        "business_system_id": value.business_system_id,
+        "database": value.database,
+        "postmaster_started_at": value.postmaster_started_at,
+        "pair_epoch": value.pair_epoch,
+        "highwater": value.highwater,
+        "reservation_count": value.reservation_count,
+    }
+
+
+def _activation_from(value: object) -> FreshActivationAttestation:
+    try:
+        if type(value) is not dict:
+            raise ValueError
+        data = cast(dict[str, Any], value)
+        if (
+            set(data)
+            != {
+                "authority_id",
+                "activation_ordinal",
+                "business_system_id",
+                "database",
+                "postmaster_started_at",
+                "pair_epoch",
+                "highwater",
+                "reservation_count",
+            }
+            or type(data["authority_id"]) is not str
+        ):
+            raise ValueError
+        authority_id = UUID(data["authority_id"])
+        if str(authority_id) != data["authority_id"]:
+            raise ValueError
+        return FreshActivationAttestation(
+            authority_id,
+            data["activation_ordinal"],
+            data["business_system_id"],
+            data["database"],
+            data["postmaster_started_at"],
+            data["pair_epoch"],
+            data["highwater"],
+            data["reservation_count"],
+        )
+    except Exception:
+        raise LedgerUnavailable("ledger unavailable") from None
+
+
+def _activation_event(
+    ordinal: int, value: dict[str, Any]
+) -> FreshActivationAttestation:
+    business = value["business"]
+    if type(business) is not dict or set(business) != {
+        "system_id",
+        "database",
+        "started_at",
+    }:
+        raise LedgerUnavailable("ledger unavailable")
+    return _activation_from(
+        {
+            "authority_id": value["authority_id"],
+            "activation_ordinal": ordinal,
+            "business_system_id": business["system_id"],
+            "database": business["database"],
+            "postmaster_started_at": business["started_at"],
+            "pair_epoch": value["epoch"],
+            "highwater": value["highwater"],
+            "reservation_count": value["reservation_count"],
+        }
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class LedgerEndpoints:
     """独立した実接続先。資格はreprへ含めない。"""
 
@@ -574,6 +685,14 @@ def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
                 "confirmed": {"event", "intent"},
                 "quarantined": {"event", "intent", "row"},
                 "lease_open": {"event", "epoch"},
+                "activation_open": {
+                    "event",
+                    "authority_id",
+                    "business",
+                    "epoch",
+                    "highwater",
+                    "reservation_count",
+                },
                 "lease_close": {"event", "lease"},
             }
             if value["event"] not in shapes or set(value) != shapes[value["event"]]:
@@ -601,6 +720,8 @@ def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
                     raise ValueError
             if value["event"] in ("enrolled", "lease_open"):
                 _positive(value["epoch"])
+            if value["event"] == "activation_open":
+                _activation_event(frame.ordinal, value)
             yield frame.ordinal, value
         except Exception:
             raise LedgerUnavailable("ledger unavailable") from None
@@ -669,7 +790,14 @@ class _AuthorityRuntime:
         self._blocked = False
         self._active: set[int] = set()
         self._pair = self._pair_from(value)
-        records = _events(journal)
+        metadata = self._verify_enrollment()
+        self._verify_history(metadata)
+        self._verify_leases()
+        self._recover()
+        journal.append(_encode_event({"event": "attached", **metadata}))
+
+    def _verify_enrollment(self) -> dict[str, Any]:
+        records = _events(self._journal)
         try:
             ordinal, enrollment = next(records)
         except StopIteration:
@@ -678,7 +806,7 @@ class _AuthorityRuntime:
         if (
             ordinal != 1
             or enrollment["event"] != "enrolled"
-            or enrollment["authority_id"] != str(journal.authority_id)
+            or enrollment["authority_id"] != str(self._journal.authority_id)
             or enrollment["epoch"] != 1
         ):
             raise LedgerUnavailable("ledger unavailable")
@@ -690,10 +818,7 @@ class _AuthorityRuntime:
                 or (key == "business" and enrollment[key] != metadata[key])
             ):
                 raise LedgerUnavailable("ledger unavailable")
-        self._verify_history(metadata)
-        self._verify_leases()
-        self._recover()
-        journal.append(_encode_event({"event": "attached", **metadata}))
+        return metadata
 
     @staticmethod
     def _pair_from(value: dict[str, Any]) -> _PgLedgerPair:
@@ -738,12 +863,33 @@ class _AuthorityRuntime:
         """実PGを修復する前にjournalのowner/世代/終端を検査する。"""
         highwater = 0
         unresolved = None
+        activation_seen = False
         for ordinal, event in _events(self._journal):
             kind = event["event"]
             if kind == "enrolled" and ordinal != 1:
                 raise LedgerUnavailable("ledger unavailable")
             if kind == "lease_open" and event["epoch"] != 1:
                 raise LedgerUnavailable("ledger unavailable")
+            if kind == "activation_open":
+                if (
+                    activation_seen
+                    or highwater != 0
+                    or event["authority_id"] != str(self._journal.authority_id)
+                    or event["business"] != metadata["business"]
+                ):
+                    raise LedgerUnavailable("ledger unavailable")
+                # 開始時に他のleaseが生きていた履歴を正常化しない。
+                for start, opened in _events(self._journal):
+                    if start >= ordinal:
+                        break
+                    if opened["event"] == "lease_open" and not any(
+                        end < ordinal
+                        and closed["event"] == "lease_close"
+                        and closed["lease"] == start
+                        for end, closed in _events(self._journal)
+                    ):
+                        raise LedgerUnavailable("ledger unavailable")
+                activation_seen = True
             if kind == "attached":
                 for key in metadata:
                     previous = event[key]
@@ -792,7 +938,7 @@ class _AuthorityRuntime:
 
     def _verify_leases(self) -> None:
         for ordinal, event in _events(self._journal):
-            if event["event"] == "lease_open":
+            if event["event"] in ("lease_open", "activation_open"):
                 ends = sum(
                     1
                     for _, item in _events(self._journal)
@@ -807,8 +953,12 @@ class _AuthorityRuntime:
                     for index, item in _events(self._journal)
                     if index == reference
                 ]
-                expected = "lease_open" if event["event"] == "lease_close" else "intent"
-                if matches != [expected]:
+                expected = (
+                    {"lease_open", "activation_open"}
+                    if event["event"] == "lease_close"
+                    else {"intent"}
+                )
+                if len(matches) != 1 or matches[0] not in expected:
                     raise LedgerUnavailable("ledger unavailable")
 
     def _last_for(self, params: tuple[object, ...]) -> tuple[Any, ...] | None:
@@ -1066,30 +1216,97 @@ class _AuthorityRuntime:
         finally:
             self._mutex.release()
 
+    def _start_lease(
+        self, fence: RecoveryEpochFence, *, fresh: bool
+    ) -> tuple[int, object]:
+        if not self._mutex.acquire(timeout=self._value["timeout"]):
+            raise LedgerUnavailable("ledger unavailable")
+        try:
+            if self._blocked:
+                raise LedgerUnavailable("ledger unavailable")
+            self._live_matches()
+            epoch = fence.generation
+            if fresh:
+                metadata = self._verify_enrollment()
+                self._verify_history(metadata)
+                self._verify_leases()
+                if (
+                    self._active
+                    or self._expected_highwater != 0
+                    or self._expected_count != 0
+                    or any(
+                        event["event"] in ("intent", "activation_open")
+                        for _, event in _events(self._journal)
+                    )
+                ):
+                    raise LedgerUnavailable("ledger unavailable")
+                event = {
+                    "event": "activation_open",
+                    "authority_id": str(self._journal.authority_id),
+                    "business": metadata["business"],
+                    "epoch": epoch,
+                    "highwater": 0,
+                    "reservation_count": 0,
+                }
+            else:
+                event = {"event": "lease_open", "epoch": epoch}
+            try:
+                opened = self._journal.append(_encode_event(event))
+            except WitnessUnavailable:
+                self._blocked = True
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            try:
+                self._active.add(opened.ordinal)
+                response = (
+                    _activation_wire(_activation_event(opened.ordinal, event))
+                    if fresh
+                    else epoch
+                )
+            except Exception:
+                self._active.discard(opened.ordinal)
+                self._blocked = True
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            return opened.ordinal, response
+        finally:
+            # open期間全体では保持しない。通常D4 mutationは同じmutexで直列化できる。
+            self._mutex.release()
+
+    def _close_lease(self, lease: int) -> None:
+        if not self._mutex.acquire(timeout=self._value["timeout"]):
+            raise LedgerUnavailable("ledger unavailable")
+        try:
+            if self._blocked:
+                raise LedgerUnavailable("ledger unavailable")
+            try:
+                self._journal.append(
+                    _encode_event({"event": "lease_close", "lease": lease})
+                )
+            except WitnessUnavailable:
+                self._blocked = True
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            self._active.remove(lease)
+        finally:
+            self._mutex.release()
+
     def handle(self, channel: socket.socket) -> None:
         """実peer認証済みchannel上で閉じた要求と実fenceだけを実行する。"""
         lease = None
         try:
             request = _receive(channel)
-            if request.get("operation") != "fence_open":
-                result = self._dispatch(request.get("operation"), request)
+            operation = request.get("operation")
+            if operation not in ("fence_open", "fresh_activation_open"):
+                result = self._dispatch(operation, request)
                 _send(channel, {"status": "ok", "result": result})
                 return
             if set(request) != {"operation"} or self._blocked:
                 raise LedgerUnavailable("ledger unavailable")
             with self._pair.recovery_fence() as fence:
                 try:
-                    with self._mutex:
-                        if self._blocked:
-                            raise LedgerUnavailable("ledger unavailable")
-                        self._live_matches()
-                        lease = self._journal.append(
-                            _encode_event(
-                                {"event": "lease_open", "epoch": fence.generation}
-                            )
-                        ).ordinal
-                        self._active.add(lease)
-                    _send(channel, {"status": "ok", "result": fence.generation})
+                    lease, response = self._start_lease(
+                        fence, fresh=operation == "fresh_activation_open"
+                    )
+                    fence.assert_held()
+                    _send(channel, {"status": "ok", "result": response})
                     while True:
                         current = _receive(channel)
                         if (
@@ -1101,20 +1318,17 @@ class _AuthorityRuntime:
                             raise LedgerUnavailable("ledger unavailable")
                         fence.assert_held()
                         if current["operation"] == "fence_close":
-                            with self._mutex:
-                                self._journal.append(
-                                    _encode_event(
-                                        {"event": "lease_close", "lease": lease}
-                                    )
-                                )
-                                self._active.remove(lease)
-                                lease = None
+                            self._close_lease(lease)
+                            lease = None
                             _send(channel, {"status": "ok", "result": None})
                             return
                         _send(channel, {"status": "ok", "result": None})
                 except BaseException:
                     if lease is not None:
                         self._blocked = True
+                        raise LedgerOutcomeUnconfirmed(
+                            "ledger outcome unconfirmed"
+                        ) from None
                     raise
         except LedgerOutcomeUnconfirmed:
             _send_error(channel, "unconfirmed")
@@ -1294,3 +1508,32 @@ class DurableLedger(DurableGenerationSource):
                         raise LedgerUnavailable("ledger unavailable")
                 finally:
                     fence._active = False
+
+    @contextmanager
+    def fresh_activation(
+        self,
+    ) -> Iterator[tuple[FreshActivationAttestation, RecoveryEpochFence]]:
+        """一度限り開始の不変metadataと同channelの実共有fenceを借用する。"""
+        with self._channel() as channel:
+            value = _request(
+                channel, {"operation": "fresh_activation_open"}, mutation=True
+            )
+            try:
+                attestation = _activation_from(value)
+                fence = _RemoteFence(channel, attestation.pair_epoch)
+                fence.assert_held()
+            except Exception:
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            try:
+                yield attestation, fence
+            except BaseException:
+                # 業務結果不明/例外を正常closeへ補完しない。切断は実未終端として残る。
+                raise
+            else:
+                if (
+                    _request(channel, {"operation": "fence_close"}, mutation=True)
+                    is not None
+                ):
+                    raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+            finally:
+                fence._active = False

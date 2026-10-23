@@ -15,18 +15,34 @@ from pitchlog.durable_rights_ledger import adapter
 
 from .durable_rights_ledger_support import (
     AuthorityDatabase,
+    AuthorityResources,
     LedgerDatabase,
-    isolated_authority_database,
 )
 
 pytestmark = pytest.mark.requires_db
 
 
 @pytest.fixture(scope="module")
-def authority_database() -> Iterator[AuthorityDatabase]:
-    """このmodule専用の三cluster/保護volume/Unix主体を所有する。"""
-    with isolated_authority_database() as authority:
-        yield authority
+def authority_resources() -> Iterator[AuthorityResources]:
+    """独立シナリオごとの所有資源を一組ずつ保持する。"""
+    resources = AuthorityResources()
+    try:
+        yield resources
+    finally:
+        resources.close()
+
+
+@pytest.fixture
+def authority_database(
+    request: pytest.FixtureRequest, authority_resources: AuthorityResources
+) -> AuthorityDatabase:
+    """normal群を共有し、fresh故障群は別cluster/witnessへ直列に切り替える。"""
+    key = (
+        "fresh:" + request.getfixturevalue("fresh_scenario")
+        if "fresh_scenario" in request.fixturenames
+        else "normal"
+    )
+    return authority_resources.get(key)
 
 
 @pytest.fixture
@@ -96,7 +112,8 @@ def test_real_normal_admission_requires_original_database_and_legacy_refuses(
     with psycopg.connect(alternate) as connection:
         connection.execute(ddl.encode())
     identity_query = (
-        "SELECT pitchlog_ledger_observer.identity()->>'system_id',current_database(),"
+        "SELECT pitchlog_ledger_observer.identity()->>'system_id',"
+        "current_database(),"
         "pitchlog_ledger_observer.identity()->>'started_at'"
     )
     original = authority_database.probe(identity_query).split("|")
@@ -632,3 +649,197 @@ os._exit(0)
     )
     authority_database.stop()
     assert authority_database.start(check=False) is False
+
+
+@pytest.mark.parametrize(
+    "fresh_scenario",
+    ["success_concurrent", "restore_zero", "ack_loss", "body_exception", "past_intent"],
+)
+def test_real_fresh_activation_boundary(
+    fresh_scenario: str,
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """実journal/peer/PGの一度限り証拠、同居、応答喪失と旧0復元拒否を検査する。"""
+    if fresh_scenario == "success_concurrent":
+        _fresh_activation_success_and_concurrency(
+            authority_database, ledger_connections
+        )
+    elif fresh_scenario == "restore_zero":
+        authority_database.copy_pair()
+        authority_database.start()
+        assert (
+            authority_database.client("""
+with s.fresh_activation() as (att,fence):
+    assert att.highwater == att.reservation_count == 0
+    assert fence.generation == att.pair_epoch == 1
+print('ACTIVATED')
+""")
+            == "ACTIVATED"
+        )
+        authority_database.copy_pair(restore=True)
+        authority_database.start()
+        with psycopg.connect(ledger_connections.primary_admin) as connection:
+            assert connection.execute(
+                "SELECT value FROM pitchlog_ledger.highwater"
+            ).fetchone() == (0,)
+            assert connection.execute(
+                "SELECT count(*) FROM pitchlog_ledger.reservations"
+            ).fetchone() == (0,)
+        assert (
+            authority_database.client("""
+try:
+    with s.fresh_activation(): raise AssertionError('old zero restored as fresh')
+except LedgerUnavailable: pass
+assert s.reserve(*(uuid4() for _ in range(4))).generation == 1
+print('PAST_ACTIVATION_CLOSED')
+""")
+            == "PAST_ACTIVATION_CLOSED"
+        )
+        assert authority_database.event_counts().get("activation_open") == 1
+    elif fresh_scenario in ("ack_loss", "body_exception"):
+        if fresh_scenario == "ack_loss":
+            operation = """
+import socket
+with s._channel() as lost:
+    lost.sendall(b'{"operation":"fresh_activation_open"}\\n')
+    lost.shutdown(socket.SHUT_RD)
+    await_closed()
+"""
+        else:
+            operation = """
+try:
+    with s.fresh_activation() as (att,fence):
+        assert fence.generation == 1
+        raise RuntimeError('test business result unconfirmed')
+except RuntimeError: pass
+await_closed()
+"""
+        assert (
+            authority_database.client(
+                """
+from time import monotonic,sleep
+def await_closed():
+    deadline=monotonic()+6
+    while monotonic()<deadline:
+        try: s.current_recovery_generation()
+        except LedgerUnavailable: return
+        sleep(.01)
+    raise AssertionError('unterminated activation served as normal')
+"""
+                + operation
+                + """
+try:
+    with s.fresh_activation(): raise AssertionError('in-doubt fresh repeated')
+except LedgerUnavailable: pass
+print('IN_DOUBT_CLOSED')
+"""
+            )
+            == "IN_DOUBT_CLOSED"
+        )
+        counts = authority_database.event_counts()
+        assert counts.get("activation_open") == 1 and counts.get("lease_close", 0) == 0
+        authority_database.stop()
+        assert authority_database.start(check=False) is False
+    else:
+        assert fresh_scenario == "past_intent"
+        assert (
+            authority_database.client("""
+p=tuple(uuid4() for _ in range(4))
+s.reserve(*p)
+s.claim(*p)
+try:
+    with s.fresh_activation(): raise AssertionError('used history accepted as fresh')
+except LedgerUnavailable: pass
+print('INTENT_CLOSED')
+""")
+            == "INTENT_CLOSED"
+        )
+        assert authority_database.event_counts().get("activation_open", 0) == 0
+
+
+def _fresh_activation_success_and_concurrency(
+    authority: AuthorityDatabase,
+    database: LedgerDatabase,
+) -> None:
+    """同じ実channelのmetadata/fenceを保持し、別主体の排他lock拒否を照合する。"""
+    import select
+
+    code = """
+import json,sys
+from dataclasses import asdict,FrozenInstanceError
+from concurrent.futures import ThreadPoolExecutor
+from pitchlog.durable_rights_ledger import adapter
+with s._channel() as raw:
+    try: adapter._request(raw,{'operation':'fresh_activation_open','highwater':0})
+    except LedgerUnavailable: pass
+    else: raise AssertionError('caller proof accepted')
+with s.recovery_fence():
+    try:
+        with s.fresh_activation(): raise AssertionError('another active lease accepted')
+    except LedgerUnavailable: pass
+with s.fresh_activation() as (att,fence):
+    assert type(att) is FreshActivationAttestation
+    assert att.pair_epoch == fence.generation == 1
+    assert att.highwater == att.reservation_count == 0
+    assert att.activation_ordinal > 0
+    try: att.database='forged'
+    except FrozenInstanceError: pass
+    else: raise AssertionError('attestation mutable')
+    print(json.dumps(asdict(att),default=str),flush=True)
+    assert sys.stdin.readline().strip() == 'CONTINUE'
+    fence.assert_held()
+    def issue(_):
+        params=tuple(uuid4() for _ in range(4))
+        result=s.reserve(*params)
+        s.claim(*params)
+        return result.generation
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        values=list(pool.map(issue,range(3)))
+    assert len(set(values)) == 3
+    assert att.highwater == att.reservation_count == 0
+    fence.assert_held()
+    try:
+        with s.fresh_activation(): raise AssertionError('second fresh accepted')
+    except LedgerUnavailable: pass
+try: fence.assert_held()
+except LedgerUnavailable: pass
+else: raise AssertionError('expired activation fence accepted')
+try:
+    with s.fresh_activation(): raise AssertionError('past activation accepted')
+except LedgerUnavailable: pass
+print('FRESH_AND_D4',flush=True)
+"""
+    process = authority.client_process(code)
+    try:
+        assert process.stdout is not None
+        readable, _, _ = select.select([process.stdout], [], [], 15)
+        assert readable, "real fresh client did not acquire lease"
+        line = process.stdout.readline()
+        assert line.startswith("{"), "real fresh client did not return metadata"
+        att = json.loads(line)
+        actual = authority.probe(
+            "SELECT pitchlog_ledger_observer.identity()->>'system_id',"
+            "current_database(),"
+            "pitchlog_ledger_observer.identity()->>'started_at'"
+        ).split("|")
+        assert (
+            att["business_system_id"],
+            att["database"],
+            att["postmaster_started_at"],
+        ) == tuple(actual)
+        with psycopg.connect(database.primary_admin) as controller:
+            controller.execute("SET lock_timeout='150ms'")
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                controller.execute(
+                    "SELECT epoch FROM pitchlog_ledger.state WHERE singleton FOR UPDATE"
+                )
+            controller.rollback()
+        output, error = process.communicate("CONTINUE\n", timeout=20)
+        assert process.returncode == 0, "real fresh client failed: " + error[-1200:]
+        assert output.strip() == "FRESH_AND_D4"
+        assert authority.event_counts().get("activation_open") == 1
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.communicate(timeout=5)
