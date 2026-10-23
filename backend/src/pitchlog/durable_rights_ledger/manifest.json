@@ -2,7 +2,7 @@
   "schema_version": 1,
   "postgres_version": 170011,
   "schema": "pitchlog_ledger",
-  "ddl_sha256": "acdc77b44f8557bc1006f270a7fbee80c65ab345a15287144439b4f8097f35e1",
+  "ddl_sha256": "3a49fea19ef5f699a8bc20bfdb3fb67a26d0655bb4d912431deac0ff73ab60ef",
   "tables": [
     "state",
     "highwater",
@@ -33,6 +33,15 @@
     ],
     "advance_epoch(bigint)": [
       "control"
+    ],
+    "audit_page(bigint,integer)": [
+      "control"
+    ],
+    "reconcile(uuid,uuid,uuid,uuid,bigint,bigint,boolean,boolean,bigint)": [
+      "control"
+    ],
+    "confirm_state(bigint,bigint,bigint)": [
+      "control"
     ]
   },
   "synchronous_peer": {
@@ -40,7 +49,9 @@
     "count": 1,
     "mode": "FIRST 1 (ledger_standby)",
     "commit": "on",
-    "flush_and_replay_required": true
+    "flush_and_replay_required": true,
+    "standby_durable_receive_required": true,
+    "replay_requirement": "exact owner-bound row/epoch visibility; not raw flush padding comparison"
   },
   "client": {
     "psycopg": "3.3.4",
@@ -49,11 +60,13 @@
   },
   "boundaries": {
     "business_cluster_must_differ": true,
-    "reconnect_after_restart": false,
+    "reconnect_after_restart": "protected_journal_reconciliation",
     "promotion_issuance": false,
-    "cold_attach_proof_port": "NOT_PROVIDED",
+    "cold_attach_proof_port": "same-business-instance authority restart via protected journal; business restart/epoch advance need real close proof",
     "operational_deployment": false,
-    "distributed_commit": false
+    "distributed_commit": false,
+    "business_restart_without_close_proof": false,
+    "public_epoch_advance": false
   },
   "protocol_source": {
     "path": "backend/src/pitchlog/recording_rights/initial_grant.py",
@@ -87,8 +100,8 @@
     "reconnect_cancelled_connection": false
   },
   "witness": {
-    "component": "protected_journal_only",
-    "authority_connected": false,
+    "component": "protected_journal_and_unix_authority",
+    "authority_connected": true,
     "source_sha256": "e20e957d04a689bd595d229f657db9bcb550f3b68f7092588403e689030bb1db",
     "platform": "linux",
     "files": [
@@ -130,5 +143,25 @@
     "secret_fields": false,
     "fixture_image": "postgres:17.11-bookworm",
     "fixture_python": "readonly_current_python_3.12_runtime"
+  },
+  "authority": {
+    "transport": "AF_UNIX/SO_PEERCRED",
+    "authority_uid": "dedicated_nonroot",
+    "client_uid": "different_nonroot",
+    "enrollment": "one_time_root_config_and_real_empty_synchronous_pair",
+    "ack": "INTENT fsync -> PG synchronous commit and peer reread -> CONFIRMED fsync",
+    "unknown": "block then reconcile or quarantine; no automatic new attempt",
+    "unclosed_lease": "startup_and_live_refusal_until_real_close_proof",
+    "business_identity_ddl_sha256": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
+    "business_identity_function": "pitchlog_ledger_observer.identity()",
+    "business_probe_role": "pitchlog_ledger_identity_probe",
+    "business_owner_role": "pitchlog_ledger_identity_owner",
+    "business_identity_rebind": false,
+    "builtin_pg_control_system_effective_public_execute": true,
+    "builtin_pg_control_system_explicit_new_grantee": "pitchlog_ledger_identity_owner",
+    "startup_barrier": "journal-derived state CAS; no domain change; synchronous no-op WAL before peer row audit; no live leases",
+    "source_sha256": "574f1dc1fc6ec9d69f3008d9b02e135bfa17c89c64b1facf90f84b873737e73b",
+    "adapter_sha256": "57c7d9691f8a6058554fde80ece940e75318943675ad15db8b03f78472e198a6",
+    "business_connect_grantee": "pitchlog_ledger_identity_probe; CONNECT only, no TEMP or product-table/authn grant"
   }
 }

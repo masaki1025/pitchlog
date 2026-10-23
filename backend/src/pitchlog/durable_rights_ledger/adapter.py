@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import math
+import socket
+import struct
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from threading import Event, RLock, Timer
 from time import monotonic, sleep
 from typing import Any, Literal, cast
@@ -21,10 +25,27 @@ from pitchlog.recording_rights.initial_grant import (
     ReservedGeneration,
 )
 
+from .witness import (
+    ProtectedJournal,
+    WitnessOutcomeUnconfirmed,
+    WitnessUnavailable,
+    _unique,
+)
+
 _MAX = 2**63 - 1
 _SYNC_NAMES = "FIRST 1 (ledger_standby)"
 Operation = Literal[
-    "identity", "business_identity", "fence", "reserve", "claim", "read", "advance"
+    "identity",
+    "business_identity",
+    "fence",
+    "reserve",
+    "claim",
+    "read",
+    "advance",
+    "audit",
+    "reconcile",
+    "lookup",
+    "confirm_state",
 ]
 
 
@@ -109,15 +130,27 @@ def _query(
 ) -> tuple[Any, ...]:
     """閉じた操作集合を固定SQLへ写し、単一行だけ取得する。"""
     statements = {
-        "identity": "SELECT pitchlog_ledger.identity()",
+        "identity": (
+            "SELECT session_user::text, current_user::text, pitchlog_ledger.identity()"
+        ),
         "business_identity": (
-            "SELECT system_identifier::text FROM pg_catalog.pg_control_system()"
+            "SELECT session_user::text, current_user::text, "
+            "pitchlog_ledger_observer.identity()"
         ),
         "fence": "SELECT pitchlog_ledger.epoch_fence()",
         "reserve": "SELECT * FROM pitchlog_ledger.reserve(%s, %s, %s, %s)",
         "claim": "SELECT * FROM pitchlog_ledger.claim(%s, %s, %s, %s)",
         "read": "SELECT * FROM pitchlog_ledger.reservation(%s, %s, %s, %s)",
+        "lookup": "SELECT CASE WHEN r.generation IS NULL THEN NULL ELSE "
+        "jsonb_build_array(r.generation,r.recovery_generation,r.tenant_id,r.game_id,r.start_request_id,r.claimed,r.quarantined)"
+        " END FROM (SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s))"
+        " r RIGHT JOIN (SELECT 1) singleton ON true",
         "advance": "SELECT pitchlog_ledger.advance_epoch(%s)",
+        "confirm_state": "SELECT pitchlog_ledger.confirm_state(%s,%s,%s)",
+        "audit": "SELECT pitchlog_ledger.audit_page(%s, %s)",
+        "reconcile": (
+            "SELECT * FROM pitchlog_ledger.reconcile(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        ),
     }
     # operationの未知値・引数数もDBへ到達させない。
     arities = {
@@ -127,7 +160,11 @@ def _query(
         "reserve": 4,
         "claim": 4,
         "read": 4,
+        "lookup": 4,
         "advance": 1,
+        "audit": 2,
+        "reconcile": 9,
+        "confirm_state": 3,
     }
     if operation not in statements or len(params) != arities[operation]:
         raise LedgerUnavailable("ledger unavailable")
@@ -208,7 +245,14 @@ def _lsn(value: object) -> int:
 
 
 def _identity(connection: psycopg.Connection[Any]) -> dict[str, Any]:
-    value = _query(connection, "identity")[0]
+    received = _query(connection, "identity")
+    if (
+        len(received) != 3
+        or received[0] != received[1]
+        or received[0] not in ("pitchlog_ledger_app", "pitchlog_ledger_control")
+    ):
+        raise LedgerUnavailable("ledger unavailable")
+    value = received[2]
     if type(value) is not dict:
         raise LedgerUnavailable("ledger unavailable")
     return value
@@ -219,7 +263,7 @@ class _Fence(RecoveryEpochFence):
 
     def __init__(
         self,
-        ledger: DurableLedger,
+        ledger: _PgLedgerPair,
         connection: psycopg.Connection[Any],
         generation: int,
     ) -> None:
@@ -241,18 +285,14 @@ class _Fence(RecoveryEpochFence):
             or self._connection.info.transaction_status != pq.TransactionStatus.INTRANS
         ):
             raise LedgerUnavailable("ledger unavailable")
+        self._ledger._check_business()
         self._ledger._check_primary(_identity(self._connection))
         if _positive(_query(self._connection, "fence")[0]) != self._generation:
             raise LedgerUnavailable("ledger unavailable")
 
 
-class DurableLedger(DurableGenerationSource):
-    """正常pairの生存期間内に限定した同期台帳部品。
-
-    新processのcold attachを認可する最新性proof Portは未提供である。
-    この候補は初回の隔離pairを同定した後、再起動・昇格・再構成を拒否する。
-    設定や二台の一致を、運用再開/古いbackup拒否の完了証明には使わない。
-    """
+class _PgLedgerPair:
+    """authorityがjournal照合に用いる私有の実同期PG部品。"""
 
     def __init__(self, endpoints: LedgerEndpoints) -> None:
         """隔離初回pairを同定し、その起動identityへ寿命を固定する。"""
@@ -264,8 +304,8 @@ class DurableLedger(DurableGenerationSource):
         self._closed = False
         self._primary: dict[str, Any] = {}
         self._standby: dict[str, Any] = {}
-        with _connection(endpoints.business_dsn, endpoints.timeout) as connection:
-            business_id = _query(connection, "business_identity")[0]
+        self._business = self._observe_business()
+        business_id = self._business["system_id"]
         with _connection(endpoints.primary_dsn, endpoints.timeout) as connection:
             primary = _identity(connection)
         with _connection(endpoints.standby_dsn, endpoints.timeout) as connection:
@@ -282,6 +322,34 @@ class DurableLedger(DurableGenerationSource):
         self._standby = standby
         self._check_primary(primary)
         self._check_standby(standby)
+
+    def _observe_business(self) -> dict[str, Any]:
+        with _connection(
+            self._endpoints.business_dsn, self._endpoints.timeout
+        ) as connection:
+            role = _query(connection, "business_identity")
+        if (
+            len(role) != 3
+            or role[:2] != ("pitchlog_ledger_identity_probe",) * 2
+            or type(role[2]) is not dict
+            or set(role[2])
+            != {"system_id", "database", "started_at", "version", "recovery"}
+            or any(
+                type(role[2][key]) is not str or not role[2][key]
+                for key in ("system_id", "database", "started_at")
+            )
+            or type(role[2]["version"]) is not int
+            or role[2]["version"] != 170011
+            or role[2]["recovery"] is not False
+        ):
+            raise LedgerUnavailable("ledger unavailable")
+        return role[2]
+
+    def _check_business(self) -> None:
+        # 同じsystem_idでも業務DB再起動後は別のclose/drain証明なしに再開しない。
+        if self._observe_business() != self._business:
+            self._closed = True
+            raise LedgerUnavailable("ledger unavailable")
 
     def _check_common(
         self, value: dict[str, Any], pinned: dict[str, Any], recovery: bool
@@ -341,21 +409,34 @@ class DurableLedger(DurableGenerationSource):
                     peer = _identity(primary)
                     self._check_primary(peer)
                     if (
-                        _lsn(standby.get("wal")) >= barrier
+                        _lsn(standby.get("received_wal")) >= barrier
                         and _lsn(peer["peers"][0].get("flush")) >= barrier
                     ):
-                        actual = (
-                            _query(connection, "read", params)
-                            if params is not None
-                            else (standby.get("epoch"),)
-                        )
-                        if actual != expected:
-                            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
-                        return
+                        if params is None:
+                            actual = (standby.get("epoch"),)
+                        else:
+                            value = _query(connection, "lookup", params)[0]
+                            actual = None if value is None else _row(value, params)
+                        # durable receiveは実同期済み位置。
+                        # 可視rowの再読でCOMMIT replayも確認する。
+                        if actual == expected:
+                            return
                 sleep(0.02)
         except Exception:
             raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
         raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+
+    def _confirm_state(self, highwater: int, count: int) -> None:
+        # 一回enroll/attach専用。保護flockの下、未終端lease検査後か発行前にだけ呼ぶ。
+        connection = _connect(self._endpoints.control_dsn, self._endpoints.timeout)
+        try:
+            self._check_primary(_identity(connection))
+            if _query(connection, "confirm_state", (1, highwater, count)) != (1,):
+                raise LedgerUnavailable("ledger unavailable")
+            _commit(connection, self._endpoints.timeout)
+            self._confirmed(connection, None, (1,))
+        finally:
+            connection.close()
 
     def current_recovery_generation(self) -> int:
         """primaryと実standbyの現epoch一致を返す。"""
@@ -375,7 +456,10 @@ class DurableLedger(DurableGenerationSource):
         self,
         operation: Literal["reserve", "claim", "advance"],
         params: tuple[object, ...],
+        journal: ProtectedJournal,
     ) -> tuple[Any, ...]:
+        if type(journal) is not ProtectedJournal or operation == "advance":
+            raise LedgerUnavailable("ledger unavailable")
         with self._lock:
             connection = _connect(
                 self._endpoints.control_dsn
@@ -385,48 +469,34 @@ class DurableLedger(DurableGenerationSource):
             )
             try:
                 self._check_primary(_identity(connection))
-                row = _query(connection, operation, params)
+                row = _checked_row(_query(connection, operation, params), params)
+                if row[6] or row[5] is not (operation == "claim"):
+                    raise LedgerUnavailable("ledger unavailable")
+                intent = journal.append(
+                    _encode_event(
+                        {
+                            "event": "intent",
+                            "operation": operation,
+                            "params": [str(value) for value in params],
+                            "row": _wire_row(row),
+                        }
+                    )
+                )
                 _commit(connection, self._endpoints.timeout)
                 self._confirmed(
                     connection, None if operation == "advance" else params, row
                 )
+                journal.append(
+                    _encode_event({"event": "confirmed", "intent": intent.ordinal})
+                )
                 return row
+            except WitnessOutcomeUnconfirmed:
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            except WitnessUnavailable:
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
             finally:
                 # 未確定の接続を再利用せず、消費取消/rollback成功を主張しない。
                 connection.close()
-
-    def reserve(
-        self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
-    ) -> ReservedGeneration:
-        """同一ownerへだけ正のbigint予約を同期保全して返す。"""
-        params = (attempt_id, tenant_id, game_id, start_request_id)
-        _owner(params)
-        row = self._mutate("reserve", params)
-        if len(row) != 6 or row[2:5] != params[1:] or row[5] is not False:
-            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
-        return ReservedGeneration(
-            _positive(row[0]), _positive(row[1]), tenant_id, game_id, start_request_id
-        )
-
-    def claim(
-        self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
-    ) -> None:
-        """同じownerの予約を一度だけ同期耐久消費する。"""
-        params = (attempt_id, tenant_id, game_id, start_request_id)
-        _owner(params)
-        row = self._mutate("claim", params)
-        if len(row) != 6 or row[2:5] != params[1:] or row[5] is not True:
-            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
-
-    def advance_recovery_generation(self, previous: int) -> int:
-        """RG1 close確定後にだけ呼ぶ制御roleの単調CAS。"""
-        _positive(previous)
-        if previous == _MAX:
-            raise LedgerUnavailable("ledger unavailable")
-        row = self._mutate("advance", (previous,))
-        if row != (previous + 1,):
-            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
-        return previous + 1
 
     @contextmanager
     def recovery_fence(self) -> Iterator[RecoveryEpochFence]:
@@ -443,3 +513,781 @@ class DurableLedger(DurableGenerationSource):
             if fence is not None:
                 fence._active = False
             connection.close()
+
+
+def _checked_row(row: tuple[Any, ...], params: tuple[object, ...]) -> tuple[Any, ...]:
+    if (
+        len(row) != 7
+        or row[2:5] != params[1:]
+        or type(row[5]) is not bool
+        or type(row[6]) is not bool
+    ):
+        raise LedgerUnavailable("ledger unavailable")
+    _positive(row[0])
+    _positive(row[1])
+    return row
+
+
+def _wire_row(row: tuple[Any, ...]) -> list[Any]:
+    return [row[0], row[1], *(str(value) for value in row[2:5]), row[5], row[6]]
+
+
+def _row(value: object, params: tuple[object, ...]) -> tuple[Any, ...]:
+    if type(value) is not list or len(value) != 7:
+        raise LedgerUnavailable("ledger unavailable")
+    try:
+        if any(type(v) is not str for v in value[2:5]):
+            raise ValueError
+        row = (
+            value[0],
+            value[1],
+            *(UUID(cast(str, v)) for v in value[2:5]),
+            value[5],
+            value[6],
+        )
+        return _checked_row(row, params)
+    except Exception:
+        raise LedgerUnavailable("ledger unavailable") from None
+
+
+def _encode_event(value: dict[str, Any]) -> bytes:
+    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+
+
+def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
+    for frame in journal.records():
+        try:
+            value = json.loads(frame.payload, object_pairs_hook=_unique)
+            if type(value) is not dict or type(value.get("event")) is not str:
+                raise ValueError
+            shapes = {
+                "enrolled": {
+                    "event",
+                    "authority_id",
+                    "primary",
+                    "standby",
+                    "business",
+                    "epoch",
+                },
+                "attached": {"event", "primary", "standby", "business"},
+                "intent": {"event", "operation", "params", "row"},
+                "confirmed": {"event", "intent"},
+                "quarantined": {"event", "intent", "row"},
+                "lease_open": {"event", "epoch"},
+                "lease_close": {"event", "lease"},
+            }
+            if value["event"] not in shapes or set(value) != shapes[value["event"]]:
+                raise ValueError
+            if value["event"] == "intent":
+                _params(value["params"])
+                _row(value["row"], _params(value["params"]))
+                if value["operation"] not in ("reserve", "claim"):
+                    raise ValueError
+                if value["row"][6] is not False or value["row"][5] is not (
+                    value["operation"] == "claim"
+                ):
+                    raise ValueError
+            if value["event"] in ("confirmed", "quarantined"):
+                if (
+                    type(value["intent"]) is not int
+                    or not 0 < value["intent"] < frame.ordinal
+                ):
+                    raise ValueError
+            if value["event"] == "lease_close":
+                if (
+                    type(value["lease"]) is not int
+                    or not 0 < value["lease"] < frame.ordinal
+                ):
+                    raise ValueError
+            if value["event"] in ("enrolled", "lease_open"):
+                _positive(value["epoch"])
+            yield frame.ordinal, value
+        except Exception:
+            raise LedgerUnavailable("ledger unavailable") from None
+
+
+def _params(value: object) -> tuple[UUID, ...]:
+    try:
+        if type(value) is not list or len(value) != 4:
+            raise ValueError
+        if any(type(item) is not str for item in value):
+            raise ValueError
+        result = tuple(UUID(cast(str, item)) for item in value)
+        if [str(item) for item in result] != value:
+            raise ValueError
+        _owner(result)
+        return result
+    except Exception:
+        raise LedgerUnavailable("ledger unavailable") from None
+
+
+def _resolved(
+    journal: ProtectedJournal, ordinal: int, event: dict[str, Any]
+) -> tuple[Any, ...] | None:
+    found = None
+    for _, current in _events(journal):
+        if (
+            current["event"] in ("confirmed", "quarantined")
+            and current["intent"] == ordinal
+        ):
+            if found is not None:
+                raise LedgerUnavailable("ledger unavailable")
+            row = _row(event["row"], _params(event["params"]))
+            if current["event"] == "quarantined":
+                altered = _row(current["row"], _params(event["params"]))
+                if (
+                    altered[:5] != row[:5]
+                    or altered[6] is not True
+                    or (row[5] and not altered[5])
+                ):
+                    raise LedgerUnavailable("ledger unavailable")
+                row = altered
+            found = row
+    return found
+
+
+def _metadata(pair: _PgLedgerPair) -> dict[str, Any]:
+    def projection(value: dict[str, Any]) -> dict[str, Any]:
+        return {key: value[key] for key in ("system_id", "started_at")}
+
+    return {
+        "primary": projection(pair._primary),
+        "standby": projection(pair._standby),
+        "business": projection(pair._business),
+    }
+
+
+class _AuthorityRuntime:
+    """保護journalと実PGを同じworkerで所有する実行器。"""
+
+    def __init__(self, value: dict[str, Any], journal: ProtectedJournal) -> None:
+        self._value, self._journal = value, journal
+        self._mutex = RLock()
+        self._blocked = False
+        self._active: set[int] = set()
+        self._pair = self._pair_from(value)
+        records = _events(journal)
+        try:
+            ordinal, enrollment = next(records)
+        except StopIteration:
+            raise LedgerUnavailable("ledger unavailable") from None
+        metadata = _metadata(self._pair)
+        if (
+            ordinal != 1
+            or enrollment["event"] != "enrolled"
+            or enrollment["authority_id"] != str(journal.authority_id)
+            or enrollment["epoch"] != 1
+        ):
+            raise LedgerUnavailable("ledger unavailable")
+        for key in metadata:
+            if (
+                type(enrollment[key]) is not dict
+                or set(enrollment[key]) != {"system_id", "started_at"}
+                or enrollment[key]["system_id"] != metadata[key]["system_id"]
+                or (key == "business" and enrollment[key] != metadata[key])
+            ):
+                raise LedgerUnavailable("ledger unavailable")
+        self._verify_history(metadata)
+        self._verify_leases()
+        self._recover()
+        journal.append(_encode_event({"event": "attached", **metadata}))
+
+    @staticmethod
+    def _pair_from(value: dict[str, Any]) -> _PgLedgerPair:
+        return _PgLedgerPair(
+            LedgerEndpoints(
+                value["primary_dsn"],
+                value["standby_dsn"],
+                value["business_dsn"],
+                value["control_dsn"],
+                value["timeout"],
+            )
+        )
+
+    @classmethod
+    def enroll(cls, value: dict[str, Any], journal: ProtectedJournal) -> None:
+        """実専用subjectと空の同期pairを観測して初回recordを耐久化する。"""
+        if value["enrollment_state"] != "new" or any(True for _ in journal.records()):
+            raise LedgerUnavailable("ledger unavailable")
+        pair = cls._pair_from(value)
+        with _connection(value["primary_dsn"], value["timeout"]) as connection:
+            identity = _identity(connection)
+            pair._check_primary(identity)
+            if (
+                identity.get("highwater") != 0
+                or identity.get("reservation_count") != 0
+                or identity.get("epoch") != 1
+            ):
+                raise LedgerUnavailable("ledger unavailable")
+        pair._confirm_state(0, 0)
+        journal.append(
+            _encode_event(
+                {
+                    "event": "enrolled",
+                    "authority_id": str(journal.authority_id),
+                    **_metadata(pair),
+                    "epoch": 1,
+                }
+            )
+        )
+
+    def _verify_history(self, metadata: dict[str, Any]) -> None:
+        """実PGを修復する前にjournalのowner/世代/終端を検査する。"""
+        highwater = 0
+        unresolved = None
+        for ordinal, event in _events(self._journal):
+            kind = event["event"]
+            if kind == "enrolled" and ordinal != 1:
+                raise LedgerUnavailable("ledger unavailable")
+            if kind == "lease_open" and event["epoch"] != 1:
+                raise LedgerUnavailable("ledger unavailable")
+            if kind == "attached":
+                for key in metadata:
+                    previous = event[key]
+                    if (
+                        type(previous) is not dict
+                        or set(previous) != {"system_id", "started_at"}
+                        or any(
+                            type(previous[field]) is not str or not previous[field]
+                            for field in ("system_id", "started_at")
+                        )
+                        or previous["system_id"] != metadata[key]["system_id"]
+                        or (key == "business" and previous != metadata[key])
+                    ):
+                        raise LedgerUnavailable("ledger unavailable")
+            if kind != "intent":
+                continue
+            if unresolved is not None:
+                raise LedgerUnavailable("ledger unavailable")
+            params = _params(event["params"])
+            row = _row(event["row"], params)
+            previous = None
+            for index, item in _events(self._journal):
+                if index >= ordinal:
+                    break
+                if item["event"] == "intent" and item["params"][0] == str(params[0]):
+                    if any(
+                        end >= ordinal
+                        and resolution["event"] in ("confirmed", "quarantined")
+                        and resolution["intent"] == index
+                        for end, resolution in _events(self._journal)
+                    ):
+                        raise LedgerUnavailable("ledger unavailable")
+                    previous = _resolved(self._journal, index, item)
+            if row[1] != 1:
+                raise LedgerUnavailable("ledger unavailable")
+            if previous is None:
+                if event["operation"] != "reserve" or row[0] != highwater + 1:
+                    raise LedgerUnavailable("ledger unavailable")
+                highwater = row[0]
+            elif row[:5] != previous[:5] or previous[5] or previous[6]:
+                raise LedgerUnavailable("ledger unavailable")
+            resolved = _resolved(self._journal, ordinal, event)
+            if resolved is None:
+                unresolved = ordinal
+        self._maximum_witness_highwater = highwater
+
+    def _verify_leases(self) -> None:
+        for ordinal, event in _events(self._journal):
+            if event["event"] == "lease_open":
+                ends = sum(
+                    1
+                    for _, item in _events(self._journal)
+                    if item["event"] == "lease_close" and item["lease"] == ordinal
+                )
+                if ends != 1 and ordinal not in self._active:
+                    raise LedgerUnavailable("ledger unavailable")
+            if event["event"] in ("confirmed", "quarantined", "lease_close"):
+                reference = event.get("intent", event.get("lease"))
+                matches = [
+                    item["event"]
+                    for index, item in _events(self._journal)
+                    if index == reference
+                ]
+                expected = "lease_open" if event["event"] == "lease_close" else "intent"
+                if matches != [expected]:
+                    raise LedgerUnavailable("ledger unavailable")
+
+    def _last_for(self, params: tuple[object, ...]) -> tuple[Any, ...] | None:
+        latest = None
+        for ordinal, event in _events(self._journal):
+            if event["event"] != "intent" or event["params"][0] != str(params[0]):
+                continue
+            row = _resolved(self._journal, ordinal, event)
+            if row is None:
+                continue
+            if row[2:5] != params[1:]:
+                raise LedgerUnavailable("ledger unavailable")
+            if latest is not None and (
+                row[:5] != latest[:5]
+                or (latest[5] and not row[5])
+                or (latest[6] and not row[6])
+            ):
+                raise LedgerUnavailable("ledger unavailable")
+            latest = row
+        return latest
+
+    def _reconcile(self, params: tuple[object, ...], row: tuple[Any, ...]) -> None:
+        connection = _connect(self._value["control_dsn"], self._value["timeout"])
+        try:
+            identity = _identity(connection)
+            self._pair._check_primary(identity)
+            args = (*params, row[0], row[1], row[5], row[6], identity["highwater"])
+            actual = _query(connection, "reconcile", args)
+            if actual != row:
+                raise LedgerUnavailable("ledger unavailable")
+            _commit(connection, self._value["timeout"])
+            self._pair._confirmed(connection, params, row)
+        finally:
+            connection.close()
+
+    def _read_row(self, params: tuple[object, ...]) -> tuple[Any, ...] | None:
+        with _connection(
+            self._value["primary_dsn"], self._value["timeout"]
+        ) as connection:
+            self._pair._check_primary(_identity(connection))
+            # readは不在を含む固定関数。singleton wrapperのNULL表現を使う。
+            value = _query(connection, "lookup", params)[0]
+            if value is None:
+                return None
+            return _row(value, params)
+
+    def _recover(self) -> None:
+        pending = []
+        for ordinal, event in _events(self._journal):
+            if (
+                event["event"] == "intent"
+                and _resolved(self._journal, ordinal, event) is None
+            ):
+                pending.append((ordinal, event))
+                if len(pending) > 1:
+                    raise LedgerUnavailable("ledger unavailable")
+        with _connection(
+            self._value["primary_dsn"], self._value["timeout"]
+        ) as connection:
+            identity = _identity(connection)
+            self._pair._check_primary(identity)
+            if (
+                identity["epoch"] != 1
+                or type(identity["highwater"]) is not int
+                or not 0 <= identity["highwater"] <= self._maximum_witness_highwater
+            ):
+                raise LedgerUnavailable("ledger unavailable")
+        # DB側を固定cursor/256件上限で検査する。未知行を削除して通さない。
+        cursor = 0
+        while True:
+            with _connection(
+                self._value["control_dsn"], self._value["timeout"]
+            ) as connection:
+                page = _query(connection, "audit", (cursor, 256))[0]
+            if type(page) is not list or len(page) > 256:
+                raise LedgerUnavailable("ledger unavailable")
+            if not page:
+                break
+            for item in page:
+                if type(item) is not dict or set(item) != {
+                    "attempt_id",
+                    "tenant_id",
+                    "game_id",
+                    "start_request_id",
+                    "generation",
+                    "recovery_generation",
+                    "claimed",
+                    "quarantined",
+                }:
+                    raise LedgerUnavailable("ledger unavailable")
+                params = _params(
+                    [
+                        item[k]
+                        for k in (
+                            "attempt_id",
+                            "tenant_id",
+                            "game_id",
+                            "start_request_id",
+                        )
+                    ]
+                )
+                actual = _row(
+                    [
+                        item["generation"],
+                        item["recovery_generation"],
+                        *(
+                            item[k]
+                            for k in ("tenant_id", "game_id", "start_request_id")
+                        ),
+                        item["claimed"],
+                        item["quarantined"],
+                    ],
+                    params,
+                )
+                expected = self._last_for(params)
+                if pending and pending[0][1]["params"][0] == str(params[0]):
+                    expected = _row(pending[0][1]["row"], params)
+                if (
+                    expected is None
+                    or actual[:5] != expected[:5]
+                    or actual[0] <= cursor
+                ):
+                    raise LedgerUnavailable("ledger unavailable")
+                if (actual[5] and not expected[5]) or (actual[6] and not expected[6]):
+                    raise LedgerUnavailable("ledger unavailable")
+                cursor = actual[0]
+        for ordinal, event in pending:
+            params = _params(event["params"])
+            expected = _row(event["row"], params)
+            actual = self._read_row(params)
+            if actual == expected:
+                with _connection(
+                    self._value["primary_dsn"], self._value["timeout"]
+                ) as connection:
+                    self._pair._confirmed(connection, params, expected)
+                self._journal.append(
+                    _encode_event({"event": "confirmed", "intent": ordinal})
+                )
+            else:
+                if actual is not None and (
+                    actual[:5] != expected[:5] or actual[5] or actual[6]
+                ):
+                    raise LedgerUnavailable("ledger unavailable")
+                quarantined = (*expected[:6], True)
+                self._reconcile(params, quarantined)
+                self._journal.append(
+                    _encode_event(
+                        {
+                            "event": "quarantined",
+                            "intent": ordinal,
+                            "row": _wire_row(quarantined),
+                        }
+                    )
+                )
+        expected_highwater, expected_count = 0, 0
+        for ordinal, event in _events(self._journal):
+            if event["event"] != "intent" or event["operation"] != "reserve":
+                continue
+            params = _params(event["params"])
+            earlier = any(
+                index < ordinal
+                and item["event"] == "intent"
+                and item["operation"] == "reserve"
+                and item["params"][0] == str(params[0])
+                for index, item in _events(self._journal)
+            )
+            if earlier:
+                continue
+            expected = self._last_for(params)
+            if expected is None:
+                raise LedgerUnavailable("ledger unavailable")
+            expected_count += 1
+            expected_highwater = max(expected_highwater, expected[0])
+            actual = self._read_row(params)
+            if actual != expected:
+                self._reconcile(params, expected)
+        with _connection(
+            self._value["primary_dsn"], self._value["timeout"]
+        ) as connection:
+            identity = _identity(connection)
+            self._pair._check_primary(identity)
+            if (
+                identity["highwater"] != expected_highwater
+                or identity["reservation_count"] != expected_count
+                or identity["epoch"] != 1
+            ):
+                raise LedgerUnavailable("ledger unavailable")
+        self._pair._confirm_state(expected_highwater, expected_count)
+        # restart直後にも明示WALを届け、確定集合の全owner-bound行を実peerで照合する。
+        for _, event in _events(self._journal):
+            if event["event"] != "intent" or event["operation"] != "reserve":
+                continue
+            params = _params(event["params"])
+            expected = self._last_for(params)
+            if expected is None:
+                raise LedgerUnavailable("ledger unavailable")
+            with _connection(
+                self._value["primary_dsn"], self._value["timeout"]
+            ) as connection:
+                self._pair._confirmed(connection, params, expected)
+        self._expected_highwater = expected_highwater
+        self._expected_count = expected_count
+
+    def _live_matches(self) -> None:
+        self._pair._check_business()
+        # 再起動peerの発見をCOMMIT後へ遅らせず、INTENT/予約SQLより前にも照合する。
+        with _connection(self._value["standby_dsn"], self._value["timeout"]) as standby:
+            self._pair._check_standby(_identity(standby))
+        with _connection(
+            self._value["primary_dsn"], self._value["timeout"]
+        ) as connection:
+            value = _identity(connection)
+            self._pair._check_primary(value)
+            if (
+                value["epoch"] != 1
+                or value["highwater"] != self._expected_highwater
+                or value["reservation_count"] != self._expected_count
+            ):
+                self._blocked = True
+                raise LedgerUnavailable("ledger unavailable")
+
+    def _dispatch(self, operation: str | None, request: dict[str, Any]) -> object:
+        if self._blocked:
+            raise LedgerUnavailable("ledger unavailable")
+        if not self._mutex.acquire(timeout=self._value["timeout"]):
+            raise LedgerUnavailable("ledger unavailable")
+        try:
+            if self._blocked:
+                raise LedgerUnavailable("ledger unavailable")
+            self._live_matches()
+            if operation == "epoch" and set(request) == {"operation"}:
+                return self._pair.current_recovery_generation()
+            if operation not in ("reserve", "claim") or set(request) != {
+                "operation",
+                "params",
+            }:
+                raise LedgerUnavailable("ledger unavailable")
+            params = _params(request["params"])
+            previous = self._last_for(params)
+            try:
+                row = self._pair._mutate(operation, params, self._journal)
+            except LedgerOutcomeUnconfirmed:
+                self._blocked = True
+                raise
+            self._expected_highwater = max(self._expected_highwater, row[0])
+            self._expected_count += int(previous is None)
+            try:
+                self._live_matches()
+            except Exception:
+                self._blocked = True
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            if operation == "reserve":
+                return _wire_row(row)
+            return None
+        finally:
+            self._mutex.release()
+
+    def handle(self, channel: socket.socket) -> None:
+        """実peer認証済みchannel上で閉じた要求と実fenceだけを実行する。"""
+        lease = None
+        try:
+            request = _receive(channel)
+            if request.get("operation") != "fence_open":
+                result = self._dispatch(request.get("operation"), request)
+                _send(channel, {"status": "ok", "result": result})
+                return
+            if set(request) != {"operation"} or self._blocked:
+                raise LedgerUnavailable("ledger unavailable")
+            with self._pair.recovery_fence() as fence:
+                try:
+                    with self._mutex:
+                        if self._blocked:
+                            raise LedgerUnavailable("ledger unavailable")
+                        self._live_matches()
+                        lease = self._journal.append(
+                            _encode_event(
+                                {"event": "lease_open", "epoch": fence.generation}
+                            )
+                        ).ordinal
+                        self._active.add(lease)
+                    _send(channel, {"status": "ok", "result": fence.generation})
+                    while True:
+                        current = _receive(channel)
+                        if (
+                            self._blocked
+                            or set(current) != {"operation"}
+                            or current["operation"]
+                            not in ("fence_check", "fence_close")
+                        ):
+                            raise LedgerUnavailable("ledger unavailable")
+                        fence.assert_held()
+                        if current["operation"] == "fence_close":
+                            with self._mutex:
+                                self._journal.append(
+                                    _encode_event(
+                                        {"event": "lease_close", "lease": lease}
+                                    )
+                                )
+                                self._active.remove(lease)
+                                lease = None
+                            _send(channel, {"status": "ok", "result": None})
+                            return
+                        _send(channel, {"status": "ok", "result": None})
+                except BaseException:
+                    if lease is not None:
+                        self._blocked = True
+                    raise
+        except LedgerOutcomeUnconfirmed:
+            _send_error(channel, "unconfirmed")
+        except Exception:
+            _send_error(channel, "unavailable")
+        finally:
+            if lease is not None:
+                self._active.discard(lease)
+                self._blocked = True
+
+
+def _receive(channel: socket.socket) -> dict[str, Any]:
+    data = bytearray()
+    while True:
+        chunk = channel.recv(1)
+        if not chunk:
+            raise LedgerUnavailable("ledger unavailable")
+        if chunk == b"\n":
+            break
+        data.extend(chunk)
+        if len(data) > 65536:
+            raise LedgerUnavailable("ledger unavailable")
+    try:
+        value = json.loads(data, object_pairs_hook=_unique)
+        if type(value) is not dict:
+            raise ValueError
+        return value
+    except Exception:
+        raise LedgerUnavailable("ledger unavailable") from None
+
+
+def _send(channel: socket.socket, value: dict[str, Any]) -> None:
+    channel.sendall(_encode_event(value) + b"\n")
+
+
+def _send_error(channel: socket.socket, status: str) -> None:
+    try:
+        _send(channel, {"status": status})
+    except OSError:
+        pass
+
+
+def _request(
+    channel: socket.socket, value: dict[str, Any], *, mutation: bool = False
+) -> Any:
+    try:
+        _send(channel, value)
+        response = _receive(channel)
+    except (OSError, LedgerUnavailable):
+        if mutation:
+            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+        raise LedgerUnavailable("ledger unavailable") from None
+    if set(response) == {"status"} and response["status"] == "unconfirmed":
+        raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+    if set(response) == {"status"} and response["status"] == "unavailable":
+        raise LedgerUnavailable("ledger unavailable")
+    if set(response) != {"status", "result"} or response["status"] != "ok":
+        if mutation:
+            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+        raise LedgerUnavailable("ledger unavailable")
+    return response["result"]
+
+
+class _RemoteFence(RecoveryEpochFence):
+    def __init__(self, channel: socket.socket, value: int) -> None:
+        self._channel, self._value, self._active = channel, _positive(value), True
+
+    @property
+    def generation(self) -> int:
+        """同じ実channel/共有lockの生存を確認して世代を返す。"""
+        self.assert_held()
+        return self._value
+
+    def assert_held(self) -> None:
+        """切れたchannelや終了leaseをheldとして再構築しない。"""
+        if (
+            not self._active
+            or _request(self._channel, {"operation": "fence_check"}) is not None
+        ):
+            raise LedgerUnavailable("ledger unavailable")
+
+
+class DurableLedger(DurableGenerationSource):
+    """root保護endpointと実Unix peerで接続する製品source候補。"""
+
+    def __init__(self, endpoint: Path) -> None:
+        """DSN/fresh pairの直接構築を公開入口から拒否する。"""
+        if not isinstance(endpoint, Path):
+            raise LedgerUnavailable("ledger unavailable")
+        from .authority import _endpoint
+
+        try:
+            self._endpoint, self._target = endpoint, _endpoint(endpoint)
+        except Exception:
+            raise LedgerUnavailable("ledger unavailable") from None
+
+    @contextmanager
+    def _channel(self) -> Iterator[socket.socket]:
+        from .authority import _endpoint
+
+        channel: socket.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            if _endpoint(self._endpoint) != self._target:
+                raise LedgerUnavailable("ledger unavailable")
+            channel.settimeout(self._target["timeout"])
+            channel.connect(self._target["socket_path"])
+            _, uid, _ = struct.unpack(
+                "3i", channel.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+            )
+            if uid != self._target["authority_uid"]:
+                raise LedgerUnavailable("ledger unavailable")
+            yield channel
+        except OSError:
+            raise LedgerUnavailable("ledger unavailable") from None
+        finally:
+            channel.close()
+
+    def current_recovery_generation(self) -> int:
+        """実authorityが照合した現在epochだけを返す。"""
+        with self._channel() as channel:
+            return _positive(_request(channel, {"operation": "epoch"}))
+
+    def reserve(
+        self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
+    ) -> ReservedGeneration:
+        """journal/実同期PGの両耐久化後にだけ単一ProtocolのDTOを返す。"""
+        params = (attempt_id, tenant_id, game_id, start_request_id)
+        _owner(params)
+        with self._channel() as channel:
+            value = _request(
+                channel,
+                {"operation": "reserve", "params": [str(v) for v in params]},
+                mutation=True,
+            )
+        try:
+            row = _row(value, params)
+            if row[5] or row[6]:
+                raise LedgerUnavailable("ledger unavailable")
+        except Exception:
+            raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+        return ReservedGeneration(row[0], row[1], tenant_id, game_id, start_request_id)
+
+    def claim(
+        self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
+    ) -> None:
+        """一度のclaimとCONFIRMED fsyncを実authorityへ要求する。"""
+        params = (attempt_id, tenant_id, game_id, start_request_id)
+        _owner(params)
+        with self._channel() as channel:
+            if (
+                _request(
+                    channel,
+                    {"operation": "claim", "params": [str(v) for v in params]},
+                    mutation=True,
+                )
+                is not None
+            ):
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+
+    def advance_recovery_generation(self, previous: int) -> int:
+        """実RG1 close証明の接合前にはepoch更新を開かない。"""
+        _positive(previous)
+        raise LedgerUnavailable("ledger unavailable")
+
+    @contextmanager
+    def recovery_fence(self) -> Iterator[RecoveryEpochFence]:
+        """実共有epoch lockを同じ認証済みchannelで業務commitまで借用する。"""
+        with self._channel() as channel:
+            fence = _RemoteFence(
+                channel, _request(channel, {"operation": "fence_open"})
+            )
+            try:
+                yield fence
+            finally:
+                try:
+                    if _request(channel, {"operation": "fence_close"}) is not None:
+                        raise LedgerUnavailable("ledger unavailable")
+                finally:
+                    fence._active = False

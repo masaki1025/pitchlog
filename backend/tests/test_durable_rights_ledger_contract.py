@@ -51,6 +51,7 @@ def test_fixed_manifest_and_single_supplier_protocol() -> None:
         "identity",
         "timeout_seconds",
         "witness",
+        "authority",
     }
     assert manifest["tables"] == ["state", "highwater", "reservations"]
     assert manifest["required_settings"] == {
@@ -73,8 +74,24 @@ def test_fixed_manifest_and_single_supplier_protocol() -> None:
         "reserve(uuid,uuid,uuid,uuid)",
         "claim(uuid,uuid,uuid,uuid)",
         "advance_epoch(bigint)",
+        "audit_page(bigint,integer)",
+        "confirm_state(bigint,bigint,bigint)",
+        "reconcile(uuid,uuid,uuid,uuid,bigint,bigint,boolean,boolean,bigint)",
     }
-    assert manifest["boundaries"]["cold_attach_proof_port"] == "NOT_PROVIDED"
+    assert manifest["boundaries"]["business_restart_without_close_proof"] is False
+    assert manifest["boundaries"]["public_epoch_advance"] is False
+    assert (
+        hashlib.sha256((_PACKAGE / "business_identity.sql").read_bytes()).hexdigest()
+        == manifest["authority"]["business_identity_ddl_sha256"]
+    )
+    for filename, key in (
+        ("adapter.py", "adapter_sha256"),
+        ("authority.py", "source_sha256"),
+    ):
+        assert (
+            hashlib.sha256((_PACKAGE / filename).read_bytes()).hexdigest()
+            == (manifest["authority"][key])
+        )
     assert manifest["boundaries"]["promotion_issuance"] is False
     assert adapter.ReservedGeneration is ReservedGeneration
     assert adapter.RecoveryEpochFence is RecoveryEpochFence
@@ -84,7 +101,7 @@ def test_fixed_manifest_and_single_supplier_protocol() -> None:
     assert b"FOR SHARE" in ddl and b"FOR UPDATE" in ddl
     assert (
         ddl.count(b"SECURITY DEFINER SET search_path = pg_catalog, pitchlog_ledger")
-        == 6
+        == 9
     )
     assert b"REVOKE ALL ON ALL TABLES" in ddl
     tree = ast.parse(Path(adapter.__file__).read_text())
@@ -169,8 +186,11 @@ def test_post_commit_primary_read_failure_is_unconfirmed(
     with pytest.raises(
         LedgerOutcomeUnconfirmed, match="^ledger outcome unconfirmed$"
     ) as captured:
-        DurableLedger._confirmed(
-            cast(DurableLedger, None), cast(psycopg.Connection[Any], None), None, ()
+        adapter._PgLedgerPair._confirmed(
+            cast(adapter._PgLedgerPair, None),
+            cast(psycopg.Connection[Any], None),
+            None,
+            (),
         )
     assert captured.value.__suppress_context__ is True
 
@@ -664,13 +684,13 @@ with w.ProtectedJournal.open(Path('/w/busy')) as journal:
             process.communicate(timeout=5)
 
 
-def test_witness_manifest_matches_component_and_keeps_authority_pending() -> None:
-    """汎用journalの提供範囲と保護/formatを固定し、authority完成としない。"""
+def test_witness_manifest_matches_component_and_keeps_product_boundary() -> None:
+    """単一journalの保護/formatを保持し、接合を全製品完成へ広げない。"""
     from pitchlog.durable_rights_ledger import witness
 
     entry = json.loads((_PACKAGE / "manifest.json").read_text())["witness"]
-    assert entry["component"] == "protected_journal_only"
-    assert entry["authority_connected"] is False
+    assert entry["component"] == "protected_journal_and_unix_authority"
+    assert entry["authority_connected"] is True
     assert (
         entry["source_sha256"]
         == hashlib.sha256(Path(witness.__file__).read_bytes()).hexdigest()
@@ -706,3 +726,63 @@ def test_witness_manifest_matches_component_and_keeps_authority_pending() -> Non
             "secret_fields",
         )
     )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        True,
+        (),
+        [str(UUID(int=1))] * 3,
+        [str(UUID(int=1))] * 3 + [1],
+        [str(UUID(int=1)).upper()] * 4,
+    ],
+)
+def test_authority_rejects_untyped_or_noncanonical_owner(bad: object) -> None:
+    """transportの型/要素数/非canonical UUIDを実行前に拒否する。"""
+    # 数字だけのUUIDはupperでも同値なので英字を含む入力に置き換える。
+    if type(bad) is list and len(bad) == 4 and all(type(v) is str for v in bad):
+        bad = ["AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"] * 4
+    with pytest.raises(LedgerUnavailable):
+        adapter._params(bad)
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        b"",
+        b"not-json\n",
+        b'{"status":"ok","result":1,"extra":0}\n',
+        b'{"status":"ok","status":"ok","result":1}\n',
+    ],
+)
+def test_mutation_transport_loss_or_malformed_ack_is_unconfirmed(
+    response: bytes,
+) -> None:
+    """実socket上のEOF/破損ACKを未使用や成功へ再解釈しない。"""
+    import socket
+    from threading import Thread
+
+    client, server = socket.socketpair()
+
+    def reply() -> None:
+        with server:
+            while server.recv(1) != b"\n":
+                pass
+            server.sendall(response)
+
+    thread = Thread(target=reply)
+    thread.start()
+    try:
+        with client, pytest.raises(LedgerOutcomeUnconfirmed):
+            adapter._request(client, {"operation": "reserve"}, mutation=True)
+    finally:
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+
+
+def test_public_constructor_does_not_accept_uncontrolled_pg_endpoints() -> None:
+    """public呼出元に資格/期待集合を渡してfresh newする抜け道を作らない。"""
+    endpoints = LedgerEndpoints("primary", "standby", "business", "control")
+    with pytest.raises(LedgerUnavailable):
+        DurableLedger(cast(Path, endpoints))
