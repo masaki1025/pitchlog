@@ -70,3 +70,10 @@ docs-statusは20文書/違反0、計画同期（base 7d6ce544）はexit0、両�
 新試験は候補未実在の宣言状態と登録状態、両領域への帰属、片側登録拒否、限定外非包含、別コミットの宣言→JSON登録、候補5パス各単独変更の未確認拒否/確認済み受理を検証する。旧追加層の登録・実在と拒否試験は保持した。
 
 検証: `uv run pytest tests/test_core_guard.py -n 4 -q`は**284 passed / 10.96s**。root Ruff/ty、docs-status（20文書/違反0）、計画同期、差分空白検査は成功。失敗8件の比較基線是正後、同対象で無関係な失敗はなかった。実JSONの登録や候補作成は未着手で、ステップ1のコード独立レビューへ引き継いで停止する。
+
+## ステップ1の独立受領とステップ2/3の限定JSON登録
+
+2026-10-24 00:54 JST記録、主担当/rootから独立`independent_review`の結果を受領した。対象HEADは`7f8d333e8d7e784a9bdfa4601d98c04c187eff94`、ステップ差分SHA256は`51265295ee9e5351dfce95251c559b08904c5bfd11bcd759c8444f2d139cd62e`に一致し、**可決P0=0/P1=0/P2=0**、独立試験も284 passed / 13.28s。実origin先端との直接比較は未取得O5登録を引き続き拒否し、guardの非緩和も確認された。rootはPO委任でこの範囲を限定受領し、ステップ2のJSON登録だけを許可した。
+
+宣言済み`docs/features/mvp-t1-p7-context-contract/candidate/*`を実JSONのsync-protocol/game-stateへ各1件末尾追加した。旧登録と順序、対象外領域、guard_paths等の全メタデータを保持し、宣言/試験の変更は0。候補の実在は要求せず、`uv run pytest tests/test_core_guard.py -n 4 -q`は**284 passed / 10.52s**、docs-status（20文書/違反0）・計画同期・差分検査が成功した。
+この登録は候補schema等の提供、先端O5取得済み、正式7.7/統合可を意味しない。実baseの全登録/guard_paths保持を正式統合前に照合するゲートと未閉鎖意味の留保を維持する。ステップ3のcandidate作成は未着手のまま、別JSONコミットで停止する。

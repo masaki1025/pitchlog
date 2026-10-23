@@ -265,7 +265,8 @@
         "backend/tests/test_rg1_*",
         "contracts/tenant_boundary/repository-contract.json",
         "contracts/tenant_boundary/base-allowlist.json",
-        "contracts/authz/product/function-bodies/*rg1*"
+        "contracts/authz/product/function-bodies/*rg1*",
+        "docs/features/mvp-t1-p7-context-contract/candidate/*"
       ]
     },
     {
@@ -407,7 +408,8 @@
         "tests/test_field_geometry_numeric_lexemes.py",
         "tests/test_fielder_estimation_contract.py",
         "tests/test_field_geometry_ci_wiring.py",
-        "backend/src/pitchlog/db/stage_a_startup.py"
+        "backend/src/pitchlog/db/stage_a_startup.py",
+        "docs/features/mvp-t1-p7-context-contract/candidate/*"
       ]
     },
     {
