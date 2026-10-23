@@ -125,3 +125,38 @@ guardや正式descriptorを変更せず、外殻4定義と旧caseを保持して
 最終検証: `uv run pytest tests/test_state_transition_contract_schema.py -k p7_context_candidate -n 4 -q` **202 passed / 5.04s**、`uv run pytest tests/test_core_guard.py -n 4 -q` **284 passed / 17.44s**。root `uv run ruff check .` / `uv run ty check`成功。docs-statusは20文書/違反0、計画同期（承認base c6f7c1ff）/差分検査成功。候補5ファイル両core領域被覆を既存専用試験で確認し、core3パス自体は変更なし。実DB/HTTP/意味計算/P6検証は実行せず、独立レビュー/正式受理/統合可は未成立として停止する。後続正式化前の実base全登録/guard_paths保持照合はrootへ引き継ぐ。
 
 保持hash（JSONはsort_keys/UTF-8/空白なしの辞書/列射影）: 旧外殻4定義`a6d701ba987ec27a464ac885ee832f27daa8c4123d2de8a75f3cd554184d1a45`、旧25case`40dc00bc02bb8b54ac6f9e12fbf67bb4841931b8fd432fc7f3a15ea396e1b5ab`、旧d.ts byte prefix`fed23638e0ca11f38a5e610705ff9b609dbe33a39504112c849aff82ee9cebbd`。新T1TemporaryOriginV1の辞書hash`ca785c278d9c1b65650b9da72cf8f203eec6df479ed445744308b3de5a2987d0`はUS1 cb0bのT1MappingEvidenceV1と辞書一致を実照合。CIは固定hashを使い、別worktree/未統合commitの存在を要求しない。
+
+
+## operation-content限定追補の読取根拠・正式整合案（2026-10-24、未承認）
+
+主担当/rootから既存plan/research2文書のみの追補起案を依頼された。起案者はCodex `/root/resolver_ledger_plan_review`（7d80候補作者）で、独立レビューではない。開始HEAD `7d80d3e4a337bcd0639a4d4e7755cda1a4571a28`・cleanを確認。旧3段階/計画2回/前回追補の非作者限定第1回0/0/0・root c6f7承認/7d80の実装・検査/中間失敗を保持する。主担当から旧7d80の既レビュー0を保持する指示を受領しており、その別系列の記録はroot台帳を正とする。今回のoperation-content追補自体は未レビュー/未承認で、候補5files/専用試験/core/正式assets/製品の編集は0。
+
+### 再利用する原典と固定hash
+
+| 固定入力 | SHA256と読み取った範囲 |
+| --- | --- |
+| 7d80の`contracts/state-transition/state_transition_contract_schema_v1.json` | `9170b82ee91f521f15770e8704f629984519c15052034923072c05a226fd3a0c`。operationPayloadShapeのproperties自体は自由object、historyInputもstack内/differenceを閉じないため、これだけで入力全閉包とはしない |
+| 同`state_transition_contract_v1.json` | `54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb`。operationRows10行のoperationKind/payloadShape/根拠を照合し、4操作の各重複shapeが一致。operationKind→payloadShape辞書のsort_keys/UTF-8/空白なし正準hashは`1d055470e5f503abb3dbaa218c7448aca551481a69a5ab124100a0fbf21ce34e`。cases/独立期待値は新候補入力へ利用しない |
+| 同`input_axes_descriptor_v1.json` | `fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56`。event.*のkind、runner別/対象別表現能力、時機valueSchema、RBI/妨害/公式失策の軸を照合。段階2未確定内部制約と、意味/DTO細部を分ける |
+| 要件v2.16/ADR v0.9（52625ed6由来、本枝） | それぞれ`569b761b55f83923d8a6352705bbac3527103d4194a2819a06ac06296ee7060a` / `375900aa9acc7e728cc3e28640418a37c4cd97a5f0de81cad130b74c5599684c`。FR-003/004/009/011/015、OUT3/ADV/INT/RBI、付録E-1 J5/J6、D-8/D-11の採用済み意味。本文採用と正式入力schema/7.7の未達を区別 |
+| 544 P8候補`t1-input-and-cases.md` / `t1-g6-rbi-review-candidate.md` | 本枝file hash `d3b6251524993b22648083683c5b597f2e57157c838a6240dff7c4b4f1379f5e` / `aec0a3d9f60a7d254fad985c088d1be2ca90d9ae1c72f73394991586a3aec7e3`。観測/所有/未決の候補資料であり、候補のfield名を正式採用済みにはしない。P6の封印/期待値JSONは読まない |
+| UF8固定/現eb83787ca5f9e79f94bc773f99e62d74121778cfの`GameScreenPlayObservationTypes.ts` / `GameScreenSubstitutionTypes.ts` | `d2b44676c3aff2d28ee16bc26b34b1c051dae91ff81b722fa032598a4a5f4ad3` / `58a129f17ee7a27d7a1822c065d4d634ceac1e2a76379ccc4092fab4dacfc7ed`。質問/選択肢とraw回答の表示型。正式閉payloadが提供済みとはしない |
+| 正式`contracts/vocabulary/vocabulary_manifest_v1.json`が参照する`input_vocabulary_v1.json` | seedの記載contentHash `sha256:0d126947a0cc884a0be731fd9cd12a93b6ce37dfa2bd649fc2ab0094a63955fe`、file byte SHA256 `fd1e445a2c3fad15aee9798ea0e6aa63b90c7c278b235d835aacebd12be56fef`。意味ID/軸の照合元。byte hashと内容hashを同一視せず、表示名をIDにしない |
+
+型名/literal/保存表現の新候補はplan8節へ閉集合として列挙した。既採用fieldを再利用し、不明な観測要否・野球分岐・既存ID移行を候補作者が新しく裁定しない。全kindのoperation-contentが閉じたと称さず、今回対応外のundo/P3等には明示unresolvedを残す。
+
+### FR-015の名前carrierとADR D-8：root後段正本ゲートへ返す最小案
+
+現ADR D-8はoperationRowsのpayload文字列をenum/参照ID等とし「自由記述には用いない」とする。一方、FR-015は選手名・任意背番号で登録し、正式adhoc-registration payloadShapeはname:string/任意uniformNumber:stringを保持する。P8/descriptorもこの文字列規定の整合を段階2へ送っている。この不整合を、型名をOpaqueとするだけ・名前削除・一律enum化・無断の例外追加で解消扱いにはしない。
+
+**正式整合の提案（未採用）**: FR-015の名前/背番号の原値を、型付きの非計算登録carrierとして損失なく保持する。T1の登録操作は既採用の状態中立と不変PlayerRefへの結合だけを評価し、名前によるID同定・文字列計算・T1表示名生成を行わない。D-8へこのcarrierと計算入力/比較面の境界を限定条文化し、D-11のpayload-string-policy-reconciliation/descriptor/入力schemaへ同時に対応させる。raw入力とcarrierの対応/不在は保持し、入力のfield除外や名前を捨てるlossy正規化を認めない。既存player APIの制約を参照する場合も対象版/処理を根拠に固定し、新たな長さ・trim/正規化・既定値を候補で発明しない。利用者への出力エスケープは既存NFR-023のまま。
+
+後段の影響は`docs/adr/ADR-003-domain-calc-method.md` D-8/D-11、必要な要件付録E-1/FR-015への境界参照、正式descriptor/schema/consumer handoffの対応とT2共通digest、必要7.7である。rootが既存正本ゲート/独立確認/PO委任による正式整合判断を追跡して確定する。本候補のstring carrier構造成功を、この正本変更の採用/正式比較面成立としない。
+
+### D2と今回閉じない意味・提供境界
+
+D2についてはdata-model WAIT-03がbigint/gap方式までを採用し、5-3は値自体に意味を持たせず退避値域も許す。採用wire設計L-2はD1/D3だけで、3-4はV6表現を論点26へ送る。実547d199eの`ordering.py`（file SHA256 `37082008c2cfb8c919fea8f6003fdb21890a810e34b187794674695241eeaff9`）の適用経路は0..2^63-1だが、それだけで正本の全構造域を非負に変更しない。wire設計file SHA256 `c2e2ad6f9956277ea98a5a70a02d0d4b7c59f32d429f36aa731087425acd1381`。主担当もこの分離を受領した。旧7d80の負数構造acceptを実constructor/製品受理成功と呼ばず、今回は値域変更0とする。
+
+他6markerは内容/issuer発行・同scope/全有限読取の具体契約を後続で閉じる。自己申告ref/bool/count/digestを証拠にせず、未提供のissuer/読了を成功扱いにしない。旧codec欠落の移行、元scope不明の既存行、新O4優先・新状態拒否/P3公開分岐・一般同値不成立の公的分類はこの追補のDTO具体化と分ける。実Port/HTTP完成を契約準備の前条件へ戻さず、正式7.7/P6/P7/全23フラグ/G6閉包/全T1製品着手を未達として保持する。
+
+起案検証: docs-statusは20文書/違反0、計画同期（base `7d80d3e4a337bcd0639a4d4e7755cda1a4571a28`）はexit0、差分空白検査成功。差分は本plan/researchのみ。候補/試験/製品への変更がないため実装pytestは再実行せず、追補の非作者確認とrootの対象版承認前に実装へ進まない。

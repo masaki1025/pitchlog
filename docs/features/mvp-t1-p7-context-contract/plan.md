@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-p7-context-contract
 status: active
-承認: 済（PO委任によるCodex判断・当初の局所外殻候補。第7節追補は未承認）
+承認: 済（外殻候補・第7節追補。第8節operation-content追補は未承認）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-t1-p7-context-contract
@@ -179,3 +179,31 @@ root Ruff/ty、docs-status/計画同期、差分/JSON参照検査を行う。新
 ### 閉payload候補追補のPO委任承認
 
 2026-10-23T19:14:58.360660+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24の縦断優先指示に基づき、対象HEAD5dcccce3、plan75cb708d1d2efe624f7f562ad02c628e8602cee8e17c7aac8aad036db7056b6c/research7fd45847421d7954416a41c011a57e4d2c8d31b501798c2151d33bbfb4ceb421を承認。非作者rights_replacement_reviewの限定追加第1回P0=0/P1=0/P2=0と根拠・source固定点を照合した。DTO命名/格納・構築境界を既採用意味に沿って具体化する候補作業の承認であり、正式型受理・Ready・全T1意味閉包・P6/P7・7.7・製品計算の開始を代替しない。旧3段階/外殻4定義/旧case/全レビュー実績・中間失敗を保持し、この範囲のstep3/3後続候補だけを個別実装する。山田正輝の個別確認/署名・人間逐行確認を代記しない。
+
+
+## 8. ステップ3/3後続：operation-contentの閉型候補（未承認）
+
+2026-10-24、主担当/rootのPO委任4/5/7/8/10に基づく起案指示。対象基線は`7d80d3e4a337bcd0639a4d4e7755cda1a4571a28`。既存3段階/総数3・旧承認・計画/候補/コードの全レビュー履歴を保持し、次の限定単位をステップ3/3の後続とする。第7節の7markerを全て解消したと記録しない。今回の編集は本plan/researchのみで、この追補の非作者確認・対象版を指定したrootの委任承認と個別実装指示前に候補/試験を変更しない。
+
+### 実装する集合と出所
+
+後続の編集所有は従来のcandidate5files、既存`tests/test_state_transition_contract_schema.py`の`p7_context_candidate`専用部分、本researchだけ。planの実施記録を除き、core3・正式contracts/descriptor/T2・正本・P6・製品/UF8 sourceは変更しない。候補schema/d.ts・構造case・constructor・source所有対応を同じ単位で更新し、外殻4定義/同一性digest・旧25case・旧宣言を保持する。
+
+| 閉型候補の集合 | 固定した意味・fieldと実装境界 |
+| --- | --- |
+| 操作4型 `T1GameEndPayloadV1/T1SubstitutionPayloadV1/T1TiebreakStartPayloadV1/T1AdhocRegistrationPayloadV1` | 正式operationRows10行を操作別に重複除去した4payloadShapeを直接対応させる。終了宣言は空object。交代はsubstitutionType=4値、outgoing/incomingPlayerId必須、battingOrderSlot/defensivePositionId任意。TBはrunnerPlacementの既存2値・leadoffBatter1..9・inning>=1。その場登録はname/throws/bats必須、uniformNumber/temporaryPlayerId任意。既存任意fieldの不在を既定値で埋めず、必須化/削除しない。PlayerRef/同scope・打順/守備/DH・規則snapshotとの照合をconstructor条件へ対応 |
+| 毎球の閉観測型 `T1RunnerOutcomeV1/T1RunnerEventPayloadV1/T1RunnerAdvanceOverridesV1/T1ThirdOutObservationV1/T1ThirdOutTimingV1/T1InterferenceRulingV1/T1OfficialScoringV1/T1RbiObservationsV1` | FR-003/004、OUT3-01..05、ADV、INT、RBI-01..09と正式descriptorの既採用観測/表現能力を具体化。走者ごとの停止/アウト/到達・企図塁・アウト種別、手動上書き、第三アウトの有無/種類/対象、走者別時機、妨害の採用結果/授与塁/帰塁先、公式失策と野手参照、RBIの走者別継続/再発進・失策なし得点可否を閉じる。新タグliteralはDTO候補として出所を明記し、原典で決まらない結果条件を補わない。例外3種以外の時機2値/同時の扱いは正本どおり |
+| `T1PerPitchPayloadV1/T1OperationContentV1` | kind/pitchEventKind、結果ID・上記観測・既存HomeTouchOrderV1を閉unionへ束ねる。結果/走者状態等のIDを正式語彙seedと有限snapshotへ照合し、非空refだけで内容を合法としない。J6のsnake/順序・有効候補exact-set境界を維持。statFlags23キーは計算出力であり、利用者の入力payloadへ追加しない |
+| 既存entry.contentとの接合 | 今回具体化したkindだけを閉内容型へ束縛し、operation_kind/contentの食違いを負例にする。undo/P3原本・版関係等で閉内容が未供給なら既存の明示unresolvedを残し、未知kindを汎用objectで通さない。部分的な閉union候補をoperation-content全kind/他6marker/全T1の意味閉包と称さない |
+
+各fieldの出所/意味版/hash/任意性と、schemaで判定する構造・constructorに残る参照/相反/観測要否の条件を分ける。正式`operationPayloadShape.properties`の自由objectや既存historyInputを、閉内容schemaとして流用しない。新語彙を意味が既知のIDへ推測変換せず、元の原入力/タグ/不在を損失なく保持する。名前carrierの既存stringは候補で保持するが、ADR D-8の正式例外/比較境界の整合済みとは記録しない。正式整合の具体案と根拠はresearch末尾へ固定し、rootの後段正本ゲートへ返す。
+
+U-F8固定/現HEAD eb83787cのRawPlayObservation/RawSubstitutionDraftは表示用raw入力で、正式payloadの提供ではない。field対応とdefense→defensive等のadapter対応を候補に記録するが、画面の任意question key/回答から意味を推測しない。今回はUF8 sourceを編集せず、未回答null・型違い・文脈違いを内容の既定値へ変換しない。
+
+### 検査・合格条件と停止点
+
+専用構造試験で4操作のraw shape/field/任意性・enum・余剰/欠落、追加readonly宣言、毎球観測のtag/走者別参照/時機/J6順序、operation kindとの組合せ、語彙/原典射影を検証する。既存helper/専用宣言照合は既採用任意field・追加閉型に必要な限定文法だけへ対応し、外殻の全必須/余剰拒否や旧拒否を弱めない。正式raw shapeをそのまま表す場合は、任意fieldも許可集合/型を閉じて不在を保持する。any/自由properties/未対応keywordの黙認・新製品validatorは不可。未実装の意味要否/出所照合を構造成功やruntime Ready成功と採点しない。計算結果/P6期待値を新caseへ取り込まない。
+
+root Ruff/ty、専用pytest（`-k p7_context_candidate`）、既存core試験/候補5パス被覆、旧保持hash、docs-status/計画同期/差分検査を必要範囲で行い、固定コード版を非作者レビューへ渡す。7d80の実施済み検査/中間失敗・既存レビューは履歴として保持し、今回の追補は未レビューである。
+
+旧codecの観測/対象半回欠落、元scope不明の既存行、新状態拒否とO4の競合、新P3公開分岐・一般同値不成立の公開分類、未裁定の野球分岐はこの単位で決めない。FR-040は延期のまま。D2は正本のbigint構造域とordering.py実経路の非負域を分け、実装だけを根拠に原典の域を狭めない。membership/半回印/P3原本/undo差分/selection/terminalの実閉内容・真正issuer/有限読了は後続で具体化する。実Port/HTTP/DB完成をこの候補整備の開始条件へ追加せず、正式7.7/23フラグ/G6閉包/P6/P7・全T1計算の開始条件を代替しない。
