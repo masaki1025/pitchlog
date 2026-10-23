@@ -111,7 +111,7 @@ TSK-332 の射程(Notion カード。設計の蓄積は `docs/features/sync-serv
 | 到達しない注入点 | `expectedReachability: "unreached"` と hook の呼び出し 0 回 | 成り立った |
 | 注入点の組 | 経路と T 要素の対応は `scripts/design_relations/sync-protocol.json` の `R-TXN-ROUTE` から導出し、二重定義しない | (スパイクでは手で列挙) |
 | 契約検査と結果検査 | 別の validator にする(同じものを使うと既存 runner が必ず red になる) | — |
-| 母集合 | 26 ID・観点 22 種・26 ペアを exact-set で照合する(`docs/features/sync-server-apply/design.md` 6-2) | — |
+| 母集合 | O5 追加後は 27 ID・観点 23 種・27 ペアを exact-set で照合する(`docs/features/sync-server-apply/design.md` 6-2)。O5 は後続 D-7 の資産・runner 実装まで繰り延べる | — |
 | 既存 4 資産 | 最終構造へ一度だけ移行する(途中の版を作らない)。frontend の消費側(`frontend/src/testing/failureScenarioAdapter.ts`・`frontend/src/lib/sync/failureScenarioContract.ts`)も追随させる | — |
 | 新規資産 12 件 | TSK-332 の 10 件(墓標・改訂、P1〜P4、`p5-b3a`、`p5-b3b`、`d1-mixed-batch`、`b3b-after-gap`)と、TSK-330 から引き継いだ 2 件(`p3-invalidation-consumed-before-complete`・`o4-persisted-d2-equivalence`)。復元系 10 件は U-R1 への繰り延べとして母集合に記録する(R-11) | 3 件をスパイクで試作 |
 
