@@ -181,3 +181,8 @@ creation_path/rootと重いDB slotを調整して新1件だけ実行した。`PI
 ### 残りの成功供給・rootゲート
 
 必要な成功供給は既存公開RG1事前/直前の実安全許可（常閉をこちらで変更しない）である。供給後に実単一resolver/codec→新語彙とgame INSERT→直前ゲート→commit後201とGET全値一致、語彙直後/ゲーム後/直前/commit障害での両全取消、二接続復元競合を完走する。未実行をskip/mock成功へ置き換えない。正式7.7識別値/完全before-after/履歴/snapshot/派生lock/oracleと実統合基線追随はroot唯一writerに残し、本候補を正式提供/親全DoD/開始/1球成功に数えない。
+
+
+## 実POST/GETで見つかった日時表記の整合
+
+固定候補の実RG1/実Cookie+C2とrowcount保持是正の隔離接合でPOST201→新UUIDのGET200へ初到達した。原実行1failed/50.73秒はscheduled_atだけPOST+09:00/GETのZが異なり、他12fieldと規則snapshot全JSONは一致。同一instantで保存値の意味差ではないが、再読込前後の応答表現を同じにするため、既存readのUTC表現へ共通PreparingGameRead出力だけを揃える。Timestampの契約はAwareDatetime、入力offset保持・DBにbindする値・JST暦年/試合日・保存値/スコア意味は変更しない。rootはPO委任の通常是正/DTO形式具体化として判断した。テスト側で差を捨てず、製品側の共通出力を正す。UTC/+09/-05が同じUTCZになり、入力は+09のまま保持する境界を検査する。正常201後の新規DB件数直接照合/実画面は再実行で別途確認、まだ未達。

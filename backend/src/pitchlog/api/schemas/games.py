@@ -86,6 +86,12 @@ class PreparingGameRead(BaseSchema):
     status: Literal["preparing"]
     applied_rules: dict[str, object]
 
+    @field_validator("scheduled_at")
+    @classmethod
+    def normalize_scheduled_at(cls, value: datetime) -> datetime:
+        """保存後readと同じUTC表現へ揃え、同一instantは変更しない。"""
+        return value.astimezone(timezone.utc)
+
 
 def encode_preparation_options_cursor(key: str) -> str:
     """大会キーを値を変えずに不透明なページ位置へ写す。"""
