@@ -153,3 +153,31 @@ provider specの重複defineComponentに対するESLint2件は、同じProbeを2
 正規clientのfetchをUI試験用Responseで置き換えた局所試験であり、実HTTPログイン/Cookie/DB保存成功ではない。実App host→作成form→通常client POST1回→応答IDの明示GET→既存record詳細の配線を確認した範囲で、fixtureのapplied_rulesを正規resolver出所/計算結果と主張しない。認証/C2のfixture成功を製品認証overrideとして導入していない。ブラウザdriver/新TLS/署名鍵生成器/旧sealed全件/P6を実行していない。
 
 今回の変更はfrontend予定9pathsと本researchだけ。backend/正常供給/正式metadata/9射影8入力受理/履歴/snapshot/lock/oracle/共有台帳への新変更0。step3の実RG1成功供給、通常7token/6factory/6正例/POST/options登録と7.7、実HTTPの新語彙+game保存/両全取消は未達のまま保持する。ステップ2のUI配線成功を新規保存・開始・1球・reloadの実達成へ拡張しない。
+
+## ステップ3/3の独立API・登録候補（部分実装、2026-10-24）
+
+rootの実装順具体化commit `f50aa0df72a57e74422563d932c5ca133d59c6f9`と指示を受領した。実RG1成功をAPI/metadata準備の前提にせず、常閉503/options/認証C2先行/登録正負から先行する。正常201、新語彙+gameの実保存後の故障全取消、同時復元競合とステップ3全DoDは未達のまま。コミットのステップ3表示を全DoD完了に読み替えない。正式read供給0ae8ee37はroot指定の実統合後まで取り込まない。
+
+### 実装・候補metadata
+
+- 既存games routerへ`POST /games`と`GET /games/preparation-options`を追加し、両operationを通常C2集合へ登録した。静的optionsを動的game_idより前に置く。既存app.ROUTERSのgames router接続を再利用し、app.pyの変更は不要だった。POSTはservice候補→scope退出commit→201だけを正規経路とし、公開4失敗/作成固定拒否/RG1常閉/未知障害はscope外で既存404/409/422/503へ写す。未知DB例外の原文を返さない。
+- 計画の未受理候補route名games:create/games:preparation-optionsは、実checker2553–2567のoperation閉集合read/insert/updateと末尾一致に合わないと確認した。rootは同一API/CAP/意味の機械命名是正を委任内で採用し、担当planの当該名修正を許可した。`ROUTE:RECORD:games:insert`と`ROUTE:RECORD:games_preparation_options:read`に合わせ、既存の拒否文法を緩めない。既存TSK446専用provenanceと新plan provenanceを併記、対応matrix2行はdisposition=conditional、実収集root試験nodeをownerとする。
+- 候補7tokenをPRODUCT_OPERATIONSへ追加した。6factoryのexact symbol/署名/API種別をallowlistへ各1行追加し、既存startup_allowedと同じclass-qualified一意6正例を作成した。SELECT4はSELECTのみ、INSERT2はINSERTのみ。fixturepath一意拒否・actual/declared exact-set・元read2許可を保持し、checker本体の例外追加/緩和0。authz checker差分は既存expected集合への上記2ID追記だけ。
+- repository-contractは旧capability/token順序・他全field/identifier/historyを保持し、既存CAPの実operation使用分3件と7token型を末尾追加。source_digestを実JSONから再計算し、既存試験の全field写像36定数から生成moduleを再導出した。3定数だけに範囲を固定せず、全field一致を試験で確認した。capability-catalog/DDL/ACL/RLS/migration/新権限は変更していない。
+- 実機械比較で、allowlistは旧全field保持+6行末尾追加だけ、repository-contractは旧全field保持+capability3/token7/source_digestだけと確認した。core3はf50aa0dfからbyte不変。正式識別値/7.7row/履歴/snapshot/lock/oracleの独自更新0。
+
+### 局所試験・実HTTP
+
+backendの既存DTO/read/新登録/実API構成/全field生成の対象回帰は **230成功/3.15秒/exit0**。候補7tokenの以前の未登録assertは、ステップ3のexact通常登録へ追随し、tenant引数なし・型/値/固定文拒否は保持した。
+
+root限定試験の初回は61成功/3失敗（5.15秒）。新matrix行でexpected_resultを使った候補起案誤りを既存dispositionへ直し、試験のassetキーhttp_matrixと旧exact集合8→10へ同期した。旧拒否/旧read許可を減らさない。最終は `uv run pytest tests/test_check_tenant_boundary_bypass.py tests/test_check_authz_catalog.py -k 'preparing_create or preparing_read or record_and_aggregate_route_ids_match_approved_set' -n 4 -q --tb=short` が **64成功/4.33秒/exit0**。全正例scan、当該6正例/製品6factoryの全拒否TB900、SELECT/INSERT交換・text/update・module/関数/署名の拒否、fixture重複拒否、旧read2保持、route10件それぞれの欠落/余剰拒否と全GET3/POST1のexact対応を確認した。初回失敗を正式未受理だけにまとめず、候補起案/試験同期の実装是正として保持する。
+
+creation_path/rootと重いDB slotを調整して新1件だけ実行した。`PITCHLOG_PYTEST_TMPDIR=/home/ymdms/.cache/pitchlog/create-step3-pg-f50aa0df uv run pytest tests/db/test_game_preparing_create_db.py::test_create_options_http_real_login_c2_and_closed_gate -q --tb=short` は **1成功/9.12秒/exit0**（unified exec session51728）。既存provisioned_product_catalogのmigration/製品DDL・正規create_database_engineの検査・実appロール・実POST login発行Cookie・既存署名/C2を使った。署名素材は既存非秘密b'r'*32、Cookie注入/認証成功override/route.fulfill/RG1成功stub/新鍵発行なし。
+
+実証はoptions200・同tenant有効tournamentだけの1件→次1件keyset・成功C2ACK、誤tenant+壊れ本文404/業務SQL0、未認証+壊れ本文401、正C2+壊れ本文422/業務SQL0、実RG1常閉POST503/rollback/業務INSERT0である。game0/既存語彙4件不変を確認した。実HTTPとはhttpx ASGITransportで実FastAPI handler/login/DBを通した範囲で、実ブラウザやuvicorn/Vite縦断の追加実施ではない。正常201/実保存後の全取消ではない。所有pitchlog-authz-*コンテナ0、所有tmp削除済み、共有pitchlog-db-1不変更を確認し、root/creation_pathへslot解放を通知した。
+
+最終backend/root Ruff/ty成功、docs-status21件/違反0。重いcore/既存DB全件は再走しない。固定HEADでの局所plan-sync/core actual547比較/正式未受理checkerは別途結果を返す。ステップ2frontend sourceは今回byte不変で、121成功とmock UI配線/実保存証拠の区別を維持する。
+
+### 残りの成功供給・rootゲート
+
+必要な成功供給は既存公開RG1事前/直前の実安全許可（常閉をこちらで変更しない）である。供給後に実単一resolver/codec→新語彙とgame INSERT→直前ゲート→commit後201とGET全値一致、語彙直後/ゲーム後/直前/commit障害での両全取消、二接続復元競合を完走する。未実行をskip/mock成功へ置き換えない。正式7.7識別値/完全before-after/履歴/snapshot/派生lock/oracleと実統合基線追随はroot唯一writerに残し、本候補を正式提供/親全DoD/開始/1球成功に数えない。

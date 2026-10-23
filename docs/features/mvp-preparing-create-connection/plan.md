@@ -77,7 +77,9 @@ resolver公開4失敗の外形は親designを維持する: `stage_a_unsupported`
 
 既存正規`apiRequest`のtenantBoundとCookie/C2を使う。新フォームは日時/区分/両team/既存大会又は新名称/任意labelを供給し、全値が揃いonlineのときだけsubmit可能。送信中は同じフォームの二重操作を同期的に遮断する。tenant/authEpoch/経路/要求世代を送信時に固定し、切替・unmount時は即時に選択/旧表示を破棄する。遅い旧POST結果で新tenantの成功表示/cache/navigationを変えない。abort/切断/503は結果不明として一覧/詳細で明示確認する。大会名/label/チーム名はVueの通常text bindingだけで表示し、生HTMLを挿入しない。復帰、focus、認証再確認でPOSTを自動再送しない。テスト用通信応答を製品の保存成功証明に数えない。
 
-候補operation_idは`preparing_game_create`と`preparing_game_preparation_options`。候補route_idは`ROUTE:RECORD:games:create`（CAP:games:insert）と`ROUTE:RECORD:games:preparation-options`（CAP:games:read）、対応matrixは`HTTP:`接頭辞。実serviceの内部SELECT/INSERTには既存CAP:tenant_vocabularies:read/insert、CAP:team_records:readを必要操作ごとに対応させる。新CAP/DB grantは作らない。C2は実operation IDで通常registryへ追加し、静的routeを動的IDより先にprematchする。認証overrideで登録不足を補わない。
+準備中作成POST /gamesと選択肢GET /games/preparation-optionsを既存CAPへ対応させる。
+
+候補operation_idは`preparing_game_create`と`preparing_game_preparation_options`。候補route_idは`ROUTE:RECORD:games:insert`（CAP:games:insert）と`ROUTE:RECORD:games_preparation_options:read`（CAP:games:read）、対応matrixは`HTTP:`接頭辞。実serviceの内部SELECT/INSERTには既存CAP:tenant_vocabularies:read/insert、CAP:team_records:readを必要操作ごとに対応させる。新CAP/DB grantは作らない。C2は実operation IDで通常registryへ追加し、静的routeを動的IDより先にprematchする。認証overrideで登録不足を補わない。
 
 metadataのfactory許可は実sourceのmodule/関数/戻り文種別/署名をexact対応させ、SELECT許可へINSERTを紛れ込ませない。既存DMLの固定文検査・token登録・tenant注入を使う。許可方式に新しい検査能力が必要と判明したら、その具体的不足を限定追補してから実装する。生成moduleは`test_authz_repository_contract.py`の全field対応を正とし、3定数等へ限定しない。
 

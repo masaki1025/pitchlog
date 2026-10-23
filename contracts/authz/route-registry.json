@@ -102,6 +102,11 @@
       "provenance_id": "PLAN-MVP-PREPARING-READ-REGISTRATION",
       "path": "docs/features/mvp-preparing-read-registration/plan.md",
       "extracted_text": "準備中試合の保存値だけを読むGET /gamesおよびGET /games/{game_id}を既存CAP:games:readへ対応させる。"
+    },
+    {
+      "provenance_id": "PLAN-MVP-PREPARING-CREATE-CONNECTION",
+      "path": "docs/features/mvp-preparing-create-connection/plan.md",
+      "extracted_text": "準備中作成POST /gamesと選択肢GET /games/preparation-optionsを既存CAPへ対応させる。"
     }
   ],
   "routes": [
@@ -699,6 +704,28 @@
       "provenance_ids": [
         "PLAN-TSK446-RECORD-AND-AGGREGATE",
         "PLAN-MVP-PREPARING-READ-REGISTRATION"
+      ],
+      "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:games:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-PREPARING-CREATE-CONNECTION"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:games_preparation_options:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-PREPARING-CREATE-CONNECTION"
       ],
       "operation": "read"
     }

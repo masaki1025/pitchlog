@@ -5,8 +5,7 @@ CONTRACT_REVISION = 24
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "077c0a1ebbd6c0228a2609809a081fcc32362c15f900d64756901fcdc71bad4e"
-
+SOURCE_DIGEST = "578b052e9deae10bb39a35436d72c5ae941afca07db9974663cf7d54bad8d2c0"
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
 CROSS_TENANT_FUNCTION_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -25,7 +24,9 @@ FUNCTION_TRANSACTION_ENTRY = (
 FUNCTION_OPERATION_REGISTRY = (
     "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
 )
-FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
+FUNCTION_EXECUTOR_SYMBOL = (
+    "pitchlog.repositories.transaction._TenantTransaction.run_function"
+)
 FUNCTION_EXECUTOR_SIGNATURE = (
     "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
 )
@@ -34,7 +35,6 @@ EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "
     "operation: TenantOperationToken) -> TenantOperationResult"
 )
-
 ALLOWED_DTOS = ("pitchlog.repositories.tokens.TenantOperationResult",)
 SCALAR_TYPE_MATCH = "exact"
 CONTAINER_TYPE_MATCH = "exact"
@@ -51,11 +51,7 @@ IMMUTABLE_SCALAR_TYPES = (
     "datetime.datetime",
     "datetime.time",
 )
-IMMUTABLE_CONTAINER_GRAMMAR = (
-    "tuple[T, ...]",
-    "frozenset[T]",
-    "mappingproxy[str, T]",
-)
+IMMUTABLE_CONTAINER_GRAMMAR = ("tuple[T, ...]", "frozenset[T]", "mappingproxy[str, T]")
 CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
 UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
 UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
@@ -80,7 +76,6 @@ FORBIDDEN_TYPES = (
     "sqlalchemy.sql.schema.Table",
     "non_frozen_dataclass",
 )
-
 PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:players:read",
     "CAP:players:insert",
@@ -112,6 +107,9 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
     "CAP:tenants:read",
+    "CAP:games:insert",
+    "CAP:tenant_vocabularies:insert",
+    "CAP:tenant_vocabularies:read",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -161,6 +159,13 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
     "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (

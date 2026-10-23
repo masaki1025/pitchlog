@@ -549,6 +549,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:evacuated_event_originals:read",
         "CAP:evacuated_event_originals:insert",
         "CAP:tenants:read",
+        "CAP:games:insert",
+        "CAP:tenant_vocabularies:insert",
+        "CAP:tenant_vocabularies:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -604,10 +607,17 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
         "pitchlog.repositories.games.PreparingGameListToken",
         "pitchlog.repositories.games.PreparingGameDetailToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 47
+    assert len(expected_token_types) == 54
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -633,9 +643,16 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 expected_capabilities[0],
                 *expected_capabilities[8:11],
                 *(capability for _, capability in expected_sync_operations),
-                expected_capabilities[-1],
+                "CAP:tenants:read",
                 "CAP:games:read",
                 "CAP:games:read",
+                "CAP:games:insert",
+                "CAP:tenant_vocabularies:insert",
+                "CAP:tenant_vocabularies:read",
+                "CAP:tenant_vocabularies:read",
+                "CAP:tenant_vocabularies:read",
+                "CAP:team_records:read",
+                "CAP:team_records:read",
             ),
             strict=True,
         )

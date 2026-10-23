@@ -7560,3 +7560,108 @@ def test_stage_a_factory_does_not_allow_other_access(mutation: str) -> None:
         source, path=relative, contract=checker.load_contract(REPOSITORY_ROOT),
     )
     assert any(row.code == 'TB005' for row in violations)
+
+
+_PREPARING_CREATE_FACTORIES = (
+    ('_preparing_game_insert_statement', '() -> Insert', 'SQLA_INSERT'),
+    ('_preparing_tournament_insert_statement', '() -> Insert', 'SQLA_INSERT'),
+    ('_preparing_tournament_options_statement',
+     '(cursor_key: str | None=None) -> Select[Any]', 'SQLA_SELECT'),
+    ('_preparing_tournament_name_exists_statement', '() -> Select[Any]', 'SQLA_SELECT'),
+    ('_preparing_tournament_parent_statement', '() -> Select[Any]', 'SQLA_SELECT'),
+    ('_preparing_team_lock_statement', '() -> Select[Any]', 'SQLA_SELECT'),
+)
+_PREPARING_CREATE_MODULE = 'pitchlog.repositories.preparing_game_creation'
+_PREPARING_CREATE_FIXTURE = 'pitchlog/repositories/preparing_game_creation_allowed/'
+
+
+def test_preparing_create_six_exact_factories_unique_positive_and_full_rejection() -> None:
+    """6factory/一意6正例だけを追加し、元read2許可も保持する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    asset = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
+    rows = [
+        row for row in asset['allowed_symbols']
+        if row['symbol'].startswith(_PREPARING_CREATE_MODULE + '.')
+    ]
+    assert rows == [{
+        'symbol': _PREPARING_CREATE_MODULE + '.' + name,
+        'signature': name + signature, 'allowed_api_ids': [api],
+        'fixture': (
+            'tests/fixtures/tenant_boundary/positive/'
+            + _PREPARING_CREATE_FIXTURE + name + '.py'
+        ),
+    } for name, signature, api in _PREPARING_CREATE_FACTORIES]
+    fixtures = {row['fixture'] for row in rows}
+    assert len(fixtures) == 6
+    actual = {path.relative_to(REPOSITORY_ROOT).as_posix() for path in
+              (POSITIVE_ROOT / _PREPARING_CREATE_FIXTURE).rglob('*.py')}
+    assert actual == fixtures
+    assert checker.scan_directory(POSITIVE_ROOT, contract=contract) == []
+    rejected = checker.scan_directory(POSITIVE_ROOT, contract=contract, reject_all_db_calls=True)
+    own = [item for item in rejected if item.path.startswith(_PREPARING_CREATE_FIXTURE)]
+    assert len(own) == 6 and {item.code for item in own} == {'TB900'}
+    relative = 'pitchlog/repositories/preparing_game_creation.py'
+    source = (REPOSITORY_ROOT / 'backend/src' / relative).read_text()
+    assert checker.scan_source(source, path=relative, contract=contract) == []
+    all_rejected = checker.scan_source(
+        source, path=relative, contract=contract, reject_all_db_calls=True,
+    )
+    assert len(all_rejected) == 6 and {item.code for item in all_rejected} == {'TB900'}
+    for relative in _PREPARING_READ_FACTORY_FIXTURES:
+        assert checker.scan_source(
+            (POSITIVE_ROOT / relative).read_text(), path=relative, contract=contract,
+        ) == []
+
+
+@pytest.mark.parametrize('name,signature,api', _PREPARING_CREATE_FACTORIES)
+@pytest.mark.parametrize(
+    'mutation', ('api_swap', 'text', 'update', 'module', 'function', 'signature'),
+)
+def test_preparing_create_fixture_rejects_outside_exact_permission(
+    tmp_path: Path, name: str, signature: str, api: str, mutation: str,
+) -> None:
+    """class alias経路でも別API/署名/module/関数へ許可を広げない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = _PREPARING_CREATE_FIXTURE + name + '.py'
+    source = (POSITIVE_ROOT / relative).read_text()
+    if mutation in {'api_swap', 'text', 'update'}:
+        source += '\n'
+        source = source.replace(
+            'class preparing_game_creation:',
+            'from sqlalchemy import insert, select, text, update\n\n'
+            'class preparing_game_creation:',
+        )
+        original = 'select(1)' if api == 'SQLA_SELECT' else 'insert(_TABLE)'
+        bad = (
+            ('insert("probe")' if api == 'SQLA_SELECT' else 'select(1)')
+            if mutation == 'api_swap' else mutation + '("probe")'
+        )
+        source = source.replace('return ' + original, 'return ' + bad)
+    elif mutation == 'module':
+        relative = 'pitchlog/repositories/unlisted_creation.py'
+    elif mutation == 'function':
+        source = source.replace('def ' + name + '(', 'def unlisted(')
+    else:
+        source = source.replace(' -> Insert:', ' -> object:').replace(
+            ' -> Select[Any]:', ' -> object:',
+        )
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True)
+    target.write_text(source)
+    violations = checker.scan_directory(tmp_path, contract=contract)
+    assert violations and {item.code for item in violations} == {'TB005'}
+
+
+def test_preparing_create_duplicate_fixture_still_fails_contract_load() -> None:
+    """新factoryでも同じ正例pathの使い回しを許可しない。"""
+    asset = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
+    rows = [
+        row for row in asset['allowed_symbols']
+        if row['symbol'].startswith(_PREPARING_CREATE_MODULE + '.')
+    ]
+    rows[1]['fixture'] = rows[0]['fixture']
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    with pytest.raises(checker.ContractError, match='fixture は一意'):
+        checker._load_allowlist(
+            asset, (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes(), contract.apis,
+        )

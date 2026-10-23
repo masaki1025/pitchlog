@@ -385,7 +385,7 @@ def _prepare_team(operation: TenantOperationToken) -> PreparedOperation:
 _CATEGORY = RequiredBinding(_VOCABULARIES.c.category, "category", "tournament")
 _ENABLED = RequiredBinding(_VOCABULARIES.c.disabled, "disabled", False)
 
-# ステップ1は候補のみ。PRODUCT_OPERATIONS/生成契約への追加はステップ3で行う。
+# ステップ3で通常registryへ候補接続する。正式7.7/実RG1成功は別ゲート。
 PREPARING_GAME_CREATE_OPERATIONS: tuple[OperationRegistration, ...] = (
     OperationRegistration(
         PreparingGameInsertToken,

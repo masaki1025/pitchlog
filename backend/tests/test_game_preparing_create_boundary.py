@@ -202,8 +202,8 @@ def test_options_limits_reject_invalid_values(limit: Any) -> None:
         PreparingTournamentOptionsToken(limit=limit)
 
 
-def test_candidates_are_unregistered_and_have_no_tenant_argument() -> None:
-    """7候補を製品registryやHTTP公開へ先行登録しない。"""
+def test_candidates_are_registered_exactly_and_have_no_tenant_argument() -> None:
+    """候補接続で7exact型を通常registryへ登録し、tenantを渡させない。"""
     specs = PREPARING_GAME_CREATE_OPERATIONS
     tokens = _tokens()
     assert len(specs) == len(tokens) == 7
@@ -211,8 +211,7 @@ def test_candidates_are_unregistered_and_have_no_tenant_argument() -> None:
     for token, spec in zip(tokens, specs, strict=True):
         assert type(token) is spec.token_type
         assert "tenant_id" not in {field.name for field in fields(cast(Any, token))}
-        with pytest.raises(RuntimeError, match="未登録または偽造"):
-            base._operation_spec(token)
+        assert base._operation_spec(token) is spec
         statement, parameters = spec.prepare(token)
         parameters["tenant_id"] = _TENANT
         base._TenantScopedOperation(spec.capability_id, statement, spec.tenant_column)

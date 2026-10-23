@@ -12,6 +12,9 @@ from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
+from pitchlog.repositories.preparing_game_creation import (
+    PREPARING_GAME_CREATE_OPERATIONS,
+)
 from pitchlog.repositories.rg1 import (
     RG1CommitCheckToken,
     RG1PrecheckToken,
@@ -34,6 +37,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *LINEUP_MEMORY_OPERATIONS,
     *SYNC_APPLY_OPERATIONS,
     *TENANT_PROFILE_OPERATIONS,
+    *PREPARING_GAME_CREATE_OPERATIONS,
 )
 
 # RG1の固定読取2件と段階Aの固定読取1件を登録する。
