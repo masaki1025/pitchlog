@@ -6308,6 +6308,8 @@ def _p7_context_candidate_declaration_type(node: dict[str, Any]) -> str:
     if 'enum' in node:
         return '(' + ' | '.join(json.dumps(value) for value in node['enum']) + ')'
     if node['type'] == 'object':
+        if not node['properties']:
+            return 'Readonly<Record<string, never>>'
         return '{ ' + ' '.join(
             'readonly ' + field + ('' if field in node['required'] else '?') + ': '
             + _p7_context_candidate_declaration_type(child) + ';'
@@ -7053,3 +7055,24 @@ def test_p7_context_candidate_prior_definitions_remain_exact() -> None:
         others, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
     ).encode()).hexdigest()
     assert digest == '3d05206b9fcecdfc441d5885d69494a46f9ea71a2594bf91a663d2d6629134ed'
+
+
+def test_p7_context_candidate_empty_payload_declaration_is_not_broad_object() -> None:
+    """空payloadだけをnever値の閉recordへ射影し、TSの{}へ戻さない。"""
+    schema = _p7_context_candidate_schema()
+    node = schema['$defs']['T1GameEndPayloadV1']
+    assert node == {
+        'type': 'object', 'properties': {}, 'required': [], 'additionalProperties': False,
+    }
+    assert _p7_context_candidate_declaration_type(node) == 'Readonly<Record<string, never>>'
+    text = (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.d.ts').read_text()
+    expected = 'export type T1GameEndPayloadV1 = Readonly<Record<string, never>>;'
+    assert text.count(expected) == 1
+    _p7_context_candidate_validate({}, 'T1GameEndPayloadV1')
+    for value in ('forged', 123, False, [1], {'forged': 1}, None):
+        with pytest.raises(ValueError):
+            _p7_context_candidate_validate(value, 'T1GameEndPayloadV1')
+    for widened in ('{}', 'object', 'Readonly<Record<string, unknown>>'):
+        changed = text.replace(expected, 'export type T1GameEndPayloadV1 = ' + widened + ';')
+        with pytest.raises(ValueError):
+            _p7_context_candidate_check_declarations(schema, changed)

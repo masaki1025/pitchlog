@@ -179,3 +179,13 @@ D2についてはdata-model WAIT-03がbigint/gap方式までを採用し、5-3�
 旧4定義/旧25case/旧d.ts byte prefix/US1 originの保持hashは第7d80実績のまま。旧147case正準hash `adc112a559fd15a6469b5a41c38ad4a7e2968226260a754b8979b8b2a2b315fa`、旧11constructor対応正準hash `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`、旧entry正準hash `4578cdb4d9167cc14dbb42ab014ea11487cef03b4f702ed0ab47377e0c0d7cb5`、他旧29定義正準hash `3d05206b9fcecdfc441d5885d69494a46f9ea71a2594bf91a663d2d6629134ed`を実照合。専用部分以前の既存schema試験本文・core3は承認baseとbyte一致。D2を非負へ狭めず、旧codec/元scope不明/新拒否競合・D8/namecarrier正式案は未採用のまま、正式7.7/全T1開始/P6/P7受理を代替しない。
 
 core既存全件は**279 passed / 5 failed / 209.06s**で、5件全て既存subprocessの30秒TimeoutExpiredだった（assertion/基線不一致なし）。rootも同時core検査の遅延を観測し、待機指示到着前に既起動だった失敗5件だけの`-n 0`再走は**5 passed / 2.08s**。原失敗を保持し、timeout/guard/旧fixtureを変更せず、全件再走はしていない。上記妨害観測2点/授与先空列の補正後は影響局所（Interference/interference/readonly）だけを`-n 0`で**27 passed / 0.79s**確認した。構造caseはこの3入力追加で計238となり、347という補正前全件件数を最終版全件成功数へ読み替えない。
+
+### operation-content非作者レビューP1の是正（独立再確認前）
+
+rootから非作者rightsのP1を受領し全採用した。対象`7b7620d095ad7e23e92b9f15d0d9ee5dd549f67e`の`T1GameEndPayloadV1 = {}`はTypeScriptで非nullのprimitive/配列/余剰objectを受け、unionのpayload=123も受けるため正式空object/schemaと一致しない。旧350成功というroot受領結果・本系列P1を保持し、作者の構文射影検査だけで実TS適合まで確認したとしない。
+
+実TypeScript 6.0.2の`tsc --strict --noEmit --target ES2020`で、修正前のstring/number/bool/配列/余剰objectとunion数値payloadの受理（exit0）を再現してから是正した。初回プローブは同名.ts/.d.tsによる自己参照importを誤っていたため、typesファイル名を分けて再現し直した。この起動不備を本件の型拒否成功には数えない。宣言を`Readonly<Record<string, never>>`へ変更し、既存局所rendererはproperties空のobjectだけをこの型へ射影する1分岐を追加した。他readonly宣言/旧定義/全case/schema/source所有/constructor・正式契約/製品/coreは変更0。
+
+修正後の実TSは空objectとunion空payloadの正例2件、否定10件（string/number/bool/配列/余剰object/変数経由余剰/null/undefined/union数値/union余剰）を確認。`@ts-expect-error`付きはexit0、注記を除いた同じ否定入力はexit2/診断10件で、無効な型を通して注記だけ消費したとはしない。実プローブ/コピー宣言/結果は`/home/ymdms/.cache/pitchlog/reviews/t1-empty-payload-7b7620d0/`へ保存。before-types SHA256 `feb2f69bcebea65fcd2ac04ff744a8dd614e248444470bc9aefcfbbc8f8a82e3`、after-types `4b1fd92f003b21cb5bc53b82125c743fd745c2963ff78b97c9e71c9f6676e545`、after.ts `bfa97791d655d61e791bcf0241b8c1d75bd78c211543f5f7e885f2d32d6f9f73`、after-negative.ts `cb002fdb162ee443a627edd0146c823cbf02fdcbaf196738f667661a13135b41`。新しいTS製品artifact/runtime/整数ABI全体の適合証拠には広げない。
+
+影響pytestは`-k 'p7_context_candidate and (empty_payload or readonly or closed_operation or operation_shapes or partial_content or prior_definitions or legacy_cases)' -n 0`で**58 passed / 2.98s**。空型renderer・schema値域・{} / object / unknownへの逆戻り拒否を専用試験に追加し、既存宣言照合はexact比較を維持した。root harness CIにfrontend依存を暗黙追加せず、skip/弱化を導入していない。Ruff/ty・差分空白検査成功。新しい重いcore全件は未実行。正式7.7/Ready/P6/P7/T1開始の境界、未閉marker・旧中間失敗・レビュー通算は不変で、本是正は独立再確認前である。
