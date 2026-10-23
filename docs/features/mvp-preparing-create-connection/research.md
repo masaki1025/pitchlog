@@ -125,3 +125,7 @@ rootの実装指示と承認commit `e7e34ef6`を確認し、指定ステップ1�
 ステップ2へ渡せるrequestは既存PreparingGameCreateの全field、new/existing排他、名称無変換/空白only拒否、optionsはgame_typesとtournaments(items,next_cursor)のPage構成、既存roster self/opponent選択、送信中POST1回・旧authEpoch拒否・結果不明自動再送0である。フォームsourceはまだ変更していない。backendの実公開待ちを仮保存成功へ置き換えず、正規client/providerと入力/拒否境界を次の個別指示で実装できる。
 
 固定点前pure検査: root Ruff成功（既存docstringのimplicit string concatenation warning1件）、backend Ruff/ty成功、docs-status21件/違反0。root tyは供給741bb698のtests/test_core_guard.py:4571/4591/4609/4615で4診断。INITIAL_RIGHTS_HISTORICAL_ADDITIONSのdict[str,tuple[str,str]]推論とhelper引数dict[str,tuple[str,...]]の不変性によるもので、本単位のbackend変更ではない。core3はroot所有のため無断修正せず通知し、未達を保持する。本物verify_area_path_baseline(actual547,6f2d69ab)は成功、正常merge073ff310/22327c4d/6f2d69abの_changed_paths_in_commitはいずれも空、旧f48b5944/8037e1d9は祖先でない（各exit1）。通常mergeの述語を迂回していない。
+
+ステップ1保全commitは`1ce56813`（source5＋plan末尾機械追随＋researchの7paths）。root所有の型注釈是正`10fd2fb6d7177c6d2e1c59638e165f27e4d1b988`を明示供給許可に従ってcherry-pickし、`bd8c861fed6698fd5e0d661c93f5b73a77fb8d2d`へ固定した。tests/test_core_guard.pyの定数型注釈1行だけで、製品guard/JSON・全関数/class ASTへの変更0。後続root全tyは成功し、元4診断はこの供給で解消した（元失敗記録は保持）。同じpytest/DB/core全件を反復しない。固定HEADの正式tenant checkerはactual547比較でexit2、base-allowlistの射影が動いたのに識別値未更新として拒否した。候補の供給融合を正式受理へ読み替えず、識別値/履歴をこちらで更新しない。
+
+rootは1ce56813の既承認planとの作者側照合を受領し、独立レビュー代替ではないと明示した。型注釈供給/局所結果の固定後、既承認ステップ2の独立frontend実装開始を指示した。stage1の正式登録/実RG1成功待ちをfrontend準備の開始条件に加えない。
