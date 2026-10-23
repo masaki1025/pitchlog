@@ -202,4 +202,7 @@ backend/harnessの確定3+3失敗を回収し、同ステップの通常追随sc
 
 既存登録追随の局所検査はbackend120成功/1.40秒、harness23成功/2.12秒。backend Ruff/format成功、failure-injection5点/MC/DC47決定の更新flagなしCLI成功。routeは旧18tuple全保持+GET2、capability30集合不変の全47文を引き続き検査。拒否変異はPlayerReadToken/PlayerCreateToken/TeamRecordReadTokenを明示参照し、全6変異の元の拒否診断を保持した。派生参照2件はGit旧blobを実取得し、現原典との意味差がoracle_context.oracle_commitだけと確認して更新した。failure-injectionの40f26b3d→16fa279d、MC/DC claim-mapのbe450946→fa9432db。チェック対象・試験・例外を落としていない。
 
-6caa→現候補の全tenant JSON/正式9射影/外部8 bytesは独立再導出手順で全同一（frozen-unchanged.jsonへ固定）。したがってこのCI是正を理由とする同値7.7の再受理は行わない。旧28history/204snapshot/oracle6/seal/Cのbytesを保持する。新固定版の非作者限定確認と最終HEAD全必須CIは未実施。
+6caa→現候補の全tenant JSON/正式9射影/外部8 bytesはrootの実再導出比較で全同一（frozen-unchanged.jsonへ固定）。したがってこのCI是正を理由とする同値7.7の再受理は行わない。旧28history/204snapshot/oracle6/seal/Cのbytesを保持する。新固定版の非作者限定確認と最終HEAD全必須CIは未実施。
+
+
+CI是正source固定2d4579bfの後発は本planのin-review復帰と本実施記録のみ。更新flagなしtenant/probe/product/frozen各検査は全exit0、正式9/8不変比較はrootが実施したもので非作者再計算とは区別する。新HEADへの独立CI是正限定確認を依頼中で、元親追加1回/metadata1回/CI計画1回の履歴を保持する。独立所見/証拠/提出固定版はrepo外evidenceと主担当台帳およびPR本文へ記録し、同結果を新たなコード変更へ自動延長しない。
