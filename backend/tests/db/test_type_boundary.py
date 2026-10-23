@@ -72,7 +72,7 @@ def test_quarantine_raw_payload_round_trips_all_boundary_shapes(
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
-        command.upgrade(_alembic_config(), "head")
+        command.upgrade(_alembic_config(), "0032_rg1_restore_gate")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             import_batch_id = uuid4()
             connection.execute(
@@ -156,7 +156,7 @@ def test_regular_schema_original_and_resolved_columns_follow_legacy_types(
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
-        command.upgrade(_alembic_config(), "head")
+        command.upgrade(_alembic_config(), "0032_rg1_restore_gate")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             columns = _type_boundary_catalog(connection)
 

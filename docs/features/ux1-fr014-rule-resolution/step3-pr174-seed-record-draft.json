@@ -1,0 +1,143 @@
+{
+  "approved_at": null,
+  "approved_by": null,
+  "changes": [
+    {
+      "after": {
+        "allowed": {
+          "db_call_counts": {
+            "connection.exec_driver_sql": 6,
+            "connection.execute": 12
+          },
+          "revision_id": "0034_stage_a_rule_defaults",
+          "row_shape": "stage_a_fixed_five",
+          "source_sha256": "51f96e3192781d2077fc89628d48a0e34a4d04c46f21a478029a5177b2da175d",
+          "static_violation_counts": {
+            "get_bind の束縛先を追跡できない": 8,
+            "get_bind 経由の execute() は禁止": 11,
+            "禁止 SQL CREATE POLICY": 4,
+            "禁止 SQL INSERT INTO": 2
+          },
+          "target_tables": [
+            "rule_sets",
+            "game_type_rule_defaults"
+          ],
+          "temporary_policies": [
+            [
+              "rule_sets",
+              "tsk550_seed_rule_sets_select"
+            ],
+            [
+              "rule_sets",
+              "tsk550_seed_rule_sets_insert"
+            ],
+            [
+              "game_type_rule_defaults",
+              "tsk550_seed_defaults_select"
+            ],
+            [
+              "game_type_rule_defaults",
+              "tsk550_seed_defaults_insert"
+            ]
+          ],
+          "upgrade_rows": {
+            "count": 5,
+            "rows": [
+              [
+                "game_official",
+                "ca626b2e-8751-530e-a431-9ef5c00f7d95",
+                [],
+                12,
+                {
+                  "leadoffRule": "continue_lineup",
+                  "runnerPlacement": "no_out_first_second",
+                  "startInning": 10
+                }
+              ],
+              [
+                "game_semi_official",
+                "8fa3b9b7-481b-538b-8093-6af96050d97f",
+                [
+                  {
+                    "pointDifference": 10,
+                    "startInning": 5
+                  },
+                  {
+                    "pointDifference": 7,
+                    "startInning": 7
+                  }
+                ],
+                9,
+                null
+              ],
+              [
+                "game_open",
+                "b679f9f1-86a8-54f7-9466-a5b01d932953",
+                [
+                  {
+                    "pointDifference": 10,
+                    "startInning": 5
+                  },
+                  {
+                    "pointDifference": 7,
+                    "startInning": 7
+                  }
+                ],
+                9,
+                null
+              ],
+              [
+                "game_intrasquad",
+                "45677369-9e25-5220-9a30-1d89b338174c",
+                [
+                  {
+                    "pointDifference": 10,
+                    "startInning": 5
+                  },
+                  {
+                    "pointDifference": 7,
+                    "startInning": 7
+                  }
+                ],
+                9,
+                null
+              ],
+              [
+                "game_other",
+                "6ff51660-bee2-552a-9075-1f3f3d1e0dd7",
+                [],
+                9,
+                null
+              ]
+            ]
+          }
+        },
+        "frozen_targets": [
+          "migrations/versions/0034_stage_a_rule_defaults.py"
+        ],
+        "granularity": "declaration_series",
+        "identity": "sha256_canonical_json"
+      },
+      "aspect": "declaration",
+      "before": {
+        "absent": true
+      }
+    }
+  ],
+  "fact": "0033_game_rules_immutable後続の0034_stage_a_rule_defaults固定5組と4一時policyのみを新系列として許可する。",
+  "new_identity": {
+    "present": true,
+    "values": [
+      {
+        "kind": "sha256_canonical_json",
+        "value": "81ac7a6d083b704261d9bf2193acfadcf7a5025fb93091df8607d278eb8e2df9"
+      }
+    ]
+  },
+  "prior_identity": {
+    "present": false,
+    "values": []
+  },
+  "reason": "#174の配置migrationだけに必要なseed例外を宣言し、既存3系列と履歴を保持するため。",
+  "series": "stage_a_fixed_defaults"
+}

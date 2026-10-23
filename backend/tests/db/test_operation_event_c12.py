@@ -36,7 +36,11 @@ from pitchlog.db.sync_protocol.event_kinds import (
 from pitchlog.db.sync_protocol.models import OperationEvent
 
 from .conftest import DisposablePostgres
-from .test_alembic_migrations import _alembic_config, _sqlalchemy_url
+from .test_alembic_migrations import (
+    _alembic_config,
+    _pre_placement_metadata_diffs,
+    _sqlalchemy_url,
+)
 
 pytestmark = pytest.mark.requires_db
 
@@ -410,7 +414,7 @@ def test_c12_truth_table_and_migration_round_trip(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
         config = _alembic_config()
-        command.upgrade(config, "head")
+        command.upgrade(config, "0032_rg1_restore_gate")
 
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:
@@ -479,12 +483,13 @@ def test_c12_truth_table_and_migration_round_trip(
                 _assert_head_check_contract(cursor)
                 assert expected_unnamed <= _catalog_all_check_expressions(cursor)
 
-        # 本試験が検査するのは _REVISION の往復であり、_REVISION は head とは限らない
-        # (後続の revision が足されると head は先へ進む)。下の check_heads は
-        # 「往復のあとに head へ戻れること」を見る検査なので、明示的に head まで上げる。
-        command.upgrade(config, "head")
-        command.current(config, check_heads=True)
-        command.check(config)
+        # 本試験の復帰先は0032。現行headへの段階起動は専用試験で検査する。
+        command.upgrade(config, "0032_rg1_restore_gate")
+        with psycopg.connect(cluster.admin_dsn) as connection:
+            assert connection.execute(
+                "SELECT version_num FROM public.alembic_version"
+            ).fetchall() == [("0032_rg1_restore_gate",)]
+        assert _pre_placement_metadata_diffs() == []
 
 
 def _cell_test_id(cell: C12Cell) -> str:

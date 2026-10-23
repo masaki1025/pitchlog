@@ -817,7 +817,7 @@ def test_schema_manifest_matches_catalog_and_cross_table_rules(
             "PITCHLOG_MIGRATION_DATABASE_URL",
             _sqlalchemy_url(cluster.admin_dsn),
         )
-        command.upgrade(_alembic_config(), "head")
+        command.upgrade(_alembic_config(), "0032_rg1_restore_gate")
 
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             expected_tables = {table["name"] for table in manifest["tables"]}

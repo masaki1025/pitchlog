@@ -1,0 +1,43 @@
+{
+  "acceptance_id": "masaki1025/pitchlog#174",
+  "approved_at": null,
+  "approved_by": null,
+  "changes": [],
+  "moved": false,
+  "new_identity": {
+    "present": true,
+    "values": [
+      {
+        "kind": "literal_commit_string",
+        "value": "426d0ec84249d5940e7e2de5660a213d45401d0e"
+      }
+    ]
+  },
+  "placement_change": {
+    "after": [
+      {
+        "kind": "ledger_series",
+        "path": "contracts/authz/frozen-baselines.json",
+        "series": "oracle_input"
+      }
+    ],
+    "before": [
+      {
+        "kind": "ledger_series",
+        "path": "contracts/authz/frozen-baselines.json",
+        "series": "oracle_input"
+      }
+    ]
+  },
+  "prior_identity": {
+    "present": true,
+    "values": [
+      {
+        "kind": "literal_commit_string",
+        "value": "e6a0ca0ab6cee5c779851518463eafba6ae146b3"
+      }
+    ]
+  },
+  "reason": "#174の8入力候補コミットへoracle入力を切り替え、6oracle資産の意味行を保ったまま封印参照を追随する。旧#152行は持ち込まない。",
+  "series": "oracle_input"
+}

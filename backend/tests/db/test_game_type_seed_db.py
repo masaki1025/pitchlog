@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 
 from .conftest import DisposablePostgres, ProvisionedProductCatalog
+from .test_alembic_migrations import _pre_placement_metadata_diffs
 
 pytestmark = pytest.mark.requires_db
 
@@ -187,9 +188,9 @@ def test_game_type_seed_round_trip_and_reapply(
                 )
 
         command.upgrade(config, "0030_seed_game_type")
-        command.upgrade(config, "head")
-        command.current(config, check_heads=True)
-        command.check(config)
+        command.upgrade(config, "0032_rg1_restore_gate")
+        command.current(config)
+        assert _pre_placement_metadata_diffs() == []
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -354,9 +355,9 @@ def test_game_type_seed_round_trip_under_product_rls(
             "pitchlog_owner_game_type_seed_delete",
         }
     command.upgrade(config, "0030_seed_game_type")
-    command.upgrade(config, "head")
+    command.upgrade(config, "0033_game_rules_immutable")
     apply_product_authz_ddl(catalog.applicator)
-    command.current(config, check_heads=True)
+    command.current(config)
 
     admin_dsn = make_conninfo(catalog.cluster.admin_dsn, dbname="pitchlog_product")
     with psycopg.connect(admin_dsn, autocommit=True) as admin:
