@@ -4734,7 +4734,9 @@ def test_durable_ledger_core_each_single_future_asset_requires_check(
 ) -> None:
     """新製品/contract/正例の後発単独変更も実CLIで必須確認を要求する。"""
     root = make_repo_with_actual_core_areas(tmp_path)
-    commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    configuration = json.loads((root / '.claude/core-areas.json').read_text())
+    if not assert_durable_ledger_registration(configuration, root):
+        commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
     base, head = commit_change(root, path)
     event = write_event(tmp_path, base, head,
                         f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}")

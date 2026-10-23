@@ -87,3 +87,17 @@ JSON登録step2、ledger source/正本7.3/7.7/policy新target/新PR/pushは未�
 実測時originは31194a39、actual merge-baseも31194a39、供給は95d766f5、選択した局所比較元は95d766f5だった。未改変の製品verify_area_path_baselineはsupplier95d基線では受理し、real31194ではsync-protocol.paths不一致を引き続き拒否した。全製品関数/class AST・JSON byte・供給initial source/test/policy/history27/snapshot202は保持、新ledgerのpackage/contract/positive/DB試験/supportは実wtで全て不在を再確認した。
 
 是正test_core_guard.py SHA256 `f436e4a508525e80e77e22857a74b8b7c6654c3930f7efbc69e2fb72200059bb`。中間74c36a75から試験だけのfull-index binary差分SHA256 `673fe4c699ace35182028aa016d9e7aa37ec890de9a0eba5c955882e94464a5d`。core_guard.pyの宣言は中間版と同じ、製品判定の変更0。最終HEAD/全差分SHA/中間保持は引渡しで固定する。実develop未統合・step2以降/正本/正式7.7/policy新target/運用資源/push/PRの未達を保持する。
+
+## step2のJSON候補と登録後fixture不足（未コミット）
+
+rootは最終step1 HEAD7f75a2f1を確認してstep2だけを許可した。実core JSONへsync/record各3、tenant2のexact8末尾追記を行い、全旧paths/順序/guard_paths/metadata保持・宣言/試験/source/policy不変・新ledger全資産不在を機械照合した。JSON SHA256 `714b0605e1818b2fe2110f81110f2b6b5e3d0ab5153ce011e863617ecbe79aa2`、7f75からJSONだけのbinary差分SHA256 `ad9ba78bf65fe1fe5118fa6c56b85c82c88353ba42e7d5e01f3d6bec334230e9`。root Ruff/tyは成功。
+
+登録後の全core試験は409 passed / 6 failed / 27.62秒。失敗はtest_durable_ledger_core_each_single_future_asset_requires_checkのchecked2×3pathsだけ。同試験がmake_repo_with_actual_core_areasで新8登録済みの実JSONを読み、さらに無条件commit_area_path_changesで同8を再追記したため、合成merge-baseのsync-protocol.paths重複で本来の未記入/記入済確認へ進めなかった。実wtのJSONには重複がなく、製品guardは重複を正しく拒否している。
+
+試験は今回の編集所有外なので勝手に変更しない。rootへ、登録前/後を識別し未登録時だけ合成追加する最小是正を、step1の試験のみ別commit→step2 JSON commitの順に分ける案を報告した。JSON＋基線定義試験の同commit変更を再発させない。今回の6failedを履歴に保持し、stage2成功/完了とはまだ扱わない。step3 source/DB/正本/7.7/policy新target/push/PRは未実施のまま。
+
+### root採用: step1試験setupの先行是正
+
+rootは上記6failedの原因を確認し、plan契約を変えず「試験のみstep1是正commit→保全JSONを復元してstep2commit」の順を個別指示した。候補JSONを`/home/ymdms/.cache/pitchlog/durable-ledger-step2-preservation-2a8fx3op/`へmanifest付き保全し、SHA256 `714b0605e1818b2fe2110f81110f2b6b5e3d0ab5153ce011e863617ecbe79aa2`を確認後、実JSONの当該pathだけHEADのe555432fへ戻した。
+
+対象試験は合成repoの実configを既存assert_durable_ledger_registrationで検証し、exact全8登録済みなら二重追記しない、未登録なら従来の別JSONcommitで追加する形へ是正。部分/重複/対象外は同helperが拒否し、任意欠落をskipしない。将来3資産の未記入確認拒否/記入済受理のassertはそのまま保持した。登録前JSONで当該6例を実行し6成功/3.41秒、対象Ruff/ty成功。先行是正commitの変更は既存core試験と本researchだけで、JSON/製品guard/sourceは不変。保全候補復元後の登録済み全core結果は次のstep2記録へ分ける。
