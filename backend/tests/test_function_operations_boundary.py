@@ -37,6 +37,7 @@ from test_authz_tenant_context import make_tenant_context
 from pitchlog.db.game_state.rule_snapshot import (
     DomainValidatedRuleSnapshot,
     RuleSnapshotContractUnavailable,
+    encode_applied_rules,
 )
 from pitchlog.repositories import operation_registry, rule_resolution, transaction
 from pitchlog.repositories.binding import TenantBindingError
@@ -1286,3 +1287,70 @@ def test_public_failure_code_is_closed() -> None:
     invalid: Any = "private_internal_code"
     with pytest.raises(ValueError, match="未定義"):
         RuleResolutionError(invalid)
+
+
+@pytest.mark.parametrize(
+    "float_field",
+    (
+        "regulation",
+        "extension",
+        "cold-point",
+        "cold-start",
+        "tiebreak",
+        "all",
+        "all-null",
+    ),
+)
+def test_public_resolver_reuses_integer_codec_for_float_values(
+    float_field: str,
+    resolver_runtime: _ResolverRuntime,
+) -> None:
+    """実scopeからの整数floatを正規codecのexact int成功/encodeへ接続する。"""
+    raw = _resolver_rule_json()
+    cold: Any = raw["coldConditions"]
+    tiebreak: Any = raw["tiebreak"]
+    fields: dict[str, tuple[Any, str]] = {
+        "regulation": (raw, "regulationInnings"),
+        "extension": (raw, "extensionLimit"),
+        "cold-point": (cold[0], "pointDifference"),
+        "cold-start": (cold[0], "startInning"),
+        "tiebreak": (tiebreak, "startInning"),
+    }
+    for name, (parent, key) in fields.items():
+        if float_field in (name, "all", "all-null"):
+            parent[key] = float(parent[key])
+    if float_field == "all-null":
+        raw["extensionLimit"] = None
+        raw["tiebreak"] = None
+    resolver_runtime.rows = [({"status": "resolved", "rule": raw},)]
+
+    with transaction.tenant_transaction_scope(make_tenant_context(_TENANT_ID)) as scope:
+        snapshot = resolve_stage_a_rule(scope, _resolver_request())
+
+    # scopeの終了後も単一codecの成功値を同じ保存形へ再利用できる。
+    encoded = encode_applied_rules(snapshot)
+    structural = snapshot.structural
+    encoded_cold: Any = encoded["coldConditions"]
+    encoded_tiebreak: Any = encoded["tiebreak"]
+    typed_values = [
+        structural.regulation_innings,
+        structural.extension_limit,
+        structural.cold_conditions[0].point_difference,
+        structural.cold_conditions[0].start_inning,
+        None if structural.tiebreak is None else structural.tiebreak.start_inning,
+    ]
+    encoded_values = [
+        encoded["regulationInnings"],
+        encoded["extensionLimit"],
+        encoded_cold[0]["pointDifference"],
+        encoded_cold[0]["startInning"],
+        None if encoded_tiebreak is None else encoded_tiebreak["startInning"],
+    ]
+    expected = [9, None, 7, 7, None] if float_field == "all-null" else [9, 12, 7, 7, 10]
+    assert typed_values == encoded_values == expected
+    assert all(type(value) is int for value in typed_values if value is not None)
+    assert all(type(value) is int for value in encoded_values if value is not None)
+    assert structural.rule_set_id == _TENANT_ID
+    assert encoded["ruleSetId"] == str(_TENANT_ID)
+    assert encoded == raw
+    assert resolver_runtime.events == ["session", "begin", "execute", "commit", "close"]

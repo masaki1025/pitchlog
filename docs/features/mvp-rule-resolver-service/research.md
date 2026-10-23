@@ -84,3 +84,21 @@ V2の追加試験は実registry/実scope制御＋合成Sessionで、深い不変
 | backend lock | `fd4e71455bd7c8d45d2a335803cdf6023de56994b9c2bdc5a4933af5e5ce40ad` |
 
 次はこの候補の独立コードレビュー。push/PR、正式step5完成、実DB/HTTP成功、7.7受理は未実施である。
+
+## 初回コードレビューP1と単一codec依存の是正
+
+独立コードレビュー第1回は候補 `ed29e96d4b5b7faa79ed34f006bbe289f05bbc09` にP0=0/P1=1/P2=0。正規codecへ無変更供給した#174由来の不備により、JSONSchemaのintegerが受理する9.0等が型注釈intの5fieldへfloatのまま残ることを指摘された。採用し、117試験成功の旧候補を正式step5完成とせず差戻した。初回の固定元blob/hashと試験結果は当時の履歴として維持する。
+
+単一codecの型境界は専用fix計画 `d683f25f` により是正候補 `9bd559df08548380f0fe28d1e9acf4024255a9e6` で修正され、独立レビュー0指摘・既存codec試験113成功を得た。rootの最小追補承認 `7471040fc95a41b2f05fed842d498f6ebb23ec5b` に従い、同じ正規パスの是正codecだけを本候補へ供給した。元supplier #174へ適用済みの `bc436803902a9cde2b54e6a72636acbe522e9e20` ともbyte一致を確認した。本作業で元supplier・fix worktreeは変更していない。
+
+| 是正後の固定対象 | SHA-256 |
+| --- | --- |
+| 単一codec（fix候補/supplier/本候補でbyte同一） | `d646c0bbc73b7ff2507aa440e81effdd1e37debb4d5d767971608110853cdfc4` |
+| resolver source（旧候補から差分0） | `a7ddbc6dd4689bad7748075af49068663da1c4b2d713b000392bc97b06b63cf8` |
+| 既存境界試験（是正回帰追加後） | `69b3b538038b83e66ced7e5d8c33f2deb5b33e11d47e07880f86eb50b2c35e9c` |
+
+serviceに独自の整数変換/業務検証を追加していない。既存境界試験へ5整数field個別・全field同時・延長/tiebreak null保持の7ケースだけを追加した。実registry/実scope制御＋合成Sessionを経て、深い不変JSONを単一codecへ渡し、公開成功型とscope終了後の正規encode結果が同値のexact intになることを確認する。
+
+是正候補の対象 `uv run pytest tests/test_function_operations_boundary.py -q` は **124 passed / 0.57s / exit0**（旧117＋追加7）、失敗なし。対象試験のRuff format、全backend Ruff/ty、差分空白検査は成功。変更3パスだけを固定する。codec113件の専用検証/独立レビューを再利用し、無関係な全件試験は繰り返していない。
+
+次は第2回独立コード差分/影響レビュー。初回P1の最終採否確認、正式閉集合・7.7・実DB/HTTP・push/PR・正式step5完成は未達のまま保持する。

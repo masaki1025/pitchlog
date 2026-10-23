@@ -53,12 +53,23 @@ class RuleSnapshotContractUnavailable(RuntimeError):
     """凍結schemaを読み取れず、入力の判定を完了できない場合の失敗。"""
 
 
+def _require_exact_integer(value: object) -> None:
+    """構造化済みDTOではfloatやboolを整数fieldとして扱わない。"""
+    if type(value) is not int:
+        raise RuleSnapshotInvalid(RuleSnapshotFailure.SHAPE)
+
+
 @dataclass(frozen=True, slots=True)
 class ColdTier:
     """コールド条件の一段。"""
 
     point_difference: int
     start_inning: int
+
+    def __post_init__(self) -> None:
+        """直接構築でも整数fieldのexact型を保証する。"""
+        _require_exact_integer(self.point_difference)
+        _require_exact_integer(self.start_inning)
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +79,10 @@ class TiebreakRule:
     start_inning: int
     runner_placement: str
     leadoff_rule: str
+
+    def __post_init__(self) -> None:
+        """直接構築でも開始回のexact整数型を保証する。"""
+        _require_exact_integer(self.start_inning)
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +187,11 @@ def _values_from_structural(value: StructuralRuleSnapshot) -> dict[str, object]:
         raise RuleSnapshotInvalid(RuleSnapshotFailure.SHAPE)
     if value.tiebreak is not None and type(value.tiebreak) is not TiebreakRule:
         raise RuleSnapshotInvalid(RuleSnapshotFailure.SHAPE)
+    for tier in value.cold_conditions:
+        _require_exact_integer(tier.point_difference)
+        _require_exact_integer(tier.start_inning)
+    if value.tiebreak is not None:
+        _require_exact_integer(value.tiebreak.start_inning)
     return {
         "regulationInnings": value.regulation_innings,
         "coldConditions": [
@@ -196,6 +216,9 @@ def _validate_structural(value: StructuralRuleSnapshot) -> None:
     """直接生成・変換・再利用の全経路で構造契約を確認する。"""
     if type(value.rule_set_id) is not UUID:
         raise RuleSnapshotInvalid(RuleSnapshotFailure.VALUE)
+    _require_exact_integer(value.regulation_innings)
+    if value.extension_limit is not None:
+        _require_exact_integer(value.extension_limit)
     _validate_values(_values_from_structural(value))
 
 
@@ -233,19 +256,26 @@ def decode_structure(value: object) -> StructuralRuleSnapshot:
     _validate_values(values)
     cold = cast(list[dict[str, object]], values["coldConditions"])
     tiebreak = cast(dict[str, object] | None, values["tiebreak"])
+    extension_limit = values["extensionLimit"]
+    # schemaのintegerは9.0等も受理するため、検証後に同じ値のintへ写す。
     return StructuralRuleSnapshot(
         rule_set_id=rule_set_id,
-        regulation_innings=cast(int, values["regulationInnings"]),
+        regulation_innings=int(cast(int | float, values["regulationInnings"])),
         cold_conditions=tuple(
-            ColdTier(cast(int, tier["pointDifference"]), cast(int, tier["startInning"]))
+            ColdTier(
+                int(cast(int | float, tier["pointDifference"])),
+                int(cast(int | float, tier["startInning"])),
+            )
             for tier in cold
         ),
-        extension_limit=cast(int | None, values["extensionLimit"]),
+        extension_limit=(
+            None if extension_limit is None else int(cast(int | float, extension_limit))
+        ),
         tiebreak=(
             None
             if tiebreak is None
             else TiebreakRule(
-                cast(int, tiebreak["startInning"]),
+                int(cast(int | float, tiebreak["startInning"])),
                 cast(str, tiebreak["runnerPlacement"]),
                 cast(str, tiebreak["leadoffRule"]),
             )
