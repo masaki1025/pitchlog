@@ -49,6 +49,7 @@ created: 2026-10-24
 | `backend/tests/test_durable_rights_ledger_contract.py` | manifest/DDL/API/署名/exact許可と拒否、source固定、Protocol接合の構造・単体試験 |
 | `backend/tests/db/test_durable_rights_ledger.py`、`backend/tests/db/durable_rights_ledger_support.py` | 所有するprimary/standby/業務DBの隔離構成、実制限関数・role・複製・復元・故障試験とcleanup。共通conftestを変えない |
 | `contracts/tenant_boundary/base-allowlist.json`、`tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*` | 外部接続/固定関数実行を行うexact関数・正確signature・必要APIだけの登録と正例。module全体/任意SQL許可はしない |
+| `contracts/tenant_boundary/db-api-inventory.json`、`scripts/check_tenant_boundary_bypass.py` | 下記限定追補承認後にだけ、`psycopg.Connection.cancel_safe`のAPI ID1件と保守member `cancel_safe`を認識する検出対応。既存全API/拒否条件を保持。全scopeや任意memberを許可しない |
 | `tests/test_check_tenant_boundary_bypass.py` | 上記exact登録の正負例。業務DBへの誤接続、未登録symbol/署名/動的SQLを許す例外を作らない |
 | tenant-boundary既存9資産・既存生成Python3・`tests/fixtures/frozen-archive-cases/manifest.json`・必要history-snapshots | source/登録の実差分が影響するものだけ既存導出/7.7で追随。全9 before/after・既存8 external値・履歴prefix/corpusを照合し、不変資産を無用に更新しない。生成3はruntime/repository/tenant-contextの既存module |
 | `docs/design/data-model.md`、`docs/README.md` | 後述の外部永続資産・role/復元境界に関する最小正本候補と索引。旧履歴/他候補を変更しない |
@@ -100,3 +101,17 @@ data-modelの新しい外部永続資産・所有role・復元境界は構造的
 ### 限定計画のPO委任承認
 
 2026-10-23T17:35:41.606496+00:00、Codex主担当/root。PO4/5/7/8/10に基づきplan dab7fb925a5072a686bde58bcf9327fa8a6c3d5cd345580cbe5da0ce0a7aceb6 / research9a259cd2c48b11dfb505aeda1cdded760854f12a25b576716ec45720394fb9c8を承認。非作者/root/resolver_ledger_plan_reviewの全文初回P1=1を全採用し、限定反映差分第2回0/0/0を受領。指摘反映1周・レビュー実行2回を保持する。厳密D4/epoch/fence保証を維持する技術具体化と許可済み隔離実装・検証の採用判断であり、運用設備配置/共有DB/費用/秘密新発行を承認しない。指定された1ステップだけ実施し、構造正本7.3/完全値7.7/最終非作者確認・CI・後続RG1実遷移を個別に満たす。山田正輝本人の実値確認/署名を代記しない。
+
+### 同期待機取消APIの限定追補（追加範囲をPO委任承認済み）
+
+step3調査で、同期COMMITの待機取消がlocal commit後のWARNINGとなり得ることをPostgreSQL17の一次sourceで確認した。statement_timeoutだけをrollbackや非消費の証明にしない。有限待機にはpsycopgの明示取消口を使い、期限到来/取消発行後はCOMMITの見かけ上の戻りにかかわらずoutcome-unconfirmedとする。予約/claimが未実施/rollback済みと断定せず、同じattemptの実耐久状態を後で照合する。新attemptの自動発行へ逃げない。
+
+追加を許可する候補は`PSYCOPG_CONNECTION_CANCEL_SAFE`という1ID（symbol=`psycopg.Connection.cancel_safe`）、inventoryの保守member `cancel_safe`1件、および既存checkerが接続種別/alias・保守名を正しく対応させる必要最小の検出差分である。未登録の同methodを検出対象に入れ、既存全API/exact-setを保持する。唯一の実行許可は本package内の固定private取消helper・正確signature・正例へ与え、当該helperの許可APIはこの1IDだけとする。製品helper名/signatureは実adapter設計と固定してresearchへ記録する。別symbol/module/署名/alias悪用、同名memberや他の接続操作を許可しない。追加の汎用除外や未知APIの素通りはしない。
+
+`cancel_safe(timeout=...)`の有限性にはlibpq17以降が必要で、pin3.3.4の実ソースと実client capabilityを検査する。capability不成立/不明は接続・予約前に拒否し、legacy `cancel()`へのfallbackを製品で使わない。取消処理自体のtimeout/失敗/競合も不確定で閉じ、当該接続を後続要求へ再利用しない。タイマ/処理完了の競合で後続の別要求を取り消す経路を作らない。実clientはroot確認時libpq180000/has_cancel_safe=Trueだが、それを運用設備の証拠に流用しない。
+
+既存`tests/test_check_tenant_boundary_bypass.py`で新APIの検出・正例1helper・全拒否変異・旧登録保持を検証する。backend契約/DB故障試験は同期待機停止→有限終了→未確定/旧番号再使用なしを実primary/standbyで検証する。inventoryは9資産の一つ、checkerは既存8外部対象の一つなので、影響する全射影/identifier/corpusと生成を実状態から再導出し、step4でrootの完全7.7を要する。既存受理行/before/snapshotを変えず、新実PR単一受理へ対応する。
+
+根拠: [psycopg公式Connection.cancel_safe](https://www.psycopg.org/psycopg3/docs/api/connections.html#psycopg.Connection.cancel_safe)、[PostgreSQL17同期待機の一次source](https://github.com/postgres/postgres/blob/REL_17_STABLE/src/backend/replication/syncrep.c)、実pin3.3.4のConnection.cancel_safe本体とlibpq capabilityのroot読取。既承認step3のDDL/manifest/Protocol/support等は継続し、追加したinventory/checker/取消実行許可だけは非作者限定レビューとrootのPO委任判断後に実装する。旧計画レビュー2回・先行core限定review P1採用と中間/失敗を保持し、新追補で履歴をリセットしない。
+
+2026-10-23T18:11:30.850638+00:00、Codex主担当/rootはPO4/5/7/8/10に基づき、追加plan SHA25620b8dc2e7e9783f3eea03edde21cfc3315ebb866f7552b1a2a274d6c05131948を承認。非作者/root/resolver_ledger_plan_reviewの追加scope限定第1回0/0/0を受領し、PG17一次source・実psycopg3.3.4とlibpq capabilityの独立確認を根拠とする。1API ID/1member検出とexact私有helper許可・既存正負例だけを追加し、契約の全既存拒否・D4/epoch保証・元4ステップを保持する。先行plan実行2回/1反映周、先行coreコードレビュー初回P1採用後の第2回確認と全中間/失敗を別系列として保持。人間本人の署名/実値逐行確認を代記しない。実装/実同期故障の成功、正式7.7/正本7.3/最終非作者確認はまだ成立していない。
