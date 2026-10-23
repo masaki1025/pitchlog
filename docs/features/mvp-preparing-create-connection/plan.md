@@ -1,7 +1,7 @@
 ---
 feature: mvp-preparing-create-connection
 status: active
-承認: 未
+承認: 済（PO委任によるCodex判断・preparing作成接続）
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812e9b44d0b6ff5196e7
@@ -61,7 +61,7 @@ requirements/design/ADR/development/opsへの反映なし。既存FR-014段階A�
 
 optionsの試合区分表示は既存正本seed `contracts/seeds/game-type.json`の固定5組を読み、同じ表示名/キーを別定数へコピーしない（欠損/不正seedなら非成功）。非tenant表をtenant operationへ偽装する新DB読取は作らない。大会は`category='tournament' AND disabled=false`の大会をSQLで限定する。大会ページ既定20/最大100、`key`昇順keyset・limit+1、応答に不透明next_cursorを持たせる。全件ロード/クライアント絞込みはしない。`/games/preparation-options`を`/games/{game_id}`より先に置く。
 
-**大会名称の最小追補提案（本計画承認対象、現時点未採用）**: DBに名称unique/正規化規則はなく、チーム名用NFKC等を大会へ転用しない。新名は入力Unicodeを保持し、正規化/独自長上限を加えない。空文字と空白だけを拒否する（空白判定はPython `str.isspace`、保存時trimなし）。既存指定は名称でなくkeyで同tenant/category/disabledを検査する。new指定の完全一致名が既存にあれば、無効名を復活/上書きせず拒否し、有効名は既存選択を求める409とする。複数一致も409、照会は最大1行で存在判定する。新keyはserver生成のopaque UUID表記、名前のslug/hashや端末生成keyにしない。DBが保証する一意性は`(tenant_id,key)`であり、同時新規登録の表示名グローバル一意性は保証しない。同名の異keyは区別して表示/選択できる。この扱いが親の既採用内容と相違すると判断された場合は当該名称分岐のみを差し戻し、入力/DML/フォームの他部分は継続する。新unique制約・新排他方式を暗黙に加えない。
+**大会名称の最小追補（今回のPO委任判断で採用、旧採用済みとは扱わない）**: DBに名称unique/正規化規則はなく、チーム名用NFKC等を大会へ転用しない。新名は入力Unicodeを保持し、正規化/独自長上限を加えない。空文字と空白だけを拒否する（空白判定はPython `str.isspace`、保存時trimなし）。既存指定は名称でなくkeyで同tenant/category/disabledを検査する。new指定の完全一致名が既存にあれば、無効名を復活/上書きせず拒否し、有効名は既存選択を求める409とする。複数一致も409、照会は最大1行で存在判定する。新keyはserver生成のopaque UUID表記、名前のslug/hashや端末生成keyにしない。DBが保証する一意性は`(tenant_id,key)`であり、同時新規登録の表示名グローバル一意性は保証しない。同名の異keyは区別して表示/選択できる。この扱いが親の既採用内容と相違すると判断された場合は当該名称分岐のみを差し戻し、入力/DML/フォームの他部分は継続する。新unique制約・新排他方式を暗黙に加えない。
 
 ### 保存と失敗
 
@@ -134,3 +134,11 @@ oracleはroute/matrix等更新済み8入力を確定するcommit Cを先に固�
 | metadata/root | 既存test_check_tenant_boundary_bypass/test_authz_repository_contractの全fieldと上記新6factory/7token/一意6fixture、旧read2件を含む全許可保持、各新正例の全拒否TB900、誤module/関数/署名・fixture重複・SELECT/INSERT種別混入・text/update・欠落/余剰拒否。authz checker旧route全保持+新2件、C2 prematch順。root Ruff/ty、対象pytest、docs-status/局所plan-sync/core_guard、正式no-flag checker。既知未受理と実装不備を分け、skip/timeout/中断を成功にしない |
 
 調査の固定根拠・未裁定境界・既存レビュー回数は[research.md](research.md)。本計画はレビュー第1回P0=0/P1=1/P2=0を採用し反映済み、改訂差分は未再レビュー・承認未。旧#175の基本2回・read追加1回未消費を継承しつつ、本計画の新しい局所レビューをその追加枠へ算入しない。
+
+## 限定計画のPO委任承認
+
+2026-10-23T18:35:59.893253+00:00、Codex主担当/rootはPO4/5/6/7/8/10に基づき、対象plan475c841df65c24381254b699bfdc4dd8291ed0c28c33146813211a1ae52d12aa/research0b092f80528dfbcdd4c6a81ceaacda77b8ecbb935b5ae4b4c423e98c110edad7を承認する。非作者/root/rights_replacement_reviewの全文初回P1=1（一意正例scope不足）を全採用し、6factory/7token/一意6fixtureへ反映後の第2回差分・影響は可決0/0/0。レビュー実行2回・指摘反映1周、親UG1/175基本2回とread正式追加1回未消費を保持する。
+
+大会名は既存key identityとText保存を変えないAPI入力/失敗の具体化として、入力Unicode無変換・独自長上限なし・空白only拒否・完全一致既存名のnew指定409/既存key選択要求を今回採用する。例として「春季大会」と「 春季大会 」は別の保存文字列で、同名を同一entityへ自動統合せず、disabled名を復活/上書きしない。表示名のglobal uniqueや新排他/DB制約は追加しない。新しい記録結果・試合区分集計の意味を採用する判断ではなく、旧資料の未採用提案を過去承認済みへ書き換えない。
+
+既存CAP・同一scope・RG1前後fail-closed/単一resolverとcodec・commit後201・C2先行・結果不明/自動再送0を保持する。rootが指示する1ステップずつ実装し、候補の成功を正式登録/7.7/実RG1・親6/6/1球/MVP完成へ拡張しない。人間本人の逐行確認/山田正輝の署名を代記しない。

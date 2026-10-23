@@ -85,3 +85,7 @@
 coreは固定6f60983cの実JSONで照合する。新sourceは`backend/src/pitchlog/repositories/*`、一意fixture6パスは`tests/fixtures/tenant_boundary/*`に一致し、いずれもtenant-isolation。境界試験は前回のread登録内。sourceglob/fixtureglobとも実在しており新core宣言/JSON登録は不要、core拒否/旧登録/順序の縮小0。新module/6正例追加を予定scopeに明記する。
 
 名称提案について第1回は追加指摘なし。rootは最終計画承認で無変換・空白only拒否・完全一致new重複409をAPI入力/失敗の具体化として委任判断する予定、と通知した。現時点は承認未のまま、旧採用済み/表示名global unique追加として記録しない。旧175基本2回・親read追加1回未消費、各供給の既存レビューを維持する。
+
+## 計画承認と第2回受領
+
+2026-10-23T18:35:59.893253+00:00、非作者rights_replacement_reviewの第2回限定反映差分/影響0/0/0を受領。6正例のclass-qualified実行可能性を独立メモリ内確認し、初回P1は解消。rootはplan末尾の固定SHA/PO委任根拠で計画と名称のAPI具体化を承認。source/fixture/JSON/DBはまだ未実装、指定されたステップだけ実施する。親/既存供給の全レビュー系列・未達を保持する。
