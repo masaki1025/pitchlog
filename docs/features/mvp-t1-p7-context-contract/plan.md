@@ -143,7 +143,7 @@ root Ruff/ty、docs-status/計画同期、差分/JSON参照検査を行う。新
 2026-10-24 00:49 JST記録、主担当/rootは同じPO委任で、全対象試験の276 passed / 8 failed（既報2件を含む）を受け、実merge-base比較への限定是正を計8件へ拡張する指示を出した。追加6件は`test_product_rls_paths_remain_in_develop_baseline`、`test_uf8_game_screen_paths_are_registered_in_all_areas`、`test_us1_sync_apply_paths_are_registered_in_both_areas`、`test_uf5_team_paths_are_registered_for_tenant_and_migration`、`test_ur1_registered_paths_are_retained_after_declaration_rotation`、`test_uf13_declaration_retains_json_and_checks_product_registration`。各件も先端だけのsync母集団登録による同原因の不一致であり、新登録を固定枝へ取得したことにはしない。従来層の全保持・順序・実在と許可層以外の拒否を残す。ステップ1終端のコード独立レビューへ、この8件の是正と元の失敗を渡す。JSON不変、実PR guard不変、正式統合前の全登録/guard_paths保持ゲートは上記のまま。
 
 
-## 7. ステップ3/3後続：閉payload候補の限定追補（未承認）
+## 7. ステップ3/3後続：閉payload候補の限定追補（PO委任承認済み）
 
 2026-10-24、PO委任4/5/7/8/10に基づく主担当/rootの起案指示。対象基線は`b2b825a4d48dbda34358733680c164f618444557`。
 当初の外殻だけという制限（第1/2/4/5/6節）を、以下の**候補整備だけ**へ拡張する追補である。既存ステップ表の総数3、1→2→3の実コミット、承認・計画レビュー2回と採否、コードレビューの実施済み/待ちを保持し、過去を閉payload提供済みに書き換えない。新しい第4ステップを作らない。
@@ -173,4 +173,9 @@ root Ruff/ty、docs-status/計画同期、差分/JSON参照検査を行う。新
 既存外殻4定義digest/旧caseの保持、root Ruff/ty、専用構造試験（`-k p7_context_candidate`）、core既存試験と5パス被覆、docs-status/計画同期/差分検査を行う。意味計算の期待値・P6資料を試験入力にせず、正式契約への反映や全23フラグ/OUT3/RBI/G6-S閉包・P6/P7担当別受理・7.7を代替しない。後続のコード固定版を非作者レビューへ渡し、現基線の未取得登録は実統合前に実baseへ追随して全保持を再検査する。
 
 新しいO4順/Ready+O4到達性の断定、状態拒否とO4が同時成立する場合の新優先、旧codecにない観測/半回の移行既定値、因果だけで拒否する新P3結果、未知依存の公的失敗分類は今回のDTO選択に含めない。既採用⑦→O4→C2/B+D/除外Aを維持し、必要な新意味だけを根拠・具体入力・影響付きでrootへ返す。正式descriptorに未反映のJ6や新候補fieldを正式採用済みにしない。
-**本追補は実Port/HTTP/DB完成を契約準備の開始条件へ追加せず、完全Ready実装・製品T1計算・初球だけの開始許可も与えない。** 544の全開始条件、正式7.7/全23フラグ/G6閉包/P6/P7未達は継続する。今回の追補は独立レビュー未実施・未承認であり、旧承認を新scopeへ流用しない。
+**本追補は実Port/HTTP/DB完成を契約準備の開始条件へ追加せず、完全Ready実装・製品T1計算・初球だけの開始許可も与えない。** 544の全開始条件、正式7.7/全23フラグ/G6閉包/P6/P7未達は継続する。今回の追補の独立レビューと委任承認は次段に別記し、旧承認を新scopeへ流用しない。
+
+
+### 閉payload候補追補のPO委任承認
+
+2026-10-23T19:14:58.360660+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24の縦断優先指示に基づき、対象HEAD5dcccce3、plan75cb708d1d2efe624f7f562ad02c628e8602cee8e17c7aac8aad036db7056b6c/research7fd45847421d7954416a41c011a57e4d2c8d31b501798c2151d33bbfb4ceb421を承認。非作者rights_replacement_reviewの限定追加第1回P0=0/P1=0/P2=0と根拠・source固定点を照合した。DTO命名/格納・構築境界を既採用意味に沿って具体化する候補作業の承認であり、正式型受理・Ready・全T1意味閉包・P6/P7・7.7・製品計算の開始を代替しない。旧3段階/外殻4定義/旧case/全レビュー実績・中間失敗を保持し、この範囲のstep3/3後続候補だけを個別実装する。山田正輝の個別確認/署名・人間逐行確認を代記しない。
