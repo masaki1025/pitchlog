@@ -97,6 +97,11 @@
       "provenance_id": "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT",
       "path": "docs/features/auth-session-verification-contract/plan.md",
       "extracted_text": "GET /auth/session"
+    },
+    {
+      "provenance_id": "PLAN-MVP-PREPARING-READ-REGISTRATION",
+      "path": "docs/features/mvp-preparing-read-registration/plan.md",
+      "extracted_text": "準備中試合の保存値だけを読むGET /gamesおよびGET /games/{game_id}を既存CAP:games:readへ対応させる。"
     }
   ],
   "routes": [
@@ -685,6 +690,17 @@
       "provenance_ids": [
         "PLAN-AUTH-SESSION-VERIFICATION-CONTRACT"
       ]
+    },
+    {
+      "route_id": "ROUTE:RECORD:games:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-PREPARING-READ-REGISTRATION"
+      ],
+      "operation": "read"
     }
   ],
   "management_operations": [

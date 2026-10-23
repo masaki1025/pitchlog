@@ -230,3 +230,25 @@ def test_create_app_accepts_valid_domain_artifact_without_node(
     app = api_app.create_app()
 
     assert app.title == "Pitchlog API"
+
+
+def test_preparing_read_metadata_keeps_two_real_c2_routes() -> None:
+    """論理read1行に対応する実GET2件とC2操作IDの固定登録を照合する。"""
+    from pitchlog.api.tenant_access import _MATCH_OPERATIONS, TenantMatchedRoute
+
+    routes = [
+        route
+        for router in api_app.ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute) and route.path in {"/games", "/games/{game_id}"}
+    ]
+    assert len(routes) == 2
+    assert {
+        (route.path, tuple(sorted(route.methods or ())), route.operation_id)
+        for route in routes
+    } == {
+        ("/games", ("GET",), "preparing_game_list"),
+        ("/games/{game_id}", ("GET",), "preparing_game_detail"),
+    }
+    assert all(isinstance(route, TenantMatchedRoute) for route in routes)
+    assert {"preparing_game_list", "preparing_game_detail"} <= _MATCH_OPERATIONS

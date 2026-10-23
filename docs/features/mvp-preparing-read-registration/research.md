@@ -124,3 +124,16 @@ plan第5節へroot後続ゲートとして追記した：更新済み8入力を�
 rootから新PR #180の固定`dfa697721f35f573d2e3802783ff3d8d3cd218fa`（step3/4）だけを正式に供給された。これは候補の供給であり、#180の正式受理/実統合を主張しない。
 WIP12ファイルを`/home/ymdms/.cache/pitchlog/preparing-read-registration-wip-nec9tskk`へ保全し、manifest SHA256 `f3d6ba7cae6a7a095de562188208a66cfb01219cf9d4dbafd4b3519dae4c4cfb`、stash `828c762c4329c039651c15722dbc5825b6e3fb1f`を固定した。
 merge競合はcore3ファイルだけ。rootは登録union・guard全関数AST不変・元の先行宣言/別JSON履歴保持に限定した機械整合を許可した。正式実base180ではinitialを据え置き層へ回転してAPI2だけをpendingにする条件をplanへ残した。正式7.7/最終lock/oracleの編集はしない。
+
+### 接合結果と最終局所検証
+
+正常dfaの機械接合commitは`4be3789a966de893ccbd783757d0fe01ca405c7b`、root許可の正常descendant95dの通常mergeは`9544e28fb0e444979195de5b30e976628939e648`。
+両mergeを実`_changed_paths_in_commit`で検査すると空集合、`verify_area_path_baseline(...,31194,HEAD)`も成功した。guard関数ASTは677/dfaの双方と一致し、JSONは双方の全旧登録順序/metadataを保持する。元各枝の先行宣言・別JSON履歴は残した。coreの全382件は22.84秒で成功した。
+
+WIPの復元時の衝突はrepository JSON/moduleのsource_digestだけで、95dの全fieldを保持して再導出した。生成全36定数とJSON全fieldの一致、95dの履歴/識別値/旧登録の完全保持を確認。初期付与の5source/checker（生成repository module以外）は95dとbyte一致、生成moduleも初期付与側の全fieldを保持しread2型だけを追加した。f48b5944/8037e1d9は祖先にない。
+現在のcandidate revisionは正常供給からのallowlist35/repository24を保持した未受理内容であり、正式175の新revision/値を受理したものではない。repository source_digestは現JSON全値から`bf4ec2aa44c888131c1c09d8de2f259f7ef9199e3186004346f8feefee034f08`へ導出した。180rowのafterを175 readへ延長したとは扱わない。
+
+post-join局所はroot23件成功/3.65秒、backend対象162件成功/3.45秒。root/backend Ruff/ty、docs/計画同期成功。旧状態の長いroot全件は再実行しない。
+frontendはfrozen installのみで宣言/lock差分0。現在の実候補でread専用command `pnpm exec playwright test --config src/screens/GameScreenPreparingRead.playwright.config.ts`をexec session14368で実起動し、Running3/worker1から**3 passed / 24.7秒 / exit0**の完走を確認した。実login/Cookie/C2/専用PGのlist/detail/reload、ページ境界、越境404、abort/明示確認を通し、stub/新TLS・署名鍵/旧sealed driverは使っていない。実行前後のpitchlog-authz container0、補助process0、runtime tmp0。旧10/20出力dir37件は増減なしで削除していない。
+
+実origin/developは31194a39と一致。HEAD9544＋未commit WIPのtenant `--base-ref31194`はexit0になったが、HEAD凍結比較とworkingtree参照範囲を含む結果であり正式175受理ではない。authzは未更新decision lockのread行追加でexit1を保持した。最終step固定HEADから95dを比較元に改めて検査結果を主担当へ渡す。実180統合後にはinitialを据置き層へ回転しAPI2のみpendingとして完全before/afterを再導出する。正式175履歴/snapshot/最終lock/oracleの自編集0、通常push/PRなし、親追加敵対1回は未消費。
