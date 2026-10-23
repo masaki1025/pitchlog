@@ -325,3 +325,15 @@ T1旧5447d6 plan§4はP2/P6/P7/P8・正式7.7と対象別条件を本体着手�
 隔離接続専用worktree `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-first-path-isolation` / feature/mvp-first-path-isolationを作成。RG1 e280とledger c07を7216698fへ通常merge（5metadata/core試験競合、guard全31本文ASTと製品source byteを保持）、listen是正91e90を追随。sourceの実供給接合用候補で、formal受理/CI成功/develop提供ではない。既存単位branch/PRを維持し、この組立全体を巨大な製品PRとして代替しない。ここでhistory/census赤を除外・偽承認して通さない。
 
 隔離試験初回の外部admin fixture経由を原結果とともにrg1-lifecycle-connection/researchへ記録した。既存adminで試験role unusedのCREATE→接続失敗→finallyDROPまで例外なし、直接catalog再照会は行わずsource完遂の確認に限定。以後は子processから外部ADMIN/ROLE DSNを除去し、所有DBの実identity検証に固定した。削除を直接カタログ確認したとは記録しない。最終所有containerは回収済み。
+
+
+## 2026-10-24朝：新規HTTP保存の実証と停止条件の更新
+
+- 正式resolver PR181は12必須CI成功後、通常merge **4b2db6907f329c3dde113c3b7e1c3515600fb915**（親a10/19c2、2026-10-23T23:30:54Z）。19c2と同tree。実2親core/tenant・最終非作者・完全9/8照合と委任証拠を保持。旧CI backend1失敗3463成功4skipはexact登録期待値の追随漏れであり、6f488c4dで是正後のCI40034825194全12成功と区別する。
+- **新たに完了できる候補操作**: 実login/Cookie/C2→実fresh/controller/same-session RG1→POST新大会・新game→commit後201→別GET200。組立固定 **d2713e9e** +試験2file固定で **1 passed/72.98秒**。全13field一致、実DML(1,1)、事前games0→DB新規game1件/大会1件、保存snapshotの単一codec往復一致。証拠 /home/ymdms/.cache/pitchlog/reviews/first-http-d2713e9/result.json SHA57ec6e58424639670d65d0822fa77e5e5aa1622a4d106de3d89ff4e4cd1f766f。事前投入gameのread成功とは別証拠。
+- 解消した実不具合: controller root-listen時のpeer UID不一致（91e90）、実SQLAlchemy INSERT rowcount=-1（5ee75156、preserve_rowcountのみ、非1拒否保持）、POST/GETの同時刻offset表記不一致（20ee2e98、出力UTC、入力/JST年/保存instant保持）。後2件も非作者限定0を受領。旧503/401/時刻不一致の各失敗ログを保持する。
+- **残件**: 画面作成はcreation_pathが新browser case実行中。formal RG1認可・ACL/tenant/census登録と7.7/最終CIはroot担当。初期strict S3成立後に候補を適用した機能試験であり、候補適用後full catalogは既知未受理差分4種を赤として保持する。現在全profile正式成立・developで新規作成提供・実機HTTPS成功とは記録しない。loopback HTTP Secure cookieの試験限定transportもbrowser証拠へ流用しない。
+- preparingに必須なのは認証/C2・tenant/入力・正規resolver/codec・安全な実RG1保持と原子的commit。D4/V12・初期holder・T1/T2計算・全非0世代復旧を作成前提にしない。全MVPの再起動/耐久復旧要件は別に維持する。
+- T1は **6a579374**でV10の3閉型（wire参照/内部世代対応/4kind住所射影）を追加し非作者0。ただし残4kind全閉包0、7marker消去0。**f9c58025**でOUT3純入力2件を固定、正式21分岐は既存mapping6/不足15のまま。新blindはfork-noneで純入力/固定原典だけから導出し封印SHA182bfdc105887a5a9a7a83a58837551c6db9b3737c628dadb3e1d26d3651e506。封印後の通常比較は時機別得点等一致、作者p0001の打点1は因果/継続観測不足でblind UNKNOWN。全一致/正式P6成立としない。作者v1保持・評価v2への訂正と不足型を継続する。
+- 意味判断D06（O4/状態拒否優先）とD07（未提示配置の単打既定進塁）を既存decision-sheetへ集約、質問送付済・未回答。D01〜05/採用済み各判断は維持。Port/DB/HTTPは544 plan§4どおり計算実装後・merge前のゲートで、着手前へ追加しない。
+- 以前の作成→保存→再取得見込み **楽観10/25・通常10/26〜27 JST**を正式統合の目安として維持。実HTTP候補は前倒し到達、画面検証と正式登録を次の依存にする。最初の全経路（開始→初球保存→reload）はT1正式case/対象別P6/P7の閉鎖と未回答意味の所要が不明で、確定日を捏造しない。11/12全MVP目標・全故障/両CSV/実機/運用受入を維持。
