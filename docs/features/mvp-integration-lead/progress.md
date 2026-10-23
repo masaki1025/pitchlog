@@ -183,3 +183,12 @@ MVP-D01〜05のPO回答は未取得。待ちを承認に置換しない。Goal�
 - 実DB resolver候補は最終記録f5371ee3で保全（先の155件・独立155件と同source）。F2正本はb06318d3の本枝限定確定で、正式developへの統合やschema pin/DDL-ACL/7.7/DB実装は未完。実UI read providerはAPI固定候補起点の別単位として計画を準備し、未着手のcreate/start/saveをread成功へ含めない。
 - #173は引継ぎmanifestの**46実ファイルすべてhash一致、未列挙/欠落0**を再確認し、原状を5239e3eeへコミット保全。元HEAD6af8c801・旧基線の既受理値/未レビュー追補/承認・試験履歴をbyte不変で保持。公開#173はまだdac2ff15の番号取得文書だけで、製品差分未公開・通常merge不可。#174実統合後の実履歴から再導出する。旧29,919成功や文書CIを新最終製品版の成功と扱わない。
 - P7 read-only照合（US1cb0b1601/5447d6ce544）: 完全Ready+O4到達は**必要契約未閉鎖のため未証明**。外殻schemaにD2検査はなく、Ready/prefixのexactschema・source完全性・構築条件は未受理。⑦→O4→C2を維持し、新しいD2条件/優先を仮採用しない。既採用B+Dは別の確定拒否/D5消費・D3/配置/投影不変・保存拒否replayで、専用保存経路の具体名/ledger表現/ACKは未受理。到達未証明だけでPO再裁定を必須化せず、契約準備に実Port/HTTP成功の前提を追加しない。
+
+### 2026-10-24 JST: #174通常統合・画面接続・ブラウザ実行
+
+- #174は最終9e6883e9/base658/diffaa5c4dec・委任証拠6368006786を再照合し、CI39975455724の全必須成功（backend28分55秒/harness15分54秒）を確認。PO委任によるCodex主担当/root判断でDraft解除・通常merge。実develop **1f506675bf15bbb5385b311c139bc80d82e15e43**。DB段階A関数/単一codec/非公開S0〜S3を供給、公開resolver/実画面作成/RG1/実機の完成は含めない。
+- #179旧44aのCI39975952463全必須成功後、実174を41258fe2へ通常merge。新base1f506675に対して5paths/diffa65a949fは旧比較と完全同一、source/test/plan/research全byte不変を主担当と非作者o5が確認（限定追加1回0指摘、旧独立2回保持）。新基線で54成功/0.30秒。最終41258fe2を通常push/Draft解除し**新HEADのCI待ち**。旧CI成功を新headへ転用しない。
+- #173は36424c53で174実統合を取り込み。coreのO5/初期付与登録を両方保持し、runtimeは先行のresolver関数を含む56関数を保持。正式historyは実base26件/末尾174を保持、新実値の173受理はまだ。旧ローカル173行・46ファイルは5239e3ee/原保全物に保存したまま、新基線への既承認自動延長はしない。原initial_grant/test hashは不変。新7.7候補再導出・backend全件/最終レビュー未完。
+- read APIは独立0指摘・独立127/11成功を270347f0で限定受領。実UI限定planは独立第1回0指摘後e885c589でroot委任承認。画面供給候補83e62a17は159成功/静的build成功だったが、独立o5第1回は不正game_type_key配列のString強制変換受理P1を再現。全採用してbb0973d1でtypeofstring先行へ是正、追加回帰は修正前2failed→修正後161passed、静的build成功。第2回差分レビュー中。親175正式追加枠は未消費。
+- 実ブラウザread検証は別単位feature-mvp-preparing-browser-read。plan初回2P1（status不正/明示起動方式scope不足）を全採用し、第2回独立0指摘後6827dee8でroot委任承認。既存bootstrapへ明示HTTP loopback readモードを追加し、既存非秘密固定署名素材と実read DBfixtureを共有する候補を実装。TLS生成器はreadモードで呼ばず、実login画面/Cookie/C2/API/専用PGへ接続中。現時点では**実行中・未成功**。初回file追加コマンドはfrontend cwdで余剰frontend/を付けて失敗・追加前停止、絶対path patchで是正した。既存sealed-ui/1試合未達sentinel・実機/運用未実施は維持。
+- T1/P7外殻候補は先行core捕捉不足の計画P1を全採用し、3ステップのplanを567197faでroot委任承認。step1 7f8d333eは284成功、独立284成功/13.28秒・0指摘。固定枝の既存8試験だけmerge-baseへ比較追随、製品guardの実PR-base拒否は不変で実origin未取得O5を今も拒否。step2 6c09082bの候補glob両領域exact2追記/全旧paths/guard_paths不変を主担当が機械確認、284成功。step3候補/構造試験を実装中。完全Ready/未閉鎖3payload/prefix終端/J6tag/正式7.7/P6/T1製品の未達を解除しない。
