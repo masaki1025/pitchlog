@@ -41,6 +41,7 @@ from pitchlog.repositories.function_operations import (
     decode_function_result,
     prepare_function_operation,
 )
+from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
 _TENANT_ID = UUID("00000000-0000-0000-0000-000000000550")
@@ -95,8 +96,8 @@ def _registration() -> FunctionOperationRegistration:
     )
 
 
-def test_product_function_registry_has_only_rg1_and_dml_is_unchanged() -> None:
-    """製品関数登録はRG1の2件に限り既存DML登録を維持する。"""
+def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
+    """RG1の2件を保ち、段階A読取だけを1件追加する。"""
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
@@ -104,12 +105,160 @@ def test_product_function_registry_has_only_rg1_and_dml_is_unchanged() -> None:
 
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-    ) == ("RG1:precheck", "RG1:commit_check")
+    ) == ("RG1:precheck", "RG1:commit_check", "RULE:resolve_stage_a")
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
         RG1CommitCheckToken,
+        StageAResolveRuleToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
+
+
+def test_stage_a_rule_registration_has_exact_inputs_and_fixed_sql() -> None:
+    """任意tenant・SQLを受け取らず固定4引数と不変結果だけを登録する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    request = StageAResolveRuleToken("game_official", "tournament_one", False)
+    selected, parameters = prepare_function_operation(
+        request, _TENANT_ID, operation_registry.FUNCTION_OPERATION_REGISTRY
+    )
+    assert selected is spec
+    assert parameters == {
+        "tenant_id": _TENANT_ID,
+        "game_type_key": "game_official",
+        "tournament_key": "tournament_one",
+        "has_override": False,
+    }
+    assert spec.function_id == "public.resolve_stage_a_rule"
+    assert spec.min_rows == spec.max_rows == 1
+    assert spec.result_fields == (("resolution", MappingProxyType),)
+    assert str(spec.statement.compile(dialect=postgresql.dialect())) == (
+        "SELECT public.resolve_stage_a_rule(%(tenant_id)s::UUID, "
+        "%(game_type_key)s, %(tournament_key)s, "
+        "%(has_override)s) AS resolution"
+    )
+    assert set(inspect.signature(StageAResolveRuleToken).parameters) == {
+        "game_type_key",
+        "tournament_key",
+        "has_override",
+    }
+
+
+@pytest.mark.parametrize("invalid", (None, 0, 1, "false"))
+def test_stage_a_rule_registration_rejects_non_boolean_override(invalid: Any) -> None:
+    """boolと紛らわしい入力もexact型検査でSQL実行前に拒否する。"""
+    with pytest.raises(FunctionOperationError, match="has_override.*型が不一致"):
+        prepare_function_operation(
+            StageAResolveRuleToken("game_official", "tournament_one", invalid),
+            _TENANT_ID,
+            operation_registry.FUNCTION_OPERATION_REGISTRY,
+        )
+
+
+@pytest.mark.parametrize(
+    "status",
+    (
+        "stage_a_unsupported",
+        "rule_not_available",
+        "invalid_rule",
+        "outcome_unconfirmed",
+    ),
+)
+def test_stage_a_rule_decoder_keeps_closed_failure_envelope(status: str) -> None:
+    """DB失敗外形を保存成功や公開例外へ変換せず保持する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    result = TenantOperationResult(((MappingProxyType({"status": status}),),))
+    assert decode_function_result(spec, result) is result
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    (
+        {},
+        {"status": "unknown"},
+        {"status": 1},
+        {"status": "resolved"},
+        {"status": "resolved", "rule": ()},
+        {"status": "resolved", "rule": MappingProxyType({}), "extra": True},
+        {"status": "invalid_rule", "rule": MappingProxyType({})},
+    ),
+)
+def test_stage_a_rule_decoder_rejects_unclosed_result(envelope: dict[str, Any]) -> None:
+    """未知状態・欠落・余剰・成功失敗混在を固定decoderで拒否する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    with pytest.raises(FunctionOperationError):
+        decode_function_result(
+            spec, TenantOperationResult(((MappingProxyType(envelope),),))
+        )
+
+
+def test_stage_a_rule_operation_uses_real_scope_and_rejects_invalid_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """製品登録を実scope入口へ通し、不正戻りと失効scopeを拒否する。"""
+    events: list[str] = []
+    rule = {
+        "ruleSetId": "00000000-0000-0000-0000-000000000550",
+        "regulationInnings": 9,
+        "coldConditions": [],
+        "extensionLimit": 12,
+        "tiebreak": None,
+        "dh": True,
+    }
+    response: dict[str, object] = {"status": "resolved", "rule": rule}
+
+    class _Session:
+        def __init__(self, engine: object) -> None:
+            events.append("session")
+
+        def execute(
+            self, statement: Select[Any], params: object
+        ) -> list[tuple[object]]:
+            spec = operation_registry.FUNCTION_OPERATION_REGISTRY[
+                StageAResolveRuleToken
+            ]
+            assert statement is spec.statement
+            assert params == {
+                "tenant_id": _TENANT_ID,
+                "game_type_key": "game_official",
+                "tournament_key": "tournament_one",
+                "has_override": False,
+            }
+            events.append("execute")
+            return [(response,)]
+
+        def close(self) -> None:
+            events.append("close")
+
+    @contextmanager
+    def _binding(session: object, context: object) -> Iterator[None]:
+        events.append("begin")
+        try:
+            yield
+        except BaseException:
+            events.append("rollback")
+            raise
+        else:
+            events.append("commit")
+
+    monkeypatch.setattr(transaction, "Session", _Session)
+    monkeypatch.setattr(transaction, "create_database_engine", object)
+    monkeypatch.setattr(transaction, "_tenant_transaction", _binding)
+    request = StageAResolveRuleToken("game_official", "tournament_one", False)
+    with transaction.tenant_transaction_scope(make_tenant_context(_TENANT_ID)) as scope:
+        result = scope.run_function(request)
+    assert events == ["session", "begin", "execute", "commit", "close"]
+    assert isinstance(result.rows[0][0], MappingProxyType)
+    with pytest.raises(RuntimeError, match="失効"):
+        scope.run_function(request)
+    assert events == ["session", "begin", "execute", "commit", "close"]
+    events.clear()
+    response = {"status": "resolved"}
+    with pytest.raises(FunctionOperationError):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            scope.run_function(request)
+    assert events == ["session", "begin", "execute", "rollback", "close"]
 
 
 def test_fixed_registration_prepares_exact_tenant_and_token_input() -> None:
