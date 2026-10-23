@@ -75,3 +75,15 @@ root全体Ruff/ty、docs-status21件/違反0、design propagation/doc coverage�
 宣言/既存試験2pathsのfull-index binary差分（供給mergeb1ab→step1）SHA256 `77b18f66306102223198408f28826164fb2bfb69dcc4661469ba4123c511672b`。core_guard.py SHA256 `ac0dfbc97d492226a4a0172d2b9d9857b01f17c22c89f2efdc0d073bed23835d`、test_core_guard.py SHA256 `e4f0d09c9fa795a3238600f4820b6924edfe5138a0bfac368ebea21e00078999`。step1commit後にHEAD/全差分SHA/変更集合/局所履歴predicateを引渡しへ固定する。
 
 JSON登録step2、ledger source/正本7.3/7.7/policy新target/新PR/pushは未着手。供給先が正常initialであることと、実originへの統合・運用資源・秘密発行・共有DB適用・MVP完成は区別する。旧レビュー/初回P1policy不足→第2回0の履歴と全未完条件を保持する。
+
+## 同step1の比較基線是正（中間74c36a75を保持）
+
+最初のstep1は`74c36a75d...`（完全OIDはGit履歴で参照）としてローカルcommit済み、未公開だった。rootのWIP確認で「全旧試験を供給95dへ固定し続けると、統合後に新しいorigin/develop基線を検査しない」不足が指摘され、全採用した。rootの個別指示により74c36a75と中間411成功/26.43秒を保持し、amend/rebase/force pushせず、同step1の是正を別commitへ記録する。これは計画scope内の試験helper是正で、製品判定/API/source追加ではない。
+
+供給OIDのGit一意導出はそのままに、比較元選択を分離した。毎回の実origin/HEAD merge-baseが供給95dを含む場合は、その実merge-baseを選び、統合後の新しい共通基線保護へ戻す。供給未統合の隔離段階だけ、実merge-baseが供給95dの祖先であることをGitで検証して95dを局所比較に使う。独立分岐/検証不能OIDはfail-closed、固定供給への無条件fallbackはない。全旧比較呼出しと新実設定試験をこの選択へ接続した。
+
+追加4例は、隔離段階の供給選択、供給統合後の新しいactual基線保持、独立分岐拒否、不明OID拒否。最終版core全件は**415 passed / 25.34秒**、失敗/skip/timeout0。是正後の全core対象実行はこの1回だけで、中間411成功を新版に転用していない。root Ruff/tyも成功。先の段階は所有2pathsの静的検査と最終root全体を確認しており、総計1回だったとする意味ではない。
+
+実測時originは31194a39、actual merge-baseも31194a39、供給は95d766f5、選択した局所比較元は95d766f5だった。未改変の製品verify_area_path_baselineはsupplier95d基線では受理し、real31194ではsync-protocol.paths不一致を引き続き拒否した。全製品関数/class AST・JSON byte・供給initial source/test/policy/history27/snapshot202は保持、新ledgerのpackage/contract/positive/DB試験/supportは実wtで全て不在を再確認した。
+
+是正test_core_guard.py SHA256 `f436e4a508525e80e77e22857a74b8b7c6654c3930f7efbc69e2fb72200059bb`。中間74c36a75から試験だけのfull-index binary差分SHA256 `673fe4c699ace35182028aa016d9e7aa37ec890de9a0eba5c955882e94464a5d`。core_guard.pyの宣言は中間版と同じ、製品判定の変更0。最終HEAD/全差分SHA/中間保持は引渡しで固定する。実develop未統合・step2以降/正本/正式7.7/policy新target/運用資源/push/PRの未達を保持する。

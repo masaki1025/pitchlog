@@ -598,6 +598,32 @@ def durable_ledger_supplier_revision() -> str:
     assert len(set(candidates)) == 1, "正常initialの固定供給mergeを一意に特定できない"
     return candidates[0]
 
+
+def select_durable_ledger_comparison_revision(
+    root: Path, supplier: str, actual_merge_base: str,
+) -> str:
+    """統合後は実merge-base、未統合の祖先関係だけ供給点へ局所補完する。"""
+    def ancestor(before: str, after: str) -> bool:
+        result = subprocess.run(
+            ['git', 'merge-base', '--is-ancestor', before, after],
+            cwd=root, capture_output=True, text=True, timeout=30,
+        )
+        assert result.returncode in (0, 1), '比較基線のGit祖先関係を検証できない'
+        return result.returncode == 0
+
+    if ancestor(supplier, actual_merge_base):
+        return actual_merge_base
+    assert ancestor(actual_merge_base, supplier), '供給点と実merge-baseが独立分岐している'
+    return supplier
+
+
+def durable_ledger_comparison_revision() -> str:
+    """実originとHEADの共通基線を優先し、隔離中だけ正常供給点を使う。"""
+    actual = run_git(REPO, 'merge-base', 'origin/develop', 'HEAD').stdout.strip()
+    return select_durable_ledger_comparison_revision(
+        REPO, durable_ledger_supplier_revision(), actual,
+    )
+
 def assert_registered_block(paths: Sequence[str], block: tuple[str, ...]) -> int:
     """登録ブロックが一意かつ宣言順の連続列として残ることを確認する。
 
@@ -2081,7 +2107,7 @@ def test_copied_actual_config_rejects_one_missing_data_model_path(tmp_path):
 def test_actual_core_area_paths_follow_merge_base_layers():
     """マージ作業ツリーを取り込み後の比較元 blob と突合する。"""
     core_guard = load_core_guard_module()
-    base_sha = durable_ledger_supplier_revision()
+    base_sha = durable_ledger_comparison_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     baseline_ids = {area["id"] for area in baseline["areas"]}
@@ -2740,7 +2766,7 @@ def test_reordered_tenant_additions_are_rejected(tmp_path: Path) -> None:
 def test_product_rls_paths_remain_in_develop_baseline() -> None:
     """着地済み RLS から U-F5 までの登録順を末尾に依存せず保つ。"""
     core_guard = load_core_guard_module()
-    base_sha = durable_ledger_supplier_revision()
+    base_sha = durable_ledger_comparison_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
     registered_tail = (*PRODUCT_RLS_AREA_PATH_ADDITIONS, ADR_001_PATH)
@@ -2826,7 +2852,7 @@ def test_uf6_api_paths_are_registered_in_actual_core_areas() -> None:
 def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
     """比較元に登録済みの画面と spec を全領域で保持する。"""
     core_guard = load_core_guard_module()
-    base_sha = durable_ledger_supplier_revision()
+    base_sha = durable_ledger_comparison_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     pattern = UF8_GAME_SCREEN_AREA_PATH_ADDITIONS[0]
@@ -2849,7 +2875,7 @@ def test_uf8_game_screen_paths_are_registered_in_all_areas() -> None:
 def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
     """U-S1の登録済み層を保ち、その後にRG1層だけを追加する。"""
     core_guard = load_core_guard_module()
-    base_sha = durable_ledger_supplier_revision()
+    base_sha = durable_ledger_comparison_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     configuration = load_actual_core_areas()
     base_areas = {area["id"]: area for area in baseline["areas"]}
@@ -2892,7 +2918,7 @@ def test_us1_sync_apply_paths_are_registered_in_both_areas() -> None:
 def test_uf5_team_paths_are_registered_for_tenant_and_migration() -> None:
     """U-F5 の製品6ファイルをT・Dだけへ宣言順で登録済みと示す。"""
     core_guard = load_core_guard_module()
-    base_sha = durable_ledger_supplier_revision()
+    base_sha = durable_ledger_comparison_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     candidate = load_actual_core_areas()
     expected_files = (
@@ -2985,7 +3011,7 @@ def test_area_registration() -> None:
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     areas = {area["id"]: area for area in configuration["areas"]}
-    base_sha = durable_ledger_supplier_revision()
+    base_sha = durable_ledger_comparison_revision()
     baseline = core_guard.load_core_areas_at_revision(REPO, base_sha)
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     tracked_files = run_git(REPO, "ls-files").stdout.splitlines()
@@ -3117,7 +3143,7 @@ def test_ur1_registered_paths_are_retained_after_declaration_rotation() -> None:
     core_guard = load_core_guard_module()
     configuration = load_actual_core_areas()
     baseline = core_guard.load_core_areas_at_revision(
-        REPO, durable_ledger_supplier_revision()
+        REPO, durable_ledger_comparison_revision()
     )
     for document in (baseline, configuration):
         areas = {area["id"]: area for area in document["areas"]}
@@ -3137,7 +3163,7 @@ def test_uf13_declaration_retains_json_and_checks_product_registration() -> None
     """宣言だけではJSONを変えず、合成登録でrouter/Appの全4実例を検出する。"""
     core_guard = load_core_guard_module()
     baseline = core_guard.load_core_areas_at_revision(
-        REPO, durable_ledger_supplier_revision()
+        REPO, durable_ledger_comparison_revision()
     )
     configuration = load_actual_core_areas()
     core_guard.validate_area_path_layers(baseline, configuration)
@@ -4562,7 +4588,7 @@ def assert_durable_ledger_registration(
 def test_durable_ledger_core_actual_phase_preserves_initial_supplier() -> None:
     """固定供給の全登録を保持し、新台帳実行資産の未登録を許容しない。"""
     guard = load_core_guard_module()
-    baseline = guard.load_core_areas_at_revision(REPO, durable_ledger_supplier_revision())
+    baseline = guard.load_core_areas_at_revision(REPO, durable_ledger_comparison_revision())
     actual = load_actual_core_areas()
     assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert tuple(guard.DURABLE_LEDGER_PATH_ADDITIONS) == DURABLE_LEDGER_PATHS
@@ -4716,3 +4742,29 @@ def test_durable_ledger_core_each_single_future_asset_requires_check(
     assert result.returncode == (0 if checked else 1), result.stderr
     if not checked:
         assert path in result.stderr
+
+
+@pytest.mark.parametrize('phase', ('isolated', 'integrated', 'diverged', 'invalid'))
+def test_durable_ledger_core_comparison_respects_actual_merge_base(
+    tmp_path: Path, phase: str,
+) -> None:
+    """供給統合後の新基線を保持し、無関係/検証不能な祖先は拒否する。"""
+    root, base = make_layered_core_repo(tmp_path)
+    _, supplier = commit_change(root, 'initial_supplier.py')
+    if phase == 'isolated':
+        actual = base
+        expected = supplier
+    elif phase == 'integrated':
+        _, actual = commit_change(root, 'registered_after_supplier.py')
+        expected = actual
+    elif phase == 'diverged':
+        run_git(root, 'checkout', '-q', '-b', 'diverged', base)
+        _, actual = commit_change(root, 'unrelated_registration.py')
+        with pytest.raises(AssertionError, match='独立分岐'):
+            select_durable_ledger_comparison_revision(root, supplier, actual)
+        return
+    else:
+        with pytest.raises(AssertionError, match='検証できない'):
+            select_durable_ledger_comparison_revision(root, supplier, 'missing-revision')
+        return
+    assert select_durable_ledger_comparison_revision(root, supplier, actual) == expected
