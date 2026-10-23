@@ -6510,13 +6510,14 @@ def test_p7_context_candidate_readonly_declaration_drift_is_rejected(change: str
 
 
 def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> None:
-    """先行登録globが旧5・新2候補ファイルを双方の領域で覆うことを確認する。"""
+    """先行登録globが旧7・v2評価1ファイルを双方の領域で覆うことを確認する。"""
     import fnmatch
 
     names = {
         'context-refs.schema.json', 'context-refs.d.ts', 'constructor-contract.md',
         'structure-cases.json', 'source-ownership.md',
         't1-pure-inputs-v1.json', 't1-author-derived-v1.json',
+        't1-author-evaluation-v2.json',
     }
     assert {path.name for path in _P7_CONTEXT_CANDIDATE_PATH.iterdir()} == names
     configuration = _load_object(REPOSITORY_ROOT / '.claude/core-areas.json')
@@ -7361,3 +7362,108 @@ def test_p7_context_candidate_author_derivation_is_separate_and_incomplete() -> 
         assert all(set(reason) == {'source', 'reason'} for reason in entry['derivation'])
     assert author['formal_closure']['current_missing_branches'] == 15
     assert author['formal_closure']['new_formally_closed_branches'] == 0
+
+
+def _p7_context_candidate_check_author_evaluation_v2(evaluation: dict[str, Any]) -> None:
+    """作者評価の訂正履歴とUNKNOWN表現だけを検査し、打点を再計算しない。"""
+    assert set(evaluation) == {
+        'format_version', 'created_utc', 'author', 'role', 'status', 'fixed_input',
+        'supersedes_author_evaluation', 'basis', 'reasoning', 'evaluations',
+        'comparison_boundary', 'formal_closure',
+    }
+    assert evaluation['format_version'] == 'pitchlog.t1-author-evaluation.v2'
+    assert evaluation['status'] == 'limited-author-evaluation-not-formally-complete'
+    assert evaluation['role'] == (
+        'author correction after limited comparison; not an unexposed or independent derivation'
+    )
+    for field, name, expected in (
+        ('fixed_input', 't1-pure-inputs-v1.json',
+         '3ba80694316e6eb1db940fd8e6cce200313ef1291f2e193b6f375c62d7af4664'),
+        ('supersedes_author_evaluation', 't1-author-derived-v1.json',
+         '2a3e2bd9e430656d84f6436ffdb24ee1ff8aee0221870d236885701907ffc488'),
+    ):
+        assert evaluation[field]['path'] == name
+        assert evaluation[field]['sha256'] == expected
+        assert hashlib.sha256((_P7_CONTEXT_CANDIDATE_PATH / name).read_bytes()).hexdigest() == (
+            expected
+        )
+    assert [item['input_id'] for item in evaluation['evaluations']] == ['p0001', 'p0002']
+    first, second = evaluation['evaluations']
+    assert set(first['rbi_assessment']) == {'flag', 'count', 'scorers', 'first_matching_branch'}
+    for assessment in first['rbi_assessment'].values():
+        # UNKNOWNをfalse/0/[]やRBI-08の再断定に置換できない。
+        assert assessment == {
+            'status': 'unknown', 'reason_id': 'RBI_OBSERVATION_INSUFFICIENT',
+        }
+    assert first['retained_known']['runs'] == 1
+    assert len(first['retained_known']['rbi_input_scorers']) == 1
+    assert second['retained_known']['runs'] == 0
+    assert second['retained_known']['rbi_input_scorers'] == []
+    for name, expected in (('flag', False), ('count', 0), ('scorers', [])):
+        assessment = second['rbi_assessment'][name]
+        assert set(assessment) == {'status', 'value', 'reason_id'}
+        assert assessment['status'] == 'known'
+        assert assessment['reason_id'] == 'OUT3_EXCLUDES_RBI_INPUT'
+        assert type(assessment['value']) is type(expected)
+        assert assessment['value'] == expected
+    assert second['rbi_assessment']['first_matching_branch'] == {
+        'status': 'not-applicable', 'reason_id': 'OUT3_EXCLUDES_RBI_INPUT',
+    }
+    boundary = evaluation['comparison_boundary']
+    assert boundary == {
+        'unknown_is_not_false_or_mismatch': True, 'complete_agreement_claimed': False,
+        'sealed_values_imported': False, 'new_input_facts_added': False,
+        'all_v1_outputs_certified': False, 'new_p6_seal_or_acceptance_claimed': False,
+    }
+    assert evaluation['formal_closure']['current_missing_branches'] == 15
+    assert evaluation['formal_closure']['new_formally_closed_branches'] == 0
+
+
+def test_p7_context_candidate_author_evaluation_v2_preserves_v1_and_unknown() -> None:
+    """同じ純入力の作者評価を新versionに訂正し、旧期待値を上書きしない。"""
+    evaluation = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-author-evaluation-v2.json')
+    _p7_context_candidate_check_author_evaluation_v2(evaluation)
+    source = (REPOSITORY_ROOT / evaluation['basis']['requirements_path']).read_text()
+    fr003 = source[source.index('#### FR-003:'):source.index('#### FR-004:')]
+    rbi9 = '\n'.join(line for line in source.splitlines()
+                     if re.match(r'^\| `RBI-0[1-9]` \|', line))
+    assert len(rbi9.splitlines()) == 9
+    for name, text in (('FR003', fr003), ('RBI9', rbi9)):
+        assert hashlib.sha256(text.encode()).hexdigest() == (
+            evaluation['basis']['local_matching_clause_hashes'][name]
+        )
+    # 作者評価を純入力へ加えない。新fileの内容hashも入力に含まれない。
+    pure = (_P7_CONTEXT_CANDIDATE_PATH / 't1-pure-inputs-v1.json').read_text()
+    assert 't1-author-evaluation' not in pure
+    digest = hashlib.sha256(
+        (_P7_CONTEXT_CANDIDATE_PATH / 't1-author-evaluation-v2.json').read_bytes(),
+    ).hexdigest()
+    assert digest not in pure
+
+
+@pytest.mark.parametrize(('field', 'replacement'), (
+    ('flag', False), ('flag', True), ('count', 0), ('count', 1),
+    ('scorers', []), ('first_matching_branch', 'RBI-08'),
+))
+def test_p7_context_candidate_author_evaluation_v2_rejects_unknown_completion(
+    field: str, replacement: Any,
+) -> None:
+    """観測不足の作者値を0/偽/空集合/旧分岐へ補完する逆戻りを拒否する。"""
+    evaluation = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-author-evaluation-v2.json')
+    evaluation['evaluations'][0]['rbi_assessment'][field] = {
+        'status': 'known', 'value': replacement, 'reason_id': 'RBI_OBSERVATION_INSUFFICIENT',
+    }
+    with pytest.raises(AssertionError):
+        _p7_context_candidate_check_author_evaluation_v2(evaluation)
+
+
+@pytest.mark.parametrize('field', (
+    'complete_agreement_claimed', 'sealed_values_imported',
+    'new_input_facts_added', 'new_p6_seal_or_acceptance_claimed',
+))
+def test_p7_context_candidate_author_evaluation_v2_rejects_scope_promotion(field: str) -> None:
+    """作者の是正を完全一致/期待値移植/入力変更/独立受理に昇格させない。"""
+    evaluation = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-author-evaluation-v2.json')
+    evaluation['comparison_boundary'][field] = True
+    with pytest.raises(AssertionError):
+        _p7_context_candidate_check_author_evaluation_v2(evaluation)

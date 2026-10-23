@@ -1,0 +1,177 @@
+{
+  "format_version": "pitchlog.t1-author-evaluation.v2",
+  "created_utc": "2026-10-23T23:38:36.271462+00:00",
+  "author": "Codex /root/resolver_ledger_plan_review",
+  "role": "author correction after limited comparison; not an unexposed or independent derivation",
+  "status": "limited-author-evaluation-not-formally-complete",
+  "fixed_input": {
+    "path": "t1-pure-inputs-v1.json",
+    "sha256": "3ba80694316e6eb1db940fd8e6cce200313ef1291f2e193b6f375c62d7af4664"
+  },
+  "supersedes_author_evaluation": {
+    "path": "t1-author-derived-v1.json",
+    "sha256": "2a3e2bd9e430656d84f6436ffdb24ee1ff8aee0221870d236885701907ffc488",
+    "head": "f9c580255f8e53d89534454b72fd823982047a21",
+    "policy": "v1 bytes retained; v2 corrects the four RBI assessments only and does not certify all other v1 predictions"
+  },
+  "basis": {
+    "formal_commit": "4b2db6907f329c3dde113c3b7e1c3515600fb915",
+    "requirements_path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "requirements_sha256": "a7edf93a56dc6b6f364890a4cd49cd6a360fcb4e45dafe64f561163f789a538f",
+    "clauses": [
+      "FR-003",
+      "OUT3-04",
+      "OUT3-05",
+      "RBI-03",
+      "RBI-04",
+      "RBI-08"
+    ],
+    "local_matching_clause_hashes": {
+      "FR003": "8edc28b162f9c9620393e88b4a7d276913ebc1fdb16322f946afcfd9fa68b470",
+      "RBI9": "68b95506aeb423f0ffa1f3067859cef16830c86212897b7c04a6b2098613b57d"
+    }
+  },
+  "reasoning": {
+    "RBI_OBSERVATION_INSUFFICIENT": {
+      "source_clauses": [
+        "FR-003",
+        "RBI-03",
+        "RBI-04",
+        "RBI-08"
+      ],
+      "observed": "単打・公式失策なし、三塁走者の生還と第3アウトより前という時機。runnerContinuityByRunnerはnot-requiredだけ。",
+      "missing": [
+        "三塁走者が野手の持ちすぎ/無用送球の間に生還したかという因果関係",
+        "その走者が走り続けたか、ミスプレイを見て停止後再発進したかという走者別観測"
+      ],
+      "derivation": "no-errorは持ちすぎ/無用送球なしを意味しない。not-requiredもRBI-03/04不適用の証拠ではない。先行分岐を除外できないためRBI-08/打点数/対象者を決定できず、false/0/空集合へも補完しない。",
+      "author_error": "v1は先行RBI-01..07非該当と断定したが、RBI-03/04の除外根拠を入力から確認できていなかった。"
+    },
+    "OUT3_EXCLUDES_RBI_INPUT": {
+      "source_clauses": [
+        "OUT3-05",
+        "付録A-1 OUT3からRBIへの入力域"
+      ],
+      "observed": "p0002の三塁走者の時機はnot-before-third-out。",
+      "derivation": "OUT3-05で得点無効となる者はRBI判定前に入力域から除外する。RBI-09で0に落とすのではない。対象者集合が空なので打点数0/flag false、最初のRBI分岐は適用なし。"
+    }
+  },
+  "evaluations": [
+    {
+      "input_id": "p0001",
+      "retained_known": {
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "runs": 1,
+        "rbi_input_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "timeplay_branch": "OUT3-04"
+      },
+      "rbi_assessment": {
+        "flag": {
+          "status": "unknown",
+          "reason_id": "RBI_OBSERVATION_INSUFFICIENT"
+        },
+        "count": {
+          "status": "unknown",
+          "reason_id": "RBI_OBSERVATION_INSUFFICIENT"
+        },
+        "scorers": {
+          "status": "unknown",
+          "reason_id": "RBI_OBSERVATION_INSUFFICIENT"
+        },
+        "first_matching_branch": {
+          "status": "unknown",
+          "reason_id": "RBI_OBSERVATION_INSUFFICIENT"
+        }
+      },
+      "prior_author_assertions": {
+        "flag": true,
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "OUT3-04",
+        "FR-003",
+        "RBI-03",
+        "RBI-04",
+        "RBI-08"
+      ]
+    },
+    {
+      "input_id": "p0002",
+      "retained_known": {
+        "credited_scorers": [],
+        "runs": 0,
+        "rbi_input_scorers": [],
+        "timeplay_branch": "OUT3-05"
+      },
+      "rbi_assessment": {
+        "flag": {
+          "status": "known",
+          "value": false,
+          "reason_id": "OUT3_EXCLUDES_RBI_INPUT"
+        },
+        "count": {
+          "status": "known",
+          "value": 0,
+          "reason_id": "OUT3_EXCLUDES_RBI_INPUT"
+        },
+        "scorers": {
+          "status": "known",
+          "value": [],
+          "reason_id": "OUT3_EXCLUDES_RBI_INPUT"
+        },
+        "first_matching_branch": {
+          "status": "not-applicable",
+          "reason_id": "OUT3_EXCLUDES_RBI_INPUT"
+        }
+      },
+      "source_clauses": [
+        "OUT3-05",
+        "付録A-1 OUT3からRBIへの入力域"
+      ]
+    }
+  ],
+  "comparison_boundary": {
+    "unknown_is_not_false_or_mismatch": true,
+    "complete_agreement_claimed": false,
+    "sealed_values_imported": false,
+    "new_input_facts_added": false,
+    "all_v1_outputs_certified": false,
+    "new_p6_seal_or_acceptance_claimed": false
+  },
+  "formal_closure": {
+    "current_missing_branches": 15,
+    "new_formally_closed_branches": 0,
+    "retained_unknowns": [
+      "runnerDefaultAdvance.second",
+      "runnerDefaultAdvance.third"
+    ],
+    "retained_not_comparable": [
+      "scoreboard absolute all-fields",
+      "full history and complete diff",
+      "exact product batting-order DTO/next-batter fields"
+    ],
+    "pending": [
+      "formal observation schema/descriptor/row binding",
+      "unexposed derivation scope acceptance",
+      "ownership/7.7",
+      "P2/P6/P7/P8 full T1 requirements"
+    ]
+  }
+}
