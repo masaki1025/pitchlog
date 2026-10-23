@@ -77,3 +77,11 @@ docs-statusは20文書/違反0、計画同期（base 7d6ce544）はexit0、両�
 
 宣言済み`docs/features/mvp-t1-p7-context-contract/candidate/*`を実JSONのsync-protocol/game-stateへ各1件末尾追加した。旧登録と順序、対象外領域、guard_paths等の全メタデータを保持し、宣言/試験の変更は0。候補の実在は要求せず、`uv run pytest tests/test_core_guard.py -n 4 -q`は**284 passed / 10.52s**、docs-status（20文書/違反0）・計画同期・差分検査が成功した。
 この登録は候補schema等の提供、先端O5取得済み、正式7.7/統合可を意味しない。実baseの全登録/guard_paths保持を正式統合前に照合するゲートと未閉鎖意味の留保を維持する。ステップ3のcandidate作成は未着手のまま、別JSONコミットで停止する。
+
+## ステップ3/3：局所外殻候補と構造試験
+
+主担当/rootは`7f8d333e...6c09082b`のJSONを機械比較し、対象2領域への限定glob末尾追加以外の全paths/順序/guard_paths/他field不変を確認してPO委任で限定受領した。独立コードレビューはステップ1の既結果を保持し、最終候補でステップ2/3を含む全直接差分を確認する境界で、ステップ3の実装を許可した。
+
+候補5ファイルと既存`tests/test_state_transition_contract_schema.py`の専用試験を追加した。外殻4定義はUS1固定sourceとの辞書同一性を実照合し、CIでは4定義の固定digestにより別worktree/未統合commitへ依存せず同一性を検査する。readonly宣言のfield/型/必須性と構造25caseを局所検査し、意味出所/同scope/完全性は構造受理から証明できないことをconstructor/source所有文書に残した。規則codecは固定供給点への参照のみ。Ready/3payload/終端証拠/J6タグ/O4新優先/P3新結果/ACK/recoveryは補完していない。
+
+検証: `uv run pytest tests/test_state_transition_contract_schema.py -k p7_context_candidate -n 4 -q`は**51 passed / 0.84s**、`uv run pytest tests/test_core_guard.py -n 4 -q`は**284 passed / 11.49s**。root Ruff/ty、docs-status（20文書/違反0）、計画同期、JSON/宣言/参照・差分空白検査は成功。新候補5ファイルの両core領域被覆と、ステップ2のcore3パス不変を確認した。正式期待値/P6封印・正式contracts・製品・旧544planへ変更せず、局所候補として独立最終レビューへ渡して停止する。T1/P7全成立、先端O5取得済み、正式7.7/統合可の主張はしない。

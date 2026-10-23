@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T1/P7文脈参照の局所外殻候補（正式契約・実行型ではない）",
+  "$comment": "US1 cb0b1601f2ec76265f317e5104d4df387cf44344 の既存4定義だけを抽出。構造受理は意味出所/完全性/Readyの証明ではない。",
+  "$ref": "#/$defs/T1ContextRefsV1",
+  "$defs": {
+    "ContentRefV1": {
+      "type": "object",
+      "properties": {
+        "contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contract_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_version",
+        "content_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "T1ReadKeyV1": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "game_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "wire_d4": {
+          "type": "string",
+          "minLength": 1
+        },
+        "internal_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d5": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "business_scope_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "canonical_lineage_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "game_id",
+        "wire_d4",
+        "internal_generation",
+        "d1",
+        "d5",
+        "business_scope_id",
+        "canonical_lineage_id"
+      ],
+      "additionalProperties": false
+    },
+    "PrefixEvidenceRefV1": {
+      "type": "object",
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "canonical_lineage_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "before_d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "canonical_lineage_id",
+        "before_d1",
+        "content_ref"
+      ],
+      "additionalProperties": false
+    },
+    "T1ContextRefsV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "rules": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "roster": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "pre_state": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "effective_prefix": {
+          "$ref": "#/$defs/PrefixEvidenceRefV1"
+        }
+      },
+      "required": [
+        "key",
+        "rules",
+        "roster",
+        "pre_state",
+        "effective_prefix"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

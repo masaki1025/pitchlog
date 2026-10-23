@@ -1,0 +1,490 @@
+{
+  "validation_scope": "structure-only",
+  "source_values": "synthetic-no-semantic-verdict",
+  "cases": [
+    {
+      "id": "shape-ContentRefV1",
+      "definition": "ContentRefV1",
+      "expected_structure": "accept",
+      "input": {
+        "contract_id": "synthetic.reference",
+        "contract_version": "synthetic.v1",
+        "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    {
+      "id": "missing-ContentRefV1",
+      "definition": "ContentRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "contract_version": "synthetic.v1",
+        "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    {
+      "id": "extra-ContentRefV1",
+      "definition": "ContentRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "contract_id": "synthetic.reference",
+        "contract_version": "synthetic.v1",
+        "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "shape-T1ReadKeyV1",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "accept",
+      "input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": 1,
+        "d1": 1,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "missing-T1ReadKeyV1",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": 1,
+        "d1": 1,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "extra-T1ReadKeyV1",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": 1,
+        "d1": 1,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "shape-PrefixEvidenceRefV1",
+      "definition": "PrefixEvidenceRefV1",
+      "expected_structure": "accept",
+      "input": {
+        "snapshot_id": "00000000-0000-4000-8000-000000000006",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+        "before_d1": 1,
+        "content_ref": {
+          "contract_id": "synthetic.prefix",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      }
+    },
+    {
+      "id": "missing-PrefixEvidenceRefV1",
+      "definition": "PrefixEvidenceRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+        "before_d1": 1,
+        "content_ref": {
+          "contract_id": "synthetic.prefix",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      }
+    },
+    {
+      "id": "extra-PrefixEvidenceRefV1",
+      "definition": "PrefixEvidenceRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "snapshot_id": "00000000-0000-4000-8000-000000000006",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+        "before_d1": 1,
+        "content_ref": {
+          "contract_id": "synthetic.prefix",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "shape-T1ContextRefsV1",
+      "definition": "T1ContextRefsV1",
+      "expected_structure": "accept",
+      "input": {
+        "key": {
+          "tenant_id": "00000000-0000-4000-8000-000000000001",
+          "game_id": "00000000-0000-4000-8000-000000000002",
+          "wire_d4": "synthetic-wire-generation",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "00000000-0000-4000-8000-000000000003",
+          "business_scope_id": "00000000-0000-4000-8000-000000000004",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+        },
+        "rules": {
+          "contract_id": "synthetic.rules",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "roster": {
+          "contract_id": "synthetic.roster",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "pre_state": {
+          "contract_id": "synthetic.pre-state",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "effective_prefix": {
+          "snapshot_id": "00000000-0000-4000-8000-000000000006",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+          "before_d1": 1,
+          "content_ref": {
+            "contract_id": "synthetic.prefix",
+            "contract_version": "synthetic.v1",
+            "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      }
+    },
+    {
+      "id": "missing-T1ContextRefsV1",
+      "definition": "T1ContextRefsV1",
+      "expected_structure": "reject",
+      "input": {
+        "rules": {
+          "contract_id": "synthetic.rules",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "roster": {
+          "contract_id": "synthetic.roster",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "pre_state": {
+          "contract_id": "synthetic.pre-state",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "effective_prefix": {
+          "snapshot_id": "00000000-0000-4000-8000-000000000006",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+          "before_d1": 1,
+          "content_ref": {
+            "contract_id": "synthetic.prefix",
+            "contract_version": "synthetic.v1",
+            "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      }
+    },
+    {
+      "id": "extra-T1ContextRefsV1",
+      "definition": "T1ContextRefsV1",
+      "expected_structure": "reject",
+      "input": {
+        "key": {
+          "tenant_id": "00000000-0000-4000-8000-000000000001",
+          "game_id": "00000000-0000-4000-8000-000000000002",
+          "wire_d4": "synthetic-wire-generation",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "00000000-0000-4000-8000-000000000003",
+          "business_scope_id": "00000000-0000-4000-8000-000000000004",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+        },
+        "rules": {
+          "contract_id": "synthetic.rules",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "roster": {
+          "contract_id": "synthetic.roster",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "pre_state": {
+          "contract_id": "synthetic.pre-state",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "effective_prefix": {
+          "snapshot_id": "00000000-0000-4000-8000-000000000006",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+          "before_d1": 1,
+          "content_ref": {
+            "contract_id": "synthetic.prefix",
+            "contract_version": "synthetic.v1",
+            "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        },
+        "unprovided_field": true
+      }
+    },
+    {
+      "id": "empty-contract-id",
+      "definition": "ContentRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "contract_id": "",
+        "contract_version": "synthetic.v1",
+        "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    {
+      "id": "empty-contract-version",
+      "definition": "ContentRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "contract_id": "synthetic.reference",
+        "contract_version": "",
+        "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      }
+    },
+    {
+      "id": "uppercase-digest",
+      "definition": "ContentRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "contract_id": "synthetic.reference",
+        "contract_version": "synthetic.v1",
+        "content_sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      }
+    },
+    {
+      "id": "short-digest",
+      "definition": "ContentRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "contract_id": "synthetic.reference",
+        "contract_version": "synthetic.v1",
+        "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "id": "invalid-uuid",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "tenant_id": "synthetic-not-a-uuid",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": 1,
+        "d1": 1,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "bool-is-not-generation",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": true,
+        "d1": 1,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "zero-d1",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": 1,
+        "d1": 0,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "string-d1",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "synthetic-wire-generation",
+        "internal_generation": 1,
+        "d1": "1",
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "empty-wire-d4",
+      "definition": "T1ReadKeyV1",
+      "expected_structure": "reject",
+      "input": {
+        "tenant_id": "00000000-0000-4000-8000-000000000001",
+        "game_id": "00000000-0000-4000-8000-000000000002",
+        "wire_d4": "",
+        "internal_generation": 1,
+        "d1": 1,
+        "d5": "00000000-0000-4000-8000-000000000003",
+        "business_scope_id": "00000000-0000-4000-8000-000000000004",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+      }
+    },
+    {
+      "id": "negative-prefix-bound",
+      "definition": "PrefixEvidenceRefV1",
+      "expected_structure": "reject",
+      "input": {
+        "snapshot_id": "00000000-0000-4000-8000-000000000006",
+        "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+        "before_d1": -1,
+        "content_ref": {
+          "contract_id": "synthetic.prefix",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      }
+    },
+    {
+      "id": "prefix-is-not-free-json",
+      "definition": "T1ContextRefsV1",
+      "expected_structure": "reject",
+      "input": {
+        "key": {
+          "tenant_id": "00000000-0000-4000-8000-000000000001",
+          "game_id": "00000000-0000-4000-8000-000000000002",
+          "wire_d4": "synthetic-wire-generation",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "00000000-0000-4000-8000-000000000003",
+          "business_scope_id": "00000000-0000-4000-8000-000000000004",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+        },
+        "rules": {
+          "contract_id": "synthetic.rules",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "roster": {
+          "contract_id": "synthetic.roster",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "pre_state": {
+          "contract_id": "synthetic.pre-state",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "effective_prefix": {}
+      }
+    },
+    {
+      "id": "nonempty-wire-is-structure-only",
+      "definition": "T1ContextRefsV1",
+      "expected_structure": "accept",
+      "input": {
+        "key": {
+          "tenant_id": "00000000-0000-4000-8000-000000000001",
+          "game_id": "00000000-0000-4000-8000-000000000002",
+          "wire_d4": " ",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "00000000-0000-4000-8000-000000000003",
+          "business_scope_id": "00000000-0000-4000-8000-000000000004",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+        },
+        "rules": {
+          "contract_id": "synthetic.rules",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "roster": {
+          "contract_id": "synthetic.roster",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "pre_state": {
+          "contract_id": "synthetic.pre-state",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "effective_prefix": {
+          "snapshot_id": "00000000-0000-4000-8000-000000000006",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005",
+          "before_d1": 1,
+          "content_ref": {
+            "contract_id": "synthetic.prefix",
+            "contract_version": "synthetic.v1",
+            "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      }
+    },
+    {
+      "id": "different-lineage-not-a-schema-judgment",
+      "definition": "T1ContextRefsV1",
+      "expected_structure": "accept",
+      "input": {
+        "key": {
+          "tenant_id": "00000000-0000-4000-8000-000000000001",
+          "game_id": "00000000-0000-4000-8000-000000000002",
+          "wire_d4": "synthetic-wire-generation",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "00000000-0000-4000-8000-000000000003",
+          "business_scope_id": "00000000-0000-4000-8000-000000000004",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+        },
+        "rules": {
+          "contract_id": "synthetic.rules",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "roster": {
+          "contract_id": "synthetic.roster",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "pre_state": {
+          "contract_id": "synthetic.pre-state",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "effective_prefix": {
+          "snapshot_id": "00000000-0000-4000-8000-000000000006",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000007",
+          "before_d1": 1,
+          "content_ref": {
+            "contract_id": "synthetic.prefix",
+            "contract_version": "synthetic.v1",
+            "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        }
+      }
+    }
+  ]
+}
