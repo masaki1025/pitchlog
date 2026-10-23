@@ -31,3 +31,11 @@
 - [ ] 短縮計画(目的 / 変更内容 / 確認方法)を「概要」に記載した
 - [ ] 人間の事前 OK を得ている(非コア・小差分・正本影響なし)
 -->
+
+<!-- 今回の初回MVP限定: policy.jsonのrepo/PR番号/head branchに一致する場合だけ、
+PO委任によるCodex判断を別経路で記録できる。人間逐行確認のチェックは付けない。
+実装者と異なるレビューtaskに最終HEAD・差分SHAを渡した後、同一PRの証拠コメントを掲載する。
+証拠pointerの正確な様式はpr skill参照。仮URLのpointerを本文へ置かない。
+様式・保証境界: docs/features/mvp-delegated-core-review/policy.json / plan.md。
+本人が逐行確認した、PO本人が署名した、P6 blindが成立したとは記録しない。
+-->

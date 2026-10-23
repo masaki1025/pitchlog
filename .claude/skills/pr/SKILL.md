@@ -51,3 +51,32 @@ disable-model-invocation: true
 
 - **差し戻しが発生したら**(PR の OPEN/CLOSED を問わない): Notion ステータスを `差し戻し` へ(指摘要約をタスクへコメント — notion-map.json)。**修正の再開時は、先に計画書 frontmatter を `status: in-review → active` に戻してから** Notion を `進行中` に戻す(現在地導出が「実装中(差し戻し修正)」を示す — scripts/feature_status.py。この状態更新コミットにはステップ記法を付けない)。修正は**通常経路では** /implement の `--resume` でステップ単位に行う(修正も 1 まとまり 1 コミット)。**fast path の差し戻しは `codex_run.py fast` の新規実行または Claude 直修正**で行う(`--resume` は使わない — fast にステップ表・保存セッションはない)。**差し戻し修正のたびに fast の 3 条件(非コア・小差分・正本影響なし)と人間の事前 OK を再確認**し、満たさなくなったら通常計画(/plan)へ切り替える。切り替え時は plan frontmatter を `status: active`・`実行方式: 通常`・`承認: 未` へ**一括で**揃える(中途半端な遷移は現在地導出が誤表示する — 設計書 6.1)
 - **修正・検証完了(再レビュー依頼)**: 計画書 frontmatter を `active → in-review` に戻し、Notion を `確認待ち` へ。**OPEN の既存 PR には `gh pr create` を行わず再レビュー依頼のみ**。CLOSED の場合は reopen または新 PR(本スキルの手順 3)による
+
+## 2026-10-23初回MVPのPO委任による限定分岐
+
+一般手順は維持する。今回のPO委任の有効期間中、
+`docs/features/mvp-delegated-core-review/policy.json`のrepo/PR番号/head branchへ
+完全一致する場合だけ、主担当Codexが最終確認と通常統合を進められる。
+人間確認のチェック・実施記録は代筆せず、以下の独立した証拠pointerを使う。
+
+1. 最終commit後のbase/headと`git diff --no-ext-diff --binary --no-renames base...head`の
+   SHA-256、全変更paths、候補作成agent一覧を固定する。
+2. 候補作成へ関与していない別taskへ最終差分を渡し、そのtask名・対象HEAD・報告全文・
+   指摘の採否/解消を取得する。従来のレビュー回数と後発差分を保持する。
+3. 同一PRへ`PITCHLOG-PO-DELEGATION-V1`に続くJSON証拠をコメントする。
+   keysは`authority_sha256, pr, base, head, diff_sha256, paths, reviewer_agent,
+   candidate_agents, independent, verdict, findings, report`。
+   authority_sha256は**headのcommitted policy blob**のSHA-256、verdictは`approved`。
+   reportは`task, reviewed_head, text`、taskはreviewer_agentと一致させる。
+   findingsは`severity, resolved, detail`の配列とし、未解消P0/P1は拒否する。
+   掲載主体はpolicy指定のGitHub主体であり、PO本人署名を意味しない。
+   core-guardによる証拠取得は公開APIへの無認証GET。非公開化/rate limit/API異常は拒否される。
+4. PR本文へ`PO-DELEGATION-EVIDENCE: <同一PRのissuecomment URL>`を1行だけ記載する。
+   仮URL/複数marker/他PR/旧HEAD/根拠不足は拒否される。本文編集後のCIを確認する。
+5. マージ直前に委任の未撤回と同一base/headを再確認し、証拠コメントが現存して同内容であることを
+   API取得して再照合する。必須CI・正式受理・依存条件・重大指摘解消が揃った場合だけ通常mergeする。
+   head/baseが変われば影響確認と最終版の証拠/CI更新を行う。運用公開・共有DB適用は委任外。
+
+policyの変更も検査経路変更であり、未確認で通さない。失効時はenabled=falseとする。
+agent属性・曝露履歴・意味的正しさは暗号認証していないため、実際のtask出典を保持する。
+P6の封印/未曝露資格やPO本人の署名をこの手続きで代替しない。

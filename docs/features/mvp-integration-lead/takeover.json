@@ -1,0 +1,106 @@
+{
+  "observed_at": "2026-10-23T11:40:02.811996+00:00",
+  "source": "2026-10-23 PO /goal 引継ぎ・MVP指示",
+  "items": [
+    {
+      "scope": "U-F8",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-uf8-game-entry",
+      "branch": "feature/uf8-post171-tracking",
+      "reported_head": "eb83787ca5f9e79f94bc773f99e62d74121778cf",
+      "observed_head": "eb83787ca5f9e79f94bc773f99e62d74121778cf",
+      "pin_matches": true,
+      "status": "",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "U-S1",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-us1-sync-port-surface",
+      "branch": "feature/us1-durable-provider",
+      "reported_head": "cb0b1601f2ec76265f317e5104d4df387cf44344",
+      "observed_head": "cb0b1601f2ec76265f317e5104d4df387cf44344",
+      "pin_matches": true,
+      "status": "",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "TSK-544",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-tsk544-t1-state-calculation",
+      "branch": "feature/tsk544-t1-state-calculation",
+      "reported_head": "7d6ce5443d71f6f7803d2ceed7e04c7ff87422ad",
+      "observed_head": "7d6ce5443d71f6f7803d2ceed7e04c7ff87422ad",
+      "pin_matches": true,
+      "status": "",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "U-R1",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-ur1-initial-rights-followup",
+      "branch": "feature/ur1-initial-rights-followup",
+      "reported_head": null,
+      "observed_head": "6af8c80156ceec615e0749ace1187129e95bd642",
+      "pin_matches": null,
+      "status": "M backend/pyproject.toml\n M backend/src/pitchlog/authz/runtime_contract.py\n M backend/src/pitchlog/repositories/repository_contract.py\n M backend/src/pitchlog/repositories/tenant_context_contract.py\n M backend/uv.lock\n M contracts/tenant_boundary/base-allowlist.json\n M contracts/tenant_boundary/cache-invalidation-contract.json\n M contracts/tenant_boundary/census-baseline.json\n M contracts/tenant_boundary/db-api-inventory.json\n M contracts/tenant_boundary/negative-fixtures.json\n M contracts/tenant_boundary/repository-contract.json\n M contracts/tenant_boundary/runtime-authz-contract.json\n M contracts/tenant_boundary/tenant-context-allowlist.json\n M docs/features/ur1-recording-rights/step5-followup-handoff.md\n M scripts/check_tenant_boundary_bypass.py\n M tests/fixtures/frozen-archive-cases/manifest.json\n M tests/test_census_baseline_check.py\n?? backend/src/pitchlog/recording_rights/\n?? backend/tests/test_initial_recording_right_candidate.py\n?? contracts/tenant_boundary/history-snapshots/21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7\n?? contracts/tenant_boundary/history-snapshots/3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e\n?? contracts/tenant_boundary/history-snapshots/8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e\n?? contracts/tenant_boundary/history-snapshots/9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02\n?? contracts/tenant_boundary/history-snapshots/ae5e4d9e4ed0145374acd8036ca13410785f6890fb4e29a0ac93a6b8d0078f01\n?? contracts/tenant_boundary/history-snapshots/b93408f31683e671e03e89ffbeda10999ac54226de3b78a7643a2a1622955040\n?? contracts/tenant_boundary/history-snapshots/bebc29609e9dfd7e453c22f411710b38e0b79e9fc31e63c95397990c175b8565\n?? contracts/tenant_boundary/history-snapshots/c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9\n?? contracts/tenant_boundary/history-snapshots/e20c325bc4ae4742e9e06adab4306fd3e1280be3ef19e707e2402cfb24725128\n?? contracts/tenant_boundary/history-snapshots/fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-acceptance-brief.md\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-payload-proposal.json\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-record-proposal.json\n?? docs/features/ur1-recording-rights/step5-pr173-candidate-snapshots/\n?? docs/features/ur1-recording-rights/step5-pr173-tab-handoff-2026-10-23.md\n?? docs/worklog/2026-10-22-ur1-pr173-review.md\n?? tests/fixtures/tenant_boundary/census-scoped-digests.json",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "TSK-550",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-ux1-fr014-rule-resolution-followup",
+      "branch": "feature/ux1-fr014-rule-resolution-followup",
+      "reported_head": "e30edc79a7f90aa27cb14303910676e414c2cab6",
+      "observed_head": "e30edc79a7f90aa27cb14303910676e414c2cab6",
+      "pin_matches": true,
+      "status": "A docs/worklog/2026-10-23-tab-wide-tsk550-ug1-handoff.md",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "#176",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/fix-us1-o5-observation-population",
+      "branch": "fix/us1-o5-observation-population",
+      "reported_head": "c1413b250593cce622c2f8a1bc5448c136e299a3",
+      "observed_head": "c1413b250593cce622c2f8a1bc5448c136e299a3",
+      "pin_matches": true,
+      "status": "A docs/features/us1-o5-observation-population/core-path-registration-plan.md\n M docs/features/us1-o5-observation-population/plan.md\n A docs/worklog/2026-10-23-us1-o5-core-path-registration.md",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "TSK-564",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-t2-provenance-checker",
+      "branch": "feature/t2-provenance-checker",
+      "reported_head": "9ec61594",
+      "observed_head": "9ec61594b3b7c9358a0994860970a58e8a46cdd5",
+      "pin_matches": true,
+      "status": "?? docs/features/t2-provenance-checker/candidates/t2-product-handoff-v1/draw_gap05_projection_v1.json",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "U-G1",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-ug1-preparing-connection",
+      "branch": "feature/ug1-preparing-connection",
+      "reported_head": "d68e10ed30d77cbe5361ece4cab2a3bd6dac9461",
+      "observed_head": "d68e10ed30d77cbe5361ece4cab2a3bd6dac9461",
+      "pin_matches": true,
+      "status": "",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "基本成績/T5/T6",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-basic-stats-connection",
+      "branch": "feature/mvp-basic-stats-connection",
+      "reported_head": "1ab398cc7b2e0f54eafc038fc761a8a8ab42d2a0",
+      "observed_head": "1ab398cc7b2e0f54eafc038fc761a8a8ab42d2a0",
+      "pin_matches": true,
+      "status": "?? docs/features/mvp-basic-stats-connection/",
+      "ownership": "Codex主担当（PO委任）"
+    },
+    {
+      "scope": "TSK-545",
+      "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-tsk545-game-end-unresolved",
+      "branch": "feature/tsk545-game-end-unresolved",
+      "reported_head": "8046e2aa",
+      "observed_head": "8046e2aa0c3aaab1e1fd20504588f6389fcdf9ef",
+      "pin_matches": true,
+      "status": "",
+      "ownership": "保存点一致・担当停止根拠を確認中。編集未着手"
+    }
+  ]
+}
