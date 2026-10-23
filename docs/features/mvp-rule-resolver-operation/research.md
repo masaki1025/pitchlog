@@ -38,3 +38,5 @@ decoderは、Aが不変化した単一オブジェクトについて、`resolved
 受理済みstep1契約に対し、候補b4b8aaf2は空keyをprepareへ渡していた。追補計画94ad459aのPO委任承認後、登録型へ既定空tupleのnonempty_inputsを追加し、登録時にexact tuple/str名/重複/宣言済みstr入力だけを許可する。resolverの2keyだけを指定し、実行直前に検証した同じ値をbindへ入れる。RG1は既定空tupleのまま、全strの一律制約・トリム・独自SQL・権限緩和なし。正式資産の変更はなく、既記録の閉集合不一致exit2は残る。
 
 backend Ruff format/check/ty成功、対象test_function_operations_boundary.pyは81 passed/0.65s。従前69件へ12件を追加し、構築時/強制変更後の各2key拒否を実scope・合成Sessionで確認。SQL実行に到達しないrollback、未指定strの空文字・指定strの空白保持、誤登録を検査した。実DB/HTTP試験ではなく、正式step4/7.7完了ではない。root Ruff/tyも成功。次に固定候補の独立レビューを実施する。
+
+是正候補bffa1f963ef702f43b0140e7f4101023eb25655aは/root/o5_final_reviewが候補作成に関与せず独立レビュー可決P0=0/P1=0/P2=0。base94ad459adce1b6cb68bb3909bbf4fa0ddb018542、binary差分SHA256 ca61a58ca6f490c3c8d8a61a5aa5ae9b8e784d961f9f6b16adb61bd3731340b8を照合、独立再実行81 passed/0.83s。後発差分は本記録のみ。従前レビュー履歴と正式未受理の留保を維持する。
