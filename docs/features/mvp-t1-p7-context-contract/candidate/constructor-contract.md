@@ -81,3 +81,22 @@ O4は希望D2の1行占有ではなく永続D2重複であり、完全Ready＋O4
 - entry.contentの`operation-content`、entry/stateの`canonical-membership`、半回印の`half-application-mark`、P3 sourceの`online-change-source`、prefix.replay_windowの`undo-replay-diff`、manifestの`prefix-selection`/`prefix-terminal`は、必須の`{kind:"unresolved", obligation:閉literal, source:ContentRefV1}`という**依存marker**である。実内容の代替値ではなく、これがある限り全意味閉包は成立しない。空配列や参照文字列の形を理由にこれらを成立扱いにしない。
 - operation_kindは採用済み操作分類を区別するDTO候補で、revision/tombstoneを独立の新ドメイン操作へ昇格させない。version_relationのreplaces参照だけで再実行/取消差分・版連鎖が証明されたとはしない。
 - 閉型・観測と全23フラグ/OUT3/RBI/G6-Sの規範行/負例、正式descriptor/T2/7.7、P6/P7項目別受理は別の未達である。実Port/HTTP/DB完成を契約準備の前提には追加せず、製品計算の全開始ゲートも縮小しない。⑦→O4→C2/B+D/除外Aを保持し、Ready+O4/新状態拒否の競合/P3新結果/旧codec移行をここで裁定しない。
+
+## 5. 操作内容の閉union候補への接合（ステップ3/3、未正式受理）
+
+第1〜4節は旧外殻/7d80候補の境界として保持する。今回の17追加定義はsource所有表第6節に対応し、5kind（毎球/交代/TB開始/終了宣言/その場登録）の閉内容を表せる。T1EffectiveEntryV1の旧未供給variantは保持し、供給されたcontent.kindとoperation_kindが一致する追加variantだけを受ける。kind不一致、自由JSON、未宣言field、必須欠落は構造拒否である。旧markerを受ける入力が依然構造acceptでも、その内容が供給済みとは判定しない。
+
+正式4操作のraw payloadShapeの任意fieldと、採用済みrunner-keyed写像は不在を保持する。d.tsではこの限定集合だけがreadonly任意fieldとなり、旧4外殻の全必須条件は不変である。空name/背番号、任意field未指定、not-required、未指定runnerを削除/既定値補完/trim/観測falseに正規化しない。D8/namecarrier整合案は未採用であり、正式比較面の例外や計算開始許可ではない。
+
+| 照合項目 | 後続constructor/正式規範行で必要な条件（実装未提供） |
+| --- | --- |
+| 操作原本 | 4shapeのID/PlayerRef対応・一時IDの真正origin・同scope/時点/適用名簿、交代の元/先/打順/守備/DH、TB snapshot/印/発動条件、終了宣言のGiven。既存optional fieldの欠落を新たな成功値にしない |
+| 語彙snapshot | 固定版の意味ID/有効化/分類とraw入力とのlossless対応。表示名や任意質問IDを意味IDと同一視しない。runner statusの起点prefix/各out-kind・実際の在塁選手との一致を確認する |
+| runner観測 | event_kindとkind、起点キー/PlayerRef/結果・到達/企図塁、変更対象の必要非空/一意・在塁/到達可能性、同一人物の相反や越境を確認。写像が空/形式一致というだけで確定しない。重複raw JSONキーは506のparse前責任で、parse済み入力の本候補へ検出済み扱いで流用しない |
+| 第3アウト/J6 | thirdOutObservationの要否/種類/対象を実アウト・同scopeへ照合し、OUT3-01..03例外外の有効候補exact-setへ2値の時機を要求する。noneを未観測の代わりにせず、同時はnot-before-third-out。前位関係は選手/起点と適用prefixから導出。J6はOUT3後の有効候補exact-set/順序を同scopeで確認し、構造uniqueItemsだけで人物同一性を認定しない |
+| 妨害/失策 | 採用結果だけをINT-01..07へ対応し、授与/帰塁/アウトの必要全対象、矛盾・重複・帰属、通常結果の有効性と失策件数/野手の整合を確認する。未観測の裁定・失策なしを推定しない |
+| RBI/23flags | OUT3/サヨナラ上限後の計上得点者へRBI-01..09を適用し、先行分岐を除外した上で必要な走者別継続/失策なし得点可否・併殺送球失策の観測を要求する。23キーの導出元/必要十分条件/負例は未閉で入力にflagsを追加しない |
+
+構造caseの追加91件は合成入力だけで、規範分岐の正常/拒否出力や実出所を採点しない。旧147case/11constructor対応/4外殻digestを保持する。OUT3の5分岐、INTの7分岐、RBIの9分岐は原典の意味を参照するが、それら21分岐の正式全列case/負例を本候補が新たに供給した件数は0である。構造入力の生成件数を規範/独立P6成立件数へ読み替えない。
+
+operation-contentは5/9 kindの内容を表す候補になったが、未供給状態・残4kind・他6markerは継続する。出所発行/有限読了/実constructor、正式descriptor/T2/7.7・23flags/G6閉包/P6/P7は未達で、完全Ready・製品T1計算・実画面入力の全接続は提供していない。実Port/DB/HTTP完成を契約準備の開始条件に追加しない。

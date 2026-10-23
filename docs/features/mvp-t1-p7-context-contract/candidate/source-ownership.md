@@ -102,3 +102,35 @@ HTTP/wire/ACK/queueは506、画面の観測保持はU-F8、認可の実role/CAP/
 | `prefix-terminal` | manifest.terminal_evidence: 全有限ページの実読了・全選択集合との一致の真正な供給証拠/発行/失効。最後のendやmanifestの形式だけでは不足 |
 
 **実行constructor・出所/完全性確認は未実装**。これらは現候補で必須の未閉鎖markerとして残り、構造上acceptでも全意味閉包/Readyは成立しない。DTO literal/格納表現はPO委任内の候補で、新しい意味が必要な旧codec移行・状態拒否/O4競合・新P3/失敗分類はrootの判断票へ返す。正式7.7/全23フラグ/OUT3/RBI/G6閉包/P6/P7/製品T1開始は未達で、実Port/HTTP完成をこの契約準備の開始条件に追加しない。P6封印/著者期待値には触れない。
+
+## 6. operation-contentの後続候補（ステップ3/3、正式受理前）
+
+第4/5節は7d80の到達点として保持する。承認`e703ee43`の第8節に基づき、次の17定義を追加して計47定義とした。操作4種の13宣言field（必須9/任意4）は正式operationRows10行の4重複除去shapeと辞書同一である。毎球11fieldはkind/pitchEventKind/resultIdと8観測群を束ねる。全意味閉包/実normalizer/出所発行/Ready/正式T1開始ではない。
+
+固定原典はresearchのoperation-content表による。正式contract byte SHA256 `54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb`、4shape射影hash `1d055470e5f503abb3dbaa218c7448aca551481a69a5ab124100a0fbf21ce34e`、descriptor byte `fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56`、語彙seed byte `fd1e445a2c3fad15aee9798ea0e6aa63b90c7c278b235d835aacebd12be56fef`。正常/拒否の意味期待値は取り込まず、型/値域/表現能力の射影だけを局所検査する。
+
+| 候補型 | field・値域の出所、構造と残る意味照合 |
+| --- | --- |
+| `T1GameEndPayloadV1` | 正式game-end-declarationの空object。余剰拒否を保持し、終了可能条件は既存Given/規則へ依存 |
+| `T1SubstitutionPayloadV1` | 正式5fieldと必須3を完全保持。substitutionTypeはpitcher/pinch-hitter/pinch-runner/defensive。打順/守備fieldの不在を値にせず、ID形式・同scope/時点・DH・交代可否はconstructorへ残す |
+| `T1TiebreakStartPayloadV1` | 正式3field。配置first-second/second-third、先頭1..9、inning>=1。規則snapshot/発動回/印/重複開始をschemaだけで成立させない |
+| `T1AdhocRegistrationPayloadV1` | 正式name/throws/bats必須、uniformNumber/temporaryPlayerId任意。string原値と不在/空文字を保持。FR-015とD-8の比較面整合はresearchの未採用案で、型の存在を例外受理にしない |
+| `T1DestinationV1` | first/second/third/homeは実到達/企図塁のDTO literal。起点塁・強制/到達可能性・人の同定ではなくFR-003/004/ADVの内容に対応 |
+| `T1OutKindV1` | force-out/pitcher-pickoff-out/catcher-pickoff-out/caught-stealing/running-outは正式first/second/third-runner-status seedで共通する意味ID suffixを保持するDTOタグ。表示名変換や新「その他」を作らず、status IDの起点prefixとの対応/適格性は同scopeの名簿・観測へ照合 |
+| `T1RunnerOutcomeV1` | hold、safe-advance(destination)、out(attempted_base/out_kind)を相反のないunionにし各runnerのPlayerRefを保持。FR-004の結果/到達または企図塁/アウト別の表現能力。タグ名は新DTO候補で、型だけで在塁/到達可否を裁定しない |
+| `T1RunnerOutcomeMapV1` | first/second/thirdの任意fieldの閉写像。P8 C-1/FR-003/004の走者キー表現。未変更走者は不在を保持し、batter/任意質問キーを入れない。必要対象の非空・本人との一致・同scope・欠落/相反はconstructor残件 |
+| `T1RunnerEventPayloadV1` | not-applicable/runner-event。event_kindは既存matrixRowsのrunner-event9 ID（作戦3・投手牽制3・捕手牽制3）を固定列として使用し、by_runnerは上記写像。管理者語彙の新規採用や任意文字列を暗黙に受けず、版ごとの語彙snapshot対応は後続正式化 |
+| `T1RunnerAdvanceOverridesV1` | not-applied/overridden.by_runner。FR-003の変更した走者だけの手動値を保持。空のoverriddenの構造受理は有効な観測の証拠ではなく、非空/対象適格性は未実装constructorへ残す |
+| `T1ThirdOutObservationV1` | not-required/none/batter-before-first.batter/force.runner/missed-base-appeal.runner/other-third-out.out_person。OUT3-01..05の区別と対象を失わないDTO候補。not-requiredは無観測でありnone（第3アウトなしという観測）へ補完しない。アピール前位/後位は入力enumにしない。踏み忘れ塁やフォース先塁の追加保持要否は既存P8候補で未確定のため無根拠な必須化をしない |
+| `T1ThirdOutTimingV1` | 正式descriptor valueSchemaのbatter/first/second/third任意キーと2値をそのまま射影。空object/必要走者不在をfalseや同時値へ変換しない。必要exact-set/例外3種/同scopeはconstructor残件 |
+| `T1InterferenceRulingV1` | descriptor variantTagsのnot-required/打撃妨害/走塁妨害/守備妨害。打撃は採用側とplay-result時resultId/三塁走者のスクイズ・本盗観測、走塁はplay_kind/妨害対象/打者走者の一塁前観測/授与先/アウト対象、守備は非空アウト対象/帰塁先。対象はScorerRefで保持。INT-01..07の状態/採用結果との整合、授与/帰塁対象のexact-set・同一人物/重複・有効な通常結果はconstructor残件。未採用側の仮想結果を混ぜない |
+| `T1OfficialScoringV1` | no-error/error-recorded.errorsの閉列。各fielder参照と正のcountでFR-004の採用件数・帰属を保持。結果IDから件数を推測しない。野手帰属/同一野手集約・実件数一致はconstructorへ残す |
+| `T1RbiObservationsV1` | doublePlayRelayError=not-required/false/trueをdescriptorどおり保持。継続/再発進と失策なし得点可否は各not-required/observedの閉runner写像。タグ/kept-running等の英語literalはFR-003/A-3のDTO具体化候補。必要十分条件/先行分岐除外は未閉で、空観測を成立としない。statFlags23出力を入力へ加えない |
+| `T1PerPitchPayloadV1` | kind=3、pitchEventKind=2とresultId（打撃26/特殊7/走者9 ID）を明示し8観測群へ束縛。表示名を意味IDにしない。採用済み語彙snapshot/意味組合せは正式化対象で、任意新IDを既存enumへ推測変換しない。kind/投球有無/観測要否・相反はconstructor/正式規範行へ依存 |
+| `T1OperationContentV1` | per-pitchと4操作をkind/payloadで区別する5variant。T1EffectiveEntryV1は旧unresolved variantをそのまま保持し、供給された内容をoperation_kindと一致する5variantだけへ追加。未供給内容を既定値で埋めず、undo/play-change/play-delete/substitution-changeはunresolvedのまま |
+
+U-F8 raw入力のmode/actionId/playResultId/runner-keyed resultId等は未正規化の質問回答である。対応候補はplayResultId→固定snapshotのresultId、runner結果/到達/企図塁→RunnerOutcome、thirdOutTiming→同名走者キー、rbi/interference/officialScoringの回答→上記観測、substitutionのdefense→defensiveである。これらのadapterは未実装で、null・不足・別context・未知question keyを成功観測へ変換しない。raw battedBall座標/捕球者/他の記録用項目はT1計算入力と保存carrierの分離・型供給が未完で、本候補が画面記録payloadの全体を提供したとは扱わない。
+
+今回閉じたのは操作4型の13fieldの**構造**と毎球8観測群/11fieldの候補、5/9 kindの内容を格納できる閉unionである。7 obligation markerのうち完全消去は0、operation-contentを部分具体化した1件/他6件は未閉のまま。旧codec観測/対象半回欠落、元scope不明、新O4/状態拒否競合・P3公開分岐、D8/namecarrierは未裁定または後段正式整合として保持する。
+
+妨害の追加field `third_base_scoring_attempt`はINT-02のスクイズ/本盗という既採用事実を`not-required`または`observed.value=none/squeeze/steal-home`で保持するDTO候補。`batter_before_first`はINT-04の一塁前事実をnot-required/false/trueで保持する候補で、未回答をnone/falseへ補完しない。必要性は同scopeの状態・採用結果から確認する。INT-05の最終裁定は授与先が空でもアウト対象があり得るため、schemaだけで授与先1件以上を要求せず、実対象exact-set/空裁定不可否はconstructor照合の残件とする。

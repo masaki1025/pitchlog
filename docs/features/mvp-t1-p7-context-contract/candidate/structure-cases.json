@@ -6313,6 +6313,1751 @@
           "kind": "original"
         }
       }
+    },
+    {
+      "id": "shape-T1GameEndPayloadV1",
+      "definition": "T1GameEndPayloadV1",
+      "expected_structure": "accept",
+      "input": {}
+    },
+    {
+      "id": "shape-T1SubstitutionPayloadV1",
+      "definition": "T1SubstitutionPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "substitutionType": "pitcher",
+        "outgoingPlayerId": "synthetic-value",
+        "incomingPlayerId": "synthetic-value"
+      }
+    },
+    {
+      "id": "shape-T1TiebreakStartPayloadV1",
+      "definition": "T1TiebreakStartPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "runnerPlacement": "first-second",
+        "leadoffBatter": 1,
+        "inning": 1
+      }
+    },
+    {
+      "id": "shape-T1AdhocRegistrationPayloadV1",
+      "definition": "T1AdhocRegistrationPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "name": "synthetic-value",
+        "throws": "right",
+        "bats": "right"
+      }
+    },
+    {
+      "id": "shape-T1DestinationV1",
+      "definition": "T1DestinationV1",
+      "expected_structure": "accept",
+      "input": "first"
+    },
+    {
+      "id": "shape-T1OutKindV1",
+      "definition": "T1OutKindV1",
+      "expected_structure": "accept",
+      "input": "force-out"
+    },
+    {
+      "id": "shape-T1RunnerOutcomeV1",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "hold",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        }
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerOutcomeV1-0",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "hold",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerOutcomeV1-0",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "hold",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerOutcomeV1-1",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "safe-advance",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "destination": "first"
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerOutcomeV1-1",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "safe-advance",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "destination": "first",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerOutcomeV1-2",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "out",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "attempted_base": "first",
+        "out_kind": "force-out"
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerOutcomeV1-2",
+      "definition": "T1RunnerOutcomeV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "out",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "attempted_base": "first",
+        "out_kind": "force-out",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1RunnerOutcomeMapV1",
+      "definition": "T1RunnerOutcomeMapV1",
+      "expected_structure": "accept",
+      "input": {}
+    },
+    {
+      "id": "shape-T1RunnerEventPayloadV1",
+      "definition": "T1RunnerEventPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-applicable"
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerEventPayloadV1-0",
+      "definition": "T1RunnerEventPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-applicable"
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerEventPayloadV1-0",
+      "definition": "T1RunnerEventPayloadV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "not-applicable",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerEventPayloadV1-1",
+      "definition": "T1RunnerEventPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "runner-event",
+        "event_kind": "strategy-category.steal",
+        "by_runner": {}
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerEventPayloadV1-1",
+      "definition": "T1RunnerEventPayloadV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "runner-event",
+        "event_kind": "strategy-category.steal",
+        "by_runner": {},
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1RunnerAdvanceOverridesV1",
+      "definition": "T1RunnerAdvanceOverridesV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-applied"
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerAdvanceOverridesV1-0",
+      "definition": "T1RunnerAdvanceOverridesV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-applied"
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerAdvanceOverridesV1-0",
+      "definition": "T1RunnerAdvanceOverridesV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "not-applied",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1RunnerAdvanceOverridesV1-1",
+      "definition": "T1RunnerAdvanceOverridesV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "overridden",
+        "by_runner": {}
+      }
+    },
+    {
+      "id": "operation-extra-T1RunnerAdvanceOverridesV1-1",
+      "definition": "T1RunnerAdvanceOverridesV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "overridden",
+        "by_runner": {},
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1ThirdOutObservationV1",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-required"
+      }
+    },
+    {
+      "id": "operation-variant-T1ThirdOutObservationV1-0",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-required"
+      }
+    },
+    {
+      "id": "operation-extra-T1ThirdOutObservationV1-0",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "not-required",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1ThirdOutObservationV1-1",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "none"
+      }
+    },
+    {
+      "id": "operation-extra-T1ThirdOutObservationV1-1",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "none",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1ThirdOutObservationV1-2",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "batter-before-first",
+        "batter": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1ThirdOutObservationV1-2",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "batter-before-first",
+        "batter": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1ThirdOutObservationV1-3",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "force",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1ThirdOutObservationV1-3",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "force",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1ThirdOutObservationV1-4",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "missed-base-appeal",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1ThirdOutObservationV1-4",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "missed-base-appeal",
+        "runner": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1ThirdOutObservationV1-5",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "other-third-out",
+        "out_person": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1ThirdOutObservationV1-5",
+      "definition": "T1ThirdOutObservationV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "other-third-out",
+        "out_person": {
+          "kind": "official",
+          "player_id": "12345678-1234-4234-8234-123456789abc"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1ThirdOutTimingV1",
+      "definition": "T1ThirdOutTimingV1",
+      "expected_structure": "accept",
+      "input": {}
+    },
+    {
+      "id": "shape-T1InterferenceRulingV1",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-required"
+      }
+    },
+    {
+      "id": "operation-variant-T1InterferenceRulingV1-0",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "not-required"
+      }
+    },
+    {
+      "id": "operation-extra-T1InterferenceRulingV1-0",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "not-required",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1InterferenceRulingV1-1",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "batting-interference",
+        "adopted": {
+          "kind": "penalty-award"
+        },
+        "third_base_scoring_attempt": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1InterferenceRulingV1-1",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "batting-interference",
+        "adopted": {
+          "kind": "penalty-award"
+        },
+        "undeclared": {},
+        "third_base_scoring_attempt": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "operation-variant-T1InterferenceRulingV1-2",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "obstruction",
+        "play_kind": "play-on-obstructed-runner",
+        "obstructed": {
+          "kind": "runner",
+          "runner_id": {
+            "kind": "official",
+            "player_id": "12345678-1234-4234-8234-123456789abc"
+          }
+        },
+        "awarded_destinations": [
+          {
+            "person": {
+              "kind": "runner",
+              "runner_id": {
+                "kind": "official",
+                "player_id": "12345678-1234-4234-8234-123456789abc"
+              }
+            },
+            "destination": "first"
+          }
+        ],
+        "out_targets": [],
+        "batter_before_first": "not-required"
+      }
+    },
+    {
+      "id": "operation-extra-T1InterferenceRulingV1-2",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "obstruction",
+        "play_kind": "play-on-obstructed-runner",
+        "obstructed": {
+          "kind": "runner",
+          "runner_id": {
+            "kind": "official",
+            "player_id": "12345678-1234-4234-8234-123456789abc"
+          }
+        },
+        "awarded_destinations": [
+          {
+            "person": {
+              "kind": "runner",
+              "runner_id": {
+                "kind": "official",
+                "player_id": "12345678-1234-4234-8234-123456789abc"
+              }
+            },
+            "destination": "first"
+          }
+        ],
+        "out_targets": [],
+        "undeclared": {},
+        "batter_before_first": "not-required"
+      }
+    },
+    {
+      "id": "operation-variant-T1InterferenceRulingV1-3",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "offensive-interference",
+        "out_targets": [
+          {
+            "kind": "runner",
+            "runner_id": {
+              "kind": "official",
+              "player_id": "12345678-1234-4234-8234-123456789abc"
+            }
+          }
+        ],
+        "return_bases": []
+      }
+    },
+    {
+      "id": "operation-extra-T1InterferenceRulingV1-3",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "offensive-interference",
+        "out_targets": [
+          {
+            "kind": "runner",
+            "runner_id": {
+              "kind": "official",
+              "player_id": "12345678-1234-4234-8234-123456789abc"
+            }
+          }
+        ],
+        "return_bases": [],
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1OfficialScoringV1",
+      "definition": "T1OfficialScoringV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "no-error"
+      }
+    },
+    {
+      "id": "operation-variant-T1OfficialScoringV1-0",
+      "definition": "T1OfficialScoringV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "no-error"
+      }
+    },
+    {
+      "id": "operation-extra-T1OfficialScoringV1-0",
+      "definition": "T1OfficialScoringV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "no-error",
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1OfficialScoringV1-1",
+      "definition": "T1OfficialScoringV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "12345678-1234-4234-8234-123456789abc"
+            },
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "operation-extra-T1OfficialScoringV1-1",
+      "definition": "T1OfficialScoringV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "12345678-1234-4234-8234-123456789abc"
+            },
+            "count": 1
+          }
+        ],
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1RbiObservationsV1",
+      "definition": "T1RbiObservationsV1",
+      "expected_structure": "accept",
+      "input": {
+        "doublePlayRelayError": "not-required",
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        },
+        "wouldScoreWithoutErrorByRunner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "shape-T1PerPitchPayloadV1",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "batting-result",
+        "pitchEventKind": "pitch-event",
+        "resultId": "batting-result.called-pitch",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "operation-variant-T1PerPitchPayloadV1-0",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "batting-result",
+        "pitchEventKind": "pitch-event",
+        "resultId": "batting-result.called-pitch",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1PerPitchPayloadV1-0",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "batting-result",
+        "pitchEventKind": "pitch-event",
+        "resultId": "batting-result.called-pitch",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1PerPitchPayloadV1-1",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "secondary-result",
+        "pitchEventKind": "pitch-event",
+        "resultId": "secondary-result.passed-ball",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1PerPitchPayloadV1-1",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "secondary-result",
+        "pitchEventKind": "pitch-event",
+        "resultId": "secondary-result.passed-ball",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1PerPitchPayloadV1-2",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "runner-event",
+        "pitchEventKind": "pitch-event",
+        "resultId": "strategy-category.steal",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1PerPitchPayloadV1-2",
+      "definition": "T1PerPitchPayloadV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "runner-event",
+        "pitchEventKind": "pitch-event",
+        "resultId": "strategy-category.steal",
+        "runnerEventPayload": {
+          "kind": "not-applicable"
+        },
+        "runnerAdvanceOverridesByRunner": {
+          "kind": "not-applied"
+        },
+        "thirdOutObservation": {
+          "kind": "not-required"
+        },
+        "thirdOutTimingByRunner": {},
+        "interferenceRuling": {
+          "kind": "not-required"
+        },
+        "officialScoringPayload": {
+          "kind": "no-error"
+        },
+        "rbi": {
+          "doublePlayRelayError": "not-required",
+          "runnerContinuityByRunner": {
+            "kind": "not-required"
+          },
+          "wouldScoreWithoutErrorByRunner": {
+            "kind": "not-required"
+          }
+        },
+        "homeTouchOrder": {
+          "kind": "not-required"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "shape-T1OperationContentV1",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "per-pitch",
+        "payload": {
+          "kind": "batting-result",
+          "pitchEventKind": "pitch-event",
+          "resultId": "batting-result.called-pitch",
+          "runnerEventPayload": {
+            "kind": "not-applicable"
+          },
+          "runnerAdvanceOverridesByRunner": {
+            "kind": "not-applied"
+          },
+          "thirdOutObservation": {
+            "kind": "not-required"
+          },
+          "thirdOutTimingByRunner": {},
+          "interferenceRuling": {
+            "kind": "not-required"
+          },
+          "officialScoringPayload": {
+            "kind": "no-error"
+          },
+          "rbi": {
+            "doublePlayRelayError": "not-required",
+            "runnerContinuityByRunner": {
+              "kind": "not-required"
+            },
+            "wouldScoreWithoutErrorByRunner": {
+              "kind": "not-required"
+            }
+          },
+          "homeTouchOrder": {
+            "kind": "not-required"
+          }
+        }
+      }
+    },
+    {
+      "id": "operation-variant-T1OperationContentV1-0",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "per-pitch",
+        "payload": {
+          "kind": "batting-result",
+          "pitchEventKind": "pitch-event",
+          "resultId": "batting-result.called-pitch",
+          "runnerEventPayload": {
+            "kind": "not-applicable"
+          },
+          "runnerAdvanceOverridesByRunner": {
+            "kind": "not-applied"
+          },
+          "thirdOutObservation": {
+            "kind": "not-required"
+          },
+          "thirdOutTimingByRunner": {},
+          "interferenceRuling": {
+            "kind": "not-required"
+          },
+          "officialScoringPayload": {
+            "kind": "no-error"
+          },
+          "rbi": {
+            "doublePlayRelayError": "not-required",
+            "runnerContinuityByRunner": {
+              "kind": "not-required"
+            },
+            "wouldScoreWithoutErrorByRunner": {
+              "kind": "not-required"
+            }
+          },
+          "homeTouchOrder": {
+            "kind": "not-required"
+          }
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1OperationContentV1-0",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "per-pitch",
+        "payload": {
+          "kind": "batting-result",
+          "pitchEventKind": "pitch-event",
+          "resultId": "batting-result.called-pitch",
+          "runnerEventPayload": {
+            "kind": "not-applicable"
+          },
+          "runnerAdvanceOverridesByRunner": {
+            "kind": "not-applied"
+          },
+          "thirdOutObservation": {
+            "kind": "not-required"
+          },
+          "thirdOutTimingByRunner": {},
+          "interferenceRuling": {
+            "kind": "not-required"
+          },
+          "officialScoringPayload": {
+            "kind": "no-error"
+          },
+          "rbi": {
+            "doublePlayRelayError": "not-required",
+            "runnerContinuityByRunner": {
+              "kind": "not-required"
+            },
+            "wouldScoreWithoutErrorByRunner": {
+              "kind": "not-required"
+            }
+          },
+          "homeTouchOrder": {
+            "kind": "not-required"
+          }
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1OperationContentV1-1",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "substitution",
+        "payload": {
+          "substitutionType": "pitcher",
+          "outgoingPlayerId": "synthetic-value",
+          "incomingPlayerId": "synthetic-value"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1OperationContentV1-1",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "substitution",
+        "payload": {
+          "substitutionType": "pitcher",
+          "outgoingPlayerId": "synthetic-value",
+          "incomingPlayerId": "synthetic-value"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1OperationContentV1-2",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "tiebreak-start",
+        "payload": {
+          "runnerPlacement": "first-second",
+          "leadoffBatter": 1,
+          "inning": 1
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1OperationContentV1-2",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "tiebreak-start",
+        "payload": {
+          "runnerPlacement": "first-second",
+          "leadoffBatter": 1,
+          "inning": 1
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1OperationContentV1-3",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "game-end-declaration",
+        "payload": {}
+      }
+    },
+    {
+      "id": "operation-extra-T1OperationContentV1-3",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "game-end-declaration",
+        "payload": {},
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "operation-variant-T1OperationContentV1-4",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "adhoc-registration",
+        "payload": {
+          "name": "synthetic-value",
+          "throws": "right",
+          "bats": "right"
+        }
+      }
+    },
+    {
+      "id": "operation-extra-T1OperationContentV1-4",
+      "definition": "T1OperationContentV1",
+      "expected_structure": "reject",
+      "input": {
+        "kind": "adhoc-registration",
+        "payload": {
+          "name": "synthetic-value",
+          "throws": "right",
+          "bats": "right"
+        },
+        "undeclared": {}
+      }
+    },
+    {
+      "id": "optional-present-T1SubstitutionPayloadV1",
+      "definition": "T1SubstitutionPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "substitutionType": "pitcher",
+        "outgoingPlayerId": "synthetic-value",
+        "incomingPlayerId": "synthetic-value",
+        "battingOrderSlot": 1,
+        "defensivePositionId": "synthetic-value"
+      }
+    },
+    {
+      "id": "optional-present-T1AdhocRegistrationPayloadV1",
+      "definition": "T1AdhocRegistrationPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "name": "synthetic-value",
+        "throws": "right",
+        "bats": "right",
+        "uniformNumber": "synthetic-value",
+        "temporaryPlayerId": "synthetic-value"
+      }
+    },
+    {
+      "id": "optional-present-T1ThirdOutTimingV1",
+      "definition": "T1ThirdOutTimingV1",
+      "expected_structure": "accept",
+      "input": {
+        "batter": "home-before-third-out",
+        "first": "home-before-third-out",
+        "second": "home-before-third-out",
+        "third": "home-before-third-out"
+      }
+    },
+    {
+      "id": "optional-present-T1RunnerOutcomeMapV1",
+      "definition": "T1RunnerOutcomeMapV1",
+      "expected_structure": "accept",
+      "input": {
+        "first": {
+          "kind": "hold",
+          "runner": {
+            "kind": "official",
+            "player_id": "12345678-1234-4234-8234-123456789abc"
+          }
+        },
+        "second": {
+          "kind": "hold",
+          "runner": {
+            "kind": "official",
+            "player_id": "12345678-1234-4234-8234-123456789abc"
+          }
+        },
+        "third": {
+          "kind": "hold",
+          "runner": {
+            "kind": "official",
+            "player_id": "12345678-1234-4234-8234-123456789abc"
+          }
+        }
+      }
+    },
+    {
+      "id": "registration-raw-empty-carriers",
+      "definition": "T1AdhocRegistrationPayloadV1",
+      "expected_structure": "accept",
+      "input": {
+        "name": "",
+        "throws": "right",
+        "bats": "right",
+        "uniformNumber": "",
+        "temporaryPlayerId": ""
+      }
+    },
+    {
+      "id": "mixed-runner-timing",
+      "definition": "T1ThirdOutTimingV1",
+      "expected_structure": "accept",
+      "input": {
+        "first": "home-before-third-out",
+        "third": "not-before-third-out"
+      }
+    },
+    {
+      "id": "entry-closed-per-pitch",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "accept",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "per-pitch",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "per-pitch",
+          "payload": {
+            "kind": "batting-result",
+            "pitchEventKind": "pitch-event",
+            "resultId": "batting-result.called-pitch",
+            "runnerEventPayload": {
+              "kind": "not-applicable"
+            },
+            "runnerAdvanceOverridesByRunner": {
+              "kind": "not-applied"
+            },
+            "thirdOutObservation": {
+              "kind": "not-required"
+            },
+            "thirdOutTimingByRunner": {},
+            "interferenceRuling": {
+              "kind": "not-required"
+            },
+            "officialScoringPayload": {
+              "kind": "no-error"
+            },
+            "rbi": {
+              "doublePlayRelayError": "not-required",
+              "runnerContinuityByRunner": {
+                "kind": "not-required"
+              },
+              "wouldScoreWithoutErrorByRunner": {
+                "kind": "not-required"
+              }
+            },
+            "homeTouchOrder": {
+              "kind": "not-required"
+            }
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-mismatched-per-pitch",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "reject",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "undo",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "per-pitch",
+          "payload": {
+            "kind": "batting-result",
+            "pitchEventKind": "pitch-event",
+            "resultId": "batting-result.called-pitch",
+            "runnerEventPayload": {
+              "kind": "not-applicable"
+            },
+            "runnerAdvanceOverridesByRunner": {
+              "kind": "not-applied"
+            },
+            "thirdOutObservation": {
+              "kind": "not-required"
+            },
+            "thirdOutTimingByRunner": {},
+            "interferenceRuling": {
+              "kind": "not-required"
+            },
+            "officialScoringPayload": {
+              "kind": "no-error"
+            },
+            "rbi": {
+              "doublePlayRelayError": "not-required",
+              "runnerContinuityByRunner": {
+                "kind": "not-required"
+              },
+              "wouldScoreWithoutErrorByRunner": {
+                "kind": "not-required"
+              }
+            },
+            "homeTouchOrder": {
+              "kind": "not-required"
+            }
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-closed-substitution",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "accept",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "substitution",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "substitution",
+          "payload": {
+            "substitutionType": "pitcher",
+            "outgoingPlayerId": "synthetic-value",
+            "incomingPlayerId": "synthetic-value"
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-mismatched-substitution",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "reject",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "undo",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "substitution",
+          "payload": {
+            "substitutionType": "pitcher",
+            "outgoingPlayerId": "synthetic-value",
+            "incomingPlayerId": "synthetic-value"
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-closed-tiebreak-start",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "accept",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "tiebreak-start",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "tiebreak-start",
+          "payload": {
+            "runnerPlacement": "first-second",
+            "leadoffBatter": 1,
+            "inning": 1
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-mismatched-tiebreak-start",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "reject",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "undo",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "tiebreak-start",
+          "payload": {
+            "runnerPlacement": "first-second",
+            "leadoffBatter": 1,
+            "inning": 1
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-closed-game-end-declaration",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "accept",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "game-end-declaration",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "game-end-declaration",
+          "payload": {}
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-mismatched-game-end-declaration",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "reject",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "undo",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "game-end-declaration",
+          "payload": {}
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-closed-adhoc-registration",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "accept",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "adhoc-registration",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "adhoc-registration",
+          "payload": {
+            "name": "synthetic-value",
+            "throws": "right",
+            "bats": "right"
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "entry-mismatched-adhoc-registration",
+      "definition": "T1EffectiveEntryV1",
+      "expected_structure": "reject",
+      "input": {
+        "event": {
+          "event_id": "12345678-1234-4234-8234-123456789abc",
+          "record_version": 1
+        },
+        "source": {
+          "kind": "queued",
+          "wire_d4": "synthetic-value",
+          "internal_generation": 1,
+          "d1": 1,
+          "d5": "12345678-1234-4234-8234-123456789abc"
+        },
+        "operation_kind": "undo",
+        "participation": {
+          "kind": "own-d2",
+          "d2": 1
+        },
+        "content": {
+          "kind": "adhoc-registration",
+          "payload": {
+            "name": "synthetic-value",
+            "throws": "right",
+            "bats": "right"
+          }
+        },
+        "canonical_membership": {
+          "kind": "unresolved",
+          "obligation": "canonical-membership",
+          "source": {
+            "contract_id": "synthetic-value",
+            "contract_version": "synthetic-value",
+            "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        },
+        "version_relation": {
+          "kind": "original"
+        }
+      }
+    },
+    {
+      "id": "mixed-runner-rbi",
+      "definition": "T1RbiObservationsV1",
+      "expected_structure": "accept",
+      "input": {
+        "doublePlayRelayError": true,
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "first": "kept-running",
+            "third": "stopped-and-restarted"
+          }
+        },
+        "wouldScoreWithoutErrorByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "first": false,
+            "third": true
+          }
+        }
+      }
+    },
+    {
+      "id": "interference-explicit-squeeze",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "batting-interference",
+        "adopted": {
+          "kind": "penalty-award"
+        },
+        "third_base_scoring_attempt": {
+          "kind": "observed",
+          "value": "squeeze"
+        }
+      }
+    },
+    {
+      "id": "interference-explicit-steal-home",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "batting-interference",
+        "adopted": {
+          "kind": "penalty-award"
+        },
+        "third_base_scoring_attempt": {
+          "kind": "observed",
+          "value": "steal-home"
+        }
+      }
+    },
+    {
+      "id": "interference-final-out-without-award",
+      "definition": "T1InterferenceRulingV1",
+      "expected_structure": "accept",
+      "input": {
+        "kind": "obstruction",
+        "play_kind": "no-play-on-obstructed-runner",
+        "obstructed": {
+          "kind": "runner",
+          "runner_id": {
+            "kind": "official",
+            "player_id": "12345678-1234-4234-8234-123456789abc"
+          }
+        },
+        "awarded_destinations": [],
+        "out_targets": [
+          {
+            "kind": "runner",
+            "runner_id": {
+              "kind": "official",
+              "player_id": "12345678-1234-4234-8234-123456789abc"
+            }
+          }
+        ],
+        "batter_before_first": false
+      }
     }
   ],
   "constructor_cases": [

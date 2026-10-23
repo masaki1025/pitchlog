@@ -160,3 +160,22 @@ D2についてはdata-model WAIT-03がbigint/gap方式までを採用し、5-3�
 他6markerは内容/issuer発行・同scope/全有限読取の具体契約を後続で閉じる。自己申告ref/bool/count/digestを証拠にせず、未提供のissuer/読了を成功扱いにしない。旧codec欠落の移行、元scope不明の既存行、新O4優先・新状態拒否/P3公開分岐・一般同値不成立の公的分類はこの追補のDTO具体化と分ける。実Port/HTTP完成を契約準備の前条件へ戻さず、正式7.7/P6/P7/全23フラグ/G6閉包/全T1製品着手を未達として保持する。
 
 起案検証: docs-statusは20文書/違反0、計画同期（base `7d80d3e4a337bcd0639a4d4e7755cda1a4571a28`）はexit0、差分空白検査成功。差分は本plan/researchのみ。候補/試験/製品への変更がないため実装pytestは再実行せず、追補の非作者確認とrootの対象版承認前に実装へ進まない。
+
+### 同ステップ3/3 operation-content実装差分（独立コードレビュー前）
+
+非作者rights_replacement_reviewの限定計画第1回P0/P1/P2=0をrootが受領し、`e703ee43b8a30152e4ae39967265bb2c280c7a84`でPO委任承認した第8節だけを実装した。作者は本候補の継続作者`/root/resolver_ledger_plan_review`で、独立確認を兼ねない。差分は候補5files・既存schema専用試験・本researchの7files。旧3段階/全レビュー・7d80の履歴/中間失敗は保持し、正式source/製品/core3/P6への変更は0。
+
+| 既存読取根拠表への到達差分 | 今回固定した数量と、未充足の数量/境界 |
+| --- | --- |
+| 正式operationRows4操作 | 10行の4重複除去shapeを辞書同一に対応。宣言13field=必須9/任意4。名前/背番号/任意field不在を保持しD8整合は未採用 |
+| 毎球観測と閉union | 新17定義（計47）、毎球11field/8観測群、内容を格納できる5/9 kind。残4kind（undo/P3の3操作）と未供給内容はunresolved。観測要否/相反/同scope/語彙snapshotの実constructorは0提供 |
+| 妨害観測の自己点検差分 | 原典INT-02の三塁走者スクイズ/本盗、INT-04の打者走者一塁前という採用済み観測2点を追加具体化。未観測をnone/falseで埋めず、not-requiredと明示観測を別に保持。INT-05の授与先空列＋明示アウト対象は構造で排除せず意味照合へ残す |
+| marker 7点 | 完全消去0、operation-content 1点の部分具体化、他6点は未閉。非空ref・空写像・not-requiredを意味受理や真正issuerの代替にしない |
+| 原典OUT3/INT/RBIの射影 | 分岐5+7+9=21を参照。今回新たに提供した正式全列case/意味負例/P6導出は0。23flags必要十分表/G6全閉包も未達。候補構造件数を規範成立件数へ読み替えない |
+| 構造証拠 | 旧147case/11constructor対応を完全保持、新規合成91構造case（計238）。原典4shape/時機/RBI enum/意味ID・任意field/旧外殻/旧entry/旧29定義/宣言・kind束縛の局所回帰を追加。UF8 adapter/実Port/DB/HTTPは0実装 |
+
+初回局所検査は333 passed / 6 failed。新しいentry合成正例5件の参照digest文字列が形式外だった点を、入力側の64桁hexへ修正し、source所有表の追加17定義未追記1件を追記した。schema拒否や旧case/hashの付替え・skip化は0。次回339 passed / 13.73s。その後原典/optional宣言/残kind/旧定義保持の回帰を追加し、補正前の全専用pytestは**347 passed / 96.71s**（並行検査中）。root Ruff/ty、docs-status20文書/違反0、差分空白検査は成功。
+
+旧4定義/旧25case/旧d.ts byte prefix/US1 originの保持hashは第7d80実績のまま。旧147case正準hash `adc112a559fd15a6469b5a41c38ad4a7e2968226260a754b8979b8b2a2b315fa`、旧11constructor対応正準hash `8c8e666741ea4fcf4c00924f409796abee1e8d7d9e1ade05ed33ffda4b4368b2`、旧entry正準hash `4578cdb4d9167cc14dbb42ab014ea11487cef03b4f702ed0ab47377e0c0d7cb5`、他旧29定義正準hash `3d05206b9fcecdfc441d5885d69494a46f9ea71a2594bf91a663d2d6629134ed`を実照合。専用部分以前の既存schema試験本文・core3は承認baseとbyte一致。D2を非負へ狭めず、旧codec/元scope不明/新拒否競合・D8/namecarrier正式案は未採用のまま、正式7.7/全T1開始/P6/P7受理を代替しない。
+
+core既存全件は**279 passed / 5 failed / 209.06s**で、5件全て既存subprocessの30秒TimeoutExpiredだった（assertion/基線不一致なし）。rootも同時core検査の遅延を観測し、待機指示到着前に既起動だった失敗5件だけの`-n 0`再走は**5 passed / 2.08s**。原失敗を保持し、timeout/guard/旧fixtureを変更せず、全件再走はしていない。上記妨害観測2点/授与先空列の補正後は影響局所（Interference/interference/readonly）だけを`-n 0`で**27 passed / 0.79s**確認した。構造caseはこの3入力追加で計238となり、347という補正前全件件数を最終版全件成功数へ読み替えない。

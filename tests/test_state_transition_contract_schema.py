@@ -6202,6 +6202,17 @@ def _p7_context_candidate_check_keywords(schema: dict[str, Any]) -> None:
         'enum', 'items', 'minItems', 'maxItems', 'uniqueItems',
     }
 
+    # 正式shapeの任意性と、採用済みrunner-keyed観測だけを限定許可する。
+    optional_nodes = {
+        id(schema['$defs'][name]) for name in (
+            'T1SubstitutionPayloadV1', 'T1AdhocRegistrationPayloadV1',
+            'T1ThirdOutTimingV1', 'T1RunnerOutcomeMapV1',
+        )
+    }
+    rbi = schema['$defs']['T1RbiObservationsV1']['properties']
+    for name in ('runnerContinuityByRunner', 'wouldScoreWithoutErrorByRunner'):
+        optional_nodes.add(id(rbi[name]['oneOf'][1]['properties']['by_runner']))
+
     def visit(node: dict[str, Any]) -> None:
         if set(node) - supported:
             raise ValueError(f'未対応キーワード: {sorted(set(node) - supported)}')
@@ -6222,10 +6233,11 @@ def _p7_context_candidate_check_keywords(schema: dict[str, Any]) -> None:
             properties, required = node['properties'], node['required']
             if (
                 not isinstance(properties, dict) or not isinstance(required, list)
-                or len(required) != len(set(required)) or set(required) != set(properties)
+                or len(required) != len(set(required)) or not set(required) <= set(properties)
+                or (id(node) not in optional_nodes and set(required) != set(properties))
                 or node.get('additionalProperties') is not False
             ):
-                raise ValueError('候補objectは全field必須・余剰拒否が必要')
+                raise ValueError('候補objectは許可した任意性以外の全field必須・余剰拒否が必要')
         elif node.get('type') == 'array':
             if not isinstance(node.get('items'), dict):
                 raise ValueError('未対応の配列item')
@@ -6271,7 +6283,8 @@ def _p7_context_candidate_validate(
         if node.get('format') == 'uuid' and str(UUID(actual)) != actual.lower():
             raise ValueError('ハイフン付きUUID表記ではない')
         for field, child in node.get('properties', {}).items():
-            check(actual[field], child)
+            if field in actual:
+                check(actual[field], child)
         if node.get('type') == 'array':
             for item in actual:
                 check(item, node['items'])
@@ -6296,7 +6309,8 @@ def _p7_context_candidate_declaration_type(node: dict[str, Any]) -> str:
         return '(' + ' | '.join(json.dumps(value) for value in node['enum']) + ')'
     if node['type'] == 'object':
         return '{ ' + ' '.join(
-            'readonly ' + field + ': ' + _p7_context_candidate_declaration_type(child) + ';'
+            'readonly ' + field + ('' if field in node['required'] else '?') + ': '
+            + _p7_context_candidate_declaration_type(child) + ';'
             for field, child in node['properties'].items()
         ) + ' }'
     if node['type'] == 'array':
@@ -6348,7 +6362,7 @@ def test_p7_context_candidate_matches_only_fixed_source_outer_definitions() -> N
     assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema'
     assert schema['$ref'] == '#/$defs/T1ContextRefsV1'
     assert tuple(schema['$defs'])[:4] == _P7_CONTEXT_DEFINITIONS
-    assert len(schema['$defs']) == 30
+    assert len(schema['$defs']) == 47
     definitions = json.dumps(
         {name: schema['$defs'][name] for name in _P7_CONTEXT_DEFINITIONS},
         ensure_ascii=False, sort_keys=True, separators=(',', ':'),
@@ -6807,3 +6821,235 @@ def test_p7_context_candidate_unresolved_fields_cannot_declare_verified_or_ready
         'operation-content', 'canonical-membership', 'half-application-mark',
         'online-change-source', 'undo-replay-diff', 'prefix-selection', 'prefix-terminal',
     }
+
+
+def test_p7_context_candidate_operation_shapes_match_formal_rows_losslessly() -> None:
+    """正式10行を4shapeへ射影し、必須・任意・原値の損失を検出する。"""
+    definitions = _p7_context_candidate_schema()['$defs']
+    names = {
+        'substitution': 'T1SubstitutionPayloadV1',
+        'game-end-declaration': 'T1GameEndPayloadV1',
+        'tiebreak-start': 'T1TiebreakStartPayloadV1',
+        'adhoc-registration': 'T1AdhocRegistrationPayloadV1',
+    }
+    rows = _load_object(CONTRACT_PATH)['operationRows']
+    assert len(rows) == 10
+    shapes = {}
+    for row in rows:
+        assert definitions[names[row['operationKind']]] == row['payloadShape']
+        shapes[row['operationKind']] = row['payloadShape']
+    assert hashlib.sha256(json.dumps(
+        shapes, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+    ).encode()).hexdigest() == (
+        '1d055470e5f503abb3dbaa218c7448aca551481a69a5ab124100a0fbf21ce34e'
+    )
+
+
+def test_p7_context_candidate_observation_projections_preserve_source_values() -> None:
+    """時機・RBI値域・意味IDを固定原典へ射影し、表示名をIDにしない。"""
+    definitions = _p7_context_candidate_schema()['$defs']
+    axes = {
+        axis['axisId']: axis for axis in _load_object(DESCRIPTOR_PATH)['stateTransitionAxes']
+    }
+    timing = copy.deepcopy(axes['event.perPitch.thirdOutTimingByRunner']['valueSchema'])
+    timing.pop('$schema')
+    timing.pop('description')
+    timing['required'] = []
+    assert definitions['T1ThirdOutTimingV1'] == timing
+    assert definitions['T1RbiObservationsV1']['properties']['doublePlayRelayError'] == {
+        'enum': axes['event.perPitch.rbi.doublePlayRelayError']['values'],
+    }
+    seed = _load_object(REPOSITORY_ROOT / 'contracts/vocabulary/input_vocabulary_v1.json')
+    ids = {axis['axisId']: [entry['id'] for entry in axis['entries']] for axis in seed['axes']}
+    runner_ids = [
+        row['resultId'] for row in _load_object(CONTRACT_PATH)['matrixRows']
+        if row['eventKind'] == 'runner-event'
+    ]
+    for variant in definitions['T1PerPitchPayloadV1']['oneOf']:
+        props = variant['properties']
+        kind = props['kind']['const']
+        assert props['resultId']['enum'] == (runner_ids if kind == 'runner-event' else ids[kind])
+        assert props['pitchEventKind']['enum'] == axes['event.perPitch.pitchEventKind']['values']
+        assert set(props) == {
+            'kind', 'pitchEventKind', 'resultId', 'runnerEventPayload',
+            'runnerAdvanceOverridesByRunner', 'thirdOutObservation', 'thirdOutTimingByRunner',
+            'interferenceRuling', 'officialScoringPayload', 'rbi', 'homeTouchOrder',
+        }
+    expected_outs = {'force-out', 'pitcher-pickoff-out', 'catcher-pickoff-out',
+                     'caught-stealing', 'running-out'}
+    for origin in ('first', 'second', 'third'):
+        assert expected_outs <= {value.split('.', 1)[1] for value in ids[origin + '-runner-status']}
+    assert set(definitions['T1OutKindV1']['enum']) == expected_outs
+    assert definitions['T1RunnerEventPayloadV1']['oneOf'][1]['properties']['event_kind'] == {
+        'enum': runner_ids,
+    }
+
+
+@pytest.mark.parametrize('case', [
+    case for case in _p7_context_candidate_cases()
+    if case['id'].startswith(('shape-T1', 'operation-variant-'))
+    and case['definition'] in list(_p7_context_candidate_schema()['$defs'])[30:]
+], ids=lambda case: case['id'])
+def test_p7_context_candidate_closed_operation_fields_reject_loss_and_extras(
+    case: dict[str, Any],
+) -> None:
+    """各新union variantの入れ子まで、必須欠落・余剰・型違いを検出する。"""
+    schema = _p7_context_candidate_schema()
+    sample = case['input']
+    definition = case['definition']
+
+    def changed_at(path: tuple[str | int, ...]) -> tuple[Any, Any]:
+        changed = copy.deepcopy(sample)
+        target: Any = changed
+        for part in path:
+            target = target[part]
+        return changed, target
+
+    def walk(actual: Any, node: dict[str, Any], path: tuple[str | int, ...]) -> None:
+        if '$ref' in node:
+            walk(actual, schema['$defs'][node['$ref'].split('/')[-1]], path)
+            return
+        if 'oneOf' in node:
+            for variant in node['oneOf']:
+                try:
+                    schema_checker._validate_instance(actual, variant, schema, '$')
+                except schema_checker.DescriptorCheckError:
+                    continue
+                walk(actual, variant, path)
+            return
+        if node.get('type') == 'array':
+            for index, item in enumerate(actual):
+                walk(item, node['items'], (*path, index))
+        if node.get('type') != 'object':
+            return
+        for field in node['required']:
+            changed, target = changed_at(path)
+            del target[field]
+            with pytest.raises(ValueError):
+                _p7_context_candidate_validate(changed, definition)
+        changed, target = changed_at(path)
+        target['unprovided_field'] = {}
+        with pytest.raises(ValueError):
+            _p7_context_candidate_validate(changed, definition)
+        for field, child in node['properties'].items():
+            if field not in actual:
+                continue
+            changed, target = changed_at(path)
+            target[field] = None
+            with pytest.raises(ValueError):
+                _p7_context_candidate_validate(changed, definition)
+            walk(actual[field], child, (*path, field))
+
+    walk(sample, schema['$defs'][definition], ())
+
+
+def test_p7_context_candidate_optional_fields_are_limited_and_lossless() -> None:
+    """任意性を旧外殻へ広げず、欠落・空原値・観測の差を保存する。"""
+    schema = _p7_context_candidate_schema()
+    for name in _P7_CONTEXT_DEFINITIONS:
+        broken = copy.deepcopy(schema)
+        broken['$defs'][name]['required'].pop()
+        with pytest.raises(ValueError):
+            _p7_context_candidate_check_keywords(broken)
+    for name in ('T1SubstitutionPayloadV1', 'T1AdhocRegistrationPayloadV1'):
+        value = _p7_context_candidate_input(name)
+        original = copy.deepcopy(value)
+        _p7_context_candidate_validate(value, name)
+        assert value == original
+        node = schema['$defs'][name]
+        for optional in set(node['properties']) - set(node['required']):
+            bad = copy.deepcopy(value)
+            bad[optional] = None
+            with pytest.raises(ValueError):
+                _p7_context_candidate_validate(bad, name)
+    for case_id in ('registration-raw-empty-carriers', 'mixed-runner-timing', 'mixed-runner-rbi'):
+        case = next(item for item in _p7_context_candidate_cases() if item['id'] == case_id)
+        value = copy.deepcopy(case['input'])
+        _p7_context_candidate_validate(value, case['definition'])
+        assert value == case['input']
+    schema['$defs']['T1ThirdOutTimingV1']['required'] = ['not_a_runner']
+    with pytest.raises(ValueError):
+        _p7_context_candidate_check_keywords(schema)
+
+
+def test_p7_context_candidate_old_147_cases_are_preserved() -> None:
+    """前回閉payload候補の147入力を保持し、構造合格を意味受理へ変えない。"""
+    digest = hashlib.sha256(json.dumps(
+        _p7_context_candidate_cases()[:147], ensure_ascii=False, sort_keys=True,
+        separators=(',', ':'),
+    ).encode()).hexdigest()
+    assert digest == 'adc112a559fd15a6469b5a41c38ad4a7e2968226260a754b8979b8b2a2b315fa'
+
+
+def test_p7_context_candidate_partial_content_keeps_unresolved_and_rejects_mismatch() -> None:
+    """対応5種の内容をkindへ束縛し、未供給・残4種・他markerを隠さない。"""
+    schema = _p7_context_candidate_schema()
+    variants = schema['$defs']['T1EffectiveEntryV1']['oneOf']
+    assert len(variants) == 6
+    original = variants[0]['properties']
+    assert original['content']['properties']['obligation']['const'] == 'operation-content'
+    supplied = {variant['properties']['operation_kind']['const'] for variant in variants[1:]}
+    assert supplied == {'per-pitch', 'substitution', 'tiebreak-start',
+                        'game-end-declaration', 'adhoc-registration'}
+    assert set(original['operation_kind']['enum']) - supplied == {
+        'undo', 'play-change', 'play-delete', 'substitution-change',
+    }
+    for variant in variants[1:]:
+        props = variant['properties']
+        assert props['content']['properties']['kind'] == props['operation_kind']
+        assert props['canonical_membership'] == original['canonical_membership']
+    assert len(schema['$defs']['T1OperationContentV1']['oneOf']) == 5
+
+
+@pytest.mark.parametrize('definition', (
+    'T1DestinationV1', 'T1OutKindV1', 'T1ThirdOutTimingV1', 'T1PerPitchPayloadV1',
+    'T1RunnerOutcomeMapV1', 'T1RbiObservationsV1',
+))
+def test_p7_context_candidate_unknown_or_null_observations_are_not_defaulted(
+    definition: str,
+) -> None:
+    """任意unknown/nullを既定観測へ補完せず、有限値・型違反を拒否する。"""
+    for value in (None, {}, {'kind': 'unknown'}, 'unknown', True, 1, []):
+        if value == {} and definition in {'T1ThirdOutTimingV1', 'T1RunnerOutcomeMapV1'}:
+            continue
+        with pytest.raises(ValueError):
+            _p7_context_candidate_validate(value, definition)
+
+
+def test_p7_context_candidate_interference_adopted_result_and_content_are_exact() -> None:
+    """採用通常結果のIDは原典の有限集合、entry内容は単一閉unionと対応する。"""
+    definitions = _p7_context_candidate_schema()['$defs']
+    ids = [
+        entry['id'] for axis in _load_object(
+            REPOSITORY_ROOT / 'contracts/vocabulary/input_vocabulary_v1.json',
+        )['axes'] if axis['axisId'] in {'batting-result', 'secondary-result'}
+        for entry in axis['entries']
+    ]
+    node = definitions['T1InterferenceRulingV1']['oneOf'][1]['properties']['adopted']
+    assert node['oneOf'][1]['properties']['resultId']['enum'] == ids
+    contents = definitions['T1OperationContentV1']['oneOf']
+    for entry, content in zip(
+        definitions['T1EffectiveEntryV1']['oneOf'][1:], contents, strict=True,
+    ):
+        assert entry['properties']['content'] == content
+    text = (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.d.ts').read_text()
+    changed = text.replace('readonly uniformNumber?: string;', 'readonly uniformNumber: string;', 1)
+    assert changed != text
+    with pytest.raises(ValueError):
+        _p7_context_candidate_check_declarations(_p7_context_candidate_schema(), changed)
+
+
+def test_p7_context_candidate_prior_definitions_remain_exact() -> None:
+    """旧entryを未供給variantとして保持し、他29定義を変更しない。"""
+    definitions = _p7_context_candidate_schema()['$defs']
+    original_entry = definitions['T1EffectiveEntryV1']['oneOf'][0]
+    digest = hashlib.sha256(json.dumps(
+        original_entry, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+    ).encode()).hexdigest()
+    assert digest == '4578cdb4d9167cc14dbb42ab014ea11487cef03b4f702ed0ab47377e0c0d7cb5'
+    others = {name: definitions[name] for name in list(definitions)[:30]
+              if name != 'T1EffectiveEntryV1'}
+    digest = hashlib.sha256(json.dumps(
+        others, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+    ).encode()).hexdigest()
+    assert digest == '3d05206b9fcecdfc441d5885d69494a46f9ea71a2594bf91a663d2d6629134ed'
