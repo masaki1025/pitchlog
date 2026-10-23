@@ -1,6 +1,6 @@
 ---
 feature: mvp-preparing-read-registration
-status: in-review
+status: active
 承認: 済（PO委任によるCodex判断・隔離read登録候補）
 重さ分類: コア領域
 worktree: ../../..
@@ -167,3 +167,14 @@ JSONはAPI由来tenant2patternと初期付与2patternを双方保持し、guard�
 実#180統合後の正式#175比較ではinitial2が据え置き層となるため、実baseを取り込んで**API2だけをpendingへ回転**させる必要がある。
 部分overlapの拒否を緩めて両状態を通さない。metadata自身の新core path不要という根拠は不変で、正常供給の2pathはその元の先行宣言/別JSON履歴から継承する。
 正式7.7履歴/snapshot/lock/oracleは引き続きrootのみが実統合後に受理する。
+
+
+### CI frontend単独環境のbootstrap拒否検査を是正する限定追補案
+
+必須CI40011535070のfrontendは1853成功/3失敗。新しいorigin拒否試験がbackend/.venv/bin/pythonへ直接依存したため、backend環境を構築しないfrontend jobでは子processの終了値を取得できなかった。失敗をskip/成功へ変換せず、CI/source検査やorigin拒否を緩めない。修正中は本局所planをactiveへ戻し、旧最終レビューと未成功CIを保持する。
+
+追加scopeは`frontend/src/screens/GameScreenE2eSupport.py`、新`GameScreenE2eServer.py`、既存`GameScreenE2eProcess.spec.ts`と本plan/researchだけ。既存起動口Support.pyは標準ライブラリだけのmode/origin先行検査とServer.pyの実起動へ分ける。DB/認証/fixture/server/cleanup処理はServer.pyへ移動し、起動/pytest収集対象の自己path以外の意味・専用DB/Cookie/C2/拒否・cleanupを保持する。mode/origin判定は単一関数を両入口で再利用し、Server直起動でもDB作成前に拒否する。Node/Playwrightの起動pathは変えず、既存backend venvでの正常起動とsealed-ui/readの分離を維持する。
+
+拒否回帰は実Support.pyを`python3 -I -S`で起動し、backend/site-package/PYTHONPATHなしでも終了1・正確なorigin拒否理由・ready未生成を検査する。`spawn`失敗/timeoutを正しい拒否に数えない。明示mode不正/モード外scheme/非loopback/不正portは既存拒否を維持する。実製品API/tenant/保存codec・正式9/8・履歴/資産/lock/oracle・CI定義には変更を加えない。新pathは既存GameScreen* core捕捉内で、core登録/拒否条件変更なし。
+
+局所process試験/Frontend静的・全件VitestをenvDir:falseで実行し、実backend依存でのbrowser read3を専用資源で再接合する。新規作成/1球/実機合格とはしない。非作者が新scope/最終修正を確認後に提出状態へ戻し、新HEADの必須CIを実施する。同じ失敗の無根拠再走・timeout延長/skip・backend CIをfrontendへ複製は行わない。

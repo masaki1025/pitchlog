@@ -181,3 +181,8 @@ root補助の初回は旧271f corpus不変という誤ったassertで停止し�
 許可済み親追加敵対1回は0ae8ee37470d4ceb02a9282c32629bc9fece5d22/実547/全72path binarydiff6b95482189837e5481341caf12a257310bc28df3d02e26863e154a30db6bdc83で消費し、非作者rights_replacement_reviewは0/0/0・重大未解消なしと判定。JSON復元を全文含め、独立backend162/9.11秒・frontend183/15.91秒・root22/9.19秒、更新flagなしtenant/probe/product/frozen検査を成功。旧基本2回/各component系列/全失敗とP6留保を保持する。証拠cache/review-read175-final-0ae8ee37-evidence.json SHA23ab88e0a6e9259dc884f5fceaba1cd489e143918231582ac440f31614ce2070。最終CI/実PR2親mergeと公開branch更新はroot後続、作成/開始/初球は未達。
 
 提出時に本局所planをin-reviewへ、親UG1 planは6段階/DoD/status activeのまま提供範囲と継続featureだけを明記。これはPO委任の編集/統合順の最小具体化で、readを親作成全完成へ誤表示しない。ハーネス評価台帳への追記なし: 今回は既存委任手続き/検査器の同一規則を使い、候補命令のspec指定・履歴fixture/生成値追随の局所是正をresearchに保持する。恒久統制の再設計や新しい一般規則は導入していない。後発は上記3文書の提出メタデータだけで製品/正式値/検査bytes不変、非作者限定確認後に公開する。
+
+
+## CI frontend失敗と限定bootstrap是正の起案
+
+2026-10-23T19:50:53.918344+00:00、必須CI40011535070/frontend job120613591944は1853成功/3失敗で、GameScreenE2eProcess.specの新origin拒否3件がexpected exit1に対してstatus null。frontend jobはNodeだけでbackend venvを作らず、新試験のbackend/.venv起動依存が不整合。全run実行中のgh run view --log-failedはログ未提供を返したため、終了済みjob logs APIで当該jobを取得して特定した（別CIを再起動していない）。rootは同じorigin拒否を標準Python先行入口で検証し、実DB/認証起動は分離して既存意味のまま保持する最小scopeを追補する。旧CIを成功と数えず、残るbackend/harnessは同HEADの結果を回収し、修正後は新HEADで必須CIを確認する。
