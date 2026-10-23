@@ -186,3 +186,12 @@ root補助の初回は旧271f corpus不変という誤ったassertで停止し�
 ## CI frontend失敗と限定bootstrap是正の起案
 
 2026-10-23T19:50:53.918344+00:00、必須CI40011535070/frontend job120613591944は1853成功/3失敗で、GameScreenE2eProcess.specの新origin拒否3件がexpected exit1に対してstatus null。frontend jobはNodeだけでbackend venvを作らず、新試験のbackend/.venv起動依存が不整合。全run実行中のgh run view --log-failedはログ未提供を返したため、終了済みjob logs APIで当該jobを取得して特定した（別CIを再起動していない）。rootは同じorigin拒否を標準Python先行入口で検証し、実DB/認証起動は分離して既存意味のまま保持する最小scopeを追補する。旧CIを成功と数えず、残るbackend/harnessは同HEADの結果を回収し、修正後は新HEADで必須CIを確認する。
+
+
+## CI bootstrap是正の実装・実接合結果
+
+承認b574aaf6の限定3sourceを実装。Support.pyを標準ライブラリのみの先行origin/mode検証へ分離し、同一関数を実Server.pyも呼ぶ。実serverのfixture/auth/専用DB/cleanupの5関数ASTは旧6caaと一致し、自己path以外の処理は保持。Process.specは実入口をpython3 -I -Sで起動し、spawn失敗/signal/timeoutを正しい拒否へ数えずexit1/正確な理由/ready未作成を確認する。
+
+旧入口のstdlib-only再現は3失敗（依存psycopg読込が先行し拒否理由不一致）、是正後process8成功/1.28秒。全frontend92files/1856成功/164.27秒、ESLint/vue-tsc/root Ruff/ty成功。envDir:falseのrepo外configを使い.envを読まない。実browser3成功/27.2秒（login→Cookie/C2→API→専用PG、一覧/詳細/reload、越境404、通信断→明示確認）。実行後docker稼働は共有pitchlog-db-1のみで自前資源cleanup済み。正式9資産/外部8のbytesは6caaと同一。実新規作成/初球/実機成功ではない。証拠はcache/pitchlog/read175-bootstrap-fix/{before-origin,after-process,frontend-full,browser-read}.log。
+
+CI40011535070は最終的にfailure。frontend3失敗のほか、backendは3379成功/3失敗/4skip（route期待18対20、registry期待45対47、位置依存の拒否fixture）、harnessは29798成功/3失敗/2skip（failure-injectionのDDL blobとMC/DCのclaim-map blobの派生参照未追随）。元ログをcache/preparing-read-175-acceptance/ci-{frontend,backend,harness}-job.logへ保持。新HEADの全件CIは別途必要であり、旧結果を成功へ読み替えない。
