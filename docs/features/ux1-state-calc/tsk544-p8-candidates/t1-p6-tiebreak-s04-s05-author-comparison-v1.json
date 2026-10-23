@@ -1,0 +1,45 @@
+{
+  "status": "author-comparison-after-stage-a; not an independent derivation or formal case",
+  "inputPacketSha256": "5d28c5790926425212628f6f6ddd4396d6af883b3826dd863f2ca2d926327543",
+  "p6StageASeal": "b71530d31613138b069c1b186f704f9979f2d7e821859591054d606ab749453f",
+  "p6StageAArtifactSha256": "c67caca823e8165cebbd07f2a111d55b7ee7a187b6ecabb796b384fd05e2ad48",
+  "comparisonRule": "段階Aの封印後に限り著者側の条件付き射影を照合する。9件の完全結果は全てblocked。source.adoptedPolicyの期待値曝露、既存case同型効果の既知、正式入力型と結果/wireの未受理を保持し、新blind成立に数えない。",
+  "projections": [
+    {
+      "inputId": "TB-IN-03",
+      "projection": "additionalApplicationCountOnReplay",
+      "authorValue": 0,
+      "condition": "既存D5・同一指紋が同一操作の既存結果を指す場合のみ。保存結果の内容は比較しない。"
+    },
+    {
+      "inputId": "TB-IN-04",
+      "projection": "placementAndBattingSlotIfStartApplied",
+      "authorValue": {"requestedInning": 10, "bases": {"first": "R1", "second": "R2"}, "battingOrderSlot": 1},
+      "condition": "開始が適格として適用される場合だけ。適格性・完全after状態・正式結果は比較しない。"
+    },
+    {
+      "inputId": "TB-IN-04",
+      "projection": "batterAtRequestedSlotIfStartApplied",
+      "authorValue": "B1",
+      "condition": "時点名簿が固定入力どおりで開始が適用される場合だけ。"
+    },
+    {
+      "inputId": "TB-IN-05",
+      "projection": "placementAndBattingSlotIfStartApplied",
+      "authorValue": {"requestedInning": 10, "bases": {"first": "R1", "second": "R2"}, "battingOrderSlot": 1},
+      "condition": "交代が適法に先行確定し、開始が適格として適用される場合だけ。"
+    },
+    {
+      "inputId": "TB-IN-05",
+      "projection": "batterAtRequestedSlotIfStartApplied",
+      "authorValue": "B2",
+      "condition": "時点名簿に先行交代が反映済みで、開始が適用される場合だけ。"
+    },
+    {
+      "inputId": "TB-IN-09",
+      "projection": "currentHalfAtOrAfterConfiguredStartInning",
+      "authorValue": false,
+      "condition": "現半回9裏の回番号9と設定開始回10の比較だけ。対象half単独の拒否を主張しない。"
+    }
+  ]
+}
