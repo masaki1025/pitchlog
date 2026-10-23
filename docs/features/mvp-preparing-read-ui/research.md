@@ -78,3 +78,15 @@ frontend固定差分（`git diff --cached --binary --full-index e885c589 -- fron
 browser受入との表示接合: 既存accessible label「試合一覧」「次のページ」「前のページ」「閲覧画面へ」は維持。新詳細見出し「準備中試合の保存情報」、保存規則項目「保存された適用規則」、詳細再試行「この試合を再試行」。保存ラベルはraw HTML挿入せずtext表示する。
 
 固定前のroot検査はcheck_docs_status.py（20 documents/0 violations）、check_plan_docs_sync.py --plan docs/features/mvp-preparing-read-ui/plan.md --base e885c589 --head HEAD、git diff --checkがすべてexit0。正式assets/default閉集合の検査成功をこの結果に含めない。
+
+## 独立コードレビュー第1回P1の採用・同ステップ是正
+
+非作者/root/o5_final_reviewの第1回全文コードレビューは旧HEAD `83e62a178347bbb4792e94d4ed55447107c850d1` に対してP0=0/P1=1/P2=0。rootの通知によりtransport型P1を採用し、承認済みステップ1同scopeの最小是正を行った。旧commit/159件成功とそのreview差分（承認e885→83eのfull-index binary SHA256 `8e2207eecdf4eaac03863c2e4f72a1974d37914bc7d4ecafa9793bffc4ecdbe6`）は改変せず保持する。159件成功は本P1を検出しておらず、不正body拒否の完了証拠として十分ではなかった。
+
+原因はgames.tsの既知語彙判定でString(value.game_type_key)を使い、JSON配列['game_open']を文字列へ強制変換して受理したこと。typeof === 'string'の確認を先行させ、強制変換を除去した。許可語彙・backend/業務規則/codec・認可/Pinia/client/Cookie・表示動作は変更していない。編集はgames.ts、既存games.spec.ts、本researchの3pathsだけ。API・正式assets・他worktree・planは変更しない。
+
+回帰は正規clientに有効C2 metadataを返すJSON応答で、詳細のgame_type_keyと一覧のitems[0].game_type_keyへ同じ配列を入れ、それぞれtransport不正としてrejectすることを検査する。HTTPは1回のみで、認証が有効のまま失敗するため、認証拒否による偶然のgreenではない。まずsource未修正で追加した回帰を実行し、games.spec.tsの18件中16成功/2失敗（一覧・詳細ともPromiseがresolveし拒否されない）を再現した。その後sourceの型判定だけ是正した。
+
+是正後の同対象5specは161件成功（旧159+追加2）、skip/timeout/未処理例外0、実測4.66秒/tests918ms。変更2pathsのPrettier、frontend全体ESLint、vue-tsc --noEmit、pnpm run buildもexit0。build462ms、closure scannedFiles9/externalReferences0/policyViolations0。全Vitest・DB/browserは再走していない。rootの別browser候補は旧83eのsource受入済み/実行未着手との通知を受け、是正HEAD固定後にrootが接合更新する。本wtから別候補へ反映しない。
+
+旧83eからのfrontend是正差分SHA256（full-index binary）`30320f56c2a51cac07b7f555c39807d6b5867e641b727f4313ac8d2522ac6851`。是正games.ts SHA256 `ae7978a6d3f50ada0abbe63e627b68cdc0f9955ab65edcbf52649a9ef023f019`。是正HEAD/全差分SHAはcommit後の引渡しで固定する。新secret/運用鍵・push・DB/実browser・正式7.7・親追加敵対枠について、前記の未実施/未消費を維持する。

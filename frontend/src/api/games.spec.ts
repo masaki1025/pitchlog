@@ -106,3 +106,21 @@ it('C2 metadata欠落を正常bodyでも採用しない', async () => {
   await expect(readPreparingGame(id)).rejects.toThrow()
   expect(useAuthStore().isAuthenticated).toBe(false)
 })
+
+it.each(['list', 'detail'] as const)(
+  '%sは既知語彙と同じ文字列表現のJSON配列を不正transportとして拒否する',
+  async (endpoint) => {
+    const invalid = { ...game, game_type_key: ['game_open'] }
+    body =
+      endpoint === 'list' ? { items: [invalid], next_cursor: null } : invalid
+    await expect(
+      endpoint === 'list' ? listPreparingGames(null) : readPreparingGame(id),
+    ).rejects.toThrow(
+      endpoint === 'list'
+        ? '準備中一覧の応答が不正です'
+        : '準備中詳細の応答が不正です',
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(useAuthStore().isAuthenticated).toBe(true)
+  },
+)
