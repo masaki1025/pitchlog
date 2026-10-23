@@ -28,6 +28,7 @@ from pitchlog.api.schemas.games import (
     NewTournament,
     PreparingGameCreate,
     PreparingGameListRequest,
+    PreparingGameRead,
     _copy_preparing_snapshot_json,
     _decode_preparing_snapshot,
     decode_preparing_game_cursor,
@@ -510,3 +511,30 @@ def test_saved_snapshot_contract_unavailable_is_not_a_success(
             _decode_preparing_snapshot(immutable)
     finally:
         rule_snapshot._validator.cache_clear()
+
+
+@pytest.mark.parametrize("offset_hours", (0, 9, -5))
+def test_preparing_read_uses_one_utc_representation_without_changing_instant(
+    offset_hours: int,
+) -> None:
+    """作成応答/再読込の表記を揃え、日時入力のoffsetは保存前に変えない。"""
+    instant = _SCHEDULED_AT.astimezone(timezone(timedelta(hours=offset_hours)))
+    item = PreparingGameRead(
+        id=_GAME_ID,
+        scheduled_at=instant,
+        game_type_key="game_official",
+        tournament_key="spring",
+        away_team_record_id=uuid4(),
+        home_team_record_id=uuid4(),
+        plate_umpire=None,
+        section_label=None,
+        week_label=None,
+        day_label=None,
+        game_number_label=None,
+        status="preparing",
+        applied_rules={},
+    )
+    assert item.scheduled_at == instant
+    assert item.model_dump(mode="json")["scheduled_at"] == "2026-11-01T01:30:00Z"
+    request = PreparingGameCreate.model_validate(_create_payload())
+    assert request.scheduled_at.utcoffset() == timedelta(hours=9)
