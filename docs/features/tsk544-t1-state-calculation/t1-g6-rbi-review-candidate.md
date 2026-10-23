@@ -129,6 +129,53 @@ POの採用方針は、**証明済み**別D5二重配置、半回途中への遅
 
 正式case ID、10列期待値、交代操作payloadの閉型、正常/拒否の実Port・DB試験は未固定。`TB-P7-D01..03`を現行B3a/T9原本へ流用せず、専用の保存原本/ledger結果がDI2で不変再掲できるかをU-S1・認可所有側と照合する。
 
+### 対象半回・交代の公開型差分候補（2026-10-23、未受理）
+
+現`operationRows`の`tiebreak-start` payloadは`runnerPlacement`・`leadoffBatter`・`inning`だけ、U-S1 `T1ReadKeyV1`にも対象半回はない。例えば10回表で生成した開始要求を送信保留し、同じ10回の裏になってから適用すると、`inning=10`・配置・先頭打者が同じ裏開始要求と区別できない。現`state.half`は**適用時**の半回であり、要求が対象とした半回の原観測ではない。P-6 `TB-IN-09`も9回裏と要求回10の違いしか表せず、半回だけの負例にならなかった。
+
+最小型候補は`HalfRefV1={inning: 整数>=1, side: "top"|"bottom"}`とし、`tiebreak-start`の不変原wire payloadへ`targetHalf: HalfRefV1`を追加する。既存`inning`と`targetHalf.inning`の一致、固定読取の`T1PreStateV1`の半回との一致、保存snapshotの適格性、同一scope/系譜の適用印をそれぞれ照合する。原wire・codec版・D5指紋へこのfieldを含め、再送時に現在の半回から補完しない。`T1ReadKeyV1`は読取scopeの鍵として維持し、端末の意図をそこへ後付けしない。旧codec/未送信キューにfieldがない場合の移行・明示訂正は別の正式判断であり、旧D5を別内容へ書き換えない。
+
+| 候補case | 入力で一箇所だけ変える条件 | T1の比較面・拒否境界 |
+| --- | --- | --- |
+| `TB-H01` 正常 | 10回表で`targetHalf={10,top}`、固定事前状態も10回表、snapshot適格、半回印なし | 当該半回だけ一度配置。型・入力が揃うまでは正式IDなし |
+| `TB-H02` 遅延 | H01と同じ要求D5/原wireを保持したまま、適用時の固定事前状態だけ10回裏に進む | 表要求を裏へ付替えず、配置0。先行認証/D5/O4等を通過した場合の専用状態前提拒否・D5消費は採用方針、正式ID/wire/優先順は未受理 |
+| `TB-H03` 同D5改変 | H01のD5を保ち、原wireの`targetHalf`だけ`bottom`へ変える | 元原本との指紋不一致として既存DI3を先行。新半回の開始として再解釈しない |
+| `TB-H04` 型不足 | 新codec版で`targetHalf`を欠く、または`inning=10`と`targetHalf.inning=11` | 外形/閉payload違反と状態前提拒否を区別し、意味核へ渡さない。旧codec版の扱いは互換性判断待ち |
+
+交代の現`operationRows` payloadは`substitutionType`、`outgoingPlayerId`、`incomingPlayerId`と任意の`battingOrderSlot`/`defensivePositionId`を持つが、**受理時の元半回・元scope・正史順序**は表せない。10回表の第3アウト後、10回裏開始前に代打B1→B2を確定してから開始する場合と、開始後に同じ交代を確定する場合は、交代payloadが同じでも開始時名簿が異なる。undo後も交代の元位置を保存しなければ依存交代だけを除外し、独立交代を元scopeに残すことを証明できない。
+
+最小の**保存・固定読取型候補**は`SubstitutionOccurrenceV1={eventRef,D1,D5,originalScopeRef,originalHalfRef:HalfRefV1,originalLineageRef,canonicalOrdinal,substitutionPayloadRef,rosterBeforeRef,rosterAfterRef}`。既存payloadの選手ID/交代種別を再定義せず、受理したD1 prefixと同scopeの固定名簿から元位置と前後参照を一度だけ確定する。依存集合entryはこの不変参照と原本指紋を指し、後続再生時に現在半回へ書き換えない。未受理の端末fieldを仮に要求しない。元scopeを固定読取から証明できない場合は`Ready`を作らず`Unresolved`とする。
+
+| 候補case | 純入力の差 | 比較面・不足 |
+| --- | --- | --- |
+| `TB-SUB01` 開始前交代 | 同scope内の交代D1が開始D1より先、交代前slot1=B1・交代後slot1=B2。開始は交代後の時点名簿を参照 | B2へ解決し、交代前B1へ戻さない。交代payloadと固定名簿版/原scopeの正式型は未受理 |
+| `TB-SUB02` 開始後交代 | `TB-SUB01`から交代と開始の正史順序だけを反転 | 既に確定した開始の先頭打者をB2へ遡及変更しない。FR-007訂正で新系譜にした場合だけ再評価 |
+| `TB-SUB03` 参照拒否 | 交代のincoming選手が別試合・別tenant、または元scope/名簿版が欠落 | 別IDを同一人物と推測せず、後者は依存`Unresolved`。認可結果とT1内容結果の先行順はU-S1受理待ち |
+| `TB-SUB04` 第3アウトundo | 第3アウト→次半回配置→交代の列を、次半回依存証拠あり/元scope独立証拠あり/証拠不足の3入力へ分ける | 依存だけ現正史から外す、独立は元scopeで保持、不足は確定しない。監査原本・既存D5/応答は不変 |
+
+**新しい意味判断だけ**: 対象半回を原wireで明示する案を推奨する。代案は既存D1 prefixから生成時の半回を耐久的に復元して原要求へ束縛する方法だが、その証拠型/保存口は現契約にない。旧codecの半回欠落行をどう移行・停止するか、交代の元scopeが保存済み証拠から一意でない既存行をどう扱うかは正式審査で選ぶ。内容を推測補完して旧D5を別半回へ適用する案は採らない。wire/codec・画面入力は506/U-F8、固定読取/保存・結果・順序はU-S1、最小ACL/DDLの受理は認可/データモデル所有側、T1意味型/caseは544が担当する。
+
+### 第3アウトundo後続の操作種別照合（網羅性未成立）
+
+原典4.0-4/FR-012の断中Must 6種と条件付きFR-040、現`OPERATION_EVENT_PARTICIPATIONS`のオンライン修正3種・V9表現2種を分ける。U-S1の`p7-undo-dependency.schema.json`は`following_operation_count`と完了証拠参照を持つが、各entryは`operation_contract_ref`だけで**操作種別を明示しない**。最小型差分は、元の不変eventと突合する閉じた`operation_kind`識別子をdependent/independent entryに追加する候補。列挙の対象は同一game/内部世代/正史系譜で対象第3アウト以後の**全有効操作**であり、候補型があるだけでは実行経路の完全性を証明しない。
+
+| 既存種別・根拠 | 候補で確認済みの範囲 | Readyへ不足する証拠 |
+| --- | --- | --- |
+| `play_input` / Must毎球 | V5種別と正史順序が既存。後続プレイが次半回に属する可能性を認識 | 原プレイ・改訂・墓標を含む全有効版の列挙、元半回/前提とTへの依存照合 |
+| `undo` / Must | V5種別が既存。undo自体はundo対象の履歴へpushしない | 何を取り消したかの元差分、後続undoがTの第3アウト・配置へ依存するか |
+| `substitution` / Must | V5種別と現payloadが既存。依存/独立/不明の3対向case候補あり | `SubstitutionOccurrenceV1`の元scope/半回/順序、変更版を含む網羅性 |
+| `tiebreak_start` / Must | V5種別と既存3正式case。Tに依存する次半回配置・印の候補あり | 印と操作D5の原本対応、再配置・改訂版・失効版の完全列挙 |
+| `game_end_declaration` / Must | V5種別とFR-010の終了宣言は既存 | 第3アウトを失った場合の終了前提と現正史membership/ロックへの依存 |
+| `player_registration` / Must | V5種別とFR-015のその場登録は既存 | 登録時点/選手同一性、後続交代との依存鎖、元scopeを保持できる証拠 |
+| `state_correction` / FR-040採用時だけ | V5条件付き語彙は既存。11/12段階提供ではFR-040延期 | 将来採用時の絶対状態差分・第3アウト/次半回への依存。現MVPで実施済みとしない |
+| `play_change` / FR-007オンライン | V5の現行種別は既存。断中Mustの6種へ混入しない | 対象プレイと新系譜、下流再計算後の有効列・元scopeの完了証拠 |
+| `play_delete` / FR-007オンライン | V5の現行種別は既存。物理削除しない | 論理削除後の有効membership、旧要求の後着遮断、全後続列挙 |
+| `substitution_change` / FR-011/007オンライン | V5の現行種別は既存。交代訂正で下流帰属が変わる | 旧/新交代の原時点、名簿再投影と依存集合の再評価 |
+| V9墓標 / 同期改訂表現 | 独立した操作種別でなく元D5の版状態 | 墓標・原版・現有効版を過不足なく読み、別操作として二重計上しない |
+| V9改訂版 / 同期改訂表現 | 独立した操作種別でなく元操作の版関係 | どの版が正史かと旧版の後着禁止、操作ごとのD5再掲を維持 |
+
+確認済みなのは**種別の存在と候補case**まで。全kindのproducer・固定SELECT・page終端・count/集合一致・原本真正性・新旧版の包含・失効scopeの拒否は未検証であり、`Ready`網羅済みとはしない。次の限定受理では、U-S1が不変eventの種別/元scopeを返す型、全列挙の完了証拠の作成者、改訂/墓標の版写像、各caseの不足時`Unresolved`を具体化する。実Port SHA・耐久性・DB/HTTP接合は実装後の証跡で、公開契約の着手前受理と混同しない。
+
 ## ゲート
 
 計画ステップ1は G6-S04/S05 と RBI の規範閉包、descriptor/schema候補を含むため、**候補作成は計画内**。半回印の物理保存や新しい結果分類など実行責任・成果物を増やすなら最小計画追補と6.1レビューが必要。正本候補はFR-009・付録E-1/A-3・ADR D-11/D-8の直接影響に限定し、7.3レビューで最終本文と採否を確定してからPO承認へ出す。正式schema/descriptor/cases/凍結履歴の反映は所有側受理、P-6の独立結果、7.7完全前後値の受理後。ここではレビュー済み・正式受理済みと主張しない。
