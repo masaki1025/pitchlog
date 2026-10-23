@@ -117,7 +117,7 @@ step3調査で、同期COMMITの待機取消がlocal commit後のWARNINGとな�
 2026-10-23T18:11:30.850638+00:00、Codex主担当/rootはPO4/5/7/8/10に基づき、追加plan SHA25620b8dc2e7e9783f3eea03edde21cfc3315ebb866f7552b1a2a274d6c05131948を承認。非作者/root/resolver_ledger_plan_reviewの追加scope限定第1回0/0/0を受領し、PG17一次source・実psycopg3.3.4とlibpq capabilityの独立確認を根拠とする。1API ID/1member検出とexact私有helper許可・既存正負例だけを追加し、契約の全既存拒否・D4/epoch保証・元4ステップを保持する。先行plan実行2回/1反映周、先行coreコードレビュー初回P1採用後の第2回確認と全中間/失敗を別系列として保持。人間本人の署名/実値逐行確認を代記しない。実装/実同期故障の成功、正式7.7/正本7.3/最終非作者確認はまだ成立していない。
 
 
-### 実Protocol実装の条件2限定登録追補（追加範囲の限定レビュー待ち）
+### 実Protocol実装の条件2限定登録追補（追加範囲をPO委任承認済み）
 
 承認済みstep3の実adapterは正常initialの`DurableGenerationSource`/`ReservedGeneration`/`RecoveryEpochFence`を直接再利用する。既存条件2検査がこのimport・継承・generation実装をTB002として13所見検出したため、Protocolをコピー/別名化して回避せず、既存初期付与1ファイル47所見とは独立した限定登録を追加する。参照候補はadapter SHA256 `faa1ab04e2282a8654bedffd7053cb9062d9257d6d6d58488863d6b850bd1e90`、13実identityの保全は `/home/ymdms/.cache/pitchlog/durable-ledger-tb002-faa1/findings.json`。期限競合等の承認済み不具合修正で行番号/sourceが動けば、実sourceと全13件を再実測して記録し、旧値を一致と扱わない。
 
@@ -128,3 +128,5 @@ step3調査で、同期COMMITの待機取消がlocal commit後のWARNINGとな�
 censusでは新adapterの実checker identityと独立AST候補の粒度を照合し、必要な限定集合とdigestだけを新しい明示キーで固定する。旧47件に対応する既存43/18集合・digestを更新/削除しない。元センサスanchorと旧差分の全拒否を維持し、新集合の欠落/余剰・digest改変・旧/新path間の移し替え・追加identity混入を拒否する回帰を追加する。件数のみの比較や無条件除外はしない。sourceを変えた場合は新集合を再導出する。
 
 これは同一の採用済みProtocolを単一実装するための検査上の限定具体化で、D4/epoch/fence/RG1/耐久性や意味規範の変更ではない。作業中は未受理を記録し、実9射影/外部8blob/履歴・corpusの正式化をroot所有step4で実施する。全最終差分は非作者レビュー対象とする。旧計画/取消追補/core系列のレビュー回数・指摘履歴・冷起動authority未提供を保持する。
+
+2026-10-23T18:47:39.799141+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24の優先指示に基づき、追補対象plan cb9ed1123abe711d879e93a5ce4a91603eee5b1a8b1e03a3969884dd9a8c83bf（HEAD d59be7f4）を承認する。非作者/root/rights_replacement_reviewの限定追加第1回0/0/0、source53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758dの免除なし13identity独立再検出一致を確認した。旧faa1との差は既承認期限是正による行移動で13symbol多重集合は不変。今回の許可は登録機構・censusの限定具体化であり、旧47所見/43・18集合/拒否を保持する。正式値7.7・製品全最終差分/耐久性レビュー・cold attach・RG1成功・MVP完成は別の未完ゲートとし、本人確認/署名を代記しない。旧計画2回/反映1周と取消追補/先行coreのレビュー系列はリセットしない。
