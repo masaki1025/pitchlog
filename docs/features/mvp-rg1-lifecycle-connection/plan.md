@@ -1,11 +1,11 @@
 ---
 feature: mvp-rg1-lifecycle-connection
-status: in-review
-承認: 未（限定scopeの独立確認後にPO委任判断）
+status: active
+承認: 済（PO委任によるCodex判断、まずステップ1/2）
 重さ分類: コア領域
 branch: feature/mvp-rg1-lifecycle-connection
 created: 2026-10-24
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -43,3 +43,6 @@ created: 2026-10-24
 | 4 | 正本最小整合・完全値受理・最終独立/CI・通常統合 | 固定HEAD/diff/実baseで全必要ゲート・必須全件CI成功。親新7/8の未提供範囲を保持 |
 
 PO委任に基づく独立確認・root承認後、指定された1ステップだけ実行する。作業中は局所pytest/Vitest/Ruff/ty、実接合は専用DB/port/tempと既存非秘密認証fixtureを使い資源を直列調整してcleanupする。候補環境成功と正式develop/実機/運用成功を区別する。人間本人の確認/署名を代記しない。
+
+
+2026-10-23T20:37:51.253623+00:00、Codex主担当/rootはPO4/5/8/10に基づき、対象583735f1/plan6ca62a21116e8afb1de7ed8385ccca37579c6498222f64777e2819eed60cc47eを承認。非作者rights_replacement_reviewの限定第1回0/0/0、標準binarydiffd1ef3fd344aa4113eafaff6e0b875922830fdc535fbcff881988cce0a841aa68を照合した。まずstep1の新3source先行宣言/試験だけを実施し、検査後にstep2の別JSON登録を行う。step3の既存関数body/認可資産/migration/起動接合先はその着手前に同じ局所追補へ具体化して確認する。過去承認の再取得や新しい人間待ちではなく、PO委任による対象版の実装具体化。人間本人の逐行確認/署名、実open/保存成功/正式7.3/7.7を代記しない。
