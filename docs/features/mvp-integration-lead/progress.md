@@ -253,3 +253,8 @@ POの追加指示により全体計画と既存承認を維持し、最初の縦
 
 
 実機受渡しの準備条件は、対象iPhone/iPad SafariとPC Chrome/Edgeから到達できるチーム用HTTPS、端末が信頼する証明書、frontend/APIの同一origin・Secure Cookieを通す既存認証、非本番の試験tenant/データ、記録1台＋閲覧端末を区別できる構成である。接続先/証明書/端末版は現在未確定で、loopbackの隔離browser成功を実機HTTPS合格とはしない。rootは許可済み資源の有無を確認し、未提供なら直前までの手順/構成を準備して実施待ちとする。新秘密/署名鍵・有料資源・運用公開/共有DB適用を無断で行わない。1球保存/再読込成立時の受渡しは、版固定URL、試験用チーム/選手/大会の画面準備、作成→開始→初球→保存確認→reloadの操作・期待値・故障時復帰と既知制限を同じ台帳から参照する。未決の意味値や未提供機能を成功期待値に入れない。
+
+
+試合作成step1候補は **5b4d2218cc4676b5835fa209a1d0b1239c8f4410**（製品1ce56813、root由来の型注釈是正bd8c861f、研究記録）へ保全。DTO・固定6factory/7token・実scope作成serviceを実装し、単一resolver/codec/実RG1を保持。backend局所229成功、実migration/製品DDL/実app role/実RG1常閉の隔離PG1成功で、拒否後にgame/語彙INSERT0・rollback・資源cleanupを確認した。利用者が新規保存を完了できる段階にはまだ達していない。rootは作者側の段階照合として限定受領し、既承認step2フォーム/clientの実装を継続指示。正式tenant checker exit2/未受理、独立全最終確認、実RG1成功/HTTP201/reloadは未達を保持する。通常の型注釈1行は人間承認再取得や全件反復をせず是正し、root/backend Ruff/ty・局所plan同期・実547core真verify成功。
+
+read正式化は正常547を取り込み、旧初期付与の登録と当時の拒否試験を保つ宣言/別JSONへ回転した741bb698を非作者が0/0/0・独立382成功で確認。rootは実9射影/外部8を完全導出し、allowlist/repository2件だけの変更/他7・外部8同一を確認。認可入力C=bda12629と6oracle前進候補02ec5a47、型注釈是正10fd2fb6に保全し、完全値/必要oracle_input1行の非作者照合を実施中。既受理180を新read値へ自動延長せず、正式受理後に必要snapshot/履歴/封印を直列反映する。175親最終追加敵対1回・CI・正式提供は未達。
