@@ -265,3 +265,14 @@ read175候補は **0ae8ee37470d4ceb02a9282c32629bc9fece5d22**、実547/72paths�
 T1最優先依存は、3payload/J6閉型・有限ページ終端・同scope構築条件の限定候補追補を5dcccce3で固定、非作者限定0を経てrootがc6f7c1ffでPO委任承認。既存3段階/外殻/旧case/全開始条件を保持し、正式7.7/P6/P7/製品計算未達のまま具体化へ進める。ledger候補5a321b6aは実DB保全/拒否を保全したが、cold attach/通常再起動の最新性authority・業務identity観測主体を製品側の未実装依存として追補設計中であり、外部回答待ちだけにしない。
 
 POの旧Codexタブ閉鎖照会に対し、引継ぎ済み停止範囲は閉じてよいと回答。実process cwd観測では検査/編集は主担当の新read/create worktreeだけで、旧引継ぎworktree内の変更/検査processは見当たらなかった。タブ閉鎖とworktree/branch/保全物削除を区別し、後者は行わない。主担当Goal/全MVP範囲/委任は継続。
+
+
+### 2026-10-24 04:53 JST 現状の保存点
+
+利用者の最初の縦断（画面新規作成→開始→1球保存→reload）はまだ未達。create65598dadは画面/POST/options/通常C2/6factory7tokenの候補を通常pushし、非作者rightsの全差分review0/0/0、独立backend230+固定文124/frontend121/root46成功。実login/Cookie/C2/隔離PGではoptions200とページング/先行拒否/実RG1常閉POST503・INSERT0を実証、正常201/新保存全値GET/両INSERT途中故障/復元競合は未達。通知された全diff9de46dc3とstage3cb13482fの再現flagsは`--binary --full-index --no-renames`であり、将来core証拠用のno-full-index値と同一視しない。
+
+read親175は実branchをd68から6caa6cfeへfast-forward通常push、最終提出3文書の後発限定確認も0。実base547/全72path binarydiff3f05810c、委任証拠 https://github.com/masaki1025/pitchlog/pull/175#issuecomment-6372969194 を公開。GitHub実2親merge044efe411abaf71e973a9560c42ca4b6310676a2（547/6caa）でcore実証拠検査とtenant PR_ACCEPTANCEはexit0。最終CI40011535070は走行中、旧body run40011171653はcancelledで成功扱いしない。最新ではfrontend1853成功/3失敗、backend/harnessは実行中。3失敗はorigin拒否specがbackend venvを直接起動し、frontend単独jobにその環境がないもの。rootは実stdlib入口/実server分離の最小scopeec90aa50を起案・非作者限定0後に是正予定（ソースはまだ未変更）。CI/拒否を弱めず、新HEADで再確認する。Notion TSK395のURL/status更新はasync task350f...送付済みqueued、成立未確認を保持。
+
+T1文脈候補7d80d3e4は追加26定義/旧外殻保持、非作者0・独立202構造試験/別Draft2020-12実装147case一致。根本7依存はunresolvedのままでReady/正式contract/P6/P7/製品計算未達を保持。次の閉包と実装は継続対象。
+
+ledgerの保護journal小単位1e4381f8は実kernel append/immutable/cap0/別UID/flock/fsyncを含む57成功、skip0/全所有資源cleanup。rootは候補を限定受領し、非作者が固定版review中。既承認scope内の実enroll/Unix authority/INTENT-PG-CONFIRMED-ACK/専用identity接合を同作者へ継続指示、まだ正常再起動/復元全DoDの完成ではない。F2normは547を通常統合し、既採用本文全保持/実role参照・採番だけの非作者限定0後に2c391fdbで本枝確定（model1.2/sync0.12/ops0.1、正式develop未統合）。既存F2計画の物理scope追補は旧US1 wtのd539f528、2docsだけで未承認・source未実装。MVP全体の完成条件と実機/運用未達は維持。
