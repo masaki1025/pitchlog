@@ -21,7 +21,7 @@
 
 ## #162 との共有パス
 
-進行中の #162 が `docs/design/data-model.md`、`contracts/db/schema-manifest.json`、`contracts/authz/shared-preconditions.json`、ORM受理シート、`tests/test_orm_acceptance_sheets.py` を編集する。これらは #162 を先行させ、U-R1側は実統合後のdevelopから必要な変更だけを再導出する。並行編集や旧worktree値の上書きをしない。U-R1専有の製品・census候補は独立して進める。
+#162 は `760c04d540b22190cab076165f1b4e35ae473a1f` で統合され、後続枝は `6af8c801` で取り込んだ。`docs/design/data-model.md`、`contracts/db/schema-manifest.json`、`contracts/authz/shared-preconditions.json`、ORM受理シート、`tests/test_orm_acceptance_sheets.py` の #162 内容を保持する。旧worktree値を上書きせず、U-R1分は実統合後のdevelopから必要な変更だけを再導出する。U-R1専有の製品・census候補は独立して進める。
 
 ## 公開・受理の境界
 
