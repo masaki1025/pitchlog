@@ -55,3 +55,32 @@ P1はbound_transactionの実型/拒否条件が不明でduck typingなら偽scop
 既存run_functionのstate_key/tenant文脈の実行直前検査は再実装せず保持する。修正後の差分レビュー待ち。
 
 第2回独立差分/影響レビューは可決P0=0/P1=0/P2=0、第1回の実scope型P1解消。対象SHAはplan承認記録へ固定、rootがPO委任で隔離1ステップを承認した。レビュー済み計画の実装を開始し、旧履歴と正式ゲート留保を保持する。
+
+## 隔離step5候補の実装・対象検査（2026-10-23）
+
+rootの実装委任により承認commit `bf512445c9fa164b5452e9f1c30f5f14ea188df1` 起点で表の1ステップだけを実装した。公開 `StageARuleRequest` と `resolve_stage_a_rule`、canonical `DomainValidatedRuleSnapshot` の型alias `AppliedRuleSnapshot`、4 literalの `RuleResolutionError` を既存moduleへ追加した。実 `_TenantTransaction` exact型だけを受け、入力を生成時/SQL前に検査し、既存tokenの実行直前検査も維持する。既知失敗・DB/未知故障・不正snapshotは例外退出し、withの外で受ける試験でrollback/非commitを確認した。SQLや原例外の内因を公開traceback/ログへ残さず、自動再試行はしない。
+
+実行器の不変JSONを正規codecへ渡す表現アダプタだけを追加し、規則の値域/相関/出所計算を複製しなかった。固定codecは元blobとのbyte比較・SHA-256一致を確認済み。今回のsource変更はresolver、固定依存codec、既存境界試験、必要依存pyproject/lockだけ。plan・他worktree・正式assetsは変更していない。
+
+通常依存 `jsonschema==4.26.0` を `uv add --no-sync` で解決した。生成時に付随したalembic/makoのupload-timeメタデータ変動は起点の正確な内容へ戻した。TOML全package比較で、既存packageの変更はbackend自身の依存宣言のみ、新規はjsonschemaとその依存 `attrs 26.1.0` / `jsonschema-specifications 2025.9.1` / `referencing 0.37.0` / `rpds-py 2026.9.1` の5件だけと確認した。#174 lock全体は複写していない。`uv run` は通常のbackend環境を使用し、`--with` によるjsonschemaの代用なし。
+
+| 候補版 | 検査結果と修正 |
+| --- | --- |
+| V1（未コミット・初回対象試験） | 対象pytestは111成功/1.33s。backend Ruff成功。tyは冗長cast1警告と、故意のfinal派生/不正引数試験の注釈3エラーでexit1。castを削除し、不正値を試験内Anyで明示。final派生の拒否試験だけtyの該当診断を局所抑制。実装の型検査は緩めていない |
+| V1修正途中 | runtime型生成へ変えた試みでもtyがfinal派生を検出しexit1。明示的な派生クラスと該当1行の `ty: ignore[subclass-of-final-class]` へ変更。pytest失敗は発生していない |
+| V2（独立コードレビュー提出候補） | 対象 `uv run pytest tests/test_function_operations_boundary.py -q` は117成功/0.56s/exit0。既存81＋追加36。backend対象Ruff format、全backend Ruff/ty成功。root Ruff/ty成功（既存test_core_guard docstringのRuff警告のみ）。差分空白検査成功 |
+| 正式tenant checker | `python scripts/check_tenant_boundary_bypass.py --root . --base-ref bf512445` はexit2、`固定関数製品ID集合が資産と不一致`。候補step4の既知未反映拒否を維持。正式閉集合・7.7・全検査成功へ読み替えない |
+
+最初の試験追加コマンドはbackend作業ディレクトリに対して二重backendパスを指定し、appendがファイル不存在で失敗した。その後正しい既存試験パスへ追加した。この準備エラーを試験実行成功へ数えていない。
+
+V2の追加試験は実registry/実scope制御＋合成Sessionで、深い不変JSONからcodecへの成功、入力/成功値の不変性、既知4失敗、不正行列/未知status/非JSON表現/旧・無効snapshot、SQL/契約読込/未知故障の秘匿とrollback、空/型不正の生成時/強制変更後拒否、偽scope/直接Session/派生/失効/不正requestを検証する。既存RG1/DML等の81試験も保持した。実DB保存・出所/ACLの実測・HTTP/ゲームINSERTの全取消を証明するものではない。
+
+| V2固定ファイル | SHA-256 |
+| --- | --- |
+| resolver | `a7ddbc6dd4689bad7748075af49068663da1c4b2d713b000392bc97b06b63cf8` |
+| 固定codec | `e587a8f1e01d4d28a39f5f943b2d811b388282f782063e25fe20203a8c6c6e23` |
+| 既存境界試験 | `ddc6e6d02e877589b458455e9d6dfb57d6d9479af734274eaf5f668fd75bfba8` |
+| backend pyproject | `e2048e9d69dd1fb9f494fa21cd7d06d385910a252d964bcc082c35b43651788c` |
+| backend lock | `fd4e71455bd7c8d45d2a335803cdf6023de56994b9c2bdc5a4933af5e5ce40ad` |
+
+次はこの候補の独立コードレビュー。push/PR、正式step5完成、実DB/HTTP成功、7.7受理は未実施である。
