@@ -5,7 +5,7 @@ from __future__ import annotations
 import ast
 import json
 from copy import deepcopy
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 from typing import Any, TypedDict, cast
 from uuid import UUID
@@ -862,3 +862,151 @@ def test_rule_snapshot_encoded_value_does_not_mutate_validated_snapshot() -> Non
 
     assert validated.structural.tiebreak is not None
     assert validated.structural.tiebreak.start_inning == 10
+
+
+_INTEGER_FIELDS = (
+    "regulationInnings",
+    "extensionLimit",
+    "coldPointDifference",
+    "coldStartInning",
+    "tiebreakStartInning",
+)
+
+
+def _rules_with_integer_fields() -> dict[str, Any]:
+    """整数5fieldをすべて含む有効な保存値を作る。"""
+    raw = _valid_applied_rules()
+    raw["coldConditions"] = [{"pointDifference": 7, "startInning": 7}]
+    return raw
+
+
+def _raw_integer_field(raw: dict[str, Any], field_name: str) -> tuple[Any, str]:
+    """試験対象のJSON整数fieldの親とkeyを返す。"""
+    if field_name in ("regulationInnings", "extensionLimit"):
+        return raw, field_name
+    if field_name == "tiebreakStartInning":
+        return raw["tiebreak"], "startInning"
+    key = "pointDifference" if field_name == "coldPointDifference" else "startInning"
+    return raw["coldConditions"][0], key
+
+
+def _typed_integer_field(structural: Any, field_name: str) -> tuple[Any, str]:
+    """試験対象のDTO整数fieldの親と属性名を返す。"""
+    if field_name == "regulationInnings":
+        return structural, "regulation_innings"
+    if field_name == "extensionLimit":
+        return structural, "extension_limit"
+    if field_name == "tiebreakStartInning":
+        return structural.tiebreak, "start_inning"
+    attribute = (
+        "point_difference" if field_name == "coldPointDifference" else "start_inning"
+    )
+    return structural.cold_conditions[0], attribute
+
+
+@pytest.mark.parametrize("field_name", _INTEGER_FIELDS)
+def test_rule_snapshot_normalizes_json_integer_float_to_exact_int(
+    field_name: str,
+) -> None:
+    """schemaが受理する整数floatを同値のexact intへ正規化する。"""
+    raw = _rules_with_integer_fields()
+    parent, key = _raw_integer_field(raw, field_name)
+    expected = parent[key]
+    parent[key] = float(expected)
+
+    structural = decode_structure(raw)
+    typed_parent, attribute = _typed_integer_field(structural, field_name)
+    assert type(getattr(typed_parent, attribute)) is int
+    assert getattr(typed_parent, attribute) == expected
+    validated = decode_applied_rules(raw)
+    encoded = encode_applied_rules(validated)
+    encoded_parent, encoded_key = _raw_integer_field(encoded, field_name)
+    assert type(encoded_parent[encoded_key]) is int
+    assert encoded_parent[encoded_key] == expected
+    assert type(parent[key]) is float
+
+
+def test_rule_snapshot_normalizes_all_integer_fields_and_preserves_nulls() -> None:
+    """5field同時の整数化と延長/タイブレークnullを維持する。"""
+    raw = _rules_with_integer_fields()
+    for field_name in _INTEGER_FIELDS:
+        parent, key = _raw_integer_field(raw, field_name)
+        parent[key] = float(parent[key])
+    validated = decode_applied_rules(raw)
+    encoded = encode_applied_rules(validated)
+    for field_name in _INTEGER_FIELDS:
+        parent, attribute = _typed_integer_field(validated.structural, field_name)
+        encoded_parent, key = _raw_integer_field(encoded, field_name)
+        assert type(getattr(parent, attribute)) is int
+        assert type(encoded_parent[key]) is int
+    raw["extensionLimit"] = None
+    raw["tiebreak"] = None
+    encoded = encode_applied_rules(decode_applied_rules(raw))
+    assert encoded["extensionLimit"] is None
+    assert encoded["tiebreak"] is None
+    assert type(encoded["regulationInnings"]) is int
+
+
+@pytest.mark.parametrize("field_name", _INTEGER_FIELDS)
+@pytest.mark.parametrize(
+    "invalid",
+    [True, False, 1.5, float("nan"), float("inf"), -float("inf"), "9", [], {}],
+    ids=(
+        "true",
+        "false",
+        "fraction",
+        "nan",
+        "inf",
+        "negative-inf",
+        "str",
+        "list",
+        "dict",
+    ),
+)
+def test_rule_snapshot_rejects_noninteger_json_inputs_before_normalization(
+    field_name: str,
+    invalid: object,
+) -> None:
+    """bool/非整数/非有限/不正型を整数化で救済しない。"""
+    raw = _rules_with_integer_fields()
+    parent, key = _raw_integer_field(raw, field_name)
+    parent[key] = invalid
+    with pytest.raises(RuleSnapshotInvalid):
+        decode_structure(raw)
+
+
+@pytest.mark.parametrize("field_name", _INTEGER_FIELDS)
+@pytest.mark.parametrize("invalid_kind", ("integer-float", "bool"))
+def test_rule_snapshot_typed_integer_fields_reject_nonexact_direct_construction(
+    field_name: str,
+    invalid_kind: str,
+) -> None:
+    """直接構築されるtyped DTOへfloatやboolを残さない。"""
+    structural = decode_structure(_rules_with_integer_fields())
+    target, attribute = _typed_integer_field(structural, field_name)
+    invalid = (
+        float(getattr(target, attribute)) if invalid_kind == "integer-float" else True
+    )
+    with pytest.raises(RuleSnapshotInvalid) as captured:
+        replace(target, **{attribute: invalid})
+    assert captured.value.kind is RuleSnapshotFailure.SHAPE
+
+
+@pytest.mark.parametrize("field_name", _INTEGER_FIELDS)
+@pytest.mark.parametrize("invalid_kind", ("integer-float", "bool"))
+def test_rule_snapshot_rechecks_forced_nonexact_integer_mutation(
+    field_name: str,
+    invalid_kind: str,
+) -> None:
+    """強制変更された整数fieldを再利用/encodeする前に拒否する。"""
+    validated = decode_applied_rules(_rules_with_integer_fields())
+    target, attribute = _typed_integer_field(validated.structural, field_name)
+    invalid = (
+        float(getattr(target, attribute)) if invalid_kind == "integer-float" else True
+    )
+    object.__setattr__(target, attribute, invalid)
+    with pytest.raises(RuleSnapshotInvalid) as captured:
+        DomainValidatedRuleSnapshot(validated.structural)
+    assert captured.value.kind is RuleSnapshotFailure.SHAPE
+    with pytest.raises(RuleSnapshotInvalid):
+        encode_applied_rules(validated)
