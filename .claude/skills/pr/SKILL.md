@@ -70,6 +70,7 @@ disable-model-invocation: true
    reportは`task, reviewed_head, text`、taskはreviewer_agentと一致させる。
    findingsは`severity, resolved, detail`の配列とし、未解消P0/P1は拒否する。
    掲載主体はpolicy指定のGitHub主体であり、PO本人署名を意味しない。
+   core-guardによる証拠取得は公開APIへの無認証GET。非公開化/rate limit/API異常は拒否される。
 4. PR本文へ`PO-DELEGATION-EVIDENCE: <同一PRのissuecomment URL>`を1行だけ記載する。
    仮URL/複数marker/他PR/旧HEAD/根拠不足は拒否される。本文編集後のCIを確認する。
 5. マージ直前に委任の未撤回と同一base/headを再確認し、証拠コメントが現存して同内容であることを

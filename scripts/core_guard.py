@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -29,6 +30,7 @@ DELEGATION_REPOSITORY = "masaki1025/pitchlog"
 DELEGATION_SOURCE = "01a1686c-7000-7683-965d-0cb7d58ebb7c/user20261023"
 DELEGATION_POINTER = "PO-DELEGATION-EVIDENCE:"
 DELEGATION_COMMENT_MARKER = "PITCHLOG-PO-DELEGATION-V1\n"
+DELEGATION_API_RESPONSE_MAX_BYTES = 1024 * 1024
 DELEGATION_QUOTES = (
     "コア領域を含む最終差分の確認と是正判断",
     "条件を満たしたPRのDraft解除・通常マージ",
@@ -647,20 +649,43 @@ def _delegation_diff(root: Path, event: PullRequestEvent) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+class _RejectDelegationRedirects(urllib.request.HTTPRedirectHandler):
+    """固定GitHub API以外へ証拠取得を転送しない。"""
+
+    def redirect_request(
+        self, req: urllib.request.Request, fp: Any, code: int,
+        msg: str, headers: Any, newurl: str,
+    ) -> None:
+        """HTTPリダイレクトは追従せず、urllibのHTTPErrorへ委ねる。"""
+        return None
+
+
 def _fetch_delegation_comment(comment_id: str) -> dict[str, Any]:
-    """固定GitHub APIから証拠を取得し、認証値やAPI本文をログへ出さない。"""
+    """公開GitHub APIを無認証・既定TLSで読み、失敗や本文をログへ漏らさない。"""
+    if type(comment_id) is not str or re.fullmatch(r"[1-9][0-9]*", comment_id) is None:
+        raise GuardError("委任証拠APIのcomment IDが不正")
+    url = (
+        f"https://api.github.com/repos/{DELEGATION_REPOSITORY}"
+        f"/issues/comments/{comment_id}"
+    )
+    request = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "PitchLog-Core-Guard",
+    }, method="GET")
+    # HTTPSHandlerは標準の証明書/hostname検証を使う。認証headerは付けない。
+    opener = urllib.request.build_opener(_RejectDelegationRedirects())
     try:
-        result = subprocess.run(
-            ["gh", "api", "--hostname", "github.com",
-             f"repos/{DELEGATION_REPOSITORY}/issues/comments/{comment_id}"],
-            capture_output=True, encoding="utf-8", errors="strict",
-            timeout=DIFF_TIMEOUT_SECONDS, check=False,
-        )
-    except (OSError, UnicodeError, subprocess.TimeoutExpired) as error:
+        with opener.open(request, timeout=DIFF_TIMEOUT_SECONDS) as response:
+            if response.status != 200 or response.geturl() != url:
+                raise GuardError("委任証拠APIの応答状態・所在が不正")
+            raw = response.read(DELEGATION_API_RESPONSE_MAX_BYTES + 1)
+        if len(raw) > DELEGATION_API_RESPONSE_MAX_BYTES:
+            raise GuardError("委任証拠APIの応答が上限を超えた")
+        content = raw.decode("utf-8")
+    except (OSError, UnicodeError, ValueError) as error:
         raise GuardError("委任証拠APIを取得できない") from error
-    if result.returncode != 0:
-        raise GuardError("委任証拠APIが失敗")
-    return _strict_json_object(result.stdout, "委任証拠API")
+    return _strict_json_object(content, "委任証拠API")
 
 
 def verify_delegated_confirmation(root: Path, event: PullRequestEvent) -> None:

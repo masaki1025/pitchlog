@@ -11,8 +11,10 @@ import json
 import os
 import subprocess
 import sys
+import urllib.error
 from collections.abc import Sequence
 from dataclasses import replace
+from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -1312,6 +1314,7 @@ import json
 import os
 import runpy
 import sys
+import urllib.error
 
 opened_paths = []
 
@@ -3955,31 +3958,132 @@ def test_invalid_delegation_cannot_fall_back_to_checked_human_box(
     assert guard.main(["--root", str(root)]) == 1
 
 
-@pytest.mark.parametrize("failure", ["nonzero", "timeout", "missing", "malformed"])
+@pytest.mark.parametrize("failure", [
+    "http403", "http404", "timeout", "network", "malformed", "unicode",
+    "redirect", "large", "status", "location",
+])
 def test_delegation_api_errors_are_closed_without_secret_output(
     monkeypatch: pytest.MonkeyPatch, failure: str,
 ) -> None:
     guard = load_core_guard_module()
+    url = "https://api.github.com/repos/masaki1025/pitchlog/issues/comments/12345"
 
-    def run_api(arguments: list[str], **kwargs: Any) -> Any:
-        assert arguments == [
-            "gh", "api", "--hostname", "github.com",
-            "repos/masaki1025/pitchlog/issues/comments/12345",
-        ]
-        assert kwargs["timeout"] == guard.DIFF_TIMEOUT_SECONDS
-        if failure == "timeout":
-            raise subprocess.TimeoutExpired(arguments, 30, stderr="secret-token")
-        if failure == "missing":
-            raise OSError("secret-token")
-        return subprocess.CompletedProcess(
-            arguments, 1 if failure == "nonzero" else 0,
-            stdout="not json", stderr="secret-token",
-        )
+    class Response:
+        status = 200
 
-    monkeypatch.setattr(guard.subprocess, "run", run_api)
+        def __enter__(self) -> Any:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+        def geturl(self) -> str:
+            return "https://outside.invalid" if failure == "location" else url
+
+        def read(self, amount: int) -> bytes:
+            assert amount == 1024 * 1024 + 1
+            if failure == "large":
+                return b"x" * amount
+            return b"\xff" if failure == "unicode" else b"not json"
+
+    class Opener:
+        def open(self, request: Any, *, timeout: int) -> Response:
+            assert request.full_url == url
+            assert request.get_method() == "GET"
+            assert timeout == guard.DIFF_TIMEOUT_SECONDS
+            assert "authorization" not in dict(
+                (key.lower(), value) for key, value in request.header_items()
+            )
+            if failure in ("http403", "http404", "redirect"):
+                code = {"http403": 403, "http404": 404, "redirect": 302}[failure]
+                raise urllib.error.HTTPError(url, code, "secret-token", Message(), None)
+            if failure == "timeout":
+                raise TimeoutError("secret-token")
+            if failure == "network":
+                raise urllib.error.URLError("secret-token")
+            response = Response()
+            if failure == "status":
+                response.status = 201
+            return response
+
+    def build_opener(*handlers: Any) -> Opener:
+        assert len(handlers) == 1
+        assert type(handlers[0]) is guard._RejectDelegationRedirects
+        return Opener()
+
+    monkeypatch.setattr(guard.urllib.request, "build_opener", build_opener)
     with pytest.raises(guard.GuardError) as error:
         guard._fetch_delegation_comment("12345")
     assert "secret-token" not in str(error.value)
+    assert "not json" not in str(error.value)
+
+
+def test_delegation_public_api_uses_fixed_get_without_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_core_guard_module()
+    url = "https://api.github.com/repos/masaki1025/pitchlog/issues/comments/12345"
+    calls: list[object] = []
+
+    class Response:
+        status = 200
+
+        def __enter__(self) -> Any:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            calls.append("closed")
+
+        def geturl(self) -> str:
+            return url
+
+        def read(self, amount: int) -> bytes:
+            assert amount == guard.DELEGATION_API_RESPONSE_MAX_BYTES + 1
+            return b'{"id":12345}'
+
+    class Opener:
+        def open(self, request: Any, *, timeout: int) -> Response:
+            assert request.full_url == url
+            assert request.get_method() == "GET"
+            assert timeout == 30
+            headers = {key.lower(): value for key, value in request.header_items()}
+            assert "authorization" not in headers
+            assert headers == {
+                "accept": "application/vnd.github+json",
+                "x-github-api-version": "2022-11-28",
+                "user-agent": "PitchLog-Core-Guard",
+            }
+            calls.append("request")
+            return Response()
+
+    monkeypatch.setenv("GH_TOKEN", "secret-token-unused")
+    monkeypatch.setenv("GITHUB_TOKEN", "secret-token-unused")
+    monkeypatch.setattr(guard.urllib.request, "build_opener", lambda *args: Opener())
+    assert guard._fetch_delegation_comment("12345") == {"id": 12345}
+    assert calls == ["request", "closed"]
+
+
+def test_delegation_api_never_follows_redirects() -> None:
+    guard = load_core_guard_module()
+    handler = guard._RejectDelegationRedirects()
+    request = guard.urllib.request.Request("https://api.github.com/")
+    assert handler.redirect_request(
+        request, None, 302, "Found", {}, "https://outside.invalid/",
+    ) is None
+
+
+@pytest.mark.parametrize("comment_id", ["0", "01", "-1", "123?x=y", "1/../../other", 1])
+def test_delegation_api_rejects_invalid_id_before_request(
+    monkeypatch: pytest.MonkeyPatch, comment_id: Any,
+) -> None:
+    guard = load_core_guard_module()
+
+    def fail(*args: Any) -> None:
+        raise AssertionError("不正IDでネットワークを開始した")
+
+    monkeypatch.setattr(guard.urllib.request, "build_opener", fail)
+    with pytest.raises(guard.GuardError, match="comment ID"):
+        guard._fetch_delegation_comment(comment_id)
 
 
 def test_delegated_confirmation_success_reaches_real_guard_main(
