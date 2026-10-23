@@ -576,3 +576,19 @@ describe('公開ガイドと保護チーム経路', () => {
     }
   })
 })
+
+it.each(['/games', '/games/32345678-1234-4234-8234-123456789abc/record'])(
+  'preparing read経路%sも実C1が失敗すればhost/GETを開始しない',
+  async (path) => {
+    fetchMock.mockResolvedValue(reply({}, 503))
+    const router = createAppRouter(createMemoryHistory())
+    await router.push(path)
+    const wrapper = view(router)
+    await flushPromises()
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(wrapper.text()).not.toContain('準備中試合の保存情報')
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/auth/session',
+    ])
+  },
+)
