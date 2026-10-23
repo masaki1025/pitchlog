@@ -1,7 +1,7 @@
 ---
 feature: mvp-rg1-lifecycle-connection
 status: active
-承認: 済（PO委任によるCodex判断、まずステップ1/2）
+承認: 済（PO委任によるCodex判断、ステップ1/2/3の対象版を本文に固定）
 重さ分類: コア領域
 branch: feature/mvp-rg1-lifecycle-connection
 created: 2026-10-24
@@ -83,3 +83,6 @@ pathsの先頭は`backend/src/pitchlog/`。指定14実装/試験候補の機械�
 
 
 同じステップ3の影響試験は既存 `test_function_operations_boundary.py` の新1登録exact追随と `test_api_app.py` / `test_api_errors.py` の未配置read維持・未信頼config拒否・PG終結不明503非漏洩を含む。既存DML集合/旧bool2登録と拒否を維持する通常追随であり、新HTTP製品経路・認可成功条件を追加しない。
+
+
+ステップ3の実接続に必要な同単位の正本7.3候補準備は並行して進める。第4ステップの正式受理/全最終CI/通常統合条件は維持する。2026-10-24、rootは今回PO委任の計画順判断として、実fresh→controller→app peerの1接合成功と非作者91e90限定0に基づきdata-model3-2の最小構造候補と旧読取2SQLの安全な成功条件候補を作成する。単一行openをTrueに置換するのではなく、実actor同DB/PIDの二重leaseと同scopeの実borrow/fence/commit保持を揃える。正式authz/manifest/7.7未受理、最終201/reload未実証は保持する。

@@ -20,7 +20,10 @@ BEGIN
     SELECT state INTO STRICT gate_state
     FROM public.rg1_restore_gate
     WHERE singleton_id = 1;
-    RETURN false;
+    IF gate_state IS DISTINCT FROM 'open' THEN
+        RETURN false;
+    END IF;
+    RETURN rg1_control.controller_lease_alive() IS TRUE;
 END;
 $function$;
 ALTER FUNCTION rg1_api.rg1_read_open(uuid) OWNER TO pitchlog_rg1_fn_owner;
