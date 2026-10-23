@@ -23,8 +23,16 @@ from uuid import uuid4
 import psycopg
 import pytest
 import uvicorn
+from db.test_api_auth_exit_entry import (
+    _PreparingReadDb,
+    _seed_read_game,
+)
+from db.test_api_auth_exit_entry import (
+    preparing_read_database as preparing_read_database,
+)
 from db.test_product_authz_authn_app import (
     _app_dsn,
+    _Identity,
     _seed_identity,
     _seed_settings,
 )
@@ -35,10 +43,31 @@ from db_fixtures import (
     _product_migration_url,
     disposable_postgres_cluster,
 )
+from fastapi import FastAPI
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 pytest_plugins = ("db_fixtures",)
 pytestmark = pytest.mark.requires_db
+
+
+@pytest.fixture(autouse=True)
+def _configure_browser_read_material(monkeypatch: pytest.MonkeyPatch) -> None:
+    """readモードだけ既存の非秘密固定試験素材をApp生成前に置く。"""
+    if os.environ.get("PITCHLOG_E2E_MODE") == "preparing-read":
+        monkeypatch.setenv(
+            "PITCHLOG_TOKEN_SIGNING_KEY_B64",
+            base64.b64encode(b"r" * 32).decode("ascii"),
+        )
+
+
+def test_preparing_read_product_server(
+    preparing_read_database: _PreparingReadDb,
+) -> None:
+    """実login用Appと保存済みread fixtureをブラウザ終了まで保持する。"""
+    db = preparing_read_database
+    for number in range(41, 66):
+        _seed_read_game(db, number)
+    _serve_browser_app(db.app, (db.identity, db.other), str(_seed_read_game(db, 66)))
 
 
 def test_sealed_ui_product_server(
@@ -80,6 +109,15 @@ def test_sealed_ui_product_server(
     ).decode("ascii")
     from pitchlog.api.app import create_app
 
+    _serve_browser_app(create_app(), (first, second))
+
+
+def _serve_browser_app(
+    app: FastAPI,
+    identities: tuple[_Identity, ...],
+    preparing_game_id: str | None = None,
+) -> None:
+    """実Appを専用loopbackで起動し、停止通知まで所有資源だけを保持する。"""
     ready = Path(os.environ["PITCHLOG_E2E_READY_FILE"])
     stop = Path(os.environ["PITCHLOG_E2E_STOP_FILE"])
     with socket.socket() as reservation:
@@ -87,7 +125,7 @@ def test_sealed_ui_product_server(
         port = reservation.getsockname()[1]
     server = uvicorn.Server(
         uvicorn.Config(
-            create_app(),
+            app,
             host="127.0.0.1",
             port=port,
             access_log=False,
@@ -106,13 +144,14 @@ def test_sealed_ui_product_server(
     ready_content = json.dumps(
         {
             "port": port,
+            **({"preparingGameId": preparing_game_id} if preparing_game_id else {}),
             "identities": [
                 {
                     "name": item.name,
                     "password": item.password,
                     "tenantId": str(item.tenant_id),
                 }
-                for item in (first, second)
+                for item in identities
             ],
         }
     )
@@ -153,15 +192,20 @@ def main() -> int:
         raise AssertionError("E2E 資格情報の保存先が自分専用 0700 領域ではない")
 
     origin = os.environ["PITCHLOG_E2E_FRONTEND_ORIGIN"]
-    match = re.fullmatch(r"https://127\.0\.0\.1:([1-9][0-9]{0,4})", origin)
+    mode = os.environ.get("PITCHLOG_E2E_MODE", "sealed-ui")
+    if mode not in {"sealed-ui", "preparing-read"}:
+        raise AssertionError("E2Eの明示モードが不正")
+    scheme = "http" if mode == "preparing-read" else "https"
+    match = re.fullmatch(rf"{scheme}://127\.0\.0\.1:([1-9][0-9]{{0,4}})", origin)
     if match is None or int(match.group(1)) > 65535:
-        raise AssertionError("E2E HTTPS origin は自分の loopback ポートだけ許す")
+        raise AssertionError("E2E origin は明示モードの専用loopbackポートだけ許す")
 
     for name in tuple(os.environ):
         if name.startswith("PITCHLOG_") and name not in {
             "PITCHLOG_E2E_READY_FILE",
             "PITCHLOG_E2E_STOP_FILE",
             "PITCHLOG_E2E_FRONTEND_ORIGIN",
+            "PITCHLOG_E2E_MODE",
         }:
             os.environ.pop(name)
     os.environ["PITCHLOG_ALLOWED_ORIGINS"] = origin
@@ -214,6 +258,12 @@ def main() -> int:
                         str(Path(__file__).resolve()),
                         "-q",
                         "-s",
+                        "-k",
+                        (
+                            "test_preparing_read_product_server"
+                            if mode == "preparing-read"
+                            else "test_sealed_ui_product_server"
+                        ),
                     ]
                 )
             )
