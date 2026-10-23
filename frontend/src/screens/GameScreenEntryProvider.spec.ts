@@ -403,3 +403,90 @@ it('一覧の失敗pageから直前のnullページへ戻り、履歴に失敗�
     '/api/games?limit=20',
   ])
 })
+
+it('実App hostの新規作成から通常clientを一度呼び、応答IDの保存値を明示確認する（UI配線fixture）', async () => {
+  Object.defineProperty(navigator, 'onLine', {
+    value: true,
+    configurable: true,
+  })
+  const choices = {
+    game_types: [
+      'game_official',
+      'game_semi_official',
+      'game_open',
+      'game_intrasquad',
+      'game_other',
+    ].map((key) => ({ key, display_name: key })),
+    tournaments: {
+      items: [{ key: 'old-key', display_name: '大会' }],
+      next_cursor: null,
+    },
+  }
+  let received: Record<string, unknown> | undefined
+  let returned: Record<string, unknown> | undefined
+  fetchMock.mockImplementation(async (url, init) => {
+    const path = String(url)
+    if (path.startsWith('/api/games/preparation-options?'))
+      return response(choices, init)
+    if (path === '/api/team-records/self')
+      return response(
+        { id: tenant, kind: 'self', name: '自分', hidden_at: null },
+        init,
+      )
+    if (path.startsWith('/api/team-records?'))
+      return response(
+        {
+          items: [
+            { id: other, kind: 'opponent', name: '相手', hidden_at: null },
+          ],
+          next_cursor: null,
+        },
+        init,
+      )
+    if (init?.method === 'POST') {
+      received = JSON.parse(String(init.body))
+      returned = {
+        ...received,
+        id,
+        tournament_key: 'new-key',
+        status: 'preparing',
+        applied_rules: { ui_fixture: true },
+      }
+      return response(returned, init, 201)
+    }
+    if (path === `/api/games/${id}`) return response(returned, init)
+    return response({ items: [], next_cursor: null }, init)
+  })
+  const { wrapper, router } = await view()
+  await button(wrapper, '新規作成').trigger('click')
+  await flushPromises()
+  await wrapper.get('[data-testid="scheduled"]').setValue('2026-10-24T10:00')
+  await wrapper.get('[data-testid="game-type"]').setValue('game_open')
+  await wrapper.get('[data-testid="away"]').setValue(tenant)
+  await wrapper.get('[data-testid="home"]').setValue(other)
+  await wrapper.get('[data-testid="tournament-kind"]').setValue('new')
+  await wrapper.get('[data-testid="tournament-name"]').setValue(' 新大会　')
+  await wrapper.get('form').trigger('submit')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+  ).toHaveLength(1)
+  expect(received).toEqual(
+    expect.objectContaining({
+      tournament: { kind: 'new', display_name: ' 新大会　' },
+    }),
+  )
+  expect(router.currentRoute.value.path).toBe('/games')
+  await button(wrapper, '作成した試合IDの保存値を確認').trigger('click')
+  await flushPromises()
+  expect(router.currentRoute.value.path).toBe(`/games/${id}/record`)
+  expect(wrapper.findComponent(GameScreenEntryRecordHost).exists()).toBe(true)
+  expect(
+    fetchMock.mock.calls.filter(([url]) => String(url) === `/api/games/${id}`)
+      .length,
+  ).toBeGreaterThanOrEqual(1)
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+  ).toHaveLength(1)
+})

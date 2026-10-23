@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 25,
+  "contract_revision": 26,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:25"
+        "contract_revision:26"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -166,7 +166,10 @@
     "CAP:invalidation_intents:update",
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
-    "CAP:tenants:read"
+    "CAP:tenants:read",
+    "CAP:games:insert",
+    "CAP:tenant_vocabularies:insert",
+    "CAP:tenant_vocabularies:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -215,7 +218,14 @@
     "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
-    "pitchlog.repositories.games.PreparingGameDetailToken"
+    "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -224,7 +234,9 @@
   },
   "product_function_operation_ids": [
     "RG1:precheck",
-    "RG1:commit_check"
+    "RG1:commit_check",
+    "RG1:scope_binding",
+    "RULE:resolve_stage_a"
   ],
-  "source_digest": "8b0f8eadb3034514915e96ec2595bd5d73be4acb00ce77c549cf71cb76b7757b"
+  "source_digest": "15ce2dfe6bbac04e3dadb9748bfc21dc4dfa26beb4190fcbf0ee1c43e9bb027f"
 }

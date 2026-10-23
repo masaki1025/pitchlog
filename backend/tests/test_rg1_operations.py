@@ -24,6 +24,7 @@ from pitchlog.repositories.rg1 import (
     assert_rg1_open_before_commit,
     read_rg1_open,
 )
+from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import _TenantTransaction
 
@@ -46,6 +47,7 @@ def test_rg1_registers_exact_fixed_tenant_bound_functions() -> None:
         RG1PrecheckToken,
         RG1ScopeBindingToken,
         RG1CommitCheckToken,
+        StageAResolveRuleToken,
     }
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),

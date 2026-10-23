@@ -2287,6 +2287,8 @@ def _validate_record_and_aggregate_route_ids(
     expected_route_ids: frozenset[str] = frozenset(
         {
             "ROUTE:RECORD:games:read",
+            "ROUTE:RECORD:games:insert",
+            "ROUTE:RECORD:games_preparation_options:read",
             "ROUTE:RECORD:lineup_memories:read",
             "ROUTE:RECORD:players:insert",
             "ROUTE:RECORD:players:read",

@@ -2256,7 +2256,7 @@ def _allow_record_and_aggregate_route_for_semantic_test(
 
 
 def test_record_and_aggregate_route_ids_match_approved_set() -> None:
-    """既存7経路とread候補1経路がregistry・HTTP行列の集合に一致する。"""
+    """既存8経路とcreate/options2経路がregistry・HTTP行列の集合に一致する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry_ids = {
         route["route_id"]
@@ -2268,6 +2268,8 @@ def test_record_and_aggregate_route_ids_match_approved_set() -> None:
 
     assert registry_ids == {
         "ROUTE:RECORD:games:read",
+        "ROUTE:RECORD:games:insert",
+        "ROUTE:RECORD:games_preparation_options:read",
         "ROUTE:RECORD:lineup_memories:read",
         "ROUTE:RECORD:players:insert",
         "ROUTE:RECORD:players:read",
@@ -5949,6 +5951,8 @@ _RECORD_READ_ROUTE_SET = frozenset({
     'ROUTE:RECORD:team_records:read',
     'ROUTE:RECORD:team_records:update',
     _PREPARING_READ_ROUTE,
+    'ROUTE:RECORD:games:insert',
+    'ROUTE:RECORD:games_preparation_options:read',
 })
 
 
@@ -5960,6 +5964,7 @@ def test_preparing_read_registered_route_matches_real_gets(request: pytest.Fixtu
     requirement_catalog, _ = _repository_catalog_and_lock()
     implemented = frozenset({
         IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID, request.node.nodeid,
+        "tests/test_check_authz_catalog.py::test_preparing_create_registered_routes_match_http",
     })
     validated = checker.validate_route_registry(
         registry, requirement_catalog, REPOSITORY_ROOT, implemented,
@@ -5994,7 +5999,8 @@ def test_preparing_read_registered_route_matches_real_gets(request: pytest.Fixtu
                 and decorator.func.attr == 'get'
             ):
                 operation = next(k.value for k in decorator.keywords if k.arg == 'operation_id')
-                gets.add((ast.literal_eval(decorator.args[0]), ast.literal_eval(operation)))
+                if ast.literal_eval(operation) in {'preparing_game_list', 'preparing_game_detail'}:
+                    gets.add((ast.literal_eval(decorator.args[0]), ast.literal_eval(operation)))
     assert gets == {
         ('/games', 'preparing_game_list'), ('/games/{game_id}', 'preparing_game_detail'),
     }
@@ -6002,7 +6008,7 @@ def test_preparing_read_registered_route_matches_real_gets(request: pytest.Fixtu
 
 @pytest.mark.parametrize('missing', sorted(_RECORD_READ_ROUTE_SET))
 def test_preparing_read_route_set_rejects_each_missing_route(missing: str) -> None:
-    """既存7件/read1件いずれの欠落もexact-set違反として拒否する。"""
+    """既存8件/createとoptions2件いずれの欠落もexact-set違反として拒否する。"""
     assets, _locks, _paths = _repository_derived_assets()
     routes = {row['route_id']: row for row in assets['route_registry']['routes']}
     checker._validate_record_and_aggregate_route_ids(routes)
@@ -6019,3 +6025,62 @@ def test_preparing_read_route_set_rejects_extra_route() -> None:
     routes[extra['route_id']] = extra
     with pytest.raises(checker.CatalogError, match='exact-set 不一致'):
         checker._validate_record_and_aggregate_route_ids(routes)
+
+
+def test_preparing_create_registered_routes_match_http(request: pytest.FixtureRequest) -> None:
+    """POST/optionsのlogical route/通常C2/実handlerをexact対応させる。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    routes = {row['route_id']: row for row in assets['route_registry']['routes']}
+    matrices = {row['route_id']: row for row in assets['http_matrix']['routes']}
+    for route_id, operation in (
+        ('ROUTE:RECORD:games:insert', 'insert'),
+        ('ROUTE:RECORD:games_preparation_options:read', 'read'),
+    ):
+        assert routes[route_id] == {
+            'route_id': route_id, 'route_kind': 'record_and_aggregate', 'origin': 'design',
+            'source_claim_ids': [], 'provenance_ids': [
+                'PLAN-TSK446-RECORD-AND-AGGREGATE', 'PLAN-MVP-PREPARING-CREATE-CONNECTION',
+            ], 'operation': operation,
+        }
+        assert matrices[route_id] == {
+            'matrix_route_id': 'HTTP:' + route_id, 'route_id': route_id,
+            'disposition': 'conditional',
+            'test_owner': {'id': request.node.nodeid, 'status': 'implemented'},
+        }
+    tree = ast.parse((REPOSITORY_ROOT / 'backend/src/pitchlog/api/routers/games.py').read_text())
+    actual = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Attribute)
+                and isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == 'router'
+            ):
+                operation = next(
+                    item.value for item in decorator.keywords if item.arg == 'operation_id'
+                )
+                actual.append((
+                    decorator.func.attr, ast.literal_eval(decorator.args[0]),
+                    ast.literal_eval(operation),
+                ))
+    assert actual == [
+        ('get', '/games', 'preparing_game_list'),
+        ('get', '/games/preparation-options', 'preparing_game_preparation_options'),
+        ('post', '/games', 'preparing_game_create'),
+        ('get', '/games/{game_id}', 'preparing_game_detail'),
+    ]
+    match_source = (REPOSITORY_ROOT / 'backend/src/pitchlog/api/tenant_access.py').read_text()
+    match_tree = ast.parse(match_source)
+    match = next(
+        node.value for node in match_tree.body if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == '_MATCH_OPERATIONS'
+            for target in node.targets
+        )
+    )
+    assert isinstance(match, ast.Call)
+    assert {operation for _, _, operation in actual} <= ast.literal_eval(match.args[0])
+    checker._validate_record_and_aggregate_route_ids(routes)

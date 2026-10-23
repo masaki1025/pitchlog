@@ -76,6 +76,8 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("DELETE",), "/team-records/{team_record_id:uuid}"),
         (("GET",), "/team-records/{team_record_id:uuid}/lineup-memory"),
         (("GET",), "/games"),
+        (("GET",), "/games/preparation-options"),
+        (("POST",), "/games"),
         (("GET",), "/games/{game_id}"),
     )
     assert tuple(route.operation_id for route in routes) == (
@@ -98,6 +100,8 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "roster_team_delete",
         "lineup_memory_read",
         "preparing_game_list",
+        "preparing_game_preparation_options",
+        "preparing_game_create",
         "preparing_game_detail",
     )
 
@@ -240,7 +244,9 @@ def test_preparing_read_metadata_keeps_two_real_c2_routes() -> None:
         route
         for router in api_app.ROUTERS
         for route in router.routes
-        if isinstance(route, APIRoute) and route.path in {"/games", "/games/{game_id}"}
+        if isinstance(route, APIRoute)
+        and route.path in {"/games", "/games/{game_id}"}
+        and route.methods == {"GET"}
     ]
     assert len(routes) == 2
     assert {
@@ -283,3 +289,23 @@ def test_untrusted_rg1_configuration_does_not_enable_writes(
     with pytest.raises(rg1_lifecycle.RG1ControlUnavailable):
         api_app.create_app()
     assert rg1_lifecycle._runtime_client is None
+
+
+def test_preparing_create_options_routes_use_c2_before_dynamic_id() -> None:
+    """POST/optionsを実登録し、静的optionsがUUID詳細に先行する。"""
+    from pitchlog.api.tenant_access import _MATCH_OPERATIONS, TenantMatchedRoute
+
+    routes = [
+        route
+        for router in api_app.ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute) and route.path.startswith("/games")
+    ]
+    assert [(route.path, route.operation_id) for route in routes] == [
+        ("/games", "preparing_game_list"),
+        ("/games/preparation-options", "preparing_game_preparation_options"),
+        ("/games", "preparing_game_create"),
+        ("/games/{game_id}", "preparing_game_detail"),
+    ]
+    assert all(isinstance(route, TenantMatchedRoute) for route in routes)
+    assert {route.operation_id for route in routes} <= _MATCH_OPERATIONS
