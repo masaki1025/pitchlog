@@ -212,7 +212,7 @@ root Ruff/ty、専用pytest（`-k p7_context_candidate`）、既存core試験/�
 2026-10-23T20:27:05.012303+00:00、Codex主担当/rootはPO4/5/7/8/10と縦断優先指示に基づき、限定追補HEAD6b821b6f/plan c469e4d7b1bfbb0bca9523d72fa8217f7fbaec422611489382606b32b775452d/research726a57e0b415497ea0640f9eebd9c284adf19d23294aa46b4ee723d26f93f61aを承認。非作者rights_replacement_reviewの限定計画確認P0=0/P1=0/P2=0、full-index binarydiffebd7f6aa2ce34a3ad290f974cf77693df86c142394e8c04f33328fd5f1d03751一致と根拠を受領した。既存第8節のcandidate5files/既存専用試験/researchへ操作4型・既採用毎球観測・閉union/原典射影を具体化する同step3/3の作業だけを指示する。D8/namecarrierの正式整合/旧codec欠落/新拒否意味は未採用のまま後段へ返し、旧レビュー/原典/23フラグ・P6/P7/P8全条件を保持。実Port/HTTP/DB/耐久完成を本候補着手条件へ追加せず、製品計算本体/正式7.7/Readyの開始許可とはしない。PO委任によるCodex判断であり、人間本人の逐行確認/署名を代記していない。
 
 
-## 9. ステップ3/3後続：残4kind共通のV10対象参照（未承認）
+## 9. ステップ3/3後続：残4kind共通のV10対象参照（PO委任承認）
 
 対象基線は`3c23eeeac8f4dbc3065afb0716c865223281d12b`。第8節はundo/P3原本を留保しているため、その承認を流用せず、今回の最小単位だけを追補する。第8節承認e703と、7bの非作者P1=1→3c23限定0/58件・実TS正例2/負例10の受領を保持する。旧総数3/ステップ履歴/全レビュー通算は変更しない。本起案はplan/researchだけで、非作者確認とrootの対象版承認・実装指示後に同step3/3の候補を作る。
 
@@ -229,3 +229,6 @@ root Ruff/ty、専用pytest（`-k p7_context_candidate`）、既存core試験/�
 V10はS-2の処理段階値である。本型の負例をHTTP入口の新S-1拒否へ移さず、公開B14/D5消費やundoの新失敗分類を追加しない。4kindのV7内容は未供給のまま、P3 V11の物理表現もwire設計3-4/U-G2の残件とする。V7を空objectと決めたり、expected_versionを現実装のintだけから正式採用したりしない。undo差分/全後続依存・membership/元半回/有限prefix・P7D06等の未採用結果や優先順は本単位へ混ぜない。正式21分岐の実数はresearchへ別記し、構造fixture成功を規範case/P6blind/正式受理へ代替しない。
 
 **この単位でoperation-content残4kindの完全閉包は0、7markerの消去も0。** 採用済みV10の3field/4kind対応とwire/内部の型境界を先に供給する単位であり、T1OperationContentV1の5/9 kindを9/9完成へ書き換えない。正式7.7/23flags/G6/P6/P7・全T1計算本体/Readyの開始条件を保持し、実Port/HTTP/DB完成をこの型準備の前条件へ追加しない。
+
+
+2026-10-23T22:07:50Z、PO委任によるCodex主担当/root判断として、676dffe442be8a866b0ec688360ad827dbc50835の第9節（plan SHA2a15f03436142a632be31fd8bd2dbe1425c61275e75d5d689a25fb3d69f7fe98、research SHAfba01039f4d5eda005d6f82e3ffae1bd5b22e353ea3a66c5b8d20c157d7463f9、標準binarydiff178173c3345800a48f45091e906f4a658e43d2b90f9009d083f1794a41ce1d9a）だけを承認し、同step3/3の3閉型候補実装を指示する。新追補作成に非関与のcsv_reviewによる新節限定第1回レビュー0/0/0と規範対応/実数照合を根拠にする。レビュアーの旧外殻作成関与は開示されており、旧外殻全体の独立再確認やP6 blind資格には広げない。旧第8節/空型是正の非作者系列・正式T1全開始条件を保持し、7marker消去0/残4kind閉包0を覆さない。人間本人の個別実値確認・署名を代記しない。
