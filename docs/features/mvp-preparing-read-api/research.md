@@ -93,3 +93,11 @@ DB新5件はHTTP POST /auth/loginの実password照合・token発行・署名Cook
 共有正式assets/生成契約/fixture/lock/sealは差分0。#174→#173→#175の実基線、正式read追加敵対1回、UI/provider、作成/RG1、公開・push/PRは未達/未消費のまま、次は固定候補の独立コードレビューとする。source/testの対象全体は14ファイル（source6、依存2、既存試験5、本research1）。製品コード確定後の最終反映は本記録の検査結果だけで、sourceと試験は上記最終検査から変更していない。
 
 独立計画第1回/root/csv_reviewは指定SHAを実読して可決P0=0/P1=0/P2=0。rootは運用秘密/署名鍵の新規発行を避けるため、既存固定試験素材の設定式だけを再利用する限定を追補しPO委任承認。_client_appの認可stubは再利用せず実HTTP login/Cookie/署名検証/tenant_access/DBを通す。対象版/日時はplanへ固定。実装未着手、正式登録/7.7/親追加1回/UI未達は保持。
+
+## 独立最終コードレビューの限定受領
+
+2026-10-24 JST、候補作者creation_path/rootに対し、非作者 `/root/o5_final_review` が独立レビューを実施。対象base `9e2ac0a3fcadb9e75854866aebb553cbc2228087`、HEAD `b3a8ef8bb7f1200c423fc32ec803300a0f1724ee`、`git diff --binary --full-index` SHA256 `d146e8f7dbad94804519056c74554650fb8a06fac05482782caf3a5928c16435`、14ファイル。結果 **可決 P0=0/P1=0/P2=0**。認証/C2先行、通常registry2件、scope内codec/DTO/Page、rollback後503、keyset、越境404、単一codec供給・正式assets差分0を確認した。
+
+独立再実行は単体127成功/1.48秒、実HTTP/DB11成功/46.40秒（PG17.11、skip0）。専用一時資格・動的port・一時領域を使用し、cleanup後コンテナ0・worktree clean。局所checkerexit0、defaultは既知TB0052件/exit1を保持。認可stub成功・運用署名鍵新規発行・共有DB接続はしていない。
+
+Codex主担当/rootはPO委任4/5/6/8/10に基づき、この隔離read API候補と検証結果を限定受領する。承認日時は本記録コミット時刻、対象版は上記HEAD/diff。正式7.7/認可閉集合/親#175追加敵対1回/UI/provider/作成保存の未達は解除しない。山田正輝の個別実値確認や署名を代記しない。本受領追記自体は独立未再レビューの記録差分で、製品source/試験/正式資産を変更しない。
