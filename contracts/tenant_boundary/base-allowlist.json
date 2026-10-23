@@ -25649,6 +25649,14 @@
         "SQLA_SELECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games/__init__.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.rule_resolution._build_stage_a_rule_statement",
+      "signature": "_build_stage_a_rule_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/rule_resolution.py"
     }
   ],
   "conditions": [

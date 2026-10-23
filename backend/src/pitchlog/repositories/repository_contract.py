@@ -5,7 +5,7 @@ CONTRACT_REVISION = 24
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "bf4ec2aa44c888131c1c09d8de2f259f7ef9199e3186004346f8feefee034f08"
+SOURCE_DIGEST = "077c0a1ebbd6c0228a2609809a081fcc32362c15f900d64756901fcdc71bad4e"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -166,4 +166,5 @@ CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
     "RG1:precheck",
     "RG1:commit_check",
+    "RULE:resolve_stage_a",
 )

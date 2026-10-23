@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import inspect
+import traceback
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, replace
+from dataclasses import FrozenInstanceError, dataclass, field, replace
 from types import MappingProxyType
 from typing import Any
 from uuid import UUID
@@ -25,13 +26,20 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import BindParameter, ColumnElement
 from sqlalchemy.sql.functions import Function
 from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.type_api import TypeDecorator
 from test_authz_tenant_context import make_tenant_context
 
-from pitchlog.repositories import operation_registry, transaction
+from pitchlog.db.game_state.rule_snapshot import (
+    DomainValidatedRuleSnapshot,
+    RuleSnapshotContractUnavailable,
+    encode_applied_rules,
+)
+from pitchlog.repositories import operation_registry, rule_resolution, transaction
 from pitchlog.repositories.binding import TenantBindingError
 from pitchlog.repositories.function_operations import (
     FunctionOperationError,
@@ -40,6 +48,13 @@ from pitchlog.repositories.function_operations import (
     build_function_registry,
     decode_function_result,
     prepare_function_operation,
+)
+from pitchlog.repositories.rule_resolution import (
+    AppliedRuleSnapshot,
+    RuleResolutionError,
+    StageAResolveRuleToken,
+    StageARuleRequest,
+    resolve_stage_a_rule,
 )
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
@@ -95,8 +110,8 @@ def _registration() -> FunctionOperationRegistration:
     )
 
 
-def test_product_function_registry_has_only_rg1_and_dml_is_unchanged() -> None:
-    """製品関数登録はRG1の2件に限り既存DML登録を維持する。"""
+def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
+    """RG1の2件を保ち、段階A読取だけを1件追加する。"""
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
@@ -104,12 +119,250 @@ def test_product_function_registry_has_only_rg1_and_dml_is_unchanged() -> None:
 
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-    ) == ("RG1:precheck", "RG1:commit_check")
+    ) == ("RG1:precheck", "RG1:commit_check", "RULE:resolve_stage_a")
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
         RG1CommitCheckToken,
+        StageAResolveRuleToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
+
+
+def test_stage_a_rule_registration_has_exact_inputs_and_fixed_sql() -> None:
+    """任意tenant・SQLを受け取らず固定4引数と不変結果だけを登録する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    request = StageAResolveRuleToken("game_official", "tournament_one", False)
+    selected, parameters = prepare_function_operation(
+        request, _TENANT_ID, operation_registry.FUNCTION_OPERATION_REGISTRY
+    )
+    assert selected is spec
+    assert parameters == {
+        "tenant_id": _TENANT_ID,
+        "game_type_key": "game_official",
+        "tournament_key": "tournament_one",
+        "has_override": False,
+    }
+    assert spec.function_id == "public.resolve_stage_a_rule"
+    assert spec.min_rows == spec.max_rows == 1
+    assert spec.result_fields == (("resolution", MappingProxyType),)
+    assert str(spec.statement.compile(dialect=postgresql.dialect())) == (
+        "SELECT public.resolve_stage_a_rule(%(tenant_id)s::UUID, "
+        "%(game_type_key)s, %(tournament_key)s, "
+        "%(has_override)s) AS resolution"
+    )
+    assert set(inspect.signature(StageAResolveRuleToken).parameters) == {
+        "game_type_key",
+        "tournament_key",
+        "has_override",
+    }
+
+
+@pytest.mark.parametrize("invalid", (None, 0, 1, "false"))
+def test_stage_a_rule_registration_rejects_non_boolean_override(invalid: Any) -> None:
+    """boolと紛らわしい入力もexact型検査でSQL実行前に拒否する。"""
+    with pytest.raises(FunctionOperationError, match="has_override.*型が不一致"):
+        prepare_function_operation(
+            StageAResolveRuleToken("game_official", "tournament_one", invalid),
+            _TENANT_ID,
+            operation_registry.FUNCTION_OPERATION_REGISTRY,
+        )
+
+
+@pytest.mark.parametrize("field_name", ("game_type_key", "tournament_key"))
+@pytest.mark.parametrize("mutated", (False, True))
+def test_stage_a_empty_key_never_reaches_sql(
+    field_name: str, mutated: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """構築時・強制変更後の空キーを実scopeのSQL実行前に拒否する。"""
+    events: list[str] = []
+
+    class _Session:
+        def __init__(self, engine: object) -> None:
+            events.append("session")
+
+        def execute(self, statement: object, params: object) -> None:
+            pytest.fail("空キーがSQL実行へ到達した")
+
+        def close(self) -> None:
+            events.append("close")
+
+    @contextmanager
+    def _binding(session: object, context: object) -> Iterator[None]:
+        events.append("begin")
+        try:
+            yield
+        except BaseException:
+            events.append("rollback")
+            raise
+        else:
+            events.append("commit")
+
+    monkeypatch.setattr(transaction, "Session", _Session)
+    monkeypatch.setattr(transaction, "create_database_engine", object)
+    monkeypatch.setattr(transaction, "_tenant_transaction", _binding)
+    keys = {"game_type_key": "game_official", "tournament_key": "tournament_one"}
+    if not mutated:
+        keys[field_name] = ""
+    request = StageAResolveRuleToken(
+        keys["game_type_key"], keys["tournament_key"], False
+    )
+    if mutated:
+        object.__setattr__(request, field_name, "")
+    with pytest.raises(FunctionOperationError, match=f"{field_name}.*空文字"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            scope.run_function(request)
+    assert events == ["session", "begin", "rollback", "close"]
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    (None, [], ("missing",), ("marker", "marker"), (True,), ([],)),
+)
+def test_registration_rejects_invalid_nonempty_declaration(invalid: Any) -> None:
+    """未知名・重複・非tuple・非文字列の非空宣言を登録時に拒否する。"""
+    with pytest.raises(FunctionOperationError, match="非空入力宣言"):
+        replace(_registration(), nonempty_inputs=invalid)
+
+
+def test_registration_rejects_non_string_nonempty_input() -> None:
+    """bool入力を非空文字列として宣言する登録を拒否する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    with pytest.raises(FunctionOperationError, match="非空入力宣言"):
+        replace(spec, nonempty_inputs=("has_override",))
+
+
+def test_nonempty_constraint_is_explicit_and_preserves_bind_values() -> None:
+    """未指定入力の空文字と指定入力の空白を変換せず従来どおり渡す。"""
+    spec = _registration()
+    registry = build_function_registry((spec,), frozenset())
+    assert (
+        prepare_function_operation(_FixedToken(marker=""), _TENANT_ID, registry)[1][
+            "marker"
+        ]
+        == ""
+    )
+    restricted = replace(spec, nonempty_inputs=("marker",))
+    registry = build_function_registry((restricted,), frozenset())
+    assert (
+        prepare_function_operation(_FixedToken(marker=" "), _TENANT_ID, registry)[1][
+            "marker"
+        ]
+        == " "
+    )
+    with pytest.raises(FunctionOperationError, match="空文字"):
+        prepare_function_operation(_FixedToken(marker=""), _TENANT_ID, registry)
+    for item in operation_registry.PRODUCT_FUNCTION_OPERATIONS:
+        if item.operation_id.startswith("RG1:"):
+            assert item.nonempty_inputs == ()
+
+
+@pytest.mark.parametrize(
+    "status",
+    (
+        "stage_a_unsupported",
+        "rule_not_available",
+        "invalid_rule",
+        "outcome_unconfirmed",
+    ),
+)
+def test_stage_a_rule_decoder_keeps_closed_failure_envelope(status: str) -> None:
+    """DB失敗外形を保存成功や公開例外へ変換せず保持する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    result = TenantOperationResult(((MappingProxyType({"status": status}),),))
+    assert decode_function_result(spec, result) is result
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    (
+        {},
+        {"status": "unknown"},
+        {"status": 1},
+        {"status": "resolved"},
+        {"status": "resolved", "rule": ()},
+        {"status": "resolved", "rule": MappingProxyType({}), "extra": True},
+        {"status": "invalid_rule", "rule": MappingProxyType({})},
+    ),
+)
+def test_stage_a_rule_decoder_rejects_unclosed_result(envelope: dict[str, Any]) -> None:
+    """未知状態・欠落・余剰・成功失敗混在を固定decoderで拒否する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    with pytest.raises(FunctionOperationError):
+        decode_function_result(
+            spec, TenantOperationResult(((MappingProxyType(envelope),),))
+        )
+
+
+def test_stage_a_rule_operation_uses_real_scope_and_rejects_invalid_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """製品登録を実scope入口へ通し、不正戻りと失効scopeを拒否する。"""
+    events: list[str] = []
+    rule = {
+        "ruleSetId": "00000000-0000-0000-0000-000000000550",
+        "regulationInnings": 9,
+        "coldConditions": [],
+        "extensionLimit": 12,
+        "tiebreak": None,
+        "dh": True,
+    }
+    response: dict[str, object] = {"status": "resolved", "rule": rule}
+
+    class _Session:
+        def __init__(self, engine: object) -> None:
+            events.append("session")
+
+        def execute(
+            self, statement: Select[Any], params: object
+        ) -> list[tuple[object]]:
+            spec = operation_registry.FUNCTION_OPERATION_REGISTRY[
+                StageAResolveRuleToken
+            ]
+            assert statement is spec.statement
+            assert params == {
+                "tenant_id": _TENANT_ID,
+                "game_type_key": "game_official",
+                "tournament_key": "tournament_one",
+                "has_override": False,
+            }
+            events.append("execute")
+            return [(response,)]
+
+        def close(self) -> None:
+            events.append("close")
+
+    @contextmanager
+    def _binding(session: object, context: object) -> Iterator[None]:
+        events.append("begin")
+        try:
+            yield
+        except BaseException:
+            events.append("rollback")
+            raise
+        else:
+            events.append("commit")
+
+    monkeypatch.setattr(transaction, "Session", _Session)
+    monkeypatch.setattr(transaction, "create_database_engine", object)
+    monkeypatch.setattr(transaction, "_tenant_transaction", _binding)
+    request = StageAResolveRuleToken("game_official", "tournament_one", False)
+    with transaction.tenant_transaction_scope(make_tenant_context(_TENANT_ID)) as scope:
+        result = scope.run_function(request)
+    assert events == ["session", "begin", "execute", "commit", "close"]
+    assert isinstance(result.rows[0][0], MappingProxyType)
+    with pytest.raises(RuntimeError, match="失効"):
+        scope.run_function(request)
+    assert events == ["session", "begin", "execute", "commit", "close"]
+    events.clear()
+    response = {"status": "resolved"}
+    with pytest.raises(FunctionOperationError):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            scope.run_function(request)
+    assert events == ["session", "begin", "execute", "rollback", "close"]
 
 
 def test_fixed_registration_prepares_exact_tenant_and_token_input() -> None:
@@ -687,3 +940,417 @@ def test_run_function_stops_reading_after_declared_row_limit(
         ) as scope:
             scope.run_function(_FixedToken())
     assert observed == ["read", "read", "rollback", "close"]
+
+
+def _resolver_rule_json() -> dict[str, object]:
+    """正規codecへ渡すUUIDと5値の代表入力を返す。"""
+    return {
+        "ruleSetId": str(_TENANT_ID),
+        "regulationInnings": 9,
+        "coldConditions": [{"pointDifference": 7, "startInning": 7}],
+        "extensionLimit": 12,
+        "tiebreak": {
+            "startInning": 10,
+            "runnerPlacement": "no_out_first_second",
+            "leadoffRule": "continue_lineup",
+        },
+        "dh": True,
+    }
+
+
+@dataclass
+class _ResolverRuntime:
+    """実scopeに接続する合成Sessionの入力と観測を保持する。"""
+
+    rows: list[tuple[object, ...]] = field(
+        default_factory=lambda: [
+            ({"status": "resolved", "rule": _resolver_rule_json()},)
+        ]
+    )
+    events: list[str] = field(default_factory=list)
+    error: Exception | None = None
+    expected_keys: tuple[str, str] = ("game_official", "tournament_one")
+    expected_override: bool = False
+
+
+@pytest.fixture
+def resolver_runtime(monkeypatch: pytest.MonkeyPatch) -> _ResolverRuntime:
+    """実registry/tenant scopeへ合成Sessionだけを供給する。"""
+    runtime = _ResolverRuntime()
+
+    class _Session:
+        """SQLとscope由来bindの一致を観測する合成Session。"""
+
+        def __init__(self, engine: object) -> None:
+            """scopeが作るSessionの生成を記録する。"""
+            runtime.events.append("session")
+
+        def execute(
+            self, statement: Select[Any], params: object
+        ) -> list[tuple[object, ...]]:
+            """実固定SQL/tenantを照合し、指定結果または故障を返す。"""
+            assert (
+                statement
+                is operation_registry.FUNCTION_OPERATION_REGISTRY[
+                    StageAResolveRuleToken
+                ].statement
+            )
+            assert params == {
+                "tenant_id": _TENANT_ID,
+                "game_type_key": runtime.expected_keys[0],
+                "tournament_key": runtime.expected_keys[1],
+                "has_override": runtime.expected_override,
+            }
+            runtime.events.append("execute")
+            if runtime.error is not None:
+                raise runtime.error
+            return runtime.rows
+
+        def close(self) -> None:
+            """scopeの終了を記録する。"""
+            runtime.events.append("close")
+
+    @contextmanager
+    def _binding(session: object, context: object) -> Iterator[None]:
+        """実scopeからの例外退出と通常終了を区別する。"""
+        runtime.events.append("begin")
+        try:
+            yield
+        except BaseException:
+            runtime.events.append("rollback")
+            raise
+        else:
+            runtime.events.append("commit")
+
+    monkeypatch.setattr(transaction, "Session", _Session)
+    monkeypatch.setattr(transaction, "create_database_engine", object)
+    monkeypatch.setattr(transaction, "_tenant_transaction", _binding)
+    return runtime
+
+
+def _resolver_request() -> StageARuleRequest:
+    """必須大会キーを含む公開入力を作る。"""
+    return StageARuleRequest("game_official", "tournament_one", False)
+
+
+def test_public_resolver_returns_canonical_immutable_snapshot(
+    resolver_runtime: _ResolverRuntime,
+) -> None:
+    """実固定scopeの不変JSON結果を単一codecへ接続する。"""
+    assert AppliedRuleSnapshot.__value__ is DomainValidatedRuleSnapshot
+    request = _resolver_request()
+    with transaction.tenant_transaction_scope(make_tenant_context(_TENANT_ID)) as scope:
+        result = resolve_stage_a_rule(scope, request)
+    assert type(result) is DomainValidatedRuleSnapshot
+    structural = result.structural
+    assert structural.rule_set_id == _TENANT_ID
+    assert structural.regulation_innings == 9
+    assert structural.cold_conditions[0].point_difference == 7
+    assert structural.extension_limit == 12
+    assert structural.tiebreak is not None
+    assert structural.tiebreak.start_inning == 10
+    assert structural.dh is True
+    for target, attribute, value in (
+        (request, "tournament_key", "other"),
+        (result, "structural", None),
+        (structural, "dh", False),
+        (structural.cold_conditions[0], "start_inning", 1),
+        (structural.tiebreak, "start_inning", 1),
+    ):
+        with pytest.raises(FrozenInstanceError):
+            setattr(target, attribute, value)
+    assert resolver_runtime.events == ["session", "begin", "execute", "commit", "close"]
+    with pytest.raises(RuleResolutionError, match="outcome_unconfirmed"):
+        resolve_stage_a_rule(scope, request)
+    assert resolver_runtime.events.count("execute") == 1
+
+
+@pytest.mark.parametrize(
+    "status",
+    (
+        "stage_a_unsupported",
+        "rule_not_available",
+        "invalid_rule",
+        "outcome_unconfirmed",
+    ),
+)
+def test_public_resolver_failure_leaves_scope_by_exception(
+    status: str, resolver_runtime: _ResolverRuntime
+) -> None:
+    """既知4失敗は同じcodeでscope外へ出て全取消する。"""
+    resolver_runtime.rows = [({"status": status},)]
+    with pytest.raises(RuleResolutionError) as captured:
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            resolve_stage_a_rule(scope, _resolver_request())
+    assert captured.value.code == status
+    assert str(captured.value) == status
+    assert resolver_runtime.events == [
+        "session",
+        "begin",
+        "execute",
+        "rollback",
+        "close",
+    ]
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        [],
+        [({},)],
+        [({"status": "unknown-internal"},)],
+        [(None,)],
+        [({"status": "resolved"},)],
+        [({"status": "rule_not_available", "cause": "secret"},)],
+        [({"status": "resolved", "rule": {"unexpected": b"private"}},)],
+        [({"status": "rule_not_available"}, "extra")],
+    ],
+)
+def test_public_resolver_rejects_unknown_result_without_internal_detail(
+    rows: list[tuple[object, ...]], resolver_runtime: _ResolverRuntime
+) -> None:
+    """未知または非JSONの結果を結果不明へ閉じ、内部値を秘匿する。"""
+    resolver_runtime.rows = rows
+    with pytest.raises(RuleResolutionError) as captured:
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            resolve_stage_a_rule(scope, _resolver_request())
+    assert captured.value.code == "outcome_unconfirmed"
+    exposed = "".join(traceback.format_exception(captured.value))
+    assert "secret" not in exposed and "private" not in exposed
+    assert "unknown-internal" not in exposed
+    assert resolver_runtime.events[-2:] == ["rollback", "close"]
+    assert "commit" not in resolver_runtime.events
+
+
+@pytest.mark.parametrize(
+    "kind", ("empty", "five", "extra", "uuid", "value", "correlation")
+)
+def test_public_resolver_uses_codec_to_reject_invalid_snapshot(
+    kind: str, resolver_runtime: _ResolverRuntime
+) -> None:
+    """構造・値域・相関の失敗を補完せず正規codecから伝播する。"""
+    rule = _resolver_rule_json()
+    if kind == "empty":
+        rule = {}
+    elif kind == "five":
+        del rule["ruleSetId"]
+    elif kind == "extra":
+        rule["extra"] = True
+    elif kind == "uuid":
+        rule["ruleSetId"] = "not-a-uuid"
+    elif kind == "value":
+        rule["dh"] = 1
+    else:
+        rule["extensionLimit"] = 8
+    resolver_runtime.rows = [({"status": "resolved", "rule": rule},)]
+    with pytest.raises(RuleResolutionError, match="invalid_rule"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            resolve_stage_a_rule(scope, _resolver_request())
+    assert resolver_runtime.events[-2:] == ["rollback", "close"]
+
+
+@pytest.mark.parametrize("fault", ("sql", "contract", "unknown"))
+def test_public_resolver_faults_are_unconfirmed_and_sanitized(
+    fault: str,
+    resolver_runtime: _ResolverRuntime,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """SQL故障/契約読込不能/未知故障を内因を出さず全取消する。"""
+    private = "PRIVATE_SQL_TENANT_CAUSE"
+    if fault == "sql":
+        resolver_runtime.error = OperationalError(private, {}, RuntimeError(private))
+    else:
+
+        def _fail(value: object) -> DomainValidatedRuleSnapshot:
+            """codecの契約読込不能または未知故障を注入する。"""
+            if fault == "contract":
+                raise RuleSnapshotContractUnavailable(private)
+            raise RuntimeError(private)
+
+        monkeypatch.setattr(rule_resolution, "decode_applied_rules", _fail)
+    with pytest.raises(RuleResolutionError) as captured:
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            resolve_stage_a_rule(scope, _resolver_request())
+    assert captured.value.code == "outcome_unconfirmed"
+    assert private not in "".join(traceback.format_exception(captured.value))
+    assert private not in caplog.text
+    assert resolver_runtime.events[-2:] == ["rollback", "close"]
+    assert resolver_runtime.events.count("execute") == 1
+
+
+@pytest.mark.parametrize(
+    "attribute,value",
+    [
+        ("game_type_key", ""),
+        ("tournament_key", ""),
+        ("tournament_key", None),
+        ("game_type_key", 1),
+        ("rule_override_present", 1),
+        ("rule_override_present", None),
+    ],
+)
+def test_public_resolver_rejects_mutated_request_before_sql(
+    attribute: str, value: object, resolver_runtime: _ResolverRuntime
+) -> None:
+    """公開DTOの強制変更後も実行前に空/型不正を拒否する。"""
+    request = _resolver_request()
+    object.__setattr__(request, attribute, value)
+    with pytest.raises(ValueError):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            resolve_stage_a_rule(scope, request)
+    assert resolver_runtime.events == ["session", "begin", "rollback", "close"]
+
+
+def test_public_resolver_rejects_fake_session_and_derived_scope() -> None:
+    """同じメソッドを持つ偽物・Session・派生scopeを受理しない。"""
+    calls: list[str] = []
+
+    class _FakeScope:
+        """もっともらしい成功を返す偽物。"""
+
+        def run_function(self, token: object) -> object:
+            """呼び出された場合は偽成功を返す。"""
+            calls.append("fake")
+            return object()
+
+    class _DerivedScope(transaction._TenantTransaction):  # ty: ignore[subclass-of-final-class]
+        """実行時の派生型もexact型検査で拒否する。"""
+
+    with Session() as session:
+        for candidate in (_FakeScope(), session, object.__new__(_DerivedScope)):
+            invalid: Any = candidate
+            with pytest.raises(TypeError):
+                resolve_stage_a_rule(invalid, _resolver_request())
+    assert calls == []
+
+
+def test_public_resolver_rejects_nonexact_request_and_keeps_whitespace(
+    resolver_runtime: _ResolverRuntime,
+) -> None:
+    """任意入力型を拒否し、有効な文字列のトリムを追加しない。"""
+
+    class _DerivedRequest(StageARuleRequest):
+        """公開DTOの派生型。"""
+
+    for candidate in (object(), object.__new__(_DerivedRequest)):
+        invalid: Any = candidate
+        with pytest.raises(TypeError):
+            with transaction.tenant_transaction_scope(
+                make_tenant_context(_TENANT_ID)
+            ) as scope:
+                resolve_stage_a_rule(scope, invalid)
+    assert "execute" not in resolver_runtime.events
+    resolver_runtime.expected_keys = (" game_official ", " tournament_one ")
+    resolver_runtime.expected_override = True
+    resolver_runtime.rows = [({"status": "stage_a_unsupported"},)]
+    request = StageARuleRequest(*resolver_runtime.expected_keys, True)
+    with pytest.raises(RuleResolutionError, match="stage_a_unsupported"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            resolve_stage_a_rule(scope, request)
+
+
+@pytest.mark.parametrize(
+    "game_key,tournament_key,override",
+    [
+        ("", "tournament_one", False),
+        ("game_official", "", False),
+        (None, "tournament_one", False),
+        ("game_official", None, False),
+        ("game_official", "tournament_one", 1),
+    ],
+)
+def test_public_request_rejects_invalid_values_on_construction(
+    game_key: Any,
+    tournament_key: Any,
+    override: Any,
+) -> None:
+    """生成時にも空キーとbool等の型混同を拒否する。"""
+    with pytest.raises(ValueError):
+        StageARuleRequest(game_key, tournament_key, override)
+
+
+def test_public_failure_code_is_closed() -> None:
+    """例外へ未定義literalや内部情報を設定できない。"""
+    invalid: Any = "private_internal_code"
+    with pytest.raises(ValueError, match="未定義"):
+        RuleResolutionError(invalid)
+
+
+@pytest.mark.parametrize(
+    "float_field",
+    (
+        "regulation",
+        "extension",
+        "cold-point",
+        "cold-start",
+        "tiebreak",
+        "all",
+        "all-null",
+    ),
+)
+def test_public_resolver_reuses_integer_codec_for_float_values(
+    float_field: str,
+    resolver_runtime: _ResolverRuntime,
+) -> None:
+    """実scopeからの整数floatを正規codecのexact int成功/encodeへ接続する。"""
+    raw = _resolver_rule_json()
+    cold: Any = raw["coldConditions"]
+    tiebreak: Any = raw["tiebreak"]
+    fields: dict[str, tuple[Any, str]] = {
+        "regulation": (raw, "regulationInnings"),
+        "extension": (raw, "extensionLimit"),
+        "cold-point": (cold[0], "pointDifference"),
+        "cold-start": (cold[0], "startInning"),
+        "tiebreak": (tiebreak, "startInning"),
+    }
+    for name, (parent, key) in fields.items():
+        if float_field in (name, "all", "all-null"):
+            parent[key] = float(parent[key])
+    if float_field == "all-null":
+        raw["extensionLimit"] = None
+        raw["tiebreak"] = None
+    resolver_runtime.rows = [({"status": "resolved", "rule": raw},)]
+
+    with transaction.tenant_transaction_scope(make_tenant_context(_TENANT_ID)) as scope:
+        snapshot = resolve_stage_a_rule(scope, _resolver_request())
+
+    # scopeの終了後も単一codecの成功値を同じ保存形へ再利用できる。
+    encoded = encode_applied_rules(snapshot)
+    structural = snapshot.structural
+    encoded_cold: Any = encoded["coldConditions"]
+    encoded_tiebreak: Any = encoded["tiebreak"]
+    typed_values = [
+        structural.regulation_innings,
+        structural.extension_limit,
+        structural.cold_conditions[0].point_difference,
+        structural.cold_conditions[0].start_inning,
+        None if structural.tiebreak is None else structural.tiebreak.start_inning,
+    ]
+    encoded_values = [
+        encoded["regulationInnings"],
+        encoded["extensionLimit"],
+        encoded_cold[0]["pointDifference"],
+        encoded_cold[0]["startInning"],
+        None if encoded_tiebreak is None else encoded_tiebreak["startInning"],
+    ]
+    expected = [9, None, 7, 7, None] if float_field == "all-null" else [9, 12, 7, 7, 10]
+    assert typed_values == encoded_values == expected
+    assert all(type(value) is int for value in typed_values if value is not None)
+    assert all(type(value) is int for value in encoded_values if value is not None)
+    assert structural.rule_set_id == _TENANT_ID
+    assert encoded["ruleSetId"] == str(_TENANT_ID)
+    assert encoded == raw
+    assert resolver_runtime.events == ["session", "begin", "execute", "commit", "close"]

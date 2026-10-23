@@ -72,6 +72,7 @@ class FunctionOperationRegistration:
     min_rows: int
     max_rows: int
     decoder: Callable[[TenantOperationResult], TenantOperationResult]
+    nonempty_inputs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """登録時に任意SQLや曖昧な入出力を拒否する。"""
@@ -108,6 +109,16 @@ class FunctionOperationRegistration:
         ):
             raise FunctionOperationError("固定関数の入出力宣言が不正")
         token_fields = {field.name for field in fields(self.token_type)}
+        if (
+            type(self.nonempty_inputs) is not tuple
+            or any(type(name) is not str for name in self.nonempty_inputs)
+            or len(set(self.nonempty_inputs)) != len(self.nonempty_inputs)
+            or any(
+                dict(self.input_fields).get(name) is not str
+                for name in self.nonempty_inputs
+            )
+        ):
+            raise FunctionOperationError("固定関数の非空入力宣言が不正")
         if not set(input_names) <= token_fields:
             raise FunctionOperationError("固定関数入力がtokenに存在しない")
         parts = self.function_id.split(".")
@@ -273,6 +284,8 @@ def prepare_function_operation(
         value = getattr(operation, name)
         if type(value) is not expected_type:
             raise FunctionOperationError(f"固定関数入力{name}の型が不一致")
+        if name in spec.nonempty_inputs and value == "":
+            raise FunctionOperationError(f"固定関数入力{name}は空文字を許可しない")
         parameters[name] = value
     return spec, parameters
 

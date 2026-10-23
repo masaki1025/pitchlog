@@ -224,7 +224,8 @@
   },
   "product_function_operation_ids": [
     "RG1:precheck",
-    "RG1:commit_check"
+    "RG1:commit_check",
+    "RULE:resolve_stage_a"
   ],
-  "source_digest": "bf4ec2aa44c888131c1c09d8de2f259f7ef9199e3186004346f8feefee034f08"
+  "source_digest": "077c0a1ebbd6c0228a2609809a081fcc32362c15f900d64756901fcdc71bad4e"
 }
