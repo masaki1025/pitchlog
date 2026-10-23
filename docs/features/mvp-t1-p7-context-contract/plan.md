@@ -259,3 +259,6 @@ V10はS-2の処理段階値である。本型の負例をHTTP入口の新S-1拒�
 将来blind検証へ渡せるのは、純入力fileの**内容だけ**を中立名`inputs.json`へコピーしたpacket、採用済み規範原典、固定版・範囲だけである。本plan/research/author file/著者会話/branch mapping・旧case比較を同梱しない。非継承の未曝露検証者が導出を封印・hash固定した後に、rootが別の作者資料で比較する。候補作者や本会話を新検証者へ継承させず、新規agentだから未曝露とは認定しない。本単位ではpacketの手順/入力保持を準備するだけで、P6blind起動・封印・受理を実施したとは記録しない。
 
 **case供給の到達点は不足2分岐に対応する新純入力2件と分離作者導出、正式closureは後段ゲート待ち。** 7markerやT1全開始条件を減らすものではなく、全23flags/G6/残13分岐の規範case/P7/7.7/Ready/T1計算は別残件を維持する。実Port/HTTP/DB完成をこの候補準備の着手条件にしない。
+
+
+2026-10-24、PO委任によるCodex主担当/root判断として、1efe07958cf2dd8b474dc1aaccdcf404e4b9df74の第10節（planSHA5b8cffe4ab272c2f0ffc901baf058d4f0197851fc917fde2e6570bc9c7c95246/research63ba7c514b7b48c9bcd830bf13e05130be32d10e9835664fd039944cee4bc027、標準diff57f4058bbe9bc085073bd559c0f319981cd9b166fd62e3f6ebd34880ba38782c）だけを承認し、指定対向2入力/作者値の分離候補実装を指示する。新節作成に非関与のcsv_reviewによる新節限定第1回0/0/0と、要件A-1 OUT3-04/05との照合を根拠とする。旧外殻へのレビュアー関与は開示し、旧外殻全体の独立確認やP6未曝露資格に広げない。正式schema/descriptor/binding/独立導出/受理/7.7は後段条件で、missing15の先行削減・T1本体開始は認めない。純入力と作者期待/理由/branch資料を分離し、futureblindは純入力だけを受領して封印後に比較する。人間本人の実値確認/署名を代記しない。
