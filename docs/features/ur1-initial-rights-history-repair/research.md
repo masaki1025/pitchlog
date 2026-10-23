@@ -98,3 +98,29 @@ JSONを機械比較し、対象3領域は旧paths＋exact2paths、対象外領�
 `uv run pytest tests/test_core_guard.py -n 4 -q`: **381 passed / 21.96秒**、失敗/skip/timeout0。root Ruff/ty、JSON構造/全metadata保持・基線追加層検査、diffチェック成功。今回の検査に失敗版はない。core JSON SHA256 `e555432f14c87524e5c3bf2bda86fa55b55ed59635345449713b662468b3d159`。step1からJSONだけのbinary差分SHA256 `25b50214b3be22faab9516478465438887d202632a353719e17805427db434b4`。
 
 step2commitはJSON/本researchのみで基線定義の共変更0。commit後に実31194→最終HEADのverify_area_path_baseline/共変更predicateと変更pathを再照合し、HEAD/全差分SHAを引渡しへ固定する。旧f48/0aaaのcommitは輸入していない。ステップ3部品/依存/凍結候補、新PR取得、policy、新7.7履歴、push/公開、DB/実Portへは進んでいない。
+
+## 承認ステップ3/4: sourceを含む未受理候補の再構成
+
+rootはstep1独立381成功/指摘0とstep2の計6登録・旧O5保持を受領し、`22eb6fc352ab866d86f62c1bd94645cc03a05029`からstep3だけを許可した。旧0aaaのcommitはmerge/cherry-pickせず、上記供給表6filesを固定byteで再利用した。6files全てを旧commitのblobと直接比較しexact一致を確認した。初期付与部品の型/アルゴリズム/性能・TB002 source hash付きexact47箇所・独立AST18/census fixtureの意味を変更していない。
+
+通常依存cryptography==50.0.1を追加。旧lockを先にTOMLで比較し、新packageはcryptography50.0.1/cffi2.1.1/pycparser3.11の3件、既存package差分はpitchlog-backendの同pin依存/metadata2項目だけで、他package全entryが不変であると確認してから供給した。旧lockの無関係な差分を持ち込んでいない。lock SHA256 `7bac58d280cb3f6df4042cedaccc42745bdb38ac21dc511b8dda36b57fe08138`、backendのuv lock --check成功。
+
+9凍結資産は実base31194の26件historyを保持して旧初期付与候補の局所差分だけ再構成した。frozen-inputsは不変であり変更8資産、生成定数3filesを対応させた。base-allowlistの旧173rowを移さず、権威履歴は26件・末尾#174でbaseと全値一致。formal snapshot192件は全file byteをbase blobと照合して一致し、新規追加/削除0、policy/ステップ1宣言/既存guard試験/実core JSONはstep2から変更0。旧docs/handoff/proposal/snapshot群もコピーしていない。
+
+現候補のfrozen_projection_contentを9資産全件で再計算し、8外部対象も実byte/hashを比較した。before/after完全値は固定旧0aaaのpost174 acceptance briefの全表と9/9一致、外部も8/8一致した（frozen-inputsのbefore=afterも含む）。これは同一性を仮定したコピーではなく実候補からの再照合である。旧受理の自動延長ではなく、今後policy1組追加を含む実固定候補で再照合し、新実PR番号/head/履歴単位をrootが別受理する。完全値の同一表は上記固定blob参照を用い、重複snapshotを新枝へ量産しない。
+
+### 今回の接合検査
+
+- backend対象5files（initial_recording_right_candidate、authz_runtime_contract、authz_runtime_contract_generator、authz_repository_contract、authz_tenant_context）: **181 passed / 40.98秒**。initial候補20件には既存disposable PostgreSQLを使う台帳・所有/claim・予約・端末失効のSQL/lock5件を含む。これは隔離admin接続の物理候補試験であり、実製品app role/RecordingRightsPort/開始同一transaction完成の証拠ではない。既存fixtureは無変更、専用動的port/一時DBで実行し、終了後pitchlog-authz container稼働0を確認した。DSN/資格は出力していない。
+- 実部品2files存在＋実JSON登録の状態でcore全件: **381 passed / 21.25秒**。source/test単独変更捕捉、旧登録保持、共変更拒否を含む。
+- 新census限定`-k 'scoped_digest or scoped_condition2'`: **14 passed / 34.08秒**。exact47/source改変、旧43/独立AST18の実測digest、欠損/重複/余剰/不正形式/正形式改変・範囲外を検査。旧長時間census74件/514秒は今回再走していない。rootの検査最適化指示に従い、同一byteの全反復は最終必須CIへ残す。旧74成功や旧backend104等を新HEAD完走と代記しない。
+- root/backend Ruff/ty、backend対象6files format --check、runtime_contract_generator check、docs-status（21documents/0）、design propagation、doc coverage、plan sync、diff検査成功。新plan/researchの相対リンクは全て実在を確認。backend実行の初回でroot cwdへ--directoryを誤配置したCLI引数/モジュール解決エラーは、正しいbackend cwdで同検査を実行して解消した。source自体を変えて回避していない。
+- 最初の供給スクリプトはlock project名をpitchlogと仮定したassertで停止した。実名pitchlog-backendへ照合を修正して再実行し、上記3package/同pinだけの差分を確認した。停止時点で依存/資産への供給はまだ実行していなかった。
+
+### 未受理の赤と旧CI履歴
+
+`python scripts/check_tenant_boundary_bypass.py --base-ref 31194a39...`は**exit2**、`base-allowlist.json.baseline_control.history: 履歴末尾と7資産の識別値が不一致`。新番号未取得で新rowが無いための意図した未受理不合格であり、契約検査器/期待値を緩めていない。一般frozen-baselines --invariants-onlyは成功したが、これをtenant-boundary履歴/PR_ACCEPTANCEの成功へ読み替えない。archiveは26history/192snapshotのまま保持検査が成功し、既存孤児33件を増減していない。正式受理後の新snapshot/archive/manifest・実PR合成merge/最終CIは未実施。
+
+旧173実CIにはcore履歴f48拒否に加え、旧step5-pr173-tab-handoffの未収録owner sheet/physical annex/closeoutログ・ローカルcacheリンク等によるdocs-lint7failedがあったとのroot追加監査を受領した。これらをCI成功扱いしない。新枝は旧handoff自体をコピーせず、固定旧blob/pathの参照で履歴を残す。旧U-R1計画7回・旧全レビュー系列・今回P1→修正0・最終metadata0・旧全件/skip/中断は保持する。
+
+step2→stage3の実source/data19paths（本researchを除く）full-index binary差分SHA256 `0b94a5c0a1f08fbc5c09279260d4572821718fa9c0abdb084630260e6c31b29a`。HEAD/全20paths/全差分SHAはcommit後に引渡しで固定する。stage4/newPR番号/policy/7.7正式受理・snapshot追加へは進まない。push/PR作成はrootが固定候補レビュー後に行う。本wtでは新秘密/運用鍵/共有DB/運用open/実Port/MVP完成を提供していない。

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 34,
+  "contract_revision": 35,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:34"
+        "contract_revision:35"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -24353,7 +24353,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "522b6351474f200da48451edd511ba944c05d5159142b675f9ccec095d76b636"
+    "sha256": "ea9c46479fc31e3c3230699e4e91ff6e0a42057c36651262b77af2782a7ad401"
   },
   "allowed_symbols": [
     {
@@ -24710,5 +24710,199 @@
       "symbol": "pitchlog.domainmut.engine.MutationGeneration",
       "reason": "ドメイン計算 DSL の変異生成結果であり、同期プロトコルの世代ではない"
     }
-  ]
+  ],
+  "condition_2_scoped_findings": {
+    "path": "backend/src/pitchlog/recording_rights/initial_grant.py",
+    "source_sha256": "c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3",
+    "findings": [
+      {
+        "line": 55,
+        "symbol": "int"
+      },
+      {
+        "line": 56,
+        "symbol": "int"
+      },
+      {
+        "line": 66,
+        "symbol": "int"
+      },
+      {
+        "line": 67,
+        "symbol": "int"
+      },
+      {
+        "line": 73,
+        "symbol": "ReservedGeneration"
+      },
+      {
+        "line": 76,
+        "symbol": "int"
+      },
+      {
+        "line": 77,
+        "symbol": "int"
+      },
+      {
+        "line": 83,
+        "symbol": "DurableGenerationSource"
+      },
+      {
+        "line": 86,
+        "symbol": "current_recovery_generation"
+      },
+      {
+        "line": 92,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
+      },
+      {
+        "line": 107,
+        "symbol": "generation"
+      },
+      {
+        "line": 147,
+        "symbol": "assert_recovery_generation"
+      },
+      {
+        "line": 192,
+        "symbol": "generation"
+      },
+      {
+        "line": 193,
+        "symbol": "recovery_generation"
+      },
+      {
+        "line": 201,
+        "symbol": "int"
+      },
+      {
+        "line": 202,
+        "symbol": "int"
+      },
+      {
+        "line": 203,
+        "symbol": "int"
+      },
+      {
+        "line": 204,
+        "symbol": "int"
+      },
+      {
+        "line": 212,
+        "symbol": "int"
+      },
+      {
+        "line": 213,
+        "symbol": "int"
+      },
+      {
+        "line": 222,
+        "symbol": "generation"
+      },
+      {
+        "line": 223,
+        "symbol": "recovery_generation"
+      },
+      {
+        "line": 231,
+        "symbol": "int"
+      },
+      {
+        "line": 232,
+        "symbol": "int"
+      },
+      {
+        "line": 256,
+        "symbol": "pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation"
+      },
+      {
+        "line": 257,
+        "symbol": "pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation"
+      },
+      {
+        "line": 269,
+        "symbol": "assert_write_recovery_generation"
+      },
+      {
+        "line": 271,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
+      },
+      {
+        "line": 282,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource.current_recovery_generation"
+      },
+      {
+        "line": 283,
+        "symbol": "pitchlog.recording_rights.initial_grant.RecoveryEpochFence.generation"
+      },
+      {
+        "line": 285,
+        "symbol": "pitchlog.recording_rights.initial_grant.InitialGrantScope.assert_recovery_generation"
+      },
+      {
+        "line": 299,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
+      },
+      {
+        "line": 337,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource.current_recovery_generation"
+      },
+      {
+        "line": 338,
+        "symbol": "locked.recovery_generation"
+      },
+      {
+        "line": 338,
+        "symbol": "pitchlog.recording_rights.initial_grant.RecoveryEpochFence.generation"
+      },
+      {
+        "line": 340,
+        "symbol": "pitchlog.recording_rights.initial_grant.InitialGrantScope.assert_recovery_generation"
+      },
+      {
+        "line": 345,
+        "symbol": "locked.generation"
+      },
+      {
+        "line": 352,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource.current_recovery_generation"
+      },
+      {
+        "line": 353,
+        "symbol": "pitchlog.recording_rights.initial_grant.RecoveryEpochFence.generation"
+      },
+      {
+        "line": 356,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource.reserve"
+      },
+      {
+        "line": 359,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration.recovery_generation"
+      },
+      {
+        "line": 368,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource.claim"
+      },
+      {
+        "line": 370,
+        "symbol": "pitchlog.recording_rights.initial_grant.InitialGrantScope.assert_recovery_generation"
+      },
+      {
+        "line": 376,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration.generation"
+      },
+      {
+        "line": 385,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration.generation"
+      },
+      {
+        "line": 392,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource.current_recovery_generation"
+      },
+      {
+        "line": 397,
+        "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration.generation"
+      }
+    ]
+  }
 }
