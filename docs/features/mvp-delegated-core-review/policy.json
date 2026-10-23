@@ -38,6 +38,10 @@
     {
       "pr": 175,
       "branch": "feature/ug1-preparing-connection"
+    },
+    {
+      "pr": 180,
+      "branch": "feature/ur1-initial-rights-history-repair"
     }
   ]
 }

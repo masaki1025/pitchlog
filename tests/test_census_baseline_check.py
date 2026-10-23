@@ -1913,12 +1913,308 @@ def _matches_equal_or_delimited_prefix(
     )
 
 
+def _validated_scoped_condition2_path(
+    *, source_root: Path, current_contract: Any
+) -> str | None:
+    """SHA固定ソースの条件2免除が承認済み47所見だけに効くと実測する。"""
+    relative_path = "pitchlog/recording_rights/initial_grant.py"
+    source_path = source_root / relative_path
+    if not source_path.is_file():
+        return None
+    source = source_path.read_text(encoding="utf-8")
+    if hashlib.sha256(source.encode("utf-8")).hexdigest() != (
+        current_contract.condition2_scoped_source_sha256
+    ):
+        return None
+    unsuppressed_contract = replace(
+        current_contract, condition2_scoped_findings=frozenset()
+    )
+    actual = {
+        (violation.line, violation.symbol)
+        for violation in checker.scan_source(
+            source, path=relative_path, contract=unsuppressed_contract
+        )
+        if violation.code == "TB002"
+    }
+    assert actual == current_contract.condition2_scoped_findings, (
+        "条件2の限定登録と実検出の47所見が一致しない",
+        sorted(actual - current_contract.condition2_scoped_findings),
+        sorted(current_contract.condition2_scoped_findings - actual),
+    )
+    return relative_path
+
+
+def _scoped_identity_digest(identities: frozenset[CensusIdentity]) -> str:
+    """限定所見の完全な identity 集合を順序非依存で固定する。"""
+    encoded = json.dumps(
+        sorted(identities), ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+_SCOPED_DIGEST_FIXTURE = (
+    REPOSITORY_ROOT / "tests/fixtures/tenant_boundary/census-scoped-digests.json"
+)
+_SCOPED_DIGEST_KEYS = frozenset(
+    {"removed_checker_43", "added_independent_ast_18"}
+)
+
+
+def _load_scoped_digest_fixture(path: Path = _SCOPED_DIGEST_FIXTURE) -> dict[str, str]:
+    """限定センサスの正解値を重複キーも拒否して読む。"""
+
+    def unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError(f"重複キー: {key}")
+            result[key] = value
+        return result
+
+    try:
+        raw: object = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=unique_object
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        raise AssertionError(f"限定digest fixtureを読めない: {path}: {error}") from error
+    assert isinstance(raw, dict), "限定digest fixtureはobjectが必要"
+    assert set(raw) == _SCOPED_DIGEST_KEYS | {"schema_version"}, (
+        "限定digest fixtureのキー集合が不正"
+    )
+    assert type(raw["schema_version"]) is int and raw["schema_version"] == 1, (
+        "限定digest fixtureのschema_versionが不正"
+    )
+    values: dict[str, str] = {}
+    for key in sorted(_SCOPED_DIGEST_KEYS):
+        value = raw[key]
+        assert isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value), (
+            f"限定digest fixtureの値が不正: {key}"
+        )
+        values[key] = value
+    return values
+
+
+def _assert_scoped_identity_digest(
+    identities: frozenset[CensusIdentity],
+    key: str,
+    *,
+    fixture_path: Path = _SCOPED_DIGEST_FIXTURE,
+) -> None:
+    """限定identity集合をfixtureの正解値とexact照合する。"""
+    assert key in _SCOPED_DIGEST_KEYS
+    expected = _load_scoped_digest_fixture(fixture_path)[key]
+    actual = _scoped_identity_digest(identities)
+    label = (
+        "旧checker由来の限定43 identityが一致しない"
+        if key == "removed_checker_43"
+        else "独立AST由来の限定18 identityが一致しない"
+    )
+    assert actual == expected, label
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("{", "読めない"),
+        ("[]", "objectが必要"),
+        ('{"schema_version":1}', "キー集合が不正"),
+        (
+            '{"schema_version":1,"removed_checker_43":"x",'
+            '"added_independent_ast_18":"y","extra":"z"}',
+            "キー集合が不正",
+        ),
+        (
+            '{"schema_version":1,"schema_version":1,'
+            '"removed_checker_43":"x","added_independent_ast_18":"y"}',
+            "重複キー",
+        ),
+        (
+            '{"schema_version":true,"removed_checker_43":"x",'
+            '"added_independent_ast_18":"y"}',
+            "schema_versionが不正",
+        ),
+        (
+            '{"schema_version":1,"removed_checker_43":0,'
+            '"added_independent_ast_18":"y"}',
+            "値が不正",
+        ),
+        (
+            '{"schema_version":1,"removed_checker_43":"bad",'
+            '"added_independent_ast_18":"y"}',
+            "値が不正",
+        ),
+    ],
+)
+def test_scoped_digest_fixture_rejects_invalid_content(
+    tmp_path: Path, content: str, message: str
+) -> None:
+    """欠損・余剰・重複・不正な正解値を拒否する。"""
+    fixture_path = tmp_path / "scoped-digests.json"
+    fixture_path.write_text(content, encoding="utf-8")
+    with pytest.raises(AssertionError, match=message):
+        _load_scoped_digest_fixture(fixture_path)
+
+
+def test_scoped_digest_fixture_rejects_missing_file(tmp_path: Path) -> None:
+    """fixtureを読めないときは検査を不合格にする。"""
+    with pytest.raises(AssertionError, match="読めない"):
+        _load_scoped_digest_fixture(tmp_path / "missing.json")
+
+
+@pytest.mark.parametrize("key", sorted(_SCOPED_DIGEST_KEYS))
+def test_scoped_digest_fixture_rejects_changed_valid_value(
+    tmp_path: Path, census_predicate_context: dict[str, Any], key: str
+) -> None:
+    """形式が正しくても正解値の改変を実測集合との照合で拒否する。"""
+    context = census_predicate_context
+    scoped_path = "pitchlog/recording_rights/initial_grant.py"
+    if key == "removed_checker_43":
+        identities = frozenset(
+            identity
+            for identity in context["data_sets"]["removed"]
+            if identity[0] == scoped_path and identity[4] == "TB002"
+        )
+    else:
+        declaration = cast(dict[str, Any], context["declaration"])
+        predicate = _condition2_candidate_predicate(declaration)
+        identities = frozenset(
+            identity
+            for identity in _independently_derived_added(
+                declaration=declaration,
+                predicate=predicate,
+                source_root=context["source_root"],
+                current_contract=context["current_contract"],
+                anchor_contract=context["anchor_contract"],
+            )
+            if identity[0] == scoped_path
+        )
+    _assert_scoped_identity_digest(identities, key)
+    changed = _load_scoped_digest_fixture()
+    changed[key] = ("0" if changed[key][0] != "0" else "1") + changed[key][1:]
+    fixture_path = tmp_path / "changed-scoped-digests.json"
+    fixture_path.write_text(
+        json.dumps({"schema_version": 1, **changed}), encoding="utf-8"
+    )
+    with pytest.raises(AssertionError, match="identityが一致しない"):
+        _assert_scoped_identity_digest(identities, key, fixture_path=fixture_path)
+
+
+def test_scoped_condition2_census_requires_exact_source_and_findings(
+    tmp_path: Path,
+) -> None:
+    """旧センサスとの粒度差を除く前にソースと47件の実測を固定する。"""
+    relative_path = Path("pitchlog/recording_rights/initial_grant.py")
+    source_path = tmp_path / relative_path
+    source_path.parent.mkdir(parents=True)
+    source_path.write_bytes(
+        (REPOSITORY_ROOT / "backend" / "src" / relative_path).read_bytes()
+    )
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert _validated_scoped_condition2_path(
+        source_root=tmp_path, current_contract=contract
+    ) == relative_path.as_posix()
+
+    missing_finding = replace(
+        contract,
+        condition2_scoped_findings=frozenset(
+            list(sorted(contract.condition2_scoped_findings))[1:]
+        ),
+    )
+    with pytest.raises(AssertionError, match="47所見が一致しない"):
+        _validated_scoped_condition2_path(
+            source_root=tmp_path, current_contract=missing_finding
+        )
+
+    source_path.write_text(
+        source_path.read_text(encoding="utf-8") + "\n",
+        encoding="utf-8",
+    )
+    assert (
+        _validated_scoped_condition2_path(
+            source_root=tmp_path, current_contract=contract
+        )
+        is None
+    )
+
+
+def test_scoped_condition2_census_rejects_extra_anchor_identity(
+    census_predicate_context: dict[str, Any],
+) -> None:
+    """旧checker側の別シンボルを限定免除へ紛れ込ませない。"""
+    context = census_predicate_context
+    declaration = cast(dict[str, Any], context["declaration"])
+    predicate = _unadjudicated_removed_tb002_predicate(declaration)
+    data_sets = dict(context["data_sets"])
+    original = next(
+        identity
+        for identity in data_sets["removed"]
+        if identity[0] == "pitchlog/recording_rights/initial_grant.py"
+        and identity[4] == "TB002"
+    )
+    injected = _replace_identity_field(
+        original, index=5, value="unapproved_generation"
+    )
+    data_sets["removed"] = data_sets["removed"] | {injected}
+    with pytest.raises(AssertionError, match="限定43 identityが一致しない"):
+        _assert_declared_predicate(
+            predicate,
+            declaration=declaration,
+            data_sets=data_sets,
+            source_root=context["source_root"],
+            current_contract=context["current_contract"],
+            anchor_contract=context["anchor_contract"],
+            reference_repository_root=context["reference_repository_root"],
+        )
+
+
+def test_scoped_condition2_census_rejects_extra_independent_candidate(
+    census_predicate_context: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """独立AST側の承認外候補をパス一括除外しない。"""
+    context = census_predicate_context
+    declaration = cast(dict[str, Any], context["declaration"])
+    predicate = _condition2_candidate_predicate(declaration)
+    original_derive = _independently_derived_added
+
+    def with_extra_candidate(**kwargs: Any) -> frozenset[CensusIdentity]:
+        candidates = original_derive(**kwargs)
+        extra: CensusIdentity = (
+            "pitchlog/recording_rights/initial_grant.py",
+            999_999,
+            999_999,
+            "<module>",
+            "TB002",
+            "unapproved_generation",
+            "条件 2 の禁止シンボルを検出",
+        )
+        return candidates | {extra}
+
+    with monkeypatch.context() as mutation:
+        mutation.setattr(
+            sys.modules[__name__],
+            "_independently_derived_added",
+            with_extra_candidate,
+        )
+        with pytest.raises(AssertionError, match="限定18 identityが一致しない"):
+            _assert_declared_predicate(
+                predicate,
+                declaration=declaration,
+                data_sets=context["data_sets"],
+                source_root=context["source_root"],
+                current_contract=context["current_contract"],
+                anchor_contract=context["anchor_contract"],
+                reference_repository_root=context["reference_repository_root"],
+            )
+
+
 def _assert_unadjudicated_removed_remains(
     predicate: dict[str, Any],
     *,
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
     current_contract: Any,
+    source_root: Path,
+    reference_repository_root: Path | None = None,
     **_: Any,
 ) -> None:
     """所有パス外の裁定外減分が現行 census の指定 code で残ると検証する。"""
@@ -2022,7 +2318,22 @@ def _assert_unadjudicated_removed_remains(
     symbol_index = identity_indexes[identity_symbol_field]
     code_index = identity_indexes["code"]
     current_census = data_sets[current_set]
+    scoped_path = _validated_scoped_condition2_path(
+        source_root=source_root, current_contract=current_contract
+    )
+    scoped_removed = frozenset(
+        identity
+        for identity in data_sets[set_name]
+        if identity[code_index] == "TB002"
+        and identity[identity_indexes["path"]] == scoped_path
+    )
+    if scoped_path is not None and (
+        scoped_removed or reference_repository_root is not None
+    ):
+        _assert_scoped_identity_digest(scoped_removed, "removed_checker_43")
     for identity in data_sets[set_name]:
+        if identity in scoped_removed:
+            continue
         if _condition2_owned_path(
             str(identity[identity_indexes["path"]]), current_contract
         ):
@@ -2084,6 +2395,22 @@ def _assert_added_equals_independently_derived_candidates(
         current_contract=current_contract,
         anchor_contract=anchor_contract,
     )
+    scoped_path = _validated_scoped_condition2_path(
+        source_root=source_root, current_contract=current_contract
+    )
+    if scoped_path is not None:
+        scoped_candidates = frozenset(
+            identity for identity in expected if identity[0] == scoped_path
+        )
+        _assert_scoped_identity_digest(scoped_candidates, "added_independent_ast_18")
+        assert all(
+            (identity[1], identity[5].removeprefix("builtins."))
+            in current_contract.condition2_scoped_findings
+            for identity in scoped_candidates
+        ), "独立AST候補が承認済み47所見へ帰属しない"
+        expected = frozenset(
+            identity for identity in expected if identity not in scoped_candidates
+        )
     actual = data_sets[set_name]
     assert actual == expected, (
         f"missing={sorted(expected - actual)}, extra={sorted(actual - expected)}"
