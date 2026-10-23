@@ -1000,7 +1000,7 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
 
 
 def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
-    """固定3登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
+    """固定4登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
     from pitchlog.repositories.operation_registry import (
         PRODUCT_FUNCTION_OPERATIONS,
         PRODUCT_OPERATIONS,
@@ -1008,13 +1008,19 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
     from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 
     asset = _read_contract()
-    expected = ("RG1:precheck", "RG1:commit_check", "RULE:resolve_stage_a")
+    expected = (
+        "RG1:precheck",
+        "RG1:commit_check",
+        "RG1:scope_binding",
+        "RULE:resolve_stage_a",
+    )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
     assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS) == (
         "rg1_api.rg1_read_open",
         "rg1_api.rg1_assert_open_before_commit",
+        "rg1_control.scope_binding",
         "public.resolve_stage_a_rule",
     )
     registration = PRODUCT_FUNCTION_OPERATIONS[-1]
