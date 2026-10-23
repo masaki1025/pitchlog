@@ -7,7 +7,7 @@ worktree: ../../..
 notion: https://app.notion.com/p/3da93b75e687812e9b44d0b6ff5196e7
 branch: feature/mvp-preparing-create-connection
 created: 2026-10-24
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -44,11 +44,11 @@ requirements/design/ADR/development/opsへの反映なし。既存FR-014段階A�
 
 | 範囲 | パス・許す差分 |
 | --- | --- |
-| backend作成 | `backend/src/pitchlog/repositories/games.py`、新`backend/src/pitchlog/services/game_creation.py`、`backend/src/pitchlog/api/schemas/games.py`、`backend/src/pitchlog/api/routers/games.py`。既存readを保持し、作成/optionsのtoken・固定文・DTO・service・handlerを追加 |
+| backend作成 | 既存`backend/src/pitchlog/repositories/games.py`と新`backend/src/pitchlog/repositories/preparing_game_creation.py`、新`backend/src/pitchlog/services/game_creation.py`、`backend/src/pitchlog/api/schemas/games.py`、`backend/src/pitchlog/api/routers/games.py`。既存readを保持し、作成/optionsのtoken・固定文・DTO・service・handlerを追加 |
 | 実登録/C2 | `backend/src/pitchlog/repositories/operation_registry.py`、`backend/src/pitchlog/api/tenant_access.py`、必要な`backend/src/pitchlog/api/app.py`の既存router接続のみ。実scope/execute/認証基盤/codec/resolver/RG1実装はコピーも緩和もしない |
 | backend試験 | 既存`backend/tests/test_game_preparing_components.py`、`backend/tests/test_game_preparing_read_boundary.py`、`backend/tests/test_api_app.py`、`backend/tests/test_authz_repository_contract.py`、新`backend/tests/test_game_preparing_create_boundary.py`・`backend/tests/db/test_game_preparing_create_db.py`。`backend/tests/conftest.py`変更0、既存fixture/使い捨てPG構築を再利用 |
 | frontend | `frontend/src/api/games.ts`/`games.spec.ts`、既存`frontend/src/screens/GameScreenEntry.vue`・`GameScreenEntryHost.vue`・`GameScreenEntryTypes.ts`・`GameScreenEntryProvider.ts`と対応spec、新`GameScreenPreparingCreate.vue`/`GameScreenPreparingCreate.spec.ts`・`GameScreenPreparingCreateProvider.ts`/`GameScreenPreparingCreateProvider.spec.ts`。共有Pinia/QueryClient/正規client/roster APIを再利用。readと開始封鎖を保持 |
-| metadata候補 | `contracts/tenant_boundary/base-allowlist.json`・`repository-contract.json`、生成`backend/src/pitchlog/repositories/repository_contract.py`、既存`tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games.py`・`games/__init__.py`、`tests/test_check_tenant_boundary_bypass.py`。作成/optionsで実在するfactory/token/fixtureだけ追加、他全field/順序保持 |
+| metadata候補 | `contracts/tenant_boundary/base-allowlist.json`・`repository-contract.json`、生成`backend/src/pitchlog/repositories/repository_contract.py`、既存read正例`tests/fixtures/tenant_boundary/positive/pitchlog/repositories/games.py`・`games/__init__.py`は無変更保持。新正例は後記の`tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/`直下exact6パスだけ、追加試験は`tests/test_check_tenant_boundary_bypass.py`。新6factory/7token/6fixtureを一対一のfactory許可として追加し、他全field/順序保持 |
 | 認可候補 | `contracts/authz/route-registry.json`・`http-route-matrix.json`、`tests/test_check_authz_catalog.py`。`scripts/check_authz_catalog.py`はrecord_and_aggregate既知route集合へ下記2件の追記だけ、旧集合と欠落/余剰拒否を維持。lock/oracle/正式履歴はroot後続ゲート |
 
 `repositories/*`・`api/*`・`frontend/src/api/*`・`GameScreen*`・`backend/tests/db/*`は起点のcore対象。新serviceと新boundary試験は固定readのtenant-isolation登録`backend/src/pitchlog/services/game_creation.py`・`backend/tests/test_game_preparing*.py`で捕捉する（[research](research.md)）。これら供給を取り込んでから新ファイルを作るため、新core先行宣言/JSON登録は不要。実接合時に実`core_guard`で全予定パスと拒否保持を確認する。供給前に未登録serviceを先行作成しない。新しい対象外pathが必要なら、宣言/試験→別JSON→製品の別コミット追補を先に承認する。本planからcore3ファイルを無断編集しない。
@@ -81,13 +81,36 @@ resolver公開4失敗の外形は親designを維持する: `stage_a_unsupported`
 
 metadataのfactory許可は実sourceのmodule/関数/戻り文種別/署名をexact対応させ、SELECT許可へINSERTを紛れ込ませない。既存DMLの固定文検査・token登録・tenant注入を使う。許可方式に新しい検査能力が必要と判明したら、その具体的不足を限定追補してから実装する。生成moduleは`test_authz_repository_contract.py`の全field対応を正とし、3定数等へ限定しない。
 
+### factory・token・正例の閉集合（第1回P1採用）
+
+既存readの`games.py`/`games/__init__.py`はlist/detail専用正例として保持し、新関数のfixtureへ再指定しない。作成/optionsの新factoryと新tokenはすべて新module `backend/src/pitchlog/repositories/preparing_game_creation.py`に置く（module完全修飾名`pitchlog.repositories.preparing_game_creation`）。既存`repositories/*` core glob内であり追加登録不要。`repositories/games.py`のread SQL/許可2行は変更しない。
+
+以下のfactoryはこのmodule直下の関数で、signatureの戻り型は`sqlalchemy.sql.dml.Insert`又は`sqlalchemy.sql.selectable.Select[Any]`を正規importする。表中fixtureの前置はすべて`tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/`。**この6ファイルをexact集合とし、package用__init__.py等の余剰正例は作らない。**
+
+| factoryのexact署名 | token型（同module）/CAP | 固定文の役割 | 一意fixture末尾 / allowed_api_ids |
+| --- | --- | --- | --- |
+| `_preparing_game_insert_statement() -> Insert` | `PreparingGameInsertToken` / `CAP:games:insert` | games INSERTのみ。tenantは注入、server game ID、preparing、規則6-key、全入力label。開始/権利列は発行しない | `_preparing_game_insert_statement.py` / `SQLA_INSERT`のみ |
+| `_preparing_tournament_insert_statement() -> Insert` | `PreparingTournamentInsertToken` / `CAP:tenant_vocabularies:insert` | tenant語彙INSERTのみ。server key、tournament、表示名、disabled=false、不要属性NULL | `_preparing_tournament_insert_statement.py` / `SQLA_INSERT`のみ |
+| `_preparing_tournament_options_statement(cursor_key: str \| None=None) -> Select[Any]` | `PreparingTournamentOptionsToken` / `CAP:tenant_vocabularies:read` | 有効tournamentだけ、key順、任意cursor_key、bind limit+1最大101 | `_preparing_tournament_options_statement.py` / `SQLA_SELECT`のみ |
+| `_preparing_tournament_name_exists_statement() -> Select[Any]` | `PreparingTournamentNameExistsToken` / `CAP:tenant_vocabularies:read` | 同tenant/categoryのdisplay_name完全一致、disabled条件を付けず有効/無効とも409判定、bind limit=1 | `_preparing_tournament_name_exists_statement.py` / `SQLA_SELECT`のみ |
+| `_preparing_tournament_parent_statement() -> Select[Any]` | `PreparingTournamentParentToken` / `CAP:tenant_vocabularies:read` | 指定keyの有効tournamentをbind limit=1で照合。待機後の権威ある親再検証/ロックは正規resolverが担当 | `_preparing_tournament_parent_statement.py` / `SQLA_SELECT`のみ |
+| `_preparing_team_lock_statement() -> Select[Any]` | `PreparingSelfTeamLockToken`、`PreparingOpponentTeamLockToken` / いずれも`CAP:team_records:read` | 1行id SELECTの通常FOR UPDATE。tenant/id主キー全束縛、kindは各tokenのprepare/RequiredBindingでself/opponentへ固定、hidden IS NULL。任意kind/lock変種なし | `_preparing_team_lock_statement.py` / `SQLA_SELECT`のみ |
+
+teamの先行lookupは既存`pitchlog.repositories.roster.SelfTeamRecordReadToken`（1件）と`TeamRecordReadToken(limit=1, record_id=指定ID)`（opponent限定、hiddenなし）を再利用する。self ID以外は後者で照合し、任意kindを利用者から受けない。既存`_build_roster_statement`/正例/登録は無変更。self/opponentが判明した後、上記2種のlock tokenをUUID順・同ID重複除去して実行する。同じ1factoryを共有する2tokenにfixtureを2重割当しない。gameの201 DTOは検証済み入力・server値・正規encode値から組み立て、追加のgame読取factoryを作らず、commit後の既存GETで保存全値を照合する。
+
+他の再利用操作は公開resolverの`StageAResolveRuleToken`（`resolve_stage_a_rule`経由、既存固定関数factory/許可を保持）、`RG1PrecheckToken`/`RG1CommitCheckToken`（既存公開関数経由）、既存list/detail2tokenである。区分表示は正本seedで、新system語彙DB tokenは作らない。これらを含めて新設は**6factory・7通常token・6正例**であり、追加の実行SQLが必要なら先にこの対応表/scopeを追補する。
+
+正例は既存`startup_allowed`と同じclass-qualified方式を使う。各一意fixtureに`class preparing_game_creation`を置き、対象factoryと同じ引数/戻り注釈の`@staticmethod`を1個だけ定義する。SELECT正例はselect1回、INSERT正例は小さなTableにinsert1回だけ。実行/接続/SQL文字列は含めない。実checker `scan_directory`の既存fixture alias（5939–5951付近）は、宣言symbol末尾2成分`preparing_game_creation.<factory>`をfixture moduleへ対応させる。製品は通常のmodule直下symbolで検査し、fixtureだけのaliasを製品へ広げない。fixturepath一意拒否（900–905）と正例actual/declared exact-set（1606–1616）は変更しない。
+
+ステップ1はこの6factory/7tokenと候補OperationRegistration集合・serviceを実装するが、production registry/metadata/正例はステップ3まで追加しない。純入力/SQL生成・固定文検査と実常閉RG1の拒否を局所確認し、正式checkerの未許可TB005等を未受理として明記する。ステップ3で7tokenを既存PRODUCT_OPERATIONSへ追加し、6allowlist行/6正例を同時対応させ、generated module全fieldを再導出する。既存read2factory/正例/許可API/署名/順序を保持し、新集合だけの正例通過、全拒否TB900（各fixtureの単一DB API callを検出）、誤module/関数/署名、欠落/余剰/fixture重複、SELECT↔INSERT入替・text/updateの拒否を既存root試験へ追加する。実fixture検査はaliasを構成する既存`scan_directory(POSITIVE_ROOT, ...)`経路を使い、素のscan_sourceでclass aliasの検査を省略しない。実source側も6許可symbolのexact対応/全拒否を別に確認する。
+
 ### 実装ステップ（コミット単位）
 
 | # | 実行単位 | 合格条件 |
 | --- | --- | --- |
-| 1 | 正常候補を隔離接合し、backend作成/optionsのDTO・DML/token・service・拒否境界を候補化 | 全供給bytes/旧登録/履歴保持とcore捕捉を確認。RG1常閉を保持し、生成固定文のtenant/列/型/上限、無効大会/category/両team/余剰入力の拒否、実RG1常閉から非成功・全取消を検証。実成功は未達。任意成功RG1/auth/codecコピーなし。正式資産の未受理拒否は記録して局所合格と区別 |
+| 1 | 正常候補を隔離接合し、backend作成/optionsのDTO・DML/token・service・拒否境界を候補化 | 全供給bytes/旧登録/履歴保持とcore捕捉を確認。RG1常閉を保持し、上記6factory/7token候補（production未登録）の固定文tenant/列/型/上限、無効大会/category/両team/余剰入力の拒否、実RG1常閉から非成功・全取消を検証。実成功は未達。任意成功RG1/auth/codecコピーなし。正式資産の未受理拒否は記録して局所合格と区別 |
 | 2 | 既存入口へ作成入力フォームと正規client/providerを接続準備 | 大会選択・new名・roster self/opponent・全任意値を保持。入力欠落/offline/送信中二重POST/旧epoch・遅延応答/結果不明自動再送0をVitestで検証。RG1未提供でも実装可、仮保存成功/画面seedを実作成成功へ数えない。既存read/開始封鎖を保持 |
-| 3 | 固定実RG1供給を接合し、作成/optionsの通常登録metadataと実HTTP/実PG全取消を候補検証 | 実RG1成功source/権限/実提供契約をrootから受領後に接続。実login Cookie/C2→同tenant scope→正規resolver→INSERT→直前ゲート→commit後201とGET保存全値一致。新語彙直後/ゲームINSERT後/直前RG1拒否/commit障害で両INSERT取消、既存語彙不変を確認。RG1二接続競合を実関数で検証。登録候補/生成全field/正負fixtureを固定し非作者レビューへ渡す。正式7.7/lock/oracle受理は下記root後続ゲート |
+| 3 | 固定実RG1供給を接合し、作成/optionsの通常登録metadataと実HTTP/実PG全取消を候補検証 | 実RG1成功source/権限/実提供契約をrootから受領後に接続。実login Cookie/C2→同tenant scope→正規resolver→INSERT→直前ゲート→commit後201とGET保存全値一致。新語彙直後/ゲームINSERT後/直前RG1拒否/commit障害で両INSERT取消、既存語彙不変を確認。RG1二接続競合を実関数で検証。7token登録/6factory許可/一意6正例・既存全許可保持/生成全field/正負fixtureを固定し非作者レビューへ渡す。正式7.7/lock/oracle受理は下記root後続ゲート |
 
 各行は個別指示・個別commitで止まる。ステップ1/2の独立部分をRG1待ちで一律停止しない。ステップ3未供給は未完のまま保持し、成功stubで緑にしない。親6/6・read全workstream/親#175追加敵対1回は本計画と別に保持する。
 
@@ -108,6 +131,6 @@ oracleはroute/matrix等更新済み8入力を確定するcommit Cを先に固�
 | backend局所 | 上記既存component/read/API/contract試験と新create boundary試験。DTO悪型/5区分/label/大会排他、tenant束縛/extra/禁止列、token強制変更/失効scope/任意SQL拒否。実RG1常閉/実resolver失敗のrollbackを先行実行。backend対象Ruff format/check・ty |
 | frontend | games.spec、Entry/Provider既存specと新Create/Provider spec。正規clientの送信exact値、二重操作でPOST1回、遅延POST/GETとauthEpoch切替・旧cache拒否・明示結果確認。悪意ある大会名/labelの自動エスケープを確認。Prettier/ESLint/vue-tsc/Vitest/build。`.env`を読まない`envDir:false`で起動 |
 | 実HTTP/DB | 新db試験は既存migration/製品認可DDL/実アプリ接続fixtureを再利用し共有DB禁止。server側のみをseedして保存成功と称さず、実Cookie/C2/登録scope/正規resolver/RG1を通す。正常201全値、別tenant/無効親/割当あり/上書き拒否/unknown拒否、新名を含む故障別の新語彙0・新game0、既存語彙不変、二接続の復元先行/作成先行を実測。RG1未供給時は未実行として残す |
-| metadata/root | 既存test_check_tenant_boundary_bypass/test_authz_repository_contractの全fieldと2factory/fixture、旧許可全部・誤署名/誤種別/欠落/余剰拒否。authz checker旧route全保持+新2件、C2 prematch順。root Ruff/ty、対象pytest、docs-status/局所plan-sync/core_guard、正式no-flag checker。既知未受理と実装不備を分け、skip/timeout/中断を成功にしない |
+| metadata/root | 既存test_check_tenant_boundary_bypass/test_authz_repository_contractの全fieldと上記新6factory/7token/一意6fixture、旧read2件を含む全許可保持、各新正例の全拒否TB900、誤module/関数/署名・fixture重複・SELECT/INSERT種別混入・text/update・欠落/余剰拒否。authz checker旧route全保持+新2件、C2 prematch順。root Ruff/ty、対象pytest、docs-status/局所plan-sync/core_guard、正式no-flag checker。既知未受理と実装不備を分け、skip/timeout/中断を成功にしない |
 
-調査の固定根拠・未裁定境界・既存レビュー回数は[research.md](research.md)。本起案はレビュー0回、承認未。旧#175の基本2回・read追加1回未消費を継承しつつ、本計画の新しい局所レビューをその追加枠へ算入しない。
+調査の固定根拠・未裁定境界・既存レビュー回数は[research.md](research.md)。本計画はレビュー第1回P0=0/P1=1/P2=0を採用し反映済み、改訂差分は未再レビュー・承認未。旧#175の基本2回・read追加1回未消費を継承しつつ、本計画の新しい局所レビューをその追加枠へ算入しない。

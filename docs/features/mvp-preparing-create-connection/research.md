@@ -55,7 +55,7 @@
 
 ## レビュー・検査記録
 
-本計画は初回起案、非作者レビュー0回、採否未発生、承認未。親の基本2回/read追加1回未消費、関連候補の既存レビューを保持し、新計画の承認へ流用しない。検査結果と対象SHAは提出時の報告へ固定する。現時点で製品試験・実DB・実HTTPは実行していない。
+初回起案時は非作者レビュー0回・採否未発生であった。第1回非作者レビュー/root/rights_replacement_reviewはf77c172b対象でP0=0/P1=1/P2=0、rootがP1を全採用。今回その指摘を反映し、レビュー回数1・改訂未再レビュー・承認未とする。親の基本2回/read追加1回未消費、関連候補の既存レビューを保持し、新計画の承認へ流用しない。検査結果と対象SHAは提出時の報告へ固定する。現時点で製品試験・実DB・実HTTPは実行していない。
 
 ## 固定参照のSHA-256
 
@@ -71,3 +71,17 @@
 | RG1 | `7e04ce1fd9284d059d44178b1df1df101b3166da302b9e8b62d20f51dd0b1c65` |
 
 追加の局所照合: 起点`repositories/base.py`:172–181はFOR SHARE/read変種を拒否する。`authz/capability_registration.py`:`_is_lineup_team_lock`/1428–1436はteam id1列・tenant/id/kindのbind・hidden IS NULLの通常FOR UPDATE形を既存CAP:team_records:readで限定許可する。planはこの形だけを再利用し、大会親はresolver自身がロックする。新しいshared-table operationや汎用lock検査緩和を必要としない。
+
+## 第1回P1採用と改訂（2026-10-24）
+
+対象旧HEAD `f77c172b0b116ca2c2b69a27fb27a3eaf6f0d91e`、旧plan SHA `841e392249e8a9ba9a70f955cfa34ca1e4372387c001ddec42dd9e5d8aaaa543`。非作者/root/rights_replacement_review全文結果はP0=0/P1=1/P2=0、否決。P1内容は、既存readのgames.py/games/__init__.pyだけでは新SQL factory群の一意正例を供給できず、checkerのfixture重複拒否と矛盾し、テスト記述も旧2factoryのままであったこと。rootが指摘を全採用、反映未再レビュー。元の否決を消さず今回レビュー回数1を保持する。
+
+修正はplan/researchだけ。source/JSON/fixture/DBの作成・変更0。新module `repositories/preparing_game_creation.py`へ6factory/7tokenを集め、step1の候補とstep3のproduction/metadata登録を分離する。正例は新exact6パス、read既存2パスは無変更、team lookup/既存RG1/resolver/GETを再利用する完全集合をplan表に明示した。SQL種別を混在許可する汎用builderにまとめず、INSERT2関数はSQLA_INSERTだけ、SELECT4関数はSQLA_SELECTだけを許す。
+
+実checker根拠は固定read `6f60983c`の`_load_allowlist`:900–905（fixture一意）、`load_contract`:1606–1616（正例ファイルexact-set）、`scan_directory`:5931–5957（宣言fixtureに限りsymbol末尾2成分をclass-qualified aliasへ写す）。既存`positive/pitchlog/db/startup_allowed/_require_same_database.py`のclass stage_a_startup + staticmethod形を読み、新6fixtureではclass preparing_game_creation + 各factoryのstaticmethod1個へ対応する。余剰__init__.pyを作るとexact-set違反になるため作らない。
+
+固定6f60983cの実checkerを読み、candidate source/正例/JSONをディスクへ作らず、メモリ内の6個のclass-qualified fixture文字列と追加AllowedSymbolだけでaliasとAPI検査を実行した（PYTHONDONTWRITEBYTECODE=1）。各6件について正例違反0、全拒否でTB900ちょうど1、SELECT/INSERT逆API・text/update混入でTB005を確認した。これはfixture構成の実行可能性の局所調査であり、候補製品6factoryの実装済み/本試験完了/正式受理ではない。sourceとJSONへの書込0、DB/接続API実行0。新fixture実装後は既存scan_directory全正例exact-setと各新pathの全拒否を正式な対象試験で検証する。
+
+coreは固定6f60983cの実JSONで照合する。新sourceは`backend/src/pitchlog/repositories/*`、一意fixture6パスは`tests/fixtures/tenant_boundary/*`に一致し、いずれもtenant-isolation。境界試験は前回のread登録内。sourceglob/fixtureglobとも実在しており新core宣言/JSON登録は不要、core拒否/旧登録/順序の縮小0。新module/6正例追加を予定scopeに明記する。
+
+名称提案について第1回は追加指摘なし。rootは最終計画承認で無変換・空白only拒否・完全一致new重複409をAPI入力/失敗の具体化として委任判断する予定、と通知した。現時点は承認未のまま、旧採用済み/表示名global unique追加として記録しない。旧175基本2回・親read追加1回未消費、各供給の既存レビューを維持する。
