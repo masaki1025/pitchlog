@@ -29,10 +29,17 @@ from pitchlog.api.schemas.games import (
     PreparingGameCreate,
     PreparingGameListRequest,
     _copy_preparing_snapshot_json,
+    _decode_preparing_snapshot,
     decode_preparing_game_cursor,
     encode_preparing_game_cursor,
 )
 from pitchlog.db.game_state.models import Game
+from pitchlog.db.game_state.rule_snapshot import (
+    DomainValidatedRuleSnapshot,
+    RuleSnapshotFailure,
+    RuleSnapshotInvalid,
+    encode_applied_rules,
+)
 from pitchlog.repositories.base import (
     _materialize_rows,
     _operation_spec,
@@ -408,12 +415,98 @@ def test_first_page_has_limit_plus_one_without_cursor_branch() -> None:
     assert str(spec.statement.compile(dialect=postgresql.dialect())) == sql
 
 
-def test_read_candidates_remain_unregistered_in_real_executor() -> None:
-    """候補を製品登録済みと見なさず、実レジストリの拒否を確かめる。"""
+def test_read_candidates_are_connected_to_real_executor_in_isolation() -> None:
+    """隔離sourceの正規2token登録とtenant注入を確認する。正式受理は別。"""
     registered_types = {registration.token_type for registration in PRODUCT_OPERATIONS}
     for operation in (PreparingGameListToken(), PreparingGameDetailToken(_GAME_ID)):
-        assert type(operation) not in registered_types
-        with pytest.raises(RuntimeError, match="未登録"):
-            _operation_spec(operation)
-        with pytest.raises(RuntimeError, match="未登録"):
-            _prepare_operation(operation, uuid4())
+        assert type(operation) in registered_types
+        assert _operation_spec(operation).capability_id == "CAP:games:read"
+        tenant = uuid4()
+        _, parameters = _prepare_operation(operation, tenant)
+        assert parameters["tenant_id"] == tenant
+
+
+def _saved_snapshot() -> dict[str, Any]:
+    """正規 codec が受理する保存値を返す。出所証明には使用しない。"""
+    return {
+        "ruleSetId": "0a000000-0000-4000-8000-000000000001",
+        "regulationInnings": 9,
+        "coldConditions": [],
+        "extensionLimit": 12,
+        "tiebreak": {
+            "startInning": 10,
+            "runnerPlacement": "no_out_first_second",
+            "leadoffRule": "continue_lineup",
+        },
+        "dh": True,
+    }
+
+
+def test_saved_snapshot_materialization_decodes_through_real_codec() -> None:
+    """実行器の不変 JSON を単一 codec で検証し、保存値を同じ形で返す。"""
+    raw = _saved_snapshot()
+    immutable = _materialize_rows(((raw,),)).rows[0][0]
+    decoded = _decode_preparing_snapshot(immutable)
+    assert type(decoded) is DomainValidatedRuleSnapshot
+    assert encode_applied_rules(decoded) == raw
+    assert type(immutable) is MappingProxyType
+    assert type(immutable["coldConditions"]) is tuple
+    assert type(immutable["tiebreak"]) is MappingProxyType
+    encoded = encode_applied_rules(decoded)
+    encoded["coldConditions"] = [{"pointDifference": 10, "startInning": 5}]
+    assert raw["coldConditions"] == []
+    assert immutable["coldConditions"] == ()
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ({}, RuleSnapshotFailure.SHAPE),
+        (
+            {
+                key: value
+                for key, value in _saved_snapshot().items()
+                if key != "ruleSetId"
+            },
+            RuleSnapshotFailure.SHAPE,
+        ),
+        ({**_saved_snapshot(), "extra": "secret-raw"}, RuleSnapshotFailure.SHAPE),
+        ({**_saved_snapshot(), "ruleSetId": "secret-raw"}, RuleSnapshotFailure.VALUE),
+        ({**_saved_snapshot(), "regulationInnings": 0}, RuleSnapshotFailure.VALUE),
+        ({**_saved_snapshot(), "extensionLimit": 8}, RuleSnapshotFailure.CORRELATION),
+        (
+            {
+                **_saved_snapshot(),
+                "coldConditions": [{"pointDifference": 10, "startInning": 10}],
+            },
+            RuleSnapshotFailure.UNRESOLVED,
+        ),
+    ],
+)
+def test_saved_snapshot_rejects_old_corrupt_and_unresolved_values(
+    raw: dict[str, Any],
+    expected: RuleSnapshotFailure,
+) -> None:
+    """旧行や不正値を補完・再解決せず、正規 codec の失敗分類を保持する。"""
+    immutable = _materialize_rows(((raw,),)).rows[0][0]
+    with pytest.raises(RuleSnapshotInvalid) as error:
+        _decode_preparing_snapshot(immutable)
+    assert error.value.kind is expected
+    assert "secret-raw" not in str(error.value)
+
+
+def test_saved_snapshot_contract_unavailable_is_not_a_success(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """正規契約を取得できないときも未検証の保存値を成功へ戻さない。"""
+    from pitchlog.db.game_state import rule_snapshot
+
+    immutable = _materialize_rows(((_saved_snapshot(),),)).rows[0][0]
+    rule_snapshot._validator.cache_clear()
+    monkeypatch.setattr(rule_snapshot, "_CONTRACT_PATH", tmp_path / "missing.json")
+    try:
+        with pytest.raises(rule_snapshot.RuleSnapshotContractUnavailable):
+            _decode_preparing_snapshot(immutable)
+    finally:
+        rule_snapshot._validator.cache_clear()

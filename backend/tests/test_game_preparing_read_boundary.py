@@ -99,8 +99,6 @@ class _ListTokenSubclass(PreparingGameListToken):
 @pytest.mark.parametrize(
     "operation",
     [
-        PreparingGameListToken(),
-        PreparingGameDetailToken(_GAME_ID),
         _FakeReadToken(),
         _ListTokenSubclass(),
     ],
@@ -111,6 +109,17 @@ def test_real_registry_rejects_preparing_candidates_and_forged_tokens(
     """候補・偽 token・サブクラスを製品登録済みとして扱わない。"""
     with pytest.raises(RuntimeError, match="未登録または偽造"):
         _operation_spec(operation)
+
+
+@pytest.mark.parametrize(
+    "operation,index",
+    [(PreparingGameListToken(), 0), (PreparingGameDetailToken(_GAME_ID), 1)],
+)
+def test_real_registry_registers_exact_preparing_reads(
+    operation: TenantOperationToken, index: int
+) -> None:
+    """候補接続では正規2tokenだけを通常registryへ登録する。"""
+    assert _operation_spec(operation) is PREPARING_GAME_READ_OPERATIONS[index]
 
 
 def test_candidate_prepare_rejects_other_operation_type() -> None:

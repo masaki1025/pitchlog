@@ -21,6 +21,8 @@ _ACK_HEADER = b"x-pitchlog-tenant-match"
 _CHALLENGE_RESPONSE_HEADER = b"x-pitchlog-tenant-challenge"
 _MATCH_OPERATIONS = frozenset(
     {
+        "preparing_game_list",
+        "preparing_game_detail",
         "roster_self_team_read",
         "roster_team_list",
         "roster_team_create",

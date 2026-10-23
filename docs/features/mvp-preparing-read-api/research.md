@@ -56,4 +56,40 @@ DB HTTP検証は既存test_api_auth_exit_entry.pyのisolated catalog/settings/id
 
 親plan末尾の正式read追加敵対1回は、#174→#173実統合後の実基線・接続候補HEAD/diff固定が実行条件。本起案・隔離component/API接続の独立照合に流用しない。親の基本枠/追加許可・6.1計画レビュー・コードレビュー系列を分け、既存回数をリセットしない。現在は起案のみで、独立計画レビュー/本候補実装/正式7.7/正式step4全体は未成立。
 
+## 承認後の隔離実装と実HTTP/DB検証（2026-10-24）
+
+rootのPO委任承認 `9e2ac0a3fcadb9e75854866aebb553cbc2228087` により計画表1ステップを実装した。上段の起案時点の履歴は保持する。通常PRODUCT_OPERATIONSへ2token、通常app.ROUTERSへGET2、C2 runtime閉集合へ既存案の2 IDを接続した。既存SELECT/token本体は変更していない。新routerのwith内で保存codec/DTO/Pageを検証し、例外がscopeを終了させた後だけ固定503へ写す。新service、成功固定の認可/Port/provider、現在規則への再解決は作らなかった。
+
+6ddbc341の新接合2パス差分だけを再利用し、単一codecはsupplier bc436803とbyte一致で供給した。JSON整数型是正を維持し、業務検証をDTO/サービスへ複製していない。依存はjsonschema==4.26.0と必要な5追加packageだけ。既存packageはbackend自身の依存宣言以外の差分0で、uvが付随生成した無関係metadataは元の正確な値へ戻した。frontendは `pnpm install --frozen-lockfile` のsetupだけで、宣言/lock・artifact検査は変更していない。
+
+署名素材は既存roster fixtureの非秘密固定設定式だけを、指定2fixtureへ適用した。認可stub helperを呼んでおらず、当該fixture内に鍵生成呼出しがないことをASTで確認した。運用鍵/本人署名の発行や既存.env/秘密へのアクセスはない。鍵設定置換の初回補助scriptは局所変数を式と誤認してassertで停止したため、ASTの設定対象だけを特定して修正した。失敗を成功へ数えていない。
+
+### 対象検査と失敗履歴
+
+| 版/対象 | 結果 |
+| --- | --- |
+| 初回単体対象 | 126成功・1失敗。旧componentの『2候補が未登録』期待が、今回許可した正規登録と不一致。親step3の当時の期待を保持した履歴として記録し、当該試験だけを候補通常登録/tenant注入へ更新。偽造/派生token拒否は維持 |
+| 静的修正途中 | 初回Ruff/tyはimport整列・追加SQL文字列長・不足Any import等で非成功。対象scope内の記述だけを整理し解消。検査規則/正式assetsを変更していない |
+| 最終単体対象 | `uv run pytest tests/test_game_preparing_components.py tests/test_game_preparing_read_boundary.py tests/test_api_app.py tests/test_roster_self_team_read.py -q`: **127 passed / 1.16s / exit0** |
+| 実DB対象 | `tests/db/test_api_auth_exit_entry.py`: **11 passed / 46.89s / exit0**（既存6＋新5、skipなし）。実測 **PostgreSQL 17.11 (Debian 17.11-1.pgdg12+2)** |
+| 最終静的 | backend対象format・全backend Ruff/ty、root Ruff/ty、空白検査成功。root Ruffの既存test_core_guard docstring警告1件は終了0。計画同期は本単位base 9e2ac0a3で成功 |
+
+DB新5件はHTTP POST /auth/loginの実password照合・token発行・署名Cookieを、同じHTTPS clientのGETへ通した。engine factoryだけが実製品app engineを返し、署名/認可/tenant_access/Session/scope/DB応答の代用はない。正規readと同時刻cursor複数page、現在規則変更の非遡及、Cookie欠如/改ざん/失効・無効password、C2不正のgames SQL前拒否、別tenant/不存在/不可視/他状態の共通404、旧/5-key/破損snapshotとDTO不正のwith内rollback後503、実games SELECT取消の固定503/秘匿/再試行0、全readのno-store/成功限定ACKを実測した。
+
+ゲーム/チーム/大会/保存snapshotはadmin SQL seedによるread準備で、正規作成・出所・RG1/game INSERT全取消の証明ではない。既存identity autouseを維持するため、管理/被検査DSNも外側の専用disposable clusterから明示供給した。新5件のDBは各自独立、outer1とinner1の最大同時2個、動的loopback portと専用一時領域で分離した。engine/connection/containerのfinally cleanup後、disposable authzコンテナ0・本実行一時ディレクトリ0を確認。資格/署名素材の値は記録していない。
+
+### 固定供給hashと提供境界
+
+| 対象 | SHA-256 |
+| --- | --- |
+| 新games router | `7f8663a3f2d3a87abbe86b19cf15d85d4e3fce27530d7b67a4bd5a7a98cda121` |
+| games schema/codec接合/Read DTO | `05e93029c9a2abd3ddd014d8806accad17fe83e38798daa2f8c49cac6c03483e` |
+| 単一codec | `d646c0bbc73b7ff2507aa440e81effdd1e37debb4d5d767971608110853cdfc4` |
+| 実DB HTTP試験 | `1a91bfca6cff17e2cfb2d9fba5adb2376ff594113212355a379e18e796517aac` |
+| backend pyproject / lock | `e2048e9d69dd1fb9f494fa21cd7d06d385910a252d964bcc082c35b43651788c` / `fd4e71455bd7c8d45d2a335803cdf6023de56994b9c2bdc5a4933af5e5ce40ad` |
+
+実HTTPの候補接続成功は正式登録/7.7の代用ではない。固定source commit後の `python scripts/check_tenant_boundary_bypass.py --base-ref 9e2ac0a3` はexit0。これは既存games SQL builderを含まない本単位差分だけの結果である。default比較の `python scripts/check_tenant_boundary_bypass.py` はexit1で、既存 `pitchlog/repositories/games.py:88` と `:114` のSQLA_SELECTをTB005として2件拒否した。正式2SELECT許可、2tokenのgenerated契約、route/matrix/7.7は未受理のままで、局所checker成功を全基線の正式通過へ流用しない。
+
+共有正式assets/生成契約/fixture/lock/sealは差分0。#174→#173→#175の実基線、正式read追加敵対1回、UI/provider、作成/RG1、公開・push/PRは未達/未消費のまま、次は固定候補の独立コードレビューとする。source/testの対象全体は14ファイル（source6、依存2、既存試験5、本research1）。製品コード確定後の最終反映は本記録の検査結果だけで、sourceと試験は上記最終検査から変更していない。
+
 独立計画第1回/root/csv_reviewは指定SHAを実読して可決P0=0/P1=0/P2=0。rootは運用秘密/署名鍵の新規発行を避けるため、既存固定試験素材の設定式だけを再利用する限定を追補しPO委任承認。_client_appの認可stubは再利用せず実HTTP login/Cookie/署名検証/tenant_access/DBを通す。対象版/日時はplanへ固定。実装未着手、正式登録/7.7/親追加1回/UI未達は保持。

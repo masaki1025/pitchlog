@@ -15,9 +15,16 @@ from uuid import UUID
 from pydantic import Field, field_validator
 
 from pitchlog.api.schemas.base import BaseSchema, EntityId, PageRequest, Timestamp
+from pitchlog.db.game_state.rule_snapshot import (
+    DomainValidatedRuleSnapshot,
+    decode_applied_rules,
+)
 from pitchlog.repositories.tokens import ImmutableValue
 
 PREPARING_GAME_PAGE_SIZE_MAX = 100
+GameTypeKey = Literal[
+    "game_official", "game_semi_official", "game_open", "game_intrasquad", "game_other"
+]
 
 
 class ExistingTournament(BaseSchema):
@@ -43,13 +50,7 @@ class PreparingGameCreate(BaseSchema):
     """preparing 試合の作成に必要な利用者入力だけを受け取る。"""
 
     scheduled_at: Timestamp
-    game_type_key: Literal[
-        "game_official",
-        "game_semi_official",
-        "game_open",
-        "game_intrasquad",
-        "game_other",
-    ]
+    game_type_key: GameTypeKey
     away_team_record_id: EntityId
     home_team_record_id: EntityId
     tournament: TournamentSelection
@@ -58,6 +59,24 @@ class PreparingGameCreate(BaseSchema):
     week_label: str | None = None
     day_label: str | None = None
     game_number_label: str | None = None
+
+
+class PreparingGameRead(BaseSchema):
+    """同tenantの可視な準備中試合と検証済み保存snapshotを返す。"""
+
+    id: EntityId
+    scheduled_at: Timestamp
+    game_type_key: GameTypeKey
+    tournament_key: str = Field(min_length=1)
+    away_team_record_id: EntityId
+    home_team_record_id: EntityId
+    plate_umpire: str | None
+    section_label: str | None
+    week_label: str | None
+    day_label: str | None
+    game_number_label: str | None
+    status: Literal["preparing"]
+    applied_rules: dict[str, object]
 
 
 def _copy_preparing_snapshot_json(value: ImmutableValue) -> object:
@@ -83,6 +102,22 @@ def _copy_preparing_snapshot_json(value: ImmutableValue) -> object:
     if type(value) is tuple:
         return [_copy_preparing_snapshot_json(item) for item in value]
     raise ValueError("snapshot JSON 値の型が不正")
+
+
+def _decode_preparing_snapshot(value: ImmutableValue) -> DomainValidatedRuleSnapshot:
+    """実行器の不変 JSON を正規 codec で検証する。出所証明は行わない。
+
+    Args:
+        value: 実行器が返した保存済み snapshot の不変 JSON 値。
+
+    Returns:
+        形・値域・相関を検証した snapshot。規則行の出所は含まない。
+
+    Raises:
+        ValueError: 非 JSON 値または不正な snapshot が含まれる場合。
+        RuleSnapshotContractUnavailable: 正規 codec の凍結契約を読めない場合。
+    """
+    return decode_applied_rules(_copy_preparing_snapshot_json(value))
 
 
 def encode_preparing_game_cursor(scheduled_at: datetime, game_id: UUID) -> str:
