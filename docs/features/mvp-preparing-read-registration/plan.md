@@ -169,7 +169,7 @@ JSONはAPI由来tenant2patternと初期付与2patternを双方保持し、guard�
 正式7.7履歴/snapshot/lock/oracleは引き続きrootのみが実統合後に受理する。
 
 
-### CI frontend単独環境のbootstrap拒否検査を是正する限定追補案
+### CI frontend単独環境のbootstrap拒否検査を是正する限定追補（PO委任承認済み）
 
 必須CI40011535070のfrontendは1853成功/3失敗。新しいorigin拒否試験がbackend/.venv/bin/pythonへ直接依存したため、backend環境を構築しないfrontend jobでは子processの終了値を取得できなかった。失敗をskip/成功へ変換せず、CI/source検査やorigin拒否を緩めない。修正中は本局所planをactiveへ戻し、旧最終レビューと未成功CIを保持する。
 
@@ -178,3 +178,6 @@ JSONはAPI由来tenant2patternと初期付与2patternを双方保持し、guard�
 拒否回帰は実Support.pyを`python3 -I -S`で起動し、backend/site-package/PYTHONPATHなしでも終了1・正確なorigin拒否理由・ready未生成を検査する。`spawn`失敗/timeoutを正しい拒否に数えない。明示mode不正/モード外scheme/非loopback/不正portは既存拒否を維持する。実製品API/tenant/保存codec・正式9/8・履歴/資産/lock/oracle・CI定義には変更を加えない。新pathは既存GameScreen* core捕捉内で、core登録/拒否条件変更なし。
 
 局所process試験/Frontend静的・全件VitestをenvDir:falseで実行し、実backend依存でのbrowser read3を専用資源で再接合する。新規作成/1球/実機合格とはしない。非作者が新scope/最終修正を確認後に提出状態へ戻し、新HEADの必須CIを実施する。同じ失敗の無根拠再走・timeout延長/skip・backend CIをfrontendへ複製は行わない。
+
+
+2026-10-23T19:55:44.188147+00:00、Codex主担当/rootはPO4/5/8/10の通常不具合是正・最小追補委任に基づき、ec90aa50/plan SHA256 55a410fbcfe6637f42170dc99cf3b6af1e73f5eab40d1d9189d0c3dbdde88e2dの上記限定追補を承認。非作者rights_replacement_reviewのCI是正限定計画第1回0/0/0、親比較diff5ec9f6e131715fe79d5927a1e80c51ddcb52f8fd65608af685218809bc364b5dを照合した。旧親追加1回/後発metadata1回/全CI失敗は保持し、実装後の狭い非作者確認・全Vitest・正常browser・新HEAD CIを必要とする。人間確認/署名を代記しない。
