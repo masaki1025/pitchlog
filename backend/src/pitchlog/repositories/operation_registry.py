@@ -75,6 +75,7 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         min_rows=1,
         max_rows=1,
         decoder=_decode_stage_a_rule_result,
+        nonempty_inputs=("game_type_key", "tournament_key"),
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

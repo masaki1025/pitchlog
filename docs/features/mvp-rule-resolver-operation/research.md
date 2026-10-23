@@ -32,3 +32,9 @@ decoderは、Aが不変化した単一オブジェクトについて、`resolved
 `/root/product_connection`（候補作者/root/o5_registrationおよび主担当から独立）が3sourceを全文照合し可決P0=0/P1=0/P2=0。69対象試験を独立再実行して69 passed/2.05s/exit0。既存正式checkerのexit2は未解消で、正式受理/統合/step4完成ではない。
 
 固定SHA256: module `5cd834679a64500f08abdb8dece0a9909d1d497f98a4f36ae5c9e1563f126590`、registry `7e2d72f8d28dfef7498d78ed41ec65dc04025cdee3ff9b022ed82c26be95a945`、test `7868a53933c04441f0e08cfccba913f994ad8aea8d3c5692bd15730c389120d4`。review diffSHA `6aaab4f6c3eda3aa0417f2146db1582517698c9fcd7efb4b0a80475b6ac9313c`（3パスをmodule/registry/test順でbinary/full-index差分連結、未追跡moduleだけno-index /dev/null比較）。レビュー後は本記録だけを追記し、製品差分は不変。
+
+## 空キー拒否の限定是正候補
+
+受理済みstep1契約に対し、候補b4b8aaf2は空keyをprepareへ渡していた。追補計画94ad459aのPO委任承認後、登録型へ既定空tupleのnonempty_inputsを追加し、登録時にexact tuple/str名/重複/宣言済みstr入力だけを許可する。resolverの2keyだけを指定し、実行直前に検証した同じ値をbindへ入れる。RG1は既定空tupleのまま、全strの一律制約・トリム・独自SQL・権限緩和なし。正式資産の変更はなく、既記録の閉集合不一致exit2は残る。
+
+backend Ruff format/check/ty成功、対象test_function_operations_boundary.pyは81 passed/0.65s。従前69件へ12件を追加し、構築時/強制変更後の各2key拒否を実scope・合成Sessionで確認。SQL実行に到達しないrollback、未指定strの空文字・指定strの空白保持、誤登録を検査した。実DB/HTTP試験ではなく、正式step4/7.7完了ではない。root Ruff/tyも成功。次に固定候補の独立レビューを実施する。

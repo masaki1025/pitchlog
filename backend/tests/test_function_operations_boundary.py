@@ -154,6 +154,96 @@ def test_stage_a_rule_registration_rejects_non_boolean_override(invalid: Any) ->
         )
 
 
+@pytest.mark.parametrize("field_name", ("game_type_key", "tournament_key"))
+@pytest.mark.parametrize("mutated", (False, True))
+def test_stage_a_empty_key_never_reaches_sql(
+    field_name: str, mutated: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """構築時・強制変更後の空キーを実scopeのSQL実行前に拒否する。"""
+    events: list[str] = []
+
+    class _Session:
+        def __init__(self, engine: object) -> None:
+            events.append("session")
+
+        def execute(self, statement: object, params: object) -> None:
+            pytest.fail("空キーがSQL実行へ到達した")
+
+        def close(self) -> None:
+            events.append("close")
+
+    @contextmanager
+    def _binding(session: object, context: object) -> Iterator[None]:
+        events.append("begin")
+        try:
+            yield
+        except BaseException:
+            events.append("rollback")
+            raise
+        else:
+            events.append("commit")
+
+    monkeypatch.setattr(transaction, "Session", _Session)
+    monkeypatch.setattr(transaction, "create_database_engine", object)
+    monkeypatch.setattr(transaction, "_tenant_transaction", _binding)
+    keys = {"game_type_key": "game_official", "tournament_key": "tournament_one"}
+    if not mutated:
+        keys[field_name] = ""
+    request = StageAResolveRuleToken(
+        keys["game_type_key"], keys["tournament_key"], False
+    )
+    if mutated:
+        object.__setattr__(request, field_name, "")
+    with pytest.raises(FunctionOperationError, match=f"{field_name}.*空文字"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(_TENANT_ID)
+        ) as scope:
+            scope.run_function(request)
+    assert events == ["session", "begin", "rollback", "close"]
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    (None, [], ("missing",), ("marker", "marker"), (True,), ([],)),
+)
+def test_registration_rejects_invalid_nonempty_declaration(invalid: Any) -> None:
+    """未知名・重複・非tuple・非文字列の非空宣言を登録時に拒否する。"""
+    with pytest.raises(FunctionOperationError, match="非空入力宣言"):
+        replace(_registration(), nonempty_inputs=invalid)
+
+
+def test_registration_rejects_non_string_nonempty_input() -> None:
+    """bool入力を非空文字列として宣言する登録を拒否する。"""
+    spec = operation_registry.FUNCTION_OPERATION_REGISTRY[StageAResolveRuleToken]
+    with pytest.raises(FunctionOperationError, match="非空入力宣言"):
+        replace(spec, nonempty_inputs=("has_override",))
+
+
+def test_nonempty_constraint_is_explicit_and_preserves_bind_values() -> None:
+    """未指定入力の空文字と指定入力の空白を変換せず従来どおり渡す。"""
+    spec = _registration()
+    registry = build_function_registry((spec,), frozenset())
+    assert (
+        prepare_function_operation(_FixedToken(marker=""), _TENANT_ID, registry)[1][
+            "marker"
+        ]
+        == ""
+    )
+    restricted = replace(spec, nonempty_inputs=("marker",))
+    registry = build_function_registry((restricted,), frozenset())
+    assert (
+        prepare_function_operation(_FixedToken(marker=" "), _TENANT_ID, registry)[1][
+            "marker"
+        ]
+        == " "
+    )
+    with pytest.raises(FunctionOperationError, match="空文字"):
+        prepare_function_operation(_FixedToken(marker=""), _TENANT_ID, registry)
+    for item in operation_registry.PRODUCT_FUNCTION_OPERATIONS:
+        if item.operation_id.startswith("RG1:"):
+            assert item.nonempty_inputs == ()
+
+
 @pytest.mark.parametrize(
     "status",
     (
