@@ -233,3 +233,20 @@ PO委任4/5/6/8/9/10によるCodex主担当/root判断で、拒否条件/対象p
 - 公開resolverは正式develop31194へ既存f537を通常mergeした **3da4e441**（12関連paths・手動競合0/正式資産・正本差分0）。限定planを独立全文0後 **2b436633**でPO委任承認。登録step1 **efe497ec05ca8784d6f570480ba6970c7134e149**は1factory/SELECT正例・RULE ID1件・生成全fieldと既存試験の7paths。作者backend177/root27/正式S3実app scope DB5成功、source5/codec/startup/RG1/DML/権限不変。非作者resolver_ledger_plan_reviewも全文0・独立177/27成功、他7射影/外部8不変。正式7.7未受理exit2を保持し、180実統合後に実baseでrootがstep2を直列受理する。
 - read登録候補はWIPを外部保全後、正常dfa→95dだけを通常merge。core3ファイルは両供給の既存宣言/登録を合流し全関数AST/旧paths保持、382成功。実history predicate/31194基線検査成功、旧f48/8037祖先なし。局所23/backend162成功、保存read専用browserの最終接合再実行を指示済み（起動/完走結果は未受領）。広い旧状態検査26206成功/既知5失敗で407秒中断した結果を保持し、同一状態の全件を反復しない。正式175追加敵対1回は未消費。180実統合後はinitialを据置き層へ回転しAPI2だけpendingへ追随する。
 - 外部耐久台帳は技術具体化の限定planを6288dfaaでPO委任承認（非作者全文P1=1 policy不足採用、限定差分第2回0）。source/実行資産の先行宣言→別JSON→実adapter/同期保全→実故障/正本7.3/7.7の4段階。正常95dをb1ab75caへ競合0で供給し、Protocol/27履歴/202snapshot/core/policyを完全保持してstep1先行宣言を実装中。隔離構成の承認で運用配置/共有DB/費用/新秘密を承認したとはしない。対象0だけへMVPを縮めず、非0全世代・新D4同確定/回収退避の後続を残す。
+
+
+### 2026-10-24 JST: 作成→開始→1球保存→再読込を最優先
+
+POの追加指示により全体計画と既存承認を維持し、最初の縦断経路を上記順に優先する。DB事前投入試合のread成功と、画面で新しく作成・保存した値の復元を別証拠にする。重い検査は専用DB/port/tempを分離して直列、作業中は影響範囲、最終候補は必須全件を省略しない。通常是正・生成追随・無関係な基線追随は既委任で処理し、同一承認を再要求しない。実機操作と1試合リハーサルは山田正輝が担当し、rootが1球保存/再読込の成立時に接続先/データ準備/操作/期待値/制限を渡す。運用公開・費用・秘密の境界は維持する。
+
+#180は最終95d766f5のCI39997002310全必須12成功（backend/root全件含む）・最終独立確認/実PR検査/委任証拠を再照合後、2026-10-23T18:28:08Zに通常merge済み。正式develop **547d199e0c68f3c7d73b6996056cf10ef5fb09fb**、親31194/95d、全treeは95dと同一。本人署名や実機確認の代記ではない。保全bundleはcache/pr180-acceptance/final-95d766f5.bundle、SHA25603495e1aceb2426919e2fe40fddd5250dae33185d34689d3a3fba578fe0f7fc6。
+
+| 利用者が新たに完了できる操作 | 実証/提供版 | 次の依存 |
+| --- | --- | --- |
+| 候補画面で認証後、保存済みpreparingを一覧/詳細/reloadする | read6f60983cの実UI→Cookie/C2→実API→隔離PG、最終接合browser3成功。非作者23/backend162/実HTTP-PG5成功、残資源0。事前投入データのreadであり新規作成成功ではない | rootが547実基線のcore追加層/完全7.7/lock/oracleを直列整合し、175最終追加レビュー/CI/統合 |
+| 新しい試合の入力から作成を要求する | create限定planは初回指摘全採用/第2回0後e7e34ef6でPO委任承認。担当csv_reviewがstep1/3 DTO・DML/token・service・拒否境界を実装開始。まだ画面からの保存成功はない | 実RG1成功条件と公開resolver/権利・単一codecの接合、その後UI/実DB保存・再取得証拠 |
+| 開始・1球保存・再起動後復元 | 初期付与primitiveは547へ正式統合。公開resolver efe497ecは実scope DB5/非作者局所0の候補、正式未受理。外部台帳adapterは契約と実同期DB28成功/core416成功の候補で未提供 | 実RG1/開始transaction/RecordingRightsPort/T1計算・T2/永続同期の接合。台帳cold attachの信頼済み最新性authorityと業務identity観測主体も未提供 |
+
+台帳step1/2は正常履歴で個別commit済み。先行core fixture/順序の失敗と是正・レビュー初回P1採用後0を保持し、ae0bfbc7はexact-setの順序比較だけ是正。取消期限のcallback遅延を局所1失敗で再現後に実期限でも拒否へ是正し、source53bdb9d5・契約22成功に固定した。Protocol再利用13 TB002の限定追補はd59be7f4で起案・非作者確認待ち、旧47所見/拒否を維持し、未登録を合格にしない。fresh pair成功を復旧/正常再起動/全DoD完了へ拡張しない。
+
+未決5項目は既決方針を戻さず[判断票](decision-sheet.md)へ最新の未決だけ集約する。回答待ちで進められる作成・保存接合は継続する。成績/毎球CSV・全通常操作・故障系・閲覧更新・負荷・運用復旧/実機のMVP全体要件は未達を含めて引き続き完成対象であり、最初の縦断成功でGoalを完了しない。
