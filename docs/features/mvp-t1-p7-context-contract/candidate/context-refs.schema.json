@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "T1/P7文脈参照の局所外殻候補（正式契約・実行型ではない）",
-  "$comment": "US1 cb0b1601f2ec76265f317e5104d4df387cf44344 の既存4定義だけを抽出。構造受理は意味出所/完全性/Readyの証明ではない。",
+  "title": "T1/P7文脈参照・閉payloadの局所候補（正式契約・実行型ではない）",
+  "$comment": "先頭4定義はUS1 cb0b1601固定外殻を保持。後続は閉payload/J6/有限ページの構造候補。unresolvedを含み、構造受理は実出所/完全性/Ready/全意味閉包を証明しない。",
   "$ref": "#/$defs/T1ContextRefsV1",
   "$defs": {
     "ContentRefV1": {
@@ -127,6 +127,1133 @@
         "roster",
         "pre_state",
         "effective_prefix"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerRefV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "official"
+            },
+            "player_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "player_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "temporary"
+            },
+            "temporary_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "temporary_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ScorerRefV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "runner"
+            },
+            "runner_id": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "batter"
+            },
+            "batter_id": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "batter_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "HomeTouchOrderV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-required"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "observed"
+            },
+            "scorers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ScorerRefV1"
+              },
+              "minItems": 1,
+              "maxItems": 4,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "kind",
+            "scorers"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1EventRefV1": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "record_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "event_id",
+        "record_version"
+      ],
+      "additionalProperties": false
+    },
+    "T1ContextPointV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "content_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "content_version": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "key",
+        "content_ref",
+        "content_version"
+      ],
+      "additionalProperties": false
+    },
+    "T1HalfRefV1": {
+      "type": "object",
+      "properties": {
+        "inning": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "side": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        }
+      },
+      "required": [
+        "inning",
+        "side"
+      ],
+      "additionalProperties": false
+    },
+    "T1BattingSlotV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "slot"
+            },
+            "slot": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            }
+          },
+          "required": [
+            "kind",
+            "slot"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1FieldingRoleV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "fielding"
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            }
+          },
+          "required": [
+            "kind",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "designated-hitter"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RosterEntryOriginV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "initial"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "substitution"
+            },
+            "event": {
+              "$ref": "#/$defs/T1EventRefV1"
+            },
+            "replaced_player": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "event",
+            "replaced_player"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RosterEntryV1": {
+      "type": "object",
+      "properties": {
+        "player": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "batting_slot": {
+          "$ref": "#/$defs/T1BattingSlotV1"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1FieldingRoleV1"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "entry_origin": {
+          "$ref": "#/$defs/T1RosterEntryOriginV1"
+        }
+      },
+      "required": [
+        "player",
+        "batting_slot",
+        "roles",
+        "entry_origin"
+      ],
+      "additionalProperties": false
+    },
+    "T1TeamRosterV1": {
+      "type": "object",
+      "properties": {
+        "team_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "side": {
+          "enum": [
+            "away",
+            "home"
+          ]
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1RosterEntryV1"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "team_id",
+        "side",
+        "participants"
+      ],
+      "additionalProperties": false
+    },
+    "T1RosterAtEventV1": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "$ref": "#/$defs/T1ContextPointV1"
+        },
+        "teams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1TeamRosterV1"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "point",
+        "teams"
+      ],
+      "additionalProperties": false
+    },
+    "T1BaseOccupantV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "empty"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "occupied"
+            },
+            "player": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "player"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1HalfApplicationMarkV1": {
+      "type": "object",
+      "properties": {
+        "half": {
+          "$ref": "#/$defs/T1HalfRefV1"
+        },
+        "event": {
+          "$ref": "#/$defs/T1EventRefV1"
+        },
+        "application": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "half-application-mark"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "half",
+        "event",
+        "application"
+      ],
+      "additionalProperties": false
+    },
+    "T1PreStateV1": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "$ref": "#/$defs/T1ContextPointV1"
+        },
+        "roster_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "inning": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "half": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "count": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "balls": {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ]
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "runners": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            },
+            "second": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            },
+            "third": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "score": {
+          "type": "object",
+          "properties": {
+            "away": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "home": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "away",
+            "home"
+          ],
+          "additionalProperties": false
+        },
+        "batting_order": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "batter": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "tiebreak_active": {
+          "type": "boolean"
+        },
+        "game_ended": {
+          "type": "boolean"
+        },
+        "half_application_marks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1HalfApplicationMarkV1"
+          },
+          "minItems": 0
+        },
+        "canonical_membership": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "canonical-membership"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "point",
+        "roster_version",
+        "inning",
+        "half",
+        "outs",
+        "count",
+        "runners",
+        "score",
+        "batting_order",
+        "batter",
+        "tiebreak_active",
+        "game_ended",
+        "half_application_marks",
+        "canonical_membership"
+      ],
+      "additionalProperties": false
+    },
+    "T1QueuedSourceV1": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "queued"
+        },
+        "wire_d4": {
+          "type": "string",
+          "minLength": 1
+        },
+        "internal_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d5": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "kind",
+        "wire_d4",
+        "internal_generation",
+        "d1",
+        "d5"
+      ],
+      "additionalProperties": false
+    },
+    "T1ChangeSourceV1": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "online-change"
+        },
+        "change": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "online-change-source"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "change"
+      ],
+      "additionalProperties": false
+    },
+    "T1ReplayParticipationV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "own-d2"
+            },
+            "d2": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "kind",
+            "d2"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "dependent"
+            },
+            "target": {
+              "$ref": "#/$defs/T1EventRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "target"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "sync-only"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1EffectiveEntryV1": {
+      "type": "object",
+      "properties": {
+        "event": {
+          "$ref": "#/$defs/T1EventRefV1"
+        },
+        "source": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/T1QueuedSourceV1"
+            },
+            {
+              "$ref": "#/$defs/T1ChangeSourceV1"
+            }
+          ]
+        },
+        "operation_kind": {
+          "enum": [
+            "per-pitch",
+            "undo",
+            "substitution",
+            "tiebreak-start",
+            "game-end-declaration",
+            "adhoc-registration",
+            "play-change",
+            "play-delete",
+            "substitution-change"
+          ]
+        },
+        "participation": {
+          "$ref": "#/$defs/T1ReplayParticipationV1"
+        },
+        "content": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "operation-content"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "canonical_membership": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "canonical-membership"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "version_relation": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "original"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "revision"
+                },
+                "replaces": {
+                  "$ref": "#/$defs/T1EventRefV1"
+                }
+              },
+              "required": [
+                "kind",
+                "replaces"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "tombstone"
+                },
+                "replaces": {
+                  "$ref": "#/$defs/T1EventRefV1"
+                }
+              },
+              "required": [
+                "kind",
+                "replaces"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "event",
+        "source",
+        "operation_kind",
+        "participation",
+        "content",
+        "canonical_membership",
+        "version_relation"
+      ],
+      "additionalProperties": false
+    },
+    "T1TemporaryOriginV1": {
+      "type": "object",
+      "properties": {
+        "mapping_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "temporary_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "player_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "origin_game_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "origin_internal_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "origin_d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "origin_d5": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "origin_ledger_kind": {
+          "const": "accepted"
+        },
+        "origin_source_fingerprint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "origin_record_version": {
+          "const": 1
+        }
+      },
+      "required": [
+        "mapping_id",
+        "temporary_id",
+        "player_id",
+        "origin_game_id",
+        "origin_internal_generation",
+        "origin_d1",
+        "origin_d5",
+        "origin_ledger_kind",
+        "origin_source_fingerprint",
+        "origin_record_version"
+      ],
+      "additionalProperties": false
+    },
+    "T1PrefixCursorV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "start"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "continue"
+            },
+            "cursor_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "cursor_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1PrefixNextCursorV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "end"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "continue"
+            },
+            "cursor_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "cursor_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1PrefixPageDescriptorV1": {
+      "type": "object",
+      "properties": {
+        "page_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cursor": {
+          "$ref": "#/$defs/T1PrefixCursorV1"
+        },
+        "next_cursor": {
+          "$ref": "#/$defs/T1PrefixNextCursorV1"
+        },
+        "page_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        }
+      },
+      "required": [
+        "page_index",
+        "cursor",
+        "next_cursor",
+        "page_ref"
+      ],
+      "additionalProperties": false
+    },
+    "T1PrefixPageV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "prefix": {
+          "$ref": "#/$defs/PrefixEvidenceRefV1"
+        },
+        "content_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "descriptor": {
+          "$ref": "#/$defs/T1PrefixPageDescriptorV1"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1EffectiveEntryV1"
+          },
+          "minItems": 0
+        },
+        "origins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1TemporaryOriginV1"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "key",
+        "prefix",
+        "content_version",
+        "descriptor",
+        "entries",
+        "origins"
+      ],
+      "additionalProperties": false
+    },
+    "T1PrefixManifestV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "prefix": {
+          "$ref": "#/$defs/PrefixEvidenceRefV1"
+        },
+        "content_version": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1PrefixPageDescriptorV1"
+          },
+          "minItems": 1
+        },
+        "selection_evidence": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "prefix-selection"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "terminal_evidence": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "prefix-terminal"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "key",
+        "prefix",
+        "content_version",
+        "pages",
+        "selection_evidence",
+        "terminal_evidence"
+      ],
+      "additionalProperties": false
+    },
+    "T1EffectivePrefixV1": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "$ref": "#/$defs/T1ContextPointV1"
+        },
+        "prefix": {
+          "$ref": "#/$defs/PrefixEvidenceRefV1"
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1PrefixPageV1"
+          },
+          "minItems": 1
+        },
+        "manifest": {
+          "$ref": "#/$defs/T1PrefixManifestV1"
+        },
+        "replay_window": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unresolved"
+            },
+            "obligation": {
+              "const": "undo-replay-diff"
+            },
+            "source": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "obligation",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "point",
+        "prefix",
+        "pages",
+        "manifest",
+        "replay_window"
       ],
       "additionalProperties": false
     }

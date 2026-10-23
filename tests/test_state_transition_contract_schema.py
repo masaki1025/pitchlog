@@ -6171,7 +6171,7 @@ def _p7_context_candidate_schema() -> dict[str, Any]:
 def _p7_context_candidate_cases() -> list[dict[str, Any]]:
     """新規合成した構造caseだけを読み込み、意味上の期待値を認めない。"""
     fixture = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 'structure-cases.json')
-    assert set(fixture) == {'validation_scope', 'source_values', 'cases'}
+    assert set(fixture) == {'validation_scope', 'source_values', 'cases', 'constructor_cases'}
     assert fixture['validation_scope'] == 'structure-only'
     assert fixture['source_values'] == 'synthetic-no-semantic-verdict'
     cases = fixture['cases']
@@ -6179,7 +6179,7 @@ def _p7_context_candidate_cases() -> list[dict[str, Any]]:
     assert len({case['id'] for case in cases}) == len(cases)
     for case in cases:
         assert set(case) == {'id', 'definition', 'expected_structure', 'input'}
-        assert case['definition'] in _P7_CONTEXT_DEFINITIONS
+        assert case['definition'] in _p7_context_candidate_schema()['$defs']
         assert case['expected_structure'] in {'accept', 'reject'}
     return cases
 
@@ -6194,38 +6194,46 @@ def _p7_context_candidate_input(definition: str) -> dict[str, Any]:
 
 
 def _p7_context_candidate_check_keywords(schema: dict[str, Any]) -> None:
-    """既存helperの対象外キーワードやformatを黙って通さない。"""
+    """局所候補で使う既存helperの対応範囲を限定し、無視される制約を拒否する。"""
     annotations = {'$schema', '$comment', 'title', 'description'}
     supported = annotations | {
-        '$ref', '$defs', 'type', 'properties', 'required',
-        'additionalProperties', 'minLength', 'minimum', 'pattern', 'format',
+        '$ref', '$defs', 'type', 'properties', 'required', 'additionalProperties',
+        'minLength', 'minimum', 'maximum', 'pattern', 'format', 'oneOf', 'const',
+        'enum', 'items', 'minItems', 'maxItems', 'uniqueItems',
     }
 
     def visit(node: dict[str, Any]) -> None:
-        unknown = set(node) - supported
-        if unknown:
-            raise ValueError(f'未対応キーワード: {sorted(unknown)}')
+        if set(node) - supported:
+            raise ValueError(f'未対応キーワード: {sorted(set(node) - supported)}')
         if 'format' in node and node['format'] != 'uuid':
             raise ValueError('未対応format')
-        if '$ref' in node:
-            ref = node['$ref']
-            if (
-                not isinstance(ref, str) or not ref.startswith('#/$defs/')
-                or ref.removeprefix('#/$defs/') not in schema['$defs']
-                or set(node) - annotations - {'$ref', '$defs'}
-            ):
-                raise ValueError('未対応参照または参照の兄弟制約')
+        if '$ref' in node and (
+            not isinstance(node['$ref'], str) or not node['$ref'].startswith('#/$defs/')
+            or node['$ref'].removeprefix('#/$defs/') not in schema['$defs']
+            or set(node) - annotations - {'$ref', '$defs'}
+        ):
+            raise ValueError('未対応参照または参照の兄弟制約')
+        if 'oneOf' in node:
+            if set(node) - annotations != {'oneOf'} or not node['oneOf']:
+                raise ValueError('未対応oneOfの兄弟制約')
+            for variant in node['oneOf']:
+                visit(variant)
         if node.get('type') == 'object':
-            properties = node['properties']
-            required = node['required']
+            properties, required = node['properties'], node['required']
             if (
                 not isinstance(properties, dict) or not isinstance(required, list)
                 or len(required) != len(set(required)) or set(required) != set(properties)
                 or node.get('additionalProperties') is not False
             ):
-                raise ValueError('外殻objectは全field必須・余剰拒否が必要')
-        elif 'type' in node and node['type'] not in {'string', 'integer'}:
+                raise ValueError('候補objectは全field必須・余剰拒否が必要')
+        elif node.get('type') == 'array':
+            if not isinstance(node.get('items'), dict):
+                raise ValueError('未対応の配列item')
+            visit(node['items'])
+        elif 'type' in node and node['type'] not in {'string', 'integer', 'boolean'}:
             raise ValueError('未対応type')
+        if not set(node).intersection({'$ref', '$defs', 'type', 'const', 'enum', 'oneOf'}):
+            raise ValueError('未対応の自由JSON')
         for collection in ('$defs', 'properties'):
             for child in node.get(collection, {}).values():
                 if not isinstance(child, dict):
@@ -6239,34 +6247,67 @@ def _p7_context_candidate_validate(
     value: object, definition: str = 'T1ContextRefsV1',
     *, schema: dict[str, Any] | None = None,
 ) -> None:
-    """既存構造validatorとUUID補助検査を併用し、意味受理へ変換しない。"""
+    """既存validatorとUUID検査で構造だけを検査し、意味受理を返さない。"""
     root = schema if schema is not None else _p7_context_candidate_schema()
     _p7_context_candidate_check_keywords(root)
     selected = root['$defs'][definition]
+
+    def check(actual: Any, node: dict[str, Any]) -> None:
+        schema_checker._validate_instance(actual, node, root, '$')
+        if '$ref' in node:
+            check(actual, root['$defs'][node['$ref'].removeprefix('#/$defs/')])
+            return
+        if 'oneOf' in node:
+            matches = 0
+            for variant in node['oneOf']:
+                try:
+                    check(actual, variant)
+                except (ValueError, schema_checker.DescriptorCheckError):
+                    continue
+                matches += 1
+            if matches != 1:
+                raise ValueError('UUID検査を含むoneOf不一致')
+            return
+        if node.get('format') == 'uuid' and str(UUID(actual)) != actual.lower():
+            raise ValueError('ハイフン付きUUID表記ではない')
+        for field, child in node.get('properties', {}).items():
+            check(actual[field], child)
+        if node.get('type') == 'array':
+            for item in actual:
+                check(item, node['items'])
+
     try:
-        schema_checker._validate_instance(value, selected, root, '$')
+        check(value, selected)
     except schema_checker.DescriptorCheckError as exc:
         raise ValueError(str(exc)) from exc
 
-    def check_uuid(actual: Any, node: dict[str, Any]) -> None:
-        if '$ref' in node:
-            check_uuid(actual, root['$defs'][node['$ref'].removeprefix('#/$defs/')])
-            return
-        if node.get('format') == 'uuid':
-            if str(UUID(actual)) != actual.lower():
-                raise ValueError('ハイフン付きUUID表記ではない')
-        for field, child in node.get('properties', {}).items():
-            check_uuid(actual[field], child)
 
-    check_uuid(value, selected)
+def _p7_context_candidate_declaration_type(node: dict[str, Any]) -> str:
+    """局所schemaの閉文法をreadonly宣言へ射影し、製品の生成器とはしない。"""
+    if '$ref' in node:
+        return node['$ref'].removeprefix('#/$defs/')
+    if 'oneOf' in node:
+        return '(' + ' | '.join(
+            _p7_context_candidate_declaration_type(child) for child in node['oneOf']
+        ) + ')'
+    if 'const' in node:
+        return json.dumps(node['const'], ensure_ascii=False)
+    if 'enum' in node:
+        return '(' + ' | '.join(json.dumps(value) for value in node['enum']) + ')'
+    if node['type'] == 'object':
+        return '{ ' + ' '.join(
+            'readonly ' + field + ': ' + _p7_context_candidate_declaration_type(child) + ';'
+            for field, child in node['properties'].items()
+        ) + ' }'
+    if node['type'] == 'array':
+        return 'ReadonlyArray<' + _p7_context_candidate_declaration_type(node['items']) + '>'
+    return {'string': 'string', 'integer': 'number', 'boolean': 'boolean'}[node['type']]
 
 
 def _p7_context_candidate_check_declarations(schema: dict[str, Any], text: str) -> None:
-    """限定したreadonly interface文法でschemaとの静的対応だけを検査する。"""
+    """旧interfaceと新readonly aliasのfield/union/配列対応だけを静的照合する。"""
     clean = re.sub(r'/\*.*?\*/', '', text, flags=re.DOTALL)
     interface = r'export\s+interface\s+(\w+)\s*\{([^{}]*)\}'
-    if re.sub(interface, '', clean).strip():
-        raise ValueError('限定宣言以外の構文')
     actual: dict[str, dict[str, str]] = {}
     for name, body in re.findall(interface, clean):
         if name in actual:
@@ -6280,17 +6321,24 @@ def _p7_context_candidate_check_declarations(schema: dict[str, Any], text: str) 
                 raise ValueError('readonly必須fieldの宣言違反')
             fields[field[1]] = field[2]
         actual[name] = fields
-    expected: dict[str, dict[str, str]] = {}
-    for name, node in schema['$defs'].items():
-        fields = {}
-        for field, child in node['properties'].items():
-            fields[field] = (
-                child['$ref'].removeprefix('#/$defs/') if '$ref' in child
-                else {'string': 'string', 'integer': 'number'}[child['type']]
-            )
-        expected[name] = fields
+    expected = {
+        name: {
+            field: _p7_context_candidate_declaration_type(child)
+            for field, child in schema['$defs'][name]['properties'].items()
+        }
+        for name in _P7_CONTEXT_DEFINITIONS
+    }
     if actual != expected:
-        raise ValueError('schemaと宣言のfield/型が不一致')
+        raise ValueError('schemaと外殻宣言のfield/型が不一致')
+    aliases = re.sub(interface, '', clean)
+    expected_aliases = '\n'.join(
+        'export type ' + name + ' = ' + _p7_context_candidate_declaration_type(node) + ';'
+        for name, node in schema['$defs'].items() if name not in _P7_CONTEXT_DEFINITIONS
+    )
+    # 文字列literal内の空白は意味を持つため、トークン列として照合する。
+    tokens = r'"(?:[^"\\]|\\.)*"|[A-Za-z_][A-Za-z_0-9]*|[0-9]+|[^\s]'
+    if re.findall(tokens, aliases) != re.findall(tokens, expected_aliases):
+        raise ValueError('schemaと閉payload宣言のfield/union/readonlyが不一致')
 
 
 def test_p7_context_candidate_matches_only_fixed_source_outer_definitions() -> None:
@@ -6299,9 +6347,11 @@ def test_p7_context_candidate_matches_only_fixed_source_outer_definitions() -> N
     assert set(schema) == {'$schema', 'title', '$comment', '$ref', '$defs'}
     assert schema['$schema'] == 'https://json-schema.org/draft/2020-12/schema'
     assert schema['$ref'] == '#/$defs/T1ContextRefsV1'
-    assert tuple(schema['$defs']) == _P7_CONTEXT_DEFINITIONS
+    assert tuple(schema['$defs'])[:4] == _P7_CONTEXT_DEFINITIONS
+    assert len(schema['$defs']) == 30
     definitions = json.dumps(
-        schema['$defs'], ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+        {name: schema['$defs'][name] for name in _P7_CONTEXT_DEFINITIONS},
+        ensure_ascii=False, sort_keys=True, separators=(',', ':'),
     ).encode('utf-8')
     assert hashlib.sha256(definitions).hexdigest() == _P7_CONTEXT_SOURCE_DEFINITIONS_SHA256
     _p7_context_candidate_check_keywords(schema)
@@ -6460,3 +6510,300 @@ def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> 
         for name in names:
             path = (_P7_CONTEXT_CANDIDATE_PATH / name).relative_to(REPOSITORY_ROOT).as_posix()
             assert any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+
+
+def _p7_context_candidate_prefix_shape_issues(value: dict[str, Any]) -> set[str]:
+    """合成値の相関だけを点検する。実出所・完全性を確認するconstructorではない。"""
+    issues: set[str] = set()
+    point, manifest, pages = value['point'], value['manifest'], value['pages']
+    for part in [manifest, *pages]:
+        if part['key'] != point['key']:
+            issues.add('SCOPE')
+        if part['prefix'] != value['prefix']:
+            issues.add('SNAPSHOT')
+        if part['content_version'] != point['content_version']:
+            issues.add('VERSION')
+    descriptors = [page['descriptor'] for page in pages]
+    if descriptors != manifest['pages']:
+        issues.add('MANIFEST')
+    for index, descriptor in enumerate(descriptors):
+        if descriptor['page_index'] != index:
+            issues.add('PAGE-CHAIN')
+        if index == 0:
+            if descriptor['cursor'] != {'kind': 'start'}:
+                issues.add('PAGE-CHAIN')
+        elif descriptor['cursor'] != descriptors[index - 1]['next_cursor']:
+            issues.add('PAGE-CHAIN')
+        if index < len(descriptors) - 1 and descriptor['next_cursor']['kind'] != 'continue':
+            issues.add('PAGE-CHAIN')
+    if descriptors[-1]['next_cursor'] != {'kind': 'end'}:
+        issues.add('TERMINAL')
+    cursors = [item['cursor'] for item in descriptors[1:]]
+    if len({json.dumps(item, sort_keys=True) for item in cursors}) != len(cursors):
+        issues.add('PAGE-CHAIN')
+    for page in pages:
+        for origin in page['origins']:
+            key = point['key']
+            if (
+                origin['origin_game_id'] != key['game_id']
+                or origin['origin_internal_generation'] != key['internal_generation']
+                or origin['origin_d1'] >= key['d1']
+            ):
+                issues.add('ORIGIN')
+    # 上の検査に問題が無くてもledger/発行証拠/全対象集合は未確認である。
+    return issues
+
+
+def test_p7_context_candidate_legacy_cases_and_interfaces_are_preserved() -> None:
+    """旧25caseと4外殻宣言の内容hashを保持し、旧成果を読み替えない。"""
+    cases = _p7_context_candidate_cases()
+    digest = hashlib.sha256(json.dumps(
+        cases[:25], ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+    ).encode()).hexdigest()
+    assert digest == '40dc00bc02bb8b54ac6f9e12fbf67bb4841931b8fd432fc7f3a15ea396e1b5ab'
+    declarations = (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.d.ts').read_text()
+    old = declarations.split('/** 後続の閉構造候補。')[0]
+    assert hashlib.sha256(old.encode()).hexdigest() == (
+        'fed23638e0ca11f38a5e610705ff9b609dbe33a39504112c849aff82ee9cebbd'
+    )
+
+
+def test_p7_context_candidate_pre_state_preserves_all_formal_state_axes() -> None:
+    """正式descriptorの10state軸と値域に対応し、J6採用済みとはしない。"""
+    descriptor = _load_object(DESCRIPTOR_PATH)
+    axes = {
+        axis['axisId']: axis for axis in descriptor['stateTransitionAxes']
+        if axis['axisId'].startswith('state.')
+    }
+    properties = _p7_context_candidate_schema()['$defs']['T1PreStateV1']['properties']
+    bindings = {
+        'state.half': properties['half'],
+        'state.count.strikes': properties['count']['properties']['strikes'],
+        'state.count.balls': properties['count']['properties']['balls'],
+        'state.outs': properties['outs'],
+        'state.tiebreakActive': properties['tiebreak_active'],
+        'state.gameEnded': properties['game_ended'],
+    }
+    for axis_id, node in bindings.items():
+        if 'enum' in node:
+            assert node['enum'] == axes[axis_id]['values']
+        else:
+            assert node['type'] == 'boolean'
+            assert axes[axis_id]['values'] == [False, True]
+    batting = properties['batting_order']
+    assert list(range(batting['minimum'], batting['maximum'] + 1)) == (
+        axes['state.battingOrder']['values']
+    )
+    assert set(axes) == set(bindings) | {
+        'state.battingOrder', 'state.runners', 'state.inning', 'state.score',
+    }
+    assert properties['inning'] == {'type': 'integer', 'minimum': 1}
+    assert properties['score']['properties'] == {
+        'away': {'type': 'integer', 'minimum': 0},
+        'home': {'type': 'integer', 'minimum': 0},
+    }
+    occupancy = set()
+    for flags in product((False, True), repeat=3):
+        value = _p7_context_candidate_input('T1PreStateV1')
+        for name, present in zip(('first', 'second', 'third'), flags, strict=True):
+            value['runners'][name] = (
+                {'kind': 'occupied', 'player': _p7_context_candidate_input('PlayerRefV1')}
+                if present else {'kind': 'empty'}
+            )
+        _p7_context_candidate_validate(value, 'T1PreStateV1')
+        names = [
+            name for name, present in zip(('first', 'second', 'third'), flags, strict=True)
+            if present
+        ]
+        occupancy.add('loaded' if all(flags) else '-'.join(names) or 'empty')
+    assert occupancy == set(axes['state.runners']['values'])
+
+
+@pytest.mark.parametrize('case', _load_object(
+    _P7_CONTEXT_CANDIDATE_PATH / 'structure-cases.json',
+)['constructor_cases'], ids=lambda case: case['case_id'])
+def test_p7_context_candidate_constructor_conditions_do_not_claim_runtime_proof(
+    case: dict[str, Any],
+) -> None:
+    """構造成功と相関不成立/未検証出所を分け、Ready成功を採点しない。"""
+    source = next(item for item in _p7_context_candidate_cases() if item['id'] == case['case_id'])
+    assert source['expected_structure'] == 'accept'
+    _p7_context_candidate_validate(source['input'], source['definition'])
+    assert case['constructor_assessment'] == 'not-established'
+    assert case['runtime_verification'] == 'not-implemented'
+    issues = _p7_context_candidate_prefix_shape_issues(source['input'])
+    if case['condition_id'] == 'PROVENANCE':
+        assert not issues
+        # 相関が揃った合成値でも、発行/全選択集合/操作内容の証拠は無い。
+        assert source['input']['manifest']['terminal_evidence']['kind'] == 'unresolved'
+        assert source['input']['replay_window']['kind'] == 'unresolved'
+    else:
+        assert case['condition_id'] in issues
+    contract = (_P7_CONTEXT_CANDIDATE_PATH / 'constructor-contract.md').read_text()
+    assert '`' + case['condition_id'] + '`' in contract
+
+
+def test_p7_context_candidate_two_page_shape_is_not_full_prefix_proof() -> None:
+    """二頁のcursor相関が一致しても出所を確認したとはしない。"""
+    case = next(
+        item for item in _p7_context_candidate_cases()
+        if item['id'] == 'prefix-two-page-structure'
+    )
+    _p7_context_candidate_validate(case['input'], case['definition'])
+    assert not _p7_context_candidate_prefix_shape_issues(case['input'])
+    assert case['input']['manifest']['selection_evidence']['kind'] == 'unresolved'
+
+
+@pytest.mark.parametrize(
+    'change', ('array-mutable', 'union-removed', 'nested-readonly', 'marker-verified'),
+)
+def test_p7_context_candidate_new_declaration_drift_is_rejected(change: str) -> None:
+    """追加aliasの配列/タグ/入れ子readonly/未閉鎖markerの改変を拒否する。"""
+    text = (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.d.ts').read_text()
+    replacements = {
+        'array-mutable': ('ReadonlyArray<ScorerRefV1>', 'Array<ScorerRefV1>'),
+        'union-removed': ('"top" | "bottom"', '"top"'),
+        'nested-readonly': ('readonly strikes:', 'strikes:'),
+        'marker-verified': ('"unresolved"', '"verified"'),
+    }
+    before, after = replacements[change]
+    assert before in text
+    with pytest.raises(ValueError):
+        _p7_context_candidate_check_declarations(
+            _p7_context_candidate_schema(), text.replace(before, after, 1),
+        )
+
+
+def test_p7_context_candidate_new_definitions_have_source_ownership() -> None:
+    """各追加型の出所/field群を所有対応に残し、未閉鎖参照を隠さない。"""
+    text = (_P7_CONTEXT_CANDIDATE_PATH / 'source-ownership.md').read_text()
+    for name in _p7_context_candidate_schema()['$defs']:
+        assert '`' + name + '`' in text
+    for obligation in (
+        'operation-content', 'canonical-membership', 'half-application-mark',
+        'online-change-source', 'undo-replay-diff', 'prefix-selection', 'prefix-terminal',
+    ):
+        assert '`' + obligation + '`' in text
+    assert '実行constructor・出所/完全性確認は未実装' in text
+
+
+def test_p7_context_candidate_observed_order_keeps_opposite_permutations() -> None:
+    """同じ集合の反転を別入力に保ち、構造照合でsortしない。"""
+    cases = {item['id']: item for item in _p7_context_candidate_cases()}
+    forward = copy.deepcopy(cases['observed-home-touch-order']['input'])
+    reverse = copy.deepcopy(cases['reversed-home-touch-order']['input'])
+    assert forward['scorers'] == list(reversed(reverse['scorers']))
+    assert forward != reverse
+    before = copy.deepcopy(forward)
+    _p7_context_candidate_validate(forward, 'HomeTouchOrderV1')
+    _p7_context_candidate_validate(reverse, 'HomeTouchOrderV1')
+    assert forward == before
+
+
+def test_p7_context_candidate_temporary_origin_preserves_us1_definition() -> None:
+    """US1既存mapping証拠の構造hashを保持し、保存/正式受理とは混同しない。"""
+    node = _p7_context_candidate_schema()['$defs']['T1TemporaryOriginV1']
+    digest = hashlib.sha256(json.dumps(
+        node, ensure_ascii=False, sort_keys=True, separators=(',', ':'),
+    ).encode()).hexdigest()
+    assert digest == 'ca785c278d9c1b65650b9da72cf8f203eec6df479ed445744308b3de5a2987d0'
+
+
+@pytest.mark.parametrize('definition', (
+    'PlayerRefV1', 'ScorerRefV1', 'T1RosterAtEventV1', 'T1PreStateV1', 'T1EffectivePrefixV1',
+))
+def test_p7_context_candidate_nested_closed_objects_reject_missing_and_extra(
+    definition: str,
+) -> None:
+    """追加payload内の各実在objectも全必須欠落/余剰を拒否する。"""
+    schema = _p7_context_candidate_schema()
+    sample = _p7_context_candidate_input(definition)
+
+    def walk(value: Any, node: dict[str, Any], path: tuple[str | int, ...]) -> None:
+        if '$ref' in node:
+            walk(value, schema['$defs'][node['$ref'].removeprefix('#/$defs/')], path)
+            return
+        if 'oneOf' in node:
+            for variant in node['oneOf']:
+                try:
+                    schema_checker._validate_instance(value, variant, schema, '$')
+                except schema_checker.DescriptorCheckError:
+                    continue
+                walk(value, variant, path)
+            return
+        if node.get('type') == 'array':
+            for index, item in enumerate(value):
+                walk(item, node['items'], (*path, index))
+        if node.get('type') != 'object':
+            return
+        for missing in [*node['required'], 'unprovided_field']:
+            changed = copy.deepcopy(sample)
+            target: Any = changed
+            for part in path:
+                target = target[part]
+            if missing == 'unprovided_field':
+                target[missing] = {}
+            else:
+                del target[missing]
+            with pytest.raises(ValueError):
+                _p7_context_candidate_validate(changed, definition)
+        for field, child in node['properties'].items():
+            walk(value[field], child, (*path, field))
+
+    walk(sample, schema['$defs'][definition], ())
+
+
+def test_p7_context_candidate_nested_union_array_uuid_is_checked() -> None:
+    """union/配列の内側でもUUIDを補助検査し、既存helperのformat無視を補う。"""
+    case = next(
+        item for item in _p7_context_candidate_cases()
+        if item['id'] == 'observed-home-touch-order'
+    )
+    value = copy.deepcopy(case['input'])
+    value['scorers'][1]['batter_id']['temporary_id'] = 'not-a-uuid'
+    schema = _p7_context_candidate_schema()
+    schema_checker._validate_instance(value, schema['$defs']['HomeTouchOrderV1'], schema, '$')
+    with pytest.raises(ValueError):
+        _p7_context_candidate_validate(value, 'HomeTouchOrderV1')
+
+
+def test_p7_context_candidate_one_of_ignored_sibling_and_open_array_are_rejected() -> None:
+    """既存helperが無視するoneOf兄弟制約や自由itemを許さない。"""
+    for change in ('sibling', 'free-item', 'free-object'):
+        schema = _p7_context_candidate_schema()
+        if change == 'sibling':
+            schema['$defs']['PlayerRefV1']['type'] = 'object'
+        elif change == 'free-item':
+            schema['$defs']['T1RosterAtEventV1']['properties']['teams']['items'] = {}
+        else:
+            schema['$defs']['T1EventRefV1']['additionalProperties'] = True
+        with pytest.raises(ValueError):
+            _p7_context_candidate_check_keywords(schema)
+
+
+def test_p7_context_candidate_unresolved_fields_cannot_declare_verified_or_ready() -> None:
+    """未閉鎖markerを必須・正確なobligationに保ち、Ready型を公開しない。"""
+    schema = _p7_context_candidate_schema()
+    assert not any('Ready' in name for name in schema['$defs'])
+    obligations: set[str] = set()
+
+    def visit(node: dict[str, Any]) -> None:
+        properties = node.get('properties', {})
+        if 'obligation' in properties:
+            assert node['required'] == ['kind', 'obligation', 'source']
+            assert properties['kind'] == {'const': 'unresolved'}
+            assert properties['source'] == {'$ref': '#/$defs/ContentRefV1'}
+            obligations.add(properties['obligation']['const'])
+        for collection in ('$defs', 'properties'):
+            for child in node.get(collection, {}).values():
+                visit(child)
+        for child in node.get('oneOf', []):
+            visit(child)
+        if 'items' in node:
+            visit(node['items'])
+
+    visit(schema)
+    assert obligations == {
+        'operation-content', 'canonical-membership', 'half-application-mark',
+        'online-change-source', 'undo-replay-diff', 'prefix-selection', 'prefix-terminal',
+    }

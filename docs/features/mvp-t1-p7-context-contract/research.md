@@ -109,3 +109,19 @@ docs-statusは20文書/違反0、計画同期（base 7d6ce544）はexit0、両�
 guardや正式descriptorを変更せず、外殻4定義と旧caseを保持して同5候補/既存構造試験へ閉型・出所対応・構築不可条件だけを後続具体化する。未閉のoperation/diff参照先を文字列で隠して全意味閉包としない。旧codec移行、Ready+O4や新P3/失敗結果の新意味は別判断としてrootへ返す。正式7.7、23フラグ/OUT3/RBI/G6閉包、P6/P7受理、T1製品着手は未達である。P6封印/著者期待値・所有不明JSONにはアクセスしていない。
 
 起案検証: docs-statusは20文書/違反0、計画同期（base `7d6ce5443d71f6f7803d2ceed7e04c7ff87422ad`）はexit0、`git diff --check`成功。実差分はplan/researchだけ。実装差分がないため構造試験/core試験は再実行せず、後続実装の検証計画として残した。
+
+
+## ステップ3/3後続：閉payload/J6・prefix構造候補（独立レビュー前）
+
+承認commit `c6f7c1ff96dcbf25e0fc595d6a92b64bcbaf33a3`を基線として実装した。非作者rights_replacement_reviewの限定計画第1回0/0/0とrootのPO委任承認を受領済み。旧計画2回/先行コード/外殻候補の各レビュー実績をリセットしない。今回の作者は`/root/resolver_ledger_plan_review`で、独立レビューを兼任しない。実差分は候補5files・既存schema試験の専用部分・本researchの7filesだけ。plan/core3/正式assets/旧544/P6/製品sourceは変更0。
+
+- 外殻4定義を不変保持して26定義を追加（計30）。J6タグ参照/順序、時点名簿/打順/守備/交代関係、state10軸、原本/参加区分/版関係、有効prefixページ/manifest/一時ID originを閉構造候補にした。正本指定のsnake runner_id/batter_idと1〜4順序列を保持。D2は既存data-modelのsigned bigint値域で、D1/世代や変更版順と分ける。readonly numberは製品ABI/精度保証ではない。
+- 旧25caseに新規合成122caseを追加（計147）。構造成功を意味上正常と採点せず、別の11対応でscope/snapshot/版/ページ/終端/manifest/originの相関不成立と出所未検証を区別。合成値の相関診断は試験内だけで、実行constructor/出所/全対象集合/実読了/Readyを提供しない。
+- entry.content=`operation-content`、state/entry=`canonical-membership`、mark.application=`half-application-mark`、P3 source.change=`online-change-source`、prefix.replay_window=`undo-replay-diff`、manifest=`prefix-selection`/`prefix-terminal`の7点は**必須unresolved marker**。参照先内容の非提供を明示し、自由JSON/非空文字列で全意味閉包を偽装しない。正負構造試験とsource所有表/constructorの必要条件へ対応した。
+- DTO literal/point版/cursor/manifest/版関係の表現は承認済み追補内の候補具体化。旧codec移行、Ready+O4/新状態拒否の競合、新P3/失敗分類は未裁定のまま。単一規則codec/F-1参照のみで複製0。正式7.7/23フラグ/OUT3/RBI/G6閉包/P6/P7/全T1着手条件は未達。実Port/HTTPを契約準備の前提に追加しない。
+
+検証の履歴: 最初の専用実行162 passed / 2.41s。その後に原典/相関/旧保持回帰を追加した実行は192 passed / 2 failed（旧d.tsと新aliasの間の余分な改行によるbyte保持不一致、旧定義名の文書backtick対応不足）。改行を除いて旧byteを保持し、所有表の旧4定義を個別表記に是正した。構造/拒否のskip化や期待hashの付替えはしていない。Ruffは一度E501 4件、tyは一度配列を辿る試験変数の型1件を検出し、限定行折返し/試験変数型の修正で解消。差分検査のEOF余分空行も除いた。
+
+最終検証: `uv run pytest tests/test_state_transition_contract_schema.py -k p7_context_candidate -n 4 -q` **202 passed / 5.04s**、`uv run pytest tests/test_core_guard.py -n 4 -q` **284 passed / 17.44s**。root `uv run ruff check .` / `uv run ty check`成功。docs-statusは20文書/違反0、計画同期（承認base c6f7c1ff）/差分検査成功。候補5ファイル両core領域被覆を既存専用試験で確認し、core3パス自体は変更なし。実DB/HTTP/意味計算/P6検証は実行せず、独立レビュー/正式受理/統合可は未成立として停止する。後続正式化前の実base全登録/guard_paths保持照合はrootへ引き継ぐ。
+
+保持hash（JSONはsort_keys/UTF-8/空白なしの辞書/列射影）: 旧外殻4定義`a6d701ba987ec27a464ac885ee832f27daa8c4123d2de8a75f3cd554184d1a45`、旧25case`40dc00bc02bb8b54ac6f9e12fbf67bb4841931b8fd432fc7f3a15ea396e1b5ab`、旧d.ts byte prefix`fed23638e0ca11f38a5e610705ff9b609dbe33a39504112c849aff82ee9cebbd`。新T1TemporaryOriginV1の辞書hash`ca785c278d9c1b65650b9da72cf8f203eec6df479ed445744308b3de5a2987d0`はUS1 cb0bのT1MappingEvidenceV1と辞書一致を実照合。CIは固定hashを使い、別worktree/未統合commitの存在を要求しない。
