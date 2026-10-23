@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "97b10a01a12a5719c588ece3dab0460301e8e509db3050ce8601dfb88ed900cd",
-  "entry_count": 60,
-  "aggregate_decision_digest": "790b380ab971495be3b7a777f54f27c4acb03de2dc9aa5eabd92978e31bd4e5c",
+  "asset_digest": "5e89d7421b67a5af9956c01ae7ac6872033e5189a3be1c40318584429fd6a00c",
+  "entry_count": 61,
+  "aggregate_decision_digest": "af48c3a314b3572042a8a5f68f3498c838d7cfc0e254ffdde1a98c88a16f7093",
   "entries": [
     {
       "entry_id": "route:HTTP:ROUTE:FR-020",
@@ -629,6 +629,19 @@
         }
       },
       "decision_digest": "800eed89befac2d2d3a454a3c14aef2f4048a972d2f71405e1fb7ac7f4d8b728"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:games:read",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:games:read",
+        "route_id": "ROUTE:RECORD:games:read",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_preparing_read_registered_route_matches_real_gets",
+          "status": "implemented"
+        }
+      },
+      "decision_digest": "68606929c2685f54fe614133f8ad1fa6a60a4d01d4388d022aafbdda79e91fbb"
     },
     {
       "entry_id": "cell:CELL:shared_screen:team_metrics:screen",
