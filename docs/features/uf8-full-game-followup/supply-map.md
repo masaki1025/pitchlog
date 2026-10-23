@@ -85,3 +85,5 @@ TSK-564固定ローカル候補 `8a816e02f6250cc13efdfcf1edaa2083d6481270` を�
 523は同一scope/accepted prefix/revision/対象cellの提供投影・生成formatterの描画責任を候補として受理する。545が状態/攻撃開始/表完了・裏不要と正式型、544が記録セル得点、564が候補規範/具体caseを提供する境界を保持する。X/blank/整数の意味判定をUIへ複製せず、単一decision.xMarkを全cellへ一括配布しない。旧5セル/E02/E09/E10とGAP-05 openを維持。
 
 不足はE11二caseの比較キー対応、prefix/revision/開始receiptとT1観測の正式な相関、正式表示型/単一生成formatterの提供、独立oracleと同一キーの製品比較。新コールド/サヨナラ優先の意味裁定は523担当外。正式型/Port/実HTTP/DBの完成を候補受領前の条件にはしない。候補受領をP-6正式受理/署名・GAP-05解消・製品接続とせず、9パス範囲追補の未承認状態と実操作封鎖も別に保持する。
+
+同日補助固定517bb74aのdisplay-comparison-bindings.json（SHA d3b66285...）も候補受領。元8a816e02の11資料bytes不変、表示11/E11二の13IDと比較4キーを照合した。E11二のsynthetic入力追補で**候補対応参照の不足は補完**。実prefix/receipt相関、正式型/formatter、独立oracle/製品比較は未提供/未実施のまま。564の偽装4拒否報告は作者実測として分離し、U-F8の独立確認と扱わない。

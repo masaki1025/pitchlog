@@ -48,3 +48,12 @@ TSK-564のローカル固定コミット `8a816e02f6250cc13efdfcf1edaa2083d64812
 ## 状態保持
 
 正式T2の旧8行/248case/拒否12入力・T1資産・旧署名・旧P-6 blocked/verifiedは変更しない。型/formatter/規範の正式反映は供給側の別ゲートで、実HTTP/専用DB/独立比較は実装後DoD。U-F8の9パス追補（最終案52797591/SHA e6946557...）は別の未承認事項のまま、新規パス/製品機能を今回追加しない。未接続の取消/訂正/確定/保存/送信/開始/再開の封鎖、新規PRなし・本人確認代記なしを維持する。
+
+## 同日補助差分517bb74aの追加受領
+
+初回回答後、564から補助固定 `517bb74a6de243b2906ac3c85b883bfed96c3829` の `display-comparison-bindings.json`（SHA-256 `d3b662854b9e569ec05427a71ba86f83f5dc9275c579308d6ca9aee2bd8ab519`）を受け取った。元候補8a816e02の11資料は全てbytes不変と照合した。
+
+- **受領範囲**：表示11case＋E11二case、計13件のID集合とscope/projectionRevision/targetCell/displayの対応表。旧11件は元expectedProjectionと同じ値/型、E11二件だけは`author-proposed-e11-input-addition`としてsynthetic scope/revision/cellの作者追補が明示される。構造と元候補への対応が確認でき、初回不足1の**候補の対応参照**は補完されたと回答する。
+- **まだ受領していないもの**：実accepted prefix/開始receipt/T1観測との相関証拠、正式表示型/生成formatterと失効契約、独立oracle・実製品比較。synthetic revision41等を実prefix証明へ昇格しない。13件とも`actualProductOutput=not-collected`/`independentOracle=not-performed`のままである。
+- 564の「比較器によるscope/prefix/cell/blank対0の偽装4拒否」は作者からの検査報告として受ける。523が同じ検査を実行した/独立再導出したとは記録しない。523で実行したのは元11資料不変・13ID集合/比較4キー・E11二件のみ入力追補という構造/対応の照合だけ。
+- 補助差分を含む候補として表示責任を受理し、GAP-05 open・UIの判定複製なし・旧5セル保持・実操作封鎖を維持する。正式受理/署名/製品接続は未成立。先の不足2〜5と役割境界は継続する。

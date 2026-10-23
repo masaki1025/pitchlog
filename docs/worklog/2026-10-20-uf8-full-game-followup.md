@@ -618,3 +618,5 @@ POが提示済み9パスと直接影響に限る追加独立レビュー1回を�
 - TSK-564から固定8a816e02f6250cc13efdfcf1edaa2083d6481270の新候補差分確認を受けた。開始HEAD52797591/clean。git objectからREADME/manifest/候補case/正式追補案を読み、manifest SHA8e2b99716eee5d45234b8f4e2d2aae9c25b482fe6f2cece9c1087cfdc1bbe660の11資料hash、24行/59case/54入力、旧5セル参照と表示11/E11二のIDを照合。構造/対応だけの確認で、意味の独立導出・oracle・P-6受理ではない。
 - 523の候補受領範囲と不足/実担当を回答文書へ固定。旧5セルと具体新caseを対応付け、E11で評価位置=裏と攻撃開始receiptを混同せず、総得点からセル得点を導出しない。表示意味の選択をUIへ重複実装せず、545/契約側の単一formatter/正式型を受ける。scope/prefix/revision/cell・開始receipt・T1記録得点の実相関と、E11二caseのキー対応は未提供/要補足。候補を受け取る前に正式Port/実HTTPを要求しない。
 - T2-DECISION-COLD-WALKOFF-PRIORITYのA/Bは523では選ばず、PO/意味所有へ残す。GAP-05 open、旧正式8行248case/拒否12・T1・署名・P-6状態不変、独立oracle/実製品比較未実施、全実操作封鎖を維持。9パス最終追補案52797591/SHA e6946557...は別の未承認事項で、今回の受渡しを最終承認/7.7受理に流用しない。新規製品実装/正式共有資産編集/新規PR/追加レビュー/本人確認代記なし。
+
+同日追加通知517bb74a6de243b2906ac3c85b883bfed96c3829も照合。元候補8a816e02の11資料bytesは不変、display-comparison-bindings.json SHA d3b662854b9e569ec05427a71ba86f83f5dc9275c579308d6ca9aee2bd8ab519、13ID集合/比較4キー/元11expectedProjectionの値・型一致/E11二だけ作者入力追補を確認。初回のE11候補対応参照は補完済みと追記し、実accepted prefix/receipt・正式型/formatter/独立oracle/実製品比較は未受領/未実施を明示。偽装4拒否は作者報告として受領し、自分の実行/独立検証とせず、GAP-05 openを維持した。
