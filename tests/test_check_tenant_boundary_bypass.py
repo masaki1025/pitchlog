@@ -7422,3 +7422,91 @@ def test_default_base_ref_belongs_only_to_frozen_checker_procedure() -> None:
         "scripts/frozen_archive.py",
         ".github/workflows/ci.yml",
     ]
+
+
+_PREPARING_READ_FACTORY_FIXTURES = (
+    'pitchlog/repositories/games.py',
+    'pitchlog/repositories/games/__init__.py',
+)
+
+
+def test_preparing_read_exact_select_factories_and_positive_fixtures() -> None:
+    """正確な2factory/署名/正例だけにSELECTを許し、全拒否変異も検出する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    allowlist = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
+    rows = [
+        row for row in allowlist['allowed_symbols']
+        if row['symbol'].startswith('pitchlog.repositories.games.')
+    ]
+    assert rows == [
+        {
+            'symbol': 'pitchlog.repositories.games._preparing_game_list_statement',
+            'signature': (
+                '_preparing_game_list_statement(cursor_position: '
+                'tuple[datetime, UUID] | None=None) -> Select[Any]'
+            ),
+            'allowed_api_ids': ['SQLA_SELECT'],
+            'fixture': (
+                'tests/fixtures/tenant_boundary/positive/'
+                + _PREPARING_READ_FACTORY_FIXTURES[0]
+            ),
+        },
+        {
+            'symbol': 'pitchlog.repositories.games._preparing_game_detail_statement',
+            'signature': '_preparing_game_detail_statement() -> Select[Any]',
+            'allowed_api_ids': ['SQLA_SELECT'],
+            'fixture': (
+                'tests/fixtures/tenant_boundary/positive/'
+                + _PREPARING_READ_FACTORY_FIXTURES[1]
+            ),
+        },
+    ]
+    for relative in _PREPARING_READ_FACTORY_FIXTURES:
+        source = (POSITIVE_ROOT / relative).read_text()
+        assert checker.scan_source(source, path=relative, contract=contract) == []
+        violations = checker.scan_source(
+            source, path=relative, contract=contract, reject_all_db_calls=True,
+        )
+        assert [item.code for item in violations] == ['TB900']
+    relative = 'pitchlog/repositories/games.py'
+    source = (REPOSITORY_ROOT / 'backend/src' / relative).read_text()
+    assert checker.scan_source(source, path=relative, contract=contract) == []
+    assert len(checker.scan_source(
+        source, path=relative, contract=contract, reject_all_db_calls=True,
+    )) == 2
+
+
+@pytest.mark.parametrize('relative', _PREPARING_READ_FACTORY_FIXTURES)
+@pytest.mark.parametrize('mutation', ('text', 'update', 'module', 'function', 'signature'))
+def test_preparing_read_select_allowance_rejects_boundary_mutations(
+    relative: str, mutation: str,
+) -> None:
+    """許可関数内の別API・別module/関数・異なる署名を引き続き拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = (POSITIVE_ROOT / relative).read_text()
+    if mutation in ('text', 'update'):
+        source = source.replace(
+            'from sqlalchemy import select', 'from sqlalchemy import select, text, update',
+        )
+        source = source.replace('return select(1)', f'return {mutation}("probe")')
+    elif mutation == 'module':
+        relative = 'pitchlog/repositories/unregistered_games.py'
+    elif mutation == 'function':
+        source = source.replace('_preparing_game_', '_unregistered_game_')
+    else:
+        source = source.replace(' -> Select[Any]', ' -> object')
+    violations = checker.scan_source(source, path=relative, contract=contract)
+    assert violations
+    assert {item.code for item in violations} == {'TB005'}
+
+
+def test_preparing_read_other_function_still_rejects_select() -> None:
+    """同moduleの追加関数へSELECT許可を拡張しない。"""
+    source = (POSITIVE_ROOT / _PREPARING_READ_FACTORY_FIXTURES[0]).read_text()
+    source += '\n\ndef unregistered():\n    return select(1)\n'
+    violations = checker.scan_source(
+        source, path=_PREPARING_READ_FACTORY_FIXTURES[0],
+        contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert len(violations) == 1
+    assert violations[0].code == 'TB005'

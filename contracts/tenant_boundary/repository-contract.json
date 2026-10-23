@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 23,
+  "contract_revision": 24,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:23"
+        "contract_revision:24"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -213,7 +213,9 @@
     "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
     "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
     "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
-    "pitchlog.repositories.tenant_profile.TenantProfileReadToken"
+    "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
+    "pitchlog.repositories.games.PreparingGameListToken",
+    "pitchlog.repositories.games.PreparingGameDetailToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -224,5 +226,5 @@
     "RG1:precheck",
     "RG1:commit_check"
   ],
-  "source_digest": "1a63da87392116cb60bbd5b770bdd250624ef4eb20d1bc031fd041bd3a588ead"
+  "source_digest": "bf4ec2aa44c888131c1c09d8de2f259f7ef9199e3186004346f8feefee034f08"
 }

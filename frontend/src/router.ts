@@ -7,8 +7,8 @@ import StrikeZoneCompareHost from './components/zone/StrikeZoneCompareHost.vue'
 import HelpScreen from './screens/HelpScreen.vue'
 import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
-import GameScreenEntry from './screens/GameScreenEntry.vue'
-import GameScreenEntryRecord from './screens/GameScreenEntryRecord.vue'
+import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
+import GameScreenEntryRecordHost from './screens/GameScreenEntryRecordHost.vue'
 import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 
@@ -32,13 +32,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       {
         path: '/games',
         name: 'games',
-        component: GameScreenEntry,
+        component: GameScreenEntryHost,
         meta: { requiresAuth: true },
       },
       {
         path: '/games/:gameId/record',
         name: 'game-record',
-        component: GameScreenEntryRecord,
+        component: GameScreenEntryRecordHost,
         meta: { requiresAuth: true },
       },
     ],
