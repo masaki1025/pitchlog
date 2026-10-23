@@ -1,6 +1,6 @@
 ---
 feature: mvp-delegated-core-review
-status: active
+status: in-review
 承認: 済(2026-10-23・PO委任によるCodex判断)
 重さ分類: コア領域
 worktree: ../../..
@@ -92,3 +92,5 @@ ci.ymlを実PR基線1ab398ccとバイト同一へ復元する。正式資産・r
 CI run39950625656のtenant-boundary-bypassは、認証用CI2行が既存8資産の外部凍結対象を動かし未受理だったため失敗。失敗を保持する。公開APIを無認証・固定URL・既定TLS・redirect拒否・サイズ上限・取得不能拒否で読む方式へ是正し、CIを基線とバイト同一へ復元するPO委任判断で、新たな7.7基準更新を作らない。
 
 修正実装開始時のactive遷移が後追いとなったため、コードコミット前にこのメタデータ遷移を記録する。未レビューの変更を旧固定HEADの確認済みと扱わない。意味仕様・既存拒否能力の緩和なし、最終新HEADの第2回差分レビューと証拠再固定を行う。
+
+最終是正版: core350 passed/20.89s、Ruff/ty全体、文書20件0違反、diff-check成功。実無認証API取得成功。正式資産9件と全外部対象は基線とバイト一致、movement=False/affected=[]、作業木を対象とするchecker違反0。コミット後の正式PRイベントでも再検証し、旧d5d85134証拠は新HEADでは拒否する。
