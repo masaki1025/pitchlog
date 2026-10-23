@@ -41,7 +41,7 @@ def test_games_applied_rules_rejects_change_after_insert(
         monkeypatch.setenv(
             "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
         )
-        command.upgrade(_alembic_config(), "head")
+        command.upgrade(_alembic_config(), "0033_game_rules_immutable")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             _seed_behavior_rows(connection)
             row = connection.execute(
@@ -222,7 +222,7 @@ def test_games_applied_rules_rejects_change_after_insert(
                 "WHERE tenant_id = %s AND id = %s",
                 (tenant_id, game_id),
             ).fetchone() == (initial,)
-        command.upgrade(_alembic_config(), "head")
+        command.upgrade(_alembic_config(), "0033_game_rules_immutable")
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
             with pytest.raises(psycopg.errors.CheckViolation, match=_REJECTION):
                 connection.execute(

@@ -49,9 +49,22 @@ TENANT_BOUNDARY_ALLOWLIST_PATH = (
 REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
 ALEMBIC_CI_COMMANDS = (
-    "uv run alembic upgrade head",
+    "uv run alembic upgrade 0033_game_rules_immutable",
     "uv run alembic current --check-heads",
     "uv run alembic check",
+)
+STAGE_A_CI_MARKERS = (
+    "from pitchlog.db.stage_a_startup import advance_stage_a_from_s0",
+    "stage_admin_dsn = make_conninfo(admin_dsn, dbname=stage_db)",
+    "result = advance_stage_a_from_s0(",
+    "assert result.completed_stage == 'S3'",
+    "assert result.publishable is False",
+)
+STAGE_A_BOOTSTRAP_MARKERS = (
+    "CREATE ROLE pitchlog_owner LOGIN NOSUPERUSER NOBYPASSRLS",
+    "NOCREATEROLE NOCREATEDB NOREPLICATION NOINHERIT",
+    "CREATE DATABASE {} OWNER {}",
+    "pitchlog_stage_a_ci",
 )
 CHECKOUT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 TENANT_BOUNDARY_JOB = "tenant-boundary-bypass"
@@ -136,8 +149,9 @@ ACTIVATION_UPLOAD_WITH = {
     "path": ACTIVATION_EVIDENCE_PATH,
     "if-no-files-found": "error",
 }
-# 全葉への値変異と削除変異を一度ずつ行う契約値。木を広げた場合は意図的に更新する。
-EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 130
+# 全葉への値変異と削除変異を一度ずつ行う契約値。
+# 段階A owner DSNのbackend/mutation各1葉を追加し、65葉から67葉へ増加した。
+EXPECTED_CI_CONTRACT_MUTATION_ATTEMPTS = 134
 PathSegment = str | int
 NodePath = tuple[PathSegment, ...]
 
@@ -1383,6 +1397,20 @@ def _ci_wiring_errors(
             errors.append("backend-changes の paths-filter が期待値と異なる")
 
     commands = _backend_commands(backend)
+    bootstrap_commands = [
+        command for command in commands if "CREATE DATABASE {} OWNER {}" in command
+    ]
+    if len(bootstrap_commands) != 1 or any(
+        marker not in bootstrap_commands[0] for marker in STAGE_A_BOOTSTRAP_MARKERS
+    ):
+        errors.append("backend の段階起動用DBがowner所有で初期化されない")
+    stage_a_commands = [
+        command for command in commands if "advance_stage_a_from_s0" in command
+    ]
+    if len(stage_a_commands) != 1 or any(
+        marker not in stage_a_commands[0] for marker in STAGE_A_CI_MARKERS
+    ):
+        errors.append("backend の段階起動 S1〜S3 が固定の閉鎖経路でない")
     required_backend_commands = [
         "corepack enable", "pnpm install --frozen-lockfile", "uv python install",
         "uv sync --locked --dev",
@@ -1390,13 +1418,19 @@ def _ci_wiring_errors(
         "uv run ruff format --check .",
         "uv run ty check",
         execution["single_command"]["expected"],
-        *ALEMBIC_CI_COMMANDS,
+        *(bootstrap_commands[:1] or ["<専用DBなし>"]),
+        ALEMBIC_CI_COMMANDS[0],
+        *(stage_a_commands[:1] or ["<段階起動なし>"]),
+        *ALEMBIC_CI_COMMANDS[1:],
     ]
     if (
         commands[: len(required_backend_commands)] != required_backend_commands
         or len(commands) != len(required_backend_commands) + 1
     ):
-        errors.append("backend の frontend 依存 2 件 + 既存 6 件 + Alembic 3 段が順序どおりでない")
+        errors.append(
+            "backend の frontend 依存 2 件 + 既存 6 件 + "
+            "段階起動・Alembic 3 段が順序どおりでない"
+        )
     expected_alembic_locations = [
         ("backend", command) for command in ALEMBIC_CI_COMMANDS
     ]
@@ -3429,6 +3463,44 @@ def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
     )
 
     assert "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する" in errors
+
+
+def test_stage_a_ci_startup_omission_is_red() -> None:
+    """配置前の認可適用と非公開結果の確認を省くCIを拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    mutated = copy.deepcopy(workflow)
+    steps = _backend_job(mutated)["steps"]
+    assert isinstance(steps, list)
+    steps[:] = [
+        step
+        for step in steps
+        if not (
+            isinstance(step, dict)
+            and isinstance(step.get("run"), str)
+            and "advance_stage_a_from_s0" in step["run"]
+        )
+    ]
+    errors = _ci_wiring_errors(mutated, _load_expectations(), _load_yaml_mapping(COMPOSE_PATH))
+    assert "backend の段階起動 S1〜S3 が固定の閉鎖経路でない" in errors
+
+
+def test_stage_a_ci_migrations_use_owner_database() -> None:
+    """0032と最終照合を配置用ownerの同じ専用DBへ向ける。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    backend = _backend_job(workflow)
+    environment = backend["env"]
+    assert isinstance(environment, dict)
+    assert str(environment["PITCHLOG_STAGE_A_OWNER_DSN"]).endswith(
+        "/pitchlog_stage_a_ci"
+    )
+    steps = backend["steps"]
+    assert isinstance(steps, list)
+    for command in ALEMBIC_CI_COMMANDS:
+        matched = [step for step in steps if isinstance(step, dict) and step.get("run") == command]
+        assert len(matched) == 1
+        assert matched[0].get("env") == {
+            "PITCHLOG_MIGRATION_DATABASE_URL": "${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}"
+        }
 
 
 def test_every_ci_contract_leaf_value_and_deletion_mutation_is_red() -> None:

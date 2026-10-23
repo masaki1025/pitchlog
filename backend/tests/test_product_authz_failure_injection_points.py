@@ -182,7 +182,13 @@ def _validate_failure_injection_asset(
         assert position_rule["position"] == expected_position
         assert position_rule["failure_boundary"] == "after_current_transaction_rollback"
 
-    for operation in ProductOperation:
+    assert set(ProductOperation) == {
+        ProductOperation.APPLY,
+        ProductOperation.APPLY_PRE_RULE,
+        ProductOperation.UNAPPLY,
+    }
+    # 段階S1の故障境界は専用の隔離DB試験で検査する。
+    for operation in (ProductOperation.APPLY, ProductOperation.UNAPPLY):
         operation_points = tuple(
             point for point in points if point["operation"] == operation.value
         )

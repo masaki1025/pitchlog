@@ -51,6 +51,14 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Direct connection 上で migration を実行する。"""
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        context.configure(
+            connection=supplied_connection, target_metadata=target_metadata
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+        return
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = _migration_database_url()
     connectable = engine_from_config(

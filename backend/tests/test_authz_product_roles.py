@@ -161,8 +161,13 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
     assert set(statements_by_role) == set(expected_roles)
     for role_id, expected in expected_roles.items():
         sql = statements_by_role[role_id].sql
+        attribute_statement = (
+            rf"CREATE ROLE {re.escape(role_id)} WITH\s+([^;]+);"
+            if role_id == "pitchlog_rule_resolution_fn_owner"
+            else rf"ALTER ROLE {re.escape(role_id)} WITH\s+([^;]+);"
+        )
         matches = re.findall(
-            rf"ALTER ROLE {re.escape(role_id)} WITH\s+([^;]+);",
+            attribute_statement,
             sql,
             flags=re.DOTALL,
         )
@@ -172,7 +177,11 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
             for attribute in _ATTRIBUTE_ORDER
         )
         create_count = len(re.findall(rf"\bCREATE ROLE {re.escape(role_id)};", sql))
-        assert create_count == (0 if role_id == "pitchlog_owner" else 1)
+        assert create_count == (
+            0
+            if role_id in {"pitchlog_owner", "pitchlog_rule_resolution_fn_owner"}
+            else 1
+        )
         if role_id != "pitchlog_owner":
             assert "END;\n$authz$;" in sql
 
@@ -208,6 +217,7 @@ def test_product_state_requires_authn_role_even_when_role_is_missing() -> None:
         "pitchlog_management_fn_owner",
         "pitchlog_auth_fn_owner",
         "pitchlog_rg1_fn_owner",
+        "pitchlog_rule_resolution_fn_owner",
     }
     assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
 
@@ -227,7 +237,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 6
+    assert len(expected_product_roles(asset)) == 7
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):

@@ -18,7 +18,12 @@ from pitchlog.authz.asset_spec import (
     load_product_application_steps,
 )
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
-from pitchlog.authz.product_control_access import is_rg1_singleton_update_acl
+from pitchlog.authz.product_control_access import (
+    RULE_RESOLUTION_FUNCTION_ID,
+    RULE_RESOLUTION_OWNER_ROLE_ID,
+    is_rg1_singleton_update_acl,
+    is_rule_resolution_update_acl,
+)
 
 _REPOSITORY_ROOT = Path(__file__).parents[4]
 _IDENTITY_QUERY = """
@@ -41,6 +46,7 @@ class ProductOperation(Enum):
     """製品認可の末端が受け付ける閉じた操作種別。"""
 
     APPLY = "apply"
+    APPLY_PRE_RULE = "apply_pre_rule"
     UNAPPLY = "unapply"
 
 
@@ -64,6 +70,13 @@ class _ProductElement:
 def apply_product_authz_ddl(connection: psycopg.Connection[Any]) -> None:
     """製品認可 DDL を正規資産の固定順序で適用する。"""
     _run_product_operation(connection, ProductOperation.APPLY)
+
+
+def apply_product_authz_before_rule_placement(
+    connection: psycopg.Connection[Any],
+) -> None:
+    """規則配置前に関数と列権限だけを保留して製品認可を適用する。"""
+    _run_product_operation(connection, ProductOperation.APPLY_PRE_RULE)
 
 
 def unapply_product_authz_ddl(connection: psycopg.Connection[Any]) -> None:
@@ -449,7 +462,9 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         column = _quote_identifier(_element_text(element, "column_id"))
         grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
-        if is_rg1_singleton_update_acl(element.fields):
+        if is_rg1_singleton_update_acl(element.fields) or is_rule_resolution_update_acl(
+            element.fields
+        ):
             privileges = f"SELECT ({column}), UPDATE ({column})"
         elif element.fields.get("privilege_ids") == ["SELECT"]:
             privileges = f"SELECT ({column})"
@@ -497,8 +512,23 @@ def _build_operation_statements(
     """正規の置き場だけから手順と実行文を生成する。"""
     steps = load_product_application_steps(_REPOSITORY_ROOT, PRODUCT_SPEC)
     generated = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
+    if operation is ProductOperation.APPLY_PRE_RULE:
+        deferred = {
+            statement.element_id
+            for statement in generated
+            if statement.element_id == RULE_RESOLUTION_FUNCTION_ID
+            or (
+                statement.element_type == "column_acl_expectation"
+                and statement.element_id.endswith(f":{RULE_RESOLUTION_OWNER_ROLE_ID}")
+            )
+        }
+        if len(deferred) != 16 or RULE_RESOLUTION_FUNCTION_ID not in deferred:
+            raise ProductProvisioningError("規則解決の保留対象がexact-set不一致")
+        generated = tuple(
+            statement for statement in generated if statement.element_id not in deferred
+        )
     elements = _load_product_elements()
-    if operation is ProductOperation.APPLY:
+    if operation in (ProductOperation.APPLY, ProductOperation.APPLY_PRE_RULE):
         statements = _application_statements(generated, steps, elements)
     elif operation is ProductOperation.UNAPPLY:
         statements = _unapplication_statements(generated, steps, elements)
@@ -506,7 +536,7 @@ def _build_operation_statements(
         raise ProductProvisioningError(f"未定義の製品認可操作: {operation!r}")
     selected_steps = (
         steps.application_steps
-        if operation is ProductOperation.APPLY
+        if operation in (ProductOperation.APPLY, ProductOperation.APPLY_PRE_RULE)
         else steps.unapplication_steps
     )
     if {statement.sequence for statement in statements} != {
@@ -557,7 +587,7 @@ def _checkpoint_id(
 ) -> str | None:
     """設計で固定した故障注入用の記録点 ID を返す。"""
     is_last = statement_number == statement_count
-    if operation is ProductOperation.APPLY:
+    if operation in (ProductOperation.APPLY, ProductOperation.APPLY_PRE_RULE):
         if sequence in {1, 4} and is_last:
             return f"product:{sequence}:after"
         if sequence == 3 and is_last:

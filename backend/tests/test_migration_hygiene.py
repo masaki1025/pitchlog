@@ -8,6 +8,7 @@ import hashlib
 import json
 import re
 import subprocess
+from collections import Counter
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -69,13 +70,27 @@ def _rg1_seed_candidate_ledger() -> dict[str, Any]:
     return ledger
 
 
+def _stage_a_seed_formal_ledger() -> dict[str, Any]:
+    """正式受理済みの0034宣言を変異試験へ渡す。"""
+    ledger = copy.deepcopy(_load_seed_allowlist())
+    assert "stage_a_fixed_defaults" in ledger["declarations"]
+    accepted = [
+        row for row in ledger["history"] if row["series"] == "stage_a_fixed_defaults"
+    ]
+    assert len(accepted) == 1
+    assert accepted[0]["series"] == "stage_a_fixed_defaults"
+    assert accepted[0]["approved_by"] == "山田正輝"
+    assert accepted[0]["approved_at"] == "2026-10-23"
+    return ledger
+
+
 def _vocabulary_seed_series() -> tuple[str, ...]:
     """既存の語彙用変異試験へ渡す系列だけを返す。"""
     return tuple(
         sorted(
             series
             for series, declaration in _load_seed_allowlist()["declarations"].items()
-            if declaration["allowed"].get("row_shape") != "singleton_exact"
+            if "row_shape" not in declaration["allowed"]
         )
     )
 
@@ -365,7 +380,23 @@ def _assert_checker_has_no_frozen_values(
         allowed = declaration["allowed"]
         rows = allowed["upgrade_rows"]
         assert all(target not in source for target in declaration["frozen_targets"])
-        if allowed.get("row_shape") == "singleton_exact":
+        if allowed.get("row_shape") == "stage_a_fixed_five":
+            frozen_strings = {
+                *allowed["target_tables"],
+                *(
+                    value
+                    for row in rows["rows"]
+                    for value in row
+                    if isinstance(value, str)
+                ),
+                *(
+                    value
+                    for policy in allowed["temporary_policies"]
+                    for value in policy
+                    if isinstance(value, str)
+                ),
+            }
+        elif allowed.get("row_shape") == "singleton_exact":
             frozen_strings = {
                 *allowed["target_tables"],
                 *(
@@ -398,6 +429,102 @@ def _declared_allowances(ledger: Mapping[str, Any]) -> dict[str, Mapping[str, An
             assert path not in allowances, f"{path}: 許可対象が重複している"
             allowances[path] = allowed
     return allowances
+
+
+def _fixed_stage_a_seed_violations(
+    path: str, source: str, allowed: Mapping[str, Any]
+) -> list[str]:
+    """0034 の固定配置だけを、ソース全体と値・件数の両方で検証する。"""
+    required_keys = {
+        "row_shape",
+        "revision_id",
+        "source_sha256",
+        "target_tables",
+        "upgrade_rows",
+        "temporary_policies",
+        "db_call_counts",
+        "static_violation_counts",
+    }
+    if set(allowed) != required_keys:
+        return [f"{path}: 0033 固定配置の対象または宣言形が不正"]
+    if allowed["row_shape"] != "stage_a_fixed_five":
+        return [f"{path}: 0033 固定配置の行形が不正"]
+    if Path(path).name != f"{allowed['revision_id']}.py":
+        return [f"{path}: 0033 固定配置のrevisionが不一致"]
+    if hashlib.sha256(source.encode("utf-8")).hexdigest() != allowed["source_sha256"]:
+        return [f"{path}: 0033 固定配置のソースdigestが不一致"]
+    try:
+        tree = ast.parse(source, filename=path)
+        declared_revisions = [
+            ast.literal_eval(node.value)
+            for node in tree.body
+            if isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "revision"
+            and node.value is not None
+        ]
+        assignments = {
+            target.id: ast.literal_eval(node.value)
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            for target in node.targets
+            if isinstance(target, ast.Name) and target.id in {"_RULES", "_POLICIES"}
+        }
+        rule_rows = assignments["_RULES"]
+        policies = assignments["_POLICIES"]
+    except (KeyError, SyntaxError, ValueError, TypeError):
+        return [f"{path}: 0033 固定配置の行・policyを読めない"]
+    db_calls = Counter(
+        ast.unparse(node.func)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in {"execute", "exec_driver_sql"}
+    )
+    ordinary_violations = _migration_source_violations(
+        {path: source}, ledger={"declarations": {}}
+    )
+    violation_counts = Counter(
+        violation.split(": ", maxsplit=1)[-1] for violation in ordinary_violations
+    )
+    sql_literals = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+    inserted_tables = [
+        match.group(1)
+        for literal in sql_literals
+        for match in re.finditer(r"INSERT\s+INTO\s+public\.([a-z_]+)\b", literal)
+    ]
+    policy_names = [
+        match.group(1)
+        for literal in sql_literals
+        for match in re.finditer(r"CREATE\s+POLICY\s+([a-z][a-z0-9_]*)\b", literal)
+    ]
+    row_spec = allowed["upgrade_rows"]
+    if (
+        not isinstance(allowed["target_tables"], list)
+        or len(allowed["target_tables"]) != 2
+        or len(set(allowed["target_tables"])) != 2
+        or type(row_spec.get("count")) is not int
+        or row_spec["count"] <= 0
+        or declared_revisions != [allowed["revision_id"]]
+        or len(rule_rows) != row_spec["count"]
+        or [list(row) for row in rule_rows] != row_spec.get("rows")
+        or len({row[0] for row in rule_rows}) != len(rule_rows)
+        or len({row[1] for row in rule_rows}) != len(rule_rows)
+        or len(policies) != len(allowed["temporary_policies"])
+        or len(policies) != 2 * len(allowed["target_tables"])
+        or [list(policy) for policy in policies] != allowed["temporary_policies"]
+        or {policy[0] for policy in policies} != set(allowed["target_tables"])
+        or Counter(inserted_tables) != Counter(allowed["target_tables"])
+        or Counter(policy_names) != Counter(policy[1] for policy in policies)
+        or dict(db_calls) != allowed["db_call_counts"]
+        or dict(violation_counts) != allowed["static_violation_counts"]
+    ):
+        return [f"{path}: 0033 固定配置の対象・値・件数が不一致"]
+    return []
 
 
 def _call_name(node: ast.Call) -> str | None:
@@ -761,6 +888,9 @@ def _migration_source_violations(
     for path, source in sorted(sources.items()):
         tree = ast.parse(source, filename=path)
         allowed = allowances.get(path)
+        if allowed is not None and allowed.get("row_shape") == "stage_a_fixed_five":
+            violations.extend(_fixed_stage_a_seed_violations(path, source, allowed))
+            continue
         function_by_node: dict[int, str] = {}
         scope_by_node: dict[int, int] = {}
         for statement in tree.body:
@@ -923,6 +1053,74 @@ def _migration_source_violations(
 def test_all_migration_revisions_contain_only_schema_ddl() -> None:
     """宣言した seed 以外の revision に権限 DDL・DML がないことを確認する。"""
     assert _migration_source_violations(_migration_sources()) == []
+
+
+def test_stage_a_seed_formal_declaration_is_exact() -> None:
+    """正式受理後も0034の許可内容を厳密に照合する。"""
+    ledger = _stage_a_seed_formal_ledger()
+    path = ledger["declarations"]["stage_a_fixed_defaults"]["frozen_targets"][0]
+    source = (_BACKEND_ROOT / path).read_text(encoding="utf-8")
+    assert _migration_source_violations({path: source}, ledger=ledger) == []
+    assert _migration_source_violations({path: source}) == []
+    _assert_checker_has_no_frozen_values(
+        ledger, Path(__file__).read_text(encoding="utf-8")
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing_row",
+        "extra_row",
+        "different_value",
+        "missing_policy",
+        "extra_policy",
+        "other_target",
+        "unrelated_migration",
+        "arbitrary_sql",
+        "extra_read_sql",
+        "changed_source_row",
+    ),
+)
+def test_stage_a_seed_formal_declaration_rejects_scope_changes(mutation: str) -> None:
+    """固定5組・4 policy・対象revision以外への許可拡大を拒否する。"""
+    ledger = _stage_a_seed_formal_ledger()
+    declaration = ledger["declarations"]["stage_a_fixed_defaults"]
+    path = declaration["frozen_targets"][0]
+    source = (_BACKEND_ROOT / path).read_text(encoding="utf-8")
+    allowed = declaration["allowed"]
+    if mutation == "missing_row":
+        allowed["upgrade_rows"]["rows"].pop()
+    elif mutation == "extra_row":
+        allowed["upgrade_rows"]["rows"].append(["outside", "id", [], 9, None])
+    elif mutation == "different_value":
+        allowed["upgrade_rows"]["rows"][0][3] = 8
+    elif mutation == "missing_policy":
+        allowed["temporary_policies"].pop()
+    elif mutation == "extra_policy":
+        allowed["temporary_policies"].append(["outside", "extra"])
+    elif mutation == "other_target":
+        allowed["target_tables"][0] = "outside"
+    elif mutation == "unrelated_migration":
+        path = str(Path(path).with_name("0034_unrelated.py"))
+        ledger["declarations"]["stage_a_fixed_defaults"]["frozen_targets"] = [path]
+    elif mutation == "arbitrary_sql":
+        source += (
+            "\ndef unrelated():\n    op.execute('INSERT INTO outside VALUES (1)')\n"
+        )
+        allowed["source_sha256"] = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    elif mutation == "extra_read_sql":
+        source += (
+            "\ndef unrelated():\n"
+            "    connection.execute(sa.text('SELECT * FROM outside'))\n"
+        )
+        allowed["source_sha256"] = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    else:
+        assert mutation == "changed_source_row"
+        original = allowed["upgrade_rows"]["rows"][0][1]
+        source = source.replace(original, "00000000-0000-0000-0000-000000000000", 1)
+        allowed["source_sha256"] = hashlib.sha256(source.encode("utf-8")).hexdigest()
+    assert _migration_source_violations({path: source}, ledger=ledger)
 
 
 def test_seed_allowlist_values_are_externalized() -> None:

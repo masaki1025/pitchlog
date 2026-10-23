@@ -45,6 +45,7 @@ from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[
     generate_membership_helper_sql,
     is_forbidden_rg1_table_acl,
     is_rg1_singleton_update_acl,
+    is_rule_resolution_update_acl,
 )
 from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
     build_product_function_acl_declaration,
@@ -3437,7 +3438,11 @@ def _validate_product_database_expectations(value: object) -> None:
 
 
 def _validate_product_schema_expectations(
-    value: object, *, authn_enabled: bool = False, rg1_required: bool = False
+    value: object,
+    *,
+    authn_enabled: bool = False,
+    rg1_required: bool = False,
+    rule_resolution_required: bool = False,
 ) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
     if not isinstance(value, list):
@@ -3514,6 +3519,16 @@ def _validate_product_schema_expectations(
                     expected["revoked_acl_expectations"],
                 )
                 | frozenset({("pitchlog_rg1_fn_owner", "CREATE", False)}),
+            }
+        if schema_id == "public" and rule_resolution_required:
+            expected = {
+                **expected,
+                "acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["acl_expectations"]
+                ) | frozenset({("pitchlog_rule_resolution_fn_owner", "USAGE", False)}),
+                "revoked_acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["revoked_acl_expectations"]
+                ) | frozenset({("pitchlog_rule_resolution_fn_owner", "CREATE", False)}),
             }
         if actual.get(schema_id) != expected:
             raise CatalogError(
@@ -4159,7 +4174,10 @@ def _validate_product_membership_helper(
             "object_schema"
         ) != "public":
             raise CatalogError("列ACLの対象種別またはスキーマが不正")
-        if not is_rg1_singleton_update_acl(declaration) and (
+        permits_update = is_rg1_singleton_update_acl(
+            declaration
+        ) or is_rule_resolution_update_acl(declaration)
+        if not permits_update and (
             declaration.get("privilege_ids") != ["SELECT"]
             or declaration.get("grant_option") is not False
         ):
@@ -4727,6 +4745,7 @@ def _validate_product_ddl_elements(
             isinstance(row, dict) and row.get("table_id") == "rg1_restore_gate"
             for row in cast(list[object], raw["tables"])
         ),
+        rule_resolution_required="pitchlog_rule_resolution_fn_owner" in roles_by_id,
     )
     _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)

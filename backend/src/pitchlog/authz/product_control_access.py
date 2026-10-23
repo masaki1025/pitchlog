@@ -29,6 +29,17 @@ RG1_COMMIT_CHECK_FUNCTION_ID: Final = (
 )
 RG1_RESTORE_GATE_TABLE_ID: Final = "rg1_restore_gate"
 RG1_FUNCTION_OWNER_ROLE_ID: Final = "pitchlog_rg1_fn_owner"
+RULE_RESOLUTION_FUNCTION_ID: Final = (
+    "FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)"
+)
+RULE_RESOLUTION_OWNER_ROLE_ID: Final = "pitchlog_rule_resolution_fn_owner"
+RULE_RESOLUTION_UPDATE_COLUMNS: Final = frozenset(
+    {
+        ("game_type_rule_defaults", "game_type_category"),
+        ("rule_sets", "id"),
+        ("tenant_vocabularies", "disabled"),
+    }
+)
 _CONTROL_POLICY_EXPRESSIONS: Final = (
     (
         "analysis_groups",
@@ -235,6 +246,30 @@ def is_rg1_singleton_update_acl(declaration: Mapping[str, object]) -> bool:
     }
 
 
+def is_rule_resolution_update_acl(declaration: Mapping[str, object]) -> bool:
+    """規則解決関数のロック用3列だけへUPDATEを限定する。"""
+    table = declaration.get("object_id")
+    column = declaration.get("column_id")
+    expected_id = f"COLUMN-ACL:public:{table}:{column}:{RULE_RESOLUTION_OWNER_ROLE_ID}"
+    return (
+        isinstance(table, str)
+        and isinstance(column, str)
+        and (table, column) in RULE_RESOLUTION_UPDATE_COLUMNS
+        and dict(declaration)
+        == {
+            "expectation_id": expected_id,
+            "object_kind": "column",
+            "object_schema": "public",
+            "object_id": table,
+            "column_id": column,
+            "grantee_role_id": RULE_RESOLUTION_OWNER_ROLE_ID,
+            "privilege_ids": ["SELECT", "UPDATE"],
+            "grant_option": False,
+            "function_id": RULE_RESOLUTION_FUNCTION_ID,
+        }
+    )
+
+
 def is_forbidden_rg1_table_acl(declaration: Mapping[str, object]) -> bool:
     """RG1状態表または専用ownerの表単位ACLを拒否する。"""
     return (
@@ -246,7 +281,7 @@ def is_forbidden_rg1_table_acl(declaration: Mapping[str, object]) -> bool:
 def generate_function_owner_column_acl_sql(
     declaration: dict[str, object],
 ) -> str:
-    """関数所有者の列SELECTとRG1限定の列UPDATE SQLを生成する。"""
+    """関数所有者の列SELECTと閉じた列UPDATE SQLを生成する。"""
     acl_id = str(declaration["expectation_id"])
     schema_name = str(declaration["object_schema"])
     table_id = str(declaration["object_id"])
@@ -257,15 +292,19 @@ def generate_function_owner_column_acl_sql(
             raise ValueError(f"列ACLの識別子が不正: {value!r}")
     if acl_id != f"COLUMN-ACL:{schema_name}:{table_id}:{column_id}:{role_id}":
         raise ValueError("関数所有者の列 ACL ID が物理識別子と一致しない")
-    rg1_update = is_rg1_singleton_update_acl(declaration)
-    if not rg1_update and (
+    needs_update = is_rg1_singleton_update_acl(
+        declaration
+    ) or is_rule_resolution_update_acl(declaration)
+    if not needs_update and (
         declaration.get("privilege_ids") != ["SELECT"]
         or declaration.get("grant_option") is not False
     ):
-        raise ValueError("関数所有者の列 ACL は SELECT とRG1限定UPDATEだけを許可する")
+        raise ValueError(
+            "関数所有者の列 ACL は SELECT と固定3列/RG1限定UPDATEだけを許可する"
+        )
     privileges = (
         f"SELECT ({column_id}), UPDATE ({column_id})"
-        if rg1_update
+        if needs_update
         else f"SELECT ({column_id})"
     )
     return (

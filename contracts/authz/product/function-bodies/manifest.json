@@ -1003,6 +1003,91 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_type_rule_defaults:game_type_category:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_type_rule_defaults:game_type_category:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_type_rule_defaults:game_type_key:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_type_rule_defaults:game_type_key:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_type_rule_defaults:rule_set_id:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_type_rule_defaults:rule_set_id:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rule_sets:called_game_conditions:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rule_sets:called_game_conditions:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rule_sets:extra_innings_limit:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rule_sets:extra_innings_limit:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rule_sets:id:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rule_sets:id:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rule_sets:regulation_innings:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rule_sets:regulation_innings:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rule_sets:tiebreak_rule:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rule_sets:tiebreak_rule:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:rule_sets:uses_dh:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:rule_sets:uses_dh:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:category:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:category:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:disabled:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:disabled:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:key:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:key:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:tenant_id:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:tenant_id:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tournament_rule_assignments:tenant_id:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tournament_rule_assignments:tenant_id:pitchlog_rule_resolution_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tournament_rule_assignments:tournament_key:pitchlog_rule_resolution_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tournament_rule_assignments:tournament_key:pitchlog_rule_resolution_fn_owner"
     }
   ]
 }
