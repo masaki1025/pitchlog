@@ -124,3 +124,21 @@ rootはstep1独立381成功/指摘0とstep2の計6登録・旧O5保持を受領�
 旧173実CIにはcore履歴f48拒否に加え、旧step5-pr173-tab-handoffの未収録owner sheet/physical annex/closeoutログ・ローカルcacheリンク等によるdocs-lint7failedがあったとのroot追加監査を受領した。これらをCI成功扱いしない。新枝は旧handoff自体をコピーせず、固定旧blob/pathの参照で履歴を残す。旧U-R1計画7回・旧全レビュー系列・今回P1→修正0・最終metadata0・旧全件/skip/中断は保持する。
 
 step2→stage3の実source/data19paths（本researchを除く）full-index binary差分SHA256 `0b94a5c0a1f08fbc5c09279260d4572821718fa9c0abdb084630260e6c31b29a`。HEAD/全20paths/全差分SHAはcommit後に引渡しで固定する。stage4/newPR番号/policy/7.7正式受理・snapshot追加へは進まない。push/PR作成はrootが固定候補レビュー後に行う。本wtでは新秘密/運用鍵/共有DB/運用open/実Port/MVP完成を提供していない。
+
+## 新実PR180の完全値受理・正式反映
+
+2026-10-23T17:32:12.840966+00:00、Codex主担当/rootはPO4/5/6/7/8/9/10に基づき、新PR180・反映前HEADdfa697721f35f573d2e3802783ff3d8d3cd218fa・実base31194a39c9083bbef6c14bde19c24a3e49d09f2eの完全実値を別に受理した。proposal SHA256 b43302544361ed574743fb5bd576be262b2af86ef1ee90d4c2f36af1d8c62e7c（repo外cache/pr180-acceptance/proposal.json）、policy候補SHA256 86397671d61aaa9bafda562c0b1450db9a5ab68bec9ce4947e28e4d38cbe0d66。9資産前後の全射影・8外部・全identifier/aspectを再導出し、旧0aaaの独立照合済み完全値とexact一致を確認。旧173の受理行をコピーせず、新180のsubject/根拠/事実/承認者・日付を持つrowを26prefixの後へ1件だけ追加した。非作者rights_replacement_reviewのdfa全文レビュー0/0/0・独立backend181/core381/限定census14成功を根拠とし、旧親7回/全追加系列・後発f48拒否を保持する。山田正輝の個別確認/署名を代記していない。
+
+実base192snapshotの全byteを保持し、今回受理で必要な新規参照10件だけを追加、計202件。新規未参照0・既存削除0。corpus digestは271f8615f97591528e4a391334e37a431b720ea20ba485f55e7ecad74a5e5f28へ既存方式で追随。policyは実180/本branch1組だけ追加し既存6組/全authority/失効/判定を保持、データ差分自体は後続の最終非作者レビュー対象。
+
+sourceを含む中間Draft https://github.com/masaki1025/pitchlog/pull/180 を公開。現地現在地導出は3/4。feature_statusの初回は非対応--format jsonが引数不正を返したため、通常形式で実再実行し3/4/反映周一致を取得した。中間未受理版のCI39995378764は実in_progressを確認して取消要求し、最終版の全件CIへまとめる。取消/旧173のcore/docs失敗を成功へ転用しない。
+
+反映補助の初回はrow1件とsnapshot10件を追加した後、system Pythonにpytestがなくarchive runner importで停止した。受理の再実行やrow二重追加をせず、uv環境で履歴27の完全一致・base192全byte・新10全byte/参照を再検証してmanifest導出/本記録を完結した。途中版checkerの結果と、完結後の検査を区別する。
+
+正式反映後のarchive/生成/実PR合成merge/core/必須CI/最終非作者reviewはこれから行う。実台帳/端末資格/本物Port・開始同一transaction・RG1製品open/新5全体/MVP完成は未提供のまま。一般ハーネス評価台帳への追記なし: 旧履歴拒否を正常に再構成する限定修復で、統制の恒久的な変更は行わない。
+
+### 正式反映後の局所検査
+
+rootはcore_guard/frozen_archive/frozen_archive_case_runnerを一度まとめて実行し446成功/63.74秒。backendのrepository/tenant-context/runtime契約84成功/1.49秒。backend対象の初回コマンドは存在しないtest_authz_tenant_context_contract.pyを指定したため0件/exit4であり、実ファイル名を調査して訂正後の84成功と区別する。root/backend Ruff/ty、backend format379、docs21件/違反0、plan同期、実base比較のtenant-boundaryは完結後exit0。長いbackend/root全件は最終必須CIで確認する。
+
+提出時planはin-reviewへ遷移。実変更は本4段階の限定scopeに収まり、最終非作者差分レビュー・実PR2親merge/証拠・必須CIは未完。policyデータの1組追記と正式反映を含む最終HEADをこれから固定して渡す。旧173/156は公開引継ぎの追跡を維持し、元枝/保全物を削除しない。
