@@ -137,3 +137,12 @@ post-join局所はroot23件成功/3.65秒、backend対象162件成功/3.45秒。
 frontendはfrozen installのみで宣言/lock差分0。現在の実候補でread専用command `pnpm exec playwright test --config src/screens/GameScreenPreparingRead.playwright.config.ts`をexec session14368で実起動し、Running3/worker1から**3 passed / 24.7秒 / exit0**の完走を確認した。実login/Cookie/C2/専用PGのlist/detail/reload、ページ境界、越境404、abort/明示確認を通し、stub/新TLS・署名鍵/旧sealed driverは使っていない。実行前後のpitchlog-authz container0、補助process0、runtime tmp0。旧10/20出力dir37件は増減なしで削除していない。
 
 実origin/developは31194a39と一致。HEAD9544＋未commit WIPのtenant `--base-ref31194`はexit0になったが、HEAD凍結比較とworkingtree参照範囲を含む結果であり正式175受理ではない。authzは未更新decision lockのread行追加でexit1を保持した。最終step固定HEADから95dを比較元に改めて検査結果を主担当へ渡す。実180統合後にはinitialを据置き層へ回転しAPI2のみpendingとして完全before/afterを再導出する。正式175履歴/snapshot/最終lock/oracleの自編集0、通常push/PRなし、親追加敵対1回は未消費。
+
+
+## 初期付与の実統合後の宣言追随
+
+#180は547d199eへ通常統合、95dと全tree同一をrootが確認した。正常merge後、tenantのpendingは新read2pathだけへ回転し、JSONは実547の全paths/順序/guard_pathsを保持して新read2件だけ末尾へ追記した。宣言ca9e2b03とJSONf69b278fは別commit、全guard関数/class ASTは実547と同一。実547→f69のverify_area_path_baselineは547を返す。同期/記録の初期付与宣言・全登録は維持し、旧初期付与の段階試験は当時の宣言を明示した隔離CLIへ分けた。
+
+追随の初回は379成功/3失敗/26.27秒、歴史的fixtureが新pending宣言を使ったtenant不一致。合成fixtureの当時宣言を保持した次回は381成功/1失敗/24.20秒で、CLIも現在scriptを呼んでいた1件を確認。同一の当時scriptをCLIへ渡す局所fixture是正後は全core382成功/26.35秒。製品拒否条件・判定関数・例外は変更せず、旧部分/片側/順序/共変更拒否を保持した。3実行を単一成功と書かず旧失敗logをcache/preparing-read-core-after180*.logへ保持する。
+
+正式9/8値・7.7・認可lock/oracle/175親追加レビュー1回/必須CI/実新規作成は未達。これは無関係な基線追随・必要な機械是正を既PO委任で行った記録であり、本人の逐行確認/署名ではない。
