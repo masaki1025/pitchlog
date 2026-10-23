@@ -131,7 +131,7 @@ censusでは新adapterの実checker identityと独立AST候補の粒度を照合
 
 2026-10-23T18:47:39.799141+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24の優先指示に基づき、追補対象plan cb9ed1123abe711d879e93a5ce4a91603eee5b1a8b1e03a3969884dd9a8c83bf（HEAD d59be7f4）を承認する。非作者/root/rights_replacement_reviewの限定追加第1回0/0/0、source53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758dの免除なし13identity独立再検出一致を確認した。旧faa1との差は既承認期限是正による行移動で13symbol多重集合は不変。今回の許可は登録機構・censusの限定具体化であり、旧47所見/43・18集合/拒否を保持する。正式値7.7・製品全最終差分/耐久性レビュー・cold attach・RG1成功・MVP完成は別の未完ゲートとし、本人確認/署名を代記しない。旧計画2回/反映1周と取消追補/先行coreのレビュー系列はリセットしない。
 
-### 正常再起動authorityと復元外witnessの技術追補案（独立追加レビュー・PO判断待ち）
+### 正常再起動authorityと復元外witnessの技術追補（PO委任承認済み）
 
 5a321b6aは正常pair候補の保存点である。「cold attach/business identity未提供」を外部回答待ちにせず、以下を本packageが実装する製品依存とする。今回は本plan/researchだけを編集し、新sourceは独立追加レビューとrootの個別実装委任まで変更しない。元の4ステップ表/全DoD、旧全レビュー/失敗系列と正式7.3/7.7未達は維持する。
 
@@ -168,3 +168,6 @@ MVPの実観測providerはauthority UIDに束縛したPostgreSQL Unix socket pee
 package wildcard/既存contract試験/DB試験は先行core登録済みで追加core pathは不要。file/IPC syscallはDB APIではなく、新DB API IDを予定しない。固定SELECT/制御SQL/配置だけを既存PSYCOPG APIのexact私有helper/signatureへ必要最小登録し、汎用SQL/新member包括許可はしない。domain名の条件2所見はadapter単一sourceで再実測し、更新SHA/全identityと独立AST/censusを個別確認する。旧initial47/43・18、旧53b候補と新全検出を保持し、予想件数で免除を増やさない。witness/transportに実際の追加所見や新APIが必要ならその具体差分だけ再提示する。9/8の正式値/履歴/snapshot/policyのwriterはroot、機械候補と正式受理を分ける。
 
 一次根拠: [fileとdirectoryのfsync](https://man7.org/linux/man-pages/man2/fsync.2.html)、[実append-only属性と解除権限](https://man7.org/linux/man-pages/man2/FS_IOC_SETFLAGS.2const.html)、[Pythonのflock](https://docs.python.org/3.12/library/fcntl.html)、[PostgreSQLのcontrol情報/権限](https://www.postgresql.org/docs/17/functions-info.html)。この追補案の起案は新たな運用配置/本人署名/全設備喪失後の再発行承認ではない。
+
+
+2026-10-23T19:26:15.303101+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24の縦断優先指示に基づき、対象0fe39b38、plan475bfc4fe51860ecaefc0db09a8408ec7cd237cf5aff5e980174abbc00d1de93/research65ccc5213790537b4d43105de63c3c914bcedabf08cea28e40e96399527ab353を限定承認。非作者rights_replacement_reviewの追加計画第1回0/0/0、独立UID/実append保護/親dir fsync/intent→PG→confirmed→ACK/peer主体・最小observerを根拠として確認した。これは既採用耐久性/非再利用/復旧世代保証を実装する技術選択であり、運用配置/新秘密・署名鍵/共有DB適用/全設備喪失後再発行を承認しない。旧4ステップ/全DoD・旧全レビュー/失敗と53b候補を保持し、最初は表の保護journal＋既存manifest/contract試験/researchだけを個別指示する。実保護・失敗閉鎖の実測をskipやstubへ代替せず、後続authority/全fault/正式7.3/7.7/最終コードレビューを完了へ拡張しない。人間本人の個別確認・署名・逐行確認を代記しない。
