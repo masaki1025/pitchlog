@@ -1,0 +1,5 @@
+# RG1製品成功の接合メモ
+
+2026-10-24、rootの担当引受。base547d199eの製品2関数はstateを読んだ後常にfalseを返す。作成65598dadのservices/game_creation.pyはread_rg1_open(scope)で停止し、POST /gamesはscope外で503へ変換する。ここにD4/V12/台帳・初期権の依存呼出しはない。必要な供給は安全なRG1成功/制限制御経路であって、記録開始・全台帳故障検査ではない。
+
+台帳作者creation_pathはidentity専用observerの維持、別能力の実closeProof照合、close commit後からauthority INTENT→同期PG→CONFIRMEDまで再openを防ぐ実lease保持を必要境界として提示。通常enroll/startupだけで自動openしない。rootが新sourceをこのworktreeへ分離し、既存authority packageの同時編集は行わない。現在はplan/researchだけでsource・正式資産未変更。
