@@ -85,5 +85,50 @@
     "read_statement_and_lock": "finite",
     "commit": "cancel_safe with finite deadline; unknown after cancel",
     "reconnect_cancelled_connection": false
+  },
+  "witness": {
+    "component": "protected_journal_only",
+    "authority_connected": false,
+    "source_sha256": "e20e957d04a689bd595d229f657db9bcb550f3b68f7092588403e689030bb1db",
+    "platform": "linux",
+    "files": [
+      "enrollment.json",
+      "journal",
+      "writer.lock"
+    ],
+    "descriptor_schema_version": 1,
+    "directory_mode": "0750",
+    "descriptor_mode": "0640",
+    "journal_mode": "0600",
+    "lock_mode": "0600",
+    "directory_flag": "FS_APPEND_FL",
+    "descriptor_flag": "FS_IMMUTABLE_FL",
+    "journal_flag": "FS_APPEND_FL",
+    "worker_uid": "nonroot",
+    "capability_sets_empty": [
+      "CapEff",
+      "CapPrm",
+      "CapInh",
+      "CapAmb",
+      "CapBnd"
+    ],
+    "no_new_privileges": true,
+    "flock": "exclusive_nonblocking_with_finite_timeout",
+    "frame": {
+      "magic": "PLWIT001",
+      "version": 1,
+      "header_bytes": 53,
+      "checksum_bytes": 32,
+      "maximum_payload_bytes": 65536,
+      "checksum": "sha256",
+      "chain": "previous_frame_digest"
+    },
+    "file_and_directory_fsync": true,
+    "automatic_enroll": false,
+    "rotation": false,
+    "truncate_or_repair": false,
+    "secret_fields": false,
+    "fixture_image": "postgres:17.11-bookworm",
+    "fixture_python": "readonly_current_python_3.12_runtime"
   }
 }

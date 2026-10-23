@@ -205,3 +205,23 @@ plan追補は別UID authority/実peer認証/既存Protocol借用、SQL provision
 通常pushはrootが許可した中断復元点5a321b6aefa7d11700b67a90f5e2bfefdac7ced1だけを`feature/mvp-durable-rights-ledger`へ実行し成功した。番号用PRは作成していない。製品未完成/正式未受理のラベルとなる本文を維持する。本追補案commitはこのpushに含めず、独立追加レビュー用にローカル固定して引き渡す。
 
 本追補の検査はdocs-status21件/違反0、5a比較のplan同期、diff checkが成功。製品/source/DB/正式assetsは変更0、DB起動/新secret発行も0。追補は独立追加レビュー/PO委任前の案として記載し、既承認部分の承認状態を新source実装許可へ広げていない。
+
+## 保護journalの最初のコード小単位
+
+root承認873ab82e504c6df9b501dff860416960758e2776に従い、`witness.py`、既存manifest、既存contract試験、本researchの4pathsだけを実装した。新DB/依存/API ID/条件2登録/正本/正式凍結資産/plan変更は0。adapter53b/DDL/initのbyteと旧manifest全fieldを保持し、manifestは`witness`項目だけを追加した。cold attach/authority接合を提供済みへ変えていない。
+
+`ProtectedJournal.open`は既存root-owned/immutable descriptor、固定device/filesystem/inode/mountとentry、owner/mode/regular/link count、実FS_APPEND_FLとFS_IMMUTABLE_FLを検査する。rootおよび実/実効/saved UID/GID不一致・root補助group・CapEff/Prm/Inh/Amb/Bnd残存・NoNewPrivs不成立を拒否する。pathの各親componentをdirfd/O_NOFOLLOWで開き、root所有かつ書込を他主体へ与えていないことを確認する。normal openにO_CREAT/再enroll/保護flag設定・解除は無い。descriptorのJSONはbounded/重複・未知key/型/版を拒否し、appの期待集合を復旧証明へ変換するAPIは無い。
+
+writer.lockの実flockを期限付きで取得し、同一process/thread内の利用も期限付き排他で保護する。journalは固定magic/format版/payload長/ordinal/前frame digest/checksumを持つ単一codecで、最大payload65536bytes、読取はbounded memoryのiterator。完全追記と実file fsync後だけFrameを返す。open時にはdescriptor/journal/lockのfile metadataと親directoryを実fsyncする。短書込/InterruptedErrorを処理し、追記/fsync結果不明はtypedな未確定とbroken writerへ写し、続行・truncate・勝手な末尾修復をしない。Frame ordinalは汎用log位置であり、D4算出/予約/claim/epochの別実装ではない。
+
+最初に専用named volumeでkernel append属性を実probeし、`chattr +a`の成立と解除/volume cleanupを確認した。Docker driverはoverlayfsだが、選択したnamed volume上では必要な実inode保護を提供できた。Docker内のbase OSは既存`postgres:17.11-bookworm`を使い、PostgreSQLは起動していない。新test image/依存追加を避け、現在のPython3.12 runtimeと対象source一つだけをread-only bindした。`.env`/運用資格/署名鍵を渡していない。
+
+実試験は、rootの所有fixtureだけがCAP_LINUX_IMMUTABLEでvolume内の保護を準備し、workerはUID/GID20001・全capability drop・NoNewPrivsで実行した。root directory0750、descriptor0640(root/immutable)、journal/lock0600(authority)で検証。worker自身によるappend保護解除/truncate/unlinkのkernel拒否、別app UID/解除能力を残したprocessの拒否を確認。別container/processのwriterを実flockで拒否し、終了後に別processで同じinodeを再openして実frameを読めた。I/O故障は実保護worker内のsyscall境界へ制御注入し、短書込と途中EIOは実ファイルへ部分書込する。物理媒体故障/host電断を実施したとは主張しない。
+
+初回は既存22件を含め **56 passed / 34.36秒**、失敗/skip0。flockを時間sleep依存から親による明示解放へ強化し、manifest閉集合との対応を加えた最終版は **57 passed / 32.45秒**、失敗/skip0。実保護を無効化した成功stub/skipは使っていない。各full実行は専用volume1個・同時最大2container（準備/後始末込み24短命container）、全資源を所有名/labelで分離してfinallyで属性解除/削除まで完了。終了時の所有label付きcontainer/volumeは0。単体codecのpytest tempは既存の世代管理を使用し、共有DB/container/host設定を変更していない。
+
+backend Ruff/ty・root Ruff/ty成功、diff check、docs-status21件/違反0、873ab82e比較のplan同期成功。新witness sourceの現bypass所見0、API/条件2の免除追加0。旧anchorとの差TB007の12identityも、現sourceのASTを使う既存census緩和述語へ全件帰属確認済みで、新しい検査意味/metadataを足していない。台帳core対象は **35 passed / 15.23秒**（-n2）。全core/fullbackend/fullcensusは同入力で反復せず、既存の最終CI条件を保持する。
+
+witness source SHA256 `e20e957d04a689bd595d229f657db9bcb550f3b68f7092588403e689030bb1db`、manifest SHA256 `0ed2390848ef94c3494910ddadf8f8dabf57084f6964beaa285e302cb74cb0ea`。旧adapterは`53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d`のまま。旧全review/57より前の版別結果、正式未受理/bypass3失敗、step3全DoD未達を保持する。作者の局所検査を独立コードレビューへ数えない。
+
+次に実装する製品依存は、実DB初回enrollmentの判定、別UID socket authority、INTENT→PG/同期peer→CONFIRMED→ACKの接合、quarantine/CAS reconcileと正常再起動identity、専用business identity subjectである。今回の汎用journalはそれらの代用ではない。全復元/非0旧writer fence/RG1/本物Port/正式7.3・7.7/最終独立レビュー・全必須CI/運用配置/MVPは未完。新署名鍵・運用秘密発行/DB起動/push/PRはこの小単位では0。

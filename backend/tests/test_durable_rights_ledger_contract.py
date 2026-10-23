@@ -50,6 +50,7 @@ def test_fixed_manifest_and_single_supplier_protocol() -> None:
         "required_settings",
         "identity",
         "timeout_seconds",
+        "witness",
     }
     assert manifest["tables"] == ["state", "highwater", "reservations"]
     assert manifest["required_settings"] == {
@@ -202,3 +203,506 @@ def test_elapsed_deadline_is_unconfirmed_even_when_timer_callback_is_delayed(
     monkeypatch.setattr(adapter, "Timer", DelayedTimer)
     with pytest.raises(LedgerOutcomeUnconfirmed):
         adapter._commit(cast(psycopg.Connection[Any], Connection()), 0.001)
+
+
+# 汎用frameの単体試験はkernel保護の成功証拠へ代用しない。
+@pytest.mark.parametrize(
+    "change", ["magic", "version", "ordinal", "link", "digest", "tail", "length"]
+)
+def test_witness_frame_corruption_is_rejected(tmp_path: Path, change: str) -> None:
+    """完全frame以外を読取成功や末尾切捨てへ写さない。"""
+    import os
+
+    from pitchlog.durable_rights_ledger import witness
+
+    data, _ = witness._encoded(1, bytes(32), b"payload")
+    broken = bytearray(data)
+    index = {
+        "magic": 0,
+        "version": 8,
+        "length": 9,
+        "ordinal": 13,
+        "link": 21,
+        "digest": -1,
+    }
+    if change == "tail":
+        broken = broken[:-1]
+    else:
+        broken[index[change]] ^= 0xFF
+    path = tmp_path / "frame"
+    path.write_bytes(broken)
+    with path.open("rb") as stream:
+        with pytest.raises(witness.WitnessUnavailable):
+            list(witness._frames(stream.fileno(), os.fstat(stream.fileno()).st_size))
+    assert path.read_bytes() == bytes(broken)
+
+
+@pytest.mark.parametrize(
+    "ordinal,previous,payload",
+    [
+        (True, bytes(32), b"a"),
+        (0, bytes(32), b"a"),
+        (2**64, bytes(32), b"a"),
+        (1, b"bad", b"a"),
+        (1, bytes(32), b""),
+        (1, bytes(32), b"x" * 65537),
+        (1, bytes(32), bytearray(b"a")),
+    ],
+)
+def test_witness_frame_input_has_exact_bounded_types(
+    ordinal: Any, previous: Any, payload: Any
+) -> None:
+    """frame境界はbool/巨大値/可変payloadを受理しない。"""
+    from pitchlog.durable_rights_ledger import witness
+
+    with pytest.raises(witness.WitnessUnavailable):
+        witness._encoded(ordinal, previous, payload)
+
+
+def test_witness_open_never_creates_unprotected_enrollment(tmp_path: Path) -> None:
+    """通常openの失敗からenrollmentやjournalを生成しない。"""
+    from pitchlog.durable_rights_ledger import witness
+
+    with pytest.raises(witness.WitnessUnavailable):
+        witness.ProtectedJournal.open(tmp_path)
+    assert list(tmp_path.iterdir()) == []
+
+
+_WITNESS_LOAD = """
+import importlib.util, sys, os, stat, json, uuid, fcntl, array, struct, errno
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("tested_witness", "/witness.py")
+w = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = w
+spec.loader.exec_module(w)
+"""
+
+_WITNESS_PROVISION = (
+    _WITNESS_LOAD
+    + """
+uid = 20001
+cases = ("good", "short", "zero", "eio", "sync", "dir_sync", "busy", "cap",
+         "no_append", "no_dir_append", "no_immutable", "mode", "owner",
+         "inode", "missing", "symlink", "partial", "unknown", "checksum", "duplicate")
+request = (1 << 30) | (struct.calcsize("l") << 16) | (ord("f") << 8) | 2
+def change_flags(fd, value):
+    fcntl.ioctl(fd, request, array.array("I", [value]), True)
+os.chmod('/w', 0o755)
+for case in cases:
+    path = Path('/w') / case
+    path.mkdir()
+    os.chown(path, 0, uid)
+    os.chmod(path, 0o750)
+    descriptors = [os.open(path / name, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+                   for name in ('enrollment.json', 'journal', 'writer.lock')]
+    descriptor, journal, lock = descriptors
+    os.fchown(descriptor, 0, uid)
+    os.fchmod(descriptor, 0o640)
+    for fd in (journal, lock):
+        os.fchown(fd, uid, uid)
+    directory = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    value = dict(schema_version=1, authority_id='11111111-1111-4111-8111-111111111111',
+                 writer_uid=uid, writer_gid=uid, device=os.fstat(directory).st_dev,
+                 filesystem_id=os.fstatvfs(directory).f_fsid,
+                 directory_inode=os.fstat(directory).st_ino,
+                 journal_inode=os.fstat(journal).st_ino,
+                 lock_inode=os.fstat(lock).st_ino,
+                 descriptor_inode=os.fstat(descriptor).st_ino)
+    if case == 'inode': value['journal_inode'] += 1
+    encoded = json.dumps(value).encode()
+    if case == 'duplicate': encoded = encoded[:-1] + b', "schema_version":1}'
+    os.write(descriptor, encoded)
+    if case in ('partial', 'unknown', 'checksum'):
+        data, _ = w._encoded(1, bytes(32), b'payload')
+        if case == 'partial': data = data[:-1]
+        if case == 'unknown': data = data[:8] + bytes([2]) + data[9:]
+        if case == 'checksum': data = data[:-1] + bytes([data[-1] ^ 255])
+        os.write(journal, data)
+    if case == 'mode': os.fchmod(journal, 0o640)
+    if case == 'owner': os.fchown(journal, 20002, uid)
+    if case == 'missing': os.unlink(path / 'journal')
+    if case == 'symlink':
+        os.rename(path / 'journal', path / 'actual')
+        os.symlink('actual', path / 'journal')
+    if case != 'no_immutable': change_flags(descriptor, w._flags(descriptor) | 0x10)
+    if case != 'no_append': change_flags(journal, w._flags(journal) | 0x20)
+    if case != 'no_dir_append': change_flags(directory, w._flags(directory) | 0x20)
+    for fd in (*descriptors, directory):
+        os.fsync(fd)
+        os.close(fd)
+print('PROVISIONED', flush=True)
+"""
+)
+
+_WITNESS_CLEANUP = (
+    _WITNESS_LOAD
+    + """
+request = (1 << 30) | (struct.calcsize("l") << 16) | (ord("f") << 8) | 2
+for directory, dirs, files in os.walk('/w'):
+    for path in [Path(directory), *(Path(directory) / name for name in files)]:
+        if path.is_symlink(): continue
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        fcntl.ioctl(fd, request, array.array('I', [w._flags(fd) & ~0x30]), True)
+        os.close(fd)
+"""
+)
+
+
+class _WitnessContainers:
+    """専用volumeとPython runtimeだけを隔離containerへ渡す。"""
+
+    def __init__(self) -> None:
+        import subprocess
+        from uuid import uuid4
+
+        self.volume = "pitchlog-witness-" + uuid4().hex[:12]
+        self.names: list[str] = []
+        result = subprocess.run(
+            [
+                "docker",
+                "volume",
+                "create",
+                "--label",
+                "pitchlog.owner=witness-test",
+                self.volume,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        assert result.returncode == 0, "real witness volume unavailable"
+
+    def command(
+        self, *, root: bool = False, uid: int = 20001, capable: bool = False
+    ) -> list[str]:
+        import sys
+        from uuid import uuid4
+
+        name = self.volume + "-" + uuid4().hex[:6]
+        self.names.append(name)
+        args = [
+            "docker",
+            "run",
+            "--rm",
+            "-i",
+            "--pull=never",
+            "--network",
+            "none",
+            "--name",
+            name,
+            "--label",
+            "pitchlog.owner=witness-test",
+            "--mount",
+            f"type=volume,src={self.volume},dst=/w",
+            "--mount",
+            f"type=bind,src={sys.base_prefix},dst=/runtime,readonly",
+            "--mount",
+            f"type=bind,src={_PACKAGE / 'witness.py'},dst=/witness.py,readonly",
+        ]
+        if root:
+            args += ["--cap-add", "LINUX_IMMUTABLE"]
+        else:
+            args += ["--user", f"{uid}:{uid}", "--security-opt", "no-new-privileges"]
+            args += (
+                ["--cap-add", "LINUX_IMMUTABLE"] if capable else ["--cap-drop", "ALL"]
+            )
+        return [*args, "postgres:17.11-bookworm", "/runtime/bin/python3.12", "-"]
+
+    def run(
+        self, code: str, *, root: bool = False, uid: int = 20001, capable: bool = False
+    ) -> str:
+        import subprocess
+
+        result = subprocess.run(
+            self.command(root=root, uid=uid, capable=capable),
+            input=code,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, (
+            "real witness protection trial failed: " + result.stderr[-1500:]
+        )
+        return result.stdout
+
+    def cleanup(self) -> None:
+        import subprocess
+
+        try:
+            self.run(_WITNESS_CLEANUP, root=True)
+        finally:
+            for name in self.names:
+                subprocess.run(
+                    ["docker", "rm", "--force", name], capture_output=True, timeout=20
+                )
+            result = subprocess.run(
+                ["docker", "volume", "rm", self.volume], capture_output=True, timeout=20
+            )
+            assert result.returncode == 0, "owned witness volume cleanup failed"
+
+
+@pytest.fixture(scope="module")
+def protected_witness() -> Any:
+    """実保護を要求し、未提供時にskipせず不足として失敗させる。"""
+    resources = _WitnessContainers()
+    try:
+        resources.run(_WITNESS_PROVISION, root=True)
+        yield resources
+    finally:
+        resources.cleanup()
+
+
+def test_witness_real_protection_fsync_shortwrite_and_reopen(
+    protected_witness: Any,
+) -> None:
+    """実capなしworkerで保護/完全書込/fsync/正常再openを確認する。"""
+    code = (
+        _WITNESS_LOAD
+        + """
+path = Path('/w/short')
+real_sync, real_write = os.fsync, os.write
+calls = []
+def sync(fd):
+    calls.append(stat.S_ISDIR(os.fstat(fd).st_mode))
+    real_sync(fd)
+os.fsync = sync
+with w.ProtectedJournal.open(path) as journal:
+    assert calls == [False, False, False, True]
+    interrupted = [False]
+    def short(fd, data):
+        if not interrupted[0]:
+            interrupted[0] = True
+            raise InterruptedError
+        return real_write(fd, data[:7])
+    os.write = short
+    first = journal.append(b'first')
+    second = journal.append(b'second')
+    assert first.ordinal == 1 and second.ordinal == 2
+    assert [r.payload for r in journal.records()] == [b'first', b'second']
+    assert calls[-2:] == [False, False]
+    request = (1 << 30) | (struct.calcsize('l') << 16) | (ord('f') << 8) | 2
+    fd = os.open(path / 'journal', os.O_RDONLY)
+    try:
+        try:
+            fcntl.ioctl(fd, request, array.array('I', [0]), True)
+            raise AssertionError('append protection cleared')
+        except OSError as e: assert e.errno == errno.EPERM
+    finally: os.close(fd)
+    for action in (lambda: os.open(path / 'journal', os.O_WRONLY | os.O_TRUNC),
+                   lambda: os.unlink(path / 'journal')):
+        try:
+            action()
+            raise AssertionError('protected file changed')
+        except OSError as e: assert e.errno in (errno.EPERM, errno.EACCES)
+os.write, os.fsync = real_write, real_sync
+with w.ProtectedJournal.open(path) as journal:
+    assert [r.payload for r in journal.records()] == [b'first', b'second']
+print('REAL_PROTECTION_AND_DURABILITY_OK')
+"""
+    )
+    assert "REAL_PROTECTION_AND_DURABILITY_OK" in protected_witness.run(code)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "no_append",
+        "no_dir_append",
+        "no_immutable",
+        "mode",
+        "owner",
+        "inode",
+        "missing",
+        "symlink",
+        "partial",
+        "unknown",
+        "checksum",
+        "duplicate",
+    ],
+)
+def test_witness_real_invalid_protection_or_frame_is_refused(
+    protected_witness: Any, case: str
+) -> None:
+    """欠落/置換/権限/破損/未知形式を実保護された資産で拒否する。"""
+    code = (
+        _WITNESS_LOAD
+        + f"""
+try:
+    w.ProtectedJournal.open(Path('/w/{case}'))
+    raise AssertionError('invalid witness accepted')
+except w.WitnessUnavailable: pass
+"""
+    )
+    protected_witness.run(code)
+
+
+def test_witness_real_capability_or_app_uid_is_refused(protected_witness: Any) -> None:
+    """別app UIDと解除能力を残したprocessをkernel観測で拒否する。"""
+    code = (
+        _WITNESS_LOAD
+        + """
+try:
+    w.ProtectedJournal.open(Path('/w/good'))
+    raise AssertionError('untrusted subject accepted')
+except w.WitnessUnavailable: pass
+"""
+    )
+    protected_witness.run(code, uid=20002)
+    protected_witness.run(code, capable=True)
+
+
+@pytest.mark.parametrize("case", ["zero", "eio", "sync", "dir_sync"])
+def test_witness_real_io_failure_never_acknowledges(
+    protected_witness: Any, case: str
+) -> None:
+    """実保護workerの書込/fsync故障は成功/同一writer再使用に戻さない。"""
+    code = (
+        _WITNESS_LOAD
+        + f"""
+case = '{case}'
+path = Path('/w') / case
+real_sync, real_write = os.fsync, os.write
+if case == 'dir_sync':
+    def broken(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode): raise OSError(errno.EIO, 'injected')
+        real_sync(fd)
+    os.fsync = broken
+    try:
+        w.ProtectedJournal.open(path)
+        raise AssertionError('directory fsync failed open acknowledged')
+    except w.WitnessUnavailable: pass
+    os.fsync = real_sync
+    with w.ProtectedJournal.open(path): pass
+else:
+    with w.ProtectedJournal.open(path) as journal:
+        if case == 'sync':
+            def broken(fd): raise OSError(errno.EIO, 'injected')
+            os.fsync = broken
+        else:
+            count = [0]
+            def broken(fd, data):
+                count[0] += 1
+                if case == 'zero': return 0
+                if count[0] == 1: return real_write(fd, data[:5])
+                raise OSError(errno.EIO, 'injected')
+            os.write = broken
+        try:
+            journal.append(b'uncertain')
+            raise AssertionError('I/O failure acknowledged')
+        except w.WitnessOutcomeUnconfirmed: pass
+        try:
+            journal.append(b'next')
+            raise AssertionError('broken writer reused')
+        except w.WitnessUnavailable: pass
+    os.fsync, os.write = real_sync, real_write
+    if case == 'eio':
+        size = (path / 'journal').stat().st_size
+        try:
+            w.ProtectedJournal.open(path)
+            raise AssertionError('partial frame accepted')
+        except w.WitnessUnavailable: pass
+        assert (path / 'journal').stat().st_size == size
+"""
+    )
+    protected_witness.run(code)
+
+
+def test_witness_real_process_flock_excludes_second_writer(
+    protected_witness: Any,
+) -> None:
+    """別container/processの同一inode writerを期限付き実flockで拒否する。"""
+    import select
+    import subprocess
+
+    holder = (
+        _WITNESS_LOAD
+        + """
+with w.ProtectedJournal.open(Path('/w/busy')) as journal:
+    journal.append(b'held')
+    print('READY', flush=True)
+    assert sys.stdin.readline().strip() == 'release'
+"""
+    )
+    command = protected_witness.command()
+    command[-1:] = ["-c", holder]
+    process = subprocess.Popen(
+        command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    assert process.stdin is not None and process.stdout is not None
+    try:
+        ready, _, _ = select.select([process.stdout], [], [], 20)
+        assert ready and process.stdout.readline().strip() == "READY"
+        contender = (
+            _WITNESS_LOAD
+            + """
+from time import monotonic
+start = monotonic()
+try:
+    w.ProtectedJournal.open(Path('/w/busy'), timeout=0.1)
+    raise AssertionError('second writer accepted')
+except w.WitnessBusy: pass
+assert monotonic() - start < 2
+"""
+        )
+        protected_witness.run(contender)
+        _, error = process.communicate(input="release\n", timeout=10)
+        assert process.returncode == 0, error
+        protected_witness.run(
+            _WITNESS_LOAD
+            + """
+with w.ProtectedJournal.open(Path('/w/busy')) as journal:
+    assert [r.payload for r in journal.records()] == [b'held']
+"""
+        )
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=5)
+
+
+def test_witness_manifest_matches_component_and_keeps_authority_pending() -> None:
+    """汎用journalの提供範囲と保護/formatを固定し、authority完成としない。"""
+    from pitchlog.durable_rights_ledger import witness
+
+    entry = json.loads((_PACKAGE / "manifest.json").read_text())["witness"]
+    assert entry["component"] == "protected_journal_only"
+    assert entry["authority_connected"] is False
+    assert (
+        entry["source_sha256"]
+        == hashlib.sha256(Path(witness.__file__).read_bytes()).hexdigest()
+    )
+    assert entry["files"] == ["enrollment.json", "journal", "writer.lock"]
+    assert entry["frame"] == {
+        "magic": "PLWIT001",
+        "version": 1,
+        "header_bytes": witness._HEADER.size,
+        "checksum_bytes": 32,
+        "maximum_payload_bytes": 65536,
+        "checksum": "sha256",
+        "chain": "previous_frame_digest",
+    }
+    assert entry["capability_sets_empty"] == [
+        "CapEff",
+        "CapPrm",
+        "CapInh",
+        "CapAmb",
+        "CapBnd",
+    ]
+    assert entry["no_new_privileges"] is True
+    assert entry["directory_flag"] == "FS_APPEND_FL"
+    assert entry["journal_flag"] == "FS_APPEND_FL"
+    assert entry["descriptor_flag"] == "FS_IMMUTABLE_FL"
+    assert entry["file_and_directory_fsync"] is True
+    assert not any(
+        entry[key]
+        for key in (
+            "automatic_enroll",
+            "rotation",
+            "truncate_or_repair",
+            "secret_fields",
+        )
+    )
