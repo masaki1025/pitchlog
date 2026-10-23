@@ -368,15 +368,16 @@ P3 経路 11 段階の `(順序, 進行中, 終了後, 境界結果)`。
 
 > **⚠️ 本章は TSK-321 の射程外**。[TSK-332](https://app.notion.com/p/3d493b75e687816eb9fbd19dda889d5e) への申し送りであり、**5 周目の未反映指摘 4 件**(冒頭の表を参照)が残っている。
 
-### 6-1. 母集合 — 26 の stable scenarioId
+### 6-1. 母集合 — 27 の stable scenarioId
 
 scenarioId は `FILE_NAME_PATTERN`(`failureScenarioContract.ts:90`)の
 `^[a-z0-9]+(?:-[a-z0-9]+)*$` に適合させる(**小文字英数とハイフンのみ**)。
 
 **母集合の正**は `tests/fixtures/sync-protocol-population_v1.json` の `rows`。
 各行に観点 key、scenarioId、所有状態(`owned` / `deferred`)と、
-繰り延べの場合の受け取り先を記す。現況は 26 ペア・22 観点・
-所有 16 件・U-R1(TSK-392) へ繰り延べ 10 件である。
+繰り延べの場合の受け取り先を記す。O5 の正本追加後は 27 ペア・23 観点・
+所有 16 件・繰り延べ 11 件である。うち 10 件は U-R1(TSK-392)、
+O5 の 1 件は us1-sync-port-surface のステップ 14 が受け取る。
 `p3-invalidation-consumed-before-complete` と
 `o4-persisted-d2-equivalence` は所有済みである。
 
@@ -402,8 +403,8 @@ runner の現況は、端末側の登録表とサーバー側の DB runner を�
 
 | # | 名前 | 主張 |
 | --- | --- | --- |
-| 1 | **母集合** | `作成済み ∪ 未作成繰り延べ = 26 の scenarioId` かつ **交差が空** |
-| 2 | **観点被覆** | `OBSERVATION_SCENARIO_PAIRS = 26 ペア`(+ 第 1/第 2 要素の集合一致) |
+| 1 | **母集合** | `作成済み ∪ 未作成繰り延べ = 27 の scenarioId` かつ **交差が空** |
+| 2 | **観点被覆** | `OBSERVATION_SCENARIO_PAIRS = 27 ペア`(+ 第 1/第 2 要素の集合一致) |
 | 3 | **runner 繰り延べ** | `SCENARIO_RUNNERS ∪ 繰り延べ = FAILURE_SCENARIO_IDS` かつ **交差が空** |
 | 4 | **トランザクション内注入被覆** | `⋃ TRANSACTION_INJECTION_COVERAGE = reader の 18 組` |
 | 5 | **トランザクション外注入被覆** | `⋃ OUT_OF_TRANSACTION_INJECTION_COVERAGE = P3 の 3 点` |

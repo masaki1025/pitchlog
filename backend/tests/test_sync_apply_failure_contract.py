@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
@@ -216,6 +217,7 @@ OBSERVATION_SCENARIO_PAIRS: tuple[tuple[str, str], ...] = tuple(
     (row["observationKey"], row["scenarioId"]) for row in _POPULATION_ROWS
 )
 OBSERVATION_KEYS = frozenset(key for key, _ in OBSERVATION_SCENARIO_PAIRS)
+O5_CANON_ROW_SHA256 = "e69c4ef3f58ecbf96021eb8bfa1a2bd5f509d020ab74d1688f1825bb0d6788f0"
 OWNED_SCENARIO_IDS = frozenset(
     row["scenarioId"] for row in _POPULATION_ROWS if row["status"] == "owned"
 )
@@ -972,6 +974,8 @@ def validate_population(
     pair_set = set(pairs)
     if len(pair_set) != len(pairs):
         _fail("観点と scenarioId の組が重複しています")
+    if pair_set != set(OBSERVATION_SCENARIO_PAIRS):
+        _fail("組が母集合の正と一致しません")
     scenario_ids = [scenario_id for _, scenario_id in pairs]
     if len(set(scenario_ids)) != len(scenario_ids):
         _fail("scenarioId が複数の観点に属しています")
@@ -1758,7 +1762,7 @@ def test_result_check_compares_hook_calls_with_reachability(
 
 
 def test_population_is_an_exact_set_of_pairs() -> None:
-    """母集合: 26 組・観点 22 種・scenarioId 26 件、作成 16 件と繰り延べ 10 件。"""
+    """母集合: 27 組・観点 23 種・scenarioId 27 件、作成 16 件と繰り延べ 11 件。"""
     validate_population()
     assert _POPULATION["schemaVersion"] == 1
     assert all(
@@ -1771,12 +1775,16 @@ def test_population_is_an_exact_set_of_pairs() -> None:
         for row in _POPULATION_ROWS
     )
     assert all(row["status"] in {"owned", "deferred"} for row in _POPULATION_ROWS)
-    assert len(OBSERVATION_SCENARIO_PAIRS) == 26
-    assert len(OBSERVATION_KEYS) == 22
+    assert len(OBSERVATION_SCENARIO_PAIRS) == 27
+    assert len(OBSERVATION_KEYS) == 23
     assert len(OWNED_SCENARIO_IDS) == 16
-    assert len(DEFERRED_SCENARIO_IDS) == 10
+    assert len(DEFERRED_SCENARIO_IDS) == 11
+    assert DEFERRED_SCENARIO_IDS["o5-invariant-violation"] == (
+        "TSK-506 への接続契約(us1-sync-port-surface)のステップ 14"
+    )
     assert all(
-        scenario_id.startswith("restore-") for scenario_id in DEFERRED_SCENARIO_IDS
+        scenario_id.startswith("restore-") or scenario_id == "o5-invariant-violation"
+        for scenario_id in DEFERRED_SCENARIO_IDS
     )
 
 
@@ -1790,6 +1798,14 @@ def test_population_rejects_each_single_mutation() -> None:
     ]
     with pytest.raises(FailureScenarioContractError):
         validate_population(moved)
+    same_count_moved = [
+        ("p2", scenario_id)
+        if scenario_id == "p3-invalidation-consumed-before-complete"
+        else (key, scenario_id)
+        for key, scenario_id in pairs
+    ]
+    with pytest.raises(FailureScenarioContractError, match="母集合の正"):
+        validate_population(same_count_moved)
     with pytest.raises(FailureScenarioContractError):
         validate_population(pairs, OBSERVATION_KEYS - {"p1"})
     with pytest.raises(FailureScenarioContractError):
@@ -2060,7 +2076,7 @@ def test_aspect_deferrals_name_existing_evidence() -> None:
 
 
 def test_observation_keys_match_the_canon_table() -> None:
-    """観点 key の数が正本 10-2 の (d) の観点表の行数と一致する(表に行が増えたら赤)。"""
+    """正本の観点数と O5 のシナリオ・期待結果を母集合へ対応づける。"""
     lines = (
         (_REPOSITORY_ROOT / "docs" / "design" / "sync-protocol.md")
         .read_text(encoding="utf-8")
@@ -2074,6 +2090,41 @@ def test_observation_keys_match_the_canon_table() -> None:
             break
         rows.append(line)
     assert len(rows) == len(OBSERVATION_KEYS)
+    assert ("o5-deterministic-invariant", "o5-invariant-violation") in (
+        OBSERVATION_SCENARIO_PAIRS
+    )
+    o5_rows = [row for row in rows if row.startswith("| **O5 の決定的な不変条件違反**")]
+    assert len(o5_rows) == 1
+    assert hashlib.sha256(o5_rows[0].encode("utf-8")).hexdigest() == (
+        O5_CANON_ROW_SHA256
+    )
+    _, _, scenario, expected, _ = o5_rows[0].split("|")
+    assert all(
+        item in scenario
+        for item in ("列挙した不変条件違反", "未使用 D5", "P1・P2", "前方のイベント")
+    )
+    assert all(
+        item in expected
+        for item in (
+            "前方のイベントは確定済み",
+            "同じ ACK に載る",
+            "B3 と A5「拒否」",
+            "理由 O5",
+            "全取消",
+            "D3 を進めない",
+            "D5 を消費しない",
+            "T9 を開始しない",
+            "後続は未処理",
+            "要操作(管理者対応待ち)",
+            "自動再送しない",
+            "同じ D5",
+            "列挙の外の失敗は B7",
+        )
+    )
+    reversed_d3 = o5_rows[0].replace("D3 を進めない", "D3 を進めないとは限らない")
+    assert hashlib.sha256(reversed_d3.encode("utf-8")).hexdigest() != (
+        O5_CANON_ROW_SHA256
+    )
 
 
 def test_contract_binds_injection_point_to_the_t_element(

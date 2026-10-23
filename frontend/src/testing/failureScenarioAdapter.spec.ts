@@ -187,17 +187,24 @@ describe('failureScenarioAdapter', () => {
     const rows = population.rows
     const pairs = rows.map((row) => `${row.observationKey}:${row.scenarioId}`)
     expect(population.schemaVersion).toBe(1)
-    expect(rows).toHaveLength(26)
+    expect(rows).toHaveLength(27)
     expect(new Set(pairs).size).toBe(rows.length)
     expect(new Set(rows.map((row) => row.scenarioId)).size).toBe(rows.length)
-    expect(new Set(rows.map((row) => row.observationKey)).size).toBe(22)
+    expect(new Set(rows.map((row) => row.observationKey)).size).toBe(23)
     expect(
       rows.every((row) => row.status === 'owned' || row.status === 'deferred'),
     ).toBe(true)
     expect(
       rows
         .filter((row) => row.status === 'deferred')
-        .every((row) => row.owner === 'U-R1(TSK-392)'),
+        .every(
+          (row) =>
+            row.owner === 'U-R1(TSK-392)' ||
+            (row.observationKey === 'o5-deterministic-invariant' &&
+              row.scenarioId === 'o5-invariant-violation' &&
+              row.owner ===
+                'TSK-506 への接続契約(us1-sync-port-surface)のステップ 14'),
+        ),
     ).toBe(true)
     expect(
       new Set(
