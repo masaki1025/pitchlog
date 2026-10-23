@@ -5,12 +5,14 @@ green のまま起きる。そのため架空設定の単体テストに加え�
 """
 import ast
 import fnmatch
+import hashlib
 import importlib.util
 import json
 import os
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -1452,7 +1454,8 @@ def assert_authz_guard_paths_are_exact(configuration: dict[str, Any]) -> None:
     assert isinstance(guard_paths, list)
     expected = expected_authz_guard_paths()
     actual = set(guard_paths)
-    assert actual == expected, (
+    declaration = set(load_core_guard_module().DELEGATION_GUARD_PATH_ADDITIONS)
+    assert actual in (expected, expected | declaration), (
         "guard_paths が固定基準版と認可追加の和集合に不一致: "
         f"不足={sorted(expected - actual)}, 余分={sorted(actual - expected)}"
     )
@@ -3519,7 +3522,9 @@ def test_actual_config_does_not_register_documents_for_data_migration():
 def test_actual_guard_paths_are_exact_expected_set():
     configuration = load_actual_core_areas()
 
-    assert configuration["guard_paths"] == list(EXISTING_REAL_GUARD_PATHS + NEW_GUARD_PATHS)
+    baseline = list(EXISTING_REAL_GUARD_PATHS + NEW_GUARD_PATHS)
+    declaration = list(load_core_guard_module().DELEGATION_GUARD_PATH_ADDITIONS)
+    assert configuration["guard_paths"] in (baseline, baseline + declaration)
 
 
 @pytest.mark.parametrize("guard_path", NEW_GUARD_PATHS, ids=NEW_GUARD_PATHS)
@@ -3769,3 +3774,298 @@ def test_check_text_is_consistent_across_script_template_and_skill():
     skill = (REPO / ".claude" / "skills" / "pr" / "SKILL.md").read_text(encoding="utf-8")
     assert "REQUIRED_CHECK_TEXT" in skill, "/pr スキルが文言の正(core_guard.py)を参照していない"
     assert "guard_paths" in skill, "/pr スキルが guard_paths 判定に言及していない"
+
+
+@pytest.fixture
+def delegated_confirmation_probe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Any, Path, Any, dict[str, Any], dict[str, Any]]:
+    """実Git履歴と架空GitHub応答で、版の拘束を検証する。"""
+    guard = load_core_guard_module()
+    root = make_repo(tmp_path, core_paths=["backend/src/core/*"])
+    raw_policy = (REPO / guard.DELEGATION_POLICY_PATH).read_text(encoding="utf-8")
+    base, head = commit_change(root, guard.DELEGATION_POLICY_PATH, raw_policy)
+    url = "https://github.com/masaki1025/pitchlog/pull/177#issuecomment-12345"
+    event = guard.PullRequestEvent(
+        base, head, f"{guard.DELEGATION_POINTER} {url}\n",
+        177, "masaki1025/pitchlog", "masaki1025/pitchlog",
+        "feature/mvp-delegated-core-review",
+    )
+    diff = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "--binary", "--no-renames", f"{base}...{head}"],
+        cwd=root, capture_output=True, check=True,
+    ).stdout
+    evidence = {
+        "authority_sha256": hashlib.sha256(raw_policy.encode("utf-8")).hexdigest(),
+        "pr": 177, "base": base, "head": head,
+        "diff_sha256": hashlib.sha256(diff).hexdigest(),
+        "paths": [guard.DELEGATION_POLICY_PATH],
+        "reviewer_agent": "/reviewer", "candidate_agents": ["/candidate"],
+        "independent": True, "verdict": "approved", "findings": [],
+        "report": {
+            "task": "/reviewer", "reviewed_head": head,
+            "text": "最終差分を確認。対象PR・版・拒否条件を照合し重大未解消0件。",
+        },
+    }
+    comment = {
+        "id": 12345, "html_url": url,
+        "issue_url": "https://api.github.com/repos/masaki1025/pitchlog/issues/177",
+        "author_association": "OWNER", "user": {"login": "masaki1025"},
+        "body": guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence),
+    }
+    monkeypatch.setattr(guard, "_fetch_delegation_comment", lambda _: comment)
+    return guard, root, event, evidence, comment
+
+
+def test_delegated_confirmation_accepts_real_git_diff_and_fixed_comment(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    guard.verify_delegated_confirmation(root, event)
+
+
+@pytest.mark.parametrize("key", [
+    "authority_sha256", "pr", "base", "head", "diff_sha256", "paths",
+    "reviewer_agent", "candidate_agents", "independent", "verdict", "findings", "report",
+])
+def test_delegated_confirmation_rejects_every_missing_evidence_field(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    key: str,
+) -> None:
+    guard, root, event, evidence, comment = delegated_confirmation_probe
+    del evidence[key]
+    comment["body"] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(guard.GuardError):
+        guard.verify_delegated_confirmation(root, event)
+
+
+@pytest.mark.parametrize("key,value", [
+    ("authority_sha256", "0" * 64), ("pr", 178), ("pr", True),
+    ("base", "0" * 40), ("head", "0" * 40),
+    ("diff_sha256", "0" * 64), ("paths", []),
+    ("reviewer_agent", "/candidate"), ("reviewer_agent", " "),
+    ("candidate_agents", []), ("candidate_agents", ["/candidate", "/candidate"]),
+    ("candidate_agents", [1]), ("independent", False), ("independent", 1),
+    ("verdict", "pending"), ("report", "承認済み"), ("report", {}),
+    ("report", {"task": "/someone", "reviewed_head": "0" * 40, "text": "確認"}),
+    ("findings", [{"severity": "P0", "resolved": False, "detail": "重大未解消"}]),
+    ("findings", [{"severity": "P1", "resolved": False, "detail": "未解消"}]),
+    ("findings", [{"severity": "unknown", "resolved": True, "detail": "不正"}]),
+    ("findings", [{"severity": "P1", "resolved": "true", "detail": "不正"}]),
+])
+def test_delegated_confirmation_rejects_wrong_revision_or_review(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    key: str, value: Any,
+) -> None:
+    guard, root, event, evidence, comment = delegated_confirmation_probe
+    evidence[key] = value
+    comment["body"] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(guard.GuardError):
+        guard.verify_delegated_confirmation(root, event)
+
+
+@pytest.mark.parametrize("change", [
+    {"number": 179}, {"head_branch": "feature/unlisted"},
+    {"repository": "other/pitchlog"}, {"head_repository": "fork/pitchlog"},
+    {"number": None}, {"base_sha": "--help"}, {"head_sha": "0" * 39},
+    {"body": ""}, {"body": "PO-DELEGATION-EVIDENCE: https://outside.invalid/"},
+    {"body": "PO-DELEGATION-EVIDENCE: https://github.com/masaki1025/pitchlog/pull/176#issuecomment-12345"},
+    {"body": "PO-DELEGATION-EVIDENCE: bad\nPO-DELEGATION-EVIDENCE: bad"},
+])
+def test_delegated_confirmation_rejects_wrong_pr_branch_or_pointer(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    change: dict[str, Any],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    with pytest.raises(guard.GuardError):
+        guard.verify_delegated_confirmation(root, replace(event, **change))
+
+
+@pytest.mark.parametrize("key,value", [
+    ("id", 54321), ("html_url", "https://outside.invalid"),
+    ("issue_url", "https://api.github.com/repos/masaki1025/pitchlog/issues/176"),
+    ("author_association", "NONE"), ("user", {"login": "other"}),
+    ("user", None), ("body", "承認済み"),
+    ("body", 'PITCHLOG-PO-DELEGATION-V1\n{"pr":177,"pr":177}'),
+])
+def test_delegated_confirmation_rejects_wrong_comment_or_duplicate_json(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    key: str, value: Any,
+) -> None:
+    guard, root, event, _, comment = delegated_confirmation_probe
+    comment[key] = value
+    with pytest.raises(guard.GuardError):
+        guard.verify_delegated_confirmation(root, event)
+
+
+def test_delegated_policy_uses_committed_blob_and_rejects_revocation(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    policy_path = root / guard.DELEGATION_POLICY_PATH
+    policy = json.loads(policy_path.read_text())
+    policy["enabled"] = False
+    policy_path.write_text(json.dumps(policy))
+    # 未コミットのpolicyを根拠として採用しない。
+    guard.verify_delegated_confirmation(root, event)
+    _, revoked_head = commit_change(root, guard.DELEGATION_POLICY_PATH, json.dumps(policy))
+    with pytest.raises(guard.GuardError, match="有効状態"):
+        guard.verify_delegated_confirmation(root, replace(event, head_sha=revoked_head))
+
+
+def test_delegated_policy_missing_or_duplicate_key_fails_closed(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    with pytest.raises(guard.GuardError):
+        guard.verify_delegated_confirmation(root, replace(event, head_sha=event.base_sha))
+    _, head = commit_change(root, guard.DELEGATION_POLICY_PATH, '{"enabled":true,"enabled":true}')
+    with pytest.raises(guard.GuardError, match="重複"):
+        guard.verify_delegated_confirmation(root, replace(event, head_sha=head))
+
+
+def test_policy_only_change_is_guarded_before_and_after_json_registration(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    for registered in (False, True):
+        configuration = json.loads((root / ".claude/core-areas.json").read_text())
+        if registered:
+            configuration["guard_paths"].append(guard.DELEGATION_POLICY_PATH)
+            write_json(root, ".claude/core-areas.json", configuration)
+        areas = guard.load_core_areas(root)
+        assert guard.matched_paths([guard.DELEGATION_POLICY_PATH], areas) == [
+            guard.DELEGATION_POLICY_PATH,
+        ]
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setattr(guard, "load_pull_request_event", lambda: replace(event, body=""))
+    assert guard.main(["--root", str(root)]) == 1
+
+
+def test_invalid_delegation_cannot_fall_back_to_checked_human_box(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard, root, event, _, comment = delegated_confirmation_probe
+    event = replace(event, body=event.body + f"- [x] {guard.REQUIRED_CHECK_TEXT}\n")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setattr(guard, "load_pull_request_event", lambda: event)
+    comment["body"] = "承認済み"
+    assert guard.main(["--root", str(root)]) == 1
+
+
+@pytest.mark.parametrize("failure", ["nonzero", "timeout", "missing", "malformed"])
+def test_delegation_api_errors_are_closed_without_secret_output(
+    monkeypatch: pytest.MonkeyPatch, failure: str,
+) -> None:
+    guard = load_core_guard_module()
+
+    def run_api(arguments: list[str], **kwargs: Any) -> Any:
+        assert arguments == [
+            "gh", "api", "--hostname", "github.com",
+            "repos/masaki1025/pitchlog/issues/comments/12345",
+        ]
+        assert kwargs["timeout"] == guard.DIFF_TIMEOUT_SECONDS
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired(arguments, 30, stderr="secret-token")
+        if failure == "missing":
+            raise OSError("secret-token")
+        return subprocess.CompletedProcess(
+            arguments, 1 if failure == "nonzero" else 0,
+            stdout="not json", stderr="secret-token",
+        )
+
+    monkeypatch.setattr(guard.subprocess, "run", run_api)
+    with pytest.raises(guard.GuardError) as error:
+        guard._fetch_delegation_comment("12345")
+    assert "secret-token" not in str(error.value)
+
+
+def test_delegated_confirmation_success_reaches_real_guard_main(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setattr(guard, "load_pull_request_event", lambda: event)
+    assert guard.main(["--root", str(root)]) == 0
+
+
+def test_revoked_base_policy_cannot_be_revived_by_old_enabled_head(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    policy = json.loads((root / guard.DELEGATION_POLICY_PATH).read_text())
+    policy["enabled"] = False
+    _, revoked_base = commit_change(root, guard.DELEGATION_POLICY_PATH, json.dumps(policy))
+    # headは古い有効版のまま、baseだけに失効が統合された実履歴を模す。
+    with pytest.raises(guard.GuardError, match="有効状態"):
+        guard.verify_delegated_confirmation(root, replace(event, base_sha=revoked_base))
+
+
+def test_missing_base_policy_is_allowed_only_for_bootstrap_pr(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    target = replace(event, number=176, head_branch="fix/us1-o5-observation-population")
+    target = replace(target, body=target.body.replace("pull/177#", "pull/176#"))
+    with pytest.raises(guard.GuardError, match="導入PR以外"):
+        guard.verify_delegated_confirmation(root, target)
+
+
+def test_delegation_diff_hash_keeps_binary_bytes(
+    delegated_confirmation_probe: tuple[Any, Path, Any, dict[str, Any], dict[str, Any]],
+) -> None:
+    guard, root, event, _, _ = delegated_confirmation_probe
+    (root / "binary.dat").write_bytes(b"\x00\xff\xfe\n")
+    run_git(root, "add", "binary.dat")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-q", "-m", "binary")
+    head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    event = replace(event, head_sha=head)
+    raw = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "--binary", "--no-renames",
+         f"{event.base_sha}...{event.head_sha}"], cwd=root, capture_output=True, check=True,
+    ).stdout
+    assert guard._delegation_diff(root, event) == hashlib.sha256(raw).hexdigest()
+    assert b"GIT binary patch" in raw
+
+
+def test_delegation_event_loads_identity_without_changing_legacy_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    guard = load_core_guard_module()
+    event_path = tmp_path / "event.json"
+    event_path.write_text(json.dumps({
+        "repository": {"full_name": "masaki1025/pitchlog"},
+        "pull_request": {
+            "number": 177, "base": {"sha": "1" * 40},
+            "head": {"sha": "2" * 40, "ref": "feature/mvp-delegated-core-review",
+                     "repo": {"full_name": "masaki1025/pitchlog"}}, "body": "body",
+        },
+    }))
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event_path))
+    event = guard.load_pull_request_event()
+    assert event.number == 177
+    assert event.repository == event.head_repository == "masaki1025/pitchlog"
+    assert event.head_branch == "feature/mvp-delegated-core-review"
+    assert (event.base_sha, event.head_sha, event.body) == ("1" * 40, "2" * 40, "body")
+
+
+def test_policy_guard_declaration_accepts_only_one_exact_registration_suffix() -> None:
+    guard = load_core_guard_module()
+    assert guard.DELEGATION_GUARD_PATH_ADDITIONS == (
+        "docs/features/mvp-delegated-core-review/policy.json",
+    )
+    baseline = list(EXISTING_REAL_GUARD_PATHS + NEW_GUARD_PATHS)
+    for suffix in ([], list(guard.DELEGATION_GUARD_PATH_ADDITIONS)):
+        configuration = load_actual_core_areas()
+        configuration["guard_paths"] = baseline + suffix
+        assert_authz_guard_paths_are_exact(configuration)
+    for suffix in (["docs/features/unrelated/policy.json"],
+                   list(guard.DELEGATION_GUARD_PATH_ADDITIONS) * 2):
+        configuration = load_actual_core_areas()
+        configuration["guard_paths"] = baseline + suffix
+        with pytest.raises(AssertionError):
+            assert_authz_guard_paths_are_exact(configuration)

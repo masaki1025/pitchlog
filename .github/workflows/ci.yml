@@ -68,6 +68,8 @@ jobs:
           prune-cache: true
       - run: uv python install
       - run: uv run python scripts/core_guard.py
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   harness:
     runs-on: ubuntu-latest
