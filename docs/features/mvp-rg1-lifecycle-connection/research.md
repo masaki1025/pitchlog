@@ -46,3 +46,10 @@ controller候補はroot保護の非秘密configからsocketをbindし、専用UI
 初回SQL試験は共通autouseが既存admin接続を使用し、試験placeholder role unusedのCREATE後にrole接続失敗、finallyのDROPまで例外なく実行した。隔離境界違反として原setup1error/0call/0.70秒を保持する。削除の直接catalog証明は追加照会禁止により未取得で、source/finally完遂による確認である。以後test processの既存ADMIN/ROLE DSN環境を除去し、局所autouseは所有S3の実admin/app/actor認証を全て検証する。既存DBへの追照会/追加適用なし。非作者側の別DBファイル誤指定は未markの専用disposable経路だけで既存admin経路に入らず、exit130/51成功1失敗を保持、自前container残存0。markerだけに頼らず通常検査を実非DBファイルへ限定する。
 
 最終局所149成功/1.30秒（6実非DBfile）、Ruff/対象ty成功。新controllerの実fresh接合、起動後の実scope/正常201/画面reload、正式authz/tenant生成・正本7.3/完全7.7/最終独立/全CIは未成立。source固定後に隔離組立へ進み、候補成功と正式develop成功を分ける。
+
+
+## data-model1.2の限定確定ゲート（開始）
+
+対象はdata-model3-2のRG1制御2主体/同Session読取/安全な成功条件とロール数参照だけ。固定直前HEAD91e90cf15abbb253f4915a2f7acb3274784965a4のdata-model1.1を改訂基線とし、初回敵対レビュー適用条文はapprovedハーネス1.19、条文コミット91e90cf15abbb253f4915a2f7acb3274784965a4（同時in-review化の第一親、暫定）。初回開始時に版を照合し固定する。finalize-doc手順を使い、今回PO指示4/5の独立subagent・委任承認代替を適用、一般規約/検出/対象paths/拒否条件を変えない。基本枠/起因/採否/(B)送り/反映周を既存7.3どおり保持し、人間本人の確認/署名を代記しない。初回全文レビューと採否はこれからであり、approvedではない。
+
+91e90最終限定非作者0の証拠review-rg1-controller-e280fd18-91e90cf1-evidence.json SHAb2f888ab216ac8c2d290a26e15f5eafafd14c6b71b246eb045c182cc24ec9aebを受領。別の固定隔離候補69836e33ではcsv_reviewがactualsupplierc07→rootbind/20002降格listen→実app20003 PG peer/binding→borrow/held/3.2秒idle保持/release→再borrow/abandon→PGclosed/lease消滅/保護journal未終端拒否まで1成功48.59秒で確認した。sourceは供給2候補のbyteを保持し、fakeauthority/常trueを使わず、全所有資源回収済み。test/supportは隔離枝だけ、正式受理/HTTP201/画面成功ではない。
