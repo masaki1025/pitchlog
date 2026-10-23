@@ -41,8 +41,8 @@
       "pin_matches": null,
       "status": "M backend/pyproject.toml\n M backend/src/pitchlog/authz/runtime_contract.py\n M backend/src/pitchlog/repositories/repository_contract.py\n M backend/src/pitchlog/repositories/tenant_context_contract.py\n M backend/uv.lock\n M contracts/tenant_boundary/base-allowlist.json\n M contracts/tenant_boundary/cache-invalidation-contract.json\n M contracts/tenant_boundary/census-baseline.json\n M contracts/tenant_boundary/db-api-inventory.json\n M contracts/tenant_boundary/negative-fixtures.json\n M contracts/tenant_boundary/repository-contract.json\n M contracts/tenant_boundary/runtime-authz-contract.json\n M contracts/tenant_boundary/tenant-context-allowlist.json\n M docs/features/ur1-recording-rights/step5-followup-handoff.md\n M scripts/check_tenant_boundary_bypass.py\n M tests/fixtures/frozen-archive-cases/manifest.json\n M tests/test_census_baseline_check.py\n?? backend/src/pitchlog/recording_rights/\n?? backend/tests/test_initial_recording_right_candidate.py\n?? contracts/tenant_boundary/history-snapshots/21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7\n?? contracts/tenant_boundary/history-snapshots/3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e\n?? contracts/tenant_boundary/history-snapshots/8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e\n?? contracts/tenant_boundary/history-snapshots/9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02\n?? contracts/tenant_boundary/history-snapshots/ae5e4d9e4ed0145374acd8036ca13410785f6890fb4e29a0ac93a6b8d0078f01\n?? contracts/tenant_boundary/history-snapshots/b93408f31683e671e03e89ffbeda10999ac54226de3b78a7643a2a1622955040\n?? contracts/tenant_boundary/history-snapshots/bebc29609e9dfd7e453c22f411710b38e0b79e9fc31e63c95397990c175b8565\n?? contracts/tenant_boundary/history-snapshots/c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9\n?? contracts/tenant_boundary/history-snapshots/e20c325bc4ae4742e9e06adab4306fd3e1280be3ef19e707e2402cfb24725128\n?? contracts/tenant_boundary/history-snapshots/fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-acceptance-brief.md\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-payload-proposal.json\n?? docs/features/ur1-recording-rights/step5-pr173-7.7-record-proposal.json\n?? docs/features/ur1-recording-rights/step5-pr173-candidate-snapshots/\n?? docs/features/ur1-recording-rights/step5-pr173-tab-handoff-2026-10-23.md\n?? docs/worklog/2026-10-22-ur1-pr173-review.md\n?? tests/fixtures/tenant_boundary/census-scoped-digests.json",
       "ownership": "Codex主担当（PO委任）",
-      "latest_owned_head": "0aaa22e09d7e1a0301d03f7c63d188d9bba76844",
-      "latest_owned_status": "173公開0aaaの旧f48履歴拒否。旧枝保持・正常履歴の限定置換を準備、MVP Goalはactive継続"
+      "latest_owned_head": "95d766f5d20234b1d534538b96fc369eda1cc6f1",
+      "latest_owned_status": "正常置換180公開、正式受理/最終非作者0・実PR検査成功、必須CI待ち。旧173/156保全close、親全体/MVP未完"
     },
     {
       "scope": "TSK-550",
@@ -132,7 +132,7 @@
       }
     ]
   },
-  "latest_update_at": "2026-10-23T17:22:29.980772+00:00",
+  "latest_update_at": "2026-10-23T17:45:13.651629+00:00",
   "product_read_candidate": {
     "api": "270347f0658a9c233ce788ad11424b652e564a1c",
     "ui": "9e5c59c3b57012547b3e32932bf8d850cb63eee5",
@@ -144,9 +144,19 @@
     "base": "31194a39c9083bbef6c14bde19c24a3e49d09f2e",
     "step1": "0dd1102600d63ffb830970a3915e6635c8b85f71",
     "step2": "22eb6fc352ab866d86f62c1bd94645cc03a05029",
-    "ownership": "creation_path: step3のみ実装中、root: 7.7正式受理/公開の唯一writer",
-    "review": "independent_review: step1 381成功/0指摘",
-    "new_pr": null
+    "ownership": "root: 正式受理/最終公開/CI後の通常統合。作者creation_path編集停止",
+    "review": "rights_replacement_review: 全文/最終限定とも0、181/381/14・最終65/82成功",
+    "new_pr": 180,
+    "step3": "dfa697721f35f573d2e3802783ff3d8d3cd218fa",
+    "final_head": "95d766f5d20234b1d534538b96fc369eda1cc6f1",
+    "ci": 39997002310,
+    "real_github_merge": "86686aedde4448c7a33de51daa8fb12bf7ccb898",
+    "real_pr_guards": "core/PR_ACCEPTANCEともexit0",
+    "integration_status": "未統合、必須CI実行中",
+    "replaced_prs_closed": [
+      173,
+      156
+    ]
   },
   "read_registration": {
     "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-preparing-read-registration",
@@ -154,5 +164,19 @@
     "limited_checker_approval": "677481cc5c85bd050d0aad0f577671cecb87b866",
     "ownership": "csv_review: 承認済step1独立部分の候補source/metadata。root: 正式履歴/最終lock/oracleは未実施",
     "formal_parent_extra_review": "未消費1回"
+  },
+  "resolver_registration": {
+    "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-rule-resolver-registration",
+    "head": "efe497ec05ca8784d6f570480ba6970c7134e149",
+    "implementation": "step1/2固定、backend177/root27/実S3DB5成功",
+    "independent_review": "resolver_ledger_plan_review:0、独立177/27成功",
+    "formal_acceptance": "未受理exit2、180実統合後root直列"
+  },
+  "durable_rights_ledger": {
+    "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-durable-rights-ledger",
+    "approval": "6288dfaab7aa58089d929172906c307f6eb7ccf2",
+    "supplier_merge": "b1ab75cac62984106222c4ec51d0f1ec03a35d2c",
+    "editing": "creation_path: step1先行宣言のみ",
+    "not_claimed": "RG1成功/運用配置/実台帳耐久性/MVP完成"
   }
 }
