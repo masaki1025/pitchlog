@@ -88,3 +88,13 @@ policy targets追加と新test core登録を含む**実候補**から9資産/8�
 - 承認15d5からこの2pathsのfull-index binary差分: `53bf82b9724354eeed61088e4ba3b79449bcd16bc28dcf297131720f746133c5`
 
 ステップ2JSON登録/ステップ3部品は未着手。DB/実Port/MVP完成・新PR/7.7受理・policy対象追加・push/公開/旧PRcloseへ進んでいない。P6/秘密を読まず、新運用鍵/秘密を発行していない。旧レビュー系列と親9ステップの未完条件を維持し、step1の独立コード確認へ引き渡す。
+
+## 承認ステップ2/4: 別JSON登録
+
+rootの再開指示を受け、step1固定`0dd1102600d63ffb830970a3915e6635c8b85f71`からステップ2だけを実施。`.claude/core-areas.json`のsync-protocol/recording-rights/tenant-isolation各末尾に、宣言順のinitial_grant.pyとtest_initial_recording_right_candidate.pyを追加した（計6追記）。必要な本researchの結果追記以外に変更していない。scripts/core_guard.pyとtest_core_guard.pyはstep1固定byteと一致、実部品source/testは双方不在を維持する。
+
+JSONを機械比較し、対象3領域は旧paths＋exact2paths、対象外領域と各metadata、全旧順序、guard_pathsが完全不変であることを確認した。実JSONは3領域それぞれで将来のsource/test両単独pathを捕捉する。source不存在を登録の不要理由にせず、ステップ1で用意した登録前/登録後/実在後の条件と既存拒否を同じ全件試験で検査した。
+
+`uv run pytest tests/test_core_guard.py -n 4 -q`: **381 passed / 21.96秒**、失敗/skip/timeout0。root Ruff/ty、JSON構造/全metadata保持・基線追加層検査、diffチェック成功。今回の検査に失敗版はない。core JSON SHA256 `e555432f14c87524e5c3bf2bda86fa55b55ed59635345449713b662468b3d159`。step1からJSONだけのbinary差分SHA256 `25b50214b3be22faab9516478465438887d202632a353719e17805427db434b4`。
+
+step2commitはJSON/本researchのみで基線定義の共変更0。commit後に実31194→最終HEADのverify_area_path_baseline/共変更predicateと変更pathを再照合し、HEAD/全差分SHAを引渡しへ固定する。旧f48/0aaaのcommitは輸入していない。ステップ3部品/依存/凍結候補、新PR取得、policy、新7.7履歴、push/公開、DB/実Portへは進んでいない。
