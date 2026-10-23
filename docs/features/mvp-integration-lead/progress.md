@@ -302,3 +302,26 @@ T1旧5447d6 plan§4はP2/P6/P7/P8・正式7.7と対象別条件を本体着手�
 新しい意味判断として確認したReady状態拒否/O4同時成立優先は、専用拒否のD5消費が変わるためdecision-sheetのD06へ最小対向入力/選択/推奨B/影響/必要時点を追加。未回答で採用しない。旧5項目は未決継続、P3/一般同値不成立/旧codec不足は実反例・後発採否を追照合し未採用候補だけを分離する。規範分岐・欠落case・必要P6再導出範囲が未数量化、意味判断の時点も未定のため、最初の全実経路の日付は現段階では根拠ある算定不能。11/12のMVP目標を変更せず、根拠のない全体日付の繰延べはしない。
 
 175最終c8915b57/全77path binarydiffef261498は非作者CI限定0で通常push済み。新委任証拠 https://github.com/masaki1025/pitchlog/pull/175#issuecomment-6374002292 、実GitHub2親merge0725cbaf（547/c891）でstrict core/tenant検査exit0。新CI40018894038は20:23:53 UTC開始・実稼働を確認、同HEADのpush-body先行40018893329はcancelled、旧40011535070はfailureのまま。新CI待ち中も上記RG1/T1/authorityを継続。F2小単位b0bfe9fdのP2修正はroot限定確認0、次role/RLS実装は作者csvが静的/局所継続中。次のindependent review slotのため自然な保存区切りで一時編集停止を依頼しただけで、Goalや全体実装の停止ではない。
+
+
+## 2026-10-24朝：RG1実接続と最初の実経路
+
+正式developは175通常統合のa10bcd5efa74f6c0f8b5ba5fef0721f4b58b89ec。最終c891と同tree、CI40018894038は全12成功。正式mainで実browser read3成功/40.8秒を再確認した（実Cookie/C2→実API→隔離PG、一覧/詳細/reload/越境404/障害回復）。事前投入の保存readであって、新規作成・開始・初球の証拠ではない。公開resolverは実Draft181/e2a46712342097bbb30452f747988be962d91765を通常pushし、完全9/8の委任受理・29履歴/206snapshot・非作者最終0・実GitHub2親a0cbad0fのcore/tenant検査を確認。正式証拠コメント6375472594、最終CI40029804931は10成功・backend/harness実行中で、旧40024654892の失敗/取消を成功にしていない。
+
+| 利用者の操作・残件分類 | 固定版/担当/実証 | 次の解除条件 |
+| --- | --- | --- |
+| 保存済みpreparingの閲覧/再読込：正式提供 | main a10/実browser3、担当root | 新規作成成功へ読み替えない |
+| 画面から新規preparing作成：実装済み・未接続 | create65598dad/非作者0、root。現在は実RG1のreadで503、INSERT前に停止 | 実fresh/実controller/same-scope/正式登録を接続し、新しい201と同UUIDのGET/reloadを実画面で実証 |
+| RG1制御primitive：実装済み・接合検証済み | SQL8b8b36e9/実専用PG1成功13.98秒、csv→root引受。ACL/peer/同DB同PID/2key/commit境界/共有lock排出/再起動lease消滅 | 旧read常falseは維持。これだけではactualfresh/正常作成ではない |
+| RG1 controllerとscope：実装済み・実接続検証待ち | root e280→91e90cf15abbb253f4915a2f7acb3274784965a4、非DB149成功。56b8独立P1=2はPG不明時abandon/旧2ID期待を是正。e280新P1=1はroot bind後のlistenをUID降格後へ移動 | 最終独立追随、実supplier接合・正式authz/tenant/7.3/7.7、実201/reload。OS比較はinode UID0保持かつlisten peer UID20002を実証、fresh証明へ拡張しない |
+| durable fresh供給：実装済み・統合/最終確認待ち | c07f508df6bdcec815e311e5a81c25feeba08610、creation_path。実5故障/成功ケース・62契約成功。旧b9 P1=2は86b12005で是正し限定独立0 | 正式census/exact17候補の受理・全最終確認/通常統合。旧11影響を同sourceで一度検査中 |
+| T1本体：正式開始条件未成立 | 544計画のP2/P6/P7/P8・7.7/23flags、旧P6資格/曝露留保は保持 | 未閉鎖7marker/残4kind/対象別P7受理/正式分岐と必要独立導出を閉じる。実Port/DB/HTTP完了を開始条件へ追加しない |
+| T1先行型：実装継続 | 3c23空型是正独立0後、676dffe4第9節をb112a102で委任承認、担当resolver_ledger_plan_review | 採用済みV10 wire3field/内部世代対応/4kind住所射影を閉じる。全closure0/marker消去0を保持。作者20〜30分の局所見込みで、全T1期間ではない |
+
+正式21分岐の最新一次対応は **既存mapping6（各2case）・不足15**。『新規正式case追加0』を『全21に既存caseがない』と広げない。P7新意味D06は未回答/未採用、元5票も未回答を維持。型・wire照合・保存接合は回答待ちで停止しない。
+
+新規作成→DB保存→GET/reloadの先の見込み **楽観10/25・通常10/26〜27 JST** は起点を延ばさず維持する。最初の全経路（開始/初球/再読込）はT1正式契約/P6対象・未決優先順の成立所要がまだ不明で、日付を断定しない。先行実装と最小fresh切出しを継続し、実供給を得た部分から接合する。11/12の全MVP目標・実機/HTTPS/全故障/両CSV等の受入範囲は不変。
+
+隔離接続専用worktree `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-first-path-isolation` / feature/mvp-first-path-isolationを作成。RG1 e280とledger c07を7216698fへ通常merge（5metadata/core試験競合、guard全31本文ASTと製品source byteを保持）、listen是正91e90を追随。sourceの実供給接合用候補で、formal受理/CI成功/develop提供ではない。既存単位branch/PRを維持し、この組立全体を巨大な製品PRとして代替しない。ここでhistory/census赤を除外・偽承認して通さない。
+
+隔離試験初回の外部admin fixture経由を原結果とともにrg1-lifecycle-connection/researchへ記録した。既存adminで試験role unusedのCREATE→接続失敗→finallyDROPまで例外なし、直接catalog再照会は行わずsource完遂の確認に限定。以後は子processから外部ADMIN/ROLE DSNを除去し、所有DBの実identity検証に固定した。削除を直接カタログ確認したとは記録しない。最終所有containerは回収済み。
