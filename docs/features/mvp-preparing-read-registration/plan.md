@@ -1,6 +1,6 @@
 ---
 feature: mvp-preparing-read-registration
-status: active
+status: in-review
 承認: 済（PO委任によるCodex判断・隔離read登録候補）
 重さ分類: コア領域
 worktree: ../../..
