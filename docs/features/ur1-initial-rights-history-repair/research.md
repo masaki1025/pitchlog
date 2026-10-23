@@ -64,3 +64,27 @@ policy targets追加と新test core登録を含む**実候補**から9資産/8�
 起案段階では製品/検査/正式資産を編集していない。独立計画レビュー・root判断後の個別step指示を待つ。実台帳/端末資格/鍵管理/実RecordingRightsPort/開始同一transactionと共有DB・運用openは未提供のまま残す。
 
 独立全文計画第1回: /root/o5_final_review、plan b8151548/researchb6aef4d5、可決0/0/0。rootはplan末尾の対象版/日時/PO委任根拠で4段階の限定履歴修復を承認。旧173/156/0aaa/後発履歴拒否とMVP未完条件は保持。
+
+## 承認ステップ1/4の実装
+
+独立非作者o5の第1回全文計画レビュー0/0/0を受け、rootがPO委任承認を`15d5d7ee059330611ce60924863911256c44c04e`へ記録した。今回はこの基線からステップ1だけを実装した。編集はscripts/core_guard.pyの追加層宣言、既存tests/test_core_guard.py、このresearch。plan/実core JSON/初期付与source/test/凍結/依存/他worktreeは変更していない。旧0aaaやf48commitのmerge/cherry-pickも行っていない。
+
+追加層はinitial_grant.pyとtest_initial_recording_right_candidate.pyのexact2pathsを、sync-protocol/recording-rights/tenant-isolationに同順で宣言。旧O5 population/stage_a_startup層はPRE_INITIAL_RIGHTS_PATH_ADDITIONSとして既存登録・旧段階の検査へ保持した。過去の登録試験は当時の追加層を明示して検査し、現在宣言との混同を避ける。旧全登録/順序/実在と拒否試験を削除していない。製品guardの全関数・classは承認基線とAST同一で、BASELINE_DEFINITION_PATHS・共変更拒否・委任処理・required human checkの判定変更は0。
+
+新段階試験は登録前＋両file不在、登録済み＋両file不在、登録済み＋両file実在を受理。sourceだけ/testだけの実在、両実在なのに未登録、領域の片側/部分/対象外登録、順序反転/重複、旧削除/置換/未宣言追加を拒否する。実stage1のJSONとsource/test有無も同じ条件で照合し、将来sourceが存在する段階の未登録を無条件で許可しない。合成repoで実JSONから宣言→別JSONcommitを実CLI検証し、登録後の2files各単独変更は未記入human check拒否/チェック済み受理を確認する。合成tmpだけに部品と同名pathを作り、実wtに部品を作成していない。
+
+### 検査結果と途中版
+
+初回core全件379成功/21.20秒。その後、登録済みでも片側fileだけが実在する2負例を補った。初回対象Ruffでは新試験の行長/一行分岐25件を検出し、手動改行で是正した（root ruff formatは未実行）。型検査を省略して成功にはせず、是正後にroot全体Ruff/tyを再実行してともにexit0。
+
+最終版の`uv run pytest tests/test_core_guard.py -n 4 -q`は**381 passed / 23.32秒**、失敗/skip/timeout0。root Ruff/ty、docs-status（21 documents/0 violations）、plan sync、git diff --check成功。実core JSONは承認基線とbyte完全一致、SHA256 `5dc107bb5ee2f7ee9b0faab55eb1c22b5751619f2df0c14cd4c505c6e874ab0e`。実initial_grant.py/test_initial_recording_right_candidate.pyは双方不在である。
+
+実Git履歴predicateも変更せず確認した。旧f48はchanged definitions=[tests/test_core_guard.py]、親にAREA_PATH_ADDITIONS定義あり、JSON同時変更により違反true。今回の承認基線15d5では違反false。実base31194→承認基線に対するverify_area_path_baselineは31194を返し受理。step1commit後も同predicate/基線を再確認し、結果とHEAD/diffを引渡しに固定する。旧実PR拒否を内容成功で隠さない。
+
+固定source SHA256:
+
+- core_guard.py: `e8a5404133c1f9a0875ebaa27a13349346b4e882b4df7315eb3d98cfae1afff0`
+- test_core_guard.py: `e508b79a38044e7a293dd0956e86cf6161e4935e45e8cad4ecf7f297e62b8435`
+- 承認15d5からこの2pathsのfull-index binary差分: `53bf82b9724354eeed61088e4ba3b79449bcd16bc28dcf297131720f746133c5`
+
+ステップ2JSON登録/ステップ3部品は未着手。DB/実Port/MVP完成・新PR/7.7受理・policy対象追加・push/公開/旧PRcloseへ進んでいない。P6/秘密を読まず、新運用鍵/秘密を発行していない。旧レビュー系列と親9ステップの未完条件を維持し、step1の独立コード確認へ引き渡す。
