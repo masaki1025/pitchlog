@@ -165,3 +165,12 @@ MVP-D01〜05のPO回答は未取得。待ちを承認に置換しない。Goal�
 - 公開resolverは初回独立コードレビューP1を採用。最小追補7471040f承認後、0ee701f1で同codecを供給し接合7ケースを追加、対象124成功・独立124成功/0.91s、第2回差分/影響レビュー0指摘。保全89b57ee9。正式閉集合7.7未反映exit2、実DB/HTTP未実証は継続。
 - F2保存契約は64829bdaを独立全文レビュー0指摘、3c834fcdで正本起案用の候補として限定受領。13→14表の構造/権威/caller不足は正式正本/DDL-ACL/7.7/実保存器完成とはしない。次の正本追補plan30ad77ccはworklog同commit記録の初回P1を採用し独立2回目0、PO委任承認。正式developの3正本を対象に7.3候補を起案中。finalize-docの適用版/ゲート/委任記録を保持する。
 - U-D1既知不一致を独立一次照合で解消: feature-ud1-game-trash/657dee6fは未承認plan・4文書のみ、製品0・公開枝/PRなし。実装/正式統合済みはU-T1契約#129/93e1482aと保存器#140/3f6a935a（正式develop祖先）。U-D1の削除/復元API・ゴミ箱UI・UPDATE由来変更IDと5意図行同取引は未接続。期限/U-T1契約未確定という旧記録は一部古く、保守認可/同期RG1/移行は未了。仕様方針承認と実装計画承認を混同しない。
+
+### 2026-10-23 正式統合と実DB接合の更新
+
+- #176は最終caafc8e0、CI39965522850全必須成功（backend/full harness含む）後、同HEAD/委任証拠/実基線を再照合して通常merge。正式develop **658865ddbec44e9f194e976ac6346f9c9154d6fa**。O5母集合/契約追随であり実O5 durable runner完成ではない。
+- #174の引受文書はintent-to-addでmerge autostashが失敗したため、元SHA d98b09cd299fd181895d8dc898671511add8f42ae7edb7ec7671baf6661b1019を維持し9287d476へ保存。その後のREADME2競合は各所有元のrowを保持し45cd5952で正式developを統合。#174のdata-model確定版は**1.1**で、F2別枝のローカル0.13と同じ実統合版としない。実統合後のF2は採番だけでなく3-2等の実差分影響も照合する。
+- #174最終候補4c149255、base658865dd、diff e2d489e3aebb41b56c930d8d0be96ba8728b5e80a31edb22bde512c574782e96。e30から正式資産640パス/外部8ファイル全byte不変、実base tenant checkerexit0なので7.7重複再受理なし。backend184成功・Ruff/format/ty、root375成功/Ruff/ty/docs21/0。現在地用写しplanの正本宣言欠落を既承認5リンクへ追随し計画同期exit0。旧レビュー系列を保持して新しい最終接合限定追加1回を実施中。最終公開/CIはまだ。
+- 実DB resolver接合候補: supplierbc436803とconsumer89b57ee9の2枝だけを隔離merge6caee0e0、承認plan97946ea7、source7af797c7（既存DB試験/researchの2pathsのみ）。PG17.11/正式S3/実app role/実engine/Session/tenant transaction/固定SQL/公開resolverでDB31+単体124=155成功/87.46s。独立0指摘・独立155成功/86.32s、残コンテナ0。成功/拒否・実EXECUTE取消のoutcome・rollback秘匿・GUC非持越し・FOR SHARE保持/解放を実測。実API認証/Cookie/S4/作成/RG1/game INSERT/UIは未実証。
+- F2正本ゲートはfinalize-doc wrapperのgpt-6-sol/xhighで全文1/差分1、初回P1=2/P2=1、第2回P1=1/P2=1を全5件採用・反映2周、不採用0。最終反映ea5414dfは独立再レビュー未実施のままPO委任で主担当が実差分/参照/検査担当を確認し、b06318d3で**本枝のみ**sync0.12/data-model0.13/new ops0.1を確定。正式develop未統合/正式pin追随/DDL-ACL/7.7/F2 DB着手の全条件成立ではない。旧レビュー/適用7.3 v1.19/原ログhash/承認対象SHAは専用worklogへ固定。実mainの#174 v1.1取り込み後の採番/影響照合を残す。
+- preparing read API候補plan/researchはfeature-mvp-preparing-read-api（#175 d68起点）へ起案、独立計画レビュー0指摘。通常2token/GET2/C2/保存codecを接続し、実HTTP loginのCookie→実認可/scope→隔離DBを試す範囲。正式assets/7.7は触らず、親#175正式追加敵対1回は未消費。source実装はまだ開始していない。

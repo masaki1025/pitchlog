@@ -104,27 +104,29 @@
     }
   ],
   "lead_updates": {
-    "observed_at": "2026-10-23T13:53:35.491708+00:00",
-    "integrated_develop": "a67b9364bd613b2118a28810bc25756384687cb9",
+    "observed_at": "2026-10-23T14:55:15.913056+00:00",
+    "integrated_develop": "658865ddbec44e9f194e976ac6346f9c9154d6fa",
     "active_units": [
       {
-        "scope": "#176 O5母集合追随",
-        "worktree": "/home/ymdms/projects/pitchlog-worktrees/fix-us1-o5-observation-population",
-        "head": "f0e6bdff685ac938ccd33b8b9a90e8ae4a06a68d",
-        "ownership": "Codex主担当・既存停止確認後引受",
-        "state": "#178統合後の最終レビュー/CI準備"
+        "scope": "#174段階A最終接合",
+        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-ux1-fr014-rule-resolution-followup",
+        "head": "4c149255ae7309338f073a35425284f890299ab9",
+        "editing": "Codex主担当/root（レビュー固定中）",
+        "review": "/root/o5_final_review（候補非関与・旧系列保持の限定追加1回）"
       },
       {
-        "scope": "resolver公開step5",
-        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-rule-resolver-service",
-        "approval": "bf512445c9fa164b5452e9f1c30f5f14ea188df1",
-        "editing": "/root/creation_path（計画指定pathsのみ）",
-        "review": "/root/o5_final_review（候補非関与）"
+        "scope": "preparing実read API候補",
+        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-preparing-read-api",
+        "head": "d68e10ed30d77cbe5361ece4cab2a3bd6dac9461",
+        "editing": "/root/creation_path（新plan/research起案のみ完了、source未着手）",
+        "review": "/root/csv_review（計画0指摘）"
       },
       {
-        "scope": "F2固定保存契約候補",
-        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-sync-control-contract",
-        "editing": "Codex主担当（feature3文書のみ、計画レビュー中）"
+        "scope": "F2正本追補",
+        "worktree": "/home/ymdms/projects/pitchlog-worktrees/feature-mvp-sync-control-spec",
+        "head": "b06318d3985720ceea992902008f30c205f1b02d",
+        "editing": "Codex主担当/root（本枝で確定・正式基線追随待ち）",
+        "scope_limit": "DDL/ACL/7.7/運用未成立"
       }
     ]
   }
