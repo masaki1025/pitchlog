@@ -101,3 +101,26 @@ plan第5節へroot後続ゲートとして追記した：更新済み8入力を�
 この追補はcandidate source/編集scopeへoracle6を加えず、metadata候補実装開始を正式受理待ちへ戻さない。現在の変更はplan/researchだけ、code/正式assetsの新編集は0である。
 
 第2回計画差分/影響レビュー: /root/independent_review、上記b9c01f62/1cddce04、可決0/0/0。rootはplan末尾の対象/日時でPO委任承認。root8入力固定commit→oracle6context/seal同時追随→最終差分レビュー/受理→再封印の後続順を保持。
+
+## 独立部分の実装と正常供給前の検証
+
+承認140a920dに基づき独立部分を実装。追加不足だった`check_authz_catalog.py`の固定route集合1件拡張は、主担当のplan限定追補→非作者0/0/0→PO委任承認677481ccを受け、旧7件/各欠落/余剰拒否を保持して実装した。
+2factory/2正例/2tokenの候補とread route/matrixを追加し、JSONの全生成fieldを既存snapshot ASTから標準json/hashlib/astで導出した。36定数の対応を全件照合し、現入力で差分になったのは2定数（tuple/digest）だった。3定数だけとの先決めはしていない。
+
+初回局所検査は22成功/1失敗（record_and_aggregate専用の既存TSK446 provenance不足）。新read計画のprovenanceだけで代用せず、既存専用provenanceも保持して是正した。Ruffのimport/行長とtyのoptional methodsも是正した。
+最終局所はroot23成功/3.34秒、backend対象162成功/2.03秒、root/backend Ruff/ty・docs21/0・計画同期成功。
+正式tenant checkerは履歴識別値未更新でexit2、正式authz checkerはread行がdecision lockにないためexit1。履歴/snapshot/lock/oracleは書き換えず、未受理拒否として保持した。
+
+広いroot2ファイル検査は正常供給が到着したため旧状態で区切り、**26206 passed / 5 failed / KeyboardInterrupt、407.03秒、exit2**。全件完走/全成功とは記録しない。同じ旧状態の長い全件再実行はしない。観測済み5失敗は次のとおり。
+
+- `test_oracle_reseal_preserves_inputs_and_expected_asset_digests`: route/matrix JSONだけが未受理変更され、既存の受理済み入力drift集合に不一致。
+- `test_repository_is_green`: allowlist/repository射影を変更したが正式履歴・識別値を更新していないため拒否。
+- `test_repository_oracle_assets_are_valid`: route-registryのoracle input blob不一致。
+- `test_repository_catalog_covers_the_entire_requirements_file`: read行がdecision lockにないためCLI exit1。
+- `test_repository_derived_assets_are_valid`: 同じread行とdecision lockの不一致。
+
+## 正常な初期付与候補の隔離接合
+
+rootから新PR #180の固定`dfa697721f35f573d2e3802783ff3d8d3cd218fa`（step3/4）だけを正式に供給された。これは候補の供給であり、#180の正式受理/実統合を主張しない。
+WIP12ファイルを`/home/ymdms/.cache/pitchlog/preparing-read-registration-wip-nec9tskk`へ保全し、manifest SHA256 `f3d6ba7cae6a7a095de562188208a66cfb01219cf9d4dbafd4b3519dae4c4cfb`、stash `828c762c4329c039651c15722dbc5825b6e3fb1f`を固定した。
+merge競合はcore3ファイルだけ。rootは登録union・guard全関数AST不変・元の先行宣言/別JSON履歴保持に限定した機械整合を許可した。正式実base180ではinitialを据え置き層へ回転してAPI2だけをpendingにする条件をplanへ残した。正式7.7/最終lock/oracleの編集はしない。

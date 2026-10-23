@@ -153,3 +153,16 @@ DoDはレビュー可能な未受理metadata候補であり、#175正式提供/7
 実装調査で`_validate_record_and_aggregate_route_ids`（固定組立f5bda183の2278行）が既存7経路を閉集合としていることを確認した。本計画で既に対象としたgames:readをroute/matrixへ追加するだけでは構造検査が拒否するため、第3節へ既存checker sourceの同集合1件追記を追加する。経路の意味・CAP・認可・DB権限・入力source/2GET・正式受理時期は変更しない。新core pathはなく既存guard捕捉を維持する。既存`tests/test_check_authz_catalog.py`で正規8件、games:read欠落、旧7経路の各欠落、余剰routeの拒否を検証し、exact-setを動的入力へ追随して弱めない。独立限定計画レビューとrootのPO委任承認前にはこのchecker差分を実装しない。前計画レビュー2回・初回oracle P1採用履歴・親175追加敵対1回未消費を維持する。
 
 2026-10-23T17:19:48.188174+00:00、Codex主担当/rootはPO委任4/5/7/8/10に基づき追補plan SHA256 c06fe3c3bd808e9ae11969b43dff5f675887c3a7d1fa32f3541dfa89087bcab3を承認。非作者/root/independent_reviewの限定差分レビュー0/0/0を受領し、既計画のgames:read1行に必要な検査器の固定集合追随と全旧拒否保持だけを許可する。過去2回と今回限定1回を別に保持し、親175正式追加敵対1回は未消費。人間本人の逐行確認・署名を代記しない。checker差分はこの承認後に実装可、正式値/履歴/封印のゲートは前節どおり。
+
+### 正常供給接合のcore機械整合（root委任追補）
+
+rootが新PR #180の正常候補`dfa697721f35f573d2e3802783ff3d8d3cd218fa`だけの隔離mergeを許可した。
+旧0aaa/8037等はmergeしない。WIPは外部backupと識別済みstashへcommit前に保全する。
+当該mergeで競合する`.claude/core-areas.json`・`scripts/core_guard.py`・`tests/test_core_guard.py`を、両供給の登録/旧順序/拒否試験を保持する機械整合だけに限定して追加scopeとする。
+JSONはAPI由来tenant2patternと初期付与2patternを双方保持し、guard全関数のAST/拒否ロジックを変更しない。
+元各枝の先行宣言→別JSONコミットの履歴を保持し、実`_changed_paths_in_commit`/`verify_area_path_baseline`でmerge commitを検査する。違反を発見した場合は完了扱いせず主担当へ返す。
+
+指定31194比較ではtenantのAPI2＋initial2を全件追加層として扱う候補である。
+実#180統合後の正式#175比較ではinitial2が据え置き層となるため、実baseを取り込んで**API2だけをpendingへ回転**させる必要がある。
+部分overlapの拒否を緩めて両状態を通さない。metadata自身の新core path不要という根拠は不変で、正常供給の2pathはその元の先行宣言/別JSON履歴から継承する。
+正式7.7履歴/snapshot/lock/oracleは引き続きrootのみが実統合後に受理する。
