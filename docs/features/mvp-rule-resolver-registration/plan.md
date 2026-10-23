@@ -1,6 +1,6 @@
 ---
 feature: mvp-rule-resolver-registration
-status: in-review
+status: active
 承認: 済（PO委任によるCodex判断・公開resolver登録）
 重さ分類: コア領域
 worktree: ../../..
