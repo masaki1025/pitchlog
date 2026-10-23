@@ -1,0 +1,86 @@
+{
+  "source_head": "36424c536255b6c6e6d9aac82bb55a9c51d7ef46",
+  "comparison_base": "1f506675bf15bbb5385b311c139bc80d82e15e43",
+  "history_prefix_count": 26,
+  "last_base_acceptance": "masaki1025/pitchlog#174",
+  "candidate_snapshot_names": [
+    "16b906dd8ce5a8351465db0c4059e9a0f17c7b01759d13018c7337d7b307d627",
+    "3fb9dcc55e42899bb527586c07ee2761b16466bde78ddef68efa61e3e4b2d458",
+    "6f63e4493488bcb753fb789983e59e502c569d4af4b7e237a533cdc1fada251f",
+    "84553eb0eb42e928fac713dac459d0e7d2978bb8b108f2614ab35616adf6cbc2",
+    "8496f0b7e2ee160d84fede0442c6699a7966688074d890620f3835d8e5b16c92",
+    "89197e07d3a35ed956df21e9325e70734c6e07c29c8f64bc67f7b9554d0f9318",
+    "a7429103c115682a0dd61e7838b10a02a410161368065f310110a535446dcf5a",
+    "d413624b7c980db81106cf1123586ae8f87ce2948ec35f1f2b7be0678f50027a"
+  ],
+  "formal_unreferenced_snapshots_absent_from_base_do_not_delete": [
+    "21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7",
+    "3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e",
+    "8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e",
+    "9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02",
+    "ae5e4d9e4ed0145374acd8036ca13410785f6890fb4e29a0ac93a6b8d0078f01",
+    "b93408f31683e671e03e89ffbeda10999ac54226de3b78a7643a2a1622955040",
+    "bebc29609e9dfd7e453c22f411710b38e0b79e9fc31e63c95397990c175b8565",
+    "c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9",
+    "e20c325bc4ae4742e9e06adab4306fd3e1280be3ef19e707e2402cfb24725128",
+    "fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129"
+  ],
+  "archive_corpus_input_digest": "271f8615f97591528e4a391334e37a431b720ea20ba485f55e7ecad74a5e5f28",
+  "affected_assets": [
+    "contracts/tenant_boundary/base-allowlist.json",
+    "contracts/tenant_boundary/cache-invalidation-contract.json",
+    "contracts/tenant_boundary/census-baseline.json",
+    "contracts/tenant_boundary/db-api-inventory.json",
+    "contracts/tenant_boundary/negative-fixtures.json",
+    "contracts/tenant_boundary/repository-contract.json",
+    "contracts/tenant_boundary/runtime-authz-contract.json",
+    "contracts/tenant_boundary/tenant-context-allowlist.json"
+  ],
+  "changed_external_files": [
+    "scripts/check_tenant_boundary_bypass.py",
+    "tests/test_census_baseline_check.py"
+  ],
+  "raw_source_sha256": {
+    "backend/src/pitchlog/recording_rights/initial_grant.py": "c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3",
+    "backend/tests/test_initial_recording_right_candidate.py": "3f1009973bd890ce3ac6507117ec2227555d57ec4c7e8f4c9a009902acec8cdc"
+  },
+  "legacy_proposal_sha256": {
+    "step5-pr173-7.7-payload-proposal.json": "eefc3f6b5496c75427ce15a05d947315f55671bfe5094a4b61fb5d1afb5999ac",
+    "step5-pr173-7.7-record-proposal.json": "9e8f7ed75a2edff26934b0baf389492167c12b54543f8bc49794e66015861f19"
+  },
+  "artifact_sha256": {
+    "docs/features/ur1-recording-rights/step5-pr173-post174-7.7-payload-proposal.json": "9150071ca34e11ac050030683749826209768e47e82886ef48348ec4231cc96f",
+    "docs/features/ur1-recording-rights/step5-pr173-post174-7.7-record-proposal.json": "492b1a09fd2c94ce387cc2ba4958785fb0cc5835fb78ee83c33057151e286a13",
+    "tests/fixtures/frozen-archive-cases/manifest.json": "6415e6e665f654455a9d2b35cc1db4444b88c10d71618c82807bbd3473fa0db1"
+  },
+  "formal_current_orphans_needed_by_proposed_record_keep": [
+    "3b7b90f8476b30c0596439b33ce75db1c23c6c930b359e03804f00df280e0e7e",
+    "ae5e4d9e4ed0145374acd8036ca13410785f6890fb4e29a0ac93a6b8d0078f01"
+  ],
+  "formal_orphan_cleanup_candidates_after_proposed_record_acceptance_only": [
+    "21a15b0f90a35c2f0ffe42387cd5f7f39dac142c0987bfee9f0dcda37fa11bd7",
+    "8e7f41fcf9d1edca4e4bac871bebc6094fec37763b65659f246bb80379030f9e",
+    "9b5197e65f12bbdec64e87a4bf09470efffb0e7618efa0ec09e96428d337bc02",
+    "b93408f31683e671e03e89ffbeda10999ac54226de3b78a7643a2a1622955040",
+    "bebc29609e9dfd7e453c22f411710b38e0b79e9fc31e63c95397990c175b8565",
+    "c6b7450246c54d7b7661ae2c66f7fcf6f891d9fe7488238ac6b2e13385a232e9",
+    "e20c325bc4ae4742e9e06adab4306fd3e1280be3ef19e707e2402cfb24725128",
+    "fe056d4b4b96058d5e9d72899f17fca69bcbb19f87d78f9ab32d430631d74129"
+  ],
+  "validation": {
+    "generated_contract_tests": {
+      "passed": 5,
+      "seconds": 0.47,
+      "exit_code": 0
+    },
+    "stable_census_tests": {
+      "passed": 74,
+      "seconds": 514.27,
+      "exit_code": 0
+    },
+    "pre_acceptance_checker": "exit2: authority history tail does not match new identifiers; formal record not appended",
+    "runtime_contract_check": "success",
+    "ruff_target_checks": "success",
+    "full_backend_root_tests_and_real_PR_CI": "not run"
+  }
+}

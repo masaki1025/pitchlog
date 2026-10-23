@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 34,
+  "contract_revision": 35,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:34"
+        "contract_revision:35"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -24353,7 +24353,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "522b6351474f200da48451edd511ba944c05d5159142b675f9ccec095d76b636"
+    "sha256": "ea9c46479fc31e3c3230699e4e91ff6e0a42057c36651262b77af2782a7ad401"
   },
   "allowed_symbols": [
     {

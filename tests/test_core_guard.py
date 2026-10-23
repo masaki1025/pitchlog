@@ -2281,26 +2281,33 @@ def test_stage_a_startup_is_rotated_after_registration(tmp_path: Path) -> None:
 
 
 def test_o5_population_declaration_keeps_existing_layers(tmp_path: Path) -> None:
-    """O5宣言だけではJSONを変えず、既登録層を保って合成登録を検出する。"""
+    """O5登録後の宣言回転でも既存全層とfixture検出を保つ。"""
     core_guard = load_core_guard_module()
-    root, base_sha = make_layered_core_repo(tmp_path)
+    root, _ = make_layered_core_repo(tmp_path)
+    path = "tests/fixtures/sync-protocol-population_v1.json"
+    base_sha = commit_area_path_changes(root, {"sync-protocol": (path,)})
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     core_guard.validate_area_path_layers(baseline, baseline)
-    path = "tests/fixtures/sync-protocol-population_v1.json"
-    assert core_guard.AREA_PATH_ADDITIONS["sync-protocol"] == (path,)
-    registered_sha = commit_area_path_changes(root, {"sync-protocol": (path,)})
+    assert path not in core_guard.AREA_PATH_ADDITIONS["sync-protocol"]
+    registered_sha = commit_area_path_changes(root, dict(core_guard.AREA_PATH_ADDITIONS))
     candidate = core_guard.load_core_areas_at_revision(root, registered_sha)
     core_guard.verify_area_path_baseline(root, base_sha, registered_sha)
     baseline_areas = {area["id"]: area for area in baseline["areas"]}
     for area in candidate["areas"]:
-        if area["id"] == "sync-protocol":
-            assert area["paths"] == [*baseline_areas[area["id"]]["paths"], path]
+        area_id = area["id"]
+        assert area["paths"] == [
+            *baseline_areas[area_id]["paths"],
+            *core_guard.AREA_PATH_ADDITIONS.get(area_id, ()),
+        ]
+        if area_id == "sync-protocol":
+            assert area["paths"].count(path) == 1
             assert core_guard.matched_paths(
                 (path,),
                 core_guard.CoreAreas(tuple(area["paths"]), frozenset()),
             ) == [path]
         else:
-            assert area == baseline_areas[area["id"]]
+            assert area["paths"].count(path) == 0
+
 
 
 @pytest.mark.parametrize("mutation", ("undeclared", "wrong-area", "delete", "replace"))
@@ -2309,20 +2316,25 @@ def test_o5_population_registration_rejects_invalid_changes(
 ) -> None:
     """O5登録でも未宣言追加・誤領域・既存削除・パス置換を拒否する。"""
     core_guard = load_core_guard_module()
-    root, base_sha = make_layered_core_repo(tmp_path)
+    root, _ = make_layered_core_repo(tmp_path)
+    path = "tests/fixtures/sync-protocol-population_v1.json"
+    base_sha = commit_area_path_changes(root, {"sync-protocol": (path,)})
     baseline = core_guard.load_core_areas_at_revision(root, base_sha)
     candidate = json.loads(json.dumps(baseline))
     areas = {area["id"]: area for area in candidate["areas"]}
-    path = "tests/fixtures/sync-protocol-population_v1.json"
-    areas["sync-protocol"]["paths"].append(path)
+    for area_id, additions in core_guard.AREA_PATH_ADDITIONS.items():
+        areas[area_id]["paths"].extend(additions)
+    # 負例を加える前は正規の宣言回転として受理できることを確かめる。
+    core_guard.validate_area_path_layers(baseline, candidate)
     if mutation == "undeclared":
         areas["sync-protocol"]["paths"].append("tests/fixtures/undeclared.json")
     elif mutation == "wrong-area":
         areas["recording-rights"]["paths"].append(path)
     elif mutation == "delete":
-        areas["sync-protocol"]["paths"].pop(0)
+        areas["sync-protocol"]["paths"].remove(path)
     else:
-        areas["sync-protocol"]["paths"][-1] = path.replace("_v1", "_v2")
+        position = areas["sync-protocol"]["paths"].index(path)
+        areas["sync-protocol"]["paths"][position] = path.replace("_v1", "_v2")
     with pytest.raises(core_guard.GuardError, match=r"\.paths"):
         core_guard.validate_area_path_layers(baseline, candidate)
 
