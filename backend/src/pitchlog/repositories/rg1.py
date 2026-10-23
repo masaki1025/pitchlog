@@ -18,6 +18,7 @@ __all__ = (
     "RG1Unavailable",
     "RG1PrecheckToken",
     "RG1CommitCheckToken",
+    "RG1ScopeBindingToken",
     "read_rg1_open",
     "assert_rg1_open_before_commit",
 )
@@ -45,6 +46,22 @@ class RG1CommitCheckToken(TenantOperationToken):
     def capability_id(self) -> str:
         """直前照合だけのcapabilityを返す。"""
         return "CAP:rg1:commit_check"
+
+
+@dataclass(frozen=True, slots=True)
+class RG1ScopeBindingToken(TenantOperationToken):
+    """同一Sessionの実business識別を固定関数で観測する。"""
+
+    @property
+    def capability_id(self) -> str:
+        """制御能力を含まない読取だけのcapabilityを返す。"""
+        return "CAP:rg1:scope_binding"
+
+
+def _build_rg1_scope_binding_statement() -> Select[tuple[str]]:
+    """callerの識別値をbindせず、scopeのtenantだけを渡す。"""
+    tenant_id = bindparam("tenant_id", type_=Uuid())
+    return select(func.rg1_control.scope_binding(tenant_id).label("binding"))
 
 
 def _build_rg1_read_statement(
@@ -76,6 +93,7 @@ def read_rg1_open(scope: _TenantTransaction, *, game_id: UUID | None = None) -> 
     """認可後に復元ゲートを非ロックで確認する。"""
     del game_id
     _require_open(scope.run_function(RG1PrecheckToken()))
+    scope._ensure_rg1_lease()
 
 
 def assert_rg1_open_before_commit(
@@ -84,3 +102,4 @@ def assert_rg1_open_before_commit(
     """同じscopeで直前照合と行ロックを行う。"""
     del game_id
     _require_open(scope.run_function(RG1CommitCheckToken()))
+    scope._assert_rg1_lease()

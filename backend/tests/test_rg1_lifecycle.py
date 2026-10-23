@@ -10,9 +10,14 @@ import json
 import os
 import socket
 import struct
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, cast
+from uuid import UUID
 
 import pytest
+from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.recording_rights import rg1_lifecycle as lifecycle
 
@@ -129,7 +134,7 @@ def test_truncated_or_oversized_peer_frame_is_not_a_success(frame: bytes) -> Non
 def test_frame_round_trip_does_not_reinterpret_control_payload() -> None:
     """transportは状態の意味を追加せず同じ有限objectを返す。"""
     client, server = socket.socketpair()
-    message = {"op": "assert-held", "loan_id": 23}
+    message: dict[str, object] = {"op": "assert-held", "loan_id": 23}
     try:
         lifecycle._send(client, message)
         assert lifecycle._receive(server) == message
@@ -221,3 +226,114 @@ def test_live_loan_rejects_false_primitive_equivalence(
     finally:
         client.close()
         server.close()
+
+
+@pytest.mark.parametrize("failure", ("none", "body", "held", "commit", "release"))
+def test_scope_keeps_control_loan_until_pg_transaction_has_ended(
+    monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    """PG境界の順序専用probeで、確定前解放と失敗時commitを拒否する。
+
+    認可やcontroller成功を模擬して製品成功に数える試験ではない。
+    実製品scopeの終了を通し、借用を先に解放する実装なら失敗させる。
+    """
+    from pitchlog.repositories import transaction
+
+    events: list[str] = []
+
+    class SessionProbe:
+        """実DB試験と分離したPG境界観測。"""
+
+        def execute(self, *_args: object) -> Iterator[tuple[bool]]:
+            """登録済みcommit_checkが呼ばれた事実を記録する。"""
+            events.append("commit-check")
+            return iter(((True,),))
+
+        def close(self) -> None:
+            """PG接続解放時点を記録する。"""
+            events.append("session-close")
+
+    class LoanProbe:
+        """scope終了順の単体試験だけに使う借用。"""
+
+        def assert_held(self) -> None:
+            """直前照合が失敗したscopeをcommitしない。"""
+            events.append("held-check")
+            if failure == "held":
+                raise lifecycle.RG1ControlUnavailable("held failure")
+
+        def release(self) -> None:
+            """PG終了より先の解放を検出する。"""
+            assert "session-close" in events
+            events.append("release")
+            if failure == "release":
+                raise lifecycle.RG1ControlUnavailable("release unknown")
+
+    @contextmanager
+    def pg_boundary(_session: object, _context: object) -> Iterator[None]:
+        events.append("begin")
+        try:
+            yield
+        except BaseException:
+            events.append("rollback")
+            raise
+        else:
+            events.append("commit")
+            if failure == "commit":
+                raise RuntimeError("commit unknown")
+
+    monkeypatch.setattr(transaction, "create_database_engine", lambda: None)
+    monkeypatch.setattr(transaction, "Session", lambda _engine: SessionProbe())
+    monkeypatch.setattr(transaction, "_tenant_transaction", pg_boundary)
+    context = make_tenant_context(UUID("00000000-0000-0000-0000-000000000777"))
+
+    def exercise() -> None:
+        with transaction.tenant_transaction_scope(context) as handle:
+            key = handle._state_key
+            assert key is not None
+            assert key not in transaction._RG1_LOANS
+            transaction._RG1_LOANS[key] = cast("Any", LoanProbe())
+            if failure == "body":
+                raise RuntimeError("body failed")
+        assert handle._state_key is None
+
+    if failure == "none":
+        exercise()
+    else:
+        with pytest.raises(RuntimeError):
+            exercise()
+    if failure in {"body", "held"}:
+        assert "rollback" in events and "commit" not in events
+    else:
+        assert "commit" in events and "rollback" not in events
+    assert events[-2:] == ["session-close", "release"]
+    assert not transaction._RG1_LOANS
+
+
+def test_unchecked_read_scope_does_not_borrow_control(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GET/auth等の通常scopeへ新しいRG1入場条件を前倒ししない。"""
+    from pitchlog.repositories import transaction
+
+    @contextmanager
+    def pg_boundary(_session: object, _context: object) -> Iterator[None]:
+        yield
+
+    class SessionProbe:
+        """SQL実行も制御借用もないread scopeの終了用。"""
+
+        def close(self) -> None:
+            """closeだけを受け付ける。"""
+
+    def forbidden(*_args: object) -> None:
+        pytest.fail("RG1を照合しないscopeでborrowを開始した")
+
+    monkeypatch.setattr(transaction, "create_database_engine", lambda: None)
+    monkeypatch.setattr(transaction, "Session", lambda _engine: SessionProbe())
+    monkeypatch.setattr(transaction, "_tenant_transaction", pg_boundary)
+    monkeypatch.setattr(transaction, "borrow_gate", forbidden)
+    context = make_tenant_context(UUID("00000000-0000-0000-0000-000000000778"))
+    with transaction.tenant_transaction_scope(context):
+        pass
+    assert not transaction._RG1_LOANS

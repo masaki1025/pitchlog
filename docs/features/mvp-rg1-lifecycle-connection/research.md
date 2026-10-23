@@ -24,3 +24,12 @@
 ## ステップ3最初の固定候補
 
 実Unix clientと制御SQL7関数を追加。clientはroot管理config/inode、kernel peer UID、有限frame・閉じた型、同DB四要素とscopeの同一channel生存を要求する。未設定は常閉。SQLは専用actor/owner、controller key1/open key2、同DB/同PID/actorの実lockを要求し、未確定closeをopen/release証拠にしない。SQL単位19成功、client単位39成功/2.35秒。これはtransport/SQL構造の候補であり、実fresh API、controller本体、scope保持、実PG ACL/競合、実UI新規201はまだ未提供・未検証。旧open行を安全成功へ読み替えない。
+
+
+## 同scopeの実借用・確定順候補
+
+正式175/a10を通常mergeした1e8f9f12で3core競合を旧全pathsと新RG1層の完全和に解消。初回408成功/2失敗はpreparingの旧宣言末尾を現在宣言と誤比較したfixtureで、当時の宣言へ固定して410成功/25.83秒。非作者rightsは全31guard関数/classの本文・AST不変と実a10履歴predicateを独立確認し0/0/0、局所62成功/7.15秒。証拠review-rg1-main-core-1e8f9f12-evidence.json SHA f4965633bc7b63f5294a3de44e915a6821aaddcd4b80029c5617b2e2b8c960da。拒否・タイムアウト・旧レビュー系列を保持する。
+
+既存RG1の2token/2factory署名を保持し、固定scope_bindingだけを追加。実scopeは同じSessionの固定観測を使ってborrowし、commit直前に既存FOR SHARE NOWAITと実peer生存を再照合する。scope終了ではPGのcommit/rollback/closeの後に借用を解放し、結果不明を正常201へ補完しない。通常read/authは借用しない。初回59成功/1失敗は旧exact2登録の期待追随不足で、新しい1読取だけを追加し旧bool2関数のexact期待/拒否を保持した。client/SQL/登録67成功/1.26秒、Ruff/対象ty成功。6件のscope順序probeは正常/本文失敗/生存喪失/commit不明/release不明/read無借用を確認する単体検査であり、実authorityや実DBの安全成功には数えない。
+
+controller daemon/fresh供給・実DBとscopeの接合・app startup設定・正式認可/tenant metadata/7.3/7.7は未実装または未接続。正式登録が未受理の候補を正式成功にしない。画面で新規作成した試合の201/GET/reload証拠はまだない。
