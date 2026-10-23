@@ -6,7 +6,7 @@ status: active
 worktree: ../../..
 branch: feature/mvp-preparing-read-ui
 created: 2026-10-24
-計画レビュー周回: 1
+計画レビュー周回: 2
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -92,3 +92,38 @@ GET2件と既存表示propsが接続し、準備中の同tenant保存値だけ�
 ### 計画承認記録
 
 2026-10-23T15:41:15.129055+00:00、Codex主担当/rootがPO委任4/5/6/8/10に基づき、本単位ステップ1の限定実装を承認。対象は上記API基線b3a8ef8b、独立レビュー対象plan SHA256 `894c9d593781efeb1404f01bd3cb8753e12463dfc57a076aec082781c34d6c7c` / research `2e0786d61e1837f478862054c9df36d3fba701f7248b07aba35baaeb39a012d4`。非作者/root/independent_reviewの第1回全文レビューは可決P0/P1/P2=0/0/0。本反映は承認メタデータ/記録だけ。正式7.7/親追加敵対1回/作成保存/実ブラウザ/実機の未達を解除せず、山田正輝の個別実値確認や署名は代記しない。
+
+## 7. 未承認の最小追補案: Appの戻り先callerと保護画面ナビゲーション
+
+本節は追補案であり、既存の承認を追加scopeへ流用しない。rootと独立レビュー/PO委任承認の後に、既存ステップ1/1の是正として実装する。現時点では製品sourceを変更しない。
+
+### 発見事実・保持する履歴
+
+UI旧固定点83e62a17の独立コードレビュー第1回P0/P1/P2=0/1/0を受け、transport文字列型P1をbb0973d1で是正した。旧159件成功ではそのP1を検出しておらず、追加回帰2件の修正前失敗と是正後161件成功をresearchへ保持している。独立第2回差分レビューは可決0/0/0、独立実行161件成功/5.56秒とのroot通知を受領した。レビュー2回や159→161の履歴をリセットしない。
+
+rootの別単位で実browser初回2件が失敗した。root報告では実POST /auth/loginは200だが、その後の期待経路へ進まない。現物のApp.vueはfinishLoginでredirect queryを読まず/team固定、認証失効watchでもredirect=/team固定。一方、既存resolveGameEntryReturnPathは/team・/games・canonical UUIDの/games/{id}/recordをすでに許可する。今回の不足はこの既存境界をApp callerへつなぐ点にあり、API認証失敗やSecure Cookie非対応の成功/失敗へ読み替えない。browser2failedを保持し、auth override・Cookie注入・route応答の成功偽装で迂回しない。
+
+### 追加する編集scope（2paths）
+
+| path | 最小変更 |
+| --- | --- |
+| `frontend/src/App.vue` | 既存resolveGameEntryReturnPathをimport。finishLoginの既存storage同期とprotectedReady確認の後、route.query.redirectを同helperで正規化してrouter.replaceする。認証失効watchは失効前に残るroute.fullPathを同helperへ渡した結果だけをlogin query.redirectへ保持する。認証済み保護画面のnavに既存named route team/gamesへの「チーム」「試合」2リンクを追加する |
+| `frontend/src/router.spec.ts` | 既存App＋正規provider/router/clientの結合試験を拡張。許可戻り先、失効→再login、拒否入力、保護navの実RouterLink移動と未認証非表示を検査する |
+
+戻り先のquery値はunknownのまま既存helperへ渡す。配列・欠落・外部URL・protocol-relative・query/hash付き値・不正UUID等を独自に文字列化/URLデコード/切詰めせず、既存helperの/team fallbackを採用する。route.fullPathにも同じ既存許可集合を適用する。新route・whitelist拡張・新権限・authStore/C1/C2/client/保存規則/記録入力の変更を行わない。認証が未確認なら既存finishLogin同様に移動しない。
+
+navはroute.meta.requiresAuth === trueかつ既存protectedReadyの時だけ表示し、保護画面間を既存の認証guard経由で移動する。認証前の新データ通信を追加せず、未提供の作成/開始/保存/再開導線は設けない。利用者値をHTMLへ挿入しない。
+
+### 同ステップの追加合格条件
+
+1. /loginのredirect=/gamesとcanonical UUID detailは、実login ack後の実client session確認が完了してからその経路へ進み、各read hostのGETを開始する。認証確認前に保護host/GETを開始しない。/teamの既存動作は維持する。
+2. /gamesまたは許可detailで失効すると、表示/cacheを既存経路で破棄してloginへ移り、正規化した同じpathnameを保持する。再login後はそのpathnameへ戻れる。fullPathにquery/hashがあれば既存helperと同じ/teamへ落とす。古い本文/tenant内容を代替表示しない。
+3. 欠落・配列・外部URL・//・不正UUID・query/hash付き戻り先は/team。route名や任意URLを新たに解釈しない。認証失敗/未確認時は保護画面へ戻さない。
+4. 認証済み/teamから「試合」をクリックして/gamesの準備中一覧へ到達し、「チーム」で/teamへ戻れる。未認証時は保護navを表示せず、read成功を入力/書込権へ昇格させない。
+5. 追加/既存router.specと本単位の対象既存5spec、対象Prettier、frontend ESLint/vue-tsc/build、docs/plan同期/diffを確認する。旧browser2failedは別単位で是正source接合後に再実行し、本単体greenをbrowser成功として数えない。実browser再実行・DB環境・driverは引き続きrootの別承認単位の所有とする。
+
+実装可能な追補の上限は上記2pathsと既存feature researchへの証跡追記。planの承認反映はrootが別途行う。親#175の正式追加敵対1回・正式基線/7.7/公開・新秘密/運用鍵の発行禁止・API/他worktree編集禁止を維持する。
+
+### 上記最小追補の承認記録
+
+2026-10-23T16:02:21.816805+00:00、Codex主担当/rootはPO委任4/5/6/8/10に基づき、上記未承認表記時のplan SHA4157f098d56a8cfeacfa89c91d7be2953d6aea6ef1eade424425575edc7dd62a（基線bb0973d141d0695c139f7ced690cdc1727b27947）の追加2paths/同ステップ是正を承認。独立非作者/root/o5_final_reviewの計画追補限定追加1回は可決0/0/0。前段の未承認表記は起案時履歴として残し、本記録を現在判断とする。新規意味/route/whitelist/auth state/実書込は追加しない。元計画レビュー1+今回限定1、元コードレビュー2回/P1採用と初回browser2failedを保持。実装後の限定追加コード確認1回を必要と判断し許可する。正式7.7/親175追加枠/実機/運用の未達を解除せず、本人署名や人間逐行確認は代記しない。
