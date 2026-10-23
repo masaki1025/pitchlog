@@ -466,6 +466,15 @@
         "id": "TSK-528.C1.http-route.HTTP:ROUTE:AUTH:session:read",
         "status": "planned"
       }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:games:read",
+      "route_id": "ROUTE:RECORD:games:read",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_preparing_read_registered_route_matches_real_gets",
+        "status": "implemented"
+      }
     }
   ],
   "cells": [

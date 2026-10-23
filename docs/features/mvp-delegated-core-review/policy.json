@@ -42,6 +42,10 @@
     {
       "pr": 180,
       "branch": "feature/ur1-initial-rights-history-repair"
+    },
+    {
+      "pr": 181,
+      "branch": "feature/mvp-rule-resolver-registration"
     }
   ]
 }

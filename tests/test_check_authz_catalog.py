@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import copy
 import importlib.util
 import itertools
@@ -2255,7 +2256,7 @@ def _allow_record_and_aggregate_route_for_semantic_test(
 
 
 def test_record_and_aggregate_route_ids_match_approved_set() -> None:
-    """承認済み 7 経路と registry・HTTP 行列の集合が一致する。"""
+    """既存7経路とread候補1経路がregistry・HTTP行列の集合に一致する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry_ids = {
         route["route_id"]
@@ -2266,6 +2267,7 @@ def test_record_and_aggregate_route_ids_match_approved_set() -> None:
     all_registry_ids = {route["route_id"] for route in assets["route_registry"]["routes"]}
 
     assert registry_ids == {
+        "ROUTE:RECORD:games:read",
         "ROUTE:RECORD:lineup_memories:read",
         "ROUTE:RECORD:players:insert",
         "ROUTE:RECORD:players:read",
@@ -5935,3 +5937,85 @@ def test_all_positive_cases_and_positive_kill_flags_reject_removal() -> None:
     assert len(positive_cases) == 6
     assert len(positive_mutant_indexes) > 0
     assert escaped == []
+
+
+_PREPARING_READ_ROUTE = 'ROUTE:RECORD:games:read'
+_RECORD_READ_ROUTE_SET = frozenset({
+    'ROUTE:RECORD:lineup_memories:read',
+    'ROUTE:RECORD:players:insert',
+    'ROUTE:RECORD:players:read',
+    'ROUTE:RECORD:players:update',
+    'ROUTE:RECORD:team_records:insert',
+    'ROUTE:RECORD:team_records:read',
+    'ROUTE:RECORD:team_records:update',
+    _PREPARING_READ_ROUTE,
+})
+
+
+def test_preparing_read_registered_route_matches_real_gets(request: pytest.FixtureRequest) -> None:
+    """実GET2とread論理route/matrix・provenance・実収集ownerを対応付ける。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    registry = assets['route_registry']
+    matrix = assets['http_matrix']
+    requirement_catalog, _ = _repository_catalog_and_lock()
+    implemented = frozenset({
+        IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID, request.node.nodeid,
+    })
+    validated = checker.validate_route_registry(
+        registry, requirement_catalog, REPOSITORY_ROOT, implemented,
+    )
+    checker.validate_http_route_matrix(matrix, validated, REPOSITORY_ROOT, implemented)
+    route = next(row for row in registry['routes'] if row['route_id'] == _PREPARING_READ_ROUTE)
+    assert route == {
+        'route_id': _PREPARING_READ_ROUTE, 'route_kind': 'record_and_aggregate',
+        'origin': 'design', 'source_claim_ids': [],
+        'provenance_ids': [
+            'PLAN-TSK446-RECORD-AND-AGGREGATE',
+            'PLAN-MVP-PREPARING-READ-REGISTRATION',
+        ], 'operation': 'read',
+    }
+    row = next(row for row in matrix['routes'] if row['route_id'] == _PREPARING_READ_ROUTE)
+    assert row == {
+        'matrix_route_id': 'HTTP:' + _PREPARING_READ_ROUTE,
+        'route_id': _PREPARING_READ_ROUTE, 'disposition': 'conditional',
+        'test_owner': {'id': request.node.nodeid, 'status': 'implemented'},
+    }
+    source = (REPOSITORY_ROOT / 'backend/src/pitchlog/api/routers/games.py').read_text()
+    tree = ast.parse(source)
+    gets = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if (
+                isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute)
+                and isinstance(decorator.func.value, ast.Name)
+                and decorator.func.value.id == 'router'
+                and decorator.func.attr == 'get'
+            ):
+                operation = next(k.value for k in decorator.keywords if k.arg == 'operation_id')
+                gets.add((ast.literal_eval(decorator.args[0]), ast.literal_eval(operation)))
+    assert gets == {
+        ('/games', 'preparing_game_list'), ('/games/{game_id}', 'preparing_game_detail'),
+    }
+
+
+@pytest.mark.parametrize('missing', sorted(_RECORD_READ_ROUTE_SET))
+def test_preparing_read_route_set_rejects_each_missing_route(missing: str) -> None:
+    """既存7件/read1件いずれの欠落もexact-set違反として拒否する。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    routes = {row['route_id']: row for row in assets['route_registry']['routes']}
+    checker._validate_record_and_aggregate_route_ids(routes)
+    del routes[missing]
+    with pytest.raises(checker.CatalogError, match='exact-set 不一致'):
+        checker._validate_record_and_aggregate_route_ids(routes)
+
+
+def test_preparing_read_route_set_rejects_extra_route() -> None:
+    """read追加後も未宣言の論理routeを余剰として拒否する。"""
+    assets, _locks, _paths = _repository_derived_assets()
+    routes = {row['route_id']: row for row in assets['route_registry']['routes']}
+    extra = dict(routes[_PREPARING_READ_ROUTE], route_id='ROUTE:RECORD:unlisted:read')
+    routes[extra['route_id']] = extra
+    with pytest.raises(checker.CatalogError, match='exact-set 不一致'):
+        checker._validate_record_and_aggregate_route_ids(routes)

@@ -7530,3 +7530,141 @@ def test_ledger_condition2_source_path_hash_and_each_identity_are_required() -> 
     assert contract.condition2_scoped_source_sha256 == (
         'c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3'
     )
+
+
+_PREPARING_READ_FACTORY_FIXTURES = (
+    'pitchlog/repositories/games.py',
+    'pitchlog/repositories/games/__init__.py',
+)
+
+
+def test_stage_a_factory_is_the_only_new_select_permission() -> None:
+    """実sourceと正例を同じ完全修飾factory/SELECTだけで受理する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = 'pitchlog/repositories/rule_resolution.py'
+    rows = [row for row in contract.allowed_symbols if row.symbol ==
+            'pitchlog.repositories.rule_resolution._build_stage_a_rule_statement']
+    assert len(rows) == 1
+    assert rows[0].signature == '_build_stage_a_rule_statement() -> Select[Any]'
+    assert rows[0].allowed_api_ids == frozenset({'SQLA_SELECT'})
+    for root in (REPOSITORY_ROOT / 'backend/src', POSITIVE_ROOT):
+        assert checker.scan_source(_fixture_source(root / relative), path=relative,
+                                   contract=contract) == []
+
+
+@pytest.mark.parametrize('mutation', (
+    'module', 'function', 'signature', 'sql', 'insert', 'update', 'execution',
+))
+def test_stage_a_factory_does_not_allow_other_access(mutation: str) -> None:
+    """別module/関数/署名/任意SQL/DMLへSELECT許可を広げない。"""
+    relative = 'pitchlog/repositories/rule_resolution.py'
+    source = _fixture_source(POSITIVE_ROOT / relative)
+    if mutation == 'module':
+        relative = 'pitchlog/repositories/unregistered_rule_resolution.py'
+    elif mutation == 'function':
+        source = source.replace('_build_stage_a_rule_statement', '_unregistered_statement')
+    elif mutation == 'signature':
+        source = source.replace('_build_stage_a_rule_statement()',
+                                '_build_stage_a_rule_statement(unregistered: str)')
+    elif mutation == 'execution':
+        source += ('\n\ndef _unlisted_execution(session: Session) -> None:\n'
+                   '    session.execute(_build_stage_a_rule_statement())\n')
+        source = 'from sqlalchemy.orm import Session\n' + source.replace(
+            'from __future__ import annotations', '',
+        )
+    elif mutation == 'sql':
+        source = source.replace('    return select(', '    return select(text("SELECT 1"),', 1)
+        source = 'from sqlalchemy import text\n' + source.replace(
+            'from __future__ import annotations', '',
+        )
+    else:
+        source = source.replace('    return select(', f'    return {mutation}(', 1)
+        source = f'from sqlalchemy import {mutation}\n' + source.replace(
+            'from __future__ import annotations', '',
+        )
+    violations = checker.scan_source(
+        source, path=relative, contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert any(row.code == 'TB005' for row in violations)
+
+
+def test_preparing_read_exact_select_factories_and_positive_fixtures() -> None:
+    """正確な2factory/署名/正例だけにSELECTを許し、全拒否変異も検出する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    allowlist = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
+    rows = [
+        row for row in allowlist['allowed_symbols']
+        if row['symbol'].startswith('pitchlog.repositories.games.')
+    ]
+    assert rows == [
+        {
+            'symbol': 'pitchlog.repositories.games._preparing_game_list_statement',
+            'signature': (
+                '_preparing_game_list_statement(cursor_position: '
+                'tuple[datetime, UUID] | None=None) -> Select[Any]'
+            ),
+            'allowed_api_ids': ['SQLA_SELECT'],
+            'fixture': (
+                'tests/fixtures/tenant_boundary/positive/'
+                + _PREPARING_READ_FACTORY_FIXTURES[0]
+            ),
+        },
+        {
+            'symbol': 'pitchlog.repositories.games._preparing_game_detail_statement',
+            'signature': '_preparing_game_detail_statement() -> Select[Any]',
+            'allowed_api_ids': ['SQLA_SELECT'],
+            'fixture': (
+                'tests/fixtures/tenant_boundary/positive/'
+                + _PREPARING_READ_FACTORY_FIXTURES[1]
+            ),
+        },
+    ]
+    for relative in _PREPARING_READ_FACTORY_FIXTURES:
+        source = (POSITIVE_ROOT / relative).read_text()
+        assert checker.scan_source(source, path=relative, contract=contract) == []
+        violations = checker.scan_source(
+            source, path=relative, contract=contract, reject_all_db_calls=True,
+        )
+        assert [item.code for item in violations] == ['TB900']
+    relative = 'pitchlog/repositories/games.py'
+    source = (REPOSITORY_ROOT / 'backend/src' / relative).read_text()
+    assert checker.scan_source(source, path=relative, contract=contract) == []
+    assert len(checker.scan_source(
+        source, path=relative, contract=contract, reject_all_db_calls=True,
+    )) == 2
+
+
+@pytest.mark.parametrize('relative', _PREPARING_READ_FACTORY_FIXTURES)
+@pytest.mark.parametrize('mutation', ('text', 'update', 'module', 'function', 'signature'))
+def test_preparing_read_select_allowance_rejects_boundary_mutations(
+    relative: str, mutation: str,
+) -> None:
+    """許可関数内の別API・別module/関数・異なる署名を引き続き拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = (POSITIVE_ROOT / relative).read_text()
+    if mutation in ('text', 'update'):
+        source = source.replace(
+            'from sqlalchemy import select', 'from sqlalchemy import select, text, update',
+        )
+        source = source.replace('return select(1)', f'return {mutation}("probe")')
+    elif mutation == 'module':
+        relative = 'pitchlog/repositories/unregistered_games.py'
+    elif mutation == 'function':
+        source = source.replace('_preparing_game_', '_unregistered_game_')
+    else:
+        source = source.replace(' -> Select[Any]', ' -> object')
+    violations = checker.scan_source(source, path=relative, contract=contract)
+    assert violations
+    assert {item.code for item in violations} == {'TB005'}
+
+
+def test_preparing_read_other_function_still_rejects_select() -> None:
+    """同moduleの追加関数へSELECT許可を拡張しない。"""
+    source = (POSITIVE_ROOT / _PREPARING_READ_FACTORY_FIXTURES[0]).read_text()
+    source += '\n\ndef unregistered():\n    return select(1)\n'
+    violations = checker.scan_source(
+        source, path=_PREPARING_READ_FACTORY_FIXTURES[0],
+        contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert len(violations) == 1
+    assert violations[0].code == 'TB005'

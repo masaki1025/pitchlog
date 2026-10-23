@@ -602,10 +602,12 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
         *(f"pitchlog.sync.tokens.{name}" for name, _ in expected_sync_operations),
         "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
+        "pitchlog.repositories.games.PreparingGameListToken",
+        "pitchlog.repositories.games.PreparingGameDetailToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 45
+    assert len(expected_token_types) == 47
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -632,6 +634,8 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 *expected_capabilities[8:11],
                 *(capability for _, capability in expected_sync_operations),
                 expected_capabilities[-1],
+                "CAP:games:read",
+                "CAP:games:read",
             ),
             strict=True,
         )
@@ -961,10 +965,12 @@ def test_immutable_subclasses_cannot_leak_database_handles(
         "source_digest",
         "public_surface",
         "executor",
+        "function_executor",
         "return_contract",
         "operation_guards",
         "product_capability_ids",
         "product_operation_token_types",
+        "product_function_operation_ids",
         "cross_tenant_functions",
     ),
 )
@@ -974,3 +980,52 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
     generated[field] = object()
 
     assert generated != _asset_snapshot(_read_contract())
+
+
+def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
+    """固定3登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
+    from pitchlog.repositories.operation_registry import (
+        PRODUCT_FUNCTION_OPERATIONS,
+        PRODUCT_OPERATIONS,
+    )
+    from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
+
+    asset = _read_contract()
+    expected = ("RG1:precheck", "RG1:commit_check", "RULE:resolve_stage_a")
+    assert tuple(asset["product_function_operation_ids"]) == expected
+    assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
+    assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
+    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS) == (
+        "rg1_api.rg1_read_open",
+        "rg1_api.rg1_assert_open_before_commit",
+        "public.resolve_stage_a_rule",
+    )
+    registration = PRODUCT_FUNCTION_OPERATIONS[-1]
+    assert registration.token_type is StageAResolveRuleToken
+    assert registration.capability_id == "CAP:rules:resolve_stage_a"
+    assert registration.input_fields == (
+        ("game_type_key", str),
+        ("tournament_key", str),
+        ("has_override", bool),
+    )
+    assert registration.nonempty_inputs == ("game_type_key", "tournament_key")
+    assert registration.result_fields == (("resolution", MappingProxyType),)
+    assert registration.min_rows == registration.max_rows == 1
+    assert all(
+        row.token_type is not StageAResolveRuleToken for row in PRODUCT_OPERATIONS
+    )
+    assert _generated_snapshot() == _asset_snapshot(asset)
+
+
+@pytest.mark.parametrize(
+    "function_id", ("public.unregistered_rule", "other.resolve_stage_a_rule")
+)
+def test_stage_a_function_identity_mutation_is_rejected(function_id: str) -> None:
+    """既存factoryと異なるDB関数への登録差替えを拒否する。"""
+    from dataclasses import replace
+
+    from pitchlog.repositories.function_operations import FunctionOperationError
+    from pitchlog.repositories.operation_registry import PRODUCT_FUNCTION_OPERATIONS
+
+    with pytest.raises(FunctionOperationError):
+        replace(PRODUCT_FUNCTION_OPERATIONS[-1], function_id=function_id)

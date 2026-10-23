@@ -1,7 +1,6 @@
 """API アプリケーションの構成を検証する。"""
 
 import base64
-import secrets
 from importlib import metadata
 from pathlib import Path
 
@@ -18,8 +17,8 @@ _REAL_DOMAIN_DIR = Path(__file__).resolve().parents[2] / "frontend/public/domain
 
 @pytest.fixture(autouse=True)
 def _configure_signing_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """アプリ生成試験へ CSPRNG 由来の署名鍵を与える。"""
-    encoded_key = base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+    """アプリ生成試験へ既存の非秘密固定試験素材を与える。"""
+    encoded_key = base64.b64encode(b"r" * 32).decode("ascii")
     monkeypatch.setenv("PITCHLOG_TOKEN_SIGNING_KEY_B64", encoded_key)
 
 
@@ -76,6 +75,8 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("PATCH",), "/team-records/{team_record_id:uuid}"),
         (("DELETE",), "/team-records/{team_record_id:uuid}"),
         (("GET",), "/team-records/{team_record_id:uuid}/lineup-memory"),
+        (("GET",), "/games"),
+        (("GET",), "/games/{game_id}"),
     )
     assert tuple(route.operation_id for route in routes) == (
         "meta_health_read",
@@ -96,6 +97,8 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "roster_team_update",
         "roster_team_delete",
         "lineup_memory_read",
+        "preparing_game_list",
+        "preparing_game_detail",
     )
 
 
@@ -227,3 +230,25 @@ def test_create_app_accepts_valid_domain_artifact_without_node(
     app = api_app.create_app()
 
     assert app.title == "Pitchlog API"
+
+
+def test_preparing_read_metadata_keeps_two_real_c2_routes() -> None:
+    """論理read1行に対応する実GET2件とC2操作IDの固定登録を照合する。"""
+    from pitchlog.api.tenant_access import _MATCH_OPERATIONS, TenantMatchedRoute
+
+    routes = [
+        route
+        for router in api_app.ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute) and route.path in {"/games", "/games/{game_id}"}
+    ]
+    assert len(routes) == 2
+    assert {
+        (route.path, tuple(sorted(route.methods or ())), route.operation_id)
+        for route in routes
+    } == {
+        ("/games", ("GET",), "preparing_game_list"),
+        ("/games/{game_id}", ("GET",), "preparing_game_detail"),
+    }
+    assert all(isinstance(route, TenantMatchedRoute) for route in routes)
+    assert {"preparing_game_list", "preparing_game_detail"} <= _MATCH_OPERATIONS

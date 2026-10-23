@@ -281,3 +281,55 @@ it('storage同期とは独立にteamId不一致を本文前に拒否する', asy
   expect(auth.authEpoch).toBe(epoch)
   expect(fetch).toHaveBeenCalledTimes(1)
 })
+
+it.each(['/games', '/games/33333333-3333-4333-8333-333333333333'])(
+  '%sの通信/abortはCookie不確実性を一度通知し再送しない',
+  async (path) => {
+    const auth = useAuthStore()
+    const notice = vi.spyOn(auth, 'invalidateUncertainCookie')
+    vi.mocked(fetch).mockRejectedValue(new DOMException('中断', 'AbortError'))
+    await expect(
+      apiRequest('GET', path, { tenantBound: true }),
+    ).rejects.toThrow()
+    expect(notice).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(auth.isAuthenticated).toBe(false)
+  },
+)
+it('gamesに似た別経路をCookie更新分類へ広げない', async () => {
+  const notice = vi.spyOn(useAuthStore(), 'invalidateUncertainCookie')
+  vi.mocked(fetch).mockRejectedValue(new TypeError('通信失敗'))
+  await expect(
+    apiRequest('GET', '/gamesx', { tenantBound: true }),
+  ).rejects.toThrow()
+  expect(notice).not.toHaveBeenCalled()
+})
+it.each(['/games', '/games/33333333-3333-4333-8333-333333333333'])(
+  '%sの旧headersは不正metadataより先にCookie不確実性を通知する',
+  async (path) => {
+    const pending = deferred<Response>()
+    vi.mocked(fetch).mockReturnValue(pending.promise)
+    const request = apiRequest('GET', path, { tenantBound: true })
+    const assertion = expect(request).rejects.toBeInstanceOf(
+      ApiTenantVerificationError,
+    )
+    signIn(TENANT_B)
+    const notice = vi.spyOn(useAuthStore(), 'invalidateUncertainCookie')
+    pending.resolve(response('wrong-challenge'))
+    await assertion
+    expect(notice).toHaveBeenCalledTimes(1)
+    expect(useAuthStore().isAuthenticated).toBe(false)
+  },
+)
+it.each(['/games', '/games/33333333-3333-4333-8333-333333333333'])(
+  '%sのmetadata不正は成功/cacheを採らず一度だけ通知する',
+  async (path) => {
+    const notice = vi.spyOn(useAuthStore(), 'invalidateUncertainCookie')
+    vi.mocked(fetch).mockResolvedValue(response('wrong'))
+    await expect(
+      apiRequest('GET', path, { tenantBound: true }),
+    ).rejects.toBeInstanceOf(ApiTenantVerificationError)
+    expect(notice).toHaveBeenCalledTimes(1)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+  },
+)

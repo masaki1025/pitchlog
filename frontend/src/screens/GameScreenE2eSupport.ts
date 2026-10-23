@@ -28,6 +28,24 @@ const backendRoot = resolve(repositoryRoot, 'backend')
 export interface GameScreenE2eRuntime {
   baseURL: string
   identities: readonly { name: string; password: string; tenantId: string }[]
+  preparingGameId?: string
+}
+
+export type GameScreenE2eMode = 'sealed-ui' | 'preparing-read'
+
+/** 専用モードとloopbackの動的portだけからoriginを組み立てる。 */
+export function gameScreenE2eOrigin(
+  mode: GameScreenE2eMode,
+  port: number,
+): string {
+  if (
+    !['sealed-ui', 'preparing-read'].includes(mode) ||
+    !Number.isInteger(port) ||
+    port < 1 ||
+    port > 65535
+  )
+    throw new Error('E2Eの明示モードまたは専用ポートが不正')
+  return `${mode === 'preparing-read' ? 'http' : 'https'}://127.0.0.1:${port}`
 }
 
 function ownedRuntimePath(): string {
@@ -75,44 +93,49 @@ async function chooseOwnFrontendPort(): Promise<number> {
 }
 
 /** 実製品 App と専用 DB を HTTPS の画面へ接続し、終了時に自分の資源だけ破棄する。 */
-export default async function setupGameScreenE2e(): Promise<
-  () => Promise<void>
-> {
+export async function setupGameScreenE2eForMode(
+  mode: GameScreenE2eMode,
+): Promise<() => Promise<void>> {
   if (process.env.PLAYWRIGHT_NO_COPY_PROMPT !== '1')
     throw new Error('失敗時DOM snapshotの抑止設定がない')
   const frontendPort = await chooseOwnFrontendPort()
-  const frontendOrigin = `https://127.0.0.1:${frontendPort}`
+  const frontendOrigin = gameScreenE2eOrigin(mode, frontendPort)
   const directory = mkdtempSync(resolve(tmpdir(), 'pitchlog-e2e-'))
   const readyPath = resolve(directory, 'backend-ready.json')
   const stopPath = resolve(directory, 'stop')
   const runtimePath = resolve(directory, 'runtime.json')
   const keyPath = resolve(directory, 'localhost.key')
   const certPath = resolve(directory, 'localhost.crt')
-  closeSync(openSync(keyPath, 'wx', 0o600))
-  const certificate = spawnSync(
-    'openssl',
-    [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-nodes',
-      '-days',
-      '1',
-      '-subj',
-      '/CN=localhost',
-      '-addext',
-      'subjectAltName=DNS:localhost,IP:127.0.0.1',
-      '-keyout',
-      keyPath,
-      '-out',
-      certPath,
-    ],
-    { stdio: 'ignore' },
-  )
-  if (certificate.status !== 0 || (statSync(keyPath).mode & 0o777) !== 0o600) {
-    rmSync(directory, { recursive: true, force: true })
-    throw new Error('E2E 用の一時 HTTPS 証明書を生成できない')
+  if (mode === 'sealed-ui') {
+    closeSync(openSync(keyPath, 'wx', 0o600))
+    const certificate = spawnSync(
+      'openssl',
+      [
+        'req',
+        '-x509',
+        '-newkey',
+        'rsa:2048',
+        '-nodes',
+        '-days',
+        '1',
+        '-subj',
+        '/CN=localhost',
+        '-addext',
+        'subjectAltName=DNS:localhost,IP:127.0.0.1',
+        '-keyout',
+        keyPath,
+        '-out',
+        certPath,
+      ],
+      { stdio: 'ignore' },
+    )
+    if (
+      certificate.status !== 0 ||
+      (statSync(keyPath).mode & 0o777) !== 0o600
+    ) {
+      rmSync(directory, { recursive: true, force: true })
+      throw new Error('E2E 用の一時 HTTPS 証明書を生成できない')
+    }
   }
 
   const inherited = Object.fromEntries(
@@ -132,6 +155,7 @@ export default async function setupGameScreenE2e(): Promise<
         PITCHLOG_E2E_READY_FILE: readyPath,
         PITCHLOG_E2E_STOP_FILE: stopPath,
         PITCHLOG_E2E_FRONTEND_ORIGIN: frontendOrigin,
+        PITCHLOG_E2E_MODE: mode,
         PYTHONPATH: [
           resolve(backendRoot, 'tests'),
           resolve(backendRoot, 'src'),
@@ -173,6 +197,7 @@ export default async function setupGameScreenE2e(): Promise<
     const supplied = JSON.parse(readFileSync(readyPath, 'utf8')) as {
       port: number
       identities: GameScreenE2eRuntime['identities']
+      preparingGameId?: string
     }
     if (!Number.isInteger(supplied.port) || supplied.port < 1) {
       throw new Error('製品 App の待受ポートが不正')
@@ -184,7 +209,14 @@ export default async function setupGameScreenE2e(): Promise<
         host: '127.0.0.1',
         port: frontendPort,
         strictPort: true,
-        https: { key: readFileSync(keyPath), cert: readFileSync(certPath) },
+        ...(mode === 'sealed-ui'
+          ? {
+              https: {
+                key: readFileSync(keyPath),
+                cert: readFileSync(certPath),
+              },
+            }
+          : {}),
         proxy: {
           '/api': {
             target: `http://127.0.0.1:${supplied.port}`,
@@ -208,6 +240,9 @@ export default async function setupGameScreenE2e(): Promise<
       JSON.stringify({
         baseURL: frontendOrigin,
         identities: supplied.identities,
+        ...(supplied.preparingGameId
+          ? { preparingGameId: supplied.preparingGameId }
+          : {}),
       } satisfies GameScreenE2eRuntime),
       { mode: 0o600 },
     )
@@ -223,4 +258,11 @@ export default async function setupGameScreenE2e(): Promise<
       'E2E の専用クラスタ・既存認証fixture・実製品 App の起動に失敗',
     )
   }
+}
+
+/** 既存の封鎖画面入口はHTTPSモードのまま維持する。 */
+export default async function setupGameScreenE2e(): Promise<
+  () => Promise<void>
+> {
+  return setupGameScreenE2eForMode('sealed-ui')
 }

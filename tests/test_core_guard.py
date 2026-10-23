@@ -4814,3 +4814,223 @@ def test_durable_ledger_core_supplier_discovery_survives_normal_integration(
         assert durable_ledger_comparison_revision() == integrated
     finally:
         durable_ledger_supplier_revision.cache_clear()
+
+
+PREPARING_READ_PATHS = (
+    "backend/src/pitchlog/services/game_creation.py",
+    "backend/tests/test_game_preparing*.py",
+)
+
+
+INITIAL_RIGHTS_HISTORICAL_ADDITIONS: dict[str, tuple[str, ...]] = {
+    area_id: INITIAL_RIGHTS_PATHS
+    for area_id in ("sync-protocol", "recording-rights", "tenant-isolation")
+}
+
+
+def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path) -> None:
+    """二領域の起動入口登録後、JSON据置き宣言とtenant追加登録を受理する。"""
+    core_guard = load_core_guard_module()
+    root, initial_sha = make_layered_core_repo(tmp_path)
+    startup = "backend/src/pitchlog/db/stage_a_startup.py"
+    stage_additions: dict[str, tuple[str, ...]] = {
+        "game-state": (startup,),
+        "tenant-isolation": (startup,),
+    }
+    write_text(
+        root,
+        "scripts/core_guard.py",
+        core_guard_source_with_additions(stage_additions),
+    )
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c", "user.email=test@example.com", "-c", "user.name=test",
+        "commit", "-qm", "stage_a declaration",
+    )
+    base_sha = commit_area_path_changes(root, stage_additions)
+    stage_core_guard = load_core_guard_module(
+        root / "scripts/core_guard.py", module_name="stage_a_isolated_core_guard"
+    )
+    assert stage_core_guard.verify_area_path_baseline(root, initial_sha, base_sha) == (
+        initial_sha
+    )
+
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c",
+        "user.email=test@example.com",
+        "-c",
+        "user.name=test",
+        "commit",
+        "-q",
+        "-m",
+        "declaration only",
+    )
+    head_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    candidate = core_guard.load_core_areas_at_revision(root, head_sha)
+
+    assert candidate == baseline
+    tenant_area = next(
+        area for area in candidate["areas"] if area["id"] == "tenant-isolation"
+    )
+    game_area = next(area for area in candidate["areas"] if area["id"] == "game-state")
+    assert tenant_area["paths"] == ["base/tenant-isolation.py", startup]
+    assert game_area["paths"] == ["base/game-state.py", startup]
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    core_guard.validate_area_path_layers(baseline, candidate)
+    assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
+
+    registered_sha = commit_area_path_changes(
+        root, {"tenant-isolation": EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]}
+    )
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    for area in registered["areas"]:
+        area_id = area["id"]
+        assert area["paths"] == [
+            f"base/{area_id}.py",
+            *stage_additions.get(area_id, ()),
+            *(
+                EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]
+                if area_id == "tenant-isolation"
+                else ()
+            ),
+        ]
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == (
+        base_sha
+    )
+
+    partial = json.loads(json.dumps(candidate))
+    next(area for area in partial["areas"] if area["id"] == "tenant-isolation")[
+        "paths"
+    ].append(EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"][0])
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, partial)
+
+    undeclared = json.loads(json.dumps(candidate))
+    next(area for area in undeclared["areas"] if area["id"] == "tenant-isolation")[
+        "paths"
+    ].append("backend/src/pitchlog/services/unregistered.py")
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(baseline, undeclared)
+
+    future = json.loads(json.dumps(registered))
+    next(area for area in future["areas"] if area["id"] == "tenant-isolation")[
+        "paths"
+    ].append("future/tenant-entry.py")
+    core_guard.validate_area_path_layers(
+        registered, future, {"tenant-isolation": ("future/tenant-entry.py",)}
+    )
+    with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
+        core_guard.validate_area_path_layers(registered, future)
+
+
+def test_preparing_declaration_detects_new_paths_and_requires_human_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """当時の宣言で隔離履歴と登録後の確認拒否を検証する。"""
+    historical = tmp_path / "preparing_historical_guard.py"
+    historical.write_text(core_guard_source_with_additions({
+        "sync-protocol": INITIAL_RIGHTS_PATHS,
+        "recording-rights": INITIAL_RIGHTS_PATHS,
+        "tenant-isolation": PREPARING_READ_PATHS,
+    }), encoding="utf-8")
+    monkeypatch.setattr(sys.modules[__name__], "SCRIPT", historical)
+    core_guard = load_core_guard_module(historical, module_name="preparing_historical_guard")
+    root, _ = make_layered_core_repo(tmp_path)
+    startup = "backend/src/pitchlog/db/stage_a_startup.py"
+    stage_additions: dict[str, tuple[str, ...]] = {
+        "game-state": (startup,),
+        "tenant-isolation": (startup,),
+    }
+    base_sha = commit_area_path_changes(root, stage_additions)
+    additions = PREPARING_READ_PATHS
+    planned_paths = (
+        "backend/src/pitchlog/services/game_creation.py",
+        "backend/tests/test_game_preparing_components.py",
+    )
+    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c", "user.email=test@example.com", "-c", "user.name=test",
+        "commit", "-qm", "preparing declaration",
+    )
+    declaration_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    baseline = core_guard.load_core_areas_at_revision(root, base_sha)
+    declared = core_guard.load_core_areas_at_revision(root, declaration_sha)
+    assert declared == baseline
+    core_guard.validate_area_path_layers(baseline, declared)
+    assert core_guard.verify_area_path_baseline(root, base_sha, declaration_sha) == base_sha
+    tenant = next(area for area in declared["areas"] if area["id"] == "tenant-isolation")
+    assert tenant["paths"] == ["base/tenant-isolation.py", startup]
+    assert core_guard.matched_paths(
+        planned_paths, core_guard.CoreAreas(tuple(tenant["paths"]), frozenset())
+    ) == []
+
+    registered_sha = commit_area_path_changes(root, {"tenant-isolation": additions})
+    registered = core_guard.load_core_areas_at_revision(root, registered_sha)
+    core_guard.validate_area_path_layers(baseline, registered)
+    assert core_guard.verify_area_path_baseline(root, base_sha, registered_sha) == base_sha
+    registered_tenant = next(
+        area for area in registered["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert registered_tenant["paths"] == ["base/tenant-isolation.py", startup, *additions]
+    registered_paths = core_guard.CoreAreas(tuple(registered_tenant["paths"]), frozenset())
+    assert core_guard.matched_paths(planned_paths, registered_paths) == list(planned_paths)
+
+    _, product_sha = commit_changes(root, planned_paths)
+    event = write_event(tmp_path, registered_sha, product_sha, f"- [ ] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 1
+    assert all(f"{path}: PR 本文に必須チェックがない" in result.stderr for path in planned_paths)
+    event = write_event(tmp_path, registered_sha, product_sha, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 0, result.stderr
+
+    future_additions: dict[str, tuple[str, ...]] = {
+        "tenant-isolation": ("future/tenant-entry.py",)
+    }
+    write_text(
+        root,
+        "scripts/core_guard.py",
+        core_guard_source_with_additions(future_additions),
+    )
+    run_git(root, "add", "scripts/core_guard.py")
+    run_git(
+        root,
+        "-c", "user.email=test@example.com", "-c", "user.name=test",
+        "commit", "-qm", "later declaration",
+    )
+    future_declaration_sha = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    future_core_guard = load_core_guard_module(
+        root / "scripts/core_guard.py", module_name="future_preparing_core_guard"
+    )
+    assert future_core_guard.load_core_areas_at_revision(
+        root, future_declaration_sha
+    ) == registered
+    assert future_core_guard.verify_area_path_baseline(
+        root, product_sha, future_declaration_sha
+    ) == product_sha
+    future_registered_sha = commit_area_path_changes(root, future_additions)
+    future_registered = future_core_guard.load_core_areas_at_revision(
+        root, future_registered_sha
+    )
+    assert future_core_guard.verify_area_path_baseline(
+        root, product_sha, future_registered_sha
+    ) == product_sha
+    future_tenant = next(
+        area for area in future_registered["areas"] if area["id"] == "tenant-isolation"
+    )
+    assert future_tenant["paths"] == [
+        "base/tenant-isolation.py",
+        startup,
+        *additions,
+        *future_additions["tenant-isolation"],
+    ]
+    assert core_guard.matched_paths(
+        planned_paths, core_guard.CoreAreas(tuple(future_tenant["paths"]), frozenset())
+    ) == list(planned_paths)

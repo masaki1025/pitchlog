@@ -69,6 +69,10 @@ INITIAL_RIGHTS_PATH_ADDITIONS = (
     "backend/src/pitchlog/recording_rights/initial_grant.py",
     "backend/tests/test_initial_recording_right_candidate.py",
 )
+PREPARING_READ_PATH_ADDITIONS = (
+    "backend/src/pitchlog/services/game_creation.py",
+    "backend/tests/test_game_preparing*.py",
+)
 DURABLE_LEDGER_PATH_ADDITIONS = (
     "backend/src/pitchlog/durable_rights_ledger/*",
     "backend/tests/test_durable_rights_ledger_contract.py",
