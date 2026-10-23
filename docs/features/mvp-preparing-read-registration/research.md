@@ -159,3 +159,18 @@ frontendはfrozen installのみで宣言/lock差分0。現在の実候補でread
 正式受理前の完全値候補はcache/preparing-read-175-acceptance/proposal.json（SHA325e1a0803f021378c1ef0ad9cb7358dbe0c38b365fa45faf57de52df5cb9412）。実547→4c5b3794で9射影を全導出、変化2/不変7、外部8不変、27history/202snapshot全bytes不変。C=bda1262947ba284374a5e14b532c2ef3c3859544は追加の認可lock2件と研究記録だけなので、9/8の提案値は同一。aspectは実derive_aspectsのdeclaration/asset_snapshotsだけであり、外部不変を変更に数えない。
 
 oracle6context/sealのcommit文字列を旧426d→同じCへ前進した候補を固定。6意味行は全不変で、ここではseal再導出・oracle_input系列行の正式追記をしない。必要な既存frozen-baselines.json系列の末尾1行追随をroot後続scopeへ明記し、旧全行・配置・target・拒否は保持する。cache/oracle-ledger-row-proposal.jsonのSHA1a9fa6733b2143dc566e376f66807047c8b7ee69bcff511e538c68024f0449d5は承認者/日付なしの未受理提案。全実値とこの最小scopeの非作者照合後、PO委任判断を根拠付きで正式記録してから必要行/封印を反映する。本人の個別確認を代記しない。
+
+
+## 正式値のPO委任受理と反映
+
+2026-10-23T19:07:51.897444+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24優先指示で、10fd/実547の完全提案325e1a08を受理。非作者rights_replacement_reviewは02ecの全9射影/外部8/19snapshot実体/全前後値/identifier/aspectを独立再計算して一致、0/0/0・48局所成功。C/02ecと後発10fdは9/8実値不変。証拠f7e85b13、全diff898657d2/直前diff706630c2。旧27prefix/202snapshot全保持、提案に承認者/日付2fieldだけを加えて175row1/必要snapshot2を反映し28/204とした。
+
+6oracleのcommit以外の意味不変・入力8blobC=bda12629一致と、既存oracle_input系列の旧13prefix/target/配置保持の末尾175提案1a9fa673も同非作者0で確認し受理。提案に承認者/日付2fieldだけを加えて14行目へ反映。最小scope追補を委任で承認し、人間本人の個別確認/署名/逐行確認は記録しない。
+
+root補助の初回は旧271f corpus不変という誤ったassertで停止した。入力宣言は同じだがread正例2追加・3既存入力の変更で実digest6e362f63へ変わることを実runnerと非作者の固定Git独立計算で確認（証拠dadb2245）。生成値の通常追随としてmanifestのdigest1fieldだけ更新し、旧pinned履歴6/名集合/全case/期待値/runner/選択宣言は不変。続く反映補助は旧legacy履歴にacceptance_idがない行を同形式と仮定してKeyErrorで書込み前に停止し、getによる存在確認へ是正。新rowやsnapshotの二重追加はない。封印再導出/更新flagなし全検査/親175全最終追加レビュー/必須CI/実保存成功は別未完ゲート。
+
+
+反映後のtenant checkerは更新flagなしexit0。oracle再封印は起案の`--asset-spec product --reseal-oracle`が製品DDL（oracle_contextを持たない別資産）を選んでseal不一致を拒否し、書込みなしでexit1となった。実6対象はrootのprobe oracleであり、実装/検査器を変更せずコマンドを`--asset-spec probe --reseal-oracle`へ是正。全1418項目/202 oracle claims/235mutants/24cutsetsを検査し再封印成功。planの同コマンド1件だけ追随した。製品DDL検査は別途productモードの更新flagなしで実施し、probe/sourceと製品認可を混同しない。受理したC/6意味行/9射影値は変わらない。
+
+
+反映後の更新flagなしtenant checker/probe oracle全検査/product認可検査/frozen-baselines invariantsは全exit0。archiveとcase runnerは65成功/67.47秒、旧pinned集合・期待結果をそのまま通した。root Ruff/ty成功、文書21件/違反0。これらは正式develop提供や必須全件CI、175親最終追加敵対1回を置換しない。

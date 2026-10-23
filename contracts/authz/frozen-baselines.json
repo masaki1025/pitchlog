@@ -713,6 +713,49 @@
       },
       "reason": "#174の8入力候補コミットへoracle入力を切り替え、6oracle資産の意味行を保ったまま封印参照を追随する。旧#152行は持ち込まない。",
       "series": "oracle_input"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#175",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "bda1262947ba284374a5e14b532c2ef3c3859544"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "426d0ec84249d5940e7e2de5660a213d45401d0e"
+          }
+        ]
+      },
+      "reason": "#175の正式preparing read 2GETに対応するroute/matrixと派生lockを含む8入力へoracleを前進し、6意味行/既存履歴/権限を保持する。PO委任によるCodex判断は独立照合後に別記する。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
+      "approved_at": "2026-10-24"
     }
   ]
 }

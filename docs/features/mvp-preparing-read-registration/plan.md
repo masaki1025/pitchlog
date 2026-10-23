@@ -103,7 +103,7 @@ rootが正式ゲートで扱う派生/受理対象は以下である。本候補
 | --- | --- |
 | `contracts/tenant_boundary/{base-allowlist,repository-contract}.json`のbaseline_control/history、`contracts/tenant_boundary/history-snapshots/*` | 正常置換PRの実統合後のbaseと候補を唯一の比較対として`uv run --directory backend python -m pitchlog.authz.runtime_contract_acceptance --base <実base> --acceptance-id masaki1025/pitchlog#175 --approved-by <実承認者> --approved-on <実承認日> --reason <理由> --movement-fact <事実> --output <repo外bundle>`。実承認前に値を代記しない |
 | `contracts/authz/{route-registry,http-route-matrix}.lock.json`、必要なら同時導出される`auth-catalog.lock.json` | 既存`uv run python scripts/check_authz_catalog.py --asset-spec product --reseal-derived`。3派生lockが対象であるため、read以外のauth-catalog差分を黙って取り込まない。入力manifest/claimsの既存SHAも実baseで照合する |
-| root後続のoracle6資産と`contracts/authz/oracle-seal.lock.json` | 下記の8入力commit固定と6context/sealの同時前進、必要差分のレビュー/受理を経てから`uv run python scripts/check_authz_catalog.py --asset-spec product --reseal-oracle`。最後は更新flagなしで全件検査。再封印だけでoracle_commitは進まない |
+| root後続のoracle6資産と`contracts/authz/oracle-seal.lock.json` | 下記の8入力commit固定と6context/sealの同時前進、必要差分のレビュー/受理を経てから`uv run python scripts/check_authz_catalog.py --asset-spec probe --reseal-oracle`。最後は更新flagなしで全件検査。再封印だけでoracle_commitは進まない |
 | `contracts/authz/frozen-baselines.json`の既存`oracle_input`系列 | 同じCへ前進する6context/sealの実識別値に必要な末尾1受理行だけをrootが完全前後値・独立確認後に追記する。旧系列/target/履歴/owner/配置・判定は不変。本人確認を代記せずPO委任によるCodex判断とする |
 | `contracts/authz/{requirement-claims,requirement-claims.lock,auth-catalog}.json`等の入力 | 原則不変。実統合された正常置換の入力を保持し、read行追加で必要なmanifest/digest射影だけを根拠付きで再照合する。新要件主張/DB権限/3軸規則へ広がる不足は別scopeへ返す |
 
