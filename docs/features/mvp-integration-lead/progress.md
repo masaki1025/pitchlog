@@ -276,3 +276,16 @@ read親175は実branchをd68から6caa6cfeへfast-forward通常push、最終提�
 T1文脈候補7d80d3e4は追加26定義/旧外殻保持、非作者0・独立202構造試験/別Draft2020-12実装147case一致。根本7依存はunresolvedのままでReady/正式contract/P6/P7/製品計算未達を保持。次の閉包と実装は継続対象。
 
 ledgerの保護journal小単位1e4381f8は実kernel append/immutable/cap0/別UID/flock/fsyncを含む57成功、skip0/全所有資源cleanup。rootは候補を限定受領し、非作者が固定版review中。既承認scope内の実enroll/Unix authority/INTENT-PG-CONFIRMED-ACK/専用identity接合を同作者へ継続指示、まだ正常再起動/復元全DoDの完成ではない。F2normは547を通常統合し、既採用本文全保持/実role参照・採番だけの非作者限定0後に2c391fdbで本枝確定（model1.2/sync0.12/ops0.1、正式develop未統合）。既存F2計画の物理scope追補は旧US1 wtのd539f528、2docsだけで未承認・source未実装。MVP全体の完成条件と実機/運用未達は維持。
+
+
+### 2026-10-24 05:17 JST 利用者への現状回答とCI是正の保存点
+
+最初の縦断（実画面新規作成→開始→1球保存→reload）は未達、実機受渡し待ち。保存済みpreparingのreadを画面/実API/専用PGへ通せる候補と新規保存の成功を区別する。create65598dadの実画面/POST/options/独立全差分0を保持し、正常RG1成功/HTTP201/新保存再取得はまだ。T1製品計算は未着手で、候補契約から実計算開始へ必要な閉型と出所・終端証拠を具体化中。
+
+PR175 CI40011535070は最終failure（frontend1853成功3失敗、backend3379成功3失敗4skip、harness29798成功3失敗2skip）。rootはbootstrap限定承認b574後に033c0e84へ実装、さらに通常期待値/派生参照の最小追随をd48209fbでPO委任承認し、2d4579bfe9163d4c3c4d36972daee9ca3f875193へ修正を保存した。公開旧6caa比較binarydiff5089e67c29ea27aa7904f7b71567e736f8f2ecbccd75fbbeedd953989086d00e、実547比較a4c07467e65e2ef456081a9b258bd696e9b154f2a863fb86ed736c0e6f099e65。新sourceはまだ未push、必須CI未実施。既親最終追加1回/後発metadata1回を保持し、非作者rightsへCI限定修正レビューを依頼済み（受諾/結果待ち）。
+
+修正後は全Vitest1856成功/164.27秒、process8成功/1.28秒、実browser3成功/27.2秒。後者は実login/Cookie/C2/API/隔離PGの一覧/詳細/reload/越境404/通信断明示回復で、新規createや実機成功ではない。cleanup後dockerは共有pitchlog-db-1のみ。backend CI対象120成功/1.40秒、root CI対象23成功/2.12秒、backend Ruff/formatと更新flagなしtenant/probe/product/frozen/failureInjection/MC/DC検査exit0。backendは旧経路全18＋read2のexact集合、capability30不変で全47文と元の拒否6変異を維持。派生参照2fieldだけ現blobへ追随し、原典意味はcontext.commit以外同一。正式9射影/外部8/全tenant JSONを6caaと実再導出比較して同一、同値7.7を再受理せず28history/204snapshotを保持した。証拠cache/read175-bootstrap-fix/参照。
+
+並行成果：ledger保護journal1e4381f8の非作者0/独立57成功・破損frame402拒否を受領。実enroll/Unix authority/INTENT→PG→CONFIRMED→ACK/正常restart/reconcileの実装はcreation_pathが継続し、root browser終了後の隔離DB slotを通知済み。epoch advance用の実RG1-close proof Port不足は製品依存として閉状態を維持し、他作業を止めない。F2は既存US1枝で正常供給05c5c3fb後、95849aeeb3c3a46c065b70fcf82f4692bd1f75e9へ業務5/別Base制御9、migration0035、DB別manifest候補、固定DDL/不変性構造の10pathを保存。176局所成功、正式manifest10成功4失敗は未受理pin/5表未登録を示し、role/store/marker/PG/F3完成ではない。rightsへ独立構造レビュー依頼済み。T1はoperation-content閉union/原典4操作と毎球観測の最小追補を作者へ指示し、未決意味を推測しない。
+
+全MVP要件/ユーザー実機・1試合リハーサル/運用境界は維持する。新たな利用者操作は依然保存済み試合のreadまでで、次の依存は実RG1安全成立と新規作成保存、開始・単一T1/T2・耐久同期の接合である。
