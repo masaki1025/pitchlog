@@ -2369,7 +2369,9 @@ def _assert_unadjudicated_removed_remains(
         identity for identity in data_sets[set_name]
         if identity[code_index] == "TB002" and identity[identity_indexes["path"]] == ledger_path
     )
-    if ledger_path is not None:
+    if ledger_path is not None and (
+        ledger_removed or reference_repository_root is not None
+    ):
         _assert_scoped_identity_digest(ledger_removed, "ledger_removed_checker")
     for identity in data_sets[set_name]:
         if identity in scoped_removed or identity in ledger_removed:
@@ -4383,7 +4385,7 @@ def test_ledger_scoped_condition2_requires_exact_source_and_findings(tmp_path: P
     ) is None
 
 
-@pytest.mark.parametrize('mutation', ['missing', 'extra', 'cross_path'])
+@pytest.mark.parametrize('mutation', ['missing', 'extra', 'cross_path', 'all_missing'])
 def test_ledger_scoped_census_rejects_changed_removed_identity(
     census_predicate_context: dict[str, Any], mutation: str
 ) -> None:
@@ -4395,7 +4397,10 @@ def test_ledger_scoped_census_rejects_changed_removed_identity(
         if i[0] == 'pitchlog/durable_rights_ledger/adapter.py' and i[4] == 'TB002'
     )
     removed = data_sets['removed'] - {original}
-    if mutation == 'extra':
+    if mutation == 'all_missing':
+        removed = frozenset(i for i in removed
+                            if i[0] != 'pitchlog/durable_rights_ledger/adapter.py')
+    elif mutation == 'extra':
         removed = data_sets['removed'] | {
             _replace_identity_field(original, index=5, value='unapproved_generation')
         }

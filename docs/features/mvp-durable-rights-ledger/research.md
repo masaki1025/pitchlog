@@ -448,3 +448,11 @@ CSVの編集2pathを固定する。新ledger_deployment_assetsのexact3path/SHA�
 
 
 2026-10-24T04:52:34.159948+00:00、PO委任によるCodex主担当/root判断で、実PR182の最終static-v3提案4fcda7dec5a3ce44ec891654670b549d7538f92ab5c0174cc0c92837e11531b4を受理。独立ccfdの全9/8/27payload一致0（証拠de5f6e1b8deb3c27cf346ca3934b4ec6a4b0a9891b246cefa3c2c1497d46c3ee）を受領し、後発c55のschema正本SHA1field/文書だけでは全射影・外部byte・識別値/方針が不変であることを再導出/全field照合した。同じ値の承認を繰り返さず、新1record＋必要10snapshotだけを反映して30/216、旧正式29/206全byteを保持。旧receipt/static-v2supersessionは変更せず、acceptance-static-v3.jsonを別保存した。schema manifest14成功0.66秒、元33分CIの1失敗/3567成功/4skipと元globalscan失敗は保持する。最初のmanifest書込みで不要な全体整形が変わり、直後の通常commitで元整形を復元して最終差分をSHA1fieldだけへ戻した。全harness・最終HEADの非作者後発確認/必須CI/通常統合はこれから。本人の実値確認/署名を代記しない。
+
+
+## ローカル全件a4ac621bの4失敗を分離
+
+2026-10-24T05:25:15.551536+00:00、/home/ymdms/.cache/pitchlog/ledger-final-a4ac621b-harness/results.json とharness.xml/06.logを受領。29921成功/2skip/4失敗1353.82s。global frozen/parity/census単独/Ruff/tyは先行0だったが、全件成功ではない。shared-preconditionsの正本blob、ORM生成資料、package-data全体禁止、部分census入力への全件digest強制を別々に是正し、同じ入力の全件再試行はしない。既static-v3の正式受理と旧CI結果は保全し、census source差分が変える実値だけ別対象として再受理する。
+
+
+2026-10-24T05:28:31.141703+00:00、4失敗の限定追随は32成功25.67s（/home/ymdms/.cache/pitchlog/ledger-local-four-failures-followup-fixed.log）。初回の生成コマンドは旧判定を持ち越さず未判定を作ったため、cacheに保全しGit HEADの旧5文書から復元した。既単一generatorの安全carryで旧369行の判定/理由を全保持し、新N3一行だけを別root委任判断にした。新行はORM業務列ではなく外部genesis/journal保証なので対象外、data-model3-2-A/authority実装を理由へ引用し、本人逐行確認とは記録しない。実生成N3は110→111、README集計だけ追随。carry詳細 /home/ymdms/.cache/pitchlog/ledger-orm-carry-forward.json。部分censusの属性チェーン正例とshadow負例を保持し、全件root付きの台帳所見全欠損も拒否する。root Ruff/ty0、旧global scanner・許可10entry・静的3byte・製品source・全DB証拠は不変。非作者source差分と新完全値照合はこれから実施する。

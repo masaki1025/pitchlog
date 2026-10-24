@@ -240,3 +240,8 @@ source委任の編集は既 `scripts/check_tenant_boundary_bypass.py`・`tests/t
 ### schema manifestの正本束縛の通常生成追随
 
 2026-10-24、CI40055018456 backendは3567成功/4skip/1失敗、失敗はtest_schema_manifest.pyの正本SHA束縛1件だけだった。外部資産のdata-model1.2確定後もcontracts/db/schema-manifest.jsonのcanonical_source.sha256が実base4b2の1.1を指していた。rootはPOの通常生成値追随委任により、同JSONのこの1fieldだけを実承認済み正本byteのSHAへ追随する。manifest_version・表/列/FK/一意性/全provenance/既試験と拒否は変更しない。新しい構造/本人確認ではなく既正本改訂の実装追随であり、全9/8射影外であることを確認する。最終非作者差分確認とschema manifest全件・必須CIへ含める。
+
+
+### ローカル全件検査の通常不具合・生成追随（step4有限是正）
+
+2026-10-24、固定a4ac621bのローカル全件は29921成功/2skip/4失敗。rootは既PO委任の通常修正として、`contracts/authz/shared-preconditions.json`の既data-model git-blob参照だけ、`docs/features/orm-schema-migration/acceptance-sheets/`の既4生成資料と`tests/test_orm_acceptance_sheets.py`の実生成件数、`tests/test_packaging.py`の既承認台帳3assetだけの配布許可、`tests/test_census_baseline_check.py`の部分比較と全件照合の区別だけを是正する。判定・例外範囲を緩めず、部分入力に台帳所見がなくても全件digestを強制していた誤適用を、既初期付与の同型と同様に比較範囲へ限定する。全件照合の明示rootがある場合は台帳所見全欠損も必ず拒否する新負例を加える。census checker sourceが変わるため対象完全値を再導出し、未統合182の旧static-v3はreceipt/全byteを保全してsupersessionする。全9/8/旧29/206と不可変static3byte・実DB安全保証・既拒否を維持し、新規意味を採用しない。非作者の是正差分/全前後値確認後にrootが新対象値だけ受理する。
