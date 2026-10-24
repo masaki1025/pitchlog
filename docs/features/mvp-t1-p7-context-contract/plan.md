@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-p7-context-contract
 status: active
-承認: 済（外殻候補・第7/8/9/10節。PO委任によるCodex判断、対象版は各節に固定）
+承認: 済（外殻候補・第7/8/9/10節。第11節の23flag/必要観測追補だけ未承認）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-t1-p7-context-contract
@@ -262,3 +262,40 @@ V10はS-2の処理段階値である。本型の負例をHTTP入口の新S-1拒�
 
 
 2026-10-24、PO委任によるCodex主担当/root判断として、1efe07958cf2dd8b474dc1aaccdcf404e4b9df74の第10節（planSHA5b8cffe4ab272c2f0ffc901baf058d4f0197851fc917fde2e6570bc9c7c95246/research63ba7c514b7b48c9bcd830bf13e05130be32d10e9835664fd039944cee4bc027、標準diff57f4058bbe9bc085073bd559c0f319981cd9b166fd62e3f6ebd34880ba38782c）だけを承認し、指定対向2入力/作者値の分離候補実装を指示する。新節作成に非関与のcsv_reviewによる新節限定第1回0/0/0と、要件A-1 OUT3-04/05との照合を根拠とする。旧外殻へのレビュアー関与は開示し、旧外殻全体の独立確認やP6未曝露資格に広げない。正式schema/descriptor/binding/独立導出/受理/7.7は後段条件で、missing15の先行削減・T1本体開始は認めない。純入力と作者期待/理由/branch資料を分離し、futureblindは純入力だけを受領して封印後に比較する。人間本人の実値確認/署名を代記しない。
+
+## 11. ステップ3/3後続：単打の有限域で23flag条件・RBI因果観測を閉じる候補（未承認）
+
+基線は`ee7568bdda78f71de50498212741d4d81244e280`。既承認§10で供給した入力のRBI不足に対する次単位であり、旧総数3・段階/レビュー通算・旧50定義/292構造入力/11constructor・純入力v1/author-v1/evaluation-v2を保持する。今回はplan/researchだけを起案し、非作者計画レビューと主担当の対象版承認前にcandidate/試験/製品を編集しない。全T1のXC-13を一度に完了させる計画ではなく、既採用FR-003/OUT3/RBIの条件が一意な有限域と、その域の23keyを閉じる同step3/3の1単位である。
+
+### 11.1 固定する域Dと23keyの必要十分条件
+
+域Dは「1回表・二死二三塁・普通の単打・pitch-event・公式失策/妨害なし・打者一塁・R2は非フォースの三塁タッグアウト・R3は本塁到達」で、両走者の実結果は明示overrideとする。OUT3-01/02/03不適用と非サヨナラをGivenから照合し、規則snapshot/名簿/PlayerRefは既供給の値を使う。既定進塁を参照しないためD07の選択を前提にしない。RBIの必要原観測は新しい合成入力として別版へ固定し、v1/v2の不足を事実追加で埋めない。RBI-01/02は併殺/公式失策なし、05は二死/失策なし、06は本塁打でない、07は押出しでないという原典条件によりこの域で不適用となる。
+
+| 対象（全23key、域D内の条件） | 根拠・今回の閉鎖範囲 |
+| --- | --- |
+| 常時trueの7key: 投球回算入アウト/投球数/被安打/打席/打数/安打/塁打 | 実アウト1・pitch-event・単打・打席終了と打数控除事由なし。E-1/E-2、A-2/A-3、FR-022。これはD内の必要十分条件で、全結果IDに対する条件表ではない |
+| 常時falseの13key: 奪三振/与四球/与死球/被本塁打/失策/本塁打/犠打/犠飛/四球/死球/三振/打撃妨害出塁/走塁妨害出塁 | 各定義の該当結果/公式記録がDにない。E-1/A-2/A-3/FR-020/022。失策なしをRBI因果なしの証拠にはしない |
+| 得点/失点 | Dの必要観測が揃うとき、OUT3後・上限後の計上得点者R3が存在することと同値。Dではthirdの時機がhome-before-third-outのときだけ。責任投手の個別帰属やscoreboard絶対値を決定したとはしない |
+| 打点 | DのRBI入力域が空ならfalse。R3が入力域に入るときは、RBI-03/04の必要観測を確認し、03に適合ならtrue、04ならfalse、両方不適合なら08でtrue。必要観測欠落時には完全23flag出力を作らず、作者の部分既知/unknownと入力不足を別に記録する |
+
+D外の有効化条件、他結果/操作、犠打失策等の追加記録員判断、OUT3-01..03の対象/先行関係、RBI-01/02/05/06/07の全case、J6サヨナラ上限の全分岐は今回未閉である。Dの20定数keyについて反対の真偽が成立する合法入力は域外なので、そのactivation/deactivation witnessを今回供給したとは数えない。全23flag/全球面/全T1開始成立への昇格は不可。
+
+### 11.2 入力に欠ける事実と閉DTO候補（保存wire/公開結果ではない）
+
+既存`T1RbiObservationsV1.runnerContinuityByRunner`のnot-required/observedと、走者別kept-running/stopped-and-restartedは不変で再利用する。not-requiredは観測の不在であり「ミスプレイなし」「走り続けた」ではない。追加候補`T1RbiMisplayObservationsV1`は`cause_by_runner`と`restart_by_runner`の2field全必須・余剰拒否objectとし、両fieldそれぞれがnot-required、またはobserved/by_runnerの閉unionを持つ。runner-keyはbatter/first/second/thirdだけで、各観測は同プレイの当該PlayerRefへ束縛する。causeの各値は`person:PlayerRefV1`、`held_too_long:boolean`、`unnecessary_throw:boolean`、restartの各値は`person:PlayerRefV1`、`after_observing_misplay:boolean`だけを持つ全必須・余剰拒否objectとする。因果とrestartを別fieldにすることで、因果不在のタグと明示falseを区別し、片方だけ観測済みの入力も表す。純入力v2では既存per_pitchとは別の候補観測fieldとして合成し、旧閉型へ黙ってpropertyを追加せず、正式wire位置を決めたとも扱わない。
+
+held_too_long/unnecessary_throwは、RBI-03/04がいう「当該走者の生還に結びつく持ちすぎ/無用送球」の記録員観測で、全プレイ一般にその動作があったという無関係な事実ではない。両trueを許し勝手に排他化しない。停止再発進の観測だけではRBI-04の「ミスプレイを見て再発進した」まで分からないため、restartのtrue/falseは**当該持ちすぎ/無用送球を見たことが再発進の契機だったか**の観測として別保持する。これらをresultId/no-error/時刻/送球先から推定せず、RBI branch/打点可否自体を入力する型にも代えない。値を観測者が入力しても真正性/同scopeの発行済み証拠にはしない。
+
+入力相関は原典の必要条件だけとする。(a) OUT3後のRBI入力域にR3が入るとき、そのR3の因果観測が必要。(b) 関係する持ちすぎ/無用送球が観測trueなら、R3の継続/停止再発進観測が必要。(c) (a)(b)が必要な局面でそのR3が停止再発進なら、ミスプレイを見た再発進かの観測が必要。(d) kept-runningと同一期間のrestart true、両因果falseと当該ミスプレイへのrestart true、別走者/別scope/対象キーの不一致は同時に真にできない。不必要な観測は要求せず、既に明示された原値を削除/既定化しない。欠落・未表現・矛盾は候補内部の検査項目集合で表し、順序付き公開拒否/結果ID/D5消費にしない。D06への新しい選択を含めない。
+
+### 11.3 有限閉鎖・負例・成果物
+
+Dで変動させる因子は、thirdの時機2値、因果観測5値（not-required、observedのboolean対4通り）、既存継続観測3値（not-required/kept-running/stopped-and-restarted）、restart観測3値（not-required/observed false/observed true）で、**2×5×3×3=90構造セル**。各セルを原典/必要観測/矛盾条件へ対応させ、正常・必要入力不足・矛盾（同時指摘可）の件数と範囲を固定する。得点無効のセルでRBI観測欠落を新拒否にしない。型違い/未知tag/空必須観測/対象差替え等はこの90とは別の構造変異で、正例数に混ぜない。既採用原典だけでは一意に分類できないセルが判明すれば、具体fieldと条文不足をunknown/対象外として数えて主担当へ返し、期待値補完で正常セルにしない。
+
+23keyは原典ID・D内必要十分条件・必要観測・適用順・正常/負例IDの23行を完全に対応させる。変動3keyは条件真でflagをfalseにする負例と条件偽でtrueにする負例を各々持つ（最低6対向変異）。定数20keyはDのGivenを保持してflagだけ反転する矛盾入力を各1件（最低20変異）とし、**計26以上の出力反転負例**を置く。定数keyの域外の反対条件20方向は未収録と明示し、これを全球域の双方向負例完了に数えない。意味の正しさは非作者の原典照合で別途確認し、作者表との一致だけで機械保証済みにしない。
+
+承認後の編集先は、`candidate/t1-rbi-observation-contract-v1.json`（新観測の閉型/出所・必要相関）、`candidate/t1-single-flag-conditions-v1.json`（23行・域/原典対応・被覆宣言）、`candidate/t1-rbi-observation-inputs-v2.json`（新中立IDの合成純入力、共通Givenと90セル。期待/branch/判定/理由を入れない）、`candidate/t1-rbi-observation-author-v3.json`（対応ID・作者条件評価/期待値・理由・負例/未閉範囲）の新4file、既存source-ownership/constructor/research、既存schema試験の本候補専用部分だけ。旧50定義/schema/d.ts/292case/11constructor/v1/v2各fileは不変。全新fileは登録済candidate/*に含まれ、core3/正式資産/正本/製品/旧P6は変更しない。外部refが必要なら同じ候補schemaの既存PlayerRefV1へのexact参照だけを使い、保存schemaコピー/汎用resolverの追加をしない。
+
+試験は型・閉grammar・有限集合のexact被覆/重複/欠落・観測相関・原典ID・23key/負例対応・既存hash保持・core被覆を検査する。既存generic schema/比較の範囲を使い、任意イベントから得点/RBI/flagを返す別計算器/製品validatorは作らない。新pureと作者資料は先に分離して固定し、将来未曝露検証者へ作者条件表/期待値/会話を渡さない。合成事実は不足観測軸の被覆用に新規作成し、旧期待値や封印へ一致させる目的でv1を改変しない。
+
+DoDは90セルの出所/観測充足/未閉範囲、D内23条件行、必要な入力不足/相反・26以上の反転負例と未実施方向の明示、既存全保持、局所pytest/Ruff/ty/docs/計画同期・非作者限定レビューへの固定版提出である。**unknown消去数は合格条件にしない。** 正式missing15/closure0、D06/D07未回答、全XC-13/7marker/G6/P2/P6/P7/P8/7.7・T1製品開始未達を保持する。実Port/DB/HTTP/製品artifact実測をこの契約候補準備の着手前条件に追加しない。
