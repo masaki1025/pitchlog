@@ -88,3 +88,8 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 ## RG1固定role/function登録のsource候補
 
 2026-10-24T05:06:46.867004+00:00、base189ebfa3に対するsource11path、標準diff SHA256 874dd34a26ff92b538395565591614de7237badce51edb768c34546af228c335 を保全。作者start_physical_connectionのhandoff /home/ymdms/.cache/pitchlog/reviews/rg1-authz-source-189ebfa3/handoff.json（SHA256 4821eddd5bf9765568d0dee4f300e72e3e7fa121b62e4a1a481f818431b76d9f）を全owned bytesと照合した。既7roleを保持し制御owner/actor・観測owner/probeの4roleと固定8関数/2builtin EXECUTEの検査・生成を追加。局所68成功、旧23 SQL定数保持。正式assetsは未反映のため旧7role profileのcatalog失敗を成功扱いしない。別cache候補26変更pathは未受理、実DB0、独立レビュー未実施。このcommitはsource固定であり製品提供・正常開始・初期記録権・7.7の成立ではない。
+
+
+## 台帳供給の履歴参照を全走査へ整合
+
+2026-10-24T05:22:44.762372+00:00、rootはtests/test_core_guard.pyの未統合台帳供給40hex直書きを除き、実RG1第一親系譜で台帳が初供給された通常mergeの第2親から当時のblobを導出するようにした。第一親にRG1あり/台帳なし、第2親に台帳あり/RG1なし、merge後両sourceあり、一意性を要求し、現値同士/branch可変ポインタから歴史guardを作らない。実導出供給は27d0ceb22b72a29259e06ef5cd5b4e874b384100、初供給merge a74542a4a3c1b3ea280a550a76a7a1a6a9bba5dd。global allowlist/走査/コア判定31本文は不変。root全core検査453成功32.85s（/home/ymdms/.cache/pitchlog/rg1-core-supplier-history-89ebdce2.log）、Ruff行長1件の改行のみ是正・ty0。新source11pathの独立レビュー89ebdce2は別系列でP1一件、後発修正をこの供給参照の確認と混同しない。

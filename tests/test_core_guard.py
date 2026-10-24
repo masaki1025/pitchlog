@@ -523,7 +523,28 @@ EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
 }
 
 # 台帳の過去追加層は現行RG1層から独立して固定する。
-DURABLE_LEDGER_SUPPLIER_REVISION = "27d0ceb22b72a29259e06ef5cd5b4e874b384100"
+@cache
+def rg1_durable_ledger_supply_revision() -> str:
+    """RG1系譜へ台帳を初供給した実mergeの第2親をGit履歴から固定する。"""
+    ledger = 'backend/src/pitchlog/durable_rights_ledger/adapter.py'
+    rg1 = 'backend/src/pitchlog/recording_rights/rg1_lifecycle.py'
+
+    def exists(revision: str, path: str) -> bool:
+        return bool(run_git(REPO, 'ls-tree', '--name-only', revision, '--', path).stdout.strip())
+
+    supplied = []
+    merges = run_git(REPO, 'rev-list', '--first-parent', '--merges', 'HEAD').stdout.splitlines()
+    for merge in merges:
+        parents = run_git(REPO, 'show', '-s', '--format=%P', merge).stdout.split()
+        if len(parents) != 2:
+            continue
+        previous, incoming = parents
+        if (exists(previous, rg1) and not exists(previous, ledger)
+                and exists(incoming, ledger) and not exists(incoming, rg1)):
+            assert exists(merge, ledger) and exists(merge, rg1), '初供給mergeで両sourceが欠落'
+            supplied.append(incoming)
+    assert len(supplied) == 1, 'RG1への台帳初供給mergeが一意でない'
+    return supplied[0]
 DURABLE_LEDGER_PATHS = (
     "backend/src/pitchlog/durable_rights_ledger/*",
     "backend/tests/test_durable_rights_ledger_contract.py",
@@ -5204,17 +5225,17 @@ def test_durable_ledger_core_supplier_discovery_survives_normal_integration(
 def rg1_lifecycle_comparison_revision() -> str:
     """台帳の固定供給を最低基線とし、正式統合後は新しい実merge-baseを使う。"""
     supplied = subprocess.run(
-        ['git', 'merge-base', '--is-ancestor', DURABLE_LEDGER_SUPPLIER_REVISION, 'HEAD'],
+        ['git', 'merge-base', '--is-ancestor', rg1_durable_ledger_supply_revision(), 'HEAD'],
         cwd=REPO, capture_output=True, text=True, timeout=30,
     )
     assert supplied.returncode in (0, 1), 'RG1の台帳供給祖先を確認できない'
     if supplied.returncode == 1:
         # 未commitの通常merge候補だけは、実MERGE_HEADの供給を明示確認する。
         incoming = run_git(REPO, 'rev-parse', '--verify', 'MERGE_HEAD').stdout.strip()
-        assert incoming == DURABLE_LEDGER_SUPPLIER_REVISION, '固定台帳を未供給の候補'
+        assert incoming == rg1_durable_ledger_supply_revision(), '固定台帳を未供給の候補'
     actual = run_git(REPO, 'merge-base', 'origin/develop', 'HEAD').stdout.strip()
     return select_durable_ledger_comparison_revision(
-        REPO, DURABLE_LEDGER_SUPPLIER_REVISION, actual,
+        REPO, rg1_durable_ledger_supply_revision(), actual,
     )
 
 
@@ -5222,7 +5243,7 @@ def historical_durable_ledger_guard(tmp_path: Path) -> Path:
     """当時の実Git blobを独立fileへ固定し、現行の宣言と混同しない。"""
     historical = tmp_path / 'durable_ledger_historical_guard.py'
     source = run_git(
-        REPO, 'show', DURABLE_LEDGER_SUPPLIER_REVISION + ':scripts/core_guard.py',
+        REPO, 'show', rg1_durable_ledger_supply_revision() + ':scripts/core_guard.py',
     ).stdout
     historical.write_text(source, encoding='utf-8')
     return historical
