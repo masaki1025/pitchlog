@@ -344,3 +344,14 @@ T1旧5447d6 plan§4はP2/P6/P7/P8・正式7.7と対象別条件を本体着手�
 creation_pathの所有隔離PG/API/Vite/Chromiumで **1 passed/50.3秒（browser本文15.1秒）**。実login SecureCookie→実選択肢→画面全入力→POST201/C2→保存確認GET→一覧→詳細→reloadの同UUID/全保存値/snapshotと、実DB game1/新大会名/初回activation1を確認した。事前game0であり、seed済み試合のreadではない。初回は試験selectorのaccessible name完全一致でPOST前にtimeoutとなり、既存testidとnameのprefix照合へ是正して通過。製品安全条件を変更していない。固定3path/hash/cache証拠の供給・root保存・非作者reviewは追随中。所有資源は回収済み、共有DB不変更。
 
 **利用者の新規操作として候補環境でA（作成→保存→再取得/reload）まで実証。B（開始→初球保存→reload）は未達**。正式developはresolverまで4b2統合、作成/RG1/台帳の最終正式登録・7.7/CIは未成立。先の作成見積は候補経路で前倒し到達したが正式提供時期の目安と区別する。rootは耐久台帳候補を実4b2へ通常merge89830dc1、5競合を旧全登録保持/guard全31本文AST不変で接合し局所検査中。未統合枝を一つの巨大PRに置換しない。
+
+
+## 2026-10-24午前：原子性・正式統合準備・開始/T1の先行単位
+
+- 実画面成功3pathをassembly3934b50eへ保存し、非作者rights限定0（証拠c1ad3ae382272b1d49730879a7e39b404892e6c167f4f2a16f54df3c0ffd3a65）。旧HTTP成功/初回selector失敗と正式提供未達を保持。
+- **新しく実証した操作**: 作成中の実DB失敗を安全に扱う。所有PGへのBEFORE/AFTER/DEFERRED trigger故障3ケース **3 passed/67.70秒**、実到達counterを確認。game/new大会0、旧語彙全行/全field不変、固定503/成功ACKなし。commit失敗は実DML(1,1)後にRG1closed/controller終了/authority拒否、activation1/leaseclose0/INTENT0。ACK喪失の成功実証とは区別する。assembly **8a326e6d**、証拠cache preparing-create-atomicity-32f9e4f5/evidence.json SHA6b43cf92839d8d69d7484ab067dd2cde8af0091d1db53a8efbaf48884c1df4ca。所有資源0、共有DB不変更、独立最終確認は後続。
+- ledgerは実4b2へ通常追随し全31guard本文/旧paths保持、core418成功。実17exact/除去22/AST1・生成3module/8変化射影は **2c214649**で非作者0（証拠c49c6273、source10906/manifestcb0d不変）。backend134/局所11/census20が成功。実製品sourceを含むDraft **PR182** を作成。未受理時のCI40048185133はcancelled、最終CI成功とはしない。
+- rootは全9/8を独立値と照合して未統合182候補をb94b6c6bへ受理反映したが、正式checkerで新SQL2/JSON1のTB000×3が残ることをその後確認した。**正式チェック全経路より受理反映が早すぎた**。検査対象/未知拒否を外さず固定3byteの専用検証をd6c6aa2fに最小起案。新checkerで実値が変わる場合は正式main旧29/206を絶対保持し、未統合候補だけ全byte保全・通常差戻し・superseded記録・最終1record再受理へ進める。旧受理を隠したり、履歴拒否を緩和したりしない。正式提供/CIは未達。
+- ledger正本新1.2は初回P1=1/P2=1を採用し **946f0c09 反映1周目**。peer明示GRANTとbuiltin既存PUBLIC実効権限を区別、重複ownerの具体列grant行を保持。旧RG1の同先在P2/別da78反映を保持。第2回とstatic追補を非作者rightsへ依頼済、approved未達。
+- T1 author-v2 **ee7568bd**は限定非作者0、旧入力/v1/封印不変。通常比較21項目はmatch12/unknown6/比較不能3/mismatch0で、P6全体成立ではない。plan§11の普通単打域・23条件・必要因果観測/90セル/26以上の反転負例を非作者新節0後 **9538b083**でPO委任承認、resolverが実装中。正式missing15/全開始条件は維持。
+- 開始について、実4b2にはendpoint/実InitialGrantScope/実RecordingRightsPort/資格・配達・epoch保存/side列が未提供。最初はT1非依存の閉transport DTOを分離し、非作者全文0後 **9031bab7**でPO委任承認。creationが指定2product/testpathに実装中。これは開始成功ではなく、後続実adapter/同一transaction/sideDDL・資格の具体接続を続けるための単位。MVP必須範囲は不変。
