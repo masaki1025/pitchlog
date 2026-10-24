@@ -480,7 +480,7 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
             or is_rule_resolution_update_acl(element.fields)
             or (
                 is_rg1_control_column_acl(element.fields)
-                and element.fields.get("column_id") == "state"
+                and element.fields.get("column_id") in {"state", "recovery_generation"}
             )
         ):
             privileges = f"SELECT ({column}), UPDATE ({column})"

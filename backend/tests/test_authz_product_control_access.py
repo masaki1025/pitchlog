@@ -878,3 +878,54 @@ def test_fresh_epoch_acl_rejects_other_owners_functions_and_columns(
     declaration = {**_fresh_epoch_acl(), field: value}
     with pytest.raises(ValueError):
         generate_function_owner_column_acl_sql(declaration)
+
+
+def _fresh_epoch_unapplication(declaration: dict[str, object]) -> str | None:
+    """実provisioningの構造化ACL撤去経路へ渡す。"""
+    from pathlib import PurePosixPath
+
+    from pitchlog.authz import product_provisioning
+    from pitchlog.authz.ddl import DDLStatement
+
+    expectation_id = str(declaration["expectation_id"])
+    element = product_provisioning._ProductElement(
+        element_type="column_acl_expectation",
+        element_id=expectation_id,
+        fields=declaration,
+    )
+    statement = DDLStatement(
+        element_type="column_acl_expectation",
+        element_id=expectation_id,
+        source_path=PurePosixPath("epoch.sql"),
+        sql="",
+    )
+    return product_provisioning._unapplication_sql(statement, element, (element,), ())
+
+
+def test_fresh_epoch_unapplication_revokes_exact_column_privileges() -> None:
+    """正式epoch権限を同じ列/ownerから取り外し、DROP/追加grantをしない。"""
+    assert _fresh_epoch_unapplication(_fresh_epoch_acl()) == (
+        'REVOKE SELECT ("recovery_generation"), UPDATE ("recovery_generation") '
+        'ON TABLE "public"."rg1_restore_gate" FROM "pitchlog_rg1_control_owner";'
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("function_id", "FUNCTION:rg1_control:close_gate()"),
+        ("grantee_role_id", "pitchlog_initial_actor"),
+        ("object_id", "games"),
+        ("column_id", "state"),
+        ("privilege_ids", ["UPDATE"]),
+        ("grant_option", 0),
+    ),
+)
+def test_fresh_epoch_unapplication_rejects_unapproved_update(
+    field: str, value: object
+) -> None:
+    """epochの撤去対応を無関係な更新権限へ流用しない。"""
+    from pitchlog.authz.product_provisioning import ProductProvisioningError
+
+    with pytest.raises(ProductProvisioningError):
+        _fresh_epoch_unapplication({**_fresh_epoch_acl(), field: value})
