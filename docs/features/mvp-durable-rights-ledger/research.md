@@ -348,3 +348,10 @@ static資産専用検証の限定追補を起案。既存の全変更母集団/�
 ### 未統合182受理候補の保全・通常差戻し
 
 新static検証のコード変更が実受理値を動かすため、承認済み追補手順に従い、b94の未統合受理候補全byte・旧receipt/proposal・新10snapshotをcache/durable-ledger-acceptance/withdrawn-candidate-182へ保全した。元acceptance.jsonは改変せず、supersession.jsonで未統合候補のsupersededを記録。authorityは新182行だけを除いた8569の29履歴状態へ通常commitで戻し、新候補10snapshotのみGitの差戻し対象とした。正式developの旧29履歴206snapshotは全保持・変更0。b94 commitと旧受理事実はGit/cacheに残し、元から無かったとは扱わない。同PRの最終1受理は新sourceの完全9/8・非作者照合後とする。frozen_history/重複拒否/一PR一受理の規則は変更しない。
+
+
+### 固定static3資産の専用検証候補
+
+承認1c1123f8に従い、全変更母集団を保持し、固定3pathの通常file/親を含む非symlink/実SHA/閉manifest重複key/9関数4role3表/DDL相互hashを検査する分岐を追加。台帳adapterがHEAD又は比較元に存在する場合は3資産を非空行に依存せず検査へ残し、全資産削除も拒否する。未知path/拡張子/byteは元TB000で、既存Python解析・検出・frozen_historyは変更0。manifest自己申告やSQL移動で回避せず、一般SQL parser/配備強制済みとは主張しない。
+
+新正負31成功/0.70秒、実製品変更母集団10fileのsource部分走査0違反（正式履歴確認の代替ではない）。初回checker全件は425成功12失敗/91.24秒。5件は合成repoがPythonだけ複写し新static3を欠損させたものなので、台帳adapterの複写時に実3byteも同時供給するfixtureへ是正、旧4実コミット変異の拒否を維持し新31＋旧5の36成功/36.08秒。残7件は新識別値/新外部sourceに対する正式受理前の履歴末尾不一致で、検査を弱めず最終受理後の全件で閉じる。全件中の候補履歴差戻しも別記し、混在した初回結果を最終成功へ扱わない。Ruff/ty/diff成功、root formatは未使用。source新分岐の非作者レビュー・新9/8受理・corpus追随・最終全件/CIは未達。

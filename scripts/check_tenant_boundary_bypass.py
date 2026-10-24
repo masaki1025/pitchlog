@@ -6571,6 +6571,93 @@ def _git_snapshot(repository_root: Path, revision: str) -> dict[str, str]:
     return sources
 
 
+_LEDGER_DEPLOYMENT_ASSETS = {
+    "pitchlog/durable_rights_ledger/business_identity.sql": (
+        "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb"
+    ),
+    "pitchlog/durable_rights_ledger/manifest.json": (
+        "cb0d0ecd9886bcf44d9569a779a82b396fdc16c158c807c54b69acac842e7b4e"
+    ),
+    "pitchlog/durable_rights_ledger/schema.sql": (
+        "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
+    ),
+}
+
+
+def _ledger_manifest_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """入れ子も含め重複keyのある配備manifestを拒否する。"""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("配備manifestの重複key")
+        result[key] = value
+    return result
+
+
+def _validated_ledger_deployment_assets(repository_root: Path) -> bool:
+    """独立レビュー対象の固定3資産を通常file・実bytes・閉宣言で検査する。
+
+    SQLを汎用解析したり、manifestの自己申告を許可根拠にしたりしない。
+    未知のpath/bytesは従来のTB000へ戻し、配備の実行権は与えない。
+    """
+    contents: dict[str, bytes] = {}
+    try:
+        for relative, expected in _LEDGER_DEPLOYMENT_ASSETS.items():
+            path = repository_root / "backend/src" / relative
+            for component in (path, *path.parents):
+                if component == repository_root:
+                    break
+                if component.is_symlink():
+                    return False
+            if not path.is_file():
+                return False
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                return False
+            contents[Path(relative).name] = content
+        manifest = json.loads(
+            contents["manifest.json"], object_pairs_hook=_ledger_manifest_object
+        )
+        if type(manifest) is not dict or set(manifest) != {
+            "schema_version", "postgres_version", "schema", "ddl_sha256", "tables",
+            "roles", "functions", "synchronous_peer", "client", "boundaries",
+            "protocol_source", "required_settings", "identity", "timeout_seconds",
+            "witness", "authority",
+        }:
+            return False
+        if (
+            type(manifest["schema_version"]) is not int
+            or manifest["schema_version"] != 1
+            or type(manifest["postgres_version"]) is not int
+            or manifest["postgres_version"] != 170011
+            or manifest["schema"] != "pitchlog_ledger"
+            or manifest["tables"] != ["state", "highwater", "reservations"]
+            or manifest["roles"] != {
+                "owner": "pitchlog_ledger_owner", "app": "pitchlog_ledger_app",
+                "control": "pitchlog_ledger_control", "peer": "pitchlog_ledger_replicator",
+            }
+            or manifest["functions"] != {
+                "identity()": ["app", "control"],
+                "epoch_fence()": ["app"],
+                "reservation(uuid,uuid,uuid,uuid)": ["app"],
+                "reserve(uuid,uuid,uuid,uuid)": ["app"],
+                "claim(uuid,uuid,uuid,uuid)": ["app"],
+                "advance_epoch(bigint)": ["control"],
+                "audit_page(bigint,integer)": ["control"],
+                "reconcile(uuid,uuid,uuid,uuid,bigint,bigint,boolean,boolean,bigint)": ["control"],
+                "confirm_state(bigint,bigint,bigint)": ["control"],
+            }
+            or manifest["ddl_sha256"] != hashlib.sha256(contents["schema.sql"]).hexdigest()
+            or type(manifest["authority"]) is not dict
+            or manifest["authority"].get("business_identity_ddl_sha256")
+            != hashlib.sha256(contents["business_identity.sql"]).hexdigest()
+        ):
+            return False
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    return True
+
+
 def _changed_source_violations(
     repository_root: Path,
     inspection_population: Mapping[str, frozenset[int]],
@@ -6589,9 +6676,21 @@ def _changed_source_violations(
         else _build_reexport_map(baseline_sources)
     )
     violations: list[Violation] = []
-    for relative, lines in sorted(inspection_population.items()):
+    population = dict(inspection_population)
+    adapter = "pitchlog/durable_rights_ledger/adapter.py"
+    if adapter in head_sources or adapter in (baseline_sources or {}):
+        # 全資産削除やPythonだけの変更でも、既存配備面の欠損を見逃さない。
+        for relative in _LEDGER_DEPLOYMENT_ASSETS:
+            population.setdefault(relative, frozenset())
+    deployment_valid: bool | None = None
+    for relative, lines in sorted(population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
+            if relative in _LEDGER_DEPLOYMENT_ASSETS:
+                if deployment_valid is None:
+                    deployment_valid = _validated_ledger_deployment_assets(repository_root)
+                if deployment_valid:
+                    continue
             violations.append(
                 Violation(
                     path=f"backend/src/{relative}",

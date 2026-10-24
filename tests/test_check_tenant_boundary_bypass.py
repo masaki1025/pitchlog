@@ -1165,10 +1165,7 @@ def _initialize_test_repository(
         destination = repository / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
-    for relative, source in sources.items():
-        path = repository / "backend" / "src" / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(source, encoding="utf-8")
+    _write_test_repository_sources(repository, sources)
     checker._run_git(repository, ["init"])
     return repository, _commit_test_repository(repository, "baseline")
 
@@ -1177,7 +1174,9 @@ def _write_test_repository_sources(
     repository: Path,
     sources: dict[str, str],
 ) -> None:
-    """一時リポジトリの製品ソースを変異後の内容へ更新する。"""
+    """一時リポジトリの製品ソースと必要な固定配備資産を供給する。"""
+    if "pitchlog/durable_rights_ledger/adapter.py" in sources:
+        _copy_ledger_deployment_assets(repository)
     for relative, source in sources.items():
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -7668,3 +7667,163 @@ def test_preparing_read_other_function_still_rejects_select() -> None:
     )
     assert len(violations) == 1
     assert violations[0].code == 'TB005'
+
+
+
+def _copy_ledger_deployment_assets(destination: Path) -> None:
+    """既知3byteだけを所有する試験rootへ複写する。"""
+    for relative in checker._LEDGER_DEPLOYMENT_ASSETS:
+        target = destination / "backend/src" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / "backend/src" / relative).read_bytes())
+
+
+@pytest.mark.parametrize("relative", tuple(checker._LEDGER_DEPLOYMENT_ASSETS))
+def test_ledger_deployment_asset_is_inspected_as_fixed_declaration(
+    tmp_path: Path, relative: str,
+) -> None:
+    """3資産は検査母集団に残し、既知の完全組だけを受理する。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    population = {relative: frozenset({1})}
+    original = dict(population)
+    violations = checker._changed_source_violations(
+        tmp_path, population, checker.load_contract(REPOSITORY_ROOT), head_sources={},
+    )
+    assert violations == []
+    assert population == original
+
+
+@pytest.mark.parametrize("relative", tuple(checker._LEDGER_DEPLOYMENT_ASSETS))
+@pytest.mark.parametrize("mutation", ("bytes", "missing", "directory", "symlink"))
+def test_ledger_deployment_rejects_nonexact_or_nonregular_files(
+    tmp_path: Path, relative: str, mutation: str,
+) -> None:
+    """SQL追加・欠損・directory・同じbyteのsymlinkも拒否する。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    path = tmp_path / "backend/src" / relative
+    if mutation == "bytes":
+        path.write_bytes(path.read_bytes() + b"\n")
+    elif mutation == "missing":
+        path.unlink()
+    elif mutation == "directory":
+        path.unlink()
+        path.mkdir()
+    else:
+        original = tmp_path / "original"
+        original.write_bytes(path.read_bytes())
+        path.unlink()
+        path.symlink_to(original)
+    violations = checker._changed_source_violations(
+        tmp_path, {relative: frozenset()},
+        checker.load_contract(REPOSITORY_ROOT), head_sources={},
+    )
+    assert len(violations) == 1
+    assert violations[0].code == "TB000"
+    assert violations[0].path == f"backend/src/{relative}"
+
+
+def test_ledger_deployment_rejects_symlink_parent(tmp_path: Path) -> None:
+    """資産そのものが通常fileでも親directoryのsymlinkを拒否する。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    package = tmp_path / "backend/src/pitchlog/durable_rights_ledger"
+    relocated = tmp_path / "relocated"
+    package.rename(relocated)
+    package.symlink_to(relocated, target_is_directory=True)
+    assert not checker._validated_ledger_deployment_assets(tmp_path)
+
+
+@pytest.mark.parametrize("mutation", (
+    "duplicate", "nested_duplicate", "extra", "role", "function", "ddl_hash",
+    "business_hash", "bool_version",
+))
+def test_ledger_manifest_requires_closed_declaration_independent_of_claimed_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """manifestのhash定数を更新しても閉宣言と相互hashの検査は省けない。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    relative = "pitchlog/durable_rights_ledger/manifest.json"
+    path = tmp_path / "backend/src" / relative
+    original = path.read_text()
+    value = json.loads(original)
+    if mutation == "duplicate":
+        content = original.replace(
+            '"schema_version": 1,', '"schema_version": 1,"schema_version": 1,'
+        )
+    elif mutation == "nested_duplicate":
+        content = original.replace(
+            '"owner": "pitchlog_ledger_owner",',
+            '"owner": "pitchlog_ledger_owner","owner": "pitchlog_ledger_owner",',
+        )
+    else:
+        if mutation == "extra":
+            value["unexpected"] = True
+        elif mutation == "role":
+            value["roles"]["extra"] = "pitchlog_app"
+        elif mutation == "function":
+            value["functions"]["reserve(uuid,uuid,uuid,uuid)"] = ["app", "control"]
+        elif mutation == "ddl_hash":
+            value["ddl_sha256"] = "0" * 64
+        elif mutation == "business_hash":
+            value["authority"]["business_identity_ddl_sha256"] = "0" * 64
+        else:
+            value["schema_version"] = True
+        content = json.dumps(value)
+    path.write_text(content)
+    updated = dict(checker._LEDGER_DEPLOYMENT_ASSETS)
+    updated[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    monkeypatch.setattr(checker, "_LEDGER_DEPLOYMENT_ASSETS", updated)
+    assert not checker._validated_ledger_deployment_assets(tmp_path)
+
+
+@pytest.mark.parametrize("relative", (
+    "pitchlog/durable_rights_ledger/copied.sql",
+    "pitchlog/durable_rights_ledger/copied.json",
+    "pitchlog/other/schema.sql",
+    "pitchlog/other/manifest.json",
+))
+def test_ledger_deployment_unknown_or_renamed_path_keeps_tb000(
+    tmp_path: Path, relative: str,
+) -> None:
+    """同じSQL/JSONをコピー又はrenameしても未知pathは受理しない。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    source = "schema.sql" if relative.endswith(".sql") else "manifest.json"
+    path = tmp_path / "backend/src" / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(
+        (tmp_path / "backend/src/pitchlog/durable_rights_ledger" / source).read_bytes()
+    )
+    violations = checker._changed_source_violations(
+        tmp_path, {relative: frozenset({1})},
+        checker.load_contract(REPOSITORY_ROOT), head_sources={},
+    )
+    assert len(violations) == 1 and violations[0].code == "TB000"
+
+
+@pytest.mark.parametrize("adapter_in", ("head", "baseline"))
+def test_ledger_deployment_all_removed_files_are_still_inspected(
+    tmp_path: Path, adapter_in: str,
+) -> None:
+    """行母集団が空でも台帳sourceの導入/保持/削除時は完全3資産を要求する。"""
+    adapter = {"pitchlog/durable_rights_ledger/adapter.py": "# 固定台帳source\n"}
+    violations = checker._changed_source_violations(
+        tmp_path, {}, checker.load_contract(REPOSITORY_ROOT),
+        head_sources=adapter if adapter_in == "head" else {},
+        baseline_sources=adapter if adapter_in == "baseline" else {},
+    )
+    assert {v.path for v in violations} == {
+        f"backend/src/{relative}" for relative in checker._LEDGER_DEPLOYMENT_ASSETS
+    }
+    assert all(v.code == "TB000" for v in violations)
+
+
+def test_ledger_manifest_cannot_authorize_changed_sql_itself(tmp_path: Path) -> None:
+    """SQL改変とmanifest hash書換えを同時に行っても独立定数を越えられない。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    package = tmp_path / "backend/src/pitchlog/durable_rights_ledger"
+    sql = package / "schema.sql"
+    sql.write_bytes(sql.read_bytes() + b"\nGRANT ALL ON SCHEMA pitchlog_ledger TO PUBLIC;\n")
+    manifest = package / "manifest.json"
+    value = json.loads(manifest.read_text())
+    value["ddl_sha256"] = hashlib.sha256(sql.read_bytes()).hexdigest()
+    manifest.write_text(json.dumps(value))
+    assert not checker._validated_ledger_deployment_assets(tmp_path)
