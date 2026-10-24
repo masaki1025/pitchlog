@@ -409,3 +409,6 @@ Dは既存local replication/owned Unix socketを使う実pg_basebackupで業務D
 作者証拠: /home/ymdms/.cache/pitchlog/reviews/ledger-retention-cfb1fc6c/evidence.json、SHA256 2b68ca5d7379eff9efd28565f8bb006766825676ae41b9da88658bf24f21f02f。固定test SHA49dc79baa6fbcfbd807a05fa1d9bf899245b6606eee4d8644e35b7f6d2843e04、support SHAa37e4fc240e627bbf2b883c674b47fb593764e9ef48ea5a756223aa90849ae70。作者Ruff/ty成功・所有container/volume/network残存0、共有DB操作0。旧19case/466checker成功を今回再実行したとはせず、追加独立確認はこれからである。
 
 正規全域closeProof→epoch前進→新D4/解除の同一確定→復旧後再発行と旧成功集合交差0のpositive gateは親new7/8の未完義務として保持する。今回の安全閉鎖/保全成功を全復旧・通常開始・実Port・MVP完成へ拡大しない。
+
+
+最終bf90428aの局所plan-syncはdata-model/索引の宣言2件を機械抽出できずexit1だった。両pathは元§3と§4で既宣言/実反映済みでありscope追加ではない。抽出対象の「影響する正本」節へ同じ2pathを明示的backtick表で記載し、checker/正本本文/受理値を変更せず通常是正した。backend全体format392/Ruff/ty、root Ruff/tyとdocs-status21/違反0は成功。plan-syncの最終再検査結果は固定後に記録する。
