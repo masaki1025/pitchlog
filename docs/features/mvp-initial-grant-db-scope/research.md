@@ -43,3 +43,8 @@ request/attemptの排他はlock_valid_device内の実資格照合成功後、同
 
 
 rootの写像照合で、段階1の先行宣言を実装する既scripts/core_guard.pyの定数層pathを明記補完した。新しい判定器や拒否変更を加えず、全31本文不変・先行宣言→別JSONという既手順の実source配置である。2docs以外の変更は0で、必要な限定非作者写像確認の前に固定する。
+
+
+## ステップ1: scope/brokerの先行core宣言
+
+2026-10-24T05:11:30.333027+00:00、rootが要求再送・記録権・tenantの3領域へscope/fixed-operation/brokerのexact3pathを宣言。JSONは不変、判定31定義はHEADとAST全一致。既初期付与/作成登録は履歴fixtureへ分離し、旧負例を保持した。初回398成功/2失敗は旧preparing回転前の宣言を現宣言へ混同した検査で、歴史的宣言を明示するfixtureへ是正。再検査400成功/30.73s、ty0。ログ /home/ymdms/.cache/pitchlog/initial-grant-scope-core-step1{,-fixed}.log。最後のRuff2行長は改行だけ是正。source作成0、既coreの範囲/拒否を縮小しない。

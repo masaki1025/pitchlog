@@ -73,10 +73,15 @@ PREPARING_READ_PATH_ADDITIONS = (
     "backend/src/pitchlog/services/game_creation.py",
     "backend/tests/test_game_preparing*.py",
 )
+INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS = (
+    "backend/src/pitchlog/repositories/initial_recording_right.py",
+    "backend/src/pitchlog/repositories/function_operations.py",
+    "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": INITIAL_RIGHTS_PATH_ADDITIONS,
-    "recording-rights": INITIAL_RIGHTS_PATH_ADDITIONS,
-    "tenant-isolation": PREPARING_READ_PATH_ADDITIONS,
+    "sync-protocol": INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+    "recording-rights": INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+    "tenant-isolation": INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

@@ -511,10 +511,14 @@ PREPARING_READ_PATHS = (
     "backend/src/pitchlog/services/game_creation.py",
     "backend/tests/test_game_preparing*.py",
 )
+INITIAL_GRANT_DB_SCOPE_PATHS = (
+    "backend/src/pitchlog/repositories/initial_recording_right.py",
+    "backend/src/pitchlog/repositories/function_operations.py",
+    "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+)
 EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
-    "sync-protocol": INITIAL_RIGHTS_PATHS,
-    "recording-rights": INITIAL_RIGHTS_PATHS,
-    "tenant-isolation": PREPARING_READ_PATHS,
+    area_id: INITIAL_GRANT_DB_SCOPE_PATHS
+    for area_id in ("sync-protocol", "recording-rights", "tenant-isolation")
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -2291,7 +2295,8 @@ def test_stage_a_startup_declaration_keeps_json_baseline_stationary() -> None:
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
 
     assert PRE_INITIAL_RIGHTS_PATH_ADDITIONS["game-state"] == (startup,)
-    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == PREPARING_READ_PATHS
+    assert core_guard.PREPARING_READ_PATH_ADDITIONS == PREPARING_READ_PATHS
+    assert core_guard.AREA_PATH_ADDITIONS["tenant-isolation"] == INITIAL_GRANT_DB_SCOPE_PATHS
     for document in (baseline, configuration):
         for area in document["areas"]:
             if area["id"] in ("game-state", "tenant-isolation"):
@@ -2679,10 +2684,17 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
 
 
 def test_preparing_declaration_detects_new_paths_and_requires_human_check(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """隔離履歴で宣言前後の検出と登録後の逐行確認を検証する。"""
-    core_guard = load_core_guard_module()
+    historical = tmp_path / 'preparing_historical_guard.py'
+    historical.write_text(core_guard_source_with_additions({
+        'sync-protocol': INITIAL_RIGHTS_PATHS,
+        'recording-rights': INITIAL_RIGHTS_PATHS,
+        'tenant-isolation': PREPARING_READ_PATHS,
+    }))
+    monkeypatch.setattr(sys.modules[__name__], 'SCRIPT', historical)
+    core_guard = load_core_guard_module(historical, module_name='preparing_historical_guard')
     root, _ = make_layered_core_repo(tmp_path)
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
     stage_additions: dict[str, tuple[str, ...]] = {
@@ -2690,7 +2702,7 @@ def test_preparing_declaration_detects_new_paths_and_requires_human_check(
         "tenant-isolation": (startup,),
     }
     base_sha = commit_area_path_changes(root, stage_additions)
-    additions = EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]
+    additions = PREPARING_READ_PATHS
     planned_paths = (
         "backend/src/pitchlog/services/game_creation.py",
         "backend/tests/test_game_preparing_components.py",
@@ -4419,7 +4431,10 @@ def assert_initial_rights_registration(
     configuration: dict[str, Any], root: Path = REPO,
 ) -> bool:
     """実部品の未作成/作成済みと三領域の完全登録を取り違えない。"""
-    areas = {area['id']: area['paths'] for area in configuration['areas']}
+    areas = {
+        area['id']: [p for p in area['paths'] if p not in INITIAL_GRANT_DB_SCOPE_PATHS]
+        for area in configuration['areas']
+    }
     registered = []
     for area_id, paths in areas.items():
         present = tuple(path in paths for path in INITIAL_RIGHTS_PATHS)
@@ -4455,7 +4470,7 @@ def initial_rights_configuration(*, registered: bool) -> dict[str, Any]:
         additions = INITIAL_RIGHTS_HISTORICAL_ADDITIONS.get(area['id'], ())
         area['paths'] = [
             p for p in area['paths']
-            if p not in additions
+            if p not in additions and p not in INITIAL_GRANT_DB_SCOPE_PATHS
             and not (area['id'] == 'tenant-isolation' and p in PREPARING_READ_PATHS)
         ]
         if registered:
@@ -4631,6 +4646,112 @@ def test_initial_rights_core_each_future_file_requires_check(
         root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
         'commit', '-qm', 'synthetic registration',
     )
+    base, head = commit_change(root, path)
+    body = f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}"
+    event = write_event(tmp_path, base, head, body)
+    result = run_guard(root, event_name='pull_request', event_path=event)
+    assert result.returncode == (0 if checked else 1), result.stderr
+    if not checked:
+        assert path in result.stderr
+
+
+
+def initial_grant_db_scope_configuration(*, registered: bool) -> dict[str, Any]:
+    """旧登録をすべて保持し、新scopeの完全な先行登録だけを合成する。"""
+    configuration = load_actual_core_areas()
+    for area in configuration['areas']:
+        area['paths'] = [p for p in area['paths'] if p not in INITIAL_GRANT_DB_SCOPE_PATHS]
+        if registered:
+            area['paths'].extend(EXPECTED_AREA_PATH_ADDITIONS.get(area['id'], ()))
+    return configuration
+
+
+def test_initial_grant_db_scope_core_declared_without_predicate_changes() -> None:
+    """判定本文を変えず、要求再送/記録権/tenantの三意味領域を固定する。"""
+    guard = load_core_guard_module()
+    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert guard.INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS == INITIAL_GRANT_DB_SCOPE_PATHS
+    before = initial_grant_db_scope_configuration(registered=False)
+    after = initial_grant_db_scope_configuration(registered=True)
+    guard.validate_area_path_layers(before, before)
+    guard.validate_area_path_layers(before, after)
+    for a, b in zip(before['areas'], after['areas'], strict=True):
+        assert b == {**a, 'paths': a['paths'] + list(EXPECTED_AREA_PATH_ADDITIONS.get(a['id'], ()))}
+    assert {k:v for k,v in before.items() if k != 'areas'} == {
+        k:v for k,v in after.items() if k != 'areas'
+    }
+    for area in after['areas']:
+        if area['id'] in EXPECTED_AREA_PATH_ADDITIONS:
+            assert guard.matched_paths(
+                INITIAL_GRANT_DB_SCOPE_PATHS,
+                guard.CoreAreas(tuple(area['paths']), frozenset()),
+            ) == list(INITIAL_GRANT_DB_SCOPE_PATHS)
+
+
+@pytest.mark.parametrize('mutation', ('partial', 'one-area', 'replace-same-count', 'reverse',
+                                     'delete-old', 'undeclared', 'wrong-area', 'duplicate'))
+def test_initial_grant_db_scope_core_rejects_incomplete_or_mutated_registration(
+    mutation: str,
+) -> None:
+    """同件数差替えを含む欠落/越境/旧層削除を拒否する。"""
+    guard = load_core_guard_module()
+    before = initial_grant_db_scope_configuration(registered=False)
+    after = initial_grant_db_scope_configuration(registered=True)
+    areas = {a['id']: a['paths'] for a in after['areas']}
+    paths = areas['recording-rights']
+    if mutation == 'partial':
+        paths.pop()
+    elif mutation == 'one-area':
+        del areas['sync-protocol'][-3:]
+        areas['sync-protocol'].append(INITIAL_GRANT_DB_SCOPE_PATHS[0])
+    elif mutation == 'replace-same-count':
+        paths[-1] = 'backend/src/pitchlog/recording_rights/other.py'
+    elif mutation == 'reverse':
+        paths[-3:] = reversed(paths[-3:])
+    elif mutation == 'delete-old':
+        paths.pop(0)
+    elif mutation == 'undeclared':
+        paths.append('unregistered/extra.py')
+    elif mutation == 'wrong-area':
+        areas['game-state'].append(INITIAL_GRANT_DB_SCOPE_PATHS[0])
+    else:
+        paths.append(paths[-1])
+    with pytest.raises(guard.GuardError):
+        guard.validate_area_path_layers(before, after)
+
+
+@pytest.mark.parametrize('cochanged', (None, 'scripts/core_guard.py', 'tests/test_core_guard.py'))
+def test_initial_grant_db_scope_core_requires_separate_json_commit(
+    tmp_path: Path, cochanged: str | None,
+) -> None:
+    """実CLIの二層判定で別JSONのみ受理し、共変更を拒否する。"""
+    guard = load_core_guard_module()
+    root, base = make_layered_core_repo(tmp_path)
+    head = commit_area_path_changes(
+        root, EXPECTED_AREA_PATH_ADDITIONS,
+        cochanged_paths=() if cochanged is None else (cochanged,),
+    )
+    if cochanged is None:
+        assert guard.verify_area_path_baseline(root, base, head) == base
+    else:
+        with pytest.raises(guard.GuardError, match='同一コミット'):
+            guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize('path', INITIAL_GRANT_DB_SCOPE_PATHS)
+@pytest.mark.parametrize('checked', (False, True))
+def test_initial_grant_db_scope_core_each_file_requires_check(
+    tmp_path: Path, path: str, checked: bool,
+) -> None:
+    """正式先行登録後の新scope各単独差分で必須確認を要求する。"""
+    root = make_repo_with_actual_core_areas(tmp_path)
+    write_json(
+        root, '.claude/core-areas.json',
+        initial_grant_db_scope_configuration(registered=True),
+    )
+    run_git(root, 'add', '.claude/core-areas.json')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-qm', 'synthetic initial grant scope registration')
     base, head = commit_change(root, path)
     body = f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}"
     event = write_event(tmp_path, base, head, body)
