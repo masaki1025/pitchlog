@@ -83,3 +83,18 @@ SecretStrの通常repr/JSON maskingだけでは、missing等のValidationError.i
 rootはPO委任で、安全な公開Class入口（model_validate/model_validate_jsonと通常代入）・既存共通HTTP handlerの利用者向け応答/ログを保証境界として採用した。生parserやRequestValidationError.body等の内部入力は資格を保持し得るため、記録/汎用serializeへ渡さない。module/class/planへこの利用契約を明記した。private Pydantic APIの差替え・拒否の黙殺は0で、sourceの実行ロジックは7469から変更していない。
 
 既componentへ生parser2負例と、DBなしFastAPI通常検証（壊れJSON/他field欠損）の実共通handler2例を追加。422の固定応答・ログ本文・LogRecord・exc_info/tracebackに資格がなく、不正routeの業務関数呼出し0を確認した。ここで追加したrouteは試験アプリのtransport検査口だけで、製品HTTP開始の提供ではない。対象4成功/0.63秒（旧141deselected）→最終component全件**145成功/0.87秒、skip0**。旧54+87と今回4を区別し、独立再レビューはこれからとする。backend対象format/Ruff/ty成功。物理追補は前節の必要対応だけを保存し、broker/4表/DDLの設計完成・採用を主張しない。
+
+
+## 次単位の実actor/単一業務transaction案（候補・未承認）
+
+2026-10-24、主担当からplan/researchの2pathだけの追補委任を受け、`fe4788d1` cleanから現物を狭く再照合した。編集/実行対象は本2文書だけ、source/DB/正本/共有metadata/Git indexの操作は0。旧physical annex/owner sheetは前記hashの未受理候補のまま、全過去引継ぎ/保全物の再監査はしない。
+
+実物から新たに確定した接合不足は、(1) `repositories/transaction.py`のscopeが`create_database_engine()`＝app roleに固定、(2) TenantContext証跡はprocess内secretでRPC転送証明ではない、(3) 既RG1候補`5ee75156`の`rg1_control.scope_binding`はappだけEXECUTE、controller borrowもapp UID20003だけ、(4) Ledgerの許可client UID20002とapp UID20003は別、(5) 初期発行器はdevice共有lockの後にreserve/claim、game lock/insertを行う、である。旧annexの『全行lock無し予約』や、brokerへ既scopeを渡せばそのまま別roleで動くという推定を採らない。
+
+[plan §6](plan.md#6-次小単位の物理接合候補未承認2026-10-24)へ、専用brokerがCookieを実再検証して開始の全業務transactionを所有する境界、exact2role/4表/既存2表の最小列、9methodの固定実処理、intentの先行durable commit、game→team→player→generation→delivery→RG1の順を具体化した。appがgameをlockして別sessionのpermit FK書込を待つ案は循環し得るため不採用候補とした。新たなallocator/暗号/認証計算は作らず、既単一発行器/実Ledger/V12Box/U-M2/共通executorを再利用する。
+
+既単一発行器のgame lockとgeneration insertの間に、将来の開始serviceの両側名簿/U-M2を同一scopeへ接合する必要は残る。その開始差分で有限な専用操作として実装・レビューするため、本scopeの保存試験を実開始成功へ広げない。actor transportもRG1のexact peer/role1組追加なしには借用できないことを明記し、roleをappと偽装したりLedgerをappへ開放しない。新scope/role用の私有生成入口は実role/許可token集合を固定し、既公開app scopeの真性検査を緩めない。
+
+この追補の新たな野球意味判断は0件。鍵実発行・運用配置・共有DB適用は未実施/委任外を維持する。rootの採否・独立レビュー/専用plan/必要7.3/具体asset受理前は次source編集を開始しないが、T1/実Port/HTTP/全非0復旧の完成を保存contract/実adapter局所実装の前提にしない。旧transportレビューP1/是正・UG1/UR1の親ステップ/回数を保持する。
+
+親からの追加指示に従い、brokerのexact peer/role追加は現在のapp/control2+observer2正式登録の**後続**として分けた。次scope小単位はfinal `InitialRecordingRightScope`/私有factory/凍結StartOwnerと、exact9固定関数・4表・既存epoch/digest列・正負試験へ絞り、enrollmentのコード方針は既チームCookie＋端末資格方式の技術案として具体化した。新しい個人認証仕様のPO質問を作らない。最初のDB scope fixtureがdevice行/公開vectorを準備する事実と、後続の実enrollment/実broker開始を別に記録する。未知pendingの自動解消は実装済みとしない。
