@@ -198,8 +198,9 @@ def check_row_requirements(
         for item in requirements
     }
     special_ids = {item.get("vocabularyId") for item in observations}
-    if len(special_ids) != len(observations):
-        raise RequiredSetCoverageError("行区分観測の語彙IDが重複")
+    observation_ids = [_identity(item) for item in observations]
+    if len(observation_ids) != len(set(observation_ids)):
+        raise RequiredSetCoverageError("行区分観測の区分identityが重複")
     covered: list[tuple[str, str, str]] = []
     for row in rows:
         result_id = row.get("resultId")
@@ -785,6 +786,13 @@ def _game_end_identity(value: Any) -> str:
 def _game_end_display_names(root: Path) -> dict[str, str]:
     """状況判定の正規形とrawから終了判定の被覆用表示名を得る。"""
     state = _document(root, "state_transition_contract_v1.json")
+    vocabulary = json.loads(
+        (root / "contracts/vocabulary/input_vocabulary_v1.json").read_text(encoding="utf-8")
+    )
+    vocabulary_names = {
+        entry["id"]: entry["initialDisplayName"]
+        for axis in vocabulary["axes"] for entry in axis["entries"]
+    }
     names: dict[str, str] = {}
     for case in state.get("cases", []):
         normalized = case.get("normalized")
@@ -795,6 +803,9 @@ def _game_end_display_names(root: Path) -> dict[str, str]:
         if result_id is None:
             continue
         display_name = raw.get("resultId")
+        # 閉入力のID表現は語彙正本から表示名へ解決する。純入力は書き換えない。
+        if display_name == result_id:
+            display_name = vocabulary_names.get(result_id)
         if (
             not isinstance(result_id, str) or not isinstance(display_name, str)
             or result_id in names and names[result_id] != display_name

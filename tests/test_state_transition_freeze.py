@@ -61,13 +61,13 @@ def _git_sha(root: Path, revision: str) -> str:
     return result.stdout.strip()
 
 
-def _repository_acceptance_context() -> Any:
+def _repository_acceptance_context(number_offset: int = 0) -> Any:
     """実リポジトリ用の外部PR受理文脈を返す。"""
     return freeze_checker.PullRequestAcceptanceContext(
         base_sha=_git_sha(REPOSITORY_ROOT, "origin/develop"),
         head_sha=_git_sha(REPOSITORY_ROOT, "HEAD"),
         repository="masaki1025/pitchlog",
-        number=131,
+        number=int(_declaration()["history"][-1]["acceptanceId"].rsplit("#", 1)[1]) + number_offset,
     )
 
 
@@ -79,6 +79,20 @@ def test_repository_history_is_append_only_from_origin_develop() -> None:
         _declaration(),
         _repository_acceptance_context(),
     )
+
+
+def test_repository_history_rejects_another_pr_when_acceptance_is_added() -> None:
+    """実際の受理遷移がある場合は別PRへの付替えを拒否する。"""
+    context = _repository_acceptance_context(1)
+    previous = json.loads(subprocess.run(
+        ["git", "show", f"{context.base_sha}:{descriptor_checker.DESCRIPTOR_PATH}"],
+        cwd=REPOSITORY_ROOT, capture_output=True, text=True, check=True,
+    ).stdout)
+    if len(_declaration()["history"]) > len(previous[freeze_checker.FREEZE_FIELD]["history"]):
+        with pytest.raises(freeze_checker.FreezeBaselineError):
+            freeze_checker.validate_repository_history(
+                REPOSITORY_ROOT, descriptor_checker.DESCRIPTOR_PATH, _declaration(), context,
+            )
 
 
 def test_current_identities_are_derived_from_scope_and_asset_side_criteria() -> None:

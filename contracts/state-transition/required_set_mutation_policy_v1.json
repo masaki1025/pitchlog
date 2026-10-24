@@ -9,7 +9,7 @@
       "operatorId": "axis-deletion",
       "kind": "delete-one-axis",
       "axisCollections": ["stateTransitionAxes", "gameEndAxes"],
-      "expectedMutantCount": 50
+      "expectedMutantCount": 59
     },
     {
       "operatorId": "boundary-value-replacement",
@@ -54,7 +54,7 @@
   ],
   "claimBoundary": {
     "subject": "requiredSet-descriptor-mutation-sensitivity",
-    "mechanicallyChecked": "each-declared-mutant-changes-each-applicable-derived-output-identity-set",
+    "mechanicallyChecked": "each-declared-mutant-changes-applicable-output-identities-and-preserves-nonconsumer-game-end-identities",
     "notGuaranteed": [
       "shared-omissions-in-descriptor-and-deriver",
       "semantic-correctness-of-observed-differences",

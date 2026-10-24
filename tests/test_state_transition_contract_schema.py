@@ -566,8 +566,23 @@ def _satisfying_axis_values(
     axes = _descriptor_axis_values()
     referenced_axis_ids = {leaf["axisId"] for leaf in _predicate_leaves(predicate)}
     enumerated_axis_ids = tuple(sorted(referenced_axis_ids | {target_axis_id}))
+    # 必須の連言等値だけで列挙値域を狭める。or/notは従来どおり最後に評価する。
+    fixed: dict[str, list[object]] = {}
+
+    def collect_required_equalities(node: Mapping[str, Any]) -> None:
+        if node["op"] == "eq":
+            fixed.setdefault(node["axisId"], []).append(node["value"])
+        elif node["op"] == "and":
+            for child in node["args"]:
+                collect_required_equalities(child)
+
+    collect_required_equalities(predicate)
     try:
-        domains = tuple(axes[axis_id] for axis_id in enumerated_axis_ids)
+        domains = tuple(
+            tuple(value for value in axes[axis_id]
+                  if all(_json_equal(value, expected) for expected in fixed.get(axis_id, [])))
+            for axis_id in enumerated_axis_ids
+        )
     except KeyError as exc:
         raise CrossConstraintError(
             f"Predicateの軸値域を解決できない: {exc.args[0]!r}"
@@ -2057,7 +2072,7 @@ def test_repository_contract_step51_to_step60_rows_satisfy_constraints() -> None
     _validate_vocabulary_axis_coverage(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 42
+    assert len(rows) == 44
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
     assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
@@ -2599,7 +2614,8 @@ def test_repository_batting_result_rows_exactly_cover_the_vocabulary_axis() -> N
     batting_rows = [
         row for row in contract["matrixRows"] if row["eventKind"] == "batting-result"
     ]
-    assert len(batting_rows) == 26
+    assert len(batting_rows) == 28
+    assert len({row["resultId"] for row in batting_rows}) == 26
 
 
 def test_batting_result_vocabulary_coverage_is_red_when_a_value_is_missing() -> None:
@@ -2701,7 +2717,7 @@ def test_repository_per_pitch_mapping_covers_all_materialized_matrix_rows() -> N
     }
 
     assert actual == expected
-    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 42
+    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 44
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
@@ -3470,7 +3486,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
     _validate_undo_rows(contract, frozenset())
     _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
 
-    assert len(contract["matrixRows"]) == 42
+    assert len(contract["matrixRows"]) == 44
     assert len(contract["operationRows"]) == 10
     assert len(contract["undoRows"]) == 10
     row = contract["undoRows"][0]
@@ -4364,7 +4380,7 @@ def test_step60_runner_event_coverage_declaration_uses_three_axis_union() -> Non
 def test_repository_contract_step60_pickoff_rows_satisfy_constraints() -> None:
     """投手・捕手の牽制6値を各1行の非投球走者イベントとして検査する。"""
     contract = _repository_contract()
-    rows = contract["matrixRows"][36:]
+    rows = contract["matrixRows"][36:42]
     expected_result_ids = {
         "pitcher-pickoff-destination.first",
         "pitcher-pickoff-destination.second",
@@ -4383,7 +4399,7 @@ def test_repository_contract_step60_pickoff_rows_satisfy_constraints() -> None:
     _validate_cross_constraints(contract)
     _validate_vocabulary_axis_coverage(contract)
 
-    assert len(contract["matrixRows"]) == 42
+    assert len(contract["matrixRows"]) == 44
     assert len(rows) == 6
     assert {row["resultId"] for row in rows} == expected_result_ids
     assert all(row["eventKind"] == "runner-event" for row in rows)
@@ -4606,7 +4622,7 @@ def test_repository_contract_step61_substitution_rows_and_mapping() -> None:
     assert mappings["per-pitch-input"] == [
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
-    assert len(contract["matrixRows"]) == 42
+    assert len(contract["matrixRows"]) == 44
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-011", "req:FR-006"} <= sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -4839,7 +4855,7 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
     assert len(mappings["tiebreak-start"]) == 3
-    assert len(contract["matrixRows"]) == 42
+    assert len(contract["matrixRows"]) == 44
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-010", "req:FR-005", "req:FR-006", "req:4.0-1"} <= sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -4999,7 +5015,7 @@ def test_repository_contract_step64_registration_rows_and_mapping() -> None:
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
     assert len(mappings["tiebreak-start"]) == 3
-    assert len(contract["matrixRows"]) == 42
+    assert len(contract["matrixRows"]) == 44
     assert len(contract["operationRows"]) == 10
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert "req:FR-015" in sources
@@ -5214,6 +5230,8 @@ def _validate_manual_fixtures(
     rule_by_id = {rule["constraintId"]: rule for rule in rules}
     for fixture in fixtures:
         case = fixture["case"]
+        if case["branchId"] in {"OUT3-04", "OUT3-05"}:
+            _validate_t1_observation_binding(case)
         branch = branches[case["branchId"]]
         kind = (
             "constraint-negative"
@@ -5259,6 +5277,8 @@ def _validate_manual_fixtures(
             for row in contract["matrixRows"]
             if row["eventKind"] == coordinate["eventKind"]
             and row["resultId"] == coordinate["resultId"]
+            and set(_manual_fixture_coordinate(row)) <= set(coordinate)
+            and (kind != "normative-branch" or _manual_fixture_coordinate(row) == coordinate)
         ]
         assert len(rows) == 1
         row = rows[0]
@@ -5729,7 +5749,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 109
+    assert len(cases) == 111
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5773,8 +5793,8 @@ def test_repository_rows_have_matching_history_and_result_faces() -> None:
     assert contract["undoRows"][0]["targetKind"] == "none"
 
 
-def test_all_committed_cases_match_history_expansion() -> None:
-    """全 109 case の履歴入力と期待値が追跡済み展開に完全一致する。"""
+def test_legacy_committed_cases_match_history_expansion() -> None:
+    """旧109 caseの追跡済み展開を保ち、原観測付き新二例の実演算とは分ける。"""
     result = subprocess.run(
         [
             sys.executable,
@@ -5789,7 +5809,9 @@ def test_all_committed_cases_match_history_expansion() -> None:
         capture_output=True,
         text=True,
     )
-    assert json.loads(result.stdout) == _repository_contract()["cases"]
+    legacy_cases = [case for case in _repository_contract()["cases"] if "inputPayload" not in case]
+    assert len(legacy_cases) == 109
+    assert json.loads(result.stdout) == legacy_cases
 
 
 def test_step30_liveness_row_and_five_play_case() -> None:
@@ -6149,3 +6171,699 @@ def test_push_difference_uses_output_flags_instead_of_before_after() -> None:
             wrong, "confirmed-play", before, after, flags,
             state_fields, scoreboard_fields, flag_fields,
         )
+
+
+# T1本体ではなく、原観測をfixtureへ結び付ける有限の不変条件検査。
+class ObservationBindingError(ValueError):
+    """原観測の欠落・走者参照矛盾・座標改変を表す。"""
+
+
+def _observation_require(condition: bool, invariant: str) -> None:
+    """実計算前に必要な観測関係を検査する。"""
+    if not condition:
+        raise ObservationBindingError(invariant)
+
+
+def _validate_t1_observation_binding(case: dict[str, Any]) -> None:
+    """この二死二三塁単打単位の入力と観測座標だけを照合する。"""
+    rules = _load_object(REPOSITORY_ROOT / (
+        "contracts/state-transition/t1_observation_binding_rules_v1.json"
+    ))
+    _observation_require("inputPayload" in case, "required-raw-input")
+    raw = case["inputPayload"]
+    schema = _load_object(REPOSITORY_ROOT / (
+        "contracts/state-transition/t1_out3_input_schema_v1.json"
+    ))
+    schema_checker._validate_instance(raw, schema, schema, "$.inputPayload")
+    state, pitch = raw["pre_state"], raw["per_pitch"]
+    scope = rules["scope"]
+    occupied = "-".join(base for base in ("first", "second", "third")
+                        if state["runners"][base]["kind"] == "occupied") or "empty"
+    _observation_require(pitch["resultId"] == scope["resultId"]
+                         and state["outs"] == scope["outs"]
+                         and occupied == scope["runners"], "unit-scope")
+    overrides = pitch["runnerAdvanceOverridesByRunner"]
+    _observation_require(overrides["kind"] == "overridden", "explicit-override")
+    outcomes = overrides["by_runner"]
+    for base, outcome in outcomes.items():
+        player = state["batter"] if base == "batter" else state["runners"][base].get("player")
+        _observation_require(outcome["runner"] == player, "same-runner-override")
+    cause = pitch["rbi"]["cause_by_runner"]
+    if cause["kind"] == "observed":
+        for base, value in cause["by_runner"].items():
+            player = state["batter"] if base == "batter" else state["runners"][base].get("player")
+            _observation_require(value["person"] == player, "same-runner-rbi-cause")
+    third_out = pitch["thirdOutObservation"]
+    if third_out["kind"] == "other-third-out":
+        _observation_require(any(outcome["kind"] == "out"
+                                and outcome["runner"] == third_out["out_person"]
+                                for outcome in outcomes.values()),
+                             "third-out-person-is-an-explicit-out")
+        for base, outcome in outcomes.items():
+            if outcome["kind"] == "safe-advance" and outcome["destination"] == "home":
+                _observation_require(base in pitch["thirdOutTimingByRunner"],
+                                     "required-third-out-home-timing")
+    for axis, binding in rules["inputBindings"].items():
+        if binding.get("whenCoordinatePresent") and axis not in case["inputCoordinate"]:
+            continue
+        value: Any = raw
+        for component in binding["path"]:
+            _observation_require(isinstance(value, dict) and component in value,
+                                 "raw-coordinate-preserved:" + axis)
+            value = value[component]
+        projection = binding.get("projection")
+        if projection == "occupied-base-key-order":
+            value = occupied
+        elif projection == "observed-value-or-unobserved-tag":
+            value = value["value"] if value["kind"] == "observed" else "unobserved"
+        elif projection == "explicit-mixed-runner-outcomes-for-this-unit":
+            _observation_require(set(value) == {"second", "third"}
+                                 and value["second"]["kind"] == "out"
+                                 and value["third"]["kind"] == "safe-advance",
+                                 "explicit-mixed-runner-outcomes-for-this-unit")
+            value = "multiple-runners-mixed"
+        elif projection == "single-third-home-timing-partition":
+            _observation_require(set(value) == {"third"}, "single-third-home-timing-partition")
+            value = {"home-before-third-out": "single-runner-home-before-third-out",
+                     "not-before-third-out": "single-runner-not-before-third-out"}[value["third"]]
+        _observation_require(axis in case["inputCoordinate"]
+                             and _json_equal(value, case["inputCoordinate"][axis]),
+                             "raw-coordinate-preserved:" + axis)
+
+
+def _out3_observed_cases() -> list[dict[str, Any]]:
+    """作者期待と分離済みの原観測付き二ケースを読む。"""
+    document, _ = _manual_fixture_assets()
+    return [fixture["case"] for fixture in document["fixtures"]
+            if fixture["case"]["branchId"] in {"OUT3-04", "OUT3-05"}]
+
+
+@pytest.mark.parametrize("index", [0, 1])
+def test_t1_assembly_observation_positive(index: int) -> None:
+    """対向入力の生観測と座標が一致する。"""
+    _validate_t1_observation_binding(_out3_observed_cases()[index])
+
+
+@pytest.mark.parametrize("mutation,reason", [
+    ("missing-input", "required-raw-input"),
+    ("override-person", "same-runner-override"),
+    ("cause-person", "same-runner-rbi-cause"),
+    ("out-person", "third-out-person-is-an-explicit-out"),
+    ("missing-timing", "required-third-out-home-timing"),
+    ("unknown-h", "raw-coordinate-preserved"),
+    ("unknown-u", "raw-coordinate-preserved"),
+    ("coordinate-timing", "raw-coordinate-preserved"),
+    ("other-placement", "unit-scope"),
+])
+def test_t1_assembly_observation_negatives(mutation: str, reason: str) -> None:
+    """欠落・矛盾・未観測のfalse補完を不変条件の入口で拒否する。"""
+    case = copy.deepcopy(_out3_observed_cases()[0])
+    pitch = case["inputPayload"]["per_pitch"]
+    other = case["inputPayload"]["pre_state"]["batter"]
+    if mutation == "missing-input":
+        del case["inputPayload"]
+    elif mutation == "override-person":
+        pitch["runnerAdvanceOverridesByRunner"]["by_runner"]["second"]["runner"] = other
+    elif mutation == "cause-person":
+        pitch["rbi"]["cause_by_runner"]["by_runner"]["third"]["person"] = other
+    elif mutation == "out-person":
+        pitch["thirdOutObservation"]["out_person"] = other
+    elif mutation == "missing-timing":
+        del pitch["thirdOutTimingByRunner"]["third"]
+    elif mutation in {"unknown-h", "unknown-u"}:
+        field = "held_too_long" if mutation == "unknown-h" else "unnecessary_throw"
+        pitch["rbi"]["cause_by_runner"]["by_runner"]["third"][field] = {"kind": "unobserved"}
+    elif mutation == "coordinate-timing":
+        timing_axis = "event.perPitch.thirdOutTimingByRunner.third"
+        case["inputCoordinate"][timing_axis] = "not-before-third-out"
+    else:
+        case["inputPayload"]["pre_state"]["outs"] = 1
+    with pytest.raises(ObservationBindingError, match=reason):
+        _validate_t1_observation_binding(case)
+
+
+def test_t1_assembly_explicit_observation_unknown_remains_unknown() -> None:
+    """H/U未観測は閉型のまま座標へ写り、falseへ変換されない。"""
+    case = copy.deepcopy(_out3_observed_cases()[0])
+    for field in ("held_too_long", "unnecessary_throw"):
+        cause = case["inputPayload"]["per_pitch"]["rbi"]["cause_by_runner"]
+        cause["by_runner"]["third"][field] = {"kind": "unobserved"}
+        case["inputCoordinate"]["event.perPitch.rbi.cause_by_runner.third." + field] = "unobserved"
+    _validate_t1_observation_binding(case)
+    # 構造・射影の一致だけ。unknown座標はfalseを要求する採用二行へ束縛できない。
+    for row in _repository_contract()["matrixRows"][-2:]:
+        assert case["inputCoordinate"] != _manual_fixture_coordinate(row)
+
+
+def _d06_assets() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """参照外殻・純入力・作者観測を別資産として読む。"""
+    directory = REPOSITORY_ROOT / "contracts/state-transition"
+    return (
+        _load_object(directory / "d06_priority_schema_v1.json"),
+        _load_object(directory / "d06_priority_inputs_v1.json"),
+        _load_object(directory / "d06_priority_author_expected_v1.json"),
+    )
+
+
+def _validate_d06_contract_observation(case: dict[str, Any], observed: dict[str, Any]) -> None:
+    """宣言された観測の不変条件だけを照合し、期待値から実観測を生成しない。"""
+    schema, _, _ = _d06_assets()
+    schema_checker._validate_instance(case, schema, schema, "$.input")
+    schema_checker._validate_instance(observed, schema, schema, "$.authorObservation")
+    assert case['case_id'] == observed['case_id']
+    key = case['key']
+    if case['context']['variant'] == 'ready_assumption':
+        assert case['context']['refs']['key'] == key
+    if case['placement_mark']['variant'] == 'present':
+        mark = case['placement_mark']
+        assert mark['origin_d5'] != key['d5']
+        assert mark['lineage_id'] == key['canonical_lineage_id']
+    if case['o4']['variant'] == 'persisted_duplicate':
+        left, right = case['o4']['events']
+        assert left['event_id'] != right['event_id']
+        assert left['d2'] == right['d2']
+        assert left['game_id'] == right['game_id'] == key['game_id']
+        assert (left['internal_generation'] == right['internal_generation']
+                == key['internal_generation'])
+    trace = observed['trace']
+    variant = observed['variant']
+    # 結果不明は、台帳0行を観測しても取消確定へ変換しない。
+    if case['termination'] == 'cancel_unknown':
+        assert variant == 'unresolved'
+    if variant == 'o4_rejected':
+        assert case['o4']['variant'] == 'persisted_duplicate'
+        assert case['termination'] == 'rollback_confirmed'
+        assert case['d5_candidate'] == 'unused'
+        assert case['independent_content'] == 'pass'
+        assert trace.index('independent_7') < trace.index('O4')
+        assert not {'C2', 'state_guard', 'dedicated_state_commit'} & set(trace)
+        assert observed['ack']['boundary_result'] == 'B3'
+        assert observed['ack']['advanced_d3'] == case['d3_before_target']
+        target = next(row for row in observed['ack']['event_results'] if row['d1'] == key['d1'])
+        assert target['rejection']['kind'] == 'O4' and target['a5_result'] == '拒否'
+    if variant == 'state_rejected':
+        assert case['context']['variant'] == 'ready_assumption'
+        assert case['o4']['variant'] == 'absent' and case['c2'] == 'resolved'
+        assert case['independent_content'] == 'pass' and case['d5_candidate'] == 'unused'
+        assert case['placement_mark']['variant'] == 'present'
+        assert case['termination'] == 'commit_confirmed'
+        assert (trace.index('independent_7') < trace.index('O4') < trace.index('C2')
+                < trace.index('state_guard') < trace.index('dedicated_state_commit'))
+        assert observed['ack']['advanced_d3'] == case['d3_before_target']
+        assert observed['ack']['event_results'][0]['rejection']['kind'] == '状態前提'
+        assert observed['ack']['event_results'][0]['rejection']['branch'] == 'B3c'
+    if variant in ('stored_replay', 'd5_conflict'):
+        assert case['d5_candidate'] == ('stored_same' if variant == 'stored_replay' else 'conflict')
+        assert trace == ['existing_preconditions', 'DI2' if variant == 'stored_replay' else 'DI3']
+    if variant == 'content_rejection_delegated':
+        assert case['independent_content'] == 'B3a'
+        assert trace == ['existing_preconditions', 'independent_7']
+        assert observed['ack']['event_results'][0]['rejection']['branch'] == 'B3a'
+    if variant == 'independent_stop_delegated':
+        assert case['independent_content'] == 'S-STOP'
+        assert trace == ['existing_preconditions', 'independent_7']
+    if variant == 'c2_missing':
+        assert case['context']['variant'] == 'pending_assumption'
+        assert case['c2'] == 'missing' and case['o4']['variant'] == 'absent'
+        assert case['termination'] == 'rollback_confirmed'
+        assert 'state_guard' not in trace and trace.index('O4') < trace.index('C2')
+    if variant in ('replacement_allowed', 'old_request_blocked'):
+        r = case['replacement']
+        assert r['variant'] == 'o4_resume'
+        assert case['termination'] == 'rollback_confirmed'
+        for field in ('tenant_id', 'game_id', 'wire_d4', 'internal_generation', 'd1'):
+            assert r['old_key'][field] == r['new_key'][field]
+        assert r['old_key']['d5'] != r['new_key']['d5']
+        assert r['old_content_ref'] == r['new_content_ref']
+        assert case['o4']['variant'] == 'absent'
+        assert observed['old_d5_blocked'] is True
+        # receiptの形は真正性を証明しない。発行ownerの検証は実providerが担当する。
+        for field in (
+            'administrator_repair_receipt', 'old_transaction_receipt',
+            'durable_old_block_record', 'new_permit_record',
+        ):
+            assert r[field]['contract_id']
+    if variant == 'separate_correction':
+        assert case['replacement']['variant'] == 'different_content_request'
+        assert case['replacement']['old_content_ref'] != case['replacement']['new_content_ref']
+    ack = observed['ack']
+    if ack is not None:
+        rows = ack['event_results']
+        assert len(rows) == len(case['batch'])
+        assert {(row['d1'], row['d5']) for row in rows} == {
+            (row['d1'], row['d5']) for row in case['batch']
+        }
+        for row in rows:
+            assert (row['a5_result'] == '拒否') == ('rejection' in row)
+            if row['d1'] > key['d1']:
+                assert row['a5_result'] == '未処理'
+
+
+
+@pytest.mark.parametrize("index", range(15))
+def test_t1_assembly_d06_finite_observation_invariants(index: int) -> None:
+    """既存15例の観測不変条件を検査し、実runner結果とは称さない。"""
+    _, inputs, observations = _d06_assets()
+    _validate_d06_contract_observation(inputs["cases"][index], observations["cases"][index])
+
+
+@pytest.mark.parametrize("mutation", ["unknown-to-rejected", "wrong-context-key", "same-origin-d5"])
+def test_t1_assembly_d06_observation_negatives(mutation: str) -> None:
+    """結果不明の解消偽装と同一性矛盾を拒否する。"""
+    _, inputs, observations = _d06_assets()
+    index = 14 if mutation == "unknown-to-rejected" else 0
+    case = copy.deepcopy(inputs["cases"][index])
+    observation = copy.deepcopy(observations["cases"][index])
+    if mutation == "unknown-to-rejected":
+        observation = copy.deepcopy(observations["cases"][0])
+        observation["case_id"] = case["case_id"]
+    elif mutation == "wrong-context-key":
+        case["context"]["refs"]["key"]["d1"] += 1
+    else:
+        case["placement_mark"]["origin_d5"] = case["key"]["d5"]
+    with pytest.raises(AssertionError):
+        _validate_d06_contract_observation(case, observation)
+
+
+def _t1_assembly_row_requirements(rules: dict[str, Any]) -> tuple[Any, ...]:
+    """既導出器を使い行要求だけを測定する。"""
+    module = _load_module(
+        "t1_assembly_deriver", REPOSITORY_ROOT / "scripts/check_deriver_dependencies.py"
+    )
+    clauses = frozenset(f"req:{clause}" for clause in schema_checker.load_clause_ids_from_paths(
+        REPOSITORY_ROOT, (PurePosixPath(rules["sourceClausePath"]),)
+    ))
+    return module.derive_row_requirements_from_documents(
+        rules, _load_object(REPOSITORY_ROOT / rules["vocabulary"]["manifestPath"]),
+        _load_object(REPOSITORY_ROOT / rules["vocabulary"]["seedPath"]), clauses,
+    )
+
+
+def test_t1_assembly_old_row_requirement_identities_are_preserved() -> None:
+    """旧47要求のidentity・典拠を保ち単打の二例だけを追加する。"""
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    prior = copy.deepcopy(rules)
+    addition = prior["partitionRules"][0].pop("additionalPartitions")
+    assert [item["vocabularyId"] for item in addition] == ["batting-result.single"]
+    old, new = _t1_assembly_row_requirements(prior), _t1_assembly_row_requirements(rules)
+    by_id = {item.identity: item for item in new}
+    assert (len(old), len(new)) == (47, 49)
+    assert all(by_id[item.identity].source_clause_ids == item.source_clause_ids for item in old)
+    old_ids = {item.identity for item in old}
+    assert {item.result_id for item in new if item.identity not in old_ids} == {
+        "batting-result.single"
+    }
+
+
+@pytest.mark.parametrize(
+    "mutation", ["unknown-vocabulary", "duplicate-addition", "old-partition", "unknown-clause"]
+)
+def test_t1_assembly_additional_partition_negatives(mutation: str) -> None:
+    """追加区分の対象逸脱・重複・旧区分衝突を拒否する。"""
+    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    additions = rules["partitionRules"][0]["additionalPartitions"]
+    if mutation == "unknown-vocabulary":
+        additions[0]["vocabularyId"] = "batting-result.not-registered"
+    elif mutation == "duplicate-addition":
+        additions.append(copy.deepcopy(additions[0]))
+    elif mutation == "old-partition":
+        additions[0]["partitions"] = ["identity"]
+    else:
+        additions[0]["sourceClauseIds"] = ["req:UNKNOWN-999"]
+    with pytest.raises(ValueError):
+        _t1_assembly_row_requirements(rules)
+
+
+def test_t1_assembly_row_id_qualification_preserves_all_legacy_ids(monkeypatch: Any) -> None:
+    """新selectorを持つ二行だけを修飾し旧42自然キーを変換しない。"""
+    monkeypatch.syspath_prepend(str(REPOSITORY_ROOT / "scripts"))
+    module = _load_module("t1_assembly_gap", REPOSITORY_ROOT / "scripts/check_gap_register.py")
+    layer = _descriptor()["freezeBaseline"]["criteria"]["gapRegister"]["rowLayers"][0]
+    unqualified = {key: value for key, value in layer.items() if key != "qualifyWhenPredicateAxes"}
+    rows = _repository_contract()["matrixRows"]
+    ids = [module._normative_row_id(layer, row) for row in rows]
+    assert len(set(ids)) == 44
+    assert ids[:42] == [module._normative_row_id(unqualified, row) for row in rows[:42]]
+    assert all(":compound:" in value for value in ids[42:])
+    modified = copy.deepcopy(rows[-1])
+    modified["remarks"] += "test"
+    assert module._normative_row_id(layer, modified) == ids[-1]
+
+
+@pytest.mark.parametrize("mutation", ["unknown-axis", "operation-layer", "duplicate-axis"])
+def test_t1_assembly_qualification_criteria_negatives(monkeypatch: Any, mutation: str) -> None:
+    """受理ゲートと分けて任意selector規則の構造拒否を単体検査する。"""
+    monkeypatch.syspath_prepend(str(REPOSITORY_ROOT / "scripts"))
+    module = _load_module(
+        "t1_assembly_gap_criteria", REPOSITORY_ROOT / "scripts/check_gap_register.py"
+    )
+    descriptor = _descriptor()
+    layer = descriptor["freezeBaseline"]["criteria"]["gapRegister"]["rowLayers"][0]
+    if mutation == "unknown-axis":
+        layer["qualifyWhenPredicateAxes"] = ["event.unknown"]
+    elif mutation == "operation-layer":
+        layer["layer"] = "operationRows"
+    else:
+        layer["qualifyWhenPredicateAxes"] *= 2
+    # 凍結の承認判定はこの型分岐単体testの対象外。実CLIの未受理拒否は維持する。
+    monkeypatch.setattr(module.freeze_checker, "validate_declaration", lambda value: value)
+    with pytest.raises(module.GapRegisterError):
+        module.load_gap_criteria(descriptor)
+
+
+@pytest.mark.parametrize("predicate", [
+    {"op": "and", "args": [
+        {"op": "eq", "axisId": "state.outs", "value": 2},
+        {"op": "eq", "axisId": "state.count.balls", "value": 1},
+    ]},
+    {"op": "or", "args": [
+        {"op": "eq", "axisId": "state.outs", "value": 2},
+        {"op": "eq", "axisId": "state.count.balls", "value": 1},
+    ]},
+    {"op": "not", "args": [{"op": "eq", "axisId": "state.outs", "value": 2}]},
+])
+def test_t1_assembly_equalities_pruning_matches_exhaustive_predicates(
+    predicate: dict[str, Any],
+) -> None:
+    """必須等値による列挙削減がor/notを含む既評価と同じ射影を保つ。"""
+    axes = _descriptor_axis_values()
+    referenced = tuple(sorted(
+        {leaf["axisId"] for leaf in _predicate_leaves(predicate)} | {"state.outs"}
+    ))
+    exhaustive = {
+        assignment["state.outs"] for values in product(*(axes[key] for key in referenced))
+        if _evaluate_predicate(predicate, assignment := dict(zip(referenced, values, strict=True)))
+    }
+    assert set(_satisfying_axis_values(predicate, "state.outs")) == exhaustive
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing-axis", "overlap", "state-observation", "unknown-axis"]
+)
+def test_t1_assembly_consumer_scope_negatives(mutation: str) -> None:
+    """consumer写像の欠落・重複・状態軸の観測補助化を拒否する。"""
+    descriptor = _descriptor()
+    expected = descriptor["freezeBaseline"]["criteria"]["inputAxesDescriptor"][
+        "checkerExpectedValues"
+    ]
+    scope = expected["gameEndCoordinateScope"]
+    if mutation == "missing-axis":
+        scope["includedAxisIds"].pop()
+    elif mutation == "overlap":
+        scope["observationOnlyAxisIds"].append(scope["includedAxisIds"][0])
+    elif mutation == "state-observation":
+        scope["includedAxisIds"].remove("state.outs")
+        scope["observationOnlyAxisIds"].append("state.outs")
+    else:
+        scope["observationOnlyAxisIds"].append("event.perPitch.unknown")
+    # checker型の単体分岐。署名・受理履歴の代わりには使用しない。
+    criteria = cast(Any, type("ScopeCriteria", (), {"checker_expected_values": expected})())
+    documents = schema_checker.load_game_end_observation_documents(REPOSITORY_ROOT, criteria)
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker.game_end_coordinate_axis_ids(descriptor, criteria, documents)
+
+
+def test_t1_assembly_consumer_scope_retains_all_old_axes() -> None:
+    """旧軸は全てT2へ残り、新九selectorだけが観測補助となる。"""
+    descriptor = _descriptor()
+    expected = descriptor["freezeBaseline"]["criteria"]["inputAxesDescriptor"][
+        "checkerExpectedValues"
+    ]
+    scope = expected["gameEndCoordinateScope"]
+    criteria = cast(Any, type("ScopeCriteria", (), {"checker_expected_values": expected})())
+    documents = schema_checker.load_game_end_observation_documents(REPOSITORY_ROOT, criteria)
+    included = schema_checker.game_end_coordinate_axis_ids(descriptor, criteria, documents)
+    assert included == frozenset(scope["includedAxisIds"])
+    assert len(scope["observationOnlyAxisIds"]) == 9
+    assert "state.outs" in included
+    assert "event.perPitch.runnerAdvanceOverridesByRunner" in included
+    assert "event.perPitch.thirdOutTimingByRunner" in included
+
+
+def _consumer_reflection_assets() -> tuple[dict[str, Any], Any, Any]:
+    """独立readonly三資産を付けたconsumer単体検査の材料を返す。"""
+    descriptor = _descriptor()
+    expected = descriptor["freezeBaseline"]["criteria"]["inputAxesDescriptor"][
+        "checkerExpectedValues"
+    ]
+    criteria = cast(Any, type("ScopeCriteria", (), {"checker_expected_values": expected})())
+    documents = schema_checker.load_game_end_observation_documents(REPOSITORY_ROOT, criteria)
+    return descriptor, criteria, documents
+
+
+@pytest.mark.parametrize("mutation", [
+    "old-event-move", "old-subset-missing", "unknown-tenth", "duplicate-helper",
+    "missing-helper", "missing-documents",
+])
+def test_t1_consumer_reflection_scope_negatives(mutation: str) -> None:
+    """旧event移動・旧集合欠落・未資格の十番目を独立基線で拒否する。"""
+    descriptor, criteria, documents = _consumer_reflection_assets()
+    scope = criteria.checker_expected_values["gameEndCoordinateScope"]
+    if mutation == "old-event-move":
+        old_axis = "event.perPitch.runnerAdvanceOverridesByRunner"
+        scope["includedAxisIds"].remove(old_axis)
+        scope["observationOnlyAxisIds"].append(old_axis)
+    elif mutation == "old-subset-missing":
+        scope["includedAxisIds"].remove("event.perPitch.runnerEventPayload")
+    elif mutation == "unknown-tenth":
+        unknown = "event.perPitch.unknown.observation"
+        scope["observationOnlyAxisIds"].append(unknown)
+        axis = copy.deepcopy(descriptor["stateTransitionAxes"][-1])
+        axis["axisId"] = unknown
+        descriptor["stateTransitionAxes"].append(axis)
+        binding = copy.deepcopy(descriptor["inputCoordinateCoverage"]["axisBindings"][-1])
+        binding["axisIds"] = [unknown]
+        descriptor["inputCoordinateCoverage"]["axisBindings"].append(binding)
+    elif mutation == "duplicate-helper":
+        scope["observationOnlyAxisIds"].append(scope["observationOnlyAxisIds"][0])
+    elif mutation == "missing-helper":
+        scope["observationOnlyAxisIds"].pop()
+    else:
+        documents = None
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker.game_end_coordinate_axis_ids(descriptor, criteria, documents)
+
+
+def _replace_consumer_documents(
+    criteria: Any, documents: Any, rules: dict[str, Any] | None = None,
+    schema: dict[str, Any] | None = None, snapshot: bytes | None = None,
+) -> Any:
+    """資産側identityも変わる型負例を作る。正式受理記録は生成しない。"""
+    import hashlib
+
+    source = criteria.checker_expected_values["gameEndCoordinateScope"]["qualificationSource"]
+    rules_raw = json.dumps(rules).encode() if rules is not None else documents.rules
+    schema_raw = json.dumps(schema).encode() if schema is not None else documents.input_schema
+    if rules is not None:
+        source["rulesByteSha256"] = hashlib.sha256(rules_raw).hexdigest()
+    if schema is not None:
+        source["inputSchemaByteSha256"] = hashlib.sha256(schema_raw).hexdigest()
+    return schema_checker.GameEndObservationDocuments(
+        rules_raw, schema_raw,
+        snapshot if snapshot is not None else documents.baseline_snapshot,
+    )
+
+
+@pytest.mark.parametrize("mutation", [
+    "wrong-snapshot-hash", "snapshot-byte-tamper", "snapshot-identity-tamper",
+    "snapshot-path-escape", "snapshot-path-absolute", "rules-hash", "schema-hash",
+    "old-anchor-subset", "raw-binding-path", "closed-leaf-domain",
+])
+def test_t1_consumer_reflection_anchor_negatives(mutation: str) -> None:
+    """独立基線の原byte/pathと新観測の閉型対応の改竄を拒否する。"""
+    import hashlib
+
+    descriptor, criteria, documents = _consumer_reflection_assets()
+    rules = json.loads(documents.rules)
+    anchor = rules["coordinateConsumerBaseline"]
+    if mutation == "wrong-snapshot-hash":
+        anchor["baselineSource"]["byteSha256"] = "0" * 64
+    elif mutation == "snapshot-byte-tamper":
+        documents = _replace_consumer_documents(
+            criteria, documents, snapshot=documents.baseline_snapshot + b" "
+        )
+    elif mutation == "snapshot-identity-tamper":
+        snapshot = json.loads(documents.baseline_snapshot)
+        snapshot["descriptorId"] += ".tampered"
+        raw = json.dumps(snapshot).encode()
+        anchor["baselineSource"]["byteSha256"] = hashlib.sha256(raw).hexdigest()
+        documents = _replace_consumer_documents(criteria, documents, snapshot=raw)
+    elif mutation == "snapshot-path-escape":
+        anchor["baselineSource"]["snapshotPath"] = "contracts/state-transition/../outside.json"
+    elif mutation == "snapshot-path-absolute":
+        anchor["baselineSource"]["snapshotPath"] = "/etc/passwd"
+    elif mutation in {"rules-hash", "schema-hash"}:
+        field = "rulesByteSha256" if mutation == "rules-hash" else "inputSchemaByteSha256"
+        criteria.checker_expected_values["gameEndCoordinateScope"]["qualificationSource"][field] = (
+            "0" * 64
+        )
+    elif mutation == "old-anchor-subset":
+        anchor["legacyT2CoordinateAxisIds"].remove("event.perPitch.runnerAdvanceOverridesByRunner")
+    elif mutation == "raw-binding-path":
+        key = anchor["observationCoordinateBindingIds"][0]
+        rules["inputBindings"][key]["path"][-1] = "unknown"
+    else:
+        schema = json.loads(documents.input_schema)
+        schema["$defs"]["T1ThirdOutTimingV1"]["properties"]["third"]["enum"] = ["fabricated"]
+        documents = _replace_consumer_documents(criteria, documents, schema=schema)
+    if mutation not in {"rules-hash", "schema-hash", "snapshot-byte-tamper"}:
+        documents = _replace_consumer_documents(criteria, documents, rules=rules)
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker.game_end_coordinate_axis_ids(descriptor, criteria, documents)
+
+
+def test_t1_consumer_reflection_all_old_axes_from_independent_snapshot() -> None:
+    """新included全体を承認済み原byte snapshot由来の旧集合と比較する。"""
+    descriptor, criteria, documents = _consumer_reflection_assets()
+    snapshot = json.loads(documents.baseline_snapshot)
+    old_axes = {
+        axis for binding in snapshot["inputCoordinateCoverage"]["axisBindings"]
+        for row in binding["rowBindings"] if "matrixRows" in row["rowLayers"]
+        for axis in binding["axisIds"] if axis.split(".", 1)[0] in {"state", "event"}
+    }
+    included = schema_checker.game_end_coordinate_axis_ids(descriptor, criteria, documents)
+    assert included == old_axes
+    assert len(old_axes) == 23
+
+
+def test_t1_consumer_reflection_loader_rejects_valid_but_wrong_snapshot_path(
+    tmp_path: Path,
+) -> None:
+    """構文上は正しい別assetへsnapshot参照を変えても原byte SHAで拒否する。"""
+    import hashlib
+
+    _, criteria, documents = _consumer_reflection_assets()
+    rules = json.loads(documents.rules)
+    source = criteria.checker_expected_values["gameEndCoordinateScope"]["qualificationSource"]
+    wrong = source["inputSchemaPath"]
+    rules["coordinateConsumerBaseline"]["baselineSource"]["snapshotPath"] = wrong
+    raw = json.dumps(rules).encode()
+    source["rulesByteSha256"] = hashlib.sha256(raw).hexdigest()
+    directory = tmp_path / "contracts/state-transition"
+    directory.mkdir(parents=True)
+    (tmp_path / source["rulesPath"]).write_bytes(raw)
+    (tmp_path / wrong).write_bytes(documents.input_schema)
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker.load_game_end_observation_documents(tmp_path, criteria)
+
+
+_COLD_CONSUMER_PROCESS_PROBE = r"""
+import dataclasses
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+mode = sys.argv[2]
+codec_before = "encodings.utf_16_be" in sys.modules
+sys.path.insert(0, str(root / "scripts"))
+import check_input_axes_descriptor as checker
+import check_deriver_dependencies as deriver
+codec_after_import = "encodings.utf_16_be" in sys.modules
+
+descriptor = json.loads((root / checker.DESCRIPTOR_PATH).read_text())
+scope = descriptor["freezeBaseline"]["criteria"]["inputAxesDescriptor"][
+    "checkerExpectedValues"
+].get("gameEndCoordinateScope")
+unsigned = scope is not None
+if unsigned:
+    source = scope["qualificationSource"]
+    rules = json.loads((root / source["rulesPath"]).read_text())
+    snapshot_path = rules["coordinateConsumerBaseline"]["baselineSource"]["snapshotPath"]
+    snapshot = json.loads((root / snapshot_path).read_text())
+    original = checker.load_descriptor_criteria
+    baseline_criteria = original(snapshot)
+
+    def measured_criteria(value):
+        return dataclasses.replace(
+            baseline_criteria,
+            input_coordinate_coverage_identity=checker.freeze_checker.criterion_identity(
+                value["inputCoordinateCoverage"]
+            ),
+            checker_expected_values=value["freezeBaseline"]["criteria"][
+                "inputAxesDescriptor"
+            ]["checkerExpectedValues"],
+        )
+
+    checker.load_descriptor_criteria = measured_criteria
+
+result = {
+    "python": sys.version,
+    "mode": mode,
+    "codec_present_before_production_import": codec_before,
+    "codec_present_after_production_import": codec_after_import,
+    "unsigned_measurement_only": unsigned,
+    "module_paths": [checker.__file__, deriver.__file__],
+}
+try:
+    if mode == "outside":
+        try:
+            deriver.trace_allowed_file_reads(
+                root, (), "cold-outside-negative", "導出器",
+                lambda: Path(sys.argv[3]).read_bytes(),
+            )
+        except deriver.DeriverDependencyError as error:
+            result.update(success=True, outside_rejected=True, rejection=str(error))
+        else:
+            result.update(success=False, outside_rejected=False)
+    else:
+        if mode == "normal":
+            rows, row_trace = deriver.derive_repository_row_requirements(root)
+            inputs, input_trace = deriver.derive_repository_input_coordinate_requirements(root)
+            result["row_count"] = len(rows)
+            result["input_count"] = len(inputs)
+            result["row_trace"] = [str(path) for path in row_trace.observed_read_paths]
+            result["input_trace"] = [str(path) for path in input_trace.observed_read_paths]
+        requirements, trace = deriver.derive_repository_game_end_required_set(root)
+        result.update(
+            success=True, count=requirements.requirement_count,
+            identities=[list(item.identity) for item in requirements.requirements],
+            reads=[str(path) for path in trace.observed_read_paths],
+        )
+except Exception as error:
+    result.update(success=False, error_class=type(error).__name__, error=str(error))
+print(json.dumps(result, ensure_ascii=False))
+"""
+
+
+@pytest.mark.parametrize("mode", ["single", "normal"])
+def test_t1_consumer_cold_process_derivation(mode: str) -> None:
+    """製品module自身が初期化した新processで単独/通常順の導出が完了する。"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", _COLD_CONSUMER_PROCESS_PROBE,
+         str(REPOSITORY_ROOT), mode],
+        check=True, capture_output=True, text=True,
+    )
+    measured = json.loads(result.stdout)
+    assert measured["codec_present_before_production_import"] is False
+    assert measured["codec_present_after_production_import"] is True
+    assert measured["unsigned_measurement_only"] is True
+    assert measured["success"] is True, measured
+    assert measured["count"] == len(measured["identities"]) == 4656
+    descriptor, criteria, documents = _consumer_reflection_assets()
+    assert documents is not None
+    source = criteria.checker_expected_values["gameEndCoordinateScope"]["qualificationSource"]
+    rules = json.loads(documents.rules)
+    snapshot_path = rules["coordinateConsumerBaseline"]["baselineSource"]["snapshotPath"]
+    assert set(measured["reads"]) == {
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+        "docs/requirements/requirements-pitchlog-2026-07-22.md",
+        source["rulesPath"], source["inputSchemaPath"], snapshot_path,
+    }
+
+
+def test_t1_consumer_cold_process_keeps_outside_read_rejection(tmp_path: Path) -> None:
+    """codec初期化後も任意のrepo外readは元のaudit入口で拒否される。"""
+    outside = tmp_path / "outside-readonly-audit.txt"
+    outside.write_text("synthetic outside read negative", encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", _COLD_CONSUMER_PROCESS_PROBE,
+         str(REPOSITORY_ROOT), "outside", str(outside)],
+        check=True, capture_output=True, text=True,
+    )
+    measured = json.loads(result.stdout)
+    assert measured["codec_present_before_production_import"] is False
+    assert measured["codec_present_after_production_import"] is True
+    assert measured["success"] is True
+    assert measured["outside_rejected"] is True
+    assert "リポジトリ外" in measured["rejection"]

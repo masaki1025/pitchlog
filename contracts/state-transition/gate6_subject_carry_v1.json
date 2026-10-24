@@ -1,0 +1,2090 @@
+{
+  "schemaVersion": 1,
+  "evidenceKind": "delegated-subject-carry",
+  "authority": {
+    "repository": "masaki1025/pitchlog",
+    "pr": 183,
+    "branch": "feature/mvp-t1-decision-contracts",
+    "path": "docs/features/mvp-delegated-core-review/policy.json",
+    "sha256": "c6da8f97cbb48301444e672ce28f435b9e4db5d7b87c18e116eb0cdfe9ec03a6",
+    "baseRevision": "d40e79f82769944a32679c97e5630039d5755dc1"
+  },
+  "retainedDocuments": [
+    {
+      "path": "docs/features/adr003-stage2-runtime/signatures/gate6-state-transition.json",
+      "sha256": "b4c15877ac71c5582d18f0740611a4b31430a66429435a319ef36f04f940579b"
+    },
+    {
+      "path": "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json",
+      "sha256": "457adf29a74412a7a1d3a8b4fe5c9fbfc8838d43cde8d7d9b45935268734b8ba"
+    },
+    {
+      "path": "docs/features/adr003-stage2-runtime/step33_line_review.md",
+      "sha256": "9041f14c4b2a7d06440bb1278e31e8fe48e03f1ebedaa352a5b25685b62b1325"
+    },
+    {
+      "path": "contracts/state-transition/human_review_signature_schema_v1.json",
+      "sha256": "af54730c1b855a2d30c20f9ffdcf33013bd23ce63f0c90f31ea6368a43ed2c27"
+    }
+  ],
+  "subjects": [
+    {
+      "path": "contracts/state-transition/game_end_contract_v1.json",
+      "legacyRecordPath": "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json",
+      "oldSubjectCommit": "fd42e2400142ac7a1dee70dbe2ee13b9d3b019c9",
+      "oldSubjectRawSha256": "4a777153143788c111bbdec0097268f5aae45af050388509fd02350da9d0ace4",
+      "oldSubjectDigest": "sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4",
+      "currentSubjectDigest": "sha256:9e0f6c38d20f313693b1d607c46c991b91e04b00e727ab0afbc99fc038504337",
+      "projection": "decision-cases-and-validation-errors",
+      "projectionDigest": "sha256:612fada68c07156b7122066cf8c309e8e58aef240000cec6ccb4601c955ae029",
+      "allowedChanges": [
+        {
+          "kind": "replace",
+          "pointer": "/inputAxesDescriptor/digest",
+          "before": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57",
+          "after": "sha256:f7ebea31ad39691a92474a0695e3b69c57fd80c906816a4374ae7ffb8ddb6e6f"
+        }
+      ]
+    },
+    {
+      "path": "contracts/state-transition/state_transition_contract_v1.json",
+      "legacyRecordPath": "docs/features/adr003-stage2-runtime/signatures/gate6-state-transition.json",
+      "oldSubjectCommit": "c09967d5e8dd51f49cad964a1fa867512cc3bccc",
+      "oldSubjectRawSha256": "54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb",
+      "oldSubjectDigest": "sha256:286c2fe8dcf71cf78c78df0432cd19dfe35208656c80c39377891dc32fd451fd",
+      "currentSubjectDigest": "sha256:d7c3e10ee86d92759d6324ff202a838489a521f78030022c64af22e43c4e81fc",
+      "projection": "operation-undo-and-cases",
+      "projectionDigest": "sha256:76c5893138ebc275726f1a769e2f642eeb9f0d80e1ebe5bd1c45a1977434d2ae",
+      "allowedChanges": [
+        {
+          "kind": "replace",
+          "pointer": "/inputAxesDescriptor/digest",
+          "before": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57",
+          "after": "sha256:f7ebea31ad39691a92474a0695e3b69c57fd80c906816a4374ae7ffb8ddb6e6f"
+        },
+        {
+          "kind": "append",
+          "pointer": "/matrixRows",
+          "beforeCount": 42,
+          "values": [
+            {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.single",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "state.outs",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "second-third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.strikes",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.balls",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.interferenceRuling",
+                    "value": "not-required"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.officialScoringPayload",
+                    "value": "no-error"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutObservation.kind",
+                    "value": "other-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                    "value": "home-before-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                    "value": "out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                    "value": "third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                    "value": "running-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                    "value": "safe-advance"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                    "value": "home"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                    "value": "multiple-runners-mixed"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutTimingByRunner",
+                    "value": "single-runner-home-before-third-out"
+                  }
+                ]
+              },
+              "countEffect": {
+                "strikes": {
+                  "kind": "reset"
+                },
+                "balls": {
+                  "kind": "reset"
+                }
+              },
+              "plateAppearanceEnded": true,
+              "batterDestination": {
+                "kind": "reach",
+                "base": 1
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "optional",
+                  "destination": 3
+                },
+                "third": {
+                  "modality": "optional",
+                  "destination": 4
+                }
+              },
+              "outEffect": {
+                "count": 1,
+                "targets": [
+                  {
+                    "runner": 2
+                  }
+                ]
+              },
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": true,
+                "失策": false,
+                "打席": true,
+                "打数": true,
+                "安打": true,
+                "本塁打": false,
+                "塁打": true,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": true,
+                "打点": true
+              },
+              "remarks": "D07=A採用範囲は二死二三塁の単打だけ。既定は確認/修正できる入力補助であり表示だけで観測成立としない。利用者確認/修正後の明示overrideが実効結果で、第3アウト/RBI不足を既定から補完しない。 GAP-06 OUT3-04 RBI-08"
+            },
+            {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.single",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "state.outs",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "second-third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.strikes",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.balls",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.interferenceRuling",
+                    "value": "not-required"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.officialScoringPayload",
+                    "value": "no-error"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutObservation.kind",
+                    "value": "other-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                    "value": "not-before-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                    "value": "out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                    "value": "third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                    "value": "running-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                    "value": "safe-advance"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                    "value": "home"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                    "value": "multiple-runners-mixed"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutTimingByRunner",
+                    "value": "single-runner-not-before-third-out"
+                  }
+                ]
+              },
+              "countEffect": {
+                "strikes": {
+                  "kind": "reset"
+                },
+                "balls": {
+                  "kind": "reset"
+                }
+              },
+              "plateAppearanceEnded": true,
+              "batterDestination": {
+                "kind": "reach",
+                "base": 1
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "optional",
+                  "destination": 3
+                },
+                "third": {
+                  "modality": "optional",
+                  "destination": 4
+                }
+              },
+              "outEffect": {
+                "count": 1,
+                "targets": [
+                  {
+                    "runner": 2
+                  }
+                ]
+              },
+              "statFlags": {
+                "投球回算入アウト": true,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": true,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": true,
+                "打数": true,
+                "安打": true,
+                "本塁打": false,
+                "塁打": true,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "remarks": "D07=A採用範囲は二死二三塁の単打だけ。既定は確認/修正できる入力補助であり表示だけで観測成立としない。利用者確認/修正後の明示overrideが実効結果で、第3アウト/RBI不足を既定から補完しない。 GAP-06 OUT3-05"
+            }
+          ]
+        },
+        {
+          "kind": "append",
+          "pointer": "/cases",
+          "beforeCount": 109,
+          "values": [
+            {
+              "caseId": "ST-OUT3-EXPLICIT-01",
+              "rowRef": {
+                "layer": "matrixRows",
+                "coordinate": {
+                  "eventKind": "batting-result",
+                  "resultId": "batting-result.single",
+                  "precondition": {
+                    "op": "and",
+                    "args": [
+                      {
+                        "op": "eq",
+                        "axisId": "state.outs",
+                        "value": 2
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "state.runners",
+                        "value": "second-third"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "state.count.strikes",
+                        "value": 1
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "state.count.balls",
+                        "value": 2
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.pitchEventKind",
+                        "value": "pitch-event"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.interferenceRuling",
+                        "value": "not-required"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.officialScoringPayload",
+                        "value": "no-error"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.thirdOutObservation.kind",
+                        "value": "other-third-out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                        "value": "home-before-third-out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                        "value": "out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                        "value": "third"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                        "value": "running-out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                        "value": "safe-advance"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                        "value": "home"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                        "value": false
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                        "value": false
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                        "value": "multiple-runners-mixed"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.thirdOutTimingByRunner",
+                        "value": "single-runner-home-before-third-out"
+                      }
+                    ]
+                  }
+                }
+              },
+              "inputId": "n0001",
+              "inputPayload": {
+                "rules": {
+                  "regulationInnings": 9,
+                  "coldConditions": [],
+                  "extensionLimit": null,
+                  "tiebreak": null,
+                  "dh": false
+                },
+                "roster": {
+                  "point": {
+                    "key": {
+                      "tenant_id": "00000000-0000-4000-8000-000000000001",
+                      "game_id": "00000000-0000-4000-8000-000000000002",
+                      "wire_d4": "synthetic-generation",
+                      "internal_generation": 1,
+                      "d1": 8,
+                      "d5": "00000000-0000-4000-8000-000000000003",
+                      "business_scope_id": "00000000-0000-4000-8000-000000000004",
+                      "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+                    },
+                    "content_ref": {
+                      "contract_id": "synthetic.t1.input",
+                      "contract_version": "synthetic.v1",
+                      "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                    },
+                    "content_version": "00000000-0000-4000-8000-000000000006"
+                  },
+                  "teams": [
+                    {
+                      "team_id": "00000000-0000-4000-8000-00000000000a",
+                      "side": "away",
+                      "participants": [
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000065"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 1
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 1
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000066"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 2
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 2
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000067"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 3
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 3
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000068"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 4
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 4
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000069"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 5
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 5
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006a"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 6
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 6
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006b"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 7
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 7
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006c"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 8
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 8
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006d"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 9
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 9
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "team_id": "00000000-0000-4000-8000-00000000000b",
+                      "side": "home",
+                      "participants": [
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000c9"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 1
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 1
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000ca"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 2
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 2
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cb"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 3
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 3
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cc"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 4
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 4
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cd"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 5
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 5
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000ce"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 6
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 6
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cf"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 7
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 7
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000d0"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 8
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 8
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000d1"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 9
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 9
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "pre_state": {
+                  "inning": 1,
+                  "half": "top",
+                  "outs": 2,
+                  "count": {
+                    "strikes": 1,
+                    "balls": 2
+                  },
+                  "runners": {
+                    "first": {
+                      "kind": "empty"
+                    },
+                    "second": {
+                      "kind": "occupied",
+                      "player": {
+                        "kind": "official",
+                        "player_id": "00000000-0000-4000-8000-000000000065"
+                      }
+                    },
+                    "third": {
+                      "kind": "occupied",
+                      "player": {
+                        "kind": "official",
+                        "player_id": "00000000-0000-4000-8000-000000000067"
+                      }
+                    }
+                  },
+                  "score": {
+                    "away": 0,
+                    "home": 0
+                  },
+                  "batting_order": 5,
+                  "batter": {
+                    "kind": "official",
+                    "player_id": "00000000-0000-4000-8000-000000000069"
+                  },
+                  "tiebreak_active": false,
+                  "game_ended": false
+                },
+                "per_pitch": {
+                  "kind": "batting-result",
+                  "pitchEventKind": "pitch-event",
+                  "resultId": "batting-result.single",
+                  "runnerEventPayload": {
+                    "kind": "not-applicable"
+                  },
+                  "runnerAdvanceOverridesByRunner": {
+                    "kind": "overridden",
+                    "by_runner": {
+                      "second": {
+                        "kind": "out",
+                        "runner": {
+                          "kind": "official",
+                          "player_id": "00000000-0000-4000-8000-000000000065"
+                        },
+                        "attempted_base": "third",
+                        "out_kind": "running-out"
+                      },
+                      "third": {
+                        "kind": "safe-advance",
+                        "runner": {
+                          "kind": "official",
+                          "player_id": "00000000-0000-4000-8000-000000000067"
+                        },
+                        "destination": "home"
+                      }
+                    }
+                  },
+                  "thirdOutObservation": {
+                    "kind": "other-third-out",
+                    "out_person": {
+                      "kind": "official",
+                      "player_id": "00000000-0000-4000-8000-000000000065"
+                    }
+                  },
+                  "thirdOutTimingByRunner": {
+                    "third": "home-before-third-out"
+                  },
+                  "interferenceRuling": {
+                    "kind": "not-required"
+                  },
+                  "officialScoringPayload": {
+                    "kind": "no-error"
+                  },
+                  "rbi": {
+                    "doublePlayRelayError": "not-required",
+                    "runnerContinuityByRunner": {
+                      "kind": "not-required"
+                    },
+                    "wouldScoreWithoutErrorByRunner": {
+                      "kind": "not-required"
+                    },
+                    "cause_by_runner": {
+                      "kind": "observed",
+                      "by_runner": {
+                        "third": {
+                          "person": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000067"
+                          },
+                          "held_too_long": {
+                            "kind": "observed",
+                            "value": false
+                          },
+                          "unnecessary_throw": {
+                            "kind": "observed",
+                            "value": false
+                          }
+                        }
+                      }
+                    },
+                    "restart_by_runner": {
+                      "kind": "not-required"
+                    }
+                  },
+                  "homeTouchOrder": {
+                    "kind": "not-required"
+                  }
+                }
+              },
+              "inputCoordinate": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "state.outs": 2,
+                "state.runners": "second-third",
+                "state.count.strikes": 1,
+                "state.count.balls": 2,
+                "event.perPitch.pitchEventKind": "pitch-event",
+                "event.perPitch.interferenceRuling": "not-required",
+                "event.perPitch.officialScoringPayload": "no-error",
+                "event.perPitch.thirdOutObservation.kind": "other-third-out",
+                "event.perPitch.thirdOutTimingByRunner.third": "home-before-third-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": "out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": "third",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": "running-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": "safe-advance",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": "home",
+                "event.perPitch.rbi.cause_by_runner.third.held_too_long": false,
+                "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw": false,
+                "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+                "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out"
+              },
+              "expected": {
+                "countEffect": {
+                  "strikes": {
+                    "kind": "reset"
+                  },
+                  "balls": {
+                    "kind": "reset"
+                  }
+                },
+                "plateAppearanceEnded": true,
+                "batterDestination": {
+                  "kind": "reach",
+                  "base": 1
+                },
+                "runnerDefaultAdvance": {
+                  "first": {
+                    "modality": "not-applicable",
+                    "destination": null
+                  },
+                  "second": {
+                    "modality": "optional",
+                    "destination": 3
+                  },
+                  "third": {
+                    "modality": "optional",
+                    "destination": 4
+                  }
+                },
+                "outEffect": {
+                  "count": 1,
+                  "targets": [
+                    {
+                      "runner": 2
+                    }
+                  ]
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": true,
+                  "被本塁打": false,
+                  "失点": true,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": true,
+                  "本塁打": false,
+                  "塁打": true,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": true,
+                  "打点": true
+                }
+              },
+              "raw": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "state.outs": 2,
+                "state.runners": "second-third",
+                "state.count.strikes": 1,
+                "state.count.balls": 2,
+                "event.perPitch.pitchEventKind": "pitch-event",
+                "event.perPitch.interferenceRuling": "not-required",
+                "event.perPitch.officialScoringPayload": "no-error",
+                "event.perPitch.thirdOutObservation.kind": "other-third-out",
+                "event.perPitch.thirdOutTimingByRunner.third": "home-before-third-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": "out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": "third",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": "running-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": "safe-advance",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": "home",
+                "event.perPitch.rbi.cause_by_runner.third.held_too_long": false,
+                "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw": false,
+                "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+                "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out"
+              },
+              "normalizationRuleId": "identity",
+              "normalized": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "state.outs": 2,
+                "state.runners": "second-third",
+                "state.count.strikes": 1,
+                "state.count.balls": 2,
+                "event.perPitch.pitchEventKind": "pitch-event",
+                "event.perPitch.interferenceRuling": "not-required",
+                "event.perPitch.officialScoringPayload": "no-error",
+                "event.perPitch.thirdOutObservation.kind": "other-third-out",
+                "event.perPitch.thirdOutTimingByRunner.third": "home-before-third-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": "out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": "third",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": "running-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": "safe-advance",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": "home",
+                "event.perPitch.rbi.cause_by_runner.third.held_too_long": false,
+                "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw": false,
+                "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+                "event.perPitch.thirdOutTimingByRunner": "single-runner-home-before-third-out"
+              }
+            },
+            {
+              "caseId": "ST-OUT3-EXPLICIT-02",
+              "rowRef": {
+                "layer": "matrixRows",
+                "coordinate": {
+                  "eventKind": "batting-result",
+                  "resultId": "batting-result.single",
+                  "precondition": {
+                    "op": "and",
+                    "args": [
+                      {
+                        "op": "eq",
+                        "axisId": "state.outs",
+                        "value": 2
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "state.runners",
+                        "value": "second-third"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "state.count.strikes",
+                        "value": 1
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "state.count.balls",
+                        "value": 2
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.pitchEventKind",
+                        "value": "pitch-event"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.interferenceRuling",
+                        "value": "not-required"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.officialScoringPayload",
+                        "value": "no-error"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.thirdOutObservation.kind",
+                        "value": "other-third-out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                        "value": "not-before-third-out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                        "value": "out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                        "value": "third"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                        "value": "running-out"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                        "value": "safe-advance"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                        "value": "home"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                        "value": "multiple-runners-mixed"
+                      },
+                      {
+                        "op": "eq",
+                        "axisId": "event.perPitch.thirdOutTimingByRunner",
+                        "value": "single-runner-not-before-third-out"
+                      }
+                    ]
+                  }
+                }
+              },
+              "inputId": "n0002",
+              "inputPayload": {
+                "rules": {
+                  "regulationInnings": 9,
+                  "coldConditions": [],
+                  "extensionLimit": null,
+                  "tiebreak": null,
+                  "dh": false
+                },
+                "roster": {
+                  "point": {
+                    "key": {
+                      "tenant_id": "00000000-0000-4000-8000-000000000001",
+                      "game_id": "00000000-0000-4000-8000-000000000002",
+                      "wire_d4": "synthetic-generation",
+                      "internal_generation": 1,
+                      "d1": 8,
+                      "d5": "00000000-0000-4000-8000-000000000003",
+                      "business_scope_id": "00000000-0000-4000-8000-000000000004",
+                      "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+                    },
+                    "content_ref": {
+                      "contract_id": "synthetic.t1.input",
+                      "contract_version": "synthetic.v1",
+                      "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+                    },
+                    "content_version": "00000000-0000-4000-8000-000000000006"
+                  },
+                  "teams": [
+                    {
+                      "team_id": "00000000-0000-4000-8000-00000000000a",
+                      "side": "away",
+                      "participants": [
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000065"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 1
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 1
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000066"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 2
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 2
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000067"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 3
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 3
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000068"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 4
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 4
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000069"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 5
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 5
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006a"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 6
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 6
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006b"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 7
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 7
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006c"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 8
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 8
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-00000000006d"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 9
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 9
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "team_id": "00000000-0000-4000-8000-00000000000b",
+                      "side": "home",
+                      "participants": [
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000c9"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 1
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 1
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000ca"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 2
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 2
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cb"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 3
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 3
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cc"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 4
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 4
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cd"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 5
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 5
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000ce"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 6
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 6
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000cf"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 7
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 7
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000d0"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 8
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 8
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        },
+                        {
+                          "player": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-0000000000d1"
+                          },
+                          "batting_slot": {
+                            "kind": "slot",
+                            "slot": 9
+                          },
+                          "roles": [
+                            {
+                              "kind": "fielding",
+                              "position": 9
+                            }
+                          ],
+                          "entry_origin": {
+                            "kind": "initial"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "pre_state": {
+                  "inning": 1,
+                  "half": "top",
+                  "outs": 2,
+                  "count": {
+                    "strikes": 1,
+                    "balls": 2
+                  },
+                  "runners": {
+                    "first": {
+                      "kind": "empty"
+                    },
+                    "second": {
+                      "kind": "occupied",
+                      "player": {
+                        "kind": "official",
+                        "player_id": "00000000-0000-4000-8000-000000000065"
+                      }
+                    },
+                    "third": {
+                      "kind": "occupied",
+                      "player": {
+                        "kind": "official",
+                        "player_id": "00000000-0000-4000-8000-000000000067"
+                      }
+                    }
+                  },
+                  "score": {
+                    "away": 0,
+                    "home": 0
+                  },
+                  "batting_order": 5,
+                  "batter": {
+                    "kind": "official",
+                    "player_id": "00000000-0000-4000-8000-000000000069"
+                  },
+                  "tiebreak_active": false,
+                  "game_ended": false
+                },
+                "per_pitch": {
+                  "kind": "batting-result",
+                  "pitchEventKind": "pitch-event",
+                  "resultId": "batting-result.single",
+                  "runnerEventPayload": {
+                    "kind": "not-applicable"
+                  },
+                  "runnerAdvanceOverridesByRunner": {
+                    "kind": "overridden",
+                    "by_runner": {
+                      "second": {
+                        "kind": "out",
+                        "runner": {
+                          "kind": "official",
+                          "player_id": "00000000-0000-4000-8000-000000000065"
+                        },
+                        "attempted_base": "third",
+                        "out_kind": "running-out"
+                      },
+                      "third": {
+                        "kind": "safe-advance",
+                        "runner": {
+                          "kind": "official",
+                          "player_id": "00000000-0000-4000-8000-000000000067"
+                        },
+                        "destination": "home"
+                      }
+                    }
+                  },
+                  "thirdOutObservation": {
+                    "kind": "other-third-out",
+                    "out_person": {
+                      "kind": "official",
+                      "player_id": "00000000-0000-4000-8000-000000000065"
+                    }
+                  },
+                  "thirdOutTimingByRunner": {
+                    "third": "not-before-third-out"
+                  },
+                  "interferenceRuling": {
+                    "kind": "not-required"
+                  },
+                  "officialScoringPayload": {
+                    "kind": "no-error"
+                  },
+                  "rbi": {
+                    "doublePlayRelayError": "not-required",
+                    "runnerContinuityByRunner": {
+                      "kind": "not-required"
+                    },
+                    "wouldScoreWithoutErrorByRunner": {
+                      "kind": "not-required"
+                    },
+                    "cause_by_runner": {
+                      "kind": "observed",
+                      "by_runner": {
+                        "third": {
+                          "person": {
+                            "kind": "official",
+                            "player_id": "00000000-0000-4000-8000-000000000067"
+                          },
+                          "held_too_long": {
+                            "kind": "observed",
+                            "value": false
+                          },
+                          "unnecessary_throw": {
+                            "kind": "observed",
+                            "value": false
+                          }
+                        }
+                      }
+                    },
+                    "restart_by_runner": {
+                      "kind": "not-required"
+                    }
+                  },
+                  "homeTouchOrder": {
+                    "kind": "not-required"
+                  }
+                }
+              },
+              "inputCoordinate": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "state.outs": 2,
+                "state.runners": "second-third",
+                "state.count.strikes": 1,
+                "state.count.balls": 2,
+                "event.perPitch.pitchEventKind": "pitch-event",
+                "event.perPitch.interferenceRuling": "not-required",
+                "event.perPitch.officialScoringPayload": "no-error",
+                "event.perPitch.thirdOutObservation.kind": "other-third-out",
+                "event.perPitch.thirdOutTimingByRunner.third": "not-before-third-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": "out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": "third",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": "running-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": "safe-advance",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": "home",
+                "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+                "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out"
+              },
+              "expected": {
+                "countEffect": {
+                  "strikes": {
+                    "kind": "reset"
+                  },
+                  "balls": {
+                    "kind": "reset"
+                  }
+                },
+                "plateAppearanceEnded": true,
+                "batterDestination": {
+                  "kind": "reach",
+                  "base": 1
+                },
+                "runnerDefaultAdvance": {
+                  "first": {
+                    "modality": "not-applicable",
+                    "destination": null
+                  },
+                  "second": {
+                    "modality": "optional",
+                    "destination": 3
+                  },
+                  "third": {
+                    "modality": "optional",
+                    "destination": 4
+                  }
+                },
+                "outEffect": {
+                  "count": 1,
+                  "targets": [
+                    {
+                      "runner": 2
+                    }
+                  ]
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": true,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": true,
+                  "本塁打": false,
+                  "塁打": true,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              },
+              "raw": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "state.outs": 2,
+                "state.runners": "second-third",
+                "state.count.strikes": 1,
+                "state.count.balls": 2,
+                "event.perPitch.pitchEventKind": "pitch-event",
+                "event.perPitch.interferenceRuling": "not-required",
+                "event.perPitch.officialScoringPayload": "no-error",
+                "event.perPitch.thirdOutObservation.kind": "other-third-out",
+                "event.perPitch.thirdOutTimingByRunner.third": "not-before-third-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": "out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": "third",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": "running-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": "safe-advance",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": "home",
+                "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+                "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out"
+              },
+              "normalizationRuleId": "identity",
+              "normalized": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "state.outs": 2,
+                "state.runners": "second-third",
+                "state.count.strikes": 1,
+                "state.count.balls": 2,
+                "event.perPitch.pitchEventKind": "pitch-event",
+                "event.perPitch.interferenceRuling": "not-required",
+                "event.perPitch.officialScoringPayload": "no-error",
+                "event.perPitch.thirdOutObservation.kind": "other-third-out",
+                "event.perPitch.thirdOutTimingByRunner.third": "not-before-third-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": "out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": "third",
+                "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": "running-out",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": "safe-advance",
+                "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": "home",
+                "event.perPitch.runnerAdvanceOverridesByRunner": "multiple-runners-mixed",
+                "event.perPitch.thirdOutTimingByRunner": "single-runner-not-before-third-out"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "append",
+          "pointer": "/mustOperationCoverage/mappings/0/rowRefs",
+          "beforeCount": 42,
+          "values": [
+            {
+              "layer": "matrixRows",
+              "coordinate": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "precondition": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "axisId": "state.outs",
+                      "value": 2
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.runners",
+                      "value": "second-third"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.count.strikes",
+                      "value": 1
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.count.balls",
+                      "value": 2
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.pitchEventKind",
+                      "value": "pitch-event"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.interferenceRuling",
+                      "value": "not-required"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.officialScoringPayload",
+                      "value": "no-error"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.thirdOutObservation.kind",
+                      "value": "other-third-out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                      "value": "home-before-third-out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                      "value": "out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                      "value": "third"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                      "value": "running-out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                      "value": "safe-advance"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                      "value": "home"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                      "value": false
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                      "value": false
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                      "value": "multiple-runners-mixed"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.thirdOutTimingByRunner",
+                      "value": "single-runner-home-before-third-out"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "layer": "matrixRows",
+              "coordinate": {
+                "eventKind": "batting-result",
+                "resultId": "batting-result.single",
+                "precondition": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "axisId": "state.outs",
+                      "value": 2
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.runners",
+                      "value": "second-third"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.count.strikes",
+                      "value": 1
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.count.balls",
+                      "value": 2
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.pitchEventKind",
+                      "value": "pitch-event"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.interferenceRuling",
+                      "value": "not-required"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.officialScoringPayload",
+                      "value": "no-error"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.thirdOutObservation.kind",
+                      "value": "other-third-out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                      "value": "not-before-third-out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                      "value": "out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                      "value": "third"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                      "value": "running-out"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                      "value": "safe-advance"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                      "value": "home"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                      "value": "multiple-runners-mixed"
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "event.perPitch.thirdOutTimingByRunner",
+                      "value": "single-runner-not-before-third-out"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "adoptionReceipt": {
+    "status": "accepted-partial-contract-reflection",
+    "recorded_at_utc": "2026-10-24T08:15:25.407561+00:00",
+    "decision_maker": "Codex root under standing PO delegation",
+    "authority": "PO delegation sections4/5/8/10 and D06=B/D07=A one placement adoption",
+    "pr": 183,
+    "target_base_head": "3f5821008f13b8137b18f203175f088003abcada",
+    "target_patch_sha256": "be714d351ad5954440c1bcce870faed6d3b9bd5b65b371074c4ca2951961055e",
+    "proposal_sha256": "bb98f24fefe03191372310ebad8897d53eb8360819e71738f7990fca30a742d7",
+    "independent_report_sha256": "e4b2faaa958b89221a5626dec33504f3fa691850ae9c949b75e96cc25c7cfc58",
+    "independent_result": "P0=0/P1=0/P2=0; prior T1-FINAL-01 closed",
+    "all_before_after_values": "proposal.json full fields; 39 exact SHA; old7 history preserved+1; all3 criterion transitions",
+    "full_repository_tests": "536pass42.21s; separate detached real repo, not formal develop",
+    "stageA_scope": "new OUT3 two pure inputs sealed derivation and comparison fixed; prior verified/blocked and exposure metadata received; full P6 acceptance not established",
+    "frozen_fixture_bootstrap": "both pending states remain pending; projection values followed under existing checker",
+    "P6_full_acceptance": false,
+    "P7_full_acceptance": false,
+    "T1_body_start_conditions_complete": false,
+    "T1_body_implemented": false,
+    "human_personal_line_review_or_signature": false,
+    "formal_develop_merged": false,
+    "MVP_complete": false
+  },
+  "adoptionReceiptDigest": "sha256:2576fe703882e7a8112ff27c8b0ad5f12d4d49d180be3f8199ae16b9546ce7af",
+  "changedCaseIds": [
+    "ST-OUT3-EXPLICIT-01",
+    "ST-OUT3-EXPLICIT-02"
+  ],
+  "boundary": {
+    "personalReviewClaimed": false,
+    "signatureReplacement": false,
+    "technicalCarryOnly": true,
+    "finalAcceptanceRequires": "same-final-PR-core-guard-delegation-and-independent-review",
+    "unreviewedMatrixScopeUnchanged": true
+  }
+}

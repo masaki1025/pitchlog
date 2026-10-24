@@ -50,6 +50,10 @@
     {
       "pr": 182,
       "branch": "feature/mvp-durable-rights-ledger"
+    },
+    {
+      "pr": 183,
+      "branch": "feature/mvp-t1-decision-contracts"
     }
   ]
 }

@@ -135,8 +135,14 @@
         "OUT3-04",
         "OUT3-05"
       ],
-      "rowIds": [],
-      "fixtureCaseIds": [],
+      "rowIds": [
+        "matrixRows:batting-result:batting-result.single:compound:1e66703c1fef1342",
+        "matrixRows:batting-result:batting-result.single:compound:bdc8db36fcd7684d"
+      ],
+      "fixtureCaseIds": [
+        "ST-OUT3-EXPLICIT-01",
+        "ST-OUT3-EXPLICIT-02"
+      ],
       "generatedCaseSelector": null
     },
     {
@@ -271,7 +277,8 @@
       "rowIds": [
         "matrixRows:batting-result:batting-result.home-run",
         "matrixRows:batting-result:batting-result.sacrifice-bunt-error",
-        "matrixRows:batting-result:batting-result.sacrifice-fly"
+        "matrixRows:batting-result:batting-result.sacrifice-fly",
+        "matrixRows:batting-result:batting-result.single:compound:1e66703c1fef1342"
       ],
       "fixtureCaseIds": [
         "ST-RBI-06",
