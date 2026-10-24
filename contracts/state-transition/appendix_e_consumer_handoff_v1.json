@@ -125,17 +125,17 @@
     {
       "path": "contracts/state-transition/state_transition_contract_v1.json",
       "version": "state_transition_contract_v1",
-      "digest": "sha256:54448fcb5b6e598e3610bc77d60a0a3ce1895f8afee8c5361a040f4aff4244bb"
+      "digest": "sha256:0661bb30cb12b7f5401dc1cfa6bba307c2e4c3bb1aa9053148e962c0cb89f9e7"
     },
     {
       "path": "contracts/state-transition/game_end_contract_v1.json",
       "version": "game_end_contract_v1",
-      "digest": "sha256:4a777153143788c111bbdec0097268f5aae45af050388509fd02350da9d0ace4"
+      "digest": "sha256:ab28525bcf23170d555fd8c63923f6e28f78259cfdab543065d0a76b6a53c934"
     },
     {
       "path": "contracts/state-transition/input_axes_descriptor_v1.json",
       "version": "input_axes_descriptor_v1",
-      "digest": "sha256:fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56"
+      "digest": "sha256:a638bc38d84ed17a86c7f36c4564fc5963396bf3a1475d474bf981428ed92ce3"
     }
   ],
   "dependencies": [

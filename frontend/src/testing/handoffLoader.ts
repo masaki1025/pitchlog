@@ -8,8 +8,10 @@ const DESCRIPTOR_PATH =
   'contracts/state-transition/input_axes_descriptor_v1.json'
 const DESCRIPTOR_ID = 'pitchlog.input-axes'
 const DESCRIPTOR_VERSION = 'input_axes_descriptor_v1'
-const DESCRIPTOR_DIGEST =
-  'sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57'
+const DESCRIPTOR_SCHEMA_PATHS = [
+  'contracts/state-transition/state_transition_contract_schema_v1.json',
+  'contracts/state-transition/game_end_contract_schema_v1.json',
+] as const
 const DEPENDENCY_OID = 'b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12'
 const CONTRACTS = {
   'state-transition': {
@@ -181,6 +183,7 @@ export class HandoffLoadError extends Error {
 export type LoadedHandoffCases = Readonly<{
   calculationId: CalculationId
   cases: readonly Readonly<RecordValue>[]
+  sourceCases?: readonly Readonly<RecordValue>[]
 }>
 
 export type LoadedHandoff = Readonly<{
@@ -390,10 +393,63 @@ export function loadHandoff(
   same(parity.descriptorId, DESCRIPTOR_ID, 'DESCRIPTOR_MISMATCH', 'id')
   const [descriptorRaw, descriptor] = read(DESCRIPTOR_PATH)
   keys(descriptor, DESCRIPTOR_KEYS, 'descriptor')
+  // 既受理の契約schemaの閉じたconst宣言を期待値とし、実descriptorから導出しない。
+  let descriptorDigest: string | undefined
+  const descriptorFields = ['descriptorId', 'version', 'digest'] as const
+  for (const path of DESCRIPTOR_SCHEMA_PATHS) {
+    const [, schema] = read(path)
+    const definitions = record(schema.$defs, `${path}/$defs`)
+    const binding = keys(
+      definitions.inputAxesDescriptorBinding,
+      ['type', 'required', 'additionalProperties', 'properties'],
+      `${path}/inputAxesDescriptorBinding`,
+    )
+    same(binding.type, 'object', 'DESCRIPTOR_MISMATCH', 'binding type')
+    same(
+      binding.additionalProperties,
+      false,
+      'DESCRIPTOR_MISMATCH',
+      'binding closure',
+    )
+    sameArray(binding.required, descriptorFields, 'binding required')
+    const properties = keys(
+      binding.properties,
+      descriptorFields,
+      'binding properties',
+    )
+    const constants: Record<string, string> = {}
+    for (const field of descriptorFields) {
+      const declaration = keys(properties[field], ['const'], `binding ${field}`)
+      if (typeof declaration.const !== 'string') {
+        throw new HandoffLoadError('DESCRIPTOR_MISMATCH', `binding ${field}`)
+      }
+      constants[field] = declaration.const
+    }
+    same(
+      constants.descriptorId,
+      DESCRIPTOR_ID,
+      'DESCRIPTOR_MISMATCH',
+      'binding id',
+    )
+    same(
+      constants.version,
+      DESCRIPTOR_VERSION,
+      'DESCRIPTOR_MISMATCH',
+      'binding version',
+    )
+    const digest = constants.digest
+    if (typeof digest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(digest)) {
+      throw new HandoffLoadError('DESCRIPTOR_MISMATCH', 'binding digest')
+    }
+    if (descriptorDigest !== undefined) {
+      same(digest, descriptorDigest, 'DESCRIPTOR_MISMATCH', 'schema agreement')
+    }
+    descriptorDigest = digest
+  }
   for (const [field, expected] of Object.entries({
     descriptorId: DESCRIPTOR_ID,
     version: DESCRIPTOR_VERSION,
-    digest: DESCRIPTOR_DIGEST,
+    digest: descriptorDigest,
   })) {
     same(descriptor[field], expected, 'DESCRIPTOR_MISMATCH', field)
   }
@@ -487,8 +543,31 @@ export function loadHandoff(
       throw new HandoffLoadError('HANDOFF_SHAPE', `${spec.path}:empty cases`)
     const seen = new Set<string>()
     const mapped: RecordValue[] = []
+    const sourceCases: RecordValue[] = []
     for (const value of cases) {
-      const source = keys(value, spec.caseKeys, `${spec.path}:case`)
+      const candidate = record(value, `${spec.path}:case`)
+      const hasPureInput =
+        id === 'state-transition' &&
+        (Object.hasOwn(candidate, 'inputId') ||
+          Object.hasOwn(candidate, 'inputPayload'))
+      const expectedKeys = hasPureInput
+        ? [
+            ...spec.caseKeys.filter((key) => key !== 'historyInput'),
+            'inputId',
+            'inputPayload',
+          ]
+        : spec.caseKeys
+      const source = keys(candidate, expectedKeys, `${spec.path}:case`)
+      if (hasPureInput) {
+        if (
+          typeof source.inputId !== 'string' ||
+          !/^n[0-9]{4}$/.test(source.inputId)
+        ) {
+          throw new HandoffLoadError('HANDOFF_SHAPE', 'inputId')
+        }
+        record(source.inputPayload, 'inputPayload')
+      }
+      sourceCases.push(source)
       const result: RecordValue = {}
       for (const [target, pointer] of Object.entries(pointers))
         result[target] = source[pointer]
@@ -499,7 +578,7 @@ export function loadHandoff(
       seen.add(caseId)
       mapped.push(result)
     }
-    loaded[id] = { calculationId: id, cases: mapped }
+    loaded[id] = { calculationId: id, cases: mapped, sourceCases }
   }
   if (Object.keys(loaded).length !== Object.keys(CONTRACTS).length) {
     throw new HandoffLoadError('HANDOFF_SHAPE', 'missing binding')

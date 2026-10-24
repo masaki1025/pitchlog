@@ -66,3 +66,10 @@ rootは既544承認計画step2の実装材料として、TSの42ID規則表・Bi
 
 
 既委任手続の対象をPR183/feature/mvp-t1-decision-contractsのexact1組へ追記する。既9対象・source/publisher/拒否条件・期限を保持し、コア検出/機械判定/人間欄は変更しない。最終HEADと全PR差分の非作者確認・外部委任証拠を揃えてから公開し、CI待ち中は初期権とP8残件を進める。これは既POが認めた対象PR限定手続の通常適用で、人間による実値確認の代記ではない。
+
+
+## CIで見つかった両runner消費部の是正
+
+2026-10-24T09:03:25.521689+00:00、e266のCI40078161784 frontendは13失敗1843成功。TS/Python loader旧5107期待とhandoff3artifact旧byte値が、正しいSCHEMA_VERSION/UNKNOWN_FIELD等の拒否を先行して遮っていた。既39成功の範囲外であり全接合と扱わない。author initial_sql_independent_reviewのexact7path候補（handoff7a5f25bd6b2cc4c8235b89942b9edf4dfad51643f5a4be7af463ce146f19e092、patch ad7cb18b14fc0367e0042d63a724ecf19969f91930b141e0fa34097bdd7b606e）は、既受理schema2の閉constを独立期待宣言へ使いsource直書きを除去、hand-off3byte値のみ追随する。新2caseの純入力を捨てず全source fieldとして保持し、stage2実配線は残す。旧17拒否と分類/順序を維持、閉shape/協調改竄/欠落等を両言語で拒否した。
+
+別非作者t1_formal_final_reviewは0/0/0（report c50bd283a358a54d52357d6bb84cd62fa8d508604588a2038034fef917cb6d1d）、独立Python65/TS79成功。作者完全frontend92file/1867成功・backend関連101成功・type/lint/format0。rootはtarget e266+exactpatch/全前後値/信頼境界を既PO委任で受理し、root-acceptance-receipt.jsonへ判断日時とbefore/afterを固定して反映する。既f7規範意味/descriptorの全基準を再承認せず、consumerの旧期待値と置場が動く範囲だけの7.7追記である。本人の確認/署名、全P6/P7、本体/保存完了を代記しない。新最終HEADでレビュー証拠/実merge/必須CIを再照合し、旧失敗を成功へ読み替えない。

@@ -130,3 +130,20 @@ rootが正式共有資産の唯一のwriter。作者はcache候補のみ、非�
 - `tests/test_input_axes_three_way_parity.py`
 
 rootの初回7.7提案は非作者確認で3P1（placement欠落・比較literal57未宣言・履歴追加後digest4参照未再導出）を検出し全採用、未受理のまま保全する。反映1ではscope/freezeDefinitionを含む全前後、旧7履歴保持、追加1記録、最終digestを固定し、上記source後発差分を別の非作者へ限定追加レビュー/値再照合する。元reviewerはT2 consumer追補作者となったため最終独立確認から外す。既回数/採否をリセットしない。正式7.7・段階B・全P6/P7受理はまだ成立しない。
+
+
+## 両runner消費部の実接合追随
+
+#183 CI40078161784のfrontend13失敗（1843成功）は実consumerの旧descriptor期待値/hand-off依存byteSHAが先行して不一致となる実接合漏れ。既39pathの成功を両runner全経路の成功に広げず、次の既7pathだけを通常是正範囲へ追加する。型/期待値/未知field拒否/署名を緩めず、未承認の本体実装を始めない。
+
+- `frontend/src/testing/handoffLoader.ts`
+- `frontend/src/testing/handoffLoader.spec.ts`
+- `backend/src/pitchlog/domaincheck/runners/handoff.py`
+- `tests/domain/runners/test_handoff_loader.py`
+- `tests/domain/runners/fixtures/handoff-loader/mutations.json`
+- `tests/test_consumer_handoff.py`
+- `contracts/state-transition/appendix_e_consumer_handoff_v1.json`
+
+既採用f7論理値/両schema const/descriptor基準・履歴/旧snapshotは不変。動くconsumer既期待値は7.7-1/2に従い、旧TS/Python source直書き5107と新既承認schema2の閉const宣言への配置対応、hand-off3artifactのrawbyteSHA全前後を有限記録する。新literalや新assetを作らず、無関係4依存のOID/version/SHAは維持する。同じ規範意味や既f7基準の承認を再取得せず、consumer値/置場をroot既委任で確認する。
+
+新2case純入力は旧4field ABIの入力/期待写像を変えずsource_cases/sourceCasesへ全fieldを保持する。旧形/新形の排他的閉構造・純入力2key同時存在・state専用を照合し、欠落/未知/他calculation移植を拒否する。旧17否定例全prefix/種別/順序を保持し新負例を追記する。正常359caseを検査し、合成constructor空defaultを本物case欠落の成功代用へ使わない。stage2本体への必須観測/normalizer/真正Port配線、全P6/P7成立は後続のまま。schema宣言は受理済checkoutの信頼境界であり、loader単独で全schema/署名の認証を行うと主張しない。
