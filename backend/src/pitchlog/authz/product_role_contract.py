@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 
-def _role(creation: str, *, login: bool, bypass_rls: bool) -> dict[str, object]:
+def _role(
+    creation: str,
+    *,
+    login: bool,
+    bypass_rls: bool,
+    inherit: bool = False,
+) -> dict[str, object]:
     """設計書 3-2 節のロール属性を組み立てる。"""
     return {
         "creation": creation,
@@ -15,7 +21,7 @@ def _role(creation: str, *, login: bool, bypass_rls: bool) -> dict[str, object]:
         "create_role": False,
         "create_db": False,
         "replication": False,
-        "inherit": False,
+        "inherit": inherit,
     }
 
 
@@ -33,6 +39,25 @@ _PRODUCT_ROLES = {
         "product_ddl", login=False, bypass_rls=True
     ),
 }
+_PRODUCT_ROLES.update(
+    {
+        "pitchlog_rg1_control_owner": _role(
+            "product_ddl", login=False, bypass_rls=False
+        ),
+        "pitchlog_rg1_control_actor": _role(
+            "product_ddl", login=True, bypass_rls=False
+        ),
+        "pitchlog_ledger_identity_owner": _role(
+            "product_ddl",
+            login=False,
+            bypass_rls=False,
+            inherit=True,
+        ),
+        "pitchlog_ledger_identity_probe": _role(
+            "product_ddl", login=True, bypass_rls=False
+        ),
+    }
+)
 MIGRATION_BATCH_ROLE_ATTRIBUTES = {
     "superuser": False,
     "bypass_rls": True,
@@ -45,7 +70,7 @@ MIGRATION_BATCH_ROLE_ATTRIBUTES = {
 
 
 def expected_product_roles(asset: dict[str, Any]) -> dict[str, dict[str, object]]:
-    """資産の有無に依存しない、製品状態の 7 ロールを返す。
+    """資産の有無に依存しない、製品状態の 11 ロールを返す。
 
     Args:
         asset: 呼出側との互換性のために受け取る製品資産。判定には使わない。

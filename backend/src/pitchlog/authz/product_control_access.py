@@ -246,6 +246,30 @@ def is_rg1_singleton_update_acl(declaration: Mapping[str, object]) -> bool:
     }
 
 
+def is_rg1_control_column_acl(declaration: Mapping[str, object]) -> bool:
+    """実制御ownerの単一行2列だけをclose_gateの能力へ限定する。"""
+    column = declaration.get("column_id")
+    return (
+        declaration.get("grant_option") is False
+        and isinstance(column, str)
+        and column in {"singleton_id", "state"}
+        and dict(declaration)
+        == {
+            "expectation_id": (
+                f"COLUMN-ACL:public:rg1_restore_gate:{column}:pitchlog_rg1_control_owner"
+            ),
+            "object_kind": "column",
+            "object_schema": "public",
+            "object_id": "rg1_restore_gate",
+            "column_id": column,
+            "grantee_role_id": "pitchlog_rg1_control_owner",
+            "privilege_ids": ["SELECT", "UPDATE"] if column == "state" else ["SELECT"],
+            "grant_option": False,
+            "function_id": "FUNCTION:rg1_control:close_gate()",
+        }
+    )
+
+
 def is_rule_resolution_update_acl(declaration: Mapping[str, object]) -> bool:
     """規則解決関数のロック用3列だけへUPDATEを限定する。"""
     table = declaration.get("object_id")
@@ -272,10 +296,12 @@ def is_rule_resolution_update_acl(declaration: Mapping[str, object]) -> bool:
 
 def is_forbidden_rg1_table_acl(declaration: Mapping[str, object]) -> bool:
     """RG1状態表または専用ownerの表単位ACLを拒否する。"""
-    return (
-        declaration.get("object_id") == RG1_RESTORE_GATE_TABLE_ID
-        or declaration.get("grantee_role_id") == RG1_FUNCTION_OWNER_ROLE_ID
-    )
+    return declaration.get("object_id") == RG1_RESTORE_GATE_TABLE_ID or declaration.get(
+        "grantee_role_id"
+    ) in {
+        RG1_FUNCTION_OWNER_ROLE_ID,
+        "pitchlog_rg1_control_owner",
+    }
 
 
 def generate_function_owner_column_acl_sql(
@@ -292,9 +318,14 @@ def generate_function_owner_column_acl_sql(
             raise ValueError(f"列ACLの識別子が不正: {value!r}")
     if acl_id != f"COLUMN-ACL:{schema_name}:{table_id}:{column_id}:{role_id}":
         raise ValueError("関数所有者の列 ACL ID が物理識別子と一致しない")
-    needs_update = is_rg1_singleton_update_acl(
-        declaration
-    ) or is_rule_resolution_update_acl(declaration)
+    needs_update = (
+        is_rg1_singleton_update_acl(declaration)
+        or is_rule_resolution_update_acl(declaration)
+        or (
+            is_rg1_control_column_acl(declaration)
+            and declaration.get("column_id") == "state"
+        )
+    )
     if not needs_update and (
         declaration.get("privilege_ids") != ["SELECT"]
         or declaration.get("grant_option") is not False

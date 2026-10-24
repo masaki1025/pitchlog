@@ -704,3 +704,70 @@ def test_product_element_manifest_and_body_must_match_exactly(
 
     with pytest.raises(_catalog_checker.CatalogError):
         _catalog_checker._validate_product_asset_correspondence(asset, root)
+
+
+@pytest.mark.parametrize(
+    "column,privileges",
+    (
+        ("singleton_id", ["SELECT"]),
+        ("state", ["SELECT", "UPDATE"]),
+    ),
+)
+def test_rg1_control_owner_has_only_its_exact_column_acl(
+    column: str,
+    privileges: list[str],
+) -> None:
+    """制御ownerだけのsingleton SELECT/state UPDATEを分離して検査する。"""
+    from pitchlog.authz.product_control_access import (
+        generate_function_owner_column_acl_sql,
+        is_rg1_control_column_acl,
+    )
+
+    declaration: dict[str, object] = {
+        "expectation_id": (
+            f"COLUMN-ACL:public:rg1_restore_gate:{column}:pitchlog_rg1_control_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": column,
+        "grantee_role_id": "pitchlog_rg1_control_owner",
+        "privilege_ids": privileges,
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_control:close_gate()",
+    }
+    assert is_rg1_control_column_acl(declaration)
+    sql = generate_function_owner_column_acl_sql(declaration)
+    assert "TO pitchlog_rg1_control_owner;" in sql
+    assert ("UPDATE (state)" in sql) is (column == "state")
+    for field, value in (
+        ("grantee_role_id", "pitchlog_rg1_fn_owner"),
+        ("function_id", "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"),
+        ("object_id", "games"),
+        ("grant_option", 0),
+    ):
+        mutated = {**declaration, field: value}
+        assert not is_rg1_control_column_acl(mutated)
+
+
+def test_old_rg1_reader_cannot_acquire_state_update_through_control_extension() -> None:
+    """新制御能力を旧read ownerや他tableへ転用しない。"""
+    from pitchlog.authz.product_control_access import (
+        generate_function_owner_column_acl_sql,
+    )
+
+    declaration: dict[str, object] = {
+        "expectation_id": (
+            "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": "state",
+        "grantee_role_id": "pitchlog_rg1_fn_owner",
+        "privilege_ids": ["SELECT", "UPDATE"],
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)",
+    }
+    with pytest.raises(ValueError):
+        generate_function_owner_column_acl_sql(declaration)

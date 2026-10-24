@@ -190,6 +190,10 @@ def generate_product_table_acl_sql(table_id: str, profile: str) -> str:
 
 def generate_function_owner_table_acl_sql(declaration: dict[str, object]) -> str:
     """資産で宣言した関数所有者の表 ACL SQL を生成する。"""
+    if declaration.get("object_kind") == "builtin_function":
+        from pitchlog.authz.product_function_acl import generate_builtin_execute_sql
+
+        return generate_builtin_execute_sql(declaration)
     if is_forbidden_rg1_table_acl(declaration):
         raise ValueError("RG1状態表と専用ownerには表単位ACLを許可しない")
     acl_id = str(declaration["acl_id"])
