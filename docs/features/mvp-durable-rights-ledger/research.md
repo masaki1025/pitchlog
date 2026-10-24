@@ -423,3 +423,10 @@ plan-syncの宣言是正後exit0、backend全体format392/Ruff/ty、root Ruff/ty
 ハーネス運用評価台帳への追記なし。本単位のSQL配布漏れ/既有限資産への検査対応/宣言の機械抽出是正は各具体source・planと既存統制に閉じた修正で、統制全体の新しい傾向/再設計として採番する根拠を追加していない。既評価/拒否・検出を変更しない。正本data-model1.2/索引の最小確定と完全値受理は本枝内で成立し、正式develop提供は通常merge後である。
 
 Codex主担当/rootは2026-10-24のPO4/5/8/10委任に基づき上記限定解消を受領しplanをin-reviewへ戻す。本人の逐行確認/署名を代記せず、最終HEAD/base/diff/独立確認/公開委任証拠と必須CIを揃えるまで通常mergeしない。運用配置・共有DB・実機と親全域復旧/初期開始は未実施として保持する。
+
+
+### 最終CIのharness失敗と必要な是正範囲
+
+最終27d0の実PR合成merge f08855dd（実親4b2/27d0）でstrictcore0とtenant PR_ACCEPTANCE0をローカル確認、公開委任comment6378838453は実全49blob/hash/reportを照合した。CI40055018456はharnessのglobal frozen source scanで新5組を未宣言拒否した。checkerのadapter/SQL2/manifest固定hash4と、checker試験の旧initial固定hash1が対象。新3assetの限定checker/466成功はこの別検査の成功を保証していなかった。拒否を緩めずplanへ既9asset内の明示配置を最小起案し、activeへ戻す。
+
+既global scanallowlist通常追加禁止と旧10entriesを維持する。CSVのread-only調査では既受理PR180のcontent-addressed snapshotが実hash/全47値を保持し、旧initial試験の不変比較根拠に利用可能と確認。新static3expectedは既base-allowlistの閉fieldへ正式配置し、adapter sourceは既condition2宣言へ結ぶ案とする。値を文字列分割/新allowlist/意味のない動的算出へ隠さない。詳細は本plan末尾。新source/正式9/8/未統合recordの再受理・最終レビュー/CIは未成立であり、旧成功/失敗/受理receiptを保全する。

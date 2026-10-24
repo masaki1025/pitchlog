@@ -1,6 +1,6 @@
 ---
 feature: mvp-durable-rights-ledger
-status: in-review
+status: active
 承認: 済（PO委任によるCodex判断・隔離外部耐久台帳）
 重さ分類: コア領域
 worktree: ../../..
@@ -221,3 +221,14 @@ checker変更は受理対象実値を動かすため、既受理182候補の値�
 ### 配布物の通常不具合是正（既存step4の資産供給）
 
 rootの実wheel確認で本packageのSQL2/JSON1が欠落し、既存backend/Dockerfileのuv sync --no-editable先でも供給されないと確認した。POの通常不具合修正委任により、backend/pyproject.tomlのpackage-dataへ固定3filenameだけを追加し、既承認package/manifestの実配布を成立させる。対象は既core捕捉済み、新依存/lock/他package/SQL/manifest/source保証を変えず、実wheel内3byteのSHA一致を検証・最終非作者差分確認へ含める。これは新しい意味/正本/7.7対象値を変更するものではなく、同じ承認の再取得を要求しない。
+
+
+### 最終CIの全Python走査への正式宣言接合（step4最小追補・未承認候補）
+
+27d0の必須CI40055018456はcore/tenant/他9job成功、harnessのcheck_frozen_baselines --ciが新5literal未宣言で拒否した。global scanallowlistは通常追加禁止であり、hashの分割/別表現/走査除外や例外追加で緑にしない。旧10entry/global scanner/全拒否を保持する。
+
+既承認の固定static3byteは、独立したchecker literalから、完全7.7対象の既存 `contracts/tenant_boundary/base-allowlist.json` の閉field `ledger_deployment_assets`（exact3path→SHA256）へ正式配置する。新pathは作らず、schema.sql/business_identity.sql/manifest.jsonの同じ固定3byteを登録し、読取Contractへ保持する。checkerは宣言を閉集合/通常file/非symlink/全byte SHA/manifest重複key/16field/9function4role3table/DDL相互hashまで従来どおり検査し、全母集団/純削除/未知Python/SQL拒否を維持する。新field未知key/欠損/異型/重複JSONkey/実source不一致を拒否し、任意manifestの自己申告にしない。base-allowlistは既9射影の凍結対象なので、この配置自体の指紋/完全payload/履歴を正式ゲートへ出す。宣言の期待値と製品byteを同時改変しただけでは正式7.7照合を通らないことを確認する。
+
+adapter source10906のpresence束縛は既 `condition_2_ledger_scoped_findings.source_sha256` を再利用し、独立exact17/行/symbol/他全初期/既存登録を変えない。旧initial source c20dの試験literalは、現値同士の同語反復へ置換せず、実PR180の受理済みcontent-addressed base-allowlist snapshotから旧condition_2_scoped_findings全fieldを読み、hash/受理出典と実47exactの旧値保持を比較する。期待値に合わせて現在の値を再生成しない。
+
+source委任の編集は既 `scripts/check_tenant_boundary_bypass.py`・`tests/test_check_tenant_boundary_bypass.py` の2pathだけ、rootはbase-allowlist/必要生成3/既9・8/受理history・snapshot・corpusを引き続き単独所有する。作業中は正式受理済みstatic-v2候補のreceipt/全byteを保全し、checker/base実差分が確定後に未統合182候補だけを通常差戻し/supersessionして最終1recordへ再導出する。実develop旧29/206/一PR一受理/frozen_historyは不変。これらは新しい野球意味や耐久保証変更ではなく、同じ固定3byteを既正式宣言・全走査へ整合させる実装選択である。旧27d0最終レビュー/CI失敗を保持し、独立限定確認とrootの対象版承認前に次sourceを編集しない。
