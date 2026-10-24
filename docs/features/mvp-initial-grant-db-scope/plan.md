@@ -1,7 +1,7 @@
 ---
 feature: mvp-initial-grant-db-scope
 status: active
-承認: 未（既承認§6の専用手順への写像確認待ち）
+承認: 済（PO委任によるCodex判断。既承認§6の専用手順、本文参照）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-initial-grant-db-scope
@@ -102,3 +102,8 @@ T1/P6/P7/実Port/HTTP/全非0復旧完成をステップ1〜3の着手条件に�
 backendはRuff format/check・ty・対象pytest（component/関数境界/実DBscopeと既tenant scope）を実施する。ステップ4でroot Ruff/ty/pytest、docs-lint/局所plan-sync、core-guard、tenant-boundary、authz/model/migration/7.7の実影響検査とCIが要求する全必須checkを完了する。既検査を除外・件数だけ一致・census免除で緑にしない。source確定版に非作者coreレビューを受け、実source/SQL/権限/正式登録/最小正本と検査証拠を対応付ける。
 
 完了は初期権DBscopeの実接合まで。実broker/API/画面開始・side/単一名簿・1球保存・非0復旧/MVP全体は未完成のまま後続へ明記する。actor供給前の部分成功を本ステップ3や製品開始の完了に繰り上げない。
+
+
+## PO委任による実行手順の確認
+
+2026-10-24T05:06:21.279441+00:00、Codex主担当/rootは既PO委任に基づき、固定ce53702cb9f29f21ba7f9fe49f12fe413290b050の本計画（SHA256 2b13ded75054c069d4e3142bee48a8ba70262e876dc7ffe4dbe77cdc64264070）とresearch bb8c571f2e4cc08a72806bbefdb57270a94b1b20b2c25d5ff53b01d7ecf56c11を、既承認6065063b §6の有限実装手順として承認する。非作者csv_reviewの独立写像確認0/0/0（上記cache、SHA256 426780966d078e2b2a84e9aa3b056c00d7b8a4737b534a117dfcbac89448a967）と固定diff c5cf34cdb6606336315d6f444fce6a4e83745740ade2fc10581976524cd82513を根拠とする。過去の意味承認を再取得したものではなく、山田正輝本人による実値確認・逐行確認・署名ではない。rootにステップ1の宣言/拒否試験を指定し、別ステップ2のJSON登録が成立するまで新sourceを作らない。actorの正式供給は正常DB接合前の条件とし、型/DDL/拒否設計の新規開始条件へ前倒ししない。
