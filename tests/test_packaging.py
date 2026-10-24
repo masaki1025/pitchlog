@@ -222,7 +222,11 @@ def test_normative_assets_are_read_from_repository_root(
     assert isinstance(tool, dict)
     setuptools = tool["setuptools"]
     assert isinstance(setuptools, dict)
-    assert "package-data" not in setuptools
+    assert setuptools.get("package-data") == {
+        "pitchlog.durable_rights_ledger": [
+            "schema.sql", "business_identity.sql", "manifest.json",
+        ],
+    }
     assert "data-files" not in setuptools
     assert not (BACKEND_ROOT / "MANIFEST.in").exists()
 
