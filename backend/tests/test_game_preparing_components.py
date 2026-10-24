@@ -614,11 +614,25 @@ def test_initial_actor_observed_boundary_rejects_each_mismatch(
         _validate_actor_observation(tuple(row), config)
 
 
-def test_initial_actor_binding_missing_supplier_is_not_success() -> None:
+def test_initial_actor_binding_missing_supplier_is_not_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """scope_binding供給不足をboolやcaller JSONで埋めない。"""
     from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
     from pitchlog.recording_rights.initial_grant_broker import _verify_business_binding
+    from pitchlog.repositories import operation_registry
+    from pitchlog.repositories.rg1 import RG1ScopeBindingToken
 
+    # 不変の本物の登録表を変更せず、供給欠落を差し込んで拒否を検査する。
+    monkeypatch.setattr(
+        operation_registry,
+        "FUNCTION_OPERATION_REGISTRY",
+        {
+            key: value
+            for key, value in operation_registry.FUNCTION_OPERATION_REGISTRY.items()
+            if key is not RG1ScopeBindingToken
+        },
+    )
     with pytest.raises(InitialGrantUnavailable, match="未供給"):
         _verify_business_binding(cast(Any, object()), object())
 
@@ -712,10 +726,10 @@ def test_initial_storage_migration_is_frozen_and_never_backfills_epoch() -> None
 
     source = (
         Path(__file__).resolve().parents[1]
-        / "migrations/versions/0035_initial_recording_right_storage.py"
+        / "migrations/versions/0036_initial_recording_right_storage.py"
     )
     module = runpy.run_path(str(source))
-    assert module["down_revision"] == "0034_stage_a_rule_defaults"
+    assert module["down_revision"] == "0035_rg1_initial_fresh_epoch"
     ddl = "\n".join(module["_TABLE_DDL"])
     assert ddl.count("CREATE TABLE public.") == 4
     assert "CREATE UNIQUE INDEX uq_game_start_attempts_pending" in ddl
@@ -724,3 +738,5 @@ def test_initial_storage_migration_is_frozen_and_never_backfills_epoch() -> None
     assert "TG_OP = 'DELETE'" in body
     assert "recording_generations" not in body and "rg1_restore_gate" not in body
     assert "UPDATE public.recording_generations" not in source.read_text()
+    assert '"rg1_restore_gate"' not in source.read_text()
+    assert module["revision"] == "0036_initial_recording_right_storage"

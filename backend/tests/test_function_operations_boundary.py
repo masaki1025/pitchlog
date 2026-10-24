@@ -130,6 +130,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
         RG1CommitCheckToken,
+        RG1ScopeBindingToken,
         StageAResolveRuleToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS

@@ -5,8 +5,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0035_initial_recording_right_storage"
-down_revision: str | Sequence[str] | None = "0034_stage_a_rule_defaults"
+revision: str = "0036_initial_recording_right_storage"
+down_revision: str | Sequence[str] | None = "0035_rg1_initial_fresh_epoch"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -197,11 +197,6 @@ def upgrade() -> None:
         sa.Column("recovery_generation", sa.BigInteger(), nullable=True),
         schema="public",
     )
-    op.add_column(
-        "rg1_restore_gate",
-        sa.Column("recovery_generation", sa.BigInteger(), nullable=True),
-        schema="public",
-    )
     op.create_check_constraint(
         "ck_recording_generations_proof_digest",
         "recording_generations",
@@ -211,12 +206,6 @@ def upgrade() -> None:
     op.create_check_constraint(
         "ck_recording_generations_recovery_generation",
         "recording_generations",
-        "recovery_generation IS NULL OR recovery_generation > 0",
-        schema="public",
-    )
-    op.create_check_constraint(
-        "ck_rg1_restore_gate_recovery_generation",
-        "rg1_restore_gate",
         "recovery_generation IS NULL OR recovery_generation > 0",
         schema="public",
     )

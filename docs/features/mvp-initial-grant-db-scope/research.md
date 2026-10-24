@@ -60,3 +60,10 @@ rootの写像照合で、段階1の先行宣言を実装する既scripts/core_gu
 2026-10-24T05:57:38.633453+00:00、新規非作者initial_actor_source_reviewは126cd7af source8全SHA/差分2827a62b12f9e9341aaefc5b5b092528188c3258f7a7c265ca3ba4eccd736b68を確認、265成功0.91s・phase/app/DML/savepoint/失効/ownerの7拒否probe、途中checkpointとして0/0/0（/home/ymdms/.cache/pitchlog/reviews/initial-actor-126cd7af-independent/evidence.json SHA256 3dadb204978eabb2f5edea385296a941a6f5b06a01bcfba01a64d54c42782807）。正常DB/旧guard/正式供給の未達は維持する。
 
 作者の後続供給調査で、ORM追加が旧Generation read/by-number/lockへ新2証拠列を投影するため、rootはplanの最小追補に基づき当該3登録を旧12列/旧順序へ固定した。tenant述語/フィルタ/row lockを保持し、新証拠2列を通常app読取へ流さない。旧read12列の根拠は基線schema-manifestのGeneration列集合。全既2unit268成功0.96s、追加Select型guard後の3case成功（initial-grant-old-read-projection{,-narrowed}.log）。最初のRuff import空行/ty Select union診断を、import整列と実Select assertionで是正、最終Ruff/ty0。正式APP列ACL追随はcache候補・別受理が必要で、現migrationを適用したとの記録ではない。APP Generation INSERT一般撤去は未採用、既担当交代契約との照合を求めており自動拡張しない。
+
+
+## RG1前提の通常接合と未適用移行候補の接続
+
+2026-10-24T07:49:11.249959+00:00、rootは4bb5dd47へRG1 0ed61d16を通常mergeし62723b8eへ固定。競合4pathは非作者ではなく候補作者initial_sql_independent_reviewがcacheに組立、rootが正確4byte/両親のguard全top-level関数AST一致を確認して適用した。根拠handoff40197970c7dc5878dd2b93334abcf563f810343695a7b15cd774e9bf55c5c909、作者core475成功45.87s。独立最終確認はinitial_scope_plan_reviewへ別依頼し、未受領時点で成立とは記録しない。新しいcore例外を加えず、ledger→RG1→initial3の宣言層とtransaction両状態辞書を保持する。
+
+既606/c58供給順に従い、初期側の未適用0035を0036へ改番しdown_revisionを0035_rg1_initial_fresh_epochへ接続、gate列/制約の二重追加を除いた。新4表/Generation2列/内部保護trigger/全履歴保護は保持。alembic headsは0036の一意head、共有DBや利用者データへの適用0。局所は最初265成功3失敗（固定登録表にscope_bindingが供給された期待・欠落負例の作り方・旧down_revision期待）。負例は不変登録表を直接消せないため、その失敗1/error1も残し、moduleの別mapへ欠落を注入する形へ修正。登録表自体の不変性を緩めていない。Ruffはimport改行/92文字行の局所是正後0、ty0、最終268成功1.00s（initial-rg1-merged-components-registered-final.log）。これはmigration graphとcomponent接合で、初期9SQL正常DB/開始HTTP/UI/正式7.7は未達。

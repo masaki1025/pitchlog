@@ -117,3 +117,8 @@ backendはRuff format/check・ty・対象pytest（component/関数境界/実DBsc
 ## ORM新証拠列による旧同期readの最小追随
 
 2026-10-24T05:55:02.903104+00:00、rootは実source126cd7afの供給調査で、旧`repositories/sync_apply.py`のread/by-number/lock3登録がselect(table)により新proof_digest/recovery_generationまで投影することを確認した。既役割の認可・read DTOを保つため、編集範囲に`backend/src/pitchlog/repositories/sync_apply.py`の当該3読取の旧12列固定射影と、既`backend/tests/test_function_operations_boundary.py`の射影/tenant/lock保持検査だけを追加する。新API/意味/Portを増やさず、他表のquery・古いGeneration列順/型/フィルタ/D3更新を変えない。rootが既recording_generationsのAPP ACLを旧列集合へ列単位化する必要を正式供給に含め、新証拠2列へのapp SELECT/UPDATEを与えない。3列追加は既存2表へ合計3列（Generation2、gate1）であり、省略表現の「2既表列」を列総数2と読まない。正常DB/正式ACL/step3合格は依然未達。既POの通常不具合修正委任による実装追随で、既承認の意味を再取得しない。
+
+
+## 先行RG1供給との移行順の接合
+
+2026-10-24、rootは既606§6・RG1 c58f83beの非作者確認済み最小供給順に従い、初期側の未適用0035候補を0036_initial_recording_right_storage.pyへ通常改番し、down_revisionを先行0035_rg1_initial_fresh_epochへ接ぐ。RG1が所有するgate.recovery_generation列/制約の追加を初期migrationから除き、初期側は4新表・Generation2列・内部保護triggerだけを保持する。既移行履歴/利用者データを書き換えず、ORMの同一gate属性は両単位で一致させる。既test_game_preparing_componentsの候補pathを同じ新名へ追随し、関数境界/合成prepareの局所検査と移行graphを確認する。これはPO委任によるCodex rootの技術接合判断で、本人の実値逐行確認や正式DDL/7.7受理ではない。
