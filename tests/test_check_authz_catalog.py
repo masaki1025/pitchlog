@@ -1405,7 +1405,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1418 auth_claim=187 out_of_scope=1231" in result.stdout
+    assert "total=1427 auth_claim=187 out_of_scope=1240" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before

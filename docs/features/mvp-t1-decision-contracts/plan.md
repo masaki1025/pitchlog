@@ -147,3 +147,37 @@ rootの初回7.7提案は非作者確認で3P1（placement欠落・比較literal
 既採用f7論理値/両schema const/descriptor基準・履歴/旧snapshotは不変。動くconsumer既期待値は7.7-1/2に従い、旧TS/Python source直書き5107と新既承認schema2の閉const宣言への配置対応、hand-off3artifactのrawbyteSHA全前後を有限記録する。新literalや新assetを作らず、無関係4依存のOID/version/SHAは維持する。同じ規範意味や既f7基準の承認を再取得せず、consumer値/置場をroot既委任で確認する。
 
 新2case純入力は旧4field ABIの入力/期待写像を変えずsource_cases/sourceCasesへ全fieldを保持する。旧形/新形の排他的閉構造・純入力2key同時存在・state専用を照合し、欠落/未知/他calculation移植を拒否する。旧17否定例全prefix/種別/順序を保持し新負例を追記する。正常359caseを検査し、合成constructor空defaultを本物case欠落の成功代用へ使わない。stage2本体への必須観測/normalizer/真正Port配線、全P6/P7成立は後続のまま。schema宣言は受理済checkoutの信頼境界であり、loader単独で全schema/署名の認証を行うと主張しない。
+
+
+## 最終CIの生成値・検査fixture追随
+
+2026-10-24、rootはPOの通常不具合修正・生成値追随委任により、CI40078161784で実測した不一致に直接対応する下記18既存pathをステップ3の有限是正へ追加する。意味判断D06/D07・既拒否順・認可決定・T2期待値を変えない。候補は非作者の限定追加確認へ渡し、対象path/差分SHA/所見をresearchへ残してから正式反映する。同じ基準の再承認を要求せず、実際に動く値と置場だけを確認する。
+
+root候補4pathはP8未受理bundleの基準契約/schema digest2値と、追加済2case/行に伴う検査fixture追随。P8 publicationStatus/independentVerification・全候補payload・既schema5定義・T2全248caseを保持する。freezeの外部base/HEAD/repositoryは固定のまま可変PR番号だけをfixture化し、実受理遷移の別PR番号拒否を併設する。
+
+- `docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json`
+- `tests/test_gap_register.py`
+- `tests/test_state_transition_normalization.py`
+- `tests/test_state_transition_freeze.py`
+
+変異検査5pathは唯一の共有T2軸資格APIを使用し、元descriptorを先に厳密検証する。破壊mutantを導出する検査文脈だけ元資格と現存軸の共通集合を使い、正常入力のvalidatorを緩めない。全59軸削除/141境界置換の200変異を維持し、新9観測を含むT2非consumerでも実導出して不変を検査する。affectedOutputs/除外宣言を削らず、未知観測/旧軸の観測移動/readonly原byte欠落を拒否する。
+
+- `contracts/state-transition/required_set_mutation_policy_v1.json`
+- `scripts/check_required_set_mutation.py`
+- `tests/test_required_set_mutation.py`
+- `tests/test_deriver_dependencies.py`
+- `tests/test_input_axes_descriptor.py`
+
+認可9pathは採用済D07本文の全数抽出と位置ID移動の機械追随。旧1418件は同一見出し/構造順/原文で完全対応し、AUTH187件の辞書全体・分類/根拠/層規則・derived全認可決定を保持する。追加9件は既非認可分類へ写像し、1427/auth187/out1240へ更新する。派生3manifestの入力blob2値とlockのasset_digestだけを追随する。
+
+- `contracts/authz/requirement-claims.json`
+- `contracts/authz/requirement-claims.lock.json`
+- `contracts/authz/route-registry.json`
+- `contracts/authz/route-registry.lock.json`
+- `contracts/authz/auth-catalog.json`
+- `contracts/authz/auth-catalog.lock.json`
+- `contracts/authz/http-route-matrix.json`
+- `contracts/authz/http-route-matrix.lock.json`
+- `tests/test_check_authz_catalog.py`
+
+oracle入力照合が旧Git blobで拒否することは失敗として保持する。既appendix-e-golden-vectors計画ステップ17の順序に従い、この入力8assetを非作者確認して先行commitした後、その固定Git版へ機械contextだけを追随する。oracleの意味本文/期待値/P6封印/本人署名を変更しない。後続context/lockの正確なpathと全前後値は着手前に別途固定する。人間review_requiredの規律は今回PO委任の対象PR/最終HEAD/非作者証拠と実態記録で満たし、本人が確認したという記入はしない。通常CIの失敗を除外せず、最終全件検査まで閉じない。
