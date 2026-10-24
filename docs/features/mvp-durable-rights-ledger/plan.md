@@ -1,6 +1,6 @@
 ---
 feature: mvp-durable-rights-ledger
-status: active
+status: in-review
 承認: 済（PO委任によるCodex判断・隔離外部耐久台帳）
 重さ分類: コア領域
 worktree: ../../..

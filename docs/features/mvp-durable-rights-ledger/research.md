@@ -381,3 +381,6 @@ JUnit cache/ledger-critical-close-kernel-first.xml SHAdc8a3fb42a93dcd3fcadf06609
 ### 実wheel資産の同梱是正
 
 実uv build（backend）でwheel作成後、zipに本packageのSQL2/JSON1が全欠落と確認。Dockerfileがno-editableのvenvだけをruntimeへコピーするため実配布の不具合として扱い、pyprojectのpackage-dataへ固定3filenameだけ追加した。修正版wheelの資産集合がexact3・各全byte/SHAがsource a3218c04/cb0d0ecd/fdbc4b15と一致することを実測。証拠cache/durable-ledger-wheel/fixed-evidence.jsonへwheel SHAと全3値を保存、source/DDL/manifest/依存lock/受理対象9/8は変更0。最初の修正版buildコマンドはroot cwdを誤りexit2で、backend cwdへ直して成功。生成build directoryは当方所有cacheへ移し、検査母集団へ混入させない。最終非作者reviewへpyproject2行の追加を含める。
+
+
+2026-10-24T01:59:30.031657+00:00、PO委任によるCodex主担当/root判断で、旧候補を差戻し済みの実PR182について最終static-v2提案b6a98cde7b284a2d7d80d287d82dc7b664f819a3ad7023f7c1bda19147a4604bを受理。対象最終4f1a7271と独立値4b8の完全payload/9射影8外部/宣言/移動方針/識別値の不変を実再照合し、追加3故障・wheel後発の各非作者0を受領した。source/受理値は変わらないため再導出/同一承認の再取得はしない。新1record/10必要snapshotだけを反映して30/216、旧正式29/206全保持。旧b94受理receiptとsupersessionは改変せず、最終receiptはacceptance-static-v2.jsonとして別保存。本人の確認/署名を代記しない。最終HEADの受理反映・差分レビュー/全必要検査/必須CI/通常mergeはこれからであり、成否を先取りしない。
