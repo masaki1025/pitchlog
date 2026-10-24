@@ -235,3 +235,8 @@ source委任の編集は既 `scripts/check_tenant_boundary_bypass.py`・`tests/t
 
 
 2026-10-24T02:57:14.267287+00:00、PO委任によるCodex主担当/root判断として6aba134aの全Python走査接合追補を承認する。非作者rightsの限定0/0/0（証拠3cef2c0d548325e5b69cb6dd4da76624a0b1d9b72deac8ad685ac8956e530771）、global通常追加禁止/既9射影の包含/PR180旧snapshot出典/未統合候補のみのsupersessionを照合した。CI成功job数の曖昧な表現は実job名だけへ訂正し、失敗/実backend進行中を成功へ読み替えない。rootは旧static-v2 receipt/全byteを保全して通常差戻し後、base-allowlistの閉3asset宣言を編集し、CSVはchecker/既checker試験2pathだけを実装する。全9/8/履歴/生成/corpus/最終レビュー/必須CIは同step4で必須、旧29/206/拒否を不変保持。既承認3byteを正式宣言へ移す実装選択であり、新意味の採用/本人の確認/署名ではない。
+
+
+### schema manifestの正本束縛の通常生成追随
+
+2026-10-24、CI40055018456 backendは3567成功/4skip/1失敗、失敗はtest_schema_manifest.pyの正本SHA束縛1件だけだった。外部資産のdata-model1.2確定後もcontracts/db/schema-manifest.jsonのcanonical_source.sha256が実base4b2の1.1を指していた。rootはPOの通常生成値追随委任により、同JSONのこの1fieldだけを実承認済み正本byteのSHAへ追随する。manifest_version・表/列/FK/一意性/全provenance/既試験と拒否は変更しない。新しい構造/本人確認ではなく既正本改訂の実装追随であり、全9/8射影外であることを確認する。最終非作者差分確認とschema manifest全件・必須CIへ含める。
