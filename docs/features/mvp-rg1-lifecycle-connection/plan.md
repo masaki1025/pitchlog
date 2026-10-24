@@ -91,3 +91,16 @@ pathsの先頭は`backend/src/pitchlog/`。指定14実装/試験候補の機械�
 ### 実INSERT件数の保持（通常不具合是正の最小追補）
 
 2026-10-24、PO委任によるCodex主担当/root判断。実HTTP接合で新大会INSERTがSQL例外なしにrowcount=-1を返し、既存_require_insertedがoutcome_unconfirmed/rollback503へ閉じる不具合を実測した。ロック済みSQLAlchemyのpreserve_rowcountの動作根拠と整数件数だけの非改変観測を照合し、`repositories/base.py`の単発実行と`repositories/transaction.py`のscope実行が、検証済みCore statementの実件数をclose前に保持する実行optionだけを指定する。型/SQL/bind/tenant/ロック/順序/未知・0・複数の拒否は変更せず、件数を1へ補完しない。追加編集範囲はbase.pyと対応する既存基底/transaction試験、既承認の隔離実HTTP/DB接合試験だけ。別計算/新API/認可成功注入口/凍結免除追加はしない。sourceの非作者限定確認と、実POSTで新規INSERT→201/GETを通す回帰を必要とし、正式metadata/全件CI/最終通常統合は既存条件のまま。
+
+
+### 正式認可全数の有限追随（既承認step3のPO技術具体化）
+
+2026-10-24、rootはPO4/5/8/10の実装具体化委任により、固定RG1 SQL8b8b36e9/manifestf3b1e1c4とledger業務identity SQLa3218c04/manifestcb0d0ecdの実集合を既profileへ登録する。同じscopeのsourceは既宣言7authz moduleに`scripts/check_authz_catalog.py`の対応有限validator分岐を明記追加する。正式JSON/body/corpus/9・8/受理と正本はroot単独writer、source/testはrootのpath別個別委任で編集を一本化する。
+
+登録は旧7role全属性を保持して実control2＋business observer2を加える11role（observer ownerは実SQLどおりINHERIT true・membership0、他新3はfalse）、schema5→7、関数56→64、policy37→39、既存table46不変である。既知差分4種はCONNECT2/public USAGE1/singleton列ACL3/policy2であり、全profile差分はそれだけではない。外部台帳cluster専用4roleを業務profileへ混入させず、主体7属性/全membership/owner/ACL/固定関数本文・search_pathを全数検証する。appの旧read ownerへstate UPDATEやcontrol actor権限を与えない。
+
+builtin追加EXECUTEは既acl_expectationsの有限な追加kindで、pg_catalog.pg_control_system()・引数空・EXECUTE/grantable false・追加granteeがcontrol_owner/identity_ownerのexact2組だけとする。PUBLIC builtinの既実効権限を変更せず、追加明示grantと既実効を別検査する。app/probeへの新明示grant/任意builtin/引数/任意SQLは拒否。撤去は追加2grantのREVOKEだけで、builtin DROP/OWNER/PUBLIC権限の改変をしない。既一般group/全拒否を保持する実装選択であり新野球意味/耐久条件の変更ではない。
+
+DDL bodyは既認可manifestへの有限配置、既生成器・validator・実catalogへ接合し、固定SQLと別の判定意味を作らない。source自己申告だけで全数成功にせず、正式資産と実DBの追加/越境/直接DML/membership/最小権限・撤去を確認する。provisioningは既CREATE ROLEとsourceSQL二重適用を避ける一回配置へ整合する。RG1 source SQL/manifestのstatic2は全母集団へ残し、ledgerの正式宣言方式と同じ閉じた追加宣言を別途rootが反映する。RG1:scope_bindingは旧2固定登録＋resolverを保持してexact1追加し、任意function呼出しは認めない。
+
+次のsource委任は具体集合/正負例とcacheへの未適用正式候補までで、正式history/snapshot/承認/統合はrootの既step4へ残す。現在app/control2+observer2の提供を、新broker actorやT1/全非0復旧完成の前提へ戻さない。既承認内容の通常具体化であり人間の新たな承認待ちを作らず、必要な独立最終差分確認/実値受理/必須CIは省略しない。
