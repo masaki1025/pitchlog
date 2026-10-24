@@ -142,3 +142,8 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 2026-10-24T08:02:34.516557+00:00、rootは既c58/606の有限供給としてsource案07bc28ecc66cd57baa12bb04022c95ea5a39e8c0834f6d275b059f637c068c88をcheck_authz_catalogへ接合。CONNECT1/schemaUSAGE2/control列全3のexact集合だけを追加し、CREATE/TEMP/owner流用/任意role/grantableを許可しない。製品DB正例と6負例を既root testへ追加、7成功25830非対象1.49s（rg1-initial-actor-catalog-source.log）、実root環境のRuff/ty全成功。作者cacheでは同固定/提案に既unused-ignore8診断が出ており、その結果を緑へ置換せず保持する。今回の実root検査は別ログrg1-initial-actor-catalog-ty.logで0。
 
 33asset候補/13role/65fn/241DDLはまだcache未受理、schema-manifestにはgate列未反映である。上記unit成功を正式catalog/7.7/実actor借用/初期grant/開始HTTP成功にしない。source/最小権限の別非作者確認後に、rootだけが最小正本と正式全値を接合する。既epoch撤去P1は0ed61d16で独立第2回0により終結済み、今回seriesと混同しない。
+
+
+## 正本1.3接合候補の最小具体化
+
+2026-10-24T08:09:22.806496+00:00、既data-model1.3 in-review候補を、606/c58/実SQL/13role候補に照合して§3-2の現提供対象数と役割表・初回epoch束縛へ有限具体化。既7にcontrol2/observer2/initial前提2を加える13製品用/14batch込みを明記し、初期ownerの業務権限0・actor CONNECT1/USAGE2/EXECUTE3・旧read2 AS保持を区別した。gate列はnullable正bigint/default/backfillなし、closed確定→真正fresh→同Session初回E1束縛commit→別txopen、commit不明は成功にせずNULLへ戻さない。非0復元/全域closeProof/全MVPは未完成のまま保持。元2系統1.2承認履歴を保存して1.3へ接合するもので、旧採用意味の再裁定や全設計の再承認ではない。statusはin-reviewのまま、最小7.3独立確認とPO委任によるroot確定後にだけschema-manifest/sourceSHAと正式9/8値を追随する。
