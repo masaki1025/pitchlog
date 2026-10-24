@@ -359,3 +359,14 @@ pure-v3は新合成Dの原観測162セルだけで、期待/branch/issue/作者�
 検証履歴: 先行影響局所182 passed/829 deselected/2.86s。Ruff初回は専用試験1行のE501で、改行だけを是正した。H/U対称のOR証拠/非否定・数値/分岐の誤昇格拒否を加えた最終候補全局所は`-k p7_context_candidate -n 0`で731 passed/282 deselected/30.56s。新閉型の異型/欠落/余剰8変異、外部参照/版/旧定義上書き3変異、数値既知→unknown/unknown→0/branch曖昧消去/相反→成功4変異、必要時機/別人/不在原形、両core glob被覆を含む。旧optional map拒否を一般化せず、新exact T1RbiCauseMapV2だけを既存専用keyword検査の任意性へ追加した。Ruff/ty成功、docs-status20文書/違反0、差分空白検査成功。重いcore/DB/HTTPは再実行していない。
 
 旧schema/d.ts/structure-cases/全50定義/292case/11constructor、pure-v1/author-v1/evaluation-v2と§11の4候補は全byte不変。旧source所有/constructor本文はappend前の全文を保持する。core3/正式shared資産/規範/製品/P6封印の変更は0。正式missing15/closure0・域外20方向・7marker/G6/P2/P6/P7/P8/7.7と全T1本体開始条件は未達のまま。新候補は正式入力schemaへ移すための最初の有限単位であり、正式型/結果/受理・独立コードレビュー成立を代記しない。指定scopeを固定して非作者限定レビューへ渡し、先へ実装しない。
+
+
+### §12の非作者コード確認と新封印後の限定比較
+
+cc69ef94の7path追加は非作者CSVの限定0/0/0、独立182成功/2.50秒（証拠57ee3839c99eb876ce21a6ee5297a250422713d986fb592183d4658db1077b33）。CSVの旧外殻/§11計画関与を開示し、コード確認を未曝露P6資格と混同しない。
+
+rootは新pure-v3全162件（SHA5f0bf2d23684ec0f9f6d47370d085c3d7d22150219b7d7289a9d7bf7090589d0）と正式4b2の原典3だけを5file packetへ固定し、候補会話を継承しないfork-noneのp6_partial_input_derivationへ渡した。導出はa876f389b19e751bea6a5ff76e593951551dac77ee4c43ef0a889d5b6a699891、封印d6e028b981f1cc9b195bae9e55e3b426b70b8707042d7bc3fcf51219c02ac3e8（cache/p6-partial-output-20261024-01、0444/dir0700）。封印前に作者/期待値/既封印/比較を渡さず、封印後も導出者へ比較資料を返していない。指定5fileの実hash・read_materials記録・derive.py参照範囲とfork-none起動を照合した範囲の未曝露記録であり、全非公開contextを別の読取監査で証明したとは記録しない。
+
+封印後の比較者rightsは旧資料へ既曝露であり通常の非作者比較として全162を照合した。全観測相反判定162一致（相反22）、整合140件の数量既知124/未知16・数値既知branch未識別14・分岐集合140が一致。既知23flagの厳密bool比較3204値一致、未知16値保持、相反22件の作者未出力506flagは比較不能として保持し、正常/一致へ足していない。比較可能な実値不一致0。封印側の数量既知135と作者124の11差はOUT3-05かつ観測相反の部分数量射影0で、相反判定は一致するが作者未出力との比較不能を保持した。unknownや未出力を0/falseへ補完していない。
+
+全件比較cache/p6-partial-comparison-20261024-01-rights/comparison.json SHA988b872f32d1ff262e42fe13989085589f8cda6a5b54051dcbad024a245eb2c6、証拠evidence.json SHAdf2c8ba9a2cf33d73a9559d54699059e53e04b5f27da722ec9beba5090d87726。rootが固定候補/3file/比較証拠のhashを再照合して限定結果を受領する。今回の新導出と通常比較は域D内の原観測/部分値の証拠であり、正式case binding/入力schema受理/全P6/Ready/7.7/T1本体の開始許可ではない。正式mapping6/不足15・closure0/7markerを先行削減せず、旧全封印/期待値/比較履歴を保持する。
