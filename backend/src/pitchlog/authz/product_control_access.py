@@ -249,6 +249,21 @@ def is_rg1_singleton_update_acl(declaration: Mapping[str, object]) -> bool:
 def is_rg1_control_column_acl(declaration: Mapping[str, object]) -> bool:
     """実制御ownerの単一行2列だけをclose_gateの能力へ限定する。"""
     column = declaration.get("column_id")
+    if column == "recovery_generation":
+        return dict(declaration) == {
+            "expectation_id": (
+                "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+                "pitchlog_rg1_control_owner"
+            ),
+            "object_kind": "column",
+            "object_schema": "public",
+            "object_id": "rg1_restore_gate",
+            "column_id": "recovery_generation",
+            "grantee_role_id": "pitchlog_rg1_control_owner",
+            "privilege_ids": ["SELECT", "UPDATE"],
+            "grant_option": False,
+            "function_id": "FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)",
+        }
     return (
         declaration.get("grant_option") is False
         and isinstance(column, str)

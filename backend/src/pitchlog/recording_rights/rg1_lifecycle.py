@@ -246,7 +246,8 @@ def _load_configuration(path: Path) -> _Configuration:
     app_uid = _positive_integer(value["application_uid"], 2**32 - 1)
     socket_name = value["socket_path"]
     if (
-        app_uid != os.geteuid()
+        app_uid not in (20003, 20002)
+        or app_uid != os.geteuid()
         or uid == app_uid
         or type(socket_name) is not str
         or "\0" in socket_name
@@ -410,7 +411,20 @@ class _RuntimeClient:
             )
             if uid != config.controller_uid:
                 raise _unavailable()
-            _send(sock, {"op": "borrow"})
+            postmaster_started_at = binding.postmaster_started_at.isoformat()
+            _send(
+                sock,
+                {
+                    "op": "borrow",
+                    "binding": {
+                        "system_identifier": binding.system_identifier,
+                        "database_oid": binding.database_oid,
+                        "database_name": binding.database_name,
+                        "postmaster_started_at": postmaster_started_at,
+                        "backend_pid": binding.backend_pid,
+                    },
+                },
+            )
             response = _receive(sock)
             if set(response) != {"status", "loan_id", "binding", "activation"}:
                 raise _unavailable()
@@ -495,7 +509,7 @@ def serve_fresh_controller(config_path: Path) -> None:
     app_uid = _positive_integer(config["application_uid"], 2**32 - 1)
     server_uid = _positive_integer(config["business_server_uid"], 2**32 - 1)
     port = _positive_integer(config["business_port"], 65535)
-    if len({controller_uid, app_uid, server_uid}) != 3:
+    if app_uid != 20003 or len({controller_uid, app_uid, server_uid, 20002}) != 4:
         raise _unavailable()
     for name in ("socket_path", "business_socket_directory", "ledger_endpoint"):
         value = config[name]
@@ -594,6 +608,20 @@ def serve_fresh_controller(config_path: Path) -> None:
                         "epoch": attestation.pair_epoch,
                     }
                 )
+                # 外部の真正fresh blockだけが値を供給する。RPC/configのepochを受けない。
+                if type(attestation) is not package.FreshActivationAttestation:
+                    raise _unavailable()
+                fence.assert_held()
+                if fence.generation != activation.epoch:
+                    raise _unavailable()
+                # closed確定済みの同Sessionでepochだけをcommitする。
+                # open完了までは書込みを許可しない。
+                bound = connection.execute(
+                    "SELECT rg1_control.bind_initial_fresh_epoch(%s)",
+                    (attestation.pair_epoch,),
+                ).fetchone()
+                if bound is None or len(bound) != 1 or bound[0] is not True:
+                    raise _unavailable()
                 fence.assert_held()
                 if control("open") is not True:
                     raise _unavailable()
@@ -624,6 +652,23 @@ def serve_fresh_controller(config_path: Path) -> None:
                         },
                     }
 
+                def assert_borrower_backend(uid: int, local: BusinessBinding) -> None:
+                    # UID/roleは有限対応。role文字列をRPCから選ばせない。
+                    role = {20003: "pitchlog_app", 20002: "pitchlog_initial_actor"}.get(
+                        uid
+                    )
+                    if role is None or not local.same_database(binding):
+                        raise _unavailable()
+                    row = connection.execute(
+                        "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_stat_activity "
+                        "WHERE pid = %s AND datid = %s AND usename = %s "
+                        "AND datid = (SELECT oid FROM pg_catalog.pg_database "
+                        "WHERE datname = pg_catalog.current_database()))",
+                        (local.backend_pid, local.database_oid, role),
+                    ).fetchone()
+                    if row is None or len(row) != 1 or row[0] is not True:
+                        raise _unavailable()
+
                 def session(channel: socket.socket) -> None:
                     nonlocal sequence
                     loan_id: int | None = None
@@ -636,12 +681,18 @@ def serve_fresh_controller(config_path: Path) -> None:
                                 socket.SOL_SOCKET, socket.SO_PEERCRED, 12
                             ),
                         )
-                        if uid != app_uid:
+                        if uid not in (app_uid, 20002):
                             return
-                        if _receive(channel) != {"op": "borrow"}:
+                        request = _receive(channel)
+                        if (
+                            set(request) != {"op", "binding"}
+                            or request["op"] != "borrow"
+                        ):
                             raise _unavailable()
+                        local = BusinessBinding._from_mapping(request["binding"])
                         with mutex:
                             assert_live()
+                            assert_borrower_backend(uid, local)
                             if len(loans) >= 128:
                                 raise _unavailable()
                             sequence += 1
@@ -670,6 +721,7 @@ def serve_fresh_controller(config_path: Path) -> None:
                                 raise _unavailable()
                             with mutex:
                                 assert_live()
+                                assert_borrower_backend(uid, local)
                                 if loans.get(loan_id) is not channel:
                                     raise _unavailable()
                                 if request["op"] == "assert-held":

@@ -200,6 +200,7 @@ def build_lifecycle_function_declarations() -> dict[str, dict[str, object]]:
         ("release_controller_lease", "boolean", ("pitchlog_rg1_control_actor",)),
         ("close_gate", "boolean", ("pitchlog_rg1_control_actor",)),
         ("open_fresh_gate", "boolean", ("pitchlog_rg1_control_actor",)),
+        ("bind_initial_fresh_epoch", "boolean", ("pitchlog_rg1_control_actor",)),
         (
             "controller_lease_alive",
             "boolean",
@@ -209,7 +210,7 @@ def build_lifecycle_function_declarations() -> dict[str, dict[str, object]]:
             ),
         ),
         ("read_closed_gate", "jsonb", ("pitchlog_rg1_control_actor",)),
-        ("scope_binding", "text", ("pitchlog_app",)),
+        ("scope_binding", "text", ("pitchlog_app", "pitchlog_initial_actor")),
         ("identity", "jsonb", ("pitchlog_ledger_identity_probe",)),
     )
     result: dict[str, dict[str, object]] = {}
@@ -221,7 +222,9 @@ def build_lifecycle_function_declarations() -> dict[str, dict[str, object]]:
             if identity
             else "pitchlog_rg1_control_owner"
         )
-        args = "uuid" if name == "scope_binding" else ""
+        args = ({"scope_binding": "uuid", "bind_initial_fresh_epoch": "bigint"}).get(
+            name, ""
+        )
         function_id = f"FUNCTION:{schema}:{name}({args})"
         result[function_id] = {
             "function_id": function_id,

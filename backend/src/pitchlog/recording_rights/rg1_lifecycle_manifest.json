@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "status": "unintegrated_candidate",
-  "source_sql_sha256": "8b8b36e9ea97bf2f22c0f6c9dcdc44e692e0d56d6bd38dd8a19ce1e157a26f99",
+  "source_sql_sha256": "30657b77bc588c288f638318e48484bdeed685e8591699bbb175abd9dbfdfd79",
   "controller_entry": "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller",
   "required_supplier": "pitchlog.durable_rights_ledger.DurableLedger.fresh_activation",
   "client_configuration": {
@@ -114,7 +114,18 @@
       ],
       "returns": "text",
       "execute_roles": [
-        "pitchlog_app"
+        "pitchlog_app",
+        "pitchlog_initial_actor"
+      ]
+    },
+    {
+      "name": "rg1_control.bind_initial_fresh_epoch",
+      "arguments": [
+        "bigint"
+      ],
+      "returns": "boolean",
+      "execute_roles": [
+        "pitchlog_rg1_control_actor"
       ]
     }
   ],
@@ -150,5 +161,35 @@
     "fresh_activation": "requires_actual_supplier_attestation_and_live_fence",
     "scope_release": "not_a_database_drain_or_quiescence_proof",
     "pg_completion_unknown": "abandon_without_release_ack"
+  },
+  "borrower_roles": {
+    "20003": "pitchlog_app",
+    "20002": "pitchlog_initial_actor"
+  },
+  "borrow_frame": {
+    "required_fields": [
+      "op",
+      "binding"
+    ],
+    "binding_source": "sameSession RG1ScopeBindingToken only",
+    "actual_backend_checks": [
+      "pid",
+      "datid",
+      "usename"
+    ],
+    "recheck_at": [
+      "borrow",
+      "assert-held",
+      "release"
+    ]
+  },
+  "initial_epoch_binding": {
+    "source": "actual DurableLedger.fresh_activation attestation + live same-channel fence",
+    "sql": "rg1_control.bind_initial_fresh_epoch(bigint)",
+    "only_transition": "closed NULL to actual fresh E1",
+    "control_session": "same session as committed close/controller lease",
+    "commit_before_existing_noarg_open": true,
+    "existing_epoch_rebind": false,
+    "attach_with_null_epoch": "deny; no caller int/DB0 inferred epoch"
   }
 }
