@@ -135,3 +135,10 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 ## 初期供給の独立P1とACL撤去の反映
 
 2026-10-24T07:23:09.411702+00:00、544c0c69への非作者確認はP0=0/P1=1/P2=0で否決。evidence e9fbe17c05ddc82982b30613e6404e06d67ab8a85f4cd0e341ad0035a5bdbc16、報告 /home/ymdms/.cache/pitchlog/reviews/rg1-initial-prerequisite-544c0c69-independent/review.md。旧ACL/core P1系列とは別に、新epochの正規SELECT+UPDATEをunapplyがstateだけの条件で拒否する不一致を検出、全採用した。rootは既exact ACL predicate内の撤去対象をstate/epochへ揃え、他role/function/column/privilege/整数boolを拒否する6負例と完全REVOKE文1正例を追加した。局所26成功43非対象0.15s、Ruff/ty0。正式生成/7.7/実controller/grantはまだ未成立、独立再確認前にP1終結とは記録しない。
+
+
+## 初期peer認可の正式catalog入口
+
+2026-10-24T08:02:34.516557+00:00、rootは既c58/606の有限供給としてsource案07bc28ecc66cd57baa12bb04022c95ea5a39e8c0834f6d275b059f637c068c88をcheck_authz_catalogへ接合。CONNECT1/schemaUSAGE2/control列全3のexact集合だけを追加し、CREATE/TEMP/owner流用/任意role/grantableを許可しない。製品DB正例と6負例を既root testへ追加、7成功25830非対象1.49s（rg1-initial-actor-catalog-source.log）、実root環境のRuff/ty全成功。作者cacheでは同固定/提案に既unused-ignore8診断が出ており、その結果を緑へ置換せず保持する。今回の実root検査は別ログrg1-initial-actor-catalog-ty.logで0。
+
+33asset候補/13role/65fn/241DDLはまだcache未受理、schema-manifestにはgate列未反映である。上記unit成功を正式catalog/7.7/実actor借用/初期grant/開始HTTP成功にしない。source/最小権限の別非作者確認後に、rootだけが最小正本と正式全値を接合する。既epoch撤去P1は0ed61d16で独立第2回0により終結済み、今回seriesと混同しない。

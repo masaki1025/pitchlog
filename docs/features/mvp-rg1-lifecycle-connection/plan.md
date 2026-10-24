@@ -126,3 +126,8 @@ runtime/SQLは既rg1_lifecycle.py/sql/manifest、生成境界は既authz/product
 影響正本は既docs/design/data-model.mdのRG1/role/初回束縛の有限節とdocs/README.md。新契約の実現手順だけを7.6/必要7.3・7.7へ運び、全設計や既意味を再承認しない。実Port/DBをこの具体化の着手前条件へ追加しない一方、正常actor借用/初期grant・再交付・unknown/失効/越境/原子性/実role ACL・catalogを隔離DBで通す前に提供完了とはしない。
 
 試験編集は既backend/tests/test_rg1_lifecycle.py、test_rg1_lifecycle_sql.py、test_rg1_operations.py、test_rg1_lock_contract.py、test_authz_product_roles.py、test_authz_product_control_access.py、test_authz_product_function_acls.py、test_product_authz_catalog.py、tests/test_check_tenant_boundary_bypass.py、backend/tests/db/test_rg1_lifecycle_connection.py/rg1_lifecycle_support.pyの実影響だけ。初期側の実DB2pathは初期scopeが所有する。合成9probe/SQL静的検査を実PGや耐久証明へ読み替えず、固定HEAD非作者レビュー・全必須CI・実merge確認を通常統合前に揃える。
+
+
+## 初期peerの正式catalog入口追随
+
+既606/c58のCONNECT1・schema USAGE2・epoch列ACL1を、既check_authz_catalogの閉じたexpected集合へ接合する。rootはcache固定source案07bc28ecc66cd57baa12bb04022c95ea5a39e8c0834f6d275b059f637c068c88を適用し、tests/test_check_authz_catalog.pyへ最小DB接続権の正例と欠落/owner流用/CREATE/TEMP/委譲/整数bool拒否だけを追加する。旧主体/旧権限/未知拒否を保持し、正式schema-manifestと全profileの実値受理が済むまでCLI/DB正常供給とは扱わない。source案/asset候補作者と異なる非作者が最終差分を確認する。PO委任によるrootの有限技術具体化で、新しい意味・権限緩和・共有DB適用を認めない。
