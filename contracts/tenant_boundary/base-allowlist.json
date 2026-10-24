@@ -27460,7 +27460,7 @@
           ]
         },
         "change": {
-          "subject": "masaki1025/pitchlog#182 の外部耐久台帳/17exact/固定static配備資産の専用検証の受理",
+          "subject": "実PR182の台帳17exact/固定3資産と全走査・部分censusの整合",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -28332,8 +28332,8 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "16c652ffa5f50f9d35c54b449174297ff6994572ef597105d87e267a05efcd0c",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/16c652ffa5f50f9d35c54b449174297ff6994572ef597105d87e267a05efcd0c"
+                "sha256": "4a8ee6a0591e044565171ec3a8432e946c6a53c686401d55e6e9552c5b099096",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4a8ee6a0591e044565171ec3a8432e946c6a53c686401d55e6e9552c5b099096"
               },
               {
                 "path": "scripts/frozen_archive.py",
@@ -28352,8 +28352,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "c971751a7d697679ba91db18f6ead13685dfa3436b4a9dea4b364c245968cede",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c971751a7d697679ba91db18f6ead13685dfa3436b4a9dea4b364c245968cede"
+                "sha256": "89634242b320a25aee653726c4afbb3120fc458b0ad7227edad2cacc1b9540fb",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/89634242b320a25aee653726c4afbb3120fc458b0ad7227edad2cacc1b9540fb"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -28369,23 +28369,23 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "eb9ed145516d56257eadb543863eddb08e5729c3e32d4dc7b804671ee1da5831",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/eb9ed145516d56257eadb543863eddb08e5729c3e32d4dc7b804671ee1da5831"
+                "sha256": "8fe737fd4f078fe4ee792fbc73a5fcb99efb81845f70a9cce495386d38546962",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8fe737fd4f078fe4ee792fbc73a5fcb99efb81845f70a9cce495386d38546962"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "09155caa4bdd90ae58e1cb5c489decb8c659b5b233be0546b69fac67c97e5b9f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/09155caa4bdd90ae58e1cb5c489decb8c659b5b233be0546b69fac67c97e5b9f"
+                "sha256": "a5e6550950f8cc06d55f930b5a50fd8b62b4f550654f27cb673bb0fc5af78846",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a5e6550950f8cc06d55f930b5a50fd8b62b4f550654f27cb673bb0fc5af78846"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "244437b093981a3a755dd3bbea2e150b8a7c1d66bb1f182b6785e042dcd13f1a",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/244437b093981a3a755dd3bbea2e150b8a7c1d66bb1f182b6785e042dcd13f1a"
+                "sha256": "5137bdefb3c33a5bd5fc044fcd4ba5adf59fc0060e87571b891f26061d502b37",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5137bdefb3c33a5bd5fc044fcd4ba5adf59fc0060e87571b891f26061d502b37"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "5c9031c2b48020da211c933be2851e713c3de88e2e9e1452f0d19fe538fa16ff",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5c9031c2b48020da211c933be2851e713c3de88e2e9e1452f0d19fe538fa16ff"
+                "sha256": "3a7667d13e144cf794c84516c3552fa6547d152055b51828bcdaa0ac5fc096fc",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3a7667d13e144cf794c84516c3552fa6547d152055b51828bcdaa0ac5fc096fc"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
@@ -28394,30 +28394,30 @@
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "f60dd272d38d160eab1f7e5d5d12f6bb51939e1f17967dab122da21d84902b3f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f60dd272d38d160eab1f7e5d5d12f6bb51939e1f17967dab122da21d84902b3f"
+                "sha256": "a4b391981c0c07e0a91a10f7c43f31f72954a0d8c8679bff9c5ee459b26a0245",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a4b391981c0c07e0a91a10f7c43f31f72954a0d8c8679bff9c5ee459b26a0245"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "48eb196a5b50ed4664dc4b367520d5f98cca84b5b6959fd08eda70bceec01746",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/48eb196a5b50ed4664dc4b367520d5f98cca84b5b6959fd08eda70bceec01746"
+                "sha256": "c3deef310cee7dcca93e0cd5364cb4da49842a9daf6d815b652be9bdac006dc1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c3deef310cee7dcca93e0cd5364cb4da49842a9daf6d815b652be9bdac006dc1"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "c926363c1ae451246b4632840360166549fcaf64ff916393664f70efc0e41235",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c926363c1ae451246b4632840360166549fcaf64ff916393664f70efc0e41235"
+                "sha256": "83e69e788dd237ec63047c2ee543e678506773d390181ab5d0a4e98b35c6c51d",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/83e69e788dd237ec63047c2ee543e678506773d390181ab5d0a4e98b35c6c51d"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "b5a7448869f679ec3bbfc35a3ca5189209573e02e7279f8187be596468c80ef4",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b5a7448869f679ec3bbfc35a3ca5189209573e02e7279f8187be596468c80ef4"
+                "sha256": "379301333a437a3ef3dd1e759686e48bbe970e3efef93650aed3ec3850b52cd1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/379301333a437a3ef3dd1e759686e48bbe970e3efef93650aed3ec3850b52cd1"
               }
             ]
           }
         },
-        "movement_fact": "実develop4b2の29履歴206snapshotを保持し、台帳固定4factory/1API・17exactと固定static3資産専用検証を完全9射影/外部8で照合",
-        "reason": "D4非再利用/epoch/fenceの実Protocolと固定配備資産を接続し、全未知TB000/Python拒否を維持する。前の未統合候補受理は通常差戻し・全証拠保全済み",
-        "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
+        "movement_fact": "実develop4b2の旧29履歴206snapshotを保持し、台帳source/17exact/固定3byteの正式閉宣言とchecker全拒否を9射影/外部8実内容で照合",
+        "reason": "既固定3byteの正式宣言と全Python走査を保持し、全件root付きの所見全欠損拒否を維持して部分census誤適用を是正する。旧static-v3未統合受理は通常差戻し/全byte保全/supersessionし、同PR最終1受理だけを反映する",
+        "approved_by": "Codex主担当/root（PO委任による完全実値確認。本人の逐行確認・署名ではない）",
         "approved_on": "2026-10-24"
       }
     ]
@@ -29120,5 +29120,10 @@
         "symbol": "advance_recovery_generation"
       }
     ]
+  },
+  "ledger_deployment_assets": {
+    "backend/src/pitchlog/durable_rights_ledger/business_identity.sql": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
+    "backend/src/pitchlog/durable_rights_ledger/manifest.json": "cb0d0ecd9886bcf44d9569a779a82b396fdc16c158c807c54b69acac842e7b4e",
+    "backend/src/pitchlog/durable_rights_ledger/schema.sql": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
   }
 }

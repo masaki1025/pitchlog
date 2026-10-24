@@ -423,3 +423,44 @@ plan-syncの宣言是正後exit0、backend全体format392/Ruff/ty、root Ruff/ty
 ハーネス運用評価台帳への追記なし。本単位のSQL配布漏れ/既有限資産への検査対応/宣言の機械抽出是正は各具体source・planと既存統制に閉じた修正で、統制全体の新しい傾向/再設計として採番する根拠を追加していない。既評価/拒否・検出を変更しない。正本data-model1.2/索引の最小確定と完全値受理は本枝内で成立し、正式develop提供は通常merge後である。
 
 Codex主担当/rootは2026-10-24のPO4/5/8/10委任に基づき上記限定解消を受領しplanをin-reviewへ戻す。本人の逐行確認/署名を代記せず、最終HEAD/base/diff/独立確認/公開委任証拠と必須CIを揃えるまで通常mergeしない。運用配置・共有DB・実機と親全域復旧/初期開始は未実施として保持する。
+
+
+### 最終CIのharness失敗と必要な是正範囲
+
+最終27d0の実PR合成merge f08855dd（実親4b2/27d0）でstrictcore0とtenant PR_ACCEPTANCE0をローカル確認、公開委任comment6378838453は実全49blob/hash/reportを照合した。CI40055018456はharnessのglobal frozen source scanで新5組を未宣言拒否した。checkerのadapter/SQL2/manifest固定hash4と、checker試験の旧initial固定hash1が対象。新3assetの限定checker/466成功はこの別検査の成功を保証していなかった。拒否を緩めずplanへ既9asset内の明示配置を最小起案し、activeへ戻す。
+
+既global scanallowlist通常追加禁止と旧10entriesを維持する。CSVのread-only調査では既受理PR180のcontent-addressed snapshotが実hash/全47値を保持し、旧initial試験の不変比較根拠に利用可能と確認。新static3expectedは既base-allowlistの閉fieldへ正式配置し、adapter sourceは既condition2宣言へ結ぶ案とする。値を文字列分割/新allowlist/意味のない動的算出へ隠さない。詳細は本plan末尾。新source/正式9/8/未統合recordの再受理・最終レビュー/CIは未成立であり、旧成功/失敗/受理receiptを保全する。
+
+
+旧static-v2受理のreceipt/proposal/全9asset/新10snapshotをcache/durable-ledger-acceptance/withdrawn-static-v2-27d0へ全byte+manifestで保存し、旧receipt/旧supersessionを変更せず別supersession-static-v2.jsonを記録した。ee4acc5cは新未統合182record1件と当候補だけの10snapshotを通常差戻し、正式base4b2の旧29履歴206snapshot全byteを照合・保持した。旧27d0/receiptをなかったことにせずGitからも復元可能にした。
+
+rootは既base-allowlistへledger_deployment_assetsのexact3path/SHAを追加、既非作者確認済みa321/cb0d/fdbcと実sourcebyte一致を確認した。元source/manifest/SQLの変更0。新欄を含む最終完全9/8とhistory/snapshot再受理は未成立であり、途中の凍結不一致赤を保持する。CSVはchecker/既checker試験2pathだけを個別委任され、rootは同2pathへ並行書込しない。global scanner/旧10allowlist/拒否条件の変更0。
+
+
+### 固定資産の正式配置を読むcheckerの是正候補
+
+CSVの編集2pathを固定する。新ledger_deployment_assetsのexact3path/SHA宣言を不変tupleとして保持し、全byte/非symlink/closedmanifest/相互hash/全母集団と未知TB000を従前どおり検査する。adapter hashは既condition2ledger宣言を使い、旧initialの47全fieldは実PR180受理snapshotをhash/出典検証して比較する。Pythonへhash literalを追加/分割して隠していない。新declared3byteをsource/manifestと同時改変して仮Contract内で整合させても、正式全9射影とPR受理履歴が追記0を拒否する負例も追加した。
+
+局所ledger67成功4.00秒、Ruff/ty/diff成功、global source scanは旧10組と完全一致。初回Ruff E501=1は改行で是正、pytest失敗0。checker SHA4a8ee6a0591e044565171ec3a8432e946c6a53c686401d55e6e9552c5b099096、test SHA31eddf4e8759a9ea769731728fcd2af6d38352f558e440d5a796ea618f52c9d5、f018から2path標準diff637d867c720e1017fea87a0e08cecb78532f3ecb7988e285dae4699b3a7417d1。証拠cache/reviews/ledger-global-scan-f0185afd/evidence.json SHA9bf2613f9e666bbfcfcec9ae512d43aac3b985675c71ecd32eeb662d55e0ae8d。製品package/SQL/manifest/DB試験/旧10allowlist/global scanner/frozen_historyの変更0、DB再実行0。新完全9/8提案・非作者確認・正式最終1受理と全件CIはこれから。
+
+
+旧最終CI40055018456はbackendも終端failureとなり、3567成功/4skip/1失敗（1997.13秒）。唯一の失敗はtest_schema_manifest.py::test_manifest_is_bound_to_the_canonical_data_modelで、承認済data-model1.2へのcanonical_source.sha256追随漏れだった。実旧値がbase4b2正本SHAと一致することを確認し、schema-manifestの1fieldだけを現在の正本byteへ通常生成追随した。新DB構造や判定を足さず、表等の全payload不変/9・8射影外を維持する。全件新成功は未実施、旧失敗を成功へ読み替えない。
+
+
+2026-10-24T04:52:34.159948+00:00、PO委任によるCodex主担当/root判断で、実PR182の最終static-v3提案4fcda7dec5a3ce44ec891654670b549d7538f92ab5c0174cc0c92837e11531b4を受理。独立ccfdの全9/8/27payload一致0（証拠de5f6e1b8deb3c27cf346ca3934b4ec6a4b0a9891b246cefa3c2c1497d46c3ee）を受領し、後発c55のschema正本SHA1field/文書だけでは全射影・外部byte・識別値/方針が不変であることを再導出/全field照合した。同じ値の承認を繰り返さず、新1record＋必要10snapshotだけを反映して30/216、旧正式29/206全byteを保持。旧receipt/static-v2supersessionは変更せず、acceptance-static-v3.jsonを別保存した。schema manifest14成功0.66秒、元33分CIの1失敗/3567成功/4skipと元globalscan失敗は保持する。最初のmanifest書込みで不要な全体整形が変わり、直後の通常commitで元整形を復元して最終差分をSHA1fieldだけへ戻した。全harness・最終HEADの非作者後発確認/必須CI/通常統合はこれから。本人の実値確認/署名を代記しない。
+
+
+## ローカル全件a4ac621bの4失敗を分離
+
+2026-10-24T05:25:15.551536+00:00、/home/ymdms/.cache/pitchlog/ledger-final-a4ac621b-harness/results.json とharness.xml/06.logを受領。29921成功/2skip/4失敗1353.82s。global frozen/parity/census単独/Ruff/tyは先行0だったが、全件成功ではない。shared-preconditionsの正本blob、ORM生成資料、package-data全体禁止、部分census入力への全件digest強制を別々に是正し、同じ入力の全件再試行はしない。既static-v3の正式受理と旧CI結果は保全し、census source差分が変える実値だけ別対象として再受理する。
+
+
+2026-10-24T05:28:31.141703+00:00、4失敗の限定追随は32成功25.67s（/home/ymdms/.cache/pitchlog/ledger-local-four-failures-followup-fixed.log）。初回の生成コマンドは旧判定を持ち越さず未判定を作ったため、cacheに保全しGit HEADの旧5文書から復元した。既単一generatorの安全carryで旧369行の判定/理由を全保持し、新N3一行だけを別root委任判断にした。新行はORM業務列ではなく外部genesis/journal保証なので対象外、data-model3-2-A/authority実装を理由へ引用し、本人逐行確認とは記録しない。実生成N3は110→111、README集計だけ追随。carry詳細 /home/ymdms/.cache/pitchlog/ledger-orm-carry-forward.json。部分censusの属性チェーン正例とshadow負例を保持し、全件root付きの台帳所見全欠損も拒否する。root Ruff/ty0、旧global scanner・許可10entry・静的3byte・製品source・全DB証拠は不変。非作者source差分と新完全値照合はこれから実施する。
+
+
+## 新census source実値の限定受理（static-v4）
+
+2026-10-24T05:37:47.989666+00:00、rootは既PO委任による完全実値確認として固定d6c44c84の提案92901ba5ea946588c9f4dd9bb478b2735ff35395f2a99c32798e6f2d24c54accを受理した。非作者source0（46b0408d0acb35e0d1c2983036a6983a4bf9dd17883313df91348f19134d6a2c）、全9射影/外部8/27payloadの独立一致（values-v4.json SHA2560b591404211bfe35ca50b9c1473f0ead5495601d75bf5cc3d9ad973abb39b984）を根拠とする。旧v3からの実変更はcensus試験source1本とその派生だけで、他7external/不可変製品source/SQL3byteを再裁定しない。旧29履歴206snapshotの全byteを保持して新10だけを再配置し、PR182最終1受理・30履歴216snapshotを復元した。receipt /home/ymdms/.cache/pitchlog/durable-ledger-acceptance/acceptance-static-v4.json。人間の実値確認・署名を代記せず、corpus・最終HEAD確認・全必須CI未成立を保持する。
+
+
+2026-10-24T05:39:19.204079+00:00、受理後4f81f035の既corpus_input_digest再計算はf5db69d37dfdcb6e4cc1ff3c2dfeadd1823f83d55451085b26777d0f49615d30で旧v3と同値。pinned前6記録/固定snapshot/runner/caseは不変なので、manifestの変更/同じ値の再受理は行わない（corpus-static-v4.json）。frozen-baselines --invariants-onlyとthree-way-parity --invariants-onlyは0、後者のPR受理遷移はこのコマンドでは未検査。source実装と局所修正を終えてin-reviewへ戻し、最終固定HEAD非作者確認・実GitHub2親mergeのstrictcore/tenant/受理遷移・必須CIを残す。先行全件4失敗の結果を上書きせず、変更に影響するcomponentの検査を実施する。

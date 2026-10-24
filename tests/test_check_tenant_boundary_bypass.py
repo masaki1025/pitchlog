@@ -6,6 +6,7 @@ import ast
 import copy
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -7480,7 +7481,7 @@ def test_ledger_condition2_registration_rejects_every_nonexact_shape(mutation: s
     elif mutation == 'path':
         entry['path'] = 'backend/src/pitchlog/durable_rights_ledger/other.py'
     elif mutation == 'sha':
-        entry['source_sha256'] = '0' * 64
+        entry['source_sha256'] = 'not-a-sha256'
     elif mutation == 'missing_finding':
         entry['findings'].pop()
     elif mutation == 'extra_finding':
@@ -7501,12 +7502,45 @@ def test_ledger_condition2_registration_rejects_every_nonexact_shape(mutation: s
         checker._load_allowlist(value, inventory_bytes, apis)
 
 
+def _accepted_initial_condition2(repository: Path) -> dict[str, Any]:
+    """現在値から再生成せず、実PR180の受理済みsnapshotにある初期47を読む。"""
+    authority, _ = checker._read_json(repository / checker.DEFAULT_ALLOWLIST)
+    records = [
+        row for row in authority["baseline_control"]["history"]
+        if row.get("acceptance_id") == "masaki1025/pitchlog#180"
+    ]
+    assert len(records) == 1
+    assert records[0]["record_schema_version"] == 2
+    refs = [
+        ref for ref in records[0]["change"]["after"]["asset_snapshots"]
+        if ref["path"] == checker.DEFAULT_ALLOWLIST.as_posix()
+    ]
+    assert len(refs) == 1
+    ref = refs[0]
+    assert set(ref) == {"path", "sha256", "snapshot_ref"}
+    assert re.fullmatch(r"[0-9a-f]{64}", ref["sha256"])
+    assert ref["snapshot_ref"] == (
+        f"contracts/tenant_boundary/history-snapshots/{ref['sha256']}"
+    )
+    content = checker.frozen_history.read_repository_file(
+        repository, ref["snapshot_ref"], "PR180受理snapshot",
+    )
+    assert hashlib.sha256(content).hexdigest() == ref["sha256"]
+    projection = json.loads(content, object_pairs_hook=checker._unique_json_object)
+    assert set(projection) == {"asset", "baseline_declaration", "external_files"}
+    initial = projection["asset"]["condition_2_scoped_findings"]
+    assert set(initial) == {"path", "source_sha256", "findings"}
+    assert initial["path"] == "backend/src/pitchlog/recording_rights/initial_grant.py"
+    assert len(initial["findings"]) == 47
+    return initial
+
+
 def test_ledger_condition2_source_path_hash_and_each_identity_are_required() -> None:
     """source変更・別path・未知identityは免除せず、既存47を保持する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     relative = 'pitchlog/durable_rights_ledger/adapter.py'
     source = (REPOSITORY_ROOT / 'backend/src' / relative).read_text()
-    assert hashlib.sha256(source.encode()).hexdigest() == checker.LEDGER_CONDITION2_SOURCE_SHA256
+    assert hashlib.sha256(source.encode()).hexdigest() == contract.ledger_condition2_source_sha256
     assert checker.scan_source(source, path=relative, contract=contract) == []
     unsuppressed = replace(contract, ledger_condition2_findings=frozenset())
     original = checker.scan_source(source, path=relative, contract=unsuppressed)
@@ -7526,8 +7560,12 @@ def test_ledger_condition2_source_path_hash_and_each_identity_are_required() -> 
     violations = checker.scan_source(injected, path=relative, contract=contract)
     assert any(v.code == 'TB005' for v in violations)
     assert len(contract.condition2_scoped_findings) == 47
-    assert contract.condition2_scoped_source_sha256 == (
-        'c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3'
+    accepted = _accepted_initial_condition2(REPOSITORY_ROOT)
+    current = _read_contract_asset(checker.DEFAULT_ALLOWLIST)["condition_2_scoped_findings"]
+    assert current == accepted
+    assert contract.condition2_scoped_source_sha256 == accepted["source_sha256"]
+    assert contract.condition2_scoped_findings == frozenset(
+        (row["line"], row["symbol"]) for row in accepted["findings"]
     )
 
 
@@ -7729,7 +7767,9 @@ def test_ledger_deployment_rejects_symlink_parent(tmp_path: Path) -> None:
     relocated = tmp_path / "relocated"
     package.rename(relocated)
     package.symlink_to(relocated, target_is_directory=True)
-    assert not checker._validated_ledger_deployment_assets(tmp_path)
+    assert not checker._validated_ledger_deployment_assets(
+        tmp_path, checker.load_contract(REPOSITORY_ROOT),
+    )
 
 
 @pytest.mark.parametrize("mutation", (
@@ -7737,9 +7777,9 @@ def test_ledger_deployment_rejects_symlink_parent(tmp_path: Path) -> None:
     "business_hash", "bool_version",
 ))
 def test_ledger_manifest_requires_closed_declaration_independent_of_claimed_hash(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+    tmp_path: Path, mutation: str,
 ) -> None:
-    """manifestのhash定数を更新しても閉宣言と相互hashの検査は省けない。"""
+    """試験用ContractのSHAを更新しても閉宣言と相互hashの検査は省けない。"""
     _copy_ledger_deployment_assets(tmp_path)
     relative = "pitchlog/durable_rights_ledger/manifest.json"
     path = tmp_path / "backend/src" / relative
@@ -7769,10 +7809,11 @@ def test_ledger_manifest_requires_closed_declaration_independent_of_claimed_hash
             value["schema_version"] = True
         content = json.dumps(value)
     path.write_text(content)
-    updated = dict(checker._LEDGER_DEPLOYMENT_ASSETS)
-    updated[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
-    monkeypatch.setattr(checker, "_LEDGER_DEPLOYMENT_ASSETS", updated)
-    assert not checker._validated_ledger_deployment_assets(tmp_path)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    updated = dict(contract.ledger_deployment_assets)
+    updated[f"backend/src/{relative}"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    contract = replace(contract, ledger_deployment_assets=tuple(updated.items()))
+    assert not checker._validated_ledger_deployment_assets(tmp_path, contract)
 
 
 @pytest.mark.parametrize("relative", (
@@ -7817,7 +7858,7 @@ def test_ledger_deployment_all_removed_files_are_still_inspected(
 
 
 def test_ledger_manifest_cannot_authorize_changed_sql_itself(tmp_path: Path) -> None:
-    """SQL改変とmanifest hash書換えを同時に行っても独立定数を越えられない。"""
+    """SQL改変とmanifest hash書換えを同時に行っても正式凍結宣言を越えられない。"""
     _copy_ledger_deployment_assets(tmp_path)
     package = tmp_path / "backend/src/pitchlog/durable_rights_ledger"
     sql = package / "schema.sql"
@@ -7826,4 +7867,184 @@ def test_ledger_manifest_cannot_authorize_changed_sql_itself(tmp_path: Path) -> 
     value = json.loads(manifest.read_text())
     value["ddl_sha256"] = hashlib.sha256(sql.read_bytes()).hexdigest()
     manifest.write_text(json.dumps(value))
-    assert not checker._validated_ledger_deployment_assets(tmp_path)
+    assert not checker._validated_ledger_deployment_assets(
+        tmp_path, checker.load_contract(REPOSITORY_ROOT),
+    )
+
+
+@pytest.mark.parametrize("mutation", (
+    "missing_field", "missing_path", "extra_path", "renamed_path", "relative_path",
+    "not_object", "empty", "bool", "integer", "short", "upper", "nonhex",
+))
+def test_ledger_deployment_declaration_rejects_nonexact_shape(mutation: str) -> None:
+    """新正式欄は固定3pathの厳密SHAだけを読み、欠損と拡張を拒否する。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    declared = value["ledger_deployment_assets"]
+    path = next(iter(declared))
+    if mutation == "missing_field":
+        value.pop("ledger_deployment_assets")
+    elif mutation == "missing_path":
+        declared.pop(path)
+    elif mutation == "extra_path":
+        declared["backend/src/pitchlog/other/schema.sql"] = declared[path]
+    elif mutation == "renamed_path":
+        declared["backend/src/pitchlog/durable_rights_ledger/copied.sql"] = declared.pop(path)
+    elif mutation == "relative_path":
+        declared[path.removeprefix("backend/src/")] = declared.pop(path)
+    elif mutation == "not_object":
+        value["ledger_deployment_assets"] = []
+    else:
+        declared[path] = {
+            "empty": "", "bool": True, "integer": 1, "short": "0" * 63,
+            "upper": "A" * 64, "nonhex": "g" * 64,
+        }[mutation]
+    inventory_bytes = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis, *_ = checker._load_inventory(json.loads(inventory_bytes))
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory_bytes, apis)
+
+
+@pytest.mark.parametrize("nested", (False, True))
+def test_ledger_deployment_declaration_rejects_duplicate_json_keys(
+    tmp_path: Path, nested: bool,
+) -> None:
+    """正式JSONのtop-levelと新fieldの重複keyを後勝ちで受理しない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    source = json.dumps(value)
+    if nested:
+        path, digest = next(iter(value["ledger_deployment_assets"].items()))
+        pair = f"{json.dumps(path)}: {json.dumps(digest)}"
+        assert source.count(pair) == 1
+        source = source.replace(pair, f"{pair}, {pair}")
+    else:
+        source = source[:-1] + ', "ledger_deployment_assets": {}}'
+    path = tmp_path / "base-allowlist.json"
+    path.write_text(source)
+    with pytest.raises(checker.ContractError, match="重複key"):
+        checker._read_json(path)
+
+
+def test_ledger_adapter_declared_hash_binds_actual_source() -> None:
+    """宣言のSHAは固定17行の独立条件であり、異なる実sourceを免除しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = (REPOSITORY_ROOT / checker.LEDGER_CONDITION2_PATH).read_text()
+    altered = replace(contract, ledger_condition2_source_sha256="0" * 64)
+    violations = checker.scan_source(
+        source, path=checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/"),
+        contract=altered,
+    )
+    assert {(row.line, row.symbol) for row in violations if row.code == "TB002"} == (
+        contract.ledger_condition2_findings
+    )
+
+
+@pytest.mark.parametrize("mutation", (
+    "missing_record", "duplicate_record", "duplicate_ref", "ref_mismatch",
+    "changed_bytes", "missing_snapshot", "symlink", "parent_symlink",
+))
+def test_ledger_initial47_requires_accepted_pr180_snapshot(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """PR180出典の一意性・参照・実byte・通常fileを失うと旧値比較を拒否する。"""
+    authority = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    history = authority["baseline_control"]["history"]
+    record = next(row for row in history if row.get("acceptance_id") ==
+                  "masaki1025/pitchlog#180")
+    refs = record["change"]["after"]["asset_snapshots"]
+    ref = next(row for row in refs if row["path"] == checker.DEFAULT_ALLOWLIST.as_posix())
+    path = tmp_path / ref["snapshot_ref"]
+    path.parent.mkdir(parents=True)
+    path.write_bytes((REPOSITORY_ROOT / ref["snapshot_ref"]).read_bytes())
+    if mutation == "missing_record":
+        history.remove(record)
+    elif mutation == "duplicate_record":
+        history.append(copy.deepcopy(record))
+    elif mutation == "duplicate_ref":
+        refs.append(copy.deepcopy(ref))
+    elif mutation == "ref_mismatch":
+        ref["snapshot_ref"] += "-unaccepted"
+    elif mutation == "changed_bytes":
+        path.write_bytes(path.read_bytes() + b"\n")
+    elif mutation == "missing_snapshot":
+        path.unlink()
+    elif mutation == "symlink":
+        original = tmp_path / "original"
+        path.rename(original)
+        path.symlink_to(original)
+    else:
+        original = tmp_path / "original"
+        path.parent.rename(original)
+        path.parent.symlink_to(original, target_is_directory=True)
+    authority_path = tmp_path / checker.DEFAULT_ALLOWLIST
+    authority_path.write_text(json.dumps(authority))
+    with pytest.raises((AssertionError, checker.frozen_history.ContractError)):
+        _accepted_initial_condition2(tmp_path)
+
+
+def test_ledger_source_and_declaration_joint_change_requires_formal_acceptance(
+    tmp_path: Path,
+) -> None:
+    """sourceと正式SHAを同時改変しても完全射影のmovement受理を迂回できない。"""
+    _copy_ledger_deployment_assets(tmp_path)
+    base_assets = {path.as_posix(): _read_contract_asset(path)
+                   for path in checker.FROZEN_BASELINE_ASSETS}
+    head_assets = copy.deepcopy(base_assets)
+    current = head_assets[checker.DEFAULT_ALLOWLIST.as_posix()]
+    package = tmp_path / "backend/src/pitchlog/durable_rights_ledger"
+    sql = package / "schema.sql"
+    sql.write_bytes(sql.read_bytes() + b"\nGRANT ALL ON SCHEMA pitchlog_ledger TO PUBLIC;\n")
+    manifest = package / "manifest.json"
+    value = json.loads(manifest.read_bytes())
+    value["ddl_sha256"] = hashlib.sha256(sql.read_bytes()).hexdigest()
+    manifest.write_text(json.dumps(value))
+    for path in (sql, manifest):
+        current["ledger_deployment_assets"][path.relative_to(tmp_path).as_posix()] = (
+            hashlib.sha256(path.read_bytes()).hexdigest()
+        )
+    contract = replace(
+        checker.load_contract(REPOSITORY_ROOT),
+        ledger_deployment_assets=checker._load_ledger_deployment_assets(
+            current["ledger_deployment_assets"],
+        ),
+    )
+    # byte検査の期待値まで変更した場合、正式履歴側の拒否が必須になる。
+    assert checker._validated_ledger_deployment_assets(tmp_path, contract)
+    implementations = {
+        path.as_posix(): (REPOSITORY_ROOT / path).read_bytes()
+        for path in _declared_external_files(REPOSITORY_ROOT)
+    }
+    old_projection = checker.frozen_history.frozen_projection_content(
+        base_assets[checker.DEFAULT_ALLOWLIST.as_posix()], implementations,
+    )
+    new_projection = checker.frozen_history.frozen_projection_content(current, implementations)
+    assert json.loads(new_projection)["asset"]["ledger_deployment_assets"] == (
+        current["ledger_deployment_assets"]
+    )
+    assert new_projection != old_projection
+    base_components = checker.frozen_history._repository_components(base_assets, "比較元")
+    head_components = checker.frozen_history._repository_components(head_assets, "HEAD")
+    movement = checker.frozen_history.evaluate_repository_movement(
+        checker.frozen_history._repository_movement_states(
+            base_assets, base_components, implementations, "比較元",
+        ),
+        checker.frozen_history._repository_movement_states(
+            head_assets, head_components, implementations, "HEAD",
+        ),
+    )
+    assert movement.affected_assets == (checker.DEFAULT_ALLOWLIST.as_posix(),)
+    assert "baseline_value" in movement.triggered_tokens
+    event = checker.frozen_history.PullRequestEvent(
+        repository_full_name="masaki1025/pitchlog", number=182, base_ref="develop",
+        base_sha="a" * 40, head_sha="b" * 40,
+    )
+    with pytest.raises(checker.frozen_history.ContractError, match="movement と追記 record"):
+        checker.frozen_history.validate_repository_histories(
+            base_assets, head_assets,
+            base_implementations=implementations, head_implementations=implementations,
+            base_snapshot_root=tmp_path / "base-snapshots",
+            head_snapshot_root=tmp_path / "head-snapshots",
+            head_parents=(event.base_sha, event.head_sha),
+            evaluation_context=checker.frozen_history.EvaluationContext(
+                checker.frozen_history.EvaluationMode.PR_ACCEPTANCE, event,
+            ),
+        )

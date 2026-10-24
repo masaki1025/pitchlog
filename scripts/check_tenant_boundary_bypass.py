@@ -64,7 +64,6 @@ APPROVED_CONDITION2_OWNER_PATHS = frozenset(
 )
 # 外部台帳候補のProtocol実装だけを、独立確認したsource/全所見へ固定する。
 LEDGER_CONDITION2_PATH = "backend/src/pitchlog/durable_rights_ledger/adapter.py"
-LEDGER_CONDITION2_SOURCE_SHA256 = '10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2'
 LEDGER_CONDITION2_FINDINGS = frozenset(
     {
         (21, 'DurableGenerationSource'),
@@ -247,6 +246,7 @@ class Contract:
     condition2_scoped_source_sha256: str
     ledger_condition2_findings: frozenset[tuple[int, str]]
     ledger_condition2_source_sha256: str
+    ledger_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
@@ -268,6 +268,16 @@ class Violation:
     scope: str = "<module>"
 
 
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """入れ子も含め重複keyのある契約・配備宣言を拒否する。"""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("宣言の重複key")
+        result[key] = value
+    return result
+
+
 def _read_json(path: Path) -> tuple[dict[str, Any], bytes]:
     """JSON オブジェクトと元のバイト列を読む。
 
@@ -285,8 +295,8 @@ def _read_json(path: Path) -> tuple[dict[str, Any], bytes]:
     except OSError as error:
         raise ContractError(f"契約資産を読めない: {path}: {error}") from error
     try:
-        value = json.loads(source)
-    except json.JSONDecodeError as error:
+        value = json.loads(source, object_pairs_hook=_unique_json_object)
+    except ValueError as error:
         raise ContractError(f"契約資産が JSON でない: {path}: {error}") from error
     if not isinstance(value, dict):
         raise ContractError(f"契約資産のルートはオブジェクトでなければならない: {path}")
@@ -830,6 +840,7 @@ def _load_allowlist(
     str,
     frozenset[tuple[int, str]],
     str,
+    tuple[tuple[str, str], ...],
     tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
@@ -846,6 +857,7 @@ def _load_allowlist(
             "condition_2_adjudications",
             "condition_2_scoped_findings",
             "condition_2_ledger_scoped_findings",
+            "ledger_deployment_assets",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1075,8 +1087,8 @@ def _load_allowlist(
     if ledger["path"] != LEDGER_CONDITION2_PATH:
         raise ContractError("台帳条件2登録はadapter単一pathに限る")
     ledger_digest = _string(ledger["source_sha256"], ledger_location)
-    if ledger_digest != LEDGER_CONDITION2_SOURCE_SHA256:
-        raise ContractError("台帳条件2登録のsource SHAが独立確認値と不一致")
+    if re.fullmatch(r"[0-9a-f]{64}", ledger_digest) is None:
+        raise ContractError("台帳条件2登録には実ソースSHA-256が必要")
     ledger_findings: set[tuple[int, str]] = set()
     for raw in _array(ledger["findings"], ledger_location):
         finding = _object(raw, ledger_location)
@@ -1097,6 +1109,7 @@ def _load_allowlist(
         scoped_digest,
         frozenset(ledger_findings),
         ledger_digest,
+        _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         command,
     )
 
@@ -1651,6 +1664,7 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_scoped_source_sha256,
         ledger_condition2_findings,
         ledger_condition2_source_sha256,
+        ledger_deployment_assets,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1697,6 +1711,7 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_scoped_source_sha256=condition2_scoped_source_sha256,
         ledger_condition2_findings=ledger_condition2_findings,
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
+        ledger_deployment_assets=ledger_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
@@ -6571,39 +6586,43 @@ def _git_snapshot(repository_root: Path, revision: str) -> dict[str, str]:
     return sources
 
 
-_LEDGER_DEPLOYMENT_ASSETS = {
-    "pitchlog/durable_rights_ledger/business_identity.sql": (
-        "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb"
-    ),
-    "pitchlog/durable_rights_ledger/manifest.json": (
-        "cb0d0ecd9886bcf44d9569a779a82b396fdc16c158c807c54b69acac842e7b4e"
-    ),
-    "pitchlog/durable_rights_ledger/schema.sql": (
-        "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
-    ),
-}
+_LEDGER_DEPLOYMENT_ASSETS = (
+    "pitchlog/durable_rights_ledger/business_identity.sql",
+    "pitchlog/durable_rights_ledger/manifest.json",
+    "pitchlog/durable_rights_ledger/schema.sql",
+)
 
 
-def _ledger_manifest_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    """入れ子も含め重複keyのある配備manifestを拒否する。"""
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError("配備manifestの重複key")
-        result[key] = value
-    return result
+def _load_ledger_deployment_assets(value: object) -> tuple[tuple[str, str], ...]:
+    """正式凍結宣言の固定3pathとSHAを読み、任意pathへの拡張を拒否する。"""
+    location = "allowlist.ledger_deployment_assets"
+    assets = _object(value, location)
+    paths = tuple(f"backend/src/{relative}" for relative in _LEDGER_DEPLOYMENT_ASSETS)
+    _strict_keys(assets, frozenset(paths), location)
+    result: list[tuple[str, str]] = []
+    for relative in paths:
+        digest = _string(assets[relative], f"{location}.{relative}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError(f"{location}.{relative}: SHA-256が不正")
+        result.append((relative, digest))
+    return tuple(result)
 
 
-def _validated_ledger_deployment_assets(repository_root: Path) -> bool:
+def _validated_ledger_deployment_assets(repository_root: Path, contract: Contract) -> bool:
     """独立レビュー対象の固定3資産を通常file・実bytes・閉宣言で検査する。
 
-    SQLを汎用解析したり、manifestの自己申告を許可根拠にしたりしない。
+    期待SHAは完全7.7対象の正式宣言を使う。製品manifestの自己申告には委ねない。
+    宣言自体の変更はcheck_repositoryの既存全射影・履歴検査で受理を要求する。
     未知のpath/bytesは従来のTB000へ戻し、配備の実行権は与えない。
     """
     contents: dict[str, bytes] = {}
     try:
-        for relative, expected in _LEDGER_DEPLOYMENT_ASSETS.items():
-            path = repository_root / "backend/src" / relative
+        # 合成Contractでも宣言形を崩して検査母集団を縮小させない。
+        expected_assets = _load_ledger_deployment_assets(dict(contract.ledger_deployment_assets))
+        if expected_assets != contract.ledger_deployment_assets:
+            return False
+        for relative, expected in expected_assets:
+            path = repository_root / relative
             for component in (path, *path.parents):
                 if component == repository_root:
                     break
@@ -6616,7 +6635,7 @@ def _validated_ledger_deployment_assets(repository_root: Path) -> bool:
                 return False
             contents[Path(relative).name] = content
         manifest = json.loads(
-            contents["manifest.json"], object_pairs_hook=_ledger_manifest_object
+            contents["manifest.json"], object_pairs_hook=_unique_json_object
         )
         if type(manifest) is not dict or set(manifest) != {
             "schema_version", "postgres_version", "schema", "ddl_sha256", "tables",
@@ -6688,7 +6707,9 @@ def _changed_source_violations(
         if path.suffix not in {".py", ".pyi"}:
             if relative in _LEDGER_DEPLOYMENT_ASSETS:
                 if deployment_valid is None:
-                    deployment_valid = _validated_ledger_deployment_assets(repository_root)
+                    deployment_valid = _validated_ledger_deployment_assets(
+                        repository_root, contract,
+                    )
                 if deployment_valid:
                     continue
             violations.append(
