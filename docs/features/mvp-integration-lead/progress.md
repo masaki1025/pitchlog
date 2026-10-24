@@ -396,7 +396,7 @@ T1 cc69ef94の新純入力162/正式4b2原典3をfork-noneへだけ渡した新�
 | 利用者の操作 | 提供版・実証 | 次の依存 |
 | --- | --- | --- |
 | 画面で新しい準備中試合を作り、保存・再取得・再読込 | 既隔離8a326e6dの実UI→Cookie/C2/同session RG1→実POST201/GET200/DB新1/13field一致を再利用。正式developへ新規作成は未統合 | 正式RG1の認可profile/台帳供給と作成枝の通常統合 |
-| 開始して初期記録権を得る | 実画面未達。初期scope専用wt: 253cbb5dで既606§6の有限手順確認、5134a614 core先行宣言/400成功、40808178別JSON登録/400成功。csv_reviewが実actor/9method/4新表2列/閉型を実装中、独立部分43成功1.36s、DB0 | 実9固定SQL/role/actor RG1 scope_binding供給・新列既guard追随・実DB/開始HTTP/RPC/Cookie/画面 |
+| 開始して初期記録権を得る | 実画面未達。初期scope専用wt: 253cbb5dで既606§6の有限手順確認、5134a614 core先行宣言/400成功、40808178別JSON登録/400成功。csv_reviewが実actor/9method/4新表と既存2表への合計3列/閉型を実装中、独立部分43成功1.36s、DB0 | 実9固定SQL/role/actor RG1 scope_binding供給・新列既guard追随・実DB/開始HTTP/RPC/Cookie/画面 |
 | 1球を保存し、再読込する | 未達、T1計算本体未着手。正式反映unit feature/mvp-t1-decision-contracts c28086a0をpush。D07要件v2.17とD06同期v0.12は枝内確定、各限定7.3初回0、文書状態/計画整合0、共有前提9成功 | 正式型/ケース/descriptor・必要観測/ID相関拒否・P7保存/公開結果/wireとreader・正式7.7/段階B/対象別残条件 |
 
 **T1の閉じた部分と残件**: D06/D07の人間意味判断と限定正本本文の確定が成立。D07新2純入力はfork-none検証者へ原典/純入力だけ渡し、導出封印後にrootが候補比較し六比較面/各23flag/得点打点が一致。seal f9aa6a10b0d8f70aee7d39fa1520f97c1fbac629a93b968183f33db96749dac9、比較 /home/ymdms/.cache/pitchlog/p6-d07-limited-candidate-comparison-20261024.json。作者値未曝露を保って原封印は不変、これは正式段階B/全P6ではない。D06型の独立初回P1（未定義PrefixEvidenceRef）はroot反映1後の独立第2回0で終結。新規範2行/2case/38入力定義はcache候補で、正式42row/109case/不足15/7marker閉鎖0はまだ変更しない。実Port/HTTP/DBをT1着手前へ前倒しせず、元544の実装後ゲートを保持。
@@ -406,3 +406,14 @@ T1 cc69ef94の新純入力162/正式4b2原典3をfork-noneへだけ渡した新�
 **台帳PR182の検査と是正**: 公開27d0のCI40055018456は失敗のまま（harness global未配置literal、backend3567成功/4skip/1失敗の正本SHA追随）。global allowlist10entryを増やさず閉3asset宣言へ正式配置し、不可変製品source/SQL3byte・既拒否を保持。続くローカル全件a4ac621bは29921成功/2skip/4失敗1353.82s。生成source blob/ORM資料/package-data全体禁止/部分censusの全件digest誤適用を3ac12d73で有限是正、局所32成功・非作者28成功0。旧ORM369判定を全保持し外部genesis/journal新1行だけ別委任判断、過去の人間確認を再記入しない。旧受理static-v2/v3のreceipt/全byteをcache保全して未統合182だけ差戻し、新実値d6c44c84の9射影/8external/27payload・旧29履歴206snapshot保持を非作者が全照合0。4f81f035で新対象だけPO委任受理し30/216へ戻した。corpusは旧v3と同値で書換え/再受理なし。最終2d99df28はin-review、frozen/parity invariants0、全census component検査・最終非作者確認が進行中。最終push/実GitHub2親merge検査/必須CI未達、通常mergeはまだしない。
 
 **編集所有**: rootが正式共有資産/core/台帳/最終統合、csv_reviewがinitial-grant-db-scopeの指定source/testだけ（Git/DB/正式共有資産禁止）、非作者はreadonlyと証拠cacheのみ。新blind導出担当には比較資料を未送付。共有DB・運用公開・有料資源・秘密/署名鍵を作成していない。CIや正式供給を待つ間も実scope/DDL/型・拒否の独立作業を継続し、同じ全件失敗を無変更再実行しない。
+
+
+## CI通過後の統合と開始接続（2026-10-24）
+
+記録時刻: 2026-10-24T07:19:38.184641+00:00。PR182は最終2d99df28の必須CI12件が全成功し、最終非作者確認/委任記録/依存/値照合後、PO委任によるCodex root判断で通常mergeした。正式developはd40e79f82769944a32679c97e5630039d5755dc1。実2親・treeは検査済GitHub合成merge f4dedec2と一致。証拠 /home/ymdms/.cache/pitchlog/durable-ledger-final-2d99df28/normal-merge-receipt.json、CI40067700922。旧失敗/受理差戻し履歴を保持し、先の段落の「CI/merge待ち」はこの記録で更新する。初期権・1球・全復旧完成には広げない。
+
+利用者が新たに完了できる操作は引き続き隔離候補8a326e6dの画面新規作成→実API/DB保存→再読込まで。開始/初期権/1球は未達。正式保存基盤が統合され、RG1枝は20c2bc9eでd40を通常mergeし供給待ちを解消した。初期scopeは4bb5dd47で9method/4表・合計3列のsourceを保存、局所268成功・非作者0。既存Generationの旧12列projectionを保持して新証拠2列を通常app読出しへ混入させない。DB/開始HTTP/画面接続は未達。
+
+RG1 c58f83beのactor/fresh epoch供給追補は非作者0を受け委任確認し、3138eb89までsource/検査を保存。RG1局所70成功、epoch ACL生成17成功、role49成功。検査で見つかったepoch UPDATE生成不一致とgrant_option整数0の誤受理を有限是正し、非作者最終確認はこれから。gate列だけを先行0035で供給し、初期scopeの未適用候補は0036へ接ぐ。rootだけが両枝と正式共有資産を編集する。正式認可profile/7.7と実actor借用/初期grant/原子性は未達。
+
+T1は0adb8e23で正式反映範囲を固定、実契約は42行109case/不足15のまま。候補31pathはcache内、旧T2の4656要求・順序を保持する。初回通常レビューP2（既存軸の無断除外拒否）は反映1で終結。第2回はcold processのcodec初回読込を依存監査が拒否する新P1を検出し、cache反映2中。根拠 /home/ymdms/.cache/pitchlog/reviews/t1-decision-assembly-reflection1-independent-20261024/review.md。rootはPO委任により当該cold修正/監査と派生値影響に限定した追加レビュー1回を認め、回数をリセットしない。D06/D07の意味を再選択せず、正式7.7/段階B/対象別P7等を残す。計算本体はまだ開始していない。
