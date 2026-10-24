@@ -43,3 +43,15 @@ U-G1は別wt固定`67dff5f707dcb2311a35140ae870b44f46e24803`、U-F8入口は別w
 調査はread-onlyでDB0。新wtは実baseから作成、編集はplan/researchだけ。最初のtransport1stepは楽観30〜45分/通常1〜2時間。実scope/物理接合は契約固定後に3〜4/6〜10時間程度、HTTP/UI/browserは別単位。全開始をT1完成待ちへ戻さず、物理未受理を既採用として隠さない。旧親/UR1正常置換/台帳/UF8各レビュー系列と未完DoDは維持する。
 
 起案検査はdocs-status21文書/違反0、design-propagation/doc-coverage成功、新2文書の全ローカルリンク実在、diff check成功。製品/DB試験は起案範囲外なので未実行。新2文書を固定した後に局所plan-syncを実baseと比較し、独立限定レビュー/PO委任前は製品編集を停止する。
+
+## 限定ステップ1の実装と局所検査
+
+非作者resolver_ledger_plan_reviewの初回全文0/0/0をrootが照合し、PO委任承認`9031bab7819c4082be1de7bcdaaa62d6e38f6996`で限定1ステップを指示した。編集は新`backend/src/pitchlog/api/schemas/game_start.py`、既存`backend/tests/test_game_preparing_components.py`、本researchの3pathのみ。plan/HTTP/router/Port/DB/記録権/共有metadata/他wtは変更しない。
+
+要求exact5/要素exact3、既存EntityId/SecretStr/StrictInt/JsonValue、両側9又は10枠とnullable打順1〜9を実装した。未知守備JSON/重複選手を保持する正例はtransportに限り、DH/位置/在籍/開始/保持権の意味許可とはしない。資格は実発行せず公開固定入力で型境界だけを検査した。
+
+SecretStrの通常repr/JSON maskingだけでは、missing等のValidationError.inputに元request全体が残る。そのため本requestだけのwrap validatorで、元input/context/msgをコピーしない固定診断・既知field/index位置へ再構成する。未知JSONの独自errorも同じ拒否へ写し、JSON構文エラーはmodel validatorより前なので`model_validate_json`も同じ秘匿境界に通す。except外から再送出し、資格を含む原例外を__context__へも連結しない。通常代入もPydanticのvalidate_assignmentへ通し、資格fieldを生strで置換しない。共通BaseSchemaは無変更。
+
+初回の型検査はInitErrorDetailsのinput必須/可変error typeのLiteralStringに関する3診断、試験側の意図的な異型代入に2診断。安全条件を変えず、input=None/固定診断typeと通常setattrによる動的入力試験へ是正した。pytest失敗は0。中間の新規対象54成功/1.34秒（旧87deselected）と、原例外context非保持まで含む最終対象全件**141成功/0.75秒（skip0）**を区別する。旧87件の既存関数/class定義24個は承認HEADからAST一致を確認し、期待値を変えていない。
+
+最終backend対象Ruff format/check・ty、root Ruff/ty、docs-status21/違反0、design-propagation/doc-coverageが成功。実core_guardのload_core_areas/matched_pathsで新source/既存testの双方捕捉を確認した。局所plan-sync/diff checkはステップcommit固定後にも照合する。DB/全backend/censusは今回未実行で、前の別候補の成功を転用しない。HTTP/実Port/実開始/1球/MVP全体は未提供のまま、独立コードレビューはこれからで作者の局所成功を独立可決へ置換しない。

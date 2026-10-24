@@ -18,11 +18,12 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 from fastapi import FastAPI, Query
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.selectable import Select
 
 from pitchlog.api.schemas.base import BaseSchema, PageRequest
+from pitchlog.api.schemas.game_start import GameStartRequest, StartLineupInput
 from pitchlog.api.schemas.games import (
     ExistingTournament,
     NewTournament,
@@ -510,3 +511,214 @@ def test_saved_snapshot_contract_unavailable_is_not_a_success(
             _decode_preparing_snapshot(immutable)
     finally:
         rule_snapshot._validator.cache_clear()
+
+
+_START_PUBLIC_CREDENTIAL = "public-transport-fixture-not-an-issued-credential"
+
+
+def _start_payload(away_size: int = 9, home_size: int = 9) -> dict[str, Any]:
+    """発行済み権利を装わず、transport検査だけの公開固定入力を返す。"""
+
+    def lineup(size: int) -> list[dict[str, object]]:
+        return [
+            {
+                "player_id": str(uuid4()),
+                "batting_order": index + 1 if index < 9 else None,
+                "fielding_position": {"unresolved": [None, True, "raw", 1.5]},
+            }
+            for index in range(size)
+        ]
+
+    return {
+        "start_request_id": str(uuid4()),
+        "device_id": str(uuid4()),
+        "device_credential": _START_PUBLIC_CREDENTIAL,
+        "away": lineup(away_size),
+        "home": lineup(home_size),
+    }
+
+
+def _assert_start_error_is_private(error: ValidationError) -> None:
+    """strだけでなく公開エラー詳細/JSON/reprにも資格を残さない。"""
+    assert error.error_count() > 0
+    assert error.__context__ is None
+    for representation in (
+        str(error),
+        repr(error),
+        str(error.errors()),
+        json.dumps(error.errors(), default=str),
+        error.json(),
+    ):
+        assert _START_PUBLIC_CREDENTIAL not in representation
+    assert all(item["input"] is None and "ctx" not in item for item in error.errors())
+
+
+@pytest.mark.parametrize("sizes", [(9, 9), (9, 10), (10, 9), (10, 10)])
+def test_start_transport_accepts_closed_shapes_without_issuing_rights(
+    sizes: tuple[int, int],
+) -> None:
+    """両側9/10枠を外形として保持し、通常JSONの資格はmaskedにする。"""
+    payload = _start_payload(*sizes)
+    request = GameStartRequest.model_validate(payload)
+    assert issubclass(GameStartRequest, BaseSchema)
+    assert issubclass(StartLineupInput, BaseSchema)
+    assert set(GameStartRequest.model_fields) == {
+        "start_request_id",
+        "device_id",
+        "device_credential",
+        "away",
+        "home",
+    }
+    assert set(StartLineupInput.model_fields) == {
+        "player_id",
+        "batting_order",
+        "fielding_position",
+    }
+    assert request.start_request_id == UUID(payload["start_request_id"])
+    assert request.device_id == UUID(payload["device_id"])
+    assert type(request.away) is type(request.home) is tuple
+    assert (len(request.away), len(request.home)) == sizes
+    assert type(request.device_credential) is SecretStr
+    assert request.device_credential.get_secret_value() == _START_PUBLIC_CREDENTIAL
+    assert payload["device_credential"] == _START_PUBLIC_CREDENTIAL
+    dumped = json.loads(request.model_dump_json())
+    assert dumped["device_credential"] == "**********"
+    assert dumped["away"] == payload["away"] and dumped["home"] == payload["home"]
+    assert _START_PUBLIC_CREDENTIAL not in repr(request)
+    assert _START_PUBLIC_CREDENTIAL not in str(request)
+    assert _START_PUBLIC_CREDENTIAL not in repr(request.model_dump())
+    assert _START_PUBLIC_CREDENTIAL not in request.model_dump_json()
+
+
+@pytest.mark.parametrize("field", ["away", "home"])
+@pytest.mark.parametrize("count", [0, 8, 11])
+def test_start_transport_rejects_invalid_side_counts(field: str, count: int) -> None:
+    """各側の不足/超過を資格値の露出なしで拒否する。"""
+    payload = _start_payload(11, 11)
+    payload["away"] = payload["away"][:9]
+    payload["home"] = payload["home"][:9]
+    payload[field] = _start_payload(11, 11)[field][:count]
+    with pytest.raises(ValidationError) as caught:
+        GameStartRequest.model_validate(payload)
+    _assert_start_error_is_private(caught.value)
+
+
+@pytest.mark.parametrize("value", [True, False, 0, 10, -1, 1.0, "1", [], {}])
+def test_start_transport_batting_order_is_exact_int_or_null(value: object) -> None:
+    """打順の型/外形値域だけを検査し、bool/float/文字列を変換採用しない。"""
+    payload = _start_payload()
+    payload["away"][0]["batting_order"] = value
+    with pytest.raises(ValidationError) as caught:
+        GameStartRequest.model_validate(payload)
+    _assert_start_error_is_private(caught.value)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "tenant_id",
+        "game_id",
+        "status",
+        "started_at",
+        "d4",
+        "d3",
+        "v12",
+        "recovery_generation",
+        "reservation_attempt_id",
+        "name",
+        "uniform_number",
+    ],
+)
+def test_start_transport_rejects_server_owned_and_unknown_fields(field: str) -> None:
+    """本物の試合/記録権/予約/背番号をbodyで偽装できない。"""
+    payload = _start_payload()
+    payload[field] = _START_PUBLIC_CREDENTIAL
+    with pytest.raises(ValidationError) as caught:
+        GameStartRequest.model_validate(payload)
+    _assert_start_error_is_private(caught.value)
+
+
+@pytest.mark.parametrize("field", ["name", "uniform_number", "device_credential"])
+def test_start_transport_rejects_extra_lineup_fields(field: str) -> None:
+    """選手入力をexact3fieldに閉じ、名前/背番号/余剰資格を受理しない。"""
+    payload = _start_payload()
+    payload["home"][0][field] = _START_PUBLIC_CREDENTIAL
+    with pytest.raises(ValidationError) as caught:
+        GameStartRequest.model_validate(payload)
+    _assert_start_error_is_private(caught.value)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"start_request_id": "not-a-uuid"},
+        {"device_id": True},
+        {"device_credential": ""},
+        {"device_credential": None},
+        {"device_credential": 12},
+        {"device_credential": {"raw": _START_PUBLIC_CREDENTIAL}},
+        {"away": None},
+    ],
+)
+def test_start_transport_rejects_malformed_fields_without_credential_leak(
+    change: dict[str, object],
+) -> None:
+    """他fieldや資格自体が不正でも、診断から資格を公開しない。"""
+    with pytest.raises(ValidationError) as caught:
+        GameStartRequest.model_validate({**_start_payload(), **change})
+    _assert_start_error_is_private(caught.value)
+
+
+@pytest.mark.parametrize("field", list(GameStartRequest.model_fields))
+@pytest.mark.parametrize("json_input", [False, True])
+def test_start_transport_missing_field_hides_whole_request(
+    field: str,
+    json_input: bool,
+) -> None:
+    """missingのinputが元request全体になる経路も、通常/JSONの両方で拒否する。"""
+    payload = _start_payload()
+    del payload[field]
+    with pytest.raises(ValidationError) as caught:
+        if json_input:
+            GameStartRequest.model_validate_json(json.dumps(payload))
+        else:
+            GameStartRequest(**payload)
+    _assert_start_error_is_private(caught.value)
+
+
+def test_start_transport_unknown_positions_are_not_business_authorization() -> None:
+    """未知守備/重複等は入力保持で、意味検証済み/ready/heldへ変換しない。"""
+    payload = _start_payload()
+    payload["away"] = [payload["away"][0]] * 9
+    request = GameStartRequest.model_validate(payload)
+    assert len({entry.player_id for entry in request.away}) == 1
+    assert request.away[0].fielding_position == {"unresolved": [None, True, "raw", 1.5]}
+    assert not any(hasattr(request, name) for name in ("ready", "held", "started_at"))
+
+
+@pytest.mark.parametrize("bad_json", [False, True])
+def test_start_transport_json_and_custom_jsonvalue_errors_are_sanitized(
+    bad_json: bool,
+) -> None:
+    """modelより前のJSON構文拒否とJsonValueの独自errorも安全な例外へ閉じる。"""
+    with pytest.raises(ValidationError) as caught:
+        if bad_json:
+            GameStartRequest.model_validate_json(
+                '{"device_credential":"' + _START_PUBLIC_CREDENTIAL + '",'
+            )
+        else:
+            payload = _start_payload()
+            payload["home"][0]["fielding_position"] = object()
+            GameStartRequest.model_validate(payload)
+    _assert_start_error_is_private(caught.value)
+
+
+def test_start_transport_assignment_keeps_credential_wrapped() -> None:
+    """通常代入でも資格をstrへ置換できず、不正代入の診断も秘匿する。"""
+    request = GameStartRequest.model_validate(_start_payload())
+    setattr(request, "device_credential", _START_PUBLIC_CREDENTIAL)
+    assert type(request.device_credential) is SecretStr
+    with pytest.raises(ValidationError) as caught:
+        setattr(request, "device_id", _START_PUBLIC_CREDENTIAL)
+    _assert_start_error_is_private(caught.value)
+    assert _START_PUBLIC_CREDENTIAL not in repr(request)
