@@ -98,3 +98,14 @@ rootはPO委任で、安全な公開Class入口（model_validate/model_validate_
 この追補の新たな野球意味判断は0件。鍵実発行・運用配置・共有DB適用は未実施/委任外を維持する。rootの採否・独立レビュー/専用plan/必要7.3/具体asset受理前は次source編集を開始しないが、T1/実Port/HTTP/全非0復旧の完成を保存contract/実adapter局所実装の前提にしない。旧transportレビューP1/是正・UG1/UR1の親ステップ/回数を保持する。
 
 親からの追加指示に従い、brokerのexact peer/role追加は現在のapp/control2+observer2正式登録の**後続**として分けた。次scope小単位はfinal `InitialRecordingRightScope`/私有factory/凍結StartOwnerと、exact9固定関数・4表・既存epoch/digest列・正負試験へ絞り、enrollmentのコード方針は既チームCookie＋端末資格方式の技術案として具体化した。新しい個人認証仕様のPO質問を作らない。最初のDB scope fixtureがdevice行/公開vectorを準備する事実と、後続の実enrollment/実broker開始を別に記録する。未知pendingの自動解消は実装済みとしない。
+
+
+## §6初回P1×2の全採用と反映候補
+
+固定bc8fdf39の限定非作者初回はP0=0/P1=2/P2=0、START-SCOPE-PLAN-01（(c)正常系が必要とするactor RG1供給を(d)へ後置）とSTART-SCOPE-PLAN-02（予約前から終結までのrequest/attempt排他の固定操作対応が未明示）だった。証拠は`/home/ymdms/.cache/pitchlog/review-start-scope-plan-bc8fdf39/evidence.json`、SHA256 f8527c11a24fa629312e3eecd91c6052c1c23d7e4b6dfa890f547534468847f9。旧plan e821ea55b6e9fca8dc72bf97275c4a6e3cd04fd7d6f8a9587c483b676166d4e4/research808e5d75d521c3bccc318cfa0f6fd069816cbb442ab364504fe08cc1782bb01cと初回否決を保持し、反映後の0件判定を先取りしない。
+
+rootはPO委任による技術判断として両P1を採用し、plan/research2pathだけの最小反映を明示指示した。01は現app RG1正式登録を先行独立のまま保ち、その後のactor exact1組/実epoch・bindingのroot所有固定供給を(c)正常実接合前へ置いた。(c)の型/DDL/単体/拒否は供給待ちで止めず、正常grant/再交付/競合DoDも維持する。(d)には実broker RPC/実Cookie・認証再検証の全経路を残し、current RG1の成立をbroker完成待ちへ戻さない。
+
+02は既9固定関数を増やさず、`InitialGrantScope.lock_valid_device`が`lock_device`→実credential digest真照合成功後に、同business Sessionの`resolve_start_attempt`で固定ownerのrequest→attemptを排他lockする対応へ具体化した。戻り値/owner/行存在/outcomeを照合し、pendingだけ新規進行、committedは同一現権利のexisting_start照合へ進み、不正・欠損・他outcomeは閉じる。これにより既issuerのreserve/claimより前から終結まで排他を保持し、短いintent取引のlock継続や別Sessionを代用しない。並行同request2本の直列再交付/追加予約0、無効資格・owner差替え・許可外outcome・別Session/短intent lock代用の負例を(c)へ対応させた。
+
+今回rightsは主担当の明示指示により反映作者へ役割を変更した。初回非作者レビューと今回の候補作成を別に記録し、反映後の独立最終確認を兼ねない。source/DB/共有asset/Git indexを変更せず、4表/2role/9関数/9method、T1/Port/HTTP/全復旧を準備着手条件へ追加しない境界、旧transport/親全計画/全レビュー系列を維持した。rootが別の非作者へ固定反映差分を渡し、再確認/対象版判断後だけ次の製品実装へ進む。
