@@ -1,0 +1,534 @@
+{
+  "format_version": "pitchlog.t1-single-flag-conditions-candidate.v1",
+  "scope": "D-only; not global XC-13 or formal T1 completion",
+  "domain": {
+    "given": "1回表/二死二三塁/普通単打/pitch-event/公式失策妨害なし/R2非force三塁out/R3homeの明示override",
+    "structural_factor_counts": {
+      "timing": 2,
+      "cause": 5,
+      "continuity": 3,
+      "restart": 3
+    },
+    "structural_cells": 90,
+    "structural_cells_are_not_90_valid_plays": true,
+    "normal_issues_and_unknowns_are_author_assessments": true
+  },
+  "condition_rows": [
+    {
+      "flag": "投球回算入アウト",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dの実アウト効果は1で、投球回へ算入するアウトがある。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0001"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "投球数",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dはpitch-eventを明示し、投球イベント1件。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0002"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "奪三振",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0003"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "与四球",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0004"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "与死球",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0005"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "被安打",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dの採用結果は普通単打である。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0006"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "被本塁打",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0007"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "失点",
+      "scope_status": "variable-in-D",
+      "iff_in_domain": "必要観測が揃うDでは、OUT3と非サヨナラの確定後に計上得点者R3が存在することと同値。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3",
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ],
+      "witness_input_ids": {
+        "false": "q0046",
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0008",
+        "n0009"
+      ],
+      "opposite_condition_witness_outside_D": false
+    },
+    {
+      "flag": "失策",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0010"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "打席",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dは普通単打で打席終了true。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0011"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "打数",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dの打席終了から四死球/犠打犠飛/妨害出塁の控除事由がない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0012"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "安打",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dは普通単打。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0013"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "本塁打",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0014"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "塁打",
+      "scope_status": "constant-true-in-D",
+      "iff_in_domain": "Dは普通単打による塁打1。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": null,
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0015"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "犠打",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0016"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "犠飛",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0017"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "四球",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0018"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "死球",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0019"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "三振",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0020"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "打撃妨害出塁",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0021"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "走塁妨害出塁",
+      "scope_status": "constant-false-in-D",
+      "iff_in_domain": "Dは普通単打・公式失策/妨害なしで、このkeyの計上事由となる結果/記録に該当しない。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ],
+      "witness_input_ids": {
+        "false": "q0010",
+        "true": null
+      },
+      "negative_ids": [
+        "n0022"
+      ],
+      "opposite_condition_witness_outside_D": true
+    },
+    {
+      "flag": "得点",
+      "scope_status": "variable-in-D",
+      "iff_in_domain": "必要観測が揃うDでは、OUT3と非サヨナラの確定後に計上得点者R3が存在することと同値。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3",
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ],
+      "witness_input_ids": {
+        "false": "q0046",
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0023",
+        "n0024"
+      ],
+      "opposite_condition_witness_outside_D": false
+    },
+    {
+      "flag": "打点",
+      "scope_status": "variable-in-D",
+      "iff_in_domain": "必要観測が揃うDでRBI入力域に入るR3がRBI-03またはRBI-08に適合することと同値。RBI-04は不算入。入力域が空ならfalse。",
+      "source_clauses": [
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3",
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ],
+      "witness_input_ids": {
+        "false": "q0027",
+        "true": "q0010"
+      },
+      "negative_ids": [
+        "n0025",
+        "n0026"
+      ],
+      "opposite_condition_witness_outside_D": false
+    }
+  ],
+  "constant_true_keys": [
+    "投球回算入アウト",
+    "投球数",
+    "被安打",
+    "打席",
+    "打数",
+    "安打",
+    "塁打"
+  ],
+  "constant_false_keys": [
+    "奪三振",
+    "与四球",
+    "与死球",
+    "被本塁打",
+    "失策",
+    "本塁打",
+    "犠打",
+    "犠飛",
+    "四球",
+    "死球",
+    "三振",
+    "打撃妨害出塁",
+    "走塁妨害出塁"
+  ],
+  "variable_keys": [
+    "失点",
+    "得点",
+    "打点"
+  ],
+  "unprovided_opposite_condition_witnesses": [
+    "投球回算入アウト",
+    "投球数",
+    "被安打",
+    "打席",
+    "打数",
+    "安打",
+    "塁打",
+    "奪三振",
+    "与四球",
+    "与死球",
+    "被本塁打",
+    "失策",
+    "本塁打",
+    "犠打",
+    "犠飛",
+    "四球",
+    "死球",
+    "三振",
+    "打撃妨害出塁",
+    "走塁妨害出塁"
+  ],
+  "opposite_condition_missing_count": 20,
+  "negative_output_count": 26,
+  "global_xc13_complete": false,
+  "formal_missing_branches_retained": 15,
+  "new_formally_closed_branches": 0,
+  "not_a_product_refusal_contract": true,
+  "numeric_flag_minimum_observation_contract_complete": false
+}

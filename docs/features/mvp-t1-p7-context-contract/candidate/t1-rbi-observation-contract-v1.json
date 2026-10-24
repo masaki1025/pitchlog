@@ -1,0 +1,269 @@
+{
+  "format_version": "pitchlog.t1-rbi-observation-contract-candidate.v1",
+  "status": "candidate-raw-observation-structure-not-wire-or-ready",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "RBI因果観測の局所閉型候補",
+    "$comment": "not-requiredは観測不在。記録員の同プレイ・同走者の因果観測であり、RBI判定結果/真正性証明ではない。",
+    "$ref": "#/$defs/T1RbiMisplayObservationsV1",
+    "$defs": {
+      "T1RbiCauseValueV1": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "$ref": "context-refs.schema.json#/$defs/PlayerRefV1"
+          },
+          "held_too_long": {
+            "type": "boolean"
+          },
+          "unnecessary_throw": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "person",
+          "held_too_long",
+          "unnecessary_throw"
+        ],
+        "additionalProperties": false
+      },
+      "T1RbiRestartValueV1": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "$ref": "context-refs.schema.json#/$defs/PlayerRefV1"
+          },
+          "after_observing_misplay": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "person",
+          "after_observing_misplay"
+        ],
+        "additionalProperties": false
+      },
+      "T1RbiCauseMapV1": {
+        "type": "object",
+        "properties": {
+          "batter": {
+            "$ref": "#/$defs/T1RbiCauseValueV1"
+          },
+          "first": {
+            "$ref": "#/$defs/T1RbiCauseValueV1"
+          },
+          "second": {
+            "$ref": "#/$defs/T1RbiCauseValueV1"
+          },
+          "third": {
+            "$ref": "#/$defs/T1RbiCauseValueV1"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "T1RbiRestartMapV1": {
+        "type": "object",
+        "properties": {
+          "batter": {
+            "$ref": "#/$defs/T1RbiRestartValueV1"
+          },
+          "first": {
+            "$ref": "#/$defs/T1RbiRestartValueV1"
+          },
+          "second": {
+            "$ref": "#/$defs/T1RbiRestartValueV1"
+          },
+          "third": {
+            "$ref": "#/$defs/T1RbiRestartValueV1"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "T1RbiCauseByRunnerV1": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "not-required"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "observed"
+              },
+              "by_runner": {
+                "$ref": "#/$defs/T1RbiCauseMapV1"
+              }
+            },
+            "required": [
+              "kind",
+              "by_runner"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "T1RbiRestartByRunnerV1": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "not-required"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "observed"
+              },
+              "by_runner": {
+                "$ref": "#/$defs/T1RbiRestartMapV1"
+              }
+            },
+            "required": [
+              "kind",
+              "by_runner"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "T1RbiMisplayObservationsV1": {
+        "type": "object",
+        "properties": {
+          "cause_by_runner": {
+            "$ref": "#/$defs/T1RbiCauseByRunnerV1"
+          },
+          "restart_by_runner": {
+            "$ref": "#/$defs/T1RbiRestartByRunnerV1"
+          }
+        },
+        "required": [
+          "cause_by_runner",
+          "restart_by_runner"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "external_reference": {
+    "ref": "context-refs.schema.json#/$defs/PlayerRefV1",
+    "file": "context-refs.schema.json",
+    "file_sha256": "f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7",
+    "definition": "PlayerRefV1"
+  },
+  "source": {
+    "commit": "4b2db6907f329c3dde113c3b7e1c3515600fb915",
+    "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "sha256": "a7edf93a56dc6b6f364890a4cd49cd6a360fcb4e45dafe64f561163f789a538f",
+    "clauses": [
+      "req:FR-003",
+      "req:OUT3-01",
+      "req:OUT3-02",
+      "req:OUT3-03",
+      "req:OUT3-04",
+      "req:OUT3-05",
+      "req:RBI-03",
+      "req:RBI-04",
+      "req:RBI-08"
+    ]
+  },
+  "terms": {
+    "held_too_long": "当該走者の生還に結びつく同プレイの、野手がボールを持ちすぎた間という記録員観測。全プレイに一般に存在しただけの無関係な動作ではない。",
+    "unnecessary_throw": "当該走者の生還に結びつく同プレイの、無用な塁への送球の間という記録員観測。通常の有効送球から自動推定しない。",
+    "runnerContinuityByRunner": "既存型を使い、同じ走者/同じ当該因果期間に走り続けたか、停止後に再発進したかを表す。",
+    "after_observing_misplay": "当該持ちすぎ/無用送球を見たことが、この停止後の再発進の契機であったかという別の観測。単に停止後動いた事実から推定しない。",
+    "not-required": "原観測の不在であり、false/因果なし/走行継続の表明ではない。",
+    "person": "起点runner keyと同じプレイのPlayerRefを保持。タグ/UUIDだけでtenant/game/issuerの真正性を証明しない。"
+  },
+  "correlations": [
+    {
+      "issue_id": "RBI_CAUSE_REQUIRED",
+      "source": [
+        "req:FR-003",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ],
+      "rule": "OUT3後のRBI入力域に入る走者の因果観測が必要。",
+      "scope": "complete first-matching-branch author case within the declared paired-boolean profile, not a general product refusal rule"
+    },
+    {
+      "issue_id": "RBI_CONTINUITY_REQUIRED",
+      "source": [
+        "req:FR-003",
+        "req:RBI-03",
+        "req:RBI-04"
+      ],
+      "rule": "その走者に関係する持ちすぎ/無用送球が観測trueなら、その走者の継続観測が必要。",
+      "scope": "complete first-matching-branch author case within the declared paired-boolean profile, not a general product refusal rule"
+    },
+    {
+      "issue_id": "RBI_RESTART_REQUIRED",
+      "source": [
+        "req:FR-003",
+        "req:RBI-04"
+      ],
+      "rule": "RBI入力域の走者に当該因果があり停止再発進を観測した場合、ミスプレイを見た再発進かの観測が必要。",
+      "scope": "complete first-matching-branch author case within the declared paired-boolean profile, not a general product refusal rule"
+    },
+    {
+      "issue_id": "RBI_RESTART_CONTRADICTS_CONTINUITY",
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04"
+      ],
+      "rule": "同一走者/期間のkept-runningと当該restart trueは同時に成り立たない。",
+      "scope": "complete first-matching-branch author case within the declared paired-boolean profile, not a general product refusal rule"
+    },
+    {
+      "issue_id": "RBI_RESTART_CONTRADICTS_CAUSE",
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04"
+      ],
+      "rule": "当該因果を両falseと観測し、その同じミスプレイを見たrestartをtrueとする原観測は相反する。",
+      "scope": "complete first-matching-branch author case within the declared paired-boolean profile, not a general product refusal rule"
+    },
+    {
+      "issue_id": "RBI_PERSON_MISMATCH",
+      "source": [
+        "req:FR-003"
+      ],
+      "rule": "観測のpersonと同プレイ起点runner keyの実人物が一致する必要がある。",
+      "scope": "complete first-matching-branch author case within the declared paired-boolean profile, not a general product refusal rule"
+    }
+  ],
+  "boundaries": {
+    "applies_to": "declared domain D only for completeness checks",
+    "no_public_rejection_id_or_priority": true,
+    "no_d5_consumption_rule": true,
+    "no_d06_d07_choice": true,
+    "old_schemas_unchanged": true,
+    "scope_authority_implemented": false,
+    "minimum_observations_for_numeric_flags_established": false,
+    "product_required_input_dto_approved": false
+  },
+  "unprovided_input_profiles": [
+    "held_too_long known true / unnecessary_throw unobserved",
+    "unnecessary_throw known true / held_too_long unobserved",
+    "other one-sided causal observations"
+  ]
+}

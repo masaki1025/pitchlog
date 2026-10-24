@@ -156,3 +156,23 @@ plan第10節の承認71b78742に基づき、`t1-pure-inputs-v1.json`は中立for
 作者資料のmatrix_comparison_candidateはE-1の6field/23flagを列挙するが、runnerDefaultAdvance.second/thirdと一致する正式row bindingは未解決である。無死走者なしの現正式単打rowを二死二三塁へ適合偽装しない。実手動結果・OUT3後の得点者/得点/RBIと攻守交代後状態は別のapplied_resultへ分離する。既定進塁の値域だけから採用値を選ばず、完全な正式caseではない状態を明示する。
 
 この供給は純入力2件であり、正式missing15→13/6mapping更新や独立P6/7.7成立ではない。純入力の安全な将来packetはconstructor第7節の分離手順を使い、作者資料・本文・会話・branch対応を検証者へ混ぜない。
+
+## 9. 単打域Dの23flag条件とRBI因果観測候補（§11、正式未受理）
+
+旧50定義/292構造case/11constructor/schema/d.ts、純入力v1・author-v1・evaluation-v2は不変。追加7定義は別`t1-rbi-observation-contract-v1.json`のjson_schemaにだけ置き、旧PlayerRefV1は固定file hash/定義名へのexact参照で共有する。試験内の結合は同じ候補schemaのPlayerRef1種類に限定し、任意ファイル/未知参照・旧定義上書きを拒否する。正式wire・DTO保存ABI・製品生成型を提供するものではない。
+
+| 新閉型 | 出所/field群・検証境界 |
+| --- | --- |
+| `T1RbiCauseValueV1` | personは既存PlayerRefV1。held_too_long/unnecessary_throwはFR-003/A-3 RBI-03/04の当該走者の生還に関係した持ちすぎ/無用送球の記録員観測boolean。両trueを許し、公式失策なし/送球先からfalseを推定しない |
+| `T1RbiRestartValueV1` | 同personとafter_observing_misplay。RBI-04の「ミスプレイを見て再発進した」という因果を、単なる停止再発進と別に保持するboolean。not-requiredの不在とfalseを区別する |
+| `T1RbiCauseMapV1` | batter/first/second/thirdだけの走者別写像。キーの任意性は構造表現であり、対象走者の必要観測がないことを意味上正常にしない |
+| `T1RbiRestartMapV1` | 同じ起点runner-keyで各restart観測を保持。別走者の値を対象へ流用せず、同プレイの人物と照合する |
+| `T1RbiCauseByRunnerV1` | not-required/observed.by_runnerの閉union。観測不在を因果なしの確定にしない |
+| `T1RbiRestartByRunnerV1` | not-required/observed.by_runnerの閉union。観測済みfalseを削除/既定化しない |
+| `T1RbiMisplayObservationsV1` | cause_by_runner/restart_by_runnerの全必須object。既存continuityと組み合わせる候補sidecarであり、旧per_pitch型へ未宣言propertyを追加しない |
+
+`t1-single-flag-conditions-v1.json`はD内23keyの原典/必要十分条件/正常witness/反転負例IDを対応する。Dは普通単打・二死二三塁・両走者明示override・pitch-event・非サヨナラ/失策妨害なし。7true/13false/3変動で、全球域の反対条件20方向と他結果/操作は未収録。`t1-rbi-observation-inputs-v2.json`は新中立IDと共通Given/90観測セルだけ、対応する作者判定・23flag・26反転負例・原典理由は`t1-rbi-observation-author-v3.json`へ分離する。合成事実は観測軸被覆のための新シナリオであり、旧入力のunknownへ都合よく追加した観測でも実試合映像の観測でもない。
+
+固定原典は4b2db690の要件FR-003/OUT3/RBI/E-1/E-2/A-2/A-3で、全hash/条文は新観測契約・既researchに固定する。Dで無効得点者のRBI観測を新必須にせず、正の相反だけを同じ人物/期間で照合する。候補のissue集合はAPI結果ID/D5消費/拒否優先順ではない。missing15/closure0、D06/D07、全7marker/G6/正式7.7/P6/P7/T1開始の未達は継続する。
+
+**固定前点検で判明した入力最小性の限界**: この90セルはH/Uの両方を観測済み、または両方不在というprofileで、片側true/他側未観測のOR証拠を表せない。従って本schemaを一般の製品必須DTOへ昇格できず、片側の未観測をfalseへ埋めない。さらにq0004/q0005は因果不在でもkept-runningが明示され、Dの打点数/flagは03/08のどちらでも1/trueとなる。作者表ではこの数値部分を保持し、first branchだけunknownとする。完全branch-caseの入力issueを数値不明や製品拒否と同一視しない。部分観測/同値分岐時の最小入力契約は未提供で、主担当へ具体不足として報告済みである。

@@ -6209,6 +6209,13 @@ def _p7_context_candidate_check_keywords(schema: dict[str, Any]) -> None:
             'T1ThirdOutTimingV1', 'T1RunnerOutcomeMapV1',
         )
     }
+    # 別candidateの走者mapだけを、同じ有限4キーの任意性へ限定追加する。
+    for name in ('T1RbiCauseMapV1', 'T1RbiRestartMapV1'):
+        if name in schema['$defs']:
+            node = schema['$defs'][name]
+            assert set(node['properties']) == {'batter', 'first', 'second', 'third'}
+            assert node['required'] == []
+            optional_nodes.add(id(node))
     rbi = schema['$defs']['T1RbiObservationsV1']['properties']
     for name in ('runnerContinuityByRunner', 'wouldScoreWithoutErrorByRunner'):
         optional_nodes.add(id(rbi[name]['oneOf'][1]['properties']['by_runner']))
@@ -6510,7 +6517,7 @@ def test_p7_context_candidate_readonly_declaration_drift_is_rejected(change: str
 
 
 def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> None:
-    """先行登録globが旧7・v2評価1ファイルを双方の領域で覆うことを確認する。"""
+    """先行登録globが旧8・観測候補4ファイルを双方の領域で覆うことを確認する。"""
     import fnmatch
 
     names = {
@@ -6518,6 +6525,8 @@ def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> 
         'structure-cases.json', 'source-ownership.md',
         't1-pure-inputs-v1.json', 't1-author-derived-v1.json',
         't1-author-evaluation-v2.json',
+        't1-rbi-observation-contract-v1.json', 't1-single-flag-conditions-v1.json',
+        't1-rbi-observation-inputs-v2.json', 't1-rbi-observation-author-v3.json',
     }
     assert {path.name for path in _P7_CONTEXT_CANDIDATE_PATH.iterdir()} == names
     configuration = _load_object(REPOSITORY_ROOT / '.claude/core-areas.json')
@@ -7467,3 +7476,371 @@ def test_p7_context_candidate_author_evaluation_v2_rejects_scope_promotion(field
     evaluation['comparison_boundary'][field] = True
     with pytest.raises(AssertionError):
         _p7_context_candidate_check_author_evaluation_v2(evaluation)
+
+
+def _p7_context_candidate_rbi_contract() -> dict[str, Any]:
+    """製品未接続のRBI因果観測契約だけを読む。"""
+    return _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-contract-v1.json')
+
+
+def _p7_context_candidate_rbi_schema(
+    contract: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """同fileの固定PlayerRef参照1種類だけを試験内の共有定義へ結ぶ。"""
+    contract = contract if contract is not None else _p7_context_candidate_rbi_contract()
+    external = 'context-refs.schema.json#/$defs/PlayerRefV1'
+    assert contract['external_reference'] == {
+        'ref': external, 'file': 'context-refs.schema.json',
+        'file_sha256': 'f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7',
+        'definition': 'PlayerRefV1',
+    }
+    assert hashlib.sha256(
+        (_P7_CONTEXT_CANDIDATE_PATH / 'context-refs.schema.json').read_bytes(),
+    ).hexdigest() == contract['external_reference']['file_sha256']
+    new = copy.deepcopy(contract['json_schema'])
+    names = {'T1RbiCauseValueV1', 'T1RbiRestartValueV1', 'T1RbiCauseMapV1',
+             'T1RbiRestartMapV1', 'T1RbiCauseByRunnerV1', 'T1RbiRestartByRunnerV1',
+             'T1RbiMisplayObservationsV1'}
+    assert set(new['$defs']) == names
+
+    def visit(node: Any) -> None:
+        if isinstance(node, list):
+            for item in node:
+                visit(item)
+        elif isinstance(node, dict):
+            if '$ref' in node:
+                reference = node['$ref']
+                if reference == external:
+                    node['$ref'] = '#/$defs/PlayerRefV1'
+                elif not reference.startswith('#/$defs/'):
+                    raise ValueError('固定PlayerRef以外の外部参照')
+            for child in node.values():
+                visit(child)
+
+    visit(new)
+    old = _p7_context_candidate_schema()
+    assert not names.intersection(old['$defs'])
+    old['$defs'].update(new['$defs'])
+    old['$ref'] = new['$ref']
+    _p7_context_candidate_check_keywords(old)
+    return old
+
+
+def _p7_context_candidate_rbi_pure() -> dict[str, Any]:
+    """作者の判定を含まない中立IDの新合成入力を読む。"""
+    return _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-inputs-v2.json')
+
+
+def _p7_context_candidate_rbi_bind(entry: dict[str, Any]) -> dict[str, Any]:
+    """共通Givenへ2観測を明示代入するだけで、規則計算/補完はしない。"""
+    assert set(entry) == {'input_id', 'per_pitch_observations', 'rbi_misplay_observations'}
+    assert set(entry['per_pitch_observations']) == {
+        'thirdOutTimingByRunner', 'runnerContinuityByRunner',
+    }
+    pure = _p7_context_candidate_rbi_pure()
+    value = copy.deepcopy(pure['common_input'])
+    given = copy.deepcopy(_load_object(
+        _P7_CONTEXT_CANDIDATE_PATH / 't1-pure-inputs-v1.json',
+    )['inputs'][0]['input'])
+    del given['per_pitch']['thirdOutTimingByRunner']
+    del given['per_pitch']['rbi']['runnerContinuityByRunner']
+    assert value == given  # 以下の検査はこの固定域だけ。任意イベントへ適用しない。
+    value['per_pitch']['thirdOutTimingByRunner'] = copy.deepcopy(
+        entry['per_pitch_observations']['thirdOutTimingByRunner'],
+    )
+    value['per_pitch']['rbi']['runnerContinuityByRunner'] = copy.deepcopy(
+        entry['per_pitch_observations']['runnerContinuityByRunner'],
+    )
+    _p7_context_candidate_validate(value['per_pitch'], 'T1PerPitchPayloadV1')
+    _p7_context_candidate_validate(
+        entry['rbi_misplay_observations'], 'T1RbiMisplayObservationsV1',
+        schema=_p7_context_candidate_rbi_schema(),
+    )
+    return value
+
+
+def _p7_context_candidate_rbi_input_issues(entry: dict[str, Any]) -> set[str]:
+    """域Dの必要観測/相反だけを点検し、得点/RBI/flagを返さない。"""
+    value = _p7_context_candidate_rbi_bind(entry)
+    per_pitch = value['per_pitch']
+    observations = entry['rbi_misplay_observations']
+    target = value['pre_state']['runners']['third']['player']
+    cause = observations['cause_by_runner'].get('by_runner', {}).get('third')
+    restart = observations['restart_by_runner'].get('by_runner', {}).get('third')
+    continuity = per_pitch['rbi']['runnerContinuityByRunner'].get('by_runner', {}).get('third')
+    issues: set[str] = set()
+    players = {'batter': value['pre_state']['batter']}
+    players.update({base: occupant.get('player')
+                    for base, occupant in value['pre_state']['runners'].items()})
+    for field in ('cause_by_runner', 'restart_by_runner'):
+        for key, observed in observations[field].get('by_runner', {}).items():
+            if observed['person'] != players[key]:
+                issues.add('RBI_PERSON_MISMATCH')
+    if cause is not None and cause['person'] != target:
+        issues.add('RBI_PERSON_MISMATCH')
+    # 固定DのOUT3後に必要となる観測を要求する。公開拒否/優先順ではない。
+    required = per_pitch['thirdOutTimingByRunner']['third'] == 'home-before-third-out'
+    misplay = None if cause is None else cause['held_too_long'] or cause['unnecessary_throw']
+    reacted = None if restart is None else restart['after_observing_misplay']
+    if required:
+        if cause is None:
+            issues.add('RBI_CAUSE_REQUIRED')
+        if misplay is True and continuity is None:
+            issues.add('RBI_CONTINUITY_REQUIRED')
+        if misplay is True and continuity == 'stopped-and-restarted' and restart is None:
+            issues.add('RBI_RESTART_REQUIRED')
+    if reacted is True and continuity == 'kept-running':
+        issues.add('RBI_RESTART_CONTRADICTS_CONTINUITY')
+    if reacted is True and misplay is False:
+        issues.add('RBI_RESTART_CONTRADICTS_CAUSE')
+    return issues
+
+
+@pytest.mark.parametrize('entry', _load_object(
+    _P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-inputs-v2.json',
+)['inputs'], ids=lambda entry: entry['input_id'])
+def test_p7_context_candidate_rbi_observation_cell_has_declared_shape_and_input_issues(
+    entry: dict[str, Any],
+) -> None:
+    """90セルの形/入力相関を作者表と照合し、独立意味検証には数えない。"""
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v3.json')
+    record = next(record for record in author['domain_ledger']
+                  if record['input_id'] == entry['input_id'])
+    issues = _p7_context_candidate_rbi_input_issues(entry)
+    assert issues == set(record['input_issues'])
+    assert record['status'] == (
+        'branch-case-incomplete-or-observation-contradictory' if issues else 'complete-in-domain'
+    )
+    if issues:
+        assert record['stat_flags'] is None
+        assert record['rbi'] == {'status': 'not-evaluated-as-complete-branch-case'}
+    else:
+        formal = _load_object(SCHEMA_PATH)
+        schema_checker._validate_instance(
+            record['stat_flags'], formal['$defs']['statFlags'], formal, '$',
+        )
+        assert record['rbi']['status'] == 'known'
+
+
+def test_p7_context_candidate_rbi_observation_finite_coverage_and_separation() -> None:
+    """構造直積90をexact被覆し、観測不在とfalseの異なる原値を保持する。"""
+    pure = _p7_context_candidate_rbi_pure()
+    assert set(pure) == {'format_version', 'common_input', 'inputs'}
+    assert pure['format_version'] == 'pitchlog.t1-rbi-observation-pure-inputs.v2'
+    entries = pure['inputs']
+    assert [row['input_id'] for row in entries] == [f'q{n:04d}' for n in range(1, 91)]
+    coordinates = []
+    for entry in entries:
+        obs = entry['rbi_misplay_observations']
+        cause = obs['cause_by_runner'].get('by_runner', {}).get('third')
+        restart = obs['restart_by_runner'].get('by_runner', {}).get('third')
+        continuity = entry['per_pitch_observations']['runnerContinuityByRunner']
+        coordinates.append((
+            entry['per_pitch_observations']['thirdOutTimingByRunner']['third'],
+            None if cause is None else (cause['held_too_long'], cause['unnecessary_throw']),
+            continuity.get('by_runner', {}).get('third'),
+            None if restart is None else restart['after_observing_misplay'],
+        ))
+    expected = set(product(
+        ('home-before-third-out', 'not-before-third-out'),
+        (None, *tuple(product((False, True), repeat=2))),
+        (None, 'kept-running', 'stopped-and-restarted'), (None, False, True),
+    ))
+    assert len(coordinates) == len(set(coordinates)) == len(expected) == 90
+    assert set(coordinates) == expected
+    serialized = json.dumps(pure, ensure_ascii=False)
+    for word in ('expected', 'branch_id', 'RBI-03', 'RBI-04', 'RBI-08', 'OUT3-',
+                 'domain_ledger', 'input_issues', 'stat_flags', 't1-single-flag-conditions',
+                 't1-rbi-observation-author'):
+        assert word not in serialized
+    for name in ('t1-rbi-observation-author-v3.json', 't1-single-flag-conditions-v1.json'):
+        assert hashlib.sha256((_P7_CONTEXT_CANDIDATE_PATH / name).read_bytes()).hexdigest() not in (
+            serialized
+        )
+
+
+@pytest.mark.parametrize('change', (
+    'unknown-external', 'wrong-reference-metadata', 'old-definition-overwrite',
+))
+def test_p7_context_candidate_rbi_reference_scope_is_exact(change: str) -> None:
+    """固定PlayerRef以外の外部読取や、旧定義への別名上書きを拒否する。"""
+    contract = _p7_context_candidate_rbi_contract()
+    if change == 'unknown-external':
+        contract['json_schema']['$defs']['T1RbiCauseValueV1']['properties']['person'] = {
+            '$ref': '../unowned.json#/$defs/PlayerRefV1',
+        }
+    elif change == 'wrong-reference-metadata':
+        contract['external_reference']['file'] = '../unowned.json'
+    else:
+        contract['json_schema']['$defs']['PlayerRefV1'] = {'type': 'string'}
+    with pytest.raises((AssertionError, ValueError)):
+        _p7_context_candidate_rbi_schema(contract)
+
+
+@pytest.mark.parametrize('change', (
+    'cause-int', 'restart-int', 'extra-key', 'missing-person', 'invalid-person',
+    'unknown-runner-key', 'unknown-tag', 'continuity-unknown',
+))
+def test_p7_context_candidate_rbi_observation_rejects_structure_mutations(change: str) -> None:
+    """新観測のbool/閉tag/同じPlayerRefをstrictに検査する。"""
+    entry = copy.deepcopy(next(row for row in _p7_context_candidate_rbi_pure()['inputs']
+                               if row['input_id'] == 'q0027'))
+    obs = entry['rbi_misplay_observations']
+    cause = obs['cause_by_runner']['by_runner']['third']
+    if change == 'cause-int':
+        cause['held_too_long'] = 1
+    elif change == 'restart-int':
+        obs['restart_by_runner']['by_runner']['third']['after_observing_misplay'] = 1
+    elif change == 'extra-key':
+        cause['result_is_rbi'] = True
+    elif change == 'missing-person':
+        del cause['person']
+    elif change == 'invalid-person':
+        cause['person']['player_id'] = 'not-a-uuid'
+    elif change == 'unknown-runner-key':
+        obs['cause_by_runner']['by_runner']['fourth'] = cause
+    elif change == 'unknown-tag':
+        obs['cause_by_runner'] = {'kind': 'known-no-misplay'}
+    else:
+        entry['per_pitch_observations']['runnerContinuityByRunner'] = {
+            'kind': 'observed', 'by_runner': {'third': 'continued'},
+        }
+    with pytest.raises(ValueError):
+        _p7_context_candidate_rbi_input_issues(entry)
+
+
+def test_p7_context_candidate_rbi_target_and_required_observations_are_not_inferred() -> None:
+    """必要人物の欠落/差替えと不在≠falseを検出し、不要時に要求しない。"""
+    entries = {row['input_id']: row for row in _p7_context_candidate_rbi_pure()['inputs']}
+    assert _p7_context_candidate_rbi_input_issues(entries['q0001']) == {'RBI_CAUSE_REQUIRED'}
+    assert not _p7_context_candidate_rbi_input_issues(entries['q0010'])
+    assert not _p7_context_candidate_rbi_input_issues(entries['q0046'])
+    # 両方trueは原典のORに適合し、排他としない。
+    assert not _p7_context_candidate_rbi_input_issues(entries['q0040'])
+    # 相反は集合で同時記録し、公開優先順を導入しない。
+    assert _p7_context_candidate_rbi_input_issues(entries['q0015']) == {
+        'RBI_RESTART_CONTRADICTS_CAUSE', 'RBI_RESTART_CONTRADICTS_CONTINUITY',
+    }
+    wrong = copy.deepcopy(entries['q0010'])
+    wrong['rbi_misplay_observations']['cause_by_runner']['by_runner']['third']['person'] = (
+        _p7_context_candidate_rbi_pure()['common_input']['pre_state']['batter']
+    )
+    assert 'RBI_PERSON_MISMATCH' in _p7_context_candidate_rbi_input_issues(wrong)
+    missing = copy.deepcopy(entries['q0027'])
+    missing['rbi_misplay_observations']['restart_by_runner']['by_runner'] = {}
+    assert _p7_context_candidate_rbi_input_issues(missing) == {'RBI_RESTART_REQUIRED'}
+
+
+def test_p7_context_candidate_rbi_conditions_and_reversal_examples_are_bounded() -> None:
+    """23条件/26反転の宣言内整合を点検し、意味や域外witnessを捏造しない。"""
+    conditions = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-single-flag-conditions-v1.json')
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v3.json')
+    references = {
+        'pure_input': 't1-rbi-observation-inputs-v2.json',
+        'contract': 't1-rbi-observation-contract-v1.json',
+        'conditions': 't1-single-flag-conditions-v1.json',
+    }
+    for field, expected_path in references.items():
+        reference = author[field]
+        assert set(reference) == {'path', 'sha256'} and reference['path'] == expected_path
+        digest = hashlib.sha256(
+            (_P7_CONTEXT_CANDIDATE_PATH / expected_path).read_bytes(),
+        ).hexdigest()
+        assert digest == reference['sha256']
+    flags = _load_object(SCHEMA_PATH)['$defs']['statFlags']['required']
+    rows = conditions['condition_rows']
+    assert [row['flag'] for row in rows] == flags
+    constants = conditions['constant_true_keys'] + conditions['constant_false_keys']
+    variables = conditions['variable_keys']
+    assert len(constants) == len(set(constants)) == 20
+    assert len(variables) == 3 and set(constants).isdisjoint(variables)
+    assert set(constants) | set(variables) == set(flags)
+    assert conditions['unprovided_opposite_condition_witnesses'] == constants
+    assert conditions['opposite_condition_missing_count'] == 20
+    assert conditions['global_xc13_complete'] is False
+    ledger = {row['input_id']: row for row in author['domain_ledger']}
+    assert set(ledger) == {row['input_id'] for row in _p7_context_candidate_rbi_pure()['inputs']}
+    counts = author['counts']
+    assert counts['structural_cells'] == len(ledger) == 90
+    assert counts['complete_in_domain'] == sum(not row['input_issues'] for row in ledger.values())
+    assert counts['insufficient_or_contradictory'] == sum(
+        bool(row['input_issues']) for row in ledger.values()
+    )
+    assert counts['issue_occurrences'] == dict(Counter(
+        issue for row in ledger.values() for issue in row['input_issues']
+    ))
+    negatives = author['output_negatives']
+    assert len(negatives) == len({row['negative_id'] for row in negatives}) == 26
+    covered = Counter()
+    for negative in negatives:
+        basis = ledger[negative['basis_input_id']]['stat_flags']
+        candidate = negative['candidate_flags']
+        assert set(candidate) == set(basis) == set(flags)
+        assert all(type(value) is bool for value in candidate.values())
+        changed = {key for key in flags if candidate[key] != basis[key]}
+        assert changed == {negative['flag']}
+        assert basis[negative['flag']] is negative['basis_value']
+        assert negative['expected_relation'] == 'differs-from-declared-author-row'
+        covered[(negative['flag'], negative['basis_value'])] += 1
+    for row in rows:
+        assert row['source_clauses'] and row['iff_in_domain']
+        for value in (False, True):
+            witness = row['witness_input_ids'][str(value).lower()]
+            if witness is not None:
+                assert ledger[witness]['stat_flags'][row['flag']] is value
+        if row['flag'] in variables:
+            assert covered[(row['flag'], False)] == covered[(row['flag'], True)] == 1
+        else:
+            assert sum(covered[(row['flag'], value)] for value in (False, True)) == 1
+        assert row['opposite_condition_witness_outside_D'] == (row['flag'] in constants)
+    assert author['formal_missing_branches_retained'] == 15
+    assert author['new_formally_closed_branches'] == 0
+
+
+def test_p7_context_candidate_rbi_source_ownership_and_issue_set_are_explicit() -> None:
+    """新7型/各相関/23行を実在する原典IDへ結び、自己承認にしない。"""
+    contract = _p7_context_candidate_rbi_contract()
+    conditions = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-single-flag-conditions-v1.json')
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v3.json')
+    ownership = (_P7_CONTEXT_CANDIDATE_PATH / 'source-ownership.md').read_text()
+    construction = (_P7_CONTEXT_CANDIDATE_PATH / 'constructor-contract.md').read_text()
+    for name in contract['json_schema']['$defs']:
+        assert '`' + name + '`' in ownership
+        assert '`' + name + '`' in construction
+    source = (REPOSITORY_ROOT / contract['source']['path']).read_text()
+    ids = set(contract['source']['clauses'])
+    ids.update(value for row in contract['correlations'] for value in row['source'])
+    ids.update(value for row in conditions['condition_rows'] for value in row['source_clauses'])
+    ids.update(value for row in author['domain_ledger'] for value in row['source_clauses'])
+    for source_id in ids:
+        assert source_id.startswith('req:')
+        name = source_id.removeprefix('req:')
+        if name.startswith(('OUT3-', 'RBI-')):
+            assert '| `' + name + '` |' in source
+        elif name.startswith('FR-'):
+            assert '#### ' + name + ':' in source
+        else:
+            assert '### ' + name + ' ' in source
+    issue_ids = {row['issue_id'] for row in contract['correlations']}
+    observed = {issue for row in author['domain_ledger'] for issue in row['input_issues']}
+    assert observed <= issue_ids
+    assert issue_ids - observed == {'RBI_PERSON_MISMATCH'}
+    # 人物不一致は90因子の外の構造/参照変異で別に確認する。
+    assert len(issue_ids) == 6
+    assert contract['boundaries']['scope_authority_implemented'] is False
+
+
+def test_p7_context_candidate_rbi_incomplete_branch_does_not_imply_unknown_numeric_flags() -> None:
+    """最初の分岐が未確定でも同じ数値に落ちる入力を製品拒否へ昇格しない。"""
+    contract = _p7_context_candidate_rbi_contract()
+    assert contract['boundaries']['minimum_observations_for_numeric_flags_established'] is False
+    assert contract['boundaries']['product_required_input_dto_approved'] is False
+    assert contract['unprovided_input_profiles']
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v3.json')
+    for row in author['domain_ledger']:
+        if row['input_id'] in ('q0004', 'q0005'):
+            assert row['input_issues'] == ['RBI_CAUSE_REQUIRED']
+            assert row['stat_flags'] is None  # 完全branch-caseの表は作らない。
+            projection = row['known_partial']['rbi_numeric_projection']
+            assert projection['flag'] is True and projection['count'] == 1
+            assert projection['first_matching_branch'] == {'status': 'unknown'}

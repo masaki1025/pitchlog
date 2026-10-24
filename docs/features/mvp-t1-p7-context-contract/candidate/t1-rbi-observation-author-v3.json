@@ -1,0 +1,5083 @@
+{
+  "format_version": "pitchlog.t1-rbi-observation-author-candidate.v3",
+  "role": "candidate author; not independent/blind; no formal acceptance",
+  "synthetic_input_origin": "New domain-D factor coverage designed from adopted observation requirements. No changes or added facts to old v1/evaluation-v2. Not observation from a real game/video.",
+  "pure_input": {
+    "path": "t1-rbi-observation-inputs-v2.json",
+    "sha256": "396efecfa9a95acd7c0b8be27be1e9f81744a4e0f391cab74bc9360f74524649"
+  },
+  "contract": {
+    "path": "t1-rbi-observation-contract-v1.json",
+    "sha256": "d7e1fd49bb94a3c72f4c3a1aeb7f507104a3324a1c1596fb25a59cef6d0f1c46"
+  },
+  "conditions": {
+    "path": "t1-single-flag-conditions-v1.json",
+    "sha256": "0a9d2f7789934b355f659dbf3980ea77fee0a53cc3300df2587bc0e25efea2db"
+  },
+  "domain_ledger": [
+    {
+      "input_id": "q0001",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0002",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0003",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0004",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "rbi_numeric_projection": {
+          "flag": true,
+          "count": 1,
+          "scorers": [
+            {
+              "kind": "official",
+              "player_id": "00000000-0000-4000-8000-000000000067"
+            }
+          ],
+          "first_matching_branch": {
+            "status": "unknown"
+          },
+          "source": [
+            "req:RBI-03",
+            "req:RBI-04",
+            "req:RBI-08"
+          ],
+          "reason": "Dの普通単打・有効得点1とkept-runningの明示により、先行除外後の分岐は03または08であり、どちらも打点算入。因果不在をfalseへ補完せず最初の分岐は未確定のまま。"
+        }
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0005",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "rbi_numeric_projection": {
+          "flag": true,
+          "count": 1,
+          "scorers": [
+            {
+              "kind": "official",
+              "player_id": "00000000-0000-4000-8000-000000000067"
+            }
+          ],
+          "first_matching_branch": {
+            "status": "unknown"
+          },
+          "source": [
+            "req:RBI-03",
+            "req:RBI-04",
+            "req:RBI-08"
+          ],
+          "reason": "Dの普通単打・有効得点1とkept-runningの明示により、先行除外後の分岐は03または08であり、どちらも打点算入。因果不在をfalseへ補完せず最初の分岐は未確定のまま。"
+        }
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0006",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED",
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0007",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0008",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0009",
+      "input_issues": [
+        "RBI_CAUSE_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0010",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0011",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0012",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CAUSE"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0013",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0014",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0015",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CAUSE",
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0016",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0017",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0018",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CAUSE"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0019",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0020",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0021",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0022",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-03"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0023",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-03"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0024",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0025",
+      "input_issues": [
+        "RBI_RESTART_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0026",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0027",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": "RBI-04"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0028",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0029",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0030",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0031",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-03"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0032",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-03"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0033",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0034",
+      "input_issues": [
+        "RBI_RESTART_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0035",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0036",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": "RBI-04"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0037",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0038",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0039",
+      "input_issues": [
+        "RBI_CONTINUITY_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0040",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-03"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0041",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-03"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0042",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0043",
+      "input_issues": [
+        "RBI_RESTART_REQUIRED"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0044",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "rbi": {
+        "status": "known",
+        "count": 1,
+        "scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ],
+        "first_matching_branch": "RBI-08"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0045",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-04",
+        "runs": 1,
+        "credited_scorers": [
+          {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        ]
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": "RBI-04"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0046",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0047",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0048",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0049",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0050",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0051",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0052",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0053",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0054",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0055",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0056",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0057",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CAUSE"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0058",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0059",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0060",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CAUSE",
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0061",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0062",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0063",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CAUSE"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0064",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0065",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0066",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0067",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0068",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0069",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0070",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0071",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0072",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0073",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0074",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0075",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0076",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0077",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0078",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0079",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0080",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0081",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0082",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0083",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0084",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0085",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0086",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0087",
+      "input_issues": [
+        "RBI_RESTART_CONTRADICTS_CONTINUITY"
+      ],
+      "status": "branch-case-incomplete-or-observation-contradictory",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": null,
+      "rbi": {
+        "status": "not-evaluated-as-complete-branch-case"
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0088",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0089",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    },
+    {
+      "input_id": "q0090",
+      "input_issues": [],
+      "status": "complete-in-domain",
+      "known_partial": {
+        "timeplay_branch": "OUT3-05",
+        "runs": 0,
+        "credited_scorers": []
+      },
+      "stat_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "rbi": {
+        "status": "known",
+        "count": 0,
+        "scorers": [],
+        "first_matching_branch": null
+      },
+      "source_clauses": [
+        "req:FR-003",
+        "req:OUT3-05",
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08",
+        "req:E-1",
+        "req:E-2",
+        "req:A-2",
+        "req:A-3"
+      ]
+    }
+  ],
+  "output_negatives": [
+    {
+      "negative_id": "n0001",
+      "basis_input_id": "q0010",
+      "flag": "投球回算入アウト",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": false,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0002",
+      "basis_input_id": "q0010",
+      "flag": "投球数",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": false,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0003",
+      "basis_input_id": "q0010",
+      "flag": "奪三振",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": true,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0004",
+      "basis_input_id": "q0010",
+      "flag": "与四球",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": true,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0005",
+      "basis_input_id": "q0010",
+      "flag": "与死球",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": true,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0006",
+      "basis_input_id": "q0010",
+      "flag": "被安打",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": false,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0007",
+      "basis_input_id": "q0010",
+      "flag": "被本塁打",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": true,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0008",
+      "basis_input_id": "q0046",
+      "flag": "失点",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": false
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0009",
+      "basis_input_id": "q0010",
+      "flag": "失点",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0010",
+      "basis_input_id": "q0010",
+      "flag": "失策",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": true,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0011",
+      "basis_input_id": "q0010",
+      "flag": "打席",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": false,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0012",
+      "basis_input_id": "q0010",
+      "flag": "打数",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": false,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0013",
+      "basis_input_id": "q0010",
+      "flag": "安打",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": false,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0014",
+      "basis_input_id": "q0010",
+      "flag": "本塁打",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": true,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0015",
+      "basis_input_id": "q0010",
+      "flag": "塁打",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": false,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0016",
+      "basis_input_id": "q0010",
+      "flag": "犠打",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": true,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0017",
+      "basis_input_id": "q0010",
+      "flag": "犠飛",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": true,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0018",
+      "basis_input_id": "q0010",
+      "flag": "四球",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": true,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0019",
+      "basis_input_id": "q0010",
+      "flag": "死球",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": true,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0020",
+      "basis_input_id": "q0010",
+      "flag": "三振",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": true,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0021",
+      "basis_input_id": "q0010",
+      "flag": "打撃妨害出塁",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": true,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0022",
+      "basis_input_id": "q0010",
+      "flag": "走塁妨害出塁",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": true,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0023",
+      "basis_input_id": "q0046",
+      "flag": "得点",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": false,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": false
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0024",
+      "basis_input_id": "q0010",
+      "flag": "得点",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": false,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0025",
+      "basis_input_id": "q0027",
+      "flag": "打点",
+      "basis_value": false,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": true
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    },
+    {
+      "negative_id": "n0026",
+      "basis_input_id": "q0010",
+      "flag": "打点",
+      "basis_value": true,
+      "candidate_flags": {
+        "投球回算入アウト": true,
+        "投球数": true,
+        "奪三振": false,
+        "与四球": false,
+        "与死球": false,
+        "被安打": true,
+        "被本塁打": false,
+        "失点": true,
+        "失策": false,
+        "打席": true,
+        "打数": true,
+        "安打": true,
+        "本塁打": false,
+        "塁打": true,
+        "犠打": false,
+        "犠飛": false,
+        "四球": false,
+        "死球": false,
+        "三振": false,
+        "打撃妨害出塁": false,
+        "走塁妨害出塁": false,
+        "得点": true,
+        "打点": false
+      },
+      "expected_relation": "differs-from-declared-author-row",
+      "meaning_check": "author expectation needs separate nonauthor source review; not a public rejection code"
+    }
+  ],
+  "counts": {
+    "structural_cells": 90,
+    "complete_in_domain": 56,
+    "insufficient_or_contradictory": 34,
+    "issue_occurrences": {
+      "RBI_CAUSE_REQUIRED": 9,
+      "RBI_RESTART_CONTRADICTS_CONTINUITY": 10,
+      "RBI_RESTART_CONTRADICTS_CAUSE": 6,
+      "RBI_CONTINUITY_REQUIRED": 9,
+      "RBI_RESTART_REQUIRED": 3
+    },
+    "output_negatives": 26,
+    "unprovided_opposite_condition_witnesses": 20
+  },
+  "interpretation": {
+    "normal_records": "Condition data authored from FR-003/OUT3/RBI; validate independently before accepting meaning.",
+    "RBI-08": "Within fixed ordinary-single/no-error D, if prior RBI-03/04 do not apply, RBI-08 applies. Explicit restart false is an observation, never a default for missing restart.",
+    "no_input_completion": "Missing causal observations leave an insufficient-input assessment and no complete23 flags. Partial known score facts are not a Ready/play-success result.",
+    "output_negative_scope": "One-bit deviation from the declared normal row only; literal consistency is not independent proof of baseball semantics.",
+    "incomplete_branch_is_not_product_rejection": "An issue here describes the full first-matching-branch authored case, not automatically insufficient numeric flags or a public rejection. q0004/q0005 retain a known numeric projection while the first branch remains unknown."
+  },
+  "not_provided": [
+    "global20 opposite-condition witnesses",
+    "other results/operations and full23 global derivation",
+    "runnerDefaultAdvance.second/third and D07",
+    "public rejection/D5/priority choices and D06",
+    "scoreboard absolute values/full history/product batting-order ABI",
+    "all7markers/G6/P2/P6/P7/P8/7.7/formal T1 start",
+    "one-sided causal observations: one OR operand true while the other unobserved",
+    "minimal necessary product input/validation when several possible branches yield the same numeric flags"
+  ],
+  "formal_missing_branches_retained": 15,
+  "new_formally_closed_branches": 0
+}
