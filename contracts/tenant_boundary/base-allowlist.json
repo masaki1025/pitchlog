@@ -28098,5 +28098,10 @@
         "symbol": "advance_recovery_generation"
       }
     ]
+  },
+  "ledger_deployment_assets": {
+    "backend/src/pitchlog/durable_rights_ledger/business_identity.sql": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
+    "backend/src/pitchlog/durable_rights_ledger/manifest.json": "cb0d0ecd9886bcf44d9569a779a82b396fdc16c158c807c54b69acac842e7b4e",
+    "backend/src/pitchlog/durable_rights_ledger/schema.sql": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
   }
 }
