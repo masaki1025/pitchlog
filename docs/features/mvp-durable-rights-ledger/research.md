@@ -412,3 +412,14 @@ Dは既存local replication/owned Unix socketを使う実pg_basebackupで業務D
 
 
 最終bf90428aの局所plan-syncはdata-model/索引の宣言2件を機械抽出できずexit1だった。両pathは元§3と§4で既宣言/実反映済みでありscope追加ではない。抽出対象の「影響する正本」節へ同じ2pathを明示的backtick表で記載し、checker/正本本文/受理値を変更せず通常是正した。backend全体format392/Ruff/ty、root Ruff/tyとdocs-status21/違反0は成功。plan-syncの最終再検査結果は固定後に記録する。
+
+
+### 最終P1の採用解消とPR再確認段階
+
+非作者rightsは追加bf90428aの実A〜D/plan cfbの2段階境界と後発c6397878の文書宣言を限定確認しP0/P1/P2=0/0/0。LEDGER-FINAL-01は採用是正で解消と判定した。証拠cache/review-ledger-p1-bf90428a/evidence.json SHA550f08e4946eeefb3b542fceb352e9b0739dfb95a9a8b03c9b7a81ab9179e230、metadata-followup.json SHAc5949c8dbb1fc8e48f3bdf82685a258fa30ac2a49299856e7229b21e80f2e5d1。CIの外部DSN存在時にもmodule override→所有ledger_connections→実identity検証という依存順を確認し、autouse/旧拒否を無効化していない。独立DB再実行は0であり、作者実走証拠の検証と新実走を区別する。旧005d全差分P1=1と全採用/是正/後発記録を保持し、レビュー回数をリセットしない。
+
+plan-syncの宣言是正後exit0、backend全体format392/Ruff/ty、root Ruff/ty、docs-status21/違反0、design-propagation/doc-coverage成功。source/全9/8/corpus/正式30/216不変のため既466成功・source契約/19故障群・追加A〜Dの結果を範囲別に再利用し、同じ入力の全件反復はしない。最終必須全件CIはこれから実行する。
+
+ハーネス運用評価台帳への追記なし。本単位のSQL配布漏れ/既有限資産への検査対応/宣言の機械抽出是正は各具体source・planと既存統制に閉じた修正で、統制全体の新しい傾向/再設計として採番する根拠を追加していない。既評価/拒否・検出を変更しない。正本data-model1.2/索引の最小確定と完全値受理は本枝内で成立し、正式develop提供は通常merge後である。
+
+Codex主担当/rootは2026-10-24のPO4/5/8/10委任に基づき上記限定解消を受領しplanをin-reviewへ戻す。本人の逐行確認/署名を代記せず、最終HEAD/base/diff/独立確認/公開委任証拠と必須CIを揃えるまで通常mergeしない。運用配置・共有DB・実機と親全域復旧/初期開始は未実施として保持する。
