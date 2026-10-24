@@ -343,3 +343,8 @@ static資産専用検証の限定追補を起案。既存の全変更母集団/�
 非作者rightsの第2回（基本2回枠、946f0c09反映差分＋影響節）は可決P0/P1/P2=0。適用approvedハーネス1.19/条文2c214649 SHA127530を維持し、証拠A-norm-round2.json SHA4910c2d88b5714c6a1bc6419d52e0920db6602af580a82102a3c8ddd7a20527dを受領した。初回P1/P2は採用反映によって解消。これは採否記録上の不採用取り下げではなく、全採用・処理済みであり、未終結/不採用/送り(B)は0。旧RG1/F2のレビュー/承認・未統合候補は保持する。
 
 2026-10-24T01:20:34.173362+00:00、Codex主担当/rootはPO4/5/8/10の委任に基づき、946f0c09/docSHA52edd8072f7201e7d9f0e0e77a7a844977ff7afe730c9a0b0070860bdafe522dの採用反映差分と2回の独立結果を照合し、data-model1.2を本枝で確定した。業務の既存7製品用/移行込み8の提供数を据置き、未登録の観測2主体・外部4主体を分離する境界を保持する。本人の個別実値確認・署名は代記しない。source/ACL再裁定なし、正式develop/DDL全profile/7.7新最終値/CI/運用公開/MVPの完成を確定したとはしない。索引を同1.2/2026-10-24のapprovedへ整合。
+
+
+### 未統合182受理候補の保全・通常差戻し
+
+新static検証のコード変更が実受理値を動かすため、承認済み追補手順に従い、b94の未統合受理候補全byte・旧receipt/proposal・新10snapshotをcache/durable-ledger-acceptance/withdrawn-candidate-182へ保全した。元acceptance.jsonは改変せず、supersession.jsonで未統合候補のsupersededを記録。authorityは新182行だけを除いた8569の29履歴状態へ通常commitで戻し、新候補10snapshotのみGitの差戻し対象とした。正式developの旧29履歴206snapshotは全保持・変更0。b94 commitと旧受理事実はGit/cacheに残し、元から無かったとは扱わない。同PRの最終1受理は新sourceの完全9/8・非作者照合後とする。frozen_history/重複拒否/一PR一受理の規則は変更しない。
