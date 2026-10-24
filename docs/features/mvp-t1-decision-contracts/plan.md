@@ -112,3 +112,21 @@ rootが正式共有資産の唯一のwriter。作者はcache候補のみ、非�
 初回通常レビューP2-01は反映1のbaseline分離で終結。第2回は新processでcodec初回読込が依存監査に拒否されるP1-02を検出。rootは全採用し、PO委任の限定追加レビュー判断によりcold初期化・監査範囲・派生値影響だけへの追加非作者確認を1回認める。レビュー系列/回数をリセットせず、追加の意味承認を求めない。反映2はproduction module初期化で必要codecだけを先に解決し、依存監査のrepo外読込拒否/宣言5path制限を維持する。正式資産31path以外の拡張はしない。
 
 反映2固定handoff SHA411e194fbddd96972fcde774f815efd72828730a23f971fad698010913516a12、全patch SHA40d05b617d345dc171d9151c37fdc20e313e80ac060165de4e7e0df723517bb7。rootのPO委任確認対象はこの有限技術追補で、非作者最終所見受領前にP1終結/正式7.7受理とは扱わない。339成功/11未検証は作者局所値で、正式検査時は全対象を戻す。D06/B・D07/Aの採用意味と旧4656要求identity/順序・旧42行/109case要素byteを保持する。
+
+
+## 正式反映前の実接合漏れへの有限追随
+
+2026-10-24、rootは既PO委任の通常不具合是正/正式値整合として、31path候補の実CLIで検出した既資産の接合追随を含め合計39pathへ具体化する。既T2 consumerが新9観測軸をrawへ補う不一致は、共有game_end_coordinate_axis_idsだけを再利用し、旧248case/4656要求の全要素・順序を保持して修正する。別の選択意味/独自計算を作らない。明示されたreadonly入力3pathは既deriverからexpander/outer検査へ有限伝播し、未知pathの拒否を保持する。
+
+既31pathに追加する既存8pathは以下。game_end_manual_fixturesは未承認bootstrapの値追随のみ、inputcoverageは旧153全保持→170/既履歴保持の1追記、game_end_coverageはT1実ケース数と実読取入力の追随のみ。閉入力のIDを表示へ読む既readerは語彙正本から解決し、純入力/旧case/未知ID拒否を変えない。
+
+- `contracts/state-transition/game_end_manual_fixtures_v1.json`
+- `contracts/state-transition/required_set_input_coverage_v1.json`
+- `contracts/state-transition/game_end_coverage_declaration_v1.json`
+- `tests/test_required_set_coverage.py`
+- `scripts/expand_game_end_cases.py`
+- `contracts/state-transition/expander_dependency_policy_v1.json`
+- `tests/test_expander_dependencies.py`
+- `tests/test_input_axes_three_way_parity.py`
+
+rootの初回7.7提案は非作者確認で3P1（placement欠落・比較literal57未宣言・履歴追加後digest4参照未再導出）を検出し全採用、未受理のまま保全する。反映1ではscope/freezeDefinitionを含む全前後、旧7履歴保持、追加1記録、最終digestを固定し、上記source後発差分を別の非作者へ限定追加レビュー/値再照合する。元reviewerはT2 consumer追補作者となったため最終独立確認から外す。既回数/採否をリセットしない。正式7.7・段階B・全P6/P7受理はまだ成立しない。
