@@ -198,7 +198,7 @@ package wildcard/既存contract試験/DB試験は先行core登録済みで追加
 PO委任によるCodex主担当/root判断。旧13exactの承認・拒否履歴を保持し、fresh採用済みadapter10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2へ同じ5path内で追随する。source候補ef39に対する非作者csv_reviewの限定0・独立再導出の実17exact/anchor除去22/独立AST1（証拠b365716ec4fbe3358a1131a31d659bad739423e347a029ed5c9dc7978ddca718）を根拠とし、旧initial47/除去43/AST18・他全登録/検出/拒否を不変保持する。17を件数だけで免除せずpath/source SHA/行/symbol全集合を固定する。意味・権限・耐久保証を変更せず、正式7.7は別ゲート。実4b2基線への通常merge89830dc1で全31guard本文ASTを保持、局所418成功/40.31秒。最終差分独立レビューと完全9/8再導出・実値受理は未成立で、今回の追随を正式提供へ昇格させない。
 
 
-### 新規static配備資産の専用検証（step4限定追補案・未承認）
+### 新規static配備資産の専用検証（step4限定追補・PO委任承認済み）
 
 全変更ファイルの検査母集団を維持したまま、backend/src/pitchlog/durable_rights_ledger/配下の固定3path（business_identity.sql / manifest.json / schema.sql）だけを専用の宣言資産検査へ振り分ける。現TB000は正しい未対応拒否であり、拡張子免除・source移動・任意JSON/SQL許可で解消しない。候補調査の根拠は実source3byteとmanifest・実カタログ/権限拒否試験、非作者CSVによる既存機構調査（既存受理機構なし）である。
 
@@ -207,3 +207,6 @@ PO委任によるCodex主担当/root判断。旧13exactの承認・拒否履歴�
 回帰は3資産の正例、各改変/欠損/symlink/コピー/rename/未知SQLJSON/純削除/manifest同時改変、既存Pythonの境界拒否の保持。固定SQL全文と新分岐を非作者がレビューする。既存実catalog・role/直接DML/固定9関数owner/SECDEF/search_path/EXECUTE試験を配置後検証の実証として参照し、新たな配置時強制点がない状態を製品強制済みとしない。専用検証は一般SQL安全性を保証するparserではなく、独立レビュー済み有限3byteの固定と、全未知変更の拒否である。
 
 checker変更は受理対象実値を動かすため、既受理182候補の値を延長しない。正式developの旧29履歴/206snapshotは絶対に保持する。現PR未統合の受理候補182はGit/cacheへ全byte保全してから通常commitで差し戻し、旧receiptをsupersededとして根拠を記録する。最終sourceの全9/8を再導出・非作者照合し、実PR182に対応する1つの最終受理だけを反映する。履歴1受理1件/実PR一意/旧prefixの拒否条件を変更せず、同PRの受理重複や既存正式履歴の書換えをしない。本追補の独立確認とroot委任判断前は実装しない。
+
+
+2026-10-24T01:22:43.312098+00:00、PO委任によるCodex主担当/root判断としてd6c6aa2fの新static追補（plan d3ac0c6028d0045972a3bae06f40aba005569ec10988cc878123d86fc6cc5a74/research2217f44d718fd8c440d370a5a5c6f868c8dd0ca0a64ea594aff15ec64d2e2615）を承認する。非作成者rightsの限定0/0/0（B-static-plan.json SHAeae31d07ef72c7297335a1b0082ac079aa9d4bb310a3ef1bdf6a7acaaff23fa6）、3全文/3SHAと既存母集団/未知拒否/未統合受理差戻しの照合を根拠とする。CSVは調査案提供者で整合確認のみとし、今回の非作者コード最終レビューは別途受ける。母集団と全未知/Python拒否を保持し、既知3bytesを専用検証する1単位だけをrootが実装する。正式旧29/206/一PR一受理/frozen_historyは変更せず、未統合候補182の保全/差戻し/再導出の必要範囲だけに今回の委任を適用する。本人確認/署名・一般SQL安全性・配備強制済みを代記しない。
