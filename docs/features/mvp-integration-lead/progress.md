@@ -452,3 +452,6 @@ T1枝では257d7a76で7.7対象の正式39pathを反映し、e266257cまでPR183
 残CI依存の編集所有は、root=候補P8基準digest2値とgap/normalization/freeze検査4path（369成功/Ruff・ty成功）、initial_sql_independent_review=変異/descriptor5path（関連77成功、全200変異確認中）、t1_authz_source_followup=要件分類/派生manifest8pathと件数検査（旧1418件の分類保持、AUTH187不変、新規9件は既非認可分類）、initial_scope_plan_review=旧本人記録を保持するGate6限定carry5path。oracleの入力追随は既手順の先行Git commitが必要。候補を非作者確認後に保存し、機械metadataだけを通常追随する。旧署名の代記・検査の除外・失敗の成功読替えはしない。
 
 初期権の前提RG1は0708095aでdata-model1.3の限定規範をPO委任確定（非作者0）。13role/241DDLの正式認可asset/派生runtimeは隔離候補でbackend関連249成功。ただし正式資産の値受理/統合・実PG正常controller→初期grant・開始HTTP/UIは残る。初期scopeはda88d09bの268成功と0036接続を維持し、新しい実画面成功とは扱わない。実Port/DB/HTTPをT1本体着手の新条件に追加していない。
+
+
+2026-10-24T09:42:36.115102+00:00 更新: T1候補は044ffe78までローカルcommitで保全（remoteはe266、既失敗CIの無変更再実行を避け次のpushをまとめる）。認可source9path=8a40519d、metadata/変異9path=48303674、oracle機械追随10path=044ffe78。非作者の限定追加確認は各0/0/0、旧1418分類/AUTH187・旧T2要求4656順序・6oracle意味本文を保持。結合関連449成功32.14s、commit後の内部cloneを含む認可23成功26.59s、Ruff/ty/frozen invariants成功。隔離2親d060cfa7（実マージではない）でfrozen/parity --ci各0を確認。Gate6限定carry候補・最終HEAD証拠/CIは残る。RG1規範0708095aは通常push保存済み、40path認可/runtime候補の独立確認と別static2登録候補作成を並行中。これらを実画面の開始/権利取得/1球保存の実証へ広げない。
