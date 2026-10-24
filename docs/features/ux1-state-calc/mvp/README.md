@@ -6,6 +6,31 @@
 - worktree: `~/dev/pitchlog-mvp`
 - 正本（`docs/requirements`・`design`・`adr`）と `contracts/` は**変更していない**
 
+## 0. 追補（2026-10-24）: 成果物（TS 正本）で T1 を実装した
+
+§5 の三択は **案 1（許可構文の最小拡張）** で解消した。実測すると、変換器は esbuild で
+あり、`scripts/domain-checks/policy.ts` の許可表は「変換できない」制約ではなく
+**宣言された安全側の文法**だった。T1 に不足していたのは `ElementAccessExpression` だけで、
+規則表の参照（`STATE_RULES[resultId]`）に必要なので 1 種だけ理由付きで追加した。
+
+- 追加: `[ts.SyntaxKind.ElementAccessExpression, '規則表・表引きのキー参照']`
+- 追加しなかったもの: `number`（D-14-e の機械拒否を維持）、`ConditionalExpression`・
+  数値リテラル・`Array#push`・`.length`（戻り値・型が number になり `NUMBER_TYPE` に触れる）。
+  このため T1 は bigint・`if` 文・`.map`・固定フィールドで書いている。
+- 実装: `frontend/src/domain/stateTypes.ts`（型）/ `stateRules.ts`（42 結果IDの表）/
+  `state.ts`（`derive`）/ `publicApi.ts`（`deriveState`: JSON 文字列 in/out、整数は十進文字列）
+- 検証:
+  - Vitest `state.spec.ts`: matrixRows **89/89**（5 面＋23 フラグ）、遷移後状態の差分 **34 行**（P-6 と一致）
+  - `publicApi.spec.ts`: 単打の境界計算、未知 ID・数値入力の拒否
+  - **ビルド済み artifact を Node で実行して契約 89/89**（`frontend/public/domain/pitchlog-domain.js`、
+    sha256 `b45b123b…`、18,097 bytes）
+  - `eslint` / `vue-tsc --noEmit` / `pnpm test`（1187 件）green
+
+**残る NFR-018 の論点**: T1 が artifact と Python（`backend/src/pitchlog/sync/spike_domain.py`）の
+2 実装になっている。spike では照合用に意図して残したが、製品では artifact を単一実装とし、
+バックエンドは `domainrt/host.py` 経由で artifact を呼び、Python 側の T1 は削除する。
+T2 も同じ形で artifact へ移すのが次の段階。
+
 ## 1. 何を作ったか
 
 | 対象 | 実装 | 検証 |
@@ -65,6 +90,7 @@ uv run pytest tests/db/test_spike_one_ball_slice.py -q
 ## 5. 設計上の判断と限界
 
 **ドメイン成果物（`frontend/public/domain/pitchlog-domain.js`）での実装は断念した。**
+（→ 追補 0 で案 1 を採用し、許可構文を 1 種だけ拡張して解消した。以下は当時の判断の記録。）
 変換可能な構文は `frontend/scripts/domain-checks/policy.ts` の `ALLOWED_SYNTAX` で限定され、
 T1/T2 が必要とする `interface`・配列型・分割代入・要素アクセス（`arr[i]`）・複合代入（`+=`）・
 `number` を拒否する（実測: `NUMBER_TYPE` / `UNKNOWN_SYNTAX` / `UNSUPPORTED_OPERATOR`）。
@@ -80,6 +106,13 @@ T1/T2 が必要とする `interface`・配列型・分割代入・要素アク�
 
 ## 6. 残件（申し送り）
 
+- 追補 0 の帰結: 許可構文へ `ElementAccessExpression` を足した差分は**宣言の変更**なので、
+  本設計では当該表の所有者の承認が要る（spike では提案として置く）。
+- T2（検証・6 分岐判定）を artifact へ移す。T1 と同じ形（bigint・十進文字列）で書ける見込み。
+- バックエンドを `domainrt/host.py` 経由の artifact 呼び出しへ切り替え、Python の T1 を削除する
+  （NFR-018 の単一実装）。
+- `stateRules.ts` は Python の規則表から一度だけ機械生成し、以降は TS を正本とする
+  （生成スクリプトは spike の作業用で、リポジトリには置いていない）。
 - 上記 5 の三択（**本設計の最初に決める**）。
 - `historyInput.after` の 34 行差分（P-6 が検出済み）。契約側の語彙違反・走者/得点の矛盾で、
   計算側は契約の `expected`（5 面）と一致している。契約所有者の裁定待ち。

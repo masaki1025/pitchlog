@@ -4,9 +4,9 @@ import './entry'
 import { domainOperations } from './publicApi'
 
 describe('ドメイン公開口の疎通操作', () => {
-  it('操作表を凍結し、公開操作を ping だけにする', () => {
+  it('操作表を凍結し、公開操作を ping と deriveState にする', () => {
     expect(Object.isFrozen(domainOperations)).toBe(true)
-    expect(Object.keys(domainOperations)).toEqual(['ping'])
+    expect(Object.keys(domainOperations)).toEqual(['ping', 'deriveState'])
   })
 
   it('build 入口が同じ凍結済み公開表を globalThis に置く', () => {
@@ -37,6 +37,69 @@ describe('ドメイン公開口の疎通操作', () => {
     )
     expect(domainOperations.ping('{"value":"1","other":"2"}')).toBe(
       '{"ok":false,"error":{"code":"INVALID_REQUEST"}}',
+    )
+  })
+})
+
+describe('T1 状態計算の境界', () => {
+  const emptyState = {
+    'state.half': 'top',
+    'state.count.strikes': '0',
+    'state.count.balls': '0',
+    'state.outs': '0',
+    'state.runners': 'empty',
+    'state.battingOrder': '1',
+    'state.tiebreakActive': false,
+    'state.gameEnded': false,
+    'state.inning': '1',
+    'state.score': { home: '0', away: '0' },
+  }
+  const emptyBoard = {
+    inningScores: { home: '0', away: '0' },
+    hits: '0',
+    errors: '0',
+    strikeouts: '0',
+    walks: '0',
+  }
+
+  function request(resultId: string) {
+    return JSON.stringify({
+      before: { stateFields: emptyState, scoreboard: emptyBoard },
+      resultId,
+      pitchEventKind: 'pitch-event',
+    })
+  }
+
+  it('単打を十進文字列のまま計算し、走者一塁と打順 2 を返す', () => {
+    const body = JSON.parse(
+      domainOperations.deriveState(request('batting-result.single')),
+    )
+    expect(body.ok).toBe(true)
+    expect(body.value.after.stateFields['state.runners']).toBe('first')
+    expect(body.value.after.stateFields['state.battingOrder']).toBe('2')
+    expect(body.value.after.stateFields['state.count.strikes']).toBe('0')
+    expect(body.value.after.stateFields['state.score']).toEqual({
+      home: '0',
+      away: '0',
+    })
+    expect(body.value.statFlags['安打']).toBe(true)
+  })
+
+  it('未知の結果 ID と数値の入力を拒否する', () => {
+    expect(
+      JSON.parse(
+        domainOperations.deriveState(request('batting-result.unknown')),
+      ).error.code,
+    ).toBe('INVALID_REQUEST')
+    const numeric = JSON.stringify({
+      before: {
+        stateFields: { ...emptyState, 'state.count.strikes': 0 },
+        scoreboard: emptyBoard,
+      },
+      resultId: 'batting-result.ball',
+    })
+    expect(JSON.parse(domainOperations.deriveState(numeric)).error.code).toBe(
+      'INVALID_STATE',
     )
   })
 })

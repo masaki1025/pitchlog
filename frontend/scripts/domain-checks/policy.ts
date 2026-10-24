@@ -56,6 +56,7 @@ export const ALLOWED_SYNTAX = new Map<ts.SyntaxKind, string>([
   [ts.SyntaxKind.ShorthandPropertyAssignment, '局所値からのフィールド'],
   [ts.SyntaxKind.ArrayLiteralExpression, 'JSON 配列の組み立て'],
   [ts.SyntaxKind.PropertyAccessExpression, '既知のプロパティ参照'],
+  [ts.SyntaxKind.ElementAccessExpression, '規則表・表引きのキー参照'],
   [ts.SyntaxKind.CallExpression, '局所関数・標準関数の呼び出し'],
   [ts.SyntaxKind.ParenthesizedExpression, '演算順序の明示'],
   [ts.SyntaxKind.AsExpression, '検証済み JSON と公開口の型付け'],
