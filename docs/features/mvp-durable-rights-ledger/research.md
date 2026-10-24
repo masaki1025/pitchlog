@@ -461,3 +461,6 @@ CSVの編集2pathを固定する。新ledger_deployment_assetsのexact3path/SHA�
 ## 新census source実値の限定受理（static-v4）
 
 2026-10-24T05:37:47.989666+00:00、rootは既PO委任による完全実値確認として固定d6c44c84の提案92901ba5ea946588c9f4dd9bb478b2735ff35395f2a99c32798e6f2d24c54accを受理した。非作者source0（46b0408d0acb35e0d1c2983036a6983a4bf9dd17883313df91348f19134d6a2c）、全9射影/外部8/27payloadの独立一致（values-v4.json SHA2560b591404211bfe35ca50b9c1473f0ead5495601d75bf5cc3d9ad973abb39b984）を根拠とする。旧v3からの実変更はcensus試験source1本とその派生だけで、他7external/不可変製品source/SQL3byteを再裁定しない。旧29履歴206snapshotの全byteを保持して新10だけを再配置し、PR182最終1受理・30履歴216snapshotを復元した。receipt /home/ymdms/.cache/pitchlog/durable-ledger-acceptance/acceptance-static-v4.json。人間の実値確認・署名を代記せず、corpus・最終HEAD確認・全必須CI未成立を保持する。
+
+
+2026-10-24T05:39:19.204079+00:00、受理後4f81f035の既corpus_input_digest再計算はf5db69d37dfdcb6e4cc1ff3c2dfeadd1823f83d55451085b26777d0f49615d30で旧v3と同値。pinned前6記録/固定snapshot/runner/caseは不変なので、manifestの変更/同じ値の再受理は行わない（corpus-static-v4.json）。frozen-baselines --invariants-onlyとthree-way-parity --invariants-onlyは0、後者のPR受理遷移はこのコマンドでは未検査。source実装と局所修正を終えてin-reviewへ戻し、最終固定HEAD非作者確認・実GitHub2親mergeのstrictcore/tenant/受理遷移・必須CIを残す。先行全件4失敗の結果を上書きせず、変更に影響するcomponentの検査を実施する。
