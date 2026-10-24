@@ -439,3 +439,16 @@ T1本体開始後の②は既基盤再利用/新意味判断なしを仮定し�
 T1 #183は3f582100まで計画/研究だけを固定。39pathの未受理候補は /home/ymdms/.cache/pitchlog/t1-contract-183-acceptance-reflection1-20261024/。初回値照合3P1を反映し、関連6CLI（descriptor/三点invariants/gap/fixture/coverage/branch mapping）成功。旧T2248case/4656要求全保持、input170/到達可能170一致、7history+1・57literal宣言・最終digest/4refsは新非作者実再計算でも一致。ただし広い検査で既14testの新件数追随と無効化した未被覆負例をP1として検出、全採用し1testpathのみ反映中。旧同14testはbaselineで成功を確認、検査緩和やskipでは閉じない。元資料/Gitがないcache環境の検査不足は別に全repo隔離候補で確認する。正式反映/7.7/全P6P7/本体は未達。
 
 RG1認可候補はcache33asset・13role/65fn/241DDLへ更新（handoff SHA17ce93da4eba2212563fd2ad373e9ec6b129e11da8196aadeae896f315df285d）。sourceのCONNECT/USAGE/列全数3入口とschema-manifest新列に未接合が残り、rootだけが正式資産を続ける。候補作成者/独立reviewerの役割変更を各researchに保持し、新blind資格とは呼ばない。P6の範囲受理は既handoff/receipt metadataを別担当が最小照合中で、封印oracle本文を読んでいない。
+
+
+## 正式契約反映とCI是正の現在地（2026-10-24）
+
+記録時刻: 2026-10-24T09:26:29.215462+00:00。利用者が実画面で完了できた操作の実証は、既隔離版の新規preparing作成→実DB保存→再取得/再読込まで。実画面の開始・初期記録権・1球保存は未達のまま。正式developはPR182統合済みd40e79f8であり、候補環境の成功と分ける。
+
+T1枝では257d7a76で7.7対象の正式39pathを反映し、e266257cまでPR183へ公開。旧109case/42row/27fixtureを保持して111/44/29へ追記、T2の248case/4656要求は全要素/順序不変。P8不足は15→13だけ、7marker閉鎖0、全P6/P7や本体着手の成立には広げない。CI40078161784はfrontend13失敗、harness61失敗、backend1失敗28errorで失敗確定。検査基準は維持し、原因別にまとめて是正する。
+
+69179218では両runnerの実consumer7pathを修正・保存済み（まだ未push）。旧固定digestを、既受理schema2本の閉じたbindingから照合する形へ修正し、未知field/不一致拒否を維持。新2caseの完全source inputを保持するが実計算へのStage2接合は別残件。非作者確認0、候補frontend全92file/1867成功、backend関連101成功。最終HEADの委任証拠はe266用を流用せず、全修正後に更新する。
+
+残CI依存の編集所有は、root=候補P8基準digest2値とgap/normalization/freeze検査4path（369成功/Ruff・ty成功）、initial_sql_independent_review=変異/descriptor5path（関連77成功、全200変異確認中）、t1_authz_source_followup=要件分類/派生manifest8pathと件数検査（旧1418件の分類保持、AUTH187不変、新規9件は既非認可分類）、initial_scope_plan_review=旧本人記録を保持するGate6限定carry5path。oracleの入力追随は既手順の先行Git commitが必要。候補を非作者確認後に保存し、機械metadataだけを通常追随する。旧署名の代記・検査の除外・失敗の成功読替えはしない。
+
+初期権の前提RG1は0708095aでdata-model1.3の限定規範をPO委任確定（非作者0）。13role/241DDLの正式認可asset/派生runtimeは隔離候補でbackend関連249成功。ただし正式資産の値受理/統合・実PG正常controller→初期grant・開始HTTP/UIは残る。初期scopeはda88d09bの268成功と0036接続を維持し、新しい実画面成功とは扱わない。実Port/DB/HTTPをT1本体着手の新条件に追加していない。
