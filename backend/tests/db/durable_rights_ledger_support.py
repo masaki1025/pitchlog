@@ -10,6 +10,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic, sleep
+from typing import Any
 from uuid import uuid4
 
 import psycopg
@@ -407,6 +408,96 @@ try:
 finally: os.close(fd)
 """
         return json.loads(docker(*self.command(root=True), "-c", code))
+
+    def journal_state(self) -> tuple[int, str]:
+        """所有journalの実サイズと全byte digestだけをroot読取で観測する。"""
+        import json
+
+        code = """
+import hashlib,json,os
+fd=os.open('/w/state/journal',os.O_RDONLY|os.O_NOFOLLOW)
+try:
+    size=os.fstat(fd).st_size
+    digest=hashlib.sha256()
+    while block:=os.read(fd,65536): digest.update(block)
+    assert os.fstat(fd).st_size==size
+    print(json.dumps([size,digest.hexdigest()]))
+finally: os.close(fd)
+"""
+        values = json.loads(docker(*self.command(root=True), "-c", code))
+        assert type(values) is list and len(values) == 2
+        assert type(values[0]) is int and type(values[1]) is str
+        return values[0], values[1]
+
+    def limit_worker_journal_growth(self, size: int) -> dict[str, Any]:
+        """所有containerの実UID20001 workerだけを同UIDのprlimitで制限する。"""
+        import json
+
+        assert type(size) is int and size > 0
+        code = """
+import json,os,resource,sys
+from pathlib import Path
+assert os.getuid()==os.geteuid()==20001 and os.getgid()==os.getegid()==20001
+def status(pid):
+    lines=Path(f'/proc/{pid}/status').read_text().splitlines()
+    return dict(line.split(':',1) for line in lines)
+self_status=status(os.getpid())
+assert all(int(self_status[key],16)==0 for key in ('CapEff','CapPrm','CapAmb'))
+parent=status(1)
+assert [int(v) for v in parent['Uid'].split()]==[0]*4
+children=[int(v) for v in Path('/proc/1/task/1/children').read_text().split()]
+workers=[]
+for pid in children:
+    value=status(pid)
+    if pid!=os.getpid() and [int(v) for v in value['Uid'].split()]==[20001]*4:
+        assert int(value['PPid'])==1
+        assert [int(v) for v in value['Gid'].split()]==[20001]*4
+        assert value['Name'].strip()==Path(sys.executable).name
+        workers.append(pid)
+assert len(workers)==1
+pid=workers[0]
+start=Path(f'/proc/{pid}/stat').read_text().split()[21]
+size=int(sys.argv[1])
+try:
+    original=resource.prlimit(pid,resource.RLIMIT_FSIZE)
+    assert original[0]==resource.RLIM_INFINITY or original[0]>size
+    resource.prlimit(pid,resource.RLIMIT_FSIZE,(size,original[1]))
+    actual=resource.prlimit(pid,resource.RLIMIT_FSIZE)
+    assert actual==(size,original[1])
+    assert Path(f'/proc/{pid}/stat').read_text().split()[21]==start
+    print(json.dumps({'worker_pid':pid,'worker_ppid':1,'worker_uid':20001,
+        'worker_gid':20001,'caller_uid':os.geteuid(),'launcher_uid':0,
+        'original_limits':original,'limited_limits':actual,'journal_size':size}))
+except PermissionError as error:
+    print(json.dumps({'error':'PermissionError','errno':error.errno}))
+"""
+        value = json.loads(
+            docker(
+                "exec",
+                "--user",
+                "20001:20001",
+                self.service,
+                "/runtime/bin/python3.12",
+                "-c",
+                code,
+                str(size),
+            )
+        )
+        assert type(value) is dict and "error" not in value, (
+            "所有workerへの同UID prlimitが拒否された",
+            value,
+        )
+        return value
+
+    def fresh_process_file_size_limit(self) -> int:
+        """再起動へ使う新processには旧workerの局所limitが残らないと確認する。"""
+        return int(
+            docker(
+                *self.command(root=True),
+                "-c",
+                "import resource;print(resource.getrlimit(resource.RLIMIT_FSIZE)[0])",
+            )
+        )
 
     def start(self, *, check: bool = True) -> bool:
         """既存の保護journalを照合して起動し、失敗を成功扱いしない。"""

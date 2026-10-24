@@ -851,7 +851,12 @@ print('FRESH_AND_D4',flush=True)
 
 
 @pytest.mark.parametrize(
-    "critical_scenario", ("reserve_commit_abort", "fresh_close_ack_loss")
+    "critical_scenario",
+    (
+        "reserve_commit_abort",
+        "fresh_close_ack_loss",
+        "fresh_close_kernel_write_refused",
+    ),
 )
 def test_real_critical_journal_commit_boundaries(
     critical_scenario: str,
@@ -861,9 +866,11 @@ def test_real_critical_journal_commit_boundaries(
     """実INTENT後のCOMMIT拒否と、実終端後のACK未読を専用pairで検査する。"""
     if critical_scenario == "reserve_commit_abort":
         _reserve_commit_abort_then_quarantine(authority_database, ledger_connections)
-    else:
-        assert critical_scenario == "fresh_close_ack_loss"
+    elif critical_scenario == "fresh_close_ack_loss":
         _fresh_close_ack_loss_after_durable_end(authority_database)
+    else:
+        assert critical_scenario == "fresh_close_kernel_write_refused"
+        _fresh_close_kernel_write_refused(authority_database)
 
 
 def _reserve_commit_abort_then_quarantine(
@@ -1009,3 +1016,58 @@ print('DURABLE_CLOSE_RETAINED')
     after = authority.event_counts()
     assert after.get("activation_open") == after.get("lease_close") == 1
     assert after.get("intent", 0) == 0
+
+
+def _fresh_close_kernel_write_refused(authority: AuthorityDatabase) -> None:
+    """実workerのfile-size上限でclose書込みを拒否し、未終端を維持する。"""
+    import select
+
+    code = """
+import select,sys
+from pitchlog.durable_rights_ledger import adapter
+with s._channel() as channel:
+    att=adapter._activation_from(
+        adapter._request(channel,{'operation':'fresh_activation_open'},mutation=True))
+    assert att.highwater==att.reservation_count==0 and att.pair_epoch==1
+    assert adapter._request(channel,{'operation':'fence_check'}) is None
+    print('FRESH_HELD_BEFORE_LIMIT',flush=True)
+    while not select.select([sys.stdin],[],[],.1)[0]:
+        assert adapter._request(channel,{'operation':'fence_check'}) is None
+    assert sys.stdin.readline().strip()=='CLOSE'
+    try: adapter._request(channel,{'operation':'fence_close'},mutation=True)
+    except LedgerOutcomeUnconfirmed: print('KERNEL_CLOSE_UNCONFIRMED',flush=True)
+    else: raise AssertionError('kernel-refused close acknowledged')
+"""
+    process = authority.client_process(code)
+    try:
+        assert process.stdout is not None
+        readable, _, _ = select.select([process.stdout], [], [], 15)
+        assert readable, "limit前の実fresh openが期限超過"
+        assert process.stdout.readline().strip() == "FRESH_HELD_BEFORE_LIMIT"
+        before = authority.journal_state()
+        counts = authority.event_counts()
+        assert counts.get("activation_open") == 1
+        assert counts.get("lease_close", 0) == counts.get("intent", 0) == 0
+        limited = authority.limit_worker_journal_growth(before[0])
+        assert limited["worker_ppid"] == 1
+        assert limited["worker_uid"] == limited["caller_uid"] == 20001
+        assert limited["journal_size"] == before[0]
+        assert limited["limited_limits"] == [before[0], limited["original_limits"][1]]
+        output, _ = process.communicate("CLOSE\n", timeout=10)
+        assert process.returncode == 0, "実closeの未確定応答を受け取れない"
+        assert output.strip() == "KERNEL_CLOSE_UNCONFIRMED"
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.communicate(timeout=5)
+    # fsync故障全般の再現ではない。今回は新close frameの最初の書込みが拒否された。
+    assert authority.journal_state() == before
+    assert authority.event_counts() == counts
+    assert not authority.client("print(s.current_recovery_generation())", check=False)
+    authority.stop()
+    original_soft = limited["original_limits"][0]
+    assert authority.fresh_process_file_size_limit() == original_soft
+    # 新processの元limitでも実未終端検査で拒否する。journalの補修/close追記なし。
+    assert authority.start(check=False) is False
+    assert authority.journal_state() == before
+    assert authority.event_counts() == counts
