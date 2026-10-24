@@ -365,3 +365,14 @@ creation_pathの所有隔離PG/API/Vite/Chromiumで **1 passed/50.3秒（browser
 - 開始DTOは **fe4788d1**で145作者成功・P1是正後非作者0（8c48f471…）。初回P1はraw TypeAdapter構文例外の内部入力を万能に秘匿できるとの含意。公開Class入口＋実共通HTTP応答/ログを保証し、raw内部入力は保持される保証外境界を明記/実回帰した。旧P1/141成功は保持。branchを通常push保全、実開始/権利/HTTP接続は未提供。
 - T1§12は非作者plan0後 **8a4a2546**で委任承認し **cc69ef94**へ実装。H/U独立3値・162セル（数値一意124/未確定16/相反22、数値既知だがbranch未識別14）・137最小証拠/210除去対向pair、旧全byte不変、作者731成功。非作者コードreview待ち、正式missing15/closure0/全開始条件は維持。新blindを実施したとはしない。
 - PR182途中保存公開 https://github.com/masaki1025/pitchlog/pull/182#issuecomment-6378409513 。途中CI40051629440はcancelledで成功扱いしない。T1 branch初回pushはGitHub remote unpack errorで未成立、remote確認後の通常再push成功。成果を一つの巨大PRへ移さず各branch/既存証拠を保持。
+
+
+### 正式境界検査の全件成功と最終P1の継続
+
+ledger候補005d99dfは最終static-v2の1受理を反映して30履歴216snapshot、正式tenant CLI0、checker437＋archive29 **466成功/146.77秒**。元b94候補はGit/cacheへ全byte保全・通常差戻し/supersessionを保持したまま、最新receiptを別保存。rootの同じ値への通常再照合以外、新たな人間確認/署名は記録しない。
+
+一方、非作者whole最終レビューは **P1=1（LEDGER-FINAL-01）**（証拠64bb3f7c…）。own fault行列の旧primary生存昇格拒否/最新standby実昇格保全・両保全先喪失/古backup発行拒否・業務DB『のみ』連続2復元安全閉鎖/外部D4 claim保持が未実証。既存copy_pair/primary停止後readをそれらへ読み替えない。cfb1fc6cで既採用の最小component閉鎖/保全と、従来から親新7/8へ残す正規closeProof→epoch前進→復旧後発行/過去集合交差0を具体分離し、MVP義務と検査/拒否は維持。dfdf069eで実装activeへ戻し、CSVが元必須の安全faultを専用群で追加中。0/必須CIまでDraft/merge保留、CI待ちのふりをしない。
+
+T1§12 cc69ef94は非作者コード0/独立182成功（証拠57ee3839c99eb876ce21a6ee5297a250422713d986fb592183d4658db1077b33）、作者731成功と分離。新純入力は中立directory p6-partial-input-20261024-01へ同SHA5f0bf2d…/正式4b2の原典3だけで固定し、fork-noneのp6_partial_input_derivationへ渡した。作者会話/期待値/旧封印/テストを渡さず、導出封印後まで比較しない。起動は導出成立/新P6受理ではない。正式missing15/全開始条件は継続未達。
+
+開始DTO是正fe4788の別非作者0を保持し、親開始の実DB/側/資格/配達/epoch接合の最小具体化をcreationが継続。利用者の候補操作は依然A（新規作成→保存→reload）まで実証、B（開始→初球保存→reload）未達。全MVP目標・実機/運用受入・両CSV等の未完を維持。
