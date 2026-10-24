@@ -31,6 +31,8 @@ rootが正式共有資産の唯一のwriter。作者はcache候補のみ、非�
 
 ## 3. 影響する正本とゲート
 
+正本の有限対象パス: `docs/requirements/requirements-pitchlog-2026-07-22.md`、`docs/design/sync-protocol.md`、`docs/design/data-model.md`、`docs/adr/ADR-003-domain-calculation-ownership-and-js-interop.md`（直接影響がある場合だけ）、`docs/README.md`。編集対象自体は§2と既承認のままであり、機械突合に必要な節3への再掲である。ADRの実在basenameは着手前に照合し、別ADRや未宣言正本へ拡張しない。
+
 上記採用意味の反映だけを7.6により同じPRへ含める。要件改訂/スキーマ構造の変更部分は7.3の独立敵対レビューを行い、対象版と採否を記録した上で既PO委任によるroot判断として確定する。実回答を候補全実値の人間承認に拡張しない。7.7は全前後値・9projection/8source等の実影響を導出し、固定対象版・根拠・非作者照合後に主担当が受理する。旧記録/同一無関係基線の受理を再実施しない。
 
 ## 4. 実装ステップ（コミット単位）

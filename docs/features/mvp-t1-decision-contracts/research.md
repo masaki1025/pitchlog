@@ -19,3 +19,6 @@
 2026-10-24T05:21:52.982796+00:00、rootはPO委任により、同期正本5節の限定差分（審査版6f4c4b245c234ca7ee38b60355aacd33e618388509a4be35a2384c33c3225ca9、patch0e5b60890b301acc3606046f181ff1ff8368180aac59c4de94ea5afce493be51）を確定する。非作者rightsの限定7.3第1回0/0/0・反映0周、証拠 /home/ymdms/.cache/pitchlog/reviews/d06b-contract-independent-20261024/norm-round1.json（SHA256 ce379c586cde2c7b39f98849833e3b068a2841d667186a8d7aa8ca92e1f52c27）と本スレッドPOのB採用・全留保を根拠とする。同系譜・同半回のmによる重複TBだけで、P3や一般同値不成立を新規採用しない。版0.12/履歴/索引は確定metadataであり、正式develop未統合。
 
 別の技術通常初回はD06-CODE-01 P1を採用（code-round1.json SHA086a596ecea3391050c9b5075a5e0bc9e0456d0a44c21475ba5fe338615c9d51）。PrefixEvidenceRefV1未定義はskipLibCheckなしでTS2304、skip時にprefix17/nullを誤受理。原cacheを不変保存し、root反映候補 /home/ymdms/.cache/pitchlog/d06-priority-contract-reflection1-20261024/ へ既upstream exact4field readonly型だけ追加。skipなし宣言/利用側6負例・no-anyは成功、限定非作者再検査待ち。66作者/独立比較は実Ready・DB・取消・耐久遮断の証明ではない。専用原本/実DDL・ACL/真正権威照会・正式4b2未収録P7参照schemaの供給・7.7/全P6/P7は残る。
+
+
+D06正本commit前の計画整合検査で、§2には存在する要件/索引のパスをcheckerが§3から導出できず2件拒否した。直前のコマンドは最後のgit終了値だけを返したためcommitは成立したが、この検査を成功とは扱わない。編集範囲は増やさず§3へ同じ対象pathを明示して機械突合を是正する。以後依存コマンドは失敗時に停止する。
