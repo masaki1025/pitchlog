@@ -124,6 +124,13 @@ class LedgerDatabase:
         if running:
             _wait(self.standby_admin)
 
+    def promote_standby(self) -> None:
+        """このfixtureが所有する実standbyだけをPostgreSQLで昇格する。"""
+        with psycopg.connect(self.standby_admin, autocommit=True) as control:
+            assert control.execute("SELECT pg_is_in_recovery()").fetchone() == (True,)
+            assert control.execute("SELECT pg_promote(true,5)").fetchone() == (True,)
+            assert control.execute("SELECT pg_is_in_recovery()").fetchone() == (False,)
+
 
 @contextmanager
 def isolated_ledger_database() -> Iterator[LedgerDatabase]:
@@ -312,6 +319,7 @@ class AuthorityDatabase:
         self.service = self.token + "-service"
         self._names: list[str] = []
         self._backups: list[str] = []
+        self._business_backup: str | None = None
 
     def command(
         self, *, root: bool = False, persistent: bool = False, uid: int = 20002
@@ -775,6 +783,154 @@ _write_root_json(path,v,0o640,v['authority_gid'])
                 sleep(0.1)
             else:
                 raise AssertionError("restored synchronous peer unavailable")
+
+    def backup_business(self) -> None:
+        """業務DBだけを実hot physical backupし、元postmasterを止めない。"""
+        assert self._business_backup is None
+        backup = self.token + "-business-backup"
+        docker("volume", "create", backup)
+        self._backups.append(backup)
+        self._business_backup = backup
+        arguments = [
+            "docker",
+            "run",
+            "--rm",
+            "--network",
+            self.database.network,
+            "--label",
+            "pitchlog.owner=ledger-authority-test",
+            "--volume",
+            backup + ":/var/lib/postgresql/data",
+            "--volume",
+            self.database.business_socket + ":/business-socket:ro",
+            "--user",
+            "postgres",
+            _IMAGE,
+            "pg_basebackup",
+            "-d",
+            make_conninfo(
+                # 既存local replication規則を使い、TCP HBAやroleを追加しない。
+                host="/business-socket",
+                user="ledger_fixture_admin",
+                password=_PUBLIC_FIXTURE_PASSWORD,
+                dbname="ledger_fixture",
+                connect_timeout=5,
+            ),
+            "-D",
+            "/var/lib/postgresql/data",
+            "--checkpoint=fast",
+            "--wal-method=stream",
+            "--no-password",
+        ]
+        result = subprocess.run(arguments, capture_output=True, text=True, timeout=45)
+        if result.returncode:
+            # 所有backupの診断だけを分類し、DSN/資格を含み得るstderrを表示しない。
+            causes = [
+                label
+                for needle, label in (
+                    ("permission denied", "permission_denied"),
+                    ("not empty", "destination_not_empty"),
+                    ("password authentication failed", "authentication_failed"),
+                    ("no pg_hba.conf entry", "pg_hba_refused"),
+                    ("wal_level", "wal_level"),
+                    ("replication", "replication"),
+                    ("could not connect", "connection_refused"),
+                    ("unrecognized option", "unsupported_option"),
+                )
+                if needle in result.stderr.lower()
+            ]
+            raise AssertionError(
+                "owned business physical backup failed: " + repr(causes)
+            )
+
+    def restore_business(self) -> None:
+        """所有businessのdata volumeだけを同じ物理backupへ戻し再起動する。"""
+        assert self._business_backup is not None
+        database = self.database
+        docker("stop", "--time", "3", database.business)
+        try:
+            docker(
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--label",
+                "pitchlog.owner=ledger-authority-test",
+                "--volume",
+                self._business_backup + ":/from:ro",
+                "--volume",
+                database.volumes[2] + ":/to",
+                _IMAGE,
+                "bash",
+                "-c",
+                "find /to -mindepth 1 -maxdepth 1 "
+                "-exec rm -rf -- {} + && cp -a /from/. /to/",
+            )
+        finally:
+            docker("start", database.business)
+            _wait(database.business_admin)
+
+    def witness_files(self, *, preserved: bool = False) -> dict[str, object]:
+        """所有witness全3fileと元設定のdigest/保護flagをroot読取で記録する。"""
+        import json
+
+        store = "preserved-state" if preserved else "state"
+        code = f"""
+import hashlib,json,os
+from pathlib import Path
+from pitchlog.durable_rights_ledger.witness import _flags
+top=Path('/w/{store}')
+files={{}}
+for name in ('enrollment.json','journal','writer.lock'):
+    fd=os.open(top/name,os.O_RDONLY|os.O_NOFOLLOW)
+    try:
+        digest=hashlib.sha256()
+        while block:=os.read(fd,65536): digest.update(block)
+        files[name]={{'sha256':digest.hexdigest(),'size':os.fstat(fd).st_size,
+                     'flags':_flags(fd)}}
+    finally: os.close(fd)
+assert set(path.name for path in top.iterdir())==set(files)
+config=Path('/control/settings/config.json').read_bytes()
+print(json.dumps({{'files':files,'config_sha256':hashlib.sha256(config).hexdigest()}}))
+"""
+        return json.loads(docker(*self.command(root=True), "-c", code))
+
+    def lose_witness(self) -> None:
+        """停止済み所有witnessを別owned名へ保全し、元設定の参照先だけを失わせる。"""
+        self.stop()
+        code = """
+import os
+from pathlib import Path
+from pitchlog.durable_rights_ledger.authority import _set_flags
+from pitchlog.durable_rights_ledger.witness import _flags
+assert Path('/w/state').is_dir() and not Path('/w/preserved-state').exists()
+fd=os.open('/w/state',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+try:
+    original=_flags(fd)
+    _set_flags(fd,original & ~0x30)
+    try: os.rename('/w/state','/w/preserved-state')
+    finally: _set_flags(fd,original)
+finally: os.close(fd)
+fd=os.open('/w',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+try: os.fsync(fd)
+finally: os.close(fd)
+assert not Path('/w/state').exists() and Path('/w/preserved-state').is_dir()
+print('OWNED_WITNESS_PATH_LOST_BYTES_PRESERVED')
+"""
+        assert docker(*self.command(root=True), "-c", code) == (
+            "OWNED_WITNESS_PATH_LOST_BYTES_PRESERVED"
+        )
+
+    def witness_path_missing(self) -> bool:
+        """元root設定のwitness参照先が再生成されていないと実観測する。"""
+        return (
+            docker(
+                *self.command(root=True),
+                "-c",
+                "from pathlib import Path;print(not Path('/w/state').exists())",
+            )
+            == "True"
+        )
 
     def close(self) -> None:
         """自分の子process/保護flag/volumeだけを解放する。"""

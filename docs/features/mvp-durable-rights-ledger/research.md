@@ -396,3 +396,16 @@ fixed005d99df/全49path標準diffcd837f5bd6f350b2de126e6b5d7a7adef354cf16bce6d77
 
 
 最終P1の実検証追加へ差戻すため本planをactiveへ戻した。追加DB2pathだけをCSVへ委任し、rootは共有asset/最終受理・台帳を継続所有する。受理payload/全source/静的資産/9/8/corpusは現時点不変、同じ値の人間再承認や異なる値への無断延長はしない。最終whole0と必須CIが揃うまでPR182 Draft/merge保留。
+
+
+## 最終P1 LEDGER-FINAL-01の実故障証拠（採用・追加検証）
+
+005d99dfの最終独立レビューP1=1を採用し、cfb1fc6cの段階境界を維持したまま、同じstep4に実昇格・保全喪失・業務DB単独復元の4群を追加した。作者は/root/csv_review、変更は既存DB試験/supportの2pathだけ。製品source・正式30履歴/216snapshot・受理9/8・配布資産は不変で、同じ値の再受理を行わない。rootが作者証拠と実2file/製品4fileのhashを照合して固定する。
+
+Aは旧primaryの実生存をSQL/Dockerで確認した実standby昇格後、新reserve拒否・全成功row/highwater/journal保持を確認（1成功21.99秒）。Bは別owned pairで旧primary実停止後に最新standbyを実昇格し、成功row全列/highwater/journal保持と新発行拒否を確認。Cは2予約/claim ACK後に両PGを実古0へ戻し、実witness参照先を喪失させ、startup/reserve/fresh/再enroll拒否を確認した。全3witness fileのbyte/size/flagとroot設定は別owned名へ保全し、元参照先を自動生成していない。B/CはD準備失敗を含む群で2成功1失敗74.51秒であり、4群一括成功へ言い換えない。
+
+Dは既存local replication/owned Unix socketを使う実pg_basebackupで業務DBだけを物理backupし、同じbackupへ連続2回実復元した。毎回system/database同一・postmaster identity変化を確認し、復元前の実clientによる新reserveとauthority再起動を拒否、外部pairの全成功2row/claim/highwater/journal byte/countを保持した（最終1成功34.67秒）。TCP HBA準備拒否、診断patch構文エラー、起動拒否後socket消失とclient constructorが試験body try外だった中間失敗は全て作者証拠へ保持した。role/HBAや拒否条件を緩めず、元clientを復元前から保持する試験境界へ是正した。
+
+作者証拠: /home/ymdms/.cache/pitchlog/reviews/ledger-retention-cfb1fc6c/evidence.json、SHA256 2b68ca5d7379eff9efd28565f8bb006766825676ae41b9da88658bf24f21f02f。固定test SHA49dc79baa6fbcfbd807a05fa1d9bf899245b6606eee4d8644e35b7f6d2843e04、support SHAa37e4fc240e627bbf2b883c674b47fb593764e9ef48ea5a756223aa90849ae70。作者Ruff/ty成功・所有container/volume/network残存0、共有DB操作0。旧19case/466checker成功を今回再実行したとはせず、追加独立確認はこれからである。
+
+正規全域closeProof→epoch前進→新D4/解除の同一確定→復旧後再発行と旧成功集合交差0のpositive gateは親new7/8の未完義務として保持する。今回の安全閉鎖/保全成功を全復旧・通常開始・実Port・MVP完成へ拡大しない。

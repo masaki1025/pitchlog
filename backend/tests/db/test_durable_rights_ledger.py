@@ -41,6 +41,8 @@ def authority_database(
     """normal群を共有し、故障群は専用cluster/witnessへ直列に切り替える。"""
     if "critical_scenario" in request.fixturenames:
         key = "critical:" + request.getfixturevalue("critical_scenario")
+    elif "retention_scenario" in request.fixturenames:
+        key = "retention:" + request.getfixturevalue("retention_scenario")
     else:
         key = (
             "fresh:" + request.getfixturevalue("fresh_scenario")
@@ -1071,3 +1073,199 @@ with s._channel() as channel:
     assert authority.start(check=False) is False
     assert authority.journal_state() == before
     assert authority.event_counts() == counts
+
+
+def _ledger_retention_snapshot(
+    dsn: str,
+) -> tuple[int, tuple[tuple[object, ...], ...]]:
+    """所有fixture内の有限な全予約行/全列とhighwaterを独立読取する。"""
+    with psycopg.connect(dsn) as observer:
+        highwater = observer.execute(
+            "SELECT value FROM pitchlog_ledger.highwater"
+        ).fetchone()
+        assert highwater is not None and type(highwater[0]) is int
+        rows = observer.execute(
+            "SELECT * FROM pitchlog_ledger.reservations ORDER BY generation"
+        ).fetchall()
+        return highwater[0], tuple(rows)
+
+
+def _acknowledged_retention_set(
+    authority: AuthorityDatabase, database: LedgerDatabase
+) -> tuple[int, tuple[tuple[object, ...], ...]]:
+    """正規clientのreserve/claim成功2組を別の実DB観測へ固定する。"""
+    assert (
+        authority.client("""
+for generation in (1,2):
+    params=tuple(uuid4() for _ in range(4))
+    assert s.reserve(*params).generation==generation
+    s.claim(*params)
+print('TWO_CLAIMED_ACKNOWLEDGED')
+""")
+        == "TWO_CLAIMED_ACKNOWLEDGED"
+    )
+    success = _ledger_retention_snapshot(database.primary_admin)
+    assert success[0] == len(success[1]) == 2
+    assert [row[4] for row in success[1]] == [1, 2]
+    assert all(row[6:] == (True, False) for row in success[1])
+    assert _ledger_retention_snapshot(database.standby_admin) == success
+    return success
+
+
+def _assert_retention_issuance_refused(authority: AuthorityDatabase) -> None:
+    """実clientで新発行を拒否し、常拒否APIを成功へ読み替えない。"""
+    assert (
+        authority.client("""
+try: s.reserve(*(uuid4() for _ in range(4)))
+except LedgerUnavailable: print('NEW_ISSUANCE_REFUSED')
+else: raise AssertionError('unsafe new issuance acknowledged')
+""")
+        == "NEW_ISSUANCE_REFUSED"
+    )
+
+
+@pytest.mark.parametrize(
+    "retention_scenario",
+    (
+        "promote_with_primary_alive",
+        "promote_after_primary_stopped",
+        "old_zero_pair_and_witness_lost",
+        "business_only_two_restores",
+    ),
+)
+def test_real_retention_faults_close_and_preserve_success(
+    retention_scenario: str,
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """実昇格/保全喪失/業務復元の安全閉鎖と既成功集合保持だけを検査する。"""
+    if retention_scenario == "old_zero_pair_and_witness_lost":
+        authority_database.copy_pair()
+        authority_database.start()
+    success = _acknowledged_retention_set(authority_database, ledger_connections)
+    counts = authority_database.event_counts()
+    journal = authority_database.journal_state()
+    if retention_scenario == "old_zero_pair_and_witness_lost":
+        _old_zero_pair_and_witness_lost(authority_database, ledger_connections)
+        return
+    if retention_scenario == "business_only_two_restores":
+        _business_only_two_restores(
+            authority_database, ledger_connections, success, counts, journal
+        )
+        return
+    if retention_scenario == "promote_after_primary_stopped":
+        docker("stop", "--time", "3", ledger_connections.primary)
+        assert (
+            docker(
+                "inspect", "--format", "{{.State.Running}}", ledger_connections.primary
+            )
+            == "false"
+        )
+    else:
+        assert retention_scenario == "promote_with_primary_alive"
+        assert (
+            docker(
+                "inspect", "--format", "{{.State.Running}}", ledger_connections.primary
+            )
+            == "true"
+        )
+        with psycopg.connect(ledger_connections.primary_admin) as old_primary:
+            assert old_primary.execute("SELECT pg_is_in_recovery()").fetchone() == (
+                False,
+            )
+    ledger_connections.promote_standby()
+    # 正規の全域closeProof/epoch前進は未提供。実昇格だけで発行許可を作らない。
+    _assert_retention_issuance_refused(authority_database)
+    assert authority_database.event_counts() == counts
+    assert authority_database.journal_state() == journal
+    if retention_scenario == "promote_with_primary_alive":
+        assert _ledger_retention_snapshot(ledger_connections.primary_admin) == success
+    assert _ledger_retention_snapshot(ledger_connections.standby_admin) == success
+
+
+def _old_zero_pair_and_witness_lost(
+    authority: AuthorityDatabase, database: LedgerDatabase
+) -> None:
+    """実成功後の両台帳を古0へ復元し、witness喪失時の再enrollを拒否する。"""
+    preserved = authority.witness_files()
+    authority.copy_pair(restore=True)
+    assert _ledger_retention_snapshot(database.primary_admin) == (0, ())
+    assert _ledger_retention_snapshot(database.standby_admin) == (0, ())
+    assert authority.witness_files() == preserved
+    authority.lose_witness()
+    assert authority.witness_files(preserved=True) == preserved
+    assert authority.witness_path_missing()
+    assert authority.start(check=False) is False
+    _assert_retention_issuance_refused(authority)
+    assert (
+        authority.client("""
+try:
+    with s.fresh_activation(): raise AssertionError('lost witness reenrolled')
+except LedgerUnavailable: print('NO_AUTOMATIC_FRESH_ENROLLMENT')
+""")
+        == "NO_AUTOMATIC_FRESH_ENROLLMENT"
+    )
+    assert authority.witness_path_missing()
+    assert authority.witness_files(preserved=True) == preserved
+    assert _ledger_retention_snapshot(database.primary_admin) == (0, ())
+    assert _ledger_retention_snapshot(database.standby_admin) == (0, ())
+
+
+def _business_only_two_restores(
+    authority: AuthorityDatabase,
+    database: LedgerDatabase,
+    success: tuple[int, tuple[tuple[object, ...], ...]],
+    counts: dict[str, int],
+    journal: tuple[int, str],
+) -> None:
+    """実business物理復元2回を台帳/保護journalの全保持と分けて照合する。"""
+    import select
+
+    identity_sql = (
+        "SELECT pitchlog_ledger_observer.identity()->>'system_id',current_database(),"
+        "pitchlog_ledger_observer.identity()->>'started_at'"
+    )
+    original = authority.probe(identity_sql).split("|")
+    authority.backup_business()
+    assert authority.probe(identity_sql).split("|") == original
+    # 起動拒否で旧socketが消えても、元の実clientの新発行呼出し自体を検証する。
+    process = authority.client_process("""
+import sys
+print('ORIGINAL_CLIENT_READY',flush=True)
+for iteration in (1,2):
+    assert sys.stdin.readline().strip()=='TRY'
+    try: s.reserve(*(uuid4() for _ in range(4)))
+    except LedgerUnavailable: print('RESTORE_REFUSED_'+str(iteration),flush=True)
+    else: raise AssertionError('restored business allowed new issuance')
+""")
+    try:
+        assert process.stdout is not None and process.stdin is not None
+        ready, _, _ = select.select([process.stdout], [], [], 15)
+        assert ready and process.stdout.readline().strip() == "ORIGINAL_CLIENT_READY"
+        previous = original
+        for iteration in (1, 2):
+            authority.restore_business()
+            actual = authority.probe(identity_sql).split("|")
+            assert actual[:2] == original[:2]
+            assert actual[2] != original[2] and actual[2] != previous[2]
+            previous = actual
+            process.stdin.write("TRY\n")
+            process.stdin.flush()
+            ready, _, _ = select.select([process.stdout], [], [], 15)
+            assert ready and process.stdout.readline().strip() == (
+                "RESTORE_REFUSED_" + str(iteration)
+            )
+            assert _ledger_retention_snapshot(database.primary_admin) == success
+            assert _ledger_retention_snapshot(database.standby_admin) == success
+            assert authority.journal_state() == journal
+            assert authority.event_counts() == counts
+            authority.stop()
+            assert authority.start(check=False) is False
+            assert authority.journal_state() == journal
+            assert authority.event_counts() == counts
+        process.communicate(timeout=5)
+        assert process.returncode == 0, "実復元clientの拒否確認が完走しない"
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.communicate(timeout=5)
