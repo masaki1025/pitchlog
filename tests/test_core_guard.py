@@ -532,8 +532,8 @@ def rg1_durable_ledger_supply_revision() -> str:
     def exists(revision: str, path: str) -> bool:
         return bool(run_git(REPO, 'ls-tree', '--name-only', revision, '--', path).stdout.strip())
 
-    supplied = []
-    merges = run_git(REPO, 'rev-list', '--first-parent', '--merges', 'HEAD').stdout.splitlines()
+    supplied: set[str] = set()
+    merges = run_git(REPO, 'rev-list', '--merges', 'HEAD').stdout.splitlines()
     for merge in merges:
         parents = run_git(REPO, 'show', '-s', '--format=%P', merge).stdout.split()
         if len(parents) != 2:
@@ -542,9 +542,9 @@ def rg1_durable_ledger_supply_revision() -> str:
         if (exists(previous, rg1) and not exists(previous, ledger)
                 and exists(incoming, ledger) and not exists(incoming, rg1)):
             assert exists(merge, ledger) and exists(merge, rg1), '初供給mergeで両sourceが欠落'
-            supplied.append(incoming)
+            supplied.add(incoming)
     assert len(supplied) == 1, 'RG1への台帳初供給mergeが一意でない'
-    return supplied[0]
+    return next(iter(supplied))
 DURABLE_LEDGER_PATHS = (
     "backend/src/pitchlog/durable_rights_ledger/*",
     "backend/tests/test_durable_rights_ledger_contract.py",
@@ -5268,3 +5268,66 @@ def test_durable_ledger_followup_accepts_only_exact_rg1_suffix(
     else:
         with pytest.raises(AssertionError):
             assert_durable_ledger_registration(configuration, tmp_path)
+
+
+@pytest.mark.parametrize('mode', ('normal', 'unknown', 'missing', 'ambiguous'))
+def test_rg1_ledger_supply_discovery_survives_normal_merge_and_rejects_ambiguity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str,
+) -> None:
+    """第2親へ入った供給履歴を保持し、出所不明/欠落/複数supplierは拒否する。"""
+    root = tmp_path / 'rg1-ledger-supply-history'
+    root.mkdir()
+    run_git(root, 'init', '-q')
+    write_text(root, 'README.md', 'base\n')
+    run_git(root, 'add', 'README.md')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-qm', 'synthetic base')
+    base = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    ledger = 'backend/src/pitchlog/durable_rights_ledger/adapter.py'
+    rg1 = 'backend/src/pitchlog/recording_rights/rg1_lifecycle.py'
+    monkeypatch.setattr(sys.modules[__name__], 'REPO', root)
+    rg1_durable_ledger_supply_revision.cache_clear()
+    try:
+        if mode == 'unknown':
+            with pytest.raises(AssertionError, match='一意でない'):
+                rg1_durable_ledger_supply_revision()
+            return
+        run_git(root, 'checkout', '-qb', 'ledger', base)
+        _, supplier = commit_change(root, ledger, 'ledger source\n')
+        run_git(root, 'checkout', '-qb', 'rg1', base)
+        commit_change(root, rg1, 'rg1 source\n')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'merge', '--no-ff', '--no-commit', 'ledger')
+        if mode == 'missing':
+            # 自前合成repoのmergeで新規stageされた1fileだけを除去する。
+            run_git(root, 'rm', '-f', ledger)
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'commit', '-qm', 'initial supply')
+        if mode == 'missing':
+            with pytest.raises(AssertionError, match='両sourceが欠落'):
+                rg1_durable_ledger_supply_revision()
+            return
+        assert rg1_durable_ledger_supply_revision() == supplier
+        run_git(root, 'checkout', '-qb', 'integration', base)
+        commit_change(root, 'unrelated.txt', 'other branch\n')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'merge', '--no-ff', '-qm', 'normal integration', 'rg1')
+        rg1_durable_ledger_supply_revision.cache_clear()
+        assert rg1_durable_ledger_supply_revision() == supplier
+        if mode == 'ambiguous':
+            run_git(root, 'checkout', '-qb', 'ledger-alternate', base)
+            commit_change(root, ledger, 'different ledger source\n')
+            run_git(root, 'checkout', '-qb', 'rg1-alternate', base)
+            commit_change(root, rg1, 'same role, different ancestry\n')
+            run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                    'merge', '--no-ff', '-qm', 'alternate supply', 'ledger-alternate')
+            run_git(root, 'checkout', '-q', 'integration')
+            # 合成Gitだけに別供給の履歴を取り込み、製品mergeは変更しない。
+            run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                    'merge', '--no-ff', '-s', 'ours', '-qm', 'ambiguous history',
+                    'rg1-alternate')
+            rg1_durable_ledger_supply_revision.cache_clear()
+            with pytest.raises(AssertionError, match='一意でない'):
+                rg1_durable_ledger_supply_revision()
+    finally:
+        rg1_durable_ledger_supply_revision.cache_clear()

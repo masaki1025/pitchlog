@@ -98,3 +98,10 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 ## RG1新観測ownerの権限拡張拒否（独立P1反映）
 
 2026-10-24T05:23:35.585189+00:00、非作者initial_scope_plan_reviewの固定89ebdce2レビューP0=0/P1=1/P2=0を受領し全採用。証拠 /home/ymdms/.cache/pitchlog/reviews/rg1-authz-89ebdce2-independent/evidence.json（SHA256 9bcbcb4d1d16f24f38e3ab33971a742c77c601216e7b1c28c57a8c5f2849f4d5）。新identity_ownerへgeneric経路で業務表DELETE/秘密列SELECTを追加できる未閉鎖を是正し、表ACL共通拒否/列ACL生成境界で新観測主体の業務権限0を閉じた。制御ownerの列権限は既固定2列だけ、actor/probeも新業務ACLを生成しない。旧generic owner/既builtin2EXECUTE/既23SQL/26asset候補byteは不変。新否定例8件/表拒否4件を追加し、関連新旧84成功121非対象0.55s・局所17成功38非対象0.09s・Ruff/ty0。最初の準備コマンドはbackend cwdへroot相対pathを渡してFileNotFoundで編集前失敗し、その後の旧選択実行を新反映成功に数えなかった。正しいrootで編集後の上記別ログだけを証拠とする。限定再レビュー前でありP1終結はまだ宣言しない。実DB0/正式profile未反映/全体CLI redを保持する。
+
+
+## 独立ACL P1終結と別core P1の反映
+
+2026-10-24T05:34:15.157527+00:00、ACL反映1ac7057fは非作者第2回相当0/0/0で初回P1終結（/home/ymdms/.cache/pitchlog/reviews/rg1-authz-1ac7057f-independent/acl-evidence.json SHA25646a3803503f305847cebdea74121b40055c4b2fde7a05363559dfb8c777dd600）。旧generic35 SQL/既builtin2EXECUTE保持、84成功、DB0。
+
+別通常coreレビューのRG1-CORE-SUPPLY-01 P1は採用（core-guard-evidence.json SHA2560cbe2bbe643ba1f40c56a6fd1f0c76d4c467736fc57c1e29ebba8634c7ce09cf）。first-parentがmain通常merge後に初供給mergeを見失う実合成反例に対し、rootは全祖先の実mergeへ探索を広げ、同じ厳密source predicateを保持して供給第2親集合の一意性を要求した。通常merge/cache_clear・候補0・merge後source欠落・異supplier複数を4ケースで確認。初回453成功/新4失敗は合成repo初期commit前のHEAD参照、次3成功/欠落1失敗はmerge stage新fileのgit rm保護であり、局所fixtureのみ修正。最終新4成功0.75s（rg1-core-supplier-all-ancestors-final.log）、旧453は全探索sourceで先行成功。Ruff/ty0。31guard本文/allowlist/基線を変えず、core系列の独立再確認は未実施。
