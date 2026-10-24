@@ -6,7 +6,11 @@ import { domainOperations } from './publicApi'
 describe('ドメイン公開口の疎通操作', () => {
   it('操作表を凍結し、公開操作を ping と deriveState にする', () => {
     expect(Object.isFrozen(domainOperations)).toBe(true)
-    expect(Object.keys(domainOperations)).toEqual(['ping', 'deriveState'])
+    expect(Object.keys(domainOperations)).toEqual([
+      'ping',
+      'deriveState',
+      'applyOperation',
+    ])
   })
 
   it('build 入口が同じ凍結済み公開表を globalThis に置く', () => {
@@ -101,5 +105,59 @@ describe('T1 状態計算の境界', () => {
     expect(JSON.parse(domainOperations.deriveState(numeric)).error.code).toBe(
       'INVALID_STATE',
     )
+  })
+
+  it('タイブレーク開始を十進文字列のまま適用する', () => {
+    const body = JSON.parse(
+      domainOperations.applyOperation(
+        JSON.stringify({
+          before: { stateFields: emptyState, scoreboard: emptyBoard },
+          operation: {
+            kind: 'tiebreak-start',
+            spec: {
+              runnerPlacement: 'first-second',
+              leadoffBatter: '1',
+              inning: '8',
+              activationRelation: 'ready',
+            },
+          },
+        }),
+      ),
+    )
+    expect(body.ok).toBe(true)
+    expect(body.value.operationResult).toBe('applied')
+    expect(body.value.after.stateFields['state.runners']).toBe('first-second')
+    expect(body.value.after.stateFields['state.battingOrder']).toBe('1')
+    expect(body.value.after.stateFields['state.tiebreakActive']).toBe(true)
+    expect(body.value.after.stateFields['state.inning']).toBe('8')
+  })
+
+  it('終了済み試合の終了宣言を事前条件で拒否する', () => {
+    const body = JSON.parse(
+      domainOperations.applyOperation(
+        JSON.stringify({
+          before: {
+            stateFields: { ...emptyState, 'state.gameEnded': true },
+            scoreboard: emptyBoard,
+          },
+          operation: { kind: 'game-end-declaration' },
+        }),
+      ),
+    )
+    expect(body.value.operationResult).toBe('rejected-precondition')
+    expect(body.value.after.stateFields['state.gameEnded']).toBe(true)
+    expect(body.value.written.gameEnded).toBe(false)
+  })
+
+  it('未知の操作種別を拒否する', () => {
+    const body = JSON.parse(
+      domainOperations.applyOperation(
+        JSON.stringify({
+          before: { stateFields: emptyState, scoreboard: emptyBoard },
+          operation: { kind: 'unknown' },
+        }),
+      ),
+    )
+    expect(body.error.code).toBe('INVALID_REQUEST')
   })
 })

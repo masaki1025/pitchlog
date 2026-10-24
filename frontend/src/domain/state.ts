@@ -188,7 +188,7 @@ function targetList(rule: Rule): Array<Target> {
 }
 
 /** 23 種の集計フラグを初期化する。 */
-function emptyFlags(): StatFlags {
+export function emptyFlags(): StatFlags {
   return {
     投球回算入アウト: false,
     投球数: false,

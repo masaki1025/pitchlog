@@ -1,4 +1,6 @@
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
+import { applyOperation } from './operations'
+import type { OperationKind, TiebreakSpec } from './operations'
 import { derive } from './state'
 import { STATE_RULES } from './stateRules'
 import type { Derived, Runners, Scoreboard, StateFields } from './stateTypes'
@@ -300,5 +302,91 @@ function deriveState(requestJson: string): string {
   return JSON.stringify({ ok: true, value: derivedJson(derived) })
 }
 
+/** 操作種別として受理する値か。 */
+function isOperationKind(value: string): boolean {
+  if (value === 'substitution') return true
+  if (value === 'game-end-declaration') return true
+  if (value === 'adhoc-registration') return true
+  if (value === 'tiebreak-start') return true
+  return false
+}
+
+/**
+ * 打席に属さない操作（FR-009/010/011/015）を状態へ適用する。
+ *
+ * 入力の整数は十進文字列に限る。スコアボードは操作では動かないため、
+ * 入力の値をそのまま返す。`written` は差分表現の `set` に対応する。
+ */
+function applyOperationJson(requestJson: string): string {
+  if (typeof requestJson !== 'string') {
+    return errorResponse('INVALID_REQUEST')
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(requestJson) as unknown
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const request = asObject(parsed)
+  if (request === null) return errorResponse('INVALID_REQUEST')
+  const before = asObject(request.before)
+  if (before === null) return errorResponse('INVALID_REQUEST')
+  const fields = asObject(before.stateFields)
+  if (fields === null) return errorResponse('INVALID_REQUEST')
+  const board = asObject(before.scoreboard)
+  if (board === null) return errorResponse('INVALID_REQUEST')
+  const operation = asObject(request.operation)
+  if (operation === null) return errorResponse('INVALID_REQUEST')
+  const kind = textField(operation, 'kind')
+  if (kind === null || !isOperationKind(kind)) {
+    return errorResponse('INVALID_REQUEST')
+  }
+  const state = readState(fields)
+  const scoreboard = readBoard(board)
+  if (state === null || scoreboard === null) {
+    return errorResponse('INVALID_STATE')
+  }
+  let runnerPlacement: Runners = 'empty'
+  let leadoffBatter = 1n
+  let tiebreakInning = 1n
+  let activationRelation: 'ready' | 'not-ready' = 'not-ready'
+  const spec = asObject(operation.spec)
+  if (spec !== null) {
+    const placement = textField(spec, 'runnerPlacement')
+    if (placement !== null) runnerPlacement = placement as Runners
+    const leadoff = intField(spec, 'leadoffBatter')
+    if (leadoff !== null) leadoffBatter = leadoff
+    const inning = intField(spec, 'inning')
+    if (inning !== null) tiebreakInning = inning
+    if (textField(spec, 'activationRelation') === 'ready') {
+      activationRelation = 'ready'
+    }
+  }
+  const tiebreakSpec: TiebreakSpec = {
+    runnerPlacement: runnerPlacement,
+    leadoffBatter: leadoffBatter,
+    inning: tiebreakInning,
+    activationRelation: activationRelation,
+  }
+  const outcome = applyOperation(state, kind as OperationKind, tiebreakSpec)
+  return JSON.stringify({
+    ok: true,
+    value: {
+      operationResult: outcome.operationResult,
+      written: outcome.written,
+      after: {
+        stateFields: stateJson(outcome.after),
+        scoreboard: boardJson(scoreboard),
+      },
+      historyEffect: outcome.historyEffect,
+      historyContext: outcome.historyContext,
+    },
+  })
+}
+
 /** JSON 文字列だけを境界とする操作の公開表。 */
-export const domainOperations = Object.freeze({ ping, deriveState })
+export const domainOperations = Object.freeze({
+  ping,
+  deriveState,
+  applyOperation: applyOperationJson,
+})

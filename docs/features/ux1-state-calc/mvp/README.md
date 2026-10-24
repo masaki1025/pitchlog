@@ -26,6 +26,23 @@
     sha256 `b45b123b…`、18,097 bytes）
   - `eslint` / `vue-tsc --noEmit` / `pnpm test`（1187 件）green
 
+### 0-2. 追補（2026-10-24）: 操作行（operationRows）10 件も実装した
+
+T1 の契約は 3 層（matrixRows 89 / operationRows 10 / undoRows 10）で、前節までの実装は
+matrixRows 層だけだった。操作行 10 件を追加し、**matrixRows 89＋operationRows 10 = 99/109**
+まで埋めた（undoRows 10 は取消し手順として当初から別タスクのため対象外）。
+
+- 実装: `frontend/src/domain/operations.ts`（`applyOperation`）
+  - 交代（FR-011）・その場登録（FR-015）: `state.gameEnded=false` のとき適用、状態は変えない
+  - 試合終了宣言（FR-010）: `state.gameEnded=false` のとき `state.gameEnded=true` を書く
+  - タイブレーク開始（FR-009）: `activationRelation='ready'` かつ未発動・未終了のとき、
+    走者配置・先頭打者・回・`tiebreakActive` を書く（関係の導出元は指定回・規則の開始回・現在回）
+- 差分表現: 契約の `stateEffect` は値の比較ではなく**「操作が書いた項目」**で `set`/`unchanged`
+  を決める（値が同じでも書けば `set`）。`applyOperation` は `written` を返してこれを表す。
+- 境界: `applyOperation` を公開表へ追加（JSON 文字列 in/out、整数は十進文字列）
+- 検証: Vitest `operations.spec.ts` **10/10**（`operationResult`・`stateEffect`・`historyEffect`・
+  `historyContext`）、ビルド済み artifact でも **10/10**、`publicApi.spec.ts` に境界試験 3 件を追加
+
 **残る NFR-018 の論点**: T1 が artifact と Python（`backend/src/pitchlog/sync/spike_domain.py`）の
 2 実装になっている。spike では照合用に意図して残したが、製品では artifact を単一実装とし、
 バックエンドは `domainrt/host.py` 経由で artifact を呼び、Python 側の T1 は削除する。
@@ -109,6 +126,8 @@ T1/T2 が必要とする `interface`・配列型・分割代入・要素アク�
 - 追補 0 の帰結: 許可構文へ `ElementAccessExpression` を足した差分は**宣言の変更**なので、
   本設計では当該表の所有者の承認が要る（spike では提案として置く）。
 - T2（検証・6 分岐判定）を artifact へ移す。T1 と同じ形（bigint・十進文字列）で書ける見込み。
+- `undoRows` 10 件（取消し手順）は本 spike の対象外。契約の残りはこの 10 件のみ
+  （matrixRows 89＋operationRows 10 = 99/109 を確認済み）。
 - バックエンドを `domainrt/host.py` 経由の artifact 呼び出しへ切り替え、Python の T1 を削除する
   （NFR-018 の単一実装）。
 - `stateRules.ts` は Python の規則表から一度だけ機械生成し、以降は TS を正本とする
