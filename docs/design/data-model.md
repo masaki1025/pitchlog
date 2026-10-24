@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: approved
 ---
 # 詳細設計: データモデル(論理モデル・識別子・一意性・削除の系統・移行の行き先)
 
@@ -7,7 +7,7 @@ status: in-review
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| 1.2 | 2026-10-24 | **外部耐久台帳の構造候補**。**本書で確定する範囲**: §3-2-Aの業務復元範囲外の台帳3表/同期pair・保護journal、用途別4主体と業務identity観測2主体、D4/attempt/epoch対応・業務DBとの非原子性と不明停止・freshの一度限りの資格境界。**実装時に確定する範囲**: 最終DDL/ACL/SQL/hash/manifest全数、既存業務認可profileへの観測主体登録と数参照の追随、配置/撤去、実catalog/故障行列、完全7.7/正式受理・運用手順。既存ロール表の値と全履歴・D4 bigint非再利用・全復元要件を維持し、規則解決ownerの重複1行だけを整理し、RG1製品open/全域closeProof/非0復元/開始接続は提供済みとしない。 | in-review |
+| 1.2 | 2026-10-24 | **外部耐久台帳の構造を本枝で確定**。**本書で確定する範囲**: §3-2-Aの業務復元範囲外の台帳3表/同期pair・保護journal、用途別4主体と業務identity観測2主体、D4/attempt/epoch対応・業務DBとの非原子性と不明停止・freshの一度限りの資格境界。**実装時に確定する範囲**: 最終DDL/ACL/SQL/hash/manifest全数、既存業務認可profileへの観測主体登録と数参照の追随、配置/撤去、実catalog/故障行列、完全7.7/正式受理・運用手順。既存ロール表の値と全履歴・D4 bigint非再利用・全復元要件を維持し、規則解決ownerの重複1行だけを整理し、RG1製品open/全域closeProof/非0復元/開始接続は提供済みとしない。 | approved |
 | **1.1** | 2026-10-15 | **TSK-550・FR-014段階Aの出所と専用owner**。**本改訂で確定する範囲** = §3-2の規則解決関数所有用ロール1件と既存ロール数の参照追随、§10-5のF-2固定5組だけの出所証明・割当あり拒否・閉じた製品書込入口。**2026-10-16正式確定**: 親`FOR UPDATE`後の別SQL割当読取、既定・規則`FOR SHARE`のscope終了までの保持と専用ownerの最小2列`UPDATE`を追加限定7.3で審査（P0=0/P1=1/P2=1、2件採用して判断資料を修正）。本会話のPOが今回の改訂範囲の最終本文とレビュー後修正差分を確認し正式確定を承認。§6-5・UUID・F-2値は対象外。具体列grant・配置・起動器の資産承認と7.7は別ゲート。**実装時に確定する範囲** = 関数SQL、F-2配置migration、一時RLS、認可資産と適用/取り外し、実DBの2接続・故障試験、U-G1の同一scope保存。§6-5 v1.0、F-2の値、採用済み5 UUID・機械文字列は変更しない。FR-014/DRAW-04のコールド矛盾は別の要件正本ゲートで裁定する。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | approved |
 | **1.0** | 2026-10-14 | **TSK-550・FR-014の6-key保存契約を確定**: 6-5節で、新規試合の`games.applied_rules`を`ruleSetId`と既存`ruleSnapshot`のcamelCase 5値から成るexact-setとして固定する。IDはcanonical UUIDとして、5値は既存の凍結schemaへのprojectionで形・値域を検証し、付録F-1の値間相関を単一経路で追加検証する。旧`{}`、5値だけの行、未知key、不正ID・値・相関を解決済みへ推定補完しない。**本書で確定した範囲** = 6-keyの保存形、IDと5値の検証境界、同一時点の不変snapshot、旧行の不補完、新規物理列と第2の規則計算を追加しないこと。**実装時に確定する範囲** = codecの関数・公開型・例外/失敗表現、モジュール配置、単体試験の具体。**本改訂で扱わない範囲** = owner・列grant・規則データ配置migration・一時RLS・配置/認可検査器・制限関数・固定function operation・resolver・U-G1接続。付録F-2の値、PO採用済み5 UUIDと`no_out_first_second`／`continue_lineup`は変更しない。正式7.3は敵対レビュー2回（第1回P0 0/P1 1/P2 0、第2回P0 0/P1 0/P2 0）、反映1周、指摘1件を採用。最終HEAD `ca0a51ef7832a4dff58e54993c161076cf270f35`を**2026-10-14 本会話の利用者が逐行確認し、正本確定と当該保存契約に限定したPO代替受理を承認**。計画: `../features/ux1-fr014-rule-resolution/plan.md` | **approved** |
 | **0.12** | 2026-10-22 | **TSK-372限定改訂**: §6-5に、`games.applied_rules`の初回保存後の異値UPDATE禁止を明文化する。**本書で確定する範囲**: 初回INSERT、同値UPDATE・他列UPDATEの許容、異値UPDATEの拒否、正当なmigration・復旧の別ゲート。**実装時に確定する範囲**: DB拒否機構・SQLSTATE・migration revision・既存行の例外処理・実DB試験・manifest/ORM/受入シートの実値。7.7対象資産は変更しない。既存の6-key保存形・規則値・大会割当・計算規則は変更しない。7.3審査は旧候補で2周実施済み（P0=0、本文同一）。2026-10-22 本会話のプロダクトオーナーが本再導出の本文・6行判定（一致5・対象外1）を承認（マージは別）。計画: `../features/tsk372-applied-rules-canonical/plan.md` | approved |
