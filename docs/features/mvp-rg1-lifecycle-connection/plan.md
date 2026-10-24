@@ -131,3 +131,18 @@ runtime/SQLは既rg1_lifecycle.py/sql/manifest、生成境界は既authz/product
 ## 初期peerの正式catalog入口追随
 
 既606/c58のCONNECT1・schema USAGE2・epoch列ACL1を、既check_authz_catalogの閉じたexpected集合へ接合する。rootはcache固定source案07bc28ecc66cd57baa12bb04022c95ea5a39e8c0834f6d275b059f637c068c88を適用し、tests/test_check_authz_catalog.pyへ最小DB接続権の正例と欠落/owner流用/CREATE/TEMP/委譲/整数bool拒否だけを追加する。旧主体/旧権限/未知拒否を保持し、正式schema-manifestと全profileの実値受理が済むまでCLI/DB正常供給とは扱わない。source案/asset候補作者と異なる非作者が最終差分を確認する。PO委任によるrootの有限技術具体化で、新しい意味・権限緩和・共有DB適用を認めない。
+
+
+## 実段階起動と0035列の順序接合
+
+2026-10-24、rootは既PO委任の通常不具合修正・保存保証を維持する具体化として、隔離候補5f074491の実PGで発見した前提列/認可順の是正を既ステップ3へ含める。S0(0033)から全認可前段が新recovery_generation列ACLを実行し、列を追加する0035未適用のためUndefinedColumnで停止した。1error/必須call未到達4.64sを失敗として保全し、共有DBへ適用していない。
+
+- `backend/src/pitchlog/db/stage_a_startup.py`
+- `backend/src/pitchlog/authz/product_provisioning.py`
+- `backend/tests/test_product_authz_provisioning.py`
+- `backend/tests/db/test_stage_a_rule_candidates.py`
+- `backend/tests/db/rg1_lifecycle_support.py`
+
+前段の旧resolver保留16件を保持し、新epoch列ACLのexact1件だけを後段へ保留する（実241DDLから直接列参照依存を照合）。0034の固定規則配置を確定した後、ownerで0035のnullable正bigint・補完なし列を適用し、全認可→S3の実revision/列型・nullable/default/check・全catalog照合へ進む。再開は既固定5行/owner/RLS/一時権なしを保持し、既知0034は0035を適用、0035は再適用せず、未知revision/偽marker/欠列を拒否する。常時成功や記録権/認可/RG1の迂回は作らない。
+
+DB試験補助の正規生成profile後の同SQL二重直接適用は除き、実関数・peer認証・最小権限の検査を維持する。候補作者は専用cache wtだけを編集、rootが所有disposableで実PG試験を実行、非作者が最終差分と故障/再開例を確認する。正式共有資産/全値受理はroot単独で直列化し、source5fの一次8射影/N3導出は保全、是正source後に必要分だけ再導出する。新しい規則意味/安全性削減/共有DB適用の承認ではない。
