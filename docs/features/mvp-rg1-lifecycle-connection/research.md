@@ -105,3 +105,6 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 2026-10-24T05:34:15.157527+00:00、ACL反映1ac7057fは非作者第2回相当0/0/0で初回P1終結（/home/ymdms/.cache/pitchlog/reviews/rg1-authz-1ac7057f-independent/acl-evidence.json SHA25646a3803503f305847cebdea74121b40055c4b2fde7a05363559dfb8c777dd600）。旧generic35 SQL/既builtin2EXECUTE保持、84成功、DB0。
 
 別通常coreレビューのRG1-CORE-SUPPLY-01 P1は採用（core-guard-evidence.json SHA2560cbe2bbe643ba1f40c56a6fd1f0c76d4c467736fc57c1e29ebba8634c7ce09cf）。first-parentがmain通常merge後に初供給mergeを見失う実合成反例に対し、rootは全祖先の実mergeへ探索を広げ、同じ厳密source predicateを保持して供給第2親集合の一意性を要求した。通常merge/cache_clear・候補0・merge後source欠落・異supplier複数を4ケースで確認。初回453成功/新4失敗は合成repo初期commit前のHEAD参照、次3成功/欠落1失敗はmerge stage新fileのgit rm保護であり、局所fixtureのみ修正。最終新4成功0.75s（rg1-core-supplier-all-ancestors-final.log）、旧453は全探索sourceで先行成功。Ruff/ty0。31guard本文/allowlist/基線を変えず、core系列の独立再確認は未実施。
+
+
+2026-10-24T06:27:27.713575+00:00、初期scope/9SQLの独立静的確認が進んだため、既606のactor/fresh epoch供給を本plan末尾へ有限具体化した。現在は計画追補の固定だけでsourceは87a81126と同じ。初期4表の未適用migration候補とgate先行列の依存を分け、先行2role+gate列は本RG1へ、実初期9API/4表/Generation2列は初期scopeへ残す案。現mainのmigration34・既DB適用0を再照合してから番号を確定する。新意味の採用や人間の実値確認ではなく、既委任内の技術写像として非作者確認へ出す。
