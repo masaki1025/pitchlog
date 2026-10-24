@@ -1922,8 +1922,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1231
-    assert attempts == 1231
+    assert len(out_claims) == 1240
+    assert attempts == 1240
     assert escaped == []
 
 

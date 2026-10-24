@@ -100,3 +100,8 @@ rootは既544承認計画step2の実装材料として、TSの42ID規則表・Bi
 ## Gate6反映1の技術手続き採用
 
 2026-10-24T10:06:59.821673+00:00、rootはPO委任による今回PR183限定の技術carry5pathを採用。旧本人記録/署名schema/step33/旧main以外validator AST/全subject実byteを保持し、元P1 G6-CARRY-01は非作者の反映1限定確認で閉鎖。報告 /home/ymdms/.cache/pitchlog/reviews/t1-gate6-carry-independent-20261024/review-reflection1.md SHA 88828d64dd379b90846f55b8af517a51e5cddf97640ed27b997577b8879f4d06、作者handoff 3605cec31a60ab0cc48e8f979d15ddeab2bb8a1b4665d97fb2a4dabb1a79c6ff、全5path差分1237616ccab9eb6298f84db8e7836c8bd3c85d3ca1550f9330bc6ea7e87f6129。44成功31.10s、別PRの対象/carry協調改変を既受理base比較で拒否、183最終core_guard経路/全PRの必須呼出を保持。root-technical-acceptance.jsonへ全before/afterを固定。手続きの技術採用であり、最終HEAD/全差分の公開委任証拠/必須CIはこれからで、人間本人確認を代記しない。
+
+
+## 最終CIの認可全件変異件数追随
+
+2026-10-24T10:52:20.373987+00:00、新CI40085138810のharnessは30054成功/2skip/1失敗924.26s。失敗は test_all_out_of_scope_rows_moved_to_auth_claim_are_red の旧1231件期待2assertであり、既採用D07全数抽出後の実1240件に追随が漏れていた。既認可入力受理の1231→1240だけを検査fixtureへ反映し、全out-of-scope行をauthへ変異させるループ・decision lock拒否・attempt件数・逃れ0を保持する。母集合/分類/ロック/検査実装は不変で、同じ基準の7.7を再受理しない。関連2検査は2成功15.14s、同ファイル/関連spec/backend roleで旧1418/1231の現行期待が他に残らないことを検索照合した。backendの同CI結果を待ち、必要修正をまとめて最終HEAD/公開証拠を更新する。今回の失敗を成功へ読み替えず、前96の全差分確認と後発この有限差分を別に追跡する。
