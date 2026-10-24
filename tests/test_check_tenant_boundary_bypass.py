@@ -29,6 +29,32 @@ POSITIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "po
 NEGATIVE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "tenant_boundary" / "negative"
 
 
+def _candidate_rg1_deployment_assets() -> dict[str, str]:
+    """未正式登録の固定2byteだけを、このmoduleの候補fixtureへ供給する。"""
+    return {
+        f"backend/src/{relative}": hashlib.sha256(
+            (REPOSITORY_ROOT / "backend/src" / relative).read_bytes()
+        ).hexdigest()
+        for relative in checker._RG1_DEPLOYMENT_ASSETS
+    }
+
+
+@pytest.fixture(autouse=True)
+def _supply_candidate_rg1_field_for_old_fixtures(monkeypatch: pytest.MonkeyPatch) -> None:
+    """旧root fixtureの欠落fieldだけを補い、正式JSONを書き換えない。"""
+    original = checker._read_json
+
+    def read(path: Path) -> tuple[dict[str, Any], bytes]:
+        value, raw = original(path)
+        if (path == REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST
+                and "rg1_deployment_assets" not in value):
+            value["rg1_deployment_assets"] = _candidate_rg1_deployment_assets()
+            raw = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode()
+        return value, raw
+
+    monkeypatch.setattr(checker, "_read_json", read)
+
+
 def test_fixed_function_surface_matches_empty_product_registry() -> None:
     """Aの登録0件と公開署名を実コード・資産で照合する。"""
     asset = json.loads(
@@ -1009,8 +1035,7 @@ def test_relative_import_with_level_greater_than_one_ascends_packages() -> None:
 
 def _read_contract_asset(relative_path: Path) -> dict[str, Any]:
     """テナント境界の契約資産を JSON object として読む。"""
-    value = json.loads((REPOSITORY_ROOT / relative_path).read_text(encoding="utf-8"))
-    assert isinstance(value, dict)
+    value, _ = checker._read_json(REPOSITORY_ROOT / relative_path)
     return value
 
 
@@ -1161,6 +1186,11 @@ def _initialize_test_repository(
     core_areas = repository / ".claude" / "core-areas.json"
     core_areas.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
+    # 新fieldはfixtureにだけ供給する。正式rootの全値受理を代行しない。
+    allowlist_path = repository / checker.DEFAULT_ALLOWLIST
+    allowlist = json.loads(allowlist_path.read_text())
+    allowlist.setdefault("rg1_deployment_assets", _candidate_rg1_deployment_assets())
+    _write_contract_asset(allowlist_path, allowlist)
     _synchronize_synthetic_authority_identifiers(repository)
     for relative_path in _declared_external_files(repository):
         destination = repository / relative_path
@@ -1178,6 +1208,8 @@ def _write_test_repository_sources(
     """一時リポジトリの製品ソースと必要な固定配備資産を供給する。"""
     if "pitchlog/durable_rights_ledger/adapter.py" in sources:
         _copy_ledger_deployment_assets(repository)
+    if "pitchlog/recording_rights/rg1_lifecycle.py" in sources:
+        _copy_rg1_deployment_assets(repository)
     for relative, source in sources.items():
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -8048,3 +8080,237 @@ def test_ledger_source_and_declaration_joint_change_requires_formal_acceptance(
                 checker.frozen_history.EvaluationMode.PR_ACCEPTANCE, event,
             ),
         )
+
+
+
+def _copy_rg1_deployment_assets(destination: Path) -> None:
+    """RG1の固定2原byteだけを所有fixtureへ複写する。"""
+    for relative in checker._RG1_DEPLOYMENT_ASSETS:
+        target = destination / "backend/src" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / "backend/src" / relative).read_bytes())
+
+
+@pytest.mark.parametrize("relative", tuple(checker._RG1_DEPLOYMENT_ASSETS))
+def test_rg1_deployment_exact_two_are_inspected(tmp_path: Path, relative: str) -> None:
+    """固定2資産を母集団に残し、完全な組だけを受理する。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    population = {relative: frozenset({1})}
+    assert checker._changed_source_violations(
+        tmp_path, population, checker.load_contract(REPOSITORY_ROOT), head_sources={},
+    ) == []
+    assert population == {relative: frozenset({1})}
+
+
+@pytest.mark.parametrize("relative", tuple(checker._RG1_DEPLOYMENT_ASSETS))
+@pytest.mark.parametrize("mutation", ["bytes", "missing", "directory", "symlink", "wrong-sha"])
+def test_rg1_deployment_rejects_changed_or_nonregular_files(
+    tmp_path: Path, relative: str, mutation: str,
+) -> None:
+    """欠損・同byteのsymlink・実SHA不一致でもTB000を保つ。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    path = tmp_path / "backend/src" / relative
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    if mutation == "bytes":
+        path.write_bytes(path.read_bytes() + b"\n")
+    elif mutation == "missing":
+        path.unlink()
+    elif mutation == "directory":
+        path.unlink()
+        path.mkdir()
+    elif mutation == "symlink":
+        original = tmp_path / "original"
+        original.write_bytes(path.read_bytes())
+        path.unlink()
+        path.symlink_to(original)
+    else:
+        declared = dict(contract.rg1_deployment_assets)
+        declared[f"backend/src/{relative}"] = "0" * 64
+        contract = replace(contract, rg1_deployment_assets=tuple(declared.items()))
+    violations = checker._changed_source_violations(
+        tmp_path, {relative: frozenset()}, contract, head_sources={},
+    )
+    assert len(violations) == 1 and violations[0].code == "TB000"
+
+
+def test_rg1_deployment_symlink_parent_is_rejected(tmp_path: Path) -> None:
+    """親directoryのsymlinkでも固定原byte扱いにしない。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    package = tmp_path / "backend/src/pitchlog/recording_rights"
+    relocated = tmp_path / "relocated"
+    package.rename(relocated)
+    package.symlink_to(relocated, target_is_directory=True)
+    assert not checker._validated_rg1_deployment_assets(
+        tmp_path, checker.load_contract(REPOSITORY_ROOT),
+    )
+
+
+@pytest.mark.parametrize("source_in", ["head", "baseline"])
+def test_rg1_deployment_all_deleted_files_are_tb000(tmp_path: Path, source_in: str) -> None:
+    """Python存在/削除時に、空の行母集団からも固定2欠落を検査する。"""
+    source = {"pitchlog/recording_rights/rg1_lifecycle.py": "# source\n"}
+    violations = checker._changed_source_violations(
+        tmp_path, {}, checker.load_contract(REPOSITORY_ROOT),
+        head_sources=source if source_in == "head" else {},
+        baseline_sources=source if source_in == "baseline" else {},
+    )
+    assert {row.path for row in violations} == {
+        f"backend/src/{relative}" for relative in checker._RG1_DEPLOYMENT_ASSETS
+    }
+    assert all(row.code == "TB000" for row in violations)
+
+
+@pytest.mark.parametrize("relative", [
+    "pitchlog/recording_rights/copied.sql", "pitchlog/recording_rights/copied.json",
+    "pitchlog/other/rg1_lifecycle.sql", "pitchlog/other/rg1_lifecycle_manifest.json",
+])
+def test_rg1_deployment_unknown_paths_remain_tb000(tmp_path: Path, relative: str) -> None:
+    """同じ配備内容を未知pathへ移しても免除しない。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    original = checker._RG1_DEPLOYMENT_ASSETS[0 if relative.endswith(".sql") else 1]
+    target = tmp_path / "backend/src" / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes((tmp_path / "backend/src" / original).read_bytes())
+    violations = checker._changed_source_violations(
+        tmp_path, {relative: frozenset({1})},
+        checker.load_contract(REPOSITORY_ROOT), head_sources={},
+    )
+    assert len(violations) == 1 and violations[0].code == "TB000"
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing_field", "missing_path", "extra_path", "renamed_path", "not_object",
+    "bool", "integer", "short", "upper", "nonhex",
+])
+def test_rg1_deployment_declaration_is_closed(mutation: str) -> None:
+    """新必須fieldは固定2path・小文字SHAだけへ閉じる。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    declared = value["rg1_deployment_assets"]
+    path = next(iter(declared))
+    if mutation == "missing_field":
+        value.pop("rg1_deployment_assets")
+    elif mutation == "missing_path":
+        declared.pop(path)
+    elif mutation == "extra_path":
+        declared["backend/src/pitchlog/other/schema.sql"] = declared[path]
+    elif mutation == "renamed_path":
+        declared["backend/src/pitchlog/recording_rights/copied.sql"] = declared.pop(path)
+    elif mutation == "not_object":
+        value["rg1_deployment_assets"] = []
+    else:
+        declared[path] = {
+            "bool": True, "integer": 1, "short": "0" * 63,
+            "upper": "A" * 64, "nonhex": "g" * 64,
+        }[mutation]
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis, *_ = checker._load_inventory(json.loads(inventory))
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory, apis)
+
+
+def test_rg1_deployment_missing_field_rejects_real_loader(tmp_path: Path) -> None:
+    """候補fixtureの補完外では、正式未供給の新fieldを必須として拒否する。"""
+    shutil.copytree(
+        REPOSITORY_ROOT / "contracts/tenant_boundary", tmp_path / "contracts/tenant_boundary"
+    )
+    value = json.loads((tmp_path / checker.DEFAULT_ALLOWLIST).read_text())
+    value.pop("rg1_deployment_assets", None)
+    (tmp_path / checker.DEFAULT_ALLOWLIST).write_text(json.dumps(value))
+    with pytest.raises(checker.ContractError, match="rg1_deployment_assets"):
+        checker.load_contract(tmp_path)
+
+
+@pytest.mark.parametrize("mutation", [
+    "extra", "duplicate", "nested-duplicate", "role", "function", "sql-hash",
+    "bool-format", "bool-owner", "epoch", "borrower",
+])
+def test_rg1_deployment_manifest_stays_closed_with_refreshed_fixture_sha(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """試験用SHAを追随させても閉manifestの未知値/型/相互hashを拒否する。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    relative = checker._RG1_DEPLOYMENT_ASSETS[1]
+    path = tmp_path / "backend/src" / relative
+    original = path.read_text()
+    value = json.loads(original)
+    if mutation == "duplicate":
+        raw = original.replace('"format_version": 1,', '"format_version": 1,"format_version": 1,')
+    elif mutation == "nested-duplicate":
+        raw = original.replace('"login": false,', '"login": false,"login": false,', 1)
+    else:
+        if mutation == "extra":
+            value["unexpected"] = True
+        elif mutation == "role":
+            value["roles"]["pitchlog_app"] = value["roles"]["pitchlog_rg1_control_owner"]
+        elif mutation == "function":
+            value["functions"][0]["execute_roles"].append("pitchlog_app")
+        elif mutation == "sql-hash":
+            value["source_sql_sha256"] = "0" * 64
+        elif mutation == "bool-format":
+            value["format_version"] = True
+        elif mutation == "bool-owner":
+            value["client_configuration"]["owner_uid"] = False
+        elif mutation == "epoch":
+            value["initial_epoch_binding"]["existing_epoch_rebind"] = True
+        else:
+            value["borrower_roles"]["20002"] = "pitchlog_app"
+        raw = json.dumps(value)
+    path.write_text(raw)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.rg1_deployment_assets)
+    declared[f"backend/src/{relative}"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    contract = replace(contract, rg1_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_rg1_deployment_assets(tmp_path, contract)
+
+
+def test_rg1_deployment_manifest_cannot_self_authorize_sql(tmp_path: Path) -> None:
+    """SQLとmanifestを協調して改変しても正式2SHAを越えられない。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    sql = tmp_path / "backend/src" / checker._RG1_DEPLOYMENT_ASSETS[0]
+    sql.write_bytes(sql.read_bytes() + b"\nGRANT ALL TO PUBLIC;\n")
+    manifest = tmp_path / "backend/src" / checker._RG1_DEPLOYMENT_ASSETS[1]
+    value = json.loads(manifest.read_text())
+    value["source_sql_sha256"] = hashlib.sha256(sql.read_bytes()).hexdigest()
+    manifest.write_text(json.dumps(value))
+    assert not checker._validated_rg1_deployment_assets(
+        tmp_path, checker.load_contract(REPOSITORY_ROOT),
+    )
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_rg1_deployment_duplicate_declaration_keys_are_rejected(
+    tmp_path: Path, nested: bool,
+) -> None:
+    """新field自体と固定pathの重複JSON keyを後勝ちにしない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    raw = json.dumps(value)
+    if nested:
+        path, digest = next(iter(value["rg1_deployment_assets"].items()))
+        pair = f"{json.dumps(path)}: {json.dumps(digest)}"
+        assert raw.count(pair) == 1
+        raw = raw.replace(pair, f"{pair}, {pair}")
+    else:
+        raw = raw[:-1] + ', "rg1_deployment_assets": {}}'
+    path = tmp_path / "base-allowlist.json"
+    path.write_text(raw)
+    with pytest.raises(checker.ContractError, match="重複key"):
+        checker._read_json(path)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "extra", "duplicate"])
+def test_rg1_deployment_synthetic_contract_cannot_shrink_or_expand_assets(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """合成Contractでもloadのexact2閉包を迂回させない。"""
+    _copy_rg1_deployment_assets(tmp_path)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assets = contract.rg1_deployment_assets
+    if mutation == "missing":
+        assets = assets[:-1]
+    elif mutation == "duplicate":
+        assets = (*assets, assets[0])
+    else:
+        assets = (*assets, ("backend/src/pitchlog/other/copied.sql", "0" * 64))
+    assert not checker._validated_rg1_deployment_assets(
+        tmp_path, replace(contract, rg1_deployment_assets=assets),
+    )

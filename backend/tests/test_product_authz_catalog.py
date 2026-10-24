@@ -505,6 +505,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     )
     assert expectations.database_acl == (
         ("pitchlog_app", "CONNECT", False),
+        ("pitchlog_initial_actor", "CONNECT", False),
         ("pitchlog_ledger_identity_probe", "CONNECT", False),
         ("pitchlog_rg1_control_actor", "CONNECT", False),
     )
@@ -994,7 +995,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 26
+    assert len(report.checked_ids) == 30
 
 
 def test_unqualified_public_relation_in_policy_is_red(

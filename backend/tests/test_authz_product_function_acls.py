@@ -130,6 +130,8 @@ def _copy_static_inputs(root: Path) -> None:
         PRODUCT_SPEC.body_manifest_path,
         Path("contracts/tenant_boundary/runtime-authz-contract.json"),
         Path("backend/src/pitchlog/authz/runtime_contract.py"),
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
     )
     for relative_path in paths:
         destination = root / relative_path
@@ -181,6 +183,7 @@ def test_unlisted_migration_regular_function_is_red(tmp_path: Path) -> None:
     root = tmp_path / "repository"
     _copy_static_inputs(root)
     asset = _product_asset()
+    _validate_product_asset(asset, root)
     migration = next((root / _MIGRATION_VERSIONS).glob("*.py"))
     migration.write_text(
         migration.read_text(encoding="utf-8")
@@ -506,7 +509,7 @@ def test_builtin_unapply_only_revokes_its_explicit_grant() -> None:
 
 
 def test_lifecycle_eight_functions_keep_source_body_and_exact_subjects() -> None:
-    """control7/observer1の属性・実SQL本文をコピー計算なしに照合する。"""
+    """rg1_control8/observer1の属性・実SQL本文をコピー計算なしに照合する。"""
     from pitchlog.authz.product_function_acl import (
         build_lifecycle_function_declarations,
         generate_lifecycle_function_sql,
@@ -525,11 +528,12 @@ def test_lifecycle_eight_functions_keep_source_body_and_exact_subjects() -> None
             ),
         ),
         "read_closed_gate": ("jsonb", ("pitchlog_rg1_control_actor",)),
-        "scope_binding": ("text", ("pitchlog_app",)),
+        "scope_binding": ("text", ("pitchlog_app", "pitchlog_initial_actor")),
+        "bind_initial_fresh_epoch": ("boolean", ("pitchlog_rg1_control_actor",)),
         "identity": ("jsonb", ("pitchlog_ledger_identity_probe",)),
     }
     rows = build_lifecycle_function_declarations()
-    assert len(rows) == 8
+    assert len(rows) == 9
     for function_id, row in rows.items():
         name = str(row["function_name"])
         returns, grantees = expected[name]

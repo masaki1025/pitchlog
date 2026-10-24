@@ -1,0 +1,5 @@
+-- ELEMENT-TYPE: role
+-- ELEMENT-ID: pitchlog_ledger_identity_owner
+
+CREATE ROLE pitchlog_ledger_identity_owner WITH
+    NOSUPERUSER NOBYPASSRLS NOLOGIN NOCREATEROLE NOCREATEDB NOREPLICATION INHERIT;

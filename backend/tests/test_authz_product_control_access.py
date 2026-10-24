@@ -207,15 +207,10 @@ def test_catalog_checker_rejects_rg1_table_acl(
 ) -> None:
     """RG1表または専用ownerへの表権限を列ACLの迂回口にしない。"""
     asset = _product_asset()
-    asset["policies"] = [
-        row for row in asset["policies"] if row["role_ids"] != ["pitchlog_owner"]
-    ]
-    rg1_function = copy.deepcopy(
-        next(row for row in asset["functions"] if row["function_kind"] == "definer")
+    # 現PRODUCTの全policy/roleを保ち、表ACL1件だけを拒否対象にする。
+    _catalog_checker._validate_product_table_access_expectations(
+        asset, _REPOSITORY_ROOT, RuntimeContractState.PRODUCT
     )
-    rg1_function["function_id"] = "FUNCTION:rg1_api:synthetic()"
-    rg1_function["owner_role_id"] = owner_role_id
-    asset["functions"].append(rg1_function)
     acl: dict[str, object] = {
         "acl_id": f"ACL:{table_id}:{owner_role_id}",
         "object_kind": "table",
@@ -232,7 +227,7 @@ def test_catalog_checker_rejects_rg1_table_acl(
     asset["acl_expectations"].append(acl)
     with pytest.raises(_catalog_checker.CatalogError, match="RG1状態表"):
         _catalog_checker._validate_product_table_access_expectations(
-            asset, _REPOSITORY_ROOT, RuntimeContractState.PROVISIONAL
+            asset, _REPOSITORY_ROOT, RuntimeContractState.PRODUCT
         )
 
 
@@ -292,6 +287,8 @@ def _copy_static_inputs(root: Path) -> None:
         PRODUCT_SPEC.ddl_elements_path,
         _RUNTIME_CONTRACT,
         _RUNTIME_CONTRACT_MODULE,
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
     )
     for relative_path in paths:
         destination = root / relative_path
@@ -706,8 +703,17 @@ def test_product_element_manifest_and_body_must_match_exactly(
             if row["function_id"] != HELPER_FUNCTION_ID
         ]
 
-    with pytest.raises(_catalog_checker.CatalogError):
+    with pytest.raises(_catalog_checker.CatalogError) as error:
         _catalog_checker._validate_product_asset_correspondence(asset, root)
+    if target == "body":
+        missing_body = (
+            PRODUCT_SPEC.body_directory / "functions" / f"{HELPER_FUNCTION_ID}.sql"
+        )
+        assert str(error.value).startswith(f"製品body[{missing_body}]を読めない:")
+    else:
+        assert str(error.value) == (
+            "製品DDL要素・manifest・bodyファイルがexact-set不一致"
+        )
 
 
 @pytest.mark.parametrize(

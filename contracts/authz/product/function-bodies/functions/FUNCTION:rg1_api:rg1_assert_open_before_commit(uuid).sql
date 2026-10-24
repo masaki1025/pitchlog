@@ -30,6 +30,6 @@ $function$;
 ALTER FUNCTION rg1_api.rg1_assert_open_before_commit(uuid)
     OWNER TO pitchlog_rg1_fn_owner;
 REVOKE ALL PRIVILEGES ON FUNCTION rg1_api.rg1_assert_open_before_commit(uuid)
-    FROM PUBLIC, pitchlog_app;
+    FROM PUBLIC, pitchlog_app, pitchlog_initial_actor;
 GRANT EXECUTE ON FUNCTION rg1_api.rg1_assert_open_before_commit(uuid)
-    TO pitchlog_app;
+    TO pitchlog_app, pitchlog_initial_actor;

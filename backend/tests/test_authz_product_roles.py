@@ -244,7 +244,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 11
+    assert len(expected_product_roles(asset)) == 13
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):

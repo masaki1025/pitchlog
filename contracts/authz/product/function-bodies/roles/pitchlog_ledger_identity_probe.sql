@@ -1,0 +1,5 @@
+-- ELEMENT-TYPE: role
+-- ELEMENT-ID: pitchlog_ledger_identity_probe
+
+CREATE ROLE pitchlog_ledger_identity_probe WITH
+    NOSUPERUSER NOBYPASSRLS LOGIN NOCREATEROLE NOCREATEDB NOREPLICATION NOINHERIT;
