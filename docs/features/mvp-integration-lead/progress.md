@@ -428,3 +428,14 @@ T1は0adb8e23で正式反映範囲を固定、実契約は42行109case/不足15�
 現在からの①/②到達日は未算定。T1本体の開始条件成立日、T2の現着手条件と本体供給量、実保存投影Portの必要最小範囲を確定してから日付化する。既上位planのT2開始にはT1 PR-1a mergeが含まれ、狭い1球だけでこの順序を迂回する新例外を置かない。#183の残正式反映/値照合/全検査は楽観1〜2日・通常2〜3日の仮工程見込み（10/25〜26・10/26〜27、重大差戻しなし/CI1回約40分）。直近7.7提案は独立照合でsourceLiteralAudit宣言漏れとplacement記録漏れを検出したため未受理で差戻し。scope不変前提を撤回し、全before/after・履歴append後digest参照を再導出する。原提案を保全し受理成功に数えない。
 
 T1本体開始後の②は既基盤再利用/新意味判断なしを仮定し、楽観実働32〜48h＋レビューCI4〜8h、通常実働56〜88h＋レビューCI8〜16hの低確度engineering estimate。日付換算は1日8h相当で約5〜7日/8〜13日、待ち中は別作業継続。①の並行部品の局所予算は初期権/API接合16〜24h/24〜40h、画面/実保存/再取得12〜20h/20〜32h。T2/投影Port未算定を足さずに①全体見積もりとはしない。次の更新点は#183正式値受理と全正式検査、P6/P7/P8残件の実receipt突合、初期9SQL実PG正常系。未回答の意味判断や利用者の確認を承認扱いしない。
+
+
+## 既存spike再利用と初期権接合の更新（2026-10-24）
+
+2026-10-24T07:58:23.345388+00:00、POがspike/ux1-mvpのT1再利用を指示。remote exact8e1bf4310f3db2a4e9f3302b2e3bc2833287feaeを取得し原branch凍結を保持。再利用評価handoff /home/ymdms/.cache/pitchlog/spike-ux1-reuse-evaluation-20261024/handoff.json SHA0d8fdf86def3000eb0770077fa57e2708932687a4b94c508cad966891d59baff。Vitest37成功、現artifact e4dd79d5…/20091byteを再buildで同値再現、既domainrt下位呼出し成功。TS規則42ID/BigInt骨格/操作written表現を既544 step2の実装材料へ再利用する方針をrootが選んだ。正式本体開始条件は保持、README旧artifact値/99case射影一致を正式全出力完成にせず、OUT3新2例・閉入力・RBI/G6/S20/undo・after34を是正する。Python重複/常時許可Port/no-op投影/独自wire/34差分許容assertionは製品へ持ち込まない。実装時間の短縮幅はこの是正量を確認してから更新する。
+
+初期scopeは62723b8eでRG1 0edを通常merge。独立4path確認0/0/0、475成功46.78s、evidence ace90b15eda75fa8f0b2e302dc7c64ee964300f9901d5492faf73fa073d98c8f。判定29関数AST/旧全paths/全祖先supplier一意性/両transaction状態を保持。da88d09bでは未適用初期migrationを0036へ改番し先行0035へ接続、gate列二重追加を除去。alembic一意head0036・component268成功1.00s/Ruffty0。実初期9SQL/正常grant/開始HTTP/UIは未達。
+
+T1 #183は3f582100まで計画/研究だけを固定。39pathの未受理候補は /home/ymdms/.cache/pitchlog/t1-contract-183-acceptance-reflection1-20261024/。初回値照合3P1を反映し、関連6CLI（descriptor/三点invariants/gap/fixture/coverage/branch mapping）成功。旧T2248case/4656要求全保持、input170/到達可能170一致、7history+1・57literal宣言・最終digest/4refsは新非作者実再計算でも一致。ただし広い検査で既14testの新件数追随と無効化した未被覆負例をP1として検出、全採用し1testpathのみ反映中。旧同14testはbaselineで成功を確認、検査緩和やskipでは閉じない。元資料/Gitがないcache環境の検査不足は別に全repo隔離候補で確認する。正式反映/7.7/全P6P7/本体は未達。
+
+RG1認可候補はcache33asset・13role/65fn/241DDLへ更新（handoff SHA17ce93da4eba2212563fd2ad373e9ec6b129e11da8196aadeae896f315df285d）。sourceのCONNECT/USAGE/列全数3入口とschema-manifest新列に未接合が残り、rootだけが正式資産を続ける。候補作成者/独立reviewerの役割変更を各researchに保持し、新blind資格とは呼ばない。P6の範囲受理は既handoff/receipt metadataを別担当が最小照合中で、封印oracle本文を読んでいない。
