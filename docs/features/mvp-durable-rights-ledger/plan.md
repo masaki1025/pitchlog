@@ -210,3 +210,8 @@ checker変更は受理対象実値を動かすため、既受理182候補の値�
 
 
 2026-10-24T01:22:43.312098+00:00、PO委任によるCodex主担当/root判断としてd6c6aa2fの新static追補（plan d3ac0c6028d0045972a3bae06f40aba005569ec10988cc878123d86fc6cc5a74/research2217f44d718fd8c440d370a5a5c6f868c8dd0ca0a64ea594aff15ec64d2e2615）を承認する。非作成者rightsの限定0/0/0（B-static-plan.json SHAeae31d07ef72c7297335a1b0082ac079aa9d4bb310a3ef1bdf6a7acaaff23fa6）、3全文/3SHAと既存母集団/未知拒否/未統合受理差戻しの照合を根拠とする。CSVは調査案提供者で整合確認のみとし、今回の非作者コード最終レビューは別途受ける。母集団と全未知/Python拒否を保持し、既知3bytesを専用検証する1単位だけをrootが実装する。正式旧29/206/一PR一受理/frozen_historyは変更せず、未統合候補182の保全/差戻し/再導出の必要範囲だけに今回の委任を適用する。本人確認/署名・一般SQL安全性・配備強制済みを代記しない。
+
+
+### 配布物の通常不具合是正（既存step4の資産供給）
+
+rootの実wheel確認で本packageのSQL2/JSON1が欠落し、既存backend/Dockerfileのuv sync --no-editable先でも供給されないと確認した。POの通常不具合修正委任により、backend/pyproject.tomlのpackage-dataへ固定3filenameだけを追加し、既承認package/manifestの実配布を成立させる。対象は既core捕捉済み、新依存/lock/他package/SQL/manifest/source保証を変えず、実wheel内3byteのSHA一致を検証・最終非作者差分確認へ含める。これは新しい意味/正本/7.7対象値を変更するものではなく、同じ承認の再取得を要求しない。

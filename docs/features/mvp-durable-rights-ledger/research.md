@@ -376,3 +376,8 @@ JUnit cache/ledger-critical-4b8c0eb5.xml SHAc0248baa8ecde043ad5ac1d9ba61d175b462
 追加critical第3は **1 passed/23.97秒**、先の2/旧16は再実行なし。所有authority containerの実worker（PID1直下・UID/GID20001）を実観測し、同UID/capability0のprlimitでsoft RLIMIT_FSIZEだけを現在journalサイズへ限定（hard/親processの上限は変更0）。fresh/checkを保持した後の実close writeはkernelに拒否され、成功ACKなし/未確定・journal全bytes/size/frame数不変・lease_close0・live閉鎖、元のlimitで起動する新processでも未終端startup拒否を確認した。fsync関数のmockではなくclose書込のkernel拒否境界であり、fsync全障害/全設備喪失を完走したとはしない。
 
 JUnit cache/ledger-critical-close-kernel-first.xml SHAdc8a3fb42a93dcd3fcadf066092718826b60255fc33fbe9ae41cfa75f2866a8f。testSHA92b5e4d843727404801ef96287bb98c1f3d25f02332babce8ed362a4eaa9484d/support0845adb24d99d4622727a435cefeec0535225ea86e6795079b5238a763eb9292、Ruff/ty成功・所有資源0・共有DB不変更・製品source/9/8/corpus入力不変。非作者限定確認はこれからであり作者実行と区別。
+
+
+### 実wheel資産の同梱是正
+
+実uv build（backend）でwheel作成後、zipに本packageのSQL2/JSON1が全欠落と確認。Dockerfileがno-editableのvenvだけをruntimeへコピーするため実配布の不具合として扱い、pyprojectのpackage-dataへ固定3filenameだけ追加した。修正版wheelの資産集合がexact3・各全byte/SHAがsource a3218c04/cb0d0ecd/fdbc4b15と一致することを実測。証拠cache/durable-ledger-wheel/fixed-evidence.jsonへwheel SHAと全3値を保存、source/DDL/manifest/依存lock/受理対象9/8は変更0。最初の修正版buildコマンドはroot cwdを誤りexit2で、backend cwdへ直して成功。生成build directoryは当方所有cacheへ移し、検査母集団へ混入させない。最終非作者reviewへpyproject2行の追加を含める。
