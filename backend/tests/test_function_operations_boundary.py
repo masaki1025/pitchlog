@@ -1556,3 +1556,49 @@ def test_initial_epoch_input_stays_in_positive_bigint(value: int) -> None:
         prepare_function_operation(
             _CheckBusinessEpochToken(value), _TENANT_ID, _INITIAL_FUNCTION_REGISTRY
         )
+
+
+@pytest.mark.parametrize(
+    "token_name,locked",
+    (
+        ("RecordingGenerationReadToken", False),
+        ("RecordingGenerationByNumberReadToken", False),
+        ("RecordingGenerationLockToken", True),
+    ),
+)
+def test_generation_sync_reads_keep_original_columns_and_lock(
+    token_name: str,
+    locked: bool,
+) -> None:
+    """ORMに証拠列を追加しても旧同期DTO/tenant述語/行lockを維持する。"""
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.sql.selectable import Select
+
+    from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
+    from pitchlog.sync import tokens as sync_tokens
+
+    expected = (
+        "tenant_id",
+        "game_id",
+        "generation",
+        "kind",
+        "issuance_order",
+        "holder_device",
+        "confirmed_watermark",
+        "applied_prefix",
+        "granted_at",
+        "revoked_at",
+        "import_batch_id",
+        "retired_at",
+    )
+    token_type = getattr(sync_tokens, token_name)
+    registration = next(r for r in SYNC_APPLY_OPERATIONS if r.token_type is token_type)
+    statement = registration.statement
+    assert isinstance(statement, Select)
+    assert tuple(column.key for column in statement.selected_columns) == expected
+    assert {"proof_digest", "recovery_generation"}.isdisjoint(
+        column.key for column in statement.selected_columns
+    )
+    sql = str(statement.compile(dialect=postgresql.dialect()))
+    assert "recording_generations.tenant_id = %(tenant_id)s" in sql
+    assert ("FOR UPDATE" in sql) is locked

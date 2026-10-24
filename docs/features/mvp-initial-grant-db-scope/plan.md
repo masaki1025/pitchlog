@@ -112,3 +112,8 @@ backendはRuff format/check・ty・対象pytest（component/関数境界/実DBsc
 ## ステップ3の有限実装具体化（既PO委任）
 
 2026-10-24T05:44:36.371378+00:00、rootは採用済み保存保証の実装具体化として、opaque端末資格の無正規化UTF-8を単一private helperでSHA256へ写す方針を記録する。原資格をSQL/ログへ渡さず、既契約/実Cookieへの束縛を維持する。enrollment/RPCの完了を意味しない。新4表の論理削除/保護列不変を守る内部単一trigger public.protect_initial_right_storage()（owner pitchlog_owner、SECURITY INVOKER、固定pg_catalog/pg_temp、PUBLIC EXECUTE剥奪、UPDATE/DELETE row trigger4本）を0035の範囲に含め、公開9APIを増やさない。正式function-body/catalog/RLS/ACL登録と独立検証はrootが供給する。既0008 guardへ新proof_digest/recovery_generationを追随する必要はcache候補だけとし、旧6列判定を不変保持して最小追補/独立確認後に正式適用する。TRUNCATEを新主体へ付与せず、履歴を失うdowngradeは拒否する。新たな意味/保証削減や共有DB適用を認めたものではない。
+
+
+## ORM新証拠列による旧同期readの最小追随
+
+2026-10-24T05:55:02.903104+00:00、rootは実source126cd7afの供給調査で、旧`repositories/sync_apply.py`のread/by-number/lock3登録がselect(table)により新proof_digest/recovery_generationまで投影することを確認した。既役割の認可・read DTOを保つため、編集範囲に`backend/src/pitchlog/repositories/sync_apply.py`の当該3読取の旧12列固定射影と、既`backend/tests/test_function_operations_boundary.py`の射影/tenant/lock保持検査だけを追加する。新API/意味/Portを増やさず、他表のquery・古いGeneration列順/型/フィルタ/D3更新を変えない。rootが既recording_generationsのAPP ACLを旧列集合へ列単位化する必要を正式供給に含め、新証拠2列へのapp SELECT/UPDATEを与えない。3列追加は既存2表へ合計3列（Generation2、gate1）であり、省略表現の「2既表列」を列総数2と読まない。正常DB/正式ACL/step3合格は依然未達。既POの通常不具合修正委任による実装追随で、既承認の意味を再取得しない。

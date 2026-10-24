@@ -53,3 +53,10 @@ rootの写像照合で、段階1の先行宣言を実装する既scripts/core_gu
 ## ステップ3の途中source固定（正常接合未達）
 
 2026-10-24T05:44:36.371632+00:00、作者csv_reviewはsource編集/検査を停止し、rootがcheckpoint601ffcbaf75fced1a2c7084f92391dc90b158b6071db9ea319c526921d9dfd8cの全8source byte/既baseline SHAを照合。実9method/phase token/owner束縛/私有actorと既issuer、4ORM表+2既表列/0035、bytes/aware datetime/nullableの有限型と既265局所を途中固定する。全既2testファイル265成功0.97s・8path Ruff/ty/format0、DB0。source8と全patchは /home/ymdms/.cache/pitchlog/initial-grant-db-scope-40808178 に保全。正常actor RG1 scope_binding/正式9SQL・2role・ACL/RLS・既guard新列供給、正常DB/競合/故障、Cookie/RPC/enrollment/startサービス/HTTP/UIは未達で、step3合格・開始/初球/全MVP成功を宣言しない。空DBtest2ファイル/常成功Portを作らず実供給後に実試験を追加する。内部trigger/旧guard追補の具体範囲はplan末尾参照。以後作者はcache-only SQL/role候補へ移りrepo sourceをrootと並行編集しない。
+
+
+## 固定126の独立確認と旧同期readの射影追随
+
+2026-10-24T05:57:38.633453+00:00、新規非作者initial_actor_source_reviewは126cd7af source8全SHA/差分2827a62b12f9e9341aaefc5b5b092528188c3258f7a7c265ca3ba4eccd736b68を確認、265成功0.91s・phase/app/DML/savepoint/失効/ownerの7拒否probe、途中checkpointとして0/0/0（/home/ymdms/.cache/pitchlog/reviews/initial-actor-126cd7af-independent/evidence.json SHA256 3dadb204978eabb2f5edea385296a941a6f5b06a01bcfba01a64d54c42782807）。正常DB/旧guard/正式供給の未達は維持する。
+
+作者の後続供給調査で、ORM追加が旧Generation read/by-number/lockへ新2証拠列を投影するため、rootはplanの最小追補に基づき当該3登録を旧12列/旧順序へ固定した。tenant述語/フィルタ/row lockを保持し、新証拠2列を通常app読取へ流さない。旧read12列の根拠は基線schema-manifestのGeneration列集合。全既2unit268成功0.96s、追加Select型guard後の3case成功（initial-grant-old-read-projection{,-narrowed}.log）。最初のRuff import空行/ty Select union診断を、import整列と実Select assertionで是正、最終Ruff/ty0。正式APP列ACL追随はcache候補・別受理が必要で、現migrationを適用したとの記録ではない。APP Generation INSERT一般撤去は未採用、既担当交代契約との照合を求めており自動拡張しない。
