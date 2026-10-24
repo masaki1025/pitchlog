@@ -321,3 +321,15 @@ rootが実develop4b2へ通常merge89830dc1。5競合は旧全登録/実main受�
 
 
 2026-10-24T01:13:53.456718+00:00、PO委任によるCodex主担当/root判断で、実PR182/8569f14a・実4b2の完全9/8提案cac281d2200f60d266bb688215ddee5b7b69d3ff272d118361c5bb89b4836adaを受理。非作者rightsの2c214限定0・全9/8独立計算（証拠c49c6273）と実8569を再照合し、後発norm/索引/policyにより受理値が変わらないこと、宣言/移動方針/全前後値も一致することをrootが確認した。提案へ承認者/日付の2fieldだけ追加し、旧29履歴206snapshotを保持して新182 row1と必要snapshotを反映。8射影だけ実base+1、frozen-inputs不変、外部はchecker/censusの2blobだけ変更。本人署名/個別実値確認を代記しない。normの初回指摘・最終diff/委任policy/受理記録の非作者最終確認・全必須CI・全故障受入は未完了で、通常mergeはまだ不可。旧schema1履歴にはacceptance_idがないため、最初の重複確認用scriptは書込前に停止した。旧形式をgetで保つ工具是正後に反映し、最初のexit2を成功へ転記しない。
+
+
+### 正本初回レビュー採否・反映1周目
+
+ledger data-model新1.2候補8569f14aの基本2回枠・初回全文は、適用approvedハーネス1.19/条文2c214649（SHA12753078ce7804f401d55101c4f2fffa30ce9a537d3c646873bfc3e1af5adbd5）を受付照合し固定。非作者rightsの判定は否決P0=0/P1=1/P2=1、証拠6e0f7602821dcaf66a2eab066704485bf2aa93b7ffbf3f74f90bdbd356ad6d7e。既存ledgersource・RG1/F2各ゲートの回数/採否は別に保持する。
+
+- P1・起因・(-)を採用。§3-2-Aのpeer EXECUTE限定は追加明示grantであって実効権限の排他保証ではない。固定business_identity.sql:2/11/22/24とmanifest:165–166のbuiltin PUBLIC維持を典拠照合し、専用schema/関数PUBLIC剥奪・追加明示grantの有限集合・builtin既存実効権限を区別した。既存builtin ACLを撤去/再裁定せずsource変更0。
+- P2・非起因・(-)を採用。§3-2の規則解決owner重複2行のうち具体列grant/lock/本文DML禁止/撤去を持つ後行を保持し、一般行1つを整理。旧RG1norm9038の同先在P2・別da78採用反映（未統合）は保持し、本枝へ他RG1/F2の未統合改訂を一括採用していない。履歴行にもこの限定整理を明記した。
+
+不採用/未終結/送り(B)は0。採用反映1周により本plan counter0→1、反映1周目commitにする。次は同適用版で反映差分＋影響節だけの第2回。正本approved・最終CIはまだ未成立。
+
+正式tenant checkerは7.7履歴反映後、backend/srcの新static資産SQL2/JSON1をPython AST解析できずTB000×3でexit1となった。これは未達として保持し、拡張子除外やsource移動で回避しない。既存の宣言asset機構と必要最小検証の調査を非作者CSVへ依頼した。既受理182の全前後値/履歴は書換えず、新しい検査変更が必要ならその実変化だけ再導出/追補受理する。
