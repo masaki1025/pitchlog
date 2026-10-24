@@ -377,7 +377,7 @@ def test_machine_manifest_pins_sql_and_limits_application_control_access() -> No
         == hashlib.sha256((source / "rg1_lifecycle.sql").read_bytes()).hexdigest()
     )
     functions = manifest["functions"]
-    assert len(functions) == 7
+    assert len(functions) == 8
     assert {function["name"] for function in functions} == {
         "rg1_control.try_controller_lease",
         "rg1_control.release_controller_lease",
@@ -386,6 +386,7 @@ def test_machine_manifest_pins_sql_and_limits_application_control_access() -> No
         "rg1_control.controller_lease_alive",
         "rg1_control.read_closed_gate",
         "rg1_control.scope_binding",
+        "rg1_control.bind_initial_fresh_epoch",
     }
     assert [f["name"] for f in functions if "pitchlog_app" in f["execute_roles"]] == [
         "rg1_control.scope_binding"

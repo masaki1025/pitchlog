@@ -294,11 +294,13 @@ _LIFECYCLE_ROLE_EXPECTATIONS = {
     "pitchlog_rg1_control_actor": (False, False, True, False, False, False, False),
     "pitchlog_ledger_identity_owner": (False, False, False, False, False, False, True),
     "pitchlog_ledger_identity_probe": (False, False, True, False, False, False, False),
+    "pitchlog_initial_actor": (False, False, True, False, False, False, False),
+    "pitchlog_initial_fn_owner": (False, False, False, False, False, False, False),
 }
 
 
 def _asset_with_lifecycle_roles() -> dict[str, Any]:
-    """正式旧資産/追随済み資産とも同じ有限4subjectを検査入力へする。"""
+    """正式旧資産/追随済み資産とも同じ有限6subjectを検査入力へする。"""
     asset = copy.deepcopy(_read_product_asset())
     existing = {row["role_id"] for row in asset["roles"]}
     for name, attributes in _LIFECYCLE_ROLE_EXPECTATIONS.items():
@@ -313,10 +315,10 @@ def _asset_with_lifecycle_roles() -> dict[str, Any]:
     return asset
 
 
-def test_lifecycle_roles_keep_old_seven_and_exact_four_sql_subjects() -> None:
-    """独立4主体の全7属性と、外部台帳roleを混入しない11件を照合する。"""
+def test_lifecycle_roles_keep_old_seven_and_exact_six_sql_subjects() -> None:
+    """独立6主体の全7属性と、外部台帳roleを混入しない13件を照合する。"""
     current = expected_product_roles({})
-    assert len(current) == 11
+    assert len(current) == 13
     assert len(set(current) - set(_LIFECYCLE_ROLE_EXPECTATIONS)) == 7
     assert not {"pitchlog_ledger_owner", "pitchlog_ledger_client"} & set(current)
     for name, attributes in _LIFECYCLE_ROLE_EXPECTATIONS.items():

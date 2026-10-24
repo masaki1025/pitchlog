@@ -827,3 +827,54 @@ def test_rg1_new_principals_cannot_acquire_business_column_access(
             _REPOSITORY_ROOT,
             RuntimeContractState.PROVISIONAL,
         )
+
+
+def _fresh_epoch_acl() -> dict[str, object]:
+    """既承認の初回epoch setterだけが持つ1列ACLを返す。"""
+    return {
+        "expectation_id": (
+            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+            "pitchlog_rg1_control_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": "recovery_generation",
+        "grantee_role_id": "pitchlog_rg1_control_owner",
+        "privilege_ids": ["SELECT", "UPDATE"],
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)",
+    }
+
+
+def test_fresh_epoch_acl_generates_only_the_fixed_epoch_column() -> None:
+    """有限受理済みepoch ACLを実SQLへ生成し、旧state列を拡張しない。"""
+    from pitchlog.authz.product_control_access import is_rg1_control_column_acl
+
+    declaration = _fresh_epoch_acl()
+    assert is_rg1_control_column_acl(declaration)
+    sql = generate_function_owner_column_acl_sql(declaration)
+    assert "GRANT SELECT (recovery_generation), UPDATE (recovery_generation)" in sql
+    assert "ON TABLE public.rg1_restore_gate TO pitchlog_rg1_control_owner;" in sql
+    assert "UPDATE (state)" not in sql
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("function_id", "FUNCTION:rg1_control:close_gate()"),
+        ("grantee_role_id", "pitchlog_initial_actor"),
+        ("object_id", "games"),
+        ("column_id", "state"),
+        ("privilege_ids", ["SELECT"]),
+        ("grant_option", 0),
+    ),
+)
+def test_fresh_epoch_acl_rejects_other_owners_functions_and_columns(
+    field: str,
+    value: object,
+) -> None:
+    """新1列権限を別関数/actor/旧列/緩いbool値へ流用させない。"""
+    declaration = {**_fresh_epoch_acl(), field: value}
+    with pytest.raises(ValueError):
+        generate_function_owner_column_acl_sql(declaration)

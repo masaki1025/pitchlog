@@ -114,3 +114,12 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 
 
 2026-10-24T06:49:55.742838+00:00、上記backend5pathと2role宣言を途中sourceとして固定。最初のRuffはroot cwdにbackend相対pathを与えて開始前E902、正しいbackend cwdで検査するとcache候補由来E501が5行、整形後1行を検出した。literal/コメントの改行とpostmaster ISO値の同値local変数化だけを行い、最終Ruff/tyは4Python全成功。SQL2/manifestの実PG・新unit検査・role/migration実装の非作者確認は未実施で、このcheckpointをstep3成功や正式供給に数えない。profileは未受理旧値のまま、rootだけが役割/列先行と正式asset/完全値を続ける。
+
+
+## 初期供給sourceの検査接合とepoch ACL生成是正
+
+2026-10-24T07:03:41.000414+00:00、b399のRG1局所は65成功/4失敗0.75s。旧7control関数/単一app GRANT/旧2列の検査期待を、既承認の初回setter1/actor scope read/epoch列へexact追随した。SQL抽出はCREATE/CREATE OR REPLACEを同じSECDEF固定path文法として全8control関数に対して閉じ、旧6controlの検査を保持、新setterはclosed/NULL/E1/実actorと同PID/DB key1/未割当XID/rowcount1を検査する。単一宛先しか認識しなかったGRANT parserは固定複数宛先を列挙してexact集合と重複を比較し、未認識GRANT総数も15へ厳密一致。再検査70成功0.96s。
+
+正式生成へ向けたroot probeで、epoch列の有限宣言は受理する一方SQL生成がUPDATE対象にstateだけを列挙しており拒否する不一致を発見（rg1-epoch-acl-integration-defect.json）。exact epochのUPDATE生成を既有限predicateの内側に追加し、権限を他列/role/関数へ広げない。追加負例は当初grant_option=0をdict等値がFalseと同一視して受理する問題も検出（16成功/1失敗）。共通入口でis Falseを要求して新epochを含む厳密boolを保ち、最終17成功45非対象0.06s。Ruff/ty0。source統合段階の新不一致として全採用し、独立確認前に解消済みとは称さない。旧2列/observer業務権限0の拒否も同じ選択検査で保持。
+
+初期2roleのsource宣言を既4roleと合わせた6subjectへrole検査fixtureを追随し、旧7基線/全7属性/4provisional/外部台帳role非混入・属性1bit/全membership拒否を維持する。role/migration/正式生成/DBはまだ未完了で、単体成功を正常初期権へ拡大しない。

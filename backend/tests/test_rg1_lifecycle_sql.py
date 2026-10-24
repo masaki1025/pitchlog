@@ -29,7 +29,7 @@ _NAMESPACE = 0x52473143
 _ACTOR = "pitchlog_rg1_control_actor"
 _OWNER = "pitchlog_rg1_control_owner"
 _FUNCTION = re.compile(
-    r"CREATE OR REPLACE FUNCTION rg1_control\.([a-z0-9_]+)\(([^)]*)\)\s+"
+    r"CREATE(?: OR REPLACE)? FUNCTION rg1_control\.([a-z0-9_]+)\(([^)]*)\)\s+"
     r"RETURNS (boolean|jsonb|text)\s+LANGUAGE plpgsql\s+VOLATILE\s+"
     r"SECURITY DEFINER\s+SET search_path = pg_catalog, pg_temp\s+"
     r"AS \$function\$(.*?)\$function\$;",
@@ -52,8 +52,8 @@ def _source() -> str:
 def _functions() -> dict[str, _Function]:
     """閉じたSECDEF・固定path文法に一致する全関数を抽出する。"""
     matches = _FUNCTION.findall(_source())
-    assert len(matches) == 7
-    assert len({name for name, *_ in matches}) == 7
+    assert len(matches) == 8
+    assert len({name for name, *_ in matches}) == 8
     return {
         name: _Function(args, returns, body) for name, args, returns, body in matches
     }
@@ -67,10 +67,17 @@ def _without_comments(source: str) -> str:
 def test_exact_function_surface_and_security_configuration() -> None:
     """制御6無引数とtenant一致の固定read1件だけを公開面にする。"""
     functions = _functions()
-    assert set(functions) == _CONTROL_NAMES | {"scope_binding"}
+    assert set(functions) == _CONTROL_NAMES | {
+        "scope_binding",
+        "bind_initial_fresh_epoch",
+    }
     for name, function in functions.items():
         assert function.arguments == (
-            "p_tenant_id uuid" if name == "scope_binding" else ""
+            "p_tenant_id uuid"
+            if name == "scope_binding"
+            else "p_recovery_generation bigint"
+            if name == "bind_initial_fresh_epoch"
+            else ""
         )
         assert function.returns == (
             "text"
@@ -79,10 +86,16 @@ def test_exact_function_surface_and_security_configuration() -> None:
             if name == "read_closed_gate"
             else "boolean"
         )
-        signature = f"rg1_control.{name}({'uuid' if name == 'scope_binding' else ''})"
+        args = {"scope_binding": "uuid", "bind_initial_fresh_epoch": "bigint"}.get(
+            name, ""
+        )
+        signature = f"rg1_control.{name}({args})"
         assert f"ALTER FUNCTION {signature}\n    OWNER TO {_OWNER};" in _source()
-        assert f"REVOKE ALL PRIVILEGES ON FUNCTION {signature}" in _source()
-    assert _source().count("CREATE OR REPLACE FUNCTION ") == 7
+        assert re.search(
+            r"REVOKE ALL(?: PRIVILEGES)? ON FUNCTION " + re.escape(signature),
+            _source(),
+        )
+    assert len(re.findall(r"CREATE(?: OR REPLACE)? FUNCTION ", _source())) == 8
     assert "SECURITY INVOKER" not in _source()
 
 
@@ -114,13 +127,20 @@ def test_execute_acl_is_exact_and_keeps_public_builtins_unchanged() -> None:
     """appはscope_bindingだけ、旧read ownerはalive helperだけへ制限する。"""
     source = _without_comments(_source())
     grants = re.findall(
-        r"GRANT EXECUTE ON FUNCTION ([a-z0-9_.]+\([^)]*\))\s+TO ([a-z0-9_]+);",
+        r"GRANT EXECUTE ON FUNCTION ([a-z0-9_.]+\([^)]*\))\s+TO ([a-z0-9_,\s]+);",
         source,
     )
+    grants = [
+        (function, role.strip())
+        for function, roles in grants
+        for role in roles.split(",")
+    ]
     expected = {(f"rg1_control.{name}()", _ACTOR) for name in _CONTROL_NAMES}
     expected |= {
         ("rg1_control.controller_lease_alive()", "pitchlog_rg1_fn_owner"),
         ("rg1_control.scope_binding(uuid)", "pitchlog_app"),
+        ("rg1_control.scope_binding(uuid)", "pitchlog_initial_actor"),
+        ("rg1_control.bind_initial_fresh_epoch(bigint)", _ACTOR),
         ("pg_catalog.pg_control_system()", _OWNER),
     }
     assert len(grants) == len(set(grants))
@@ -143,7 +163,12 @@ def test_only_singleton_state_column_and_singleton_rls_are_added() -> None:
             "SELECT (singleton_id, state), UPDATE (state)",
             "public.rg1_restore_gate",
             _OWNER,
-        )
+        ),
+        (
+            "SELECT (recovery_generation), UPDATE (recovery_generation)",
+            "public.rg1_restore_gate",
+            _OWNER,
+        ),
     ]
     assert "FOR SELECT TO " + _OWNER + " USING (singleton_id = 1)" in source
     assert "FOR UPDATE TO " + _OWNER in source
@@ -286,5 +311,29 @@ def test_fixed_sql_has_no_trailing_whitespace() -> None:
 def test_no_unrecognized_grant_statement_bypasses_the_acl_matrix() -> None:
     """別の有効GRANT文法を追加して有限ACL検査を素通りさせない。"""
     source = _without_comments(_source())
-    # 関数9、schema USAGE2、singleton列1、固定動的CONNECT1。
-    assert len(re.findall(r"\bGRANT\b", source, flags=re.IGNORECASE)) == 13
+    # 関数10、schema USAGE2、限定列2、固定動的CONNECT1。
+    assert len(re.findall(r"\bGRANT\b", source, flags=re.IGNORECASE)) == 15
+
+
+def test_initial_epoch_setter_is_closed_null_only_and_preserves_legacy_open() -> None:
+    """初回E1だけをclosedへ束縛し、旧openの未割当XID契約を変えない。"""
+    functions = _functions()
+    body = functions["bind_initial_fresh_epoch"].body
+    for guard in (
+        "session_user IS DISTINCT FROM 'pitchlog_rg1_control_actor'",
+        "p_recovery_generation IS DISTINCT FROM 1::bigint",
+        "pg_current_xact_id_if_assigned() IS NOT NULL",
+        "gate_state <> 'closed' OR bound_epoch IS NOT NULL",
+        "held.pid = pg_catalog.pg_backend_pid()",
+        "backend.usename = 'pitchlog_rg1_control_actor'",
+        "held.objid = 1::oid",
+        "held.objsubid = 2",
+        "held.granted",
+    ):
+        assert guard in body
+    assert body.index("pg_current_xact_id_if_assigned()") < body.index("FOR UPDATE")
+    assert "SET recovery_generation = p_recovery_generation" in body
+    assert "SET state = 'open'" not in body
+    assert "RETURN changed = 1;" in body
+    assert "pg_current_xact_id_if_assigned()" in functions["open_fresh_gate"].body
+    assert functions["open_fresh_gate"].arguments == ""

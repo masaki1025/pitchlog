@@ -247,7 +247,9 @@ def is_rg1_singleton_update_acl(declaration: Mapping[str, object]) -> bool:
 
 
 def is_rg1_control_column_acl(declaration: Mapping[str, object]) -> bool:
-    """実制御ownerの単一行2列だけをclose_gateの能力へ限定する。"""
+    """旧2列と初回epoch専用1列を、それぞれの固定関数へ限定する。"""
+    if declaration.get("grant_option") is not False:
+        return False
     column = declaration.get("column_id")
     if column == "recovery_generation":
         return dict(declaration) == {
@@ -351,7 +353,7 @@ def generate_function_owner_column_acl_sql(
         or is_rule_resolution_update_acl(declaration)
         or (
             is_rg1_control_column_acl(declaration)
-            and declaration.get("column_id") == "state"
+            and declaration.get("column_id") in {"state", "recovery_generation"}
         )
     )
     if not needs_update and (
