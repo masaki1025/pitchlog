@@ -6,6 +6,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import logging
 from collections import UserDict
 from dataclasses import fields
 from datetime import date, datetime, timedelta, timezone
@@ -18,10 +19,11 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 from fastapi import FastAPI, Query
-from pydantic import SecretStr, ValidationError
+from pydantic import SecretStr, TypeAdapter, ValidationError
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.selectable import Select
 
+from pitchlog.api.errors import register_exception_handlers
 from pitchlog.api.schemas.base import BaseSchema, PageRequest
 from pitchlog.api.schemas.game_start import GameStartRequest, StartLineupInput
 from pitchlog.api.schemas.games import (
@@ -722,3 +724,70 @@ def test_start_transport_assignment_keeps_credential_wrapped() -> None:
         setattr(request, "device_id", _START_PUBLIC_CREDENTIAL)
     _assert_start_error_is_private(caught.value)
     assert _START_PUBLIC_CREDENTIAL not in repr(request)
+
+
+@pytest.mark.parametrize("core_parser", [False, True])
+def test_start_transport_raw_json_parser_is_outside_class_safety(
+    core_parser: bool,
+) -> None:
+    """生parserはClass入口前の壊れJSONを保持し得る。保証済みと偽らない。"""
+    raw = ('{"device_credential":"' + _START_PUBLIC_CREDENTIAL + '",').encode()
+    adapter = TypeAdapter(GameStartRequest)
+    with pytest.raises(ValidationError) as caught:
+        if core_parser:
+            adapter.validator.validate_json(raw)
+        else:
+            adapter.validate_json(raw)
+    # pinned実依存の負例。これらを安全な公開Class入口として使用してはいけない。
+    assert any(item.get("input") == raw for item in caught.value.errors())
+    assert _START_PUBLIC_CREDENTIAL in caught.value.json()
+
+
+@pytest.mark.parametrize("malformed_json", [False, True])
+def test_start_transport_normal_fastapi_handler_hides_inputs_and_logs(
+    malformed_json: bool,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """通常FastAPI検証の構文/他field不正を実共通handlerへ通し非露出を確認する。"""
+    app = FastAPI()
+    register_exception_handlers(app)
+    invoked: list[GameStartRequest] = []
+
+    @app.post("/_unit/start-input")
+    def validate_transport(body: GameStartRequest) -> dict[str, bool]:
+        """試験だけのtransport検証口。製品開始routeや業務成功ではない。"""
+        invoked.append(body)
+        return {"parsed": True}
+
+    payload = _start_payload()
+    del payload["home"]
+    raw = (
+        '{"device_credential":"' + _START_PUBLIC_CREDENTIAL + '",'
+        if malformed_json
+        else json.dumps(payload)
+    )
+
+    async def request() -> httpx.Response:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://unit"
+        ) as client:
+            return await client.post(
+                "/_unit/start-input",
+                content=raw,
+                headers={"Content-Type": "application/json"},
+            )
+
+    with caplog.at_level(logging.INFO, logger="pitchlog.api.errors"):
+        response = asyncio.run(request())
+    assert response.status_code == 422
+    assert response.json()["error"]["message"] == "入力に誤りがあります"
+    assert _START_PUBLIC_CREDENTIAL not in response.text
+    assert not invoked, "不正入力を正常routeへ渡してはならない"
+    records = [r for r in caplog.records if r.name == "pitchlog.api.errors"]
+    assert records
+    assert all(
+        r.getMessage() == "リクエストの入力検証に失敗しました。" for r in records
+    )
+    assert all(r.exc_info is None and r.exc_text is None for r in records)
+    assert _START_PUBLIC_CREDENTIAL not in caplog.text
+    assert all(_START_PUBLIC_CREDENTIAL not in repr(r.__dict__) for r in records)

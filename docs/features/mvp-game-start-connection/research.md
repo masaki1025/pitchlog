@@ -55,3 +55,31 @@ SecretStrの通常repr/JSON maskingだけでは、missing等のValidationError.i
 初回の型検査はInitErrorDetailsのinput必須/可変error typeのLiteralStringに関する3診断、試験側の意図的な異型代入に2診断。安全条件を変えず、input=None/固定診断typeと通常setattrによる動的入力試験へ是正した。pytest失敗は0。中間の新規対象54成功/1.34秒（旧87deselected）と、原例外context非保持まで含む最終対象全件**141成功/0.75秒（skip0）**を区別する。旧87件の既存関数/class定義24個は承認HEADからAST一致を確認し、期待値を変えていない。
 
 最終backend対象Ruff format/check・ty、root Ruff/ty、docs-status21/違反0、design-propagation/doc-coverageが成功。実core_guardのload_core_areas/matched_pathsで新source/既存testの双方捕捉を確認した。局所plan-sync/diff checkはステップcommit固定後にも照合する。DB/全backend/censusは今回未実行で、前の別候補の成功を転用しない。HTTP/実Port/実開始/1球/MVP全体は未提供のまま、独立コードレビューはこれからで作者の局所成功を独立可決へ置換しない。
+
+## 次の実DBadapterへの最小保存対応（候補・未承認）
+
+旧physical annex（旧wt `feature-ur1-initial-rights`、SHA256 `13f1e33fd94b0fe501c0dd7f3ccb264833bcc2296bdf29dd4e8c497660b1d484`）とowner sheet（`108b3286dbcf632eea48bed1478f371d40dfff2f9627b0f966d79ec7fb526c10`）を限定照合した。両文書は当時の候補/未受理を明記しており、実base未収録のためローカル相対リンクを増やさず参照hashだけ保存する。V12 AEAD再交付・資格共有lock・同一業務scope・予約前の耐久attemptとrollback後D4非再利用は既存単一部品と整合するが、新DDLの承認を代記しない。
+
+| InitialGrantScopeの既存メソッド | 次に必要な実保存/操作の最小対応 |
+| --- | --- |
+| assert_bound_tenant | exact生存_TenantTransactionと実tenant注入を確認する固定token。caller指定tenant/型だけで証明しない |
+| lock_valid_device | trusted_devices候補のtenant/device/credential_digest/revoked_atを共有lockし一定時間digest比較。資格失効は同一行UPDATEだけを取り、逆順にgameを待たない |
+| existing_start | request/未失効delivery/現normal generation/有効deviceをtenant/game/requestで1件照合。欠損をcommit失敗と断定せず、同端末の現権利のみ再交付対象 |
+| precheck_open_and_game | 既存RG1非lock読取＋game可視性/stateの固定read。新規はpreparing、再交付は同一確定要求と分ける |
+| lock_preparing_game | tenant/game主キーの実FOR UPDATE、preparingを再照合する。両側team UUID順→players UUID順→UM2の順と、既存game→generation順を含む全順は実start service前に固定 |
+| lock_current_start | game→現generation→deliveryの固定lock、request/device/epoch/失効を再照合。同team両側は新side列away/homeとtenant/game/side一意で区別し、旧曖昧行を自動割当しない |
+| assert_recovery_generation | RG1 singletonの業務epoch候補列と実外部fence/current epochの一致。旧NULL/欠落を1へ自動補完せず閉じる。fresh設定は実attestationからroot controlが行う候補 |
+| insert_initial_grant | generation（D3/prefix0/初回issuance_order）＋delivery（owner tuple/digest/key_id/nonce/ciphertext/epoch）＋attempt成功状態を同じbusiness commitへ。原V12/鍵はDB/SQLbind/logへ保存しない |
+| assert_open_before_commit | 既存RG1固定関数のFOR SHARE NOWAITと外部epoch fenceを、business commit/rollback確認まで保持 |
+
+有限な表候補はtrusted_devices、game_start_requests、game_start_attempts、recording_right_deliveriesと既存RG1のepoch/既存game_lineupsのside。tenant付きFK/owner tuple一意/同要求再交付一意/同時active attempt一意が必要。予約前のrequest/attempt intentだけは短い制御transactionで耐久化し、開始成功mark・generation/delivery・両側lineup/UM2/statusは同一業務確定へ入れる。不明attemptから新attemptを自動作成せず、実business primaryの排他照会で旧transactionの終結と未確定を証明できるまでは停止する。詳細DDL/FK/列ACL/固定function/token集合と正式7.3/7.7はrootの次ゲートで固定する。
+
+追加の技術不足として、実app UID20003は固定Ledger client UID20002へ直接接続できない。また現baseのrecording_generationsはappの直接INSERT許可を持つため、新関数を追加するだけでは任意D4/digestの直接投入を防げない。候補は既存RG1/identity subjectを広げない独立のroot保護initial issuer broker/PG subjectと、実owner-bound claimを記録したattemptの一度限り許可を消費する固定関数。これは新署名鍵や第2allocatorを作る提案ではなく、実`DurableLedger`（source c07f508d）/`V12Box`/RG1（5ee75156）の能力を分離して再利用する方法である。broker/4表の設計をこの追補で確定せず、資格enrollment/暗号再配達・最小CAP/列ACL/RLS・実registry・replay不明時停止を次の具体差分として残す。T1本体や全非0復元はこの保存contractの起案条件にしない。DB/source/正本/共有資産の変更は0。
+
+## 7469e676の独立P1と同ステップ是正
+
+非作者rightsの初回コードレビューはP1=1。証拠SHA256は`49a078d16cb4215209da67e559a780d9a4ef10cf5814bc476774071a44c8ddb7`。生TypeAdapter/SchemaValidatorの壊れJSONはClass overrideより前に失敗し、ValidationError.inputへ資格を含む元JSONを保持する。旧141成功はこの外側経路を検出しておらず、全経路の内部入力まで無害化した証拠ではなかった。同レビューは現共通HTTP handlerの外部応答/INFOログが非露出であることも独立に実証した。旧固定版/旧成功/P1を保持し、未接続候補のまま是正する。
+
+rootはPO委任で、安全な公開Class入口（model_validate/model_validate_jsonと通常代入）・既存共通HTTP handlerの利用者向け応答/ログを保証境界として採用した。生parserやRequestValidationError.body等の内部入力は資格を保持し得るため、記録/汎用serializeへ渡さない。module/class/planへこの利用契約を明記した。private Pydantic APIの差替え・拒否の黙殺は0で、sourceの実行ロジックは7469から変更していない。
+
+既componentへ生parser2負例と、DBなしFastAPI通常検証（壊れJSON/他field欠損）の実共通handler2例を追加。422の固定応答・ログ本文・LogRecord・exc_info/tracebackに資格がなく、不正routeの業務関数呼出し0を確認した。ここで追加したrouteは試験アプリのtransport検査口だけで、製品HTTP開始の提供ではない。対象4成功/0.63秒（旧141deselected）→最終component全件**145成功/0.87秒、skip0**。旧54+87と今回4を区別し、独立再レビューはこれからとする。backend対象format/Ruff/ty成功。物理追補は前節の必要対応だけを保存し、broker/4表/DDLの設計完成・採用を主張しない。

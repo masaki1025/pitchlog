@@ -68,3 +68,7 @@ DTOの返却を開始成功receiptとして使わない。成功時の内部値�
 ## 計画レビューとPO委任判断
 
 2026-10-24T01:11:08.323361+00:00、Codex主担当/rootは今回PO4/5/8/10の委任により、対象2b6c694743765ba43dfb926ee68a2fce091eb755（plan0a6db0e81f83c85583d9c19b272e051f931f4d1f65befddb4940916ef5fa55ba/research7085e4be6ed16725070e51618287a4a19652ab73dba5f183824a0de3d4f9f158、標準diff f3473cba203d8d84c74518c81169065f654c3a0795e213a1a5603b85fbcc3ab7）を承認する。新案作成に非関与のresolver_ledger_plan_reviewによる初回全文0/0/0と実4b2/UG1親計画/既存型/core捕捉を照合した。exact5/3fieldのtransport入力境界・既存component正負例のステップ1/1だけを指示し、HTTP/権利/DB/新資格・鍵発行/状態計算へ拡張しない。資格の非露出はSecretStr単独とせず、他fieldが不正な場合のerrors()/json()/strも局所検証する。これは既DoDの具体例であり新しい意味仕様ではない。旧U-G1/U-R1/U-F8の承認・ステップ/レビュー系列、実保存/開始の全条件を保持する。起案時の製品編集禁止は本対象版の限定ステップにだけ解除し、本人の実値確認/逐行確認/署名を代記しない。
+
+### step1の非露出保証の適用境界（P1採用・PO委任による技術是正）
+
+7469e676の非作者レビューP1=1を採用し、非露出は公開Classの`model_validate`/`model_validate_json`・通常代入と、既存共通HTTP handlerによる利用者向け応答/ログへ限定する。生TypeAdapter/SchemaValidatorのJSON構文例外、RequestValidationError.bodyなど内部入力が無害化済みとは保証しない。将来のendpointも共通handlerを維持し、body/生parser例外を記録せず、実HTTP応答/ログの非露出を検査する。private Pydantic APIの差替えや入力拒否の黙殺を行わない。rootが2026-10-24のPO委任でこの技術境界と同step1/1是正を指示した。新DBadapter/物理/正本はこの是正の製品scope外であり、全計画・旧レビュー系列を再設定しない。

@@ -1,4 +1,11 @@
-"""開始前の入力外形だけを定義し、権利やスタメンの業務妥当性を認めない。"""
+"""開始前の入力外形を定義する。権利やスタメンの業務妥当性は認めない。
+
+資格の非露出は公開Classのmodel_validate/model_validate_jsonと通常代入で保証する。
+生TypeAdapter/SchemaValidatorのJSON構文エラーはClassへ到達せず、入力を保持し得る。
+RequestValidationError.bodyも含め、内部入力まで無害化されたとは扱わない。
+将来のHTTP入口は既存register_exception_handlersを維持し、body/生parser例外を
+ログへ渡さず、利用者向け応答/ログの非露出を実HTTPでも検査する。
+"""
 
 from __future__ import annotations
 
@@ -62,7 +69,11 @@ class StartLineupInput(BaseSchema):
 
 
 class GameStartRequest(BaseSchema):
-    """URLの試合へ提示する開始入力。通過しても開始や端末資格の証明ではない。"""
+    """URLの試合へ提示する開始入力。通過しても開始や端末資格の証明ではない。
+
+    公開Class入口を使用する。生のPydantic parser例外内部は非露出保証の対象外で、
+    HTTPには共通handlerが必要である。SchemaValidator等を差し替えない。
+    """
 
     model_config = ConfigDict(hide_input_in_errors=True, validate_assignment=True)
 
