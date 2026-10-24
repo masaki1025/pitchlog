@@ -191,3 +191,8 @@ package wildcard/既存contract試験/DB試験は先行core登録済みで追加
 
 
 2026-10-23T21:27:34.197191+00:00、Codex主担当/rootはPO4/5/8/10に基づきfresh追補00d2f50d/plan1651f9d1411b118483d4bcea08117a054d2dae77a311ef6f5410db8633a539faを承認。非作者rights_replacement_reviewの限定第1回0/0/0、標準binarydiffca02bc2ef976ac971923a21e118efa1b624859961c7541634654b4bae6fba44dを照合。同channelの不変attestation/live fence・短い開始mutex・一度限りactivation・genesis database必須を既存step3内で個別実装する。旧b9の非作者レビューP1=2(database永続束縛、9関数temp-shadowing)を全採用し、通常是正を先行して固定・実検証後にfreshへ継続する。旧全レビュー/中間失敗/67・9件成功と新未達を保持し、公開advance/全域closeProof/非0復旧/全DoDを今回承認で成立としない。PO委任によるCodex判断であり、人間本人の署名/逐行確認を代記しない。
+
+
+### fresh採用後の同一source登録値追随（2026-10-24）
+
+PO委任によるCodex主担当/root判断。旧13exactの承認・拒否履歴を保持し、fresh採用済みadapter10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2へ同じ5path内で追随する。source候補ef39に対する非作者csv_reviewの限定0・独立再導出の実17exact/anchor除去22/独立AST1（証拠b365716ec4fbe3358a1131a31d659bad739423e347a029ed5c9dc7978ddca718）を根拠とし、旧initial47/除去43/AST18・他全登録/検出/拒否を不変保持する。17を件数だけで免除せずpath/source SHA/行/symbol全集合を固定する。意味・権限・耐久保証を変更せず、正式7.7は別ゲート。実4b2基線への通常merge89830dc1で全31guard本文ASTを保持、局所418成功/40.31秒。最終差分独立レビューと完全9/8再導出・実値受理は未成立で、今回の追随を正式提供へ昇格させない。

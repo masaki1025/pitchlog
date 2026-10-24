@@ -7472,7 +7472,7 @@ def test_unregistered_cancel_receiver_and_alias_are_red(body: str) -> None:
     'line_zero', 'line_bool', 'symbol', 'move_initial',
 ])
 def test_ledger_condition2_registration_rejects_every_nonexact_shape(mutation: str) -> None:
-    """台帳登録は単一path/hash/13全identityの一致だけを受理する。"""
+    """台帳登録は単一path/hash/17全identityの一致だけを受理する。"""
     value = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
     key = 'condition_2_ledger_scoped_findings'
     entry = value[key]

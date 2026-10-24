@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 37,
+  "contract_revision": 38,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:37"
+        "contract_revision:38"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -28027,58 +28027,74 @@
   },
   "condition_2_ledger_scoped_findings": {
     "path": "backend/src/pitchlog/durable_rights_ledger/adapter.py",
-    "source_sha256": "53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d",
+    "source_sha256": "10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2",
     "findings": [
       {
-        "line": 17,
+        "line": 21,
         "symbol": "DurableGenerationSource"
       },
       {
-        "line": 17,
+        "line": 21,
         "symbol": "ReservedGeneration"
       },
       {
-        "line": 224,
+        "line": 379,
         "symbol": "generation"
       },
       {
-        "line": 228,
+        "line": 383,
         "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
       },
       {
-        "line": 228,
-        "symbol": "pitchlog.durable_rights_ledger.adapter._Fence.generation"
+        "line": 383,
+        "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
       },
       {
-        "line": 232,
+        "line": 387,
         "symbol": "generation"
       },
       {
-        "line": 235,
+        "line": 390,
         "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
       },
       {
-        "line": 245,
+        "line": 401,
         "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
       },
       {
-        "line": 249,
-        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
-      },
-      {
-        "line": 360,
+        "line": 552,
         "symbol": "current_recovery_generation"
       },
       {
-        "line": 400,
+        "line": 1193,
+        "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation"
+      },
+      {
+        "line": 1228,
+        "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
+      },
+      {
+        "line": 1400,
+        "symbol": "generation"
+      },
+      {
+        "line": 1414,
+        "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
+      },
+      {
+        "line": 1449,
+        "symbol": "current_recovery_generation"
+      },
+      {
+        "line": 1456,
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
       },
       {
-        "line": 407,
+        "line": 1472,
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
       },
       {
-        "line": 421,
+        "line": 1491,
         "symbol": "advance_recovery_generation"
       }
     ]

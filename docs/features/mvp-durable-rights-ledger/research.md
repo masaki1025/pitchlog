@@ -301,3 +301,13 @@ core局所は **35 passed/14.42秒**、root/backend Ruff/ty、runtime生成check
 現17を当該sourceだけで抑止する未受理射影では、ledger旧anchor removed22/digest `7d1a7d3f7b92731b4a3c934e6767a25cb27601f8fa8b00bf5e5c62e2497ddcf1`、独立AST1/digest `0dbd512ac5095251e3391de5d4e33cca080ee3e4450c2a3a6921c01b758c8972`。同dir `proposed-exact17-census.json`（SHA256 `72b94f358b13da85b65d2118f6df2605a3cffc7e72502946c46b3dc588855429`）へ全identityを固定した。射影後の非ledger current182と、旧initial removed43/AST18の完全digestは旧版と不変。これはsource固有の候補集合だけで、登録/期待値/正式9・8値/履歴/snapshot/policy/7.3/7.7の変更や正式gate成功ではない。旧exact13は未更新のままroot限定非作者採否へ渡す。
 
 最小fresh APIの作者実装/検査はここまで到達した。残るcommit前abort→quarantineの実故障行列、終了fsync後ACK喪失の全境界、business再起動/非0全復元の実closeProof/epoch前進、全設備喪失、最終非作者source確認/正式受理/CIは未完で、元4ステップ/全DoDとP6留保を保持する。人間の署名・逐行確認やMVP全完成を代記しない。
+
+
+### 正式resolver基線追随とfresh17exact登録候補
+
+rootが実develop4b2へ通常merge89830dc1。5競合は旧全登録/実main受理履歴を保持し、ledger有限追加とread/resolverを合流。guardの全31関数/class ASTは両親と同一。merge作業中の初回core408成功10失敗はHEADが旧基線の9件と、旧preparingの合成試験が現在ledger宣言を使った1件。前者はmerge確定後の実共通基線、後者は当時の宣言を明示する歴史fixtureへ是正し、拒否/timeoutを緩めず418成功/40.31秒。初期Ruffで新fixture定数の宣言順エラー1件も位置修正後に成功した。
+
+非作者が既に再導出した実17全集合を限定登録へ反映。旧initial47と旧全censusは不変、台帳だけ除去22/AST1へ追随。正式before/after識別値・9/8・受理/履歴はこれからであり、旧13の不一致を元から成功だったとは記録しない。source本体は10906のままで、同入力の重いDB故障系を反復しない。まず影響範囲のexact拒否/censusを検証し、最終独立と正式7.7後に全必須CIを行う。
+
+
+17exact追随の局所はchecker登録正負11成功/6.27秒。census/digest初回19成功1失敗/40.67秒は失敗messageの旧13regex1箇所の追随漏れで、実17拒否そのものは作動していた。文言1箇所だけ是正し当該1成功/1.21秒、同入力の残19は再実行しない。ty/Ruff成功。checkerとcensusの外部blob実変更により9射影中8だけ変化（frozen-inputs不変）、実4b2の値から各1増分を候補化し、source_digestと生成3moduleを全fieldへ追随。backend生成面/台帳契約134成功/12.44秒。既存history29/snapshot206の正式追記は0、旧全値を保持し、正式7.7未受理を維持する。

@@ -1947,7 +1947,7 @@ def _validated_scoped_condition2_path(
 def _validated_ledger_condition2_path(
     *, source_root: Path, current_contract: Any
 ) -> str | None:
-    """台帳の単一source hashと免除なし実13件を固定する。"""
+    """台帳の単一source hashと免除なし実17件を固定する。"""
     relative = checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
     path = source_root / relative
     if not path.is_file():
@@ -1962,7 +1962,7 @@ def _validated_ledger_condition2_path(
         for v in checker.scan_source(source, path=relative, contract=unsuppressed)
         if v.code == "TB002"
     )
-    assert actual == current_contract.ledger_condition2_findings, "台帳の実13所見が一致しない"
+    assert actual == current_contract.ledger_condition2_findings, "台帳の実17所見が一致しない"
     return relative
 
 
@@ -2462,7 +2462,7 @@ def _assert_added_equals_independently_derived_candidates(
         assert all(
             (identity[1], identity[5]) in current_contract.ledger_condition2_findings
             for identity in ledger_candidates
-        ), "台帳AST候補が実13所見へ帰属しない"
+        ), "台帳AST候補が実17所見へ帰属しない"
         expected = expected - ledger_candidates
     actual = data_sets[set_name]
     assert actual == expected, (
@@ -4361,7 +4361,7 @@ if __name__ == "__main__":
 
 
 def test_ledger_scoped_condition2_requires_exact_source_and_findings(tmp_path: Path) -> None:
-    """台帳の13件実測に失敗した場合はcensusのpath免除を作らない。"""
+    """台帳の17件実測に失敗した場合はcensusのpath免除を作らない。"""
     relative = Path('pitchlog/durable_rights_ledger/adapter.py')
     path = tmp_path / relative
     path.parent.mkdir(parents=True)
@@ -4375,7 +4375,7 @@ def test_ledger_scoped_condition2_requires_exact_source_and_findings(tmp_path: P
         contract,
         ledger_condition2_findings=frozenset(sorted(contract.ledger_condition2_findings)[1:]),
     )
-    with pytest.raises(AssertionError, match='実13所見が一致しない'):
+    with pytest.raises(AssertionError, match='実17所見が一致しない'):
         _validated_ledger_condition2_path(source_root=tmp_path, current_contract=altered)
     path.write_text(path.read_text() + '\n')
     assert _validated_ledger_condition2_path(
@@ -4387,7 +4387,7 @@ def test_ledger_scoped_condition2_requires_exact_source_and_findings(tmp_path: P
 def test_ledger_scoped_census_rejects_changed_removed_identity(
     census_predicate_context: dict[str, Any], mutation: str
 ) -> None:
-    """旧11件の台帳所見を欠損/追加/別pathへ移し替えて通さない。"""
+    """旧22件の台帳所見を欠損/追加/別pathへ移し替えて通さない。"""
     context = census_predicate_context
     data_sets = dict(context['data_sets'])
     original = next(

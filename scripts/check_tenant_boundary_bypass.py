@@ -64,22 +64,29 @@ APPROVED_CONDITION2_OWNER_PATHS = frozenset(
 )
 # 外部台帳候補のProtocol実装だけを、独立確認したsource/全所見へ固定する。
 LEDGER_CONDITION2_PATH = "backend/src/pitchlog/durable_rights_ledger/adapter.py"
-LEDGER_CONDITION2_SOURCE_SHA256 = "53bdb9d54b9fa5ab0ece6787ab4824dfc02e9afbeea2a8d14ad132779ca2758d"
+LEDGER_CONDITION2_SOURCE_SHA256 = '10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2'
 LEDGER_CONDITION2_FINDINGS = frozenset(
     {
-        (17, 'DurableGenerationSource'),
-        (17, 'ReservedGeneration'),
-        (224, 'generation'),
-        (228, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
-        (228, 'pitchlog.durable_rights_ledger.adapter._Fence.generation'),
-        (232, 'generation'),
-        (235, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
-        (245, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
-        (249, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
-        (360, 'current_recovery_generation'),
-        (400, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (407, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (421, 'advance_recovery_generation'),
+        (21, 'DurableGenerationSource'),
+        (21, 'ReservedGeneration'),
+        (379, 'generation'),
+        (383, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (383, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (387, 'generation'),
+        (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (552, 'current_recovery_generation'),
+        (
+            1193,
+            'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation',
+        ),
+        (1228, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1400, 'generation'),
+        (1414, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (1449, 'current_recovery_generation'),
+        (1456, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1472, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1491, 'advance_recovery_generation'),
     }
 )
 
@@ -1080,7 +1087,7 @@ def _load_allowlist(
             raise ContractError("台帳条件2登録は正の行番号と一意の記号が必要")
         ledger_findings.add((line, symbol))
     if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
-        raise ContractError("台帳条件2登録は独立確認済み13所見のexact-setが必要")
+        raise ContractError("台帳条件2登録は独立確認済み17所見のexact-setが必要")
     return (
         tuple(allowed_symbols),
         tuple(rules),
