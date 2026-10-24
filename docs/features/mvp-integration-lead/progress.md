@@ -376,3 +376,14 @@ ledger候補005d99dfは最終static-v2の1受理を反映して30履歴216snapsh
 T1§12 cc69ef94は非作者コード0/独立182成功（証拠57ee3839c99eb876ce21a6ee5297a250422713d986fb592183d4658db1077b33）、作者731成功と分離。新純入力は中立directory p6-partial-input-20261024-01へ同SHA5f0bf2d…/正式4b2の原典3だけで固定し、fork-noneのp6_partial_input_derivationへ渡した。作者会話/期待値/旧封印/テストを渡さず、導出封印後まで比較しない。起動は導出成立/新P6受理ではない。正式missing15/全開始条件は継続未達。
 
 開始DTO是正fe4788の別非作者0を保持し、親開始の実DB/側/資格/配達/epoch接合の最小具体化をcreationが継続。利用者の候補操作は依然A（新規作成→保存→reload）まで実証、B（開始→初球保存→reload）未達。全MVP目標・実機/運用受入・両CSV等の未完を維持。
+
+
+### 2026-10-24昼：追加復元検証とT1限定導出の保全
+
+直前のstatus回答ターンは報告のみで新しい製品状態は変えていない。今回継続でledgerの追加DB2fileを作者証拠と実SHA照合してbf90428aへ固定した。旧primary実生存中昇格の拒否(A)、実停止後の最新standby実昇格と全成功row保持(B)、両台帳実古0復元+witness実喪失の起動/再enroll拒否(C)、業務DB『だけ』の同一物理backup連続2復元でidentity変化/発行拒否/外部成功集合全保持(D)まで実証。A1成功21.99秒、B/CはD準備失敗を含む群で成功、D最終1成功34.67秒で、最終4群一括成功と偽記しない。証拠2b68ca5d7379eff9efd28565f8bb006766825676ae41b9da88658bf24f21f02f。製品/正式値/30履歴216snapshotは不変。rightsが最終P1 LEDGER-FINAL-01の解消を限定確認中で、必須CI/通常mergeはこれから。正規全域closeProof→epoch前進→新D4解除同一確定→復旧後発行の親new7/8義務は未達のまま。
+
+T1 cc69ef94の新純入力162/正式4b2原典3をfork-noneへだけ渡した新導出をa876f389…/封印d6e028b9…へ固定。封印後のrights通常比較は全162の相反判定一致（相反22）、整合140の数量既知124/未知16・分岐未識別14一致、比較可能な実値不一致0。封印known135対作者124の11差は相反域内OUT3-05の部分射影0であり、作者未出力との比較不能を保持し正常一致へ加算しない。証拠df2c8ba9a2cf33d73a9559d54699059e53e04b5f27da722ec9beba5090d87726。正式schema/case binding/全P6/不足15/closure0/7marker/T1本体未達は継続。封印/曝露履歴を保全し、T1 researchへ一度だけ具体追記した。
+
+新しいstart_physical_connection担当は既fe4788d1の開始DTO/非作者是正0を引き継ぎ、同wtのplan/researchだけを所有して実InitialGrantScopeの有限な次追補を具体化する。現app固定DBscopeと別brokerを跨ぐlock/FK相互待ちを避ける実transaction構造・資格/attempt/再交付/最小ACLを詰め、rootが次の実装単位を承認する。新規の人間承認待ちを追加せず、T1/全非0復旧の完成をこの準備前提にしない。CSVはRG1正式全数認可の具体差分をread-only/cacheで調査し、共有資産はroot唯一writerで後続適用。
+
+利用者が新たに完了できる操作は隔離候補のA（画面新規作成→実API/DB保存→reload）。B（開始→初球保存→reload）は依然未達。正式main4b2/PR181統合と候補成功を区別し、11/12全MVP/実機/運用/両CSVの完成条件を縮小しない。
