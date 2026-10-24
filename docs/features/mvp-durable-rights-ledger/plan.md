@@ -85,7 +85,8 @@ data-modelの新しい外部永続資産・所有role・復元境界は構造的
 
 - 単体: manifestの全field/DDL/role/function exact集合、owner tupleの束縛、bigint上下限、旧epoch/不正値、例外の資格非漏洩、借用fenceの寿命。常に成功する証明fakeを製品提供と扱わない。
 - 実DB: 並列予約一意、同attempt再照会/他owner拒否、二重claim拒否、業務rollback後の不再利用、epoch共有/排他競合、接続断とtimeout、直接表DML/他role/任意SQL拒否。fenceは実ロック保持と業務commit前後の競合を検査する。
-- 同期故障: standby停止/遅延・設定不一致・同期成功応答直後のprimary停止・応答喪失・旧primary未停止での昇格拒否・最新standbyだけの昇格・両保全先喪失/古いbackupの発行拒否。成功応答したD4累積集合を独立に保持し、業務DBだけの連続2回復元とその後の発行で過去集合との交差0を検査する。予約/claim/epochそれぞれ同期保全を確認する。
+- 同期故障（本単位の必須実証）: standby停止/遅延・設定不一致・同期成功応答直後のprimary停止・応答喪失・旧primary稼働中の昇格に対する発行拒否・停止後の最新standby実昇格と成功済みD4/claim保全・両保全先喪失/最新性不明な古いbackupの発行拒否。成功応答D4/claim集合を独立保持し、**業務DBだけの連続2回復元で安全閉鎖し、復元外の集合が不変であること**を検査する。予約/claimの同期保全と現在epoch/fenceの実保持を確認する。
+- 正規復旧接合後の必須実証（親新7/8へ維持）: 実全域closeProof→epoch前進→業務復元再接合→新D4と解除の同一確定を実装した版で、上記2回復元後にも発行して過去全成功集合との交差0/全旧世代fenceを検査する。epoch更新の同期保全と最新系への正規発行再開はこの正規復旧ゲートで受け入れる。現libraryの未提供advance/非0復旧を常拒否のまま成功扱いにせず、この後続義務はMVP完了前に必ず閉じる。
 - 隔離構成: 既存disposable PostgreSQL fixture/cleanupの所有方式を再利用し、primary/standby/業務DBに専用tempdir・ランダムloopback portを与える。継承DSN/PITCHLOG_*を使わず既存.env/秘密を読まない。試験専用一時資格は隔離fixture内だけ。既存共有container/volumeへ触れず、生成した自分の資源だけをfinallyで停止/整理する。全故障試験は非並列、他fullbackend/browser実行と調整する。実同期複製が未構成ならskipで合格にしない。
 - backendは対象`test_durable_rights_ledger_contract.py`と`tests/db/test_durable_rights_ledger.py`、Ruff/ty。rootはcore_guard/tenant-bypass関連、docs-status/局所plan同期、差分、必要な生成/凍結/archive契約を確認。最終の既存CI必須対象は省略しない。
 - 運用配置/共有DB適用/有料資源/新運用秘密発行・実機・本番障害耐久性は未実施。local二台は物理的な別故障領域を提供した証明ではない。設定・adapter・故障時停止の実検証と、運用設備の提供を分ける。運用責任者は既指定の山田正輝で、未指名扱いに戻さない。

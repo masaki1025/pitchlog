@@ -384,3 +384,12 @@ JUnit cache/ledger-critical-close-kernel-first.xml SHAdc8a3fb42a93dcd3fcadf06609
 
 
 2026-10-24T01:59:30.031657+00:00、PO委任によるCodex主担当/root判断で、旧候補を差戻し済みの実PR182について最終static-v2提案b6a98cde7b284a2d7d80d287d82dc7b664f819a3ad7023f7c1bda19147a4604bを受理。対象最終4f1a7271と独立値4b8の完全payload/9射影8外部/宣言/移動方針/識別値の不変を実再照合し、追加3故障・wheel後発の各非作者0を受領した。source/受理値は変わらないため再導出/同一承認の再取得はしない。新1record/10必要snapshotだけを反映して30/216、旧正式29/206全保持。旧b94受理receiptとsupersessionは改変せず、最終receiptはacceptance-static-v2.jsonとして別保存。本人の確認/署名を代記しない。最終HEADの受理反映・差分レビュー/全必要検査/必須CI/通常mergeはこれからであり、成否を先取りしない。
+
+
+### 最終全差分レビューP1の採用（同期故障の実証対応）
+
+fixed005d99df/全49path標準diffcd837f5bd6f350b2de126e6b5d7a7adef354cf16bce6d776fa7c8642685649cdの非作者rights最終は否決P0=0/P1=1/P2=0（LEDGER-FINAL-01、証拠64bb3f7c32cc78b8f2980e82f9bbd0cdb4f8cbbab64b86c554184a42fe98be56）。全受理payload/30履歴216snapshot/policy/source/norm/corpus/wheelの新指摘は0。残る旧primary未停止昇格拒否/最新standby実昇格保全・両系/古backup拒否・業務単独2復元の実証不足を採用する。primary停止後のreadやcopy_pairを昇格/業務単独復元へ読み替えない。
+
+既承認の『本最小単位は実台帳/freshまで、全域closeProof/公開epoch前進/正規復旧後再発行は親新7/8』という境界へ§6の混在文を具体整合した。MVPの全復旧/再発行後の非再利用義務・検査/拒否条件を削らず、今実施する安全閉鎖/保全と、未提供の正規制御を実装後に必ず実施するpositive回復を分離して明記。これは完走を宣言する変更ではなく、上記未実施faultを追加して独立再確認する。旧最終P1/19caseの結果は保持し、step4『故障行列完走』の本単位分を満たすまでmergeしない。PO委任によるCodex主担当/rootの実装順/既採用方針整合判断であり、本人の確認/署名ではない。
+
+最終値の受理反映後、正式tenant CLIはexit0、checker437＋archive29の全件は**466 passed/146.77秒**。初回12失敗/2失敗はそのまま履歴に保持し、最後の履歴末尾不一致だけが解消したことを確認。own faultの未実証をこのgreenで代替しない。
