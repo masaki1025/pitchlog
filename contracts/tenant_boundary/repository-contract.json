@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 26,
+  "contract_revision": 27,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:26"
+        "contract_revision:27"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -227,5 +227,5 @@
     "RG1:commit_check",
     "RULE:resolve_stage_a"
   ],
-  "source_digest": "2b53d7f03b219af1f90da50021aaba659d9e568603a2e762583a5adb14ff7db3"
+  "source_digest": "8fcf5b6d9d9fdf5284bbcf7f8e4fe4c3403ade86e107b0d12994ad2703344fe2"
 }

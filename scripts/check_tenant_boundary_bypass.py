@@ -62,6 +62,33 @@ APPROVED_CONDITION2_OWNER_PATHS = frozenset(
         "backend/src/pitchlog/repositories/sync_apply.py",
     }
 )
+# 外部台帳候補のProtocol実装だけを、独立確認したsource/全所見へ固定する。
+LEDGER_CONDITION2_PATH = "backend/src/pitchlog/durable_rights_ledger/adapter.py"
+LEDGER_CONDITION2_FINDINGS = frozenset(
+    {
+        (21, 'DurableGenerationSource'),
+        (21, 'ReservedGeneration'),
+        (379, 'generation'),
+        (383, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (383, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (387, 'generation'),
+        (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (552, 'current_recovery_generation'),
+        (
+            1193,
+            'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation',
+        ),
+        (1228, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1400, 'generation'),
+        (1414, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (1449, 'current_recovery_generation'),
+        (1456, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1472, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1491, 'advance_recovery_generation'),
+    }
+)
+
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
@@ -217,6 +244,9 @@ class Contract:
     condition2_owner_paths: tuple[str, ...]
     condition2_scoped_findings: frozenset[tuple[int, str]]
     condition2_scoped_source_sha256: str
+    ledger_condition2_findings: frozenset[tuple[int, str]]
+    ledger_condition2_source_sha256: str
+    ledger_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
@@ -238,6 +268,16 @@ class Violation:
     scope: str = "<module>"
 
 
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """入れ子も含め重複keyのある契約・配備宣言を拒否する。"""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("宣言の重複key")
+        result[key] = value
+    return result
+
+
 def _read_json(path: Path) -> tuple[dict[str, Any], bytes]:
     """JSON オブジェクトと元のバイト列を読む。
 
@@ -255,8 +295,8 @@ def _read_json(path: Path) -> tuple[dict[str, Any], bytes]:
     except OSError as error:
         raise ContractError(f"契約資産を読めない: {path}: {error}") from error
     try:
-        value = json.loads(source)
-    except json.JSONDecodeError as error:
+        value = json.loads(source, object_pairs_hook=_unique_json_object)
+    except ValueError as error:
         raise ContractError(f"契約資産が JSON でない: {path}: {error}") from error
     if not isinstance(value, dict):
         raise ContractError(f"契約資産のルートはオブジェクトでなければならない: {path}")
@@ -798,6 +838,9 @@ def _load_allowlist(
     tuple[str, ...],
     frozenset[tuple[int, str]],
     str,
+    frozenset[tuple[int, str]],
+    str,
+    tuple[tuple[str, str], ...],
     tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
@@ -813,6 +856,8 @@ def _load_allowlist(
             "conditions",
             "condition_2_adjudications",
             "condition_2_scoped_findings",
+            "condition_2_ledger_scoped_findings",
+            "ledger_deployment_assets",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1036,6 +1081,25 @@ def _load_allowlist(
         scoped_findings.add((line, symbol))
     if len(scoped_findings) != 47:
         raise ContractError("条件 2 の限定登録は審査済み47箇所のexact-setが必要")
+    ledger_location = "allowlist.condition_2_ledger_scoped_findings"
+    ledger = _object(value["condition_2_ledger_scoped_findings"], ledger_location)
+    _strict_keys(ledger, {"path", "source_sha256", "findings"}, ledger_location)
+    if ledger["path"] != LEDGER_CONDITION2_PATH:
+        raise ContractError("台帳条件2登録はadapter単一pathに限る")
+    ledger_digest = _string(ledger["source_sha256"], ledger_location)
+    if re.fullmatch(r"[0-9a-f]{64}", ledger_digest) is None:
+        raise ContractError("台帳条件2登録には実ソースSHA-256が必要")
+    ledger_findings: set[tuple[int, str]] = set()
+    for raw in _array(ledger["findings"], ledger_location):
+        finding = _object(raw, ledger_location)
+        _strict_keys(finding, {"line", "symbol"}, ledger_location)
+        line = _integer(finding["line"], ledger_location)
+        symbol = _string(finding["symbol"], ledger_location)
+        if line < 1 or (line, symbol) in ledger_findings:
+            raise ContractError("台帳条件2登録は正の行番号と一意の記号が必要")
+        ledger_findings.add((line, symbol))
+    if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
+        raise ContractError("台帳条件2登録は独立確認済み17所見のexact-setが必要")
     return (
         tuple(allowed_symbols),
         tuple(rules),
@@ -1043,6 +1107,9 @@ def _load_allowlist(
         condition2_owner_paths,
         frozenset(scoped_findings),
         scoped_digest,
+        frozenset(ledger_findings),
+        ledger_digest,
+        _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         command,
     )
 
@@ -1595,6 +1662,9 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_owner_paths,
         condition2_scoped_findings,
         condition2_scoped_source_sha256,
+        ledger_condition2_findings,
+        ledger_condition2_source_sha256,
+        ledger_deployment_assets,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1639,6 +1709,9 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_owner_paths=condition2_owner_paths,
         condition2_scoped_findings=condition2_scoped_findings,
         condition2_scoped_source_sha256=condition2_scoped_source_sha256,
+        ledger_condition2_findings=ledger_condition2_findings,
+        ledger_condition2_source_sha256=ledger_condition2_source_sha256,
+        ledger_deployment_assets=ledger_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
@@ -5778,6 +5851,16 @@ def scan_source(
             or (violation.line, violation.symbol)
             not in contract.condition2_scoped_findings
         ]
+    if (
+        path == LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
+        and hashlib.sha256(source.encode("utf-8")).hexdigest()
+        == contract.ledger_condition2_source_sha256
+    ):
+        violations = [
+            violation for violation in violations
+            if violation.code != "TB002"
+            or (violation.line, violation.symbol) not in contract.ledger_condition2_findings
+        ]
     return sorted(violations)
 
 
@@ -6503,6 +6586,97 @@ def _git_snapshot(repository_root: Path, revision: str) -> dict[str, str]:
     return sources
 
 
+_LEDGER_DEPLOYMENT_ASSETS = (
+    "pitchlog/durable_rights_ledger/business_identity.sql",
+    "pitchlog/durable_rights_ledger/manifest.json",
+    "pitchlog/durable_rights_ledger/schema.sql",
+)
+
+
+def _load_ledger_deployment_assets(value: object) -> tuple[tuple[str, str], ...]:
+    """正式凍結宣言の固定3pathとSHAを読み、任意pathへの拡張を拒否する。"""
+    location = "allowlist.ledger_deployment_assets"
+    assets = _object(value, location)
+    paths = tuple(f"backend/src/{relative}" for relative in _LEDGER_DEPLOYMENT_ASSETS)
+    _strict_keys(assets, frozenset(paths), location)
+    result: list[tuple[str, str]] = []
+    for relative in paths:
+        digest = _string(assets[relative], f"{location}.{relative}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError(f"{location}.{relative}: SHA-256が不正")
+        result.append((relative, digest))
+    return tuple(result)
+
+
+def _validated_ledger_deployment_assets(repository_root: Path, contract: Contract) -> bool:
+    """独立レビュー対象の固定3資産を通常file・実bytes・閉宣言で検査する。
+
+    期待SHAは完全7.7対象の正式宣言を使う。製品manifestの自己申告には委ねない。
+    宣言自体の変更はcheck_repositoryの既存全射影・履歴検査で受理を要求する。
+    未知のpath/bytesは従来のTB000へ戻し、配備の実行権は与えない。
+    """
+    contents: dict[str, bytes] = {}
+    try:
+        # 合成Contractでも宣言形を崩して検査母集団を縮小させない。
+        expected_assets = _load_ledger_deployment_assets(dict(contract.ledger_deployment_assets))
+        if expected_assets != contract.ledger_deployment_assets:
+            return False
+        for relative, expected in expected_assets:
+            path = repository_root / relative
+            for component in (path, *path.parents):
+                if component == repository_root:
+                    break
+                if component.is_symlink():
+                    return False
+            if not path.is_file():
+                return False
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                return False
+            contents[Path(relative).name] = content
+        manifest = json.loads(
+            contents["manifest.json"], object_pairs_hook=_unique_json_object
+        )
+        if type(manifest) is not dict or set(manifest) != {
+            "schema_version", "postgres_version", "schema", "ddl_sha256", "tables",
+            "roles", "functions", "synchronous_peer", "client", "boundaries",
+            "protocol_source", "required_settings", "identity", "timeout_seconds",
+            "witness", "authority",
+        }:
+            return False
+        if (
+            type(manifest["schema_version"]) is not int
+            or manifest["schema_version"] != 1
+            or type(manifest["postgres_version"]) is not int
+            or manifest["postgres_version"] != 170011
+            or manifest["schema"] != "pitchlog_ledger"
+            or manifest["tables"] != ["state", "highwater", "reservations"]
+            or manifest["roles"] != {
+                "owner": "pitchlog_ledger_owner", "app": "pitchlog_ledger_app",
+                "control": "pitchlog_ledger_control", "peer": "pitchlog_ledger_replicator",
+            }
+            or manifest["functions"] != {
+                "identity()": ["app", "control"],
+                "epoch_fence()": ["app"],
+                "reservation(uuid,uuid,uuid,uuid)": ["app"],
+                "reserve(uuid,uuid,uuid,uuid)": ["app"],
+                "claim(uuid,uuid,uuid,uuid)": ["app"],
+                "advance_epoch(bigint)": ["control"],
+                "audit_page(bigint,integer)": ["control"],
+                "reconcile(uuid,uuid,uuid,uuid,bigint,bigint,boolean,boolean,bigint)": ["control"],
+                "confirm_state(bigint,bigint,bigint)": ["control"],
+            }
+            or manifest["ddl_sha256"] != hashlib.sha256(contents["schema.sql"]).hexdigest()
+            or type(manifest["authority"]) is not dict
+            or manifest["authority"].get("business_identity_ddl_sha256")
+            != hashlib.sha256(contents["business_identity.sql"]).hexdigest()
+        ):
+            return False
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    return True
+
+
 def _changed_source_violations(
     repository_root: Path,
     inspection_population: Mapping[str, frozenset[int]],
@@ -6521,9 +6695,23 @@ def _changed_source_violations(
         else _build_reexport_map(baseline_sources)
     )
     violations: list[Violation] = []
-    for relative, lines in sorted(inspection_population.items()):
+    population = dict(inspection_population)
+    adapter = "pitchlog/durable_rights_ledger/adapter.py"
+    if adapter in head_sources or adapter in (baseline_sources or {}):
+        # 全資産削除やPythonだけの変更でも、既存配備面の欠損を見逃さない。
+        for relative in _LEDGER_DEPLOYMENT_ASSETS:
+            population.setdefault(relative, frozenset())
+    deployment_valid: bool | None = None
+    for relative, lines in sorted(population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
+            if relative in _LEDGER_DEPLOYMENT_ASSETS:
+                if deployment_valid is None:
+                    deployment_valid = _validated_ledger_deployment_assets(
+                        repository_root, contract,
+                    )
+                if deployment_valid:
+                    continue
             violations.append(
                 Violation(
                     path=f"backend/src/{relative}",

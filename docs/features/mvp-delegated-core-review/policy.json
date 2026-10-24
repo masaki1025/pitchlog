@@ -46,6 +46,10 @@
     {
       "pr": 181,
       "branch": "feature/mvp-rule-resolver-registration"
+    },
+    {
+      "pr": 182,
+      "branch": "feature/mvp-durable-rights-ledger"
     }
   ]
 }
