@@ -1,7 +1,7 @@
 ---
 feature: mvp-game-start-connection
 status: active
-承認: 未（限定起案・製品編集禁止）
+承認: 済（PO委任によるCodex判断・開始入力の限定単位）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-game-start-connection
@@ -63,3 +63,8 @@ DTOの返却を開始成功receiptとして使わない。成功時の内部値�
 この最初のコード小単位は楽観30〜45分、通常1〜2時間（対象検査/commit込み）。実DBadapterは物理契約と所有固定後、楽観3〜4時間・通常6〜10時間を見込む。開始HTTP/UI/実browserはその後の別小単位で、T1計算は開始準備/初期権adapterの着手条件にしない。守備値・側列・端末資格・暗号鍵の実供給/登録の確定時間は現時点で算定しない。
 
 製品開始・初期名簿・初期記録権・同一transaction・1球保存は未完成。全復元/全設備喪失proof完成も本transportの前提には加えない。準備中作成の実画面成功を、開始・MVP完成へ拡張しない。
+
+
+## 計画レビューとPO委任判断
+
+2026-10-24T01:11:08.323361+00:00、Codex主担当/rootは今回PO4/5/8/10の委任により、対象2b6c694743765ba43dfb926ee68a2fce091eb755（plan0a6db0e81f83c85583d9c19b272e051f931f4d1f65befddb4940916ef5fa55ba/research7085e4be6ed16725070e51618287a4a19652ab73dba5f183824a0de3d4f9f158、標準diff f3473cba203d8d84c74518c81169065f654c3a0795e213a1a5603b85fbcc3ab7）を承認する。新案作成に非関与のresolver_ledger_plan_reviewによる初回全文0/0/0と実4b2/UG1親計画/既存型/core捕捉を照合した。exact5/3fieldのtransport入力境界・既存component正負例のステップ1/1だけを指示し、HTTP/権利/DB/新資格・鍵発行/状態計算へ拡張しない。資格の非露出はSecretStr単独とせず、他fieldが不正な場合のerrors()/json()/strも局所検証する。これは既DoDの具体例であり新しい意味仕様ではない。旧U-G1/U-R1/U-F8の承認・ステップ/レビュー系列、実保存/開始の全条件を保持する。起案時の製品編集禁止は本対象版の限定ステップにだけ解除し、本人の実値確認/逐行確認/署名を代記しない。
