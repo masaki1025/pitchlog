@@ -21,6 +21,7 @@ from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 from pitchlog.authz.product_control_access import (
     RULE_RESOLUTION_FUNCTION_ID,
     RULE_RESOLUTION_OWNER_ROLE_ID,
+    is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
     is_rule_resolution_update_acl,
 )
@@ -449,6 +450,18 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         return f"DROP POLICY IF EXISTS {policy_name} ON {qualified_table};"
     if statement.element_type == "acl_expectation":
+        if element.fields.get("object_kind") == "builtin_function":
+            from pitchlog.authz.product_function_acl import (
+                is_builtin_execute_declaration,
+            )
+
+            if not is_builtin_execute_declaration(element.fields):
+                raise ProductProvisioningError("builtin撤去の宣言がexact集合と不一致")
+            grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
+            return (
+                "REVOKE EXECUTE ON FUNCTION pg_catalog.pg_control_system() "
+                f"FROM {grantee};"
+            )
         table = _qualified_identifier(
             _element_text(element, "object_schema"),
             _element_text(element, "object_id"),
@@ -462,8 +475,13 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         column = _quote_identifier(_element_text(element, "column_id"))
         grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
-        if is_rg1_singleton_update_acl(element.fields) or is_rule_resolution_update_acl(
-            element.fields
+        if (
+            is_rg1_singleton_update_acl(element.fields)
+            or is_rule_resolution_update_acl(element.fields)
+            or (
+                is_rg1_control_column_acl(element.fields)
+                and element.fields.get("column_id") in {"state", "recovery_generation"}
+            )
         ):
             privileges = f"SELECT ({column}), UPDATE ({column})"
         elif element.fields.get("privilege_ids") == ["SELECT"]:

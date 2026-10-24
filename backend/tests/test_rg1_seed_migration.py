@@ -26,7 +26,9 @@ _MIGRATION_PATH = (
 )
 
 
-def _apply_rg1_migration(admin_dsn: str) -> None:
+def _apply_rg1_migration(
+    admin_dsn: str, migration_path: Path = _MIGRATION_PATH, *, downgrade: bool = False
+) -> None:
     """製品候補のupgradeをAlembic操作として実行する。"""
     parts = conninfo_to_dict(admin_dsn)
     username = parts.get("user")
@@ -48,7 +50,7 @@ def _apply_rg1_migration(admin_dsn: str) -> None:
         database=database,
     )
     module_spec = importlib.util.spec_from_file_location(
-        "rg1_seed_migration_candidate", _MIGRATION_PATH
+        "rg1_seed_migration_candidate", migration_path
     )
     assert module_spec is not None and module_spec.loader is not None
     module = importlib.util.module_from_spec(module_spec)
@@ -57,7 +59,10 @@ def _apply_rg1_migration(admin_dsn: str) -> None:
     try:
         with engine.begin() as connection:
             setattr(module, "op", Operations(MigrationContext.configure(connection)))
-            module.upgrade()
+            if downgrade:
+                module.downgrade()
+            else:
+                module.upgrade()
     finally:
         engine.dispose()
 
@@ -117,3 +122,45 @@ def test_rg1_seed_does_not_overwrite_existing_table(
             assert admin.execute(
                 "SELECT singleton_id, state FROM public.rg1_restore_gate"
             ).fetchall() == [(1, "open")]
+
+
+def test_rg1_epoch_migration_preserves_state_and_bound_evidence(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+) -> None:
+    """移行は旧行を補完せず、非正値と束縛済み証拠の除去を拒否する。"""
+    epoch_path = _MIGRATION_PATH.with_name("0035_rg1_initial_fresh_epoch.py")
+    with disposable_postgres_cluster() as cluster:
+        _apply_rg1_migration(cluster.admin_dsn)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute("UPDATE public.rg1_restore_gate SET state = 'open'")
+        _apply_rg1_migration(cluster.admin_dsn, epoch_path)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            assert admin.execute(
+                "SELECT state, recovery_generation FROM public.rg1_restore_gate"
+            ).fetchall() == [("open", None)]
+            assert admin.execute(
+                "SELECT is_nullable, column_default FROM information_schema.columns "
+                "WHERE table_schema = 'public' AND table_name = 'rg1_restore_gate' "
+                "AND column_name = 'recovery_generation'"
+            ).fetchone() == ("YES", None)
+            for invalid in (0, -1):
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    admin.execute(
+                        "UPDATE public.rg1_restore_gate SET recovery_generation = %s",
+                        (invalid,),
+                    )
+        _apply_rg1_migration(cluster.admin_dsn, epoch_path, downgrade=True)
+        _apply_rg1_migration(cluster.admin_dsn, epoch_path)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute(
+                "UPDATE public.rg1_restore_gate SET state = 'closed', "
+                "recovery_generation = 1"
+            )
+        with pytest.raises(ProgrammingError):
+            _apply_rg1_migration(cluster.admin_dsn, epoch_path, downgrade=True)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            assert admin.execute(
+                "SELECT state, recovery_generation FROM public.rg1_restore_gate"
+            ).fetchall() == [("closed", 1)]

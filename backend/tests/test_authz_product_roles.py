@@ -163,7 +163,8 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
         sql = statements_by_role[role_id].sql
         attribute_statement = (
             rf"CREATE ROLE {re.escape(role_id)} WITH\s+([^;]+);"
-            if role_id == "pitchlog_rule_resolution_fn_owner"
+            if role_id
+            in {"pitchlog_rule_resolution_fn_owner", *_LIFECYCLE_ROLE_EXPECTATIONS}
             else rf"ALTER ROLE {re.escape(role_id)} WITH\s+([^;]+);"
         )
         matches = re.findall(
@@ -179,10 +180,15 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
         create_count = len(re.findall(rf"\bCREATE ROLE {re.escape(role_id)};", sql))
         assert create_count == (
             0
-            if role_id in {"pitchlog_owner", "pitchlog_rule_resolution_fn_owner"}
+            if role_id
+            in {
+                "pitchlog_owner",
+                "pitchlog_rule_resolution_fn_owner",
+                *_LIFECYCLE_ROLE_EXPECTATIONS,
+            }
             else 1
         )
-        if role_id != "pitchlog_owner":
+        if role_id not in {"pitchlog_owner", *_LIFECYCLE_ROLE_EXPECTATIONS}:
             assert "END;\n$authz$;" in sql
 
     body_result = _run_checker(_BODY_CHECKER)
@@ -218,6 +224,7 @@ def test_product_state_requires_authn_role_even_when_role_is_missing() -> None:
         "pitchlog_auth_fn_owner",
         "pitchlog_rg1_fn_owner",
         "pitchlog_rule_resolution_fn_owner",
+        *_LIFECYCLE_ROLE_EXPECTATIONS,
     }
     assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
 
@@ -237,7 +244,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 7
+    assert len(expected_product_roles(asset)) == 11
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):
@@ -279,3 +286,81 @@ def test_product_role_assets_contain_no_secrets_or_connection_strings() -> None:
         text = path.read_text(encoding="utf-8")
         assert re.search(r"\bpassword\s*=\s*'[^']+'", text, re.I) is None, path
         assert _CONNECTION_STRING_RE.search(text) is None, path
+
+
+# 旧7の写像を使い回して新4の期待を自己生成せず、固定SQLの7属性を明示する。
+_LIFECYCLE_ROLE_EXPECTATIONS = {
+    "pitchlog_rg1_control_owner": (False, False, False, False, False, False, False),
+    "pitchlog_rg1_control_actor": (False, False, True, False, False, False, False),
+    "pitchlog_ledger_identity_owner": (False, False, False, False, False, False, True),
+    "pitchlog_ledger_identity_probe": (False, False, True, False, False, False, False),
+    "pitchlog_initial_actor": (False, False, True, False, False, False, False),
+    "pitchlog_initial_fn_owner": (False, False, False, False, False, False, False),
+}
+
+
+def _asset_with_lifecycle_roles() -> dict[str, Any]:
+    """正式旧資産/追随済み資産とも同じ有限6subjectを検査入力へする。"""
+    asset = copy.deepcopy(_read_product_asset())
+    existing = {row["role_id"] for row in asset["roles"]}
+    for name, attributes in _LIFECYCLE_ROLE_EXPECTATIONS.items():
+        if name not in existing:
+            asset["roles"].append(
+                {
+                    "role_id": name,
+                    "creation": "product_ddl",
+                    **dict(zip(_ATTRIBUTE_ORDER, attributes, strict=True)),
+                }
+            )
+    return asset
+
+
+def test_lifecycle_roles_keep_old_seven_and_exact_six_sql_subjects() -> None:
+    """独立6主体の全7属性と、外部台帳roleを混入しない13件を照合する。"""
+    current = expected_product_roles({})
+    assert len(current) == 13
+    assert len(set(current) - set(_LIFECYCLE_ROLE_EXPECTATIONS)) == 7
+    assert not {"pitchlog_ledger_owner", "pitchlog_ledger_client"} & set(current)
+    for name, attributes in _LIFECYCLE_ROLE_EXPECTATIONS.items():
+        assert current[name] == {
+            "creation": "product_ddl",
+            **dict(zip(_ATTRIBUTE_ORDER, attributes, strict=True)),
+        }
+    from pitchlog.authz.product_role_contract import expected_provisional_product_roles
+
+    assert set(expected_provisional_product_roles()) == {
+        "pitchlog_owner",
+        "pitchlog_app",
+        "pitchlog_shared_fn_owner",
+        "pitchlog_management_fn_owner",
+    }
+
+
+@pytest.mark.parametrize("role", tuple(_LIFECYCLE_ROLE_EXPECTATIONS))
+@pytest.mark.parametrize("attribute", _ATTRIBUTE_ORDER)
+def test_each_lifecycle_role_attribute_flip_is_rejected(
+    role: str, attribute: str
+) -> None:
+    """資産側の1bit反転だけでは独立の意味契約を変更できない。"""
+    asset = _asset_with_lifecycle_roles()
+    row = next(row for row in asset["roles"] if row["role_id"] == role)
+    row[attribute] = not row[attribute]
+    with pytest.raises(_catalog_checker.CatalogError, match=role):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("role", tuple(_LIFECYCLE_ROLE_EXPECTATIONS))
+def test_each_lifecycle_role_membership_is_rejected(role: str) -> None:
+    """追加のLOGIN/NOLOGIN主体にもmembership0を継続する。"""
+    asset = _asset_with_lifecycle_roles()
+    asset["membership_edges"] = [
+        {
+            "role_id": role,
+            "member_id": "pitchlog_app",
+            "admin_option": False,
+            "set_option": True,
+            "inherit_option": False,
+        }
+    ]
+    with pytest.raises(_catalog_checker.CatalogError, match="membership"):
+        _validate_product_asset(asset)

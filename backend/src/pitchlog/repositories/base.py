@@ -517,7 +517,7 @@ class TenantRepositoryBase(ABC):
                     )
                 preflight.validate(tuple(checked_results))
             execution_result = self._session.execute(
-                statement,
+                statement.execution_options(preserve_rowcount=True),
                 parameters,
             )
             return _materialize_execution_result(statement, execution_result)

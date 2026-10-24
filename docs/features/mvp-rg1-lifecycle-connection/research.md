@@ -1,0 +1,137 @@
+# RG1製品成功の接合メモ
+
+2026-10-24、rootの担当引受。base547d199eの製品2関数はstateを読んだ後常にfalseを返す。作成65598dadのservices/game_creation.pyはread_rg1_open(scope)で停止し、POST /gamesはscope外で503へ変換する。ここにD4/V12/台帳・初期権の依存呼出しはない。必要な供給は安全なRG1成功/制限制御経路であって、記録開始・全台帳故障検査ではない。
+
+台帳作者creation_pathはidentity専用observerの維持、別能力の実closeProof照合、close commit後からauthority INTENT→同期PG→CONFIRMEDまで再openを防ぐ実lease保持を必要境界として提示。通常enroll/startupだけで自動openしない。rootが新sourceをこのworktreeへ分離し、既存authority packageの同時編集は行わない。現在はplan/researchだけでsource・正式資産未変更。
+
+実business identityはsystem_id/databaseだけでなくpostmaster started_atも束縛する。台帳作者の追加確認: business postmaster変更は同systemの古いbackupとの識別ができないため、別の実close/drain proofを受理するまで停止する。ledger pair/daemonの正常再起動照合と混同しない。現source未追加・plan独立確認前。
+
+
+## ステップ1：新3sourceの先行宣言
+
+実JSON/全guard function・class ASTは正式base547と同一。追加層を新3source×sync/recording/tenantへ回転し、旧initial2pathの定数・登録/拒否履歴を保持。旧初期付与の歴史的試験は同じ当時の宣言を明示したCLI/照合器で検査する。既存SCRIPT monkeypatchの挙動も保持する。旧登録の末尾固定は後続が増えるため、旧blockの位置/順序と全JSON差分の完全照合へ分けた。
+
+初回全coreは398成功/10失敗/1error/212.75秒。9件は既存git/subprocess30秒timeoutで、T1候補のcore同時実行も全体遅延していた。2件は本root追随の実不具合（合成repo内へのimport pyc混入、default引数がSCRIPT monkeypatchを固定）として修正。タイムアウトは伸ばさず、一時ファイル/宣言CLIの対象だけ是正した。新/影響54件の直列検査54成功/6.51秒後、専用tmp/2workerの最終core全件409成功/26.84秒。Ruff/ty成功、guard関数/拒否変更0、実JSON/source製品追加0。原失敗と最終結果はcache/rg1-lifecycle-connection/core-step1*.logへ保持する。
+
+
+## ステップ2：別JSON登録
+
+先行05631c1c/標準diff66c131c0は非作者resolverが0/0/0、独立56成功/7.01秒と追加4拒否変異を確認。rootは承認済み順で6c338328へJSON1fileだけを別commitし、新3sourceを三領域へ完全追記。旧paths/順序/guard/metadata保持、製品sourceはまだ不存在。実547→6c338の履歴検査は547を返し、追加後全core409成功/28.16秒。
+
+その後、正式175がa10bcd5eへ通常統合された。現branchは当時の547固定であり、次の製品候補化前に新正式基線を通常mergeしてAPI read登録/受理履歴を保持し、追加層を回転する。新しい意味の承認を繰返さず、変化した値と接合だけを再確認する。
+
+
+## ステップ3最初の固定候補
+
+実Unix clientと制御SQL7関数を追加。clientはroot管理config/inode、kernel peer UID、有限frame・閉じた型、同DB四要素とscopeの同一channel生存を要求する。未設定は常閉。SQLは専用actor/owner、controller key1/open key2、同DB/同PID/actorの実lockを要求し、未確定closeをopen/release証拠にしない。SQL単位19成功、client単位39成功/2.35秒。これはtransport/SQL構造の候補であり、実fresh API、controller本体、scope保持、実PG ACL/競合、実UI新規201はまだ未提供・未検証。旧open行を安全成功へ読み替えない。
+
+
+## 同scopeの実借用・確定順候補
+
+正式175/a10を通常mergeした1e8f9f12で3core競合を旧全pathsと新RG1層の完全和に解消。初回408成功/2失敗はpreparingの旧宣言末尾を現在宣言と誤比較したfixtureで、当時の宣言へ固定して410成功/25.83秒。非作者rightsは全31guard関数/classの本文・AST不変と実a10履歴predicateを独立確認し0/0/0、局所62成功/7.15秒。証拠review-rg1-main-core-1e8f9f12-evidence.json SHA f4965633bc7b63f5294a3de44e915a6821aaddcd4b80029c5617b2e2b8c960da。拒否・タイムアウト・旧レビュー系列を保持する。
+
+既存RG1の2token/2factory署名を保持し、固定scope_bindingだけを追加。実scopeは同じSessionの固定観測を使ってborrowし、commit直前に既存FOR SHARE NOWAITと実peer生存を再照合する。scope終了ではPGのcommit/rollback/closeの後に借用を解放し、結果不明を正常201へ補完しない。通常read/authは借用しない。初回59成功/1失敗は旧exact2登録の期待追随不足で、新しい1読取だけを追加し旧bool2関数のexact期待/拒否を保持した。client/SQL/登録67成功/1.26秒、Ruff/対象ty成功。6件のscope順序probeは正常/本文失敗/生存喪失/commit不明/release不明/read無借用を確認する単体検査であり、実authorityや実DBの安全成功には数えない。
+
+controller daemon/fresh供給・実DBとscopeの接合・app startup設定・正式認可/tenant metadata/7.3/7.7は未実装または未接続。正式登録が未受理の候補を正式成功にしない。画面で新規作成した試合の201/GET/reload証拠はまだない。
+
+
+## controller候補・実SQL接合と結果不明是正
+
+56b8の非作者rights全文はP0=0/P1=2/P2=0。PG commit/rollback/close例外でも通常releaseする問題と、test_function_operations_boundaryの旧2ID期待残りを実再現した。証拠review-rg1-client-56b8f654-evidence.json SHAd813ce95f013a18a824ec6cbd34045874936e89bfbf11639e7c5ae0c72f3d4c9を保持する。PG終結例外は新abandonで同channelをACKなし切断し、controller側の未終端・閉鎖へつなぐ。本文失敗でもrollback/closeが確認できた場合だけ通常release可。commit/rollback/close不明3経路とEOF検査を追加し、新1登録だけのexpectationを追随、既存2登録/DMLは保持した。後発非作者再確認は別条件として残る。
+
+controller候補はroot保護の非秘密configからsocketをbindし、専用UID/空補助group/NoNewPrivsへ降格、実business Unix peerのserver UIDとactor session/current_userを照合する。同じPG sessionで排他lease/close commit/実識別を取得し、固定製品packageのDurableLedger(endpoint).fresh_activation()が実供給する8fieldとlive fenceだけを照合してopenする。app borrowはkernel UID・同channel・同DB識別に束縛し、継続中のfence/PG lease喪失や未終端を停止へ写す。既存socketのunlink・自動再fresh・globalcloseProof/epoch/nonzero restoreは提供しない。実supplier未供給をfakeで補完しない。API startupはrootclient設定未配置ならreadを維持して書込常閉、内部制御/PG不明はscope終結後に固定503で非漏洩。機械manifestは候補宣言で正式登録の代用ではない。
+
+同じSQL SHA8b8b36e9ea97bf2f22c0f6c9dcdc44e692e0d56d6bd38dd8a19ce1e157a26f99を実正式S3/実PG peerへ適用し、専用1シナリオ13.98秒成功。appの制御6関数/DML/membership/TEMP拒否、実binding、旧open/app偽同key/別PID/別DBの拒否、再入lockcount、未commitcloseからのopen/release/read拒否、実共有lock排出、server再起動後のstoredopenとlease消滅を確認した。旧read2の常falseを保持し、これを実freshや新規201と混同しない。途中のport再取得/psql行protocol2失敗はsourceを変えずtest transport是正。全所有container回収済み。
+
+初回SQL試験は共通autouseが既存admin接続を使用し、試験placeholder role unusedのCREATE後にrole接続失敗、finallyのDROPまで例外なく実行した。隔離境界違反として原setup1error/0call/0.70秒を保持する。削除の直接catalog証明は追加照会禁止により未取得で、source/finally完遂による確認である。以後test processの既存ADMIN/ROLE DSN環境を除去し、局所autouseは所有S3の実admin/app/actor認証を全て検証する。既存DBへの追照会/追加適用なし。非作者側の別DBファイル誤指定は未markの専用disposable経路だけで既存admin経路に入らず、exit130/51成功1失敗を保持、自前container残存0。markerだけに頼らず通常検査を実非DBファイルへ限定する。
+
+最終局所149成功/1.30秒（6実非DBfile）、Ruff/対象ty成功。新controllerの実fresh接合、起動後の実scope/正常201/画面reload、正式authz/tenant生成・正本7.3/完全7.7/最終独立/全CIは未成立。source固定後に隔離組立へ進み、候補成功と正式develop成功を分ける。
+
+
+## data-model1.2の限定確定ゲート（開始）
+
+対象はdata-model3-2のRG1制御2主体/同Session読取/安全な成功条件とロール数参照だけ。固定直前HEAD91e90cf15abbb253f4915a2f7acb3274784965a4のdata-model1.1を改訂基線とし、初回敵対レビュー適用条文はapprovedハーネス1.19、条文コミット91e90cf15abbb253f4915a2f7acb3274784965a4（同時in-review化の第一親、暫定）。初回開始時に版を照合し固定する。finalize-doc手順を使い、今回PO指示4/5の独立subagent・委任承認代替を適用、一般規約/検出/対象paths/拒否条件を変えない。基本枠/起因/採否/(B)送り/反映周を既存7.3どおり保持し、人間本人の確認/署名を代記しない。初回全文レビューと採否はこれからであり、approvedではない。
+
+91e90最終限定非作者0の証拠review-rg1-controller-e280fd18-91e90cf1-evidence.json SHAb2f888ab216ac8c2d290a26e15f5eafafd14c6b71b246eb045c182cc24ec9aebを受領。別の固定隔離候補69836e33ではcsv_reviewがactualsupplierc07→rootbind/20002降格listen→実app20003 PG peer/binding→borrow/held/3.2秒idle保持/release→再borrow/abandon→PGclosed/lease消滅/保護journal未終端拒否まで1成功48.59秒で確認した。sourceは供給2候補のbyteを保持し、fakeauthority/常trueを使わず、全所有資源回収済み。test/supportは隔離枝だけ、正式受理/HTTP201/画面成功ではない。
+
+
+### 正本ゲート第1回の採否・反映1周目
+
+9038全文/基本2回枠の第1回はP0=0/P1=1/P2=1、否決。非作者rightsの証拠review-rg1-data-model-9038cba8-evidence.json SHAa53ce2facfc763f64d60306a0a7a362854aabde03e363787cf3a7e5e239a62daを受領、適用approved1.19/91e90条文は受付時同一。P1・起因・(-): data-model1.2履歴行の『実装時に確定する範囲』欠落を採用し、有限DDL/適用撤去/認可tenant生成/正式7.7値/実DB HTTP検証を既存step3/4で具体化する境界を履歴行へ追記した。7.3-7の条文/当該行の典拠を照合し、plan参照で代替しない。P2・非起因・(-): 3-2の規則解決owner2行重複を採用し、既採用の明示列grant/ロック/owner隔離/本文DML禁止/GUC限界を持つ行を残して重複1行を整理した。新意味や権限を追加せず、(B)送り/不採用/未終結は0件。採用反映を伴うのでcounter0→1、反映1周目とする。次は本反映差分+影響節の第2回を同適用版で実施する。付随read2コードの独立0/0/0と非DB22成功/2.28秒は正本の否決と別に保持し、正式201/7.7へ転写しない。
+
+
+### 正本ゲート第2回・PO委任による確定
+
+da78a862/差分8714419cの第2回（反映差分+影響節、基本2回枠）は可決0/0/0。前P1/P2は採用反映で双方解消、未終結/不採用/B送り0。非作者rights証拠review-rg1-data-model-da78a862-round2-evidence.json SHA6813167e3f0733a986c5a3b9dc77fa05abf45f02a7f5df74f1a7da3d0a44f7e3。適用harness1.19/91e90を最後まで保持し、反映回数1を増やさない。
+
+2026-10-23T22:36:26.379898+00:00、PO委任によるCodex主担当/root判断。対象da78a862の最終反映差分/採否/既採用列grant保持/actor分離/同scope実保持/未供給fail-closedを確認し、今回PO4/5の委任範囲でdata-model1.2を確定する。旧正本/既決意味の再裁定や本人署名の代行はない。approved反映後の正本SHAa8dbd05c75957a9d4c8ca48018c84ffab09621cabef6a4298cc60f071b9c6126、索引は現行1.2/2026-10-24へ追随し旧全履歴を保持。正式role/function/tenant生成と完全7.7/CI/正常201は別条件で未達、正本確定だけで製品完成を主張しない。
+
+
+## 正常INSERTの件数保持是正候補
+
+隔離API接合は実login200/実Cookie/C2/realfresh RG1を通過した後、新大会INSERTの_materialize_execution_result戻りが整数-1であることを非改変のreturn観測で実測（1failed/35.71秒、SQL例外0、PG内取引はoutcome_unconfirmedとしてrollback）。ロック済みSQLAlchemy engine/cursor.py2110〜2145とdefault.py1853〜1854の一次実装から、INSERTのcursor件数をclose前に保持するpreserve_rowcount option不足と一致した。
+
+rootは通常不具合是正として、単発基底とtenant scopeの実行で、検証済みstatementのSQL/bind/lock/表identityを保つcloneへpreserve_rowcount=Trueだけを指定した。_materialize_execution_resultとサービスのexact1要求/不明・0・複数拒否は変更0。0/-1/1/2を補正せず保持し、None/bool/float/stringをint成功へ変換しない8負例を既存roster境界へ追加。影響非DB208成功/2.36秒、Ruff/対象ty成功。実API正常201での回帰と非作者コード確認はsource固定後の別条件で、現時点は未実証。C1/D5/認可/RLS/正式metadata/免除を緩めず、SQLをINSERT成功へ置き換えない。
+
+
+## ledger固定27d0との候補接合（正式develop提供前）
+
+CI待ちにも独立接合を進めるPO指示により、5ee75156から台帳固定27d0ceb22b72a29259e06ef5cd5b4e874b384100を通常mergeする。台帳PR182は最終非作者0/公開委任/strictcoreとtenant PR受理成功の後、CI harnessの全source hash scanに未配置5literalが検出されており、正式統合前の供給候補である。旧core/台帳/P6/本人署名を成功へ読み替えず、正式統合後の実基線へ後追随する。
+
+8競合を限定解消した。全core領域属性/guard_paths/ledger全旧pathsを保持し末尾に既宣言RG1 exact3path、全31guard判定関数/class ASTは両親と完全一致。function operationはRG1固定3＋正式resolver1のexact和集合で、全4登録ASTが各供給元と一致する。関連backend127成功/0.83秒。最初の手作業でFunctionOperationSpecという実在しない識別子を差し込みRuffで検出し、実FunctionOperationRegistrationへ是正した。試験commandには未導入backend xdistの-nを誤指定してusage exit4、実在2testpath/引数へ是正して成功。これらを製品の意味不具合/旧成功へ置換しない。
+
+core試験の編集所有は開始物理案作成を終えたstart_physical_connectionへ1pathだけ明示移管し、rootはその間書込0。同agentは両親の全138 test関数を保持、歴史的ledger宣言は固定Git27d0 sourceで検査、現在追加層はRG1として分離した。後続suffixは空/全exactRG1だけを受理し片側/未知/並替/余剰を拒否する7caseを追加。最終453成功17.19秒、Ruff/ty成功、実test SHA b8efdd30d0d533ea1100355819e170998c1679be340fd0d92c0f5a2c9017003d。初回442成功4失敗はloader defaultが定義時SCRIPTを保持し現行sourceを読む歴史fixture不一致、明示固定loaderへ是正した。中間script構文失敗/誤再実行も作者証拠へ保持。証拠cache/reviews/rg1-ledger-core-union-27d0/evidence.json SHA166c6182c26311ef64446822493d894832a3d03b4c362761fea16435dd86374a。作者検査を新非作者全体レビューへ数えない。
+
+正本は旧RG1枝内1.2/台帳1.2の承認・反映周・歴史を両方保持して本文を接合し、本候補のRG1内容を1.3へ形式再採番するin-review候補へ置いた。同一内容の再裁定ではなく基線接合の影響確認を後続で行う。新規認可全数はまだ旧profileのままで、新2+2主体/既知4delta/8関数/2schema/2固定資産の正式追随は次の既承認step3小単位としてrootが単独適用する。全体の正式7.7/新PR最終確認/必須CI/通常mergeは未成立。
+
+
+## RG1固定role/function登録のsource候補
+
+2026-10-24T05:06:46.867004+00:00、base189ebfa3に対するsource11path、標準diff SHA256 874dd34a26ff92b538395565591614de7237badce51edb768c34546af228c335 を保全。作者start_physical_connectionのhandoff /home/ymdms/.cache/pitchlog/reviews/rg1-authz-source-189ebfa3/handoff.json（SHA256 4821eddd5bf9765568d0dee4f300e72e3e7fa121b62e4a1a481f818431b76d9f）を全owned bytesと照合した。既7roleを保持し制御owner/actor・観測owner/probeの4roleと固定8関数/2builtin EXECUTEの検査・生成を追加。局所68成功、旧23 SQL定数保持。正式assetsは未反映のため旧7role profileのcatalog失敗を成功扱いしない。別cache候補26変更pathは未受理、実DB0、独立レビュー未実施。このcommitはsource固定であり製品提供・正常開始・初期記録権・7.7の成立ではない。
+
+
+## 台帳供給の履歴参照を全走査へ整合
+
+2026-10-24T05:22:44.762372+00:00、rootはtests/test_core_guard.pyの未統合台帳供給40hex直書きを除き、実RG1第一親系譜で台帳が初供給された通常mergeの第2親から当時のblobを導出するようにした。第一親にRG1あり/台帳なし、第2親に台帳あり/RG1なし、merge後両sourceあり、一意性を要求し、現値同士/branch可変ポインタから歴史guardを作らない。実導出供給は27d0ceb22b72a29259e06ef5cd5b4e874b384100、初供給merge a74542a4a3c1b3ea280a550a76a7a1a6a9bba5dd。global allowlist/走査/コア判定31本文は不変。root全core検査453成功32.85s（/home/ymdms/.cache/pitchlog/rg1-core-supplier-history-89ebdce2.log）、Ruff行長1件の改行のみ是正・ty0。新source11pathの独立レビュー89ebdce2は別系列でP1一件、後発修正をこの供給参照の確認と混同しない。
+
+
+## RG1新観測ownerの権限拡張拒否（独立P1反映）
+
+2026-10-24T05:23:35.585189+00:00、非作者initial_scope_plan_reviewの固定89ebdce2レビューP0=0/P1=1/P2=0を受領し全採用。証拠 /home/ymdms/.cache/pitchlog/reviews/rg1-authz-89ebdce2-independent/evidence.json（SHA256 9bcbcb4d1d16f24f38e3ab33971a742c77c601216e7b1c28c57a8c5f2849f4d5）。新identity_ownerへgeneric経路で業務表DELETE/秘密列SELECTを追加できる未閉鎖を是正し、表ACL共通拒否/列ACL生成境界で新観測主体の業務権限0を閉じた。制御ownerの列権限は既固定2列だけ、actor/probeも新業務ACLを生成しない。旧generic owner/既builtin2EXECUTE/既23SQL/26asset候補byteは不変。新否定例8件/表拒否4件を追加し、関連新旧84成功121非対象0.55s・局所17成功38非対象0.09s・Ruff/ty0。最初の準備コマンドはbackend cwdへroot相対pathを渡してFileNotFoundで編集前失敗し、その後の旧選択実行を新反映成功に数えなかった。正しいrootで編集後の上記別ログだけを証拠とする。限定再レビュー前でありP1終結はまだ宣言しない。実DB0/正式profile未反映/全体CLI redを保持する。
+
+
+## 独立ACL P1終結と別core P1の反映
+
+2026-10-24T05:34:15.157527+00:00、ACL反映1ac7057fは非作者第2回相当0/0/0で初回P1終結（/home/ymdms/.cache/pitchlog/reviews/rg1-authz-1ac7057f-independent/acl-evidence.json SHA25646a3803503f305847cebdea74121b40055c4b2fde7a05363559dfb8c777dd600）。旧generic35 SQL/既builtin2EXECUTE保持、84成功、DB0。
+
+別通常coreレビューのRG1-CORE-SUPPLY-01 P1は採用（core-guard-evidence.json SHA2560cbe2bbe643ba1f40c56a6fd1f0c76d4c467736fc57c1e29ebba8634c7ce09cf）。first-parentがmain通常merge後に初供給mergeを見失う実合成反例に対し、rootは全祖先の実mergeへ探索を広げ、同じ厳密source predicateを保持して供給第2親集合の一意性を要求した。通常merge/cache_clear・候補0・merge後source欠落・異supplier複数を4ケースで確認。初回453成功/新4失敗は合成repo初期commit前のHEAD参照、次3成功/欠落1失敗はmerge stage新fileのgit rm保護であり、局所fixtureのみ修正。最終新4成功0.75s（rg1-core-supplier-all-ancestors-final.log）、旧453は全探索sourceで先行成功。Ruff/ty0。31guard本文/allowlist/基線を変えず、core系列の独立再確認は未実施。
+
+
+2026-10-24T06:27:27.713575+00:00、初期scope/9SQLの独立静的確認が進んだため、既606のactor/fresh epoch供給を本plan末尾へ有限具体化した。現在は計画追補の固定だけでsourceは87a81126と同じ。初期4表の未適用migration候補とgate先行列の依存を分け、先行2role+gate列は本RG1へ、実初期9API/4表/Generation2列は初期scopeへ残す案。現mainのmigration34・既DB適用0を再照合してから番号を確定する。新意味の採用や人間の実値確認ではなく、既委任内の技術写像として非作者確認へ出す。
+
+
+2026-10-24T06:45:58.847900+00:00、rootはc58f83beの初期actor/fresh供給最小追補を既606の写像として委任確認。新規非作者rg1_actor_supply_reviewは計画/供給順とcache2patchのsource安全性を別系列で0/0/0（evidence SHA2568eb006ccdd0395f48ed22a85be7b242fc2045c8d619551fc65ff298c0976de1d、report90458eb00bb0df1aabe1ccbbebe02062ebc66cd802d2f5e9ff1c0c8ea017aeef）。正式develop d40e79f8を20c2bc9eで通常mergeし、影響のないprovider sourceは87aと同byte、旧182受理/216snapshotを保全する。runtime/SQL2pathとshared-sourceのbackend3pathだけを適用し、contracts/authzの3正式SQLは未適用。rootは既606の2roleを先行最小属性でsource宣言へ追加、正式profileは旧値のためまだ未受理/red。次にgate列先行migration/role期待値/局所検査と独立差分確認を行う。役割/移行の新実装はこのcache非作者確認だけで実証済みにしない。PG0、正常actor/grant/HTTP/初球は未達を維持。
+
+
+2026-10-24T06:49:55.742838+00:00、上記backend5pathと2role宣言を途中sourceとして固定。最初のRuffはroot cwdにbackend相対pathを与えて開始前E902、正しいbackend cwdで検査するとcache候補由来E501が5行、整形後1行を検出した。literal/コメントの改行とpostmaster ISO値の同値local変数化だけを行い、最終Ruff/tyは4Python全成功。SQL2/manifestの実PG・新unit検査・role/migration実装の非作者確認は未実施で、このcheckpointをstep3成功や正式供給に数えない。profileは未受理旧値のまま、rootだけが役割/列先行と正式asset/完全値を続ける。
+
+
+## 初期供給sourceの検査接合とepoch ACL生成是正
+
+2026-10-24T07:03:41.000414+00:00、b399のRG1局所は65成功/4失敗0.75s。旧7control関数/単一app GRANT/旧2列の検査期待を、既承認の初回setter1/actor scope read/epoch列へexact追随した。SQL抽出はCREATE/CREATE OR REPLACEを同じSECDEF固定path文法として全8control関数に対して閉じ、旧6controlの検査を保持、新setterはclosed/NULL/E1/実actorと同PID/DB key1/未割当XID/rowcount1を検査する。単一宛先しか認識しなかったGRANT parserは固定複数宛先を列挙してexact集合と重複を比較し、未認識GRANT総数も15へ厳密一致。再検査70成功0.96s。
+
+正式生成へ向けたroot probeで、epoch列の有限宣言は受理する一方SQL生成がUPDATE対象にstateだけを列挙しており拒否する不一致を発見（rg1-epoch-acl-integration-defect.json）。exact epochのUPDATE生成を既有限predicateの内側に追加し、権限を他列/role/関数へ広げない。追加負例は当初grant_option=0をdict等値がFalseと同一視して受理する問題も検出（16成功/1失敗）。共通入口でis Falseを要求して新epochを含む厳密boolを保ち、最終17成功45非対象0.06s。Ruff/ty0。source統合段階の新不一致として全採用し、独立確認前に解消済みとは称さない。旧2列/observer業務権限0の拒否も同じ選択検査で保持。
+
+初期2roleのsource宣言を既4roleと合わせた6subjectへrole検査fixtureを追随し、旧7基線/全7属性/4provisional/外部台帳role非混入・属性1bit/全membership拒否を維持する。role/migration/正式生成/DBはまだ未完了で、単体成功を正常初期権へ拡大しない。
+
+
+## 初回epoch列の先行供給・隔離DB検査
+
+2026-10-24T07:20:04.416010+00:00、rootはc58計画・非作者確認と606§6.2に従い、gateのnullable正bigint列のみを先行0035へ配置した。migration glob/recording_rights model globは既core境界に含まれ、旧履歴やglobal allowlistを変更していない。旧stateは不変・default/backfillなし。downgradeは表lock下で束縛済み世代の除去を拒否し、既証拠を落とさない。ORMは同列を条件付き更新として宣言。初期scopeは後続0036へ通常接合し、Generation2列/4表/9API所有を維持する。
+
+隔離使い捨てPostgreSQLで既0032 seedと新0035実upgrade/downgradeを実行し、3成功8.25s（/home/ymdms/.cache/pitchlog/rg1-epoch-migration-real-pg.log）。旧open行がopen/NULLのまま、nullable/defaultなし、0/負値拒否、未束縛時のみ巻戻し可能、E1束縛後は巻戻し拒否・closed/E1保持を実証。共有pitchlog-db-1へ接続せずfixture所有DBだけを使用。Ruff/tyは3path全成功。これはmigration列保持の実DB結果であり、controller fresh/bind/open/actor借用/初期grant/開始HTTPの正常系は未実証。正式schema/profile/7.7を飛ばさず、固定HEAD非作者確認を次に実施する。
+
+
+## 初期供給の独立P1とACL撤去の反映
+
+2026-10-24T07:23:09.411702+00:00、544c0c69への非作者確認はP0=0/P1=1/P2=0で否決。evidence e9fbe17c05ddc82982b30613e6404e06d67ab8a85f4cd0e341ad0035a5bdbc16、報告 /home/ymdms/.cache/pitchlog/reviews/rg1-initial-prerequisite-544c0c69-independent/review.md。旧ACL/core P1系列とは別に、新epochの正規SELECT+UPDATEをunapplyがstateだけの条件で拒否する不一致を検出、全採用した。rootは既exact ACL predicate内の撤去対象をstate/epochへ揃え、他role/function/column/privilege/整数boolを拒否する6負例と完全REVOKE文1正例を追加した。局所26成功43非対象0.15s、Ruff/ty0。正式生成/7.7/実controller/grantはまだ未成立、独立再確認前にP1終結とは記録しない。

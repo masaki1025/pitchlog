@@ -73,15 +73,27 @@ PREPARING_READ_PATH_ADDITIONS = (
     "backend/src/pitchlog/services/game_creation.py",
     "backend/tests/test_game_preparing*.py",
 )
+DURABLE_LEDGER_PATH_ADDITIONS = (
+    "backend/src/pitchlog/durable_rights_ledger/*",
+    "backend/tests/test_durable_rights_ledger_contract.py",
+)
+DURABLE_LEDGER_FIXTURE_ADDITION = (
+    "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+)
+RG1_LIFECYCLE_PATH_ADDITIONS = (
+    'backend/src/pitchlog/recording_rights/rg1_lifecycle.py',
+    'backend/src/pitchlog/recording_rights/rg1_lifecycle.sql',
+    'backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json',
+)
 INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS = (
     "backend/src/pitchlog/repositories/initial_recording_right.py",
     "backend/src/pitchlog/repositories/function_operations.py",
     "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
 )
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
-    "recording-rights": INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
-    "tenant-isolation": INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+    'sync-protocol': INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+    'recording-rights': INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+    'tenant-isolation': INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"

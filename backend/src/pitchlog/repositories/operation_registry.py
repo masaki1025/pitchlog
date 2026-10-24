@@ -15,7 +15,9 @@ from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.rg1 import (
     RG1CommitCheckToken,
     RG1PrecheckToken,
+    RG1ScopeBindingToken,
     _build_rg1_read_statement,
+    _build_rg1_scope_binding_statement,
     _decode_rg1_result,
 )
 from pitchlog.repositories.roster import ROSTER_OPERATIONS
@@ -36,7 +38,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *TENANT_PROFILE_OPERATIONS,
 )
 
-# RG1の固定読取2件と段階Aの固定読取1件を登録する。
+# RG1固定2照合・同Session識別1件と、正式段階A読取1件だけを登録する。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     FunctionOperationRegistration(
         operation_id="RG1:precheck",
@@ -58,6 +60,18 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         statement=_build_rg1_read_statement("commit_check"),
         input_fields=(),
         result_fields=(("is_open", bool),),
+        min_rows=1,
+        max_rows=1,
+        decoder=_decode_rg1_result,
+    ),
+    FunctionOperationRegistration(
+        operation_id="RG1:scope_binding",
+        token_type=RG1ScopeBindingToken,
+        capability_id="CAP:rg1:scope_binding",
+        function_id="rg1_control.scope_binding",
+        statement=_build_rg1_scope_binding_statement(),
+        input_fields=(),
+        result_fields=(("binding", str),),
         min_rows=1,
         max_rows=1,
         decoder=_decode_rg1_result,

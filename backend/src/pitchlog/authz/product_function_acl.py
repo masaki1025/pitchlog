@@ -143,3 +143,145 @@ def generate_product_function_acl_sql(
             for role in execute_grantees
         )
     )
+
+
+BUILTIN_EXECUTE_GRANTEES = frozenset(
+    {
+        "pitchlog_rg1_control_owner",
+        "pitchlog_ledger_identity_owner",
+    }
+)
+
+
+def build_builtin_execute_declaration(grantee: str) -> dict[str, object]:
+    """pg_control_system引数無しへの追加明示EXECUTEだけを宣言する。"""
+    if grantee not in BUILTIN_EXECUTE_GRANTEES:
+        raise ValueError("builtinの追加EXECUTE主体が閉集合にない")
+    return {
+        "acl_id": f"ACL:pg_catalog:pg_control_system():{grantee}",
+        "object_kind": "builtin_function",
+        "object_schema": "pg_catalog",
+        "object_id": "pg_control_system",
+        "profile": "additional_builtin_execute",
+        "grantee_role_id": grantee,
+        "privilege_ids": ["EXECUTE"],
+        "grant_option": False,
+    }
+
+
+def is_builtin_execute_declaration(declaration: dict[str, object]) -> bool:
+    """署名/主体/全8fieldを独立の有限宣言へ照合する。"""
+    grantee = declaration.get("grantee_role_id")
+    return (
+        declaration.get("grant_option") is False
+        and isinstance(grantee, str)
+        and grantee in BUILTIN_EXECUTE_GRANTEES
+        and (declaration == build_builtin_execute_declaration(grantee))
+    )
+
+
+def generate_builtin_execute_sql(declaration: dict[str, object]) -> str:
+    """PUBLICやbuiltin所有者を変更せず追加grant1件だけを生成する。"""
+    if not is_builtin_execute_declaration(declaration):
+        raise ValueError("builtinの追加EXECUTE宣言がexact集合と一致しない")
+    grantee = str(declaration["grantee_role_id"])
+    return (
+        "-- ELEMENT-TYPE: acl_expectation\n"
+        f"-- ELEMENT-ID: {declaration['acl_id']}\n\n"
+        "GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_system() "
+        f"TO {grantee};\n"
+    )
+
+
+def build_lifecycle_function_declarations() -> dict[str, dict[str, object]]:
+    """固定source由来のcontrol7と業務identity1の属性/EXECUTEを閉じる。"""
+    signatures = (
+        ("try_controller_lease", "boolean", ("pitchlog_rg1_control_actor",)),
+        ("release_controller_lease", "boolean", ("pitchlog_rg1_control_actor",)),
+        ("close_gate", "boolean", ("pitchlog_rg1_control_actor",)),
+        ("open_fresh_gate", "boolean", ("pitchlog_rg1_control_actor",)),
+        ("bind_initial_fresh_epoch", "boolean", ("pitchlog_rg1_control_actor",)),
+        (
+            "controller_lease_alive",
+            "boolean",
+            (
+                "pitchlog_rg1_control_actor",
+                "pitchlog_rg1_fn_owner",
+            ),
+        ),
+        ("read_closed_gate", "jsonb", ("pitchlog_rg1_control_actor",)),
+        ("scope_binding", "text", ("pitchlog_app", "pitchlog_initial_actor")),
+        ("identity", "jsonb", ("pitchlog_ledger_identity_probe",)),
+    )
+    result: dict[str, dict[str, object]] = {}
+    for name, returns, grantees in signatures:
+        identity = name == "identity"
+        schema = "pitchlog_ledger_observer" if identity else "rg1_control"
+        owner = (
+            "pitchlog_ledger_identity_owner"
+            if identity
+            else "pitchlog_rg1_control_owner"
+        )
+        args = ({"scope_binding": "uuid", "bind_initial_fresh_epoch": "bigint"}).get(
+            name, ""
+        )
+        function_id = f"FUNCTION:{schema}:{name}({args})"
+        result[function_id] = {
+            "function_id": function_id,
+            "schema_name": schema,
+            "function_name": name,
+            "identity_args": args,
+            "function_kind": "definer",
+            "owner_role_id": owner,
+            "language": "sql" if identity else "plpgsql",
+            "returns": returns,
+            "security_mode": "definer",
+            "volatility": "volatile",
+            "search_path": ["pg_catalog", "pg_temp"],
+            "acl_expectations": [
+                {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+                for role in grantees
+            ],
+            "revoked_acl_expectations": [
+                {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False},
+            ],
+        }
+    return result
+
+
+def generate_lifecycle_function_sql(function_id: str, root: Path) -> str:
+    """既固定SQLのCREATE本文をそのまま配置し、第2の判定本文を作らない。"""
+    declarations = build_lifecycle_function_declarations()
+    if function_id not in declarations:
+        raise ValueError("固定ライフサイクル関数の集合外")
+    row = declarations[function_id]
+    schema, name = str(row["schema_name"]), str(row["function_name"])
+    path = (
+        "backend/src/pitchlog/durable_rights_ledger/business_identity.sql"
+        if schema == "pitchlog_ledger_observer"
+        else "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"
+    )
+    source = (root / path).read_text(encoding="utf-8")
+    delimiter = r"\$\$" if schema == "pitchlog_ledger_observer" else r"\$function\$"
+    pattern = (
+        rf"CREATE (?:OR REPLACE )?FUNCTION {re.escape(schema)}\.{re.escape(name)}"
+        rf"\([^)]*\).*?{delimiter}.*?{delimiter};"
+    )
+    matches = re.findall(pattern, source, re.DOTALL)
+    if len(matches) != 1:
+        raise ValueError("固定ライフサイクル関数本文を一意に読めない")
+    grants = row["acl_expectations"]
+    assert isinstance(grants, list)
+    physical = f"{schema}.{name}({row['identity_args']})"
+    return (
+        "-- ELEMENT-TYPE: function\n"
+        f"-- ELEMENT-ID: {function_id}\n\n"
+        + matches[0]
+        + "\n"
+        + f"ALTER FUNCTION {physical} OWNER TO {row['owner_role_id']};\n"
+        + f"REVOKE ALL PRIVILEGES ON FUNCTION {physical} FROM PUBLIC, pitchlog_app;\n"
+        + "".join(
+            f"GRANT EXECUTE ON FUNCTION {physical} TO {grant['grantee']};\n"
+            for grant in grants
+        )
+    )
