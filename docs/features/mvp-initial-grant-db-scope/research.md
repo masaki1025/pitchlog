@@ -48,3 +48,8 @@ rootの写像照合で、段階1の先行宣言を実装する既scripts/core_gu
 ## ステップ1: scope/brokerの先行core宣言
 
 2026-10-24T05:11:30.333027+00:00、rootが要求再送・記録権・tenantの3領域へscope/fixed-operation/brokerのexact3pathを宣言。JSONは不変、判定31定義はHEADとAST全一致。既初期付与/作成登録は履歴fixtureへ分離し、旧負例を保持した。初回398成功/2失敗は旧preparing回転前の宣言を現宣言へ混同した検査で、歴史的宣言を明示するfixtureへ是正。再検査400成功/30.73s、ty0。ログ /home/ymdms/.cache/pitchlog/initial-grant-scope-core-step1{,-fixed}.log。最後のRuff2行長は改行だけ是正。source作成0、既coreの範囲/拒否を縮小しない。
+
+
+## ステップ3の途中source固定（正常接合未達）
+
+2026-10-24T05:44:36.371632+00:00、作者csv_reviewはsource編集/検査を停止し、rootがcheckpoint601ffcbaf75fced1a2c7084f92391dc90b158b6071db9ea319c526921d9dfd8cの全8source byte/既baseline SHAを照合。実9method/phase token/owner束縛/私有actorと既issuer、4ORM表+2既表列/0035、bytes/aware datetime/nullableの有限型と既265局所を途中固定する。全既2testファイル265成功0.97s・8path Ruff/ty/format0、DB0。source8と全patchは /home/ymdms/.cache/pitchlog/initial-grant-db-scope-40808178 に保全。正常actor RG1 scope_binding/正式9SQL・2role・ACL/RLS・既guard新列供給、正常DB/競合/故障、Cookie/RPC/enrollment/startサービス/HTTP/UIは未達で、step3合格・開始/初球/全MVP成功を宣言しない。空DBtest2ファイル/常成功Portを作らず実供給後に実試験を追加する。内部trigger/旧guard追補の具体範囲はplan末尾参照。以後作者はcache-only SQL/role候補へ移りrepo sourceをrootと並行編集しない。

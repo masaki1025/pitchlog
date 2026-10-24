@@ -7,7 +7,7 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager
 from contextvars import ContextVar
 from itertools import islice
 from types import TracebackType
-from typing import final
+from typing import Literal, final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -36,6 +36,7 @@ __all__ = ("tenant_transaction_scope",)
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
+_INITIAL_ACTOR_STATES: dict[object, tuple[object, Literal["intent", "business"]]] = {}
 _SYNC_APPLY_ACTIVE: ContextVar[bool] = ContextVar("sync_apply_active", default=False)
 
 
@@ -128,6 +129,8 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if state_key in _INITIAL_ACTOR_STATES:
+            raise TenantBindingError("初期権actorへ汎用DMLを公開できない")
         spec = _operation_spec(operation)
         statement, parameters = _prepare_operation(operation, self._bound_tenant_id)
         if spec.preflight is not None:
@@ -159,8 +162,35 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        from pitchlog.repositories.initial_recording_right import (
+            _INITIAL_BUSINESS_TOKENS,
+            _INITIAL_FUNCTION_REGISTRY,
+            _INITIAL_INTENT_TOKENS,
+        )
+
+        actor = _INITIAL_ACTOR_STATES.get(state_key)
+        registry = FUNCTION_OPERATION_REGISTRY
+        if actor is not None:
+            _assert_initial_actor_transaction(self, self._context, actor[1])
+            allowed = (
+                _INITIAL_INTENT_TOKENS
+                if actor[1] == "intent"
+                else _INITIAL_BUSINESS_TOKENS
+            )
+            if type(operation) in allowed:
+                registry = _INITIAL_FUNCTION_REGISTRY
+            else:
+                spec = registry.get(type(operation))
+                if spec is None or (spec.operation_id, spec.function_id) not in {
+                    ("RG1:precheck", "rg1_api.rg1_read_open"),
+                    ("RG1:commit_check", "rg1_api.rg1_assert_open_before_commit"),
+                    ("RG1:scope_binding", "rg1_control.scope_binding"),
+                }:
+                    raise TenantBindingError("初期権actorのphaseに未登録の操作")
+        elif type(operation) in _INITIAL_FUNCTION_REGISTRY:
+            raise TenantBindingError("app scopeは初期権関数を実行できない")
         spec, parameters = prepare_function_operation(
-            operation, self._bound_tenant_id, FUNCTION_OPERATION_REGISTRY
+            operation, self._bound_tenant_id, registry
         )
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
@@ -183,6 +213,8 @@ class _TenantTransaction:
         if state_key is None or state_key not in _TRANSACTION_RUNTIMES:
             raise RuntimeError("トランザクションハンドルは失効している")
         session, _ = _TRANSACTION_RUNTIMES[state_key]
+        if state_key in _INITIAL_ACTOR_STATES:
+            raise TenantBindingError("初期権actorへ汎用savepointを公開できない")
         with session.begin_nested():
             return self.run(operation)
 
@@ -190,9 +222,15 @@ class _TenantTransaction:
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_handle")
+    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase")
 
-    def __init__(self, context: TenantContext) -> None:
+    def __init__(
+        self,
+        context: TenantContext,
+        *,
+        _actor_runtime: object | None = None,
+        _actor_phase: Literal["intent", "business"] | None = None,
+    ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
         Args:
@@ -200,6 +238,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         """
         self._context = context
         self._handle: _TenantTransaction | None = None
+        self._actor_runtime = _actor_runtime
+        self._actor_phase = _actor_phase
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -221,10 +261,24 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         bound_tenant_id = self._context.tenant_id
         bound_integrity_proof = self._context._integrity_proof
 
-        session = Session(create_database_engine())
+        if self._actor_runtime is None:
+            if self._actor_phase is not None:
+                raise TenantBindingError("actor phaseとruntimeが不一致")
+            engine = create_database_engine()
+        else:
+            from pitchlog.recording_rights.initial_grant_broker import (
+                _initial_actor_engine,
+            )
+
+            if self._actor_phase not in ("intent", "business"):
+                raise TenantBindingError("actor phaseが未登録")
+            engine = _initial_actor_engine(self._actor_runtime)
+        session = Session(engine)
         exit_stack = ExitStack()
         state_key = object()
         _TRANSACTION_RUNTIMES[state_key] = (session, exit_stack)
+        if self._actor_runtime is not None and self._actor_phase is not None:
+            _INITIAL_ACTOR_STATES[state_key] = (self._actor_runtime, self._actor_phase)
         handle: _TenantTransaction | None = None
         try:
             handle = _TenantTransaction(
@@ -242,6 +296,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         except BaseException as primary_error:
             expired_key = state_key if handle is None else handle._expire()
             runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
+            _INITIAL_ACTOR_STATES.pop(expired_key, None)
             self._handle = None
             runtime_session = session if runtime is None else runtime[0]
             try:
@@ -276,6 +331,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         expired_key = handle._expire()
         self._handle = None
         runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
+        _INITIAL_ACTOR_STATES.pop(expired_key, None)
         if runtime is None:
             raise RuntimeError("トランザクションハンドルの実行状態が既に失効している")
         session, exit_stack = runtime
@@ -314,3 +370,40 @@ def tenant_transaction_scope(
         Session の生成・束縛・確定・取消・close を所有するスコープ。
     """
     return _TenantTransactionScope(context)
+
+
+def _assert_initial_actor_transaction(
+    handle: _TenantTransaction,
+    context: TenantContext,
+    phase: Literal["intent", "business"],
+) -> None:
+    """真正な実登録actorハンドルと同一tenant/phaseを毎回照合する。"""
+    from pitchlog.recording_rights.initial_grant_broker import _initial_actor_engine
+
+    if type(handle) is not _TenantTransaction or type(context) is not TenantContext:
+        raise TenantBindingError("初期権scopeの型が不正")
+    key = handle._state_key
+    actor = _INITIAL_ACTOR_STATES.get(key)
+    if (
+        key is None
+        or key not in _TRANSACTION_RUNTIMES
+        or actor is None
+        or actor[1] != phase
+        or handle._context is not context
+        or handle._bound_tenant_id != context.tenant_id
+        or handle._bound_integrity_proof != context._integrity_proof
+        or not context._has_valid_integrity_proof()
+    ):
+        raise TenantBindingError("初期権scopeは失効又は別文脈")
+    _initial_actor_engine(actor[0])
+
+
+def _initial_actor_transaction_scope(
+    context: TenantContext, actor_runtime: object, phase: Literal["intent", "business"]
+) -> AbstractContextManager[_TenantTransaction]:
+    """登録済みactorの閉scopeを作り、既tenant境界/commit処理を再利用する。"""
+    if phase not in ("intent", "business"):
+        raise TenantBindingError("初期権scopeのphaseが不正")
+    return _TenantTransactionScope(
+        context, _actor_runtime=actor_runtime, _actor_phase=phase
+    )

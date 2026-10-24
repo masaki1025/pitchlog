@@ -510,3 +510,217 @@ def test_saved_snapshot_contract_unavailable_is_not_a_success(
             _decode_preparing_snapshot(immutable)
     finally:
         rule_snapshot._validator.cache_clear()
+
+
+def test_initial_scope_constructor_and_derived_type_cannot_be_forged() -> None:
+    """私有発行なしのscope/派生ハンドルはDB前に拒否する。"""
+    from test_authz_tenant_context import make_tenant_context
+
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+    from pitchlog.repositories.initial_recording_right import (
+        InitialRecordingRightScope,
+        _StartOwner,
+    )
+
+    context = make_tenant_context(_GAME_ID)
+    owner = _StartOwner(
+        _GAME_ID, _GAME_ID, _GAME_ID, _GAME_ID, _GAME_ID, bytes(range(32))
+    )
+    with pytest.raises(InitialGrantUnavailable, match="私有factory"):
+        InitialRecordingRightScope(context, cast(Any, object()), owner, object())
+    with pytest.raises(TypeError, match="派生"):
+        type("ForgedInitialScope", (cast(Any, InitialRecordingRightScope),), {})
+
+
+def test_initial_credential_digest_is_opaque_and_not_printed() -> None:
+    """正規化しない単一helperを使い、資格/要求digestをreprへ出さない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _credential_digest,
+        _StartOwner,
+    )
+
+    credential = "public-test-device-token"
+    assert (
+        _credential_digest(credential)
+        == hashlib.sha256(credential.encode("utf-8")).digest()
+    )
+    assert _credential_digest(" " + credential) != _credential_digest(credential)
+    assert _credential_digest(credential.upper()) != _credential_digest(credential)
+    owner = _StartOwner(
+        _GAME_ID, _GAME_ID, _GAME_ID, _GAME_ID, _GAME_ID, _credential_digest(credential)
+    )
+    assert credential not in repr(owner) and "request_digest=" not in repr(owner)
+
+
+@pytest.mark.parametrize(
+    "column,value",
+    (
+        (0, "pitchlog_app"),
+        (1, "pitchlog_owner"),
+        (2, False),
+        (3, True),
+        (4, True),
+        (5, True),
+        (6, True),
+        (7, True),
+        (8, True),
+        (9, 1),
+        (9, False),
+        (10, "preconfigured"),
+        (11, "other-database"),
+        (12, True),
+        (13, datetime(2026, 10, 24)),
+        (14, 0),
+    ),
+)
+def test_initial_actor_observed_boundary_rejects_each_mismatch(
+    column: int, value: object
+) -> None:
+    """実観測比較の単独反転を拒否する。実DB認証成功とは数えない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+    from pitchlog.recording_rights.initial_grant_broker import (
+        _ActorConfiguration,
+        _validate_actor_observation,
+    )
+
+    started = datetime(2026, 10, 24, tzinfo=timezone.utc)
+    config = _ActorConfiguration(
+        "postgresql+psycopg://fixture@127.0.0.1/test?sslmode=disable",
+        "12345",
+        5,
+        "fixture-business",
+        started,
+    )
+    row: list[object] = [
+        "pitchlog_initial_actor",
+        "pitchlog_initial_actor",
+        True,
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        0,
+        None,
+        "fixture-business",
+        5,
+        started,
+        10,
+    ]
+    _validate_actor_observation(tuple(row), config)
+    row[column] = value
+    with pytest.raises(InitialGrantUnavailable):
+        _validate_actor_observation(tuple(row), config)
+
+
+def test_initial_actor_binding_missing_supplier_is_not_success() -> None:
+    """scope_binding供給不足をboolやcaller JSONで埋めない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+    from pitchlog.recording_rights.initial_grant_broker import _verify_business_binding
+
+    with pytest.raises(InitialGrantUnavailable, match="未供給"):
+        _verify_business_binding(cast(Any, object()), object())
+
+
+def test_initial_storage_candidate_has_exact_tables_nullable_evidence_and_fks() -> None:
+    """ORMの4表/旧nullable列/tenant付きFKをDBなしでcompile照合する。"""
+    from sqlalchemy.schema import CreateTable
+
+    from pitchlog.db import all_models
+    from pitchlog.db.base import Base
+    from pitchlog.db.recording_rights.models import RecordingGeneration, RG1RestoreGate
+
+    assert all_models.IMPORTED_MODEL_MODULE_NAMES
+    names = {
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+    }
+    for name in names:
+        table = Base.metadata.tables[name]
+        assert "tenant_id" in table.primary_key.columns
+        assert all(
+            "tenant_id" in fk.column_keys for fk in table.foreign_key_constraints
+        )
+        assert all(fk.ondelete == "NO ACTION" for fk in table.foreign_key_constraints)
+        assert str(CreateTable(table).compile(dialect=postgresql.dialect()))
+    for table, name in (
+        (RecordingGeneration.__table__, "proof_digest"),
+        (RecordingGeneration.__table__, "recovery_generation"),
+        (RG1RestoreGate.__table__, "recovery_generation"),
+    ):
+        assert table.c[name].nullable and table.c[name].server_default is None
+    pending = next(
+        i
+        for i in Base.metadata.tables["game_start_attempts"].indexes
+        if i.name == "uq_game_start_attempts_pending"
+    )
+    assert (
+        pending.unique
+        and str(pending.dialect_options["postgresql"]["where"]) == "outcome = 'pending'"
+    )
+
+
+def test_initial_scope_unregistered_object_has_no_owner_authority() -> None:
+    """object生成や属性穴埋めで真正scopeの登録を代用できない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+    from pitchlog.repositories.initial_recording_right import InitialRecordingRightScope
+
+    forged = object.__new__(InitialRecordingRightScope)
+    with pytest.raises(InitialGrantUnavailable, match="owner束縛"):
+        forged.assert_bound_tenant(_GAME_ID)
+
+
+def test_initial_scope_matches_existing_nine_method_protocol() -> None:
+    """単一issuerが要求する9methodの署名を増減せず提供する。"""
+    import inspect
+
+    from pitchlog.recording_rights.initial_grant import InitialGrantScope
+    from pitchlog.repositories.initial_recording_right import InitialRecordingRightScope
+
+    names = [
+        name
+        for name, value in InitialGrantScope.__dict__.items()
+        if not name.startswith("_") and callable(value)
+    ]
+    assert len(names) == 9
+    for name in names:
+        assert tuple(
+            inspect.signature(getattr(InitialRecordingRightScope, name)).parameters
+        ) == tuple(inspect.signature(getattr(InitialGrantScope, name)).parameters)
+
+
+def test_initial_actor_wrong_process_and_unregistered_runtime_are_closed() -> None:
+    """私有runtimeを持たないcallerはengine取得へ進めない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+    from pitchlog.recording_rights.initial_grant_broker import (
+        _initial_actor_engine,
+        _InitialActorRuntime,
+    )
+
+    with pytest.raises(InitialGrantUnavailable):
+        _InitialActorRuntime(object(), object())
+    with pytest.raises(InitialGrantUnavailable):
+        _initial_actor_engine(object())
+
+
+def test_initial_storage_migration_is_frozen_and_never_backfills_epoch() -> None:
+    """migration候補は4表だけを固定し、旧行UPDATEや旧trigger追加をしない。"""
+    import runpy
+
+    source = (
+        Path(__file__).resolve().parents[1]
+        / "migrations/versions/0035_initial_recording_right_storage.py"
+    )
+    module = runpy.run_path(str(source))
+    assert module["down_revision"] == "0034_stage_a_rule_defaults"
+    ddl = "\n".join(module["_TABLE_DDL"])
+    assert ddl.count("CREATE TABLE public.") == 4
+    assert "CREATE UNIQUE INDEX uq_game_start_attempts_pending" in ddl
+    body = module["_INTERNAL_TRIGGER_SQL"]
+    assert "SECURITY INVOKER" in body and "pg_catalog, pg_temp" in body
+    assert "TG_OP = 'DELETE'" in body
+    assert "recording_generations" not in body and "rg1_restore_gate" not in body
+    assert "UPDATE public.recording_generations" not in source.read_text()
