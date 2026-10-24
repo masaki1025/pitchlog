@@ -59,3 +59,43 @@ rootが正式共有資産の唯一のwriter。作者はcache候補のみ、非�
 ## PO委任による有限手順の確認
 
 2026-10-24T05:11:30.496225+00:00、Codex主担当/rootは既PO委任に基づきdda06f76の本plan/researchを544既承認ステップ1の有限手順として確認する。非作者rights_replacement_reviewによる限定写像レビュー0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/d06d07-formal-plan-dda06f76-independent-20261024/evidence.json（SHA256 210d450f6e34a51e296a4d918050ebd8cc7849af6c86f9ac2f169ac22b21c1d8）、標準diff80f8fb6a4e733445a0dd6dc42e8a9e574e869005509f75c9324303865e31cdfcを根拠とする。ステップ1の新規採用差分を原典と照合して7.3へ進める。9projection/8source等は既検査の実影響を求める例示であり固定数の新条件ではない。段階A固定結果/未検証範囲受領→候補core/所有側受理→7.7→正式反映→段階B/必要再検証/受理を保持する。実回答の意味を再承認したものでも、人間の逐行確認/実値署名の代行でもない。
+
+
+## 正式接合候補の有限pathと互換表現
+
+新たな意味判断ではなく、既D06/B・D07/A一配置の正式接合に必要な候補scopeを固定する。作者initial_scope_plan_reviewのcache handoff bd46d9574a23bd2f94972c645450cc630ec0de622e6f7059baeb0838eea6c99c／未適用patch c88932f0e9bb1ea9a21f876e239533f707c8eee191f1051b77f1a19f0025c373が対象。rootが固定28pathの実core包含（sync/game-state両方）を確認した。ここで正式assetsを適用せず、非作者の意味/型/旧保証/全前後値確認と既順序の7.7受理を先行する。正式不足15/P6/P7・計算本体は未成立。
+
+旧42row/109case/27fixtureの要素byteと旧行/要求IDを保持し、新D07の2観測caseだけを追加する。自然keyを全行で変換する案は採用しない。既複合前提digestを新原観測selector行だけに明示追記するcriteriaと、既identity規則へのadditionalPartitionsの有限追記で旧IDを保持する。旧行や必須caseを除外せず、未宣言selector/重複/不一致/欠損を拒否する。
+
+新9観測selectorは既structured payloadのT1観測refinementとしてconsumer写像を有限明示する。T2の旧軸を除外せず全4656要求identity/順序を維持し、不要な新raw観測の直積を加えない。includedAxisIds/observationOnlyAxisIdsは全実軸を重複なく分割し、既T2軸の省略・観測専用への移し替えを受理しないことを検証する。これをF-1/野球意味やT2 DRAW/GAP-05の成立に拡張しない。新4P7参照は原典exact readonly外殻だけ、Ready真正性/完全prefixを捏造しない。D06のnullable等価表現は型が排他的なunionだけで、未確定取消をunconsumedへ変換しない。
+
+正式root対象は下の28pathと既plan/research・正本追随・必要な既凍結受理資産の実影響に限定する。作者はcache-only、rootは完全前後値/元記録を保全して新対象版だけ受理。unsigned測定結果を公式CLI成功とせず、旧識別値/未受理criteriaによる公式redを根拠なく消さない。356成功/11除外は候補局所結果で、除外11を最終正式検査へ戻し、受理後にdescriptor/三点/gap/coverage/fixtureの全正式検査を実施する。
+
+- `contracts/state-transition/branch_row_mapping_v1.json`
+- `contracts/state-transition/clause_branch_register_v1.json`
+- `contracts/state-transition/coverage_row_binding_policy_v1.json`
+- `contracts/state-transition/d06_priority_author_expected_v1.json`
+- `contracts/state-transition/d06_priority_inputs_v1.json`
+- `contracts/state-transition/d06_priority_schema_v1.json`
+- `contracts/state-transition/d06_priority_v1.d.ts`
+- `contracts/state-transition/game_end_contract_schema_v1.json`
+- `contracts/state-transition/game_end_contract_v1.json`
+- `contracts/state-transition/gap_register_v1.json`
+- `contracts/state-transition/input_axes_descriptor_v1.json`
+- `contracts/state-transition/manual_fixture_branch_coverage_v1.json`
+- `contracts/state-transition/required_set_coverage_declaration_v1.json`
+- `contracts/state-transition/required_set_row_rules_schema_v1.json`
+- `contracts/state-transition/required_set_row_rules_v1.json`
+- `contracts/state-transition/state_transition_contract_schema_v1.json`
+- `contracts/state-transition/state_transition_contract_v1.json`
+- `contracts/state-transition/state_transition_manual_fixture_schema_v1.json`
+- `contracts/state-transition/state_transition_manual_fixtures_v1.json`
+- `contracts/state-transition/t1_observation_binding_rules_v1.json`
+- `contracts/state-transition/t1_out3_input_schema_v1.json`
+- `contracts/state-transition/t1_p7_reference_shells_schema_v1.json`
+- `contracts/state-transition/t1_p7_reference_shells_v1.d.ts`
+- `scripts/check_deriver_dependencies.py`
+- `scripts/check_gap_register.py`
+- `scripts/check_input_axes_descriptor.py`
+- `scripts/check_required_set_coverage.py`
+- `tests/test_state_transition_contract_schema.py`

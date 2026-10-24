@@ -37,3 +37,6 @@ D06技術候補の初回P1に対するroot反映は非作者第2回相当で終�
 - /home/ymdms/.cache/pitchlog/reviews/d06b-contract-independent-20261024/code-round2-reflection.json SHA256 12bc814b479c3b51836283467f8c822c690587a2130f8558eb9d3b2d06a8ccc4
 
 正式6asset/新D06共有型・caseはまだ未反映。P7 upstream schemaの正式共有化/専用保存原本・認可・結果wireとreader、必要観測・ID相関の拒否、共通descriptor/T2参照/派生値/7.7、正式段階B/必要再検証・所有側範囲受理を残す。新2ケースはP8不足15をまだ削減せず、7marker閉鎖0・計算本体未着手を保持する。実Port/HTTP/DBの完成を計算本体の着手前へ追加せず、元544の対象別条件のうち実装後ゲートとして扱う。
+
+
+2026-10-24T06:31:59.644159+00:00、rootは作者の28path候補/全SHAとcore両領域包含を固定対象に指定。旧自然key全再採番案を退けた互換策、T2不要直積4278→5301案を退けて旧全4656identityを保持した有限consumer写像、構造/意味相関の責任、未受理公式redをplanへ明示した。source/正式JSONは未適用。新しい人間判断や本人実値確認の成立ではなく、既採用意味の必要実装差分として非作者限定レビューへ進む。
