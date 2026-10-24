@@ -146,3 +146,20 @@ runtime/SQLは既rg1_lifecycle.py/sql/manifest、生成境界は既authz/product
 前段の旧resolver保留16件を保持し、新epoch列ACLのexact1件だけを後段へ保留する（実241DDLから直接列参照依存を照合）。0034の固定規則配置を確定した後、ownerで0035のnullable正bigint・補完なし列を適用し、全認可→S3の実revision/列型・nullable/default/check・全catalog照合へ進む。再開は既固定5行/owner/RLS/一時権なしを保持し、既知0034は0035を適用、0035は再適用せず、未知revision/偽marker/欠列を拒否する。常時成功や記録権/認可/RG1の迂回は作らない。
 
 DB試験補助の正規生成profile後の同SQL二重直接適用は除き、実関数・peer認証・最小権限の検査を維持する。候補作者は専用cache wtだけを編集、rootが所有disposableで実PG試験を実行、非作者が最終差分と故障/再開例を確認する。正式共有資産/全値受理はroot単独で直列化し、source5fの一次8射影/N3導出は保全、是正source後に必要分だけ再導出する。新しい規則意味/安全性削減/共有DB適用の承認ではない。
+
+
+## 再適用と読取試験の有限追随
+
+実PGの段階起動は前段/後段の両方で正規認可を適用する。241DDLを全数分類し、新6roleのplain CREATE、新schema2、plain CREATE FUNCTION2の再適用漏れを閉じる。既5pathに次の5pathを加えsource/test計10pathとする。rootは既PO委任による通常接合修正として範囲を確認し、非作者が最終差分を照合した後だけ正式受理へ進める。
+
+- `backend/src/pitchlog/authz/product_role_contract.py`
+- `backend/src/pitchlog/authz/product_function_acl.py`
+- `backend/tests/test_authz_product_roles.py`
+- `backend/tests/db/test_rg1_startup_epoch.py`
+- `backend/tests/db/test_rg1_lifecycle_connection.py`
+
+6roleは既単一意味の7属性と両向membership0を使い、不存在時CREATE・存在時全一致だけ再適用を許し、不正既存をALTERして修復しない。schema2は既適用器に所有者exactの再適用guardを置き、不正ownerを修復せず、旧5schema SQLを変えない。function2は既rendererでCREATE headerだけOR REPLACEへ正規化し、AS判定本文/引数/戻り値/ACLを全保持する。生成bodyの計8既path（6role/2function）はroot単独で生成し、他233body/旧7role/固定外部SQLを保持する。未知role/schema/functionと既存衝突を拒否する。
+
+DB試験は専用owned fixtureで実owner/admin別主体とsession_user/current_userを照合する。unused DSNはテンプレートだけで、factoryが実動的port/DB/資格へ置換し外部DSNを使わない。requires_db/実call0拒否を維持する。旧primitiveの常false期待は採用済data-model1.3§3-2安全な成功条件/本plan88行相当の追補へ接合し、2readのlease無しopen・違tenant・controller喪失/再起動falseと、同DB/PID二重lease時のtrueを検査する。手動のprivileged SQLprimitive成功を実DurableLedger.fresh_activation・初期grant・UIの成功証拠へ拡張しない。
+
+中間の1error/3error/4error/4成功1失敗を保全し、最終はsource/test10＋生成SQL8の全18file前後hashを同一固定して5DB成功・独立非DB147成功/所見0/0/0を確認した。これは候補の正常起動/再開/権限境界の実証で、正式9射影/8source完全値受理・残検査/全件CIは引き続き必要である。
