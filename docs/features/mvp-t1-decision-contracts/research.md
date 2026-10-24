@@ -88,3 +88,15 @@ rootは既544承認計画step2の実装材料として、TSの42ID規則表・Bi
 ## 既oracle入力系列の機械追随受理
 
 2026-10-24T09:40:19.022173+00:00、rootは既PO委任により固定source8a40519dへoracle入力系列を追随する10pathを採用。非作者t1_ci_followup_independent所見0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/t1-oracle-metadata-independent-20261024/evidence.json SHA 7a5ee239368a86d67c829de0bfb99136cc4f9daa032009a581df1412014d190e、標準差分a18c8ab0f068b3c6d751d68db9a34c2a238c36b0cd580822ae31e253a85a79e5。6oracleのcontext commit以外の意味全文、seal規律、旧14履歴を全保持し、8入力の現在/Git/seal一致を実再計算。default/probe/product、mcdc47/failure5/frozen invariants成功、不正input/規律緩和/意味改変の3負例拒否。前後値・配置・採用根拠はroot-acceptance-receipt.jsonへ固定。新履歴の採用前非作者確認条件は本証拠で成立したが、本人の実確認/署名を意味しない。commit後の内部clone drift・Gate6限定carry・最終HEAD/CIは未達。
+
+
+## Gate6限定例外の初回差戻し
+
+初回候補は旧本人の記録/schema/step33と旧validatorを保持した技術carry5path。非作者t1_formal_final_reviewのG6-CARRY-01（P1）をrootは全採用し正式反映を止めた。報告 /home/ymdms/.cache/pitchlog/reviews/t1-gate6-carry-independent-20261024/review-initial.md SHA871c1a6c867a80e713f5ba7a39c49fe5a4f1342119fba2f9ab6963ad139aef88、元候補 /home/ymdms/.cache/pitchlog/t1-gate6-delegation-audit-20261024/initial-handoff.json SHAcf457d5c082d527ce820b7055dafe1192b8482965744490532f063ec42a967a1。作者33成功と他PR自己追随の独立反例は別証拠であり、成功件数でP1を隠さない。限定反映1とその非作者差分確認後に採否を決める。
+
+既D07新2入力について、正式枝044ffe78のinputPayloadが純入力と完全同値、六効果/各23flagが原封印導出と一致することをrootが比較し、別非作者が通常整合確認で再計算した。証拠 /home/ymdms/.cache/pitchlog/reviews/p6-d07-formal-comparison-independent-20261024/evidence.json SHA ccc566e3a8075a2fb1ce050e4f318a7bcae720dbbd251b00e096e738161fee54。原seal/derivation/exposure/rationaleのhash不変。新blind導出/所有側受理/資格拡大ではなく、旧96blocked/旧曝露/全P6未成立を維持する。
+
+
+## Gate6反映1の技術手続き採用
+
+2026-10-24T10:06:59.821673+00:00、rootはPO委任による今回PR183限定の技術carry5pathを採用。旧本人記録/署名schema/step33/旧main以外validator AST/全subject実byteを保持し、元P1 G6-CARRY-01は非作者の反映1限定確認で閉鎖。報告 /home/ymdms/.cache/pitchlog/reviews/t1-gate6-carry-independent-20261024/review-reflection1.md SHA 88828d64dd379b90846f55b8af517a51e5cddf97640ed27b997577b8879f4d06、作者handoff 3605cec31a60ab0cc48e8f979d15ddeab2bb8a1b4665d97fb2a4dabb1a79c6ff、全5path差分1237616ccab9eb6298f84db8e7836c8bd3c85d3ca1550f9330bc6ea7e87f6129。44成功31.10s、別PRの対象/carry協調改変を既受理base比較で拒否、183最終core_guard経路/全PRの必須呼出を保持。root-technical-acceptance.jsonへ全before/afterを固定。手続きの技術採用であり、最終HEAD/全差分の公開委任証拠/必須CIはこれからで、人間本人確認を代記しない。

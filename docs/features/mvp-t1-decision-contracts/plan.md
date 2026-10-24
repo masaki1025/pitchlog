@@ -199,3 +199,18 @@ oracle入力照合が旧Git blobで拒否することは失敗として保持す
 - `contracts/authz/failure-injection-points.json`
 
 6oracleは `/oracle_context/oracle_commit` 以外完全不変。sealは同commit・入力8blob・metadata由来6canonicalだけ、mcdc/failure-injectionは変更されたsourceのblob値だけ。frozen-baselinesは既oracle_input全履歴を保持し同じ基準系列へ1件追記する。他系列や9projectionの無関係値を変えない。通常validatorの自動resealは追加せず、review_policy/reseal_policyの本人確認規律は緩めず今回委任の対象版・非作者証拠・root判断へ正確に対応付ける。専用reseal操作だけで受理とせず、既8入力のGit/現在/seal三者一致と全意味不変・負例拒否・最終必須検査を要求する。独立導出P6封印や暗号署名とは別物であり、その承認や完了へ広げない。
+
+
+## 今回Gate6の限定委任carry
+
+既本人の文書記録を新subjectへ書き換えず、今回MVP/PR183だけの技術carryを別宣言で束縛する。既PO委任のコア確認代替の範囲で、独立確認後にのみ採用する最小5pathであり、本人の暗号署名や逐行確認を代記しない。旧署名記録/schema/step33、旧validate_signature_record本体と拒否は保持する。
+
+- `scripts/check_human_review_signature.py`
+- `tests/test_human_review_signature.py`
+- `docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md`
+- `contracts/state-transition/gate6_subject_carry_schema_v1.json`
+- `contracts/state-transition/gate6_subject_carry_v1.json`
+
+固定旧Git版/JCS・旧確認範囲の不変射影・許可差分exact-set・新subject digestを別宣言で照合する。新2assetは既core globのsync/game-state両方に含む。localは技術不変条件の確認だけで最終委任NOT CHECKEDを明示し、PR183最終受理は外部eventの同PR/branch/repository/HEAD/実全差分と公開非作者証拠を既core_guardで必須照合する。最終HEADを同commit内へ自己参照させず、既公開commentを更新して対象版を閉じる。event欠落/旧HEAD/候補byteとevent.headのGit不一致/重大未解消を拒否する。
+
+初回限定非作者レビューt1_formal_final_reviewはP0=0/P1=1/P2=0。G6-CARRY-01（別PRで対象とcarryを同時改変すると最終確認未呼出で成功）をroot全採用し、元5path全byte/証拠を保全して反映1へ差戻した。反映1では全PRイベントの必須経路に確認を接合し、PR183以外はevent.baseの受理済carry/schema/subject同値を拘束する。全他PR常時拒否や例外の無条件拡張をしない。既回数・採否を保持し、PO委任により反映1の限定差分非作者確認を1回許可する。所見が未終結なら正式反映/最終CI成功へ進めない。
