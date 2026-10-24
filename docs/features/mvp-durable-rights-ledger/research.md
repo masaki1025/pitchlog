@@ -456,3 +456,8 @@ CSVの編集2pathを固定する。新ledger_deployment_assetsのexact3path/SHA�
 
 
 2026-10-24T05:28:31.141703+00:00、4失敗の限定追随は32成功25.67s（/home/ymdms/.cache/pitchlog/ledger-local-four-failures-followup-fixed.log）。初回の生成コマンドは旧判定を持ち越さず未判定を作ったため、cacheに保全しGit HEADの旧5文書から復元した。既単一generatorの安全carryで旧369行の判定/理由を全保持し、新N3一行だけを別root委任判断にした。新行はORM業務列ではなく外部genesis/journal保証なので対象外、data-model3-2-A/authority実装を理由へ引用し、本人逐行確認とは記録しない。実生成N3は110→111、README集計だけ追随。carry詳細 /home/ymdms/.cache/pitchlog/ledger-orm-carry-forward.json。部分censusの属性チェーン正例とshadow負例を保持し、全件root付きの台帳所見全欠損も拒否する。root Ruff/ty0、旧global scanner・許可10entry・静的3byte・製品source・全DB証拠は不変。非作者source差分と新完全値照合はこれから実施する。
+
+
+## 新census source実値の限定受理（static-v4）
+
+2026-10-24T05:37:47.989666+00:00、rootは既PO委任による完全実値確認として固定d6c44c84の提案92901ba5ea946588c9f4dd9bb478b2735ff35395f2a99c32798e6f2d24c54accを受理した。非作者source0（46b0408d0acb35e0d1c2983036a6983a4bf9dd17883313df91348f19134d6a2c）、全9射影/外部8/27payloadの独立一致（values-v4.json SHA2560b591404211bfe35ca50b9c1473f0ead5495601d75bf5cc3d9ad973abb39b984）を根拠とする。旧v3からの実変更はcensus試験source1本とその派生だけで、他7external/不可変製品source/SQL3byteを再裁定しない。旧29履歴206snapshotの全byteを保持して新10だけを再配置し、PR182最終1受理・30履歴216snapshotを復元した。receipt /home/ymdms/.cache/pitchlog/durable-ledger-acceptance/acceptance-static-v4.json。人間の実値確認・署名を代記せず、corpus・最終HEAD確認・全必須CI未成立を保持する。
