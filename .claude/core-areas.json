@@ -269,7 +269,10 @@
         "contracts/authz/product/function-bodies/*rg1*",
         "tests/fixtures/sync-protocol-population_v1.json",
         "backend/src/pitchlog/recording_rights/initial_grant.py",
-        "backend/tests/test_initial_recording_right_candidate.py"
+        "backend/tests/test_initial_recording_right_candidate.py",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py"
       ]
     },
     {
@@ -510,7 +513,10 @@
         "scripts/check_authz_catalog.py",
         "tests/test_check_authz_catalog.py",
         "backend/src/pitchlog/recording_rights/initial_grant.py",
-        "backend/tests/test_initial_recording_right_candidate.py"
+        "backend/tests/test_initial_recording_right_candidate.py",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py"
       ]
     },
     {
@@ -613,7 +619,10 @@
         "backend/src/pitchlog/recording_rights/initial_grant.py",
         "backend/tests/test_initial_recording_right_candidate.py",
         "backend/src/pitchlog/services/game_creation.py",
-        "backend/tests/test_game_preparing*.py"
+        "backend/tests/test_game_preparing*.py",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py"
       ]
     },
     {
