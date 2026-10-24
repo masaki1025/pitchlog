@@ -455,3 +455,8 @@ T1枝では257d7a76で7.7対象の正式39pathを反映し、e266257cまでPR183
 
 
 2026-10-24T09:42:36.115102+00:00 更新: T1候補は044ffe78までローカルcommitで保全（remoteはe266、既失敗CIの無変更再実行を避け次のpushをまとめる）。認可source9path=8a40519d、metadata/変異9path=48303674、oracle機械追随10path=044ffe78。非作者の限定追加確認は各0/0/0、旧1418分類/AUTH187・旧T2要求4656順序・6oracle意味本文を保持。結合関連449成功32.14s、commit後の内部cloneを含む認可23成功26.59s、Ruff/ty/frozen invariants成功。隔離2親d060cfa7（実マージではない）でfrozen/parity --ci各0を確認。Gate6限定carry候補・最終HEAD証拠/CIは残る。RG1規範0708095aは通常push保存済み、40path認可/runtime候補の独立確認と別static2登録候補作成を並行中。これらを実画面の開始/権利取得/1球保存の実証へ広げない。
+
+
+2026-10-24T10:26:04.316698+00:00 更新: T1 #183最終96e2f9daを通常push、全86pathの非作者最終確認0/0/0、公開委任証拠 https://github.com/masaki1025/pitchlog/pull/183#issuecomment-6382962451 と固定HEAD/差分62e32f398e256fc0712b7433688ce4e83568371f7992f512b3aac49f35b2e92dを照合。結合516成功84.93s/Ruffty/frozen/parity・公開証拠を使うcore-guard/Gate6 --ci事前検証0。Gate6初回の他PR自己追随P1は反映1で受理済base比較/全PR必須呼出へ是正し独立44成功で終結、旧本人署名は不変。新CI40085138810はfrontend/core-guard等10job成功、harness/backend実行中。PR本文更新で起動した旧e266のrun40085004330は同PRの新runで自動cancel済み（成功扱いしない）。全必須CI前のmerge/Draft解除はしない。
+
+RG1は885cbe17に実段階起動の有限是正を記録。隔離branch5f074491の44pathは40profile/1固定operation/static2sourceと宣言を統合した未受理候補、独立249/91成功。実PGで新列ACL先行を発見後、0034→0035→全認可と実列/制約照合を候補実装、非DB65成功/独立0。ただしPGは新6roleの重複CREATEで停止、新DB試験の共通外部DSN依存もsetup時に判明。反映1で6roleの厳密属性/membership再適用guardとownedfixtureへ進め140非DB成功、次のPGはschema重複/テンプレートDSN未供給で4error、まだ成功とは扱わない。全241DDLを分類して残るplain CREATE FUNCTION2も発見し、反映2を専用 /home/ymdms/.cache/pitchlog/verify-rg1-startup-reflection2-5f074491 で進行中。初期sql担当が指定4source/tests、rootが生成SQL2body/実PG/正式共有資産を所有。6role guardは保持、schema2は厳密owner再適用、function2はCREATE headerだけOR REPLACEへ正規化し本文byte不変、元source/各反映の失敗を保全。共有DBは未使用、所有containerは回収済み。実fresh/初期grant/開始UI/1球保存は未達、T1本体未着手のまま。
