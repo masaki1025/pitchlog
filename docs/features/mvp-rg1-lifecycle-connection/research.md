@@ -147,3 +147,6 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 ## 正本1.3接合候補の最小具体化
 
 2026-10-24T08:09:22.806496+00:00、既data-model1.3 in-review候補を、606/c58/実SQL/13role候補に照合して§3-2の現提供対象数と役割表・初回epoch束縛へ有限具体化。既7にcontrol2/observer2/initial前提2を加える13製品用/14batch込みを明記し、初期ownerの業務権限0・actor CONNECT1/USAGE2/EXECUTE3・旧read2 AS保持を区別した。gate列はnullable正bigint/default/backfillなし、closed確定→真正fresh→同Session初回E1束縛commit→別txopen、commit不明は成功にせずNULLへ戻さない。非0復元/全域closeProof/全MVPは未完成のまま保持。元2系統1.2承認履歴を保存して1.3へ接合するもので、旧採用意味の再裁定や全設計の再承認ではない。statusはin-reviewのまま、最小7.3独立確認とPO委任によるroot確定後にだけschema-manifest/sourceSHAと正式9/8値を追随する。
+
+
+2026-10-24T08:26:10.538977+00:00、62ed6efeの1.3追加限定本文は非作者initial_sql_independent_review 0/0/0で採用推奨（evidence f7ab4a5ed7c5ef55d9c6149450fb955a70460ab60dbc58fbba238aedb7247768、差分70161f8423e53fede7ee6b2aec6844949478f6b68bb9d23301aca92fdfc134cc）。rootは既PO委任で当該版の全値/根拠を確認して確定し、frontmatter/現1.3履歴/索引のメタデータだけを追記した。旧1.2両系列・既review回数/採否を維持、本人の逐行確認/署名ではない。cache rg1-norm-1_3-acceptance-20261024/receipt.jsonが本文前後SHA/対象/時刻を保持する。sourcecatalog ef1d65abも別系列独立0（report90f641027df235d10826204a94bd3ec3b7b7f02b05b51fe2abc16a017dddf93b、root7/独立25成功）で受領。これで正本とsourceの最小供給写像を閉じ、正式33asset/schema-manifest新列/7.7実値/実PG正常grantは次の未成立段階として保持する。
