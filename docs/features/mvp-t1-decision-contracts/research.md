@@ -78,3 +78,8 @@ rootは既544承認計画step2の実装材料として、TSの42ID規則表・Bi
 ## 認可source入力の先行固定
 
 2026-10-24T09:31:45.703255+00:00、rootは既PO委任で候補9pathをsource-onlyとして確認・反映する。固定前69179218、候補差分79df0f5345b617da8b4f8eea44480abb6fabf3b87fac7fbf409c4beece2852c3、非作者t1_ci_followup_independent所見0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/t1-ci-followup-independent-20261024/authz-verdict.json SHA d99694eebf50fbd4b42f4ce73d1f39f111007eb6f4c3ae526d4900e51e2502ac。旧1418分類/原文対応とAUTH187辞書全体、derived認可決定を保持し、新9件は既非認可分類。product CLI/readerは成功、旧oracle入力固定と未commit cloneに伴う4失敗は未解消のまま先行Git版を作る。既ステップ17の後続機械metadata追随・独立照合・最終CIまで正式完了としない。旧本人署名/P6封印/認可意味は変更しない。root-source-acceptance.jsonに全before/afterを固定。
+
+
+## 残CIの変異検査・fixture追随
+
+2026-10-24T09:33:25.432228+00:00、rootはPO委任によりmetadata4/変異5の有限候補を反映する。全9pathの正式前byteはレビュー基準69179218と同一、先行認可commit8a40519dから無関係差分を再取込みしない。非作者t1_ci_followup_independent所見0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/t1-ci-followup-independent-20261024/evidence.json SHA 2e5684f5ea6ede78172fbda93b24e7b0ae1824d4e300f0287332aab2772c246f。metadata369成功、変異80成功、全200変異/299実導出・旧T2要求4656全順序同値を独立確認。P8candidate本文/期待値/未受理状態を変えず基準digest2値だけ、変異policyは旧50→59軸/境界141維持。新9観測にもT2実導出不変を検査しskipを作らない。root-acceptance-receipt.jsonに全前後/採用範囲を固定。旧署名Gate6とoracle機械追随/結合後CIは未達。

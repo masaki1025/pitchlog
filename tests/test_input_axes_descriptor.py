@@ -137,7 +137,10 @@ def _with_digest(descriptor: dict[str, Any]) -> dict[str, Any]:
 
 def _validate(descriptor: dict[str, Any]) -> None:
     """リポジトリのschemaと実在条文IDを用いてdescriptorを検証する。"""
-    checker.validate_descriptor_document(descriptor, _schema(), SOURCE_CLAUSE_IDS)
+    checker.validate_descriptor_document(
+        descriptor, _schema(), SOURCE_CLAUSE_IDS,
+        checker.load_game_end_observation_documents(REPOSITORY_ROOT, _criteria()),
+    )
 
 
 def test_repository_descriptor_passes_schema_and_digest_validation() -> None:
@@ -236,7 +239,10 @@ def test_game_end_combination_drift_is_red_after_schema_and_digest_follow() -> N
         checker.DescriptorCheckError,
         match="終了判定の組合せ規則が凍結基準と一致しない",
     ):
-        checker.validate_descriptor_document(descriptor, schema, SOURCE_CLAUSE_IDS)
+        checker.validate_descriptor_document(
+            descriptor, schema, SOURCE_CLAUSE_IDS,
+            checker.load_game_end_observation_documents(REPOSITORY_ROOT, _criteria()),
+        )
 
 
 def test_schema_retention_drift_is_red_after_schema_and_digest_follow() -> None:
@@ -255,7 +261,10 @@ def test_schema_retention_drift_is_red_after_schema_and_digest_follow() -> None:
         checker.DescriptorCheckError,
         match="schemaへの射影保持が必須",
     ):
-        checker.validate_descriptor_document(descriptor, schema, SOURCE_CLAUSE_IDS)
+        checker.validate_descriptor_document(
+            descriptor, schema, SOURCE_CLAUSE_IDS,
+            checker.load_game_end_observation_documents(REPOSITORY_ROOT, _criteria()),
+        )
 
 
 def test_schema_defines_the_complete_top_level_and_closed_axis_enum() -> None:
@@ -456,10 +465,21 @@ def test_state_transition_axes_match_d11_inventory_and_sources() -> None:
         "event.tiebreakStart.activationRelation": ("req:FR-009", "finite-enumerable"),
     }
 
+    documents = checker.load_game_end_observation_documents(REPOSITORY_ROOT, _criteria())
+    included = checker.game_end_coordinate_axis_ids(descriptor, _criteria(), documents)
+    observations = checker._play_coordinate_axis_ids(descriptor) - included
+    assert set(axes) == set(expected) | observations
     assert {
-        axis_id: (axis["sourceClauseId"], axis["classification"])
-        for axis_id, axis in axes.items()
+        axis_id: (axes[axis_id]["sourceClauseId"], axes[axis_id]["classification"])
+        for axis_id in expected
     } == expected
+    assert documents is not None
+    source_clauses = set(json.loads(documents.rules)["sourceClauses"])
+    assert all(
+        axes[axis_id]["sourceClauseId"] in source_clauses
+        and axes[axis_id]["classification"] == "finite-enumerable"
+        for axis_id in observations
+    )
     assert all(source_id in SOURCE_CLAUSE_IDS for source_id, _ in expected.values())
     assert all(
         source_id in SOURCE_CLAUSE_IDS

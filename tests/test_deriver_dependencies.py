@@ -7,6 +7,7 @@ import json
 import os
 import subprocess
 import sys
+from collections import Counter
 from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import replace
@@ -92,6 +93,37 @@ def _row_requirement_documents() -> tuple[Any, Any, Any, frozenset[str]]:
         _json(VOCABULARY_MANIFEST_PATH),
         _json(VOCABULARY_SEED_PATH),
         frozenset(f"req:{clause_id}" for clause_id in clause_ids),
+    )
+
+
+def _declared_row_counts() -> dict[str, int]:
+    """正式の語彙/分割宣言から件数を数え、導出器の返値へ依存しない。"""
+    rules, _, seed, _ = _row_requirement_documents()
+    event_by_axis = {
+        item["axisId"]: item["eventKind"]
+        for item in rules["axisAssignments"] if item["role"] == "result-id-source"
+    }
+    event_by_id = {
+        entry["id"]: event_by_axis[axis["axisId"]]
+        for axis in seed["axes"] if axis["axisId"] in event_by_axis
+        for entry in axis["entries"]
+    }
+    counts: Counter[str] = Counter()
+    for rule in rules["partitionRules"]:
+        for vocabulary_id in rule["vocabularyIds"]:
+            counts[event_by_id[vocabulary_id]] += len(rule["partitions"])
+        for addition in rule.get("additionalPartitions", []):
+            counts[event_by_id[addition["vocabularyId"]]] += len(addition["partitions"])
+    return dict(counts)
+
+
+def _declared_coordinate_count() -> int:
+    """正式descriptorの軸ごとのcoverage値を数える。"""
+    descriptor = _input_axes_descriptor()
+    fields = descriptor["inputCoordinateCoverage"]["coverageValueFieldsByClassification"]
+    return sum(
+        len(axis[fields[axis["classification"]]])
+        for axis in descriptor["stateTransitionAxes"]
     )
 
 
@@ -184,13 +216,13 @@ def test_future_vocabulary_axis_without_classification_fails() -> None:
 
 
 def test_repository_row_requirements_have_declared_count_and_sources() -> None:
-    """5規則から47行を導出し、全要求に実在条文IDを残す。"""
+    """正式分割規則から行を導出し、全要求に実在条文IDを残す。"""
     policy = _policy()
     requirements, trace = checker.derive_repository_row_requirements(
         REPOSITORY_ROOT, policy
     )
-    assert len(requirements) == 47
-    assert len({item.identity for item in requirements}) == 47
+    assert len(requirements) == sum(_declared_row_counts().values())
+    assert len({item.identity for item in requirements}) == sum(_declared_row_counts().values())
     assert all(item.source_clause_ids for item in requirements)
     assert set(trace.observed_read_paths) == set(
         policy.derivers["required-set-row-requirements"].allowed_read_paths
@@ -198,11 +230,7 @@ def test_repository_row_requirements_have_declared_count_and_sources() -> None:
     assert {
         event_kind: sum(item.event_kind == event_kind for item in requirements)
         for event_kind in {item.event_kind for item in requirements}
-    } == {
-        "batting-result": 27,
-        "secondary-result": 11,
-        "runner-event": 9,
-    }
+    } == _declared_row_counts()
 
 
 def test_missing_normative_row_requirement_fails() -> None:
@@ -234,7 +262,7 @@ def test_partition_rule_without_source_clause_fails() -> None:
 
 
 def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
-    """45軸から軸ごとの193要求を導出し、軸間直積を主張しない。"""
+    """正式軸から軸ごとの要求を導出し、軸間直積を主張しない。"""
     policy = _policy()
     requirements, trace = checker.derive_repository_input_coordinate_requirements(
         REPOSITORY_ROOT, policy
@@ -242,8 +270,8 @@ def test_repository_input_coordinate_requirements_are_per_axis_values() -> None:
     descriptor = _input_axes_descriptor()
     boundary = descriptor["inputCoordinateCoverage"]["axisCombinationBoundary"]
 
-    assert len(requirements) == 193
-    assert len({item.identity for item in requirements}) == 193
+    assert len(requirements) == _declared_coordinate_count()
+    assert len({item.identity for item in requirements}) == _declared_coordinate_count()
     assert {item.axis_id for item in requirements} == {
         axis["axisId"] for axis in descriptor["stateTransitionAxes"]
     }
@@ -297,8 +325,10 @@ def test_conditional_coordinate_values_follow_declared_adoption_state() -> None:
         requirements, {"req:FR-040": "adopted"}
     )
 
-    assert len(not_adopted) == 188
-    assert len(adopted) == 193
+    assert not_adopted == tuple(
+        item for item in requirements if item.when_clause_id is None
+    )
+    assert adopted == requirements
     assert not any(
         item.when_clause_id is not None for item in not_adopted
     )
@@ -314,7 +344,7 @@ def test_undecidable_conditional_coordinate_state_fails() -> None:
 
 
 def test_all_rows_with_only_one_case_each_do_not_cover_input_coordinates() -> None:
-    """全47行へ各1 caseだけ置いても軸ごとの全coverage値を満たせない。"""
+    """全規範行へ各1 caseだけ置いても軸ごとの全coverage値を満たせない。"""
     rows, _ = checker.derive_repository_row_requirements(REPOSITORY_ROOT)
     requirements, _ = checker.derive_repository_input_coordinate_requirements(
         REPOSITORY_ROOT
@@ -334,7 +364,7 @@ def test_all_rows_with_only_one_case_each_do_not_cover_input_coordinates() -> No
     )
     one_case_for_every_row = one_matrix_case * len(rows)
 
-    assert len(rows) == 47
+    assert len(rows) == sum(_declared_row_counts().values())
     with pytest.raises(checker.DeriverDependencyError, match="入力座標要求がexact-set不一致"):
         checker.validate_input_coordinate_coverage(active, one_case_for_every_row)
 
@@ -353,13 +383,13 @@ def test_repository_game_end_required_set_follows_descriptor_combinations() -> N
         len(axis.get("invalidBoundaryValues", []))
         for axis in descriptor["gameEndAxes"]
     )
-    play_input_axes = {
-        axis_id
-        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
-        for row_binding in binding["rowBindings"]
-        if "matrixRows" in row_binding["rowLayers"]
-        for axis_id in binding["axisIds"]
-    }
+    criteria = checker.descriptor_checker.load_descriptor_criteria(descriptor)
+    documents = checker.descriptor_checker.load_game_end_observation_documents(
+        REPOSITORY_ROOT, criteria
+    )
+    play_input_axes = checker.descriptor_checker.game_end_coordinate_axis_ids(
+        descriptor, criteria, documents
+    )
     state_event_coordinates = tuple(
         item
         for item in checker.derive_input_coordinate_requirements_from_descriptor(
