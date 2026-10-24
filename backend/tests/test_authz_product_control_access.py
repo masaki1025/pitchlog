@@ -196,6 +196,10 @@ def test_catalog_checker_rejects_rg1_update_acl_mutations(
     (
         ("tenants", "pitchlog_rg1_fn_owner"),
         ("rg1_restore_gate", "pitchlog_management_fn_owner"),
+        ("games", "pitchlog_rg1_control_owner"),
+        ("games", "pitchlog_rg1_control_actor"),
+        ("games", "pitchlog_ledger_identity_owner"),
+        ("games", "pitchlog_ledger_identity_probe"),
     ),
 )
 def test_catalog_checker_rejects_rg1_table_acl(
@@ -771,3 +775,55 @@ def test_old_rg1_reader_cannot_acquire_state_update_through_control_extension() 
     }
     with pytest.raises(ValueError):
         generate_function_owner_column_acl_sql(declaration)
+
+
+@pytest.mark.parametrize(
+    "role_id",
+    (
+        "pitchlog_rg1_control_owner",
+        "pitchlog_rg1_control_actor",
+        "pitchlog_ledger_identity_owner",
+        "pitchlog_ledger_identity_probe",
+    ),
+)
+@pytest.mark.parametrize(
+    "table,column",
+    (
+        ("admin_credentials", "password_hash"),
+        ("games", "id"),
+    ),
+)
+def test_rg1_new_principals_cannot_acquire_business_column_access(
+    role_id: str,
+    table: str,
+    column: str,
+) -> None:
+    """新観測/制御主体の業務列SELECTを資産とSQL生成の双方で拒否する。"""
+    function_id = "FUNCTION:rg1_control:synthetic_restricted()"
+    declaration: dict[str, object] = {
+        "expectation_id": f"COLUMN-ACL:public:{table}:{column}:{role_id}",
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": table,
+        "column_id": column,
+        "grantee_role_id": role_id,
+        "privilege_ids": ["SELECT"],
+        "grant_option": False,
+        "function_id": function_id,
+    }
+    with pytest.raises(ValueError, match="業務列ACL|固定2列"):
+        generate_function_owner_column_acl_sql(declaration)
+    asset = _product_asset()
+    function = copy.deepcopy(
+        next(row for row in asset["functions"] if row["function_kind"] == "definer")
+    )
+    function["function_id"] = function_id
+    function["owner_role_id"] = role_id
+    asset["functions"].append(function)
+    asset["column_acl_expectations"].append(declaration)
+    with pytest.raises(_catalog_checker.CatalogError, match="業務列ACL|固定2列"):
+        _catalog_checker._validate_product_membership_helper(
+            asset,
+            _REPOSITORY_ROOT,
+            RuntimeContractState.PROVISIONAL,
+        )

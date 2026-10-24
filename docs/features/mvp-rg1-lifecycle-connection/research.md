@@ -93,3 +93,8 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 ## 台帳供給の履歴参照を全走査へ整合
 
 2026-10-24T05:22:44.762372+00:00、rootはtests/test_core_guard.pyの未統合台帳供給40hex直書きを除き、実RG1第一親系譜で台帳が初供給された通常mergeの第2親から当時のblobを導出するようにした。第一親にRG1あり/台帳なし、第2親に台帳あり/RG1なし、merge後両sourceあり、一意性を要求し、現値同士/branch可変ポインタから歴史guardを作らない。実導出供給は27d0ceb22b72a29259e06ef5cd5b4e874b384100、初供給merge a74542a4a3c1b3ea280a550a76a7a1a6a9bba5dd。global allowlist/走査/コア判定31本文は不変。root全core検査453成功32.85s（/home/ymdms/.cache/pitchlog/rg1-core-supplier-history-89ebdce2.log）、Ruff行長1件の改行のみ是正・ty0。新source11pathの独立レビュー89ebdce2は別系列でP1一件、後発修正をこの供給参照の確認と混同しない。
+
+
+## RG1新観測ownerの権限拡張拒否（独立P1反映）
+
+2026-10-24T05:23:35.585189+00:00、非作者initial_scope_plan_reviewの固定89ebdce2レビューP0=0/P1=1/P2=0を受領し全採用。証拠 /home/ymdms/.cache/pitchlog/reviews/rg1-authz-89ebdce2-independent/evidence.json（SHA256 9bcbcb4d1d16f24f38e3ab33971a742c77c601216e7b1c28c57a8c5f2849f4d5）。新identity_ownerへgeneric経路で業務表DELETE/秘密列SELECTを追加できる未閉鎖を是正し、表ACL共通拒否/列ACL生成境界で新観測主体の業務権限0を閉じた。制御ownerの列権限は既固定2列だけ、actor/probeも新業務ACLを生成しない。旧generic owner/既builtin2EXECUTE/既23SQL/26asset候補byteは不変。新否定例8件/表拒否4件を追加し、関連新旧84成功121非対象0.55s・局所17成功38非対象0.09s・Ruff/ty0。最初の準備コマンドはbackend cwdへroot相対pathを渡してFileNotFoundで編集前失敗し、その後の旧選択実行を新反映成功に数えなかった。正しいrootで編集後の上記別ログだけを証拠とする。限定再レビュー前でありP1終結はまだ宣言しない。実DB0/正式profile未反映/全体CLI redを保持する。
