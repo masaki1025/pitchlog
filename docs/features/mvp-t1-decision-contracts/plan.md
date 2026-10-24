@@ -99,3 +99,16 @@ rootが正式共有資産の唯一のwriter。作者はcache候補のみ、非�
 - `scripts/check_input_axes_descriptor.py`
 - `scripts/check_required_set_coverage.py`
 - `tests/test_state_transition_contract_schema.py`
+
+
+## 旧軸固定とcold監査の有限追補
+
+既28pathに下記3pathを加え31pathとする。旧T2軸をcurrent descriptorだけから自己照合しないため、正式4b2時点のdescriptorを読み取り専用baseline資産へ固定し、監査policyと既三点parityのreadonly束へ明示する。既coreのsync/game-state両境界に3pathが含まれることをrootが確認した。Pythonへのbaseline SHA/commit直書きや走査除外を加えない。
+
+- `contracts/state-transition/deriver_dependency_policy_v1.json`
+- `contracts/state-transition/t2_coordinate_baseline_snapshot_v1.json`
+- `scripts/check_input_axes_three_way_parity.py`
+
+初回通常レビューP2-01は反映1のbaseline分離で終結。第2回は新processでcodec初回読込が依存監査に拒否されるP1-02を検出。rootは全採用し、PO委任の限定追加レビュー判断によりcold初期化・監査範囲・派生値影響だけへの追加非作者確認を1回認める。レビュー系列/回数をリセットせず、追加の意味承認を求めない。反映2はproduction module初期化で必要codecだけを先に解決し、依存監査のrepo外読込拒否/宣言5path制限を維持する。正式資産31path以外の拡張はしない。
+
+反映2固定handoff SHA411e194fbddd96972fcde774f815efd72828730a23f971fad698010913516a12、全patch SHA40d05b617d345dc171d9151c37fdc20e313e80ac060165de4e7e0df723517bb7。rootのPO委任確認対象はこの有限技術追補で、非作者最終所見受領前にP1終結/正式7.7受理とは扱わない。339成功/11未検証は作者局所値で、正式検査時は全対象を戻す。D06/B・D07/Aの採用意味と旧4656要求identity/順序・旧42行/109case要素byteを保持する。
