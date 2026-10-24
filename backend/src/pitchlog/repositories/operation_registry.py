@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import MappingProxyType
+
 from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     build_function_registry,
@@ -19,6 +21,11 @@ from pitchlog.repositories.rg1 import (
     _decode_rg1_result,
 )
 from pitchlog.repositories.roster import ROSTER_OPERATIONS
+from pitchlog.repositories.rule_resolution import (
+    StageAResolveRuleToken,
+    _build_stage_a_rule_statement,
+    _decode_stage_a_rule_result,
+)
 from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
 
@@ -31,7 +38,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *TENANT_PROFILE_OPERATIONS,
 )
 
-# RG1の既存2照合と、制御権限を持たない同一Session識別の読取を登録する。
+# RG1固定2照合・同Session識別1件と、正式段階A読取1件だけを登録する。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     FunctionOperationRegistration(
         operation_id="RG1:precheck",
@@ -68,6 +75,23 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         min_rows=1,
         max_rows=1,
         decoder=_decode_rg1_result,
+    ),
+    FunctionOperationRegistration(
+        operation_id="RULE:resolve_stage_a",
+        token_type=StageAResolveRuleToken,
+        capability_id="CAP:rules:resolve_stage_a",
+        function_id="public.resolve_stage_a_rule",
+        statement=_build_stage_a_rule_statement(),
+        input_fields=(
+            ("game_type_key", str),
+            ("tournament_key", str),
+            ("has_override", bool),
+        ),
+        result_fields=(("resolution", MappingProxyType),),
+        min_rows=1,
+        max_rows=1,
+        decoder=_decode_stage_a_rule_result,
+        nonempty_inputs=("game_type_key", "tournament_key"),
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

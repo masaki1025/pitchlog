@@ -5,6 +5,7 @@ from __future__ import annotations
 import runpy
 import secrets
 import shutil
+import traceback
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
@@ -20,18 +21,30 @@ from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.engine import URL
+from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
     apply_product_authz_ddl,
 )
-from pitchlog.db.game_state.rule_snapshot import decode_structure, validate_correlations
+from pitchlog.db.engine import create_database_engine
+from pitchlog.db.game_state.rule_snapshot import (
+    decode_structure,
+    encode_applied_rules,
+    validate_correlations,
+)
 from pitchlog.db.stage_a_startup import (
     StageAStartupError,
     advance_stage_a_from_s0,
     resume_stage_a_after_placement,
+)
+from pitchlog.repositories import transaction
+from pitchlog.repositories.rule_resolution import (
+    RuleResolutionError,
+    StageARuleRequest,
+    resolve_stage_a_rule,
 )
 
 from .conftest import DisposablePostgres
@@ -1181,3 +1194,260 @@ def test_stage_a_function_candidate_rejects_override_and_guc_mismatch(
         assert row is not None and row[0] == {"status": "stage_a_unsupported"}
         cursor.execute("RESET ROLE")
     catalog.applicator.rollback()
+
+
+@dataclass(frozen=True, repr=False)
+class _PublicResolverDatabase:
+    """資格文字列をreprへ出さない正式S3の隔離接続情報。"""
+
+    admin_dsn: str
+    engine: Engine
+    tenant_a: UUID
+    tenant_b: UUID
+    events: list[str]
+
+
+@pytest.fixture
+def public_resolver_database(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[_PublicResolverDatabase]:
+    """正式S3と実app接続を用意し、実scopeのengine factoryだけを接続する。"""
+    with _fresh_schema_database(disposable_postgres_cluster, monkeypatch) as (
+        owner_dsn,
+        admin_dsn,
+    ):
+        startup = advance_stage_a_from_s0(owner_dsn=owner_dsn, applicator_dsn=admin_dsn)
+        assert startup.completed_stage == "S3"
+        assert startup.publishable is False
+        tenant_a, tenant_b = uuid4(), uuid4()
+        password = secrets.token_urlsafe(24)
+        with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("ALTER ROLE pitchlog_app PASSWORD {}").format(
+                    sql.Literal(password)
+                )
+            )
+            cursor.executemany(
+                "INSERT INTO public.tenants(id,name) VALUES (%s,%s)",
+                ((tenant_a, "resolver-team-a"), (tenant_b, "resolver-team-b")),
+            )
+            cursor.executemany(
+                "INSERT INTO public.tenant_vocabularies "
+                "(tenant_id,key,category,display_name,disabled) "
+                "VALUES (%s,%s,'tournament',%s,%s)",
+                (
+                    (tenant_a, "tournament-a", "大会A", False),
+                    (tenant_b, "tournament-b", "大会B", False),
+                    (tenant_a, "disabled-a", "無効大会A", True),
+                ),
+            )
+        app_dsn = make_conninfo(owner_dsn, user="pitchlog_app", password=password)
+        app_url = _owner_url(app_dsn).update_query_dict({"sslmode": "disable"})
+        monkeypatch.setenv(
+            "PITCHLOG_DATABASE_URL", app_url.render_as_string(hide_password=False)
+        )
+        monkeypatch.setenv("PITCHLOG_DATABASE_POOLED", "false")
+        with psycopg.connect(app_dsn) as app, app.cursor() as cursor:
+            cursor.execute("SELECT session_user,current_user")
+            assert cursor.fetchone() == ("pitchlog_app", "pitchlog_app")
+        engine = create_database_engine()
+        observed: list[str] = []
+        event.listen(engine, "commit", lambda connection: observed.append("commit"))
+        event.listen(engine, "rollback", lambda connection: observed.append("rollback"))
+
+        def _record_sql(
+            connection: object,
+            cursor: object,
+            statement: str,
+            parameters: object,
+            context: object,
+            executemany: bool,
+        ) -> None:
+            """関数実呼出し回数だけを記録し、SQL/資格/入力を記録しない。"""
+            if "public.resolve_stage_a_rule(" in statement:
+                observed.append("resolve")
+
+        event.listen(engine, "before_cursor_execute", _record_sql)
+        monkeypatch.setattr(transaction, "create_database_engine", lambda: engine)
+        try:
+            yield _PublicResolverDatabase(
+                admin_dsn, engine, tenant_a, tenant_b, observed
+            )
+        finally:
+            engine.dispose()
+
+
+def _assert_tenant_guc_cleared(db: _PublicResolverDatabase) -> None:
+    """実app接続のcheckout後にtenantが次transactionへ持ち越されない。"""
+    with db.engine.connect() as connection:
+        assert (
+            connection.execute(text("SELECT current_user")).scalar_one()
+            == "pitchlog_app"
+        )
+        assert connection.execute(
+            text("SELECT current_setting('app.tenant_id',true)")
+        ).scalar_one() in (None, "")
+
+
+def _assert_rule_lock_released(db: _PublicResolverDatabase) -> None:
+    """別の実接続から規則行をNOWAITで更新lockできることを確かめる。"""
+    with psycopg.connect(db.admin_dsn) as observer, observer.cursor() as cursor:
+        cursor.execute(
+            "SELECT id FROM public.rule_sets WHERE id=%s FOR UPDATE NOWAIT",
+            (_OFFICIAL_ID,),
+        )
+        assert cursor.fetchone() == (_OFFICIAL_ID,)
+
+
+def test_public_resolver_s3_real_scope_success_and_lock_lifetime(
+    public_resolver_database: _PublicResolverDatabase,
+) -> None:
+    """正式関数/実app/実scopeで成功しFOR SHAREを終了まで保持する。"""
+    db = public_resolver_database
+    context = make_tenant_context(db.tenant_a)
+    with transaction.tenant_transaction_scope(context) as scope:
+        snapshot = resolve_stage_a_rule(
+            scope, StageARuleRequest("game_official", "tournament-a", False)
+        )
+        with psycopg.connect(db.admin_dsn) as observer:
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                with observer.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT id FROM public.rule_sets WHERE id=%s FOR UPDATE NOWAIT",
+                        (_OFFICIAL_ID,),
+                    )
+    assert db.events == ["resolve", "commit"]
+    encoded = encode_applied_rules(snapshot)
+    assert snapshot.structural.rule_set_id == _OFFICIAL_ID
+    assert encoded["ruleSetId"] == str(_OFFICIAL_ID)
+    assert set(encoded) == {
+        "ruleSetId",
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh",
+    }
+    assert (
+        encoded["regulationInnings"] == 9 and type(encoded["regulationInnings"]) is int
+    )
+    assert encoded["extensionLimit"] == 12 and type(encoded["extensionLimit"]) is int
+    tiebreak = cast(dict[str, object], encoded["tiebreak"])
+    assert tiebreak["startInning"] == 10 and type(tiebreak["startInning"]) is int
+    assert encoded["coldConditions"] == [] and encoded["dh"] is True
+    _assert_rule_lock_released(db)
+    _assert_tenant_guc_cleared(db)
+    with pytest.raises(RuleResolutionError, match="outcome_unconfirmed"):
+        resolve_stage_a_rule(
+            scope, StageARuleRequest("game_official", "tournament-a", False)
+        )
+    assert db.events.count("resolve") == 1
+
+
+def test_public_resolver_s3_parent_visibility_and_tenant_binding(
+    public_resolver_database: _PublicResolverDatabase,
+) -> None:
+    """他tenant親/不存在/無効は同じ失敗となり、別tenantも自己親だけを使う。"""
+    db = public_resolver_database
+    for key in ("tournament-b", "missing-tournament", "disabled-a"):
+        with pytest.raises(RuleResolutionError) as captured:
+            with transaction.tenant_transaction_scope(
+                make_tenant_context(db.tenant_a)
+            ) as scope:
+                resolve_stage_a_rule(
+                    scope, StageARuleRequest("game_official", key, False)
+                )
+        assert captured.value.code == "rule_not_available"
+    assert db.events == ["resolve", "rollback"] * 3
+    with transaction.tenant_transaction_scope(
+        make_tenant_context(db.tenant_b)
+    ) as scope:
+        snapshot = resolve_stage_a_rule(
+            scope, StageARuleRequest("game_official", "tournament-b", False)
+        )
+    assert snapshot.structural.rule_set_id == _OFFICIAL_ID
+    _assert_tenant_guc_cleared(db)
+
+
+def test_public_resolver_s3_override_and_assignment_never_fall_back(
+    public_resolver_database: _PublicResolverDatabase,
+) -> None:
+    """上書き指定/実割当行は全体既定へfallbackせず対象外とする。"""
+    db = public_resolver_database
+    with pytest.raises(RuleResolutionError, match="stage_a_unsupported"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(db.tenant_a)
+        ) as scope:
+            resolve_stage_a_rule(
+                scope, StageARuleRequest("game_official", "tournament-a", True)
+            )
+    with psycopg.connect(db.admin_dsn) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO public.tournament_rule_assignments "
+            "(tenant_id,tournament_key,rule_set_id) VALUES (%s,'tournament-a',%s)",
+            (db.tenant_a, _OFFICIAL_ID),
+        )
+    with pytest.raises(RuleResolutionError, match="stage_a_unsupported"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(db.tenant_a)
+        ) as scope:
+            resolve_stage_a_rule(
+                scope, StageARuleRequest("game_official", "tournament-a", False)
+            )
+    assert db.events == ["resolve", "rollback"] * 2
+    _assert_rule_lock_released(db)
+    _assert_tenant_guc_cleared(db)
+
+
+def test_public_resolver_s3_invalid_stored_rule_rolls_back(
+    public_resolver_database: _PublicResolverDatabase,
+) -> None:
+    """実規則行の不整合は検証済みsnapshotへ昇格せずrollbackする。"""
+    db = public_resolver_database
+    with psycopg.connect(db.admin_dsn) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "UPDATE public.rule_sets SET extra_innings_limit=10 WHERE id=%s",
+            (_OFFICIAL_ID,),
+        )
+        assert cursor.rowcount == 1
+    with pytest.raises(RuleResolutionError, match="invalid_rule"):
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(db.tenant_a)
+        ) as scope:
+            resolve_stage_a_rule(
+                scope, StageARuleRequest("game_official", "tournament-a", False)
+            )
+    assert db.events == ["resolve", "rollback"]
+    _assert_rule_lock_released(db)
+    _assert_tenant_guc_cleared(db)
+
+
+def test_public_resolver_s3_execute_denial_is_sanitized_and_not_retried(
+    public_resolver_database: _PublicResolverDatabase, caplog: pytest.LogCaptureFixture
+) -> None:
+    """実EXECUTE拒否を秘匿した結果不明へ写し実transactionを全取消する。"""
+    db = public_resolver_database
+    with psycopg.connect(db.admin_dsn) as admin, admin.cursor() as cursor:
+        cursor.execute(
+            "REVOKE EXECUTE ON FUNCTION "
+            "public.resolve_stage_a_rule(uuid,text,text,boolean) FROM pitchlog_app"
+        )
+    with pytest.raises(RuleResolutionError) as captured:
+        with transaction.tenant_transaction_scope(
+            make_tenant_context(db.tenant_a)
+        ) as scope:
+            resolve_stage_a_rule(
+                scope, StageARuleRequest("game_official", "tournament-a", False)
+            )
+    assert captured.value.code == "outcome_unconfirmed"
+    assert str(captured.value) == "outcome_unconfirmed"
+    assert "permission denied" not in "".join(
+        traceback.format_exception(captured.value)
+    )
+    assert "permission denied" not in caplog.text
+    assert db.events == ["resolve", "rollback"]
+    _assert_tenant_guc_cleared(db)
+    _assert_rule_lock_released(db)
