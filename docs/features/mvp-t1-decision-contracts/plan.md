@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-decision-contracts
 status: active
-承認: 未（既PO採用の有限正式反映手順を主担当確認中）
+承認: 済（PO委任による有限技術手順確認、本文参照）
 重さ分類: コア領域
 branch: feature/mvp-t1-decision-contracts
 created: 2026-10-24
@@ -50,3 +50,8 @@ rootが正式共有資産の唯一のwriter。作者はcache候補のみ、非�
 ## 6. 検査
 
 作業中は局所schema/原典対応/既値保持・双方向負例、descriptor checker/three-way parity、gap/branch mapping検査。最終はfrozen/census/規範整合・型・root検査・必須CI。重い検査とDBは所有slotを分離。故障比較例の通過は実DB実証ではない。実Port/DB/HTTP完成は計算契約整備の新しい前提にしない。
+
+
+## PO委任による有限手順の確認
+
+2026-10-24T05:11:30.496225+00:00、Codex主担当/rootは既PO委任に基づきdda06f76の本plan/researchを544既承認ステップ1の有限手順として確認する。非作者rights_replacement_reviewによる限定写像レビュー0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/d06d07-formal-plan-dda06f76-independent-20261024/evidence.json（SHA256 210d450f6e34a51e296a4d918050ebd8cc7849af6c86f9ac2f169ac22b21c1d8）、標準diff80f8fb6a4e733445a0dd6dc42e8a9e574e869005509f75c9324303865e31cdfcを根拠とする。ステップ1の新規採用差分を原典と照合して7.3へ進める。9projection/8source等は既検査の実影響を求める例示であり固定数の新条件ではない。段階A固定結果/未検証範囲受領→候補core/所有側受理→7.7→正式反映→段階B/必要再検証/受理を保持する。実回答の意味を再承認したものでも、人間の逐行確認/実値署名の代行でもない。
