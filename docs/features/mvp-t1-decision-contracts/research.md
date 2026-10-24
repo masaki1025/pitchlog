@@ -56,3 +56,10 @@ D06技術候補の初回P1に対するroot反映は非作者第2回相当で終�
 rootは既544承認計画step2の実装材料として、TSの42ID規則表・BigInt計算骨格・操作written差分表現・既build/hostを再利用する方針を選ぶ。正式本体着手条件が成立するまで製品sourceへ移さず、まず閉契約との不足を確定する。ElementAccessExpression許可1行の変更は既宣言所有に対する最小独立確認と拒否回帰後に限る。新しい方式や全体計画を作り直す判断ではない。
 
 再利用の是正対象は#183新2例（outEffectが実0対期待1、raw観測payloadは現API未使用）、閉入力拒否（outs99/strikes999/未知runnersがok:true）、RBI近似、打順9固定、G6/S20、undo10、matrix historyContext、history.after34差分。37成功や旧99caseの5/4面一致を全出力/状態遷移/P6成立にしない。Python計算の重複・always-true権利/RG1/recovery/validator・no-op projection・独自HTTP/wire・34差分数をgreen条件とするassertionは製品へ持ち込まない。これらは旧spike保存→reload試験の境界であり、最優先の真正な縦断経路の達成証拠にしない。
+
+
+## D06/B・D07/A限定の正式値受理と反映
+
+2026-10-24T08:15:25.407561+00:00、rootはPO委任によるCodex判断として、固定base3f582100＋39path patch be714d351ad5954440c1bcce870faed6d3b9bd5b65b371074c4ca2951961055e、proposal bb98f24fefe03191372310ebad8897d53eb8360819e71738f7990fca30a742d7の完全前後値と非作者反映2レビューe4b2faaa958b89221a5626dec33504f3fa691850ae9c949b75e96cc25c7cfc58（0/0/0）を受理して39pathを反映する。本人の実値逐行確認・署名ではない。cache acceptance-receipt.jsonが判断対象/根拠/時刻を保持する。元初回3P1と次の14test P1は全採用の履歴を残し、最終14対象＋Git PR正負4の独立18成功、完全repo隔離536成功42.21s。最後のPR131固定期待2失敗は環境扱いせず、実target番号のfixture追随と別PR拒否を併設して解消した。全基準/入力/ケース/旧値を、通すために削除していない。
+
+正式枝内はmatrix44/case111/manual29、旧42/109/27要素とT2全248case/4656要求の要素・順序を保持。input被覆は旧153全保持→170・17追加、要求226/除外56/到達可能170・不足0。P8の全着手不足は今回2caseの範囲だけを13へ減らすもので、G6等の残件や7marker全閉鎖へ広げない。手fixture2は既未承認bootstrap状態を保持し、旧109全P6や新2の正式段階B/所有受理を成立扱いにしない。次は反映後の正式Git受理遷移/全影響検査と対象段階B・所有側範囲受理であり、計算本体の着手条件全成立・正式develop提供・実開始/初球保存は未達。

@@ -603,7 +603,10 @@ def validate_three_way_parity(root: Path) -> ParityReport:
     )
     try:
         descriptor_checker.validate_descriptor_document(
-            descriptor, schema, source_clause_ids
+            descriptor, schema, source_clause_ids,
+            descriptor_checker.load_game_end_observation_documents(
+                root, descriptor_checker.load_descriptor_criteria(descriptor)
+            ),
         )
     except descriptor_checker.DescriptorCheckError as error:
         raise ThreeWayParityError(f"descriptorの自己検査に失敗した: {error}") from error

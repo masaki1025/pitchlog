@@ -48,7 +48,10 @@
       "output": "gameEnd.requiredSet",
       "allowedReadPaths": [
         "contracts/state-transition/input_axes_descriptor_v1.json",
-        "docs/requirements/requirements-pitchlog-2026-07-22.md"
+        "docs/requirements/requirements-pitchlog-2026-07-22.md",
+        "contracts/state-transition/t1_observation_binding_rules_v1.json",
+        "contracts/state-transition/t1_out3_input_schema_v1.json",
+        "contracts/state-transition/t2_coordinate_baseline_snapshot_v1.json"
       ]
     }
   ]

@@ -448,7 +448,7 @@
     "verification": "derived-exact-set"
   },
   "normalCaseCounts": {
-    "stateTransition": 109,
+    "stateTransition": 111,
     "gameEnd": 248
   },
   "stateTransitionCaseAliases": [
@@ -669,7 +669,11 @@
     "contracts/state-transition/deriver_dependency_policy_v1.json",
     "contracts/state-transition/deriver_dependency_policy_schema_v1.json",
     "contracts/state-transition/gap_register_v1.json",
-    "docs/requirements/requirements-pitchlog-2026-07-22.md"
+    "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "contracts/vocabulary/input_vocabulary_v1.json",
+    "contracts/state-transition/t1_observation_binding_rules_v1.json",
+    "contracts/state-transition/t1_out3_input_schema_v1.json",
+    "contracts/state-transition/t2_coordinate_baseline_snapshot_v1.json"
   ],
   "unreachableRowSituations": [
     {

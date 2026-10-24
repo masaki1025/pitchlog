@@ -41,6 +41,9 @@ ASSET_PATHS = (
     checker.ADR_PATH,
     checker.DESCRIPTOR_PATH,
     checker.SCHEMA_PATH,
+    Path("contracts/state-transition/t1_observation_binding_rules_v1.json"),
+    Path("contracts/state-transition/t1_out3_input_schema_v1.json"),
+    Path("contracts/state-transition/t2_coordinate_baseline_snapshot_v1.json"),
 )
 
 
@@ -170,10 +173,11 @@ def test_repository_three_way_parity_is_green() -> None:
     ("mode", "event_name"),
     [("--acceptance", None), ("--ci", "pull_request")],
 )
+@pytest.mark.parametrize("number_offset", (0, 1))
 def test_repository_acceptance_uses_github_pull_request_base_sha(
-    tmp_path: Path, mode: str, event_name: str | None
+    tmp_path: Path, mode: str, event_name: str | None, number_offset: int
 ) -> None:
-    """PR eventのbase SHAから受理遷移を検査する。"""
+    """実baseからの受理遷移と、別PRへの付替え拒否を検査する。"""
     base_sha = subprocess.run(
         ["git", "rev-parse", "--verify", "origin/develop^{commit}"],
         cwd=REPOSITORY_ROOT,
@@ -188,12 +192,22 @@ def test_repository_acceptance_uses_github_pull_request_base_sha(
         text=True,
         check=True,
     ).stdout.strip()
+    descriptor_relative = "contracts/state-transition/input_axes_descriptor_v1.json"
+    current = json.loads((REPOSITORY_ROOT / descriptor_relative).read_text())
+    previous = json.loads(subprocess.run(
+        ["git", "show", f"{base_sha}:{descriptor_relative}"],
+        cwd=REPOSITORY_ROOT, capture_output=True, text=True, check=True,
+    ).stdout)
+    history = current["freezeBaseline"]["history"]
+    has_transition = len(history) > len(previous["freezeBaseline"]["history"])
+    # 対象PRは可変のfixtureデータ。拒否例を併設し、どのPRでも通ることを防ぐ。
+    number = int(history[-1]["acceptanceId"].rsplit("#", 1)[1]) + number_offset
     event_path = tmp_path / "event.json"
     event_path.write_text(
         json.dumps(
             {
                 "pull_request": {
-                    "number": 131,
+                    "number": number,
                     "base": {"sha": base_sha},
                     "head": {"sha": head_sha},
                 },
@@ -223,6 +237,10 @@ def test_repository_acceptance_uses_github_pull_request_base_sha(
         check=False,
     )
 
+    if number_offset and has_transition:
+        assert result.returncode != 0
+        assert "acceptanceIdがPR eventと一致しない" in result.stderr
+        return
     assert result.returncode == 0, result.stderr
     assert result.stdout == (
         "input-axes-three-way-parity: acceptance transition OK\n"
@@ -683,7 +701,7 @@ def test_observation_branch_reference_removal_is_red_after_digest_recalculation(
     axis_id: str,
     branch_id: str,
 ) -> None:
-    """観測入力軸から分岐参照を1件落とすとdigestを合わせても拒否する。"""
+    """全観測軸から分岐の最後の参照を落とすとdigestを合わせても拒否する。"""
     root = _copy_fixture_root(tmp_path)
 
     def mutate(descriptor: dict[str, Any]) -> None:
@@ -692,7 +710,11 @@ def test_observation_branch_reference_removal_is_red_after_digest_recalculation(
             for item in descriptor["stateTransitionAxes"]
             if item["axisId"] == axis_id
         )
-        axis["supportingClauseIds"].remove(f"req:{branch_id}")
+        assert f"req:{branch_id}" in axis["supportingClauseIds"]
+        # 同じ分岐を複数の原観測軸が参照するため、未参照の状態を作る。
+        for item in descriptor["stateTransitionAxes"]:
+            if f"req:{branch_id}" in item.get("supportingClauseIds", []):
+                item["supportingClauseIds"].remove(f"req:{branch_id}")
 
     _rewrite_descriptor(root, mutate)
 
