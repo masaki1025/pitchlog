@@ -17,6 +17,8 @@ from .durable_rights_ledger_support import (
     AuthorityDatabase,
     AuthorityResources,
     LedgerDatabase,
+    docker,
+    reserve_commit_failure,
 )
 
 pytestmark = pytest.mark.requires_db
@@ -36,12 +38,15 @@ def authority_resources() -> Iterator[AuthorityResources]:
 def authority_database(
     request: pytest.FixtureRequest, authority_resources: AuthorityResources
 ) -> AuthorityDatabase:
-    """normal群を共有し、fresh故障群は別cluster/witnessへ直列に切り替える。"""
-    key = (
-        "fresh:" + request.getfixturevalue("fresh_scenario")
-        if "fresh_scenario" in request.fixturenames
-        else "normal"
-    )
+    """normal群を共有し、故障群は専用cluster/witnessへ直列に切り替える。"""
+    if "critical_scenario" in request.fixturenames:
+        key = "critical:" + request.getfixturevalue("critical_scenario")
+    else:
+        key = (
+            "fresh:" + request.getfixturevalue("fresh_scenario")
+            if "fresh_scenario" in request.fixturenames
+            else "normal"
+        )
     return authority_resources.get(key)
 
 
@@ -843,3 +848,164 @@ print('FRESH_AND_D4',flush=True)
         if process.poll() is None:
             process.terminate()
             process.communicate(timeout=5)
+
+
+@pytest.mark.parametrize(
+    "critical_scenario", ("reserve_commit_abort", "fresh_close_ack_loss")
+)
+def test_real_critical_journal_commit_boundaries(
+    critical_scenario: str,
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+) -> None:
+    """実INTENT後のCOMMIT拒否と、実終端後のACK未読を専用pairで検査する。"""
+    if critical_scenario == "reserve_commit_abort":
+        _reserve_commit_abort_then_quarantine(authority_database, ledger_connections)
+    else:
+        assert critical_scenario == "fresh_close_ack_loss"
+        _fresh_close_ack_loss_after_durable_end(authority_database)
+
+
+def _reserve_commit_abort_then_quarantine(
+    authority: AuthorityDatabase, database: LedgerDatabase
+) -> None:
+    """実DML/INTENT後の取消を隔離予約へ復旧し、実standbyでも非再利用を検査する。"""
+    params = tuple(uuid4() for _ in range(4))
+    wire_params = tuple(str(value) for value in params)
+    with reserve_commit_failure(database) as fault:
+        assert (
+            authority.client(f"""
+p=tuple(UUID(v) for v in {wire_params!r})
+try: s.reserve(*p)
+except LedgerOutcomeUnconfirmed: pass
+else: raise AssertionError('aborted COMMIT acknowledged as reserved')
+try: s.current_recovery_generation()
+except LedgerUnavailable: pass
+else: raise AssertionError('pending INTENT did not close live authority')
+print('ABORT_UNCONFIRMED_AND_CLOSED')
+""")
+            == "ABORT_UNCONFIRMED_AND_CLOSED"
+        )
+        assert fault.observed() == (1, 1, 1, 1)
+        counts = authority.event_counts()
+        assert counts.get("intent") == 1
+        assert counts.get("confirmed", 0) == counts.get("quarantined", 0) == 0
+        # 取引内では予約1/highwater1に実到達したが、PGはCOMMIT前に全取消した。
+        with psycopg.connect(database.primary_admin) as observer:
+            assert observer.execute(
+                "SELECT (SELECT value FROM pitchlog_ledger.highwater),"
+                "(SELECT count(*) FROM pitchlog_ledger.reservations)"
+            ).fetchone() == (0, 0)
+    # 故障triggerを撤去してから同じjournalを通常startupへ渡す。
+    authority.stop()
+    authority.start()
+    expected = (1, 1, *params[1:], False, True)
+    with psycopg.connect(database.primary_admin) as observer:
+        assert (
+            observer.execute(
+                "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", params
+            ).fetchone()
+            == expected
+        )
+        assert observer.execute(
+            "SELECT value FROM pitchlog_ledger.highwater"
+        ).fetchone() == (1,)
+    counts = authority.event_counts()
+    assert counts.get("intent") == counts.get("quarantined") == 1
+    assert counts.get("confirmed", 0) == 0
+    assert (
+        authority.client(f"""
+p=tuple(UUID(v) for v in {wire_params!r})
+for operation in (s.reserve,s.claim):
+    try: operation(*p)
+    except LedgerUnavailable: pass
+    else: raise AssertionError('quarantined generation returned to unused')
+assert s.current_recovery_generation()==1
+assert s.reserve(*(uuid4() for _ in range(4))).generation==2
+print('QUARANTINED_AND_NOT_REUSED')
+""")
+        == "QUARANTINED_AND_NOT_REUSED"
+    )
+    counts = authority.event_counts()
+    assert counts.get("intent") == 2 and counts.get("confirmed") == 1
+    assert counts.get("quarantined") == 1
+    # primaryの停止後も、実指定standbyに隔離行と次のhighwaterが残る。
+    authority.stop()
+    docker("stop", "--time", "3", database.primary)
+    with psycopg.connect(database.standby_admin) as observer:
+        assert observer.execute("SELECT pg_is_in_recovery()").fetchone() == (True,)
+        assert (
+            observer.execute(
+                "SELECT * FROM pitchlog_ledger.reservation(%s,%s,%s,%s)", params
+            ).fetchone()
+            == expected
+        )
+        assert observer.execute(
+            "SELECT (SELECT value FROM pitchlog_ledger.highwater),"
+            "(SELECT count(*) FROM pitchlog_ledger.reservations)"
+        ).fetchone() == (2, 2)
+
+
+def _fresh_close_ack_loss_after_durable_end(authority: AuthorityDatabase) -> None:
+    """実close要求後にACKを読まず、耐久終了を未終端へ改変しないことを検査する。"""
+    import select
+    from time import monotonic, sleep
+
+    code = """
+import socket,sys
+from pitchlog.durable_rights_ledger import adapter
+with s._channel() as channel:
+    att=adapter._activation_from(
+        adapter._request(channel,{'operation':'fresh_activation_open'},mutation=True))
+    assert att.highwater==att.reservation_count==0 and att.pair_epoch==1
+    assert adapter._request(channel,{'operation':'fence_check'}) is None
+    channel.sendall(b'{"operation":"fence_close"}\\n')
+    channel.shutdown(socket.SHUT_RD)
+    print('CLOSE_SENT_ACK_UNREAD',flush=True)
+    assert sys.stdin.readline().strip()=='FINISH'
+print('CHANNEL_CLOSED_WITHOUT_ACK',flush=True)
+"""
+    process = authority.client_process(code)
+    try:
+        assert process.stdout is not None
+        readable, _, _ = select.select([process.stdout], [], [], 15)
+        assert readable, "実close送信の期限超過"
+        assert process.stdout.readline().strip() == "CLOSE_SENT_ACK_UNREAD"
+        deadline = monotonic() + 6
+        while authority.event_counts().get("lease_close", 0) != 1:
+            assert monotonic() < deadline, "ACK未読のcloseが実終端へ到達しない"
+            sleep(0.05)
+        # 実mutexを再取得するepoch要求は、append/fsync終了後の閉鎖していない状態を照合。
+        assert (
+            authority.client("assert s.current_recovery_generation()==1; print('LIVE')")
+            == "LIVE"
+        )
+        output, _ = process.communicate("FINISH\n", timeout=10)
+        assert process.returncode == 0, "実peer clientのclose ACK未読試験が失敗"
+        assert output.strip() == "CHANNEL_CLOSED_WITHOUT_ACK"
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.communicate(timeout=5)
+    counts = authority.event_counts()
+    assert counts.get("activation_open") == counts.get("lease_close") == 1
+    assert counts.get("intent", 0) == 0
+    authority.stop()
+    authority.start()
+    assert authority.event_counts() == {
+        **counts,
+        "attached": counts.get("attached", 0) + 1,
+    }
+    assert (
+        authority.client("""
+try:
+    with s.fresh_activation(): raise AssertionError('past activation reopened as fresh')
+except LedgerUnavailable: pass
+assert s.current_recovery_generation()==1
+print('DURABLE_CLOSE_RETAINED')
+""")
+        == "DURABLE_CLOSE_RETAINED"
+    )
+    after = authority.event_counts()
+    assert after.get("activation_open") == after.get("lease_close") == 1
+    assert after.get("intent", 0) == 0

@@ -13,6 +13,7 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 import psycopg
+from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from sqlalchemy import URL, create_engine
 
@@ -743,3 +744,73 @@ class AuthorityResources:
         self._stack.close()
         self._key = None
         self._value = None
+
+
+@dataclass(frozen=True)
+class ReserveCommitFault:
+    """所有台帳の実COMMIT故障をrollbackされないsequenceで観測する。"""
+
+    database: LedgerDatabase
+
+    def observed(self) -> tuple[int, int, int, int]:
+        """到達数/予約行可視数/予約世代/highwaterの実観測を返す。"""
+        values: list[int] = []
+        with psycopg.connect(self.database.primary_admin) as observer:
+            for name in ("reached", "row_visible", "generation", "highwater"):
+                row = observer.execute(
+                    sql.SQL(
+                        "SELECT CASE WHEN is_called THEN last_value ELSE 0 END "
+                        "FROM pitchlog_ledger_fault.{}"
+                    ).format(sql.Identifier(name))
+                ).fetchone()
+                assert row is not None and type(row[0]) is int
+                values.append(row[0])
+        return values[0], values[1], values[2], values[3]
+
+
+@contextmanager
+def reserve_commit_failure(database: LedgerDatabase) -> Iterator[ReserveCommitFault]:
+    """実reserve SQL後のCOMMITだけを拒否し、製品処理を差し替えない。"""
+    with psycopg.connect(database.primary_admin) as admin:
+        admin.execute("CREATE SCHEMA pitchlog_ledger_fault")
+        admin.execute("REVOKE ALL ON SCHEMA pitchlog_ledger_fault FROM PUBLIC")
+        for name in ("reached", "row_visible", "generation", "highwater"):
+            admin.execute(
+                sql.SQL("CREATE SEQUENCE pitchlog_ledger_fault.{}").format(
+                    sql.Identifier(name)
+                )
+            )
+        admin.execute("""
+CREATE FUNCTION pitchlog_ledger_fault.abort_reserve() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, pitchlog_ledger_fault, pg_temp AS $fault$
+DECLARE h bigint;
+BEGIN
+    PERFORM pg_catalog.nextval('pitchlog_ledger_fault.reached');
+    IF EXISTS (
+        SELECT 1 FROM pitchlog_ledger.reservations r
+        WHERE r.attempt_id = NEW.attempt_id AND r.tenant_id = NEW.tenant_id
+          AND r.game_id = NEW.game_id AND r.start_request_id = NEW.start_request_id
+          AND r.generation = NEW.generation AND NOT r.claimed AND NOT r.quarantined
+    ) THEN
+        PERFORM pg_catalog.nextval('pitchlog_ledger_fault.row_visible');
+    END IF;
+    SELECT value INTO STRICT h FROM pitchlog_ledger.highwater WHERE singleton;
+    PERFORM pg_catalog.setval('pitchlog_ledger_fault.generation', NEW.generation, true);
+    PERFORM pg_catalog.setval('pitchlog_ledger_fault.highwater', h, true);
+    RAISE EXCEPTION 'PITCHLOG_PRIVATE_RESERVE_COMMIT_FAULT' USING ERRCODE = 'P0001';
+END
+$fault$;
+REVOKE ALL ON FUNCTION pitchlog_ledger_fault.abort_reserve() FROM PUBLIC;
+CREATE CONSTRAINT TRIGGER reserve_commit_fault
+AFTER INSERT ON pitchlog_ledger.reservations DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION pitchlog_ledger_fault.abort_reserve();
+""")
+    try:
+        yield ReserveCommitFault(database)
+    finally:
+        with psycopg.connect(database.primary_admin) as admin:
+            admin.execute(
+                "DROP TRIGGER reserve_commit_fault ON pitchlog_ledger.reservations"
+            )
+            admin.execute("DROP SCHEMA pitchlog_ledger_fault CASCADE")
