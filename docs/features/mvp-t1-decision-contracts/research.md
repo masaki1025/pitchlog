@@ -25,3 +25,15 @@ D06正本commit前の計画整合検査で、§2には存在する要件/索引�
 
 
 2026-10-24T05:27:13.381972+00:00、要件D07の確定byte変更により既共有認可前提の要件source git-blob束縛だけを追随。FR-034/認可前提値は不変で、既POの通常生成値追随委任によるroot処理。ADR実basenameを既存ADR-003-domain-calc-method.mdへ訂正し、存在しない案のパスを編集対象として残さない。
+
+
+## ステップ2の固定候補・限定独立導出
+
+2026-10-24T05:35:47.076325+00:00、rootはD07作者候補v2の純入力を新しいfork-none検証者へ、承認済み要件d0070222と対象範囲だけ添えて先渡しした。作者値/会話履歴/周辺cacheは渡さず、封印完了後にrootが候補比較した。封印 /home/ymdms/.cache/pitchlog/p6-d07-limited-derivation-20261024/seal.json SHA256f9aa6a10b0d8f70aee7d39fa1520f97c1fbac629a93b968183f33db96749dac9、derivation af8dffe2fc306912b22ed7b775e067e1611ccb66ee02991082789575157cceac。新2入力の六比較面/各23flag/得点・打点は全一致。比較は候補側rootが行ったもので、正式契約版段階B/全P6受理ではない。検証者には作者比較資料をまだ渡しておらず原導出/曝露履歴を不変保存する。
+
+D06技術候補の初回P1に対するroot反映は非作者第2回相当で終結（型f41a48c44c373606ba1fbc661df783404755d24a1af1293223af40b9d7f48e28）。skipなし宣言/正常/no-any/否定6件が成功。正本7.3初回0・技術初回P1/反映1/第2回0を別系列で保持する。
+
+- /home/ymdms/.cache/pitchlog/p6-d07-limited-candidate-comparison-20261024.json SHA256 1bcae8bbc08863e14de6c080cd3ea0221c9101e8a53794afef420e1834d67b90
+- /home/ymdms/.cache/pitchlog/reviews/d06b-contract-independent-20261024/code-round2-reflection.json SHA256 12bc814b479c3b51836283467f8c822c690587a2130f8558eb9d3b2d06a8ccc4
+
+正式6asset/新D06共有型・caseはまだ未反映。P7 upstream schemaの正式共有化/専用保存原本・認可・結果wireとreader、必要観測・ID相関の拒否、共通descriptor/T2参照/派生値/7.7、正式段階B/必要再検証・所有側範囲受理を残す。新2ケースはP8不足15をまだ削減せず、7marker閉鎖0・計算本体未着手を保持する。実Port/HTTP/DBの完成を計算本体の着手前へ追加せず、元544の対象別条件のうち実装後ゲートとして扱う。
