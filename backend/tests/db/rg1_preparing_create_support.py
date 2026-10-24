@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from http.cookiejar import Cookie, CookieJar, DefaultCookiePolicy
 from pathlib import Path
 from time import monotonic, sleep
-from typing import Any, cast
+from typing import Any, Literal, cast
 from urllib.parse import urlsplit
 from urllib.request import Request
 from uuid import uuid4
@@ -591,3 +591,96 @@ except BaseException as error:
         if self.api_container is not None:
             docker("rm", "--force", self.api_container, check=False)
         self.controller.close()
+
+
+CreateFaultPhase = Literal["before_insert", "after_insert", "deferred_commit"]
+
+
+@dataclass(frozen=True)
+class PreparingCreateFault:
+    """取消されない所有sequenceで、実SQL故障への到達を観測する。"""
+
+    authority: AuthorityDatabase
+    phase: CreateFaultPhase
+
+    def counters(self) -> tuple[int, int, int]:
+        """trigger到達/新語彙可視/game可視の実回数を返す。"""
+        with psycopg.connect(self.authority.database.business_admin) as observer:
+            values = []
+            for name in ("reached", "vocabulary_visible", "game_visible"):
+                row = observer.execute(
+                    sql.SQL(
+                        "SELECT CASE WHEN is_called THEN last_value ELSE 0 END "
+                        "FROM pitchlog_create_atomicity.{}"
+                    ).format(sql.Identifier(name))
+                ).fetchone()
+                assert row is not None
+                values.append(row[0])
+        return values[0], values[1], values[2]
+
+
+@contextmanager
+def inject_preparing_create_failure(
+    database: PreparingCreateDatabase, phase: CreateFaultPhase
+) -> Iterator[PreparingCreateFault]:
+    """所有businessだけへ実triggerを置き、製品sourceや判定を差し替えない。"""
+    if phase not in {"before_insert", "after_insert", "deferred_commit"}:
+        raise ValueError("未知の試合作成故障位置")
+    dsn = database.authority.database.business_admin
+    # 故障専用schemaはcanonical profileとは別の検証環境であり、正式認可に数えない。
+    with psycopg.connect(dsn) as admin:
+        admin.execute("CREATE SCHEMA pitchlog_create_atomicity")
+        admin.execute("REVOKE ALL ON SCHEMA pitchlog_create_atomicity FROM PUBLIC")
+        for name in ("reached", "vocabulary_visible", "game_visible"):
+            admin.execute(
+                sql.SQL("CREATE SEQUENCE pitchlog_create_atomicity.{}").format(
+                    sql.Identifier(name)
+                )
+            )
+        admin.execute("""
+CREATE FUNCTION pitchlog_create_atomicity.fail_game() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, pitchlog_create_atomicity, pg_temp AS $fault$
+BEGIN
+    PERFORM pg_catalog.nextval('pitchlog_create_atomicity.reached');
+    IF EXISTS (
+        SELECT 1 FROM public.tenant_vocabularies
+        WHERE tenant_id = NEW.tenant_id AND key = NEW.tournament_key
+          AND category = 'tournament' AND disabled = false
+    ) THEN
+        PERFORM pg_catalog.nextval('pitchlog_create_atomicity.vocabulary_visible');
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM public.games
+        WHERE tenant_id = NEW.tenant_id AND id = NEW.id
+    ) THEN
+        PERFORM pg_catalog.nextval('pitchlog_create_atomicity.game_visible');
+    END IF;
+    RAISE EXCEPTION 'PITCHLOG_PRIVATE_ATOMICITY_FAULT'
+        USING ERRCODE = 'P0001';
+END
+$fault$;
+REVOKE ALL ON FUNCTION pitchlog_create_atomicity.fail_game() FROM PUBLIC;
+""")
+        if phase == "deferred_commit":
+            admin.execute("""
+CREATE CONSTRAINT TRIGGER preparing_create_atomicity_fault
+AFTER INSERT ON public.games DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION pitchlog_create_atomicity.fail_game()
+""")
+        else:
+            admin.execute(
+                sql.SQL(
+                    "CREATE TRIGGER preparing_create_atomicity_fault {} "
+                    "INSERT ON public.games FOR EACH ROW EXECUTE FUNCTION "
+                    "pitchlog_create_atomicity.fail_game()"
+                ).format(sql.SQL("BEFORE" if phase == "before_insert" else "AFTER"))
+            )
+    try:
+        yield PreparingCreateFault(database.authority, phase)
+    finally:
+        with psycopg.connect(dsn) as admin:
+            admin.execute(
+                "DROP TRIGGER preparing_create_atomicity_fault ON public.games"
+            )
+            admin.execute("DROP SCHEMA pitchlog_create_atomicity CASCADE")
