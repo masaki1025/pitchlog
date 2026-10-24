@@ -355,3 +355,13 @@ creation_pathの所有隔離PG/API/Vite/Chromiumで **1 passed/50.3秒（browser
 - ledger正本新1.2は初回P1=1/P2=1を採用し **946f0c09 反映1周目**。peer明示GRANTとbuiltin既存PUBLIC実効権限を区別、重複ownerの具体列grant行を保持。旧RG1の同先在P2/別da78反映を保持。第2回とstatic追補を非作者rightsへ依頼済、approved未達。
 - T1 author-v2 **ee7568bd**は限定非作者0、旧入力/v1/封印不変。通常比較21項目はmatch12/unknown6/比較不能3/mismatch0で、P6全体成立ではない。plan§11の普通単打域・23条件・必要因果観測/90セル/26以上の反転負例を非作者新節0後 **9538b083**でPO委任承認、resolverが実装中。正式missing15/全開始条件は維持。
 - 開始について、実4b2にはendpoint/実InitialGrantScope/実RecordingRightsPort/資格・配達・epoch保存/side列が未提供。最初はT1非依存の閉transport DTOを分離し、非作者全文0後 **9031bab7**でPO委任承認。creationが指定2product/testpathに実装中。これは開始成功ではなく、後続実adapter/同一transaction/sideDDL・資格の具体接続を続けるための単位。MVP必須範囲は不変。
+
+
+### 実故障追加・開始DTO・T1入力の次保存点
+
+- providerの実COMMIT取消→再起動quarantine/次D4=2/standby保全とclose ACK喪失→実耐久終了保持は **7cad41e5**で実2成功44.46秒・非作者0（583cade28a12ed3b71d0e1b9eb3e87071a0910f9d7284e36a2889b8ca9cd6720）。終了journal書込自体の実kernel RLIMIT拒否も **f30718f2**で実1成功23.97秒・非作者0（125800550844a6021cd173e1aa78653c9de3716c78b17f2c04cfca7d0f8da632）。成功ACKなし・全journal byte不変・live/再起動拒否を実証し、fsync全故障/全復旧へ一般化しない。所有資源0、共有DB不変更。
+- static専用検証 **4b8c0eb5**はコード/新9射影8外部値/corpusが全非作者0、独立31成功。旧29/206を保全したまま新最終提案b6a98cdeを準備、旧候補receiptは改変せずsupersessionを別記。sourceを変えない追加faultなので既独立値を再導出せず維持する。corpus実Git250入力の独立一致aa80aa5eへ1field追随、pinned6等保持。全件は正式受理後に閉じる。
+- 実wheelで新package必須SQL2/JSON1が欠落し、Dockerfileのno-editable runtimeでも欠落すると確認。通常不具合として **4f1a7271**でpackage-dataをexact3へ限定、修正版wheel zipとsource全byte/3SHA一致を検証。最終非作者後発確認中、9/8受理対象は不変。sourcebindの実画面成功を配布済みと扱わない。
+- 開始DTOは **fe4788d1**で145作者成功・P1是正後非作者0（8c48f471…）。初回P1はraw TypeAdapter構文例外の内部入力を万能に秘匿できるとの含意。公開Class入口＋実共通HTTP応答/ログを保証し、raw内部入力は保持される保証外境界を明記/実回帰した。旧P1/141成功は保持。branchを通常push保全、実開始/権利/HTTP接続は未提供。
+- T1§12は非作者plan0後 **8a4a2546**で委任承認し **cc69ef94**へ実装。H/U独立3値・162セル（数値一意124/未確定16/相反22、数値既知だがbranch未識別14）・137最小証拠/210除去対向pair、旧全byte不変、作者731成功。非作者コードreview待ち、正式missing15/closure0/全開始条件は維持。新blindを実施したとはしない。
+- PR182途中保存公開 https://github.com/masaki1025/pitchlog/pull/182#issuecomment-6378409513 。途中CI40051629440はcancelledで成功扱いしない。T1 branch初回pushはGitHub remote unpack errorで未成立、remote確認後の通常再push成功。成果を一つの巨大PRへ移さず各branch/既存証拠を保持。
