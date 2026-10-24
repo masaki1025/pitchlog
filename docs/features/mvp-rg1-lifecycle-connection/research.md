@@ -123,3 +123,10 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 正式生成へ向けたroot probeで、epoch列の有限宣言は受理する一方SQL生成がUPDATE対象にstateだけを列挙しており拒否する不一致を発見（rg1-epoch-acl-integration-defect.json）。exact epochのUPDATE生成を既有限predicateの内側に追加し、権限を他列/role/関数へ広げない。追加負例は当初grant_option=0をdict等値がFalseと同一視して受理する問題も検出（16成功/1失敗）。共通入口でis Falseを要求して新epochを含む厳密boolを保ち、最終17成功45非対象0.06s。Ruff/ty0。source統合段階の新不一致として全採用し、独立確認前に解消済みとは称さない。旧2列/observer業務権限0の拒否も同じ選択検査で保持。
 
 初期2roleのsource宣言を既4roleと合わせた6subjectへrole検査fixtureを追随し、旧7基線/全7属性/4provisional/外部台帳role非混入・属性1bit/全membership拒否を維持する。role/migration/正式生成/DBはまだ未完了で、単体成功を正常初期権へ拡大しない。
+
+
+## 初回epoch列の先行供給・隔離DB検査
+
+2026-10-24T07:20:04.416010+00:00、rootはc58計画・非作者確認と606§6.2に従い、gateのnullable正bigint列のみを先行0035へ配置した。migration glob/recording_rights model globは既core境界に含まれ、旧履歴やglobal allowlistを変更していない。旧stateは不変・default/backfillなし。downgradeは表lock下で束縛済み世代の除去を拒否し、既証拠を落とさない。ORMは同列を条件付き更新として宣言。初期scopeは後続0036へ通常接合し、Generation2列/4表/9API所有を維持する。
+
+隔離使い捨てPostgreSQLで既0032 seedと新0035実upgrade/downgradeを実行し、3成功8.25s（/home/ymdms/.cache/pitchlog/rg1-epoch-migration-real-pg.log）。旧open行がopen/NULLのまま、nullable/defaultなし、0/負値拒否、未束縛時のみ巻戻し可能、E1束縛後は巻戻し拒否・closed/E1保持を実証。共有pitchlog-db-1へ接続せずfixture所有DBだけを使用。Ruff/tyは3path全成功。これはmigration列保持の実DB結果であり、controller fresh/bind/open/actor借用/初期grant/開始HTTPの正常系は未実証。正式schema/profile/7.7を飛ばさず、固定HEAD非作者確認を次に実施する。
