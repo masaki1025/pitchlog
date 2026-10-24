@@ -6210,7 +6210,7 @@ def _p7_context_candidate_check_keywords(schema: dict[str, Any]) -> None:
         )
     }
     # 別candidateの走者mapだけを、同じ有限4キーの任意性へ限定追加する。
-    for name in ('T1RbiCauseMapV1', 'T1RbiRestartMapV1'):
+    for name in ('T1RbiCauseMapV1', 'T1RbiRestartMapV1', 'T1RbiCauseMapV2'):
         if name in schema['$defs']:
             node = schema['$defs'][name]
             assert set(node['properties']) == {'batter', 'first', 'second', 'third'}
@@ -6517,7 +6517,7 @@ def test_p7_context_candidate_readonly_declaration_drift_is_rejected(change: str
 
 
 def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> None:
-    """先行登録globが旧8・観測候補4ファイルを双方の領域で覆うことを確認する。"""
+    """先行登録globが旧12・部分観測3ファイルを双方の領域で覆うことを確認する。"""
     import fnmatch
 
     names = {
@@ -6527,6 +6527,8 @@ def test_p7_context_candidate_files_exist_under_both_registered_core_areas() -> 
         't1-author-evaluation-v2.json',
         't1-rbi-observation-contract-v1.json', 't1-single-flag-conditions-v1.json',
         't1-rbi-observation-inputs-v2.json', 't1-rbi-observation-author-v3.json',
+        't1-rbi-observation-contract-v2.json', 't1-rbi-observation-inputs-v3.json',
+        't1-rbi-observation-author-v4.json',
     }
     assert {path.name for path in _P7_CONTEXT_CANDIDATE_PATH.iterdir()} == names
     configuration = _load_object(REPOSITORY_ROOT / '.claude/core-areas.json')
@@ -7844,3 +7846,466 @@ def test_p7_context_candidate_rbi_incomplete_branch_does_not_imply_unknown_numer
             projection = row['known_partial']['rbi_numeric_projection']
             assert projection['flag'] is True and projection['count'] == 1
             assert projection['first_matching_branch'] == {'status': 'unknown'}
+
+
+# §12は固定Dの構造/有限資料だけ。イベントから得点を求める実行体ではない。
+def _p7_context_candidate_partial_contract() -> dict[str, Any]:
+    """H/Uを独立に未観測として保持する新候補だけを読む。"""
+    return _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-contract-v2.json')
+
+
+def _p7_context_candidate_partial_schema(
+    contract: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """旧PlayerRef/再発進定義を参照し、新4定義だけを試験内へ結合する。"""
+    contract = contract if contract is not None else _p7_context_candidate_partial_contract()
+    old = _p7_context_candidate_rbi_contract()
+    assert contract['external_reference'] == old['external_reference']
+    assert contract['composition'] == {
+        'cause_by_runner': {'definition': 'T1RbiCauseByRunnerV2'},
+        'restart_by_runner': {
+            'file': 't1-rbi-observation-contract-v1.json',
+            'file_sha256': 'd7e1fd49bb94a3c72f4c3a1aeb7f507104a3324a1c1596fb25a59cef6d0f1c46',
+            'definition': 'T1RbiRestartByRunnerV1',
+        },
+        'runnerContinuityByRunner': 'unchanged T1RbiObservationsV1 in context-refs.schema.json',
+    }
+    assert hashlib.sha256(
+        (_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-contract-v1.json').read_bytes(),
+    ).hexdigest() == contract['composition']['restart_by_runner']['file_sha256']
+    new = copy.deepcopy(contract['json_schema'])
+    names = {'T1RbiBooleanObservationV2', 'T1RbiCauseValueV2',
+             'T1RbiCauseMapV2', 'T1RbiCauseByRunnerV2'}
+    assert set(new['$defs']) == names
+    external = old['external_reference']['ref']
+
+    def visit(node: Any) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child)
+        elif isinstance(node, dict):
+            if '$ref' in node:
+                reference = node['$ref']
+                if reference == external:
+                    node['$ref'] = '#/$defs/PlayerRefV1'
+                elif not isinstance(reference, str) or not reference.startswith('#/$defs/'):
+                    raise ValueError('固定PlayerRef以外の外部参照')
+            for child in node.values():
+                visit(child)
+
+    visit(new)
+    schema = _p7_context_candidate_rbi_schema()
+    assert not names.intersection(schema['$defs'])
+    schema['$defs'].update(new['$defs'])
+    schema['$ref'] = new['$ref']
+    _p7_context_candidate_check_keywords(schema)
+    return schema
+
+
+def _p7_context_candidate_partial_pure() -> dict[str, Any]:
+    """期待値を含まない中立IDの162原観測だけを読む。"""
+    return _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-inputs-v3.json')
+
+
+def _p7_context_candidate_partial_bind(entry: dict[str, Any]) -> dict[str, Any]:
+    """固定共通Givenへ時機/継続だけを代入し、観測を補完しない。"""
+    assert set(entry) == {'input_id', 'per_pitch_observations', 'rbi_misplay_observations'}
+    assert set(entry['per_pitch_observations']) == {
+        'thirdOutTimingByRunner', 'runnerContinuityByRunner',
+    }
+    sidecar = entry['rbi_misplay_observations']
+    assert set(sidecar) == {'cause_by_runner', 'restart_by_runner'}
+    common = _p7_context_candidate_partial_pure()['common_input']
+    assert common == _p7_context_candidate_rbi_pure()['common_input']
+    value = copy.deepcopy(common)
+    value['per_pitch']['thirdOutTimingByRunner'] = copy.deepcopy(
+        entry['per_pitch_observations']['thirdOutTimingByRunner'],
+    )
+    value['per_pitch']['rbi']['runnerContinuityByRunner'] = copy.deepcopy(
+        entry['per_pitch_observations']['runnerContinuityByRunner'],
+    )
+    _p7_context_candidate_validate(value['per_pitch'], 'T1PerPitchPayloadV1')
+    schema = _p7_context_candidate_partial_schema()
+    _p7_context_candidate_validate(sidecar['cause_by_runner'], 'T1RbiCauseByRunnerV2',
+                                   schema=schema)
+    _p7_context_candidate_validate(sidecar['restart_by_runner'], 'T1RbiRestartByRunnerV1',
+                                   schema=schema)
+    return value
+
+
+def _p7_context_candidate_partial_atoms(entry: dict[str, Any]) -> dict[str, Any]:
+    """観測済み原値だけを射影し、RからH/U/Cを推定して埋めない。"""
+    sidecar, per_pitch = entry['rbi_misplay_observations'], entry['per_pitch_observations']
+    facts: dict[str, Any] = {}
+    timing = per_pitch['thirdOutTimingByRunner'].get('third')
+    if timing is not None:
+        facts['timing'] = timing
+    cause = sidecar['cause_by_runner'].get('by_runner', {}).get('third')
+    if cause is not None:
+        for field, name in (('held_too_long', 'H'), ('unnecessary_throw', 'U')):
+            if cause[field]['kind'] == 'observed':
+                facts[name] = cause[field]['value']
+    continuity = per_pitch['runnerContinuityByRunner'].get('by_runner', {}).get('third')
+    if continuity is not None:
+        facts['C'] = continuity
+    restart = sidecar['restart_by_runner'].get('by_runner', {}).get('third')
+    if restart is not None:
+        facts['R'] = restart['after_observing_misplay']
+    return facts
+
+
+def _p7_context_candidate_partial_input_issues(entry: dict[str, Any]) -> set[str]:
+    """同じDの原観測相反/必須時機/対象だけを診断し、数値を返さない。"""
+    value = _p7_context_candidate_partial_bind(entry)
+    facts = _p7_context_candidate_partial_atoms(entry)
+    issues: set[str] = set()
+    if 'timing' not in facts:
+        issues.add('THIRD_OUT_TIMING_REQUIRED')
+    if facts.get('R') is True and facts.get('C') == 'kept-running':
+        issues.add('RBI_RESTART_CONTRADICTS_CONTINUITY')
+    if facts.get('R') is True and facts.get('H') is False and facts.get('U') is False:
+        issues.add('RBI_RESTART_CONTRADICTS_CAUSE')
+    players = {'batter': value['pre_state']['batter']}
+    players.update({base: occupant.get('player')
+                    for base, occupant in value['pre_state']['runners'].items()})
+    for field in ('cause_by_runner', 'restart_by_runner'):
+        for key, observed in entry['rbi_misplay_observations'][field].get('by_runner', {}).items():
+            if observed['person'] != players[key]:
+                issues.add('RBI_PERSON_MISMATCH')
+    return issues
+
+
+def _p7_context_candidate_partial_check_projection(
+    entry: dict[str, Any], author: dict[str, Any],
+) -> None:
+    """有限作者資料の内部整合だけを照合し、独立意味証明には数えない。"""
+    before = copy.deepcopy(entry)
+    row = next(row for row in author['domain_ledger'] if row['input_id'] == entry['input_id'])
+    issues = _p7_context_candidate_partial_input_issues(entry)
+    assert set(row['input_issues']) == issues
+    facts = _p7_context_candidate_partial_atoms(entry)
+    compatible = [w for w in author['complete_worlds']
+                  if all(w['facts'][key] == value for key, value in facts.items())]
+    assert row['compatible_world_ids'] == [w['world_id'] for w in compatible]
+    assert entry == before  # 原値/不在は照合後もbyte表現上の意味を変えない。
+    if not compatible:
+        assert issues and row['status'] == 'contradictory'
+        assert row['stat_flags'] is None and row['rbi_projection'] is None
+        assert not row['minimal_evidence'] and not row['resolving_extensions']
+        return
+    assert not issues
+    possibilities = sorted({(w['runs'], w['rbi']) for w in compatible})
+    assert row['numeric_possibilities'] == [
+        {'runs':runs, 'rbi':rbi} for runs, rbi in possibilities
+    ]
+    branches = sorted({w['first_branch'] for w in compatible if w['first_branch'] is not None})
+    assert row['first_branch']['possible'] == branches
+    assert row['first_branch']['status'] == (
+        'not-applicable' if not branches else 'identified' if len(branches) == 1
+        else 'unidentified'
+    )
+    flags = _load_object(SCHEMA_PATH)['$defs']['statFlags']['required']
+    assert set(row['stat_flags']) == set(flags)
+    contract = _p7_context_candidate_partial_contract()
+    for flag in contract['constant_true_keys']:
+        assert row['stat_flags'][flag] is True
+    for flag in contract['constant_false_keys']:
+        assert row['stat_flags'][flag] is False
+    assert row['stat_flags']['得点'] is row['stat_flags']['失点'] is bool(possibilities[0][0])
+    if len(possibilities) == 1:
+        assert row['status'] == 'numeric-unique'
+        projection = row['rbi_projection']
+        assert projection['status'] == 'known' and projection['count'] == possibilities[0][1]
+        assert projection['flag'] is row['stat_flags']['打点'] is bool(projection['count'])
+        target = _p7_context_candidate_partial_pure()['common_input']['pre_state']
+        assert projection['scorers'] == ([target['runners']['third']['player']]
+                                          if projection['count'] else [])
+        assert row['minimal_evidence'] and not row['ambiguity_witness']
+    else:
+        assert row['status'] == 'numeric-undetermined'
+        assert row['rbi_projection'] == {'status':'unknown', 'flag':None,
+                                         'count':None, 'scorers':None}
+        assert row['stat_flags']['打点'] is None
+        assert not row['minimal_evidence'] and row['resolving_extensions']
+        pair = [w for w in compatible if w['world_id'] in row['ambiguity_witness']]
+        assert len(pair) == 2 and len({w['rbi'] for w in pair}) == 2
+
+
+
+@pytest.mark.parametrize('entry', _load_object(
+    _P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-inputs-v3.json',
+)['inputs'], ids=lambda entry: entry['input_id'])
+def test_p7_context_candidate_partial_cell_shape_and_finite_author_projection(
+    entry: dict[str, Any],
+) -> None:
+    """162セルの原観測と作者表を個別に検査する。"""
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v4.json')
+    _p7_context_candidate_partial_check_projection(entry, author)
+
+
+def test_p7_context_candidate_partial_exact_coverage_source_and_preservation() -> None:
+    """新4閉型/162個の原観測・原典と旧全byte保持を有限に検査する。"""
+    pure = _p7_context_candidate_partial_pure()
+    contract = _p7_context_candidate_partial_contract()
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v4.json')
+    assert set(pure) == {'format_version', 'common_input', 'inputs'}
+    assert pure['format_version'] == 'pitchlog.t1-rbi-observation-pure-inputs.v3'
+    rows = pure['inputs']
+    assert [row['input_id'] for row in rows] == [f's{i:04d}' for i in range(1, 163)]
+    axes = ('timing', 'H', 'U', 'C', 'R')
+    actual = {tuple(_p7_context_candidate_partial_atoms(row).get(key) for key in axes)
+              for row in rows}
+    expected = set(product(('home-before-third-out', 'not-before-third-out'),
+                           (None, False, True), (None, False, True),
+                           (None, 'kept-running', 'stopped-and-restarted'),
+                           (None, False, True)))
+    assert actual == expected and len(actual) == 162
+    raw = json.dumps(pure, ensure_ascii=False)
+    for forbidden in ('expected', 'branch', 'RBI-', 'OUT3-', 'derivation', 'issue', 'author',
+                      'stat_flags', 'numeric_possibilities', 'world_id'):
+        assert forbidden not in raw
+    # 外側原形も許容するが、162因子へ別の同義セルとして混ぜない。
+    for variant in ({'kind':'not-required'}, {'kind':'observed', 'by_runner':{}}):
+        entry = copy.deepcopy(rows[0])
+        entry['rbi_misplay_observations']['cause_by_runner'] = variant
+        assert _p7_context_candidate_partial_atoms(entry) == {'timing':'home-before-third-out'}
+        assert not _p7_context_candidate_partial_input_issues(entry)
+        assert entry['rbi_misplay_observations']['cause_by_runner'] == variant
+    retained = {
+        'context-refs.schema.json':'f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7',
+        'context-refs.d.ts':'e42ecb70888d4df36df1a629bc8e4b8a00f75d175fec6b630f205190f0bc5996',
+        'structure-cases.json':'a9f585aa80a2650c59f8e7967fead7d3c1a2cb949905bd6480cc21a9e941edb6',
+        't1-pure-inputs-v1.json':'3ba80694316e6eb1db940fd8e6cce200313ef1291f2e193b6f375c62d7af4664',
+        't1-author-derived-v1.json':'2a3e2bd9e430656d84f6436ffdb24ee1ff8aee0221870d236885701907ffc488',
+        't1-author-evaluation-v2.json':'63dc7f6b6e0ed50a30d17187e46581395a740fa870e8c26f217c76bc6113d217',
+        't1-rbi-observation-contract-v1.json':'d7e1fd49bb94a3c72f4c3a1aeb7f507104a3324a1c1596fb25a59cef6d0f1c46',
+        't1-single-flag-conditions-v1.json':'0a9d2f7789934b355f659dbf3980ea77fee0a53cc3300df2587bc0e25efea2db',
+        't1-rbi-observation-inputs-v2.json':'396efecfa9a95acd7c0b8be27be1e9f81744a4e0f391cab74bc9360f74524649',
+        't1-rbi-observation-author-v3.json':'57f2e5b37be37ae04885d03734a71dc516e51c7910365ad6837877927295d7bc',
+    }
+    for name, digest in retained.items():
+        assert hashlib.sha256(
+            (_P7_CONTEXT_CANDIDATE_PATH / name).read_bytes(),
+        ).hexdigest() == digest
+    for key in ('pure_input', 'contract'):
+        reference = author[key]
+        assert hashlib.sha256(
+            (_P7_CONTEXT_CANDIDATE_PATH / reference['path']).read_bytes(),
+        ).hexdigest() == reference['sha256']
+    assert author['counts']['by_status'] == dict(Counter(
+        row['status'] for row in author['domain_ledger']
+    )) == {'numeric-unique':124, 'numeric-undetermined':16, 'contradictory':22}
+    assert author['counts']['numeric_unique_branch_unidentified'] == sum(
+        row['status'] == 'numeric-unique' and row['first_branch']['status'] == 'unidentified'
+        for row in author['domain_ledger']
+    ) == 14
+    assert author['formal_missing_branches_retained'] == 15
+    assert author['new_formally_closed_branches'] == 0
+    assert contract['boundaries']['unprovided_opposite_conditions_outside_D'] == 20
+    for field in ('global_xc13_complete', 'product_required_input_dto_approved',
+                  'scope_authority_implemented', 'wire_descriptor_or_formal_acceptance',
+                  'unknown_elimination_is_DoD'):
+        assert contract['boundaries'][field] is False
+    ownership = (_P7_CONTEXT_CANDIDATE_PATH / 'source-ownership.md').read_text()
+    construction = (_P7_CONTEXT_CANDIDATE_PATH / 'constructor-contract.md').read_text()
+    source = (REPOSITORY_ROOT / contract['source']['path']).read_text()
+    for name in contract['json_schema']['$defs']:
+        assert '`' + name + '`' in ownership and '`' + name + '`' in construction
+    ids = set(contract['source']['clauses'])
+    ids.update(value for row in contract['numeric_sufficiency_rows'] for value in row['source'])
+    ids.update(value for row in contract['correlations'] for value in row['source'])
+    ids.update(value for row in author['complete_worlds'] for value in row['source'])
+    for source_id in ids:
+        name = source_id.removeprefix('req:')
+        assert source_id.startswith('req:')
+        assert ('#### ' + name + ':' in source if name.startswith('FR-')
+                else '| `' + name + '` |' in source)
+
+
+def test_p7_context_candidate_partial_minimal_evidence_and_ambiguity_are_separate() -> None:
+    """作者の有限完成組への射影/対向例を検査し、分岐識別を数値へ強制しない。"""
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v4.json')
+    contract = _p7_context_candidate_partial_contract()
+    worlds = author['complete_worlds']
+    assert [w['world_id'] for w in worlds] == [f'w{i:02d}' for i in range(1, 23)]
+    all_facts = {tuple(w['facts'][key] for key in ('timing', 'H', 'U', 'C', 'R')) for w in worlds}
+    full = set(product(('home-before-third-out', 'not-before-third-out'),
+                       (False, True), (False, True),
+                       ('kept-running', 'stopped-and-restarted'), (False, True)))
+    excluded = {f for f in full if f[4] is True and (
+        f[3] == 'kept-running' or f[1:3] == (False, False)
+    )}
+    assert all_facts == full - excluded and len(all_facts) == 22
+    inputs = {entry['input_id']:entry for entry in _p7_context_candidate_partial_pure()['inputs']}
+    for row in author['domain_ledger']:
+        facts = _p7_context_candidate_partial_atoms(inputs[row['input_id']])
+        actual_proofs = [evidence['observed_facts'] for evidence in row['minimal_evidence']]
+        expected_proofs = [condition['conditions']
+                           for condition in contract['numeric_sufficiency_rows']
+                           if all(facts.get(k) == v and k in facts
+                                  for k, v in condition['conditions'].items())]
+        assert actual_proofs == ([] if row['status'] == 'contradictory' else expected_proofs)
+        for evidence in row['minimal_evidence']:
+            proof = evidence['observed_facts']
+            assert all(facts[key] == value for key, value in proof.items())
+            matching = [w for w in worlds if all(w['facts'][key] == value
+                                                 for key, value in proof.items())]
+            assert {(w['runs'], w['rbi']) for w in matching} == {
+                (row['numeric_possibilities'][0]['runs'], row['numeric_possibilities'][0]['rbi'])
+            }
+            assert set(proof) == {witness['removed']
+                                  for witness in evidence['removal_witnesses']}
+            for witness in evidence['removal_witnesses']:
+                pair = [w for w in worlds if w['world_id'] in witness['opposed_world_ids']]
+                assert len(pair) == 2
+                reduced = {key:value for key, value in proof.items() if key != witness['removed']}
+                assert all(all(w['facts'][k] == v for k, v in reduced.items()) for w in pair)
+                assert len({(w['runs'], w['rbi']) for w in pair}) == 2
+        if row['status'] == 'numeric-undetermined':
+            for extension in row['resolving_extensions']:
+                additions = extension['possible_observations']
+                assert additions and not set(additions).intersection(facts)
+                combined = facts | additions
+                matching = [w for w in worlds if all(w['facts'][k] == v
+                                                     for k, v in combined.items())]
+                value = extension['numeric_possibility']
+                assert {(w['runs'], w['rbi']) for w in matching} == {(value['runs'], value['rbi'])}
+        if row['status'] == 'numeric-unique' and row['first_branch']['status'] == 'unidentified':
+            assert row['rbi_projection']['count'] == 1
+            assert row['first_branch']['possible'] == ['RBI-03', 'RBI-08']
+            assert row['stat_flags']['打点'] is True
+    # 必要十分条件5行も作者22組を参照する。汎用の野球計算関数は作らない。
+    for condition in contract['numeric_sufficiency_rows']:
+        group = [w for w in worlds if all(w['facts'][key] == value
+                                         for key, value in condition['conditions'].items())]
+        assert group and {(w['runs'], w['rbi']) for w in group} == {
+            (condition['runs'], condition['rbi'])
+        }
+        branches = {w['first_branch'] for w in group if w['first_branch'] is not None}
+        assert branches == set(condition['branch_set'])
+
+
+@pytest.mark.parametrize('change', ('null', 'string', 'missing-value', 'missing-operand',
+                                   'extra', 'unknown-tag', 'bool-integer', 'raw-boolean'))
+def test_p7_context_candidate_partial_closed_observation_rejects_bad_shapes(change: str) -> None:
+    """独立3値のタグ/型/必須/余剰を閉じ、未観測を自由JSONやfalseにしない。"""
+    entry = copy.deepcopy(_p7_context_candidate_partial_pure()['inputs'][0])
+    cause = entry['rbi_misplay_observations']['cause_by_runner']['by_runner']['third']
+    if change == 'null':
+        cause['held_too_long'] = None
+    elif change == 'string':
+        cause['held_too_long'] = 'unknown'
+    elif change == 'missing-value':
+        cause['held_too_long'] = {'kind':'observed'}
+    elif change == 'missing-operand':
+        del cause['unnecessary_throw']
+    elif change == 'extra':
+        cause['held_too_long']['value'] = False
+    elif change == 'unknown-tag':
+        cause['held_too_long']['kind'] = 'default'
+    elif change == 'bool-integer':
+        cause['held_too_long'] = {'kind':'observed', 'value':0}
+    else:
+        cause['held_too_long'] = False
+    with pytest.raises(ValueError):
+        _p7_context_candidate_partial_bind(entry)
+
+
+@pytest.mark.parametrize('change', ('external', 'metadata', 'old-definition'))
+def test_p7_context_candidate_partial_references_reject_unknown_sources(change: str) -> None:
+    """外部参照/再利用元の版不一致と旧定義上書きを黙認しない。"""
+    contract = _p7_context_candidate_partial_contract()
+    if change == 'external':
+        contract['json_schema']['$defs']['T1RbiCauseValueV2']['properties']['person'] = {
+            '$ref':'other.json#/$defs/PlayerRefV1',
+        }
+    elif change == 'metadata':
+        contract['composition']['restart_by_runner']['file_sha256'] = '0' * 64
+    else:
+        contract['json_schema']['$defs']['PlayerRefV1'] = {'type':'string'}
+    with pytest.raises((ValueError, AssertionError)):
+        _p7_context_candidate_partial_schema(contract)
+
+
+def test_p7_context_candidate_partial_observations_are_not_completed_or_misassigned() -> None:
+    """H/U対称の部分観測、複合R、scope/時機不足を別々に保持する。"""
+    rows = _p7_context_candidate_partial_pure()['inputs']
+    for left, right in (('H', 'U'), ('U', 'H')):
+        row = next(row for row in rows if _p7_context_candidate_partial_atoms(row) == {
+            'timing':'home-before-third-out', left:True, 'R':True,
+        })
+        original = copy.deepcopy(row)
+        assert not _p7_context_candidate_partial_input_issues(row)
+        assert right not in _p7_context_candidate_partial_atoms(row)
+        assert 'C' not in _p7_context_candidate_partial_atoms(row)
+        assert row == original
+    entry = copy.deepcopy(rows[0])
+    entry['per_pitch_observations']['thirdOutTimingByRunner'] = {}
+    assert _p7_context_candidate_partial_input_issues(entry) == {'THIRD_OUT_TIMING_REQUIRED'}
+    wrong = copy.deepcopy(rows[0])
+    wrong['rbi_misplay_observations']['cause_by_runner']['by_runner']['third']['person'] = (
+        _p7_context_candidate_partial_pure()['common_input']['pre_state']['batter']
+    )
+    assert _p7_context_candidate_partial_input_issues(wrong) == {'RBI_PERSON_MISMATCH'}
+    wrong = copy.deepcopy(rows[0])
+    given = _p7_context_candidate_partial_pure()['common_input']['pre_state']['runners']
+    cause = wrong['rbi_misplay_observations']['cause_by_runner']['by_runner']
+    cause['second'] = cause.pop('third')
+    cause['second']['person'] = given['second']['player']
+    assert 'H' not in _p7_context_candidate_partial_atoms(wrong)
+    assert not _p7_context_candidate_partial_input_issues(wrong)
+
+
+@pytest.mark.parametrize('change', ('known-to-unknown', 'unknown-to-zero',
+                                   'erase-branch-ambiguity', 'contradiction-to-success'))
+def test_p7_context_candidate_partial_rejects_projection_promotions(change: str) -> None:
+    """数値/分岐/相反を互いに補完して作者表を成功へ偽装する変異を拒否する。"""
+    author = _load_object(_P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v4.json')
+    desired = ('numeric-undetermined' if change == 'unknown-to-zero'
+               else 'contradictory' if change == 'contradiction-to-success'
+               else 'numeric-unique')
+    row = next(row for row in author['domain_ledger'] if row['status'] == desired
+               and (desired != 'numeric-unique'
+                    or row['first_branch']['status'] == 'unidentified'))
+    entry = next(entry for entry in _p7_context_candidate_partial_pure()['inputs']
+                 if entry['input_id'] == row['input_id'])
+    if change == 'known-to-unknown':
+        row['status'] = 'numeric-undetermined'
+    elif change == 'unknown-to-zero':
+        row['rbi_projection'] = {'status':'known', 'flag':False, 'count':0, 'scorers':[]}
+        row['stat_flags']['打点'] = False
+    elif change == 'erase-branch-ambiguity':
+        row['first_branch'] = {'status':'identified', 'possible':['RBI-08']}
+    else:
+        row['status'] = 'numeric-unique'
+        row['input_issues'] = []
+    with pytest.raises(AssertionError):
+        _p7_context_candidate_partial_check_projection(entry, author)
+
+
+@pytest.mark.parametrize('left,right', (('H', 'U'), ('U', 'H')))
+def test_p7_context_candidate_partial_disjunction_evidence_is_symmetric(
+    left: str, right: str,
+) -> None:
+    """片側trueはORの証拠、片側falseは否定の証拠にならず、未観測は保持する。"""
+    pure = _p7_context_candidate_partial_pure()
+    ledger = _load_object(
+        _P7_CONTEXT_CANDIDATE_PATH / 't1-rbi-observation-author-v4.json',
+    )['domain_ledger']
+    examples = (
+        ({'timing':'home-before-third-out', left:True, 'C':'kept-running'},
+         'numeric-unique', ['RBI-03']),
+        ({'timing':'home-before-third-out', left:False},
+         'numeric-undetermined', ['RBI-03', 'RBI-04', 'RBI-08']),
+        ({'timing':'home-before-third-out', left:False, 'R':True},
+         'numeric-unique', ['RBI-04']),
+    )
+    for facts, status, branches in examples:
+        entry = next(entry for entry in pure['inputs']
+                     if _p7_context_candidate_partial_atoms(entry) == facts)
+        row = next(row for row in ledger if row['input_id'] == entry['input_id'])
+        before = copy.deepcopy(entry)
+        assert not _p7_context_candidate_partial_input_issues(entry)
+        assert row['status'] == status and row['first_branch']['possible'] == branches
+        assert right not in _p7_context_candidate_partial_atoms(entry)
+        assert entry == before

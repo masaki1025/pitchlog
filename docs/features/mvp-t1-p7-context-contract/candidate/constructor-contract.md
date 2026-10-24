@@ -132,3 +132,14 @@ plan第9節の承認b112a102に基づき、`T1WireTargetReferenceV1`・`T1Resolv
 D外の20定数keyの反対条件witness、他結果/操作の全23条件、既定進塁/D07、公開拒否/D06、scoreboard絶対値/完全履歴/製品打順ABI、全7marker/G6/P2/P6/P7/P8/7.7は未提供のまま。unknown解消数はDoDではなく、新候補を正式missing15削減や本体着手の成立根拠にしない。将来blindへの切出しは第7節と同じく純入力だけとし、作者条件表/判定資料/会話を渡さない。本単位では新blindを起動しない。
 
 本候補は両因果booleanを観測済みのprofileに限定される。片側true/他側未観測はOR成立の証拠にはなるが、この閉型では未表現なので、製品DTOとしての必須入力を確定したとはしない。q0004/q0005のように複数の可能な分岐が同じ打点数を返す場合は、完全branch-case不足でも数値の既知部分を失わない。作者表/入力issueは一般のT1拒否に直結できず、最小観測型の後続具体化は別の限定scopeとして受ける。新意味・既存値補完でこの差を消さない。
+
+
+## 10. §12の部分観測と数値一意/branch識別（候補境界）
+
+新4型は`T1RbiBooleanObservationV2`、`T1RbiCauseValueV2`、`T1RbiCauseMapV2`、`T1RbiCauseByRunnerV2`。前節のpaired-profileとは別版で、旧因果型/90セル/完全branch-caseの要求を変更しない。contract-v2のjson_schema根はcause_by_runnerだけを検査し、sidecarの2field exact集合は試験内の結合境界が確認する。restart_by_runnerは旧contract-v1の同名定義をexact hashで再利用する。旧per_pitchの継続/時機2箇所だけを明示代入し、H/U原観測は別sidecarのまま保持する。型が通っても正式wire/schema採用・issuer/同scope真正性を認めない。
+
+H/Uは独立3値で、片側false/他側未観測はOR否定ではない。R=trueは原典RBI-04の複合事実なのでH∨Uと停止を含むが、未観測fieldを推定観測へ書換えない。同期間のC=kept-running、またはH=U=observed falseとの併記は相反。R=falseやC=kept-running、H/U両falseはD内の数値を一意にする各証拠で、RBI-03/08名の識別が残っても追加入力を要求しない。first branchを後から08へ既定化しない。
+
+作者の有限完成事実11組×時機2に対して、162原観測が両立する集合を別資料へ列挙する。集合空は相反、数値射影がsingletonならその数値/23flag一意、0/1両方残る16セルは打点unknownとし、他22key/得点既知を保持する。相反22セルを正常扱いせず、数値一意124セル中のbranch未識別14セルもunknown/拒否へ一括変更しない。最小観測組の1field除去には異なる数値の完成組対を置き、追加の観測は条件付き候補値であり、利用者にその値へ合わせて入力させる指示ではない。
+
+FR-003の必須時機欠落は、打点だけ既知でも別の不足として保持する。原観測の別人/別scope、未知参照/余剰/異型を許可しない。本候補の相関helperは入力issue集合だけを返し、得点/RBI/flagを算出する関数・イベントrunnerを作らない。作者資料間の有限照合を独立野球意味/P6検証と称さず、旧20定数flagの域外反対条件・正式missing15/closure0・7marker/G6/P2/P6/P7/P8/7.7/全T1開始未達を保持する。実Port/DB/HTTP完成待ちを候補着手の条件に戻さず、D06/D07・公開拒否/D5/新優先順は変更しない。

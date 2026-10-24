@@ -176,3 +176,17 @@ plan第10節の承認71b78742に基づき、`t1-pure-inputs-v1.json`は中立for
 固定原典は4b2db690の要件FR-003/OUT3/RBI/E-1/E-2/A-2/A-3で、全hash/条文は新観測契約・既researchに固定する。Dで無効得点者のRBI観測を新必須にせず、正の相反だけを同じ人物/期間で照合する。候補のissue集合はAPI結果ID/D5消費/拒否優先順ではない。missing15/closure0、D06/D07、全7marker/G6/正式7.7/P6/P7/T1開始の未達は継続する。
 
 **固定前点検で判明した入力最小性の限界**: この90セルはH/Uの両方を観測済み、または両方不在というprofileで、片側true/他側未観測のOR証拠を表せない。従って本schemaを一般の製品必須DTOへ昇格できず、片側の未観測をfalseへ埋めない。さらにq0004/q0005は因果不在でもkept-runningが明示され、Dの打点数/flagは03/08のどちらでも1/trueとなる。作者表ではこの数値部分を保持し、first branchだけunknownとする。完全branch-caseの入力issueを数値不明や製品拒否と同一視しない。部分観測/同値分岐時の最小入力契約は未提供で、主担当へ具体不足として報告済みである。
+
+
+## 10. §12の独立部分観測と必要最小入力候補（正式未受理）
+
+承認8a4a2546の3候補だけを追加する。意味原典は§9と同じ正式4b2のFR-003/OUT3-04/05/RBI-03/04/08、要件SHA256 a7edf93a56dc6b6f364890a4cd49cd6a360fcb4e45dafe64f561163f789a538f。DTO名/格納方式は候補であり、規範採用済みのwireではない。
+
+| 新閉型/成果 | 原典対応・所有/未達 |
+| --- | --- |
+| `T1RbiBooleanObservationV2` | H/U各々のunobserved/observed boolean。未観測をfalseへ補完しない。FR-003の必要な値だけを要求する境界 |
+| `T1RbiCauseValueV2` | personと独立H/U全必須。RBI-03/04の「または」をlosslessに表し、片側trueでも他側未観測を保持 |
+| `T1RbiCauseMapV2` / `T1RbiCauseByRunnerV2` | 旧4走者キー・外側not-required/空map/対象不在の原形を保持。PlayerRefは旧50定義へのexact参照、同scope発行/真正性は未実装 |
+| contract-v2 / pure-inputs-v3 / author-v4 | 型/条件/有限被覆を契約1fileへ集約し、162原観測と作者期待/原典理由を別fileへ保存。数値一意とbranch集合を別軸で持つ |
+
+C/restartは旧定義をそのhashで参照するだけで新保存codecを作らない。R=trueの原典語義は同走者・同期間の因果ORと停止後再発進を含むが、原H/U/C値は未観測のまま維持し、個別原因を確定しない。R=falseはその複合条件の否定だけである。数値一意124/数値未確定16/相反22は162合成セルの作者分類であり、124件のうちbranch03/08未識別14件がある。branch識別だけのため追加観測を要求しない。正式missing15/closure0・域外20方向・全開始条件/P6資格を保持する。

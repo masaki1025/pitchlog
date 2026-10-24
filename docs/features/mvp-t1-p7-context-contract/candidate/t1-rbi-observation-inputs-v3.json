@@ -1,0 +1,7339 @@
+{
+  "format_version": "pitchlog.t1-rbi-observation-pure-inputs.v3",
+  "common_input": {
+    "rules": {
+      "regulationInnings": 9,
+      "coldConditions": [],
+      "extensionLimit": null,
+      "tiebreak": null,
+      "dh": false
+    },
+    "roster": {
+      "point": {
+        "key": {
+          "tenant_id": "00000000-0000-4000-8000-000000000001",
+          "game_id": "00000000-0000-4000-8000-000000000002",
+          "wire_d4": "synthetic-generation",
+          "internal_generation": 1,
+          "d1": 8,
+          "d5": "00000000-0000-4000-8000-000000000003",
+          "business_scope_id": "00000000-0000-4000-8000-000000000004",
+          "canonical_lineage_id": "00000000-0000-4000-8000-000000000005"
+        },
+        "content_ref": {
+          "contract_id": "synthetic.t1.input",
+          "contract_version": "synthetic.v1",
+          "content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "content_version": "00000000-0000-4000-8000-000000000006"
+      },
+      "teams": [
+        {
+          "team_id": "00000000-0000-4000-8000-00000000000a",
+          "side": "away",
+          "participants": [
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000065"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 1
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 1
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000066"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 2
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 2
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 3
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 3
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000068"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 4
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 4
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000069"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 5
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 5
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-00000000006a"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 6
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 6
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-00000000006b"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 7
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 7
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-00000000006c"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 8
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 8
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-00000000006d"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 9
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 9
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            }
+          ]
+        },
+        {
+          "team_id": "00000000-0000-4000-8000-00000000000b",
+          "side": "home",
+          "participants": [
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000c9"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 1
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 1
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000ca"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 2
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 2
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000cb"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 3
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 3
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000cc"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 4
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 4
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000cd"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 5
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 5
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000ce"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 6
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 6
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000cf"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 7
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 7
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000d0"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 8
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 8
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-0000000000d1"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": 9
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": 9
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "pre_state": {
+      "inning": 1,
+      "half": "top",
+      "outs": 2,
+      "count": {
+        "strikes": 1,
+        "balls": 2
+      },
+      "runners": {
+        "first": {
+          "kind": "empty"
+        },
+        "second": {
+          "kind": "occupied",
+          "player": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000065"
+          }
+        },
+        "third": {
+          "kind": "occupied",
+          "player": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000067"
+          }
+        }
+      },
+      "score": {
+        "away": 0,
+        "home": 0
+      },
+      "batting_order": 5,
+      "batter": {
+        "kind": "official",
+        "player_id": "00000000-0000-4000-8000-000000000069"
+      },
+      "tiebreak_active": false,
+      "game_ended": false
+    },
+    "per_pitch": {
+      "kind": "batting-result",
+      "pitchEventKind": "pitch-event",
+      "resultId": "batting-result.single",
+      "runnerEventPayload": {
+        "kind": "not-applicable"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "overridden",
+        "by_runner": {
+          "second": {
+            "kind": "out",
+            "runner": {
+              "kind": "official",
+              "player_id": "00000000-0000-4000-8000-000000000065"
+            },
+            "attempted_base": "third",
+            "out_kind": "running-out"
+          },
+          "third": {
+            "kind": "safe-advance",
+            "runner": {
+              "kind": "official",
+              "player_id": "00000000-0000-4000-8000-000000000067"
+            },
+            "destination": "home"
+          }
+        }
+      },
+      "thirdOutObservation": {
+        "kind": "other-third-out",
+        "out_person": {
+          "kind": "official",
+          "player_id": "00000000-0000-4000-8000-000000000065"
+        }
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "officialScoringPayload": {
+        "kind": "no-error"
+      },
+      "rbi": {
+        "doublePlayRelayError": "not-required",
+        "wouldScoreWithoutErrorByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "homeTouchOrder": {
+        "kind": "not-required"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "input_id": "s0001",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0002",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0003",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0004",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0005",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0006",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0007",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0008",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0009",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0010",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0011",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0012",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0013",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0014",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0015",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0016",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0017",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0018",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0019",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0020",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0021",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0022",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0023",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0024",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0025",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0026",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0027",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0028",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0029",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0030",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0031",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0032",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0033",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0034",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0035",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0036",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0037",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0038",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0039",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0040",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0041",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0042",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0043",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0044",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0045",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0046",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0047",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0048",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0049",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0050",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0051",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0052",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0053",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0054",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0055",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0056",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0057",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0058",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0059",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0060",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0061",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0062",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0063",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0064",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0065",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0066",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0067",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0068",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0069",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0070",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0071",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0072",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0073",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0074",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0075",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0076",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0077",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0078",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0079",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0080",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0081",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "home-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0082",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0083",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0084",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0085",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0086",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0087",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0088",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0089",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0090",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0091",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0092",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0093",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0094",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0095",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0096",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0097",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0098",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0099",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0100",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0101",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0102",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0103",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0104",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0105",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0106",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0107",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0108",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "unobserved"
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0109",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0110",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0111",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0112",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0113",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0114",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0115",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0116",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0117",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0118",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0119",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0120",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0121",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0122",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0123",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0124",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0125",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0126",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0127",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0128",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0129",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0130",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0131",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0132",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0133",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0134",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0135",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": false
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0136",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0137",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0138",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0139",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0140",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0141",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0142",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0143",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0144",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "unobserved"
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0145",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0146",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0147",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0148",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0149",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0150",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0151",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0152",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0153",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": false
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0154",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0155",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0156",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "not-required"
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0157",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0158",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0159",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "kept-running"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0160",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "not-required"
+        }
+      }
+    },
+    {
+      "input_id": "s0161",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "input_id": "s0162",
+      "per_pitch_observations": {
+        "thirdOutTimingByRunner": {
+          "third": "not-before-third-out"
+        },
+        "runnerContinuityByRunner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": "stopped-and-restarted"
+          }
+        }
+      },
+      "rbi_misplay_observations": {
+        "cause_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "held_too_long": {
+                "kind": "observed",
+                "value": true
+              },
+              "unnecessary_throw": {
+                "kind": "observed",
+                "value": true
+              }
+            }
+          }
+        },
+        "restart_by_runner": {
+          "kind": "observed",
+          "by_runner": {
+            "third": {
+              "person": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000067"
+              },
+              "after_observing_misplay": true
+            }
+          }
+        }
+      }
+    }
+  ]
+}

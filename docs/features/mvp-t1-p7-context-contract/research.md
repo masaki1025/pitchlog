@@ -346,3 +346,16 @@ root承認`9538b083`を基線に、指定4新candidate/既存source所有・cons
 将来の編集は§12の3新candidate/既存source所有・constructor/research/既存専用試験だけ。旧4candidateと旧50/292/11/v1/v2を全byte保持する。本起案で候補/source/tests/shared/core3/P6封印の変更は0。型/条件のlossless具体化の承認候補であり、正式入力schema/wire/descriptor/7.7の採用を代記しない。局所起案検査の実結果と固定版hashを主担当へ渡し、非作者レビュー/対象版承認・個別指示前で停止する。
 
 起案検証: docs-status20文書/違反0、差分空白検査成功。変更はplan/researchの2pathだけで、候補/試験未変更のためpytest/重いcore/DBは再実行しない。コミット後に実base cdaからの計画同期を確認して版を固定する。
+
+
+### §12実装：独立H/U部分観測と数値一意の最小証拠（正式未受理）
+
+root承認8a4a2546を基線に、指定3new versioned候補・既存source所有/constructor・専用schema試験だけを実装した。contract-v2には新4閉型と必要十分条件5行を同居させ、PlayerRefへのexact参照と旧restart定義のhash再利用に限定した。H/Uはそれぞれobserved true/false・unobservedを保持し、外側not-required/空mapも原形のまま扱う。R=trueの複合事実から個別H/U/Cの未観測fieldを観測済みへ書換えない。新d.ts/保存codec/製品validator・得点/RBI計算関数は追加していない。
+
+pure-v3は新合成Dの原観測162セルだけで、期待/branch/issue/作者資料hashを含めない。author-v4に原典に基づく完成事実11組×時機2=22組を明示し、各入力が両立する集合と数値/分岐を別々に記録した。作者分類は数値一意124、数値未確定16、原観測相反22。数値一意の14セルは03/08未識別だが打点1/flag trueで、branch識別だけの追加入力を要求しない。16セルは打点flag/数/対象者をunknownに保持し、得点と他22flagは既知として残す。相反22セルの出力はnullで、正常プレイや一意出力へ昇格しない。未知の消去をDoDにせず、作者の有限表内の関係を独立意味証明/P6に数えない。
+
+最小証拠137組と、各証拠から1fieldを除くと数値が異なる完成組210対を作者資料へ置いた。未確定セルには0/1両方の完成組と、未観測fieldを実際に観測した場合の条件付き追加証拠を記録した。これらは期待値に合わせて観測値を入力させる指示ではない。欠落/相反/数値一意だがbranch不明を区別し、FR-003の時機必須は打点単独既知でも免除しない。新pureは旧v1や既封印の作者期待値へ合わせる追加事実ではなく、承認済み3値軸の有限被覆である。
+
+検証履歴: 先行影響局所182 passed/829 deselected/2.86s。Ruff初回は専用試験1行のE501で、改行だけを是正した。H/U対称のOR証拠/非否定・数値/分岐の誤昇格拒否を加えた最終候補全局所は`-k p7_context_candidate -n 0`で731 passed/282 deselected/30.56s。新閉型の異型/欠落/余剰8変異、外部参照/版/旧定義上書き3変異、数値既知→unknown/unknown→0/branch曖昧消去/相反→成功4変異、必要時機/別人/不在原形、両core glob被覆を含む。旧optional map拒否を一般化せず、新exact T1RbiCauseMapV2だけを既存専用keyword検査の任意性へ追加した。Ruff/ty成功、docs-status20文書/違反0、差分空白検査成功。重いcore/DB/HTTPは再実行していない。
+
+旧schema/d.ts/structure-cases/全50定義/292case/11constructor、pure-v1/author-v1/evaluation-v2と§11の4候補は全byte不変。旧source所有/constructor本文はappend前の全文を保持する。core3/正式shared資産/規範/製品/P6封印の変更は0。正式missing15/closure0・域外20方向・7marker/G6/P2/P6/P7/P8/7.7と全T1本体開始条件は未達のまま。新候補は正式入力schemaへ移すための最初の有限単位であり、正式型/結果/受理・独立コードレビュー成立を代記しない。指定scopeを固定して非作者限定レビューへ渡し、先へ実装しない。

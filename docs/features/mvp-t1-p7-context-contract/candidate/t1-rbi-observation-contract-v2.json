@@ -1,0 +1,337 @@
+{
+  "format_version": "pitchlog.t1-rbi-observation-contract-candidate.v2",
+  "status": "candidate-D-only-lossless-partial-input-not-wire-or-ready",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "独立H/U部分観測の局所閉型候補",
+    "$ref": "#/$defs/T1RbiCauseByRunnerV2",
+    "$defs": {
+      "T1RbiBooleanObservationV2": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "unobserved"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "observed"
+              },
+              "value": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "kind",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "T1RbiCauseValueV2": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "$ref": "context-refs.schema.json#/$defs/PlayerRefV1"
+          },
+          "held_too_long": {
+            "$ref": "#/$defs/T1RbiBooleanObservationV2"
+          },
+          "unnecessary_throw": {
+            "$ref": "#/$defs/T1RbiBooleanObservationV2"
+          }
+        },
+        "required": [
+          "person",
+          "held_too_long",
+          "unnecessary_throw"
+        ],
+        "additionalProperties": false
+      },
+      "T1RbiCauseMapV2": {
+        "type": "object",
+        "properties": {
+          "batter": {
+            "$ref": "#/$defs/T1RbiCauseValueV2"
+          },
+          "first": {
+            "$ref": "#/$defs/T1RbiCauseValueV2"
+          },
+          "second": {
+            "$ref": "#/$defs/T1RbiCauseValueV2"
+          },
+          "third": {
+            "$ref": "#/$defs/T1RbiCauseValueV2"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "T1RbiCauseByRunnerV2": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "not-required"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "observed"
+              },
+              "by_runner": {
+                "$ref": "#/$defs/T1RbiCauseMapV2"
+              }
+            },
+            "required": [
+              "kind",
+              "by_runner"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "external_reference": {
+    "ref": "context-refs.schema.json#/$defs/PlayerRefV1",
+    "file": "context-refs.schema.json",
+    "file_sha256": "f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7",
+    "definition": "PlayerRefV1"
+  },
+  "composition": {
+    "cause_by_runner": {
+      "definition": "T1RbiCauseByRunnerV2"
+    },
+    "restart_by_runner": {
+      "file": "t1-rbi-observation-contract-v1.json",
+      "file_sha256": "d7e1fd49bb94a3c72f4c3a1aeb7f507104a3324a1c1596fb25a59cef6d0f1c46",
+      "definition": "T1RbiRestartByRunnerV1"
+    },
+    "runnerContinuityByRunner": "unchanged T1RbiObservationsV1 in context-refs.schema.json"
+  },
+  "source": {
+    "commit": "4b2db6907f329c3dde113c3b7e1c3515600fb915",
+    "path": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "sha256": "a7edf93a56dc6b6f364890a4cd49cd6a360fcb4e45dafe64f561163f789a538f",
+    "clauses": [
+      "req:FR-003",
+      "req:OUT3-01",
+      "req:OUT3-02",
+      "req:OUT3-03",
+      "req:OUT3-04",
+      "req:OUT3-05",
+      "req:RBI-03",
+      "req:RBI-04",
+      "req:RBI-08"
+    ]
+  },
+  "terms": {
+    "held_too_long": "当該走者の生還に結びつく同プレイの、野手がボールを持ちすぎた間という記録員観測。全プレイに一般に存在しただけの無関係な動作ではない。",
+    "unnecessary_throw": "当該走者の生還に結びつく同プレイの、無用な塁への送球の間という記録員観測。通常の有効送球から自動推定しない。",
+    "runnerContinuityByRunner": "既存型を使い、同じ走者/同じ当該因果期間に走り続けたか、停止後に再発進したかを表す。",
+    "after_observing_misplay": "原典RBI-04の複合原観測。当該ミスプレイを見た停止後再発進ならH∨Uと停止を含むが、個別H/Uや未観測fieldを観測済みへ書換えない。",
+    "not-required": "原観測の不在であり、false/因果なし/走行継続の表明ではない。",
+    "person": "起点runner keyと同じプレイのPlayerRefを保持。タグ/UUIDだけでtenant/game/issuerの真正性を証明しない。",
+    "unobserved": "個々のH/U事実の未観測。false/null/空文字へ補完しない。"
+  },
+  "domain": {
+    "same_given_as": {
+      "file": "t1-rbi-observation-inputs-v2.json",
+      "sha256": "396efecfa9a95acd7c0b8be27be1e9f81744a4e0f391cab74bc9360f74524649"
+    },
+    "factor_counts": {
+      "timing": 2,
+      "held_too_long": 3,
+      "unnecessary_throw": 3,
+      "continuity": 3,
+      "restart": 3
+    },
+    "structural_cells": 162,
+    "complete_fact_tuples": 11,
+    "complete_worlds_with_timing": 22,
+    "all_structural_cells_are_valid": false
+  },
+  "numeric_sufficiency_rows": [
+    {
+      "id": "out3-no-score",
+      "conditions": {
+        "timing": "not-before-third-out"
+      },
+      "runs": 0,
+      "rbi": 0,
+      "branch_set": [],
+      "source": [
+        "req:OUT3-05"
+      ]
+    },
+    {
+      "id": "observed-misplay-restart",
+      "conditions": {
+        "timing": "home-before-third-out",
+        "R": true
+      },
+      "runs": 1,
+      "rbi": 0,
+      "branch_set": [
+        "RBI-04"
+      ],
+      "source": [
+        "req:RBI-04"
+      ]
+    },
+    {
+      "id": "restart-condition-false",
+      "conditions": {
+        "timing": "home-before-third-out",
+        "R": false
+      },
+      "runs": 1,
+      "rbi": 1,
+      "branch_set": [
+        "RBI-03",
+        "RBI-08"
+      ],
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "id": "kept-running",
+      "conditions": {
+        "timing": "home-before-third-out",
+        "C": "kept-running"
+      },
+      "runs": 1,
+      "rbi": 1,
+      "branch_set": [
+        "RBI-03",
+        "RBI-08"
+      ],
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "id": "both-causes-false",
+      "conditions": {
+        "timing": "home-before-third-out",
+        "H": false,
+        "U": false
+      },
+      "runs": 1,
+      "rbi": 1,
+      "branch_set": [
+        "RBI-08"
+      ],
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    }
+  ],
+  "sufficiency_semantics": "Each condition row supplies sufficient numeric evidence when raw observations are consistent. branch_set is an upper bound; intersect with all compatible complete worlds, never demand branch identity for numeric output.",
+  "correlations": [
+    {
+      "id": "RBI_RESTART_CONTRADICTS_CONTINUITY",
+      "rule": "R=true and observed C=kept-running conflict in same runner/play/period.",
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04"
+      ]
+    },
+    {
+      "id": "RBI_RESTART_CONTRADICTS_CAUSE",
+      "rule": "R=true and H=U=observed false conflict. One false with the other unobserved does not refute OR.",
+      "source": [
+        "req:RBI-03",
+        "req:RBI-04"
+      ]
+    },
+    {
+      "id": "RBI_PERSON_MISMATCH",
+      "rule": "Each provided cause/restart person must equal that runner in the fixed event scope.",
+      "source": [
+        "req:FR-003"
+      ]
+    },
+    {
+      "id": "THIRD_OUT_TIMING_REQUIRED",
+      "rule": "Domain D requires explicit third timing. Known RBI alone does not waive FR-003 timing.",
+      "source": [
+        "req:FR-003",
+        "req:OUT3-04",
+        "req:OUT3-05"
+      ]
+    }
+  ],
+  "constant_true_keys": [
+    "投球回算入アウト",
+    "投球数",
+    "被安打",
+    "打席",
+    "打数",
+    "安打",
+    "塁打"
+  ],
+  "constant_false_keys": [
+    "奪三振",
+    "与四球",
+    "与死球",
+    "被本塁打",
+    "失策",
+    "本塁打",
+    "犠打",
+    "犠飛",
+    "四球",
+    "死球",
+    "三振",
+    "打撃妨害出塁",
+    "走塁妨害出塁"
+  ],
+  "variable_keys": [
+    "失点",
+    "得点",
+    "打点"
+  ],
+  "constant_conditions_reference": {
+    "file": "t1-single-flag-conditions-v1.json",
+    "sha256": "0a9d2f7789934b355f659dbf3980ea77fee0a53cc3300df2587bc0e25efea2db",
+    "scope": "old20 constant rows only; old full-branch observation requirements not imported"
+  },
+  "boundaries": {
+    "D_numeric_minimal_evidence_candidate": true,
+    "global_xc13_complete": false,
+    "product_required_input_dto_approved": false,
+    "scope_authority_implemented": false,
+    "wire_descriptor_or_formal_acceptance": false,
+    "no_public_result_priority_or_d5_rule": true,
+    "formal_missing_branches_retained": 15,
+    "new_formally_closed_branches": 0,
+    "unprovided_opposite_conditions_outside_D": 20,
+    "unknown_elimination_is_DoD": false
+  }
+}
