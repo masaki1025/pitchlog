@@ -1,7 +1,7 @@
 -- ELEMENT-TYPE: function
 -- ELEMENT-ID: FUNCTION:pitchlog_ledger_observer:identity()
 
-CREATE FUNCTION pitchlog_ledger_observer.identity() RETURNS jsonb
+CREATE OR REPLACE FUNCTION pitchlog_ledger_observer.identity() RETURNS jsonb
 LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 SELECT jsonb_build_object(
     'system_id', (SELECT system_identifier::text FROM pg_control_system()),

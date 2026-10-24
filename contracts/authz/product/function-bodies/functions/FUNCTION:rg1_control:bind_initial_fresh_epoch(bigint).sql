@@ -1,7 +1,7 @@
 -- ELEMENT-TYPE: function
 -- ELEMENT-ID: FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)
 
-CREATE FUNCTION rg1_control.bind_initial_fresh_epoch(p_recovery_generation bigint)
+CREATE OR REPLACE FUNCTION rg1_control.bind_initial_fresh_epoch(p_recovery_generation bigint)
 RETURNS boolean
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp

@@ -9,12 +9,10 @@ import time
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field, replace
-from pathlib import Path
-from typing import Any, LiteralString, cast
+from typing import Any
 
 import psycopg
 import pytest
-from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
@@ -22,10 +20,6 @@ from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 from .conftest import DisposablePostgres
 from .test_stage_a_rule_candidates import _fresh_schema_database
 
-_SOURCE = (
-    Path(__file__).resolve().parents[2]
-    / "src/pitchlog/recording_rights/rg1_lifecycle.sql"
-)
 ACTOR = "pitchlog_rg1_control_actor"
 APP = "pitchlog_app"
 NAMESPACE = 1380397379
@@ -177,7 +171,7 @@ def lifecycle_database(
     factory: Callable[[], AbstractContextManager[DisposablePostgres]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[LifecycleDatabase]:
-    """既存S0→正式S3と製品ACLを再利用し候補SQLを一度だけ適用する。"""
+    """既存S0→正式S3で製品の単一生成DDLだけを適用する。"""
     clusters: list[DisposablePostgres] = []
 
     @contextmanager
@@ -190,7 +184,13 @@ def lifecycle_database(
         result = advance_stage_a_from_s0(owner_dsn=owner_dsn, applicator_dsn=admin_dsn)
         assert result.completed_stage == "S3" and result.publishable is False
         with psycopg.connect(admin_dsn) as admin:
-            admin.execute(sql.SQL(cast(LiteralString, _SOURCE.read_text())))
+            assert admin.execute(
+                "SELECT pg_catalog.to_regprocedure("
+                "'rg1_control.bind_initial_fresh_epoch(bigint)') IS NOT NULL, "
+                "pg_catalog.has_function_privilege("
+                "'pitchlog_rg1_control_actor', "
+                "'rg1_control.bind_initial_fresh_epoch(bigint)', 'EXECUTE')"
+            ).fetchone() == (True, True)
         cluster = clusters[0]
         # 一時container内だけを変更する。対象2 LOGIN以外へpeer認証を広げない。
         docker(
