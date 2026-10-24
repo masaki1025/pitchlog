@@ -181,3 +181,21 @@ root候補4pathはP8未受理bundleの基準契約/schema digest2値と、追加
 - `tests/test_check_authz_catalog.py`
 
 oracle入力照合が旧Git blobで拒否することは失敗として保持する。既appendix-e-golden-vectors計画ステップ17の順序に従い、この入力8assetを非作者確認して先行commitした後、その固定Git版へ機械contextだけを追随する。oracleの意味本文/期待値/P6封印/本人署名を変更しない。後続context/lockの正確なpathと全前後値は着手前に別途固定する。人間review_requiredの規律は今回PO委任の対象PR/最終HEAD/非作者証拠と実態記録で満たし、本人が確認したという記入はしない。通常CIの失敗を除外せず、最終全件検査まで閉じない。
+
+
+## 既oracle入力台帳の機械追随（今回PR183限定）
+
+非作者確認済のsource入力8assetを先行commit8a40519dへ固定後、既ステップ17の順序で次の既10pathだけを追随する。rootは既PO委任による実装追随判断を行い、本人の確認/署名を代記しない。新判断ではなく採用済D07要件blob変更の下流更新で、全前後値と意味本文不変を非作者が確認した後に正式反映する。
+
+- `contracts/authz/attack-tree.json`
+- `contracts/authz/boundary-proposal.json`
+- `contracts/authz/claim-mutant-map.json`
+- `contracts/authz/ddl-elements.json`
+- `contracts/authz/rejected-configs.json`
+- `contracts/authz/verification-evidence.json`
+- `contracts/authz/oracle-seal.lock.json`
+- `contracts/authz/frozen-baselines.json`
+- `contracts/authz/mcdc-map.json`
+- `contracts/authz/failure-injection-points.json`
+
+6oracleは `/oracle_context/oracle_commit` 以外完全不変。sealは同commit・入力8blob・metadata由来6canonicalだけ、mcdc/failure-injectionは変更されたsourceのblob値だけ。frozen-baselinesは既oracle_input全履歴を保持し同じ基準系列へ1件追記する。他系列や9projectionの無関係値を変えない。通常validatorの自動resealは追加せず、review_policy/reseal_policyの本人確認規律は緩めず今回委任の対象版・非作者証拠・root判断へ正確に対応付ける。専用reseal操作だけで受理とせず、既8入力のGit/現在/seal三者一致と全意味不変・負例拒否・最終必須検査を要求する。独立導出P6封印や暗号署名とは別物であり、その承認や完了へ広げない。
