@@ -330,3 +330,19 @@ root承認`9538b083`を基線に、指定4新candidate/既存source所有・cons
 検証履歴: 新観測/参照/相関/条件表/被覆の先行105件が1.40s成功。Ruff初回は新試験2行のE501だけで、改行して是正。source IDをexact req:*へ対応させた版でp7候補全件548 passed/282 deselected/27.27s。上記profile限界を明示しq0004/q0005の既知部分を保持した最終影響局所は107 passed/724 deselected/1.41s。後者には90セルと必要相関、原典ID実在、3つの未知外部参照/旧定義上書き、8構造変異、部分数値とfirst branch区別を含む。旧548成功はその前版の結果として保持し、最終549全件成功へ読み替えない。Ruff/ty成功、docs-status20/違反0、差分空白検査成功。重いcore/DB/製品/正式shared資産/P6封印の変更は0。
 
 旧schema SHA256 `f9798ff73b4a66d091fa26bc51a4d1083d7d9fd3808ecd09730dc6c6cd41a0c7`、d.ts `e42ecb70888d4df36df1a629bc8e4b8a00f75d175fec6b630f205190f0bc5996`、structure-cases `a9f585aa80a2650c59f8e7967fead7d3c1a2cb949905bd6480cc21a9e941edb6`、純入力v1 `3ba80694316e6eb1db940fd8e6cce200313ef1291f2e193b6f375c62d7af4664`、author-v1 `2a3e2bd9e430656d84f6436ffdb24ee1ff8aee0221870d236885701907ffc488`、evaluation-v2 `63dc7f6b6e0ed50a30d17187e46581395a740fa870e8c26f217c76bc6113d217`は全byte不変。core3/正式assetsも差分0。正式missing15/closure0・全T1本体開始条件を保持し、非作者限定レビュー前の候補版として固定する。
+
+
+### §12起案：cdaの部分観測/同値分岐の不足だけを閉じる（実装前）
+
+基線cda0597aの追加8path限定非作者0/0/0・独立106成功を主担当から受領した。記録`csv-review-atomicity8a326e6d-t1cda0597a.json`の通知SHA256は`d4488f7119c9d4e504f20edf3bbfbce099dc86e7cea2cc81fe81e9e4fe5322d4`（本起案者が独立レビューを代行したものではない）。旧外殻/§11計画へのレビュアー関与と非P6の限定を維持する。今回はplan/research2docsのみ、§11承認9538の冒頭表示を事実へ整合し、§12は未承認として分離した。
+
+| 正確な不足・既採用根拠 | §12の最小具体化と残る境界 |
+| --- | --- |
+| 対booleanではH=true/U不明、U=true/H不明を表せない。RBI-03/04は「または」であり、他方falseの観測を必要としない | H/U各observed true/false・unobservedの閉unionを全必須fieldとして保存。旧型/90pure/作者表は上書きせず、3つのversioned候補へまとめる。部分観測をfalseへ埋めない |
+| q0004/5の数値は既知、first branchは03/08不明。FR-003は必要な値だけを要求 | R=false、C=kept-running、H/U両falseの各除外証拠を数値一意とbranch集合の別列へ対応。R=trueは原典語義に含まれる停止/因果の複合観測だが、原fieldを推定値で書換えず、個別H/U原因の不明も保持 |
+| 入力不足と相反、分岐未識別の誤同一視 | D内162構造セルと整合11完成組（時機別22）を作者資料へ明示し、0/1両方が残る欠落だけを数値未確定へ、整合組なしを相反へ分ける。各最小観測組の除去対向例を固定。未知全消去はDoDにしない |
+| 正式化は別のゲート | 同じ正式4b2要件hash a7edf93a、FR003/RBI本文の既固定抽出hashを保持。missing15/closure0・域外20方向・全T1開始未達。D06/D07の再裁定、別計算器、実Port/DB待ちへの戻しはなし |
+
+将来の編集は§12の3新candidate/既存source所有・constructor/research/既存専用試験だけ。旧4candidateと旧50/292/11/v1/v2を全byte保持する。本起案で候補/source/tests/shared/core3/P6封印の変更は0。型/条件のlossless具体化の承認候補であり、正式入力schema/wire/descriptor/7.7の採用を代記しない。局所起案検査の実結果と固定版hashを主担当へ渡し、非作者レビュー/対象版承認・個別指示前で停止する。
+
+起案検証: docs-status20文書/違反0、差分空白検査成功。変更はplan/researchの2pathだけで、候補/試験未変更のためpytest/重いcore/DBは再実行しない。コミット後に実base cdaからの計画同期を確認して版を固定する。

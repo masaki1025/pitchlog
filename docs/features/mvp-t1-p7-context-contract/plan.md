@@ -1,7 +1,7 @@
 ---
 feature: mvp-t1-p7-context-contract
 status: active
-承認: 済（外殻候補・第7/8/9/10節。第11節の23flag/必要観測追補だけ未承認）
+承認: 済（外殻候補・第7/8/9/10/11節。第12節の部分観測/同値分岐追補だけ未承認）
 重さ分類: コア領域
 worktree: ../../..
 branch: feature/mvp-t1-p7-context-contract
@@ -302,3 +302,41 @@ DoDは90セルの出所/観測充足/未閉範囲、D内23条件行、必要な�
 
 
 2026-10-24T01:09:40.769070+00:00、PO委任によるCodex主担当/root判断として、f86e3d76の第11節（plan d6ed064df28cf203070102d29e5f54f80c56a726fa1d502f0b5098c31795e3ea / research be52806e8668492ebea656f128e5d9d20fc5a046c2aaf0bf0ef95811235c4e49、標準diff6d8c355abcfa50b0530310ac0cb533069ab312a3203647c7f621e5cd369f5438）を承認する。新節作成に非関与のcsv_reviewによる限定第1回0/0/0、採用済みFR-003/OUT3/RBIと23flagの原典照合、実core捕捉を根拠とする。レビュアーの旧外殻への関与を開示し、旧candidate全体の独立確認や新P6資格へ拡張しない。D内の観測/条件・中立入力90セル・作者分離・負例対応を同step3/3の指定範囲にだけ実装し、旧50/292/11/v1/v2を保持する。D06/D07/正式missing15/7marker/全開始条件・正式受理は不変で、別計算器/仮観測/unknown消去を合格条件としない。本人の実値確認・逐行確認・署名を代記しない。
+
+
+## 12. ステップ3/3後続：部分観測と同値分岐の必要最小入力（未承認）
+
+基線は`cda0597ae85ec8cc8c17133409ca3defeaac2ef3`。§11の対boolean profileではH/U片側未観測を表せず、完全first-branch caseの不足を数値の未知と混同できる、という実装時の限界だけを閉じる。§11承認9538b083とcdaの限定非作者レビュー0/0/0（独立106成功、旧外殻/§11計画関与を開示、P6ではない）を保持する。既存3ステップ/同step3/3・全レビュー通算は不変。本起案はplan/researchだけで、対象版の非作者確認とrootのPO委任承認・個別指示前に候補/試験を変更しない。冒頭の§11承認表示は既成立9538の事実へ整合するだけで、新scopeの承認ではない。
+
+### 12.1 損失のない型と既採用原典への射影
+
+意味原典は§11と同じ正式`4b2db6907f329c3dde113c3b7e1c3515600fb915`の要件（SHA256 `a7edf93a56dc6b6f364890a4cd49cd6a360fcb4e45dafe64f561163f789a538f`）、FR-003/RBI-03/04/08/OUT3-04/05である。FR-003の「判定に必要な値」「不要な項目は入力を要求しない」と、RBI-03/08がともに打点算入する既存結果を対応させる。新しい野球ルール/公開拒否の追加ではなく、同一の既採用結果を失わずに表すDTO/有限条件表の候補である。
+
+新`T1RbiBooleanObservationV2`はexactな`{kind:"unobserved"} | {kind:"observed", value:boolean}`。`T1RbiCauseValueV2`は`person:PlayerRefV1`と`held_too_long:T1RbiBooleanObservationV2`、`unnecessary_throw:T1RbiBooleanObservationV2`の全必須・余剰拒否objectとする。H/Uを独立に保持し、観測true/falseと未観測の各3値を区別する。`null`/任意文字列/省略/片側trueから他側falseへの補完を許さない。runner-keyは既存4キー、同じ走者/プレイ/因果期間への束縛を維持する。既存PlayerRefのexact hash参照だけを使い、旧定義を上書き/コピーしない。外側のnot-requiredやmap内の当該走者不在もH/U不在の原形として保持し、新タグへの破壊的正規化や旧packet移行はしない。
+
+継続Cは既存not-required/kept-running/stopped-and-restarted、再発進理由Rは既存not-required/observed false/observed trueの意味と型を参照する。R=trueは「当該持ちすぎ/無用送球を見たことが停止後の再発進の契機」という**複合原観測**であり、同じ期間の停止再発進とH∨Uを含む。この原典上の包含は可能な観測組の整合条件へ記録するが、未観測C/H/Uのfieldを観測済みへ書き換えたり、どちらの原因だったかを推定しない。R=falseはこの複合条件の否定だけであり、走行継続/両原因なしという意味に拡張しない。形式上のnot-requiredを「観測不要と証明済み」の自己申告として信用しない。
+
+### 12.2 数値一意と分岐識別を分ける有限条件
+
+域DのGiven/20定数flag/実override/非サヨナラを維持する。得点/失点とRBI入力域はまずOUT3後の時機で決める。下表は**同scope原観測が相反しないときだけ**適用し、相反する入力から結果を確定しない。first branchはRBI適用がある場合の集合を持ち、数値一意と別軸で評価する。
+
+| 必要最小の観測組（D内） | 数値/23flagとfirst branchの関係 |
+| --- | --- |
+| third時機=not-before-third-out | 得点0、打点false/0/対象者[]、RBI分岐適用なし。H/U/C/Rの追加観測を要求しない。既に明示された相反事実は削除/無視しない |
+| third時機=home-before-third-out、R=observed true | 得点1、打点false/0/[]、RBI-04。Rに含まれる停止/因果の複合観測を二重入力させず、H/U個別原因の未識別は保持。C=kept-runningやH=U=observed falseを併記すれば相反 |
+| 同時機、R=observed false | 得点1、打点true/1/[R3]。03/08のどちらかは他の観測次第で未識別でも数値は一意。branch名の識別だけのためH/U/Cを追加要求しない |
+| 同時機、R未観測、C=kept-running | 得点1、打点true/1/[R3]。H∨Uが確実なら03、H/Uともfalseなら08、それ以外は{03,08}。未観測の因果をfalseにせず、Rの追加を要求しない |
+| 同時機、R未観測、H/Uともobserved false | 得点1、打点true/1/[R3]、08。Cの追加を要求しない。片側false/他側未観測をこの行へ含めない |
+| 同時機、R未観測で上記の除外証拠なし | 03/08の打点1と04の打点0が両方残るので数値未確定。得点1と他22flagは保持し、RBIをfalse/0へ補完しない。実際に未観測である項目のどの観測組が両可能性を分離するかを有限表で示し、特定の値を答えるよう要求しない |
+
+「必要十分」はこの固定Dの値域だけについて、原観測に整合する完成事実組が空なら相反、全組の数値射影が同じなら数値一意、両数値が残るなら入力不足、という作者側の有限対応で確認する。全組のfirst-branch射影も別列とし、singletonだけをbranch識別済みと数える。出所/同scope/原観測の真正性をこの論理的対応で代替しない。必要観測組から1つを除いた場合の対向完成組、またはその観測が数値に不要なことを表で示す。FR-003により時機そのものが必須の局面で、その欠落をRBIが既知という理由で免除しない。旧RBI_CAUSE_REQUIRED等は旧paired-profileの完全branch-case検査として保持し、新しい数値一意の入力境界へ無条件に流用しない。
+
+有限集合は時機2×H3×U3×C3×R3=**162構造セル**。H/Uは各未観測/observed false/observed trueで、C/R不在も未観測である。すべてを正常入力とは数えない。全観測済みH/U/C/Rの16組から、R=trueかつC=kept-runningの4組と、R=trueかつC=stopped/H=U=falseの1組を除いた11組（時機別22組）が、このDの整合する完成事実組である。未観測を任意値に決めるのではなく、各セルがどの完成組と両立するかを作者資料だけに列挙する。完成組のRBI-03/04/08と数値は原典から作者が対応させ、別の得点/RBI/flags計算関数・イベントrunnerを実装しない。試験は有限集合・原典対応・構造/相関と対応表の整合を検査し、作者表との一致を独立意味証明/P6と称さない。
+
+### 12.3 最小成果物・双方向負例・停止点
+
+承認後の候補追加は3fileにまとめる。`candidate/t1-rbi-observation-contract-v2.json`に閉型/原典・同scope相関/数値とbranchを分けた必要十分条件・有限被覆宣言を一体化し、別の23条件fileは増設しない。`candidate/t1-rbi-observation-inputs-v3.json`に中立IDの共通Dと162組の原観測だけを置く。`candidate/t1-rbi-observation-author-v4.json`に対応ID/完成組・数値/branch集合・必要観測組・反例/原典理由を分離する。入力にはbranch/期待/理由/issue/作者ファイル・hashを混ぜず、合成入力であることを固定する。既存source-ownership/constructor/researchと既存専用schema試験だけを更新可能とし、外側不在/空map/別走者/余剰/型違いは162とは別の構造変異として検査する。旧50定義/schema/d.ts/292case/11constructor、旧観測contract-v1/条件表-v1/90pure-v2/author-v3、pure-v1/author-v1/evaluation-v2はすべてbyte不変とする。
+
+最低限の反例は、(a)片側true/他側未観測のH/U対称2方向と、片側falseだけではORを否定できない対向組、(b)C=kept-runningやR=falseで数値一意/branch未識別の正常例と、それら唯一の除外観測を外すと0/1両方が残る例、(c)H/U両falseが必要なOR否定と、どちらか一方を未観測へ戻す例、(d)R=trueの複合事実の正常例とC=kept/H=U=false/別人併記の相反例、(e)時機2方向と必須時機欠落、(f)数値既知をbranch不明だけでunknown/拒否へ変える、または数値未確定をfalse/0/[]へ埋める負例である。追加の相関/原典不足があればそのセル/fieldだけを明記し、仮観測や新ルールで完成させない。相反と、数値を変えないbranch未識別と、数値に必要な欠落を混同しない。公開result/D5/拒否優先順は追加しない。
+
+DoDは162のexact被覆/整合完成組との対応・数値一意/first-branch未識別の分離・必要最小観測の正負と全旧byte保持、局所pytest/Ruff/ty/docs/計画同期、固定版の非作者レビュー提出である。unknown消去数/新しい正式case closure数を合格条件にしない。旧Dの定数20keyの域外20反対方向は未供給のまま、正式missing15/closure0・全23key全球域・7marker/G6/P2/P6/P7/P8/7.7・T1製品開始条件を維持する。正式入力schemaへ運べるlossless候補を作る最初の有限単位であり、正式wire/descriptor/署名/issuer実装や受理はrootの後段直列ゲートである。D06/D07へ依存を足さず、実Port/DB/HTTP完成も候補着手の前提にしない。本追補起案後は停止し、非作者限定確認とrootの対象版判断へ渡す。
