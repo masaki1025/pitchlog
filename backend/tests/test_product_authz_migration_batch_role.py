@@ -185,6 +185,8 @@ def test_function_execute_request_covers_every_declared_product_schema(
         "authn",
         "authn_crypto",
         "rg1_api",
+        "rg1_control",
+        "pitchlog_ledger_observer",
     }
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     expected = product_catalog._load_migration_batch_expectations()
