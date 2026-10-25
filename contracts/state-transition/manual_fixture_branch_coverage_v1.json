@@ -148,16 +148,6 @@
       "reason": "失策と送球の因果判断に必要な記録員の観測入力が段階2待ち"
     },
     {
-      "branchId": "RBI-03",
-      "reasonType": "rbi-input-or-row-unresolved",
-      "reason": "走者の継続・停止を判定する観測入力が段階2待ち"
-    },
-    {
-      "branchId": "RBI-04",
-      "reasonType": "rbi-input-or-row-unresolved",
-      "reason": "走者の停止と再発進を判定する観測入力が段階2待ち"
-    },
-    {
       "branchId": "RBI-05",
       "reasonType": "rbi-input-or-row-unresolved",
       "reason": "失策がなくても得点したかの記録員判断入力が段階2待ち"

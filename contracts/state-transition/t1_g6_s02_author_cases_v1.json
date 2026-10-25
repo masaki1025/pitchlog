@@ -1,0 +1,116 @@
+{
+  "candidate_only": true,
+  "source_branch": "G6-S02",
+  "input_contract": "t1_g6_s02_input_schema_v1.json",
+  "coverage_claim": "必要な回一致条件と不一致時の非適用のみ。全G6/Ready/正常適用/同期結果を供給しない",
+  "cases": [
+    {
+      "input_id": "n0001",
+      "same_inning": true,
+      "existing_positive_reference": "ST-OPERATION-6e73a96c10ecd75c",
+      "t1_effect_obligation": {
+        "kind": "other-preconditions-still-required"
+      },
+      "public_result": "unprovided-outside-d06-duplicate-mark-scope",
+      "d5_effect": "not-determined-in-this-unit"
+    },
+    {
+      "input_id": "n0002",
+      "same_inning": false,
+      "existing_positive_reference": null,
+      "t1_effect_obligation": {
+        "kind": "must-not-apply",
+        "pre_state_after": {
+          "inning": 10,
+          "half": "top",
+          "outs": 0,
+          "count": {
+            "strikes": 0,
+            "balls": 0
+          },
+          "runners": {
+            "first": {
+              "kind": "empty"
+            },
+            "second": {
+              "kind": "empty"
+            },
+            "third": {
+              "kind": "empty"
+            }
+          },
+          "score": {
+            "away": 0,
+            "home": 0
+          },
+          "batting_order": 1,
+          "batter": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000001"
+          },
+          "tiebreak_active": false,
+          "game_ended": false
+        },
+        "scoreboard_effect": "unchanged",
+        "stat_flags_effect": "all-23-unchanged",
+        "history_effect": "unchanged"
+      },
+      "public_result": "unprovided-outside-d06-duplicate-mark-scope",
+      "d5_effect": "not-determined-in-this-unit"
+    },
+    {
+      "input_id": "n0003",
+      "same_inning": false,
+      "existing_positive_reference": null,
+      "t1_effect_obligation": {
+        "kind": "must-not-apply",
+        "pre_state_after": {
+          "inning": 10,
+          "half": "top",
+          "outs": 0,
+          "count": {
+            "strikes": 0,
+            "balls": 0
+          },
+          "runners": {
+            "first": {
+              "kind": "empty"
+            },
+            "second": {
+              "kind": "empty"
+            },
+            "third": {
+              "kind": "empty"
+            }
+          },
+          "score": {
+            "away": 0,
+            "home": 0
+          },
+          "batting_order": 1,
+          "batter": {
+            "kind": "official",
+            "player_id": "00000000-0000-4000-8000-000000000001"
+          },
+          "tiebreak_active": false,
+          "game_ended": false
+        },
+        "scoreboard_effect": "unchanged",
+        "stat_flags_effect": "all-23-unchanged",
+        "history_effect": "unchanged"
+      },
+      "public_result": "unprovided-outside-d06-duplicate-mark-scope",
+      "d5_effect": "not-determined-in-this-unit"
+    },
+    {
+      "input_id": "n0004",
+      "same_inning": true,
+      "existing_positive_reference": "ST-OPERATION-93799cd3c928a723",
+      "t1_effect_obligation": {
+        "kind": "other-preconditions-still-required"
+      },
+      "public_result": "unprovided-outside-d06-duplicate-mark-scope",
+      "d5_effect": "not-determined-in-this-unit"
+    }
+  ]
+}

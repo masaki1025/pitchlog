@@ -1,0 +1,260 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PR185 bounded T1 input append; not a personal signature",
+  "$comment": "pendingは保存形式だけで、新受理の検査では必ず拒否する。実値候補も最終core_guard委任証拠を別途必須とする。",
+  "oneOf": [
+    {
+      "const": {
+        "schemaVersion": 1,
+        "evidenceKind": "t1-input-append",
+        "status": "pending-root-values",
+        "missingValues": [
+          "root-subject-before-after-values",
+          "root-7.7-acceptance",
+          "root-final-authority-and-review-evidence"
+        ]
+      }
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "evidenceKind": {
+          "const": "t1-input-append"
+        },
+        "status": {
+          "const": "candidate-for-delegated-verification"
+        },
+        "authority": {
+          "type": "object",
+          "properties": {
+            "repository": {
+              "const": "masaki1025/pitchlog"
+            },
+            "pr": {
+              "const": 185
+            },
+            "branch": {
+              "const": "feature/mvp-t1-input-closure"
+            },
+            "path": {
+              "const": "docs/features/mvp-delegated-core-review/policy.json"
+            },
+            "baseRevision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "sourcePolicySha256": {
+              "const": "c6da8f97cbb48301444e672ce28f435b9e4db5d7b87c18e116eb0cdfe9ec03a6",
+              "$comment": "固定委任根拠のhash。現policy hashは最終core_guard外部証拠へ束縛する。"
+            }
+          },
+          "required": [
+            "repository",
+            "pr",
+            "branch",
+            "path",
+            "sourcePolicySha256",
+            "baseRevision"
+          ],
+          "additionalProperties": false
+        },
+        "anchor": {
+          "type": "object",
+          "properties": {
+            "commit": {
+              "const": "f83955f0fd917c3f1ffe52073716c8b6e42f1a54"
+            },
+            "carryRawSha256": {
+              "const": "be21cc5eacf6a49810e1b0b04542ca6fbb67076755328efe04acc7185b75a4d8"
+            }
+          },
+          "required": [
+            "commit",
+            "carryRawSha256"
+          ],
+          "additionalProperties": false
+        },
+        "changedCaseIds": {
+          "const": [
+            "ST-RBI-03-HELD-TOO-LONG-01",
+            "ST-RBI-03-UNNECESSARY-THROW-01",
+            "ST-RBI-04-HELD-TOO-LONG-01",
+            "ST-RBI-04-UNNECESSARY-THROW-01",
+            "ST-RBI-08-RESTART-NONCAUSAL-01"
+          ]
+        },
+        "subjects": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "enum": [
+                  "contracts/state-transition/state_transition_contract_v1.json",
+                  "contracts/state-transition/game_end_contract_v1.json"
+                ]
+              },
+              "anchorRawSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "anchorDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "currentRawSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "currentDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "projection": {
+                "enum": [
+                  "operation-undo-and-cases",
+                  "decision-cases-and-validation-errors"
+                ]
+              },
+              "projectionDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "allowedChanges": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "replace"
+                        },
+                        "pointer": {
+                          "const": "/inputAxesDescriptor/digest"
+                        },
+                        "before": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        },
+                        "after": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "pointer",
+                        "before",
+                        "after"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "append"
+                        },
+                        "pointer": {
+                          "enum": [
+                            "/matrixRows",
+                            "/cases",
+                            "/mustOperationCoverage/mappings/0/rowRefs"
+                          ]
+                        },
+                        "beforeCount": {
+                          "enum": [
+                            44,
+                            111
+                          ]
+                        },
+                        "values": {
+                          "type": "array",
+                          "minItems": 5,
+                          "maxItems": 5,
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "pointer",
+                        "beforeCount",
+                        "values"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "path",
+              "anchorRawSha256",
+              "anchorDigest",
+              "currentRawSha256",
+              "currentDigest",
+              "projection",
+              "projectionDigest",
+              "allowedChanges"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "scopeReceipt": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "bounded-technical-candidate"
+            },
+            "evidenceLabel": {
+              "type": "string",
+              "minLength": 1
+            },
+            "personalReviewClaimed": {
+              "const": false
+            },
+            "P6FullAcceptance": {
+              "const": false
+            },
+            "P7FullAcceptance": {
+              "const": false
+            },
+            "T1BodyStartComplete": {
+              "const": false
+            }
+          },
+          "required": [
+            "kind",
+            "evidenceLabel",
+            "personalReviewClaimed",
+            "P6FullAcceptance",
+            "P7FullAcceptance",
+            "T1BodyStartComplete"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "evidenceKind",
+        "status",
+        "authority",
+        "anchor",
+        "changedCaseIds",
+        "subjects",
+        "scopeReceipt"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

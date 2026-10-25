@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "G6 S02 input projection candidate v1",
+  "type": "object",
+  "properties": {
+    "format_version": {
+      "const": "t1-operation-inning-projection-v1"
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "properties": {
+          "input_id": {
+            "enum": [
+              "n0001",
+              "n0002",
+              "n0003",
+              "n0004"
+            ]
+          },
+          "pre_state": {
+            "$ref": "#/$defs/T1PureStateV1"
+          },
+          "tiebreak_start": {
+            "$ref": "#/$defs/T1TiebreakStartPayloadV1"
+          }
+        },
+        "required": [
+          "input_id",
+          "pre_state",
+          "tiebreak_start"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "format_version",
+    "inputs"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "PlayerRefV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "official"
+            },
+            "player_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "player_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "temporary"
+            },
+            "temporary_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "temporary_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1BaseOccupantV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "empty"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "occupied"
+            },
+            "player": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "player"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1PureStateV1": {
+      "type": "object",
+      "properties": {
+        "inning": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "half": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "count": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "balls": {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ]
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "runners": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            },
+            "second": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            },
+            "third": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "score": {
+          "type": "object",
+          "properties": {
+            "away": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "home": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "away",
+            "home"
+          ],
+          "additionalProperties": false
+        },
+        "batting_order": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "batter": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "tiebreak_active": {
+          "type": "boolean"
+        },
+        "game_ended": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "inning",
+        "half",
+        "outs",
+        "count",
+        "runners",
+        "score",
+        "batting_order",
+        "batter",
+        "tiebreak_active",
+        "game_ended"
+      ],
+      "additionalProperties": false
+    },
+    "T1TiebreakStartPayloadV1": {
+      "type": "object",
+      "properties": {
+        "runnerPlacement": {
+          "type": "string",
+          "enum": [
+            "first-second",
+            "second-third"
+          ]
+        },
+        "leadoffBatter": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "inning": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "runnerPlacement",
+        "leadoffBatter",
+        "inning"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
