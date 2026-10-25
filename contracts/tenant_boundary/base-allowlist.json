@@ -28482,7 +28482,7 @@
           ]
         },
         "change": {
-          "subject": "PR184のRG1制御・初回epoch・正規認可profileと起動補助の有限登録",
+          "subject": "PR184のRG1実所有境界・基底署名とlexical scopeの正式供給、初回未統合受理の置換",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -29354,8 +29354,8 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "575545fe3a34ac8c56fe7014c1c2ce6712f175ea75044504e3b6a5a35b4c7976",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/575545fe3a34ac8c56fe7014c1c2ce6712f175ea75044504e3b6a5a35b4c7976"
+                "sha256": "3d2c47b80ceca87b969337e1d7860d92ab28fd3d29000a280d34cc5ba3469fb5",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3d2c47b80ceca87b969337e1d7860d92ab28fd3d29000a280d34cc5ba3469fb5"
               },
               {
                 "path": "scripts/frozen_archive.py",
@@ -29391,23 +29391,23 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "e666c7f3d0756159c62f1d0e45aa49b33398f266a013564924d79649fc3bf6e3",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e666c7f3d0756159c62f1d0e45aa49b33398f266a013564924d79649fc3bf6e3"
+                "sha256": "bf213470fd826189df6df0f352e8d48c2b7163cd0fee24718a67da564f3920fe",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bf213470fd826189df6df0f352e8d48c2b7163cd0fee24718a67da564f3920fe"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "2f64bf8d9e5b015069d7b8e7358d79505af38133cec69b0df69f981eadcdb9c6",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2f64bf8d9e5b015069d7b8e7358d79505af38133cec69b0df69f981eadcdb9c6"
+                "sha256": "7d35523dca48967b55dd356c48de592a4503fd656e49191e22d86fb7ab3b4304",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/7d35523dca48967b55dd356c48de592a4503fd656e49191e22d86fb7ab3b4304"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "a5a418c44494fa6294a643cb62d0d292c47de0b9f78f09b9a25ed1346c460755",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a5a418c44494fa6294a643cb62d0d292c47de0b9f78f09b9a25ed1346c460755"
+                "sha256": "a275fabd8f60e1377ff9dbcc351f13725fd1e472cdc3e8a8c84f0f53dc4a6dbf",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a275fabd8f60e1377ff9dbcc351f13725fd1e472cdc3e8a8c84f0f53dc4a6dbf"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "2a93d9f202789b5b8aa139bcb3c7522671f09dc7108406d9fc9fd7fe9f56d071",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2a93d9f202789b5b8aa139bcb3c7522671f09dc7108406d9fc9fd7fe9f56d071"
+                "sha256": "440ea0e4180ff879797a40027367503da02ada8f894c24a234d41e0a60f2ef61",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/440ea0e4180ff879797a40027367503da02ada8f894c24a234d41e0a60f2ef61"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
@@ -29416,29 +29416,29 @@
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "33fb26e70109394f50bddee03ab4d9e0e8e776135cfead36f2637eeae720572d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/33fb26e70109394f50bddee03ab4d9e0e8e776135cfead36f2637eeae720572d"
+                "sha256": "4cbfb828df39d36ed99a23c11921aac2ba07e65d75a5f3f288d7b56e759febdb",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4cbfb828df39d36ed99a23c11921aac2ba07e65d75a5f3f288d7b56e759febdb"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "bc09de3677c41e38f9d4da3cc0e3957c7cb45eb76c7e4a8bdce59a5d5faefb71",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bc09de3677c41e38f9d4da3cc0e3957c7cb45eb76c7e4a8bdce59a5d5faefb71"
+                "sha256": "b0f3695caf14e103bf72d5af501c6f3a77f9e7e2f08b7748a954e9a2d8a6b834",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b0f3695caf14e103bf72d5af501c6f3a77f9e7e2f08b7748a954e9a2d8a6b834"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "9ff6e25d84158408cd17ae7576000ca8bf083fcd4452562994d970f839aa2828",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9ff6e25d84158408cd17ae7576000ca8bf083fcd4452562994d970f839aa2828"
+                "sha256": "089d810b9ba639b4c071132256bf3f91137a16e90c56d256a60dc1c076a65e82",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/089d810b9ba639b4c071132256bf3f91137a16e90c56d256a60dc1c076a65e82"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "9dbd737efceeade989de9c6180ba63086e61cb7d7829b22af8bac18ff56e87c4",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9dbd737efceeade989de9c6180ba63086e61cb7d7829b22af8bac18ff56e87c4"
+                "sha256": "db7f1c4c2d2d271a073a978dd5f8d20d0fa990dccc0a5325528bb725c830e6fe",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/db7f1c4c2d2d271a073a978dd5f8d20d0fa990dccc0a5325528bb725c830e6fe"
               }
             ]
           }
         },
-        "movement_fact": "実develop dcd4の9射影8外部・旧30履歴216snapshotを保持し、実RG1の最小制御主体/列/固定資産/起動exact補助登録を固定source7d057a3dから完全導出した。外部8はtarget ada3951cと同byte。",
-        "reason": "採用済みdata-model1.3の同DB/PID二重lease・初回fresh epochの実供給を正式基準へ反映する。未知登録/認可/未終端の拒否を維持し、未宣言TB005を許容せずexact2登録と1署名を正規追随する。",
+        "movement_fact": "実develop dcd4の旧正式30履歴216snapshotを全保持し、RG1制御/初回epoch/profile/起動補助に加え、exact4基底・C2二出現とnested lexical scopeを固定source4c677a98から全9射影8外部で導出。初回未統合184の31件目と9snapshotはGit/cacheへ保全し置換する。通常11所見の供給不足をcensus免除で隠さない。",
+        "reason": "採用済みdata-model1.3の実supplier/最小権限へ必要な正式閉登録を供給する。socketの実由来を明示し、固定import/完全qualifierとsource hash/位置/記号を使って他scope/他path/余分API/偽sourceを拒否し続ける。core文脈を揃えた対向で全値と拒否を確認し、旧未統合受理を完全値supersessionする。",
         "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
         "approved_on": "2026-10-25"
       }

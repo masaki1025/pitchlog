@@ -209,3 +209,10 @@ rootが実製品S0→S3を所有disposableで通す既PG試験を実行し、新
 以前のraw323/334はpinned-inputsに.claude/core-areas.jsonが無いoperational算定だったため、sync所有領域141所見を含んでいた。新しいguardの拒否弱化で141を消したものではない。両対向で同じcore文脈を揃えた最終before/afterは182→182（16追加16削除）、従来core無し文脈では323→323であり、141差はTB002の所有認識の文脈差として全配列を保全した。旧数値を通常CLI/実coreでの全成立証拠として使わない。元receiptは改変せず本追補で解釈を限定する。
 
 最初の未統合PR184受理31件目と9snapshotは /home/ymdms/.cache/pitchlog/rg1-pr184-first-receipt-preservation-20261025 に全byte保存し、Git2ca71b02/f0151fb3にも保持。実追加値とchecker外部sourceが変わったため、新しい完全9/8値の独立照合と置換受理/supersessionを行うまで、旧recordが新コードを受理したとは扱わない。旧正式30履歴216snapshotは一切削除しない。
+
+
+## PR184の追加実値・置換受理（反映2周目）
+
+2026-10-25T10:03:41.548165+00:00、PO委任によるCodex主担当/rootは4c677a98の全9射影/8外部・26payloadを受理した。非作者e1739e82dd2d927531aff2350fe64e57231e3eb42d48f87f0abce97e3b3d4085/所見0、proposal c9758cd28131d35bf18b8cd3d6ecb324ba7667a6b501e412857d6a7cd10be7a3を確認。通常11所見の実供給差分が入ったため初回未統合184を置換し、同PRのrecordを重複追加していない。旧正式30record/216snapshotは全byte保持、初回31件目/旧新規9はGit2ca/f015と保全cacheへ保存した。最終historyから非参照かつbaseに無い初回9だけを退役cacheへ写し、新必須9を追加して合計31履歴/225snapshotとした。
+
+371accepted行は現行byte/規範列とも同じなので全保持し、新しい判断は0。rawcarry候補シートは一切適用していない。root receipt /home/ymdms/.cache/pitchlog/rg1-pr184-guard-supersession-4c677a98-20261025/root-supersession-acceptance-receipt.json。正式反映後の通常tenant CLIはexit0、tenant-boundary bypass check: ok（同cache/normal-tenant-after-supersession.log）。実Gitの残9検査/最終全件/全PR review/CIは次に完了させる。初回の失敗/文脈欠落/受理/置換過程を改変せず、人間本人による確認/署名や初期grant/UI成功へ広げない。
