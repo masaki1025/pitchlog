@@ -31,8 +31,12 @@ from pitchlog.authz.asset_spec import (
     load_product_application_steps,
 )
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
-from pitchlog.authz.product_provisioning import apply_product_authz_ddl
+from pitchlog.authz.product_provisioning import (
+    apply_product_authz_ddl,
+    unapply_product_authz_ddl,
+)
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
+from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
@@ -1315,6 +1319,28 @@ def _product_migration_url(dsn: str) -> str:
     ).render_as_string(hide_password=False)
 
 
+def _prepare_current_product_baseline(
+    *,
+    owner_dsn: str,
+    applicator_dsn: str,
+    applicator: psycopg.Connection[Any],
+) -> None:
+    """正規段階起動と実取り外しで0035の未適用基準を用意する。
+
+    準備時のS3適用と、この基準からの独立DDL試験を区別する。
+    """
+    result = advance_stage_a_from_s0(
+        owner_dsn=owner_dsn,
+        applicator_dsn=applicator_dsn,
+    )
+    assert result.completed_stage == "S3" and result.publishable is False
+    with applicator.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM public.alembic_version")
+        assert cursor.fetchall() == [("0035_rg1_initial_fresh_epoch",)]
+    applicator.rollback()
+    unapply_product_authz_ddl(applicator)
+
+
 @pytest.fixture
 def provisioned_product_catalog(
     disposable_postgres_cluster: Callable[
@@ -1408,6 +1434,11 @@ def provisioned_product_catalog(
             psycopg.connect(applicator_dsn) as applicator,
             psycopg.connect(applicator_dsn) as observer,
         ):
+            _prepare_current_product_baseline(
+                owner_dsn=owner_dsn,
+                applicator_dsn=applicator_dsn,
+                applicator=applicator,
+            )
             pre_application_catalog = _snapshot_product_catalog(observer, role_ids)
             observer.rollback()
             apply_product_authz_ddl(applicator)
