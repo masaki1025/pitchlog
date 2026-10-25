@@ -25,9 +25,15 @@ from pitchlog.authz.product_authn_contract import (
     AUTHN_TABLE_GRANTS,
     validate_authn_asset,
 )
+from pitchlog.authz.product_control_access import (
+    build_initial_policy_declarations,
+    initial_policy_expressions,
+)
 from pitchlog.authz.product_function_acl import (
     BUILTIN_EXECUTE_GRANTEES,
+    build_initial_function_declarations,
     build_lifecycle_function_declarations,
+    generate_initial_function_sql,
     generate_lifecycle_function_sql,
     is_builtin_execute_declaration,
     valid_product_identity_args,
@@ -137,7 +143,11 @@ FROM pg_catalog.pg_proc AS routine
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
 JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
 JOIN pg_catalog.pg_language AS language ON language.oid = routine.prolang
-WHERE namespace.nspname IN ('rg1_control', 'pitchlog_ledger_observer')
+WHERE namespace.nspname IN (
+    'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api'
+) OR (namespace.nspname = 'public' AND routine.proname IN (
+    'protect_initial_right_storage', 'protect_recording_generations_updates'
+))
 ORDER BY 1, 2, 3
 """
 
@@ -1059,6 +1069,10 @@ def _load_migration_batch_expectations() -> _MigrationBatchExpectations:
 def _load_product_expectations() -> _ProductExpectations:
     """Staged 資産と適用手順資産から exact-set 期待値を導出する。"""
     asset = _load_product_asset()
+    _validate_initial_function_declarations(asset)
+    _validated_initial_column_rows(asset)
+    _validate_initial_table_acls(asset)
+    _validate_initial_schema_roles(asset)
     application_steps = load_product_application_steps(_REPOSITORY_ROOT, PRODUCT_SPEC)
     role_rows = _rows(asset, "roles")
     roles = tuple(
@@ -1184,6 +1198,7 @@ def _load_product_expectations() -> _ProductExpectations:
     )
     table_names = tuple(row[1] for row in tables)
 
+    policy_rows = _validated_initial_policy_rows(asset)
     policies = tuple(
         sorted(
             (
@@ -1207,7 +1222,7 @@ def _load_product_expectations() -> _ProductExpectations:
                     _optional_text(row, "with_check_expression", "policies")
                 ),
             )
-            for row in _rows(asset, "policies")
+            for row in policy_rows
         )
     )
 
@@ -1792,10 +1807,38 @@ def _compare_builtin_acl(
 def _expected_lifecycle_function_details() -> tuple[tuple[object, ...], ...]:
     """追加8関数の実本文/検索経路を元SQLと独立属性から固定する。"""
     result: list[tuple[object, ...]] = []
-    for function_id, row in build_lifecycle_function_declarations().items():
-        sql = generate_lifecycle_function_sql(function_id, _REPOSITORY_ROOT)
+    declarations = build_lifecycle_function_declarations()
+    declarations.update(
+        {
+            key: row
+            for key, row in build_initial_function_declarations().items()
+            if row["schema_name"] == "initial_right_api"
+        }
+    )
+    # 実metadataの有無を明示し、旧grant-only profileを新開始profileへ暗黙昇格しない。
+    import json
+
+    from pitchlog.authz.initial_start_sql import (
+        start_assets_present,
+        start_function_declarations,
+    )
+
+    asset = json.loads((_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text())
+    if start_assets_present(asset):
+        declarations.update(start_function_declarations())
+    for function_id, row in declarations.items():
+        initial = row["schema_name"] == "initial_right_api"
+        sql = (
+            generate_initial_function_sql(function_id)
+            if initial
+            else generate_lifecycle_function_sql(function_id, _REPOSITORY_ROOT)
+        )
         delimiter = (
-            "$$" if row["schema_name"] == "pitchlog_ledger_observer" else "$function$"
+            "$body$"
+            if initial
+            else "$$"
+            if row["schema_name"] == "pitchlog_ledger_observer"
+            else "$function$"
         )
         parts = sql.split(delimiter)
         if len(parts) != 3:
@@ -1814,6 +1857,45 @@ def _expected_lifecycle_function_details() -> tuple[tuple[object, ...], ...]:
                 parts[1].strip(),
             )
         )
+    from runpy import run_path
+
+    migration = run_path(
+        str(
+            _REPOSITORY_ROOT
+            / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+        )
+    )
+    for name, sql, delimiter, config in (
+        (
+            "protect_initial_right_storage",
+            migration["_INTERNAL_TRIGGER_SQL"],
+            "$body$",
+            ("search_path=pg_catalog, pg_temp",),
+        ),
+        (
+            "protect_recording_generations_updates",
+            migration["_GENERATION_GUARD_SQL"][0],
+            "$$",
+            (),
+        ),
+    ):
+        parts = sql.split(delimiter)
+        if len(parts) != 3:
+            raise ProductCatalogError("0036の保護関数本文が一意でない")
+        result.append(
+            (
+                "public",
+                name,
+                "",
+                "pitchlog_owner",
+                False,
+                "plpgsql",
+                "trigger",
+                "v",
+                config,
+                parts[1].strip(),
+            )
+        )
     return tuple(sorted(result))
 
 
@@ -1826,6 +1908,7 @@ def _compare_lifecycle_function_details(
     for row in rows:
         if (
             len(row) != 10
+            or type(row[4]) is not bool
             or row[8] is not None
             and (
                 not isinstance(row[8], (tuple, list))
@@ -2195,3 +2278,443 @@ def inspect_migration_batch_role_catalog(
         privileged_role_oids=frozenset({role_oid}),
         _migration_batch_role_oid=role_oid,
     )
+
+
+def _validated_initial_policy_rows(
+    asset: dict[str, object],
+) -> tuple[dict[str, object], ...]:
+    """初期主体/PUBLIC/既appの有限policyを閉宣言へ照合する。"""
+    rows = _rows(asset, "policies")
+    from pitchlog.authz.initial_start_sql import (
+        start_assets_present,
+        start_policy_declarations,
+        start_policy_expressions,
+        validate_start_asset_sets,
+    )
+
+    try:
+        validate_start_asset_sets(asset)
+    except ValueError as error:
+        raise ProductCatalogError(str(error)) from error
+    expected = build_initial_policy_declarations()
+    start_expected = start_policy_declarations() if start_assets_present(asset) else {}
+    expected.update(start_expected)
+    from pitchlog.authz.initial_start_sql import _exact_value
+    from pitchlog.authz.product_table_access import build_product_policy_declaration
+
+    app_policies = {
+        str(row["policy_id"]): row
+        for table in _INITIAL_START_TENANT_TABLES
+        for row in (build_product_policy_declaration(table, "tenant_owned"),)
+    }
+    expected.update(app_policies)
+    found: set[str] = set()
+    for row in rows:
+        key = row.get("policy_id")
+        if not isinstance(key, str):
+            raise ProductCatalogError("policy識別子は文字列が必要")
+        roles = row.get("role_ids")
+        name = row.get("policy_name")
+        if (
+            (isinstance(key, str) and key in expected)
+            or (
+                isinstance(roles, list)
+                and (
+                    "pitchlog_initial_fn_owner" in roles
+                    or "pitchlog_initial_actor" in roles
+                    or any(
+                        type(role) is str and role.upper() == "PUBLIC" for role in roles
+                    )
+                )
+            )
+            or (
+                isinstance(roles, list)
+                and "pitchlog_app" in roles
+                and row.get("table_id") in _INITIAL_START_TOUCH_TABLES
+            )
+            or (isinstance(name, str) and name.startswith("initial_right_"))
+        ):
+            try:
+                if key in app_policies:
+                    if not _exact_value(row, app_policies[key]):
+                        raise ValueError("保護app12のtenant policy全fieldが不一致")
+                else:
+                    (
+                        start_policy_expressions(row)
+                        if key in start_expected
+                        else initial_policy_expressions(row)
+                    )
+            except ValueError as error:
+                raise ProductCatalogError(str(error)) from error
+            if not isinstance(key, str) or key in found:
+                raise ProductCatalogError("初期owner policyの重複/識別子が不正")
+            found.add(key)
+    if found != set(expected):
+        raise ProductCatalogError("初期接合policyのexact集合が不一致")
+    return rows
+
+
+_INITIAL_START_TENANT_TABLES = (
+    "games",
+    "team_records",
+    "players",
+    "game_lineups",
+    "lineup_memories",
+    "recording_generations",
+)
+_INITIAL_START_TOUCH_TABLES = frozenset(
+    (
+        *_INITIAL_START_TENANT_TABLES,
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+        "rg1_restore_gate",
+    )
+)
+
+
+def _validate_initial_function_declarations(asset: dict[str, object]) -> None:
+    """初期reserved namespaceの関数を既source全属性へ束縛する。"""
+    from pitchlog.authz.initial_start_sql import (
+        _exact_value,
+        start_assets_present,
+        start_function_declarations,
+    )
+
+    expected = build_initial_function_declarations()
+    if start_assets_present(asset):
+        expected.update(start_function_declarations())
+    actual: dict[str, dict[str, object]] = {}
+    foreign_actor = {
+        "FUNCTION:rg1_api:rg1_read_open(uuid)": ("rg1_api", "rg1_read_open"),
+        "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)": (
+            "rg1_api",
+            "rg1_assert_open_before_commit",
+        ),
+        "FUNCTION:rg1_control:scope_binding(uuid)": ("rg1_control", "scope_binding"),
+    }
+    foreign_seen: set[str] = set()
+    for row in _rows(asset, "functions"):
+        key = row.get("function_id")
+        acl = row.get("acl_expectations")
+        if not isinstance(acl, list) or any(not isinstance(e, dict) for e in acl):
+            raise ProductCatalogError("初期関数ACLの形が不正")
+        protected = [
+            e
+            for e in acl
+            if e.get("grantee")
+            in ("pitchlog_initial_actor", "pitchlog_initial_fn_owner")
+            or (type(e.get("grantee")) is str and e["grantee"].upper() == "PUBLIC")
+        ]
+        if isinstance(key, str) and key in foreign_actor:
+            schema, name = foreign_actor[key]
+            if (
+                key in foreign_seen
+                or row.get("schema_name") != schema
+                or row.get("function_name") != name
+                or row.get("identity_args") != "uuid"
+                or row.get("owner_role_id")
+                != (
+                    "pitchlog_rg1_control_owner"
+                    if schema == "rg1_control"
+                    else "pitchlog_rg1_fn_owner"
+                )
+                or not _exact_value(
+                    protected,
+                    [
+                        dict(
+                            grantee="pitchlog_initial_actor",
+                            privilege="EXECUTE",
+                            grantable=False,
+                        )
+                    ],
+                )
+            ):
+                raise ProductCatalogError("既RG1の初期actor関数接点が不一致")
+            foreign_seen.add(key)
+            continue
+        reserved = (
+            (
+                isinstance(key, str)
+                and (key in expected or key.startswith("FUNCTION:initial_right_api:"))
+            )
+            or row.get("schema_name") == "initial_right_api"
+            or row.get("owner_role_id")
+            in (
+                "pitchlog_initial_fn_owner",
+                "pitchlog_initial_actor",
+                "pitchlog_app",
+                "PUBLIC",
+            )
+            or row.get("function_name") == "protect_initial_right_storage"
+            or bool(protected)
+        )
+        if reserved:
+            if not isinstance(key, str) or key in actual:
+                raise ProductCatalogError("初期reserved関数の識別子/重複が不正")
+            actual[key] = row
+    if foreign_seen != set(foreign_actor) or not _exact_value(actual, expected):
+        raise ProductCatalogError("初期reserved関数の全field/exact集合が不一致")
+
+
+def _validated_initial_column_rows(
+    asset: dict[str, object],
+) -> tuple[dict[str, object], ...]:
+    """旧53/新36列と実効PUBLIC/保護app12を単一sourceへ全field照合する。"""
+    from pitchlog.authz.initial_start_sql import (
+        _exact_value,
+        start_assets_present,
+        start_column_acl_declarations,
+    )
+    from pitchlog.authz.product_control_access import (
+        build_initial_column_acl_declarations,
+    )
+
+    expected = build_initial_column_acl_declarations()
+    if start_assets_present(asset):
+        expected.update(start_column_acl_declarations())
+    actual: dict[str, dict[str, object]] = {}
+    rows = _rows(asset, "column_acl_expectations")
+    for row in rows:
+        key = row.get("expectation_id")
+        role = row.get("grantee_role_id")
+        reserved = (
+            (
+                isinstance(key, str)
+                and (
+                    key in expected
+                    or (
+                        key.startswith("COLUMN-ACL:public:recording_generations:")
+                        and key.endswith(":pitchlog_app")
+                    )
+                )
+            )
+            or role in ("pitchlog_initial_fn_owner", "pitchlog_initial_actor")
+            or (type(role) is str and role.upper() == "PUBLIC")
+            or (
+                role == "pitchlog_app"
+                and row.get("object_id") == "recording_generations"
+            )
+        )
+        if reserved:
+            if not isinstance(key, str) or key in actual:
+                raise ProductCatalogError("初期列ACLの識別子/重複が不正")
+            actual[key] = row
+    if not _exact_value(actual, expected):
+        raise ProductCatalogError("初期列ACLの全field/exact集合が不一致")
+    return rows
+
+
+def _validate_initial_table_acls(asset: dict[str, object]) -> None:
+    """初期主体/PUBLICの表ACL0と既appの有限5表ACLを照合する。"""
+    from pitchlog.authz.initial_start_sql import _exact_value
+    from pitchlog.authz.product_table_access import build_product_table_acl_declaration
+
+    expected = {
+        str(row["acl_id"]): row
+        for table in _INITIAL_START_TENANT_TABLES
+        if table != "recording_generations"
+        for row in (build_product_table_acl_declaration(table, "tenant_owned"),)
+    }
+    actual: dict[str, dict[str, object]] = {}
+    function_only = _INITIAL_START_TOUCH_TABLES - set(_INITIAL_START_TENANT_TABLES)
+    for row in _rows(asset, "acl_expectations"):
+        key = row.get("acl_id")
+        role = row.get("grantee_role_id")
+        reserved = (
+            (isinstance(key, str) and key in expected)
+            or role in ("pitchlog_initial_actor", "pitchlog_initial_fn_owner")
+            or (type(role) is str and role.upper() == "PUBLIC")
+            or row.get("object_id") in function_only
+            or (
+                role == "pitchlog_app"
+                and row.get("object_id") in _INITIAL_START_TOUCH_TABLES
+            )
+        )
+        if reserved:
+            if not isinstance(key, str) or key in actual:
+                raise ProductCatalogError("初期接合の表ACL識別子/重複が不正")
+            actual[key] = row
+    if not _exact_value(actual, expected):
+        raise ProductCatalogError("初期接合の表ACL全field/exact集合が不一致")
+
+
+def _validate_initial_schema_roles(asset: dict[str, object]) -> None:
+    """初期namespaceと初期主体/PUBLIC/appの有限schema権限を照合する。"""
+    from pitchlog.authz.initial_start_sql import _exact_value, start_assets_present
+
+    rows = _rows(asset, "schemas")
+    start = start_assets_present(asset)
+    if any(
+        row.get("owner") in ("pitchlog_initial_actor", "pitchlog_app", "PUBLIC")
+        for row in rows
+    ):
+        raise ProductCatalogError("初期接合subjectへ未知schema所有権を与えられない")
+    private = dict(
+        schema_id="initial_right_api",
+        schema_name="initial_right_api",
+        creation="product_ddl",
+        owner="pitchlog_initial_fn_owner",
+        ownership_path="direct",
+        acl_expectations=[
+            dict(grantee="pitchlog_initial_actor", privilege="USAGE", grantable=False)
+        ],
+        revoked_acl_expectations=[
+            dict(grantee=role, privilege=priv, grantable=False)
+            for role, priv in (
+                ("PUBLIC", "USAGE"),
+                ("PUBLIC", "CREATE"),
+                ("pitchlog_app", "USAGE"),
+                ("pitchlog_app", "CREATE"),
+                ("pitchlog_initial_actor", "CREATE"),
+            )
+        ],
+    )
+    private_rows = [
+        row
+        for row in rows
+        if row.get("schema_id") == "initial_right_api"
+        or row.get("schema_name") == "initial_right_api"
+        or row.get("owner") == "pitchlog_initial_fn_owner"
+    ]
+    if not _exact_value(private_rows, [private]):
+        raise ProductCatalogError("初期private schemaの所有/全fieldが不一致")
+    public_rows = [row for row in rows if row.get("schema_id") == "public"]
+    if len(public_rows) != 1 or any(
+        public_rows[0].get(k) != v
+        for k, v in dict(
+            schema_name="public",
+            creation="existing",
+            owner="pitchlog_owner",
+            ownership_path="pg_database_owner",
+        ).items()
+    ):
+        raise ProductCatalogError("初期接合のpublic schema所有が不一致")
+    # 正規全metadataでPUBLIC grantは0。既app USAGEと初期roleの必要箇所は残す。
+    grants = {
+        "public": [("pitchlog_app", "USAGE"), ("pitchlog_initial_fn_owner", "USAGE")]
+        + ([("pitchlog_initial_actor", "USAGE")] if start else []),
+        "authz_private": [],
+        "authn": [("pitchlog_app", "USAGE")],
+        "authn_crypto": [],
+        "rg1_api": [("pitchlog_app", "USAGE"), ("pitchlog_initial_actor", "USAGE")],
+        "rg1_control": [("pitchlog_app", "USAGE"), ("pitchlog_initial_actor", "USAGE")],
+        "pitchlog_ledger_observer": [],
+        "initial_right_api": [("pitchlog_initial_actor", "USAGE")],
+    }
+    revokes = {
+        "public": [
+            ("PUBLIC", "USAGE"),
+            ("PUBLIC", "CREATE"),
+            ("pitchlog_app", "CREATE"),
+            ("pitchlog_initial_fn_owner", "CREATE"),
+        ]
+        + ([("pitchlog_initial_actor", "CREATE")] if start else []),
+        "authz_private": [
+            ("PUBLIC", "USAGE"),
+            ("PUBLIC", "CREATE"),
+            ("pitchlog_app", "USAGE"),
+            ("pitchlog_app", "CREATE"),
+        ],
+        "authn": [
+            ("PUBLIC", "USAGE"),
+            ("PUBLIC", "CREATE"),
+            ("pitchlog_app", "CREATE"),
+        ],
+        "authn_crypto": [("PUBLIC", "USAGE"), ("PUBLIC", "CREATE")],
+        "rg1_api": [
+            ("PUBLIC", "USAGE"),
+            ("PUBLIC", "CREATE"),
+            ("pitchlog_app", "CREATE"),
+            ("pitchlog_initial_actor", "CREATE"),
+        ],
+        "rg1_control": [
+            ("PUBLIC", "USAGE"),
+            ("PUBLIC", "CREATE"),
+            ("pitchlog_app", "CREATE"),
+            ("pitchlog_initial_actor", "CREATE"),
+        ],
+        "pitchlog_ledger_observer": [("PUBLIC", "USAGE"), ("PUBLIC", "CREATE")],
+        "initial_right_api": [
+            ("PUBLIC", "USAGE"),
+            ("PUBLIC", "CREATE"),
+            ("pitchlog_app", "USAGE"),
+            ("pitchlog_app", "CREATE"),
+            ("pitchlog_initial_actor", "CREATE"),
+        ],
+    }
+    owners = {
+        "public": "pitchlog_owner",
+        "authz_private": "pitchlog_shared_fn_owner",
+        "authn": "pitchlog_owner",
+        "authn_crypto": "pitchlog_owner",
+        "rg1_api": "pitchlog_owner",
+        "rg1_control": "pitchlog_rg1_control_owner",
+        "pitchlog_ledger_observer": "pitchlog_ledger_identity_owner",
+        "initial_right_api": "pitchlog_initial_fn_owner",
+    }
+    for row in rows:
+        key = row.get("schema_id")
+        if isinstance(key, str) and key in owners:
+            expected_header = dict(
+                schema_id=key,
+                schema_name=key,
+                owner=owners[key],
+                creation="existing" if key == "public" else "product_ddl",
+                ownership_path="pg_database_owner" if key == "public" else "direct",
+            )
+            if set(row) != set(expected_header) | {
+                "acl_expectations",
+                "revoked_acl_expectations",
+            } or any(row.get(k) != v for k, v in expected_header.items()):
+                raise ProductCatalogError("初期schema接点の識別/所有/全headerが不一致")
+    subjects = {
+        "PUBLIC",
+        "pitchlog_app",
+        "pitchlog_initial_actor",
+        "pitchlog_initial_fn_owner",
+    }
+    actual: dict[str, object] = {}
+    expected: dict[str, object] = {}
+
+    def ordered(entries: list[dict[str, object]]) -> list[dict[str, object]]:
+        return sorted(
+            entries, key=lambda r: (str(r.get("grantee")), str(r.get("privilege")))
+        )
+
+    for row in rows:
+        key = row.get("schema_id")
+        if not isinstance(key, str) or key in actual:
+            raise ProductCatalogError("初期schema識別子/重複が不正")
+        projected = {}
+        for group in ("acl_expectations", "revoked_acl_expectations"):
+            entries = row.get(group)
+            if not isinstance(entries, list) or any(
+                not isinstance(e, dict) for e in entries
+            ):
+                raise ProductCatalogError("初期schema ACLの形が不正")
+            relevant = [
+                e
+                for e in entries
+                if (type(e.get("grantee")) is str and e.get("grantee") in subjects)
+                or (type(e.get("grantee")) is str and e["grantee"].upper() == "PUBLIC")
+            ]
+            projected[group] = ordered(relevant)
+        if key in grants or any(projected.values()):
+            actual[key] = projected
+    for schema in grants:
+        expected[schema] = {
+            group: ordered(
+                [
+                    dict(grantee=role, privilege=priv, grantable=False)
+                    for role, priv in source[schema]
+                ]
+            )
+            for group, source in (
+                ("acl_expectations", grants),
+                ("revoked_acl_expectations", revokes),
+            )
+        }
+    if not _exact_value(actual, expected):
+        raise ProductCatalogError("初期schema主体の全field/exact ACL集合が不一致")

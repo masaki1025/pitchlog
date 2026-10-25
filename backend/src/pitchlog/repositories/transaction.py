@@ -7,7 +7,7 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager
 from contextvars import ContextVar
 from itertools import islice
 from types import TracebackType
-from typing import Literal, final
+from typing import TYPE_CHECKING, Any, Literal, final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -37,6 +37,10 @@ from pitchlog.repositories.tokens import (
     TenantOperationToken,
 )
 
+if TYPE_CHECKING:
+    from pitchlog.repositories.game_start import BoundInitialStartPayload
+    from pitchlog.repositories.initial_recording_right import InitialRecordingRightScope
+
 __all__ = ("tenant_transaction_scope",)
 
 _HANDLE_CREATION_TOKEN = object()
@@ -44,6 +48,15 @@ _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
 _INITIAL_ACTOR_STATES: dict[object, tuple[object, Literal["intent", "business"]]] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
+_START_MEMORY_BINDINGS: dict[
+    object,
+    tuple[
+        InitialRecordingRightScope,
+        BoundInitialStartPayload,
+        UUID,
+        tuple[dict[str, Any], ...],
+    ],
+] = {}
 _SYNC_APPLY_ACTIVE: ContextVar[bool] = ContextVar("sync_apply_active", default=False)
 
 
@@ -137,7 +150,7 @@ class _TenantTransaction:
 
         session, _ = runtime
         if state_key in _INITIAL_ACTOR_STATES:
-            raise TenantBindingError("初期権actorへ汎用DMLを公開できない")
+            _validate_initial_memory_operation(self, operation)
         spec = _operation_spec(operation)
         statement, parameters = _prepare_operation(operation, self._bound_tenant_id)
         if spec.preflight is not None:
@@ -187,6 +200,40 @@ class _TenantTransaction:
                 else _INITIAL_BUSINESS_TOKENS
             )
             if type(operation) in allowed:
+                from pitchlog.repositories.initial_recording_right import (
+                    _SCOPE_BINDINGS,
+                    _PersistInitialStartToken,
+                    _ReadInitialStartContextToken,
+                )
+
+                if type(operation) in {
+                    _ReadInitialStartContextToken,
+                    _PersistInitialStartToken,
+                }:
+                    from pitchlog.repositories.game_start import _start_token
+
+                    matches = [
+                        scope
+                        for scope in _SCOPE_BINDINGS
+                        if scope._transaction is self
+                        and scope._start_payload is not None
+                    ]
+                    if len(matches) != 1:
+                        raise TenantBindingError("開始専用scopeがない")
+                    scope = matches[0]
+                    scope._require_device()
+                    bound = scope._start_payload
+                    if bound is None:
+                        raise TenantBindingError("開始payloadがない")
+                    expected = _start_token(
+                        bound,
+                        save=type(operation) is _PersistInitialStartToken,
+                    )
+                    if operation != expected or (
+                        type(operation) is _PersistInitialStartToken
+                        and (not scope._game_locked or not scope._start_um2_saved)
+                    ):
+                        raise TenantBindingError("開始操作のowner/payloadが不一致")
                 registry = _INITIAL_FUNCTION_REGISTRY
             else:
                 spec = registry.get(type(operation))
@@ -499,3 +546,106 @@ def _initial_actor_transaction_scope(
     return _TenantTransactionScope(
         context, _actor_runtime=actor_runtime, _actor_phase=phase
     )
+
+
+def _validate_initial_memory_operation(
+    handle: _TenantTransaction, operation: TenantOperationToken
+) -> None:
+    """開始で検証済みの自チームexact5操作だけを同handleに限定する。"""
+    from pitchlog.repositories.initial_recording_right import _SCOPE_BINDINGS
+    from pitchlog.repositories.lineup_memory import (
+        LineupMemoryReadToken,
+        _ActiveLineupPlayerLockToken,
+        _LineupMemoryInsertToken,
+        _LineupMemoryUpdateToken,
+        _SelfTeamLockToken,
+    )
+
+    binding = _START_MEMORY_BINDINGS.get(handle._state_key)
+    if binding is None:
+        raise TenantBindingError("初期権actorへ汎用DMLを公開できない")
+    scope, bound, team, lineup = binding
+    if (
+        scope not in _SCOPE_BINDINGS
+        or scope._transaction is not handle
+        or scope._start_payload is not bound
+    ):
+        raise TenantBindingError("開始UM2束縛が失効")
+    scope._require_device()
+    if not scope._game_locked or scope._outcome != "pending":
+        raise TenantBindingError("開始UM2のphaseが不正")
+    _assert_initial_actor_transaction(handle, handle._context, "business")
+    if type(operation) not in {
+        _SelfTeamLockToken,
+        _ActiveLineupPlayerLockToken,
+        LineupMemoryReadToken,
+        _LineupMemoryInsertToken,
+        _LineupMemoryUpdateToken,
+    }:
+        raise TenantBindingError("開始UM2のexact操作でない")
+    if type(operation) is _LineupMemoryUpdateToken:
+        # 既UM2のread直後に選んだ同一memoryだけを更新できる。
+        expected_id = handle.run(LineupMemoryReadToken(team)).rows
+        if len(expected_id) != 1 or operation.id != expected_id[0][0]:
+            raise TenantBindingError("開始UM2の更新対象が不一致")
+    elif getattr(operation, "team_record_id", None) != team:
+        raise TenantBindingError("開始UM2の自チームが不一致")
+    if type(operation) is _ActiveLineupPlayerLockToken:
+        if operation.player_id not in {UUID(e["player_id"]) for e in lineup}:
+            raise TenantBindingError("開始UM2の選手が不一致")
+    if type(operation) in {_LineupMemoryInsertToken, _LineupMemoryUpdateToken}:
+        import json
+
+        from pitchlog.domainrt.first_pitch import _invalid_constant, _unique_object
+
+        try:
+            actual = json.loads(
+                getattr(operation, "lineup_json"),
+                object_pairs_hook=_unique_object,
+                parse_constant=_invalid_constant,
+            )
+        except ValueError:
+            raise TenantBindingError("開始UM2のpayloadが不正") from None
+        if actual != list(lineup):
+            raise TenantBindingError("開始UM2のpayloadが不一致")
+
+
+def _save_initial_lineup_memory(
+    scope: InitialRecordingRightScope,
+    bound: BoundInitialStartPayload,
+    team: UUID,
+    lineup: tuple[dict[str, Any], ...],
+) -> None:
+    """閉start hookから既UM2を短命登録内で直接呼ぶ。callbackを渡さない。"""
+    from pitchlog.repositories.initial_recording_right import _SCOPE_BINDINGS
+    from pitchlog.repositories.lineup_memory import save_lineup_memory
+
+    if scope not in _SCOPE_BINDINGS or scope._start_payload is not bound:
+        raise TenantBindingError("開始UM2の真正scopeがない")
+    scope._require_device()
+    bound.assert_owner(scope._owner)
+    context = scope._start_context
+    if (
+        context is None
+        or str(team) != context["self_team_id"]
+        or not scope._game_locked
+        or scope._outcome != "pending"
+    ):
+        raise TenantBindingError("開始UM2の検証済contextがない")
+    side = "away" if str(team) == context["away_team_id"] else "home"
+    expected = tuple(
+        {k: v for k, v in e.items() if k != "uniform_number_snapshot"}
+        for e in context[side]
+    )
+    if lineup != expected:
+        raise TenantBindingError("開始UM2の確定payloadが不一致")
+    handle = scope._transaction
+    _assert_initial_actor_transaction(handle, handle._context, "business")
+    key = handle._state_key
+    if key in _START_MEMORY_BINDINGS:
+        raise TenantBindingError("開始UM2へ再入できない")
+    _START_MEMORY_BINDINGS[key] = (scope, bound, team, lineup)
+    try:
+        save_lineup_memory(handle, team, lineup)
+    finally:
+        _START_MEMORY_BINDINGS.pop(key, None)

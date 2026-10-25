@@ -27,10 +27,20 @@ from pitchlog.authz.asset_spec import (  # noqa: E402  # ty: ignore[unresolved-i
     AuthzAssetSpec,
     asset_scope_validation_error,
 )
+from pitchlog.authz.initial_start_sql import (  # noqa: E402  # ty: ignore[unresolved-import]
+    _exact_value,
+    generate_start_policy_sql,
+    is_start_column_acl,
+    start_assets_present,
+    start_column_acl_declarations,
+    start_function_declarations,
+    start_policy_declarations,
+    validate_start_asset_sets,
+)
 from pitchlog.authz.product_authn_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
     validate_authn_asset,
 )
-from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
+from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]  # noqa: E402
     CONTROL_PROFILE,
     HELPER_FUNCTION_ID,
     HELPER_NAME,
@@ -38,22 +48,28 @@ from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[
     HELPER_SCHEMA,
     build_control_policy_declaration,
     build_helper_column_acl_declaration,
+    build_initial_column_acl_declarations,
+    build_initial_policy_declarations,
     build_membership_helper_declaration,
     generate_control_policy_sql,
     generate_function_owner_column_acl_sql,
     generate_helper_column_acl_sql,
+    generate_initial_policy_sql,
     generate_membership_helper_sql,
     is_forbidden_rg1_table_acl,
+    is_initial_column_acl,
     is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
     is_rule_resolution_update_acl,
 )
-from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
+from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]  # noqa: E402
     BUILTIN_EXECUTE_GRANTEES,
     build_builtin_execute_declaration,
+    build_initial_function_declarations,
     build_lifecycle_function_declarations,
     build_product_function_acl_declaration,
     generate_builtin_execute_sql,
+    generate_initial_function_sql,
     generate_lifecycle_function_sql,
     generate_product_function_acl_sql,
     is_builtin_execute_declaration,
@@ -3495,6 +3511,7 @@ def _validate_product_schema_expectations(
     rg1_required: bool = False,
     rule_resolution_required: bool = False,
     lifecycle_required: bool = False,
+    start_required: bool = False,
 ) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
     if not isinstance(value, list):
@@ -3563,6 +3580,17 @@ def _validate_product_schema_expectations(
                     *((role, "CREATE", False) for role in users),
                 }),
             }
+    if 'initial_right_api' in actual:
+        expected_schemas['initial_right_api'] = dict(
+            schema_name='initial_right_api',creation='product_ddl',
+            owner='pitchlog_initial_fn_owner',ownership_path='direct',
+            acl_expectations=frozenset({('pitchlog_initial_actor','USAGE',False)}),
+            revoked_acl_expectations=frozenset({
+                ('PUBLIC','USAGE',False),('PUBLIC','CREATE',False),
+                ('pitchlog_app','USAGE',False),('pitchlog_app','CREATE',False),
+                ('pitchlog_initial_actor','CREATE',False),
+            }),
+        )
     for schema_id, expected in expected_schemas.items():
         if schema_id == "rg1_api" and schema_id not in actual and not rg1_required:
             continue
@@ -3622,6 +3650,15 @@ def _validate_product_schema_expectations(
                     frozenset[tuple[str, str, bool]], expected["revoked_acl_expectations"]
                 ) | frozenset({("pitchlog_rg1_control_owner", "CREATE", False)}),
             }
+        if schema_id == 'public' and 'initial_right_api' in actual:
+            roles = ['pitchlog_initial_fn_owner']
+            if start_required:
+                roles.append('pitchlog_initial_actor')
+            expected = {**expected,
+                'acl_expectations': cast(frozenset,expected['acl_expectations']) |
+                    frozenset((r,'USAGE',False) for r in roles),
+                'revoked_acl_expectations': cast(frozenset,expected['revoked_acl_expectations']) |
+                    frozenset((r,'CREATE',False) for r in roles)}
         if actual.get(schema_id) != expected:
             raise CatalogError(
                 "製品スキーマの既存の所有者またはACLがdesign.md 2-1と一致しない"
@@ -3709,8 +3746,68 @@ def _product_table_universe(root: Path) -> frozenset[str]:
 
     manifest_set = frozenset(manifest_names)
     classification_set = frozenset(classified_names)
-    expected_count = 46 if "rg1_restore_gate" in manifest_set else 45
-    if manifest_set != classification_set or len(manifest_set) != expected_count:
+    baseline_tables = frozenset({
+        "admin_credentials",
+        "admin_operation_logs",
+        "admin_sessions",
+        "admin_vocabularies",
+        "analysis_groups",
+        "evacuated_event_originals",
+        "event_slots",
+        "game_lineups",
+        "game_type_rule_defaults",
+        "games",
+        "group_invitations",
+        "group_memberships",
+        "idempotency_ledger",
+        "invalidation_intents",
+        "lineup_memories",
+        "medical_note_versions",
+        "medical_notes",
+        "migrated_final_lineups",
+        "migration_quarantine",
+        "migration_resolution_reports",
+        "migration_runs",
+        "migration_warning_reports",
+        "operation_events",
+        "participation_intervals",
+        "pdf_export_records",
+        "play_rows",
+        "play_runners",
+        "player_merge_events",
+        "player_move_records",
+        "players",
+        "rate_limit_counters",
+        "recording_generations",
+        "rejected_event_originals",
+        "rule_sets",
+        "sharing_grants",
+        "system_settings",
+        "system_vocabularies",
+        "team_records",
+        "temporary_player_id_mappings",
+        "tenant_auth_subjects",
+        "tenant_credentials",
+        "tenant_tokens",
+        "tenant_vocabularies",
+        "tenants",
+        "tournament_rule_assignments",
+    })
+    initial_tables = frozenset({'trusted_devices','game_start_requests',
+                                'game_start_attempts','recording_right_deliveries'})
+    for row in classification_rows:
+        if row['table'] in initial_tables and row != {
+            'table':row['table'],'profile':'function_only',
+            'access_path':{'reason':'initial_right_storage','owner_unit':'U-R1'},
+        }:
+            raise CatalogError('初期4表のfunction_only全field宣言が不一致')
+    present = manifest_set & initial_tables
+    if present and (present != initial_tables or 'rg1_restore_gate' not in manifest_set):
+        raise CatalogError('初期4表はRG1既基線と共にexact-setで必要')
+    expected_tables = baseline_tables | present
+    if "rg1_restore_gate" in manifest_set:
+        expected_tables |= {'rg1_restore_gate'}
+    if manifest_set != classification_set or manifest_set != expected_tables:
         raise CatalogError("schema manifestと表分類の表集合がexact-set不一致")
     return manifest_set
 
@@ -3982,7 +4079,11 @@ def _validate_product_access_bodies(
         if policy_paths[policy_id] != expected_path:
             raise CatalogError(f"{policy_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
-        if policy_id in owner_policy_ids:
+        if policy_id in start_policy_declarations():
+            expected_body = generate_start_policy_sql(policy_id)
+        elif policy_id in build_initial_policy_declarations():
+            expected_body = generate_initial_policy_sql(policy_id)
+        elif policy_id in owner_policy_ids:
             expected_body = _owner_game_type_seed_policy_sql(declaration)
         elif policy_id in rg1_policy_ids:
             expected_body = _rg1_singleton_policy_sql(declaration)
@@ -4079,11 +4180,21 @@ def _validate_product_table_access_expectations(
             acl = build_product_table_acl_declaration(table_id, profile)
             expected_acls[str(acl["acl_id"])] = acl
 
+    if _initial_profile_present(raw):
+        expected_acls.pop('ACL:recording_generations:pitchlog_app', None)
     if state is RuntimeContractState.PRODUCT:
         expected_policies.update(_owner_game_type_seed_policies())
         expected_policies.update(_rg1_control_policies())
     if "rg1_restore_gate" in profiles:
         expected_policies.update(_rg1_singleton_policies())
+    if _initial_profile_present(raw):
+        expected_policies.update(build_initial_policy_declarations())
+    if start_assets_present(raw):
+        try:
+            validate_start_asset_sets(raw)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
+        expected_policies.update(start_policy_declarations())
 
     policies = _product_declarations_by_id(
         raw["policies"],
@@ -4259,6 +4370,12 @@ def _validate_product_membership_helper(
         "製品DDL manifest.column_acl_expectations",
     )
     for expectation_id, declaration in column_acls.items():
+        if is_start_column_acl(declaration) or is_initial_column_acl(declaration):
+            continue
+        if declaration.get("grantee_role_id") in {
+            "pitchlog_initial_actor", "pitchlog_initial_fn_owner"
+        }:
+            raise CatalogError("初期/開始列ACLが閉宣言の全fieldと不一致")
         if declaration.get("function_id") == HELPER_FUNCTION_ID:
             if expected_column_acls.get(expectation_id) != declaration:
                 raise CatalogError("補助関数所有者の列SELECT宣言が不正")
@@ -4310,6 +4427,15 @@ def _validate_product_membership_helper(
             is_rg1_control_column_acl(row) for row in control_columns.values()
         ):
             raise CatalogError("RG1制御ownerの列ACL全3宣言がexact-set不一致")
+    if _initial_profile_present(raw):
+        expected_initial_columns = build_initial_column_acl_declarations()
+        if start_assets_present(raw):
+            expected_initial_columns.update(start_column_acl_declarations())
+        actual_initial_columns = {k:v for k,v in column_acls.items()
+                                  if k in expected_initial_columns or v.get('grantee_role_id') in
+                                  {'pitchlog_initial_actor','pitchlog_initial_fn_owner'}}
+        if actual_initial_columns != expected_initial_columns:
+            raise CatalogError("初期/開始列ACL全集合がexact不一致")
     manifest_columns = _product_manifest_columns(root)
     dependency_columns = {
         (str(row["object_id"]), str(row["column_id"]))
@@ -4901,6 +5027,7 @@ def _validate_product_ddl_elements(
         ),
         rule_resolution_required="pitchlog_rule_resolution_fn_owner" in roles_by_id,
         lifecycle_required=state is RuntimeContractState.PRODUCT,
+        start_required=start_assets_present(raw),
     )
     _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
@@ -4909,6 +5036,7 @@ def _validate_product_ddl_elements(
     _validate_product_membership_helper(raw, root, state)
     if state is RuntimeContractState.PRODUCT:
         _validate_lifecycle_function_assets(raw, root)
+        _validate_initial_start_function_assets(raw, root)
     if state is not RuntimeContractState.PROVISIONAL:
         _validate_product_protected_targets_for_state(raw, root, state)
         _validate_product_asset_correspondence(raw, root)
@@ -8068,6 +8196,39 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(summary)
     return 0
 
+
+
+def _initial_profile_present(raw: dict[str, object]) -> bool:
+    """旧初期profileの実宣言がある場合だけその閉資産を要求する。"""
+    roles = raw.get('roles')
+    return isinstance(roles,list) and any(
+        isinstance(row,dict) and row.get('role_id')=='pitchlog_initial_fn_owner'
+        for row in roles
+    )
+
+
+def _validate_initial_start_function_assets(raw: dict[str, object], root: Path) -> None:
+    """旧9+内部1と新2を全field/全bodyで照合し、未知を拒否する。"""
+    if not _initial_profile_present(raw):
+        return
+    expected = build_initial_function_declarations()
+    if start_assets_present(raw):
+        try:
+            validate_start_asset_sets(raw)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
+        expected.update(start_function_declarations())
+    rows = _product_declarations_by_id(raw['functions'],'function_id','開始関数')
+    actual = {k:v for k,v in rows.items() if v.get('schema_name')=='initial_right_api'
+              or k=='FUNCTION:public:protect_initial_right_storage()'}
+    if not _exact_value(actual, expected):
+        raise CatalogError('初期/開始関数の全field/exact集合が不一致')
+    paths = _product_body_paths(root,'function')
+    for key,row in expected.items():
+        rel = f'{PRODUCT_SPEC.body_directory.as_posix()}/functions/{key}.sql'
+        if (paths.get(key)!=rel or
+            _read_text(root/rel,'開始関数body')!=generate_initial_function_sql(key)):
+            raise CatalogError('初期/開始関数の固定source/本文が不一致')
 
 if __name__ == "__main__":
     raise SystemExit(main())

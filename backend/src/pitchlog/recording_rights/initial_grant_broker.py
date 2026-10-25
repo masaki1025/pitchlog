@@ -30,6 +30,10 @@ from pitchlog.recording_rights.initial_grant import (
     issue_initial_recording_right,
 )
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.game_start import (
+    BoundInitialStartPayload,
+    InitialStartReceipt,
+)
 from pitchlog.repositories.initial_recording_right import (
     _BeginStartAttemptToken,
     _credential_digest,
@@ -288,14 +292,15 @@ def _verify_business_binding(transaction: _TenantTransaction, runtime: object) -
         raise InitialGrantUnavailable("実scope bindingを確認できない") from None
 
 
-def _issue_initial_grant(
+def _issue_initial_grant_impl(
     context: TenantContext,
     runtime: object,
     owner: _StartOwner,
     credential: str,
     source: DurableGenerationSource,
     fence: RecoveryEpochFence,
-) -> InitialGrant:
+    start_payload: BoundInitialStartPayload | None = None,
+) -> tuple[InitialGrant, InitialStartReceipt | None]:
     """短intentと業務commitを所有し、commit成功後だけ既issuerのV12を返す。"""
     from pitchlog.repositories.rg1 import read_rg1_open
     from pitchlog.repositories.transaction import _initial_actor_transaction_scope
@@ -308,6 +313,16 @@ def _issue_initial_grant(
         or context.tenant_id != owner.tenant_id
     ):
         raise InitialGrantUnavailable("初期権の認証済み文脈が不正")
+    if start_payload is not None:
+        from pitchlog.repositories.game_start import BoundInitialStartPayload
+
+        if type(start_payload) is not BoundInitialStartPayload:
+            raise InitialGrantUnavailable("開始payloadの閉型が不正")
+        start_payload.assert_owner(owner)
+        if not hmac.compare_digest(
+            start_payload.credential_digest, _credential_digest(credential)
+        ):
+            raise InitialGrantUnavailable("開始payloadの資格束縛が不一致")
     fence.assert_held()
     # このwithが終わるまでbusiness側を開かず、短intentのlockを流用しない。
     with _initial_actor_transaction_scope(context, runtime, "intent") as transaction:
@@ -338,7 +353,16 @@ def _issue_initial_grant(
 
         assert_rg1_open_before_commit(transaction)
         fence.assert_held()
-    with _initial_recording_right_scope(context, owner, runtime) as scope:
+    if start_payload is not None:
+        # intentが既attemptへ解決してもrequest指紋へattemptは追加しない。
+        from pitchlog.repositories.game_start import BoundInitialStartPayload
+
+        start_payload = BoundInitialStartPayload(
+            start_payload.payload, owner, start_payload.credential_digest
+        )
+    with _initial_recording_right_scope(
+        context, owner, runtime, start_payload
+    ) as scope:
         _verify_business_binding(scope._transaction, runtime)
         grant = issue_initial_recording_right(
             scope,
@@ -356,6 +380,56 @@ def _issue_initial_grant(
             scope, source, fence, int(grant.recovery_generation)
         )
         _actor_state(runtime)
+        receipt = scope._start_receipt
+        if start_payload is not None and receipt is None:
+            raise InitialGrantUnavailable("開始保存原本を確認できない")
     # withの実commitが例外ならここへ到達しない。応答不明は再発行へ変換しない。
     fence.assert_held()
+    return grant, receipt
+
+
+@dataclass(frozen=True, slots=True)
+class _InitialStartedGame:
+    """同business commit後の開始原本と既初期権。公開Readyではない。"""
+
+    grant: InitialGrant
+    receipt: InitialStartReceipt
+
+
+def _issue_initial_grant(
+    context: TenantContext,
+    runtime: object,
+    owner: _StartOwner,
+    credential: str,
+    source: DurableGenerationSource,
+    fence: RecoveryEpochFence,
+) -> InitialGrant:
+    """旧grant-only経路を開始原本要求へ拡張せず保持する。"""
+    grant, _ = _issue_initial_grant_impl(
+        context, runtime, owner, credential, source, fence
+    )
     return grant
+
+
+def _start_initial_game(
+    context: TenantContext,
+    runtime: object,
+    bound: BoundInitialStartPayload,
+    credential: str,
+    source: DurableGenerationSource,
+    fence: RecoveryEpochFence,
+) -> _InitialStartedGame:
+    """型付き開始だけを既単一issuerと同じcommit所有本体へ接ぐ。"""
+    from pitchlog.repositories.game_start import (
+        BoundInitialStartPayload,
+        InitialStartReceipt,
+    )
+
+    if type(bound) is not BoundInitialStartPayload:
+        raise InitialGrantUnavailable("開始payloadの閉型が不正")
+    grant, receipt = _issue_initial_grant_impl(
+        context, runtime, bound.owner, credential, source, fence, bound
+    )
+    if type(receipt) is not InitialStartReceipt:
+        raise InitialGrantUnavailable("開始保存原本を確認できない")
+    return _InitialStartedGame(grant, receipt)

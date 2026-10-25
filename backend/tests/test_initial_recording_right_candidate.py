@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import psycopg
@@ -771,3 +771,105 @@ def test_device_credential_lock_serializes_revocation(
                 ).fetchone()
                 is None
             )
+
+
+@pytest.mark.parametrize("start_mode", [False, True])
+def test_real_scope_calls_closed_start_hook_only_after_game_lock(
+    start_mode: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """純scope配線だけを確認し、代役transactionを認証/DB成功と呼ばない。"""
+    from test_authz_tenant_context import make_tenant_context
+    from test_initial_game_start_components import _bind
+
+    from pitchlog.repositories import game_start, transaction
+    from pitchlog.repositories.initial_recording_right import (
+        _SCOPE_BINDINGS,
+        _SCOPE_CREATION,
+        InitialRecordingRightScope,
+    )
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    bound = _bind()
+    seen = []
+
+    class Tx:
+        def run_function(self, token):
+            seen.append("game_lock")
+            return TenantOperationResult(((True,),))
+
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+
+    def initialize(scope, payload):
+        assert scope._game_locked and scope._device_valid
+        assert payload is bound
+        seen.append("closed_start")
+        return object()
+
+    monkeypatch.setattr(game_start, "_initialize_start", initialize)
+    scope = InitialRecordingRightScope(
+        make_tenant_context(bound.owner.tenant_id),
+        cast(Any, Tx()),
+        bound.owner,
+        _SCOPE_CREATION,
+        bound if start_mode else None,
+    )
+    try:
+        scope._device_valid = True
+        scope._outcome = "pending"
+        scope.lock_preparing_game(bound.owner.game_id)
+        assert seen == (["game_lock", "closed_start"] if start_mode else ["game_lock"])
+    finally:
+        _SCOPE_BINDINGS.pop(scope, None)
+
+
+def test_start_business_reuses_the_single_issuer_and_commit_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新入口は既commit所有本体1回であり、独自発行器を選択しない。"""
+    from datetime import datetime, timezone
+
+    from test_initial_game_start_components import _bind
+
+    from pitchlog.recording_rights import initial_grant_broker as broker
+    from pitchlog.repositories.game_start import InitialStartReceipt
+
+    bound = _bind()
+    seen = []
+    saved = InitialStartReceipt(
+        bound.owner,
+        datetime(2026, 10, 26, tzinfo=timezone.utc),
+        UUID(int=9),
+        UUID(int=10),
+    )
+    grant = object()
+
+    def body(*args):
+        seen.append(args)
+        return grant, saved
+
+    monkeypatch.setattr(broker, "_issue_initial_grant_impl", body)
+    result = broker._start_initial_game(
+        cast(Any, object()),
+        object(),
+        bound,
+        "synthetic",
+        cast(Any, object()),
+        cast(Any, object()),
+    )
+    assert result.receipt is saved and result.grant is grant and len(seen) == 1
+    assert seen[0][-1] is bound and seen[0][2] is bound.owner
+    seen.clear()
+    assert (
+        broker._issue_initial_grant(
+            cast(Any, object()),
+            object(),
+            bound.owner,
+            "synthetic",
+            cast(Any, object()),
+            cast(Any, object()),
+        )
+        is grant
+    )
+    assert len(seen) == 1 and len(seen[0]) == 6

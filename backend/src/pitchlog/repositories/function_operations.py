@@ -124,6 +124,40 @@ _INITIAL_FUNCTION_TYPES = MappingProxyType(
     }
 )
 
+# 旧9署名の反復を変えず、新開始2署名だけを別閉集合へ置く。
+_INITIAL_START_FUNCTION_TYPES = MappingProxyType(
+    {
+        "initial_right_api.read_initial_start_context": (
+            (
+                ("game_id", UUID),
+                ("start_request_id", UUID),
+                ("attempt_id", UUID),
+                ("request_digest", bytes),
+                ("typed_payload_json", str),
+            ),
+            (("context_json", str),),
+            (),
+            (),
+        ),
+        "initial_right_api.persist_initial_start": (
+            (
+                ("game_id", UUID),
+                ("start_request_id", UUID),
+                ("attempt_id", UUID),
+                ("request_digest", bytes),
+                ("typed_payload_json", str),
+            ),
+            (
+                ("started_at", datetime),
+                ("away_lineup_id", UUID),
+                ("home_lineup_id", UUID),
+            ),
+            (),
+            ("started_at",),
+        ),
+    }
+)
+
 
 def _valid_db_identifier(name: object) -> bool:
     """再構築したSQLでも同じDB識別子になる名前だけを許す。"""
@@ -202,6 +236,8 @@ class FunctionOperationRegistration:
         ):
             raise FunctionOperationError("固定関数の入出力宣言が不正")
         initial = _INITIAL_FUNCTION_TYPES.get(self.function_id)
+        if initial is None:
+            initial = _INITIAL_START_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
             self.result_fields,
@@ -404,7 +440,10 @@ def prepare_function_operation(
         value = getattr(operation, name)
         if type(value) is not expected_type:
             raise FunctionOperationError(f"固定関数入力{name}の型が不一致")
-        if spec.function_id in _INITIAL_FUNCTION_TYPES:
+        if (
+            spec.function_id in _INITIAL_FUNCTION_TYPES
+            or spec.function_id in _INITIAL_START_FUNCTION_TYPES
+        ):
             byte_lengths = {
                 "request_digest": 32,
                 "proof_digest": 32,

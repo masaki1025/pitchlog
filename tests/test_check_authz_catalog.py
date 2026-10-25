@@ -71,7 +71,19 @@ def test_product_extension_and_new_schema_declarations() -> None:
             encoding="utf-8"
         )
     )
-    schemas = copy.deepcopy(asset["schemas"])
+    # この旧generic試験はlifecycle/初期権以前のschema段階を対象に保つ。
+    # 現PRODUCT全体の閉集合は別の受理試験で検査する。
+    schemas = [copy.deepcopy(row) for row in asset["schemas"]
+               if row["schema_id"] not in {
+                   "rg1_control", "pitchlog_ledger_observer", "initial_right_api"
+               }]
+    for schema in schemas:
+        for group in ("acl_expectations", "revoked_acl_expectations"):
+            schema[group] = [row for row in schema[group]
+                             if row["grantee"] not in {
+                                 "pitchlog_rg1_control_owner", "pitchlog_initial_fn_owner",
+                                 "pitchlog_initial_actor",
+                             }]
     extra = copy.deepcopy(schemas[1])
     extra["schema_id"] = "test_extension_schema"
     extra["schema_name"] = "test_extension_schema"
@@ -287,6 +299,14 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
         root / checker.PRODUCT_MIGRATION_VERSIONS,
         dirs_exist_ok=True,
     )
+    # 全PRODUCTが参照する固定本文もmetadataと同じ版から複製する。
+    for relative in (
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+        "backend/src/pitchlog/durable_rights_ledger/business_identity.sql",
+    ):
+        target=root/relative
+        target.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT/relative,target)
     schema_manifest = Path("contracts/db/schema-manifest.json")
     _write_json_at(
         root,
@@ -6082,3 +6102,32 @@ def test_initial_actor_database_rejects_missing_or_expanded_permission(
         })
     with pytest.raises(checker.CatalogError):
         checker._validate_product_database_expectations(rows, lifecycle_required=True)
+
+
+@pytest.mark.parametrize('group,field',[
+    ('functions','owner_role_id'),('functions','search_path'),
+    ('policies','using_expression'),('policies','with_check_expression'),
+    ('column_acl_expectations','privilege_ids'),('column_acl_expectations','grantee_role_id'),
+])
+def test_initial_start_exact_sets_reject_missing_and_changed_declarations(
+    group: str, field: str,
+) -> None:
+    """新開始全field/集合はcheckerの一般owner許可へ広がらない。"""
+    from pitchlog.authz.initial_start_sql import (  # ty: ignore[unresolved-import]
+        start_column_acl_declarations,
+        start_function_declarations,
+        start_policy_declarations,
+        validate_start_asset_sets,
+    )
+    asset={'functions':list(start_function_declarations().values()),
+           'policies':list(start_policy_declarations().values()),
+           'column_acl_expectations':list(start_column_acl_declarations().values())}
+    validate_start_asset_sets(asset)
+    broken=copy.deepcopy(asset)
+    broken[group][0][field]='mutated'
+    with pytest.raises(ValueError):
+        validate_start_asset_sets(broken)
+    missing=copy.deepcopy(asset)
+    missing[group].pop()
+    with pytest.raises(ValueError):
+        validate_start_asset_sets(missing)

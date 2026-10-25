@@ -5,17 +5,30 @@ from __future__ import annotations
 import hmac
 import json
 from dataclasses import dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
 from pydantic import SecretStr
 
 from pitchlog.api.schemas.game_start import GameStartRequest, StartLineupInput
-from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+from pitchlog.recording_rights.initial_grant import (
+    InitialGrantConflict,
+    InitialGrantUnavailable,
+)
 from pitchlog.repositories.initial_recording_right import (
     _credential_digest,
     _StartOwner,
 )
 from pitchlog.sync.idempotency import source_fingerprint
+
+if TYPE_CHECKING:
+    from pitchlog.domainrt.first_pitch_continuation import SavedRuleWire
+    from pitchlog.repositories.initial_recording_right import (
+        InitialRecordingRightScope,
+        _ReadInitialStartContextToken,
+    )
+    from pitchlog.repositories.transaction import _TenantTransaction
 
 _DOMAIN = "pitchlog.initial-game-start.v1"
 
@@ -300,3 +313,257 @@ def bind_initial_start_request(
         digest,
     )
     return BoundInitialStartPayload(payload, owner, credential_digest)
+
+
+@dataclass(frozen=True, slots=True)
+class InitialStartReceipt:
+    """保存済開始原本の参照。初期state/HTTP認証の証明ではない。"""
+
+    owner: _StartOwner
+    started_at: datetime
+    away_lineup_id: UUID
+    home_lineup_id: UUID
+
+
+def _start_token(
+    bound: BoundInitialStartPayload, *, save: bool = False
+) -> _ReadInitialStartContextToken:
+    """ownerとcanonical全bytesからだけ固定tokenを作る。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _PersistInitialStartToken,
+        _ReadInitialStartContextToken,
+    )
+
+    bound.__post_init__()
+    owner = bound.owner
+    cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken
+    return cls(
+        owner.game_id,
+        owner.start_request_id,
+        owner.attempt_id,
+        owner.request_digest,
+        bound.canonical_bytes.decode("utf-8"),
+    )
+
+
+def _saved_start_rule_wire(value: object) -> SavedRuleWire:
+    """既保存codecの検証済み値を固定wire表現へ写す。規則を計算しない。"""
+    from pitchlog.db.game_state.rule_snapshot import decode_applied_rules
+    from pitchlog.domainrt.first_pitch_continuation import SavedRuleWire
+
+    rule = decode_applied_rules(value).structural
+    wire = {
+        "regulationInnings": str(rule.regulation_innings),
+        "coldConditions": [
+            {
+                "pointDifference": str(t.point_difference),
+                "startInning": str(t.start_inning),
+            }
+            for t in rule.cold_conditions
+        ],
+        "extensionLimit": None
+        if rule.extension_limit is None
+        else str(rule.extension_limit),
+        "tiebreak": None
+        if rule.tiebreak is None
+        else {
+            "startInning": str(rule.tiebreak.start_inning),
+            "runnerPlacement": rule.tiebreak.runner_placement,
+            "leadoffRule": rule.tiebreak.leadoff_rule,
+        },
+        "dh": rule.dh,
+    }
+    return SavedRuleWire.model_validate_json(
+        json.dumps(wire), by_alias=True, by_name=False
+    )
+
+
+def _read_start_context(
+    transaction: _TenantTransaction, bound: BoundInitialStartPayload
+) -> dict[str, Any]:
+    """固定1行を全key/owner/entryの閉contextへ検証する。"""
+    from pitchlog.domainrt.first_pitch import _invalid_constant, _unique_object
+
+    rows = transaction.run_function(_start_token(bound)).rows
+    try:
+        if len(rows) != 1 or len(rows[0]) != 1 or type(rows[0][0]) is not str:
+            raise ValueError
+        value = json.loads(
+            rows[0][0],
+            object_pairs_hook=_unique_object,
+            parse_constant=_invalid_constant,
+        )
+        required = {
+            "tenant_id",
+            "game_id",
+            "start_request_id",
+            "device_id",
+            "attempt_id",
+            "request_digest",
+            "outcome",
+            "away_team_id",
+            "home_team_id",
+            "self_team_id",
+            "applied_rules",
+            "away",
+            "home",
+            "started_at",
+            "away_lineup_id",
+            "home_lineup_id",
+        }
+        if type(value) is not dict or set(value) != required:
+            raise ValueError
+        owner = bound.owner
+        expected = dict(
+            tenant_id=str(owner.tenant_id),
+            game_id=str(owner.game_id),
+            start_request_id=str(owner.start_request_id),
+            device_id=str(owner.device_id),
+            attempt_id=str(owner.attempt_id),
+            request_digest=owner.request_digest.hex(),
+        )
+        if any(value[key] != actual for key, actual in expected.items()):
+            raise ValueError
+        if value["outcome"] not in ("pending", "committed"):
+            raise ValueError
+        teams = [value[k] for k in ("away_team_id", "home_team_id", "self_team_id")]
+        if any(type(t) is not str or str(UUID(t)) != t for t in teams):
+            raise ValueError
+        if teams[0] == teams[1] or teams[2] not in teams[:2]:
+            raise ValueError
+        # 実保存/準備中APIと同じcanonical codecを使い、旧別名を補完しない。
+        _saved_start_rule_wire(value["applied_rules"])
+        for side in ("away", "home"):
+            entries = value[side]
+            original = cast(list[dict[str, object]], bound._source()[side])
+            if type(entries) is not list or len(entries) != len(original):
+                raise ValueError
+            for entry, supplied in zip(entries, original, strict=True):
+                if (
+                    type(entry) is not dict
+                    or set(entry)
+                    != {
+                        "player_id",
+                        "batting_order",
+                        "fielding_position",
+                        "uniform_number_snapshot",
+                    }
+                    or {
+                        k: v for k, v in entry.items() if k != "uniform_number_snapshot"
+                    }
+                    != supplied
+                ):
+                    raise ValueError
+                entry = cast(dict[str, Any], entry)
+                if json.dumps(
+                    {k: v for k, v in entry.items() if k != "uniform_number_snapshot"},
+                    sort_keys=True,
+                ) != json.dumps(supplied, sort_keys=True):
+                    raise ValueError
+                if (
+                    entry["uniform_number_snapshot"] is not None
+                    and type(entry["uniform_number_snapshot"]) is not str
+                ):
+                    raise ValueError
+        if value["outcome"] == "pending":
+            if any(
+                value[k] is not None
+                for k in ("started_at", "away_lineup_id", "home_lineup_id")
+            ):
+                raise ValueError
+        else:
+            _receipt_from_context(bound, value)
+        return value
+    except (ValueError, TypeError, KeyError):
+        raise InitialGrantConflict("開始contextを確認できない") from None
+
+
+def _receipt_from_context(
+    bound: BoundInitialStartPayload, context: dict[str, Any]
+) -> InitialStartReceipt:
+    """保存原本の時刻/IDだけをreceiptへ閉じる。"""
+    stamp = context["started_at"]
+    if type(stamp) is not str:
+        raise ValueError
+    started = datetime.fromisoformat(stamp)
+    if started.tzinfo is None or started.utcoffset() is None:
+        raise ValueError
+    ids = [context[k] for k in ("away_lineup_id", "home_lineup_id")]
+    if any(type(v) is not str or str(UUID(v)) != v for v in ids) or ids[0] == ids[1]:
+        raise ValueError
+    return InitialStartReceipt(bound.owner, started, UUID(ids[0]), UUID(ids[1]))
+
+
+def _initialize_start(
+    scope: InitialRecordingRightScope, bound: BoundInitialStartPayload
+) -> InitialStartReceipt:
+    """同handleの実context→単一TS→既UM2→固定saveだけを実行する。"""
+    from pitchlog.domainrt.initial_game_roster import (
+        InitialGameRosterRequest,
+        evaluate_initial_game_roster,
+    )
+    from pitchlog.repositories.transaction import _save_initial_lineup_memory
+
+    transaction = scope._transaction
+    scope._check()
+    context = _read_start_context(transaction, bound)
+    if context["outcome"] != "pending":
+        raise InitialGrantConflict("開始要求は新規保存できない")
+    saved_rule = _saved_start_rule_wire(context["applied_rules"])
+    request = InitialGameRosterRequest.model_validate_json(
+        json.dumps(
+            {
+                "dh": saved_rule.dh,
+                **{
+                    side: {
+                        "team_id": context[f"{side}_team_id"],
+                        "entries": [
+                            {
+                                "player_id": str(e.player_id),
+                                "batting_order": None
+                                if e.batting_order is None
+                                else str(e.batting_order),
+                                "fielding_position": (
+                                    {
+                                        "kind": "fielding",
+                                        "position": str(e.fielding_position.position),
+                                    }
+                                    if type(e.fielding_position) is StartFieldingRole
+                                    else {"kind": "designated-hitter"}
+                                ),
+                            }
+                            for e in getattr(bound.payload, side)
+                        ],
+                    }
+                    for side in ("away", "home")
+                },
+            }
+        ),
+        by_alias=True,
+        by_name=False,
+    )
+    response = evaluate_initial_game_roster(request)
+    if response.ok is not True:
+        raise InitialGrantConflict("開始名簿を受理できない")
+    side = "away" if context["self_team_id"] == context["away_team_id"] else "home"
+    lineup = tuple(
+        {k: v for k, v in entry.items() if k != "uniform_number_snapshot"}
+        for entry in context[side]
+    )
+    scope._start_context = context
+    _save_initial_lineup_memory(scope, bound, UUID(context["self_team_id"]), lineup)
+    scope._start_um2_saved = True
+    rows = transaction.run_function(_start_token(bound, save=True)).rows
+    if len(rows) != 1 or len(rows[0]) != 3:
+        raise InitialGrantConflict("開始保存receiptを確認できない")
+    started, away, home = rows[0]
+    if (
+        type(started) is not datetime
+        or started.tzinfo is None
+        or started.utcoffset() is None
+        or type(away) is not UUID
+        or type(home) is not UUID
+        or away == home
+    ):
+        raise InitialGrantConflict("開始保存receiptを確認できない")
+    return InitialStartReceipt(bound.owner, started, away, home)

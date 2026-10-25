@@ -6,7 +6,7 @@ import hashlib
 import hmac
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, Any, cast, final
 from uuid import UUID
 
 from pitchlog.recording_rights.initial_grant import (
@@ -18,6 +18,7 @@ from pitchlog.recording_rights.initial_grant import (
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.function_operations import (
     _INITIAL_FUNCTION_TYPES,
+    _INITIAL_START_FUNCTION_TYPES,
     FunctionOperationRegistration,
     _build_fixed_function_statement,
     build_function_registry,
@@ -28,11 +29,17 @@ from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationT
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from pitchlog.repositories.game_start import (
+        BoundInitialStartPayload,
+        InitialStartReceipt,
+    )
     from pitchlog.repositories.transaction import _TenantTransaction
 
 __all__ = ("InitialRecordingRightScope",)
 _SCOPE_CREATION = object()
-_SCOPE_BINDINGS: dict[object, tuple[object, object, object, tuple[object, ...]]] = {}
+_SCOPE_BINDINGS: dict[
+    InitialRecordingRightScope, tuple[object, object, object, tuple[object, ...]]
+] = {}
 
 
 def _positive_generation(value: object) -> bool:
@@ -205,6 +212,32 @@ class _ResolveStartAttemptToken(TenantOperationToken):
         return "CAP:initial_right:resolve_start_attempt"
 
 
+@dataclass(frozen=True, slots=True)
+class _ReadInitialStartContextToken(TenantOperationToken):
+    """真正scopeが固定する開始contextの6引数操作。"""
+
+    game_id: UUID
+    start_request_id: UUID
+    attempt_id: UUID
+    request_digest: bytes
+    typed_payload_json: str
+
+    @property
+    def capability_id(self) -> str:
+        """私有開始能力だけを返す。"""
+        return "CAP:initial_right:read_initial_start_context"
+
+
+@dataclass(frozen=True, slots=True)
+class _PersistInitialStartToken(_ReadInitialStartContextToken):
+    """同じownerと全payloadだけを保存する閉操作。"""
+
+    @property
+    def capability_id(self) -> str:
+        """私有開始能力だけを返す。"""
+        return "CAP:initial_right:persist_initial_start"
+
+
 _INITIAL_TOKEN_TYPES = (
     _LockDeviceToken,
     _ReadExistingStartToken,
@@ -215,6 +248,8 @@ _INITIAL_TOKEN_TYPES = (
     _InsertInitialGrantToken,
     _BeginStartAttemptToken,
     _ResolveStartAttemptToken,
+    _ReadInitialStartContextToken,
+    _PersistInitialStartToken,
 )
 
 
@@ -252,10 +287,12 @@ def _decode_initial_result(result: TenantOperationResult) -> TenantOperationResu
 
 
 def _initial_registrations() -> tuple[FunctionOperationRegistration, ...]:
-    """固定9署名の単一宣言から、任意SQLを許さない登録を構成する。"""
+    """旧9と開始2署名の単一宣言から、任意SQLを許さない登録を構成する。"""
     result = []
     for token_type, (function_id, contract) in zip(
-        _INITIAL_TOKEN_TYPES, _INITIAL_FUNCTION_TYPES.items(), strict=True
+        _INITIAL_TOKEN_TYPES,
+        (*_INITIAL_FUNCTION_TYPES.items(), *_INITIAL_START_FUNCTION_TYPES.items()),
+        strict=True,
     ):
         inputs, outputs, nullable, aware = contract
         schema, name = function_id.split(".")
@@ -285,9 +322,11 @@ def _initial_registrations() -> tuple[FunctionOperationRegistration, ...]:
     return tuple(result)
 
 
-INITIAL_FUNCTION_OPERATIONS = _initial_registrations()
+_ALL_INITIAL_REGISTRATIONS = _initial_registrations()
+INITIAL_FUNCTION_OPERATIONS = _ALL_INITIAL_REGISTRATIONS[:-2]
+_INITIAL_START_FUNCTION_OPERATIONS = _ALL_INITIAL_REGISTRATIONS[-2:]
 _INITIAL_FUNCTION_REGISTRY = build_function_registry(
-    INITIAL_FUNCTION_OPERATIONS, frozenset()
+    (*INITIAL_FUNCTION_OPERATIONS, *_INITIAL_START_FUNCTION_OPERATIONS), frozenset()
 )
 _INITIAL_INTENT_TOKENS = frozenset({_LockDeviceToken, _BeginStartAttemptToken})
 _INITIAL_BUSINESS_TOKENS = frozenset(
@@ -307,6 +346,10 @@ class InitialRecordingRightScope:
         "_outcome",
         "_resolved_generation",
         "_game_locked",
+        "_start_payload",
+        "_start_context",
+        "_start_receipt",
+        "_start_um2_saved",
     )
 
     def __init_subclass__(cls, **kwargs: object) -> None:
@@ -319,6 +362,7 @@ class InitialRecordingRightScope:
         transaction: _TenantTransaction,
         owner: _StartOwner,
         creation: object,
+        start_payload: BoundInitialStartPayload | None = None,
     ) -> None:
         """私有factoryからのみ生成し、未検証資格から操作を進めない。"""
         if creation is not _SCOPE_CREATION or type(owner) is not _StartOwner:
@@ -328,6 +372,16 @@ class InitialRecordingRightScope:
         self._outcome: str | None = None
         self._resolved_generation: int | None = None
         self._game_locked = False
+        from pitchlog.repositories.game_start import BoundInitialStartPayload
+
+        if start_payload is not None:
+            if type(start_payload) is not BoundInitialStartPayload:
+                raise InitialGrantUnavailable("開始payloadの閉型が不正")
+            start_payload.assert_owner(owner)
+        self._start_payload = start_payload
+        self._start_um2_saved = False
+        self._start_context: dict[str, Any] | None = None
+        self._start_receipt: InitialStartReceipt | None = None
         snapshot = (
             owner.tenant_id,
             owner.game_id,
@@ -335,6 +389,7 @@ class InitialRecordingRightScope:
             owner.device_id,
             owner.attempt_id,
             owner.request_digest,
+            start_payload,
         )
         _SCOPE_BINDINGS[self] = (context, transaction, owner, snapshot)
         try:
@@ -355,6 +410,7 @@ class InitialRecordingRightScope:
             or binding[0] is not self._context
             or binding[1] is not self._transaction
             or binding[2] is not self._owner
+            or binding[3][-1] is not self._start_payload
             or binding[3]
             != (
                 self._owner.tenant_id,
@@ -363,10 +419,13 @@ class InitialRecordingRightScope:
                 self._owner.device_id,
                 self._owner.attempt_id,
                 self._owner.request_digest,
+                self._start_payload,
             )
         ):
             raise InitialGrantUnavailable("初期権scopeのowner束縛が失効又は不一致")
         _assert_initial_actor_transaction(self._transaction, self._context, "business")
+        if self._start_payload is not None:
+            self._start_payload.assert_owner(self._owner)
         if self._context.tenant_id != self._owner.tenant_id:
             raise InitialGrantUnavailable("開始ownerとtenantが一致しない")
 
@@ -484,17 +543,32 @@ class InitialRecordingRightScope:
         ).rows != ((True,),):
             raise InitialGrantConflict("試合を開始できない")
         self._game_locked = True
+        if self._start_payload is not None:
+            from pitchlog.repositories.game_start import _initialize_start
+
+            self._start_receipt = _initialize_start(self, self._start_payload)
 
     def lock_current_start(
         self, game_id: UUID, start_request_id: UUID
     ) -> InitialGrantRecord | None:
         """同一確定要求のgame→現世代→配達を再照合する。"""
         self._same_request(game_id, start_request_id)
-        return self._record(
+        record = self._record(
             self._transaction.run_function(
                 _LockCurrentStartToken(game_id, start_request_id)
             ).rows
         )
+        if self._start_payload is not None:
+            from pitchlog.repositories.game_start import (
+                _read_start_context,
+                _receipt_from_context,
+            )
+
+            context = _read_start_context(self._transaction, self._start_payload)
+            if context["outcome"] != "committed":
+                raise InitialGrantConflict("開始済み原本がない")
+            self._start_receipt = _receipt_from_context(self._start_payload, context)
+        return record
 
     def assert_recovery_generation(self, value: int) -> None:
         """実business epochと外部fence値が一致することを固定readで確認する。"""
@@ -565,7 +639,10 @@ class InitialRecordingRightScope:
 
 @contextmanager
 def _initial_recording_right_scope(
-    context: TenantContext, owner: _StartOwner, actor_runtime: object
+    context: TenantContext,
+    owner: _StartOwner,
+    actor_runtime: object,
+    start_payload: BoundInitialStartPayload | None = None,
 ) -> Iterator[InitialRecordingRightScope]:
     """登録済みactorの同一businessを私有factoryとして生成する。"""
     from pitchlog.repositories.transaction import _initial_actor_transaction_scope
@@ -573,7 +650,9 @@ def _initial_recording_right_scope(
     with _initial_actor_transaction_scope(
         context, actor_runtime, "business"
     ) as transaction:
-        scope = InitialRecordingRightScope(context, transaction, owner, _SCOPE_CREATION)
+        scope = InitialRecordingRightScope(
+            context, transaction, owner, _SCOPE_CREATION, start_payload
+        )
         try:
             yield scope
         finally:

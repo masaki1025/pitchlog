@@ -1609,3 +1609,67 @@ def test_generation_sync_reads_keep_original_columns_and_lock(
     sql = str(statement.compile(dialect=postgresql.dialect()))
     assert "recording_generations.tenant_id = %(tenant_id)s" in sql
     assert ("FOR UPDATE" in sql) is locked
+
+
+def test_initial_start_two_functions_keep_old_nine_separate() -> None:
+    """新2署名はtenant注入+同5bindだけで、旧9tupleを保持する。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _INITIAL_START_FUNCTION_OPERATIONS,
+        INITIAL_FUNCTION_OPERATIONS,
+        _ReadInitialStartContextToken,
+    )
+
+    assert len(INITIAL_FUNCTION_OPERATIONS) == 9
+    assert tuple(s.function_id for s in _INITIAL_START_FUNCTION_OPERATIONS) == (
+        "initial_right_api.read_initial_start_context",
+        "initial_right_api.persist_initial_start",
+    )
+    token = _ReadInitialStartContextToken(
+        _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * 32, "{}"
+    )
+    spec, params = prepare_function_operation(
+        token, _TENANT_ID, _INITIAL_FUNCTION_REGISTRY
+    )
+    assert tuple(params) == (
+        "tenant_id",
+        "game_id",
+        "start_request_id",
+        "attempt_id",
+        "request_digest",
+        "typed_payload_json",
+    )
+    assert spec.max_rows == 1
+    assert spec.function_id == "initial_right_api.read_initial_start_context"
+
+
+@pytest.mark.parametrize("phase", ["intent", "business"])
+def test_actor_without_start_scope_rejects_new_functions(
+    phase: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """真正actorを代役化してもstart専用束縛がなければSQL前に拒否する。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _ReadInitialStartContextToken,
+    )
+
+    context = make_tenant_context(_TENANT_ID)
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (object(), phase))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    with pytest.raises(TenantBindingError):
+        handle.run_function(
+            _ReadInitialStartContextToken(
+                _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * 32, "{}"
+            )
+        )
+    handle._expire()

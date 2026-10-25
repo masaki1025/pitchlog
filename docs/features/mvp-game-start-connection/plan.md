@@ -248,3 +248,8 @@ UM2のactor権限は真正business handle/owner/検証済payload/対象self team
 受入は旧grant-only回帰、閉mode/owner/固定token/呼出順/非成功時save無し、同payload再送/変更要求拒否、保存当時原本不変、実owned PGでDHtrue公式10×2とDHfalse9×2の開始＋初期権全確定、片側lineup/UM2/status/proof/generation/delivery/commit前故障時のbusiness全取消・外部D4消費の別観測、RG1/epoch/fence/tenant/失効資格/不正所属/選択欠落/SQL role直接アクセス拒否。pending/claim不明/commit不明は新attempt自動発行や成功応答へ変換しない。DB/port/tempはowned隔離のみ、共有DBへ適用しない。候補作成に関与しないsource/認可/耐久レビューと必要正式値/CI後に通常統合する。
 
 この単位は実DB fixtureでの開始＋初期権・同TX原子性まで。実Cookie/enroll/RPC/API/UI、trusted初期stateと初球同期保存/再取得は後続必須とし、ここに未実装のReadyや成功ACKを置かない。全MVP/取消/訂正/耐久・成績/CSV/実機/運用復旧を維持する。
+
+
+2026-10-25T19:57:35.864296+00:00、PO委任によるCodex判断（Codex /root）として§10 source11/test6の有限候補を受理する。固定source17はreflection5/evidence.json、実受理root-finite-source-acceptance.jsonへ全SHAを保存。独立認可review b8b8e8ef61f7484387eef2a547166ca8345d4a19509d463783e0b89415c74742、独立lifecycle review f1d9eeeab03e1c779d7aec9b31bc6c393a088db4b8d684cc38bbf4fa94ccb8fbはいずれも担当範囲の未解消0。旧P1と反映2〜5を消去せず、正規runtime全field期待値9372f2f71699310e064c9c802d2f498f533045944d93483f161056b019c3ec10の不変を確認した。canonical実PG28成功611.72sは反映3、最終反映5はowned PG正常開始/同要求再送と新2関数ACLの2成功40.99s（receipt142b4068e04646feab1985c95a6197ddc625891f4653499dddab768eb8a1a8b1）であり、28件を最終byteの再完走へ読み替えない。
+
+今回の受理は候補source保存であり、正式metadata56/7.7・旧初期profileの正式受理・通常CI/統合は残る。隣接database1宣言/table11headerのruntime自己採用留保は別の有限callchain確認へ残し、初期role実効権限全体の成立へ拡張しない。旧source/profile供給の未コミット集合を一括採用せず、17pathと本追記だけを保存する。実Cookie/enroll/RPC/API/UI/初期state/初球原子的保存、全T1/全P6/P7/P8/全MVPは未達。本人の実値確認/署名を代記しない。

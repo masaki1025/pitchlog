@@ -416,3 +416,351 @@ def test_entry_serializer_never_defaults_an_unknown_role_to_dh() -> None:
     object.__setattr__(entry, "fielding_position", object())
     with pytest.raises(InitialStartPayloadInvalid):
         _entry_json(entry)
+
+
+def _start_context(
+    bound: BoundInitialStartPayload, outcome: str = "pending"
+) -> dict[str, Any]:
+    """純adapter試験用の明示合成DB応答。実DB証拠ではない。"""
+    owner = bound.owner
+    from pitchlog.db.game_state.rule_snapshot import (
+        decode_applied_rules,
+        encode_applied_rules,
+    )
+
+    saved_rules = encode_applied_rules(
+        decode_applied_rules(
+            dict(
+                ruleSetId=str(UUID(int=8)),
+                regulationInnings=9,
+                coldConditions=[],
+                extensionLimit=9,
+                tiebreak=None,
+                dh=len(bound.payload.away) == 10,
+            )
+        )
+    )
+    return dict(
+        tenant_id=str(owner.tenant_id),
+        game_id=str(owner.game_id),
+        start_request_id=str(owner.start_request_id),
+        device_id=str(owner.device_id),
+        attempt_id=str(owner.attempt_id),
+        request_digest=owner.request_digest.hex(),
+        outcome=outcome,
+        away_team_id=str(UUID(int=6)),
+        home_team_id=str(UUID(int=7)),
+        self_team_id=str(UUID(int=6)),
+        applied_rules=saved_rules,
+        away=[
+            dict(e, uniform_number_snapshot="10")
+            for e in cast(list[dict[str, Any]], bound._source()["away"])
+        ],
+        home=[
+            dict(e, uniform_number_snapshot=None)
+            for e in cast(list[dict[str, Any]], bound._source()["home"])
+        ],
+        started_at=None if outcome == "pending" else "2026-10-26T00:00:00+00:00",
+        away_lineup_id=None if outcome == "pending" else str(UUID(int=9)),
+        home_lineup_id=None if outcome == "pending" else str(UUID(int=10)),
+    )
+
+
+def test_start_tokens_bind_all_bytes_and_resolved_attempt() -> None:
+    """解決後attemptだけを束縛し、canonical/digestは旧値のまま保つ。"""
+    from pitchlog.repositories.game_start import _start_token
+
+    bound = _bind()
+    resolved = replace(bound.owner, attempt_id=UUID(int=99))
+    new = BoundInitialStartPayload(bound.payload, resolved, bound.credential_digest)
+    assert new.canonical_bytes == bound.canonical_bytes
+    for save in (False, True):
+        token = _start_token(new, save=save)
+        assert token.attempt_id == resolved.attempt_id
+        assert token.request_digest == bound.owner.request_digest
+        assert token.typed_payload_json.encode() == bound.canonical_bytes
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "extra",
+        "missing",
+        "owner",
+        "attempt",
+        "digest",
+        "team",
+        "order_bool",
+        "position_bool",
+        "entry_extra",
+        "uniform",
+        "pending_stamp",
+        "unknown_outcome",
+        "duplicate_key",
+        "nonfinite",
+    ],
+)
+def test_start_context_rejects_wire_and_owner_mutations(mutation: str) -> None:
+    """DB contextでも同値coercion/余剰/owner差替えを拒否する。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantConflict
+    from pitchlog.repositories.game_start import _read_start_context
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    bound = _bind()
+    ctx = _start_context(bound)
+    if mutation == "extra":
+        ctx["extra"] = 1
+    elif mutation == "missing":
+        del ctx["away"]
+    elif mutation == "owner":
+        ctx["game_id"] = str(UUID(int=99))
+    elif mutation == "attempt":
+        ctx["attempt_id"] = str(UUID(int=99))
+    elif mutation == "digest":
+        ctx["request_digest"] = "0" * 64
+    elif mutation == "team":
+        ctx["self_team_id"] = str(UUID(int=99))
+    elif mutation == "order_bool":
+        ctx["away"][-1]["batting_order"] = True
+    elif mutation == "position_bool":
+        ctx["away"][0]["fielding_position"]["position"] = True
+    elif mutation == "entry_extra":
+        ctx["home"][0]["extra"] = 1
+    elif mutation == "uniform":
+        ctx["home"][0]["uniform_number_snapshot"] = 10
+    elif mutation == "pending_stamp":
+        ctx["started_at"] = "2026-10-26T00:00:00Z"
+    elif mutation == "unknown_outcome":
+        ctx["outcome"] = "unknown"
+    wire = json.dumps(ctx)
+    if mutation == "duplicate_key":
+        wire = wire[:-1] + ',"tenant_id":"duplicate"}'
+    if mutation == "nonfinite":
+        wire = wire[:-1] + ',"bad":NaN}'
+
+    class Read:
+        def run_function(self, token):
+            return TenantOperationResult(((wire,),))
+
+    with pytest.raises(InitialGrantConflict):
+        _read_start_context(cast(Any, Read()), bound)
+
+
+@pytest.mark.parametrize("size", [9, 10])
+def test_start_hook_real_artifact_before_memory_and_save(
+    size: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """実TSを通す配線検査。DB/認可/commit成功とは主張しない。"""
+    from datetime import datetime, timezone
+
+    from pitchlog.repositories import transaction
+    from pitchlog.repositories.game_start import _initialize_start
+    from pitchlog.repositories.initial_recording_right import _PersistInitialStartToken
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    bound = _bind(_body(size))
+    ctx = _start_context(bound)
+    seen = []
+
+    class ReadSave:
+        def run_function(self, token):
+            if type(token) is _PersistInitialStartToken:
+                seen.append("save")
+                return TenantOperationResult(
+                    (
+                        (
+                            datetime(2026, 10, 26, tzinfo=timezone.utc),
+                            UUID(int=9),
+                            UUID(int=10),
+                        ),
+                    )
+                )
+            seen.append("read")
+            return TenantOperationResult(((json.dumps(ctx),),))
+
+    class Scope:
+        _transaction = ReadSave()
+
+        def _check(self):
+            pass
+
+    scope = Scope()
+
+    def memory(selected, actual_bound, team, lineup):
+        assert selected is scope and actual_bound is bound
+        assert str(team) == ctx["self_team_id"] and len(lineup) == size
+        seen.append("memory")
+
+    monkeypatch.setattr(transaction, "_save_initial_lineup_memory", memory)
+    receipt = _initialize_start(cast(Any, scope), bound)
+    assert seen == ["read", "memory", "save"]
+    assert receipt.owner == bound.owner and receipt.away_lineup_id == UUID(int=9)
+
+
+def test_start_hook_invalid_roster_never_saves(monkeypatch: pytest.MonkeyPatch) -> None:
+    """実TSの拒否を固定trueで上書きせず、UM2/saveへ到達させない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantConflict
+    from pitchlog.repositories import transaction
+    from pitchlog.repositories.game_start import _initialize_start
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    body = _body()
+    body["away"][1]["batting_order"] = 1
+    bound = _bind(body)
+    seen = []
+
+    class Read:
+        def run_function(self, token):
+            seen.append("read")
+            return TenantOperationResult(((json.dumps(_start_context(bound)),),))
+
+    class Scope:
+        _transaction = Read()
+
+        def _check(self):
+            pass
+
+    def forbidden(*args):
+        raise AssertionError("invalid roster reached memory")
+
+    monkeypatch.setattr(transaction, "_save_initial_lineup_memory", forbidden)
+    with pytest.raises(InitialGrantConflict):
+        _initialize_start(cast(Any, Scope()), bound)
+    assert seen == ["read"]
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("started_at", None),
+        ("started_at", "2026-10-26T00:00:00"),
+        ("away_lineup_id", None),
+        ("home_lineup_id", str(UUID(int=9))),
+    ],
+)
+def test_start_replay_requires_saved_receipt(field: str, value: Any) -> None:
+    """旧grant-only/欠損開始原本を再交付成功へ昇格しない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantConflict
+    from pitchlog.repositories.game_start import _read_start_context
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    bound = _bind()
+    ctx = _start_context(bound, "committed")
+    ctx[field] = value
+
+    class Read:
+        def run_function(self, token):
+            return TenantOperationResult(((json.dumps(ctx),),))
+
+    with pytest.raises(InitialGrantConflict):
+        _read_start_context(cast(Any, Read()), bound)
+
+
+@pytest.mark.parametrize(
+    "regulation,limit,cold,tiebreak",
+    [
+        (9, 9, [], None),
+        (9, None, [], None),
+        (
+            7,
+            None,
+            [{"pointDifference": 7, "startInning": 5}],
+            {
+                "startInning": 8,
+                "runnerPlacement": "no_out_first_second",
+                "leadoffRule": "continue_lineup",
+            },
+        ),
+    ],
+)
+def test_saved_start_rules_reuse_canonical_codec_and_exact_wire(
+    regulation: int,
+    limit: int | None,
+    cold: list[dict[str, int]],
+    tiebreak: dict[str, Any] | None,
+) -> None:
+    """既codecの6-key保存値から5-key decimal wireだけへ写す。終了は評価しない。"""
+    from pitchlog.db.game_state.rule_snapshot import (
+        decode_applied_rules,
+        encode_applied_rules,
+    )
+    from pitchlog.repositories.game_start import _saved_start_rule_wire
+
+    raw = dict(
+        ruleSetId=str(UUID(int=8)),
+        regulationInnings=regulation,
+        coldConditions=cold,
+        extensionLimit=limit,
+        tiebreak=tiebreak,
+        dh=True,
+    )
+    canonical = encode_applied_rules(decode_applied_rules(raw))
+    wire = _saved_start_rule_wire(canonical).model_dump(mode="json", by_alias=True)
+    assert set(canonical) == {
+        "ruleSetId",
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh",
+    }
+    assert wire == dict(
+        regulationInnings=str(regulation),
+        coldConditions=[{k: str(v) for k, v in tier.items()} for tier in cold],
+        extensionLimit=None if limit is None else str(limit),
+        tiebreak=None
+        if tiebreak is None
+        else {**tiebreak, "startInning": str(tiebreak["startInning"])},
+        dh=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "cold_alias",
+        "extension_alias",
+        "both_legacy",
+        "legacy_extra",
+        "missing_canonical",
+        "correlation",
+        "bool_number",
+        "unknown_tiebreak",
+    ],
+)
+def test_start_context_rejects_legacy_rule_aliases_and_invalid_saved_rules(
+    mutation: str,
+) -> None:
+    """旧cold/overtimeを暗黙補完せず、既codecの非成功を開始成功にしない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantConflict
+    from pitchlog.repositories.game_start import _read_start_context
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    bound = _bind()
+    ctx = _start_context(bound)
+    rules = ctx["applied_rules"]
+    if mutation in ("cold_alias", "both_legacy"):
+        rules["cold"] = rules.pop("coldConditions")
+    if mutation in ("extension_alias", "both_legacy"):
+        rules["overtime"] = rules.pop("extensionLimit")
+    if mutation == "legacy_extra":
+        rules["cold"] = []
+    if mutation == "missing_canonical":
+        del rules["coldConditions"]
+    if mutation == "correlation":
+        rules["extensionLimit"] = 7
+    if mutation == "bool_number":
+        rules["regulationInnings"] = True
+    if mutation == "unknown_tiebreak":
+        rules["tiebreak"] = {
+            "startInning": 10,
+            "runnerPlacement": "unknown",
+            "leadoffRule": "unknown",
+        }
+
+    class Read:
+        def run_function(self, token):
+            return TenantOperationResult(((json.dumps(ctx),),))
+
+    with pytest.raises(InitialGrantConflict):
+        _read_start_context(cast(Any, Read()), bound)
