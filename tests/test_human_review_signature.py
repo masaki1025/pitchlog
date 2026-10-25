@@ -65,7 +65,7 @@ def _load_object(path: Path) -> dict[str, Any]:
     # 必須repository testはこのhelperを使わず、実checkoutの新appendを検査する。
     if path in {CONTRACT_PATH, GAME_END_CONTRACT_PATH}:
         raw = checker._carry_git_bytes(REPOSITORY_ROOT, [
-            "show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:"
+            "show", f"{checker._gate6_ready_values(REPOSITORY_ROOT)[0]}:"
             f"{path.relative_to(REPOSITORY_ROOT).as_posix()}",
         ])
         value = json.loads(raw)
@@ -275,7 +275,7 @@ def _legacy_render_root(tmp_path: Path) -> Path:
         target = root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(checker._carry_git_bytes(REPOSITORY_ROOT, [
-            "show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:{relative}",
+            "show", f"{checker._gate6_ready_values(REPOSITORY_ROOT)[0]}:{relative}",
         ]))
     return root
 
@@ -774,7 +774,7 @@ def _other_pr_fixture(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any]:
     paths.extend(subject["path"] for subject in before["subjects"])
     base_bytes = {
         path: (checker._carry_git_bytes(REPOSITORY_ROOT, [
-            "show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:{path}",
+            "show", f"{checker._gate6_ready_values(REPOSITORY_ROOT)[0]}:{path}",
         ]) if path in {str(checker.STATE_TRANSITION_CONTRACT_PATH),
                        str(checker.GAME_END_CONTRACT_PATH)}
             else (REPOSITORY_ROOT / path).read_bytes())
@@ -954,7 +954,7 @@ def _t1_append_fixture(
     guard = checker._carry_core_guard(repository)
     real_git = checker._carry_git_bytes
     head = real_git(repository, ['rev-parse', 'HEAD']).decode().strip()
-    base = 'dcd4fda8fb80cdff5811e7e2ec5742095f1dc9a8'
+    base = _load_object(repository / checker.GATE6_T1_APPEND_PATH)['authority']['baseRevision']
     url = 'https://github.com/masaki1025/pitchlog/pull/185#issuecomment-185'
     event = guard.PullRequestEvent(
         base,
@@ -1052,12 +1052,12 @@ def _t1_append_fixture(
             'pr': 185,
             'branch': 'feature/mvp-t1-input-closure',
             'path': 'docs/features/mvp-delegated-core-review/policy.json',
-            'sourcePolicySha256': checker._GATE6_ACCEPTED_POLICY_SHA256,
+            'sourcePolicySha256': checker._gate6_ready_values(REPOSITORY_ROOT)[2],
             'baseRevision': base
         },
         'anchor': {
-            'commit': checker._GATE6_ACCEPTED_POLICY_COMMIT,
-            'carryRawSha256': checker._GATE6_ANCHOR_RETAINED[str(checker.GATE6_CARRY_PATH)]
+            'commit': checker._gate6_ready_values(REPOSITORY_ROOT)[0],
+            'carryRawSha256': checker._gate6_ready_values(REPOSITORY_ROOT)[1]
         },
         'changedCaseIds': list(checker._GATE6_T1_CASE_IDS),
         'subjects': [],
@@ -1310,7 +1310,7 @@ def test_t1_append_final_event_and_evidence_rejections(
     elif mutation == 'base':
         event = guard.PullRequestEvent(**{
             **vars(event),
-            'base_sha': checker._GATE6_ACCEPTED_POLICY_COMMIT
+            'base_sha': checker._gate6_ready_values(REPOSITORY_ROOT)[0]
         })
     elif mutation == 'diff':
         evidence['diff_sha256'] = '0' * 64
@@ -1319,7 +1319,7 @@ def test_t1_append_final_event_and_evidence_rejections(
     elif mutation == 'same-author':
         evidence['candidate_agents'] = [evidence['reviewer_agent']]
     elif mutation == 'old-evidence-policy':
-        evidence['authority_sha256'] = checker._GATE6_ACCEPTED_POLICY_SHA256
+        evidence['authority_sha256'] = checker._gate6_ready_values(REPOSITORY_ROOT)[2]
     elif mutation == 'missing-evidence':
 
         def missing(_: str) -> Any:
@@ -1369,7 +1369,10 @@ def _t1_append_later_event(
     monkeypatch: pytest.MonkeyPatch
 ) -> Any:
     """後続PRのbaseに今回記録が既存という合成Git境界を作る。"""
-    later = guard.PullRequestEvent(**{**vars(event), 'number': 186, 'head_branch': 'fix/later'})
+    # 導入前baseの同じcommitへ導入後blobを上書きする合成衝突を避ける。
+    # 後続baseは新recordが存在する元headのsnapshotとして扱う。
+    later = guard.PullRequestEvent(**{**vars(event), 'base_sha': event.head_sha,
+                                    'number': 186, 'head_branch': 'fix/later'})
     paths = [
         str(checker.GATE6_T1_APPEND_PATH),
         str(checker.GATE6_T1_APPEND_SCHEMA_PATH),
@@ -1529,3 +1532,214 @@ def test_t1_append_later_policy_target_append_keeps_record_frozen(
     _write_t1_append_json(policy_path, policy)
     assert 'no new PR185 acceptance' in checker.validate_gate6_ci_event(root, later)
     assert (root / checker.GATE6_T1_APPEND_PATH).read_bytes() == record_before
+
+
+@pytest.mark.parametrize("mutation", [
+    "anchor-is-base", "joint-base", "duplicate-ready", "reverse-parents",
+    "third-parent", "missing-parent", "carry", "carry-schema", "signature",
+    "policy", "old-subject", "unknown-git",
+])
+def test_event_baseline_rejects_joint_changes_and_old_material_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """実baseの親/旧原本を根にし、自己整合した申告だけでは旧基線を選ばせない。"""
+    root, _, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    record_path = root / checker.GATE6_T1_APPEND_PATH
+    record = _load_object(record_path)
+    schema_path = root / checker.GATE6_T1_APPEND_SCHEMA_PATH
+    schema = _load_object(schema_path)
+    ready = next(x for x in schema['oneOf'] if 'properties' in x)
+    if mutation == 'anchor-is-base':
+        record['anchor']['commit'] = event.base_sha
+        ready['properties']['anchor']['properties']['commit']['const'] = event.base_sha
+    elif mutation == 'joint-base':
+        record['authority']['baseRevision'] = event.head_sha
+        ready['properties']['authority']['properties']['baseRevision'] = {'const': event.head_sha}
+    elif mutation == 'duplicate-ready':
+        schema['oneOf'].append(copy.deepcopy(ready))
+    _write_t1_append_json(record_path, record)
+    _write_t1_append_json(schema_path, schema)
+    old = checker._carry_git_bytes
+    anchor = checker._gate6_ready_values(REPOSITORY_ROOT)[0]
+    paths = {
+        'carry': str(checker.GATE6_CARRY_PATH),
+        'carry-schema': str(checker.GATE6_CARRY_SCHEMA_PATH),
+        'signature': 'docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json',
+        'policy': 'docs/features/mvp-delegated-core-review/policy.json',
+        'old-subject': str(checker.STATE_TRANSITION_CONTRACT_PATH),
+    }
+
+    def changed(r: Path, arguments: list[str]) -> bytes:
+        if arguments == ['rev-parse', event.base_sha + '^@']:
+            parents = old(r, arguments).decode().split()
+            if mutation == 'reverse-parents':
+                return ('\n'.join(reversed(parents)) + '\n').encode()
+            if mutation == 'third-parent':
+                return ('\n'.join(parents + [event.head_sha]) + '\n').encode()
+            if mutation == 'missing-parent':
+                return (parents[0] + '\n').encode()
+        if mutation in paths and arguments == ['show', anchor + ':' + paths[mutation]]:
+            return old(r, arguments) + b'\n'
+        if mutation == 'unknown-git' and arguments[0] == 'show':
+            raise checker.HumanReviewSignatureRecordError('Git原本を読めない')
+        return old(r, arguments)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', changed)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_delegated_gate6_t1_input_append(root, event)
+
+
+def test_final_base_mismatch_is_rejected_before_old_git_material_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """record/schemaでbaseを同時変更しても、actualevent照合より先に読まない。"""
+    root, _, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    record = _load_object(root / checker.GATE6_T1_APPEND_PATH)
+    record['authority']['baseRevision'] = event.head_sha
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+
+    def unexpected(*_: object) -> Any:
+        raise AssertionError('不一致recordから旧原本を選択しない')
+    monkeypatch.setattr(checker, '_gate6_git_object', unexpected)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='最終PR base'):
+        checker.validate_delegated_gate6_t1_input_append(root, event)
+
+
+def test_later_joint_record_schema_change_is_rejected_before_baseline_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """後続は実baseの新4assetを先に固定し、headの自己申告を使わない。"""
+    root, guard, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    later = _t1_append_later_event(root, guard, event, monkeypatch)
+    record = _load_object(root / checker.GATE6_T1_APPEND_PATH)
+    record['authority']['baseRevision'] = later.head_sha
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+    schema = _load_object(root / checker.GATE6_T1_APPEND_SCHEMA_PATH)
+    schema['title'] += ' coordinated modification'
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_SCHEMA_PATH, schema)
+
+    def unexpected(*_: object, **__: object) -> Any:
+        raise AssertionError('後続の改変recordを基準にしない')
+    monkeypatch.setattr(checker, '_gate6_baseline', unexpected)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='後続PR'):
+        checker.validate_other_pr_gate6_t1_append_unchanged(root, later)
+
+
+@pytest.mark.parametrize("layout", [
+    "head", "merge", "reverse", "third-parent", "missing-parent", "other-base",
+    "different-tree", "not-ancestor", "invalid-checkout", "unknown-git",
+])
+def test_checkout_accepts_only_exact_head_or_identical_tree_two_parent_merge(
+    monkeypatch: pytest.MonkeyPatch, layout: str,
+) -> None:
+    """環境の信用宣言を使わず、親順/祖先/treeの全条件を閉じる。"""
+    from types import SimpleNamespace
+
+    base, head, merge, tree = ('a' * 40, 'b' * 40, 'c' * 40, 'd' * 40)
+    event = SimpleNamespace(base_sha=base, head_sha=head)
+
+    def git(_: Path, args: list[str]) -> bytes:
+        if layout == 'unknown-git':
+            raise checker.HumanReviewSignatureRecordError('Git故障')
+        if args == ['rev-parse', 'HEAD']:
+            return ((head if layout == 'head' else 'unknown' if layout == 'invalid-checkout'
+                     else merge) + '\n').encode()
+        if args == ['rev-parse', merge + '^@']:
+            parents = [base, head]
+            if layout == 'reverse':
+                parents.reverse()
+            elif layout == 'third-parent':
+                parents.append(tree)
+            elif layout == 'missing-parent':
+                parents.pop()
+            elif layout == 'other-base':
+                parents[0] = tree
+            return ('\n'.join(parents) + '\n').encode()
+        if args == ['merge-base', '--is-ancestor', base, head]:
+            if layout == 'not-ancestor':
+                raise checker.HumanReviewSignatureRecordError('祖先でない')
+            return b''
+        if args == ['rev-parse', merge + '^{tree}']:
+            return ((base if layout == 'different-tree' else tree) + '\n').encode()
+        if args == ['rev-parse', head + '^{tree}']:
+            return (tree + '\n').encode()
+        raise AssertionError(args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', git)
+    if layout in {'head', 'merge'}:
+        checker._validate_gate6_checkout(REPOSITORY_ROOT, event)
+    else:
+        with pytest.raises(checker.HumanReviewSignatureRecordError):
+            checker._validate_gate6_checkout(REPOSITORY_ROOT, event)
+
+
+def test_pr183_acceptance_does_not_read_later_append(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新appendのない旧受理は旧carry/policy/最終証拠だけで検査できる。"""
+    _, event, _ = _final_carry_fixture(monkeypatch)
+    original = checker.descriptor_checker.load_json
+
+    def read(path: Path, label: str) -> object:
+        if path in {REPOSITORY_ROOT / checker.GATE6_T1_APPEND_PATH,
+                    REPOSITORY_ROOT / checker.GATE6_T1_APPEND_SCHEMA_PATH}:
+            raise AssertionError('旧PR183は新appendへ依存しない')
+        return original(path, label)
+    monkeypatch.setattr(checker.descriptor_checker, 'load_json', read)
+    assert 'VERIFIED' in checker.validate_gate6_ci_event(REPOSITORY_ROOT, event)
+
+
+def test_legacy_prefix_accepts_minified_current_semantics_without_new_hash(
+) -> None:
+    """現raw書式を制約せず旧原文の唯一SHA一致prefixだけを復元する。"""
+    carry = _carry()
+    policy = _load_object(REPOSITORY_ROOT / carry['authority']['path'])
+    current = json.loads(json.dumps(policy, separators=(',', ':')))
+    accepted = checker._gate6_legacy_policy_prefix(carry['authority'], current)
+    raw = (json.dumps(accepted, ensure_ascii=False, indent=2) + '\n').encode()
+    assert hashlib.sha256(raw).hexdigest() == carry['authority']['sha256']
+    assert policy['targets'][:len(accepted['targets'])] == accepted['targets']
+
+
+@pytest.mark.parametrize('change', ['no-match', 'non-target', 'old-target'])
+def test_legacy_prefix_rejects_changed_old_materials(change: str) -> None:
+    """旧hashを復元できない改変や任意hashを新受理しない。"""
+    carry = _carry()
+    policy = _load_object(REPOSITORY_ROOT / carry['authority']['path'])
+    authority = copy.deepcopy(carry['authority'])
+    if change == 'no-match':
+        authority['sha256'] = '0' * 64
+    elif change == 'non-target':
+        policy['publisher'] += '-changed'
+    else:
+        policy['targets'][0]['branch'] += '-changed'
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._gate6_legacy_policy_prefix(authority, policy)
+
+
+def test_local_technical_context_cannot_replace_final_actual_event(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """local成功後も最終はactualeventから基準を作り直す。"""
+    root, _, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    checker.validate_gate6_subject_carry(root)
+    record = _load_object(root / checker.GATE6_T1_APPEND_PATH)
+    record['authority']['baseRevision'] = event.head_sha
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='最終PR base'):
+        checker.validate_delegated_gate6_t1_input_append(root, event)
+
+
+def test_legacy_prefix_requires_a_unique_matching_raw_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同じhashを返す故障観測も一意でなければ拒否する。"""
+    from types import SimpleNamespace
+
+    carry = _carry()
+    policy = _load_object(REPOSITORY_ROOT / carry['authority']['path'])
+    assert len(policy['targets']) > 1
+    fake_hash = SimpleNamespace(hexdigest=lambda: carry['authority']['sha256'])
+    monkeypatch.setattr(checker, 'hashlib', SimpleNamespace(sha256=lambda _: fake_hash))
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._gate6_legacy_policy_prefix(carry['authority'], policy)
