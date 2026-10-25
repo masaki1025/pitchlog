@@ -215,3 +215,15 @@ rootは既承認のRG1制御/ORM列/固定scope_bindingの物理境界につい�
 ORM gate.recovery_generationと実fresh fence.generationの条件2は、同期の実所有境界に属する当該出現だけをsource hash/位置/記号へ閉じ、他path/余分所見/変更source/他条件を拒否し続ける有限案を独立確認へ渡す。core検出パス・全走査・拒否条件を除去しない。未知コードを許容censusへ追加して通さず、全拒否変異と欠落/偽署名/余分API/偽source・集合差替えの負例を必須とする。checkerに新たな凍結値の直書きを増やさず、実7.7で必要9/8値と旧基線保持を再確認する。
 
 候補作者は専用cacheで当該source/test/fixtureと未適用JSON案を作り、rootだけが正式共有資産/Gitへ反映する。作者と異なる最終reviewと実profile/CLI/全件検査前に正常提供完了としない。
+
+
+## 凍結censusの新旧lexical名・反実仮想文脈の追随（2026-10-25）
+
+新正式値反映後、通常tenant CLIは成功し、実Gitでguard module全534件が成功した。一方CI必須のtests/test_census_baseline_check.py単体入口は、旧checkerのflat control名と新しい完全lexical名の差により、実抑止集合への帰属判定で失敗した。全7field identityを捨てず、同じ実sourceのASTから旧/新scopeの対応を一意に証明する最小測定追随を同fileへ追加する。旧raw before/afterは保全し、別scope・同名sibling・位置/記号/署名ずれ・対応不能を拒否する。
+
+また反実仮想の複製rootにも、実入力と同じ.claude/core-areas.json等の非秘密な必須検査文脈を揃える。文脈欠落を拒否の弱化/全成立と誤記しない。所見の削除/7fieldの一部無視/許容code追加/条件省略や特定control名の一括除外で通さない。作者は当該fileだけを専用wtで候補化し、必要な別pathは編集前に戻す。source/testの機械補助と負例を同時に確認し、非作者確認後に外部凍結値の実変更分を完全値で受理する。既正式30/216と全未統合受理履歴の保全を維持し、同じ実値への受理を反復しない。
+
+
+同じ測定追随では、既47/17だけを扱っている旧census述語へ、新規RG1 exact2登録の検証済み出典と独立AST対応を必要最小で接ぐ。未知/余分C2を除外せず、source/hash/位置/記号が一致する既採用2出現だけを説明可能にする。全述語をまとめて診断し、既存の未裁定TB002保持・独立候補全等値・反実仮想全拒否を維持する。実7field rawは常に残し、名前の旧表現を理由に次元やnegativeを落とさない。
+
+2026-10-25、rootはPO委任の通常検査接合修正としてCensus後発1file候補c42c3309を採用。非作者25対向成功/所見0、固定evidence SHA256 3ac39d49347714b9f2bff6ee1802a11ef17e3053751c275957c8a5c7fb28e790を照合した。旧42test/7次元identity/未知拒否を保持。外部入力の実変更に必要な完全値の置換受理・最終HEAD/CIは引き続き残し、旧受理値や判断票を無条件再承認しない。
