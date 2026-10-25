@@ -501,3 +501,6 @@ POが別worktree feature-ux1-undo-ts / branch feature/ux1-undo-ts の成果を�
 - 新たに実sourceで確認した停止点は、controllerと初期actorのUID分離に対し台帳endpointが単一peerしか受理しないこと。actorもsource/fenceを直接必要とするため、UID20004へ単に変更しても閉じない。単一worker/journalを保持した役割別exact2endpoint案を既planの有限追補へ記録して非作者確認中。未知結果/再起動の停止を維持し、UID偽装や常成功権利で埋めない。0036/初期9API/fullprofile供給も残る。
 
 利用者が新たに完了できる操作の実証は依然として隔離preparing作成/DB保存/再取得まで。開始・初期記録権・1球保存/再読込、T1本体、正式MVPは未達。PO所有spikeは編集せず、実前進→取消の往復検証を別枝で依頼した。次は上記接続不足を閉じ、所有DBで正常初期grant/再交付/故障を通す。外部/実機/公開承認を新規に取得したとはしない。
+
+
+追記: RG1 reader差分はcac43c43へcommit/通常push済み。初期scopeのledger補助は非作者rootが全AST/実ownedPGで確認し、test_real_roles_and_business_observer_are_limited 1成功17.55s。正規0033→0035/profileと実observer最小ACLを確認、所有containercleanup後も共有pitchlog-db-1だけが従前稼働。receipt /home/ymdms/.cache/pitchlog/initial-ledger-support-startup-candidate-20261025/root-review-real-pg-receipt.json。補助は35cc04c3、新DB試験12case候補（実DB0/独立最終未了）は254c9fa4へ保全した。初期branch feature/mvp-initial-grant-connection-candidate。実DB1成功は初期grantの正常成功ではなく既台帳補助の限定検証。次は役割別exact endpointと0036/正式9API・新4表の正本/認可生成供給。
