@@ -95,3 +95,13 @@ NFR-019の単体/一致性として既schema試験へ追加し、extra/型/回�
 2026-10-25T13:02:42.072685+00:00、rootはPO委任によるCodex判断でRBI03/04＋正常false境界の11path有限範囲を承認。対象plan前SHA256 87109616d37e85cf5fc0a200893b6c3c33585ffc07e13d1f73cf974e2f90eb09、非作者review66fe7a3903619297e9f4b42db6408fd6704354d2665394fc00c10b58f1918471は可決0/0/0。415成功/6未受理凍結失敗と、旧111/44/T24656同値を照合した。これは計画/source候補の有限受領であり、正式7.7値・完全P6/資格・最終CI・T1本体許可ではない。rootは隔離接合でS02全20追加を保持し、正当に増えた5row/5caseのexact件数49/116への検査追随だけを別確認する。正式branch反映は必要な全前後値/識別値/継承受理が閉じた版で行う。
 
 2026-10-25T13:12:36.838715+00:00、rootはPO委任によるCodex判断で、実装済みS02の3契約JSON/試験sourceを含む進行中候補のDraft公開だけを先行する。7.7の履歴値に実PR番号が必要なため、番号未取得の仮受理を正式値として投入しない。通常/prの最終クローズ・全件品質完了は未了と明記し、status active/人間確認未チェックを保持する。これは文書だけの完了PRでもマージ許可でもない。最終候補で既必須CI/独立最終HEAD確認/全値/委任検査を完了する。ハーネス評価台帳への追記なし（今回の限定接合作業だけでは新しい一般傾向を確定できない）。
+
+## Gate6の今回限定append受理手続き
+
+rootはPO委任に基づき、既PR183 carry/schema/旧本人署名・sheetを不変に保ち、新PR185のRBI5行5case appendとdescriptor digest置換だけを受ける別記録を追加する。対象4pathはscripts/check_human_review_signature.py、tests/test_human_review_signature.py、contracts/state-transition/gate6_t1_input_append_schema_v1.json、contracts/state-transition/gate6_t1_input_append_v1.json。既7.7の全値・前後関係は引き続き必要で、旧受理を新本人確認へ拡張しない。
+
+設計base c9adce0f、design SHA ba58ff3edc534ed264936292eb0ff3d6928d4dd24fa8ccaf9c96f4727857baf2、非作者有限設計review ee5893d7a4dcebf42b4611069d3cff4054edc187f5e9a7de24d6df075debcfb3は指摘0。具体化は共有純検査bodyと固定anchor専用private readerを使う。公開rev切替/monkeypatch/旧コード動的実行/一時Git checkoutを採用しない。旧anchor祖先性/全署名byte/旧carry exact/旧対象digestを検査した上で、今回差分は許可位置のexact再構成で現対象全digestへ束縛する。既operation/undo/T2射影不変を保持する。
+
+今回新受理は実PR185/branch/base/head/既core_guard委任証拠へ束縛。後続PRはbaseとの全対象不変のみ継承する。欠落・失効・他PR・版不一致・重大指摘未解消・任意の承認文字列・旧行改変・未知/重複/不足case・余剰field・checkout不一致を拒否する試験を追加する。技術検査だけを最終委任/P6/P7/本体開始成立にしない。source候補をcacheで作り、非作者最終source確認後だけrootが正式反映する。PR184の既helper作者による同sourceの独立採否は不可とし、役割履歴を保持する。
+
+2026-10-25T13:17:19.949623+00:00、判断者Codex rootは上記限定4path/設計具体化をPO委任により承認。新記録の最終受理値は未確定であり今回の計画承認とは別。
