@@ -258,16 +258,39 @@ def test_unsupported_declared_digest_method_is_red() -> None:
         )
 
 
+def _legacy_render_root(tmp_path: Path) -> Path:
+    """旧44行の描画入力をschema/語彙も含め同じ固定anchorへ隔離する。"""
+    root = tmp_path / "legacy-render-anchor"
+    paths = (
+        checker.STATE_TRANSITION_CONTRACT_PATH,
+        checker.STATE_TRANSITION_SCHEMA_PATH,
+        checker.GAME_END_CONTRACT_PATH,
+        checker.GAME_END_SCHEMA_PATH,
+        checker.VOCABULARY_MANIFEST_PATH,
+        "contracts/vocabulary/input_vocabulary_v1.json",
+        "contracts/vocabulary/vocabulary_manifest_schema_v1.json",
+        "contracts/vocabulary/vocabulary_seed_schema_v1.json",
+    )
+    for relative in paths:
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(checker._carry_git_bytes(REPOSITORY_ROOT, [
+            "show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:{relative}",
+        ]))
+    return root
+
+
 def test_matrix_rows_line_review_sheet_is_machine_generated(tmp_path: Path) -> None:
     """ステップ60の未確認表示を含むシートを契約から決定的に生成する。"""
+    legacy_root = _legacy_render_root(tmp_path)
     generated = tmp_path / "matrix_rows_line_review.md"
 
     result = checker.main(
         [
             "--root",
-            str(REPOSITORY_ROOT),
+            str(legacy_root),
             "--matrix-review-contract",
-            str(CONTRACT_PATH),
+            str(legacy_root / CONTRACT_PATH.relative_to(REPOSITORY_ROOT)),
             "--output",
             str(generated),
         ]
@@ -461,25 +484,27 @@ def test_stage2_line_review_sheet_is_complete_and_reproducible(tmp_path: Path) -
     assert "[x]" not in text
 
 
-def test_stage2_line_review_sheet_detects_contract_drift() -> None:
+def test_stage2_line_review_sheet_detects_contract_drift(tmp_path: Path) -> None:
     """契約の期待値が変わると保存済みシートとの一致が崩れる。"""
+    legacy_root = _legacy_render_root(tmp_path)
     game_end = _load_object(GAME_END_CONTRACT_PATH)
     state = _load_object(CONTRACT_PATH)
     game_end["cases"][0]["decision"]["xMark"] = "blank"
     changed = checker.render_stage2_line_review_sheet(
-        REPOSITORY_ROOT, game_end, state
+        legacy_root, game_end, state
     )
     assert changed != STAGE2_REVIEW_SHEET_PATH.read_text(encoding="utf-8")
 
-def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
+def test_matrix_rows_line_review_renderer_accepts_later_rows(tmp_path: Path) -> None:
     """同じ描画器を後続ステップで行追加後も再利用できる。"""
+    legacy_root = _legacy_render_root(tmp_path)
     contract = _load_object(CONTRACT_PATH)
     later_row = copy.deepcopy(contract["matrixRows"][0])
     later_row["resultId"] = "batting-result.single"
     later_row["remarks"] = "後続ステップの再利用確認用"
     contract["matrixRows"].append(later_row)
 
-    sheet = checker.render_matrix_rows_review_sheet(REPOSITORY_ROOT, contract)
+    sheet = checker.render_matrix_rows_review_sheet(legacy_root, contract)
 
     table_rows = [
         line
@@ -493,12 +518,13 @@ def test_matrix_rows_line_review_renderer_accepts_later_rows() -> None:
 
 def test_matrix_rows_result_names_follow_vocabulary_seed(tmp_path: Path) -> None:
     """結果名を固定対応表でなくmanifest参照先の語彙シードから取得する。"""
+    legacy_root = _legacy_render_root(tmp_path)
     vocabulary_root = tmp_path / "contracts/vocabulary"
     state_transition_root = tmp_path / "contracts/state-transition"
-    shutil.copytree(REPOSITORY_ROOT / "contracts/vocabulary", vocabulary_root)
+    shutil.copytree(legacy_root / "contracts/vocabulary", vocabulary_root)
     state_transition_root.mkdir(parents=True)
     shutil.copy2(
-        REPOSITORY_ROOT
+        legacy_root
         / "contracts/state-transition/state_transition_contract_schema_v1.json",
         state_transition_root / "state_transition_contract_schema_v1.json",
     )
@@ -964,6 +990,14 @@ def _t1_append_fixture(
     monkeypatch.setattr(checker, '_carry_core_guard', lambda _: guard)
     anchor = checker._Gate6AcceptedAnchorReader(root)
     subject = anchor.load_json(checker.STATE_TRANSITION_CONTRACT_PATH, '試験旧subject')
+    # 合成appendの現descriptor参照だけは現fixtureの実射影へ束縛する。
+    # 旧anchor本体/旧prefixを変えず、実recordを合成受理に流用しない。
+    descriptor = _load_object(
+        root / 'contracts/state-transition/input_axes_descriptor_v1.json'
+    )
+    descriptor_digest = descriptor_checker.compute_descriptor_digest(descriptor)
+    assert descriptor['digest'] == descriptor_digest
+    subject['inputAxesDescriptor']['digest'] = descriptor_digest
     source_row = subject['matrixRows'][-2]
     source_case = subject['cases'][-2]
     rows, cases, refs = ([], [], [])
