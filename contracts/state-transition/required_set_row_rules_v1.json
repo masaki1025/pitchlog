@@ -217,12 +217,20 @@
           "vocabularyId": "batting-result.single",
           "partitions": [
             "out3-explicit-home-before",
-            "out3-explicit-not-before"
+            "out3-explicit-not-before",
+            "rbi-kept-held-too-long",
+            "rbi-kept-unnecessary-throw",
+            "rbi-restarted-held-after-misplay",
+            "rbi-restarted-throw-after-misplay",
+            "rbi-restarted-held-noncausal"
           ],
           "sourceClauseIds": [
             "req:FR-003",
             "req:OUT3-04",
-            "req:OUT3-05"
+            "req:OUT3-05",
+            "req:RBI-03",
+            "req:RBI-04",
+            "req:RBI-08"
           ]
         }
       ]

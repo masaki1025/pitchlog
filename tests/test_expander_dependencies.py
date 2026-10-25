@@ -490,7 +490,7 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
                 expected.pop(axis_id, None)
             assert game_fixtures[branch_id] == expected
             checked += 1
-    assert checked == 24
+    assert checked == 26
 
 
 @pytest.mark.parametrize(
