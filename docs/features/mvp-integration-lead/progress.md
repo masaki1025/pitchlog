@@ -504,3 +504,16 @@ POが別worktree feature-ux1-undo-ts / branch feature/ux1-undo-ts の成果を�
 
 
 追記: RG1 reader差分はcac43c43へcommit/通常push済み。初期scopeのledger補助は非作者rootが全AST/実ownedPGで確認し、test_real_roles_and_business_observer_are_limited 1成功17.55s。正規0033→0035/profileと実observer最小ACLを確認、所有containercleanup後も共有pitchlog-db-1だけが従前稼働。receipt /home/ymdms/.cache/pitchlog/initial-ledger-support-startup-candidate-20261025/root-review-real-pg-receipt.json。補助は35cc04c3、新DB試験12case候補（実DB0/独立最終未了）は254c9fa4へ保全した。初期branch feature/mvp-initial-grant-connection-candidate。実DB1成功は初期grantの正常成功ではなく既台帳補助の限定検証。次は役割別exact endpointと0036/正式9API・新4表の正本/認可生成供給。
+
+
+## RG1 Draft公開・実検証と次の実画面接合（2026-10-25）
+
+2026-10-25、rootは実Git/cacheを再確認して継続。PR184はDraft（https://github.com/masaki1025/pitchlog/pull/184）、正式develop dcd4fda8の更新はない。remote候補ada3951c、ローカルeda71a48まで保全済み。初回CI40176446281はtenant/core-guard/backendで失敗確定、後続修正の最終CI成功とは扱わない。backend lint2件はf0151fb3で是正・独立203成功。人間確認チェックは代記せず、最終HEAD委任証拠/全必須CI/実supplierと画面201の実証を残す。
+
+- 正常guardの不足11件をsource/有限登録/モデル列exact2箇所で是正した4c677a98は独立0/0/0。完全値の置換受理eda71a48後に、通常tenant CLI exit0とguard全534成功262.61sを確認。旧正式30履歴216snapshotを保持し、未統合#184の1履歴/9snapshotだけ置換、旧版はGit/cacheへ保全。accepted371判断票も保持。以前のraw323→334はcore-areas欠落contextの中間値で、正しい同core文脈の比較は182→182（16追加16削除）。141件差をchecker緩和や正式正常化の証拠としない。
+- 必須Census計測は旧flat scopeと新lexical scopeの差で失敗した。authorは計測1fileだけを修正し、7次元identityを保持して実AST2箇所のみ対応、同core文脈とRG1 exact2抑制の負例を追加。候補109成功315.25s/CLI exit0、source c42c3309。独立確認中で未適用。外部入力が実際に変わるため必要な完全値更新を行い、既受理の無関係な判断を再取得しない。
+- PR184全体edaの予備独立確認は115path・関連196成功・所見0/0/0。後発Census/実値/最終HEADは別確認を残す。実fresh supplier→画面POST201→DB新行→GET/reloadの未実証も明記されている。
+- 初期権候補ではdata-model1.4を786a7e5bでPO委任確定。初回P1二件を反映して独立0。旧履歴を保持し、appの世代直接INSERT剥奪と9API/4表の境界を明記。v2単一worker/journalの役割別2endpoint sourceは1853dc7aへ保存/通常push。owned PGで新dual5成功117.50s、旧v1 DB23成功360.63s、対象6fileの同一hashを実照合。これらは初期grant/HTTP/UI成功ではない。
+- 初期9API/0036/50表の認可候補は独立初回でowner16policyのtenant条件未展開P0を検出し、正式反映前に停止。既単一predicate生成器へ接続した反映1は22source/95data接合・独立0、backend488成功。旧P0と反映履歴を保存。実ownerのA/B越境試験/正式metadata受理/初期grant12 DBcaseは未実行である。
+
+実画面の次の到達点として、eda71a48を基線に既承認create20ee2e98の10製品sourceだけを隔離接合し、operation_registryは既4functionの全登録を保持したままCREATEを追加した。worktree /home/ymdms/.cache/pitchlog/verify-rg1-create-composed-eda71a48、固定manifest /home/ymdms/.cache/pitchlog/rg1-create-composition-20261025/manifest.json。creation_pathはops/cacheを担当、rootはsource/Git/shared台帳の唯一writer。ゲーム事前投入0・実login/C2/単一resolver/実RG1を維持して実Vue新規保存を検証する。初期1.4/v2はこの隔離構成へ混ぜず、生成定数/正式資産受理は未成立のまま明記。新たな実画面成功・開始/初期権・1球保存・T1本体/MVP完成はまだ報告しない。
