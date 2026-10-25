@@ -6,7 +6,6 @@ type DomainErrorCode =
   | 'INVALID_JSON'
   | 'INVALID_REQUEST'
   | 'INVALID_DECIMAL_INTEGER'
-  | 'INVALID_STATE'
   | 'UNSUPPORTED_T1_SCOPE'
 
 function errorResponse(code: DomainErrorCode): string {
@@ -363,7 +362,7 @@ function deriveState(requestJson: string): string {
   const state = readState(fields)
   const scoreboard = readBoard(board)
   if (state === null || scoreboard === null)
-    return errorResponse('INVALID_STATE')
+    return errorResponse('INVALID_REQUEST')
   if (request.eventKind !== 'batting-result')
     return errorResponse('UNSUPPORTED_T1_SCOPE')
   const derived = derive(

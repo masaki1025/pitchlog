@@ -6,6 +6,31 @@ import { describe, expect, it } from 'vitest'
 import { domainOperations } from './publicApi'
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
+const boundary = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../docs/features/tsk544-t1-state-calculation/first-pitch-boundary.json',
+    ),
+    'utf8',
+  ),
+)
+const errorCodes: string[] = boundary.response_schema.oneOf.find(
+  (branch: { properties: { ok: { const: boolean } } }) =>
+    !branch.properties.ok.const,
+).properties.error.properties.code.enum
+
+/** 全異常応答を承認済みの閉じたenvelope/enumへ照合する。 */
+function parseResponse(text: string) {
+  const value = JSON.parse(text)
+  if (value.ok === false) {
+    expect(Object.keys(value).sort()).toEqual(['error', 'ok'])
+    expect(Object.keys(value.error)).toEqual(['code'])
+    expect(errorCodes).toContain(value.error.code)
+  }
+  return value
+}
+
 const contract = JSON.parse(
   readFileSync(
     resolve(
@@ -97,7 +122,7 @@ const implementations = [
 
 describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
   it('正式caseの六効果・全23flag・after・履歴を全値比較する', () => {
-    expect(JSON.parse(invoke(JSON.stringify(request())))).toEqual({
+    expect(parseResponse(invoke(JSON.stringify(request())))).toEqual({
       ok: true,
       value: expected,
     })
@@ -119,7 +144,7 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
     expect(ids.size).toBeGreaterThan(0)
     for (const resultId of ids) {
       const input = { ...request(), resultId }
-      expect(JSON.parse(invoke(JSON.stringify(input)))).toEqual({
+      expect(parseResponse(invoke(JSON.stringify(input)))).toEqual({
         ok: false,
         error: { code: 'UNSUPPORTED_T1_SCOPE' },
       })
@@ -131,7 +156,7 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
     (half) => {
       const input = request()
       input.before.stateFields['state.half'] = half
-      expect(JSON.parse(invoke(JSON.stringify(input))).ok).toBe(false)
+      expect(parseResponse(invoke(JSON.stringify(input))).ok).toBe(false)
     },
   )
 
@@ -147,7 +172,7 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
   ])('未対応状態%sを適用しない', (key, value) => {
     const input = request()
     objectAt(input, ['before', 'stateFields'])[key as string] = value
-    expect(JSON.parse(invoke(JSON.stringify(input)))).toEqual({
+    expect(parseResponse(invoke(JSON.stringify(input)))).toEqual({
       ok: false,
       error: { code: 'UNSUPPORTED_T1_SCOPE' },
     })
@@ -158,12 +183,26 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
     (value) => {
       const input = request()
       objectAt(input, ['before', 'stateFields'])['state.count.balls'] = value
-      expect(JSON.parse(invoke(JSON.stringify(input)))).toEqual({
+      expect(parseResponse(invoke(JSON.stringify(input)))).toEqual({
         ok: false,
         error: { code: 'INVALID_DECIMAL_INTEGER' },
       })
     },
   )
+
+  it.each([
+    ['state.half', 'unknown-half'],
+    ['state.gameEnded', 'false'],
+    ['state.tiebreakActive', 0],
+    ['state.runners', null],
+  ])('不正型%sは閉じた既存errorで拒否する', (key, value) => {
+    const input = request()
+    objectAt(input, ['before', 'stateFields'])[key as string] = value
+    expect(parseResponse(invoke(JSON.stringify(input)))).toEqual({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    })
+  })
 
   it('全objectの余剰fieldと必須field欠落を拒否する', () => {
     const paths = [
@@ -178,7 +217,7 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
       const input = request()
       const target = objectAt(input, path)
       target.unexpected = true
-      expect(JSON.parse(invoke(JSON.stringify(input)))).toEqual({
+      expect(parseResponse(invoke(JSON.stringify(input)))).toEqual({
         ok: false,
         error: { code: 'INVALID_REQUEST' },
       })
@@ -187,7 +226,7 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
         const bad = structuredClone(input)
         const object = objectAt(bad, path)
         delete object[key]
-        expect(JSON.parse(invoke(JSON.stringify(bad)))).toEqual({
+        expect(parseResponse(invoke(JSON.stringify(bad)))).toEqual({
           ok: false,
           error: { code: 'INVALID_REQUEST' },
         })
@@ -198,10 +237,10 @@ describe.each(implementations)('$name の最初の一球', ({ invoke }) => {
   it('欠落投影を0で補わず、入力済み非0投影も未対応として拒否する', () => {
     const input = request()
     delete objectAt(input, ['before']).scoreboard
-    expect(JSON.parse(invoke(JSON.stringify(input))).ok).toBe(false)
+    expect(parseResponse(invoke(JSON.stringify(input))).ok).toBe(false)
     const other = request()
     other.before.scoreboard.hits = '1'
-    expect(JSON.parse(invoke(JSON.stringify(other)))).toEqual({
+    expect(parseResponse(invoke(JSON.stringify(other)))).toEqual({
       ok: false,
       error: { code: 'UNSUPPORTED_T1_SCOPE' },
     })
@@ -214,7 +253,7 @@ it.each([
 ])('実artifactの非等価変異%sを正式caseが検出する', (before, after) => {
   expect(artifact.split(before)).toHaveLength(2)
   const mutant = artifactOperation(artifact.replace(before, after))
-  expect(JSON.parse(mutant(JSON.stringify(request())))).not.toEqual({
+  expect(parseResponse(mutant(JSON.stringify(request())))).not.toEqual({
     ok: true,
     value: expected,
   })

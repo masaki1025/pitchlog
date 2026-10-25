@@ -6,11 +6,20 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pitchlog.domainrt.host import NodeDomainHost
+import pytest
+from jsonschema import Draft202012Validator
+
+from pitchlog.domainrt.host import DomainRuntimeError, NodeDomainHost
 
 _ROOT = Path(__file__).resolve().parents[3]
 _ARTIFACT = _ROOT / "frontend/public/domain/pitchlog-domain.js"
 _DECLARATION = _ROOT / "frontend/public/domain/pitchlog-domain.json"
+_BOUNDARY = json.loads(
+    (
+        _ROOT / "docs/features/tsk544-t1-state-calculation/first-pitch-boundary.json"
+    ).read_text()
+)
+_RESPONSE_VALIDATOR = Draft202012Validator(_BOUNDARY["response_schema"])
 
 
 def _decimalize(value: Any) -> Any:
@@ -66,6 +75,7 @@ def test_real_node_host_matches_complete_first_pitch_contract() -> None:
     expected["after"] = case["historyInput"]["after"]
     with NodeDomainHost(_ARTIFACT, _DECLARATION) as host:
         actual = json.loads(host.call("deriveState", json.dumps(_request(case))))
+    _RESPONSE_VALIDATOR.validate(actual)
     assert actual == {"ok": True, "value": _decimalize(expected)}
     assert len(actual["value"]["statFlags"]) == 23
 
@@ -76,4 +86,34 @@ def test_real_node_host_rejects_unimplemented_operation() -> None:
     request["resultId"] = "batting-result.home-run"
     with NodeDomainHost(_ARTIFACT, _DECLARATION) as host:
         actual = json.loads(host.call("deriveState", json.dumps(request)))
+    _RESPONSE_VALIDATOR.validate(actual)
     assert actual == {"ok": False, "error": {"code": "UNSUPPORTED_T1_SCOPE"}}
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid"),
+    [
+        ("state.half", "unknown-half"),
+        ("state.gameEnded", "false"),
+        ("state.tiebreakActive", "0"),
+        ("state.runners", None),
+    ],
+)
+def test_real_error_matches_closed_response_schema(field: str, invalid: Any) -> None:
+    """実hostの不正型拒否が未登録codeを返さないことを検証する。"""
+    request = _request(_case())
+    request["before"]["stateFields"][field] = invalid
+    with NodeDomainHost(_ARTIFACT, _DECLARATION) as host:
+        actual = json.loads(host.call("deriveState", json.dumps(request)))
+    _RESPONSE_VALIDATOR.validate(actual)
+    assert actual == {"ok": False, "error": {"code": "INVALID_REQUEST"}}
+
+
+def test_number_in_boolean_field_is_rejected_by_host_boundary() -> None:
+    """数値JSONはartifactへ流入する前に既hostが拒否する。"""
+    request = _request(_case())
+    request["before"]["stateFields"]["state.tiebreakActive"] = 0
+    with NodeDomainHost(_ARTIFACT, _DECLARATION) as host:
+        with pytest.raises(DomainRuntimeError) as error:
+            host.call("deriveState", json.dumps(request))
+    assert error.value.code == "INVALID_BOUNDARY"
