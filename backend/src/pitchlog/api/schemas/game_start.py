@@ -9,9 +9,11 @@ RequestValidationError.bodyも含め、内部入力まで無害化されたと�
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Any, Self
 
 from pydantic import (
+    AwareDatetime,
     ConfigDict,
     Field,
     JsonValue,
@@ -114,3 +116,126 @@ class GameStartRequest(BaseSchema):
         except ValidationError as error:
             sanitized = _without_input(cls.__name__, error)
         raise sanitized
+
+
+class _InitialResponseSchema(BaseSchema):
+    """通信値の不変外形。通過しても発行・commit・認可の証明ではない。"""
+
+    model_config = ConfigDict(frozen=True, strict=True, hide_input_in_errors=True)
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def _safe_response(
+        cls, value: Any, handler: ModelWrapValidatorHandler[Self]
+    ) -> Self:
+        """公開Class入口で資格を含む入力と元例外を外へ連結しない。"""
+        try:
+            return handler(value)
+        except ValidationError as error:
+            sanitized = _without_input(cls.__name__, error)
+        raise sanitized
+
+    @classmethod
+    def model_validate_json(
+        cls, json_data: str | bytes | bytearray, **kwargs: Any
+    ) -> Self:
+        """構文エラーも安全な公開Class境界へ閉じる。"""
+        try:
+            return super().model_validate_json(json_data, **kwargs)
+        except ValidationError as error:
+            sanitized = _without_input(cls.__name__, error)
+        raise sanitized
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """不変値への代入失敗にも提示された資格を残さない。"""
+        try:
+            super().__setattr__(name, value)
+        except ValidationError as error:
+            sanitized = _without_input(type(self).__name__, error)
+        else:
+            return
+        raise sanitized
+
+
+class InitialDeviceEnrollmentResponse(_InitialResponseSchema):
+    """端末登録の応答外形。A単位では登録操作を実行しない。"""
+
+    tenant_id: EntityId
+    device_id: EntityId
+    device_credential: SecretStr
+
+    @field_validator("device_credential")
+    @classmethod
+    def _credential_present(cls, value: SecretStr) -> SecretStr:
+        """空資格を補完しない。"""
+        if (
+            type(value) is not SecretStr
+            or type(value.get_secret_value()) is not str
+            or not value.get_secret_value()
+            or len(value.get_secret_value()) > 4096
+        ):
+            raise ValueError("端末資格の外形が不正")
+        return value
+
+
+class InitialGameStartResponse(_InitialResponseSchema):
+    """開始原本と初期権の外形。初期stateやReadyを生成しない。"""
+
+    tenant_id: EntityId
+    game_id: EntityId
+    start_request_id: EntityId
+    device_id: EntityId
+    d4: str
+    recovery_generation: str
+    recording_right_proof: SecretStr
+    started_at: AwareDatetime
+    away_lineup_id: EntityId
+    home_lineup_id: EntityId
+
+    @field_validator("started_at", mode="before")
+    @classmethod
+    def _timestamp(cls, value: object) -> datetime:
+        """JSONの日時文字列だけを明示解析し、数値timestampを拒否する。"""
+        if type(value) is datetime:
+            return value
+        if type(value) is str and len(value) <= 64:
+            try:
+                return datetime.fromisoformat(value)
+            except ValueError:
+                pass
+        raise ValueError("開始日時の外形が不正")
+
+    @field_validator("d4")
+    @classmethod
+    def _reference_present(cls, value: str) -> str:
+        """一般D4ではなく本応答の参照上限だけを検査する。"""
+        if not value or len(value) > 128:
+            raise ValueError("世代参照の外形が不正")
+        return value
+
+    @field_validator("recovery_generation")
+    @classmethod
+    def _epoch_present(cls, value: str) -> str:
+        """正のbigint十進表現だけを受け、bool/numberを変換しない。"""
+        if (
+            not value.isascii()
+            or not value.isdecimal()
+            or value.startswith("0")
+            or len(value) > 19
+            or int(value) > 2**63 - 1
+        ):
+            raise ValueError("復旧世代の外形が不正")
+        return value
+
+    @field_validator("recording_right_proof")
+    @classmethod
+    def _proof_present(cls, value: SecretStr) -> SecretStr:
+        """原V12を通常dumpへ出さず、不在を補完しない。"""
+        if (
+            type(value) is not SecretStr
+            or type(value.get_secret_value()) is not str
+            or not value.get_secret_value()
+            or len(value.get_secret_value()) > 4096
+        ):
+            raise ValueError("記録権提示値の外形が不正")
+        return value

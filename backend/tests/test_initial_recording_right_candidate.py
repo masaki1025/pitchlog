@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import replace
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
@@ -873,3 +874,515 @@ def test_start_business_reuses_the_single_issuer_and_commit_owner(
         is grant
     )
     assert len(seen) == 1 and len(seen[0]) == 6
+
+
+def _transport_start():
+    """公開合成値だけで通信外形を作る。発行やcommitの証拠ではない。"""
+    from pydantic import SecretStr
+    from test_initial_game_start_components import _CREDENTIAL, _bind
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    bound = _bind()
+    identity = b._BrokerIdentity(
+        bound.owner.tenant_id, UUID(int=901), SecretStr("test-cookie")
+    )
+    return b._StartInitialGameCommand(
+        identity,
+        bound.owner.game_id,
+        bound.owner.start_request_id,
+        bound.owner.device_id,
+        SecretStr(_CREDENTIAL),
+        bound.payload,
+    )
+
+
+def _transport_postcommit_shape():
+    """同戻り値の投影テスト用。実_start_initial_gameを実行したとはしない。"""
+    from datetime import datetime, timezone
+
+    from test_initial_game_start_components import _bind
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.recording_rights.initial_grant import InitialGrant
+    from pitchlog.repositories.game_start import InitialStartReceipt
+
+    owner = _bind().owner
+    grant = InitialGrant(owner.game_id, 17, "2", owner.device_id, "test-proof")
+    receipt = InitialStartReceipt(
+        owner, datetime(2026, 10, 26, tzinfo=timezone.utc), UUID(int=31), UUID(int=32)
+    )
+    return owner, b._InitialStartedGame(grant, receipt)
+
+
+@pytest.mark.parametrize("generation", [1, 2, 255, 256, 2**53, 2**63 - 1])
+def test_broker_private_d4_codec_has_exact_owner_and_bigint_range(generation) -> None:
+    """D4はopaque往復だけを扱い、parseを権利照合にしない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    value = b._broker_d4(_TENANT, _GAME, generation)
+    assert len(value) == 60 and not value.isdecimal()
+    assert b._broker_generation(value, _TENANT, _GAME) == generation
+    for bad in [value + "=", value + "\n", value[:-1], "d4.2." + value[5:]]:
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._broker_generation(bad, _TENANT, _GAME)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_generation(value, _OTHER_TENANT, _GAME)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_generation(value, _TENANT, UUID(int=999))
+
+
+@pytest.mark.parametrize("generation", [True, False, 0, -1, 1.0, "1", 2**63, None])
+def test_broker_d4_never_coerces_or_reuses_invalid_generation(generation) -> None:
+    """数値coercion/overflowをcodec内で拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_d4(_TENANT, _GAME, generation)
+
+
+@pytest.mark.parametrize("operation", ["enroll", "start", "resolve"])
+def test_broker_command_dispatch_only_roundtrips_immutable_shape(
+    operation, monkeypatch
+) -> None:
+    """dispatchがissuer/SQLを呼ばず、deep frozen要求だけへ分類する。"""
+    from dataclasses import FrozenInstanceError
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A dispatch must not execute a worker")
+
+    monkeypatch.setattr(b, "_start_initial_game", forbidden)
+    monkeypatch.setattr(b, "_issue_initial_grant", forbidden)
+    start = _transport_start()
+    command = (
+        b._EnrollDeviceCommand(start.identity)
+        if operation == "enroll"
+        else b._ResolveStartCommand(start)
+        if operation == "resolve"
+        else start
+    )
+    frame = b._encode_initial_command(command)
+    decoded = b._decode_initial_command(frame)
+    assert type(decoded) is type(command) and decoded == command
+    assert b._encode_initial_command(decoded) == frame
+    assert "test-cookie" not in repr(command)
+    assert start.device_credential.get_secret_value() not in repr(command)
+    with pytest.raises(FrozenInstanceError):
+        start.game_id = UUID(int=999)
+    with pytest.raises(FrozenInstanceError):
+        start.payload.away[0].batting_order = 3
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "extra",
+        "version_bool",
+        "version_float",
+        "unknown",
+        "tenant_upper",
+        "cookie_number",
+        "request_extra",
+        "order_bool",
+        "role_extra",
+        "device_upper",
+        "empty_cookie",
+        "oversize_cookie",
+    ],
+)
+def test_broker_command_rejects_all_unknown_and_normalized_wire_values(
+    mutation,
+) -> None:
+    """閉member/整数/UUIDの正規化穴をwire逆射影で閉じる。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    value: dict[str, Any] = b._broker_command_source(_transport_start())
+    if mutation == "extra":
+        value["tenant_context"] = {"valid": True}
+    elif mutation == "version_bool":
+        value["version"] = True
+    elif mutation == "version_float":
+        value["version"] = 1.0
+    elif mutation == "unknown":
+        value["command"] = "advance"
+    elif mutation == "tenant_upper":
+        value["expected_tenant_id"] = "{00000000-0000-0000-0000-000000000001}"
+    elif mutation == "cookie_number":
+        value["cookie"] = 1
+    elif mutation == "request_extra":
+        value["request"]["attempt_id"] = str(UUID(int=8))
+    elif mutation == "order_bool":
+        value["request"]["away"][0]["batting_order"] = True
+    elif mutation == "role_extra":
+        value["request"]["away"][0]["fielding_position"]["trusted"] = True
+    elif mutation == "device_upper":
+        value["request"]["device_id"] = "00000000000000000000000000000005"
+    elif mutation == "empty_cookie":
+        value["cookie"] = ""
+    elif mutation == "oversize_cookie":
+        value["cookie"] = "x" * 4097
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._decode_initial_command(b._broker_frame(value))
+    assert "test-cookie" not in str(caught.value) and caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"cookie":"sensitive","cookie":"again"}',
+        b'{"cookie":NaN}',
+        b'{"cookie":Infinity}',
+        b'{"cookie":1e999}',
+        b"[]",
+        b"{",
+        b'{"cookie":"sensitive"}\n',
+        b'{ "cookie": "sensitive" }',
+        b"{}{}",
+        b"\xff",
+    ],
+)
+def test_broker_frame_rejects_duplicate_nonfinite_and_ambiguous_json(body) -> None:
+    """資格を含む壊れJSONの元例外を露出しない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._decode_initial_command(len(body).to_bytes(4, "big") + body)
+    assert "sensitive" not in str(caught.value) and caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "frame", [b"", b"\0\0\0\0", b"\0\0\0\x02{", b"\xff" * 4, b"\0\0\0\x02{}x"]
+)
+def test_broker_frame_requires_exact_single_bounded_length(frame) -> None:
+    """不足/余剰/過大のframeを先拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_object(frame)
+
+
+@pytest.mark.parametrize(
+    "owner_field",
+    [
+        "tenant_id",
+        "game_id",
+        "start_request_id",
+        "device_id",
+        "attempt_id",
+        "request_digest",
+    ],
+)
+def test_broker_postcommit_projection_requires_entire_server_resolved_owner(
+    owner_field,
+) -> None:
+    """receiptに無いgeneration等を仮定せず、実在owner全値を照合する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    owner, result = _transport_postcommit_shape()
+    response = b._postcommit_start_response(result, owner)
+    assert (
+        b._broker_generation(response.d4, owner.tenant_id, owner.game_id)
+        == result.grant.generation
+    )
+    bad = replace(
+        owner,
+        **{
+            owner_field: b"x" * 32 if owner_field == "request_digest" else UUID(int=999)
+        },
+    )
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._postcommit_start_response(result, bad)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("game_id", UUID(int=999)),
+        ("holder_device_id", UUID(int=999)),
+        ("generation", True),
+        ("generation", 0),
+        ("recovery_generation", "02"),
+    ],
+)
+def test_broker_postcommit_projection_reads_only_same_result_grant(
+    field, value
+) -> None:
+    """独立に渡す世代はなく、同戻り値の共通game/deviceも再照合する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    owner, result = _transport_postcommit_shape()
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._postcommit_start_response(
+            replace(result, grant=replace(result.grant, **{field: value})), owner
+        )
+
+
+def test_broker_reply_secret_output_is_explicit_and_same_owner() -> None:
+    """合成codec往復だけを検査し、これを実start/commitと呼ばない。"""
+    from pydantic import SecretStr
+
+    from pitchlog.api.schemas.game_start import InitialDeviceEnrollmentResponse
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    start = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    response = b._postcommit_start_response(result, owner)
+    for command in [start, b._ResolveStartCommand(start)]:
+        reply = b._BrokerReply("started", response)
+        frame = b._encode_initial_reply(command, reply)
+        assert b._decode_initial_reply(frame, command) == reply
+        assert b"test-proof" in frame and "test-proof" not in repr(reply)
+        assert "test-proof" not in response.model_dump_json()
+    enroll = b._EnrollDeviceCommand(start.identity)
+    model = InitialDeviceEnrollmentResponse(
+        tenant_id=owner.tenant_id,
+        device_id=owner.device_id,
+        device_credential=SecretStr("device-secret"),
+    )
+    frame = b._encode_initial_reply(enroll, b._BrokerReply("enrolled", model))
+    assert b"device-secret" in frame and "device-secret" not in model.model_dump_json()
+    assert b._decode_initial_reply(frame, enroll).value == model
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "challenge",
+        "command",
+        "tenant_id",
+        "game_id",
+        "start_request_id",
+        "device_id",
+        "d4",
+        "extra",
+        "epoch_bool",
+        "proof_number",
+        "unknown_status",
+        "failure_with_value",
+        "datetime_normalization",
+    ],
+)
+def test_broker_reply_rejects_stale_foreign_extra_and_normalized_values(
+    mutation,
+) -> None:
+    """同frame対応/owner/閉bodyを照合し、未知結果を成功へ落とさない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    value: dict[str, Any] = b._initial_reply_source(
+        command, b._BrokerReply("started", b._postcommit_start_response(result, owner))
+    )
+    if mutation in ("challenge", "command"):
+        value[mutation] = str(UUID(int=999))
+    elif mutation in ("tenant_id", "game_id", "start_request_id", "device_id"):
+        value["value"][mutation] = str(UUID(int=999))
+    elif mutation == "d4":
+        value["value"]["d4"] += "="
+    elif mutation == "extra":
+        value["value"]["recordingRight"] = True
+    elif mutation == "epoch_bool":
+        value["value"]["recovery_generation"] = True
+    elif mutation == "proof_number":
+        value["value"]["recording_right_proof"] = 123
+    elif mutation == "unknown_status":
+        value["status"] = "ready"
+    elif mutation == "failure_with_value":
+        value["status"] = "unresolved"
+    elif mutation == "datetime_normalization":
+        value["value"]["started_at"] = value["value"]["started_at"].replace(
+            "Z", "+00:00"
+        )
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._decode_initial_reply(b._broker_frame(value), command)
+    assert "test-proof" not in str(caught.value) and caught.value.__context__ is None
+
+
+@pytest.mark.parametrize("status", ["denied", "conflict", "unavailable", "unresolved"])
+def test_broker_failure_and_unknown_preserve_no_value_or_new_attempt(status) -> None:
+    """結果不明は型のまま返し、再発行や自動再送へ変換しない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    reply = b._BrokerReply(status)
+    assert (
+        b._decode_initial_reply(b._encode_initial_reply(command, reply), command)
+        == reply
+    )
+    assert reply.value is None
+
+
+def test_broker_real_unix_peer_credential_and_eof_are_enforced(monkeypatch) -> None:
+    """実socketpairの資格/終端を検査。20002配置/製品worker成功ではない。"""
+    import os
+    import socket
+    import threading
+    from time import monotonic
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    left, right = socket.socketpair()
+    try:
+        if os.getuid() != 20002 or os.getgid() != 20002:
+            with pytest.raises(b.InitialBrokerUnavailable):
+                b._check_broker_peer(left)
+        # helperの実peer照合を実UID/GIDで確認。製品固定値はmonkeypatch終了時に戻る。
+        monkeypatch.setattr(b, "_BROKER_SERVER_UID", os.getuid())
+        monkeypatch.setattr(b, "_BROKER_SERVER_GID", os.getgid())
+        b._check_broker_peer(left)
+        wire = b._encode_initial_reply(_transport_start(), b._BrokerReply("unresolved"))
+
+        def write():
+            for part in [wire[:2], wire[2:5], wire[5:]]:
+                right.sendall(part)
+            right.shutdown(socket.SHUT_WR)
+
+        sender = threading.Thread(target=write)
+        sender.start()
+        try:
+            assert b._broker_receive(left, monotonic() + 1) == wire
+        finally:
+            sender.join(timeout=2)
+        assert not sender.is_alive()
+    finally:
+        left.close()
+        right.close()
+
+
+@pytest.mark.parametrize("kind", ["early_eof", "extra", "deadline"])
+def test_broker_actual_socket_rejects_eof_extra_and_expired_deadline(kind) -> None:
+    """Owned socketだけで失敗を実観測し、待機期限を延長しない。"""
+    import socket
+    from time import monotonic
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    left, right = socket.socketpair()
+    try:
+        wire = b._encode_initial_reply(_transport_start(), b._BrokerReply("unresolved"))
+        if kind == "early_eof":
+            right.sendall(wire[:-1])
+            right.shutdown(socket.SHUT_WR)
+        elif kind == "extra":
+            right.sendall(wire + b"x")
+            right.shutdown(socket.SHUT_WR)
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._broker_receive(
+                left, monotonic() - 1 if kind == "deadline" else monotonic() + 1
+            )
+    finally:
+        left.close()
+        right.close()
+
+
+def test_broker_endpoint_and_client_fail_closed_without_root_supply(
+    tmp_path, monkeypatch
+) -> None:
+    """所有uid1000配置をroot設定として採用せず、任意path引数も受けない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    target = tmp_path / "endpoint.json"
+    target.write_text("{}")
+    monkeypatch.setattr(b, "_BROKER_ENDPOINT_PATH", target)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._InitialBrokerClient()
+    with pytest.raises(TypeError):
+        cast(Any, b._InitialBrokerClient)(target)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_trusted_parents(Path("relative.sock"))
+
+
+def test_broker_forced_nested_changes_never_bypass_wire_revalidation() -> None:
+    """model_construct/低水準改変もcodec全wire照合で成功へ採用しない。"""
+    from pitchlog.api.schemas.game_start import InitialGameStartResponse
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    start = _transport_start()
+    object.__setattr__(start.payload.away[0], "batting_order", True)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._encode_initial_command(start)
+    start = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    good = b._postcommit_start_response(result, owner)
+    bad = cast(Any, InitialGameStartResponse.model_construct)(
+        **{**vars(good), "recovery_generation": True}
+    )
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._encode_initial_reply(start, b._BrokerReply("started", bad))
+
+
+def test_broker_actual_socket_inode_mode_owner_and_replacement(
+    tmp_path, monkeypatch
+) -> None:
+    """実statで対向検査。uid1000の低層機構確認でroot配置成功を主張しない。"""
+    import os
+    import socket
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    path = tmp_path / "peer.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
+        directory = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            # owned pytest pathの長さをAF_UNIX制限へ持ち込まない。
+            peer.bind(f"/proc/self/fd/{directory}/peer.sock")
+        finally:
+            os.close(directory)
+        path.chmod(0o660)
+        info = path.stat(follow_symlinks=False)
+        endpoint = b._BrokerEndpoint(path, info.st_dev, info.st_ino, info.st_gid)
+        if os.getuid() != 20002:
+            with pytest.raises(b.InitialBrokerUnavailable):
+                b._validate_broker_socket_observation(info, endpoint)
+        monkeypatch.setattr(b, "_BROKER_SERVER_UID", os.getuid())
+        b._validate_broker_socket_observation(info, endpoint)
+        for change in [
+            dict(inode=info.st_ino + 1),
+            dict(device=info.st_dev + 1),
+            dict(group=info.st_gid + 1),
+        ]:
+            with pytest.raises(b.InitialBrokerUnavailable):
+                b._validate_broker_socket_observation(info, replace(endpoint, **change))
+        path.chmod(0o666)
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._validate_broker_socket_observation(path.stat(), endpoint)
+        path.unlink()
+        path.write_text("replacement")
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._validate_broker_socket_observation(path.stat(), endpoint)
+
+
+def test_broker_forced_raw_secret_response_never_reaches_warning_or_log(
+    recwarn,
+) -> None:
+    """低水準型すり抜けをserializer前に拒否し、警告への原値流出も防ぐ。"""
+    from pitchlog.api.schemas.game_start import InitialGameStartResponse
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    good = b._postcommit_start_response(result, owner)
+    bad = cast(Any, InitialGameStartResponse.model_construct)(
+        **{**vars(good), "recording_right_proof": "raw-private-value"}
+    )
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._encode_initial_reply(command, b._BrokerReply("started", bad))
+    assert not recwarn.list and "raw-private-value" not in str(caught.value)
+    assert caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "inner",
+    [True, 123, {"secret": "raw-private-value"}, ["raw-private-value"], "\ud800"],
+)
+def test_broker_secret_wrapper_does_not_make_invalid_inner_types_valid(inner) -> None:
+    """SecretStrの直接構築/不正Unicodeでも固定外形で拒否する。"""
+    from pydantic import SecretStr
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._BrokerIdentity(UUID(int=1), UUID(int=2), cast(Any, SecretStr)(inner))
+    assert "raw-private-value" not in str(caught.value)

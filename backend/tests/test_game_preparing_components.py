@@ -740,3 +740,134 @@ def test_initial_storage_migration_is_frozen_and_never_backfills_epoch() -> None
     assert "UPDATE public.recording_generations" not in source.read_text()
     assert '"rg1_restore_gate"' not in source.read_text()
     assert module["revision"] == "0036_initial_recording_right_storage"
+
+
+def _initial_transport_response_values():
+    """公開合成の応答外形。実発行/commit成功を代用しない。"""
+    from pydantic import SecretStr
+
+    from pitchlog.api.schemas.game_start import (
+        InitialDeviceEnrollmentResponse,
+        InitialGameStartResponse,
+    )
+    from pitchlog.recording_rights.initial_grant_broker import _broker_d4
+
+    tenant, game = UUID(int=1), UUID(int=2)
+    enrollment = dict(
+        tenant_id=tenant,
+        device_id=UUID(int=5),
+        device_credential=SecretStr("synthetic-enroll-sensitive"),
+    )
+    started = dict(
+        tenant_id=tenant,
+        game_id=game,
+        start_request_id=UUID(int=4),
+        device_id=UUID(int=5),
+        d4=_broker_d4(tenant, game, 17),
+        recovery_generation="2",
+        recording_right_proof=SecretStr("synthetic-proof-sensitive"),
+        started_at=datetime(2026, 10, 26, tzinfo=timezone.utc),
+        away_lineup_id=UUID(int=31),
+        home_lineup_id=UUID(int=32),
+    )
+    return [
+        (InitialDeviceEnrollmentResponse, enrollment, "synthetic-enroll-sensitive"),
+        (InitialGameStartResponse, started, "synthetic-proof-sensitive"),
+    ]
+
+
+@pytest.mark.parametrize("index", [0, 1])
+def test_initial_transport_response_is_frozen_and_ordinary_dump_is_redacted(
+    index,
+) -> None:
+    """通常json/reprと代入/別field不正のerrorへ資格を残さない。"""
+    model, values, secret = _initial_transport_response_values()[index]
+    response = model.model_validate(values)
+    assert secret not in repr(response) and secret not in str(response)
+    assert secret not in response.model_dump_json()
+    secret_field = "device_credential" if index == 0 else "recording_right_proof"
+    with pytest.raises(ValidationError) as caught:
+        setattr(response, secret_field, secret)
+    assert secret not in str(caught.value) and secret not in caught.value.json()
+    assert (
+        secret not in repr(caught.value.errors()) and caught.value.__context__ is None
+    )
+    for invalid in [
+        {**values, "tenant_id": False},
+        {**values, secret: secret},
+        {k: v for k, v in values.items() if k != "device_id"},
+    ]:
+        with pytest.raises(ValidationError) as caught:
+            model.model_validate(invalid)
+        assert secret not in str(caught.value) and secret not in caught.value.json()
+        assert (
+            secret not in repr(caught.value.errors())
+            and caught.value.__context__ is None
+        )
+    with pytest.raises(ValidationError) as caught:
+        model.model_validate_json('{"device_credential":"' + secret + '",')
+    assert secret not in str(caught.value) and secret not in caught.value.json()
+
+
+@pytest.mark.parametrize(
+    "value", [0, True, 1.0, "0", "01", "2\n", "2\r\n", "2 ", "9223372036854775808"]
+)
+def test_initial_transport_response_epoch_has_no_numeric_or_canonical_coercion(
+    value,
+) -> None:
+    """応答epochを正値/十進の閉表現に保つ。"""
+    model, values, _ = _initial_transport_response_values()[1]
+    with pytest.raises(ValidationError):
+        model.model_validate({**values, "recovery_generation": value})
+
+
+def test_initial_transport_http_validation_uses_real_common_safe_handler(
+    caplog,
+) -> None:
+    """通常FastAPI検証の構文/他field不正でも応答/logへ資格を出さない。"""
+    from fastapi.testclient import TestClient
+    from test_initial_game_start_components import _body
+
+    from pitchlog.api.errors import register_exception_handlers
+    from pitchlog.api.schemas.game_start import GameStartRequest
+
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    # ローカル型をFastAPIが解決できるよう、宣言済み公開Classを注釈へ設定する。
+    def validate(body):
+        return {"shape": True}
+
+    validate.__annotations__ = {"body": GameStartRequest}
+    app.post("/shape-only")(validate)
+    secret = "synthetic-http-sensitive"
+    valid = _body()
+    valid["device_credential"] = secret
+    with TestClient(app) as client:
+        for raw in [
+            '{"device_credential":"' + secret + '",',
+            json.dumps({**valid, "start_request_id": "bad"}),
+            json.dumps({**valid, secret: secret}),
+        ]:
+            response = client.post(
+                "/shape-only", content=raw, headers={"content-type": "application/json"}
+            )
+            assert response.status_code == 422 and secret not in response.text
+    for record in caplog.records:
+        assert secret not in record.getMessage() and record.exc_info is None
+
+
+@pytest.mark.parametrize("inner", [True, 123, {"secret": "raw-private-value"}])
+@pytest.mark.parametrize("index", [0, 1])
+def test_initial_transport_response_revalidates_direct_secret_wrapper_inner(
+    index, inner
+) -> None:
+    """直接SecretStr構築でも原入力や別例外を露出しない。"""
+    from pydantic import SecretStr
+
+    model, values, _ = _initial_transport_response_values()[index]
+    name = "device_credential" if index == 0 else "recording_right_proof"
+    with pytest.raises(ValidationError) as caught:
+        model.model_validate({**values, name: cast(Any, SecretStr)(inner)})
+    assert "raw-private-value" not in str(caught.value)
+    assert caught.value.__context__ is None

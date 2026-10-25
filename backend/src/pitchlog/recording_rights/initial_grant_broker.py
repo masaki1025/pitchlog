@@ -2,21 +2,30 @@
 
 from __future__ import annotations
 
+import base64
 import hmac
 import json
 import os
+import socket
 import stat
+import struct
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from time import monotonic
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast
 from uuid import UUID
 
+from pydantic import SecretStr
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DisconnectionError
 
+from pitchlog.api.schemas.game_start import (
+    InitialDeviceEnrollmentResponse,
+    InitialGameStartResponse,
+)
 from pitchlog.authz.database_transport import require_database_transport
 from pitchlog.db.engine import engine_connect_args
 from pitchlog.db.url import normalize_postgresql_url
@@ -32,6 +41,7 @@ from pitchlog.recording_rights.initial_grant import (
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.game_start import (
     BoundInitialStartPayload,
+    InitialStartPayload,
     InitialStartReceipt,
 )
 from pitchlog.repositories.initial_recording_right import (
@@ -433,3 +443,673 @@ def _start_initial_game(
     if type(receipt) is not InitialStartReceipt:
         raise InitialGrantUnavailable("開始保存原本を確認できない")
     return _InitialStartedGame(grant, receipt)
+
+
+# Aは通信の型・表現だけ。実Cookie再検証/SQL/workerは後続Bで接続する。
+_BROKER_MAX_FRAME = 131072
+_BROKER_TIMEOUT = 2.0
+_BROKER_SERVER_UID = 20002
+_BROKER_SERVER_GID = 20002
+_BROKER_ENDPOINT_PATH = Path("/run/pitchlog/initial-broker-endpoint.json")
+
+
+class InitialBrokerUnavailable(RuntimeError):
+    """通信を確認できない。業務rollbackや未使用予約を意味しない。"""
+
+    def __init__(self) -> None:
+        """原例外/資格/pathを受けない固定外形を作る。"""
+        super().__init__("開始通信を確認できない（結果不明の可能性）")
+
+
+def _broker_invalid() -> InitialBrokerUnavailable:
+    """入力を例外へ取り込まない。"""
+    return InitialBrokerUnavailable()
+
+
+def _broker_d4(tenant_id: UUID, game_id: UUID, generation: int) -> str:
+    """本issuerの実世代をowner付き参照へ写す。発行/認可は行わない。"""
+    if (
+        type(tenant_id) is not UUID
+        or type(game_id) is not UUID
+        or type(generation) is not int
+        or not 0 < generation < 2**63
+    ):
+        raise _broker_invalid()
+    raw = b"\x01" + tenant_id.bytes + game_id.bytes + generation.to_bytes(8, "big")
+    return "d4.1." + base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _broker_generation(value: str, tenant_id: UUID, game_id: UUID) -> int:
+    """本issuer参照だけを解く。実権利/失効/epoch/RG1照合の代用ではない。"""
+    try:
+        if type(value) is not str or len(value) != 60 or not value.startswith("d4.1."):
+            raise ValueError
+        encoded = value[5:]
+        if any(
+            ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+            for ch in encoded
+        ):
+            raise ValueError
+        raw = base64.b64decode(encoded + "=", altchars=b"-_", validate=True)
+        if len(raw) != 41 or raw[0] != 1:
+            raise ValueError
+        generation = int.from_bytes(raw[33:], "big")
+        if (
+            raw[1:17] != tenant_id.bytes
+            or raw[17:33] != game_id.bytes
+            or _broker_d4(tenant_id, game_id, generation) != value
+        ):
+            raise ValueError
+    except (ValueError, TypeError, AttributeError):
+        pass
+    else:
+        return generation
+    raise _broker_invalid()
+
+
+def _broker_secret(value: object) -> SecretStr:
+    """秘密値を変換せず型/有限長を検査する。"""
+    try:
+        if type(value) is SecretStr:
+            secret = value.get_secret_value()
+            if type(secret) is str and 0 < len(secret.encode("utf-8")) <= 4096:
+                return value
+    except UnicodeError:
+        pass
+    raise _broker_invalid()
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _BrokerIdentity:
+    """公開challengeと提示Cookie。peerやこの型自体はtenant証明ではない。"""
+
+    expected_tenant_id: UUID
+    challenge: UUID
+    cookie: SecretStr = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """派生型や資格の暗黙変換を拒否する。"""
+        if (
+            type(self.expected_tenant_id) is not UUID
+            or type(self.challenge) is not UUID
+        ):
+            raise _broker_invalid()
+        _broker_secret(self.cookie)
+
+
+@dataclass(frozen=True, slots=True)
+class _EnrollDeviceCommand:
+    """登録を実行せず、登録要求の外形だけを保持する。"""
+
+    identity: _BrokerIdentity = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """未検証の辞書を文脈へ昇格しない。"""
+        if type(self.identity) is not _BrokerIdentity:
+            raise _broker_invalid()
+        self.identity.__post_init__()
+
+
+@dataclass(frozen=True, slots=True)
+class _StartInitialGameCommand:
+    """元要求ID/全payloadを保持する。attemptやdigestをcallerから受けない。"""
+
+    identity: _BrokerIdentity = field(repr=False)
+    game_id: UUID
+    start_request_id: UUID
+    device_id: UUID
+    device_credential: SecretStr = field(repr=False)
+    payload: InitialStartPayload
+
+    def __post_init__(self) -> None:
+        """閉型と深い不変payloadを再検査する。"""
+        if (
+            type(self.identity) is not _BrokerIdentity
+            or any(
+                type(value) is not UUID
+                for value in (self.game_id, self.start_request_id, self.device_id)
+            )
+            or type(self.payload) is not InitialStartPayload
+        ):
+            raise _broker_invalid()
+        self.identity.__post_init__()
+        _broker_secret(self.device_credential)
+        self.payload.__post_init__()
+
+
+@dataclass(frozen=True, slots=True)
+class _ResolveStartCommand:
+    """同じ元要求の照会だけを表し、解決結果を推測しない。"""
+
+    original: _StartInitialGameCommand = field(repr=False)
+
+    def __post_init__(self) -> None:
+        """元要求の差替えや派生型を拒否する。"""
+        if type(self.original) is not _StartInitialGameCommand:
+            raise _broker_invalid()
+        self.original.__post_init__()
+
+
+type _BrokerCommand = (
+    _EnrollDeviceCommand | _StartInitialGameCommand | _ResolveStartCommand
+)
+
+
+def _broker_command_source(command: _BrokerCommand) -> dict[str, object]:
+    """専用serializerだけが提示Cookie/資格を意図した通信fieldへ出す。"""
+    from pitchlog.repositories.game_start import _entry_json
+
+    if type(command) not in (
+        _EnrollDeviceCommand,
+        _StartInitialGameCommand,
+        _ResolveStartCommand,
+    ):
+        raise _broker_invalid()
+    command.__post_init__()
+    selected = cast(
+        _EnrollDeviceCommand | _StartInitialGameCommand,
+        command.original if type(command) is _ResolveStartCommand else command,
+    )
+    assert type(selected) in (_EnrollDeviceCommand, _StartInitialGameCommand)
+    identity = selected.identity
+    result: dict[str, object] = {
+        "version": 1,
+        "command": (
+            "enroll_device"
+            if type(command) is _EnrollDeviceCommand
+            else "resolve_start"
+            if type(command) is _ResolveStartCommand
+            else "start_initial_game"
+        ),
+        "expected_tenant_id": str(identity.expected_tenant_id),
+        "challenge": str(identity.challenge),
+        "cookie": identity.cookie.get_secret_value(),
+    }
+    if type(selected) is _StartInitialGameCommand:
+        result["game_id"] = str(selected.game_id)
+        result["request"] = {
+            "start_request_id": str(selected.start_request_id),
+            "device_id": str(selected.device_id),
+            "device_credential": selected.device_credential.get_secret_value(),
+            "away": [_entry_json(e) for e in selected.payload.away],
+            "home": [_entry_json(e) for e in selected.payload.home],
+        }
+    return result
+
+
+def _broker_json(value: object) -> bytes:
+    """閉通信のJSONを一意なUTF-8表現へ写す。"""
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+
+
+def _broker_frame(value: object) -> bytes:
+    """有限bodyを4byte長付きframeへ写す。"""
+    body = _broker_json(value)
+    if not 0 < len(body) <= _BROKER_MAX_FRAME:
+        raise _broker_invalid()
+    return len(body).to_bytes(4, "big") + body
+
+
+def _broker_object(frame: bytes) -> dict[str, Any]:
+    """長さ/重複key/非有限/末尾余剰/非canonicalを先に拒否する。"""
+    try:
+        if type(frame) is not bytes or len(frame) < 5:
+            raise ValueError
+        size = int.from_bytes(frame[:4], "big")
+        if not 0 < size <= _BROKER_MAX_FRAME or len(frame) != size + 4:
+            raise ValueError
+        body = frame[4:]
+        value = json.loads(
+            body, object_pairs_hook=_json_object, parse_constant=_broker_bad_constant
+        )
+        if type(value) is not dict or _broker_json(value) != body:
+            raise ValueError
+    except (ValueError, TypeError, OverflowError, UnicodeError, RecursionError):
+        pass
+    else:
+        return value
+    raise _broker_invalid()
+
+
+def _broker_bad_constant(_value: str) -> NoReturn:
+    """NaN/Infinityを例外値へコピーせず拒否する。"""
+    raise ValueError("非有限JSON")
+
+
+def _broker_uuid(value: object) -> UUID:
+    """Canonical UUIDだけを受ける。"""
+    try:
+        if type(value) is str:
+            parsed = UUID(value)
+            if str(parsed) == value:
+                return parsed
+    except ValueError:
+        pass
+    raise _broker_invalid()
+
+
+def _decode_initial_command(frame: bytes) -> _BrokerCommand:
+    """非実行dispatch。分類した型を返すだけでSQL/issuer/authを呼ばない。"""
+    from pitchlog.api.schemas.game_start import GameStartRequest
+    from pitchlog.repositories.game_start import _entries
+
+    try:
+        value = _broker_object(frame)
+        common = {"version", "command", "expected_tenant_id", "challenge", "cookie"}
+        name = value.get("command")
+        if type(value.get("version")) is not int or value["version"] != 1:
+            raise ValueError
+        if type(name) is not str or name not in (
+            "enroll_device",
+            "start_initial_game",
+            "resolve_start",
+        ):
+            raise ValueError
+        keys = common if name == "enroll_device" else common | {"game_id", "request"}
+        if set(value) != keys or type(value["cookie"]) is not str:
+            raise ValueError
+        identity = _BrokerIdentity(
+            _broker_uuid(value["expected_tenant_id"]),
+            _broker_uuid(value["challenge"]),
+            SecretStr(value["cookie"]),
+        )
+        if name == "enroll_device":
+            return _EnrollDeviceCommand(identity)
+        request = GameStartRequest.model_validate(value["request"])
+        start = _StartInitialGameCommand(
+            identity,
+            _broker_uuid(value["game_id"]),
+            request.start_request_id,
+            request.device_id,
+            request.device_credential,
+            InitialStartPayload(_entries(request.away), _entries(request.home)),
+        )
+        command = _ResolveStartCommand(start) if name == "resolve_start" else start
+        if _broker_command_source(command) != value:
+            raise ValueError
+        # bool/int等のPython同値性だけに頼らずwire全bytesへ逆射影して照合する。
+        if _broker_frame(_broker_command_source(command)) != frame:
+            raise ValueError
+        return command
+    except (ValueError, TypeError, KeyError, InitialGrantUnavailable):
+        pass
+    raise _broker_invalid()
+
+
+def _encode_initial_command(command: _BrokerCommand) -> bytes:
+    """強制改変もdecodeで再検査し、同じcommand全値を送る。"""
+    try:
+        frame = _broker_frame(_broker_command_source(command))
+        _decode_initial_command(frame)
+        return frame
+    except (ValueError, TypeError, AttributeError, InitialGrantUnavailable):
+        pass
+    raise _broker_invalid()
+
+
+def _postcommit_start_response(
+    result: _InitialStartedGame, server_owner: _StartOwner
+) -> InitialGameStartResponse:
+    """同じ実postcommit戻り値を投影する。型/parseはcommit証明ではない。
+
+    後続workerだけが実_start_initial_game完了後に、実解決ownerと共に呼ぶ。
+    Aにはworker/issuer呼出しを置かず、別途渡された世代値も受け取らない。
+    """
+    try:
+        if (
+            type(result) is not _InitialStartedGame
+            or type(result.grant) is not InitialGrant
+            or type(result.receipt) is not InitialStartReceipt
+            or type(server_owner) is not _StartOwner
+            or type(result.receipt.owner) is not _StartOwner
+        ):
+            raise ValueError
+        server_owner.__post_init__()
+        result.receipt.owner.__post_init__()
+        grant, receipt = result.grant, result.receipt
+        if (
+            receipt.owner != server_owner
+            or grant.game_id != server_owner.game_id
+            or grant.holder_device_id != server_owner.device_id
+            or type(grant.game_id) is not UUID
+            or type(grant.holder_device_id) is not UUID
+            or type(grant.recording_right_proof) is not str
+        ):
+            raise ValueError
+        return InitialGameStartResponse(
+            tenant_id=server_owner.tenant_id,
+            game_id=grant.game_id,
+            start_request_id=server_owner.start_request_id,
+            device_id=grant.holder_device_id,
+            d4=_broker_d4(server_owner.tenant_id, grant.game_id, grant.generation),
+            recovery_generation=grant.recovery_generation,
+            recording_right_proof=SecretStr(grant.recording_right_proof),
+            started_at=receipt.started_at,
+            away_lineup_id=receipt.away_lineup_id,
+            home_lineup_id=receipt.home_lineup_id,
+        )
+    except (ValueError, TypeError, AttributeError, InitialGrantUnavailable):
+        pass
+    raise _broker_invalid()
+
+
+@dataclass(frozen=True, slots=True)
+class _BrokerReply:
+    """応答の分類のみ。parse結果を実登録/開始の証拠へ昇格しない。"""
+
+    status: Literal[
+        "enrolled", "started", "denied", "conflict", "unavailable", "unresolved"
+    ]
+    value: InitialDeviceEnrollmentResponse | InitialGameStartResponse | None = field(
+        default=None, repr=False
+    )
+
+    def __post_init__(self) -> None:
+        """未知statusを型内部にも保持せず、成功を補完しない。"""
+        if type(self.status) is not str or self.status not in (
+            "enrolled",
+            "started",
+            "denied",
+            "conflict",
+            "unavailable",
+            "unresolved",
+        ):
+            raise _broker_invalid()
+        if self.value is not None and type(self.value) not in (
+            InitialDeviceEnrollmentResponse,
+            InitialGameStartResponse,
+        ):
+            raise _broker_invalid()
+
+
+def _initial_reply_source(
+    command: _BrokerCommand, reply: _BrokerReply
+) -> dict[str, object]:
+    """意図した応答field以外へ秘密値を展開しない専用serializer。"""
+    request = _broker_command_source(command)
+    if type(reply) is not _BrokerReply:
+        raise _broker_invalid()
+    value: dict[str, object] = {
+        "version": 1,
+        "command": request["command"],
+        "challenge": request["challenge"],
+        "status": reply.status,
+    }
+    if reply.value is not None:
+        if type(reply.value) not in (
+            InitialDeviceEnrollmentResponse,
+            InitialGameStartResponse,
+        ):
+            raise _broker_invalid()
+        # construct/強制変更した値をserializerへ先に渡すと警告へ原値が出得る。
+        secret_field = (
+            "device_credential"
+            if type(reply.value) is InitialDeviceEnrollmentResponse
+            else "recording_right_proof"
+        )
+        if type(getattr(reply.value, secret_field)) is not SecretStr:
+            raise _broker_invalid()
+        checked = type(reply.value).model_validate(dict(vars(reply.value)))
+        body = checked.model_dump(mode="json")
+        if type(reply.value) is InitialDeviceEnrollmentResponse:
+            body["device_credential"] = reply.value.device_credential.get_secret_value()
+        elif type(reply.value) is InitialGameStartResponse:
+            body["recording_right_proof"] = (
+                reply.value.recording_right_proof.get_secret_value()
+            )
+        value["value"] = body
+    return value
+
+
+def _decode_initial_reply(frame: bytes, command: _BrokerCommand) -> _BrokerReply:
+    """同command/challenge/ownerとwire全構造を照合する。"""
+    try:
+        request = _broker_command_source(command)
+        value = _broker_object(frame)
+        if (
+            value.get("version") != 1
+            or type(value.get("version")) is not int
+            or value.get("command") != request["command"]
+            or value.get("challenge") != request["challenge"]
+        ):
+            raise ValueError
+        status = value.get("status")
+        if type(status) is not str:
+            raise ValueError
+        model: InitialDeviceEnrollmentResponse | InitialGameStartResponse | None = None
+        if status in ("enrolled", "started"):
+            if set(value) != {"version", "command", "challenge", "status", "value"}:
+                raise ValueError
+            if status == "enrolled" and type(command) is _EnrollDeviceCommand:
+                model = InitialDeviceEnrollmentResponse.model_validate_json(
+                    _broker_json(value["value"])
+                )
+                if model.tenant_id != command.identity.expected_tenant_id:
+                    raise ValueError
+            elif status == "started" and type(command) in (
+                _StartInitialGameCommand,
+                _ResolveStartCommand,
+            ):
+                selected = (
+                    command.original
+                    if type(command) is _ResolveStartCommand
+                    else command
+                )
+                assert type(selected) is _StartInitialGameCommand
+                model = InitialGameStartResponse.model_validate_json(
+                    _broker_json(value["value"])
+                )
+                if (
+                    model.tenant_id != selected.identity.expected_tenant_id
+                    or model.game_id != selected.game_id
+                    or model.start_request_id != selected.start_request_id
+                    or model.device_id != selected.device_id
+                ):
+                    raise ValueError
+                _broker_generation(model.d4, model.tenant_id, model.game_id)
+            else:
+                raise ValueError
+        elif (
+            status not in ("denied", "conflict", "unavailable", "unresolved")
+            or set(value) != {"version", "command", "challenge", "status"}
+            or (
+                type(command) is _EnrollDeviceCommand
+                and status in ("conflict", "unresolved")
+            )
+        ):
+            raise ValueError
+        reply = _BrokerReply(cast(Any, status), model)
+        if _broker_frame(_initial_reply_source(command, reply)) != frame:
+            raise ValueError
+        return reply
+    except (ValueError, TypeError, AttributeError, KeyError, InitialGrantUnavailable):
+        pass
+    raise _broker_invalid()
+
+
+def _encode_initial_reply(command: _BrokerCommand, reply: _BrokerReply) -> bytes:
+    """未接続workerの成功を作らず、与えられた外形を相互検証する。"""
+    try:
+        frame = _broker_frame(_initial_reply_source(command, reply))
+        _decode_initial_reply(frame, command)
+        return frame
+    except (ValueError, TypeError, AttributeError, InitialGrantUnavailable):
+        pass
+    raise _broker_invalid()
+
+
+@dataclass(frozen=True, slots=True)
+class _BrokerEndpoint:
+    """root設定のsocket同一性。tenant/権利の証明には使わない。"""
+
+    path: Path
+    device: int
+    inode: int
+    group: int
+
+
+def _broker_trusted_parents(path: Path) -> None:
+    """symlinkやroot以外の書換え可能な経路を拒否する。"""
+    if not path.is_absolute():
+        raise _broker_invalid()
+    for parent in path.parents:
+        info = parent.stat(follow_symlinks=False)
+        if (
+            parent.is_symlink()
+            or info.st_uid != 0
+            or stat.S_IMODE(info.st_mode) & 0o022
+        ):
+            raise _broker_invalid()
+
+
+def _load_broker_endpoint() -> _BrokerEndpoint:
+    """固定位置のroot公開設定だけを読む。鍵/DSNは含めない。"""
+    try:
+        path = _BROKER_ENDPOINT_PATH
+        _broker_trusted_parents(path)
+        with os.fdopen(
+            os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC), "rb"
+        ) as file:
+            info = os.fstat(file.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != 0
+                or stat.S_IMODE(info.st_mode) != 0o644
+                or info.st_size > 4096
+            ):
+                raise ValueError
+            value = json.loads(file.read(4097), object_pairs_hook=_json_object)
+        if type(value) is not dict or set(value) != {
+            "version",
+            "socket_path",
+            "socket_device",
+            "socket_inode",
+            "socket_gid",
+        }:
+            raise ValueError
+        if type(value["version"]) is not int or value["version"] != 1:
+            raise ValueError
+        if type(value["socket_path"]) is not str:
+            raise ValueError
+        endpoint = _BrokerEndpoint(
+            Path(value["socket_path"]),
+            value["socket_device"],
+            value["socket_inode"],
+            value["socket_gid"],
+        )
+        if (
+            any(
+                type(v) is not int or v < 0
+                for v in (endpoint.device, endpoint.inode, endpoint.group)
+            )
+            or endpoint.inode == 0
+        ):
+            raise ValueError
+        _check_broker_socket(endpoint)
+        return endpoint
+    except (OSError, ValueError, TypeError, KeyError):
+        pass
+    raise _broker_invalid()
+
+
+def _check_broker_socket(endpoint: _BrokerEndpoint) -> None:
+    """connect前後にroot設定の実socket inode/owner/modeを照合する。"""
+    _broker_trusted_parents(endpoint.path)
+    info = endpoint.path.stat(follow_symlinks=False)
+    if endpoint.path.is_symlink():
+        raise _broker_invalid()
+    _validate_broker_socket_observation(info, endpoint)
+
+
+def _validate_broker_socket_observation(
+    info: os.stat_result, endpoint: _BrokerEndpoint
+) -> None:
+    """実statの属性だけを照合する。製品呼出元は直前の実statに限定する。"""
+    if (
+        not stat.S_ISSOCK(info.st_mode)
+        or info.st_uid != _BROKER_SERVER_UID
+        or info.st_gid != endpoint.group
+        or stat.S_IMODE(info.st_mode) != 0o660
+        or (info.st_dev, info.st_ino) != (endpoint.device, endpoint.inode)
+    ):
+        raise _broker_invalid()
+
+
+def _check_broker_peer(channel: socket.socket) -> None:
+    """接続先の実Unix資格を照合する。callerのUID申告は受けない。"""
+    _, uid, gid = struct.unpack(
+        "3i", channel.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+    )
+    if (uid, gid) != (_BROKER_SERVER_UID, _BROKER_SERVER_GID):
+        raise _broker_invalid()
+
+
+def _broker_remaining(channel: socket.socket, deadline: float) -> None:
+    """部分受信で期限を延ばさない。"""
+    remaining = deadline - monotonic()
+    if remaining <= 0:
+        raise _broker_invalid()
+    channel.settimeout(remaining)
+
+
+def _broker_receive(channel: socket.socket, deadline: float) -> bytes:
+    """単一responseと終端だけを有限期限で読み、末尾余剰も拒否する。"""
+    chunks = bytearray()
+    wanted = 4
+    while len(chunks) < wanted:
+        _broker_remaining(channel, deadline)
+        part = channel.recv(wanted - len(chunks))
+        if not part:
+            raise _broker_invalid()
+        chunks.extend(part)
+        if len(chunks) == 4:
+            size = int.from_bytes(chunks, "big")
+            if not 0 < size <= _BROKER_MAX_FRAME:
+                raise _broker_invalid()
+            wanted = size + 4
+    _broker_remaining(channel, deadline)
+    if channel.recv(1) != b"":
+        raise _broker_invalid()
+    return bytes(chunks)
+
+
+class _InitialBrokerClient:
+    """固定root endpointへの一回通信だけ。自動再試行/成功補完をしない。"""
+
+    __slots__ = ("_endpoint",)
+
+    def __init__(self) -> None:
+        """callerのsocket/engine/callbackを受けず、root公開設定を読む。"""
+        try:
+            self._endpoint = _load_broker_endpoint()
+        except (OSError, ValueError, InitialBrokerUnavailable):
+            pass
+        else:
+            return
+        raise _broker_invalid()
+
+    def call(self, command: _BrokerCommand) -> _BrokerReply:
+        """実workerが無い/応答不明なら固定例外で閉じ、業務結果を推測しない。"""
+        try:
+            frame = _encode_initial_command(command)
+            _check_broker_socket(self._endpoint)
+            deadline = monotonic() + _BROKER_TIMEOUT
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as channel:
+                _broker_remaining(channel, deadline)
+                channel.connect(str(self._endpoint.path))
+                _check_broker_peer(channel)
+                _check_broker_socket(self._endpoint)
+                _broker_remaining(channel, deadline)
+                channel.sendall(frame)
+                channel.shutdown(socket.SHUT_WR)
+                response = _broker_receive(channel, deadline)
+            return _decode_initial_reply(response, command)
+        except (OSError, ValueError, TypeError, InitialBrokerUnavailable):
+            pass
+        raise _broker_invalid()
