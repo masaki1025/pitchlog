@@ -89,6 +89,14 @@ LEDGER_CONDITION2_FINDINGS = frozenset(
     }
 )
 
+# RG1の物理所有境界だけを追加する。位置/記号/hashは凍結資産が保持する。
+RG1_CONDITION2_OWNER_PATHS = frozenset(
+    {
+        "backend/src/pitchlog/db/recording_rights/models.py",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+    }
+)
+
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
@@ -231,6 +239,15 @@ class CacheInvalidationBypassContract:
 
 
 @dataclass(frozen=True)
+class ScopedCondition2Owner:
+    """承認された物理所有境界の単一出現と実sourceを束縛する。"""
+
+    path: str
+    source_sha256: str
+    findings: frozenset[tuple[int, str]]
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -246,6 +263,7 @@ class Contract:
     condition2_scoped_source_sha256: str
     ledger_condition2_findings: frozenset[tuple[int, str]]
     ledger_condition2_source_sha256: str
+    rg1_condition2_owners: tuple[ScopedCondition2Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
     rg1_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
@@ -841,6 +859,7 @@ def _load_allowlist(
     str,
     frozenset[tuple[int, str]],
     str,
+    tuple[ScopedCondition2Owner, ...],
     tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
     tuple[str, ...],
@@ -859,6 +878,7 @@ def _load_allowlist(
             "condition_2_adjudications",
             "condition_2_scoped_findings",
             "condition_2_ledger_scoped_findings",
+            "condition_2_rg1_scoped_findings",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
             "baseline_control",
@@ -1103,6 +1123,28 @@ def _load_allowlist(
         ledger_findings.add((line, symbol))
     if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
         raise ContractError("台帳条件2登録は独立確認済み17所見のexact-setが必要")
+    rg1_location = "allowlist.condition_2_rg1_scoped_findings"
+    rg1_scopes = _object(value["condition_2_rg1_scoped_findings"], rg1_location)
+    _strict_keys(rg1_scopes, RG1_CONDITION2_OWNER_PATHS, rg1_location)
+    rg1_owners: list[ScopedCondition2Owner] = []
+    for path in sorted(RG1_CONDITION2_OWNER_PATHS):
+        entry = _object(rg1_scopes[path], rg1_location)
+        _strict_keys(entry, {"source_sha256", "findings"}, rg1_location)
+        digest = _string(entry["source_sha256"], rg1_location)
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("RG1条件2登録には実source SHA-256が必要")
+        findings = _array(entry["findings"], rg1_location)
+        if len(findings) != 1:
+            raise ContractError("RG1条件2登録は各物理所有境界の単一出現に限る")
+        finding = _object(findings[0], rg1_location)
+        _strict_keys(finding, {"line", "symbol"}, rg1_location)
+        line = _integer(finding["line"], rg1_location)
+        symbol = _string(finding["symbol"], rg1_location)
+        if line < 1 or not symbol:
+            raise ContractError("RG1条件2登録は正の行番号と記号が必要")
+        rg1_owners.append(
+            ScopedCondition2Owner(path, digest, frozenset({(line, symbol)}))
+        )
     return (
         tuple(allowed_symbols),
         tuple(rules),
@@ -1112,6 +1154,7 @@ def _load_allowlist(
         scoped_digest,
         frozenset(ledger_findings),
         ledger_digest,
+        tuple(rg1_owners),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
         command,
@@ -1668,6 +1711,7 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_scoped_source_sha256,
         ledger_condition2_findings,
         ledger_condition2_source_sha256,
+        rg1_condition2_owners,
         ledger_deployment_assets,
         rg1_deployment_assets,
         diff_command,
@@ -1716,6 +1760,7 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_scoped_source_sha256=condition2_scoped_source_sha256,
         ledger_condition2_findings=ledger_condition2_findings,
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
+        rg1_condition2_owners=rg1_condition2_owners,
         ledger_deployment_assets=ledger_deployment_assets,
         rg1_deployment_assets=rg1_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
@@ -4431,6 +4476,7 @@ class _SourceScanner(ast.NodeVisitor):
             path,
         )
         self.class_stack: list[str] = []
+        self.lexical_stack: list[str] = []
         self.function_stack: list[tuple[str, str]] = []
         self.safe_non_context_objects: list[set[str]] = []
         self.violations: list[Violation] = []
@@ -5553,12 +5599,14 @@ class _SourceScanner(ast.NodeVisitor):
         for type_param in node.type_params:
             self.visit(type_param)
         self.class_stack.append(node.name)
+        self.lexical_stack.append(node.name)
         for decorator in node.decorator_list:
             self.visit(decorator)
         for base in node.bases:
             self.visit(base)
         for statement in node.body:
             self.visit(statement)
+        self.lexical_stack.pop()
         self.class_stack.pop()
 
     def visit_Module(self, node: ast.Module) -> None:  # noqa: N802
@@ -5575,7 +5623,7 @@ class _SourceScanner(ast.NodeVisitor):
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         self._check_identifier(node.name, node)
-        prefix = ".".join([self.module, *self.class_stack]).strip(".")
+        prefix = ".".join([self.module, *self.lexical_stack]).strip(".")
         symbol = f"{prefix}.{node.name}" if prefix else node.name
         signature = _function_signature(node)
         expected = self.allowed_by_symbol.get(symbol)
@@ -5628,10 +5676,12 @@ class _SourceScanner(ast.NodeVisitor):
         for type_param in node.type_params:
             self.visit(type_param)
         self.function_stack.append((symbol, signature))
+        self.lexical_stack.append(node.name)
         self.safe_non_context_objects.append(set())
         for statement in node.body:
             self.visit(statement)
         self.safe_non_context_objects.pop()
+        self.lexical_stack.pop()
         self.function_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
@@ -5867,6 +5917,33 @@ def scan_source(
             if violation.code != "TB002"
             or (violation.line, violation.symbol) not in contract.ledger_condition2_findings
         ]
+    rg1_owners = contract.rg1_condition2_owners
+    # 合成Contractでも未知pathや複数出現へ所有境界を広げない。
+    valid_rg1_owners = (
+        len(rg1_owners) == len(RG1_CONDITION2_OWNER_PATHS)
+        and {owner.path for owner in rg1_owners} == RG1_CONDITION2_OWNER_PATHS
+        and all(
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and len(owner.findings) == 1
+            and all(
+                type(line) is int and line > 0 and bool(symbol)
+                for line, symbol in owner.findings
+            )
+            for owner in rg1_owners
+        )
+    )
+    for owner in rg1_owners if valid_rg1_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
+        ):
+            violations = [
+                violation
+                for violation in violations
+                if violation.code != "TB002"
+                or (violation.line, violation.symbol) not in owner.findings
+            ]
     return sorted(violations)
 
 
@@ -6133,21 +6210,25 @@ class _DefinitionCollector(ast.NodeVisitor):
     def __init__(self, module: str, allowed: Set[str]) -> None:
         self.module = module
         self.allowed = allowed
-        self.class_stack: list[str] = []
+        self.lexical_stack: list[str] = []
         self.definitions: dict[str, str] = {}
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """クラス階層を記録して本体を巡回する。"""
-        self.class_stack.append(node.name)
+        self.lexical_stack.append(node.name)
         for statement in node.body:
             self.visit(statement)
-        self.class_stack.pop()
+        self.lexical_stack.pop()
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        prefix = ".".join([self.module, *self.class_stack]).strip(".")
+        prefix = ".".join([self.module, *self.lexical_stack]).strip(".")
         symbol = f"{prefix}.{node.name}" if prefix else node.name
         if symbol in self.allowed:
             self.definitions[symbol] = _function_signature(node)
+        self.lexical_stack.append(node.name)
+        for statement in node.body:
+            self.visit(statement)
+        self.lexical_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         """許可対象の同期関数署名を採取する。"""
