@@ -555,4 +555,13 @@ def test_lifecycle_eight_functions_keep_source_body_and_exact_subjects() -> None
         start = body.index("CREATE ")
         delimiter = "$$;" if name == "identity" else "$function$;"
         end = body.index(delimiter, start) + len(delimiter)
-        assert body[start:end] in source
+        definition = body[start:end]
+        if name in {"identity", "bind_initial_fresh_epoch"}:
+            # 再適用header2だけの正規化を許し、引数/戻り値/AS本文は全byte照合する。
+            assert definition.startswith("CREATE OR REPLACE FUNCTION ")
+            original_definition = definition.replace(
+                "CREATE OR REPLACE FUNCTION ", "CREATE FUNCTION ", 1
+            )
+            assert original_definition in source
+        else:
+            assert definition in source

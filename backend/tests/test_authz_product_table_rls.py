@@ -90,6 +90,8 @@ def _copy_static_table_inputs(root: Path) -> None:
     assert product_path is not None
     paths = (
         Path("contracts/db/schema-manifest.json"),
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
         Path("contracts/authz/product/table-classification.json"),
         Path("contracts/authz/product/exposure-facts.json"),
         PRODUCT_SPEC.body_manifest_path,

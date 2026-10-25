@@ -164,3 +164,17 @@ rootが実製品S0→S3を所有disposableで通す既PG試験を実行し、新
 2026-10-24T10:57:35.480436+00:00、最終候補18path（source/test10、生成SQL8）は非作者t1_ci_followup_independentで0/0/0。報告 /home/ymdms/.cache/pitchlog/reviews/rg1-startup-order-final-independent-20261024/review.md SHA3080726953ccc429df266266e7c5701ef141abf5dc58bc6abf516277b1c81e49、evidence SHA553882f9c9770af63f48ea92e1312d6fb98e998bae1243a121f32003e6326a0e。rootの所有disposable実PG5成功19.71s/wall20.4066s、18file実行前後/現在hash全同値、非作者がreceipt/実byteを再照合。34故障→35再開/35再適用、偽marker欠列拒否、6role54不正既存/2schemaowner不修復拒否、2readの採用済成功/拒否/切断/再起動を確認。他233body/旧7role/固定外部SQL保持。旧失敗は反映別cacheに全保存、最後の期待値追随も原典0708095a§3-2:267とplan88行相当を根拠にした。正規成功を弱化したものでも人間確認の代記でもない。
 
 最終handoff /home/ymdms/.cache/pitchlog/rg1-startup-order-reflection3-candidate-20261024/handoff.json SHA7d2204e3fc240d44421607d80ea610221a3df43e706f38c05da509c277726a6e。root-real-pg-result.json/前後hash/ログを同cacheで保存。正式sourceへの反映は完全値受理後、source5fの一次N3/8射影提案はそのまま受理せず最終code固定後に実必要分だけ再導出する。実fresh/初期grant/実画面開始/1球保存は未達のまま。
+
+
+## 起動メタデータの非作者確認と限定反映
+
+2026-10-25T08:09:30.756336+00:00、PO委任によるCodex主担当/root判断。e8f9854bd2e6cd0a786a4ef718a54d4341bd82aa上の7pathに対する非作者t1_ci_followup_independentの最終所見0/0/0を受領した。レビューSHA552384f01cd8b378ce7d2aa719f9053a40d3976dbeab2ab2d6c2b1eec250e7af、証拠SHAbc6403ead0f55a6c33a934ff9b77bdc6c6da2b6a5e12506756fe47026085d03e（/home/ymdms/.cache/pitchlog/reviews/rg1-startup-metadata-independent-20261025/）。root/非作者の選択5test成功、declared census成功。exact2補助登録・既戻り値1追随と現正本の逐語引用だけを採用し、未登録/偽署名/余分APIはTB005拒否のまま。旧35行（署名1値を除く）・30履歴・216snapshotを保持した。
+
+これは技術追随差分の限定反映で、正式7.7・9射影/8source受理・最終CI・実fresh/初期grant/UI成功ではない。source台帳の完全値は修正後に単一受理する。山田正輝本人による逐行確認や署名を代記しない。
+
+
+## 製品認可reader試験の限定追随
+
+2026-10-25T08:12:47.758647+00:00、PO委任によるCodex root判断で既許可7path中の実変更5pathを採用。固定e8f9854bからのauthor patch SHAbe4b6aebb9ebcb8c0e9af7e367b704a62d5d19fe98a1901d5b7110ea6a89832cを適用前7SHA/適用後7SHAで照合した。非作者レビューSHAa6e91dbdeab2ae57e614f258bcdb7a7cc9db01154d0c11853b220a8dab44187b、証拠SHA13ea4b9da8fa523e360c47f25791838a8b4ed426a05ef1e4f29127669ec7c1a8、所見0/0/0。保存先 /home/ymdms/.cache/pitchlog/reviews/rg1-backend-reader-independent-20261025/。作者449成功36.63s/非作者449成功36.93sと両Ruff/ty成功。旧54test/全param/decorator・26負例ASTを保持した。
+
+新7schema/13role/65functionへの期待値とfixture依存供給、固定2function headerのみの再適用正規化へ追随し、他AS本文/PRODUCT負例を維持。PROVISIONAL合成正例だけから製品専用2policyを外し、製品profile自身の検査は保持。root quote修正によるclassification23成功も別根拠である。これは未受理profileの回帰試験成功で、正式9/8受理/CI/実開始・初期grant成功ではない。

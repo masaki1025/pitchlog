@@ -259,7 +259,7 @@
           "evidence": [
             {
               "section": "3-2",
-              "quote": "RG1の復元調整状態は全体共通の`singleton_id=1`の単一行とし、初期状態を`closed`とする。"
+              "quote": "**RG1物理資源**: 全体共通の`singleton_id=1`の単一行を初期`closed`とし、非テナントの`function_only`例外とする。"
             }
           ]
         }

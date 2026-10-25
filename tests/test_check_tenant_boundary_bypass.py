@@ -8314,3 +8314,58 @@ def test_rg1_deployment_synthetic_contract_cannot_shrink_or_expand_assets(
     assert not checker._validated_rg1_deployment_assets(
         tmp_path, replace(contract, rg1_deployment_assets=assets),
     )
+
+
+@pytest.mark.parametrize(("name", "signature", "apis"), [
+    ("_apply_epoch", "_apply_epoch(owner_dsn: str) -> None",
+     frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"})),
+    ("_require_epoch_state", "_require_epoch_state(applicator_dsn: str) -> None",
+     frozenset({"PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
+    ("_require_placed_state", "_require_placed_state(applicator_dsn: str) -> str",
+     frozenset({"PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
+])
+def test_epoch_startup_registration_is_exact_and_required(
+    name: str, signature: str, apis: frozenset[str],
+) -> None:
+    """実起動の有限登録だけを許し、欠落と署名差替えを拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    symbol = "pitchlog.db.stage_a_startup." + name
+    selected = [row for row in contract.allowed_symbols if row.symbol == symbol]
+    assert len(selected) == 1
+    assert selected[0].signature == signature
+    assert selected[0].allowed_api_ids == apis
+    path = "pitchlog/db/stage_a_startup.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    for replacement in (None, replace(selected[0], signature=signature + "_invalid")):
+        rows = tuple(row for row in contract.allowed_symbols if row.symbol != symbol)
+        if replacement is not None:
+            rows = (*rows, replacement)
+        broken = replace(contract, allowed_symbols=rows)
+        violations = checker.scan_source(source, path=path, contract=broken)
+        assert any(v.code == "TB005" and (v.scope == symbol or v.symbol == symbol)
+                   for v in violations)
+
+
+def test_epoch_startup_extra_api_and_unregistered_helper_are_red() -> None:
+    """登録済みhelperの余分APIと同module未登録関数も拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/db/stage_a_startup.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    marker = '    """改訂markerだけでなく0035の実列と制約を閉集合で照合する。"""'
+    assert source.count(marker) == 1
+    modified = source.replace(
+        marker,
+        marker + '\n    with psycopg.connect(applicator_dsn) as extra:'
+        '\n        extra.pgconn.exec_(b"SELECT 1")',
+    )
+    violations = checker.scan_source(modified, path=path, contract=contract)
+    assert any(v.code == "TB005" and v.scope.endswith("._require_epoch_state")
+               and v.symbol == "psycopg.pq.PGconn.exec_" for v in violations)
+    modified = source + (
+        '\n\ndef _unregistered_epoch(applicator_dsn: str) -> None:'
+        '\n    psycopg.connect(applicator_dsn)\n'
+    )
+    violations = checker.scan_source(modified, path=path, contract=contract)
+    assert any(v.code == "TB005" and v.scope.endswith("._unregistered_epoch")
+               for v in violations)
