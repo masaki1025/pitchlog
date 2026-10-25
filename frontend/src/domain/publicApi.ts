@@ -1,3 +1,4 @@
+import { validateInitialGameRoster } from './initialGameRoster'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
 import { derive } from './state'
 import {
@@ -442,4 +443,5 @@ export const domainOperations = Object.freeze({
   ping,
   deriveState,
   deriveFirstPitchWithContinuation,
+  validateInitialGameRoster,
 })

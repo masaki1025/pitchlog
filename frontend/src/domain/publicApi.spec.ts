@@ -8,12 +8,13 @@ import './entry'
 import { domainOperations } from './publicApi'
 
 describe('ドメイン公開口の疎通操作', () => {
-  it('操作表を凍結し、公開操作を疎通・一球・限定T2接続だけにする', () => {
+  it('操作表を凍結し、公開操作を疎通・一球・限定T2・初期名簿だけにする', () => {
     expect(Object.isFrozen(domainOperations)).toBe(true)
     expect(Object.keys(domainOperations)).toEqual([
       'ping',
       'deriveState',
       'deriveFirstPitchWithContinuation',
+      'validateInitialGameRoster',
     ])
   })
 
