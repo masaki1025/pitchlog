@@ -148,3 +148,10 @@ controllerと初期actorの実UIDを分離したまま単一ledger endpointが�
 2026-10-25T08:19:26.059374+00:00、PO委任によるCodex主担当/rootは254c9fa4上の計画SHA90e1f6b19fc1e6e48d5d326ba9c48fb1e16354cf896c0d6cebefb9dd817cfb52を限定受理する。非作者t1_ci_followup_independentのレビューSHA07b79a46006120e9aebd4f5a9ade501f3ac3cb380e4887cd1206de820a76ebee、証拠SHAf28190301eaf134325daff02fbfbf608fff9b9b1432cd72e011a7ca5963a2d07、所見0/0/0。両端点完全準備前ready禁止・全端点共有admission/blocked/active/mutex/journal・固定listenerと実kernel peerだけからのrole決定・role拒否はPG/journal以前・lease内check/closeは元channel限定を実装確認条件とする。新PO意味判断/人間本人の署名を代記したものではない。
 
 rootはcreation_pathへ既ステップ3内のsource authorとして authority.py/adapter.py、既contract test、既DB test/supportの計5pathを専用wtで委任する。manifest.jsonと共有資産/正本/Gitはroot単独writerを維持し、作者は必要値をcacheへ出す。未知pathは編集前に戻す。新2path初期scope試験は固定候補のまま別所有とし、並行編集しない。独立実装レビュー・実peer試験・全正式値/必須CI前に提供完了とはしない。
+
+
+## 初期4表の正本最小整合（2026-10-25）
+
+rootは既承認6065063b §6.2/6.3の4表・世代証拠2列・2主体の既役割を、data-model現1.3から1.4候補へ写す。影響は既宣言済みdocs/design/data-model.mdの3-2役割表/6-1初期記録権の保存節と変更履歴、およびdocs/README.mdの当該索引だけ。4表のsource_sectionsは6-1へ閉じ、初期scopeの全lock順/9関数/再送・結果不明の採用済み意味を維持する。gate列は既1.3のまま。side/名簿/enrollment/実broker/開始statusを今回の4表へ混入させない。
+
+この候補は構造正本改訂の限定7.3へ渡し、非作者確認とPO委任によるroot確定前はin-reviewを維持する。既1.3/旧1.2両系列の承認と旧レビュー/指摘/反映履歴は全保持する。正式50表profile/9API/内部triggerの個別SQL/ACL・schema-manifest/7.7実値・隔離実DBは別の提供証拠であり、本文の確定でそれらを完了扱いにしない。rootが正本/shared/Git唯一writer、候補テキスト作成もroot。
