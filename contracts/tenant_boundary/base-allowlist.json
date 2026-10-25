@@ -28482,7 +28482,7 @@
           ]
         },
         "change": {
-          "subject": "PR184のRG1実所有境界・基底署名とlexical scopeの正式供給、初回未統合受理の置換",
+          "subject": "PR184の同一AST・同core文脈Census計測追随による外部入力の置換",
           "aspect": [
             "asset_snapshots",
             "declaration",
@@ -29374,8 +29374,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "89634242b320a25aee653726c4afbb3120fc458b0ad7227edad2cacc1b9540fb",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/89634242b320a25aee653726c4afbb3120fc458b0ad7227edad2cacc1b9540fb"
+                "sha256": "c42c3309ffa6d0161761fdb2a2eb6b055bafbbb95e30fbb5ac674eca07c7012d",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c42c3309ffa6d0161761fdb2a2eb6b055bafbbb95e30fbb5ac674eca07c7012d"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -29401,8 +29401,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "a275fabd8f60e1377ff9dbcc351f13725fd1e472cdc3e8a8c84f0f53dc4a6dbf",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a275fabd8f60e1377ff9dbcc351f13725fd1e472cdc3e8a8c84f0f53dc4a6dbf"
+                "sha256": "bf89dfe3301636d70c12f5e27a044b536b402a7fbb01b4551795e98209a5efe1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bf89dfe3301636d70c12f5e27a044b536b402a7fbb01b4551795e98209a5efe1"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
@@ -29437,8 +29437,8 @@
             ]
           }
         },
-        "movement_fact": "実develop dcd4の旧正式30履歴216snapshotを全保持し、RG1制御/初回epoch/profile/起動補助に加え、exact4基底・C2二出現とnested lexical scopeを固定source4c677a98から全9射影8外部で導出。初回未統合184の31件目と9snapshotはGit/cacheへ保全し置換する。通常11所見の供給不足をcensus免除で隠さない。",
-        "reason": "採用済みdata-model1.3の実supplier/最小権限へ必要な正式閉登録を供給する。socketの実由来を明示し、固定import/完全qualifierとsource hash/位置/記号を使って他scope/他path/余分API/偽sourceを拒否し続ける。core文脈を揃えた対向で全値と拒否を確認し、旧未統合受理を完全値supersessionする。",
+        "movement_fact": "実develop dcd4の正式30履歴216snapshotと現行371判断を保持。固定52200624の全9射影8外部から再導出し、既受理eda版と異なるCensus計測sourceだけの実値を置換する。従前の未統合184受理・snapshotはGit/cacheへ保全。",
+        "reason": "旧7次元identityを保持する同一ASTサイトのlexical対応と同core文脈を正式外部入力へ反映する。既42test/許可集合/未知拒否を保持し、独立25対向成功を確認。新意味・認可・DB耐久性・実画面成功の承認ではない。",
         "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
         "approved_on": "2026-10-25"
       }
