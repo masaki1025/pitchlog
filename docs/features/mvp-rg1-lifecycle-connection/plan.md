@@ -163,3 +163,12 @@ DB試験補助の正規生成profile後の同SQL二重直接適用は除き、�
 DB試験は専用owned fixtureで実owner/admin別主体とsession_user/current_userを照合する。unused DSNはテンプレートだけで、factoryが実動的port/DB/資格へ置換し外部DSNを使わない。requires_db/実call0拒否を維持する。旧primitiveの常false期待は採用済data-model1.3§3-2安全な成功条件/本plan88行相当の追補へ接合し、2readのlease無しopen・違tenant・controller喪失/再起動falseと、同DB/PID二重lease時のtrueを検査する。手動のprivileged SQLprimitive成功を実DurableLedger.fresh_activation・初期grant・UIの成功証拠へ拡張しない。
 
 中間の1error/3error/4error/4成功1失敗を保全し、最終はsource/test10＋生成SQL8の全18file前後hashを同一固定して5DB成功・独立非DB147成功/所見0/0/0を確認した。これは候補の正常起動/再開/権限境界の実証で、正式9射影/8source完全値受理・残検査/全件CIは引き続き必要である。
+
+
+## 起動補助の検査メタデータ接合（2026-10-25）
+
+既PO委任による通常追随として、実検査済みstartupの `_apply_epoch(owner_dsn: str)->None` と `_require_epoch_state(applicator_dsn: str)->None` をbase-allowlistの既allowed_symbolsへexact2追加し、既 `_require_placed_state(applicator_dsn: str)` の戻り値だけNone→strへ追随する。前者は既_apply_placementと同じcreate_engine/Engine.beginの2API、後者は既_require_s3と同じpsycopg connect/cursor/executeの3APIだけ。既35行はこの署名1値以外保持する。sourceのDB操作やchecker拒否条件/global scan allowlistを変更しない。
+
+対象は contracts/tenant_boundary/base-allowlist.json、tests/test_check_tenant_boundary_bypass.py、tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/ の新_apply_epoch.py・新_require_epoch_state.py・既_require_placed_state.py と本plan/research。正例・登録欠落・署名差替え・余分API・未登録同module関数の拒否を確認し、非作者へ有限差分を渡す。現在の全値提案は未受理のまま保持し、修正後の正式census/9射影8外部を再導出してから単一受理する。TB005を許容census codeへ追加しない。
+
+認可の広域回帰で検出した product/exposure-facts.json のRG1物理資源引用1値も、採用済data-model1.3§3-2の現本文へ逐語追随する。分類・理由・権限・他evidenceは変えない。新13主体/7schema/65関数の既意味に対する既backend認可試験の件数・候補fixture依存供給だけを是正し、negativeの対象操作/拒否理由を保つ。共有JSONのwriterはroot、既backend/testsのclassification/database_schemas/function_acls/staging/table_access/table_rls/migration_batch_roleの実影響差分は担当分離して候補化・非作者確認する。

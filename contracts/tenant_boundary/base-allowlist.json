@@ -28661,6 +28661,15 @@
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_placement.py"
     },
     {
+      "symbol": "pitchlog.db.stage_a_startup._apply_epoch",
+      "signature": "_apply_epoch(owner_dsn: str) -> None",
+      "allowed_api_ids": [
+        "SQLA_CREATE_ENGINE",
+        "SQLA_ENGINE_BEGIN"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_epoch.py"
+    },
+    {
       "symbol": "pitchlog.db.stage_a_startup._require_s3",
       "signature": "_require_s3(applicator_dsn: str) -> None",
       "allowed_api_ids": [
@@ -28671,8 +28680,18 @@
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_s3.py"
     },
     {
+      "symbol": "pitchlog.db.stage_a_startup._require_epoch_state",
+      "signature": "_require_epoch_state(applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_epoch_state.py"
+    },
+    {
       "symbol": "pitchlog.db.stage_a_startup._require_placed_state",
-      "signature": "_require_placed_state(applicator_dsn: str) -> None",
+      "signature": "_require_placed_state(applicator_dsn: str) -> str",
       "allowed_api_ids": [
         "PSYCOPG_CONNECT",
         "PSYCOPG_CONNECTION_CURSOR",
