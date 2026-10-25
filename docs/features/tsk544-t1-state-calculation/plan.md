@@ -1,6 +1,6 @@
 ---
 feature: tsk544-t1-state-calculation
-status: active
+status: in-review
 承認: 済(2026-10-20・山田正輝)
 重さ分類: コア領域
 worktree: ../../..
@@ -17,13 +17,13 @@ created: 2026-10-20
 
 **承認記録**: 2026-10-20、山田正輝がSHA-256 `40340ce0c2f399e35240c19ce64496656eeae93d4854ba2ba6eb3d6984d720fd` の本計画を承認した。追加独立レビューのP1 3件を採用した最終反映差分が未再レビューであることを含む承認である。承認記録によるfrontmatterと本段落の追記は指定SHAの後続記録であり、J5/J6の意味、正本7.3、契約7.7、P-6成立、製品計算コードの開始許可には拡張しない。現枝でT1を実行する唯一の計画を本書とし、[旧U-X1計画](../ux1-state-calc/plan.md)は2026-10-17承認済みの上位方針・T2以降の参照として保持する。旧計画のT1実行ステップを旧枝で重ねて実行しない。旧計画の全文・承認・レビュー実績を本書へ複製しない。
 
-レビュー履歴は旧計画5周、TSK-544のP-8最小追補2周、J5/J6旧パス追補の採用反映2周、今回の採用反映1周で**通算10周**。J5/J6第1回はP0=1/P1=3、第2回はP0=1/P1=1を採用した。第3回P0限定は残存P0=1（旧計画のbranch/worktreeとT1枝の不一致）で、採用反映がないため周回数に加えない。今回許可された追加独立レビューはP0=0/P1=3/P2=0で否決。3件を採用した最終差分と、旧G6-S最終修正は**未再レビュー**。この追加レビューを7.3正本レビュー、契約候補2回のレビュー、P-6独立導出へ読み替えない。旧パスの未承認差分は[保全パッチ](old-j5-j6-unapproved-candidate.patch.b64)に保存した。正本・契約に反映済みとは扱わない。
+レビュー履歴は旧計画5周、TSK-544のP-8最小追補2周、J5/J6旧パス追補の採用反映2周、今回の採用反映1周で**通算10周**。J5/J6第1回はP0=1/P1=3、第2回はP0=1/P1=1を採用した。第3回P0限定は残存P0=1（旧計画のbranch/worktreeとT1枝の不一致）で、採用反映がないため周回数に加えない。今回許可された追加独立レビューはP0=0/P1=3/P2=0で否決。3件を採用した最終差分と、旧G6-S最終修正は**未再レビュー**。この追加レビューを7.3正本レビュー、契約候補2回のレビュー、P-6独立導出へ読み替えない。旧パスの未承認差分は保全パッチ（固定Git 8d51453df3ef528c0470623faac23983feff2fde:docs/features/tsk544-t1-state-calculation/old-j5-j6-unapproved-candidate.patch.b64、blob 97353bcac644a031b8ab8739f2c8055378e2173c）に保存した。正本・契約に反映済みとは扱わない。
 
 ## 1. 背景・目的
 
 11/12の段階提供では本物のT1状況計算を用いて1球を記録・保存・再読込する。ADR-003 v0.8 D-14-m、要件書v2.15、[旧計画](../ux1-state-calc/plan.md)のT1/T2限定経過措置とP-1〜P-9を適用する。分析40行、D-2全体の発効、無条件の凍結解除は対象外。FR-040の直接補正導線は延期され、これを含む従来MVP全体の完成とは記録しない。NFR-018に従いTSK-538の単一TS計算核・同一JS artifactを利用し、手書きの別計算を置かない。
 
-原典と候補: [旧設計](../ux1-state-calc/design.md)、[T1入力・case候補](../ux1-state-calc/tsk544-p8-candidates/)、[J5/J6本文・型候補](../ux1-state-calc/tsk544-p8-candidates/t1-j5-j6-decision-candidate.md)、[P-6/P-7/P-8受渡し](../ux1-state-calc/tsk544-p6-p7-p8-handoff.md)。候補中の未裁定値は正式仕様ではない。
+原典と候補: [旧設計](../ux1-state-calc/design.md)、T1入力・case候補（固定Git 7912b9c63e4b35a06fed667ee976cc8f91a4f457:docs/features/ux1-state-calc/tsk544-p8-candidates、tree d0a3593577a8aa7ed4448b2bf8a7a6666800173a）、J5/J6本文・型候補（固定Git aec6768cbd0089c61b1b2ad0a8382947fa561cdf:docs/features/ux1-state-calc/tsk544-p8-candidates/t1-j5-j6-decision-candidate.md、blob 8e3357852e098001a307699b17e4f1354f24b341）、P-6/P-7/P-8受渡し（固定Git 35a7f5761a105c77cbfee7820cf01ca2af84a37c:docs/features/ux1-state-calc/tsk544-p6-p7-p8-handoff.md、blob 10fc0962b844086d0bcdfee47f4597a9faa2c59b）。候補中の未裁定値は正式仕様ではない。
 
 ## 2. スコープ
 
@@ -35,9 +35,9 @@ created: 2026-10-20
 
 | 対象 | 今回の計画作成差分 | 将来の反映と停止ゲート |
 | --- | --- | --- |
-| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **7.3承認済み候補からapprovedへ確定** | v2.16のJ5のXC-13時点分界とJ6の付録A-1/E-1入力を2026-10-21のPO承認に基づき確定。契約の7.7は別ゲート |
-| `docs/adr/ADR-003-domain-calc-method.md` | **7.3承認済み候補からapprovedへ確定** | v0.9のD-11のT1限定検証時点を同じ7.3ゲートで確定。D-2全体は維持 |
-| `docs/README.md` | **approved状態・版・日付へ追随** | v2.16/v0.9の確定を索引へ反映し、既存履歴を保持 |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | **今回反映なし（旧正式反映の履歴は保持）** | v2.16のJ5のXC-13時点分界とJ6の付録A-1/E-1入力を2026-10-21のPO承認に基づき確定。契約の7.7は別ゲート |
+| `docs/adr/ADR-003-domain-calc-method.md` | **今回反映なし（旧正式反映の履歴は保持）** | v0.9のD-11のT1限定検証時点を同じ7.3ゲートで確定。D-2全体は維持 |
+| `docs/README.md` | **今回反映なし（旧正式反映の履歴は保持）** | v2.16/v0.9の確定を索引へ反映し、既存履歴を保持 |
 | `docs/development/dev-harness-design-2026-08-07.md` | **反映なし** | 機構変更は予定しない |
 | `contracts/state-transition/`、凍結履歴・署名 | **反映なし** | 正本確定後、T1行/case/schema/descriptor/負例・T2参照・派生資産の候補を作り、コアレビュー、所有側受理、7.7実値の人間確認後に正式反映 |
 | `.claude/core-areas.json`、検査器 | **反映なし** | 検査緩和・例外追加はしない。必要な変更は別計画・ゲート |
@@ -134,3 +134,14 @@ T1の純計算と、T2を含む製品保存の成立を分ける。正式T2の6o
 2026-10-26 JST、新T2 callerの故障試験が既decode_first_pitch_responseにもstateFields/state_fieldsの二重配置を受理して余剰名を落とす挙動を再現した。閉ABIの不足検査でありrootは通常不具合修正として、backend/src/pitchlog/domainrt/first_pitch.pyとbackend/tests/domainrt/test_first_pitch_adapter.pyの2pathだけを有限是正する。JSON重複/nonfinite先拒否・strict/alias-only検証に加え、入力wire objectとalias付きJSON-mode dumpの全構造同値を要求して黙った正規化/余剰名脱落を拒否する。正規成功値・既4code・DTO構築API・math source/artifactを変えず、bool/int同値は既exact bool/strictを維持する。cache verify-first-pitch-alias-920191f3で作者creation_pathが2pathだけ実装、別非作者差分確認・既NodeHostの正例/故障/旧208等を検査してrootが接合する。T2 branchの既first_pitch.pyはauthor作業中に変更せず、後続dependency追随で直列反映する。PO委任によるCodex /root判断で承認。旧レビューの0/208成功と、この後発反例を両方保持し、過去検査が二重aliasも検証済みだったとはしない。
 
 2026-10-26 JST、前記二重alias是正は作者handoff77a24dd82f8c5b2b4093c55ffa217a86a2e72bac34807dfd7dfd5679c74d00aaで固定。旧sourceで8失敗/40成功を再現した後、parsed wireとstrict alias JSON dumpの構造同値を追加した。別非作者out3のevidence59f16acf7c739ee7df0b842c44611368308a0c3e4628b01fba98eeaf6b06ad08/review54d8d6c75a45a922c42cc91ae71085a340fd7c4e20a37bd79c2f71ad792ffc5aは指摘0、独立旧208＋新48=256成功4.21s。旧29source定義/20test helper/DTO構築/4code/host/math/artifact不変、member順/ASCII escapeの意味同一受理とbool-int拒否も確認。rootはsourceafa6e21ac9cc3cce8877a57ac593596dbe3de8504e949d64eccf46ed315f9e20/test496172b26ed7de79314e4c6f6d4df40377d77b4f73439155859194b71a90a443を実SHA照合しPO委任受理する。旧0/208で未検出だった履歴は保持し、API/DB保存の達成へ広げない。
+
+
+## 2026-10-26 初球数学部品のDraft提出単位
+
+2026-10-25T20:05:34.568863+00:00、PO委任によるCodex判断（Codex /root）として、今回の提出状態in-reviewは最初のball数学核/同artifact/型付き固定host callerにだけ適用する。親TSK-544全体のステップ1/2・DoDやHTTP/DBマージ前義務は未完のまま維持する。後続実装時は同じ唯一の親計画をactiveへ戻し、既10周/2確定ゲート/後発レビューと未充足を保持する。新しいT1全体計画は作らない。
+
+今回の実差分は数学/adapter/試験/生成物11pathと本計画/first-pitch-boundary.jsonの2pathのみ。§3の旧正本反映は過去の成立履歴であり、今回requirements/ADR/README/contracts/core定義を変更しない。未収録の旧候補4参照は実在Git blob/treeへ固定し、内容の新受理/全差分移植をせず参照可能性だけを回復する。
+
+first-ballの成功と未対応拒否/alias重複拒否を実Node/同hash Chromium/単一TS実装で検証済み。公式develop30f67へ追随した5478b8c3で数学11pathとST-MATRIX-0529a0eb116d64a9全値不変、backend domainrt全256成功3.91s。既frontend1923成功と独立237成功は別実行・対象として記録する。Draft提出は計算部品の公開と必須検査・レビューを進めるためであり、実DBを事前投入した実証/認可迂回/仮成功を含まない。
+
+今回の局所締めで§4 PR1aおよび実経路の実認証/初期記録権/T2/Port/原子的保存/再送/結果不明/画面再読込のマージ前義務を削除しない。満たす前はDraftのまま保持する。全T1/全P6/P7/P8/MVP完成、本人逐行確認・署名を代記しない。委任policyへ対象PRを追加する場合は実PR番号/head branchのexact対のみ、既対象/拒否条件を保持し独立確認後に公開証拠を記録する。
