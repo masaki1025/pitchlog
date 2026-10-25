@@ -383,3 +383,61 @@ def test_decoder_rejects_nested_nonfinite_constant(constant: str) -> None:
     wire = json.dumps(_success()).replace('"count": "0"', '"count": ' + constant, 1)
     with pytest.raises(FirstPitchProtocolError):
         decode_first_pitch_response(wire)
+
+
+@pytest.mark.parametrize(
+    ("path", "canonical", "python_name"),
+    [
+        (("value",), "countEffect", "count_effect"),
+        (("value",), "statFlags", "stat_flags"),
+        (("value",), "historyContext", "history_context"),
+        (("value", "after"), "stateFields", "state_fields"),
+        (("value", "after", "stateFields"), "state.count.balls", "balls"),
+        (("value", "after", "scoreboard"), "inningScores", "inning_scores"),
+        (("value", "statFlags"), "投球数", "pitch"),
+        (
+            ("value", "historyContext", 0, "difference"),
+            "stateFields",
+            "state_fields",
+        ),
+    ],
+)
+@pytest.mark.parametrize("form", ["both", "name-only", "both-with-unknown"])
+def test_decoder_rejects_alias_and_attribute_name_cutout(
+    path: tuple[str | int, ...],
+    canonical: str,
+    python_name: str,
+    form: str,
+) -> None:
+    """同値の二重名もdump時の黙示脱落を許可しない。"""
+    raw = _success()
+    target = _at(raw, path)
+    target[python_name] = copy.deepcopy(target[canonical])
+    if form == "name-only":
+        del target[canonical]
+    if form == "both-with-unknown":
+        target["unknown_nested_member"] = True
+    with pytest.raises(FirstPitchProtocolError):
+        decode_first_pitch_response(json.dumps(raw, ensure_ascii=False))
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("ok",),
+        ("value", "plateAppearanceEnded"),
+        ("value", "after", "stateFields", "state.gameEnded"),
+        ("value", "after", "stateFields", "state.tiebreakActive"),
+        ("value", "statFlags", "投球数"),
+        ("value", "historyContext", 0, "difference", "statFlags", "投球数"),
+    ],
+)
+@pytest.mark.parametrize("bad", [0, 1, 0.0, 1.0])
+def test_response_boolean_does_not_use_python_numeric_equality(
+    path: tuple[str | int, ...], bad: object
+) -> None:
+    """wire往復比較でboolと数値が同値でも既strict型で拒否する。"""
+    raw = _success()
+    _at(raw, path[:-1])[path[-1]] = bad
+    with pytest.raises(FirstPitchProtocolError):
+        decode_first_pitch_response(json.dumps(raw))
