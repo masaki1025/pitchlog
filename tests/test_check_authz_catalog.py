@@ -6131,3 +6131,70 @@ def test_initial_start_exact_sets_reject_missing_and_changed_declarations(
     missing[group].pop()
     with pytest.raises(ValueError):
         validate_start_asset_sets(missing)
+
+
+def test_generation_guard_literal_does_not_execute_migration(tmp_path: Path) -> None:
+    """固定SQLの読取りでmigrationのimportや副作用を実行しない。"""
+    module = importlib.import_module("pitchlog.authz.product_function_acl")
+    migration = tmp_path / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text(
+        "import unavailable_migration_dependency\n"
+        "raise RuntimeError('must not execute')\n"
+        "_GENERATION_GUARD_SQL = ('CREATE FUNCTION fixed_guard()', "
+        "'DROP TRIGGER fixed', 'CREATE TRIGGER fixed')\n",
+        encoding="utf-8",
+    )
+    assert module.generate_generation_guard_sql(tmp_path) == (
+        "-- ELEMENT-TYPE: function\n"
+        "-- ELEMENT-ID: FUNCTION:public:protect_recording_generations_updates()\n\n"
+        "CREATE FUNCTION fixed_guard();\n"
+        "REVOKE EXECUTE ON FUNCTION public.protect_recording_generations_updates() "
+        "FROM PUBLIC, pitchlog_app;\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        "unrelated = ('x', 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n_GENERATION_GUARD_SQL = ('a', 'b', 'c')",
+        "_GENERATION_GUARD_SQL = tuple(['x', 'y', 'z'])",
+        "_GENERATION_GUARD_SQL = ['x', 'y', 'z']",
+        "_GENERATION_GUARD_SQL = (1, 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ()",
+        "_GENERATION_GUARD_SQL: tuple = ('x', 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n_GENERATION_GUARD_SQL += ('a',)",
+        "_GENERATION_GUARD_SQL = (",
+        "_GENERATION_GUARD_SQL = alias = ('x', 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n"
+        "(_GENERATION_GUARD_SQL, other) = (('a', 'b', 'c'), 0)",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n"
+        "for _GENERATION_GUARD_SQL in [('a', 'b', 'c')]: pass",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\ndel _GENERATION_GUARD_SQL",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\nimport os as _GENERATION_GUARD_SQL",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\ndef _GENERATION_GUARD_SQL(): pass",
+    ],
+)
+def test_generation_guard_literal_rejects_ambiguous_source(
+    tmp_path: Path, declaration: str
+) -> None:
+    """未提示形・複数代入・動的定数を勝手に実行・補完しない。"""
+    module = importlib.import_module("pitchlog.authz.product_function_acl")
+    migration = tmp_path / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text(declaration + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="0036"):
+        module.generate_generation_guard_sql(tmp_path)
+
+
+def test_generation_guard_literal_matches_preserved_product_sql() -> None:
+    """実0036からの読取結果は既初期profileのSQL全byteと一致する。"""
+    module = importlib.import_module("pitchlog.authz.product_function_acl")
+    expected = REPOSITORY_ROOT / (
+        "contracts/authz/product/function-bodies/functions/"
+        "FUNCTION:public:protect_recording_generations_updates().sql"
+    )
+    assert module.generate_generation_guard_sql(REPOSITORY_ROOT) == expected.read_text(
+        encoding="utf-8"
+    )

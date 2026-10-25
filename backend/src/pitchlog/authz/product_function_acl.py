@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -2579,14 +2580,50 @@ def generate_initial_function_sql(function_id: str) -> str:
 
 def generate_generation_guard_sql(root: Path) -> str:
     """0036と同一の世代不変guard定義からprofileのbodyを生成する。"""
-    from runpy import run_path
-
     migration = (
         root / "backend/migrations/versions/0036_initial_recording_right_storage.py"
     )
-    sql = run_path(str(migration))["_GENERATION_GUARD_SQL"][0]
-    if not isinstance(sql, str):
-        raise ValueError("0036の世代guard供給が不正")
+    try:
+        tree = ast.parse(migration.read_text(encoding="utf-8"))
+        bindings = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name)
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+            and node.id == "_GENERATION_GUARD_SQL"
+        ]
+        declarations = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "_GENERATION_GUARD_SQL"
+        ]
+        other_bindings = any(
+            (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                and node.name == "_GENERATION_GUARD_SQL"
+            )
+            or (
+                isinstance(node, ast.alias)
+                and (node.asname or node.name.split(".")[0]) == "_GENERATION_GUARD_SQL"
+            )
+            for node in ast.walk(tree)
+        )
+        if other_bindings or len(bindings) != 1 or len(declarations) != 1:
+            raise ValueError("固定定数の単一トップレベル代入でない")
+        declaration = declarations[0]
+        values = ast.literal_eval(declaration.value)
+        if (
+            type(values) is not tuple
+            or len(values) != 3
+            or any(type(value) is not str or not value.strip() for value in values)
+        ):
+            raise ValueError("固定DDL三要素でない")
+        sql = values[0]
+    except (OSError, SyntaxError, ValueError, TypeError) as exc:
+        raise ValueError("0036の世代guard供給が不正") from exc
     return (
         "-- ELEMENT-TYPE: function\n"
         "-- ELEMENT-ID: FUNCTION:public:protect_recording_genera"
