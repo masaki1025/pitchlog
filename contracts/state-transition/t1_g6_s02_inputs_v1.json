@@ -1,0 +1,161 @@
+{
+  "format_version": "t1-operation-inning-projection-v1",
+  "inputs": [
+    {
+      "input_id": "n0001",
+      "pre_state": {
+        "inning": 10,
+        "half": "top",
+        "outs": 0,
+        "count": {
+          "strikes": 0,
+          "balls": 0
+        },
+        "runners": {
+          "first": {
+            "kind": "empty"
+          },
+          "second": {
+            "kind": "empty"
+          },
+          "third": {
+            "kind": "empty"
+          }
+        },
+        "score": {
+          "away": 0,
+          "home": 0
+        },
+        "batting_order": 1,
+        "batter": {
+          "kind": "official",
+          "player_id": "00000000-0000-4000-8000-000000000001"
+        },
+        "tiebreak_active": false,
+        "game_ended": false
+      },
+      "tiebreak_start": {
+        "runnerPlacement": "second-third",
+        "leadoffBatter": 9,
+        "inning": 10
+      }
+    },
+    {
+      "input_id": "n0002",
+      "pre_state": {
+        "inning": 10,
+        "half": "top",
+        "outs": 0,
+        "count": {
+          "strikes": 0,
+          "balls": 0
+        },
+        "runners": {
+          "first": {
+            "kind": "empty"
+          },
+          "second": {
+            "kind": "empty"
+          },
+          "third": {
+            "kind": "empty"
+          }
+        },
+        "score": {
+          "away": 0,
+          "home": 0
+        },
+        "batting_order": 1,
+        "batter": {
+          "kind": "official",
+          "player_id": "00000000-0000-4000-8000-000000000001"
+        },
+        "tiebreak_active": false,
+        "game_ended": false
+      },
+      "tiebreak_start": {
+        "runnerPlacement": "second-third",
+        "leadoffBatter": 9,
+        "inning": 11
+      }
+    },
+    {
+      "input_id": "n0003",
+      "pre_state": {
+        "inning": 10,
+        "half": "top",
+        "outs": 0,
+        "count": {
+          "strikes": 0,
+          "balls": 0
+        },
+        "runners": {
+          "first": {
+            "kind": "empty"
+          },
+          "second": {
+            "kind": "empty"
+          },
+          "third": {
+            "kind": "empty"
+          }
+        },
+        "score": {
+          "away": 0,
+          "home": 0
+        },
+        "batting_order": 1,
+        "batter": {
+          "kind": "official",
+          "player_id": "00000000-0000-4000-8000-000000000001"
+        },
+        "tiebreak_active": false,
+        "game_ended": false
+      },
+      "tiebreak_start": {
+        "runnerPlacement": "second-third",
+        "leadoffBatter": 9,
+        "inning": 9
+      }
+    },
+    {
+      "input_id": "n0004",
+      "pre_state": {
+        "inning": 8,
+        "half": "top",
+        "outs": 0,
+        "count": {
+          "strikes": 0,
+          "balls": 0
+        },
+        "runners": {
+          "first": {
+            "kind": "empty"
+          },
+          "second": {
+            "kind": "empty"
+          },
+          "third": {
+            "kind": "empty"
+          }
+        },
+        "score": {
+          "away": 0,
+          "home": 0
+        },
+        "batting_order": 2,
+        "batter": {
+          "kind": "official",
+          "player_id": "00000000-0000-4000-8000-000000000001"
+        },
+        "tiebreak_active": false,
+        "game_ended": false
+      },
+      "tiebreak_start": {
+        "runnerPlacement": "first-second",
+        "leadoffBatter": 1,
+        "inning": 8
+      }
+    }
+  ]
+}

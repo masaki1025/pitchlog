@@ -6867,3 +6867,162 @@ def test_t1_consumer_cold_process_keeps_outside_read_rejection(tmp_path: Path) -
     assert measured["success"] is True
     assert measured["outside_rejected"] is True
     assert "リポジトリ外" in measured["rejection"]
+
+
+_G6_S02_ASSET_NAMES = (
+    "t1_g6_s02_input_schema_v1.json",
+    "t1_g6_s02_inputs_v1.json",
+    "t1_g6_s02_author_cases_v1.json",
+)
+
+
+def _g6_s02_assets() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """必要な3資産だけを読み、製品計算や外部candidateへ依存しない。"""
+    schema, packet, author = (
+        _load_object(REPOSITORY_ROOT / "contracts/state-transition" / name)
+        for name in _G6_S02_ASSET_NAMES
+    )
+    return schema, packet, author
+
+
+def _assert_g6_s02_fixture_correspondence(packet: dict[str, Any], author: dict[str, Any]) -> None:
+    """入力対と作者の必要条件/状態不変fixtureを比較する。
+
+    T1を実行したり、入力から操作結果・状態を生成したりしない。
+    """
+    assert [x["input_id"] for x in packet["inputs"]] == [
+        x["input_id"] for x in author["cases"]
+    ]
+    for raw, expected in zip(packet["inputs"], author["cases"], strict=True):
+        assert expected["same_inning"] is (
+            raw["pre_state"]["inning"] == raw["tiebreak_start"]["inning"]
+        )
+        obligation = expected["t1_effect_obligation"]
+        if expected["same_inning"] is False:
+            assert obligation["kind"] == "must-not-apply"
+            assert obligation["pre_state_after"] == raw["pre_state"]
+            assert obligation["scoreboard_effect"] == "unchanged"
+            assert obligation["stat_flags_effect"] == "all-23-unchanged"
+            assert obligation["history_effect"] == "unchanged"
+        else:
+            assert obligation == {"kind": "other-preconditions-still-required"}
+
+
+def test_g6_s02_closed_projection_and_fixture_correspondence() -> None:
+    """4入力は閉型を満たし、回一致は必要条件だけを表す。"""
+    schema, packet, author = _g6_s02_assets()
+    schema_checker._validate_instance(packet, schema, schema, "$")
+    _assert_g6_s02_fixture_correspondence(packet, author)
+    assert [x["same_inning"] for x in author["cases"]] == [True, False, False, True]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("inning", 0), ("inning", True), ("inning", "10"),
+        ("runnerPlacement", "loaded"), ("leadoffBatter", 0),
+        ("leadoffBatter", 10), ("leadoffBatter", False),
+    ],
+)
+def test_g6_s02_payload_invalid_or_unknown_values_are_structurally_rejected(
+    field: str, value: object,
+) -> None:
+    """既存payloadの型/域外値を成功観測へ補完しない。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(packet)
+    changed["inputs"][0]["tiebreak_start"][field] = value
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(changed, schema, schema, "$")
+
+
+@pytest.mark.parametrize("location", ["packet", "entry", "state", "count", "payload"])
+def test_g6_s02_missing_and_extra_fields_are_structurally_rejected(location: str) -> None:
+    """全object境界で欠落と余剰を検査する。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(packet)
+    objects = {
+        "packet": changed,
+        "entry": changed["inputs"][0],
+        "state": changed["inputs"][0]["pre_state"],
+        "count": changed["inputs"][0]["pre_state"]["count"],
+        "payload": changed["inputs"][0]["tiebreak_start"],
+    }
+    target = objects[location]
+    removed_key = next(iter(target))
+    saved = target.pop(removed_key)
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(changed, schema, schema, "$")
+    target[removed_key] = saved
+    target["expected"] = True
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(changed, schema, schema, "$")
+
+
+@pytest.mark.parametrize("index", [0, 1, 2, 3])
+def test_g6_s02_both_directions_of_inning_fixture_drift_are_rejected(index: int) -> None:
+    """一致/不一致の両側でpayload回を無視したfixture比較を許さない。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(packet)
+    changed["inputs"][index]["tiebreak_start"]["inning"] = (
+        changed["inputs"][index]["pre_state"]["inning"]
+        if index in [1, 2] else changed["inputs"][index]["pre_state"]["inning"] + 1
+    )
+    schema_checker._validate_instance(changed, schema, schema, "$")
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(changed, author)
+
+
+def test_g6_s02_mismatch_state_change_and_matching_apply_claim_are_rejected() -> None:
+    """状態変更0を壊す作者値と、必要条件だけから適用を主張する値を拒否する。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(author)
+    changed["cases"][1]["t1_effect_obligation"]["pre_state_after"]["inning"] = 11
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(packet, changed)
+    changed = copy.deepcopy(author)
+    changed["cases"][0]["t1_effect_obligation"] = {"kind": "applied"}
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(packet, changed)
+    changed = copy.deepcopy(author)
+    changed["cases"][1]["t1_effect_obligation"] = {
+        "kind": "other-preconditions-still-required"
+    }
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(packet, changed)
+
+
+def test_g6_s02_pure_input_has_no_branch_expectation_or_author_reference() -> None:
+    """入力は原値のみで、期待・分岐名・作者資料を混ぜない。"""
+    schema, packet, author = _g6_s02_assets()
+    text = json.dumps(packet, ensure_ascii=False)
+    for forbidden in ["G6", "S02", "branch", "expected", "author", "activationRelation"]:
+        assert forbidden not in text
+    for item in packet["inputs"]:
+        assert set(item) == {"input_id", "pre_state", "tiebreak_start"}
+
+
+
+
+def test_g6_s02_reference_definitions_and_formal_cases_are_unchanged() -> None:
+    """正式pure-state/操作payloadへ同値に束縛し、既111caseを変換しない。"""
+    schema, _packet, author = _g6_s02_assets()
+    formal_schema = _load_object(SCHEMA_PATH)
+    contract = _load_object(CONTRACT_PATH)
+    payloads = [
+        row["payloadShape"] for row in contract["operationRows"]
+        if row["operationKind"] == "tiebreak-start"
+    ]
+    assert len(payloads) == 3
+    for name, definition in schema["$defs"].items():
+        if name == "T1TiebreakStartPayloadV1":
+            assert all(definition == payload for payload in payloads)
+        else:
+            assert definition == formal_schema["$defs"][name]
+    case_ids = {case["caseId"] for case in contract["cases"]}
+    assert all(
+        case["existing_positive_reference"] in case_ids
+        for case in author["cases"] if case["existing_positive_reference"] is not None
+    )
+    assert [len(contract[k]) for k in ("matrixRows", "operationRows", "undoRows", "cases")] == [
+        44, 10, 10, 111,
+    ]
