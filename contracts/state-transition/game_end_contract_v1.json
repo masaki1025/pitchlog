@@ -5,7 +5,7 @@
   "inputAxesDescriptor": {
     "descriptorId": "pitchlog.input-axes",
     "version": "input_axes_descriptor_v1",
-    "digest": "sha256:f7ebea31ad39691a92474a0695e3b69c57fd80c906816a4374ae7ffb8ddb6e6f"
+    "digest": "sha256:f4792581f0879790da1853b3d279649d0f2f6a23cd068fc40f5064b23638e85f"
   },
   "provenance": {
     "subjectKind": "normative-branch-or-state-effect",

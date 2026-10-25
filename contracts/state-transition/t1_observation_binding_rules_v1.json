@@ -200,6 +200,26 @@
         "thirdOutTimingByRunner"
       ],
       "projection": "single-third-home-timing-partition"
+    },
+    "event.perPitch.rbi.runnerContinuityByRunner": {
+      "path": [
+        "per_pitch",
+        "rbi",
+        "runnerContinuityByRunner"
+      ],
+      "projection": "single-third-continuity-partition",
+      "whenCoordinatePresent": true
+    },
+    "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay": {
+      "path": [
+        "per_pitch",
+        "rbi",
+        "restart_by_runner",
+        "by_runner",
+        "third",
+        "after_observing_misplay"
+      ],
+      "whenCoordinatePresent": true
     }
   },
   "notProved": [
@@ -245,7 +265,8 @@
       "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
       "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
       "event.perPitch.thirdOutObservation.kind",
-      "event.perPitch.thirdOutTimingByRunner.third"
+      "event.perPitch.thirdOutTimingByRunner.third",
+      "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay"
     ],
     "rawInputSchemaPath": "contracts/state-transition/t1_out3_input_schema_v1.json",
     "rawInputRootDefinition": "T1Out3PureInputV2",
@@ -261,5 +282,28 @@
       "sameByteConfirmedAtCommit": "d40e79f82769944a32679c97e5630039d5755dc1",
       "interpretation": "既受理基線descriptorの完全なreadonly byte snapshot。履歴内の既承認記録は原byteの転記であり、新しい確認/承認/署名を生成しない。"
     }
+  },
+  "rbiMisplayClosedRows": {
+    "scope": {
+      "resultId": "batting-result.single",
+      "outs": 2,
+      "runners": "second-third"
+    },
+    "causeAxes": [
+      "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+      "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw"
+    ],
+    "continuityAxis": "event.perPitch.rbi.runnerContinuityByRunner",
+    "restartCausalAxis": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+    "requiredContinuityValues": [
+      "single-runner-kept-running",
+      "single-runner-stopped-and-restarted"
+    ],
+    "sourceClauses": [
+      "req:FR-003",
+      "req:RBI-03",
+      "req:RBI-04"
+    ],
+    "noRuntimeResultOrD5Decision": true
   }
 }

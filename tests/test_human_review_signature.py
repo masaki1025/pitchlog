@@ -61,7 +61,16 @@ checker = _load_module("check_human_review_signature", SIGNATURE_CHECKER_PATH)
 
 def _load_object(path: Path) -> dict[str, Any]:
     """JSON objectを読み込む。"""
-    value = json.loads(path.read_text(encoding="utf-8"))
+    # 旧render/旧carry回帰の入力は署名済みanchorへ固定する。
+    # 必須repository testはこのhelperを使わず、実checkoutの新appendを検査する。
+    if path in {CONTRACT_PATH, GAME_END_CONTRACT_PATH}:
+        raw = checker._carry_git_bytes(REPOSITORY_ROOT, [
+            "show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:"
+            f"{path.relative_to(REPOSITORY_ROOT).as_posix()}",
+        ])
+        value = json.loads(raw)
+    else:
+        value = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
 
@@ -523,9 +532,24 @@ def _carry() -> dict[str, Any]:
     return _load_object(REPOSITORY_ROOT / checker.GATE6_CARRY_PATH)
 
 
+def _legacy_carry_reader_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
+    """旧carryの合成回帰だけを旧snapshotへ向け、新受理fixtureと分離する。"""
+    original = checker.descriptor_checker.load_json
+    subjects = {path: _load_object(path) for path in (CONTRACT_PATH, GAME_END_CONTRACT_PATH)}
+
+    def read(path: Path, label: str) -> object:
+        if path in subjects:
+            return copy.deepcopy(subjects[path])
+        return original(path, label)
+
+    monkeypatch.setattr(checker.descriptor_checker, "load_json", read)
+    monkeypatch.setattr(checker, "_gate6_t1_append_is_ready", lambda _: False)
+
+
 def _override_carry(monkeypatch: pytest.MonkeyPatch, carry: dict[str, Any],
                     subject: dict[str, Any] | None = None) -> None:
     """保存資産を変更せず、変異した宣言/対象を読取境界へ供給する。"""
+    _legacy_carry_reader_fixture(monkeypatch)
     original = checker.descriptor_checker.load_json
 
     def read(path: Path, label: str) -> object:
@@ -606,6 +630,7 @@ def test_subject_carry_rejects_change_even_when_current_digest_follows(
 
 def _final_carry_fixture(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any, dict[str, Any]]:
     """実承認と混同しない合成commentで、既core_guardをそのまま実行する。"""
+    _legacy_carry_reader_fixture(monkeypatch)
     guard = checker._carry_core_guard(REPOSITORY_ROOT)
     authority = _carry()["authority"]
     head = checker._carry_git_bytes(REPOSITORY_ROOT, ["rev-parse", "HEAD"]).decode().strip()
@@ -617,7 +642,9 @@ def _final_carry_fixture(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any, dic
         head_branch=authority["branch"],
     )
     evidence = {
-        "authority_sha256": authority["sha256"], "pr": event.number,
+        "authority_sha256": hashlib.sha256(
+            (REPOSITORY_ROOT / authority["path"]).read_bytes()
+        ).hexdigest(), "pr": event.number,
         "base": event.base_sha, "head": event.head_sha,
         "diff_sha256": guard._delegation_diff(REPOSITORY_ROOT, event),
         "paths": guard.changed_paths(REPOSITORY_ROOT, event.base_sha, event.head_sha),
@@ -719,7 +746,14 @@ def _other_pr_fixture(monkeypatch: pytest.MonkeyPatch) -> tuple[Any, Any]:
     before = _carry()
     paths = [str(checker.GATE6_CARRY_PATH), str(checker.GATE6_CARRY_SCHEMA_PATH)]
     paths.extend(subject["path"] for subject in before["subjects"])
-    base_bytes = {path: (REPOSITORY_ROOT / path).read_bytes() for path in paths}
+    base_bytes = {
+        path: (checker._carry_git_bytes(REPOSITORY_ROOT, [
+            "show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:{path}",
+        ]) if path in {str(checker.STATE_TRANSITION_CONTRACT_PATH),
+                       str(checker.GAME_END_CONTRACT_PATH)}
+            else (REPOSITORY_ROOT / path).read_bytes())
+        for path in paths
+    }
     original = checker._carry_git_bytes
 
     def read(root: Path, arguments: list[str]) -> bytes:
@@ -857,3 +891,607 @@ def test_other_pr_dispatch_cannot_be_retargeted_by_carry(
     result = checker.validate_gate6_ci_event(REPOSITORY_ROOT, event)
     assert calls == ["unchanged-base"]
     assert "no new PR183 acceptance" in result
+
+
+# PR185の試験記録はsynthetic専用。正式root受理値へ転記しない。
+def _t1_append_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Any, Any, dict[str, Any]]:
+    """private readerと本物core_guardの判定を残し、I/Oだけ合成fixtureへ向ける。"""
+    repository = REPOSITORY_ROOT
+    root = tmp_path / 'synthetic-append-not-acceptance'
+    paths = {
+        str(checker.GATE6_CARRY_PATH),
+        str(checker.GATE6_CARRY_SCHEMA_PATH),
+        str(checker.GATE6_T1_APPEND_PATH),
+        str(checker.GATE6_T1_APPEND_SCHEMA_PATH),
+        str(checker.STATE_TRANSITION_CONTRACT_PATH),
+        str(checker.GAME_END_CONTRACT_PATH),
+        str(checker.SCHEMA_PATH),
+        *checker._GATE6_RETAINED_PATHS,
+        'scripts/check_human_review_signature.py',
+        'tests/test_human_review_signature.py',
+        'scripts/core_guard.py',
+        'scripts/representative_selection.py',
+        'scripts/check_branch_row_mapping.py',
+        'scripts/check_input_axes_descriptor.py',
+        'scripts/state_transition_freeze.py',
+        'contracts/state-transition/input_axes_descriptor_v1.json',
+        'docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md',
+        'docs/features/mvp-delegated-core-review/policy.json'
+    }
+    for path in paths:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((repository / path).read_bytes())
+    guard = checker._carry_core_guard(repository)
+    real_git = checker._carry_git_bytes
+    head = real_git(repository, ['rev-parse', 'HEAD']).decode().strip()
+    base = 'dcd4fda8fb80cdff5811e7e2ec5742095f1dc9a8'
+    url = 'https://github.com/masaki1025/pitchlog/pull/185#issuecomment-185'
+    event = guard.PullRequestEvent(
+        base,
+        head,
+        f'PO-DELEGATION-EVIDENCE: {url}',
+        185,
+        'masaki1025/pitchlog',
+        'masaki1025/pitchlog',
+        'feature/mvp-t1-input-closure'
+    )
+
+    def git_read(_: Path, arguments: list[str]) -> bytes:
+        if arguments[0] == 'show' and arguments[1].startswith(head + ':'):
+            return (root / arguments[1].split(':', 1)[1]).read_bytes()
+        return real_git(repository, arguments)
+    original_delegation_git = guard._delegation_git_bytes
+    original_paths = guard.changed_paths
+    def delegated_read(_: Path, args: list[str], label: str) -> bytes:
+        if args == ['show', head + ':docs/features/mvp-delegated-core-review/policy.json']:
+            path = root / 'docs/features/mvp-delegated-core-review/policy.json'
+            return path.read_bytes()
+        return original_delegation_git(repository, args, label)
+
+    monkeypatch.setattr(guard, '_delegation_git_bytes', delegated_read)
+    monkeypatch.setattr(
+        guard,
+        'changed_paths',
+        lambda _,
+        before,
+        after: original_paths(repository, before, after)
+    )
+    monkeypatch.setattr(checker, '_carry_git_bytes', git_read)
+    monkeypatch.setattr(checker, '_carry_core_guard', lambda _: guard)
+    anchor = checker._Gate6AcceptedAnchorReader(root)
+    subject = anchor.load_json(checker.STATE_TRANSITION_CONTRACT_PATH, '試験旧subject')
+    source_row = subject['matrixRows'][-2]
+    source_case = subject['cases'][-2]
+    rows, cases, refs = ([], [], [])
+    for index, case_id in enumerate(checker._GATE6_T1_CASE_IDS):
+        row = copy.deepcopy(source_row)
+        held = index in {0, 2, 4}
+        stopped = index >= 2
+        updates = {
+            'event.perPitch.rbi.cause_by_runner.third.held_too_long': held,
+            'event.perPitch.rbi.cause_by_runner.third.unnecessary_throw': not held,
+            'event.perPitch.rbi.runnerContinuityByRunner': (
+                'single-runner-stopped-and-restarted'
+                if stopped else 'single-runner-kept-running'
+            )
+        }
+        if stopped:
+            axis = 'event.perPitch.rbi.restart_by_runner.third.after_observing_misplay'
+            updates[axis] = index != 4
+        args = row['precondition']['args']
+        args[:] = [item for item in args if item['axisId'] not in updates]
+        args.extend(({'op': 'eq', 'axisId': key, 'value': value} for key, value in updates.items()))
+        row['statFlags']['打点'] = index in {0, 1, 4}
+        coordinate = {key: row[key] for key in ('eventKind', 'resultId', 'precondition')}
+        reference = {'layer': 'matrixRows', 'coordinate': coordinate}
+        case = copy.deepcopy(source_case)
+        case.update(caseId=case_id, inputId=f'synthetic-gate6-{index}', rowRef=reference)
+        case['inputCoordinate'].update(updates)
+        case['raw'] = copy.deepcopy(case['inputCoordinate'])
+        case['normalized'] = copy.deepcopy(case['inputCoordinate'])
+        case['expected'] = {
+            key: value for key,
+            value in row.items() if key not in {'eventKind', 'resultId', 'precondition', 'remarks'}
+        }
+        rows.append(row)
+        cases.append(case)
+        refs.append(reference)
+    subject['matrixRows'].extend(rows)
+    subject['cases'].extend(cases)
+    subject['mustOperationCoverage']['mappings'][0]['rowRefs'].extend(refs)
+    _write_t1_append_json(root / checker.STATE_TRANSITION_CONTRACT_PATH, subject)
+    policy = _schema()['x-pitchlog-human-review-signature-policy']
+    limit = policy['subjectDigest']['safeIntegerLimit']
+    record: dict[
+        str,
+        Any
+    ] = {
+        'schemaVersion': 1,
+        'evidenceKind': 't1-input-append',
+        'status': 'candidate-for-delegated-verification',
+        'authority': {
+            'repository': 'masaki1025/pitchlog',
+            'pr': 185,
+            'branch': 'feature/mvp-t1-input-closure',
+            'path': 'docs/features/mvp-delegated-core-review/policy.json',
+            'sourcePolicySha256': checker._GATE6_ACCEPTED_POLICY_SHA256,
+            'baseRevision': base
+        },
+        'anchor': {
+            'commit': checker._GATE6_ACCEPTED_POLICY_COMMIT,
+            'carryRawSha256': checker._GATE6_ANCHOR_RETAINED[str(checker.GATE6_CARRY_PATH)]
+        },
+        'changedCaseIds': list(checker._GATE6_T1_CASE_IDS),
+        'subjects': [],
+        'scopeReceipt': {
+            'kind': 'bounded-technical-candidate',
+            'evidenceLabel': 'synthetic test fixture; NOT root acceptance',
+            'personalReviewClaimed': False,
+            'P6FullAcceptance': False,
+            'P7FullAcceptance': False,
+            'T1BodyStartComplete': False
+        }
+    }
+    for path, projection in (
+        (checker.STATE_TRANSITION_CONTRACT_PATH, 'operation-undo-and-cases'),
+        (checker.GAME_END_CONTRACT_PATH, 'decision-cases-and-validation-errors')
+    ):
+        old = anchor.load_json(path, '試験固定subject')
+        current = _load_object(root / path)
+        changes: list[dict[
+            str,
+            Any
+        ]] = [{
+            'kind': 'replace',
+            'pointer': '/inputAxesDescriptor/digest',
+            'before': old['inputAxesDescriptor']['digest'],
+            'after': current['inputAxesDescriptor']['digest']
+        }]
+        if path == checker.STATE_TRANSITION_CONTRACT_PATH:
+            for pointer, count, values in (
+                ('/matrixRows', 44, rows),
+                ('/cases', 111, cases),
+                ('/mustOperationCoverage/mappings/0/rowRefs', 44, refs)
+            ):
+                changes.append({
+                    'kind': 'append',
+                    'pointer': pointer,
+                    'beforeCount': count,
+                    'values': values
+                })
+        record['subjects'].append({
+            'path': str(path),
+            'anchorRawSha256': hashlib.sha256(anchor.read_bytes(path)).hexdigest(),
+            'anchorDigest': checker.compute_subject_digest(old, limit),
+            'currentRawSha256': hashlib.sha256((root / path).read_bytes()).hexdigest(),
+            'currentDigest': checker.compute_subject_digest(current, limit),
+            'projection': projection,
+            'projectionDigest': checker.compute_subject_digest(
+                checker._carry_projection(old, projection),
+                limit
+            ),
+            'allowedChanges': changes
+        })
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+    evidence = {
+        'authority_sha256': hashlib.sha256(
+            (root / record['authority']['path']).read_bytes()
+        ).hexdigest(),
+        'pr': 185,
+        'base': base,
+        'head': head,
+        'diff_sha256': guard._delegation_diff(root, event),
+        'paths': guard.changed_paths(root, base, head),
+        'reviewer_agent': 'synthetic-independent-reviewer',
+        'candidate_agents': ['synthetic-author'],
+        'independent': True,
+        'verdict': 'approved',
+        'findings': [],
+        'report': {
+            'task': 'synthetic-independent-reviewer',
+            'reviewed_head': head,
+            'text': 'synthetic fixture, no actual acceptance or human signature'
+        }
+    }
+    comment = {
+        'id': 185,
+        'html_url': url,
+        'issue_url': 'https://api.github.com/repos/masaki1025/pitchlog/issues/185',
+        'author_association': 'OWNER',
+        'user': {'login': 'masaki1025'},
+        'body': guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    }
+    monkeypatch.setattr(guard, '_fetch_delegation_comment', lambda _: comment)
+    monkeypatch.setattr(guard, 'load_pull_request_event', lambda: event)
+    return (root, guard, event, comment)
+
+def _write_t1_append_json(path: Path, value: object) -> None:
+    """合成fixtureだけを書き、正式値へ反映しない。"""
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+def test_t1_append_pending_record_is_not_acceptance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """root未確定の合成recordは拒否する。実recordの永久pendingは要求しない。"""
+    root, _, _, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    schema = _load_object(root / checker.GATE6_T1_APPEND_SCHEMA_PATH)
+    pending = schema["oneOf"][0]["const"]
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, pending)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match="未確定"):
+        checker._validate_gate6_t1_input_append(root)
+
+
+def test_t1_append_synthetic_positive_uses_real_core_guard(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """旧anchor/旧validator/全差分/非作者判定を通すが実受理とは呼ばない。"""
+    root, _, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    assert 'DELEGATED VERIFIED' in checker.validate_gate6_ci_event(root, event)
+    assert checker.main(['--root', str(root), '--gate6-carry', '--ci']) == 0
+
+@pytest.mark.parametrize(
+    'mutation',
+    [
+        'old-row',
+        'operation',
+        'unauthorized',
+        'missing-case',
+        'duplicate-case',
+        'extra-case',
+        'row-ref',
+        'coverage-ref',
+        'output',
+        'unknown-pointer',
+        'duplicate-pointer',
+        'anchor',
+        'anchor-hash',
+        'raw-hash',
+        'projection',
+        'descriptor-after',
+        'extra-field',
+        'authority-hash',
+        'old-carry',
+        'old-record',
+        'unknown-case-id'
+    ]
+)
+def test_t1_append_rejects_bounded_delta_mutations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str
+) -> None:
+    """現digestが追随しても許可外・固定集合・旧記録の改変を閉じる。"""
+    root, _, _, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    record = _load_object(root / checker.GATE6_T1_APPEND_PATH)
+    entry = next(
+        x for x in record['subjects']
+        if x['path'] == str(checker.STATE_TRANSITION_CONTRACT_PATH)
+    )
+    changes = {x['pointer']: x for x in entry['allowedChanges']}
+    subject = _load_object(root / checker.STATE_TRANSITION_CONTRACT_PATH)
+    if mutation == 'old-row':
+        subject['matrixRows'][0]['statFlags']['打点'] = True
+    elif mutation == 'operation':
+        subject['operationRows'][0]['operationResult'] = 'unauthorized'
+    elif mutation == 'unauthorized':
+        subject['unauthorized'] = True
+    elif mutation in {'missing-case', 'duplicate-case', 'extra-case'}:
+        values = changes['/cases']['values']
+        if mutation == 'missing-case':
+            values.pop()
+        elif mutation == 'duplicate-case':
+            values[-1] = copy.deepcopy(values[0])
+        else:
+            values.append(copy.deepcopy(values[0]))
+    elif mutation == 'row-ref':
+        changes['/cases']['values'][0]['rowRef'] = copy.deepcopy(subject['cases'][0]['rowRef'])
+    elif mutation == 'coverage-ref':
+        values = changes['/mustOperationCoverage/mappings/0/rowRefs']['values']
+        values[0] = copy.deepcopy(subject['cases'][0]['rowRef'])
+    elif mutation == 'output':
+        changes['/cases']['values'][0]['expected']['statFlags']['打点'] = False
+    elif mutation == 'unknown-pointer':
+        entry['allowedChanges'][0]['pointer'] = '/not-allowed'
+    elif mutation == 'duplicate-pointer':
+        entry['allowedChanges'][0] = copy.deepcopy(entry['allowedChanges'][1])
+    elif mutation == 'anchor':
+        record['anchor']['commit'] = '0' * 40
+    elif mutation == 'anchor-hash':
+        record['anchor']['carryRawSha256'] = '0' * 64
+    elif mutation == 'raw-hash':
+        entry['anchorRawSha256'] = '0' * 64
+    elif mutation == 'projection':
+        entry['projectionDigest'] = 'sha256:' + '0' * 64
+    elif mutation == 'descriptor-after':
+        entry['allowedChanges'][0]['after'] = 'sha256:' + '0' * 64
+    elif mutation == 'extra-field':
+        record['approved'] = True
+    elif mutation == 'authority-hash':
+        record['authority']['sourcePolicySha256'] = '0' * 64
+    elif mutation == 'unknown-case-id':
+        record['changedCaseIds'][-1] = 'ST-UNKNOWN'
+    elif mutation == 'old-carry':
+        (root / checker.GATE6_CARRY_PATH).write_text('{}', encoding='utf-8')
+    else:
+        (root / next(iter(checker._GATE6_RETAINED_PATHS))).write_text('{}', encoding='utf-8')
+    _write_t1_append_json(root / checker.STATE_TRANSITION_CONTRACT_PATH, subject)
+    raw = (root / checker.STATE_TRANSITION_CONTRACT_PATH).read_bytes()
+    entry['currentRawSha256'] = hashlib.sha256(raw).hexdigest()
+    policy = _schema()['x-pitchlog-human-review-signature-policy']
+    limit = policy['subjectDigest']['safeIntegerLimit']
+    entry['currentDigest'] = checker.compute_subject_digest(subject, limit)
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+    with pytest.raises((
+        checker.HumanReviewSignatureRecordError,
+        descriptor_checker.DescriptorCheckError
+    )):
+        checker._validate_gate6_t1_input_append(root)
+
+@pytest.mark.parametrize(
+    'mutation',
+    [
+        'missing-event',
+        'other-pr',
+        'branch',
+        'repository',
+        'head',
+        'base',
+        'diff',
+        'open-p1',
+        'same-author',
+        'missing-evidence',
+        'approved-text',
+        'head-blob',
+        'executed-validator',
+        'disabled-policy',
+        'nonancestor',
+        'old-policy-target',
+        'missing-pr-target',
+        'old-evidence-policy'
+    ]
+)
+def test_t1_append_final_event_and_evidence_rejections(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str
+) -> None:
+    """少なくとも16種の最終event/委任/旧根拠の拒否を既判定へ通す。"""
+    root, guard, event, comment = _t1_append_fixture(tmp_path, monkeypatch)
+    evidence = json.loads(comment['body'].split('\n', 1)[1])
+    if mutation == 'missing-event':
+        event = None
+    elif mutation == 'other-pr':
+        event = guard.PullRequestEvent(**{**vars(event), 'number': 186})
+    elif mutation == 'branch':
+        event = guard.PullRequestEvent(**{**vars(event), 'head_branch': 'fix/other'})
+    elif mutation == 'repository':
+        event = guard.PullRequestEvent(**{**vars(event), 'head_repository': 'other/repo'})
+    elif mutation == 'head':
+        event = guard.PullRequestEvent(**{**vars(event), 'head_sha': '0' * 40})
+    elif mutation == 'base':
+        event = guard.PullRequestEvent(**{
+            **vars(event),
+            'base_sha': checker._GATE6_ACCEPTED_POLICY_COMMIT
+        })
+    elif mutation == 'diff':
+        evidence['diff_sha256'] = '0' * 64
+    elif mutation == 'open-p1':
+        evidence['findings'] = [{'severity': 'P1', 'resolved': False, 'detail': 'synthetic open'}]
+    elif mutation == 'same-author':
+        evidence['candidate_agents'] = [evidence['reviewer_agent']]
+    elif mutation == 'old-evidence-policy':
+        evidence['authority_sha256'] = checker._GATE6_ACCEPTED_POLICY_SHA256
+    elif mutation == 'missing-evidence':
+
+        def missing(_: str) -> Any:
+            raise guard.GuardError('synthetic missing evidence')
+        monkeypatch.setattr(guard, '_fetch_delegation_comment', missing)
+    elif mutation == 'approved-text':
+        event = guard.PullRequestEvent(**{**vars(event), 'body': 'approved'})
+    elif mutation == 'head-blob':
+        old = checker._carry_git_bytes
+
+        def different(r: Path, args: list[str]) -> bytes:
+            if args == ['show', f'{event.head_sha}:{checker.GATE6_T1_APPEND_PATH}']:
+                return b'{}'
+            return old(r, args)
+        monkeypatch.setattr(checker, '_carry_git_bytes', different)
+    elif mutation == 'executed-validator':
+        (root / 'scripts/check_human_review_signature.py').write_text(
+            '# different',
+            encoding='utf-8'
+        )
+    elif mutation == 'nonancestor':
+        old = checker._carry_git_bytes
+
+        def no_ancestor(r: Path, args: list[str]) -> bytes:
+            if args[0] == 'merge-base':
+                raise checker.HumanReviewSignatureRecordError('synthetic nonancestor')
+            return old(r, args)
+        monkeypatch.setattr(checker, '_carry_git_bytes', no_ancestor)
+    else:
+        policy_path = root / 'docs/features/mvp-delegated-core-review/policy.json'
+        policy = _load_object(policy_path)
+        if mutation == 'disabled-policy':
+            policy['enabled'] = False
+        elif mutation == 'missing-pr-target':
+            policy['targets'] = [item for item in policy['targets'] if item['pr'] != 185]
+        else:
+            policy['targets'][0]['branch'] = 'fix/changed-old-target'
+        _write_t1_append_json(policy_path, policy)
+    comment['body'] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_delegated_gate6_t1_input_append(root, event)
+
+def _t1_append_later_event(
+    root: Path,
+    guard: Any,
+    event: Any,
+    monkeypatch: pytest.MonkeyPatch
+) -> Any:
+    """後続PRのbaseに今回記録が既存という合成Git境界を作る。"""
+    later = guard.PullRequestEvent(**{**vars(event), 'number': 186, 'head_branch': 'fix/later'})
+    paths = [
+        str(checker.GATE6_T1_APPEND_PATH),
+        str(checker.GATE6_T1_APPEND_SCHEMA_PATH),
+        str(checker.STATE_TRANSITION_CONTRACT_PATH),
+        str(checker.GAME_END_CONTRACT_PATH)
+    ]
+    before = {p: (root / p).read_bytes() for p in paths}
+    old = checker._carry_git_bytes
+
+    def read(r: Path, args: list[str]) -> bytes:
+        if args[0] == 'show' and args[1].startswith(later.base_sha + ':'):
+            path = args[1].split(':', 1)[1]
+            if path in before:
+                return before[path]
+        return old(r, args)
+    monkeypatch.setattr(checker, '_carry_git_bytes', read)
+    return later
+
+def test_t1_append_later_pr_is_unchanged_not_new_acceptance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """不変後続PRは新しいPR185受理や本人署名を表明しない。"""
+    root, guard, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    later = _t1_append_later_event(root, guard, event, monkeypatch)
+
+    def no_fetch(_: str) -> Any:
+        raise AssertionError('後続継承で新受理証拠を取得しない')
+    monkeypatch.setattr(guard, '_fetch_delegation_comment', no_fetch)
+    assert 'no new PR185 acceptance' in checker.validate_gate6_ci_event(root, later)
+
+@pytest.mark.parametrize('target', ['record', 'schema', 'subject'])
+def test_t1_append_later_pr_rejects_coordinated_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str
+) -> None:
+    """後続PRはrecord/schema/subjectのbaseとの差を黙って採用しない。"""
+    root, guard, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    later = _t1_append_later_event(root, guard, event, monkeypatch)
+    path = {
+        'record': checker.GATE6_T1_APPEND_PATH,
+        'schema': checker.GATE6_T1_APPEND_SCHEMA_PATH,
+        'subject': checker.GAME_END_CONTRACT_PATH
+    }[target]
+    if target == 'subject':
+        (root / path).write_bytes((root / path).read_bytes() + b'\n')
+        record = _load_object(root / checker.GATE6_T1_APPEND_PATH)
+        entry = next((x for x in record['subjects'] if x['path'] == str(path)))
+        entry['currentRawSha256'] = hashlib.sha256((root / path).read_bytes()).hexdigest()
+        _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+    else:
+        value = _load_object(root / path)
+        if target == 'record':
+            value['scopeReceipt']['evidenceLabel'] += ' changed'
+        else:
+            value['title'] += ' changed'
+        _write_t1_append_json(root / path, value)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='後続PR'):
+        checker.validate_gate6_ci_event(root, later)
+
+def test_t1_append_no_public_revision_switch() -> None:
+    """固定private readerに任意commitを与える公開入口はない。"""
+    with pytest.raises(TypeError):
+        checker._Gate6AcceptedAnchorReader(REPOSITORY_ROOT, '0' * 40)
+    with pytest.raises(SystemExit):
+        checker.main(['--root', str(REPOSITORY_ROOT), '--revision', '0' * 40])
+
+
+@pytest.mark.parametrize("mutation", ["extra-record", "personal-claim", "unknown-change"])
+def test_t1_append_relaxed_candidate_schema_cannot_expand_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """新schemaも同時に緩めた場合でも閉じた記録/本人確認境界を保つ。"""
+    root, _, _, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    record = _load_object(root / checker.GATE6_T1_APPEND_PATH)
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_SCHEMA_PATH, {})
+    if mutation == "extra-record":
+        record["approved"] = True
+    elif mutation == "personal-claim":
+        record["scopeReceipt"]["personalReviewClaimed"] = True
+    else:
+        record["subjects"][0]["allowedChanges"][0]["approved"] = True
+    _write_t1_append_json(root / checker.GATE6_T1_APPEND_PATH, record)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._validate_gate6_t1_input_append(root)
+
+
+@pytest.mark.parametrize("mutation", ["missing-base", "schema-missing", "subject-missing"])
+def test_t1_append_later_pr_never_invents_missing_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """後続PRで基準blobが欠けても現値へ代用しない。"""
+    root, guard, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    later = _t1_append_later_event(root, guard, event, monkeypatch)
+    path = {"missing-base": checker.GATE6_T1_APPEND_PATH,
+            "schema-missing": checker.GATE6_T1_APPEND_SCHEMA_PATH,
+            "subject-missing": checker.STATE_TRANSITION_CONTRACT_PATH}[mutation]
+    old = checker._carry_git_bytes
+
+    def missing(r: Path, args: list[str]) -> bytes:
+        if args == ["show", f"{later.base_sha}:{path}"]:
+            raise checker.HumanReviewSignatureRecordError("synthetic missing base")
+        return old(r, args)
+
+    monkeypatch.setattr(checker, "_carry_git_bytes", missing)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match="missing base"):
+        checker.validate_gate6_ci_event(root, later)
+
+
+def test_t1_append_anchor_reader_uses_snapshot_schema(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """現schemaの緩和をanchor内の旧record再検査へ混ぜない。"""
+    root, _, _, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    expected = checker._Gate6AcceptedAnchorReader(root).load_json(
+        checker.SCHEMA_PATH, "固定schema"
+    )
+    _write_t1_append_json(root / checker.SCHEMA_PATH, {})
+    assert checker._Gate6AcceptedAnchorReader(root).load_json(
+        checker.SCHEMA_PATH, "固定schema"
+    ) == expected
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match="旧本人記録"):
+        checker._validate_gate6_t1_input_append(root)
+
+
+@pytest.mark.parametrize("stale", [False, True])
+def test_t1_append_required_repository_test_reaches_final_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stale: bool,
+) -> None:
+    """必須repository testが新appendの実委任判定まで到達し、旧HEAD証拠で赤になる。"""
+    root, guard, _, comment = _t1_append_fixture(tmp_path, monkeypatch)
+    if stale:
+        evidence = json.loads(comment["body"].split("\n", 1)[1])
+        evidence["head"] = "0" * 40
+        comment["body"] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    monkeypatch.setattr(sys.modules[__name__], "REPOSITORY_ROOT", root)
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    if stale:
+        with pytest.raises(AssertionError):
+            test_repository_gate6_signature_records_match_current_contracts()
+    else:
+        test_repository_gate6_signature_records_match_current_contracts()
+
+
+def test_t1_append_later_policy_target_append_keeps_record_frozen(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正当なpolicy対象追記だけならrecord根拠は固定して後続不変継承できる。"""
+    root, guard, event, _ = _t1_append_fixture(tmp_path, monkeypatch)
+    later = _t1_append_later_event(root, guard, event, monkeypatch)
+    record_before = (root / checker.GATE6_T1_APPEND_PATH).read_bytes()
+    policy_path = root / 'docs/features/mvp-delegated-core-review/policy.json'
+    policy = _load_object(policy_path)
+    policy['targets'].append({'pr': 186, 'branch': 'fix/later'})
+    _write_t1_append_json(policy_path, policy)
+    assert 'no new PR185 acceptance' in checker.validate_gate6_ci_event(root, later)
+    assert (root / checker.GATE6_T1_APPEND_PATH).read_bytes() == record_before

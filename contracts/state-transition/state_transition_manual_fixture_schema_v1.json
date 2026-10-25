@@ -28,8 +28,6 @@
       "OUT3-03": "第3アウト種別の観測入力と得点可否の規範行が段階2待ち",
       "RBI-01": "得点を伴うフォース併殺とRBI適用条件の入力が未確定",
       "RBI-02": "分岐の得点原因と打点の規範行が未整備",
-      "RBI-03": "分岐の得点原因と打点の規範行が未整備",
-      "RBI-04": "分岐の得点原因と打点の規範行が未整備",
       "RBI-05": "分岐の得点原因と打点の規範行が未整備",
       "RBI-07": "分岐の得点原因と打点の規範行が未整備",
       "INT-01": "自動成立側の実プレイ結果を固定する規範行が無い",
@@ -122,6 +120,13 @@
         },
         "provenance": {
           "$ref": "#/$defs/provenance"
+        },
+        "additionalCases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/positiveCase"
+          }
         }
       }
     },
@@ -434,6 +439,17 @@
             "single-runner-not-before-third-out",
             "multiple-runners-mixed-timing"
           ]
+        },
+        "event.perPitch.rbi.runnerContinuityByRunner": {
+          "enum": [
+            "not-required",
+            "single-runner-kept-running",
+            "single-runner-stopped-and-restarted",
+            "multiple-runners-mixed-continuity"
+          ]
+        },
+        "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay": {
+          "type": "boolean"
         }
       }
     },
