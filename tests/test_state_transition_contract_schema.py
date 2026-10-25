@@ -6502,18 +6502,38 @@ def _t1_assembly_row_requirements(rules: dict[str, Any]) -> tuple[Any, ...]:
 
 
 def test_t1_assembly_old_row_requirement_identities_are_preserved() -> None:
-    """旧47要求のidentity・典拠を保ち単打の二例だけを追加する。"""
+    """旧47・後続2区分を保ち、RBIの追加5区分だけを現在値へ結ぶ。"""
     rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
     prior = copy.deepcopy(rules)
     addition = prior["partitionRules"][0].pop("additionalPartitions")
     assert [item["vocabularyId"] for item in addition] == ["batting-result.single"]
+    historical = copy.deepcopy(rules)
+    historical_addition = historical["partitionRules"][0]["additionalPartitions"][0]
+    historical_addition["partitions"] = addition[0]["partitions"][:2]
+    historical_addition["sourceClauseIds"] = addition[0]["sourceClauseIds"][:3]
+    assert historical_addition == {
+        "vocabularyId": "batting-result.single",
+        "partitions": ["out3-explicit-home-before", "out3-explicit-not-before"],
+        "sourceClauseIds": ["req:FR-003", "req:OUT3-04", "req:OUT3-05"],
+    }
     old, new = _t1_assembly_row_requirements(prior), _t1_assembly_row_requirements(rules)
+    historical_rows = _t1_assembly_row_requirements(historical)
     by_id = {item.identity: item for item in new}
-    assert (len(old), len(new)) == (47, 49)
+    assert (len(old), len(historical_rows), len(new)) == (47, 49, 54)
     assert all(by_id[item.identity].source_clause_ids == item.source_clause_ids for item in old)
+    assert all(
+        set(item.source_clause_ids) <= set(by_id[item.identity].source_clause_ids)
+        for item in historical_rows
+    )
     old_ids = {item.identity for item in old}
     assert {item.result_id for item in new if item.identity not in old_ids} == {
         "batting-result.single"
+    }
+    historical_ids = {item.identity for item in historical_rows}
+    assert {item.partition_id for item in new if item.identity not in historical_ids} == {
+        "rbi-kept-held-too-long", "rbi-kept-unnecessary-throw",
+        "rbi-restarted-held-after-misplay", "rbi-restarted-throw-after-misplay",
+        "rbi-restarted-held-noncausal",
     }
 
 

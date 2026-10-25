@@ -1,6 +1,6 @@
 ---
 feature: mvp-t1-input-closure
-status: active
+status: in-review
 承認: 済（2026-10-25・PO委任によるCodex判断）
 重さ分類: コア領域
 worktree: ../../..
@@ -158,3 +158,7 @@ consumer handoffの追加1assetは非作者REVIEWc823c2f4b5f88c2a885df6603b65745
 2026-10-26 JST、残5pathの独立REVIEW0bc3ca06c758d2419f6c87d9847a791e01a9cf5499359f29aadcb129be011284は0/0/0。measured-values88fdaa56e96746b59965c9bb5f717b3ec5f343428c833f64935878388b6b5131で全170→176集合/6追加削除0/新digestdf2215568015a8eb0d8b1ae72d95744af940740c10f89fb49b0e40b1431cf881、P8基準2参照、normal116/248、mutation60/141、exact(228,52,0)、旧16履歴不変を独立再計測。3承認欄空の正しい拒否を先に保全した後、rootが実時刻2026-10-25T18:02:17.104457Zのreceipt09a155b3a27fa8dae4c1587fee249d74b7431aa6b918b5480cf4ac5dfba2789dで完全値をPO委任受理した。新step95のrecordedOn/approvedOnは2026-10-26 JST、approvedByはPO委任によるCodex判断（Codex /root）で、本人確認/署名の代記ではない。
 
 実3欄注入後のlocalized独立f94c240f6a9c0cfd296e5efae0a02e931d26e7f64772578988fe8e425b6a37d0は残0/0/0、coverage最終4ff8006b020240449060b69a85d31ee56c017183a0a8b7a584496d172f057462/他4path/旧履歴/完全前後値の保持を照合。rootは全5最終SHAを再照合して正式候補へ適用した。隔離同版の関連CLI13本は全exit0（invariants/technicalと最終actualevent委任は区別）。全影響module・最終HEAD確認/公開委任/必須全CIは後続で、現在の公開26baの失敗を成功へ改記しない。
+
+全影響12moduleの同一実行は1090成功/1失敗454.21s。累積コードレビュー629c4066479873aefba14e4aa81b4e418ec342ca7555eb8a73749ac703ce3fbaはP0=0/P1=1/P2=0で、既schema試験が現54行要求に旧49期待を当てていた未追随を検出した。rootは既承認tests/test_state_transition_contract_schema.pyの該当1testだけを、旧47→歴史49（旧2partition/典拠3）→現54へ分離し、旧identity/典拠包含と追加5partition exactを同時検査する形へ是正。製品source/正式JSON/拒否は変更しない。是正後schema全430件は13.09s成功、先の1090成功と別実行であり同一1091再完走とはしない。
+
+本単位の実装・実値追随を固定しin-reviewへ移す。旧26ba時点の全版レビュアーout3は後発source4/5の作者となったため、最終HEADの独立確認には使用しない。候補全5作者と独立t2_first_pitch_plan_reviewを区別し、旧レビュー回数/後発P1/是正/最後の文書差分を保持して最終版確認と公開委任・必須CIへ進む。CI全成功/通常mergeは別ゲートで、完全S02/P6/P7/P8/全T1やMVP完成を本plan終了から導出しない。worklogはdocs/worklog/2026-10-26-mvp-t1-input-closure.mdへ固定する。
