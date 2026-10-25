@@ -105,3 +105,9 @@ rootはPO委任に基づき、既PR183 carry/schema/旧本人署名・sheetを�
 今回新受理は実PR185/branch/base/head/既core_guard委任証拠へ束縛。後続PRはbaseとの全対象不変のみ継承する。欠落・失効・他PR・版不一致・重大指摘未解消・任意の承認文字列・旧行改変・未知/重複/不足case・余剰field・checkout不一致を拒否する試験を追加する。技術検査だけを最終委任/P6/P7/本体開始成立にしない。source候補をcacheで作り、非作者最終source確認後だけrootが正式反映する。PR184の既helper作者による同sourceの独立採否は不可とし、役割履歴を保持する。
 
 2026-10-25T13:17:19.949623+00:00、判断者Codex rootは上記限定4path/設計具体化をPO委任により承認。新記録の最終受理値は未確定であり今回の計画承認とは別。
+
+## 既GAP登録への追加行の双方向接続
+
+2026-10-25T13:40:25.814655+00:00、rootはPO委任により、RBI候補で追加された行の既GAP06への参照追随としてcontracts/state-transition/gap_register_v1.jsonの1pathを有限追加する。実check_gap_register CLIが既GAP06.rowIdsに新matrix行4件のassetOnlyを検出したことを根拠とする。GAP06のstate=open/既branchIds/旧rowIds・fixtureCaseIds prefixと他gap全objectを保持し、既checkerが要求する双方向exact集合だけを追記する。未供給をclosedへ改めず、新意味/拒否順/観測推測を追加しない。必要criterion/全identity/履歴/参照値は実差分に応じて完全再導出/非作者照合する。既計画/source11の整合に必要な最小参照追随として扱い、checker緩和・既承認の再取得をしない。正式writerはroot、作者creation_pathはcache反映候補だけを作る。
+
+2026-10-25T13:44:13.651182+00:00、同じgap登録追随についてGAP09も既state=resolved/既branch/旧prefixを保持し新4row参照だけを双方向exact集合へ追記する。tests/test_gap_register.pyの既exact件数GAP06=2/GAP09=4を正当な追加後6/8へ追随する1testpathも有限追加。旧state期待open4/resolved5/fixture件数/負例は不変とし、参照更新で新機能の完了や全P8を主張しない。rootはPO委任による通常派生値追随としてこの範囲を承認、作者はcacheだけを編集。
