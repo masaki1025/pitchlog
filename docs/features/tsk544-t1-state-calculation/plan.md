@@ -148,3 +148,7 @@ first-ballの成功と未対応拒否/alias重複拒否を実Node/同hash Chromi
 今回の局所締めで§4 PR1aおよび実経路の実認証/初期記録権/T2/Port/原子的保存/再送/結果不明/画面再読込のマージ前義務を削除しない。満たす前はDraftのまま保持する。全T1/全P6/P7/P8/MVP完成、本人逐行確認・署名を代記しない。委任policyへ対象PRを追加する場合は実PR番号/head branchのexact対のみ、既対象/拒否条件を保持し独立確認後に公開証拠を記録する。
 
 2026-10-25T20:07:32.941337+00:00、実製品差分を持つDraft PR186（feature/mvp-t1-first-pitch）を公開。PO委任によるCodex /root判断で、既policyのtargets末尾へこのexact対1件だけを追記する。ポリシー本文/既11対象/検査拒否条件/人間欄を変更しない。全最終差分へ含め非作者確認・対象HEAD証拠を取得する。Draft/マージ前の実HTTP/DB未達は保持する。
+
+2026-10-25T20:52:13.433380+00:00、CI40229702557はbackend/frontend成功、core-guardの公開JSON形式是正後の限定再実行も成功。harnessは30241成功/1失敗/2skipで失敗確定。既test_t1_append_later_policy_target_append_keeps_record_frozenが試験用PR186を固定しており、本PR186対象追加と重複して実loaderが正しく拒否した。rootはPO委任の通常試験入力追随としてtests/test_human_review_signature.pyの後続合成event番号をfixtureの既targets最大値+1へ定め、追記先も同じ合成event番号/branchに束縛する。全旧policy/record/期待文/拒否assertと製品checkerは保持する。本1pathだけを追加scopeとし、最終差分レビュー/当該module/CIを再固定する。親全T1のDoDと実HTTP/DBマージ前義務は維持。修正開始のため本提出状態だけactiveへ戻し、全DoD完成や同意味の再承認は主張しない。
+
+2026-10-25T20:59:20.720890+00:00、上記fixture番号の通常是正後、正規stock tests/test_human_review_signature.py全131成功36.18s、Ruff/ty成功。合成後続番号はfixtureの既登録最大値+1で一意、policyへの追加も同event.number/head_branchを使う。期待文/record bytes不変assert・既policy拒否・製品checkerは変更0。今回数学提出だけin-reviewへ戻し、最終HEADの非作者差分確認と必須CIは別途必要。旧harness1失敗/30241成功/2skipを新全件成功に改記しない。

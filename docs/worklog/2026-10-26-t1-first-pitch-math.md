@@ -11,3 +11,7 @@
 正本変更0。§3を今回の差分へ整合し、旧正本確定の履歴・旧10計画レビュー/2確定ゲートは保持。未収録4参照は実在Git objectへ置換。ハーネス運用評価台帳への追記なし：今回の閉ABI是正と候補固定は本製品単位の検証であり、新たな一般統制変更/再現する運用傾向は確定していない。
 
 全T1のOUT3/RBI/G6/取消等、T2所有、開始/初期記録権/API/UI、同期/原子的DB保存/再読込・再送・結果不明、成績/双方CSV/全MVP受入は後続へ維持する。親§4のHTTP/DBマージ前義務が成立するまでDraftを解除しない。今回の数学提出を全T1完了・P6blind・本人の署名へ読み替えない。
+
+2026-10-25T20:59:20.721469+00:00追記。初回709d4e1a CI40229702557はbackend/frontendを含む他検査成功、harness1失敗/30241成功/2skip。core-guard初回はrootの証拠comment余分fence/後文を正しく拒否し、strict JSONへ掲載形式だけ是正した。同HEADのcore-guard限定再実行は成功（他run結果はGitHub再実行表示を実態に従い保持）。harnessの残1は既fixtureが実在PR186と同番号を重複追加する不正入力であり、checkerの拒否は正しい。
+
+rootは既PO委任の通常入力追随として合成後続eventを既targets最大値+1へ変更し、追加targetにも同event番号/branchを使う。tests/test_human_review_signature.pyだけ追加scope、製品ソース/認可/計算/正式契約・record/全期待文・拒否assertは不変。正規当該module全131成功36.18s、Ruff/ty成功。これを初回全件CI成功とは記録せず、最終HEADの別非作者レビュー/公開証拠/必須CIを更新する。親全T1/実HTTP・DBマージ前義務とDraft保持は不変。
