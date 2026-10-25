@@ -131,7 +131,7 @@ PO委任によるCodex主担当/rootの通常接合修正として、既ステ�
 controllerと初期actorの実UIDを分離したまま単一ledger endpointが両方へ必要な点は未解消として保持する。fixtureのUID偽装・任意bool・多主体一括許可で埋めず、必要な製品主体接合は別の有限差分・非作者確認へ進める。0036と初期9API/fullprofileの供給も未完であり、この補助修正だけで正常grantを成立扱いにしない。
 
 
-## 分離されたledger利用主体の接合案（非作者確認前）
+## 分離されたledger利用主体の接合（PO委任による計画受理済み）
 
 固定cb3c0f49の実source照合により、controllerは初期actor UID20002と異なるUIDを必須とする一方、authorityの既v1 endpointは単一client UID/GIDだけを受理すると確認した。初期actor自身もcurrent/reserve/claim/recovery_fenceを必要とするため、fixture UID変更では正常接合できない。rootは既PO委任の技術具体化として次の有限案を提示し、非作者確認後だけ実装する。新たな記録結果・D5・耐久性保証の変更ではない。
 
@@ -143,3 +143,8 @@ controllerと初期actorの実UIDを分離したまま単一ledger endpointが�
 有限編集候補は既core glob捕捉の backend/src/pitchlog/durable_rights_ledger/{authority.py,adapter.py,manifest.json}、既 backend/tests/test_durable_rights_ledger_contract.py と backend/tests/db/{durable_rights_ledger_support.py,test_durable_rights_ledger.py}、当plan/research。新主体接続のメタデータと実影響正本・tenant9/8受理はroot単独で必要分を導出し、source hash更新だけを検査成功の根拠にしない。DBの権限/SQL/保存表や旧契約意味は変えない。
 
 非作者はv1後方整合・v2実peer/operationの閉集合・単一journal/失敗時停止・endpoint混同拒否を先に確認し、実装最終差分も別確認する。実端点の正常両主体/相互拒否/未知主体/切断・再起動はowned環境で実証するまで未成立。初期9SQL/0036/fullprofileの供給は別の残件として保持する。
+
+
+2026-10-25T08:19:26.059374+00:00、PO委任によるCodex主担当/rootは254c9fa4上の計画SHA90e1f6b19fc1e6e48d5d326ba9c48fb1e16354cf896c0d6cebefb9dd817cfb52を限定受理する。非作者t1_ci_followup_independentのレビューSHA07b79a46006120e9aebd4f5a9ade501f3ac3cb380e4887cd1206de820a76ebee、証拠SHAf28190301eaf134325daff02fbfbf608fff9b9b1432cd72e011a7ca5963a2d07、所見0/0/0。両端点完全準備前ready禁止・全端点共有admission/blocked/active/mutex/journal・固定listenerと実kernel peerだけからのrole決定・role拒否はPG/journal以前・lease内check/closeは元channel限定を実装確認条件とする。新PO意味判断/人間本人の署名を代記したものではない。
+
+rootはcreation_pathへ既ステップ3内のsource authorとして authority.py/adapter.py、既contract test、既DB test/supportの計5pathを専用wtで委任する。manifest.jsonと共有資産/正本/Gitはroot単独writerを維持し、作者は必要値をcacheへ出す。未知pathは編集前に戻す。新2path初期scope試験は固定候補のまま別所有とし、並行編集しない。独立実装レビュー・実peer試験・全正式値/必須CI前に提供完了とはしない。
