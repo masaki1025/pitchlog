@@ -253,3 +253,20 @@ UM2のactor権限は真正business handle/owner/検証済payload/対象self team
 2026-10-25T19:57:35.864296+00:00、PO委任によるCodex判断（Codex /root）として§10 source11/test6の有限候補を受理する。固定source17はreflection5/evidence.json、実受理root-finite-source-acceptance.jsonへ全SHAを保存。独立認可review b8b8e8ef61f7484387eef2a547166ca8345d4a19509d463783e0b89415c74742、独立lifecycle review f1d9eeeab03e1c779d7aec9b31bc6c393a088db4b8d684cc38bbf4fa94ccb8fbはいずれも担当範囲の未解消0。旧P1と反映2〜5を消去せず、正規runtime全field期待値9372f2f71699310e064c9c802d2f498f533045944d93483f161056b019c3ec10の不変を確認した。canonical実PG28成功611.72sは反映3、最終反映5はowned PG正常開始/同要求再送と新2関数ACLの2成功40.99s（receipt142b4068e04646feab1985c95a6197ddc625891f4653499dddab768eb8a1a8b1）であり、28件を最終byteの再完走へ読み替えない。
 
 今回の受理は候補source保存であり、正式metadata56/7.7・旧初期profileの正式受理・通常CI/統合は残る。隣接database1宣言/table11headerのruntime自己採用留保は別の有限callchain確認へ残し、初期role実効権限全体の成立へ拡張しない。旧source/profile供給の未コミット集合を一括採用せず、17pathと本追記だけを保存する。実Cookie/enroll/RPC/API/UI/初期state/初球原子的保存、全T1/全P6/P7/P8/全MVPは未達。本人の実値確認/署名を代記しない。
+
+
+## 11. 開始通信の閉型・codec/client先行単位（DB0）
+
+2026-10-25T19:59:54.248131+00:00、PO委任によるCodex判断（Codex /root）で次のA単位だけを承認する。基線1241c47f（§10 source固定、旧profile dirty別管理）。作者候補game-start-http-enroll-next-unit-20261026/handoff SHA8f6bbe9187d430767fd8a0a874f44748218e739152918f51816fd1f1abf33253を限定採用し、非作者t2_first_pitch_plan_reviewの最終REVIEW02ad61e7f1c7d06d3847958ba5cb42872e9ed020461d6b713261d0a6d8258547/checks4a1c774b815520fc3762e64d089f13cbb91371dc594e80ecef3c63637b61ec91を根拠とする。初回receipt全field照合という不能文言P2を以下の実共通field/owner/起源照合へ是正し、最終未解消0。旧レビュー系列を保持する。
+
+作者creation_pathの編集は4pathだけ：backend/src/pitchlog/recording_rights/initial_grant_broker.py、backend/src/pitchlog/api/schemas/game_start.py、backend/tests/test_initial_recording_right_candidate.py、backend/tests/test_game_preparing_components.py。全before SHAと旧dirty/indexを先固定し、旧issuer/start/grant-only business bodyを変えない。rootがGit/本plan/正式JSON/共有台帳の唯一writer。他sourceやSQL/enroll/authn/HTTP/UIを本単位へ入れない。
+
+閉command enroll_device/start_initial_game/resolve_start の型・strict frame codec・client・非実行dispatch境界を作る。提示Cookie/資格をrepr/log/生例外応答へ出さず、既606要求5fieldは保持する。未知command/member/重複JSON key/型coercion/非有限/長さ/余剰/非canonical/EOF/timeoutを閉じ、Unix peer UID/inode/owner/modeを検証する。appのTenantContext/DSN/key/SQL/artifact/callback/digest/D4/RG1 boolを信頼入力にしない。実worker/authn/SQL dispatcherは本単位でstub成功にしない。未接続の実操作を成功応答として公開せず、固定成功や仮認可を作らない。
+
+D4は本issuer専用のprivate参照codecとする。d4.1. + padding無しcanonical base64url、version1byte/tenant UUID16/game UUID16/generation unsigned big-endian8、合計41byte。generationは1..2^63-1、unknown version/余剰/非canonical/別期待tenant-game/0/overflow拒否。同期wire全体をこの形式だけへ狭めず、clientはopaque保存/送信のみ。decode自体は認可証明ではなく、後続実workerで実世代/holder/V12/失効/epoch/RG1を照合する。同要求committed再交付は同参照、str(int)代用や新署名/秘密は追加しない。
+
+receiptとgrantは共通game/deviceを照合する。receipt.owner全値はserverが実解決したownerへ完全照合し、generationは同一postcommit結果の実grantからだけ得る。InitialGrantにtenant/request/attemptがある、receiptにgenerationがあるとは仮定しない。未commit結果から安全な成功応答を作らない。pending/結果不明をrollback/新attemptへ置換しない。
+
+受入は既grant/start/bodyと旧component正負を保持し、strict codecの全wire比較・canonical往復/owner不一致/非成功/秘密非露出/Unix credential/閉frame対向を確認する。独立plan reviewの260roundtrip/8拒否は計画probeとして区別し、実装後の証拠は別に固定する。必要なRuff/ty/対象pytestと候補固定後の非作者source確認で本単位を閉じる。全DB/全frontend/40分CIは型変更の途中に反復せず統合候補の区切りで実行する。
+
+B以降の専用verifier role/実enroll INSERT/実worker/HTTP/UIはこの承認の範囲外。特に『game writeでないからenrollはRG1不要』は採用しない。既sync9-5が通常管理書込みも停止するため、Bの実SQL供給前に既境界へ分類し、必要なRG1 gateを実接続する。これをAや数学核の追加全体条件にはしない。実Cookie/同tenant資格・実enroll・端末要求の送信前耐久保存・実start/再交付・初期state/同期初球保存は後続必須。A成功を画面開始/権利取得/DB/全Port/全MVP完成へ読み替えない。本人の実値確認/署名を代記しない。
