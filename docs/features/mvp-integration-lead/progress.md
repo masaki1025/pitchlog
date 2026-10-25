@@ -480,3 +480,12 @@ RG1の保全: formal作業枝feature/mvp-rg1-lifecycle-connection@5e2c65b0（sou
 ユーザー指定の「#183 merge後に区切りで停止」を満たしたため、最終保存確認後にGoalを一時停止する。MVP完成/T1本体着手/画面開始・1球保存の成立とはしない。新たな実装単位へ進まず、並行担当は全員成果固定・停止済み。主提供T1枝f839、RG1正式作業枝5e2c65b0、隔離候補7a9f8de3、初期scope da88d09bは通常pushで保全、各主wt clean。cache検証wtの未コミット候補/中間失敗は証拠として残し、正式sourceへ無条件採用しない。
 
 再開順: (0) このdevelop固定点と自動push CI、POが進めるspike最新差分を照合。(1) RG1最終cache next-minimum-restart.json の新helper2/既signature登録を閉じ、正式census/完全値/必要judgmentを実証に基づいて単一受理。(2) 0036/実9SQL/actorRG1を正常接合して初期grant DBscope、その後broker認証/enrollment・同一TX start・HTTP/C2/UI。(3) #183後も残るP6範囲/所有側受理・P7/P8/G6等を対象別に閉じ、spike再利用で正式T1本体と最初の1球保存へ。既承認を再取得せず、意味/受理実値が変わる範囲だけ確認する。実Port/HTTP/DB全完成を計算本体の新着手条件には加えない。全MVP/実機・運用の未達条件は本台帳のまま維持する。
+
+
+## 取消TS spikeの追加引継ぎ受領（2026-10-25、Goal一時停止中の限定確認）
+
+POが別worktree feature-ux1-undo-ts / branch feature/ux1-undo-ts の成果を引継ぎ。root実照合HEAD b2ed19056baf057c838e1ed7fd457dd2a10577f2、起点8e1bf431、差分10path。worktreeは確認前後ともclean。契約/requirements/design/adr/backend/src差分0、artifact SHA256 ec71374632285ec4f2a20bb240fbf384f076fe5e3d8ec3eb7e3cd9f7eb8c8f8a /28873byteを実確認。rootがdomain6file/53testを再実行して全成功2.86s。user報告のfrontend全1208/型/lint/build再現・root11失敗の分類・GLM判定は引継ぎ報告として受領し、本確認で全件再実行/独立敵対レビューしたとは記録しない。
+
+正式develop停止点dcd4fda8のundoRows/10case全要素と当spikeは完全同値、schemaのliveness比較規則も同値。full-equality9件＋liveness-only1件の区別とhistoryAndResult厳密化を保持し、artifact経由にstateEffect比較面が無い制約を確認。TS純計算/JSON境界/artifact検査をT1の再利用候補として受領、正式採用/統合/本体着手や取消製品完成の承認ではない。特に現在状態と先頭afterの実行時一致検査は未実装で、findings§3-9へ記録したことを是正済みとはしない。原典から決まる事項と委任で具体化できる事項を先に照合し、新意味が残る部分だけを既判断票へ集約する。planのpops文字列例は修正済みとして再裁定しない。継承spike履歴のstep記法不整合/pytest11件は報告のまま留保し、検査緩和で正式合格にはしない。
+
+本限定確認ではuser枝の製品/契約/計画を編集せず、PR/mergeも0。原枝/当成果を固定参考として保存し、MVP Goalは一時停止のまま。正式実装再開の指示とは解釈しない。
