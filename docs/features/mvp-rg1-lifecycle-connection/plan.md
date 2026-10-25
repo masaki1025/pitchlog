@@ -126,3 +126,40 @@ runtime/SQLは既rg1_lifecycle.py/sql/manifest、生成境界は既authz/product
 影響正本は既docs/design/data-model.mdのRG1/role/初回束縛の有限節とdocs/README.md。新契約の実現手順だけを7.6/必要7.3・7.7へ運び、全設計や既意味を再承認しない。実Port/DBをこの具体化の着手前条件へ追加しない一方、正常actor借用/初期grant・再交付・unknown/失効/越境/原子性/実role ACL・catalogを隔離DBで通す前に提供完了とはしない。
 
 試験編集は既backend/tests/test_rg1_lifecycle.py、test_rg1_lifecycle_sql.py、test_rg1_operations.py、test_rg1_lock_contract.py、test_authz_product_roles.py、test_authz_product_control_access.py、test_authz_product_function_acls.py、test_product_authz_catalog.py、tests/test_check_tenant_boundary_bypass.py、backend/tests/db/test_rg1_lifecycle_connection.py/rg1_lifecycle_support.pyの実影響だけ。初期側の実DB2pathは初期scopeが所有する。合成9probe/SQL静的検査を実PGや耐久証明へ読み替えず、固定HEAD非作者レビュー・全必須CI・実merge確認を通常統合前に揃える。
+
+
+## 初期peerの正式catalog入口追随
+
+既606/c58のCONNECT1・schema USAGE2・epoch列ACL1を、既check_authz_catalogの閉じたexpected集合へ接合する。rootはcache固定source案07bc28ecc66cd57baa12bb04022c95ea5a39e8c0834f6d275b059f637c068c88を適用し、tests/test_check_authz_catalog.pyへ最小DB接続権の正例と欠落/owner流用/CREATE/TEMP/委譲/整数bool拒否だけを追加する。旧主体/旧権限/未知拒否を保持し、正式schema-manifestと全profileの実値受理が済むまでCLI/DB正常供給とは扱わない。source案/asset候補作者と異なる非作者が最終差分を確認する。PO委任によるrootの有限技術具体化で、新しい意味・権限緩和・共有DB適用を認めない。
+
+
+## 実段階起動と0035列の順序接合
+
+2026-10-24、rootは既PO委任の通常不具合修正・保存保証を維持する具体化として、隔離候補5f074491の実PGで発見した前提列/認可順の是正を既ステップ3へ含める。S0(0033)から全認可前段が新recovery_generation列ACLを実行し、列を追加する0035未適用のためUndefinedColumnで停止した。1error/必須call未到達4.64sを失敗として保全し、共有DBへ適用していない。
+
+- `backend/src/pitchlog/db/stage_a_startup.py`
+- `backend/src/pitchlog/authz/product_provisioning.py`
+- `backend/tests/test_product_authz_provisioning.py`
+- `backend/tests/db/test_stage_a_rule_candidates.py`
+- `backend/tests/db/rg1_lifecycle_support.py`
+
+前段の旧resolver保留16件を保持し、新epoch列ACLのexact1件だけを後段へ保留する（実241DDLから直接列参照依存を照合）。0034の固定規則配置を確定した後、ownerで0035のnullable正bigint・補完なし列を適用し、全認可→S3の実revision/列型・nullable/default/check・全catalog照合へ進む。再開は既固定5行/owner/RLS/一時権なしを保持し、既知0034は0035を適用、0035は再適用せず、未知revision/偽marker/欠列を拒否する。常時成功や記録権/認可/RG1の迂回は作らない。
+
+DB試験補助の正規生成profile後の同SQL二重直接適用は除き、実関数・peer認証・最小権限の検査を維持する。候補作者は専用cache wtだけを編集、rootが所有disposableで実PG試験を実行、非作者が最終差分と故障/再開例を確認する。正式共有資産/全値受理はroot単独で直列化し、source5fの一次8射影/N3導出は保全、是正source後に必要分だけ再導出する。新しい規則意味/安全性削減/共有DB適用の承認ではない。
+
+
+## 再適用と読取試験の有限追随
+
+実PGの段階起動は前段/後段の両方で正規認可を適用する。241DDLを全数分類し、新6roleのplain CREATE、新schema2、plain CREATE FUNCTION2の再適用漏れを閉じる。既5pathに次の5pathを加えsource/test計10pathとする。rootは既PO委任による通常接合修正として範囲を確認し、非作者が最終差分を照合した後だけ正式受理へ進める。
+
+- `backend/src/pitchlog/authz/product_role_contract.py`
+- `backend/src/pitchlog/authz/product_function_acl.py`
+- `backend/tests/test_authz_product_roles.py`
+- `backend/tests/db/test_rg1_startup_epoch.py`
+- `backend/tests/db/test_rg1_lifecycle_connection.py`
+
+6roleは既単一意味の7属性と両向membership0を使い、不存在時CREATE・存在時全一致だけ再適用を許し、不正既存をALTERして修復しない。schema2は既適用器に所有者exactの再適用guardを置き、不正ownerを修復せず、旧5schema SQLを変えない。function2は既rendererでCREATE headerだけOR REPLACEへ正規化し、AS判定本文/引数/戻り値/ACLを全保持する。生成bodyの計8既path（6role/2function）はroot単独で生成し、他233body/旧7role/固定外部SQLを保持する。未知role/schema/functionと既存衝突を拒否する。
+
+DB試験は専用owned fixtureで実owner/admin別主体とsession_user/current_userを照合する。unused DSNはテンプレートだけで、factoryが実動的port/DB/資格へ置換し外部DSNを使わない。requires_db/実call0拒否を維持する。旧primitiveの常false期待は採用済data-model1.3§3-2安全な成功条件/本plan88行相当の追補へ接合し、2readのlease無しopen・違tenant・controller喪失/再起動falseと、同DB/PID二重lease時のtrueを検査する。手動のprivileged SQLprimitive成功を実DurableLedger.fresh_activation・初期grant・UIの成功証拠へ拡張しない。
+
+中間の1error/3error/4error/4成功1失敗を保全し、最終はsource/test10＋生成SQL8の全18file前後hashを同一固定して5DB成功・独立非DB147成功/所見0/0/0を確認した。これは候補の正常起動/再開/権限境界の実証で、正式9射影/8source完全値受理・残検査/全件CIは引き続き必要である。

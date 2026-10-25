@@ -250,7 +250,7 @@ def build_lifecycle_function_declarations() -> dict[str, dict[str, object]]:
 
 
 def generate_lifecycle_function_sql(function_id: str, root: Path) -> str:
-    """既固定SQLのCREATE本文をそのまま配置し、第2の判定本文を作らない。"""
+    """既固定SQLの判定本文を保ち、CREATEの再適用表記だけを揃える。"""
     declarations = build_lifecycle_function_declarations()
     if function_id not in declarations:
         raise ValueError("固定ライフサイクル関数の集合外")
@@ -270,13 +270,17 @@ def generate_lifecycle_function_sql(function_id: str, root: Path) -> str:
     matches = re.findall(pattern, source, re.DOTALL)
     if len(matches) != 1:
         raise ValueError("固定ライフサイクル関数本文を一意に読めない")
+    # 再適用で関数を二重作成しない。AS本文・引数・戻り値は一切変更しない。
+    definition = re.sub(
+        r"^CREATE FUNCTION ", "CREATE OR REPLACE FUNCTION ", matches[0], count=1
+    )
     grants = row["acl_expectations"]
     assert isinstance(grants, list)
     physical = f"{schema}.{name}({row['identity_args']})"
     return (
         "-- ELEMENT-TYPE: function\n"
         f"-- ELEMENT-ID: {function_id}\n\n"
-        + matches[0]
+        + definition
         + "\n"
         + f"ALTER FUNCTION {physical} OWNER TO {row['owner_role_id']};\n"
         + f"REVOKE ALL PRIVILEGES ON FUNCTION {physical} FROM PUBLIC, pitchlog_app;\n"

@@ -1,0 +1,367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PR183 delegated subject carry v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "evidenceKind": {
+      "const": "delegated-subject-carry"
+    },
+    "authority": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "const": "masaki1025/pitchlog"
+        },
+        "pr": {
+          "const": 183
+        },
+        "branch": {
+          "const": "feature/mvp-t1-decision-contracts"
+        },
+        "path": {
+          "const": "docs/features/mvp-delegated-core-review/policy.json"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "baseRevision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      },
+      "required": [
+        "repository",
+        "pr",
+        "branch",
+        "path",
+        "sha256",
+        "baseRevision"
+      ],
+      "additionalProperties": false
+    },
+    "retainedDocuments": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "subjects": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "path": {
+                "const": "contracts/state-transition/state_transition_contract_v1.json"
+              },
+              "legacyRecordPath": {
+                "const": "docs/features/adr003-stage2-runtime/signatures/gate6-state-transition.json"
+              },
+              "oldSubjectCommit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "oldSubjectRawSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "oldSubjectDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "currentSubjectDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "projection": {
+                "const": "operation-undo-and-cases"
+              },
+              "projectionDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "allowedChanges": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "replace"
+                        },
+                        "pointer": {
+                          "const": "/inputAxesDescriptor/digest"
+                        },
+                        "before": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        },
+                        "after": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "pointer",
+                        "before",
+                        "after"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "append"
+                        },
+                        "pointer": {
+                          "enum": [
+                            "/matrixRows",
+                            "/cases",
+                            "/mustOperationCoverage/mappings/0/rowRefs"
+                          ]
+                        },
+                        "beforeCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "values": {
+                          "type": "array",
+                          "minItems": 2,
+                          "maxItems": 2,
+                          "items": {}
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "pointer",
+                        "beforeCount",
+                        "values"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "path",
+              "legacyRecordPath",
+              "oldSubjectCommit",
+              "oldSubjectRawSha256",
+              "oldSubjectDigest",
+              "currentSubjectDigest",
+              "projection",
+              "projectionDigest",
+              "allowedChanges"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "path": {
+                "const": "contracts/state-transition/game_end_contract_v1.json"
+              },
+              "legacyRecordPath": {
+                "const": "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json"
+              },
+              "oldSubjectCommit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              "oldSubjectRawSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "oldSubjectDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "currentSubjectDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "projection": {
+                "const": "decision-cases-and-validation-errors"
+              },
+              "projectionDigest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              "allowedChanges": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "replace"
+                        },
+                        "pointer": {
+                          "const": "/inputAxesDescriptor/digest"
+                        },
+                        "before": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        },
+                        "after": {
+                          "type": "string",
+                          "pattern": "^sha256:[0-9a-f]{64}$"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "pointer",
+                        "before",
+                        "after"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "const": "append"
+                        },
+                        "pointer": {
+                          "enum": [
+                            "/matrixRows",
+                            "/cases",
+                            "/mustOperationCoverage/mappings/0/rowRefs"
+                          ]
+                        },
+                        "beforeCount": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "values": {
+                          "type": "array",
+                          "minItems": 2,
+                          "maxItems": 2,
+                          "items": {}
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "pointer",
+                        "beforeCount",
+                        "values"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            },
+            "required": [
+              "path",
+              "legacyRecordPath",
+              "oldSubjectCommit",
+              "oldSubjectRawSha256",
+              "oldSubjectDigest",
+              "currentSubjectDigest",
+              "projection",
+              "projectionDigest",
+              "allowedChanges"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "adoptionReceipt": {
+      "const": {
+        "status": "accepted-partial-contract-reflection",
+        "recorded_at_utc": "2026-10-24T08:15:25.407561+00:00",
+        "decision_maker": "Codex root under standing PO delegation",
+        "authority": "PO delegation sections4/5/8/10 and D06=B/D07=A one placement adoption",
+        "pr": 183,
+        "target_base_head": "3f5821008f13b8137b18f203175f088003abcada",
+        "target_patch_sha256": "be714d351ad5954440c1bcce870faed6d3b9bd5b65b371074c4ca2951961055e",
+        "proposal_sha256": "bb98f24fefe03191372310ebad8897d53eb8360819e71738f7990fca30a742d7",
+        "independent_report_sha256": "e4b2faaa958b89221a5626dec33504f3fa691850ae9c949b75e96cc25c7cfc58",
+        "independent_result": "P0=0/P1=0/P2=0; prior T1-FINAL-01 closed",
+        "all_before_after_values": "proposal.json full fields; 39 exact SHA; old7 history preserved+1; all3 criterion transitions",
+        "full_repository_tests": "536pass42.21s; separate detached real repo, not formal develop",
+        "stageA_scope": "new OUT3 two pure inputs sealed derivation and comparison fixed; prior verified/blocked and exposure metadata received; full P6 acceptance not established",
+        "frozen_fixture_bootstrap": "both pending states remain pending; projection values followed under existing checker",
+        "P6_full_acceptance": false,
+        "P7_full_acceptance": false,
+        "T1_body_start_conditions_complete": false,
+        "T1_body_implemented": false,
+        "human_personal_line_review_or_signature": false,
+        "formal_develop_merged": false,
+        "MVP_complete": false
+      }
+    },
+    "adoptionReceiptDigest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "changedCaseIds": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "ST-OUT3-EXPLICIT-01",
+          "ST-OUT3-EXPLICIT-02"
+        ]
+      }
+    },
+    "boundary": {
+      "const": {
+        "personalReviewClaimed": false,
+        "signatureReplacement": false,
+        "technicalCarryOnly": true,
+        "finalAcceptanceRequires": "same-final-PR-core-guard-delegation-and-independent-review",
+        "unreviewedMatrixScopeUnchanged": true
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "evidenceKind",
+    "authority",
+    "retainedDocuments",
+    "subjects",
+    "adoptionReceipt",
+    "adoptionReceiptDigest",
+    "changedCaseIds",
+    "boundary"
+  ],
+  "additionalProperties": false
+}

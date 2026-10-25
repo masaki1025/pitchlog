@@ -16,7 +16,10 @@ import pytest
 from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 from pitchlog.authz.product_authn_contract import validate_authn_asset
-from pitchlog.authz.product_role_contract import expected_product_roles
+from pitchlog.authz.product_role_contract import (
+    expected_product_roles,
+    generate_lifecycle_role_sql,
+)
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
@@ -244,7 +247,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 11
+    assert len(expected_product_roles(asset)) == 13
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):
@@ -364,3 +367,55 @@ def test_each_lifecycle_role_membership_is_rejected(role: str) -> None:
     ]
     with pytest.raises(_catalog_checker.CatalogError, match="membership"):
         _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("role", tuple(_LIFECYCLE_ROLE_EXPECTATIONS))
+def test_lifecycle_role_sql_has_exact_attributes_and_no_repair(role: str) -> None:
+    """新6主体だけを全7属性と両向membership0で再適用判定する。"""
+    rendered = generate_lifecycle_role_sql(role)
+    expected = _LIFECYCLE_ROLE_EXPECTATIONS[role]
+    tokens = tuple(
+        _SQL_ATTRIBUTE_TOKENS[name][not value]
+        for name, value in zip(_ATTRIBUTE_ORDER, expected, strict=True)
+    )
+    match = re.findall(rf"CREATE ROLE {role} WITH\s+([^;]+);", rendered)
+    assert len(match) == 1 and tuple(match[0].split()) == tokens
+    columns = (
+        "rolsuper",
+        "rolbypassrls",
+        "rolcanlogin",
+        "rolcreaterole",
+        "rolcreatedb",
+        "rolreplication",
+        "rolinherit",
+    )
+    for column, value in zip(columns, expected, strict=True):
+        assert f"AND {'' if value else 'NOT '}r.{column}\n" in rendered
+    assert "m.roleid = r.oid OR m.member = r.oid" in rendered
+    assert "RAISE EXCEPTION 'lifecycle role collision:" in rendered
+    assert "ELSE\n        CREATE ROLE" in rendered
+    assert "ALTER ROLE" not in rendered and "GRANT " not in rendered
+    assert rendered.count("CREATE ROLE") == 1
+
+
+@pytest.mark.parametrize(
+    "role",
+    [
+        "pitchlog_app",
+        "pitchlog_owner",
+        "pitchlog_rule_resolution_fn_owner",
+        "unknown",
+        "pitchlog_initial_actor; SELECT 1",
+    ],
+)
+def test_lifecycle_role_sql_rejects_unknown_and_old_subjects(role: str) -> None:
+    """旧7主体や任意文字列へ新生成器の権限を拡張しない。"""
+    with pytest.raises(ValueError, match="新6ロール"):
+        generate_lifecycle_role_sql(role)
+
+
+@pytest.mark.parametrize("role", tuple(_LIFECYCLE_ROLE_EXPECTATIONS))
+def test_lifecycle_role_asset_matches_strict_reapply_generator(role: str) -> None:
+    """正式bodyも厳密な再適用ガードと一致し、単純CREATEを受理しない。"""
+    body = _REPOSITORY_ROOT / PRODUCT_SPEC.body_directory / "roles" / f"{role}.sql"
+    assert body.read_text() == generate_lifecycle_role_sql(role)

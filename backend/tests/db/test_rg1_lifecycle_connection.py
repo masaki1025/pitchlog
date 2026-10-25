@@ -90,6 +90,7 @@ def test_rg1_real_peer_sql_acl_commit_and_liveness_boundaries(
         assert controller.execute("SELECT * FROM public.rg1_restore_gate")[1] == "42501"
 
         tenant = uuid4()
+        read_functions = ("rg1_read_open", "rg1_assert_open_before_commit")
         assert (
             app.execute(f"SELECT rg1_control.scope_binding('{tenant}'::uuid)")[1]
             == "42501"
@@ -111,6 +112,11 @@ def test_rg1_real_peer_sql_acl_commit_and_liveness_boundaries(
         # 旧open行、appの同key、異なるPIDへ分散したlockは生存でない。
         admin.execute("UPDATE public.rg1_restore_gate SET state='open'")
         assert contender.query("SELECT rg1_control.controller_lease_alive()") == ("f",)
+        app.query("BEGIN")
+        app.query(f"SELECT set_config('app.tenant_id','{tenant}',true)")
+        for name in read_functions:
+            assert app.query(f"SELECT rg1_api.{name}('{tenant}'::uuid)") == ("f",)
+        app.query("ROLLBACK")
         admin.execute("UPDATE public.rg1_restore_gate SET state='closed'")
         app.query(f"SELECT pg_catalog.pg_advisory_lock({NAMESPACE},1)")
         app.query(f"SELECT pg_catalog.pg_advisory_lock({NAMESPACE},2)")
@@ -149,10 +155,13 @@ def test_rg1_real_peer_sql_acl_commit_and_liveness_boundaries(
             "SELECT state FROM public.rg1_restore_gate"
         ).fetchone() == ("open",)
 
-        # 旧read2は常falseを保持。共有lockの排出は既存read ownerの実列ACLで検査。
+        # 採用済みのread2成功条件。同DB/PID/control actor二重leaseを検査する。
+        # SQL primitiveの手動openは実authority/fresh attestationの証拠ではない。
         app.query("BEGIN")
         app.query(f"SELECT set_config('app.tenant_id','{tenant}',true)")
-        assert app.query(f"SELECT rg1_api.rg1_read_open('{tenant}'::uuid)") == ("f",)
+        for name in read_functions:
+            assert app.query(f"SELECT rg1_api.{name}('{tenant}'::uuid)") == ("t",)
+            assert app.query(f"SELECT rg1_api.{name}('{uuid4()}'::uuid)") == ("f",)
         app.query("ROLLBACK")
         with psycopg.connect(database.admin_dsn) as reader:
             reader.execute("SET ROLE pitchlog_rg1_fn_owner")
@@ -204,6 +213,27 @@ def test_rg1_real_peer_sql_acl_commit_and_liveness_boundaries(
         assert controller.query("SELECT rg1_control.open_fresh_gate()") == ("t",)
         assert contender.query("SELECT rg1_control.controller_lease_alive()") == ("t",)
 
+        # controller切断ではopen行が残っても両readを成功させない。
+        controller.close()
+        wait_until(
+            lambda: (
+                contender.query("SELECT rg1_control.controller_lease_alive()") == ("f",)
+            )
+        )
+        assert admin.execute(
+            "SELECT state FROM public.rg1_restore_gate"
+        ).fetchone() == ("open",)
+        app.query("BEGIN")
+        app.query(f"SELECT set_config('app.tenant_id','{tenant}',true)")
+        for name in read_functions:
+            assert app.query(f"SELECT rg1_api.{name}('{tenant}'::uuid)") == ("f",)
+        app.query("ROLLBACK")
+        # 再起動の前には別controllerで正規leaseを再取得して手動openへ戻す。
+        assert contender.query("SELECT rg1_control.try_controller_lease()") == ("t",)
+        assert contender.query("SELECT rg1_control.close_gate()") == ("t",)
+        assert contender.query("SELECT rg1_control.open_fresh_gate()") == ("t",)
+        assert contender.query("SELECT rg1_control.controller_lease_alive()") == ("t",)
+
         # 全server再起動では行openが残ってもsession leaseは復元されない。
         database = database.restart()
 
@@ -221,6 +251,14 @@ def test_rg1_real_peer_sql_acl_commit_and_liveness_boundaries(
             assert after_admin.execute(
                 "SELECT state FROM public.rg1_restore_gate"
             ).fetchone() == ("open",)
+        with database.peer(APP) as after_app:
+            after_app.query("BEGIN")
+            after_app.query(f"SELECT set_config('app.tenant_id','{tenant}',true)")
+            for name in read_functions:
+                assert after_app.query(f"SELECT rg1_api.{name}('{tenant}'::uuid)") == (
+                    "f",
+                )
+            after_app.query("ROLLBACK")
         with database.peer() as after_restart:
             assert after_restart.query(
                 "SELECT rg1_control.controller_lease_alive()"

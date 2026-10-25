@@ -1,0 +1,1500 @@
+{
+  "schema_version": 1,
+  "evidence_level": "contract_assumptions_not_runtime",
+  "cases": [
+    {
+      "case_id": "D06-01-ready-m-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-02-cancel-unknown-ledger-zero",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "cancel_unknown",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-03-no-o4-m",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "resolved",
+      "termination": "commit_confirmed",
+      "authoritative_ledger_rows": 1,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-04-di2-before-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "stored_same",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "not_started",
+      "authoritative_ledger_rows": 1,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-05-di3-before-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "conflict",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "not_started",
+      "authoritative_ledger_rows": 1,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-06-independent-b3a-before-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "B3a",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "commit_confirmed",
+      "authoritative_ledger_rows": 1,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-07-pending-c2missing-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "pending_assumption",
+        "missing": [
+          "mapping"
+        ]
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "missing",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-08-pending-c2missing-no-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "pending_assumption",
+        "missing": [
+          "mapping"
+        ]
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "missing",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-09-repaired-atomic-replacement",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "resolved",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "o4_resume",
+        "old_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "business_scope_id": "00000000-0000-0000-0000-000000000003",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "new_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-00000000002a",
+          "business_scope_id": "00000000-0000-0000-0000-00000000001e",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "old_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "new_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "administrator_repair_receipt": {
+          "contract_id": "repair-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "4759fd877699791a06aaab791db974072812e2fd4206ac738622cc5c7474c07b"
+        },
+        "old_transaction_receipt": {
+          "contract_id": "rollback-confirmed-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "7886fc54f62d1b878bd97f1925a12fb09b96ff1f1ce3d75f0a64ec5525e15d07"
+        },
+        "durable_old_block_record": {
+          "contract_id": "durable-block-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "d1199f05eb97a62d46168f5849bb5f0574a90a026360c1c42f22634b25951ba1"
+        },
+        "new_permit_record": {
+          "contract_id": "permit-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "b91edf86df96b8d4b178622a00da151eb413ca542e97eb894f47b48c7a63fc4c"
+        }
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-10-y-mark-remains",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-00000000002a",
+        "business_scope_id": "00000000-0000-0000-0000-00000000001e",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-00000000002a",
+            "business_scope_id": "00000000-0000-0000-0000-00000000001e",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "resolved",
+      "termination": "commit_confirmed",
+      "authoritative_ledger_rows": 1,
+      "replacement": {
+        "variant": "o4_resume",
+        "old_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "business_scope_id": "00000000-0000-0000-0000-000000000003",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "new_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-00000000002a",
+          "business_scope_id": "00000000-0000-0000-0000-00000000001e",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "old_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "new_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "administrator_repair_receipt": {
+          "contract_id": "repair-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "4759fd877699791a06aaab791db974072812e2fd4206ac738622cc5c7474c07b"
+        },
+        "old_transaction_receipt": {
+          "contract_id": "rollback-confirmed-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "7886fc54f62d1b878bd97f1925a12fb09b96ff1f1ce3d75f0a64ec5525e15d07"
+        },
+        "durable_old_block_record": {
+          "contract_id": "durable-block-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "d1199f05eb97a62d46168f5849bb5f0574a90a026360c1c42f22634b25951ba1"
+        },
+        "new_permit_record": {
+          "contract_id": "permit-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "b91edf86df96b8d4b178622a00da151eb413ca542e97eb894f47b48c7a63fc4c"
+        }
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-00000000002a",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-11-different-content-not-o4-resume",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "resolved",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "different_content_request",
+        "old_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "business_scope_id": "00000000-0000-0000-0000-000000000003",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "new_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-00000000002a",
+          "business_scope_id": "00000000-0000-0000-0000-00000000001e",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "old_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "new_content_ref": {
+          "contract_id": "different-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "9b5ab2614c6a95a5138f66d167aa14cdef75fcdb0dc88b9097f9968c14ff879a"
+        }
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-12-mixed-prefix-single-ack",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 42,
+        "d5": "00000000-0000-0000-0000-00000000002a",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 41,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 42,
+            "d5": "00000000-0000-0000-0000-00000000002a",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 42,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        },
+        {
+          "d1": 42,
+          "d5": "00000000-0000-0000-0000-00000000002a",
+          "candidate": "unused"
+        },
+        {
+          "d1": 43,
+          "d5": "00000000-0000-0000-0000-00000000002b",
+          "candidate": "conflict"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-13-independent-sstop-before-o4",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "S-STOP",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "persisted_duplicate",
+        "events": [
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000a",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          },
+          {
+            "event_id": "00000000-0000-0000-0000-00000000000b",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "internal_generation": 1,
+            "d2": 1000
+          }
+        ]
+      },
+      "c2": "resolved",
+      "termination": "not_started",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-14-old-x-late-after-block",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "resolved",
+      "termination": "rollback_confirmed",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "o4_resume",
+        "old_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "business_scope_id": "00000000-0000-0000-0000-000000000003",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "new_key": {
+          "tenant_id": "00000000-0000-0000-0000-000000000001",
+          "game_id": "00000000-0000-0000-0000-000000000002",
+          "wire_d4": "opaque-current",
+          "internal_generation": 1,
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-00000000002a",
+          "business_scope_id": "00000000-0000-0000-0000-00000000001e",
+          "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+        },
+        "old_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "new_content_ref": {
+          "contract_id": "unchanged-event-content",
+          "contract_version": "candidate-v1",
+          "content_sha256": "62dfed8b2e87285934324342541be4d6446f970cf3f7874d285ca08f24d7f60a"
+        },
+        "administrator_repair_receipt": {
+          "contract_id": "repair-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "4759fd877699791a06aaab791db974072812e2fd4206ac738622cc5c7474c07b"
+        },
+        "old_transaction_receipt": {
+          "contract_id": "rollback-confirmed-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "7886fc54f62d1b878bd97f1925a12fb09b96ff1f1ce3d75f0a64ec5525e15d07"
+        },
+        "durable_old_block_record": {
+          "contract_id": "durable-block-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "d1199f05eb97a62d46168f5849bb5f0574a90a026360c1c42f22634b25951ba1"
+        },
+        "new_permit_record": {
+          "contract_id": "permit-observation",
+          "contract_version": "candidate-v1",
+          "content_sha256": "b91edf86df96b8d4b178622a00da151eb413ca542e97eb894f47b48c7a63fc4c"
+        }
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    },
+    {
+      "case_id": "D06-15-state-commit-unknown",
+      "key": {
+        "tenant_id": "00000000-0000-0000-0000-000000000001",
+        "game_id": "00000000-0000-0000-0000-000000000002",
+        "wire_d4": "opaque-current",
+        "internal_generation": 1,
+        "d1": 41,
+        "d5": "00000000-0000-0000-0000-000000000029",
+        "business_scope_id": "00000000-0000-0000-0000-000000000003",
+        "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+      },
+      "request_d3_before": 40,
+      "d3_before_target": 40,
+      "context": {
+        "variant": "ready_assumption",
+        "refs": {
+          "key": {
+            "tenant_id": "00000000-0000-0000-0000-000000000001",
+            "game_id": "00000000-0000-0000-0000-000000000002",
+            "wire_d4": "opaque-current",
+            "internal_generation": 1,
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "business_scope_id": "00000000-0000-0000-0000-000000000003",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004"
+          },
+          "rules": {
+            "contract_id": "existing-single-rule-codec-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3f4aeb9a69b8078d00689166a972040a5bed5318f30b3b8e56eae4874d08bf96"
+          },
+          "roster": {
+            "contract_id": "roster-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "3705940d6b6887f402a90841f1a0fa69285922478b1ae8a3512e25d7272da236"
+          },
+          "pre_state": {
+            "contract_id": "pre-state-ref",
+            "contract_version": "candidate-v1",
+            "content_sha256": "c84689f3301748f70fcf2241902a0e8383156d0e71c7353b3d2ca002acbba2c4"
+          },
+          "effective_prefix": {
+            "snapshot_id": "00000000-0000-0000-0000-000000000005",
+            "canonical_lineage_id": "00000000-0000-0000-0000-000000000004",
+            "before_d1": 41,
+            "content_ref": {
+              "contract_id": "prefix-ref",
+              "contract_version": "candidate-v1",
+              "content_sha256": "843cb8877bca98b86d2021b06dbdc4c343d90838390bad8bb5b6a82f4c00abe4"
+            }
+          }
+        }
+      },
+      "d5_candidate": "unused",
+      "independent_content": "pass",
+      "placement_mark": {
+        "variant": "present",
+        "placement_kind": "tiebreak_start",
+        "origin_d5": "00000000-0000-0000-0000-000000000014",
+        "lineage_id": "00000000-0000-0000-0000-000000000004",
+        "half_inning_ref": {
+          "contract_id": "same-half-mark",
+          "contract_version": "candidate-v1",
+          "content_sha256": "dd522ba959515d38744b9c7c150729eed4a3facdd26188938aa45496485d5522"
+        }
+      },
+      "o4": {
+        "variant": "absent"
+      },
+      "c2": "resolved",
+      "termination": "cancel_unknown",
+      "authoritative_ledger_rows": 0,
+      "replacement": {
+        "variant": "none"
+      },
+      "batch": [
+        {
+          "d1": 41,
+          "d5": "00000000-0000-0000-0000-000000000029",
+          "candidate": "unused"
+        }
+      ]
+    }
+  ]
+}

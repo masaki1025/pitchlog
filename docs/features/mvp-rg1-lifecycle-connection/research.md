@@ -135,3 +135,32 @@ core試験の編集所有は開始物理案作成を終えたstart_physical_conn
 ## 初期供給の独立P1とACL撤去の反映
 
 2026-10-24T07:23:09.411702+00:00、544c0c69への非作者確認はP0=0/P1=1/P2=0で否決。evidence e9fbe17c05ddc82982b30613e6404e06d67ab8a85f4cd0e341ad0035a5bdbc16、報告 /home/ymdms/.cache/pitchlog/reviews/rg1-initial-prerequisite-544c0c69-independent/review.md。旧ACL/core P1系列とは別に、新epochの正規SELECT+UPDATEをunapplyがstateだけの条件で拒否する不一致を検出、全採用した。rootは既exact ACL predicate内の撤去対象をstate/epochへ揃え、他role/function/column/privilege/整数boolを拒否する6負例と完全REVOKE文1正例を追加した。局所26成功43非対象0.15s、Ruff/ty0。正式生成/7.7/実controller/grantはまだ未成立、独立再確認前にP1終結とは記録しない。
+
+
+## 初期peer認可の正式catalog入口
+
+2026-10-24T08:02:34.516557+00:00、rootは既c58/606の有限供給としてsource案07bc28ecc66cd57baa12bb04022c95ea5a39e8c0834f6d275b059f637c068c88をcheck_authz_catalogへ接合。CONNECT1/schemaUSAGE2/control列全3のexact集合だけを追加し、CREATE/TEMP/owner流用/任意role/grantableを許可しない。製品DB正例と6負例を既root testへ追加、7成功25830非対象1.49s（rg1-initial-actor-catalog-source.log）、実root環境のRuff/ty全成功。作者cacheでは同固定/提案に既unused-ignore8診断が出ており、その結果を緑へ置換せず保持する。今回の実root検査は別ログrg1-initial-actor-catalog-ty.logで0。
+
+33asset候補/13role/65fn/241DDLはまだcache未受理、schema-manifestにはgate列未反映である。上記unit成功を正式catalog/7.7/実actor借用/初期grant/開始HTTP成功にしない。source/最小権限の別非作者確認後に、rootだけが最小正本と正式全値を接合する。既epoch撤去P1は0ed61d16で独立第2回0により終結済み、今回seriesと混同しない。
+
+
+## 正本1.3接合候補の最小具体化
+
+2026-10-24T08:09:22.806496+00:00、既data-model1.3 in-review候補を、606/c58/実SQL/13role候補に照合して§3-2の現提供対象数と役割表・初回epoch束縛へ有限具体化。既7にcontrol2/observer2/initial前提2を加える13製品用/14batch込みを明記し、初期ownerの業務権限0・actor CONNECT1/USAGE2/EXECUTE3・旧read2 AS保持を区別した。gate列はnullable正bigint/default/backfillなし、closed確定→真正fresh→同Session初回E1束縛commit→別txopen、commit不明は成功にせずNULLへ戻さない。非0復元/全域closeProof/全MVPは未完成のまま保持。元2系統1.2承認履歴を保存して1.3へ接合するもので、旧採用意味の再裁定や全設計の再承認ではない。statusはin-reviewのまま、最小7.3独立確認とPO委任によるroot確定後にだけschema-manifest/sourceSHAと正式9/8値を追随する。
+
+
+2026-10-24T08:26:10.538977+00:00、62ed6efeの1.3追加限定本文は非作者initial_sql_independent_review 0/0/0で採用推奨（evidence f7ab4a5ed7c5ef55d9c6149450fb955a70460ab60dbc58fbba238aedb7247768、差分70161f8423e53fede7ee6b2aec6844949478f6b68bb9d23301aca92fdfc134cc）。rootは既PO委任で当該版の全値/根拠を確認して確定し、frontmatter/現1.3履歴/索引のメタデータだけを追記した。旧1.2両系列・既review回数/採否を維持、本人の逐行確認/署名ではない。cache rg1-norm-1_3-acceptance-20261024/receipt.jsonが本文前後SHA/対象/時刻を保持する。sourcecatalog ef1d65abも別系列独立0（report90f641027df235d10826204a94bd3ec3b7b7f02b05b51fe2abc16a017dddf93b、root7/独立25成功）で受領。これで正本とsourceの最小供給写像を閉じ、正式33asset/schema-manifest新列/7.7実値/実PG正常grantは次の未成立段階として保持する。
+
+
+## 隔離接合候補の保存と実PGでの前段停止
+
+2026-10-24T10:03:25.655001+00:00、rootは40profile/runtime/test・repository-operation1・static2source/test2・静的宣言1の44pathを専用隔離branch feature/mvp-rg1-profile-integration-candidate の5f074491へ保存した。正式targetは0708095aのまま、7.7履歴末尾の識別値不一致をCLIが拒否する未受理候補である。非作者40path証拠d07289e14ecdd2d24d1b0644feaf628312de58a275c863b4da40db232617645f、追加operation1証拠05272d49b19bb1f311a92ae02d6286b0c9da94052c53b48bd018d8c44d14a732、static2証拠05a4c95a9817abf6dd8dedcf7305e73ce0f0ecaffa7e9ad5348767221ea8e8e3、各0/0/0。runtimeは実値21→22（依頼時21と記憶違いがあったが実byteを正とし、正式未反映）。249/91成功は局所候補証拠である。
+
+rootが実製品S0→S3を所有disposableで通す既PG試験を実行し、新0035列より前に新列ACLが適用される接合漏れで1error/必須call未到達を確認。ログ /home/ymdms/.cache/pitchlog/rg1-derived-runtime-candidate-20261024/composed-real-pg-primitive.log。共有pitchlog-db-1は未使用、所有containerはfixtureで回収済。修正をplanの既5pathへ限定し、最終source/census/完全値受理を先送りして一次導出は保全した。一次導出handoff6f12961d4ee4c784e8451ec068ec511c994bcfffe39a9eb327435668b97de9e5は旧30履歴216snapshotを保持し、8影響射影/8外部の前後とN3新1行等の未判定を記録する。機械的未判定を人間の確認済みに変更していない。実初回fresh/初期grant/開始UIの成功ではない。
+
+
+## 実起動接合の最終固定
+
+2026-10-24T10:57:35.480436+00:00、最終候補18path（source/test10、生成SQL8）は非作者t1_ci_followup_independentで0/0/0。報告 /home/ymdms/.cache/pitchlog/reviews/rg1-startup-order-final-independent-20261024/review.md SHA3080726953ccc429df266266e7c5701ef141abf5dc58bc6abf516277b1c81e49、evidence SHA553882f9c9770af63f48ea92e1312d6fb98e998bae1243a121f32003e6326a0e。rootの所有disposable実PG5成功19.71s/wall20.4066s、18file実行前後/現在hash全同値、非作者がreceipt/実byteを再照合。34故障→35再開/35再適用、偽marker欠列拒否、6role54不正既存/2schemaowner不修復拒否、2readの採用済成功/拒否/切断/再起動を確認。他233body/旧7role/固定外部SQL保持。旧失敗は反映別cacheに全保存、最後の期待値追随も原典0708095a§3-2:267とplan88行相当を根拠にした。正規成功を弱化したものでも人間確認の代記でもない。
+
+最終handoff /home/ymdms/.cache/pitchlog/rg1-startup-order-reflection3-candidate-20261024/handoff.json SHA7d2204e3fc240d44421607d80ea610221a3df43e706f38c05da509c277726a6e。root-real-pg-result.json/前後hash/ログを同cacheで保存。正式sourceへの反映は完全値受理後、source5fの一次N3/8射影提案はそのまま受理せず最終code固定後に実必要分だけ再導出する。実fresh/初期grant/実画面開始/1球保存は未達のまま。

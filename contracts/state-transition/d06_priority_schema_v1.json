@@ -1,0 +1,2052 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "D06 B priority contract candidate; not Ready constructor or runtime evidence",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Input"
+    },
+    {
+      "$ref": "#/$defs/Observation"
+    },
+    {
+      "$ref": "#/$defs/StateRejectionRecordV1"
+    },
+    {
+      "$ref": "#/$defs/AuthoritativeResolutionV1"
+    }
+  ],
+  "$defs": {
+    "Input": {
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "request_d3_before": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "d3_before_target": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "context": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "ready_assumption"
+                },
+                "refs": {
+                  "$ref": "#/$defs/T1ContextRefsV1"
+                }
+              },
+              "required": [
+                "variant",
+                "refs"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "pending_assumption"
+                },
+                "missing": {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "roster",
+                      "pre_state",
+                      "effective_prefix",
+                      "mapping"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "variant",
+                "missing"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "d5_candidate": {
+          "enum": [
+            "unused",
+            "stored_same",
+            "conflict"
+          ]
+        },
+        "independent_content": {
+          "enum": [
+            "pass",
+            "B3a",
+            "S-STOP"
+          ]
+        },
+        "placement_mark": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "absent"
+                }
+              },
+              "required": [
+                "variant"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "present"
+                },
+                "placement_kind": {
+                  "const": "tiebreak_start"
+                },
+                "origin_d5": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "lineage_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "half_inning_ref": {
+                  "$ref": "#/$defs/ContentRefV1"
+                }
+              },
+              "required": [
+                "variant",
+                "placement_kind",
+                "origin_d5",
+                "lineage_id",
+                "half_inning_ref"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "o4": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "absent"
+                }
+              },
+              "required": [
+                "variant"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "persisted_duplicate"
+                },
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "event_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "game_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "internal_generation": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "d2": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "event_id",
+                      "game_id",
+                      "internal_generation",
+                      "d2"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "required": [
+                "variant",
+                "events"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "c2": {
+          "enum": [
+            "resolved",
+            "missing",
+            "unresolved"
+          ]
+        },
+        "termination": {
+          "enum": [
+            "rollback_confirmed",
+            "commit_confirmed",
+            "cancel_unknown",
+            "not_started"
+          ]
+        },
+        "authoritative_ledger_rows": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replacement": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "none"
+                }
+              },
+              "required": [
+                "variant"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "o4_resume"
+                },
+                "old_key": {
+                  "$ref": "#/$defs/T1ReadKeyV1"
+                },
+                "new_key": {
+                  "$ref": "#/$defs/T1ReadKeyV1"
+                },
+                "old_content_ref": {
+                  "$ref": "#/$defs/ContentRefV1"
+                },
+                "new_content_ref": {
+                  "$ref": "#/$defs/ContentRefV1"
+                },
+                "administrator_repair_receipt": {
+                  "$ref": "#/$defs/ContentRefV1"
+                },
+                "old_transaction_receipt": {
+                  "$ref": "#/$defs/ContentRefV1"
+                },
+                "durable_old_block_record": {
+                  "$ref": "#/$defs/ContentRefV1"
+                },
+                "new_permit_record": {
+                  "$ref": "#/$defs/ContentRefV1"
+                }
+              },
+              "required": [
+                "variant",
+                "old_key",
+                "new_key",
+                "old_content_ref",
+                "new_content_ref",
+                "administrator_repair_receipt",
+                "old_transaction_receipt",
+                "durable_old_block_record",
+                "new_permit_record"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "variant": {
+                  "const": "different_content_request"
+                },
+                "old_key": {
+                  "$ref": "#/$defs/T1ReadKeyV1"
+                },
+                "new_key": {
+                  "$ref": "#/$defs/T1ReadKeyV1"
+                },
+                "old_content_ref": {
+                  "$ref": "#/$defs/ContentRefV1"
+                },
+                "new_content_ref": {
+                  "$ref": "#/$defs/ContentRefV1"
+                }
+              },
+              "required": [
+                "variant",
+                "old_key",
+                "new_key",
+                "old_content_ref",
+                "new_content_ref"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "batch": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "d1": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "d5": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "candidate": {
+                "enum": [
+                  "unused",
+                  "stored_same",
+                  "conflict"
+                ]
+              }
+            },
+            "required": [
+              "d1",
+              "d5",
+              "candidate"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "case_id",
+        "key",
+        "request_d3_before",
+        "d3_before_target",
+        "context",
+        "d5_candidate",
+        "independent_content",
+        "placement_mark",
+        "o4",
+        "c2",
+        "termination",
+        "authoritative_ledger_rows",
+        "replacement",
+        "batch"
+      ],
+      "additionalProperties": false
+    },
+    "Observation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "o4_rejected"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "boundary_result": {
+                      "enum": [
+                        "B1",
+                        "B2",
+                        "B3",
+                        "B4"
+                      ]
+                    },
+                    "advanced_d3": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "event_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "d4": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "d1": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "d5": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "a5_result": {
+                            "enum": [
+                              "受理",
+                              "重複",
+                              "拒否",
+                              "退避",
+                              "未処理"
+                            ]
+                          },
+                          "rejection": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "内容起因"
+                                  },
+                                  "branch": {
+                                    "enum": [
+                                      "B3a",
+                                      "B3b"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "O4",
+                                      "O5"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "状態前提"
+                                  },
+                                  "branch": {
+                                    "const": "B3c"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "d4",
+                          "d1",
+                          "d5",
+                          "a5_result"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "boundary_result",
+                    "advanced_d3",
+                    "event_results"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "d5_effect": {
+              "const": "unconsumed"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "admin_wait"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "unresolved"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "const": null
+            },
+            "d5_effect": {
+              "const": "unknown"
+            },
+            "state_rejection_rows": {
+              "const": null
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "resolve_old_attempt"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "state_rejected"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "boundary_result": {
+                      "enum": [
+                        "B1",
+                        "B2",
+                        "B3",
+                        "B4"
+                      ]
+                    },
+                    "advanced_d3": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "event_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "d4": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "d1": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "d5": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "a5_result": {
+                            "enum": [
+                              "受理",
+                              "重複",
+                              "拒否",
+                              "退避",
+                              "未処理"
+                            ]
+                          },
+                          "rejection": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "内容起因"
+                                  },
+                                  "branch": {
+                                    "enum": [
+                                      "B3a",
+                                      "B3b"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "O4",
+                                      "O5"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "状態前提"
+                                  },
+                                  "branch": {
+                                    "const": "B3c"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "d4",
+                          "d1",
+                          "d5",
+                          "a5_result"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "boundary_result",
+                    "advanced_d3",
+                    "event_results"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "d5_effect": {
+              "const": "consumed"
+            },
+            "state_rejection_rows": {
+              "const": 1
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "dedicated_rejection"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "stored_replay"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "boundary_result": {
+                      "enum": [
+                        "B1",
+                        "B2",
+                        "B3",
+                        "B4"
+                      ]
+                    },
+                    "advanced_d3": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "event_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "d4": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "d1": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "d5": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "a5_result": {
+                            "enum": [
+                              "受理",
+                              "重複",
+                              "拒否",
+                              "退避",
+                              "未処理"
+                            ]
+                          },
+                          "rejection": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "内容起因"
+                                  },
+                                  "branch": {
+                                    "enum": [
+                                      "B3a",
+                                      "B3b"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "O4",
+                                      "O5"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "状態前提"
+                                  },
+                                  "branch": {
+                                    "const": "B3c"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "d4",
+                          "d1",
+                          "d5",
+                          "a5_result"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "boundary_result",
+                    "advanced_d3",
+                    "event_results"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "d5_effect": {
+              "const": "unchanged"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "fixed_replay"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "d5_conflict"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "boundary_result": {
+                      "enum": [
+                        "B1",
+                        "B2",
+                        "B3",
+                        "B4"
+                      ]
+                    },
+                    "advanced_d3": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "event_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "d4": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "d1": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "d5": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "a5_result": {
+                            "enum": [
+                              "受理",
+                              "重複",
+                              "拒否",
+                              "退避",
+                              "未処理"
+                            ]
+                          },
+                          "rejection": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "内容起因"
+                                  },
+                                  "branch": {
+                                    "enum": [
+                                      "B3a",
+                                      "B3b"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "O4",
+                                      "O5"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "状態前提"
+                                  },
+                                  "branch": {
+                                    "const": "B3c"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "d4",
+                          "d1",
+                          "d5",
+                          "a5_result"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "boundary_result",
+                    "advanced_d3",
+                    "event_results"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "d5_effect": {
+              "const": "unchanged"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "existing_rule"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "content_rejection_delegated"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "boundary_result": {
+                      "enum": [
+                        "B1",
+                        "B2",
+                        "B3",
+                        "B4"
+                      ]
+                    },
+                    "advanced_d3": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "event_results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "d4": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "d1": {
+                            "type": "integer",
+                            "minimum": 1
+                          },
+                          "d5": {
+                            "type": "string",
+                            "format": "uuid"
+                          },
+                          "a5_result": {
+                            "enum": [
+                              "受理",
+                              "重複",
+                              "拒否",
+                              "退避",
+                              "未処理"
+                            ]
+                          },
+                          "rejection": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "内容起因"
+                                  },
+                                  "branch": {
+                                    "enum": [
+                                      "B3a",
+                                      "B3b"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "enum": [
+                                      "O4",
+                                      "O5"
+                                    ]
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "kind": {
+                                    "const": "状態前提"
+                                  },
+                                  "branch": {
+                                    "const": "B3c"
+                                  },
+                                  "reason": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  }
+                                },
+                                "required": [
+                                  "kind",
+                                  "branch",
+                                  "reason"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "d4",
+                          "d1",
+                          "d5",
+                          "a5_result"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "boundary_result",
+                    "advanced_d3",
+                    "event_results"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "d5_effect": {
+              "const": "consumed"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 1
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "existing_rule"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "c2_missing"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "const": null
+            },
+            "d5_effect": {
+              "const": "unconsumed"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "retry_same_request"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "replacement_allowed"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "const": null
+            },
+            "d5_effect": {
+              "const": "unconsumed"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": true
+            },
+            "old_d5_blocked": {
+              "const": true
+            },
+            "next_operation": {
+              "const": "send_new_y"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "separate_correction"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "const": null
+            },
+            "d5_effect": {
+              "const": "unchanged"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "separate_correction"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "old_request_blocked"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "const": null
+            },
+            "d5_effect": {
+              "const": "unconsumed"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "const": true
+            },
+            "next_operation": {
+              "const": "existing_rule"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "independent_stop_delegated"
+            },
+            "case_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trace": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "existing_preconditions",
+                  "DI2",
+                  "DI3",
+                  "independent_7",
+                  "O4",
+                  "C2",
+                  "state_guard",
+                  "dedicated_state_commit",
+                  "authoritative_resolution",
+                  "administrator_repair",
+                  "atomic_replacement"
+                ]
+              }
+            },
+            "ack": {
+              "const": null
+            },
+            "d5_effect": {
+              "const": "unchanged"
+            },
+            "state_rejection_rows": {
+              "const": 0
+            },
+            "t9_original_rows": {
+              "const": 0
+            },
+            "replacement_allowed": {
+              "const": false
+            },
+            "old_d5_blocked": {
+              "type": "boolean"
+            },
+            "next_operation": {
+              "const": "existing_rule"
+            },
+            "evidence_level": {
+              "const": "contract_case_not_runtime_proof"
+            }
+          },
+          "required": [
+            "variant",
+            "case_id",
+            "trace",
+            "ack",
+            "d5_effect",
+            "state_rejection_rows",
+            "t9_original_rows",
+            "replacement_allowed",
+            "old_d5_blocked",
+            "next_operation",
+            "evidence_level"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "StateRejectionRecordV1": {
+      "type": "object",
+      "properties": {
+        "record_version": {
+          "const": 1
+        },
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "ledger_kind": {
+          "const": "rejected"
+        },
+        "original_kind": {
+          "const": "state_precondition"
+        },
+        "result_id": {
+          "const": "B3c"
+        },
+        "rejection_kind": {
+          "const": "状態前提"
+        },
+        "fixed_d3": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_fingerprint": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proof_kind": {
+          "const": "duplicate_tiebreak_placement"
+        },
+        "half_inning_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "mark_origin_d5": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "wire_original_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "canonical_precondition_evidence_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "dedicated_commit_receipt_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        }
+      },
+      "required": [
+        "record_version",
+        "key",
+        "ledger_kind",
+        "original_kind",
+        "result_id",
+        "rejection_kind",
+        "fixed_d3",
+        "source_fingerprint",
+        "proof_kind",
+        "half_inning_ref",
+        "mark_origin_d5",
+        "wire_original_ref",
+        "canonical_precondition_evidence_ref",
+        "dedicated_commit_receipt_ref"
+      ],
+      "additionalProperties": false
+    },
+    "AuthoritativeResolutionV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "unresolved"
+            },
+            "attempt_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            },
+            "observed_ledger_rows": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "variant",
+            "attempt_ref",
+            "observed_ledger_rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "rollback_confirmed"
+            },
+            "attempt_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            },
+            "transaction_end_receipt_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            },
+            "epoch_binding_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            },
+            "all_effects_absence_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "variant",
+            "attempt_ref",
+            "transaction_end_receipt_ref",
+            "epoch_binding_ref",
+            "all_effects_absence_ref"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "variant": {
+              "const": "committed_confirmed"
+            },
+            "attempt_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            },
+            "stored_result_ref": {
+              "$ref": "#/$defs/ContentRefV1"
+            }
+          },
+          "required": [
+            "variant",
+            "attempt_ref",
+            "stored_result_ref"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ContentRefV1": {
+      "type": "object",
+      "properties": {
+        "contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contract_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_version",
+        "content_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "T1ReadKeyV1": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "game_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "wire_d4": {
+          "type": "string",
+          "minLength": 1
+        },
+        "internal_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d5": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "business_scope_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "canonical_lineage_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "game_id",
+        "wire_d4",
+        "internal_generation",
+        "d1",
+        "d5",
+        "business_scope_id",
+        "canonical_lineage_id"
+      ],
+      "additionalProperties": false
+    },
+    "T1ContextRefsV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "rules": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "roster": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "pre_state": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "effective_prefix": {
+          "$ref": "#/$defs/PrefixEvidenceRefV1"
+        }
+      },
+      "required": [
+        "key",
+        "rules",
+        "roster",
+        "pre_state",
+        "effective_prefix"
+      ],
+      "additionalProperties": false
+    },
+    "PrefixEvidenceRefV1": {
+      "type": "object",
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "canonical_lineage_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "before_d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        }
+      },
+      "required": [
+        "snapshot_id",
+        "canonical_lineage_id",
+        "before_d1",
+        "content_ref"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$id": "https://pitchlog.local/contracts/state-transition/d06_priority_schema_v1.json",
+  "$comment": "D06=Bだけの有限契約候補。mは同系譜/同半回の重複TB配置だけ。B3cは技術ID案。rollback/commit未確認は保留で、shapeはReady/耐久/実DBを証明しない。"
+}

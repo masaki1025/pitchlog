@@ -17,5 +17,11 @@ BEGIN
         'GRANT CONNECT ON DATABASE %I TO pitchlog_app',
         database_name
     );
+    EXECUTE pg_catalog.format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM pitchlog_rg1_control_actor', database_name);
+    EXECUTE pg_catalog.format('GRANT CONNECT ON DATABASE %I TO pitchlog_rg1_control_actor', database_name);
+    EXECUTE pg_catalog.format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM pitchlog_ledger_identity_probe', database_name);
+    EXECUTE pg_catalog.format('GRANT CONNECT ON DATABASE %I TO pitchlog_ledger_identity_probe', database_name);
+    EXECUTE pg_catalog.format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM pitchlog_initial_actor', database_name);
+    EXECUTE pg_catalog.format('GRANT CONNECT ON DATABASE %I TO pitchlog_initial_actor', database_name);
 END;
 $authz$;

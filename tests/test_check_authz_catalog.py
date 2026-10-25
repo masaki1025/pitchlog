@@ -1405,7 +1405,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1418 auth_claim=187 out_of_scope=1231" in result.stdout
+    assert "total=1427 auth_claim=187 out_of_scope=1240" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1922,8 +1922,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1231
-    assert attempts == 1231
+    assert len(out_claims) == 1240
+    assert attempts == 1240
     assert escaped == []
 
 
@@ -6019,3 +6019,66 @@ def test_preparing_read_route_set_rejects_extra_route() -> None:
     routes[extra['route_id']] = extra
     with pytest.raises(checker.CatalogError, match='exact-set 不一致'):
         checker._validate_record_and_aggregate_route_ids(routes)
+
+
+
+def _initial_actor_database_acl_rows() -> list[dict[str, Any]]:
+    """旧製品DB権限を保持し、独立した3peerの最小CONNECTを構成する。"""
+    source = json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    rows = copy.deepcopy(source["databases"])
+    row = next(entry for entry in rows if entry["database_id"] == "current_database")
+    for role in (
+        "pitchlog_rg1_control_actor", "pitchlog_ledger_identity_probe",
+        "pitchlog_initial_actor",
+    ):
+        grant = {"grantee": role, "privilege": "CONNECT", "grantable": False}
+        if grant not in row["acl_expectations"]:
+            row["acl_expectations"].append(grant)
+        for privilege in ("CREATE", "TEMPORARY"):
+            denial = {"grantee": role, "privilege": privilege, "grantable": False}
+            if denial not in row["revoked_acl_expectations"]:
+                row["revoked_acl_expectations"].append(denial)
+    return rows
+
+
+def test_initial_actor_database_has_only_required_connect() -> None:
+    """正常な初期actor接続宣言を受理し、ownerへの権限は追加しない。"""
+    rows = _initial_actor_database_acl_rows()
+    checker._validate_product_database_expectations(rows, lifecycle_required=True)
+    assert not any(
+        grant["grantee"] == "pitchlog_initial_fn_owner"
+        for row in rows for grant in row["acl_expectations"]
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing", "owner-connect", "create", "temporary", "grantable", "integer-bool"),
+)
+def test_initial_actor_database_rejects_missing_or_expanded_permission(
+    mutation: str,
+) -> None:
+    """接続権の不足・拡大・委譲・曖昧なboolを閉じた宣言で拒否する。"""
+    rows = _initial_actor_database_acl_rows()
+    row = next(entry for entry in rows if entry["database_id"] == "current_database")
+    grants = row["acl_expectations"]
+    if mutation == "missing":
+        grants[:] = [g for g in grants if g["grantee"] != "pitchlog_initial_actor"]
+    elif mutation in {"grantable", "integer-bool"}:
+        grant = next(g for g in grants if g["grantee"] == "pitchlog_initial_actor")
+        grant["grantable"] = True if mutation == "grantable" else 0
+    else:
+        grants.append({
+            "grantee": (
+                "pitchlog_initial_fn_owner" if mutation == "owner-connect"
+                else "pitchlog_initial_actor"
+            ),
+            "privilege": "CONNECT" if mutation == "owner-connect" else mutation.upper(),
+            "grantable": False,
+        })
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_database_expectations(rows, lifecycle_required=True)

@@ -3472,12 +3472,16 @@ def _validate_product_database_expectations(
         ) | frozenset({
             ("pitchlog_rg1_control_actor", "CONNECT", False),
             ("pitchlog_ledger_identity_probe", "CONNECT", False),
+            ("pitchlog_initial_actor", "CONNECT", False),
         })
         database["revoked_acl_expectations"] = cast(
             frozenset[tuple[str, str, bool]], database["revoked_acl_expectations"]
         ) | frozenset(
             (role, privilege, False)
-            for role in ("pitchlog_rg1_control_actor", "pitchlog_ledger_identity_probe")
+            for role in (
+                "pitchlog_rg1_control_actor", "pitchlog_ledger_identity_probe",
+                "pitchlog_initial_actor",
+            )
             for privilege in ("CREATE", "TEMPORARY")
         )
     if actual != expected:
@@ -3544,6 +3548,7 @@ def _validate_product_schema_expectations(
         for name, owner, users in (
             ("rg1_control", "pitchlog_rg1_control_owner", (
                 "pitchlog_rg1_control_actor", "pitchlog_rg1_fn_owner", "pitchlog_app",
+                "pitchlog_initial_actor",
             )),
             ("pitchlog_ledger_observer", "pitchlog_ledger_identity_owner", (
                 "pitchlog_ledger_identity_probe",
@@ -3561,6 +3566,16 @@ def _validate_product_schema_expectations(
     for schema_id, expected in expected_schemas.items():
         if schema_id == "rg1_api" and schema_id not in actual and not rg1_required:
             continue
+        if schema_id == "rg1_api" and lifecycle_required:
+            expected = {
+                **expected,
+                "acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["acl_expectations"]
+                ) | frozenset({("pitchlog_initial_actor", "USAGE", False)}),
+                "revoked_acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["revoked_acl_expectations"]
+                ) | frozenset({("pitchlog_initial_actor", "CREATE", False)}),
+            }
         if schema_id == "public" and authn_enabled:
             expected = {
                 **expected,
@@ -4291,10 +4306,10 @@ def _validate_product_membership_helper(
             key: row for key, row in column_acls.items()
             if row.get("grantee_role_id") == "pitchlog_rg1_control_owner"
         }
-        if len(control_columns) != 2 or not all(
+        if len(control_columns) != 3 or not all(
             is_rg1_control_column_acl(row) for row in control_columns.values()
         ):
-            raise CatalogError("RG1制御ownerの列ACL全2宣言がexact-set不一致")
+            raise CatalogError("RG1制御ownerの列ACL全3宣言がexact-set不一致")
     manifest_columns = _product_manifest_columns(root)
     dependency_columns = {
         (str(row["object_id"]), str(row["column_id"]))

@@ -29125,5 +29125,9 @@
     "backend/src/pitchlog/durable_rights_ledger/business_identity.sql": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
     "backend/src/pitchlog/durable_rights_ledger/manifest.json": "cb0d0ecd9886bcf44d9569a779a82b396fdc16c158c807c54b69acac842e7b4e",
     "backend/src/pitchlog/durable_rights_ledger/schema.sql": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
+  },
+  "rg1_deployment_assets": {
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql": "30657b77bc588c288f638318e48484bdeed685e8591699bbb175abd9dbfdfd79",
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json": "549cc3d0d915b34f2f8d20e905069c9905b89260f922f4a2453a9188c0336633"
   }
 }

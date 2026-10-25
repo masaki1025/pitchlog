@@ -15,5 +15,13 @@
   {"id":"artifact-digest","operation":"replace","target":"contracts/state-transition/appendix_e_consumer_handoff_v1.json","pointer":"/artifacts/0/digest","value":"sha256:0000000000000000000000000000000000000000000000000000000000000000","code":"ARTIFACT_DIGEST"},
   {"id":"unsafe-integer","operation":"unsafeInteger","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNSAFE_INTEGER"},
   {"id":"duplicate-field","operation":"duplicateField","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNKNOWN_FIELD"},
-  {"id":"negative-zero","operation":"negativeZero","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNSAFE_INTEGER"}
+  {"id":"negative-zero","operation":"negativeZero","target":"contracts/state-transition/state_transition_contract_v1.json","code":"UNSAFE_INTEGER"},
+  {"id":"schema-digest-type","operation":"replace","target":"contracts/state-transition/state_transition_contract_schema_v1.json","pointer":"/$defs/inputAxesDescriptorBinding/properties/digest/const","value":true,"code":"DESCRIPTOR_MISMATCH"},
+  {"id":"schema-binding-open","operation":"replace","target":"contracts/state-transition/state_transition_contract_schema_v1.json","pointer":"/$defs/inputAxesDescriptorBinding/additionalProperties","value":true,"code":"DESCRIPTOR_MISMATCH"},
+  {"id":"schema-unknown-const-field","operation":"add","target":"contracts/state-transition/state_transition_contract_schema_v1.json","pointer":"/$defs/inputAxesDescriptorBinding/properties/digest/unexpected","value":true,"code":"UNKNOWN_FIELD"},
+  {"id":"schema-digest-disagreement","operation":"replace","target":"contracts/state-transition/game_end_contract_schema_v1.json","pointer":"/$defs/inputAxesDescriptorBinding/properties/digest/const","value":"sha256:0000000000000000000000000000000000000000000000000000000000000000","code":"DESCRIPTOR_MISMATCH"},
+  {"id":"missing-pure-input-id","operation":"remove","target":"contracts/state-transition/state_transition_contract_v1.json","pointer":"/cases/109/inputId","code":"UNKNOWN_FIELD"},
+  {"id":"pure-input-id-type","operation":"replace","target":"contracts/state-transition/state_transition_contract_v1.json","pointer":"/cases/109/inputId","value":1,"code":"HANDOFF_SHAPE"},
+  {"id":"pure-input-null-payload","operation":"replace","target":"contracts/state-transition/state_transition_contract_v1.json","pointer":"/cases/109/inputPayload","value":null,"code":"HANDOFF_SHAPE"},
+  {"id":"unknown-pure-input-field","operation":"add","target":"contracts/state-transition/state_transition_contract_v1.json","pointer":"/cases/109/inputUnexpected","value":true,"code":"UNKNOWN_FIELD"}
 ]

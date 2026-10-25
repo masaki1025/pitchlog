@@ -18,7 +18,10 @@ ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = Path("contracts/state-transition/required_set_mutation_policy_v1.json")
 
 InputDeriver = Callable[[Mapping[str, Any]], tuple[Any, ...]]
-GameEndDeriver = Callable[[Mapping[str, Any], str, frozenset[str]], Any]
+ObservationDocuments = derivers.descriptor_checker.GameEndObservationDocuments
+GameEndDeriver = Callable[
+    [Mapping[str, Any], str, frozenset[str], ObservationDocuments | None], Any
+]
 
 
 class RequiredSetMutationError(ValueError):
@@ -262,12 +265,15 @@ def _output_identities(
     clause_ids: frozenset[str],
     input_deriver: InputDeriver,
     game_end_deriver: GameEndDeriver,
+    observation_documents: ObservationDocuments | None,
 ) -> set[Any]:
     """既存導出器の出力を同一性集合に射影する。"""
     if output == "requiredSet.inputCoordinates":
         requirements = input_deriver(descriptor)
     else:
-        requirements = game_end_deriver(descriptor, requirements_text, clause_ids).requirements
+        requirements = game_end_deriver(
+            descriptor, requirements_text, clause_ids, observation_documents
+        ).requirements
     identities = [item.identity for item in requirements]
     if len(identities) != len(set(identities)):
         raise RequiredSetMutationError(f"{output}の導出identityが重複")
@@ -280,6 +286,7 @@ def check_documents(
     requirements_text: str,
     clause_ids: frozenset[str],
     *,
+    observation_documents: ObservationDocuments | None = None,
     input_deriver: InputDeriver = derivers.derive_input_coordinate_requirements_from_descriptor,
     game_end_deriver: GameEndDeriver = derivers.derive_game_end_required_set_from_documents,
 ) -> dict[str, int]:
@@ -290,6 +297,7 @@ def check_documents(
         descriptor: 原本から読み込んだ descriptor。変更しない。
         requirements_text: 要件書本文。
         clause_ids: 要件書の構造抽出済み条文 ID。
+        observation_documents: 独立consumer資格のreadonly原byte。
         input_deriver: 負例で置換可能な既存入力座標導出器。
         game_end_deriver: 負例で置換可能な既存終了判定導出器。
 
@@ -300,6 +308,11 @@ def check_documents(
         RequiredSetMutationError: 総数不一致、導出不能、生存変異体がある場合。
     """
     declaration = validate_policy(policy, descriptor)
+    criteria = derivers.descriptor_checker.load_descriptor_criteria(descriptor)
+    # 通常の資格APIで元入力を完全検証してから、意図的な破壊変異を生成する。
+    game_end_axes = derivers.descriptor_checker.game_end_coordinate_axis_ids(
+        descriptor, criteria, observation_documents
+    )
     mutants_by_operator = {
         operator["operatorId"]: list(generate_mutants(descriptor, operator))
         for operator in declaration["operators"]
@@ -313,32 +326,39 @@ def check_documents(
             )
     baseline = {
         output: _output_identities(
-            output, descriptor, requirements_text, clause_ids, input_deriver, game_end_deriver
+            output, descriptor, requirements_text, clause_ids, input_deriver, game_end_deriver,
+            observation_documents,
         )
         for output in ("requiredSet.inputCoordinates", "gameEnd.requiredSet")
-    }
-    play_input_axes = {
-        axis_id
-        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
-        for row_binding in binding["rowBindings"]
-        if "matrixRows" in row_binding["rowLayers"]
-        for axis_id in binding["axisIds"]
     }
     survivors: list[str] = []
     for operator in declaration["operators"]:
         for mutant in mutants_by_operator[operator["operatorId"]]:
             prefix = mutant.axis_id.split(".", 1)[0]
             outputs = declaration["affectedOutputsByAxisPrefix"][mutant.collection][prefix]
-            if mutant.collection == "stateTransitionAxes" and mutant.axis_id not in play_input_axes:
-                outputs = [
-                    output for output in outputs if output != "gameEnd.requiredSet"
-                ]
+            def mutant_coordinate_scope(
+                value: Mapping[str, Any], mutant_criteria: Any,
+                supplied: ObservationDocuments | None = None,
+            ) -> frozenset[str]:
+                """既検証の元資格を、この単一破壊変異の現存軸へ射影する。"""
+                if (value is not mutant.descriptor or mutant_criteria != criteria
+                        or supplied is not observation_documents):
+                    raise RequiredSetMutationError("破壊変異以外への資格供給を拒否")
+                present = {axis["axisId"] for axis in value["stateTransitionAxes"]}
+                return game_end_axes & present
+
+            # 元入力の独立資格は上で検証済み。有限生成した単一破壊変異の文脈でだけ、
+            # 新観測の欠落/値改竄を資格に適合した通常入力と誤認せずT2導出を観測する。
             # 軸を意図的に削る変異体では、凍結値と派生元の参照整合だけを外す。
             # requiredSetの導出と各出力の差分比較は既存関数のまま実行する。
             with (
                 patch.object(derivers.descriptor_checker, "_validate_input_coordinate_coverage"),
                 patch.object(derivers.descriptor_checker, "_validate_game_end_contract"),
                 patch.object(derivers.descriptor_checker, "_validate_derived_axes"),
+                patch.object(
+                    derivers.descriptor_checker, "game_end_coordinate_axis_ids",
+                    side_effect=mutant_coordinate_scope,
+                ),
             ):
                 for output in outputs:
                     try:
@@ -349,12 +369,23 @@ def check_documents(
                             clause_ids,
                             input_deriver,
                             game_end_deriver,
+                            observation_documents,
                         )
                     except Exception as error:
                         raise RequiredSetMutationError(
                             f"変異体を導出できない: {mutant.label}; {output}: {error}"
                         ) from error
-                    if actual == baseline[output]:
+                    unchanged_required = (
+                        output == "gameEnd.requiredSet"
+                        and mutant.collection == "stateTransitionAxes"
+                        and mutant.axis_id not in game_end_axes
+                    )
+                    if unchanged_required:
+                        if actual != baseline[output]:
+                            survivors.append(
+                                f"{mutant.label}; deriver={output}; T2不変違反"
+                            )
+                    elif actual == baseline[output]:
                         survivors.append(f"{mutant.label}; deriver={output}")
     if survivors:
         raise RequiredSetMutationError("生存した変異体:\n" + "\n".join(survivors))
@@ -374,7 +405,13 @@ def check_repository(root: Path = ROOT, policy_path: Path = POLICY_PATH) -> dict
             root, (PurePosixPath(policy["requirementsPath"]),)
         )
     )
-    return check_documents(policy, descriptor, requirements_text, clause_ids)
+    observation_documents = derivers.descriptor_checker.load_game_end_observation_documents(
+        root, derivers.descriptor_checker.load_descriptor_criteria(descriptor)
+    )
+    return check_documents(
+        policy, descriptor, requirements_text, clause_ids,
+        observation_documents=observation_documents,
+    )
 
 
 def main() -> int:
