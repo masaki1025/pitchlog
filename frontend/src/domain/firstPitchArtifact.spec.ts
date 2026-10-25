@@ -258,3 +258,77 @@ it.each([
     value: expected,
   })
 })
+
+const continuationCases = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../contracts/state-transition/t2_first_pitch_continuation_cases_v1.json',
+    ),
+    'utf8',
+  ),
+).cases as Array<{
+  caseId: string
+  request: { t1: Request; rules: Record<string, unknown> }
+  expected: unknown
+}>
+function combinedArtifactOperation(): (input: string) => string {
+  const context = createContext({})
+  new Script(artifact).runInContext(context, { timeout: 1000 })
+  return (context.PitchlogDomain as typeof domainOperations)
+    .deriveFirstPitchWithContinuation
+}
+
+describe.each([
+  {
+    name: 'TS単一評価接続',
+    invoke: domainOperations.deriveFirstPitchWithContinuation,
+  },
+  { name: '同一ビルド済みartifact接続', invoke: combinedArtifactOperation() },
+])('$name', ({ invoke }) => {
+  it.each(continuationCases)(
+    '$caseId 契約全値と一致する',
+    ({ request: input, expected: result }) => {
+      expect(JSON.parse(invoke(JSON.stringify(input)))).toEqual(result)
+    },
+  )
+  it.each(['after', 't2', 'binding', 'derived'])(
+    'caller供給%sを拒否する',
+    (key) => {
+      expect(
+        JSON.parse(
+          invoke(
+            JSON.stringify({ ...continuationCases[0]!.request, [key]: {} }),
+          ),
+        ),
+      ).toEqual({ ok: false, error: { code: 'INVALID_REQUEST' } })
+    },
+  )
+  it('新操作でも既4codeを維持しpartialを成功として復元しない', () => {
+    const input = structuredClone(continuationCases[0]!.request)
+    expect(JSON.parse(invoke('{'))).toEqual({
+      ok: false,
+      error: { code: 'INVALID_JSON' },
+    })
+    expect(JSON.parse(invoke('{}'))).toEqual({
+      ok: false,
+      error: { code: 'INVALID_REQUEST' },
+    })
+    input.t1.before.stateFields['state.count.balls'] = '00'
+    expect(JSON.parse(invoke(JSON.stringify(input)))).toEqual({
+      ok: false,
+      error: { code: 'INVALID_DECIMAL_INTEGER' },
+    })
+    const partial = JSON.parse(
+      invoke(
+        JSON.stringify(
+          continuationCases.find((c) => c.caseId === 'VALID-R8')!.request,
+        ),
+      ),
+    )
+    expect(partial.ok).toBe(false)
+    expect(partial.error.code).toBe('T2_NOT_EVALUATED')
+    expect(partial.value.t1).toEqual(expected)
+    expect(Object.keys(partial.value.t2).sort()).toEqual(['kind', 'reason'])
+  })
+})
