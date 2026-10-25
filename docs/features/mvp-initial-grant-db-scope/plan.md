@@ -122,3 +122,24 @@ backendはRuff format/check・ty・対象pytest（component/関数境界/実DBsc
 ## 先行RG1供給との移行順の接合
 
 2026-10-24、rootは既606§6・RG1 c58f83beの非作者確認済み最小供給順に従い、初期側の未適用0035候補を0036_initial_recording_right_storage.pyへ通常改番し、down_revisionを先行0035_rg1_initial_fresh_epochへ接ぐ。RG1が所有するgate.recovery_generation列/制約の追加を初期migrationから除き、初期側は4新表・Generation2列・内部保護triggerだけを保持する。既移行履歴/利用者データを書き換えず、ORMの同一gate属性は両単位で一致させる。既test_game_preparing_componentsの候補pathを同じ新名へ追随し、関数境界/合成prepareの局所検査と移行graphを確認する。これはPO委任によるCodex rootの技術接合判断で、本人の実値逐行確認や正式DDL/7.7受理ではない。
+
+
+## 実DB補助の正規供給接合（2026-10-25）
+
+PO委任によるCodex主担当/rootの通常接合修正として、既ステップ3の実DB補助に `backend/tests/db/durable_rights_ledger_support.py` を追加する。固定接合HEAD cb3c0f49を起点に、既0033初期化後は正規advance_stage_a_from_s0で0035と製品profileを適用し、生成profileが所有するbusiness_identity.sqlの二重直接適用を除く。既実peer・最小ACL・保護identity・故障検査を削らず、immutable SQL本文/製品source/共有資産を変えない。作者initial_sql_independent_reviewが当該1pathだけを所有し、rootがGit/本計画を所有する。非作者の最終確認と所有disposableでの検証前には実接合成功としない。
+
+controllerと初期actorの実UIDを分離したまま単一ledger endpointが両方へ必要な点は未解消として保持する。fixtureのUID偽装・任意bool・多主体一括許可で埋めず、必要な製品主体接合は別の有限差分・非作者確認へ進める。0036と初期9API/fullprofileの供給も未完であり、この補助修正だけで正常grantを成立扱いにしない。
+
+
+## 分離されたledger利用主体の接合案（非作者確認前）
+
+固定cb3c0f49の実source照合により、controllerは初期actor UID20002と異なるUIDを必須とする一方、authorityの既v1 endpointは単一client UID/GIDだけを受理すると確認した。初期actor自身もcurrent/reserve/claim/recovery_fenceを必要とするため、fixture UID変更では正常接合できない。rootは既PO委任の技術具体化として次の有限案を提示し、非作者確認後だけ実装する。新たな記録結果・D5・耐久性保証の変更ではない。
+
+- 単一authority worker・同一ProtectedJournal・同一runtime/mutexを維持し、別authority並列起動やjournal複製を作らない。既schema_version=1の閉じた形と拒否条件は保持する。
+- 新しい明示v2設定に限って、rootが固定するgeneration actorとfresh controllerのexact2 peer/endpointを別Unix socketへ配置する。actor UID20002とcontrollerの別UIDを要求し、authority/app/DB主体との衝突、同UID/GID、重複socket/endpoint、未知role/key/operationを拒否する。共有group付与やUID偽装で分離を弱めない。
+- kernel peerを端点ごとのexact UID/GIDへ照合し、generation側には既epoch/reserve/claim/fence_openだけ、controller側にはfresh_activation_openだけを許す。lease内の既fence_check/fence_closeは同channelに閉じる。callerのrole文字列では選択しない。公開epoch advanceは引き続き拒否。
+- root配置/immutable endpoint/owner・mode・peercredentialの検査と、生成/claim/結果不明/journal順・再起動時停止を維持する。root保護v2設定だけを新たな供給入口とし、任意callback/常成功応答を追加しない。
+
+有限編集候補は既core glob捕捉の backend/src/pitchlog/durable_rights_ledger/{authority.py,adapter.py,manifest.json}、既 backend/tests/test_durable_rights_ledger_contract.py と backend/tests/db/{durable_rights_ledger_support.py,test_durable_rights_ledger.py}、当plan/research。新主体接続のメタデータと実影響正本・tenant9/8受理はroot単独で必要分を導出し、source hash更新だけを検査成功の根拠にしない。DBの権限/SQL/保存表や旧契約意味は変えない。
+
+非作者はv1後方整合・v2実peer/operationの閉集合・単一journal/失敗時停止・endpoint混同拒否を先に確認し、実装最終差分も別確認する。実端点の正常両主体/相互拒否/未知主体/切断・再起動はowned環境で実証するまで未成立。初期9SQL/0036/fullprofileの供給は別の残件として保持する。
