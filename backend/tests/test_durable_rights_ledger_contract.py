@@ -855,3 +855,418 @@ def test_fresh_attestation_codec_is_closed_and_immutable() -> None:
     ):
         with pytest.raises(LedgerUnavailable):
             adapter._activation_from(changed)
+
+
+def _dual_config() -> dict[str, Any]:
+    """正規v2の閉fieldだけを持つ非秘密の構造試験vector。実配置ではない。"""
+    return dict(
+        schema_version=2,
+        authority_uid=20001,
+        authority_gid=20001,
+        application_uid=20003,
+        application_gid=20003,
+        database_uid=999,
+        database_gid=999,
+        witness_path="/w/state",
+        timeout=2.0,
+        primary_dsn="fixture-primary",
+        standby_dsn="fixture-standby",
+        business_dsn="fixture-business",
+        control_dsn="fixture-control",
+        enrollment_state="enrolled",
+        peers=[
+            dict(
+                role="generation",
+                client_uid=20002,
+                client_gid=20002,
+                socket_path="/control/run/generation.sock",
+                endpoint_path="/control/public/generation.json",
+            ),
+            dict(
+                role="fresh_controller",
+                client_uid=20004,
+                client_gid=20004,
+                socket_path="/control/run/controller.sock",
+                endpoint_path="/control/public/controller.json",
+            ),
+        ],
+    )
+
+
+def _config_read_boundary(
+    monkeypatch: pytest.MonkeyPatch, value: dict[str, Any]
+) -> Path:
+    """構造試験だけでroot読取済み値を供給する。実file保護の証拠にはしない。"""
+    from types import SimpleNamespace
+
+    from pitchlog.durable_rights_ledger import authority
+
+    path = Path("/control/settings/config.json")
+    original = authority.os.stat
+    monkeypatch.setattr(authority, "_read_root_json", lambda *_: value)
+    monkeypatch.setattr(
+        authority.os,
+        "stat",
+        lambda name, *a, **kw: (
+            SimpleNamespace(st_gid=20001) if name == path else original(name, *a, **kw)
+        ),
+    )
+    return path
+
+
+def test_dual_config_exact_roles_and_v1_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v2はexact二主体、v1は旧閉field/単一peerのまま受理する。"""
+    from pitchlog.durable_rights_ledger import authority
+
+    value = _dual_config()
+    path = _config_read_boundary(monkeypatch, value)
+    assert authority._config(path) == value
+    assert tuple(p["role"] for p in authority._listener_peers(value)) == (
+        "generation",
+        "fresh_controller",
+    )
+    generation = value["peers"][0]
+    legacy = {
+        k: v
+        for k, v in value.items()
+        if k
+        not in {
+            "peers",
+            "application_uid",
+            "application_gid",
+            "database_uid",
+            "database_gid",
+        }
+    }
+    legacy.update({k: v for k, v in generation.items() if k != "role"})
+    legacy["schema_version"] = 1
+    with monkeypatch.context() as patch:
+        _config_read_boundary(patch, legacy)
+        assert authority._config(path) == legacy
+        assert authority._listener_peers(legacy)[0]["role"] is None
+    legacy["peers"] = value["peers"]
+    with monkeypatch.context() as patch:
+        _config_read_boundary(patch, legacy)
+        with pytest.raises(authority.AuthorityUnavailable):
+            authority._config(path)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "version_bool",
+        "version_float",
+        "unknown",
+        "missing",
+        "one",
+        "three",
+        "tuple",
+        "role",
+        "role_list",
+        "duplicate_role",
+        "uid",
+        "gid",
+        "bool_uid",
+        "actor_uid",
+        "authority_uid",
+        "authority_gid",
+        "app_uid",
+        "app_gid",
+        "db_uid",
+        "db_gid",
+        "unknown_peer",
+        "missing_peer",
+        "socket",
+        "endpoint",
+        "cross_path",
+        "relative",
+        "parent",
+        "null",
+        "long",
+        "config",
+        "witness",
+        "run_config_directory",
+        "run_endpoint_directory",
+        "path_type",
+        "witness_type",
+        "run_ancestor",
+        "application_gid",
+    ],
+)
+def test_dual_config_rejects_partial_collisions_and_unknowns(
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    """型/主体/role/配置衝突をPG/journalの構築より先に拒否する。"""
+    from pitchlog.durable_rights_ledger import authority
+
+    value = _dual_config()
+    first, second = value["peers"]
+    mutations = {
+        "version_bool": lambda: value.update(schema_version=True),
+        "version_float": lambda: value.update(schema_version=2.0),
+        "unknown": lambda: value.update(extra=True),
+        "missing": lambda: value.pop("application_gid"),
+        "one": lambda: value.update(peers=[first]),
+        "three": lambda: value["peers"].append(dict(second)),
+        "tuple": lambda: value.update(peers=tuple(value["peers"])),
+        "role": lambda: second.update(role="administrator"),
+        "role_list": lambda: second.update(role=["fresh_controller"]),
+        "duplicate_role": lambda: second.update(role="generation"),
+        "uid": lambda: second.update(client_uid=20002),
+        "gid": lambda: second.update(client_gid=20002),
+        "bool_uid": lambda: second.update(client_uid=True),
+        "actor_uid": lambda: first.update(client_uid=20005),
+        "authority_uid": lambda: second.update(client_uid=20001),
+        "authority_gid": lambda: second.update(client_gid=20001),
+        "app_uid": lambda: second.update(client_uid=20003),
+        "app_gid": lambda: second.update(client_gid=20003),
+        "db_uid": lambda: second.update(client_uid=999),
+        "db_gid": lambda: second.update(client_gid=999),
+        "unknown_peer": lambda: second.update(operations=["reserve"]),
+        "missing_peer": lambda: second.pop("role"),
+        "socket": lambda: second.update(socket_path=first["socket_path"]),
+        "endpoint": lambda: second.update(endpoint_path=first["endpoint_path"]),
+        "cross_path": lambda: second.update(endpoint_path=first["socket_path"]),
+        "relative": lambda: second.update(socket_path="relative.sock"),
+        "parent": lambda: second.update(socket_path="/control/run/../evil.sock"),
+        "null": lambda: second.update(socket_path="/control/run/a\0b"),
+        "long": lambda: second.update(socket_path="/control/run/" + "a" * 108),
+        "config": lambda: second.update(endpoint_path="/control/settings/config.json"),
+        "witness": lambda: second.update(endpoint_path="/w/state/journal"),
+        "run_config_directory": lambda: second.update(
+            socket_path="/control/settings/a.sock"
+        ),
+        "run_endpoint_directory": lambda: second.update(
+            socket_path="/control/public/a.sock"
+        ),
+        "path_type": lambda: second.update(
+            socket_path=["/control/run/controller.sock"]
+        ),
+        "witness_type": lambda: value.update(witness_path=[]),
+        "run_ancestor": lambda: second.update(socket_path="/control/ancestor.sock"),
+        "application_gid": lambda: value.update(application_gid=20005),
+    }
+    mutations[change]()
+    path = _config_read_boundary(monkeypatch, value)
+    with pytest.raises(authority.AuthorityUnavailable):
+        authority._config(path)
+
+
+@pytest.mark.parametrize(
+    "role,operation",
+    [
+        ("generation", "fresh_activation_open"),
+        ("fresh_controller", "epoch"),
+        ("fresh_controller", "reserve"),
+        ("fresh_controller", "claim"),
+        ("fresh_controller", "fence_open"),
+        ("generation", "fence_check"),
+        ("fresh_controller", "fence_close"),
+        ("generation", "advance"),
+        ("unknown", "epoch"),
+        ("generation", ["epoch"]),
+        ("generation", {"operation": "epoch", "role": "fresh_controller"}),
+        ("generation", {"operation": "reserve", "params": ["bad"] * 4}),
+        ("fresh_controller", {"operation": "fresh_activation_open", "highwater": 0}),
+    ],
+)
+def test_dual_runtime_denies_before_pg_or_journal(role: str, operation: Any) -> None:
+    """実socket要求の能力拒否はruntimeのPG/journal/lockへ到達しない。"""
+    import socket
+    from threading import Thread
+
+    # __init__は実PGに接続する。負例は明示trapで不要なアクセス自体を記録する。
+    # 単なる未初期化AttributeErrorによるunavailableでは検査を通さない。
+    accessed = []
+
+    class ForbiddenRuntimeAccess:
+        """負例のPG/排他/journalアクセスを成功応答に置換せず記録する。"""
+
+        def __getattr__(self, name: str) -> Any:
+            """未承認アクセスを必ず外側のassertへ残す。"""
+            accessed.append(name)
+            raise AssertionError("rejected role reached runtime/PG/journal")
+
+    runtime = object.__new__(adapter._AuthorityRuntime)
+    runtime._blocked = False
+    runtime._active = set()
+    runtime._value = {"timeout": 2.0}
+    runtime._mutex = cast(Any, ForbiddenRuntimeAccess())
+    runtime._pair = cast(Any, ForbiddenRuntimeAccess())
+    runtime._journal = cast(Any, ForbiddenRuntimeAccess())
+    client, server = socket.socketpair()
+    thread = Thread(target=runtime.handle, args=(server,), kwargs={"role": role})
+    thread.start()
+    try:
+        with client:
+            adapter._send(
+                client,
+                operation if type(operation) is dict else {"operation": operation},
+            )
+            assert adapter._receive(client) == {"status": "unavailable"}
+    finally:
+        server.close()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+    assert accessed == []
+    assert runtime._blocked is False and runtime._active == set()
+
+
+@pytest.mark.parametrize(
+    "role,operation",
+    [
+        ("generation", "epoch"),
+        ("generation", "reserve"),
+        ("generation", "claim"),
+        ("generation", "fence_open"),
+        ("fresh_controller", "fresh_activation_open"),
+    ],
+)
+def test_dual_operation_exact_positive_set(role: str, operation: str) -> None:
+    """新能力の正例集合は二役割のexact五操作だけである。"""
+    adapter._authorize_operation(role, operation)
+    # v1は従来のdispatch/leaseループへ判断を委ねる。
+    adapter._authorize_operation(None, operation)
+
+
+@pytest.mark.parametrize("operation", ["epoch", "reserve", "claim", "fence", "fresh"])
+def test_dual_client_rejects_wrong_role_before_connect(operation: str) -> None:
+    """公開clientでも権限外をsocket接続/結果不明へ変換する前に拒否する。"""
+    ledger = object.__new__(DurableLedger)
+    ledger._target = {
+        "role": "generation" if operation == "fresh" else "fresh_controller"
+    }
+    methods = {
+        "epoch": lambda: ledger.current_recovery_generation(),
+        "reserve": lambda: ledger.reserve(*(UUID(int=1) for _ in range(4))),
+        "claim": lambda: ledger.claim(*(UUID(int=1) for _ in range(4))),
+        "fence": lambda: ledger.recovery_fence().__enter__(),
+        "fresh": lambda: ledger.fresh_activation().__enter__(),
+    }
+    with pytest.raises(LedgerUnavailable):
+        methods[operation]()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "valid",
+        "legacy",
+        "extra",
+        "role",
+        "role_type",
+        "uid",
+        "gid",
+        "authority_gid",
+        "missing_role",
+        "version",
+        "socket_type",
+        "socket_relative",
+        "v1_extra_role",
+    ],
+)
+def test_dual_endpoint_remains_closed_and_subject_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    """root読取後の形/主体検査を試す。実immutable/peer検査は実DB群で別証明する。"""
+    import os
+    import stat
+    from types import SimpleNamespace
+
+    from pitchlog.durable_rights_ledger import authority
+
+    value: dict[str, Any] = dict(
+        schema_version=2,
+        role="generation",
+        authority_uid=20001,
+        authority_gid=20001,
+        client_uid=20002,
+        client_gid=20002,
+        socket_path="/control/run/service.sock",
+        timeout=2.0,
+    )
+    changes = {
+        "valid": lambda: None,
+        "legacy": lambda: (
+            value.update(schema_version=1),
+            value.pop("role"),
+            value.pop("authority_gid"),
+        ),
+        "extra": lambda: value.update(extra=1),
+        "role": lambda: value.update(role="unknown"),
+        "role_type": lambda: value.update(role=["generation"]),
+        "uid": lambda: value.update(client_uid=20004),
+        "gid": lambda: value.update(client_gid=20004),
+        "authority_gid": lambda: value.update(authority_gid=20002),
+        "missing_role": lambda: value.pop("role"),
+        "version": lambda: value.update(schema_version=True),
+        "socket_type": lambda: value.update(socket_path=["/control/run/service.sock"]),
+        "socket_relative": lambda: value.update(socket_path="relative"),
+        "v1_extra_role": lambda: (
+            value.update(schema_version=1),
+            value.pop("authority_gid"),
+        ),
+    }
+    changes[change]()
+    monkeypatch.setattr(authority, "_read_root_json", lambda *_: value)
+    monkeypatch.setattr(
+        authority, "_trusted_directory", lambda _: os.open(tmp_path, os.O_RDONLY)
+    )
+    original = authority.os.stat
+    monkeypatch.setattr(
+        authority.os,
+        "stat",
+        lambda name, *args, **kwargs: (
+            SimpleNamespace(st_mode=stat.S_IFSOCK | 0o660, st_uid=0, st_gid=20002)
+            if name == "service.sock"
+            else original(name, *args, **kwargs)
+        ),
+    )
+    monkeypatch.setattr(authority.os, "geteuid", lambda: 20002)
+    monkeypatch.setattr(authority.os, "getegid", lambda: 20002)
+    if change in {"valid", "legacy"}:
+        assert authority._endpoint(Path("/control/public/endpoint.json")) == value
+    else:
+        with pytest.raises(authority.AuthorityUnavailable):
+            authority._endpoint(Path("/control/public/endpoint.json"))
+
+
+@pytest.mark.parametrize("changed", ["uid", "gid"])
+def test_dual_business_identity_checks_real_socket_peer_before_query(
+    monkeypatch: pytest.MonkeyPatch,
+    changed: str,
+) -> None:
+    """v2設定の自己申告だけではDB主体にせず、実kernel不一致をSQL前に拒否する。"""
+    import socket
+    import struct
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    left, right = socket.socketpair()
+    _, uid, gid = struct.unpack(
+        "3i", left.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+    )
+    pair = object.__new__(adapter._PgLedgerPair)
+    pair._endpoints = LedgerEndpoints("p", "s", "b", "c")
+    pair._business_peer = (uid + 1, gid) if changed == "uid" else (uid, gid + 1)
+
+    @contextmanager
+    def connection(*_: object):
+        yield SimpleNamespace(fileno=left.fileno)
+
+    def forbidden_query(*_: object) -> None:
+        raise AssertionError("kernel identity rejection reached SQL")
+
+    monkeypatch.setattr(adapter, "_connection", connection)
+    monkeypatch.setattr(adapter, "_query", forbidden_query)
+    try:
+        with pytest.raises(LedgerUnavailable):
+            pair._observe_business()
+    finally:
+        left.close()
+        right.close()
