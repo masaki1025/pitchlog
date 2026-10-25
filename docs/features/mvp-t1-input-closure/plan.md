@@ -38,7 +38,7 @@ created: 2026-10-25
 | --- | --- | --- |
 | requirements/design/ADR/development/ops | 反映なし。既意味の必要条件を収録するのみ | 既原典との一致をPRレビュー |
 
-本plan/researchと上記契約/試験以外は変更しない。共有識別値/派生値への実影響が判明した場合だけ完全前後値を固定し、既7.7でrootが受理する。未影響値の再承認は求めない。
+本plan/researchと宣言済み契約/試験を編集対象とする。通常提供に必要な当該PRだけの既PO委任policy target登録もrootが最小追記する。旧本人署名・carry範囲の変更や検査拒否緩和は含めず、必要な継承手続きは別有限確認と独立レビューを要する。共有識別値/派生値への実影響が判明した場合だけ完全前後値を固定し、既7.7でrootが受理する。未影響値の再承認は求めない。
 
 ## 4. 実装方針
 
@@ -67,3 +67,29 @@ NFR-019の単体/一致性として既schema試験へ追加し、extra/型/回�
 ## 有限手順の承認記録
 
 2026-10-25T11:45:57.153332+00:00、Codex主担当/rootはPO委任4/5/8/10に基づき対象dcd4fda8/plan486bbc3823b4bba0201fdbb58a21ecc30c75d896e6d6d5c7ea7761557d2efe58/research b699a98b7bb62680a4bad82b33d8b67800bdfa6411be9268a8012444d1f69a44を承認。非作者creation_pathの限定計画確認は可決0/0/0、evidence72b93e7e5491271816874ea0ca9b18481cda46f0b324a8552d58c9b4fde06bff。指摘反映0周。既候補の独立source確認とは別の計画確認1回で、親544/183の実績をリセットしない。まずステップ1の4pathだけ実施する。本人署名/逐行確認/P6新blind/完全S02/T1本体開始を成立扱いにしない。
+
+## 次の有限範囲：RBI03/04と正常false境界
+
+親544ステップ1内の次の候補はRBI03/04の4観測組合せと、その正常counterbranchである既RBI08の1ケース。原典A-3の先頭一致順、既D07二死二三塁単打の限定、明示OUT3-04/無失策を保持する。新しい意味を追加せず、停止後のミスプレイ観測因果bool=falseを、負例や到達不可扱いではなく正常RBI08へ結ぶ。既RBI08代表は置換せず追加ケースを閉た形で扱う。
+
+対象候補はcache t1-p8-remaining13-candidate-20261025/false-boundary-candidate、handoff707c5661b54819848a80cd071bfbca017b76f5eb2846b3410da4cf944306650b、11path結合patch6983efafaf24c21020a40b5a232d60c9ae9bd0beb06840f83cdc585f827f9170。編集対象は次だけ（既S02の4pathを取り消さず、schema試験の両追加を同時保持する）。
+
+- contracts/state-transition/branch_row_mapping_schema_v1.json
+- contracts/state-transition/branch_row_mapping_v1.json
+- contracts/state-transition/input_axes_descriptor_v1.json
+- contracts/state-transition/manual_fixture_branch_coverage_v1.json
+- contracts/state-transition/state_transition_contract_v1.json
+- contracts/state-transition/state_transition_manual_fixture_schema_v1.json
+- contracts/state-transition/state_transition_manual_fixtures_v1.json
+- contracts/state-transition/t1_observation_binding_rules_v1.json
+- contracts/state-transition/t1_out3_input_schema_v1.json
+- scripts/check_branch_row_mapping.py
+- tests/test_state_transition_contract_schema.py
+
+ステップ1の別有限追補として候補を接合し、ステップ2で必要正式値を完全導出/独立照合/PO委任受理する。表の2ステップ番号や親レビュー周回は変更しない。既44row/111case全object/全操作・取消/required21/旧bindings/履歴を保持し、5row/5caseだけ追加する。追加fixture/mappingの形式は任意ケースを許可する抜穴にせず、実source case/row/branch/6効果・正逆exact対応と未知/欠落/重複/改変を検査する。
+
+新入力bool葉のfalse/true正常coverageをproduction consumerで実測し、falsecase欠落/打点変異が拒否されることを必須にする。T2全4656 identity/順序不変も実consumerで確認する。候補415成功/6失敗の6件は未受理凍結識別値であり、greenとは扱わない。新独立導出は純入力/primary規範だけを別forkへ渡しseal先行後比較するが、全P6/完全資格・完全6wire・本体開始への拡張はしない。
+
+この範囲の新候補source/追加形式の非作者確認とroot承認後だけ接合する。正式schema/fixture/descriptor等の識別値/履歴、旧Gate6署名範囲の継承、共有参照の採用はrootが別の必要最小範囲を固定し、既署名/日付を変更せず、現PR対象/全値/最終版の独立証拠を追跡する。未受理値のまま提供完了としない。製品計算/実Port稼働をこの契約整備の前提へ追加しない。
+
+2026-10-25T13:02:42.072685+00:00、rootはPO委任によるCodex判断でRBI03/04＋正常false境界の11path有限範囲を承認。対象plan前SHA256 87109616d37e85cf5fc0a200893b6c3c33585ffc07e13d1f73cf974e2f90eb09、非作者review66fe7a3903619297e9f4b42db6408fd6704354d2665394fc00c10b58f1918471は可決0/0/0。415成功/6未受理凍結失敗と、旧111/44/T24656同値を照合した。これは計画/source候補の有限受領であり、正式7.7値・完全P6/資格・最終CI・T1本体許可ではない。rootは隔離接合でS02全20追加を保持し、正当に増えた5row/5caseのexact件数49/116への検査追随だけを別確認する。正式branch反映は必要な全前後値/識別値/継承受理が閉じた版で行う。
