@@ -3,7 +3,7 @@ feature: mvp-rg1-lifecycle-connection
 status: active
 承認: 済（PO委任によるCodex判断、ステップ1/2/3の対象版を本文に固定）
 重さ分類: コア領域
-branch: feature/mvp-rg1-lifecycle-connection
+branch: feature/mvp-rg1-profile-integration-candidate
 created: 2026-10-24
 計画レビュー周回: 1
 確定ゲート周回: 1
@@ -32,6 +32,15 @@ created: 2026-10-24
 実装前に全予定pathの実core被覆を検査し、上記新3sourceと新たな意味帰属が必要な既存authz pathsだけをsync/recording/tenantへ先行宣言・試験→別commitのJSON登録で追加。全旧paths/順序/guard_paths/拒否ロジックを保持する。計画外の意味/新公開経路は追加せず必要点だけroot判断へ返す。
 
 正式9資産/外部8・schema/認可manifest/lock/oracle・履歴/snapshotはroot唯一writerが実差分の完全値/旧prefixから導出し非作者確認/PO委任受理後に反映する。data-modelの新subject/解除境界が構造改訂を要する場合は同一単位で最小7.3/7.6を通し、計画承認で正本確定を代替しない。
+
+## 3. 影響する正本
+
+| 文書 | 反映 | 対象 |
+| --- | --- | --- |
+| `docs/design/data-model.md` | 反映あり | 採用済み1.3のRG1制御主体・初回世代・安全なread/解除条件 |
+| `docs/README.md` | 反映あり | data-model1.3の現行索引 |
+
+正本体系外だが同一PRで更新するものは本plan/research、既core追加登録、上記source/test、contracts/authz・tenant_boundaryの実影響資産と正式履歴/snapshot、当該PRだけの既PO委任policy targetである。rootが単独で共有資産を直列更新する。
 
 ## 実装ステップ
 
@@ -172,3 +181,12 @@ DB試験は専用owned fixtureで実owner/admin別主体とsession_user/current_
 対象は contracts/tenant_boundary/base-allowlist.json、tests/test_check_tenant_boundary_bypass.py、tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/ の新_apply_epoch.py・新_require_epoch_state.py・既_require_placed_state.py と本plan/research。正例・登録欠落・署名差替え・余分API・未登録同module関数の拒否を確認し、非作者へ有限差分を渡す。現在の全値提案は未受理のまま保持し、修正後の正式census/9射影8外部を再導出してから単一受理する。TB005を許容census codeへ追加しない。
 
 認可の広域回帰で検出した product/exposure-facts.json のRG1物理資源引用1値も、採用済data-model1.3§3-2の現本文へ逐語追随する。分類・理由・権限・他evidenceは変えない。新13主体/7schema/65関数の既意味に対する既backend認可試験の件数・候補fixture依存供給だけを是正し、negativeの対象操作/拒否理由を保つ。共有JSONのwriterはroot、既backend/testsのclassification/database_schemas/function_acls/staging/table_access/table_rls/migration_batch_roleの実影響差分は担当分離して候補化・非作者確認する。
+
+
+## 正式受理前の製品Draft公開（2026-10-25）
+
+PO委任によるCodex root判断として、本RG1単位の提供branchをfeature/mvp-rg1-profile-integration-candidateに一本化する。旧feature/mvp-rg1-lifecycle-connectionの5e2c65b0は既存保全点として維持し、別MVP単位を本枝へ一括移植しない。現在cac43c43の実製品source/profile/実PG/非作者証拠を持つ製品Draftを公開し、その実PR番号で7.7受理単位を固定する。番号だけの文書PRではない。
+
+既PR手順の最終閉処理/全品質成功はReady前に揃える。現時点は7.7受理に実PR IDを要するため、承認された途中成果の公開としてDraftだけを先行させる有限手順とし、statusはactive、DoD/全check/人間逐行確認欄は未確認のままにする。失敗を成功へ書換えず、policyは当該実PR/branchのexact1追記だけとする。rootが完全値と非作者レビューを照合後に正式受理/全検査を行い、通常merge条件が成立するまではDraft解除しない。
+
+ハーネス運用評価台帳への追記なし。今回は採用済み接合/凍結受理の実装追随であり、新たな統制傾向を確定する変更ではない。未完の技術検査と実初回fresh/作成UI成功は既台帳へ区別して記録する。
