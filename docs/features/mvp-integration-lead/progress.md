@@ -22,16 +22,16 @@
 | #175 codec接合 | root、PR175 | 保存JSON復元と正式codec接合 | a10bcd5eで統合済み。画面からの新規作成成功は後続隔離候補で別実証 |
 | #176→#174→#173置換#180→#175 | root、共有正式資産は直列 | 前段通常統合済み。#173は置換公開後close | #176=658865dd、#174=1f506675、#180=547d199e、#175=a10bcd5e。2026-10-25実GitHub照合 |
 | T5/T6・成績CSV | 主担当（今回責任移管） | 既存U-X1と調査・計画候補照合後にstep単位 | 製品未提供。毎球CSVはU-D2調査/計画を再利用（製品実装は未存在） |
-| P-6 | 独立役割、既存資料参照 | 封印物/期待値を候補作成担当へ渡さない | 新blind導出未実施。段階B一致を一般化しない |
+| P-6 | 独立役割、旧封印・曝露履歴を保全 | 純入力→先封印→比較を分離、資格/unknownを保持 | 新限定入力の独立導出/比較を実施。通常整合と厳密blind資格を区別し、全P6成立へ一般化しない |
 
 ## 製品到達点と残件
 
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
 | A 試合作成・preparing再取得 | RG1 eda71a48＋create20ee2e98の隔離11source接合 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値を実証、独立確認0 | PR184必須CI・create候補の正式値/通常統合後の再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | 初期scope隔離4f2＋source22/data95＋revision/fixture是正、T1 #183 | 実初期grant/同要求同V12再交付1case成功20.63s。実画面開始/権利/1球は未達 | 初期scope残11caseと正式登録、broker/開始HTTP/UI、正式T1本体・同期保存の接続 |
+| B 開始・権利・1球保存と復元 | 初期scope隔離4f2＋source22/data95＋是正、T1一球枝796cd89c | 初期grant全12DB成功。T1初回ball数学核を実装し単一artifactをNode/実Chromiumで計算一致。実画面開始/権利/実保存は未達 | 数学核P1是正の限定再確認、T2通常非該当型/実評価、開始＋権利＋名簿の同一TX供給、登録Port/HTTP/UIと実保存・再読込 |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
-| D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create隔離経路 | 実画面作成のINSERT後故障/実閉鎖競合/旧openの3故障runが非成功・全取消、後発独立確認中 | 初期権/記録後の故障・offline再起動/交代/結果不明等は別残件 |
+| D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create隔離経路 | 実画面作成のINSERT後故障/実閉鎖競合/旧openの3故障runが非成功・全取消、独立確認済み | 初期権/記録後の故障・offline再起動/交代/結果不明等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
 | 実機・運用HTTPS・バックアップ復旧 | 山田正輝（運用責任）/主担当準備 | 未実施 | 実機版と機種、許可済環境を固定。エミュレーションと区別 |
 
@@ -559,3 +559,23 @@ PR184 CI40186210626はfailureで終結: harness52失敗/30147成功/2skip、back
 local7f03189fで共通DBfixtureと往復testを正規0033→S3/0035→unapply→未適用snapshot→applyへ接合。外部供給branch/旧snapshot extractor不変。0034の逆適用禁止を維持し、実0035 downgrade拒否/全rollbackを確認、別owned DBで可逆0033-base-0033を経て現0035 baselineへ進める。別DB名をそのまま比較するP1を非作者が検出、owner/ACL/全13fieldを落とさずDB名座標だけ明示写像して是正した。独立28非DB検査/evidence ab0c4d0c207eee988bf57e749b979a0cb29e8d672b8a7526ac0bc3a3733a705d、実往復1成功6.40s。影響2module実6caseは5成功/1失敗26.74sで、旧全role属性正規化試験が新固定lifecycle roleに誤適用され、製品が正しくcollision拒否したもの。次の限定追随として保持、全backend成功へ読替えない。全owned DBcleanup/共有pitchlog-db-1未操作。これら3localcommitは最終接合push前で未公開、凍結外部値/最終CIは後続。
 
 T1本体未着手の主因は外部承認やDB/HTTP待ちではなく、当担当がP8/P7/G6/P6の既開始条件をまだ閉じ切れていないこと。既D06/D07は再承認不要。P8正式13/候補2反映中＋別2候補、P7正式7未閉鎖を本体進捗と混同しない。T1を優先し、CI中も独立作業を継続する。
+
+## 操作単位の開始と最初のT1数学核（2026-10-25）
+
+2026-10-25T14:47:50.649144+00:00、ユーザーが全操作一括の着手前条件を操作単位へ変更し、MVP品質/全受入を維持して速度改善を主担当判断で採用することを明示。根拠はこのGoalの当日指示であり、全体計画を作り直さず親544の既planを7d6ce544原版SHA1361976b9061aa10dc2c5f00d97a1cb98b36395e48233d1f9b0c3f428422dedaから同pathへ再利用した。新worktree/枝 feature-mvp-t1-first-pitch / feature/mvp-t1-first-pitch、develop dcd4起点。旧provider枝/承認/10計画反映2確定ゲートは保全。計画差分16c3f920を非作者review7e649891/evidence74455722で確認、JSON境界の出力不足/整数終端P1を反映2 b03e9d69へ是正し、Python/JS両方で正68/負374・入力45/出力515変異拒否。701e7156で計画追補・ABI案を保存。
+
+最初の操作は初回表0対0・0out・無走者・S0B0・打順1・非TB・未終了で普通のボール1球。既正式resultId batting-result.ball、ST-MATRIX-0529a0eb116d64a9、23flagと一確定履歴deltaを再利用。pure-packet-v1 manifest18d6004e/inputs99472cfbを新none-forkへ渡し、導出f21b0c7a・seal0f8ec7aaを先封印、後から正式row/caseとの比較68d91985を受領。六効果/23flag/相対状態/得点/履歴deltaは条件付一致、strict primary資料不足/厳密blind資格/絶対board/全stack/wire/認可保存は未知保持。数学核の限定独立意味確認＋曝露後の既採用規範一致として受理し、全P6へ昇格しない。U2/U3限定受理の非作者evidence8167ded1/28照合、既NodeHost/adapter19成功1.24sと役割/型責務を確認。root開始receiptba6b3715、PO委任による判断で数学sourceだけ開始可、実Port/HTTP/DB完成をその前提へ足さない。
+
+2c63255fで本物T1数学核sourceを実装（型/ball規則/23flag初期化/整形をspike8e1bf431から選別再利用、Python別計算/SpikeRights/仮validator/no-op投影は0）。strictJSON/十進整数、未対応結果/状態は非成功、実input boardを保持し一deltaだけ返す。初期buildが添字構文を既ASTで拒否したためsourceを許可済own entries走査/固定規則へ是正、checker/policyは不変。同artifactc420af.../6973byteはrepeatbuild同一・source/artifact full正式case一致・実NodeHost2成功・実headless Chromium loopbackで全値/hash一致。Vitest75/型lint、backendRuff/ty成功。実iPhone/iPad/Safari/HTTPS/API保存ではない。
+
+非作者source初回reviewfe9ad17dはP0=0/P1=1/P2=0。422不正request全非成功のうち51応答がABI外INVALID_STATEを返すことを検出し、旧4enumを増やさず既INVALID_REQUESTへ是正した796cd89cへ保存。front全異常応答を既closed enumへ照合＋4再現回帰追加、実NodeHostに既jsonschemaでresponse schema照合を追加。数値JSONはartifact前の既host INVALID_BOUNDARYが正しいため、これを緩めず別回帰で確認。是正後Vitest83成功1.68s/型lint、backend7成功0.62s、同実browser全値一致/未対応/非canonical拒否。新artifact28d07c5c52fc08aebbf84bf0105368708cd7d14367a112e1b913d83177b4312d/6975byte。初回source/失敗/レビュー回数を保持。反映差分の独立最終evidence de56668d8b27946bc1af6df87ec7c6990983a9b4490f7cd08036bc8e1f0341e1、review741d685f2d779193c4a27d90e4a4ece001bc3a69fb697fc4c647ff3d1cc57c17をrootが実照合し、P0/P1/P2=0、422応答の閉型一致、既host拒否保持、再現hash一致を確認した。root全frontendも93file/1923成功99.38s。796の限定数学sourceをPO委任によるCodex判断で受理し通常pushへ進める。既source成功を実画面1球保存へ読み替えない。
+
+次の実経路依存を有限化: T2正式6outcomeに初球通常非該当の外形が無いため、別wrapper evaluated-no-end-condition/not-evaluated候補を作成（handoffe63e9e60）。独立fd45cb4fはP0/P1=0/P2=1、tiebreak=false/balls0→1以外全状態不変/trusted初期snapshot・同T1評価の厳密照合をplanへ明記する指摘を採用予定。実T2評価/同artifact/Port接合は未実装。旧545/8046未裁定と後続9ec採用候補は版差を保持し今回再裁定しない。
+
+初期grantの実12DBはgrant-onlyでありgames.preparing/lineups0のまま（試験原典に明示）。既brokerがbusiness commitを所有するためAPIで後から開始を書けば原子性が分断される。既initial actorは汎用DMLを拒否し、既9APIは名簿/初期投影/開始書込を供給しない。主担当はこの不足を実装供給として認識し、first-game-start-atomic-20261025で同business TXの閉じたstart operation/必要lock-read/検証済save/wholepayload request digest/実資格供給の最小案を作者へ割当。任意callback/別Session/追加汎用権限で代替しない。これらは実API保存までの残件であり、数学核を再停止させない。
+
+並行RBI/GAP反映1は50ef0e97/全17path、関連11CLI、schema430/gap63、旧scope/8履歴/111→116case/44→49row/T24656順序/旧negativeを維持。非作者2件fa60da67/ed230c0cで初回P1閉鎖、synthetic date/digestは正式投入不可。Gate6 source4pathは独立100成功115.68s/5cbd0bd7、旧署名/carry不変/PR185限定/現policyと固定source policyの区別/最終HEAD・委任拒否を維持。rootの実受理facts/最終digest/ref/正式反映/CIは後続。PR185旧dd5のCI40196660439は11job成功/coreguard失敗で終結、未登録の最終委任証拠/人間チェック無しを拒否したもので全成功扱いにしない。
+
+日程評価は11/12目標を維持し、10/27を固定見直し点とする。今回の打点反映の修正見込みは13:39UTC時点から楽観1時間/通常2〜4時間＋CI約40分であり、T1全体開始/MVP日程の確約とはしない。今回操作単位への変更で数学核は実際に着手・実装へ進んだが、最初の縦断経路/全MVP受入は未成立。Goalは継続する。
+
+2026-10-26 JST、ユーザーが品質を維持した速度改善の自律採用を再確認。全体計画の再起票や既承認の再取得を避け、最初の一球の実接続を優先する。次のsourceは同artifactを既open_domain_hostで呼ぶstrict Python adapterの有限2path（作者creation_path、別非作者レビュー必須）。開始供給案は実画面から到達するgame_other既定R9/DHtrue/20公式選手へ照合中で、旧DHfalse前提のまま事前投入による接続成功を作らない。共有台帳/Gitのwriterはrootへ一本化し、検査/拒否/原子性/独立性は緩和しない。
