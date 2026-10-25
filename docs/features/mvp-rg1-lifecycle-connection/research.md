@@ -178,3 +178,10 @@ rootが実製品S0→S3を所有disposableで通す既PG試験を実行し、新
 2026-10-25T08:12:47.758647+00:00、PO委任によるCodex root判断で既許可7path中の実変更5pathを採用。固定e8f9854bからのauthor patch SHAbe4b6aebb9ebcb8c0e9af7e367b704a62d5d19fe98a1901d5b7110ea6a89832cを適用前7SHA/適用後7SHAで照合した。非作者レビューSHAa6e91dbdeab2ae57e614f258bcdb7a7cc9db01154d0c11853b220a8dab44187b、証拠SHA13ea4b9da8fa523e360c47f25791838a8b4ed426a05ef1e4f29127669ec7c1a8、所見0/0/0。保存先 /home/ymdms/.cache/pitchlog/reviews/rg1-backend-reader-independent-20261025/。作者449成功36.63s/非作者449成功36.93sと両Ruff/ty成功。旧54test/全param/decorator・26負例ASTを保持した。
 
 新7schema/13role/65functionへの期待値とfixture依存供給、固定2function headerのみの再適用正規化へ追随し、他AS本文/PRODUCT負例を維持。PROVISIONAL合成正例だけから製品専用2policyを外し、製品profile自身の検査は保持。root quote修正によるclassification23成功も別根拠である。これは未受理profileの回帰試験成功で、正式9/8受理/CI/実開始・初期grant成功ではない。
+
+
+## PR184と共通台帳試験補助の配置
+
+実製品Draft https://github.com/masaki1025/pitchlog/pull/184 をada3951cで公開。正式7.7のIDをmasaki1025/pitchlog#184へ固定し、全9/8前後と26snapshot payload・全371行の根拠をcache rg1-census-projection-refresh-7d057a3d-20261025に保存して非作者へ渡した。まだ受理/history appendはしていない。policyのexact184/branch1追記候補は限定82test成功2.54s（旧target/拒否を保持）。PR初回CI40176446281は取得時in_progressで成功扱いしない。
+
+0035より前にfullprofileを適用する旧台帳fixtureは本RG1差分により停止するため、初期scope側の補助修正を本単位へ先行配置した。helper after30ef3bb8f5508b8d1accf86d0e0dc3c73cdbe799aefa1be6ae9c150fffc56071。rootは作者とは別に全AST（変更は_install_product_business/isolated_ledger_databaseだけ）を照合し、cac43c43+exactpatchの所有DBでtest_real_roles_and_business_observer_are_limited 1成功17.55sを実証した。receipt /home/ymdms/.cache/pitchlog/initial-ledger-support-startup-candidate-20261025/root-review-real-pg-receipt.json。shared DB未使用、所有containercleanup済み。二主体/v2/初期grant/画面開始の正常成功ではなく、別のhelper補修の実証である。
