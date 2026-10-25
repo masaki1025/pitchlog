@@ -77,3 +77,10 @@ root専用検証wt cac43c43+exact helper patchで実 test_real_roles_and_busines
 
 
 新DB試験2pathはcreation_path作成候補として凍結受領。handoff /home/ymdms/.cache/pitchlog/initial-grant-db-test-candidate-20261025/handoff.json SHA78048292e42bce862684a303ede14521fd9b3d1582598061925b3b06a8653ff6。test SHA f4f7bfcf1a2a7dea847d4e2490f899e8b097ca90dcd9541f574fa3567f0b57ee、support SHA eea4b33ec2aaa7d248ad6c2ec5d569c9acab444205b822d8252dd236cf8bc542。Ruff/ty/9子program構文確認、12収集・実DB0（必須DB実行guard exit1）を保持。候補として途中保存し、別作者レビュー/正式profile・0036・役割別endpointの供給後に実DB接合する。手書きACL・仮のbroker成功・事前投入deviceをenrollment成功へ広げない。
+
+
+## 初期保存構造1.4の限定確定
+
+2026-10-25T08:58:57.487486+00:00、PO委任によるCodex主担当/root判断で59966185本文を確定。初回9465の2P1は全採用し、索引の誤置換を旧行同値へ戻し、app世代直接INSERT剥奪を追記。非作者反映1の最終0/0/0、review SHA002d0b2abd4096467537a1af8354246d09acf38f828af3306bf8407d6616fe44、evidence SHA2c5923e082dbe83760d4a0bed5361f5ad5bc910f74501dd959ed198fdb8d9e23。旧1.3/両1.2以下の承認/採否履歴と初回否決・反映1を保持。normのstatus/現1.4履歴/索引のmetadataだけを確定表示へ更新し、本文を追加変更していない。receipt /home/ymdms/.cache/pitchlog/initial-storage-norm-1_4-acceptance-20261025/receipt.json。
+
+これは既606の4表/2列/専用主体の物理構造確定で、50表profile/75関数/最終SQL/0036/正式7.7・実DB/開始UIは別の未成立条件。実provider/HTTP完成を構造整備の開始前条件にせず、運用秘密/共有DB/人間本人署名を代行していない。
