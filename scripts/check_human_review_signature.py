@@ -1236,6 +1236,8 @@ def validate_signature_record(
 
 # 今回限定手続きのPR識別子。subjectの基準commit/hashは資産宣言から読む。
 _GATE6_INTRODUCTION_PR = 183
+_GATE6_ACCEPTED_POLICY_COMMIT = "f83955f0fd917c3f1ffe52073716c8b6e42f1a54"
+_GATE6_ACCEPTED_POLICY_SHA256 = "c6da8f97cbb48301444e672ce28f435b9e4db5d7b87c18e116eb0cdfe9ec03a6"
 GATE6_CARRY_PATH = PurePosixPath("contracts/state-transition/gate6_subject_carry_v1.json")
 GATE6_CARRY_SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/gate6_subject_carry_schema_v1.json"
@@ -1301,6 +1303,47 @@ def _carry_array(document: dict[str, Any], pointer: str) -> list[Any]:
     raise HumanReviewSignatureRecordError("carry append位置が許可集合外")
 
 
+def _validate_gate6_carry_policy(
+    root: Path, head: str, guard: Any, authority: Mapping[str, Any],
+    policy: Mapping[str, Any], policy_digest: str,
+) -> None:
+    """既受理policyの不変部分と対象表の追記だけを技術的に継承する。"""
+    policy_bytes = (root / authority["path"]).read_bytes()
+    if (
+        hashlib.sha256(policy_bytes).hexdigest() != policy_digest
+        or authority["repository"] != policy["repository"]
+        or {"pr": authority["pr"], "branch": authority["branch"]} not in policy["targets"]
+    ):
+        raise HumanReviewSignatureRecordError("carryの委任policy・対象が不一致")
+    if authority["sha256"] == policy_digest:
+        return
+    if (
+        authority["pr"] != _GATE6_INTRODUCTION_PR
+        or authority["sha256"] != _GATE6_ACCEPTED_POLICY_SHA256
+        or authority["path"] != str(guard.DELEGATION_POLICY_PATH)
+    ):
+        raise HumanReviewSignatureRecordError("carryの既受理policy識別が不一致")
+    _carry_git_bytes(
+        root, ["merge-base", "--is-ancestor", _GATE6_ACCEPTED_POLICY_COMMIT, head],
+    )
+    try:
+        accepted, accepted_digest = guard._load_delegation_policy(
+            root, _GATE6_ACCEPTED_POLICY_COMMIT,
+        )
+    except guard.GuardError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    if (
+        accepted_digest != _GATE6_ACCEPTED_POLICY_SHA256
+        or authority["sha256"] != accepted_digest
+        or authority["repository"] != accepted["repository"]
+        or {"pr": authority["pr"], "branch": authority["branch"]} not in accepted["targets"]
+        or {key: value for key, value in policy.items() if key != "targets"}
+        != {key: value for key, value in accepted.items() if key != "targets"}
+        or policy["targets"][:len(accepted["targets"])] != accepted["targets"]
+    ):
+        raise HumanReviewSignatureRecordError("carryの既受理policyに追記以外の変更がある")
+
+
 def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
     """旧記録と現在値の技術的継承だけを検査し、委任受理は返さない。"""
     schema = _object(descriptor_checker.load_json(root / GATE6_CARRY_SCHEMA_PATH,
@@ -1317,14 +1360,7 @@ def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
         policy, policy_digest = guard._load_delegation_policy(root, head)
     except guard.GuardError as error:
         raise HumanReviewSignatureRecordError(str(error)) from error
-    policy_bytes = (root / authority["path"]).read_bytes()
-    if (
-        hashlib.sha256(policy_bytes).hexdigest() != policy_digest
-        or authority["sha256"] != policy_digest
-        or authority["repository"] != policy["repository"]
-        or {"pr": authority["pr"], "branch": authority["branch"]} not in policy["targets"]
-    ):
-        raise HumanReviewSignatureRecordError("carryの委任policy・対象が不一致")
+    _validate_gate6_carry_policy(root, head, guard, authority, policy, policy_digest)
     retained = {entry["path"]: entry["sha256"] for entry in carry["retainedDocuments"]}
     if set(retained) != _GATE6_RETAINED_PATHS or len(retained) != len(carry["retainedDocuments"]):
         raise HumanReviewSignatureRecordError("carryの旧記録保存集合がexact-set不一致")
