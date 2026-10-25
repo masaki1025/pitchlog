@@ -1,0 +1,164 @@
+---
+feature: mvp-t1-input-closure
+status: in-review
+承認: 済（2026-10-25・PO委任によるCodex判断）
+重さ分類: コア領域
+worktree: ../../..
+notion: https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f
+branch: feature/mvp-t1-input-closure
+created: 2026-10-25
+計画レビュー周回: 0
+確定ゲート周回: 0
+実行方式: 通常
+反映周コミット: 適用
+---
+
+# T1入力閉鎖の有限実行手順
+
+## 1. 背景・目的
+
+[TSK544](https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f)の承認済みT1計画7d6ce544のステップ1内で、G6-S02の入力相関を先行供給する。[要件正本](../../requirements/requirements-pitchlog-2026-07-22.md)FR-003/FR-009、NFR-018/019を根拠とする。T1を実行する唯一の上位計画と既10計画反映/2確定ゲート周を保持し、本書で本体開始条件や既意味を変更しない。正式起点はdevelop dcd4fda8（PR183統合済み）。
+
+## 2. スコープ
+
+型検査と指定inning/現在inningの一致が必要であること、不一致時の状態変更0を、既正式payload/状態型へ束縛する。次の4pathだけが最初の実装対象である。
+
+- contracts/state-transition/t1_g6_s02_input_schema_v1.json
+- contracts/state-transition/t1_g6_s02_inputs_v1.json
+- contracts/state-transition/t1_g6_s02_author_cases_v1.json
+- tests/test_state_transition_contract_schema.py
+
+3JSONは既候補の全byteを再利用し、author_casesのcandidate_only=trueを保持する。これは作者の必要条件ケースでありP6封印/独立期待値や完全S02の正式受理を表明しない。既operationRows3payload/既positive2件と完全一致を検査する。回不一致でmust-not-applyをother-preconditionsへ弱める変異を拒否する。一致だけでappliedへ昇格しない。
+
+公開結果ID/D5、他G6、13不足分岐、7marker、23flag、製品T1計算/別計算器、Port/DB/HTTPは本単位で供給しない。未掲載単打配置へのD07拡張や観測推定、既D06拒否順変更も行わない。後続P8ケースは別の有限範囲確認後に扱う。正式共有資産とGitの唯一writerはroot、候補作者と独立レビュー担当は分離する。
+
+## 3. 影響する正本
+
+| 正本 | 変更内容 | ゲート |
+| --- | --- | --- |
+| requirements/design/ADR/development/ops | 反映なし。既意味の必要条件を収録するのみ | 既原典との一致をPRレビュー |
+
+本plan/researchと宣言済み契約/試験を編集対象とする。通常提供に必要な当該PRだけの既PO委任policy target登録もrootが最小追記する。旧本人署名・carry範囲の変更や検査拒否緩和は含めず、必要な継承手続きは別有限確認と独立レビューを要する。共有識別値/派生値への実影響が判明した場合だけ完全前後値を固定し、既7.7でrootが受理する。未影響値の再承認は求めない。
+
+## 4. 実装方針
+
+状況計算の入力契約に触れるコア領域である。既core-areasのcontracts/state-transition/*と既schema試験捕捉を実確認し、core拒否条件は変更しない。候補はcache t1-g6-s02-current-candidate-20261025、author handoff ef5ec43245aede032d4b0f4c8543194cbaf07007b10e7c8cd0175e98b19c4019、非作者evidence59ec3f7ffbb28fd0280f6cd091bc52a2c912a46f5cca30da9b62455504c72b07。候補への非作者確認と本有限計画への確認を区別する。旧268試験定義を保持し、親/PR183のレビュー履歴をリセットしない。
+
+### 実装ステップ(コミット単位)
+
+| # | ステップ | 合格条件 |
+| --- | --- | --- |
+| 1 | 固定4pathの有限型/相関ケースを収録 | 前後SHA一致、既型/参照一致、20局所検査/義務弱化・適用昇格等の変異拒否、旧試験保持、Ruff/ty成功 |
+| 2 | 実影響値・最終差分・必須CIを確認し通常提供 | 影響する場合だけ既7.7、最終HEADの非作者確認/PO委任証拠/必須CI。完全S02やT1本体の成立とは別記 |
+
+本書のPO委任承認後にrootが指定ステップだけを実施する。署名/本人逐行確認/P6資格は代記しない。人間の再承認待ちを設けず、技術受理は実対象版/根拠/日時を記録する。
+
+## 5. DoD
+
+- 指定4pathが正式branchで再現でき、型/相関と現規範参照が検査される。
+- 不一致ではpre_state_after全値不変を必須にし、必要条件一致だけの成功昇格を拒否する。
+- candidate_onlyと公開結果/D5未供給を保持する。親S02全閉鎖/P8不足13/P7/P6/本体/MVP完成を主張しない。
+- 最終差分/必要正式値/必須CI/通常統合までの証拠を対応付ける。TSK544全DoDは親計画のまま未達範囲を保持する。
+
+## 6. テスト計画
+
+NFR-019の単体/一致性として既schema試験へ追加し、extra/型/回不一致/状態改変/弱化/成功昇格/既参照ずれを拒否する。候補独立20成功/167変異拒否は当該候補の証拠であり、正式反映後にも対象検査を行う。統合候補固定後に必須全件CIを実施、実DB/実機試験は本入力準備単位の成果として数えない。P6封印/期待値本文を開かず、新blind導出とも呼ばない。
+
+## 有限手順の承認記録
+
+2026-10-25T11:45:57.153332+00:00、Codex主担当/rootはPO委任4/5/8/10に基づき対象dcd4fda8/plan486bbc3823b4bba0201fdbb58a21ecc30c75d896e6d6d5c7ea7761557d2efe58/research b699a98b7bb62680a4bad82b33d8b67800bdfa6411be9268a8012444d1f69a44を承認。非作者creation_pathの限定計画確認は可決0/0/0、evidence72b93e7e5491271816874ea0ca9b18481cda46f0b324a8552d58c9b4fde06bff。指摘反映0周。既候補の独立source確認とは別の計画確認1回で、親544/183の実績をリセットしない。まずステップ1の4pathだけ実施する。本人署名/逐行確認/P6新blind/完全S02/T1本体開始を成立扱いにしない。
+
+## 次の有限範囲：RBI03/04と正常false境界
+
+親544ステップ1内の次の候補はRBI03/04の4観測組合せと、その正常counterbranchである既RBI08の1ケース。原典A-3の先頭一致順、既D07二死二三塁単打の限定、明示OUT3-04/無失策を保持する。新しい意味を追加せず、停止後のミスプレイ観測因果bool=falseを、負例や到達不可扱いではなく正常RBI08へ結ぶ。既RBI08代表は置換せず追加ケースを閉た形で扱う。
+
+対象候補はcache t1-p8-remaining13-candidate-20261025/false-boundary-candidate、handoff707c5661b54819848a80cd071bfbca017b76f5eb2846b3410da4cf944306650b、11path結合patch6983efafaf24c21020a40b5a232d60c9ae9bd0beb06840f83cdc585f827f9170。編集対象は次だけ（既S02の4pathを取り消さず、schema試験の両追加を同時保持する）。
+
+- contracts/state-transition/branch_row_mapping_schema_v1.json
+- contracts/state-transition/branch_row_mapping_v1.json
+- contracts/state-transition/input_axes_descriptor_v1.json
+- contracts/state-transition/manual_fixture_branch_coverage_v1.json
+- contracts/state-transition/state_transition_contract_v1.json
+- contracts/state-transition/state_transition_manual_fixture_schema_v1.json
+- contracts/state-transition/state_transition_manual_fixtures_v1.json
+- contracts/state-transition/t1_observation_binding_rules_v1.json
+- contracts/state-transition/t1_out3_input_schema_v1.json
+- scripts/check_branch_row_mapping.py
+- tests/test_state_transition_contract_schema.py
+
+ステップ1の別有限追補として候補を接合し、ステップ2で必要正式値を完全導出/独立照合/PO委任受理する。表の2ステップ番号や親レビュー周回は変更しない。既44row/111case全object/全操作・取消/required21/旧bindings/履歴を保持し、5row/5caseだけ追加する。追加fixture/mappingの形式は任意ケースを許可する抜穴にせず、実source case/row/branch/6効果・正逆exact対応と未知/欠落/重複/改変を検査する。
+
+新入力bool葉のfalse/true正常coverageをproduction consumerで実測し、falsecase欠落/打点変異が拒否されることを必須にする。T2全4656 identity/順序不変も実consumerで確認する。候補415成功/6失敗の6件は未受理凍結識別値であり、greenとは扱わない。新独立導出は純入力/primary規範だけを別forkへ渡しseal先行後比較するが、全P6/完全資格・完全6wire・本体開始への拡張はしない。
+
+この範囲の新候補source/追加形式の非作者確認とroot承認後だけ接合する。正式schema/fixture/descriptor等の識別値/履歴、旧Gate6署名範囲の継承、共有参照の採用はrootが別の必要最小範囲を固定し、既署名/日付を変更せず、現PR対象/全値/最終版の独立証拠を追跡する。未受理値のまま提供完了としない。製品計算/実Port稼働をこの契約整備の前提へ追加しない。
+
+2026-10-25T13:02:42.072685+00:00、rootはPO委任によるCodex判断でRBI03/04＋正常false境界の11path有限範囲を承認。対象plan前SHA256 87109616d37e85cf5fc0a200893b6c3c33585ffc07e13d1f73cf974e2f90eb09、非作者review66fe7a3903619297e9f4b42db6408fd6704354d2665394fc00c10b58f1918471は可決0/0/0。415成功/6未受理凍結失敗と、旧111/44/T24656同値を照合した。これは計画/source候補の有限受領であり、正式7.7値・完全P6/資格・最終CI・T1本体許可ではない。rootは隔離接合でS02全20追加を保持し、正当に増えた5row/5caseのexact件数49/116への検査追随だけを別確認する。正式branch反映は必要な全前後値/識別値/継承受理が閉じた版で行う。
+
+2026-10-25T13:12:36.838715+00:00、rootはPO委任によるCodex判断で、実装済みS02の3契約JSON/試験sourceを含む進行中候補のDraft公開だけを先行する。7.7の履歴値に実PR番号が必要なため、番号未取得の仮受理を正式値として投入しない。通常/prの最終クローズ・全件品質完了は未了と明記し、status active/人間確認未チェックを保持する。これは文書だけの完了PRでもマージ許可でもない。最終候補で既必須CI/独立最終HEAD確認/全値/委任検査を完了する。ハーネス評価台帳への追記なし（今回の限定接合作業だけでは新しい一般傾向を確定できない）。
+
+## Gate6の今回限定append受理手続き
+
+rootはPO委任に基づき、既PR183 carry/schema/旧本人署名・sheetを不変に保ち、新PR185のRBI5行5case appendとdescriptor digest置換だけを受ける別記録を追加する。対象4pathはscripts/check_human_review_signature.py、tests/test_human_review_signature.py、contracts/state-transition/gate6_t1_input_append_schema_v1.json、contracts/state-transition/gate6_t1_input_append_v1.json。既7.7の全値・前後関係は引き続き必要で、旧受理を新本人確認へ拡張しない。
+
+設計base c9adce0f、design SHA ba58ff3edc534ed264936292eb0ff3d6928d4dd24fa8ccaf9c96f4727857baf2、非作者有限設計review ee5893d7a4dcebf42b4611069d3cff4054edc187f5e9a7de24d6df075debcfb3は指摘0。具体化は共有純検査bodyと固定anchor専用private readerを使う。公開rev切替/monkeypatch/旧コード動的実行/一時Git checkoutを採用しない。旧anchor祖先性/全署名byte/旧carry exact/旧対象digestを検査した上で、今回差分は許可位置のexact再構成で現対象全digestへ束縛する。既operation/undo/T2射影不変を保持する。
+
+今回新受理は実PR185/branch/base/head/既core_guard委任証拠へ束縛。後続PRはbaseとの全対象不変のみ継承する。欠落・失効・他PR・版不一致・重大指摘未解消・任意の承認文字列・旧行改変・未知/重複/不足case・余剰field・checkout不一致を拒否する試験を追加する。技術検査だけを最終委任/P6/P7/本体開始成立にしない。source候補をcacheで作り、非作者最終source確認後だけrootが正式反映する。PR184の既helper作者による同sourceの独立採否は不可とし、役割履歴を保持する。
+
+2026-10-25T13:17:19.949623+00:00、判断者Codex rootは上記限定4path/設計具体化をPO委任により承認。新記録の最終受理値は未確定であり今回の計画承認とは別。
+
+## 既GAP登録への追加行の双方向接続
+
+2026-10-25T13:40:25.814655+00:00、rootはPO委任により、RBI候補で追加された行の既GAP06への参照追随としてcontracts/state-transition/gap_register_v1.jsonの1pathを有限追加する。実check_gap_register CLIが既GAP06.rowIdsに新matrix行4件のassetOnlyを検出したことを根拠とする。GAP06のstate=open/既branchIds/旧rowIds・fixtureCaseIds prefixと他gap全objectを保持し、既checkerが要求する双方向exact集合だけを追記する。未供給をclosedへ改めず、新意味/拒否順/観測推測を追加しない。必要criterion/全identity/履歴/参照値は実差分に応じて完全再導出/非作者照合する。既計画/source11の整合に必要な最小参照追随として扱い、checker緩和・既承認の再取得をしない。正式writerはroot、作者creation_pathはcache反映候補だけを作る。
+
+2026-10-25T13:44:13.651182+00:00、同じgap登録追随についてGAP09も既state=resolved/既branch/旧prefixを保持し新4row参照だけを双方向exact集合へ追記する。tests/test_gap_register.pyの既exact件数GAP06=2/GAP09=4を正当な追加後6/8へ追随する1testpathも有限追加。旧state期待open4/resolved5/fixture件数/負例は不変とし、参照更新で新機能の完了や全P8を主張しない。rootはPO委任による通常派生値追随としてこの範囲を承認、作者はcacheだけを編集。
+
+2026-10-26 JST、rootはPO委任によるCodex判断で反映1の実7.7値を受理した。cache t1-rbi185-root-acceptance-20261026/acceptance.json ed9080b7e1018364292fa78c2c8e550c343a15b3f670f7ccbd82c66a93b2c071、非作者最終値evidence f5d1482fc4dd86b3fdca332edfc6f350abe4ea50c987826b80f74adb399c72ba、Gate6実記録5f292b80bf89222d05884a7592d32642a8e265ad9b1dd32dd2a486f29e85fdce。旧8履歴/全前後identity/旧111caseと44row prefix/2pendingbootstrap資格を保持、実recordの判断者・2026-10-26 JST・事実と再算digest/4参照だけを反映。descriptor最終sha256:f4792581f0879790da1853b3d279649d0f2f6a23cd068fc40f5064b23638e85f。独立11関連CLI成功、正式WTのRuff/tyとGate6 technical CLI成功（最終委任ではない）。
+
+同反映後の関連593検査は578成功/15失敗121.27s。旧44render入力と現schema参照の世代混在4件、合成append fixtureの現descriptor対旧subject参照混在11件を検出し、公開前に是正する。実製品checkerの拒否は維持し、作者initial_storage_norm_reviewがcacheのtests/test_human_review_signature.pyだけを修正、別非作者差分確認後にrootが反映する。旧44test/負例assert/本人記録は保持する。この保存は失敗を隠した提供完了ではなく、再開可能な候補固定である。最終HEAD・外部委任証拠・全必須CI・通常統合は残件。
+
+2026-10-26 JST、前記署名fixture反映1を非作者creation_pathがevidence701bd757e55e14b1986931b66f2e4c83129a6b09c9c137661f8d8bc8c77de053/reviewfebd25d2a1dd1b036bdffc0070c5b04c8902721c76b41b165f7b0edf5eb4491aで差分照合、旧全assert/実ready route/全拒否保持・元15失敗＋対向4の独立19成功35.78sを確認した。rootはtest最終SHA b256b7fde1e229167046dcc1bd52ed88ac1d4dc7aa74dfcc03765071cabd9396を実照合してPO委任により採用。正式WTの署名module100全件は121.66s成功、root全Ruff/ty・plan docs突合も成功。先の493成功と今回100成功は相補的な別実行であり、同一593再完走とは表記しない。checker/schema/正式17asset/実recordは不変。最終HEAD限定確認・外部委任証拠・必須全CIは別に完了する。ハーネス評価台帳への追記なし：今回は既候補の世代混在を修正した単発接合であり、新しい一般統制を確定する変更ではない。
+
+
+## CI実停止の有限是正：既原本の再利用とcheckout同一性
+
+2026-10-26 JST、CI40208836753/HEAD031b2ef9のharnessはcheck_frozen_baselines --ciでsource内5SHA参照の未登録を検出して停止。新凍結基盤/64桁系列/allowlist除外を増やさず、既閉Gate6 JSONと実Git原本を基準にsourceの参照重複を取り除く。設計案B cdae04b90962d0f1c140b298a9dd93d5f872c733ccb57f59fc0da41dd9c9baee とroot CI layout設計48ea66948b26f775c0a644b34ca8032813ec6a5f38ab2af064b9725c5845e1a1を非作者creation_pathがhandoff8260e2dd61721cd666179730b0ef094c315d00dfcbd8d4bfe4357d6481773e3f/0指摘で確認。rootはPO委任によるCodex判断として今回PR185に限定し採用する。
+
+唯一source変更はscripts/check_human_review_signature.pyとtests/test_human_review_signature.py。最終actualevent.baseとrecord.baseRevisionを信頼根構成より先に照合し、そのbaseの旧carry/schema/本人記録/旧policy/旧subjectをGit読取する。導入baseの2親を旧carry.authority.baseRevision/record・schema anchorと順序込みで一致させ、anchor→baseの旧全保存byteも照合する。new record/schema単独から任意の旧基線を選ばせず、後続はactualevent.baseの既新record/schema/subjectのbyte不変を先に要求する。local technicalの弱い文脈は最終へ流用せずactualeventから再構成する。旧PR183経路を新appendの存在へ依存させない。
+
+別にGitHub実merge ref41bc29f0（親dcd4/031b、tree=reviewed head）で『checkout HEAD不一致』を実再現した。署名対象は引き続きevent.head。checkoutが異なる場合は、正確な2親[actualevent.base,actualevent.head]、baseがheadの祖先、全tree同一を全て要求し、既実行source/対象blob/外部委任証拠を保持する。未知・逆順・追加親・異tree・旧head・Git故障は拒否。環境boolやGITHUB_SHA文字列だけの信用宣言を追加しない。
+
+旧frozen ledger15履歴/宣言/schema/scan母集団/allowlist、CI yml、旧本人署名、Gate6旧新JSON、RBI17asset・既受理値を不変とする。source参照の取得元を明確にする実装であり、拒否条件の除外や同じ意味の再裁定をしない。作者initial_storage_norm_reviewはroot作成の隔離WT verify-pr185-gate6-followup-031b2ef9で指定2pathだけを編集し、全旧拒否assertに必要なfixture文脈を合わせ、新負例を追加する。rootが別非作者source確認・正式CLIをまとめた検査・最終HEAD/公開証拠/全必須CIを更新してから通常提供する。既031の成功・失敗・レビュー回数は保全する。
+
+旧PR183 policy継承だけは新append JSONに依存させず、既carry/schemaのauthority.shaへ一致するcurrent policyの唯一targets prefixを旧採用JSON書式で復元する。追加具体化は非作者handoff6dbffae0eec0439e83d6c6cb606e16b9e9392ada716f9795529bbcd238a86aee/指摘0に基づきrootがPO委任採用。復元旧policy原文のexact SHA・非空/唯一prefix・PR183/branch包含・非targets/順序・有効性を検査し、候補0/複数/旧改変は拒否。current rawは従来どおりcommitted head bytes/実authority SHAへ束縛し、currentのcanonical書式限定という新条件は追加しない。旧原文復元書式とcurrent rawの別物を混同せず、current minifyを試しただけで旧証拠の有効性を主張しない。PR185はこの復元経路を使わずactualbase Git原本を用いる。
+
+2026-10-26 JST、同CIのfrontendはhandoffLoader 3件がARTIFACT_DIGESTで停止した。既受理17assetの実raw SHAへconsumer handoffの3参照が未追随だったため、rootはPO委任の通常派生値追随としてcontracts/state-transition/appendix_e_consumer_handoff_v1.jsonのartifacts[0..2].digestだけを実SHAへ更新する。version/ID/依存commit/全mapping/受入資格pending/全拒否・negative優先を保持し、loaderや試験期待値を緩めない。変更後の実consumer全case写像/全既負例、必要正式値の実影響・非作者照合・最終CIを確認する。これは成績提供やT1本体全操作の成立を意味しない。
+
+2026-10-26 JST、上記2sourceは作者handoff138f35a0cde5a02d25d3183154386d0c220f0804e0c9f9710eab01305bb4ca66、非作者差分evidenceaaae83f4d136d0a76f0e776faf042e8a7311215d306d663067e297a44d874d8e/0指摘で固定。独立新31対向12.90sと旧assert/旧signature-render保持を確認し、rootは最終checker4a8dce07e2eaa1d86698e3b9e944c85d6a2e1a0b717c6ca882a17ab5557b6aa7/test1f3040994b2661070e746cd85b33f66f5fcbc40676b9d11d7d5882b0605997a9を実SHAで受理。正式WTの全131件は127.41s成功、frozen invariants/scan・technical Gate6・root Ruff/tyも成功。初回2fixture世代兼用の129成功/2失敗は保全、拒否を緩めずfixture後続baseを分離した。旧031 actualeventで未push sourceを拒否した結果は正しい留保として保持し、新版の最終委任/実CI成功とはしない。
+
+consumer handoffの追加1assetは非作者REVIEWc823c2f4b5f88c2a885df6603b65745b17f767edf53eccc9f4d95f16b0ccbfd1/0指摘で3前後raw SHA/全他member同一/pending維持を照合。実Vitest handoffLoader 29件1.64s、実Python descriptorParity28件0.49sが修正後成功。旧CI40208836753は終了failureで、harnessはsource5literal scan、frontendはhandoff3失敗、backendは同じhandoff原本不一致による28error（3540成功/4skip/1warning、1973.73s）。10成功jobを全成功にしない。次の最終HEAD/外部証拠/新必須CIで正式接合を再確認する。既受理17asset・意味digest f479・Gate6旧新JSON・frozen ledger15履歴/allowlist/CI ymlは不変。
+
+## 追加RBI行の被覆区分追随
+
+2026-10-26 JST、CI40214642135/26ba45f5は11job成功、harness50失敗/30172成功/2skip。旧singleの同一区分へ追加5行を写した重複は単なる件数更新では閉じない。rootはPO委任によるCodex判断として、既採用RBIの結果を変えず次の4pathの候補作成を承認する：required_set_row_rules_v1.json、required_set_coverage_declaration_v1.json（両contracts/state-transition配下）、scripts/check_required_set_coverage.py、tests/test_required_set_coverage.py。作者t1_remaining_out3_casesは隔離cacheで編集し、正式JSON/Git/本plan/台帳はrootだけが更新する。
+
+既additionalPartitionsの2件prefixを保持し、原観測に基づく新5partitionをappendする。既rowPartitionObservationsを保持したうえで、別の有限rowPartitionRefinementsを設け、一意なparent区分を観測した後だけparent identity＋原precondition葉のall条件でchildを一意に精密化する。原因2boolとcontinuity/restart観測を使い、rowId/caseId/hashによる正解直指定はしない。既44行のidentity/全predicate・旧観測・未充足5・branchmapping prefixを保持する。重複のset化/first-matchによる曖昧さ容認/新RBI意味の再裁定をしない。
+
+旧44identity不変/新5一対一、parent不在・未知/重複/空selector・複数child match・selector欠落時の既重複拒否・未知partition拒否を対向検査する。source/区分表の別非作者レビュー、全影響CLIの実導出と必要な実値更新・前後値受理後に正式反映する。50失敗の他根因（候補digest/coverage宣言/固定件数/mutation）は別有限範囲を確定してから扱う。実検査結果と未受理派生値を分離し、検査拒否条件/未受理資格を緩めない。
+
+独立に進める固定件数の追随は、tests/test_state_transition_normalization.py と tests/test_expander_dependencies.py の2pathだけをrootの編集へ追加承認する。追加5正常caseは旧111から116、既終了248不変で全359→364、identity40→45。既代表policyで実消費するmanual fixtureは24→26。実consumer全値/全旧負例・新件数のexact assertを保持して照合し、単に件数assertを除去したり部分一致へ緩めない。source checker・正式JSON・未受理資格を変更せず、独立差分確認後に採否を記録する。
+
+2026-10-26 JST、source4候補handoff2b7c2eac5a4469961261ae7a620db5faf2c36670442450b12d9d83fa7500e940を非作者REVIEW162041866c4e1c2aa67bdac5ceef89014eb30b12263e81faefbf7a0dbc86a00eが0/0/0で確認。旧44identity/観測7/未充足5/旧2partitionと典拠3prefixを保持、5child条件が元predicateの型付き葉に一致し、独立19成功0.59s＋追加6反例/Ruffty/実(54,49,0)を実証した。rootは4path全前後SHAを照合しPO委任によりsource/区分追随を受理・反映する。作者全coverage120成功/24失敗は他宣言・被覆・固定値の未追随として保持し、全体成功・正式値追随の完了・通常mergeとはしない。
+
+固定件数2pathは非作者evidence237dceb81da73bbd07bc8ecffc62dc9a48bea9971308a04cf72356e2eff9af03/reviewd902c48ae8283ab34a2ec22ce147109f3bb02071438c5ede97f1c22c23e2a061が0/0/0。実116＋248=364、T1 identity45/T2 identity7不変、row-output20＋decision-output6=26/negative11不変を独立再計測し、指定数値/説明以外の旧全AST同一・35成功0.93sを確認。root実35成功1.00sと区別し、PO委任により採用する。rootの件数追随と別作者の区分source4の採否を混同しない。
+
+残る宣言/参照の編集範囲は次の5pathへ限定して追加承認する：docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json、contracts/state-transition/game_end_coverage_declaration_v1.json、required_set_input_coverage_v1.json、required_set_mutation_policy_v1.json（直前contracts/state-transition配下）、tests/test_required_set_coverage.py。根拠は診断b1aa34db8135ee3e496538e49690b05d35d9e160c1eaa75ad8bd6817338a1eadと実前後計測。P8候補の基準2digestだけを再計測しcandidate-only/not-performedを保持、normalCaseCounts.stateTransitionだけ116（終了248不変）、入力被覆170→176/追加6削除0の完全前後集合/digestと旧16履歴を保持した1追記、mutation axis60/boundary141保持、current coverage exact数値/歴史prefixの分離だけを行う。旧負例regexを広げず、既正常・拒否・全T2 identity/順序・pendingを保持する。
+
+作者は隔離候補5pathだけを変更し、旧履歴の判断者/承認事実を変更しない。新履歴のroot実受理は完全前後値の独立照合後にrootが実日時/PO委任判断として反映し、候補内の未受理状態と正式採否を分ける。既17asset/descriptor/旧Gate6署名/frozen criteriaを無関係に更新しない。実値・criteriaに新影響があれば、その差分だけをrootへ提示する。関連正式CLI13本とschema/consumer/mutationの全moduleを一組で実行し、同じ未追随をCIごとに逐次発見する往復を減らす。source/正式値の非作者最終確認・公開最終HEAD委任証拠・必須全CI後に通常提供する。
+
+2026-10-26 JST、残5pathの独立REVIEW0bc3ca06c758d2419f6c87d9847a791e01a9cf5499359f29aadcb129be011284は0/0/0。measured-values88fdaa56e96746b59965c9bb5f717b3ec5f343428c833f64935878388b6b5131で全170→176集合/6追加削除0/新digestdf2215568015a8eb0d8b1ae72d95744af940740c10f89fb49b0e40b1431cf881、P8基準2参照、normal116/248、mutation60/141、exact(228,52,0)、旧16履歴不変を独立再計測。3承認欄空の正しい拒否を先に保全した後、rootが実時刻2026-10-25T18:02:17.104457Zのreceipt09a155b3a27fa8dae4c1587fee249d74b7431aa6b918b5480cf4ac5dfba2789dで完全値をPO委任受理した。新step95のrecordedOn/approvedOnは2026-10-26 JST、approvedByはPO委任によるCodex判断（Codex /root）で、本人確認/署名の代記ではない。
+
+実3欄注入後のlocalized独立f94c240f6a9c0cfd296e5efae0a02e931d26e7f64772578988fe8e425b6a37d0は残0/0/0、coverage最終4ff8006b020240449060b69a85d31ee56c017183a0a8b7a584496d172f057462/他4path/旧履歴/完全前後値の保持を照合。rootは全5最終SHAを再照合して正式候補へ適用した。隔離同版の関連CLI13本は全exit0（invariants/technicalと最終actualevent委任は区別）。全影響module・最終HEAD確認/公開委任/必須全CIは後続で、現在の公開26baの失敗を成功へ改記しない。
+
+全影響12moduleの同一実行は1090成功/1失敗454.21s。累積コードレビュー629c4066479873aefba14e4aa81b4e418ec342ca7555eb8a73749ac703ce3fbaはP0=0/P1=1/P2=0で、既schema試験が現54行要求に旧49期待を当てていた未追随を検出した。rootは既承認tests/test_state_transition_contract_schema.pyの該当1testだけを、旧47→歴史49（旧2partition/典拠3）→現54へ分離し、旧identity/典拠包含と追加5partition exactを同時検査する形へ是正。製品source/正式JSON/拒否は変更しない。是正後schema全430件は13.09s成功、先の1090成功と別実行であり同一1091再完走とはしない。
+
+本単位の実装・実値追随を固定しin-reviewへ移す。旧26ba時点の全版レビュアーout3は後発source4/5の作者となったため、最終HEADの独立確認には使用しない。候補全5作者と独立t2_first_pitch_plan_reviewを区別し、旧レビュー回数/後発P1/是正/最後の文書差分を保持して最終版確認と公開委任・必須CIへ進む。CI全成功/通常mergeは別ゲートで、完全S02/P6/P7/P8/全T1やMVP完成を本plan終了から導出しない。worklogはdocs/worklog/2026-10-26-mvp-t1-input-closure.mdへ固定する。

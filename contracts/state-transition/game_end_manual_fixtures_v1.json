@@ -234,7 +234,7 @@
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
       "current_identifiers": [
-        "fixture-sha256:2541d7b5f21685071f653572ea4453ff3464d669a8663eaf0010f479a1c56d43"
+        "fixture-sha256:3c01bef0c13a227cfea4381732a8ad800f0b5ddcf2d6698ef97610729fa0fff7"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -275,7 +275,7 @@
       {
         "source_commit": "PENDING_ACCEPTANCE",
         "new_baseline_identifiers": [
-          "fixture-sha256:2541d7b5f21685071f653572ea4453ff3464d669a8663eaf0010f479a1c56d43"
+          "fixture-sha256:3c01bef0c13a227cfea4381732a8ad800f0b5ddcf2d6698ef97610729fa0fff7"
         ],
         "previous_baseline_identifiers": [
           "NO_BASELINE"
@@ -288,7 +288,7 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "2541d7b5f21685071f653572ea4453ff3464d669a8663eaf0010f479a1c56d43"
+            "frozen_projection_sha256": "3c01bef0c13a227cfea4381732a8ad800f0b5ddcf2d6698ef97610729fa0fff7"
           }
         },
         "movement_fact": "FR-005のサヨナラ終了検知を6件目の独立した手作業fixtureへ追加する。D06/B・D07/A限定接合による候補射影値へ追随（未承認bootstrap状態を保持）。",

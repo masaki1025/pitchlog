@@ -2072,7 +2072,7 @@ def test_repository_contract_step51_to_step60_rows_satisfy_constraints() -> None
     _validate_vocabulary_axis_coverage(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 44
+    assert len(rows) == 49
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
     assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
@@ -2614,7 +2614,7 @@ def test_repository_batting_result_rows_exactly_cover_the_vocabulary_axis() -> N
     batting_rows = [
         row for row in contract["matrixRows"] if row["eventKind"] == "batting-result"
     ]
-    assert len(batting_rows) == 28
+    assert len(batting_rows) == 33
     assert len({row["resultId"] for row in batting_rows}) == 26
 
 
@@ -2717,7 +2717,7 @@ def test_repository_per_pitch_mapping_covers_all_materialized_matrix_rows() -> N
     }
 
     assert actual == expected
-    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 44
+    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 49
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
@@ -3486,7 +3486,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
     _validate_undo_rows(contract, frozenset())
     _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
 
-    assert len(contract["matrixRows"]) == 44
+    assert len(contract["matrixRows"]) == 49
     assert len(contract["operationRows"]) == 10
     assert len(contract["undoRows"]) == 10
     row = contract["undoRows"][0]
@@ -4399,7 +4399,7 @@ def test_repository_contract_step60_pickoff_rows_satisfy_constraints() -> None:
     _validate_cross_constraints(contract)
     _validate_vocabulary_axis_coverage(contract)
 
-    assert len(contract["matrixRows"]) == 44
+    assert len(contract["matrixRows"]) == 49
     assert len(rows) == 6
     assert {row["resultId"] for row in rows} == expected_result_ids
     assert all(row["eventKind"] == "runner-event" for row in rows)
@@ -4622,7 +4622,7 @@ def test_repository_contract_step61_substitution_rows_and_mapping() -> None:
     assert mappings["per-pitch-input"] == [
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
-    assert len(contract["matrixRows"]) == 44
+    assert len(contract["matrixRows"]) == 49
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-011", "req:FR-006"} <= sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -4855,7 +4855,7 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
     assert len(mappings["tiebreak-start"]) == 3
-    assert len(contract["matrixRows"]) == 44
+    assert len(contract["matrixRows"]) == 49
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-010", "req:FR-005", "req:FR-006", "req:4.0-1"} <= sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -5015,7 +5015,7 @@ def test_repository_contract_step64_registration_rows_and_mapping() -> None:
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
     assert len(mappings["tiebreak-start"]) == 3
-    assert len(contract["matrixRows"]) == 44
+    assert len(contract["matrixRows"]) == 49
     assert len(contract["operationRows"]) == 10
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert "req:FR-015" in sources
@@ -5225,12 +5225,20 @@ def _validate_manual_fixtures(
     assert len(branch_ids) == len(set(branch_ids))
     assert set(branch_ids).isdisjoint(deferred)
     assert set(branch_ids) | set(deferred) == situation_ids
+    expanded_fixtures = []
+    for fixture in fixtures:
+        expanded_fixtures.append(fixture)
+        for additional in fixture.get("additionalCases", []):
+            assert additional["branchId"] == fixture["case"]["branchId"]
+            expanded_fixtures.append({**fixture, "case": additional})
+    all_case_ids = [fixture["case"]["caseId"] for fixture in expanded_fixtures]
+    assert len(all_case_ids) == len(set(all_case_ids))
     output_fields = policy["positiveExpectedFields"]
     configuration, rules = _cross_constraint_configuration()
     rule_by_id = {rule["constraintId"]: rule for rule in rules}
-    for fixture in fixtures:
+    for fixture in expanded_fixtures:
         case = fixture["case"]
-        if case["branchId"] in {"OUT3-04", "OUT3-05"}:
+        if "inputPayload" in case:
             _validate_t1_observation_binding(case)
         branch = branches[case["branchId"]]
         kind = (
@@ -5749,7 +5757,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 111
+    assert len(cases) == 116
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -6223,6 +6231,35 @@ def _validate_t1_observation_binding(case: dict[str, Any]) -> None:
             if outcome["kind"] == "safe-advance" and outcome["destination"] == "home":
                 _observation_require(base in pitch["thirdOutTimingByRunner"],
                                      "required-third-out-home-timing")
+    closed = rules.get("rbiMisplayClosedRows")
+    if closed and closed["continuityAxis"] in case["inputCoordinate"]:
+        # 新閉行だけの必要観測。旧false/false行と未観測の構造検査は保持する。
+        _observation_require(cause["kind"] == "observed"
+                             and "third" in cause["by_runner"], "required-rbi-cause")
+        values = cause["by_runner"]["third"]
+        _observation_require(all(values[key]["kind"] == "observed"
+                                 for key in ("held_too_long", "unnecessary_throw")),
+                             "required-rbi-cause")
+        _observation_require(any(values[key]["value"] is True
+                                 for key in ("held_too_long", "unnecessary_throw")),
+                             "required-misplay-for-closed-row")
+        continuity = pitch["rbi"]["runnerContinuityByRunner"]
+        _observation_require(continuity["kind"] == "observed"
+                             and set(continuity["by_runner"]) == {"third"},
+                             "required-rbi-continuity")
+        if continuity["by_runner"]["third"] == "stopped-and-restarted":
+            restart = pitch["rbi"]["restart_by_runner"]
+            _observation_require(restart["kind"] == "observed"
+                                 and set(restart["by_runner"]) == {"third"},
+                                 "required-rbi-restart-cause")
+            value = restart["by_runner"]["third"]
+            _observation_require(value["person"] == state["runners"]["third"]["player"],
+                                 "same-runner-rbi-restart")
+            if case["inputCoordinate"].get(closed["restartCausalAxis"]) is True:
+                _observation_require(value["after_observing_misplay"] is True,
+                                     "required-rbi-restart-after-misplay")
+            _observation_require(closed["restartCausalAxis"] in case["inputCoordinate"],
+                                 "required-restart-coordinate")
     for axis, binding in rules["inputBindings"].items():
         if binding.get("whenCoordinatePresent") and axis not in case["inputCoordinate"]:
             continue
@@ -6242,6 +6279,11 @@ def _validate_t1_observation_binding(case: dict[str, Any]) -> None:
                                  and value["third"]["kind"] == "safe-advance",
                                  "explicit-mixed-runner-outcomes-for-this-unit")
             value = "multiple-runners-mixed"
+        elif projection == "single-third-continuity-partition":
+            _observation_require(value["kind"] == "observed"
+                                 and set(value["by_runner"]) == {"third"},
+                                 "single-third-continuity-partition")
+            value = "single-runner-" + value["by_runner"]["third"]
         elif projection == "single-third-home-timing-partition":
             _observation_require(set(value) == {"third"}, "single-third-home-timing-partition")
             value = {"home-before-third-out": "single-runner-home-before-third-out",
@@ -6460,18 +6502,38 @@ def _t1_assembly_row_requirements(rules: dict[str, Any]) -> tuple[Any, ...]:
 
 
 def test_t1_assembly_old_row_requirement_identities_are_preserved() -> None:
-    """旧47要求のidentity・典拠を保ち単打の二例だけを追加する。"""
+    """旧47・後続2区分を保ち、RBIの追加5区分だけを現在値へ結ぶ。"""
     rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
     prior = copy.deepcopy(rules)
     addition = prior["partitionRules"][0].pop("additionalPartitions")
     assert [item["vocabularyId"] for item in addition] == ["batting-result.single"]
+    historical = copy.deepcopy(rules)
+    historical_addition = historical["partitionRules"][0]["additionalPartitions"][0]
+    historical_addition["partitions"] = addition[0]["partitions"][:2]
+    historical_addition["sourceClauseIds"] = addition[0]["sourceClauseIds"][:3]
+    assert historical_addition == {
+        "vocabularyId": "batting-result.single",
+        "partitions": ["out3-explicit-home-before", "out3-explicit-not-before"],
+        "sourceClauseIds": ["req:FR-003", "req:OUT3-04", "req:OUT3-05"],
+    }
     old, new = _t1_assembly_row_requirements(prior), _t1_assembly_row_requirements(rules)
+    historical_rows = _t1_assembly_row_requirements(historical)
     by_id = {item.identity: item for item in new}
-    assert (len(old), len(new)) == (47, 49)
+    assert (len(old), len(historical_rows), len(new)) == (47, 49, 54)
     assert all(by_id[item.identity].source_clause_ids == item.source_clause_ids for item in old)
+    assert all(
+        set(item.source_clause_ids) <= set(by_id[item.identity].source_clause_ids)
+        for item in historical_rows
+    )
     old_ids = {item.identity for item in old}
     assert {item.result_id for item in new if item.identity not in old_ids} == {
         "batting-result.single"
+    }
+    historical_ids = {item.identity for item in historical_rows}
+    assert {item.partition_id for item in new if item.identity not in historical_ids} == {
+        "rbi-kept-held-too-long", "rbi-kept-unnecessary-throw",
+        "rbi-restarted-held-after-misplay", "rbi-restarted-throw-after-misplay",
+        "rbi-restarted-held-noncausal",
     }
 
 
@@ -6502,7 +6564,7 @@ def test_t1_assembly_row_id_qualification_preserves_all_legacy_ids(monkeypatch: 
     unqualified = {key: value for key, value in layer.items() if key != "qualifyWhenPredicateAxes"}
     rows = _repository_contract()["matrixRows"]
     ids = [module._normative_row_id(layer, row) for row in rows]
-    assert len(set(ids)) == 44
+    assert len(set(ids)) == 49
     assert ids[:42] == [module._normative_row_id(unqualified, row) for row in rows[:42]]
     assert all(":compound:" in value for value in ids[42:])
     modified = copy.deepcopy(rows[-1])
@@ -6594,7 +6656,7 @@ def test_t1_assembly_consumer_scope_retains_all_old_axes() -> None:
     documents = schema_checker.load_game_end_observation_documents(REPOSITORY_ROOT, criteria)
     included = schema_checker.game_end_coordinate_axis_ids(descriptor, criteria, documents)
     assert included == frozenset(scope["includedAxisIds"])
-    assert len(scope["observationOnlyAxisIds"]) == 9
+    assert len(scope["observationOnlyAxisIds"]) == 10
     assert "state.outs" in included
     assert "event.perPitch.runnerAdvanceOverridesByRunner" in included
     assert "event.perPitch.thirdOutTimingByRunner" in included
@@ -6867,3 +6929,398 @@ def test_t1_consumer_cold_process_keeps_outside_read_rejection(tmp_path: Path) -
     assert measured["success"] is True
     assert measured["outside_rejected"] is True
     assert "リポジトリ外" in measured["rejection"]
+
+
+# P8 RBI-03/04の有限追加。製品計算と独立期待値導出ではない。
+def _rbi_misplay_cases() -> list[dict[str, Any]]:
+    """新しい閉行を指す四ケースを読み出す。"""
+    return [case for case in _repository_contract()["cases"]
+            if case["caseId"].startswith(("ST-RBI-03-", "ST-RBI-04-"))]
+
+
+@pytest.mark.parametrize("index", range(4))
+def test_t1_rbi_misplay_consumer_positive(index: int) -> None:
+    """原観測を既consumer経由で新行と六効果へ結び付ける。"""
+    case = _rbi_misplay_cases()[index]
+    _validate_t1_observation_binding(case)
+    coordinate = case["rowRef"]["coordinate"]
+    row = history_checker._unique_rows(_repository_contract()["matrixRows"], coordinate)
+    assert _manual_fixture_coordinate(row) == case["inputCoordinate"]
+    expected = {key: row[key] for key in case["expected"]}
+    assert expected == case["expected"]
+    branch = "RBI-03" if case["expected"]["statFlags"]["打点"] else "RBI-04"
+    assert branch in case["caseId"]
+    assert len(case["expected"]["statFlags"]) == 23
+
+
+@pytest.mark.parametrize("index", range(4))
+@pytest.mark.parametrize("mutation,reason", [
+    ("missing-cause", "required-rbi-cause"),
+    ("unobserved-cause", "required-rbi-cause"),
+    ("false-causes", "required-misplay-for-closed-row"),
+    ("missing-continuity", "required-rbi-continuity"),
+    ("coordinate-continuity", "raw-coordinate-preserved"),
+    ("cause-person", "same-runner-rbi-cause"),
+    ("missing-timing", "required-third-out-home-timing"),
+])
+def test_t1_rbi_misplay_consumer_negatives(index: int, mutation: str, reason: str) -> None:
+    """未観測/別人/座標改変を既観測consumerで拒否する。"""
+    case = copy.deepcopy(_rbi_misplay_cases()[index])
+    pitch = case["inputPayload"]["per_pitch"]
+    rbi = pitch["rbi"]
+    if mutation == "missing-cause":
+        rbi["cause_by_runner"]["by_runner"].clear()
+    elif mutation == "unobserved-cause":
+        for key in ("held_too_long", "unnecessary_throw"):
+            rbi["cause_by_runner"]["by_runner"]["third"][key] = {"kind": "unobserved"}
+    elif mutation == "false-causes":
+        for key in ("held_too_long", "unnecessary_throw"):
+            rbi["cause_by_runner"]["by_runner"]["third"][key]["value"] = False
+    elif mutation == "missing-continuity":
+        rbi["runnerContinuityByRunner"] = {"kind": "not-required"}
+    elif mutation == "coordinate-continuity":
+        case["inputCoordinate"]["event.perPitch.rbi.runnerContinuityByRunner"] = "not-required"
+    elif mutation == "cause-person":
+        rbi["cause_by_runner"]["by_runner"]["third"]["person"] = (
+            case["inputPayload"]["pre_state"]["batter"]
+        )
+    else:
+        pitch["thirdOutTimingByRunner"].clear()
+    with pytest.raises(ObservationBindingError, match=reason):
+        _validate_t1_observation_binding(case)
+
+
+@pytest.mark.parametrize("index", [2, 3])
+@pytest.mark.parametrize("mutation,reason", [
+    ("missing", "required-rbi-restart-cause"),
+    ("false", "required-rbi-restart-after-misplay"),
+    ("person", "same-runner-rbi-restart"),
+    ("coordinate-missing", "required-restart-coordinate"),
+    ("coordinate-false", "raw-coordinate-preserved"),
+])
+def test_t1_rbi_misplay_restart_negatives(index: int, mutation: str, reason: str) -> None:
+    """RBI04の再発進と当該ミスプレイの因果を推測させない。"""
+    case = copy.deepcopy(_rbi_misplay_cases()[index])
+    rbi = case["inputPayload"]["per_pitch"]["rbi"]
+    axis = "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay"
+    if mutation == "missing":
+        rbi["restart_by_runner"] = {"kind": "not-required"}
+    elif mutation == "false":
+        rbi["restart_by_runner"]["by_runner"]["third"]["after_observing_misplay"] = False
+    elif mutation == "person":
+        rbi["restart_by_runner"]["by_runner"]["third"]["person"] = (
+            case["inputPayload"]["pre_state"]["batter"]
+        )
+    elif mutation == "coordinate-missing":
+        del case["inputCoordinate"][axis]
+    else:
+        case["inputCoordinate"][axis] = False
+    with pytest.raises(ObservationBindingError, match=reason):
+        _validate_t1_observation_binding(case)
+
+
+def test_t1_rbi_misplay_branch_mapping_and_inverse() -> None:
+    """正式台帳の母集合を維持して新二分岐を既正逆照合へ通す。"""
+    history_checker.check_repository(
+        REPOSITORY_ROOT, Path("contracts/state-transition/branch_row_mapping_v1.json")
+    )
+    register = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/clause_branch_register_v1.json"
+    )
+    targets = {x["branchId"] for x in register["branches"]
+               if x["branchId"].startswith(("INT-", "OUT3-", "RBI-"))}
+    assert len(targets) == 21
+    coverage = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/manual_fixture_branch_coverage_v1.json"
+    )
+    remaining = {x["branchId"] for x in coverage["missingFixtureBranches"]} & targets
+    assert len(remaining) == 11
+    assert {"RBI-03", "RBI-04"}.isdisjoint(remaining)
+
+
+@pytest.mark.parametrize("mutation", ["missing-map", "extra-map", "wrong-row", "wrong-output"])
+def test_t1_rbi_misplay_mapping_mutants_rejected(mutation: str) -> None:
+    """新分岐の欠落/余分/行差替/期待反転を既対応表consumerで拒否する。"""
+    base = "contracts/state-transition/"
+    mapping = _load_object(REPOSITORY_ROOT / (base + "branch_row_mapping_v1.json"))
+    schema = _load_object(REPOSITORY_ROOT / (base + "branch_row_mapping_schema_v1.json"))
+    coverage = _load_object(REPOSITORY_ROOT / (base + "manual_fixture_branch_coverage_v1.json"))
+    register = _load_object(REPOSITORY_ROOT / (base + "clause_branch_register_v1.json"))
+    documents = {x["fixturePath"]: _load_object(REPOSITORY_ROOT / x["fixturePath"])
+                 for x in coverage["fixtureSources"]}
+    entry = next(x for x in mapping["mappings"] if x["branchId"] == "RBI-03")
+    other = next(x for x in mapping["mappings"] if x["branchId"] == "RBI-04")
+    if mutation == "missing-map":
+        mapping["mappings"].remove(entry)
+    elif mutation == "extra-map":
+        mapping["mappings"].append(copy.deepcopy(entry))
+    elif mutation == "wrong-row":
+        entry["rowRef"] = copy.deepcopy(other["rowRef"])
+    else:
+        fixture = next(
+            x for x in documents[base + "state_transition_manual_fixtures_v1.json"]["fixtures"]
+            if x["case"]["branchId"] == "RBI-03"
+        )
+        fixture["case"]["expected"]["statFlags"]["打点"] = False
+    with pytest.raises(history_checker.BranchRowMappingError):
+        history_checker.check_documents(mapping, schema, coverage, register,
+                                       _repository_contract(),
+                                       _load_object(
+                                           REPOSITORY_ROOT / (base + "game_end_contract_v1.json")
+                                       ),
+                                       documents)
+
+
+def _rbi_false_boundary_case() -> dict[str, Any]:
+    """RBI08の正常なfalse境界を読む。"""
+    return next(case for case in _repository_contract()["cases"]
+                if case["caseId"] == "ST-RBI-08-RESTART-NONCAUSAL-01")
+
+
+def test_t1_rbi_false_boundary_single_observation_and_effect() -> None:
+    """1観測だけ反転した正常入力を実観測consumerと実在新行へ通す。"""
+    case = _rbi_false_boundary_case()
+    _validate_t1_observation_binding(case)
+    source = next(item for item in _rbi_misplay_cases() if item["inputId"] == "n0005")
+    restored = copy.deepcopy(case["inputPayload"])
+    restored["per_pitch"]["rbi"]["restart_by_runner"]["by_runner"]["third"][
+        "after_observing_misplay"
+    ] = True
+    assert restored == source["inputPayload"]
+    output = copy.deepcopy(case["expected"])
+    assert output["statFlags"]["打点"] is True
+    output["statFlags"]["打点"] = False
+    assert output == source["expected"]
+    row = history_checker._unique_rows(
+        _repository_contract()["matrixRows"], case["rowRef"]["coordinate"]
+    )
+    assert _manual_fixture_coordinate(row) == case["inputCoordinate"]
+    assert {key: row[key] for key in case["expected"]} == case["expected"]
+
+
+def test_t1_rbi_false_boundary_normal_coverage_and_mapping() -> None:
+    """falseとtrueを正常case/行で消費し追加RBI08の正逆対応を照合する。"""
+    axis = "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay"
+    cases = [case for case in _repository_contract()["cases"]
+             if axis in case["inputCoordinate"]]
+    assert {case["inputCoordinate"][axis] for case in cases} == {False, True}
+    assert any(case["inputId"] == "n0007" and case["inputCoordinate"][axis] is False
+               for case in cases)
+    for case in cases:
+        _validate_t1_observation_binding(case)
+        row = history_checker._unique_rows(
+            _repository_contract()["matrixRows"], case["rowRef"]["coordinate"]
+        )
+        assert _manual_fixture_coordinate(row) == case["inputCoordinate"]
+    history_checker.check_repository(
+        REPOSITORY_ROOT, Path("contracts/state-transition/branch_row_mapping_v1.json")
+    )
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing-fixture", "missing-map", "extra-map", "duplicate-fixture",
+    "wrong-branch", "wrong-row", "wrong-output", "wrong-input",
+    "missing-executable-case", "duplicate-executable-case", "duplicate-main-case-id",
+])
+def test_t1_rbi_false_boundary_additional_mapping_mutants(mutation: str) -> None:
+    """追加正例の入力/出力/分岐/実行先と両方向exact-setを拒否で守る。"""
+    base = "contracts/state-transition/"
+    mapping = _load_object(REPOSITORY_ROOT / (base + "branch_row_mapping_v1.json"))
+    schema = _load_object(REPOSITORY_ROOT / (base + "branch_row_mapping_schema_v1.json"))
+    coverage = _load_object(REPOSITORY_ROOT / (base + "manual_fixture_branch_coverage_v1.json"))
+    register = _load_object(REPOSITORY_ROOT / (base + "clause_branch_register_v1.json"))
+    documents = {x["fixturePath"]: _load_object(REPOSITORY_ROOT / x["fixturePath"])
+                 for x in coverage["fixtureSources"]}
+    contract = _repository_contract()
+    fixture = next(x for x in documents[base + "state_transition_manual_fixtures_v1.json"][
+        "fixtures"] if x["case"]["branchId"] == "RBI-08")
+    entry = next(x for x in mapping["mappings"] if x["branchId"] == "RBI-08")
+    case = fixture["additionalCases"][0]
+    if mutation == "missing-fixture":
+        del fixture["additionalCases"]
+    elif mutation == "missing-map":
+        del entry["additionalCaseMappings"]
+    elif mutation == "extra-map":
+        entry["additionalCaseMappings"].append(copy.deepcopy(entry["additionalCaseMappings"][0]))
+    elif mutation == "duplicate-fixture":
+        fixture["additionalCases"].append(copy.deepcopy(case))
+    elif mutation == "wrong-branch":
+        case["branchId"] = "RBI-04"
+    elif mutation == "wrong-row":
+        entry["additionalCaseMappings"][0]["rowRef"] = copy.deepcopy(entry["rowRef"])
+    elif mutation == "wrong-output":
+        case["expected"]["statFlags"]["打点"] = False
+    elif mutation == "wrong-input":
+        case["inputPayload"]["per_pitch"]["rbi"]["restart_by_runner"]["by_runner"][
+            "third"]["after_observing_misplay"] = True
+    elif mutation == "missing-executable-case":
+        contract["cases"] = [x for x in contract["cases"] if x["caseId"] != case["caseId"]]
+    elif mutation == "duplicate-executable-case":
+        contract["cases"].append(copy.deepcopy(_rbi_false_boundary_case()))
+    else:
+        case["caseId"] = fixture["case"]["caseId"]
+        entry["additionalCaseMappings"][0]["caseId"] = case["caseId"]
+    with pytest.raises(history_checker.BranchRowMappingError):
+        history_checker.check_documents(
+            mapping, schema, coverage, register, contract,
+            _load_object(REPOSITORY_ROOT / (base + "game_end_contract_v1.json")), documents,
+        )
+
+
+_G6_S02_ASSET_NAMES = (
+    "t1_g6_s02_input_schema_v1.json",
+    "t1_g6_s02_inputs_v1.json",
+    "t1_g6_s02_author_cases_v1.json",
+)
+
+
+def _g6_s02_assets() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """必要な3資産だけを読み、製品計算や外部candidateへ依存しない。"""
+    schema, packet, author = (
+        _load_object(REPOSITORY_ROOT / "contracts/state-transition" / name)
+        for name in _G6_S02_ASSET_NAMES
+    )
+    return schema, packet, author
+
+
+def _assert_g6_s02_fixture_correspondence(packet: dict[str, Any], author: dict[str, Any]) -> None:
+    """入力対と作者の必要条件/状態不変fixtureを比較する。
+
+    T1を実行したり、入力から操作結果・状態を生成したりしない。
+    """
+    assert [x["input_id"] for x in packet["inputs"]] == [
+        x["input_id"] for x in author["cases"]
+    ]
+    for raw, expected in zip(packet["inputs"], author["cases"], strict=True):
+        assert expected["same_inning"] is (
+            raw["pre_state"]["inning"] == raw["tiebreak_start"]["inning"]
+        )
+        obligation = expected["t1_effect_obligation"]
+        if expected["same_inning"] is False:
+            assert obligation["kind"] == "must-not-apply"
+            assert obligation["pre_state_after"] == raw["pre_state"]
+            assert obligation["scoreboard_effect"] == "unchanged"
+            assert obligation["stat_flags_effect"] == "all-23-unchanged"
+            assert obligation["history_effect"] == "unchanged"
+        else:
+            assert obligation == {"kind": "other-preconditions-still-required"}
+
+
+def test_g6_s02_closed_projection_and_fixture_correspondence() -> None:
+    """4入力は閉型を満たし、回一致は必要条件だけを表す。"""
+    schema, packet, author = _g6_s02_assets()
+    schema_checker._validate_instance(packet, schema, schema, "$")
+    _assert_g6_s02_fixture_correspondence(packet, author)
+    assert [x["same_inning"] for x in author["cases"]] == [True, False, False, True]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("inning", 0), ("inning", True), ("inning", "10"),
+        ("runnerPlacement", "loaded"), ("leadoffBatter", 0),
+        ("leadoffBatter", 10), ("leadoffBatter", False),
+    ],
+)
+def test_g6_s02_payload_invalid_or_unknown_values_are_structurally_rejected(
+    field: str, value: object,
+) -> None:
+    """既存payloadの型/域外値を成功観測へ補完しない。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(packet)
+    changed["inputs"][0]["tiebreak_start"][field] = value
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(changed, schema, schema, "$")
+
+
+@pytest.mark.parametrize("location", ["packet", "entry", "state", "count", "payload"])
+def test_g6_s02_missing_and_extra_fields_are_structurally_rejected(location: str) -> None:
+    """全object境界で欠落と余剰を検査する。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(packet)
+    objects = {
+        "packet": changed,
+        "entry": changed["inputs"][0],
+        "state": changed["inputs"][0]["pre_state"],
+        "count": changed["inputs"][0]["pre_state"]["count"],
+        "payload": changed["inputs"][0]["tiebreak_start"],
+    }
+    target = objects[location]
+    removed_key = next(iter(target))
+    saved = target.pop(removed_key)
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(changed, schema, schema, "$")
+    target[removed_key] = saved
+    target["expected"] = True
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(changed, schema, schema, "$")
+
+
+@pytest.mark.parametrize("index", [0, 1, 2, 3])
+def test_g6_s02_both_directions_of_inning_fixture_drift_are_rejected(index: int) -> None:
+    """一致/不一致の両側でpayload回を無視したfixture比較を許さない。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(packet)
+    changed["inputs"][index]["tiebreak_start"]["inning"] = (
+        changed["inputs"][index]["pre_state"]["inning"]
+        if index in [1, 2] else changed["inputs"][index]["pre_state"]["inning"] + 1
+    )
+    schema_checker._validate_instance(changed, schema, schema, "$")
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(changed, author)
+
+
+def test_g6_s02_mismatch_state_change_and_matching_apply_claim_are_rejected() -> None:
+    """状態変更0を壊す作者値と、必要条件だけから適用を主張する値を拒否する。"""
+    schema, packet, author = _g6_s02_assets()
+    changed = copy.deepcopy(author)
+    changed["cases"][1]["t1_effect_obligation"]["pre_state_after"]["inning"] = 11
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(packet, changed)
+    changed = copy.deepcopy(author)
+    changed["cases"][0]["t1_effect_obligation"] = {"kind": "applied"}
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(packet, changed)
+    changed = copy.deepcopy(author)
+    changed["cases"][1]["t1_effect_obligation"] = {
+        "kind": "other-preconditions-still-required"
+    }
+    with pytest.raises(AssertionError):
+        _assert_g6_s02_fixture_correspondence(packet, changed)
+
+
+def test_g6_s02_pure_input_has_no_branch_expectation_or_author_reference() -> None:
+    """入力は原値のみで、期待・分岐名・作者資料を混ぜない。"""
+    schema, packet, author = _g6_s02_assets()
+    text = json.dumps(packet, ensure_ascii=False)
+    for forbidden in ["G6", "S02", "branch", "expected", "author", "activationRelation"]:
+        assert forbidden not in text
+    for item in packet["inputs"]:
+        assert set(item) == {"input_id", "pre_state", "tiebreak_start"}
+
+
+
+
+def test_g6_s02_reference_definitions_and_formal_cases_are_unchanged() -> None:
+    """正式pure-state/操作payloadへ同値に束縛し、既111caseを変換しない。"""
+    schema, _packet, author = _g6_s02_assets()
+    formal_schema = _load_object(SCHEMA_PATH)
+    contract = _load_object(CONTRACT_PATH)
+    payloads = [
+        row["payloadShape"] for row in contract["operationRows"]
+        if row["operationKind"] == "tiebreak-start"
+    ]
+    assert len(payloads) == 3
+    for name, definition in schema["$defs"].items():
+        if name == "T1TiebreakStartPayloadV1":
+            assert all(definition == payload for payload in payloads)
+        else:
+            assert definition == formal_schema["$defs"][name]
+    case_ids = {case["caseId"] for case in contract["cases"]}
+    assert all(
+        case["existing_positive_reference"] in case_ids
+        for case in author["cases"] if case["existing_positive_reference"] is not None
+    )
+    assert [len(contract[k]) for k in ("matrixRows", "operationRows", "undoRows", "cases")] == [
+        49, 10, 10, 116,
+    ]

@@ -12,8 +12,10 @@ import subprocess
 import sys
 import tempfile
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
+from types import MappingProxyType
 from typing import Any
 
 try:
@@ -1301,35 +1303,216 @@ def _carry_array(document: dict[str, Any], pointer: str) -> list[Any]:
     raise HumanReviewSignatureRecordError("carry append位置が許可集合外")
 
 
-def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
+_GATE6_T1_APPEND_PR = 185
+_GATE6_T1_APPEND_BRANCH = "feature/mvp-t1-input-closure"
+GATE6_T1_APPEND_PATH = PurePosixPath("contracts/state-transition/gate6_t1_input_append_v1.json")
+GATE6_T1_APPEND_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/gate6_t1_input_append_schema_v1.json"
+)
+_GATE6_T1_CASE_IDS = (
+    "ST-RBI-03-HELD-TOO-LONG-01", "ST-RBI-03-UNNECESSARY-THROW-01",
+    "ST-RBI-04-HELD-TOO-LONG-01", "ST-RBI-04-UNNECESSARY-THROW-01",
+    "ST-RBI-08-RESTART-NONCAUSAL-01",
+)
+@dataclass(frozen=True)
+class _Gate6Baseline:
+    """私有factoryがGitの導入baseとanchorを照合した不変の原本集合。"""
+
+    base: str
+    anchor: str
+    policy_digest: str
+    materials: Mapping[str, bytes]
+
+
+def _gate6_ready_values(root: Path) -> tuple[str, str, str]:
+    """既閉schemaのready形から重複していた参照値を取り出す。"""
+    schema = _object(descriptor_checker.load_json(root / GATE6_T1_APPEND_SCHEMA_PATH,
+                                                "T1 append schema"), "T1 append schema")
+    branches = [branch for branch in schema.get("oneOf", [])
+                if isinstance(branch, dict) and branch.get("properties", {}).get(
+                    "status", {}).get("const") == "candidate-for-delegated-verification"]
+    if len(branches) != 1:
+        raise HumanReviewSignatureRecordError("T1 append schemaのready形が一意でない")
+    properties = branches[0]["properties"]
+    anchor = properties["anchor"]["properties"]
+    commit = anchor["commit"]["const"]
+    carry_hash = anchor["carryRawSha256"]["const"]
+    policy_hash = properties["authority"]["properties"]["sourcePolicySha256"]["const"]
+    if (not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None
+            or any(not isinstance(v, str) or re.fullmatch(r"[0-9a-f]{64}", v) is None
+                   for v in (carry_hash, policy_hash))):
+        raise HumanReviewSignatureRecordError("T1 append schemaの固定参照型が不正")
+    return commit, carry_hash, policy_hash
+
+
+def _gate6_git_object(root: Path, revision: str, path: str | PurePosixPath) -> dict[str, Any]:
+    """Git原本も既strict duplicate-key readerで解釈する。"""
+    return _object(json.loads(_carry_git_bytes(root, ["show", f"{revision}:{path}"]),
+                             object_pairs_hook=descriptor_checker._reject_duplicate_keys),
+                   "Gate6 Git原本")
+
+
+def _gate6_baseline_body(
+    root: Path, record: Mapping[str, Any] | None = None, *, actual_base: str | None = None,
+) -> _Gate6Baseline:
+    """最終eventのbase一致を原本選択より先に検査する。localは技術検査だけ。"""
+    if record is None:
+        record = _object(descriptor_checker.load_json(root / GATE6_T1_APPEND_PATH,
+                                                    "T1 append"), "T1 append")
+    base = record["authority"]["baseRevision"]
+    if actual_base is not None and actual_base != base:
+        raise HumanReviewSignatureRecordError("T1 appendの最終PR baseと記録が不一致")
+    if not isinstance(base, str) or re.fullmatch(r"[0-9a-f]{40}", base) is None:
+        raise HumanReviewSignatureRecordError("T1 appendの導入baseが不正")
+    anchor, carry_hash, policy_hash = _gate6_ready_values(root)
+    if (record["anchor"] != {"commit": anchor, "carryRawSha256": carry_hash}
+            or record["authority"]["sourcePolicySha256"] != policy_hash):
+        raise HumanReviewSignatureRecordError("T1 appendのschema/record固定参照が不一致")
+    carry = _gate6_git_object(root, base, GATE6_CARRY_PATH)
+    old_schema = _gate6_git_object(root, base, GATE6_CARRY_SCHEMA_PATH)
+    descriptor_checker._validate_instance(carry, old_schema, old_schema, "base旧carry")
+    parents = _carry_git_bytes(root, ["rev-parse", f"{base}^@"]).decode("ascii").split()
+    if parents != [carry["authority"]["baseRevision"], anchor]:
+        raise HumanReviewSignatureRecordError("T1 appendの導入baseの2親/anchorが不一致")
+    _carry_git_bytes(root, ["merge-base", "--is-ancestor", anchor, base])
+    paths = {str(GATE6_CARRY_PATH), str(GATE6_CARRY_SCHEMA_PATH),
+             str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH),
+             carry["authority"]["path"], *_GATE6_RETAINED_PATHS}
+    materials = {}
+    for path in paths:
+        raw = _carry_git_bytes(root, ["show", f"{base}:{path}"])
+        if raw != _carry_git_bytes(root, ["show", f"{anchor}:{path}"]):
+            raise HumanReviewSignatureRecordError("anchorから導入baseへ旧保存原本が変わった")
+        materials[path] = raw
+    if (hashlib.sha256(materials[str(GATE6_CARRY_PATH)]).hexdigest() != carry_hash
+            or hashlib.sha256(materials[carry["authority"]["path"]]).hexdigest() != policy_hash
+            or carry["authority"]["sha256"] != policy_hash):
+        raise HumanReviewSignatureRecordError("T1 appendの旧carry/policy実hashが不一致")
+    return _Gate6Baseline(base, anchor, policy_hash, MappingProxyType(materials))
+
+
+def _gate6_baseline(
+    root: Path, record: Mapping[str, Any] | None = None, *, actual_base: str | None = None,
+) -> _Gate6Baseline:
+    """不明なGit/閉schemaを固定基準選択の成功へfallbackさせない。"""
+    try:
+        return _gate6_baseline_body(root, record, actual_base=actual_base)
+    except (KeyError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+
+class _Gate6CurrentReader:
+    """現checkoutを読むprivate入口。公開APIで読取revisionを選ばせない。"""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.head = _carry_git_bytes(root, ["rev-parse", "HEAD"]).decode("ascii").strip()
+
+    def read_bytes(self, path: str | PurePosixPath) -> bytes:
+        """現在の検査対象byteを返す。"""
+        return (self.root / path).read_bytes()
+
+    def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
+        """既strict readerを使い、旧テストの読取境界も保持する。"""
+        return _object(descriptor_checker.load_json(self.root / path, label), label)
+
+
+class _Gate6AcceptedAnchorReader(_Gate6CurrentReader):
+    """固定受理anchorだけを読む。任意commitを受ける引数は持たない。"""
+
+    def __init__(self, root: Path, *, baseline: _Gate6Baseline | None = None) -> None:
+        self.root = root
+        self.baseline = _gate6_baseline(root) if baseline is None else baseline
+        self.head = self.baseline.anchor
+
+    def read_bytes(self, path: str | PurePosixPath) -> bytes:
+        """実Gitから固定blobを読む。checkoutや旧コードを実行しない。"""
+        return _carry_git_bytes(self.root, ["show", f"{self.head}:{path}"])
+
+    def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
+        """固定snapshotのschema/記録/subjectを重複key拒否で読む。"""
+        return _object(json.loads(self.read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+
+
+def _gate6_legacy_policy_prefix(
+    authority: Mapping[str, Any], policy: Mapping[str, Any],
+) -> dict[str, Any]:
+    """旧PR183は新appendなしで、旧hashと同じ原文の唯一prefixを復元する。"""
+    matches = []
+    for count in range(1, len(policy["targets"]) + 1):
+        candidate = {**policy, "targets": policy["targets"][:count]}
+        raw = (json.dumps(candidate, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        if hashlib.sha256(raw).hexdigest() == authority["sha256"]:
+            matches.append(candidate)
+    if (len(matches) != 1 or matches[0].get("enabled") is not True
+            or {"pr": _GATE6_INTRODUCTION_PR, "branch": authority["branch"]}
+            not in matches[0]["targets"]):
+        raise HumanReviewSignatureRecordError("旧carry policy原文の唯一prefixを復元できない")
+    return matches[0]
+
+
+def _validate_gate6_carry_policy(
+    root: Path, head: str, guard: Any, authority: Mapping[str, Any],
+    policy: Mapping[str, Any], policy_digest: str, policy_bytes: bytes,
+    baseline: _Gate6Baseline | None = None,
+) -> None:
+    """既受理policyの不変部分と対象表の追記だけを技術的に継承する。"""
+    if (
+        hashlib.sha256(policy_bytes).hexdigest() != policy_digest
+        or authority["repository"] != policy["repository"]
+        or {"pr": authority["pr"], "branch": authority["branch"]} not in policy["targets"]
+    ):
+        raise HumanReviewSignatureRecordError("carryの委任policy・対象が不一致")
+    if authority["sha256"] == policy_digest:
+        return
+    if (authority["pr"] != _GATE6_INTRODUCTION_PR
+            or authority["path"] != str(guard.DELEGATION_POLICY_PATH)):
+        raise HumanReviewSignatureRecordError("carryの既受理policy識別が不一致")
+    if baseline is None:
+        accepted = _gate6_legacy_policy_prefix(authority, policy)
+        accepted_digest = authority["sha256"]
+    else:
+        accepted = _object(json.loads(baseline.materials[authority["path"]],
+                         object_pairs_hook=descriptor_checker._reject_duplicate_keys),
+                         "base旧policy")
+        accepted_digest = hashlib.sha256(baseline.materials[authority["path"]]).hexdigest()
+    if (authority["sha256"] != accepted_digest
+            or authority["repository"] != accepted["repository"]
+            or {"pr": authority["pr"], "branch": authority["branch"]} not in accepted["targets"]
+            or {key: value for key, value in policy.items() if key != "targets"}
+            != {key: value for key, value in accepted.items() if key != "targets"}
+            or policy["targets"][:len(accepted["targets"])] != accepted["targets"]):
+        raise HumanReviewSignatureRecordError("carryの既受理policyに追記以外の変更がある")
+
+
+def _validate_gate6_carry_body(
+    root: Path, reader: _Gate6CurrentReader,
+) -> dict[str, Any]:
     """旧記録と現在値の技術的継承だけを検査し、委任受理は返さない。"""
-    schema = _object(descriptor_checker.load_json(root / GATE6_CARRY_SCHEMA_PATH,
-                                                "carry schema"), "carry schema")
-    carry = _object(descriptor_checker.load_json(root / GATE6_CARRY_PATH, "carry"), "carry")
+    schema = reader.load_json(GATE6_CARRY_SCHEMA_PATH, "carry schema")
+    carry = reader.load_json(GATE6_CARRY_PATH, "carry")
     descriptor_checker._validate_instance(carry, schema, schema, "carry")
-    limit = _policy(_load_schema(root))["subjectDigest"]["safeIntegerLimit"]
+    signature_schema = reader.load_json(SCHEMA_PATH, "署名schema")
+    limit = _policy(signature_schema)["subjectDigest"]["safeIntegerLimit"]
     authority = carry["authority"]
     base = authority["baseRevision"]
-    head = _carry_git_bytes(root, ["rev-parse", "HEAD"]).decode("ascii").strip()
+    head = reader.head
     _carry_git_bytes(root, ["merge-base", "--is-ancestor", base, head])
     guard = _carry_core_guard(root)
     try:
         policy, policy_digest = guard._load_delegation_policy(root, head)
     except guard.GuardError as error:
         raise HumanReviewSignatureRecordError(str(error)) from error
-    policy_bytes = (root / authority["path"]).read_bytes()
-    if (
-        hashlib.sha256(policy_bytes).hexdigest() != policy_digest
-        or authority["sha256"] != policy_digest
-        or authority["repository"] != policy["repository"]
-        or {"pr": authority["pr"], "branch": authority["branch"]} not in policy["targets"]
-    ):
-        raise HumanReviewSignatureRecordError("carryの委任policy・対象が不一致")
+    _validate_gate6_carry_policy(root, head, guard, authority, policy, policy_digest,
+                                 reader.read_bytes(authority["path"]),
+                                 getattr(reader, "baseline", None))
     retained = {entry["path"]: entry["sha256"] for entry in carry["retainedDocuments"]}
     if set(retained) != _GATE6_RETAINED_PATHS or len(retained) != len(carry["retainedDocuments"]):
         raise HumanReviewSignatureRecordError("carryの旧記録保存集合がexact-set不一致")
     for path, expected_hash in retained.items():
-        current = (root / path).read_bytes()
+        current = reader.read_bytes(path)
         if (
             current != _carry_git_bytes(root, ["show", f"{base}:{path}"])
             or hashlib.sha256(current).hexdigest() != expected_hash
@@ -1361,8 +1544,7 @@ def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
             or compute_subject_digest(old, limit) != entry["oldSubjectDigest"]
         ):
             raise HumanReviewSignatureRecordError("carryの旧対象raw/JCS digestが不一致")
-        record = _object(descriptor_checker.load_json(root / entry["legacyRecordPath"],
-                                                     "旧署名記録"), "旧署名記録")
+        record = reader.load_json(entry["legacyRecordPath"], "旧署名記録")
         if record["subject"] != {"path": path, "digest": entry["oldSubjectDigest"]}:
             raise HumanReviewSignatureRecordError("旧署名記録と実対象が不一致")
         # 既validatorは変更せず、旧対象の隔離rootで元の記録をそのまま検証する。
@@ -1371,8 +1553,8 @@ def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
             target = legacy_root / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(old_bytes)
-            validate_signature_record(legacy_root, record, schema_value=_load_schema(root))
-        current = _object(descriptor_checker.load_json(root / path, "現対象"), "現対象")
+            validate_signature_record(legacy_root, record, schema_value=signature_schema)
+        current = reader.load_json(path, "現対象")
         if compute_subject_digest(current, limit) != entry["currentSubjectDigest"]:
             raise HumanReviewSignatureRecordError("carryの現対象digestが不一致")
         projection = entry["projection"]
@@ -1411,18 +1593,50 @@ def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
     return carry
 
 
+
+def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
+    """現在値の旧carry検査は共有bodyを通す。新appendとは別のまま保つ。"""
+    return _validate_gate6_carry_body(root, _Gate6CurrentReader(root))
+
+
+
 def validate_gate6_subject_carry(root: Path) -> None:
     """技術的不変条件だけを検査する。最終委任受理・本人署名を表明しない。"""
     try:
-        _validate_gate6_subject_carry(root)
+        if _gate6_t1_append_is_ready(root):
+            _validate_gate6_t1_input_append(root)
+        else:
+            _validate_gate6_subject_carry(root)
     except (
         KeyError, TypeError, ValueError, OSError, descriptor_checker.DescriptorCheckError,
     ) as error:
         raise HumanReviewSignatureRecordError(str(error)) from error
 
 
+def _validate_gate6_checkout(root: Path, event: Any) -> None:
+    """署名対象headと同一treeの正確なCI mergeだけを追加で許す。"""
+    if any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None
+           for value in (event.base_sha, event.head_sha)):
+        raise HumanReviewSignatureRecordError("最終eventのGit識別値が不正")
+    actual = _carry_git_bytes(root, ["rev-parse", "HEAD"]).decode("ascii").strip()
+    if re.fullmatch(r"[0-9a-f]{40}", actual) is None:
+        raise HumanReviewSignatureRecordError("CI checkoutのGit識別値が不正")
+    if actual == event.head_sha:
+        return
+    parents = _carry_git_bytes(root, ["rev-parse", f"{actual}^@"]).decode("ascii").split()
+    if parents != [event.base_sha, event.head_sha]:
+        raise HumanReviewSignatureRecordError("CI checkoutの親が最終eventと不一致")
+    _carry_git_bytes(root, ["merge-base", "--is-ancestor", event.base_sha, event.head_sha])
+    actual_tree = _carry_git_bytes(root, ["rev-parse", f"{actual}^{{tree}}"])
+    head_tree = _carry_git_bytes(root, ["rev-parse", f"{event.head_sha}^{{tree}}"])
+    if (re.fullmatch(rb"[0-9a-f]{40}\s*", actual_tree) is None
+            or actual_tree != head_tree):
+        raise HumanReviewSignatureRecordError("CI checkoutの全treeが最終headと不一致")
+
+
 def _validate_gate6_head_bytes(root: Path, event: Any, authority: Mapping[str, Any]) -> None:
     """検査入力/実行validatorが最終eventのGit blobと一致することを確認する。"""
+    _validate_gate6_checkout(root, event)
     paths = {
         str(GATE6_CARRY_PATH), str(GATE6_CARRY_SCHEMA_PATH),
         str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH),
@@ -1496,13 +1710,263 @@ def validate_other_pr_gate6_carry_unchanged(root: Path, event: Any) -> None:
             raise HumanReviewSignatureRecordError("別PRで既受理carry/schema/対象を変更している")
 
 
+def _gate6_t1_append_is_ready(root: Path) -> bool:
+    """未供給を旧carryの不変検査へ限定し、PR185の新受理とは分ける。"""
+    path = root / GATE6_T1_APPEND_PATH
+    if not path.exists():
+        return False
+    record = _object(descriptor_checker.load_json(path, "T1 append"), "T1 append")
+    return record.get("status") != "pending-root-values"
+
+
+def _validate_t1_append_correspondence(changes: Mapping[str, Any]) -> None:
+    """固定5caseと追加行/coverageを同順序で照合する。意味計算はしない。"""
+    try:
+        import representative_selection as selection_checker
+    except ModuleNotFoundError:  # pragma: no cover - package経路
+        from scripts import representative_selection as selection_checker
+    rows = changes["/matrixRows"]["values"]
+    cases = changes["/cases"]["values"]
+    refs = changes["/mustOperationCoverage/mappings/0/rowRefs"]["values"]
+    if (len(rows) != 5 or len(cases) != 5 or len(refs) != 5
+            or tuple(case["caseId"] for case in cases) != _GATE6_T1_CASE_IDS):
+        raise HumanReviewSignatureRecordError("T1 appendの固定5case/5rowがexact-set不一致")
+    coordinates = []
+    for row, case, ref in zip(rows, cases, refs, strict=True):
+        coordinate = {key: row[key] for key in ("eventKind", "resultId", "precondition")}
+        expected_ref = {"layer": "matrixRows", "coordinate": coordinate}
+        output = {key: value for key, value in row.items()
+                  if key not in {"eventKind", "resultId", "precondition", "remarks"}}
+        if (case["rowRef"] != expected_ref or ref != expected_ref
+                or case["expected"] != output
+                or set(output) != {"countEffect", "plateAppearanceEnded", "batterDestination",
+                                   "runnerDefaultAdvance", "outEffect", "statFlags"}
+                or case["inputCoordinate"].get("eventKind") != row["eventKind"]
+                or case["inputCoordinate"].get("resultId") != row["resultId"]
+                or not selection_checker.predicate_holds(row["precondition"],
+                                                       case["inputCoordinate"])):
+            raise HumanReviewSignatureRecordError("T1 appendのrow/case/coverage対応が不一致")
+        coordinates.append(coordinate)
+    if len({compute_subject_digest(value, 9007199254740991)
+            for value in coordinates}) != 5:
+        raise HumanReviewSignatureRecordError("T1 appendの追加rowが重複する")
+
+
+def _validate_gate6_t1_input_append_body(
+    root: Path, baseline: _Gate6Baseline | None = None,
+) -> dict[str, Any]:
+    """旧受理を固定anchorで再検査し、PR185の有限差分だけを再構成する。"""
+    reader = _Gate6CurrentReader(root)
+    schema = reader.load_json(GATE6_T1_APPEND_SCHEMA_PATH, "T1 append schema")
+    record = reader.load_json(GATE6_T1_APPEND_PATH, "T1 append")
+    descriptor_checker._validate_instance(record, schema, schema, "T1 append")
+    if record["status"] != "candidate-for-delegated-verification":
+        raise HumanReviewSignatureRecordError("T1 appendのroot正式値が未確定")
+    _exact_keys(record, {"schemaVersion", "evidenceKind", "status", "authority", "anchor",
+                         "changedCaseIds", "subjects", "scopeReceipt"}, "T1 append")
+    if (type(record["schemaVersion"]) is not int or record["schemaVersion"] != 1
+            or record["evidenceKind"] != "t1-input-append"):
+        raise HumanReviewSignatureRecordError("T1 appendの記録型が不一致")
+    receipt = _object(record["scopeReceipt"], "T1 scope receipt")
+    flags = {"personalReviewClaimed", "P6FullAcceptance", "P7FullAcceptance", "T1BodyStartComplete"}
+    _exact_keys(receipt, {"kind", "evidenceLabel", *flags}, "T1 scope receipt")
+    if (receipt["kind"] != "bounded-technical-candidate"
+            or not isinstance(receipt["evidenceLabel"], str) or not receipt["evidenceLabel"]
+            or any(receipt[key] is not False for key in flags)):
+        raise HumanReviewSignatureRecordError("T1 appendを本人確認/全成立へ拡張している")
+    baseline = _gate6_baseline(root, record) if baseline is None else baseline
+    authority = _object(record["authority"], "T1 authority")
+    _exact_keys(authority, {"repository", "pr", "branch", "path",
+                            "sourcePolicySha256", "baseRevision"},
+                "T1 authority")
+    _exact_keys(_object(record["anchor"], "T1 anchor"), {"commit", "carryRawSha256"}, "T1 anchor")
+    if (not isinstance(authority["baseRevision"], str)
+            or re.fullmatch(r"[0-9a-f]{40}", authority["baseRevision"]) is None
+            or authority["sourcePolicySha256"] != baseline.policy_digest):
+        raise HumanReviewSignatureRecordError("T1 appendのauthority識別値が不正")
+    if (type(authority["pr"]) is not int or authority["pr"] != _GATE6_T1_APPEND_PR
+            or authority["branch"] != _GATE6_T1_APPEND_BRANCH
+            or authority["repository"] != "masaki1025/pitchlog"
+            or authority["path"] != "docs/features/mvp-delegated-core-review/policy.json"
+            or record["anchor"]["commit"] != baseline.anchor
+            or tuple(record["changedCaseIds"]) != _GATE6_T1_CASE_IDS):
+        raise HumanReviewSignatureRecordError("T1 appendの固定authority/anchor/caseが不一致")
+    _carry_git_bytes(root, ["merge-base", "--is-ancestor",
+                           baseline.anchor, authority["baseRevision"]])
+    _carry_git_bytes(root, ["merge-base", "--is-ancestor", authority["baseRevision"], reader.head])
+    guard = _carry_core_guard(root)
+    try:
+        policy, digest = guard._load_delegation_policy(root, reader.head)
+    except guard.GuardError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    # 記録は固定の委任根拠を名指す。現policy hashは最終core_guard証拠で別に照合する。
+    if (hashlib.sha256(reader.read_bytes(authority["path"])).hexdigest() != digest
+            or {"pr": _GATE6_T1_APPEND_PR, "branch": _GATE6_T1_APPEND_BRANCH}
+            not in policy["targets"]):
+        raise HumanReviewSignatureRecordError("T1 appendの現policy/対象が不一致")
+    anchor = _Gate6AcceptedAnchorReader(root, baseline=baseline)
+    for path in (GATE6_CARRY_PATH, GATE6_CARRY_SCHEMA_PATH):
+        if reader.read_bytes(path) != baseline.materials[str(path)]:
+            raise HumanReviewSignatureRecordError("旧carry/schemaの固定受理byteが変更された")
+    if record["anchor"]["carryRawSha256"] != hashlib.sha256(
+            baseline.materials[str(GATE6_CARRY_PATH)]).hexdigest():
+        raise HumanReviewSignatureRecordError("固定旧carry hashが不一致")
+    old_carry = _validate_gate6_carry_body(root, anchor)
+    # 新記録自身のcurrent policy hashが一致しても、旧targetの同時改変は許さない。
+    _validate_gate6_carry_policy(root, reader.head, guard, old_carry["authority"],
+                                policy, digest, reader.read_bytes(authority["path"]), baseline)
+    for retained in old_carry["retainedDocuments"]:
+        if reader.read_bytes(retained["path"]) != anchor.read_bytes(retained["path"]):
+            raise HumanReviewSignatureRecordError("旧本人記録・sheetの固定byteが変更された")
+    limit = _policy(anchor.load_json(SCHEMA_PATH, "固定署名schema"))[
+        "subjectDigest"]["safeIntegerLimit"]
+    entries = {entry["path"]: entry for entry in record["subjects"]}
+    if len(entries) != 2 or set(entries) != {
+        str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH),
+    } or len(record["subjects"]) != 2:
+        raise HumanReviewSignatureRecordError("T1 appendの対象2subjectがexact-set不一致")
+    projections = {entry["path"]: entry["projection"] for entry in old_carry["subjects"]}
+    descriptor = reader.load_json("contracts/state-transition/input_axes_descriptor_v1.json",
+                                  "現descriptor")
+    descriptor_digest = descriptor_checker.compute_descriptor_digest(descriptor)
+    if descriptor.get("digest") != descriptor_digest:
+        raise HumanReviewSignatureRecordError("現descriptorのdigestが実射影と不一致")
+    for path, entry in entries.items():
+        _exact_keys(entry, {"path", "anchorRawSha256", "anchorDigest", "currentRawSha256",
+                           "currentDigest", "projection", "projectionDigest", "allowedChanges"},
+                    "T1 subject")
+        old_raw = anchor.read_bytes(path)
+        old = anchor.load_json(path, "固定anchor subject")
+        current_raw = reader.read_bytes(path)
+        current = reader.load_json(path, "現append subject")
+        if (hashlib.sha256(old_raw).hexdigest() != entry["anchorRawSha256"]
+                or compute_subject_digest(old, limit) != entry["anchorDigest"]
+                or hashlib.sha256(current_raw).hexdigest() != entry["currentRawSha256"]
+                or compute_subject_digest(current, limit) != entry["currentDigest"]
+                or entry["projection"] != projections[path]
+                or any(compute_subject_digest(_carry_projection(value, projections[path]), limit)
+                       != entry["projectionDigest"] for value in (old, current))):
+            raise HumanReviewSignatureRecordError("T1 appendのraw/JCS/旧署名射影が不一致")
+        expected = {"/inputAxesDescriptor/digest"}
+        if path == str(STATE_TRANSITION_CONTRACT_PATH):
+            expected |= {"/matrixRows", "/cases", "/mustOperationCoverage/mappings/0/rowRefs"}
+        changes = {change["pointer"]: change for change in entry["allowedChanges"]}
+        if set(changes) != expected or len(changes) != len(entry["allowedChanges"]):
+            raise HumanReviewSignatureRecordError("T1 appendの許可位置がexact-set不一致")
+        if path == str(STATE_TRANSITION_CONTRACT_PATH):
+            _validate_t1_append_correspondence(changes)
+        rebuilt = copy.deepcopy(old)
+        for pointer, change in changes.items():
+            keys = {"kind", "pointer", "before", "after"} if pointer == (
+                "/inputAxesDescriptor/digest"
+            ) else {"kind", "pointer", "beforeCount", "values"}
+            _exact_keys(change, keys, "T1 allowed change")
+            if pointer == "/inputAxesDescriptor/digest":
+                if (change["kind"] != "replace"
+                        or change["before"] != old["inputAxesDescriptor"]["digest"]
+                        or change["after"] != descriptor_digest):
+                    raise HumanReviewSignatureRecordError("descriptor差分が実値と不一致")
+                rebuilt["inputAxesDescriptor"]["digest"] = change["after"]
+            else:
+                array = _carry_array(rebuilt, pointer)
+                before_count = 111 if pointer == "/cases" else 44
+                if (change["kind"] != "append" or type(change["beforeCount"]) is not int
+                        or len(array) != before_count or change["beforeCount"] != before_count):
+                    raise HumanReviewSignatureRecordError("T1 appendの旧prefix件数が不一致")
+                array.extend(change["values"])
+        if compute_subject_digest(rebuilt, limit) != entry["currentDigest"]:
+            raise HumanReviewSignatureRecordError("T1 appendに許可外差分がある")
+    return record
+
+
+def _validate_gate6_t1_input_append(
+    root: Path, baseline: _Gate6Baseline | None = None,
+) -> dict[str, Any]:
+    """不正/欠落入力を新受理失敗へ閉じ、公開経路の成功へfallbackしない。"""
+    try:
+        return _validate_gate6_t1_input_append_body(root, baseline)
+    except (KeyError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+
+def _validate_gate6_t1_append_head(root: Path, event: Any, authority: Mapping[str, Any]) -> None:
+    """新記録/schemaと実行依存も最終eventのblobに束縛する。"""
+    _validate_gate6_head_bytes(root, event, authority)
+    for path in (
+        str(GATE6_T1_APPEND_PATH), str(GATE6_T1_APPEND_SCHEMA_PATH),
+        "scripts/core_guard.py", "scripts/representative_selection.py",
+        "scripts/check_input_axes_descriptor.py", "scripts/state_transition_freeze.py",
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+    ):
+        if (root / path).read_bytes() != _carry_git_bytes(
+            root, ["show", f"{event.head_sha}:{path}"]
+        ):
+            raise HumanReviewSignatureRecordError("T1 appendの検査入力と最終HEADが不一致")
+
+
+def validate_delegated_gate6_t1_input_append(root: Path, event: Any) -> None:
+    """PR185だけを現event/実diff/既非作者委任証拠で新受理する。"""
+    if event is None:
+        raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if (type(event.number) is not int or event.number != _GATE6_T1_APPEND_PR
+            or event.repository != "masaki1025/pitchlog"
+            or event.head_repository != "masaki1025/pitchlog"
+            or event.head_branch != _GATE6_T1_APPEND_BRANCH):
+        raise HumanReviewSignatureRecordError("T1 appendの新受理はPR185の固定対象だけに限定する")
+    _validate_gate6_checkout(root, event)
+    pre_record = _object(descriptor_checker.load_json(root / GATE6_T1_APPEND_PATH,
+                                                     "T1 append"), "T1 append")
+    baseline = _gate6_baseline(root, pre_record, actual_base=event.base_sha)
+    record = _validate_gate6_t1_input_append(root, baseline)
+    authority = record["authority"]
+    _validate_gate6_t1_append_head(root, event, authority)
+    guard = _carry_core_guard(root)
+    try:
+        guard.verify_delegated_confirmation(root, event)
+    except guard.GuardError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+
+def validate_other_pr_gate6_t1_append_unchanged(root: Path, event: Any) -> None:
+    """後続PRの不変継承を新PR185の受理と別に検査する。"""
+    if event is None:
+        raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if (type(event.number) is not int or event.number <= 0
+            or event.number in {_GATE6_INTRODUCTION_PR, _GATE6_T1_APPEND_PR}
+            or event.repository != "masaki1025/pitchlog"
+            or event.head_repository != "masaki1025/pitchlog"
+            or not isinstance(event.head_branch, str)
+            or not event.head_branch.startswith(("feature/", "fix/"))
+            or any(not isinstance(v, str) or re.fullmatch(r"[0-9a-f]{40}", v) is None
+                   for v in (event.base_sha, event.head_sha))):
+        raise HumanReviewSignatureRecordError("後続T1 appendの継承eventが不正")
+    _validate_gate6_checkout(root, event)
+    for path in (str(GATE6_T1_APPEND_PATH), str(GATE6_T1_APPEND_SCHEMA_PATH),
+                 str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH)):
+        if (root / path).read_bytes() != _carry_git_bytes(
+            root, ["show", f"{event.base_sha}:{path}"]
+        ):
+            raise HumanReviewSignatureRecordError("後続PRでT1 append/schema/subjectを変更している")
+    base_record = _gate6_git_object(root, event.base_sha, GATE6_T1_APPEND_PATH)
+    baseline = _gate6_baseline(root, base_record)
+    record = _validate_gate6_t1_input_append(root, baseline)
+    _validate_gate6_t1_append_head(root, event, record["authority"])
+
+
 def validate_gate6_ci_event(root: Path, event: Any) -> str:
     """PR183の新受理と、別PRの変更を伴わない継承を区別する。"""
     if event is None:
         raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number == _GATE6_T1_APPEND_PR:
+        validate_delegated_gate6_t1_input_append(root, event)
+        return "gate6 T1 input append: DELEGATED VERIFIED (not a personal signature)"
     if event.number == _GATE6_INTRODUCTION_PR:
         validate_delegated_gate6_subject_carry(root, event)
         return "gate6 delegated subject carry: VERIFIED (not a personal signature)"
+    if _gate6_t1_append_is_ready(root):
+        validate_other_pr_gate6_t1_append_unchanged(root, event)
+        return "gate6 T1 append: UNCHANGED FROM PR BASE; no new PR185 acceptance"
     validate_other_pr_gate6_carry_unchanged(root, event)
     return "gate6 prior subject carry: UNCHANGED FROM PR BASE; no new PR183 acceptance"
 
