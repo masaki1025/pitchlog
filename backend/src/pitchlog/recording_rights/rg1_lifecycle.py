@@ -402,7 +402,10 @@ class _RuntimeClient:
                     raise _unavailable()
             finally:
                 os.close(parent)
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            connected_socket: socket.socket = socket.socket(
+                socket.AF_UNIX, socket.SOCK_STREAM
+            )
+            sock = connected_socket
             sock.settimeout(_SOCKET_TIMEOUT_SECONDS)
             sock.connect(str(config.socket_path))
             _pid, uid, _gid = struct.unpack(
@@ -478,7 +481,6 @@ def serve_fresh_controller(config_path: Path) -> None:
     通常再起動・旧DB復元・非zero復旧の自動解除はこの入口に含めない。
     """
     import ctypes
-    import importlib
     import select
     import threading
 
@@ -538,7 +540,8 @@ def serve_fresh_controller(config_path: Path) -> None:
         # inodeはroot bindの所有を保持し、peercredは降格後のlisten資格へ結ぶ。
         listener.listen(64)
         # 動的解決先はこの固定製品packageだけ。未供給を代替実装で補完しない。
-        package = importlib.import_module("pitchlog.durable_rights_ledger")
+        from pitchlog import durable_rights_ledger as package
+
         ledger = package.DurableLedger(Path(config["ledger_endpoint"]))
         with psycopg.connect(
             host=config["business_socket_directory"],

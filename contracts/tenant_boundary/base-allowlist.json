@@ -29794,6 +29794,39 @@
         "PSYCOPG_CONNECTION_COMMIT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/_commit.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.rg1._build_rg1_scope_binding_statement",
+      "signature": "_build_rg1_scope_binding_statement() -> Select[tuple[str]]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/rg1_scope_binding.py"
+    },
+    {
+      "symbol": "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller",
+      "signature": "serve_fresh_controller(config_path: Path) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/recording_rights/rg1_allowed/controller.py"
+    },
+    {
+      "symbol": "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.control",
+      "signature": "control(name: str) -> object",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/recording_rights/rg1_allowed/control.py"
+    },
+    {
+      "symbol": "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.assert_borrower_backend",
+      "signature": "assert_borrower_backend(uid: int, local: BusinessBinding) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/recording_rights/rg1_allowed/borrower.py"
     }
   ],
   "conditions": [
@@ -30170,5 +30203,25 @@
   "rg1_deployment_assets": {
     "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql": "30657b77bc588c288f638318e48484bdeed685e8591699bbb175abd9dbfdfd79",
     "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json": "549cc3d0d915b34f2f8d20e905069c9905b89260f922f4a2453a9188c0336633"
+  },
+  "condition_2_rg1_scoped_findings": {
+    "backend/src/pitchlog/db/recording_rights/models.py": {
+      "source_sha256": "3056c684a12f91755c4c003579178165a84f5c02a81a5a18d5376770dce78deb",
+      "findings": [
+        {
+          "line": 65,
+          "symbol": "sqlalchemy.orm.Mapped"
+        }
+      ]
+    },
+    "backend/src/pitchlog/recording_rights/rg1_lifecycle.py": {
+      "source_sha256": "5cfa7e741b69f9ee4f80ea499fb24002bc1c1bc39d937031ae594f0030890fcd",
+      "findings": [
+        {
+          "line": 618,
+          "symbol": "fence.generation"
+        }
+      ]
+    }
   }
 }
