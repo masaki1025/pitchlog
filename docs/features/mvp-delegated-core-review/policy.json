@@ -54,6 +54,10 @@
     {
       "pr": 183,
       "branch": "feature/mvp-t1-decision-contracts"
+    },
+    {
+      "pr": 184,
+      "branch": "feature/mvp-rg1-profile-integration-candidate"
     }
   ]
 }
