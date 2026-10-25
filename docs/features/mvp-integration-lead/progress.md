@@ -530,3 +530,18 @@ PR184は9a00fd0fを通常push。最終117path/diff b238c8f0a02159100b06d0f1b2c79
 初期scopeは未提供0036の36文字IDがAlembic varchar32で停止したため、revisionだけ26文字0036_initial_right_storageへ限定是正（旧移行/DDL不変、独立0、純205成功）。次はfixtureの平坦/code配置で製品root参照がIndexErrorとなり、actorだけ正規readonly /product/backend/srcへ接合。実grant/同要求再交付1caseは20.63s成功、実3PG・v2単一worker・actual actor/RG1・V12を通し、567入力hashとreceiptをcache initial-revision-id-width-fix-20261025へ固定した。全12case/実owner越境/HTTP/UI開始の成功にはしない。診断のtimeout例外にcmd表示P1を独立検出し、固定非成功/from Noneへ是正、反映確認中。準備パス誤りで中断した検査は0件・9.25sとして保存し、残った所有7資源だけを明示削除、成功へ数えない。
 
 初期正式枝は8552d539の計画追補まで保存/通常pushし、その後a7930490でPR184の9aを通常merge（競合なし）。これは候補間供給でありPR184のdevelop統合ではない。実検証済みsource22/data95は隔離凍結を保持、正式9API/guard/初期registry等の未供給を新担当initial_registration_supplyがcache提案に限定して具体化中。rootは正式/shared唯一writer、DB枠は故障run完了後空き。開始/1球・正式T1本体/MVP全体は未完、Goal継続。
+
+
+### T1優先の入力閉鎖と実経路の最新証拠（2026-10-25）
+
+記録時刻: 2026-10-25T13:11:08.249591+00:00。直前のETA回答turnは状態照合のみで製品進捗なし。今回は固定Git/候補/CIログを再照合し、T1の必要契約整備を優先して継続。正式T1入力枝はc9adce0f（21917bf4のS02入力4path＋有限RBI11path計画承認）。S02は旧候補3JSONを保持し20追加検査/正式枝の関連370成功、完全S02や本体開始の成立とはしない。
+
+RBI03/04の4観測組合せと正常false側のRBI08を候補化し、11pathの非作者確認66fe7a3903619297e9f4b42db6408fd6704354d2665394fc00c10b58f1918471を受領、415成功/未受理凍結値6失敗。旧44row/111case/全T24656は不変、候補49row/116caseへappendのみ。隔離接合verify-t1-input-rbi-21917bf4でS02追加20を保持し件数exact追随した。descriptor実CLIはlatest newIdentity不一致を検出し、fixture6件だけの問題とは扱わない。既7.7の完全値・参照4path・pending fixture2値・旧carry継承を閉じるまで正式RBI JSONを反映しない。cache t1-gate6-append-design-20261025/design.json（ba58ff3edc534ed264936292eb0ff3d6928d4dd24fa8ccaf9c96f4727857baf2）は未承認の限定手続き案であり旧署名/旧carryの変更なし。
+
+P6新入力4件はfork none/primary規範と純入力のみ→seal後比較で得点/打点・5効果/23flag一致。別正常false1件はseal後比較で得点1/RBI08/打点1・比較可能7flag一致、残16flagはunknown維持。出所/parent trace確認とchild自己readログを区別し、完全未曝露/全P6成立へ広げない。既封印は不変。P7 online-change-sourceの有限型候補は195成功、非作者レビューへ渡した。正式markerは0/7閉鎖、P8不足は正式13のまま（上記採用後11）。Port/DB/HTTP完成を本体着手条件へ追加しない。
+
+実経路の後発証拠: 初期scope全12caseは251.09s成功。cache initial-revision-id-width-fix-20261025/root-full-scope-final-helper-receipt.jsonと567入力hashへ固定し、診断timeoutの固定非成功是正後の全12実行である。実app/actor認可・grant/同V12要求再交付・無権限/owner変更拒否・business rollbackを通したが、全故障/HTTP/UI開始は未実証。別の実owner RLS8検査はmanifest8dcc36f4b5b9721878d847f759e63b77f4e8dc48e785ec3a27e0f53fe2de8347、A/B越境拒否/ACL/単一predicate・後始末を固定。故障3runの非作者確認6fa68def5348ee02ff33f0b359c2a43eab979f640f0777bcf4eaa12639982dcfを受領。すべて隔離候補であり正式develop、UI開始/初期権取得、1球保存の達成とはしない。
+
+PR184 CI40186210626はfailureで終結: harness52失敗/30147成功/2skip、backend47失敗/3370成功/4skip/393error。10job成功を全CI成功としない。未push local1608a4f6で有限5sourceの検査入力/carry policy追記継承を独立確認して是正済み。残りはbackend段階別fixture/生成2module、凍結corpusとdatamodel blob追随。backendは共有DBを使わず12path最小scope提案まで。corpus現11比較一致/旧checker新schema不対応は実失敗として保全し、期待値を緩めない。以前のN3+6想定は訂正: 現N3=112（+1）、N4=55（+5）、合計371である。既受理値を不必要に再承認しない。
+
+利用者が新たに完了できる操作の最新実証は引き続き隔離実画面の新規作成/DB保存/再取得。開始→1球保存→再読込とT1本体は未成立。次の依存はT1残契約の正式受理と開始/初期権sourceの正式接合。全MVP/成績/CSV/耐久・実機/運用復旧の目標を維持する。
