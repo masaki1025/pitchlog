@@ -301,10 +301,14 @@ def decode_first_pitch_response(raw: str) -> FirstPitchResponse:
     try:
         if type(raw) is not str:
             raise ValueError("JSON文字列が必要")
-        json.loads(
+        parsed = json.loads(
             raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
         )
-        return _RESPONSE.validate_json(raw, by_alias=True, by_name=False)
+        result = _RESPONSE.validate_json(raw, by_alias=True, by_name=False)
+        # aliasと属性名の同時指定等で、検証後にwire memberを黙って落とさない。
+        if parsed != result.model_dump(mode="json", by_alias=True):
+            raise ValueError("wireの全構造がDTOのalias表現と不一致")
+        return result
     except (ValueError, ValidationError, TypeError):
         raise FirstPitchProtocolError("数学核の応答が固定ABIに適合しません") from None
 
