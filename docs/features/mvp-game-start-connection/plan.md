@@ -270,3 +270,6 @@ receiptとgrantは共通game/deviceを照合する。receipt.owner全値はserve
 受入は既grant/start/bodyと旧component正負を保持し、strict codecの全wire比較・canonical往復/owner不一致/非成功/秘密非露出/Unix credential/閉frame対向を確認する。独立plan reviewの260roundtrip/8拒否は計画probeとして区別し、実装後の証拠は別に固定する。必要なRuff/ty/対象pytestと候補固定後の非作者source確認で本単位を閉じる。全DB/全frontend/40分CIは型変更の途中に反復せず統合候補の区切りで実行する。
 
 B以降の専用verifier role/実enroll INSERT/実worker/HTTP/UIはこの承認の範囲外。特に『game writeでないからenrollはRG1不要』は採用しない。既sync9-5が通常管理書込みも停止するため、Bの実SQL供給前に既境界へ分類し、必要なRG1 gateを実接続する。これをAや数学核の追加全体条件にはしない。実Cookie/同tenant資格・実enroll・端末要求の送信前耐久保存・実start/再交付・初期state/同期初球保存は後続必須。A成功を画面開始/権利取得/DB/全Port/全MVP完成へ読み替えない。本人の実値確認/署名を代記しない。
+
+
+2026-10-25T20:14:41.707839+00:00、PO委任によるCodex /root判断で§10生成器の通常不具合修正を指示する。正式56候補の独立正規fullview CLIで、pytest30435収集成功後にgenerate_generation_guard_sqlのrun_path(0036)がSQLAlchemy/Alembicをimportし、rootハーネス環境からの固定SQL読取を妨げる不具合を実証した。root依存へDBライブラリを追加したり検査を省略したりせず、backend/src/pitchlog/authz/product_function_acl.pyの当該getterだけをAST/literalによる既_GENERATION_GUARD_SQL定数の非実行読取へ直す（実識別子は既sourceの_GENERATION_GUARD_SQL）。tests/test_check_authz_catalog.pyへ、migrationのimport/トップレベル副作用を実行しない正常例、欠損/重複/非literal/型異常等の拒否と実0036から生成したSQL全byte不変を追加する。この2pathは既§10許可範囲内。migration/SQL/56metadata/野球意味/既role権限/共有DBは変更0、現在author所有4pathへ触れない。旧run_path故障を保持し、非作者の最終差分確認後に保存する。新規承認待ちを作らない。
