@@ -1748,48 +1748,73 @@ def test_legacy_prefix_requires_a_unique_matching_raw_prefix(
 def _policy_extension_fixture(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> tuple[Any, dict[str, Any], dict[str, Any], dict[str, Any]]:
-    """固定anchorの実blobと合成の現HEADを既policy loaderへ渡す。"""
+    """実factoryの固定基線と現reader/HEAD照合を合成入力へ接ぐ。"""
+    from types import SimpleNamespace
+
     guard = checker._carry_core_guard(REPOSITORY_ROOT)
     authority = copy.deepcopy(_carry()["authority"])
-    head = checker._carry_git_bytes(
-        REPOSITORY_ROOT, ["rev-parse", "HEAD"],
-    ).decode().strip()
-    accepted_bytes = checker._carry_git_bytes(
-        REPOSITORY_ROOT,
-        ["show", f"{checker._GATE6_ACCEPTED_POLICY_COMMIT}:{authority['path']}"],
-    )
+    baseline = checker._gate6_baseline(REPOSITORY_ROOT)
+    anchor = baseline.anchor
+    head = checker._carry_git_bytes(REPOSITORY_ROOT, ["rev-parse", "HEAD"]).decode().strip()
+    accepted_bytes = baseline.materials[authority["path"]]
     accepted = json.loads(accepted_bytes)
     current = copy.deepcopy(accepted)
     current["targets"].append({"pr": 184, "branch": "feature/fixture-policy-extension"})
     policy_path = tmp_path / authority["path"]
     policy_path.parent.mkdir(parents=True)
-    blobs = {checker._GATE6_ACCEPTED_POLICY_COMMIT: accepted_bytes}
-
-    def read_policy(_: Path, arguments: list[str], label: str) -> bytes:
-        for commit, value in blobs.items():
-            if arguments == ["show", f"{commit}:{guard.DELEGATION_POLICY_PATH}"]:
-                return value
-        raise guard.GuardError(f"合成policy履歴がない: {label}")
-
-    monkeypatch.setattr(guard, "_delegation_git_bytes", read_policy)
+    paths = {
+        str(checker.GATE6_CARRY_PATH), str(checker.GATE6_CARRY_SCHEMA_PATH),
+        str(checker.STATE_TRANSITION_CONTRACT_PATH), str(checker.GAME_END_CONTRACT_PATH),
+        "scripts/check_human_review_signature.py", "tests/test_human_review_signature.py",
+        "docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md",
+        *checker._GATE6_RETAINED_PATHS,
+    }
+    current_materials = {path: (REPOSITORY_ROOT / path).read_bytes() for path in paths}
+    for path, raw in current_materials.items():
+        target = tmp_path / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+    blobs = {anchor: accepted_bytes}
     original_git = checker._carry_git_bytes
 
-    def read_ancestry(_: Path, arguments: list[str]) -> bytes:
+    def read_git(_: Path, arguments: list[str]) -> bytes:
+        if arguments == ["show", f"{anchor}:{authority['path']}"]:
+            if anchor not in blobs:
+                raise checker.HumanReviewSignatureRecordError("固定anchorのpolicyがない")
+            return blobs[anchor]
+        if arguments[0] == "show" and arguments[1].startswith(head + ":"):
+            path = arguments[1].split(":", 1)[1]
+            if path == authority["path"]:
+                return blobs[head]
+            return current_materials[path]
         return original_git(REPOSITORY_ROOT, arguments)
 
-    monkeypatch.setattr(checker, "_carry_git_bytes", read_ancestry)
+    def read_policy(_: Path, arguments: list[str], label: str) -> bytes:
+        try:
+            return read_git(tmp_path, arguments)
+        except checker.HumanReviewSignatureRecordError as error:
+            raise guard.GuardError(label) from error
+
+    monkeypatch.setattr(guard, "_delegation_git_bytes", read_policy)
+    monkeypatch.setattr(checker, "_carry_git_bytes", read_git)
+    event = SimpleNamespace(base_sha=baseline.base, head_sha=head)
 
     def validate(*, sync_worktree: bool = True) -> None:
         raw = json.dumps(current, ensure_ascii=False).encode()
         blobs[head] = raw
         if sync_worktree:
             policy_path.write_bytes(raw)
+        # 基線は合成値を直接授権せず、実factoryの原本/anchor照合を毎回通す。
+        fixed = checker._gate6_baseline(REPOSITORY_ROOT)
+        reader = checker._Gate6CurrentReader(tmp_path)
         try:
-            policy, digest = guard._load_delegation_policy(tmp_path, head)
+            policy, digest = guard._load_delegation_policy(tmp_path, reader.head)
         except guard.GuardError as error:
             raise checker.HumanReviewSignatureRecordError(str(error)) from error
+        checker._validate_gate6_head_bytes(tmp_path, event, authority)
         checker._validate_gate6_carry_policy(
-            tmp_path, head, guard, authority, policy, digest,
+            tmp_path, reader.head, guard, authority, policy, digest,
+            reader.read_bytes(authority["path"]), fixed,
         )
 
     return validate, authority, current, blobs
@@ -1803,24 +1828,27 @@ def test_carry_policy_accepts_only_old_policy_or_target_append(
     validate()
     current["targets"].append({"pr": 185, "branch": "fix/second-fixture-extension"})
     validate()
-    accepted = json.loads(blobs[checker._GATE6_ACCEPTED_POLICY_COMMIT])
+    accepted = json.loads(blobs[checker._gate6_ready_values(REPOSITORY_ROOT)[0]])
     current.clear()
     current.update(accepted)
     # 元のraw byteと異なる整形でも、旧対象だけの意味同値は追記0件として扱う。
     validate()
     guard = checker._carry_core_guard(REPOSITORY_ROOT)
-    raw = blobs[checker._GATE6_ACCEPTED_POLICY_COMMIT]
+    raw = blobs[checker._gate6_ready_values(REPOSITORY_ROOT)[0]]
     path = tmp_path / authority["path"]
     path.write_bytes(raw)
     checker._validate_gate6_carry_policy(
-        tmp_path, "0" * 40, guard, authority, accepted, hashlib.sha256(raw).hexdigest(),
+        tmp_path, checker._carry_git_bytes(REPOSITORY_ROOT, ["rev-parse", "HEAD"]).decode().strip(),
+        guard, authority, accepted, hashlib.sha256(raw).hexdigest(), raw,
+        checker._gate6_baseline(REPOSITORY_ROOT),
     )
 
 
 @pytest.mark.parametrize(
     "mutation",
     [
-        "disabled", "repository", "source", "source-kind", "delegated-at", "expiry",
+        "schema-version", "disabled", "repository", "source", "source-kind",
+        "delegated-at", "expiry",
         "quotes", "publisher", "publisher-role", "unknown-field", "target-unknown-field",
         "duplicate-target", "bool-pr", "remove-old", "reorder-old", "replace-old",
     ],
@@ -1831,6 +1859,7 @@ def test_carry_policy_extension_rejects_invalid_or_nonappend_policy(
     """既loaderの有効性検査と全旧targetsのprefix検査を両方維持する。"""
     validate, _, current, _ = _policy_extension_fixture(monkeypatch, tmp_path)
     fields = {
+        "schema-version": ("schema_version", 2),
         "disabled": ("enabled", False), "repository": ("repository", "foreign/repo"),
         "source": ("source", "unknown-source"), "source-kind": ("source_kind", "unknown"),
         "delegated-at": ("delegated_at", "2026-10-24"),
@@ -1862,7 +1891,7 @@ def test_carry_policy_extension_rejects_invalid_or_nonappend_policy(
 @pytest.mark.parametrize(
     "mutation",
     ["authority-hash", "authority-pr", "authority-branch", "anchor-hash", "missing-anchor",
-     "unknown-anchor", "nonancestor", "worktree-head-mismatch"],
+     "unknown-anchor", "nonancestor", "worktree-head-mismatch", "validator-head-mismatch"],
 )
 def test_carry_policy_extension_rejects_unbound_anchor_or_checkout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str,
@@ -1877,17 +1906,26 @@ def test_carry_policy_extension_rejects_unbound_anchor_or_checkout(
     elif mutation == "authority-branch":
         authority["branch"] = "fix/other-pr183-branch"
     elif mutation == "anchor-hash":
-        accepted = json.loads(blobs[checker._GATE6_ACCEPTED_POLICY_COMMIT])
+        accepted = json.loads(blobs[checker._gate6_ready_values(REPOSITORY_ROOT)[0]])
         accepted["targets"].append({"pr": 186, "branch": "fix/changed-anchor"})
-        blobs[checker._GATE6_ACCEPTED_POLICY_COMMIT] = json.dumps(accepted).encode()
+        blobs[checker._gate6_ready_values(REPOSITORY_ROOT)[0]] = json.dumps(accepted).encode()
     elif mutation == "missing-anchor":
-        blobs.pop(checker._GATE6_ACCEPTED_POLICY_COMMIT)
+        blobs.pop(checker._gate6_ready_values(REPOSITORY_ROOT)[0])
     elif mutation == "unknown-anchor":
-        monkeypatch.setattr(checker, "_GATE6_ACCEPTED_POLICY_COMMIT", "0" * 40)
+        _, carry_hash, policy_hash = checker._gate6_ready_values(REPOSITORY_ROOT)
+        monkeypatch.setattr(checker, "_gate6_ready_values", lambda _: (
+            "0" * 40, carry_hash, policy_hash,
+        ))
     elif mutation == "nonancestor":
-        def reject(_: Path, arguments: list[str]) -> bytes:
-            raise checker.HumanReviewSignatureRecordError("固定anchorは祖先でない")
+        original = checker._carry_git_bytes
+        def reject(root: Path, arguments: list[str]) -> bytes:
+            if arguments[:2] == ["merge-base", "--is-ancestor"]:
+                raise checker.HumanReviewSignatureRecordError("固定anchorは祖先でない")
+            return original(root, arguments)
         monkeypatch.setattr(checker, "_carry_git_bytes", reject)
+    elif mutation == "validator-head-mismatch":
+        source = tmp_path / "scripts/check_human_review_signature.py"
+        source.write_bytes(source.read_bytes() + b"\n")
     else:
         (tmp_path / authority["path"]).write_text("{}")
     with pytest.raises(checker.HumanReviewSignatureRecordError):
@@ -1908,19 +1946,17 @@ def test_carry_policy_extension_requires_non_targets_exact_even_after_valid_load
 ) -> None:
     """loader通過後も旧policyと全非targetsを独立に比較する。"""
     guard = checker._carry_core_guard(REPOSITORY_ROOT)
-    original = guard._load_delegation_policy
     validate, authority, current, _ = _policy_extension_fixture(monkeypatch, tmp_path)
     current["quotes"].append("synthetic extra quote")
     raw = json.dumps(current, ensure_ascii=False).encode()
     (tmp_path / authority["path"]).write_bytes(raw)
-    accepted, _ = original(REPOSITORY_ROOT, checker._GATE6_ACCEPTED_POLICY_COMMIT)
+    baseline = checker._gate6_baseline(REPOSITORY_ROOT)
+    accepted, _ = guard._load_delegation_policy(REPOSITORY_ROOT, baseline.anchor)
     head = checker._carry_git_bytes(REPOSITORY_ROOT, ["rev-parse", "HEAD"]).decode().strip()
-    monkeypatch.setattr(guard, "_load_delegation_policy", lambda *_: (
-        accepted, checker._GATE6_ACCEPTED_POLICY_SHA256,
-    ))
     with pytest.raises(checker.HumanReviewSignatureRecordError, match="追記以外"):
         checker._validate_gate6_carry_policy(
             tmp_path, head, guard, authority, current, hashlib.sha256(raw).hexdigest(),
+            raw, baseline,
         )
     # 同じ改変は、独立の既loaderでも拒否される。
     with pytest.raises(checker.HumanReviewSignatureRecordError):
