@@ -218,3 +218,11 @@ rootがreview済みcontract3を同byte採用する。作者の生成時ラベル
 唯一source7path: frontend/src/domain/initialGameRoster.ts、initialGameRoster.spec.ts、publicApi.ts、publicApi.spec.ts、initialGameRosterArtifact.spec.ts、frontend/public/domain/pitchlog-domain.js、pitchlog-domain.json（略記は直前directory）。作者creation_pathはこれだけを編集し、rootがplan/contract/Git/台帳の唯一writerとなる。新method登録以外の既T1/T2 body/error/4-5code/式/state3file/host/first_pitch/first_pitch_continuationは不変。既core globsで捕捉され、新先行登録は不要。AST/guardを変えずsourceを許可構文へ合わせる。Python/SQL/RPC/UI/DBの追加は本source小単位に含めない。
 
 受入は全19caseのTS/ビルド済artifact fullvalue、3正常/両側対称/順序/全配置相関/変異/不変、実product NodeHost・同hash headless Chromium・再build同byte、旧T1/T2・error不変、型lint、別非作者source確認。全frontendは候補固定時にまとめ、実API保存・実機は後続で必須。rootはこの有限source1小単位だけを開始承認し、完成まで人間の同じ承認を待たず進める。
+
+## 9. 開始名簿の固定host型付き呼出し
+
+2026-10-26 JST、rootはPO委任によるCodex判断として、§8の採用済みschema/d.tsを既固定hostから呼ぶ表現境界の2pathだけを承認する。backend/src/pitchlog/domainrt/initial_game_roster.py と backend/tests/domainrt/test_initial_game_roster.py。既first_pitch_continuationの不変/strict JSON/alias/member検査とopen_domain_hostの版/hash/lifetimeを再利用する。private実資格・DB・所属・開始receipt・初期stateはこの小単位で作らない。
+
+要求/応答は採用済みUUID、canonical 1..9文字列、fielding/DH、両側9/10人の閉形を不変DTOとして表現する。PythonでDH配置・打順/守備重複・業務上のteam条件を再計算せず、固定validateInitialGameRosterを一度だけ呼ぶ。成功はpoint無しprojectionの数学結果であり、開始/認可/保存の成功ではない。未知/余剰/欠損/alias重複/非canonical/非有限/型変換は拒否し、既host故障は非成功へ偽装せず伝播させる。既5拒否コードを増減せず、生入力や資格を例外へ保持しない。
+
+受入は19契約例の同artifact実host照合（既hostが数値を先拒否する例は別記）、全応答のschema/fullvalue、正負JSON/凍結/強制改変/不正応答/固定operation一回/host故障の対象検査、旧domainrtの回帰とRuff/ty。全frontend検査とDB検査は本2pathのために重複実行せず、合成候補の区切りで必要な検査を行う。rootが本2pathの作者となり、候補作成に関与していない担当によるsource/本限定計画の整合レビュー後に採否を記録する。root以外は本plan/Git/正式JSONを編集しない。
