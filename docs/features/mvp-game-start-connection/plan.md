@@ -6,7 +6,7 @@ status: active
 worktree: ../../..
 branch: feature/mvp-game-start-atomic-candidate
 created: 2026-10-24
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 反映周コミット: 適用
@@ -201,3 +201,5 @@ root所有の有限共有集合は`data-model.md`/`docs/README.md`の表/role/ep
 後続同TX sourceのbroker/read-save固定2operation/限定UM2/SQL/ACL/再送/全取消と単一TS名簿検証は既反映案の次有限範囲として残す。初期resolver・結果不明回収・実Cookie/enroll/RPC/API/UIも実1球保存前に必要だが、この閉型部品や既796数学核の開始前条件へ戻さない。全MVP義務を維持する。
 
 2026-10-26 JST、rootは上記2pathを既承認開始設計の型/保存境界具体化としてPO委任により承認。本人の実値確認・署名の代記ではない。未登録SQL/任意engine/Session/callback/常成功ゲートを導入せず、今回sourceはDB接続0とする。
+
+2026-10-26 JST、§7のread署名欠落P1反映を伴う限定計画レビュー1周をfrontmatterへ追記し、旧transport/§6本文の系列は保持する。閉payload作者の初回0e8c4738/48成功と低水準改変P2を保全。未知roleをDHへfallbackする経路を明示拒否し、nested tuple/entry/UUID/order/role/ownerの閉値再検証へ是正した反映1はhandoff1fb608a97c4f9aecf66dae552f941d9a5fcb93f88f09866c2c0e484b1504eb91、非作者最終evidence210db794faeb4a5a0cb4c74e3e611323659f7105ca0f81f8eb00b5215d64c25e/reviewecac5319a13a7839039a4a4e3d9b6580f152fbe81a121e048c845ae53e245ab2は0/0/0。独立68成功0.60s・旧48test AST/正常9,10人canonical bytesとowner同一・旧破損反例拒否を確認。rootはsource02eec45bfd4587eda46a7f9fe1fad505d5d39a122ebe9497c3ad429da0f7ef6f/testabb54b0f41040b21e317be273063df4e8fa4338fa41e06db0c56f94e3e7b10acをPO委任で受理。既DTOは606実blobの無変更seed da5662d213357b5de4770fe9c30860847136eb86ebe8d6559b6bc5d1aaf0f07aを依存として同時保存する。参考preparing検査の旧migration文字列1失敗は既不整合として保持し、この型部品の完了に含めない。実DB0・開始成功/単一TS名簿業務検証/actor同TX/RPC/UIは未提供。
