@@ -489,3 +489,15 @@ POが別worktree feature-ux1-undo-ts / branch feature/ux1-undo-ts の成果を�
 正式develop停止点dcd4fda8のundoRows/10case全要素と当spikeは完全同値、schemaのliveness比較規則も同値。full-equality9件＋liveness-only1件の区別とhistoryAndResult厳密化を保持し、artifact経由にstateEffect比較面が無い制約を確認。TS純計算/JSON境界/artifact検査をT1の再利用候補として受領、正式採用/統合/本体着手や取消製品完成の承認ではない。特に現在状態と先頭afterの実行時一致検査は未実装で、findings§3-9へ記録したことを是正済みとはしない。原典から決まる事項と委任で具体化できる事項を先に照合し、新意味が残る部分だけを既判断票へ集約する。planのpops文字列例は修正済みとして再裁定しない。継承spike履歴のstep記法不整合/pytest11件は報告のまま留保し、検査緩和で正式合格にはしない。
 
 本限定確認ではuser枝の製品/契約/計画を編集せず、PR/mergeも0。原枝/当成果を固定参考として保存し、MVP Goalは一時停止のまま。正式実装再開の指示とは解釈しない。
+
+
+## 再開後の実接合修正（2026-10-25）
+
+2026-10-25T08:13:27.956808+00:00、ユーザーの作業継続指示に従いGoalを再開。直前の追加依頼提案だけのturnはno progressとして扱い、実source/固定Gitを再確認して作業を進めた。develop dcd4fda8のpush CI40090505646成功を確認済み。全体目標/既PO委任は維持、以前の一時停止記録はその時点の履歴であり現在の停止状態ではない。
+
+- RG1隔離候補はdevelop dcd4を通常mergeしたe8f9854b上で、起動helper exact2登録/既signature1追随・現正本引用を修正、非作者所見0/0/0を受領し7d057a3dへcommit/通常pushした。未登録/余分APIのTB005拒否を維持し、declared census成功。最新develop比の完全値候補をcache rg1-census-projection-refresh-7d057a3d-20261025へ再導出、rawcensus323→334（旧349から未宣言15解消）。9射影中8影響/外部8、旧30履歴216snapshotは保持。正式7.7/判断列carry/最終CIは未了。
+- backend reader追随は候補449成功・独立449成功/Ruff/ty成功、実変更5testpathを前後SHA照合してroot候補へ適用。旧54test/全param・26否定例ASTを保持。独立レビューa6e91dbdeab2ae57e614f258bcdb7a7cc9db01154d0c11853b220a8dab44187b、検査緩和なし。
+- 初期grant隔離候補 feature/mvp-initial-grant-connection-candidate はda88とRG1 e8の通常接合cb3c0f49。creation_pathが実actor/既単一issuerを呼ぶ新DB試験2pathを作成中（当該2pathだけ所有）。実DB成功0、collect-onlyのDB0実行拒否は保全。shared ledger補助1pathは別作者へ明示委任し、正規35起動と生成済identity二重適用除去を候補化中。rootがplan/shared/Gitの唯一writer。
+- 新たに実sourceで確認した停止点は、controllerと初期actorのUID分離に対し台帳endpointが単一peerしか受理しないこと。actorもsource/fenceを直接必要とするため、UID20004へ単に変更しても閉じない。単一worker/journalを保持した役割別exact2endpoint案を既planの有限追補へ記録して非作者確認中。未知結果/再起動の停止を維持し、UID偽装や常成功権利で埋めない。0036/初期9API/fullprofile供給も残る。
+
+利用者が新たに完了できる操作の実証は依然として隔離preparing作成/DB保存/再取得まで。開始・初期記録権・1球保存/再読込、T1本体、正式MVPは未達。PO所有spikeは編集せず、実前進→取消の往復検証を別枝で依頼した。次は上記接続不足を閉じ、所有DBで正常初期grant/再交付/故障を通す。外部/実機/公開承認を新規に取得したとはしない。
