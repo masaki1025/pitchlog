@@ -7,7 +7,7 @@ worktree: ../../..
 branch: feature/mvp-initial-grant-db-scope
 created: 2026-10-24
 計画レビュー周回: 1
-確定ゲート周回: 0
+確定ゲート周回: 1
 実行方式: 通常
 反映周コミット: 適用
 ---
@@ -155,3 +155,10 @@ rootはcreation_pathへ既ステップ3内のsource authorとして authority.py
 rootは既承認6065063b §6.2/6.3の4表・世代証拠2列・2主体の既役割を、data-model現1.3から1.4候補へ写す。影響は既宣言済みdocs/design/data-model.mdの3-2役割表/6-1初期記録権の保存節と変更履歴、およびdocs/README.mdの当該索引だけ。4表のsource_sectionsは6-1へ閉じ、初期scopeの全lock順/9関数/再送・結果不明の採用済み意味を維持する。gate列は既1.3のまま。side/名簿/enrollment/実broker/開始statusを今回の4表へ混入させない。
 
 この候補は構造正本改訂の限定7.3へ渡し、非作者確認とPO委任によるroot確定前はin-reviewを維持する。既1.3/旧1.2両系列の承認と旧レビュー/指摘/反映履歴は全保持する。正式50表profile/9API/内部triggerの個別SQL/ACL・schema-manifest/7.7実値・隔離実DBは別の提供証拠であり、本文の確定でそれらを完了扱いにしない。rootが正本/shared/Git唯一writer、候補テキスト作成もroot。
+
+
+### 正本1.4初回2P1の採用・反映1周目
+
+固定9465c8a7787e96db6452e4a58b3d3402b8ffa11dへの非作者initial_storage_norm_reviewはP0=0/P1=2/P2=0で否決（review SHA54d711429a422d926e583cbc01d2a3aa95e38d260252fdaf7e6707f7c143b792）。rootは既PO委任で両件を採用し、索引の過去approvedを変更した誤置換を実11f662d6の旧行へ戻して新版候補情報だけを先頭へ追加した。旧行は追加prefixを除けば全byte同値。世代のapp直接INSERT剥奪/専用owner経路と旧read/update不拡張も既6066.1から本文へ追記した。
+
+候補作成者rootの採否であり、初回否決/2指摘/反映1を保持する。同じ非作者へ限定反映差分と影響を渡し、再確認とroot対象版確定前は正本statusをin-reviewとする。新しい本人承認待ちを作らず、正式1.4承認・50profile/DB成功をまだ主張しない。
