@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -35,7 +36,7 @@ from .durable_rights_ledger_support import (
 from .rg1_lifecycle_support import observed_identity
 
 _BACKEND = Path(__file__).resolve().parents[2]
-_INITIAL_REVISION = "0036_initial_recording_right_storage"
+_INITIAL_REVISION = "0036_initial_right_storage"
 _ACTOR_UID = 20002
 _CONTROLLER_UID = 20004
 # 既initial候補の公開vector。運用資格/鍵を新発行しない。
@@ -125,7 +126,7 @@ def isolated_initial_grant_database(
         patch.setattr(
             ledger_support, "_install_product_business", _install_initial_business
         )
-        with ledger_support.isolated_authority_database() as authority:
+        with ledger_support.isolated_authority_database(dual_peer=True) as authority:
             database = InitialGrantDatabase(authority)
             try:
                 database.prepare()
@@ -218,7 +219,7 @@ class InitialGrantDatabase:
             "business_port": 5432,
             "business_database": "ledger_fixture",
             "business_server_uid": server_uid,
-            "ledger_endpoint": "/control/public/endpoint.json",
+            "ledger_endpoint": "/control/public/controller-endpoint.json",
         }
         actor = {
             "database_url": "postgresql+psycopg://pitchlog_initial_actor@/"
@@ -309,7 +310,12 @@ except BaseException as error:
     def actor(self, body: str) -> dict[str, Any]:
         """root実runtimeを作り降格後の実issuerを実行する。資格を出力しない。"""
         arguments = self.authority.command(root=True)
+        arguments[arguments.index("PYTHONPATH=/code:/deps")] = (
+            "PYTHONPATH=/product/backend/src:/deps"
+        )
         arguments[1:1] = [
+            "--mount",
+            f"type=bind,src={_BACKEND.parent},dst=/product,readonly",
             "--mount",
             f"type=bind,src={_BACKEND / 'tests'},dst=/fixture/backend/tests,readonly",
         ]
@@ -363,8 +369,31 @@ def receipt(grant):
             + "\n".join("    " + line for line in body.splitlines())
             + "\nfinally:\n    _close_initial_actor_runtime(runtime)\n"
         )
-        output = docker(*arguments, "-u", "-c", script)
-        value = json.loads(output)
+        # 失敗時は例外値/SQL/資格を捨て、型と関数名/行だけを残す。
+        diagnostic = """
+import sys,traceback,json
+def fixture_error_hook(kind,value,tb):
+    print(json.dumps({'fixture_failure':kind.__name__,
+        'frames':[(f.name,f.lineno) for f in traceback.extract_tb(tb)]}),flush=True)
+sys.excepthook=fixture_error_hook
+"""
+        try:
+            process = subprocess.run(
+                ["docker", *arguments, "-u", "-c", diagnostic + script],
+                capture_output=True, text=True, timeout=45,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            # 元例外にはscript全体を含むcmdがあるため連鎖させない。
+            raise AssertionError("初期actor subprocessの起動/期限が非成功") from None
+        if process.returncode:
+            try:
+                failure = json.loads(process.stdout)
+                assert type(failure) is dict
+                assert set(failure) == {"fixture_failure", "frames"}
+            except (ValueError, AssertionError):
+                raise AssertionError("初期actor subprocessが非成功") from None
+            raise AssertionError(f"初期actor subprocessが非成功: {failure}")
+        value = json.loads(process.stdout)
         assert type(value) is dict
         return value
 

@@ -739,7 +739,8 @@ def test_initial_storage_migration_is_frozen_and_never_backfills_epoch() -> None
     assert "recording_generations" not in body and "rg1_restore_gate" not in body
     assert "UPDATE public.recording_generations" not in source.read_text()
     assert '"rg1_restore_gate"' not in source.read_text()
-    assert module["revision"] == "0036_initial_recording_right_storage"
+    assert module["revision"] == "0036_initial_right_storage"
+    assert len(module["revision"]) <= 32
 
 
 def _initial_transport_response_values():

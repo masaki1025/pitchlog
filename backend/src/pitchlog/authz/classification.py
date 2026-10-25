@@ -25,6 +25,7 @@ FACT_KINDS = frozenset(
         "pre_auth_only",
         "migration_only",
         "rg1_control",
+        "initial_right_storage",
         "secret_column",
     }
 )
@@ -35,6 +36,7 @@ FUNCTION_ONLY_FACT_KINDS = frozenset(
         "pre_auth_only",
         "migration_only",
         "rg1_control",
+        "initial_right_storage",
     }
 )
 FUNCTION_OWNER_UNITS = frozenset({"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"})
@@ -431,6 +433,16 @@ def _validate_assignment_conditions(
         table_name for tables in table_facts.values() for table_name in tables
     )
 
+    initial_tables = frozenset(
+        {
+            "trusted_devices",
+            "game_start_requests",
+            "game_start_attempts",
+            "recording_right_deliveries",
+        }
+    )
+    if table_facts.get("initial_right_storage") != initial_tables:
+        violations.append("初期保存資源の事実が固定4表と一致しない")
     for table_name, profile in profiles.items():
         columns = manifest_columns.get(table_name, frozenset())
         if table_name in special_tables and profile != "function_only":
@@ -445,7 +457,22 @@ def _validate_assignment_conditions(
         if profile == "tenant_owned":
             if "tenant_id" not in columns:
                 violations.append(f"{table_name}: tenant_ownedにtenant_id列がない")
-            if table_name in secret_tables:
+            initial_evidence = frozenset(
+                {
+                    ("recording_generations", "proof_digest"),
+                    ("recording_generations", "recovery_generation"),
+                }
+            )
+            table_secrets = frozenset(
+                pair for pair in secret_columns if pair[0] == table_name
+            )
+            if (
+                table_name == "recording_generations"
+                and {"proof_digest", "recovery_generation"} <= columns
+                and table_secrets != initial_evidence
+            ):
+                violations.append("初期世代証拠の秘密2列がexact-set不一致")
+            if table_name in secret_tables and table_secrets != initial_evidence:
                 violations.append(f"{table_name}: tenant_ownedに秘密の列がある")
             if table_name in exposed_tables:
                 violations.append(f"{table_name}: tenant_ownedに露出の事実がある")

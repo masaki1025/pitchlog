@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0036_initial_recording_right_storage"
+revision: str = "0036_initial_right_storage"
 down_revision: str | Sequence[str] | None = "0035_rg1_initial_fresh_epoch"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -134,49 +134,85 @@ _TABLE_DDL = (
 )
 
 _INTERNAL_TRIGGER_SQL = (
-    "CREATE FUNCTION public.protect_initial_right_storage()\n"
-    "RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER\n"
-    "SET search_path TO pg_catalog, pg_temp AS $body$\n"
-    "DECLARE old_row jsonb; new_row jsonb;\n"
-    "BEGIN\n"
-    "    IF TG_TABLE_SCHEMA <> 'public' OR TG_TABLE_NAME NOT IN\n"
-    "      ('trusted_devices','game_start_requests','game_start_a"
-    "ttempts','recording_right_deliveries') THEN\n"
-    "        RAISE EXCEPTION 'initial right trigger target mismat"
-    "ch';\n"
-    "    END IF;\n"
-    "    IF TG_OP = 'DELETE' THEN\n"
-    "        RAISE EXCEPTION 'initial right storage cannot be phy"
-    "sically deleted';\n"
-    "    END IF;\n"
-    "    old_row := pg_catalog.to_jsonb(OLD);\n"
-    "    new_row := pg_catalog.to_jsonb(NEW);\n"
-    "    IF TG_TABLE_NAME = 'game_start_requests' THEN\n"
-    "        IF new_row IS DISTINCT FROM old_row THEN\n"
-    "            RAISE EXCEPTION 'initial request is immutable';\n"
-    "        END IF;\n"
-    "    ELSIF TG_TABLE_NAME = 'game_start_attempts' THEN\n"
-    "        IF (new_row - 'outcome' - 'resolved_at') IS DISTINCT"
-    " FROM\n"
-    "           (old_row - 'outcome' - 'resolved_at') OR\n"
-    "           (old_row->>'outcome' <> 'pending' AND new_row IS "
-    "DISTINCT FROM old_row) THEN\n"
-    "            RAISE EXCEPTION 'initial attempt owner or resolu"
-    "tion is immutable';\n"
-    "        END IF;\n"
-    "    ELSE\n"
-    "        IF (new_row - 'revoked_at') IS DISTINCT FROM (old_ro"
-    "w - 'revoked_at') OR\n"
-    "           (old_row->'revoked_at' <> 'null'::jsonb AND new_r"
-    "ow->'revoked_at' IS DISTINCT FROM old_row->'revoked_at') THE"
-    "N\n"
-    "            RAISE EXCEPTION 'initial device or delivery is i"
-    "mmutable';\n"
-    "        END IF;\n"
-    "    END IF;\n"
-    "    RETURN NEW;\n"
-    "END\n"
+    """CREATE FUNCTION public.protect_initial_right_storage()
+RETURNS trigger"""
+    " LANGUAGE plpgsql SECURITY INVOKER\nSET search_path TO p"
+    "g_catalog, pg_temp AS $body$\nDECLARE old_row jsonb; new"
+    "_row jsonb;\nBEGIN\n    IF TG_TABLE_SCHEMA <> 'public' OR"
+    " TG_TABLE_NAME NOT IN\n      ('trusted_devices','game_st"
+    "art_requests','game_start_attempts','recording_right_de"
+    "liveries') THEN\n        RAISE EXCEPTION 'initial right "
+    "trigger target mismatch';\n    END IF;\n    IF TG_OP = 'D"
+    "ELETE' THEN\n        RAISE EXCEPTION 'initial right stor"
+    "age cannot be physically deleted';\n    END IF;\n    old_"
+    "row := pg_catalog.to_jsonb(OLD);\n    new_row := pg_cata"
+    "log.to_jsonb(NEW);\n    IF TG_TABLE_NAME = 'game_start_r"
+    "equests' THEN\n        IF new_row IS DISTINCT FROM old_r"
+    "ow THEN\n            RAISE EXCEPTION 'initial request is"
+    " immutable';\n        END IF;\n    ELSIF TG_TABLE_NAME = "
+    "'game_start_attempts' THEN\n        IF (new_row - 'outco"
+    "me' - 'resolved_at') IS DISTINCT FROM\n           (old_r"
+    "ow - 'outcome' - 'resolved_at') OR\n           (old_row-"
+    ">>'outcome' <> 'pending' AND new_row IS DISTINCT FROM o"
+    "ld_row) THEN\n            RAISE EXCEPTION 'initial attem"
+    "pt owner or resolution is immutable';\n        END IF;\n "
+    "   ELSE\n        IF (new_row - 'revoked_at') IS DISTINCT"
+    " FROM (old_row - 'revoked_at') OR\n           (old_row->"
+    "'revoked_at' <> 'null'::jsonb AND new_row->'revoked_at'"
+    " IS DISTINCT FROM old_row->'revoked_at') THEN\n         "
+    "   RAISE EXCEPTION 'initial device or delivery is immut"
+    "able';\n        END IF;\n    END IF;\n    RETURN NEW;\nEND\n"
     "$body$"
+)
+
+
+_GENERATION_GUARD_SQL = (
+    """
+        CREATE OR REPLACE FUNCTION public.protect_recording_generations_updates()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+            IF ROW(
+                NEW.generation,
+                NEW.kind,
+                NEW.issuance_order,
+                NEW.holder_device,
+                NEW.granted_at,
+                NEW.proof_digest,
+                NEW.recovery_generation
+            ) IS DISTINCT FROM ROW(
+                OLD.generation,
+                OLD.kind,
+                OLD.issuance_order,
+                OLD.holder_device,
+                OLD.granted_at,
+                OLD.proof_digest,
+                OLD.recovery_generation
+            ) THEN
+                RAISE EXCEPTION 'recording generation identity is immutable'
+                    USING ERRCODE = '23514';
+            END IF;
+            IF NEW.confirmed_watermark < OLD.confirmed_watermark THEN
+                RAISE EXCEPTION 'recording generation D3 cannot move backward'
+                    USING ERRCODE = '23514';
+            END IF;
+            RETURN NEW;
+        END;
+        $$
+        """,
+    (
+        "DROP TRIGGER trg_recording_generations_update_guard "
+        "ON public.recording_generations"
+    ),
+    """
+        CREATE TRIGGER trg_recording_generations_update_guard
+        BEFORE UPDATE OF generation, kind, issuance_order, holder_device,
+            granted_at, confirmed_watermark, proof_digest, recovery_generation
+        ON public.recording_generations
+        FOR EACH ROW
+        EXECUTE FUNCTION public.protect_recording_generations_updates()
+        """,
 )
 
 
@@ -209,6 +245,8 @@ def upgrade() -> None:
         "recovery_generation IS NULL OR recovery_generation > 0",
         schema="public",
     )
+    for ddl in _GENERATION_GUARD_SQL:
+        op.execute(ddl)
     for ddl in _TABLE_DDL:
         op.execute(ddl)
     for table in _TABLE_NAMES:
@@ -218,10 +256,13 @@ def upgrade() -> None:
     # rootの専用9関数/列ACL/RLS供給前は新表をdefault-denyのまま保持する。
     op.execute(_INTERNAL_TRIGGER_SQL)
     op.execute(
-        "ALTER FUNCTION public.protect_initial_right_storage() OWNER TO pitchlog_owner"
+        (
+            "ALTER FUNCTION public.protect_initial_right_storage() O"
+            "WNER TO pitchlog_owner"
+        )
     )
     op.execute(
-        "REVOKE ALL ON FUNCTION public.protect_initial_right_storage() FROM PUBLIC"
+        ("REVOKE ALL ON FUNCTION public.protect_initial_right_storage() FROM PUBLIC")
     )
     for table in _TABLE_NAMES:
         op.execute(
