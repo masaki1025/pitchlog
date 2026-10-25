@@ -1,8 +1,8 @@
 # 初回MVP 主担当引受・進捗台帳
 
-更新: 2026-10-23。判断者: Codex主担当。根拠: 同日POの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+更新: 2026-10-25。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
 
-## 引受と固定点
+## 引受時の固定点（履歴。現在地は下記表と追記）
 
 全体目標・編集権を引受。各領域の現HEAD・作業状態は [takeover.json](takeover.json)。既存引継ぎを正として参照し、全保全物を読了したとは扱わない。P-6は役割・封印・曝露履歴を維持し、候補作成へ吸収しない。TSK-545はHEAD一致・clean、対象cwdの稼働なし。独立引継ぎ未受領の不足は残し、今回POによる主担当移管を記録する。旧担当への再許可照会は要しない。
 
@@ -18,9 +18,9 @@
 
 | 単位 | 編集所有/場所 | 現在の範囲 | 提供・接続・検証 |
 | --- | --- | --- | --- |
-| O5コア登録・委任手続 | 主担当worktree、担当をpath別指定 | 独立planと前提PRへ分割するPO委任判断。既存#176一件ステップへの押込みを避ける | 計画作成中。#176のO5製品runner成功は未成立 |
-| #175 step3 codec接合 | 分離`feature/mvp-preparing-codec-connection`、product_connection担当 | 保存JSON復元と正式codec接合の2製品パス＋テストのみ | #174固定候補との隔離接続。正式統合とは別記 |
-| #176→#174→#173→#175 | 主担当、共有正式資産は直列 | 各最終HEADの独立レビュー・受理・CI後通常merge | 全て未統合。チェック欄だけで成立扱いしない |
+| O5コア登録・委任手続 | root、PR176/177 | 既独立レビュー・委任手続を維持 | #176は658865ddで統合済み。2026-10-25 GitHub再確認 |
+| #175 codec接合 | root、PR175 | 保存JSON復元と正式codec接合 | a10bcd5eで統合済み。画面からの新規作成成功は後続隔離候補で別実証 |
+| #176→#174→#173置換#180→#175 | root、共有正式資産は直列 | 前段通常統合済み。#173は置換公開後close | #176=658865dd、#174=1f506675、#180=547d199e、#175=a10bcd5e。2026-10-25実GitHub照合 |
 | T5/T6・成績CSV | 主担当（今回責任移管） | 既存U-X1と調査・計画候補照合後にstep単位 | 製品未提供。毎球CSVはU-D2調査/計画を再利用（製品実装は未存在） |
 | P-6 | 独立役割、既存資料参照 | 封印物/期待値を候補作成担当へ渡さない | 新blind導出未実施。段階B一致を一般化しない |
 
@@ -28,10 +28,10 @@
 
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
-| A 試合作成・preparing再取得 | #174 resolver後続、#175 components後続、U-F8 | 候補部品あり・実画面→実API→実DB未接続 | 正式codec拒否を先に接合、resolver operation/read route/providerを順次供給 |
-| B 開始・権利・1球保存と復元 | U-R1/T1/U-S1/TSK506 | 接合未成立 | 実権利・計算・永続providerを結ぶ |
+| A 試合作成・preparing再取得 | RG1 eda71a48＋create20ee2e98の隔離11source接合 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値を実証、独立確認0 | PR184必須CI・create候補の正式値/通常統合後の再接合。HTTPS/実機は未実施 |
+| B 開始・権利・1球保存と復元 | 初期scope隔離4f2＋source22/data95＋revision/fixture是正、T1 #183 | 実初期grant/同要求同V12再交付1case成功20.63s。実画面開始/権利/1球は未達 | 初期scope残11caseと正式登録、broker/開始HTTP/UI、正式T1本体・同期保存の接続 |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
-| D 故障・再起動・再送・交代 | U-S1/U-R1 | 部品検査と実DB/HTTPを区別 | 隔離DBの原子性/復旧試験 |
+| D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create隔離経路 | 実画面作成のINSERT後故障/実閉鎖競合/旧openの3故障runが非成功・全取消、後発独立確認中 | 初期権/記録後の故障・offline再起動/交代/結果不明等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
 | 実機・運用HTTPS・バックアップ復旧 | 山田正輝（運用責任）/主担当準備 | 未実施 | 実機版と機種、許可済環境を固定。エミュレーションと区別 |
 
@@ -517,3 +517,16 @@ POが別worktree feature-ux1-undo-ts / branch feature/ux1-undo-ts の成果を�
 - 初期9API/0036/50表の認可候補は独立初回でowner16policyのtenant条件未展開P0を検出し、正式反映前に停止。既単一predicate生成器へ接続した反映1は22source/95data接合・独立0、backend488成功。旧P0と反映履歴を保存。実ownerのA/B越境試験/正式metadata受理/初期grant12 DBcaseは未実行である。
 
 実画面の次の到達点として、eda71a48を基線に既承認create20ee2e98の10製品sourceだけを隔離接合し、operation_registryは既4functionの全登録を保持したままCREATEを追加した。worktree /home/ymdms/.cache/pitchlog/verify-rg1-create-composed-eda71a48、固定manifest /home/ymdms/.cache/pitchlog/rg1-create-composition-20261025/manifest.json。creation_pathはops/cacheを担当、rootはsource/Git/shared台帳の唯一writer。ゲーム事前投入0・実login/C2/単一resolver/実RG1を維持して実Vue新規保存を検証する。初期1.4/v2はこの隔離構成へ混ぜず、生成定数/正式資産受理は未成立のまま明記。新たな実画面成功・開始/初期権・1球保存・T1本体/MVP完成はまだ報告しない。
+
+
+### 実画面正常経路と初期scopeの到達（2026-10-25）
+
+利用者操作の新しい実証は、実fresh authority/controller→Vue login200→C2→画面新規POST201→実DB保存→一覧/詳細/再読込同UUID・全値・snapshot一致。ゲーム事前INSERTなし、POST一回、初期権/予約0を保持。実行manifest53d0cb73d190c72c3a3be578f5ed0b60955966019115c0e55d03f02c20f2d828、独立evidence8fa95a51060117cf691791cc4b8add5cd7fd7d39e41d32eb0c3175ccf753d546。cache rg1-pr184-real-create-path-20261025。実sourceはeda＋20eeの隔離接合で、正式develop/9a全体の実行やHTTPS/実機成功とはしない。日本語font不足の画像は留保し、DOM/JSON/DBの実一致を根拠にする。owned13資源不存在・共有DB未接続を確認。
+
+後続故障はafter_insert/close_race/restart_old_openの独立3run、各POST503/再送0・game/新大会0・旧語彙全field保持、撤去後fullprofile13/0035再照合。閉鎖前/後と非rollback counter、PG再起動時刻/旧open残留/lease0を保存。初回観測不成立とverifier是正履歴を保持し、まだ独立確認の最終結果待ち。manifest a7372a076b59bcd20885eb50289f396c99200cba3bf0c09758d2cca610738026。
+
+PR184は9a00fd0fを通常push。最終117path/diff b238c8f0a02159100b06d0f1b2c79388ce6b35a1b26955e95cd5fbb3b6f71ec9の独立0、正式31履歴226snapshot・旧30/216不変・371判断保持、通常tenant CLI/必須宣言Census成功。公開委任証拠 https://github.com/masaki1025/pitchlog/pull/184#issuecomment-6396677179 （候補実作者と独立taskを区別、人間欄は未チェック）。実公開PR payloadでcore-guard exit0。CI40186210626は直近10job成功/harness・backend実行中、旧40186077240は本文更新後の新runでcancel、旧失敗CIを成功へ読み替えない。Ready/通常mergeは残条件成立後。
+
+初期scopeは未提供0036の36文字IDがAlembic varchar32で停止したため、revisionだけ26文字0036_initial_right_storageへ限定是正（旧移行/DDL不変、独立0、純205成功）。次はfixtureの平坦/code配置で製品root参照がIndexErrorとなり、actorだけ正規readonly /product/backend/srcへ接合。実grant/同要求再交付1caseは20.63s成功、実3PG・v2単一worker・actual actor/RG1・V12を通し、567入力hashとreceiptをcache initial-revision-id-width-fix-20261025へ固定した。全12case/実owner越境/HTTP/UI開始の成功にはしない。診断のtimeout例外にcmd表示P1を独立検出し、固定非成功/from Noneへ是正、反映確認中。準備パス誤りで中断した検査は0件・9.25sとして保存し、残った所有7資源だけを明示削除、成功へ数えない。
+
+初期正式枝は8552d539の計画追補まで保存/通常pushし、その後a7930490でPR184の9aを通常merge（競合なし）。これは候補間供給でありPR184のdevelop統合ではない。実検証済みsource22/data95は隔離凍結を保持、正式9API/guard/初期registry等の未供給を新担当initial_registration_supplyがcache提案に限定して具体化中。rootは正式/shared唯一writer、DB枠は故障run完了後空き。開始/1球・正式T1本体/MVP全体は未完、Goal継続。
