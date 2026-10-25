@@ -104,5 +104,154 @@
       "partitionId": "runner-targets-only",
       "gapId": "GAP-07"
     }
+  ],
+  "rowPartitionRefinements": [
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-kept-held-too-long",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-kept-running"
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-kept-unnecessary-throw",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-kept-running"
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-restarted-held-after-misplay",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-stopped-and-restarted"
+        },
+        {
+          "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+          "value": true
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-restarted-throw-after-misplay",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-stopped-and-restarted"
+        },
+        {
+          "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+          "value": true
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-restarted-held-noncausal",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-stopped-and-restarted"
+        },
+        {
+          "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+          "value": false
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    }
   ]
 }

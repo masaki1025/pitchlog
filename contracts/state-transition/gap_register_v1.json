@@ -137,7 +137,11 @@
       ],
       "rowIds": [
         "matrixRows:batting-result:batting-result.single:compound:1e66703c1fef1342",
-        "matrixRows:batting-result:batting-result.single:compound:bdc8db36fcd7684d"
+        "matrixRows:batting-result:batting-result.single:compound:bdc8db36fcd7684d",
+        "matrixRows:batting-result:batting-result.single:compound:1b9d364b629552d4",
+        "matrixRows:batting-result:batting-result.single:compound:569802d71dcf8b92",
+        "matrixRows:batting-result:batting-result.single:compound:b9d84f2233f22a40",
+        "matrixRows:batting-result:batting-result.single:compound:d1d6ab23a25de4ef"
       ],
       "fixtureCaseIds": [
         "ST-OUT3-EXPLICIT-01",
@@ -278,12 +282,18 @@
         "matrixRows:batting-result:batting-result.home-run",
         "matrixRows:batting-result:batting-result.sacrifice-bunt-error",
         "matrixRows:batting-result:batting-result.sacrifice-fly",
-        "matrixRows:batting-result:batting-result.single:compound:1e66703c1fef1342"
+        "matrixRows:batting-result:batting-result.single:compound:1e66703c1fef1342",
+        "matrixRows:batting-result:batting-result.single:compound:1b9d364b629552d4",
+        "matrixRows:batting-result:batting-result.single:compound:569802d71dcf8b92",
+        "matrixRows:batting-result:batting-result.single:compound:b9d84f2233f22a40",
+        "matrixRows:batting-result:batting-result.single:compound:d1d6ab23a25de4ef"
       ],
       "fixtureCaseIds": [
         "ST-RBI-06",
         "ST-RBI-08",
-        "ST-RBI-09"
+        "ST-RBI-09",
+        "ST-RBI-03-HELD-TOO-LONG-01",
+        "ST-RBI-04-HELD-TOO-LONG-01"
       ],
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
