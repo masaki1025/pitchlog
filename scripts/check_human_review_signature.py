@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from datetime import date
 from pathlib import Path, PurePosixPath
@@ -1231,6 +1234,279 @@ def validate_signature_record(
             )
 
 
+# 今回限定手続きのPR識別子。subjectの基準commit/hashは資産宣言から読む。
+_GATE6_INTRODUCTION_PR = 183
+GATE6_CARRY_PATH = PurePosixPath("contracts/state-transition/gate6_subject_carry_v1.json")
+GATE6_CARRY_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/gate6_subject_carry_schema_v1.json"
+)
+_GATE6_RETAINED_PATHS = frozenset({
+    "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json",
+    "docs/features/adr003-stage2-runtime/signatures/gate6-state-transition.json",
+    "docs/features/adr003-stage2-runtime/step33_line_review.md",
+    str(SCHEMA_PATH),
+})
+
+
+def _carry_git_bytes(root: Path, arguments: list[str]) -> bytes:
+    """carryの固定履歴をGitの読取専用コマンドだけで照合する。"""
+    if not arguments or arguments[0] not in {"show", "rev-parse", "merge-base"}:
+        raise HumanReviewSignatureRecordError("carryのGitコマンドが読取集合外")
+    try:
+        result = subprocess.run(
+            ["git", *arguments], cwd=root, capture_output=True, check=False, timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise HumanReviewSignatureRecordError("carryの固定Git履歴を読めない") from error
+    if result.returncode != 0:
+        raise HumanReviewSignatureRecordError("carryの固定Git履歴が欠落または祖先関係が不正")
+    return result.stdout
+
+
+def _carry_core_guard(root: Path) -> Any:
+    """同checkoutの既core_guardを再利用する。別の委任判定器は作らない。"""
+    spec = importlib.util.spec_from_file_location(
+        "gate6_existing_core_guard", root / "scripts/core_guard.py",
+    )
+    if spec is None or spec.loader is None:
+        raise HumanReviewSignatureRecordError("既core_guardを読めない")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _carry_projection(subject: Mapping[str, Any], projection: str) -> object:
+    """旧recordが名指した範囲だけを取り出し、matrix確認へ広げない。"""
+    if projection == "operation-undo-and-cases":
+        return {
+            "operationRows": subject["operationRows"],
+            "undoRows": subject["undoRows"],
+            "cases": [case for case in subject["cases"]
+                      if case["rowRef"]["layer"] in {"operationRows", "undoRows"}],
+        }
+    if projection == "decision-cases-and-validation-errors":
+        return {key: subject[key] for key in ("decisionRows", "cases", "validationErrors")}
+    raise HumanReviewSignatureRecordError("旧署名範囲の射影が未宣言")
+
+
+def _carry_array(document: dict[str, Any], pointer: str) -> list[Any]:
+    """許可済み3位置のappend対象を返す。任意JSON patchは受けない。"""
+    if pointer == "/matrixRows":
+        return document["matrixRows"]
+    if pointer == "/cases":
+        return document["cases"]
+    if pointer == "/mustOperationCoverage/mappings/0/rowRefs":
+        return document["mustOperationCoverage"]["mappings"][0]["rowRefs"]
+    raise HumanReviewSignatureRecordError("carry append位置が許可集合外")
+
+
+def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
+    """旧記録と現在値の技術的継承だけを検査し、委任受理は返さない。"""
+    schema = _object(descriptor_checker.load_json(root / GATE6_CARRY_SCHEMA_PATH,
+                                                "carry schema"), "carry schema")
+    carry = _object(descriptor_checker.load_json(root / GATE6_CARRY_PATH, "carry"), "carry")
+    descriptor_checker._validate_instance(carry, schema, schema, "carry")
+    limit = _policy(_load_schema(root))["subjectDigest"]["safeIntegerLimit"]
+    authority = carry["authority"]
+    base = authority["baseRevision"]
+    head = _carry_git_bytes(root, ["rev-parse", "HEAD"]).decode("ascii").strip()
+    _carry_git_bytes(root, ["merge-base", "--is-ancestor", base, head])
+    guard = _carry_core_guard(root)
+    try:
+        policy, policy_digest = guard._load_delegation_policy(root, head)
+    except guard.GuardError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    policy_bytes = (root / authority["path"]).read_bytes()
+    if (
+        hashlib.sha256(policy_bytes).hexdigest() != policy_digest
+        or authority["sha256"] != policy_digest
+        or authority["repository"] != policy["repository"]
+        or {"pr": authority["pr"], "branch": authority["branch"]} not in policy["targets"]
+    ):
+        raise HumanReviewSignatureRecordError("carryの委任policy・対象が不一致")
+    retained = {entry["path"]: entry["sha256"] for entry in carry["retainedDocuments"]}
+    if set(retained) != _GATE6_RETAINED_PATHS or len(retained) != len(carry["retainedDocuments"]):
+        raise HumanReviewSignatureRecordError("carryの旧記録保存集合がexact-set不一致")
+    for path, expected_hash in retained.items():
+        current = (root / path).read_bytes()
+        if (
+            current != _carry_git_bytes(root, ["show", f"{base}:{path}"])
+            or hashlib.sha256(current).hexdigest() != expected_hash
+        ):
+            raise HumanReviewSignatureRecordError(
+                "旧署名・日付・確認sheet・schemaのbyteが変更された"
+            )
+    receipt = carry["adoptionReceipt"]
+    if (
+        compute_subject_digest(receipt, limit) != carry["adoptionReceiptDigest"]
+        or receipt.get("pr") != authority["pr"]
+        or receipt.get("status") != "accepted-partial-contract-reflection"
+        or receipt.get("human_personal_line_review_or_signature") is not False
+    ):
+        raise HumanReviewSignatureRecordError("carryの既受理記録が不一致または本人確認を主張した")
+    subjects = {entry["path"]: entry for entry in carry["subjects"]}
+    if set(subjects) != {str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH)}:
+        raise HumanReviewSignatureRecordError("carryの対象2契約がexact-set不一致")
+    for path, entry in subjects.items():
+        anchor = entry["oldSubjectCommit"]
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor", anchor, base])
+        old_bytes = _carry_git_bytes(root, ["show", f"{anchor}:{path}"])
+        old = _object(
+            json.loads(old_bytes, object_pairs_hook=descriptor_checker._reject_duplicate_keys),
+            "旧署名対象",
+        )
+        if (
+            hashlib.sha256(old_bytes).hexdigest() != entry["oldSubjectRawSha256"]
+            or compute_subject_digest(old, limit) != entry["oldSubjectDigest"]
+        ):
+            raise HumanReviewSignatureRecordError("carryの旧対象raw/JCS digestが不一致")
+        record = _object(descriptor_checker.load_json(root / entry["legacyRecordPath"],
+                                                     "旧署名記録"), "旧署名記録")
+        if record["subject"] != {"path": path, "digest": entry["oldSubjectDigest"]}:
+            raise HumanReviewSignatureRecordError("旧署名記録と実対象が不一致")
+        # 既validatorは変更せず、旧対象の隔離rootで元の記録をそのまま検証する。
+        with tempfile.TemporaryDirectory(prefix="pitchlog-gate6-carry-") as temporary:
+            legacy_root = Path(temporary)
+            target = legacy_root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(old_bytes)
+            validate_signature_record(legacy_root, record, schema_value=_load_schema(root))
+        current = _object(descriptor_checker.load_json(root / path, "現対象"), "現対象")
+        if compute_subject_digest(current, limit) != entry["currentSubjectDigest"]:
+            raise HumanReviewSignatureRecordError("carryの現対象digestが不一致")
+        projection = entry["projection"]
+        if any(compute_subject_digest(_carry_projection(value, projection), limit)
+               != entry["projectionDigest"] for value in (old, current)):
+            raise HumanReviewSignatureRecordError("旧署名範囲の不変射影が不一致")
+        expected_pointers = {"/inputAxesDescriptor/digest"}
+        if path == str(STATE_TRANSITION_CONTRACT_PATH):
+            expected_pointers |= {
+                "/matrixRows", "/cases", "/mustOperationCoverage/mappings/0/rowRefs",
+            }
+        changes = entry["allowedChanges"]
+        if (
+            {change["pointer"] for change in changes} != expected_pointers
+            or len(changes) != len(expected_pointers)
+        ):
+            raise HumanReviewSignatureRecordError("carryの許可差分位置がexact-set不一致")
+        rebuilt = copy.deepcopy(old)
+        for change in changes:
+            if change["kind"] == "replace":
+                if rebuilt["inputAxesDescriptor"]["digest"] != change["before"]:
+                    raise HumanReviewSignatureRecordError("carry差分のbeforeが不一致")
+                rebuilt["inputAxesDescriptor"]["digest"] = change["after"]
+            else:
+                array = _carry_array(rebuilt, change["pointer"])
+                if len(array) != change["beforeCount"]:
+                    raise HumanReviewSignatureRecordError("carry差分の旧prefix件数が不一致")
+                if (
+                    change["pointer"] == "/cases"
+                    and [case["caseId"] for case in change["values"]] != carry["changedCaseIds"]
+                ):
+                    raise HumanReviewSignatureRecordError("carryの新2caseが不一致")
+                array.extend(change["values"])
+        if compute_subject_digest(rebuilt, limit) != entry["currentSubjectDigest"]:
+            raise HumanReviewSignatureRecordError("現対象にcarry許可外の差分がある")
+    return carry
+
+
+def validate_gate6_subject_carry(root: Path) -> None:
+    """技術的不変条件だけを検査する。最終委任受理・本人署名を表明しない。"""
+    try:
+        _validate_gate6_subject_carry(root)
+    except (
+        KeyError, TypeError, ValueError, OSError, descriptor_checker.DescriptorCheckError,
+    ) as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+
+def _validate_gate6_head_bytes(root: Path, event: Any, authority: Mapping[str, Any]) -> None:
+    """検査入力/実行validatorが最終eventのGit blobと一致することを確認する。"""
+    paths = {
+        str(GATE6_CARRY_PATH), str(GATE6_CARRY_SCHEMA_PATH),
+        str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH),
+        authority["path"], "scripts/check_human_review_signature.py",
+        "tests/test_human_review_signature.py",
+        "docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md",
+        *_GATE6_RETAINED_PATHS,
+    }
+    for path in paths:
+        committed = _carry_git_bytes(root, ["show", f"{event.head_sha}:{path}"])
+        if (root / path).read_bytes() != committed:
+            raise HumanReviewSignatureRecordError("carry検査入力の現byteと最終HEADが不一致")
+    executed_source = Path(__file__).read_bytes()
+    if executed_source != (root / "scripts/check_human_review_signature.py").read_bytes():
+        raise HumanReviewSignatureRecordError("実行validatorと対象checkoutが不一致")
+
+
+def validate_delegated_gate6_subject_carry(root: Path, event: Any) -> None:
+    """最終event/Git byte/既core_guard証拠を満たす今回限定carryだけを受理する。"""
+    if event is None:
+        raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number != _GATE6_INTRODUCTION_PR:
+        raise HumanReviewSignatureRecordError("本carryの新受理は導入PRだけに限定する")
+    carry = _validate_gate6_subject_carry(root)
+    authority = carry["authority"]
+    if (
+        event.base_sha != authority["baseRevision"] or event.number != authority["pr"]
+        or event.repository != authority["repository"]
+        or event.head_repository != authority["repository"]
+        or event.head_branch != authority["branch"]
+    ):
+        raise HumanReviewSignatureRecordError("carryと最終PR eventの対象版が不一致")
+    _validate_gate6_head_bytes(root, event, authority)
+    guard = _carry_core_guard(root)
+    try:
+        guard.verify_delegated_confirmation(root, event)
+    except guard.GuardError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+
+
+def validate_other_pr_gate6_carry_unchanged(root: Path, event: Any) -> None:
+    """別PRはevent.baseの既受理carry/schema/対象と同値の時だけ継承する。"""
+    if event is None:
+        raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    carry = _validate_gate6_subject_carry(root)
+    authority = carry["authority"]
+    if (
+        type(event.number) is not int or event.number <= 0
+        or event.number == authority["pr"]
+        or event.repository != authority["repository"]
+        or event.head_repository != authority["repository"]
+        or not isinstance(event.head_branch, str)
+        or not event.head_branch.startswith(("feature/", "fix/"))
+        or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None
+               for value in (event.base_sha, event.head_sha))
+    ):
+        raise HumanReviewSignatureRecordError("別PRのcarry継承eventが不正")
+    _validate_gate6_head_bytes(root, event, authority)
+    schema = _object(descriptor_checker.load_json(root / GATE6_CARRY_SCHEMA_PATH,
+                                                "carry schema"), "carry schema")
+    current_values = {str(GATE6_CARRY_PATH): carry, str(GATE6_CARRY_SCHEMA_PATH): schema}
+    for entry in carry["subjects"]:
+        current_values[entry["path"]] = descriptor_checker.load_json(
+            root / entry["path"], "carry対象",
+        )
+    limit = _policy(_load_schema(root))["subjectDigest"]["safeIntegerLimit"]
+    for path, current in current_values.items():
+        raw = _carry_git_bytes(root, ["show", f"{event.base_sha}:{path}"])
+        previous = json.loads(raw, object_pairs_hook=descriptor_checker._reject_duplicate_keys)
+        if compute_subject_digest(previous, limit) != compute_subject_digest(current, limit):
+            raise HumanReviewSignatureRecordError("別PRで既受理carry/schema/対象を変更している")
+
+
+def validate_gate6_ci_event(root: Path, event: Any) -> str:
+    """PR183の新受理と、別PRの変更を伴わない継承を区別する。"""
+    if event is None:
+        raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number == _GATE6_INTRODUCTION_PR:
+        validate_delegated_gate6_subject_carry(root, event)
+        return "gate6 delegated subject carry: VERIFIED (not a personal signature)"
+    validate_other_pr_gate6_carry_unchanged(root, event)
+    return "gate6 prior subject carry: UNCHANGED FROM PR BASE; no new PR183 acceptance"
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """署名記録を検証するか、契約から逐行確認シートを生成する。"""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1251,8 +1527,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=Path,
         help="逐行確認シートの出力先",
     )
+    parser.add_argument("--gate6-carry", action="store_true", help="今回PRの対象継承を検査する")
+    parser.add_argument("--ci", action="store_true", help="最終PR event/外部委任証拠まで必須にする")
     args = parser.parse_args(argv)
     try:
+        if args.ci and not args.gate6_carry:
+            parser.error("--ciは--gate6-carryとだけ併用する")
+        if args.gate6_carry:
+            if (
+                args.record is not None or args.output is not None
+                or args.stage2_review or args.matrix_review_contract
+            ):
+                parser.error("--gate6-carryは既署名/生成モードと併用できない")
+            if args.ci:
+                guard = _carry_core_guard(args.root)
+                try:
+                    event = guard.load_pull_request_event()
+                except guard.GuardError as error:
+                    raise HumanReviewSignatureRecordError(str(error)) from error
+                print(validate_gate6_ci_event(args.root, event))
+            else:
+                validate_gate6_subject_carry(args.root)
+                print("gate6 subject carry: TECHNICAL ONLY; final delegation NOT CHECKED")
+            return 0
         if args.stage2_review:
             if args.record is not None or args.output is None or args.matrix_review_contract:
                 parser.error("--stage2-reviewはrecordなし・--outputありで指定する")

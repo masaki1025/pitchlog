@@ -3,8 +3,8 @@
   "candidateId": "t2-p8-followup-v1",
   "publicationStatus": "candidate-only",
   "independentVerification": "not-performed",
-  "baseContractDigest": "sha256:e93f30f75b97f580d3ee0984ff4300bb7a35544a4568a0fedfabf32da81e1ec4",
-  "baseSchemaDigest": "sha256:2fa7fb0dc0e0f9f389054ec4825fcb3f341e64aa7a36d932bf31a0ff53813c26",
+  "baseContractDigest": "sha256:9e0f6c38d20f313693b1d607c46c991b91e04b00e727ab0afbc99fc038504337",
+  "baseSchemaDigest": "sha256:4ab26939bf3f696a180ec3bee062a74804186f1ea70b0dc4f80f05883a73b0b7",
   "sourceDescriptor": {
     "ruleId": "cold-start-not-after-regulation",
     "sourceClauseIds": [

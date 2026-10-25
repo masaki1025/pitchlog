@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib
 import json
 import sys
@@ -76,6 +77,8 @@ def test_loads_all_cases_from_both_contracts() -> None:
     ):
         source_cases = _json(filename)["cases"]
         result = loaded.by_calculation[calculation_id]
+        # 宣言写像4fieldを保ち、純入力を含む全source fieldも欠落させない。
+        assert result.source_cases == source_cases
         assert len(result.cases) == len(source_cases)
         assert [case["caseId"] for case in result.cases] == [
             case["caseId"] for case in source_cases
@@ -250,3 +253,55 @@ def test_step30_direct_and_bridge_comparisons_agree(
             "type": "vector-run-error",
             "message": f"計算結果が不一致: {scenario['cases'][0]['caseId']}",
         }
+
+
+def test_coordinated_descriptor_artifact_change_cannot_replace_schema_expectation() -> None:
+    """descriptorとartifactを同時改竄しても独立schema宣言で拒否する。"""
+    descriptor_path = "contracts/state-transition/input_axes_descriptor_v1.json"
+    handoff_path = "contracts/state-transition/appendix_e_consumer_handoff_v1.json"
+    descriptor = _json(descriptor_path)
+    descriptor["digest"] = "sha256:" + "0" * 64
+    changed_descriptor = json.dumps(descriptor).encode()
+    handoff = _json(handoff_path)
+    artifact = next(row for row in handoff["artifacts"] if row["path"] == descriptor_path)
+    artifact["digest"] = "sha256:" + hashlib.sha256(changed_descriptor).hexdigest()
+
+    def reader(path: str) -> bytes:
+        """実descriptorとhandoffだけを協調して改竄する。"""
+        if path == descriptor_path:
+            return changed_descriptor
+        if path == handoff_path:
+            return json.dumps(handoff).encode()
+        return (ROOT / path).read_bytes()
+
+    with pytest.raises(HANDOFF.HandoffLoadError) as error:
+        HANDOFF.load_handoff(ROOT, reader)
+    assert error.value.code == "DESCRIPTOR_MISMATCH"
+
+
+@pytest.mark.parametrize("mode", ["drop-both", "other-calculation"])
+def test_pure_input_requires_both_fields_in_state_cases_only(mode: str) -> None:
+    """本物caseの両欠落と別計算への純入力移植を拒否する。"""
+    state_path = "contracts/state-transition/state_transition_contract_v1.json"
+    game_path = "contracts/state-transition/game_end_contract_v1.json"
+    state = _json(state_path)
+    pure_case = next(case for case in state["cases"] if "inputPayload" in case)
+    if mode == "drop-both":
+        del pure_case["inputId"]
+        del pure_case["inputPayload"]
+        path, document = state_path, state
+    else:
+        game = _json(game_path)
+        game["cases"][0]["inputId"] = pure_case["inputId"]
+        game["cases"][0]["inputPayload"] = pure_case["inputPayload"]
+        path, document = game_path, game
+
+    def reader(requested: str) -> bytes:
+        """一つの実契約caseだけを変更する。"""
+        if requested == path:
+            return json.dumps(document).encode()
+        return (ROOT / requested).read_bytes()
+
+    with pytest.raises(HANDOFF.HandoffLoadError) as error:
+        HANDOFF.load_handoff(ROOT, reader)
+    assert error.value.code == "UNKNOWN_FIELD"

@@ -1,0 +1,403 @@
+{
+  "schema_version": 1,
+  "author": "/root/csv_review",
+  "not_blind_expected": true,
+  "cases": [
+    {
+      "case_id": "D06-01-ready-m-o4",
+      "variant": "o4_rejected",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "O4",
+              "reason": "contract fixture reason"
+            }
+          }
+        ]
+      },
+      "d5_effect": "unconsumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "admin_wait",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-02-cancel-unknown-ledger-zero",
+      "variant": "unresolved",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4",
+        "authoritative_resolution"
+      ],
+      "ack": null,
+      "d5_effect": "unknown",
+      "state_rejection_rows": null,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "resolve_old_attempt",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-03-no-o4-m",
+      "variant": "state_rejected",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4",
+        "C2",
+        "state_guard",
+        "dedicated_state_commit"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "状態前提",
+              "reason": "contract fixture reason",
+              "branch": "B3c"
+            }
+          }
+        ]
+      },
+      "d5_effect": "consumed",
+      "state_rejection_rows": 1,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "dedicated_rejection",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-04-di2-before-o4",
+      "variant": "stored_replay",
+      "trace": [
+        "existing_preconditions",
+        "DI2"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "状態前提",
+              "reason": "contract fixture reason",
+              "branch": "B3c"
+            }
+          }
+        ]
+      },
+      "d5_effect": "unchanged",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "fixed_replay",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-05-di3-before-o4",
+      "variant": "d5_conflict",
+      "trace": [
+        "existing_preconditions",
+        "DI3"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "内容起因",
+              "reason": "contract fixture reason",
+              "branch": "B3b"
+            }
+          }
+        ]
+      },
+      "d5_effect": "unchanged",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "existing_rule",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-06-independent-b3a-before-o4",
+      "variant": "content_rejection_delegated",
+      "trace": [
+        "existing_preconditions",
+        "independent_7"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "内容起因",
+              "reason": "contract fixture reason",
+              "branch": "B3a"
+            }
+          }
+        ]
+      },
+      "d5_effect": "consumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 1,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "existing_rule",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-07-pending-c2missing-o4",
+      "variant": "o4_rejected",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "O4",
+              "reason": "contract fixture reason"
+            }
+          }
+        ]
+      },
+      "d5_effect": "unconsumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "admin_wait",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-08-pending-c2missing-no-o4",
+      "variant": "c2_missing",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4",
+        "C2"
+      ],
+      "ack": null,
+      "d5_effect": "unconsumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "retry_same_request",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-09-repaired-atomic-replacement",
+      "variant": "replacement_allowed",
+      "trace": [
+        "authoritative_resolution",
+        "administrator_repair",
+        "atomic_replacement"
+      ],
+      "ack": null,
+      "d5_effect": "unconsumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": true,
+      "old_d5_blocked": true,
+      "next_operation": "send_new_y",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-10-y-mark-remains",
+      "variant": "state_rejected",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4",
+        "C2",
+        "state_guard",
+        "dedicated_state_commit"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 40,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-00000000002a",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "状態前提",
+              "reason": "contract fixture reason",
+              "branch": "B3c"
+            }
+          }
+        ]
+      },
+      "d5_effect": "consumed",
+      "state_rejection_rows": 1,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": true,
+      "next_operation": "dedicated_rejection",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-11-different-content-not-o4-resume",
+      "variant": "separate_correction",
+      "trace": [
+        "authoritative_resolution"
+      ],
+      "ack": null,
+      "d5_effect": "unchanged",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "separate_correction",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-12-mixed-prefix-single-ack",
+      "variant": "o4_rejected",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4"
+      ],
+      "ack": {
+        "boundary_result": "B3",
+        "advanced_d3": 41,
+        "event_results": [
+          {
+            "d4": "opaque-current",
+            "d1": 41,
+            "d5": "00000000-0000-0000-0000-000000000029",
+            "a5_result": "受理"
+          },
+          {
+            "d4": "opaque-current",
+            "d1": 42,
+            "d5": "00000000-0000-0000-0000-00000000002a",
+            "a5_result": "拒否",
+            "rejection": {
+              "kind": "O4",
+              "reason": "contract fixture reason"
+            }
+          },
+          {
+            "d4": "opaque-current",
+            "d1": 43,
+            "d5": "00000000-0000-0000-0000-00000000002b",
+            "a5_result": "未処理"
+          }
+        ]
+      },
+      "d5_effect": "unconsumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "admin_wait",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-13-independent-sstop-before-o4",
+      "variant": "independent_stop_delegated",
+      "trace": [
+        "existing_preconditions",
+        "independent_7"
+      ],
+      "ack": null,
+      "d5_effect": "unchanged",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "existing_rule",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-14-old-x-late-after-block",
+      "variant": "old_request_blocked",
+      "trace": [
+        "authoritative_resolution"
+      ],
+      "ack": null,
+      "d5_effect": "unconsumed",
+      "state_rejection_rows": 0,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": true,
+      "next_operation": "existing_rule",
+      "evidence_level": "contract_case_not_runtime_proof"
+    },
+    {
+      "case_id": "D06-15-state-commit-unknown",
+      "variant": "unresolved",
+      "trace": [
+        "existing_preconditions",
+        "independent_7",
+        "O4",
+        "C2",
+        "state_guard",
+        "dedicated_state_commit",
+        "authoritative_resolution"
+      ],
+      "ack": null,
+      "d5_effect": "unknown",
+      "state_rejection_rows": null,
+      "t9_original_rows": 0,
+      "replacement_allowed": false,
+      "old_d5_blocked": false,
+      "next_operation": "resolve_old_attempt",
+      "evidence_level": "contract_case_not_runtime_proof"
+    }
+  ]
+}

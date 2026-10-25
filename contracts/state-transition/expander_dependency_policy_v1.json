@@ -50,7 +50,10 @@
         "contracts/state-transition/input_axes_descriptor_v1.json",
         "contracts/state-transition/game_end_contract_v1.json",
         "contracts/state-transition/clause_branch_register_v1.json",
-        "contracts/state-transition/representative_selection_policy_v1.json"
+        "contracts/state-transition/representative_selection_policy_v1.json",
+        "contracts/state-transition/t1_observation_binding_rules_v1.json",
+        "contracts/state-transition/t1_out3_input_schema_v1.json",
+        "contracts/state-transition/t2_coordinate_baseline_snapshot_v1.json"
       ]
     }
   ]

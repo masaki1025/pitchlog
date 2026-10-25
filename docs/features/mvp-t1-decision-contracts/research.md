@@ -1,0 +1,107 @@
+# 採用済み判断の正式反映根拠
+
+- PO採用原記録: feature/mvp-integration-lead e4ef090a、既decision-sheet。D01〜05は未回答のまま。
+- receipt: /home/ymdms/.cache/pitchlog/mvp-decisions-d06-d07-20261024/po-adoption.json。これは署名/本人実値確認ではない。
+- D07作者候補: /home/ymdms/.cache/pitchlog/t1-formal-out3-first-candidate-v2-20261024-d07a/handoff-v2.json、45成功、純入力SHA1b11153d627526f1b23bad5c73ab75436fc042d67a2c95cad6933afe58c1dc11。通常独立レビュー依頼済み、正式反映/7.7/P6未成立。
+- D06作者候補: /home/ymdms/.cache/pitchlog/d06-priority-contract-adoption-20261024/。固定handoff待ち。故障想定/実DB0を区別する。
+- 本unitは既承認544ステップ1の部分処理で、既T1候補ddc9ce8647d2bb5c4ee38f0f4e901aa50b875f5dや旧候補/封印を移植せず参照する。正式契約起点は4b2db690。
+
+
+## D07限定正本の確定
+
+2026-10-24T05:13:53.014357+00:00、rootは既PO委任に基づき、D07=A採用内容の最小要件追補候補（元a7edf93a56dc6b6f364890a4cd49cd6a360fcb4e45dafe64f561163f789a538f→審査版6f29239c3f0b50f60657edcc1f30553fb7538e5b6516a04c2a40d6060f7a3421、patch6aa8c85b815ff4d20f00d3bca2ce1a367fc150fa737e3e62dc4fc3c8186ea5b8）を確定した。作者initial_scope_plan_review、非作者rights_replacement_reviewの限定7.3第1回0/0/0・反映0周（証拠 /home/ymdms/.cache/pitchlog/reviews/d07a-requirements-gate-round1-independent-20261024/evidence.json、SHA256 0dc37f8f8a093004756592410d9df561b65532e5681ce027a219bb2c749659bc）を根拠とする。POの本スレッド実採用とrootの本文対象版確認を区別し、人間の実値逐行確認・署名は記録しない。D07適用は二死二三塁単打の一配置だけ。版2.17/approved/履歴/索引は確定に伴うmetadataで、正式developは未変更。
+
+通常非作者候補レビューは /home/ymdms/.cache/pitchlog/reviews/d07a-formal-candidate-v2-independent-20261024/evidence.json（SHA256 f7465837c3bbe8b1991f682a940c735fbaca997cbb853b6905a1122c85bd80ab）、45+6局所構造検査と旧42row/109case/27fixture保持を確認。これはblindではない。schema単独の時機欠落/走者ID相反受理は既知未達で、正式接合前の必要観測・相関負例を残す。正式contracts/7.7/missing15/P6/P7/全T1着手条件はこの確定だけで変化しない。
+
+
+## D06限定同期正本の確定と技術候補の差戻し
+
+2026-10-24T05:21:52.982796+00:00、rootはPO委任により、同期正本5節の限定差分（審査版6f4c4b245c234ca7ee38b60355aacd33e618388509a4be35a2384c33c3225ca9、patch0e5b60890b301acc3606046f181ff1ff8368180aac59c4de94ea5afce493be51）を確定する。非作者rightsの限定7.3第1回0/0/0・反映0周、証拠 /home/ymdms/.cache/pitchlog/reviews/d06b-contract-independent-20261024/norm-round1.json（SHA256 ce379c586cde2c7b39f98849833e3b068a2841d667186a8d7aa8ca92e1f52c27）と本スレッドPOのB採用・全留保を根拠とする。同系譜・同半回のmによる重複TBだけで、P3や一般同値不成立を新規採用しない。版0.12/履歴/索引は確定metadataであり、正式develop未統合。
+
+別の技術通常初回はD06-CODE-01 P1を採用（code-round1.json SHA086a596ecea3391050c9b5075a5e0bc9e0456d0a44c21475ba5fe338615c9d51）。PrefixEvidenceRefV1未定義はskipLibCheckなしでTS2304、skip時にprefix17/nullを誤受理。原cacheを不変保存し、root反映候補 /home/ymdms/.cache/pitchlog/d06-priority-contract-reflection1-20261024/ へ既upstream exact4field readonly型だけ追加。skipなし宣言/利用側6負例・no-anyは成功、限定非作者再検査待ち。66作者/独立比較は実Ready・DB・取消・耐久遮断の証明ではない。専用原本/実DDL・ACL/真正権威照会・正式4b2未収録P7参照schemaの供給・7.7/全P6/P7は残る。
+
+
+D06正本commit前の計画整合検査で、§2には存在する要件/索引のパスをcheckerが§3から導出できず2件拒否した。直前のコマンドは最後のgit終了値だけを返したためcommitは成立したが、この検査を成功とは扱わない。編集範囲は増やさず§3へ同じ対象pathを明示して機械突合を是正する。以後依存コマンドは失敗時に停止する。
+
+
+2026-10-24T05:27:13.381972+00:00、要件D07の確定byte変更により既共有認可前提の要件source git-blob束縛だけを追随。FR-034/認可前提値は不変で、既POの通常生成値追随委任によるroot処理。ADR実basenameを既存ADR-003-domain-calc-method.mdへ訂正し、存在しない案のパスを編集対象として残さない。
+
+
+## ステップ2の固定候補・限定独立導出
+
+2026-10-24T05:35:47.076325+00:00、rootはD07作者候補v2の純入力を新しいfork-none検証者へ、承認済み要件d0070222と対象範囲だけ添えて先渡しした。作者値/会話履歴/周辺cacheは渡さず、封印完了後にrootが候補比較した。封印 /home/ymdms/.cache/pitchlog/p6-d07-limited-derivation-20261024/seal.json SHA256f9aa6a10b0d8f70aee7d39fa1520f97c1fbac629a93b968183f33db96749dac9、derivation af8dffe2fc306912b22ed7b775e067e1611ccb66ee02991082789575157cceac。新2入力の六比較面/各23flag/得点・打点は全一致。比較は候補側rootが行ったもので、正式契約版段階B/全P6受理ではない。検証者には作者比較資料をまだ渡しておらず原導出/曝露履歴を不変保存する。
+
+D06技術候補の初回P1に対するroot反映は非作者第2回相当で終結（型f41a48c44c373606ba1fbc661df783404755d24a1af1293223af40b9d7f48e28）。skipなし宣言/正常/no-any/否定6件が成功。正本7.3初回0・技術初回P1/反映1/第2回0を別系列で保持する。
+
+- /home/ymdms/.cache/pitchlog/p6-d07-limited-candidate-comparison-20261024.json SHA256 1bcae8bbc08863e14de6c080cd3ea0221c9101e8a53794afef420e1834d67b90
+- /home/ymdms/.cache/pitchlog/reviews/d06b-contract-independent-20261024/code-round2-reflection.json SHA256 12bc814b479c3b51836283467f8c822c690587a2130f8558eb9d3b2d06a8ccc4
+
+正式6asset/新D06共有型・caseはまだ未反映。P7 upstream schemaの正式共有化/専用保存原本・認可・結果wireとreader、必要観測・ID相関の拒否、共通descriptor/T2参照/派生値/7.7、正式段階B/必要再検証・所有側範囲受理を残す。新2ケースはP8不足15をまだ削減せず、7marker閉鎖0・計算本体未着手を保持する。実Port/HTTP/DBの完成を計算本体の着手前へ追加せず、元544の対象別条件のうち実装後ゲートとして扱う。
+
+
+2026-10-24T06:31:59.644159+00:00、rootは作者の28path候補/全SHAとcore両領域包含を固定対象に指定。旧自然key全再採番案を退けた互換策、T2不要直積4278→5301案を退けて旧全4656identityを保持した有限consumer写像、構造/意味相関の責任、未受理公式redをplanへ明示した。source/正式JSONは未適用。新しい人間判断や本人実値確認の成立ではなく、既採用意味の必要実装差分として非作者限定レビューへ進む。
+
+
+2026-10-24T07:52:43.655602+00:00、反映2cold P1は非作者限定追加0/0/0で終結（review SHA76f3d91159d999dc0c8417c54886bbdbdf8a8d8d9d84b06ef9af8aae53801fb3）。初回7.7提案b0e01020は別値照合でP0=0/P1=3/P2=0否決（report a2fb5eb8b96a3908d61069a8f33ef07c2e6a844292403eda0d0a44645729ed61）、全採用し正式write0のまま差戻し。source比較literal57の各役割とscope/freezeDefinition全前後を追加し、placement5属性と履歴append後digest/4参照を是正。最初のcache probeはvalidate_append_only_transitionのcurrent/base引数逆で失敗、実署名どおりに修正して宣言/履歴/実装対応が成功、正式assetには未接触。
+
+全component検査でinputcoverage未追随を検出し旧153保持→170/17追加と1履歴追記、共有game_end正常T1case数109→111を追随。途中assertでT2post候補59を正式248と取り違え、書込み前に停止。実248を一次資料で確認し不変保持した。新2純入力resultIdはID表現であり旧raw表示名readerが拒否したため、純入力を書き換えず語彙正本による表示解決と3正負例を追加、製品Pythonで3成功。既T2expanderが新9観測軸をraw補完する接合漏れは別作者rg1_actor_supply_reviewのcache追補へ分離、旧248/4656全保持を確認。必要な有限入力3をouter検査にも宣言し、許可範囲外read拒否は保持する。
+
+39pathの未受理cache反映1は /home/ymdms/.cache/pitchlog/t1-contract-183-acceptance-reflection1-20261024/proposal.json SHA0dc20c1f0f8b4d54881929a9640340715ee66d467749f53177592074a9d1082f。最終descriptor sha256:f7ebea31ad39691a92474a0695e3b69c57fd80c906816a4374ae7ffb8ddb6e6f。assembled-local-checks.jsonでdescriptor/三点invariants/gap/手fixture/requiredcoverage/branchmappingの6系統成功。三点のGit受理遷移はまだ未検証、cacheのGit履歴照合はread-only GIT_DIR/WORK_TREEをstandaloneCLIだけに渡し、pytestへ伝播させていない。old未承認bootstrapは未承認保持、原提案/全beforebyteを保全し正式P6受理へ変換しない。新非作者の39path最終source/全値照合を依頼し、追加独立確認の裁定は既PO委任によるroot判断として本planへ固定する。
+
+
+## spike既存TS成果の再利用（PO追補指示）
+
+2026-10-24T07:55:48.611201+00:00、POがspike/ux1-mvpのT1成果を速度向上に使うよう指示。rootはremote exact8e1bf4310f3db2a4e9f3302b2e3bc2833287feaeをfetch/read-onlyで照合し、既branchへcommit/push/mergeを行っていない。元spikeの凍結/旧DB成功の境界を保持する。非作者initial_sql_independent_reviewの再利用評価 /home/ymdms/.cache/pitchlog/spike-ux1-reuse-evaluation-20261024/handoff.json SHA0d8fdf86def3000eb0770077fa57e2708932687a4b94c508cad966891d59baff は、対象93fileのSHA保存、focused Vitest37成功、再buildと保存artifact byte一致（e4dd79d5…/20091bytes）、既domainrt下位呼出し成功を実証。spike契約109と現在4b2系109はbyte同値。README記載のb45b/18097bytesは操作追加前で、現8e1のartifactと混同しない。
+
+rootは既544承認計画step2の実装材料として、TSの42ID規則表・BigInt計算骨格・操作written差分表現・既build/hostを再利用する方針を選ぶ。正式本体着手条件が成立するまで製品sourceへ移さず、まず閉契約との不足を確定する。ElementAccessExpression許可1行の変更は既宣言所有に対する最小独立確認と拒否回帰後に限る。新しい方式や全体計画を作り直す判断ではない。
+
+再利用の是正対象は#183新2例（outEffectが実0対期待1、raw観測payloadは現API未使用）、閉入力拒否（outs99/strikes999/未知runnersがok:true）、RBI近似、打順9固定、G6/S20、undo10、matrix historyContext、history.after34差分。37成功や旧99caseの5/4面一致を全出力/状態遷移/P6成立にしない。Python計算の重複・always-true権利/RG1/recovery/validator・no-op projection・独自HTTP/wire・34差分数をgreen条件とするassertionは製品へ持ち込まない。これらは旧spike保存→reload試験の境界であり、最優先の真正な縦断経路の達成証拠にしない。
+
+
+## D06/B・D07/A限定の正式値受理と反映
+
+2026-10-24T08:15:25.407561+00:00、rootはPO委任によるCodex判断として、固定base3f582100＋39path patch be714d351ad5954440c1bcce870faed6d3b9bd5b65b371074c4ca2951961055e、proposal bb98f24fefe03191372310ebad8897d53eb8360819e71738f7990fca30a742d7の完全前後値と非作者反映2レビューe4b2faaa958b89221a5626dec33504f3fa691850ae9c949b75e96cc25c7cfc58（0/0/0）を受理して39pathを反映する。本人の実値逐行確認・署名ではない。cache acceptance-receipt.jsonが判断対象/根拠/時刻を保持する。元初回3P1と次の14test P1は全採用の履歴を残し、最終14対象＋Git PR正負4の独立18成功、完全repo隔離536成功42.21s。最後のPR131固定期待2失敗は環境扱いせず、実target番号のfixture追随と別PR拒否を併設して解消した。全基準/入力/ケース/旧値を、通すために削除していない。
+
+正式枝内はmatrix44/case111/manual29、旧42/109/27要素とT2全248case/4656要求の要素・順序を保持。input被覆は旧153全保持→170・17追加、要求226/除外56/到達可能170・不足0。P8の全着手不足は今回2caseの範囲だけを13へ減らすもので、G6等の残件や7marker全閉鎖へ広げない。手fixture2は既未承認bootstrap状態を保持し、旧109全P6や新2の正式段階B/所有受理を成立扱いにしない。次は反映後の正式Git受理遷移/全影響検査と対象段階B・所有側範囲受理であり、計算本体の着手条件全成立・正式develop提供・実開始/初球保存は未達。
+
+
+既委任手続の対象をPR183/feature/mvp-t1-decision-contractsのexact1組へ追記する。既9対象・source/publisher/拒否条件・期限を保持し、コア検出/機械判定/人間欄は変更しない。最終HEADと全PR差分の非作者確認・外部委任証拠を揃えてから公開し、CI待ち中は初期権とP8残件を進める。これは既POが認めた対象PR限定手続の通常適用で、人間による実値確認の代記ではない。
+
+
+## CIで見つかった両runner消費部の是正
+
+2026-10-24T09:03:25.521689+00:00、e266のCI40078161784 frontendは13失敗1843成功。TS/Python loader旧5107期待とhandoff3artifact旧byte値が、正しいSCHEMA_VERSION/UNKNOWN_FIELD等の拒否を先行して遮っていた。既39成功の範囲外であり全接合と扱わない。author initial_sql_independent_reviewのexact7path候補（handoff7a5f25bd6b2cc4c8235b89942b9edf4dfad51643f5a4be7af463ce146f19e092、patch ad7cb18b14fc0367e0042d63a724ecf19969f91930b141e0fa34097bdd7b606e）は、既受理schema2の閉constを独立期待宣言へ使いsource直書きを除去、hand-off3byte値のみ追随する。新2caseの純入力を捨てず全source fieldとして保持し、stage2実配線は残す。旧17拒否と分類/順序を維持、閉shape/協調改竄/欠落等を両言語で拒否した。
+
+別非作者t1_formal_final_reviewは0/0/0（report c50bd283a358a54d52357d6bb84cd62fa8d508604588a2038034fef917cb6d1d）、独立Python65/TS79成功。作者完全frontend92file/1867成功・backend関連101成功・type/lint/format0。rootはtarget e266+exactpatch/全前後値/信頼境界を既PO委任で受理し、root-acceptance-receipt.jsonへ判断日時とbefore/afterを固定して反映する。既f7規範意味/descriptorの全基準を再承認せず、consumerの旧期待値と置場が動く範囲だけの7.7追記である。本人の確認/署名、全P6/P7、本体/保存完了を代記しない。新最終HEADでレビュー証拠/実merge/必須CIを再照合し、旧失敗を成功へ読み替えない。
+
+
+## 認可source入力の先行固定
+
+2026-10-24T09:31:45.703255+00:00、rootは既PO委任で候補9pathをsource-onlyとして確認・反映する。固定前69179218、候補差分79df0f5345b617da8b4f8eea44480abb6fabf3b87fac7fbf409c4beece2852c3、非作者t1_ci_followup_independent所見0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/t1-ci-followup-independent-20261024/authz-verdict.json SHA d99694eebf50fbd4b42f4ce73d1f39f111007eb6f4c3ae526d4900e51e2502ac。旧1418分類/原文対応とAUTH187辞書全体、derived認可決定を保持し、新9件は既非認可分類。product CLI/readerは成功、旧oracle入力固定と未commit cloneに伴う4失敗は未解消のまま先行Git版を作る。既ステップ17の後続機械metadata追随・独立照合・最終CIまで正式完了としない。旧本人署名/P6封印/認可意味は変更しない。root-source-acceptance.jsonに全before/afterを固定。
+
+
+## 残CIの変異検査・fixture追随
+
+2026-10-24T09:33:25.432228+00:00、rootはPO委任によりmetadata4/変異5の有限候補を反映する。全9pathの正式前byteはレビュー基準69179218と同一、先行認可commit8a40519dから無関係差分を再取込みしない。非作者t1_ci_followup_independent所見0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/t1-ci-followup-independent-20261024/evidence.json SHA 2e5684f5ea6ede78172fbda93b24e7b0ae1824d4e300f0287332aab2772c246f。metadata369成功、変異80成功、全200変異/299実導出・旧T2要求4656全順序同値を独立確認。P8candidate本文/期待値/未受理状態を変えず基準digest2値だけ、変異policyは旧50→59軸/境界141維持。新9観測にもT2実導出不変を検査しskipを作らない。root-acceptance-receipt.jsonに全前後/採用範囲を固定。旧署名Gate6とoracle機械追随/結合後CIは未達。
+
+
+## 既oracle入力系列の機械追随受理
+
+2026-10-24T09:40:19.022173+00:00、rootは既PO委任により固定source8a40519dへoracle入力系列を追随する10pathを採用。非作者t1_ci_followup_independent所見0/0/0、証拠 /home/ymdms/.cache/pitchlog/reviews/t1-oracle-metadata-independent-20261024/evidence.json SHA 7a5ee239368a86d67c829de0bfb99136cc4f9daa032009a581df1412014d190e、標準差分a18c8ab0f068b3c6d751d68db9a34c2a238c36b0cd580822ae31e253a85a79e5。6oracleのcontext commit以外の意味全文、seal規律、旧14履歴を全保持し、8入力の現在/Git/seal一致を実再計算。default/probe/product、mcdc47/failure5/frozen invariants成功、不正input/規律緩和/意味改変の3負例拒否。前後値・配置・採用根拠はroot-acceptance-receipt.jsonへ固定。新履歴の採用前非作者確認条件は本証拠で成立したが、本人の実確認/署名を意味しない。commit後の内部clone drift・Gate6限定carry・最終HEAD/CIは未達。
+
+
+## Gate6限定例外の初回差戻し
+
+初回候補は旧本人の記録/schema/step33と旧validatorを保持した技術carry5path。非作者t1_formal_final_reviewのG6-CARRY-01（P1）をrootは全採用し正式反映を止めた。報告 /home/ymdms/.cache/pitchlog/reviews/t1-gate6-carry-independent-20261024/review-initial.md SHA871c1a6c867a80e713f5ba7a39c49fe5a4f1342119fba2f9ab6963ad139aef88、元候補 /home/ymdms/.cache/pitchlog/t1-gate6-delegation-audit-20261024/initial-handoff.json SHAcf457d5c082d527ce820b7055dafe1192b8482965744490532f063ec42a967a1。作者33成功と他PR自己追随の独立反例は別証拠であり、成功件数でP1を隠さない。限定反映1とその非作者差分確認後に採否を決める。
+
+既D07新2入力について、正式枝044ffe78のinputPayloadが純入力と完全同値、六効果/各23flagが原封印導出と一致することをrootが比較し、別非作者が通常整合確認で再計算した。証拠 /home/ymdms/.cache/pitchlog/reviews/p6-d07-formal-comparison-independent-20261024/evidence.json SHA ccc566e3a8075a2fb1ce050e4f318a7bcae720dbbd251b00e096e738161fee54。原seal/derivation/exposure/rationaleのhash不変。新blind導出/所有側受理/資格拡大ではなく、旧96blocked/旧曝露/全P6未成立を維持する。
+
+
+## Gate6反映1の技術手続き採用
+
+2026-10-24T10:06:59.821673+00:00、rootはPO委任による今回PR183限定の技術carry5pathを採用。旧本人記録/署名schema/step33/旧main以外validator AST/全subject実byteを保持し、元P1 G6-CARRY-01は非作者の反映1限定確認で閉鎖。報告 /home/ymdms/.cache/pitchlog/reviews/t1-gate6-carry-independent-20261024/review-reflection1.md SHA 88828d64dd379b90846f55b8af517a51e5cddf97640ed27b997577b8879f4d06、作者handoff 3605cec31a60ab0cc48e8f979d15ddeab2bb8a1b4665d97fb2a4dabb1a79c6ff、全5path差分1237616ccab9eb6298f84db8e7836c8bd3c85d3ca1550f9330bc6ea7e87f6129。44成功31.10s、別PRの対象/carry協調改変を既受理base比較で拒否、183最終core_guard経路/全PRの必須呼出を保持。root-technical-acceptance.jsonへ全before/afterを固定。手続きの技術採用であり、最終HEAD/全差分の公開委任証拠/必須CIはこれからで、人間本人確認を代記しない。
+
+
+## 最終CIの認可全件変異件数追随
+
+2026-10-24T10:52:20.373987+00:00、新CI40085138810のharnessは30054成功/2skip/1失敗924.26s。失敗は test_all_out_of_scope_rows_moved_to_auth_claim_are_red の旧1231件期待2assertであり、既採用D07全数抽出後の実1240件に追随が漏れていた。既認可入力受理の1231→1240だけを検査fixtureへ反映し、全out-of-scope行をauthへ変異させるループ・decision lock拒否・attempt件数・逃れ0を保持する。母集合/分類/ロック/検査実装は不変で、同じ基準の7.7を再受理しない。関連2検査は2成功15.14s、同ファイル/関連spec/backend roleで旧1418/1231の現行期待が他に残らないことを検索照合した。backendの同CI結果を待ち、必要修正をまとめて最終HEAD/公開証拠を更新する。今回の失敗を成功へ読み替えず、前96の全差分確認と後発この有限差分を別に追跡する。

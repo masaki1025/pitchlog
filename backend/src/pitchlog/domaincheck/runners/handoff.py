@@ -6,6 +6,7 @@ import hashlib
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from pathlib import Path
 from typing import cast
 
@@ -50,8 +51,9 @@ CONTRACTS = {
 }
 DESCRIPTOR_ID = "pitchlog.input-axes"
 DESCRIPTOR_VERSION = "input_axes_descriptor_v1"
-DESCRIPTOR_DIGEST = (
-    "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57"
+DESCRIPTOR_SCHEMA_PATHS = (
+    "contracts/state-transition/state_transition_contract_schema_v1.json",
+    "contracts/state-transition/game_end_contract_schema_v1.json",
 )
 DEPENDENCY_OID = "b8fd5fe73e85ae80b3aa82b28bef7f2911f29b12"
 DEPENDENCIES = {
@@ -205,6 +207,7 @@ class LoadedHandoffCases:
 
     calculation_id: str
     cases: list[dict[str, object]]
+    source_cases: list[dict[str, object]] = dataclass_field(default_factory=list)
 
 
 @dataclass(frozen=True, slots=True)
@@ -387,10 +390,69 @@ def load_handoff(
     _same(parity.get("descriptorId"), DESCRIPTOR_ID, "DESCRIPTOR_MISMATCH", "id")
     descriptor_raw, descriptor = read(DESCRIPTOR_PATH)
     _keys(descriptor, DESCRIPTOR_KEYS, "descriptor")
+    # 既受理の契約schemaの閉じたconst宣言を期待値にする。
+    # 実descriptorから期待値を導出しない。
+    descriptor_digest: str | None = None
+    descriptor_fields = ("descriptorId", "version", "digest")
+    for path in DESCRIPTOR_SCHEMA_PATHS:
+        _, schema = read(path)
+        definitions = _object(schema.get("$defs"), f"{path}/$defs")
+        binding = _keys(
+            definitions.get("inputAxesDescriptorBinding"),
+            frozenset({"type", "required", "additionalProperties", "properties"}),
+            f"{path}/inputAxesDescriptorBinding",
+        )
+        _same(binding["type"], "object", "DESCRIPTOR_MISMATCH", "binding type")
+        _same(
+            binding["additionalProperties"],
+            False,
+            "DESCRIPTOR_MISMATCH",
+            "binding closure",
+        )
+        _same(
+            binding["required"],
+            list(descriptor_fields),
+            "VERSION_MISMATCH",
+            "binding required",
+        )
+        properties = _keys(
+            binding["properties"], frozenset(descriptor_fields), "binding properties"
+        )
+        constants: dict[str, str] = {}
+        for field in descriptor_fields:
+            declaration = _keys(
+                properties[field], frozenset({"const"}), f"binding {field}"
+            )
+            value = declaration["const"]
+            if not isinstance(value, str):
+                raise HandoffLoadError("DESCRIPTOR_MISMATCH", f"binding {field}")
+            constants[field] = value
+        _same(
+            constants["descriptorId"],
+            DESCRIPTOR_ID,
+            "DESCRIPTOR_MISMATCH",
+            "binding id",
+        )
+        _same(
+            constants["version"],
+            DESCRIPTOR_VERSION,
+            "DESCRIPTOR_MISMATCH",
+            "binding version",
+        )
+        digest = constants["digest"]
+        if (
+            not digest.startswith("sha256:")
+            or len(digest) != 71
+            or any(char not in "0123456789abcdef" for char in digest[7:])
+        ):
+            raise HandoffLoadError("DESCRIPTOR_MISMATCH", "binding digest")
+        if descriptor_digest is not None:
+            _same(digest, descriptor_digest, "DESCRIPTOR_MISMATCH", "schema agreement")
+        descriptor_digest = digest
     for field, expected in (
         ("descriptorId", DESCRIPTOR_ID),
         ("version", DESCRIPTOR_VERSION),
-        ("digest", DESCRIPTOR_DIGEST),
+        ("digest", descriptor_digest),
     ):
         _same(descriptor.get(field), expected, "DESCRIPTOR_MISMATCH", field)
 
@@ -463,15 +525,38 @@ def load_handoff(
             raise HandoffLoadError("HANDOFF_SHAPE", f"{path}:empty cases")
         mapped: list[dict[str, object]] = []
         seen: set[str] = set()
+        retained_sources: list[dict[str, object]] = []
         for value in source_cases:
-            case = _keys(value, case_keys, f"{path}:case")
+            candidate = _object(value, f"{path}:case")
+            has_pure_input = calculation_id == "state-transition" and (
+                "inputId" in candidate or "inputPayload" in candidate
+            )
+            expected_keys = (
+                (case_keys - {"historyInput"}) | {"inputId", "inputPayload"}
+                if has_pure_input
+                else case_keys
+            )
+            case = _keys(candidate, expected_keys, f"{path}:case")
+            if has_pure_input:
+                input_id = case["inputId"]
+                if (
+                    not isinstance(input_id, str)
+                    or len(input_id) != 5
+                    or input_id[0] != "n"
+                    or any(char not in "0123456789" for char in input_id[1:])
+                ):
+                    raise HandoffLoadError("HANDOFF_SHAPE", "inputId")
+                _object(case["inputPayload"], "inputPayload")
+            retained_sources.append(case)
             result = {target: case[source] for target, source in pointers.items()}
             case_id = result["caseId"]
             if not isinstance(case_id, str) or not case_id or case_id in seen:
                 raise HandoffLoadError("HANDOFF_SHAPE", f"{path}:caseId")
             seen.add(case_id)
             mapped.append(result)
-        loaded[calculation_id] = LoadedHandoffCases(calculation_id, mapped)
+        loaded[calculation_id] = LoadedHandoffCases(
+            calculation_id, mapped, retained_sources
+        )
     if loaded.keys() != CONTRACTS.keys():
         raise HandoffLoadError("HANDOFF_SHAPE", "missing binding")
 

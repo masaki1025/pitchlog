@@ -490,7 +490,7 @@ def test_positive_manual_fixture_inputs_follow_representative_policy() -> None:
                 expected.pop(axis_id, None)
             assert game_fixtures[branch_id] == expected
             checked += 1
-    assert checked == 22
+    assert checked == 24
 
 
 @pytest.mark.parametrize(
@@ -511,3 +511,67 @@ def test_game_end_expander_rejects_unlisted_reads(
     monkeypatch.setattr(game_end_expander, "_read_document", read_with_disallowed)
     with pytest.raises(checker.ExpanderDependencyError, match="allowlist外"):
         game_end_expander.expand_traced(REPOSITORY_ROOT, limit=1)
+
+
+def test_t1_game_end_expander_preserves_all_248_raw_cases() -> None:
+    """共有旧座標資格で全248件のraw値・identity・順序を維持する。"""
+    generated, trace = game_end_expander.expand_coverage_traced(REPOSITORY_ROOT)
+    contract = json.loads(GAME_END_CONTRACT_PATH.read_text(encoding="utf-8"))
+    expected = []
+    for case in contract["cases"]:
+        projection = {
+            key: value for key, value in case.items()
+            if key not in {"raw", "normalizationRuleId", "normalized", "derivedSourceInput"}
+        }
+        projection["inputCoordinate"] = case["raw"]
+        expected.append(projection)
+    assert len(generated) == 248
+    assert generated == expected
+    assert trace.observed_read_paths == _policy().expanders["game-end-cases"].allowed_read_paths
+
+
+@pytest.mark.parametrize("mutation", ["missing", "tampered-rules", "tampered-snapshot"])
+def test_t1_game_end_expander_rejects_missing_or_tampered_qualification(
+    mutation: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """共有資格の欠落・原byte破損を補完して座標を展開しない。"""
+    from dataclasses import replace
+
+    original = schema_checker.load_game_end_observation_documents
+
+    def invalid_documents(root: Path, criteria: Any) -> Any:
+        documents = original(root, criteria)
+        assert documents is not None
+        if mutation == "missing":
+            return None
+        if mutation == "tampered-rules":
+            return replace(documents, rules=b"{}")
+        return replace(documents, baseline_snapshot=b"{}")
+
+    monkeypatch.setattr(schema_checker, "load_game_end_observation_documents", invalid_documents)
+    with pytest.raises(game_end_expander.CaseExpansionError, match="共有座標資格"):
+        game_end_expander.expand_coverage_traced(REPOSITORY_ROOT)
+
+
+def test_t1_game_end_expander_rejects_undeclared_tenth_axis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """有限資格外の観測軸をdescriptorへ足しても黙って除外しない。"""
+    import copy
+
+    original = game_end_expander._read_document
+
+    def read_with_unknown_axis(root: Path, path: Any) -> dict[str, Any]:
+        document = original(root, path)
+        if path == schema_checker.DESCRIPTOR_PATH:
+            axis = copy.deepcopy(document["stateTransitionAxes"][-1])
+            axis["axisId"] = "event.perPitch.unknownObservation"
+            document["stateTransitionAxes"].append(axis)
+            binding = copy.deepcopy(document["inputCoordinateCoverage"]["axisBindings"][-1])
+            binding["axisIds"] = [axis["axisId"]]
+            document["inputCoordinateCoverage"]["axisBindings"].append(binding)
+        return document
+
+    monkeypatch.setattr(game_end_expander, "_read_document", read_with_unknown_axis)
+    with pytest.raises(game_end_expander.CaseExpansionError, match="共有座標資格"):
+        game_end_expander.expand_coverage_traced(REPOSITORY_ROOT)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import codecs
 import hashlib
 import json
 import re
@@ -16,6 +17,12 @@ try:
     from scripts import state_transition_freeze as freeze_checker
 except ModuleNotFoundError:  # pragma: no cover - scriptを直接実行する経路
     import state_transition_freeze as freeze_checker  # type: ignore[no-redef]
+
+# RFC 8785で使うcodecだけを、readonly監査開始前のmodule初期化で解決する。
+# 初回のUTF-16BE key整列が監査中にstdlibを遅延importしないようにする。
+codecs.lookup("utf-8")
+codecs.lookup("utf-16be")
+
 
 DESCRIPTOR_PATH = PurePosixPath(
     "contracts/state-transition/input_axes_descriptor_v1.json"
@@ -1015,6 +1022,263 @@ def _validate_input_coordinate_coverage(
         )
 
 
+@dataclass(frozen=True)
+class GameEndObservationDocuments:
+    """consumer資格の独立したreadonly原byteを保持する。"""
+
+    rules: bytes
+    input_schema: bytes
+    baseline_snapshot: bytes
+
+
+def _consumer_relative_path(value: object) -> PurePosixPath:
+    """資格資産の相対path型をfilesystemに依存せず検証する。"""
+    if not isinstance(value, str):
+        raise DescriptorCheckError("consumer資格の資産pathが文字列でない")
+    relative = PurePosixPath(value)
+    if (relative.is_absolute() or len(relative.parts) != 3
+            or relative.parts[:2] != ("contracts", "state-transition")
+            or re.fullmatch(r"[a-z][a-z0-9_]*_v[1-9][0-9]*\.json", relative.name) is None):
+        raise DescriptorCheckError("consumer資格の資産pathが契約領域外または不正")
+    return relative
+
+
+def _consumer_asset_path(root: Path, value: object) -> Path:
+    """宣言先をroot内のsymlinkでない通常ファイルへ閉じる。"""
+    relative = _consumer_relative_path(value)
+    target = root / relative
+    if target.is_symlink() or target.resolve().parent != (root / relative.parent).resolve():
+        raise DescriptorCheckError("consumer資格の資産pathにsymlink迂回がある")
+    if not target.resolve().is_relative_to(root.resolve()):
+        raise DescriptorCheckError("consumer資格の資産pathがroot外へ解決する")
+    return target
+
+
+def _consumer_json(raw: bytes, expected_hash: object, label: str) -> dict[str, Any]:
+    """資産側SHAと一致する原byteだけをobjectとして読む。"""
+    if (not isinstance(expected_hash, str)
+            or re.fullmatch(r"[0-9a-f]{64}", expected_hash) is None
+            or hashlib.sha256(raw).hexdigest() != expected_hash):
+        raise DescriptorCheckError(f"{label}の原byte SHAが宣言と一致しない")
+    try:
+        value = json.loads(raw)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise DescriptorCheckError(f"{label}のJSONが不正") from error
+    if not isinstance(value, dict):
+        raise DescriptorCheckError(f"{label}がobjectでない")
+    return value
+
+
+def _qualification_source(criteria: DescriptorCriteria) -> Mapping[str, Any] | None:
+    """独立資格の資産参照を閉じた型で取得する。"""
+    scope = criteria.checker_expected_values.get("gameEndCoordinateScope")
+    if scope is None:
+        return None
+    source = scope.get("qualificationSource") if isinstance(scope, dict) else None
+    if not isinstance(source, dict) or set(source) != {
+        "rulesPath", "rulesByteSha256", "inputSchemaPath", "inputSchemaByteSha256"
+    }:
+        raise DescriptorCheckError("consumer独立資格の資産参照が不正または欠落")
+    return source
+
+
+def load_game_end_observation_documents(
+    root: Path, criteria: DescriptorCriteria,
+) -> GameEndObservationDocuments | None:
+    """明示した三readonly資産だけをroot内から読む。"""
+    source = _qualification_source(criteria)
+    if source is None:
+        return None
+    try:
+        rules_raw = _consumer_asset_path(root, source["rulesPath"]).read_bytes()
+        rules = _consumer_json(rules_raw, source["rulesByteSha256"], "観測binding")
+        anchor = rules.get("coordinateConsumerBaseline")
+        baseline = anchor.get("baselineSource") if isinstance(anchor, dict) else None
+        if not isinstance(baseline, dict):
+            raise DescriptorCheckError("独立した旧T2基線の参照がない")
+        schema_raw = _consumer_asset_path(root, source["inputSchemaPath"]).read_bytes()
+        _consumer_json(schema_raw, source["inputSchemaByteSha256"], "閉入力schema")
+        snapshot_raw = _consumer_asset_path(root, baseline.get("snapshotPath")).read_bytes()
+        _consumer_json(snapshot_raw, baseline.get("byteSha256"), "旧T2基線snapshot")
+    except OSError as error:
+        raise DescriptorCheckError(f"consumer資格のreadonly資産を読めない: {error}") from error
+    return GameEndObservationDocuments(rules_raw, schema_raw, snapshot_raw)
+
+
+def _play_coordinate_axis_ids(descriptor: Mapping[str, Any]) -> frozenset[str]:
+    """宣言中のmatrixに束縛されたstate/event軸を取得する。"""
+    coverage = descriptor.get("inputCoordinateCoverage")
+    if not isinstance(coverage, dict) or not isinstance(coverage.get("axisBindings"), list):
+        raise DescriptorCheckError("T2入力軸の行束縛を解決できない")
+    return frozenset(
+        axis_id for binding in coverage["axisBindings"]
+        for row in binding["rowBindings"] if "matrixRows" in row["rowLayers"]
+        for axis_id in binding["axisIds"] if axis_id.split(".", 1)[0] in {"state", "event"}
+    )
+
+
+def _observation_schema_leaves(
+    schema: Mapping[str, Any], node: Mapping[str, Any], path: Sequence[str],
+) -> tuple[Mapping[str, Any], ...]:
+    """閉入力の有限なproperty pathをlocal参照とoneOfだけで辿る。"""
+    reference = node.get("$ref")
+    if isinstance(reference, str):
+        node = _resolve_schema_reference(schema, reference)
+    if not path:
+        return (node,)
+    result: list[Mapping[str, Any]] = []
+    variants = node.get("oneOf", [])
+    if isinstance(variants, list):
+        for variant in variants:
+            if isinstance(variant, dict):
+                result.extend(_observation_schema_leaves(schema, variant, path))
+    properties = node.get("properties", {})
+    child = properties.get(path[0]) if isinstance(properties, dict) else None
+    if isinstance(child, dict) and node.get("additionalProperties") is False:
+        result.extend(_observation_schema_leaves(schema, child, path[1:]))
+    return tuple(result)
+
+
+def _observation_scalar_values(
+    schema: Mapping[str, Any], leaf: Mapping[str, Any], projection: object,
+) -> tuple[object, ...]:
+    """直接scalarまたは既H/U観測タグの値域だけを取得する。"""
+    reference = leaf.get("$ref")
+    if isinstance(reference, str):
+        leaf = _resolve_schema_reference(schema, reference)
+    if projection == "observed-value-or-unobserved-tag":
+        variants = leaf.get("oneOf")
+        if not isinstance(variants, list) or len(variants) != 2:
+            raise DescriptorCheckError("H/U観測の閉タグ型が不正")
+        shapes = []
+        for variant in variants:
+            if not isinstance(variant, dict):
+                raise DescriptorCheckError("H/U観測variantがobjectでない")
+            variant = (_resolve_schema_reference(schema, variant["$ref"])
+                       if "$ref" in variant else variant)
+            props = variant.get("properties", {})
+            kind = props.get("kind", {}).get("const")
+            if variant.get("additionalProperties") is not False:
+                raise DescriptorCheckError("H/U観測型が閉じていない")
+            shapes.append(kind)
+            if kind == "observed":
+                if (set(props) != {"kind", "value"}
+                        or set(variant.get("required", [])) != set(props)
+                        or props["value"] != {"type": "boolean"}):
+                    raise DescriptorCheckError("H/U観測値がbooleanの閉型でない")
+            elif (kind != "unobserved" or set(props) != {"kind"}
+                  or variant.get("required") != ["kind"]):
+                raise DescriptorCheckError("H/U未観測タグ型が不正")
+        if set(shapes) != {"observed", "unobserved"}:
+            raise DescriptorCheckError("H/Uタグが一意でない")
+        return (False, True, "unobserved")
+    if projection is not None:
+        raise DescriptorCheckError("観測補助のprojectionが直接scalarでない")
+    if "const" in leaf:
+        values = (leaf["const"],)
+    elif isinstance(leaf.get("enum"), list):
+        values = tuple(leaf["enum"])
+    else:
+        raise DescriptorCheckError("観測補助の原入力leafが有限scalarでない")
+    if not all(type(value) in (str, bool, int) for value in values):
+        raise DescriptorCheckError("観測補助の原入力leafがscalarでない")
+    return values
+
+
+def game_end_coordinate_axis_ids(
+    descriptor: Mapping[str, Any], criteria: DescriptorCriteria,
+    observation_documents: GameEndObservationDocuments | None = None,
+) -> frozenset[str]:
+    """独立した旧snapshotと原観測資格によりT2対象軸を検証する。"""
+    play_axes = _play_coordinate_axis_ids(descriptor)
+    scope = criteria.checker_expected_values.get("gameEndCoordinateScope")
+    if scope is None:
+        return play_axes
+    if not isinstance(scope, dict) or set(scope) != {
+        "includedAxisIds", "observationOnlyAxisIds", "sourceClauseIds", "reason",
+        "qualificationSource",
+    }:
+        raise DescriptorCheckError("T2入力軸とT1観測補助の写像宣言が不正")
+    included = _string_set(scope["includedAxisIds"], "gameEndCoordinateScope.includedAxisIds")
+    observations = _string_set(
+        scope["observationOnlyAxisIds"], "gameEndCoordinateScope.observationOnlyAxisIds"
+    )
+    _string_set(scope["sourceClauseIds"], "gameEndCoordinateScope.sourceClauseIds")
+    source = _qualification_source(criteria)
+    if source is None or observation_documents is None:
+        raise DescriptorCheckError("consumer独立資格のreadonly原byteが欠落")
+    # from-documents経路でもpath型と原byteの束縛を省略しない。
+    for path in (source["rulesPath"], source["inputSchemaPath"]):
+        _consumer_relative_path(path)
+    rules = _consumer_json(observation_documents.rules, source["rulesByteSha256"], "観測binding")
+    schema = _consumer_json(
+        observation_documents.input_schema, source["inputSchemaByteSha256"], "閉入力schema"
+    )
+    anchor = rules.get("coordinateConsumerBaseline")
+    if not isinstance(anchor, dict) or set(anchor) != {
+        "legacyT2CoordinateAxisIds", "observationCoordinateBindingIds", "rawInputSchemaPath",
+        "rawInputRootDefinition", "purpose", "baselineSource",
+    }:
+        raise DescriptorCheckError("独立consumer基線の宣言が不正")
+    baseline = anchor["baselineSource"]
+    if not isinstance(baseline, dict) or set(baseline) != {
+        "snapshotPath", "byteSha256", "descriptorId", "version", "descriptorDigest",
+        "originalPath", "approvedBaseCommit", "sameByteConfirmedAtCommit", "interpretation",
+    }:
+        raise DescriptorCheckError("旧T2基線の参照が不正")
+    _consumer_relative_path(baseline.get("snapshotPath"))
+    snapshot = _consumer_json(
+        observation_documents.baseline_snapshot, baseline.get("byteSha256"), "旧T2基線snapshot"
+    )
+    if (snapshot.get("descriptorId") != baseline.get("descriptorId")
+            or snapshot.get("version") != baseline.get("version")
+            or snapshot.get("digest") != baseline.get("descriptorDigest")
+            or compute_descriptor_digest(snapshot) != baseline.get("descriptorDigest")
+            or baseline.get("originalPath") != str(DESCRIPTOR_PATH)):
+        raise DescriptorCheckError("旧T2基線snapshotのdescriptor identityが不一致")
+    for key in ("approvedBaseCommit", "sameByteConfirmedAtCommit"):
+        if (not isinstance(baseline.get(key), str)
+                or re.fullmatch(r"[0-9a-f]{40}", baseline[key]) is None):
+            raise DescriptorCheckError("旧T2基線の出典commit形式が不正")
+    legacy = _play_coordinate_axis_ids(snapshot)
+    declared_legacy = _string_set(anchor["legacyT2CoordinateAxisIds"], "独立旧T2基線")
+    qualified = _string_set(anchor["observationCoordinateBindingIds"], "原観測binding資格")
+    if included != legacy or declared_legacy != legacy:
+        raise DescriptorCheckError("T2 includedが独立snapshotの旧全軸と一致しない")
+    if observations != qualified:
+        raise DescriptorCheckError("観測補助が独立した有限binding資格と一致しない")
+    if (legacy & qualified or legacy | qualified != play_axes
+            or not isinstance(scope["reason"], str) or not scope["reason"]):
+        raise DescriptorCheckError("独立基線と観測資格が全軸を重複なく分割しない")
+    if (anchor["rawInputSchemaPath"] != source["inputSchemaPath"]
+            or not isinstance(anchor["rawInputRootDefinition"], str)
+            or not isinstance(anchor["purpose"], str) or not anchor["purpose"]
+            or schema.get("$ref") != "#/$defs/" + anchor["rawInputRootDefinition"]):
+        raise DescriptorCheckError("原観測資格の閉入力rootが不一致")
+    bindings = rules.get("inputBindings", {})
+    axes = {axis["axisId"]: axis for axis in descriptor["stateTransitionAxes"]}
+    for axis_id in qualified:
+        binding = bindings.get(axis_id)
+        path = binding.get("path") if isinstance(binding, dict) else None
+        if (not isinstance(path, list) or len(path) < 3
+                or not all(isinstance(item, str) and item for item in path)
+                or path[0] != "per_pitch"
+                or axis_id != "event.perPitch." + ".".join(
+                    item for item in path[1:] if item != "by_runner"
+                )):
+            raise DescriptorCheckError("原観測bindingの完全property pathが軸へ対応しない")
+        leaves = _observation_schema_leaves(schema, schema, path)
+        values = tuple(value for leaf in leaves for value in _observation_scalar_values(
+            schema, leaf, binding.get("projection")
+        ))
+        raw_values = {_canonical_json_text(value) for value in values}
+        axis = axes.get(axis_id)
+        domain = axis.get("boundaryValues", axis.get("values", [])) if axis else []
+        if not raw_values or raw_values != {_canonical_json_text(value) for value in domain}:
+            raise DescriptorCheckError("観測軸の値域が独立した閉原入力leafと一致しない")
+    return included
+
+
 def _validate_fr040_conditionals(
     descriptor: Mapping[str, Any], criteria: DescriptorCriteria
 ) -> None:
@@ -1542,6 +1806,7 @@ def validate_descriptor_document(
     descriptor: Mapping[str, Any],
     schema: Mapping[str, Any],
     source_clause_ids: frozenset[str],
+    observation_documents: GameEndObservationDocuments | None = None,
 ) -> None:
     """descriptorのschema・段階1制約・digestを検証する。
 
@@ -1549,6 +1814,7 @@ def validate_descriptor_document(
         descriptor: 検証対象descriptor。
         schema: descriptor用JSON Schema。
         source_clause_ids: 正本から抽出した実在条文ID。
+        observation_documents: 独立consumer基線と原観測資格のreadonly原byte。
 
     Raises:
         DescriptorCheckError: いずれかの検証に失敗した場合。
@@ -1565,6 +1831,7 @@ def validate_descriptor_document(
     _validate_fr040_conditionals(descriptor, criteria)
     _validate_coverage_obligations(descriptor, criteria)
     _validate_input_coordinate_coverage(descriptor, criteria)
+    game_end_coordinate_axis_ids(descriptor, criteria, observation_documents)
     _validate_game_end_contract(descriptor, criteria)
     _validate_derived_axes(descriptor, criteria)
     _validate_projection_contract(descriptor, criteria)
@@ -1614,7 +1881,9 @@ def check_repository(root: Path) -> None:
         "入力軸descriptor schema",
     )
     source_clause_ids = load_source_clause_ids(root)
-    validate_descriptor_document(descriptor, schema, source_clause_ids)
+    criteria = load_descriptor_criteria(descriptor)
+    documents = load_game_end_observation_documents(root, criteria)
+    validate_descriptor_document(descriptor, schema, source_clause_ids, documents)
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
