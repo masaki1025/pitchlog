@@ -511,11 +511,19 @@ def render_runtime_contract(asset: Mapping[str, object]) -> str:
     lines.extend(
         f"    {name}={attribute_values[name]!r}," for name in _ROLE_ATTRIBUTE_NAMES
     )
+    schema_source = f"PROTECTED_SCHEMAS = {_render_string_tuple(schemas)}"
+    if len(schema_source) > 88:
+        # 資産の順序と定数値を保ち、生成コードも行長規約を満たす。
+        schema_source = (
+            "PROTECTED_SCHEMAS = (\n"
+            + "\n".join(f"    {_python_string(schema)}," for schema in schemas)
+            + "\n)"
+        )
     lines.extend(
         [
             ")",
             "",
-            f"PROTECTED_SCHEMAS = {_render_string_tuple(schemas)}",
+            schema_source,
             "PROTECTED_TABLES = (",
         ]
     )

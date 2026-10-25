@@ -35,7 +35,15 @@ APPLICATION_ROLE_ATTRIBUTES = ApplicationRoleAttributes(
     rolinherit=False,
 )
 
-PROTECTED_SCHEMAS = ("authn", "authn_crypto", "authz_private", "pitchlog_ledger_observer", "public", "rg1_api", "rg1_control")
+PROTECTED_SCHEMAS = (
+    "authn",
+    "authn_crypto",
+    "authz_private",
+    "pitchlog_ledger_observer",
+    "public",
+    "rg1_api",
+    "rg1_control",
+)
 PROTECTED_TABLES = (
     ("public", "admin_credentials"),
     ("public", "admin_operation_logs"),
