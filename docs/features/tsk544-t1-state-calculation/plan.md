@@ -207,3 +207,6 @@ exactpaths.jsonが唯一の許可候補。rootはparent plan/contracts/append/�
 
 
 2026-10-26T07:44:31.048361+00:00、PO委任によるCodex判断（Codex /root）。対象追補案SHA f430dd51c404e80b333cc62e8c18e2794e51a76933585fa41ef66975096b929f、exactpaths SHA bd01d015ecfdbdadcfef1b0250a7180c29cf411519eaecf87805f506ff1b18f7、非作者限定計画review ca35fbd3cedf13a7382bc4ca4183cb289b4d079f799a86ef274c4e5209ec443f（未解消0）を根拠に追補の範囲・順序を承認する。人間本人の個別実値確認・署名ではない。単位Aのchecker2pathとcache内ABI/正式値候補作成だけの開始を許可し、正式契約/append/Git/本planはrootだけが編集する。単位Aの実受理前に単位Bの数学本体sourceへ進まない。旧全T1/実HTTP・原子保存のmerge義務・MVP全機能を維持する。
+
+
+2026-10-26T08:10:10.222884+00:00、通常33の単位Aで実consumer check_branch_row_mapping.py:710が旧eq/and/or/notのみを解釈し、正式拡張候補のfinite-in葉を「規範行の述語引数が不正」として拒否する実影響を確認した。PO委任によるCodex /root判断で、同単位Aへ scripts/check_branch_row_mapping.py / tests/test_branch_row_mapping.py の既2pathだけを追加する。inはexact keys{op,axisId,values}・既知fixture座標axis・非空配列・重複なし・型一致membershipに限定し、旧eq/and/or/not/未知op・不正args拒否を保持。bool/intの同値化や期待値による穴埋めは拒否する。有限inの0/1正例・2非該当、missingaxis/empty/nonlist/duplicate/extra/bool-int異型の対向と実shadow4参照/旧全moduleを検査する。正式JSON/履歴/署名/判定基準の緩和はしない。作者t2はこの追加2のbeforeSHAを固定して着手でき、最終差分は別非作者へ渡す。数学本体12pathは単位A実受理前には変更しない。
