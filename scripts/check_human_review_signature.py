@@ -1960,14 +1960,16 @@ def validate_other_pr_gate6_t1_append_unchanged(root: Path, event: Any) -> None:
 _ORDINARY_PR = 187
 _ORDINARY_BRANCH = "feature/mvp-t1-ordinary-pitches"
 _ORDINARY_ANCHOR = "30f67cbc0afbdae00919606a17439d64fa7e9832"
+# 規範原本のanchorと、実PR187の公開比較元を分離する。
+_ORDINARY_PUBLIC_BASE = "3a24f89e15987ecef3dc45a1173ab99b5f79d16e"
 GATE6_ORDINARY_PATH = PurePosixPath(
     "contracts/state-transition/gate6_t1_ordinary_pitch_v1.json"
 )
 GATE6_ORDINARY_SCHEMA_PATH = PurePosixPath(
     "contracts/state-transition/gate6_t1_ordinary_pitch_schema_v1.json"
 )
-_ORDINARY_RECORD_SHA256 = "cf6569f7c83232255a8930cdc4e2954187dadf141a8b0c05bd8f0a95ed235e2a"
-_ORDINARY_SCHEMA_SHA256 = "d7025d473570c35b274d0eb59cfd684b7551d674e9ca72c1f9ead1635519839d"
+_ORDINARY_RECORD_SHA256 = "2dee3598fca42920c2714e8fb429ad15509aee0ba9122d43feff99500e30a3d4"
+_ORDINARY_SCHEMA_SHA256 = "256f459580e342e9ef6e7c4d008a2acab1eaa75b8f62d32811f692a3c453a4a8"
 _ORDINARY_FIXED_INPUTS = frozenset({
     str(GATE6_T1_APPEND_PATH), str(GATE6_T1_APPEND_SCHEMA_PATH),
     str(GATE6_CARRY_PATH), str(GATE6_CARRY_SCHEMA_PATH),
@@ -2051,6 +2053,14 @@ def _ordinary_body(root: Path, *, allow_policy_append: bool = False) -> dict[str
         except guard.GuardError as error:
             raise HumanReviewSignatureRecordError(str(error)) from error
         old_policy = anchor.load_json(guard.DELEGATION_POLICY_PATH, "通常33旧policy")
+        # 実baseで正式提供されたPR184だけを旧prefixへ追加して一致を確認する。
+        old_policy["targets"].append({
+            "pr": 184, "branch": "feature/mvp-rg1-profile-integration-candidate"})
+        public_policy, _ = guard._load_delegation_policy(root, _ORDINARY_PUBLIC_BASE)
+        if public_policy != old_policy:
+            raise HumanReviewSignatureRecordError("通常33の実公開base policyが不一致")
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor", _ORDINARY_PUBLIC_BASE,
+                               _Gate6CurrentReader(root).head])
         # PR186依存mergeで既供給の末尾も固定prefixへ含める。
         old_policy["targets"].append({"pr": 186, "branch": "feature/mvp-t1-first-pitch"})
         if ({k: v for k, v in policy.items() if k != "targets"}
@@ -2137,7 +2147,7 @@ def _ordinary_ci(root: Path, event: Any, *, new_acceptance: bool) -> str:
         _validate_gate6_checkout(root, event)
         if new_acceptance:
             if (event.number != _ORDINARY_PR or event.head_branch != _ORDINARY_BRANCH
-                    or event.base_sha != _ORDINARY_ANCHOR):
+                    or event.base_sha != _ORDINARY_PUBLIC_BASE):
                 raise HumanReviewSignatureRecordError("通常33の新受理は実PR187だけに限定する")
         else:
             if event.number in {_ORDINARY_PR, _GATE6_T1_APPEND_PR, _GATE6_INTRODUCTION_PR}:

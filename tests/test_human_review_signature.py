@@ -1763,7 +1763,7 @@ def _ordinary_test_materials(repository: Path) -> tuple[dict[str, Any], dict[str
         'status': 'candidate-for-delegated-verification',
         'authority': {'repository': 'masaki1025/pitchlog', 'pr': 187,
                       'branch': 'feature/mvp-t1-ordinary-pitches',
-                      'baseRevision': checker._ORDINARY_ANCHOR},
+                      'baseRevision': checker._ORDINARY_PUBLIC_BASE},
         'anchor': checker._ORDINARY_ANCHOR,
         'assets': {f'contracts/state-transition/{name}': hashlib.sha256(
             (repository / 'contracts/state-transition' / name).read_bytes(),
@@ -1844,7 +1844,7 @@ def ordinary_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(guard, '_delegation_git_bytes', delegation_read)
     monkeypatch.setattr(checker, '_carry_core_guard', lambda _: guard)
     url = 'https://github.com/masaki1025/pitchlog/pull/187#issuecomment-187'
-    event = guard.PullRequestEvent(checker._ORDINARY_ANCHOR, head,
+    event = guard.PullRequestEvent(checker._ORDINARY_PUBLIC_BASE, head,
         'PO-DELEGATION-EVIDENCE: ' + url, 187, 'masaki1025/pitchlog',
         'masaki1025/pitchlog', checker._ORDINARY_BRANCH)
     evidence = {
@@ -2403,3 +2403,12 @@ def test_carry_policy_extension_requires_non_targets_exact_even_after_valid_load
     # 同じ改変は、独立の既loaderでも拒否される。
     with pytest.raises(checker.HumanReviewSignatureRecordError):
         validate()
+
+
+@pytest.mark.parametrize('base', [checker._ORDINARY_ANCHOR, '0' * 40])
+def test_ordinary_rejects_legacy_or_foreign_public_base(ordinary_fixture: Any, base: str) -> None:
+    """規範原本のanchorを実PR baseの代用にせず、未知baseも拒否する。"""
+    root, guard, event, _, _, _, _, _ = ordinary_fixture
+    changed = guard.PullRequestEvent(**{**vars(event), 'base_sha': base})
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, changed)
