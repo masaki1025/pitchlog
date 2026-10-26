@@ -308,3 +308,41 @@ pure/実owned3PGで、偽/失効runtime・未activate/別signer・署名不正�
 正式DDL/role/schema/verify関数ACL/body manifestと必要正本・tenant/census/7.7はrootが実差分で直列受理する。新schema/table/functionが増えなければruntime保護objectを件数合わせで増やさない。PR184の正式22受理と開始23候補の依存を保持し、未受理値を正式へ書き込まない。B1source着手へ全T1/P7/Port/HTTP完成を追加しない。
 
 B2の実enroll（固定1関数/列INSERT3/tenantpolicy1/短命cap）・実worker3command・HTTP/UIは後続必須、今回未実装のまま。enrollも通常書込みとして同Session read_rg1_open→実scope_binding/loan→INSERT→assert_rg1_open_before_commit→既exit再照合/loan保持→commitが必要で、非gameを理由に免除しない。結果不明を成功/rollback/未消費D4へ推測せずresolveで新intentを作らない。B1受領を実端末登録/開始/初球保存/全MVP完了へ読み替えない。本人の実値確認/署名を代記しない。
+
+
+## 13. B2a：実device登録SQLと私有Python境界
+
+§12/B1の反映3を非作者確認・root採用して保存した後、その最終byteのbefore SHAを固定して着手する承認済み追補。旧next-unitの「非gameなのでRG1不要」は採用しない。最初は実enroll1関数＋私有Python境界だけとし、worker3command/HTTP/UIは次単位。T1/P7/全Port完成を着手条件へ追加しない。
+
+### exact編集source9 / test7
+
+source: `backend/src/pitchlog/recording_rights/initial_grant_broker.py`、`backend/src/pitchlog/repositories/initial_recording_right.py`、`backend/src/pitchlog/repositories/function_operations.py`、`backend/src/pitchlog/repositories/transaction.py`、`backend/src/pitchlog/authz/product_function_acl.py`、`backend/src/pitchlog/authz/product_control_access.py`、`backend/src/pitchlog/authz/product_catalog.py`、`scripts/check_authz_catalog.py`、`backend/src/pitchlog/authz/product_provisioning.py`。
+
+test: `backend/tests/test_initial_recording_right_candidate.py`、`backend/tests/test_function_operations_boundary.py`、`backend/tests/test_authz_product_control_access.py`、`backend/tests/test_product_authz_catalog.py`、`backend/tests/db/test_initial_recording_right_scope.py`、`tests/test_check_authz_catalog.py`、`backend/tests/test_product_authz_provisioning.py`。新path/既migration/model変更0。B1の既`initial_recording_right_scope_support.py::verifier`がroot runtime＋実peer＋B1署名器を供給できるため、最初からhelperを追加編集範囲へ入れない。
+
+### 固定SQL/ACLと再利用
+
+`initial_right_api.enroll_device(uuid,uuid,bytea)`一件。初期owner/SECURITY DEFINER/pg_catalog,pg_temp、完全修飾、session actorとtenant GUCを実照合。device非NULL/digest32byteを検査し、`trusted_devices(tenant_id,device_id,credential_digest)`のINSERTだけ。created_at/defaultとrevoked_at NULLは既DB定義に委ね、device UUIDだけ返す。upsert、既device変更/失効解除/再key化、原資格をDBから読む経路は0。app/PUBLIC/専用auth verifierへEXECUTEを与えず、既initial_actorだけEXECUTE。既trigger/tenant FK/論理削除/世代表は変更しない。
+
+**3列は新IDではない。** product_control_accessの既53行に、tenant_idはSELECT、device_idはSELECT/UPDATE、credential_digestはSELECTが既にある。同じexpectation IDの3行へINSERTを追加し、既権限は保持する。残50行/開始36列ACLは不変。owner INSERT WITH CHECK TENANT(tenant_id) policy1件を既単一predicate展開器で生成。旧getter53/17/旧9APIとstart2はそのまま保持し、別のenrollment宣言getterで3行overlay＋policy1/関数1を供給、sourcechecker/runtimeの期待集合へexact合成する。表ACLを追加したり列権限を包括化しない。
+
+正規段階起動ではtrusted_devicesが0036で作られる前に新policyを実行しない。product_provisioning.pyの既initial_deferredと_PRE_RULE_DEPENDENCIESへ新関数1/policy1だけをexact追加し、0033/APPLY_PRE_RULEの保留と0036後の適用順を維持する。既3列ACL IDは既保留集合に含まれるため重複登録しない。対応する既provisioning試験へ、片側欠落・重複・型/未知依存・適用順・故障全取消の有限回帰を加える。
+
+### 私有Pythonと短命cap
+
+brokerに閉`_enroll_initial_device(context, actor_runtime)`を追加。実B1 `_issue_initial_broker_context`の文脈と登録actor runtimeだけを受け、callerのdevice/digest/資格/Engine/SQL/callbackを受けない。製品登録自身がUUIDと256bit device credentialを一度生成し、既`_credential_digest`を使う（新運用鍵発行ではない）。同TXの固定関数戻りdeviceが生成値に一致し、実commit完了後だけ既`InitialDeviceEnrollmentResponse`へSecretStr資格を投影する。失敗/応答不明で自動再試行・資格再生・成功補完はしない。原資格/SQL/driver例外はlog/reprへ出さない。
+
+registryは旧9mapping/旧9tuple、既start2mapping/tupleを保持し、別`_INITIAL_ENROLL_FUNCTION_TYPES`/登録tuple1を追加する。tokenはtenant暗黙束縛＋device UUID/digest bytes32、CAPは既命名どおり`CAP:initial_right:enroll_device`一件。transactionに閉`enroll` phaseと実state-key/context/runtime/device/digestに束縛した短命登録を置く。enroll phaseだけでtoken1を許し、intent/business/appへ混ぜない。scope終了finallyで登録を破棄し、別scope/phase/失効token/差替えを拒否する。既汎用DML口を開かない。
+
+同じ実Sessionで `_verify_business_binding` → `read_rg1_open`（scope_binding/実borrow_gate/loan保持）→固定INSERT token→`assert_rg1_open_before_commit`→既`_TenantTransactionScope.__exit__`の再照合/loan保持→実commit→応答。閉鎖/epoch/lease喪失を既RG1で拒否し、別Session precheckやboolで代替しない。D4 reserve/claim、start_request/attempt、generation/delivery、V12発行は0。B1 verify_tokenの期限延長は別の既認証TXであり、enrollとの同一TXだとは呼ばない。
+
+### 受入と正式資産
+
+pureはtoken/短命cap/phase/owner/credential型・不正戻り値・失効scope・app/汎用DML拒否、旧9/start2登録とSQL/ABI全値保持、3列INSERTだけの増分、policy/function閉集合、資格非露出を確認。実ownedPGは既公開署名vectorとB1実Cookie→実context→新enrollを使い、新device行/digest一致/原資格非保存を観測する（既device fixture seedで成功を代替しない）。無効Cookie/別tenant/actor-app直接DML/新関数app-PUBLIC-verifier拒否、RG1事前closed/取得後close両順序・lease失効・確定rollbackとなるINSERT/commit前故障の全取消・短命cap再使用拒否を実証。commit結果不明やcommit後の応答喪失では登録行の有無を推定せず、資格の成功応答・自動再試行・資格再生を行わない。故障後の実DB観測は利用者へ結果不明から推測した応答と区別する。必要な明示再enrollは新端末として行い、旧holderの資格や状態を書き換えない。台帳予約と旧開始/世代/配達が増えないことも比較する。
+
+root正式writerの機械資産は新関数SQL1＋既3列ACL SQL改訂＋新policy SQL1＋DDL/manifest＋runtime protected_functionsの新1と生成Python。署名/凍結revision/7.7実前後・tenant/census/CAP登録は実source差分からrootが直列受理する。候補はcache viewのみへ生成し、旧95/56/B1 metadata6の履歴と重複path前後を保持。人間署名や正式受理値を作者が代記しない。
+
+ここで止める。実workerの3command dispatch、resolve、Cookie再検証のRPC結線、HTTP/C2/Origin/no-store、browserの送信前pair/開始要求耐久保存、UI開始は別の次単位で必須。B2aはそれらの成功を返さず、初期state/Ready/一球保存も生成しない。
+
+
+2026-10-26T05:28:27.097079+00:00、PO委任によるCodex /root判断として本§13を承認する。対象候補plan SHA38089c040b1317c08a7dda5ff7e63e2d2612ce64852e5d6213f10481ed0121fa、exactpaths SHA83047bd3768de99e49cf9de60d9ca1ec30d54c65142a708a287b750839c7a170、非作者最終report95c36226447af72b6723b10050d8b8e58b65fa306c871e0f32f6588e272cedb6/evidence35fba161a148b9c4140c0e6571955959b8f0f53b96248437fec0baf546b1bb92を照合した。初回P1（0036前の依存保留不足）/P2（commit不明と全取消の混同）は反映2で解消し、残0/0/0。作者はinitial_storage_norm_review、唯一source9/test7。Git/本plan/正式JSON/共有台帳はrootだけが編集し、未知pathが必要なら該当差分だけ戻す。B1未採用中の製品編集は禁止し、実着手時にこの許可pathの全beforeを改めて固定する。旧MVP範囲/独立レビュー系列/本人署名非代記を維持する。
