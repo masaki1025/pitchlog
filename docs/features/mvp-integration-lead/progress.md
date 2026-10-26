@@ -825,3 +825,16 @@ PR187公開8ec1d225は実GitHub eventと実公開証拠を使うGate6でDELEGATE
 1球保存のN1具体追補はfirst-ball-provider-concrete-scope-20261026/scope.md ce65ce8b…、固定根拠18。現Port登録は空で、trusted started snapshot/同writer projectionは未供給。提示V12のraw32 digest照合と再交付復号を分離し、既app同writer＋狭いSECDEF検証を採用候補とする。実nonce/外部lease/DB終結証拠/再起動quarantineは省略しない。非作者86c61ac6…のP1=2（先頭操作をballへ統一、関数/CAP/32byte/ACL/nonce ABIの具体化）を採用し、唯一担当first_ball_provider_scopeがcache反映1を作成中。これら実Port完成を計算本体の着手条件へ追加しない。
 
 利用者が新たに完了できる操作の実証は旧隔離候補の新規preparing保存/再取得と、別固定候補の既存preparingからの実UI開始/初期grant端末保存まで。新規作成→開始→1球保存→再読込は未達。全操作/取消・訂正/1試合/成績/毎球・成績CSV/通信断/対象実機/運用復旧は未完として維持する。10月26日時点の工程見込みはT1計算本体4〜7日（10月30日〜11月2日）、実保存接続・検証まで7〜12日（11月2〜7日）、低確度の暫定値。実same-writer providerと残操作の実装量が最大依存であり、日付確約・全MVP完成日ではない。今後の実績差はこの起点との差と原因で更新する。
+
+
+### 2026-10-26：実UI新規作成→開始の縦断成功とN1実装着手
+
+固定cache組立の反映4実run1793024422089/session90738はexit0。実画面で新規create201→同ID GET200全値一致→enroll200→start200→元要求pending IDB commit先行/同payload送信→grant received commit→実reload/過去grant再表示/記録閉鎖まで通った。admin原観測はtarget事前なし/既setup2外の新ID/UIgame0→1/global+1/旧2whole-row-hash保持/in_progress/両lineup10/committed1/generation1/active delivery1、HTTP-IDBと同owner digest/started_at一致。実RG1leaseの原観測も照合。全container7/volume6/network/両owner label残存0、製品49/全inventory2857/ops/browserの固定byte保持。新たに利用者が完了できた操作は同版候補の新規保存から開始・初期grant端末保存まで。
+
+作者REPORT2179c949eba1c8666dedc601caafc757907d1fab1af1bcef5f981ba4eb9e5cbd/packetc682b9c0a054ec9d442865d44b1b1d4d9e4aea1cd8d9b412e14de73db940b5d8、非作者証拠照合b6f459b7e8f0754be0c9421e9be857fe4e5fe5ab4a64f7ca38325fbb1a09006f/checksda201b57…（0/0/0）。cache game-create-start-cache-assembly-20261026/login-diagnostic-reflection4/owned-run-result/と原runを参照。非作者はDBを再queryしたのではなく原実観測＋固定assert完了を照合した資格。旧login Timeoutの根因は未確定、新診断版では再現しなかった。故障の一時回避を確定修正としない。
+
+reloadのstarted game GETは404（現preparing readの提供範囲）を実観測した。再表示は端末保存された前回開始応答で、開始済stateのサーバー復元・現在rights確認・1球保存成功ではない。正式develop統合/運用HTTPS/対象実機は未成立。次の依存は真正started snapshot/read、実rights/fence/providerと同TXの単一T1/T2投影保存である。
+
+N1-U1具体追補e577ee3a…/exactpaths f2ed3eaf…は独立第2回e31d8df6…残0、core追加17suffixは独立補足d65e2027…残0でPO委任によるCodex /root判断を記録。新WT feature-mvp-first-ball-right-verification（起点58e045ad）に既544plan追補/core先行をb3a9939aへ保存・通常push。source8の唯一作者first_ball_provider_scopeが実装・局所検査中。実Port登録やnonce発行を仮成功にしない。rootのcoreguard全506は165成功/341失敗58.23s、新core suffixに歴史HTTP fixtureの末尾固定が追随しない同系失敗を実確認した。旧期待値や製品core guardを緩めず、旧fixture入力の有限投影を別是正する。source8数学失敗へ読み替えない。
+
+PR188 backend CIの共通S3 errorはrootの実owned対象診断で31catalog中唯一INITIAL-VERIFIER-GLOBALへ特定。fixture seed DBにPUBLIC CONNECT/TEMPORARYが残るための正当拒否だった。既所有台帳一致の隔離seedだけPUBLIC権限を撤去し、同fixtureの採用済revision0036へ追随するexact db_fixtures.py候補と既開始plan追補をrootが編集。製品checker/期待catalog/共有DBは変更0、新入力の対象1成功4.71s・全31catalog一致。候補は独立レビュー未了/未commitで、全84/431解消とはしない。診断後値ファイルの上書きがあったため前raw値fileとは扱わず、旧check-id原本・functions実観測と後値receiptを区別して保存。cache pr188-ci-58e045ad-20261026/fixture-followup/。
