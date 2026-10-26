@@ -358,3 +358,52 @@ root正式writerの機械資産は新関数SQL1＋既3列ACL SQL改訂＋新poli
 実owned PGは初回fixture token.last_used_at不足で1失敗18.31s、反映1は先行commitunknownの正しいloan.abandonでcontrollerが閉じた後のPID探索に失敗28.20s。0許容/skipにせず、反映2でfreshfixtureの2nodeへ分離し全2成功47.92s（tool4439 exit0/cleanup両label0）。normal+commit後不明は実row delta2/資格成功応答0、別nodeでloan/INSERT後の実所有controller停止→実loan失効→製品commit前拒否/行delta0を確認し、両D4予約0/旧start・generation・配達不変。receipt7472929da80611d7ca3413d4f08d634e196d53d35f82ed8134b9c4b0fd50719fと旧失敗source/logを保持。DB実証は作者実行の独立照合で、未曝露P6/独立DB再走と呼ばない。
 
 本保存は全16sourceと本planだけ。候補metadata9/旧95+56+B1meta6の前後連結・正式7.7/全件CLI/CI・統合は別未完。実worker3command/HTTP/C2/Origin/UI/初期state/初球同期保存はまだ未提供。実enrollの私有製品経路と実DB試験を画面端末登録成功へ読み替えない。
+
+
+## 14. 実Unix workerと既3command
+
+PO委任による限定承認済み追補。B2a保存382d6dcaを基線とし、製品編集0。HTTP/全Port/全T1/正式metadata受理をsource着手前条件へ追加しない。既候補profile＋公開vector＋owned3PG/製品Node/実Unixで検証する。rootがplan/Git/正式JSON/台帳の唯一writer。
+
+**唯一source8 / test7:** `backend/src/pitchlog/recording_rights/initial_grant_broker.py`、`backend/src/pitchlog/repositories/initial_recording_right.py`、`backend/src/pitchlog/repositories/function_operations.py`、`backend/src/pitchlog/repositories/transaction.py`、`backend/src/pitchlog/authz/product_function_acl.py`、`backend/src/pitchlog/authz/product_catalog.py`、`backend/src/pitchlog/authz/product_provisioning.py`、`scripts/check_authz_catalog.py`、`backend/tests/test_initial_recording_right_candidate.py`、`backend/tests/test_function_operations_boundary.py`、`backend/tests/test_product_authz_catalog.py`、`backend/tests/test_product_authz_provisioning.py`、`backend/tests/db/initial_recording_right_scope_support.py`、`backend/tests/db/test_initial_game_start.py`、`tests/test_check_authz_catalog.py`。 新path/新table/新column/role/schema/既policy変更0。既brokerを入口に閉workerを足し、旧A/B1/B2a/通常start bodyを第一案では保持。新resolve用lookupだけを別登録する。私有既scopeを同一handleへ結ぶ局所factorが必要で、任意Session/callbackを受ける公開factoryにはしない。
+
+### root起動と実Unix
+
+root専用serve_initial_broker(config_path, presentation, box)を既brokerへ追加する案。presentation/boxはrootが既検証したTokenPresentation/V12Boxのexact型だけ（既activateと実registry一致を検査）。RPCからkey/署名器/DSN/Engine/設定pathを受けない。既actor設定/ledger generation endpoint/RG1 client設定の保護pathをroot設定で固定し、既loaderとconfigure_runtimeだけを使う。新運用鍵の発行/読取/配置は今回0、owned検証は既公開bytes(range(32))。運用鍵保管先の新実装は成立済みと呼ばない。
+
+既serve_fresh_controllerと同じ順序：root所有・書換不可の親directoryをNOFOLLOW/実descriptorで検査→新socketをexclusive bind（既存をunlink/横取りしない）→socket uid20002/gid20003/mode0660へ固定→実dev/inodeをroot公開endpoint `/run/pitchlog/initial-broker-endpoint.json` にmode0644でexclusive配置→setgroups([])/gid20002/uid20002/NoNewPrivs→**降格後にlisten**。これでAのclient側SO_PEERCRED期待20002:20002と一致し、app20003はsocket group20003で接続できる。endpoint/socket既存・symlink・親可変・inode差替えは閉じる。停止後のroot管理entryをworker権限で削除/再起動補完せず、owned fixture/rootが所有inodeを照合してcleanupする。
+
+serverも受信peer UID/GID20003:20003をkernelから照合（caller申告を使わない）。peerはtenant証明ではない。Aのframe上限/重複key/finite/exact3command/challenge/片方向EOF/有限期限を再利用し、一接続一要求・自動retry0・bounded backlog/処理数とする。client既2秒を無言で延長しない。worker専用の既actor/verifier poolだけへ固定statement/lock timeoutを設定し、待機SQLを無限にしない（候補固定値statement_timeout=1500ms/lock_timeout=1000ms。RPC入力にはしない。実sourceレビュー/owned計測で必要な通常調整は根拠を残す）。wire timeout/切断でも既処理がrollbackしたとは返さず、後の同要求照会へ残す。
+
+待ち境界はworker専用の固定値として具体化する。actor/verifier engineはconnect_timeout=1秒、pool_timeout=0.5秒、pool_size=3/max_overflow=0とし、既root loaderのcreate_engine固定オプション追加だけを許す（署名/registry/role/peer/既発行意味は保持）。処理worker最大3、待機queue最大3/backlog最大3、queue取得待ち上限1秒、各socket frame/read/writeは1.5秒、Nodeは既固定hostの初期化/評価reply各2.0秒と終了待ちの既2.0秒の有限待ちをそのまま使い、host/callerへ新callback/設定を追加しない。caller/RPCから上限やengine設定を受けない。client既2秒は延長しない。queue期限超過はDB開始前に非成功で閉じ、checkout/接続/SQL/Nodeの期限後は資格や成功を補完しない。認証TTLの更新と業務開始の有無は分け、業務/外部claimへ着手済み・commit結果不明・返信消失なら元要求の結果不明を維持する。2秒を超えたことだけでrollback/未消費/新attempt許可とせず、後に実commitされる場合も同要求のcommitted照会で解決する。各待ち上限と閉call graphの有限回数を故障試験で確認し、全処理が必ずclient2秒以内に取消されるとは主張しない。正常3並列とcold pool/queue飽和/接続不能/Node停止を実owned環境で測り、通常調整が必要なら値と根拠を固定して同じ安全分類を維持する。
+
+
+### 閉dispatch
+
+成功のwire化は既A `_encode_initial_reply`/専用projectionだけを使う。SecretStrの通常model_dump_jsonのmaskを端末資格/V12として返さない。実client受取資格→実DBdigest/開始照合を正例に含め、原値をlog/例外/汎用serializerへ開放しない。HTTPの承認済み成功境界に同じ明示projectionを接ぐのは次scopeで必須。
+
+全command：decode/peer→B1 `_issue_initial_broker_context` に提示Cookieと期待tenantを渡す→実Cookie/DB/同tenant成功からだけcontext発行。呼出元TenantContext/attempt/D4/digest/RG1 boolを受けない。拒否Noneはdenied、生driver/資格は応答/logへ出さない。
+
+- enroll：B2a `_enroll_initial_device(context, actor_runtime)` だけ。実同Session/RG1/commit後の戻りだけenrolledへ投影。commit結果不明は資格応答0・接続を閉じ、AのInitialBrokerUnavailableへ（enrollに禁止されている新unresolved statusを追加しない）。資格再生成/自動再試行0。
+- start：既commandのrequestをAの専用serializer→既GameStartRequest公開Class入口へ戻し、既 `bind_initial_start_request` を一回使う（深い凍結/単一fingerprint/閉roleを再実装しない）。server attemptだけuuid4。実 `DurableLedger.recovery_fence` 内で `_start_initial_game` を呼び、commit完了後のreceipt/grantだけ `_postcommit_start_response` へ。intentが既attemptへ解決するので、元boundと実receipt.ownerのtenant/game/request/device/request_digestを照合し、実server解決attemptを使う。元候補attemptを最終ownerと誤認しない。実Node名簿核/UM2/RG1/外部epoch/D4 claim先行/同business TXはそのまま。claim不明・commit不明はunresolved、rollback/未使用D4と断定しない。
+- resolve：同元ID/全payload/資格だけ。以下のlookupで既attemptを実取得し、**committedだけ**同Sessionの既issuer再交付branch＋実immutable receipt検証へ接ぐ。begin/start本体をresolveから呼ばず、新intent/attempt/予約/claim/名簿再保存0。pending/欠損/未対応rolled_back/lock timeout/外部不明はunresolvedで保持し、成功や確定取消に変えない。
+
+### resolveの具体不足と最小1SQL
+
+既 `resolve_start_attempt(tenant,game,request,attempt)` はattemptが必須。wireはattemptを受けない。既 `begin_start_attempt` は欠損時INSERTするため、照会へ流用不可。既 `read_existing_start` はattemptを返さない。従って新固定 `lookup_existing_start_attempt(uuid,uuid,uuid,uuid,bytea)` 一件（tenant/game/request/device/全payload指紋）を提案。戻り最大1行 `attempt_id uuid,outcome text`、作成/更新0、owner/SDEFINER/search_path/actor-onlyは既API型に揃える。
+
+同じ実Sessionで資格lock/真digest照合→request FOR UPDATE（deviceと既request_digest完全一致）→attempt FOR UPDATE、0行/複数/未知拒否。指紋は既game_start._source＋source_fingerprintだけを呼び、attempt無しで計算できる。lookup自身は資格digestを認可にせず、短命のresolve束縛にcontext/runtime/game/request/device/指紋を登録し、tokenを別scopeへ転用させない。既列SELECT/UPDATE-lock ACLだけで足り、created_at/resolved_atを読まない。
+
+committed取得後は既 `_initial_recording_right_scope` のadapter生成/失効処理だけを同handle用の私有helperへfactorする。lookupのrequest/attempt lockを解放して別Sessionへ移さない。真正handle検査＋短命resolve束縛＋owner/credentialを再照合し、既 `issue_initial_recording_right` のcommitted branchだけを呼ぶ。既 `_record` はcommittedのdelivery欠損を新規経路へ落とさず拒否し、lock_current_startは開始receipt/両lineupと全payloadを既原本から照合する。実commit/RG1/epoch/fence後だけstarted応答。
+
+**未供給の境界**：request lockは既にそのlockを持つ旧businessの終了を待てるが、まだそのlockに到達していない遅延処理の消滅は証明しない。pendingをunresolvedと返しても終結receipt/再試行許可を返さないため、本単位は後着を取消済み扱いしない。pending→確定rolled_backと新attempt許可、外部予約/claim状態の非作成照会、旧処理の後着遮断を伴う終結制御は現source未提供（DurableLedger公開APIに非作成status照会なし）。それらが成立したとは記録しない。committedは既状態lock/同現権利の再交付で新規発行を防ぐ。通常再試行/再起動後終結のMVP義務は残す。
+
+### rootの機械資産と有限検査
+
+増分はlookup SQL1＋DDL/manifest＋runtime protected_functions新1/生成Python（計5path見込み）、新token/CAP `CAP:initial_right:lookup_existing_start_attempt` の正式登録。旧9/start2/enroll1のmap/tuple/bodyは保持し、新1を別getter/登録tupleへ。catalog/sourcecheckerは全field/SQL/exact集合、provisioningは0036前保留依存へ新function1だけをexact追加。新列ACL/policy/role/schema0。candidateのみcache viewへ生成し、正式baseline/7.7/tenant/CAP/censusの必要差分はrootが実値で受理する。運用root設定/公開endpointは試験fixtureの有限設定であり、正式秘密資産へ値を埋めない。
+
+pure：3command分岐/実関数呼出順/旧body保持、未知/余剰/frame期限/peer/inode/設定衝突/資格と例外非露出、resolve新attempt UUID生成0・begin/reserve/claim0、全payload相違/別tenant/device/失効、committedのみ再交付、pendingを終結と誤認しない対向。型lint＋閉function/CAP/metadata/provisioning変異。別非作者review後root保存。
+
+実owned PG/Node/Unix：B1の実Cookie→app UID20003の既client→worker UID20002→実enroll→取得した端末pairでDHtrue公式20名/start→同要求resolveで同receipt/V12/D4・予約増分0。canonical game_other規則と旧 `start_database`/製品Node供給を再利用する。無効Cookie/peer/失効/全payload不一致、pending/旧transaction lock待ち・timeoutはunresolved（終結扱い0）、新attempt/予約0。実commit後送信断→元要求committed照会、RG1閉鎖/lease消失/DB/Node/peer断を有限に分離。新SQL app/PUBLIC/verifier拒否、未知catalog変異も確認。所有容器/port/tempを直列隔離してcleanup。実HTTP/C2/Origin/no-store/browser送信前耐久保存/画面開始/初期state/初球保存は次単位で必須、worker成功へ混ぜない。
+
+
+2026-10-26T06:58:36.142312+00:00、PO委任によるCodex /root判断で§14を承認。対象plan b315bcd74d8c9957675b569065cd0f55262d0895fda4e9be2199b474b66206fe、exactpaths6eac1bb687cb527a45ec58270f3903bd440d169fab14de6dd2787d50d4c03016、非作者最終REVIEWdd814f2dc06679e1e1234818d5c158a89877c1e710f580c591a9505c44e351ff/checks5ba6bccbd166116d948f60326806d8cee2623e7250ec4811bba9d02578ca2924/残0。初回P2と反映1のNode上限不整合を保持し、既NodeABIを変えず反映2で解消。作者initial_storage_norm_review、rootが本plan/Git/正式JSON/台帳の唯一writer。保存後のHEAD/全15beforeSHAを固定してこの範囲だけ実装する。源方針やMVP機能削減の承認ではなく、pending非終結/外部status照会・後着fenceの未供給と全MVP義務を維持する。ソース固定後に候補非作者へレビューし、実ownedNode/PG/Unixの成功とHTTP/UIを区別する。
