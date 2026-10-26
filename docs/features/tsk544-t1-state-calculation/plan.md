@@ -234,3 +234,6 @@ exact追加6はscripts/check_human_review_signature.py、tests/test_human_review
 3modeを接続する。A local --gate6-carryは新2asset片方でも存在すれば両方readyと実番号を必須に技術bodyを検査し、fetch0/公開委任未確認/新受理なしの文言でのみ0終了する。B今回actualPR --ciはrepo/branch/番号/base/head/checkout同tree・validator最終blob・既公開委任証拠/非作者/重大指摘0を全必須とし、不正BからC又は旧経路へfallbackしない。C統合後の他PRはcurrent記録より先にevent.baseの新record/schema/9資産と旧固定入力を読み、raw全同値を要求してから旧185固定同body＋有限bodyを検査する。fetch0/新受理なしで、連動書換え/削除/base偽装/pending/dirty・非同treeを拒否し、後続PR自体の通常core/独立/CIは免除しない。両base/currentに新2assetが無い旧treeだけは既経路を保持する。
 
 実Git/公開CLIでA/B/C正例と前記全拒否、旧185全負例を確認する。最終HEAD/diff/path/現policy hashは自己参照recordへ入れず既PO-DELEGATION-EVIDENCEの実コメントで検査する。正式反映後のraw hashはroot実値を使い、旧cacheの空3欄版hashを偽採用しない。独立最終source/実値確認・公開Gate6/必須CIの未達は未達のまま保存し、単位B数学の着手判断と全T1/実HTTP・保存mergeゲートを混同しない。
+
+
+2026-10-26T10:20:13.100731+00:00、実Draft PR187 https://github.com/masaki1025/pitchlog/pull/187 をfeature/mvp-t1-ordinary-pitches HEADfe4590ed0d3bb1074ed626b56dee5df713c1258fで公開した。source4/正式9と初球PR186依存の実コード差分を含み、番号だけの文書PRではない。root実反映後の被覆/branch全195成功74.19s（session46502exit0）、公開Gate6は旧185専用なのでまだ成功ではない。PO委任によるCodex /root判断で対象実番号187/branchを新手続きに固定し、作者t2のchecker/test exact2path着手を許可する。record/schema候補はcacheへ供給し正式2asset/現policy187末尾1/Git/planはrootだけが編集する。既186target/全旧prefixを保持し、PR186又は他PRを新187として受理しない。数学12はこの単位の限定条件成立前には進めない。
