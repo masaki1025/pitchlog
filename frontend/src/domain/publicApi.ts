@@ -1,3 +1,8 @@
+import { validateInitialGameRoster } from './initialGameRoster'
+import {
+  evaluateFirstPitchContinuation,
+  readContinuationRules,
+} from './firstPitchContinuation'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
 import { derive, deriveOrdinary, emptyFlags } from './state'
 import type { Derived, Runners, Scoreboard, StateFields } from './stateTypes'
@@ -531,9 +536,144 @@ function deriveOrdinaryPitch(requestJson: string): string {
   return evaluatePitch(requestJson, true)
 }
 
+type T1Evaluation =
+  | { ok: false; code: DomainErrorCode }
+  | { ok: true; before: StateFields; board: Scoreboard; derived: Derived }
+
+/** T2接続の正規化・一回評価。既deriveの単一計算核を共有する。 */
+function evaluateT1(parsed: unknown): T1Evaluation {
+  const request = asObject(parsed)
+  if (
+    request === null ||
+    !exactKeys(request, ['eventKind', 'resultId', 'pitchEventKind', 'before'])
+  ) {
+    return { ok: false, code: 'INVALID_REQUEST' }
+  }
+  if (
+    typeof request.eventKind !== 'string' ||
+    typeof request.resultId !== 'string' ||
+    typeof request.pitchEventKind !== 'string'
+  )
+    return { ok: false, code: 'INVALID_REQUEST' }
+  const before = asObject(request.before)
+  if (before === null || !exactKeys(before, ['stateFields', 'scoreboard']))
+    return { ok: false, code: 'INVALID_REQUEST' }
+  const fields = asObject(before.stateFields)
+  const board = asObject(before.scoreboard)
+  if (
+    fields === null ||
+    board === null ||
+    !exactKeys(fields, [
+      'state.half',
+      'state.count.strikes',
+      'state.count.balls',
+      'state.outs',
+      'state.runners',
+      'state.battingOrder',
+      'state.tiebreakActive',
+      'state.gameEnded',
+      'state.inning',
+      'state.score',
+    ]) ||
+    !exactKeys(board, ['inningScores', 'hits', 'errors', 'strikeouts', 'walks'])
+  )
+    return { ok: false, code: 'INVALID_REQUEST' }
+  const score = asObject(fieldValue(fields, 'state.score'))
+  const innings = asObject(board.inningScores)
+  if (
+    score === null ||
+    innings === null ||
+    !exactKeys(score, ['home', 'away']) ||
+    !exactKeys(innings, ['home', 'away'])
+  )
+    return { ok: false, code: 'INVALID_REQUEST' }
+  // 検査器が許す固定field参照だけを使い、動的添字へ拡張しない。
+  const integerValues = [
+    fieldValue(fields, 'state.count.strikes'),
+    fieldValue(fields, 'state.count.balls'),
+    fieldValue(fields, 'state.outs'),
+    fieldValue(fields, 'state.battingOrder'),
+    fieldValue(fields, 'state.inning'),
+    board.hits,
+    board.errors,
+    board.strikeouts,
+    board.walks,
+    score.home,
+    score.away,
+    innings.home,
+    innings.away,
+  ]
+  if (integerValues.some((value) => parseDecimalInteger(value) === null)) {
+    return { ok: false, code: 'INVALID_DECIMAL_INTEGER' }
+  }
+  const state = readState(fields)
+  const scoreboard = readBoard(board)
+  if (state === null || scoreboard === null)
+    return { ok: false, code: 'INVALID_REQUEST' }
+  if (request.eventKind !== 'batting-result')
+    return { ok: false, code: 'UNSUPPORTED_T1_SCOPE' }
+  const derived = derive(
+    state,
+    scoreboard,
+    request.resultId,
+    request.pitchEventKind,
+  )
+  if (derived === null) return { ok: false, code: 'UNSUPPORTED_T1_SCOPE' }
+  return { ok: true, before: state, board: scoreboard, derived: derived }
+}
+
+/** 一回のT1評価を同じartifact内の限定T2へ接続する。未評価は保存成功にしない。 */
+function deriveFirstPitchWithContinuation(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(requestJson) as unknown
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const request = asObject(parsed)
+  if (request === null || !exactKeys(request, ['t1', 'rules']))
+    return errorResponse('INVALID_REQUEST')
+  const rules = readContinuationRules(request.rules)
+  if (!rules.ok) return errorResponse(rules.code)
+  const result = evaluateT1(request.t1)
+  if (!result.ok) return errorResponse(result.code)
+  const t1 = derivedJson(result.derived)
+  let t2: Record<string, unknown> | null
+  try {
+    t2 = evaluateFirstPitchContinuation(
+      result.before,
+      result.board,
+      result.derived,
+      rules.value,
+    )
+  } catch {
+    return JSON.stringify({
+      ok: false,
+      error: { code: 'T2_NOT_EVALUATED' },
+      value: {
+        t1: t1,
+        t2: { kind: 'not-evaluated', reason: 'evaluation-unavailable' },
+      },
+    })
+  }
+  if (t2 === null)
+    return JSON.stringify({
+      ok: false,
+      error: { code: 'T2_NOT_EVALUATED' },
+      value: {
+        t1: t1,
+        t2: { kind: 'not-evaluated', reason: 'input-not-in-closed-unit' },
+      },
+    })
+  return JSON.stringify({ ok: true, value: { t1: t1, t2: t2 } })
+}
+
 /** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
   deriveState,
   deriveOrdinaryPitch,
+  deriveFirstPitchWithContinuation,
+  validateInitialGameRoster,
 })
