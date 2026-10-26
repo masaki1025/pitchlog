@@ -168,3 +168,6 @@ root別coreguard全506の341赤は新17suffixに旧HTTP歴史fixtureと宣言層
 
 
 2026-10-26T15:24:06.070458+00:00、core source第1回独立adb4a5838a92745ec2d1713b7f1289762711b3bd4920aefd6f1ea2f5baf737bb/checks5f9f6a8b…のP1=1を採用する。新raw capture testが各層を単独で末尾比較しN1→N2/N2→N1を誤拒否する2反例を保持し、PO委任によるCodex /root判断で既test1内の全層順合成suffix比較＋両order/全5状態raw回帰へ是正する。production判定/旧429assertを変更せず、597成功は現N1-only入力資格、未来N2捕捉成功とはしない。第2回差分確認までcore是正は未採用、N2 JSON/source4も未着手とする。
+
+
+2026-10-26T15:33:22.762327+00:00、PO委任によるCodex /root判断でcore source2反映1を採用保存。独立第1回adb4a583…P1を保持し、第2回0ed57ceaf44f2961cc68967f2d39bc734e9089b29d723b65a6c3894d589a5726/checks33e420e9…（0/0/0）で閉鎖。production13e018…不変/test49dfb436…、旧429assert・decorator保持/旧validate・AREA・同commit拒否body不変、独立101成功5.29s/元反例2不変成功・作者全603成功55.15s/Rufftyを照合。旧341赤/旧597N1-only成功と未来複合層の資格を分ける。新全5状態のraw捕捉と旧歴史fixtureの有限投影を独立に実証した。JSONはこのcommitで編集せず、N2は依存mergeと実before照合後に別JSON commitで14追加し、その後source4を開く。core是正を実保存/全MVP完成へ広げない。
