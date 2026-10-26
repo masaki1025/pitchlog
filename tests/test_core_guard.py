@@ -1114,14 +1114,14 @@ def run_guard(
 
 
 def load_actual_core_areas() -> dict[str, Any]:
-    """書き漏らしを CI 自身で検出するため、実際のコア領域設定を読む。
+    """旧initial/HTTP試験向けに実JSONからfirst-ball suffixだけを投影する。
 
     Returns:
         JSON オブジェクトとして読み込んだ実設定。
     """
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
-    return value
+    return _first_ball_historical_fixture(value)
 
 
 def _require_reference_discovery_policy(
@@ -5605,8 +5605,10 @@ def test_http_core_declaration_retains_initial_layer_and_all_predicates() -> Non
     assert guard.INITIAL_GAME_START_COMPONENT_PATH_ADDITIONS == (
         INITIAL_GAME_START_COMPONENT_PATH,
     )
-    original = ast.parse(run_git(REPO, "show", "HEAD:scripts/core_guard.py").stdout)
-    current = ast.parse(SCRIPT.read_text())
+    original = ast.parse(_first_ball_legacy_guard_source(
+        run_git(REPO, "show", "HEAD:scripts/core_guard.py").stdout,
+    ))
+    current = ast.parse(_first_ball_legacy_guard_source(SCRIPT.read_text()))
     def functions(tree: ast.Module) -> dict[str, str]:
         return {
             node.name: ast.dump(node, include_attributes=False)
@@ -5792,3 +5794,430 @@ def test_http_core_complete_declared_configuration_covers_component_asset() -> N
     configured = guard.CoreAreas(patterns, frozenset(document["guard_paths"]))
     assert_schema_contract_assets_are_registered(schema_contract_asset_paths(),
                                                 configured=configured)
+
+
+# 旧fixtureの投影用固定期待値。production helperを期待値生成に使わない。
+FIRST_BALL_EXPECTED_MAPS: dict[str, dict[str, tuple[str, ...]]] = {
+    "N1_U1": {
+        "sync-protocol": (
+            "backend/src/pitchlog/repositories/first_ball.py",
+            "backend/src/pitchlog/authz/sync_right_sql.py",
+            "backend/tests/test_first_ball_proof.py",
+            "backend/tests/test_first_ball_function_operations.py",
+            "backend/tests/test_sync_right_sql.py",
+            "backend/tests/test_sync_first_ball_registration.py",
+        ),
+        "recording-rights": (
+            "backend/src/pitchlog/repositories/first_ball.py",
+            "backend/src/pitchlog/authz/sync_right_sql.py",
+            "backend/tests/test_first_ball_proof.py",
+            "backend/tests/test_first_ball_function_operations.py",
+            "backend/tests/test_sync_right_sql.py",
+            "backend/tests/test_sync_first_ball_registration.py",
+        ),
+        "tenant-isolation": (
+            "backend/src/pitchlog/sync/first_ball_proof.py",
+            "backend/tests/test_first_ball_proof.py",
+            "backend/tests/test_first_ball_function_operations.py",
+            "backend/tests/test_sync_right_sql.py",
+            "backend/tests/test_sync_first_ball_registration.py",
+        ),
+    },
+    "N2_A": {
+        "sync-protocol": (
+            "backend/src/pitchlog/repositories/started_snapshot.py",
+            "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+            "backend/tests/test_started_snapshot.py",
+            "backend/tests/test_started_snapshot_operations.py",
+        ),
+        "game-state": (
+            "backend/src/pitchlog/repositories/started_snapshot.py",
+            "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+            "backend/tests/test_started_snapshot.py",
+            "backend/tests/test_started_snapshot_operations.py",
+        ),
+        "recording-rights": (
+            "backend/src/pitchlog/repositories/started_snapshot.py",
+            "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+            "backend/tests/test_started_snapshot.py",
+            "backend/tests/test_started_snapshot_operations.py",
+        ),
+        "tenant-isolation": (
+            "backend/tests/test_started_snapshot.py",
+            "backend/tests/test_started_snapshot_operations.py",
+        ),
+    },
+}
+FIRST_BALL_EXPECTED_ORDERS = (
+    (), ("N1_U1",), ("N2_A",), ("N1_U1", "N2_A"), ("N2_A", "N1_U1"),
+)
+
+
+def _first_ball_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
+    """旧試験の入力へ新suffixだけを全field保持で投影する。"""
+    known = {
+        path for areas in FIRST_BALL_EXPECTED_MAPS.values()
+        for paths in areas.values() for path in paths
+    }
+    matches = []
+    for order in FIRST_BALL_EXPECTED_ORDERS:
+        candidate = json.loads(json.dumps(document))
+        actual_areas = {area["id"] for area in candidate["areas"]}
+        required_areas = {
+            area_id for name in order for area_id in FIRST_BALL_EXPECTED_MAPS[name]
+        }
+        if not required_areas <= actual_areas:
+            continue
+        for area in candidate["areas"]:
+            added = [p for name in order
+                     for p in FIRST_BALL_EXPECTED_MAPS[name].get(area["id"], ())]
+            paths = area["paths"]
+            if len(paths) != len(set(paths)):
+                break
+            if added and paths[-len(added):] != added:
+                break
+            old = paths[:-len(added)] if added else paths[:]
+            if any(path in known for path in old):
+                break
+            area["paths"] = old
+        else:
+            matches.append(candidate)
+    assert len(matches) == 1, "初球core層が歴史fixtureの完全suffixと不一致"
+    return matches[0]
+
+
+def _first_ball_raw_core_areas() -> dict[str, Any]:
+    """新規捕捉検証は歴史投影を通さずraw実JSONを読む。"""
+    value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
+    assert isinstance(value, dict)
+    return value
+
+
+def _first_ball_legacy_guard_source(source: str) -> str:
+    """旧HTTP predicate照合の入力だけを閉じた既知差分で旧関数形へ戻す。"""
+    tree = ast.parse(source)
+    helper_names = {"_project_first_ball_layers", "validate_first_ball_area_path_layers"}
+    helpers = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)
+               and n.name in helper_names}
+    assert helpers in (set(), helper_names)
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "verify_area_path_baseline")
+    calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name)
+             and n.func.id == "validate_first_ball_area_path_layers"]
+    assert len(calls) == int(bool(helpers))
+    for call in calls:
+        expected = ast.parse("validate_first_ball_area_path_layers(baseline, candidate)",
+                             mode="eval").body
+        assert ast.dump(call, include_attributes=False) == ast.dump(
+            expected, include_attributes=False,
+        )
+        assert isinstance(call.func, ast.Name)
+        call.func.id = "validate_area_path_layers"
+    tree.body = [n for n in tree.body
+                 if not (isinstance(n, ast.FunctionDef) and n.name in helper_names)]
+    return ast.unparse(tree)
+
+
+def _first_ball_configuration(order: tuple[str, ...]) -> dict[str, Any]:
+    """承認済mapだけを旧HTTP完了JSONの末尾へ足す独立期待値。"""
+    assert order in FIRST_BALL_EXPECTED_ORDERS
+    document = _first_ball_historical_fixture(_first_ball_raw_core_areas())
+    for area in document["areas"]:
+        area["paths"].extend(
+            path for name in order
+            for path in FIRST_BALL_EXPECTED_MAPS[name].get(area["id"], ())
+        )
+    return document
+
+
+def _first_ball_git_repo(
+    tmp_path: Path, baseline: dict[str, Any],
+) -> tuple[Path, str]:
+    """実Gitに基線JSONと先行宣言を別コミットで固定する。"""
+    root = make_repo(tmp_path)
+    commit_change(root, ".claude/core-areas.json", json.dumps(baseline))
+    _, base = commit_change(root, "scripts/core_guard.py", SCRIPT.read_text())
+    return root, base
+
+
+FIRST_BALL_ALLOWED_TRANSITIONS = {
+    ((), ()), ((), ("N1_U1",)), ((), ("N2_A",)),
+    ((), ("N1_U1", "N2_A")), ((), ("N2_A", "N1_U1")),
+    (("N1_U1",), ("N1_U1",)), (("N1_U1",), ("N1_U1", "N2_A")),
+    (("N2_A",), ("N2_A",)), (("N2_A",), ("N2_A", "N1_U1")),
+    (("N1_U1", "N2_A"), ("N1_U1", "N2_A")),
+    (("N2_A", "N1_U1"), ("N2_A", "N1_U1")),
+}
+
+
+def test_first_ball_exact_declarations_and_legacy_area_map_are_preserved() -> None:
+    """新31件だけを閉宣言し、旧追加層とguard対象を保持する。"""
+    guard = load_core_guard_module()
+    assert dict(guard.FIRST_BALL_RIGHT_CORE_ADDITIONS) == FIRST_BALL_EXPECTED_MAPS["N1_U1"]
+    assert dict(guard.FIRST_BALL_SNAPSHOT_CORE_ADDITIONS) == FIRST_BALL_EXPECTED_MAPS["N2_A"]
+    assert dict(guard.AREA_PATH_ADDITIONS) == HTTP_COMPOSITE_ADDITIONS
+    assert tuple(guard._FIRST_BALL_LAYER_ORDERS) == FIRST_BALL_EXPECTED_ORDERS
+    assert len(FIRST_BALL_ALLOWED_TRANSITIONS) == 11
+    assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["N1_U1"].values())) == 17
+    assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["N2_A"].values())) == 14
+    raw = _first_ball_raw_core_areas()
+    projected = load_actual_core_areas()
+    assert raw["guard_paths"] == projected["guard_paths"]
+    assert raw["reference_discovery"] == projected["reference_discovery"]
+
+
+@pytest.mark.parametrize(("before_order", "after_order"), [
+    (before, after) for before in FIRST_BALL_EXPECTED_ORDERS
+    for after in FIRST_BALL_EXPECTED_ORDERS
+])
+def test_first_ball_exact_25_transitions_in_real_git(
+    tmp_path: Path, before_order: tuple[str, ...], after_order: tuple[str, ...],
+) -> None:
+    """基線の新層順をprefixに持つ11遷移だけを実Gitで受理する。"""
+    guard = load_core_guard_module()
+    root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(before_order))
+    # 同一状態でも独立HEADを作り、現在JSONの実blobを検査する。
+    commit_change(root, "README.md", "candidate\n")
+    if before_order != after_order:
+        _, head = commit_change(root, ".claude/core-areas.json",
+                                json.dumps(_first_ball_configuration(after_order)))
+    else:
+        head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    if (before_order, after_order) in FIRST_BALL_ALLOWED_TRANSITIONS:
+        assert guard.verify_area_path_baseline(root, base, head) == base
+    else:
+        with pytest.raises(guard.GuardError):
+            guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize(("layer_name", "area_id", "missing_path"), [
+    (name, area_id, path) for name, areas in FIRST_BALL_EXPECTED_MAPS.items()
+    for area_id, paths in areas.items() for path in paths
+])
+def test_first_ball_each_of_31_required_additions_is_rejected_when_missing(
+    tmp_path: Path, layer_name: str, area_id: str, missing_path: str,
+) -> None:
+    """新層は一領域の一件だけ不足しても実Git検査で閉じる。"""
+    guard = load_core_guard_module()
+    root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(()))
+    candidate = _first_ball_configuration((layer_name,))
+    next(area for area in candidate["areas"] if area["id"] == area_id)["paths"].remove(missing_path)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("layer_name", ("N1_U1", "N2_A"))
+@pytest.mark.parametrize("mutation", (
+    "extra", "wrong-area", "duplicate", "reverse", "delete-old", "replace-old", "missing-area",
+))
+def test_first_ball_inexact_layer_or_old_prefix_is_rejected_in_real_git(
+    tmp_path: Path, layer_name: str, mutation: str,
+) -> None:
+    """想定外追加・旧prefix改変を新層追加の名目で許可しない。"""
+    guard = load_core_guard_module()
+    root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(()))
+    candidate = _first_ball_configuration((layer_name,))
+    area_id, added = next(iter(FIRST_BALL_EXPECTED_MAPS[layer_name].items()))
+    area = next(item for item in candidate["areas"] if item["id"] == area_id)
+    if mutation == "extra":
+        area["paths"].append("backend/tests/undeclared_first_ball.py")
+    elif mutation == "wrong-area":
+        area["paths"].remove(added[0])
+        other = next(item for item in candidate["areas"] if item["id"] == "data-migration")
+        other["paths"].append(added[0])
+    elif mutation == "duplicate":
+        area["paths"].append(added[0])
+    elif mutation == "reverse":
+        area["paths"][-2:] = list(reversed(area["paths"][-2:]))
+    elif mutation == "delete-old":
+        area["paths"].pop(0)
+    elif mutation == "replace-old":
+        area["paths"][0] = "backend/src/undeclared_old_prefix.py"
+    else:
+        candidate["areas"].remove(area)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("layer_name", ("N1_U1", "N2_A"))
+def test_first_ball_partial_baseline_is_rejected_in_real_git(
+    tmp_path: Path, layer_name: str,
+) -> None:
+    """不正な部分基線を完成済みの既知層と解釈しない。"""
+    guard = load_core_guard_module()
+    baseline = _first_ball_configuration((layer_name,))
+    area_id, added = next(iter(FIRST_BALL_EXPECTED_MAPS[layer_name].items()))
+    next(a for a in baseline["areas"] if a["id"] == area_id)["paths"].remove(added[0])
+    root, base = _first_ball_git_repo(tmp_path, baseline)
+    _, head = commit_change(root, ".claude/core-areas.json",
+                            json.dumps(_first_ball_configuration((layer_name,))))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("definition_path", ("scripts/core_guard.py", "tests/test_core_guard.py"))
+@pytest.mark.parametrize("include_initial_layer", (False, True))
+def test_first_ball_new_or_mixed_layers_reject_definition_and_json_same_commit(
+    tmp_path: Path, definition_path: str, include_initial_layer: bool,
+) -> None:
+    """旧初期層との混在でもsource定義とJSONの同commitを拒否する。"""
+    guard = load_core_guard_module()
+    baseline = http_core_configuration(registered=False) if include_initial_layer \
+        else _first_ball_configuration(())
+    root, base = _first_ball_git_repo(tmp_path, baseline)
+    write_json(root, ".claude/core-areas.json", _first_ball_configuration(("N1_U1", "N2_A")))
+    prior = (root / definition_path).read_text() if (root / definition_path).exists() else ""
+    write_text(root, definition_path, prior + "\n# candidate definition\n")
+    run_git(root, "add", definition_path, ".claude/core-areas.json")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-q", "-m", "definition and JSON")
+    head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    with pytest.raises(guard.GuardError, match="同一コミット"):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("order", FIRST_BALL_EXPECTED_ORDERS[1:])
+def test_first_ball_new_layers_compose_with_complete_initial_layer(
+    tmp_path: Path, order: tuple[str, ...],
+) -> None:
+    """旧宣言層を完成させる新JSONに新層を足しても全旧判定を通す。"""
+    guard = load_core_guard_module()
+    baseline = http_core_configuration(registered=False)
+    root, base = _first_ball_git_repo(tmp_path, baseline)
+    _, head = commit_change(root, ".claude/core-areas.json",
+                            json.dumps(_first_ball_configuration(order)))
+    assert guard.verify_area_path_baseline(root, base, head) == base
+
+
+@pytest.mark.parametrize("order", FIRST_BALL_EXPECTED_ORDERS)
+def test_first_ball_fixture_projection_is_nonmutating_and_preserves_every_field(
+    order: tuple[str, ...],
+) -> None:
+    """歴史射影は承認suffix以外の全fieldと元入力を保持する。"""
+    raw = _first_ball_configuration(order)
+    raw["unrelated"] = {"nested": ["kept", {"value": True}]}
+    raw["areas"][0]["description"] = "保持する領域説明"
+    original = json.loads(json.dumps(raw))
+    projected = _first_ball_historical_fixture(raw)
+    assert raw == original
+    restored = json.loads(json.dumps(projected))
+    for area in restored["areas"]:
+        area["paths"].extend(
+            path for name in order
+            for path in FIRST_BALL_EXPECTED_MAPS[name].get(area["id"], ())
+        )
+    assert restored == original
+    guard = load_core_guard_module()
+    actual_projection, actual_order = guard._project_first_ball_layers(raw, "test")
+    assert actual_projection == projected
+    assert actual_order == order
+
+
+@pytest.mark.parametrize("layer_name", ("N1_U1", "N2_A"))
+def test_first_ball_fixture_projection_rejects_partial_or_wrong_area(layer_name: str) -> None:
+    """旧fixtureの投影も不正新層を黙って捨てない。"""
+    raw = _first_ball_configuration((layer_name,))
+    area_id, added = next(iter(FIRST_BALL_EXPECTED_MAPS[layer_name].items()))
+    next(a for a in raw["areas"] if a["id"] == area_id)["paths"].remove(added[0])
+    with pytest.raises(AssertionError, match="完全suffix"):
+        _first_ball_historical_fixture(raw)
+
+
+def test_first_ball_raw_configuration_has_all_declared_sources_captured() -> None:
+    """新捕捉は全層順の合成suffixとraw現JSONで検査する。"""
+    guard = load_core_guard_module()
+    raw = _first_ball_raw_core_areas()
+    _, order = guard._project_first_ball_layers(raw, "実JSON")
+    for area in raw["areas"]:
+        additions = [
+            path for name in order
+            for path in FIRST_BALL_EXPECTED_MAPS[name].get(area["id"], ())
+        ]
+        if additions:
+            assert area["paths"][-len(additions):] == additions
+    if "N1_U1" in order:
+        n1_sources = {p for paths in FIRST_BALL_EXPECTED_MAPS["N1_U1"].values() for p in paths}
+        n1_sources.add("backend/src/pitchlog/repositories/function_operations.py")
+        assert len(n1_sources) == 8
+        for area_id in ("sync-protocol", "recording-rights", "tenant-isolation"):
+            patterns = next(a for a in raw["areas"] if a["id"] == area_id)["paths"]
+            assert all(any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+                       for path in n1_sources)
+    if "N2_A" in order:
+        n2_sources = {p for paths in FIRST_BALL_EXPECTED_MAPS["N2_A"].values() for p in paths}
+        assert len(n2_sources) == 4
+        for area_id in ("sync-protocol", "game-state", "recording-rights", "tenant-isolation"):
+            patterns = next(a for a in raw["areas"] if a["id"] == area_id)["paths"]
+            assert all(any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+                       for path in n2_sources)
+
+
+
+def test_first_ball_unknown_helper_or_other_body_change_survives_legacy_projection() -> None:
+    """旧AST証拠の投影は未知変更を消して同一と偽らない。"""
+    source = SCRIPT.read_text()
+    baseline = ast.dump(ast.parse(_first_ball_legacy_guard_source(source)),
+                        include_attributes=False)
+    extra = source + "\n\ndef unknown_new_guard():\n    return False\n"
+    assert ast.dump(ast.parse(_first_ball_legacy_guard_source(extra)),
+                    include_attributes=False) != baseline
+    tree = ast.parse(source)
+    legacy = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "validate_area_path_layers")
+    legacy.body.append(ast.Pass())
+    assert ast.dump(ast.parse(_first_ball_legacy_guard_source(ast.unparse(tree))),
+                    include_attributes=False) != baseline
+
+
+def test_first_ball_removing_new_order_rejection_is_detected_by_real_git_counterexample(
+    tmp_path: Path,
+) -> None:
+    """新helperの拒否を削る変異を、実Gitの順序反例で区別する。"""
+    import types
+
+    guard = load_core_guard_module()
+    root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(("N1_U1",)))
+    _, head = commit_change(root, ".claude/core-areas.json",
+                            json.dumps(_first_ball_configuration(("N2_A", "N1_U1"))))
+    with pytest.raises(guard.GuardError, match="順序変更"):
+        guard.verify_area_path_baseline(root, base, head)
+    tree = ast.parse(SCRIPT.read_text())
+    wrapper = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                   and n.name == "validate_first_ball_area_path_layers")
+    condition = next(n for n in wrapper.body if isinstance(n, ast.If))
+    assert ast.dump(condition.test, include_attributes=False) == ast.dump(
+        ast.parse("candidate_order[:len(baseline_order)] != baseline_order", mode="eval").body,
+        include_attributes=False,
+    )
+    condition.test = ast.Constant(value=False)
+    ast.fix_missing_locations(tree)
+    mutant = types.ModuleType("first_ball_order_rejection_mutant")
+    mutant.__file__ = str(SCRIPT)
+    sys.modules[mutant.__name__] = mutant
+    exec(compile(tree, str(SCRIPT), "exec"), mutant.__dict__)
+    assert mutant.verify_area_path_baseline(root, base, head) == base
+
+
+def test_first_ball_current_raw_configuration_keeps_registered_rights_layer() -> None:
+    """現登録N1の必須性は汎用raw五状態検査と分離して保持する。"""
+    raw = _first_ball_raw_core_areas()
+    _, order = load_core_guard_module()._project_first_ball_layers(raw, "実JSON")
+    assert "N1_U1" in order
+
+
+@pytest.mark.parametrize("order", FIRST_BALL_EXPECTED_ORDERS)
+def test_first_ball_all_five_states_pass_actual_raw_capture_entry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, order: tuple[str, ...],
+) -> None:
+    """両複合順を含む全5状態を実raw入口へ渡し、投影で代用しない。"""
+    raw = _first_ball_configuration(order)
+    path = tmp_path / "raw-core-areas.json"
+    path.write_text(json.dumps(raw))
+    monkeypatch.setattr(sys.modules[__name__], "CORE_AREAS_PATH", path)
+    assert _first_ball_raw_core_areas() == raw
+    _, observed = load_core_guard_module()._project_first_ball_layers(raw, "実raw入口")
+    assert observed == order
+    test_first_ball_raw_configuration_has_all_declared_sources_captured()

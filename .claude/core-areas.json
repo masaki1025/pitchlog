@@ -279,7 +279,13 @@
         "backend/src/pitchlog/repositories/initial_recording_right.py",
         "backend/src/pitchlog/repositories/function_operations.py",
         "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
-        "backend/tests/test_initial_game_start_components.py"
+        "backend/tests/test_initial_game_start_components.py",
+        "backend/src/pitchlog/repositories/first_ball.py",
+        "backend/src/pitchlog/authz/sync_right_sql.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py"
       ]
     },
     {
@@ -535,7 +541,13 @@
         "backend/src/pitchlog/api/tenant_access.py",
         "backend/tests/test_api_app.py",
         "backend/tests/test_api_conventions.py",
-        "backend/tests/test_api_tenant_match_metadata.py"
+        "backend/tests/test_api_tenant_match_metadata.py",
+        "backend/src/pitchlog/repositories/first_ball.py",
+        "backend/src/pitchlog/authz/sync_right_sql.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py"
       ]
     },
     {
@@ -647,7 +659,12 @@
         "backend/src/pitchlog/repositories/initial_recording_right.py",
         "backend/src/pitchlog/repositories/function_operations.py",
         "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
-        "backend/tests/test_initial_game_start_components.py"
+        "backend/tests/test_initial_game_start_components.py",
+        "backend/src/pitchlog/sync/first_ball_proof.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py"
       ]
     },
     {
