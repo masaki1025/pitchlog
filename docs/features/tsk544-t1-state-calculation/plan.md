@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f
-branch: feature/mvp-t1-ordinary-pitches
+branch: feature/mvp-single-domain-composition
 created: 2026-10-20
 計画レビュー周回: 10
 確定ゲート周回: 2
@@ -266,3 +266,14 @@ exact追加6はscripts/check_human_review_signature.py、tests/test_human_review
 
 
 2026-10-26T11:21:34.017766+00:00、PO委任によるCodex /root判断でactual-base第2回差分を受理保存。反映manifest691a1a28f79a19ee9bbfe1553e577f5a47e9060c1a984f7d69e120fd7f9cb1fe、非作者a4245dc40ccfe5224329c7a656096a1c4fe660ea25bb52d5f305093625368051/checksd23358564764f06c991ceebc780c70588fbd99b827cbf71e81e3fec85085ed5e（0/0/0）。旧P1をsource上で解消、数学14/正式9/旧reader/body不変、通常mergeの競合2path以外親blob正継承・旧ordinary78定義/正式develop新6定義AST/旧146assert・全decoratorを保持。独立24成功26.74s/192deselected、root56成功76.95s/160deselected・双方local技術CLIexit0を照合した。record2dee3598…/schema256f4595…は公開authority.baseRevisionだけ実3aへ追随し規範anchor30を変更しない。保存後の実公開HEAD/外部委任証拠/最終全216/CIは別未達として実検証する。
+
+
+## N3：同一artifactへの既計算入口の接合（PO委任承認）
+
+2026-10-26T12:17:01.232728+00:00、PO委任によるCodex /root判断でN3具体案c0938282a54047902a0064f99c5308235d671abae6d4bad874aae93cd91dae3f/handoff1ac47fae0e8442b7217ff237e0373151b1f9ba1e91272cf578a2258fd8873c66を承認する。最終非著者n3_plan_independent f9c7c3c79653fd3f4509270778d826ba486755ce40a2926abc906adb09454c5b/checks4c7516aba10be08fed6b827b7bdb1a9cd7b4e2921429b8ca5c6029502b1c0f70（0/0/0）、固定43blob/既5参照SHA・破棄専用型接合診断0を根拠とし、実artifact/保存成功とはしない。元大枠作者mvpの4faf165c…は作者側整合確認だけで独立承認へ数えない。
+
+実worktreeは正式3a24起点→ordinary8ecの通常依存merge95924ecb。N1安全providerの完成をこの純計算接合の前提へ戻さず並行先行する。既ordinaryのping/deriveState/deriveOrdinaryPitch3口を保持し、既T2ed07のderiveFirstPitchWithContinuation、既roster366eのvalidateInitialGameRosterを単一TS/publicApiに接ぐ5口だけを提供する。新T2意味/新計算/別Python計算/枝artifact上書き0、同before/Derived・旧body/DTO/旧caseID移行を保持する。N1権利/初期snapshot/同期原子保存/HTTP/readの未供給を成功へ補完しない。T2/roster所有範囲は実装の取り込みではなく既固定供給への接続依存として別記する。
+
+exact集合は同案exactpaths.jsonのruntime/test/generated10（publicApi/sourcewrapper2/既spec4+新artifactspec/生成2）と別所有依存10（contract6/caller2/test2）。source作者はruntime10だけ、rootは既origin/hash一致の依存10を供給し、正式JSON/本plan/Git/台帳はroot唯一writer。entry/build/policy/host/first_pitch保護8pathは3系列同byteで変更禁止。旧publicApi全bodyを保ち、共有derivedJson差は旧T2全値比較で不一致なら停止、期待値やschemaを緩めない。Node/Chromiumは5口を同一実artifact SHA/sizeで確認し、既全domain・両caller実host/型lint/再build一致・canonical拒否を検査する。最終別非作者のsource/依存全値・最終HEAD確認後に採用する。
+
+実corepreflightは全20pathが既領域で捕捉（root-preflight.json）、uncovered0なので新paths変更ゲートは追加せず最終coreレビューは維持する。新branchにはN3だけを進め、旧ordinary PR187凍結参照移設の別編集と共有書込みしない。旧187/186の親merge前義務・全MVP目標/レビュー履歴は維持し、この候補を正式develop提供・本人確認・P6blind/fullP6受理と呼ばない。

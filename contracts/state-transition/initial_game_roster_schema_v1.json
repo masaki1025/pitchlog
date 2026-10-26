@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AUTHOR CANDIDATE initial game roster projection wire; NOT ACCEPTED/NOT IMPLEMENTED",
+  "$ref": "#/$defs/Response",
+  "$defs": {
+    "CanonicalUUID": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+    },
+    "OneToNineDecimal": {
+      "type": "string",
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    "FieldingRoleWire": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "fielding"
+            },
+            "position": {
+              "$ref": "#/$defs/OneToNineDecimal"
+            }
+          },
+          "required": [
+            "kind",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "designated-hitter"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "EntryInput": {
+      "type": "object",
+      "properties": {
+        "player_id": {
+          "$ref": "#/$defs/CanonicalUUID"
+        },
+        "batting_order": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/OneToNineDecimal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fielding_position": {
+          "$ref": "#/$defs/FieldingRoleWire"
+        }
+      },
+      "required": [
+        "player_id",
+        "batting_order",
+        "fielding_position"
+      ],
+      "additionalProperties": false
+    },
+    "SideInput": {
+      "type": "object",
+      "properties": {
+        "team_id": {
+          "$ref": "#/$defs/CanonicalUUID"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/EntryInput"
+          }
+        }
+      },
+      "required": [
+        "team_id",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "OfficialPlayerRef": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "official"
+        },
+        "player_id": {
+          "$ref": "#/$defs/CanonicalUUID"
+        }
+      },
+      "required": [
+        "kind",
+        "player_id"
+      ],
+      "additionalProperties": false
+    },
+    "BattingSlotWire": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "slot"
+            },
+            "slot": {
+              "$ref": "#/$defs/OneToNineDecimal"
+            }
+          },
+          "required": [
+            "kind",
+            "slot"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ProjectedEntryWire": {
+      "type": "object",
+      "properties": {
+        "player": {
+          "$ref": "#/$defs/OfficialPlayerRef"
+        },
+        "batting_slot": {
+          "$ref": "#/$defs/BattingSlotWire"
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/FieldingRoleWire"
+          }
+        },
+        "entry_origin": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "initial"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "player",
+        "batting_slot",
+        "roles",
+        "entry_origin"
+      ],
+      "additionalProperties": false
+    },
+    "ProjectedTeamWire": {
+      "type": "object",
+      "properties": {
+        "team_id": {
+          "$ref": "#/$defs/CanonicalUUID"
+        },
+        "side": {
+          "enum": [
+            "away",
+            "home"
+          ]
+        },
+        "participants": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/ProjectedEntryWire"
+          }
+        }
+      },
+      "required": [
+        "team_id",
+        "side",
+        "participants"
+      ],
+      "additionalProperties": false
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "dh": {
+          "type": "boolean"
+        },
+        "away": {
+          "$ref": "#/$defs/SideInput"
+        },
+        "home": {
+          "$ref": "#/$defs/SideInput"
+        }
+      },
+      "required": [
+        "dh",
+        "away",
+        "home"
+      ],
+      "additionalProperties": false
+    },
+    "ProjectionWire": {
+      "type": "object",
+      "properties": {
+        "teams": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ProjectedTeamWire"
+                },
+                {
+                  "properties": {
+                    "side": {
+                      "const": "away"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/ProjectedTeamWire"
+                },
+                {
+                  "properties": {
+                    "side": {
+                      "const": "home"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "items": false
+        }
+      },
+      "required": [
+        "teams"
+      ],
+      "additionalProperties": false
+    },
+    "Response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": true
+            },
+            "value": {
+              "$ref": "#/$defs/ProjectionWire"
+            }
+          },
+          "required": [
+            "ok",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": false
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "enum": [
+                    "INVALID_JSON",
+                    "INVALID_REQUEST",
+                    "INVALID_DECIMAL_INTEGER",
+                    "INVALID_INITIAL_LINEUP",
+                    "UNSUPPORTED_INITIAL_ROSTER_SCOPE"
+                  ]
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "ok",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "x-operation": "validateInitialGameRoster",
+  "x-scope": "layout validation only, no source/auth/start/point/initial-state claim",
+  "x-semantic-invariants-in-runtime": [
+    "distinct away/home team IDs; otherwise UNSUPPORTED_INITIAL_ROSTER_SCOPE",
+    "per-side unique player IDs",
+    "dh=false exact9; batting slots1..9 and fielding1..9 exactly once; no DH/no null batting",
+    "dh=true exact10; fielding1..9 exactly once; one pitcher position1 batting null; one DH batting slot; other8 positions2..9 batting slot; batting1..9 exactly once",
+    "input order preserved within each side; no reordering of bound request/canonical fingerprint",
+    "same player UUID across sides is left to trusted membership read, not proved by shape or this projection"
+  ]
+}
