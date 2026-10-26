@@ -189,7 +189,7 @@ it.each([false, true])(
               ? { kind: 'designated-hitter' }
               : {
                   kind: 'fielding',
-                  position: index === 9 ? '1' : String(index + 1),
+                  position: index === 9 ? 1 : index + 1,
                 },
         })),
       )

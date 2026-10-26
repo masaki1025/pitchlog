@@ -41,6 +41,18 @@ interface PlayerPage {
 }
 const sides = ['away', 'home'] as const
 const labels = { away: '先攻', home: '後攻' } as const
+// DOMの選択文字列を、正式な開始入力の有限整数へ写像する。
+const positionValues = {
+  '1': 1,
+  '2': 2,
+  '3': 3,
+  '4': 4,
+  '5': 5,
+  '6': 6,
+  '7': 7,
+  '8': 8,
+  '9': 9,
+} as const
 const positions = [
   ['1', '投手'],
   ['2', '捕手'],
@@ -266,7 +278,10 @@ function start() {
       if (row.position === 'DH') return entry
       return {
         ...entry,
-        fielding_position: { kind: 'fielding', position: row.position },
+        fielding_position: {
+          kind: 'fielding',
+          position: positionValues[row.position as keyof typeof positionValues],
+        },
       }
     })
   void props.connection.start({ away: side('away'), home: side('home') })

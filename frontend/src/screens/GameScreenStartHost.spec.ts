@@ -190,6 +190,16 @@ it('実hostから利用者選択→要求保存→POST→応答保存を接ぎ�
   const request = await store.readStart(tenant, game)
   expect(request?.status).toBe('received')
   expect(request?.request).toEqual(body)
+  for (const side of ['away', 'home'] as const) {
+    expect(
+      request?.request[side].map((entry) => entry.fielding_position),
+    ).toEqual(
+      Array.from({ length: 9 }, (_, index) => ({
+        kind: 'fielding',
+        position: index + 1,
+      })),
+    )
+  }
   expect(request?.grant?.recording_right_proof).toBe(proof)
   expect(
     vi
