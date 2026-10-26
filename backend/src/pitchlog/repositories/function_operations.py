@@ -12,6 +12,7 @@ from uuid import UUID
 
 from sqlalchemy import bindparam, select
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql.elements import BindParameter, Label
 from sqlalchemy.sql.functions import Function
 from sqlalchemy.sql.selectable import Select, TableValuedAlias
@@ -27,6 +28,7 @@ from sqlalchemy.sql.sqltypes import (
     String,
     Uuid,
 )
+from sqlalchemy.sql.type_api import TypeDecorator
 
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
@@ -267,6 +269,19 @@ def _valid_function_schema(name: object) -> bool:
 
 class FunctionOperationError(RuntimeError):
     """固定関数の登録、入力、結果の契約違反。"""
+
+
+class _WriterAssertVoidResult(TypeDecorator[None]):
+    """固定writer assertの実driver空文字だけを内部NULLへ正規化する。"""
+
+    impl = NullType
+    cache_ok = True
+
+    def process_result_value(self, value: object, dialect: Dialect) -> None:
+        """PostgreSQL voidのTEXT表現以外は値を漏らさず拒否する。"""
+        if type(value) is not str or value != "":
+            raise FunctionOperationError("writer assertのdriver応答が不一致")
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -519,6 +534,13 @@ def _build_fixed_function_statement(
         ),
     )
     safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if (
+        schema == "sync_fence_api"
+        and function_name == "assert_writer_binding"
+        and not table_valued
+        and result_names == ("asserted",)
+    ):
+        safe_function.type = _WriterAssertVoidResult()
     if not table_valued:
         return select(safe_function.label(result_names[0]))
     safe_table = safe_function.table_valued(*result_names)

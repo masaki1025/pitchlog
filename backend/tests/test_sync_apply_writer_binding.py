@@ -417,3 +417,271 @@ def test_control_guard_rejects_owner_omission_login_inversion_and_repair(old, ne
     assert old in source
     with pytest.raises(AssertionError):
         _assert_closed_control_role_guard(source.replace(old, new, 1))
+
+
+# 以下は実DB成功ではなく、OID2278の実driver loader→SQLAlchemy→既decoderの純境界。
+def _void_result_processor():
+    """実行時と同じcompiled result metadataからprocessorを取得する。"""
+    from sqlalchemy.dialects import postgresql
+
+    registration = _UNREGISTERED_DECLARATIONS[1]
+    dialect = postgresql.dialect()
+    compiled = registration.statement.compile(dialect=dialect)
+    return compiled._result_columns[0].type._cached_result_processor(dialect, 2278)
+
+
+def test_void_driver_text_loader_to_existing_decoder():
+    """実TEXT loaderの空文字だけを内部NULLへ変え既decoderを通す。"""
+    from psycopg.adapt import Transformer
+    from psycopg.pq import Format
+    from sqlalchemy.sql.sqltypes import NullType
+    from sqlalchemy.sql.type_api import TypeDecorator
+
+    loader = Transformer().get_loader(2278, Format.TEXT)
+    raw = loader.load(b"")
+    assert type(raw) is str and raw == ""
+    spec = _UNREGISTERED_DECLARATIONS[1]
+    selected = tuple(spec.statement.selected_columns)[0]
+    assert isinstance(selected.type, TypeDecorator)
+    assert type(selected.type.impl) is NullType
+    assert selected.type.cache_ok is True
+    processor = _void_result_processor()
+    assert processor is not None
+    normalized = processor(raw)
+    assert normalized is None
+    result = TenantOperationResult(((normalized,),))
+    assert decode_function_result(spec, result) is result
+    # 旧None fixtureは内部値だけ。driverのNoneを正常応答とは扱わない。
+    with pytest.raises(FunctionOperationError):
+        processor(None)
+
+
+class _VoidStringSubclass(str):
+    """同値のstr派生型もdriverのexact strには含めない。"""
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        None,
+        True,
+        False,
+        0,
+        1,
+        0.0,
+        "x",
+        b"",
+        b"private",
+        bytearray(),
+        memoryview(b""),
+        [],
+        {},
+        _VoidStringSubclass(""),
+    ],
+)
+def test_void_result_processor_rejects_noncanonical_values_without_echo(raw):
+    """欠落/偽成功/byte列等は一定の秘匿エラーで拒否する。"""
+    processor = _void_result_processor()
+    assert processor is not None
+    with pytest.raises(FunctionOperationError) as caught:
+        processor(raw)
+    assert str(caught.value) == "writer assertのdriver応答が不一致"
+
+
+@pytest.mark.parametrize("raw", ["", True, False, 0, 1, b""])
+def test_void_existing_decoder_is_not_widened(raw):
+    """正規化を迂回した元decoderは従来どおりNone以外を拒否する。"""
+    with pytest.raises(FunctionOperationError):
+        decode_function_result(
+            _UNREGISTERED_DECLARATIONS[1], TenantOperationResult(((raw,),))
+        )
+
+
+def test_void_statement_sql_bind_signature_and_result_contract_unchanged():
+    """SQL/六bind型順序/戻り宣言を全値固定し型adapterだけを許可する。"""
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.sql.sqltypes import LargeBinary, Uuid
+
+    spec = _UNREGISTERED_DECLARATIONS[1]
+    compiled = spec.statement.compile(dialect=postgresql.dialect())
+    assert str(compiled) == (
+        "SELECT sync_fence_api.assert_writer_binding(%(tenant_id)s::UUID, "
+        "%(attempt_id)s::UUID, %(phase_id)s::UUID, %(binding_nonce)s, "
+        "%(device_id)s::UUID, %(game_id)s::UUID) AS asserted"
+    )
+    assert tuple(compiled.params) == (
+        "tenant_id",
+        "attempt_id",
+        "phase_id",
+        "binding_nonce",
+        "device_id",
+        "game_id",
+    )
+    assert tuple(type(compiled.binds[k].type) for k in compiled.params) == (
+        Uuid,
+        Uuid,
+        Uuid,
+        LargeBinary,
+        Uuid,
+        Uuid,
+    )
+    assert spec.result_fields == (("asserted", bool),)
+    assert spec.nullable_results == ("asserted",)
+    assert spec.aware_datetime_results == ()
+    assert (spec.min_rows, spec.max_rows) == (1, 1)
+
+
+def test_void_caller_result_type_is_discarded_by_canonical_rebuild():
+    """callerの型processorを再構築に持ち込まず固定adapterだけを使う。"""
+    from sqlalchemy import select
+    from sqlalchemy.sql.functions import Function
+    from sqlalchemy.sql.sqltypes import NullType
+    from sqlalchemy.sql.type_api import TypeDecorator
+
+    class CallerType(TypeDecorator):
+        """呼出側が挿入しようとする偽の結果型。"""
+
+        impl = NullType
+        cache_ok = True
+
+        def process_result_value(self, value, dialect):
+            """このprocessorが実行されたら検査を失敗させる。"""
+            raise AssertionError("caller processor must never execute")
+
+    original = _UNREGISTERED_DECLARATIONS[1]
+    function = tuple(original.statement.selected_columns)[0].element
+    unsafe = select(
+        Function(
+            "assert_writer_binding",
+            *tuple(function.clauses),
+            packagenames=("sync_fence_api",),
+            type_=CallerType(),
+        ).label("asserted")
+    )
+    rebuilt = replace(original, statement=unsafe)
+    selected = tuple(rebuilt.statement.selected_columns)[0]
+    assert type(selected.type) is type(
+        tuple(original.statement.selected_columns)[0].type
+    )
+    assert not isinstance(selected.type, CallerType)
+    from sqlalchemy.dialects import postgresql
+
+    processor = selected.type._cached_result_processor(postgresql.dialect(), 2278)
+    assert processor is not None and processor("") is None
+
+
+def test_void_adapter_preserves_every_other_registered_function():
+    """既全関数のSQL/bind/選択型/processor欠如を実before全値へ束縛する。"""
+    import hashlib
+    import json
+
+    from sqlalchemy.dialects import postgresql
+
+    from pitchlog.repositories.first_ball import _UNREGISTERED_DECLARATIONS as right
+    from pitchlog.repositories.initial_recording_right import (
+        _ALL_INITIAL_REGISTRATIONS,
+        _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        _INITIAL_RESOLVE_FUNCTION_OPERATIONS,
+    )
+    from pitchlog.repositories.operation_registry import PRODUCT_FUNCTION_OPERATIONS
+
+    expected = {
+        "RG1:precheck": (
+            "cd36c04857da91f506e29414e5bf0bb07d4b7c6b2826ccf97be1bb123823051c"
+        ),
+        "RG1:commit_check": (
+            "c6a149e5bce9efc167b60642f4dc536445f711e0a537dde3f49fd03b2a1f0c75"
+        ),
+        "RG1:scope_binding": (
+            "0f4af18080ce42056c5f7d66fa7c9bbac42179d5c410e5613377d7be37a5e5db"
+        ),
+        "RULE:resolve_stage_a": (
+            "d3a2465260b7380558ee8f362866c69207b35d5556118242610f41039f56eef5"
+        ),
+        "INITIAL_RIGHT:lock_device": (
+            "aced3e0bc2fd3095caa500564e95d49e1b09f0e1a64d4e09477f09e1e69850e6"
+        ),
+        "INITIAL_RIGHT:read_existing_start": (
+            "ce6742722c0572b1a158f97c8840baec9cb1398ac3bfa7c9273ff0ac7b2ab9eb"
+        ),
+        "INITIAL_RIGHT:read_start_game": (
+            "fe9fd82c90394114e326b54234ee8a176883eafbed9b708f51efcf4132a31171"
+        ),
+        "INITIAL_RIGHT:lock_preparing_game": (
+            "a608825e1ba4981cf0f59698410fb3d81efb4ce7acaae4cb81446fbbf24b9c6d"
+        ),
+        "INITIAL_RIGHT:lock_current_start": (
+            "71948d14b70b2d85d5b49329dfad22f3edd4bb4ac164ff15182c15b3e7bb89a9"
+        ),
+        "INITIAL_RIGHT:check_business_epoch": (
+            "b298e0d985736f4230d6d55d9d1454b59dcaa7f75411c1ad0daeb3639fda09b2"
+        ),
+        "INITIAL_RIGHT:insert_initial_grant": (
+            "df0403f96f7adb136977cbb4463a0e04aa4cf71ac010bbfec8954eda389dc0a4"
+        ),
+        "INITIAL_RIGHT:begin_start_attempt": (
+            "958edd7069e0055f9908016186c4aa142f9fbe3f98d214fb6795338eb4b7202c"
+        ),
+        "INITIAL_RIGHT:resolve_start_attempt": (
+            "8112937671d5c575b4cb091708d734e425ebada4ca4e3ecf5b11f0de20f0b88f"
+        ),
+        "INITIAL_RIGHT:read_initial_start_context": (
+            "2bcb2a0d5f9849a258a9c190170f83cb1b2eaa12b6c9f1ccddf337138b5e712b"
+        ),
+        "INITIAL_RIGHT:persist_initial_start": (
+            "bdf1d6879538fd537913bc371e44059ac8eb9f389ed2489a24b89af2d8bc27bb"
+        ),
+        "INITIAL_RIGHT:enroll_device": (
+            "0ff335f54a8dc6d749432ca057d707c8873d7434f9d8f06daa57577d4481fc49"
+        ),
+        "INITIAL_RIGHT:lookup_existing_start_attempt": (
+            "fc58b83f41a47046d7ae690198d51998e28b20afe739c51126b7109cdaa9a6a4"
+        ),
+        "SYNC_FIRST_BALL:bind_device": (
+            "15c3702e4e5390b856669ea1ffd49343b9a1769e324f501daec593c876a2e96e"
+        ),
+        "SYNC_FIRST_BALL:check_current_right": (
+            "d0790dd944798534a8df3d2079aa438e7d3307d0de9acb654c2fd7e874ae8704"
+        ),
+        "SYNC_WRITER_BINDING:read_writer_identity": (
+            "4122d688347d16207dbe0129eee860404763b4c2f3fa6dd4ef52d3a20fa74169"
+        ),
+    }
+    dialect = postgresql.dialect()
+    actual = {}
+    registrations = (
+        *PRODUCT_FUNCTION_OPERATIONS,
+        *_ALL_INITIAL_REGISTRATIONS,
+        *_INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        *_INITIAL_RESOLVE_FUNCTION_OPERATIONS,
+        *right,
+        *_UNREGISTERED_DECLARATIONS,
+    )
+    for spec in registrations:
+        if spec.function_id == "sync_fence_api.assert_writer_binding":
+            continue
+        compiled = spec.statement.compile(dialect=dialect)
+        row = {
+            "function_id": spec.function_id,
+            "operation_id": spec.operation_id,
+            "sql": str(compiled),
+            "bind": [
+                (k, type(compiled.binds[k].type).__name__, str(compiled.binds[k].type))
+                for k in compiled.params
+            ],
+            "selected": [
+                (
+                    x.name,
+                    type(x.type).__name__,
+                    str(x.type),
+                    x.type._cached_result_processor(dialect, 2278) is None,
+                )
+                for x in spec.statement.selected_columns
+            ],
+        }
+        digest = hashlib.sha256(
+            json.dumps(row, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        assert actual.get(spec.operation_id, digest) == digest
+        actual[spec.operation_id] = digest
+    assert actual == expected
