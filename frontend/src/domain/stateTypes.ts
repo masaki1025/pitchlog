@@ -115,6 +115,11 @@ export type Derived = {
   runnerDefaultAdvance: { first: Advance; second: Advance; third: Advance }
   outEffect: { count: bigint; targets: Array<Target> }
   statFlags: StatFlags
-  history: { ballsBefore: bigint; ballsAfter: bigint }
+  history: {
+    ballsBefore: bigint
+    ballsAfter: bigint
+    strikesBefore: bigint
+    strikesAfter: bigint
+  }
   after: { stateFields: StateFields; scoreboard: Scoreboard }
 }

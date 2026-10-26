@@ -1,5 +1,5 @@
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
-import { derive } from './state'
+import { derive, deriveOrdinary, emptyFlags } from './state'
 import type { Derived, Runners, Scoreboard, StateFields } from './stateTypes'
 
 type DomainErrorCode =
@@ -210,7 +210,27 @@ function boardJson(board: Scoreboard): Record<string, unknown> {
 }
 
 /** 導出結果を境界の JSON へ書く（整数は十進文字列）。 */
-function derivedJson(derived: Derived): Record<string, unknown> {
+function derivedJson(
+  derived: Derived,
+  stack: Array<unknown> = [],
+): Record<string, unknown> {
+  const differences: Record<string, unknown> = {}
+  if (derived.history.ballsBefore !== derived.history.ballsAfter) {
+    Object.assign(differences, {
+      'state.count.balls': {
+        before: formatDecimalInteger(derived.history.ballsBefore),
+        after: formatDecimalInteger(derived.history.ballsAfter),
+      },
+    })
+  }
+  if (derived.history.strikesBefore !== derived.history.strikesAfter) {
+    Object.assign(differences, {
+      'state.count.strikes': {
+        before: formatDecimalInteger(derived.history.strikesBefore),
+        after: formatDecimalInteger(derived.history.strikesAfter),
+      },
+    })
+  }
   const destination: Record<string, unknown> = {
     kind: derived.batterDestination.kind,
   }
@@ -253,21 +273,18 @@ function derivedJson(derived: Derived): Record<string, unknown> {
       targets: targets,
     },
     statFlags: derived.statFlags,
-    historyContext: [
-      {
-        kind: 'confirmed-play',
-        difference: {
-          stateFields: {
-            'state.count.balls': {
-              before: formatDecimalInteger(derived.history.ballsBefore),
-              after: formatDecimalInteger(derived.history.ballsAfter),
-            },
+    historyContext: (
+      [
+        {
+          kind: 'confirmed-play',
+          difference: {
+            stateFields: differences,
+            scoreboard: {},
+            statFlags: derived.statFlags,
           },
-          scoreboard: {},
-          statFlags: derived.statFlags,
         },
-      },
-    ],
+      ] as Array<unknown>
+    ).concat(stack),
     after: {
       stateFields: stateJson(derived.after.stateFields),
       scoreboard: boardJson(derived.after.scoreboard),
@@ -286,8 +303,121 @@ function exactKeys(
   )
 }
 
+/** 履歴の前後値を閉じた型として検査する。真正性や過去計算は推測しない。 */
+function historyScalar(value: unknown, kind: string): DomainErrorCode | null {
+  if (kind === 'integer') {
+    if (parseDecimalInteger(value) === null) return 'INVALID_DECIMAL_INTEGER'
+    return null
+  }
+  if (kind === 'boolean') {
+    if (typeof value !== 'boolean') return 'INVALID_REQUEST'
+    return null
+  }
+  if (kind === 'half') {
+    if (value !== 'top' && value !== 'bottom') return 'INVALID_REQUEST'
+    return null
+  }
+  if (kind === 'runners') {
+    if (
+      typeof value !== 'string' ||
+      ![
+        'empty',
+        'first',
+        'second',
+        'third',
+        'first-second',
+        'first-third',
+        'second-third',
+        'loaded',
+      ].includes(value)
+    )
+      return 'INVALID_REQUEST'
+    return null
+  }
+  const score = asObject(value)
+  if (score === null || !exactKeys(score, ['home', 'away']))
+    return 'INVALID_REQUEST'
+  if (
+    parseDecimalInteger(score.home) === null ||
+    parseDecimalInteger(score.away) === null
+  )
+    return 'INVALID_DECIMAL_INTEGER'
+  return null
+}
+
+/** optional差分欄を落とさず全件検査し、未知欄を拒否する。 */
+function historyFields(
+  source: unknown,
+  state: boolean,
+): DomainErrorCode | null {
+  const fields = asObject(source)
+  if (fields === null) return 'INVALID_REQUEST'
+  let keys = ['inningScores', 'hits', 'errors', 'strikeouts', 'walks']
+  if (state)
+    keys = [
+      'state.half',
+      'state.count.strikes',
+      'state.count.balls',
+      'state.outs',
+      'state.runners',
+      'state.battingOrder',
+      'state.tiebreakActive',
+      'state.gameEnded',
+      'state.inning',
+      'state.score',
+    ]
+  for (const item of Object.entries(fields)) {
+    const key = item.shift()
+    const value = item.pop()
+    if (typeof key !== 'string' || !keys.includes(key)) return 'INVALID_REQUEST'
+    const pair = asObject(value)
+    if (pair === null || !exactKeys(pair, ['before', 'after']))
+      return 'INVALID_REQUEST'
+    let kind = 'integer'
+    if (key === 'state.half') kind = 'half'
+    if (key === 'state.runners') kind = 'runners'
+    if (key === 'state.tiebreakActive' || key === 'state.gameEnded')
+      kind = 'boolean'
+    if (key === 'state.score' || key === 'inningScores') kind = 'score'
+    const beforeError = historyScalar(pair.before, kind)
+    if (beforeError !== null) return beforeError
+    const afterError = historyScalar(pair.after, kind)
+    if (afterError !== null) return afterError
+  }
+  return null
+}
+
+/** 履歴の欠落・余剰・型を検査する。既定stackやflagは生成しない。 */
+function validateHistoryEntry(value: unknown): DomainErrorCode | null {
+  const entry = asObject(value)
+  if (
+    entry === null ||
+    !exactKeys(entry, ['kind', 'difference']) ||
+    entry.kind !== 'confirmed-play'
+  )
+    return 'INVALID_REQUEST'
+  const difference = asObject(entry.difference)
+  if (
+    difference === null ||
+    !exactKeys(difference, ['stateFields', 'scoreboard', 'statFlags'])
+  )
+    return 'INVALID_REQUEST'
+  const stateError = historyFields(difference.stateFields, true)
+  if (stateError !== null) return stateError
+  const boardError = historyFields(difference.scoreboard, false)
+  if (boardError !== null) return boardError
+  const flags = asObject(difference.statFlags)
+  if (
+    flags === null ||
+    !exactKeys(flags, Object.keys(emptyFlags())) ||
+    Object.values(flags).some((flag) => typeof flag !== 'boolean')
+  )
+    return 'INVALID_REQUEST'
+  return null
+}
+
 /** 正規化済み一球だけを単一の数学核へ渡す。認可や保存ACKは返さない。 */
-function deriveState(requestJson: string): string {
+function evaluatePitch(requestJson: string, ordinary: boolean): string {
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
@@ -296,10 +426,9 @@ function deriveState(requestJson: string): string {
     return errorResponse('INVALID_JSON')
   }
   const request = asObject(parsed)
-  if (
-    request === null ||
-    !exactKeys(request, ['eventKind', 'resultId', 'pitchEventKind', 'before'])
-  ) {
+  let requestKeys = ['eventKind', 'resultId', 'pitchEventKind', 'before']
+  if (ordinary) requestKeys = requestKeys.concat(['history'])
+  if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
   }
   if (
@@ -308,6 +437,21 @@ function deriveState(requestJson: string): string {
     typeof request.pitchEventKind !== 'string'
   )
     return errorResponse('INVALID_REQUEST')
+  let stack: Array<unknown> = []
+  if (ordinary) {
+    const history = asObject(request.history)
+    if (
+      history === null ||
+      !exactKeys(history, ['stack']) ||
+      !Array.isArray(history.stack)
+    )
+      return errorResponse('INVALID_REQUEST')
+    for (const entry of history.stack) {
+      const historyError = validateHistoryEntry(entry)
+      if (historyError !== null) return errorResponse(historyError)
+    }
+    stack = history.stack
+  }
   const before = asObject(request.before)
   if (before === null || !exactKeys(before, ['stateFields', 'scoreboard']))
     return errorResponse('INVALID_REQUEST')
@@ -365,15 +509,31 @@ function deriveState(requestJson: string): string {
     return errorResponse('INVALID_REQUEST')
   if (request.eventKind !== 'batting-result')
     return errorResponse('UNSUPPORTED_T1_SCOPE')
-  const derived = derive(
+  let calculator = derive
+  if (ordinary) calculator = deriveOrdinary
+  const derived = calculator(
     state,
     scoreboard,
     request.resultId,
     request.pitchEventKind,
   )
   if (derived === null) return errorResponse('UNSUPPORTED_T1_SCOPE')
-  return JSON.stringify({ ok: true, value: derivedJson(derived) })
+  return JSON.stringify({ ok: true, value: derivedJson(derived, stack) })
+}
+
+/** 既初球の要求形・成功範囲を変えない。 */
+function deriveState(requestJson: string): string {
+  return evaluatePitch(requestJson, false)
+}
+
+/** 必須履歴と通常33座標だけを単一計算核へ渡す。 */
+function deriveOrdinaryPitch(requestJson: string): string {
+  return evaluatePitch(requestJson, true)
 }
 
 /** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
-export const domainOperations = Object.freeze({ ping, deriveState })
+export const domainOperations = Object.freeze({
+  ping,
+  deriveState,
+  deriveOrdinaryPitch,
+})

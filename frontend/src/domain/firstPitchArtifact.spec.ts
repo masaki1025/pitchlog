@@ -40,8 +40,20 @@ const contract = JSON.parse(
     'utf8',
   ),
 )
+const migrations = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../contracts/state-transition/ordinary_pitch_vectors_v1.json',
+    ),
+    'utf8',
+  ),
+).caseIdMigrations.caseIds
+const firstBallCaseId = migrations['ST-MATRIX-0529a0eb116d64a9']
+if (firstBallCaseId !== 'ST-MATRIX-99b1523fb41399e3')
+  throw new Error('正式初球ID移行が不一致')
 const formal = contract.cases.find(
-  (item: { caseId: string }) => item.caseId === 'ST-MATRIX-0529a0eb116d64a9',
+  (item: { caseId: string }) => item.caseId === firstBallCaseId,
 )
 if (!formal) throw new Error('正式一球caseがない')
 
