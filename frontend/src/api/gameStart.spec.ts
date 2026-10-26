@@ -1,10 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { queryClient } from '../lib/queryClient'
+import { useAuthStore } from '../stores/authStore'
+import { setVerifiedAuthForTest } from './auth.test-support'
 import {
   GameStartDataError,
   parseDeviceEnrollmentResponse,
   parseGameStartOwner,
   parseGameStartRequest,
   parseInitialGameStartResponse,
+  enrollInitialDevice,
+  startInitialGame,
+  resolveInitialGameStart,
 } from './gameStart'
 
 const tenant = '10000000-0000-4000-8000-000000000001'
@@ -20,6 +27,184 @@ const owner = {
   start_request_id: requestId,
   device_id: device,
 }
+
+describe('開始の実HTTP client境界', () => {
+  let pinia: Pinia
+  beforeEach(() => {
+    pinia = createPinia()
+    setActivePinia(pinia)
+    localStorage.clear()
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamName: '試験',
+      teamId: tenant,
+    })
+    vi.stubGlobal('fetch', vi.fn())
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    disposePinia(pinia)
+    queryClient.clear()
+  })
+
+  function reply(value: unknown, status = 200, matched = true) {
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const headers = new Headers(init?.headers)
+      return new Response(JSON.stringify(value), {
+        status,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(matched
+            ? {
+                'X-Pitchlog-Tenant-Match': '1',
+                'X-Pitchlog-Tenant-Challenge': headers.get(
+                  'X-Pitchlog-Tenant-Challenge',
+                )!,
+              }
+            : {}),
+        },
+      })
+    })
+  }
+
+  async function rejected(promise: Promise<unknown>) {
+    const error: unknown = await promise.catch((value: unknown) => value)
+    expect(error).toBeInstanceOf(GameStartDataError)
+    expect(String(error)).toBe('GameStartDataError: 開始データを確認できません')
+    expect(error).not.toHaveProperty('cause')
+    expect(JSON.stringify(error)).not.toContain(credential)
+    expect(JSON.stringify(error)).not.toContain(proof)
+  }
+
+  it('実clientのC2/Cookie/state headerを通し、enrollに資格本文を送らない', async () => {
+    const value = {
+      tenant_id: tenant,
+      device_id: device,
+      device_credential: credential,
+    }
+    reply(value)
+    expect(await enrollInitialDevice(tenant)).toEqual(value)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    const [url, init] = vi.mocked(fetch).mock.calls[0]!
+    expect(url).toBe('/api/devices/enroll')
+    expect(init?.method).toBe('POST')
+    expect(init?.credentials).toBe('include')
+    expect(init?.cache).toBe('no-store')
+    expect(init?.body).toBeUndefined()
+    const headers = new Headers(init?.headers)
+    expect(headers.get('X-Pitchlog-Request')).toBe('1')
+    expect(headers.get('X-Pitchlog-Expected-Tenant')).toBe(tenant)
+    expect(headers.get('X-Pitchlog-Tenant-Challenge')).toMatch(
+      /^[0-9a-f-]{36}$/,
+    )
+    expect(headers.get('Content-Type')).toBeNull()
+  })
+
+  it.each([false, true])(
+    'start/resolve(%s)は同owner/全payloadを一回送る',
+    async (resolve) => {
+      reply(response())
+      const signal = new AbortController().signal
+      const input = request()
+      const send = resolve ? resolveInitialGameStart : startInitialGame
+      expect(await send(owner, input, signal)).toEqual(response())
+      expect(fetch).toHaveBeenCalledTimes(1)
+      const [url, init] = vi.mocked(fetch).mock.calls[0]!
+      expect(url).toBe(`/api/games/${game}/start${resolve ? '/resolve' : ''}`)
+      expect(JSON.parse(init?.body as string)).toEqual(input)
+      expect(Object.keys(JSON.parse(init?.body as string))).toHaveLength(5)
+      expect(init?.signal).toBe(signal)
+      expect(new Headers(init?.headers).get('X-Pitchlog-Expected-Tenant')).toBe(
+        tenant,
+      )
+    },
+  )
+
+  it('要求は送信前にsnapshot化され後発入力変更を混入させない', async () => {
+    reply(response())
+    const input = request()
+    const pending = startInitialGame(owner, input)
+    input.away[0]!.player_id = other
+    input.device_credential = 'changed'
+    expect(await pending).toEqual(response())
+    const sent = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]?.body as string)
+    expect(sent).toEqual(request())
+  })
+
+  it.each(['tenant', 'game', 'request', 'device', 'input-extra'])(
+    '送信前の%s不一致をHTTP0で拒否',
+    async (kind) => {
+      const expected = { ...owner }
+      const input = request()
+      if (kind === 'tenant') expected.tenant_id = other
+      if (kind === 'game') expected.game_id = '../not-a-game'
+      if (kind === 'request') expected.start_request_id = other
+      if (kind === 'device') expected.device_id = other
+      if (kind === 'input-extra')
+        Object.assign(input, { tenant_id: credential })
+      await rejected(startInitialGame(expected, input))
+      expect(fetch).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each(['owner', 'shape', 'tenant-ack', 'non-json', 'http503', 'network'])(
+    '輸送/応答%sの不正を秘密なしの不明へ閉じ自動再送しない',
+    async (fault) => {
+      if (fault === 'owner') reply({ ...response(), game_id: other })
+      if (fault === 'shape') reply({ ...response(), unknown: credential })
+      if (fault === 'tenant-ack') reply(response(), 200, false)
+      if (fault === 'non-json')
+        vi.mocked(fetch).mockResolvedValue(new Response(credential))
+      if (fault === 'http503')
+        reply({ error: { message: credential, details: proof } }, 503)
+      if (fault === 'network')
+        vi.mocked(fetch).mockRejectedValue(new Error(credential))
+      await rejected(resolveInitialGameStart(owner, request()))
+      expect(fetch).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it('enrollの別tenant応答と送信前別tenantを採らない', async () => {
+    reply({
+      tenant_id: other,
+      device_id: device,
+      device_credential: credential,
+    })
+    await rejected(enrollInitialDevice(tenant))
+    expect(fetch).toHaveBeenCalledTimes(1)
+    vi.mocked(fetch).mockClear()
+    await rejected(enrollInitialDevice(other))
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('要求中の認証世代変更では応答を採用しない', async () => {
+    let done!: (value: Response) => void
+    vi.mocked(fetch).mockReturnValue(
+      new Promise((resolve) => {
+        done = resolve
+      }),
+    )
+    const pending = startInitialGame(owner, request())
+    const headers = new Headers(vi.mocked(fetch).mock.calls[0]![1]?.headers)
+    setVerifiedAuthForTest(useAuthStore(pinia), {
+      teamName: '別',
+      teamId: other,
+    })
+    done(
+      new Response(JSON.stringify(response()), {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Pitchlog-Tenant-Match': '1',
+          'X-Pitchlog-Tenant-Challenge': headers.get(
+            'X-Pitchlog-Tenant-Challenge',
+          )!,
+        },
+      }),
+    )
+    await rejected(pending)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
 
 function request() {
   const rows = Array.from({ length: 9 }, (_, index) => ({

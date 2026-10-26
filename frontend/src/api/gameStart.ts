@@ -1,3 +1,7 @@
+import { getActivePinia } from 'pinia'
+import { useAuthStore } from '../stores/authStore'
+import { apiRequest } from './client'
+
 /** 開始通信の外形だけを検査する。認可・開始確定・記録権を判定しない。 */
 export type GameStartJson =
   | null
@@ -364,4 +368,101 @@ export function parseInitialGameStartResponse(
       home_lineup_id: uuid(row.home_lineup_id),
     })
   })
+}
+
+/** C2と認証世代に束縛した一回の輸送。原例外・資格を公開エラーへ残さない。 */
+async function scopedRequest<T>(
+  expectedTenant: string,
+  send: () => Promise<unknown>,
+  decode: (value: unknown) => T,
+): Promise<T> {
+  try {
+    const tenant = uuid(expectedTenant)
+    const pinia = getActivePinia()
+    if (!pinia) return invalid()
+    const auth = useAuthStore(pinia)
+    auth.syncFromStorage()
+    const epoch = auth.authEpoch
+    const assertCurrent = () => {
+      if (
+        getActivePinia() !== pinia ||
+        !auth.hasHydrated ||
+        !auth.isAuthenticated ||
+        auth.teamId !== tenant ||
+        auth.authEpoch !== epoch
+      )
+        invalid()
+    }
+    assertCurrent()
+    const value = await send()
+    assertCurrent()
+    const result = decode(value)
+    assertCurrent()
+    return result
+  } catch {
+    throw new GameStartDataError()
+  }
+}
+
+/** 応答を受けても、呼出し側が端末資格を耐久保存するまでは開始に使わない。 */
+export async function enrollInitialDevice(
+  expectedTenant: string,
+  signal?: AbortSignal,
+): Promise<InitialDeviceEnrollmentResponse> {
+  return scopedRequest(
+    expectedTenant,
+    () =>
+      apiRequest<unknown>('POST', '/devices/enroll', {
+        tenantBound: true,
+        signal,
+      }),
+    (value) => parseDeviceEnrollmentResponse(value, expectedTenant),
+  )
+}
+
+async function sendStart(
+  ownerValue: GameStartOwner,
+  requestValue: GameStartRequest,
+  resolve: boolean,
+  signal?: AbortSignal,
+): Promise<InitialGameStartResponse> {
+  try {
+    const owner = parseGameStartOwner(ownerValue)
+    const request = parseGameStartRequest(requestValue)
+    if (
+      owner.start_request_id !== request.start_request_id ||
+      owner.device_id !== request.device_id
+    )
+      return invalid()
+    return await scopedRequest(
+      owner.tenant_id,
+      () =>
+        apiRequest<unknown>(
+          'POST',
+          `/games/${owner.game_id}/start${resolve ? '/resolve' : ''}`,
+          { body: request, tenantBound: true, signal },
+        ),
+      (value) => parseInitialGameStartResponse(value, owner),
+    )
+  } catch {
+    throw new GameStartDataError()
+  }
+}
+
+/** 元要求を事前に耐久保存した呼出し側だけが明示的に開始を送る。自動再送しない。 */
+export async function startInitialGame(
+  owner: GameStartOwner,
+  request: GameStartRequest,
+  signal?: AbortSignal,
+): Promise<InitialGameStartResponse> {
+  return sendStart(owner, request, false, signal)
+}
+
+/** 保存した元要求を変更せず照会する。不明を取消・新要求可能へ変換しない。 */
+export async function resolveInitialGameStart(
+  owner: GameStartOwner,
+  request: GameStartRequest,
+  signal?: AbortSignal,
+): Promise<InitialGameStartResponse> {
+  return sendStart(owner, request, true, signal)
 }

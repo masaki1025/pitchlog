@@ -940,3 +940,50 @@ describe('apiDownload', () => {
     expect(auth.teamName).toBeNull()
   })
 })
+
+describe('端末登録POSTのCookie不確実性', () => {
+  it('登録の結果不明はCookie一致も無効化し、自動送信を行わない', async () => {
+    const auth = useAuthStore(pinia)
+    const invalidate = vi.spyOn(auth, 'invalidateUncertainCookie')
+    vi.mocked(fetch).mockRejectedValue(new Error('transport unavailable'))
+    await expect(
+      apiRequest('POST', '/devices/enroll', { tenantBound: true }),
+    ).rejects.toBeInstanceOf(ApiStaleAuthError)
+    expect(invalidate).toHaveBeenCalledTimes(1)
+    expect(auth.isAuthenticated).toBe(false)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('古い登録応答は本文より先にCookie不確実性を通知する', async () => {
+    const auth = useAuthStore(pinia)
+    const invalidate = vi.spyOn(auth, 'invalidateUncertainCookie')
+    const pending = deferredResponse()
+    vi.mocked(fetch).mockReturnValue(pending.promise)
+    const request = apiRequest('POST', '/devices/enroll', { tenantBound: true })
+    setVerifiedAuthForTest(auth, {
+      teamName: 'B',
+      teamId: '62dd5c6b-356d-5374-aa7e-9ea4c88c58ce',
+    })
+    const response = new Response('{}', {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const read = vi.spyOn(response, 'text')
+    pending.resolve(response)
+    await expect(request).rejects.toBeInstanceOf(ApiStaleAuthError)
+    expect(invalidate).toHaveBeenCalledTimes(1)
+    expect(read).not.toHaveBeenCalled()
+  })
+  it.each([
+    ['GET', '/devices/enroll'],
+    ['POST', '/devices/other'],
+  ] as const)('%s %sへ登録POSTの条件を広げない', async (method, path) => {
+    const invalidate = vi.spyOn(
+      useAuthStore(pinia),
+      'invalidateUncertainCookie',
+    )
+    vi.mocked(fetch).mockRejectedValue(new Error('transport unavailable'))
+    await expect(apiRequest(method, path)).rejects.toBeInstanceOf(
+      ApiNetworkError,
+    )
+    expect(invalidate).not.toHaveBeenCalled()
+  })
+})

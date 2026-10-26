@@ -223,7 +223,9 @@ async function requestResponse<T>(
   const cookieMayRenew =
     ['/auth/session', '/auth/password', '/auth/login', '/auth/logout'].includes(
       path,
-    ) || /^\/(?:players|team-records|games)(?:\/|$)/.test(path)
+    ) ||
+    (method === 'POST' && path === '/devices/enroll') ||
+    /^\/(?:players|team-records|games)(?:\/|$)/.test(path)
   if (
     options.onAuthCookieUncertain &&
     !(method === 'POST' && (path === '/auth/login' || path === '/auth/logout'))
