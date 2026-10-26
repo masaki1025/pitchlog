@@ -17,13 +17,13 @@ created: 2026-10-20
 
 **承認記録**: 2026-10-20、山田正輝がSHA-256 `40340ce0c2f399e35240c19ce64496656eeae93d4854ba2ba6eb3d6984d720fd` の本計画を承認した。追加独立レビューのP1 3件を採用した最終反映差分が未再レビューであることを含む承認である。承認記録によるfrontmatterと本段落の追記は指定SHAの後続記録であり、J5/J6の意味、正本7.3、契約7.7、P-6成立、製品計算コードの開始許可には拡張しない。現枝でT1を実行する唯一の計画を本書とし、[旧U-X1計画](../ux1-state-calc/plan.md)は2026-10-17承認済みの上位方針・T2以降の参照として保持する。旧計画のT1実行ステップを旧枝で重ねて実行しない。旧計画の全文・承認・レビュー実績を本書へ複製しない。
 
-レビュー履歴は旧計画5周、TSK-544のP-8最小追補2周、J5/J6旧パス追補の採用反映2周、今回の採用反映1周で**通算10周**。J5/J6第1回はP0=1/P1=3、第2回はP0=1/P1=1を採用した。第3回P0限定は残存P0=1（旧計画のbranch/worktreeとT1枝の不一致）で、採用反映がないため周回数に加えない。今回許可された追加独立レビューはP0=0/P1=3/P2=0で否決。3件を採用した最終差分と、旧G6-S最終修正は**未再レビュー**。この追加レビューを7.3正本レビュー、契約候補2回のレビュー、P-6独立導出へ読み替えない。旧パスの未承認差分は[保全パッチ](old-j5-j6-unapproved-candidate.patch.b64)に保存した。正本・契約に反映済みとは扱わない。
+レビュー履歴は旧計画5周、TSK-544のP-8最小追補2周、J5/J6旧パス追補の採用反映2周、今回の採用反映1周で**通算10周**。J5/J6第1回はP0=1/P1=3、第2回はP0=1/P1=1を採用した。第3回P0限定は残存P0=1（旧計画のbranch/worktreeとT1枝の不一致）で、採用反映がないため周回数に加えない。今回許可された追加独立レビューはP0=0/P1=3/P2=0で否決。3件を採用した最終差分と、旧G6-S最終修正は**未再レビュー**。この追加レビューを7.3正本レビュー、契約候補2回のレビュー、P-6独立導出へ読み替えない。旧パスの未承認差分は[保全パッチ](https://github.com/masaki1025/pitchlog/blob/8d51453df3ef528c0470623faac23983feff2fde/docs/features/tsk544-t1-state-calculation/old-j5-j6-unapproved-candidate.patch.b64)に保存した。正本・契約に反映済みとは扱わない。
 
 ## 1. 背景・目的
 
 11/12の段階提供では本物のT1状況計算を用いて1球を記録・保存・再読込する。ADR-003 v0.8 D-14-m、要件書v2.15、[旧計画](../ux1-state-calc/plan.md)のT1/T2限定経過措置とP-1〜P-9を適用する。分析40行、D-2全体の発効、無条件の凍結解除は対象外。FR-040の直接補正導線は延期され、これを含む従来MVP全体の完成とは記録しない。NFR-018に従いTSK-538の単一TS計算核・同一JS artifactを利用し、手書きの別計算を置かない。
 
-原典と候補: [旧設計](../ux1-state-calc/design.md)、[T1入力・case候補](../ux1-state-calc/tsk544-p8-candidates/)、[J5/J6本文・型候補](../ux1-state-calc/tsk544-p8-candidates/t1-j5-j6-decision-candidate.md)、[P-6/P-7/P-8受渡し](../ux1-state-calc/tsk544-p6-p7-p8-handoff.md)。候補中の未裁定値は正式仕様ではない。
+原典と候補: [旧設計](../ux1-state-calc/design.md)、[T1入力・case候補](https://github.com/masaki1025/pitchlog/tree/7912b9c63e4b35a06fed667ee976cc8f91a4f457/docs/features/ux1-state-calc/tsk544-p8-candidates)、[J5/J6本文・型候補](https://github.com/masaki1025/pitchlog/blob/aec6768cbd0089c61b1b2ad0a8382947fa561cdf/docs/features/ux1-state-calc/tsk544-p8-candidates/t1-j5-j6-decision-candidate.md)、[P-6/P-7/P-8受渡し](https://github.com/masaki1025/pitchlog/blob/35a7f5761a105c77cbfee7820cf01ca2af84a37c/docs/features/ux1-state-calc/tsk544-p6-p7-p8-handoff.md)。候補中の未裁定値は正式仕様ではない。
 
 ## 2. スコープ
 
