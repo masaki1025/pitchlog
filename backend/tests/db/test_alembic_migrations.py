@@ -23,7 +23,7 @@ from alembic.script import ScriptDirectory
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
-from sqlalchemy import Column, Integer, MetaData, Table
+from sqlalchemy import BigInteger, CheckConstraint, Column, Integer, MetaData, Table
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.exc import DBAPIError
 
@@ -1034,15 +1034,65 @@ def _alembic_config() -> Config:
     return Config(str(_BACKEND_ROOT / "alembic.ini"))
 
 
+def _metadata_for_schema_revision(revision: str) -> MetaData:
+    """採用済みrevisionだけを対応するモデル構造へ射影する。"""
+    if revision == "0035_rg1_initial_fresh_epoch":
+        return Base.metadata
+    if revision not in {"0032_rg1_restore_gate", "0033_game_rules_immutable"}:
+        raise AssertionError("未対応revisionのモデル比較を補完しない")
+    table = Base.metadata.tables.get("rg1_restore_gate")
+    if table is None:
+        # 部分metadataも元のまま比較し、余剰・欠落表を実diffとして検出する。
+        return Base.metadata
+    epoch = table.c.recovery_generation
+    checks = [
+        constraint
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+        and constraint.name == "ck_rg1_restore_gate_recovery_generation"
+    ]
+    assert isinstance(epoch.type, BigInteger) and epoch.nullable
+    assert epoch.default is None and epoch.server_default is None
+    assert not epoch.primary_key and not epoch.foreign_keys
+    assert len(checks) == 1
+    assert str(checks[0].sqltext) == (
+        "recovery_generation IS NULL OR recovery_generation > 0"
+    )
+    historical = MetaData(naming_convention=Base.metadata.naming_convention)
+    for source in Base.metadata.tables.values():
+        source.to_metadata(historical)
+    copied = historical.tables["rg1_restore_gate"]
+    copied_check = next(
+        constraint
+        for constraint in copied.constraints
+        if isinstance(constraint, CheckConstraint)
+        and constraint.name == "ck_rg1_restore_gate_recovery_generation"
+    )
+    copied.constraints.remove(copied_check)
+    # 比較用copyの一列だけを除く。元のORMや比較結果を加工しない。
+    copied._columns.remove(copied.c.recovery_generation)
+    return historical
+
+
 def _pre_placement_metadata_diffs() -> list[object]:
-    """配置前revisionの表構造とモデルの差分を取得する。"""
+    """実revisionに対応した表構造とモデルの差分を取得する。"""
     engine = create_engine(
         normalize_postgresql_url(os.environ["PITCHLOG_MIGRATION_DATABASE_URL"])
     )
     try:
         with engine.connect() as connection:
+            revisions = (
+                connection.exec_driver_sql(
+                    "SELECT version_num FROM public.alembic_version"
+                )
+                .scalars()
+                .all()
+            )
+            assert len(revisions) == 1 and type(revisions[0]) is str
             context = MigrationContext.configure(connection)
-            return compare_metadata(context, Base.metadata)
+            return compare_metadata(
+                context, _metadata_for_schema_revision(revisions[0])
+            )
     finally:
         engine.dispose()
 
@@ -8604,3 +8654,77 @@ def test_0028_generated_name_normalization_and_limits(
                     "'public.authn_normalize_team_name(text)')"
                 )
                 assert cursor.fetchone() == (None,)
+
+
+@pytest.mark.parametrize(
+    "revision", ["0032_rg1_restore_gate", "0033_game_rules_immutable"]
+)
+def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> None:
+    """歴史モデルcopyの差をepoch列とCHECKにだけ限定する。"""
+    current = Base.metadata.tables["rg1_restore_gate"]
+    projected = _metadata_for_schema_revision(revision)
+    assert projected is not Base.metadata
+    assert set(projected.tables) == set(Base.metadata.tables)
+    assert set(current.c.keys()) == {"singleton_id", "state", "recovery_generation"}
+    for name, table in Base.metadata.tables.items():
+        expected = set(table.c.keys())
+        if name == "rg1_restore_gate":
+            expected.remove("recovery_generation")
+        assert set(projected.tables[name].c.keys()) == expected
+    assert "recovery_generation" in current.c
+    assert any(
+        c.name == "ck_rg1_restore_gate_recovery_generation" for c in current.constraints
+    )
+    assert (
+        _metadata_for_schema_revision("0035_rg1_initial_fresh_epoch") is Base.metadata
+    )
+    with pytest.raises(AssertionError, match="未対応revision"):
+        _metadata_for_schema_revision("unknown")
+
+
+def test_current_metadata_epoch_column_loss_is_detected(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """正規0035は完全モデルで比較し、epoch欠落を必ず検出する。"""
+    engine = create_engine(
+        normalize_postgresql_url(
+            _sqlalchemy_url(provisioned_product_catalog.owner_dsn)
+        )
+    )
+    try:
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            try:
+                assert (
+                    connection.exec_driver_sql(
+                        "SELECT version_num FROM public.alembic_version"
+                    ).scalar_one()
+                    == "0035_rg1_initial_fresh_epoch"
+                )
+                assert (
+                    compare_metadata(
+                        MigrationContext.configure(connection), Base.metadata
+                    )
+                    == []
+                )
+                connection.exec_driver_sql(
+                    "ALTER TABLE public.rg1_restore_gate "
+                    "DROP COLUMN recovery_generation"
+                )
+                diffs = compare_metadata(
+                    MigrationContext.configure(connection), Base.metadata
+                )
+                assert any(
+                    difference[0] == "add_column"
+                    and difference[2] == "rg1_restore_gate"
+                    and difference[3].name == "recovery_generation"
+                    for difference in diffs
+                )
+            finally:
+                transaction.rollback()
+            assert (
+                compare_metadata(MigrationContext.configure(connection), Base.metadata)
+                == []
+            )
+    finally:
+        engine.dispose()

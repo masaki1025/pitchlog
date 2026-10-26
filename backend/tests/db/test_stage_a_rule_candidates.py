@@ -27,7 +27,6 @@ from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
-    apply_product_authz_ddl,
 )
 from pitchlog.db.engine import create_database_engine
 from pitchlog.db.game_state.rule_snapshot import (
@@ -852,7 +851,9 @@ def test_stage_a_candidate_keeps_seed_when_authz_transaction_fails(
         )
         assert cursor.fetchone() == (None,)
     catalog.observer.rollback()
-    apply_product_authz_ddl(catalog.applicator)
+    candidate = runpy.run_path(str(_STARTUP))
+    assets = candidate["_require_candidate_assets"]()
+    candidate["_apply_candidate_authz"](catalog.applicator, assets.authz)
     assert _seed_state(catalog) == (5, 5, 0)
 
 

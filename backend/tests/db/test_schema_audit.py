@@ -14,24 +14,20 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Iterable, Mapping
-from contextlib import AbstractContextManager
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import psycopg
 import pytest
-from alembic import command
 from psycopg import sql
 
-from .conftest import DisposablePostgres
+from .conftest import ProvisionedProductCatalog
 from .test_alembic_migrations import (
-    _alembic_config,
     _index_catalog_contract,
     _normalize_sql,
     _normalized_predicate,
-    _sqlalchemy_url,
 )
 
 pytestmark = pytest.mark.requires_db
@@ -805,80 +801,71 @@ def _nonempty_violations(
 
 
 def test_schema_manifest_matches_catalog_and_cross_table_rules(
-    disposable_postgres_cluster: Callable[
-        [], AbstractContextManager[DisposablePostgres]
-    ],
-    monkeypatch: pytest.MonkeyPatch,
+    provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """Manifest 全構造と横断不変条件を実 PostgreSQL で exact-set 突合する。"""
+    """正規0035の全構造と横断不変条件をexact-set突合する。"""
     manifest = _load_manifest()
-    with disposable_postgres_cluster() as cluster:
-        monkeypatch.setenv(
-            "PITCHLOG_MIGRATION_DATABASE_URL",
-            _sqlalchemy_url(cluster.admin_dsn),
+    connection = provisioned_product_catalog.applicator
+    with connection.transaction():
+        expected_tables = {table["name"] for table in manifest["tables"]}
+        actual_tables = _table_catalog(connection)
+        expected_columns = _manifest_columns(manifest)
+        actual_columns = _column_catalog(connection)
+        expected_unique = _manifest_unique_constraints(manifest)
+        actual_unique = _unique_catalog(connection)
+        expected_foreign_keys = _manifest_foreign_keys(manifest)
+        actual_foreign_keys = _foreign_key_catalog(connection)
+        expected_checks = _manifest_checks(connection, manifest)
+        actual_checks = _check_catalog(connection)
+        expected_indexes = _manifest_indexes(manifest)
+        actual_indexes = _index_catalog(connection)
+
+        check_violations = _set_violations(
+            "CHECK", set(expected_checks), set(actual_checks)
         )
-        command.upgrade(_alembic_config(), "0032_rg1_restore_gate")
-
-        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            expected_tables = {table["name"] for table in manifest["tables"]}
-            actual_tables = _table_catalog(connection)
-            expected_columns = _manifest_columns(manifest)
-            actual_columns = _column_catalog(connection)
-            expected_unique = _manifest_unique_constraints(manifest)
-            actual_unique = _unique_catalog(connection)
-            expected_foreign_keys = _manifest_foreign_keys(manifest)
-            actual_foreign_keys = _foreign_key_catalog(connection)
-            expected_checks = _manifest_checks(connection, manifest)
-            actual_checks = _check_catalog(connection)
-            expected_indexes = _manifest_indexes(manifest)
-            actual_indexes = _index_catalog(connection)
-
-            check_violations = _set_violations(
-                "CHECK", set(expected_checks), set(actual_checks)
+        if len(expected_checks) != len(actual_checks):
+            check_violations.append(
+                "CHECK: 件数不一致: "
+                f"期待 {len(expected_checks)} / 実際 {len(actual_checks)}"
             )
-            if len(expected_checks) != len(actual_checks):
-                check_violations.append(
-                    "CHECK: 件数不一致: "
-                    f"期待 {len(expected_checks)} / 実際 {len(actual_checks)}"
-                )
-            catalog_violations = {
-                "tables": _set_violations("表", expected_tables, actual_tables),
-                "columns": _set_violations("列", expected_columns, actual_columns),
-                "unique_constraints": _set_violations(
-                    "一意構造", expected_unique, actual_unique
-                ),
-                "foreign_keys": _set_violations(
-                    "FK", expected_foreign_keys, actual_foreign_keys
-                ),
-                "checks": check_violations,
-                "indexes": _set_violations("索引", expected_indexes, actual_indexes),
-                "generated_expressions": _generated_expression_violations(
-                    connection, manifest
-                ),
-            }
-            cross_table_violations = _cross_table_audit_violations(
-                manifest,
-                actual_columns,
-                actual_unique,
-                actual_foreign_keys,
+        catalog_violations = {
+            "tables": _set_violations("表", expected_tables, actual_tables),
+            "columns": _set_violations("列", expected_columns, actual_columns),
+            "unique_constraints": _set_violations(
+                "一意構造", expected_unique, actual_unique
+            ),
+            "foreign_keys": _set_violations(
+                "FK", expected_foreign_keys, actual_foreign_keys
+            ),
+            "checks": check_violations,
+            "indexes": _set_violations("索引", expected_indexes, actual_indexes),
+            "generated_expressions": _generated_expression_violations(
+                connection, manifest
+            ),
+        }
+        cross_table_violations = _cross_table_audit_violations(
+            manifest,
+            actual_columns,
+            actual_unique,
+            actual_foreign_keys,
+        )
+
+        # 既存差分の有無に依存せず、余剰 1 表が新しい差分になる負例を固定する。
+        before_extra_table = set(catalog_violations["tables"])
+        connection.execute("CREATE TABLE schema_audit_unexpected (id integer)")
+        try:
+            after_extra_table = set(
+                _set_violations("表", expected_tables, _table_catalog(connection))
             )
+        finally:
+            connection.execute("DROP TABLE schema_audit_unexpected")
+        assert after_extra_table - before_extra_table == {
+            "表: 実スキーマに余剰: 'schema_audit_unexpected'"
+        }
+        assert before_extra_table <= after_extra_table
 
-            # 既存差分の有無に依存せず、余剰 1 表が新しい差分になる負例を固定する。
-            before_extra_table = set(catalog_violations["tables"])
-            connection.execute("CREATE TABLE schema_audit_unexpected (id integer)")
-            try:
-                after_extra_table = set(
-                    _set_violations("表", expected_tables, _table_catalog(connection))
-                )
-            finally:
-                connection.execute("DROP TABLE schema_audit_unexpected")
-            assert after_extra_table - before_extra_table == {
-                "表: 実スキーマに余剰: 'schema_audit_unexpected'"
-            }
-            assert before_extra_table <= after_extra_table
-
-            all_violations = {
-                **_nonempty_violations(catalog_violations),
-                **_nonempty_violations(cross_table_violations),
-            }
-            assert all_violations == {}
+        all_violations = {
+            **_nonempty_violations(catalog_violations),
+            **_nonempty_violations(cross_table_violations),
+        }
+        assert all_violations == {}
