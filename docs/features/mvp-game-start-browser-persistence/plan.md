@@ -1,6 +1,6 @@
 ---
 feature: mvp-game-start-browser-persistence
-status: active
+status: in-review
 承認: 済（PO委任によるCodex判断・有限ブラウザ保存部品）
 重さ分類: コア領域
 branch: feature/mvp-game-start-browser-persistence
@@ -64,3 +64,8 @@ step2保存後の実Git検査は5333e471に対してverify_area_path_baseline(30
 
 
 step3受理（PO委任によるCodex /root判断）：初回P2=1（検査後の元Proxy再読取）をdescriptor値の凍結snapshotへ閉じ、4対向を追加。旧70＋新4の74成功692ms/非作者74成功523ms、最終REVIEW305c5cc450bab309d416ca3c341e2835834d09b3821fdc2d81254ca25fbdff99/evidence724de7df460e22acdee042633105ac78b907c4857e6b904021b2dd3b55061c12/残0を確認。array descriptor型のTS mappedtype誤推論はobject型への明示だけを是正してvue-tsc成功、ESLint/Prettier成功。最終source bc9648f3ab9368487882ec527caf74b92bb2b983d29589817f2373dbfe28a602/test df7dcf12c443e78c0740c3fe95a66519d199054dc173668ee74d50b30d357147を固定。元70成功/型検査初回失敗/修正履歴はcacheへ保持。これはDTO/owner外形だけ、HTTP/IDB/実開始ではない。保存後step4のlib2pathだけをrootが着手する。
+
+
+step4受理（PO委任によるCodex /root判断）：通常候補非作者mvp_connection_final_review_oct26の全8path REVIEW88e13fadeabec83d32d12f9be95db974c6a6807b1b1f5050f20ce7308eeb1596/evidenceaab59cde87c328afe65f6276d5e5a73e70f8453cfc29dff859169e7bdc3cd2a4/残0を確認。source2/evidence73007641f92d5615e6084dc157c17fbfb23b6cafdbba9efebedb3bb1acfb2db0とfull差分59c1292743ece134d810f904a958931fbaf4bf341e5ddd80c334d1fc8dcfe13dを固定。独立API74+IDB17=91成功1.04s、別cache故障/競合3probe成功536ms。中断t2の取得不能handleを成功へ読み替えず、fresh本人実行を別に保持した。root fullfrontendは94files/1958成功92.83s、全ESLint/Prettier/vue-tsc成功、root core module全443成功49.08s。前段宣言/別JSON/全旧pathと順序を実Gitで確認。
+
+ローカル保存はsecure contextとstrict durabilityを要求し、transaction完了までACKしない。pairの異値置換、同ID別payload、新IDによるpending置換、矛盾grant、破損行を拒否し、receivedを遅延unknownで降格しない。既Q1とDBを分け、削除/HTTP送信/UI解除は実装0。fake IDB/reopenを実Safari/実ブラウザ再起動成功とはしない。未対応storage能力は閉じ、対象端末実証は後続に維持。本有限4stepは候補として実装/局所受理済みだが、正式backend DTO再照合・HTTP/C2/Origin/実画面接続・最終HEADレビュー/必須CI/通常統合は残る。現在はsourceを保全し、実API供給へ続ける。
