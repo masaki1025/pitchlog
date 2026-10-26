@@ -149,3 +149,6 @@ oracleはroute/matrix等更新済み8入力を確定するcommit Cを先に固�
 ### 既承認ステップ3の実装順具体化
 
 2026-10-23T19:19:26.762846+00:00、Codex主担当/rootはPO4/6/8/10と2026-10-24の縦断優先指示に基づき、b1e95ecb上の計画0421943066e9faf010fd84e2896da9e9550bae59edab87358a8368a81cff900bが既に含むPOST/options入口・C2・6factory/7token/一意6正例の候補実装を、実RG1成功の供給を待たず先に行う順序とする。新しいscope/意味/API/許可を追加する判断ではない。第4節の失敗閉鎖/同一取引/正規resolver/codec/実RG1を保持し、常閉503・options読取・入力前の認証/C2を局所検証できる範囲から実装する。実RG1成功の供給は、正常201・両INSERT途中故障/同時復元競合の検証とステップ3全合格に引き続き必要。未供給のまま完了へ数えず、成功stubへ代替しない。正式9/8/受理履歴/lock/oracleはroot後続所有、最終非作者レビュー/全件CI/親全DoDを維持する。元計画承認とレビュー系列をリセットせず、人間の確認/署名を代記しない。
+
+
+2026-10-26T10:51:54.096191+00:00、PO委任によるCodex /root判断で、既承認候補20ee2e98を正式RG1 3a24f89eへ通常追随したmerge903e3b0978d412985fe05d7b3d562d08fb86809bを保存する。独立review d553f73d575a557f974433ed448d8d5013f9d428f5f75753761ad560ae637b17/checksf7d0140aaa011dfac4ac46d13fab43b6cd9df9b049cb3ca46e38422d5139bb31（残0）、root限定tenant38/関連backend243/authz20成功、独立52/91成功。6競合は正式旧全prefix/全role・RG1/権利runtimeを保持し既create6factory/3cap/7token・実route差分だけを結合した。testの既create5関数は20eeの全内容を保持、初回copy不足で欠けたmodule定数3を原本から復元した。renderer途中停止/未解消markerをdiffcheckで拒否した履歴、定数欠落collection赤はcache preparing-create-follow-develop-3a24-20261026/へ保全、全件成功とはしない。正式7.7/派生値受理・PR/CI/新固定点での実画面再実証は未了で、旧eda71a48＋20eeの実作成成功を903の成功としない。意味再承認/安全条件変更はなく、次は既ステップ3の正式値・実接続を継続する。
