@@ -217,3 +217,20 @@ exactpaths.jsonが唯一の許可候補。rootはparent plan/contracts/append/�
 旧live164成功71.52sは現117検査の証明ではなかった。初回shadow全164は159成功5失敗65.76s（旧4不整合＋空承認1の正当拒否）、反映1限定live25成功/shadow24成功1正当拒否、独立24成功6.13sを別実行として保持。branch module29/33+tail schema/全12ID/104保持/coverage177/ec26 subjectは別非作者で実導出照合した。新承認3欄はまだnullで、署名・凍結・7.7の受理済みを意味しない。保存はsource4＋planのみ、正式9/履歴/旧署名/数学12は変更しない。
 
 現PR185/RBI5限定Gate6は新33 subjectを正しく拒否する。旧記録・本人署名を付け替えず、今回実PRに限る追加手続きの最小候補を作成中で、非作者初回0/1/0（新ready後のlocal技術分岐と統合後の不変継承の具体化不足）を採用した反映案がある。最終計画採否・実PR確定・新subject/ABI全値のroot受理が残り、単位A全成立/数学開始とはしない。全Port/全T1/全P6の完成を追加前提に戻さず、この操作の残手続きだけを閉じる。
+
+
+2026-10-26T10:13:14.239412+00:00、PO委任によるCodex /root判断で通常33の正式9資産候補を当該枝へ反映し、被覆step96の実値採否を記録する。source4の最終独立4dbedd59…、正式9/全前後値の独立123d2857…/complete-values58b05967634a3ba8fac90b02bf4eac7d651358529a3cb3620ca42ad9eacc4a37を根拠とする。前176→177、追加(state.count.balls,1)だけ/削除0、旧17履歴prefix・旧baselineCaseIds・旧104case全object/12caseの期待値と履歴を保持。変更は4有限guard/12ID参照移行/新case1/必須stackを持つABI4と派生参照であり、他配置/得点意味/P6全成立を採用しない。3承認欄へ実JST日付2026-10-26/実判断者Codexを記録し、旧空欄の正当拒否と8他資産同byteを維持する。全9実before/after SHAはcache root-formal9-reflection/receipt.jsonへ固定する。
+
+この反映/step96実値採否は新Gate6公開受理・最終CI成功ではない。旧185は今回subjectを正しく拒否し、旧署名・旧recordは保持したままである。後続限定Gate6手続きを次の通り承認する。候補原案3d8d24…→反映1 dbfc1de511fd3e83f000373f0ba160ce069a1b6fd90fbdb424f003a5055d84f0、非作者初回47f4127d…（0/1/0）→最終fa1a8b6c5429412ead091d5dfa90bdeb4c2518cf56884694cfec243ea84324cb/checksdea4be577c4a32064b7519c686feea748c3fa1c2999b4194b4773796dde22abf（残0）。
+
+## 通常33の限定Gate6手続き追補（PO委任承認）
+
+exact追加6はscripts/check_human_review_signature.py、tests/test_human_review_signature.py、新contracts/state-transition/gate6_t1_ordinary_pitch_v1.jsonとgate6_t1_ordinary_pitch_schema_v1.json、docs/features/mvp-delegated-core-review/policy.json、当該親planだけ。既一般core_guard/workflow/正本/署名keyは変更0。旧185record/schema/本人署名/sheet/carry/policy原本は固定30f67 anchorで既同validator bodyにより検証し、型/拒否本体を複製・省略しない。必要private固定readerだけを注入し、CLI/record任意revision選択や旧コードcheckout/execは禁止する。
+
+新record/schemaは今回feature/mvp-t1-ordinary-pitchesの**取得した実PR**にだけ束縛する。placeholder/null/番号創作を拒否。rootはsource4/正式9実差分のDraftを公開後actual番号を固定し、現policyへ既targets全prefix/全fieldを保持した末尾exact1だけ追記する。新checker/test作者はt2を予定し、実PR後のroot具体通知で着手する。新record/schema/正式9/現policy/親plan/Git/台帳はrootのみwriter、作者はcache候補を供給できる。
+
+有限bodyは旧185同bodyの固定検証後、4guard B/Sのexact有限集合・他45row/4row出力/23flag/他guard不変、旧104全object/12IDmap/期待値とhistory全保持/新case1だけを再構成しsubject全体を比較する。schemaと固定全値から新ABI4/33vector/必須history.stack/全tail保持/派生5・coverage177/旧17prefix＋step96/normal248/descriptor等の不変を検査する。任意hash自己申告・余分case/field/row/axis・型同値化を拒否する。旧RBI署名を新subjectの承認へ付替えない。人間本人確認/P6全成立/P7全成立/T1BodyStartComplete等はfalseの限定scopeReceiptへ固定する。
+
+3modeを接続する。A local --gate6-carryは新2asset片方でも存在すれば両方readyと実番号を必須に技術bodyを検査し、fetch0/公開委任未確認/新受理なしの文言でのみ0終了する。B今回actualPR --ciはrepo/branch/番号/base/head/checkout同tree・validator最終blob・既公開委任証拠/非作者/重大指摘0を全必須とし、不正BからC又は旧経路へfallbackしない。C統合後の他PRはcurrent記録より先にevent.baseの新record/schema/9資産と旧固定入力を読み、raw全同値を要求してから旧185固定同body＋有限bodyを検査する。fetch0/新受理なしで、連動書換え/削除/base偽装/pending/dirty・非同treeを拒否し、後続PR自体の通常core/独立/CIは免除しない。両base/currentに新2assetが無い旧treeだけは既経路を保持する。
+
+実Git/公開CLIでA/B/C正例と前記全拒否、旧185全負例を確認する。最終HEAD/diff/path/現policy hashは自己参照recordへ入れず既PO-DELEGATION-EVIDENCEの実コメントで検査する。正式反映後のraw hashはroot実値を使い、旧cacheの空3欄版hashを偽採用しない。独立最終source/実値確認・公開Gate6/必須CIの未達は未達のまま保存し、単位B数学の着手判断と全T1/実HTTP・保存mergeゲートを混同しない。
