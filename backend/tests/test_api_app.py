@@ -77,6 +77,9 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("GET",), "/team-records/{team_record_id:uuid}/lineup-memory"),
         (("GET",), "/games"),
         (("GET",), "/games/{game_id}"),
+        (("POST",), "/devices/enroll"),
+        (("POST",), "/games/{game_id}/start"),
+        (("POST",), "/games/{game_id}/start/resolve"),
     )
     assert tuple(route.operation_id for route in routes) == (
         "meta_health_read",
@@ -99,6 +102,9 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "lineup_memory_read",
         "preparing_game_list",
         "preparing_game_detail",
+        "initial_device_enroll",
+        "initial_game_start",
+        "initial_game_start_resolve",
     )
 
 
