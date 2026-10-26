@@ -73,12 +73,14 @@ from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[un
     build_enrollment_function_declarations,
     build_initial_function_declarations,
     build_lifecycle_function_declarations,
+    build_lookup_function_declarations,
     build_product_function_acl_declaration,
     generate_builtin_execute_sql,
     generate_initial_function_sql,
     generate_lifecycle_function_sql,
     generate_product_function_acl_sql,
     is_builtin_execute_declaration,
+    lookup_assets_present,
     product_function_id,
 )
 from pitchlog.authz.product_role_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
@@ -8226,6 +8228,8 @@ def _validate_initial_start_function_assets(raw: dict[str, object], root: Path) 
     if not _initial_profile_present(raw):
         return
     expected = build_initial_function_declarations()
+    if lookup_assets_present(raw):
+        expected.update(build_lookup_function_declarations())
     if enrollment_assets_present(raw):
         expected.update(build_enrollment_function_declarations())
     if start_assets_present(raw):

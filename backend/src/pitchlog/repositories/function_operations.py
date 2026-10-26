@@ -172,6 +172,23 @@ _INITIAL_ENROLL_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+_INITIAL_RESOLVE_FUNCTION_TYPES = MappingProxyType(
+    {
+        "initial_right_api.lookup_existing_start_attempt": (
+            (
+                ("game_id", UUID),
+                ("start_request_id", UUID),
+                ("device_id", UUID),
+                ("request_digest", bytes),
+            ),
+            (("attempt_id", UUID), ("outcome", str)),
+            (),
+            (),
+        ),
+    }
+)
+
+
 def _valid_db_identifier(name: object) -> bool:
     """再構築したSQLでも同じDB識別子になる名前だけを許す。"""
     return (
@@ -253,6 +270,8 @@ class FunctionOperationRegistration:
             initial = _INITIAL_START_FUNCTION_TYPES.get(self.function_id)
         if initial is None:
             initial = _INITIAL_ENROLL_FUNCTION_TYPES.get(self.function_id)
+        if initial is None:
+            initial = _INITIAL_RESOLVE_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
             self.result_fields,
@@ -459,6 +478,7 @@ def prepare_function_operation(
             spec.function_id in _INITIAL_FUNCTION_TYPES
             or spec.function_id in _INITIAL_START_FUNCTION_TYPES
             or spec.function_id in _INITIAL_ENROLL_FUNCTION_TYPES
+            or spec.function_id in _INITIAL_RESOLVE_FUNCTION_TYPES
         ):
             byte_lengths = {
                 "request_digest": 32,

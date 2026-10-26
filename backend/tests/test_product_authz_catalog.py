@@ -1573,3 +1573,45 @@ def test_b2_enrollment_positive_expected_set_uses_closed_source(
     assert "RETURN p_device_id" in sql_text
     assert "ON CONFLICT" not in sql_text and "UPDATE public." not in sql_text
     assert "DELETE" not in sql_text
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["valid", "owner", "acl", "returns", "extra", "duplicate", "missing", "name"],
+)
+def test_worker_lookup_runtime_exact_declaration(mutation, monkeypatch):
+    """lookup一件の全fieldと集合を自己採用させず単一sourceへ閉じる。"""
+    from pitchlog.authz.product_function_acl import (
+        LOOKUP_FUNCTION_ID,
+        build_lookup_function_declarations,
+    )
+
+    asset = cast(dict[str, Any], copy.deepcopy(product_catalog._load_product_asset()))
+    expected = build_lookup_function_declarations()[LOOKUP_FUNCTION_ID]
+    row = next(r for r in asset["functions"] if r["function_id"] == LOOKUP_FUNCTION_ID)
+    assert row == expected
+    if mutation == "owner":
+        row["owner_role_id"] = "pitchlog_app"
+    elif mutation == "acl":
+        row["acl_expectations"].append(
+            dict(grantee="PUBLIC", privilege="EXECUTE", grantable=False)
+        )
+    elif mutation == "returns":
+        row["returns"] = "text"
+    elif mutation == "extra":
+        row["unknown"] = True
+    elif mutation == "duplicate":
+        asset["functions"].append(copy.deepcopy(row))
+    elif mutation == "missing":
+        asset["functions"].remove(row)
+        # 新profileの他宣言がlookupを含まない旧形に戻ることとは分け、未知IDへ改名。
+        row["function_id"] += ":missing"
+        asset["functions"].append(row)
+    elif mutation == "name":
+        row["function_name"] = "other"
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    if mutation == "valid":
+        assert product_catalog._load_product_expectations()
+    else:
+        with pytest.raises(ProductCatalogError):
+            product_catalog._load_product_expectations()

@@ -1395,7 +1395,10 @@ def _b1_verifier_config():
     from pitchlog.recording_rights import initial_grant_broker as b
 
     return b._ActorConfiguration(
-        "postgresql+psycopg://pitchlog_initial_actor@/fixture?host=%2Fowned-socket&sslmode=disable",
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@/fixture?ho"
+            "st=%2Fowned-socket&sslmode=disable"
+        ),
         "123",
         42,
         "fixture",
@@ -1425,11 +1428,26 @@ def test_b1_verifier_rejects_every_changed_checkout_identity(index) -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "postgresql+psycopg://pitchlog_app@/fixture?host=%2Fowned-socket&sslmode=disable",
-        "postgresql+psycopg://pitchlog_initial_actor:private@/fixture?host=%2Fowned-socket&sslmode=disable",
-        "postgresql+psycopg://pitchlog_initial_actor@127.0.0.1/fixture?sslmode=disable",
-        "postgresql+psycopg://pitchlog_initial_actor@/fixture?host=%2Fowned-socket&service=evil",
-        "postgresql+psycopg://pitchlog_initial_actor@/other?host=%2Fowned-socket&sslmode=disable",
+        (
+            "postgresql+psycopg://pitchlog_app@/fixture?host=%2Fowne"
+            "d-socket&sslmode=disable"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor:private@/fi"
+            "xture?host=%2Fowned-socket&sslmode=disable"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@127.0.0.1/f"
+            "ixture?sslmode=disable"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@/fixture?ho"
+            "st=%2Fowned-socket&service=evil"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@/other?host"
+            "=%2Fowned-socket&sslmode=disable"
+        ),
     ],
 )
 def test_b1_verifier_cannot_change_endpoint_or_use_app_password_tcp(url) -> None:
@@ -1585,3 +1603,410 @@ def test_b2_broker_generates_once_and_never_returns_before_commit(
         assert secret not in "".join(traceback.format_exception(caught.value))
         assert caught.value.__context__ is None
     assert generated == [32]
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "enroll",
+        "start",
+        "resolve",
+        "pending",
+        "denied",
+        "enroll_unknown",
+        "start_unknown",
+    ],
+)
+def test_worker_dispatch_closed_real_entry_selection(operation, monkeypatch):
+    """純代役は分岐/起源だけを検査し、DB認可/commit成功の証拠にはしない。"""
+    from contextlib import contextmanager
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from test_authz_tenant_context import make_tenant_context
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.repositories import tenant_context_issuance
+    from pitchlog.repositories.game_start import InitialStartReceipt
+
+    command = _transport_start()
+    context = make_tenant_context(command.identity.expected_tenant_id)
+    calls = []
+
+    class Fence:
+        generation = 1
+
+        def assert_held(self):
+            calls.append("held")
+
+    class Source:
+        @contextmanager
+        def recovery_fence(self):
+            calls.append("fence")
+            yield Fence()
+
+    state = SimpleNamespace(actor=object(), verifier=object(), source=Source())
+    monkeypatch.setattr(b, "_worker_state", lambda runtime: state)
+
+    def verify(cookie, tenant, runtime):
+        calls.append("cookie")
+        assert tenant == context.tenant_id
+        return None if operation == "denied" else (context, datetime.now(UTC))
+
+    monkeypatch.setattr(
+        tenant_context_issuance, "_issue_initial_broker_context", verify
+    )
+
+    def enroll(ctx, runtime):
+        calls.append("enroll")
+        if operation == "enroll_unknown":
+            raise b._InitialEnrollmentOutcomeUnknown("synthetic")
+        return b.InitialDeviceEnrollmentResponse(
+            tenant_id=ctx.tenant_id,
+            device_id=_DEVICE,
+            device_credential=__import__("pydantic").SecretStr(
+                "synthetic-enrollment-raw"
+            ),
+        )
+
+    monkeypatch.setattr(b, "_enroll_initial_device", enroll)
+
+    def result(owner):
+        return b._InitialStartedGame(
+            b.InitialGrant(owner.game_id, 1, "1", owner.device_id, "synthetic-proof"),
+            InitialStartReceipt(owner, datetime.now(UTC), UUID(int=90), UUID(int=91)),
+        )
+
+    def start(ctx, runtime, bound, *args):
+        calls.append("start")
+        if operation == "start_unknown":
+            raise RuntimeError("synthetic-private-driver")
+        # intentが実解決したattemptは候補と異なり得る。
+        return result(replace(bound.owner, attempt_id=UUID(int=999)))
+
+    monkeypatch.setattr(b, "_start_initial_game", start)
+
+    def resolve(original, ctx, state, fence):
+        calls.append("resolve")
+        if operation == "pending":
+            return None
+        return result(
+            b._worker_start_bound(original, ctx.tenant_id, UUID(int=999)).owner
+        )
+
+    monkeypatch.setattr(b, "_worker_resolve_start", resolve)
+    if operation in {"enroll", "enroll_unknown"}:
+        command = b._EnrollDeviceCommand(command.identity)
+    elif operation in {"resolve", "pending"}:
+        command = b._ResolveStartCommand(command)
+        monkeypatch.setattr(
+            b, "uuid4", lambda: pytest.fail("resolve generated new UUID")
+        )
+    if operation == "enroll_unknown":
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._dispatch_initial_command(command, object())
+        assert calls == ["cookie", "enroll"]
+        return
+    reply = b._dispatch_initial_command(command, object())
+    expected = {
+        "enroll": "enrolled",
+        "start": "started",
+        "resolve": "started",
+        "pending": "unresolved",
+        "denied": "denied",
+        "start_unknown": "unresolved",
+    }[operation]
+    assert reply.status == expected
+    assert calls[0] == "cookie"
+    if operation in {"pending", "start_unknown", "denied"}:
+        assert reply.value is None
+    if operation == "resolve":
+        assert "start" not in calls and "enroll" not in calls
+    if reply.value is not None:
+        frame = b._encode_initial_reply(command, reply)
+        assert b._decode_initial_reply(frame, command).status == expected
+
+
+@pytest.mark.parametrize("queued_seconds", [0.0, 1.01])
+@pytest.mark.parametrize("fault", [False, True])
+def test_worker_socket_one_frame_and_queue_expiry(
+    queued_seconds, fault, monkeypatch, capsys
+):
+    """純socket対向でqueue期限前DB0と例外非露出を確認する。peer実証はPG側。"""
+    import socket
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = b._EnrollDeviceCommand(_transport_start().identity)
+    left, right = socket.socketpair()
+    calls = []
+    monkeypatch.setattr(b, "_worker_peer", lambda *_: calls.append("peer"))
+    monkeypatch.setattr(b, "_check_broker_socket", lambda *_: None)
+
+    def dispatch(command, runtime):
+        calls.append("dispatch")
+        if fault:
+            raise RuntimeError("PRIVATE-WORKER-SENTINEL")
+        return b._BrokerReply("denied")
+
+    monkeypatch.setattr(b, "_dispatch_initial_command", dispatch)
+    try:
+        right.sendall(b._encode_initial_command(command))
+        right.shutdown(socket.SHUT_WR)
+        b._worker_connection(
+            left, cast(Any, object()), object(), b.monotonic() - queued_seconds
+        )
+        try:
+            received = right.recv(4096)
+        except ConnectionResetError:
+            assert queued_seconds > 1
+            received = b""
+        if queued_seconds > 1 or fault:
+            assert not received
+        else:
+            assert b._decode_initial_reply(received, command).status == "denied"
+        assert ("dispatch" in calls) == (queued_seconds < 1)
+        assert "PRIVATE-WORKER-SENTINEL" not in str(capsys.readouterr())
+    finally:
+        left.close()
+        right.close()
+
+
+def test_worker_root_and_runtime_are_closed(monkeypatch):
+    """非root起動/偽runtimeを実設定読取やSQLより先に拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    monkeypatch.setattr(b.os, "geteuid", lambda: 20003)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b.serve_initial_broker(Path("/not-read"), object(), cast(Any, object()))
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._worker_state(object())
+
+
+def test_worker_queue_expiration_does_not_wait_for_busy_workers(monkeypatch):
+    """処理slot3つがbusyでも、mainは期限切れqueueを閉じてDB0を保つ。"""
+    import queue
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    class Channel:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    expired, fresh = Channel(), Channel()
+    pending = queue.Queue(maxsize=3)
+    pending.put((expired, 0))
+    pending.put((fresh, 1.5))
+    monkeypatch.setattr(b, "monotonic", lambda: 2)
+    b._expire_initial_queue(pending)
+    assert expired.closed and not fresh.closed
+    assert pending.get_nowait() == (fresh, 1.5)
+    pending.task_done()
+    pending.join()
+
+
+def test_worker_bootstrap_configures_rg1_after_real_subject_drop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """実serveの順序をOS代役で検査する。実peer/DB成功はこの純対向で証明しない。"""
+    from types import SimpleNamespace
+
+    from pitchlog import durable_rights_ledger
+    from pitchlog.authz.token_presentation import TokenPresentation
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.recording_rights import rg1_lifecycle as rg1
+
+    uid = [0]
+    gid = [0]
+    priv = [False]
+    configured = [False]
+    events = []
+    endpoint = tmp_path / "endpoint.json"
+    sock = tmp_path / "broker.sock"
+
+    def root_event(name):
+        assert uid[0] == 0
+        events.append(name)
+
+    def config(_):
+        root_event("root_config")
+        return dict(
+            socket_path=str(sock),
+            actor_config="/root-actor",
+            ledger_endpoint="/root-ledger",
+            rg1_client_config="/root-rg1",
+        )
+
+    def actor(*_):
+        root_event("root_actor")
+        return object()
+
+    def verifier(*_):
+        root_event("root_verifier")
+        return object()
+
+    def ledger(*_):
+        assert uid[0] == gid[0] == 20002 and priv[0] and configured[0]
+        events.append("ledger_subject_check")
+        return object()
+
+    def setuid(value):
+        uid[0] = value
+        events.append("drop_uid")
+
+    def setgid(value):
+        gid[0] = value
+
+    def prctl(*_):
+        assert uid[0] == gid[0] == 20002
+        priv[0] = True
+        events.append("no_new_privs")
+        return 0
+
+    def configure(path):
+        assert path == Path("/root-rg1")
+        assert uid[0] == 20002 and priv[0]
+        assert endpoint.exists()
+        configured[0] = True
+        events.append("rg1_subject_check")
+
+    class Listener:
+        """socket作成を行わず、bindとlistenの実呼出順だけを観測する。"""
+
+        def bind(self, path):
+            root_event("root_bind")
+            Path(path).touch()
+
+        def listen(self, count):
+            assert (
+                count == 3 and uid[0] == gid[0] == 20002 and priv[0] and configured[0]
+            )
+            events.append("listen_after_drop")
+
+        def settimeout(self, _):
+            pass
+
+        def accept(self):
+            raise RuntimeError("synthetic service end")
+
+        def close(self):
+            pass
+
+    class Thread:
+        """workerを起動せず、閉3slotの生成だけを数える。"""
+
+        def __init__(self, **kwargs):
+            assert kwargs["daemon"] is True
+
+        def start(self):
+            events.append("worker_slot")
+
+        def join(self, timeout):
+            assert timeout == 2
+
+    monkeypatch.setattr(b, "_worker_configuration", config)
+    monkeypatch.setattr(b, "_load_initial_actor_runtime", actor)
+    monkeypatch.setattr(b, "_load_initial_auth_verifier_runtime", verifier)
+    monkeypatch.setattr(durable_rights_ledger, "DurableLedger", ledger)
+    monkeypatch.setattr(rg1, "configure_runtime", configure)
+    monkeypatch.setattr(b, "_BROKER_ENDPOINT_PATH", endpoint)
+    monkeypatch.setattr(b, "_broker_trusted_parents", lambda _: None)
+    monkeypatch.setattr(
+        b, "_check_broker_socket", lambda _: root_event("root_socket_check")
+    )
+    monkeypatch.setattr(b.socket, "socket", lambda *_: Listener())
+    monkeypatch.setattr(b.os, "geteuid", lambda: uid[0])
+    monkeypatch.setattr(b.os, "getegid", lambda: gid[0])
+    monkeypatch.setattr(b.os, "setuid", setuid)
+    monkeypatch.setattr(b.os, "setgid", setgid)
+    monkeypatch.setattr(
+        b.os,
+        "setgroups",
+        lambda groups: (
+            root_event("drop_groups") if groups == [] else pytest.fail("groups")
+        ),
+    )
+    monkeypatch.setattr(b.os, "chown", lambda *_: root_event("root_socket_owner"))
+    monkeypatch.setattr(b.os, "chmod", lambda *_: root_event("root_socket_mode"))
+    monkeypatch.setattr(b.ctypes, "CDLL", lambda *a, **kw: SimpleNamespace(prctl=prctl))
+    monkeypatch.setattr(b.threading, "Thread", Thread)
+    monkeypatch.setattr(b, "_close_initial_actor_runtime", lambda _: None)
+    monkeypatch.setattr(b, "_close_initial_auth_verifier_runtime", lambda _: None)
+    before = set(b._WORKER_STATES)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b.serve_initial_broker(
+            Path("/root-config"),
+            TokenPresentation(bytes(range(32))),
+            V12Box("public-vector", bytes(range(32))),
+        )
+    assert set(b._WORKER_STATES) == before
+    assert events.index("root_actor") < events.index("drop_uid")
+    assert events.index("root_verifier") < events.index("drop_uid")
+    assert events.index("root_socket_check") < events.index("drop_uid")
+    assert (
+        events.index("drop_uid")
+        < events.index("no_new_privs")
+        < events.index("rg1_subject_check")
+        < events.index("listen_after_drop")
+    )
+    assert events.index("rg1_subject_check") < events.index("ledger_subject_check")
+    assert events.index("ledger_subject_check") < events.index("listen_after_drop")
+    assert events.count("worker_slot") == 3
+
+
+@pytest.mark.parametrize(
+    "uid,gid,valid",
+    [(0, 0, False), (20002, 0, False), (0, 20002, False), (20002, 20002, True)],
+)
+def test_worker_actual_ledger_constructor_subject_requirements(
+    uid, gid, valid, monkeypatch, tmp_path
+):
+    """実constructor/endpointの主体条件を検査する。rootFS/peerの成功証拠は別実走。"""
+    import os
+    import stat
+    from types import SimpleNamespace
+
+    from pitchlog.durable_rights_ledger import (
+        DurableLedger,
+        LedgerUnavailable,
+        authority,
+    )
+
+    endpoint = dict(
+        schema_version=2,
+        authority_uid=20001,
+        authority_gid=20001,
+        client_uid=20002,
+        client_gid=20002,
+        role="generation",
+        socket_path="/owned/ledger.sock",
+        timeout=1.0,
+    )
+    monkeypatch.setattr(authority, "_read_root_json", lambda *args: dict(endpoint))
+    monkeypatch.setattr(authority.os, "geteuid", lambda: uid)
+    monkeypatch.setattr(authority.os, "getegid", lambda: gid)
+    original_stat = os.stat
+
+    def directory(_):
+        return os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+
+    def metadata(path, *args, **kwargs):
+        if path == "ledger.sock" and "dir_fd" in kwargs:
+            return SimpleNamespace(
+                st_mode=stat.S_IFSOCK | 0o660, st_uid=0, st_gid=20002
+            )
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(authority, "_trusted_directory", directory)
+    monkeypatch.setattr(authority.os, "stat", metadata)
+    if valid:
+        ledger = DurableLedger(Path("/owned/endpoint.json"))
+        assert (
+            ledger._target["client_uid"] == uid and ledger._target["client_gid"] == gid
+        )
+    else:
+        with pytest.raises(LedgerUnavailable):
+            DurableLedger(Path("/owned/endpoint.json"))

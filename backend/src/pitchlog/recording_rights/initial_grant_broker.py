@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import base64
+import ctypes
 import hmac
 import json
 import os
+import queue
 import secrets
 import socket
 import stat
 import struct
+import threading
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from importlib import import_module
@@ -54,6 +57,7 @@ from pitchlog.repositories.initial_recording_right import (
 )
 
 if TYPE_CHECKING:
+    from pitchlog.durable_rights_ledger import DurableLedger
     from pitchlog.repositories.transaction import _TenantTransaction
 
 __all__: tuple[str, ...] = ()
@@ -244,9 +248,18 @@ def _load_initial_actor_runtime(path: Path, box: V12Box) -> _InitialActorRuntime
         )
         args = engine_connect_args(False)
         args["gssencmode"] = "disable"
+        args["connect_timeout"] = 1
+        args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"
         url = normalize_postgresql_url(config.database_url)
         require_database_transport(url, args)
-        engine = create_engine(url, connect_args=args, hide_parameters=True)
+        engine = create_engine(
+            url,
+            connect_args=args,
+            hide_parameters=True,
+            pool_size=3,
+            max_overflow=0,
+            pool_timeout=0.5,
+        )
 
         def checkout(connection: Any, record: Any, proxy: Any) -> None:
             """poolの実接続を用途固定の検査へ渡す。"""
@@ -1259,9 +1272,18 @@ def _load_initial_auth_verifier_runtime(
         url = _initial_auth_verifier_url(config)
         args = engine_connect_args(False)
         args["gssencmode"] = "disable"
+        args["connect_timeout"] = 1
+        args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"
         args["passfile"] = "/dev/null"
         require_database_transport(url, args)
-        engine = create_engine(url, connect_args=args, hide_parameters=True)
+        engine = create_engine(
+            url,
+            connect_args=args,
+            hide_parameters=True,
+            pool_size=3,
+            max_overflow=0,
+            pool_timeout=0.5,
+        )
 
         def checkout(connection: Any, record: Any, proxy: Any) -> None:
             """専用poolからの実接続だけを検証する。"""
@@ -1361,3 +1383,435 @@ def _enroll_initial_device(
         device_id=device_id,
         device_credential=SecretStr(credential),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class _WorkerState:
+    """root bootstrapの実登録runtimeと固定ledgerをworker内へ保持する。"""
+
+    actor: _InitialActorRuntime = field(repr=False)
+    verifier: _InitialAuthVerifierRuntime = field(repr=False)
+    source: DurableLedger = field(repr=False)
+
+
+_WORKER_STATES: dict[object, _WorkerState] = {}
+_WORKER_CREATION = object()
+
+
+class _InitialWorkerRuntime:
+    """caller Engine/DSN/任意callbackを受けない不透明な実登録。"""
+
+    __slots__ = ("_key",)
+
+    def __init__(self, key: object, creation: object) -> None:
+        """Root bootstrapの実登録だけを受ける。"""
+        if creation is not _WORKER_CREATION or key not in _WORKER_STATES:
+            raise _broker_invalid()
+        self._key = key
+
+
+def _worker_state(runtime: object) -> _WorkerState:
+    """実UID/閉型/失効/既actorとverifierの実登録を毎回確認する。"""
+    from pitchlog.durable_rights_ledger import DurableLedger
+
+    if os.geteuid() != _BROKER_SERVER_UID or type(runtime) is not _InitialWorkerRuntime:
+        raise _broker_invalid()
+    state = _WORKER_STATES.get(runtime._key)
+    if state is None or type(state.source) is not DurableLedger:
+        raise _broker_invalid()
+    _initial_actor_engine(state.actor)
+    _auth_verifier_state(state.verifier)
+    return state
+
+
+def _worker_start_bound(
+    command: _StartInitialGameCommand, tenant: UUID, attempt: UUID
+) -> BoundInitialStartPayload:
+    """Aの専用表現を既公開DTOと唯一のowner/fingerprint束縛へ戻す。"""
+    from pitchlog.api.schemas.game_start import GameStartRequest
+    from pitchlog.repositories.game_start import bind_initial_start_request
+
+    command.__post_init__()
+    request = GameStartRequest.model_validate(
+        _broker_command_source(command)["request"]
+    )
+    return bind_initial_start_request(
+        request, tenant_id=tenant, game_id=command.game_id, attempt_id=attempt
+    )
+
+
+def _worker_resolve_start(
+    command: _StartInitialGameCommand,
+    context: TenantContext,
+    state: _WorkerState,
+    fence: RecoveryEpochFence,
+) -> _InitialStartedGame | None:
+    """非作成lookupとcommitted再交付を同Sessionで行い、pendingを終結としない。"""
+    from pitchlog.repositories.game_start import _source
+    from pitchlog.repositories.initial_recording_right import (
+        _existing_start_scope_on_handle,
+        _LookupExistingStartAttemptToken,
+    )
+    from pitchlog.repositories.rg1 import assert_rg1_open_before_commit, read_rg1_open
+    from pitchlog.repositories.transaction import (
+        _initial_resolution_transaction_scope,
+        _ResolutionBinding,
+    )
+    from pitchlog.sync.idempotency import source_fingerprint
+
+    command.__post_init__()
+    credential = command.device_credential.get_secret_value()
+    credential_digest = _credential_digest(credential)
+    digest = bytes.fromhex(
+        source_fingerprint(
+            _source(
+                command.payload,
+                context.tenant_id,
+                command.game_id,
+                command.start_request_id,
+                command.device_id,
+                credential_digest,
+            )
+        )
+    )
+    binding = _ResolutionBinding(
+        context,
+        state.actor,
+        command.game_id,
+        command.start_request_id,
+        command.device_id,
+        digest,
+        credential_digest,
+    )
+    fence.assert_held()
+    with _initial_resolution_transaction_scope(binding) as transaction:
+        _verify_business_binding(transaction, state.actor)
+        read_rg1_open(transaction)
+        transaction.run_function(_LockDeviceToken(command.device_id))
+        rows = transaction.run_function(
+            _LookupExistingStartAttemptToken(
+                command.game_id, command.start_request_id, command.device_id, digest
+            )
+        ).rows
+        if not rows or rows[0][1] != "committed":
+            return None
+        attempt = rows[0][0]
+        if type(attempt) is not UUID:
+            raise _broker_invalid()
+        bound = _worker_start_bound(command, context.tenant_id, attempt)
+        with _existing_start_scope_on_handle(
+            context, bound.owner, state.actor, transaction, bound
+        ) as scope:
+            grant = issue_initial_recording_right(
+                scope,
+                tenant_id=context.tenant_id,
+                game_id=command.game_id,
+                device_id=command.device_id,
+                device_credential=credential,
+                start_request_id=command.start_request_id,
+                reservation_attempt_id=attempt,
+                source=state.source,
+                fence=fence,
+                box=_actor_state(state.actor).box,
+            )
+            assert_write_recovery_generation(
+                scope, state.source, fence, int(grant.recovery_generation)
+            )
+            receipt = scope._start_receipt
+            if receipt is None:
+                raise _broker_invalid()
+        assert_rg1_open_before_commit(transaction)
+        fence.assert_held()
+    fence.assert_held()
+    return _InitialStartedGame(grant, receipt)
+
+
+def _dispatch_initial_command(command: _BrokerCommand, runtime: object) -> _BrokerReply:
+    """閉3操作だけを実Cookie→私有製品入口へ接ぎ、成功はpostcommitだけ。"""
+    from pitchlog.repositories.tenant_context_issuance import (
+        _issue_initial_broker_context,
+    )
+
+    state = _worker_state(runtime)
+    # 再encode/decodeで強制改変も拒否し、wire外の能力を受け取らない。
+    command = _decode_initial_command(_encode_initial_command(command))
+    selected = cast(
+        _EnrollDeviceCommand | _StartInitialGameCommand,
+        command.original if type(command) is _ResolveStartCommand else command,
+    )
+    assert type(selected) in (_EnrollDeviceCommand, _StartInitialGameCommand)
+    verified = _issue_initial_broker_context(
+        selected.identity.cookie, selected.identity.expected_tenant_id, state.verifier
+    )
+    if verified is None:
+        return _BrokerReply("denied")
+    context = verified[0]
+    if type(command) is _EnrollDeviceCommand:
+        try:
+            response = _enroll_initial_device(context, state.actor)
+        except _InitialEnrollmentOutcomeUnknown:
+            # enrollにはunresolved wire値がない。資格を送らず接続失敗へ残す。
+            raise _broker_invalid() from None
+        except InitialGrantUnavailable:
+            return _BrokerReply("unavailable")
+        return _BrokerReply("enrolled", response)
+    assert type(selected) is _StartInitialGameCommand
+    try:
+        with state.source.recovery_fence() as fence:
+            if type(command) is _ResolveStartCommand:
+                result = _worker_resolve_start(selected, context, state, fence)
+                if result is None:
+                    return _BrokerReply("unresolved")
+                owner = result.receipt.owner
+            else:
+                bound = _worker_start_bound(selected, context.tenant_id, uuid4())
+                result = _start_initial_game(
+                    context,
+                    state.actor,
+                    bound,
+                    selected.device_credential.get_secret_value(),
+                    state.source,
+                    fence,
+                )
+                owner = result.receipt.owner
+                if (
+                    owner.tenant_id,
+                    owner.game_id,
+                    owner.start_request_id,
+                    owner.device_id,
+                    owner.request_digest,
+                ) != (
+                    bound.owner.tenant_id,
+                    bound.owner.game_id,
+                    bound.owner.start_request_id,
+                    bound.owner.device_id,
+                    bound.owner.request_digest,
+                ):
+                    raise _broker_invalid()
+            response = _postcommit_start_response(result, owner)
+            fence.assert_held()
+        return _BrokerReply("started", response)
+    except Exception as error:
+        # claim/commitに着手した可能性を失敗メッセージから取消へ推測しない。
+        from pitchlog.recording_rights.initial_grant import InitialGrantConflict
+
+        conflict = isinstance(error, InitialGrantConflict)
+    return _BrokerReply("conflict" if conflict else "unresolved")
+
+
+def _worker_peer(channel: socket.socket) -> None:
+    """appのkernel資格だけを許し、tenant認証は別に実行する。"""
+    _, uid, gid = struct.unpack(
+        "3i", channel.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+    )
+    if (uid, gid) != (20003, 20003):
+        raise _broker_invalid()
+
+
+def _worker_connection(
+    channel: socket.socket, endpoint: _BrokerEndpoint, runtime: object, accepted: float
+) -> None:
+    """queue期限とframe/socket期限を固定し、原例外を外へ出さず一要求で閉じる。"""
+    with channel:
+        try:
+            if monotonic() - accepted > 1.0:
+                raise _broker_invalid()
+            _worker_peer(channel)
+            _check_broker_socket(endpoint)
+            frame = _broker_receive(channel, monotonic() + 1.5)
+            command = _decode_initial_command(frame)
+            reply = _dispatch_initial_command(command, runtime)
+            response = _encode_initial_reply(command, reply)
+            _broker_remaining(channel, monotonic() + 1.5)
+            channel.sendall(response)
+            channel.shutdown(socket.SHUT_WR)
+        except Exception:
+            # 不明の業務をrollbackや未使用D4へ変換せず、資格もechoしない。
+            return
+
+
+def _worker_configuration(path: Path) -> dict[str, str]:
+    """root保護の有限pathだけを読み、任意engine/key/role/timeoutを受けない。"""
+    try:
+        _broker_trusted_parents(path)
+        with os.fdopen(
+            os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC), "rb"
+        ) as file:
+            info = os.fstat(file.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_uid != 0
+                or stat.S_IMODE(info.st_mode) != 0o600
+                or info.st_size > 16384
+            ):
+                raise _broker_invalid()
+            value = json.loads(file.read(16385), object_pairs_hook=_json_object)
+        if type(value) is not dict or set(value) != {
+            "version",
+            "socket_path",
+            "actor_config",
+            "ledger_endpoint",
+            "rg1_client_config",
+        }:
+            raise _broker_invalid()
+        if type(value["version"]) is not int or value["version"] != 1:
+            raise _broker_invalid()
+        result = {}
+        for key in (
+            "socket_path",
+            "actor_config",
+            "ledger_endpoint",
+            "rg1_client_config",
+        ):
+            item = value[key]
+            if type(item) is not str or "\0" in item or not Path(item).is_absolute():
+                raise _broker_invalid()
+            _broker_trusted_parents(Path(item))
+            result[key] = item
+        if not 0 < len(os.fsencode(result["socket_path"])) < 108:
+            raise _broker_invalid()
+        return result
+    except Exception:
+        pass
+    raise _broker_invalid()
+
+
+def _expire_initial_queue(pending: queue.Queue[tuple[socket.socket, float]]) -> None:
+    """処理workerがbusyでも、期限切れqueueのsocketをmain側で有限回掃除する。"""
+    fresh = []
+    for _ in range(3):
+        try:
+            channel, accepted = pending.get_nowait()
+        except queue.Empty:
+            break
+        pending.task_done()
+        if monotonic() - accepted > 1.0:
+            channel.close()
+        else:
+            fresh.append((channel, accepted))
+    for item in fresh:
+        pending.put_nowait(item)
+
+
+def serve_initial_broker(config_path: Path, presentation: object, box: V12Box) -> None:
+    """Root bootstrapだけが降格後の閉workerを起動する。HTTP/運用鍵配置は行わない。"""
+    from pitchlog.authz.token_presentation import TokenPresentation
+    from pitchlog.durable_rights_ledger import DurableLedger
+    from pitchlog.recording_rights.rg1_lifecycle import configure_runtime
+
+    if (
+        os.geteuid() != 0
+        or type(presentation) is not TokenPresentation
+        or type(box) is not V12Box
+    ):
+        raise _broker_invalid()
+    actor = verifier = None
+    listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    stop = threading.Event()
+    pending: queue.Queue[tuple[socket.socket, float]] = queue.Queue(maxsize=3)
+    workers = []
+    runtime_key = object()
+    failed = False
+    try:
+        config = _worker_configuration(config_path)
+        actor = _load_initial_actor_runtime(Path(config["actor_config"]), box)
+        verifier = _load_initial_auth_verifier_runtime(actor, presentation)
+        endpoint_path = _BROKER_ENDPOINT_PATH
+        _broker_trusted_parents(endpoint_path)
+        if endpoint_path.exists() or endpoint_path.is_symlink():
+            raise _broker_invalid()
+        path = Path(config["socket_path"])
+        listener.bind(str(path))
+        os.chown(path, 20002, 20003)
+        os.chmod(path, 0o660)
+        info = path.stat(follow_symlinks=False)
+        endpoint = _BrokerEndpoint(path, info.st_dev, info.st_ino, 20003)
+        _check_broker_socket(endpoint)
+        endpoint_body = {
+            "version": 1,
+            "socket_path": str(path),
+            "socket_device": info.st_dev,
+            "socket_inode": info.st_ino,
+            "socket_gid": 20003,
+        }
+        fd = os.open(
+            endpoint_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+            0o644,
+        )
+        with os.fdopen(fd, "wb") as output:
+            os.fchmod(output.fileno(), 0o644)
+            output.write(_broker_json(endpoint_body))
+            output.flush()
+            os.fsync(output.fileno())
+        os.setgroups([])
+        os.setgid(20002)
+        os.setuid(20002)
+        libc = ctypes.CDLL(None, use_errno=True)
+        if (
+            libc.prctl(38, 1, 0, 0, 0) != 0
+            or os.geteuid() != 20002
+            or os.getegid() != 20002
+        ):
+            raise _broker_invalid()
+        configure_runtime(Path(config["rg1_client_config"]))
+        source = DurableLedger(Path(config["ledger_endpoint"]))
+        _WORKER_STATES[runtime_key] = _WorkerState(actor, verifier, source)
+        runtime = _InitialWorkerRuntime(runtime_key, _WORKER_CREATION)
+        listener.listen(3)
+        listener.settimeout(0.05)
+
+        def work() -> None:
+            """有限queueから一要求ずつ取り、失敗値や秘密をlogへ出さない。"""
+            while not stop.is_set():
+                try:
+                    channel, accepted = pending.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+                try:
+                    _worker_connection(channel, endpoint, runtime, accepted)
+                finally:
+                    pending.task_done()
+
+        for _ in range(3):
+            worker = threading.Thread(target=work, daemon=True)
+            worker.start()
+            workers.append(worker)
+        while True:
+            _expire_initial_queue(pending)
+            try:
+                channel, _address = listener.accept()
+            except TimeoutError:
+                continue
+            try:
+                _worker_peer(channel)
+                pending.put_nowait((channel, monotonic()))
+            except (OSError, InitialBrokerUnavailable, queue.Full):
+                channel.close()
+    except Exception:
+        failed = True
+    finally:
+        stop.set()
+        listener.close()
+        while True:
+            try:
+                channel, _accepted = pending.get_nowait()
+            except queue.Empty:
+                break
+            channel.close()
+            pending.task_done()
+        for worker in workers:
+            worker.join(timeout=2)
+        _WORKER_STATES.pop(runtime_key, None)
+        if verifier is not None:
+            try:
+                _close_initial_auth_verifier_runtime(verifier)
+            except Exception:
+                failed = True
+        if actor is not None:
+            try:
+                _close_initial_actor_runtime(actor)
+            except Exception:
+                failed = True
+    if failed:
+        raise _broker_invalid() from None

@@ -6245,3 +6245,28 @@ def test_b2_enrollment_sourcechecker_exact_function(mutation: str) -> None:
     else:
         with pytest.raises(checker.CatalogError):
             checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize("mutation", ["valid", "acl", "owner", "extra", "duplicate", "name"])
+def test_worker_lookup_sourcechecker_exact(mutation):
+    """新lookup一件だけを全field/固定SQLで認識する。"""
+    asset = json.loads((REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text())
+    key = "FUNCTION:initial_right_api:lookup_existing_start_attempt(uuid, uuid, uuid, uuid, bytea)"
+    row = next(r for r in asset["functions"] if r["function_id"] == key)
+    if mutation == "acl":
+        row["acl_expectations"].append(
+            dict(grantee="PUBLIC", privilege="EXECUTE", grantable=False)
+        )
+    elif mutation == "owner":
+        row["owner_role_id"] = "pitchlog_app"
+    elif mutation == "extra":
+        row["unknown"] = True
+    elif mutation == "duplicate":
+        asset["functions"].append(copy.deepcopy(row))
+    elif mutation == "name":
+        row["function_name"] = "other"
+    if mutation == "valid":
+        checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+    else:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)

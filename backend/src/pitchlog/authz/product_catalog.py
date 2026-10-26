@@ -40,9 +40,11 @@ from pitchlog.authz.product_function_acl import (
     build_enrollment_function_declarations,
     build_initial_function_declarations,
     build_lifecycle_function_declarations,
+    build_lookup_function_declarations,
     generate_initial_function_sql,
     generate_lifecycle_function_sql,
     is_builtin_execute_declaration,
+    lookup_assets_present,
     valid_product_identity_args,
 )
 from pitchlog.authz.product_role_contract import (
@@ -1843,6 +1845,8 @@ def _expected_lifecycle_function_details() -> tuple[tuple[object, ...], ...]:
         declarations.update(start_function_declarations())
     if enrollment_assets_present(asset):
         declarations.update(build_enrollment_function_declarations())
+    if lookup_assets_present(asset):
+        declarations.update(build_lookup_function_declarations())
     for function_id, row in declarations.items():
         initial = row["schema_name"] == "initial_right_api"
         sql = (
@@ -2409,6 +2413,8 @@ def _validate_initial_function_declarations(asset: dict[str, object]) -> None:
     )
 
     expected = build_initial_function_declarations()
+    if lookup_assets_present(asset):
+        expected.update(build_lookup_function_declarations())
     if enrollment_assets_present(asset):
         expected.update(build_enrollment_function_declarations())
     if start_assets_present(asset):

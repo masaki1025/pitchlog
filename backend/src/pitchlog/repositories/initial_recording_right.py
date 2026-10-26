@@ -19,6 +19,7 @@ from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.function_operations import (
     _INITIAL_ENROLL_FUNCTION_TYPES,
     _INITIAL_FUNCTION_TYPES,
+    _INITIAL_RESOLVE_FUNCTION_TYPES,
     _INITIAL_START_FUNCTION_TYPES,
     FunctionOperationRegistration,
     _build_fixed_function_statement,
@@ -365,12 +366,58 @@ def _enrollment_registrations() -> tuple[FunctionOperationRegistration, ...]:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class _LookupExistingStartAttemptToken(TenantOperationToken):
+    """新規intentを作らず、同ownerの既attemptだけをlockする。"""
+
+    game_id: UUID
+    start_request_id: UUID
+    device_id: UUID
+    request_digest: bytes = field(repr=False)
+
+    @property
+    def capability_id(self) -> str:
+        """非作成lookupだけの能力を返す。"""
+        return "CAP:initial_right:lookup_existing_start_attempt"
+
+
+def _resolution_registrations() -> tuple[FunctionOperationRegistration, ...]:
+    """旧12登録とは独立した新lookup1だけを構築する。"""
+    inputs, outputs, nullable, aware = _INITIAL_RESOLVE_FUNCTION_TYPES[
+        "initial_right_api.lookup_existing_start_attempt"
+    ]
+    return (
+        FunctionOperationRegistration(
+            operation_id="INITIAL_RIGHT:lookup_existing_start_attempt",
+            token_type=_LookupExistingStartAttemptToken,
+            capability_id="CAP:initial_right:lookup_existing_start_attempt",
+            function_id="initial_right_api.lookup_existing_start_attempt",
+            statement=_build_fixed_function_statement(
+                "initial_right_api",
+                "lookup_existing_start_attempt",
+                inputs,
+                ("attempt_id", "outcome"),
+                True,
+            ),
+            input_fields=inputs,
+            result_fields=outputs,
+            min_rows=0,
+            max_rows=1,
+            decoder=_decode_initial_result,
+            nullable_results=nullable,
+            aware_datetime_results=aware,
+        ),
+    )
+
+
 _INITIAL_ENROLL_FUNCTION_OPERATIONS = _enrollment_registrations()
+_INITIAL_RESOLVE_FUNCTION_OPERATIONS = _resolution_registrations()
 _INITIAL_FUNCTION_REGISTRY = build_function_registry(
     (
         *INITIAL_FUNCTION_OPERATIONS,
         *_INITIAL_START_FUNCTION_OPERATIONS,
         *_INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        *_INITIAL_RESOLVE_FUNCTION_OPERATIONS,
     ),
     frozenset(),
 )
@@ -696,10 +743,40 @@ def _initial_recording_right_scope(
     with _initial_actor_transaction_scope(
         context, actor_runtime, "business"
     ) as transaction:
-        scope = InitialRecordingRightScope(
-            context, transaction, owner, _SCOPE_CREATION, start_payload
-        )
-        try:
+        with _bound_initial_adapter(
+            context, transaction, owner, start_payload
+        ) as scope:
             yield scope
-        finally:
-            _SCOPE_BINDINGS.pop(scope, None)
+
+
+@contextmanager
+def _existing_start_scope_on_handle(
+    context: TenantContext,
+    owner: _StartOwner,
+    actor_runtime: object,
+    transaction: _TenantTransaction,
+    bound: BoundInitialStartPayload,
+) -> Iterator[InitialRecordingRightScope]:
+    """真正resolve登録のcommitted lookupと同じSessionでだけadapterを作る。"""
+    from pitchlog.repositories.transaction import _assert_existing_resolution_owner
+
+    _assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)
+    with _bound_initial_adapter(context, transaction, owner, bound) as scope:
+        yield scope
+
+
+@contextmanager
+def _bound_initial_adapter(
+    context: TenantContext,
+    transaction: _TenantTransaction,
+    owner: _StartOwner,
+    payload: BoundInitialStartPayload | None,
+) -> Iterator[InitialRecordingRightScope]:
+    """旧factoryと同一の生成/失効処理を共有し、Session生成や再束縛をしない。"""
+    scope = InitialRecordingRightScope(
+        context, transaction, owner, _SCOPE_CREATION, payload
+    )
+    try:
+        yield scope
+    finally:
+        _SCOPE_BINDINGS.pop(scope, None)

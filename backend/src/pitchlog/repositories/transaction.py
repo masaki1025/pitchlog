@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from contextvars import ContextVar
@@ -68,6 +69,27 @@ class _EnrollmentBinding:
 
 
 _ENROLL_BINDINGS: dict[object, _EnrollmentBinding] = {}
+
+
+@dataclass(slots=True)
+class _ResolutionBinding:
+    """一回の同Session lookupと再交付へだけ束縛する閉記録。"""
+
+    context: TenantContext
+    runtime: object = field(repr=False)
+    game_id: UUID
+    start_request_id: UUID
+    device_id: UUID
+    request_digest: bytes = field(repr=False)
+    credential_digest: bytes = field(repr=False)
+    consumed: bool = False
+    device_checked: bool = False
+    looked_up: bool = False
+    attempt_id: UUID | None = None
+    outcome: str | None = None
+
+
+_RESOLVE_BINDINGS: dict[object, _ResolutionBinding] = {}
 _START_MEMORY_BINDINGS: dict[
     object,
     tuple[
@@ -208,7 +230,15 @@ class _TenantTransaction:
             _INITIAL_BUSINESS_TOKENS,
             _INITIAL_FUNCTION_REGISTRY,
             _INITIAL_INTENT_TOKENS,
+            _CheckBusinessEpochToken,
             _EnrollDeviceToken,
+            _LockCurrentStartToken,
+            _LockDeviceToken,
+            _LookupExistingStartAttemptToken,
+            _ReadExistingStartToken,
+            _ReadInitialStartContextToken,
+            _ReadStartGameToken,
+            _ResolveStartAttemptToken,
         )
 
         actor = _INITIAL_ACTOR_STATES.get(state_key)
@@ -240,6 +270,62 @@ class _TenantTransaction:
                 if actor[1] == "intent"
                 else _INITIAL_BUSINESS_TOKENS
             )
+            resolution = _RESOLVE_BINDINGS.get(state_key)
+            if resolution is not None:
+                if actor[1] != "business" or (
+                    resolution.context is not self._context
+                    or resolution.runtime is not actor[0]
+                    or any(
+                        type(v) is not UUID
+                        for v in (
+                            resolution.game_id,
+                            resolution.start_request_id,
+                            resolution.device_id,
+                        )
+                    )
+                    or any(
+                        type(v) is not bytes or len(v) != 32
+                        for v in (
+                            resolution.request_digest,
+                            resolution.credential_digest,
+                        )
+                    )
+                ):
+                    raise TenantBindingError("resolve束縛が不一致")
+                allowed = frozenset(
+                    {
+                        _LockDeviceToken,
+                        _LookupExistingStartAttemptToken,
+                        _ReadExistingStartToken,
+                        _ReadStartGameToken,
+                        _ResolveStartAttemptToken,
+                        _LockCurrentStartToken,
+                        _CheckBusinessEpochToken,
+                        _ReadInitialStartContextToken,
+                    }
+                )
+                if (
+                    type(operation) is _LockDeviceToken
+                    and operation.device_id != resolution.device_id
+                ):
+                    raise TenantBindingError("resolve端末が不一致")
+                if type(operation) is _LookupExistingStartAttemptToken:
+                    expected = _LookupExistingStartAttemptToken(
+                        resolution.game_id,
+                        resolution.start_request_id,
+                        resolution.device_id,
+                        resolution.request_digest,
+                    )
+                    loan = _RG1_LOANS.get(state_key)
+                    if (
+                        operation != expected
+                        or not resolution.device_checked
+                        or resolution.looked_up
+                        or loan is None
+                    ):
+                        raise TenantBindingError("非作成lookupの短命能力が不一致")
+                    loan.assert_held()
+                    resolution.looked_up = True
             if type(operation) in allowed:
                 from pitchlog.repositories.initial_recording_right import (
                     _SCOPE_BINDINGS,
@@ -299,6 +385,25 @@ class _TenantTransaction:
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
         decoded = decode_function_result(spec, _materialize_rows(rows))
+        resolution = _RESOLVE_BINDINGS.get(state_key)
+        if resolution is not None:
+            if type(operation) is _LockDeviceToken:
+                resolution.device_checked = bool(
+                    len(decoded.rows) == 1
+                    and decoded.rows[0][1] is None
+                    and type(decoded.rows[0][0]) is bytes
+                    and hmac.compare_digest(
+                        decoded.rows[0][0], resolution.credential_digest
+                    )
+                )
+                if not resolution.device_checked:
+                    raise TenantBindingError("resolve端末資格が不一致")
+            elif type(operation) is _LookupExistingStartAttemptToken and decoded.rows:
+                attempt_id, outcome = decoded.rows[0]
+                if type(attempt_id) is not UUID or type(outcome) is not str:
+                    raise TenantBindingError("lookup実戻り型が不正")
+                resolution.attempt_id = attempt_id
+                resolution.outcome = outcome
         return _materialize_rows(decoded.rows)
 
     def _ensure_rg1_lease(self) -> None:
@@ -733,3 +838,64 @@ def _initial_enrollment_transaction_scope(
     finally:
         if key is not None:
             _ENROLL_BINDINGS.pop(key, None)
+
+
+@contextmanager
+def _initial_resolution_transaction_scope(
+    binding: _ResolutionBinding,
+) -> Iterator[_TenantTransaction]:
+    """新規作成を許さない、同Sessionのlookup/既存再交付登録。"""
+    if type(binding) is not _ResolutionBinding or binding.consumed:
+        raise TenantBindingError("resolve登録が不正又は再使用")
+    binding.consumed = True
+    key = None
+    try:
+        with _initial_actor_transaction_scope(
+            binding.context, binding.runtime, "business"
+        ) as handle:
+            key = handle._state_key
+            if key is None or key in _RESOLVE_BINDINGS:
+                raise TenantBindingError("resolve実scopeが不正")
+            _RESOLVE_BINDINGS[key] = binding
+            yield handle
+    finally:
+        if key is not None:
+            _RESOLVE_BINDINGS.pop(key, None)
+
+
+def _assert_existing_resolution_owner(handle, context, runtime, owner, bound) -> None:
+    """lookupの実結果とowner全値を照合し、別Sessionへadapterを移さない。"""
+    from pitchlog.repositories.game_start import BoundInitialStartPayload
+    from pitchlog.repositories.initial_recording_right import _StartOwner
+
+    _assert_initial_actor_transaction(handle, context, "business")
+    binding = _RESOLVE_BINDINGS.get(handle._state_key)
+    if (
+        binding is None
+        or binding.runtime is not runtime
+        or binding.context is not context
+        or not binding.looked_up
+        or not binding.device_checked
+        or binding.outcome != "committed"
+        or type(owner) is not _StartOwner
+        or type(bound) is not BoundInitialStartPayload
+    ):
+        raise TenantBindingError("committed resolve登録がない")
+    owner.__post_init__()
+    bound.assert_owner(owner)
+    if (
+        owner.game_id,
+        owner.start_request_id,
+        owner.device_id,
+        owner.attempt_id,
+        owner.request_digest,
+        bound.credential_digest,
+    ) != (
+        binding.game_id,
+        binding.start_request_id,
+        binding.device_id,
+        binding.attempt_id,
+        binding.request_digest,
+        binding.credential_digest,
+    ):
+        raise TenantBindingError("committed resolveの実ownerが不一致")

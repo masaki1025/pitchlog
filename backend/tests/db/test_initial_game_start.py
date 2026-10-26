@@ -555,3 +555,569 @@ def test_real_start_owner_rls_and_actor_app_direct_access_denied(
                     "VALUES (%s,%s,%s,%s,'[]')",
                     (db.tenant_id, uuid4(), db.game_id, uuid4()),
                 )
+
+
+def test_real_worker_cookie_enroll_start_and_noncreating_resolve(
+    start_database: InitialGrantDatabase,
+    tmp_path,
+) -> None:
+    """実Unix/UID/Node/PGで3commandを接ぐ。HTTP/UI成功は主張しない。"""
+    from concurrent.futures import ThreadPoolExecutor
+    from time import monotonic, sleep
+
+    from .durable_rights_ledger_support import docker
+
+    db = start_database
+    token, subject = uuid4(), uuid4()
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(
+            (
+                "INSERT INTO public.system_settings(key,value) VALUES ('"
+                "auth.token_ttl_seconds','3600') ON CONFLICT(key) DO UPD"
+                "ATE SET value=EXCLUDED.value"
+            )
+        )
+        admin.execute(
+            "INSERT INTO public.tenant_auth_subjects(tenant_id,id) VALUES (%s,%s)",
+            (db.tenant_id, subject),
+        )
+        admin.execute(
+            (
+                "INSERT INTO public.tenant_credentials(auth_subject_id,p"
+                "assword_hash,generation) VALUES (%s,'public-unused-logi"
+                "n-vector',1)"
+            ),
+            (subject,),
+        )
+        admin.execute(
+            (
+                "INSERT INTO public.tenant_tokens(tenant_id,id,auth_subj"
+                "ect_id,credential_generation,expires_at,last_used_at) V"
+                "ALUES (%s,%s,%s,1,clock_timestamp()+interval '1 hour',c"
+                "lock_timestamp())"
+            ),
+            (db.tenant_id, token, subject),
+        )
+    before = db.ledger_snapshot()
+    assert before == ()
+    with db.broker_worker(token) as worker:
+        # cold poolの3並列は全て実enroll。資格はclient内だけで保持し出力しない。
+        def enroll_one(_):
+            return db.broker_client("""
+from time import monotonic
+started=monotonic()
+reply=client.call(_EnrollDeviceCommand(identity))
+assert reply.status=='enrolled' and reply.value is not None
+assert len(reply.value.device_credential.get_secret_value())==43
+assert reply.value.device_credential.get_secret_value()!='**********'
+print(json.dumps({'enrolled':True,'seconds':monotonic()-started}))
+""")
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            parallel = list(executor.map(enroll_one, range(3)))
+        assert all(r["enrolled"] for r in parallel)
+        normal = db.broker_client(f"""
+from test_initial_game_start_components import _body
+from pitchlog.api.schemas.game_start import GameStartRequest
+from pitchlog.repositories.game_start import InitialStartPayload,_entries
+from dataclasses import replace
+from time import monotonic
+reply=client.call(_EnrollDeviceCommand(identity))
+assert reply.status=='enrolled' and reply.value is not None
+pair=reply.value
+assert pair.device_credential.get_secret_value()!='**********'
+body=_body(10)
+body['device_id']=str(pair.device_id);body['start_request_id']=str(UUID('{db.start_request_id}'))
+body['device_credential']=pair.device_credential.get_secret_value()
+request=GameStartRequest.model_validate(body)
+command=_StartInitialGameCommand(identity,UUID('{db.game_id}'),request.start_request_id,
+    request.device_id,request.device_credential,InitialStartPayload(_entries(request.away),_entries(request.home)))
+# 0行lookupはintent/attempt/予約を作らずunresolved。
+missing=client.call(_ResolveStartCommand(command))
+assert missing.status=='unresolved' and missing.value is None
+started=monotonic()
+first=client.call(command)
+elapsed=monotonic()-started
+assert first.status=='started' and first.value is not None
+assert first.value.recording_right_proof.get_secret_value()!='**********'
+again=client.call(_ResolveStartCommand(command))
+assert again.status=='started' and again.value is not None
+assert again.value==first.value
+altered=replace(command,payload=InitialStartPayload(
+    tuple(reversed(command.payload.away)),command.payload.home))
+assert client.call(_ResolveStartCommand(altered)).status=='unresolved'
+changed=replace(command,start_request_id=uuid4())
+assert client.call(_ResolveStartCommand(changed)).status=='unresolved'
+print(json.dumps({{'started':True,'committed_resolve':True,'same_V12_receipt':True,
+    'raw_enrollment_credential_used_for_DB_start':True,'missing_unresolved':True,
+    'device_id':str(pair.device_id),'seconds':elapsed}}))
+""")
+        assert normal["started"] and normal["committed_resolve"]
+        saved = _saved(db)
+        assert saved["game"][0] == "in_progress" and len(saved["lineups"]) == 2
+        assert all(len(r[2]) == 10 for r in saved["lineups"])
+        assert len(db.ledger_snapshot()) == 1
+        fixed_ledger = db.ledger_snapshot()
+        fixed_storage = db.storage()
+        # app UID以外は同じwireを送っても拒否。0件許容やpeer申告を使わない。
+        wrong_peer = db.broker_client(
+            """
+try:client.call(_EnrollDeviceCommand(identity))
+except InitialBrokerUnavailable:pass
+else:raise AssertionError('actor peer accepted as app')
+print(json.dumps({'rejected':True}))
+""",
+            uid=20002,
+        )
+        assert wrong_peer == dict(rejected=True)
+        invalid = db.broker_client(
+            """
+wrong=_BrokerIdentity(identity.expected_tenant_id,uuid4(),SecretStr('invalid-cookie'))
+assert client.call(_EnrollDeviceCommand(wrong)).status=='denied'
+other=_BrokerIdentity(UUID('"""
+            + str(db.other_tenant_id)
+            + """'),uuid4(),identity.cookie)
+assert client.call(_EnrollDeviceCommand(other)).status=='denied'
+print(json.dumps({'denied':True}))
+"""
+        )
+        assert invalid == dict(denied=True)
+        # 既fixture資格でpendingを設置する負例。normalは実enrollを使った。
+        from test_initial_game_start_components import _body
+
+        from pitchlog.api.schemas.game_start import GameStartRequest
+        from pitchlog.repositories.game_start import bind_initial_start_request
+
+        pending_request, pending_attempt = uuid4(), uuid4()
+        pending_body = _body(10)
+        pending_body.update(
+            device_id=str(db.device_id),
+            start_request_id=str(pending_request),
+            device_credential="credential-a",
+        )
+        bound = bind_initial_start_request(
+            GameStartRequest.model_validate(pending_body),
+            tenant_id=db.tenant_id,
+            game_id=db.game_id,
+            attempt_id=pending_attempt,
+        )
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute(
+                (
+                    "INSERT INTO public.game_start_requests(tenant_id,game_i"
+                    "d,start_request_id,device_id,request_digest) VALUES (%s"
+                    ",%s,%s,%s,%s)"
+                ),
+                (
+                    db.tenant_id,
+                    db.game_id,
+                    pending_request,
+                    db.device_id,
+                    bound.owner.request_digest,
+                ),
+            )
+            admin.execute(
+                (
+                    "INSERT INTO public.game_start_attempts(tenant_id,attemp"
+                    "t_id,game_id,start_request_id,device_id) VALUES (%s,%s,"
+                    "%s,%s,%s)"
+                ),
+                (
+                    db.tenant_id,
+                    pending_attempt,
+                    db.game_id,
+                    pending_request,
+                    db.device_id,
+                ),
+            )
+        pending_script = f"""
+from test_initial_game_start_components import _body
+from pitchlog.api.schemas.game_start import GameStartRequest
+from pitchlog.repositories.game_start import InitialStartPayload,_entries
+body=_body(10);body.update(device_id='{db.device_id}',start_request_id='{pending_request}',device_credential='credential-a')
+request=GameStartRequest.model_validate(body)
+command=_StartInitialGameCommand(identity,UUID('{db.game_id}'),request.start_request_id,
+    request.device_id,request.device_credential,InitialStartPayload(_entries(request.away),_entries(request.home)))
+reply=client.call(_ResolveStartCommand(command))
+assert reply.status=='unresolved' and reply.value is None
+print(json.dumps({{'unresolved':True}}))
+"""
+        pending = db.broker_client(pending_script)
+        assert pending == dict(unresolved=True)
+        # 旧transactionのrequest lockを実際に保持。worker timeoutは終結証明ではない。
+        with psycopg.connect(db.authority.database.business_admin) as blocker:
+            blocker.execute(
+                (
+                    "SELECT start_request_id FROM public.game_start_requests"
+                    " WHERE tenant_id=%s AND game_id=%s AND start_request_id"
+                    "=%s FOR UPDATE"
+                ),
+                (db.tenant_id, db.game_id, pending_request),
+            )
+            locked = db.broker_client(pending_script)
+            assert locked == dict(unresolved=True)
+            blocker.rollback()
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            assert admin.execute(
+                (
+                    "SELECT attempt_id,outcome FROM public.game_start_attemp"
+                    "ts WHERE tenant_id=%s AND start_request_id=%s"
+                ),
+                (db.tenant_id, pending_request),
+            ).fetchall() == [(pending_attempt, "pending")]
+            fn = (
+                "initial_right_api.lookup_existing_start_attempt"
+                "(uuid,uuid,uuid,uuid,bytea)"
+            )
+            assert admin.execute(
+                "SELECT has_function_privilege(%s,%s,'EXECUTE')", ("pitchlog_app", fn)
+            ).fetchone() == (False,)
+            assert admin.execute(
+                "SELECT has_function_privilege(%s,%s,'EXECUTE')",
+                ("pitchlog_initial_auth_verifier", fn),
+            ).fetchone() == (False,)
+        assert db.ledger_snapshot() == fixed_ledger
+        # 確定済み保存原本はpending seedと別に不変。
+        assert (
+            db.storage()["recording_generations"]
+            == fixed_storage["recording_generations"]
+        )
+        assert (
+            db.storage()["recording_right_deliveries"]
+            == fixed_storage["recording_right_deliveries"]
+        )
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute(
+                "UPDATE public.trusted_devices SET revoked_at=clock_timestamp() "
+                "WHERE tenant_id=%s AND device_id=%s",
+                (db.tenant_id, db.device_id),
+            )
+        revoked = db.broker_client(pending_script)
+        assert revoked == dict(unresolved=True)
+        # 受信直後にclientを閉じる別要求。実commitを親が観測するまで照会を待つ。
+        lost_game, lost_request = uuid4(), uuid4()
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute(
+                "INSERT INTO public.games(tenant_id,id,scheduled_at,game_type_key,"
+                "tournament_key,"
+                "away_team_record_id,home_team_record_id,applied_rules) "
+                "SELECT tenant_id,%s,scheduled_at,game_type_key,tournament_key,"
+                "away_team_record_id,home_team_record_id,applied_rules "
+                "FROM public.games "
+                "WHERE tenant_id=%s AND id=%s",
+                (lost_game, db.tenant_id, db.game_id),
+            )
+        lost_script = f"""
+import socket,time
+from test_initial_game_start_components import _body
+from pitchlog.api.schemas.game_start import GameStartRequest
+from pitchlog.repositories.game_start import InitialStartPayload,_entries
+from pitchlog.recording_rights.initial_grant_broker import (
+    _encode_initial_command,_check_broker_socket,_check_broker_peer)
+pair=client.call(_EnrollDeviceCommand(identity)).value;assert pair is not None
+body=_body(10);body.update(device_id=str(pair.device_id),start_request_id='{lost_request}',
+    device_credential=pair.device_credential.get_secret_value())
+request=GameStartRequest.model_validate(body)
+command=_StartInitialGameCommand(identity,UUID('{lost_game}'),request.start_request_id,
+    request.device_id,request.device_credential,InitialStartPayload(_entries(request.away),_entries(request.home)))
+endpoint=client._endpoint
+_check_broker_socket(endpoint)
+with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as channel:
+    channel.settimeout(1.5);channel.connect(str(endpoint.path))
+    _check_broker_peer(channel);_check_broker_socket(endpoint)
+    channel.sendall(_encode_initial_command(command));channel.shutdown(socket.SHUT_WR)
+# commit有無をこの切断だけから推定しない。以下のmarkerは試験同期専用。
+deadline=time.monotonic()+10
+while not Path('/run/pitchlog/reply-commit-observed').exists():
+    assert time.monotonic()<deadline
+    time.sleep(0.05)
+reply=client.call(_ResolveStartCommand(command))
+assert reply.status=='started' and reply.value is not None
+again=client.call(_ResolveStartCommand(command))
+assert again.value==reply.value
+assert reply.value.recording_right_proof.get_secret_value()!='**********'
+print(json.dumps({{'lost_reply_then_committed_resolve':True,'same_V12_receipt':True}}))
+"""
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            lost_future = executor.submit(db.broker_client, lost_script)
+            deadline = monotonic() + 10
+            with psycopg.connect(
+                db.authority.database.business_admin, autocommit=True
+            ) as admin:
+                while monotonic() < deadline:
+                    row = admin.execute(
+                        "SELECT count(*) FROM public.recording_right_deliveries "
+                        "WHERE tenant_id=%s AND game_id=%s AND start_request_id=%s",
+                        (db.tenant_id, lost_game, lost_request),
+                    ).fetchone()
+                    if row == (1,):
+                        break
+                    sleep(0.05)
+                else:
+                    raise AssertionError("返信喪失要求の実commitへ未到達")
+                assert admin.execute(
+                    "SELECT status FROM public.games WHERE tenant_id=%s AND id=%s",
+                    (db.tenant_id, lost_game),
+                ).fetchone() == ("in_progress",)
+            docker(
+                "exec",
+                "--user",
+                "0",
+                worker,
+                "/runtime/bin/python3.12",
+                "-c",
+                "from pathlib import Path; "
+                "Path('/run/pitchlog/reply-commit-observed').open('x')"
+                ".write('public test synchronization')",
+            )
+            lost_reply = lost_future.result(timeout=15)
+        assert lost_reply == dict(
+            lost_reply_then_committed_resolve=True, same_V12_receipt=True
+        )
+        assert len(db.ledger_snapshot()) == 2
+
+        # 実queue飽和はDB開始前に閉じ、資格/新deviceを成功補完しない。
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            device_count = admin.execute(
+                "SELECT count(*) FROM public.trusted_devices"
+            ).fetchone()
+            pool_counts = admin.execute(
+                "SELECT usename,count(*) FROM pg_stat_activity WHERE usename IN "
+                "('pitchlog_initial_actor','pitchlog_initial_auth_verifier') "
+                "GROUP BY usename"
+            ).fetchall()
+            assert all(0 < count <= 3 for _role, count in pool_counts)
+        saturated = db.broker_client("""
+import socket,time
+from pitchlog.recording_rights.initial_grant_broker import _load_broker_endpoint
+endpoint=_load_broker_endpoint()
+channels=[]
+try:
+    deadline=time.monotonic()+0.5
+    for _ in range(6):
+        channel=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
+        channel.settimeout(1.5)
+        try:
+            while True:
+                try:
+                    channel.connect(str(endpoint.path))
+                    break
+                except BlockingIOError:
+                    if time.monotonic()>=deadline:raise
+                    time.sleep(0.005)
+        except BaseException:
+            channel.close()
+            raise
+        channels.append(channel)
+    assert len(channels)==6
+    time.sleep(0.1)
+    try:client.call(_EnrollDeviceCommand(identity))
+    except InitialBrokerUnavailable:pass
+    else:raise AssertionError('saturated queue produced enrollment')
+finally:
+    for channel in channels:channel.close()
+print(json.dumps({'non_success':True}))
+""")
+        assert saturated == dict(non_success=True)
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            assert (
+                admin.execute("SELECT count(*) FROM public.trusted_devices").fetchone()
+                == device_count
+            )
+
+        # 既製品Nodeの実子processだけをSIGSTOP。host/caller/業務式を差し替えない。
+        fault_game, fault_request = uuid4(), uuid4()
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute(
+                "INSERT INTO public.games(tenant_id,id,scheduled_at,game_type_key,"
+                "tournament_key,away_team_record_id,home_team_record_id,applied_rules) "
+                "SELECT tenant_id,%s,scheduled_at,game_type_key,tournament_key,"
+                "away_team_record_id,home_team_record_id,applied_rules "
+                "FROM public.games "
+                "WHERE tenant_id=%s AND id=%s",
+                (fault_game, db.tenant_id, db.game_id),
+            )
+        stop_node_code = """
+import os,signal,time,json,sys,traceback
+from pathlib import Path
+def error_hook(kind,value,tb):
+    print(json.dumps({'monitor_failure_type':kind.__name__,
+        'frames':[(f.name,f.lineno) for f in traceback.extract_tb(tb)]}),flush=True)
+sys.excepthook=error_hook
+deadline=time.monotonic()+15
+while time.monotonic()<deadline:
+    for path in Path('/proc').iterdir():
+        if not path.name.isdecimal():continue
+        try:
+            raw=(path/'cmdline').read_bytes().split(b'\\0')
+            status=(path/'status').read_text()
+            if raw[0] not in (b'node',b'/usr/local/bin/node'):continue
+            actual=(path/'exe').stat();expected=Path('/usr/local/bin/node').stat()
+            if (actual.st_dev,actual.st_ino)!=(expected.st_dev,expected.st_ino):continue
+            values={line.split(':',1)[0]:line.split(':',1)[1].strip()
+                for line in status.splitlines() if ':' in line}
+            if values['PPid']!='1' or values['Uid'].split()[0]!='20002':continue
+            os.kill(int(path.name),signal.SIGSTOP)
+            print(json.dumps({'owned_Node_stopped':True,'pid':int(path.name),
+                'ppid':1,'uid':20002,'executable_inode_match':True,
+                'stopped_monotonic':time.monotonic()}));raise SystemExit(0)
+        except (FileNotFoundError,ProcessLookupError):continue
+    time.sleep(0.001)
+raise AssertionError('owned Node process not reached')
+"""
+        def run_node_monitor() -> dict[str, Any]:
+            """同UIDの実観測を安全fieldだけへ閉じ、失敗も証拠へ返す。"""
+            try:
+                process = subprocess.run(
+                    ["docker", "exec", "--user", "20002:20002", worker,
+                     "/runtime/bin/python3.12", "-c", stop_node_code],
+                    capture_output=True, text=True, timeout=20,
+                )
+            except (subprocess.TimeoutExpired, OSError) as error:
+                return {"returncode": None, "failure_type": type(error).__name__}
+            try:
+                observed = json.loads(process.stdout)
+                assert type(observed) is dict
+                assert set(observed) in (
+                    {"owned_Node_stopped", "pid", "ppid", "uid",
+                     "executable_inode_match", "stopped_monotonic"},
+                    {"monitor_failure_type", "frames"},
+                )
+            except (ValueError, AssertionError):
+                observed = {"monitor_failure_type": "InvalidDiagnostic", "frames": []}
+            return {"returncode": process.returncode, "observation": observed,
+                    "stderr_present": bool(process.stderr)}
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            stop_future = executor.submit(run_node_monitor)
+            node_failed = db.broker_client(f"""
+from test_initial_game_start_components import _body
+from pitchlog.api.schemas.game_start import GameStartRequest
+from pitchlog.repositories.game_start import InitialStartPayload,_entries
+reply=client.call(_EnrollDeviceCommand(identity));assert reply.status=='enrolled'
+pair=reply.value;assert pair is not None
+body=_body(10);body.update(device_id=str(pair.device_id),start_request_id='{fault_request}',
+    device_credential=pair.device_credential.get_secret_value())
+request=GameStartRequest.model_validate(body)
+command=_StartInitialGameCommand(identity,UUID('{fault_game}'),request.start_request_id,
+    request.device_id,request.device_credential,InitialStartPayload(_entries(request.away),_entries(request.home)))
+try:
+    reply=client.call(command)
+    observed={{'status':reply.status,'value_is_none':reply.value is None}}
+except InitialBrokerUnavailable:
+    observed={{'status':'transport-unavailable','value_is_none':True}}
+print(json.dumps(observed))
+""")
+            node_monitor = stop_future.result(timeout=25)
+            node_stop = node_monitor.get("observation", {})
+        # 診断は閉enum/boolean/所有PIDと有限DB状態だけ。資格/例外値は記録しない。
+        with psycopg.connect(db.authority.database.business_admin) as observer:
+            fault_status = observer.execute(
+                "SELECT status FROM public.games WHERE tenant_id=%s AND id=%s",
+                (db.tenant_id, fault_game),
+            ).fetchone()
+            fault_attempts = observer.execute(
+                "SELECT outcome FROM public.game_start_attempts "
+                "WHERE tenant_id=%s AND start_request_id=%s",
+                (db.tenant_id, fault_request),
+            ).fetchall()
+        (tmp_path / "worker-node-diagnostic.json").write_text(
+            json.dumps(
+                {"reply": node_failed, "actual_Node_monitor": node_monitor,
+                 "game_status": fault_status, "attempt_outcomes": fault_attempts,
+                 "ledger_claimed": [row[6] for row in db.ledger_snapshot()]},
+                ensure_ascii=False, indent=2,
+            ) + "\n"
+        )
+        assert node_monitor["returncode"] == 0
+        assert node_stop["owned_Node_stopped"] is True
+        assert node_stop["ppid"] == 1 and node_stop["uid"] == 20002
+        assert node_stop["executable_inode_match"] is True
+        assert type(node_stop["pid"]) is int and node_stop["pid"] > 1
+        assert node_failed in (
+            {"status": "unresolved", "value_is_none": True},
+            {"status": "transport-unavailable", "value_is_none": True},
+        )
+        from time import monotonic, sleep
+
+        deadline = monotonic() + 10
+        with psycopg.connect(
+            db.authority.database.business_admin, autocommit=True
+        ) as admin:
+            while monotonic() < deadline:
+                try:
+                    with admin.transaction():
+                        row = admin.execute(
+                            "SELECT device_id FROM public.game_start_requests "
+                            "WHERE tenant_id=%s "
+                            "AND game_id=%s AND start_request_id=%s FOR UPDATE NOWAIT",
+                            (db.tenant_id, fault_game, fault_request),
+                        ).fetchone()
+                    assert row is not None
+                    break
+                except psycopg.errors.LockNotAvailable:
+                    sleep(0.05)
+            else:
+                raise AssertionError("Node failure business TX did not finish")
+            assert admin.execute(
+                "SELECT status FROM public.games WHERE tenant_id=%s AND id=%s",
+                (db.tenant_id, fault_game),
+            ).fetchone() == ("preparing",)
+            assert admin.execute(
+                "SELECT count(*) FROM public.game_lineups "
+                "WHERE tenant_id=%s AND game_id=%s",
+                (db.tenant_id, fault_game),
+            ).fetchone() == (0,)
+            assert admin.execute(
+                (
+                    "SELECT outcome FROM public.game_start_attempts WHERE te"
+                    "nant_id=%s AND start_request_id=%s"
+                ),
+                (db.tenant_id, fault_request),
+            ).fetchall() == [("pending",)]
+        assert len(db.ledger_snapshot()) == 3
+        assert db.ledger_snapshot()[-1][6] is True
+
+        # 最後は所有business PG停止で実checkout/接続不能を起こす。共有PGへ触れない。
+        docker("stop", "--time", "1", db.authority.database.business)
+        disconnected = db.broker_client("""
+try:client.call(_EnrollDeviceCommand(identity))
+except InitialBrokerUnavailable:pass
+else:raise AssertionError('unavailable database returned credential')
+print(json.dumps({'non_success':True}))
+""")
+        assert disconnected == dict(non_success=True)
+        # rootが所有するworkerだけを停止し、同clientは成功へ補完しない。
+        docker("stop", "--time", "1", worker)
+        stopped = db.broker_client("""
+try:client.call(_EnrollDeviceCommand(identity))
+except InitialBrokerUnavailable:pass
+else:raise AssertionError('stopped worker returned success')
+print(json.dumps({'unavailable':True}))
+""")
+        assert stopped == dict(unavailable=True)
+    (tmp_path / "worker-observations.json").write_text(
+        json.dumps(
+            dict(
+                parallel_enroll3=parallel,
+                normal=normal,
+                wrong_peer=wrong_peer,
+                invalid_cookie=invalid,
+                pending_nonterminal=pending,
+                lost_reply=lost_reply,
+                revoked_device=revoked,
+                old_TX_lock_timeout=locked,
+                stopped_worker=stopped,
+                committed_resolve_additional_D4=0,
+                pending_lookup_additional_attempts=0,
+                queue_saturated=saturated,
+                pool_counts=pool_counts,
+                actual_Node_stopped=node_failed,
+                actual_business_PG_stopped=disconnected,
+                HTTP_UI=False,
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )

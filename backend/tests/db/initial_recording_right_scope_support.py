@@ -453,6 +453,134 @@ else:
             observed[str(uid)] = True
         return observed
 
+    def _broker_arguments(self, *, root: bool = False, uid: int = 20003) -> list[str]:
+        """製品source/Nodeと所有named volumeだけを実UIDへreadonly供給する。"""
+        args = self.authority.command(root=root, uid=uid)
+        args[args.index("PYTHONPATH=/code:/deps")] = (
+            "PYTHONPATH=/product/backend/src:/deps"
+        )
+        args[1:1] = [
+            "--mount",
+            f"type=bind,src={_BACKEND.parent},dst=/product,readonly",
+            "--mount",
+            f"type=bind,src={_BACKEND / 'tests'},dst=/fixture/backend/tests,readonly",
+            "--volume",
+            f"{self.authority.control}:/run/pitchlog"
+            + ("" if root else ":ro"),
+        ]
+        return args
+
+    @contextmanager
+    def broker_worker(self, token_id: object) -> Iterator[str]:
+        """公開vectorのroot起動だけを使い、専用worker容器を自然終了まで所有する。"""
+        args = self.authority.command(root=True)
+        setup = f"""
+import json,os
+from pathlib import Path
+from uuid import UUID
+from pitchlog.authz.token_presentation import TokenPresentation
+c={{'version':1,'socket_path':'/run/pitchlog/broker.sock',
+   'actor_config':'/control/initial/actor.json',
+   'ledger_endpoint':'/control/public/endpoint.json',
+   'rg1_client_config':'/control/initial/client.json'}}
+f=Path('/control/initial/worker.json');f.write_text(json.dumps(c));f.chmod(0o600)
+f=Path('/control/public/worker-cookie')
+f.write_text(TokenPresentation(bytes(range(32))).encode(UUID('{token_id}')))
+f.chmod(0o644)
+"""
+        docker(*args, "-c", setup)
+        args = self._broker_arguments(root=True)
+        args[args.index("--rm")] = "--detach"
+        name = args[args.index("--name") + 1]
+        code = """
+from pathlib import Path
+from pitchlog.authz.token_presentation import TokenPresentation
+from pitchlog.authz.verified_tenant import _activate_presentation
+from pitchlog.recording_rights.initial_grant import V12Box
+from pitchlog.recording_rights.initial_grant_broker import serve_initial_broker
+presentation=TokenPresentation(bytes(range(32)))
+_activate_presentation(presentation)
+try:
+    serve_initial_broker(Path('/control/initial/worker.json'),presentation,V12Box('k1',bytes(range(32))))
+except BaseException:
+    raise SystemExit(1) from None
+"""
+        try:
+            docker(*args, "-u", "-c", code)
+            deadline = monotonic() + 15
+            while monotonic() < deadline:
+                assert (
+                    docker("inspect", "--format", "{{.State.Running}}", name) == "true"
+                ), "実worker起動が非成功"
+                if docker(
+                    "exec", name, "/runtime/bin/python3.12", "-c",
+                    "import os,stat; p='/run/pitchlog/initial-broker-endpoint.json'; "
+                    "s=os.stat(p,follow_symlinks=False); "
+                    "assert stat.S_ISREG(s.st_mode) and s.st_uid==0 "
+                    "and stat.S_IMODE(s.st_mode)==0o644; print('ready')",
+                    check=False,
+                ) == "ready":
+                    # Root公開entryはlisten直前に作るため、実peer確認もclientで行う。
+                    result = self.broker_client(
+                        (
+                            "reply=client.call(_EnrollDeviceCommand(_BrokerIdentity("
+                            "identity.expected_tenant_id,uuid4(),SecretStr('invalid'"
+                            "))))\nassert reply.status=='denied'\nprint(json.dumps({'r"
+                            "eady':True}))"
+                        )
+                    )
+                    if result == {"ready": True}:
+                        break
+                sleep(0.1)
+            else:
+                raise AssertionError("実workerの公開endpoint期限超過")
+            yield name
+        finally:
+            docker("rm", "--force", name, check=False)
+
+    def broker_client(self, body: str, *, uid: int = 20003) -> dict[str, Any]:
+        """実app peerからA clientを使い、生資格/コマンド例外を出力しない。"""
+        args = self._broker_arguments(uid=uid)
+        setup = f"""
+import sys,json,base64,hashlib,traceback
+from pathlib import Path
+from uuid import UUID,uuid4
+from pydantic import SecretStr
+sys.path.insert(0,'/fixture/backend/tests')
+from pitchlog.recording_rights.initial_grant_broker import (
+    _InitialBrokerClient,_BrokerIdentity,_EnrollDeviceCommand,_StartInitialGameCommand,
+    _ResolveStartCommand,InitialBrokerUnavailable)
+identity=_BrokerIdentity(UUID('{self.tenant_id}'),uuid4(),
+    SecretStr(Path('/control/public/worker-cookie').read_text()))
+client=_InitialBrokerClient()
+def error_hook(kind,value,tb):
+    print(json.dumps({{'fixture_failure':kind.__name__,
+        'frames':[(f.name,f.lineno) for f in traceback.extract_tb(tb)]}}),flush=True)
+sys.excepthook=error_hook
+"""
+        try:
+            process = subprocess.run(
+                ["docker", *args, "-u", "-c", setup + body],
+                capture_output=True,
+                text=True,
+                timeout=45,
+            )
+        except (subprocess.TimeoutExpired, OSError):
+            raise AssertionError("実broker clientの起動/期限が非成功") from None
+        if process.returncode:
+            try:
+                error = json.loads(process.stdout)
+                assert type(error) is dict and set(error) == {
+                    "fixture_failure",
+                    "frames",
+                }
+            except (ValueError, AssertionError):
+                raise AssertionError("実broker clientが非成功") from None
+            raise AssertionError(f"実broker clientが非成功: {error}")
+        value = json.loads(process.stdout)
+        assert type(value) is dict
+        return value
+
     def ledger_snapshot(self) -> tuple[tuple[object, ...], ...]:
         """実primaryの有限な所有予約だけを観測する。caller proofに使わない。"""
         snapshots = []

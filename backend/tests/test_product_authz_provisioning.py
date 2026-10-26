@@ -1132,7 +1132,10 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
     )
     assert len(old) == 16
     assert {row.element_id for row in withheld} - {row.element_id for row in old} == {
-        "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_rg1_control_owner"
+        (
+            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+            "pitchlog_rg1_control_owner"
+        )
     }
     assert "CREATE OR REPLACE FUNCTION rg1_control.bind_initial_fresh_epoch" in sql_text
 
@@ -1456,6 +1459,41 @@ def test_b2_pre_rule_defers_exact_enrollment_pair(
             ProductOperation.APPLY
         )
         assert any(selected.sql in row.sql for row in applied)
+    else:
+        with pytest.raises(ProductProvisioningError):
+            product_provisioning._build_operation_statements(
+                ProductOperation.APPLY_PRE_RULE
+            )
+
+
+@pytest.mark.parametrize("mutation", ["valid", "duplicate", "wrong-kind"])
+def test_worker_lookup_deferred_until_initial_storage(mutation, monkeypatch):
+    """lookupは0036以前に実行せず、型と一意性を維持する。"""
+    from dataclasses import replace
+
+    from pitchlog.authz.product_function_acl import LOOKUP_FUNCTION_ID
+
+    generated = product_provisioning.generate_authz_ddl(
+        product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
+    )
+    selected = next(row for row in generated if row.element_id == LOOKUP_FUNCTION_ID)
+    changed = tuple(r for r in generated if r.element_id != LOOKUP_FUNCTION_ID)
+    if mutation == "valid":
+        changed += (selected,)
+    elif mutation == "duplicate":
+        changed += (selected, selected)
+    else:
+        changed += (replace(selected, element_type="policy"),)
+    monkeypatch.setattr(product_provisioning, "generate_authz_ddl", lambda *_: changed)
+    if mutation == "valid":
+        _, statements = product_provisioning._build_operation_statements(
+            ProductOperation.APPLY_PRE_RULE
+        )
+        assert selected.sql not in "\n".join(r.sql for r in statements)
+        _, statements = product_provisioning._build_operation_statements(
+            ProductOperation.APPLY
+        )
+        assert any(selected.sql in r.sql for r in statements)
     else:
         with pytest.raises(ProductProvisioningError):
             product_provisioning._build_operation_statements(

@@ -1816,3 +1816,150 @@ def test_b2_enrollment_scope_cannot_reuse_or_coerce_binding(change: str) -> None
         transaction._initial_enrollment_transaction_scope(binding),
     ):
         raise AssertionError("invalid binding opened")
+
+
+def test_worker_lookup_registration_keeps_previous_tuples() -> None:
+    """既9/start2/enroll1の反復を変えずlookup一件だけを足す。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        _INITIAL_RESOLVE_FUNCTION_OPERATIONS,
+        _INITIAL_START_FUNCTION_OPERATIONS,
+        INITIAL_FUNCTION_OPERATIONS,
+    )
+
+    assert tuple(
+        map(
+            len,
+            (
+                INITIAL_FUNCTION_OPERATIONS,
+                _INITIAL_START_FUNCTION_OPERATIONS,
+                _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+                _INITIAL_RESOLVE_FUNCTION_OPERATIONS,
+            ),
+        )
+    ) == (9, 2, 1, 1)
+    spec = _INITIAL_RESOLVE_FUNCTION_OPERATIONS[0]
+    assert spec.capability_id == "CAP:initial_right:lookup_existing_start_attempt"
+    assert tuple(k for k, _ in spec.input_fields) == (
+        "game_id",
+        "start_request_id",
+        "device_id",
+        "request_digest",
+    )
+    for rows in [((_TENANT_ID, "pending"),), ((_TENANT_ID, "committed"),), ()]:
+        assert decode_function_result(spec, TenantOperationResult(rows)).rows == rows
+    for rows in [
+        ((_TENANT_ID, "rolled_back"),),
+        ((_TENANT_ID, "unknown"),),
+        ((None, "pending"),),
+        ((_TENANT_ID, "pending"), (_TENANT_ID, "pending")),
+    ]:
+        with pytest.raises((FunctionOperationError, RuntimeError)):
+            decode_function_result(spec, TenantOperationResult(rows))
+
+
+@pytest.mark.parametrize("phase", [None, "intent", "enroll", "business"])
+def test_worker_lookup_requires_same_scope_resolution_cap(phase, monkeypatch):
+    """普通のbusinessさえ新lookupを実行できず、短命登録を必要とする。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _LookupExistingStartAttemptToken,
+    )
+
+    context = make_tenant_context(_TENANT_ID)
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    if phase is not None:
+        monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (object(), phase))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    with pytest.raises(TenantBindingError):
+        handle.run_function(
+            _LookupExistingStartAttemptToken(
+                _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * 32
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "valid",
+        "game",
+        "request",
+        "device",
+        "digest",
+        "credential",
+        "outcome",
+        "unchecked",
+        "no_lookup",
+    ],
+)
+def test_worker_existing_adapter_requires_actual_lookup_owner(change, monkeypatch):
+    """Committed lookupの実結果以外から、別Session用adapterを作らない。"""
+    from test_initial_game_start_components import _body
+
+    from pitchlog.api.schemas.game_start import GameStartRequest
+    from pitchlog.repositories.game_start import bind_initial_start_request
+
+    context = make_tenant_context(_TENANT_ID)
+    runtime = object()
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (runtime, "business"))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+    request = GameStartRequest.model_validate(_body(10))
+    bound = bind_initial_start_request(
+        request, tenant_id=_TENANT_ID, game_id=_TENANT_ID, attempt_id=_TENANT_ID
+    )
+    owner = bound.owner
+    binding = transaction._ResolutionBinding(
+        context,
+        runtime,
+        owner.game_id,
+        owner.start_request_id,
+        owner.device_id,
+        owner.request_digest,
+        bound.credential_digest,
+    )
+    binding.looked_up = binding.device_checked = True
+    binding.attempt_id = owner.attempt_id
+    binding.outcome = "committed"
+    changes = {
+        "game": ("game_id", UUID(int=9)),
+        "request": ("start_request_id", UUID(int=9)),
+        "device": ("device_id", UUID(int=9)),
+        "digest": ("request_digest", b"x" * 32),
+        "credential": ("credential_digest", b"x" * 32),
+        "outcome": ("outcome", "pending"),
+        "unchecked": ("device_checked", False),
+        "no_lookup": ("looked_up", False),
+    }
+    if change in changes:
+        setattr(binding, *changes[change])
+    monkeypatch.setitem(transaction._RESOLVE_BINDINGS, key, binding)
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    if change == "valid":
+        transaction._assert_existing_resolution_owner(
+            handle, context, runtime, owner, bound
+        )
+    else:
+        with pytest.raises(TenantBindingError):
+            transaction._assert_existing_resolution_owner(
+                handle, context, runtime, owner, bound
+            )
