@@ -23,7 +23,9 @@ from pitchlog.authz.product_authn_contract import (
     AUTHN_OWNER,
     AUTHN_SCHEMA_USERS,
     AUTHN_TABLE_GRANTS,
+    authn_function_grants,
     validate_authn_asset,
+    validate_initial_verifier_declarations,
 )
 from pitchlog.authz.product_control_access import (
     build_initial_policy_declarations,
@@ -537,6 +539,7 @@ class CatalogQueryId(Enum):
     ROLES = "roles"
     DATABASE = "database"
     DATABASE_ACL = "database_acl"
+    INITIAL_VERIFIER_GLOBAL = "initial_verifier_global"
     SCHEMAS = "schemas"
     EXTENSIONS = "extensions"
     PGCRYPTO_MEMBER_ACL = "pgcrypto_member_acl"
@@ -1069,6 +1072,10 @@ def _load_migration_batch_expectations() -> _MigrationBatchExpectations:
 def _load_product_expectations() -> _ProductExpectations:
     """Staged 資産と適用手順資産から exact-set 期待値を導出する。"""
     asset = _load_product_asset()
+    try:
+        validate_initial_verifier_declarations(asset)
+    except ValueError as error:
+        raise ProductCatalogError(str(error)) from error
     _validate_initial_function_declarations(asset)
     _validated_initial_column_rows(asset)
     _validate_initial_table_acls(asset)
@@ -1336,6 +1343,7 @@ def _catalog_requests(
     roles = list(expectations.role_ids)
     return (
         _CatalogRequest(CatalogQueryId.ROLES, (roles,)),
+        _CatalogRequest(CatalogQueryId.INITIAL_VERIFIER_GLOBAL, ()),
         _CatalogRequest(CatalogQueryId.DATABASE, ()),
         _CatalogRequest(CatalogQueryId.DATABASE_ACL, ()),
         _CatalogRequest(CatalogQueryId.SCHEMAS, (schemas,)),
@@ -1397,6 +1405,8 @@ def _migration_batch_catalog_requests(
 
 def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
     """閉じた問い合わせ ID をモジュール固定 SQL へ対応付ける。"""
+    if query_id is CatalogQueryId.INITIAL_VERIFIER_GLOBAL:
+        return _INITIAL_VERIFIER_GLOBAL_QUERY
     if query_id is CatalogQueryId.ROLES:
         return _ROLES_QUERY
     if query_id is CatalogQueryId.DATABASE:
@@ -1989,6 +1999,11 @@ def inspect_product_authz_catalog(
     function_rows = _observed_rows(frozen_observations, CatalogQueryId.FUNCTIONS)
     report = _ReportBuilder()
     report.compare(
+        "PRODUCT-CATALOG:INITIAL-VERIFIER-GLOBAL",
+        _initial_verifier_global_expectations(),
+        _observed_rows(frozen_observations, CatalogQueryId.INITIAL_VERIFIER_GLOBAL),
+    )
+    report.compare(
         "PRODUCT-CATALOG:ROLES",
         expectations.semantic_roles,
         _actual_roles(role_rows),
@@ -2061,9 +2076,9 @@ def inspect_product_authz_catalog(
         )
         authn_grants = tuple(
             sorted(
-                ("authn", name, args, grantee, "EXECUTE", False)
-                for (name, args), grantee in AUTHN_FUNCTION_GRANTEES.items()
-                if grantee is not None
+                ("authn", name, args, grant["grantee"], "EXECUTE", False)
+                for name, args in AUTHN_FUNCTION_GRANTEES
+                for grant in authn_function_grants(name, args)
             )
         )
         observed_grants = _actual_acl(
@@ -2718,3 +2733,144 @@ def _validate_initial_schema_roles(asset: dict[str, object]) -> None:
         }
     if not _exact_value(actual, expected):
         raise ProductCatalogError("初期schema主体の全field/exact ACL集合が不一致")
+
+
+# 宣言schema/table/functionへ絞らず、新主体一件のuser-object権限を全観測する。
+# pg_catalog/information_schemaの既定builtin権限は製品grantと別のまま扱う。
+_INITIAL_VERIFIER_GLOBAL_QUERY: LiteralString = r"""
+WITH target AS (
+    SELECT oid, rolname FROM pg_catalog.pg_roles
+    WHERE rolname = 'pitchlog_initial_auth_verifier'
+), user_schemas AS (
+    SELECT * FROM pg_catalog.pg_namespace
+    WHERE nspname <> 'information_schema' AND pg_catalog.left(nspname,3)<>'pg_'
+), access AS (
+    SELECT 'schema'::text AS kind, ''::text AS namespace, n.nspname::text AS name,
+           ''::text AS identity, ''::text AS member, v.p::text AS privilege,
+           pg_catalog.has_schema_privilege(t.oid,n.oid,v.p || ' WITH GRANT OPTION')
+        AS grantable
+    FROM user_schemas n CROSS JOIN target t
+    CROSS JOIN (VALUES ('USAGE'),('CREATE')) v(p)
+    WHERE pg_catalog.has_schema_privilege(t.oid,n.oid,v.p)
+    UNION ALL
+    SELECT 'function',n.nspname,p.proname,pg_catalog.oidvectortypes(p.proargtypes),'',
+           'EXECUTE',pg_catalog.has_function_privilege(
+               t.oid,p.oid,'EXECUTE WITH GRANT OPTION')
+    FROM pg_catalog.pg_proc p JOIN user_schemas n ON n.oid=p.pronamespace
+    CROSS JOIN target t
+    WHERE (pg_catalog.has_schema_privilege(t.oid,n.oid,'USAGE')
+           AND pg_catalog.has_function_privilege(t.oid,p.oid,'EXECUTE'))
+       OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(p.proacl) a
+                  WHERE a.grantee=t.oid AND a.privilege_type='EXECUTE')
+    UNION ALL
+    SELECT 'table',n.nspname,c.relname,'','',v.p,
+           pg_catalog.has_table_privilege(t.oid,c.oid,v.p || ' WITH GRANT OPTION')
+    FROM pg_catalog.pg_class c JOIN user_schemas n ON n.oid=c.relnamespace
+    CROSS JOIN target t
+    CROSS JOIN (VALUES ('SELECT'),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),
+                       ('REFERENCES'),('TRIGGER')) v(p)
+    WHERE c.relkind IN ('r','p','v','m','f') AND
+      ((pg_catalog.has_schema_privilege(t.oid,n.oid,'USAGE')
+        AND pg_catalog.has_table_privilege(t.oid,c.oid,v.p))
+       OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                  WHERE a.grantee=t.oid AND a.privilege_type=v.p))
+    UNION ALL
+    SELECT 'table',n.nspname,c.relname,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_class c JOIN user_schemas n ON n.oid=c.relnamespace
+    CROSS JOIN target t CROSS JOIN LATERAL pg_catalog.aclexplode(c.relacl) a
+    WHERE a.grantee IN (0,t.oid) AND a.privilege_type NOT IN
+      ('SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER')
+    UNION ALL
+    SELECT 'column',n.nspname,c.relname,'',a.attname,v.p,
+           pg_catalog.has_column_privilege(t.oid,c.oid,a.attnum,v.p ||
+        ' WITH GRANT OPTION')
+    FROM pg_catalog.pg_class c JOIN user_schemas n ON n.oid=c.relnamespace
+    JOIN pg_catalog.pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT
+        a.attisdropped
+    CROSS JOIN target t CROSS JOIN (VALUES
+        ('SELECT'),('INSERT'),('UPDATE'),('REFERENCES')) v(p)
+    WHERE c.relkind IN ('r','p','v','m','f') AND
+      ((pg_catalog.has_schema_privilege(t.oid,n.oid,'USAGE')
+        AND pg_catalog.has_column_privilege(t.oid,c.oid,a.attnum,v.p))
+       OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(a.attacl) x
+                  WHERE x.grantee=t.oid AND x.privilege_type=v.p))
+    UNION ALL
+    SELECT 'sequence',n.nspname,c.relname,'','',v.p,
+           pg_catalog.has_sequence_privilege(t.oid,c.oid,v.p || ' WITH GRANT OPTION')
+    FROM pg_catalog.pg_class c JOIN user_schemas n ON n.oid=c.relnamespace
+    CROSS JOIN target t CROSS JOIN (VALUES ('SELECT'),('UPDATE'),('USAGE')) v(p)
+    WHERE c.relkind='S' AND
+      ((pg_catalog.has_schema_privilege(t.oid,n.oid,'USAGE')
+        AND pg_catalog.has_sequence_privilege(t.oid,c.oid,v.p))
+       OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(c.relacl) a
+                  WHERE a.grantee=t.oid AND a.privilege_type=v.p))
+    UNION ALL
+    SELECT 'database','',CASE WHEN d.datname=pg_catalog.current_database()
+           THEN 'current_database' ELSE d.datname END,'','',v.p,
+           pg_catalog.has_database_privilege(t.oid,d.oid,v.p || ' WITH GRANT OPTION')
+    FROM pg_catalog.pg_database d CROSS JOIN target t
+    CROSS JOIN (VALUES ('CONNECT'),('CREATE'),('TEMPORARY')) v(p)
+    WHERE ((d.datname=pg_catalog.current_database() OR
+            (NOT d.datistemplate AND d.datname<>'postgres'))
+           AND pg_catalog.has_database_privilege(t.oid,d.oid,v.p))
+       OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(d.datacl) a
+                  WHERE (a.grantee=t.oid OR
+                         (a.grantee=0 AND a.privilege_type='CREATE'))
+                    AND a.privilege_type=v.p)
+    UNION ALL
+    SELECT 'ownership','','',
+           pg_catalog.pg_describe_object(s.classid,s.objid,s.objsubid),
+           '','OWNER',false
+    FROM pg_catalog.pg_shdepend s CROSS JOIN target t
+    WHERE s.refclassid='pg_catalog.pg_authid'::pg_catalog.regclass
+      AND s.refobjid=t.oid AND s.deptype='o'
+      AND s.dbid IN (0,(SELECT oid FROM pg_catalog.pg_database
+                       WHERE datname=pg_catalog.current_database()))
+    UNION ALL
+    SELECT 'type',n.nspname,y.typname,'','','USAGE',
+           pg_catalog.has_type_privilege(t.oid,y.oid,'USAGE WITH GRANT OPTION')
+    FROM pg_catalog.pg_type y JOIN user_schemas n ON n.oid=y.typnamespace
+    CROSS JOIN target t
+    WHERE (pg_catalog.has_schema_privilege(t.oid,n.oid,'USAGE')
+           AND pg_catalog.has_type_privilege(t.oid,y.oid,'USAGE'))
+       OR EXISTS (SELECT 1 FROM pg_catalog.aclexplode(y.typacl) a
+                  WHERE a.grantee=t.oid)
+    UNION ALL
+    SELECT 'foreign_server','',f.srvname,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_foreign_server f CROSS JOIN target t
+    CROSS JOIN LATERAL pg_catalog.aclexplode(f.srvacl) a WHERE a.grantee IN (0,t.oid)
+    UNION ALL
+    SELECT 'foreign_wrapper','',f.fdwname,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_foreign_data_wrapper f CROSS JOIN target t
+    CROSS JOIN LATERAL pg_catalog.aclexplode(f.fdwacl) a WHERE a.grantee IN (0,t.oid)
+    UNION ALL
+    SELECT 'tablespace','',s.spcname,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_tablespace s CROSS JOIN target t
+    CROSS JOIN LATERAL pg_catalog.aclexplode(s.spcacl) a WHERE a.grantee IN (0,t.oid)
+    UNION ALL
+    SELECT 'large_object','',l.oid::text,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_largeobject_metadata l CROSS JOIN target t
+    CROSS JOIN LATERAL pg_catalog.aclexplode(l.lomacl) a WHERE a.grantee IN (0,t.oid)
+    UNION ALL
+    SELECT 'language','',l.lanname,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_language l CROSS JOIN target t
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+        COALESCE(l.lanacl,pg_catalog.acldefault('l',l.lanowner))) a
+    WHERE a.grantee=t.oid OR (a.grantee=0 AND l.lanname NOT IN
+        ('internal','c','sql','plpgsql'))
+    UNION ALL
+    SELECT 'parameter','',p.parname,'','',a.privilege_type,a.is_grantable
+    FROM pg_catalog.pg_parameter_acl p CROSS JOIN target t
+    CROSS JOIN LATERAL pg_catalog.aclexplode(p.paracl) a WHERE a.grantee IN (0,t.oid)
+)
+SELECT * FROM access ORDER BY 1,2,3,4,5,6,7
+"""
+
+
+def _initial_verifier_global_expectations() -> tuple[tuple[object, ...], ...]:
+    """新主体だけの実効許可。所有権/表/列/他関数は0。"""
+    return (
+        ("database", "", "current_database", "", "", "CONNECT", False),
+        ("function", "authn", "verify_token", "uuid", "", "EXECUTE", False),
+        ("schema", "", "authn", "", "", "USAGE", False),
+    )

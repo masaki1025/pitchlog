@@ -262,11 +262,12 @@ class InitialGrantDatabase:
             "groupadd -g 20003 initial_app && "
             "useradd -u 20003 -g 20003 -M initial_app && "
             "sed -i '1ilocal all pitchlog_rg1_control_actor,pitchlog_initial_actor,"
-            "pitchlog_app peer map=initial_scope_test' "
+            "pitchlog_app,pitchlog_initial_auth_verifier peer map=initial_scope_test' "
             "/var/lib/postgresql/data/pg_hba.conf && "
             "printf '%s\\n' "
             "'initial_scope_test initial_controller pitchlog_rg1_control_actor' "
             "'initial_scope_test initial_actor pitchlog_initial_actor' "
+            "'initial_scope_test initial_actor pitchlog_initial_auth_verifier' "
             "'initial_scope_test initial_app pitchlog_app' "
             ">> /var/lib/postgresql/data/pg_ident.conf",
         )
@@ -307,7 +308,7 @@ except BaseException as error:
             sleep(0.1)
         raise AssertionError("実controller/fresh ready期限超過")
 
-    def actor(self, body: str) -> dict[str, Any]:
+    def actor(self, body: str, *, _cookie_verifier: bool = False) -> dict[str, Any]:
         """root実runtimeを作り降格後の実issuerを実行する。資格を出力しない。"""
         arguments = self.authority.command(root=True)
         arguments[arguments.index("PYTHONPATH=/code:/deps")] = (
@@ -327,6 +328,20 @@ except BaseException as error:
             "attempt_id": str(self.attempt_id),
             "request_digest": self.request_digest.hex(),
         }
+        verifier_setup = (
+            "from pitchlog.authz.token_presentation import TokenPresentation\n"
+            "from pitchlog.authz.verified_tenant import _activate_presentation\n"
+            "from pitchlog.recording_rights.initial_grant_broker import "
+            "_load_initial_auth_verifier_runtime,_close_initial_auth_verifier_runtime\n"
+            "from pitchlog.repositories.tenant_context_issuance import "
+            "_issue_initial_broker_context\n"
+            "from pydantic import SecretStr\n"
+            "signer=TokenPresentation(bytes(range(32)))\n"
+            "_activate_presentation(signer)\n"
+            "verifier=_load_initial_auth_verifier_runtime(runtime,signer)\n"
+            if _cookie_verifier
+            else ""
+        )
         bootstrap = f"""
 import base64,ctypes,hashlib,json,os,sys
 from dataclasses import replace
@@ -343,6 +358,7 @@ from pitchlog.recording_rights.rg1_lifecycle import configure_runtime
 from pitchlog.repositories.initial_recording_right import _StartOwner
 box=V12Box('k1',bytes(range(32)))
 runtime=_load_initial_actor_runtime(Path('/control/initial/actor.json'),box)
+{verifier_setup}
 os.setgroups([]);os.setgid(20002);os.setuid(20002)
 assert ctypes.CDLL(None).prctl(38,1,0,0,0)==0
 configure_runtime(Path('/control/initial/client.json'))
@@ -367,7 +383,13 @@ def receipt(grant):
             bootstrap
             + "\ntry:\n"
             + "\n".join("    " + line for line in body.splitlines())
-            + "\nfinally:\n    _close_initial_actor_runtime(runtime)\n"
+            + "\nfinally:\n"
+            + (
+                "    _close_initial_auth_verifier_runtime(verifier)\n"
+                if _cookie_verifier
+                else ""
+            )
+            + "    _close_initial_actor_runtime(runtime)\n"
         )
         # 失敗時は例外値/SQL/資格を捨て、型と関数名/行だけを残す。
         diagnostic = """
@@ -380,7 +402,9 @@ sys.excepthook=fixture_error_hook
         try:
             process = subprocess.run(
                 ["docker", *arguments, "-u", "-c", diagnostic + script],
-                capture_output=True, text=True, timeout=45,
+                capture_output=True,
+                text=True,
+                timeout=45,
             )
         except (subprocess.TimeoutExpired, OSError):
             # 元例外にはscript全体を含むcmdがあるため連鎖させない。
@@ -396,6 +420,38 @@ sys.excepthook=fixture_error_hook
         value = json.loads(process.stdout)
         assert type(value) is dict
         return value
+
+    def verifier(self, body: str) -> dict[str, Any]:
+        """公開vectorでroot発行し、降格後の実Cookie専用peerを検査する。"""
+        return self.actor(body, _cookie_verifier=True)
+
+    def verifier_peer_rejections(self) -> dict[str, bool]:
+        """app→verifierとactor→appを実peer認証で拒否する。"""
+        observed = {}
+        for uid, user in (
+            (20003, "pitchlog_initial_auth_verifier"),
+            (20002, "pitchlog_app"),
+        ):
+            args = self.authority.command(uid=uid)
+            args[1:1] = [
+                "--volume",
+                f"{self.authority.database.business_socket}:/business-socket:ro",
+            ]
+            code = f"""
+import json,psycopg
+try:
+    connection=psycopg.connect(host='/business-socket',dbname='ledger_fixture',
+        user={user!r},passfile='/dev/null')
+except psycopg.OperationalError:
+    print(json.dumps({{'rejected':True}}))
+else:
+    connection.close()
+    raise AssertionError('unexpected peer identity')
+"""
+            result = json.loads(docker(*args, "-c", code))
+            assert result == {"rejected": True}
+            observed[str(uid)] = True
+        return observed
 
     def ledger_snapshot(self) -> tuple[tuple[object, ...], ...]:
         """実primaryの有限な所有予約だけを観測する。caller proofに使わない。"""

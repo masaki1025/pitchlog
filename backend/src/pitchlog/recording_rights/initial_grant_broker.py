@@ -1113,3 +1113,203 @@ class _InitialBrokerClient:
         except (OSError, ValueError, TypeError, InitialBrokerUnavailable):
             pass
         raise _broker_invalid()
+
+
+_INITIAL_AUTH_VERIFIER_ROLE = "pitchlog_initial_auth_verifier"
+_AUTH_VERIFIER_CHECKOUT_SQL = """
+                SELECT session_user::text, current_user::text,
+                       r.rolcanlogin, r.rolsuper, r.rolbypassrls, r.rolinherit,
+                       r.rolcreaterole, r.rolcreatedb, r.rolreplication,
+                       (SELECT count(*) FROM pg_catalog.pg_auth_members AS m
+                        WHERE m.member = r.oid OR m.roleid = r.oid),
+                       pg_catalog.current_setting('app.tenant_id', true),
+                       pg_catalog.current_database()::text, d.oid::integer,
+                       pg_catalog.pg_postmaster_start_time(),
+                       pg_catalog.pg_backend_pid()
+                FROM pg_catalog.pg_roles AS r
+                JOIN pg_catalog.pg_database AS d
+                  ON d.datname = pg_catalog.current_database()
+                WHERE r.rolname = session_user
+            """
+
+
+class _InitialAuthVerifierRuntime:
+    """rootが登録した検証専用poolの非転送可能な参照。"""
+
+    __slots__ = ("_key",)
+
+    def __init__(self, key: object, creation: object) -> None:
+        """同型の偽runtimeを登録済みにしない。"""
+        if creation is not _RUNTIME_CREATION or key not in _AUTH_VERIFIER_RUNTIMES:
+            raise _broker_invalid()
+        self._key = key
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _AuthVerifierState:
+    engine: Engine
+    configuration: _ActorConfiguration
+    presentation: object
+
+
+_AUTH_VERIFIER_RUNTIMES: dict[object, _AuthVerifierState] = {}
+
+
+def _auth_verifier_state(runtime: object) -> _AuthVerifierState:
+    """閉runtimeの実型/registry/失効を確認する。"""
+    if type(runtime) is not _InitialAuthVerifierRuntime:
+        raise _broker_invalid()
+    state = _AUTH_VERIFIER_RUNTIMES.get(runtime._key)
+    if state is None:
+        raise _broker_invalid()
+    return state
+
+
+def _validate_auth_verifier_observation(
+    row: tuple[object, ...], config: _ActorConfiguration
+) -> None:
+    """専用roleと実DBを照合し、actor値へ変換した偽観測を使わない。"""
+    if (
+        len(row) != 15
+        or row[:2] != (_INITIAL_AUTH_VERIFIER_ROLE, _INITIAL_AUTH_VERIFIER_ROLE)
+        or tuple(row[2:9]) != (True, False, False, False, False, False, False)
+        or any(type(v) is not bool for v in row[2:9])
+        or type(row[9]) is not int
+        or row[9] != 0
+        or row[10] not in (None, "")
+        or row[11] != config.database_name
+        or type(row[12]) is not int
+        or row[12] != config.database_oid
+        or type(row[13]) is not datetime
+        or row[13] != config.postmaster_started_at
+        or type(row[14]) is not int
+        or row[14] <= 0
+    ):
+        raise _broker_invalid()
+
+
+def _verify_auth_verifier_checkout(
+    connection: Any, config: _ActorConfiguration
+) -> None:
+    """実peer接続の検証専用主体をcheckoutごとに照合する。"""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(_AUTH_VERIFIER_CHECKOUT_SQL)
+            row = cursor.fetchone()
+            if row is None or cursor.fetchone() is not None:
+                raise _broker_invalid()
+            _validate_auth_verifier_observation(tuple(row), config)
+        connection.rollback()
+    except Exception:
+        try:
+            connection.rollback()
+        except BaseException:
+            pass
+        raise DisconnectionError("専用Cookie検証接続を確認できない") from None
+
+
+def _initial_auth_verifier_url(config: _ActorConfiguration) -> str:
+    """登録actorの同じUnix endpointのuserだけを固定置換する。"""
+    from sqlalchemy.engine import make_url
+
+    try:
+        url = make_url(normalize_postgresql_url(config.database_url))
+        query = dict(url.query)
+        host = query.get("host", url.host)
+        if (
+            url.username != _ACTOR_ROLE
+            or url.password is not None
+            or type(host) is not str
+            or not host.startswith("/")
+            or "," in host
+            or any(k not in {"host", "port", "sslmode", "gssencmode"} for k in query)
+            or query.get("sslmode", "disable") != "disable"
+            or query.get("gssencmode", "disable") != "disable"
+            or url.database != config.database_name
+        ):
+            raise ValueError
+        return url.set(username=_INITIAL_AUTH_VERIFIER_ROLE).render_as_string(
+            hide_password=False
+        )
+    except (ValueError, TypeError, AttributeError):
+        pass
+    raise _broker_invalid()
+
+
+def _load_initial_auth_verifier_runtime(
+    actor_runtime: object, presentation: object
+) -> _InitialAuthVerifierRuntime:
+    """既root署名器と登録済みactor設定だけから専用runtimeを発行する。"""
+    from pitchlog.authz import verified_tenant
+    from pitchlog.authz.token_presentation import TokenPresentation
+
+    engine: Engine | None = None
+    try:
+        if os.geteuid() != 0 or type(presentation) is not TokenPresentation:
+            raise _broker_invalid()
+        active = verified_tenant._ACTIVE_PRESENTATION
+        if (
+            active is None
+            or active[0] is not presentation
+            or active[1] is not presentation._key
+        ):
+            raise _broker_invalid()
+        config = _actor_state(actor_runtime).configuration
+        url = _initial_auth_verifier_url(config)
+        args = engine_connect_args(False)
+        args["gssencmode"] = "disable"
+        args["passfile"] = "/dev/null"
+        require_database_transport(url, args)
+        engine = create_engine(url, connect_args=args, hide_parameters=True)
+
+        def checkout(connection: Any, record: Any, proxy: Any) -> None:
+            """専用poolからの実接続だけを検証する。"""
+            del record, proxy
+            _verify_auth_verifier_checkout(connection, config)
+
+        event.listen(engine, "checkout", checkout)
+    except Exception:
+        if engine is not None:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
+    else:
+        key = object()
+        _AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)
+        return _InitialAuthVerifierRuntime(key, _RUNTIME_CREATION)
+    raise _broker_invalid()
+
+
+def _close_initial_auth_verifier_runtime(runtime: object) -> None:
+    """失効したruntimeを再使用できず、所有poolだけを閉じる。"""
+    state = _auth_verifier_state(runtime)
+    assert type(runtime) is _InitialAuthVerifierRuntime
+    del _AUTH_VERIFIER_RUNTIMES[runtime._key]
+    try:
+        state.engine.dispose()
+    except Exception:
+        pass
+    else:
+        return
+    raise _broker_invalid()
+
+
+def _verify_initial_cookie(
+    runtime: object, cookie: SecretStr
+) -> tuple[UUID, datetime] | None:
+    """実署名/実DB照合結果だけを返し、入力やdriver故障を漏らさない。"""
+    from pitchlog.authz.token_presentation import TokenPresentation
+    from pitchlog.authz.verified_tenant import verify_tenant_id
+
+    try:
+        state = _auth_verifier_state(runtime)
+        _broker_secret(cookie)
+        if type(state.presentation) is not TokenPresentation:
+            raise _broker_invalid()
+        return verify_tenant_id(
+            cookie.get_secret_value(), state.presentation, state.engine
+        )
+    except Exception:
+        pass
+    raise _broker_invalid()

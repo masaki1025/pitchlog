@@ -1386,3 +1386,100 @@ def test_broker_secret_wrapper_does_not_make_invalid_inner_types_valid(inner) ->
     with pytest.raises(b.InitialBrokerUnavailable) as caught:
         b._BrokerIdentity(UUID(int=1), UUID(int=2), cast(Any, SecretStr)(inner))
     assert "raw-private-value" not in str(caught.value)
+
+
+def _b1_verifier_config():
+    """資格を含まない検証専用接続の純fixtureを作る。"""
+    from datetime import UTC, datetime
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    return b._ActorConfiguration(
+        "postgresql+psycopg://pitchlog_initial_actor@/fixture?host=%2Fowned-socket&sslmode=disable",
+        "123",
+        42,
+        "fixture",
+        datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+@pytest.mark.parametrize("index", range(15))
+def test_b1_verifier_rejects_every_changed_checkout_identity(index) -> None:
+    """role7属性/membership/GUC/実DB identityを全欄厳密に照合する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    config = _b1_verifier_config()
+    row = (
+        [b._INITIAL_AUTH_VERIFIER_ROLE] * 2
+        + [True]
+        + [False] * 6
+        + [0, None, "fixture", 42, config.postmaster_started_at, 3]
+    )
+    b._validate_auth_verifier_observation(tuple(row), config)
+    bad = row.copy()
+    bad[index] = 0 if type(row[index]) is bool else "invalid"
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._validate_auth_verifier_observation(tuple(bad), config)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "postgresql+psycopg://pitchlog_app@/fixture?host=%2Fowned-socket&sslmode=disable",
+        "postgresql+psycopg://pitchlog_initial_actor:private@/fixture?host=%2Fowned-socket&sslmode=disable",
+        "postgresql+psycopg://pitchlog_initial_actor@127.0.0.1/fixture?sslmode=disable",
+        "postgresql+psycopg://pitchlog_initial_actor@/fixture?host=%2Fowned-socket&service=evil",
+        "postgresql+psycopg://pitchlog_initial_actor@/other?host=%2Fowned-socket&sslmode=disable",
+    ],
+)
+def test_b1_verifier_cannot_change_endpoint_or_use_app_password_tcp(url) -> None:
+    """Root actorと同じUnix endpointの専用user以外は拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._initial_auth_verifier_url(replace(_b1_verifier_config(), database_url=url))
+
+
+def test_b1_verifier_runtime_requires_root_active_signer_and_expires(
+    monkeypatch,
+) -> None:
+    """pureでは実認証を偽装せず、runtime発行/失効だけを検査する。"""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from pydantic import SecretStr
+
+    from pitchlog.authz import verified_tenant
+    from pitchlog.authz.token_presentation import TokenPresentation
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    signer = TokenPresentation(bytes(range(32)))
+    monkeypatch.setattr(verified_tenant, "_ACTIVE_PRESENTATION", (signer, signer._key))
+    monkeypatch.setattr(b.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(
+        b,
+        "_actor_state",
+        lambda _: SimpleNamespace(configuration=_b1_verifier_config()),
+    )
+    engine = MagicMock()
+    monkeypatch.setattr(b, "create_engine", lambda *a, **kw: engine)
+    monkeypatch.setattr(b.event, "listen", lambda *args: None)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._load_initial_auth_verifier_runtime(
+            object(), TokenPresentation(bytes(range(32)))
+        )
+    runtime = b._load_initial_auth_verifier_runtime(object(), signer)
+    assert "pitchlog_initial_auth_verifier" in b._initial_auth_verifier_url(
+        _b1_verifier_config()
+    )
+    monkeypatch.setattr(verified_tenant, "verify_tenant_id", lambda *args: None)
+    assert b._verify_initial_cookie(runtime, SecretStr("invalid-cookie")) is None
+    b._close_initial_auth_verifier_runtime(runtime)
+    engine.dispose.assert_called_once()
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._verify_initial_cookie(runtime, SecretStr("private-sentinel"))
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._verify_initial_cookie(object(), SecretStr("private-sentinel"))
+    monkeypatch.setattr(b.os, "geteuid", lambda: 20002)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._load_initial_auth_verifier_runtime(object(), signer)

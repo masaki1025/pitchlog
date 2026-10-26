@@ -6198,3 +6198,24 @@ def test_generation_guard_literal_matches_preserved_product_sql() -> None:
     assert module.generate_generation_guard_sql(REPOSITORY_ROOT) == expected.read_text(
         encoding="utf-8"
     )
+
+
+
+def test_b1_verifier_role_database_acl_is_fixed_not_any_fourteenth_role() -> None:
+    """role数だけで通さず独立role値と実DB用途を検査する。"""
+    checker = _load_checker()
+    role = checker.expected_product_roles({})["pitchlog_initial_auth_verifier"]
+    assert role["login"] is True
+    assert all(
+        role[k] is False
+        for k in ("superuser", "bypass_rls", "inherit", "create_role", "create_db", "replication")
+    )
+    asset = json.loads((REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text())
+    checker._validate_product_database_expectations(asset["databases"], lifecycle_required=True)
+    extra = {
+        "grantee": "pitchlog_initial_auth_verifier",
+        "privilege": "TEMPORARY", "grantable": False,
+    }
+    asset["databases"][0]["acl_expectations"].append(extra)
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_database_expectations(asset["databases"], lifecycle_required=True)

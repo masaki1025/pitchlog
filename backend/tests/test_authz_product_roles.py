@@ -167,7 +167,11 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
         attribute_statement = (
             rf"CREATE ROLE {re.escape(role_id)} WITH\s+([^;]+);"
             if role_id
-            in {"pitchlog_rule_resolution_fn_owner", *_LIFECYCLE_ROLE_EXPECTATIONS}
+            in {
+                "pitchlog_rule_resolution_fn_owner",
+                "pitchlog_initial_auth_verifier",
+                *_LIFECYCLE_ROLE_EXPECTATIONS,
+            }
             else rf"ALTER ROLE {re.escape(role_id)} WITH\s+([^;]+);"
         )
         matches = re.findall(
@@ -187,6 +191,7 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
             in {
                 "pitchlog_owner",
                 "pitchlog_rule_resolution_fn_owner",
+                "pitchlog_initial_auth_verifier",
                 *_LIFECYCLE_ROLE_EXPECTATIONS,
             }
             else 1
@@ -227,6 +232,7 @@ def test_product_state_requires_authn_role_even_when_role_is_missing() -> None:
         "pitchlog_auth_fn_owner",
         "pitchlog_rg1_fn_owner",
         "pitchlog_rule_resolution_fn_owner",
+        "pitchlog_initial_auth_verifier",
         *_LIFECYCLE_ROLE_EXPECTATIONS,
     }
     assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
@@ -247,7 +253,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 13
+    assert len(expected_product_roles(asset)) == 14
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):
@@ -321,8 +327,8 @@ def _asset_with_lifecycle_roles() -> dict[str, Any]:
 def test_lifecycle_roles_keep_old_seven_and_exact_six_sql_subjects() -> None:
     """独立6主体の全7属性と、外部台帳roleを混入しない13件を照合する。"""
     current = expected_product_roles({})
-    assert len(current) == 13
-    assert len(set(current) - set(_LIFECYCLE_ROLE_EXPECTATIONS)) == 7
+    assert len(current) == 14
+    assert len(set(current) - set(_LIFECYCLE_ROLE_EXPECTATIONS)) == 8
     assert not {"pitchlog_ledger_owner", "pitchlog_ledger_client"} & set(current)
     for name, attributes in _LIFECYCLE_ROLE_EXPECTATIONS.items():
         assert current[name] == {
@@ -419,3 +425,34 @@ def test_lifecycle_role_asset_matches_strict_reapply_generator(role: str) -> Non
     """正式bodyも厳密な再適用ガードと一致し、単純CREATEを受理しない。"""
     body = _REPOSITORY_ROOT / PRODUCT_SPEC.body_directory / "roles" / f"{role}.sql"
     assert body.read_text() == generate_lifecycle_role_sql(role)
+
+
+def test_b1_verifier_role_exact_and_strict_collision_sql_keeps_old_six() -> None:
+    """旧13の値を保持し、新1主体にも属性/membership衝突拒否を要求する。"""
+    role = expected_product_roles({})["pitchlog_initial_auth_verifier"]
+    assert role == dict(
+        creation="product_ddl",
+        login=True,
+        superuser=False,
+        bypass_rls=False,
+        inherit=False,
+        create_role=False,
+        create_db=False,
+        replication=False,
+    )
+    sql = generate_lifecycle_role_sql("pitchlog_initial_auth_verifier")
+    assert "lifecycle role collision: pitchlog_initial_auth_verifier" in sql
+    assert "m.roleid = r.oid OR m.member = r.oid" in sql
+    assert "ALTER ROLE" not in sql
+    assert all(
+        catalog in sql
+        for catalog in (
+            "rolsuper",
+            "rolbypassrls",
+            "rolcanlogin",
+            "rolcreaterole",
+            "rolcreatedb",
+            "rolreplication",
+            "rolinherit",
+        )
+    )

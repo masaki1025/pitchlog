@@ -3489,6 +3489,7 @@ def _validate_product_database_expectations(
             ("pitchlog_rg1_control_actor", "CONNECT", False),
             ("pitchlog_ledger_identity_probe", "CONNECT", False),
             ("pitchlog_initial_actor", "CONNECT", False),
+            ("pitchlog_initial_auth_verifier", "CONNECT", False),
         })
         database["revoked_acl_expectations"] = cast(
             frozenset[tuple[str, str, bool]], database["revoked_acl_expectations"]
@@ -3496,7 +3497,7 @@ def _validate_product_database_expectations(
             (role, privilege, False)
             for role in (
                 "pitchlog_rg1_control_actor", "pitchlog_ledger_identity_probe",
-                "pitchlog_initial_actor",
+                "pitchlog_initial_actor", "pitchlog_initial_auth_verifier",
             )
             for privilege in ("CREATE", "TEMPORARY")
         )

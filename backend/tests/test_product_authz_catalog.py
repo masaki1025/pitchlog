@@ -434,6 +434,9 @@ def _raw_catalog_rows(
                 False,
             ),
         ],
+        CatalogQueryId.INITIAL_VERIFIER_GLOBAL: list(
+            product_catalog._initial_verifier_global_expectations()
+        ),
         CatalogQueryId.MEMBERSHIPS: [],
         CatalogQueryId.DANGEROUS_LOGIN_ROLES: [
             (owner_oid, "pitchlog_owner"),
@@ -474,8 +477,8 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
 
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
-    assert len(expectations.tables) == 46
-    assert len(expectations.policies) == 39
+    assert len(expectations.tables) == 50
+    assert len(expectations.policies) == 69
     assert {
         row[2]
         for row in expectations.policies
@@ -506,6 +509,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert expectations.database_acl == (
         ("pitchlog_app", "CONNECT", False),
         ("pitchlog_initial_actor", "CONNECT", False),
+        ("pitchlog_initial_auth_verifier", "CONNECT", False),
         ("pitchlog_ledger_identity_probe", "CONNECT", False),
         ("pitchlog_rg1_control_actor", "CONNECT", False),
     )
@@ -977,6 +981,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
     assert report.violations == ()
     assert calls == [
         CatalogQueryId.ROLES,
+        CatalogQueryId.INITIAL_VERIFIER_GLOBAL,
         CatalogQueryId.DATABASE,
         CatalogQueryId.DATABASE_ACL,
         CatalogQueryId.SCHEMAS,
@@ -995,7 +1000,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 30
+    assert len(report.checked_ids) == 31
 
 
 def test_unqualified_public_relation_in_policy_is_red(
@@ -1445,6 +1450,104 @@ def test_lifecycle_details_reject_unknown_function_and_every_attribute_drift(
 def test_lifecycle_details_query_covers_entire_two_schemas() -> None:
     """既知名ANYではなく2schema全関数を読み、未知関数を検出する。"""
     query = product_catalog._query_for_id(CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS)
-    assert "namespace.nspname IN ('rg1_control', 'pitchlog_ledger_observer')" in query
+    assert "namespace.nspname IN (" in query
+    assert "'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api'" in query
+    assert "protect_initial_right_storage" in query
     assert "routine.proconfig" in query and "routine.prosrc" in query
     assert "proname = ANY" not in query and "%s" not in query
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("function", "authn", "unknown", "", "", "EXECUTE", False),
+        ("function", "foreign_ns", "unknown", "", "", "EXECUTE", False),
+        ("schema", "", "foreign_ns", "", "", "USAGE", False),
+        ("table", "foreign_ns", "unknown", "", "", "SELECT", False),
+        ("ownership", "", "", "function foreign_ns.unknown()", "", "OWNER", False),
+    ],
+)
+def test_b1_global_projection_rejects_unknown_actual_permissions(
+    extra, monkeypatch
+) -> None:
+    """宣言外user-objectの実観測をmetadataの許可集合へ自己採用しない。"""
+    rows = _raw_catalog_rows(900)
+    rows[CatalogQueryId.INITIAL_VERIFIER_GLOBAL].append(extra)
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()), privileged_role_oids=frozenset({900})
+    )
+    assert "PRODUCT-CATALOG:INITIAL-VERIFIER-GLOBAL" in {
+        v.check_id for v in report.violations
+    }
+
+
+def test_b1_global_projection_query_is_unfiltered_by_declared_targets() -> None:
+    """新role一件だけを固定し、declared schema/table/function配列を渡さない。"""
+    expected = product_catalog._load_product_expectations()
+    request = next(
+        r
+        for r in product_catalog._catalog_requests(expected, frozenset())
+        if r.query_id is CatalogQueryId.INITIAL_VERIFIER_GLOBAL
+    )
+    assert request.params == ()
+    sql = product_catalog._query_for_id(request.query_id)
+    assert "pitchlog_initial_auth_verifier" in sql and "= ANY(%s)" not in sql
+    assert "pg_shdepend" in sql and "has_function_privilege" in sql
+    # 実末端は空paramsを渡す。固定queryに生%を含めてplaceholder解析を壊さない。
+    assert "%" not in sql
+    assert "pg_catalog.left(nspname,3)<>'pg_'" in sql
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "table",
+        "column",
+        "function",
+        "schema",
+        "membership",
+        "owner",
+        "grantable",
+        "role",
+    ],
+)
+def test_b1_runtime_metadata_unknown_verifier_is_rejected(surface, monkeypatch) -> None:
+    """sourcecheckerの代わりにruntime期待生成入口でも未知権限を拒否する。"""
+    asset = cast(dict[str, Any], copy.deepcopy(product_catalog._load_product_asset()))
+    role = "pitchlog_initial_auth_verifier"
+    if surface in ("table", "column"):
+        group = "acl_expectations" if surface == "table" else "column_acl_expectations"
+        row = copy.deepcopy(asset[group][0])
+        row["grantee_role_id"] = role
+        asset[group].append(row)
+    elif surface in ("function", "grantable"):
+        row = next(
+            r
+            for r in asset["functions"]
+            if r["function_name"]
+            == ("logout" if surface == "function" else "verify_token")
+        )
+        if surface == "function":
+            row["acl_expectations"].append(
+                dict(grantee=role, privilege="EXECUTE", grantable=False)
+            )
+        else:
+            next(g for g in row["acl_expectations"] if g["grantee"] == role)[
+                "grantable"
+            ] = 0
+    elif surface == "schema":
+        next(r for r in asset["schemas"] if r["schema_id"] == "public")[
+            "acl_expectations"
+        ].append(dict(grantee=role, privilege="CREATE", grantable=False))
+    elif surface == "owner":
+        asset["schemas"][0]["owner"] = role
+    elif surface == "membership":
+        asset["membership_edges"].append(
+            dict(role_id=role, member_role_id="pitchlog_app")
+        )
+    else:
+        next(r for r in asset["roles"] if r["role_id"] == role)["inherit"] = True
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    with pytest.raises(ProductCatalogError):
+        product_catalog._load_product_expectations()
