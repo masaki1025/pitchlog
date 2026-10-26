@@ -700,3 +700,16 @@ metadata56供給packet48f5740d0e1746117fdbc59ecb0509e4cf36b006227ae3dff9f7189daf
 保全一式は /home/ymdms/.cache/pitchlog/mvp-pause-20261026-0617-jst/ 。pause-receipt.json SHA c8b05836d87f11bd7d2a69b92ed93f2143f87cfe4f5a4ca7b820bdef45c3dd74、start/math/RG1の3bundleを実verify済み。開始treeの98dirty全pathを所有既存manifest＋許可13へ照合し、削除/前後SHA/全現在byte/追跡diffを保全。未知pathや.envは読取/採用しない。外部CIは自然継続させ、完了を待つため中断を遅らせない。
 
 再開順は、PR186 CI回収と差分条件確認、B1の保全4sourceを変更SHAで再照合→global catalog/checker/試験/owned実Cookie→非作者受理、並行してPR184の残backend/正式値/CIを閉じる。実enrollの同Session RG1保証/worker/開始API/UI/初期state・初球同期原子保存/再取得をつなぐ。実画面は隔離preparing作成→実DB保存→再取得までで、開始・初期権実UI・1球保存/再読込は未達。全T1/成績/双方CSV/全MVP・実機/運用復旧は未完である。
+
+
+### 2026-10-26 13:40 JST：再開後の成果保全・PO指示による中断
+
+POの「切りがいいところまでいったら一回作業を中断」に従い、新しい実装・DB試験・統合を開始せず保存して停止する。全MVPの完了判定ではない。前回の中断証拠は上書きしない。
+
+- 初球数学PR186の最終HEAD256838ccに対するCI40233839180は全12job成功を回収済み。HTTP/DB/原子保存等の親計画のmerge前義務は未達のためDraftを維持し、正式提供とは扱わない。
+- PR184候補は19e64c8bまで保存（公開枝より26commit先、未push）。承認済み7testpathのうち3pathは純74成功・実owned DB11成功・非作者レビュー残0を確認しコミット済み。残4pathはWIPとして保存。実DB初回13件中11成功・2失敗39.96s、2原因はtest-only metadataとDB driver選択であり修正済み。反映1の非作者レビュー379563f73ff46b8f12c915a38270148c436e5726d9e0b365522271947467a76bは残0。修正後DB再検査は未実施で、全backend/最終CI/正式統合は残る。
+- 開始候補HEAD86f876eaは既push済み。B1の専用Cookie再検証13pathと正式未受理metadataを分離保全する。R1実DBで実Cookie/専用peer、越権拒否、tenant不一致拒否、TTL延長まで通過したが、期限切れ入力fixtureが既存CHECKへ違反しrun全体は失敗23.90s。試験入力のlast_used_at/expires_at等を既存CHECKに整合させる反映2を準備し、中断時の担当handoffに固定する。実Cookie検証全成立・開始HTTP/UI成功には読み替えない。
+
+保全先は /home/ymdms/.cache/pitchlog/mvp-pause-20261026-1340-jst/ 。RG1/start/mathのHEAD bundle・未コミット全対象byte・差分・SHAを保存。担当の最終停止/所有DB cleanup記録を合わせて再開点とする。
+
+再開時は、PR184の修正済み4pathの最終owned DB再検査とB1反映2の実DB検証を直列で実施し、非作者受理/正式値/必要CIを閉じる。続いてenrollの同Session RG1保証・worker・開始API/UI・初期state・初球同期原子保存/取得へ進む。実画面到達点は隔離候補での新規preparing作成→実DB保存→再取得まで。開始・初期権・初球保存/再読込、全T1、全MVP/実機/復旧は未完。既存委任と採用判断を維持する。
