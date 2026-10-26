@@ -29,7 +29,7 @@
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
 | A 試合作成・preparing再取得 | 旧隔離eda71a48＋20ee2e98で実証。create候補903e3b09は正式RG1 3a24へ追随 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値は旧固定候補で実証。新候補の局所検査・非作者確認成功 | 新候補の正式値/通常統合・実画面再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | start72f4118a（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開208ee7d9（PR187）、N2 read登録e0566d49、N1実writer9557fe16 | 固定隔離組立run1793024422089で実画面の新規create→実DB再取得→開始→初期grant IDB保存→reload過去grant表示まで実証。通常33本体/単一artifact/未登録初期readerも検証済み。started GETは404、1球保存・現在権利のサーバー復元は未達 | 正式7.7/CI/通常統合、実writer binding migration/ACL/provider登録、初期readerの実DB/HTTP接続、T1-T2同TX原子保存・記録後復元 |
+| B 開始・権利・1球保存と復元 | start72f4118a（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開208ee7d9（PR187）、N2 read登録e0566d49、N1実writer/認可7644b780 | 固定隔離組立run1793024422089で実画面の新規create→実DB再取得→開始→初期grant IDB保存→reload過去grant表示まで実証。通常33本体/単一artifact/未登録初期readerも検証済み。started GETは404、1球保存・現在権利のサーバー復元は未達 | 正式7.7/CI/通常統合、実writer binding migration/ACL/provider登録、初期readerの実DB/HTTP接続、T1-T2同TX原子保存・記録後復元 |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
 | D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create、start1592e48d | 作成故障に加えowned worker/Node/DB停止・応答喪失同要求照会・実端末失効後の非成功を実証。pendingを終結/全取消と推定しない | 未解決要求の確定終結/後着遮断、記録後offline再起動・交代・再送等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
@@ -901,3 +901,22 @@ PR187の通常追随source3は独立0c23f713…残0/24成功＋25変異拒否後
 product供給candidateはmanifest6c619cd6a3e3212767c38226f06d4ab3dc9304239d4d379aa24c092f24c49a7e/patch21b3d17b…、source10+tests2+metadata/body55の67変更へ固定。作者新156成功＋実生成API9成功/Rufftyformat、関連2622成功/10fixture追随赤を保持し、live/DB/Git変更0。別非作者product_supply_independentへ深掘りを割当。runtime24/全9asset・実外部射影は未受理中間候補であり、rootの最終registryと正本1.5採否後にだけ再導出する。
 
 正本/schema/test3の第1回敵対reviewは進行中。新2表・namespace・global一意の正本初掲載は7.6構造変更に当たり、『版上げ0の実装追随』という初回root分類を撤回した。新意味の再判断を求めず、限定7.3＋版1.5/PO委任root確定へ訂正（候補作者が承認済みを代記しない）。さらに0036静的検出がupgrade先頭return/raiseでも4表実装済みと返すP1反例2を固定。元0036 upgrade全ASTへ閉じ、旧owner条件付きraiseとDDL5/全元検出・拒否を保持して同3path内で反映1を作成中。旧候補全値/失敗を保全し、第2回レビュー後に採用する。未実施の実DB8本・実機・運用復旧、MVP全範囲は維持する。
+
+
+### 2026-10-27：PO指示による一時中断・再開点
+
+POの「切りのよいところで一度作業を止める」を受領し、現在単位の整合保存後に中断する。新しい実DB8本/CI/実装単位へ入っていない。全subagentはcacheまたは最終報告へ保存して停止。Goalは未完のままpausedへ変更し、MVP全体の機能・品質・受入と既委任は維持する。
+
+今回保存：データモデル1.5限定7.3確定と52表manifest/静的検出をaaa8cd6d、実PG VOID空文字のstrict adapterを59c24e4b、同writer保存用4function実登録/contract29→30をbb78f9d4へ保存。後者の影響5module442成功1.44s、当初4集合未追随1赤/343成功とty引数slice誤推論・import順診断は是正履歴を保持。VOID単独は非作者061bdf6e…残0/92成功/18追加変異拒否、SQL全文/6bind/既None-only decoder・他20登録保持。実PG17primitive診断43ea53e0…はvoid型境界だけでactualU2成功0、初回image tag17不在はcontainer起動0/installed17.11-bookwormで再実施後ownedcontainer削除。
+
+source67＋最終派生3＋planを7644b780へ保存。product反映1 manifest2be3a838…/第2回6acc495b…（0/0/0）で再適用P1をsource上閉鎖、実二度applyは未実施。根拠source/files全beforeafter一致、旧418SQL文・他64保持、新9は未存在CREATE原文/既存属性・owner・ABI・prosrc・全ACL・guard4構造一致でskip、未知既設定のALTER修復0。TABLE戻り表記も新9の意味不変空白整合だけで、実PG戻り文字列は次のactualDBで照合する。
+
+最終runtime24/module/ledger参照SHA2はrootの実product e41f738d…/doc6ae73d…/repo30から再導出し、非作者ae3c96a62ad0264657fcaa19d11f667de092a0dbd288097c45903cf668373838/checks25198656…残0で受理。完全4外部込み射影849176…→95b410…、旧8/50/79→11/52/88をprefix保持、app7属性/他object維持、ledger source90c/adaptere12の2参照だけ追随。actual adoption f5911c12…に実日時/判断者/対象全SHA/留保を固定し、本人署名0。現在単位の同一実treeで新認可/登録/VOID/schema影響4module303成功2.62s。未受理中間runtime24を流用せず、公開7.7/最終core/全CIとは分離する。旧広域2622成功10fixture追随赤は別未閉、CI再実行はしていない。
+
+再開の主WTはfeature-mvp-first-ball-writer-binding（HEAD7644b780、rootは通常pushで保全）。最初は既owned fixtureを使うtest_sync_writer_binding.pyの最小1件（samewriter admission commit/closed gate）で実profile/catalog/PG表記/起動接合を診断し、成功後に残7件・実二度apply/属性/trigger実変異へ進む。source上の成功を実DB耐久性へ読み替えない。
+
+次接合はcache first-ball-real-sync-projection-unit-20261027/：毎球はP2、PORT_IMPLEMENTATIONS空/HTTPからapply_sync_request未接続、Port import閉包の拒否を保持してprivileged coreで同writer snapshot→単一T1/T2評価→一回消費private frame→実保存rowのbounded FKへ投影する案。N2初期readerはevent/D3後には使えないためvalidator段階で評価が必要、PlayRowの不足JSONは既event.payload/state_diffの正式保存写像と記録後GETを同unitで閉じる必要がある。実Control用request fingerprint生成器も未供給で既F2/P7 recipe照合が残る。
+
+V5 pure codec2は作者40成功/6変異拒否・元9source不変でcache固定（manifest d38522d1…/patchfdad4ddd…）。stable wire str'1'→既PLAY_INPUT_EVENT_KINDだけ、原Event/Request/fingerprint式を変えない。独立確認は中断指示で静的読取りまで、pause-checkpoint a88573a825adfa1999824df180ad6009b63121d2045cfc072df25d8e59255fcb/REPORTb5b6cd32…へ未完保存、独立試験・採否未実施。本体へ未反映。PR187 source3はlocal0a9c9658/公開208ee7d9、corpus世代不整合が残り未pushを維持。
+
+利用者の実証済み操作は旧固定隔離の画面新規作成→開始→初期grant端末保存まで。1球の実DB保存/サーバー再読込、全T1/取消訂正/成績・双方CSV/通信断・交代/実機・運用復旧は未完。中断は完成判定ではない。
