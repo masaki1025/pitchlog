@@ -1796,6 +1796,16 @@ def ordinary_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         'scripts/check_human_review_signature.py', 'tests/test_human_review_signature.py',
         'docs/features/mvp-delegated-core-review/policy.json',
     }
+    # 7.7はstubせず、同じcache候補の実機械資産/外部sourceで検査する。
+    for asset_path in (repository / "contracts/tenant_boundary").glob("*.json"):
+        paths.add(asset_path.relative_to(repository).as_posix())
+        asset = json.loads(asset_path.read_bytes())
+        control = asset.get("baseline_control")
+        if isinstance(control, dict):
+            paths.update(control["identity"]["frozen_projection"]["external_files"])
+    for snapshot in (repository / "contracts/tenant_boundary/history-snapshots").iterdir():
+        if snapshot.is_file():
+            paths.add(snapshot.relative_to(repository).as_posix())
     for path in paths:
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -2412,3 +2422,611 @@ def test_ordinary_rejects_legacy_or_foreign_public_base(ordinary_fixture: Any, b
     changed = guard.PullRequestEvent(**{**vars(event), 'base_sha': base})
     with pytest.raises(checker.HumanReviewSignatureRecordError):
         checker.validate_gate6_ci_event(root, changed)
+
+
+def _ordinary_registry_fixture_bytes() -> bytes:
+    """正式候補viewの実4入力を負例へ複製する。承認値を新造しない。"""
+    return (Path(__file__).resolve().parents[1] / checker._ORDINARY_REGISTRY_PATH).read_bytes()
+
+
+@pytest.mark.parametrize('key', list(checker._ORDINARY_PIN_DECLARATIONS))
+def test_ordinary_frozen_input_rejects_each_missing_entry(key: str) -> None:
+    """4入力の欠落を旧定数や別rootで補わない。"""
+    asset = json.loads(_ordinary_registry_fixture_bytes())
+    del asset['frozen_inputs'][key]
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_registry(json.dumps(asset).encode())
+
+
+@pytest.mark.parametrize('fault', [
+    'unknown-top', 'unknown-entry', 'bool', 'integer', 'short', 'uppercase',
+    'purpose', 'consumer', 'algorithm', 'schema-bool', 'revision-bool', 'duplicate',
+])
+def test_ordinary_frozen_input_rejects_closed_field_faults(fault: str) -> None:
+    """固定入力の型/目的/consumer/重複をsourceで閉じる。"""
+    asset = json.loads(_ordinary_registry_fixture_bytes())
+    key = 'gate6_ordinary_record_raw_sha256'
+    entry = asset['frozen_inputs'][key]
+    if fault == 'unknown-top':
+        asset['unexpected'] = True
+    elif fault == 'unknown-entry':
+        entry['unexpected'] = True
+    elif fault in {'bool', 'integer', 'short', 'uppercase'}:
+        entry['value'] = {'bool': False, 'integer': 1, 'short': 'f',
+                          'uppercase': 'A' * 64}[fault]
+    elif fault == 'purpose':
+        entry['purpose'] = '別の基準'
+    elif fault == 'consumer':
+        entry['source'] = 'arbitrary.consumer'
+    elif fault == 'algorithm':
+        entry['algorithm'] = 'other'
+    elif fault == 'schema-bool':
+        asset['schema_version'] = True
+    elif fault == 'revision-bool':
+        asset['contract_revision'] = True
+    raw = json.dumps(asset).encode()
+    if fault == 'duplicate':
+        raw = b'{"schema_version":1,' + raw[1:]
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_registry(raw)
+
+
+@pytest.mark.parametrize('flag', [
+    'personalReviewClaimed', 'P6FullAcceptance', 'P7FullAcceptance', 'T1BodyStartComplete',
+])
+@pytest.mark.parametrize('value', [True, 0, None])
+def test_ordinary_source_frame_rejects_coedited_schema_and_receipt(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch, flag: str, value: Any,
+) -> None:
+    """rawpinもschemaも更新する反例でも限定資格falseはsourceが拒否する。"""
+    root, _, _, _, _, _, _, _ = ordinary_fixture
+    record_path = root / checker.GATE6_ORDINARY_PATH
+    schema_path = root / checker.GATE6_ORDINARY_SCHEMA_PATH
+    record = json.loads(record_path.read_bytes())
+    schema = json.loads(schema_path.read_bytes())
+    record['scopeReceipt'][flag] = value
+    schema['properties']['scopeReceipt']['properties'][flag] = {'const': value}
+    _write_t1_append_json(record_path, record)
+    _write_t1_append_json(schema_path, schema)
+    monkeypatch.setattr(checker, '_ORDINARY_RECORD_SHA256',
+                        hashlib.sha256(record_path.read_bytes()).hexdigest())
+    monkeypatch.setattr(checker, '_ORDINARY_SCHEMA_SHA256',
+                        hashlib.sha256(schema_path.read_bytes()).hexdigest())
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_record(root)
+
+
+@pytest.mark.parametrize('fault', [
+    'schema-bool', 'kind', 'status', 'anchor', 'authority-extra', 'foreign-repository',
+    'pr-bool', 'branch', 'base', 'receipt-extra', 'receipt-missing', 'asset-extra',
+    'asset-missing', 'asset-value',
+])
+def test_ordinary_fixed_frame_rejects_scope_and_key_expansion(fault: str) -> None:
+    """schemaの自己宣言と別に既7key/9asset/authorityを保護する。"""
+    record, _ = _ordinary_test_materials(Path(__file__).resolve().parents[1])
+    if fault == 'schema-bool':
+        record['schemaVersion'] = True
+    elif fault == 'kind':
+        record['evidenceKind'] = 'other'
+    elif fault == 'status':
+        record['status'] = 'complete'
+    elif fault == 'anchor':
+        record['anchor'] = checker._ORDINARY_PUBLIC_BASE
+    elif fault == 'authority-extra':
+        record['authority']['extra'] = True
+    elif fault == 'foreign-repository':
+        record['authority']['repository'] = 'other/repo'
+    elif fault == 'pr-bool':
+        record['authority']['pr'] = True
+    elif fault == 'branch':
+        record['authority']['branch'] = 'feature/other'
+    elif fault == 'base':
+        record['authority']['baseRevision'] = checker._ORDINARY_ANCHOR
+    elif fault == 'receipt-extra':
+        record['scopeReceipt']['extra'] = False
+    elif fault == 'receipt-missing':
+        del record['scopeReceipt']['personalReviewClaimed']
+    elif fault == 'asset-extra':
+        record['assets']['other.json'] = 'a' * 64
+    elif fault == 'asset-missing':
+        record['assets'].pop(next(iter(record['assets'])))
+    elif fault == 'asset-value':
+        record['assets'][next(iter(record['assets']))] = True
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_fixed_frame(record)
+
+
+@pytest.mark.parametrize('fault', ['missing-base', 'current-coedit', 'base-invalid'])
+def test_ordinary_registry_inheritance_reads_base_before_current(
+    ordinary_fixture: Any, fault: str,
+) -> None:
+    """Cはcurrentの正常/共同改変をbase登録の代替にしない。"""
+    root, guard, event, base, baseline, calls, _, _ = ordinary_fixture
+    path = str(checker._ORDINARY_REGISTRY_PATH)
+    later = _ordinary_later_event(root, guard, event, base)
+    if fault == 'missing-base':
+        del baseline[path]
+    elif fault == 'base-invalid':
+        baseline[path] = b'{}'
+    else:
+        asset = json.loads((root / path).read_bytes())
+        asset['frozen_inputs']['gate6_ordinary_record_raw_sha256']['value'] = 'f' * 64
+        _write_t1_append_json(root / path, asset)
+    calls.clear()
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_pin_registration(root, later, new_acceptance=False)
+    assert calls[0] == ['show', f'{base}:{path}']
+
+
+@pytest.mark.parametrize('fault', ['history-missing', 'history-id', 'old-entry', 'external',
+                                  'registry-coedit', 'record-schema-pin-coedit'])
+def test_ordinary_registration_requires_actual_77_transition(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch, fault: str,
+) -> None:
+    """Bの値自己比較だけを正にせず、既7.7全射影が共同改変を拒否する。"""
+    root, _, event, _, _, _, _, _ = ordinary_fixture
+    registry_path = root / checker._ORDINARY_REGISTRY_PATH
+    asset = json.loads(registry_path.read_bytes())
+    history_path = root / 'contracts/tenant_boundary/base-allowlist.json'
+    history = json.loads(history_path.read_bytes())
+    if fault == 'history-missing':
+        history['baseline_control']['history'].pop()
+        _write_t1_append_json(history_path, history)
+    elif fault == 'history-id':
+        history['baseline_control']['history'][-1]['acceptance_id'] = 'other/repo#187'
+        _write_t1_append_json(history_path, history)
+    elif fault == 'old-entry':
+        old = next(key for key in asset['frozen_inputs']
+                   if key not in checker._ORDINARY_PIN_DECLARATIONS)
+        asset['frozen_inputs'][old]['purpose'] = '既値を共同変更'
+        _write_t1_append_json(registry_path, asset)
+    elif fault == 'external':
+        asset['baseline_control']['identity']['frozen_projection']['external_files'].pop()
+        _write_t1_append_json(registry_path, asset)
+    else:
+        record_path = root / checker.GATE6_ORDINARY_PATH
+        record = json.loads(record_path.read_bytes())
+        if fault == 'record-schema-pin-coedit':
+            record_path.write_text(json.dumps(record, ensure_ascii=False, indent=4) + '\n')
+            schema_path = root / checker.GATE6_ORDINARY_SCHEMA_PATH
+            schema = json.loads(schema_path.read_bytes())
+            schema_path.write_text(json.dumps(schema, ensure_ascii=False, indent=4) + '\n')
+            asset['frozen_inputs']['gate6_ordinary_schema_raw_sha256']['value'] = (
+                hashlib.sha256(schema_path.read_bytes()).hexdigest())
+        record_path.write_bytes(record_path.read_bytes() + b'\n')
+        asset['frozen_inputs']['gate6_ordinary_record_raw_sha256']['value'] = (
+            hashlib.sha256(record_path.read_bytes()).hexdigest())
+        # fresh consumerが共同変更済みregistryを読んだ状況を模す。7.7はstubしない。
+        _write_t1_append_json(registry_path, asset)
+        pins = checker._ordinary_registry(registry_path.read_bytes())[1]
+        monkeypatch.setattr(checker, '_ORDINARY_PIN_VALUES', pins)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_pin_registration(root, event, new_acceptance=True)
+
+
+def test_ordinary_coedited_snapshot_cannot_reuse_original_final_head(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """7.7afterまで共同更新した反例は、独立の元final blob束縛が拒否する。"""
+    from scripts import frozen_archive, frozen_history
+
+    root, _, event, _, baseline, _, _, _ = ordinary_fixture
+    registry_path = str(checker._ORDINARY_REGISTRY_PATH)
+    registry = json.loads((root / registry_path).read_bytes())
+    for path, key, constant in [
+        (checker.GATE6_ORDINARY_PATH, 'gate6_ordinary_record_raw_sha256',
+         '_ORDINARY_RECORD_SHA256'),
+        (checker.GATE6_ORDINARY_SCHEMA_PATH, 'gate6_ordinary_schema_raw_sha256',
+         '_ORDINARY_SCHEMA_SHA256'),
+    ]:
+        target = root / path
+        target.write_bytes(target.read_bytes() + b'\n')
+        digest = hashlib.sha256(target.read_bytes()).hexdigest()
+        registry['frozen_inputs'][key]['value'] = digest
+        monkeypatch.setattr(checker, constant, digest)
+    _write_t1_append_json(root / registry_path, registry)
+    monkeypatch.setattr(checker, '_ORDINARY_PIN_VALUES',
+                        checker._ordinary_registry((root / registry_path).read_bytes())[1])
+    targets = registry['baseline_control']['identity']['frozen_projection']['external_files']
+    content = frozen_history.frozen_projection_content(
+        registry, {path: (root / path).read_bytes() for path in targets})
+    digest = hashlib.sha256(content).hexdigest()
+    archive = root / 'contracts/tenant_boundary/history-snapshots'
+    (archive / digest).write_bytes(content)
+    history_path = root / 'contracts/tenant_boundary/base-allowlist.json'
+    authority = json.loads(history_path.read_bytes())
+    after = authority['baseline_control']['history'][-1]['change']['after']
+    row = next(item for item in after['asset_snapshots'] if item['path'] == registry_path)
+    previous = Path(row['snapshot_ref']).name
+    row['sha256'] = digest
+    row['snapshot_ref'] = 'contracts/tenant_boundary/history-snapshots/' + digest
+    _write_t1_append_json(history_path, authority)
+    referenced = frozen_archive.extract_referenced_snapshot_names(
+        authority['baseline_control']['history'], archive, location='合成共同変更')
+    if previous not in referenced:
+        (archive / previous).unlink()
+    # この自己整合だけで正式受理とはしない。外部headは元のblobを指す。
+    checker._ordinary_pin_registration(root, event, new_acceptance=True)
+    read = checker._carry_git_bytes
+
+    def original_final_head(repository: Path, args: list[str]) -> bytes:
+        if args == ['show', f'{event.head_sha}:{registry_path}']:
+            return baseline[registry_path]
+        return read(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', original_final_head)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_head(root, event, checker._ordinary_record(root))
+
+
+
+def _ordinary_test_tenant_checker() -> Any:
+    """製品helperと同じmodule instanceを取得し、二重importのstub漏れを防ぐ。"""
+    try:
+        return importlib.import_module('check_tenant_boundary_bypass')
+    except ModuleNotFoundError:
+        importlib.import_module('scripts.check_tenant_boundary_bypass')
+        return importlib.import_module('check_tenant_boundary_bypass')
+
+def _ordinary_reproject_last_after(root: Path) -> None:
+    """合成対向のcurrent実byteから最終after全射影だけを再構成する。"""
+    tenant = _ordinary_test_tenant_checker()
+
+    frozen = tenant.frozen_history
+    assets = {path: json.loads((root / path).read_bytes())
+              for path in checker._ORDINARY_REGISTRATION_ASSETS}
+    components = frozen._repository_components(assets, '合成after')
+    targets = sorted({path for value in components.values() for path in value.external_files})
+    implementations = {path: (root / path).read_bytes() for path in targets}
+    snapshots, payloads = frozen._asset_projection_snapshots(assets, implementations, '合成after')
+    archive = root / 'contracts/tenant_boundary/history-snapshots'
+    for content in {**implementations, **payloads}.values():
+        (archive / hashlib.sha256(content).hexdigest()).write_bytes(content)
+    authority_path = root / tenant.DEFAULT_ALLOWLIST
+    authority = json.loads(authority_path.read_bytes())
+    previous_after = authority['baseline_control']['history'][-1]['change']['after']
+    previous_refs = {Path(row['snapshot_ref']).name
+                     for kind in ('external_snapshots', 'asset_snapshots')
+                     for row in previous_after[kind]}
+    authority['baseline_control']['history'][-1]['change']['after'] = {
+        'declaration': {path: value.declaration for path, value in components.items()},
+        'movement_policy': {path: value.movement_policy for path, value in components.items()},
+        'external_snapshots': frozen._implementation_snapshots(
+            targets, implementations, '合成after'),
+        'asset_snapshots': snapshots,
+    }
+    _write_t1_append_json(authority_path, authority)
+    references = tenant.frozen_archive.extract_referenced_snapshot_names(
+        authority['baseline_control']['history'], archive, location='合成after参照')
+    for name in previous_refs - references:
+        (archive / name).unlink()
+
+
+def test_ordinary_b_captured_external_dirty_cannot_reuse_original_head(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧P0反例: 実HEAD一致でもconsumer-only dirtyと自己整合afterを拒否する。"""
+    root, _, event, _, _, calls, _, fetches = ordinary_fixture
+    path = 'tests/domain/test_boot_seal.py'
+    before = (root / path).read_bytes()
+    (root / path).write_bytes(before + b'\n# synthetic external-only dirty\n')
+    _ordinary_reproject_last_after(root)
+    read = checker._carry_git_bytes
+
+    def original_consumer_blob(repository: Path, args: list[str]) -> bytes:
+        if args == ['show', f'{event.head_sha}:{path}']:
+            calls.append(args)
+            return before
+        return read(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', original_consumer_blob)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='実読取資料'):
+        checker.validate_gate6_ci_event(root, event)
+    assert ['show', f'{event.head_sha}:{path}'] in calls
+    assert fetches == []
+
+
+@pytest.mark.parametrize('kind', ['authority', 'asset', 'snapshot'])
+def test_ordinary_registration_binds_captured_metadata_and_referenced_snapshot(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch, kind: str,
+) -> None:
+    """実7.7内部整合とは別に、全実読取資料の最終Git blob一致を要求する。"""
+    root, _, event, _, _, calls, _, fetches = ordinary_fixture
+    if kind == 'authority':
+        path = 'contracts/tenant_boundary/base-allowlist.json'
+    elif kind == 'asset':
+        path = 'contracts/tenant_boundary/census-baseline.json'
+    else:
+        authority = json.loads(
+            (root / 'contracts/tenant_boundary/base-allowlist.json').read_bytes())
+        path = authority['baseline_control']['history'][-1]['change']['after'][
+            'external_snapshots'][0]['snapshot_ref']
+    read = checker._carry_git_bytes
+
+    def older_blob(repository: Path, args: list[str]) -> bytes:
+        if args == ['show', f'{event.head_sha}:{path}']:
+            calls.append(args)
+            return (root / path).read_bytes() + b'\n'
+        return read(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', older_blob)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='実読取資料'):
+        checker.validate_gate6_ci_event(root, event)
+    assert ['show', f'{event.head_sha}:{path}'] in calls
+    assert fetches == []
+
+
+@pytest.fixture
+def ordinary_188_fixture(ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """実検証器へ合成base/head Git観測と188証拠を供給し、7.7/core判定はstubしない。"""
+    tenant = _ordinary_test_tenant_checker()
+
+    root, guard, old_event, base, baseline, calls, comment, fetches = ordinary_fixture
+    frozen = tenant.frozen_history
+    registry_path = str(checker._ORDINARY_REGISTRY_PATH)
+    registry = json.loads((root / registry_path).read_bytes())
+    for path in checker._ORDINARY_FOLLOWUP_EXTERNALS:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / path).read_bytes())
+    # 値は合成40hexの型対向。実188の意味採用/公開受理ではない。
+    registry['frozen_inputs'].update({
+        key: {'value': checker._ORDINARY_PUBLIC_BASE, **declaration}
+        for key, declaration in checker._ORDINARY_FOLLOWUP_DECLARATIONS.items()})
+    registry['contract_revision'] += 1
+    registry['baseline_control']['identity']['current_identifiers'] = [
+        'contract_revision:' + str(registry['contract_revision'])]
+    registry['baseline_control']['identity']['frozen_projection']['external_files'] += list(
+        checker._ORDINARY_FOLLOWUP_EXTERNALS)
+    _write_t1_append_json(root / registry_path, registry)
+    states = []
+    for is_base in (True, False):
+        assets = {path: json.loads(baseline[path] if is_base else (root / path).read_bytes())
+                  for path in checker._ORDINARY_REGISTRATION_ASSETS}
+        components = frozen._repository_components(assets, '合成188')
+        targets = sorted({path for value in components.values() for path in value.external_files})
+        implementations = {path: baseline[path] if is_base else (root / path).read_bytes()
+                           for path in targets}
+        snapshots, payloads = frozen._asset_projection_snapshots(assets, implementations, '合成188')
+        for content in {**implementations, **payloads}.values():
+            (root / 'contracts/tenant_boundary/history-snapshots' /
+             hashlib.sha256(content).hexdigest()).write_bytes(content)
+        states.append({
+            'declaration': {path: value.declaration for path, value in components.items()},
+            'movement_policy': {path: value.movement_policy for path, value in components.items()},
+            'external_snapshots': frozen._implementation_snapshots(
+                targets, implementations, '合成188'),
+            'asset_snapshots': snapshots,
+        })
+    authority_path = root / tenant.DEFAULT_ALLOWLIST
+    authority = json.loads(authority_path.read_bytes())
+    record = copy.deepcopy(authority['baseline_control']['history'][-1])
+    record['acceptance_id'] = 'masaki1025/pitchlog#188'
+    record['previous_baseline_identifiers'] = {
+        path: list(value.current_identifiers)
+        for path, value in frozen._repository_components(
+            {path: json.loads(baseline[path]) for path in checker._ORDINARY_REGISTRATION_ASSETS},
+            '合成188base').items()}
+    record['new_baseline_identifiers'] = {
+        path: list(value.current_identifiers)
+        for path, value in frozen._repository_components(
+            {path: json.loads((root / path).read_bytes())
+             for path in checker._ORDINARY_REGISTRATION_ASSETS}, '合成188current').items()}
+    record['change'] = {'subject': '合成188閉登録',
+                        'aspect': sorted(frozen.derive_aspects(*states)),
+                        'before': states[0], 'after': states[1]}
+    authority['baseline_control']['history'].append(record)
+    _write_t1_append_json(authority_path, authority)
+    policy_path = root / guard.DELEGATION_POLICY_PATH
+    policy = json.loads(policy_path.read_bytes())
+    policy['targets'].append({'pr': 188, 'branch': checker._ORDINARY_FOLLOWUP_BRANCH})
+    _write_t1_append_json(policy_path, policy)
+    url = 'https://github.com/masaki1025/pitchlog/pull/188#issuecomment-188'
+    event = guard.PullRequestEvent(base, old_event.head_sha, 'PO-DELEGATION-EVIDENCE: ' + url,
+        188, old_event.repository, old_event.head_repository, checker._ORDINARY_FOLLOWUP_BRANCH)
+    original_tenant_git = tenant._run_git
+
+    def tree_rows(files: dict[str, bytes], prefix: str) -> str:
+        return ''.join('100644 blob ' + hashlib.sha1(raw).hexdigest() + '\t' + path + '\n'
+                       for path, raw in sorted(files.items())
+                       if path == prefix or path.startswith(prefix + '/'))
+
+    def tenant_git(repository: Path, arguments: Any) -> str:
+        args = list(arguments)
+        current_files = {path.relative_to(root).as_posix(): path.read_bytes()
+                         for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+        if args[:2] == ['ls-tree', '-r']:
+            revision, prefix = args[2], args[-1]
+            if revision in {base, 'HEAD'}:
+                return tree_rows(baseline if revision == base else current_files, prefix)
+        if args[:2] == ['--literal-pathspecs', 'ls-tree']:
+            revision, path = args[2], args[-1]
+            if revision in {base, 'HEAD'}:
+                return tree_rows(baseline if revision == base else current_files, path)
+        if args[:1] == ['show'] and args[1].startswith(base + ':'):
+            return baseline[args[1].split(':', 1)[1]].decode()
+        if args == ['rev-list', '--parents', '-n', '1', 'HEAD']:
+            return event.head_sha + ' ' + base + '\n'
+        return original_tenant_git(repository, args)
+
+    monkeypatch.setattr(tenant, '_run_git', tenant_git)
+    old_guard_git = guard._delegation_git_bytes
+    def changed_observation() -> dict[str, Any]:
+        current = {path.relative_to(root).as_posix(): path.read_bytes()
+                   for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+        return {path: {'before': hashlib.sha256(baseline[path]).hexdigest()
+                      if path in baseline else None,
+                      'after': hashlib.sha256(current[path]).hexdigest()
+                      if path in current else None}
+                for path in sorted(set(baseline) | set(current))
+                if baseline.get(path) != current.get(path)}
+
+    def diff_bytes() -> bytes:
+        # 合成Git観測だが、共同変更後に元のdiff hashを返すstubにはしない。
+        return json.dumps(changed_observation(), sort_keys=True).encode()
+
+    paths = list(changed_observation())
+
+    def guard_git(repository: Path, args: list[str], label: str) -> bytes:
+        if args == ['ls-tree', '--format=%(objecttype)', base, '--',
+                    str(guard.DELEGATION_POLICY_PATH)]:
+            return b'blob\n'
+        if args == ['show', f'{base}:{guard.DELEGATION_POLICY_PATH}']:
+            return baseline[str(guard.DELEGATION_POLICY_PATH)]
+        if args[:1] == ['diff'] and args[-1] == f'{base}...{event.head_sha}':
+            return diff_bytes()
+        return old_guard_git(repository, args, label)
+
+    monkeypatch.setattr(guard, '_delegation_git_bytes', guard_git)
+    old_changed = guard.changed_paths
+    monkeypatch.setattr(guard, 'changed_paths', lambda repository, b, h:
+        list(changed_observation()) if (b, h) == (base, event.head_sha)
+        else old_changed(repository, b, h))
+    evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+    evidence.update({'authority_sha256': hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+                     'pr': 188, 'base': base,
+                     'diff_sha256': hashlib.sha256(diff_bytes()).hexdigest(),
+                     'paths': paths})
+    comment.update({'id': 188, 'html_url': url,
+                    'issue_url': 'https://api.github.com/repos/masaki1025/pitchlog/issues/188',
+                    'body': guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)})
+    return root, guard, event, base, baseline, calls, comment, fetches
+
+
+def test_ordinary_c_accepts_exact_188_append_with_actual_77_and_current_core_evidence(
+    ordinary_188_fixture: Any,
+) -> None:
+    """C新登録だけが実7.7と当該188の既coreguardを通り、旧通常受理は繰り返さない。"""
+    root, _, event, _, baseline, calls, _, fetches = ordinary_188_fixture
+    assert 'no new ordinary acceptance' in checker.validate_gate6_ci_event(root, event)
+    assert fetches == ['188']
+    expected = set(checker._ORDINARY_REGISTRATION_ASSETS)
+    authority = json.loads((root / 'contracts/tenant_boundary/base-allowlist.json').read_bytes())
+    tenant = _ordinary_test_tenant_checker()
+    for path in checker._ORDINARY_REGISTRATION_ASSETS:
+        asset = json.loads((root / path).read_bytes())
+        expected.update(asset['baseline_control']['identity']['frozen_projection']['external_files'])
+    expected.update('contracts/tenant_boundary/history-snapshots/' + name for name in
+        tenant.frozen_archive.extract_referenced_snapshot_names(
+            authority['baseline_control']['history'],
+            root / 'contracts/tenant_boundary/history-snapshots'))
+    assert all(['show', f'{event.head_sha}:{path}'] in calls for path in expected)
+    current = json.loads((root / checker._ORDINARY_REGISTRY_PATH).read_bytes())['frozen_inputs']
+    old = json.loads(baseline[str(checker._ORDINARY_REGISTRY_PATH)])['frozen_inputs']
+    assert all(current[key] == value for key, value in old.items())
+
+
+@pytest.mark.parametrize('fault', [
+    'pr', 'branch', 'repository', 'head-repository', 'third-entry', 'extra-field',
+    'purpose', 'source', 'source-alias', 'algorithm', 'bad-value', 'old4', 'old-other',
+    'delete-old', 'external-delete', 'external-order', 'external-third', 'revision',
+    'identity', 'movement-policy', 'history-id', 'old-history', 'missing-snapshot',
+    'snapshot-symlink', 'snapshot-head', 'consumer1-head', 'consumer2-head',
+    'missing-evidence', 'old187-evidence', 'evidence-head', 'evidence-diff',
+    'self-review', 'unresolved-P1', 'value-coedit-original-evidence',
+])
+def test_ordinary_c_188_append_rejects_outside_packet_or_unbound_evidence(
+    ordinary_188_fixture: Any, monkeypatch: pytest.MonkeyPatch, fault: str,
+) -> None:
+    """有限登録・実履歴・全byte・現在PRの独立証拠のどれも共同自己申告で代用しない。"""
+    root, guard, event, _, _, _, comment, fetches = ordinary_188_fixture
+    if fault in {'pr', 'branch', 'repository', 'head-repository'}:
+        key, value = {'pr': ('number', 189), 'branch': ('head_branch', 'feature/other'),
+            'repository': ('repository', 'other/repo'),
+            'head-repository': ('head_repository', 'other/repo')}[fault]
+        event = guard.PullRequestEvent(**{**vars(event), key: value})
+    registry_path = root / checker._ORDINARY_REGISTRY_PATH
+    registry = json.loads(registry_path.read_bytes())
+    key = next(iter(checker._ORDINARY_FOLLOWUP_DECLARATIONS))
+    entry = registry['frozen_inputs'][key]
+    identity = registry['baseline_control']['identity']
+    if fault == 'third-entry':
+        registry['frozen_inputs']['unknown'] = copy.deepcopy(entry)
+    elif fault in {'extra-field', 'algorithm'}:
+        entry['unexpected' if fault == 'extra-field' else 'algorithm'] = 'other'
+    elif fault in {'purpose', 'source'}:
+        entry[fault] = 'other'
+    elif fault == 'source-alias':
+        entry['sources'] = [entry.pop('source')]
+    elif fault == 'bad-value':
+        entry['value'] = True
+    elif fault == 'value-coedit-original-evidence':
+        entry['value'] = '0' * 40
+    elif fault == 'old4':
+        registry['frozen_inputs']['gate6_ordinary_record_raw_sha256']['value'] = 'f' * 64
+    elif fault in {'old-other', 'delete-old'}:
+        old = next(k for k in registry['frozen_inputs']
+                   if k not in {*checker._ORDINARY_PIN_DECLARATIONS,
+                                *checker._ORDINARY_FOLLOWUP_DECLARATIONS})
+        if fault == 'delete-old':
+            del registry['frozen_inputs'][old]
+        else:
+            registry['frozen_inputs'][old]['purpose'] += 'changed'
+    elif fault.startswith('external-'):
+        external = identity['frozen_projection']['external_files']
+        if fault == 'external-delete':
+            external.pop(0)
+        elif fault == 'external-order':
+            external.reverse()
+        else:
+            external.append('third.py')
+    elif fault == 'revision':
+        registry['contract_revision'] += 1
+    elif fault == 'identity':
+        identity['current_identifiers'] = ['contract_revision:0']
+    elif fault == 'movement-policy':
+        registry['baseline_control']['movement_policy'] = {}
+    _write_t1_append_json(registry_path, registry)
+    if fault == 'value-coedit-original-evidence':
+        _ordinary_reproject_last_after(root)
+    authority_path = root / 'contracts/tenant_boundary/base-allowlist.json'
+    authority = json.loads(authority_path.read_bytes())
+    if fault == 'history-id':
+        authority['baseline_control']['history'][-1]['acceptance_id'] = 'masaki1025/pitchlog#187'
+    elif fault == 'old-history':
+        authority['baseline_control']['history'][0]['reason'] += 'changed'
+    if fault in {'history-id', 'old-history'}:
+        _write_t1_append_json(authority_path, authority)
+    if fault in {'missing-snapshot', 'snapshot-symlink', 'snapshot-head'}:
+        path = authority['baseline_control']['history'][-1]['change']['after'][
+            'external_snapshots'][0]['snapshot_ref']
+        target = root / path
+        if fault == 'missing-snapshot':
+            target.unlink()
+        elif fault == 'snapshot-symlink':
+            target.unlink()
+            target.symlink_to(root / checker._ORDINARY_REGISTRY_PATH)
+        else:
+            read = checker._carry_git_bytes
+            monkeypatch.setattr(checker, '_carry_git_bytes', lambda repository, args:
+                b'old snapshot' if args == ['show', f'{event.head_sha}:{path}']
+                else read(repository, args))
+    if fault in {'consumer1-head', 'consumer2-head'}:
+        path = checker._ORDINARY_FOLLOWUP_EXTERNALS[0 if fault == 'consumer1-head' else 1]
+        before = (root / path).read_bytes()
+        (root / path).write_bytes(before + b'\n# synthetic consumer-only dirty\n')
+        _ordinary_reproject_last_after(root)
+        read = checker._carry_git_bytes
+        monkeypatch.setattr(checker, '_carry_git_bytes', lambda repository, args:
+            before if args == ['show', f'{event.head_sha}:{path}'] else read(repository, args))
+    if fault == 'missing-evidence':
+        event = guard.PullRequestEvent(**{**vars(event), 'body': ''})
+    if fault in {'old187-evidence', 'evidence-head', 'evidence-diff',
+                 'self-review', 'unresolved-P1'}:
+        evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+        if fault == 'old187-evidence':
+            evidence['pr'] = 187
+        elif fault == 'evidence-head':
+            evidence['head'] = '0' * 40
+        elif fault == 'evidence-diff':
+            evidence['diff_sha256'] = '0' * 64
+        elif fault == 'self-review':
+            evidence['reviewer_agent'] = evidence['candidate_agents'][0]
+        else:
+            evidence['findings'] = [{'severity': 'P1', 'resolved': False, 'detail': '未是正'}]
+        comment['body'] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    if fault not in {'old187-evidence', 'evidence-head', 'evidence-diff',
+                     'self-review', 'unresolved-P1', 'value-coedit-original-evidence'}:
+        assert fetches == []

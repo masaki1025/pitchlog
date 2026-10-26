@@ -278,3 +278,8 @@ exact Python3はscripts/check_human_review_signature.py、tests/test_required_se
 exact source是正はscripts/check_human_review_signature.py とtests/test_human_review_signature.pyの2だけ、coverage側a34f1323…と旧4実値/数学14/正式9/旧185/署名keyは保持。B/C共通の実7.7 helperが消費した全external current bytes・履歴authority/参照snapshotをevent.head blobへ明示束縛し、HEAD一致でもconsumerだけdirtyの反例を拒否する。C変更なしrouteは既どおり新受理0/fetch0。変更有routeは実PR188/実branch/exact既2entry全宣言・必要revision/external2の有限集合だけ、old4/旧全entryの全objectを保持し、actualbase先読/正当V2Transitionと当該PRの既core外部head/diff証拠を必須にする。任意PR登録や一般ledger再設計、snapshot自己申告だけの許可はしない。188側consumer2/正式JSONの反映は別owner/rootに残す。
 
 新source作者をrootが指定し、旧source3の差分/失敗/P0を引継ぎ、是正後は基本第2回のsource差分＋影響レビューへ渡す（回数reset0）。承認案の追加対向・旧共同改変/元head再利用拒否を維持し、実metadata/source/最終headの全値をrootが受理するまで公開成功へ昇格しない。
+
+
+2026-10-26T14:39:15.253873+00:00、PO委任によるCodex /root判断でfrozen固定4入力の登録source3＋正式5を受理。source基本第2回2f2f6e1bc06b03399ec072aa0d37eb96806e7053cb993de9a2101ae50e80ed6a（0/0/0）で未採用source3のP0を是正、既oldsourceレビュー2ade10…/P0 supplementa3b5…/新39対向/旧定義assert保持を保全した。固定source7ff033…/fed597…/coveragea34f1323…、全signature+coverage483成功462.19sとRuff/tyを照合。実正式5の全前後値は非作者83138215dc2b096e7a17697f96a391c06bf146f4f3fc2e52f70877f4171ad9d3/checks58257d51…（0/0/0）がactual3a前9asset+external8/後9asset+capturedexternal10から再導出し、旧31履歴/旧全entry/旧snapshot226/他7raw/既4pin全objectを保持した。
+
+rootが実判断者/実日付をapproved_by/onへ記録し、masaki1025/pitchlog#187 v2履歴1追記＋registry5→6/fourentry/external2＋snapshot3だけを反映。nulldraft/synthetic構造確認と実委任受理を分離し、山田正輝の逐行確認・署名を代記しない。全実before/afterと対象sourceはcache corrective-source-round2/root-formal-acceptance.jsonへ固定。新最終HEAD/blob証拠・実公開Gate6 B・必須CI・実保存merge前義務はまだ未成立、旧8ec公開成功を流用しない。

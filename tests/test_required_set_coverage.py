@@ -17,6 +17,45 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 
+def _ordinary_normative_input() -> str:
+    """歴史fixtureの比較元を登録済み閉fieldから取得する。"""
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("固定入力の重複key")
+            value[key] = item
+        return value
+
+    registry = json.loads((ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_bytes(),
+                          object_pairs_hook=unique)
+    if (not isinstance(registry, dict)
+            or set(registry) != {"schema_version", "contract_revision", "baseline_control",
+                                 "frozen_inputs"}
+            or type(registry["schema_version"]) is not int or registry["schema_version"] != 1
+            or type(registry["contract_revision"]) is not int
+            or not isinstance(registry["frozen_inputs"], dict)):
+        raise ValueError("通常33規範入力assetが不正")
+    entry = registry["frozen_inputs"]["gate6_ordinary_normative_anchor_commit"]
+    if not isinstance(entry, dict):
+        raise ValueError("通常33規範入力entryが不正")
+    expected = {
+        "purpose": "通常33の旧規範原本を読み、historical coverage fixtureを同一原本へ束縛する",
+        "sources": ["scripts/check_human_review_signature.py:_OrdinaryAcceptedReader",
+                    "tests/test_required_set_coverage.py:historical_coverage_root"],
+    }
+    if (set(entry) != {"value", *expected}
+            or any(entry[key] != value for key, value in expected.items())
+            or not isinstance(entry["value"], str)
+            or len(entry["value"]) != 40
+            or any(char not in "0123456789abcdef" for char in entry["value"])):
+        raise ValueError("通常33規範固定入力が不正")
+    return entry["value"]
+
+
+_ORDINARY_NORMATIVE_ANCHOR = _ordinary_normative_input()
+
+
 def _load_module(name: str, path: Path) -> Any:
     """検査器を既存の導出器と共有して読み込む。"""
     spec = importlib.util.spec_from_file_location(name, path)
@@ -71,7 +110,7 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """旧assertとファイル集合を固定Gitへ束縛し、新vectorを混入させない。"""
     root = tmp_path_factory.mktemp("coverage-history-30f67")
     for name in subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", "30f67cbc"],
+        ["git", "ls-tree", "-r", "--name-only", _ORDINARY_NORMATIVE_ANCHOR],
         cwd=_LIVE_ROOT, text=True,
     ).splitlines():
         source = _LIVE_ROOT / name
@@ -87,7 +126,7 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     git = root / ".git"
     (git / "objects/info").mkdir(parents=True)
     (git / "refs").mkdir()
-    (git / "HEAD").write_text("30f67cbc0afbdae00919606a17439d64fa7e9832\n")
+    (git / "HEAD").write_text(_ORDINARY_NORMATIVE_ANCHOR + "\n")
     (git / "objects/info/alternates").write_text(str(Path(common) / "objects") + "\n")
     for name in (
         "state_transition_contract_v1.json", "required_set_input_coverage_v1.json",
@@ -95,7 +134,7 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     ):
         relative = "contracts/state-transition/" + name
         (root / relative).write_bytes(subprocess.check_output(
-            ["git", "show", "30f67cbc:" + relative], cwd=_LIVE_ROOT,
+            ["git", "show", _ORDINARY_NORMATIVE_ANCHOR + ":" + relative], cwd=_LIVE_ROOT,
         ))
     return root
 
@@ -2254,7 +2293,8 @@ _ORDINARY_CASE_IDS = {
 def _ordinary_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
     """旧Git原本を保ち、受理候補の4guard/12ID/B1一件だけを合成する。"""
     raw = subprocess.check_output(
-        ["git", "show", "30f67cbc:contracts/state-transition/state_transition_contract_v1.json"],
+        ["git", "show", _ORDINARY_NORMATIVE_ANCHOR
+         + ":contracts/state-transition/state_transition_contract_v1.json"],
         cwd=ROOT,
     )
     contract = json.loads(raw)
@@ -2295,7 +2335,7 @@ def _ordinary_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
     asset = {
         "schemaVersion": 1, "operation": "deriveOrdinaryPitch",
         "caseIdMigrations": {
-            "baselineCommit": "30f67cbc0afbdae00919606a17439d64fa7e9832",
+            "baselineCommit": _ORDINARY_NORMATIVE_ANCHOR,
             "baselineContractSHA256": hashlib.sha256(raw).hexdigest(),
             "caseIds": copy.deepcopy(_ORDINARY_CASE_IDS),
         },
@@ -2400,7 +2440,8 @@ def test_ordinary_coverage_keeps_old_history_and_rejects_pending_approval(
     monkeypatch.setattr(checker, "_document", lambda root, name: asset
                         if name == "ordinary_pitch_vectors_v1.json" else original(root, name))
     record = json.loads(subprocess.check_output([
-        "git", "show", "30f67cbc:contracts/state-transition/required_set_input_coverage_v1.json"
+        "git", "show", _ORDINARY_NORMATIVE_ANCHOR
+        + ":contracts/state-transition/required_set_input_coverage_v1.json"
     ], cwd=ROOT))
     historical = copy.deepcopy(record["history"])
     observed = _observed_coverage(contract["cases"], contract)
@@ -2457,7 +2498,7 @@ def test_historical_coverage_view_uses_only_fixed_git_file_set(
 ) -> None:
     """旧Gitにないordinary vectorは実在/追跡後でも歴史viewへ混入しない。"""
     fixed = set(subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", "30f67cbc"],
+        ["git", "ls-tree", "-r", "--name-only", _ORDINARY_NORMATIVE_ANCHOR],
         cwd=_LIVE_ROOT, text=True,
     ).splitlines())
     actual = {
@@ -2472,7 +2513,8 @@ def test_historical_coverage_view_uses_only_fixed_git_file_set(
         historical_coverage_root / "contracts/state-transition/state_transition_contract_v1.json"
     )
     assert json.loads(historical_state.read_text())["cases"] == json.loads(subprocess.check_output(
-        ["git", "show", "30f67cbc:contracts/state-transition/state_transition_contract_v1.json"],
+        ["git", "show", _ORDINARY_NORMATIVE_ANCHOR
+         + ":contracts/state-transition/state_transition_contract_v1.json"],
         cwd=_LIVE_ROOT, text=True,
     ))["cases"]
 
@@ -2508,3 +2550,42 @@ def test_historical_coverage_copy_rejects_live_only_vector_contamination(
     assert any(command[:3] == ["git", "ls-tree", "-r"] for command in commands)
     state = view / "contracts/state-transition/state_transition_contract_v1.json"
     assert len(json.loads(state.read_text())["cases"]) == 116
+
+
+@pytest.mark.parametrize("fault", ["root", "version", "missing", "extra", "purpose",
+                                  "consumer", "bool", "short", "duplicate", "typed-entry"])
+def test_ordinary_normative_registry_input_is_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str,
+) -> None:
+    """歴史fixtureも既登録の閉規範原本以外へfallbackしない。"""
+    path = Path("contracts/tenant_boundary/frozen-inputs.json")
+    asset = json.loads((_LIVE_ROOT / path).read_bytes())
+    key = "gate6_ordinary_normative_anchor_commit"
+    entry = asset["frozen_inputs"][key]
+    if fault == "root":
+        asset["extra"] = True
+    elif fault == "version":
+        asset["schema_version"] = True
+    elif fault == "missing":
+        del asset["frozen_inputs"][key]
+    elif fault == "extra":
+        entry["extra"] = True
+    elif fault == "purpose":
+        entry["purpose"] = "別の規範"
+    elif fault == "consumer":
+        entry["sources"] = ["other"]
+    elif fault == "bool":
+        entry["value"] = False
+    elif fault == "short":
+        entry["value"] = "a"
+    elif fault == "typed-entry":
+        asset["frozen_inputs"][key] = []
+    raw = json.dumps(asset).encode()
+    if fault == "duplicate":
+        raw = b'{"schema_version":1,' + raw[1:]
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_bytes(raw)
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", tmp_path)
+    with pytest.raises((ValueError, KeyError)):
+        _ordinary_normative_input()
