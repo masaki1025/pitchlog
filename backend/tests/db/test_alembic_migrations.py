@@ -8687,9 +8687,7 @@ def test_current_metadata_epoch_column_loss_is_detected(
 ) -> None:
     """正規0035は完全モデルで比較し、epoch欠落を必ず検出する。"""
     engine = create_engine(
-        normalize_postgresql_url(
-            _sqlalchemy_url(provisioned_product_catalog.owner_dsn)
-        )
+        normalize_postgresql_url(_sqlalchemy_url(provisioned_product_catalog.owner_dsn))
     )
     try:
         with engine.connect() as connection:
