@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,6 +42,80 @@ expander = _load_module(
 def _asset(name: str) -> dict[str, Any]:
     """検査対象の現行資産を読み込む。"""
     return json.loads((ROOT / "contracts/state-transition" / name).read_text(encoding="utf-8"))
+
+
+_LIVE_ROOT = ROOT
+_HISTORICAL_COVERAGE_TESTS = frozenset({
+    "test_prior_step_coverage_matches_its_matrix_expansion",
+    "test_step80_input_coverage_is_preserved",
+    "test_step81_input_coverage_is_monotone_and_matches_expansion",
+    "test_step82_secondary_results_and_input_coverage",
+    "test_step83_runner_events_and_input_coverage",
+    "test_step84_substitution_cases_and_input_coverage",
+    "test_step85_tiebreak_start_has_no_row_case_or_coverage_change",
+    "test_step86_game_end_declaration_cases_and_input_coverage",
+    "test_step87_adhoc_registration_cases_and_input_coverage",
+    "test_step88_empty_history_undo_case_and_coverage",
+    "test_step24_draw05_operation_case_preserves_input_coverage",
+    "test_rbi_coverage_append_preserves_history_and_six_observed_values",
+    "test_ordinary_coverage_keeps_old_history_and_rejects_pending_approval",
+    "test_step98_all_normative_rows_are_referenced_by_cases",
+    "test_step96_validation_errors_are_exact_and_separate_from_cases",
+    "test_row_binding_declaration_controls_coverage_and_checks_sources",
+    "test_step102_input_coordinate_difference_is_red_when_row_is_added",
+})
+
+
+@pytest.fixture(scope="module")
+def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """旧assertとファイル集合を固定Gitへ束縛し、新vectorを混入させない。"""
+    root = tmp_path_factory.mktemp("coverage-history-30f67")
+    for name in subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", "30f67cbc"],
+        cwd=_LIVE_ROOT, text=True,
+    ).splitlines():
+        source = _LIVE_ROOT / name
+        if source.is_file():
+            target = root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+    # 一時fixtureのHEADだけを旧版へ固定し、実repositoryのindex/refsは変更しない。
+    common = subprocess.check_output(
+        ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        cwd=_LIVE_ROOT, text=True,
+    ).strip()
+    git = root / ".git"
+    (git / "objects/info").mkdir(parents=True)
+    (git / "refs").mkdir()
+    (git / "HEAD").write_text("30f67cbc0afbdae00919606a17439d64fa7e9832\n")
+    (git / "objects/info/alternates").write_text(str(Path(common) / "objects") + "\n")
+    for name in (
+        "state_transition_contract_v1.json", "required_set_input_coverage_v1.json",
+        "branch_row_mapping_v1.json", "game_end_coverage_declaration_v1.json",
+    ):
+        relative = "contracts/state-transition/" + name
+        (root / relative).write_bytes(subprocess.check_output(
+            ["git", "show", "30f67cbc:" + relative], cwd=_LIVE_ROOT,
+        ))
+    return root
+
+
+@pytest.fixture(autouse=True)
+def bind_historical_coverage_tests(
+    request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """列挙した旧段階試験だけを旧原本へ結び、全未知拒否assertを残す。"""
+    if getattr(request.node, "originalname", None) in _HISTORICAL_COVERAGE_TESTS:
+        monkeypatch.setattr(sys.modules[__name__], "ROOT",
+                            request.getfixturevalue("historical_coverage_root"))
+
+
+def _current_exact_input_counts() -> tuple[int, int, int]:
+    """新currentは実12移行を検証してから177到達のexact値を比較する。"""
+    if not (ROOT / "contracts/state-transition/ordinary_pitch_vectors_v1.json").exists():
+        return 228, 52, 0
+    checker._ordinary_case_id_migrations(ROOT, _asset("state_transition_contract_v1.json"))
+    return 228, 51, 0
 
 
 def test_repository_contracts_are_within_declared_byte_limit() -> None:
@@ -1931,7 +2006,7 @@ def test_step103_coverage_count_changed_by_one_is_red() -> None:
 def test_step102_both_required_set_differences_are_empty() -> None:
     """①の宣言除外と②の規則除外を実資産で共に検査する。"""
     assert checker.check_row_requirements(ROOT) == (54, 49, 0)
-    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+    assert checker.check_input_coverage_exact(ROOT) == _current_exact_input_counts()
 
 
 def test_step102_row_requirement_difference_is_red() -> None:
@@ -1942,13 +2017,13 @@ def test_step102_row_requirement_difference_is_red() -> None:
         checker.check_row_requirements(
             ROOT, _asset("state_transition_contract_v1.json"), declaration
         )
-    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+    assert checker.check_input_coverage_exact(ROOT) == _current_exact_input_counts()
 
 
 def test_step102_input_coordinate_difference_is_red_when_row_is_added() -> None:
     """②は新行が未固定値を受け持つと除外を縮め、未被覆を赤にする。"""
     contract = _asset("state_transition_contract_v1.json")
-    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+    assert checker.check_input_coverage_exact(ROOT) == _current_exact_input_counts()
     assert ("state.count.balls", "1") not in _observed_coverage(contract["cases"], contract)
     added = copy.deepcopy(contract["matrixRows"][0])
 
@@ -1968,7 +2043,7 @@ def test_step102_input_coordinate_difference_is_red_when_row_is_added() -> None:
     ) as error:
         checker.check_input_coverage_exact(ROOT, contract)
     assert "('state.count.balls', '1')" in str(error.value)
-    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+    assert checker.check_input_coverage_exact(ROOT) == _current_exact_input_counts()
     assert checker.check_row_requirements(ROOT) == (54, 49, 0)
 
 
@@ -2158,3 +2233,278 @@ def test_rbi_coverage_append_preserves_history_and_six_observed_values() -> None
     contract = _asset("state_transition_contract_v1.json")
     assert after == _observed_coverage(contract["cases"], contract)
     assert checker.check_input_coverage(ROOT) == (176, checker._digest(after), 6)
+
+
+_ORDINARY_CASE_IDS = {
+    "ST-MATRIX-07c1f26a645dae53": "ST-MATRIX-d9d9eed7a690d48d",
+    "ST-MATRIX-fc643ce7a079df4f": "ST-MATRIX-46ce2f059dfc233d",
+    "ST-MATRIX-2bc8d110689a88e4": "ST-MATRIX-b931c9ca96959a1e",
+    "ST-MATRIX-0529a0eb116d64a9": "ST-MATRIX-99b1523fb41399e3",
+    "ST-COVERAGE-5ffabae886307443": "ST-COVERAGE-baf65198d047cf8a",
+    "ST-COVERAGE-07195169e423e561": "ST-COVERAGE-f709e5fc1069d6ac",
+    "ST-COVERAGE-9e3198e12b1d2e23": "ST-COVERAGE-8c8d497a5880b267",
+    "ST-COVERAGE-9999f9fbf18b91f6": "ST-COVERAGE-01ea03a03cd16776",
+    "ST-COVERAGE-459bc92fd7655892": "ST-COVERAGE-0d22f0ed34b83a2e",
+    "ST-COVERAGE-a6919767c2d92d6c": "ST-COVERAGE-f1078be57353ce09",
+    "ST-COVERAGE-68907918cdcec80e": "ST-COVERAGE-b1e096211962a847",
+    "ST-COVERAGE-74908e4c51a7dd84": "ST-COVERAGE-a0b70e858a97e151",
+}
+
+
+def _ordinary_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
+    """旧Git原本を保ち、受理候補の4guard/12ID/B1一件だけを合成する。"""
+    raw = subprocess.check_output(
+        ["git", "show", "30f67cbc:contracts/state-transition/state_transition_contract_v1.json"],
+        cwd=ROOT,
+    )
+    contract = json.loads(raw)
+    import hashlib
+
+    def broaden(node: Any) -> None:
+        if isinstance(node, dict):
+            coordinate = node.get("coordinate", node)
+            if coordinate.get("resultId") in {
+                "batting-result.called-pitch", "batting-result.swinging-strike",
+                "batting-result.foul", "batting-result.ball",
+            } and "precondition" in coordinate:
+                for leaf in coordinate["precondition"]["args"]:
+                    axis = leaf.get("axisId")
+                    if axis in {"state.count.strikes", "state.count.balls"}:
+                        values = [0, 1, 2] if coordinate["resultId"] == "batting-result.ball" else (
+                            [0, 1] if axis == "state.count.strikes" else [0, 1, 2, 3]
+                        )
+                        leaf.clear()
+                        leaf.update(op="in", axisId=axis, values=values)
+            for value in list(node.values()):
+                broaden(value)
+        elif isinstance(node, list):
+            for value in node:
+                broaden(value)
+
+    broaden(contract)
+    for case in contract["cases"]:
+        case["caseId"] = _ORDINARY_CASE_IDS.get(case["caseId"], case["caseId"])
+    added = copy.deepcopy(next(case for case in contract["cases"]
+                               if case["caseId"] == "ST-MATRIX-b931c9ca96959a1e"))
+    added["caseId"] = "ST-COVERAGE-8d5c59594f90b5bd"
+    for surface in ("inputCoordinate", "raw", "normalized"):
+        added[surface]["state.count.balls"] = 1
+    for surface in ("before", "after"):
+        added["historyInput"][surface]["stateFields"]["state.count.balls"] = 1
+    contract["cases"].append(added)
+    asset = {
+        "schemaVersion": 1, "operation": "deriveOrdinaryPitch",
+        "caseIdMigrations": {
+            "baselineCommit": "30f67cbc0afbdae00919606a17439d64fa7e9832",
+            "baselineContractSHA256": hashlib.sha256(raw).hexdigest(),
+            "caseIds": copy.deepcopy(_ORDINARY_CASE_IDS),
+        },
+    }
+    return contract, asset
+
+
+def test_ordinary_finite_guards_realize_b1_without_free_operation_fill() -> None:
+    """有限inが新B1を実現し、旧全要求228から除外だけが1減る。"""
+    contract, _ = _ordinary_fixture()
+    assert checker.check_input_coverage_exact(ROOT, contract) == (228, 51, 0)
+    for row in contract["matrixRows"][:4]:
+        for leaf in row["precondition"]["args"]:
+            if leaf.get("axisId") == "state.count.balls":
+                leaf.clear()
+                leaf.update(op="eq", axisId="state.count.balls", value=0)
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker.check_input_coverage_exact(ROOT, contract)
+
+
+@pytest.mark.parametrize("wrapper", ("not", "or"))
+def test_finite_in_under_negation_or_choice_does_not_bind_free_axis(wrapper: str) -> None:
+    """否定や選言を、正の有限状態軸束縛へ流用しない。"""
+    leaf = {"op": "in", "axisId": "state.count.balls", "values": [0, 1]}
+    assert checker._row_finite_input_values(
+        {"op": wrapper, "args": [leaf]}, "state.count.balls"
+    ) == set()
+
+
+@pytest.mark.parametrize("values", ([], [0, 0], None))
+def test_finite_in_empty_duplicate_and_non_array_are_rejected(values: Any) -> None:
+    """有限inの未束縛・重複・異型を成功にしない。"""
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker._row_finite_input_values(
+            {"op": "in", "axisId": "state.count.balls", "values": values},
+            "state.count.balls",
+        )
+
+
+def test_ordinary_case_migration_preserves_old_full_values_and_history(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧代表IDを黙って置換せず、Git原本との12件全値同値から解決する。"""
+    contract, asset = _ordinary_fixture()
+    original = checker._document
+    monkeypatch.setattr(checker, "_document", lambda root, name: asset
+                        if name == "ordinary_pitch_vectors_v1.json" else original(root, name))
+    assert checker._ordinary_case_id_migrations(ROOT, contract) == _ORDINARY_CASE_IDS
+
+
+@pytest.mark.parametrize("mutation", (
+    "missing", "duplicate", "wrong-target", "wrong-git", "wrong-digest",
+    "input", "expected", "history", "unaffected", "wrong-kind",
+))
+def test_ordinary_case_migration_rejects_partial_or_changed_values(
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """欠落・別ID・原本不一致・入力/期待/履歴の片側変更を拒否する。"""
+    contract, asset = _ordinary_fixture()
+    mapping = asset["caseIdMigrations"]["caseIds"]
+    ids = list(mapping)
+    if mutation == "missing":
+        mapping.pop(ids[0])
+    elif mutation == "duplicate":
+        mapping[ids[1]] = mapping[ids[0]]
+    elif mutation == "wrong-target":
+        mapping[ids[0]] = "ST-MATRIX-wrong"
+        next(c for c in contract["cases"] if c["caseId"] == _ORDINARY_CASE_IDS[ids[0]])[
+            "caseId"
+        ] = "ST-MATRIX-wrong"
+    elif mutation == "wrong-git":
+        asset["caseIdMigrations"]["baselineCommit"] = "0" * 40
+    elif mutation == "wrong-digest":
+        asset["caseIdMigrations"]["baselineContractSHA256"] = "0" * 64
+    elif mutation == "wrong-kind":
+        asset["operation"] = "deriveState"
+    else:
+        case = next(c for c in contract["cases"] if c["caseId"] == mapping[ids[0]])
+        if mutation == "input":
+            case["inputCoordinate"]["state.count.balls"] = 1
+        elif mutation == "expected":
+            case["expected"]["statFlags"]["打席"] = True
+        elif mutation == "history":
+            case["historyInput"]["before"]["stateFields"]["state.count.balls"] = 1
+        else:
+            next(c for c in contract["cases"] if c["caseId"] not in mapping.values())[
+                "unknown"
+            ] = True
+    original = checker._document
+    monkeypatch.setattr(checker, "_document", lambda root, name: asset
+                        if name == "ordinary_pitch_vectors_v1.json" else original(root, name))
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker._ordinary_case_id_migrations(ROOT, contract)
+
+
+def test_ordinary_coverage_keeps_old_history_and_rejects_pending_approval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """177の実測と旧基線ID解決を結び、旧履歴書換えと未承認を別々に拒否する。"""
+    contract, asset = _ordinary_fixture()
+    original = checker._document
+    monkeypatch.setattr(checker, "_document", lambda root, name: asset
+                        if name == "ordinary_pitch_vectors_v1.json" else original(root, name))
+    record = json.loads(subprocess.check_output([
+        "git", "show", "30f67cbc:contracts/state-transition/required_set_input_coverage_v1.json"
+    ], cwd=ROOT))
+    historical = copy.deepcopy(record["history"])
+    observed = _observed_coverage(contract["cases"], contract)
+    assert len(observed) == 177
+    assert observed - {tuple(item) for item in record["coverageSet"]} == {
+        ("state.count.balls", "1")
+    }
+    after = {"coverageSet": [list(v) for v in sorted(observed)], "count": 177,
+             "digest": checker._digest(observed)}
+    record["history"].append({
+        "step": 96, "before": copy.deepcopy(historical[-1]["after"]), "after": after,
+        "change": "公開test fixture", "fact": "実測B1追加", "reason": "履歴移行対向",
+        "recordedOn": None, "approvedBy": None, "approvedOn": None,
+    })
+    record["coverageSet"] = after["coverageSet"]
+    record["currentStep"] = 96
+    with pytest.raises(checker.RequiredSetCoverageError, match="承認記録"):
+        checker.check_input_coverage(ROOT, contract, record)
+    # これは正例testの明示fixture値であり、正式/候補受理receiptへ書かない。
+    record["history"][-1].update(
+        recordedOn="2000-01-01", approvedOn="2000-01-01", approvedBy="公開test fixture"
+    )
+    assert record["history"][:-1] == historical
+    assert checker.check_input_coverage(ROOT, contract, record) == (
+        177, checker._digest(observed), 1
+    )
+    record["history"][0]["baselineCaseIds"][0] = _ORDINARY_CASE_IDS[
+        "ST-MATRIX-07c1f26a645dae53"
+    ]
+    with pytest.raises(checker.RequiredSetCoverageError, match="追記のみ"):
+        checker.check_input_coverage(ROOT, contract, record)
+
+
+def test_current_ordinary_contract_closes_all_cases_and_history_migration() -> None:
+    """currentと歴史を分け、正式移行後は12全値/104不変と現177を照合する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    vector_path = ROOT / "contracts/state-transition/ordinary_pitch_vectors_v1.json"
+    if not vector_path.exists():
+        assert len(contract["cases"]) == 116
+        assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+        return
+    assert checker._ordinary_case_id_migrations(ROOT, contract) == _ORDINARY_CASE_IDS
+    assert len(contract["cases"]) == 117
+    observed = _observed_coverage(contract["cases"], contract)
+    assert len(observed) == 177
+    assert checker.check_input_coverage_exact(ROOT) == (228, 51, 0)
+    record = _asset("required_set_input_coverage_v1.json")
+    assert checker.check_input_coverage(ROOT) == (177, checker._digest(observed), 1)
+    assert record["currentStep"] == 96 and len(record["history"]) == 18
+
+
+def test_historical_coverage_view_uses_only_fixed_git_file_set(
+    historical_coverage_root: Path,
+) -> None:
+    """旧Gitにないordinary vectorは実在/追跡後でも歴史viewへ混入しない。"""
+    fixed = set(subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", "30f67cbc"],
+        cwd=_LIVE_ROOT, text=True,
+    ).splitlines())
+    actual = {
+        p.relative_to(historical_coverage_root).as_posix()
+        for p in historical_coverage_root.rglob("*")
+        if p.is_file() and ".git" not in p.relative_to(historical_coverage_root).parts
+    }
+    vector = "contracts/state-transition/ordinary_pitch_vectors_v1.json"
+    assert vector not in fixed and vector not in actual
+    assert actual <= fixed
+    historical_state = (
+        historical_coverage_root / "contracts/state-transition/state_transition_contract_v1.json"
+    )
+    assert json.loads(historical_state.read_text())["cases"] == json.loads(subprocess.check_output(
+        ["git", "show", "30f67cbc:contracts/state-transition/state_transition_contract_v1.json"],
+        cwd=_LIVE_ROOT, text=True,
+    ))["cases"]
+
+
+def test_historical_coverage_copy_rejects_live_only_vector_contamination(
+    tmp_path: Path, tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """live追跡集合へ新vectorが加わる状況でも固定Git集合だけを使う。"""
+    live = tmp_path / "live"
+    directory = live / "contracts/state-transition"
+    directory.mkdir(parents=True)
+    (directory / "state_transition_contract_v1.json").write_text("{}")
+    (directory / "ordinary_pitch_vectors_v1.json").write_text('{"liveOnly":true}')
+    original = subprocess.check_output
+    source_root = _LIVE_ROOT
+    commands = []
+
+    def git_at_live(*args: Any, **kwargs: Any) -> Any:
+        command = args[0]
+        commands.append(command)
+        if kwargs.get("cwd") == live:
+            kwargs["cwd"] = source_root
+        if command == ["git", "ls-files"]:
+            return "contracts/state-transition/ordinary_pitch_vectors_v1.json\n"
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sys.modules[__name__], "_LIVE_ROOT", live)
+    monkeypatch.setattr(subprocess, "check_output", git_at_live)
+    view = getattr(historical_coverage_root, "__wrapped__")(tmp_path_factory)
+    assert not (view / "contracts/state-transition/ordinary_pitch_vectors_v1.json").exists()
+    assert not any(command == ["git", "ls-files"] for command in commands)
+    assert any(command[:3] == ["git", "ls-tree", "-r"] for command in commands)
+    state = view / "contracts/state-transition/state_transition_contract_v1.json"
+    assert len(json.loads(state.read_text())["cases"]) == 116

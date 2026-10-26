@@ -723,6 +723,22 @@ def _predicate_holds(predicate: dict[str, Any], coordinate: dict[str, Any]) -> b
         if not isinstance(axis_id, str) or axis_id not in coordinate:
             raise BranchRowMappingError(f"述語の軸をfixtureで評価できない: {axis_id}")
         return coordinate[axis_id] == predicate.get("value")
+    if operation == "in":
+        if set(predicate) != {"op", "axisId", "values"}:
+            raise BranchRowMappingError("有限inのfieldが不正")
+        axis_id = predicate["axisId"]
+        if not isinstance(axis_id, str) or axis_id not in coordinate:
+            raise BranchRowMappingError(f"述語の軸をfixtureで評価できない: {axis_id}")
+        values = predicate["values"]
+        if (
+            not isinstance(values, list) or not values
+            or type(values[0]) not in (str, int, bool)
+            or any(type(value) is not type(values[0]) for value in values)
+            or len(values) != len(set(values))
+        ):
+            raise BranchRowMappingError("有限inの値が空・異型・重複")
+        return any(type(coordinate[axis_id]) is type(value)
+                   and coordinate[axis_id] == value for value in values)
     args = predicate.get("args")
     if not isinstance(args, list) or not args or not all(isinstance(arg, dict) for arg in args):
         raise BranchRowMappingError("規範行の述語引数が不正")

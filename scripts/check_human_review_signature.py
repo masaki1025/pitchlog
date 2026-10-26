@@ -1603,7 +1603,9 @@ def _validate_gate6_subject_carry(root: Path) -> dict[str, Any]:
 def validate_gate6_subject_carry(root: Path) -> None:
     """技術的不変条件だけを検査する。最終委任受理・本人署名を表明しない。"""
     try:
-        if _gate6_t1_append_is_ready(root):
+        if _ordinary_present(root):
+            _ordinary_body(root)
+        elif _gate6_t1_append_is_ready(root):
             _validate_gate6_t1_input_append(root)
         else:
             _validate_gate6_subject_carry(root)
@@ -1754,9 +1756,10 @@ def _validate_t1_append_correspondence(changes: Mapping[str, Any]) -> None:
 
 def _validate_gate6_t1_input_append_body(
     root: Path, baseline: _Gate6Baseline | None = None,
+    *, reader: _Gate6CurrentReader | None = None,
 ) -> dict[str, Any]:
     """旧受理を固定anchorで再検査し、PR185の有限差分だけを再構成する。"""
-    reader = _Gate6CurrentReader(root)
+    reader = _Gate6CurrentReader(root) if reader is None else reader
     schema = reader.load_json(GATE6_T1_APPEND_SCHEMA_PATH, "T1 append schema")
     record = reader.load_json(GATE6_T1_APPEND_PATH, "T1 append")
     descriptor_checker._validate_instance(record, schema, schema, "T1 append")
@@ -1954,10 +1957,248 @@ def validate_other_pr_gate6_t1_append_unchanged(root: Path, event: Any) -> None:
     _validate_gate6_t1_append_head(root, event, record["authority"])
 
 
+_ORDINARY_PR = 187
+_ORDINARY_BRANCH = "feature/mvp-t1-ordinary-pitches"
+_ORDINARY_ANCHOR = "30f67cbc0afbdae00919606a17439d64fa7e9832"
+# 規範原本のanchorと、実PR187の公開比較元を分離する。
+_ORDINARY_PUBLIC_BASE = "3a24f89e15987ecef3dc45a1173ab99b5f79d16e"
+GATE6_ORDINARY_PATH = PurePosixPath(
+    "contracts/state-transition/gate6_t1_ordinary_pitch_v1.json"
+)
+GATE6_ORDINARY_SCHEMA_PATH = PurePosixPath(
+    "contracts/state-transition/gate6_t1_ordinary_pitch_schema_v1.json"
+)
+_ORDINARY_RECORD_SHA256 = "2dee3598fca42920c2714e8fb429ad15509aee0ba9122d43feff99500e30a3d4"
+_ORDINARY_SCHEMA_SHA256 = "256f459580e342e9ef6e7c4d008a2acab1eaa75b8f62d32811f692a3c453a4a8"
+_ORDINARY_FIXED_INPUTS = frozenset({
+    str(GATE6_T1_APPEND_PATH), str(GATE6_T1_APPEND_SCHEMA_PATH),
+    str(GATE6_CARRY_PATH), str(GATE6_CARRY_SCHEMA_PATH),
+    str(GAME_END_CONTRACT_PATH), *_GATE6_RETAINED_PATHS,
+    "contracts/state-transition/input_axes_descriptor_v1.json",
+    "docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md",
+})
+_ORDINARY_EXECUTION_INPUTS = frozenset({
+    "scripts/core_guard.py", "scripts/check_required_set_coverage.py",
+    "scripts/check_branch_row_mapping.py", "scripts/representative_selection.py",
+    "scripts/check_input_axes_descriptor.py", "scripts/state_transition_freeze.py",
+    "scripts/check_deriver_dependencies.py", "scripts/expand_game_end_cases.py",
+    "scripts/expand_state_transition_cases.py", "scripts/check_expander_dependencies.py",
+    "scripts/state_transition_normalization.py",
+})
+
+
+class _OrdinaryAcceptedReader(_Gate6CurrentReader):
+    """受理済み30f67原本だけを読む。任意revision引数を持たない。"""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.head = _ORDINARY_ANCHOR
+
+    def read_bytes(self, path: str | PurePosixPath) -> bytes:
+        """固定Git blobを読む。旧コードは実行しない。"""
+        return _carry_git_bytes(self.root, ["show", f"{_ORDINARY_ANCHOR}:{path}"])
+
+    def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
+        """重複keyを拒否する既strict decoderで原本を読む。"""
+        return _object(json.loads(self.read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+
+
+def _ordinary_present(root: Path) -> bool:
+    """片方だけの存在も新手続きへ送り、欠損をfallbackさせない。"""
+    return any((root / path).exists() for path in (
+        GATE6_ORDINARY_PATH, GATE6_ORDINARY_SCHEMA_PATH,
+    ))
+
+
+def _ordinary_base_present(root: Path, revision: str) -> bool:
+    """current記録より先に実event baseの既知directoryを読む。"""
+    listing = _carry_git_bytes(root, [
+        "show", f"{revision}:contracts/state-transition",
+    ]).decode("utf-8").splitlines()
+    return any(path.name in listing for path in (
+        GATE6_ORDINARY_PATH, GATE6_ORDINARY_SCHEMA_PATH,
+    ))
+
+
+def _ordinary_record(root: Path) -> dict[str, Any]:
+    """PR187の実受理全値と閉schemaを固定hashで照合する。"""
+    for path, digest in (
+        (GATE6_ORDINARY_PATH, _ORDINARY_RECORD_SHA256),
+        (GATE6_ORDINARY_SCHEMA_PATH, _ORDINARY_SCHEMA_SHA256),
+    ):
+        if hashlib.sha256((root / path).read_bytes()).hexdigest() != digest:
+            raise HumanReviewSignatureRecordError("通常33 record/schemaの固定全値が不一致")
+    reader = _Gate6CurrentReader(root)
+    record = reader.load_json(GATE6_ORDINARY_PATH, "通常33 record")
+    schema = reader.load_json(GATE6_ORDINARY_SCHEMA_PATH, "通常33 schema")
+    descriptor_checker._validate_instance(record, schema, schema, "通常33 record")
+    return record
+
+
+def _ordinary_body(root: Path, *, allow_policy_append: bool = False) -> dict[str, Any]:
+    """旧185の同bodyと有限33の全資産を検査する。公開受理はしない。"""
+    try:
+        record = _ordinary_record(root)
+        anchor = _OrdinaryAcceptedReader(root)
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor", _ORDINARY_ANCHOR,
+                               _Gate6CurrentReader(root).head])
+        _validate_gate6_t1_input_append_body(root, reader=anchor)
+        for path in _ORDINARY_FIXED_INPUTS:
+            if (root / path).read_bytes() != anchor.read_bytes(path):
+                raise HumanReviewSignatureRecordError("通常33の旧固定入力が変更された")
+        guard = _carry_core_guard(root)
+        try:
+            policy, _ = guard._load_delegation_policy(root, _Gate6CurrentReader(root).head)
+        except guard.GuardError as error:
+            raise HumanReviewSignatureRecordError(str(error)) from error
+        old_policy = anchor.load_json(guard.DELEGATION_POLICY_PATH, "通常33旧policy")
+        # 実baseで正式提供されたPR184だけを旧prefixへ追加して一致を確認する。
+        old_policy["targets"].append({
+            "pr": 184, "branch": "feature/mvp-rg1-profile-integration-candidate"})
+        public_policy, _ = guard._load_delegation_policy(root, _ORDINARY_PUBLIC_BASE)
+        if public_policy != old_policy:
+            raise HumanReviewSignatureRecordError("通常33の実公開base policyが不一致")
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor", _ORDINARY_PUBLIC_BASE,
+                               _Gate6CurrentReader(root).head])
+        # PR186依存mergeで既供給の末尾も固定prefixへ含める。
+        old_policy["targets"].append({"pr": 186, "branch": "feature/mvp-t1-first-pitch"})
+        if ({k: v for k, v in policy.items() if k != "targets"}
+                != {k: v for k, v in old_policy.items() if k != "targets"}
+                or policy["targets"][:len(old_policy["targets"])] != old_policy["targets"]
+                or policy["targets"][len(old_policy["targets"]):len(old_policy["targets"])+1]
+                != [{"pr": _ORDINARY_PR, "branch": _ORDINARY_BRANCH}]
+                or (not allow_policy_append
+                    and len(policy["targets"]) != len(old_policy["targets"]) + 1)):
+            raise HumanReviewSignatureRecordError("通常33 policyの旧prefix/実PR末尾が不一致")
+        for path, digest in record["assets"].items():
+            if hashlib.sha256((root / path).read_bytes()).hexdigest() != digest:
+                raise HumanReviewSignatureRecordError("通常33の9資産全値が不一致")
+        # 既consumerで12ID/104旧object/expected/historyの不変を再検査する。
+        previous_path = sys.path[:]
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            coverage = importlib.import_module("check_required_set_coverage")
+        finally:
+            sys.path[:] = previous_path
+        current = _Gate6CurrentReader(root).load_json(STATE_TRANSITION_CONTRACT_PATH,
+                                                     "通常33現subject")
+        mapping = coverage._ordinary_case_id_migrations(root, current)
+        old = anchor.load_json(STATE_TRANSITION_CONTRACT_PATH, "通常33旧subject")
+        rebuilt = copy.deepcopy(old)
+        new_cases = {case["caseId"]: case for case in current["cases"]}
+        old_refs = {}
+        for case in old["cases"]:
+            if case["caseId"] in mapping:
+                old_refs[_compact_json(case["rowRef"])] = (
+                    new_cases[mapping[case["caseId"]]]["rowRef"])
+        for row in rebuilt["matrixRows"]:
+            ref = {"layer": "matrixRows", "coordinate": {
+                key: row[key] for key in ("eventKind", "resultId", "precondition")}}
+            if _compact_json(ref) in old_refs:
+                row["precondition"] = old_refs[_compact_json(ref)]["coordinate"]["precondition"]
+        rebuilt["cases"] = [new_cases[mapping.get(case["caseId"], case["caseId"])]
+                            for case in old["cases"]]
+        rebuilt["cases"].append(new_cases["ST-COVERAGE-8d5c59594f90b5bd"])
+
+        def migrate_refs(value: Any) -> Any:
+            if isinstance(value, dict):
+                if _compact_json(value) in old_refs:
+                    return copy.deepcopy(old_refs[_compact_json(value)])
+                return {key: migrate_refs(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [migrate_refs(item) for item in value]
+            return value
+
+        rebuilt["mustOperationCoverage"] = migrate_refs(rebuilt["mustOperationCoverage"])
+        if compute_subject_digest(rebuilt, 9007199254740991) != compute_subject_digest(
+            current, 9007199254740991,
+        ):
+            raise HumanReviewSignatureRecordError("通常33の4guard/12ID/1case以外の差分")
+        return record
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError("通常33の固定入力/閉全値検査に失敗") from error
+
+
+def _ordinary_head(root: Path, event: Any, record: Mapping[str, Any]) -> None:
+    """全検査入力と実行依存を最終eventのblobへ束縛する。"""
+    _validate_gate6_head_bytes(root, event, {
+        "path": "docs/features/mvp-delegated-core-review/policy.json"})
+    for path in {str(GATE6_ORDINARY_PATH), str(GATE6_ORDINARY_SCHEMA_PATH),
+                 *record["assets"], *_ORDINARY_FIXED_INPUTS, *_ORDINARY_EXECUTION_INPUTS}:
+        if (root / path).read_bytes() != _carry_git_bytes(
+            root, ["show", f"{event.head_sha}:{path}"],
+        ):
+            raise HumanReviewSignatureRecordError("通常33の検査入力/依存が最終HEADと不一致")
+
+
+def _ordinary_ci(root: Path, event: Any, *, new_acceptance: bool) -> str:
+    """今回新受理とbase-first不変継承を混同せず、失敗はfallbackしない。"""
+    try:
+        if (type(event.number) is not int or event.number <= 0
+                or event.repository != "masaki1025/pitchlog"
+                or event.head_repository != "masaki1025/pitchlog"
+                or not isinstance(event.head_branch, str)
+                or not event.head_branch.startswith(("feature/", "fix/"))):
+            raise HumanReviewSignatureRecordError("通常33のPR event識別が不正")
+        _validate_gate6_checkout(root, event)
+        if new_acceptance:
+            if (event.number != _ORDINARY_PR or event.head_branch != _ORDINARY_BRANCH
+                    or event.base_sha != _ORDINARY_PUBLIC_BASE):
+                raise HumanReviewSignatureRecordError("通常33の新受理は実PR187だけに限定する")
+        else:
+            if event.number in {_ORDINARY_PR, _GATE6_T1_APPEND_PR, _GATE6_INTRODUCTION_PR}:
+                raise HumanReviewSignatureRecordError("通常33の継承PRが導入対象と混同された")
+            # 比較元は必ずevent.base。current又はrecord自己申告から選ばない。
+            for path, digest in (
+                (GATE6_ORDINARY_PATH, _ORDINARY_RECORD_SHA256),
+                (GATE6_ORDINARY_SCHEMA_PATH, _ORDINARY_SCHEMA_SHA256),
+            ):
+                raw = _carry_git_bytes(root, ["show", f"{event.base_sha}:{path}"])
+                if hashlib.sha256(raw).hexdigest() != digest:
+                    raise HumanReviewSignatureRecordError("通常33のbase記録/schemaが固定値と不一致")
+            baseline_record = _gate6_git_object(root, event.base_sha, GATE6_ORDINARY_PATH)
+            for path in {str(GATE6_ORDINARY_PATH), str(GATE6_ORDINARY_SCHEMA_PATH),
+                         *baseline_record["assets"], *_ORDINARY_FIXED_INPUTS}:
+                if (root / path).read_bytes() != _carry_git_bytes(
+                    root, ["show", f"{event.base_sha}:{path}"],
+                ):
+                    raise HumanReviewSignatureRecordError("後続PRで通常33の固定原本が変更された")
+        record = _ordinary_body(root, allow_policy_append=not new_acceptance)
+        _ordinary_head(root, event, record)
+        if new_acceptance:
+            guard = _carry_core_guard(root)
+            try:
+                guard.verify_delegated_confirmation(root, event)
+            except guard.GuardError as error:
+                raise HumanReviewSignatureRecordError(str(error)) from error
+            return "gate6 ordinary33: DELEGATED VERIFIED (not a personal signature)"
+        return "gate6 ordinary33: UNCHANGED FROM PR BASE; no new ordinary acceptance"
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError("通常33の公開/継承入力が不正") from error
+
+
 def validate_gate6_ci_event(root: Path, event: Any) -> str:
     """PR183の新受理と、別PRの変更を伴わない継承を区別する。"""
     if event is None:
         raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number == _ORDINARY_PR:
+        return _ordinary_ci(root, event, new_acceptance=True)
+    # 旧導入PRの分岐は保持する。後続ではbaseを先読し片側欠損も拒否する。
+    if event.number not in {_GATE6_T1_APPEND_PR, _GATE6_INTRODUCTION_PR}:
+        if any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{40}", value) is None
+               for value in (event.base_sha, event.head_sha)):
+            raise HumanReviewSignatureRecordError("通常33継承eventのGit識別値が不正")
+        if _ordinary_base_present(root, event.base_sha):
+            return _ordinary_ci(root, event, new_acceptance=False)
+        if _ordinary_present(root):
+            raise HumanReviewSignatureRecordError("通常33の新受理は実PR187以外に供給できない")
     if event.number == _GATE6_T1_APPEND_PR:
         validate_delegated_gate6_t1_input_append(root, event)
         return "gate6 T1 input append: DELEGATED VERIFIED (not a personal signature)"
@@ -2012,7 +2253,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(validate_gate6_ci_event(args.root, event))
             else:
                 validate_gate6_subject_carry(args.root)
-                print("gate6 subject carry: TECHNICAL ONLY; final delegation NOT CHECKED")
+                print("gate6 subject carry: TECHNICAL ONLY; final delegation NOT CHECKED; "
+                      "no new ordinary acceptance")
             return 0
         if args.stage2_review:
             if args.record is not None or args.output is None or args.matrix_review_contract:
