@@ -527,3 +527,6 @@ PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84
 
 
 2026-10-26T15:28:56.721622+00:00、指定pure3の実6fail2497passから、関数ACL変異のstring要素がproduct_authn_contract.pyでAttributeErrorを漏らす製品不具合を確認。PO委任によるCodex /root判断でbackend/src/pitchlog/authz/product_authn_contract.py exact1の型拒否追補を同作者へ許可する。既_verifier_rowsをnested ACL配列（functions/schema/databaseのacl_expectations/revoked_acl_expectations）にも再利用し、非list/非dictを既ValueError→ProductCatalogErrorへ閉じる。AttributeErrorを許容する期待変更/包括例外catchで隠す/不正要素を無視する処理をしない。既正常metadata/全field/ACL意味/拒否対向を保持し、実不正配列の既対向で確認する。旧6failを消さず、これを製品helper4file範囲の後発差分として非作者へ渡す。DB/Git/正式JSON/他sourceは作者へ許可しない。
+
+
+2026-10-26T15:35:51.656213+00:00、pure認可profile影響検査の残1がtests/test_product_authz_catalog.pyの旧policy69固定対現70であることを確認。PO委任によるCodex /root判断で当該test1を追加所有とし、採用済70policy全値（既独立e296d514…/正本・既schema fullprofile）から厳密件数だけを追随する。独立根拠なしの出力追認/部分一致/field無視/skipにせず、他assert/製品catalog/正式metadataを保持する。これで指定範囲はpuretest4＋product_authn_contract helper1のexact5。作者は修正・影響閉包を固定して停止し、次のN2 source4へ移る前にrootへ引き渡す。
