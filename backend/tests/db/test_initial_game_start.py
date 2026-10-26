@@ -965,13 +965,24 @@ while time.monotonic()<deadline:
     time.sleep(0.001)
 raise AssertionError('owned Node process not reached')
 """
+
         def run_node_monitor() -> dict[str, Any]:
             """同UIDの実観測を安全fieldだけへ閉じ、失敗も証拠へ返す。"""
             try:
                 process = subprocess.run(
-                    ["docker", "exec", "--user", "20002:20002", worker,
-                     "/runtime/bin/python3.12", "-c", stop_node_code],
-                    capture_output=True, text=True, timeout=20,
+                    [
+                        "docker",
+                        "exec",
+                        "--user",
+                        "20002:20002",
+                        worker,
+                        "/runtime/bin/python3.12",
+                        "-c",
+                        stop_node_code,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=20,
                 )
             except (subprocess.TimeoutExpired, OSError) as error:
                 return {"returncode": None, "failure_type": type(error).__name__}
@@ -979,14 +990,23 @@ raise AssertionError('owned Node process not reached')
                 observed = json.loads(process.stdout)
                 assert type(observed) is dict
                 assert set(observed) in (
-                    {"owned_Node_stopped", "pid", "ppid", "uid",
-                     "executable_inode_match", "stopped_monotonic"},
+                    {
+                        "owned_Node_stopped",
+                        "pid",
+                        "ppid",
+                        "uid",
+                        "executable_inode_match",
+                        "stopped_monotonic",
+                    },
                     {"monitor_failure_type", "frames"},
                 )
             except (ValueError, AssertionError):
                 observed = {"monitor_failure_type": "InvalidDiagnostic", "frames": []}
-            return {"returncode": process.returncode, "observation": observed,
-                    "stderr_present": bool(process.stderr)}
+            return {
+                "returncode": process.returncode,
+                "observation": observed,
+                "stderr_present": bool(process.stderr),
+            }
 
         with ThreadPoolExecutor(max_workers=1) as executor:
             stop_future = executor.submit(run_node_monitor)
@@ -1023,11 +1043,17 @@ print(json.dumps(observed))
             ).fetchall()
         (tmp_path / "worker-node-diagnostic.json").write_text(
             json.dumps(
-                {"reply": node_failed, "actual_Node_monitor": node_monitor,
-                 "game_status": fault_status, "attempt_outcomes": fault_attempts,
-                 "ledger_claimed": [row[6] for row in db.ledger_snapshot()]},
-                ensure_ascii=False, indent=2,
-            ) + "\n"
+                {
+                    "reply": node_failed,
+                    "actual_Node_monitor": node_monitor,
+                    "game_status": fault_status,
+                    "attempt_outcomes": fault_attempts,
+                    "ledger_claimed": [row[6] for row in db.ledger_snapshot()],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n"
         )
         assert node_monitor["returncode"] == 0
         assert node_stop["owned_Node_stopped"] is True

@@ -493,3 +493,9 @@ root tenant CLIは通常追随前の履歴prefix拒否から、追随解消後�
 
 
 2026-10-26T11:41:39.944763+00:00、PO委任によるCodex /root判断でrenderer exact3の通常整合を受理。独立9949f84fea6d860c8009492eba7caebd74dd345d0077977d61cf9fdbd579c68e/evidence4f93317aa2f8b78eacce443efd898644a9c9f972b7f634554a0261df8132ce30（0/0/0）、独立81成功2.26s/root81成功2.24s/Ruffformat-checkを照合した。_render_row以外全AST/旧55定義76assert・runtimeJSON23・生成全定数ASTを保持、escapeと88/89境界対向成功。初回独立runが別WT editableを読んだ57失敗/24成功は__file__観測とともに保全し、正しいPYTHONPATH明示後の独立成功と分ける。配布runtime source39d94a2d…→2c50543cba810a03bac77732416474de94d880d3cf455978a9226bc94c4f505eは正規renderの形式だけを追随し検査除外0。旧T1planの4リンクも固定Git実object存在をcat-file -eで確認した参照へ直し、未取得の候補内容を読了/採用したとは記録しない。
+
+
+2026-10-26T12:06:33.913569+00:00、CI188 a222は長行lint解消後、backend format-checkで既DB helper/test2の表記不整合を検出した。PO委任によるCodex /root判断でbackend/tests/db/initial_recording_right_scope_support.py とtest_initial_game_start.py exact2をruff formatする通常追随を許可。全module AST同値/全assert・文字列payload同値を検証し、差分があれば保存せず切り分ける。製品/認可/故障判定/SQL0変更、同じfault DB再走は不要。CI docs-statusの既adopted data-model1.4/2026-10-25に対する索引1.3/2026-10-24の不一致はdocs/README.mdの当該行だけ実正本へ整合する（7.6実装追随、意味改訂/新version発行0）。必須検査は全backend format/check/typeとdocs-status、最終PRreviewで差分確認。これらの旧赤を成功へ読み替えない。
+
+
+2026-10-26T12:10:42.875550+00:00、rootはCI format追随のexact2全module AST（assert/送信payload/故障診断文字列を含む）同一を確認した。Ruffformat後に公開endpoint文字列のインデントでE501が1件出たため隣接literalへ分割し、最終AST/文字列値は不変。全backend416file format-check・全Ruff・全ty成功、docs-status21文書0違反。indexは当該data-model行末のversion/dateだけ1.4/2026-10-25へ整合し旧承認本文を保持した。source2とindex＋本planだけを保存し、source意味変更/DB再走は行わない。最終PR差分レビューへAST同一receiptを供給する。旧a222 CIのformat/docs赤は保持、tenant/history/scan/公開委任の別残件をこの成功で解消扱いにしない。

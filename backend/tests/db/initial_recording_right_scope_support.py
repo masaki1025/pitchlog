@@ -465,8 +465,7 @@ else:
             "--mount",
             f"type=bind,src={_BACKEND / 'tests'},dst=/fixture/backend/tests,readonly",
             "--volume",
-            f"{self.authority.control}:/run/pitchlog"
-            + ("" if root else ":ro"),
+            f"{self.authority.control}:/run/pitchlog" + ("" if root else ":ro"),
         ]
         return args
 
@@ -512,14 +511,21 @@ except BaseException:
                 assert (
                     docker("inspect", "--format", "{{.State.Running}}", name) == "true"
                 ), "実worker起動が非成功"
-                if docker(
-                    "exec", name, "/runtime/bin/python3.12", "-c",
-                    "import os,stat; p='/run/pitchlog/initial-broker-endpoint.json'; "
-                    "s=os.stat(p,follow_symlinks=False); "
-                    "assert stat.S_ISREG(s.st_mode) and s.st_uid==0 "
-                    "and stat.S_IMODE(s.st_mode)==0o644; print('ready')",
-                    check=False,
-                ) == "ready":
+                if (
+                    docker(
+                        "exec",
+                        name,
+                        "/runtime/bin/python3.12",
+                        "-c",
+                        "import os,stat; "
+                        "p='/run/pitchlog/initial-broker-endpoint.json'; "
+                        "s=os.stat(p,follow_symlinks=False); "
+                        "assert stat.S_ISREG(s.st_mode) and s.st_uid==0 "
+                        "and stat.S_IMODE(s.st_mode)==0o644; print('ready')",
+                        check=False,
+                    )
+                    == "ready"
+                ):
                     # Root公開entryはlisten直前に作るため、実peer確認もclientで行う。
                     result = self.broker_client(
                         (
