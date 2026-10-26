@@ -77,13 +77,22 @@ MIGRATION_BATCH_ROLE_ATTRIBUTES = {
 
 
 def expected_product_roles(asset: dict[str, Any]) -> dict[str, dict[str, object]]:
-    """資産の有無に依存しない、製品状態の 14 ロールを返す。
+    """既存14ロールへ完全な初球profileの追加3ロールだけを加える。
 
     Args:
-        asset: 呼出側との互換性のために受け取る製品資産。判定には使わない。
+        asset: 完全な初球profileの有無を検査する製品資産。
     """
-    del asset
-    return dict(_PRODUCT_ROLES)
+    from pitchlog.authz.first_ball_product import ADDITIONS, validate
+
+    result = dict(_PRODUCT_ROLES)
+    if validate(asset):
+        result.update(
+            {
+                r["role_id"]: {k: v for k, v in r.items() if k != "role_id"}
+                for r in ADDITIONS["roles"]
+            }
+        )
+    return result
 
 
 def expected_provisional_product_roles() -> dict[str, dict[str, object]]:

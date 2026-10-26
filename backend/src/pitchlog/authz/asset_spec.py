@@ -255,6 +255,7 @@ _PRODUCT_FUNCTION_KINDS = (
     "definer",
     "migration_trigger",
     "migration_function",
+    "invoker",
 )
 
 
@@ -413,6 +414,11 @@ def _validate_element_coverage(
             ):
                 expected_groups.add("functions:definer")
             if any(
+                isinstance(row, dict) and row.get("function_kind") == "invoker"
+                for row in raw_rows
+            ):
+                expected_groups.add("functions:invoker")
+            if any(
                 isinstance(row, dict)
                 and row.get("function_kind") == "migration_function"
                 for row in raw_rows
@@ -472,6 +478,12 @@ def _validate_element_coverage(
                     raise AuthzApplicationStepsError(
                         f"{label}の関数ACL付与先は配列で宣言しなければならない"
                     )
+                if function_kind == "invoker" and (
+                    raw_row.get("function_id")
+                    != "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
+                    or raw_row.get("security_mode") != "invoker"
+                ):
+                    raise AuthzApplicationStepsError("初球invokerはexact1署名/flagだけ")
                 if (
                     function_kind == "definer"
                     and raw_row.get("security_mode") != "definer"
@@ -593,6 +605,11 @@ def validate_product_application_steps(
         for row in functions
     ):
         expected_groups[2].append("functions:definer")
+    if isinstance(functions, list) and any(
+        isinstance(row, dict) and row.get("function_kind") == "invoker"
+        for row in functions
+    ):
+        expected_groups[2].append("functions:invoker")
     if isinstance(functions, list) and any(
         isinstance(row, dict) and row.get("function_kind") == "migration_function"
         for row in functions

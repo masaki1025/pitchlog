@@ -3723,6 +3723,11 @@ def _validate_product_database_expectations(
     value: object, *, lifecycle_required: bool = False,
 ) -> None:
     """製品DBの所有者とACLをdesign.md 2-1へ照合する。"""
+    from pitchlog.authz.first_ball_product import legacy_database_rows
+    try:
+        value = legacy_database_rows(value)
+    except ValueError as error:
+        raise CatalogError(str(error)) from error
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.databasesは配列でなければならない")
     actual: dict[str, dict[str, object]] = {}
@@ -3797,6 +3802,11 @@ def _validate_product_schema_expectations(
     start_required: bool = False,
 ) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
+    from pitchlog.authz.first_ball_product import legacy_schema_rows
+    try:
+        value = legacy_schema_rows(value)
+    except ValueError as error:
+        raise CatalogError(str(error)) from error
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.schemasは配列でなければならない")
     actual: dict[str, dict[str, object]] = {}
@@ -4087,7 +4097,10 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     present = manifest_set & initial_tables
     if present and (present != initial_tables or 'rg1_restore_gate' not in manifest_set):
         raise CatalogError('初期4表はRG1既基線と共にexact-setで必要')
-    expected_tables = baseline_tables | present
+    binding = manifest_set & {'writer_bindings','writer_admissions'}
+    if binding and binding != {'writer_bindings','writer_admissions'}:
+        raise CatalogError('同期binding表はexact2表が必要')
+    expected_tables = baseline_tables | present | binding
     if "rg1_restore_gate" in manifest_set:
         expected_tables |= {'rg1_restore_gate'}
     if manifest_set != classification_set or manifest_set != expected_tables:
@@ -4271,7 +4284,11 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
             raise CatalogError(f"{label}.table_idが重複している: {table_id}")
         declared_tables.add(table_id)
         if (
-            row_value["schema_name"] != "public"
+            row_value['schema_name'] != (
+                'sync_fence'
+                if table_id in {'writer_bindings', 'writer_admissions'}
+                else 'public'
+            )
             or row_value["enable_row_level_security"] is not True
             or row_value["force_row_level_security"] is not True
         ):
@@ -4362,7 +4379,10 @@ def _validate_product_access_bodies(
         if policy_paths[policy_id] != expected_path:
             raise CatalogError(f"{policy_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
-        if policy_id in start_policy_declarations():
+        from pitchlog.authz.first_ball_product import body as binding_body
+        if binding_body('policy', policy_id) is not None:
+            expected_body = binding_body('policy', policy_id)
+        elif policy_id in start_policy_declarations():
             expected_body = generate_start_policy_sql(policy_id)
         elif policy_id in build_enrollment_policy_declarations():
             expected_body = generate_enrollment_policy_sql()
@@ -4390,8 +4410,11 @@ def _validate_product_access_bodies(
         if acl_paths[acl_id] != expected_path:
             raise CatalogError(f"{acl_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"表ACL body[{acl_id}]")
+        from pitchlog.authz.first_ball_product import body as binding_body
         expected_body = (
-            generate_product_table_acl_sql(table_id, str(declaration["profile"]))
+            binding_body('acl_expectation', acl_id)
+            if binding_body('acl_expectation', acl_id) is not None
+            else generate_product_table_acl_sql(table_id, str(declaration["profile"]))
             if acl_id in expected_acls
             else generate_builtin_execute_sql(declaration)
             if declaration.get("object_kind") == "builtin_function"
@@ -4483,6 +4506,9 @@ def _validate_product_table_access_expectations(
             raise CatalogError(str(error)) from error
         expected_policies.update(start_policy_declarations())
 
+    from pitchlog.authz.first_ball_product import ADDITIONS, validate
+    if validate(raw):
+        expected_policies.update({row['policy_id']:row for row in ADDITIONS['policies']})
     policies = _product_declarations_by_id(
         raw["policies"],
         "policy_id",
@@ -4519,6 +4545,9 @@ def _validate_product_table_access_expectations(
         if declaration.get("object_kind") == "builtin_function":
             if not is_builtin_execute_declaration(declaration):
                 raise CatalogError("builtin追加EXECUTEが有限集合と一致しない")
+            continue
+        from pitchlog.authz.first_ball_product import require_row
+        if require_row('acl_expectations', declaration) is not None:
             continue
         if is_forbidden_rg1_table_acl(declaration):
             raise CatalogError("RG1状態表と専用ownerには表単位ACLを許可しない")
@@ -4560,7 +4589,9 @@ def _validate_product_table_access_expectations(
         }
         expected_builtin = {
             str(row["acl_id"]): row
-            for role in BUILTIN_EXECUTE_GRANTEES
+            for role in BUILTIN_EXECUTE_GRANTEES | (
+                {'pitchlog_sync_binding_fn_owner'} if validate(raw) else set()
+            )
             for row in (build_builtin_execute_declaration(role),)
         }
         if builtin_acls != expected_builtin:
@@ -4657,6 +4688,9 @@ def _validate_product_membership_helper(
         "製品DDL manifest.column_acl_expectations",
     )
     for expectation_id, declaration in column_acls.items():
+        from pitchlog.authz.first_ball_product import require_row
+        if require_row('column_acl_expectations', declaration) is not None:
+            continue
         if (is_start_column_acl(declaration) or is_initial_column_acl(declaration)
             or is_enrollment_column_acl(declaration)):
             continue
@@ -4978,7 +5012,9 @@ def _validate_lifecycle_function_assets(raw: dict[str, object], root: Path) -> N
     actual = {
         key: row for key, row in rows.items()
         if row.get("schema_name") in {"rg1_control", "pitchlog_ledger_observer"}
-        or row.get("owner_role_id") in BUILTIN_EXECUTE_GRANTEES
+        or row.get("owner_role_id") in {
+            "pitchlog_rg1_control_owner", "pitchlog_ledger_identity_owner"
+        }
     }
     expected = build_lifecycle_function_declarations()
     if actual != expected:
@@ -5220,6 +5256,12 @@ def _validate_product_ddl_elements(
     state: RuntimeContractState,
 ) -> dict[str, object]:
     """製品ロール・DB・スキーマ・表の宣言を閉集合と照合する。"""
+    from pitchlog.authz.first_ball_product import validate
+    if isinstance(raw, dict):
+        try:
+            validate(raw)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
     if not isinstance(raw, dict):
         raise CatalogError("製品DDL manifestはオブジェクトでなければならない")
     expected_keys = {

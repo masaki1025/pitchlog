@@ -371,6 +371,15 @@ def _application_statements(
             continue
         sequence = _application_sequence(statement, steps, element)
         sql_text = statement.sql
+        if statement.element_type == "function":
+            from pitchlog.authz.first_ball_product import application_function_sql
+
+            try:
+                replacement = application_function_sql(statement.element_id, sql_text)
+            except ValueError as error:
+                raise ProductProvisioningError(str(error)) from error
+            if replacement is not None:
+                sql_text = replacement
         if statement.element_type == "schema" and _element_text(
             element, "schema_name"
         ) in {
@@ -614,6 +623,22 @@ def _build_operation_statements(
     operation: ProductOperation,
 ) -> tuple[ProductApplicationSteps, tuple[_ProductStatement, ...]]:
     """正規の置き場だけから手順と実行文を生成する。"""
+    from pitchlog.authz.first_ball_product import (
+        pre_rule_deferred_ids,
+        validate,
+    )
+
+    candidate = json.loads(
+        (_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_bytes()
+    )
+    try:
+        added_profile = validate(candidate)
+    except ValueError as error:
+        raise ProductProvisioningError(str(error)) from error
+    if added_profile and operation is ProductOperation.UNAPPLY:
+        raise ProductProvisioningError(
+            "同期binding履歴の退役は未提供。PUBLIC再付与/履歴削除を拒否する"
+        )
     steps = load_product_application_steps(_REPOSITORY_ROOT, PRODUCT_SPEC)
     generated = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     if operation is ProductOperation.APPLY_PRE_RULE:
@@ -853,6 +878,13 @@ def _build_operation_statements(
             raise ProductProvisioningError("前段保留70のID/種別/一意性が不一致")
         generated = tuple(
             statement for statement in generated if statement.element_id not in deferred
+        )
+    if added_profile and operation is ProductOperation.APPLY_PRE_RULE:
+        deferred_binding = pre_rule_deferred_ids()
+        generated = tuple(
+            statement
+            for statement in generated
+            if statement.element_id not in deferred_binding
         )
     elements = _load_product_elements()
     if operation in (ProductOperation.APPLY, ProductOperation.APPLY_PRE_RULE):

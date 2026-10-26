@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 23
+RUNTIME_CONTRACT_REVISION = 24
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "609148c8b3b7c2dbacd5ed31d49ed8cc671888cc2b51e2e7ec71a66c990e3320"
+SOURCE_DIGEST = "0f9e1a607189dc9fe902b43fe8dad67ca952ae6ae710abbd4326913b1ff5bc37"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -44,6 +44,9 @@ PROTECTED_SCHEMAS = (
     "public",
     "rg1_api",
     "rg1_control",
+    "sync_fence",
+    "sync_fence_api",
+    "sync_right_api",
 )
 PROTECTED_TABLES = (
     ("public", "admin_credentials"),
@@ -96,6 +99,8 @@ PROTECTED_TABLES = (
     ("public", "tenants"),
     ("public", "tournament_rule_assignments"),
     ("public", "trusted_devices"),
+    ("sync_fence", "writer_admissions"),
+    ("sync_fence", "writer_bindings"),
 )
 PROTECTED_FUNCTIONS = (
     ("authn", "change_password", "uuid, text, text"),
@@ -193,6 +198,19 @@ PROTECTED_FUNCTIONS = (
     ("rg1_control", "release_controller_lease", ""),
     ("rg1_control", "scope_binding", "uuid"),
     ("rg1_control", "try_controller_lease", ""),
+    ("sync_fence_api", "assert_writer_binding", "uuid, uuid, uuid, bytea, uuid, uuid"),
+    ("sync_fence_api", "close_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
+    ("sync_fence_api", "guard_writer_records", ""),
+    ("sync_fence_api", "observe_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
+    ("sync_fence_api", "publish_writer_binding", "uuid, uuid, uuid, jsonb, bytea"),
+    ("sync_fence_api", "read_writer_database_identity", "uuid"),
+    ("sync_fence_api", "read_writer_identity", "uuid"),
+    ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
+    (
+        "sync_right_api",
+        "check_current_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (

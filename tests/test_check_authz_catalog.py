@@ -6513,3 +6513,76 @@ def historical_lifecycle_schema_input(
     target.parent.mkdir(parents=True)
     target.write_bytes(raw)
     monkeypatch.setattr(sys.modules[__name__], 'REPOSITORY_ROOT', root)
+
+
+
+def _first_ball_product_asset() -> dict[str, Any]:
+    return json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_bytes()
+    )
+
+
+def test_first_ball_product_full_profile_uses_closed_actual_declarations() -> None:
+    """新規要素は実source/canonical/bodyの全検査後だけ受理する。"""
+    result = checker.validate_ddl_elements(
+        _first_ball_product_asset(), REPOSITORY_ROOT, checker.PRODUCT_SPEC
+    )
+    assert result["product_role_count"] == 17
+
+
+@pytest.mark.parametrize("fault", [
+    "old-role", "old-force", "wrong-namespace", "unknown-schema",
+    "invoker-flag", "unknown-invoker", "partial",
+])
+def test_first_ball_product_rejects_old_and_added_mutations(fault: str) -> None:
+    """既部分を含む余剰・権限緩和・部分profileを拒否する。"""
+    value = _first_ball_product_asset()
+    if fault == "old-role":
+        next(r for r in value["roles"] if r["role_id"] == "pitchlog_app")["superuser"] = True
+    elif fault == "old-force":
+        value["tables"][0]["force_row_level_security"] = False
+    elif fault == "wrong-namespace":
+        value["tables"][-1]["schema_name"] = "public"
+    elif fault == "unknown-schema":
+        value["schemas"].append({
+            **value["schemas"][-1], "schema_id": "unknown_sync", "schema_name": "unknown_sync",
+        })
+    elif fault == "partial":
+        value["functions"].pop()
+    else:
+        row = next(r for r in value["functions"] if r["function_kind"] == "invoker")
+        if fault == "invoker-flag":
+            row["security_mode"] = "definer"
+        else:
+            row["function_id"] = "FUNCTION:sync_fence_api:unknown(uuid)"
+    with pytest.raises(checker.CatalogError):
+        checker.validate_ddl_elements(value, REPOSITORY_ROOT, checker.PRODUCT_SPEC)
+
+
+def test_first_ball_invoker_unknown_mode_and_order_are_rejected(tmp_path: Path) -> None:
+    """exact1 INVOKERとhelper段階の順序だけを認める。"""
+    from pitchlog.authz.asset_spec import (
+        PRODUCT_SPEC,
+        AuthzApplicationStepsError,
+        load_product_application_steps,
+    )
+
+    product = "contracts/authz/product/ddl-elements.json"
+    steps = "contracts/authz/product/application-steps.json"
+    for fault in ["unknown", "security", "order"]:
+        root = tmp_path / fault
+        asset = _first_ball_product_asset()
+        order = json.loads((REPOSITORY_ROOT / steps).read_bytes())
+        row = next(r for r in asset["functions"] if r["function_kind"] == "invoker")
+        if fault == "unknown":
+            row["function_id"] = "FUNCTION:sync_fence_api:other(uuid)"
+        elif fault == "security":
+            row["security_mode"] = "definer"
+        else:
+            order["application_steps"][2]["element_groups"].reverse()
+        for rel, value in [(product, asset), (steps, order)]:
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value))
+        with pytest.raises(AuthzApplicationStepsError):
+            load_product_application_steps(root, PRODUCT_SPEC)

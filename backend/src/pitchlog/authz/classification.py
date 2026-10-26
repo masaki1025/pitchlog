@@ -26,6 +26,7 @@ FACT_KINDS = frozenset(
         "migration_only",
         "rg1_control",
         "initial_right_storage",
+        "sync_writer_binding_storage",
         "secret_column",
     }
 )
@@ -37,6 +38,7 @@ FUNCTION_ONLY_FACT_KINDS = frozenset(
         "migration_only",
         "rg1_control",
         "initial_right_storage",
+        "sync_writer_binding_storage",
     }
 )
 FUNCTION_OWNER_UNITS = frozenset({"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"})
@@ -388,7 +390,12 @@ def _exposure_fact_sets(
                     f"{table_name}.{column_name}"
                 )
 
-    if seen_kinds != FACT_KINDS:
+    required_kinds = (
+        FACT_KINDS
+        if set(manifest_columns) & {"writer_bindings", "writer_admissions"}
+        else FACT_KINDS - {"sync_writer_binding_storage"}
+    )
+    if seen_kinds != required_kinds:
         violations.append(
             "露出の事実の種類が不一致: "
             f"期待={sorted(FACT_KINDS)}, 実際={sorted(seen_kinds)}"
@@ -443,6 +450,11 @@ def _validate_assignment_conditions(
     )
     if table_facts.get("initial_right_storage") != initial_tables:
         violations.append("初期保存資源の事実が固定4表と一致しない")
+    binding_tables = table_facts.get("sync_writer_binding_storage", frozenset())
+    if binding_tables and binding_tables != frozenset(
+        {"writer_bindings", "writer_admissions"}
+    ):
+        violations.append("同期binding保存資源はexact2表が必要")
     for table_name, profile in profiles.items():
         columns = manifest_columns.get(table_name, frozenset())
         if table_name in special_tables and profile != "function_only":
