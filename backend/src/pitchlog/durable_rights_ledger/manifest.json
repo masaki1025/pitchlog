@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "postgres_version": 170011,
+  "schema": "pitchlog_ledger",
+  "ddl_sha256": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe",
+  "tables": [
+    "state",
+    "highwater",
+    "reservations"
+  ],
+  "roles": {
+    "owner": "pitchlog_ledger_owner",
+    "app": "pitchlog_ledger_app",
+    "control": "pitchlog_ledger_control",
+    "peer": "pitchlog_ledger_replicator"
+  },
+  "functions": {
+    "identity()": [
+      "app",
+      "control"
+    ],
+    "epoch_fence()": [
+      "app"
+    ],
+    "reservation(uuid,uuid,uuid,uuid)": [
+      "app"
+    ],
+    "reserve(uuid,uuid,uuid,uuid)": [
+      "app"
+    ],
+    "claim(uuid,uuid,uuid,uuid)": [
+      "app"
+    ],
+    "advance_epoch(bigint)": [
+      "control"
+    ],
+    "audit_page(bigint,integer)": [
+      "control"
+    ],
+    "reconcile(uuid,uuid,uuid,uuid,bigint,bigint,boolean,boolean,bigint)": [
+      "control"
+    ],
+    "confirm_state(bigint,bigint,bigint)": [
+      "control"
+    ]
+  },
+  "synchronous_peer": {
+    "application_name": "ledger_standby",
+    "count": 1,
+    "mode": "FIRST 1 (ledger_standby)",
+    "commit": "on",
+    "flush_and_replay_required": true,
+    "standby_durable_receive_required": true,
+    "replay_requirement": "exact owner-bound row/epoch visibility; not raw flush padding comparison"
+  },
+  "client": {
+    "psycopg": "3.3.4",
+    "minimum_libpq": 170000,
+    "cancel_safe_required": true
+  },
+  "boundaries": {
+    "business_cluster_must_differ": true,
+    "reconnect_after_restart": "protected_journal_reconciliation",
+    "promotion_issuance": false,
+    "cold_attach_proof_port": "same-business-instance authority restart via protected journal; business restart/epoch advance need real close proof",
+    "operational_deployment": false,
+    "distributed_commit": false,
+    "business_restart_without_close_proof": false,
+    "public_epoch_advance": false
+  },
+  "protocol_source": {
+    "path": "backend/src/pitchlog/recording_rights/initial_grant.py",
+    "supplier_head": "95d766f5d20234b1d534538b96fc369eda1cc6f1",
+    "sha256": "c20d596ba80a7c9e792a472ddde295a261b0dee2977627e7f0391765bdca59c3"
+  },
+  "required_settings": {
+    "fsync": "on",
+    "full_page_writes": "on",
+    "synchronous_commit": "on",
+    "synchronous_standby_names": "FIRST 1 (ledger_standby)"
+  },
+  "identity": {
+    "physical_pair_system_id": "same",
+    "business_system_id": "different",
+    "timeline": 1,
+    "pin_until_close": [
+      "system_id",
+      "timeline",
+      "started_at"
+    ],
+    "peer_address": "standby server address",
+    "primary_recovery": false,
+    "standby_recovery": true,
+    "business_genesis_fields": [
+      "system_id",
+      "database",
+      "started_at"
+    ]
+  },
+  "timeout_seconds": {
+    "minimum": 0.1,
+    "maximum": 30,
+    "read_statement_and_lock": "finite",
+    "commit": "cancel_safe with finite deadline; unknown after cancel",
+    "reconnect_cancelled_connection": false
+  },
+  "witness": {
+    "component": "protected_journal_and_unix_authority",
+    "authority_connected": true,
+    "source_sha256": "e20e957d04a689bd595d229f657db9bcb550f3b68f7092588403e689030bb1db",
+    "platform": "linux",
+    "files": [
+      "enrollment.json",
+      "journal",
+      "writer.lock"
+    ],
+    "descriptor_schema_version": 1,
+    "directory_mode": "0750",
+    "descriptor_mode": "0640",
+    "journal_mode": "0600",
+    "lock_mode": "0600",
+    "directory_flag": "FS_APPEND_FL",
+    "descriptor_flag": "FS_IMMUTABLE_FL",
+    "journal_flag": "FS_APPEND_FL",
+    "worker_uid": "nonroot",
+    "capability_sets_empty": [
+      "CapEff",
+      "CapPrm",
+      "CapInh",
+      "CapAmb",
+      "CapBnd"
+    ],
+    "no_new_privileges": true,
+    "flock": "exclusive_nonblocking_with_finite_timeout",
+    "frame": {
+      "magic": "PLWIT001",
+      "version": 1,
+      "header_bytes": 53,
+      "checksum_bytes": 32,
+      "maximum_payload_bytes": 65536,
+      "checksum": "sha256",
+      "chain": "previous_frame_digest"
+    },
+    "file_and_directory_fsync": true,
+    "automatic_enroll": false,
+    "rotation": false,
+    "truncate_or_repair": false,
+    "secret_fields": false,
+    "fixture_image": "postgres:17.11-bookworm",
+    "fixture_python": "readonly_current_python_3.12_runtime"
+  },
+  "authority": {
+    "transport": "AF_UNIX/SO_PEERCRED",
+    "authority_uid": "dedicated_nonroot",
+    "client_uid": "different_nonroot",
+    "enrollment": "one_time_root_config_and_real_empty_synchronous_pair",
+    "ack": "INTENT fsync -> PG synchronous commit and peer reread -> CONFIRMED fsync",
+    "unknown": "block then reconcile or quarantine; no automatic new attempt",
+    "unclosed_lease": "startup_and_live_refusal_until_real_close_proof",
+    "business_identity_ddl_sha256": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
+    "business_identity_function": "pitchlog_ledger_observer.identity()",
+    "business_probe_role": "pitchlog_ledger_identity_probe",
+    "business_owner_role": "pitchlog_ledger_identity_owner",
+    "business_identity_rebind": false,
+    "builtin_pg_control_system_effective_public_execute": true,
+    "builtin_pg_control_system_explicit_new_grantee": "pitchlog_ledger_identity_owner",
+    "startup_barrier": "journal-derived state CAS; no domain change; synchronous no-op WAL before peer row audit; no live leases",
+    "source_sha256": "8451e90c828de5b10ca9f866a6153129b0ccd70678f578f0537ac38119121060",
+    "adapter_sha256": "10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2",
+    "business_connect_grantee": "pitchlog_ledger_identity_probe; CONNECT only, no TEMP or product-table/authn grant",
+    "legacy_genesis_missing_database_admission": false,
+    "sql_search_path": [
+      "pg_catalog",
+      "pitchlog_ledger",
+      "pg_temp"
+    ],
+    "canonical_tables": [
+      "pitchlog_ledger.state",
+      "pitchlog_ledger.highwater",
+      "pitchlog_ledger.reservations"
+    ],
+    "fresh_activation": {
+      "method": "DurableLedger.fresh_activation()",
+      "rpc": "fresh_activation_open",
+      "attestation_fields": [
+        "authority_id",
+        "activation_ordinal",
+        "business_system_id",
+        "database",
+        "postmaster_started_at",
+        "pair_epoch",
+        "highwater",
+        "reservation_count"
+      ],
+      "identity": [
+        "authority_id",
+        "protected_start_frame_ordinal"
+      ],
+      "begin_event": "activation_open",
+      "same_peer_channel": true,
+      "writer_mutex": "begin_check_fsync_and_lease_registration_only",
+      "ordinary_reserve_claim_while_held": true,
+      "eligibility": "verified genesis/current identity; E1 H0 reservations0; no past INTENT/activation/unterminated lease",
+      "in_doubt": "no automatic fresh retry; real unterminated lease blocks live/startup",
+      "past_activation": "fresh denied even after normal close or restored zero",
+      "opens_business_rg1": false
+    }
+  }
+}

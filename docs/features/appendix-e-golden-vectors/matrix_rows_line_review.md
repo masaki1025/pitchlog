@@ -55,6 +55,8 @@
 | 40 | 走者イベント | 1塁牽制 | 無死 / 走者 1塁 / カウント 0-0 / 非投球イベント | — | — | — | 1塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死一塁の非投球イベントとして捕手の一塁牽制を表し、一塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
 | 41 | 走者イベント | 2塁牽制 | 無死 / 走者 2塁 / カウント 0-0 / 非投球イベント | — | — | — | 2塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死二塁の非投球イベントとして捕手の二塁牽制を表し、二塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
 | 42 | 走者イベント | 3塁牽制 | 無死 / 走者 3塁 / カウント 0-0 / 非投球イベント | — | — | — | 3塁停止 | 0 | なし | E-1・FR-004・ADV-04・旧input-screen:153-154。無死三塁の非投球イベントとして捕手の三塁牽制を表し、三塁走者の既定は停止とする。牽制死・牽制エラーはrunnerEventPayloadで上書きする実結果であり、本行の既定ではない。非投球イベントのため投球数へ算入しない |
+| 43 | 打撃結果 | 単打 | 2死 / 走者 2塁・3塁 / カウント 2-1 / 投球イベント / event.perPitch.interferenceRuling="not-required" / event.perPitch.officialScoringPayload="no-error" / event.perPitch.thirdOutObservation.kind="other-third-out" / event.perPitch.thirdOutTimingByRunner.third="home-before-third-out" / event.perPitch.runnerAdvanceOverridesByRunner.second.kind="out" / event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base="third" / event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind="running-out" / event.perPitch.runnerAdvanceOverridesByRunner.third.kind="safe-advance" / event.perPitch.runnerAdvanceOverridesByRunner.third.destination="home" / event.perPitch.rbi.cause_by_runner.third.held_too_long=false / event.perPitch.rbi.cause_by_runner.third.unnecessary_throw=false / event.perPitch.runnerAdvanceOverridesByRunner="multiple-runners-mixed" / event.perPitch.thirdOutTimingByRunner="single-runner-home-before-third-out" | S→0 / B→0 | 終了 | 1塁 | 2塁→3塁（非フォース） / 3塁→本塁（非フォース） | 1（2塁走者） | 投球回算入アウト・投球数・被安打・失点・打席・打数・安打・塁打・得点・打点 | D07=A採用範囲は二死二三塁の単打だけ。既定は確認/修正できる入力補助であり表示だけで観測成立としない。利用者確認/修正後の明示overrideが実効結果で、第3アウト/RBI不足を既定から補完しない。 GAP-06 OUT3-04 RBI-08 |
+| 44 | 打撃結果 | 単打 | 2死 / 走者 2塁・3塁 / カウント 2-1 / 投球イベント / event.perPitch.interferenceRuling="not-required" / event.perPitch.officialScoringPayload="no-error" / event.perPitch.thirdOutObservation.kind="other-third-out" / event.perPitch.thirdOutTimingByRunner.third="not-before-third-out" / event.perPitch.runnerAdvanceOverridesByRunner.second.kind="out" / event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base="third" / event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind="running-out" / event.perPitch.runnerAdvanceOverridesByRunner.third.kind="safe-advance" / event.perPitch.runnerAdvanceOverridesByRunner.third.destination="home" / event.perPitch.runnerAdvanceOverridesByRunner="multiple-runners-mixed" / event.perPitch.thirdOutTimingByRunner="single-runner-not-before-third-out" | S→0 / B→0 | 終了 | 1塁 | 2塁→3塁（非フォース） / 3塁→本塁（非フォース） | 1（2塁走者） | 投球回算入アウト・投球数・被安打・打席・打数・安打・塁打 | D07=A採用範囲は二死二三塁の単打だけ。既定は確認/修正できる入力補助であり表示だけで観測成立としない。利用者確認/修正後の明示overrideが実効結果で、第3アウト/RBI不足を既定から補完しない。 GAP-06 OUT3-05 |
 
 ## 機械検査として畳む項目
 
@@ -71,5 +73,20 @@
 ## 短縮表示できなかった値
 
 - `event.perPitch.interferenceRuling="batting:penalty-award"`
+- `event.perPitch.interferenceRuling="not-required"`
 - `event.perPitch.interferenceRuling="obstruction:play-on-obstructed-runner-with-awarded-destinations"`
 - `event.perPitch.interferenceRuling="offensive-interference:batter-included-with-out-targets-and-return-bases"`
+- `event.perPitch.officialScoringPayload="no-error"`
+- `event.perPitch.rbi.cause_by_runner.third.held_too_long=false`
+- `event.perPitch.rbi.cause_by_runner.third.unnecessary_throw=false`
+- `event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base="third"`
+- `event.perPitch.runnerAdvanceOverridesByRunner.second.kind="out"`
+- `event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind="running-out"`
+- `event.perPitch.runnerAdvanceOverridesByRunner.third.destination="home"`
+- `event.perPitch.runnerAdvanceOverridesByRunner.third.kind="safe-advance"`
+- `event.perPitch.runnerAdvanceOverridesByRunner="multiple-runners-mixed"`
+- `event.perPitch.thirdOutObservation.kind="other-third-out"`
+- `event.perPitch.thirdOutTimingByRunner.third="home-before-third-out"`
+- `event.perPitch.thirdOutTimingByRunner.third="not-before-third-out"`
+- `event.perPitch.thirdOutTimingByRunner="single-runner-home-before-third-out"`
+- `event.perPitch.thirdOutTimingByRunner="single-runner-not-before-third-out"`

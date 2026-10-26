@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 20,
+  "runtime_contract_revision": 22,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:20"
+        "runtime_contract_revision:22"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -89,8 +89,10 @@
       "authn",
       "authn_crypto",
       "authz_private",
+      "pitchlog_ledger_observer",
       "public",
-      "rg1_api"
+      "rg1_api",
+      "rg1_control"
     ],
     "tables": [
       [
@@ -345,6 +347,11 @@
         "uuid, boolean"
       ],
       [
+        "pitchlog_ledger_observer",
+        "identity",
+        ""
+      ],
+      [
         "public",
         "authn_normalize_team_name",
         "text"
@@ -558,6 +565,46 @@
         "rg1_api",
         "rg1_read_open",
         "uuid"
+      ],
+      [
+        "rg1_control",
+        "bind_initial_fresh_epoch",
+        "bigint"
+      ],
+      [
+        "rg1_control",
+        "close_gate",
+        ""
+      ],
+      [
+        "rg1_control",
+        "controller_lease_alive",
+        ""
+      ],
+      [
+        "rg1_control",
+        "open_fresh_gate",
+        ""
+      ],
+      [
+        "rg1_control",
+        "read_closed_gate",
+        ""
+      ],
+      [
+        "rg1_control",
+        "release_controller_lease",
+        ""
+      ],
+      [
+        "rg1_control",
+        "scope_binding",
+        "uuid"
+      ],
+      [
+        "rg1_control",
+        "try_controller_lease",
+        ""
       ]
     ]
   },
@@ -584,5 +631,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "2009f75da8c02bbeb8bcf084ae39a82b262c13acf55331008e7ad8eb52830ba7"
+  "source_digest": "8b94635ec4f2c39dd986c3c09323f58624cb8b65bac0f57a3cec505a21730209"
 }

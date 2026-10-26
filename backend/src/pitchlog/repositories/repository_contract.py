@@ -1,11 +1,12 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 24
+CONTRACT_REVISION = 28
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "578b052e9deae10bb39a35436d72c5ae941afca07db9974663cf7d54bad8d2c0"
+SOURCE_DIGEST = "9d7b061ac8aa10179a00270e914e0e1d4b5502a26897136d98ec2f4adf10bcea"
+
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
 CROSS_TENANT_FUNCTION_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -24,9 +25,7 @@ FUNCTION_TRANSACTION_ENTRY = (
 FUNCTION_OPERATION_REGISTRY = (
     "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
 )
-FUNCTION_EXECUTOR_SYMBOL = (
-    "pitchlog.repositories.transaction._TenantTransaction.run_function"
-)
+FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
 FUNCTION_EXECUTOR_SIGNATURE = (
     "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
 )
@@ -35,6 +34,7 @@ EXECUTOR_SIGNATURE = (
     "_execute_operation(self, context: TenantContext, "
     "operation: TenantOperationToken) -> TenantOperationResult"
 )
+
 ALLOWED_DTOS = ("pitchlog.repositories.tokens.TenantOperationResult",)
 SCALAR_TYPE_MATCH = "exact"
 CONTAINER_TYPE_MATCH = "exact"
@@ -51,7 +51,11 @@ IMMUTABLE_SCALAR_TYPES = (
     "datetime.datetime",
     "datetime.time",
 )
-IMMUTABLE_CONTAINER_GRAMMAR = ("tuple[T, ...]", "frozenset[T]", "mappingproxy[str, T]")
+IMMUTABLE_CONTAINER_GRAMMAR = (
+    "tuple[T, ...]",
+    "frozenset[T]",
+    "mappingproxy[str, T]",
+)
 CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
 UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
 UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
@@ -76,6 +80,7 @@ FORBIDDEN_TYPES = (
     "sqlalchemy.sql.schema.Table",
     "non_frozen_dataclass",
 )
+
 PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:players:read",
     "CAP:players:insert",
@@ -171,5 +176,6 @@ CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
     "RG1:precheck",
     "RG1:commit_check",
+    "RG1:scope_binding",
     "RULE:resolve_stage_a",
 )

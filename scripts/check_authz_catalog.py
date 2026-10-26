@@ -44,12 +44,19 @@ from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[
     generate_helper_column_acl_sql,
     generate_membership_helper_sql,
     is_forbidden_rg1_table_acl,
+    is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
     is_rule_resolution_update_acl,
 )
 from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
+    BUILTIN_EXECUTE_GRANTEES,
+    build_builtin_execute_declaration,
+    build_lifecycle_function_declarations,
     build_product_function_acl_declaration,
+    generate_builtin_execute_sql,
+    generate_lifecycle_function_sql,
     generate_product_function_acl_sql,
+    is_builtin_execute_declaration,
     product_function_id,
 )
 from pitchlog.authz.product_role_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
@@ -268,16 +275,37 @@ def _rg1_singleton_policies() -> dict[str, dict[str, object]]:
     return result
 
 
+def _rg1_control_policies() -> dict[str, dict[str, object]]:
+    """controller ownerのsingleton1 SELECT/UPDATEだけを期待する。"""
+    result: dict[str, dict[str, object]] = {}
+    for suffix, command in (("select_singleton", "SELECT"), ("update_singleton", "UPDATE")):
+        name = f"rg1_control_{suffix}"
+        policy_id = f"POLICY:rg1_restore_gate:{name}"
+        result[policy_id] = {
+            "policy_id": policy_id, "table_id": "rg1_restore_gate",
+            "profile": "function_only", "policy_name": name, "command": command,
+            "policy_mode": "permissive", "role_ids": ["pitchlog_rg1_control_owner"],
+            "using_predicate_id": None, "using_column": None,
+            "using_expression": "singleton_id = 1",
+            "with_check_predicate_id": None, "with_check_column": None,
+            "with_check_expression": "singleton_id = 1" if command == "UPDATE" else None,
+        }
+    return result
+
+
 def _rg1_singleton_policy_sql(declaration: dict[str, object]) -> str:
     """RG1の単一行ポリシーを固定構文へ展開する。"""
     policy_id = str(declaration["policy_id"])
     name = str(declaration["policy_name"])
     command = str(declaration["command"])
+    role_ids = declaration["role_ids"]
+    assert isinstance(role_ids, list) and len(role_ids) == 1
+    owner = str(role_ids[0])
     body = (
         "-- ELEMENT-TYPE: policy\n"
         f"-- ELEMENT-ID: {policy_id}\n\n"
         f"CREATE POLICY {name} ON public.rg1_restore_gate\n"
-        f"    AS PERMISSIVE FOR {command} TO pitchlog_rg1_fn_owner\n"
+        f"    AS PERMISSIVE FOR {command} TO {owner}\n"
         "    USING (singleton_id = 1)"
     )
     if command == "UPDATE":
@@ -3395,7 +3423,9 @@ def _product_acl_expectation_set(
     return frozenset(expectations)
 
 
-def _validate_product_database_expectations(value: object) -> None:
+def _validate_product_database_expectations(
+    value: object, *, lifecycle_required: bool = False,
+) -> None:
     """製品DBの所有者とACLをdesign.md 2-1へ照合する。"""
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.databasesは配列でなければならない")
@@ -3436,7 +3466,27 @@ def _validate_product_database_expectations(value: object) -> None:
                 f"{label}.revoked_acl_expectations",
             ),
         }
-    if actual != PRODUCT_DATABASE_EXPECTATIONS:
+    expected = copy.deepcopy(PRODUCT_DATABASE_EXPECTATIONS)
+    if lifecycle_required:
+        database = expected["current_database"]
+        database["acl_expectations"] = cast(
+            frozenset[tuple[str, str, bool]], database["acl_expectations"]
+        ) | frozenset({
+            ("pitchlog_rg1_control_actor", "CONNECT", False),
+            ("pitchlog_ledger_identity_probe", "CONNECT", False),
+            ("pitchlog_initial_actor", "CONNECT", False),
+        })
+        database["revoked_acl_expectations"] = cast(
+            frozenset[tuple[str, str, bool]], database["revoked_acl_expectations"]
+        ) | frozenset(
+            (role, privilege, False)
+            for role in (
+                "pitchlog_rg1_control_actor", "pitchlog_ledger_identity_probe",
+                "pitchlog_initial_actor",
+            )
+            for privilege in ("CREATE", "TEMPORARY")
+        )
+    if actual != expected:
         raise CatalogError("製品DBの所有者またはACLがdesign.md 2-1と一致しない")
 
 
@@ -3446,6 +3496,7 @@ def _validate_product_schema_expectations(
     authn_enabled: bool = False,
     rg1_required: bool = False,
     rule_resolution_required: bool = False,
+    lifecycle_required: bool = False,
 ) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
     if not isinstance(value, list):
@@ -3494,9 +3545,39 @@ def _validate_product_schema_expectations(
                 f"{label}.revoked_acl_expectations",
             ),
         }
-    for schema_id, expected in PRODUCT_SCHEMA_EXPECTATIONS.items():
+    expected_schemas = dict(PRODUCT_SCHEMA_EXPECTATIONS)
+    if lifecycle_required:
+        for name, owner, users in (
+            ("rg1_control", "pitchlog_rg1_control_owner", (
+                "pitchlog_rg1_control_actor", "pitchlog_rg1_fn_owner", "pitchlog_app",
+                "pitchlog_initial_actor",
+            )),
+            ("pitchlog_ledger_observer", "pitchlog_ledger_identity_owner", (
+                "pitchlog_ledger_identity_probe",
+            )),
+        ):
+            expected_schemas[name] = {
+                "schema_name": name, "creation": "product_ddl", "owner": owner,
+                "ownership_path": "direct",
+                "acl_expectations": frozenset((role, "USAGE", False) for role in users),
+                "revoked_acl_expectations": frozenset({
+                    ("PUBLIC", "USAGE", False), ("PUBLIC", "CREATE", False),
+                    *((role, "CREATE", False) for role in users),
+                }),
+            }
+    for schema_id, expected in expected_schemas.items():
         if schema_id == "rg1_api" and schema_id not in actual and not rg1_required:
             continue
+        if schema_id == "rg1_api" and lifecycle_required:
+            expected = {
+                **expected,
+                "acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["acl_expectations"]
+                ) | frozenset({("pitchlog_initial_actor", "USAGE", False)}),
+                "revoked_acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["revoked_acl_expectations"]
+                ) | frozenset({("pitchlog_initial_actor", "CREATE", False)}),
+            }
         if schema_id == "public" and authn_enabled:
             expected = {
                 **expected,
@@ -3533,12 +3614,26 @@ def _validate_product_schema_expectations(
                     frozenset[tuple[str, str, bool]], expected["revoked_acl_expectations"]
                 ) | frozenset({("pitchlog_rule_resolution_fn_owner", "CREATE", False)}),
             }
+        if schema_id == "public" and lifecycle_required:
+            expected = {
+                **expected,
+                "acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["acl_expectations"]
+                ) | frozenset({("pitchlog_rg1_control_owner", "USAGE", False)}),
+                "revoked_acl_expectations": cast(
+                    frozenset[tuple[str, str, bool]], expected["revoked_acl_expectations"]
+                ) | frozenset({("pitchlog_rg1_control_owner", "CREATE", False)}),
+            }
         if actual.get(schema_id) != expected:
             raise CatalogError(
                 "製品スキーマの既存の所有者またはACLがdesign.md 2-1と一致しない"
             )
+    if lifecycle_required:
+        schema_ids = set(expected_schemas) | ({"authn", "authn_crypto"} if authn_enabled else set())
+        if set(actual) != schema_ids:
+            raise CatalogError("製品lifecycle schemaの全数集合が不一致")
     for schema_id, declaration in actual.items():
-        if schema_id in PRODUCT_SCHEMA_EXPECTATIONS:
+        if schema_id in expected_schemas:
             continue
         if declaration["schema_name"] != schema_id:
             raise CatalogError(f"{schema_id}: schema_idとschema_nameが不一致")
@@ -3879,7 +3974,7 @@ def _validate_product_access_bodies(
     if set(policy_paths) != set(expected_policies):
         raise CatalogError("ポリシーbodyが5プロファイルと所有者用3件の期待集合と不一致")
     owner_policy_ids = set(_owner_game_type_seed_policies())
-    rg1_policy_ids = set(_rg1_singleton_policies())
+    rg1_policy_ids = set(_rg1_singleton_policies()) | set(_rg1_control_policies())
     for policy_id, declaration in expected_policies.items():
         table_id = str(declaration["table_id"])
         profile = str(declaration["profile"])
@@ -3914,6 +4009,8 @@ def _validate_product_access_bodies(
         expected_body = (
             generate_product_table_acl_sql(table_id, str(declaration["profile"]))
             if acl_id in expected_acls
+            else generate_builtin_execute_sql(declaration)
+            if declaration.get("object_kind") == "builtin_function"
             else generate_function_owner_table_acl_sql(declaration)
         )
         if body != expected_body:
@@ -3986,6 +4083,7 @@ def _validate_product_table_access_expectations(
 
     if state is RuntimeContractState.PRODUCT:
         expected_policies.update(_owner_game_type_seed_policies())
+        expected_policies.update(_rg1_control_policies())
     if "rg1_restore_gate" in profiles:
         expected_policies.update(_rg1_singleton_policies())
 
@@ -4022,6 +4120,10 @@ def _validate_product_table_access_expectations(
     for acl_id, declaration in table_acls.items():
         if acl_id in expected_acls:
             continue
+        if declaration.get("object_kind") == "builtin_function":
+            if not is_builtin_execute_declaration(declaration):
+                raise CatalogError("builtin追加EXECUTEが有限集合と一致しない")
+            continue
         if is_forbidden_rg1_table_acl(declaration):
             raise CatalogError("RG1状態表と専用ownerには表単位ACLを許可しない")
         _expect_keys(
@@ -4055,6 +4157,18 @@ def _validate_product_table_access_expectations(
             generate_function_owner_table_acl_sql(declaration)
         except (KeyError, ValueError) as error:
             raise CatalogError(f"関数所有者の表ACL宣言が不正: {error}") from error
+    if state is RuntimeContractState.PRODUCT:
+        builtin_acls = {
+            key: value for key, value in table_acls.items()
+            if value.get("object_kind") == "builtin_function"
+        }
+        expected_builtin = {
+            str(row["acl_id"]): row
+            for role in BUILTIN_EXECUTE_GRANTEES
+            for row in (build_builtin_execute_declaration(role),)
+        }
+        if builtin_acls != expected_builtin:
+            raise CatalogError("builtin追加EXECUTEの全2宣言がexact-set不一致")
     if state is RuntimeContractState.PROVISIONAL:
         return
     _validate_secret_column_acl(table_acls, raw["column_acl_expectations"], root)
@@ -4179,7 +4293,7 @@ def _validate_product_membership_helper(
             raise CatalogError("列ACLの対象種別またはスキーマが不正")
         permits_update = is_rg1_singleton_update_acl(
             declaration
-        ) or is_rule_resolution_update_acl(declaration)
+        ) or is_rule_resolution_update_acl(declaration) or is_rg1_control_column_acl(declaration)
         if not permits_update and (
             declaration.get("privilege_ids") != ["SELECT"]
             or declaration.get("grant_option") is not False
@@ -4189,6 +4303,15 @@ def _validate_product_membership_helper(
             generate_function_owner_column_acl_sql(declaration)
         except (KeyError, ValueError) as error:
             raise CatalogError(f"関数所有者の列ACL宣言が不正: {error}") from error
+    if state is RuntimeContractState.PRODUCT:
+        control_columns = {
+            key: row for key, row in column_acls.items()
+            if row.get("grantee_role_id") == "pitchlog_rg1_control_owner"
+        }
+        if len(control_columns) != 3 or not all(
+            is_rg1_control_column_acl(row) for row in control_columns.values()
+        ):
+            raise CatalogError("RG1制御ownerの列ACL全3宣言がexact-set不一致")
     manifest_columns = _product_manifest_columns(root)
     dependency_columns = {
         (str(row["object_id"]), str(row["column_id"]))
@@ -4431,6 +4554,34 @@ def _validate_product_function_acl_expectations(
         if additions != expected_additions:
             raise CatalogError("暫定契約の宣言済み追加分が理由付き4関数と一致しない")
     _validate_product_function_acl_bodies(root, expected_functions)
+
+
+def _validate_lifecycle_function_assets(raw: dict[str, object], root: Path) -> None:
+    """追加8関数の全属性/ACLと既SQL本文の同一配置を検証する。"""
+    rows = _product_declarations_by_id(
+        raw["functions"], "function_id", "製品DDL manifest.functions",
+    )
+    actual = {
+        key: row for key, row in rows.items()
+        if row.get("schema_name") in {"rg1_control", "pitchlog_ledger_observer"}
+        or row.get("owner_role_id") in BUILTIN_EXECUTE_GRANTEES
+    }
+    expected = build_lifecycle_function_declarations()
+    if actual != expected:
+        raise CatalogError("lifecycle関数8件の属性/ACLがexact-set不一致")
+    paths = _product_body_paths(root, "function")
+    for function_id in expected:
+        relative = (
+            f"{PRODUCT_SPEC.body_directory.as_posix()}/functions/{function_id}.sql"
+        )
+        if paths.get(function_id) != relative:
+            raise CatalogError("lifecycle関数body manifest対応が不正")
+        try:
+            source = generate_lifecycle_function_sql(function_id, root)
+        except (OSError, ValueError) as error:
+            raise CatalogError("lifecycleの固定sourceを読めない") from error
+        if _read_text(root / relative, "lifecycle function body") != source:
+            raise CatalogError("lifecycle関数bodyが固定sourceと不一致")
 
 
 def _expected_product_provisional_additions() -> dict[str, dict[str, object]]:
@@ -4740,7 +4891,9 @@ def _validate_product_ddl_elements(
             validate_authn_asset(raw)
         except ValueError as error:
             raise CatalogError(str(error)) from error
-    _validate_product_database_expectations(raw["databases"])
+    _validate_product_database_expectations(
+        raw["databases"], lifecycle_required=state is RuntimeContractState.PRODUCT,
+    )
     _validate_product_schema_expectations(
         raw["schemas"],
         authn_enabled=state is RuntimeContractState.PRODUCT,
@@ -4749,12 +4902,15 @@ def _validate_product_ddl_elements(
             for row in cast(list[object], raw["tables"])
         ),
         rule_resolution_required="pitchlog_rule_resolution_fn_owner" in roles_by_id,
+        lifecycle_required=state is RuntimeContractState.PRODUCT,
     )
     _validate_product_extension_expectations(raw.get("extensions"), raw["schemas"])
     _validate_product_table_expectations(raw["tables"], root)
     _validate_product_table_access_expectations(raw, root, state)
     _validate_product_function_acl_expectations(raw, root, state)
     _validate_product_membership_helper(raw, root, state)
+    if state is RuntimeContractState.PRODUCT:
+        _validate_lifecycle_function_assets(raw, root)
     if state is not RuntimeContractState.PROVISIONAL:
         _validate_product_protected_targets_for_state(raw, root, state)
         _validate_product_asset_correspondence(raw, root)

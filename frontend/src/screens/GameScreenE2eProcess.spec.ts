@@ -32,21 +32,20 @@ describe('自分のE2E子プロセスの終了契約', () => {
     )
     try {
       chmodSync(directory, 0o700)
-      const result = spawnSync(resolve(backend, '.venv/bin/python'), [script], {
+      const result = spawnSync('python3', ['-I', '-S', script], {
         cwd: backend,
         encoding: 'utf8',
         timeout: 10_000,
         env: {
           PATH: process.env.PATH,
-          PYTHONPATH: [resolve(backend, 'tests'), resolve(backend, 'src')].join(
-            ':',
-          ),
           PITCHLOG_E2E_READY_FILE: resolve(directory, 'backend-ready.json'),
           PITCHLOG_E2E_STOP_FILE: resolve(directory, 'stop'),
           PITCHLOG_E2E_MODE: mode,
           PITCHLOG_E2E_FRONTEND_ORIGIN: origin,
         },
       })
+      expect(result.error).toBeUndefined()
+      expect(result.signal).toBeNull()
       expect(result.status).toBe(1)
       expect(result.stderr).toContain(
         'E2E origin は明示モードの専用loopbackポートだけ許す',

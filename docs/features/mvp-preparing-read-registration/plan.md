@@ -1,6 +1,6 @@
 ---
 feature: mvp-preparing-read-registration
-status: active
+status: in-review
 承認: 済（PO委任によるCodex判断・隔離read登録候補）
 重さ分類: コア領域
 worktree: ../../..
@@ -103,7 +103,8 @@ rootが正式ゲートで扱う派生/受理対象は以下である。本候補
 | --- | --- |
 | `contracts/tenant_boundary/{base-allowlist,repository-contract}.json`のbaseline_control/history、`contracts/tenant_boundary/history-snapshots/*` | 正常置換PRの実統合後のbaseと候補を唯一の比較対として`uv run --directory backend python -m pitchlog.authz.runtime_contract_acceptance --base <実base> --acceptance-id masaki1025/pitchlog#175 --approved-by <実承認者> --approved-on <実承認日> --reason <理由> --movement-fact <事実> --output <repo外bundle>`。実承認前に値を代記しない |
 | `contracts/authz/{route-registry,http-route-matrix}.lock.json`、必要なら同時導出される`auth-catalog.lock.json` | 既存`uv run python scripts/check_authz_catalog.py --asset-spec product --reseal-derived`。3派生lockが対象であるため、read以外のauth-catalog差分を黙って取り込まない。入力manifest/claimsの既存SHAも実baseで照合する |
-| root後続のoracle6資産と`contracts/authz/oracle-seal.lock.json` | 下記の8入力commit固定と6context/sealの同時前進、必要差分のレビュー/受理を経てから`uv run python scripts/check_authz_catalog.py --asset-spec product --reseal-oracle`。最後は更新flagなしで全件検査。再封印だけでoracle_commitは進まない |
+| root後続のoracle6資産と`contracts/authz/oracle-seal.lock.json` | 下記の8入力commit固定と6context/sealの同時前進、必要差分のレビュー/受理を経てから`uv run python scripts/check_authz_catalog.py --asset-spec probe --reseal-oracle`。最後は更新flagなしで全件検査。再封印だけでoracle_commitは進まない |
+| `contracts/authz/frozen-baselines.json`の既存`oracle_input`系列 | 同じCへ前進する6context/sealの実識別値に必要な末尾1受理行だけをrootが完全前後値・独立確認後に追記する。旧系列/target/履歴/owner/配置・判定は不変。本人確認を代記せずPO委任によるCodex判断とする |
 | `contracts/authz/{requirement-claims,requirement-claims.lock,auth-catalog}.json`等の入力 | 原則不変。実統合された正常置換の入力を保持し、read行追加で必要なmanifest/digest射影だけを根拠付きで再照合する。新要件主張/DB権限/3軸規則へ広がる不足は別scopeへ返す |
 
 ### root後続のoracle確定手順
@@ -166,3 +167,24 @@ JSONはAPI由来tenant2patternと初期付与2patternを双方保持し、guard�
 実#180統合後の正式#175比較ではinitial2が据え置き層となるため、実baseを取り込んで**API2だけをpendingへ回転**させる必要がある。
 部分overlapの拒否を緩めて両状態を通さない。metadata自身の新core path不要という根拠は不変で、正常供給の2pathはその元の先行宣言/別JSON履歴から継承する。
 正式7.7履歴/snapshot/lock/oracleは引き続きrootのみが実統合後に受理する。
+
+
+### CI frontend単独環境のbootstrap拒否検査を是正する限定追補（PO委任承認済み）
+
+必須CI40011535070のfrontendは1853成功/3失敗。新しいorigin拒否試験がbackend/.venv/bin/pythonへ直接依存したため、backend環境を構築しないfrontend jobでは子processの終了値を取得できなかった。失敗をskip/成功へ変換せず、CI/source検査やorigin拒否を緩めない。修正中は本局所planをactiveへ戻し、旧最終レビューと未成功CIを保持する。
+
+追加scopeは`frontend/src/screens/GameScreenE2eSupport.py`、新`GameScreenE2eServer.py`、既存`GameScreenE2eProcess.spec.ts`と本plan/researchだけ。既存起動口Support.pyは標準ライブラリだけのmode/origin先行検査とServer.pyの実起動へ分ける。DB/認証/fixture/server/cleanup処理はServer.pyへ移動し、起動/pytest収集対象の自己path以外の意味・専用DB/Cookie/C2/拒否・cleanupを保持する。mode/origin判定は単一関数を両入口で再利用し、Server直起動でもDB作成前に拒否する。Node/Playwrightの起動pathは変えず、既存backend venvでの正常起動とsealed-ui/readの分離を維持する。
+
+拒否回帰は実Support.pyを`python3 -I -S`で起動し、backend/site-package/PYTHONPATHなしでも終了1・正確なorigin拒否理由・ready未生成を検査する。`spawn`失敗/timeoutを正しい拒否に数えない。明示mode不正/モード外scheme/非loopback/不正portは既存拒否を維持する。実製品API/tenant/保存codec・正式9/8・履歴/資産/lock/oracle・CI定義には変更を加えない。新pathは既存GameScreen* core捕捉内で、core登録/拒否条件変更なし。
+
+局所process試験/Frontend静的・全件VitestをenvDir:falseで実行し、実backend依存でのbrowser read3を専用資源で再接合する。新規作成/1球/実機合格とはしない。非作者が新scope/最終修正を確認後に提出状態へ戻し、新HEADの必須CIを実施する。同じ失敗の無根拠再走・timeout延長/skip・backend CIをfrontendへ複製は行わない。
+
+
+2026-10-23T19:55:44.188147+00:00、Codex主担当/rootはPO4/5/8/10の通常不具合是正・最小追補委任に基づき、ec90aa50/plan SHA256 55a410fbcfe6637f42170dc99cf3b6af1e73f5eab40d1d9189d0c3dbdde88e2dの上記限定追補を承認。非作者rights_replacement_reviewのCI是正限定計画第1回0/0/0、親比較diff5ec9f6e131715fe79d5927a1e80c51ddcb52f8fd65608af685218809bc364b5dを照合した。旧親追加1回/後発metadata1回/全CI失敗は保持し、実装後の狭い非作者確認・全Vitest・正常browser・新HEAD CIを必要とする。人間確認/署名を代記しない。
+
+
+## CI後の既存試験・派生参照の機械追随
+
+CI40011535070の確定失敗を根拠に、PO4/8/10の通常不具合・生成値追随委任によるCodex主担当/root判断（2026-10-23T20:16Z）として同ステップの範囲を最小追補する。backend/tests/test_api_conventions.pyは既存18経路を全保持しread2経路を正確に追加する。backend/tests/test_authz_capability_registration.pyは既存capability集合を保持した47 tokenの全SQL検査とし、拒否変異に使う既存3文を位置番号から明示token型へ変更して、未登録ID/別表/別操作/DELETE拒否を維持する。contracts/authz/failure-injection-points.jsonのsource_asset.git_blob_digestとcontracts/authz/mcdc-map.jsonのsources.claim_mutant_map.blob_digestだけを、受理済Cのoracle_context以外意味不変の現blobへ追随する。
+
+検査器・拒否条件・期待拒否・oracle内容/commit/封印・正式受理9資産/外部8は変更しない。旧digestと新blobの差分がcontextのみであること、派生参照の2field以外不変、全局所拒否試験成功を確認する。既受理値に実変化があればその範囲だけ正式ゲートへ返す。コード/派生差分は新固定HEADで非作者限定確認し、旧review回数/全CI失敗を保持する。旧全件失敗を再走してから直すことはしない。

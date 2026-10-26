@@ -42,6 +42,26 @@
     {
       "pr": 180,
       "branch": "feature/ur1-initial-rights-history-repair"
+    },
+    {
+      "pr": 181,
+      "branch": "feature/mvp-rule-resolver-registration"
+    },
+    {
+      "pr": 182,
+      "branch": "feature/mvp-durable-rights-ledger"
+    },
+    {
+      "pr": 183,
+      "branch": "feature/mvp-t1-decision-contracts"
+    },
+    {
+      "pr": 185,
+      "branch": "feature/mvp-t1-input-closure"
+    },
+    {
+      "pr": 184,
+      "branch": "feature/mvp-rg1-profile-integration-candidate"
     }
   ]
 }

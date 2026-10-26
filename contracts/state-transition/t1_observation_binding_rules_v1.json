@@ -1,0 +1,309 @@
+{
+  "schemaVersion": 1,
+  "scope": {
+    "resultId": "batting-result.single",
+    "outs": 2,
+    "runners": "second-third"
+  },
+  "sourceClauses": [
+    "req:FR-003",
+    "req:OUT3-04",
+    "req:OUT3-05",
+    "req:RBI-03",
+    "req:RBI-04",
+    "req:RBI-08"
+  ],
+  "responsibilities": {
+    "structure": "closed schema/local refs/required fields and tags only",
+    "correlation": "same-play same-runner identity, required timing presence, raw observation to coordinate equality before fixture comparison",
+    "runtime": "actual T1/provider must apply existing FR-003 observation refusal before calculating; these fixture check IDs are not public rejection kinds or a D5 decision",
+    "D06": "B3c remains duplicate TB placement m only; do not route missing timing/identity mismatch into a new state-precondition/P3 branch",
+    "unknown": "unobserved stays unobserved, not false/0; a row requiring observed false cannot bind an unobserved raw fact"
+  },
+  "invariants": [
+    {
+      "id": "same-runner-override",
+      "kind": "reference-equality"
+    },
+    {
+      "id": "same-runner-rbi-cause",
+      "kind": "reference-equality"
+    },
+    {
+      "id": "third-out-person-is-an-explicit-out",
+      "kind": "reference-membership"
+    },
+    {
+      "id": "required-third-out-home-timing",
+      "kind": "required-observation",
+      "when": "other-third-out with explicit home advance in this scope"
+    },
+    {
+      "id": "raw-coordinate-preserved",
+      "kind": "projection-equality"
+    }
+  ],
+  "inputBindings": {
+    "eventKind": {
+      "path": [
+        "per_pitch",
+        "kind"
+      ]
+    },
+    "resultId": {
+      "path": [
+        "per_pitch",
+        "resultId"
+      ]
+    },
+    "state.outs": {
+      "path": [
+        "pre_state",
+        "outs"
+      ]
+    },
+    "state.runners": {
+      "path": [
+        "pre_state",
+        "runners"
+      ],
+      "projection": "occupied-base-key-order"
+    },
+    "state.count.strikes": {
+      "path": [
+        "pre_state",
+        "count",
+        "strikes"
+      ]
+    },
+    "state.count.balls": {
+      "path": [
+        "pre_state",
+        "count",
+        "balls"
+      ]
+    },
+    "event.perPitch.pitchEventKind": {
+      "path": [
+        "per_pitch",
+        "pitchEventKind"
+      ]
+    },
+    "event.perPitch.interferenceRuling": {
+      "path": [
+        "per_pitch",
+        "interferenceRuling",
+        "kind"
+      ]
+    },
+    "event.perPitch.officialScoringPayload": {
+      "path": [
+        "per_pitch",
+        "officialScoringPayload",
+        "kind"
+      ]
+    },
+    "event.perPitch.thirdOutObservation.kind": {
+      "path": [
+        "per_pitch",
+        "thirdOutObservation",
+        "kind"
+      ]
+    },
+    "event.perPitch.thirdOutTimingByRunner.third": {
+      "path": [
+        "per_pitch",
+        "thirdOutTimingByRunner",
+        "third"
+      ]
+    },
+    "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": {
+      "path": [
+        "per_pitch",
+        "runnerAdvanceOverridesByRunner",
+        "by_runner",
+        "second",
+        "kind"
+      ]
+    },
+    "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": {
+      "path": [
+        "per_pitch",
+        "runnerAdvanceOverridesByRunner",
+        "by_runner",
+        "second",
+        "attempted_base"
+      ]
+    },
+    "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": {
+      "path": [
+        "per_pitch",
+        "runnerAdvanceOverridesByRunner",
+        "by_runner",
+        "second",
+        "out_kind"
+      ]
+    },
+    "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": {
+      "path": [
+        "per_pitch",
+        "runnerAdvanceOverridesByRunner",
+        "by_runner",
+        "third",
+        "kind"
+      ]
+    },
+    "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": {
+      "path": [
+        "per_pitch",
+        "runnerAdvanceOverridesByRunner",
+        "by_runner",
+        "third",
+        "destination"
+      ]
+    },
+    "event.perPitch.rbi.cause_by_runner.third.held_too_long": {
+      "path": [
+        "per_pitch",
+        "rbi",
+        "cause_by_runner",
+        "by_runner",
+        "third",
+        "held_too_long"
+      ],
+      "projection": "observed-value-or-unobserved-tag",
+      "whenCoordinatePresent": true
+    },
+    "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw": {
+      "path": [
+        "per_pitch",
+        "rbi",
+        "cause_by_runner",
+        "by_runner",
+        "third",
+        "unnecessary_throw"
+      ],
+      "projection": "observed-value-or-unobserved-tag",
+      "whenCoordinatePresent": true
+    },
+    "event.perPitch.runnerAdvanceOverridesByRunner": {
+      "path": [
+        "per_pitch",
+        "runnerAdvanceOverridesByRunner",
+        "by_runner"
+      ],
+      "projection": "explicit-mixed-runner-outcomes-for-this-unit"
+    },
+    "event.perPitch.thirdOutTimingByRunner": {
+      "path": [
+        "per_pitch",
+        "thirdOutTimingByRunner"
+      ],
+      "projection": "single-third-home-timing-partition"
+    },
+    "event.perPitch.rbi.runnerContinuityByRunner": {
+      "path": [
+        "per_pitch",
+        "rbi",
+        "runnerContinuityByRunner"
+      ],
+      "projection": "single-third-continuity-partition",
+      "whenCoordinatePresent": true
+    },
+    "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay": {
+      "path": [
+        "per_pitch",
+        "rbi",
+        "restart_by_runner",
+        "by_runner",
+        "third",
+        "after_observing_misplay"
+      ],
+      "whenCoordinatePresent": true
+    }
+  },
+  "notProved": [
+    "Ready",
+    "receipt authority",
+    "DB/Port reachability",
+    "durability",
+    "generic state calculation",
+    "P6/P7 completion"
+  ],
+  "coordinateConsumerBaseline": {
+    "legacyT2CoordinateAxisIds": [
+      "event.operationKind",
+      "event.operationPayload",
+      "event.perPitch.interferenceRuling",
+      "event.perPitch.kind",
+      "event.perPitch.officialScoringPayload",
+      "event.perPitch.pitchEventKind",
+      "event.perPitch.rbi.doublePlayRelayError",
+      "event.perPitch.rbi.runnerContinuityByRunner",
+      "event.perPitch.rbi.wouldScoreWithoutErrorByRunner",
+      "event.perPitch.resultId",
+      "event.perPitch.runnerAdvanceOverridesByRunner",
+      "event.perPitch.runnerEventPayload",
+      "event.perPitch.thirdOutTimingByRunner",
+      "state.battingOrder",
+      "state.count.balls",
+      "state.count.strikes",
+      "state.gameEnded",
+      "state.half",
+      "state.inning",
+      "state.outs",
+      "state.runners",
+      "state.score",
+      "state.tiebreakActive"
+    ],
+    "observationCoordinateBindingIds": [
+      "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+      "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+      "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+      "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+      "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+      "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+      "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+      "event.perPitch.thirdOutObservation.kind",
+      "event.perPitch.thirdOutTimingByRunner.third",
+      "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay"
+    ],
+    "rawInputSchemaPath": "contracts/state-transition/t1_out3_input_schema_v1.json",
+    "rawInputRootDefinition": "T1Out3PureInputV2",
+    "purpose": "旧T2座標の独立基線と、既有限原観測bindingだけの観測補助資格。consumer criteria自身から再導出しない。",
+    "baselineSource": {
+      "snapshotPath": "contracts/state-transition/t2_coordinate_baseline_snapshot_v1.json",
+      "byteSha256": "fab52a2e17ba868ec7f818468241901a2cb12ad98e9cf19c20b52235d184ed56",
+      "descriptorId": "pitchlog.input-axes",
+      "version": "input_axes_descriptor_v1",
+      "descriptorDigest": "sha256:5107f929d35ae48e01e25e0410a95235521b778ce53bae945ca5d7e2e956dd57",
+      "originalPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+      "approvedBaseCommit": "4b2db6907f329c3dde113c3b7e1c3515600fb915",
+      "sameByteConfirmedAtCommit": "d40e79f82769944a32679c97e5630039d5755dc1",
+      "interpretation": "既受理基線descriptorの完全なreadonly byte snapshot。履歴内の既承認記録は原byteの転記であり、新しい確認/承認/署名を生成しない。"
+    }
+  },
+  "rbiMisplayClosedRows": {
+    "scope": {
+      "resultId": "batting-result.single",
+      "outs": 2,
+      "runners": "second-third"
+    },
+    "causeAxes": [
+      "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+      "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw"
+    ],
+    "continuityAxis": "event.perPitch.rbi.runnerContinuityByRunner",
+    "restartCausalAxis": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+    "requiredContinuityValues": [
+      "single-runner-kept-running",
+      "single-runner-stopped-and-restarted"
+    ],
+    "sourceClauses": [
+      "req:FR-003",
+      "req:RBI-03",
+      "req:RBI-04"
+    ],
+    "noRuntimeResultOrD5Decision": true
+  }
+}

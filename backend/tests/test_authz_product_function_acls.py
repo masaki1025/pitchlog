@@ -130,6 +130,8 @@ def _copy_static_inputs(root: Path) -> None:
         PRODUCT_SPEC.body_manifest_path,
         Path("contracts/tenant_boundary/runtime-authz-contract.json"),
         Path("backend/src/pitchlog/authz/runtime_contract.py"),
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
     )
     for relative_path in paths:
         destination = root / relative_path
@@ -181,6 +183,7 @@ def test_unlisted_migration_regular_function_is_red(tmp_path: Path) -> None:
     root = tmp_path / "repository"
     _copy_static_inputs(root)
     asset = _product_asset()
+    _validate_product_asset(asset, root)
     migration = next((root / _MIGRATION_VERSIONS).glob("*.py"))
     migration.write_text(
         migration.read_text(encoding="utf-8")
@@ -411,3 +414,154 @@ def test_removing_one_public_execute_revocation_is_rejected(tmp_path: Path) -> N
 
     with pytest.raises(_catalog_checker.CatalogError, match="剥奪が生成結果と不一致"):
         _validate_product_asset(asset, root)
+
+
+@pytest.mark.parametrize(
+    "grantee",
+    (
+        "pitchlog_rg1_control_owner",
+        "pitchlog_ledger_identity_owner",
+    ),
+)
+def test_builtin_additional_execute_has_exact_signature_and_preserves_public(
+    grantee: str,
+) -> None:
+    """追加grantは引数空builtin1件だけ、PUBLICの既権限を変更しない。"""
+    from pitchlog.authz.product_function_acl import (
+        build_builtin_execute_declaration,
+        generate_builtin_execute_sql,
+    )
+
+    declaration = build_builtin_execute_declaration(grantee)
+    assert declaration == {
+        "acl_id": f"ACL:pg_catalog:pg_control_system():{grantee}",
+        "object_kind": "builtin_function",
+        "object_schema": "pg_catalog",
+        "object_id": "pg_control_system",
+        "profile": "additional_builtin_execute",
+        "grantee_role_id": grantee,
+        "privilege_ids": ["EXECUTE"],
+        "grant_option": False,
+    }
+    sql = generate_builtin_execute_sql(declaration)
+    assert (
+        f"GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_system() TO {grantee};" in sql
+    )
+    assert "REVOKE" not in sql and "PUBLIC" not in sql and "OWNER" not in sql
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("object_schema", "public"),
+        ("object_id", "pg_control_system(uuid)"),
+        ("object_id", "pg_control_checkpoint"),
+        ("grantee_role_id", "pitchlog_app"),
+        ("grantee_role_id", "pitchlog_ledger_identity_probe"),
+        ("grantee_role_id", "PUBLIC"),
+        ("privilege_ids", ["EXECUTE", "SELECT"]),
+        ("grant_option", True),
+        ("grant_option", 0),
+        ("profile", "general_function"),
+    ),
+)
+def test_builtin_execute_rejects_every_unapproved_signature_and_privilege(
+    field: str,
+    value: object,
+) -> None:
+    """未知署名/主体/権限/真偽値の代用を有限分岐で拒否する。"""
+    from pitchlog.authz.product_function_acl import (
+        build_builtin_execute_declaration,
+        generate_builtin_execute_sql,
+    )
+
+    declaration = build_builtin_execute_declaration("pitchlog_rg1_control_owner")
+    declaration[field] = value
+    with pytest.raises(ValueError):
+        generate_builtin_execute_sql(declaration)
+
+
+def test_builtin_unapply_only_revokes_its_explicit_grant() -> None:
+    """Builtin DROP/OWNER変更/PUBLIC撤去を伴わない逆操作を照合する。"""
+    from pathlib import PurePosixPath
+
+    from pitchlog.authz import product_provisioning
+    from pitchlog.authz.ddl import DDLStatement
+    from pitchlog.authz.product_function_acl import build_builtin_execute_declaration
+
+    declaration = build_builtin_execute_declaration("pitchlog_ledger_identity_owner")
+    statement = DDLStatement(
+        "acl_expectation",
+        str(declaration["acl_id"]),
+        PurePosixPath("unused.sql"),
+        "unused",
+    )
+    element = product_provisioning._ProductElement(
+        "acl_expectation",
+        str(declaration["acl_id"]),
+        declaration,
+    )
+    sql = product_provisioning._unapplication_sql(statement, element, (), ())
+    assert sql == (
+        "REVOKE EXECUTE ON FUNCTION pg_catalog.pg_control_system() "
+        'FROM "pitchlog_ledger_identity_owner";'
+    )
+
+
+def test_lifecycle_eight_functions_keep_source_body_and_exact_subjects() -> None:
+    """rg1_control8/observer1の属性・実SQL本文をコピー計算なしに照合する。"""
+    from pitchlog.authz.product_function_acl import (
+        build_lifecycle_function_declarations,
+        generate_lifecycle_function_sql,
+    )
+
+    expected = {
+        "try_controller_lease": ("boolean", ("pitchlog_rg1_control_actor",)),
+        "release_controller_lease": ("boolean", ("pitchlog_rg1_control_actor",)),
+        "close_gate": ("boolean", ("pitchlog_rg1_control_actor",)),
+        "open_fresh_gate": ("boolean", ("pitchlog_rg1_control_actor",)),
+        "controller_lease_alive": (
+            "boolean",
+            (
+                "pitchlog_rg1_control_actor",
+                "pitchlog_rg1_fn_owner",
+            ),
+        ),
+        "read_closed_gate": ("jsonb", ("pitchlog_rg1_control_actor",)),
+        "scope_binding": ("text", ("pitchlog_app", "pitchlog_initial_actor")),
+        "bind_initial_fresh_epoch": ("boolean", ("pitchlog_rg1_control_actor",)),
+        "identity": ("jsonb", ("pitchlog_ledger_identity_probe",)),
+    }
+    rows = build_lifecycle_function_declarations()
+    assert len(rows) == 9
+    for function_id, row in rows.items():
+        name = str(row["function_name"])
+        returns, grantees = expected[name]
+        assert row["returns"] == returns
+        assert row["acl_expectations"] == [
+            {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+            for role in grantees
+        ]
+        assert row["search_path"] == ["pg_catalog", "pg_temp"]
+        assert row["security_mode"] == "definer"
+        body = generate_lifecycle_function_sql(function_id, _REPOSITORY_ROOT)
+        assert f"-- ELEMENT-ID: {function_id}" in body
+        source_path = (
+            "backend/src/pitchlog/durable_rights_ledger/business_identity.sql"
+            if name == "identity"
+            else "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"
+        )
+        source = (_REPOSITORY_ROOT / source_path).read_text()
+        start = body.index("CREATE ")
+        delimiter = "$$;" if name == "identity" else "$function$;"
+        end = body.index(delimiter, start) + len(delimiter)
+        definition = body[start:end]
+        if name in {"identity", "bind_initial_fresh_epoch"}:
+            # 再適用header2だけの正規化を許し、引数/戻り値/AS本文は全byte照合する。
+            assert definition.startswith("CREATE OR REPLACE FUNCTION ")
+            original_definition = definition.replace(
+                "CREATE OR REPLACE FUNCTION ", "CREATE FUNCTION ", 1
+            )
+            assert original_definition in source
+        else:
+            assert definition in source

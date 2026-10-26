@@ -1492,3 +1492,52 @@ def test_team_delete_token_cannot_set_name(
         else:
             _run_transaction_token(context, recorder, token)
     assert recorder.calls == []
+
+
+@pytest.mark.parametrize("count", (-1, 0, 1, 2))
+def test_dml_count_contract_does_not_promote_unknown_zero_or_multiple(
+    count: int,
+) -> None:
+    """実件数保持の是正でも、不明/0/複数を単件成功へ補完しない。"""
+    from typing import cast
+
+    from sqlalchemy import column, insert, table
+    from sqlalchemy.engine import Result
+
+    from pitchlog.repositories.base import _materialize_execution_result
+
+    class CursorResultProbe:
+        """実行器の戻り境界だけへ整数件数を渡す。"""
+
+        rowcount = count
+
+    statement = insert(table("rowcount_boundary_probe", column("id")))
+    result = _materialize_execution_result(
+        statement, cast("Result[Any]", CursorResultProbe())
+    )
+    assert result.rows == ((count,),)
+
+
+@pytest.mark.parametrize("count", (None, True, 1.0, "1"))
+def test_dml_count_contract_does_not_cast_non_integer_to_success(count: object) -> None:
+    """不正なdriver件数をintへ変換して正常INSERTにしない。"""
+    from typing import cast
+
+    from sqlalchemy import column, insert, table
+    from sqlalchemy.engine import Result
+
+    from pitchlog.repositories.base import (
+        _materialize_execution_result,
+        _TenantOperationError,
+    )
+
+    class CursorResultProbe:
+        """型違反の戻り値をそのまま保持する。"""
+
+        rowcount = count
+
+    statement = insert(table("rowcount_boundary_probe", column("id")))
+    with pytest.raises(_TenantOperationError, match="更新件数"):
+        _materialize_execution_result(
+            statement, cast("Result[Any]", CursorResultProbe())
+        )

@@ -890,16 +890,10 @@ def derive_row_requirements_from_documents(
     requirements: list[RowRequirement] = []
     for rule_index, raw_rule in enumerate(raw_rules):
         rule = _object(raw_rule, f"partitionRules[{rule_index}]")
-        _exact_keys(
-            rule,
-            {
-                "partitionRuleId",
-                "vocabularyIds",
-                "partitions",
-                "sourceClauseIds",
-            },
-            f"partitionRules[{rule_index}]",
-        )
+        rule_keys = {"partitionRuleId", "vocabularyIds", "partitions", "sourceClauseIds"}
+        if "additionalPartitions" in rule:
+            rule_keys.add("additionalPartitions")
+        _exact_keys(rule, rule_keys, f"partitionRules[{rule_index}]")
         rule_id = _nonempty_string(
             rule["partitionRuleId"],
             f"partitionRules[{rule_index}].partitionRuleId",
@@ -918,6 +912,27 @@ def derive_row_requirements_from_documents(
             source_clause_ids,
             f"partitionRules[{rule_index}].sourceClauseIds",
         )
+        additional_partitions: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
+        if "additionalPartitions" in rule:
+            additions = rule["additionalPartitions"]
+            if not isinstance(additions, list) or not additions:
+                raise DeriverDependencyError("additionalPartitionsが空または配列でない")
+            for addition in additions:
+                entry = _object(addition, "additionalPartitions項目")
+                _exact_keys(entry, {"vocabularyId", "partitions", "sourceClauseIds"},
+                            "additionalPartitions項目")
+                result_id = _nonempty_string(
+                    entry["vocabularyId"], "additionalPartitions.vocabularyId"
+                )
+                extra_ids = _string_list(entry["partitions"], "additionalPartitions.partitions")
+                extra_clauses = _validated_clause_ids(
+                    entry["sourceClauseIds"], source_clause_ids,
+                    "additionalPartitions.sourceClauseIds",
+                )
+                if (result_id not in vocabulary_ids or result_id in additional_partitions
+                        or set(partitions) & set(extra_ids)):
+                    raise DeriverDependencyError("追加区分の語彙帰属または旧区分との非重複が不正")
+                additional_partitions[result_id] = (extra_ids, extra_clauses)
         for result_id in vocabulary_ids:
             event_kind = result_id_event_kinds.get(result_id)
             if event_kind is None:
@@ -934,14 +949,18 @@ def derive_row_requirements_from_documents(
             requirement_clauses = tuple(
                 dict.fromkeys((*assignment_clauses, *clause_ids))
             )
-            for partition_id in partitions:
+            extra_ids, extra_clauses = additional_partitions.get(result_id, ((), ()))
+            for partition_id in (*partitions, *extra_ids):
+                partition_clauses = requirement_clauses
+                if partition_id in extra_ids:
+                    partition_clauses = tuple(dict.fromkeys((*requirement_clauses, *extra_clauses)))
                 requirements.append(
                     RowRequirement(
                         event_kind=event_kind,
                         result_id=result_id,
                         partition_rule_id=rule_id,
                         partition_id=partition_id,
-                        source_clause_ids=requirement_clauses,
+                        source_clause_ids=partition_clauses,
                     )
                 )
 
@@ -1299,6 +1318,7 @@ def derive_game_end_required_set_from_documents(
     descriptor: Mapping[str, Any],
     requirements_text: str,
     requirement_clause_ids: frozenset[str],
+    observation_documents: descriptor_checker.GameEndObservationDocuments | None = None,
 ) -> GameEndRequiredSet:
     """終了判定の要求集合を descriptor と要件書だけから導出する。
 
@@ -1310,6 +1330,7 @@ def derive_game_end_required_set_from_documents(
         descriptor: 入力軸 descriptor。
         requirements_text: 承認済み要件書の本文。
         requirement_clause_ids: 要件書から構造抽出した条文 ID。
+        observation_documents: 独立consumer基線と原観測資格のreadonly原byte。
 
     Returns:
         ペアワイズ、不正値、状態・イベント軸値との直積、および F-1
@@ -1434,6 +1455,10 @@ def derive_game_end_required_set_from_documents(
         if "matrixRows" in row_binding["rowLayers"]
         for axis_id in binding["axisIds"]
     }
+    # consumer写像を凍結基準から読み、新T1観測selectorをT2へ自動拡散しない。
+    play_input_axes &= descriptor_checker.game_end_coordinate_axis_ids(
+        descriptor, criteria, observation_documents
+    )
     state_event_coordinates = tuple(
         requirement
         for requirement in derive_input_coordinate_requirements_from_descriptor(
@@ -1757,7 +1782,7 @@ def derive_repository_input_coordinate_requirements(
 
 
 def _derive_repository_game_end_required_set(root: Path) -> GameEndRequiredSet:
-    """要件書と descriptor だけを読み、終了判定要求集合を導出する。"""
+    """要件書・descriptorと宣言済みreadonly資格から終了判定要求を導出する。"""
     try:
         descriptor = _object(
             descriptor_checker.load_json(
@@ -1783,6 +1808,9 @@ def _derive_repository_game_end_required_set(root: Path) -> GameEndRequiredSet:
         descriptor,
         requirements_text,
         requirement_clause_ids,
+        descriptor_checker.load_game_end_observation_documents(
+            root, descriptor_checker.load_descriptor_criteria(descriptor)
+        ),
     )
 
 

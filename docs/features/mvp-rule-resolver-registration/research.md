@@ -44,3 +44,30 @@ DBは既存disposable fixtureを使い、外側1clusterの専用admin/tested DSN
 正式tenant-boundary checkerは`--base-ref 31194a39...`で**exit2（履歴末尾と7資産の識別値が不一致）**。関数ID不足は登録したが、新IDの7.7行がないため履歴赤は継続する。期待値/検査器/既存historyを緩めない。PR_ACCEPTANCE、180実統合後の正式値受理、snapshot/policy/manifest、新PR公開/全必須CIはrootの後続ゲートであり未実施。
 
 metadata/正例/試験6paths（本researchを除く）のfull-index binary差分SHA256 `f5bb83a182039511d0baa0a2d1a796d85f478d78d68c641e7f8f3f404bdad596`。生成repository_contract.py SHA256 `e71b42afd6cf1b911afb8a053b71c62945f642d7dda849a24230d6a5ea1bf3a4`、新正例SHA256 `71d58c3452020ddf738cc2ef1bfd9a7f58ad9018423849c881c917854b9bb5f8`。commit後のHEAD/全7paths/全差分SHA・実履歴predicateを引渡しへ固定する。元operation/service/DB・親TSK550のレビュー/未完履歴を保持し、実create/HTTP/RG1解除/S4/MVPを完成扱いしない。秘密/P6/他wt編集、新運用鍵、push/PRは行っていない。
+
+
+## 実175統合後の正常基線追随
+
+175最終c891のCI40018894038全12job成功・非作者CI是正0/実2親core証拠検査成功後、rootがPO委任で通常mergeし、正式developはa10bcd5e（treeはc891と同一）。この実履歴を本branchへ通常mergeし、競合4fileを主担当が機械整合した。mainの正式28history/204snapshot/9資産全旧fieldを保持し、resolverのSELECT factory1行/function ID1件だけを追加。candidate revisionは実36→37/25→26へ再導出し、repository source_digest/生成module3fieldを全field比較に対応させた。正式新PR値の受理・履歴追記はまだ行っていない。両sourceの正負fixture/試験は全て合流し、旧read2factory/47token/GET2/C2や初期付与を落としていない。
+
+backend公開resolver/登録対象177成功/1.69秒。rootのstage_a/preparing_read/fixed_function/positive_fixtures局所を同じ新候補で実施。旧7.7実値を新基線へ転記せず、実新PR番号と完全before/after、非作者照合・PO委任受理を次段で行う。公開resolver登録だけの単位を保ち、新規作成/実RG1成功/T1/1球への提供済み主張はしない。
+
+
+追随後のroot局所39成功/6.24秒、backend177成功、Ruff/format/計画同期/実a10→HEAD履歴predicate成功。実branchを50c1fcd9へ通常pushし、製品source/検査を含むDraft PR #181を作成した。新実番号に対応するpolicy target1組だけを候補追記し、次に全9射影/外部8/28prefix/204snapshotを同sourceで導出・非作者照合する。作成時の未受理CIは成功と数えず、最終版のCIを別に必要とする。
+
+
+2026-10-23T21:15:47.683357+00:00、Codex主担当/rootはPO4/5/7/8/10によりfff98dcb/実a10の提案d9b7468bを受理。非作者rightsが全9/8・全前後値・19payload・28prefix/204snapshot/policy181を独立再計算して一致、0/0/0（証拠8ef5b6de）。提案に承認者/日付2fieldだけを加え正式181 row1/snapshot2を反映し29/206とした。変更射影はallowlist36→37/repository25→26だけ、他7/ext8同一。oracle入力8/6context/seal/既存oracle_input14行は変更0で再封印しない。corpus生成値は別の通常追随として独立実計算後に1fieldだけ反映する。本人の署名/個別確認・最終CI/統合は代記しない。
+
+
+corpus入力の通常追随は、非作者rightsによるGit blob全入力独立計算と既存runnerが58fdcaf0aa22676bac02746433a66cdb8914252035be874cb7f16173775d8198で一致（証拠6eb4a6bb）。旧6e362f63から変わる入力は既存3ファイルと正例factory追加1、245→246件。pinned履歴6/旧snapshot名/manifest選択/全case期待/runnerは不変、新29row/2snapshotも対象外。manifest.corpus_inputs.digestの1fieldだけ更新し、同じ7.7受理を繰返さない。
+
+
+正式反映後の更新flagなしtenant/probe oracle/product/frozen invariantsは全exit0。全archive/runner65成功/70.94秒、旧期待case/pinned集合をそのまま通した。局所planをin-reviewへ戻す。新PRの最終HEAD非作者・実GitHub2親merge証拠検査・最終必須CIは未成立で、旧Draft CIや旧source成功を転用しない。正本反映なし、今回も既存統制/生成の局所運用で恒久ルール新設を行わずハーネス評価台帳の追加は不要と判断し、根拠/失敗を本researchへ保持する。
+
+
+## 最終CI40029804931の是正
+
+11job成功、backendのみ1失敗/3463成功/4skip/1770.57秒。失敗は既存test_rg1_operationsのregistry全体=RG1の2件という旧expectationで、正式追加したStageAResolveRuleToken1件を含めていなかった。対象局所の取り漏れとしてrootが是正し、既存RG1の2関数SQL/tenant bind/戻りbool/偽token拒否は変更しない。新resolver1件だけをexact集合へ追加、製品source/全正式9/8・29history206snapshot/oracle/seal/corpus/policyは変更しない。通常不具合修正として既委任で処理し、同じ受理を再取得しない。新HEADの独立限定確認と必須CIを別に実施し、旧CI失敗/skipを成功へ転写しない。
+
+
+CI是正後はRG1/共有関数境界/全生成fieldの非DB179成功/1.44秒、対象Ruff/ty成功。corpus実再計算は58fdcaf0で既受理値に一致し、manifest変更0。製品source/正式値/受理履歴/全snapshot/policy/全oracleはe2aから不変。planをin-reviewへ戻し、後発1testと状態/結果記録だけの限定独立確認後に最終新HEADの必須CIを実行する。

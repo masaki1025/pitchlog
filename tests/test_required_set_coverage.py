@@ -191,14 +191,14 @@ def _assert_all_normative_rows_referenced(
 
 
 def test_step98_all_normative_rows_are_referenced_by_cases() -> None:
-    """実資産の4層70行すべてにcaseからの参照があることを確認する。"""
+    """実資産の4層72行すべてにcaseからの参照があることを確認する。"""
     state = _asset("state_transition_contract_v1.json")
     game_end = _asset("game_end_contract_v1.json")
     assert [len(state[layer]) for layer in ("matrixRows", "operationRows", "undoRows")] == [
-        42, 10, 10,
+        49, 10, 10,
     ]
     assert len(game_end["decisionRows"]) == 8
-    assert len(state["cases"]) == 109
+    assert len(state["cases"]) == 116
     assert len(game_end["cases"]) == 248
     for contract, schema_name in (
         (state, "state_transition_contract_schema_v1.json"),
@@ -616,7 +616,7 @@ def test_step96_validation_errors_are_exact_and_separate_from_cases() -> None:
     assert actual == expected
     assert declaration["deferredValidationErrors"]["status"] == "materialized"
     assert declaration["deferredValidationErrors"]["count"] == len(expected)
-    assert len(state["cases"]) == 109
+    assert len(state["cases"]) == 116
     assert len(contract["cases"]) == 248
     assert all("caseId" not in item and "inputCoordinate" not in item for item in entries)
     assert all("保証範囲外" in item["claimBoundary"]["notGuaranteed"] for item in entries)
@@ -993,8 +993,8 @@ def test_prior_step_coverage_matches_its_matrix_expansion(
 
 
 def test_step79_row_gap_is_exact_and_sourced() -> None:
-    """①の47要求・42規範行の差分5件は宣言で全件説明される。"""
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    """①の49要求・44規範行の差分5件は宣言で全件説明される。"""
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
 
 
 def test_row_gap_rejects_stale_and_new_missing_entries() -> None:
@@ -1038,7 +1038,7 @@ def test_row_gap_accepts_resolved_gap_with_intersecting_source(
         return document
 
     monkeypatch.setattr(checker, "_document", changed_document)
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
 
 
 def test_row_gap_declaration_is_fail_closed(tmp_path: Path) -> None:
@@ -1137,7 +1137,7 @@ def test_step82_secondary_results_and_input_coverage() -> None:
     contract = _asset("state_transition_contract_v1.json")
     record = _asset("required_set_input_coverage_v1.json")
     declaration = _asset("required_set_coverage_declaration_v1.json")
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
     secondary_requirements = [
         item
         for item in checker.deriver.derive_repository_row_requirements(ROOT)[0]
@@ -1204,7 +1204,7 @@ def test_step83_runner_events_and_input_coverage() -> None:
     contract = _asset("state_transition_contract_v1.json")
     record = _asset("required_set_input_coverage_v1.json")
     declaration = _asset("required_set_coverage_declaration_v1.json")
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
     runner_requirements = [
         item
         for item in checker.deriver.derive_repository_row_requirements(ROOT)[0]
@@ -1231,7 +1231,7 @@ def test_step83_runner_events_and_input_coverage() -> None:
         case["rowRef"]["coordinate"]["eventKind"] == "runner-event"
         for case in cases[42:]
     ) == 9
-    runner_rows = contract["matrixRows"][33:]
+    runner_rows = contract["matrixRows"][33:42]
     assert len(runner_rows) == 9
     assert {case["rowRef"]["coordinate"]["resultId"] for case in cases[33:42]} == {
         row["resultId"] for row in runner_rows
@@ -1343,7 +1343,7 @@ def test_step85_tiebreak_start_has_no_row_case_or_coverage_change() -> None:
         ROOT, limit=42, mode="coverage", operation_limit=2
     )
     assert after == _observed_coverage(historical_cases, contract)
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
 
 
 def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
@@ -1404,7 +1404,7 @@ def test_step86_game_end_declaration_cases_and_input_coverage() -> None:
     assert len(after) == current["after"]["count"] == 108
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
@@ -1480,9 +1480,9 @@ def test_step87_adhoc_registration_cases_and_input_coverage() -> None:
     assert current["after"]["digest"] == checker._digest(after)
     assert after == _observed_coverage(cases, contract)
     assert checker.check_input_coverage(ROOT) == (
-        153, record["history"][-1]["after"]["digest"], 7
+        176, record["history"][-1]["after"]["digest"], 6
     )
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
@@ -1609,8 +1609,10 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert undo_case["expected"]["operationResult"] == "nothing-to-undo"
     assert undo_case["expected"]["guaranteeMode"] == "full-equality"
 
-    assert record["currentStep"] == 93
-    assert [item["step"] for item in record["history"]] == list(range(79, 94))
+    assert record["currentStep"] == 95
+    assert [item["step"] for item in record["history"][:15]] == list(range(79, 94))
+    assert [item["step"] for item in record["history"][:16]] == list(range(79, 95))
+    assert [item["step"] for item in record["history"]] == list(range(79, 96))
     current = next(item for item in record["history"] if item["step"] == 88)
     previous = next(item for item in record["history"] if item["step"] == 87)
     assert current["before"] == previous["after"]
@@ -1625,8 +1627,8 @@ def test_step88_empty_history_undo_case_and_coverage() -> None:
     assert "XC-09" in current["reason"]
     assert "history.scenarioLength" in current["reason"]
     assert "D+1" in current["fact"] and "未達" in current["fact"]
-    assert checker.check_input_coverage(ROOT) == (153, record["history"][-1]["after"]["digest"], 7)
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert checker.check_input_coverage(ROOT) == (176, record["history"][-1]["after"]["digest"], 6)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
     policy = expander.dependency_checker.load_policy(ROOT)
     assert trace.observed_read_paths == policy.expanders[
         "state-transition-cases"
@@ -1654,7 +1656,7 @@ def test_step24_draw05_operation_case_preserves_input_coverage() -> None:
     assert effects["state.score"] == {"kind": "unchanged"}
     step90 = next(item for item in record["history"] if item["step"] == 90)
     assert step90["before"] == step90["after"]
-    assert checker.check_input_coverage(ROOT)[2] == 7
+    assert checker.check_input_coverage(ROOT)[2] == 6
 
 
 def test_step24_draw05_cross_layer_binding_fails_closed_on_case_drift() -> None:
@@ -1928,8 +1930,8 @@ def test_step103_coverage_count_changed_by_one_is_red() -> None:
 
 def test_step102_both_required_set_differences_are_empty() -> None:
     """①の宣言除外と②の規則除外を実資産で共に検査する。"""
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
-    assert checker.check_input_coverage_exact(ROOT) == (193, 40, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
 
 
 def test_step102_row_requirement_difference_is_red() -> None:
@@ -1940,31 +1942,34 @@ def test_step102_row_requirement_difference_is_red() -> None:
         checker.check_row_requirements(
             ROOT, _asset("state_transition_contract_v1.json"), declaration
         )
-    assert checker.check_input_coverage_exact(ROOT) == (193, 40, 0)
+    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
 
 
 def test_step102_input_coordinate_difference_is_red_when_row_is_added() -> None:
     """②は新行が未固定値を受け持つと除外を縮め、未被覆を赤にする。"""
     contract = _asset("state_transition_contract_v1.json")
+    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+    assert ("state.count.balls", "1") not in _observed_coverage(contract["cases"], contract)
     added = copy.deepcopy(contract["matrixRows"][0])
 
-    def change_strikes(predicate: dict[str, Any]) -> bool:
-        if predicate.get("op") == "eq" and predicate.get("axisId") == "state.count.strikes":
+    def change_balls(predicate: dict[str, Any]) -> bool:
+        if predicate.get("op") == "eq" and predicate.get("axisId") == "state.count.balls":
             predicate["value"] = 1
             return True
         return any(
-            change_strikes(child) for child in predicate.get("args", [])
+            change_balls(child) for child in predicate.get("args", [])
             if isinstance(child, dict)
         )
 
-    assert change_strikes(added["precondition"])
+    assert change_balls(added["precondition"])
     contract["matrixRows"].append(added)
     with pytest.raises(
         checker.RequiredSetCoverageError, match="②の規則除外後の差分がexact-set不一致"
     ) as error:
         checker.check_input_coverage_exact(ROOT, contract)
-    assert "('state.count.strikes', '1')" in str(error.value)
-    assert checker.check_row_requirements(ROOT) == (47, 42, 0)
+    assert "('state.count.balls', '1')" in str(error.value)
+    assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
 
 
 def test_coverage_history_is_append_only() -> None:
@@ -1978,3 +1983,178 @@ def test_coverage_history_is_append_only() -> None:
     multiple["history"].extend([copy.deepcopy(current["history"][0])] * 2)
     with pytest.raises(checker.RequiredSetCoverageError, match="複数"):
         checker._check_history_append_only(current, multiple)
+
+
+@pytest.mark.parametrize("raw_result", ("単打", "batting-result.single"))
+def test_game_end_display_names_resolves_closed_id_without_changing_raw(
+    tmp_path: Path, raw_result: str
+) -> None:
+    """従来の表示名と閉入力IDを同じ語彙へ結び、原入力は保持する。"""
+    state = tmp_path / "contracts/state-transition/state_transition_contract_v1.json"
+    vocabulary = tmp_path / "contracts/vocabulary/input_vocabulary_v1.json"
+    state.parent.mkdir(parents=True)
+    vocabulary.parent.mkdir(parents=True)
+    case = {"normalized": {"resultId": "batting-result.single"},
+            "raw": {"resultId": raw_result}}
+    content = json.dumps({"cases": [case]}, ensure_ascii=False)
+    state.write_text(content, encoding="utf-8")
+    vocabulary.write_text(json.dumps({"axes": [{"entries": [
+        {"id": "batting-result.single", "initialDisplayName": "単打"}
+    ]}]}), encoding="utf-8")
+    assert checker._game_end_display_names(tmp_path) == {"batting-result.single": "単打"}
+    assert state.read_text(encoding="utf-8") == content
+
+
+def test_game_end_display_names_rejects_unknown_closed_id(tmp_path: Path) -> None:
+    """未知のIDを表示名へ推測変換しない。"""
+    state = tmp_path / "contracts/state-transition/state_transition_contract_v1.json"
+    vocabulary = tmp_path / "contracts/vocabulary/input_vocabulary_v1.json"
+    state.parent.mkdir(parents=True)
+    vocabulary.parent.mkdir(parents=True)
+    state.write_text(json.dumps({"cases": [
+        {"normalized": {"resultId": "unknown"}, "raw": {"resultId": "unknown"}}
+    ]}), encoding="utf-8")
+    vocabulary.write_text(json.dumps({"axes": []}), encoding="utf-8")
+    with pytest.raises(checker.RequiredSetCoverageError, match="一意でない"):
+        checker._game_end_display_names(tmp_path)
+
+
+def _row_refinement_identities(
+    contract: dict[str, Any], declaration: dict[str, Any],
+) -> list[tuple[str, str, str]]:
+    """原観測の親と精密化後のidentityを同じ実行bodyで照合する。"""
+    requirements, _ = checker.deriver.derive_repository_row_requirements(ROOT)
+    required = {(item.result_id, item.partition_rule_id, item.partition_id): item
+                for item in requirements}
+    observations = declaration["rowPartitionObservations"]
+    refinements = checker._validated_row_refinements(
+        ROOT, declaration["rowPartitionRefinements"], required,
+        [checker._identity(item) for item in observations],
+    )
+    special = {item["vocabularyId"] for item in observations}
+    return [checker._refined_partition(
+        row, checker._observed_partition(row, observations)
+        if row["resultId"] in special else (row["resultId"], "identity", "identity"),
+        refinements,
+    ) for row in contract["matrixRows"]]
+
+
+def test_row_partition_refinement_preserves_old44_and_unique_new5() -> None:
+    """旧親identityを保持し、RBI原観測だけで追加5行を一対一に区別する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    declaration = _asset("required_set_coverage_declaration_v1.json")
+    observations = declaration["rowPartitionObservations"]
+    assert len(observations) == 7
+    special = {item["vocabularyId"] for item in observations}
+    old_identities = [checker._observed_partition(row, observations)
+                      if row["resultId"] in special
+                      else (row["resultId"], "identity", "identity")
+                      for row in contract["matrixRows"][:44]]
+    actual = _row_refinement_identities(contract, declaration)
+    assert actual[:44] == old_identities
+    assert actual[42] == ("batting-result.single", "identity", "out3-explicit-home-before")
+    assert [identity[2] for identity in actual[44:]] == [
+        item["partitionId"] for item in declaration["rowPartitionRefinements"]
+    ]
+    assert len(actual) == len(set(actual)) == 49
+    assert len(declaration["uncoveredRowRequirements"]) == 5
+    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
+
+
+@pytest.mark.parametrize("mutation", [
+    "unknown-parent", "unknown-child", "duplicate-child", "empty-selector",
+    "unknown-axis", "duplicate-axis", "wrong-bool-type", "unknown-value",
+    "extra-refinement-key", "extra-selector-key", "missing-parent-key",
+    "unknown-clause", "empty-clause", "multiple-child-matches",
+    "selector-missing-child", "all-refinements-missing",
+])
+def test_row_partition_refinement_rejects_ambiguous_or_unknown_observations(
+    mutation: str,
+) -> None:
+    """曖昧さ・型変換・selector不足を重複のset化で救済しない。"""
+    declaration = _asset("required_set_coverage_declaration_v1.json")
+    refinements = declaration["rowPartitionRefinements"]
+    first = refinements[0]
+    if mutation == "unknown-parent":
+        first["parent"]["partitionId"] = "unknown"
+    elif mutation == "unknown-child":
+        first["partitionId"] = "unknown"
+    elif mutation == "duplicate-child":
+        refinements.append(copy.deepcopy(first))
+    elif mutation == "empty-selector":
+        first["all"] = []
+    elif mutation == "unknown-axis":
+        first["all"][0]["axisId"] = "unknown.axis"
+    elif mutation == "duplicate-axis":
+        first["all"].append(copy.deepcopy(first["all"][0]))
+    elif mutation == "wrong-bool-type":
+        first["all"][0]["value"] = 1
+    elif mutation == "unknown-value":
+        first["all"][0]["value"] = "not-an-observation"
+    elif mutation == "extra-refinement-key":
+        first["rowId"] = "direct-answer-forbidden"
+    elif mutation == "extra-selector-key":
+        first["all"][0]["rowId"] = "direct-answer-forbidden"
+    elif mutation == "missing-parent-key":
+        del first["parent"]["partitionRuleId"]
+    elif mutation == "unknown-clause":
+        first["sourceClauseIds"] = ["req:UNKNOWN"]
+    elif mutation == "empty-clause":
+        first["sourceClauseIds"] = []
+    elif mutation == "multiple-child-matches":
+        first["all"] = copy.deepcopy(refinements[1]["all"])
+    elif mutation == "selector-missing-child":
+        refinements.pop()
+    else:
+        declaration.pop("rowPartitionRefinements")
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker.check_row_requirements(
+            ROOT, _asset("state_transition_contract_v1.json"), declaration,
+        )
+
+
+def test_row_partition_refinement_missing_leaf_is_not_inferred() -> None:
+    """観測葉欠落は旧parentへ留まり、重複拒否を維持する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    predicate = contract["matrixRows"][44]["precondition"]
+    predicate["args"] = [item for item in predicate["args"]
+                         if item.get("axisId") != "event.perPitch.rbi.runnerContinuityByRunner"]
+    with pytest.raises(checker.RequiredSetCoverageError, match="行要求区分が重複"):
+        checker.check_row_requirements(ROOT, contract)
+
+
+def test_row_partition_refinement_duplicate_normative_row_is_still_rejected() -> None:
+    """子区分に同じ行を複製しても従来の重複拒否を回避しない。"""
+    contract = _asset("state_transition_contract_v1.json")
+    contract["matrixRows"].append(copy.deepcopy(contract["matrixRows"][44]))
+    with pytest.raises(checker.RequiredSetCoverageError, match="行要求区分が重複"):
+        checker.check_row_requirements(ROOT, contract)
+
+
+def test_rbi_coverage_append_preserves_history_and_six_observed_values() -> None:
+    """旧16記録を基線にした追加6被覆と現在宣言だけを照合する。"""
+    record = _asset("required_set_input_coverage_v1.json")
+    assert record["currentStep"] == 95
+    assert [entry["step"] for entry in record["history"][:16]] == list(range(79, 95))
+    assert len(record["history"]) == 17
+    previous, latest = record["history"][-2:]
+    assert latest["step"] == 95
+    assert latest["before"] == previous["after"]
+    before = {tuple(item) for item in latest["before"]["coverageSet"]}
+    after = {tuple(item) for item in latest["after"]["coverageSet"]}
+    assert len(before) == latest["before"]["count"] == 170
+    assert len(after) == latest["after"]["count"] == 176
+    assert not before - after
+    assert after - before == {
+        ("event.perPitch.rbi.cause_by_runner.third.held_too_long", "true"),
+        ("event.perPitch.rbi.cause_by_runner.third.unnecessary_throw", "true"),
+        ("event.perPitch.rbi.restart_by_runner.third.after_observing_misplay", "false"),
+        ("event.perPitch.rbi.restart_by_runner.third.after_observing_misplay", "true"),
+        ("event.perPitch.rbi.runnerContinuityByRunner", '"single-runner-kept-running"'),
+        ("event.perPitch.rbi.runnerContinuityByRunner", '"single-runner-stopped-and-restarted"'),
+    }
+    assert latest["before"]["digest"] == checker._digest(before)
+    assert latest["after"]["digest"] == checker._digest(after)
+    contract = _asset("state_transition_contract_v1.json")
+    assert after == _observed_coverage(contract["cases"], contract)
+    assert checker.check_input_coverage(ROOT) == (176, checker._digest(after), 6)

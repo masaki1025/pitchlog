@@ -278,3 +278,34 @@ def test_preparing_create_options_routes_use_c2_before_dynamic_id() -> None:
     ]
     assert all(isinstance(route, TenantMatchedRoute) for route in routes)
     assert {route.operation_id for route in routes} <= _MATCH_OPERATIONS
+
+
+@pytest.mark.anyio
+async def test_missing_rg1_configuration_keeps_health_read_available(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """書込制御未配置を、正常readの起動失敗や自動openへ広げない。"""
+    from pitchlog.recording_rights import rg1_lifecycle
+
+    monkeypatch.setattr(api_app, "_RG1_CLIENT_CONFIG_PATH", tmp_path / "missing.json")
+    app = api_app.create_app()
+    assert rg1_lifecycle._runtime_client is None
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.get("/health")
+    assert response.status_code == 200
+
+
+def test_untrusted_rg1_configuration_does_not_enable_writes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """非root配置を読取値の一致だけで制御clientへ採用しない。"""
+    from pitchlog.recording_rights import rg1_lifecycle
+
+    config = tmp_path / "untrusted.json"
+    config.write_text("{}")
+    monkeypatch.setattr(api_app, "_RG1_CLIENT_CONFIG_PATH", config)
+    with pytest.raises(rg1_lifecycle.RG1ControlUnavailable):
+        api_app.create_app()
+    assert rg1_lifecycle._runtime_client is None

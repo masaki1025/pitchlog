@@ -146,3 +146,63 @@ frontendはfrozen installのみで宣言/lock差分0。現在の実候補でread
 追随の初回は379成功/3失敗/26.27秒、歴史的fixtureが新pending宣言を使ったtenant不一致。合成fixtureの当時宣言を保持した次回は381成功/1失敗/24.20秒で、CLIも現在scriptを呼んでいた1件を確認。同一の当時scriptをCLIへ渡す局所fixture是正後は全core382成功/26.35秒。製品拒否条件・判定関数・例外は変更せず、旧部分/片側/順序/共変更拒否を保持した。3実行を単一成功と書かず旧失敗logをcache/preparing-read-core-after180*.logへ保持する。
 
 正式9/8値・7.7・認可lock/oracle/175親追加レビュー1回/必須CI/実新規作成は未達。これは無関係な基線追随・必要な機械是正を既PO委任で行った記録であり、本人の逐行確認/署名ではない。
+
+
+非作者rights_replacement_reviewは741bb698/比較6f60983cの機械追随限定確認0/0/0、独立core382成功/22.72秒。binary diff78742cfed90802c2bf4b7d0c70b6dc0e24901f0e09b5ee63b18b1ba55aca3141（full-index576a1788ad40d10b4ad04b395234746d98ae019ce76e55bb027707e55de75384）。親175正式追加枠は未消費。
+
+実547の完全9射影/外部8をrootが再計算し、readで動いた射影はallowlist/repository2件だけ、他7/外部8は同一と確認。候補識別はallowlist35→36/repository24→25とし、repositoryのsource_digestと生成moduleの全fieldを対応させる。初回はJSON source_digestの追随漏れで47成功/1失敗/1秒、生成とJSONを同じ正規化digestへ是正して局所再検証した。履歴27prefix/202snapshotはこの候補段階で不変、正式受理は未成立。新値の独立照合/根拠/承認を後続に記録し、古い180受理をread差分へ自動延長しない。
+
+
+認可の通常派生導出`--asset-spec product --reseal-derived`は1418項目検査成功、route/matrixのlock2件だけ更新、auth-catalog/claims/権限/意味は不変。oracleの入力8blobを含む次commit Cを固定し、context6/sealと既存oracle_input台帳の実識別値を同じCへ前進させる。C固定は正式受理/封印そのものではなく、後続の限定差分・完全値レビューとPO委任受理後に反映する。
+
+
+正式受理前の完全値候補はcache/preparing-read-175-acceptance/proposal.json（SHA325e1a0803f021378c1ef0ad9cb7358dbe0c38b365fa45faf57de52df5cb9412）。実547→4c5b3794で9射影を全導出、変化2/不変7、外部8不変、27history/202snapshot全bytes不変。C=bda1262947ba284374a5e14b532c2ef3c3859544は追加の認可lock2件と研究記録だけなので、9/8の提案値は同一。aspectは実derive_aspectsのdeclaration/asset_snapshotsだけであり、外部不変を変更に数えない。
+
+oracle6context/sealのcommit文字列を旧426d→同じCへ前進した候補を固定。6意味行は全不変で、ここではseal再導出・oracle_input系列行の正式追記をしない。必要な既存frozen-baselines.json系列の末尾1行追随をroot後続scopeへ明記し、旧全行・配置・target・拒否は保持する。cache/oracle-ledger-row-proposal.jsonのSHA1a9fa6733b2143dc566e376f66807047c8b7ee69bcff511e538c68024f0449d5は承認者/日付なしの未受理提案。全実値とこの最小scopeの非作者照合後、PO委任判断を根拠付きで正式記録してから必要行/封印を反映する。本人の個別確認を代記しない。
+
+
+## 正式値のPO委任受理と反映
+
+2026-10-23T19:07:51.897444+00:00、Codex主担当/rootはPO4/5/7/8/10と2026-10-24優先指示で、10fd/実547の完全提案325e1a08を受理。非作者rights_replacement_reviewは02ecの全9射影/外部8/19snapshot実体/全前後値/identifier/aspectを独立再計算して一致、0/0/0・48局所成功。C/02ecと後発10fdは9/8実値不変。証拠f7e85b13、全diff898657d2/直前diff706630c2。旧27prefix/202snapshot全保持、提案に承認者/日付2fieldだけを加えて175row1/必要snapshot2を反映し28/204とした。
+
+6oracleのcommit以外の意味不変・入力8blobC=bda12629一致と、既存oracle_input系列の旧13prefix/target/配置保持の末尾175提案1a9fa673も同非作者0で確認し受理。提案に承認者/日付2fieldだけを加えて14行目へ反映。最小scope追補を委任で承認し、人間本人の個別確認/署名/逐行確認は記録しない。
+
+root補助の初回は旧271f corpus不変という誤ったassertで停止した。入力宣言は同じだがread正例2追加・3既存入力の変更で実digest6e362f63へ変わることを実runnerと非作者の固定Git独立計算で確認（証拠dadb2245）。生成値の通常追随としてmanifestのdigest1fieldだけ更新し、旧pinned履歴6/名集合/全case/期待値/runner/選択宣言は不変。続く反映補助は旧legacy履歴にacceptance_idがない行を同形式と仮定してKeyErrorで書込み前に停止し、getによる存在確認へ是正。新rowやsnapshotの二重追加はない。封印再導出/更新flagなし全検査/親175全最終追加レビュー/必須CI/実保存成功は別未完ゲート。
+
+
+反映後のtenant checkerは更新flagなしexit0。oracle再封印は起案の`--asset-spec product --reseal-oracle`が製品DDL（oracle_contextを持たない別資産）を選んでseal不一致を拒否し、書込みなしでexit1となった。実6対象はrootのprobe oracleであり、実装/検査器を変更せずコマンドを`--asset-spec probe --reseal-oracle`へ是正。全1418項目/202 oracle claims/235mutants/24cutsetsを検査し再封印成功。planの同コマンド1件だけ追随した。製品DDL検査は別途productモードの更新flagなしで実施し、probe/sourceと製品認可を混同しない。受理したC/6意味行/9射影値は変わらない。
+
+
+反映後の更新flagなしtenant checker/probe oracle全検査/product認可検査/frozen-baselines invariantsは全exit0。archiveとcase runnerは65成功/67.47秒、旧pinned集合・期待結果をそのまま通した。root Ruff/ty成功、文書21件/違反0。これらは正式develop提供や必須全件CI、175親最終追加敵対1回を置換しない。
+
+
+## 親175の最終追加レビュー・提出処理
+
+許可済み親追加敵対1回は0ae8ee37470d4ceb02a9282c32629bc9fece5d22/実547/全72path binarydiff6b95482189837e5481341caf12a257310bc28df3d02e26863e154a30db6bdc83で消費し、非作者rights_replacement_reviewは0/0/0・重大未解消なしと判定。JSON復元を全文含め、独立backend162/9.11秒・frontend183/15.91秒・root22/9.19秒、更新flagなしtenant/probe/product/frozen検査を成功。旧基本2回/各component系列/全失敗とP6留保を保持する。証拠cache/review-read175-final-0ae8ee37-evidence.json SHA23ab88e0a6e9259dc884f5fceaba1cd489e143918231582ac440f31614ce2070。最終CI/実PR2親mergeと公開branch更新はroot後続、作成/開始/初球は未達。
+
+提出時に本局所planをin-reviewへ、親UG1 planは6段階/DoD/status activeのまま提供範囲と継続featureだけを明記。これはPO委任の編集/統合順の最小具体化で、readを親作成全完成へ誤表示しない。ハーネス評価台帳への追記なし: 今回は既存委任手続き/検査器の同一規則を使い、候補命令のspec指定・履歴fixture/生成値追随の局所是正をresearchに保持する。恒久統制の再設計や新しい一般規則は導入していない。後発は上記3文書の提出メタデータだけで製品/正式値/検査bytes不変、非作者限定確認後に公開する。
+
+
+## CI frontend失敗と限定bootstrap是正の起案
+
+2026-10-23T19:50:53.918344+00:00、必須CI40011535070/frontend job120613591944は1853成功/3失敗で、GameScreenE2eProcess.specの新origin拒否3件がexpected exit1に対してstatus null。frontend jobはNodeだけでbackend venvを作らず、新試験のbackend/.venv起動依存が不整合。全run実行中のgh run view --log-failedはログ未提供を返したため、終了済みjob logs APIで当該jobを取得して特定した（別CIを再起動していない）。rootは同じorigin拒否を標準Python先行入口で検証し、実DB/認証起動は分離して既存意味のまま保持する最小scopeを追補する。旧CIを成功と数えず、残るbackend/harnessは同HEADの結果を回収し、修正後は新HEADで必須CIを確認する。
+
+
+## CI bootstrap是正の実装・実接合結果
+
+承認b574aaf6の限定3sourceを実装。Support.pyを標準ライブラリのみの先行origin/mode検証へ分離し、同一関数を実Server.pyも呼ぶ。実serverのfixture/auth/専用DB/cleanupの5関数ASTは旧6caaと一致し、自己path以外の処理は保持。Process.specは実入口をpython3 -I -Sで起動し、spawn失敗/signal/timeoutを正しい拒否へ数えずexit1/正確な理由/ready未作成を確認する。
+
+旧入口のstdlib-only再現は3失敗（依存psycopg読込が先行し拒否理由不一致）、是正後process8成功/1.28秒。全frontend92files/1856成功/164.27秒、ESLint/vue-tsc/root Ruff/ty成功。envDir:falseのrepo外configを使い.envを読まない。実browser3成功/27.2秒（login→Cookie/C2→API→専用PG、一覧/詳細/reload、越境404、通信断→明示確認）。実行後docker稼働は共有pitchlog-db-1のみで自前資源cleanup済み。正式9資産/外部8のbytesは6caaと同一。実新規作成/初球/実機成功ではない。証拠はcache/pitchlog/read175-bootstrap-fix/{before-origin,after-process,frontend-full,browser-read}.log。
+
+CI40011535070は最終的にfailure。frontend3失敗のほか、backendは3379成功/3失敗/4skip（route期待18対20、registry期待45対47、位置依存の拒否fixture）、harnessは29798成功/3失敗/2skip（failure-injectionのDDL blobとMC/DCのclaim-map blobの派生参照未追随）。元ログをcache/preparing-read-175-acceptance/ci-{frontend,backend,harness}-job.logへ保持。新HEADの全件CIは別途必要であり、旧結果を成功へ読み替えない。
+
+
+backend/harnessの確定3+3失敗を回収し、同ステップの通常追随scopeをplanへ固定した。token先頭にread2が入るため、既存拒否fixtureのregistrations[0/1/5]は原来のplayers read/insert/team readを指さなくなっていた。型指定へ直して同じ拒否を実行する。派生参照2fieldは旧blob→現blobの差分がoracle_context.oracle_commitだけかGit objectで検証してから追随する。
+
+
+既存登録追随の局所検査はbackend120成功/1.40秒、harness23成功/2.12秒。backend Ruff/format成功、failure-injection5点/MC/DC47決定の更新flagなしCLI成功。routeは旧18tuple全保持+GET2、capability30集合不変の全47文を引き続き検査。拒否変異はPlayerReadToken/PlayerCreateToken/TeamRecordReadTokenを明示参照し、全6変異の元の拒否診断を保持した。派生参照2件はGit旧blobを実取得し、現原典との意味差がoracle_context.oracle_commitだけと確認して更新した。failure-injectionの40f26b3d→16fa279d、MC/DC claim-mapのbe450946→fa9432db。チェック対象・試験・例外を落としていない。
+
+6caa→現候補の全tenant JSON/正式9射影/外部8 bytesはrootの実再導出比較で全同一（frozen-unchanged.jsonへ固定）。したがってこのCI是正を理由とする同値7.7の再受理は行わない。旧28history/204snapshot/oracle6/seal/Cのbytesを保持する。新固定版の非作者限定確認と最終HEAD全必須CIは未実施。
+
+
+CI是正source固定2d4579bfの後発は本planのin-review復帰と本実施記録のみ。更新flagなしtenant/probe/product/frozen各検査は全exit0、正式9/8不変比較はrootが実施したもので非作者再計算とは区別する。新HEADへの独立CI是正限定確認を依頼中で、元親追加1回/metadata1回/CI計画1回の履歴を保持する。独立所見/証拠/提出固定版はrepo外evidenceと主担当台帳およびPR本文へ記録し、同結果を新たなコード変更へ自動延長しない。

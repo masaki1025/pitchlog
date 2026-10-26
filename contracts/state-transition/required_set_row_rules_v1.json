@@ -13,101 +13,154 @@
       "role": "result-id-source",
       "eventKind": "batting-result",
       "reason": "E-1が打撃結果を毎球入力の規範行層に置き、resultIdで語彙シードを参照するため",
-      "sourceClauseIds": ["req:E-1", "req:FR-003"]
+      "sourceClauseIds": [
+        "req:E-1",
+        "req:FR-003"
+      ]
     },
     {
       "axisId": "secondary-result",
       "role": "result-id-source",
       "eventKind": "secondary-result",
       "reason": "E-1が打撃結果2を毎球入力の規範行層に置き、resultIdで語彙シードを参照するため",
-      "sourceClauseIds": ["req:E-1", "req:FR-004"]
+      "sourceClauseIds": [
+        "req:E-1",
+        "req:FR-004"
+      ]
     },
     {
       "axisId": "pitch-type",
       "role": "not-result-id-source",
       "reason": "球種は投球入力の属性であり、4.0-3はチーム拡張語彙に値ごとの状態遷移規範を持たせないため",
-      "sourceClauseIds": ["req:4.0-3", "req:D-4"]
+      "sourceClauseIds": [
+        "req:4.0-3",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "strategy-category",
       "role": "result-id-source",
       "eventKind": "runner-event",
       "reason": "FR-004が作戦を走者・特殊プレイとして記録対象にし、A-4が作戦3系統の成否を定めるため",
-      "sourceClauseIds": ["req:FR-004", "req:A-4", "req:E-1"]
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:A-4",
+        "req:E-1"
+      ]
     },
     {
       "axisId": "strategy-detail",
       "role": "not-result-id-source",
       "reason": "作戦の詳細値はstrategy-categoryで識別した走者イベントの内訳であり、A-4の作戦種別そのものではないため",
-      "sourceClauseIds": ["req:A-4", "req:D-4"]
+      "sourceClauseIds": [
+        "req:A-4",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "strategy-result",
       "role": "not-result-id-source",
       "reason": "作戦の成功・失敗はA-4から判定する結果側の値であり、走者イベントの種別ではないため",
-      "sourceClauseIds": ["req:A-4", "req:D-4"]
+      "sourceClauseIds": [
+        "req:A-4",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "error-type",
       "role": "not-result-id-source",
       "reason": "失策の種類はFR-004の公式記録payloadに属し、E-1のイベント種別を識別するresultIdではないため",
-      "sourceClauseIds": ["req:FR-004", "req:D-4"]
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "pitcher-pickoff-destination",
       "role": "result-id-source",
       "eventKind": "runner-event",
       "reason": "FR-004が投手牽制を走者イベントとして規範行の対象にし、語彙軸が投手牽制の対象塁を識別するため",
-      "sourceClauseIds": ["req:FR-004", "req:E-1", "req:D-4"]
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:E-1",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "catcher-pickoff-destination",
       "role": "result-id-source",
       "eventKind": "runner-event",
       "reason": "FR-004が捕手牽制を走者イベントとして規範行の対象にし、語彙軸が捕手牽制の対象塁を識別するため",
-      "sourceClauseIds": ["req:FR-004", "req:E-1", "req:D-4"]
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:E-1",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "pickoff-result",
       "role": "not-result-id-source",
       "reason": "セーフ・アウト・失策はFR-004が走者キー付きpayloadへ保持させる牽制結果であり、投手・捕手と対象塁を識別するイベント種別ではないため",
-      "sourceClauseIds": ["req:FR-004", "req:D-4"]
+      "sourceClauseIds": [
+        "req:FR-004",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "batted-ball-type",
       "role": "not-result-id-source",
       "reason": "打球タイプは4.0-3が打球情報として分離した入力属性であり、付録Eの打撃結果resultIdではないため",
-      "sourceClauseIds": ["req:4.0-3", "req:FR-004", "req:D-4"]
+      "sourceClauseIds": [
+        "req:4.0-3",
+        "req:FR-004",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "batted-ball-strength",
       "role": "not-result-id-source",
       "reason": "打球強度は4.0-3が打球情報として分離した入力属性であり、付録Eの打撃結果resultIdではないため",
-      "sourceClauseIds": ["req:4.0-3", "req:FR-004", "req:D-4"]
+      "sourceClauseIds": [
+        "req:4.0-3",
+        "req:FR-004",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "batter-status",
       "role": "not-result-id-source",
       "reason": "打者状況はE-1のbatterDestinationとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
-      "sourceClauseIds": ["req:E-1", "req:D-4"]
+      "sourceClauseIds": [
+        "req:E-1",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "first-runner-status",
       "role": "not-result-id-source",
       "reason": "一塁走者状況はE-1のrunnerDefaultAdvanceとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
-      "sourceClauseIds": ["req:E-1", "req:D-4"]
+      "sourceClauseIds": [
+        "req:E-1",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "second-runner-status",
       "role": "not-result-id-source",
       "reason": "二塁走者状況はE-1のrunnerDefaultAdvanceとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
-      "sourceClauseIds": ["req:E-1", "req:D-4"]
+      "sourceClauseIds": [
+        "req:E-1",
+        "req:D-4"
+      ]
     },
     {
       "axisId": "third-runner-status",
       "role": "not-result-id-source",
       "reason": "三塁走者状況はE-1のrunnerDefaultAdvanceとoutEffectが表す状態効果側の値であり、入力イベントのresultIdではないため",
-      "sourceClauseIds": ["req:E-1", "req:D-4"]
+      "sourceClauseIds": [
+        "req:E-1",
+        "req:D-4"
+      ]
     }
   ],
   "partitionRules": [
@@ -153,18 +206,54 @@
         "catcher-pickoff-destination.second",
         "catcher-pickoff-destination.third"
       ],
-      "partitions": ["identity"],
-      "sourceClauseIds": ["req:E-1"]
+      "partitions": [
+        "identity"
+      ],
+      "sourceClauseIds": [
+        "req:E-1"
+      ],
+      "additionalPartitions": [
+        {
+          "vocabularyId": "batting-result.single",
+          "partitions": [
+            "out3-explicit-home-before",
+            "out3-explicit-not-before",
+            "rbi-kept-held-too-long",
+            "rbi-kept-unnecessary-throw",
+            "rbi-restarted-held-after-misplay",
+            "rbi-restarted-throw-after-misplay",
+            "rbi-restarted-held-noncausal"
+          ],
+          "sourceClauseIds": [
+            "req:FR-003",
+            "req:OUT3-04",
+            "req:OUT3-05",
+            "req:RBI-03",
+            "req:RBI-04",
+            "req:RBI-08"
+          ]
+        }
+      ]
     },
     {
       "partitionRuleId": "dropped-third-strike-outcome",
-      "vocabularyIds": ["batting-result.dropped-third-strike"],
-      "partitions": ["safe", "out"],
-      "sourceClauseIds": ["req:E-2", "req:SO-03"]
+      "vocabularyIds": [
+        "batting-result.dropped-third-strike"
+      ],
+      "partitions": [
+        "safe",
+        "out"
+      ],
+      "sourceClauseIds": [
+        "req:E-2",
+        "req:SO-03"
+      ]
     },
     {
       "partitionRuleId": "batting-interference-ruling",
-      "vocabularyIds": ["secondary-result.batting-interference"],
+      "vocabularyIds": [
+        "secondary-result.batting-interference"
+      ],
       "partitions": [
         "automatic-play-result",
         "penalty-award",
@@ -180,7 +269,9 @@
     },
     {
       "partitionRuleId": "obstruction-ruling",
-      "vocabularyIds": ["secondary-result.obstruction"],
+      "vocabularyIds": [
+        "secondary-result.obstruction"
+      ],
       "partitions": [
         "play-on-obstructed-runner",
         "no-play-on-obstructed-runner"
@@ -194,8 +285,13 @@
     },
     {
       "partitionRuleId": "offensive-interference-ruling",
-      "vocabularyIds": ["secondary-result.offensive-interference"],
-      "partitions": ["batter-target-included", "runner-targets-only"],
+      "vocabularyIds": [
+        "secondary-result.offensive-interference"
+      ],
+      "partitions": [
+        "batter-target-included",
+        "runner-targets-only"
+      ],
       "sourceClauseIds": [
         "req:FR-004",
         "req:E-1",

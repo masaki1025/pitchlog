@@ -1,6 +1,6 @@
 ---
 feature: mvp-rule-resolver-registration
-status: active
+status: in-review
 承認: 済（PO委任によるCodex判断・公開resolver登録）
 重さ分類: コア領域
 worktree: ../../..
@@ -65,3 +65,6 @@ backendの既存function_operations_boundary/authz_repository_contractとrootの
 最終必須CIでbackend/root全件を確認し、同一sourceの長い全件を不用意に並列反復しない。core履歴predicate/全既存paths/実PR2親merge/最終証拠を固定する。CI失敗/skip/取消は原結果を保持。正式checkerの赤は原因別に残し、検査除外や固定成功で通さない。
 
 計画承認: 2026-10-23T17:28:53.385803+00:00、Codex主担当/root、PO委任4/5/6/7/8/10。対象plan6e7e113057fcb56de6596e069fa1ba805ed4952c4910008d355e5fbfdae6540d/research50fd77c6b6f28e54c909257231f6684d3d4f02b02bb60fa7dd346d9d66accbc5を、非作者/root/resolver_ledger_plan_reviewの第1回全文計画レビュー可決0/0/0に基づき承認する。既存固定sourceの意味・全正本を保持した正式登録不足の解消だけを対象とし、指定した1ステップのみ実施する。実新PR/完全7.7/最終非作者レビュー・CIを別条件とし、山田正輝の本人逐行確認/署名を代記しない。
+
+
+実175統合後の正式baseはa10bcd5e、製品差分を含む実Draft PRは#181 / feature/mvp-rule-resolver-registration。旧source/レビューを保持した通常merge50c1fcd9でmain全登録/28履歴/204snapshotを保全し、candidate revision36→37/25→26の完全9/8値をこの実baseから再導出する。policy targetsは実PR181/本branchの1組だけ追記し、他全対象/authority/期限/拒否は保持する。更新flagなし最終検査/正式受理/最終非作者/必須CI/通常統合が揃うまでは未完。

@@ -170,15 +170,28 @@ def load_gap_criteria(descriptor: Mapping[str, Any]) -> GapCriteria:
         raise GapRegisterError("rowLayersは規範行4層の宣言でなければならない")
     seen_layers: set[str] = set()
     for layer in row_layers:
-        if not isinstance(layer, dict) or set(layer) != {
-            "layer", "sourcePath", "keyPaths", "ownershipPath"
-        }:
+        required_layer_keys = {"layer", "sourcePath", "keyPaths", "ownershipPath"}
+        if not isinstance(layer, dict) or set(layer) not in (
+            required_layer_keys, required_layer_keys | {"qualifyWhenPredicateAxes"}
+        ):
             raise GapRegisterError("rowLayersの宣言が不正")
         if not all(isinstance(layer[key], str) and layer[key] for key in (
             "layer", "sourcePath", "ownershipPath"
         )):
             raise GapRegisterError("rowLayersの文字列宣言が不正")
         _criteria_string_list(layer["keyPaths"], "rowLayers.keyPaths")
+        if "qualifyWhenPredicateAxes" in layer:
+            qualifiers = _criteria_string_list(
+                layer["qualifyWhenPredicateAxes"], "rowLayers.qualifyWhenPredicateAxes"
+            )
+            if layer["layer"] != "matrixRows" or not qualifiers:
+                raise GapRegisterError("前提によるID修飾はmatrixの明示軸だけに許可する")
+            known_axis_ids = {
+                axis.get("axisId") for axis in descriptor.get("stateTransitionAxes", [])
+                if isinstance(axis, dict) and isinstance(axis.get("axisId"), str)
+            }
+            if not set(qualifiers) <= known_axis_ids:
+                raise GapRegisterError("行ID修飾軸がdescriptorの入力軸へ解決しない")
         if layer["layer"] in seen_layers:
             raise GapRegisterError("rowLayersの層が重複している")
         seen_layers.add(layer["layer"])
@@ -625,17 +638,35 @@ def clause_reference_index(policy: GapPredicatePolicy) -> StageReferenceIndex:
     )
 
 
+def _compound_precondition_id(predicate: Mapping[str, Any]) -> str:
+    """既存の複合前提ID形式を一つの生成口で保つ。"""
+    encoded = json.dumps(predicate, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode()).hexdigest()[:16]
+
+
+def _predicate_mentions_axes(predicate: object, axis_ids: frozenset[str]) -> bool:
+    """行IDの有限な修飾対象軸が前提へ明記されているか調べる。"""
+    if not isinstance(predicate, dict):
+        return False
+    axis_id = predicate.get("axisId")
+    if isinstance(axis_id, str) and axis_id in axis_ids:
+        return True
+    args = predicate.get("args")
+    return isinstance(args, list) and any(
+        _predicate_mentions_axes(child, axis_ids) for child in args
+    )
+
+
 def _row_key_value(row: Mapping[str, Any], key_path: str) -> str:
     """規範行の自然キーを宣言済みのpathから取得する。"""
     if key_path.startswith("precondition."):
         predicate = row.get("precondition")
         if isinstance(predicate, dict) and isinstance(predicate.get("args"), list):
             # 単純等値行の旧IDを保ち、複合述語だけ正規形のdigestで一意にする。
-            encoded = json.dumps(predicate, sort_keys=True, separators=(",", ":"))
             return (
                 "compound"
                 if key_path.endswith("axisId")
-                else hashlib.sha256(encoded.encode()).hexdigest()[:16]
+                else _compound_precondition_id(predicate)
             )
     value: Any = row
     for part in key_path.split("."):
@@ -651,9 +682,16 @@ def _row_key_value(row: Mapping[str, Any], key_path: str) -> str:
 
 def _normative_row_id(layer: Mapping[str, Any], row: Mapping[str, Any]) -> str:
     """宣言済みの層名と自然キーから行IDを組み立てる。"""
-    return ":".join((layer["layer"], *(
+    identity = ":".join((layer["layer"], *(
         _row_key_value(row, path) for path in layer["keyPaths"]
     )))
+    qualifiers = frozenset(layer.get("qualifyWhenPredicateAxes", ()))
+    predicate = row.get("precondition")
+    if qualifiers and _predicate_mentions_axes(predicate, qualifiers):
+        if not isinstance(predicate, dict):
+            raise GapRegisterError("修飾対象行の前提がobjectでない")
+        identity += ":compound:" + _compound_precondition_id(predicate)
+    return identity
 
 
 def _mentions_id(remarks: str, identifier: str) -> bool:

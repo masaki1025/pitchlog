@@ -391,13 +391,13 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
     }
     assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 3,
-        "GAP-04": 5, "GAP-05": 1, "GAP-06": 0,
-        "GAP-07": 20, "GAP-08": 5, "GAP-09": 3,
+        "GAP-04": 5, "GAP-05": 1, "GAP-06": 6,
+        "GAP-07": 20, "GAP-08": 5, "GAP-09": 8,
     }
     assert {gap["gapId"]: len(gap["fixtureCaseIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
-        "GAP-04": 5, "GAP-05": 0, "GAP-06": 0,
-        "GAP-07": 12, "GAP-08": 7, "GAP-09": 3,
+        "GAP-04": 5, "GAP-05": 0, "GAP-06": 2,
+        "GAP-07": 12, "GAP-08": 7, "GAP-09": 5,
     }
     assert all(
         all(checker._filled_stage_flags(gap, _criteria()))
@@ -406,6 +406,7 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
     assert all(
         checker._filled_stage_flags(gap, _criteria())
         == ((True, True, True, False, False) if gap["gapId"] == "GAP-05"
+            else (True, True, True, True, False) if gap["gapId"] == "GAP-06"
             else (True, True, False, False, False))
         for gap in document["gaps"] if gap["state"] == "open"
     )
@@ -533,7 +534,7 @@ def test_fixture_index_uses_branch_register_gap_ownership() -> None:
     """両fixtureのcaseIdを分岐台帳のgapIdsから逆引きする。"""
     index = _real_indexes(_register())["fixtureCaseIds"]
 
-    assert len(index.existing_references) == 33
+    assert len(index.existing_references) == 37
     assert index.gap_ids_by_reference["GE-GAME-END-NORMAL"] == frozenset(
         {"GAP-03", "GAP-04"}
     )
@@ -587,18 +588,18 @@ def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
 
 
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
-    """操作種別の重複も前提軸と値で分離し全58行を識別する。"""
+    """操作種別の重複も前提軸と値で分離し全77行を識別する。"""
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 70
+    assert len(index.existing_references) == 77
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 10
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
 
 def test_step99_no_orphan_normative_rows() -> None:
-    """4層58行すべてが分岐または要件条文に辿れることを確認する。"""
+    """4層77行すべてが分岐または要件条文に辿れることを確認する。"""
     orphans = checker.orphan_normative_row_ids(
         _criteria(), _row_documents(), _clause_branch_register(),
         checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
@@ -625,10 +626,10 @@ def test_step99_orphan_row_is_red_without_case_coverage_check() -> None:
 
 
 def test_step99_all_row_ids_resolve() -> None:
-    """gapのrowIdsと323件のcase参照が一意な規範行へ解決する。"""
+    """gapのrowIdsと364件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 70
+    assert len(index.existing_references) == 77
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []

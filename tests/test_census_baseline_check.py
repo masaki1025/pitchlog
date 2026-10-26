@@ -922,6 +922,7 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
         self.identity_fields = identity_fields
         self.class_stack: list[str] = []
         self.function_stack: list[str] = []
+        self.lexical_stack: list[str] = []
         self.identities: set[CensusIdentity] = set()
         self.violation_keys: set[tuple[int, int, str, str]] = set()
         node_types = _string_array(
@@ -1133,8 +1134,10 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
         for type_parameter in node.type_params:
             self.visit(type_parameter)
         self.class_stack.append(node.name)
+        self.lexical_stack.append(node.name)
         for statement in node.body:
             self.visit(statement)
+        self.lexical_stack.pop()
         self.class_stack.pop()
 
     def _visit_function(
@@ -1161,12 +1164,14 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
             self.visit(node.returns)
         for type_parameter in node.type_params:
             self.visit(type_parameter)
-        prefix = ".".join([self.module, *self.class_stack]).strip(".")
+        prefix = ".".join([self.module, *self.lexical_stack]).strip(".")
         symbol = f"{prefix}.{node.name}" if prefix else node.name
+        self.lexical_stack.append(node.name)
         self.function_stack.append(symbol)
         for statement in node.body:
             self.visit(statement)
         self.function_stack.pop()
+        self.lexical_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         """同期関数の候補サイトを列挙する。"""
@@ -1600,6 +1605,88 @@ def _scoped_signature_suppression(
     )
 
 
+class _LexicalScopeSites(ast.NodeVisitor):
+    """同一ASTサイトの旧flat名と完全lexical名を独立して対応付ける。"""
+
+    def __init__(self, module: str) -> None:
+        self.module = module
+        self.classes: list[str] = []
+        self.functions: list[str] = []
+        self.lexical: list[str] = []
+        self.sites: set[tuple[int, int, str, str]] = set()
+
+    def visit(self, node: ast.AST) -> None:
+        """全ASTサイトの位置と両scopeを保持する。"""
+        if hasattr(node, "lineno"):
+            old = ".".join([
+                self.module, *self.classes,
+                self.functions[-1] if self.functions else "<module>",
+            ])
+            new = ".".join([
+                self.module, *self.lexical,
+                *([] if self.functions else ["<module>"]),
+            ])
+            line = cast(int, getattr(node, "lineno"))
+            end = cast(int | None, getattr(node, "end_lineno", None)) or line
+            self.sites.add((line, end, old, new))
+        super().visit(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
+        """定義式は外側、本体はクラス内として列挙する。"""
+        for expression in (*node.decorator_list, *node.bases, *node.keywords,
+                           *node.type_params):
+            self.visit(expression)
+        self.classes.append(node.name)
+        self.lexical.append(node.name)
+        for statement in node.body:
+            self.visit(statement)
+        self.lexical.pop()
+        self.classes.pop()
+
+    def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        """関数の定義式と本体を両版のscope規則で列挙する。"""
+        for expression in (*node.decorator_list, node.args, *node.type_params):
+            self.visit(expression)
+        if node.returns is not None:
+            self.visit(node.returns)
+        self.functions.append(node.name)
+        self.lexical.append(node.name)
+        for statement in node.body:
+            self.visit(statement)
+        self.lexical.pop()
+        self.functions.pop()
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
+        """同期関数を列挙する。"""
+        self._visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:  # noqa: N802
+        """非同期関数を列挙する。"""
+        self._visit_function(node)
+
+
+def _measured_lexical_identity(
+    identity: CensusIdentity, *, source_root: Path,
+    measured: frozenset[CensusIdentity],
+) -> CensusIdentity:
+    """他の6fieldを保持し、一意な同一ASTサイトのscope差だけ照合する。"""
+    if identity in measured:
+        return identity
+    path, line, end_line, old_scope, code, symbol, message = identity
+    source_path = source_root / path
+    assert source_path.is_file(), identity
+    sites = _LexicalScopeSites(_module_name(path))
+    sites.visit(ast.parse(source_path.read_text(encoding="utf-8")))
+    scopes = {
+        new for start, end, old, new in sites.sites
+        if (start, end, old) == (line, end_line, old_scope)
+    }
+    assert len(scopes) == 1, (identity, scopes)
+    mapped = (path, line, end_line, scopes.pop(), code, symbol, message)
+    assert mapped in measured, (identity, mapped)
+    return mapped
+
+
 def _measured_allowlist_suppression(
     *,
     substituted_field: str,
@@ -1658,6 +1745,9 @@ def _measured_allowlist_suppression(
             Path("tests/fixtures/tenant_boundary"),
         ):
             shutil.copytree(REPOSITORY_ROOT / relative, counterfactual_root / relative)
+        core_context = Path(".claude/core-areas.json")
+        (counterfactual_root / core_context).parent.mkdir(parents=True)
+        shutil.copy2(REPOSITORY_ROOT / core_context, counterfactual_root / core_context)
         counterfactual_source = counterfactual_root / "backend/src"
         shutil.copytree(source_root, counterfactual_source)
         asset_path, _, _ = substituted_field.partition("#")
@@ -1867,7 +1957,7 @@ def _assert_removed_equals_measured_allowlist_suppression(
         code = identity[code_index]
         if code in excluded_codes:
             continue
-        assert identity in suppression, identity
+        _measured_lexical_identity(identity, source_root=source_root, measured=suppression)
 
 
 def _assert_removed_matches_declared_relaxations(
@@ -1944,6 +2034,62 @@ def _validated_scoped_condition2_path(
     return relative_path
 
 
+def _validated_ledger_condition2_path(
+    *, source_root: Path, current_contract: Any
+) -> str | None:
+    """台帳の単一source hashと免除なし実17件を固定する。"""
+    relative = checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
+    path = source_root / relative
+    if not path.is_file():
+        return None
+    source = path.read_text(encoding="utf-8")
+    expected_sha = current_contract.ledger_condition2_source_sha256
+    if hashlib.sha256(source.encode()).hexdigest() != expected_sha:
+        return None
+    unsuppressed = replace(current_contract, ledger_condition2_findings=frozenset())
+    actual = frozenset(
+        (v.line, v.symbol)
+        for v in checker.scan_source(source, path=relative, contract=unsuppressed)
+        if v.code == "TB002"
+    )
+    assert actual == current_contract.ledger_condition2_findings, "台帳の実17所見が一致しない"
+    return relative
+
+
+def _validated_rg1_condition2_identities(
+    *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """RG1のexact2を実source/hashと全7fieldの抑止差分へ束縛する。"""
+    owners = current_contract.rg1_condition2_owners
+    assert len(owners) == len(checker.RG1_CONDITION2_OWNER_PATHS)
+    assert {owner.path for owner in owners} == checker.RG1_CONDITION2_OWNER_PATHS
+    unsuppressed = replace(current_contract, rg1_condition2_owners=())
+    result: set[CensusIdentity] = set()
+    for owner in owners:
+        assert len(owner.findings) == 1
+        relative = owner.path.removeprefix("backend/src/")
+        path = source_root / relative
+        if not path.is_file():
+            continue
+        source = path.read_text(encoding="utf-8")
+        if hashlib.sha256(source.encode()).hexdigest() != owner.source_sha256:
+            continue
+        def census(contract: Any) -> frozenset[CensusIdentity]:
+            """当該sourceの全7fieldを保った実走査を得る。"""
+            return frozenset(
+                (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                for v in checker.scan_source(source, path=relative, contract=contract)
+            )
+        before, after = census(unsuppressed), census(current_contract)
+        difference = before - after
+        assert not after - before
+        assert len(difference) == 1
+        assert {(i[1], i[5]) for i in difference} == owner.findings
+        assert all(i[4] == "TB002" for i in difference)
+        result.update(difference)
+    return frozenset(result)
+
+
 def _scoped_identity_digest(identities: frozenset[CensusIdentity]) -> str:
     """限定所見の完全な identity 集合を順序非依存で固定する。"""
     encoded = json.dumps(
@@ -1956,7 +2102,8 @@ _SCOPED_DIGEST_FIXTURE = (
     REPOSITORY_ROOT / "tests/fixtures/tenant_boundary/census-scoped-digests.json"
 )
 _SCOPED_DIGEST_KEYS = frozenset(
-    {"removed_checker_43", "added_independent_ast_18"}
+    {"removed_checker_43", "added_independent_ast_18",
+     "ledger_removed_checker", "ledger_added_independent_ast"}
 )
 
 
@@ -2009,6 +2156,8 @@ def _assert_scoped_identity_digest(
         if key == "removed_checker_43"
         else "独立AST由来の限定18 identityが一致しない"
     )
+    if key.startswith("ledger_"):
+        label = "台帳限定identityが一致しない: " + key
     assert actual == expected, label
 
 
@@ -2050,6 +2199,11 @@ def test_scoped_digest_fixture_rejects_invalid_content(
 ) -> None:
     """欠損・余剰・重複・不正な正解値を拒否する。"""
     fixture_path = tmp_path / "scoped-digests.json"
+    if message in {"schema_versionが不正", "値が不正"}:
+        content = content[:-1] + (
+            ",\"ledger_removed_checker\":\"" + "0" * 64 + "\","
+            "\"ledger_added_independent_ast\":\"" + "0" * 64 + "\"}"
+        )
     fixture_path.write_text(content, encoding="utf-8")
     with pytest.raises(AssertionError, match=message):
         _load_scoped_digest_fixture(fixture_path)
@@ -2067,8 +2221,9 @@ def test_scoped_digest_fixture_rejects_changed_valid_value(
 ) -> None:
     """形式が正しくても正解値の改変を実測集合との照合で拒否する。"""
     context = census_predicate_context
-    scoped_path = "pitchlog/recording_rights/initial_grant.py"
-    if key == "removed_checker_43":
+    scoped_path = ("pitchlog/durable_rights_ledger/adapter.py"
+                   if key.startswith("ledger_") else "pitchlog/recording_rights/initial_grant.py")
+    if key in {"removed_checker_43", "ledger_removed_checker"}:
         identities = frozenset(
             identity
             for identity in context["data_sets"]["removed"]
@@ -2331,8 +2486,22 @@ def _assert_unadjudicated_removed_remains(
         scoped_removed or reference_repository_root is not None
     ):
         _assert_scoped_identity_digest(scoped_removed, "removed_checker_43")
+    ledger_path = _validated_ledger_condition2_path(
+        source_root=source_root, current_contract=current_contract
+    )
+    ledger_removed = frozenset(
+        identity for identity in data_sets[set_name]
+        if identity[code_index] == "TB002" and identity[identity_indexes["path"]] == ledger_path
+    )
+    if ledger_path is not None and (
+        ledger_removed or reference_repository_root is not None
+    ):
+        _assert_scoped_identity_digest(ledger_removed, "ledger_removed_checker")
+    rg1_removed = _validated_rg1_condition2_identities(
+        source_root=source_root, current_contract=current_contract
+    )
     for identity in data_sets[set_name]:
-        if identity in scoped_removed:
+        if identity in scoped_removed or identity in ledger_removed or identity in rg1_removed:
             continue
         if _condition2_owned_path(
             str(identity[identity_indexes["path"]]), current_contract
@@ -2411,6 +2580,23 @@ def _assert_added_equals_independently_derived_candidates(
         expected = frozenset(
             identity for identity in expected if identity not in scoped_candidates
         )
+    ledger_path = _validated_ledger_condition2_path(
+        source_root=source_root, current_contract=current_contract
+    )
+    if ledger_path is not None:
+        ledger_candidates = frozenset(
+            identity for identity in expected if identity[0] == ledger_path
+        )
+        _assert_scoped_identity_digest(ledger_candidates, "ledger_added_independent_ast")
+        assert all(
+            (identity[1], identity[5]) in current_contract.ledger_condition2_findings
+            for identity in ledger_candidates
+        ), "台帳AST候補が実17所見へ帰属しない"
+        expected = expected - ledger_candidates
+    rg1_suppressed = _validated_rg1_condition2_identities(
+        source_root=source_root, current_contract=current_contract
+    )
+    expected = expected - rg1_suppressed
     actual = data_sets[set_name]
     assert actual == expected, (
         f"missing={sorted(expected - actual)}, extra={sorted(actual - expected)}"
@@ -4305,3 +4491,276 @@ def test_implementation_to_declaration_rejects_undeclared_input_and_recovers(
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def test_ledger_scoped_condition2_requires_exact_source_and_findings(tmp_path: Path) -> None:
+    """台帳の17件実測に失敗した場合はcensusのpath免除を作らない。"""
+    relative = Path('pitchlog/durable_rights_ledger/adapter.py')
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_bytes((REPOSITORY_ROOT / 'backend/src' / relative).read_bytes())
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    actual_path = _validated_ledger_condition2_path(
+        source_root=tmp_path, current_contract=contract
+    )
+    assert actual_path == relative.as_posix()
+    altered = replace(
+        contract,
+        ledger_condition2_findings=frozenset(sorted(contract.ledger_condition2_findings)[1:]),
+    )
+    with pytest.raises(AssertionError, match='実17所見が一致しない'):
+        _validated_ledger_condition2_path(source_root=tmp_path, current_contract=altered)
+    path.write_text(path.read_text() + '\n')
+    assert _validated_ledger_condition2_path(
+        source_root=tmp_path, current_contract=contract
+    ) is None
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'extra', 'cross_path', 'all_missing'])
+def test_ledger_scoped_census_rejects_changed_removed_identity(
+    census_predicate_context: dict[str, Any], mutation: str
+) -> None:
+    """旧22件の台帳所見を欠損/追加/別pathへ移し替えて通さない。"""
+    context = census_predicate_context
+    data_sets = dict(context['data_sets'])
+    original = next(
+        i for i in data_sets['removed']
+        if i[0] == 'pitchlog/durable_rights_ledger/adapter.py' and i[4] == 'TB002'
+    )
+    removed = data_sets['removed'] - {original}
+    if mutation == 'all_missing':
+        removed = frozenset(i for i in removed
+                            if i[0] != 'pitchlog/durable_rights_ledger/adapter.py')
+    elif mutation == 'extra':
+        removed = data_sets['removed'] | {
+            _replace_identity_field(original, index=5, value='unapproved_generation')
+        }
+    elif mutation == 'cross_path':
+        removed = removed | {
+            _replace_identity_field(
+                original, index=0, value='pitchlog/recording_rights/initial_grant.py'
+            )
+        }
+    data_sets['removed'] = removed
+    declaration = context['declaration']
+    with pytest.raises(AssertionError, match='identityが一致しない'):
+        _assert_declared_predicate(
+            _unadjudicated_removed_tb002_predicate(declaration), declaration=declaration,
+            data_sets=data_sets, source_root=context['source_root'],
+            current_contract=context['current_contract'],
+            anchor_contract=context['anchor_contract'],
+            reference_repository_root=context['reference_repository_root'],
+        )
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'extra', 'cross_path'])
+def test_ledger_scoped_census_rejects_changed_independent_identity(
+    census_predicate_context: dict[str, Any], monkeypatch: pytest.MonkeyPatch, mutation: str
+) -> None:
+    """独立AST1件も旧18へ混ぜず、欠損/余剰/移し替えを拒否する。"""
+    context = census_predicate_context
+    original_derive = _independently_derived_added
+
+    def mutated(**kwargs: Any) -> frozenset[CensusIdentity]:
+        candidates = original_derive(**kwargs)
+        original = next(
+            i for i in candidates if i[0] == 'pitchlog/durable_rights_ledger/adapter.py'
+        )
+        if mutation == 'missing':
+            return candidates - {original}
+        if mutation == 'extra':
+            return candidates | {
+                _replace_identity_field(original, index=5, value='unapproved_generation')
+            }
+        return (candidates - {original}) | {
+            _replace_identity_field(
+                original, index=0, value='pitchlog/recording_rights/initial_grant.py'
+            )
+        }
+
+    monkeypatch.setattr(sys.modules[__name__], '_independently_derived_added', mutated)
+    declaration = context['declaration']
+    with pytest.raises(AssertionError, match='identityが一致しない'):
+        _assert_declared_predicate(
+            _condition2_candidate_predicate(declaration), declaration=declaration,
+            data_sets=context['data_sets'], source_root=context['source_root'],
+            current_contract=context['current_contract'],
+            anchor_contract=context['anchor_contract'],
+            reference_repository_root=context['reference_repository_root'],
+        )
+
+
+def test_lexical_identity_maps_only_the_same_ast_site(tmp_path: Path) -> None:
+    """ネスト名だけを同一AST位置から対応させ、生identityは変更しない。"""
+    path = tmp_path / "example.py"
+    path.write_text(
+        "def outer():\n    def nested():\n        call()\n"
+        "def sibling():\n    def nested():\n        call()\n",
+        encoding="utf-8",
+    )
+    old: CensusIdentity = ("example.py", 3, 3, "example.nested", "TB005", "api", "message")
+    new: CensusIdentity = (*old[:3], "example.outer.nested", *old[4:])
+    assert _measured_lexical_identity(old, source_root=tmp_path, measured=frozenset({new})) == new
+    assert old[3] == "example.nested"
+    sibling: CensusIdentity = ("example.py", 6, 6, "example.sibling.nested", *old[4:])
+    with pytest.raises(AssertionError):
+        _measured_lexical_identity(old, source_root=tmp_path, measured=frozenset({sibling}))
+
+
+@pytest.mark.parametrize("index,value", [
+    (0, "other.py"), (1, 2), (2, 4), (3, "example.other"),
+    (4, "TB004"), (5, "another.api"), (6, "changed message"),
+])
+def test_lexical_identity_rejects_each_changed_field(
+    tmp_path: Path, index: int, value: str | int,
+) -> None:
+    """scope対応を他の6field差や偽scopeに流用しない。"""
+    (tmp_path / "example.py").write_text(
+        "def outer():\n    def nested():\n        call()\n", encoding="utf-8",
+    )
+    old: CensusIdentity = ("example.py", 3, 3, "example.nested", "TB005", "api", "message")
+    new: CensusIdentity = (*old[:3], "example.outer.nested", *old[4:])
+    fields: list[str | int] = list(old)
+    fields[index] = value
+    changed = cast(CensusIdentity, tuple(fields))
+    with pytest.raises(AssertionError):
+        _measured_lexical_identity(changed, source_root=tmp_path, measured=frozenset({new}))
+
+
+def test_lexical_identity_rejects_ambiguous_same_line_scope(tmp_path: Path) -> None:
+    """同一行の異なるscopeをASTサイトの一意対応としない。"""
+    (tmp_path / "example.py").write_text("def nested(): call()\n", encoding="utf-8")
+    old: CensusIdentity = ("example.py", 1, 1, "example.nested", "TB005", "api", "message")
+    forged: CensusIdentity = (*old[:3], "example.outer.nested", *old[4:])
+    with pytest.raises(AssertionError):
+        _measured_lexical_identity(old, source_root=tmp_path, measured=frozenset({forged}))
+
+
+def test_rg1_condition2_census_matches_exact_source_and_all_fields(
+    census_predicate_context: dict[str, Any], tmp_path: Path,
+) -> None:
+    """実exact2だけを認め、source変更と余分なC2を帰属させない。"""
+    context = census_predicate_context
+    contract = context["current_contract"]
+    root = context["source_root"]
+    actual = _validated_rg1_condition2_identities(source_root=root, current_contract=contract)
+    assert len(actual) == len(contract.rg1_condition2_owners)
+    for owner in contract.rg1_condition2_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes((root / relative).read_bytes() + b"\nunknown_generation\n")
+    assert not _validated_rg1_condition2_identities(source_root=tmp_path, current_contract=contract)
+    for owner in contract.rg1_condition2_owners:
+        bad_owner = replace(owner, findings=owner.findings | {(1, "unknown_generation")})
+        mutated = replace(contract, rg1_condition2_owners=tuple(
+            bad_owner if item == owner else item for item in contract.rg1_condition2_owners
+        ))
+        with pytest.raises(AssertionError):
+            _validated_rg1_condition2_identities(source_root=root, current_contract=mutated)
+
+
+@pytest.mark.parametrize("field", [0, 1, 2, 3, 4, 5, 6])
+def test_rg1_independent_census_rejects_changed_suppressed_identity(
+    census_predicate_context: dict[str, Any], monkeypatch: pytest.MonkeyPatch, field: int,
+) -> None:
+    """独立AST候補のRG1行も全7fieldを比較し、偽の抑止帰属を拒否する。"""
+    context = census_predicate_context
+    original_derive = _independently_derived_added
+    suppressed = _validated_rg1_condition2_identities(
+        source_root=context["source_root"], current_contract=context["current_contract"],
+    )
+
+    def changed(**kwargs: Any) -> frozenset[CensusIdentity]:
+        candidates = original_derive(**kwargs)
+        matching = candidates & suppressed
+        assert matching, "実RG1の独立AST候補が必要"
+        original = sorted(matching)[0]
+        fields: list[str | int] = list(original)
+        previous = fields[field]
+        fields[field] = previous + 1 if isinstance(previous, int) else previous + ".forged"
+        return candidates - {original} | {cast(CensusIdentity, tuple(fields))}
+
+    monkeypatch.setattr(sys.modules[__name__], "_independently_derived_added", changed)
+    with pytest.raises(AssertionError, match="missing="):
+        _assert_declared_predicate(
+            _condition2_candidate_predicate(context["declaration"]),
+            declaration=context["declaration"], data_sets=context["data_sets"],
+            source_root=context["source_root"], current_contract=context["current_contract"],
+            anchor_contract=context["anchor_contract"],
+            reference_repository_root=context["reference_repository_root"],
+        )
+
+
+@pytest.mark.parametrize("field", [0, 1, 2, 3, 5, 6])
+def test_rg1_removed_census_rejects_unknown_or_changed_identity(
+    census_predicate_context: dict[str, Any], field: int,
+) -> None:
+    """RG1と同じpathの未知C2や改変identityを、exact2へ吸収しない。"""
+    context = census_predicate_context
+    suppressed = _validated_rg1_condition2_identities(
+        source_root=context["source_root"], current_contract=context["current_contract"],
+    )
+    matching = context["data_sets"]["removed"] & suppressed
+    assert matching
+    original = sorted(matching)[0]
+    fields: list[str | int] = list(original)
+    previous = fields[field]
+    fields[field] = previous + 1 if isinstance(previous, int) else previous + ".unknown"
+    data_sets = dict(context["data_sets"])
+    data_sets["removed"] = data_sets["removed"] - {original} | {cast(CensusIdentity, tuple(fields))}
+    predicate = next(
+        item for item in _declared_predicates(context["declaration"])
+        if item["id"] == "unadjudicated_removed_tb002_remains_in_current_census"
+    )
+    with pytest.raises(AssertionError):
+        _assert_declared_predicate(
+            predicate, declaration=context["declaration"], data_sets=data_sets,
+            source_root=context["source_root"], current_contract=context["current_contract"],
+            anchor_contract=context["anchor_contract"],
+            reference_repository_root=context["reference_repository_root"],
+        )
+
+
+def test_rg1_condition2_measurement_rejects_all_reject_mutant(
+    census_predicate_context: dict[str, Any], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """checkerが常に拒否して同じ所見を返す変異を実抑止成立としない。"""
+    context = census_predicate_context
+    original = checker.scan_source
+
+    def reject_all(source: str, *, contract: Any, **kwargs: Any) -> Any:
+        return original(source, contract=replace(contract, rg1_condition2_owners=()), **kwargs)
+
+    monkeypatch.setattr(checker, "scan_source", reject_all)
+    with pytest.raises(AssertionError):
+        _validated_rg1_condition2_identities(
+            source_root=context["source_root"], current_contract=context["current_contract"],
+        )
+
+
+def test_allowlist_counterfactual_preserves_actual_core_context(
+    census_predicate_context: dict[str, Any], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """反実仮想は同じ非秘密core設定を使い、所有境界欠落を製造しない。"""
+    context = census_predicate_context
+    expected = (REPOSITORY_ROOT / ".claude/core-areas.json").read_bytes()
+    original = _checker_census
+    observed: list[bytes] = []
+
+    def observe(module: ModuleType, *, repository_root: Path, source_root: Path) -> Any:
+        actual = (repository_root / ".claude/core-areas.json").read_bytes()
+        assert actual == expected
+        observed.append(actual)
+        return original(module, repository_root=repository_root, source_root=source_root)
+
+    monkeypatch.setattr(sys.modules[__name__], "_checker_census", observe)
+    predicate = _suppression_predicate(context["declaration"])
+    derivation = predicate["derivation"]
+    _measured_allowlist_suppression(
+        substituted_field=derivation["substituted_field"],
+        substituted_from=derivation["substituted_from"],
+        reference_repository_root=context["reference_repository_root"],
+        source_root=context["source_root"], current_census=context["data_sets"]["current_census"],
+    )
+    assert observed

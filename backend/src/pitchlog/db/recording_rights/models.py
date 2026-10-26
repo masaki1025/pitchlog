@@ -47,6 +47,10 @@ class RG1RestoreGate(LifecycleMixin, Base):
         CheckConstraint(
             "state IN ('closed', 'open')", name="ck_rg1_restore_gate_state"
         ),
+        CheckConstraint(
+            "recovery_generation IS NULL OR recovery_generation > 0",
+            name="ck_rg1_restore_gate_recovery_generation",
+        ),
         PrimaryKeyConstraint(
             "singleton_id",
             name="pk_rg1_restore_gate",
@@ -58,6 +62,7 @@ class RG1RestoreGate(LifecycleMixin, Base):
         SmallInteger, nullable=False, autoincrement=False
     )
     state: Mapped[str] = mapped_column(Text, nullable=False)
+    recovery_generation: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     lifecycle = Lifecycle(
         deletion=DeletionLifecycle.NOT_APPLICABLE,
@@ -67,6 +72,7 @@ class RG1RestoreGate(LifecycleMixin, Base):
     immutability = Immutability(
         protected_columns=frozenset({"singleton_id"}),
         allowed_update_columns=frozenset({"state"}),
+        conditional_update_columns=frozenset({"recovery_generation"}),
         coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
 

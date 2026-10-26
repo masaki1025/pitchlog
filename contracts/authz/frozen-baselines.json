@@ -713,6 +713,92 @@
       },
       "reason": "#174の8入力候補コミットへoracle入力を切り替え、6oracle資産の意味行を保ったまま封印参照を追随する。旧#152行は持ち込まない。",
       "series": "oracle_input"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#175",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "bda1262947ba284374a5e14b532c2ef3c3859544"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "426d0ec84249d5940e7e2de5660a213d45401d0e"
+          }
+        ]
+      },
+      "reason": "#175の正式preparing read 2GETに対応するroute/matrixと派生lockを含む8入力へoracleを前進し、6意味行/既存履歴/権限を保持する。PO委任によるCodex判断は独立照合後に別記する。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
+      "approved_at": "2026-10-24"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#183",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "8a40519d85a00abdef07fa2ffd8f6fa7301b8835"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "bda1262947ba284374a5e14b532c2ef3c3859544"
+          }
+        ]
+      },
+      "reason": "PR #183の承認済み要件v2.17 D07=A限定追補に伴うsource metadata追随。固定入力commit8a40519dの8資産へoracle_inputを前進する。旧1418原文決定とAUTH187件、分類規則とderived決定、6oracleのoracle_commit以外の意味本文は保持する。POのMVP継続委任に基づくCodex主担当判断として記録し、本人直接確認・暗号署名を実施したとは記録しない。候補の非作者独立照合を採用前条件とする。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex判断（Codex主担当/root、採用前に非作者独立照合）",
+      "approved_at": "2026-10-24"
     }
   ]
 }

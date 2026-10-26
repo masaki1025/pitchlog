@@ -5,7 +5,7 @@
   "canonical_source": {
     "path": "docs/design/data-model.md",
     "digest_kind": "ファイル内容のSHA-256",
-    "sha256": "c7547b2d81e5929060e766bfdf738d68eaa7644d2d130099c398dd7659129ed1",
+    "sha256": "5a497a6adaf1719c5d255dc541cbfbecde401692422f7b7a05972af44726431c",
     "reproduction": "リポジトリルートで sha256sum docs/design/data-model.md を実行する"
   },
   "provenance_methods": {
@@ -1215,6 +1215,12 @@
           "type": "text",
           "nullable": false,
           "default": null
+        },
+        {
+          "name": "recovery_generation",
+          "type": "bigint",
+          "nullable": true,
+          "default": null
         }
       ],
       "lifecycle": {
@@ -1225,7 +1231,8 @@
       "foreign_keys": [],
       "checks": [
         "singleton_id = 1",
-        "state IN ('closed', 'open')"
+        "state IN ('closed', 'open')",
+        "recovery_generation IS NULL OR recovery_generation > 0"
       ],
       "unique_constraints": [
         {
@@ -1256,7 +1263,9 @@
         "allowed_update_columns": [
           "state"
         ],
-        "conditional_update_columns": [],
+        "conditional_update_columns": [
+          "recovery_generation"
+        ],
         "coverage": "exhaustive",
         "unclassified_handoff": null
       }

@@ -6,32 +6,252 @@
       "vocabularyId": "batting-result.dropped-third-strike",
       "partitionRuleId": "dropped-third-strike-outcome",
       "partitionId": "safe",
-      "signal": {"location": "expected", "field": "batterDestination.kind", "value": "reach"}
+      "signal": {
+        "location": "expected",
+        "field": "batterDestination.kind",
+        "value": "reach"
+      }
     },
     {
       "vocabularyId": "secondary-result.batting-interference",
       "partitionRuleId": "batting-interference-ruling",
       "partitionId": "penalty-award",
-      "signal": {"location": "precondition", "axisId": "event.perPitch.interferenceRuling", "value": "batting:penalty-award"}
+      "signal": {
+        "location": "precondition",
+        "axisId": "event.perPitch.interferenceRuling",
+        "value": "batting:penalty-award"
+      }
     },
     {
       "vocabularyId": "secondary-result.obstruction",
       "partitionRuleId": "obstruction-ruling",
       "partitionId": "play-on-obstructed-runner",
-      "signal": {"location": "precondition", "axisId": "event.perPitch.interferenceRuling", "value": "obstruction:play-on-obstructed-runner-with-awarded-destinations"}
+      "signal": {
+        "location": "precondition",
+        "axisId": "event.perPitch.interferenceRuling",
+        "value": "obstruction:play-on-obstructed-runner-with-awarded-destinations"
+      }
     },
     {
       "vocabularyId": "secondary-result.offensive-interference",
       "partitionRuleId": "offensive-interference-ruling",
       "partitionId": "batter-target-included",
-      "signal": {"location": "precondition", "axisId": "event.perPitch.interferenceRuling", "value": "offensive-interference:batter-included-with-out-targets-and-return-bases"}
+      "signal": {
+        "location": "precondition",
+        "axisId": "event.perPitch.interferenceRuling",
+        "value": "offensive-interference:batter-included-with-out-targets-and-return-bases"
+      }
+    },
+    {
+      "vocabularyId": "batting-result.single",
+      "partitionRuleId": "identity",
+      "partitionId": "identity",
+      "signal": {
+        "location": "precondition",
+        "axisId": "state.runners",
+        "value": "empty"
+      }
+    },
+    {
+      "vocabularyId": "batting-result.single",
+      "partitionRuleId": "identity",
+      "partitionId": "out3-explicit-home-before",
+      "signal": {
+        "location": "precondition",
+        "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+        "value": "home-before-third-out"
+      }
+    },
+    {
+      "vocabularyId": "batting-result.single",
+      "partitionRuleId": "identity",
+      "partitionId": "out3-explicit-not-before",
+      "signal": {
+        "location": "precondition",
+        "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+        "value": "not-before-third-out"
+      }
     }
   ],
   "uncoveredRowRequirements": [
-    {"vocabularyId": "batting-result.dropped-third-strike", "partitionRuleId": "dropped-third-strike-outcome", "partitionId": "out", "gapId": "GAP-08"},
-    {"vocabularyId": "secondary-result.batting-interference", "partitionRuleId": "batting-interference-ruling", "partitionId": "automatic-play-result", "gapId": "GAP-07"},
-    {"vocabularyId": "secondary-result.batting-interference", "partitionRuleId": "batting-interference-ruling", "partitionId": "selected-play-result", "gapId": "GAP-07"},
-    {"vocabularyId": "secondary-result.obstruction", "partitionRuleId": "obstruction-ruling", "partitionId": "no-play-on-obstructed-runner", "gapId": "GAP-07"},
-    {"vocabularyId": "secondary-result.offensive-interference", "partitionRuleId": "offensive-interference-ruling", "partitionId": "runner-targets-only", "gapId": "GAP-07"}
+    {
+      "vocabularyId": "batting-result.dropped-third-strike",
+      "partitionRuleId": "dropped-third-strike-outcome",
+      "partitionId": "out",
+      "gapId": "GAP-08"
+    },
+    {
+      "vocabularyId": "secondary-result.batting-interference",
+      "partitionRuleId": "batting-interference-ruling",
+      "partitionId": "automatic-play-result",
+      "gapId": "GAP-07"
+    },
+    {
+      "vocabularyId": "secondary-result.batting-interference",
+      "partitionRuleId": "batting-interference-ruling",
+      "partitionId": "selected-play-result",
+      "gapId": "GAP-07"
+    },
+    {
+      "vocabularyId": "secondary-result.obstruction",
+      "partitionRuleId": "obstruction-ruling",
+      "partitionId": "no-play-on-obstructed-runner",
+      "gapId": "GAP-07"
+    },
+    {
+      "vocabularyId": "secondary-result.offensive-interference",
+      "partitionRuleId": "offensive-interference-ruling",
+      "partitionId": "runner-targets-only",
+      "gapId": "GAP-07"
+    }
+  ],
+  "rowPartitionRefinements": [
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-kept-held-too-long",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-kept-running"
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-kept-unnecessary-throw",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-kept-running"
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-restarted-held-after-misplay",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-stopped-and-restarted"
+        },
+        {
+          "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+          "value": true
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-restarted-throw-after-misplay",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-stopped-and-restarted"
+        },
+        {
+          "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+          "value": true
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    },
+    {
+      "parent": {
+        "vocabularyId": "batting-result.single",
+        "partitionRuleId": "identity",
+        "partitionId": "out3-explicit-home-before"
+      },
+      "partitionId": "rbi-restarted-held-noncausal",
+      "all": [
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+          "value": true
+        },
+        {
+          "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+          "value": false
+        },
+        {
+          "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+          "value": "single-runner-stopped-and-restarted"
+        },
+        {
+          "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+          "value": false
+        }
+      ],
+      "sourceClauseIds": [
+        "req:RBI-03",
+        "req:RBI-04",
+        "req:RBI-08"
+      ]
+    }
   ]
 }

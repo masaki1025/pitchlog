@@ -26,11 +26,24 @@
     "vocabulary": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["manifestPath", "vocabularyId", "seedPath"],
+      "required": [
+        "manifestPath",
+        "vocabularyId",
+        "seedPath"
+      ],
       "properties": {
-        "manifestPath": {"type": "string", "minLength": 1},
-        "vocabularyId": {"type": "string", "minLength": 1},
-        "seedPath": {"type": "string", "minLength": 1}
+        "manifestPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vocabularyId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "seedPath": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "axisAssignments": {
@@ -38,8 +51,12 @@
       "minItems": 1,
       "items": {
         "oneOf": [
-          {"$ref": "#/$defs/resultIdSourceAssignment"},
-          {"$ref": "#/$defs/nonResultIdSourceAssignment"}
+          {
+            "$ref": "#/$defs/resultIdSourceAssignment"
+          },
+          {
+            "$ref": "#/$defs/nonResultIdSourceAssignment"
+          }
         ]
       },
       "x-pitchlog-uniqueBy": "axisId"
@@ -47,7 +64,9 @@
     "partitionRules": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/partitionRule"},
+      "items": {
+        "$ref": "#/$defs/partitionRule"
+      },
       "x-pitchlog-uniqueBy": "partitionRuleId"
     }
   },
@@ -72,24 +91,53 @@
         "sourceClauseIds"
       ],
       "properties": {
-        "axisId": {"type": "string", "minLength": 1},
-        "role": {"const": "result-id-source"},
-        "eventKind": {
-          "enum": ["batting-result", "secondary-result", "runner-event"]
+        "axisId": {
+          "type": "string",
+          "minLength": 1
         },
-        "reason": {"type": "string", "minLength": 1},
-        "sourceClauseIds": {"$ref": "#/$defs/clauseIds"}
+        "role": {
+          "const": "result-id-source"
+        },
+        "eventKind": {
+          "enum": [
+            "batting-result",
+            "secondary-result",
+            "runner-event"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceClauseIds": {
+          "$ref": "#/$defs/clauseIds"
+        }
       }
     },
     "nonResultIdSourceAssignment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["axisId", "role", "reason", "sourceClauseIds"],
+      "required": [
+        "axisId",
+        "role",
+        "reason",
+        "sourceClauseIds"
+      ],
       "properties": {
-        "axisId": {"type": "string", "minLength": 1},
-        "role": {"const": "not-result-id-source"},
-        "reason": {"type": "string", "minLength": 1},
-        "sourceClauseIds": {"$ref": "#/$defs/clauseIds"}
+        "axisId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "const": "not-result-id-source"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceClauseIds": {
+          "$ref": "#/$defs/clauseIds"
+        }
       }
     },
     "partitionRule": {
@@ -110,7 +158,10 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "partitions": {
           "type": "array",
@@ -121,7 +172,40 @@
             "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
           }
         },
-        "sourceClauseIds": {"$ref": "#/$defs/clauseIds"}
+        "sourceClauseIds": {
+          "$ref": "#/$defs/clauseIds"
+        },
+        "additionalPartitions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "vocabularyId",
+              "partitions",
+              "sourceClauseIds"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "vocabularyId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "partitions": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+                }
+              },
+              "sourceClauseIds": {
+                "$ref": "#/$defs/clauseIds"
+              }
+            }
+          }
+        }
       }
     }
   }

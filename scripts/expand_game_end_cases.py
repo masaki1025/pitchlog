@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 import check_expander_dependencies as dependency_checker
+import check_input_axes_descriptor as descriptor_checker
 import representative_selection
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,6 +55,39 @@ def _document_by_key(
     return matches[0]
 
 
+def _descriptor_input(
+    documents: list[tuple[PurePosixPath, dict[str, Any]]],
+) -> dict[str, Any]:
+    """旧snapshotと現descriptorを、既共有の固定pathで区別する。"""
+    matches = [document for path, document in documents
+               if path == descriptor_checker.DESCRIPTOR_PATH]
+    if len(matches) != 1:
+        raise CaseExpansionError("現descriptorの宣言済み入力が一意でない")
+    return matches[0]
+
+
+def _coordinate_values(
+    root: Path, descriptor: dict[str, Any],
+) -> tuple[dict[str, list[Any]], frozenset[str]]:
+    """共有consumer資格だけを使い、旧T2座標の順序と値を維持する。"""
+    try:
+        criteria = descriptor_checker.load_descriptor_criteria(descriptor)
+        documents = descriptor_checker.load_game_end_observation_documents(root, criteria)
+        play_axes = descriptor_checker.game_end_coordinate_axis_ids(
+            descriptor, criteria, documents,
+        )
+    except descriptor_checker.DescriptorCheckError as error:
+        raise CaseExpansionError("終了判定の共有座標資格が不正") from error
+    all_values = representative_selection.axis_values(
+        descriptor, ("gameEndAxes", "stateTransitionAxes")
+    )
+    values = {
+        axis_id: values for axis_id, values in all_values.items()
+        if not axis_id.startswith(("state.", "event.")) or axis_id in play_axes
+    }
+    return values, play_axes
+
+
 def _predicate_holds(predicate: dict[str, Any], coordinate: dict[str, Any]) -> bool:
     """具体的な座標が終了判定の述語を満たすか判定する。
 
@@ -81,7 +115,7 @@ def _expand_from_declared_inputs(
         規範行から導いた終了判定ケース。
     """
     documents = [(path, _read_document(root, path)) for path in rule.allowed_read_paths]
-    descriptor = _document_by_key(documents, "gameEndAxes")
+    descriptor = _descriptor_input(documents)
     contract = _document_by_key(documents, "decisionRows")
     register = _document_by_key(documents, "branches")
     selection_policy = _document_by_key(documents, "predicateEvaluation")
@@ -106,9 +140,7 @@ def _expand_from_declared_inputs(
         raise CaseExpansionError("終了判定行の分岐IDが不正")
     if len({row["branchId"] for row in rows}) != len(rows):
         raise CaseExpansionError("終了判定行の分岐IDが重複または不正")
-    values_by_axis = representative_selection.axis_values(
-        descriptor, ("gameEndAxes", "stateTransitionAxes")
-    )
+    values_by_axis, _ = _coordinate_values(root, descriptor)
     unreachable_pairs = descriptor["gameEndCombinationRules"]["unreachablePairs"]
     # 先行5行の代表入力を保ち、追加行だけが使うイベント軸はその行へ限定する。
     baseline_axes = set().union(
@@ -172,20 +204,11 @@ def _expand_coverage_from_declared_inputs(
 ) -> list[dict[str, Any]]:
     """既存4分岐を保持し、後続行の状態・イベント代表を追加する。"""
     documents = [(path, _read_document(root, path)) for path in rule.allowed_read_paths]
-    descriptor = _document_by_key(documents, "gameEndAxes")
+    descriptor = _descriptor_input(documents)
     contract = _document_by_key(documents, "decisionRows")
     policy = _document_by_key(documents, "predicateEvaluation")
-    values_by_axis = representative_selection.axis_values(
-        descriptor, ("gameEndAxes", "stateTransitionAxes")
-    )
+    values_by_axis, play_input_axes = _coordinate_values(root, descriptor)
     unreachable_pairs = descriptor["gameEndCombinationRules"]["unreachablePairs"]
-    play_input_axes = {
-        axis_id
-        for binding in descriptor["inputCoordinateCoverage"]["axisBindings"]
-        for row_binding in binding["rowBindings"]
-        if "matrixRows" in row_binding["rowLayers"]
-        for axis_id in binding["axisIds"]
-    }
     base_cases = _expand_from_declared_inputs(root, rule, len(contract["decisionRows"]))
     result = list(base_cases[:4])
     for row_index, row in enumerate(contract["decisionRows"]):

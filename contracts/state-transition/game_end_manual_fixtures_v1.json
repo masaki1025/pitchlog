@@ -31,8 +31,14 @@
       "provenance": {
         "authorId": "codex",
         "sources": [
-          {"sourceKind": "requirements", "sourceId": "req:FR-005"},
-          {"sourceKind": "requirements", "sourceId": "req:F-1"}
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:FR-005"
+          },
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:F-1"
+          }
         ]
       }
     },
@@ -63,7 +69,12 @@
       "sourceExample": "規定最終回裏を同点で完了し、有限上限前の延長回へ進む",
       "provenance": {
         "authorId": "codex",
-        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+        "sources": [
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:F-1"
+          }
+        ]
       }
     },
     {
@@ -93,7 +104,12 @@
       "sourceExample": "有限上限の最終回裏を同点で完了。引き分け条件を検知し終了宣言を促す",
       "provenance": {
         "authorId": "codex",
-        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+        "sources": [
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:F-1"
+          }
+        ]
       }
     },
     {
@@ -124,8 +140,14 @@
       "provenance": {
         "authorId": "codex",
         "sources": [
-          {"sourceKind": "requirements", "sourceId": "req:FR-009"},
-          {"sourceKind": "requirements", "sourceId": "req:F-1"}
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:FR-009"
+          },
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:F-1"
+          }
         ]
       }
     },
@@ -156,7 +178,12 @@
       "sourceExample": "コールド段が1件だけ設定され、第N回表の完了時に後攻がM点リードする",
       "provenance": {
         "authorId": "codex",
-        "sources": [{"sourceKind": "requirements", "sourceId": "req:F-1"}]
+        "sources": [
+          {
+            "sourceKind": "requirements",
+            "sourceId": "req:F-1"
+          }
+        ]
       }
     },
     {
@@ -206,12 +233,16 @@
     "identity": {
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
-      "current_identifiers": ["fixture-sha256:5ff79cb7fc31cdc6ee64f9399b71701542a7dc3f54bb2821ed9cb9654db66662"],
+      "current_identifiers": [
+        "fixture-sha256:3c01bef0c13a227cfea4381732a8ad800f0b5ddcf2d6698ef97610729fa0fff7"
+      ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
         "algorithm": "sha256-canonical-json-and-external-files-v1",
         "included": "all_top_level_fields",
-        "excluded": ["baseline_control"],
+        "excluded": [
+          "baseline_control"
+        ],
         "external_files": [
           "contracts/state-transition/manual_fixture_branch_coverage_v1.json",
           "contracts/state-transition/manual_fixture_branch_coverage_schema_v1.json",
@@ -243,8 +274,12 @@
     "history": [
       {
         "source_commit": "PENDING_ACCEPTANCE",
-        "new_baseline_identifiers": ["fixture-sha256:5ff79cb7fc31cdc6ee64f9399b71701542a7dc3f54bb2821ed9cb9654db66662"],
-        "previous_baseline_identifiers": ["NO_BASELINE"],
+        "new_baseline_identifiers": [
+          "fixture-sha256:3c01bef0c13a227cfea4381732a8ad800f0b5ddcf2d6698ef97610729fa0fff7"
+        ],
+        "previous_baseline_identifiers": [
+          "NO_BASELINE"
+        ],
         "change": {
           "subject": "終了判定の手作業fixture 6件の暫定基準（walk-off終了検知）",
           "before": {
@@ -253,10 +288,10 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "5ff79cb7fc31cdc6ee64f9399b71701542a7dc3f54bb2821ed9cb9654db66662"
+            "frozen_projection_sha256": "3c01bef0c13a227cfea4381732a8ad800f0b5ddcf2d6698ef97610729fa0fff7"
           }
         },
-        "movement_fact": "FR-005のサヨナラ終了検知を6件目の独立した手作業fixtureへ追加する。",
+        "movement_fact": "FR-005のサヨナラ終了検知を6件目の独立した手作業fixtureへ追加する。D06/B・D07/A限定接合による候補射影値へ追随（未承認bootstrap状態を保持）。",
         "reason": "終了判定のwalk-off行・FR-020 XMARK-01の数値表示・未承認の凍結射影を整合させ、得点値の検証をステップ32へ明示して送るため。",
         "approved_by": "未承認(PR のレビュー待ち)",
         "approved_on": "未承認(PR のレビュー待ち)"

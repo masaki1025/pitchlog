@@ -1,0 +1,1895 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/state-transition/t1_out3_input_schema_v1.json",
+  "title": "T1 OUT3 明示override・原観測入力の有限候補",
+  "$comment": "構造候補。出所/Ready/全T1 wireの証明ではない。H/U未観測をfalseへ補完しない。",
+  "$ref": "#/$defs/T1Out3PureInputV2",
+  "$defs": {
+    "ContentRefV1": {
+      "type": "object",
+      "properties": {
+        "contract_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "contract_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_version",
+        "content_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "HomeTouchOrderV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-required"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "observed"
+            },
+            "scorers": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ScorerRefV1"
+              },
+              "minItems": 1,
+              "maxItems": 4,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "kind",
+            "scorers"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PlayerRefV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "official"
+            },
+            "player_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "player_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "temporary"
+            },
+            "temporary_id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "temporary_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ScorerRefV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "runner"
+            },
+            "runner_id": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner_id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "batter"
+            },
+            "batter_id": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "batter_id"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1BaseOccupantV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "empty"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "occupied"
+            },
+            "player": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "player"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1BattingSlotV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "slot"
+            },
+            "slot": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            }
+          },
+          "required": [
+            "kind",
+            "slot"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1ContextPointV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/T1ReadKeyV1"
+        },
+        "content_ref": {
+          "$ref": "#/$defs/ContentRefV1"
+        },
+        "content_version": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "key",
+        "content_ref",
+        "content_version"
+      ],
+      "additionalProperties": false
+    },
+    "T1DestinationV1": {
+      "enum": [
+        "first",
+        "second",
+        "third",
+        "home"
+      ]
+    },
+    "T1EventRefV1": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "record_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "event_id",
+        "record_version"
+      ],
+      "additionalProperties": false
+    },
+    "T1FieldingRoleV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "fielding"
+            },
+            "position": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9
+            }
+          },
+          "required": [
+            "kind",
+            "position"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "designated-hitter"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1InterferenceRulingV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-required"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "batting-interference"
+            },
+            "adopted": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "penalty-award"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "play-result"
+                    },
+                    "resultId": {
+                      "enum": [
+                        "batting-result.called-pitch",
+                        "batting-result.swinging-strike",
+                        "batting-result.foul",
+                        "batting-result.ball",
+                        "batting-result.single",
+                        "batting-result.double",
+                        "batting-result.triple",
+                        "batting-result.home-run",
+                        "batting-result.batted-out",
+                        "batting-result.double-play",
+                        "batting-result.line-double-play",
+                        "batting-result.batted-reach",
+                        "batting-result.foul-fly",
+                        "batting-result.error",
+                        "batting-result.fielders-choice",
+                        "batting-result.sacrifice-bunt",
+                        "batting-result.sacrifice-fly",
+                        "batting-result.sacrifice-bunt-error",
+                        "batting-result.called-strikeout",
+                        "batting-result.swinging-strikeout",
+                        "batting-result.dropped-third-strike",
+                        "batting-result.k3",
+                        "batting-result.strikeout-double-play",
+                        "batting-result.walk",
+                        "batting-result.hit-by-pitch",
+                        "batting-result.intentional-walk",
+                        "secondary-result.passed-ball",
+                        "secondary-result.wild-pitch",
+                        "secondary-result.offensive-interference",
+                        "secondary-result.batting-interference",
+                        "secondary-result.obstruction",
+                        "secondary-result.balk",
+                        "secondary-result.pitch-clock-violation"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "resultId"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "third_base_scoring_attempt": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "not-required"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "observed"
+                    },
+                    "value": {
+                      "enum": [
+                        "none",
+                        "squeeze",
+                        "steal-home"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "adopted",
+            "third_base_scoring_attempt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "obstruction"
+            },
+            "play_kind": {
+              "enum": [
+                "play-on-obstructed-runner",
+                "no-play-on-obstructed-runner"
+              ]
+            },
+            "obstructed": {
+              "$ref": "#/$defs/ScorerRefV1"
+            },
+            "awarded_destinations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "person": {
+                    "$ref": "#/$defs/ScorerRefV1"
+                  },
+                  "destination": {
+                    "$ref": "#/$defs/T1DestinationV1"
+                  }
+                },
+                "required": [
+                  "person",
+                  "destination"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 0,
+              "maxItems": 4
+            },
+            "out_targets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ScorerRefV1"
+              },
+              "minItems": 0,
+              "maxItems": 4,
+              "uniqueItems": true
+            },
+            "batter_before_first": {
+              "enum": [
+                "not-required",
+                false,
+                true
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "play_kind",
+            "obstructed",
+            "awarded_destinations",
+            "out_targets",
+            "batter_before_first"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "offensive-interference"
+            },
+            "out_targets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ScorerRefV1"
+              },
+              "minItems": 1,
+              "maxItems": 4,
+              "uniqueItems": true
+            },
+            "return_bases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "person": {
+                    "$ref": "#/$defs/ScorerRefV1"
+                  },
+                  "destination": {
+                    "$ref": "#/$defs/T1DestinationV1"
+                  }
+                },
+                "required": [
+                  "person",
+                  "destination"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 0,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "kind",
+            "out_targets",
+            "return_bases"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1OfficialScoringV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "no-error"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "error-recorded"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "fielder": {
+                    "$ref": "#/$defs/PlayerRefV1"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "fielder",
+                  "count"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "kind",
+            "errors"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1Out3PureInputV2": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "$ref": "#/$defs/ruleSnapshot"
+        },
+        "roster": {
+          "$ref": "#/$defs/T1RosterAtEventV1"
+        },
+        "pre_state": {
+          "$ref": "#/$defs/T1PureStateV1"
+        },
+        "per_pitch": {
+          "$ref": "#/$defs/T1PerPitchPayloadV2"
+        }
+      },
+      "required": [
+        "rules",
+        "roster",
+        "pre_state",
+        "per_pitch"
+      ],
+      "additionalProperties": false
+    },
+    "T1OutKindV1": {
+      "enum": [
+        "force-out",
+        "pitcher-pickoff-out",
+        "catcher-pickoff-out",
+        "caught-stealing",
+        "running-out"
+      ]
+    },
+    "T1PerPitchPayloadV2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "batting-result"
+            },
+            "pitchEventKind": {
+              "enum": [
+                "pitch-event",
+                "non-pitch-event"
+              ]
+            },
+            "resultId": {
+              "enum": [
+                "batting-result.called-pitch",
+                "batting-result.swinging-strike",
+                "batting-result.foul",
+                "batting-result.ball",
+                "batting-result.single",
+                "batting-result.double",
+                "batting-result.triple",
+                "batting-result.home-run",
+                "batting-result.batted-out",
+                "batting-result.double-play",
+                "batting-result.line-double-play",
+                "batting-result.batted-reach",
+                "batting-result.foul-fly",
+                "batting-result.error",
+                "batting-result.fielders-choice",
+                "batting-result.sacrifice-bunt",
+                "batting-result.sacrifice-fly",
+                "batting-result.sacrifice-bunt-error",
+                "batting-result.called-strikeout",
+                "batting-result.swinging-strikeout",
+                "batting-result.dropped-third-strike",
+                "batting-result.k3",
+                "batting-result.strikeout-double-play",
+                "batting-result.walk",
+                "batting-result.hit-by-pitch",
+                "batting-result.intentional-walk"
+              ]
+            },
+            "runnerEventPayload": {
+              "$ref": "#/$defs/T1RunnerEventPayloadV1"
+            },
+            "runnerAdvanceOverridesByRunner": {
+              "$ref": "#/$defs/T1RunnerAdvanceOverridesV1"
+            },
+            "thirdOutObservation": {
+              "$ref": "#/$defs/T1ThirdOutObservationV1"
+            },
+            "thirdOutTimingByRunner": {
+              "$ref": "#/$defs/T1ThirdOutTimingV1"
+            },
+            "interferenceRuling": {
+              "$ref": "#/$defs/T1InterferenceRulingV1"
+            },
+            "officialScoringPayload": {
+              "$ref": "#/$defs/T1OfficialScoringV1"
+            },
+            "rbi": {
+              "$ref": "#/$defs/T1RbiObservationsV2"
+            },
+            "homeTouchOrder": {
+              "$ref": "#/$defs/HomeTouchOrderV1"
+            }
+          },
+          "required": [
+            "kind",
+            "pitchEventKind",
+            "resultId",
+            "runnerEventPayload",
+            "runnerAdvanceOverridesByRunner",
+            "thirdOutObservation",
+            "thirdOutTimingByRunner",
+            "interferenceRuling",
+            "officialScoringPayload",
+            "rbi",
+            "homeTouchOrder"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "secondary-result"
+            },
+            "pitchEventKind": {
+              "enum": [
+                "pitch-event",
+                "non-pitch-event"
+              ]
+            },
+            "resultId": {
+              "enum": [
+                "secondary-result.passed-ball",
+                "secondary-result.wild-pitch",
+                "secondary-result.offensive-interference",
+                "secondary-result.batting-interference",
+                "secondary-result.obstruction",
+                "secondary-result.balk",
+                "secondary-result.pitch-clock-violation"
+              ]
+            },
+            "runnerEventPayload": {
+              "$ref": "#/$defs/T1RunnerEventPayloadV1"
+            },
+            "runnerAdvanceOverridesByRunner": {
+              "$ref": "#/$defs/T1RunnerAdvanceOverridesV1"
+            },
+            "thirdOutObservation": {
+              "$ref": "#/$defs/T1ThirdOutObservationV1"
+            },
+            "thirdOutTimingByRunner": {
+              "$ref": "#/$defs/T1ThirdOutTimingV1"
+            },
+            "interferenceRuling": {
+              "$ref": "#/$defs/T1InterferenceRulingV1"
+            },
+            "officialScoringPayload": {
+              "$ref": "#/$defs/T1OfficialScoringV1"
+            },
+            "rbi": {
+              "$ref": "#/$defs/T1RbiObservationsV2"
+            },
+            "homeTouchOrder": {
+              "$ref": "#/$defs/HomeTouchOrderV1"
+            }
+          },
+          "required": [
+            "kind",
+            "pitchEventKind",
+            "resultId",
+            "runnerEventPayload",
+            "runnerAdvanceOverridesByRunner",
+            "thirdOutObservation",
+            "thirdOutTimingByRunner",
+            "interferenceRuling",
+            "officialScoringPayload",
+            "rbi",
+            "homeTouchOrder"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "runner-event"
+            },
+            "pitchEventKind": {
+              "enum": [
+                "pitch-event",
+                "non-pitch-event"
+              ]
+            },
+            "resultId": {
+              "enum": [
+                "strategy-category.steal",
+                "strategy-category.bunt",
+                "strategy-category.hit-and-run",
+                "pitcher-pickoff-destination.first",
+                "pitcher-pickoff-destination.second",
+                "pitcher-pickoff-destination.third",
+                "catcher-pickoff-destination.first",
+                "catcher-pickoff-destination.second",
+                "catcher-pickoff-destination.third"
+              ]
+            },
+            "runnerEventPayload": {
+              "$ref": "#/$defs/T1RunnerEventPayloadV1"
+            },
+            "runnerAdvanceOverridesByRunner": {
+              "$ref": "#/$defs/T1RunnerAdvanceOverridesV1"
+            },
+            "thirdOutObservation": {
+              "$ref": "#/$defs/T1ThirdOutObservationV1"
+            },
+            "thirdOutTimingByRunner": {
+              "$ref": "#/$defs/T1ThirdOutTimingV1"
+            },
+            "interferenceRuling": {
+              "$ref": "#/$defs/T1InterferenceRulingV1"
+            },
+            "officialScoringPayload": {
+              "$ref": "#/$defs/T1OfficialScoringV1"
+            },
+            "rbi": {
+              "$ref": "#/$defs/T1RbiObservationsV2"
+            },
+            "homeTouchOrder": {
+              "$ref": "#/$defs/HomeTouchOrderV1"
+            }
+          },
+          "required": [
+            "kind",
+            "pitchEventKind",
+            "resultId",
+            "runnerEventPayload",
+            "runnerAdvanceOverridesByRunner",
+            "thirdOutObservation",
+            "thirdOutTimingByRunner",
+            "interferenceRuling",
+            "officialScoringPayload",
+            "rbi",
+            "homeTouchOrder"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1PureStateV1": {
+      "type": "object",
+      "properties": {
+        "inning": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "half": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "count": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "balls": {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ]
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "runners": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            },
+            "second": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            },
+            "third": {
+              "$ref": "#/$defs/T1BaseOccupantV1"
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "score": {
+          "type": "object",
+          "properties": {
+            "away": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "home": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "away",
+            "home"
+          ],
+          "additionalProperties": false
+        },
+        "batting_order": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "batter": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "tiebreak_active": {
+          "type": "boolean"
+        },
+        "game_ended": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "inning",
+        "half",
+        "outs",
+        "count",
+        "runners",
+        "score",
+        "batting_order",
+        "batter",
+        "tiebreak_active",
+        "game_ended"
+      ],
+      "additionalProperties": false
+    },
+    "T1RbiBooleanObservationV2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unobserved"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "observed"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RbiCauseByRunnerV2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-required"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "observed"
+            },
+            "by_runner": {
+              "$ref": "#/$defs/T1RbiCauseMapV2"
+            }
+          },
+          "required": [
+            "kind",
+            "by_runner"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RbiCauseMapV2": {
+      "type": "object",
+      "properties": {
+        "batter": {
+          "$ref": "#/$defs/T1RbiCauseValueV2"
+        },
+        "first": {
+          "$ref": "#/$defs/T1RbiCauseValueV2"
+        },
+        "second": {
+          "$ref": "#/$defs/T1RbiCauseValueV2"
+        },
+        "third": {
+          "$ref": "#/$defs/T1RbiCauseValueV2"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "T1RbiCauseValueV2": {
+      "type": "object",
+      "properties": {
+        "person": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "held_too_long": {
+          "$ref": "#/$defs/T1RbiBooleanObservationV2"
+        },
+        "unnecessary_throw": {
+          "$ref": "#/$defs/T1RbiBooleanObservationV2"
+        }
+      },
+      "required": [
+        "person",
+        "held_too_long",
+        "unnecessary_throw"
+      ],
+      "additionalProperties": false
+    },
+    "T1RbiObservationsV2": {
+      "type": "object",
+      "properties": {
+        "doublePlayRelayError": {
+          "enum": [
+            "not-required",
+            false,
+            true
+          ]
+        },
+        "runnerContinuityByRunner": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "not-required"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "observed"
+                },
+                "by_runner": {
+                  "type": "object",
+                  "properties": {
+                    "batter": {
+                      "enum": [
+                        "kept-running",
+                        "stopped-and-restarted"
+                      ]
+                    },
+                    "first": {
+                      "enum": [
+                        "kept-running",
+                        "stopped-and-restarted"
+                      ]
+                    },
+                    "second": {
+                      "enum": [
+                        "kept-running",
+                        "stopped-and-restarted"
+                      ]
+                    },
+                    "third": {
+                      "enum": [
+                        "kept-running",
+                        "stopped-and-restarted"
+                      ]
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "kind",
+                "by_runner"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "wouldScoreWithoutErrorByRunner": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "not-required"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "observed"
+                },
+                "by_runner": {
+                  "type": "object",
+                  "properties": {
+                    "batter": {
+                      "type": "boolean"
+                    },
+                    "first": {
+                      "type": "boolean"
+                    },
+                    "second": {
+                      "type": "boolean"
+                    },
+                    "third": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "kind",
+                "by_runner"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "cause_by_runner": {
+          "$ref": "#/$defs/T1RbiCauseByRunnerV2"
+        },
+        "restart_by_runner": {
+          "$ref": "#/$defs/T1RbiRestartByRunnerV1"
+        }
+      },
+      "required": [
+        "doublePlayRelayError",
+        "runnerContinuityByRunner",
+        "wouldScoreWithoutErrorByRunner",
+        "cause_by_runner",
+        "restart_by_runner"
+      ],
+      "additionalProperties": false
+    },
+    "T1RbiRestartByRunnerV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-required"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "observed"
+            },
+            "by_runner": {
+              "$ref": "#/$defs/T1RbiRestartMapV1"
+            }
+          },
+          "required": [
+            "kind",
+            "by_runner"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RbiRestartMapV1": {
+      "type": "object",
+      "properties": {
+        "batter": {
+          "$ref": "#/$defs/T1RbiRestartValueV1"
+        },
+        "first": {
+          "$ref": "#/$defs/T1RbiRestartValueV1"
+        },
+        "second": {
+          "$ref": "#/$defs/T1RbiRestartValueV1"
+        },
+        "third": {
+          "$ref": "#/$defs/T1RbiRestartValueV1"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "T1RbiRestartValueV1": {
+      "type": "object",
+      "properties": {
+        "person": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "after_observing_misplay": {
+          "type": "boolean",
+          "enum": [
+            false,
+            true
+          ]
+        }
+      },
+      "required": [
+        "person",
+        "after_observing_misplay"
+      ],
+      "additionalProperties": false
+    },
+    "T1ReadKeyV1": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "game_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "wire_d4": {
+          "type": "string",
+          "minLength": 1
+        },
+        "internal_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d1": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "d5": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "business_scope_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "canonical_lineage_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "game_id",
+        "wire_d4",
+        "internal_generation",
+        "d1",
+        "d5",
+        "business_scope_id",
+        "canonical_lineage_id"
+      ],
+      "additionalProperties": false
+    },
+    "T1RosterAtEventV1": {
+      "type": "object",
+      "properties": {
+        "point": {
+          "$ref": "#/$defs/T1ContextPointV1"
+        },
+        "teams": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1TeamRosterV1"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "required": [
+        "point",
+        "teams"
+      ],
+      "additionalProperties": false
+    },
+    "T1RosterEntryOriginV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "initial"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "substitution"
+            },
+            "event": {
+              "$ref": "#/$defs/T1EventRefV1"
+            },
+            "replaced_player": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "event",
+            "replaced_player"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RosterEntryV1": {
+      "type": "object",
+      "properties": {
+        "player": {
+          "$ref": "#/$defs/PlayerRefV1"
+        },
+        "batting_slot": {
+          "$ref": "#/$defs/T1BattingSlotV1"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1FieldingRoleV1"
+          },
+          "minItems": 0,
+          "uniqueItems": true
+        },
+        "entry_origin": {
+          "$ref": "#/$defs/T1RosterEntryOriginV1"
+        }
+      },
+      "required": [
+        "player",
+        "batting_slot",
+        "roles",
+        "entry_origin"
+      ],
+      "additionalProperties": false
+    },
+    "T1RunnerAdvanceOverridesV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-applied"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "overridden"
+            },
+            "by_runner": {
+              "$ref": "#/$defs/T1RunnerOutcomeMapV1"
+            }
+          },
+          "required": [
+            "kind",
+            "by_runner"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RunnerEventPayloadV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-applicable"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "runner-event"
+            },
+            "event_kind": {
+              "enum": [
+                "strategy-category.steal",
+                "strategy-category.bunt",
+                "strategy-category.hit-and-run",
+                "pitcher-pickoff-destination.first",
+                "pitcher-pickoff-destination.second",
+                "pitcher-pickoff-destination.third",
+                "catcher-pickoff-destination.first",
+                "catcher-pickoff-destination.second",
+                "catcher-pickoff-destination.third"
+              ]
+            },
+            "by_runner": {
+              "$ref": "#/$defs/T1RunnerOutcomeMapV1"
+            }
+          },
+          "required": [
+            "kind",
+            "event_kind",
+            "by_runner"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1RunnerOutcomeMapV1": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/T1RunnerOutcomeV1"
+        },
+        "second": {
+          "$ref": "#/$defs/T1RunnerOutcomeV1"
+        },
+        "third": {
+          "$ref": "#/$defs/T1RunnerOutcomeV1"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "T1RunnerOutcomeV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "hold"
+            },
+            "runner": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "safe-advance"
+            },
+            "runner": {
+              "$ref": "#/$defs/PlayerRefV1"
+            },
+            "destination": {
+              "$ref": "#/$defs/T1DestinationV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner",
+            "destination"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "out"
+            },
+            "runner": {
+              "$ref": "#/$defs/PlayerRefV1"
+            },
+            "attempted_base": {
+              "$ref": "#/$defs/T1DestinationV1"
+            },
+            "out_kind": {
+              "$ref": "#/$defs/T1OutKindV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner",
+            "attempted_base",
+            "out_kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1TeamRosterV1": {
+      "type": "object",
+      "properties": {
+        "team_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "side": {
+          "enum": [
+            "away",
+            "home"
+          ]
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/T1RosterEntryV1"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "team_id",
+        "side",
+        "participants"
+      ],
+      "additionalProperties": false
+    },
+    "T1ThirdOutObservationV1": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "not-required"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "none"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "batter-before-first"
+            },
+            "batter": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "batter"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "force"
+            },
+            "runner": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "missed-base-appeal"
+            },
+            "runner": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "runner"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "other-third-out"
+            },
+            "out_person": {
+              "$ref": "#/$defs/PlayerRefV1"
+            }
+          },
+          "required": [
+            "kind",
+            "out_person"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1ThirdOutTimingV1": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "batter": {
+          "enum": [
+            "home-before-third-out",
+            "not-before-third-out"
+          ]
+        },
+        "first": {
+          "enum": [
+            "home-before-third-out",
+            "not-before-third-out"
+          ]
+        },
+        "second": {
+          "enum": [
+            "home-before-third-out",
+            "not-before-third-out"
+          ]
+        },
+        "third": {
+          "enum": [
+            "home-before-third-out",
+            "not-before-third-out"
+          ]
+        }
+      },
+      "required": []
+    },
+    "coldConditionTier": {
+      "type": "object",
+      "required": [
+        "pointDifference",
+        "startInning"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pointDifference": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "startInning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        }
+      }
+    },
+    "ruleSnapshot": {
+      "type": "object",
+      "required": [
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "regulationInnings": {
+          "x-pitchlog-axis-id": "gameEnd.regulationInnings",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "innings",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            1,
+            5,
+            7,
+            9,
+            99
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            0,
+            100
+          ],
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "coldConditions": {
+          "x-pitchlog-axis-id": "gameEnd.coldConditions",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "pointDifference",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "dimension": "startInning",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "dimension": "tierCount",
+              "minimum": 0,
+              "maximum": 16
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "tier-count:0",
+            "tier-count:1",
+            "tier-count:2",
+            "tier-count:16",
+            "point-difference:1",
+            "point-difference:M-1",
+            "point-difference:M",
+            "point-difference:M+1",
+            "point-difference:99",
+            "start-inning:1",
+            "start-inning:N-1",
+            "start-inning:N",
+            "start-inning:N+1",
+            "start-inning:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "tier-count:17",
+            "point-difference:0",
+            "point-difference:100",
+            "start-inning:0",
+            "start-inning:100"
+          ],
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/coldConditionTier"
+          }
+        },
+        "extensionLimit": {
+          "x-pitchlog-axis-id": "gameEnd.extensionLimit",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "innings",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "none",
+            "finite:R",
+            "finite:R+1",
+            "finite:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "finite:R-1",
+            "finite:100"
+          ],
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tiebreak": {
+          "x-pitchlog-axis-id": "gameEnd.tiebreak",
+          "x-pitchlog-axis-classification": "boundary-partition",
+          "x-pitchlog-coverage-bounds": [
+            {
+              "dimension": "startInning",
+              "minimum": 1,
+              "maximum": 99
+            }
+          ],
+          "x-pitchlog-boundary-values": [
+            "none",
+            "start:R+1",
+            "start:L",
+            "start:99"
+          ],
+          "x-pitchlog-invalid-boundary-values": [
+            "start:R",
+            "start:L+1-when-finite",
+            "start:100"
+          ],
+          "oneOf": [
+            {
+              "$ref": "#/$defs/tiebreakRule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dh": {
+          "x-pitchlog-non-coverage-field": "dh",
+          "x-pitchlog-non-coverage-reason": "DH制は打順の構成に影響するが、F-1の終了条件の成立判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "boolean"
+        }
+      }
+    },
+    "tiebreakRule": {
+      "type": "object",
+      "required": [
+        "startInning",
+        "runnerPlacement",
+        "leadoffRule"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "startInning": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 99
+        },
+        "runnerPlacement": {
+          "x-pitchlog-non-coverage-field": "tiebreak.runnerPlacement",
+          "x-pitchlog-non-coverage-reason": "走者配置はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "string",
+          "minLength": 1
+        },
+        "leadoffRule": {
+          "x-pitchlog-non-coverage-field": "tiebreak.leadoffRule",
+          "x-pitchlog-non-coverage-reason": "先頭打者規則はタイブレーク開始時の初期状態を定めるが、終了条件の判定には参照されない",
+          "x-pitchlog-schema-retention": "required-by-projection",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  },
+  "x-pitchlog-observation-binding-rules": "contracts/state-transition/t1_observation_binding_rules_v1.json"
+}

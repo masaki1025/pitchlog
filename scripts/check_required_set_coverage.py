@@ -166,6 +166,79 @@ def _observed_partition(
     return matches[0]
 
 
+def _validated_row_refinements(
+    root: Path, raw: Any, required: dict[tuple[str, str, str], Any],
+    observation_ids: list[tuple[str, str, str]],
+) -> list[dict[str, Any]]:
+    """既区分の精密化を閉じた原観測の連言だけに制限する。"""
+    if not isinstance(raw, list):
+        raise RequiredSetCoverageError("行区分精密化が配列でない")
+    if not raw:
+        return []
+    descriptor = _document(root, "input_axes_descriptor_v1.json")
+    values = representative_selection.axis_values(descriptor, ("stateTransitionAxes",))
+    targets: set[tuple[str, str, str]] = set()
+    for item in raw:
+        if not isinstance(item, dict) or set(item) != {
+            "parent", "partitionId", "all", "sourceClauseIds",
+        }:
+            raise RequiredSetCoverageError("行区分精密化のfieldが不正")
+        parent = item["parent"]
+        if not isinstance(parent, dict) or set(parent) != {
+            "vocabularyId", "partitionRuleId", "partitionId",
+        }:
+            raise RequiredSetCoverageError("行区分精密化のparentが不正")
+        parent_id = _identity(parent)
+        if parent_id not in required or parent_id not in observation_ids:
+            raise RequiredSetCoverageError("行区分精密化のparentが既観測区分にない")
+        child = item["partitionId"]
+        if not isinstance(child, str) or not child:
+            raise RequiredSetCoverageError("行区分精密化のchildが不正")
+        target = (parent_id[0], parent_id[1], child)
+        if target not in required or target == parent_id or target in targets:
+            raise RequiredSetCoverageError("行区分精密化のchildが未知または重複")
+        targets.add(target)
+        clauses = item["sourceClauseIds"]
+        if (not isinstance(clauses, list) or not clauses
+                or any(not isinstance(clause, str) for clause in clauses)
+                or len(clauses) != len(set(clauses))
+                or not set(clauses) <= set(required[target].source_clause_ids)):
+            raise RequiredSetCoverageError("行区分精密化の典拠が不正")
+        conditions = item["all"]
+        if not isinstance(conditions, list) or not conditions:
+            raise RequiredSetCoverageError("行区分精密化のselectorが空または不正")
+        axes: set[str] = set()
+        for condition in conditions:
+            if not isinstance(condition, dict) or set(condition) != {"axisId", "value"}:
+                raise RequiredSetCoverageError("行区分精密化のselector fieldが不正")
+            axis = condition["axisId"]
+            if not isinstance(axis, str) or axis not in values or axis in axes:
+                raise RequiredSetCoverageError("行区分精密化のselector軸が未知または重複")
+            axes.add(axis)
+            value = condition["value"]
+            if not any(type(value) is type(allowed) and value == allowed
+                       for allowed in values[axis]):
+                raise RequiredSetCoverageError("行区分精密化のselector値または型が不正")
+    return raw
+
+
+def _refined_partition(
+    row: dict[str, Any], parent: tuple[str, str, str],
+    refinements: list[dict[str, Any]],
+) -> tuple[str, str, str]:
+    """一意に観測した親から一意childだけへ写す。未観測を推測しない。"""
+    matches = [item for item in refinements
+               if _identity(item["parent"]) == parent and all(
+                   type(actual := _predicate_value(row["precondition"], condition["axisId"]))
+                   is type(condition["value"]) and actual == condition["value"]
+                   for condition in item["all"])]
+    if len(matches) > 1:
+        raise RequiredSetCoverageError("行区分精密化のchild観測が一意でない")
+    if not matches:
+        return parent
+    return (parent[0], parent[1], matches[0]["partitionId"])
+
+
 def check_row_requirements(
     root: Path, contract: dict[str, Any] | None = None, declaration: dict[str, Any] | None = None
 ) -> tuple[int, int, int]:
@@ -198,8 +271,12 @@ def check_row_requirements(
         for item in requirements
     }
     special_ids = {item.get("vocabularyId") for item in observations}
-    if len(special_ids) != len(observations):
-        raise RequiredSetCoverageError("行区分観測の語彙IDが重複")
+    observation_ids = [_identity(item) for item in observations]
+    if len(observation_ids) != len(set(observation_ids)):
+        raise RequiredSetCoverageError("行区分観測の区分identityが重複")
+    refinements = _validated_row_refinements(
+        root, declaration.get("rowPartitionRefinements", []), required, observation_ids,
+    )
     covered: list[tuple[str, str, str]] = []
     for row in rows:
         result_id = row.get("resultId")
@@ -207,6 +284,7 @@ def check_row_requirements(
             identity = _observed_partition(row, observations)
         else:
             identity = (result_id, "identity", "identity")
+        identity = _refined_partition(row, identity, refinements)
         if identity not in required:
             raise RequiredSetCoverageError(f"規範行が要求外の区分に属する: {identity}")
         covered.append(identity)
@@ -785,6 +863,13 @@ def _game_end_identity(value: Any) -> str:
 def _game_end_display_names(root: Path) -> dict[str, str]:
     """状況判定の正規形とrawから終了判定の被覆用表示名を得る。"""
     state = _document(root, "state_transition_contract_v1.json")
+    vocabulary = json.loads(
+        (root / "contracts/vocabulary/input_vocabulary_v1.json").read_text(encoding="utf-8")
+    )
+    vocabulary_names = {
+        entry["id"]: entry["initialDisplayName"]
+        for axis in vocabulary["axes"] for entry in axis["entries"]
+    }
     names: dict[str, str] = {}
     for case in state.get("cases", []):
         normalized = case.get("normalized")
@@ -795,6 +880,9 @@ def _game_end_display_names(root: Path) -> dict[str, str]:
         if result_id is None:
             continue
         display_name = raw.get("resultId")
+        # 閉入力のID表現は語彙正本から表示名へ解決する。純入力は書き換えない。
+        if display_name == result_id:
+            display_name = vocabulary_names.get(result_id)
         if (
             not isinstance(result_id, str) or not isinstance(display_name, str)
             or result_id in names and names[result_id] != display_name

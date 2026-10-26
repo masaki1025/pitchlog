@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 20
+RUNTIME_CONTRACT_REVISION = 22
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "2009f75da8c02bbeb8bcf084ae39a82b262c13acf55331008e7ad8eb52830ba7"
+SOURCE_DIGEST = "8b94635ec4f2c39dd986c3c09323f58624cb8b65bac0f57a3cec505a21730209"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -35,7 +35,15 @@ APPLICATION_ROLE_ATTRIBUTES = ApplicationRoleAttributes(
     rolinherit=False,
 )
 
-PROTECTED_SCHEMAS = ("authn", "authn_crypto", "authz_private", "public", "rg1_api")
+PROTECTED_SCHEMAS = (
+    "authn",
+    "authn_crypto",
+    "authz_private",
+    "pitchlog_ledger_observer",
+    "public",
+    "rg1_api",
+    "rg1_control",
+)
 PROTECTED_TABLES = (
     ("public", "admin_credentials"),
     ("public", "admin_operation_logs"),
@@ -98,6 +106,7 @@ PROTECTED_FUNCTIONS = (
     ("authn", "setting_positive_integer", "text"),
     ("authn", "verify_token", "uuid"),
     ("authz_private", "tenant_has_effective_membership", "uuid, boolean"),
+    ("pitchlog_ledger_observer", "identity", ""),
     ("public", "authn_normalize_team_name", "text"),
     ("public", "prevent_admin_credentials_id_update", ""),
     ("public", "prevent_admin_operation_logs_mutation", ""),
@@ -141,6 +150,14 @@ PROTECTED_FUNCTIONS = (
     ("public", "verify_games_applied_rules_final", ""),
     ("rg1_api", "rg1_assert_open_before_commit", "uuid"),
     ("rg1_api", "rg1_read_open", "uuid"),
+    ("rg1_control", "bind_initial_fresh_epoch", "bigint"),
+    ("rg1_control", "close_gate", ""),
+    ("rg1_control", "controller_lease_alive", ""),
+    ("rg1_control", "open_fresh_gate", ""),
+    ("rg1_control", "read_closed_gate", ""),
+    ("rg1_control", "release_controller_lease", ""),
+    ("rg1_control", "scope_binding", "uuid"),
+    ("rg1_control", "try_controller_lease", ""),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (
