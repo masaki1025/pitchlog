@@ -385,3 +385,19 @@ N2-B1の実登録後、周辺12moduleは795成功/3失敗46.43s。うち2件は�
 非作者最終REPORTdf4355e285fd540b8467c6e6eb08aa4c594b2c845d53fc24a23d56a070ceb927/checksc6498c8e…は初回導出P1-1→是正を保持し最終0/0/0。全source7 SHA/旧47token30CAP prefix/他全object・関数面・A reader・transaction・runtime23不変、独立301成功＋正式JSON未反映2赤/50.19s、追加actualhandle不正context20対向SQL0/Rufftyを確認。rootはPO委任によるCodex判断でsource7と候補JSON1の採用をroot-adoption.json（実日時/判断者/完全raw SHA/根拠/留保）へ記録してJSON29を反映する。source7 manifest a161ff1e…/patch e9047c4b…、SOURCE_DIGEST da12d999bb8a186a924cf8dafe0623f6e0421d49655a3f243d21dd4a08b4ccba。公開7.7 authority履歴/実PR最終core証拠・CI・通常統合は別義務、今回の候補値採用から全成立を導出しない。本人逐行確認・署名代記なし。
 
 JSON29反映後の同一候補でrootは登録・repository・tenant強制点・既開始/通常処理の影響12moduleをまとめて実行し、798成功47.10sを確認した（既Starlette非推奨warning1、失敗0）。反映前796成功/2正式JSON一致赤を消さず、新入力で両一致を閉じた。source7/正式候補1/既planだけを保存する。runtime/7.7authority/public最終HEAD受理/CI・実DB・HTTP等の別義務は維持する。
+
+### 実保存用function token4件のroot登録単位
+
+2026-10-27 JST、PO委任によるCodex /root判断で、受理済source13とN2 read接合4027547aから次の有限単位を実装する。編集rootのみ、exact source4はrepositories/operation_registry.py、repositories/repository_contract.py、backend/tests/test_authz_repository_contract.py、新backend/tests/test_sync_apply_function_registration.py（前2はbackend/src/pitchlog/配下）。既RG1/段階A4登録を全値保持し、受理済private U1 bind_device/check_current_rightとwriter read_writer_identity/assert_writer_bindingの計4 immutable宣言だけをPRODUCT_FUNCTION_OPERATIONSへ追加する。型/6入力・32byte/BIGINT境界/戻り値/decoder/SQL・認可・tenant束縛を変えず、既app scopeの同Session実行器へ接ぐ。DB actor/HTTP/Port成功を仮に返さない。PRODUCT_OPERATIONSの51token/32既利用CAP/旧関数4は保持、初期actor専用registry/phase能力は拡張しない。
+
+repository-contract revision29→30と生成digest/function ID末尾4の完全前後値を候補として導出し、source4/JSON1を別非作者review後にrootが採用反映する。正式値受理/public7.7/CI・実DB成功は別義務。旧段階A検査は旧4prefixとindex3を保持したまま全8ID/DB関数対応をexact検査する。新試験ではactualhandleで型4のtenant注入/元bind/結果型/失効と、同CAP派生型・不正文脈・入力長・欠損結果をSQL前/decoderで拒否する。テストdoubleの応答を実DB成功と数えない。
+
+登録前のroot実PG17限定診断43ea53e0…で、void戻りの実text表現はstr空文字・現在のNone-only decoderでは正当結果が拒否されると判明した。既source13のpure None fixture成功を実driver接続成功とした事実はなく、実U2 DB0を維持する。SQL ABI/guard/原文を変えず、exact writer assert列だけの結果adapterを別cache単位で候補化し、rawdriver空文字のみcanonicalNoneへ正規化・その他値拒否/他関数不変を独立検証する。仮成功応答・bool true返却への変更や拒否の一般緩和をしない。root診断の初回image tag不在はDB0で記録、installed17.11-bookwormで診断後は所有container/volumeを削除した。
+
+同登録の初回局所検査は343成功/旧4関数exact集合1赤。受理済新4宣言を加えた実集合を検査するため、backend/tests/test_function_operations_boundary.pyの当該1testだけをrootの有限範囲へ追加する。旧RG1/段階A4と新4の全ID/型対応を8件のexact集合で検査し、他旧assert/負例を保持する。登録型の未知受理へ広げず、同じ入力で赤を再走しない。製品source3/試験2の計5sourceと候補JSON1の採否へまとめる。
+
+### データモデル1.5の限定7.3確定と構造反映
+
+2026-10-27 JST、PO委任によるCodex /root判断。初回REPORT35933866…のP1=2（構造初掲載の誤分類・未実行DDLを実装済みとする検出）を全採用し、反映1 ce88bdb0…/差分dfc02288…を第2回4356c91cfe08c7b807de469d1fa36990b8a51a31b0af200afbef92e73346c296/checkse5fe37c3…（0/0/0）で確認。1.5本文は旧1.4履歴/本文を保持、新2表の固定構造と参照整合に限定し、backendPython3.12の0036全upgrade ASTへ閉じて元return/raise反例2を拒否、独立35成功/Rufftyを確認した。版上げ不要というrootの初回誤分類は撤回し、限定7.3として確定した。
+
+root確定metadataはroot-decision66da16f4784d7f00217a4d63e0b5f6d2faae09d5b3baab9acd25bee659e9a8bd（初回index末尾2セル未追随の旧53f17…を保全）、追認REPORT6e1ab812dd08aa4dcb8638f3982fbd6bdaf995c62e6f3f238d69211982e5c210/checks78390749…（0/0/0）。実判断者/UTC日時/対象hash/留保は同cacheに固定、本人確認・署名代記0。sourceはdoc approvedと1.5履歴1行、schema canonicalSHA6ae73d93c6fde8b54d94e9c6fd3d9cc5b46767d911d3701ed737cfa1bf0d8d51だけ、indexに1.5現行表示/日付と旧履歴保持、test1は反映1固定byte。actual-adoption.jsonで実HEADからの全4前後SHAを採番して反映する。旧48表全object/旧2は参照形式のみ/新2全構造を保持、正式認可67候補/7.7/runtime24/実DB/HTTP/1球保存は別未達。型付き4function登録の作業中sourceとは保存範囲を分ける。
