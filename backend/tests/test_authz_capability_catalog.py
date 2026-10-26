@@ -220,6 +220,13 @@ def test_only_direct_profile_operations_are_cataloged(
         for table_id, profile in profile_by_table.items()
         for operation in _EXPECTED_OPERATIONS_BY_PROFILE[profile]
     }
+    if {
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+    } <= profile_by_table.keys():
+        expected_pairs.remove(("recording_generations", "insert"))
     actual_pairs = {
         (row["table_id"], row["operation"]) for row in _capability_rows(catalog)
     }
@@ -267,3 +274,200 @@ def test_catalog_mutation_is_rejected(
 ) -> None:
     """手書き変更と全単射・direct 境界を破る変異を拒否する。"""
     _assert_mutation_rejected(documents, mutate)
+
+
+_INITIAL_TABLES = (
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+)
+
+
+def _initial_profile_pair(documents):
+    """実資産の他全値を保ち、旧/完全初期profileの独立した期待組を作る。"""
+    classification, catalog = copy.deepcopy(documents)
+    classification["tables"] = [
+        row for row in classification["tables"] if row["table"] not in _INITIAL_TABLES
+    ]
+    old_catalog = copy.deepcopy(catalog)
+    rows = old_catalog["capabilities"]
+    rows[:] = [
+        row
+        for row in rows
+        if row["capability_id"] != "CAP:recording_generations:insert"
+    ]
+    read_index = next(
+        index
+        for index, row in enumerate(rows)
+        if row["capability_id"] == "CAP:recording_generations:read"
+    )
+    rows.insert(
+        read_index + 1,
+        {
+            "capability_id": "CAP:recording_generations:insert",
+            "table_id": "recording_generations",
+            "operation": "insert",
+        },
+    )
+    initial = copy.deepcopy(classification)
+    initial["tables"].extend(
+        {
+            "table": name,
+            "profile": "function_only",
+            "access_path": {"reason": "initial_right_storage", "owner_unit": "U-R1"},
+        }
+        for name in _INITIAL_TABLES
+    )
+    initial_catalog = copy.deepcopy(old_catalog)
+    initial_catalog["capabilities"] = [
+        row
+        for row in initial_catalog["capabilities"]
+        if row["capability_id"] != "CAP:recording_generations:insert"
+    ]
+    return classification, initial, old_catalog, initial_catalog
+
+
+def test_initial_profile_changes_only_generation_insert(documents) -> None:
+    """旧74を保ち、新完全profileの73はINSERT1行以外の全値/順序が同じ。"""
+    old, initial, old_catalog, initial_catalog = _initial_profile_pair(documents)
+    assert len(old_catalog["capabilities"]) == 74
+    assert len(initial_catalog["capabilities"]) == 73
+    assert generate_capability_catalog(old) == old_catalog
+    assert generate_capability_catalog(initial) == initial_catalog
+    assert generate_capability_catalog(
+        {**initial, "tables": initial["tables"][::-1]}
+    ) == (initial_catalog)
+    validate_capability_catalog(classification=old, catalog=old_catalog)
+    validate_capability_catalog(classification=initial, catalog=initial_catalog)
+    assert [
+        row
+        for row in initial_catalog["capabilities"]
+        if row["table_id"] == "recording_generations"
+    ] == [
+        {
+            "capability_id": "CAP:recording_generations:read",
+            "table_id": "recording_generations",
+            "operation": "read",
+        },
+        {
+            "capability_id": "CAP:recording_generations:update",
+            "table_id": "recording_generations",
+            "operation": "update",
+        },
+    ]
+
+
+@pytest.mark.parametrize("remove", _INITIAL_TABLES)
+def test_initial_profile_partial_is_rejected(documents, remove: str) -> None:
+    """固定4表から1表でも欠ければ旧/新への推定補完をしない。"""
+    _, initial, _, _ = _initial_profile_pair(documents)
+    initial["tables"] = [row for row in initial["tables"] if row["table"] != remove]
+    with pytest.raises(CapabilityCatalogError):
+        generate_capability_catalog(initial)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    (
+        "profile",
+        "owner",
+        "reason",
+        "row_key",
+        "path_key",
+        "path_type",
+        "profile_type",
+        "owner_type",
+        "duplicate",
+        "fake_marker",
+        "schema_bool",
+        "missing_generation",
+        "generation_profile",
+        "generation_key",
+    ),
+)
+def test_initial_profile_false_declaration_is_rejected(documents, fault: str) -> None:
+    """reserved/marker/保護表の型・key・意味の偽装を明示拒否する。"""
+    _, initial, _, _ = _initial_profile_pair(documents)
+    row = next(row for row in initial["tables"] if row["table"] == "trusted_devices")
+    if fault == "profile":
+        row["profile"] = "tenant_owned"
+    elif fault == "owner":
+        row["access_path"]["owner_unit"] = "U-OTHER"
+    elif fault == "reason":
+        row["access_path"]["reason"] = "migration_only"
+    elif fault == "row_key":
+        row["skip_insert"] = True
+    elif fault == "path_key":
+        row["access_path"]["extra"] = True
+    elif fault == "path_type":
+        row["access_path"] = ["initial_right_storage"]
+    elif fault == "profile_type":
+        row["profile"] = True
+    elif fault == "owner_type":
+        row["access_path"]["owner_unit"] = 1
+    elif fault == "duplicate":
+        initial["tables"].append(copy.deepcopy(row))
+    elif fault == "fake_marker":
+        initial["tables"].append({**copy.deepcopy(row), "table": "unrelated_probe"})
+    elif fault == "schema_bool":
+        initial["schema_version"] = True
+    elif fault == "missing_generation":
+        initial["tables"] = [
+            row for row in initial["tables"] if row["table"] != "recording_generations"
+        ]
+    else:
+        generation = next(
+            row for row in initial["tables"] if row["table"] == "recording_generations"
+        )
+        if fault == "generation_profile":
+            generation["profile"] = "function_only"
+        else:
+            generation["operation_override"] = ["read", "update"]
+    with pytest.raises(CapabilityCatalogError):
+        generate_capability_catalog(initial)
+
+
+def test_fake_marker_without_reserved_tables_is_rejected(documents) -> None:
+    """旧profileへ無関係なmarkerを足して世代INSERTを抑止できない。"""
+    old, _, _, _ = _initial_profile_pair(documents)
+    old["tables"].append(
+        {
+            "table": "unrelated_probe",
+            "profile": "function_only",
+            "access_path": {"reason": "initial_right_storage", "owner_unit": "U-R1"},
+        }
+    )
+    with pytest.raises(CapabilityCatalogError):
+        generate_capability_catalog(old)
+
+
+def test_initial_and_old_catalog_cross_use_is_rejected(documents) -> None:
+    """新profileへINSERT復活/旧profileからINSERT撤去のどちらも拒否する。"""
+    old, initial, old_catalog, initial_catalog = _initial_profile_pair(documents)
+    with pytest.raises(CapabilityCatalogError):
+        validate_capability_catalog(classification=initial, catalog=old_catalog)
+    with pytest.raises(CapabilityCatalogError):
+        validate_capability_catalog(classification=old, catalog=initial_catalog)
+
+
+def test_unmarked_generic_tenant_owned_still_has_three_operations() -> None:
+    """初期profileのない汎用表と旧世代表は従来の全3操作を保持する。"""
+    value = {
+        "schema_version": 1,
+        "tables": [
+            {"table": "arbitrary_probe", "profile": "tenant_owned"},
+            {"table": "recording_generations", "profile": "tenant_owned"},
+        ],
+    }
+    actual = generate_capability_catalog(value)
+    assert [
+        (row["table_id"], row["operation"]) for row in _capability_rows(actual)
+    ] == [
+        ("arbitrary_probe", "read"),
+        ("arbitrary_probe", "insert"),
+        ("arbitrary_probe", "update"),
+        ("recording_generations", "read"),
+        ("recording_generations", "insert"),
+        ("recording_generations", "update"),
+    ]
