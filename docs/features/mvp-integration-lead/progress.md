@@ -29,7 +29,7 @@
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
 | A 試合作成・preparing再取得 | 旧隔離eda71a48＋20ee2e98で実証。create候補903e3b09は正式RG1 3a24へ追随 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値は旧固定候補で実証。新候補の局所検査・非作者確認成功 | 新候補の正式値/通常統合・実画面再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | start fd80eb2d（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33 c88f284d（PR187） | 実ブラウザ→Cookie/C2→enroll/選手選択→start→初期grant IDB保存/再読込を実証（backend72800152固定・seeded preparing限定）。通常33数学と履歴保持も実Node/Chromiumで一致 | 新規UIcreateから同版での接続、正式7.7/CI/通常統合、trusted初期state/T1-T2・実sync Port/原子的1球保存/started read |
+| B 開始・権利・1球保存と復元 | start 58e045ad（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開8ec1d225（PR187）、単一artifact候補b7cd158c | 実ブラウザ→Cookie/C2→enroll/選手選択→start→初期grant IDB保存/再読込を実証（backend72800152固定・seeded preparing限定）。通常33数学と履歴保持も実Node/Chromiumで一致 | 新規UIcreateから同版での接続、正式7.7/CI/通常統合、trusted初期state/T1-T2・実sync Port/原子的1球保存/started read |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
 | D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create、start1592e48d | 作成故障に加えowned worker/Node/DB停止・応答喪失同要求照会・実端末失効後の非成功を実証。pendingを終結/全取消と推定しない | 未解決要求の確定終結/後着遮断、記録後offline再起動・交代・再送等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
@@ -810,3 +810,18 @@ browserはU3 exact4 ad4faef1を全2002成功/独立48a71c41…残0で保存し�
 
 
 追記：PR187の公開base接合P1は第2回非作者a4245dc40ccfe5224329c7a656096a1c4fe660ea25bb52d5f305093625368051（0/0/0）、独立24成功26.74s/root56成功でsource上解消し、8ec1d225c85c832e4e85a310b5e1f198057a6729へ保存・push済み。実GitHub APIでhead同値/base3a24/drafttrueを照合。最終HEAD追認/公開証拠/B実受理・全216署名module（session40232進行）/必須CIはまだ別未達。規範anchor30/数学14/正式9を保持した通常基線追随で、数学採否の再承認は行わない。開始PR188の正式7.7候補はDB0で計測継続中。
+
+
+### 2026-10-26：単一計算artifact保存・実経路の残依存
+
+T1/T2/初期名簿の単一artifact候補は専用枝feature/mvp-single-domain-composition b7cd158c4e41abbec92d0783a3218b2d44a5486dへ保存・通常push済み、cleanを再確認した。実装10pathと固定依存10pathを分離し、旧spike枝は変更しない。操作はping/deriveState/deriveOrdinaryPitch/deriveFirstPitchWithContinuation/validateInitialGameRosterの5つ。artifact SHA d5a026aefb486170ab70126708a76a792f0493644fc14fa32499a6442c8ea045、18447byte。非作者source67684d90b00a8a1b135a34282743a093818574b8e1b7479f807c0c8e842b0ded、旧artifact差分3096比較同値、host/DTO31成功。作者frontend2126/domain286/backend domain430成功は各別実行。計画の独立f9c7c3c…と元outline作者による整合確認を区別した。これは実保存・全T1完成・正式develop提供ではない。
+
+PR187公開8ec1d225は実GitHub eventと実公開証拠を使うGate6でDELEGATED VERIFIED、署名module全216成功。CI40315110463はbackend含む11job成功、harnessのみ固定参照5literal拒否で失敗。文字列分割やscan除外で回避しない。既入力枠4値への登録候補source3に、実headとexternal消費byteの拘束不足を追加反例で発見し未採用P0=1とした。旧レビュー/64成功を保持し、是正追補はPO委任によるCodex /root判断・独立第2回8b833b7c…残0で承認、親plan f80ac528へ保存済み。是正source2の唯一編集者はfrozen_head_binding_fix。coverage a34f1323…/正式JSON/旧4値は保持し、正式JSON・Git・共有台帳はroot唯一writer。
+
+開始PR188はrenderer改行生成とbackend test2のAST同一format、採用済みdata-model1.4の索引追随を58e045ad67b08406bf22df6241e19a414e43b223へ保存・push済み。CI40327926837はcompleted/failureを実API確認。docs-lint等8job成功、core-guard/harness/tenant/backendの4job失敗。backendはformat段階を越えてpytest段階の失敗へ進んだため、実logを採取し原因を特定する。未完の正式7.7/最終外部証拠・tenant閉登録を成功扱いにしない。
+
+新規画面create→startのcache組立は製品49path固定の隔離候補。反映3run1793018192763はAPI ready・root config/app20003/NNP1/runtime_configured=trueまで観測したが、browser login TimeoutError/httpなしで停止し、新規試合0/旧setup2保持/global増分0、既知container/volume/network残存0。設定成立を実RG1借用成立と呼ばない。frontend-only probeでは同sourceでlogin入力/clickから実POST要求まで到達（APIは明示abort、認証成功0）し元失敗は未再現。次は要求・待機・認可・期待値を変えずlogin await段階と安全な失敗siteだけを取得するharness1path診断。唯一編集者create_login_diagnostic、独立確認前の実DB再実行は禁止。旧seeded preparingの実UI start成功と新規create始点の未成功を区別する。
+
+1球保存のN1具体追補はfirst-ball-provider-concrete-scope-20261026/scope.md ce65ce8b…、固定根拠18。現Port登録は空で、trusted started snapshot/同writer projectionは未供給。提示V12のraw32 digest照合と再交付復号を分離し、既app同writer＋狭いSECDEF検証を採用候補とする。実nonce/外部lease/DB終結証拠/再起動quarantineは省略しない。非作者86c61ac6…のP1=2（先頭操作をballへ統一、関数/CAP/32byte/ACL/nonce ABIの具体化）を採用し、唯一担当first_ball_provider_scopeがcache反映1を作成中。これら実Port完成を計算本体の着手条件へ追加しない。
+
+利用者が新たに完了できる操作の実証は旧隔離候補の新規preparing保存/再取得と、別固定候補の既存preparingからの実UI開始/初期grant端末保存まで。新規作成→開始→1球保存→再読込は未達。全操作/取消・訂正/1試合/成績/毎球・成績CSV/通信断/対象実機/運用復旧は未完として維持する。10月26日時点の工程見込みはT1計算本体4〜7日（10月30日〜11月2日）、実保存接続・検証まで7〜12日（11月2〜7日）、低確度の暫定値。実same-writer providerと残操作の実装量が最大依存であり、日付確約・全MVP完成日ではない。今後の実績差はこの起点との差と原因で更新する。
