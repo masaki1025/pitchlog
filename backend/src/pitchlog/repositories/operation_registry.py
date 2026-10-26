@@ -26,6 +26,9 @@ from pitchlog.repositories.rule_resolution import (
     _build_stage_a_rule_statement,
     _decode_stage_a_rule_result,
 )
+from pitchlog.repositories.started_snapshot_operations import (
+    STARTED_SNAPSHOT_OPERATIONS,
+)
 from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
 
@@ -36,6 +39,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *LINEUP_MEMORY_OPERATIONS,
     *SYNC_APPLY_OPERATIONS,
     *TENANT_PROFILE_OPERATIONS,
+    *STARTED_SNAPSHOT_OPERATIONS,
 )
 
 # RG1固定2照合・同Session識別1件と、正式段階A読取1件だけを登録する。

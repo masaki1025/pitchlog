@@ -212,8 +212,8 @@ def validate_initial_verifier_declarations(asset: dict[str, Any]) -> None:
         if role in row.get("role_ids", []):
             raise ValueError("専用verifierのpolicyは0が必要")
     for row in _verifier_rows(asset, "functions"):
-        grants = row.get("acl_expectations", [])
-        revoked = row.get("revoked_acl_expectations", [])
+        grants = _verifier_rows(row, "acl_expectations")
+        revoked = _verifier_rows(row, "revoked_acl_expectations")
         selected = [g for g in grants if g.get("grantee") == role]
         deny = [g for g in revoked if g.get("grantee") == role]
         expected = (
@@ -228,9 +228,15 @@ def validate_initial_verifier_declarations(asset: dict[str, Any]) -> None:
         ):
             raise ValueError("専用verifierの関数ACL/所有が不一致")
     for row in _verifier_rows(asset, "schemas"):
-        selected = [g for g in row["acl_expectations"] if g.get("grantee") == role]
+        selected = [
+            g
+            for g in _verifier_rows(row, "acl_expectations")
+            if g.get("grantee") == role
+        ]
         denied = [
-            g for g in row["revoked_acl_expectations"] if g.get("grantee") == role
+            g
+            for g in _verifier_rows(row, "revoked_acl_expectations")
+            if g.get("grantee") == role
         ]
         is_authn = row.get("schema_id") == "authn"
         if (
@@ -253,9 +259,15 @@ def validate_initial_verifier_declarations(asset: dict[str, Any]) -> None:
         if row.get("owner") == role or row.get("owner_role_id") == role:
             raise ValueError("専用verifierの表所有は0が必要")
     for row in _verifier_rows(asset, "databases"):
-        grants = [g for g in row["acl_expectations"] if g.get("grantee") == role]
+        grants = [
+            g
+            for g in _verifier_rows(row, "acl_expectations")
+            if g.get("grantee") == role
+        ]
         denied = [
-            g for g in row["revoked_acl_expectations"] if g.get("grantee") == role
+            g
+            for g in _verifier_rows(row, "revoked_acl_expectations")
+            if g.get("grantee") == role
         ]
         if (
             row.get("owner") == role

@@ -285,7 +285,11 @@
         "backend/tests/test_first_ball_proof.py",
         "backend/tests/test_first_ball_function_operations.py",
         "backend/tests/test_sync_right_sql.py",
-        "backend/tests/test_sync_first_ball_registration.py"
+        "backend/tests/test_sync_first_ball_registration.py",
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
@@ -427,7 +431,11 @@
         "tests/test_field_geometry_numeric_lexemes.py",
         "tests/test_fielder_estimation_contract.py",
         "tests/test_field_geometry_ci_wiring.py",
-        "backend/src/pitchlog/db/stage_a_startup.py"
+        "backend/src/pitchlog/db/stage_a_startup.py",
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
@@ -547,7 +555,11 @@
         "backend/tests/test_first_ball_proof.py",
         "backend/tests/test_first_ball_function_operations.py",
         "backend/tests/test_sync_right_sql.py",
-        "backend/tests/test_sync_first_ball_registration.py"
+        "backend/tests/test_sync_first_ball_registration.py",
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
@@ -664,7 +676,9 @@
         "backend/tests/test_first_ball_proof.py",
         "backend/tests/test_first_ball_function_operations.py",
         "backend/tests/test_sync_right_sql.py",
-        "backend/tests/test_sync_first_ball_registration.py"
+        "backend/tests/test_sync_first_ball_registration.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {

@@ -1,5 +1,11 @@
-import { FIRST_BALL_RULE } from './stateRules'
-import type { Derived, Scoreboard, StateFields, StatFlags } from './stateTypes'
+import { FIRST_BALL_RULE, ORDINARY_STRIKE_RULE } from './stateRules'
+import type {
+  Derived,
+  Rule,
+  Scoreboard,
+  StateFields,
+  StatFlags,
+} from './stateTypes'
 
 /** spikeの既23フラグ初期化を再利用し、閉じた型で余分なキーを拒否する。 */
 export function emptyFlags(): StatFlags {
@@ -36,8 +42,6 @@ function supportedState(before: StateFields, board: Scoreboard): boolean {
     before.half === 'top' &&
     before.inning === 1n &&
     before.outs === 0n &&
-    before.strikes === 0n &&
-    before.balls === 0n &&
     before.runners === 'empty' &&
     before.battingOrder === 1n &&
     !before.tiebreakActive &&
@@ -63,14 +67,51 @@ export function derive(
   if (resultId !== 'batting-result.ball' || pitchEventKind !== 'pitch-event') {
     return null
   }
-  if (!supportedState(before, board)) return null
-  const rule = FIRST_BALL_RULE
+  if (
+    !supportedState(before, board) ||
+    before.strikes !== 0n ||
+    before.balls !== 0n
+  )
+    return null
+  return applyCountRule(before, board, FIRST_BALL_RULE)
+}
+
+/** 契約が成立した通常33座標だけを同じカウント核へ渡す。 */
+export function deriveOrdinary(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+): Derived | null {
+  if (pitchEventKind !== 'pitch-event' || !supportedState(before, board))
+    return null
+  if (before.strikes < 0n || before.balls < 0n) return null
+  if (resultId === 'batting-result.ball') {
+    if (before.strikes > 2n || before.balls > 2n) return null
+    return applyCountRule(before, board, FIRST_BALL_RULE)
+  }
+  if (
+    resultId !== 'batting-result.called-pitch' &&
+    resultId !== 'batting-result.swinging-strike' &&
+    resultId !== 'batting-result.foul'
+  )
+    return null
+  if (before.strikes > 1n || before.balls > 3n) return null
+  return applyCountRule(before, board, ORDINARY_STRIKE_RULE)
+}
+
+/** 初球・通常投球で共有する単一のカウント計算。 */
+function applyCountRule(
+  before: StateFields,
+  board: Scoreboard,
+  rule: Rule,
+): Derived {
   const balls = before.balls + rule.ballDelta
   const flags = emptyFlags()
-  flags.投球数 = pitchEventKind === 'pitch-event'
+  flags.投球数 = true
   flags.投球回算入アウト = rule.outs > 0n
   flags.打席 = rule.pa === true
-  // 打席続行・無走者・無失策のball以外は上で拒否し、残る計数を発生させない。
+  // 打席続行・無走者・無失策の通常投球だけを上で受け、残る計数を発生させない。
   return {
     countEffect: {
       strikes: { kind: rule.strikeEffect, value: rule.strikeDelta },
@@ -85,7 +126,12 @@ export function derive(
     },
     outEffect: { count: rule.outs, targets: [] },
     statFlags: flags,
-    history: { ballsBefore: before.balls, ballsAfter: balls },
+    history: {
+      ballsBefore: before.balls,
+      ballsAfter: balls,
+      strikesBefore: before.strikes,
+      strikesAfter: before.strikes + rule.strikeDelta,
+    },
     after: {
       stateFields: {
         half: before.half,

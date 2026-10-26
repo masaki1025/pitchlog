@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 28,
+  "contract_revision": 29,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:28"
+        "contract_revision:29"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -166,7 +166,9 @@
     "CAP:invalidation_intents:update",
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
-    "CAP:tenants:read"
+    "CAP:tenants:read",
+    "CAP:game_lineups:read",
+    "CAP:play_rows:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -215,7 +217,11 @@
     "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
-    "pitchlog.repositories.games.PreparingGameDetailToken"
+    "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -228,5 +234,5 @@
     "RG1:scope_binding",
     "RULE:resolve_stage_a"
   ],
-  "source_digest": "f5c09910a58ac2d5e9fbb304fdffba4b86015830e73451065268e0992444e018"
+  "source_digest": "da12d999bb8a186a924cf8dafe0623f6e0421d49655a3f243d21dd4a08b4ccba"
 }
