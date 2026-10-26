@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import secrets
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from pathlib import Path
 
@@ -28,7 +31,11 @@ from pitchlog.authz.product_provisioning import (
     unapply_product_authz_ddl,
 )
 
-from .conftest import ProductCatalogSnapshot, ProvisionedProductCatalog
+from .conftest import (
+    DisposablePostgres,
+    ProductCatalogSnapshot,
+    ProvisionedProductCatalog,
+)
 
 pytestmark = pytest.mark.requires_db
 
@@ -102,35 +109,52 @@ def _alembic_config() -> Config:
 def _historical_round_trip_baseline(
     catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
+    factory: Callable[[], AbstractContextManager[DisposablePostgres]],
 ) -> ProductCatalogSnapshot:
-    """別の使い捨てDBで可逆な0033までを往復し、現基準へ進める。"""
+    """別所有clusterで可逆な0033を往復し、現基準へ進める。"""
     database = _HISTORICAL_DATABASE
-    with psycopg.connect(catalog.cluster.admin_dsn, autocommit=True) as admin:
-        admin.execute(
-            sql.SQL("CREATE DATABASE {} OWNER pitchlog_owner").format(
-                sql.Identifier(database)
+    # verifierの接続先を増やさず、歴史DDLを元catalogと物理的に隔離する。
+    with factory() as cluster:
+        owner_password = secrets.token_urlsafe(24)
+        with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            admin.execute(
+                sql.SQL(
+                    "CREATE ROLE pitchlog_owner WITH NOSUPERUSER NOBYPASSRLS "
+                    "LOGIN NOCREATEROLE NOCREATEDB NOREPLICATION "
+                    "NOINHERIT PASSWORD {}"
+                ).format(sql.Literal(owner_password))
             )
+            admin.execute(
+                sql.SQL("CREATE DATABASE {} OWNER pitchlog_owner").format(
+                    sql.Identifier(database)
+                )
+            )
+        owner_dsn = make_conninfo(
+            cluster.role_dsn_template,
+            dbname=database,
+            user="pitchlog_owner",
+            password=owner_password,
         )
-    owner_dsn = make_conninfo(catalog.owner_dsn, dbname=database)
-    applicator_dsn = make_conninfo(catalog.cluster.admin_dsn, dbname=database)
-    with monkeypatch.context() as environment:
-        environment.setenv(
-            "PITCHLOG_MIGRATION_DATABASE_URL", _product_migration_url(owner_dsn)
-        )
-        config = _alembic_config()
-        command.upgrade(config, "0033_game_rules_immutable")
-        command.downgrade(config, "base")
-        command.upgrade(config, "0033_game_rules_immutable")
-        with psycopg.connect(applicator_dsn) as applicator:
-            assert applicator.info.dbname == database
-            _prepare_current_product_baseline(
-                owner_dsn=owner_dsn,
-                applicator_dsn=applicator_dsn,
-                applicator=applicator,
+        applicator_dsn = make_conninfo(cluster.admin_dsn, dbname=database)
+        with monkeypatch.context() as environment:
+            environment.setenv(
+                "PITCHLOG_MIGRATION_DATABASE_URL", _product_migration_url(owner_dsn)
             )
-            return _snapshot_product_catalog(
-                applicator, _product_role_ids(catalog.asset)
-            )
+            config = _alembic_config()
+            command.upgrade(config, "0033_game_rules_immutable")
+            command.downgrade(config, "base")
+            command.upgrade(config, "0033_game_rules_immutable")
+            with psycopg.connect(applicator_dsn) as applicator:
+                assert applicator.info.dbname == database
+                _prepare_current_product_baseline(
+                    cluster=cluster,
+                    owner_dsn=owner_dsn,
+                    applicator_dsn=applicator_dsn,
+                    applicator=applicator,
+                )
+                return _snapshot_product_catalog(
+                    applicator, _product_role_ids(catalog.asset)
+                )
 
 
 def test_second_application_converges_to_the_first_catalog(
@@ -156,6 +180,9 @@ def test_second_application_converges_to_the_first_catalog(
 def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     provisioned_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
 ) -> None:
     """取り外し・migration 往復・再適用が各基準カタログへ戻る。"""
     catalog = provisioned_product_catalog
@@ -184,10 +211,8 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     assert {row[2] for row in unapplied_snapshot.relations} == {"pitchlog_owner"}
 
     config = _alembic_config()
-    # 0034は参照された規則を物理削除しない。拒否時の全取消も検証する。
-    with pytest.raises(
-        RuntimeError, match="規則配置の逆適用には別承認の訂正migrationが必要"
-    ):
+    # 現0036は初期権履歴を消さない。最初の拒否で全変更が取消される。
+    with pytest.raises(RuntimeError, match="初期権の履歴を消す逆適用は許可しない"):
         command.downgrade(config, "base")
 
     migration_report = _inspect(catalog, privileged_role_oid)
@@ -212,7 +237,12 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
             (_HISTORICAL_DATABASE, *row[1:]) for row in migration_snapshot.database_acl
         ),
     )
-    assert _historical_round_trip_baseline(catalog, monkeypatch) == historical_expected
+    assert (
+        _historical_round_trip_baseline(
+            catalog, monkeypatch, disposable_postgres_cluster
+        )
+        == historical_expected
+    )
 
     apply_product_authz_ddl(catalog.applicator)
     _assert_subject_is_session(catalog)
