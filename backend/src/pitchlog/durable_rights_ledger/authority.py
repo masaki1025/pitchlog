@@ -14,7 +14,7 @@ import stat
 import struct
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 from .witness import _flags, _trusted_directory
@@ -49,6 +49,12 @@ _ENDPOINT_V2_KEYS = _ENDPOINT_KEYS | {"role", "authority_gid"}
 _CONFIG_V2_KEYS = (
     _CONFIG_KEYS - {"client_uid", "client_gid", "socket_path", "endpoint_path"}
 ) | {"peers", "application_uid", "application_gid", "database_uid", "database_gid"}
+
+_CONFIG_V3_KEYS = _CONFIG_V2_KEYS | {
+    "binding_business_dsn",
+    "binding_control_dsn",
+    "binding_authority",
+}
 
 
 class AuthorityUnavailable(RuntimeError):
@@ -89,15 +95,21 @@ def _read_root_json(path: Path, mode: int) -> dict[str, Any]:
 def _config(path: Path) -> dict[str, Any]:
     value = _read_root_json(path, 0o640)
     version = value.get("schema_version")
-    if type(version) is not int or version not in (1, 2):
+    if type(version) is not int or version not in (1, 2, 3):
         raise AuthorityUnavailable("authority unavailable")
-    if set(value) != (_CONFIG_KEYS if version == 1 else _CONFIG_V2_KEYS):
+    if set(value) != (
+        _CONFIG_KEYS
+        if version == 1
+        else _CONFIG_V2_KEYS
+        if version == 2
+        else _CONFIG_V3_KEYS
+    ):
         raise AuthorityUnavailable("authority unavailable")
     for key in ("authority_uid", "authority_gid"):
         if (
             type(value[key]) is not int
             or value[key] <= 0
-            or (version == 2 and value[key] >= 2**32)
+            or (version >= 2 and value[key] >= 2**32)
         ):
             raise AuthorityUnavailable("authority unavailable")
     if version == 1:
@@ -131,7 +143,54 @@ def _config(path: Path) -> dict[str, Any]:
         value["control_dsn"],
         value["timeout"],
     )
+    if version == 3:
+        _validate_binding_config(value)
     return value
+
+
+def _validate_binding_config(value: dict[str, Any]) -> None:
+    """v3の専用非秘密PG接続と権威値を閉じ、既profileへ拡大しない。"""
+    from uuid import UUID
+
+    from psycopg.conninfo import conninfo_to_dict
+
+    authority = value["binding_authority"]
+    if type(authority) is not dict or set(authority) != {
+        "control_instance",
+        "business_instance",
+        "restore_epoch",
+        "control_version",
+    }:
+        raise AuthorityUnavailable("authority unavailable")
+    for key in ("control_instance", "business_instance", "restore_epoch"):
+        try:
+            if (
+                type(authority[key]) is not str
+                or str(UUID(authority[key])) != authority[key]
+            ):
+                raise ValueError
+        except (ValueError, TypeError):
+            raise AuthorityUnavailable("authority unavailable") from None
+    if (
+        type(authority["control_version"]) is not int
+        or not 0 < authority["control_version"] < 2**63
+    ):
+        raise AuthorityUnavailable("authority unavailable")
+    for key in ("binding_business_dsn", "binding_control_dsn"):
+        try:
+            if type(value[key]) is not str:
+                raise ValueError
+            dsn = conninfo_to_dict(value[key])
+            if (
+                not {"host", "dbname", "user"} <= set(dsn)
+                or set(dsn) - {"host", "dbname", "user", "port", "connect_timeout"}
+                or dsn["user"] != "pitchlog_sync_binding_actor"
+                or not Path(cast(str, dsn["host"])).is_absolute()
+                or "," in cast(str, dsn["host"])
+            ):
+                raise ValueError
+        except Exception:
+            raise AuthorityUnavailable("authority unavailable") from None
 
 
 def _validate_peers(value: dict[str, Any], config_path: Path) -> None:
@@ -152,7 +211,9 @@ def _validate_peers(value: dict[str, Any], config_path: Path) -> None:
     if (value["application_uid"], value["application_gid"]) != (20003, 20003):
         raise AuthorityUnavailable("authority unavailable")
     peers = value["peers"]
-    if type(peers) is not list or len(peers) != 2:
+    if type(peers) is not list or len(peers) != (
+        3 if value["schema_version"] == 3 else 2
+    ):
         raise AuthorityUnavailable("authority unavailable")
     uids = {value["authority_uid"], value["application_uid"], value["database_uid"]}
     gids = {value["authority_gid"], value["application_gid"], value["database_gid"]}
@@ -166,7 +227,12 @@ def _validate_peers(value: dict[str, Any], config_path: Path) -> None:
         role = peer["role"]
         if (
             type(role) is not str
-            or role not in {"generation", "fresh_controller"}
+            or role
+            not in (
+                {"generation", "fresh_controller", "sync_binding"}
+                if value["schema_version"] == 3
+                else {"generation", "fresh_controller"}
+            )
             or role in roles
         ):
             raise AuthorityUnavailable("authority unavailable")
@@ -177,6 +243,16 @@ def _validate_peers(value: dict[str, Any], config_path: Path) -> None:
                 raise AuthorityUnavailable("authority unavailable")
             seen.add(item)
         if role == "generation" and peer["client_uid"] != 20002:
+            raise AuthorityUnavailable("authority unavailable")
+        if (
+            value["schema_version"] == 3
+            and (peer["client_uid"], peer["client_gid"])
+            != {
+                "generation": (20002, 20002),
+                "fresh_controller": (20004, 20004),
+                "sync_binding": (20005, 20005),
+            }[role]
+        ):
             raise AuthorityUnavailable("authority unavailable")
         for key in ("socket_path", "endpoint_path"):
             item = peer[key]
@@ -216,13 +292,18 @@ def _listener_peers(value: dict[str, Any]) -> tuple[dict[str, Any], ...]:
 def _endpoint(path: Path) -> dict[str, Any]:
     value = _read_root_json(path, 0o644)
     version = value.get("schema_version")
-    if type(version) is not int or version not in (1, 2):
+    if type(version) is not int or version not in (1, 2, 3):
         raise AuthorityUnavailable("authority unavailable")
     if set(value) != (_ENDPOINT_KEYS if version == 1 else _ENDPOINT_V2_KEYS):
         raise AuthorityUnavailable("authority unavailable")
-    if version == 2 and (
+    if version >= 2 and (
         type(value["role"]) is not str
-        or value["role"] not in {"generation", "fresh_controller"}
+        or value["role"]
+        not in (
+            {"generation", "fresh_controller", "sync_binding"}
+            if version == 3
+            else {"generation", "fresh_controller"}
+        )
         or (value["role"] == "generation" and value["client_uid"] != 20002)
         or (
             value["role"] == "fresh_controller"
@@ -234,13 +315,23 @@ def _endpoint(path: Path) -> dict[str, Any]:
         or value["client_gid"] != os.getegid()
     ):
         raise AuthorityUnavailable("authority unavailable")
-    if version == 2 and (
+    if version >= 2 and (
         type(value["socket_path"]) is not str
         or "\0" in value["socket_path"]
         or not Path(value["socket_path"]).is_absolute()
         or str(Path(value["socket_path"])) != value["socket_path"]
         or ".." in Path(value["socket_path"]).parts
         or len(os.fsencode(value["socket_path"])) >= 108
+    ):
+        raise AuthorityUnavailable("authority unavailable")
+    if (
+        version == 3
+        and (value["client_uid"], value["client_gid"])
+        != {
+            "generation": (20002, 20002),
+            "fresh_controller": (20004, 20004),
+            "sync_binding": (20005, 20005),
+        }[value["role"]]
     ):
         raise AuthorityUnavailable("authority unavailable")
     for key in ("authority_uid", "client_uid", "client_gid"):
@@ -562,7 +653,7 @@ def _launch(mode: str, config_path: Path) -> None:
                 Path(peer["endpoint_path"]), endpoint, 0o644, peer["client_gid"]
             )
             prepared_endpoints.append((Path(peer["endpoint_path"]), endpoint))
-        if value["schema_version"] == 2:
+        if value["schema_version"] in (2, 3):
             # hardlink/再書込aliasも含め、両方の閉field/実immutable保護を最終再読する。
             for path, expected in prepared_endpoints:
                 if _read_root_json(path, 0o644) != expected:

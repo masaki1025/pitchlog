@@ -710,6 +710,11 @@ def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
                     "reservation_count",
                 },
                 "lease_close": {"event", "lease"},
+                "binding_intent": {"event", "lease", "record"},
+                "binding_published": {"event", "lease"},
+                "binding_quarantined": {"event", "lease"},
+                "binding_close_requested": {"event", "lease"},
+                "binding_terminal": {"event", "lease", "outcome"},
             }
             if value["event"] not in shapes or set(value) != shapes[value["event"]]:
                 raise ValueError
@@ -728,12 +733,59 @@ def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
                     or not 0 < value["intent"] < frame.ordinal
                 ):
                     raise ValueError
-            if value["event"] == "lease_close":
+            if value["event"] in {
+                "lease_close",
+                "binding_intent",
+                "binding_quarantined",
+                "binding_published",
+                "binding_close_requested",
+                "binding_terminal",
+            }:
                 if (
                     type(value["lease"]) is not int
                     or not 0 < value["lease"] < frame.ordinal
                 ):
                     raise ValueError
+            if value["event"] == "binding_intent":
+                from pitchlog.sync.control_provider.binding_control import (
+                    _writer_from_wire,
+                )
+
+                record = value["record"]
+                if type(record) is not dict or set(record) != {
+                    "tenant_id",
+                    "attempt_id",
+                    "phase_id",
+                    "lease_id",
+                    "recovery_generation",
+                    "close_id",
+                    "phase",
+                    "writer",
+                    "nonce_digest",
+                    "expires_at",
+                }:
+                    raise ValueError
+                for name in (
+                    "tenant_id",
+                    "attempt_id",
+                    "phase_id",
+                    "lease_id",
+                    "close_id",
+                ):
+                    if str(UUID(record[name])) != record[name]:
+                        raise ValueError
+                if (
+                    type(record["nonce_digest"]) is not str
+                    or len(bytes.fromhex(record["nonce_digest"])) != 32
+                ):
+                    raise ValueError
+                _positive(record["recovery_generation"])
+                _writer_from_wire(record["writer"])
+            if value["event"] == "binding_terminal" and value["outcome"] not in (
+                "COMMITTED",
+                "ROLLBACK_CONFIRMED",
+            ):
+                raise ValueError
             if value["event"] in ("enrolled", "lease_open"):
                 _positive(value["epoch"])
             if value["event"] == "activation_open":
@@ -808,6 +860,7 @@ class _AuthorityRuntime:
         self._pair = self._pair_from(value)
         metadata = self._verify_enrollment()
         self._verify_history(metadata)
+        self._recover_binding_leases()
         self._verify_leases()
         self._recover()
         journal.append(_encode_event({"event": "attached", **metadata}))
@@ -847,7 +900,7 @@ class _AuthorityRuntime:
                 value["timeout"],
             ),
             business_peer=(value["database_uid"], value["database_gid"])
-            if value.get("schema_version") == 2
+            if value.get("schema_version") in (2, 3)
             else None,
         )
 
@@ -955,6 +1008,57 @@ class _AuthorityRuntime:
                 unresolved = ordinal
         self._maximum_witness_highwater = highwater
 
+    def _recover_binding_leases(self) -> None:
+        """再起動で残った専用leaseは実DB終結を観測できるまで閉じない。"""
+        from pitchlog.sync.control_provider.binding_control import (
+            BindingOutcome,
+            _BindingAuthority,
+        )
+
+        events = list(_events(self._journal))
+        for _, event in events:
+            if event["event"] != "binding_intent":
+                continue
+            lease = event["lease"]
+            closed = any(
+                v["event"] == "lease_close" and v["lease"] == lease for _, v in events
+            )
+            if closed:
+                continue
+            if self._value.get("schema_version") != 3:
+                raise LedgerUnavailable("ledger unavailable")
+            self._journal.append(
+                _encode_event({"event": "binding_quarantined", "lease": lease})
+            )
+            self._journal.append(
+                _encode_event({"event": "binding_close_requested", "lease": lease})
+            )
+            with self._pair.recovery_fence() as fence:
+                if fence.generation != event["record"]["recovery_generation"]:
+                    raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+                fence.assert_held()
+                outcome = _BindingAuthority(
+                    self._value, self._journal.authority_id
+                ).resolve(event["record"])
+                fence.assert_held()
+                if outcome not in (
+                    BindingOutcome.COMMITTED,
+                    BindingOutcome.ROLLBACK_CONFIRMED,
+                ):
+                    raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+                self._journal.append(
+                    _encode_event(
+                        {
+                            "event": "binding_terminal",
+                            "lease": lease,
+                            "outcome": str(outcome),
+                        }
+                    )
+                )
+                self._journal.append(
+                    _encode_event({"event": "lease_close", "lease": lease})
+                )
+
     def _verify_leases(self) -> None:
         for ordinal, event in _events(self._journal):
             if event["event"] in ("lease_open", "activation_open"):
@@ -978,6 +1082,34 @@ class _AuthorityRuntime:
                     else {"intent"}
                 )
                 if len(matches) != 1 or matches[0] not in expected:
+                    raise LedgerUnavailable("ledger unavailable")
+
+            if event["event"] in (
+                "binding_intent",
+                "binding_quarantined",
+                "binding_published",
+                "binding_close_requested",
+                "binding_terminal",
+            ):
+                predecessors = [
+                    (i, v) for i, v in _events(self._journal) if i == event["lease"]
+                ]
+                if (
+                    len(predecessors) != 1
+                    or predecessors[0][1]["event"] != "lease_open"
+                ):
+                    raise LedgerUnavailable("ledger unavailable")
+            if event["event"] == "lease_close":
+                bound = any(
+                    v["event"] == "binding_intent" and v["lease"] == event["lease"]
+                    for _, v in _events(self._journal)
+                )
+                if bound and not any(
+                    i < ordinal
+                    and v["event"] == "binding_terminal"
+                    and v["lease"] == event["lease"]
+                    for i, v in _events(self._journal)
+                ):
                     raise LedgerUnavailable("ledger unavailable")
 
     def _last_for(self, params: tuple[object, ...]) -> tuple[Any, ...] | None:
@@ -1307,6 +1439,104 @@ class _AuthorityRuntime:
         finally:
             self._mutex.release()
 
+    def _handle_binding(self, channel: socket.socket, request: dict[str, Any]) -> None:
+        """専用peerにだけnonce/照合/権威実観測終結を供給する。"""
+        from pitchlog.sync.control_provider.binding_control import (
+            BindingOutcome,
+            _BindingAuthority,
+        )
+
+        if self._value.get("schema_version") != 3 or self._blocked:
+            raise LedgerUnavailable("ledger unavailable")
+        lease = None
+        record = None
+        authority = _BindingAuthority(self._value, self._journal.authority_id)
+        authority.validate_request(request)
+        try:
+            with self._pair.recovery_fence() as fence:
+                lease, _ = self._start_lease(fence, fresh=False)
+                record, binding, nonce = authority.prepare(request, fence.generation)
+                self._journal.append(
+                    _encode_event(
+                        {"event": "binding_intent", "lease": lease, "record": record}
+                    )
+                )
+                authority.publish_prepared(record, binding, nonce)
+                self._journal.append(
+                    _encode_event({"event": "binding_published", "lease": lease})
+                )
+                fence.assert_held()
+                _send(
+                    channel,
+                    {
+                        "status": "ok",
+                        "result": {
+                            "nonce": nonce.hex(),
+                            "lease_id": record["lease_id"],
+                            "expires_at": record["expires_at"],
+                        },
+                    },
+                )
+                del nonce
+                while True:
+                    current = _receive(channel)
+                    if (
+                        set(current) != {"operation"}
+                        or current["operation"]
+                        not in ("binding_check", "binding_close")
+                        or self._blocked
+                    ):
+                        raise LedgerUnavailable("ledger unavailable")
+                    fence.assert_held()
+                    if current["operation"] == "binding_check":
+                        from datetime import datetime, timezone
+
+                        if datetime.now(timezone.utc) >= datetime.fromisoformat(
+                            cast(str, record["expires_at"])
+                        ):
+                            raise LedgerUnavailable("ledger unavailable")
+                        self._live_matches()
+                        authority.check(record, fence.generation)
+                        _send(channel, {"status": "ok", "result": None})
+                        continue
+                    self._journal.append(
+                        _encode_event({"event": "binding_quarantined", "lease": lease})
+                    )
+                    self._journal.append(
+                        _encode_event(
+                            {"event": "binding_close_requested", "lease": lease}
+                        )
+                    )
+                    outcome = authority.resolve(record)
+                    if outcome not in (
+                        BindingOutcome.COMMITTED,
+                        BindingOutcome.ROLLBACK_CONFIRMED,
+                    ):
+                        raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed")
+                    self._journal.append(
+                        _encode_event(
+                            {
+                                "event": "binding_terminal",
+                                "lease": lease,
+                                "outcome": str(outcome),
+                            }
+                        )
+                    )
+                    self._close_lease(lease)
+                    lease = None
+                    _send(channel, {"status": "ok", "result": str(outcome)})
+                    return
+        except BaseException:
+            if lease is not None:
+                try:
+                    self._journal.append(
+                        _encode_event({"event": "binding_quarantined", "lease": lease})
+                    )
+                finally:
+                    self._active.discard(lease)
+                    self._blocked = True
+            raise
+
     def handle(self, channel: socket.socket, *, role: str | None = None) -> None:
         """実peer認証済みchannel上で閉じた要求と実fenceだけを実行する。"""
         lease = None
@@ -1316,6 +1546,9 @@ class _AuthorityRuntime:
             # roleはroot固定listenerからだけ受け、要求本文では選択しない。
             # PG/fence/journalに触れる前に能力外の操作を拒否する。
             _authorize_operation(role, operation)
+            if role == "sync_binding":
+                self._handle_binding(channel, request)
+                return
             if role is not None:
                 keys = (
                     {"operation", "params"}
@@ -1379,6 +1612,7 @@ def _authorize_operation(role: str | None, operation: object) -> None:
     allowed = {
         "generation": frozenset({"epoch", "reserve", "claim", "fence_open"}),
         "fresh_controller": frozenset({"fresh_activation_open"}),
+        "sync_binding": frozenset({"binding_open"}),
     }
     if (
         type(role) is not str
@@ -1487,7 +1721,7 @@ class DurableLedger(DurableGenerationSource):
                 "3i", channel.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
             )
             if uid != self._target["authority_uid"] or (
-                self._target["schema_version"] == 2
+                self._target["schema_version"] in (2, 3)
                 and gid != self._target["authority_gid"]
             ):
                 raise LedgerUnavailable("ledger unavailable")

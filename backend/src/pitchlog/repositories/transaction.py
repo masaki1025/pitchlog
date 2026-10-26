@@ -442,6 +442,26 @@ class _TenantTransaction:
         except RG1ControlUnavailable as error:
             raise RG1Unavailable("復元ゲートの実保持を確認できない") from error
 
+    def _writer_lifetime(self) -> tuple[object, object]:
+        """所有するtop-level TXの不透明な寿命だけを返す。"""
+        key = self._state_key
+        if (
+            key is None
+            or key not in _TRANSACTION_RUNTIMES
+            or key in _INITIAL_ACTOR_STATES
+        ):
+            raise TenantBindingError("通常writerの実scopeが必要")
+        session, _ = _TRANSACTION_RUNTIMES[key]
+        tx = session.get_transaction()
+        if tx is None or not tx.is_active or session.in_nested_transaction():
+            raise TenantBindingError("生存したtop-level writerが必要")
+        return key, tx
+
+    def _assert_writer_lifetime(self, owner: tuple[object, object]) -> None:
+        """別scope/別TX/失効/savepointへのwriter資格転用を拒否する。"""
+        if self._writer_lifetime() != owner:
+            raise TenantBindingError("writer資格の寿命が不一致")
+
     def run_in_savepoint(
         self, operation: TenantOperationToken
     ) -> TenantOperationResult:
@@ -459,8 +479,16 @@ class _TenantTransaction:
         session, _ = _TRANSACTION_RUNTIMES[state_key]
         if state_key in _INITIAL_ACTOR_STATES:
             raise TenantBindingError("初期権actorへ汎用savepointを公開できない")
+        from pitchlog.sync.control_provider.writer_binding import _LIVE_BINDINGS
+
+        bound = _LIVE_BINDINGS.get(state_key)
+        if bound is not None:
+            bound.assert_current()
         with session.begin_nested():
-            return self.run(operation)
+            result = self.run(operation)
+        if bound is not None:
+            bound.assert_current()
+        return result
 
 
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
@@ -570,6 +598,18 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         """
         handle = self._handle
         key = None if handle is None else handle._state_key
+        from pitchlog.sync.control_provider.writer_binding import _before_writer_finish
+
+        if exception is None and handle is not None:
+            try:
+                _before_writer_finish(handle)
+            except BaseException as precommit_error:
+                self.__exit__(
+                    type(precommit_error),
+                    precommit_error,
+                    precommit_error.__traceback__,
+                )
+                raise
         loan = None if key is None else _RG1_LOANS.get(key)
         if exception is None and loan is not None:
             from pitchlog.repositories.rg1 import assert_rg1_open_before_commit
@@ -639,10 +679,24 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         except BaseException as primary_error:
             try:
                 session.close()
-            except BaseException as close_error:
-                raise primary_error from close_error
+            finally:
+                from pitchlog.sync.control_provider.writer_binding import (
+                    _after_writer_finish,
+                )
+
+                try:
+                    _after_writer_finish(expired_key)
+                except BaseException as binding_error:
+                    raise primary_error from binding_error
             raise
 
+        from pitchlog.sync.control_provider.writer_binding import _after_writer_finish
+
+        try:
+            _after_writer_finish(expired_key)
+        except BaseException:
+            session.close()
+            raise
         if binding is not None and exception is None:
             binding.commit_completed = True
         try:

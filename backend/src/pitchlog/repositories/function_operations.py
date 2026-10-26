@@ -230,6 +230,31 @@ _SYNC_FIRST_BALL_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+_SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_fence_api.read_writer_identity": (
+            (),
+            (
+                ("system_identifier", str),
+                ("database_oid", str),
+                ("postmaster_started_at", datetime),
+                ("backend_pid", int),
+                ("backend_start", datetime),
+                ("transaction_id", str),
+            ),
+            (),
+            ("postmaster_started_at", "backend_start"),
+        ),
+        "sync_fence_api.assert_writer_binding": (
+            _SYNC_FIRST_BALL_COMMON,
+            (("asserted", bool),),
+            ("asserted",),
+            (),
+        ),
+    }
+)
+
+
 def _valid_function_schema(name: object) -> bool:
     """接続ごとに指す先が変わる一時schemaとシステムschemaを拒否する。"""
     return (
@@ -304,6 +329,7 @@ class FunctionOperationRegistration:
         if initial is None:
             initial = _INITIAL_RESOLVE_FUNCTION_TYPES.get(self.function_id)
         first_ball = _SYNC_FIRST_BALL_FUNCTION_TYPES.get(self.function_id)
+        writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
             self.result_fields,
@@ -329,6 +355,17 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("初球関数の有限型宣言が不一致")
+        elif writer_binding is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != writer_binding
+                or self.operation_id != f"SYNC_WRITER_BINDING:{name}"
+                or self.capability_id != f"CAP:sync_writer_binding:{name}"
+                or self.min_rows != 1
+                or self.max_rows != 1
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("writer binding関数の有限型宣言が不一致")
         elif (
             self.nullable_results
             or self.aware_datetime_results
@@ -424,7 +461,11 @@ class FunctionOperationRegistration:
             if (
                 type(argument.type) not in _SAFE_BIND_TYPES
                 and not (
-                    (initial is not None or first_ball is not None)
+                    (
+                        initial is not None
+                        or first_ball is not None
+                        or writer_binding is not None
+                    )
                     and expected_type is bytes
                     and type(argument.type) is LargeBinary
                 )
@@ -556,7 +597,10 @@ def prepare_function_operation(
                 raise FunctionOperationError("初期権の整数は正bigintが必要")
             if expected_type is str and not value:
                 raise FunctionOperationError("初期権の文字列を空にできない")
-        if spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES:
+        if (
+            spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES
+            or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
+        ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("初球の固定byte長が不一致")
             if expected_type is int and not 0 < value < 2**63:
