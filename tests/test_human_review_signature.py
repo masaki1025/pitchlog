@@ -1371,8 +1371,10 @@ def _t1_append_later_event(
     """後続PRのbaseに今回記録が既存という合成Git境界を作る。"""
     # 導入前baseの同じcommitへ導入後blobを上書きする合成衝突を避ける。
     # 後続baseは新recordが存在する元headのsnapshotとして扱う。
+    policy = _load_object(root / guard.DELEGATION_POLICY_PATH)
+    later_number = max(target['pr'] for target in policy['targets']) + 1
     later = guard.PullRequestEvent(**{**vars(event), 'base_sha': event.head_sha,
-                                    'number': 186, 'head_branch': 'fix/later'})
+                                    'number': later_number, 'head_branch': 'fix/later'})
     paths = [
         str(checker.GATE6_T1_APPEND_PATH),
         str(checker.GATE6_T1_APPEND_SCHEMA_PATH),
@@ -1528,7 +1530,7 @@ def test_t1_append_later_policy_target_append_keeps_record_frozen(
     record_before = (root / checker.GATE6_T1_APPEND_PATH).read_bytes()
     policy_path = root / 'docs/features/mvp-delegated-core-review/policy.json'
     policy = _load_object(policy_path)
-    policy['targets'].append({'pr': 186, 'branch': 'fix/later'})
+    policy['targets'].append({'pr': later.number, 'branch': later.head_branch})
     _write_t1_append_json(policy_path, policy)
     assert 'no new PR185 acceptance' in checker.validate_gate6_ci_event(root, later)
     assert (root / checker.GATE6_T1_APPEND_PATH).read_bytes() == record_before
