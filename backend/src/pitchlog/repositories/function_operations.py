@@ -159,6 +159,19 @@ _INITIAL_START_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+# 旧9/開始2とは別の登録境界。tenantはscopeだけが渡す。
+_INITIAL_ENROLL_FUNCTION_TYPES = MappingProxyType(
+    {
+        "initial_right_api.enroll_device": (
+            (("device_id", UUID), ("credential_digest", bytes)),
+            (("device_id", UUID),),
+            (),
+            (),
+        ),
+    }
+)
+
+
 def _valid_db_identifier(name: object) -> bool:
     """再構築したSQLでも同じDB識別子になる名前だけを許す。"""
     return (
@@ -238,6 +251,8 @@ class FunctionOperationRegistration:
         initial = _INITIAL_FUNCTION_TYPES.get(self.function_id)
         if initial is None:
             initial = _INITIAL_START_FUNCTION_TYPES.get(self.function_id)
+        if initial is None:
+            initial = _INITIAL_ENROLL_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
             self.result_fields,
@@ -443,9 +458,11 @@ def prepare_function_operation(
         if (
             spec.function_id in _INITIAL_FUNCTION_TYPES
             or spec.function_id in _INITIAL_START_FUNCTION_TYPES
+            or spec.function_id in _INITIAL_ENROLL_FUNCTION_TYPES
         ):
             byte_lengths = {
                 "request_digest": 32,
+                "credential_digest": 32,
                 "proof_digest": 32,
                 "nonce": 12,
                 "ciphertext": 48,

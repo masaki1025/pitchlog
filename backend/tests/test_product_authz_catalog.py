@@ -1551,3 +1551,25 @@ def test_b1_runtime_metadata_unknown_verifier_is_rejected(surface, monkeypatch) 
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     with pytest.raises(ProductCatalogError):
         product_catalog._load_product_expectations()
+
+
+def test_b2_enrollment_positive_expected_set_uses_closed_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正規合成assetだけを実runtime期待生成へ通す。"""
+    from test_authz_product_control_access import _b2_enrollment_asset
+
+    from pitchlog.authz.product_function_acl import generate_enrollment_function_sql
+
+    asset = _b2_enrollment_asset()
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    expectations = product_catalog._load_product_expectations()
+    assert expectations
+    sql_text = generate_enrollment_function_sql()
+    assert (
+        "INSERT INTO public.trusted_devices(tenant_id,device_id,credential_digest)"
+        in sql_text
+    )
+    assert "RETURN p_device_id" in sql_text
+    assert "ON CONFLICT" not in sql_text and "UPDATE public." not in sql_text
+    assert "DELETE" not in sql_text

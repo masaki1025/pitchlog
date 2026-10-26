@@ -1414,3 +1414,50 @@ def test_lifecycle_function_header_only_is_normalized(
         original[original.index(delimiter) :].encode()
         == normalized[normalized.index(delimiter) :].encode()
     )
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)",
+        "POLICY:trusted_devices:initial_right_trusted_devices_insert",
+    ],
+)
+@pytest.mark.parametrize("mutation", ["valid", "missing", "duplicate", "wrong-kind"])
+def test_b2_pre_rule_defers_exact_enrollment_pair(
+    target: str,
+    mutation: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0036依存の関数/policyを前段で保留し、片側や型不一致を拒否する。"""
+    from dataclasses import replace
+
+    generated = product_provisioning.generate_authz_ddl(
+        product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
+    )
+    selected = next(row for row in generated if row.element_id == target)
+    changed = tuple(row for row in generated if row.element_id != target)
+    if mutation == "valid":
+        changed += (selected,)
+    elif mutation == "duplicate":
+        changed += (selected, selected)
+    elif mutation == "wrong-kind":
+        changed += (replace(selected, element_type="unknown"),)
+    monkeypatch.setattr(product_provisioning, "generate_authz_ddl", lambda *_: changed)
+    if mutation == "valid":
+        _, statements = product_provisioning._build_operation_statements(
+            ProductOperation.APPLY_PRE_RULE
+        )
+        text = "\n".join(row.sql for row in statements)
+        assert selected.sql not in text
+        assert "CREATE POLICY initial_right_trusted_devices_insert" not in text
+        assert "CREATE OR REPLACE FUNCTION initial_right_api.enroll_device" not in text
+        _, applied = product_provisioning._build_operation_statements(
+            ProductOperation.APPLY
+        )
+        assert any(selected.sql in row.sql for row in applied)
+    else:
+        with pytest.raises(ProductProvisioningError):
+            product_provisioning._build_operation_statements(
+                ProductOperation.APPLY_PRE_RULE
+            )

@@ -6,6 +6,7 @@ import base64
 import hmac
 import json
 import os
+import secrets
 import socket
 import stat
 import struct
@@ -15,7 +16,7 @@ from importlib import import_module
 from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import SecretStr
 from sqlalchemy import create_engine, event
@@ -1313,3 +1314,50 @@ def _verify_initial_cookie(
     except Exception:
         pass
     raise _broker_invalid()
+
+
+class _InitialEnrollmentOutcomeUnknown(InitialGrantUnavailable):
+    """commit以降の結果不明。成功補完・再試行・資格再生をしない。"""
+
+
+def _enroll_initial_device(
+    context: TenantContext,
+    actor_runtime: _InitialActorRuntime,
+) -> InitialDeviceEnrollmentResponse:
+    """実contextとactorだけから一回生成し、実commit後だけ資格を返す。"""
+    from pitchlog.repositories.initial_recording_right import _EnrollDeviceToken
+    from pitchlog.repositories.rg1 import assert_rg1_open_before_commit, read_rg1_open
+    from pitchlog.repositories.transaction import (
+        _EnrollmentBinding,
+        _initial_enrollment_transaction_scope,
+    )
+
+    if type(context) is not TenantContext or not context._has_valid_integrity_proof():
+        raise InitialGrantUnavailable("端末登録の文脈が不正")
+    _initial_actor_engine(actor_runtime)
+    device_id = uuid4()
+    credential = secrets.token_urlsafe(32)
+    digest = _credential_digest(credential)
+    binding = _EnrollmentBinding(context, actor_runtime, device_id, digest)
+    failed = False
+    try:
+        with _initial_enrollment_transaction_scope(binding) as transaction:
+            _verify_business_binding(transaction, actor_runtime)
+            read_rg1_open(transaction)
+            result = transaction.run_function(_EnrollDeviceToken(device_id, digest))
+            if result.rows != ((device_id,),):
+                raise InitialGrantUnavailable("端末登録の戻り値が不一致")
+            assert_rg1_open_before_commit(transaction)
+    except Exception:
+        failed = True
+    if failed:
+        if binding.commit_attempted:
+            raise _InitialEnrollmentOutcomeUnknown("端末登録の確定結果が不明") from None
+        raise InitialGrantUnavailable("端末登録は確定せず終了") from None
+    if not binding.commit_completed:
+        raise _InitialEnrollmentOutcomeUnknown("端末登録の確定結果が不明") from None
+    return InitialDeviceEnrollmentResponse(
+        tenant_id=context.tenant_id,
+        device_id=device_id,
+        device_credential=SecretStr(credential),
+    )

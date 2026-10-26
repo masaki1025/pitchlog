@@ -17,6 +17,7 @@ from pitchlog.recording_rights.initial_grant import (
 )
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.function_operations import (
+    _INITIAL_ENROLL_FUNCTION_TYPES,
     _INITIAL_FUNCTION_TYPES,
     _INITIAL_START_FUNCTION_TYPES,
     FunctionOperationRegistration,
@@ -325,8 +326,53 @@ def _initial_registrations() -> tuple[FunctionOperationRegistration, ...]:
 _ALL_INITIAL_REGISTRATIONS = _initial_registrations()
 INITIAL_FUNCTION_OPERATIONS = _ALL_INITIAL_REGISTRATIONS[:-2]
 _INITIAL_START_FUNCTION_OPERATIONS = _ALL_INITIAL_REGISTRATIONS[-2:]
+
+
+@dataclass(frozen=True, slots=True)
+class _EnrollDeviceToken(TenantOperationToken):
+    """短命enroll scopeだけで使う固定INSERT引数。"""
+
+    device_id: UUID
+    credential_digest: bytes = field(repr=False)
+
+    @property
+    def capability_id(self) -> str:
+        """端末登録一件だけの能力を返す。"""
+        return "CAP:initial_right:enroll_device"
+
+
+def _enrollment_registrations() -> tuple[FunctionOperationRegistration, ...]:
+    """旧9/開始2の反復を変えず新1登録だけを構築する。"""
+    contract = _INITIAL_ENROLL_FUNCTION_TYPES["initial_right_api.enroll_device"]
+    inputs, outputs, nullable, aware = contract
+    return (
+        FunctionOperationRegistration(
+            operation_id="INITIAL_RIGHT:enroll_device",
+            token_type=_EnrollDeviceToken,
+            capability_id="CAP:initial_right:enroll_device",
+            function_id="initial_right_api.enroll_device",
+            statement=_build_fixed_function_statement(
+                "initial_right_api", "enroll_device", inputs, ("device_id",), False
+            ),
+            input_fields=inputs,
+            result_fields=outputs,
+            min_rows=1,
+            max_rows=1,
+            decoder=_decode_initial_result,
+            nullable_results=nullable,
+            aware_datetime_results=aware,
+        ),
+    )
+
+
+_INITIAL_ENROLL_FUNCTION_OPERATIONS = _enrollment_registrations()
 _INITIAL_FUNCTION_REGISTRY = build_function_registry(
-    (*INITIAL_FUNCTION_OPERATIONS, *_INITIAL_START_FUNCTION_OPERATIONS), frozenset()
+    (
+        *INITIAL_FUNCTION_OPERATIONS,
+        *_INITIAL_START_FUNCTION_OPERATIONS,
+        *_INITIAL_ENROLL_FUNCTION_OPERATIONS,
+    ),
+    frozenset(),
 )
 _INITIAL_INTENT_TOKENS = frozenset({_LockDeviceToken, _BeginStartAttemptToken})
 _INITIAL_BUSINESS_TOKENS = frozenset(

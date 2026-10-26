@@ -2563,6 +2563,8 @@ def generate_initial_function_sql(function_id: str) -> str:
         start_function_declarations,
     )
 
+    if function_id == ENROLL_FUNCTION_ID:
+        return generate_enrollment_function_sql()
     if function_id in start_function_declarations():
         return generate_start_function_sql(function_id)
     if function_id in _INITIAL_API_SQL:
@@ -2632,3 +2634,58 @@ def generate_generation_guard_sql(root: Path) -> str:
         "erations_updates() "
         "FROM PUBLIC, pitchlog_app;\n"
     )
+
+
+ENROLL_FUNCTION_ID = "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)"
+
+
+def build_enrollment_function_declarations() -> dict[str, dict[str, object]]:
+    """新1ABIだけを既初期ownerへ閉じ、旧9宣言を変えない。"""
+    from copy import deepcopy
+
+    row = deepcopy(
+        _INITIAL_FUNCTIONS["FUNCTION:initial_right_api:lock_device(uuid, uuid)"]
+    )
+    row.update(
+        function_id=ENROLL_FUNCTION_ID,
+        function_name="enroll_device",
+        identity_args="uuid, uuid, bytea",
+        returns="uuid",
+    )
+    return {ENROLL_FUNCTION_ID: row}
+
+
+def generate_enrollment_function_sql() -> str:
+    """owner列INSERT3だけを使う固定関数。tenantと実session主体を再照合する。"""
+    return f"""-- ELEMENT-TYPE: function
+-- ELEMENT-ID: {ENROLL_FUNCTION_ID}
+
+CREATE OR REPLACE FUNCTION initial_right_api.enroll_device(
+    p_tenant_id uuid, p_device_id uuid, p_credential_digest bytea)
+RETURNS uuid
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path TO pg_catalog, pg_temp
+AS $body$
+BEGIN
+    IF session_user <> 'pitchlog_initial_actor'
+       OR current_user <> 'pitchlog_initial_fn_owner'
+       OR p_tenant_id IS NULL OR p_device_id IS NULL
+       OR NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')
+          IS DISTINCT FROM p_tenant_id::text
+       OR p_credential_digest IS NULL
+       OR pg_catalog.octet_length(p_credential_digest) <> 32 THEN
+        RAISE EXCEPTION 'initial enrollment subject or input rejected'
+            USING ERRCODE='42501';
+    END IF;
+    INSERT INTO public.trusted_devices(tenant_id,device_id,credential_digest)
+    VALUES (p_tenant_id,p_device_id,p_credential_digest);
+    RETURN p_device_id;
+END
+$body$;
+ALTER FUNCTION initial_right_api.enroll_device(uuid, uuid, bytea)
+    OWNER TO pitchlog_initial_fn_owner;
+REVOKE EXECUTE ON FUNCTION initial_right_api.enroll_device(uuid, uuid, bytea)
+    FROM PUBLIC, pitchlog_app, pitchlog_initial_auth_verifier;
+GRANT EXECUTE ON FUNCTION initial_right_api.enroll_device(uuid, uuid, bytea)
+    TO pitchlog_initial_actor;
+"""

@@ -6219,3 +6219,29 @@ def test_b1_verifier_role_database_acl_is_fixed_not_any_fourteenth_role() -> Non
     asset["databases"][0]["acl_expectations"].append(extra)
     with pytest.raises(checker.CatalogError):
         checker._validate_product_database_expectations(asset["databases"], lifecycle_required=True)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["valid", "missing", "duplicate", "unknown", "execute", "extra"]
+)
+def test_b2_enrollment_sourcechecker_exact_function(mutation: str) -> None:
+    """新関数の全field/bodyを既checkerで照合し、未知を受けない。"""
+    function_id = "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)"
+
+    asset = json.loads((REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text())
+    row = next(row for row in asset["functions"] if row["function_id"] == function_id)
+    if mutation == "missing":
+        asset["functions"].remove(row)
+    elif mutation == "duplicate":
+        asset["functions"].append(copy.deepcopy(row))
+    elif mutation == "unknown":
+        row["function_name"] = "unknown"
+    elif mutation == "execute":
+        row["acl_expectations"].append(dict(grantee="PUBLIC", privilege="EXECUTE", grantable=False))
+    elif mutation == "extra":
+        row["unknown_field"] = True
+    if mutation == "valid":
+        checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+    else:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)

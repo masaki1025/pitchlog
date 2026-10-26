@@ -340,7 +340,7 @@ def generate_function_owner_column_acl_sql(
 
     if is_start_column_acl(declaration):
         return generate_start_column_acl_sql(declaration)
-    if is_initial_column_acl(declaration):
+    if is_initial_column_acl(declaration) or is_enrollment_column_acl(declaration):
         return generate_initial_column_acl_sql(declaration)
     if declaration.get("grantee_role_id") in {
         "pitchlog_initial_fn_owner",
@@ -1495,7 +1495,9 @@ def generate_initial_policy_sql(policy_id: str) -> str:
 
 def generate_initial_column_acl_sql(declaration: Mapping[str, object]) -> str:
     """appの表権限を剥奪し、新2列を除くexact列だけを付与する。"""
-    if not is_initial_column_acl(declaration):
+    if not (
+        is_initial_column_acl(declaration) or is_enrollment_column_acl(declaration)
+    ):
         raise ValueError("初期列ACLが閉集合にない")
     table = str(declaration["object_id"])
     column = str(declaration["column_id"])
@@ -1514,4 +1516,99 @@ def generate_initial_column_acl_sql(declaration: Mapping[str, object]) -> str:
         f"-- ELEMENT-ID: {declaration['expectation_id']}\n\n"
         + reset
         + f"GRANT {grants} ON TABLE public.{table} TO {role};\n"
+    )
+
+
+ENROLL_POLICY_ID = "POLICY:trusted_devices:initial_right_trusted_devices_insert"
+
+
+def build_enrollment_column_acl_declarations() -> dict[str, dict[str, object]]:
+    """既3IDの権限を保持し、INSERTだけを追加したoverlayを返す。"""
+    from copy import deepcopy
+
+    result = {}
+    for column in ("tenant_id", "device_id", "credential_digest"):
+        key = f"COLUMN-ACL:public:trusted_devices:{column}:pitchlog_initial_fn_owner"
+        row = deepcopy(_INITIAL_COLUMN_ACLS[key])
+        privileges = row["privilege_ids"]
+        assert isinstance(privileges, list)
+        privileges.append("INSERT")
+        result[key] = row
+    return result
+
+
+def build_enrollment_policy_declarations() -> dict[str, dict[str, object]]:
+    """既単一TENANT展開器によるINSERT WITH CHECK一件を返す。"""
+    from copy import deepcopy
+
+    from pitchlog.authz.product_table_access import build_product_policy_declaration
+
+    row = deepcopy(
+        _INITIAL_POLICIES[
+            "POLICY:game_start_requests:initial_right_game_start_requests_insert"
+        ]
+    )
+    row.update(
+        policy_id=ENROLL_POLICY_ID,
+        policy_name="initial_right_trusted_devices_insert",
+        table_id="trusted_devices",
+    )
+    tenant = build_product_policy_declaration("trusted_devices", "tenant_owned")
+    row["with_check_expression"] = tenant["with_check_expression"]
+    return {ENROLL_POLICY_ID: row}
+
+
+def enrollment_assets_present(asset: Mapping[str, object]) -> bool:
+    """部分追加も新集合へ分類し、旧期待に紛れる欠落を拒否させる。"""
+    from pitchlog.authz.product_function_acl import ENROLL_FUNCTION_ID
+
+    for section, key, target in (
+        ("functions", "function_id", ENROLL_FUNCTION_ID),
+        ("policies", "policy_id", ENROLL_POLICY_ID),
+    ):
+        rows = asset.get(section)
+        if isinstance(rows, list) and any(
+            isinstance(row, dict) and row.get(key) == target for row in rows
+        ):
+            return True
+    columns = asset.get("column_acl_expectations")
+    ids = build_enrollment_column_acl_declarations()
+    return isinstance(columns, list) and any(
+        isinstance(row, dict)
+        and row.get("expectation_id") in ids
+        and isinstance(row.get("privilege_ids"), list)
+        and "INSERT" in row["privilege_ids"]
+        for row in columns
+    )
+
+
+def is_enrollment_column_acl(declaration: Mapping[str, object]) -> bool:
+    """overlay3を全fieldで検査し、未知の権限追加を認めない。"""
+    key = declaration.get("expectation_id")
+    return isinstance(key, str) and dict(
+        declaration
+    ) == build_enrollment_column_acl_declarations().get(key)
+
+
+def enrollment_policy_expressions(
+    declaration: Mapping[str, object],
+) -> tuple[str | None, str | None]:
+    """新policyを全fieldで閉宣言に照合する。"""
+    expected = build_enrollment_policy_declarations()[ENROLL_POLICY_ID]
+    if dict(declaration) != expected:
+        raise ValueError("端末登録policyの全fieldが不一致")
+    value = expected["with_check_expression"]
+    if not isinstance(value, str):
+        raise ValueError("端末登録policy実式が不正")
+    return None, value
+
+
+def generate_enrollment_policy_sql() -> str:
+    """Tenant CHECKを省略しない固定owner INSERT policyを生成する。"""
+    row = build_enrollment_policy_declarations()[ENROLL_POLICY_ID]
+    return (
+        f"-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: {ENROLL_POLICY_ID}\n\n"
+        "CREATE POLICY initial_right_trusted_devices_insert ON public.trusted_devices\n"
+        "AS PERMISSIVE FOR INSERT TO pitchlog_initial_fn_owner\n"
+        f"WITH CHECK ({row['with_check_expression']});\n"
     )

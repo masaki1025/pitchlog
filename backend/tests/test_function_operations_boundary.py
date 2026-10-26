@@ -1673,3 +1673,146 @@ def test_actor_without_start_scope_rejects_new_functions(
             )
         )
     handle._expire()
+
+
+@pytest.mark.parametrize("phase", [None, "intent", "business", "enroll"])
+@pytest.mark.parametrize(
+    "change",
+    ["valid", "device", "digest", "runtime", "context", "used", "expired", "no_loan"],
+)
+def test_b2_enrollment_token_is_bound_to_one_real_scope(
+    phase: str | None,
+    change: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧phase/app/別資格/失効はSQL前拒否し、enroll一致一回だけ通す。"""
+    from pitchlog.repositories.initial_recording_right import _EnrollDeviceToken
+
+    context = make_tenant_context(_TENANT_ID)
+    actor = object()
+    key = object()
+    executed = []
+
+    class SessionProbe:
+        """業務SQL到達回数だけを観測する。"""
+
+        def execute(self, statement, parameters):
+            executed.append((statement, parameters))
+            return [(_TENANT_ID,)]
+
+    monkeypatch.setitem(
+        transaction._TRANSACTION_RUNTIMES, key, (SessionProbe(), object())
+    )
+    if phase is not None:
+        monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (actor, phase))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+
+    class LoanProbe:
+        """純検査では借用の実再照合呼出しを観測する。"""
+
+        def assert_held(self):
+            pass
+
+    if change != "no_loan":
+        monkeypatch.setitem(transaction._RG1_LOANS, key, LoanProbe())
+    binding = transaction._EnrollmentBinding(context, actor, _TENANT_ID, b"d" * 32)
+    binding.consumed = True
+    if change == "device":
+        binding.device_id = UUID(int=9)
+    elif change == "digest":
+        binding.credential_digest = b"x" * 32
+    elif change == "runtime":
+        binding.runtime = object()
+    elif change == "context":
+        binding.context = make_tenant_context(_TENANT_ID)
+    elif change == "used":
+        binding.operation_used = True
+    if change != "expired":
+        monkeypatch.setitem(transaction._ENROLL_BINDINGS, key, binding)
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    token = _EnrollDeviceToken(_TENANT_ID, b"d" * 32)
+    if phase == "enroll" and change == "valid":
+        assert handle.run_function(token).rows == ((_TENANT_ID,),)
+        with pytest.raises(TenantBindingError):
+            handle.run_function(token)
+        assert len(executed) == 1
+    else:
+        with pytest.raises(TenantBindingError):
+            handle.run_function(token)
+        assert executed == []
+    handle._expire()
+    with pytest.raises(RuntimeError):
+        handle.run_function(token)
+
+
+@pytest.mark.parametrize("digest", [b"", b"x" * 31, b"x" * 33, bytearray(32), "x" * 32])
+def test_b2_enrollment_fixed_abi_rejects_invalid_digest(digest: object) -> None:
+    """32bytes以外を汎用byteaへ広げない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _EnrollDeviceToken,
+    )
+
+    with pytest.raises(FunctionOperationError):
+        prepare_function_operation(
+            _EnrollDeviceToken(_TENANT_ID, typing_cast(Any, digest)),
+            _TENANT_ID,
+            _INITIAL_FUNCTION_REGISTRY,
+        )
+
+
+def test_b2_legacy9_start2_and_new1_are_separate() -> None:
+    """旧tupleを保持し、新登録を別tuple一件として供給する。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        _INITIAL_START_FUNCTION_OPERATIONS,
+        INITIAL_FUNCTION_OPERATIONS,
+    )
+
+    assert len(INITIAL_FUNCTION_OPERATIONS) == 9
+    assert len(_INITIAL_START_FUNCTION_OPERATIONS) == 2
+    assert len(_INITIAL_ENROLL_FUNCTION_OPERATIONS) == 1
+    spec = _INITIAL_ENROLL_FUNCTION_OPERATIONS[0]
+    assert spec.function_id == "initial_right_api.enroll_device"
+    assert spec.capability_id == "CAP:initial_right:enroll_device"
+    assert tuple(k for k, _ in spec.input_fields) == ("device_id", "credential_digest")
+    assert spec.min_rows == spec.max_rows == 1
+    for rows in [
+        (),
+        (("bad",),),
+        ((_TENANT_ID,), (_TENANT_ID,)),
+        ((None,),),
+        ((_TENANT_ID, True),),
+    ]:
+        with pytest.raises(FunctionOperationError):
+            decode_function_result(spec, TenantOperationResult(rows))
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["consumed", "commit_attempted", "commit_completed", "bad_digest", "bad_device"],
+)
+def test_b2_enrollment_scope_cannot_reuse_or_coerce_binding(change: str) -> None:
+    """短命登録の再使用と不定長/別型はengine生成前に拒否する。"""
+    binding = transaction._EnrollmentBinding(
+        make_tenant_context(_TENANT_ID), object(), _TENANT_ID, b"d" * 32
+    )
+    if change in {"consumed", "commit_attempted", "commit_completed"}:
+        setattr(binding, change, True)
+    elif change == "bad_digest":
+        binding.credential_digest = b"x"
+    else:
+        binding.device_id = typing_cast(Any, str(_TENANT_ID))
+    with (
+        pytest.raises(TenantBindingError),
+        transaction._initial_enrollment_transaction_scope(binding),
+    ):
+        raise AssertionError("invalid binding opened")

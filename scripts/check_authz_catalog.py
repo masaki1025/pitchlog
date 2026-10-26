@@ -40,31 +40,37 @@ from pitchlog.authz.initial_start_sql import (  # noqa: E402  # ty: ignore[unres
 from pitchlog.authz.product_authn_contract import (  # noqa: E402  # ty: ignore[unresolved-import]
     validate_authn_asset,
 )
-from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]  # noqa: E402
+from pitchlog.authz.product_control_access import (  # noqa: E402  # ty: ignore[unresolved-import]
     CONTROL_PROFILE,
     HELPER_FUNCTION_ID,
     HELPER_NAME,
     HELPER_OWNER_ROLE_ID,
     HELPER_SCHEMA,
     build_control_policy_declaration,
+    build_enrollment_column_acl_declarations,
+    build_enrollment_policy_declarations,
     build_helper_column_acl_declaration,
     build_initial_column_acl_declarations,
     build_initial_policy_declarations,
     build_membership_helper_declaration,
+    enrollment_assets_present,
     generate_control_policy_sql,
+    generate_enrollment_policy_sql,
     generate_function_owner_column_acl_sql,
     generate_helper_column_acl_sql,
     generate_initial_policy_sql,
     generate_membership_helper_sql,
+    is_enrollment_column_acl,
     is_forbidden_rg1_table_acl,
     is_initial_column_acl,
     is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
     is_rule_resolution_update_acl,
 )
-from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]  # noqa: E402
+from pitchlog.authz.product_function_acl import (  # noqa: E402  # ty: ignore[unresolved-import]
     BUILTIN_EXECUTE_GRANTEES,
     build_builtin_execute_declaration,
+    build_enrollment_function_declarations,
     build_initial_function_declarations,
     build_lifecycle_function_declarations,
     build_product_function_acl_declaration,
@@ -4082,6 +4088,8 @@ def _validate_product_access_bodies(
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
         if policy_id in start_policy_declarations():
             expected_body = generate_start_policy_sql(policy_id)
+        elif policy_id in build_enrollment_policy_declarations():
+            expected_body = generate_enrollment_policy_sql()
         elif policy_id in build_initial_policy_declarations():
             expected_body = generate_initial_policy_sql(policy_id)
         elif policy_id in owner_policy_ids:
@@ -4190,6 +4198,8 @@ def _validate_product_table_access_expectations(
         expected_policies.update(_rg1_singleton_policies())
     if _initial_profile_present(raw):
         expected_policies.update(build_initial_policy_declarations())
+    if enrollment_assets_present(raw):
+        expected_policies.update(build_enrollment_policy_declarations())
     if start_assets_present(raw):
         try:
             validate_start_asset_sets(raw)
@@ -4371,7 +4381,8 @@ def _validate_product_membership_helper(
         "製品DDL manifest.column_acl_expectations",
     )
     for expectation_id, declaration in column_acls.items():
-        if is_start_column_acl(declaration) or is_initial_column_acl(declaration):
+        if (is_start_column_acl(declaration) or is_initial_column_acl(declaration)
+            or is_enrollment_column_acl(declaration)):
             continue
         if declaration.get("grantee_role_id") in {
             "pitchlog_initial_actor", "pitchlog_initial_fn_owner"
@@ -4430,6 +4441,8 @@ def _validate_product_membership_helper(
             raise CatalogError("RG1制御ownerの列ACL全3宣言がexact-set不一致")
     if _initial_profile_present(raw):
         expected_initial_columns = build_initial_column_acl_declarations()
+        if enrollment_assets_present(raw):
+            expected_initial_columns.update(build_enrollment_column_acl_declarations())
         if start_assets_present(raw):
             expected_initial_columns.update(start_column_acl_declarations())
         actual_initial_columns = {k:v for k,v in column_acls.items()
@@ -8213,6 +8226,8 @@ def _validate_initial_start_function_assets(raw: dict[str, object], root: Path) 
     if not _initial_profile_present(raw):
         return
     expected = build_initial_function_declarations()
+    if enrollment_assets_present(raw):
+        expected.update(build_enrollment_function_declarations())
     if start_assets_present(raw):
         try:
             validate_start_asset_sets(raw)

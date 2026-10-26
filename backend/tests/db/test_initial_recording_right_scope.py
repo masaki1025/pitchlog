@@ -386,7 +386,10 @@ print(json.dumps({{'signature_rejected':True,
         assert report.ok, [v.check_id for v in report.violations]
         admin.rollback()
     changes = [
-        "CREATE FUNCTION authn.b1_unknown() RETURNS integer LANGUAGE sql AS 'SELECT 1'",
+        (
+            "CREATE FUNCTION authn.b1_unknown() RETURNS integer LANGUAG"
+            "E sql AS 'SELECT 1'"
+        ),
         (
             "CREATE SCHEMA b1_unknown; CREATE FUNCTION b1_unknown.f()"
             " RETURNS integer LANGUAGE sql AS 'SELECT 1'; GRANT EXECU"
@@ -470,6 +473,474 @@ print(json.dumps({{'signature_rejected':True,
                 "global_normal_after_rollback": final_report.ok,
                 "no_enrollment_or_worker": True,
             },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+def test_b2_real_cookie_enrollment_rg1_rollback_and_unknown(
+    initial_scope_database: InitialGrantDatabase,
+    tmp_path,
+) -> None:
+    """実Cookieから新資格を登録し、停止/取消/不明を別観測する。HTTP0。"""
+    import json
+    from uuid import uuid4
+
+    from psycopg import sql
+
+    from .durable_rights_ledger_support import docker
+
+    db = initial_scope_database
+    token, subject = uuid4(), uuid4()
+    before_storage = db.storage()
+    before_ledger = db.ledger_snapshot()
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(
+            (
+                "INSERT INTO public.system_settings(key,value) VALUES ('aut"
+                "h.token_ttl_seconds','3600') ON CONFLICT(key) DO UPDATE SE"
+                "T value=EXCLUDED.value"
+            )
+        )
+        admin.execute(
+            "INSERT INTO public.tenant_auth_subjects(tenant_id,id) VALUES (%s,%s)",
+            (db.tenant_id, subject),
+        )
+        admin.execute(
+            (
+                "INSERT INTO public.tenant_credentials(auth_subject_id,pass"
+                "word_hash,generation) VALUES (%s,'public-unused-login-vect"
+                "or',1)"
+            ),
+            (subject,),
+        )
+        admin.execute(
+            (
+                "INSERT INTO public.tenant_tokens(tenant_id,id,auth_subject_id,"
+                "credential_generation,expires_at,last_used_at) VALUES "
+                "(%s,%s,%s,1,clock_timestamp()+interval '1 hour',clock_timestamp())"
+            ),
+            (db.tenant_id, token, subject),
+        )
+        count_row = admin.execute(
+            "SELECT count(*) FROM public.trusted_devices"
+        ).fetchone()
+        assert count_row is not None
+        before_count = count_row[0]
+
+    common = f"""
+import pitchlog.recording_rights.initial_grant_broker as broker
+from pitchlog.repositories.initial_recording_right import (
+    _credential_digest,_LockDeviceToken,_EnrollDeviceToken)
+from pitchlog.repositories.transaction import (
+    _initial_actor_transaction_scope,_ENROLL_BINDINGS)
+verified=_issue_initial_broker_context(SecretStr(signer.encode(UUID('{token}'))),UUID('{db.tenant_id}'),verifier)
+assert verified is not None
+context=verified[0]
+"""
+    successful = db.verifier(
+        common
+        + """
+response=broker._enroll_initial_device(context,runtime)
+assert response.tenant_id==context.tenant_id
+assert response.device_id!=owner.device_id
+assert len(response.device_credential.get_secret_value())==43
+assert response.device_credential.get_secret_value() not in repr(response)
+with _initial_actor_transaction_scope(context,runtime,'business') as tx:
+    rows=tx.run_function(_LockDeviceToken(response.device_id)).rows
+assert rows==((_credential_digest(response.device_credential.get_secret_value()),None),)
+try:tx.run_function(_EnrollDeviceToken(response.device_id,rows[0][0]))
+except RuntimeError:pass
+else:raise AssertionError('expired capability reused')
+with _initial_actor_transaction_scope(context,runtime,'business') as other:
+    try:other.run_function(_EnrollDeviceToken(response.device_id,rows[0][0]))
+    except Exception:pass
+    else:raise AssertionError('business phase enrolled')
+assert not _ENROLL_BINDINGS
+print(json.dumps({'registered':True,'device_id':str(response.device_id),'digest_matches':True}))
+"""
+    )
+    assert successful["registered"] and successful["digest_matches"]
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        assert admin.execute(
+            "SELECT count(*) FROM public.trusted_devices"
+        ).fetchone() == (before_count + 1,)
+        assert admin.execute(
+            (
+                "SELECT revoked_at IS NULL,octet_length(credential_digest)="
+                "32 FROM public.trusted_devices WHERE tenant_id=%s AND devi"
+                "ce_id=%s"
+            ),
+            (db.tenant_id, successful["device_id"]),
+        ).fetchone() == (True, True)
+        assert admin.execute(
+            (
+                "SELECT has_function_privilege('pitchlog_app','initial_righ"
+                "t_api.enroll_device(uuid,uuid,bytea)','EXECUTE'),has_funct"
+                "ion_privilege('pitchlog_initial_auth_verifier','initial_ri"
+                "ght_api.enroll_device(uuid,uuid,bytea)','EXECUTE')"
+            )
+        ).fetchone() == (False, False)
+        assert admin.execute(
+            (
+                "SELECT count(*) FROM pg_proc p, LATERAL aclexplode(p.proac"
+                "l) a WHERE p.oid='initial_right_api.enroll_device(uuid,uui"
+                "d,bytea)'::regprocedure AND a.grantee=0 AND a.privilege_ty"
+                "pe='EXECUTE'"
+            )
+        ).fetchone() == (0,)
+
+    # 実app peerと専用verifierから、新関数EXECUTEを実際に拒否する。
+    app_args = db.authority.command(uid=20003)
+    app_args[1:1] = [
+        "--volume",
+        f"{db.authority.database.business_socket}:/business-socket:ro",
+    ]
+    app_code = """
+import json,psycopg
+with psycopg.connect(host='/business-socket',dbname='ledger_fixture',
+    user='pitchlog_app',passfile='/dev/null',autocommit=True) as c:
+    try:c.execute('SELECT initial_right_api.enroll_device('
+                  'NULL::uuid,NULL::uuid,NULL::bytea)')
+    except psycopg.errors.InsufficientPrivilege:print(json.dumps({'denied':True}))
+    else:raise AssertionError('app enrolled')
+"""
+    assert json.loads(docker(*app_args, "-c", app_code)) == {"denied": True}
+    denied = db.verifier(
+        common
+        + """
+engine=broker._auth_verifier_state(verifier).engine
+try:
+    with engine.begin() as conn:
+        conn.exec_driver_sql('SELECT initial_right_api.enroll_device('
+                             'NULL::uuid,NULL::uuid,NULL::bytea)')
+except Exception:pass
+else:raise AssertionError('verifier enrolled')
+assert _issue_initial_broker_context(
+    SecretStr('invalid-cookie'),context.tenant_id,verifier) is None
+assert _issue_initial_broker_context(SecretStr(signer.encode(UUID('"""
+        + str(token)
+        + """'))),UUID('"""
+        + str(db.other_tenant_id)
+        + """'),verifier) is None
+print(json.dumps({'denied':True,'invalid_cookie':True,'other_tenant':True}))
+"""
+    )
+    assert denied == dict(denied=True, invalid_cookie=True, other_tenant=True)
+    assert db.acl_probe("actor")["states"] == ["42501"] * 17
+
+    # 閉鎖済みgateの事前拒否。試験用admin閉鎖/復元で、fresh再証明とは扱わない。
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute("UPDATE public.rg1_restore_gate SET state='closed'")
+    closed = db.verifier(
+        common
+        + """
+try:broker._enroll_initial_device(context,runtime)
+except broker._InitialEnrollmentOutcomeUnknown:
+    raise AssertionError('preclosed became unknown')
+except InitialGrantUnavailable:pass
+else:raise AssertionError('closed gate enrolled')
+assert not _ENROLL_BINDINGS
+print(json.dumps({'preclosed_rejected':True}))
+"""
+    )
+    assert closed == dict(preclosed_rejected=True)
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute("UPDATE public.rg1_restore_gate SET state='open'")
+
+    # INSERT後のgate閉鎖/SQL故障は、同business TX内の実triggerで到達させる。
+    fault_results = {}
+    for stage in ["insert", "after_loan_closed"]:
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute("CREATE SEQUENCE public.b2_fixture_reached")
+            behavior = (
+                "RAISE EXCEPTION 'PUBLIC_FIXTURE_INSERT_FAILURE';"
+                if stage == "insert"
+                else "UPDATE public.rg1_restore_gate SET state='closed'; RETURN NEW;"
+            )
+            admin.execute(
+                sql.SQL(
+                    (
+                        "CREATE FUNCTION public.b2_fixture_fault() RETURNS trigger "
+                        "LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catal"
+                        "og,pg_temp AS $$ BEGIN PERFORM pg_catalog.nextval('public."
+                        "b2_fixture_reached'); "
+                    )
+                    + behavior
+                    + " END $$"
+                )
+            )
+            admin.execute(
+                "REVOKE ALL ON FUNCTION public.b2_fixture_fault() FROM PUBLIC"
+            )
+            admin.execute(
+                (
+                    "CREATE TRIGGER b2_fixture_fault AFTER INSERT ON public.tru"
+                    "sted_devices FOR EACH ROW EXECUTE FUNCTION public.b2_fixtu"
+                    "re_fault()"
+                )
+            )
+        fault_results[stage] = db.verifier(
+            common
+            + """
+try:broker._enroll_initial_device(context,runtime)
+except broker._InitialEnrollmentOutcomeUnknown:
+    raise AssertionError('known precommit rollback became unknown')
+except InitialGrantUnavailable:pass
+else:raise AssertionError('fault enrolled')
+assert not _ENROLL_BINDINGS
+print(json.dumps({'rollback_rejected':True}))
+"""
+        )
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            assert admin.execute(
+                "SELECT last_value,is_called FROM public.b2_fixture_reached"
+            ).fetchone() == (1, True)
+            assert admin.execute(
+                "SELECT count(*) FROM public.trusted_devices"
+            ).fetchone() == (before_count + 1,)
+            assert admin.execute(
+                "SELECT state FROM public.rg1_restore_gate"
+            ).fetchone() == ("open",)
+            admin.execute("DROP TRIGGER b2_fixture_fault ON public.trusted_devices")
+            admin.execute("DROP FUNCTION public.b2_fixture_fault()")
+            admin.execute("DROP SEQUENCE public.b2_fixture_reached")
+        assert fault_results[stage] == dict(rollback_rejected=True)
+
+    # commitは実行したが応答を喪失した対向。callerはunknown、別管理観測ではrowがある。
+    unknown = db.verifier(
+        common
+        + """
+from sqlalchemy.orm import SessionTransaction
+original=SessionTransaction.commit
+calls=[]
+def commit_then_lose(self,*args,**kwargs):
+    original(self,*args,**kwargs)
+    calls.append(True)
+    raise RuntimeError('PUBLIC_FIXTURE_LOST_COMMIT_RESPONSE')
+SessionTransaction.commit=commit_then_lose
+try:
+    try:broker._enroll_initial_device(context,runtime)
+    except broker._InitialEnrollmentOutcomeUnknown:pass
+    else:raise AssertionError('commit response loss acknowledged')
+finally:SessionTransaction.commit=original
+assert calls==[True] and not _ENROLL_BINDINGS
+print(json.dumps({'unknown_no_credential_response':True,'commit_called_once':True}))
+"""
+    )
+    assert unknown == dict(unknown_no_credential_response=True, commit_called_once=True)
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        assert admin.execute(
+            "SELECT count(*) FROM public.trusted_devices"
+        ).fetchone() == (before_count + 2,)
+
+    assert db.storage() == before_storage
+    assert db.ledger_snapshot() == before_ledger == ()
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        assert admin.execute(
+            "SELECT count(*) FROM public.trusted_devices"
+        ).fetchone() == (before_count + 2,)
+    (tmp_path / "b2-observations.json").write_text(
+        json.dumps(
+            dict(
+                actual_cookie_enrollment=successful,
+                ACL_and_auth=denied,
+                preclosed=closed,
+                actual_fault_rollbacks=fault_results,
+                commit_unknown=unknown,
+                device_count_delta=2,
+                D4_reserved=0,
+                start_generation_delivery_unchanged=True,
+                HTTP_worker_UI=False,
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
+def test_b2_real_enrollment_lease_loss_before_commit_rolls_back(
+    initial_scope_database: InitialGrantDatabase,
+    tmp_path,
+) -> None:
+    """別のfresh構成でINSERT後の実lease喪失と全取消だけを実証する。"""
+    import json
+    from concurrent.futures import ThreadPoolExecutor
+    from time import monotonic, sleep
+    from uuid import uuid4
+
+    from .durable_rights_ledger_support import docker
+
+    db = initial_scope_database
+    token, subject = uuid4(), uuid4()
+    before_storage, before_ledger = db.storage(), db.ledger_snapshot()
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(
+            "INSERT INTO public.system_settings(key,value) VALUES "
+            "('auth.token_ttl_seconds','3600') ON CONFLICT(key) "
+            "DO UPDATE SET value=EXCLUDED.value"
+        )
+        admin.execute(
+            "INSERT INTO public.tenant_auth_subjects(tenant_id,id) VALUES (%s,%s)",
+            (db.tenant_id, subject),
+        )
+        admin.execute(
+            "INSERT INTO public.tenant_credentials(auth_subject_id,password_hash,"
+            "generation) VALUES (%s,'public-unused-login-vector',1)",
+            (subject,),
+        )
+        admin.execute(
+            "INSERT INTO public.tenant_tokens(tenant_id,id,auth_subject_id,"
+            "credential_generation,expires_at,last_used_at) VALUES "
+            "(%s,%s,%s,1,clock_timestamp()+interval '1 hour',clock_timestamp())",
+            (db.tenant_id, token, subject),
+        )
+        count_row = admin.execute(
+            "SELECT count(*) FROM public.trusted_devices"
+        ).fetchone()
+        assert count_row is not None
+        before_count = count_row[0]
+        # nextvalだけはrollbackで戻らず、未commitの実INSERT到達を親が確認できる。
+        admin.execute("CREATE SEQUENCE public.b2_lease_checkpoint")
+        admin.execute(
+            "CREATE FUNCTION public.b2_lease_checkpoint() RETURNS trigger "
+            "LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp "
+            "AS $$ BEGIN PERFORM pg_catalog.nextval('public.b2_lease_checkpoint'); "
+            "RETURN NEW; END $$"
+        )
+        admin.execute("REVOKE ALL ON FUNCTION public.b2_lease_checkpoint() FROM PUBLIC")
+        admin.execute(
+            "CREATE TRIGGER b2_lease_checkpoint AFTER INSERT ON public.trusted_devices "
+            "FOR EACH ROW EXECUTE FUNCTION public.b2_lease_checkpoint()"
+        )
+
+    def stop_owned_controller_after_insert() -> dict[str, bool]:
+        """未確定INSERTを確認して、生成者が保持した専用容器だけを停止する。"""
+        deadline = monotonic() + 20
+        with psycopg.connect(
+            db.authority.database.business_admin, autocommit=True
+        ) as admin:
+            while monotonic() < deadline:
+                if admin.execute(
+                    "SELECT is_called FROM public.b2_lease_checkpoint"
+                ).fetchone() == (True,):
+                    break
+                sleep(0.05)
+            else:
+                raise AssertionError("実INSERT checkpointへ未到達")
+            # 他接続から見えるrow数はまだ増えず、commit前であることを別観測する。
+            assert admin.execute(
+                "SELECT count(*) FROM public.trusted_devices"
+            ).fetchone() == (before_count,)
+            pids = admin.execute(
+                "SELECT pid FROM pg_stat_activity WHERE "
+                "usename='pitchlog_rg1_control_actor' AND datname=current_database()"
+            ).fetchall()
+            assert len(pids) == 1
+            assert db.controller is not None
+            assert (
+                docker(
+                    "inspect", "--format", "{{.State.Running}}", db.controller
+                ).strip()
+                == "true"
+            )
+            docker("stop", "--time", "1", db.controller)
+            deadline = monotonic() + 5
+            while monotonic() < deadline:
+                if admin.execute(
+                    "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=%s)",
+                    (pids[0][0],),
+                ).fetchone() == (False,):
+                    return dict(
+                        precommit_row_invisible=True,
+                        live_owned_controller_proven=True,
+                        stopped=True,
+                        lease_session_removed=True,
+                    )
+                sleep(0.05)
+            raise AssertionError("所有lease sessionが終了していない")
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        stopped = executor.submit(stop_owned_controller_after_insert)
+        result = db.verifier(f"""
+import pitchlog.recording_rights.initial_grant_broker as broker
+from pitchlog.repositories.transaction import (
+    _TenantTransaction,_RG1_LOANS,_ENROLL_BINDINGS)
+from pitchlog.repositories.initial_recording_right import _EnrollDeviceToken
+from pitchlog.recording_rights.rg1_lifecycle import RG1ControlUnavailable
+from time import monotonic,sleep
+verified=_issue_initial_broker_context(SecretStr(signer.encode(UUID('{token}'))),
+    UUID('{db.tenant_id}'),verifier)
+assert verified is not None
+context=verified[0]
+original=_TenantTransaction.run_function
+observed=[]
+def insert_barrier(self,operation):
+    result=original(self,operation)
+    if type(operation) is _EnrollDeviceToken:
+        loan=_RG1_LOANS.get(self._state_key)
+        assert loan is not None
+        deadline=monotonic()+15
+        while monotonic()<deadline:
+            try:loan.assert_held()
+            except RG1ControlUnavailable:
+                observed.append(True)
+                break
+            sleep(0.05)
+        else:raise AssertionError('actual borrowed lease stayed active')
+    # 実INSERTの結果を返し、既製品commit前check自身に拒否させる。
+    return result
+_TenantTransaction.run_function=insert_barrier
+try:
+    try:broker._enroll_initial_device(context,runtime)
+    except broker._InitialEnrollmentOutcomeUnknown:
+        raise AssertionError('precommit lease rollback became unknown')
+    except InitialGrantUnavailable:pass
+    else:raise AssertionError('lost lease enrollment acknowledged')
+finally:_TenantTransaction.run_function=original
+assert observed==[True] and not _ENROLL_BINDINGS and not _RG1_LOANS
+print(json.dumps({{'lease_lost_after_insert':True,'no_credential_response':True,
+    'known_precommit_failure':True}}))
+""")
+        fault = stopped.result(timeout=5)
+    assert result == dict(
+        lease_lost_after_insert=True,
+        no_credential_response=True,
+        known_precommit_failure=True,
+    )
+    assert fault == dict(
+        precommit_row_invisible=True,
+        live_owned_controller_proven=True,
+        stopped=True,
+        lease_session_removed=True,
+    )
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        assert admin.execute(
+            "SELECT count(*) FROM public.trusted_devices"
+        ).fetchone() == (before_count,)
+        assert admin.execute(
+            "SELECT last_value,is_called FROM public.b2_lease_checkpoint"
+        ).fetchone() == (1, True)
+        admin.execute("DROP TRIGGER b2_lease_checkpoint ON public.trusted_devices")
+        admin.execute("DROP FUNCTION public.b2_lease_checkpoint()")
+        admin.execute("DROP SEQUENCE public.b2_lease_checkpoint")
+    assert (
+        db.storage() == before_storage and db.ledger_snapshot() == before_ledger == ()
+    )
+    (tmp_path / "b2-lease-observations.json").write_text(
+        json.dumps(
+            dict(
+                actual_cookie=True,
+                product=result,
+                owned_fault=fault,
+                device_row_delta=0,
+                D4_reserved=0,
+                start_generation_delivery_unchanged=True,
+                HTTP_worker_UI=False,
+            ),
             ensure_ascii=False,
             indent=2,
         )

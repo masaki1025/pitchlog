@@ -28,11 +28,16 @@ from pitchlog.authz.product_authn_contract import (
     validate_initial_verifier_declarations,
 )
 from pitchlog.authz.product_control_access import (
+    build_enrollment_column_acl_declarations,
+    build_enrollment_policy_declarations,
     build_initial_policy_declarations,
+    enrollment_assets_present,
+    enrollment_policy_expressions,
     initial_policy_expressions,
 )
 from pitchlog.authz.product_function_acl import (
     BUILTIN_EXECUTE_GRANTEES,
+    build_enrollment_function_declarations,
     build_initial_function_declarations,
     build_lifecycle_function_declarations,
     generate_initial_function_sql,
@@ -1836,6 +1841,8 @@ def _expected_lifecycle_function_details() -> tuple[tuple[object, ...], ...]:
     asset = json.loads((_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text())
     if start_assets_present(asset):
         declarations.update(start_function_declarations())
+    if enrollment_assets_present(asset):
+        declarations.update(build_enrollment_function_declarations())
     for function_id, row in declarations.items():
         initial = row["schema_name"] == "initial_right_api"
         sql = (
@@ -2312,6 +2319,8 @@ def _validated_initial_policy_rows(
     except ValueError as error:
         raise ProductCatalogError(str(error)) from error
     expected = build_initial_policy_declarations()
+    if enrollment_assets_present(asset):
+        expected.update(build_enrollment_policy_declarations())
     start_expected = start_policy_declarations() if start_assets_present(asset) else {}
     expected.update(start_expected)
     from pitchlog.authz.initial_start_sql import _exact_value
@@ -2357,6 +2366,8 @@ def _validated_initial_policy_rows(
                     (
                         start_policy_expressions(row)
                         if key in start_expected
+                        else enrollment_policy_expressions(row)
+                        if key in build_enrollment_policy_declarations()
                         else initial_policy_expressions(row)
                     )
             except ValueError as error:
@@ -2398,6 +2409,8 @@ def _validate_initial_function_declarations(asset: dict[str, object]) -> None:
     )
 
     expected = build_initial_function_declarations()
+    if enrollment_assets_present(asset):
+        expected.update(build_enrollment_function_declarations())
     if start_assets_present(asset):
         expected.update(start_function_declarations())
     actual: dict[str, dict[str, object]] = {}
@@ -2487,6 +2500,8 @@ def _validated_initial_column_rows(
     )
 
     expected = build_initial_column_acl_declarations()
+    if enrollment_assets_present(asset):
+        expected.update(build_enrollment_column_acl_declarations())
     if start_assets_present(asset):
         expected.update(start_column_acl_declarations())
     actual: dict[str, dict[str, object]] = {}

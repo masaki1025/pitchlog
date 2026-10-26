@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 from itertools import islice
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Literal, final
@@ -46,8 +47,27 @@ __all__ = ("tenant_transaction_scope",)
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
-_INITIAL_ACTOR_STATES: dict[object, tuple[object, Literal["intent", "business"]]] = {}
+_INITIAL_ACTOR_STATES: dict[
+    object, tuple[object, Literal["intent", "business", "enroll"]]
+] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
+
+
+@dataclass(slots=True)
+class _EnrollmentBinding:
+    """一回の実scopeと生成資格digestにだけ対応する短命記録。"""
+
+    context: TenantContext
+    runtime: object = field(repr=False)
+    device_id: UUID
+    credential_digest: bytes = field(repr=False)
+    consumed: bool = False
+    operation_used: bool = False
+    commit_attempted: bool = False
+    commit_completed: bool = False
+
+
+_ENROLL_BINDINGS: dict[object, _EnrollmentBinding] = {}
 _START_MEMORY_BINDINGS: dict[
     object,
     tuple[
@@ -188,14 +208,35 @@ class _TenantTransaction:
             _INITIAL_BUSINESS_TOKENS,
             _INITIAL_FUNCTION_REGISTRY,
             _INITIAL_INTENT_TOKENS,
+            _EnrollDeviceToken,
         )
 
         actor = _INITIAL_ACTOR_STATES.get(state_key)
         registry = FUNCTION_OPERATION_REGISTRY
         if actor is not None:
             _assert_initial_actor_transaction(self, self._context, actor[1])
+            if actor[1] == "enroll":
+                binding = _ENROLL_BINDINGS.get(state_key)
+                if binding is None or (
+                    binding.context is not self._context
+                    or binding.runtime is not actor[0]
+                    or type(binding.device_id) is not UUID
+                    or type(binding.credential_digest) is not bytes
+                    or len(binding.credential_digest) != 32
+                ):
+                    raise TenantBindingError("enroll能力が失効又は別owner")
+                if type(operation) is _EnrollDeviceToken and (
+                    binding.operation_used
+                    or type(operation.device_id) is not UUID
+                    or type(operation.credential_digest) is not bytes
+                    or operation.device_id != binding.device_id
+                    or operation.credential_digest != binding.credential_digest
+                ):
+                    raise TenantBindingError("enroll能力の生成資格が不一致")
             allowed = (
-                _INITIAL_INTENT_TOKENS
+                frozenset({_EnrollDeviceToken})
+                if actor[1] == "enroll"
+                else _INITIAL_INTENT_TOKENS
                 if actor[1] == "intent"
                 else _INITIAL_BUSINESS_TOKENS
             )
@@ -234,6 +275,12 @@ class _TenantTransaction:
                         and (not scope._game_locked or not scope._start_um2_saved)
                     ):
                         raise TenantBindingError("開始操作のowner/payloadが不一致")
+                if actor[1] == "enroll":
+                    loan = _RG1_LOANS.get(state_key)
+                    if loan is None:
+                        raise TenantBindingError("enrollは実RG1借用が必要")
+                    loan.assert_held()
+                    binding.operation_used = True
                 registry = _INITIAL_FUNCTION_REGISTRY
             else:
                 spec = registry.get(type(operation))
@@ -321,7 +368,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         context: TenantContext,
         *,
         _actor_runtime: object | None = None,
-        _actor_phase: Literal["intent", "business"] | None = None,
+        _actor_phase: Literal["intent", "business", "enroll"] | None = None,
     ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
@@ -362,7 +409,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
                 _initial_actor_engine,
             )
 
-            if self._actor_phase not in ("intent", "business"):
+            if self._actor_phase not in ("intent", "business", "enroll"):
                 raise TenantBindingError("actor phaseが未登録")
             engine = _initial_actor_engine(self._actor_runtime)
         session = Session(engine)
@@ -474,6 +521,9 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         if runtime is None:
             raise RuntimeError("トランザクションハンドルの実行状態が既に失効している")
         session, exit_stack = runtime
+        binding = _ENROLL_BINDINGS.get(expired_key)
+        if binding is not None and exception is None:
+            binding.commit_attempted = True
         try:
             exit_result = ExitStack.__exit__(
                 exit_stack,
@@ -488,6 +538,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
                 raise primary_error from close_error
             raise
 
+        if binding is not None and exception is None:
+            binding.commit_completed = True
         try:
             session.close()
         except BaseException as close_error:
@@ -514,7 +566,7 @@ def tenant_transaction_scope(
 def _assert_initial_actor_transaction(
     handle: _TenantTransaction,
     context: TenantContext,
-    phase: Literal["intent", "business"],
+    phase: Literal["intent", "business", "enroll"],
 ) -> None:
     """真正な実登録actorハンドルと同一tenant/phaseを毎回照合する。"""
     from pitchlog.recording_rights.initial_grant_broker import _initial_actor_engine
@@ -538,10 +590,12 @@ def _assert_initial_actor_transaction(
 
 
 def _initial_actor_transaction_scope(
-    context: TenantContext, actor_runtime: object, phase: Literal["intent", "business"]
+    context: TenantContext,
+    actor_runtime: object,
+    phase: Literal["intent", "business", "enroll"],
 ) -> AbstractContextManager[_TenantTransaction]:
     """登録済みactorの閉scopeを作り、既tenant境界/commit処理を再利用する。"""
-    if phase not in ("intent", "business"):
+    if phase not in ("intent", "business", "enroll"):
         raise TenantBindingError("初期権scopeのphaseが不正")
     return _TenantTransactionScope(
         context, _actor_runtime=actor_runtime, _actor_phase=phase
@@ -649,3 +703,33 @@ def _save_initial_lineup_memory(
         save_lineup_memory(handle, team, lineup)
     finally:
         _START_MEMORY_BINDINGS.pop(key, None)
+
+
+@contextmanager
+def _initial_enrollment_transaction_scope(
+    binding: _EnrollmentBinding,
+) -> Iterator[_TenantTransaction]:
+    """新1関数だけを真正な同Sessionへ束縛し、確定後も登録を残さない。"""
+    if type(binding) is not _EnrollmentBinding or (
+        type(binding.device_id) is not UUID
+        or type(binding.credential_digest) is not bytes
+        or len(binding.credential_digest) != 32
+        or binding.consumed
+        or binding.commit_attempted
+        or binding.commit_completed
+    ):
+        raise TenantBindingError("enroll束縛値が不正")
+    binding.consumed = True
+    key = None
+    try:
+        with _initial_actor_transaction_scope(
+            binding.context, binding.runtime, "enroll"
+        ) as handle:
+            key = handle._state_key
+            if key is None or key in _ENROLL_BINDINGS:
+                raise TenantBindingError("enroll scopeが不正")
+            _ENROLL_BINDINGS[key] = binding
+            yield handle
+    finally:
+        if key is not None:
+            _ENROLL_BINDINGS.pop(key, None)

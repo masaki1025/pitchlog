@@ -22,6 +22,7 @@ from pitchlog.authz.product_control_access import (
     INITIAL_STORAGE_TABLES,
     RULE_RESOLUTION_FUNCTION_ID,
     RULE_RESOLUTION_OWNER_ROLE_ID,
+    is_enrollment_column_acl,
     is_initial_column_acl,
     is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
@@ -544,7 +545,11 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
         from pitchlog.authz.initial_start_sql import is_start_column_acl
 
-        if is_initial_column_acl(element.fields) or is_start_column_acl(element.fields):
+        if (
+            is_initial_column_acl(element.fields)
+            or is_start_column_acl(element.fields)
+            or is_enrollment_column_acl(element.fields)
+        ):
             privileges_value = element.fields["privilege_ids"]
             assert isinstance(privileges_value, list)
             privileges = ", ".join(
@@ -793,6 +798,15 @@ def _build_operation_statements(
                 ),
             )
         )
+        enrollment_dependencies = {
+            "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)": "function",
+            "POLICY:trusted_devices:initial_right_trusted_devices_insert": "policy",
+        }
+        has_enrollment = any(
+            row.element_id in enrollment_dependencies for row in generated
+        )
+        if has_enrollment:
+            initial_deferred = initial_deferred | frozenset(enrollment_dependencies)
         actual_initial = {
             statement.element_id
             for statement in generated
@@ -814,6 +828,9 @@ def _build_operation_statements(
         has_start = any(row.element_id in new_dependencies for row in generated)
         deferred.update(initial_deferred)
         expected_dependencies = dict(_PRE_RULE_DEPENDENCIES)
+        if not has_enrollment:
+            for key in enrollment_dependencies:
+                expected_dependencies.pop(key)
         if has_start:
             deferred.update(new_dependencies)
             expected_dependencies.update(new_dependencies)
@@ -1031,6 +1048,8 @@ def _run_product_operation(
 
 _PRE_RULE_DEPENDENCIES: dict[str, str] = {
     ("FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)"): "function",
+    "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)": "function",
+    "POLICY:trusted_devices:initial_right_trusted_devices_insert": "policy",
     "FUNCTION:initial_right_api:lock_device(uuid, uuid)": "function",
     "FUNCTION:initial_right_api:read_existing_start(uuid, uuid, uuid)": "function",
     "FUNCTION:initial_right_api:read_start_game(uuid, uuid)": "function",

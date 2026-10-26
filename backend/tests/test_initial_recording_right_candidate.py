@@ -1483,3 +1483,105 @@ def test_b1_verifier_runtime_requires_root_active_signer_and_expires(
     monkeypatch.setattr(b.os, "geteuid", lambda: 20002)
     with pytest.raises(b.InitialBrokerUnavailable):
         b._load_initial_auth_verifier_runtime(object(), signer)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "binding",
+        "precheck",
+        "insert",
+        "wrong_result",
+        "commit_check",
+        "commit_unknown",
+        "after_commit",
+    ],
+)
+def test_b2_broker_generates_once_and_never_returns_before_commit(
+    fault: str | None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """固定順序/確定取消/commit不明を分け、資格とdriver例外を表示しない。"""
+    import traceback
+    from contextlib import contextmanager
+
+    from pydantic import SecretStr
+    from test_authz_tenant_context import make_tenant_context
+
+    from pitchlog.recording_rights import initial_grant_broker as broker
+    from pitchlog.repositories import rg1, transaction
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    context = make_tenant_context(_TENANT)
+    actor = cast(Any, object())
+    order = []
+    secret = "PUBLIC-SYNTHETIC-DEVICE-CREDENTIAL-SENTINEL"
+    monkeypatch.setattr(broker, "_initial_actor_engine", lambda runtime: None)
+    monkeypatch.setattr(broker, "uuid4", lambda: _DEVICE)
+    generated = []
+
+    def generate(size):
+        generated.append(size)
+        return secret
+
+    monkeypatch.setattr(broker.secrets, "token_urlsafe", generate)
+
+    def step(name):
+        order.append(name)
+        if fault == name:
+            raise RuntimeError(secret)
+
+    class Handle:
+        """型付き戻り値と実呼出順だけを観測する代役。"""
+
+        def run_function(self, token):
+            step("insert")
+            assert token.device_id == _DEVICE
+            assert token.credential_digest == broker._credential_digest(secret)
+            return TenantOperationResult(
+                ((_OTHER_DEVICE if fault == "wrong_result" else _DEVICE,),)
+            )
+
+    @contextmanager
+    def scope(binding):
+        assert binding.context is context and binding.runtime is actor
+        yield Handle()
+        binding.commit_attempted = True
+        step("commit_unknown")
+        binding.commit_completed = True
+        step("after_commit")
+
+    monkeypatch.setattr(transaction, "_initial_enrollment_transaction_scope", scope)
+    monkeypatch.setattr(
+        broker, "_verify_business_binding", lambda *args: step("binding")
+    )
+    monkeypatch.setattr(rg1, "read_rg1_open", lambda *args: step("precheck"))
+    monkeypatch.setattr(
+        rg1, "assert_rg1_open_before_commit", lambda *args: step("commit_check")
+    )
+    if fault is None:
+        response = broker._enroll_initial_device(context, actor)
+        assert response.tenant_id == _TENANT and response.device_id == _DEVICE
+        assert type(response.device_credential) is SecretStr
+        assert response.device_credential.get_secret_value() == secret
+        assert secret not in repr(response)
+        assert order == [
+            "binding",
+            "precheck",
+            "insert",
+            "commit_check",
+            "commit_unknown",
+            "after_commit",
+        ]
+    else:
+        error_type = (
+            broker._InitialEnrollmentOutcomeUnknown
+            if fault in {"commit_unknown", "after_commit"}
+            else InitialGrantUnavailable
+        )
+        with pytest.raises(error_type) as caught:
+            broker._enroll_initial_device(context, actor)
+        assert secret not in "".join(traceback.format_exception(caught.value))
+        assert caught.value.__context__ is None
+    assert generated == [32]

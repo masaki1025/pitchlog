@@ -1542,3 +1542,117 @@ def test_runtime_entry_closes_all_initial_schema_acl_fields(
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     with pytest.raises(product_catalog.ProductCatalogError):
         product_catalog._load_product_expectations()
+
+
+def _b2_enrollment_asset() -> dict[str, Any]:
+    """既全宣言に新関数/policy/3列overlayだけを追加する試験入力。"""
+    from pitchlog.authz.product_control_access import (
+        build_enrollment_column_acl_declarations,
+        build_enrollment_policy_declarations,
+    )
+    from pitchlog.authz.product_function_acl import (
+        build_enrollment_function_declarations,
+    )
+
+    asset = _product_asset()
+    for section, key, additions in [
+        ("functions", "function_id", build_enrollment_function_declarations()),
+        ("policies", "policy_id", build_enrollment_policy_declarations()),
+        (
+            "column_acl_expectations",
+            "expectation_id",
+            build_enrollment_column_acl_declarations(),
+        ),
+    ]:
+        asset[section] = [row for row in asset[section] if row[key] not in additions]
+        asset[section].extend(additions.values())
+    return asset
+
+
+def test_b2_enrollment_exact_overlay_and_single_tenant_policy() -> None:
+    """旧53行を変えず3列INSERTだけを増やし、TENANT実式を再利用する。"""
+    from pitchlog.authz.product_control_access import (
+        build_enrollment_column_acl_declarations,
+        build_enrollment_policy_declarations,
+        build_initial_column_acl_declarations,
+        enrollment_policy_expressions,
+        generate_enrollment_policy_sql,
+    )
+
+    old = build_initial_column_acl_declarations()
+    overlay = build_enrollment_column_acl_declarations()
+    assert len(old) == 53 and len(overlay) == 3
+    for key, row in overlay.items():
+        privileges = old[key]["privilege_ids"]
+        assert isinstance(privileges, list)
+        assert row == {
+            **old[key],
+            "privilege_ids": privileges + ["INSERT"],
+        }
+        assert "INSERT" not in privileges
+        assert f"INSERT ({row['column_id']})" in (
+            generate_function_owner_column_acl_sql(row)
+        )
+    policy = next(iter(build_enrollment_policy_declarations().values()))
+    using, check = enrollment_policy_expressions(policy)
+    assert using is None and isinstance(check, str) and "app.tenant_id" in check
+    assert check in generate_enrollment_policy_sql()
+
+
+@pytest.mark.parametrize(
+    "surface", ["functions", "policies", "column_acl_expectations"]
+)
+@pytest.mark.parametrize(
+    "mutation", ["missing", "duplicate", "unknown", "owner", "privilege", "extra"]
+)
+def test_b2_runtime_entry_rejects_partial_or_mutated_enrollment(
+    surface: str,
+    mutation: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新1/1/overlay3の部分欠落と未知fieldを期待生成前に拒否する。"""
+    from pitchlog.authz import product_catalog
+    from pitchlog.authz.product_control_access import ENROLL_POLICY_ID
+    from pitchlog.authz.product_function_acl import ENROLL_FUNCTION_ID
+
+    asset = _b2_enrollment_asset()
+    key = {
+        "functions": "function_id",
+        "policies": "policy_id",
+        "column_acl_expectations": "expectation_id",
+    }[surface]
+    target = {
+        "functions": ENROLL_FUNCTION_ID,
+        "policies": ENROLL_POLICY_ID,
+        "column_acl_expectations": (
+            "COLUMN-ACL:public:trusted_devices:tenant_id:pitchlog_initial_fn_owner"
+        ),
+    }[surface]
+    row = next(r for r in asset[surface] if r[key] == target)
+    if mutation == "missing":
+        asset[surface].remove(row)
+    elif mutation == "duplicate":
+        asset[surface].append(copy.deepcopy(row))
+    elif mutation == "unknown":
+        row[key] += ":unknown"
+    elif mutation == "owner":
+        row[
+            "owner_role_id"
+            if surface == "functions"
+            else "role_ids"
+            if surface == "policies"
+            else "grantee_role_id"
+        ] = "pitchlog_app"
+    elif mutation == "privilege":
+        row[
+            "security_mode"
+            if surface == "functions"
+            else "with_check_expression"
+            if surface == "policies"
+            else "privilege_ids"
+        ] = "unknown"
+    else:
+        row["unknown_field"] = True
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    with pytest.raises(product_catalog.ProductCatalogError):
+        product_catalog._load_product_expectations()
