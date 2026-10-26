@@ -432,3 +432,6 @@ step H1=core前段2の実装/非作者確認、H2=別JSON登録/実先行検査�
 既source規約のgeneration一律禁止と既DTO recovery_generationの基線矛盾は留保する。禁止集合を削って緑にせず、専用projectionを使い本文に不要な同期語を直書きしない。通常影響検査・最終HEAD別非作者確認・必要正式値受理・必須CI/通常統合を維持する。browserのIDB commit前送信禁止/unknown保持/実UI開始、started read/初期state/T1-T2/実同期保存/全MVPは別未達のままである。
 
 2026-10-26T07:51:51.978034+00:00、PO委任によるCodex /root判断で上記有限範囲と順序を承認。対象反映1原案/非作者最終hashは前記に固定。現時点はH1の2pathだけを次担当通知後に開始可とし、H2以後は各固定/非作者確認後にrootが具体指示する。人間本人の確認・署名、実開始/保存の成立を代記しない。
+
+
+2026-10-26T08:00:58.684288+00:00、H1の実全core試験で既開始test backend/tests/test_initial_game_start_components.py がいずれのareaにも登録されていないことを検出した。PO委任によるCodex /root判断で、意味上初期開始/記録権/tenantを検証するこのexact既1pathだけを、H1合成宣言のsync-protocol/recording-rights/tenant-isolationへ追加しH2別JSONで追随する。順序は旧initialscope3を保持→当該test1→recording-rightsだけHTTP5。編集source/testは既H1の2pathのまま、当該test本体を変更せず、未登録拒否assert/旧全履歴/判定本文は保持する。新globや無関係な検査除外は作らない。初回未登録1失敗と旧map束縛前の失敗ログを保持し、最終非作者はこの追加のexact意味帰属/欠落拒否も確認する。
