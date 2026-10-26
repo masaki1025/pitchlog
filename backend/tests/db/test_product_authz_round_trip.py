@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
+import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
-from db_fixtures import _product_role_ids, _snapshot_product_catalog
+from db_fixtures import (
+    _prepare_current_product_baseline,
+    _product_migration_url,
+    _product_role_ids,
+    _snapshot_product_catalog,
+)
+from psycopg import sql
+from psycopg.conninfo import make_conninfo
 from psycopg.pq import TransactionStatus
 
 from pitchlog.authz.product_catalog import (
@@ -24,6 +33,7 @@ from .conftest import ProductCatalogSnapshot, ProvisionedProductCatalog
 pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
+_HISTORICAL_DATABASE = "pitchlog_history_round_trip"
 
 
 def _bootstrap_superuser_oid(catalog: ProvisionedProductCatalog) -> int:
@@ -89,10 +99,44 @@ def _alembic_config() -> Config:
     return Config(str(_BACKEND_ROOT / "alembic.ini"))
 
 
+def _historical_round_trip_baseline(
+    catalog: ProvisionedProductCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+) -> ProductCatalogSnapshot:
+    """別の使い捨てDBで可逆な0033までを往復し、現基準へ進める。"""
+    database = _HISTORICAL_DATABASE
+    with psycopg.connect(catalog.cluster.admin_dsn, autocommit=True) as admin:
+        admin.execute(
+            sql.SQL("CREATE DATABASE {} OWNER pitchlog_owner").format(
+                sql.Identifier(database)
+            )
+        )
+    owner_dsn = make_conninfo(catalog.owner_dsn, dbname=database)
+    applicator_dsn = make_conninfo(catalog.cluster.admin_dsn, dbname=database)
+    with monkeypatch.context() as environment:
+        environment.setenv(
+            "PITCHLOG_MIGRATION_DATABASE_URL", _product_migration_url(owner_dsn)
+        )
+        config = _alembic_config()
+        command.upgrade(config, "0033_game_rules_immutable")
+        command.downgrade(config, "base")
+        command.upgrade(config, "0033_game_rules_immutable")
+        with psycopg.connect(applicator_dsn) as applicator:
+            assert applicator.info.dbname == database
+            _prepare_current_product_baseline(
+                owner_dsn=owner_dsn,
+                applicator_dsn=applicator_dsn,
+                applicator=applicator,
+            )
+            return _snapshot_product_catalog(
+                applicator, _product_role_ids(catalog.asset)
+            )
+
+
 def test_second_application_converges_to_the_first_catalog(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """Fixture の初回適用へ 2 回目の適用が exact に収束する。"""
+    """準備後の独立DDL再適用へ次の適用がexactに収束する。"""
     catalog = provisioned_product_catalog
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
     first_report = _inspect(catalog, privileged_role_oid)
@@ -111,6 +155,7 @@ def test_second_application_converges_to_the_first_catalog(
 
 def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     provisioned_product_catalog: ProvisionedProductCatalog,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """取り外し・migration 往復・再適用が各基準カタログへ戻る。"""
     catalog = provisioned_product_catalog
@@ -139,14 +184,35 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     assert {row[2] for row in unapplied_snapshot.relations} == {"pitchlog_owner"}
 
     config = _alembic_config()
-    command.downgrade(config, "base")
-    command.upgrade(config, "0033_game_rules_immutable")
+    # 0034は参照された規則を物理削除しない。拒否時の全取消も検証する。
+    with pytest.raises(
+        RuntimeError, match="規則配置の逆適用には別承認の訂正migrationが必要"
+    ):
+        command.downgrade(config, "base")
 
     migration_report = _inspect(catalog, privileged_role_oid)
     migration_snapshot = _snapshot(catalog)
     assert migration_report == unapplied_report
     assert migration_snapshot == catalog.pre_application_catalog
     assert {row[2] for row in migration_snapshot.relations} == {"pitchlog_owner"}
+    # 別DBの識別座標だけを明示写像し、owner/ACLを含む全fieldを比較する。
+    assert migration_snapshot.database == (
+        (catalog.applicator.info.dbname, "pitchlog_owner"),
+    )
+    assert migration_snapshot.database_acl and all(
+        row[0] == catalog.applicator.info.dbname
+        for row in migration_snapshot.database_acl
+    )
+    historical_expected = replace(
+        migration_snapshot,
+        database=tuple(
+            (_HISTORICAL_DATABASE, *row[1:]) for row in migration_snapshot.database
+        ),
+        database_acl=tuple(
+            (_HISTORICAL_DATABASE, *row[1:]) for row in migration_snapshot.database_acl
+        ),
+    )
+    assert _historical_round_trip_baseline(catalog, monkeypatch) == historical_expected
 
     apply_product_authz_ddl(catalog.applicator)
     _assert_subject_is_session(catalog)

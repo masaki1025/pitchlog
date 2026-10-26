@@ -255,11 +255,11 @@
       "entries": [
         {
           "table": "rg1_restore_gate",
-          "reason": "復元調整の全体状態を単一行で管理し、制限関数だけを読取経路とする。",
+          "reason": "復元調整の全体状態を単一行で管理し、制限関数だけを読取・制御経路とする。",
           "evidence": [
             {
               "section": "3-2",
-              "quote": "RG1の復元調整状態は全体共通の`singleton_id=1`の単一行とし、初期状態を`closed`とする。"
+              "quote": "**RG1物理資源**: 全体共通の`singleton_id=1`の単一行を初期`closed`とし、非テナントの`function_only`例外とする。"
             }
           ]
         }

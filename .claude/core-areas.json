@@ -272,7 +272,10 @@
         "backend/tests/test_initial_recording_right_candidate.py",
         "backend/src/pitchlog/durable_rights_ledger/*",
         "backend/tests/test_durable_rights_ledger_contract.py",
-        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*"
+        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
       ]
     },
     {
@@ -516,7 +519,10 @@
         "backend/tests/test_initial_recording_right_candidate.py",
         "backend/src/pitchlog/durable_rights_ledger/*",
         "backend/tests/test_durable_rights_ledger_contract.py",
-        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*"
+        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
       ]
     },
     {
@@ -621,7 +627,10 @@
         "backend/src/pitchlog/services/game_creation.py",
         "backend/tests/test_game_preparing*.py",
         "backend/src/pitchlog/durable_rights_ledger/*",
-        "backend/tests/test_durable_rights_ledger_contract.py"
+        "backend/tests/test_durable_rights_ledger_contract.py",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
       ]
     },
     {

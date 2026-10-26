@@ -30,6 +30,14 @@ _ROLE_ATTRIBUTES = (
     ("replication", "rolreplication"),
     ("inherit", "rolinherit"),
 )
+_LIFECYCLE_COLLISION_ROLES = (
+    "pitchlog_rg1_control_owner",
+    "pitchlog_rg1_control_actor",
+    "pitchlog_ledger_identity_owner",
+    "pitchlog_ledger_identity_probe",
+    "pitchlog_initial_actor",
+    "pitchlog_initial_fn_owner",
+)
 
 
 class _CountingCursor:
@@ -323,9 +331,11 @@ def test_product_fixture_migrates_as_owner_then_applies_as_external_superuser(
 def test_reapplication_normalizes_all_seven_role_attributes(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """全製品ロールの 7 属性を反転しても再適用が資産の値へ戻す。"""
+    """正規化対象の全roleは7属性を戻し、固定衝突拒否roleは変えない。"""
     catalog = provisioned_product_catalog
     roles = _asset_roles(catalog)
+    collision_roles = {*_LIFECYCLE_COLLISION_ROLES, "pitchlog_rule_resolution_fn_owner"}
+    assert collision_roles <= set(roles)
     positive_tokens = {
         "superuser": sql.SQL("SUPERUSER"),
         "bypass_rls": sql.SQL("BYPASSRLS"),
@@ -346,8 +356,8 @@ def test_reapplication_normalizes_all_seven_role_attributes(
     }
     with catalog.applicator.cursor() as cursor:
         for role_id, declaration in roles.items():
-            if role_id == "pitchlog_rule_resolution_fn_owner":
-                # 規則関数ownerは既存ロールの属性衝突を正規化せず拒否する。
+            if role_id in collision_roles:
+                # 固定owner/actorは属性衝突を正規化せず拒否する。下の対向で検査する。
                 continue
             reversed_attributes = [
                 negative_tokens[name]
@@ -365,6 +375,45 @@ def test_reapplication_normalizes_all_seven_role_attributes(
 
     expected = _expected_role_rows(catalog)
     assert _role_rows(catalog.observer, tuple(expected)) == expected
+
+
+@pytest.mark.parametrize("role_id", _LIFECYCLE_COLLISION_ROLES)
+def test_lifecycle_role_collision_rejects_full_apply_and_rolls_back(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    role_id: str,
+) -> None:
+    """固定6roleの衝突は正規applyで拒否し、途中のDDLも全て取り消す。"""
+    catalog = provisioned_product_catalog
+    roles = _asset_roles(catalog)
+    assert roles[role_id]["bypass_rls"] is False
+    declared_schemas = catalog.asset["schemas"]
+    assert isinstance(declared_schemas, list)
+    schema_names = tuple(row["schema_name"] for row in declared_schemas)
+    role_ids = tuple(roles)
+    pristine = _catalog_fingerprint(catalog.observer, role_ids, schema_names)
+    try:
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("ALTER ROLE {} BYPASSRLS").format(sql.Identifier(role_id))
+            )
+        catalog.applicator.commit()
+        contaminated = _catalog_fingerprint(catalog.observer, role_ids, schema_names)
+        assert contaminated != pristine
+        with pytest.raises(psycopg.errors.RaiseException, match="role collision"):
+            apply_product_authz_ddl(catalog.applicator)
+        assert catalog.applicator.info.transaction_status is pq.TransactionStatus.IDLE
+        assert (
+            _catalog_fingerprint(catalog.observer, role_ids, schema_names)
+            == contaminated
+        )
+    finally:
+        catalog.applicator.rollback()
+        with catalog.applicator.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("ALTER ROLE {} NOBYPASSRLS").format(sql.Identifier(role_id))
+            )
+        catalog.applicator.commit()
+    assert _catalog_fingerprint(catalog.observer, role_ids, schema_names) == pristine
 
 
 def test_all_connection_preconditions_leave_observed_catalog_unchanged(

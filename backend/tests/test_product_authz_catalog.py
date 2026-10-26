@@ -412,6 +412,28 @@ def _raw_catalog_rows(
         CatalogQueryId.COLUMN_ACL: list(expectations.column_acl),
         CatalogQueryId.FUNCTIONS: list(expectations.functions),
         CatalogQueryId.FUNCTION_ACL: list(expectations.function_acl),
+        CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS: [
+            tuple(row) for row in product_catalog._expected_lifecycle_function_details()
+        ],
+        CatalogQueryId.BUILTIN_FUNCTION_ACL: [
+            ("pg_catalog", "pg_control_system", "", "PUBLIC", "EXECUTE", False),
+            (
+                "pg_catalog",
+                "pg_control_system",
+                "",
+                "pitchlog_rg1_control_owner",
+                "EXECUTE",
+                False,
+            ),
+            (
+                "pg_catalog",
+                "pg_control_system",
+                "",
+                "pitchlog_ledger_identity_owner",
+                "EXECUTE",
+                False,
+            ),
+        ],
         CatalogQueryId.MEMBERSHIPS: [],
         CatalogQueryId.DANGEROUS_LOGIN_ROLES: [
             (owner_oid, "pitchlog_owner"),
@@ -453,7 +475,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
     assert len(expectations.tables) == 46
-    assert len(expectations.policies) == 37
+    assert len(expectations.policies) == 39
     assert {
         row[2]
         for row in expectations.policies
@@ -477,9 +499,16 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         len(row["privilege_ids"]) for row in asset_column_acls
     )
     assert len(expectations.table_acl) == sum(
-        len(row["privilege_ids"]) for row in asset_table_acls
+        len(row["privilege_ids"])
+        for row in asset_table_acls
+        if row["object_kind"] == "table"
     )
-    assert expectations.database_acl == (("pitchlog_app", "CONNECT", False),)
+    assert expectations.database_acl == (
+        ("pitchlog_app", "CONNECT", False),
+        ("pitchlog_initial_actor", "CONNECT", False),
+        ("pitchlog_ledger_identity_probe", "CONNECT", False),
+        ("pitchlog_rg1_control_actor", "CONNECT", False),
+    )
     assert tuple(
         step.sequence for step in expectations.application_steps.application_steps
     ) == tuple(range(1, len(expectations.application_steps.application_steps) + 1))
@@ -960,11 +989,13 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.COLUMN_ACL,
         CatalogQueryId.FUNCTIONS,
         CatalogQueryId.FUNCTION_ACL,
+        CatalogQueryId.BUILTIN_FUNCTION_ACL,
+        CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS,
         CatalogQueryId.MEMBERSHIPS,
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 26
+    assert len(report.checked_ids) == 30
 
 
 def test_unqualified_public_relation_in_policy_is_red(
@@ -1284,3 +1315,136 @@ def test_authn_bcrypt_cost_is_twelve_in_all_hash_paths() -> None:
     ):
         body = (directory / filename).read_text(encoding="utf-8")
         assert "authn_crypto.gen_salt('bf', 12)" in body
+
+
+@pytest.mark.parametrize(
+    "mutation,check_id",
+    (
+        ("none", None),
+        ("missing_control", "PRODUCT-CATALOG:BUILTIN-ADDITIONAL-EXECUTE"),
+        ("app_direct", "PRODUCT-CATALOG:BUILTIN-ADDITIONAL-EXECUTE"),
+        ("probe_direct", "PRODUCT-CATALOG:BUILTIN-ADDITIONAL-EXECUTE"),
+        ("with_grant_option", "PRODUCT-CATALOG:BUILTIN-ADDITIONAL-EXECUTE"),
+        ("missing_public", "PRODUCT-CATALOG:BUILTIN-PUBLIC-EFFECTIVE-EXECUTE"),
+        ("public_grantable", "PRODUCT-CATALOG:BUILTIN-PUBLIC-EFFECTIVE-EXECUTE"),
+        ("missing_declaration", "PRODUCT-CATALOG:BUILTIN-DECLARED-ADDITIONAL-EXECUTE"),
+    ),
+)
+def test_builtin_catalog_separates_additional_grants_from_public_effective(
+    mutation: str,
+    check_id: str | None,
+) -> None:
+    """追加主体の検査をPUBLIC排他と誤認せず、両者の逸脱を別検知する。"""
+    declared = (
+        (
+            "pg_catalog",
+            "pg_control_system",
+            "",
+            "pitchlog_ledger_identity_owner",
+            "EXECUTE",
+            False,
+        ),
+        (
+            "pg_catalog",
+            "pg_control_system",
+            "",
+            "pitchlog_rg1_control_owner",
+            "EXECUTE",
+            False,
+        ),
+    )
+    rows = [
+        *declared,
+        ("pg_catalog", "pg_control_system", "", "PUBLIC", "EXECUTE", False),
+    ]
+    if mutation == "missing_control":
+        rows = [row for row in rows if row[3] != "pitchlog_rg1_control_owner"]
+    elif mutation in {"app_direct", "probe_direct"}:
+        role = (
+            "pitchlog_app"
+            if mutation == "app_direct"
+            else "pitchlog_ledger_identity_probe"
+        )
+        rows.append(("pg_catalog", "pg_control_system", "", role, "EXECUTE", False))
+    elif mutation == "with_grant_option":
+        rows[0] = (*rows[0][:-1], True)
+    elif mutation == "missing_public":
+        rows = [row for row in rows if row[3] != "PUBLIC"]
+    elif mutation == "public_grantable":
+        rows[-1] = (*rows[-1][:-1], True)
+    elif mutation == "missing_declaration":
+        declared = declared[:1]
+    report = product_catalog._ReportBuilder()
+    product_catalog._compare_builtin_acl(report, tuple(rows), declared)
+    result = report.build()
+    assert result.ok is (mutation == "none")
+    if check_id:
+        assert check_id in {violation.check_id for violation in result.violations}
+
+
+def test_builtin_catalog_query_is_a_fixed_empty_argument_target() -> None:
+    """SQLの識別子/署名がcaller引数に依存しない固定読取である。"""
+    query = product_catalog._query_for_id(CatalogQueryId.BUILTIN_FUNCTION_ACL)
+    assert "namespace.nspname = 'pg_catalog'" in query
+    assert "routine.proname = 'pg_control_system' AND routine.pronargs = 0" in query
+    assert (
+        "COALESCE(routine.proacl, pg_catalog.acldefault('f', routine.proowner))"
+        in query
+    )
+    assert "%s" not in query
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "none",
+        "unknown_function",
+        "search_path",
+        "extra_setting",
+        "security_invoker",
+        "wrong_owner",
+        "wrong_language",
+        "wrong_return",
+        "wrong_volatility",
+        "changed_body",
+    ),
+)
+def test_lifecycle_details_reject_unknown_function_and_every_attribute_drift(
+    mutation: str,
+) -> None:
+    """新2schema全数と本文/search_pathを、許可名フィルタで取りこぼさない。"""
+    expected = product_catalog._expected_lifecycle_function_details()
+    rows: list[tuple[object, ...]] = [tuple(row) for row in expected]
+    first = list(rows[0])
+    if mutation == "unknown_function":
+        extra = list(first)
+        extra[1] = "unknown_extra_function"
+        rows.append(tuple(extra))
+    elif mutation == "search_path":
+        first[8] = ["search_path=public, pg_catalog"]
+    elif mutation == "extra_setting":
+        first[8] = ["search_path=pg_catalog, pg_temp", "row_security=off"]
+    elif mutation == "security_invoker":
+        first[4] = False
+    elif mutation == "wrong_owner":
+        first[3] = "pitchlog_app"
+    elif mutation == "wrong_language":
+        first[5] = "plpythonu"
+    elif mutation == "wrong_return":
+        first[6] = "text"
+    elif mutation == "wrong_volatility":
+        first[7] = "i"
+    elif mutation == "changed_body":
+        first[9] = str(first[9]) + "; SELECT true;"
+    rows[0] = tuple(first)
+    report = product_catalog._ReportBuilder()
+    product_catalog._compare_lifecycle_function_details(report, tuple(rows))
+    assert report.build().ok is (mutation == "none")
+
+
+def test_lifecycle_details_query_covers_entire_two_schemas() -> None:
+    """既知名ANYではなく2schema全関数を読み、未知関数を検出する。"""
+    query = product_catalog._query_for_id(CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS)
+    assert "namespace.nspname IN ('rg1_control', 'pitchlog_ledger_observer')" in query
+    assert "routine.proconfig" in query and "routine.prosrc" in query
+    assert "proname = ANY" not in query and "%s" not in query

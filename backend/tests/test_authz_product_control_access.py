@@ -196,6 +196,10 @@ def test_catalog_checker_rejects_rg1_update_acl_mutations(
     (
         ("tenants", "pitchlog_rg1_fn_owner"),
         ("rg1_restore_gate", "pitchlog_management_fn_owner"),
+        ("games", "pitchlog_rg1_control_owner"),
+        ("games", "pitchlog_rg1_control_actor"),
+        ("games", "pitchlog_ledger_identity_owner"),
+        ("games", "pitchlog_ledger_identity_probe"),
     ),
 )
 def test_catalog_checker_rejects_rg1_table_acl(
@@ -203,15 +207,10 @@ def test_catalog_checker_rejects_rg1_table_acl(
 ) -> None:
     """RG1表または専用ownerへの表権限を列ACLの迂回口にしない。"""
     asset = _product_asset()
-    asset["policies"] = [
-        row for row in asset["policies"] if row["role_ids"] != ["pitchlog_owner"]
-    ]
-    rg1_function = copy.deepcopy(
-        next(row for row in asset["functions"] if row["function_kind"] == "definer")
+    # 現PRODUCTの全policy/roleを保ち、表ACL1件だけを拒否対象にする。
+    _catalog_checker._validate_product_table_access_expectations(
+        asset, _REPOSITORY_ROOT, RuntimeContractState.PRODUCT
     )
-    rg1_function["function_id"] = "FUNCTION:rg1_api:synthetic()"
-    rg1_function["owner_role_id"] = owner_role_id
-    asset["functions"].append(rg1_function)
     acl: dict[str, object] = {
         "acl_id": f"ACL:{table_id}:{owner_role_id}",
         "object_kind": "table",
@@ -228,7 +227,7 @@ def test_catalog_checker_rejects_rg1_table_acl(
     asset["acl_expectations"].append(acl)
     with pytest.raises(_catalog_checker.CatalogError, match="RG1状態表"):
         _catalog_checker._validate_product_table_access_expectations(
-            asset, _REPOSITORY_ROOT, RuntimeContractState.PROVISIONAL
+            asset, _REPOSITORY_ROOT, RuntimeContractState.PRODUCT
         )
 
 
@@ -288,6 +287,8 @@ def _copy_static_inputs(root: Path) -> None:
         PRODUCT_SPEC.ddl_elements_path,
         _RUNTIME_CONTRACT,
         _RUNTIME_CONTRACT_MODULE,
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
     )
     for relative_path in paths:
         destination = root / relative_path
@@ -702,5 +703,235 @@ def test_product_element_manifest_and_body_must_match_exactly(
             if row["function_id"] != HELPER_FUNCTION_ID
         ]
 
-    with pytest.raises(_catalog_checker.CatalogError):
+    with pytest.raises(_catalog_checker.CatalogError) as error:
         _catalog_checker._validate_product_asset_correspondence(asset, root)
+    if target == "body":
+        missing_body = (
+            PRODUCT_SPEC.body_directory / "functions" / f"{HELPER_FUNCTION_ID}.sql"
+        )
+        assert str(error.value).startswith(f"製品body[{missing_body}]を読めない:")
+    else:
+        assert str(error.value) == (
+            "製品DDL要素・manifest・bodyファイルがexact-set不一致"
+        )
+
+
+@pytest.mark.parametrize(
+    "column,privileges",
+    (
+        ("singleton_id", ["SELECT"]),
+        ("state", ["SELECT", "UPDATE"]),
+    ),
+)
+def test_rg1_control_owner_has_only_its_exact_column_acl(
+    column: str,
+    privileges: list[str],
+) -> None:
+    """制御ownerだけのsingleton SELECT/state UPDATEを分離して検査する。"""
+    from pitchlog.authz.product_control_access import (
+        generate_function_owner_column_acl_sql,
+        is_rg1_control_column_acl,
+    )
+
+    declaration: dict[str, object] = {
+        "expectation_id": (
+            f"COLUMN-ACL:public:rg1_restore_gate:{column}:pitchlog_rg1_control_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": column,
+        "grantee_role_id": "pitchlog_rg1_control_owner",
+        "privilege_ids": privileges,
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_control:close_gate()",
+    }
+    assert is_rg1_control_column_acl(declaration)
+    sql = generate_function_owner_column_acl_sql(declaration)
+    assert "TO pitchlog_rg1_control_owner;" in sql
+    assert ("UPDATE (state)" in sql) is (column == "state")
+    for field, value in (
+        ("grantee_role_id", "pitchlog_rg1_fn_owner"),
+        ("function_id", "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)"),
+        ("object_id", "games"),
+        ("grant_option", 0),
+    ):
+        mutated = {**declaration, field: value}
+        assert not is_rg1_control_column_acl(mutated)
+
+
+def test_old_rg1_reader_cannot_acquire_state_update_through_control_extension() -> None:
+    """新制御能力を旧read ownerや他tableへ転用しない。"""
+    from pitchlog.authz.product_control_access import (
+        generate_function_owner_column_acl_sql,
+    )
+
+    declaration: dict[str, object] = {
+        "expectation_id": (
+            "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": "state",
+        "grantee_role_id": "pitchlog_rg1_fn_owner",
+        "privilege_ids": ["SELECT", "UPDATE"],
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_api:rg1_assert_open_before_commit(uuid)",
+    }
+    with pytest.raises(ValueError):
+        generate_function_owner_column_acl_sql(declaration)
+
+
+@pytest.mark.parametrize(
+    "role_id",
+    (
+        "pitchlog_rg1_control_owner",
+        "pitchlog_rg1_control_actor",
+        "pitchlog_ledger_identity_owner",
+        "pitchlog_ledger_identity_probe",
+    ),
+)
+@pytest.mark.parametrize(
+    "table,column",
+    (
+        ("admin_credentials", "password_hash"),
+        ("games", "id"),
+    ),
+)
+def test_rg1_new_principals_cannot_acquire_business_column_access(
+    role_id: str,
+    table: str,
+    column: str,
+) -> None:
+    """新観測/制御主体の業務列SELECTを資産とSQL生成の双方で拒否する。"""
+    function_id = "FUNCTION:rg1_control:synthetic_restricted()"
+    declaration: dict[str, object] = {
+        "expectation_id": f"COLUMN-ACL:public:{table}:{column}:{role_id}",
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": table,
+        "column_id": column,
+        "grantee_role_id": role_id,
+        "privilege_ids": ["SELECT"],
+        "grant_option": False,
+        "function_id": function_id,
+    }
+    with pytest.raises(ValueError, match="業務列ACL|固定2列"):
+        generate_function_owner_column_acl_sql(declaration)
+    asset = _product_asset()
+    function = copy.deepcopy(
+        next(row for row in asset["functions"] if row["function_kind"] == "definer")
+    )
+    function["function_id"] = function_id
+    function["owner_role_id"] = role_id
+    asset["functions"].append(function)
+    asset["column_acl_expectations"].append(declaration)
+    with pytest.raises(_catalog_checker.CatalogError, match="業務列ACL|固定2列"):
+        _catalog_checker._validate_product_membership_helper(
+            asset,
+            _REPOSITORY_ROOT,
+            RuntimeContractState.PROVISIONAL,
+        )
+
+
+def _fresh_epoch_acl() -> dict[str, object]:
+    """既承認の初回epoch setterだけが持つ1列ACLを返す。"""
+    return {
+        "expectation_id": (
+            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+            "pitchlog_rg1_control_owner"
+        ),
+        "object_kind": "column",
+        "object_schema": "public",
+        "object_id": "rg1_restore_gate",
+        "column_id": "recovery_generation",
+        "grantee_role_id": "pitchlog_rg1_control_owner",
+        "privilege_ids": ["SELECT", "UPDATE"],
+        "grant_option": False,
+        "function_id": "FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)",
+    }
+
+
+def test_fresh_epoch_acl_generates_only_the_fixed_epoch_column() -> None:
+    """有限受理済みepoch ACLを実SQLへ生成し、旧state列を拡張しない。"""
+    from pitchlog.authz.product_control_access import is_rg1_control_column_acl
+
+    declaration = _fresh_epoch_acl()
+    assert is_rg1_control_column_acl(declaration)
+    sql = generate_function_owner_column_acl_sql(declaration)
+    assert "GRANT SELECT (recovery_generation), UPDATE (recovery_generation)" in sql
+    assert "ON TABLE public.rg1_restore_gate TO pitchlog_rg1_control_owner;" in sql
+    assert "UPDATE (state)" not in sql
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("function_id", "FUNCTION:rg1_control:close_gate()"),
+        ("grantee_role_id", "pitchlog_initial_actor"),
+        ("object_id", "games"),
+        ("column_id", "state"),
+        ("privilege_ids", ["SELECT"]),
+        ("grant_option", 0),
+    ),
+)
+def test_fresh_epoch_acl_rejects_other_owners_functions_and_columns(
+    field: str,
+    value: object,
+) -> None:
+    """新1列権限を別関数/actor/旧列/緩いbool値へ流用させない。"""
+    declaration = {**_fresh_epoch_acl(), field: value}
+    with pytest.raises(ValueError):
+        generate_function_owner_column_acl_sql(declaration)
+
+
+def _fresh_epoch_unapplication(declaration: dict[str, object]) -> str | None:
+    """実provisioningの構造化ACL撤去経路へ渡す。"""
+    from pathlib import PurePosixPath
+
+    from pitchlog.authz import product_provisioning
+    from pitchlog.authz.ddl import DDLStatement
+
+    expectation_id = str(declaration["expectation_id"])
+    element = product_provisioning._ProductElement(
+        element_type="column_acl_expectation",
+        element_id=expectation_id,
+        fields=declaration,
+    )
+    statement = DDLStatement(
+        element_type="column_acl_expectation",
+        element_id=expectation_id,
+        source_path=PurePosixPath("epoch.sql"),
+        sql="",
+    )
+    return product_provisioning._unapplication_sql(statement, element, (element,), ())
+
+
+def test_fresh_epoch_unapplication_revokes_exact_column_privileges() -> None:
+    """正式epoch権限を同じ列/ownerから取り外し、DROP/追加grantをしない。"""
+    assert _fresh_epoch_unapplication(_fresh_epoch_acl()) == (
+        'REVOKE SELECT ("recovery_generation"), UPDATE ("recovery_generation") '
+        'ON TABLE "public"."rg1_restore_gate" FROM "pitchlog_rg1_control_owner";'
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    (
+        ("function_id", "FUNCTION:rg1_control:close_gate()"),
+        ("grantee_role_id", "pitchlog_initial_actor"),
+        ("object_id", "games"),
+        ("column_id", "state"),
+        ("privilege_ids", ["UPDATE"]),
+        ("grant_option", 0),
+    ),
+)
+def test_fresh_epoch_unapplication_rejects_unapproved_update(
+    field: str, value: object
+) -> None:
+    """epochの撤去対応を無関係な更新権限へ流用しない。"""
+    from pitchlog.authz.product_provisioning import ProductProvisioningError
+
+    with pytest.raises(ProductProvisioningError):
+        _fresh_epoch_unapplication({**_fresh_epoch_acl(), field: value})

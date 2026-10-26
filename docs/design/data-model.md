@@ -7,6 +7,9 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.3 | 2026-10-24 | 正式基線となる外部耐久台帳1.2と、別枝で確定済みのRG1制限主体/安全条件（旧枝内1.2）を通常接合する候補。両方の旧承認/指摘採用/反映周/履歴を保持し、RG1の内容を本版へ再採番する。新たな記録意味や権限緩和は行わず、既606の初回世代束縛/初期peer前提と業務identity観測を有限具体化し、13製品主体/14batch込みの正式登録対象へ整合する。追加限定7.3は非作者0/0/0。PO委任によるCodex root判断で62ed6efe本文を確認し確定（本人の実値逐行確認・署名ではない）。正式資産/7.7/実DBは別。 | **approved** |
+| **1.2** | 2026-10-24 | **RG1制限制御の主体分離と安全な成功条件（初回MVP）を確定**。本改訂で確定する範囲: 3-2の制御owner/peer actor・singleton限定列ACL/RLS・appの同Session実識別読取・実authority/lease/commitの安全条件、およびロール数の参照追随。実装時に確定する範囲: 有限DDL/適用・撤去、認可/tenant生成資産、正式7.7の実値、実DB/HTTP検証を既存featureステップ3/4で具体化する。本改訂で確定しない範囲: 全域closeProof/epoch更新・非zero復元の具体的Port、野球の結果意味、D5消費/拒否優先順。既存RG1 read ownerの状態更新権・app直接表権・継承/SET ROLEを増やさない。確定ゲートは全文1回＋反映差分1回、反映1周、P1=1/P2=1を全採用・不採用0、最終0/0/0。PO委任によるCodex主担当/root判断でda78a862の実値・採否を確認し承認（人間本人の個別確認/署名ではない）。具体記録はmvp-rg1-lifecycle-connection/research。 | **approved** |
+| **1.2** | 2026-10-24 | **RG1制限制御の主体分離と安全な成功条件（初回MVP）を起案**。本改訂で確定する範囲: 3-2の制御owner/peer actor・singleton限定列ACL/RLS・appの同Session実識別読取・実authority/lease/commitの安全条件、およびロール数の参照追随。実装時に確定する範囲: 有限DDL/適用・撤去、認可/tenant生成資産、正式7.7の実値、実DB/HTTP検証を既存featureステップ3/4で具体化する。本改訂で確定しない範囲: 全域closeProof/epoch更新・非zero復元の具体的Port、野球の結果意味、D5消費/拒否優先順。既存RG1 read ownerの状態更新権・app直接表権・継承/SET ROLEを増やさない。実装追随の根拠とゲートはmvp-rg1-lifecycle-connection/plan・researchへ固定。 | in-review |
 | 1.2 | 2026-10-24 | **外部耐久台帳の構造を本枝で確定**。**本書で確定する範囲**: §3-2-Aの業務復元範囲外の台帳3表/同期pair・保護journal、用途別4主体と業務identity観測2主体、D4/attempt/epoch対応・業務DBとの非原子性と不明停止・freshの一度限りの資格境界。**実装時に確定する範囲**: 最終DDL/ACL/SQL/hash/manifest全数、既存業務認可profileへの観測主体登録と数参照の追随、配置/撤去、実catalog/故障行列、完全7.7/正式受理・運用手順。既存ロール表の値と全履歴・D4 bigint非再利用・全復元要件を維持し、規則解決ownerの重複1行だけを整理し、RG1製品open/全域closeProof/非0復元/開始接続は提供済みとしない。 | approved |
 | **1.1** | 2026-10-15 | **TSK-550・FR-014段階Aの出所と専用owner**。**本改訂で確定する範囲** = §3-2の規則解決関数所有用ロール1件と既存ロール数の参照追随、§10-5のF-2固定5組だけの出所証明・割当あり拒否・閉じた製品書込入口。**2026-10-16正式確定**: 親`FOR UPDATE`後の別SQL割当読取、既定・規則`FOR SHARE`のscope終了までの保持と専用ownerの最小2列`UPDATE`を追加限定7.3で審査（P0=0/P1=1/P2=1、2件採用して判断資料を修正）。本会話のPOが今回の改訂範囲の最終本文とレビュー後修正差分を確認し正式確定を承認。§6-5・UUID・F-2値は対象外。具体列grant・配置・起動器の資産承認と7.7は別ゲート。**実装時に確定する範囲** = 関数SQL、F-2配置migration、一時RLS、認可資産と適用/取り外し、実DBの2接続・故障試験、U-G1の同一scope保存。§6-5 v1.0、F-2の値、採用済み5 UUID・機械文字列は変更しない。FR-014/DRAW-04のコールド矛盾は別の要件正本ゲートで裁定する。計画: `../features/ux1-fr014-rule-resolution/plan.md`、審査差分: `../features/ux1-fr014-rule-resolution/step3-formal-gate-submission.md` | approved |
 | **1.0** | 2026-10-14 | **TSK-550・FR-014の6-key保存契約を確定**: 6-5節で、新規試合の`games.applied_rules`を`ruleSetId`と既存`ruleSnapshot`のcamelCase 5値から成るexact-setとして固定する。IDはcanonical UUIDとして、5値は既存の凍結schemaへのprojectionで形・値域を検証し、付録F-1の値間相関を単一経路で追加検証する。旧`{}`、5値だけの行、未知key、不正ID・値・相関を解決済みへ推定補完しない。**本書で確定した範囲** = 6-keyの保存形、IDと5値の検証境界、同一時点の不変snapshot、旧行の不補完、新規物理列と第2の規則計算を追加しないこと。**実装時に確定する範囲** = codecの関数・公開型・例外/失敗表現、モジュール配置、単体試験の具体。**本改訂で扱わない範囲** = owner・列grant・規則データ配置migration・一時RLS・配置/認可検査器・制限関数・固定function operation・resolver・U-G1接続。付録F-2の値、PO採用済み5 UUIDと`no_out_first_second`／`continue_lineup`は変更しない。正式7.3は敵対レビュー2回（第1回P0 0/P1 1/P2 0、第2回P0 0/P1 0/P2 0）、反映1周、指摘1件を採用。最終HEAD `ca0a51ef7832a4dff58e54993c161076cf270f35`を**2026-10-14 本会話の利用者が逐行確認し、正本確定と当該保存契約に限定したPO代替受理を承認**。計画: `../features/ux1-fr014-rule-resolution/plan.md` | **approved** |
@@ -82,7 +85,7 @@ status: approved
 | --- | --- | --- |
 | **認可の共通述語**(実効参加・実効 `admin`・実効グループ・実効な共有文脈) | **3-0** | 3-5・3-6・8-2-B・9-1〜9-4・11-2 |
 
-| **ロールの分割と越境の到達経路**(製品用7・移行バッチ込み総数8ロール・`BYPASSRLS` の与え方・`NOLOGIN` と無 `GRANT`・関数 ACL と関数群ごとの付与先) | **3-2** | 3-6(共有関数)・8-2-B(管理関数)・8-2・8-3・8-6(認証関数)・10-5(規則解決関数)・12-4 |
+| **ロールの分割と越境の到達経路**(製品用13・移行バッチ込み総数14ロール・`BYPASSRLS` の与え方・`NOLOGIN` と無 `GRANT`・関数 ACL と関数群ごとの付与先) | **3-2** | 3-6(共有関数)・8-2-B(管理関数)・8-2・8-3・8-6(認証関数)・10-5(規則解決関数)・12-4 |
 
 | **業務的一意性の全数(集合)** | **3-4**(規則 1 の適用結果の表と、**実装待ちの業務的一意性の表**)。**「本書が置く業務的一意性はこの 2 表の行の和で全部である」ことの正**(実装待ちの行は実装と同じ PR で主表へ移す) | 各節 |
 | **チーム名の正規化とログイン名の一意性**(正規化の規則・単一の関数・長さの上限) | **8-1** | 3-4・8-6 |
@@ -249,11 +252,27 @@ RLS を採ると決めた瞬間に従属して決まるもの**であり、**要
 
 | **認証関数所有用**(`NOLOGIN` + **`BYPASSRLS`**) | **認証の到達経路の `SECURITY DEFINER` 関数の所有ロール**([FR-033](../requirements/requirements-pitchlog-2026-07-22.md#FR-033) / [FR-036](../requirements/requirements-pitchlog-2026-07-22.md#FR-036) / [NFR-011](../requirements/requirements-pitchlog-2026-07-22.md#NFR-011) — 8-2・8-3・8-6 節)。**到達先は認証前専用の 4 表**(認証主体・認証情報・トークン・レート制限カウンタ)**と、テナント表・システム設定値(10-4 節 — 有効期限・閾値)の読み取りに限る**。**共有関数所有用・管理関数所有用とは別ロール**にする | **バイパスする**(同前。認証前専用の`function_only`表にはポリシーを置かないので、`BYPASSRLS`がなければ0行になる。RG1の例外は次行) | 不可 |
 | **RG1関数所有用**(`NOLOGIN` + **`NOBYPASSRLS`**) | **RG1の単一状態行を読む固定2関数だけ**を所有し、`public.rg1_restore_gate`の`singleton_id/state`列SELECTと`singleton_id`列UPDATEだけを持つ。`FOR SHARE`行ロックのためのUPDATE権であり、状態変更の入口は持たない。共有・管理・認証関数所有用とは別ロール。**このownerを誰にもGRANTせず**、アプリを含む他ロールによる権限継承・`SET ROLE`を許さない | **従う**(`singleton_id=1`だけのSELECT/UPDATE policy、`FORCE ROW LEVEL SECURITY`) | 不可 |
+| **RG1制御関数所有用**(`pitchlog_rg1_control_owner`、`NOLOGIN`・`NOBYPASSRLS`・`NOINHERIT`) | 制限制御関数と同Session識別読取の所有者。`rg1_restore_gate`の`singleton_id/state/recovery_generation`のSELECT・`state/recovery_generation`のUPDATEだけを持ち、membershipを誰にも与えない。旧RG1読取ownerの`UPDATE(state)`は増やさない | **従う**（singleton=1のSELECT/UPDATE policy、FORCE RLS） | 不可 |
+| **RG1制御実行用**(`pitchlog_rg1_control_actor`、専用peer LOGIN・`NOBYPASSRLS`・`NOINHERIT`) | root管理の専用OS主体からだけ接続するcontroller。初回世代束縛を含む制御7関数の限定EXECUTEのみを持ち、表DML/owner membership/汎用EXECUTE/CREATE/TEMPは持たない。appや既存identity observerと分離する | **従う**（直接表権限なし） | 不可 |
 | **規則解決関数所有用**(`NOLOGIN` + **`BYPASSRLS`** + `NOINHERIT`) | **FR-014段階Aの固定`SECURITY DEFINER`関数1件の所有ロール**。共有・管理・認証関数所有用と分離し、アプリ用ロールを含めmembershipを持たせない。制限読取と親行`FOR UPDATE`の`UPDATE(disabled)`、既定行`FOR SHARE`の`UPDATE(game_type_category)`、規則行`FOR SHARE`の`UPDATE(id)`だけを列grantする。これらは実DML能力であり、関数本文のDML禁止・owner隔離・撤去時のgrant除去を一体で検証する。GUC照合はDB接続を得た主体のtenant偽装を防ぐ保証ではない（10-5節・認可面正本） | **バイパスする**(`BYPASSRLS`。tenant照合と出所検査は関数本体) | 不可 |
 
+| **業務identity観測関数所有用**(`pitchlog_ledger_identity_owner`、`NOLOGIN`・`NOBYPASSRLS`) | 専用schemaの固定identity読取だけを所有する。業務表DML・認証情報読取・他owner membershipを持たず、既存PUBLIC builtin権限と個別追加権限を区別する | **従う**（業務表権限なし） | 不可 |
+| **業務identity観測実行用**(`pitchlog_ledger_identity_probe`、peer LOGIN・`NOINHERIT`・`NOBYPASSRLS`) | CONNECT・専用schema USAGE・固定identity関数EXECUTEだけの追加明示権限を持つ。外部台帳clusterの主体はこの業務DB表へ混入しない | **従う**（業務表権限なし） | 不可 |
+| **初期権関数所有用の前提**(`pitchlog_initial_fn_owner`、`NOLOGIN`・`NOINHERIT`・`NOBYPASSRLS`) | 初期scope単位の専用ownerとして先行作成する。本RG1供給では関数所有・直接業務表/列権限・membershipを追加しない。初期9関数/4表/世代証拠列は別単位で最小権限を正式登録する | **従う** | 不可 |
+| **初期権実行用の前提**(`pitchlog_initial_actor`、peer LOGIN・`NOINHERIT`・`NOBYPASSRLS`) | 本RG1供給で追加する明示権限はCONNECT1・rg1_control/rg1_apiのUSAGE2・scope_binding/固定RG1読取2のEXECUTE3だけ。制御関数・直接業務表権・CREATE/TEMP・membershipは与えない | **従う**（直接表権限なし） | 不可 |
 | **移行バッチ用**(**`LOGIN`** + **`BYPASSRLS`**・**期間限定**) | **移行の一括投入だけ**(下記「移行バッチの書き込み経路」)。**移行完了で `NOBYPASSRLS` へ戻すか落とす** | **バイパスする**(`FORCE ROW LEVEL SECURITY` でも拘束されない) | 不可(所有者にしない) |
 
-**RG1物理資源（U-R1、新4の改訂候補）**: RG1の復元調整状態は全体共通の`singleton_id=1`の単一行とし、初期状態を`closed`とする。この表だけは非テナントの`function_only`例外として、アプリ用ロールの直接権限を持たせず、専用ownerに限定したSELECT/UPDATE policyを置く。専用関数所有ロール`pitchlog_rg1_fn_owner`の列権限とRLSは上表のとおり。アプリ用ロールは`rg1_api`のUSAGEと`SECURITY DEFINER`の固定読取2関数`rg1_read_open(uuid)`・`rg1_assert_open_before_commit(uuid)`のEXECUTEだけを持ち、PUBLICのEXECUTEは剥奪する。2関数は固定`search_path`とスキーマ修飾を使う。UUID引数は検証済みscopeからだけ注入し、DB側の`app.tenant_id`との一致検査は文脈の整合確認であって**テナント認可の証明ではない**。通常側のコミット直前照合は同じ単一行へ`FOR SHARE NOWAIT`を使い、競合・欠損・不明・読取失敗はfail-closedとする。安全な解除・復元開始関数を後続ステップで確定するまで、製品の両読取関数は行がopenでも常に閉鎖を返す。隔離試験用open行は運用上の解除を意味しない。本節のロールは製品用が既存5から6、期間限定の移行バッチ用を含む総数が6から7となる。
+**RG1物理資源**: 全体共通の`singleton_id=1`の単一行を初期`closed`とし、非テナントの`function_only`例外とする。appの直接表権限はなく、旧`pitchlog_rg1_fn_owner`の限定列権限/同singleton RLSを維持する。appの入口は`rg1_api.rg1_read_open(uuid)`・`rg1_api.rg1_assert_open_before_commit(uuid)`と、同Sessionの実business識別を読む`rg1_control.scope_binding(uuid)`だけのEXECUTE/必要schema USAGEに限定し、PUBLIC EXECUTEは剥奪する。UUIDは検証済みscopeから注入し、GUCとの一致は文脈整合であってテナント認可の証明ではない。
+
+**安全な成功条件**: 2読取関数は`open`行に加え、同じbusiness DB・同PID・制御actorが持つcontroller排他leaseとopen生存leaseを検査する。通常側は同じscopeで実businessのsystem identifier・database OID/名・postmaster開始時刻を固定読取し、root保護設定とkernel peer資格を検証したcontrollerの同channel借用へ結ぶ。実authorityのDB/起動世代に束縛した証拠とlive fenceが確認できた場合だけcontrollerがopenできる。commit直前の`FOR SHARE NOWAIT`と実借用生存の再照合を必須とし、PG commit/rollback/closeまで保持する。PG終結不明は正常releaseを送らず未終端扱いにする。行openだけ、root設定の存在、callerのbool/JSON、別DB/別PIDのlockは証明ではない。未配置/切断/欠損/競合/不明はfail-closedとする。
+
+**制御面の境界**: 専用制御ownerだけがsingleton状態を更新できる。controllerは排他leaseを保持してclosedを確定し、その後の再openを防止する。closeは同一行の共有lock排出をDBで待つ。appと旧identity専用observerへこの制御能力を与えず、既存PUBLIC builtin ACLは変更しない。固定関数のsearch_pathは`pg_catalog, pg_temp`、参照を完全修飾し、appへ制御7関数のEXECUTE/表DML/owner継承を与えない。
+
+**初回世代の束縛**: `rg1_restore_gate.recovery_generation`は正bigintまたはNULLで、既存行へのdefault/backfillは置かない。`rg1_control.bind_initial_fresh_epoch(bigint)`は制御actorだけが呼べる初回専用関数で、同controller Sessionの排他lease・実PID/DB・closed/NULL・未割当top XIDを照合し、真正なfresh attestationのE1だけを束縛する。順序はclosed確定→実fresh/fence取得→初回世代束縛commit→別transactionの既open commitとし、途中は閉じたまま保持する。既openを同じ束縛transactionへ前倒ししない。commit不明/open失敗は成功応答や自動再freshにせず、束縛済み世代をNULLへ戻さない。非zero復元/epoch更新の完成には広げない。
+
+**初期peerの同Session照合**: controllerはkernel peerからUID20002の初期actorとUID20003の既appをexactに識別し、同DBの実PID/pg_stat_activity roleをborrow/held/releaseで再照合する。caller JSONのroleやboolを証拠とせず、初期actorにも既appと同じfence/lease保持と終結不明時の停止を適用する。tenant UUID/GUCの一致だけで利用者の認可を成立させない。旧RG1 read2関数の本文・tenant/state/lockは保持し、初期actorへのEXECUTE追加を記録権の付与・初期9関数の完成とみなさない。
+
+**最初のfresh供給と残件**: 最初小単位は、保護genesisの新規登録・現在businessの識別一致・台帳の初期epoch/highwater/予約数・未終端/過去activationなしをauthority自身が検査した一度限りのfresh証拠を使う。復元した0行やepoch値だけではfreshへ戻らず、初期highwater=0をopen期間中の不変条件にもしない。通常の再起動/非zero復旧は正式な閉鎖・証拠/Portが成立するまで閉じる。client借用releaseやこの限定closeを全writerの排出証明/globalcloseProof/epoch更新へ昇格しない。全MVPの復旧要件を削減する規定ではない。製品の実supplier/制御/通常scopeが未供給なら、2読取関数を含む通常書込は成功扱いにしない。
 
 **試合区分 seed の所有者経路(TSK-479)**: `pitchlog_owner` は上表のマイグレーション用ロールとして Alembic を実行し、`BYPASSRLS` を持たない。製品 RLS 適用済みの `system_vocabularies` でも migration 0030 を適用できるよう、12-4 節で定める固定5行に限った所有者専用の SELECT・INSERT・DELETE ポリシーを置く。`FORCE ROW LEVEL SECURITY` は維持し、アプリ用ロールの INSERT・DELETE・UPDATE 権限は増やさない。この経路は期間限定の移行バッチ用ロールへ `system_vocabularies` を加えるものではない。
 
@@ -274,7 +293,7 @@ RLS を採ると決めた瞬間に従属して決まるもの**であり、**要
 | **到達経路の限定** | ロールを **`NOLOGIN`** にし、**誰にも `GRANT` しない**。**このロールの権限に到達する経路は `SECURITY DEFINER` 関数の呼び出しだけ**になる |
 
 | **呼び出し許可** | **関数群ごとに定めた付与先**(既定はアプリ用ロール。例外は下の「既定 `EXECUTE` の剥奪」行)へ**越境関数の `EXECUTE` を付与**する。**列単位の権限付与はできるが、行単位の直接権限付与はできない**ので、**「同じ業務表に対して自テナント行だけ直接許可する」ことはできない**(確定ゲート 3 周目 `P1-3`)。→ **本書の線引き**: **アプリ用ロールは業務表への直接権限を持つ**(`SELECT`/`INSERT`/`UPDATE`)。**行の絞り込みは RLS のポリシーが行い、権限では絞らない**(3-1 節の二重構成)。**越境関数が与えるのは、関数群ごとの契約の範囲での能力**である — **共有関数は「ポリシーでは通らない行を読む」**(3-6 節)・**管理関数は 8-2-B 節の操作別の契約に従って読み書きする**・**認証関数は 8-2・8-3・8-6 節の契約に従って読み書きする**(トークン・カウンタ・認証情報を更新する)。いずれも**表権限の追加ではない**。**`function_only` の表はこの線引きの例外で、アプリ用ロールは直接権限を持たない**(上のロール表)。したがって**「テーブルへの直接権限を与えない」対象は、越境関数の所有ロールが持つ権限をアプリ用ロールへ継承させないこと**である |
-| **用途ごとに分ける** | **共有集計用**(3-6 節)・**管理経路用**(8-2-B 節)・**認証用**(8-2・8-3・8-6 節)・**RG1読取用**(本節)・**規則解決用**(10-5 節)で**別ロール・別関数群**にする。片方の穴がもう片方へ広がらない。マイグレーション用とアプリ用を加えて製品用7ロール、期間限定の移行バッチ用を含めると総数8ロールになる(本節の表) |
+| **用途ごとに分ける** | **共有集計用**(3-6 節)・**管理経路用**(8-2-B 節)・**認証用**(8-2・8-3・8-6 節)・**RG1読取用**(本節)・**規則解決用**(10-5 節)で**別ロール・別関数群**にする。片方の穴がもう片方へ広がらない。マイグレーション用とアプリ用を含む既7ロールに、RG1制御2・業務identity観測2・初期権前提2を加え製品用13ロール、期間限定の移行バッチ用を含めると総数14ロールになる(本節の表) |
 
 
 - **「常時バイパスロールを作らない」との関係**: ロールは**バイパス属性を持つが引き受けられない**
@@ -293,7 +312,7 @@ RLS を採ると決めた瞬間に従属して決まるもの**であり、**要
 | **一時スキーマ** | **`search_path` の末尾に `pg_temp` を明示する**(`place_pg_temp_explicitly_last` — `contracts/authz/rejected-configs.json` の `REJ-003`)。**`pg_temp` を列挙から外してはならない** — 外すと**暗黙の `pg_temp` が列挙スキーマより前に来る**(`IMPLICIT_PG_TEMP_PRECEDES_LISTED_SCHEMAS`)ため、**一時リレーションによる乗っ取りが成立する**(PostgreSQL 17.11 実機で観測 — `temporary_relation_hijack_returned_attacker_rows`)。**`pg_temp` の出現は 1 回とし、必ず末尾に置く** |
 | **名前解決経路の非注入**(**不変条件**) | **関数の名前解決経路へ、所有者以外のロールがオブジェクトを注入できてはならない**。**呼び出しロールに限定しない** — 未信頼ロールが探索対象スキーマへオブジェクトを置ければ、正規の呼び出しを経由して解決させられる。**守り方は 2 つで、`pg_temp` は上記「末尾に置く」契約で守り、それ以外の列挙スキーマは `CREATE` を所有者以外へ与えないことで守る**。**本書はこの不変条件までを定め、検査の対象集合の厳密な列挙と合格述語は実装が確定する** (**範囲確定 — PO 裁定 2026-09-09・7.3-6**。確定ゲート 3 周とも本行の集合定義をめぐって指摘が回り、**起因が 2 周連続で過半**になったため。受け取り先は 12-8 節) |
 
-**RG1への共通契約の適用**: RG1の固定読取2関数にも、上表の「既定`EXECUTE`の剥奪」「名前解決の固定」「一時スキーマ」「名前解決経路の非注入」と、`NOLOGIN`・誰にも`GRANT`しないロール所属検査を適用する。「スキーマ検査」の`BYPASSRLS`要求だけは既存3 ownerに限定し、RG1 ownerでは`NOBYPASSRLS`を要求する。RG1は越境関数ではないため、上表の越境能力の付与先を広げる根拠にはしない。
+**RG1への共通契約の適用**: RG1の固定読取2関数・同Session識別関数・制御7関数にも、上表の「既定`EXECUTE`の剥奪」「名前解決の固定」「一時スキーマ」「名前解決経路の非注入」と、`NOLOGIN`・誰にも`GRANT`しないロール所属検査を適用する。「スキーマ検査」の`BYPASSRLS`要求だけは既存3 ownerに限定し、RG1の読取owner/制御owner/専用actorでは`NOBYPASSRLS`を要求する。専用actorのLOGINはOS peer専用で、NOLOGINの関数ownerを引き受ける例外ではない。RG1は越境関数ではないため、上表の越境能力の付与先を広げる根拠にはしない。
 
 - **これは「唯一の越境経路」を成立させる前提条件**である。ACL と名前解決を固定しないと、
   関数本体の正しさに関係なく越境できる([NFR-010](../requirements/requirements-pitchlog-2026-07-22.md#NFR-010) に反する。
@@ -363,7 +382,7 @@ FORCE は**テーブルの所有者もポリシーに従わせる**ため、「�
 
 外部台帳の4主体は、NOLOGIN/NOSUPERUSERの所有者、固定予約/照会/消費/fenceだけを呼ぶclient、復旧epoch/照合操作だけを呼ぶcontrol、指定standbyの複製peerへ分離する。client/controlに直接表DML・owner継承・任意SQLを与えず、固定search_path/完全修飾・PUBLIC EXECUTE剥奪で所有関数へ限定する。ownerの必要な標準統計・システム識別観測を個別grantし、他3主体へ継承させない。外部4主体は業務DBの既存ロール表の提供数へ混入させない。
 
-業務identityの照合は、業務DB側の専用NOLOGIN/NOBYPASSRLS観測ownerと専用LOGIN/NOINHERIT/NOBYPASSRLS peerの2主体で行う。peerへの追加の明示GRANTはCONNECT・専用schema USAGE・固定identity読取関数EXECUTEだけとし、TEMP・業務表DML・認証情報読取・owner membershipは付与しない。専用schemaと専用関数のPUBLIC権限を剥奪する一方、builtinの既存PUBLIC EXECUTEは本改訂で変更しない。builtin由来の実効権限を追加GRANT集合だけから排他限定したとは主張せず、ownerへの個別builtin EXECUTE追加と区別して検査する。固定関数は実system identifier/database/postmaster開始時刻等を返し、callerの自己申告値で代替しない。この2主体は業務DBへの**実装待ち追加集合**であり、現在提供中の7製品用/期間限定batch込み8ロールの内訳や既存全数表を本改訂だけで増やさない。正式登録時には全旧主体を保持してロール数・catalog期待値を実状態から追随する。
+業務identityの照合は、業務DB側の専用NOLOGIN/NOBYPASSRLS観測ownerと専用LOGIN/NOINHERIT/NOBYPASSRLS peerの2主体で行う。peerへの追加の明示GRANTはCONNECT・専用schema USAGE・固定identity読取関数EXECUTEだけとし、TEMP・業務表DML・認証情報読取・owner membershipは付与しない。専用schemaと専用関数のPUBLIC権限を剥奪する一方、builtinの既存PUBLIC EXECUTEは本改訂で変更しない。builtin由来の実効権限を追加GRANT集合だけから排他限定したとは主張せず、ownerへの個別builtin EXECUTE追加と区別して検査する。固定関数は実system identifier/database/postmaster開始時刻等を返し、callerの自己申告値で代替しない。この2主体は業務DBへの**実装待ち追加集合**であり、ledger1.2確定時の7製品用/期間限定batch込み8ロールという内訳や既存全数表を、その改訂だけで増やしたものではない。本候補はRG1制限2・この観測2・初期権前提2を既7へ加える13製品用/batch込み14ロールの正式登録対象として照合する。実資産の受理・配置を本書の候補状態だけで成立扱いにせず、全旧主体の属性とmembershipを保持してcatalog期待値を全数照合する。
 
 台帳pairと別のroot保護領域に、enrollmentの不変genesisとappend-only/fsync済みjournalを保持する。genesisには実業務identityと実pair identityを束縛し、過去activation/INTENT/未終端leaseを、業務DBの行数0だけから消去しない。専用の非root authorityと異なる非root clientは同一Unix channelのkernel peer identityで結び、callerの任意JSON/boolを証拠としない。epoch共有fenceは業務commit/rollback/結果不明を含む終結まで保持する。解除応答だけで業務DBの全書込停止証明が成立したとはしない。
 

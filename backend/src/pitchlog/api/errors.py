@@ -11,6 +11,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from pitchlog.api.request_presentation import RequestGateError
 from pitchlog.api.schemas.base import ErrorDetail, ErrorEnvelope, ErrorField
 from pitchlog.api.tenant_access import tenant_match_response_headers
+from pitchlog.recording_rights.rg1_lifecycle import RG1ControlUnavailable
+from pitchlog.repositories.rg1 import RG1Unavailable
 
 _LOGGER = logging.getLogger(__name__)
 _VALIDATION_ERROR_MESSAGE = "入力に誤りがあります"
@@ -165,6 +167,17 @@ async def _team_delete_exception_handler(
     return _error_response(status_code=409, message=message)
 
 
+async def _rg1_unavailable_exception_handler(
+    _request: Request, _exception: Exception
+) -> JSONResponse:
+    """scopeの取消/終結後に、内部接続や不明結果を成功へ補完せず503にする。"""
+    response = _error_response(status_code=503, message=_REQUEST_ERROR_MESSAGE)
+    response.raw_headers = tenant_match_response_headers(
+        _request.scope, response.status_code, response.raw_headers
+    )
+    return response
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """FastAPI インスタンスへ共通例外ハンドラを登録する。
 
@@ -178,4 +191,6 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestGateError, _request_gate_exception_handler)
     app.add_exception_handler(TeamRecordDeleteBlocked, _team_delete_exception_handler)
+    app.add_exception_handler(RG1Unavailable, _rg1_unavailable_exception_handler)
+    app.add_exception_handler(RG1ControlUnavailable, _rg1_unavailable_exception_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)

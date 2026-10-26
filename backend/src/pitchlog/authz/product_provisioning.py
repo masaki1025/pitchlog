@@ -21,6 +21,7 @@ from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 from pitchlog.authz.product_control_access import (
     RULE_RESOLUTION_FUNCTION_ID,
     RULE_RESOLUTION_OWNER_ROLE_ID,
+    is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
     is_rule_resolution_update_acl,
 )
@@ -75,7 +76,7 @@ def apply_product_authz_ddl(connection: psycopg.Connection[Any]) -> None:
 def apply_product_authz_before_rule_placement(
     connection: psycopg.Connection[Any],
 ) -> None:
-    """規則配置前に関数と列権限だけを保留して製品認可を適用する。"""
+    """規則配置・epoch列追加前の依存権限だけを保留して認可を適用する。"""
     _run_product_operation(connection, ProductOperation.APPLY_PRE_RULE)
 
 
@@ -307,6 +308,43 @@ def _ordered_generated_statements(
     return tuple(row[3] for row in sorted(ranked))
 
 
+def _strict_lifecycle_schema_sql(element: _ProductElement, sql_text: str) -> str:
+    """新schema2だけを既存owner不修復の再適用ガードで包む。"""
+    schema_name = _element_text(element, "schema_name")
+    owner = _element_text(element, "owner")
+    if (
+        schema_name != _element_text(element, "schema_id")
+        or schema_name not in {"rg1_control", "pitchlog_ledger_observer"}
+        or _element_text(element, "creation") != "product_ddl"
+        or _element_text(element, "ownership_path") != "direct"
+    ):
+        raise ProductProvisioningError("新schemaの再適用対象が閉集合と不一致")
+    original_create = f"CREATE SCHEMA {schema_name} AUTHORIZATION {owner};"
+    if sql_text.count(original_create) != 1:
+        raise ProductProvisioningError("新schemaの正規CREATE文が一意でない")
+    schema_literal = "'" + schema_name.replace("'", "''") + "'"
+    owner_literal = "'" + owner.replace("'", "''") + "'"
+    guarded_create = f"""DO $schema_reapply$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = {schema_literal}
+    ) THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_catalog.pg_namespace n
+            JOIN pg_catalog.pg_roles r ON r.oid = n.nspowner
+            WHERE n.nspname = {schema_literal} AND r.rolname = {owner_literal}
+        ) THEN
+            RAISE EXCEPTION 'schema owner collision: {schema_name}';
+        END IF;
+    ELSE
+        CREATE SCHEMA {_quote_identifier(schema_name)}
+            AUTHORIZATION {_quote_identifier(owner)};
+    END IF;
+END;
+$schema_reapply$;"""
+    return sql_text.replace(original_create, guarded_create, 1)
+
+
 def _application_statements(
     generated: tuple[DDLStatement, ...],
     steps: ProductApplicationSteps,
@@ -320,6 +358,13 @@ def _application_statements(
             continue
         sequence = _application_sequence(statement, steps, element)
         sql_text = statement.sql
+        if statement.element_type == "schema" and _element_text(
+            element, "schema_name"
+        ) in {
+            "rg1_control",
+            "pitchlog_ledger_observer",
+        }:
+            sql_text = _strict_lifecycle_schema_sql(element, sql_text)
         if statement.element_type == "policy":
             table = _table_element(
                 elements,
@@ -449,6 +494,18 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         return f"DROP POLICY IF EXISTS {policy_name} ON {qualified_table};"
     if statement.element_type == "acl_expectation":
+        if element.fields.get("object_kind") == "builtin_function":
+            from pitchlog.authz.product_function_acl import (
+                is_builtin_execute_declaration,
+            )
+
+            if not is_builtin_execute_declaration(element.fields):
+                raise ProductProvisioningError("builtin撤去の宣言がexact集合と不一致")
+            grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
+            return (
+                "REVOKE EXECUTE ON FUNCTION pg_catalog.pg_control_system() "
+                f"FROM {grantee};"
+            )
         table = _qualified_identifier(
             _element_text(element, "object_schema"),
             _element_text(element, "object_id"),
@@ -462,8 +519,13 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         column = _quote_identifier(_element_text(element, "column_id"))
         grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
-        if is_rg1_singleton_update_acl(element.fields) or is_rule_resolution_update_acl(
-            element.fields
+        if (
+            is_rg1_singleton_update_acl(element.fields)
+            or is_rule_resolution_update_acl(element.fields)
+            or (
+                is_rg1_control_column_acl(element.fields)
+                and element.fields.get("column_id") in {"state", "recovery_generation"}
+            )
         ):
             privileges = f"SELECT ({column}), UPDATE ({column})"
         elif element.fields.get("privilege_ids") == ["SELECT"]:
@@ -524,6 +586,18 @@ def _build_operation_statements(
         }
         if len(deferred) != 16 or RULE_RESOLUTION_FUNCTION_ID not in deferred:
             raise ProductProvisioningError("規則解決の保留対象がexact-set不一致")
+        epoch_acl_id = (
+            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+            "pitchlog_rg1_control_owner"
+        )
+        epoch_deferred = tuple(
+            statement for statement in generated if statement.element_id == epoch_acl_id
+        )
+        if len(epoch_deferred) != 1 or (
+            epoch_deferred[0].element_type != "column_acl_expectation"
+        ):
+            raise ProductProvisioningError("初回epoch列ACLの保留対象がexact-set不一致")
+        deferred.add(epoch_acl_id)
         generated = tuple(
             statement for statement in generated if statement.element_id not in deferred
         )

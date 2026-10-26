@@ -1,6 +1,7 @@
 """FastAPI アプリケーションの生成機構を提供する。"""
 
 import os
+from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -12,6 +13,7 @@ from pitchlog.authz.signing_key_config import require_signing_key_configuration
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import _activate_presentation
 from pitchlog.domainrt import verify_domain_artifact
+from pitchlog.recording_rights.rg1_lifecycle import configure_runtime
 
 ROUTERS: tuple[APIRouter, ...] = (
     meta.router,
@@ -22,6 +24,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     games.router,
 )
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
+_RG1_CLIENT_CONFIG_PATH = Path("/run/pitchlog/rg1-client.json")
 
 
 class _RenewedCookieMiddleware:
@@ -69,6 +72,9 @@ def create_app() -> FastAPI:
     signing_key = require_signing_key_configuration(
         _SIGNING_KEY_VARIABLE,
         os.environ.get(_SIGNING_KEY_VARIABLE),
+    )
+    configure_runtime(
+        _RG1_CLIENT_CONFIG_PATH if _RG1_CLIENT_CONFIG_PATH.exists() else None
     )
     # CI では Node の版を揃えないため、ここでは artifact だけを照合する。
     # Node の起動と版の照合は domainrt のホストを開くときに行う。

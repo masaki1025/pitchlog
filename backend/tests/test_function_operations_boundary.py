@@ -111,18 +111,25 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """RG1の2件を保ち、段階A読取だけを1件追加する。"""
+    """RG1の固定3件と正式resolver1件の全集合を照合する。"""
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
+        RG1ScopeBindingToken,
     )
 
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-    ) == ("RG1:precheck", "RG1:commit_check", "RULE:resolve_stage_a")
+    ) == (
+        "RG1:precheck",
+        "RG1:commit_check",
+        "RG1:scope_binding",
+        "RULE:resolve_stage_a",
+    )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
         RG1CommitCheckToken,
+        RG1ScopeBindingToken,
         StageAResolveRuleToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
