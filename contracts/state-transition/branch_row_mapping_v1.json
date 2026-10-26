@@ -4,10 +4,10 @@
   "stateContractPath": "contracts/state-transition/state_transition_contract_v1.json",
   "gameEndContractPath": "contracts/state-transition/game_end_contract_v1.json",
   "fixtureCoveragePath": "contracts/state-transition/manual_fixture_branch_coverage_v1.json",
-  "expectedPositiveMatches": 24,
+  "expectedPositiveMatches": 26,
   "expectedNegativeMatches": 11,
   "expectedRegisterBranches": 69,
-  "expectedExcludedBranches": 34,
+  "expectedExcludedBranches": 32,
   "claimBoundary": {
     "machineVerified": [
       "分岐IDの台帳実在、fixture 35 分岐との exact-set および免除 34 分岐との整合",
@@ -308,7 +308,124 @@
           }
         }
       },
-      "fixtureRelation": "row-output"
+      "fixtureRelation": "row-output",
+      "additionalCaseMappings": [
+        {
+          "caseId": "ST-RBI-08-RESTART-NONCAUSAL-01",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.single",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "eq",
+                    "axisId": "state.outs",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "second-third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.strikes",
+                    "value": 1
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.balls",
+                    "value": 2
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.interferenceRuling",
+                    "value": "not-required"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.officialScoringPayload",
+                    "value": "no-error"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutObservation.kind",
+                    "value": "other-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                    "value": "home-before-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                    "value": "out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                    "value": "third"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                    "value": "running-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                    "value": "safe-advance"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                    "value": "home"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                    "value": true
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                    "value": "multiple-runners-mixed"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.thirdOutTimingByRunner",
+                    "value": "single-runner-home-before-third-out"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+                    "value": "single-runner-stopped-and-restarted"
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+                    "value": false
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "branchId": "RBI-09",
@@ -1424,6 +1541,233 @@
                 "op": "eq",
                 "axisId": "event.perPitch.thirdOutTimingByRunner",
                 "value": "single-runner-not-before-third-out"
+              }
+            ]
+          }
+        }
+      },
+      "fixtureRelation": "row-output"
+    },
+    {
+      "branchId": "RBI-03",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.single",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "second-third"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.interferenceRuling",
+                "value": "not-required"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.officialScoringPayload",
+                "value": "no-error"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.thirdOutObservation.kind",
+                "value": "other-third-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                "value": "home-before-third-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                "value": "out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                "value": "third"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                "value": "running-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                "value": "safe-advance"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                "value": "home"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                "value": true
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                "value": "multiple-runners-mixed"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.thirdOutTimingByRunner",
+                "value": "single-runner-home-before-third-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+                "value": "single-runner-kept-running"
+              }
+            ]
+          }
+        }
+      },
+      "fixtureRelation": "row-output"
+    },
+    {
+      "branchId": "RBI-04",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.single",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "second-third"
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.strikes",
+                "value": 1
+              },
+              {
+                "op": "eq",
+                "axisId": "state.count.balls",
+                "value": 2
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.interferenceRuling",
+                "value": "not-required"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.officialScoringPayload",
+                "value": "no-error"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.thirdOutObservation.kind",
+                "value": "other-third-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.thirdOutTimingByRunner.third",
+                "value": "home-before-third-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                "value": "out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                "value": "third"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                "value": "running-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                "value": "safe-advance"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                "value": "home"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                "value": true
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                "value": false
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.runnerAdvanceOverridesByRunner",
+                "value": "multiple-runners-mixed"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.thirdOutTimingByRunner",
+                "value": "single-runner-home-before-third-out"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.runnerContinuityByRunner",
+                "value": "single-runner-stopped-and-restarted"
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay",
+                "value": true
               }
             ]
           }

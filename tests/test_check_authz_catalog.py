@@ -71,26 +71,22 @@ def test_product_extension_and_new_schema_declarations() -> None:
             encoding="utf-8"
         )
     )
-    # この旧generic試験はlifecycle/初期権以前のschema段階を対象に保つ。
-    # 現PRODUCT全体の閉集合は別の受理試験で検査する。
-    schemas = [copy.deepcopy(row) for row in asset["schemas"]
-               if row["schema_id"] not in {
-                   "rg1_control", "pitchlog_ledger_observer", "initial_right_api"
-               }]
-    for schema in schemas:
-        for group in ("acl_expectations", "revoked_acl_expectations"):
-            schema[group] = [row for row in schema[group]
-                             if row["grantee"] not in {
-                                 "pitchlog_rg1_control_owner", "pitchlog_initial_fn_owner",
-                                 "pitchlog_initial_actor",
-                             }]
+    schemas = copy.deepcopy(asset["schemas"])
+    checker._validate_product_schema_expectations(
+        schemas, authn_enabled=True, rg1_required=True,
+        rule_resolution_required=True, lifecycle_required=True,
+    )
+    assert len(schemas) == 7
+    # lifecycleの製品閉集合では余分schemaを拒否する。generic拡張参照は別に検査する。
     extra = copy.deepcopy(schemas[1])
     extra["schema_id"] = "test_extension_schema"
     extra["schema_name"] = "test_extension_schema"
     schemas.append(extra)
-    checker._validate_product_schema_expectations(
-        schemas, authn_enabled=True, rg1_required=True, rule_resolution_required=True
-    )
+    with pytest.raises(checker.CatalogError, match="全数集合"):
+        checker._validate_product_schema_expectations(
+            schemas, authn_enabled=True, rg1_required=True,
+            rule_resolution_required=True, lifecycle_required=True,
+        )
     extensions = [
         {
             "extension_id": "test_extension",
@@ -299,14 +295,14 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
         root / checker.PRODUCT_MIGRATION_VERSIONS,
         dirs_exist_ok=True,
     )
-    # 全PRODUCTが参照する固定本文もmetadataと同じ版から複製する。
-    for relative in (
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/durable_rights_ledger/business_identity.sql",
+    # 現製品の固定関数生成はmigration外の単一SQL sourceも検証する。
+    for relative_path in (
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
     ):
-        target=root/relative
-        target.parent.mkdir(parents=True,exist_ok=True)
-        shutil.copy2(REPOSITORY_ROOT/relative,target)
+        destination = root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
     schema_manifest = Path("contracts/db/schema-manifest.json")
     _write_json_at(
         root,
@@ -410,6 +406,43 @@ def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return root
+
+
+@pytest.mark.parametrize(
+    "flag", ("authn_enabled", "rule_resolution_required", "lifecycle_required")
+)
+def test_product_schema_cannot_use_legacy_flags(flag: str) -> None:
+    """現lifecycleの製品ACLを旧schema前提のflagで受理しない。"""
+    asset = _read_json_at(REPOSITORY_ROOT, checker.PRODUCT_ASSET)
+    flags = dict(
+        authn_enabled=True, rg1_required=True,
+        rule_resolution_required=True, lifecycle_required=True,
+    )
+    flags[flag] = False
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_schema_expectations(asset["schemas"], **flags)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+        "backend/src/pitchlog/durable_rights_ledger/business_identity.sql",
+    ),
+)
+def test_product_runtime_contract_missing_lifecycle_source_is_rejected(
+    tmp_path: Path, relative_path: str,
+) -> None:
+    """正規sourceの複写不足を検査器の許容やskipで補わない。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    assert (root / relative_path).read_bytes() == (
+        REPOSITORY_ROOT / relative_path
+    ).read_bytes()
+    (root / relative_path).unlink()
+    with pytest.raises(checker.CatalogError, match="lifecycleの固定sourceを読めない"):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET), root, checker.PRODUCT_SPEC,
+        )
 
 
 def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
@@ -6461,3 +6494,22 @@ def test_initial_http_provenance_rejects_real_source_drift(
     monkeypatch.setattr(checker, '_read_text', altered)
     with pytest.raises(checker.CatalogError):
         checker._initial_http_provenance(REPOSITORY_ROOT)
+
+
+@pytest.fixture(autouse=True)
+def historical_lifecycle_schema_input(
+    request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧lifecycle7schemaの対向を固定Gitへ束縛し、現initial8検査と分離する。"""
+    if request.node.originalname != 'test_product_extension_and_new_schema_declarations':
+        return
+    path = 'contracts/authz/product/ddl-elements.json'
+    raw = subprocess.run(
+        ['git', 'show', '3a24f89e15987ecef3dc45a1173ab99b5f79d16e:' + path],
+        cwd=REPOSITORY_ROOT, check=True, capture_output=True,
+    ).stdout
+    root = tmp_path / 'accepted-lifecycle-7-schema'
+    target = root / path
+    target.parent.mkdir(parents=True)
+    target.write_bytes(raw)
+    monkeypatch.setattr(sys.modules[__name__], 'REPOSITORY_ROOT', root)

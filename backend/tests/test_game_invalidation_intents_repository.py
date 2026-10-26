@@ -15,8 +15,10 @@ from alembic.config import Config
 from db.test_product_authz_authn_app import _app_dsn
 from db_fixtures import (
     ProvisionedProductCatalog,
+    _advance_historical_product_catalog,
     _product_migration_url,
     disposable_postgres_cluster,
+    historical_product_catalog,
     provisioned_product_catalog,
 )
 from psycopg.types.json import Jsonb
@@ -56,7 +58,11 @@ _SCOPES = (
     CacheScope.ANALYTICS_CHART,
 )
 
-__all__ = ("disposable_postgres_cluster", "provisioned_product_catalog")
+__all__ = (
+    "disposable_postgres_cluster",
+    "historical_product_catalog",
+    "provisioned_product_catalog",
+)
 
 
 def _game_request(tenant_id: UUID, game_id: UUID) -> CacheInvalidationRequest:
@@ -398,13 +404,13 @@ def test_selector_check_rejects_malformed_rows(
 
 @pytest.mark.requires_db
 def test_selector_migration_preserves_legacy_rows_under_force_rls(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """FORCE RLSのまま往復し、旧行保持と新行のdowngrade拒否を確認する。"""
     if db_fixtures._external_product_catalog is not None:
         pytest.skip("DDL往復は使い捨て製品DBに限る")
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     app_dsn = _use_app_db(catalog, monkeypatch)
     tenant_id = uuid4()
     with psycopg.connect(app_dsn) as connection:
@@ -502,6 +508,8 @@ def test_selector_migration_preserves_legacy_rows_under_force_rls(
         )
     with pytest.raises(IntegrityError):
         command.downgrade(config, "0030_seed_game_type")
+    command.upgrade(config, "0033_game_rules_immutable")
+    _advance_historical_product_catalog(catalog)
 
 
 @pytest.mark.requires_db

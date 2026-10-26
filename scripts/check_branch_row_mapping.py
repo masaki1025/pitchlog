@@ -809,6 +809,49 @@ def _unique_rows(rows: list[dict[str, Any]], coordinate: dict[str, Any]) -> dict
     return matches[0]
 
 
+def _check_additional_matrix_cases(
+    entry: dict[str, Any], fixture: dict[str, Any],
+    contract: dict[str, Any], coverage_refs: list[dict[str, Any]],
+) -> None:
+    """既分岐の追加正例を追加fixture・実行case・規範行へ双方向に束縛する。"""
+    cases = fixture.get("additionalCases", [])
+    mappings = entry.get("additionalCaseMappings", [])
+    case_ids = [case["caseId"] for case in cases]
+    mapping_ids = [mapping["caseId"] for mapping in mappings]
+    if (len(set(case_ids)) != len(case_ids)
+            or len(set(mapping_ids)) != len(mapping_ids)
+            or set(case_ids) != set(mapping_ids)):
+        raise BranchRowMappingError("追加caseと対応表のexact-setが不一致")
+    if not cases:
+        return
+    if entry["fixtureRelation"] != "row-output" or entry["rowRef"]["layer"] != "matrixRows":
+        raise BranchRowMappingError("追加caseは既matrix正例の分岐だけに許す")
+    by_id = {case["caseId"]: case for case in cases}
+    for mapping in mappings:
+        case = by_id[mapping["caseId"]]
+        reference = mapping["rowRef"]
+        if case["branchId"] != entry["branchId"]:
+            raise BranchRowMappingError("追加caseの分岐IDが主fixtureと一致しない")
+        if reference["layer"] != "matrixRows" or reference not in coverage_refs:
+            raise BranchRowMappingError("追加caseの参照が既matrix行参照にない")
+        row = _unique_rows(contract["matrixRows"], reference["coordinate"])
+        coordinate = case["inputCoordinate"]
+        if (coordinate.get("eventKind") != row["eventKind"]
+                or coordinate.get("resultId") != row["resultId"]
+                or not _predicate_holds(row["precondition"], coordinate)):
+            raise BranchRowMappingError("追加caseの入力が規範行の前提を満たさない")
+        output = {key: value for key, value in row.items()
+                  if key not in {"eventKind", "resultId", "precondition", "remarks"}}
+        if case["expected"] != output:
+            raise BranchRowMappingError("追加caseの六効果が規範行と一致しない")
+        consumed = [item for item in contract["cases"] if item["caseId"] == case["caseId"]]
+        if len(consumed) != 1 or consumed[0]["rowRef"] != reference:
+            raise BranchRowMappingError("追加caseの実行case参照が一意でない")
+        fields = ("caseId", "inputId", "inputPayload", "inputCoordinate", "expected")
+        if any(case.get(key) != consumed[0].get(key) for key in fields):
+            raise BranchRowMappingError("追加fixtureと実行caseが一致しない")
+
+
 def check_documents(
     mapping: dict[str, Any],
     schema: dict[str, Any],
@@ -881,6 +924,12 @@ def check_documents(
     if any("expectedViolationIds" not in entry for entry in negative_entries):
         raise BranchRowMappingError("負例の違反集合宣言がない")
 
+    all_case_ids = [
+        case["caseId"] for fixture in fixtures.values()
+        for case in [fixture["case"], *fixture.get("additionalCases", [])]
+    ]
+    if len(all_case_ids) != len(set(all_case_ids)):
+        raise BranchRowMappingError("主fixtureと追加fixtureのcaseIDが重複する")
     coverage_refs = [
         reference
         for item in state_contract["mustOperationCoverage"]["mappings"]
@@ -892,6 +941,9 @@ def check_documents(
         layer = reference["layer"]
         coordinate = reference["coordinate"]
         relation = entry["fixtureRelation"]
+        _check_additional_matrix_cases(
+            entry, fixtures[branch_id], state_contract, coverage_refs
+        )
         fixture = fixtures[branch_id]["case"]
         source_ids = {
             source["sourceId"] for source in fixtures[branch_id]["provenance"]["sources"]

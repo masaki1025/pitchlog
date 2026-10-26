@@ -12,12 +12,11 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 from alembic import command
+from db_fixtures import _advance_historical_product_catalog
 from product_authz_tenant_owned_cases import SeedRow, insert_statement
 from psycopg import sql
 from psycopg.types.json import Jsonb
 from sqlalchemy.exc import DBAPIError
-
-from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 
 from .conftest import DisposablePostgres, ProvisionedProductCatalog
 from .test_alembic_migrations import (
@@ -304,12 +303,12 @@ def test_matching_categories_use_column_defaults(
 
 @pytest.mark.parametrize("case", _CASES, ids=lambda case: case.table)
 def test_preflight_rejects_force_hidden_mismatch(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
     case: _ReferenceCase,
 ) -> None:
     """④ FORCE で所有者から隠れた区分違いを表名つきで拒否し、状態を残す。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     monkeypatch.setenv(
         "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(catalog.owner_dsn)
     )
@@ -341,11 +340,11 @@ def test_preflight_rejects_force_hidden_mismatch(
 
 
 def test_force_rls_upgrade_preserves_catalog_and_states(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """⑤ FORCE 下の整合行は upgrade でき、FORCE と製品認可を保つ。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     monkeypatch.setenv(
         "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(catalog.owner_dsn)
     )
@@ -376,24 +375,25 @@ def test_force_rls_upgrade_preserves_catalog_and_states(
     catalog.observer.rollback()
     # 0029 では RG1 表と規則不変トリガが未作成なので、0033 復帰後に照合する。
     command.upgrade(config, "0033_game_rules_immutable")
-    apply_product_authz_ddl(catalog.applicator)
+    _advance_historical_product_catalog(catalog)
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations
 
 
 def test_category_foreign_keys_round_trip(
+    historical_product_catalog: ProvisionedProductCatalog,
     provisioned_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """⑥ 複合 FULL と単列 SIMPLE の往復、列・UNIQUE・認可を確認する。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     monkeypatch.setenv(
         "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(catalog.owner_dsn)
     )
     config = _alembic_config()
     _assert_fk_shape(catalog.observer, composite=True)
     catalog.observer.rollback()
-    report = _inspect_product_catalog(catalog)
+    report = _inspect_product_catalog(provisioned_product_catalog)
     assert report.ok, report.violations
     force_before = _force_states(catalog.observer)
     assert all(force_before.values())
@@ -415,6 +415,6 @@ def test_category_foreign_keys_round_trip(
     assert _force_states(catalog.observer) == force_before
     catalog.observer.rollback()
     command.upgrade(config, "0033_game_rules_immutable")
-    apply_product_authz_ddl(catalog.applicator)
+    _advance_historical_product_catalog(catalog)
     report = _inspect_product_catalog(catalog)
     assert report.ok, report.violations

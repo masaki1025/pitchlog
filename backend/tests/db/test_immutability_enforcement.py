@@ -15,13 +15,17 @@ import pytest
 from alembic import command
 from psycopg import sql
 
-from .conftest import DisposablePostgres
+from pitchlog.authz.product_catalog import inspect_product_authz_catalog
+
+from .conftest import DisposablePostgres, ProvisionedProductCatalog
 from .test_alembic_migrations import (
     _alembic_config,
     _normalize_sql,
+    _normalized_predicate,
     _sqlalchemy_url,
     _sync_trigger_catalog_contract,
 )
+from .test_product_authz_catalog import _bootstrap_superuser_oid
 
 pytestmark = pytest.mark.requires_db
 
@@ -270,6 +274,15 @@ def _enforcement_violations(
             violations.append(
                 f"{table.name}: CHECKで保護する列がprotected宣言から外れた"
             )
+        if table.check_protected_columns and table.conditional_update_columns:
+            if not (
+                table.name == "rg1_restore_gate"
+                and table.protected_columns == {"singleton_id"}
+                and table.allowed_update_columns == {"state"}
+                and table.conditional_update_columns == {"recovery_generation"}
+                and not table.append_only
+            ):
+                violations.append(f"{table.name}: CHECK代替の条件更新が閉契約外")
         if table.append_only:
             if table.protected_columns != table.columns:
                 violations.append(f"{table.name}: 追記専用だが protected != columns")
@@ -340,6 +353,9 @@ def _enforcement_violations(
 
 def _observed_contract(
     connection: psycopg.Connection[Any],
+    *,
+    historical_rg1: bool = False,
+    privileged_role_oids: frozenset[int] | None = None,
 ) -> tuple[
     dict[str, Any],
     tuple[_ManifestTable, ...],
@@ -353,19 +369,56 @@ def _observed_contract(
     rg1_manifest = next(
         table for table in manifest["tables"] if table["name"] == "rg1_restore_gate"
     )
-    if (
-        len(rg1_table.protected_columns) == 1
-        and not rg1_table.conditional_update_columns
-        and not rg1_table.append_only
-        and _rg1_singleton_check_enforced(connection, rg1_manifest)
-    ):
-        population = _replace_table(
-            population,
-            replace(
-                rg1_table,
-                check_protected_columns=rg1_table.protected_columns,
-            ),
+    revision = connection.execute(
+        "SELECT version_num FROM public.alembic_version"
+    ).fetchall()
+    if historical_rg1:
+        assert revision == [("0032_rg1_restore_gate",)]
+        columns = connection.execute(
+            "SELECT attname FROM pg_attribute "
+            "WHERE attrelid='public.rg1_restore_gate'::regclass "
+            "AND attnum>0 AND NOT attisdropped"
+        ).fetchall()
+        assert {row[0] for row in columns} == {"singleton_id", "state"}
+        # 固定ID変異だけは実0032の二列契約で比較する。現manifest正例ではない。
+        rg1_table = replace(
+            rg1_table,
+            columns=rg1_table.columns - {"recovery_generation"},
+            conditional_update_columns=frozenset(),
         )
+    else:
+        assert revision == [("0035_rg1_initial_fresh_epoch",)]
+        assert rg1_table.protected_columns == {"singleton_id"}
+        assert rg1_table.allowed_update_columns == {"state"}
+        assert rg1_table.conditional_update_columns == {"recovery_generation"}
+        assert not rg1_table.append_only
+        epoch = connection.execute(
+            "SELECT format_type(atttypid,atttypmod), attnotnull "
+            "FROM pg_attribute WHERE attrelid='public.rg1_restore_gate'::regclass "
+            "AND attname='recovery_generation' AND NOT attisdropped"
+        ).fetchall()
+        assert epoch == [("bigint", False)], "RG1 epoch列の契約が不一致"
+        checks = connection.execute(
+            "SELECT pg_get_expr(conbin,conrelid), convalidated FROM pg_constraint "
+            "WHERE conrelid='public.rg1_restore_gate'::regclass "
+            "AND conname='ck_rg1_restore_gate_recovery_generation' AND contype='c'"
+        ).fetchall()
+        assert len(checks) == 1 and checks[0][1] is True, "RG1 epoch CHECKが欠落"
+        assert _normalized_predicate(checks[0][0]) == (
+            "recovery_generation IS NULL OR recovery_generation > 0"
+        ), "RG1 epoch CHECKが不一致"
+        # 条件更新はCHECKだけでなく、固定関数/owner/ACL/RLSの実catalogへ束縛する。
+        assert privileged_role_oids is not None
+        report = inspect_product_authz_catalog(
+            connection, privileged_role_oids=privileged_role_oids
+        )
+        assert report.ok, "RG1の条件更新を担う認可catalogが不一致"
+    if _rg1_singleton_check_enforced(connection, rg1_manifest):
+        rg1_table = replace(
+            rg1_table,
+            check_protected_columns=rg1_table.protected_columns,
+        )
+    population = _replace_table(population, rg1_table)
     return (
         manifest,
         population,
@@ -447,21 +500,15 @@ def _create_update_of_trigger(
 
 
 def test_all_manifest_immutability_declarations_are_enforced(
-    disposable_postgres_cluster: Callable[
-        [], AbstractContextManager[DisposablePostgres]
-    ],
-    monkeypatch: pytest.MonkeyPatch,
+    provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
     """Manifest 全表の宣言と実 DB の強制を双方向・非空で突合する。"""
-    with disposable_postgres_cluster() as cluster:
-        monkeypatch.setenv(
-            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+    connection = provisioned_product_catalog.applicator
+    privileged = frozenset({_bootstrap_superuser_oid(provisioned_product_catalog)})
+    with connection.transaction(force_rollback=True):
+        manifest, population, database_tables, triggers = _observed_contract(
+            connection, privileged_role_oids=privileged
         )
-        command.upgrade(_alembic_config(), "0033_game_rules_immutable")
-        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            manifest, population, database_tables, triggers = _observed_contract(
-                connection
-            )
 
     counts = _population_counts(len(manifest["tables"]), population, database_tables)
     assert counts.manifest > 0
@@ -490,6 +537,15 @@ def test_rg1_fixed_id_check_removal_is_detected(
                 for table in _load_manifest()["tables"]
                 if table["name"] == "rg1_restore_gate"
             )
+            before_manifest, before_population, before_tables, before_triggers = (
+                _observed_contract(connection, historical_rg1=True)
+            )
+            assert not any(
+                "rg1_restore_gate" in violation
+                for violation in _validate_observed_contract(
+                    before_manifest, before_population, before_tables, before_triggers
+                )
+            )
             contract = _rg1_singleton_check_contract(rg1_manifest)
             assert contract is not None
             column, value, _ = contract
@@ -517,7 +573,7 @@ def test_rg1_fixed_id_check_removal_is_detected(
                 )
             ).fetchall() == [(value + 1,)]
             manifest, population, database_tables, triggers = _observed_contract(
-                connection
+                connection, historical_rg1=True
             )
     assert any(
         "rg1_restore_gate: BEFORE UPDATE OF トリガ本数が不一致: "
@@ -529,82 +585,72 @@ def test_rg1_fixed_id_check_removal_is_detected(
 
 
 def test_immutability_enforcement_mutations_are_detected(
-    disposable_postgres_cluster: Callable[
-        [], AbstractContextManager[DisposablePostgres]
-    ],
-    monkeypatch: pytest.MonkeyPatch,
+    provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
     """N-1〜N-5 の単独変異をすべて不変性検査が拒否すると示す。"""
-    with disposable_postgres_cluster() as cluster:
-        monkeypatch.setenv(
-            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
+    connection = provisioned_product_catalog.applicator
+    privileged = frozenset({_bootstrap_superuser_oid(provisioned_product_catalog)})
+    with connection.transaction(force_rollback=True):
+        manifest, population, database_tables, triggers = _observed_contract(
+            connection, privileged_role_oids=privileged
         )
-        command.upgrade(_alembic_config(), "0033_game_rules_immutable")
-        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            manifest, population, database_tables, triggers = _observed_contract(
-                connection
-            )
-            assert (
-                _validate_observed_contract(
-                    manifest, population, database_tables, triggers
-                )
-                == []
-            )
+        assert (
+            _validate_observed_contract(manifest, population, database_tables, triggers)
+            == []
+        )
 
-            # N-1: ステップ 2 を戻した状態と同じく players のトリガを除く。
-            player_trigger = _single_table_trigger(triggers, "players")
-            connection.execute(
-                sql.SQL("DROP TRIGGER {} ON {}").format(
-                    sql.Identifier(player_trigger.name),
-                    sql.Identifier(player_trigger.table),
-                )
+        # N-1: ステップ 2 を戻した状態と同じく players のトリガを除く。
+        player_trigger = _single_table_trigger(triggers, "players")
+        connection.execute(
+            sql.SQL("DROP TRIGGER {} ON {}").format(
+                sql.Identifier(player_trigger.name),
+                sql.Identifier(player_trigger.table),
             )
-            without_player_trigger = _catalog_triggers(connection)
-            n1_violations = _validate_observed_contract(
-                manifest, population, database_tables, without_player_trigger
-            )
-            assert any(
-                "players: BEFORE UPDATE OF トリガ本数が不一致: "
-                "expected=1, actual=0" in violation
-                for violation in n1_violations
-            )
-            _create_update_of_trigger(
-                connection, player_trigger, player_trigger.columns
-            )
-            assert (
-                _validate_observed_contract(
-                    manifest, population, database_tables, _catalog_triggers(connection)
-                )
-                == []
-            )
-
-            # N-3: protected 列を 1 つ OF リストから外す。
-            guarded_trigger = _single_table_trigger(triggers, "recording_generations")
-            guarded_table = next(
-                table for table in population if table.name == guarded_trigger.table
-            )
-            removed_column = next(
-                column
-                for column in guarded_trigger.columns
-                if column in guarded_table.protected_columns
-            )
-            remaining_columns = tuple(
-                column for column in guarded_trigger.columns if column != removed_column
-            )
-            connection.execute(
-                sql.SQL("DROP TRIGGER {} ON {}").format(
-                    sql.Identifier(guarded_trigger.name),
-                    sql.Identifier(guarded_trigger.table),
-                )
-            )
-            _create_update_of_trigger(connection, guarded_trigger, remaining_columns)
-            n3_violations = _validate_observed_contract(
+        )
+        without_player_trigger = _catalog_triggers(connection)
+        n1_violations = _validate_observed_contract(
+            manifest, population, database_tables, without_player_trigger
+        )
+        assert any(
+            "players: BEFORE UPDATE OF トリガ本数が不一致: "
+            "expected=1, actual=0" in violation
+            for violation in n1_violations
+        )
+        _create_update_of_trigger(connection, player_trigger, player_trigger.columns)
+        assert (
+            _validate_observed_contract(
                 manifest, population, database_tables, _catalog_triggers(connection)
             )
-            assert any(
-                f"{guarded_trigger.table}: tgattr 列集合が不一致" in violation
-                for violation in n3_violations
+            == []
+        )
+
+        # N-3: protected 列を 1 つ OF リストから外す。
+        guarded_trigger = _single_table_trigger(triggers, "recording_generations")
+        guarded_table = next(
+            table for table in population if table.name == guarded_trigger.table
+        )
+        removed_column = next(
+            column
+            for column in guarded_trigger.columns
+            if column in guarded_table.protected_columns
+        )
+        remaining_columns = tuple(
+            column for column in guarded_trigger.columns if column != removed_column
+        )
+        connection.execute(
+            sql.SQL("DROP TRIGGER {} ON {}").format(
+                sql.Identifier(guarded_trigger.name),
+                sql.Identifier(guarded_trigger.table),
             )
+        )
+        _create_update_of_trigger(connection, guarded_trigger, remaining_columns)
+        n3_violations = _validate_observed_contract(
+            manifest, population, database_tables, _catalog_triggers(connection)
+        )
+        assert any(
+            f"{guarded_trigger.table}: tgattr 列集合が不一致" in violation
+            for violation in n3_violations
+        )
 
     tables_by_name = {table.name: table for table in population}
 
@@ -686,3 +732,50 @@ def test_immutability_enforcement_mutations_are_detected(
         "recording_generations: tgattr 列集合が不一致" in violation
         for violation in n5_violations
     )
+
+
+@pytest.mark.parametrize(
+    "mutation", ["epoch-check", "extra-grant", "extra-conditional"]
+)
+def test_rg1_epoch_certification_rejects_unverified_conditions(
+    provisioned_product_catalog: ProvisionedProductCatalog, mutation: str
+) -> None:
+    """条件更新のCHECK代替を実epoch・認可と閉列集合へ束縛する。"""
+    catalog = provisioned_product_catalog
+    privileged = frozenset({_bootstrap_superuser_oid(catalog)})
+    with catalog.applicator.transaction(force_rollback=True):
+        manifest, population, tables, triggers = _observed_contract(
+            catalog.applicator, privileged_role_oids=privileged
+        )
+        assert _validate_observed_contract(manifest, population, tables, triggers) == []
+        if mutation == "extra-conditional":
+            gate = next(row for row in population if row.name == "rg1_restore_gate")
+            changed = _replace_table(
+                population,
+                replace(
+                    gate,
+                    conditional_update_columns=frozenset(
+                        {"recovery_generation", "state"}
+                    ),
+                ),
+            )
+            assert any(
+                "CHECK代替の条件更新が閉契約外" in value
+                for value in _validate_observed_contract(
+                    manifest, changed, tables, triggers
+                )
+            )
+        else:
+            if mutation == "epoch-check":
+                catalog.applicator.execute(
+                    "ALTER TABLE public.rg1_restore_gate "
+                    "DROP CONSTRAINT ck_rg1_restore_gate_recovery_generation"
+                )
+                reason = "RG1 epoch CHECK"
+            else:
+                catalog.applicator.execute(
+                    "GRANT EXECUTE ON FUNCTION rg1_api.rg1_read_open(uuid) TO PUBLIC"
+                )
+                reason = "認可catalog"
+            with pytest.raises(AssertionError, match=reason):
+                _observed_contract(catalog.applicator, privileged_role_oids=privileged)

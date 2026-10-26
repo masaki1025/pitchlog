@@ -1230,7 +1230,11 @@
           "$ref": "#/$defs/PlayerRefV1"
         },
         "after_observing_misplay": {
-          "type": "boolean"
+          "type": "boolean",
+          "enum": [
+            false,
+            true
+          ]
         }
       },
       "required": [

@@ -2318,7 +2318,15 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
         for item in condition2
         if "RecordingGeneration" in item.symbol
     }
-    assert recording_generation_lines == {187, 280, 281, 282}
+    tree = ast.parse(_fixture_source(source_root / path))
+    expected_lines = {
+        node.lineno
+        for node in ast.walk(tree)
+        if (isinstance(node, ast.ClassDef) and node.name == "RecordingGeneration")
+        or (isinstance(node, ast.Name) and node.id == "RecordingGeneration")
+    }
+    assert len(expected_lines) == 4
+    assert recording_generation_lines == expected_lines
 
 
 def test_product_call_coverage_sets_are_complete() -> None:
@@ -8369,3 +8377,260 @@ def test_epoch_startup_extra_api_and_unregistered_helper_are_red() -> None:
     violations = checker.scan_source(modified, path=path, contract=contract)
     assert any(v.code == "TB005" and v.scope.endswith("._unregistered_epoch")
                for v in violations)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-field", "missing-path", "extra-path", "digest", "extra-finding",
+        "zero-line", "bool-line", "empty-symbol", "extra-key",
+    ),
+)
+def test_rg1_owned_condition2_shape_is_closed(mutation: str) -> None:
+    """RG1の2物理所有境界を欠落や未知の出現へ広げられない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    key = "condition_2_rg1_scoped_findings"
+    groups = value[key]
+    path = sorted(groups)[0]
+    if mutation == "missing-field":
+        del value[key]
+    elif mutation == "missing-path":
+        del groups[path]
+    elif mutation == "extra-path":
+        groups["backend/src/pitchlog/other.py"] = copy.deepcopy(groups[path])
+    elif mutation == "digest":
+        groups[path]["source_sha256"] = "not-a-digest"
+    elif mutation == "extra-finding":
+        groups[path]["findings"].append(copy.deepcopy(groups[path]["findings"][0]))
+    elif mutation == "zero-line":
+        groups[path]["findings"][0]["line"] = 0
+    elif mutation == "bool-line":
+        groups[path]["findings"][0]["line"] = True
+    elif mutation == "empty-symbol":
+        groups[path]["findings"][0]["symbol"] = ""
+    else:
+        groups[path]["findings"][0]["condition"] = 5
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis = checker.load_contract(REPOSITORY_ROOT).apis
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory, apis)
+
+
+def test_rg1_owned_condition2_requires_each_source_path_and_occurrence() -> None:
+    """同source/位置/記号だけを束縛し、変更sourceと他条件は残す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert {owner.path for owner in contract.rg1_condition2_owners} == (
+        checker.RG1_CONDITION2_OWNER_PATHS
+    )
+    assert len(contract.condition2_scoped_findings) == 47
+    assert len(contract.ledger_condition2_findings) == 17
+    for owner in contract.rg1_condition2_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        source = (REPOSITORY_ROOT / owner.path).read_text()
+        assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
+        raw = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, rg1_condition2_owners=()),
+        )
+        assert owner.findings <= {
+            (v.line, v.symbol) for v in raw if v.code == "TB002"
+        }
+        clean = checker.scan_source(source, path=relative, contract=contract)
+        assert not any(
+            v.code == "TB002" and (v.line, v.symbol) in owner.findings for v in clean
+        )
+        for broken in (
+            source + "\n# sourceの完全同一性を壊す\n",
+            source + "\nextra_generation = 1\n",
+        ):
+            found = checker.scan_source(broken, path=relative, contract=contract)
+            assert owner.findings <= {
+                (v.line, v.symbol) for v in found if v.code == "TB002"
+            }
+        for replacement in (
+            replace(owner, source_sha256="0" * 64),
+            replace(owner, findings=frozenset({(next(iter(owner.findings))[0], "wrong")})),
+            replace(owner, findings=frozenset({(1, next(iter(owner.findings))[1])})),
+        ):
+            owners = tuple(
+                replacement if o.path == owner.path else o
+                for o in contract.rg1_condition2_owners
+            )
+            found = checker.scan_source(
+                source, path=relative,
+                contract=replace(contract, rg1_condition2_owners=owners),
+            )
+            assert owner.findings <= {
+                (v.line, v.symbol) for v in found if v.code == "TB002"
+            }
+        changed = source + "\npsycopg.connect('unregistered')\n"
+        # source hashを追随しても、追加DB操作は条件2の免除で消せない。
+        replacement = replace(owner, source_sha256=hashlib.sha256(changed.encode()).hexdigest())
+        owners = tuple(replacement if o.path == owner.path else o
+                       for o in contract.rg1_condition2_owners)
+        found = checker.scan_source(
+            changed, path=relative,
+            contract=replace(contract, rg1_condition2_owners=owners),
+        )
+        assert any(v.code == "TB005" for v in found)
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "duplicate"))
+def test_rg1_owned_condition2_synthetic_contract_is_not_an_escape(mutation: str) -> None:
+    """合成Contractでも未知pathや複数出現への免除を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owners = contract.rg1_condition2_owners
+    if mutation == "missing":
+        owners = owners[:-1]
+    elif mutation == "duplicate":
+        owners = (*owners, owners[0])
+    else:
+        owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
+    owner = contract.rg1_condition2_owners[0]
+    source = (REPOSITORY_ROOT / owner.path).read_text()
+    found = checker.scan_source(
+        source, path=owner.path.removeprefix("backend/src/"),
+        contract=replace(contract, rg1_condition2_owners=owners),
+    )
+    assert owner.findings <= {
+        (v.line, v.symbol) for v in found if v.code == "TB002"
+    }
+
+
+@pytest.mark.parametrize(
+    "symbol",
+    (
+        "pitchlog.repositories.rg1._build_rg1_scope_binding_statement",
+        "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller",
+        "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.control",
+        "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.assert_borrower_backend",
+    ),
+)
+def test_rg1_normal_foundation_registration_is_exact(symbol: str) -> None:
+    """実DB基底の登録欠落/偽署名は実sourceの所見を再び拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    rows = [r for r in contract.allowed_symbols if r.symbol == symbol]
+    assert len(rows) == 1
+    selected = rows[0]
+    assert "SQLA_ENGINE_CONNECT" not in selected.allowed_api_ids
+    assert "SQLA_ASYNC_ENGINE_CONNECT" not in selected.allowed_api_ids
+    relative = (
+        "pitchlog/repositories/rg1.py" if ".repositories." in symbol
+        else "pitchlog/recording_rights/rg1_lifecycle.py"
+    )
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    assert checker.scan_source(source, path=relative, contract=contract) == []
+    for replacement in (None, replace(selected, signature=selected.signature + "_wrong")):
+        allowed = tuple(r for r in contract.allowed_symbols if r.symbol != symbol)
+        if replacement is not None:
+            allowed = (*allowed, replacement)
+        found = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, allowed_symbols=allowed),
+        )
+        assert any(v.code == "TB005" and (v.scope == symbol or v.symbol == symbol)
+                   for v in found)
+
+
+@pytest.mark.parametrize("outer", (None, "another_controller"))
+def test_rg1_nested_db_capability_cannot_move_to_same_name(outer: str | None) -> None:
+    """同名controlを別のlexical scopeへ置いてもDB能力を得ない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    body = (
+        "def control(name: str) -> object:\n"
+        "    connection: psycopg.Connection\n"
+        "    return connection.execute('SELECT 1')\n"
+    )
+    if outer is not None:
+        body = "def " + outer + "() -> None:\n" + "\n".join(
+            "    " + line for line in body.splitlines()
+        )
+    source = "import psycopg\n" + body
+    found = checker.scan_source(
+        source, path="pitchlog/recording_rights/rg1_lifecycle.py", contract=contract,
+    )
+    assert any(v.code == "TB005" and v.scope.endswith(".control") for v in found)
+
+
+def test_rg1_nested_continuity_keeps_lexical_definition_and_signature() -> None:
+    """登録済みnested基底の削除と署名変更をsnapshot比較で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/recording_rights/rg1_lifecycle.py"
+    before = (
+        "from pathlib import Path\n"
+        "def serve_fresh_controller(config_path: Path) -> None:\n"
+        "    def control(name: str) -> object:\n"
+        "        return None\n"
+    )
+    head = (
+        "from pathlib import Path\n"
+        "def serve_fresh_controller(config_path: Path) -> None:\n    pass\n"
+    )
+    symbol = "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.control"
+    definitions, violations = checker._definitions({path: before}, contract)
+    assert violations == []
+    assert definitions[symbol] == "control(name: str) -> object"
+    for after in (head, before.replace("name: str", "name: int")):
+        found = checker.continuity_violations({path: before}, {path: after}, contract=contract)
+        assert any(v.code == "TB006" and v.symbol == symbol for v in found)
+
+
+def test_rg1_socket_provenance_does_not_grant_db_connect() -> None:
+    """実socketの明示型だけを使い、未知connectやDB接続は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    typed = (
+        "import socket\ndef connect_controller() -> None:\n"
+        "    connected_socket: socket.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n"
+        "    sock = connected_socket\n    sock.connect('/controller')\n"
+    )
+    assert checker.scan_source(typed, path="pitchlog/socket_probe.py", contract=contract) == []
+    for changed in (
+        typed.replace("connected_socket: socket.socket =", "connected_socket ="),
+        typed.replace("socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)", "unknown_factory()"),
+    ):
+        # 未知factoryへの偽注釈を安全とみなす旧限界は今回変更しないため、
+        # 未注釈の未知由来を対向にする。
+        if "unknown_factory()" in changed:
+            changed = changed.replace("connected_socket: socket.socket =", "connected_socket =")
+        found = checker.scan_source(changed, path="pitchlog/socket_probe.py", contract=contract)
+        assert any(v.code == "TB005" for v in found)
+
+
+def test_rg1_foundation_each_positive_is_killed_by_all_reject() -> None:
+    """新4基底それぞれの正例に全拒否変異が実際に届く。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    symbols = {
+        "pitchlog.repositories.rg1._build_rg1_scope_binding_statement",
+        "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller",
+        "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.control",
+        "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller.assert_borrower_backend",
+    }
+    selected = [r for r in contract.allowed_symbols if r.symbol in symbols]
+    assert len(selected) == 4
+    found = checker.scan_directory(POSITIVE_ROOT, contract=contract, reject_all_db_calls=True)
+    red_paths = {v.path for v in found if v.code == "TB900"}
+    prefix = "tests/fixtures/tenant_boundary/positive/"
+    assert {r.fixture.removeprefix(prefix) for r in selected} <= red_paths
+
+
+def test_rg1_registered_controller_still_rejects_extra_db_api() -> None:
+    """登録済みcontrollerにも未承認の直接PG APIを追加できない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/recording_rights/rg1_lifecycle.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    target = next(
+        n for n in ast.parse(source).body
+        if isinstance(n, ast.FunctionDef) and n.name == "serve_fresh_controller"
+    )
+    first = target.body[0]
+    assert isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+    assert first.end_lineno is not None
+    lines = source.splitlines(keepends=True)
+    lines.insert(first.end_lineno, '    connection.pgconn.exec_(b"SELECT 1")\n')
+    found = checker.scan_source("".join(lines), path=relative, contract=contract)
+    assert any(
+        v.code == "TB005"
+        and v.scope == "pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller"
+        and v.symbol == "psycopg.pq.PGconn.exec_"
+        for v in found
+    )

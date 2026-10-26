@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import hashlib
 import importlib
 import inspect
@@ -62,6 +63,11 @@ from pitchlog.repositories.tokens import (
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CONTRACT_PATH = Path("contracts/tenant_boundary/repository-contract.json")
 _ALLOWLIST_PATH = Path("contracts/tenant_boundary/base-allowlist.json")
+_LEXICAL_MODULE = "pitchlog.recording_rights.rg1_lifecycle"
+_LEXICAL_SYMBOLS = frozenset(
+    f"{_LEXICAL_MODULE}.serve_fresh_controller.{name}"
+    for name in ("control", "assert_borrower_backend")
+)
 _TEST_TABLE = table(
     "repository_contract_probe",
     column("tenant_id"),
@@ -153,8 +159,42 @@ def _read_allowlist() -> dict[str, Any]:
     return value
 
 
+def _lexical_function(source: str, symbol: str) -> ast.FunctionDef:
+    """採用した2関数だけを、blockを越えてもlexical scopeを越えず解決する。"""
+    assert symbol in _LEXICAL_SYMBOLS, "未登録のlexical symbol"
+    current: ast.Module | ast.FunctionDef = ast.parse(source)
+    for name in symbol.removeprefix(f"{_LEXICAL_MODULE}.").split("."):
+        matches: list[ast.AST] = []
+
+        def visit(node: ast.AST) -> None:
+            """同じscopeの定義を集め、別関数/classの内部へは入らない。"""
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if node.name == name:
+                    matches.append(node)
+                return
+            for child in ast.iter_child_nodes(node):
+                visit(child)
+
+        for statement in current.body:
+            visit(statement)
+        assert len(matches) == 1, "lexical定義が欠損または重複"
+        match = matches[0]
+        assert isinstance(match, ast.FunctionDef), "同期関数以外のlexical定義"
+        assert not match.decorator_list and not match.type_params, "未知のlexical修飾"
+        current = match
+    assert isinstance(current, ast.FunctionDef)
+    return current
+
+
 def _resolve_symbol(symbol: str) -> object:
     """完全修飾名を import 可能な最長 module と属性列へ分けて解決する。"""
+    if symbol in _LEXICAL_SYMBOLS:
+        source = (
+            _REPOSITORY_ROOT
+            / "backend/src"
+            / Path(*_LEXICAL_MODULE.split(".")).with_suffix(".py")
+        )
+        return _lexical_function(source.read_text(encoding="utf-8"), symbol)
     parts = symbol.split(".")
     for module_size in range(len(parts), 0, -1):
         module_name = ".".join(parts[:module_size])
@@ -253,6 +293,10 @@ def _declared_type_hints(
 def _assert_declared_runtime_signature(symbol: str, signature: str) -> None:
     """宣言と実装の関数形・解決済み型を過不足なく照合する。"""
     value = _resolve_symbol(symbol)
+    if isinstance(value, ast.FunctionDef):
+        namespace = vars(importlib.import_module(_LEXICAL_MODULE))
+        _assert_lexical_signature(value, signature, namespace)
+        return
     assert callable(value)
     callable_value = cast(Callable[..., object], value)
     function = _declared_function(signature)
@@ -266,6 +310,18 @@ def _assert_declared_runtime_signature(symbol: str, signature: str) -> None:
     assert _declared_type_hints(function, namespace) == get_type_hints(
         callable_value, include_extras=True
     ), f"型注釈が不一致: {symbol}"
+
+
+def _assert_lexical_signature(
+    actual: ast.FunctionDef, signature: str, namespace: dict[str, Any]
+) -> None:
+    """実ASTの引数形とmodule名前空間で解決した型を既署名へ一致させる。"""
+    declared = _declared_function(signature)
+    assert declared.name == actual.name
+    assert _declared_parameter_shape(declared) == _declared_parameter_shape(actual)
+    assert _declared_type_hints(declared, namespace) == _declared_type_hints(
+        actual, namespace
+    ), "lexicalの型注釈が不一致"
 
 
 def _asset_digest(asset: dict[str, Any]) -> str:
@@ -408,8 +464,13 @@ def test_allowed_symbol_wrong_aliased_type_is_red() -> None:
     for item in _read_allowlist()["allowed_symbols"]:
         function = _declared_function(item["signature"])
         value = _resolve_symbol(item["symbol"])
-        assert callable(value)
-        namespace = vars(importlib.import_module(value.__module__))
+        if isinstance(value, ast.FunctionDef):
+            namespace = vars(importlib.import_module(_LEXICAL_MODULE))
+            actual_hints = _declared_type_hints(value, namespace)
+        else:
+            assert callable(value)
+            namespace = vars(importlib.import_module(value.__module__))
+            actual_hints = get_type_hints(value)
         for argument in [*function.args.posonlyargs, *function.args.args]:
             annotation = argument.annotation
             if not (
@@ -419,7 +480,7 @@ def test_allowed_symbol_wrong_aliased_type_is_red() -> None:
             ):
                 continue
             _assert_declared_runtime_signature(item["symbol"], item["signature"])
-            assert get_type_hints(value)[argument.arg] is not str
+            assert actual_hints[argument.arg] is not str
             argument.annotation = ast.Name(id="str", ctx=ast.Load())
             header = ast.unparse(function).splitlines()[0]
             assert header.startswith("def ") and header.endswith(":")
@@ -983,7 +1044,7 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
 
 
 def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
-    """固定3登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
+    """固定4登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
     from pitchlog.repositories.operation_registry import (
         PRODUCT_FUNCTION_OPERATIONS,
         PRODUCT_OPERATIONS,
@@ -991,15 +1052,41 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
     from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 
     asset = _read_contract()
-    expected = ("RG1:precheck", "RG1:commit_check", "RULE:resolve_stage_a")
+    expected = (
+        "RG1:precheck",
+        "RG1:commit_check",
+        "RG1:scope_binding",
+        "RULE:resolve_stage_a",
+    )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
     assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS) == (
         "rg1_api.rg1_read_open",
         "rg1_api.rg1_assert_open_before_commit",
+        "rg1_control.scope_binding",
         "public.resolve_stage_a_rule",
     )
+    from pitchlog.repositories.rg1 import (
+        RG1CommitCheckToken,
+        RG1PrecheckToken,
+        RG1ScopeBindingToken,
+    )
+
+    for row, token, capability, result in zip(
+        PRODUCT_FUNCTION_OPERATIONS[:3],
+        (RG1PrecheckToken, RG1CommitCheckToken, RG1ScopeBindingToken),
+        ("CAP:rg1:precheck", "CAP:rg1:commit_check", "CAP:rg1:scope_binding"),
+        ((("is_open", bool),), (("is_open", bool),), (("binding", str),)),
+        strict=True,
+    ):
+        assert row.token_type is token
+        assert row.capability_id == capability
+        assert row.input_fields == row.nonempty_inputs == ()
+        assert row.result_fields == result
+        assert row.statement.compile().params == {"tenant_id": None}
+        assert row.min_rows == row.max_rows == 1
+        assert all(item.token_type is not token for item in PRODUCT_OPERATIONS)
     registration = PRODUCT_FUNCTION_OPERATIONS[-1]
     assert registration.token_type is StageAResolveRuleToken
     assert registration.capability_id == "CAP:rules:resolve_stage_a"
@@ -1029,3 +1116,117 @@ def test_stage_a_function_identity_mutation_is_rejected(function_id: str) -> Non
 
     with pytest.raises(FunctionOperationError):
         replace(PRODUCT_FUNCTION_OPERATIONS[-1], function_id=function_id)
+
+
+@pytest.mark.parametrize("symbol", sorted(_LEXICAL_SYMBOLS))
+@pytest.mark.parametrize(
+    "mutation", ("missing", "other-scope", "duplicate", "class", "async", "decorated")
+)
+def test_lexical_symbols_reject_missing_duplicate_or_wrong_scope(
+    symbol: str,
+    mutation: str,
+) -> None:
+    """同名の別scope・欠損・複数・classをruntime除外の代用にしない。"""
+    module = importlib.import_module(_LEXICAL_MODULE)
+    assert module.__file__ is not None
+    source = Path(module.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    target = _lexical_function(source, symbol)
+    for parent in ast.walk(tree):
+        for _, value in ast.iter_fields(parent):
+            if not isinstance(value, list):
+                continue
+            found = next(
+                (
+                    node
+                    for node in value
+                    if isinstance(node, ast.FunctionDef)
+                    and node.lineno == target.lineno
+                ),
+                None,
+            )
+            if found is None:
+                continue
+            if mutation == "duplicate":
+                value.append(copy.deepcopy(found))
+            elif mutation == "decorated":
+                found.decorator_list = [ast.Name(id="unexpected", ctx=ast.Load())]
+            elif mutation == "async":
+                value[value.index(found)] = ast.parse(
+                    f"async def {found.name}():\n    pass\n"
+                ).body[0]
+            elif mutation == "class":
+                value[value.index(found)] = ast.ClassDef(
+                    name=found.name,
+                    bases=[],
+                    keywords=[],
+                    body=[ast.Pass()],
+                    decorator_list=[],
+                    type_params=[],
+                )
+            else:
+                value.remove(found)
+                if mutation == "other-scope":
+                    value.append(
+                        ast.FunctionDef(
+                            name="other_scope",
+                            args=ast.arguments(
+                                posonlyargs=[],
+                                args=[],
+                                kwonlyargs=[],
+                                kw_defaults=[],
+                                defaults=[],
+                            ),
+                            body=[found],
+                            decorator_list=[],
+                            type_params=[],
+                        )
+                    )
+            with pytest.raises(AssertionError, match="lexical"):
+                _lexical_function(ast.unparse(ast.fix_missing_locations(tree)), symbol)
+            return
+    pytest.fail("実lexical関数の親が見つからない")
+
+
+@pytest.mark.parametrize("symbol", sorted(_LEXICAL_SYMBOLS))
+@pytest.mark.parametrize("mutation", ("parameter", "return", "kind", "alias"))
+def test_lexical_signatures_reject_type_and_parameter_mutations(
+    symbol: str,
+    mutation: str,
+) -> None:
+    """閉じた2署名でも型/返値/引数種別/誤aliasを独立に拒否する。"""
+    module = importlib.import_module(_LEXICAL_MODULE)
+    assert module.__file__ is not None
+    actual = _lexical_function(
+        Path(module.__file__).read_text(encoding="utf-8"), symbol
+    )
+    signature = next(
+        row["signature"]
+        for row in _read_allowlist()["allowed_symbols"]
+        if row["symbol"] == symbol
+    )
+    namespace = dict(vars(module))
+    _assert_lexical_signature(actual, signature, namespace)
+    if mutation == "kind":
+        actual.args.posonlyargs = [actual.args.args.pop(0)]
+    elif mutation == "return":
+        actual.returns = ast.Name(id="str", ctx=ast.Load())
+    else:
+        argument = actual.args.args[0]
+        wrong = (
+            int if _declared_type_hints(actual, namespace)[argument.arg] is str else str
+        )
+        if mutation == "alias":
+            namespace["_WrongLexicalAlias"] = wrong
+            argument.annotation = ast.Name(id="_WrongLexicalAlias", ctx=ast.Load())
+        else:
+            argument.annotation = ast.Name(id=wrong.__name__, ctx=ast.Load())
+    with pytest.raises(AssertionError):
+        _assert_lexical_signature(actual, signature, namespace)
+
+
+def test_unregistered_lexical_symbol_is_rejected() -> None:
+    """登録2symbolの後方/似た名前をlexical許可へ拡張しない。"""
+    for symbol in _LEXICAL_SYMBOLS:
+        with pytest.raises(AssertionError, match="未登録"):
+            _lexical_function("", symbol + ".extra")

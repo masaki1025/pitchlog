@@ -14,12 +14,15 @@ import psycopg
 import pytest
 from alembic import command
 from alembic.config import Config
+from db_fixtures import _advance_historical_product_catalog
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import IntegrityError as SQLAlchemyIntegrityError
 
-from pitchlog.authz.product_provisioning import apply_product_authz_ddl
+from pitchlog.authz.product_provisioning import (
+    apply_product_authz_before_rule_placement,
+)
 
 from .conftest import DisposablePostgres, ProvisionedProductCatalog
 from .test_alembic_migrations import _pre_placement_metadata_diffs
@@ -329,11 +332,11 @@ def test_seeded_game_type_fk_accepts_game_and_rejects_roster_key(
 
 
 def test_game_type_seed_round_trip_under_product_rls(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """製品の FORCE RLS 下で所有者が再適用・往復できる。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     config = _owner_migration_config(catalog.owner_dsn, monkeypatch)
     command.downgrade(config, "0029_system_vocab_category_fk")
     # 0029 時点に 0032 の RG1 表はない。試合区分の RLS が残ることを確認する。
@@ -356,10 +359,12 @@ def test_game_type_seed_round_trip_under_product_rls(
         }
     command.upgrade(config, "0030_seed_game_type")
     command.upgrade(config, "0033_game_rules_immutable")
-    apply_product_authz_ddl(catalog.applicator)
+    apply_product_authz_before_rule_placement(catalog.applicator)
     command.current(config)
 
-    admin_dsn = make_conninfo(catalog.cluster.admin_dsn, dbname="pitchlog_product")
+    admin_dsn = make_conninfo(
+        catalog.cluster.admin_dsn, dbname=catalog.applicator.info.dbname
+    )
     with psycopg.connect(admin_dsn, autocommit=True) as admin:
         with admin.cursor() as cursor:
             cursor.execute(
@@ -493,14 +498,16 @@ def test_game_type_seed_round_trip_under_product_rls(
             assert {row[0] for row in cursor.fetchall()} == {
                 row["key"] for row in _seed_rows()
             }
+    command.upgrade(config, "0033_game_rules_immutable")
+    _advance_historical_product_catalog(catalog)
 
 
 def test_game_type_seed_collision_is_atomic_under_product_rls(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """FORCE RLS 下のキー衝突でも移行全体をロールバックする。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     config = _owner_migration_config(catalog.owner_dsn, monkeypatch)
     command.downgrade(config, "0029_system_vocab_category_fk")
     with psycopg.connect(catalog.owner_dsn, autocommit=True) as owner:
