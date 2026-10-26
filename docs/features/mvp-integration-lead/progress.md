@@ -807,3 +807,6 @@ browserはU3 exact4 ad4faef1を全2002成功/独立48a71c41…残0で保存し�
 開始backendはHTTPconsumer2 ba3db0e2、metadata158候補72800152、通常develop追随435f29d9、generatorの旧74/新73整合fd80eb2dをstep別保存・通常pushした。実Draft PR188 https://github.com/masaki1025/pitchlog/pull/188 を製品コード付きで公開。metadata全値の独立e296d514…、consumer1b68d62f…、generator400e8767…はいずれも残0。正式renderer追随でruntime source824eb509…→39d94a2d…は全AST同一、初回GENERATED_MODULE_STALEのP1を解消し独立54成功。tenant CLIは旧履歴prefix不一致から実履歴末尾/新runtime23識別値不一致へ進み、正式7.7/派生値受理・最終CI/通常統合はまだ未達。root唯一writerを維持し、実PR188の受理IDで既正式CLIから最小候補を一括計測中。
 
 次の依存は、開始188の正式受理/通常統合と新規create候補0a30a92d・browser8cdの同版接合、真正の初期state/現在rightsを通す実sync Port・同writer projection・単一T1/T2の1球保存とstarted read。全MVP/1試合/取消・訂正/成績/毎球CSVと成績CSV/通信断/実機・運用復旧を縮小しない。
+
+
+追記：PR187の公開base接合P1は第2回非作者a4245dc40ccfe5224329c7a656096a1c4fe660ea25bb52d5f305093625368051（0/0/0）、独立24成功26.74s/root56成功でsource上解消し、8ec1d225c85c832e4e85a310b5e1f198057a6729へ保存・push済み。実GitHub APIでhead同値/base3a24/drafttrueを照合。最終HEAD追認/公開証拠/B実受理・全216署名module（session40232進行）/必須CIはまだ別未達。規範anchor30/数学14/正式9を保持した通常基線追随で、数学採否の再承認は行わない。開始PR188の正式7.7候補はDB0で計測継続中。
