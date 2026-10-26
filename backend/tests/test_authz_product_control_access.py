@@ -1345,7 +1345,11 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
     from pitchlog.authz import product_catalog
 
     result = product_catalog._load_product_expectations()
-    assert len(result.table_names) == 50 and len(result.role_ids) == 13
+    # 採用済data-model1.4/正式fullprofileの母集合を固定する。
+    assert len(result.table_names) == 50 and len(result.role_ids) == 14
+    assert len(result.schema_names) == 8
+    assert len(result.functions) == 79 and len(result.policies) == 70
+    assert len(_product_asset()["column_acl_expectations"]) == 123
 
 
 @pytest.mark.parametrize(
@@ -1655,4 +1659,33 @@ def test_b2_runtime_entry_rejects_partial_or_mutated_enrollment(
         row["unknown_field"] = True
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     with pytest.raises(product_catalog.ProductCatalogError):
+        product_catalog._load_product_expectations()
+
+
+@pytest.mark.parametrize(
+    "group,identity,key",
+    [
+        ("functions", "function_id", "FUNCTION:public:protect_initial_right_storage()"),
+        ("schemas", "schema_id", "public"),
+        ("databases", "database_id", "current_database"),
+    ],
+)
+@pytest.mark.parametrize("field", ["acl_expectations", "revoked_acl_expectations"])
+@pytest.mark.parametrize("value", [None, {}, "invalid", ["invalid"], [None], [0]])
+def test_runtime_verifier_nested_acl_rejects_non_object_arrays(
+    group: str,
+    identity: str,
+    key: str,
+    field: str,
+    value: object,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全nested ACLは非list/非dictをtyped拒否し、属性例外へ漏らさない。"""
+    from pitchlog.authz import product_catalog
+
+    asset = _product_asset()
+    row = next(r for r in asset[group] if r[identity] == key)
+    row[field] = copy.deepcopy(value)
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    with pytest.raises(product_catalog.ProductCatalogError, match="metadata配列の形"):
         product_catalog._load_product_expectations()

@@ -329,13 +329,13 @@ def test_migration_function_acls_and_runtime_contract_match_exactly() -> None:
     for function_id, row in functions.items():
         assert row["owner_role_id"] == "pitchlog_owner"
         assert row["acl_expectations"] == []
+        # 初期権の内部triggerだけはactor/ownerの直接EXECUTEも明示剥奪する。
+        revoked_grantees = ("PUBLIC", "pitchlog_app")
+        if function_id == "FUNCTION:public:protect_initial_right_storage()":
+            revoked_grantees += ("pitchlog_initial_actor", "pitchlog_initial_fn_owner")
         assert row["revoked_acl_expectations"] == [
-            {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False},
-            {
-                "grantee": "pitchlog_app",
-                "privilege": "EXECUTE",
-                "grantable": False,
-            },
+            {"grantee": grantee, "privilege": "EXECUTE", "grantable": False}
+            for grantee in revoked_grantees
         ]
         assert function_id == product_function_id(
             str(row["schema_name"]),

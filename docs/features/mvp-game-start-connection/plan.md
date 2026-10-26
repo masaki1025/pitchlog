@@ -521,3 +521,15 @@ PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84
 
 
 2026-10-26T15:15:48.089498+00:00、PO委任によるCodex /root判断でDBcaller後発exact1を採用保存。after708d3460…、非作者178511cd8ea40d20bea505ea277a9bc79140677e95e871a4fe58bda3b4f87e15/checksfbadf375…（0/0/0）、旧assert31の意味保持・別所有cluster/元DSN非流用・故障時環境/所有context終了を独立純検査で確認。root実当該往復1成功10.38s/所有container0、全backend ty/Ruffcheckformat成功を照合。古い引数不足/0034message期待/S3他DB公開権限拒否と補助setup失敗は各ログへ保持した。製品checker/期待catalog/0034・0036不可逆拒否は不変で、全CI/全84失敗・431errorの完了とはしない。
+
+
+2026-10-26T15:25:28.251277+00:00、PO委任によるCodex /root判断で既CIの純認可profile検査の通常追随を限定承認。backend/tests/test_authz_product_classification.py・test_authz_product_control_access.py・test_authz_product_function_acls.pyのexact3を別作者へ割当てる。根拠は採用済data-model1.4/開始plan/B1B2/fullprofile全値e296d514…、現candidate schema8/table50/role14/function79/policy70/columnACL123と旧profileの差。旧profileの歴史入力・拒否対向を保持し、新profileを固定新declared値/正本根拠から照合する。実装の出力を見た後の無根拠期待値書換え・部分一致・field無視・skip追加をしない。clone fixtureへ実宣言の新sourceが必要ならexact有限依存だけ追随し、未知sourceの許可へ広げない。製品source/正式JSON/Git/他test/DB変更は作者へ許可しない。新意味未決があれば仮決定せず返し、独立差分レビュー後にrootが保存する。全backend検査は安定候補で必須、作業中は当該pure3/既影響閉包へ限定する。
+
+
+2026-10-26T15:28:56.721622+00:00、指定pure3の実6fail2497passから、関数ACL変異のstring要素がproduct_authn_contract.pyでAttributeErrorを漏らす製品不具合を確認。PO委任によるCodex /root判断でbackend/src/pitchlog/authz/product_authn_contract.py exact1の型拒否追補を同作者へ許可する。既_verifier_rowsをnested ACL配列（functions/schema/databaseのacl_expectations/revoked_acl_expectations）にも再利用し、非list/非dictを既ValueError→ProductCatalogErrorへ閉じる。AttributeErrorを許容する期待変更/包括例外catchで隠す/不正要素を無視する処理をしない。既正常metadata/全field/ACL意味/拒否対向を保持し、実不正配列の既対向で確認する。旧6failを消さず、これを製品helper4file範囲の後発差分として非作者へ渡す。DB/Git/正式JSON/他sourceは作者へ許可しない。
+
+
+2026-10-26T15:35:51.656213+00:00、pure認可profile影響検査の残1がtests/test_product_authz_catalog.pyの旧policy69固定対現70であることを確認。PO委任によるCodex /root判断で当該test1を追加所有とし、採用済70policy全値（既独立e296d514…/正本・既schema fullprofile）から厳密件数だけを追随する。独立根拠なしの出力追認/部分一致/field無視/skipにせず、他assert/製品catalog/正式metadataを保持する。これで指定範囲はpuretest4＋product_authn_contract helper1のexact5。作者は修正・影響閉包を固定して停止し、次のN2 source4へ移る前にrootへ引き渡す。
+
+
+2026-10-26T15:46:44.660802+00:00、PO委任によるCodex /root判断で認可profile source5を採用保存。manifest656408f5…/patch62352ed1…/独立fc381d623c482740ef915db79ffc430802d765fb7063abdcb815b00a221f86bf/checksbf07df01…（0/0/0）と実5SHAを照合。旧46profile/facts/secret4のlegacy全object/全decorator/既mutation tupleを保持し、更新assert5だけ採用1.4/e296全値へ厳密追随。helperは既_verifier_rowsの6箇所再利用で非list/非dictの型付き拒否へ閉じ、正常期待21field old/new完全同値、独立mixed12対向/作者新36拒否を確認した。作者2724成功29.99s/独立2724成功30.43s・Ruffformatty成功、旧6fail/中間policy69残1は保全。正式metadata/DB/他sourceを変更せず、全backend/全84失敗・431error/正式公開完成とはしない。
