@@ -2003,7 +2003,14 @@ def historical_gate6_technical_inputs(request: pytest.FixtureRequest,
                                      tmp_path: Path,
                                      monkeypatch: pytest.MonkeyPatch) -> None:
     """旧local/CI欠落対向だけは受理済み185の全値を固定し、現33と分ける。"""
-    if request.node.name not in {
+    if request.node.originalname not in {
+        'test_required_repository_test_calls_ci_validation',
+        'test_other_pr_cannot_follow_changed_case_with_changed_carry',
+        'test_other_pr_inherits_only_unchanged_base_without_new_acceptance',
+        'test_other_pr_requires_base_carry_schema_and_subject',
+        'test_other_pr_rejects_changed_schema',
+        'test_other_pr_rejects_foreign_head_repository',
+        'test_other_pr_dispatch_cannot_be_retargeted_by_carry',
         'test_subject_carry_is_technical_only_without_final_event',
         'test_required_ci_route_rejects_missing_event',
     }:
@@ -2011,11 +2018,14 @@ def historical_gate6_technical_inputs(request: pytest.FixtureRequest,
     repository = Path(__file__).resolve().parents[1]
     root = tmp_path / 'accepted-185'
     paths = {*checker._ORDINARY_FIXED_INPUTS, str(checker.STATE_TRANSITION_CONTRACT_PATH),
-             'scripts/core_guard.py', 'docs/features/mvp-delegated-core-review/policy.json'}
+             'scripts/core_guard.py', 'scripts/check_human_review_signature.py',
+             'tests/test_human_review_signature.py',
+             'docs/features/mvp-delegated-core-review/policy.json'}
     for path in paths:
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        if path.endswith('policy.json') or path.startswith('scripts/'):
+        if (path.endswith('policy.json') or path.startswith('scripts/')
+                or path == 'tests/test_human_review_signature.py'):
             target.write_bytes((repository / path).read_bytes())
         else:
             target.write_bytes(checker._carry_git_bytes(repository, [
@@ -2026,6 +2036,11 @@ def historical_gate6_technical_inputs(request: pytest.FixtureRequest,
     ).decode().strip()
     (root / '.git').write_text('gitdir: ' + gitdir + '\n')
     monkeypatch.setattr(sys.modules[__name__], 'REPOSITORY_ROOT', root)
+    # 旧testのpath比較/relative_toも同じ歴史rootへ束縛する。実現行資産は変更しない。
+    monkeypatch.setattr(sys.modules[__name__], 'CONTRACT_PATH',
+        root / checker.STATE_TRANSITION_CONTRACT_PATH)
+    monkeypatch.setattr(sys.modules[__name__], 'GAME_END_CONTRACT_PATH',
+        root / checker.GAME_END_CONTRACT_PATH)
 
 
 def _synthetic_later_number(policy: dict[str, Any]) -> int:
