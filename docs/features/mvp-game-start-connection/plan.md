@@ -499,3 +499,13 @@ root tenant CLIは通常追随前の履歴prefix拒否から、追随解消後�
 
 
 2026-10-26T12:10:42.875550+00:00、rootはCI format追随のexact2全module AST（assert/送信payload/故障診断文字列を含む）同一を確認した。Ruffformat後に公開endpoint文字列のインデントでE501が1件出たため隣接literalへ分割し、最終AST/文字列値は不変。全backend416file format-check・全Ruff・全ty成功、docs-status21文書0違反。indexは当該data-model行末のversion/dateだけ1.4/2026-10-25へ整合し旧承認本文を保持した。source2とindex＋本planだけを保存し、source意味変更/DB再走は行わない。最終PR差分レビューへAST同一receiptを供給する。旧a222 CIのformat/docs赤は保持、tenant/history/scan/公開委任の別残件をこの成功で解消扱いにしない。
+
+
+### 2026-10-26T14:25:50.351163+00:00: CI共通fixtureの所有DB権限と現revision追随
+
+PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84failed/6818passed/4skip/431error。rootの実owned対象診断でS3 catalog不一致は唯一PRODUCT-CATALOG:INITIAL-VERIFIER-GLOBAL、製品外のfixture seed DB pitchlog_disposableにPUBLIC由来CONNECT/TEMPORARYが残ることを実観測した。期待は現DB CONNECT/固定authn.verify_token EXECUTE/authn USAGEだけであり、検査を弱めない。隔離専用fixture backend/tests/db_fixtures.py exact1で、同factoryが所有するcluster identityを既所有台帳で確認し、seed DBのPUBLIC CONNECT/TEMPORARYだけを撤去してから正規S0→S3へ進む。外部供給/shared DBへは適用しない。新role/製品grant/期待catalog/検査拒否条件を変更しない。
+
+同helperの0035固定markerは既採用stage実装の0036へ追随し、現実migration完了値を厳密照合する。旧歴史fixture/旧migration試験の原本期待値はこのfollowupで編集しない。初回local診断のrole DSN template未指定1errorと、公開disposable-only template供給後の同S3拒否1errorを保持する。新観測はcache pr188-ci-58e045ad-20261026/catalog-global-access.json。変更済みfixtureで対象1を再検査し、別非作者による所有境界/期待値不変/実観測の差分確認後に保存する。全84/431解消とは事前に主張せず、残るschema/ACL/歴史固定fixture等は各実失敗に沿って有限追随する。
+
+
+2026-10-26T14:34:21.804332+00:00、PO委任によるCodex /root判断で共通fixture exact1を採用保存。before8fba8d9267a807079884162ff05b52655f78c37e0c82f09d965d933c06f7d18a/after22a29c1bde4e6f364538657f69d0a8bfa4544787459699e911f84caf4a6cceca、非作者486df9b18ed53bb07d964bc03e1d98f6bb3b7b1f7d3a65bb501e998733303c3c/checksafced1b5…（0/0/0）、独立AST純7対向成功・外部供給branch全AST同一、root実owned対象1成功4.71s/31catalog一致・Ruffcheck/format/ty成功を照合した。旧失敗/前raw上書きの資格留保を保持し、全件CI成功・全84/431解消を主張しない。
