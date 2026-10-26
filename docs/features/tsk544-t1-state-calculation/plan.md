@@ -171,3 +171,12 @@ root別coreguard全506の341赤は新17suffixに旧HTTP歴史fixtureと宣言層
 
 
 2026-10-26T15:33:22.762327+00:00、PO委任によるCodex /root判断でcore source2反映1を採用保存。独立第1回adb4a583…P1を保持し、第2回0ed57ceaf44f2961cc68967f2d39bc734e9089b29d723b65a6c3894d589a5726/checks33e420e9…（0/0/0）で閉鎖。production13e018…不変/test49dfb436…、旧429assert・decorator保持/旧validate・AREA・同commit拒否body不変、独立101成功5.29s/元反例2不変成功・作者全603成功55.15s/Rufftyを照合。旧341赤/旧597N1-only成功と未来複合層の資格を分ける。新全5状態のraw捕捉と旧歴史fixtureの有限投影を独立に実証した。JSONはこのcommitで編集せず、N2は依存mergeと実before照合後に別JSON commitで14追加し、その後source4を開く。core是正を実保存/全MVP完成へ広げない。
+
+
+### 2026-10-26T15:50:52.318991+00:00: N1-U2-A実writer bindingの限定実装承認
+
+PO委任によるCodex /root判断。新WT feature-mvp-first-ball-writer-bindingは既受理0014b0f3起点、source13 beforeはd4と全byte同じ。反映1 N1-U2-UNIT 6f4f348c697807ed97a8027ad5789c067561b87443bcdf3e7c61de068a850df5/exactpaths 352c55a65d268ac49395e76cdbff53dc974f77b7ddc28e247f63e2af2208c4cf/outcomes閉表を採用し、独立第1回05af2bce…P1=2を保持、第2回63afdd869a1d73bb221729d066adc9fa3efc8115fe84458277c9d2751b7c6585（0/0/0）で閉鎖した。元current_userをsession_userとした誤根拠を撤回、NOLOGIN矛盾ではなく未供給runtime固定EXECから主体を具体化する。未assert生存/0admission/NULLは終結証拠にせず、ENTRY_CLOSED_UNADMITTED/UNKNOWNで耐久隔離しnewlease/epoch/evidenceを閉じる。21対向は計画だけ、実DB成功未主張。
+
+source13を唯一作者writer_binding_unitへ割り当てる。既app同writer・新v3専用sync_binding peer/候補UID20005・control専用限定EXEC LOGIN/補助2表は既MVP保証を具体化する今回の承認候補で、汎用業務DML/initialactor拡張/新署名key/新運用資格発行をしない。v1/v2は不変、同TX/期限/ドレイン/本物xid8/commit・rollback・未進入・不明の4分類を実2DBで検証する。実施は隔離DBのみ、共有DB適用/公開は不可。source完成後も登録・N2/T1/T2/projection/HTTPへの接続と全MVPは別義務。
+
+rootが固定依存5を先行供給。__init__/evidence/store_contractは7c04全byte、stop_contractはpure型3とhelper5の元AST厳密部分集合だけ（公開操作/新ports ABIは未供給、fake型0）、control-phase-schema.sqlは原schema先頭3表prefixだけ。他11表/全F2/F3/runtime完成へ広げない。独立9f932c5e3b4bc071d7c6467c9d02a28a3a8e34526b7f0c6309992a0d3f688301（0/0/0）、実import/正常型/未供給API例外を確認した。root依存5＋source13全て既coreで捕捉、pure試験名はtest_sync_apply_writer_binding.py。manifest/root5・migration/registry/formal/models登録/plan/Gitはrootだけ、作者13以外を無断編集しない。DB実行はrootの登録/migration供給と排他的許可後、fixture偽table/常true/fake leaseを本物へ代替しない。
