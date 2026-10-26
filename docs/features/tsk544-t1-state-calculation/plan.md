@@ -237,3 +237,6 @@ exact追加6はscripts/check_human_review_signature.py、tests/test_human_review
 
 
 2026-10-26T10:20:13.100731+00:00、実Draft PR187 https://github.com/masaki1025/pitchlog/pull/187 をfeature/mvp-t1-ordinary-pitches HEADfe4590ed0d3bb1074ed626b56dee5df713c1258fで公開した。source4/正式9と初球PR186依存の実コード差分を含み、番号だけの文書PRではない。root実反映後の被覆/branch全195成功74.19s（session46502exit0）、公開Gate6は旧185専用なのでまだ成功ではない。PO委任によるCodex /root判断で対象実番号187/branchを新手続きに固定し、作者t2のchecker/test exact2path着手を許可する。record/schema候補はcacheへ供給し正式2asset/現policy187末尾1/Git/planはrootだけが編集する。既186target/全旧prefixを保持し、PR186又は他PRを新187として受理しない。数学12はこの単位の限定条件成立前には進めない。
+
+
+2026-10-26T10:48:38.191039+00:00、PO委任によるCodex /root判断でGate6 source2と新record/schema/現policy187末尾1を限定採用する。作者handoff ef84b19b7378bd62bae17e4696132746fb796cf0b2d680f69e430603b57cabed、非作者最終c1808081d5ce07bb5d76b12825af6d9c2d9812f65060e34f02446080f7e60830/checks43bb70fd6bed93aadfb4e0442ebaeaf2eca18c2fd167db3f8b8b88b94a13dc9e（0/0/0）、独立22成功26.97sを照合した。旧63関数126assert/全decorator・旧185固定reader代入後bodyと正式9全rawを保持、A技術/B実187/Cbase-first・不正Bのfallback禁止を検証。実formal3前後SHAはcache root-formal3-reflection.jsonへ固定した。作者184成功/資産未反映1赤と最後13成功は別入力として保持し、今から実反映版の公開CLI技術検査と全moduleを確認する。公開委任証拠・最終HEAD・CIは未成立で、数学開始/全T1成立を代記しない。
