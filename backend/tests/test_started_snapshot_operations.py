@@ -1,4 +1,4 @@
-"""未登録started read候補のSQL境界。DB/正式登録の成功ではない。"""
+"""started read登録のSQL境界。実DB/HTTP接続の成功ではない。"""
 
 from __future__ import annotations
 
@@ -60,11 +60,12 @@ def test_token_rejects_non_uuid_and_prepare_rechecks_it(spec: Any, value: Any) -
 
 
 @pytest.mark.parametrize("spec", STARTED_SNAPSHOT_OPERATIONS)
-def test_candidate_never_enters_real_registry_or_session(
+def test_unregistered_subtype_never_enters_real_registry_or_session(
     spec: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """実executorが未登録tokenをSQL到達前に拒否する。"""
-    token = spec.token_type(uuid4())
+    unregistered_type = type("UnregisteredStartedRead", (spec.token_type,), {})
+    token = unregistered_type(uuid4())
     assert type(token) not in {r.token_type for r in PRODUCT_OPERATIONS}
     with pytest.raises(RuntimeError, match="未登録"):
         _operation_spec(token)
@@ -109,3 +110,49 @@ def test_four_candidates_reuse_exact_existing_read_capabilities() -> None:
         "CAP:operation_events:read",
         "CAP:play_rows:read",
     }
+
+
+@pytest.mark.parametrize("spec", STARTED_SNAPSHOT_OPERATIONS)
+def test_registered_read_uses_actual_handle_tenant_and_fixed_bounds(
+    spec: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """実handleがexact型を解決し、呼出側にtenant変更を委ねない。"""
+    token = spec.token_type(uuid4())
+    assert _operation_spec(token) is spec
+    assert sum(r.token_type is type(token) for r in PRODUCT_OPERATIONS) == 1
+    seen: list[tuple[Any, dict[str, Any]]] = []
+
+    class RecordingSession:
+        """SQLの実行入口と束縛値だけを観測する。DB成功は主張しない。"""
+
+        def execute(self, statement: Any, parameters: dict[str, Any]) -> tuple[()]:
+            seen.append((statement, parameters))
+            return ()
+
+    context = make_tenant_context(uuid4())
+    key = object()
+    monkeypatch.setitem(
+        transaction._TRANSACTION_RUNTIMES, key, (RecordingSession(), object())
+    )
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        context.tenant_id,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    result = handle.run(token)
+    assert result.rows == ()
+    assert len(seen) == 1
+    statement, parameters = seen[0]
+    assert statement.compare(spec.statement)
+    assert dict(statement.get_execution_options()) == {"preserve_rowcount": True}
+    assert parameters == {
+        "tenant_id": context.tenant_id,
+        "game_id": token.game_id,
+        "limit": 3 if type(token) is StartedLineupsReadToken else 1,
+    }
+    handle._expire()
+    with pytest.raises(RuntimeError, match="失効"):
+        handle.run(token)
+    assert len(seen) == 1

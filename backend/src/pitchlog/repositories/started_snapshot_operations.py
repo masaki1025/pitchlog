@@ -1,4 +1,4 @@
-"""初球前の保存原本に限る未登録read候補。製品registryへは接続しない。"""
+"""初球前の保存原本に限る有限read操作。"""
 
 from __future__ import annotations
 
@@ -113,7 +113,7 @@ def _registration(
     )
 
 
-# 意図的にPRODUCT_OPERATIONSへ追加しない。正式受理は後続単位が所有する。
+# 新しいCAPを作らず、既read能力と固定上限で製品実行器へ登録する。
 STARTED_SNAPSHOT_OPERATIONS = (
     _registration(StartedLineupsReadToken, GameLineup, lineups=True),
     _registration(StartedEventSlotsExistenceToken, EventSlot),
