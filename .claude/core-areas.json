@@ -272,7 +272,11 @@
         "backend/tests/test_initial_recording_right_candidate.py",
         "backend/src/pitchlog/durable_rights_ledger/*",
         "backend/tests/test_durable_rights_ledger_contract.py",
-        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*"
+        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+        "frontend/src/api/gameStart.ts",
+        "frontend/src/api/gameStart.spec.ts",
+        "frontend/src/lib/gameStartPersistence.ts",
+        "frontend/src/lib/gameStartPersistence.spec.ts"
       ]
     },
     {
@@ -516,7 +520,11 @@
         "backend/tests/test_initial_recording_right_candidate.py",
         "backend/src/pitchlog/durable_rights_ledger/*",
         "backend/tests/test_durable_rights_ledger_contract.py",
-        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*"
+        "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
+        "frontend/src/api/gameStart.ts",
+        "frontend/src/api/gameStart.spec.ts",
+        "frontend/src/lib/gameStartPersistence.ts",
+        "frontend/src/lib/gameStartPersistence.spec.ts"
       ]
     },
     {
@@ -621,7 +629,11 @@
         "backend/src/pitchlog/services/game_creation.py",
         "backend/tests/test_game_preparing*.py",
         "backend/src/pitchlog/durable_rights_ledger/*",
-        "backend/tests/test_durable_rights_ledger_contract.py"
+        "backend/tests/test_durable_rights_ledger_contract.py",
+        "frontend/src/api/gameStart.ts",
+        "frontend/src/api/gameStart.spec.ts",
+        "frontend/src/lib/gameStartPersistence.ts",
+        "frontend/src/lib/gameStartPersistence.spec.ts"
       ]
     },
     {
