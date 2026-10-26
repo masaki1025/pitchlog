@@ -2339,6 +2339,8 @@ def _validate_record_and_aggregate_route_ids(
     expected_route_ids: frozenset[str] = frozenset(
         {
             "ROUTE:RECORD:games:read",
+            "ROUTE:RECORD:games:update",
+            "ROUTE:RECORD:trusted_devices:insert",
             "ROUTE:RECORD:lineup_memories:read",
             "ROUTE:RECORD:players:insert",
             "ROUTE:RECORD:players:read",
@@ -2356,6 +2358,277 @@ def _validate_record_and_aggregate_route_ids(
             f"不足={missing}, 未登録={unexpected}"
         )
 
+
+
+_INITIAL_HTTP_API_PATH = "backend/src/pitchlog/api/routers/games.py"
+_INITIAL_HTTP_CAP_PATH = "backend/src/pitchlog/repositories/initial_recording_right.py"
+_INITIAL_HTTP_PLAN_PATH = "docs/features/mvp-game-start-connection/plan.md"
+_INITIAL_HTTP_PLAN_ID = "PLAN-MVP-GAME-START-HTTP"
+# HTTP独自能力を作らず、各commandの既存専用tokenへprovenanceを結ぶ。
+_INITIAL_HTTP_BINDINGS = (
+    ("initial_device_enroll", "/devices/enroll", "enroll_initial_device",
+     "ROUTE:RECORD:trusted_devices:insert",
+     (("_EnrollDeviceToken", "CAP:initial_right:enroll_device"),)),
+    ("initial_game_start", "/games/{game_id}/start", "start_initial_game",
+     "ROUTE:RECORD:games:update",
+     (("_PersistInitialStartToken", "CAP:initial_right:persist_initial_start"),)),
+    ("initial_game_start_resolve", "/games/{game_id}/start/resolve",
+     "resolve_initial_game_start", "ROUTE:RECORD:games:update",
+     (("_LookupExistingStartAttemptToken", "CAP:initial_right:lookup_existing_start_attempt"),
+      ("_LockDeviceToken", "CAP:initial_right:lock_device"))),
+)
+
+
+
+_INITIAL_HTTP_REGISTRATION_KEYS = frozenset({
+    "operation_id", "token_type", "capability_id", "function_id", "statement",
+    "input_fields", "result_fields", "min_rows", "max_rows", "decoder",
+    "nullable_results", "aware_datetime_results",
+})
+
+_INITIAL_HTTP_CAP_TOKENS = (
+    ("_LockDeviceToken", "lock_device"),
+    ("_ReadExistingStartToken", "read_existing_start"),
+    ("_ReadStartGameToken", "read_start_game"),
+    ("_LockPreparingGameToken", "lock_preparing_game"),
+    ("_LockCurrentStartToken", "lock_current_start"),
+    ("_CheckBusinessEpochToken", "check_business_epoch"),
+    ("_InsertInitialGrantToken", "insert_initial_grant"),
+    ("_BeginStartAttemptToken", "begin_start_attempt"),
+    ("_ResolveStartAttemptToken", "resolve_start_attempt"),
+    ("_ReadInitialStartContextToken", "read_initial_start_context"),
+    ("_PersistInitialStartToken", "persist_initial_start"),
+    ("_EnrollDeviceToken", "enroll_device"),
+    ("_LookupExistingStartAttemptToken", "lookup_existing_start_attempt"),
+)
+
+
+def _initial_http_provenance(root: Path) -> dict[str, dict[str, str]]:
+    """実POST/C2と閉token能力の原文を読み、有限対応を検査する。"""
+    def source(path: str) -> tuple[str, ast.Module]:
+        text = _read_text(root / path, "initial HTTP source")
+        try:
+            return text, ast.parse(text)
+        except SyntaxError as error:
+            raise CatalogError("initial HTTP sourceのASTが不正") from error
+
+    def excerpt(text: str, node: ast.FunctionDef) -> str:
+        start = min([node.lineno, *(n.lineno for n in node.decorator_list)]) - 1
+        return "".join(text.splitlines(keepends=True)[start:node.end_lineno]).strip()
+
+    api, tree = source(_INITIAL_HTTP_API_PATH)
+    routers = [n.value for n in tree.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "router" for t in n.targets)]
+    if (len(routers) != 1 or not isinstance(routers[0], ast.Call)
+            or not isinstance(routers[0].func, ast.Name) or routers[0].func.id != "APIRouter"
+            or [k.value.id if isinstance(k.value, ast.Name) else None
+                for k in routers[0].keywords if k.arg == "route_class"] != ["TenantMatchedRoute"]):
+        raise CatalogError("initial HTTPの実routerがC2 classへ接続されていない")
+    expected = {item[0]: item for item in _INITIAL_HTTP_BINDINGS}
+    found: dict[str, ast.FunctionDef] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not (isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Attribute)
+                    and isinstance(decorator.func.value, ast.Name)
+                    and decorator.func.value.id == "router"
+                    and decorator.func.attr == "post"):
+                continue
+            operations = [k.value for k in decorator.keywords if k.arg == "operation_id"]
+            if len(operations) != 1 or not isinstance(operations[0], ast.Constant):
+                raise CatalogError("initial HTTP operation_idの型が不正")
+            operation = operations[0].value
+            if type(operation) is not str:
+                raise CatalogError("initial HTTP operation_idの型が不正")
+            if operation not in expected:
+                # preparing作成等の別委任operationを本単位へ取り込まない。
+                if operation.startswith("initial_"):
+                    raise CatalogError("initial HTTPに未知operationがある")
+                continue
+            row = expected[operation]
+            if (operation in found or node.name != row[2] or len(decorator.args) != 1
+                    or not isinstance(decorator.args[0], ast.Constant)
+                    or decorator.args[0].value != row[1]):
+                raise CatalogError("initial HTTPの実POST/operationが不一致又は重複")
+            found[operation] = node
+    if set(found) != set(expected):
+        raise CatalogError("initial HTTPの実3POSTが欠落")
+    _, tenant = source("backend/src/pitchlog/api/tenant_access.py")
+    matches = [n.value for n in tenant.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "_MATCH_OPERATIONS" for t in n.targets)]
+    if (len(matches) != 1 or not isinstance(matches[0], ast.Call)
+            or not isinstance(matches[0].func, ast.Name) or matches[0].func.id != "frozenset"
+            or matches[0].keywords or len(matches[0].args) != 1):
+        raise CatalogError("initial HTTPのC2宣言が不正")
+    try:
+        matched = ast.literal_eval(matches[0].args[0])
+    except (ValueError, TypeError) as error:
+        raise CatalogError("initial HTTPのC2宣言が不正") from error
+    if not isinstance(matched, set) or not set(expected) <= matched:
+        raise CatalogError("initial HTTPのC2登録が欠落")
+    cap_text, caps = source(_INITIAL_HTTP_CAP_PATH)
+    declarations: dict[str, ast.FunctionDef] = {}
+    for token_name, function_name in _INITIAL_HTTP_CAP_TOKENS:
+        capability = "CAP:initial_right:" + function_name
+        classes = [n for n in caps.body if isinstance(n, ast.ClassDef) and n.name == token_name]
+        methods = [n for cls in classes for n in cls.body
+                   if isinstance(n, ast.FunctionDef) and n.name == "capability_id"]
+        if len(classes) != 1 or len(methods) != 1:
+            raise CatalogError("initial HTTPの実CAP tokenが欠落/重複")
+        method = methods[0]
+        body = [n for n in method.body if not (isinstance(n, ast.Expr)
+                and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str))]
+        if (len(body) != 1 or not isinstance(body[0], ast.Return)
+                or not isinstance(body[0].value, ast.Constant)
+                or body[0].value.value != capability
+                or [ast.dump(n) for n in method.decorator_list]
+                != [ast.dump(ast.Name(id="property", ctx=ast.Load()))]):
+            raise CatalogError("initial HTTPの実CAP/provenanceが不一致")
+        if token_name in {"_EnrollDeviceToken", "_LookupExistingStartAttemptToken"}:
+            owner = ("_enrollment_registrations" if token_name == "_EnrollDeviceToken"
+                     else "_resolution_registrations")
+            functions = [n for n in caps.body if isinstance(n, ast.FunctionDef)
+                         and n.name == owner]
+            registrations = [n for f in functions for n in ast.walk(f)
+                             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                             and n.func.id == "FunctionOperationRegistration"]
+            if len(functions) != 1 or len(registrations) != 1:
+                raise CatalogError("initial HTTPの実CAP登録が欠落/重複")
+            values = {k.arg: k.value for k in registrations[0].keywords}
+            if (len(values) != len(registrations[0].keywords)
+                    or set(values) != _INITIAL_HTTP_REGISTRATION_KEYS):
+                raise CatalogError("initial HTTPの実CAP登録fieldが欠落/余剰/重複")
+            if (not isinstance(values.get("token_type"), ast.Name)
+                    or cast(ast.Name, values["token_type"]).id != token_name
+                    or not isinstance(values.get("capability_id"), ast.Constant)
+                    or cast(ast.Constant, values["capability_id"]).value != capability
+                    or not isinstance(values.get("function_id"), ast.Constant)
+                    or cast(ast.Constant, values["function_id"]).value
+                    != "initial_right_api." + capability.rsplit(":", 1)[1]):
+                raise CatalogError("initial HTTPの実CAP登録対応が不一致")
+        else:
+            tuples = [n.value for n in caps.body if isinstance(n, ast.Assign)
+                      and any(isinstance(t, ast.Name) and t.id == "_INITIAL_TOKEN_TYPES"
+                              for t in n.targets)]
+            if (len(tuples) != 1 or not isinstance(tuples[0], ast.Tuple)
+                    or sum(isinstance(n, ast.Name) and n.id == token_name
+                           for n in tuples[0].elts) != 1):
+                raise CatalogError("initial HTTPの既CAP token登録が欠落/重複")
+        if any((token_name, capability) in row[4] for row in _INITIAL_HTTP_BINDINGS):
+            declarations[capability] = method
+    def assignment(module: ast.Module, name: str) -> ast.expr:
+        values = [n.value for n in module.body if isinstance(n, ast.Assign)
+                  and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)]
+        values += [n.value for n in module.body if isinstance(n, ast.AnnAssign)
+                   and isinstance(n.target, ast.Name) and n.target.id == name
+                   and n.value is not None]
+        if len(values) != 1:
+            raise CatalogError("initial HTTPの専用registry宣言が欠落/重複")
+        return values[0]
+
+    types = assignment(caps, "_INITIAL_TOKEN_TYPES")
+    if (not isinstance(types, ast.Tuple)
+            or [n.id if isinstance(n, ast.Name) else None for n in types.elts]
+            != [name for name, _ in _INITIAL_HTTP_CAP_TOKENS[:11]]):
+        raise CatalogError("initial HTTPの既11CAP登録がexact-set不一致")
+    registry = assignment(caps, "_INITIAL_FUNCTION_REGISTRY")
+    if (not isinstance(registry, ast.Call) or not registry.args
+            or not isinstance(registry.func, ast.Name)
+            or registry.func.id != "build_function_registry"
+            or not isinstance(registry.args[0], ast.Tuple)
+            or [n.value.id if isinstance(n, ast.Starred) and isinstance(n.value, ast.Name)
+                else None for n in registry.args[0].elts] != [
+                    "INITIAL_FUNCTION_OPERATIONS", "_INITIAL_START_FUNCTION_OPERATIONS",
+                    "_INITIAL_ENROLL_FUNCTION_OPERATIONS", "_INITIAL_RESOLVE_FUNCTION_OPERATIONS"]):
+        raise CatalogError("initial HTTPの専用13CAP registry閉包が不一致")
+    builders = [n for n in caps.body if isinstance(n, ast.FunctionDef)
+                and n.name == "_initial_registrations"]
+    calls = [n for f in builders for n in ast.walk(f) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name) and n.func.id == "FunctionOperationRegistration"]
+    if len(builders) != 1 or len(calls) != 1:
+        raise CatalogError("initial HTTPの既11CAP factoryが欠落/重複")
+    kw = {k.arg: k.value for k in calls[0].keywords}
+    if len(kw) != len(calls[0].keywords) or set(kw) != _INITIAL_HTTP_REGISTRATION_KEYS:
+        raise CatalogError("initial HTTPの既11CAP factory fieldが欠落/余剰/重複")
+    expected_cap = ast.parse('f"CAP:initial_right:{name}"', mode="eval").body
+    if (not isinstance(kw.get("token_type"), ast.Name)
+            or cast(ast.Name, kw["token_type"]).id != "token_type"
+            or not isinstance(kw.get("function_id"), ast.Name)
+            or cast(ast.Name, kw["function_id"]).id != "function_id"
+            or ast.dump(kw.get("capability_id", ast.Constant(value=None)))
+            != ast.dump(expected_cap)):
+        raise CatalogError("initial HTTPの既11CAP factory対応が不一致")
+    _, spec = source("backend/src/pitchlog/repositories/function_operations.py")
+    for symbol, names in (
+        ("_INITIAL_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[:9]),
+        ("_INITIAL_START_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[9:11]),
+        ("_INITIAL_ENROLL_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[11:12]),
+        ("_INITIAL_RESOLVE_FUNCTION_TYPES", _INITIAL_HTTP_CAP_TOKENS[12:]),
+    ):
+        mapping = assignment(spec, symbol)
+        if (not isinstance(mapping, ast.Call) or len(mapping.args) != 1
+                or not isinstance(mapping.func, ast.Name)
+                or mapping.func.id != "MappingProxyType" or mapping.keywords
+                or not isinstance(mapping.args[0], ast.Dict)
+                or [n.value if isinstance(n, ast.Constant) else None
+                    for n in mapping.args[0].keys]
+                != ["initial_right_api." + name for _, name in names]):
+            raise CatalogError("initial HTTPの13関数登録/provenanceが不一致")
+    plan = _read_text(root / _INITIAL_HTTP_PLAN_PATH, "initial HTTP plan")
+    paragraphs = [line for line in plan.splitlines()
+                  if line.startswith("logical routeはtrusted_devices:insert")]
+    if len(paragraphs) != 1:
+        raise CatalogError("initial HTTPの計画根拠が一意でない")
+    result = {_INITIAL_HTTP_PLAN_ID: {"provenance_id": _INITIAL_HTTP_PLAN_ID,
+        "path": _INITIAL_HTTP_PLAN_PATH, "extracted_text": paragraphs[0]}}
+    for operation, *_ in _INITIAL_HTTP_BINDINGS:
+        key = "HTTP:" + operation
+        result[key] = {"provenance_id": key, "path": _INITIAL_HTTP_API_PATH,
+                       "extracted_text": excerpt(api, found[operation])}
+    for capability, method in declarations.items():
+        result[capability] = {"provenance_id": capability, "path": _INITIAL_HTTP_CAP_PATH,
+                             "extracted_text": excerpt(cap_text, method)}
+    return result
+
+
+def _validate_initial_http_routes(
+    routes: dict[str, dict[str, object]], provenance: object, root: Path,
+) -> None:
+    """new論理2と実operation/CAP原文をexactに対応させ、resolveのread化を拒否する。"""
+    new_ids = {item[3] for item in _INITIAL_HTTP_BINDINGS}
+    if not new_ids.intersection(routes):
+        return  # 旧fixtureの個別意味試験。製品全件の欠落は直前のexact-setが拒否する。
+    expected = _initial_http_provenance(root)
+    if not isinstance(provenance, list):
+        raise CatalogError("initial HTTP provenanceの型が不正")
+    actual: dict[str, dict[str, object]] = {}
+    for row in provenance:
+        if not isinstance(row, dict):
+            raise CatalogError("initial HTTP provenanceの型が不正")
+        key = _expect_string(row.get("provenance_id"), "initial HTTP provenance ID")
+        if key in actual:
+            raise CatalogError("initial HTTP provenanceが重複")
+        if (key.startswith(("HTTP:initial_", "CAP:initial_right:", _INITIAL_HTTP_PLAN_ID))
+                and key not in expected):
+            raise CatalogError("initial HTTPに未知provenance/CAPがある")
+        actual[key] = row
+    for key, value in expected.items():
+        if actual.get(key) != value:
+            raise CatalogError("initial HTTP operation/CAP provenanceが不一致")
+    for route_id in new_ids:
+        row = routes.get(route_id)
+        ids = ["PLAN-TSK446-RECORD-AND-AGGREGATE", _INITIAL_HTTP_PLAN_ID]
+        for operation, _, _, logical, tokens in _INITIAL_HTTP_BINDINGS:
+            if logical == route_id:
+                ids.extend(["HTTP:" + operation, *(cap for _, cap in tokens)])
+        if row is None or row.get("provenance_ids") != ids:
+            raise CatalogError("initial HTTP論理routeのoperation/CAP対応が不一致")
+    read = routes.get("ROUTE:RECORD:games:read", {})
+    read_ids = _expect_string_list(read.get("provenance_ids"), "games:read provenance")
+    if any(key in read_ids for key in expected):
+        raise CatalogError("resolveを含むinitial HTTPをgames:readへ接続している")
 
 def _validate_authentication_entry_route_ids(
     route_by_id: dict[str, dict[str, object]],
@@ -2694,6 +2967,7 @@ def validate_route_registry(
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
     _validate_record_and_aggregate_route_ids(route_by_id)
+    _validate_initial_http_routes(route_by_id, raw["design_provenance"], root)
     _validate_authentication_entry_route_ids(route_by_id)
     routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
     for route_id, route in route_by_id.items():
