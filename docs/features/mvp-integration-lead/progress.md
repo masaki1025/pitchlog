@@ -762,3 +762,16 @@ PR184旧CI40273553590はbackend14失敗/3829成功/4skip、他11job成功。全1
 HTTP最小追補はrg1_final_review_oct26が基線d0474cdfのblobだけで調査し、cache game-start-http-minimum-20261026/proposal.md SHA d68c3a38eedd40e3d921a9faef82d1ea62191ab6ae34ddf0b2a88b0e0fb7d5b8に固定。既routerへenroll/start/resolveの3POST、既C2/no-store/専用資格projection再利用の候補で、source未編集/未承認。worker編集中15pathを読まず、共有checker/root metadataの編集は直列化する。
 
 利用者が新たに完了できる実画面操作は隔離preparing新規作成→実DB保存→再取得/再読込までのまま。次の依存は実worker→HTTP→ブラウザ開始配線、trusted初期state/T1-T2/実rights-sync Port/原子的保存/started read。初球・全T1・取消・成績・双方CSV・通信断・実機・運用復旧をMVPから外さない。
+
+
+### 2026-10-26T07:54:49.160130+00:00：RG1基盤PR184の通常統合と操作単位の着手
+
+PR184最終d76e13e6a77c0a01bd3c3fe5c77fe3e6ed1f7ce3はCI40283659379の全12job成功（backend pytest/migration/audit/配布image疎通も成功）。rootは実公開head/base/body/comment strict JSON/全138path diff f667553bf8db5f502ea776ec9ff8eea19dd4ebcf0d66d1798b502e8891e6ec6d/最終独立report29208ec4…/実treeとcleanを再照合し、PO委任によるCodex判断でDraft解除・通常mergeを実行した。GitHub実merged_at=2026-10-26T07:52:51Z、merge3a24f89e15987ecef3dc45a1173ab99b5f79d16e、親[30f67cbc,d76e13e6]・全tree=d76を実Git確認。premerge/実API/CI/最終tree証拠はcache pr184-normal-merge-20261026/。main/developへの直接commit/pushなし。postmerge CI40288518094は進行中で成功未主張。正式runtime22のRG1基盤を提供したが、実UI開始・初期権取得・初球保存の完成ではない。
+
+通常33追補は別非作者ca35fbd3cedf13a7382bc4ca4183cb289b4d079f799a86ef274c4e5209ec443f/残0後、親544へPO委任承認を追記しcc348570へ保存・新枝feature/mvp-t1-ordinary-pitchesを通常push。現在の着手は単位A（checker2path＋cache ABI/正式値候補）だけで、t2が唯一編集者。正式9資産/append/plan/Gitはrootだけ。単位A実受理前に数学12pathへ進まない。全操作前提へ戻さず、契約成立単位から本体に進める。
+
+開始HTTP追補は初回P1（committed再交付をreadへ過小分類）を採用し、start/resolve→新games:update、既read2GET byte保持・誤結線拒否を反映1へ固定。別非作者最終a252d4cad9c70ceab0068ede15c12933c0100cc04c693564ad9142f856b409cd/残0後、既開始plan§15を8a1809d8へplan-only保存・通常push。次はcore先行2path→別JSON5path登録→実3POST→実HTTP/ownedUnix/DB検証。製品HTTPはまだ未実装、workerと共有checkerの並行書込みは禁止。
+
+worker15は固定9f0e556c…/patch a29600c9…で非作者確認中。最初のownedrunはhelperのDocker argv位置固定がmount引数を上書きして1失敗20.81s、製品dispatch未起動。helper新methodだけ--rmの実indexへ修正し、argv3対向を追加した反映1 ddfa40d5…/helper8cf0669f…、他14とmetadata5全byte保持。新ownedrunはsession52870として開始、終端未確認。旧失敗を消さず新入力の再検査と区別する。正式metadataのbeforeはGit d047と未受理profile/B1B2候補を混同せず、PR184統合後の実before22からrootが重複集合を直列受理する。
+
+実利用者の到達点は隔離preparing新規作成→実DB保存/再取得まで。次の最優先は実worker・HTTP・ブラウザ開始配線、初期state/実rightsとT1-T2/同期の原子保存・再読込。全T1/取消/成績/毎球CSVと成績CSV/通信断/実機/運用復旧は未完のまま維持する。
