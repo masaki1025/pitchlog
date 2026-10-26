@@ -713,3 +713,14 @@ POの「切りがいいところまでいったら一回作業を中断」に従
 保全先は /home/ymdms/.cache/pitchlog/mvp-pause-20261026-1340-jst/ 。RG1/start/mathのHEAD bundle・未コミット全対象byte・差分・SHAを保存。担当の最終停止/所有DB cleanup記録を合わせて再開点とする。
 
 再開時は、PR184の修正済み4pathの最終owned DB再検査とB1反映2の実DB検証を直列で実施し、非作者受理/正式値/必要CIを閉じる。続いてenrollの同Session RG1保証・worker・開始API/UI・初期state・初球同期原子保存/取得へ進む。実画面到達点は隔離候補での新規preparing作成→実DB保存→再取得まで。開始・初期権・初球保存/再読込、全T1、全MVP/実機/復旧は未完。既存委任と採用判断を維持する。
+
+
+### 2026-10-26 JST：再開・RG1検査修正の保存と実Cookie検証
+
+ユーザーによるGoal activeを受け再開。前回turnは保存/push/bundle作成という進捗であり、未完MVPの完了判定ではない。中断時start107dirtyは担当が全byte一致を再確認し、PR184残4testとowned DB未稼働をrootが照合して検査を再開した。
+
+PR184の残4testはe4964d150af7ad97526be0b541383454cb8076f8へ保存（未push、実base30f67、clean）。歴史/現行metadata・監査・不変性・旧candidateの検査13件は反映1で12成功1失敗42.90s、反映2で12成功1失敗40.83s。新epoch欠落negativeだけが、認証情報を含まないinfo.dsn、その次はfixtureの製品DBとは別のcluster初期DBを参照して比較前に失敗した。fixture定義から製品DBの既NOSUPERUSER owner_dsnへ1行接合し、その新negative1件は実DB1成功5.24s、DROP欠落検出とrollback後完全一致を確認。最終13件同時完走とは合算せず、全履歴/4SHA/log/receiptをcache pr184-backend-four-tests-20261026/reflection1〜3へ保全。非作者最終owner追認a5e634c8345b86ed0c7ad27e79bc63d59f857ac6a378bca837a2c3620726172d/残0、Ruff/ty4成功、全owned container cleanup確認済み。独立全差分レビューは候補非作者rg1_final_review_oct26へ渡し、133path/diff dbbc10ff29fe73d4fe86c35aa03c23403147619fdf92fc4387534d7e3adffd47で確認中。全9射影/外部8は最終実値と既履歴after完全一致との独立照合を受領し、同値の再受理は不要。通常tenant CLI exit0、凍結/parity不変量0。ただし初回--ci呼出しはevent未設定で拒否されており有効CI検証ではない。正式受理遷移/全backend/最終必須CIは公開後に確認する。
+
+B1専用Cookie検証はreflection2のowned3PGで1成功59.48s、全負例の終端とcleanup両label0を作者から受領。全13source/meta6を固定し、前回PG失敗の原因だったfixture3SQLだけを既CHECKへ整合させた。実Cookie/peer20002/TTL更新、期限切れ・credential世代・tenant無効、app→verifier/actor→app、未知関数/外schema/table/ownership/PUBLIC schema/enum、role7属性/両方向membershipの拒否を含む。source非作者t2へ別に渡し確認中で、正式採用/Git保存前。実認証TXを端末登録TXと同一とせず、B2実enroll/worker/HTTP/UIの成功へ広げない。
+
+利用者の実画面到達点は隔離preparing新規作成→実DB保存→再取得のまま。今回の進捗は開始へ必要な認証部品の実検証とRG1基盤の残検査修正。次はB1非作者受理、実enrollの同Session RG1/commit保証、worker→開始API/UI、初期state→T1/T2→同期原子保存/再取得を接続する。PR186はCI全成功でも親HTTP/DB merge前義務未達でDraftを維持。全MVP/全T1/成績/双方CSV/実機/運用復旧の条件は維持する。
