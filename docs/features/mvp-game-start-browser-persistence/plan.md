@@ -1,6 +1,6 @@
 ---
 feature: mvp-game-start-browser-persistence
-status: in-review
+status: active
 承認: 済（PO委任によるCodex判断・有限ブラウザ保存部品）
 重さ分類: コア領域
 branch: feature/mvp-game-start-browser-persistence
@@ -69,3 +69,36 @@ step3受理（PO委任によるCodex /root判断）：初回P2=1（検査後の�
 step4受理（PO委任によるCodex /root判断）：通常候補非作者mvp_connection_final_review_oct26の全8path REVIEW88e13fadeabec83d32d12f9be95db974c6a6807b1b1f5050f20ce7308eeb1596/evidenceaab59cde87c328afe65f6276d5e5a73e70f8453cfc29dff859169e7bdc3cd2a4/残0を確認。source2/evidence73007641f92d5615e6084dc157c17fbfb23b6cafdbba9efebedb3bb1acfb2db0とfull差分59c1292743ece134d810f904a958931fbaf4bf341e5ddd80c334d1fc8dcfe13dを固定。独立API74+IDB17=91成功1.04s、別cache故障/競合3probe成功536ms。中断t2の取得不能handleを成功へ読み替えず、fresh本人実行を別に保持した。root fullfrontendは94files/1958成功92.83s、全ESLint/Prettier/vue-tsc成功、root core module全443成功49.08s。前段宣言/別JSON/全旧pathと順序を実Gitで確認。
 
 ローカル保存はsecure contextとstrict durabilityを要求し、transaction完了までACKしない。pairの異値置換、同ID別payload、新IDによるpending置換、矛盾grant、破損行を拒否し、receivedを遅延unknownで降格しない。既Q1とDBを分け、削除/HTTP送信/UI解除は実装0。fake IDB/reopenを実Safari/実ブラウザ再起動成功とはしない。未対応storage能力は閉じ、対象端末実証は後続に維持。本有限4stepは候補として実装/局所受理済みだが、正式backend DTO再照合・HTTP/C2/Origin/実画面接続・最終HEADレビュー/必須CI/通常統合は残る。現在はsourceを保全し、実API供給へ続ける。
+
+
+## 2026-10-26 ブラウザ開始接続の最小追補
+
+基線feature/mvp-game-start-browser-persistence b97c94a9d6d241f6797ce95b53eca83e95e18efe。既planの「HTTP/UIは後続」部分を本有限接合へ進める。既4step/独立レビュー/失敗/保存保証/全MVPの完成条件を維持し、新全体計画は作らない。backend開始plan§15（8a1809d8）の実3POSTと既DTO5459b62cに照合し、実worker未供給をfake成功で埋めない。
+
+## 編集と順序
+
+exactpaths.jsonの既client2＋製品4＋test4だけ。rootが唯一作者/Git/plan/core JSON/台帳writer、最終レビューは別の非作者。既api2pathは前段code/JSON登録済み、screens新4＋既host/testは既GameScreen* globのsync/rights/tenant検出を実確認し、捕捉不足があればsource開始前にexact不足だけを追補する。既Q1/認証store/router/backend/契約/成績は変更0。共通clientの変更は次のexact POST1のCookie不確実性追随だけ。
+
+U1前段: backend既tenant_accessはenrollでもSet-Cookieを更新するが、現client.cookieMayRenewはplayers/team-records/gamesだけでdevicesを含まない。既api/client.tsへ method===POSTかつpath===/devices/enroll のexact1条件を追加し、同client.spec.tsでネットワーク結果不明/古い応答のCookie無効化・既tenant/C2拒否保持を検証する。全devices glob/認証store変更/既endpoint条件削除はしない。この修正前にenroll輸送を提供しない。
+
+U1: 既api/gameStart.tsへ既apiRequestを使うenroll/start/resolveの実POST関数を追加。tenantBound:true・credentials/C2/Originは既clientを再利用。request/応答は既strict parserとowner4照合、原資格はbodyにだけ必要通り渡す。URL gameIdはcanonical、余剰field/別tenant拒否。例外は固定GameStartDataError等へ閉じ、生ApiError.body/cause/資格/元JSONを保持・表示・logしない。HTTP自動retry0、共通clientの拒否/認証世代を弱めず、2xxでも未照合grantを成功にしない。
+
+U2: GameScreenStartProvider.tsで現在authEpoch/team/route/gameとpreparing保存値を束縛した開始のcompositionを実装。既GameStartPersistenceを利用し、端末pairのIDB完了後だけ開始資格に採用、元request ID/全payloadのprepareStart transaction完了後だけstart送信。UIで明示開始を押したときにだけUUID1を生成、保存済み要求があれば新UUID生成/上書き/自動再送0。unknown/pendingの結果確認は利用者の明示操作で元要求そのものをresolveへ一回送る。grantもowner4照合後IDB完了してから現在scopeに表示。保存が失敗すれば送信/受領表示を止める。通信不明・非2xx・不正応答・stale authは旧要求を保持、未消費/rollbackや新ID可へ推定しない。既receivedを遅延unknownで降格しない。
+
+scope変更/破棄時は旧通信をabortし旧UIを同期消去するが、abortを業務取消とは扱わず旧要求は保持。旧ownerの遅延通知が別tenant/gameへ届かないよう全更新直前にも照合する。IDB/ブラウザのreloadでは保存owner/全payloadを再読取し、pending/unknownは「結果未確認」、receivedは「前回受領した開始応答（現在の権利は未確認）」として表示。保存grantを現在の記録権/Readyへ昇格しない。開始済み実read/初期state/初球同期の供給前に記録buttonを開けない。
+
+U3: GameScreenStart.vueを既GameScreenEntryRecordHost.vueへ実mount。準備中detailからgame/teams/保存規則を受け、実roster.listPlayersのteam_record_id絞り込み・limit20・明示次pageで選手名を提示する。チーム越境/非公式/hidden/不正応答を選択候補へ採らず、全件自動取得しない。選手IDの事前入力/fixture UUID固定/最初の選手の自動選択を正常経路としない。
+
+打順1〜9の9枠、保存snapshotのdhがtrueのときのみ投手専用null打順の10枠を入力補助として提示。選手と守備位置（投/捕/一/二/三/遊/左/中/右・DH）を利用者が選び、既fielding_position={kind:'fielding',position:十進文字列}又は{kind:'designated-hitter'}で実要求を作る。dh不明・規則未取得をfalse/既定値で埋めない。業務検証は既単一TS/実serverが行い、UIで計算を複製しない。全枠に観測済み入力を要求し、押下後の確認済み実payloadを保存する。開始/結果確認ボタンのbusy/未認証/offline/資格未保存/未解決/破損拒否を明示し、資格・D4/V12・元要求JSONは画面へ出さない。既preparing情報/readonly入口/入力封鎖を保持する。
+
+U4: 影響Vitestで実fetch（境界でのみmock）＋実fakeIDB transactionの順序を確認。IDB commit前HTTP0、abort/保存拒否、scope変更/遅延応答、別owner/noncanonical/不正2xx、unknown同ID resolve、IDB再open、2tab競合と旧API74/IDB17/Entry回帰を保持する。source固定後の非作者レビュー・型lint、統合候補時全frontend/必須CIを行う。mock/fakeIDBを実開始証拠とはしない。
+
+backend§14/15採用後、owned環境で実login→画面新規作成→この開始panelから選手選択/登録/開始→実DBのgame status/lineup/initial grant一致→ページreloadの保存要求/前回応答保持をheaded browserで検証する。試合事前投入/仮broker/固定grantは禁止。実started-state取得と正式初球保存/再読込は次の接合に維持し、この開始証拠だけで縦断全体を完了扱いにしない。
+
+## 留保
+
+登録結果不明や未保存credentialを再登録/既存pair置換で自動復旧しない。非終結pendingの旧要求終結/fence・新要求置換は未供給のままで、その解除をUIが宣言しない。対象iPhone/iPadSafari/PCの実機確認はPO、HTTPS/strict IDB対応が必要。localhost/headed Chromiumを実機済みにしない。有料/運用公開/共有DB/秘密新発行なし。
+
+実装開始はこの追補の非作者レビュー/PO委任承認後、U1から段階固定し、U2/U3へはrootが具体指示。旧frontend1958/core443等の証拠は基線限定で後発成功へ代用しない。
+
+2026-10-26T08:09:06.123888+00:00、PO委任によるCodex /root判断。対象案75c76d4739c50416c798704d545e7af548331e3c056706eee7be1f0299cce221、exactpaths c0e9b35125488c9aefc71d7336233a07fe0dca1929822b670b516c4af3fd6c4c、候補非作者REVIEWd22251a367171a1a373c4d432851ec4379bf4a83a9a5f5c007ab93e83b7d1d9b/checks96cef65f4622b38a289bab9ad03466acde7f4f0381dde2392501f60c53a91e5f（残0）を根拠に追補範囲を承認。既全10pathのsync/rights/tenant捕捉確認済み。rootはU1前段とU1のclient2/api2だけを開始し、U2/U3へは固定/非作者確認後に具体通知する。人間本人の個別確認・署名/実開始/実機成功を代記しない。
