@@ -525,10 +525,20 @@ DURABLE_LEDGER_EXAMPLES = (
     "backend/tests/test_durable_rights_ledger_contract.py",
     "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/adapter.py",
 )
-EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+DURABLE_LEDGER_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     "sync-protocol": (*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE),
     "recording-rights": (*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE),
     "tenant-isolation": DURABLE_LEDGER_PATHS,
+}
+BROWSER_START_PERSISTENCE_PATHS = (
+    "frontend/src/api/gameStart.ts",
+    "frontend/src/api/gameStart.spec.ts",
+    "frontend/src/lib/gameStartPersistence.ts",
+    "frontend/src/lib/gameStartPersistence.spec.ts",
+)
+EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+    area_id: BROWSER_START_PERSISTENCE_PATHS
+    for area_id in ("sync-protocol", "recording-rights", "tenant-isolation")
 }
 REGISTERED_BEFORE_UR1: dict[str, tuple[str, ...]] = {
     "sync-protocol": US1_SYNC_APPLY_AREA_PATH_ADDITIONS,
@@ -4540,14 +4550,67 @@ def test_initial_rights_core_each_future_file_requires_check(
         assert path in result.stderr
 
 
+def browser_registration_state(configuration: dict[str, Any]) -> bool:
+    """新4pathの順序・全領域同時登録を検査し、歴史層と分離する。"""
+    states = []
+    for area in configuration["areas"]:
+        paths = area["paths"]
+        present = tuple(path in paths for path in BROWSER_START_PERSISTENCE_PATHS)
+        if area["id"] not in EXPECTED_AREA_PATH_ADDITIONS:
+            assert not any(present), "ブラウザ保存の対象外領域登録"
+            continue
+        assert len(set(present)) == 1, "ブラウザ保存の部分登録"
+        states.append(all(present))
+        if all(present):
+            assert_registered_block(paths, BROWSER_START_PERSISTENCE_PATHS)
+            assert tuple(paths[-4:]) == BROWSER_START_PERSISTENCE_PATHS
+    assert len(states) == 3 and len(set(states)) == 1, "ブラウザ保存の片側領域登録"
+    return all(states)
+
+
+def without_browser_layer(configuration: dict[str, Any]) -> dict[str, Any]:
+    """既知の完全な新層だけを外し、旧台帳の比較母集団を保つ。"""
+    registered = browser_registration_state(configuration)
+    historical = json.loads(json.dumps(configuration))
+    if registered:
+        for area in historical["areas"]:
+            if area["id"] in EXPECTED_AREA_PATH_ADDITIONS:
+                del area["paths"][-4:]
+    return historical
+
+
+def browser_persistence_configuration(*, registered: bool) -> dict[str, Any]:
+    """現在の据え置き層を保持した、ブラウザ保存の登録前後を作る。"""
+    configuration = without_browser_layer(load_actual_core_areas())
+    if registered:
+        for area in configuration["areas"]:
+            area["paths"].extend(EXPECTED_AREA_PATH_ADDITIONS.get(area["id"], ()))
+    return configuration
+
+
+@pytest.fixture
+def durable_ledger_historical_guard(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> Any:
+    """旧台帳の実Git/CLI試験を、その段階の明示追加mapへ束縛する。"""
+    historical = tmp_path / "durable_ledger_historical_guard.py"
+    historical.write_text(
+        core_guard_source_with_additions(DURABLE_LEDGER_AREA_PATH_ADDITIONS),
+        encoding="utf-8",
+    )
+    guard = load_core_guard_module(historical, module_name=str(historical))
+    monkeypatch.setattr(sys.modules[__name__], "SCRIPT", historical)
+    return guard
+
+
 def durable_ledger_configuration(*, registered: bool) -> dict[str, Any]:
     """正常initialを保持し、外部台帳の宣言済み8追記だけを合成する。"""
-    configuration = load_actual_core_areas()
+    configuration = browser_persistence_configuration(registered=False)
     patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
     for area in configuration['areas']:
         area['paths'] = [p for p in area['paths'] if p not in patterns]
         if registered:
-            area['paths'].extend(EXPECTED_AREA_PATH_ADDITIONS.get(area['id'], ()))
+            area['paths'].extend(DURABLE_LEDGER_AREA_PATH_ADDITIONS.get(area['id'], ()))
     return configuration
 
 
@@ -4556,11 +4619,12 @@ def assert_durable_ledger_registration(
 ) -> bool:
     """登録前の不在と登録後の実行資産捕捉を、全3領域で照合する。"""
     guard = load_core_guard_module()
-    areas = {area['id']: area['paths'] for area in configuration['areas']}
+    historical = without_browser_layer(configuration)
+    areas = {area['id']: area['paths'] for area in historical['areas']}
     patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
     states = []
     for area_id, paths in areas.items():
-        expected = EXPECTED_AREA_PATH_ADDITIONS.get(area_id, ())
+        expected = DURABLE_LEDGER_AREA_PATH_ADDITIONS.get(area_id, ())
         assert not (patterns - set(expected)) & set(paths), '台帳の対象外登録'
         if not expected:
             continue
@@ -4583,7 +4647,7 @@ def assert_durable_ledger_registration(
     if any(exists):
         assert all(states), '実在する台帳資産が未登録'
         files = [p.relative_to(root).as_posix() for paths in actual for p in paths]
-        for area_id in EXPECTED_AREA_PATH_ADDITIONS:
+        for area_id in DURABLE_LEDGER_AREA_PATH_ADDITIONS:
             captured = guard.matched_paths(
                 files, guard.CoreAreas(tuple(areas[area_id]), frozenset()),
             )
@@ -4595,18 +4659,18 @@ def test_durable_ledger_core_actual_phase_preserves_initial_supplier() -> None:
     """固定供給の全登録を保持し、新台帳実行資産の未登録を許容しない。"""
     guard = load_core_guard_module()
     baseline = guard.load_core_areas_at_revision(REPO, durable_ledger_comparison_revision())
-    actual = load_actual_core_areas()
+    actual = browser_persistence_configuration(registered=False)
     assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
     assert tuple(guard.DURABLE_LEDGER_PATH_ADDITIONS) == DURABLE_LEDGER_PATHS
     assert tuple(guard.DURABLE_LEDGER_FIXTURE_ADDITION) == DURABLE_LEDGER_FIXTURE
-    guard.validate_area_path_layers(baseline, actual)
+    guard.validate_area_path_layers(baseline, actual, DURABLE_LEDGER_AREA_PATH_ADDITIONS)
     assert_initial_rights_registration(actual)
     assert_durable_ledger_registration(actual)
     for area in baseline['areas']:
         current = next(a for a in actual['areas'] if a['id'] == area['id'])
         expected = area['paths']
         if current['paths'] != expected:
-            expected = expected + list(EXPECTED_AREA_PATH_ADDITIONS[area['id']])
+            expected = expected + list(DURABLE_LEDGER_AREA_PATH_ADDITIONS[area['id']])
         assert current == {**area, 'paths': expected}
     assert {k: v for k, v in actual.items() if k != 'areas'} == {
         k: v for k, v in baseline.items() if k != 'areas'
@@ -4668,7 +4732,7 @@ def test_durable_ledger_core_invalid_registration_is_rejected(
     elif mutation == 'wrong-area':
         areas['game-state'].extend(DURABLE_LEDGER_PATHS)
     elif mutation == 'reverse':
-        areas['sync-protocol'][-3:] = reversed(EXPECTED_AREA_PATH_ADDITIONS['sync-protocol'])
+        areas['sync-protocol'][-3:] = reversed(DURABLE_LEDGER_AREA_PATH_ADDITIONS['sync-protocol'])
     elif mutation == 'duplicate':
         areas['sync-protocol'].append(DURABLE_LEDGER_PATHS[0])
     elif mutation == 'delete':
@@ -4680,26 +4744,30 @@ def test_durable_ledger_core_invalid_registration_is_rejected(
     else:
         areas['sync-protocol'].append('unregistered/probe.py')
     with pytest.raises((AssertionError, guard.GuardError)):
-        guard.validate_area_path_layers(baseline, candidate)
+        guard.validate_area_path_layers(
+            baseline, candidate, DURABLE_LEDGER_AREA_PATH_ADDITIONS
+        )
         assert_durable_ledger_registration(candidate, tmp_path)
 
 
 def test_durable_ledger_core_exact_patterns_and_outside_paths() -> None:
     """専用package/試験/正例だけを追加し、隣接資産へ対象を広げない。"""
     guard = load_core_guard_module()
-    assert sum(map(len, EXPECTED_AREA_PATH_ADDITIONS.values())) == 8
+    assert sum(map(len, DURABLE_LEDGER_AREA_PATH_ADDITIONS.values())) == 8
     outside = (
         'backend/src/pitchlog/durable_rights_ledger_other/adapter.py',
         'backend/tests/test_durable_rights_ledger_contract_other.py',
         'tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger_other/x.py',
     )
-    for patterns in EXPECTED_AREA_PATH_ADDITIONS.values():
+    for patterns in DURABLE_LEDGER_AREA_PATH_ADDITIONS.values():
         assert guard.matched_paths(outside, guard.CoreAreas(patterns, frozenset())) == []
 
 
-def test_durable_ledger_core_declaration_and_separate_json_cli(tmp_path: Path) -> None:
+def test_durable_ledger_core_declaration_and_separate_json_cli(
+    tmp_path: Path, durable_ledger_historical_guard: Any,
+) -> None:
     """正常initialを基線に、宣言→別JSONの実CLIと履歴規則を検証する。"""
-    guard = load_core_guard_module()
+    guard = durable_ledger_historical_guard
     root, _ = make_layered_core_repo(tmp_path)
     commit_change(root, '.claude/core-areas.json',
                   json.dumps(durable_ledger_configuration(registered=False)))
@@ -4710,7 +4778,7 @@ def test_durable_ledger_core_declaration_and_separate_json_cli(tmp_path: Path) -
     event = write_event(tmp_path, base, declaration, f'- [x] {REQUIRED_CHECK_TEXT}')
     result = run_guard(root, event_name='pull_request', event_path=event)
     assert result.returncode == 0, result.stderr
-    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = commit_area_path_changes(root, DURABLE_LEDGER_AREA_PATH_ADDITIONS)
     assert run_git(root, 'rev-parse', registered + '^').stdout.strip() == declaration
     assert guard._changed_paths_in_commit(root, registered) == frozenset(
         {'.claude/core-areas.json'}
@@ -4722,12 +4790,14 @@ def test_durable_ledger_core_declaration_and_separate_json_cli(tmp_path: Path) -
 
 
 @pytest.mark.parametrize('definition', ('scripts/core_guard.py', 'tests/test_core_guard.py'))
-def test_durable_ledger_core_cochange_is_rejected(tmp_path: Path, definition: str) -> None:
+def test_durable_ledger_core_cochange_is_rejected(
+    tmp_path: Path, definition: str, durable_ledger_historical_guard: Any,
+) -> None:
     """新8登録でもJSONと基線定義の同commit変更を拒否する。"""
-    guard = load_core_guard_module()
+    guard = durable_ledger_historical_guard
     root, base = make_layered_core_repo(tmp_path)
     head = commit_area_path_changes(
-        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(definition,),
+        root, DURABLE_LEDGER_AREA_PATH_ADDITIONS, cochanged_paths=(definition,),
     )
     with pytest.raises(guard.GuardError, match='同一コミット'):
         guard.verify_area_path_baseline(root, base, head)
@@ -4736,13 +4806,13 @@ def test_durable_ledger_core_cochange_is_rejected(tmp_path: Path, definition: st
 @pytest.mark.parametrize('path', DURABLE_LEDGER_EXAMPLES)
 @pytest.mark.parametrize('checked', (False, True))
 def test_durable_ledger_core_each_single_future_asset_requires_check(
-    tmp_path: Path, path: str, checked: bool,
+    tmp_path: Path, path: str, checked: bool, durable_ledger_historical_guard: Any,
 ) -> None:
     """新製品/contract/正例の後発単独変更も実CLIで必須確認を要求する。"""
     root = make_repo_with_actual_core_areas(tmp_path)
     configuration = json.loads((root / '.claude/core-areas.json').read_text())
     if not assert_durable_ledger_registration(configuration, root):
-        commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+        commit_area_path_changes(root, DURABLE_LEDGER_AREA_PATH_ADDITIONS)
     base, head = commit_change(root, path)
     event = write_event(tmp_path, base, head,
                         f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}")
@@ -5034,3 +5104,159 @@ def test_preparing_declaration_detects_new_paths_and_requires_human_check(
     assert core_guard.matched_paths(
         planned_paths, core_guard.CoreAreas(tuple(future_tenant["paths"]), frozenset())
     ) == list(planned_paths)
+
+
+def test_browser_start_core_actual_phase_retains_all_previous_paths() -> None:
+    """正式据え置き層と新4pathだけを比較し、旧台帳定数も保持する。"""
+    guard = load_core_guard_module()
+    baseline = guard.load_core_areas_at_revision(
+        REPO, "30f67cbc0afbdae00919606a17439d64fa7e9832"
+    )
+    actual = load_actual_core_areas()
+    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert tuple(guard.BROWSER_START_PERSISTENCE_PATH_ADDITIONS) == (
+        BROWSER_START_PERSISTENCE_PATHS
+    )
+    assert tuple(guard.DURABLE_LEDGER_PATH_ADDITIONS) == DURABLE_LEDGER_PATHS
+    assert tuple(guard.DURABLE_LEDGER_FIXTURE_ADDITION) == DURABLE_LEDGER_FIXTURE
+    guard.validate_area_path_layers(baseline, actual)
+    assert without_browser_layer(actual) == baseline
+    if any((REPO / path).exists() for path in BROWSER_START_PERSISTENCE_PATHS):
+        assert browser_registration_state(actual), "実在するブラウザ保存資産が未登録"
+    for area_id, paths in EXPECTED_AREA_PATH_ADDITIONS.items():
+        assert guard.matched_paths(paths, guard.CoreAreas(paths, frozenset())) == list(paths)
+        previous = next(area for area in baseline["areas"] if area["id"] == area_id)
+        assert_registered_block(previous["paths"], DURABLE_LEDGER_AREA_PATH_ADDITIONS[area_id])
+
+
+def browser_core_repo(tmp_path: Path) -> tuple[Path, str, str]:
+    """旧登録済みJSONを基線に、新コード宣言だけを別commitで置く。"""
+    root, _ = make_layered_core_repo(tmp_path)
+    _, base = commit_change(
+        root, ".claude/core-areas.json",
+        json.dumps(browser_persistence_configuration(registered=False)),
+    )
+    _, declaration = commit_change(root, "scripts/core_guard.py", SCRIPT.read_text())
+    return root, base, declaration
+
+
+@pytest.mark.parametrize("phase", ("declared", "registered", "exists"))
+def test_browser_start_core_three_real_git_phases(tmp_path: Path, phase: str) -> None:
+    """コード宣言→別JSON→実在の各段階を、実GitとCLIで確認する。"""
+    guard = load_core_guard_module()
+    root, base, head = browser_core_repo(tmp_path)
+    assert guard.load_core_areas_at_revision(root, base) == (
+        guard.load_core_areas_at_revision(root, head)
+    )
+    if phase != "declared":
+        registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+        assert run_git(root, "rev-parse", registered + "^").stdout.strip() == head
+        assert guard._changed_paths_in_commit(root, registered) == frozenset(
+            {".claude/core-areas.json"}
+        )
+        head = registered
+    if phase == "exists":
+        _, head = commit_changes(root, BROWSER_START_PERSISTENCE_PATHS)
+        assert all((root / path).is_file() for path in BROWSER_START_PERSISTENCE_PATHS)
+    else:
+        assert not any((root / path).exists() for path in BROWSER_START_PERSISTENCE_PATHS)
+    actual = guard.load_core_areas_at_revision(root, head)
+    assert browser_registration_state(actual) is (phase != "declared")
+    assert guard.verify_area_path_baseline(root, base, head) == base
+    event = write_event(tmp_path, base, head, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("mutation", (
+    "partial", "extra", "wrong-area", "reverse", "duplicate", "delete", "replace",
+))
+def test_browser_start_core_invalid_registration_real_git(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """新段階の不完全/領域外追記と、据え置き層破壊を実CLIで拒否する。"""
+    root, base, _ = browser_core_repo(tmp_path)
+    candidate = browser_persistence_configuration(registered=True)
+    areas = {area["id"]: area["paths"] for area in candidate["areas"]}
+    if mutation == "partial":
+        areas["sync-protocol"].pop()
+    elif mutation == "extra":
+        areas["sync-protocol"].append("frontend/src/lib/gameStartPersistenceOther.ts")
+    elif mutation == "wrong-area":
+        areas["game-state"].extend(BROWSER_START_PERSISTENCE_PATHS)
+    elif mutation == "reverse":
+        areas["recording-rights"][-4:] = reversed(BROWSER_START_PERSISTENCE_PATHS)
+    elif mutation == "duplicate":
+        areas["tenant-isolation"].append(BROWSER_START_PERSISTENCE_PATHS[0])
+    elif mutation == "delete":
+        areas["recording-rights"].pop(0)
+    else:
+        areas["sync-protocol"][0] = "unregistered/replacement.py"
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
+    event = write_event(tmp_path, base, head, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 1, result.stdout
+
+
+@pytest.mark.parametrize("area_id", tuple(EXPECTED_AREA_PATH_ADDITIONS))
+def test_browser_start_core_cross_area_stage_is_atomic(tmp_path: Path, area_id: str) -> None:
+    """実GitのJSONが片側段階なら、新段階の登録監査が拒否する。"""
+    guard = load_core_guard_module()
+    root, _, _ = browser_core_repo(tmp_path)
+    candidate = browser_persistence_configuration(registered=True)
+    next(area for area in candidate["areas"] if area["id"] == area_id)["paths"][-4:] = []
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
+    with pytest.raises(AssertionError, match="片側領域登録"):
+        browser_registration_state(guard.load_core_areas_at_revision(root, head))
+
+
+@pytest.mark.parametrize("definition", ("scripts/core_guard.py", "tests/test_core_guard.py"))
+def test_browser_start_core_same_commit_is_rejected(tmp_path: Path, definition: str) -> None:
+    """JSONとコード宣言/基線試験の共変更を新4pathでも実CLIで拒否する。"""
+    root, base, _ = browser_core_repo(tmp_path)
+    head = commit_area_path_changes(
+        root, EXPECTED_AREA_PATH_ADDITIONS, cochanged_paths=(definition,),
+    )
+    event = write_event(tmp_path, base, head, f"- [x] {REQUIRED_CHECK_TEXT}")
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == 1
+    assert "同一コミット" in result.stderr
+
+
+@pytest.mark.parametrize("path", BROWSER_START_PERSISTENCE_PATHS)
+@pytest.mark.parametrize("checked", (False, True))
+def test_browser_start_core_each_asset_requires_check(
+    tmp_path: Path, path: str, checked: bool,
+) -> None:
+    """source/test全4pathの後発変更で、必須確認の有無を実CLIで検査する。"""
+    root, _, _ = browser_core_repo(tmp_path)
+    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    _, head = commit_change(root, path)
+    event = write_event(
+        tmp_path, registered, head, f"- [{'x' if checked else ' '}] {REQUIRED_CHECK_TEXT}"
+    )
+    result = run_guard(root, event_name="pull_request", event_path=event)
+    assert result.returncode == (0 if checked else 1), result.stderr
+    if not checked:
+        assert path in result.stderr
+
+
+def test_browser_start_core_exact_layer_does_not_extend_neighbors() -> None:
+    """新層は専用4pathだけを捕捉し、隣接資産やglobを追加しない。"""
+    guard = load_core_guard_module()
+    outside = (
+        "frontend/src/api/gameStartOther.ts",
+        "frontend/src/lib/gameStartPersistenceOther.ts",
+        "frontend/src/lib/gameStartPersistence/nested.ts",
+    )
+    assert sum(map(len, EXPECTED_AREA_PATH_ADDITIONS.values())) == 12
+    for patterns in EXPECTED_AREA_PATH_ADDITIONS.values():
+        assert guard.matched_paths(outside, guard.CoreAreas(patterns, frozenset())) == []
+    baseline = browser_persistence_configuration(registered=False)
+    candidate = browser_persistence_configuration(registered=True)
+    combined = {
+        area: (*DURABLE_LEDGER_AREA_PATH_ADDITIONS[area], *paths)
+        for area, paths in EXPECTED_AREA_PATH_ADDITIONS.items()
+    }
+    with pytest.raises(guard.GuardError, match="一部だけ基線"):
+        guard.validate_area_path_layers(baseline, candidate, combined)

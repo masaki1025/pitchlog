@@ -80,10 +80,16 @@ DURABLE_LEDGER_PATH_ADDITIONS = (
 DURABLE_LEDGER_FIXTURE_ADDITION = (
     "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
 )
+BROWSER_START_PERSISTENCE_PATH_ADDITIONS = (
+    "frontend/src/api/gameStart.ts",
+    "frontend/src/api/gameStart.spec.ts",
+    "frontend/src/lib/gameStartPersistence.ts",
+    "frontend/src/lib/gameStartPersistence.spec.ts",
+)
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    "sync-protocol": (*DURABLE_LEDGER_PATH_ADDITIONS, *DURABLE_LEDGER_FIXTURE_ADDITION),
-    "recording-rights": (*DURABLE_LEDGER_PATH_ADDITIONS, *DURABLE_LEDGER_FIXTURE_ADDITION),
-    "tenant-isolation": DURABLE_LEDGER_PATH_ADDITIONS,
+    "sync-protocol": BROWSER_START_PERSISTENCE_PATH_ADDITIONS,
+    "recording-rights": BROWSER_START_PERSISTENCE_PATH_ADDITIONS,
+    "tenant-isolation": BROWSER_START_PERSISTENCE_PATH_ADDITIONS,
 }
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
