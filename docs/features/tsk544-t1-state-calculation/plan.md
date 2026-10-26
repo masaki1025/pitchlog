@@ -150,3 +150,10 @@ sourceはexactpathsの既存1/新7だけ、function_operations.py beforeSHA0d9fb
 
 
 2026-10-26T14:33:32.525031+00:00、N1-U1 source第1回独立364cf54f0410111be0a5e998257d1c5b79d867504e429344e62f759c53a637fa/checks685452be…はP0/P1/P2=0/1/0。正bigintを受理するcheck_current_rightのinternal_generation/recovery_generationが実psycopg SQLではINTEGERへ狭まる反例を採用する。PO委任によるCodex /root判断で既exact8内の通常不具合是正を許可する。新exact関数の当該2位置のみBigIntegerへ束縛し、2^31境界/2^63上限とbool/負値拒否を実compileで検証する。旧INITIAL・一般intのSQL型/期待値/全旧assertを維持し、汎用整数型拡張をしない。作者410成功と独立410成功/追加反例1失敗を別々に保持。第2回差分確認までsource8は未採用、runtime/Port/SQL成功の未成立は維持する。
+
+
+2026-10-26T14:40:48.857487+00:00、PO委任によるCodex /root判断でN1-U1 source8を限定採用保存する。初回差分40749d…/第1回独立364cf54f…のP1を保持し、反映1差分4e624d608282a2b0f7a525f75b7df0efbbd1a972302f6f3accccfad8aee5c356・source8全差分6de352aa38df53e151a9c1e4d25119c263ce2554be68c65f8aa5524f13ca8f7aを照合。第2回非作者39d5399e14463224ff675d716164c441e707f2dbbfef1d15dd4cdbc555538db3/checks984bc92d…（0/0/0）、独立428成功14.35s/作者428成功13.43s、旧INITIAL13関数×2shape=26 SQL全文同値/_canonical_bind AST同一/他6byte保持/旧assert保持を確認した。実psycopg BIGINT compile対向でP1を解消し、Ruff/tyも成功。
+
+保存する成果はcanonical proof parser・未登録exact2token/関数宣言・固定SQLrenderer・限定bytes/bigint境界・拒否試験だけ。nonce/外部lease/実終結/quarantine/Port/DB適用・SQL成功positive/1球保存は未供給。正式CAP/catalog受理も後続。既全MVP範囲を縮小しない。
+
+root別coreguard全506の341赤は新17suffixに旧HTTP歴史fixtureと宣言層が未追随のためで、U1source成功と別に残す。先行coreJSON17追加を最終core手続き成立と誤記せず、最小の宣言層・有限歴史fixture追随（scripts/core_guard.py/tests/test_core_guard.py exact2、旧拒否・検出・全旧assert保持）をrootが別追補/独立レビューで閉じるまで通常統合不可。core検査を除外したり必須拒否を緩めて通さない。
