@@ -201,3 +201,11 @@ rootが固定依存5を先行供給。__init__/evidence/store_contractは7c04全
 2026-10-27 JST、PO委任によるCodex /root判断でN1-U2 source13反映1を限定採用保存する。元manifest75ef3784…/旧第1回REPORT8a4e77ba…P1-1を保持し、反映1 manifest e614e9d6a445a1b2e38824ff336ac77c0c844a3bdcea56caff2adf46ff7d778d/patch2904a08c…を照合。非作者第2回REPORTfc87c9b1bc9331e1de82dfa76aba9a1aebf024700d21f0516cc48e664cc5dd60/checks835c694f…（0/0/0）、全13実SHA/変更exact2/他11・packet2保持/GRANT以降同byte/旧pure27AST prefix保持、独立337成功0.81s/Rufftyを根拠にする。control両roleの全固定属性・両向membership0をGRANT前拒否し、ALTER修復せず旧P1をsource上で閉鎖した。制御フローdouble7を実DB証明と混同しない。
 
 root migration exact4の別独立37b1167e…も採用し、参照する単一モデルと同時に保存してHEADの未存在importを残さない。保存対象は作者13＋root4＋既親planのみ。正式catalog/registry/manifest source SHA/7.7/実DB8本と既role変異/追加故障系/CI/通常統合は別未達。未対応operationを成功とせず、nonce/lease/DB終結を仮のPortへ置換しない。次の供給10source/正式asset候補の採否は、このsource限定採用へ含めない。
+
+### 製品認可供給の限定追補（候補作成中、正式採否は別）
+
+2026-10-27 JST、PO委任によるCodex /root判断で既承認9sourceへbackend/src/pitchlog/authz/asset_spec.pyのexact1 invoker kind/順序対応をcache候補範囲として追加した。0037は表2だけでありU2関数を配置するという初期候補作者の誤前提を撤回する。fullprofileがU2 7関数＋U1 2関数を実CREATEし、read_writer_identityだけINVOKER、他8はSECDEF（内部guard含む）。guardへ固定4triggerを同梱、未知invoker/SECURITY反転/順序不正を拒否する。新profileのunapplyはSQL生成/実行前の明示拒否とし、PUBLIC EXECの再付与・証拠削除をしない。旧profile挙動を保持する。
+
+正本実装追随/構造候補の唯一作者first_ball_u1_independentへcache exact3path（docs/design/data-model.md、contracts/db/schema-manifest.json、backend/tests/test_schema_manifest.py）を割り当てた。既6-1節の最小6-1-a writer2表追補と、3-4のwriter lease/nonce2行・既初期権一意2行だけを追加する。列/既一意predicate/記録結果/tenant/権限・耐久保証は変えない。manifest旧50のうちgame_start_attempts/recording_right_deliveriesのbusiness_unique.source_rowだけを既checkerの正形式へ修正（必要参照section追記）、旧構造と他48全objectは保持し新2表全構造を追加。旧quote形式のKeyErrorによるbaseline3赤と是正後値を別に保存する。
+
+新schemaはsync_fenceを維持する。論理名をtable.nameへ正規化する際は全物理schema/重複を明示検査し、新exact2だけsync_fence、旧50のNone/publicを保持する。未知schema/同名別schema/既表schema偽装は拒否し、schemaを単に無視して通さない。FKは閉検査した実Tableの論理名でmanifestへ対応付ける。旧全assert/制約・負例を保持、モデルとDDLの単一実装は変えない。正本の改訂区分/全前後値とsource差分を別非作者へ渡し、実装追随節更新として扱える範囲を確認後にrootが正式反映する。本人承認・全P6/全T1/実DB完成を代記しない。
