@@ -407,3 +407,28 @@ pure：3command分岐/実関数呼出順/旧body保持、未知/余剰/frame期�
 
 
 2026-10-26T06:58:36.142312+00:00、PO委任によるCodex /root判断で§14を承認。対象plan b315bcd74d8c9957675b569065cd0f55262d0895fda4e9be2199b474b66206fe、exactpaths6eac1bb687cb527a45ec58270f3903bd440d169fab14de6dd2787d50d4c03016、非作者最終REVIEWdd814f2dc06679e1e1234818d5c158a89877c1e710f580c591a9505c44e351ff/checks5ba6bccbd166116d948f60326806d8cee2623e7250ec4811bba9d02578ca2924/残0。初回P2と反映1のNode上限不整合を保持し、既NodeABIを変えず反映2で解消。作者initial_storage_norm_review、rootが本plan/Git/正式JSON/台帳の唯一writer。保存後のHEAD/全15beforeSHAを固定してこの範囲だけ実装する。源方針やMVP機能削減の承認ではなく、pending非終結/外部status照会・後着fenceの未供給と全MVP義務を維持する。ソース固定後に候補非作者へレビューし、実ownedNode/PG/Unixの成功とHTTP/UIを区別する。
+
+
+## 15. 実開始HTTPの最小接合（PO委任承認）
+
+既workerの単位を画面から呼ぶための有限追補。新全体計画を起こさず、§14とB1/B2の保証をそのまま使う。候補基線d0474cdf、HTTP反映1案SHA202db3b740d35ecb4722e55c79eabc87a9259c4d05a8983d9739cfd43a921636、exactpaths b2f497b01f068c0a98a96f6cda9ccaec46f02e6f9da1e1c7f8a7ea94794b004dを本節の有限詳細とし、cache game-start-http-minimum-20261026/reflection1/ に原版を保持する。初回非作者P1=1（resolveのread過小分類）→反映1残0/0/0、最終review a252d4cad9c70ceab0068ede15c12933c0100cc04c693564ad9142f856b409cd/checks7907585c24761d5e3f86977a221976efbd01efc61cd90166516a36d1e2486d12を連結する。
+
+### 入口・認可・結果不明
+
+既games.routerへPOST /devices/enroll（initial_device_enroll）、POST /games/{game_id}/start（initial_game_start）、POST /games/{game_id}/start/resolve（initial_game_start_resolve）を実mountする。既C2のCookie/状態変更header・Origin/tenant照合を本文検査より先に行い、HTTPは原Cookieとexpected tenant/challengeだけを閉commandへ渡す。workerでB1実再検証を行い、HTTPでTenantContextを発行主体に見立てたり仮attemptを生成しない。payloadは既_entriesと既閉DTOを使い、名簿意味/計算/権利を重複実装しない。
+
+成功は既clientがcommand/challenge/owner/wireを照合したreplyの専用成功projection valueのみ。資格をSecretStr通常dumpのマスク文字列にしない。全成功/拒否/入力不正/通信不明/500でno-store、tenant ackは照合済み2xxだけ。生Cookie/資格/入力/原例外をdetail/logへ渡さない。既denied404、conflict409、unavailable/unresolved503へ閉じ、自動retry/再enroll/attempt作成0。2秒期限は結果不明を含むので元要求ID/全payloadを保持する。
+
+logical routeはtrusted_devices:insertへenroll、games:updateへstart/resolveを各operationと実CAP provenanceで個別に対応させる。committed再交付を含むresolveをgames:readへ分類しない。既games:readの準備中2GETの意味/byteを保持し、resolve→readの誤結線を負例にする。HTTP独自CAP/role/DB ACLを作らず、採用worker/profileの正式CAP登録へ委任する。
+
+### exact範囲・編集所有・段階
+
+core前段source/testはscripts/core_guard.py、tests/test_core_guard.pyだけ。続く別commitで.claude/core-areas.jsonのrecording-rightsへ既5path（backend/src/pitchlog/api/routers/games.py、backend/src/pitchlog/api/tenant_access.py、backend/tests/test_api_app.py、backend/tests/test_api_conventions.py、backend/tests/test_api_tenant_match_metadata.py）をexact追加する。旧先行層/全旧paths/拒否/検出を保持し、実Gitのコード宣言→別JSONと欠落/余剰/並替/同commit変更の拒否を確認後だけHTTPsourceへ進む。新しい意味を単なる既pathとして登録省略しない。
+
+HTTPsourceは上記API2＋scripts/check_authz_catalog.py。testは上記API3＋backend/tests/db/test_api_auth_exit_entry.py＋tests/test_check_authz_catalog.pyの5。新物理path0。作者はrg1_final_review_oct26を予定し、具体着手はrootの別通知後。worker作者が固定した共有checker/root testへ同時書込みしない。Git/本plan/core JSON/正式metadata/台帳はroot唯一writer。root metadataはroute-registry.json/http-route-matrix.jsonの新logical2と実影響lockだけ、既auth-catalog/lock不変を照合する。他影響は実測差分だけをrootへ戻す。
+
+step H1=core前段2の実装/非作者確認、H2=別JSON登録/実先行検査、H3=実3POSTと限定pure検査、H4=owned実Cookie→HTTP/C2→実Unix→DB/Node→enroll/start/resolveの正常・故障検証。worker最終採用前でもH1の独立作業を進められる。H3のclient doubleは輸送外形の証拠で実開始と呼ばない。H4は§14のowned fixtureを再利用し、別tenant/device/失効/commit後応答断→同要求resolve同grant/D4予約増分0/RG1・worker停止の非成功保持・cleanupを実証する。helper不足はexact理由をrootへ返し無断拡張しない。
+
+既source規約のgeneration一律禁止と既DTO recovery_generationの基線矛盾は留保する。禁止集合を削って緑にせず、専用projectionを使い本文に不要な同期語を直書きしない。通常影響検査・最終HEAD別非作者確認・必要正式値受理・必須CI/通常統合を維持する。browserのIDB commit前送信禁止/unknown保持/実UI開始、started read/初期state/T1-T2/実同期保存/全MVPは別未達のままである。
+
+2026-10-26T07:51:51.978034+00:00、PO委任によるCodex /root判断で上記有限範囲と順序を承認。対象反映1原案/非作者最終hashは前記に固定。現時点はH1の2pathだけを次担当通知後に開始可とし、H2以後は各固定/非作者確認後にrootが具体指示する。人間本人の確認・署名、実開始/保存の成立を代記しない。
