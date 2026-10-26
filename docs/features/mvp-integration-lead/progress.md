@@ -29,7 +29,7 @@
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
 | A 試合作成・preparing再取得 | 旧隔離eda71a48＋20ee2e98で実証。create候補903e3b09は正式RG1 3a24へ追随 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値は旧固定候補で実証。新候補の局所検査・非作者確認成功 | 新候補の正式値/通常統合・実画面再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | start1592e48d、browser b6d8d4c8＋U3未保存4path、初球256838cc（PR186） | 実ASGI→実Unix→実DB/Nodeで開始/初期grant同一TXと照会を実証。選手選択・開始画面は実装/全frontend2002成功。実ブラウザ開始と1球同期保存・再読込は未達 | 正式metadata連結、開始画面の非作者確認/実経路実証、trusted初期state/T1-T2・実sync Port/原子的保存/started read |
+| B 開始・権利・1球保存と復元 | start fd80eb2d（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33 c88f284d（PR187） | 実ブラウザ→Cookie/C2→enroll/選手選択→start→初期grant IDB保存/再読込を実証（backend72800152固定・seeded preparing限定）。通常33数学と履歴保持も実Node/Chromiumで一致 | 新規UIcreateから同版での接続、正式7.7/CI/通常統合、trusted初期state/T1-T2・実sync Port/原子的1球保存/started read |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
 | D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create、start1592e48d | 作成故障に加えowned worker/Node/DB停止・応答喪失同要求照会・実端末失効後の非成功を実証。pendingを終結/全取消と推定しない | 未解決要求の確定終結/後着遮断、記録後offline再起動・交代・再送等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
@@ -790,3 +790,20 @@ T1通常33はA checker/source4 a20b59be・正式9/実委任受理fe4590edまで�
 正式認可metadataはroot唯一writerで旧profile/B1/B2/lookup/HTTPを158uniqueへ畳み込んだ候補を照合中。private function CAPが表catalogに0件なのは設計どおりであり不足扱いを訂正した。一方、採用済みdata-model1.4のapp recording_generations INSERT撤去にgeneratorが追随せず74対73となる真の不整合は未是正。旧profile74不変/完全初期profileだけINSERT1除去/偽・部分profile拒否のexact source/test2追補を準備し、検査緩和やINSERT復活で回避しない。
 
 新たに利用者が完了できる実画面操作の実証は、旧隔離候補の新規preparing作成/DB再取得まで。次の依存は新開始画面の実接合、初期state/正式T1-T2/実sync保存と再取得。全MVP・実機・運用復旧の未達を維持する。
+
+
+### 2026-10-26：通常投球本体と実画面開始の到達
+
+T1通常33数学をsource14＋既planだけc88f284dへ保存・通常pushした。source14固定e70f83f7…、別非作者80ef48574beef6e9c39a5780d1f8bb11b22fc1dee8dd07c05a0a4b6d93bc3d02/checks7e85a765…（0/0/0）、実Node/同artifact Chromiumで33全値＋実called→ballS1B1/[E,H]一致、追加80座標=33成功47拒否・15history欄/巨大signed/23flag/2tail保持、旧初球ABI/4error/全旧assert保持。backend280成功の後に追加したordinary28成功を284全再走とは数えず、frontend95files1964成功。artifact feb4fa1c…9827byte再現。単一TS/private countを共有しPythonは固定host一回だけ。T1計算本体への着手済みだが、PA終端・走者・取消等の全T1/実保存は未完。
+
+旧署名回帰の実全185は175成功10赤から、旧7functionだけ歴史fixtureへ束縛して185成功225.23sへ解消。全旧assert/製品checkerを保持、非作者dc795e9c…残0。最終HEAD追認で実PR187 base3a24に対して新公開Gate6が旧anchor30f67を要求するP1を検出した（6379c768…、未解消1として固定）。数学採否を維持して、通常merge efae7336で正式3aへ追随。規範anchor30を保持し公開baseだけ実3aへ有限束縛/正式policy12prefix＋186/187、record/schema実値の最小追随をrootが反映中。56ordinary成功76.95sとlocal技術CLI成功、反映差分の非作者確認待ち。公開Gate6/CIを成功としない。
+
+browserはU3 exact4 ad4faef1を全2002成功/独立48a71c41…残0で保存した。初回実UIrun1793012863463はlogin/session/preparingGET/enroll/players各実200後、開始position文字列と正式intの接合差で422。backendの拒否を維持し、UIの有限1..9明示int map＋component/host全値を8cd0aa6fへ修正保存・通常pushした。非作者第2回4d583b5d…残0、未知DOM9種送信0/独立22成功・root13/型lint成功。旧422と初回cwd誤指定による未編集停止の履歴を保持する。
+
+新実owned run1793013418502/session76071exit0は固定backend72800152/frontend8cd0aa6fの別snapshotだけで実施し、実login→preparing取得→UIenroll→実players両側→20名選択→start200/C2/no-store→元要求IDB pending先行/同payload→grant received commit→実reload/過去受信と現在権利未確認/再POST0/record閉鎖を確認した。別admin観測でin_progress/startedAt同値/両lineup10/committed request1/generation1/active delivery1をHTTP-IDBと同owner digestで照合。生Cookie/端末資格/V12保存0、known container/volume/networkと両所有label残存0。新fault原子性の独立完走とはせず、既H4の故障証拠と分ける。成功packet game-start-real-browser-owned-20261026/success-handoff.json SHA673b3fea02cef7677e82f0dd443929a1689a45a40dfb816b57af37693203a0bc/evidence41e3da390595211b6b28909d73e1bc59e273fe80b08b1bc44c4274581f8c6710。豆腐字のscreenshotは日本語視覚受入に使わず、DOM日本語一致だけを観測した。
+
+この実UI開始はfixtureで準備した既存preparing試合に限る。画面で新規作成した試合からの同版縦断や1球同期保存・再読込の成功ではない。利用者が新たに完了できた操作は実画面での開始/初期記録権取得と端末保存・前回応答の再表示であり、再表示は現在の記録権を保証しない。実機確認はPO担当として未実施を維持する。
+
+開始backendはHTTPconsumer2 ba3db0e2、metadata158候補72800152、通常develop追随435f29d9、generatorの旧74/新73整合fd80eb2dをstep別保存・通常pushした。実Draft PR188 https://github.com/masaki1025/pitchlog/pull/188 を製品コード付きで公開。metadata全値の独立e296d514…、consumer1b68d62f…、generator400e8767…はいずれも残0。正式renderer追随でruntime source824eb509…→39d94a2d…は全AST同一、初回GENERATED_MODULE_STALEのP1を解消し独立54成功。tenant CLIは旧履歴prefix不一致から実履歴末尾/新runtime23識別値不一致へ進み、正式7.7/派生値受理・最終CI/通常統合はまだ未達。root唯一writerを維持し、実PR188の受理IDで既正式CLIから最小候補を一括計測中。
+
+次の依存は、開始188の正式受理/通常統合と新規create候補0a30a92d・browser8cdの同版接合、真正の初期state/現在rightsを通す実sync Port・同writer projection・単一T1/T2の1球保存とstarted read。全MVP/1試合/取消・訂正/成績/毎球CSVと成績CSV/通信断/実機・運用復旧を縮小しない。
