@@ -1,6 +1,6 @@
 # 初回MVP 主担当引受・進捗台帳
 
-更新: 2026-10-26。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+更新: 2026-10-27。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
 
 ## 引受時の固定点（履歴。現在地は下記表と追記）
 
@@ -29,7 +29,7 @@
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
 | A 試合作成・preparing再取得 | 旧隔離eda71a48＋20ee2e98で実証。create候補903e3b09は正式RG1 3a24へ追随 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値は旧固定候補で実証。新候補の局所検査・非作者確認成功 | 新候補の正式値/通常統合・実画面再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | start 58e045ad（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開8ec1d225（PR187）、単一artifact候補b7cd158c | 実ブラウザ→Cookie/C2→enroll/選手選択→start→初期grant IDB保存/再読込を実証（backend72800152固定・seeded preparing限定）。通常33数学と履歴保持も実Node/Chromiumで一致 | 新規UIcreateから同版での接続、正式7.7/CI/通常統合、trusted初期state/T1-T2・実sync Port/原子的1球保存/started read |
+| B 開始・権利・1球保存と復元 | start72f4118a（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開208ee7d9（PR187）、N2初期reader e8d24790、N1検証0014b0f3 | 固定隔離組立run1793024422089で実画面の新規create→実DB再取得→開始→初期grant IDB保存→reload過去grant表示まで実証。通常33本体/単一artifact/未登録初期readerも検証済み。started GETは404、1球保存・現在権利のサーバー復元は未達 | 正式7.7/CI/通常統合、実writer binding migration/ACL/provider登録、初期readerの実DB/HTTP接続、T1-T2同TX原子保存・記録後復元 |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
 | D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create、start1592e48d | 作成故障に加えowned worker/Node/DB停止・応答喪失同要求照会・実端末失効後の非成功を実証。pendingを終結/全取消と推定しない | 未解決要求の確定終結/後着遮断、記録後offline再起動・交代・再送等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
@@ -851,3 +851,16 @@ PR187固定入力移設はsource是正第2回2f2f6e1b…と全前後値83138215�
 開始fixture修正はcf4fbcda630d968393315f79a76e11d9e56e33c7へ独立486df9b1…残0/実対象1成功/31catalog一致/Ruffformat/ty限定成功で保存push。後発CI40340848699はbackend全tyで外部往復testの新cluster引数未追随1を検出。rootが呼出検索を同fileに狭めた不足を訂正し、全backend検索の呼出2件へ所有clusterを渡す通常追随1行をtest_product_authz_round_trip.pyに編集中、backend全ty成功。隔離当該caseは現在0036の逆適用拒否messageで旧0034期待に一致せず1失敗5.06s。旧migration拒否を緩めず現/歴史の対象を分ける必要があり、未commit候補・残件として保持。local実行の必須DSN未供給/事前role作成はsetup拒否で原本保存、fixtureが作る未知probe roleへ所有seed DSNのみ供給して実caseへ到達、全owned container残0。
 
 次の製品実装N2は作者mvpがN2-A exact4 reader/boundedreads/純test2の最小候補06753a2b…を固定。既4CAPでgrant追加0、保存原本からbefore/rules/board全fieldの由来を対応付け、真正empty初期条件成立時だけcanonical初期値を構成する。登録/started DTO/HTTPは後続、AだけでstartedGET404解消とは言わない。first_ball_u1_independentが非作者の限定着手レビュー中。N1実Port完成をpure reader着手条件へ戻さない。
+
+
+### 2026-10-27：初期readerの保存、実writer供給と最新CI
+
+N1 core宣言の有限層検査を0014b0f3へ独立0ed57cea…残0/603成功で保存push。旧341赤/後発修正の履歴を保持する。N2は単一artifact依存c6b1e800、開始fixture a21e6883、N1 core依存5cd5aae0を通常merge、別JSON commit365f223cで新14pathを登録。JSON独立7a144fa5…、source4独立3f7f9515941f39a328a5a6fd0703d23e1b0abd3fbc52e3ff0ca9a9b96dacfc75/596成功・不正context5対向・BIGINT保持を照合し、e8d24790へ保存push、origin一致/cleanを実確認した。既CAP4のbounded readと初期状態構成は未登録候補で、記録済みイベントがあれば拒否する。API登録/started GET404解消/記録後state復元は未実装、完成を推定しない。
+
+開始側の独立往復fixture是正c887457dは実所有1成功10.38s/独立178511cd…残0、profile/helper source5の72f4118aは独立fc381d62…残0/2724成功で保存push。最新CI40352685972はfailureを実確認した。旧cf4の型不一致/旧0034期待と後発是正を別に保持、全84失敗/431error解消とはしない。
+
+PR187 HEAD208ee7d9のCI40342829421は終端failure、backend/frontend含む11job成功/harness失敗。非作者が実logを取得し40fail/30578pass/2skipを確認。内訳は固定corpus入力digest33、external_files旧4→新6参照1、契約schema固定4、normalization固定2。期待値やdigestを無条件差替えせず、実受理済み登録/追加操作との前後関係を照合して最小追随候補をcacheへ作成中。CI成功/通常mergeは未成立。
+
+実writer U2は専用枝074086fe（root依存5/反映2承認）と作者13path未commit候補。実PG17限定probeでSECDEF下backend_start不可視を確認し、独立c132e8bc…残0後、app自己観測＋限定DB identity helperへ具体化した。backend_start単独をSQL権威とせず、実full xid8/PID/PGinstance/nonce/epoch/lifetimeを保持。writer2表のmodel/SQL packet2はaef329e9…/69ea20ef…へ固定。rootは既承認範囲の0037 migration/既単一モデル登録入口/限定検査を編集中、9成功1.10sはDB未使用のDDL/登録証拠。author100成功もpureであり、実U2 DB対向はまだ0。D5既限定savepointを全禁止へ拡張せず、外側admission/同TX・leaseの再照合と子rollback時の保持を実DBで確認する。認可正式登録・data-model/manifest/実DB供給は未完。
+
+新たな利用者操作の実証は新規作成→開始→初期grant端末保存まで。今回は再取得・安全保存の製品部品を追加したが、1球保存→サーバー再読込を達成したとはしない。10月26日基準の暫定見込み（T1計算全体10月30日〜11月2日、実保存接続11月2〜7日、低確度）は起点を更新せず保持し、実writer供給・残操作数の実績で見直す。全MVP/実機/運用復旧は未完、Goal継続。
