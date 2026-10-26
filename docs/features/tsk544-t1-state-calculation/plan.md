@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f
-branch: feature/mvp-single-domain-composition
+branch: feature/mvp-first-ball-started-snapshot
 created: 2026-10-20
 計画レビュー周回: 10
 確定ゲート周回: 2
@@ -282,3 +282,12 @@ exact集合は同案exactpaths.jsonのruntime/test/generated10（publicApi/sourc
 2026-10-26T12:36:47.684161+00:00、PO委任によるCodex /root判断でN3 source10を受理。handoff8812f98ebb4bf93d882d2dfb9da3144901182caee18a69d7a24e110633108dd8/manifestb938e7d2391029b0a72c6887777bd02dcc150d3818a0e60e54624cb4604f1c1f、非作者67684d90b00a8a1b135a34282743a093818574b8e1b7479f807c0c8e842b0ded/checksc0c31ddd15d6e88e618bee4e2c1ed6033eae45e9eeb5e86a1045f079ed90dd65（0/0/0）と全10/依存10/保護8の実byteを照合。旧ordinary21関数/T2追加2関数text保持、独立旧artifact3,096全値一致・実host/DTO31成功。作者frontend2126/domain286/backend domain430成功、型lintformat/Node24.16/Chromium149の同artifact5口67caseを確認（Node JSONnumber1件は既host先行拒否と別資格）。生成d5a026aefb486170ab70126708a76a792f0493644fc14fa32499a6442c8ea045/18447byte再現。
 
 最初のroot保存scriptがmanifest名を誤り未編集停止し、後続pushで依存供給b7e8だけを先にremote保存した。源10の未保存を完成と扱わず、正しいsource10-manifestで全一致を再確認して本保存する。作者の初回cwd/ty環境失敗、独立uv runのignored venv生成もcache履歴を保持。正式T2全受理/初期snapshot/記録権・認可/実1球保存・再読込/全T1/MVP完成は未達のまま。親187通常統合と必要持越し検査、N1同writer provider/N2投影/N4HTTP-readへ接合する。
+
+
+### 2026-10-26T15:09:28.937632+00:00: N2-A真正started初期snapshotの限定追補
+
+PO委任によるCodex /root判断。既step2 PR-1aのN2だけを具体化し、cache first-ball-started-snapshot-scope-20261026/N2-ADDENDUM.md SHA06753a2bf40e3803e0399cc912bdb4fbccb3a2c6479c922a9b8f642849818bd9/exactpaths a9dc7676b124e8b0d37b642ad36a790456276238edec73b96f56e2285c995787を承認する。非作者第1回1d999422…/checks78297d52…（0/0/0）を採用、source実装前にcore捕捉/必要宣言を先行し、案の完成時core再確認を先行条件の代替にはしない。新source4はstarted_snapshot.py/started_snapshot_operations.py/test_started_snapshot.py/test_started_snapshot_operations.pyだけ。既CAP4再利用、追加grant0、未登録tokenの実run拒否。真正empty初期条件の証明後にだけbefore/rules/boardを構築、欠損0補完/別Python計算/initialprivate EXEC流用をしない。HTTP公開・Port・実保存activationは後続義務で、N1全完成をpure reader着手条件へ戻さない。
+
+rootの依存供給版はfeature/mvp-first-ball-started-snapshot c6b1e800（開始cf4fbcdaへ既受理N3b7cd158cを通常merge）。5競合のruntime4はN3固定全byte、TS8全byte同値/artifactd5a026…18447B/公開5口と開始backend認可保存を保持。独立ca24ecaa466863d7074b8333516a7bc11830dc56d5136fe50dc1e9b4e153dd6a/checks77eda7f2…（0/0/0）、同domain320成功4.66s（既tail34併存を含む）で源供給版として採用。pnpmのunsafe symlink拒否は初回失敗として保全し、同既installed Vitest/同config/jsdom/fileParallelismを使うprogrammatic実行でenvDir=false/cacheDir分離、元source/期待値不変。node_modules symlinkは削除済み。正式develop/実HTTP/DB保存成功ではない。
+
+rootはcore有限層source2の確認・保存→N2 JSON14追記の別commit→source4の作者指名を直列実行する。現在はN2source未実装、core sourceは別N1WTの唯一作者core_followup_layers、N2JSON/Git/親plan/台帳はrootだけ。製品source4はrootの捕捉成立通知前に編集しない。
