@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f
-branch: feature/mvp-t1-first-pitch
+branch: feature/mvp-first-ball-writer-binding
 created: 2026-10-20
 計画レビュー周回: 10
 確定ゲート周回: 2
