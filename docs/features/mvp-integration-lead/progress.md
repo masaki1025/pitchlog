@@ -1,6 +1,6 @@
 # 初回MVP 主担当引受・進捗台帳
 
-更新: 2026-10-25。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+更新: 2026-10-26。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
 
 ## 引受時の固定点（履歴。現在地は下記表と追記）
 
@@ -28,10 +28,10 @@
 
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
-| A 試合作成・preparing再取得 | RG1 eda71a48＋create20ee2e98の隔離11source接合 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値を実証、独立確認0 | PR184必須CI・create候補の正式値/通常統合後の再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | 初期scope隔離4f2＋source22/data95＋是正、T1一球枝796cd89c | 初期grant全12DB成功。T1初回ball数学核を実装し単一artifactをNode/実Chromiumで計算一致。実画面開始/権利/実保存は未達 | 数学核P1是正の限定再確認、T2通常非該当型/実評価、開始＋権利＋名簿の同一TX供給、登録Port/HTTP/UIと実保存・再読込 |
+| A 試合作成・preparing再取得 | 旧隔離eda71a48＋20ee2e98で実証。create候補903e3b09は正式RG1 3a24へ追随 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値は旧固定候補で実証。新候補の局所検査・非作者確認成功 | 新候補の正式値/通常統合・実画面再接合。HTTPS/実機は未実施 |
+| B 開始・権利・1球保存と復元 | start1592e48d、browser b6d8d4c8＋U3未保存4path、初球256838cc（PR186） | 実ASGI→実Unix→実DB/Nodeで開始/初期grant同一TXと照会を実証。選手選択・開始画面は実装/全frontend2002成功。実ブラウザ開始と1球同期保存・再読込は未達 | 正式metadata連結、開始画面の非作者確認/実経路実証、trusted初期state/T1-T2・実sync Port/原子的保存/started read |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
-| D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create隔離経路 | 実画面作成のINSERT後故障/実閉鎖競合/旧openの3故障runが非成功・全取消、独立確認済み | 初期権/記録後の故障・offline再起動/交代/結果不明等は別残件 |
+| D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create、start1592e48d | 作成故障に加えowned worker/Node/DB停止・応答喪失同要求照会・実端末失効後の非成功を実証。pendingを終結/全取消と推定しない | 未解決要求の確定終結/後着遮断、記録後offline再起動・交代・再送等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
 | 実機・運用HTTPS・バックアップ復旧 | 山田正輝（運用責任）/主担当準備 | 未実施 | 実機版と機種、許可済環境を固定。エミュレーションと区別 |
 
@@ -775,3 +775,18 @@ PR184最終d76e13e6a77c0a01bd3c3fe5c77fe3e6ed1f7ce3はCI40283659379の全12job�
 worker15は固定9f0e556c…/patch a29600c9…で非作者確認中。最初のownedrunはhelperのDocker argv位置固定がmount引数を上書きして1失敗20.81s、製品dispatch未起動。helper新methodだけ--rmの実indexへ修正し、argv3対向を追加した反映1 ddfa40d5…/helper8cf0669f…、他14とmetadata5全byte保持。新ownedrunはsession52870として開始、終端未確認。旧失敗を消さず新入力の再検査と区別する。正式metadataのbeforeはGit d047と未受理profile/B1B2候補を混同せず、PR184統合後の実before22からrootが重複集合を直列受理する。
 
 実利用者の到達点は隔離preparing新規作成→実DB保存/再取得まで。次の最優先は実worker・HTTP・ブラウザ開始配線、初期state/実rightsとT1-T2/同期の原子保存・再読込。全T1/取消/成績/毎球CSVと成績CSV/通信断/実機/運用復旧は未完のまま維持する。
+
+
+### 2026-10-26：実開始API・画面接合とT1の保存点更新
+
+PR184統合後CI40288518094も全12job成功。正式developは3a24f89eのまま。作成候補は903e3b09へ正式RG1を通常mergeし、旧正式値・全既存assertを保つ限定競合解消を非作者d553f73d…（残0）で確認した。root/backend局所38/243/20成功は別実行。新候補の実画面再実証・正式7.7受理は未了。旧画面作成の証拠を新HEADの成功へ読み替えない。
+
+実開始sourceは3605f133（worker15）、40bebfa8/5c61271f（core先行/別JSON）、5f53237d（HTTP5）、f606407a（既DTOのexact2token整合）、1592e48d（実HTTP DBtest1）までstep別保存・通常pushした。worker実owned1成功45.59sは実Cookie/端末pair/開始同TX/同receipt・V12再交付、pending/lock/peer/queue/失効・実Node/DB/worker停止を含み、非作者74d06e7d…残0。H4実owned1成功34.39sは実login/C2→ASGI→実Unix/DB/Node、実ASGI応答喪失後の同要求照会・D4増分0、元deviceの実失効commit後に同Cookie/要求を拒否し資格0/ACK0を含む。非作者c9195e16…残0。証拠cacheはgame-start-worker-source-20261026/final/とgame-start-h4-http-owned-20261026/reflection1/。これはTCP/実ブラウザ・正式develop提供ではない。新H4 Cookie期限切れcaseは未実施で旧B1入口検査と分ける。
+
+browser API送信4pathは1e0342d3、保存→送信順/unknown保持controller2はb6d8d4c8へ保存済み。非作者13fd0f1f…/b5f5dcb7…はいずれも残0。新しい選手選択・開始form/既host接続4pathはrootが単独編集しU3-fixedへ固定（manifest0f0a8699a2712e083410369e7e4ccb700ec6f9b79e0b7476efcc7f81b8c157a9）、全frontend97files/2002成功105.87s/session29038exit0、型検査13280exit0・lint/format成功。API名簿をページングし実選択9/10名だけを入力、元要求をIDB commitしてから送信、grantもcommit後だけ受信表示とする。再読込後は以前の受信結果/現在権利未確認として記録画面を閉じる。mock fetch/fakeIDBの画面試験を実ブラウザ/DB保存と呼ばない。U3非作者確認・commitは次作業。
+
+T1通常33はA checker/source4 a20b59be・正式9/実委任受理fe4590edまで保存しDraft PR187を作成。177coverage/旧17履歴保持を含むroot両consumer195成功74.19s、正式値の非作者bc604218…残0。旧単一履歴ABIを変更せず、新ABIはhistory.stack必須・先頭へ実差分1件追加/tail保持。現HEAD bd0f63b4は実PR187の有限Gate6追補を含む。Gate6 source2は固定して非作者へ依頼、正式record/schema/policy3はまだcacheだけでlive未反映。作者検査184成功/新資産欠落1赤を全成功としない。Gate6成立後に通常33数学本体へ進む。全T1やP6/P7成立は主張しない。
+
+正式認可metadataはroot唯一writerで旧profile/B1/B2/lookup/HTTPを158uniqueへ畳み込んだ候補を照合中。private function CAPが表catalogに0件なのは設計どおりであり不足扱いを訂正した。一方、採用済みdata-model1.4のapp recording_generations INSERT撤去にgeneratorが追随せず74対73となる真の不整合は未是正。旧profile74不変/完全初期profileだけINSERT1除去/偽・部分profile拒否のexact source/test2追補を準備し、検査緩和やINSERT復活で回避しない。
+
+新たに利用者が完了できる実画面操作の実証は、旧隔離候補の新規preparing作成/DB再取得まで。次の依存は新開始画面の実接合、初期state/正式T1-T2/実sync保存と再取得。全MVP・実機・運用復旧の未達を維持する。
