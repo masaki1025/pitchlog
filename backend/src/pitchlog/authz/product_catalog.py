@@ -25,7 +25,13 @@ from pitchlog.authz.product_authn_contract import (
     AUTHN_TABLE_GRANTS,
     validate_authn_asset,
 )
-from pitchlog.authz.product_function_acl import valid_product_identity_args
+from pitchlog.authz.product_function_acl import (
+    BUILTIN_EXECUTE_GRANTEES,
+    build_lifecycle_function_declarations,
+    generate_lifecycle_function_sql,
+    is_builtin_execute_declaration,
+    valid_product_identity_args,
+)
 from pitchlog.authz.product_role_contract import (
     MIGRATION_BATCH_ROLE_ATTRIBUTES,
     expected_product_roles,
@@ -119,6 +125,37 @@ LEFT JOIN LATERAL pg_catalog.aclexplode(
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE extension.extname = 'pgcrypto'
 ORDER BY 1, 5, 6
+"""
+
+_LIFECYCLE_FUNCTION_DETAILS_QUERY: LiteralString = """
+SELECT namespace.nspname, routine.proname,
+       pg_catalog.oidvectortypes(routine.proargtypes), owner.rolname,
+       routine.prosecdef, language.lanname,
+       pg_catalog.pg_get_function_result(routine.oid),
+       routine.provolatile::text, routine.proconfig, routine.prosrc
+FROM pg_catalog.pg_proc AS routine
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
+JOIN pg_catalog.pg_language AS language ON language.oid = routine.prolang
+WHERE namespace.nspname IN ('rg1_control', 'pitchlog_ledger_observer')
+ORDER BY 1, 2, 3
+"""
+
+_BUILTIN_FUNCTION_ACL_QUERY: LiteralString = """
+SELECT namespace.nspname, routine.proname,
+       pg_catalog.oidvectortypes(routine.proargtypes),
+       COALESCE(grantee.rolname, 'PUBLIC'), privilege.privilege_type,
+       privilege.is_grantable
+FROM pg_catalog.pg_proc AS routine
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
+CROSS JOIN LATERAL pg_catalog.aclexplode(
+    COALESCE(routine.proacl, pg_catalog.acldefault('f', routine.proowner))
+) AS privilege
+LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
+WHERE namespace.nspname = 'pg_catalog'
+  AND routine.proname = 'pg_control_system' AND routine.pronargs = 0
+  AND privilege.grantee <> routine.proowner
+ORDER BY 1, 2, 3, 4, 5, 6
 """
 
 _SCHEMA_ACL_QUERY: LiteralString = """
@@ -500,6 +537,8 @@ class CatalogQueryId(Enum):
     COLUMN_ACL = "column_acl"
     FUNCTIONS = "functions"
     FUNCTION_ACL = "function_acl"
+    BUILTIN_FUNCTION_ACL = "builtin_function_acl"
+    LIFECYCLE_FUNCTION_DETAILS = "lifecycle_function_details"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
     UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
@@ -565,6 +604,7 @@ class _ProductExpectations:
     function_names: tuple[str, ...]
     functions: tuple[tuple[object, ...], ...]
     function_acl: tuple[tuple[object, ...], ...]
+    builtin_function_acl: tuple[tuple[object, ...], ...]
     trigger_function_keys: tuple[tuple[str, str, str], ...]
 
 
@@ -1172,7 +1212,22 @@ def _load_product_expectations() -> _ProductExpectations:
     )
 
     table_acl_entries: list[tuple[object, ...]] = []
+    builtin_entries: list[tuple[object, ...]] = []
     for row in _rows(asset, "acl_expectations"):
+        if row.get("object_kind") == "builtin_function":
+            if not is_builtin_execute_declaration(row):
+                raise ProductCatalogError("builtin追加EXECUTEのexact宣言が不正")
+            builtin_entries.append(
+                (
+                    "pg_catalog",
+                    "pg_control_system",
+                    "",
+                    _text(row, "grantee_role_id", "acl_expectations"),
+                    "EXECUTE",
+                    False,
+                )
+            )
+            continue
         if _text(row, "object_kind", "acl_expectations") != "table":
             raise ProductCatalogError("製品の object ACL は table だけを許可する")
         schema_name = _text(row, "object_schema", "acl_expectations")
@@ -1250,6 +1305,7 @@ def _load_product_expectations() -> _ProductExpectations:
         function_names=tuple(sorted(set(function_names))),
         functions=tuple(sorted(functions)),
         function_acl=tuple(sorted(function_acl_entries)),
+        builtin_function_acl=tuple(sorted(builtin_entries)),
         trigger_function_keys=tuple(sorted(trigger_function_keys)),
     )
 
@@ -1277,6 +1333,8 @@ def _catalog_requests(
         _CatalogRequest(CatalogQueryId.COLUMN_ACL, (schemas, tables)),
         _CatalogRequest(CatalogQueryId.FUNCTIONS, (schemas, functions)),
         _CatalogRequest(CatalogQueryId.FUNCTION_ACL, (schemas, functions)),
+        _CatalogRequest(CatalogQueryId.BUILTIN_FUNCTION_ACL, ()),
+        _CatalogRequest(CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS, ()),
         _CatalogRequest(CatalogQueryId.MEMBERSHIPS, (roles, roles)),
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
@@ -1350,6 +1408,10 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _FUNCTIONS_QUERY
     if query_id is CatalogQueryId.FUNCTION_ACL:
         return _FUNCTION_ACL_QUERY
+    if query_id is CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS:
+        return _LIFECYCLE_FUNCTION_DETAILS_QUERY
+    if query_id is CatalogQueryId.BUILTIN_FUNCTION_ACL:
+        return _BUILTIN_FUNCTION_ACL_QUERY
     if query_id is CatalogQueryId.MEMBERSHIPS:
         return _MEMBERSHIPS_QUERY
     if query_id is CatalogQueryId.DANGEROUS_LOGIN_ROLES:
@@ -1697,6 +1759,96 @@ def _validate_role_oid(role_oid: int) -> None:
         raise ProductCatalogError("role_oid は正の整数が必要")
 
 
+def _compare_builtin_acl(
+    report: _ReportBuilder,
+    rows: tuple[tuple[object, ...], ...],
+    declared: tuple[tuple[object, ...], ...],
+) -> None:
+    """追加明示2主体とbuiltin既定PUBLIC実効を混ぜず検査する。"""
+    builtin_acl = _actual_acl(rows, 4)
+    expected_builtin = tuple(
+        sorted(
+            ("pg_catalog", "pg_control_system", "", role, "EXECUTE", False)
+            for role in BUILTIN_EXECUTE_GRANTEES
+        )
+    )
+    report.compare(
+        "PRODUCT-CATALOG:BUILTIN-DECLARED-ADDITIONAL-EXECUTE",
+        expected_builtin,
+        declared,
+    )
+    report.compare(
+        "PRODUCT-CATALOG:BUILTIN-ADDITIONAL-EXECUTE",
+        expected_builtin,
+        tuple(row for row in builtin_acl if row[3] != "PUBLIC"),
+    )
+    report.compare(
+        "PRODUCT-CATALOG:BUILTIN-PUBLIC-EFFECTIVE-EXECUTE",
+        (("pg_catalog", "pg_control_system", "", "PUBLIC", "EXECUTE", False),),
+        tuple(row for row in builtin_acl if row[3] == "PUBLIC"),
+    )
+
+
+def _expected_lifecycle_function_details() -> tuple[tuple[object, ...], ...]:
+    """追加8関数の実本文/検索経路を元SQLと独立属性から固定する。"""
+    result: list[tuple[object, ...]] = []
+    for function_id, row in build_lifecycle_function_declarations().items():
+        sql = generate_lifecycle_function_sql(function_id, _REPOSITORY_ROOT)
+        delimiter = (
+            "$$" if row["schema_name"] == "pitchlog_ledger_observer" else "$function$"
+        )
+        parts = sql.split(delimiter)
+        if len(parts) != 3:
+            raise ProductCatalogError("固定lifecycle本文の境界が一意でない")
+        result.append(
+            (
+                row["schema_name"],
+                row["function_name"],
+                row["identity_args"],
+                row["owner_role_id"],
+                True,
+                row["language"],
+                row["returns"],
+                "v",
+                ("search_path=pg_catalog, pg_temp",),
+                parts[1].strip(),
+            )
+        )
+    return tuple(sorted(result))
+
+
+def _compare_lifecycle_function_details(
+    report: _ReportBuilder,
+    rows: tuple[tuple[object, ...], ...],
+) -> None:
+    """追加2schemaの全関数を実属性と固定本文へexact-set照合する。"""
+    actual: list[tuple[object, ...]] = []
+    for row in rows:
+        if (
+            len(row) != 10
+            or row[8] is not None
+            and (
+                not isinstance(row[8], (tuple, list))
+                or not all(isinstance(value, str) for value in row[8])
+            )
+        ):
+            raise ProductCatalogError("lifecycle関数の実属性形式が不正")
+        actual.append(
+            (
+                *(str(value) for value in row[:4]),
+                row[4],
+                *(str(value) for value in row[5:8]),
+                tuple(row[8]) if row[8] is not None else (),
+                str(row[9]).strip(),
+            )
+        )
+    report.compare(
+        "PRODUCT-CATALOG:LIFECYCLE-FUNCTION-DETAILS",
+        _expected_lifecycle_function_details(),
+        tuple(sorted(actual)),
+    )
+
+
 def inspect_product_authz_catalog(
     connection: psycopg.Connection[Any],
     *,
@@ -1983,6 +2135,15 @@ def inspect_product_authz_catalog(
                 and row[3] == AUTHN_OWNER
             ),
         )
+    _compare_lifecycle_function_details(
+        report,
+        _observed_rows(frozen_observations, CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS),
+    )
+    _compare_builtin_acl(
+        report,
+        _observed_rows(frozen_observations, CatalogQueryId.BUILTIN_FUNCTION_ACL),
+        expectations.builtin_function_acl,
+    )
     report.compare(
         "PRODUCT-CATALOG:MEMBERSHIPS",
         (),

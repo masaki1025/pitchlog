@@ -89,6 +89,14 @@ LEDGER_CONDITION2_FINDINGS = frozenset(
     }
 )
 
+# RG1の物理所有境界だけを追加する。位置/記号/hashは凍結資産が保持する。
+RG1_CONDITION2_OWNER_PATHS = frozenset(
+    {
+        "backend/src/pitchlog/db/recording_rights/models.py",
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
+    }
+)
+
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
@@ -231,6 +239,15 @@ class CacheInvalidationBypassContract:
 
 
 @dataclass(frozen=True)
+class ScopedCondition2Owner:
+    """承認された物理所有境界の単一出現と実sourceを束縛する。"""
+
+    path: str
+    source_sha256: str
+    findings: frozenset[tuple[int, str]]
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -246,7 +263,9 @@ class Contract:
     condition2_scoped_source_sha256: str
     ledger_condition2_findings: frozenset[tuple[int, str]]
     ledger_condition2_source_sha256: str
+    rg1_condition2_owners: tuple[ScopedCondition2Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
+    rg1_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
@@ -840,6 +859,8 @@ def _load_allowlist(
     str,
     frozenset[tuple[int, str]],
     str,
+    tuple[ScopedCondition2Owner, ...],
+    tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
     tuple[str, ...],
 ]:
@@ -857,7 +878,9 @@ def _load_allowlist(
             "condition_2_adjudications",
             "condition_2_scoped_findings",
             "condition_2_ledger_scoped_findings",
+            "condition_2_rg1_scoped_findings",
             "ledger_deployment_assets",
+            "rg1_deployment_assets",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1100,6 +1123,28 @@ def _load_allowlist(
         ledger_findings.add((line, symbol))
     if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
         raise ContractError("台帳条件2登録は独立確認済み17所見のexact-setが必要")
+    rg1_location = "allowlist.condition_2_rg1_scoped_findings"
+    rg1_scopes = _object(value["condition_2_rg1_scoped_findings"], rg1_location)
+    _strict_keys(rg1_scopes, RG1_CONDITION2_OWNER_PATHS, rg1_location)
+    rg1_owners: list[ScopedCondition2Owner] = []
+    for path in sorted(RG1_CONDITION2_OWNER_PATHS):
+        entry = _object(rg1_scopes[path], rg1_location)
+        _strict_keys(entry, {"source_sha256", "findings"}, rg1_location)
+        digest = _string(entry["source_sha256"], rg1_location)
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("RG1条件2登録には実source SHA-256が必要")
+        findings = _array(entry["findings"], rg1_location)
+        if len(findings) != 1:
+            raise ContractError("RG1条件2登録は各物理所有境界の単一出現に限る")
+        finding = _object(findings[0], rg1_location)
+        _strict_keys(finding, {"line", "symbol"}, rg1_location)
+        line = _integer(finding["line"], rg1_location)
+        symbol = _string(finding["symbol"], rg1_location)
+        if line < 1 or not symbol:
+            raise ContractError("RG1条件2登録は正の行番号と記号が必要")
+        rg1_owners.append(
+            ScopedCondition2Owner(path, digest, frozenset({(line, symbol)}))
+        )
     return (
         tuple(allowed_symbols),
         tuple(rules),
@@ -1109,7 +1154,9 @@ def _load_allowlist(
         scoped_digest,
         frozenset(ledger_findings),
         ledger_digest,
+        tuple(rg1_owners),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
+        _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
         command,
     )
 
@@ -1664,7 +1711,9 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_scoped_source_sha256,
         ledger_condition2_findings,
         ledger_condition2_source_sha256,
+        rg1_condition2_owners,
         ledger_deployment_assets,
+        rg1_deployment_assets,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -1711,7 +1760,9 @@ def load_contract(repository_root: Path) -> Contract:
         condition2_scoped_source_sha256=condition2_scoped_source_sha256,
         ledger_condition2_findings=ledger_condition2_findings,
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
+        rg1_condition2_owners=rg1_condition2_owners,
         ledger_deployment_assets=ledger_deployment_assets,
+        rg1_deployment_assets=rg1_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
@@ -4425,6 +4476,7 @@ class _SourceScanner(ast.NodeVisitor):
             path,
         )
         self.class_stack: list[str] = []
+        self.lexical_stack: list[str] = []
         self.function_stack: list[tuple[str, str]] = []
         self.safe_non_context_objects: list[set[str]] = []
         self.violations: list[Violation] = []
@@ -5547,12 +5599,14 @@ class _SourceScanner(ast.NodeVisitor):
         for type_param in node.type_params:
             self.visit(type_param)
         self.class_stack.append(node.name)
+        self.lexical_stack.append(node.name)
         for decorator in node.decorator_list:
             self.visit(decorator)
         for base in node.bases:
             self.visit(base)
         for statement in node.body:
             self.visit(statement)
+        self.lexical_stack.pop()
         self.class_stack.pop()
 
     def visit_Module(self, node: ast.Module) -> None:  # noqa: N802
@@ -5569,7 +5623,7 @@ class _SourceScanner(ast.NodeVisitor):
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         self._check_identifier(node.name, node)
-        prefix = ".".join([self.module, *self.class_stack]).strip(".")
+        prefix = ".".join([self.module, *self.lexical_stack]).strip(".")
         symbol = f"{prefix}.{node.name}" if prefix else node.name
         signature = _function_signature(node)
         expected = self.allowed_by_symbol.get(symbol)
@@ -5622,10 +5676,12 @@ class _SourceScanner(ast.NodeVisitor):
         for type_param in node.type_params:
             self.visit(type_param)
         self.function_stack.append((symbol, signature))
+        self.lexical_stack.append(node.name)
         self.safe_non_context_objects.append(set())
         for statement in node.body:
             self.visit(statement)
         self.safe_non_context_objects.pop()
+        self.lexical_stack.pop()
         self.function_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
@@ -5861,6 +5917,33 @@ def scan_source(
             if violation.code != "TB002"
             or (violation.line, violation.symbol) not in contract.ledger_condition2_findings
         ]
+    rg1_owners = contract.rg1_condition2_owners
+    # 合成Contractでも未知pathや複数出現へ所有境界を広げない。
+    valid_rg1_owners = (
+        len(rg1_owners) == len(RG1_CONDITION2_OWNER_PATHS)
+        and {owner.path for owner in rg1_owners} == RG1_CONDITION2_OWNER_PATHS
+        and all(
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and len(owner.findings) == 1
+            and all(
+                type(line) is int and line > 0 and bool(symbol)
+                for line, symbol in owner.findings
+            )
+            for owner in rg1_owners
+        )
+    )
+    for owner in rg1_owners if valid_rg1_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
+        ):
+            violations = [
+                violation
+                for violation in violations
+                if violation.code != "TB002"
+                or (violation.line, violation.symbol) not in owner.findings
+            ]
     return sorted(violations)
 
 
@@ -6127,21 +6210,25 @@ class _DefinitionCollector(ast.NodeVisitor):
     def __init__(self, module: str, allowed: Set[str]) -> None:
         self.module = module
         self.allowed = allowed
-        self.class_stack: list[str] = []
+        self.lexical_stack: list[str] = []
         self.definitions: dict[str, str] = {}
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:  # noqa: N802
         """クラス階層を記録して本体を巡回する。"""
-        self.class_stack.append(node.name)
+        self.lexical_stack.append(node.name)
         for statement in node.body:
             self.visit(statement)
-        self.class_stack.pop()
+        self.lexical_stack.pop()
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
-        prefix = ".".join([self.module, *self.class_stack]).strip(".")
+        prefix = ".".join([self.module, *self.lexical_stack]).strip(".")
         symbol = f"{prefix}.{node.name}" if prefix else node.name
         if symbol in self.allowed:
             self.definitions[symbol] = _function_signature(node)
+        self.lexical_stack.append(node.name)
+        for statement in node.body:
+            self.visit(statement)
+        self.lexical_stack.pop()
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:  # noqa: N802
         """許可対象の同期関数署名を採取する。"""
@@ -6677,6 +6764,175 @@ def _validated_ledger_deployment_assets(repository_root: Path, contract: Contrac
     return True
 
 
+_RG1_DEPLOYMENT_ASSETS = (
+    "pitchlog/recording_rights/rg1_lifecycle.sql",
+    "pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+)
+
+# 固定MVPのsemantic宣言。実byteの期待SHAは正式allowlist側にだけ置く。
+_RG1_CLOSED_MANIFEST = {'format_version': 1,
+ 'status': 'unintegrated_candidate',
+ 'source_sql_sha256': None,
+ 'controller_entry': 'pitchlog.recording_rights.rg1_lifecycle.serve_fresh_controller',
+ 'required_supplier': 'pitchlog.durable_rights_ledger.DurableLedger.fresh_activation',
+ 'client_configuration': {'default_path': '/run/pitchlog/rg1-client.json',
+                          'fields': ['schema_version',
+                                     'socket_path',
+                                     'controller_uid',
+                                     'application_uid'],
+                          'owner_uid': 0,
+                          'group_other_write': False},
+ 'controller_configuration': {'fields': ['schema_version',
+                                         'socket_path',
+                                         'controller_uid',
+                                         'application_uid',
+                                         'business_socket_directory',
+                                         'business_port',
+                                         'business_database',
+                                         'business_server_uid',
+                                         'ledger_endpoint'],
+                              'owner_uid': 0,
+                              'group_other_write': False,
+                              'startup_uid': 0,
+                              'runtime_identity': 'controller_uid:controller_uid',
+                              'supplementary_groups': [],
+                              'no_new_privileges': True},
+ 'roles': {'pitchlog_rg1_control_owner': {'login': False,
+                                          'superuser': False,
+                                          'bypassrls': False,
+                                          'inherit': False,
+                                          'createrole': False,
+                                          'createdb': False,
+                                          'replication': False},
+           'pitchlog_rg1_control_actor': {'login': True,
+                                          'superuser': False,
+                                          'bypassrls': False,
+                                          'inherit': False,
+                                          'createrole': False,
+                                          'createdb': False,
+                                          'replication': False}},
+ 'functions': [{'name': 'rg1_control.try_controller_lease',
+                'arguments': [],
+                'returns': 'boolean',
+                'execute_roles': ['pitchlog_rg1_control_actor']},
+               {'name': 'rg1_control.release_controller_lease',
+                'arguments': [],
+                'returns': 'boolean',
+                'execute_roles': ['pitchlog_rg1_control_actor']},
+               {'name': 'rg1_control.close_gate',
+                'arguments': [],
+                'returns': 'boolean',
+                'execute_roles': ['pitchlog_rg1_control_actor']},
+               {'name': 'rg1_control.open_fresh_gate',
+                'arguments': [],
+                'returns': 'boolean',
+                'execute_roles': ['pitchlog_rg1_control_actor']},
+               {'name': 'rg1_control.controller_lease_alive',
+                'arguments': [],
+                'returns': 'boolean',
+                'execute_roles': ['pitchlog_rg1_control_actor', 'pitchlog_rg1_fn_owner']},
+               {'name': 'rg1_control.read_closed_gate',
+                'arguments': [],
+                'returns': 'jsonb',
+                'execute_roles': ['pitchlog_rg1_control_actor']},
+               {'name': 'rg1_control.scope_binding',
+                'arguments': [{'name': 'p_tenant_id', 'type': 'uuid'}],
+                'returns': 'text',
+                'execute_roles': ['pitchlog_app', 'pitchlog_initial_actor']},
+               {'name': 'rg1_control.bind_initial_fresh_epoch',
+                'arguments': ['bigint'],
+                'returns': 'boolean',
+                'execute_roles': ['pitchlog_rg1_control_actor']}],
+ 'gate_access': {'table': 'public.rg1_restore_gate',
+                 'role': 'pitchlog_rg1_control_owner',
+                 'select_columns': ['singleton_id', 'state'],
+                 'update_columns': ['state'],
+                 'singleton_id': 1,
+                 'force_rls': True},
+ 'advisory_lease': {'namespace': 1380397379,
+                    'controller_key': 1,
+                    'open_key': 2,
+                    'objsubid': 2,
+                    'mode': 'ExclusiveLock',
+                    'same_database_pid_and_actor': True},
+ 'unsupported': ['global_close_proof',
+                 'epoch_advance',
+                 'nonzero_restore',
+                 'automatic_restart_reopen'],
+ 'evidence_boundaries': {'sql_primitive': 'dedicated_postgresql_only',
+                         'fresh_activation': 'requires_actual_supplier_attestation_and_live_fence',
+                         'scope_release': 'not_a_database_drain_or_quiescence_proof',
+                         'pg_completion_unknown': 'abandon_without_release_ack'},
+ 'borrower_roles': {'20003': 'pitchlog_app', '20002': 'pitchlog_initial_actor'},
+ 'borrow_frame': {'required_fields': ['op', 'binding'],
+                  'binding_source': 'sameSession RG1ScopeBindingToken only',
+                  'actual_backend_checks': ['pid', 'datid', 'usename'],
+                  'recheck_at': ['borrow', 'assert-held', 'release']},
+ 'initial_epoch_binding': {'source': 'actual DurableLedger.fresh_activation attestation + live '
+                                     'same-channel fence',
+                           'sql': 'rg1_control.bind_initial_fresh_epoch(bigint)',
+                           'only_transition': 'closed NULL to actual fresh E1',
+                           'control_session': 'same session as committed close/controller '
+                                              'lease',
+                           'commit_before_existing_noarg_open': True,
+                           'existing_epoch_rebind': False,
+                           'attach_with_null_epoch': 'deny; no caller int/DB0 inferred epoch'}}
+
+
+def _load_rg1_deployment_assets(value: object) -> tuple[tuple[str, str], ...]:
+    """RG1固有の固定2pathと実byte SHAだけを読む。"""
+    location = "allowlist.rg1_deployment_assets"
+    assets = _object(value, location)
+    paths = tuple(f"backend/src/{relative}" for relative in _RG1_DEPLOYMENT_ASSETS)
+    _strict_keys(assets, frozenset(paths), location)
+    result: list[tuple[str, str]] = []
+    for relative in paths:
+        digest = _string(assets[relative], f"{location}.{relative}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError(f"{location}.{relative}: SHA-256が不正")
+        result.append((relative, digest))
+    return tuple(result)
+
+
+def _validated_rg1_deployment_assets(repository_root: Path, contract: Contract) -> bool:
+    """ledgerと独立した固定2資産を実byte・通常file・閉manifestで検査する。"""
+    try:
+        expected_assets = _load_rg1_deployment_assets(dict(contract.rg1_deployment_assets))
+        if expected_assets != contract.rg1_deployment_assets:
+            return False
+        contents: dict[str, bytes] = {}
+        for relative, expected in expected_assets:
+            path = repository_root / relative
+            for component in (path, *path.parents):
+                if component == repository_root:
+                    break
+                if component.is_symlink():
+                    return False
+            if not path.is_file():
+                return False
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                return False
+            contents[Path(relative).name] = content
+        manifest = json.loads(
+            contents["rg1_lifecycle_manifest.json"], object_pairs_hook=_unique_json_object
+        )
+        expected_manifest = copy.deepcopy(_RG1_CLOSED_MANIFEST)
+        expected_manifest["source_sql_sha256"] = hashlib.sha256(
+            contents["rg1_lifecycle.sql"]
+        ).hexdigest()
+        # JSONの型も比較し、True==1やFalse==0で閉宣言をすり抜けさせない。
+        if json.dumps(
+            manifest, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ) != json.dumps(
+            expected_manifest, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ):
+            return False
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    return True
+
+
 def _changed_source_violations(
     repository_root: Path,
     inspection_population: Mapping[str, frozenset[int]],
@@ -6701,7 +6957,12 @@ def _changed_source_violations(
         # 全資産削除やPythonだけの変更でも、既存配備面の欠損を見逃さない。
         for relative in _LEDGER_DEPLOYMENT_ASSETS:
             population.setdefault(relative, frozenset())
+    rg1 = "pitchlog/recording_rights/rg1_lifecycle.py"
+    if rg1 in head_sources or rg1 in (baseline_sources or {}):
+        for relative in _RG1_DEPLOYMENT_ASSETS:
+            population.setdefault(relative, frozenset())
     deployment_valid: bool | None = None
+    rg1_deployment_valid: bool | None = None
     for relative, lines in sorted(population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
@@ -6711,6 +6972,13 @@ def _changed_source_violations(
                         repository_root, contract,
                     )
                 if deployment_valid:
+                    continue
+            if relative in _RG1_DEPLOYMENT_ASSETS:
+                if rg1_deployment_valid is None:
+                    rg1_deployment_valid = _validated_rg1_deployment_assets(
+                        repository_root, contract,
+                    )
+                if rg1_deployment_valid:
                     continue
             violations.append(
                 Violation(

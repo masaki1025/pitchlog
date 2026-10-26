@@ -58,6 +58,10 @@
     {
       "pr": 185,
       "branch": "feature/mvp-t1-input-closure"
+    },
+    {
+      "pr": 184,
+      "branch": "feature/mvp-rg1-profile-integration-candidate"
     }
   ]
 }

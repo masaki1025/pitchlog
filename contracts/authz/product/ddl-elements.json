@@ -82,6 +82,72 @@
       "create_db": false,
       "replication": false,
       "inherit": false
+    },
+    {
+      "role_id": "pitchlog_rg1_control_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_rg1_control_actor",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": true,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_ledger_identity_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": true
+    },
+    {
+      "role_id": "pitchlog_ledger_identity_probe",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": true,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_initial_actor",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": true,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
+    },
+    {
+      "role_id": "pitchlog_initial_fn_owner",
+      "creation": "product_ddl",
+      "superuser": false,
+      "bypass_rls": false,
+      "login": false,
+      "create_role": false,
+      "create_db": false,
+      "replication": false,
+      "inherit": false
     }
   ],
   "permanent_privileged_role_ids": [
@@ -96,6 +162,21 @@
       "acl_expectations": [
         {
           "grantee": "pitchlog_app",
+          "privilege": "CONNECT",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "CONNECT",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_ledger_identity_probe",
+          "privilege": "CONNECT",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
           "privilege": "CONNECT",
           "grantable": false
         }
@@ -118,6 +199,36 @@
         },
         {
           "grantee": "pitchlog_app",
+          "privilege": "TEMPORARY",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "TEMPORARY",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_ledger_identity_probe",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_ledger_identity_probe",
+          "privilege": "TEMPORARY",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
           "privilege": "TEMPORARY",
           "grantable": false
         }
@@ -156,6 +267,11 @@
           "grantee": "pitchlog_rule_resolution_fn_owner",
           "privilege": "USAGE",
           "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_control_owner",
+          "privilege": "USAGE",
+          "grantable": false
         }
       ],
       "revoked_acl_expectations": [
@@ -191,6 +307,11 @@
         },
         {
           "grantee": "pitchlog_rule_resolution_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_control_owner",
           "privilege": "CREATE",
           "grantable": false
         }
@@ -319,6 +440,11 @@
           "grantee": "pitchlog_app",
           "privilege": "USAGE",
           "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "USAGE",
+          "grantable": false
         }
       ],
       "revoked_acl_expectations": [
@@ -334,6 +460,103 @@
         },
         {
           "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "schema_id": "rg1_control",
+      "schema_name": "rg1_control",
+      "creation": "product_ddl",
+      "owner": "pitchlog_rg1_control_owner",
+      "ownership_path": "direct",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_fn_owner",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "USAGE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_fn_owner",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "CREATE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "schema_id": "pitchlog_ledger_observer",
+      "schema_name": "pitchlog_ledger_observer",
+      "creation": "product_ddl",
+      "owner": "pitchlog_ledger_identity_owner",
+      "ownership_path": "direct",
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_ledger_identity_probe",
+          "privilege": "USAGE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "USAGE",
+          "grantable": false
+        },
+        {
+          "grantee": "PUBLIC",
+          "privilege": "CREATE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_ledger_identity_probe",
           "privilege": "CREATE",
           "grantable": false
         }
@@ -1216,6 +1439,40 @@
       "policy_mode": "permissive",
       "role_ids": [
         "pitchlog_rg1_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "singleton_id = 1",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "singleton_id = 1"
+    },
+    {
+      "policy_id": "POLICY:rg1_restore_gate:rg1_control_select_singleton",
+      "table_id": "rg1_restore_gate",
+      "profile": "function_only",
+      "policy_name": "rg1_control_select_singleton",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_rg1_control_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "singleton_id = 1",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:rg1_restore_gate:rg1_control_update_singleton",
+      "table_id": "rg1_restore_gate",
+      "profile": "function_only",
+      "policy_name": "rg1_control_update_singleton",
+      "command": "UPDATE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_rg1_control_owner"
       ],
       "using_predicate_id": null,
       "using_column": null,
@@ -2421,6 +2678,11 @@
           "grantee": "pitchlog_app",
           "privilege": "EXECUTE",
           "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
         }
       ],
       "revoked_acl_expectations": [
@@ -2449,6 +2711,11 @@
       "acl_expectations": [
         {
           "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
           "privilege": "EXECUTE",
           "grantable": false
         }
@@ -2528,6 +2795,286 @@
         },
         {
           "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:try_controller_lease()",
+      "schema_name": "rg1_control",
+      "function_name": "try_controller_lease",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:release_controller_lease()",
+      "schema_name": "rg1_control",
+      "function_name": "release_controller_lease",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:close_gate()",
+      "schema_name": "rg1_control",
+      "function_name": "close_gate",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:open_fresh_gate()",
+      "schema_name": "rg1_control",
+      "function_name": "open_fresh_gate",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:controller_lease_alive()",
+      "schema_name": "rg1_control",
+      "function_name": "controller_lease_alive",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_rg1_fn_owner",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:read_closed_gate()",
+      "schema_name": "rg1_control",
+      "function_name": "read_closed_gate",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "jsonb",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:scope_binding(uuid)",
+      "schema_name": "rg1_control",
+      "function_name": "scope_binding",
+      "identity_args": "uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "text",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_initial_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:pitchlog_ledger_observer:identity()",
+      "schema_name": "pitchlog_ledger_observer",
+      "function_name": "identity",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_ledger_identity_owner",
+      "language": "sql",
+      "returns": "jsonb",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_ledger_identity_probe",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)",
+      "schema_name": "rg1_control",
+      "function_name": "bind_initial_fresh_epoch",
+      "identity_args": "bigint",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_rg1_control_owner",
+      "language": "plpgsql",
+      "returns": "boolean",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_rg1_control_actor",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
           "privilege": "EXECUTE",
           "grantable": false
         }
@@ -2971,6 +3518,30 @@
         "UPDATE"
       ],
       "grant_option": false
+    },
+    {
+      "acl_id": "ACL:pg_catalog:pg_control_system():pitchlog_rg1_control_owner",
+      "object_kind": "builtin_function",
+      "object_schema": "pg_catalog",
+      "object_id": "pg_control_system",
+      "profile": "additional_builtin_execute",
+      "grantee_role_id": "pitchlog_rg1_control_owner",
+      "privilege_ids": [
+        "EXECUTE"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:pg_catalog:pg_control_system():pitchlog_ledger_identity_owner",
+      "object_kind": "builtin_function",
+      "object_schema": "pg_catalog",
+      "object_id": "pg_control_system",
+      "profile": "additional_builtin_execute",
+      "grantee_role_id": "pitchlog_ledger_identity_owner",
+      "privilege_ids": [
+        "EXECUTE"
+      ],
+      "grant_option": false
     }
   ],
   "column_acl_expectations": [
@@ -3380,6 +3951,47 @@
       ],
       "grant_option": false,
       "function_id": "FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_control_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "rg1_restore_gate",
+      "column_id": "singleton_id",
+      "grantee_role_id": "pitchlog_rg1_control_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:rg1_control:close_gate()"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_control_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "rg1_restore_gate",
+      "column_id": "state",
+      "grantee_role_id": "pitchlog_rg1_control_owner",
+      "privilege_ids": [
+        "SELECT",
+        "UPDATE"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:rg1_control:close_gate()"
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_rg1_control_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "rg1_restore_gate",
+      "column_id": "recovery_generation",
+      "grantee_role_id": "pitchlog_rg1_control_owner",
+      "privilege_ids": [
+        "SELECT",
+        "UPDATE"
+      ],
+      "grant_option": false,
+      "function_id": "FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)"
     }
   ],
   "extensions": [

@@ -152,7 +152,7 @@ def test_acceptance_sheets_are_generated_from_current_sources() -> None:
         for filename in generator.SHEET_FILENAMES
     } == {
         "N1-table-completeness.md": 103,
-        "N3-immutability-completeness.md": 111,
+        "N3-immutability-completeness.md": 112,
         "N4-deletion-lifecycle.md": 55,
         "N7-required-attributes.md": 101,
     }
@@ -419,3 +419,27 @@ def test_judgment_validator_requires_out_of_scope_evidence() -> None:
 def test_acceptance_sheet_judgments_are_complete() -> None:
     errors = generator.judgment_errors(_read_committed_sheets())
     assert errors == []
+
+
+def test_rg1_fresh_open_invariant_is_captured_in_n3() -> None:
+    """採用済§3-2の追加1出現と実rowを結び、件数だけの追随にしない。"""
+    sentence = "初期highwater=0をopen期間中の不変条件にもしない。"
+    model = (REPO_ROOT / generator.DATA_MODEL_RELATIVE_PATH).read_text(
+        encoding="utf-8"
+    )
+    assert model.count(sentence) == 1
+    rows = generator.parse_sheet_rows(
+        generator.render_sheets(REPO_ROOT)["N3-immutability-completeness.md"]
+    )
+    fresh = [
+        row for row in rows
+        if row.canonical.startswith("data-model.md §3-2 — 最初のfresh供給と残件:")
+    ]
+    assert len(fresh) == 1
+    assert sentence in fresh[0].canonical
+    assert fresh[0].target == "出現 030: 不変"
+    assert fresh[0].implementation == (
+        "rg1_restore_gate: protected=['singleton_id']; allowed=['state']; "
+        "conditional=['recovery_generation']; coverage=exhaustive; "
+        "unclassified_handoff=None"
+    )

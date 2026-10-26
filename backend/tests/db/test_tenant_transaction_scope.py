@@ -622,10 +622,15 @@ def test_run_signature_has_no_second_tenant_context() -> None:
     assert declared_methods == {
         "__init__",
         "_expire",
+        "_ensure_rg1_lease",
+        "_assert_rg1_lease",
         "run",
         "run_function",
         "run_in_savepoint",
     }
+    for lease_method in (handle_type._ensure_rg1_lease, handle_type._assert_rg1_lease):
+        assert tuple(inspect.signature(lease_method).parameters) == ("self",)
+        assert get_type_hints(lease_method) == {"return": type(None)}
     assert handle_type.__slots__ == (
         "_state_key",
         "_context",

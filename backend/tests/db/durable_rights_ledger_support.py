@@ -55,15 +55,19 @@ def _install_product_business(dsn: str) -> None:
     from alembic import command
     from alembic.config import Config
 
-    from pitchlog.authz.product_provisioning import apply_product_authz_ddl
+    from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
     with psycopg.connect(dsn, autocommit=True) as connection:
         connection.execute(
-            "CREATE ROLE pitchlog_owner NOLOGIN NOSUPERUSER "
-            "NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION"
+            "CREATE ROLE pitchlog_owner LOGIN NOSUPERUSER "
+            "NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT "
+            "PASSWORD 'pitchlog-public-disposable-ledger-fixture'"
         )
         connection.execute("ALTER DATABASE ledger_fixture OWNER TO pitchlog_owner")
-    params = conninfo_to_dict(dsn)
+    owner_dsn = make_conninfo(
+        dsn, user="pitchlog_owner", password=_PUBLIC_FIXTURE_PASSWORD
+    )
+    params = conninfo_to_dict(owner_dsn)
 
     def required(key: str) -> str:
         value = params.get(key)
@@ -82,15 +86,42 @@ def _install_product_business(dsn: str) -> None:
     engine = create_engine(url)
     try:
         with engine.connect() as connection:
-            connection.exec_driver_sql("SET ROLE pitchlog_owner")
             config = Config(str(_SCHEMA.parents[3] / "alembic.ini"))
             config.attributes["connection"] = connection
             command.upgrade(config, "0033_game_rules_immutable")
             connection.commit()
     finally:
         engine.dispose()
+    result = advance_stage_a_from_s0(owner_dsn=owner_dsn, applicator_dsn=dsn)
+    assert result.completed_stage == "S3" and result.publishable is False
     with psycopg.connect(dsn) as connection:
-        apply_product_authz_ddl(connection)
+        assert connection.execute(
+            "SELECT version_num FROM public.alembic_version"
+        ).fetchall() == [("0035_rg1_initial_fresh_epoch",)]
+        assert connection.execute(
+            "SELECT p.proowner::regrole::text,p.prosecdef "
+            "FROM pg_catalog.pg_proc p WHERE p.oid = "
+            "pg_catalog.to_regprocedure('pitchlog_ledger_observer.identity()')"
+        ).fetchone() == ("pitchlog_ledger_identity_owner", True)
+        for role, allowed in (
+            ("pitchlog_ledger_identity_probe", True),
+            ("pitchlog_app", False),
+            ("pitchlog_rg1_control_actor", False),
+            ("pitchlog_initial_actor", False),
+        ):
+            assert connection.execute(
+                "SELECT pg_catalog.has_function_privilege(%s, "
+                "'pitchlog_ledger_observer.identity()', 'EXECUTE')",
+                (role,),
+            ).fetchone() == (allowed,)
+        assert connection.execute(
+            "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_proc p, "
+            "LATERAL pg_catalog.aclexplode(COALESCE(p.proacl, "
+            "pg_catalog.acldefault('f',p.proowner))) a "
+            "WHERE p.oid = pg_catalog.to_regprocedure("
+            "'pitchlog_ledger_observer.identity()') AND a.grantee = 0 "
+            "AND a.privilege_type = 'EXECUTE')"
+        ).fetchone() == (False,)
         # 製品app/observerを拡張せず、rollback検証専用subjectはTEMPだけ許可する。
         connection.execute(
             "CREATE ROLE pitchlog_fixture_business_writer LOGIN "
@@ -202,8 +233,6 @@ def isolated_ledger_database() -> Iterator[LedgerDatabase]:
         primary_admin = start(names[0], volumes[0])
         business_admin = start(names[2], volumes[2])
         _install_product_business(business_admin)
-        with psycopg.connect(business_admin, autocommit=True) as connection:
-            connection.execute((_SCHEMA.parent / "business_identity.sql").read_bytes())
         docker(
             "exec",
             names[2],

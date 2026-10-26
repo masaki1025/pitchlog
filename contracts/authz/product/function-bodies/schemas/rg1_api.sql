@@ -4,4 +4,4 @@
 CREATE SCHEMA IF NOT EXISTS rg1_api;
 ALTER SCHEMA rg1_api OWNER TO pitchlog_owner;
 REVOKE ALL PRIVILEGES ON SCHEMA rg1_api FROM PUBLIC;
-GRANT USAGE ON SCHEMA rg1_api TO pitchlog_app;
+GRANT USAGE ON SCHEMA rg1_api TO pitchlog_app, pitchlog_initial_actor;

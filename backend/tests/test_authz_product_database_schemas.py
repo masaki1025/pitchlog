@@ -81,6 +81,78 @@ _EXPECTED_SCHEMAS = {
 }
 
 
+# 既承認のcontrol/observer/initial主体だけを旧集合へ有限追加する。
+_DATABASE_PEERS = (
+    "pitchlog_rg1_control_actor",
+    "pitchlog_ledger_identity_probe",
+    "pitchlog_initial_actor",
+)
+_EXPECTED_DATABASE["acl_expectations"].update(
+    (role, "CONNECT", False) for role in _DATABASE_PEERS
+)
+_EXPECTED_DATABASE["revoked_acl_expectations"].update(
+    (role, privilege, False)
+    for role in _DATABASE_PEERS
+    for privilege in ("CREATE", "TEMPORARY")
+)
+_EXPECTED_SCHEMAS["public"]["acl_expectations"].add(
+    ("pitchlog_rg1_control_owner", "USAGE", False)
+)
+_EXPECTED_SCHEMAS["public"]["revoked_acl_expectations"].add(
+    ("pitchlog_rg1_control_owner", "CREATE", False)
+)
+_EXPECTED_SCHEMAS["rg1_api"]["acl_expectations"].add(
+    ("pitchlog_initial_actor", "USAGE", False)
+)
+_EXPECTED_SCHEMAS["rg1_api"]["revoked_acl_expectations"].add(
+    ("pitchlog_initial_actor", "CREATE", False)
+)
+_EXPECTED_SCHEMAS.update(
+    {
+        "rg1_control": {
+            "schema_name": "rg1_control",
+            "creation": "product_ddl",
+            "owner": "pitchlog_rg1_control_owner",
+            "ownership_path": "direct",
+            "acl_expectations": {
+                (role, "USAGE", False)
+                for role in (
+                    "pitchlog_rg1_control_actor",
+                    "pitchlog_rg1_fn_owner",
+                    "pitchlog_app",
+                    "pitchlog_initial_actor",
+                )
+            },
+            "revoked_acl_expectations": {
+                ("PUBLIC", "USAGE", False),
+                ("PUBLIC", "CREATE", False),
+            }
+            | {
+                (role, "CREATE", False)
+                for role in (
+                    "pitchlog_rg1_control_actor",
+                    "pitchlog_rg1_fn_owner",
+                    "pitchlog_app",
+                    "pitchlog_initial_actor",
+                )
+            },
+        },
+        "pitchlog_ledger_observer": {
+            "schema_name": "pitchlog_ledger_observer",
+            "creation": "product_ddl",
+            "owner": "pitchlog_ledger_identity_owner",
+            "ownership_path": "direct",
+            "acl_expectations": {("pitchlog_ledger_identity_probe", "USAGE", False)},
+            "revoked_acl_expectations": {
+                ("PUBLIC", "USAGE", False),
+                ("PUBLIC", "CREATE", False),
+                ("pitchlog_ledger_identity_probe", "CREATE", False),
+            },
+        },
+    }
+)
+
+
 def _load_catalog_checker() -> Any:
     """静的検査を独立したモジュール名で読み込む。"""
     module_spec = importlib.util.spec_from_file_location(
@@ -236,7 +308,7 @@ def test_product_database_and_schema_assets_match_design() -> None:
     databases = asset["databases"]
     schemas = asset["schemas"]
     assert isinstance(databases, list) and len(databases) == 1
-    assert isinstance(schemas, list) and len(schemas) == 5
+    assert isinstance(schemas, list) and len(schemas) == len(_EXPECTED_SCHEMAS) + 2
     assert _normalized_object(databases[0], "database_id") == _EXPECTED_DATABASE
     normalized = {
         str(row["schema_id"]): _normalized_object(row, "schema_id") for row in schemas
