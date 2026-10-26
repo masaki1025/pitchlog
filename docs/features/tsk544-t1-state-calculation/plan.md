@@ -1,11 +1,11 @@
 ---
 feature: tsk544-t1-state-calculation
-status: in-review
+status: active
 承認: 済(2026-10-20・山田正輝)
 重さ分類: コア領域
 worktree: ../../..
 notion: https://app.notion.com/p/3f893b75e68781e5a55ce961b18fab3f
-branch: feature/mvp-t1-first-pitch
+branch: feature/mvp-t1-ordinary-pitches
 created: 2026-10-20
 計画レビュー周回: 10
 確定ゲート周回: 2
@@ -152,3 +152,58 @@ first-ballの成功と未対応拒否/alias重複拒否を実Node/同hash Chromi
 2026-10-25T20:52:13.433380+00:00、CI40229702557はbackend/frontend成功、core-guardの公開JSON形式是正後の限定再実行も成功。harnessは30241成功/1失敗/2skipで失敗確定。既test_t1_append_later_policy_target_append_keeps_record_frozenが試験用PR186を固定しており、本PR186対象追加と重複して実loaderが正しく拒否した。rootはPO委任の通常試験入力追随としてtests/test_human_review_signature.pyの後続合成event番号をfixtureの既targets最大値+1へ定め、追記先も同じ合成event番号/branchに束縛する。全旧policy/record/期待文/拒否assertと製品checkerは保持する。本1pathだけを追加scopeとし、最終差分レビュー/当該module/CIを再固定する。親全T1のDoDと実HTTP/DBマージ前義務は維持。修正開始のため本提出状態だけactiveへ戻し、全DoD完成や同意味の再承認は主張しない。
 
 2026-10-25T20:59:20.720890+00:00、上記fixture番号の通常是正後、正規stock tests/test_human_review_signature.py全131成功36.18s、Ruff/ty成功。合成後続番号はfixtureの既登録最大値+1で一意、policyへの追加も同event.number/head_branchを使う。期待文/record bytes不変assert・既policy拒否・製品checkerは変更0。今回数学提出だけin-reviewへ戻し、最終HEADの非作者差分確認と必須CIは別途必要。旧harness1失敗/30241成功/2skipを新全件成功に改記しない。
+
+
+## 2026-10-26 通常非PA投球33の操作単位追補
+
+既親544の旧step2内の次単位。基線は正式30f67＋既初球256838cc依存merge済みの942c5783edae8ad859a3363e87dfb60c033f6f13（feature/mvp-t1-ordinary-pitches）。新全体計画を作らず、本追補採用後は同じ親をactiveへ戻す。旧10計画周/2確定ゲート、初球Draft/レビュー/失敗、既全MVP義務を保持する。本候補作成者t2_first_pitch_plan_reviewは新blind導出者でも最終非作者plan reviewerでもない。
+
+### 1. 閉じる範囲と既規範
+
+ballはS0..2×B0..2の9、called/swinging/foulはS0..1×B0..3の各8、合計33。初回表/O0/空塁/0対0/打順1/TBfalse/未終了/既before・board全0の範囲は初球と同じで、B/Sだけを広げる。scoreboard等の欠損を0生成しない。S2foul4、第3strike、第4ball、PA終端、走者/打順/次回、6未被覆、HR矛盾は個別留保し成功へfallbackしない。MVPから除外する意味ではない。
+
+差分/confirmed-play/pushはADR-003 D-8:433・要件E-1:1573の既決事項。変化したstate/board fieldだけのbefore/afterと23flag全値からconfirmed-play1件を先頭へ積む。新ADR/野球意味の裁定は不要。旧4代表の6効果/23flag/入力/期待値/history全値を保持し、finite guardへの正式拡張だけを受理する。
+
+### 2. 最初の閉包：正式norm・参照・ABI（製品核着手前）
+
+(1) 既matrix4行のB/S eq葉を上記finite inへ変更し、natural row ID/49行/効果/remarksを保持。mustOperationCoverageとbranch mapping4参照を追随。29norm行や29正式caseの重複追加はしない。既104caseは全object同値、残12caseはcase-id-mapによりID/rowRefだけ明示移行しinputCoordinate/expected/historyInput/raw/normalized等を全値保持。coverageのB1一件だけ追加して116→117、新caseはST-COVERAGE-8d5c59594f90b5bd。history lookup脱落をmain4-exact-bindingで閉じる。
+
+(2) authorに許すsourceは既check_required_set_coverage.pyと既testだけ。既eq意味を保持し、finite inで陽に束縛されたstate値の到達可能性を既predicate評価で導く。in値setの等値扱い、無関係operationの自由値、入力expectedから不足を埋める処理は拒否。旧history/baselineCaseIdsのbyteを書換えず、下記派生vector資産の明示12ID移行情報を使って旧→現caseの同値/一意な到達を検証する（欠落/重複/別row/入力・期待・history片側変更を拒否）。これは履歴参照の移行であり、旧承認を新subjectの承認へ流用しない。
+
+(3) required-set coverage実集合176→177、追加(state.count.balls,1)だけ・削除0を実consumerから再導出。旧history/currentStep95までをprefix同値保持し、最終全値と新step96候補をrootが実値で受理後appendする。根拠値はacceptance-delta.json/元candidateに保持。実受理日時/承認欄はrootだけが埋め、仮承認でgreenにしない。game_end宣言件数116→117、handoffのraw SHA、checker変更で実際に影響する派生値だけを同batchで追随する。
+
+(4) contracts配下へordinary専用request/response schema・readonly d.ts・33全値vectorsを新設。vectorsは4正式rowへのexact binding、旧4代表の全値一致、12ID移行情報、33空stack全値＋履歴tail保持1対向を含む。正式規範は(1)の4行であり、vectorを規範の代用品としない。既history型のkind/差分閉構造/十進整数を参照して実ABIを確定し、旧作者schemaのhistory欠落/request exact4/response singletonをそのまま採用しない。
+
+(5) rootだけがshadow候補JSON・既生成CLIによる全前後測定・非作者の有限規範/全値/履歴参照確認を受け、7.7/新subjectを通常ゲートで実受理する。state subject候補a8fb88…→ec26ae…、coverage digest df2215…→bff28a…は未受理値であり最終checker差分から再測定する。旧PR185 RBI5限定Gate6署名・carry・P6封印を新subjectへ使わない。descriptor f479/criteria/manualfixture2射影が不変なら、それらの再設計や新凍結履歴を増やさない。新subject受理に既一般ゲートで不足する具体pathが判明した場合はその差分だけrootへ戻し、旧RBI5専用拒否を緩めない。
+
+### 3. 新ABIと単一実装
+
+新公開operationはT1-onlyのderiveOrdinaryPitch。入力は旧4field＋必須 history:{stack:[HistoryEntry,...]}（空配列可、欠損の[]補完不可）。before/履歴は閉型・canonical decimal/bigint・nested closedで検証してsnapshot化。履歴の型検証は真正性/全過去操作再計算を保証しない。独自の切捨て深さ上限を加えない。
+
+成功は旧8member相当の新ordinary値。ball/strikeのcountEffect・after・23flag全値、historyContext=[newConfirmedEntry,...input.history.stack]。newentryは同一T1評価の実before/after/flagsから一回生成し、tail全内容/順序を防御的に保持する。初球deriveState/FirstPitchRequest/Value/4error/対応scopeは完全不変。新操作も既4errorを使用し、型不正とscope外を閉じ、固定case-ID成功/期待値lookup・Pythonコピー式を作らない。
+
+state.tsのprivate count核を共有して既ball/newordinaryを評価し、二重計算を避ける。public側の履歴構成も一箇所。spike41d7175dの変化field差分/23flags方式だけを既規範に照合して移植し、未知key無視parser・広い操作表・Pythonspike・仮rights/projectionは輸入しない。既decimalCodec/entry/build/AST・構成checker/hostを再利用し拒否を緩めない。
+
+Python新callerは固定open_domain_host()で新literal operation1call、strict/frozen/alias-only/duplicate/nonfinite/全wire-dump一致を再利用し、historyの差分/pushやcount式を計算しない。既first_pitch.py/hostは変更しない。
+
+T2 continuation候補ed07と198組は本WTに無く今回依存merge/実装しない。旧T2候補・既6outcomeは不変。本T1値から実保存へ接ぐ前に、同before/Derivedで一回T1→T2を評価するT2所有側の有限追補を必須とする。未評価T2を固定false/no-decision/保存成功へ補完しない。
+
+### 4. exact編集と最小順序
+
+exactpaths.jsonが唯一の許可候補。rootはparent plan/contracts/append/正式参照/Git/台帳のみwriter。authorは隔離WTのchecker2と数学12pathだけを指示された段階で編集する。新schema/vecをauthorが正式共有へ直接書かず、shadow/cache候補をrootへ渡す。
+
+| 単位 | 実装/受理 | 解除条件 |
+| --- | --- | --- |
+| A | shadow4guard/12ID/117case/coverage177、checker finite-in・履歴移行、ordinary ABI/33vec | 既4全値保持・有限規範とABIの非作者確認、実全前後集合/subject/必要consumer値のroot受理。旧P6比較は数学射影だけとして資格受理 |
+| B | 単一TS/privatecount/public/同artifact＋Python固定caller/両runner | Aの成立範囲からsource着手。33全値＋tail1/反例、旧ABI全回帰、再現hash/実Node・同artifactブラウザ、型lint、別非作者source確認 |
+
+履歴tail対向は初球calledの実entry Hと実after(S1B0)を使い、ballへhistory.stack=[H]を渡してS1B1/history=[Eball,H]を完全比較。H欠落/切捨て/逆順/flag差替え/後発入力変更混入、history欠落/unknownkey/非canonical、B3ball/S2strikes/S2foul/PA/走者/未知/他before、旧firstballが新たに成功しない負例を含む。33数学と旧代表4/新tailの比較資格を記録し、新blind/fullP6・wire/auth/save成立へ昇格しない。
+
+### 5. 旧mergeゲート・未完の保持
+
+本追補は親§4 PR1a/DoDを削除しない。実認証/C2/tenant/初期由来/記録権D4/V12/RG1/T2/同writer projection+D5/再送/unknown/実HTTP・画面保存再読込はmerge前の後続必須。全Port/全T1/全P6を数学source開始の前提へ戻さず、未実装をsuccessにしない。承認後も全T1/取消/成績/CSV/実機/復旧/MVP未完を保持する。
+
+§3の今回宣言は親planとexact contracts/checker/数学sourceだけへ更新し、requirements/ADR/README本文反映なし（旧履歴保持）。新branchの公開/委任policy exactPR対/最終HEAD証拠/必須CIはrootが実PR確定後に通常手続きで行う。ここでは実PR/承認日時/署名を創作しない。
+
+
+2026-10-26T07:44:31.048361+00:00、PO委任によるCodex判断（Codex /root）。対象追補案SHA f430dd51c404e80b333cc62e8c18e2794e51a76933585fa41ef66975096b929f、exactpaths SHA bd01d015ecfdbdadcfef1b0250a7180c29cf411519eaecf87805f506ff1b18f7、非作者限定計画review ca35fbd3cedf13a7382bc4ca4183cb289b4d079f799a86ef274c4e5209ec443f（未解消0）を根拠に追補の範囲・順序を承認する。人間本人の個別実値確認・署名ではない。単位Aのchecker2pathとcache内ABI/正式値候補作成だけの開始を許可し、正式契約/append/Git/本planはrootだけが編集する。単位Aの実受理前に単位Bの数学本体sourceへ進まない。旧全T1/実HTTP・原子保存のmerge義務・MVP全機能を維持する。
