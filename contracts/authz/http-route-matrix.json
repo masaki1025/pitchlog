@@ -475,6 +475,24 @@
         "id": "tests/test_check_authz_catalog.py::test_preparing_read_registered_route_matches_real_gets",
         "status": "implemented"
       }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:trusted_devices:insert",
+      "route_id": "ROUTE:RECORD:trusted_devices:insert",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_initial_http_logical_routes_match_real_operations_and_caps",
+        "status": "implemented"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:games:update",
+      "route_id": "ROUTE:RECORD:games:update",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "tests/test_check_authz_catalog.py::test_initial_http_logical_routes_match_real_operations_and_caps",
+        "status": "implemented"
+      }
     }
   ],
   "cells": [

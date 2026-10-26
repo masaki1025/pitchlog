@@ -288,11 +288,6 @@
       "operation": "read"
     },
     {
-      "capability_id": "CAP:recording_generations:insert",
-      "table_id": "recording_generations",
-      "operation": "insert"
-    },
-    {
       "capability_id": "CAP:recording_generations:update",
       "table_id": "recording_generations",
       "operation": "update"

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 22,
+  "runtime_contract_revision": 23,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:22"
+        "runtime_contract_revision:23"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -89,6 +89,7 @@
       "authn",
       "authn_crypto",
       "authz_private",
+      "initial_right_api",
       "pitchlog_ledger_observer",
       "public",
       "rg1_api",
@@ -126,6 +127,14 @@
       [
         "public",
         "game_lineups"
+      ],
+      [
+        "public",
+        "game_start_attempts"
+      ],
+      [
+        "public",
+        "game_start_requests"
       ],
       [
         "public",
@@ -225,6 +234,10 @@
       ],
       [
         "public",
+        "recording_right_deliveries"
+      ],
+      [
+        "public",
         "rejected_event_originals"
       ],
       [
@@ -278,6 +291,10 @@
       [
         "public",
         "tournament_rule_assignments"
+      ],
+      [
+        "public",
+        "trusted_devices"
       ]
     ],
     "functions": [
@@ -345,6 +362,71 @@
         "authz_private",
         "tenant_has_effective_membership",
         "uuid, boolean"
+      ],
+      [
+        "initial_right_api",
+        "begin_start_attempt",
+        "uuid, uuid, uuid, uuid, bytea, uuid"
+      ],
+      [
+        "initial_right_api",
+        "check_business_epoch",
+        "uuid, bigint"
+      ],
+      [
+        "initial_right_api",
+        "enroll_device",
+        "uuid, uuid, bytea"
+      ],
+      [
+        "initial_right_api",
+        "insert_initial_grant",
+        "uuid, uuid, uuid, uuid, uuid, bigint, bigint, bytea, text, bytea, bytea"
+      ],
+      [
+        "initial_right_api",
+        "lock_current_start",
+        "uuid, uuid, uuid"
+      ],
+      [
+        "initial_right_api",
+        "lock_device",
+        "uuid, uuid"
+      ],
+      [
+        "initial_right_api",
+        "lock_preparing_game",
+        "uuid, uuid"
+      ],
+      [
+        "initial_right_api",
+        "lookup_existing_start_attempt",
+        "uuid, uuid, uuid, uuid, bytea"
+      ],
+      [
+        "initial_right_api",
+        "persist_initial_start",
+        "uuid, uuid, uuid, uuid, bytea, text"
+      ],
+      [
+        "initial_right_api",
+        "read_existing_start",
+        "uuid, uuid, uuid"
+      ],
+      [
+        "initial_right_api",
+        "read_initial_start_context",
+        "uuid, uuid, uuid, uuid, bytea, text"
+      ],
+      [
+        "initial_right_api",
+        "read_start_game",
+        "uuid, uuid"
+      ],
+      [
+        "initial_right_api",
+        "resolve_start_attempt",
+        "uuid, uuid, uuid, uuid"
       ],
       [
         "pitchlog_ledger_observer",
@@ -543,6 +625,11 @@
       ],
       [
         "public",
+        "protect_initial_right_storage",
+        ""
+      ],
+      [
+        "public",
         "protect_recording_generations_updates",
         ""
       ],
@@ -631,5 +718,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "8b94635ec4f2c39dd986c3c09323f58624cb8b65bac0f57a3cec505a21730209"
+  "source_digest": "609148c8b3b7c2dbacd5ed31d49ed8cc671888cc2b51e2e7ec71a66c990e3320"
 }

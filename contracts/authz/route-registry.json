@@ -102,6 +102,46 @@
       "provenance_id": "PLAN-MVP-PREPARING-READ-REGISTRATION",
       "path": "docs/features/mvp-preparing-read-registration/plan.md",
       "extracted_text": "準備中試合の保存値だけを読むGET /gamesおよびGET /games/{game_id}を既存CAP:games:readへ対応させる。"
+    },
+    {
+      "provenance_id": "PLAN-MVP-GAME-START-HTTP",
+      "path": "docs/features/mvp-game-start-connection/plan.md",
+      "extracted_text": "logical routeはtrusted_devices:insertへenroll、games:updateへstart/resolveを各operationと実CAP provenanceで個別に対応させる。committed再交付を含むresolveをgames:readへ分類しない。既games:readの準備中2GETの意味/byteを保持し、resolve→readの誤結線を負例にする。HTTP独自CAP/role/DB ACLを作らず、採用worker/profileの正式CAP登録へ委任する。"
+    },
+    {
+      "provenance_id": "HTTP:initial_device_enroll",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/devices/enroll\",\n    response_model=InitialDeviceEnrollmentResponse,\n    operation_id=\"initial_device_enroll\",\n)\ndef enroll_initial_device(\n    request: Request,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n    cookie: Annotated[str, Depends(require_presented_token)],\n) -> JSONResponse:\n    \"\"\"同tenantの登録要求を実workerへ一度だけ渡す。\"\"\"\n    return _initial_response(\n        _EnrollDeviceCommand(_initial_identity(request, context, cookie))\n    )"
+    },
+    {
+      "provenance_id": "HTTP:initial_game_start",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/games/{game_id}/start\",\n    response_model=InitialGameStartResponse,\n    operation_id=\"initial_game_start\",\n)\ndef start_initial_game(\n    game_id: UUID,\n    payload: GameStartRequest,\n    request: Request,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n    cookie: Annotated[str, Depends(require_presented_token)],\n) -> JSONResponse:\n    \"\"\"元要求の全入力を送り、workerの実commit後応答だけを返す。\"\"\"\n    return _initial_response(\n        _initial_start_command(\n            payload,\n            game_id,\n            _initial_identity(request, context, cookie),\n        )\n    )"
+    },
+    {
+      "provenance_id": "HTTP:initial_game_start_resolve",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/games/{game_id}/start/resolve\",\n    response_model=InitialGameStartResponse,\n    operation_id=\"initial_game_start_resolve\",\n)\ndef resolve_initial_game_start(\n    game_id: UUID,\n    payload: GameStartRequest,\n    request: Request,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n    cookie: Annotated[str, Depends(require_presented_token)],\n) -> JSONResponse:\n    \"\"\"同元要求のcommitted再交付だけを照会し、新attemptを生成しない。\"\"\"\n    return _initial_response(\n        _ResolveStartCommand(\n            _initial_start_command(\n                payload,\n                game_id,\n                _initial_identity(request, context, cookie),\n            )\n        )\n    )"
+    },
+    {
+      "provenance_id": "CAP:initial_right:lock_device",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"固定能力だけを返す。\"\"\"\n        return \"CAP:initial_right:lock_device\""
+    },
+    {
+      "provenance_id": "CAP:initial_right:persist_initial_start",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"私有開始能力だけを返す。\"\"\"\n        return \"CAP:initial_right:persist_initial_start\""
+    },
+    {
+      "provenance_id": "CAP:initial_right:enroll_device",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"端末登録一件だけの能力を返す。\"\"\"\n        return \"CAP:initial_right:enroll_device\""
+    },
+    {
+      "provenance_id": "CAP:initial_right:lookup_existing_start_attempt",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"非作成lookupだけの能力を返す。\"\"\"\n        return \"CAP:initial_right:lookup_existing_start_attempt\""
     }
   ],
   "routes": [
@@ -701,6 +741,35 @@
         "PLAN-MVP-PREPARING-READ-REGISTRATION"
       ],
       "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:trusted_devices:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-GAME-START-HTTP",
+        "HTTP:initial_device_enroll",
+        "CAP:initial_right:enroll_device"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:games:update",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-GAME-START-HTTP",
+        "HTTP:initial_game_start",
+        "CAP:initial_right:persist_initial_start",
+        "HTTP:initial_game_start_resolve",
+        "CAP:initial_right:lookup_existing_start_attempt",
+        "CAP:initial_right:lock_device"
+      ],
+      "operation": "update"
     }
   ],
   "management_operations": [

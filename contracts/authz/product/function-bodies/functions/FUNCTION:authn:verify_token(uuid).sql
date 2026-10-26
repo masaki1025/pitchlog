@@ -61,3 +61,4 @@ $authn_function$;
 ALTER FUNCTION authn.verify_token(uuid) OWNER TO pitchlog_auth_fn_owner;
 REVOKE ALL PRIVILEGES ON FUNCTION authn.verify_token(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION authn.verify_token(uuid) TO pitchlog_app;
+GRANT EXECUTE ON FUNCTION authn.verify_token(uuid) TO pitchlog_initial_auth_verifier;

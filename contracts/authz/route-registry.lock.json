@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "4935b7dfbf15aa7f68c93c82486480fe0866216a5fac9c5c2d525158c9a593e7",
-  "entry_count": 246,
-  "aggregate_decision_digest": "5567132e29d2c6874cf52a573d5cadd5b10ae62b503c5ae4925f1310ea54e0f6",
+  "asset_digest": "356a7ee4ecbd6ab34931ee4e20ffeb6eb9b578b40884bda4054b77351a100f59",
+  "entry_count": 248,
+  "aggregate_decision_digest": "04926a06dd95185cdb10b17a0d6187851f5a5514c925b1d523732c651a661c28",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -798,6 +798,43 @@
         "operation": "read"
       },
       "decision_digest": "c203d6213b2d2e265e37c1b2ea713ded5920fe7e8d29b0e1e90e383b78e77a9b"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:trusted_devices:insert",
+      "decision": {
+        "route_id": "ROUTE:RECORD:trusted_devices:insert",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE",
+          "PLAN-MVP-GAME-START-HTTP",
+          "HTTP:initial_device_enroll",
+          "CAP:initial_right:enroll_device"
+        ],
+        "operation": "insert"
+      },
+      "decision_digest": "f4c1d418468f9b6d7ef9e39f59707ea95cc62ae54a4df86cfa5b5dac3c1b9aa4"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:games:update",
+      "decision": {
+        "route_id": "ROUTE:RECORD:games:update",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE",
+          "PLAN-MVP-GAME-START-HTTP",
+          "HTTP:initial_game_start",
+          "CAP:initial_right:persist_initial_start",
+          "HTTP:initial_game_start_resolve",
+          "CAP:initial_right:lookup_existing_start_attempt",
+          "CAP:initial_right:lock_device"
+        ],
+        "operation": "update"
+      },
+      "decision_digest": "40e2d4111fa307d4634c168cba7da419d462182095cdc2c5daec39dbdbe0bd7c"
     },
     {
       "entry_id": "operation:create_group",

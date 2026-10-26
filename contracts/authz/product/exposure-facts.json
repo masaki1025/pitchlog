@@ -311,6 +311,73 @@
               "quote": "**ID の列は秘密の列として扱う**"
             }
           ]
+        },
+        {
+          "table": "recording_generations",
+          "column": "proof_digest",
+          "reason": "初期証拠列をappの汎用read/updateへ公開しない。",
+          "evidence": [
+            {
+              "section": "6-1",
+              "quote": "`recording_generations`へnullable `proof_digest BYTEA`（非NULL時32byte）とnullable `recovery_generation BIGINT`（非NULL時正bigint）を追加する。初期normal発行は両方を必須として同時保存し、holder_deviceはcanonical UUID文字列、D3/prefixは0、最初のissuance_orderは1とする。旧行へ仮digest/epoch/holderを補完せず、旧NULL行を初期権の再交付/検証では拒否する。既存のmigration行/旧データの意味は自動変更せず、新証拠2列をアプリの汎用read/updateへ公開しない。gateの初回epoch列と束縛順は既3-2が正であり、本項で別の初期値/更新経路を作らない。"
+            }
+          ]
+        },
+        {
+          "table": "recording_generations",
+          "column": "recovery_generation",
+          "reason": "初期証拠列をappの汎用read/updateへ公開しない。",
+          "evidence": [
+            {
+              "section": "6-1",
+              "quote": "`recording_generations`へnullable `proof_digest BYTEA`（非NULL時32byte）とnullable `recovery_generation BIGINT`（非NULL時正bigint）を追加する。初期normal発行は両方を必須として同時保存し、holder_deviceはcanonical UUID文字列、D3/prefixは0、最初のissuance_orderは1とする。旧行へ仮digest/epoch/holderを補完せず、旧NULL行を初期権の再交付/検証では拒否する。既存のmigration行/旧データの意味は自動変更せず、新証拠2列をアプリの汎用read/updateへ公開しない。gateの初回epoch列と束縛順は既3-2が正であり、本項で別の初期値/更新経路を作らない。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "initial_right_storage",
+      "entries": [
+        {
+          "table": "trusted_devices",
+          "reason": "6-1の初期権専用保存資源。直接表権限を持たず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1",
+              "quote": "| `trusted_devices` | PK `(tenant_id,device_id)`、32byte `credential_digest`、`created_at`、nullable `revoked_at`。tenant FK。失効日時は作成日時以後 | tenant/device/資格digest/作成日時を変更せず、失効だけを未失効から一度確定する。原資格/Cookie/V12/鍵を保存しない |"
+            }
+          ]
+        },
+        {
+          "table": "game_start_requests",
+          "reason": "6-1の初期権専用保存資源。直接表権限を持たず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1",
+              "quote": "| `game_start_requests` | PK `(tenant_id,game_id,start_request_id)`、`device_id`、32byte `request_digest`、`created_at`。game/deviceへtenant付き複合FK。owner参照用の同一deviceを含む複合一意キー | 追記のみ。同じ要求IDのdevice/payload変更を拒否する。digestは開始要求のserver側正規化にだけ用い、D5内容/T1イベントの正規化を変更しない |"
+            }
+          ]
+        },
+        {
+          "table": "game_start_attempts",
+          "reason": "6-1の初期権専用保存資源。直接表権限を持たず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1",
+              "quote": "| `game_start_attempts` | PK `(tenant_id,attempt_id)`、game/request/deviceのowner列、`created_at`、nullable `resolved_at`、`outcome`。同一request/ownerへのtenant付き複合FK。同一requestのpendingは部分一意1件 | outcomeは`pending/committed/rolled_back`。pendingのresolved_atはNULL、終結は作成日時以後のresolved_atを必須とし、一度終結した行を再変更しない。owner/作成日時を変更しない |"
+            }
+          ]
+        },
+        {
+          "table": "recording_right_deliveries",
+          "reason": "6-1の初期権専用保存資源。直接表権限を持たず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1",
+              "quote": "| `recording_right_deliveries` | PK `(tenant_id,game_id,generation)`、`start_request_id`、`device_id`、空でない`key_id`、12byte `nonce`、48byte `ciphertext`、`created_at`、nullable `revoked_at`。generation/request/ownerへtenant付き複合FK。同一requestは一意1件。generationは正bigint | 失効だけを未失効から一度確定し、他列は変更しない。原V12/暗号鍵は保存せず、同じ要求・端末への再交付用暗号文だけを保持する。暗号長は既V12Boxのraw32byte＋tag16byteに対応する |"
+            }
+          ]
         }
       ]
     }
