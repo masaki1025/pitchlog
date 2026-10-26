@@ -210,3 +210,10 @@ exactpaths.jsonが唯一の許可候補。rootはparent plan/contracts/append/�
 
 
 2026-10-26T08:10:10.222884+00:00、通常33の単位Aで実consumer check_branch_row_mapping.py:710が旧eq/and/or/notのみを解釈し、正式拡張候補のfinite-in葉を「規範行の述語引数が不正」として拒否する実影響を確認した。PO委任によるCodex /root判断で、同単位Aへ scripts/check_branch_row_mapping.py / tests/test_branch_row_mapping.py の既2pathだけを追加する。inはexact keys{op,axisId,values}・既知fixture座標axis・非空配列・重複なし・型一致membershipに限定し、旧eq/and/or/not/未知op・不正args拒否を保持。bool/intの同値化や期待値による穴埋めは拒否する。有限inの0/1正例・2非該当、missingaxis/empty/nonlist/duplicate/extra/bool-int異型の対向と実shadow4参照/旧全moduleを検査する。正式JSON/履歴/署名/判定基準の緩和はしない。作者t2はこの追加2のbeforeSHAを固定して着手でき、最終差分は別非作者へ渡す。数学本体12pathは単位A実受理前には変更しない。
+
+
+2026-10-26T09:56:37.383765+00:00、PO委任によるCodex /root判断で通常33単位Aのconsumer source4だけを採用保存する。作者t2のhandoff012e2d1235ab54cc9b424283b064caff1ef65e8b6da446f5be517d651fc99a17/最終source4 e7e3df…、別作者rg1の後発test1 a130f480…/delta0f3df282…を追跡し、非作者初回123d2857690ca6b4c1dcae8d7fa3ef121b0455e2695317ffc9d29d89345c7d7b（0/0/1）→反映1最終4dbedd593c1805b6ab6b5a71124a480310c2fd762b4cf9f1d8da9cf9e1f6280c/checks4eb34293006a30bb3a8ac1eb81ac22b51c82a4597f81364c1773def7b195e306（残0）を照合した。旧93test全AST/decorator/assert保持、歴史copyは固定Git treeに閉じ、新vector混入拒否2対向を追加。旧4assertの新117側混在を歴史fixtureへ束縛して解消し、新current33/117/177対向を別に保持した。
+
+旧live164成功71.52sは現117検査の証明ではなかった。初回shadow全164は159成功5失敗65.76s（旧4不整合＋空承認1の正当拒否）、反映1限定live25成功/shadow24成功1正当拒否、独立24成功6.13sを別実行として保持。branch module29/33+tail schema/全12ID/104保持/coverage177/ec26 subjectは別非作者で実導出照合した。新承認3欄はまだnullで、署名・凍結・7.7の受理済みを意味しない。保存はsource4＋planのみ、正式9/履歴/旧署名/数学12は変更しない。
+
+現PR185/RBI5限定Gate6は新33 subjectを正しく拒否する。旧記録・本人署名を付け替えず、今回実PRに限る追加手続きの最小候補を作成中で、非作者初回0/1/0（新ready後のlocal技術分岐と統合後の不変継承の具体化不足）を採用した反映案がある。最終計画採否・実PR確定・新subject/ABI全値のroot受理が残り、単位A全成立/数学開始とはしない。全Port/全T1/全P6の完成を追加前提に戻さず、この操作の残手続きだけを閉じる。
