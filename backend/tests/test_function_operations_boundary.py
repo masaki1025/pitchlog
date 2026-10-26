@@ -112,11 +112,19 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """RG1の固定3件と正式resolver1件の全集合を照合する。"""
+    """旧RG1/resolver4件と同writer4件の全集合を照合する。"""
+    from pitchlog.repositories.first_ball import (
+        _BindFirstBallDeviceToken,
+        _CheckFirstBallRightToken,
+    )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
         RG1ScopeBindingToken,
+    )
+    from pitchlog.repositories.writer_binding import (
+        _AssertWriterBindingToken,
+        _ReadWriterIdentityToken,
     )
 
     assert tuple(
@@ -126,12 +134,20 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "RG1:commit_check",
         "RG1:scope_binding",
         "RULE:resolve_stage_a",
+        "SYNC_FIRST_BALL:bind_device",
+        "SYNC_FIRST_BALL:check_current_right",
+        "SYNC_WRITER_BINDING:read_writer_identity",
+        "SYNC_WRITER_BINDING:assert_writer_binding",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
         RG1CommitCheckToken,
         RG1ScopeBindingToken,
         StageAResolveRuleToken,
+        _BindFirstBallDeviceToken,
+        _CheckFirstBallRightToken,
+        _ReadWriterIdentityToken,
+        _AssertWriterBindingToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 29,
+  "contract_revision": 30,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:29"
+        "contract_revision:30"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -232,7 +232,11 @@
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",
-    "RULE:resolve_stage_a"
+    "RULE:resolve_stage_a",
+    "SYNC_FIRST_BALL:bind_device",
+    "SYNC_FIRST_BALL:check_current_right",
+    "SYNC_WRITER_BINDING:read_writer_identity",
+    "SYNC_WRITER_BINDING:assert_writer_binding"
   ],
-  "source_digest": "da12d999bb8a186a924cf8dafe0623f6e0421d49655a3f243d21dd4a08b4ccba"
+  "source_digest": "f33234033f51612042912ef2062bd00fbcbe927dc1d306cce7f461155d867ae6"
 }

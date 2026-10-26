@@ -1054,7 +1054,7 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
 
 
 def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
-    """固定4登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
+    """旧4と追加4登録の生成全fieldを照合し、DMLの登録とは混同しない。"""
     from pitchlog.repositories.operation_registry import (
         PRODUCT_FUNCTION_OPERATIONS,
         PRODUCT_OPERATIONS,
@@ -1067,6 +1067,10 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "RG1:commit_check",
         "RG1:scope_binding",
         "RULE:resolve_stage_a",
+        "SYNC_FIRST_BALL:bind_device",
+        "SYNC_FIRST_BALL:check_current_right",
+        "SYNC_WRITER_BINDING:read_writer_identity",
+        "SYNC_WRITER_BINDING:assert_writer_binding",
     )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
@@ -1076,6 +1080,10 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "rg1_api.rg1_assert_open_before_commit",
         "rg1_control.scope_binding",
         "public.resolve_stage_a_rule",
+        "sync_right_api.bind_device",
+        "sync_right_api.check_current_right",
+        "sync_fence_api.read_writer_identity",
+        "sync_fence_api.assert_writer_binding",
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
@@ -1097,7 +1105,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         assert row.statement.compile().params == {"tenant_id": None}
         assert row.min_rows == row.max_rows == 1
         assert all(item.token_type is not token for item in PRODUCT_OPERATIONS)
-    registration = PRODUCT_FUNCTION_OPERATIONS[-1]
+    registration = PRODUCT_FUNCTION_OPERATIONS[3]
     assert registration.token_type is StageAResolveRuleToken
     assert registration.capability_id == "CAP:rules:resolve_stage_a"
     assert registration.input_fields == (
@@ -1125,7 +1133,7 @@ def test_stage_a_function_identity_mutation_is_rejected(function_id: str) -> Non
     from pitchlog.repositories.operation_registry import PRODUCT_FUNCTION_OPERATIONS
 
     with pytest.raises(FunctionOperationError):
-        replace(PRODUCT_FUNCTION_OPERATIONS[-1], function_id=function_id)
+        replace(PRODUCT_FUNCTION_OPERATIONS[3], function_id=function_id)
 
 
 @pytest.mark.parametrize("symbol", sorted(_LEXICAL_SYMBOLS))

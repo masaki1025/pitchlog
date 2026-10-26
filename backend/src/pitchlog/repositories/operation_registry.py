@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
+from pitchlog.repositories.first_ball import (
+    _UNREGISTERED_DECLARATIONS as _FIRST_BALL_FUNCTION_OPERATIONS,
+)
 from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     build_function_registry,
@@ -31,6 +34,9 @@ from pitchlog.repositories.started_snapshot_operations import (
 )
 from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
+from pitchlog.repositories.writer_binding import (
+    _UNREGISTERED_DECLARATIONS as _WRITER_BINDING_FUNCTION_OPERATIONS,
+)
 
 PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *PREPARING_GAME_READ_OPERATIONS,
@@ -42,7 +48,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *STARTED_SNAPSHOT_OPERATIONS,
 )
 
-# RG1固定2照合・同Session識別1件と、正式段階A読取1件だけを登録する。
+# 既RG1/段階A4件と同writerの閉じた保存用4件だけを登録する。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     FunctionOperationRegistration(
         operation_id="RG1:precheck",
@@ -97,6 +103,8 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         decoder=_decode_stage_a_rule_result,
         nonempty_inputs=("game_type_key", "tournament_key"),
     ),
+    *_FIRST_BALL_FUNCTION_OPERATIONS,
+    *_WRITER_BINDING_FUNCTION_OPERATIONS,
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,
