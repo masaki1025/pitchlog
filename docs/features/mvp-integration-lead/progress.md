@@ -29,7 +29,7 @@
 | 到達点 | 実装場所/提供版 | 状態 | 次の証拠 |
 | --- | --- | --- | --- |
 | A 試合作成・preparing再取得 | 旧隔離eda71a48＋20ee2e98で実証。create候補903e3b09は正式RG1 3a24へ追随 | 実login/C2/UI POST201→実DB game0→1→GET/再読込同値は旧固定候補で実証。新候補の局所検査・非作者確認成功 | 新候補の正式値/通常統合・実画面再接合。HTTPS/実機は未実施 |
-| B 開始・権利・1球保存と復元 | start72f4118a（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開208ee7d9（PR187）、N2初期reader e8d24790、N1検証0014b0f3 | 固定隔離組立run1793024422089で実画面の新規create→実DB再取得→開始→初期grant IDB保存→reload過去grant表示まで実証。通常33本体/単一artifact/未登録初期readerも検証済み。started GETは404、1球保存・現在権利のサーバー復元は未達 | 正式7.7/CI/通常統合、実writer binding migration/ACL/provider登録、初期readerの実DB/HTTP接続、T1-T2同TX原子保存・記録後復元 |
+| B 開始・権利・1球保存と復元 | start72f4118a（Draft PR188）、browser8cd0aa6f、初球256838cc（PR186）、通常33公開208ee7d9（PR187）、N2 read登録e0566d49、N1実writer9557fe16 | 固定隔離組立run1793024422089で実画面の新規create→実DB再取得→開始→初期grant IDB保存→reload過去grant表示まで実証。通常33本体/単一artifact/未登録初期readerも検証済み。started GETは404、1球保存・現在権利のサーバー復元は未達 | 正式7.7/CI/通常統合、実writer binding migration/ACL/provider登録、初期readerの実DB/HTTP接続、T1-T2同TX原子保存・記録後復元 |
 | C 通常全操作・終了後訂正 | U-F8/T1/T2/U-S1 | 未検証 | 実製品1試合・版一貫性 |
 | D 故障・再起動・再送・交代 | U-S1/U-R1、RG1-create、start1592e48d | 作成故障に加えowned worker/Node/DB停止・応答喪失同要求照会・実端末失効後の非成功を実証。pendingを終結/全取消と推定しない | 未解決要求の確定終結/後着遮断、記録後offline再起動・交代・再送等は別残件 |
 | E 閲覧・基本成績・CSV・負荷 | U-F8/U-D2/T5/T6 | 未接続/未提供を含む | 暦年JST、終了確定版、毎球/成績CSV双方 |
@@ -876,3 +876,16 @@ rootは0037_sync_writer_binding revision（0036後のdefault-deny補助2表）/�
 N2枝には開始profile修正72f4118aを通常mergeしてc3fb7d1b96e005472b4969a7b7d549c60412b062へ保存push。変更6pathは全byte incomingと一致、初期reader4とN3 artifactは全byte保持。証拠cache n2-start-profile-merge-20261027/receipt.json cd748c513499dc083b957c25e604c0aebc9a1b7d44b7e60c4a0dd722964ec7a4。無関係な基線追随による意味受理の再取得なし、新runtime成功を主張しない。
 
 PR187 CI診断report08bad716…を固定。旧fixed corpusの実入力差と受理済ordinary参照を根拠にexact4test/fixtureだけのcache是正を割当。fresh112と正式legacy110はextra33/missing31/shared値差0であり、件数の機械差替え/期待値の全面再生成は不可。最終source固定後にcorpus11の旧/現outcomeを全比較してからdigest候補を導出する。正常化の表示71→72未追随も含め、以前の40赤を消さず後発採否へ対応付ける。1球保存・再読込/全T1/全MVPの未達は維持する。
+
+
+### 2026-10-27：実writerコード保存と初期read登録の候補採用
+
+N1-U2 source13の独立第1回8a4e77ba…P1-1（専用controlの既role全属性/両向membership検査欠落）を保持し、同13のSQL/test exact2だけを是正。反映1 manifest e614e9d6…/patch2904a08c…、他11/packet2保持を非作者第2回fc87c9b1bc9331e1de82dfa76aba9a1aebf024700d21f0516cc48e664cc5dd60/checks835c694f…（0/0/0）で確認、独立337成功0.81s。root migration4の独立37b1167e…も採用し、作者13＋root4＋親planを9557fe16へ保存push、clean/origin一致を確認した。root同一最終候補の影響6module346成功1.68s。source/DB表配置の候補提供であり、実role変異/実U2 DB8本/追加故障coverage/正式catalog/registry/ledger manifest SHA/7.7/CI・通常統合は未了。初回plan追記cwd誤りは書込みなしで停止し正しいrootで追記した（検査成功をplan追記成功と混同しない）。
+
+N2-B1は既4bounded readを実executorへ登録。既catalogの利用CAP30→32（game_lineups/play_rows read2）、47→51token、SQL/grant変更0。旧未登録対向を同CAPの未登録派生型で保持し、actualhandleのtenant注入/game/LIMIT/結果/失効を別照合。周辺795成功/3赤で見つけたsource宣言2と既initial actor強制点の未登録1を正確に追随、免除追加0/旧全拒否保持。反映前796成功/正式JSON一致2赤を保存した。独立source7/candidate1 review df4355e285fd540b8467c6e6eb08aa4c594b2c845d53fc24a23d56a070ceb927/checksc6498c8e…は301成功＋未反映2赤/追加不正context20対向SQL0・Rufftyを確認。全旧prefix/他object/関数面/A reader/transaction/runtime23を保持した。
+
+rootの初回full-values f778dfb9…はasset-only digestを正式凍結射影と誤表示していたため、未受理のまま旧fileを保全し、正式frozen_history＋external4実byteで是正した。修正bdfec377…、完全射影before b0f3695caf14e103bf72d5af501c6f3a77f9e7e2f08b7748a954e9a2d8a6b834/after41d627b412ed082f97974ab12d6ec9d479a46e3d27b752aea3e741c5850eed53を独立再照合。PO委任root-adoption4ec5d461…（実UTC2026-10-26T17時台、JST27日/判断者/全raw SHA/根拠/留保）でrepository-contract JSON28→29と生成sourceを候補採用、SOURCE_DIGEST da12d999…を反映。runtime-authz23は不変、公開7.7authority追記・実PR最終core証拠は未達と分離する。反映後の同一12module798成功47.10sを確認し、exact9pathをe0566d49へ保存push。source7 patch e9047c4b…/fullcommitdiff d59580dc…、cache n2-started-read-registration-20261027/。未登録候補から実行器登録候補へ進んだが、実DB/HTTP/started GET404解消はまだ未達。
+
+product供給はn3作者のcache10source＋asset候補、schema/正本は別作者first_ball_u1_independentのcache3pathとして分離。root以外の正式書込み/Git0。旧50表＋新2の閉schema対応、roles17/schemas11/functions88等の実抽出、unapply新profileは副作用前明示拒否を検査中。未供給schema manifest/6-1-a参照とエラー型接合で2607成功/127赤を実確認しており全成立とはしない。正本/manifestの旧初期一意参照2件の形式不整合は、既6-1意味と実制約を変えず3-4表へ参照行を追加する最小追随を承認。新writer一意2行と分け、旧構造/他48全object保持で候補化する。
+
+PR187の通常参照追随3path候補は作者5module1049成功/Ruffty、source3 patch353c18e0…として固定し別非作者へ渡した。corpusは未成立のまま：旧ec02は新5fieldとcondition2.owner_pathsを拒否し、current11だけ期待一致。旧期待値/拒否を削らず、実不適合をcacheへ保全、source3の成功をcorpus全11や必須CIへ昇格しない。Goal全体は継続、新規利用者操作の実証は実画面新規作成→開始→初期grant端末保存まで、実1球保存/サーバー復元・全T1/全MVP/実機/運用復旧は未完。
