@@ -982,3 +982,5 @@ PR187最終42568333は非作者316e6bd2c776b05f7a382683ffd40c9cd2efcea83d872e185
 #188 owned DB試験P1は反映1 ba6a908c…でobserverの各実TXへtenant binding、可視性assert、NOWAIT拒否/rollback後の新TX再binding、保護SELECT別TXを追加。非作者第2回と実DB未実施。V7/V8型表P2（参照先24member）もref1 manifest6478dfd6…で是正、非作者再確認待ち。
 
 #188 owned DB試験反映1は非作者58a4e0d9…残0、2026-10-27 PO委任判断で追加。root実isolated PGで実Cookie/app scopeの3read、同tenant実別接続のNOWAIT 55P03/解放後取得、保護2列実SELECT各42501とACL falseを確認（1成功27.28秒）。新test/計画2a2c0136へlocal保存、対象PR全CI・実1球保存とは別。V7/V8型表ref1は非作者a24e2fc2…および4ff42fda…でP2解消・残0、pure codec用の具体計画固定を進める。PR187のcancelled run40482727791と実行中run40482786801を区別。
+
+中断後再開時、PR187公開HEAD42568333の必須CI run40482786801は全job成功・completedを実APIで確認。Gate6委任も同HEADで成立済み。一方親#186はDraft/CONFLICTING、HEAD256838は425の祖先で、親計画のHTTP/DBマージ前義務は未成立。MERGEABLE/CLEAN表示やCI成功だけで依存・実保存を成立とせず、PR187はDraftのまま。必要な実接続・#186/#188の基線/競合解消を並行継続する。
