@@ -970,3 +970,5 @@ PR187 core path候補b0f0f7c1…は非作者4c170af3…残0、正式9全値不�
 bridge/frame第1回P1（終了/失活/差替え/nestedを見逃す）は反映1で既writer lifetimeをbind時保持・各利用で再照合。非作者第2回3bff1bbaab00c19adadce80dba714d835a57a8c9712ccc1ace13dbbc03a59177残0、62成功、root実tree58成功。2026-10-27 18:26 JST、PO委任Codex /root判断でexact4 patch1c51d31b…を57d198d6に採用・push。待機中はread/評価0、同host一回評価の部品であり、実Port/DB/HTTP接続成功は未成立。
 
 #188の12列限定移植c023f73eは非作者cd8ffcccb542f75b12926e4f29262756c9a95c5838c3312b5f114ab53bcd0185残0、独立境界9成功・root対象tree355成功。2026-10-27 18:29 JST、PO委任Codex /root判断をfa958bf0へ記録。実DB・正式値/最終委任・新CIは未完で公開head72f4118aのまま。owned DB試験は既initial fixtureを使う対象版専用候補を作成中。
+
+PR187旧RG1歴史2testのref1 patch56f8a985…は非作者40f9a0e6…残0、旧assert/拒否維持。root実treeで2件成功、修正後の全core469成功39.37秒。PO委任判断を記録し42568333へlocal保存。最終configで旧現11×2の実CLI比較・最終全HEAD/公開委任・必須CIが未完で未push。初球V7/V8型表候補de18934b…は座標k/263・Y反転、範囲外球速の確認、語彙/参加者照合、T2非成功写像等を別接続依存として保持し、未承認。
