@@ -1037,3 +1037,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27 20:56 JST、#186 CI run40495457821はharness成功、backendのみ実行中。他job成功。全CI成立や実HTTP/DB義務の達成とはまだ扱わない。
 
 2026-10-27、E-1段階2 exact4 cache候補 `e1-source-selection-original-stage2-addendum-20261027/implementation/REPORT.md` SHA 52d6a7e307127a9c4fe6accad9b18c405b13c4828734704ad7441134cc4d7dfe、source4.patch SHA 08747620274c209aed0f9aba2b585a5a4aee9448fd94654bc231524ca71d98c8 を固定。作者側新251件を含む関連482成功、Ruff/format/ty成功・12変異検出。真正issuer発行口なしで閉拒否、実source採用・非作者レビュー・T8/T9/HTTP/DB/Portは後続。
+
+2026-10-27、DB印反映1 SHA42fa28df…の非作者review df253ad34bbe6dbddf9559be4166ac1df1d39e88b77ccd84f348b1aeab9d4089 はP0/P1=0、P2=2（旧open表記、未供給migration主体を既存と扱う表現）。順序/lock/savepointは計画上改善、P2の是正と合法INSERT主体・既経路matrixはactivation前に必要。未適用pure unit Aだけが先行候補で、DB/trigger activationを受理していない。
