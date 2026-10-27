@@ -571,3 +571,5 @@ PO委任によるCodex /root判断。対象HEAD 6bf492865300e99eb567a01bfd1a75a6
 台帳manifestの実SHAを更新し、既condition2 adapterの固定17記号・実source SHA・位置だけを現在値へ揃える。3資産の厳密固定、17組の厳密一致、旧47・既拒否・正式履歴を維持し、pathや件数だけの免除へ緩めない。source/宣言同時改変、隣行・余剰・別path等の拒否を保持する。関連pureと正式射影/coverage/参照値を導出し、値が変わった場合は実前後値の正式受理を別途行う。非作者core確認、残るtenant検出、CIは別条件であり、この追随だけで完了としない。
 
 2026-10-27 20:49 JST、PO委任によるCodex /root判断。tenant検査U5は既 `function_operations._canonical_bind` の採用済み `bytes`→`LargeBinary()` 分岐を検査器が認識していないため、実sourceと完全一致する固定ASTへ同じ分岐だけを追随する。根拠 `pr188-tenant110-origin-classification-20261027/CONCRETE-NEXT-UNITS.md` SHA-256 b36bd11d7a03c380ed98a56da2b6a87383bbcbdee40b401d71b4d235281008b4。対象は既 `scripts/check_tenant_boundary_bypass.py`、`tests/test_check_tenant_boundary_bypass.py`、本計画。未知型・任意callable・追加文・bind改変を拒否し、SQL/DBAPIの一般免除は追加しない。非作者core review・正式値/他tenant残件/CIは別条件。
+
+2026-10-27、PO委任によるCodex /root判断。tenant検査U1 `d568c955` は非作者 `d673ec8ec40a542c360fd9fe218216db071aac65f87be3afa2676e589fc7fd2d` 残0・独立68成功、U5 `34f64420` は非作者 `cde0047af87de7880817a526d8b26eb811aba2d069b716f3e26a3e053966abdc` 残0・独立21成功を根拠に、それぞれ限定採用する。正式4面導出/必要な受理・tenant他残件・CIは別条件であり、完了に含めない。
