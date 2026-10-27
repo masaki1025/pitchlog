@@ -1061,3 +1061,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、#188 U3候補を `pr188-u3-finite-owner-candidate-470ba19a-20261027/REPORT.md` SHA b4f1df4ed24886df250f8fc05136508a7ec224be90ae40e1e91716ca02d20c5c、manifest 2e93d43ea07244d1654be792aa714a0a9e5f509310c0d6ea0798e19c708ddd5a で固定。実51行のpath/SHA/line/symbol/scopeと根拠を対応、51正例/306否定probe成功。別26所見と旧model6行は除外せず別に維持。まだ非作者確認・限定plan承認・source実装・正式4面が必要であり、tenant緑ではない。
 
 2026-10-27、DB印unit A途中点 `first-ball-db-insert-stamp-plan-20261027/implementation-unit-a/PROGRESS.md` 更新。cache exact4全初稿、対象292成功・Ruff/ty成功。関連検査の初回は存在しないtest名を指定して収集前exit4、実在testへ修正して再実行予定。関連検査・非等価変異・patch固定・非作者reviewは未完。実DB/登録/activationやunit Bの印発行は未実施。
+
+2026-10-27、E-1段階3途中点 `e1-stage3-core-binding-readiness-20261027/CHECKPOINT.md` 更新SHA fd7239705fbbb7d58e88598cc04791d632b8382ef47a3820232b9566c2cb1559。既BindingLeaseは実phaseのrequest/event hash・position/D1全値を保持せず、live writerの存在だけで原source一致を証明できない。従来のcore5source/5test案に加えbinding_control/writer_bindingと対応testへの限定追補が必要。実broker phase snapshotと同TX照合、W2 dual decoderを新T8/T9書込より先に揃える案を検討中。承認・実装・接続は未了。
