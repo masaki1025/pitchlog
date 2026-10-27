@@ -1000,3 +1000,7 @@ E-1 raw source純exact2は非作者5ba527e1…残0、独立75成功/5対向、ro
 2026-10-27 20:26 JST、V7/V8 pure codec exact2+cache vectorと未登録PlayRow token/SQL宣言/test exact3の着手をe7606f72でPO委任承認。独立計画確認d6cc1688…/06e611aa…残0。入力の正本観測・全23flag/V8/同writer期待、41列/同game FK・D2非コピーを保持し、正式登録・DB側適用印・実認可/保存/GETは別未達。各sourceは異なる担当がcacheで並行実装中。
 
 PlayRow先行pure source3 patch6e557419…は作者cache固定、新98/関連159成功・6変異拒否、Ruff/ty成功。runtime registry・DB印・実保存は未接続、非作者core review待ち。DB側INSERT適用印の最小設計も既writer bindingと同TXを基に調査中。#188 tenant残110のうちledger manifest/hash更新不足とsocket/file操作のDB誤分類候補を確認したが、全件を誤検出とは扱わず一次根拠と対向を分類中。
+
+PlayRowのDB印設計調査で、writer_admissionの存在だけでは端末/記録権成功を証明しないと判明。既bind_device/check_current_rightはassert_writer_bindingの後にfalseを返し得るため、admissionのみをINSERT許可に採用しない。実device/right成功とtenant/game/event/nonce・同TXをDB側の有限印へ結び、失効/再利用拒否と権利不成立時の実DB拒否を後続の必須対向とする。client GUC・ContextVar・既UPDATE triggerを代替にしない。設計/source/実DBは未確定。
+
+#188 tenant旧110の分類f3ebb341…は対象14sourceが実d1aaと全SHA一致、CLI再実行なし。既採用source由来の厳格登録追随候補98、実禁止構文import_module 1、技術未裁定11（owner3/callable6/socket・file誤分類候補2）と区分。全件を誤検出・許可とは扱わず、各有限単位の実sourceと負例/正式4面を照合して是正する。
