@@ -972,3 +972,7 @@ bridge/frame第1回P1（終了/失活/差替え/nestedを見逃す）は反映1�
 #188の12列限定移植c023f73eは非作者cd8ffcccb542f75b12926e4f29262756c9a95c5838c3312b5f114ab53bcd0185残0、独立境界9成功・root対象tree355成功。2026-10-27 18:29 JST、PO委任Codex /root判断をfa958bf0へ記録。実DB・正式値/最終委任・新CIは未完で公開head72f4118aのまま。owned DB試験は既initial fixtureを使う対象版専用候補を作成中。
 
 PR187旧RG1歴史2testのref1 patch56f8a985…は非作者40f9a0e6…残0、旧assert/拒否維持。root実treeで2件成功、修正後の全core469成功39.37秒。PO委任判断を記録し42568333へlocal保存。最終configで旧現11×2の実CLI比較・最終全HEAD/公開委任・必須CIが未完で未push。初球V7/V8型表候補de18934b…は座標k/263・Y反転、範囲外球速の確認、語彙/参加者照合、T2非成功写像等を別接続依存として保持し、未承認。
+
+#188専用owned DB試験候補6d8b4771…は非作者f0302b45209fcf5aad523153d8433a2007906db4605ce9eb4ec1c848e77064e5でP1。別app observerのtenant GUC欠落でRLSの行が不可視、lock競合の実証にならない。observer transaction内で正規tenant binding→NOWAIT、55P03後rollback、解放後の新TXでも再bindingする是正を実施中。保護列のSELECT拒否は失敗TXと分離。実DB試験未実施・共有DB非使用。
+
+PR187最終config 42568333の旧現11×2は隔離Gitと実CLIで22全期待一致・exit0。旧11は固定exitも一致、現11はmanifestがexit値未固定のためgreen/redと実観測値0/2を区別。宣言c18eae81→JSON7425f411の履歴を保持。最終非作者core review・公開委任更新・最終CIは未実施。
