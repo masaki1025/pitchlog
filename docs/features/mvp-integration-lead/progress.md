@@ -1067,3 +1067,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、#188 U6途中点 `pr188-u6-closed-db-candidate-470ba19a-20261027/`。実3sourceと6関数の署名/body AST/call API、現26行を固定。別条件29行は `other-kept-red.json` で維持。model DDL6個の構文/文脈照合、余剰connect・動的SQL・再束縛等の拒否probeと候補計画は未完。実repo/DB変更0。
 
 2026-10-27、DB印unit A関連実検査は300成功・1失敗。既model走査が新FirstBallWriteAdmissionをreexportしていない不足で、PO委任Codex /root判断 cc384f88 により既db/writer_binding/models.py の同一model/table参照1pathだけを追加承認。cacheで是正・再検査予定。旧失敗を成功へ読み替えず、実DB/activationは未実施。
+
+2026-10-27、DB印unit Aのモデル走査追随後、cache exact5関連301成功、Ruff/format/ty成功・source9変異検出。class reexportのみでは同じ走査失敗となり、同一Table参照を追加して解消した両失敗履歴を保全。未適用migration hygieneも対象単独で成功。最終packet/非作者source review待ちで、実DB・profile登録・activationは未実施。
