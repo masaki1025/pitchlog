@@ -559,3 +559,7 @@ PR187は本候補作成時未merge。先にrev6/追加field/履歴が統合さ�
 今回受理は正式値と検査整合の範囲だけ。owned DB試験成功、開始API、1球保存/GET、MVP完成は各既証拠/別到達条件として区別する。
 
 2026-10-27 20:24 JST、PO委任によるCodex /root判断。対象2a2c0136/base3a24、source3 d78c7952…・独立source review 8b0bd9a2…・全4面/旧31履歴と新4snapshotの非作者review 1647999a34dba209e1f3d7c54c384838f4ba11fa574814537ce699784fe41614残0を確認し、対象2fieldとruntime変更の7.7受理を行う。判断者はCodex /rootであり山田正輝本人の署名ではない。CLI/最終review/Gate6/CIは未成立。
+
+### 初期権actorの固定RG1型import是正
+
+2026-10-27 20:36 JST、PO委任によるCodex /root判断。tenant検査の実禁止構文1件（initial_grant_broker._verify_business_bindingの固定文字列import_module）を、固定モジュールの局所static importへ置換する。編集はbackend/src/pitchlog/recording_rights/initial_grant_broker.pyとbackend/tests/test_initial_recording_right_candidate.pyのexact2。既ImportError/RG1ControlUnavailableの閉拒否、実binding identity全値照合・runtime寿命・認可を保持し、検出器に動的import許可を追加しない。非作者core review・変更対象の検査と残るtenant/正式値・最終CIは別条件。
