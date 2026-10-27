@@ -4,9 +4,13 @@ import './entry'
 import { domainOperations } from './publicApi'
 
 describe('ドメイン公開口の疎通操作', () => {
-  it('操作表を凍結し、公開操作を ping だけにする', () => {
+  it('操作表を凍結し、公開操作を疎通・既初球・通常投球に限定する', () => {
     expect(Object.isFrozen(domainOperations)).toBe(true)
-    expect(Object.keys(domainOperations)).toEqual(['ping'])
+    expect(Object.keys(domainOperations)).toEqual([
+      'ping',
+      'deriveState',
+      'deriveOrdinaryPitch',
+    ])
   })
 
   it('build 入口が同じ凍結済み公開表を globalThis に置く', () => {

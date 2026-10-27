@@ -1371,8 +1371,10 @@ def _t1_append_later_event(
     """後続PRのbaseに今回記録が既存という合成Git境界を作る。"""
     # 導入前baseの同じcommitへ導入後blobを上書きする合成衝突を避ける。
     # 後続baseは新recordが存在する元headのsnapshotとして扱う。
+    policy = _load_object(root / guard.DELEGATION_POLICY_PATH)
+    later_number = _synthetic_later_number(policy)
     later = guard.PullRequestEvent(**{**vars(event), 'base_sha': event.head_sha,
-                                    'number': 186, 'head_branch': 'fix/later'})
+                                    'number': later_number, 'head_branch': 'fix/later'})
     paths = [
         str(checker.GATE6_T1_APPEND_PATH),
         str(checker.GATE6_T1_APPEND_SCHEMA_PATH),
@@ -1385,6 +1387,8 @@ def _t1_append_later_event(
     def read(r: Path, args: list[str]) -> bytes:
         if args[0] == 'show' and args[1].startswith(later.base_sha + ':'):
             path = args[1].split(':', 1)[1]
+            if path == 'contracts/state-transition':
+                return ('\n'.join(Path(key).name for key in before) + '\n').encode()
             if path in before:
                 return before[path]
         return old(r, args)
@@ -1528,7 +1532,7 @@ def test_t1_append_later_policy_target_append_keeps_record_frozen(
     record_before = (root / checker.GATE6_T1_APPEND_PATH).read_bytes()
     policy_path = root / 'docs/features/mvp-delegated-core-review/policy.json'
     policy = _load_object(policy_path)
-    policy['targets'].append({'pr': 186, 'branch': 'fix/later'})
+    policy['targets'].append({'pr': later.number, 'branch': later.head_branch})
     _write_t1_append_json(policy_path, policy)
     assert 'no new PR185 acceptance' in checker.validate_gate6_ci_event(root, later)
     assert (root / checker.GATE6_T1_APPEND_PATH).read_bytes() == record_before
@@ -1745,6 +1749,454 @@ def test_legacy_prefix_requires_a_unique_matching_raw_prefix(
         checker._gate6_legacy_policy_prefix(carry['authority'], policy)
 
 
+def _ordinary_test_materials(repository: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    """正式9資産からPR187限定record/schemaの試験入力を構成する。"""
+    names = (
+        'state_transition_contract_v1.json', 'required_set_input_coverage_v1.json',
+        'branch_row_mapping_v1.json', 'game_end_coverage_declaration_v1.json',
+        'appendix_e_consumer_handoff_v1.json', 'ordinary_pitch_request_schema_v1.json',
+        'ordinary_pitch_response_schema_v1.json', 'ordinary_pitch_vectors_v1.json',
+        'ordinary_pitch_v1.d.ts',
+    )
+    record = {
+        'schemaVersion': 1, 'evidenceKind': 't1-ordinary-pitch-33',
+        'status': 'candidate-for-delegated-verification',
+        'authority': {'repository': 'masaki1025/pitchlog', 'pr': 187,
+                      'branch': 'feature/mvp-t1-ordinary-pitches',
+                      'baseRevision': checker._ORDINARY_PUBLIC_BASE},
+        'anchor': checker._ORDINARY_ANCHOR,
+        'assets': {f'contracts/state-transition/{name}': hashlib.sha256(
+            (repository / 'contracts/state-transition' / name).read_bytes(),
+        ).hexdigest() for name in names},
+        'scopeReceipt': {'personalReviewClaimed': False, 'P6FullAcceptance': False,
+                         'P7FullAcceptance': False, 'T1BodyStartComplete': False},
+    }
+
+    def closed(value: Any) -> dict[str, Any]:
+        if isinstance(value, dict):
+            return {'type': 'object', 'additionalProperties': False,
+                    'required': list(value),
+                    'properties': {key: closed(item) for key, item in value.items()}}
+        return {'type': 'boolean' if type(value) is bool else 'integer'
+                if type(value) is int else 'string', 'const': value}
+
+    return record, {'$schema': 'https://json-schema.org/draft/2020-12/schema', **closed(record)}
+
+
+@pytest.fixture
+def ordinary_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """実原本＋合成最終blob/公開コメントを使う。実公開受理とは区別する。"""
+    repository = Path(__file__).resolve().parents[1]
+    root = tmp_path / 'ordinary'
+    root.mkdir()
+    record, schema = _ordinary_test_materials(repository)
+    paths = {
+        *record['assets'], *checker._ORDINARY_FIXED_INPUTS,
+        *checker._ORDINARY_EXECUTION_INPUTS,
+        'scripts/check_human_review_signature.py', 'tests/test_human_review_signature.py',
+        'docs/features/mvp-delegated-core-review/policy.json',
+    }
+    # 7.7はstubせず、同じcache候補の実機械資産/外部sourceで検査する。
+    for asset_path in (repository / "contracts/tenant_boundary").glob("*.json"):
+        paths.add(asset_path.relative_to(repository).as_posix())
+        asset = json.loads(asset_path.read_bytes())
+        control = asset.get("baseline_control")
+        if isinstance(control, dict):
+            paths.update(control["identity"]["frozen_projection"]["external_files"])
+    for snapshot in (repository / "contracts/tenant_boundary/history-snapshots").iterdir():
+        if snapshot.is_file():
+            paths.add(snapshot.relative_to(repository).as_posix())
+    for path in paths:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((repository / path).read_bytes())
+    # coverage consumerの固定Git読取だけを既objectsへ向ける。index/refは変更しない。
+    gitdir = checker._carry_git_bytes(
+        repository, ['rev-parse', '--absolute-git-dir'],
+    ).decode().strip()
+    (root / '.git').write_text('gitdir: ' + gitdir + '\n')
+    _write_t1_append_json(root / checker.GATE6_ORDINARY_PATH, record)
+    _write_t1_append_json(root / checker.GATE6_ORDINARY_SCHEMA_PATH, schema)
+    policy_path = root / 'docs/features/mvp-delegated-core-review/policy.json'
+    policy = json.loads(policy_path.read_bytes())
+    if {'pr': 187, 'branch': checker._ORDINARY_BRANCH} not in policy['targets']:
+        policy['targets'].append({'pr': 187, 'branch': checker._ORDINARY_BRANCH})
+    _write_t1_append_json(policy_path, policy)
+    real_git = checker._carry_git_bytes
+    head = real_git(repository, ['rev-parse', 'HEAD']).decode().strip()
+    guard = checker._carry_core_guard(repository)
+    old_delegation_git = guard._delegation_git_bytes
+    base = 'b' * 40
+    baseline = {path.relative_to(root).as_posix(): path.read_bytes()
+                for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+    calls = []
+
+    def read(_: Path, args: list[str]) -> bytes:
+        calls.append(args)
+        if args[0] == 'show' and args[1].startswith(head + ':'):
+            return (root / args[1].split(':', 1)[1]).read_bytes()
+        if args[0] == 'show' and args[1].startswith(base + ':'):
+            path = args[1].split(':', 1)[1]
+            if path == 'contracts/state-transition':
+                return ('\n'.join(Path(key).name for key in baseline
+                                  if key.startswith(path + '/')) + '\n').encode()
+            if path not in baseline:
+                raise checker.HumanReviewSignatureRecordError('試験base blob欠損')
+            return baseline[path]
+        return real_git(repository, args)
+
+    def delegation_read(_: Path, args: list[str], label: str) -> bytes:
+        if args == ['show', head + ':docs/features/mvp-delegated-core-review/policy.json']:
+            return policy_path.read_bytes()
+        return old_delegation_git(repository, args, label)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', read)
+    monkeypatch.setattr(guard, '_delegation_git_bytes', delegation_read)
+    monkeypatch.setattr(checker, '_carry_core_guard', lambda _: guard)
+    url = 'https://github.com/masaki1025/pitchlog/pull/187#issuecomment-187'
+    event = guard.PullRequestEvent(checker._ORDINARY_PUBLIC_BASE, head,
+        'PO-DELEGATION-EVIDENCE: ' + url, 187, 'masaki1025/pitchlog',
+        'masaki1025/pitchlog', checker._ORDINARY_BRANCH)
+    evidence = {
+        'authority_sha256': hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+        'pr': 187, 'base': event.base_sha, 'head': head,
+        'diff_sha256': guard._delegation_diff(repository, event),
+        'paths': guard.changed_paths(repository, event.base_sha, head),
+        'reviewer_agent': 'ordinary-nonauthor',
+        'candidate_agents': ['t2_first_pitch_plan_review', 'root'],
+        'independent': True, 'verdict': 'approved', 'findings': [],
+        'report': {'task': 'ordinary-nonauthor', 'reviewed_head': head,
+                   'text': '合成試験資料。実PRの公開受理ではない。'},
+    }
+    comment = {'id': 187, 'html_url': url,
+               'issue_url': 'https://api.github.com/repos/masaki1025/pitchlog/issues/187',
+               'author_association': 'OWNER', 'user': {'login': 'masaki1025'},
+               'body': guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)}
+    fetches = []
+
+    def fetch(comment_id: str) -> dict[str, Any]:
+        fetches.append(comment_id)
+        return comment
+
+    monkeypatch.setattr(guard, '_fetch_delegation_comment', fetch)
+    return root, guard, event, base, baseline, calls, comment, fetches
+
+
+def test_ordinary_local_technical_and_actual_pr_modes(ordinary_fixture: Any,
+                                                      capsys: pytest.CaptureFixture[str]) -> None:
+    """localはfetch0、新受理だけが既実証拠validatorを呼ぶ。"""
+    root, _, event, _, _, _, _, fetches = ordinary_fixture
+    assert checker.main(['--root', str(root), '--gate6-carry']) == 0
+    output = capsys.readouterr().out
+    assert 'TECHNICAL ONLY; final delegation NOT CHECKED; no new ordinary acceptance' in output
+    assert fetches == []
+    assert 'DELEGATED VERIFIED' in checker.validate_gate6_ci_event(root, event)
+    assert fetches == ['187']
+
+
+def test_ordinary_inherits_base_first_without_fetch(ordinary_fixture: Any) -> None:
+    """正常統合後の全byte不変継承はbase先読・新受理なし・fetch0。"""
+    root, guard, event, base, _, calls, _, fetches = ordinary_fixture
+    later = _ordinary_later_event(root, guard, event, base)
+    result = checker.validate_gate6_ci_event(root, later)
+    assert 'UNCHANGED FROM PR BASE; no new ordinary acceptance' in result
+    record_read = ['show', f'{base}:{checker.GATE6_ORDINARY_PATH}']
+    assert record_read in calls
+    assert fetches == []
+
+
+@pytest.mark.parametrize('target', [
+    'record', 'schema', 'subject', 'request', 'response', 'vectors', 'typescript',
+    'coverage', 'mapping', 'game-coverage', 'handoff', 'old-record', 'descriptor',
+    'old-signature', 'old-policy', 'placeholder', 'linked', 'delete-record', 'delete-schema',
+])
+def test_ordinary_rejects_mutated_or_missing_fixed_values(ordinary_fixture: Any,
+                                                        target: str) -> None:
+    """全固定資産・旧原本・連動改変/欠損はlocalも継承も拒否する。"""
+    root, guard, event, base, _, _, _, fetches = ordinary_fixture
+    path = {
+        'record': checker.GATE6_ORDINARY_PATH,
+        'schema': checker.GATE6_ORDINARY_SCHEMA_PATH,
+        'subject': checker.STATE_TRANSITION_CONTRACT_PATH,
+        'request': 'contracts/state-transition/ordinary_pitch_request_schema_v1.json',
+        'response': 'contracts/state-transition/ordinary_pitch_response_schema_v1.json',
+        'vectors': 'contracts/state-transition/ordinary_pitch_vectors_v1.json',
+        'typescript': 'contracts/state-transition/ordinary_pitch_v1.d.ts',
+        'coverage': 'contracts/state-transition/required_set_input_coverage_v1.json',
+        'mapping': 'contracts/state-transition/branch_row_mapping_v1.json',
+        'game-coverage': 'contracts/state-transition/game_end_coverage_declaration_v1.json',
+        'handoff': 'contracts/state-transition/appendix_e_consumer_handoff_v1.json',
+        'old-record': checker.GATE6_T1_APPEND_PATH,
+        'descriptor': 'contracts/state-transition/input_axes_descriptor_v1.json',
+        'old-signature': ('docs/features/adr003-stage2-runtime/signatures/'
+                          'gate6-state-transition.json'),
+        'old-policy': 'docs/features/mvp-delegated-core-review/policy.json',
+    }.get(target, checker.GATE6_ORDINARY_PATH)
+    file = root / path
+    if target.startswith('delete-'):
+        (root / (checker.GATE6_ORDINARY_PATH if target == 'delete-record'
+                 else checker.GATE6_ORDINARY_SCHEMA_PATH)).unlink()
+    elif target == 'linked':
+        subject = root / checker.STATE_TRANSITION_CONTRACT_PATH
+        subject.write_bytes(subject.read_bytes() + b' ')
+        record = json.loads(file.read_bytes())
+        record['assets'][str(checker.STATE_TRANSITION_CONTRACT_PATH)] = hashlib.sha256(
+            subject.read_bytes(),
+        ).hexdigest()
+        _write_t1_append_json(file, record)
+    elif target == 'old-policy':
+        value = json.loads(file.read_bytes())
+        value['quotes'][0] += '改変'
+        _write_t1_append_json(file, value)
+    elif target == 'placeholder':
+        record = json.loads(file.read_bytes())
+        record['authority']['pr'] = None
+        _write_t1_append_json(file, record)
+    else:
+        file.write_bytes(file.read_bytes() + b' ')
+    assert checker.main(['--root', str(root), '--gate6-carry']) == 1
+    later = _ordinary_later_event(root, guard, event, base)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, later)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mutation', ['head', 'self-review', 'major', 'url', 'publisher', 'api'])
+def test_ordinary_public_invalid_evidence_never_falls_back(ordinary_fixture: Any,
+                                                          monkeypatch: pytest.MonkeyPatch,
+                                                          mutation: str) -> None:
+    """無効な公開証拠/取得故障はC/local成功へfallbackしない。"""
+    root, guard, event, _, _, _, comment, _ = ordinary_fixture
+    evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+    if mutation == 'head':
+        evidence['head'] = '0' * 40
+    elif mutation == 'self-review':
+        evidence['candidate_agents'].append(evidence['reviewer_agent'])
+    elif mutation == 'major':
+        evidence['findings'] = [{'severity': 'P1', 'resolved': False, 'detail': '未解消'}]
+    elif mutation == 'url':
+        comment['html_url'] = comment['html_url'].replace('/187#', '/186#')
+    elif mutation == 'publisher':
+        comment['user']['login'] = 'other'
+    else:
+        def failed(_: str) -> Any:
+            raise guard.GuardError('試験API取得失敗')
+        monkeypatch.setattr(guard, '_fetch_delegation_comment', failed)
+    comment['body'] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+
+
+@pytest.mark.parametrize('mutation', ['record', 'schema', 'missing', 'false-head'])
+def test_ordinary_rejects_corrupt_base_before_current(ordinary_fixture: Any,
+                                                    mutation: str) -> None:
+    """base記録/schema不正・欠損・自己申告ではcurrentへ比較元を移さない。"""
+    root, guard, event, base, baseline, _, _, fetches = ordinary_fixture
+    path = str(checker.GATE6_ORDINARY_SCHEMA_PATH if mutation == 'schema'
+               else checker.GATE6_ORDINARY_PATH)
+    if mutation == 'missing':
+        del baseline[path]
+    elif mutation == 'false-head':
+        value = json.loads(baseline[path])
+        value['authority']['baseRevision'] = event.head_sha
+        baseline[path] = json.dumps(value).encode()
+    else:
+        baseline[path] += b' '
+    later = _ordinary_later_event(root, guard, event, base)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, later)
+    assert fetches == []
+
+
+@pytest.fixture(autouse=True)
+def historical_gate6_technical_inputs(request: pytest.FixtureRequest,
+                                     tmp_path: Path,
+                                     monkeypatch: pytest.MonkeyPatch) -> None:
+    """旧local/CI欠落対向だけは受理済み185の全値を固定し、現33と分ける。"""
+    if request.node.originalname not in {
+        'test_required_repository_test_calls_ci_validation',
+        'test_other_pr_cannot_follow_changed_case_with_changed_carry',
+        'test_other_pr_inherits_only_unchanged_base_without_new_acceptance',
+        'test_other_pr_requires_base_carry_schema_and_subject',
+        'test_other_pr_rejects_changed_schema',
+        'test_other_pr_rejects_foreign_head_repository',
+        'test_other_pr_dispatch_cannot_be_retargeted_by_carry',
+        'test_subject_carry_is_technical_only_without_final_event',
+        'test_required_ci_route_rejects_missing_event',
+    }:
+        return
+    repository = Path(__file__).resolve().parents[1]
+    root = tmp_path / 'accepted-185'
+    paths = {*checker._ORDINARY_FIXED_INPUTS, str(checker.STATE_TRANSITION_CONTRACT_PATH),
+             'scripts/core_guard.py', 'scripts/check_human_review_signature.py',
+             'tests/test_human_review_signature.py',
+             'docs/features/mvp-delegated-core-review/policy.json'}
+    for path in paths:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if (path.endswith('policy.json') or path.startswith('scripts/')
+                or path == 'tests/test_human_review_signature.py'):
+            target.write_bytes((repository / path).read_bytes())
+        else:
+            target.write_bytes(checker._carry_git_bytes(repository, [
+                'show', f'{checker._ORDINARY_ANCHOR}:{path}',
+            ]))
+    gitdir = checker._carry_git_bytes(
+        repository, ['rev-parse', '--absolute-git-dir'],
+    ).decode().strip()
+    (root / '.git').write_text('gitdir: ' + gitdir + '\n')
+    monkeypatch.setattr(sys.modules[__name__], 'REPOSITORY_ROOT', root)
+    # 旧testのpath比較/relative_toも同じ歴史rootへ束縛する。実現行資産は変更しない。
+    monkeypatch.setattr(sys.modules[__name__], 'CONTRACT_PATH',
+        root / checker.STATE_TRANSITION_CONTRACT_PATH)
+    monkeypatch.setattr(sys.modules[__name__], 'GAME_END_CONTRACT_PATH',
+        root / checker.GAME_END_CONTRACT_PATH)
+
+
+def _synthetic_later_number(policy: dict[str, Any]) -> int:
+    """正式targetと既導入const全体から未使用の合成番号を選ぶ。"""
+    reserved = {checker._GATE6_INTRODUCTION_PR, checker._GATE6_T1_APPEND_PR,
+                checker._ORDINARY_PR}
+    return max(reserved | {target['pr'] for target in policy['targets']}) + 1
+
+
+def _ordinary_later_event(root: Path, guard: Any, event: Any, base: str) -> Any:
+    """同じ合成eventへ後続番号とbranchを束縛する。"""
+    policy = json.loads((root / guard.DELEGATION_POLICY_PATH).read_bytes())
+    return guard.PullRequestEvent(base, event.head_sha, '', _synthetic_later_number(policy),
+        event.repository, event.head_repository, 'feature/later-unrelated')
+
+
+def test_ordinary_inheritance_allows_only_policy_target_suffix(ordinary_fixture: Any) -> None:
+    """Cは合法target末尾追記を許すが、今回A/Bの新受理へ流さない。"""
+    root, guard, event, base, _, _, _, fetches = ordinary_fixture
+    later = _ordinary_later_event(root, guard, event, base)
+    path = root / guard.DELEGATION_POLICY_PATH
+    policy = json.loads(path.read_bytes())
+    policy['targets'].append({'pr': later.number, 'branch': later.head_branch})
+    _write_t1_append_json(path, policy)
+    assert 'no new ordinary acceptance' in checker.validate_gate6_ci_event(root, later)
+    assert fetches == []
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+
+
+@pytest.mark.parametrize('mutation', [
+    'guard-third-strike', 'guard-fourth-ball', 'guard-bool', 'guard-order',
+    'fifth-row', 'flag', 'expected', 'history', 'duplicate-case', 'extra-case',
+    'tail', 'missing-history', 'extra-abi-field',
+])
+def test_ordinary_rejects_semantic_delta_expansion(ordinary_fixture: Any,
+                                                mutation: str) -> None:
+    """4guard/12移行/1case/必須stack/全tailの採用全値から逸脱させない。"""
+    root, _, _, _, _, _, _, fetches = ordinary_fixture
+    path = root / checker.STATE_TRANSITION_CONTRACT_PATH
+    value = json.loads(path.read_bytes())
+    result_id = ('batting-result.ball' if mutation == 'guard-fourth-ball'
+                 else 'batting-result.called-pitch')
+    row = next(row for row in value['matrixRows'] if row['resultId'] == result_id)
+    if mutation.startswith('guard-'):
+        axis = 'state.count.balls' if mutation == 'guard-fourth-ball' else 'state.count.strikes'
+        leaf = next(leaf for leaf in row['precondition']['args'] if leaf['axisId'] == axis)
+        if mutation == 'guard-order':
+            leaf['values'].reverse()
+        else:
+            leaf['values'].append(True if mutation == 'guard-bool' else
+                                  2 if mutation == 'guard-third-strike' else 3)
+    elif mutation == 'fifth-row':
+        value['matrixRows'][10]['remarks'] = '未採用変更'
+    elif mutation == 'flag':
+        flag = next(iter(row['statFlags']))
+        row['statFlags'][flag] = not row['statFlags'][flag]
+    elif mutation == 'expected':
+        value['cases'][0]['expected'] = {}
+    elif mutation == 'history':
+        value['cases'][0]['historyInput'] = []
+    elif mutation in {'duplicate-case', 'extra-case'}:
+        value['cases'].append(copy.deepcopy(value['cases'][-1]))
+        if mutation == 'extra-case':
+            value['cases'][-1]['caseId'] = 'UNACCEPTED'
+    elif mutation == 'tail':
+        path = root / 'contracts/state-transition/ordinary_pitch_vectors_v1.json'
+        value = json.loads(path.read_bytes())
+        value['historyTailCases'] = []
+    else:
+        path = root / 'contracts/state-transition/ordinary_pitch_request_schema_v1.json'
+        value = json.loads(path.read_bytes())
+        if mutation == 'missing-history':
+            for branch in value['oneOf']:
+                branch['required'].remove('history')
+                del branch['properties']['history']
+        else:
+            value['oneOf'][0]['properties']['unaccepted-field'] = {'type': 'string'}
+    _write_t1_append_json(path, value)
+    assert checker.main(['--root', str(root), '--gate6-carry']) == 1
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mutation', ['branch', 'fork', 'base', 'head', 'other-pr', 'dirty'])
+def test_ordinary_event_and_executed_blob_mismatch(ordinary_fixture: Any,
+                                                 mutation: str) -> None:
+    """番号/branch/repo/版/実行blobが違う対象を今回新受理へ流さない。"""
+    root, guard, event, _, _, _, _, fetches = ordinary_fixture
+    fields = vars(event).copy()
+    if mutation == 'branch':
+        fields['head_branch'] = 'feature/unaccepted'
+    elif mutation == 'fork':
+        fields['head_repository'] = 'other/pitchlog'
+    elif mutation == 'base':
+        fields['base_sha'] = '0' * 40
+    elif mutation == 'head':
+        fields['head_sha'] = '0' * 40
+    elif mutation == 'other-pr':
+        fields['number'] = _synthetic_later_number(
+            json.loads((root / guard.DELEGATION_POLICY_PATH).read_bytes()))
+    else:
+        (root / 'scripts/check_human_review_signature.py').write_text('# dirty\n')
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, guard.PullRequestEvent(**fields))
+    assert fetches == []
+
+
+@pytest.mark.parametrize('different_tree', [False, True])
+def test_ordinary_exact_ci_merge_tree_binding(ordinary_fixture: Any,
+                                             monkeypatch: pytest.MonkeyPatch,
+                                             different_tree: bool) -> None:
+    """最終headと同tree/正確2親のCI mergeだけを検査入力として許す。"""
+    root, _, event, _, _, _, _, fetches = ordinary_fixture
+    record = checker._ordinary_record(root)
+    merge = 'c' * 40
+    old = checker._carry_git_bytes
+
+    def read(r: Path, args: list[str]) -> bytes:
+        if args == ['rev-parse', 'HEAD']:
+            return (merge + '\n').encode()
+        if args == ['rev-parse', merge + '^@']:
+            return (event.base_sha + '\n' + event.head_sha + '\n').encode()
+        if args == ['rev-parse', merge + '^{tree}']:
+            if different_tree:
+                return ('0' * 40 + '\n').encode()
+            return old(r, ['rev-parse', event.head_sha + '^{tree}'])
+        return old(r, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', read)
+    if different_tree:
+        with pytest.raises(checker.HumanReviewSignatureRecordError):
+            checker._ordinary_head(root, event, record)
+    else:
+        checker._ordinary_head(root, event, record)
+    assert fetches == []
+
+
+def test_ordinary_public_cli_reaches_existing_delegation(ordinary_fixture: Any,
+                                                        monkeypatch: pytest.MonkeyPatch,
+                                                        capsys: pytest.CaptureFixture[str]) -> None:
+    """公開CLIの--ciがlocalで済まさず、既非作者証拠検査まで実行する。"""
+    root, guard, event, _, _, _, _, fetches = ordinary_fixture
+    monkeypatch.setattr(guard, 'load_pull_request_event', lambda: event)
+    assert checker.main(['--root', str(root), '--gate6-carry', '--ci']) == 0
+    assert 'DELEGATED VERIFIED' in capsys.readouterr().out
+    assert fetches == ['187']
 def _policy_extension_fixture(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> tuple[Any, dict[str, Any], dict[str, Any], dict[str, Any]]:
@@ -1961,3 +2413,620 @@ def test_carry_policy_extension_requires_non_targets_exact_even_after_valid_load
     # 同じ改変は、独立の既loaderでも拒否される。
     with pytest.raises(checker.HumanReviewSignatureRecordError):
         validate()
+
+
+@pytest.mark.parametrize('base', [checker._ORDINARY_ANCHOR, '0' * 40])
+def test_ordinary_rejects_legacy_or_foreign_public_base(ordinary_fixture: Any, base: str) -> None:
+    """規範原本のanchorを実PR baseの代用にせず、未知baseも拒否する。"""
+    root, guard, event, _, _, _, _, _ = ordinary_fixture
+    changed = guard.PullRequestEvent(**{**vars(event), 'base_sha': base})
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, changed)
+
+
+def _ordinary_registry_fixture_bytes() -> bytes:
+    """正式候補viewの実4入力を負例へ複製する。承認値を新造しない。"""
+    return (Path(__file__).resolve().parents[1] / checker._ORDINARY_REGISTRY_PATH).read_bytes()
+
+
+@pytest.mark.parametrize('key', list(checker._ORDINARY_PIN_DECLARATIONS))
+def test_ordinary_frozen_input_rejects_each_missing_entry(key: str) -> None:
+    """4入力の欠落を旧定数や別rootで補わない。"""
+    asset = json.loads(_ordinary_registry_fixture_bytes())
+    del asset['frozen_inputs'][key]
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_registry(json.dumps(asset).encode())
+
+
+@pytest.mark.parametrize('fault', [
+    'unknown-top', 'unknown-entry', 'bool', 'integer', 'short', 'uppercase',
+    'purpose', 'consumer', 'algorithm', 'schema-bool', 'revision-bool', 'duplicate',
+])
+def test_ordinary_frozen_input_rejects_closed_field_faults(fault: str) -> None:
+    """固定入力の型/目的/consumer/重複をsourceで閉じる。"""
+    asset = json.loads(_ordinary_registry_fixture_bytes())
+    key = 'gate6_ordinary_record_raw_sha256'
+    entry = asset['frozen_inputs'][key]
+    if fault == 'unknown-top':
+        asset['unexpected'] = True
+    elif fault == 'unknown-entry':
+        entry['unexpected'] = True
+    elif fault in {'bool', 'integer', 'short', 'uppercase'}:
+        entry['value'] = {'bool': False, 'integer': 1, 'short': 'f',
+                          'uppercase': 'A' * 64}[fault]
+    elif fault == 'purpose':
+        entry['purpose'] = '別の基準'
+    elif fault == 'consumer':
+        entry['source'] = 'arbitrary.consumer'
+    elif fault == 'algorithm':
+        entry['algorithm'] = 'other'
+    elif fault == 'schema-bool':
+        asset['schema_version'] = True
+    elif fault == 'revision-bool':
+        asset['contract_revision'] = True
+    raw = json.dumps(asset).encode()
+    if fault == 'duplicate':
+        raw = b'{"schema_version":1,' + raw[1:]
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_registry(raw)
+
+
+@pytest.mark.parametrize('flag', [
+    'personalReviewClaimed', 'P6FullAcceptance', 'P7FullAcceptance', 'T1BodyStartComplete',
+])
+@pytest.mark.parametrize('value', [True, 0, None])
+def test_ordinary_source_frame_rejects_coedited_schema_and_receipt(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch, flag: str, value: Any,
+) -> None:
+    """rawpinもschemaも更新する反例でも限定資格falseはsourceが拒否する。"""
+    root, _, _, _, _, _, _, _ = ordinary_fixture
+    record_path = root / checker.GATE6_ORDINARY_PATH
+    schema_path = root / checker.GATE6_ORDINARY_SCHEMA_PATH
+    record = json.loads(record_path.read_bytes())
+    schema = json.loads(schema_path.read_bytes())
+    record['scopeReceipt'][flag] = value
+    schema['properties']['scopeReceipt']['properties'][flag] = {'const': value}
+    _write_t1_append_json(record_path, record)
+    _write_t1_append_json(schema_path, schema)
+    monkeypatch.setattr(checker, '_ORDINARY_RECORD_SHA256',
+                        hashlib.sha256(record_path.read_bytes()).hexdigest())
+    monkeypatch.setattr(checker, '_ORDINARY_SCHEMA_SHA256',
+                        hashlib.sha256(schema_path.read_bytes()).hexdigest())
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_record(root)
+
+
+@pytest.mark.parametrize('fault', [
+    'schema-bool', 'kind', 'status', 'anchor', 'authority-extra', 'foreign-repository',
+    'pr-bool', 'branch', 'base', 'receipt-extra', 'receipt-missing', 'asset-extra',
+    'asset-missing', 'asset-value',
+])
+def test_ordinary_fixed_frame_rejects_scope_and_key_expansion(fault: str) -> None:
+    """schemaの自己宣言と別に既7key/9asset/authorityを保護する。"""
+    record, _ = _ordinary_test_materials(Path(__file__).resolve().parents[1])
+    if fault == 'schema-bool':
+        record['schemaVersion'] = True
+    elif fault == 'kind':
+        record['evidenceKind'] = 'other'
+    elif fault == 'status':
+        record['status'] = 'complete'
+    elif fault == 'anchor':
+        record['anchor'] = checker._ORDINARY_PUBLIC_BASE
+    elif fault == 'authority-extra':
+        record['authority']['extra'] = True
+    elif fault == 'foreign-repository':
+        record['authority']['repository'] = 'other/repo'
+    elif fault == 'pr-bool':
+        record['authority']['pr'] = True
+    elif fault == 'branch':
+        record['authority']['branch'] = 'feature/other'
+    elif fault == 'base':
+        record['authority']['baseRevision'] = checker._ORDINARY_ANCHOR
+    elif fault == 'receipt-extra':
+        record['scopeReceipt']['extra'] = False
+    elif fault == 'receipt-missing':
+        del record['scopeReceipt']['personalReviewClaimed']
+    elif fault == 'asset-extra':
+        record['assets']['other.json'] = 'a' * 64
+    elif fault == 'asset-missing':
+        record['assets'].pop(next(iter(record['assets'])))
+    elif fault == 'asset-value':
+        record['assets'][next(iter(record['assets']))] = True
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_fixed_frame(record)
+
+
+@pytest.mark.parametrize('fault', ['missing-base', 'current-coedit', 'base-invalid'])
+def test_ordinary_registry_inheritance_reads_base_before_current(
+    ordinary_fixture: Any, fault: str,
+) -> None:
+    """Cはcurrentの正常/共同改変をbase登録の代替にしない。"""
+    root, guard, event, base, baseline, calls, _, _ = ordinary_fixture
+    path = str(checker._ORDINARY_REGISTRY_PATH)
+    later = _ordinary_later_event(root, guard, event, base)
+    if fault == 'missing-base':
+        del baseline[path]
+    elif fault == 'base-invalid':
+        baseline[path] = b'{}'
+    else:
+        asset = json.loads((root / path).read_bytes())
+        asset['frozen_inputs']['gate6_ordinary_record_raw_sha256']['value'] = 'f' * 64
+        _write_t1_append_json(root / path, asset)
+    calls.clear()
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_pin_registration(root, later, new_acceptance=False)
+    assert calls[0] == ['show', f'{base}:{path}']
+
+
+@pytest.mark.parametrize('fault', ['history-missing', 'history-id', 'old-entry', 'external',
+                                  'registry-coedit', 'record-schema-pin-coedit'])
+def test_ordinary_registration_requires_actual_77_transition(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch, fault: str,
+) -> None:
+    """Bの値自己比較だけを正にせず、既7.7全射影が共同改変を拒否する。"""
+    root, _, event, _, _, _, _, _ = ordinary_fixture
+    registry_path = root / checker._ORDINARY_REGISTRY_PATH
+    asset = json.loads(registry_path.read_bytes())
+    history_path = root / 'contracts/tenant_boundary/base-allowlist.json'
+    history = json.loads(history_path.read_bytes())
+    if fault == 'history-missing':
+        history['baseline_control']['history'].pop()
+        _write_t1_append_json(history_path, history)
+    elif fault == 'history-id':
+        history['baseline_control']['history'][-1]['acceptance_id'] = 'other/repo#187'
+        _write_t1_append_json(history_path, history)
+    elif fault == 'old-entry':
+        old = next(key for key in asset['frozen_inputs']
+                   if key not in checker._ORDINARY_PIN_DECLARATIONS)
+        asset['frozen_inputs'][old]['purpose'] = '既値を共同変更'
+        _write_t1_append_json(registry_path, asset)
+    elif fault == 'external':
+        asset['baseline_control']['identity']['frozen_projection']['external_files'].pop()
+        _write_t1_append_json(registry_path, asset)
+    else:
+        record_path = root / checker.GATE6_ORDINARY_PATH
+        record = json.loads(record_path.read_bytes())
+        if fault == 'record-schema-pin-coedit':
+            record_path.write_text(json.dumps(record, ensure_ascii=False, indent=4) + '\n')
+            schema_path = root / checker.GATE6_ORDINARY_SCHEMA_PATH
+            schema = json.loads(schema_path.read_bytes())
+            schema_path.write_text(json.dumps(schema, ensure_ascii=False, indent=4) + '\n')
+            asset['frozen_inputs']['gate6_ordinary_schema_raw_sha256']['value'] = (
+                hashlib.sha256(schema_path.read_bytes()).hexdigest())
+        record_path.write_bytes(record_path.read_bytes() + b'\n')
+        asset['frozen_inputs']['gate6_ordinary_record_raw_sha256']['value'] = (
+            hashlib.sha256(record_path.read_bytes()).hexdigest())
+        # fresh consumerが共同変更済みregistryを読んだ状況を模す。7.7はstubしない。
+        _write_t1_append_json(registry_path, asset)
+        pins = checker._ordinary_registry(registry_path.read_bytes())[1]
+        monkeypatch.setattr(checker, '_ORDINARY_PIN_VALUES', pins)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_pin_registration(root, event, new_acceptance=True)
+
+
+def test_ordinary_coedited_snapshot_cannot_reuse_original_final_head(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """7.7afterまで共同更新した反例は、独立の元final blob束縛が拒否する。"""
+    from scripts import frozen_archive, frozen_history
+
+    root, _, event, _, baseline, _, _, _ = ordinary_fixture
+    registry_path = str(checker._ORDINARY_REGISTRY_PATH)
+    registry = json.loads((root / registry_path).read_bytes())
+    for path, key, constant in [
+        (checker.GATE6_ORDINARY_PATH, 'gate6_ordinary_record_raw_sha256',
+         '_ORDINARY_RECORD_SHA256'),
+        (checker.GATE6_ORDINARY_SCHEMA_PATH, 'gate6_ordinary_schema_raw_sha256',
+         '_ORDINARY_SCHEMA_SHA256'),
+    ]:
+        target = root / path
+        target.write_bytes(target.read_bytes() + b'\n')
+        digest = hashlib.sha256(target.read_bytes()).hexdigest()
+        registry['frozen_inputs'][key]['value'] = digest
+        monkeypatch.setattr(checker, constant, digest)
+    _write_t1_append_json(root / registry_path, registry)
+    monkeypatch.setattr(checker, '_ORDINARY_PIN_VALUES',
+                        checker._ordinary_registry((root / registry_path).read_bytes())[1])
+    targets = registry['baseline_control']['identity']['frozen_projection']['external_files']
+    content = frozen_history.frozen_projection_content(
+        registry, {path: (root / path).read_bytes() for path in targets})
+    digest = hashlib.sha256(content).hexdigest()
+    archive = root / 'contracts/tenant_boundary/history-snapshots'
+    (archive / digest).write_bytes(content)
+    history_path = root / 'contracts/tenant_boundary/base-allowlist.json'
+    authority = json.loads(history_path.read_bytes())
+    after = authority['baseline_control']['history'][-1]['change']['after']
+    row = next(item for item in after['asset_snapshots'] if item['path'] == registry_path)
+    previous = Path(row['snapshot_ref']).name
+    row['sha256'] = digest
+    row['snapshot_ref'] = 'contracts/tenant_boundary/history-snapshots/' + digest
+    _write_t1_append_json(history_path, authority)
+    referenced = frozen_archive.extract_referenced_snapshot_names(
+        authority['baseline_control']['history'], archive, location='合成共同変更')
+    if previous not in referenced:
+        (archive / previous).unlink()
+    # この自己整合だけで正式受理とはしない。外部headは元のblobを指す。
+    checker._ordinary_pin_registration(root, event, new_acceptance=True)
+    read = checker._carry_git_bytes
+
+    def original_final_head(repository: Path, args: list[str]) -> bytes:
+        if args == ['show', f'{event.head_sha}:{registry_path}']:
+            return baseline[registry_path]
+        return read(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', original_final_head)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_head(root, event, checker._ordinary_record(root))
+
+
+
+def _ordinary_test_tenant_checker() -> Any:
+    """製品helperと同じmodule instanceを取得し、二重importのstub漏れを防ぐ。"""
+    try:
+        return importlib.import_module('check_tenant_boundary_bypass')
+    except ModuleNotFoundError:
+        importlib.import_module('scripts.check_tenant_boundary_bypass')
+        return importlib.import_module('check_tenant_boundary_bypass')
+
+def _ordinary_reproject_last_after(root: Path) -> None:
+    """合成対向のcurrent実byteから最終after全射影だけを再構成する。"""
+    tenant = _ordinary_test_tenant_checker()
+
+    frozen = tenant.frozen_history
+    assets = {path: json.loads((root / path).read_bytes())
+              for path in checker._ORDINARY_REGISTRATION_ASSETS}
+    components = frozen._repository_components(assets, '合成after')
+    targets = sorted({path for value in components.values() for path in value.external_files})
+    implementations = {path: (root / path).read_bytes() for path in targets}
+    snapshots, payloads = frozen._asset_projection_snapshots(assets, implementations, '合成after')
+    archive = root / 'contracts/tenant_boundary/history-snapshots'
+    for content in {**implementations, **payloads}.values():
+        (archive / hashlib.sha256(content).hexdigest()).write_bytes(content)
+    authority_path = root / tenant.DEFAULT_ALLOWLIST
+    authority = json.loads(authority_path.read_bytes())
+    previous_after = authority['baseline_control']['history'][-1]['change']['after']
+    previous_refs = {Path(row['snapshot_ref']).name
+                     for kind in ('external_snapshots', 'asset_snapshots')
+                     for row in previous_after[kind]}
+    authority['baseline_control']['history'][-1]['change']['after'] = {
+        'declaration': {path: value.declaration for path, value in components.items()},
+        'movement_policy': {path: value.movement_policy for path, value in components.items()},
+        'external_snapshots': frozen._implementation_snapshots(
+            targets, implementations, '合成after'),
+        'asset_snapshots': snapshots,
+    }
+    _write_t1_append_json(authority_path, authority)
+    references = tenant.frozen_archive.extract_referenced_snapshot_names(
+        authority['baseline_control']['history'], archive, location='合成after参照')
+    for name in previous_refs - references:
+        (archive / name).unlink()
+
+
+def test_ordinary_b_captured_external_dirty_cannot_reuse_original_head(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧P0反例: 実HEAD一致でもconsumer-only dirtyと自己整合afterを拒否する。"""
+    root, _, event, _, _, calls, _, fetches = ordinary_fixture
+    path = 'tests/domain/test_boot_seal.py'
+    before = (root / path).read_bytes()
+    (root / path).write_bytes(before + b'\n# synthetic external-only dirty\n')
+    _ordinary_reproject_last_after(root)
+    read = checker._carry_git_bytes
+
+    def original_consumer_blob(repository: Path, args: list[str]) -> bytes:
+        if args == ['show', f'{event.head_sha}:{path}']:
+            calls.append(args)
+            return before
+        return read(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', original_consumer_blob)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='実読取資料'):
+        checker.validate_gate6_ci_event(root, event)
+    assert ['show', f'{event.head_sha}:{path}'] in calls
+    assert fetches == []
+
+
+@pytest.mark.parametrize('kind', ['authority', 'asset', 'snapshot'])
+def test_ordinary_registration_binds_captured_metadata_and_referenced_snapshot(
+    ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch, kind: str,
+) -> None:
+    """実7.7内部整合とは別に、全実読取資料の最終Git blob一致を要求する。"""
+    root, _, event, _, _, calls, _, fetches = ordinary_fixture
+    if kind == 'authority':
+        path = 'contracts/tenant_boundary/base-allowlist.json'
+    elif kind == 'asset':
+        path = 'contracts/tenant_boundary/census-baseline.json'
+    else:
+        authority = json.loads(
+            (root / 'contracts/tenant_boundary/base-allowlist.json').read_bytes())
+        path = authority['baseline_control']['history'][-1]['change']['after'][
+            'external_snapshots'][0]['snapshot_ref']
+    read = checker._carry_git_bytes
+
+    def older_blob(repository: Path, args: list[str]) -> bytes:
+        if args == ['show', f'{event.head_sha}:{path}']:
+            calls.append(args)
+            return (root / path).read_bytes() + b'\n'
+        return read(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', older_blob)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='実読取資料'):
+        checker.validate_gate6_ci_event(root, event)
+    assert ['show', f'{event.head_sha}:{path}'] in calls
+    assert fetches == []
+
+
+@pytest.fixture
+def ordinary_188_fixture(ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """実検証器へ合成base/head Git観測と188証拠を供給し、7.7/core判定はstubしない。"""
+    tenant = _ordinary_test_tenant_checker()
+
+    root, guard, old_event, base, baseline, calls, comment, fetches = ordinary_fixture
+    frozen = tenant.frozen_history
+    registry_path = str(checker._ORDINARY_REGISTRY_PATH)
+    registry = json.loads((root / registry_path).read_bytes())
+    for path in checker._ORDINARY_FOLLOWUP_EXTERNALS:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / path).read_bytes())
+    # 値は合成40hexの型対向。実188の意味採用/公開受理ではない。
+    registry['frozen_inputs'].update({
+        key: {'value': checker._ORDINARY_PUBLIC_BASE, **declaration}
+        for key, declaration in checker._ORDINARY_FOLLOWUP_DECLARATIONS.items()})
+    registry['contract_revision'] += 1
+    registry['baseline_control']['identity']['current_identifiers'] = [
+        'contract_revision:' + str(registry['contract_revision'])]
+    registry['baseline_control']['identity']['frozen_projection']['external_files'] += list(
+        checker._ORDINARY_FOLLOWUP_EXTERNALS)
+    _write_t1_append_json(root / registry_path, registry)
+    states = []
+    for is_base in (True, False):
+        assets = {path: json.loads(baseline[path] if is_base else (root / path).read_bytes())
+                  for path in checker._ORDINARY_REGISTRATION_ASSETS}
+        components = frozen._repository_components(assets, '合成188')
+        targets = sorted({path for value in components.values() for path in value.external_files})
+        implementations = {path: baseline[path] if is_base else (root / path).read_bytes()
+                           for path in targets}
+        snapshots, payloads = frozen._asset_projection_snapshots(assets, implementations, '合成188')
+        for content in {**implementations, **payloads}.values():
+            (root / 'contracts/tenant_boundary/history-snapshots' /
+             hashlib.sha256(content).hexdigest()).write_bytes(content)
+        states.append({
+            'declaration': {path: value.declaration for path, value in components.items()},
+            'movement_policy': {path: value.movement_policy for path, value in components.items()},
+            'external_snapshots': frozen._implementation_snapshots(
+                targets, implementations, '合成188'),
+            'asset_snapshots': snapshots,
+        })
+    authority_path = root / tenant.DEFAULT_ALLOWLIST
+    authority = json.loads(authority_path.read_bytes())
+    record = copy.deepcopy(authority['baseline_control']['history'][-1])
+    record['acceptance_id'] = 'masaki1025/pitchlog#188'
+    record['previous_baseline_identifiers'] = {
+        path: list(value.current_identifiers)
+        for path, value in frozen._repository_components(
+            {path: json.loads(baseline[path]) for path in checker._ORDINARY_REGISTRATION_ASSETS},
+            '合成188base').items()}
+    record['new_baseline_identifiers'] = {
+        path: list(value.current_identifiers)
+        for path, value in frozen._repository_components(
+            {path: json.loads((root / path).read_bytes())
+             for path in checker._ORDINARY_REGISTRATION_ASSETS}, '合成188current').items()}
+    record['change'] = {'subject': '合成188閉登録',
+                        'aspect': sorted(frozen.derive_aspects(*states)),
+                        'before': states[0], 'after': states[1]}
+    authority['baseline_control']['history'].append(record)
+    _write_t1_append_json(authority_path, authority)
+    policy_path = root / guard.DELEGATION_POLICY_PATH
+    policy = json.loads(policy_path.read_bytes())
+    policy['targets'].append({'pr': 188, 'branch': checker._ORDINARY_FOLLOWUP_BRANCH})
+    _write_t1_append_json(policy_path, policy)
+    url = 'https://github.com/masaki1025/pitchlog/pull/188#issuecomment-188'
+    event = guard.PullRequestEvent(base, old_event.head_sha, 'PO-DELEGATION-EVIDENCE: ' + url,
+        188, old_event.repository, old_event.head_repository, checker._ORDINARY_FOLLOWUP_BRANCH)
+    original_tenant_git = tenant._run_git
+
+    def tree_rows(files: dict[str, bytes], prefix: str) -> str:
+        return ''.join('100644 blob ' + hashlib.sha1(raw).hexdigest() + '\t' + path + '\n'
+                       for path, raw in sorted(files.items())
+                       if path == prefix or path.startswith(prefix + '/'))
+
+    def tenant_git(repository: Path, arguments: Any) -> str:
+        args = list(arguments)
+        current_files = {path.relative_to(root).as_posix(): path.read_bytes()
+                         for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+        if args[:2] == ['ls-tree', '-r']:
+            revision, prefix = args[2], args[-1]
+            if revision in {base, 'HEAD'}:
+                return tree_rows(baseline if revision == base else current_files, prefix)
+        if args[:2] == ['--literal-pathspecs', 'ls-tree']:
+            revision, path = args[2], args[-1]
+            if revision in {base, 'HEAD'}:
+                return tree_rows(baseline if revision == base else current_files, path)
+        if args[:1] == ['show'] and args[1].startswith(base + ':'):
+            return baseline[args[1].split(':', 1)[1]].decode()
+        if args == ['rev-list', '--parents', '-n', '1', 'HEAD']:
+            return event.head_sha + ' ' + base + '\n'
+        return original_tenant_git(repository, args)
+
+    monkeypatch.setattr(tenant, '_run_git', tenant_git)
+    old_guard_git = guard._delegation_git_bytes
+    def changed_observation() -> dict[str, Any]:
+        current = {path.relative_to(root).as_posix(): path.read_bytes()
+                   for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+        return {path: {'before': hashlib.sha256(baseline[path]).hexdigest()
+                      if path in baseline else None,
+                      'after': hashlib.sha256(current[path]).hexdigest()
+                      if path in current else None}
+                for path in sorted(set(baseline) | set(current))
+                if baseline.get(path) != current.get(path)}
+
+    def diff_bytes() -> bytes:
+        # 合成Git観測だが、共同変更後に元のdiff hashを返すstubにはしない。
+        return json.dumps(changed_observation(), sort_keys=True).encode()
+
+    paths = list(changed_observation())
+
+    def guard_git(repository: Path, args: list[str], label: str) -> bytes:
+        if args == ['ls-tree', '--format=%(objecttype)', base, '--',
+                    str(guard.DELEGATION_POLICY_PATH)]:
+            return b'blob\n'
+        if args == ['show', f'{base}:{guard.DELEGATION_POLICY_PATH}']:
+            return baseline[str(guard.DELEGATION_POLICY_PATH)]
+        if args[:1] == ['diff'] and args[-1] == f'{base}...{event.head_sha}':
+            return diff_bytes()
+        return old_guard_git(repository, args, label)
+
+    monkeypatch.setattr(guard, '_delegation_git_bytes', guard_git)
+    old_changed = guard.changed_paths
+    monkeypatch.setattr(guard, 'changed_paths', lambda repository, b, h:
+        list(changed_observation()) if (b, h) == (base, event.head_sha)
+        else old_changed(repository, b, h))
+    evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+    evidence.update({'authority_sha256': hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+                     'pr': 188, 'base': base,
+                     'diff_sha256': hashlib.sha256(diff_bytes()).hexdigest(),
+                     'paths': paths})
+    comment.update({'id': 188, 'html_url': url,
+                    'issue_url': 'https://api.github.com/repos/masaki1025/pitchlog/issues/188',
+                    'body': guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)})
+    return root, guard, event, base, baseline, calls, comment, fetches
+
+
+def test_ordinary_c_accepts_exact_188_append_with_actual_77_and_current_core_evidence(
+    ordinary_188_fixture: Any,
+) -> None:
+    """C新登録だけが実7.7と当該188の既coreguardを通り、旧通常受理は繰り返さない。"""
+    root, _, event, _, baseline, calls, _, fetches = ordinary_188_fixture
+    assert 'no new ordinary acceptance' in checker.validate_gate6_ci_event(root, event)
+    assert fetches == ['188']
+    expected = set(checker._ORDINARY_REGISTRATION_ASSETS)
+    authority = json.loads((root / 'contracts/tenant_boundary/base-allowlist.json').read_bytes())
+    tenant = _ordinary_test_tenant_checker()
+    for path in checker._ORDINARY_REGISTRATION_ASSETS:
+        asset = json.loads((root / path).read_bytes())
+        expected.update(asset['baseline_control']['identity']['frozen_projection']['external_files'])
+    expected.update('contracts/tenant_boundary/history-snapshots/' + name for name in
+        tenant.frozen_archive.extract_referenced_snapshot_names(
+            authority['baseline_control']['history'],
+            root / 'contracts/tenant_boundary/history-snapshots'))
+    assert all(['show', f'{event.head_sha}:{path}'] in calls for path in expected)
+    current = json.loads((root / checker._ORDINARY_REGISTRY_PATH).read_bytes())['frozen_inputs']
+    old = json.loads(baseline[str(checker._ORDINARY_REGISTRY_PATH)])['frozen_inputs']
+    assert all(current[key] == value for key, value in old.items())
+
+
+@pytest.mark.parametrize('fault', [
+    'pr', 'branch', 'repository', 'head-repository', 'third-entry', 'extra-field',
+    'purpose', 'source', 'source-alias', 'algorithm', 'bad-value', 'old4', 'old-other',
+    'delete-old', 'external-delete', 'external-order', 'external-third', 'revision',
+    'identity', 'movement-policy', 'history-id', 'old-history', 'missing-snapshot',
+    'snapshot-symlink', 'snapshot-head', 'consumer1-head', 'consumer2-head',
+    'missing-evidence', 'old187-evidence', 'evidence-head', 'evidence-diff',
+    'self-review', 'unresolved-P1', 'value-coedit-original-evidence',
+])
+def test_ordinary_c_188_append_rejects_outside_packet_or_unbound_evidence(
+    ordinary_188_fixture: Any, monkeypatch: pytest.MonkeyPatch, fault: str,
+) -> None:
+    """有限登録・実履歴・全byte・現在PRの独立証拠のどれも共同自己申告で代用しない。"""
+    root, guard, event, _, _, _, comment, fetches = ordinary_188_fixture
+    if fault in {'pr', 'branch', 'repository', 'head-repository'}:
+        key, value = {'pr': ('number', 189), 'branch': ('head_branch', 'feature/other'),
+            'repository': ('repository', 'other/repo'),
+            'head-repository': ('head_repository', 'other/repo')}[fault]
+        event = guard.PullRequestEvent(**{**vars(event), key: value})
+    registry_path = root / checker._ORDINARY_REGISTRY_PATH
+    registry = json.loads(registry_path.read_bytes())
+    key = next(iter(checker._ORDINARY_FOLLOWUP_DECLARATIONS))
+    entry = registry['frozen_inputs'][key]
+    identity = registry['baseline_control']['identity']
+    if fault == 'third-entry':
+        registry['frozen_inputs']['unknown'] = copy.deepcopy(entry)
+    elif fault in {'extra-field', 'algorithm'}:
+        entry['unexpected' if fault == 'extra-field' else 'algorithm'] = 'other'
+    elif fault in {'purpose', 'source'}:
+        entry[fault] = 'other'
+    elif fault == 'source-alias':
+        entry['sources'] = [entry.pop('source')]
+    elif fault == 'bad-value':
+        entry['value'] = True
+    elif fault == 'value-coedit-original-evidence':
+        entry['value'] = '0' * 40
+    elif fault == 'old4':
+        registry['frozen_inputs']['gate6_ordinary_record_raw_sha256']['value'] = 'f' * 64
+    elif fault in {'old-other', 'delete-old'}:
+        old = next(k for k in registry['frozen_inputs']
+                   if k not in {*checker._ORDINARY_PIN_DECLARATIONS,
+                                *checker._ORDINARY_FOLLOWUP_DECLARATIONS})
+        if fault == 'delete-old':
+            del registry['frozen_inputs'][old]
+        else:
+            registry['frozen_inputs'][old]['purpose'] += 'changed'
+    elif fault.startswith('external-'):
+        external = identity['frozen_projection']['external_files']
+        if fault == 'external-delete':
+            external.pop(0)
+        elif fault == 'external-order':
+            external.reverse()
+        else:
+            external.append('third.py')
+    elif fault == 'revision':
+        registry['contract_revision'] += 1
+    elif fault == 'identity':
+        identity['current_identifiers'] = ['contract_revision:0']
+    elif fault == 'movement-policy':
+        registry['baseline_control']['movement_policy'] = {}
+    _write_t1_append_json(registry_path, registry)
+    if fault == 'value-coedit-original-evidence':
+        _ordinary_reproject_last_after(root)
+    authority_path = root / 'contracts/tenant_boundary/base-allowlist.json'
+    authority = json.loads(authority_path.read_bytes())
+    if fault == 'history-id':
+        authority['baseline_control']['history'][-1]['acceptance_id'] = 'masaki1025/pitchlog#187'
+    elif fault == 'old-history':
+        authority['baseline_control']['history'][0]['reason'] += 'changed'
+    if fault in {'history-id', 'old-history'}:
+        _write_t1_append_json(authority_path, authority)
+    if fault in {'missing-snapshot', 'snapshot-symlink', 'snapshot-head'}:
+        path = authority['baseline_control']['history'][-1]['change']['after'][
+            'external_snapshots'][0]['snapshot_ref']
+        target = root / path
+        if fault == 'missing-snapshot':
+            target.unlink()
+        elif fault == 'snapshot-symlink':
+            target.unlink()
+            target.symlink_to(root / checker._ORDINARY_REGISTRY_PATH)
+        else:
+            read = checker._carry_git_bytes
+            monkeypatch.setattr(checker, '_carry_git_bytes', lambda repository, args:
+                b'old snapshot' if args == ['show', f'{event.head_sha}:{path}']
+                else read(repository, args))
+    if fault in {'consumer1-head', 'consumer2-head'}:
+        path = checker._ORDINARY_FOLLOWUP_EXTERNALS[0 if fault == 'consumer1-head' else 1]
+        before = (root / path).read_bytes()
+        (root / path).write_bytes(before + b'\n# synthetic consumer-only dirty\n')
+        _ordinary_reproject_last_after(root)
+        read = checker._carry_git_bytes
+        monkeypatch.setattr(checker, '_carry_git_bytes', lambda repository, args:
+            before if args == ['show', f'{event.head_sha}:{path}'] else read(repository, args))
+    if fault == 'missing-evidence':
+        event = guard.PullRequestEvent(**{**vars(event), 'body': ''})
+    if fault in {'old187-evidence', 'evidence-head', 'evidence-diff',
+                 'self-review', 'unresolved-P1'}:
+        evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+        if fault == 'old187-evidence':
+            evidence['pr'] = 187
+        elif fault == 'evidence-head':
+            evidence['head'] = '0' * 40
+        elif fault == 'evidence-diff':
+            evidence['diff_sha256'] = '0' * 64
+        elif fault == 'self-review':
+            evidence['reviewer_agent'] = evidence['candidate_agents'][0]
+        else:
+            evidence['findings'] = [{'severity': 'P1', 'resolved': False, 'detail': '未是正'}]
+        comment['body'] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    if fault not in {'old187-evidence', 'evidence-head', 'evidence-diff',
+                     'self-review', 'unresolved-P1', 'value-coedit-original-evidence'}:
+        assert fetches == []

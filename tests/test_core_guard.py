@@ -517,9 +517,18 @@ RG1_LIFECYCLE_PATHS = (
     "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
     "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
 )
-EXPECTED_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
+RG1_HISTORICAL_AREA_PATH_ADDITIONS: dict[str, tuple[str, ...]] = {
     area_id: RG1_LIFECYCLE_PATHS
     for area_id in ("sync-protocol", "recording-rights", "tenant-isolation")
+}
+
+CORPUS_GENERATION_PATHS = (
+    "tests/fixtures/frozen-archive-cases/generation_runner.py",
+    "tests/test_frozen_archive_generation_runner.py",
+)
+EXPECTED_AREA_PATH_ADDITIONS = {
+    "sync-protocol": CORPUS_GENERATION_PATHS,
+    "game-state": CORPUS_GENERATION_PATHS,
 }
 
 # 台帳の過去追加層は現行RG1層から独立して固定する。
@@ -2330,13 +2339,13 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     assert used_revision == base_sha
 
 
-def test_stage_a_startup_declaration_keeps_json_baseline_stationary() -> None:
-    """実基線と実JSONの二領域に起動入口の登録が残る。"""
-    core_guard = load_core_guard_module()
+def test_stage_a_startup_declaration_keeps_json_baseline_stationary(tmp_path: Path) -> None:
+    """旧RG1宣言の実基線と当時JSONで起動入口の二領域登録を保つ。"""
+    core_guard = _historical_rg1_guard(tmp_path)
     baseline = core_guard.load_core_areas_at_revision(
         REPO, rg1_lifecycle_comparison_revision()
     )
-    configuration = load_actual_core_areas()
+    configuration = _without_generation_paths(load_actual_core_areas())
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
 
     assert PRE_INITIAL_RIGHTS_PATH_ADDITIONS["game-state"] == (startup,)
@@ -2629,8 +2638,8 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
 
 
 def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path) -> None:
-    """二領域の起動入口登録後、JSON据置き宣言とtenant追加登録を受理する。"""
-    core_guard = load_core_guard_module()
+    """旧RG1宣言で、起動入口登録後のJSON据置き・tenant追加を保つ。"""
+    core_guard = _historical_rg1_guard(tmp_path)
     root, initial_sha = make_layered_core_repo(tmp_path)
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
     stage_additions: dict[str, tuple[str, ...]] = {
@@ -2656,7 +2665,7 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
         initial_sha
     )
 
-    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    write_text(root, "scripts/core_guard.py", Path(core_guard.__file__).read_text(encoding="utf-8"))
     run_git(root, "add", "scripts/core_guard.py")
     run_git(
         root,
@@ -2680,12 +2689,12 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
     game_area = next(area for area in candidate["areas"] if area["id"] == "game-state")
     assert tenant_area["paths"] == ["base/tenant-isolation.py", startup]
     assert game_area["paths"] == ["base/game-state.py", startup]
-    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == RG1_HISTORICAL_AREA_PATH_ADDITIONS
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
 
     registered_sha = commit_area_path_changes(
-        root, {"tenant-isolation": EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]}
+        root, {"tenant-isolation": RG1_HISTORICAL_AREA_PATH_ADDITIONS["tenant-isolation"]}
     )
     registered = core_guard.load_core_areas_at_revision(root, registered_sha)
     for area in registered["areas"]:
@@ -2694,7 +2703,7 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
             f"base/{area_id}.py",
             *stage_additions.get(area_id, ()),
             *(
-                EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]
+                RG1_HISTORICAL_AREA_PATH_ADDITIONS["tenant-isolation"]
                 if area_id == "tenant-isolation"
                 else ()
             ),
@@ -2706,7 +2715,7 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
     partial = json.loads(json.dumps(candidate))
     next(area for area in partial["areas"] if area["id"] == "tenant-isolation")[
         "paths"
-    ].append(EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"][0])
+    ].append(RG1_HISTORICAL_AREA_PATH_ADDITIONS["tenant-isolation"][0])
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
         core_guard.validate_area_path_layers(baseline, partial)
 
@@ -4696,21 +4705,21 @@ def test_initial_rights_core_each_future_file_requires_check(
 
 def rg1_lifecycle_configuration(*, registered: bool) -> dict[str, Any]:
     """既存登録を保持してRG1実制御の三領域だけを合成する。"""
-    configuration = load_actual_core_areas()
+    configuration = _without_generation_paths(load_actual_core_areas())
     for area in configuration['areas']:
         area['paths'] = [p for p in area['paths'] if p not in RG1_LIFECYCLE_PATHS]
-        if registered and area['id'] in EXPECTED_AREA_PATH_ADDITIONS:
+        if registered and area['id'] in RG1_HISTORICAL_AREA_PATH_ADDITIONS:
             area['paths'].extend(RG1_LIFECYCLE_PATHS)
     return configuration
 
 
-def test_rg1_lifecycle_declaration_actual_phase_preserves_existing_assets() -> None:
+def test_rg1_lifecycle_declaration_actual_phase_preserves_existing_assets(tmp_path: Path) -> None:
     """宣言のみ/全登録を分け、実在部品と既存資産の捕捉を必須にする。"""
-    guard = load_core_guard_module()
-    actual = load_actual_core_areas()
+    guard = _historical_rg1_guard(tmp_path)
+    actual = _without_generation_paths(load_actual_core_areas())
     before = rg1_lifecycle_configuration(registered=False)
     after = rg1_lifecycle_configuration(registered=True)
-    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert dict(guard.AREA_PATH_ADDITIONS) == RG1_HISTORICAL_AREA_PATH_ADDITIONS
     assert guard.RG1_LIFECYCLE_PATH_ADDITIONS == RG1_LIFECYCLE_PATHS
     assert actual in (before, after)
     if any((REPO / path).exists() for path in RG1_LIFECYCLE_PATHS):
@@ -4721,7 +4730,8 @@ def test_rg1_lifecycle_declaration_actual_phase_preserves_existing_assets() -> N
         k: v for k, v in after.items() if k != 'areas'
     }
     for old, new in zip(before['areas'], after['areas'], strict=True):
-        suffix = list(RG1_LIFECYCLE_PATHS) if old['id'] in EXPECTED_AREA_PATH_ADDITIONS else []
+        suffix = (list(RG1_LIFECYCLE_PATHS)
+                  if old['id'] in RG1_HISTORICAL_AREA_PATH_ADDITIONS else [])
         assert new == {**old, 'paths': old['paths'] + suffix}
     assert guard.matched_paths(
         ['backend/src/pitchlog/recording_rights/rg1_lifecycle_other.py'],
@@ -4729,15 +4739,15 @@ def test_rg1_lifecycle_declaration_actual_phase_preserves_existing_assets() -> N
     ) == []
 
 
-@pytest.mark.parametrize('area_id', tuple(EXPECTED_AREA_PATH_ADDITIONS))
+@pytest.mark.parametrize('area_id', tuple(RG1_HISTORICAL_AREA_PATH_ADDITIONS))
 @pytest.mark.parametrize(
     'mutation', ('partial', 'reverse', 'duplicate', 'delete-old', 'replace', 'extra'),
 )
 def test_rg1_lifecycle_registration_rejects_inexact_layers(
-    area_id: str, mutation: str,
+    area_id: str, mutation: str, tmp_path: Path,
 ) -> None:
     """一件欠落/逆順/重複/旧削除/置換/余剰を領域ごとに拒否する。"""
-    guard = load_core_guard_module()
+    guard = _historical_rg1_guard(tmp_path)
     baseline = rg1_lifecycle_configuration(registered=False)
     candidate = rg1_lifecycle_configuration(registered=True)
     area = next(a for a in candidate['areas'] if a['id'] == area_id)
@@ -4760,11 +4770,11 @@ def test_rg1_lifecycle_registration_rejects_inexact_layers(
 
 def test_rg1_lifecycle_declaration_precedes_json_in_real_history(tmp_path: Path) -> None:
     """部品未作成でも実履歴の宣言→別JSONだけを受理する。"""
-    guard = load_core_guard_module()
+    guard = _historical_rg1_guard(tmp_path)
     root, base = make_layered_core_repo(tmp_path)
-    _, declaration = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    _, declaration = commit_change(root, 'scripts/core_guard.py', Path(guard.__file__).read_text())
     assert guard.verify_area_path_baseline(root, base, declaration) == base
-    registered = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS)
+    registered = commit_area_path_changes(root, RG1_HISTORICAL_AREA_PATH_ADDITIONS)
     assert guard._changed_paths_in_commit(root, registered) == frozenset(
         {'.claude/core-areas.json'}
     )
@@ -4778,9 +4788,9 @@ def test_rg1_lifecycle_json_and_baseline_definitions_cannot_cochange(
     tmp_path: Path, cochanged: str,
 ) -> None:
     """新三パスでも旧f48型の共変更拒否を維持する。"""
-    guard = load_core_guard_module()
+    guard = _historical_rg1_guard(tmp_path)
     root, base = make_layered_core_repo(tmp_path)
-    head = commit_area_path_changes(root, EXPECTED_AREA_PATH_ADDITIONS,
+    head = commit_area_path_changes(root, RG1_HISTORICAL_AREA_PATH_ADDITIONS,
                                     cochanged_paths=(cochanged,))
     with pytest.raises(guard.GuardError, match='同一コミット'):
         guard.verify_area_path_baseline(root, base, head)
@@ -4918,7 +4928,7 @@ def test_current_declaration_accepts_json_after_us1_baseline(
 
 def durable_ledger_configuration(*, registered: bool) -> dict[str, Any]:
     """正常initialを保持し、外部台帳の宣言済み8追記だけを合成する。"""
-    configuration = load_actual_core_areas()
+    configuration = _without_generation_paths(load_actual_core_areas())
     patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
     for area in configuration['areas']:
         paths = area['paths']
@@ -4936,6 +4946,7 @@ def assert_durable_ledger_registration(
     configuration: dict[str, Any], root: Path = REPO,
 ) -> bool:
     """登録前の不在と登録後の実行資産捕捉を、全3領域で照合する。"""
+    configuration = _without_generation_paths(configuration)
     guard = load_core_guard_module()
     areas = {area['id']: area['paths'] for area in configuration['areas']}
     patterns = {*DURABLE_LEDGER_PATHS, *DURABLE_LEDGER_FIXTURE}
@@ -5331,3 +5342,80 @@ def test_rg1_ledger_supply_discovery_survives_normal_merge_and_rejects_ambiguity
                 rg1_durable_ledger_supply_revision()
     finally:
         rg1_durable_ledger_supply_revision.cache_clear()
+
+
+def _without_generation_paths(configuration: dict[str, Any]) -> dict[str, Any]:
+    """新二パスの完全suffixだけを外し、旧RG1入力の拒否規則を保つ。"""
+    result = json.loads(json.dumps(configuration))
+    for area in result["areas"]:
+        if not any(p in area["paths"] for p in CORPUS_GENERATION_PATHS):
+            continue
+        assert area["id"] in EXPECTED_AREA_PATH_ADDITIONS
+        assert tuple(area["paths"][-2:]) == CORPUS_GENERATION_PATHS
+        assert all(area["paths"].count(p) == 1 for p in CORPUS_GENERATION_PATHS)
+        del area["paths"][-2:]
+    return result
+
+
+def _historical_rg1_guard(tmp_path: Path) -> Any:
+    """既初期権と同じ補助で、RG1当時の追加層だけを隔離する。"""
+    script = tmp_path / "rg1_historical_guard.py"
+    script.write_text(core_guard_source_with_additions(RG1_HISTORICAL_AREA_PATH_ADDITIONS))
+    historical = load_core_guard_module(script, module_name="rg1_historical_guard")
+    assert dict(historical.AREA_PATH_ADDITIONS) == RG1_HISTORICAL_AREA_PATH_ADDITIONS
+    return historical
+
+
+def test_generation_paths_are_exactly_registered_without_new_exclusions() -> None:
+    """新二パスを両required領域へ正規登録し、除外へ逃がさない。"""
+    actual = load_actual_core_areas()
+    before = _without_generation_paths(actual)
+    guard = load_core_guard_module()
+    assert dict(guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert guard.CORPUS_GENERATION_PATH_ADDITIONS == CORPUS_GENERATION_PATHS
+    assert not set(CORPUS_GENERATION_PATHS) & set(
+        actual["reference_discovery"]["declared_exclusions"]["paths"]
+    )
+    guard.validate_area_path_layers(before, actual)
+    for a, z in zip(before["areas"], actual["areas"], strict=True):
+        suffix = list(EXPECTED_AREA_PATH_ADDITIONS.get(a["id"], ()))
+        assert z == {**a, "paths": a["paths"] + suffix}
+    assert {k: v for k, v in actual.items() if k != "areas"} == {
+        k: v for k, v in before.items() if k != "areas"
+    }
+    assert_contract_reference_python_paths_are_registered(REPO, actual)
+
+
+@pytest.mark.parametrize("area_id", ("game-state", "sync-protocol"))
+@pytest.mark.parametrize("fault", ("partial", "reverse", "duplicate", "remove-old", "extra"))
+def test_generation_path_registration_keeps_inexact_layer_rejection(area_id, fault):
+    """旧削除・部分・逆順・重複・余剰を新領域追加でも拒否する。"""
+    candidate = load_actual_core_areas()
+    baseline = _without_generation_paths(candidate)
+    area = next(a for a in candidate["areas"] if a["id"] == area_id)
+    if fault == "partial":
+        area["paths"].pop()
+    elif fault == "reverse":
+        area["paths"][-2:] = reversed(CORPUS_GENERATION_PATHS)
+    elif fault == "duplicate":
+        area["paths"].append(CORPUS_GENERATION_PATHS[0])
+    elif fault == "remove-old":
+        area["paths"].pop(0)
+    else:
+        area["paths"].append("unknown/unregistered.py")
+    guard = load_core_guard_module()
+    with pytest.raises(guard.GuardError):
+        guard.validate_area_path_layers(baseline, candidate)
+
+
+def test_generation_exact_patterns_capture_both_files_and_no_neighbors() -> None:
+    """新二パスだけをcore捕捉し、wildcardによる範囲変更を導入しない。"""
+    guard = load_core_guard_module()
+    boundary = guard.CoreAreas(CORPUS_GENERATION_PATHS, frozenset())
+    assert guard.matched_paths(list(CORPUS_GENERATION_PATHS), boundary) == sorted(
+        CORPUS_GENERATION_PATHS
+    )
+    assert guard.matched_paths([
+        "tests/fixtures/frozen-archive-cases/other_runner.py",
+        "tests/test_frozen_archive_generation_runner_other.py",
+    ], boundary) == []

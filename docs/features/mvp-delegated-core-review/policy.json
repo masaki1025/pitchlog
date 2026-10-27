@@ -62,6 +62,14 @@
     {
       "pr": 184,
       "branch": "feature/mvp-rg1-profile-integration-candidate"
+    },
+    {
+      "pr": 186,
+      "branch": "feature/mvp-t1-first-pitch"
+    },
+    {
+      "pr": 187,
+      "branch": "feature/mvp-t1-ordinary-pitches"
     }
   ]
 }

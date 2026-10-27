@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
+import io
 import json
 import subprocess
 import sys
+import tarfile
 from collections import Counter
 from collections.abc import Mapping, Set
 from itertools import product
@@ -5140,6 +5143,30 @@ def _manual_fixture_assets() -> tuple[dict[str, Any], dict[str, Any]]:
     return _load_object(REPOSITORY_ROOT / path), schema
 
 
+def _manual_fixture_concrete_row(
+    row: dict[str, Any], coordinate: dict[str, Any],
+) -> dict[str, Any]:
+    """有限inだけを観測座標へ束縛し、負例のeq前提差は保持する。"""
+    result = copy.deepcopy(row)
+    condition = result["precondition"]
+    assert set(condition) == {"op", "args"} and condition["op"] == "and"
+    for predicate in condition["args"]:
+        if predicate["op"] == "eq":
+            assert set(predicate) == {"op", "axisId", "value"}
+            continue
+        assert predicate["op"] == "in"
+        assert set(predicate) == {"op", "axisId", "values"}
+        values = predicate["values"]
+        assert isinstance(values, list) and values
+        assert len({json.dumps(value, sort_keys=True) for value in values}) == len(values)
+        value = coordinate[predicate["axisId"]]
+        assert any(type(value) is type(item) and value == item for item in values)
+        axis = predicate["axisId"]
+        predicate.clear()
+        predicate.update({"op": "eq", "axisId": axis, "value": value})
+    return result
+
+
 def _manual_fixture_coordinate(row: dict[str, Any]) -> dict[str, Any]:
     """規範行の自然キーを軸値の対へ展開する。
 
@@ -5282,10 +5309,11 @@ def _validate_manual_fixtures(
             continue
         rows = [
             row
-            for row in contract["matrixRows"]
-            if row["eventKind"] == coordinate["eventKind"]
-            and row["resultId"] == coordinate["resultId"]
-            and set(_manual_fixture_coordinate(row)) <= set(coordinate)
+            for raw_row in contract["matrixRows"]
+            if raw_row["eventKind"] == coordinate["eventKind"]
+            and raw_row["resultId"] == coordinate["resultId"]
+            for row in [_manual_fixture_concrete_row(raw_row, coordinate)]
+            if set(_manual_fixture_coordinate(row)) <= set(coordinate)
             and (kind != "normative-branch" or _manual_fixture_coordinate(row) == coordinate)
         ]
         assert len(rows) == 1
@@ -5757,7 +5785,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 116
+    assert len(cases) == 117
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5773,7 +5801,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
             assert case["raw"]["resultId"] in result_axis["values"]
             assert case["raw"] != case["normalized"]
             changed.append(case)
-    assert len(changed) == 71
+    assert len(changed) == 72
     assert "existing-cases-have-normalization-triple" not in declaration[
         "claimBoundary"
     ]["notGuaranteed"]
@@ -5801,25 +5829,64 @@ def test_repository_rows_have_matching_history_and_result_faces() -> None:
     assert contract["undoRows"][0]["targetKind"] == "none"
 
 
-def test_legacy_committed_cases_match_history_expansion() -> None:
-    """旧109 caseの追跡済み展開を保ち、原観測付き新二例の実演算とは分ける。"""
+def test_legacy_committed_cases_match_history_expansion(tmp_path: Path) -> None:
+    """旧109の実展開と、承認済ID移行12件・追加1件を別々に固定する。"""
+    vectors = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/ordinary_pitch_vectors_v1.json"
+    )
+    migration = vectors["caseIdMigrations"]
+    baseline = migration["baselineCommit"]
+    relative = "contracts/state-transition/state_transition_contract_v1.json"
+    raw = subprocess.check_output(
+        ["git", "show", baseline + ":" + relative], cwd=REPOSITORY_ROOT,
+    )
+    assert hashlib.sha256(raw).hexdigest() == migration["baselineContractSHA256"]
+    old = json.loads(raw)
+    archive = subprocess.check_output(
+        ["git", "archive", baseline, "scripts", "contracts", "backend/domain"],
+        cwd=REPOSITORY_ROOT,
+    )
+    with tarfile.open(fileobj=io.BytesIO(archive)) as bundle:
+        bundle.extractall(tmp_path, filter="data")
     result = subprocess.run(
         [
             sys.executable,
-            str(REPOSITORY_ROOT / "scripts/expand_state_transition_cases.py"),
-            "--root", str(REPOSITORY_ROOT),
-            "--limit", "42",
-            "--mode", "coverage",
-            "--operation-limit", "10",
-            "--undo-limit", "10",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
+            str(tmp_path / "scripts/expand_state_transition_cases.py"),
+            "--root", str(tmp_path),
+            "--limit", "42", "--mode", "coverage",
+            "--operation-limit", "10", "--undo-limit", "10",
+        ], check=True, capture_output=True, text=True,
     )
-    legacy_cases = [case for case in _repository_contract()["cases"] if "inputPayload" not in case]
+    legacy_cases = [case for case in old["cases"] if "inputPayload" not in case]
     assert len(legacy_cases) == 109
     assert json.loads(result.stdout) == legacy_cases
+    bindings = {item["resultId"]: item["rowRef"] for item in vectors["formalBindings"]}
+    migrated = copy.deepcopy(old["cases"])
+    changed = set()
+    for case in migrated:
+        if case["caseId"] in migration["caseIds"]:
+            changed.add(case["caseId"])
+            case["caseId"] = migration["caseIds"][case["caseId"]]
+            case["rowRef"] = bindings[case["inputCoordinate"]["resultId"]]
+    assert changed == set(migration["caseIds"]) and len(changed) == 12
+    current = _repository_contract()["cases"]
+    current_by_id = {case["caseId"]: case for case in current}
+    assert [current_by_id[case["caseId"]] for case in migrated] == migrated
+    extra = [case for case in current if case["caseId"] not in {c["caseId"] for c in migrated}]
+    assert len(extra) == 1
+    assert extra[0]["inputCoordinate"] == {
+        "eventKind": "batting-result", "resultId": "batting-result.foul",
+        "state.outs": 0, "state.runners": "empty", "state.count.strikes": 0,
+        "state.count.balls": 1, "event.perPitch.pitchEventKind": "pitch-event",
+    }
+    assert len([case for case in current if "inputPayload" not in case]) == 110
+    receipt = _load_object(
+        REPOSITORY_ROOT / "contracts/state-transition/gate6_t1_ordinary_pitch_v1.json"
+    )
+    # 新1件の全値は受理対象asset hashへ束縛する。貪欲展開112件で110件を置換しない。
+    assert hashlib.sha256((REPOSITORY_ROOT / relative).read_bytes()).hexdigest() == (
+        receipt["assets"][relative]
+    )
 
 
 def test_step30_liveness_row_and_five_play_case() -> None:
@@ -6813,6 +6880,7 @@ _COLD_CONSUMER_PROCESS_PROBE = r"""
 import dataclasses
 import json
 import sys
+import tarfile
 from pathlib import Path
 
 root = Path(sys.argv[1]).resolve()
@@ -7322,5 +7390,54 @@ def test_g6_s02_reference_definitions_and_formal_cases_are_unchanged() -> None:
         for case in author["cases"] if case["existing_positive_reference"] is not None
     )
     assert [len(contract[k]) for k in ("matrixRows", "operationRows", "undoRows", "cases")] == [
-        49, 10, 10, 116,
+        49, 10, 10, 117,
     ]
+
+
+@pytest.mark.parametrize("value", [False, -1, 2, "0", None])
+def test_manual_finite_in_rejects_unknown_or_false_coordinate(value: Any) -> None:
+    """boolや範囲外を整数の有限観測と同一視しない。"""
+    row = {"precondition": {"op": "and", "args": [
+        {"op": "in", "axisId": "state.count.strikes", "values": [0, 1]},
+    ]}}
+    with pytest.raises(AssertionError):
+        _manual_fixture_concrete_row(row, {"state.count.strikes": value})
+
+
+def test_manual_finite_in_keeps_original_eq_negative_precondition() -> None:
+    """XC-11同様、元eqと異なる負例座標を規範行へ書き戻さない。"""
+    row = {"precondition": {"op": "and", "args": [
+        {"op": "eq", "axisId": "state.outs", "value": 1},
+        {"op": "in", "axisId": "state.count.strikes", "values": [0, 1]},
+    ]}}
+    concrete = _manual_fixture_concrete_row(row, {
+        "state.outs": 2, "state.count.strikes": 1,
+    })
+    assert concrete["precondition"]["args"] == [
+        {"op": "eq", "axisId": "state.outs", "value": 1},
+        {"op": "eq", "axisId": "state.count.strikes", "value": 1},
+    ]
+    assert row["precondition"]["args"][1]["op"] == "in"
+
+
+@pytest.mark.parametrize("operation", ["false", "unknown", "or"])
+def test_manual_finite_in_rejects_unknown_operation(operation: str) -> None:
+    """有限eq/in以外の述語を黙って通さない。"""
+    row = {"precondition": {"op": "and", "args": [
+        {"op": operation, "axisId": "state.outs", "value": 0},
+    ]}}
+    with pytest.raises(AssertionError):
+        _manual_fixture_concrete_row(row, {"state.outs": 0})
+
+
+@pytest.mark.parametrize("value", [0, 1])
+def test_manual_finite_in_concretizes_only_observed_member(value: int) -> None:
+    """有限集合の各観測を一つのeqへ具体化する。"""
+    row = {"precondition": {"op": "and", "args": [
+        {"op": "in", "axisId": "state.count.strikes", "values": [0, 1]},
+    ]}}
+    assert _manual_fixture_concrete_row(row, {"state.count.strikes": value}) == {
+        "precondition": {"op": "and", "args": [
+            {"op": "eq", "axisId": "state.count.strikes", "value": value},
+        ]},
+    }

@@ -55,8 +55,8 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """状況判定116件と終了判定248件で宣言規則の適用結果が一致する。"""
-    assert checker.check_repository(ROOT) == 364
+    """状況判定117件と終了判定248件で宣言規則の適用結果が一致する。"""
+    assert checker.check_repository(ROOT) == 365
 
 
 def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
@@ -119,7 +119,7 @@ def test_game_end_display_name_fails_when_rule_is_mutated_to_identity() -> None:
     ("case_id", "axis_value", "raw_result", "normalized_result"),
     [
         (
-            "ST-MATRIX-07c1f26a645dae53", "batting-result",
+            "ST-MATRIX-d9d9eed7a690d48d", "batting-result",
             "見逃し", "batting-result.called-pitch",
         ),
         (

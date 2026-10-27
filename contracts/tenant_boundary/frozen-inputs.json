@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 5,
+  "contract_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:5"
+        "contract_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -20,7 +20,9 @@
           "scripts/frozen_archive.py",
           "tests/domain/test_boot_seal.py",
           "tests/test_ci_wiring.py",
-          "tests/test_plan_generation.py"
+          "tests/test_plan_generation.py",
+          "scripts/check_human_review_signature.py",
+          "tests/test_required_set_coverage.py"
         ]
       }
     },
@@ -68,6 +70,31 @@
       "algorithm": "sha256",
       "purpose": "pb_false 封印の固定 blob digest",
       "source": "tests/test_plan_generation.py:PB_FALSE_SEAL.blobDigest"
+    },
+    "gate6_ordinary_normative_anchor_commit": {
+      "value": "30f67cbc0afbdae00919606a17439d64fa7e9832",
+      "purpose": "通常33の旧規範原本を読み、historical coverage fixtureを同一原本へ束縛する",
+      "sources": [
+        "scripts/check_human_review_signature.py:_OrdinaryAcceptedReader",
+        "tests/test_required_set_coverage.py:historical_coverage_root"
+      ]
+    },
+    "gate6_ordinary_public_base_commit": {
+      "value": "3a24f89e15987ecef3dc45a1173ab99b5f79d16e",
+      "purpose": "PR187新受理の公開baseと正式policy prefixの固定比較元",
+      "source": "scripts/check_human_review_signature.py:_ordinary_ci/_ordinary_body"
+    },
+    "gate6_ordinary_record_raw_sha256": {
+      "value": "2dee3598fca42920c2714e8fb429ad15509aee0ba9122d43feff99500e30a3d4",
+      "algorithm": "sha256",
+      "purpose": "通常33受理recordのraw全byte固定",
+      "source": "scripts/check_human_review_signature.py:_ordinary_record/_ordinary_ci"
+    },
+    "gate6_ordinary_schema_raw_sha256": {
+      "value": "256f459580e342e9ef6e7c4d008a2acab1eaa75b8f62d32811f692a3c453a4a8",
+      "algorithm": "sha256",
+      "purpose": "通常33閉schemaのraw全byte固定",
+      "source": "scripts/check_human_review_signature.py:_ordinary_record/_ordinary_ci"
     }
   }
 }

@@ -131,6 +131,9 @@ class RunResult:
     exit_code: int
     stdout: str
     stderr: str
+    input_generation: str | None = None
+    input_digest: str | None = None
+    input_revision: str | None = None
 
     @property
     def matches(self) -> bool:
@@ -1114,9 +1117,22 @@ def run_cases(
     source_root: Path,
     selected_case_ids: frozenset[int] | None = None,
 ) -> tuple[RunResult, ...]:
-    """各ケースを 1 回だけ構築し、同じリポジトリを全版へ渡す。"""
+    """各意味ケースを入力世代ごとに構築し、同世代の検査器へ渡す。"""
     for spec in checker_specs:
         validate_checker_spec(spec, manifest)
+    if any(spec.label == "previous" for spec in checker_specs):
+        helper_path = Path(__file__).with_name("generation_runner.py")
+        helper_spec = importlib.util.spec_from_file_location(
+            "_frozen_corpus_generation_runner", helper_path
+        )
+        if helper_spec is None or helper_spec.loader is None:
+            raise RuntimeError("世代別runnerをロードできない")
+        helper = importlib.util.module_from_spec(helper_spec)
+        helper_spec.loader.exec_module(helper)
+        return helper.run_generations(
+            sys.modules[__name__], manifest, checker_specs,
+            source_root, selected_case_ids,
+        )
     selected = tuple(
         case
         for case in manifest.cases
@@ -1170,6 +1186,9 @@ def _result_payload(results: tuple[RunResult, ...]) -> dict[str, object]:
                 "matches": result.matches,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
+                "input_generation": result.input_generation,
+                "input_digest": result.input_digest,
+                "input_revision": result.input_revision,
             }
             for result in results
         ],
@@ -1187,7 +1206,7 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         type=_checker_spec,
         required=True,
-        help="previous=/path または current=/path。複数指定で同じ入力へ当てる",
+        help="previous=/path または current=/path。複数指定で同じ意味ケースを版別入力へ当てる",
     )
     parser.add_argument("--case", action="append", type=int, dest="case_ids")
     args = parser.parse_args(argv)

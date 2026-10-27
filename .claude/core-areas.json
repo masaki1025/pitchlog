@@ -275,7 +275,9 @@
         "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "tests/fixtures/frozen-archive-cases/generation_runner.py",
+        "tests/test_frozen_archive_generation_runner.py"
       ]
     },
     {
@@ -417,7 +419,9 @@
         "tests/test_field_geometry_numeric_lexemes.py",
         "tests/test_fielder_estimation_contract.py",
         "tests/test_field_geometry_ci_wiring.py",
-        "backend/src/pitchlog/db/stage_a_startup.py"
+        "backend/src/pitchlog/db/stage_a_startup.py",
+        "tests/fixtures/frozen-archive-cases/generation_runner.py",
+        "tests/test_frozen_archive_generation_runner.py"
       ]
     },
     {

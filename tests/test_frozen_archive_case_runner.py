@@ -63,6 +63,8 @@ def test_manifest_matches_design_case_set_and_transitions() -> None:
         "scripts/frozen_history.py",
         "tests/fixtures/frozen-archive-cases/runner.py",
         "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_census_baseline_check.py",
+        "tests/fixtures/frozen-archive-cases/generation_runner.py",
     }
     assert {path.as_posix() for path in MANIFEST.corpus_inputs.trees} == {
         "contracts/tenant_boundary",

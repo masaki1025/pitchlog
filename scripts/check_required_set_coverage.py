@@ -542,9 +542,17 @@ def check_input_coverage(
         after = _identity_set(entry.get("after", {}).get("coverageSet"))
         if index == 0:
             baseline_ids = entry.get("baselineCaseIds")
-            if not isinstance(baseline_ids, list) or not baseline_ids:
+            if (
+                not isinstance(baseline_ids, list) or not baseline_ids
+                or not all(isinstance(case_id, str) for case_id in baseline_ids)
+                or len(set(baseline_ids)) != len(baseline_ids)
+            ):
                 raise RequiredSetCoverageError("初回被覆の基線ケースがない")
-            baseline = [case for case in cases if case.get("caseId") in baseline_ids]
+            ids = set(baseline_ids)
+            if not ids <= {case.get("caseId") for case in cases}:
+                migrations = _ordinary_case_id_migrations(root, contract)
+                ids = {migrations.get(case_id, case_id) for case_id in baseline_ids}
+            baseline = [case for case in cases if case.get("caseId") in ids]
             measured_before = observed_input_coverage(
                 baseline, active, contract, display_names
             )
@@ -626,6 +634,144 @@ def _row_fixed_input_values(predicate: dict[str, Any], axis_id: str) -> set[str]
             for child in predicate.get("args", []) if isinstance(child, dict)
         ))
     return set()
+
+
+def _row_finite_input_values(predicate: dict[str, Any], axis_id: str) -> set[str]:
+    """正の有限in葉だけを集める。自由値・否定・選言を固定値と扱わない。"""
+    if predicate.get("op") == "in" and predicate.get("axisId") == axis_id:
+        values = predicate.get("values")
+        if not isinstance(values, list) or not values:
+            raise RequiredSetCoverageError("有限inの値集合が不正")
+        encoded = [deriver.descriptor_checker._canonical_json_text(v) for v in values]
+        if len(encoded) != len(set(encoded)):
+            raise RequiredSetCoverageError("有限inの値集合が重複")
+        return set(encoded)
+    if predicate.get("op") == "and":
+        return set().union(*(
+            _row_finite_input_values(child, axis_id)
+            for child in predicate.get("args", []) if isinstance(child, dict)
+        ))
+    return set()
+
+
+def _ordinary_case_id_migrations(
+    root: Path, contract: dict[str, Any],
+) -> dict[str, str]:
+    """既Git原本と全caseを照合した通常33の有限ID移行だけを解決する。"""
+    asset = _document(root, "ordinary_pitch_vectors_v1.json")
+    if asset.get("schemaVersion") != 1 or asset.get("operation") != "deriveOrdinaryPitch":
+        raise RequiredSetCoverageError("通常投球の移行資産種別が不正")
+    binding = asset.get("caseIdMigrations")
+    if not isinstance(binding, dict) or set(binding) != {
+        "baselineCommit", "baselineContractSHA256", "caseIds"
+    }:
+        raise RequiredSetCoverageError("通常投球のID移行宣言が不正")
+    revision, digest, mapping = (
+        binding["baselineCommit"], binding["baselineContractSHA256"], binding["caseIds"]
+    )
+    if (
+        not isinstance(revision, str) or len(revision) != 40
+        or any(c not in "0123456789abcdef" for c in revision)
+        or not isinstance(digest, str) or not isinstance(mapping, dict)
+        or len(mapping) != 12
+        or not all(isinstance(k, str) and isinstance(v, str) for k, v in mapping.items())
+        or len(set(mapping.values())) != 12
+        or set(mapping) & set(mapping.values())
+    ):
+        raise RequiredSetCoverageError("通常投球のID移行が一意な12件でない")
+    result = subprocess.run(
+        ["git", "show", f"{revision}:contracts/state-transition/state_transition_contract_v1.json"],
+        cwd=root, capture_output=True, check=False,
+    )
+    if result.returncode or hashlib.sha256(result.stdout).hexdigest() != digest:
+        raise RequiredSetCoverageError("通常投球の移行前Git原本が不一致")
+    try:
+        original = json.loads(result.stdout)
+    except (UnicodeError, json.JSONDecodeError) as error:
+        raise RequiredSetCoverageError("通常投球の移行前原本が不正") from error
+    if not isinstance(original, dict):
+        raise RequiredSetCoverageError("通常投球の移行前原本がobjectでない")
+    old_cases, new_cases = original.get("cases"), contract.get("cases")
+    if not isinstance(old_cases, list) or not isinstance(new_cases, list):
+        raise RequiredSetCoverageError("通常投球の移行case集合が不正")
+    old = {case["caseId"]: case for case in old_cases}
+    new = {case["caseId"]: case for case in new_cases}
+    if len(old) != len(old_cases) or len(new) != len(new_cases):
+        raise RequiredSetCoverageError("通常投球の移行caseが重複")
+    if not set(mapping) <= set(old) or set(mapping.values()) - set(new):
+        raise RequiredSetCoverageError("通常投球の移行caseが欠落")
+    guards = {
+        "batting-result.ball": ([0, 1, 2], [0, 1, 2]),
+        "batting-result.called-pitch": ([0, 1], [0, 1, 2, 3]),
+        "batting-result.swinging-strike": ([0, 1], [0, 1, 2, 3]),
+        "batting-result.foul": ([0, 1], [0, 1, 2, 3]),
+    }
+    representatives = {
+        case["rowRef"]["coordinate"]["resultId"]: case
+        for case in old_cases
+        if case.get("caseId") in mapping and case["caseId"].startswith("ST-MATRIX-")
+    }
+    if set(representatives) != set(guards) or len(old) != 116 or len(new) != 117:
+        raise RequiredSetCoverageError("通常投球の4代表・116→117移行が不一致")
+
+    def matrix_id(coordinate: dict[str, Any]) -> str:
+        encoded = json.dumps(coordinate, sort_keys=True, ensure_ascii=False,
+                             separators=(",", ":"))
+        return "ST-MATRIX-" + hashlib.sha256(encoded.encode()).hexdigest()[:16]
+
+    changed = set()
+    for case_id, before in old.items():
+        after = new.get(mapping.get(case_id, case_id))
+        if after is None:
+            raise RequiredSetCoverageError("通常投球の旧caseが失われた")
+        if case_id not in mapping:
+            if before != after:
+                raise RequiredSetCoverageError("通常投球の移行対象外caseが変更された")
+            continue
+        ref = before.get("rowRef", {})
+        coordinate = ref.get("coordinate", {})
+        result_id = coordinate.get("resultId")
+        if ref.get("layer") != "matrixRows" or result_id not in guards:
+            raise RequiredSetCoverageError("通常投球以外のID移行")
+        expected = json.loads(json.dumps(before))
+        predicate = expected["rowRef"]["coordinate"]["precondition"]
+        for axis, values in zip(("state.count.strikes", "state.count.balls"),
+                                guards[result_id], strict=True):
+            leaves = [leaf for leaf in predicate.get("args", [])
+                      if leaf == {"op": "eq", "axisId": axis, "value": 0}]
+            if len(leaves) != 1:
+                raise RequiredSetCoverageError("通常投球の移行前guardが不一致")
+            leaves[0].clear()
+            leaves[0].update(op="in", axisId=axis, values=values)
+        expected["caseId"] = mapping[case_id]
+        new_representative_id = matrix_id(expected["rowRef"]["coordinate"])
+        representative = representatives[result_id]
+        if representative["caseId"] != matrix_id(representative["rowRef"]["coordinate"]):
+            raise RequiredSetCoverageError("通常投球の旧代表IDが自然IDでない")
+        if case_id.startswith("ST-MATRIX-"):
+            natural_id = new_representative_id
+        else:
+            different = [(axis, value) for axis, value in before["inputCoordinate"].items()
+                         if representative["inputCoordinate"].get(axis) != value]
+            if len(different) != 1:
+                raise RequiredSetCoverageError("通常投球のcoverage移行座標が不正")
+            axis, value = different[0]
+            encoded = json.dumps([new_representative_id, axis, value],
+                                 sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+            natural_id = "ST-COVERAGE-" + hashlib.sha256(encoded.encode()).hexdigest()[:16]
+        if mapping[case_id] != natural_id:
+            raise RequiredSetCoverageError("通常投球の移行先IDが自然IDと不一致")
+        if expected != after:
+            raise RequiredSetCoverageError("通常投球の入力・期待値・履歴が移行で変化した")
+        # 参照先は現行規範の一意な行でなければならない。
+        row_coordinate = expected["rowRef"]["coordinate"]
+        if sum(all(row.get(k) == v for k, v in row_coordinate.items())
+               for row in contract.get("matrixRows", [])) != 1:
+            raise RequiredSetCoverageError("通常投球の移行参照が一意でない")
+        changed.add(result_id)
+    if changed != set(guards):
+        raise RequiredSetCoverageError("通常投球の4代表移行が不足")
+    return mapping
 
 
 def _check_unrepresented_operation_sources(
@@ -737,6 +883,9 @@ def check_input_coverage_exact(
         rows_by_layer[layer] = rows
     matrix_rows = rows_by_layer["matrixRows"]
     # 打球行が固定する状態軸を、無関係な操作行の自由値で埋めない。
+    values_by_axis = representative_selection.axis_values(
+        descriptor, ("stateTransitionAxes",)
+    )
     fixed_state_values: dict[str, set[str]] = {}
     for axis in descriptor.get("stateTransitionAxes", []):
         axis_id = axis.get("axisId") if isinstance(axis, dict) else None
@@ -746,6 +895,21 @@ def check_input_coverage_exact(
             _row_fixed_input_values(row["precondition"], axis_id)
             for row in matrix_rows
         ))
+        for row in matrix_rows:
+            for identity in _row_finite_input_values(row["precondition"], axis_id):
+                predicate = {"op": "and", "args": [
+                    row["precondition"],
+                    {"op": "eq", "axisId": axis_id, "value": json.loads(identity)},
+                ]}
+                axes = [axis for axis in values_by_axis
+                        if axis in representative_selection.predicate_axes(predicate)]
+                try:
+                    representative_selection.select_coordinate(
+                        predicate, values_by_axis, axes, selection_policy
+                    )
+                except representative_selection.RepresentativeSelectionError:
+                    continue
+                fixed.add(identity)
         if fixed:
             fixed_state_values[axis_id] = fixed
     _check_unrepresented_operation_sources(
@@ -814,8 +978,11 @@ def check_input_coverage_exact(
         fixed_values = _row_fixed_input_values(row["precondition"], axis_id)
         if fixed_values and fixed_values != {identity}:
             return False
+        finite_values = _row_finite_input_values(row["precondition"], axis_id)
+        if finite_values and identity not in finite_values:
+            return False
         if axis_id in unbound and layer == "matrixRows":
-            explicitly_fixed = bool(fixed_values)
+            explicitly_fixed = bool(fixed_values or finite_values)
             declared_binding = row.get("resultId") in value_bindings.get(
                 axis_id, {}
             ).get(json.dumps(value, sort_keys=True, ensure_ascii=False), set())
