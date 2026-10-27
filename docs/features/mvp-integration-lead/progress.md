@@ -1077,3 +1077,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、E-1段階3候補fa582fa7…の非作者plan reviewで早期P2：既実broker `_phase_wire` は position=1/d1=1/event_count=1 のみ。複数位置/逆順はpure対向で扱い、実brokerの拒否を黙って緩めない。必要な拡張は別scope。3A非発行accessorの先行可否は最終review後、3B以降は追補後に判断する。
 
 2026-10-27、E-1段階3 plan非作者review 1c01cca8661936b3e44d0963bc35992194d5ab42dd9eba110e91ebfb7a21f5c2 P0/P1=0/P2=1を受け、PO委任Codex /root判断 68d6a071で3A-1非発行accessor exact2だけ承認・cache実装へ。実brokerの位置/D1/件数各1以外拒否維持、3A-2/3B/issuer/HTTP/DBは未承認。#188 U6 candidate `pr188-u6-closed-db-candidate-470ba19a-20261027/REPORT.md` SHA c138e8a4a5c0a1a08a1e4392605236269404a57e103f619429116a10a17f9632、manifest c042a793…を固定。26正例/36 AST変異拒否はcache診断でDB正例ではない。別29赤保持、非作者確認・plan・実装・正式値は未了。
+
+2026-10-27、DB印unit A source5 patch a2f1412a… の非作者reviewがP1を指摘：_ADMITのwriter_bindings FOR SHAREはdefiner right_fn_ownerに必要なUPDATE列権限がなく、正常INSERTも失敗する可能性（静的ACL/SQL照合、実PG未実施）。candidateは未採用。既assertが同TXで取得したlockの因果を確認し、再ロック除去等を検討する。UPDATE grantの安易な追加は禁止せずとも権限を増やさない最小案を優先し、source修正と独立再review/実PG対向を必須とする。
