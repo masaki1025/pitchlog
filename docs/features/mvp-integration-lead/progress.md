@@ -1069,3 +1069,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、DB印unit A関連実検査は300成功・1失敗。既model走査が新FirstBallWriteAdmissionをreexportしていない不足で、PO委任Codex /root判断 cc384f88 により既db/writer_binding/models.py の同一model/table参照1pathだけを追加承認。cacheで是正・再検査予定。旧失敗を成功へ読み替えず、実DB/activationは未実施。
 
 2026-10-27、DB印unit Aのモデル走査追随後、cache exact5関連301成功、Ruff/format/ty成功・source9変異検出。class reexportのみでは同じ走査失敗となり、同一Table参照を追加して解消した両失敗履歴を保全。未適用migration hygieneも対象単独で成功。最終packet/非作者source review待ちで、実DB・profile登録・activationは未実施。
+
+2026-10-27、E-1段階3候補 `e1-stage3-core-binding-readiness-20261027/PLAN-CANDIDATE.md` SHA fa582fa7f7a48413c76422c4b2998c0893f2c946ae1a2d22525cb72acf790b5b を固定。非発行accessor 3A-1、原本/台帳束縛W2 3A-2を先行候補とし、core 3Bは既5source/5testにlegacy実入口・phase snapshot関連を加える。0始まりindexと1始まりphaseの変換、全D5/旧DTO/P3/拒否順・同writer、実issuer未供給の閉拒否は必須。非作者plan review・限定承認/実装は未了。
