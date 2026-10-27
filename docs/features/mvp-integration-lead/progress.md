@@ -976,3 +976,7 @@ PR187旧RG1歴史2testのref1 patch56f8a985…は非作者40f9a0e6…残0、旧a
 #188専用owned DB試験候補6d8b4771…は非作者f0302b45209fcf5aad523153d8433a2007906db4605ce9eb4ec1c848e77064e5でP1。別app observerのtenant GUC欠落でRLSの行が不可視、lock競合の実証にならない。observer transaction内で正規tenant binding→NOWAIT、55P03後rollback、解放後の新TXでも再bindingする是正を実施中。保護列のSELECT拒否は失敗TXと分離。実DB試験未実施・共有DB非使用。
 
 PR187最終config 42568333の旧現11×2は隔離Gitと実CLIで22全期待一致・exit0。旧11は固定exitも一致、現11はmanifestがexit値未固定のためgreen/redと実観測値0/2を区別。宣言c18eae81→JSON7425f411の履歴を保持。最終非作者core review・公開委任更新・最終CIは未実施。
+
+PR187最終42568333は非作者316e6bd2c776b05f7a382683ffd40c9cd2efcea83d872e185c5e3ea61965db40残0、base比較53path/diff73db1c48…・正式9全4面不変。公開push後、実PR base/head/bodyと公開証拠issuecomment-6438537072によるGate6 Bは `DELEGATED VERIFIED (not a personal signature)` 成功。CI run40482727791 in_progress、後発40482786801 pending（観測時点）。前run40472685268失敗は履歴として保持、CI結果待ちに他作業を継続。
+
+#188 owned DB試験P1は反映1 ba6a908c…でobserverの各実TXへtenant binding、可視性assert、NOWAIT拒否/rollback後の新TX再binding、保護SELECT別TXを追加。非作者第2回と実DB未実施。V7/V8型表P2（参照先24member）もref1 manifest6478dfd6…で是正、非作者再確認待ち。
