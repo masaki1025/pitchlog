@@ -1125,3 +1125,18 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 並行中：unit A反映2の実PG全ケース再測と非作者2観点review、unit B計画反映1（正式profileはA反映2＋B差分の和集合、旧body保有DBは再構築の運用制約、savepoint内呼出しはfail-closed）、E-1段階3計画反映2（F1外の要求は要求単位fail-closed）、#188 frozen-baseline追補、開始済みread HTTP入口の計画、隔離組立の衝突測定。
 
 利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
+
+### 2026-10-28：PO採用D09〜D13の反映と第2波の結果
+
+- **判断票**：PO採用（D09=α・D10=A・D11=A・D12=A・D13=A、条件付き）を`decision-sheet.md`へ記録（`2762b5cc`）。方針採用であり、独立レビュー・所有側受理・実DB検証の完了ではない。
+- **unit A反映2 採用（PO委任Claude主担当判断）**：正式installer（migration 0001〜0038＋製品full profile）で作ったowned PG17.11に、候補profile全13キーを機械描画で適用（手で足した権限0、描画SQL SHA `5ced9e2a…eba2`）。21ケース21件期待どおり（results.json SHA `564929b025a51a46c6115c9ce1b370d8495e6721d4a9d61b53ca85058378617e`、2run連続）。正常1回はINSERT成功・印consumed・play_rows1行。同TX2行目・savepoint内・NEW側legacy3種・元event legacy・assertなし・偽admission・別TX・別接続・期限切れ・device_verifiedのみ・印なし・端末失効・app直接はすべて42501。TX中のcloseは55P03で待たされ、commit後は成功。拒否15ケースのstderrに機微値0。非作者review（Fable 5.1）2観点ともadopt・P0/P1=0、P2=3（素通りSQLSTATEの明記、作者報告の記述訂正、登録時前提の台帳記載）。**branch commitはunit Bのschema-manifest追随と同一stepで行う条件を維持**。印の発行はscaffold投入による代替で、Bの経路・installer登録は未実測。
+- **unit B計画反映1**（cache `unit-b/reflection1/`）：非作者review fix_required・P0/P1=0・P2=4。反映2で閉じてから実装へ進む。
+- **E-1段階3計画反映2**：review fix_required・P0/P1=0・P2=6（D10のB5判定点と_preflight_d1の位置関係など）。反映3で閉じる。
+- **#188 frozen-baseline exact2 不採用**：14組はU3が入れた7 sourceの実SHA（checker/tests各7）で誤検出ではないが、受理遷移の通常規則がallow-listへの追加を禁じる（`check_frozen_baselines.py:1715-1720`）ため、exact2の範囲ではCIを緑にできない。先例どおり値をcontracts資産側へ寄せる是正が要る（exact2外のpath）。非作者reviewもblocked（P2=2）。
+- **開始済みread HTTP入口計画**：review fix_required・P1=2（#188合流後はfrozen-inputs rev6が改修2ファイルを全文凍結するので7.7受理が要る／`test_roster_self_team_read.py`の完全一致試験がexactpathsに無い）。
+- **D13 打撃結果シード計画**：review fix_required・P1=2（FORCE RLS下でFOR UPDATEが既存行を0件にし冪等が崩れる、実PGで再現／ステップ1でversions/へ置くと正式hygiene試験が赤）。
+- **D09 旧ABI対応表**：review fix_required・P1=4（停止契約3口の欠落、E-1口がWBに無いことの未記載、登録Portから内部への静的到達、1 phase＝生涯1 bindingが初球要求の多TX・再試行と合わない）。最後の点はα内の実装選択（1要求1TX化／TXごとのphase分割／PKのlease単位化）として計画で決める。
+- **隔離組立（U01、cache `assembly-20261027`、HEAD `954cf860`、未push）**：writer→#186→#187→#188→browserの5 merge、衝突11ファイル49 hunk。frontend全成功、backend非DBの赤82件はすべて既知。root harnessの新規赤184件は3系統（core-areas宣言窓口の構造衝突137、tenant_boundary受理台帳の改訂番号衝突42、tenant境界検査の組合せ5）で、前2つは所有側の再宣言・再採番が要る。
+- 結果の写し：cache `wave2b-results-20261028/`（track別JSON）。
+
+利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。次：unit B計画反映2→B実装→A+B結合commit、E-1反映3、#188 frozen是正方式の追補、read/D13/D09の反映1、D11・D12の計画着手（作業担当Sonnet・レビューFable）。
