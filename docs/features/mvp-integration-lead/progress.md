@@ -928,3 +928,5 @@ writer候補7644b780の隔離PG試験で、初回はfixtureのDocker引数上書
 V5 codec cache候補の独立レビュー完了、FINAL-REVIEW SHA63d30e11b4d640aeba7038db9afce23c8c3e67e8638a1175a50b15a67a95574f、40成功・追加拒否と4変異検出、P0/P1/P2なし。元入力・既D5指紋保持を確認。正式計画への追補と採用、core/Port/HTTP/DBの接合は未完。画面新規作成→開始→1球保存→再読込およびMVP全体は引き続き未完成。
 
 同日16:34 JST、PO委任によるCodex /root判断で追補d1fbf224…を承認。非作者の計画レビューe6fa19e4…残0、sourceレビュー63d30e11…残0を根拠に、初球V5 pure codecと計画を0c970d1bへ反映・push。実treeのcodec＋既冪等性40成功0.51秒。最初の検査コマンドは存在しない試験名を指定し0件だったため、実在pathへ訂正して実施した。core接合exact2は作者がcacheで作業中、独立レビュー・実Port・HTTP・投影保存・記録後GETは未完。
+
+同日、実Control callerの要求指紋について現正本sync-protocol.md 455–459を照合。`wire-request-v1:`はcodec版・URLの正規game UUID・D4・D1昇順のwireイベント指紋列を既JSON規則でSHA-256化し、V12/attempt等は含めない。wireイベント指紋は変換前の原wireとregistrationを含み、既内部DTOのD5指紋とは別。旧506候補は形式検査のみで生成未実装、旧U-S1 wire_codec候補は原本指紋確定までHTTP接続に使わない旨を明示し、実装済みとして流用しない。正式golden vectorsと両端生成・照合の所在/不足を次に確認する。
