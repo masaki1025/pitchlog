@@ -1041,3 +1041,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、DB印反映1 SHA42fa28df…の非作者review df253ad34bbe6dbddf9559be4166ac1df1d39e88b77ccd84f348b1aeab9d4089 はP0/P1=0、P2=2（旧open表記、未供給migration主体を既存と扱う表現）。順序/lock/savepointは計画上改善、P2の是正と合法INSERT主体・既経路matrixはactivation前に必要。未適用pure unit Aだけが先行候補で、DB/trigger activationを受理していない。
 
 2026-10-27、#188 U1 d568c955は非作者d673ec8e…残0・独立68件、U5 34f64420は非作者cde0047a…残0・独立21件。PO委任Codex /root判断を470ba19aへ記録。両者は検査器の限定追随であり、正式4面・tenant他残件・CIは未了。local clean、remoteより10 commit先行で未push。
+
+2026-10-27、DB印反映2 `first-ball-db-insert-stamp-plan-20261027/reflection2/PLAN-CANDIDATE.md` SHA 1ba4db2b3e6b3eebbef8253fd75f6d5f232c7642a20e5150a3e4eb8fb038197d をcache固定。順序終端表記をright_verified→consumedへ統一し、将来のmigration主体と現行17roleを区別、実catalog/合法INSERT経路のmatrix照合をactivation条件に残す。非作者追補確認とplan採用、実装/DB対向はいずれも未了。
