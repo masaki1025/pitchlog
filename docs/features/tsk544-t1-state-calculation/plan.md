@@ -437,3 +437,33 @@ POから『切りのよいところで一度作業中断』を受領したため
 2026-10-27 16:34 JST、PO委任によるCodex /root判断。追補案ADDENDUM SHA d1fbf224a150b6157e9e2249522d44a1e8998affcc52f4b3b646ed124f386331、計画非作者レビューe6fa19e4eb758136c62d25d76399934ac39dc14de4c2d49367d9ff946f92392e（P0/P1/P2=0/0/0）を根拠に、上記純codec exact2と別途の接合exact2の範囲を承認する。実装・正式統合・実DB接続の完了を意味せず、後続sourceは別固定版で独立レビューする。
 
 2026-10-27 16:49 JST、PO委任によるCodex /root判断。0c970d1b起点の初球V5接合exact2、patch c9ea0c0949c2f99783b1145f1056173728b2194aaf8b0f0966f59d56ee756bfdを、非作者レビュー2f57acb9d6c013b56e000109eb4cb4a1a197fd751792ffc3c061c483f9fa6154（P0/P1/P2=0/0/0、独立95件・旧版対照33件）を根拠に採用。原V5・D5指紋・既拒否順とP2/O4を保持。実Port・HTTP・DB保存の提供または正式統合を意味しない。
+
+### 初球T1/T2計算値のpure formatter単位（限定追補案・未承認／未実装）
+
+既親ステップ2・操作単位追補の次の独立部品として、既`CombinedRequest`/`CombinedSuccess`の全計算値を閉JSONへ写し、同じ全値として読み戻す。単一TS計算/T2/23flag/履歴の意味は変えず、型/表現/値の照合だけを担う。既V5 codec/⑦接合と独立し、実writer/Port/DB/HTTP完成を本pure単位の着手前条件へ戻さない。T1/T2本体・全MVPの残義務を保持する。
+
+**exact2**: 新`backend/src/pitchlog/domainrt/first_ball_projection.py`と新`backend/tests/domainrt/test_first_ball_projection.py`。既coreの`backend/src/pitchlog/domainrt/*`/`backend/tests/domainrt/*`で捕捉される。他source/既試験/契約JSON/TS/artifact/host/registry/API/DB/正本は変更しない。新しい計算契約を別に作らず、既`mvp-first-pitch-t2-connection/plan.md`の採用記録・typed caller・正式採用ABI/caseを一次参照する（契約中の生成当時AUTHOR/NOT_APPROVEDラベルは消さず、後発採用記録と区別する）。
+
+**内部値の閉形状案**: `FirstBallCalculationValue`はexact4 keys `{formatVersion,artifactSha256,request,response}`。`formatVersion`は固定文字列`first-ball-calculation-v1`、`artifactSha256`は呼出側が明示する小文字hex64桁、request/responseは既DTOのalias wire全値をそのまま保持する。before全state/scoreboard・全rules、T1の既8member（countEffect、PA終了、batterDestination、runnerDefaultAdvance、outEffect、23statFlags、after全state/board、historyContext全要素/順序/差分/23flags）、T2の実評価済み非終了tag・evaluation_point・4家族根拠を省略しない。別名変換・整数の再計算・差分再生成・既定0/空配列/falseの補完・観測されない選手IDの生成をしない。artifact hashはhost検証済み実値を後続callerが供給すべき値であり、このformatterは値だけから実artifact利用を証明しない。
+
+**API案**: `format_first_ball_calculation(request: CombinedRequest, response: CombinedSuccess, *, artifact_sha256: str) -> str`と、`read_first_ball_calculation(raw: str, *, expected_request: CombinedRequest, expected_response: CombinedSuccess, expected_artifact_sha256: str) -> FirstBallCalculationValue`の2入口。formatは同じ閉値をJSONへ写すだけ。readは独立に渡された期待pair/hashとの**全値一致**を必須とし、raw自身を期待値へ流用して「検証済み」にしない。optional期待値・部分一致・未知field無視・不一致時のraw採用を提供しない。expected pairの真正性/同一評価はこの値APIだけでは証明できない。正しく型付けされた偽pairを両方へ同時供給した場合に数学的に正しいと判定する機構ではなく、同値を保存/再取得できたことだけを示す。
+
+既JSON parserのduplicate/nonfinite拒否・`_WireFrozen`/既decoderと`_check_frozen_members`等を再利用し、exact型・全field/alias・canonical decimal・strict boolを再検査する。モデルやその入れ子を強制変更した場合も黙認せず、responseの実型はCombinedSuccessだけを受ける。FirstPitchFailure/T2NotEvaluatedResponse（partial T1を含む）やokの0/1は候補へ昇格させない。format/readは新しい独立objectへ防御的に実体化し、元model/dumpの後発変更と相互aliasを避ける。比較はstrict検証済みalias wireのcanonical JSON全値で行い、PythonのTrue==1や順序無視の集合化で相違を潰さない（object key順だけはJSON同値、array順/件数は保持）。固定エラーには入力/raw/資格候補を含めず、原例外で値を露出しない。
+
+| 受入群 | 具体例と必須結果 |
+| --- | --- |
+| 実単一artifactの正常全値 | 既12case中の成功4件`REAL-UI-R9-L9-DH`/`OLD-R7-NULL`/`OLD-R9-NULL`/`OLD-R9-NULL-DH`を既callerで一度評価し、その実結果→format→readと期待pairを全値比較。3規則family/両DH値を保持し、元case期待値/schemaとも従来どおり照合する |
+| 未評価/既失敗 | 同12case中の非成功8件（R8/別延長/コールド/TBによるT2未評価、異結果/既B1/TB中/裏による既T1失敗）をformatへ渡して固定拒否。旧エラーを新成功へ補完しない |
+| 型/形状/表現 | 各wrapper/入れ子の欠落・余剰・別名/重複・非有限・number/非canonical decimal・bool/0/1混同、unknown formatVersion/hash形状、非nullable欄へのnull・tuple要素の型不一致・非JSON/型偽装を拒否。既ABIが許すnull（extensionLimit/tiebreak/runner destination等）と正規tuple（空tupleを含む）は保持し、tupleとJSON arrayの可逆な対応・要素順/件数を全値比較する。nullやtupleを一律拒否せず、既ABIを狭めも緩めもしない |
+| 23flags/after/履歴の全比較 | 実成功値から各23flag・after scalar・history kind/順序/件数/前後値/差分flagsを1箇所ずつ変更し、型に適合する変更でも固定expected pairに対するreadを拒否。部分一致やfield除去変異を生存させない |
+| T2/rules/出所値 | R/L/DH・T2 tag/evaluation_point/4family根拠・artifact hash・request beforeの各差替え、別成功caseとの組合せを固定expected pairとのreadで拒否。Pythonで終了条件を再判定しない |
+| 不変性/故障 | 元model/dump/返却値の後発変更が既JSON/別返却へ混入しない。強制field追加/欠損/偽instanceを拒否。取得失敗を保存候補へ補完しない。format/read中はhost/DB/Port/ファイルI/Oへ到達しないことも対向で確認 |
+| 非等価変異 | field落とし、23flag部分一致、history切捨て/順序無視、T2省略、partial成功化、期待値照合迂回を実source変異で検出。既T1/T2/JSON/hostの関連検査を保持 |
+
+**後続DB/Port境界**: 本DTOはReady/rights/nonce/実writer資格/数学評価証明/保存ACKではない。format/readの成功から認可・同一評価・実保存・T2全成立を導出しない。後続privileged bridgeが①同じ生存writerで真正N2 before/rules/名簿を読む、②固定hostの単一T1→T2評価からexpected pair/実artifact identityを得る、③同writer/event/D5へ私有束縛し1回だけ投影へ消費する。registered Portはhost/DB/transactionを推移importせず、guard拒否を緩めない。formatterの型だけをprivate証明へ変換しない。
+
+DB格納先・V7/V8写像・D5/event/request fingerprint・HTTP wire・保存後GETの真正expected取得は本単位では確定/実装しない。後続で実保存row/slot/D3/PlayRow/FKをbounded照合し、元受信値/既指紋式を変えず同TXへ接ぐ。再取得のexpectedは生の保存blobだけから自己承認させず、真正原本と実単一artifact又は正式に受理した同評価証跡との結合を別途閉じる。純値往復をDB再読込/1球保存の完成と扱わない。
+
+本追補の計画確認・rootのPO委任承認後に上記exact2へ着手し、対象版/全前後SHA/非作者source review/関連検査を固定して採否へ返す。現在は案の作成だけで、実装/正式採用は未実施。全T1/取消・訂正/成績CSV/故障・復旧/実機などMVP全体の完成条件は維持する。
+
+2026-10-27 17:12 JST、PO委任によるCodex /root判断。追補反映1 SHA ac0f07b0d95ae31610675ba49ae0086227e13615fa09872b3d0b3fcc0ac28bec、非作者第1回898b96e2…のnullable/tuple P2を採用し、第2回6dd2b88fb88348ac7478e4b2263fabf14fcf2349d48d7f080631c7e8a9af94c8（残0）を根拠に上記exact2の計画を承認する。sourceの実装・レビュー・採用および実DB保存は引き続き未完。
