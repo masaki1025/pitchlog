@@ -930,3 +930,7 @@ V5 codec cache候補の独立レビュー完了、FINAL-REVIEW SHA63d30e11b4d640
 同日16:34 JST、PO委任によるCodex /root判断で追補d1fbf224…を承認。非作者の計画レビューe6fa19e4…残0、sourceレビュー63d30e11…残0を根拠に、初球V5 pure codecと計画を0c970d1bへ反映・push。実treeのcodec＋既冪等性40成功0.51秒。最初の検査コマンドは存在しない試験名を指定し0件だったため、実在pathへ訂正して実施した。core接合exact2は作者がcacheで作業中、独立レビュー・実Port・HTTP・投影保存・記録後GETは未完。
 
 同日、実Control callerの要求指紋について現正本sync-protocol.md 455–459を照合。`wire-request-v1:`はcodec版・URLの正規game UUID・D4・D1昇順のwireイベント指紋列を既JSON規則でSHA-256化し、V12/attempt等は含めない。wireイベント指紋は変換前の原wireとregistrationを含み、既内部DTOのD5指紋とは別。旧506候補は形式検査のみで生成未実装、旧U-S1 wire_codec候補は原本指紋確定までHTTP接続に使わない旨を明示し、実装済みとして流用しない。正式golden vectorsと両端生成・照合の所在/不足を次に確認する。
+
+同日16:49 JST、PO委任によるCodex /root判断でV5の同期内容判定接合exact2を採用しfe4073d2へ保存・push。非作者レビュー2f57acb9…残0、独立95件/旧対照33件、実treeの関連73件成功。原V5/D5指紋、既拒否順・P2/O4を保持。Port/HTTP/DB保存の提供は未完。
+
+隔離DBでは正式認可資産の二度適用と新9関数本文改変・4trigger無効化の拒否を一つのowned fixtureで実行し成功（29.08秒）。最初はcolumn ACL配列の順序差で比較失敗し、差を実観測した後、正常再適用のACL要素だけ順序正規化して再実行。権限要素は維持し、改変拒否前後はpolicy OIDとACL生値も含め比較した。候補test SHA ac5ada8f…は未コミット、別非作者レビュー中。公開catalogのtrigger構造検出はこの試験では成立させておらず、正式再applyによる拒否を確認した。
