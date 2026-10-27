@@ -8648,3 +8648,33 @@ def test_ledger_current_adapter_exact_profile_and_shift_are_distinguished() -> N
     assert {(row.line, row.symbol) for row in shifted if row.code == "TB002"} == {
         (line + 1, symbol) for line, symbol in contract.ledger_condition2_findings
     }
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    (
+        "return bindparam(name, type_=String())",
+        "return bindparam('tenant_id', type_=LargeBinary())",
+        "return dynamic_bind(name)",
+    ),
+)
+def test_fixed_function_binary_bind_rejects_altered_body(replacement: str) -> None:
+    """bytesの固定bindを追加しても別型・別名・任意呼出しを認めない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    expected = "return bindparam(name, type_=LargeBinary())"
+    assert source.count(expected) == 1
+    changed = _changed_lines_containing(source, expected)
+    assert not [row for row in checker.scan_source(
+        source, path=relative, changed_lines=changed, contract=contract,
+    ) if row.code == "TB005"]
+    mutated = source.replace(expected, replacement, 1)
+    violations = _scan_diff_mutation(
+        source, mutated, path=relative,
+        changed_lines=_changed_lines_containing(mutated, replacement),
+        contract=contract,
+    )
+    assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
+        (row.code, row.symbol) for row in violations
+    }
