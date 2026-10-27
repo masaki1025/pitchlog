@@ -1,0 +1,299 @@
+"""未接合のorigin選択境界。実issuer未供給のため両入口は未発行で拒否する。
+
+私有registryに登録するAPIは提供しない。pure検査の登録doubleは実受付の証拠
+ではない。HTTP/既DTO接合、認可順、D5/原本、実writerは変更しない。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from uuid import UUID
+
+from pitchlog.repositories.context import TenantContext
+from pitchlog.sync.idempotency import (
+    _EVENT_SOURCE_FIELDS,
+    RegistrationSource,
+    event_source,
+    operation_fingerprint,
+)
+from pitchlog.sync.model import ABSENT, SyncEvent, SyncRequest
+from pitchlog.sync.wire_original import _canonical
+from pitchlog.sync.wire_source import WireSourceValue, checked_wire_source
+
+_ERROR = "E-1又はlegacyの発行済みsourceを利用できません"
+
+
+class SourceBindingError(ValueError):
+    """原値・参照・元例外を表示しない固定の拒否。"""
+
+
+class LegacyEntryScope:
+    """専用legacy入口だけの私有参照。発行元は現単位では未供給。"""
+
+    __slots__ = ()
+
+    def __new__(cls) -> LegacyEntryScope:
+        """自由生成を拒否する。"""
+        raise SourceBindingError(_ERROR)
+
+
+class E1Receipt:
+    """E-1実受付の私有参照。pure sourceのsealで代用しない。"""
+
+    __slots__ = ()
+
+    def __new__(cls) -> E1Receipt:
+        """自由生成を拒否する。"""
+        raise SourceBindingError(_ERROR)
+
+
+class EventSourceBinding:
+    """当該request/eventへ固定した選択参照。自由digestを保持しない。"""
+
+    __slots__ = ()
+
+    def __new__(cls) -> EventSourceBinding:
+        """自由生成を拒否する。"""
+        raise SourceBindingError(_ERROR)
+
+
+@dataclass(slots=True, repr=False)
+class _LegacyState:
+    """後続専用issuerが登録する状態の形。現単位に登録口はない。"""
+
+    request: SyncRequest
+    request_json: str
+    registrations: tuple[RegistrationSource | None, ...]
+    fingerprints: tuple[str, ...]
+    active: bool
+
+
+@dataclass(slots=True, repr=False)
+class _ReceiptState:
+    """request lifetimeの状態形。context証跡は実認証の代替ではない。"""
+
+    context: TenantContext
+    tenant_id: UUID
+    request: SyncRequest
+    request_json: str
+    source: WireSourceValue
+    active: bool
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _Selection:
+    """originはcaller引数ではなく私有ownerの実型により固定する。"""
+
+    owner: LegacyEntryScope | E1Receipt
+    state: _LegacyState | _ReceiptState
+    event: SyncEvent
+    position: int
+    fingerprint: str
+    request: SyncRequest
+    source: WireSourceValue | None
+    context: TenantContext | None
+    registration: RegistrationSource | None
+
+
+# 後続issuerの実装なし。unit testの直接登録はpure状態機械のdoubleに限る。
+_LEGACY: dict[LegacyEntryScope, _LegacyState] = {}
+_RECEIPTS: dict[E1Receipt, _ReceiptState] = {}
+_SELECTIONS: dict[EventSourceBinding, _Selection] = {}
+
+
+def _request_json(request: SyncRequest) -> str:
+    """同requestの全値を再照合するsnapshot。D5指紋の算式ではない。"""
+    if type(request) is not SyncRequest or type(request.events) is not tuple:
+        raise ValueError(_ERROR)
+    raw: dict[str, object] = {
+        "path": request.path,
+        "game_id": request.game_id,
+        "d4": request.d4,
+        "events": [event_source(event) for event in request.events],
+    }
+    if any(type(event) is not SyncEvent for event in request.events):
+        raise ValueError(_ERROR)
+    if request.v12 is not ABSENT:
+        raw["v12"] = request.v12
+    if request.recovery_generation is not ABSENT:
+        raw["recovery_generation"] = request.recovery_generation
+    return _canonical(raw)
+
+
+def _legacy(owner: LegacyEntryScope) -> _LegacyState:
+    """既式と登録値の全値を再検査し、E-1参照の転用を拒否する。"""
+    if type(owner) is not LegacyEntryScope:
+        raise ValueError(_ERROR)
+    state = _LEGACY[owner]
+    if (
+        type(state) is not _LegacyState
+        or state.active is not True
+        or _request_json(state.request) != state.request_json
+        or type(state.registrations) is not tuple
+        or type(state.fingerprints) is not tuple
+        or len(state.request.events) != len(state.registrations)
+        or len(state.fingerprints) != len(state.registrations)
+    ):
+        raise ValueError(_ERROR)
+    for event, registration, digest in zip(
+        state.request.events, state.registrations, state.fingerprints, strict=True
+    ):
+        if (
+            type(digest) is not str
+            or operation_fingerprint(event, state.request.path, registration) != digest
+        ):
+            raise ValueError(_ERROR)
+    return state
+
+
+def _receipt(owner: E1Receipt) -> _ReceiptState:
+    """原wire値だけで受付を発行せず、登録済みcontext/scopeを再照合。"""
+    if type(owner) is not E1Receipt:
+        raise ValueError(_ERROR)
+    state = _RECEIPTS[owner]
+    if (
+        type(state) is not _ReceiptState
+        or state.active is not True
+        or type(state.context) is not TenantContext
+        or type(state.tenant_id) is not UUID
+        or not state.context._has_valid_integrity_proof()
+        or state.context.tenant_id != state.tenant_id
+        or _request_json(state.request) != state.request_json
+    ):
+        raise ValueError(_ERROR)
+    source = checked_wire_source(state.source)
+    if (
+        source.game_id != state.request.game_id
+        or source.d4 != state.request.d4
+        or len(source.events) != len(state.request.events)
+    ):
+        raise ValueError(_ERROR)
+    for raw_event, event in zip(source.events, state.request.events, strict=True):
+        # 原wireをDTOから再構成しない。共有全項目の値/欠落だけをstrict照合する。
+        raw = raw_event.wire_event
+        dto = event_source(event)
+        known = {"game_id", "d4", "d1", "d5"} | {
+            name for _, name in _EVENT_SOURCE_FIELDS
+        }
+        if _canonical({k: v for k, v in raw.items() if k in known}) != _canonical(dto):
+            raise ValueError(_ERROR)
+        if any(
+            type(raw.get(key)) is not type(expected) or raw[key] != expected
+            for key, expected in (
+                ("game_id", event.game_id),
+                ("d4", event.d4),
+                ("d1", event.d1),
+                ("d5", event.d5),
+            )
+        ):
+            raise ValueError(_ERROR)
+    return state
+
+
+def _select(selection: _Selection) -> EventSourceBinding:
+    """既に照合した状態の選択参照だけを作る。受付issuerではない。"""
+    binding = object.__new__(EventSourceBinding)
+    _SELECTIONS[binding] = selection
+    return binding
+
+
+def legacy_dto_source(
+    entry: LegacyEntryScope,
+    request: SyncRequest,
+    event: SyncEvent,
+    registration: RegistrationSource | None,
+) -> EventSourceBinding:
+    """私有legacy scopeがない限り旧式計算を呼ばない。"""
+    try:
+        state = _legacy(entry)
+        if request is not state.request:
+            raise ValueError(_ERROR)
+        positions = [i for i, item in enumerate(request.events) if item is event]
+        if len(positions) != 1:
+            raise ValueError(_ERROR)
+        position = positions[0]
+        if registration is not state.registrations[position]:
+            raise ValueError(_ERROR)
+        return _select(
+            _Selection(
+                entry,
+                state,
+                event,
+                position,
+                state.fingerprints[position],
+                request,
+                None,
+                None,
+                registration,
+            )
+        )
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise SourceBindingError(_ERROR) from None
+
+
+def e1_event_source(receipt: E1Receipt, position: int) -> EventSourceBinding:
+    """真正issuer未供給ではfail-closed。位置は原eventsの1始まり。"""
+    try:
+        state = _receipt(receipt)
+        if type(position) is not int or not 1 <= position <= len(state.request.events):
+            raise ValueError(_ERROR)
+        index = position - 1
+        return _select(
+            _Selection(
+                receipt,
+                state,
+                state.request.events[index],
+                index,
+                state.source.event_fingerprints[index],
+                state.request,
+                state.source,
+                state.context,
+                None,
+            )
+        )
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise SourceBindingError(_ERROR) from None
+
+
+def selected_event_fingerprint(binding: EventSourceBinding, event: SyncEvent) -> str:
+    """発行済み選択値を同request/event/registrationへ再照合する。"""
+    try:
+        if type(binding) is not EventSourceBinding:
+            raise ValueError(_ERROR)
+        selected = _SELECTIONS[binding]
+        if type(selected) is not _Selection or event is not selected.event:
+            raise ValueError(_ERROR)
+        if type(selected.owner) is LegacyEntryScope:
+            state = _legacy(selected.owner)
+            digests = state.fingerprints
+            if (
+                type(selected.position) is not int
+                or not 0 <= selected.position < len(state.registrations)
+                or state.registrations[selected.position] is not selected.registration
+                or selected.source is not None
+                or selected.context is not None
+            ):
+                raise ValueError(_ERROR)
+        elif type(selected.owner) is E1Receipt:
+            state = _receipt(selected.owner)
+            digests = state.source.event_fingerprints
+            if (
+                state.source is not selected.source
+                or state.context is not selected.context
+                or selected.registration is not None
+            ):
+                raise ValueError(_ERROR)
+        else:
+            raise ValueError(_ERROR)
+        if (
+            state is not selected.state
+            or state.request is not selected.request
+            or type(selected.position) is not int
+            or not 0 <= selected.position < len(state.request.events)
+            or state.request.events[selected.position] is not event
+            or digests[selected.position] != selected.fingerprint
+        ):
+            raise ValueError(_ERROR)
+        return selected.fingerprint
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise SourceBindingError(_ERROR) from None
