@@ -944,3 +944,5 @@ PR187の旧・現世代別corpus候補は、非作者第1回efd6b240…の空集
 PR187 e692f042は最終非作者writer_binding_source_independentが50path/diff bc74b1c8…と正式9資産の全before/afterを確認し、REPORT62797e5f2f8a91882712e0bf8b4a6ebc23bab49e398b21a9e5db2cf74b27bca6残0。source3作者first_ball_u1_independentは最終非作者に数えない。正式資産は既受理値と一致し追加7.7受理不要。最終HEADをpushし、公開証拠 issuecomment-6437004100へ差分・実レビューを束縛。実PR APIのbase/head/bodyに基づくGate6 Bは `DELEGATED VERIFIED (not a personal signature)` 成功。旧CLI --ciはevent未設定で失敗、実event確認後のGate6と区別。census-baselineは成功。最終HEADのCI run 40472685268は実行中、既push前run40472542775はcancelled。必須CI・通常mergeと実1球保存は未成立。
 
 初球formatter計画は非作者第1回898b96e2…のnullable/tuple P2反映後、第2回6dd2b88f…残0。2026-10-27 17:12 JST、PO委任によるCodex /root判断でexact2を承認しf581c148へ保存。source実装・独立レビュー・同writer/DB接続は後続。
+
+wire指紋の追加照合では、現writer WTの同期入口は依然legacy operation_fingerprintで、正本のwire-v1/wire-request-v1生成とE-1接続を提供していない。1と1.0を区別する正本を単純なJavaScript JSON.parse/stringifyで満たすとは扱わない。正規の初球値の範囲と、不正S-2を含む一般wire原値保持の双方を確認し、既D5保存値との領域分離・再送照合を実接続前に閉じる。PR187 run40472685268はcore-guard等成功、harness/backend/frontend実行中（調査時点）。PR186はDraft/mergeState DIRTY、旧CI成功を現状の統合可能性としない。
