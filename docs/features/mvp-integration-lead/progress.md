@@ -940,3 +940,7 @@ V5 codec cache候補の独立レビュー完了、FINAL-REVIEW SHA63d30e11b4d640
 PR187の旧・現世代別corpus候補は、非作者第1回efd6b240…の空集合P2を採用し反映1、非作者第2回e0095ede33f577b335e0f4c441f9ebff6cd0ca39a784df378b60109d9404cfc7残0。PO委任Codex /root判断で対象patch 2ce32a7b…を承認、e692f042へ反映。実WT関連39成功36.67秒、作者による旧・現CLI各11結果と独立確認は区別。正式凍結値/Gate6/必須CIが未完のため未push、PR187完成・mergeとはしない。
 
 保存写像のread-only調査 a847d8b5…ではOperationEvent原本とPlayRowは別資源、既OperationEventReadTokenはIDを含む全列を返すこと、PlayRow番号へD2を複写しない既正本を確認。閉DTO/同writer一回評価frame/PlayRow tokenと投影/記録後GETが後続で、初期専用snapshotは記録後の再読取へ転用しない。
+
+PR187 e692f042は最終非作者writer_binding_source_independentが50path/diff bc74b1c8…と正式9資産の全before/afterを確認し、REPORT62797e5f2f8a91882712e0bf8b4a6ebc23bab49e398b21a9e5db2cf74b27bca6残0。source3作者first_ball_u1_independentは最終非作者に数えない。正式資産は既受理値と一致し追加7.7受理不要。最終HEADをpushし、公開証拠 issuecomment-6437004100へ差分・実レビューを束縛。実PR APIのbase/head/bodyに基づくGate6 Bは `DELEGATED VERIFIED (not a personal signature)` 成功。旧CLI --ciはevent未設定で失敗、実event確認後のGate6と区別。census-baselineは成功。最終HEADのCI run 40472685268は実行中、既push前run40472542775はcancelled。必須CI・通常mergeと実1球保存は未成立。
+
+初球formatter計画は非作者第1回898b96e2…のnullable/tuple P2反映後、第2回6dd2b88f…残0。2026-10-27 17:12 JST、PO委任によるCodex /root判断でexact2を承認しf581c148へ保存。source実装・独立レビュー・同writer/DB接続は後続。
