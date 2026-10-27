@@ -1053,3 +1053,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27 21:05 JST、#186 public HEAD b38e8c2284a635bfe52f7ab470a48e0c62229156 のCI run40495457821は全job success。最終独立review/公開委任は既記録済みだが、親計画が要求する実HTTP/DB保存の証拠は未成立なのでDraftを維持し、CI成功を実製品縦断や通常mergeの条件成立へ拡張しない。
 
 2026-10-27、#188 U3途中点 `pr188-u3-finite-owner-candidate-470ba19a-20261027/` を固定。実source 7pathの現51所見と各根拠を `actual-u3-condition2.json` / `per-row-decisions.json`、旧との対応を `old-current-correspondence.json`、宣言案を `candidate-field.json` に保全。51件は未承認候補で、selectorの負例/拒否probe、変更exactpaths、正式受理境界の確認が残る。旧initial47/ledger17/RG1/履歴は別保存して維持。実repo変更0。
+
+2026-10-27、DB印unit A途中点 `first-ball-db-insert-stamp-plan-20261027/implementation-unit-a/{PROGRESS.md,CHECKPOINT.json,view/}`。eca08a39隔離起点で新private model/0038 default-deny初稿、未検査。残る固定profile・2 guard body・pure testsとRuff/ty/非等価変異、非作者reviewが必要。既device/right関数の印発行はunit B、実DB・profile登録・activationは未実施。cacheのみで実repo/Git変更0。
