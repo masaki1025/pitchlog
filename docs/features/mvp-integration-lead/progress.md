@@ -968,3 +968,5 @@ wire純部品と新vectorは非作者1a0767a707e04119cba90ed845f8f42eedb20c7553e
 PR187 core path候補b0f0f7c1…は非作者4c170af3…残0、正式9全値不変。PO委任判断のもと宣言source2をc18eae81、core JSON登録を後続7425f411へ別commit。実treeの全test_core_guardは467成功・2失敗：旧RG1/tenant宣言を現行追加層から参照する歴史testのKeyError。旧検査を削除せず歴史fixtureへ参照を整合する必要あり。candidateは未push、最終11×2・Gate6・CIも未成立。pure32成功のみを全core成功と扱わない。
 
 bridge/frame第1回P1（終了/失活/差替え/nestedを見逃す）は反映1で既writer lifetimeをbind時保持・各利用で再照合。非作者第2回3bff1bbaab00c19adadce80dba714d835a57a8c9712ccc1ace13dbbc03a59177残0、62成功、root実tree58成功。2026-10-27 18:26 JST、PO委任Codex /root判断でexact4 patch1c51d31b…を57d198d6に採用・push。待機中はread/評価0、同host一回評価の部品であり、実Port/DB/HTTP接続成功は未成立。
+
+#188の12列限定移植c023f73eは非作者cd8ffcccb542f75b12926e4f29262756c9a95c5838c3312b5f114ab53bcd0185残0、独立境界9成功・root対象tree355成功。2026-10-27 18:29 JST、PO委任Codex /root判断をfa958bf0へ記録。実DB・正式値/最終委任・新CIは未完で公開head72f4118aのまま。owned DB試験は既initial fixtureを使う対象版専用候補を作成中。
