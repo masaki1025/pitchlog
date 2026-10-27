@@ -188,7 +188,7 @@ class BindingAuthorityDatabase(initial_support.AuthorityDatabase):
         """Root workerだけにowned control Unix socketを渡す。"""
         args = super().command(**kwargs)
         if kwargs.get("root"):
-            args[1:1] = [
+            args[2:2] = [
                 "--volume",
                 self.binding_control_socket + ":/binding-control-socket",
             ]
@@ -224,6 +224,8 @@ class BindingAuthorityDatabase(initial_support.AuthorityDatabase):
                     "exec",
                     self.binding_control,
                     "pg_isready",
+                    "-h",
+                    "127.0.0.1",
                     "-U",
                     "postgres",
                 ],
