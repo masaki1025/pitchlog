@@ -980,3 +980,5 @@ PR187最終config 42568333の旧現11×2は隔離Gitと実CLIで22全期待一�
 PR187最終42568333は非作者316e6bd2c776b05f7a382683ffd40c9cd2efcea83d872e185c5e3ea61965db40残0、base比較53path/diff73db1c48…・正式9全4面不変。公開push後、実PR base/head/bodyと公開証拠issuecomment-6438537072によるGate6 Bは `DELEGATED VERIFIED (not a personal signature)` 成功。CI run40482727791 in_progress、後発40482786801 pending（観測時点）。前run40472685268失敗は履歴として保持、CI結果待ちに他作業を継続。
 
 #188 owned DB試験P1は反映1 ba6a908c…でobserverの各実TXへtenant binding、可視性assert、NOWAIT拒否/rollback後の新TX再binding、保護SELECT別TXを追加。非作者第2回と実DB未実施。V7/V8型表P2（参照先24member）もref1 manifest6478dfd6…で是正、非作者再確認待ち。
+
+#188 owned DB試験反映1は非作者58a4e0d9…残0、2026-10-27 PO委任判断で追加。root実isolated PGで実Cookie/app scopeの3read、同tenant実別接続のNOWAIT 55P03/解放後取得、保護2列実SELECT各42501とACL falseを確認（1成功27.28秒）。新test/計画2a2c0136へlocal保存、対象PR全CI・実1球保存とは別。V7/V8型表ref1は非作者a24e2fc2…および4ff42fda…でP2解消・残0、pure codec用の具体計画固定を進める。PR187のcancelled run40482727791と実行中run40482786801を区別。
