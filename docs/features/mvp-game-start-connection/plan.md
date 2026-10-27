@@ -533,3 +533,7 @@ PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84
 
 
 2026-10-26T15:46:44.660802+00:00、PO委任によるCodex /root判断で認可profile source5を採用保存。manifest656408f5…/patch62352ed1…/独立fc381d623c482740ef915db79ffc430802d765fb7063abdcb815b00a221f86bf/checksbf07df01…（0/0/0）と実5SHAを照合。旧46profile/facts/secret4のlegacy全object/全decorator/既mutation tupleを保持し、更新assert5だけ採用1.4/e296全値へ厳密追随。helperは既_verifier_rowsの6箇所再利用で非list/非dictの型付き拒否へ閉じ、正常期待21field old/new完全同値、独立mixed12対向/作者新36拒否を確認した。作者2724成功29.99s/独立2724成功30.43s・Ruffformatty成功、旧6fail/中間policy69残1は保全。正式metadata/DB/他sourceを変更せず、全backend/全84失敗・431error/正式公開完成とはしない。
+
+### 同期世代12列consumerの開始候補への限定追随
+
+2026-10-27 18:22 JST、PO委任によるCodex /root判断。PR188の72f4118aからwriter側で独立review済み記録世代12列是正を必要8pathへ限定反映する。対象patch 43bbbe34f04c16d178b0cc7bab1b00ad494741a4d233d7aeb57164e9e3ffcf6a。repository・sync tokens/apply/prefixと関連pure fixture/operations testだけを対象とし、既SQL/tenant/lock/権利・拒否順と保護列非SELECTを維持、writer固有V5・DB helperを混ぜない。隔離候補19module 355成功・Ruff/format/ty成功、target固定版の追加独立review・実DB・正式凍結値・新HEAD CIは別条件である。writer側の実DB成功を本PR実DB成功と呼ばない。

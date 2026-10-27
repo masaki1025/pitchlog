@@ -8,7 +8,6 @@ from uuid import uuid4
 
 import pytest
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
@@ -22,7 +21,10 @@ from pitchlog.sync.ports import (
 )
 from pitchlog.sync.prefix_path import P1ContentRejection, P1Result
 from pitchlog.sync.rejection import RejectionResult
-from pitchlog.sync.tokens import RecordingGenerationReadToken
+from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
+    RecordingGenerationReadToken,
+)
 
 
 def _request(*d1_values: int) -> SyncRequest:
@@ -240,7 +242,7 @@ def test_preflight_classifies_with_operation_fingerprint_before_rights(
     """全件の④は同じ内容同一性を使い、⑤より先に終わる。"""
     request = _request(2, 1)
     observed: list[str] = []
-    columns = tuple(RecordingGeneration.__table__.c.keys())
+    columns = RECORDING_GENERATION_READ_COLUMNS
     # 要求の D4 = 1 と同じ現世代の行(旧 D4 の要求ではないので要求世代の read は無い)。
     values = {"confirmed_watermark": 4, "generation": 1}
     row = tuple(values.get(name, 0) for name in columns)

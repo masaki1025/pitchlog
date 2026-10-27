@@ -71,6 +71,34 @@ def test_lock_order_is_game_then_recording_generation() -> None:
     assert not _OPERATION_REGISTRY[tokens.RecordingGenerationReadToken].for_update
 
 
+def test_generation_read_operations_share_safe_projection() -> None:
+    """世代の読取・指定読取・ロックは証拠列を含めず同一順序で返す。"""
+    expected = (
+        "tenant_id",
+        "game_id",
+        "generation",
+        "kind",
+        "issuance_order",
+        "holder_device",
+        "confirmed_watermark",
+        "applied_prefix",
+        "granted_at",
+        "revoked_at",
+        "import_batch_id",
+        "retired_at",
+    )
+    assert tokens.RECORDING_GENERATION_READ_COLUMNS == expected
+    for token_type in (
+        tokens.RecordingGenerationReadToken,
+        tokens.RecordingGenerationByNumberReadToken,
+        tokens.RecordingGenerationLockToken,
+    ):
+        spec = _OPERATION_REGISTRY[token_type]
+        assert isinstance(spec.statement, Select)
+        assert tuple(c.key for c in spec.statement.selected_columns) == expected
+        assert spec.for_update is (token_type is tokens.RecordingGenerationLockToken)
+
+
 def test_sync_intent_insert_is_distinct_from_trigger_14() -> None:
     """同一 capability 内でも同期経路とトリガー 14 の token は別型である。"""
     first = _OPERATION_REGISTRY[tokens.SyncInvalidationIntentInsertToken]

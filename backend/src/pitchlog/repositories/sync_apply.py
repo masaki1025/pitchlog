@@ -35,20 +35,7 @@ from pitchlog.sync import tokens as sync_tokens
 _GAMES = cast(Table, Game.__table__)
 _GENERATIONS = cast(Table, RecordingGeneration.__table__)
 # 初期権の保護証拠列を既存appの同期読取へ自動投影しない。
-_GENERATION_READ_COLUMNS = (
-    "tenant_id",
-    "game_id",
-    "generation",
-    "kind",
-    "issuance_order",
-    "holder_device",
-    "confirmed_watermark",
-    "applied_prefix",
-    "granted_at",
-    "revoked_at",
-    "import_batch_id",
-    "retired_at",
-)
+_GENERATION_READ_COLUMNS = sync_tokens.RECORDING_GENERATION_READ_COLUMNS
 _SLOTS = cast(Table, EventSlot.__table__)
 _EVENTS = cast(Table, OperationEvent.__table__)
 _MAPPINGS = cast(Table, TemporaryPlayerIdMapping.__table__)
