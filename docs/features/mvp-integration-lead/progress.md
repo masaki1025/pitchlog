@@ -2,6 +2,17 @@
 
 更新: 2026-10-27。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
 
+## 再開時の現在地と次の作業（2026-10-27 20:50 JST）
+
+この節を再開入口とし、下の履歴・証拠を正本として参照する。MVP全体は未完成。ユーザーは実機操作と1試合リハーサルを担当し、運用公開・共有DB・有料資源・秘密情報の既存境界を維持する。実機が使えない間も隔離環境の実API/DBと故障系を進める。各作業の完了時は利用者ができる操作、固定版・検査、残る依存、次の一手をこの台帳へ追記する。同じ状態報告の新規文書は作らない。
+
+1. **最優先の縦断経路**：旧隔離組立 `run1793024422089` で実画面の新規作成→実DB保存・再取得→開始→初期grantの端末IndexedDB保存を実証。再読込後の開始済みGETは404で、現在権利・記録後の状態復元は未達。1球の実API保存は未達。次は開始済み/記録後の正式read、UI座標→B-7正準座標、同writerのT1/T2、E-1受付・再送、実権利と同TX保存を接合し、実画面から新たに入力した1球がDBに残り再読込で同一状態へ戻る証拠を取る。DB事前投入やmock成功をこの到達点に含めない。
+2. **開始・権利 #188**：worktree `/home/ymdms/.cache/pitchlog/verify-game-start-atomic-4f2f2185`、branch `feature/mvp-game-start-atomic-candidate`、local HEAD `34f64420`、remoteより9 commit先行、clean・未push。U2 static import `6bf49286` は独立レビュー3567e473…残0。tenant U1 `d568c955` は固定17行/hashとmanifest追随、17関連検査成功。U5 `34f64420` はbytes固定bindのみをASTに追加し、6関連検査・Ruff成功。U1/U5非作者最終レビュー、残るU3/U4/U6の有限登録・source是正、変更後の正式4面再導出/必要な7.7受理、最終CIが必要。旧110件の入力をそのまま再実行しない。正式資産の旧履歴を上書きせず、#187が先行統合されたら基線を確認して必要値だけ再導出する。中間candidateは既知の未解決CIを抱えるため未push。
+3. **T1/T2・同期/保存**：worktree `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-first-ball-writer-binding`、HEAD `a82dfb23` push済。最初の操作から進める計画は承認済みで、T1全操作・MVP完成ではない。V7/V8 codec candidate `first-ball-payload-codec-plan-addendum-20261027/implementation/` はsource patch SHA `99b6b3faa83ea46c0e8607a95358cca53955cf15a011a52ca67edb1a3e6f4d6a`、作者検査479件/関連1354件成功、非作者review進行中。真正writer/権利/保存資格を発行する部品ではない。review成功後にexact2だけ採用し、形式を実評価frameへ接続する。E-1 source/原本codec段階2は `a82dfb23` でexact4を承認、cache実装中。受付issuer・旧DTO降格防止を保持し、全D5分類/再送/旧原本・HTTP・実PG roundtripを後続に接合する。成功応答や固定結果で代用しない。
+4. **DB側の保存資格**：候補 `first-ball-db-insert-stamp-plan-20261027/PLAN-CANDIDATE.md` SHA `95c0747fa8a02c780bfede94d91ab8e8067c33381c2ac64c2ed3868b71ae984c` は未承認。既admissionだけではdevice/right成功を保証しない。独立reviewでdevice→rightの順序を二flagだけでは証明できない点と、savepointとtrusted-device lock/成功印の一体性をP1候補と指摘。是正して再review後、成功・無権限・別TX・失効・rollback等を実owned PGで対向する。DB印やPortは未登録、実保存成功ではない。
+5. **PRとCI**：#186 public HEAD `b38e8c2284a635bfe52f7ab470a48e0c62229156`、CI run `40495457821` は20:50時点でharness/backend実行中、他job成功。core-guardは正しい公開証拠 `issuecomment-6440629674` で成功。#187 public HEAD `425683337528238006981613765a75353ee191c9` のCI run `40482786801` は全成功。ただし親#186と両計画の実HTTP/DB義務が未成立のためDraft維持。CIを旧HEADへ流用せず、再開時に `gh run view 40495457821 --json status,conclusion,jobs` と各PR HEADを確認する。
+6. **MVP残全体**：1試合の全操作・取消/過去訂正・終了/再開、通信断後の永続キュー/再送/担当交代、閲覧10秒更新、T5/T6基本成績、毎球CSV・成績CSV、同時3試合負荷、隔離故障/復旧、実機/HTTPSリハーサルは未完。暦年JSTなど既決方針とP-6の独立性・封印・曝露履歴を維持する。未裁定の意味仕様は既判断票に具体例/選択肢/推奨/影響を集約し、回答待ちでも独立作業を続ける。
+
 ## 引受時の固定点（履歴。現在地は下記表と追記）
 
 全体目標・編集権を引受。各領域の現HEAD・作業状態は [takeover.json](takeover.json)。既存引継ぎを正として参照し、全保全物を読了したとは扱わない。P-6は役割・封印・曝露履歴を維持し、候補作成へ吸収しない。TSK-545はHEAD一致・clean、対象cwdの稼働なし。独立引継ぎ未受領の不足は残し、今回POによる主担当移管を記録する。旧担当への再許可照会は要しない。
