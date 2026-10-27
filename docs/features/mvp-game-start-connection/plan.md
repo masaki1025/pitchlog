@@ -563,3 +563,9 @@ PR187は本候補作成時未merge。先にrev6/追加field/履歴が統合さ�
 ### 初期権actorの固定RG1型import是正
 
 2026-10-27 20:36 JST、PO委任によるCodex /root判断。tenant検査の実禁止構文1件（initial_grant_broker._verify_business_bindingの固定文字列import_module）を、固定モジュールの局所static importへ置換する。編集はbackend/src/pitchlog/recording_rights/initial_grant_broker.pyとbackend/tests/test_initial_recording_right_candidate.pyのexact2。既ImportError/RG1ControlUnavailableの閉拒否、実binding identity全値照合・runtime寿命・認可を保持し、検出器に動的import許可を追加しない。非作者core review・変更対象の検査と残るtenant/正式値・最終CIは別条件。
+
+### 2026-10-27 20:45 JST: tenant検査の台帳固定値追随（限定）
+
+PO委任によるCodex /root判断。対象HEAD 6bf492865300e99eb567a01bfd1a75a6e60ad963。既受理台帳の実byteへ検査側を追随する。根拠は非作者調査 `pr188-tenant110-origin-classification-20261027/U1-exact-value-proposal.json` SHA-256 53bd4c76142e4ac75c18a6bb588ed6ee8475ea99cd3691e4a23b775e9c58e340、および `U1-CONCRETE.md`。対象は `contracts/tenant_boundary/base-allowlist.json`、`scripts/check_tenant_boundary_bypass.py`、`tests/test_check_tenant_boundary_bypass.py`、必要時 `tests/test_census_baseline_check.py` と本計画に限定する。
+
+台帳manifestの実SHAを更新し、既condition2 adapterの固定17記号・実source SHA・位置だけを現在値へ揃える。3資産の厳密固定、17組の厳密一致、旧47・既拒否・正式履歴を維持し、pathや件数だけの免除へ緩めない。source/宣言同時改変、隣行・余剰・別path等の拒否を保持する。関連pureと正式射影/coverage/参照値を導出し、値が変わった場合は実前後値の正式受理を別途行う。非作者core確認、残るtenant検出、CIは別条件であり、この追随だけで完了としない。
