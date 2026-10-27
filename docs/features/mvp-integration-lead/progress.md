@@ -1012,3 +1012,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、#188 6bf49286の静的import是正は非作者writer_binding_source_independentの固定review REPORT3567e4732059cffcbffd58a196184b72174b3c415fb5b27fb00342a336a83f2fでP0/P1なし。独立17件と閉拒否2件、Ruff/ty成功。旧110件のtenant検出解消やCI完了は未成立。初球PlayRowの実DB書込み印は別担当の設計候補95c0747f…を作成、端末・記録権の両成功と同TXでの一回消費を必要とし、非作者レビュー・実装・実DB検証は未了。
 
 2026-10-27 20:45 JST、#188 tenant検査U1の既採用台帳source追随をPO委任Codex /rootが限定承認 e3305fe6、固定17記号の実SHA/行とmanifest実SHAだけをd568c955にlocal反映。旧symbol集合・exact3/17を維持し、現17の許可と1行移動した別byteの拒否を追加。関連17検査/Ruff成功、非作者確認・正式4面再導出/受理・他tenant残件・CIは未了。新正式履歴を旧履歴へ上書きしない。local ahead7で未push。
+
+2026-10-27 20:47 JST、E-1段階2の原本codecとsource選択のexact4を非作者plan review b02e229a…残0に基づきPO委任Codex /rootがa82dfb23へ限定承認。issuer未供給時は閉拒否、既DTOへ降格しない。cache実装着手、source/実PG/HTTP/全D5/保存接続は未達。DB側INSERT印案は非作者reviewがdevice→right順の成功証跡とsavepoint下lock一体性をP1候補として先行指摘し、是正対象とした。
