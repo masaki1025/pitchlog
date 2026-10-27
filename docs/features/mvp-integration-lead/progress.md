@@ -988,3 +988,7 @@ PR187最終42568333は非作者316e6bd2c776b05f7a382683ffd40c9cd2efcea83d872e185
 親#186と現developの非変更merge-treeでは委任policy.jsonだけが競合。依存・親HTTP/DB義務を満たさずPR187をmergeしない。E-1接合案51979e47…は非作者第1回2a1cb793…の「資格欠落を旧DTOへ降格」P1を採用、反映1第2回e634165f…残0。2026-10-27 20:14 JST、PO委任Codex /root判断で原wire source pure exact2だけを9c4a7d1bへ限定承認しcache実装開始。E-1 originの資格欠落はfail-closed、legacy専用入口のみ旧式。全D5/HTTP/同writer/実保存は後続。#188 formal frozen2値/tenant候補d78c7952…は独立review中、PR187先行統合時はhistory prefixから再導出し旧revで上書きしない。
 
 親#186のdevelop競合は作業WTで通常merge b38e8c22へlocal保存。policy非targetsは両親全値一致、PR184と186の対象両方を保持、未解消conflict0、rootの関連署名policy検査30成功。非作者core確認・対象HEAD公開委任/CI・実HTTP/DB義務は未完で未push。PR187成功CIを新親HEADの検査へ流用しない。
+
+#186 b38e8c22は非作者最終92083acd…残0・旧レビュー継承、base3a→head16path/diff46fbb4ad…を固定し公開。最初の公開証拠はrootが旧policy SHAを誤用しcore_guardが拒否した（失敗を保持）。実head policy SHA f08f81d5…で証拠issuecomment-6440629674を新規公開・pointer訂正し、実PR情報に基づくcore_guardはexit0。CI run40495457821実行中、前2run cancelled。親計画の実HTTP/DB義務は未達、Draft維持。
+
+E-1 raw source純exact2は非作者5ba527e1…残0、独立75成功/5対向、root実tree175成功。2026-10-27 20:21 JST、PO委任Codex /root判断でpatch2a18bb8e…を79d15273へ採用・push。値整合だけでS1受付・認証・origin・writer資格ではなく、P3/旧DTO/全D5/HTTP/DBの実接続は未成立。#188正式受理packet c610cf11…は未記入の実委任欄・正式snapshotを含む候補、非作者全値review中。
