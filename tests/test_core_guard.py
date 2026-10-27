@@ -2339,13 +2339,13 @@ def test_registered_addition_layer_passes_in_a_separate_commit(tmp_path: Path):
     assert used_revision == base_sha
 
 
-def test_stage_a_startup_declaration_keeps_json_baseline_stationary() -> None:
-    """実基線と実JSONの二領域に起動入口の登録が残る。"""
-    core_guard = load_core_guard_module()
+def test_stage_a_startup_declaration_keeps_json_baseline_stationary(tmp_path: Path) -> None:
+    """旧RG1宣言の実基線と当時JSONで起動入口の二領域登録を保つ。"""
+    core_guard = _historical_rg1_guard(tmp_path)
     baseline = core_guard.load_core_areas_at_revision(
         REPO, rg1_lifecycle_comparison_revision()
     )
-    configuration = load_actual_core_areas()
+    configuration = _without_generation_paths(load_actual_core_areas())
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
 
     assert PRE_INITIAL_RIGHTS_PATH_ADDITIONS["game-state"] == (startup,)
@@ -2638,8 +2638,8 @@ def test_tenant_declaration_accepts_json_before_registration(tmp_path: Path) -> 
 
 
 def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path) -> None:
-    """二領域の起動入口登録後、JSON据置き宣言とtenant追加登録を受理する。"""
-    core_guard = load_core_guard_module()
+    """旧RG1宣言で、起動入口登録後のJSON据置き・tenant追加を保つ。"""
+    core_guard = _historical_rg1_guard(tmp_path)
     root, initial_sha = make_layered_core_repo(tmp_path)
     startup = "backend/src/pitchlog/db/stage_a_startup.py"
     stage_additions: dict[str, tuple[str, ...]] = {
@@ -2665,7 +2665,7 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
         initial_sha
     )
 
-    write_text(root, "scripts/core_guard.py", SCRIPT.read_text(encoding="utf-8"))
+    write_text(root, "scripts/core_guard.py", Path(core_guard.__file__).read_text(encoding="utf-8"))
     run_git(root, "add", "scripts/core_guard.py")
     run_git(
         root,
@@ -2689,12 +2689,12 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
     game_area = next(area for area in candidate["areas"] if area["id"] == "game-state")
     assert tenant_area["paths"] == ["base/tenant-isolation.py", startup]
     assert game_area["paths"] == ["base/game-state.py", startup]
-    assert dict(core_guard.AREA_PATH_ADDITIONS) == EXPECTED_AREA_PATH_ADDITIONS
+    assert dict(core_guard.AREA_PATH_ADDITIONS) == RG1_HISTORICAL_AREA_PATH_ADDITIONS
     core_guard.validate_area_path_layers(baseline, candidate)
     assert core_guard.verify_area_path_baseline(root, base_sha, head_sha) == base_sha
 
     registered_sha = commit_area_path_changes(
-        root, {"tenant-isolation": EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]}
+        root, {"tenant-isolation": RG1_HISTORICAL_AREA_PATH_ADDITIONS["tenant-isolation"]}
     )
     registered = core_guard.load_core_areas_at_revision(root, registered_sha)
     for area in registered["areas"]:
@@ -2703,7 +2703,7 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
             f"base/{area_id}.py",
             *stage_additions.get(area_id, ()),
             *(
-                EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"]
+                RG1_HISTORICAL_AREA_PATH_ADDITIONS["tenant-isolation"]
                 if area_id == "tenant-isolation"
                 else ()
             ),
@@ -2715,7 +2715,7 @@ def test_current_declaration_accepts_json_after_stage_a_baseline(tmp_path: Path)
     partial = json.loads(json.dumps(candidate))
     next(area for area in partial["areas"] if area["id"] == "tenant-isolation")[
         "paths"
-    ].append(EXPECTED_AREA_PATH_ADDITIONS["tenant-isolation"][0])
+    ].append(RG1_HISTORICAL_AREA_PATH_ADDITIONS["tenant-isolation"][0])
     with pytest.raises(core_guard.GuardError, match="tenant-isolation.paths"):
         core_guard.validate_area_path_layers(baseline, partial)
 
