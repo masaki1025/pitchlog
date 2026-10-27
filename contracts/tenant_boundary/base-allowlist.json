@@ -31157,7 +31157,7 @@
   },
   "condition_2_ledger_scoped_findings": {
     "path": "backend/src/pitchlog/durable_rights_ledger/adapter.py",
-    "source_sha256": "10906d157598b21f730665965c4231a64bfdfcadf057288cdd5e60e0255190e2",
+    "source_sha256": "4d1cc4c5c955a5bdcc5d459583a7a8b8b9d9923375c5e86393d013ab42941c2e",
     "findings": [
       {
         "line": 21,
@@ -31192,46 +31192,46 @@
         "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._generation"
       },
       {
-        "line": 552,
+        "line": 568,
         "symbol": "current_recovery_generation"
       },
       {
-        "line": 1193,
+        "line": 1212,
         "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation"
       },
       {
-        "line": 1228,
+        "line": 1247,
         "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
       },
       {
-        "line": 1400,
+        "line": 1448,
         "symbol": "generation"
       },
       {
-        "line": 1414,
+        "line": 1462,
         "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
       },
       {
-        "line": 1449,
+        "line": 1500,
         "symbol": "current_recovery_generation"
       },
       {
-        "line": 1456,
+        "line": 1508,
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
       },
       {
-        "line": 1472,
+        "line": 1525,
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
       },
       {
-        "line": 1491,
+        "line": 1545,
         "symbol": "advance_recovery_generation"
       }
     ]
   },
   "ledger_deployment_assets": {
     "backend/src/pitchlog/durable_rights_ledger/business_identity.sql": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
-    "backend/src/pitchlog/durable_rights_ledger/manifest.json": "cb0d0ecd9886bcf44d9569a779a82b396fdc16c158c807c54b69acac842e7b4e",
+    "backend/src/pitchlog/durable_rights_ledger/manifest.json": "8b4b1101c891affadb20ef5e38d629ff36705ee65108df97dec66da1d5664ca8",
     "backend/src/pitchlog/durable_rights_ledger/schema.sql": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
   },
   "rg1_deployment_assets": {

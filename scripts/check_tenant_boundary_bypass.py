@@ -74,18 +74,18 @@ LEDGER_CONDITION2_FINDINGS = frozenset(
         (387, 'generation'),
         (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
         (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
-        (552, 'current_recovery_generation'),
+        (568, 'current_recovery_generation'),
         (
-            1193,
+            1212,
             'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation',
         ),
-        (1228, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
-        (1400, 'generation'),
-        (1414, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
-        (1449, 'current_recovery_generation'),
-        (1456, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (1472, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (1491, 'advance_recovery_generation'),
+        (1247, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1448, 'generation'),
+        (1462, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (1500, 'current_recovery_generation'),
+        (1508, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1525, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1545, 'advance_recovery_generation'),
     }
 )
 

@@ -8634,3 +8634,17 @@ def test_rg1_registered_controller_still_rejects_extra_db_api() -> None:
         and v.symbol == "psycopg.pq.PGconn.exec_"
         for v in found
     )
+
+
+def test_ledger_current_adapter_exact_profile_and_shift_are_distinguished() -> None:
+    """現adapterの17組だけを認め、行移動した別byteは免除しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = (REPOSITORY_ROOT / checker.LEDGER_CONDITION2_PATH).read_text()
+    path = checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
+    assert len(contract.ledger_condition2_findings) == 17
+    assert not [row for row in checker.scan_source(source, path=path, contract=contract)
+                if row.code == "TB002"]
+    shifted = checker.scan_source("\n" + source, path=path, contract=contract)
+    assert {(row.line, row.symbol) for row in shifted if row.code == "TB002"} == {
+        (line + 1, symbol) for line, symbol in contract.ledger_condition2_findings
+    }
