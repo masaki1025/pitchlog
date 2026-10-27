@@ -934,3 +934,5 @@ V5 codec cache候補の独立レビュー完了、FINAL-REVIEW SHA63d30e11b4d640
 同日16:49 JST、PO委任によるCodex /root判断でV5の同期内容判定接合exact2を採用しfe4073d2へ保存・push。非作者レビュー2f57acb9…残0、独立95件/旧対照33件、実treeの関連73件成功。原V5/D5指紋、既拒否順・P2/O4を保持。Port/HTTP/DB保存の提供は未完。
 
 隔離DBでは正式認可資産の二度適用と新9関数本文改変・4trigger無効化の拒否を一つのowned fixtureで実行し成功（29.08秒）。最初はcolumn ACL配列の順序差で比較失敗し、差を実観測した後、正常再適用のACL要素だけ順序正規化して再実行。権限要素は維持し、改変拒否前後はpolicy OIDとACL生値も含め比較した。候補test SHA ac5ada8f…は未コミット、別非作者レビュー中。公開catalogのtrigger構造検出はこの試験では成立させておらず、正式再applyによる拒否を確認した。
+
+非作者レビューはac5ada8f…のlint/type不成立を指摘。rootが型注釈と整形のみ修正し、SQL/検査assertのAST同値を非作者が確認、最終SHA85db52ea…・レビュー6bb1f025cb5f5c98de616a896cc0f251390d644f613285b06cc9445b8fd8b6a2残0、Ruff/format/ty成功。正式testを3edb5a7bへcommit/push。実DB成功は前の意味同値版でのroot実行であり、非作者による実DB再実行ではない。
