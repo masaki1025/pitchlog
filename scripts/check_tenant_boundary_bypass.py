@@ -77,7 +77,10 @@ LEDGER_CONDITION2_FINDINGS = frozenset(
         (568, 'current_recovery_generation'),
         (
             1212,
-            'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation',
+            (
+                'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.curren'
+                't_recovery_generation'
+            ),
         ),
         (1247, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
         (1448, 'generation'),
@@ -248,6 +251,265 @@ class ScopedCondition2Owner:
 
 
 @dataclass(frozen=True)
+class InitialStartCondition2Owner:
+    """開始接合の実sourceとscope付き出現を有限集合へ束縛する。"""
+
+    path: str
+    source_sha256: str
+    findings: frozenset[tuple[int, str, str]]
+
+
+# PO委任による限定受理2e8a816fのexact7path・51出現。宣言の自己申告で増やさない。
+INITIAL_START_CONDITION2_OWNERS = (
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/api/schemas/game_start.py',
+        '5459b62cc6f7de422e011fc4dbfa382639a3499a536d3eed198c4c9ead012ed1',
+        frozenset({
+            (189, 'str', 'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'),
+        }),
+    ),
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/authz/capability_catalog.py',
+        '613f45721c84d869e74586b57c4e4fc75504d7ff68c7a962ba1183b93e35a7f7',
+        frozenset({
+            (180, 'generation', 'pitchlog.authz.capability_catalog._initial_storage_profile'),
+            (183, 'generation', 'pitchlog.authz.capability_catalog._initial_storage_profile'),
+        }),
+    ),
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/authz/product_function_acl.py',
+        '89f6678f4ede2fed9a5954758b08160084894671b61388e80e75b5d4be612478',
+        frozenset({
+            (157, (
+                'pitchlog.authz.product_function_acl.generate_generation_guard_sql'
+            ), (
+                'pitchlog.authz.product_function_acl.generate_product_function_acl'
+                '_sql'
+            )),
+            (2585, 'generate_generation_guard_sql', 'pitchlog.authz.product_function_acl.<module>'),
+        }),
+    ),
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/db/recording_rights/models.py',
+        'ab260eb40fdcd71b07fbc456d7047eb44effbf317af3430cf7294312e79e74b7',
+        frozenset({
+            (66, 'sqlalchemy.orm.Mapped', (
+                'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>'
+            )),
+            (194, 'RecordingGeneration', 'pitchlog.db.recording_rights.models.<module>'),
+            (267, 'sqlalchemy.orm.Mapped', (
+                'pitchlog.db.recording_rights.models.RecordingGeneration.<module>'
+            )),
+            (567, 'sqlalchemy.orm.Mapped', (
+                'pitchlog.db.recording_rights.models.RecordingRightDelivery.<modul'
+                'e>'
+            )),
+        }),
+    ),
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
+        '5cadb52a5c1a75684b70b4fbed962fe8b42d78cc056b0d3777f5a1113db9489f',
+        frozenset({
+            (35, 'DurableGenerationSource', (
+                'pitchlog.recording_rights.initial_grant_broker.<module>'
+            )),
+            (35, 'assert_write_recovery_generation', (
+                'pitchlog.recording_rights.initial_grant_broker.<module>'
+            )),
+            (326, (
+                'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker.<module>'
+            )),
+            (405, (
+                'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
+                'eration'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
+                'nt_impl'
+            )),
+            (406, (
+                'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
+                'eration'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
+                'nt_impl'
+            )),
+            (430, (
+                'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker.<module>'
+            )),
+            (445, (
+                'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker.<module>'
+            )),
+            (485, 'generation', 'pitchlog.recording_rights.initial_grant_broker.<module>'),
+            (490, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_d4'),
+            (491, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_d4'),
+            (494, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_d4'),
+            (498, '_broker_generation', 'pitchlog.recording_rights.initial_grant_broker.<module>'),
+            (512, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_generation'),
+            (516, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_generation'),
+            (522, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_generation'),
+            (806, (
+                'pitchlog.recording_rights.initial_grant.InitialGrant.generation'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
+                'response'
+            )),
+            (807, (
+                'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
+                'eration'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
+                'response'
+            )),
+            (807, 'recovery_generation', (
+                'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
+                'response'
+            )),
+            (931, (
+                'pitchlog.recording_rights.initial_grant_broker._broker_generation'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._decode_initial_re'
+                'ply'
+            )),
+            (1462, 'pitchlog.sync.idempotency', (
+                'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
+                'art'
+            )),
+            (1519, (
+                'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
+                'eration'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
+                'art'
+            )),
+            (1520, (
+                'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
+                'eration'
+            ), (
+                'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
+                'art'
+            )),
+        }),
+    ),
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/repositories/game_start.py',
+        'ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613',
+        frozenset({
+            (23, 'pitchlog.sync.idempotency', 'pitchlog.repositories.game_start.<module>'),
+        }),
+    ),
+    InitialStartCondition2Owner(
+        'backend/src/pitchlog/repositories/initial_recording_right.py',
+        '94adcfd3e4216eb5442aa69ea30d039832081244ae4ffe99a722480ced7d5a9c',
+        frozenset({
+            (47, '_positive_generation', 'pitchlog.repositories.initial_recording_right.<module>'),
+            (158, 'int', (
+                'pitchlog.repositories.initial_recording_right._CheckBusinessEpoch'
+                'Token.<module>'
+            )),
+            (174, 'int', (
+                'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
+                'Token.<module>'
+            )),
+            (175, 'int', (
+                'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
+                'Token.<module>'
+            )),
+            (264, (
+                'pitchlog.repositories.initial_recording_right._positive_generatio'
+                'n'
+            ), (
+                'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                'ult'
+            )),
+            (276, 'int', 'pitchlog.repositories.initial_recording_right._decode_initial_result'),
+            (278, 'int', 'pitchlog.repositories.initial_recording_right._decode_initial_result'),
+            (279, 'int', 'pitchlog.repositories.initial_recording_right._decode_initial_result'),
+            (279, (
+                'pitchlog.repositories.initial_recording_right._positive_generatio'
+                'n'
+            ), (
+                'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                'ult'
+            )),
+            (466, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                'tion'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.__init__'
+            )),
+            (559, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                'tion'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.lock_valid_device'
+            )),
+            (593, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                'tion'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope._record'
+            )),
+            (666, 'assert_recovery_generation', (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.<module>'
+            )),
+            (669, (
+                'pitchlog.repositories.initial_recording_right._positive_generatio'
+                'n'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.assert_recovery_generation'
+            )),
+            (700, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                'tion'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.insert_initial_grant'
+            )),
+            (701, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
+                'ry_generation'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.insert_initial_grant'
+            )),
+            (715, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                'tion'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.insert_initial_grant'
+            )),
+            (716, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
+                'ry_generation'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.insert_initial_grant'
+            )),
+            (725, (
+                'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                'tion'
+            ), (
+                'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                'htScope.insert_initial_grant'
+            )),
+        }),
+    ),
+)
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -264,6 +526,7 @@ class Contract:
     ledger_condition2_findings: frozenset[tuple[int, str]]
     ledger_condition2_source_sha256: str
     rg1_condition2_owners: tuple[ScopedCondition2Owner, ...]
+    initial_start_condition2_owners: tuple[InitialStartCondition2Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
     rg1_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
@@ -848,6 +1111,39 @@ def _load_inventory(
     )
 
 
+def _load_initial_start_condition2_owners(
+    value: object,
+) -> tuple[InitialStartCondition2Owner, ...]:
+    """開始接合の登録を審査済みのpath/hash/line/symbol/scope全値へ閉じる。"""
+    location = "allowlist.condition_2_initial_start_scoped_findings"
+    owners: list[InitialStartCondition2Owner] = []
+    seen_paths: set[str] = set()
+    for raw in _array(value, location):
+        entry = _object(raw, location)
+        _strict_keys(entry, {"path", "source_sha256", "findings"}, location)
+        path = _string(entry["path"], location)
+        digest = _string(entry["source_sha256"], location)
+        if path in seen_paths or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("開始条件2登録は一意pathと実source SHA-256が必要")
+        seen_paths.add(path)
+        findings: set[tuple[int, str, str]] = set()
+        for item in _array(entry["findings"], location):
+            finding = _object(item, location)
+            _strict_keys(finding, {"line", "symbol", "scope"}, location)
+            line = _integer(finding["line"], location)
+            symbol = _string(finding["symbol"], location)
+            scope = _string(finding["scope"], location)
+            identity = (line, symbol, scope)
+            if line < 1 or not symbol or not scope or identity in findings:
+                raise ContractError("開始条件2登録は正の行と一意の記号/scopeが必要")
+            findings.add(identity)
+        owners.append(InitialStartCondition2Owner(path, digest, frozenset(findings)))
+    result = tuple(sorted(owners, key=lambda owner: owner.path))
+    if result != INITIAL_START_CONDITION2_OWNERS:
+        raise ContractError("開始条件2登録は審査済み7path/51出現のexact-setが必要")
+    return result
+
+
 def _load_allowlist(
     value: dict[str, Any], inventory_bytes: bytes, apis: tuple[ApiSpec, ...]
 ) -> tuple[
@@ -860,6 +1156,7 @@ def _load_allowlist(
     frozenset[tuple[int, str]],
     str,
     tuple[ScopedCondition2Owner, ...],
+    tuple[InitialStartCondition2Owner, ...],
     tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
     tuple[str, ...],
@@ -879,6 +1176,7 @@ def _load_allowlist(
             "condition_2_scoped_findings",
             "condition_2_ledger_scoped_findings",
             "condition_2_rg1_scoped_findings",
+            "condition_2_initial_start_scoped_findings",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
             "baseline_control",
@@ -1155,6 +1453,9 @@ def _load_allowlist(
         frozenset(ledger_findings),
         ledger_digest,
         tuple(rg1_owners),
+        _load_initial_start_condition2_owners(
+            value["condition_2_initial_start_scoped_findings"]
+        ),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
         command,
@@ -1712,6 +2013,7 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_findings,
         ledger_condition2_source_sha256,
         rg1_condition2_owners,
+        initial_start_condition2_owners,
         ledger_deployment_assets,
         rg1_deployment_assets,
         diff_command,
@@ -1761,6 +2063,7 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_findings=ledger_condition2_findings,
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
         rg1_condition2_owners=rg1_condition2_owners,
+        initial_start_condition2_owners=initial_start_condition2_owners,
         ledger_deployment_assets=ledger_deployment_assets,
         rg1_deployment_assets=rg1_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
@@ -5945,6 +6248,30 @@ def scan_source(
                 for violation in violations
                 if violation.code != "TB002"
                 or (violation.line, violation.symbol) not in owner.findings
+            ]
+    # 合成Contractも固定集合と実sourceの完全一致以外は免除しない。
+    initial_owners = contract.initial_start_condition2_owners
+    valid_initial_owners = (
+        initial_owners == INITIAL_START_CONDITION2_OWNERS
+        and all(
+            type(owner) is InitialStartCondition2Owner
+            and type(owner.findings) is frozenset
+            and all(
+                type(line) is int and type(symbol) is str and type(scope) is str
+                for line, symbol, scope in owner.findings
+            )
+            for owner in initial_owners
+        )
+    )
+    for owner in initial_owners if valid_initial_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest() == owner.source_sha256
+        ):
+            violations = [
+                violation for violation in violations
+                if violation.code != "TB002"
+                or (violation.line, violation.symbol, violation.scope) not in owner.findings
             ]
     return sorted(violations)
 

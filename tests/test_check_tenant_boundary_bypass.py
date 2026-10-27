@@ -2309,7 +2309,7 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
     violations = checker.scan_source(
         _fixture_source(source_root / path),
         path=path,
-        contract=contract,
+        contract=replace(contract, initial_start_condition2_owners=()),
     )
     condition2 = [violation for violation in violations if violation.code == "TB002"]
 
@@ -8426,7 +8426,7 @@ def test_rg1_owned_condition2_requires_each_source_path_and_occurrence() -> None
     assert len(contract.ledger_condition2_findings) == 17
     for owner in contract.rg1_condition2_owners:
         relative = owner.path.removeprefix("backend/src/")
-        source = (REPOSITORY_ROOT / owner.path).read_text()
+        source = _rg1_registered_source(owner)
         assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
         raw = checker.scan_source(
             source, path=relative,
@@ -8487,7 +8487,7 @@ def test_rg1_owned_condition2_synthetic_contract_is_not_an_escape(mutation: str)
     else:
         owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
     owner = contract.rg1_condition2_owners[0]
-    source = (REPOSITORY_ROOT / owner.path).read_text()
+    source = _rg1_registered_source(owner)
     found = checker.scan_source(
         source, path=owner.path.removeprefix("backend/src/"),
         contract=replace(contract, rg1_condition2_owners=owners),
@@ -8678,3 +8678,492 @@ def test_fixed_function_binary_bind_rejects_altered_body(replacement: str) -> No
     assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
         (row.code, row.symbol) for row in violations
     }
+
+
+# PO委任による限定受理2e8a816fの7path/51組を、製品scannerと独立した固定値で比較する。
+_INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas/game_start.py',
+  'source_sha256': '5459b62cc6f7de422e011fc4dbfa382639a3499a536d3eed198c4c9ead012ed1',
+  'findings': [{'line': 189,
+                'symbol': 'str',
+                'scope': 'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'}]},
+ {'path': 'backend/src/pitchlog/authz/capability_catalog.py',
+  'source_sha256': '613f45721c84d869e74586b57c4e4fc75504d7ff68c7a962ba1183b93e35a7f7',
+  'findings': [{'line': 180,
+                'symbol': 'generation',
+                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile'},
+               {'line': 183,
+                'symbol': 'generation',
+                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile'}]},
+ {'path': 'backend/src/pitchlog/authz/product_function_acl.py',
+  'source_sha256': '89f6678f4ede2fed9a5954758b08160084894671b61388e80e75b5d4be612478',
+  'findings': [{'line': 157,
+                'symbol': 'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
+                'scope': 'pitchlog.authz.product_function_acl.generate_product_function_acl_sql'},
+               {'line': 2585,
+                'symbol': 'generate_generation_guard_sql',
+                'scope': 'pitchlog.authz.product_function_acl.<module>'}]},
+ {'path': 'backend/src/pitchlog/db/recording_rights/models.py',
+  'source_sha256': 'ab260eb40fdcd71b07fbc456d7047eb44effbf317af3430cf7294312e79e74b7',
+  'findings': [{'line': 66,
+                'symbol': 'sqlalchemy.orm.Mapped',
+                'scope': 'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>'},
+               {'line': 194,
+                'symbol': 'RecordingGeneration',
+                'scope': 'pitchlog.db.recording_rights.models.<module>'},
+               {'line': 267,
+                'symbol': 'sqlalchemy.orm.Mapped',
+                'scope': 'pitchlog.db.recording_rights.models.RecordingGeneration.<module>'},
+               {'line': 567,
+                'symbol': 'sqlalchemy.orm.Mapped',
+                'scope': 'pitchlog.db.recording_rights.models.RecordingRightDelivery.<module>'}]},
+ {'path': 'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
+  'source_sha256': '5cadb52a5c1a75684b70b4fbed962fe8b42d78cc056b0d3777f5a1113db9489f',
+  'findings': [{'line': 35,
+                'symbol': 'DurableGenerationSource',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 35,
+                'symbol': 'assert_write_recovery_generation',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 326,
+                'symbol': 'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 405,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
+                    'eration'
+                ),
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
+                    'nt_impl'
+                )},
+               {'line': 406,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
+                    'eration'
+                ),
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
+                    'nt_impl'
+                )},
+               {'line': 430,
+                'symbol': 'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 445,
+                'symbol': 'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 485,
+                'symbol': 'generation',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 490,
+                'symbol': 'int',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4'},
+               {'line': 491,
+                'symbol': 'int',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4'},
+               {'line': 494,
+                'symbol': 'int',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4'},
+               {'line': 498,
+                'symbol': '_broker_generation',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
+               {'line': 512,
+                'symbol': 'int',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_generation'},
+               {'line': 516,
+                'symbol': 'int',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_generation'},
+               {'line': 522,
+                'symbol': 'int',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_generation'},
+               {'line': 806,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
+                    'response'
+                )},
+               {'line': 807,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
+                    'eration'
+                ),
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
+                    'response'
+                )},
+               {'line': 807,
+                'symbol': 'recovery_generation',
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
+                    'response'
+                )},
+               {'line': 931,
+                'symbol': 'pitchlog.recording_rights.initial_grant_broker._broker_generation',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._decode_initial_reply'},
+               {'line': 1462,
+                'symbol': 'pitchlog.sync.idempotency',
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'},
+               {'line': 1519,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
+                    'eration'
+                ),
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'},
+               {'line': 1520,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
+                    'eration'
+                ),
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'}]},
+ {'path': 'backend/src/pitchlog/repositories/game_start.py',
+  'source_sha256': 'ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613',
+  'findings': [{'line': 23,
+                'symbol': 'pitchlog.sync.idempotency',
+                'scope': 'pitchlog.repositories.game_start.<module>'}]},
+ {'path': 'backend/src/pitchlog/repositories/initial_recording_right.py',
+  'source_sha256': '94adcfd3e4216eb5442aa69ea30d039832081244ae4ffe99a722480ced7d5a9c',
+  'findings': [{'line': 47,
+                'symbol': '_positive_generation',
+                'scope': 'pitchlog.repositories.initial_recording_right.<module>'},
+               {'line': 158,
+                'symbol': 'int',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._CheckBusinessEpoch'
+                    'Token.<module>'
+                )},
+               {'line': 174,
+                'symbol': 'int',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
+                    'Token.<module>'
+                )},
+               {'line': 175,
+                'symbol': 'int',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
+                    'Token.<module>'
+                )},
+               {'line': 264,
+                'symbol': 'pitchlog.repositories.initial_recording_right._positive_generation',
+                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
+               {'line': 276,
+                'symbol': 'int',
+                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
+               {'line': 278,
+                'symbol': 'int',
+                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
+               {'line': 279,
+                'symbol': 'int',
+                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
+               {'line': 279,
+                'symbol': 'pitchlog.repositories.initial_recording_right._positive_generation',
+                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
+               {'line': 466,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.__init__'
+                )},
+               {'line': 559,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.lock_valid_device'
+                )},
+               {'line': 593,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope._record'
+                )},
+               {'line': 666,
+                'symbol': 'assert_recovery_generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.<module>'
+                )},
+               {'line': 669,
+                'symbol': 'pitchlog.repositories.initial_recording_right._positive_generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.assert_recovery_generation'
+                )},
+               {'line': 700,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.insert_initial_grant'
+                )},
+               {'line': 701,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
+                    'ry_generation'
+                ),
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.insert_initial_grant'
+                )},
+               {'line': 715,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.insert_initial_grant'
+                )},
+               {'line': 716,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
+                    'ry_generation'
+                ),
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.insert_initial_grant'
+                )},
+               {'line': 725,
+                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
+                    'htScope.insert_initial_grant'
+                )}]}]
+
+
+@pytest.fixture(scope="module")
+def initial_start_condition2_snapshot() -> tuple[dict[str, str], Any]:
+    """同じ実source snapshotで再輸出の起源まで解決する。"""
+    root = REPOSITORY_ROOT / "backend/src"
+    sources = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
+               for path in root.rglob("*.py")}
+    return sources, checker._build_reexport_map(sources)
+
+
+def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
+    """開始7path/51組だけを追加し、既所有と受理履歴を置換しない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    assert value["condition_2_initial_start_scoped_findings"] == _INITIAL_START_CONDITION2_REVIEWED
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert len(contract.initial_start_condition2_owners) == 7
+    assert sum(len(row.findings) for row in contract.initial_start_condition2_owners) == 51
+    assert len(contract.condition2_scoped_findings) == 47
+    assert len(contract.ledger_condition2_findings) == 17
+    assert len(contract.rg1_condition2_owners) == 2
+    assert all(len(row.findings) == 1 for row in contract.rg1_condition2_owners)
+    assert value["condition_2_scoped_findings"] == _accepted_initial_condition2(REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize("mutation", (
+    "missing-field", "missing-path", "extra-path", "duplicate-path", "path",
+    "digest-format", "digest-value", "empty-findings", "duplicate-finding",
+    "missing-finding", "extra-finding", "zero-line", "bool-line", "line",
+    "symbol", "scope", "scope-prefix", "missing-scope", "extra-key",
+))
+def test_initial_start_condition2_rejects_nonexact_declaration(mutation: str) -> None:
+    """自己申告source/宣言の同時更新でも審査済み集合を広げられない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    key = "condition_2_initial_start_scoped_findings"
+    groups = value[key]
+    entry = groups[0]
+    finding = entry["findings"][0]
+    if mutation == "missing-field":
+        del value[key]
+    elif mutation == "missing-path":
+        groups.pop()
+    elif mutation == "extra-path":
+        other = copy.deepcopy(entry)
+        other["path"] = "backend/src/pitchlog/services/unreviewed.py"
+        groups.append(other)
+    elif mutation == "duplicate-path":
+        groups.append(copy.deepcopy(entry))
+    elif mutation == "path":
+        entry["path"] = "backend/src/pitchlog/api/schemas/other.py"
+    elif mutation == "digest-format":
+        entry["source_sha256"] = "bad"
+    elif mutation == "digest-value":
+        entry["source_sha256"] = "0" * 64
+    elif mutation == "empty-findings":
+        entry["findings"] = []
+    elif mutation == "duplicate-finding":
+        entry["findings"].append(copy.deepcopy(finding))
+    elif mutation == "missing-finding":
+        entry["findings"].pop()
+    elif mutation == "extra-finding":
+        entry["findings"].append({**finding, "line": finding["line"] + 1})
+    elif mutation == "zero-line":
+        finding["line"] = 0
+    elif mutation == "bool-line":
+        finding["line"] = True
+    elif mutation == "line":
+        finding["line"] += 1
+    elif mutation == "symbol":
+        finding["symbol"] += ".extra"
+    elif mutation == "scope":
+        finding["scope"] = "pitchlog.unreviewed"
+    elif mutation == "scope-prefix":
+        finding["scope"] += ".extra"
+    elif mutation == "missing-scope":
+        del finding["scope"]
+    else:
+        finding["condition"] = 5
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis = checker.load_contract(REPOSITORY_ROOT).apis
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory, apis)
+
+
+@pytest.mark.parametrize("profile", _INITIAL_START_CONDITION2_REVIEWED)
+def test_initial_start_condition2_filters_exact_source_scope_only(
+    profile: dict[str, Any], initial_start_condition2_snapshot: tuple[dict[str, str], Any]
+) -> None:
+    """実sourceの有限51組だけを除外し、旧6行・他条件・copy・追加処理を残す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    sources, reexports = initial_start_condition2_snapshot
+    path = profile["path"].removeprefix("backend/src/")
+    source = sources[path]
+    assert hashlib.sha256(source.encode()).hexdigest() == profile["source_sha256"]
+    raw = checker.scan_source(source, path=path,
+        contract=replace(contract, initial_start_condition2_owners=()), reexport_map=reexports)
+    actual = checker.scan_source(source, path=path, contract=contract, reexport_map=reexports)
+    allowed = {(r["line"], r["symbol"], r["scope"]) for r in profile["findings"]}
+    assert allowed <= {(r.line, r.symbol, r.scope) for r in raw if r.code == "TB002"}
+    assert actual == [
+        r for r in raw
+        if r.code != "TB002" or (r.line, r.symbol, r.scope) not in allowed
+    ]
+    assert [r for r in actual if r.code != "TB002"] == [r for r in raw if r.code != "TB002"]
+    if path == "pitchlog/db/recording_rights/models.py":
+        assert len([r for r in actual if r.code == "TB002"]) == 6
+    for changed, copied_path in (
+        (source + "\n", path),
+        (source + "\nextra_generation = 1\n", path),
+        (source, "pitchlog/services/copied_initial.py"),
+    ):
+        found = checker.scan_source(
+            changed, path=copied_path, contract=contract, reexport_map=reexports
+        )
+        assert any(r.code == "TB002" for r in found)
+        if copied_path == path:
+            assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
+    first = contract.initial_start_condition2_owners[0]
+    for broken in (
+        replace(first, source_sha256="0" * 64),
+        replace(first, findings=frozenset(
+            (line + 1, symbol, scope) for line, symbol, scope in first.findings
+        )),
+        replace(first, findings=frozenset(
+            (line, symbol, scope + ".extra") for line, symbol, scope in first.findings
+        )),
+    ):
+        owners = (broken, *contract.initial_start_condition2_owners[1:])
+        found = checker.scan_source(source, path=path,
+            contract=replace(contract, initial_start_condition2_owners=owners),
+            reexport_map=reexports)
+        assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
+
+
+# 登録後に現treeのbyteが変わったRG1 path。これ以外は現treeで照合する。
+_RG1_HISTORICAL_SOURCE_PATHS = frozenset(
+    {"backend/src/pitchlog/db/recording_rights/models.py"}
+)
+
+
+def _rg1_registered_source(owner: checker.ScopedCondition2Owner) -> str:
+    """RG1宣言が束縛した原sourceを返す。
+
+    歴史pathは、宣言のsource SHAを正式allow-listへ初めて記録したcommit
+    (RG1正式登録の歴史座標)の原byteを読む。
+
+    Args:
+        owner: RG1所有境界の宣言。
+
+    Returns:
+        歴史pathは登録commitの原byte、他は現treeのsource。
+    """
+    if owner.path not in _RG1_HISTORICAL_SOURCE_PATHS:
+        return (REPOSITORY_ROOT / owner.path).read_text()
+    revisions = checker._run_git(
+        REPOSITORY_ROOT,
+        [
+            "log", "--format=%H", "--reverse", f"-S{owner.source_sha256}",
+            "HEAD", "--", checker.DEFAULT_ALLOWLIST.as_posix(),
+        ],
+    ).split()
+    assert revisions
+    return checker._run_git(REPOSITORY_ROOT, ["show", f"{revisions[0]}:{owner.path}"])
+
+
+def test_rg1_historical_source_coordinate_is_exact_and_current_row_moves_to_u3() -> None:
+    """歴史座標は漂移pathだけに限り、現行の同一行はU3の有限登録だけが免除する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    drifted = {
+        owner.path
+        for owner in contract.rg1_condition2_owners
+        if hashlib.sha256((REPOSITORY_ROOT / owner.path).read_bytes()).hexdigest()
+        != owner.source_sha256
+    }
+    assert drifted == _RG1_HISTORICAL_SOURCE_PATHS
+    for owner in contract.rg1_condition2_owners:
+        source = _rg1_registered_source(owner)
+        assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
+
+    (owner,) = (
+        o for o in contract.rg1_condition2_owners
+        if o.path in _RG1_HISTORICAL_SOURCE_PATHS
+    )
+    (initial,) = (
+        o for o in contract.initial_start_condition2_owners if o.path == owner.path
+    )
+    relative = owner.path.removeprefix("backend/src/")
+    historical = _rg1_registered_source(owner).splitlines()
+    current_source = (REPOSITORY_ROOT / owner.path).read_text()
+    current = current_source.splitlines()
+    scope = "pitchlog.db.recording_rights.models.RG1RestoreGate.<module>"
+    for line, symbol in owner.findings:
+        moved = [
+            row for row in initial.findings
+            if row[1] == symbol and row[2] == scope
+            and current[row[0] - 1] == historical[line - 1]
+        ]
+        assert len(moved) == 1
+
+    live = checker.scan_source(current_source, path=relative, contract=contract)
+    assert not any(
+        v.code == "TB002" and (v.line, v.symbol, v.scope) in initial.findings
+        for v in live
+    )
+    raw = checker.scan_source(
+        current_source, path=relative,
+        contract=replace(contract, initial_start_condition2_owners=()),
+    )
+    assert initial.findings <= {
+        (v.line, v.symbol, v.scope) for v in raw if v.code == "TB002"
+    }
+
+
+def test_recording_generation_u3_registration_exempts_only_declared_class_row() -> None:
+    """記録権世代の実モデル参照4行のうち、U3宣言の1行だけを免除する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/db/recording_rights/models.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend" / "src" / path)
+    (initial,) = (
+        o for o in contract.initial_start_condition2_owners
+        if o.path == f"backend/src/{path}"
+    )
+    declared = {
+        row for row in initial.findings if "RecordingGeneration" in row[1]
+    }
+    assert declared == {
+        (194, "RecordingGeneration", "pitchlog.db.recording_rights.models.<module>")
+    }
+    raw = {
+        (v.line, v.symbol, v.scope)
+        for v in checker.scan_source(
+            source, path=path,
+            contract=replace(contract, initial_start_condition2_owners=()),
+        )
+        if v.code == "TB002" and "RecordingGeneration" in v.symbol
+    }
+    live = {
+        (v.line, v.symbol, v.scope)
+        for v in checker.scan_source(source, path=path, contract=contract)
+        if v.code == "TB002" and "RecordingGeneration" in v.symbol
+    }
+    assert declared <= raw
+    assert live == raw - declared
+    assert {line for line, _symbol, _scope in live} == {305, 306, 307}
