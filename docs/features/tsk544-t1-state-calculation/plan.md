@@ -530,3 +530,5 @@ DB格納先・V7/V8写像・D5/event/request fingerprint・HTTP wire・保存後
 **検査と終了条件**：各単位は影響範囲だけを検査し、固定候補で非作者core確認する。実DB原子性/越境/再送/結果不明/権利失効/通信断復旧は隔離DB・専用port/一時dirで行い、共有DBへ適用しない。core/正式登録の全値・必要な7.7・必須CIを最終版で満たして通常統合する。実機/1試合リハーサルはPOへ接続先・データ準備・操作・期待結果・制限を引き渡し、未実施を完了へ読み替えない。最初の1球が通ってもMVP全体/全T1完了ではない。
 
 2026-10-27 17:34 JST、PO委任によるCodex /root判断。追補案SHA43c8bc4b811b68c0eb7231b2c89e73b882d85c37082f9833f15bff52e73c2090、非作者レビュー66bf169a88cd82009c4b4466c778b50a5fe63a3f3792aa6151b8976fba5daf14（残0）を根拠に、単位1 exact4の着手のみ承認する。後続単位は候補であり、V7/V8型表・Port接合・登録・GET・HTTPの各実装前に対象と条件を別固定する。実Port/実DB/画面成功は未成立。
+
+2026-10-27 17:36 JST、PO委任によるCodex /root判断。pure formatter exact2 source patch caa4c7cb718bde8bf8a3f94663bee8c4906d908deea0b82e102ba06f0798442f、非作者レビューcbe21556fe1e0a67186236cbb31a5e9bcaca1a6444336893aefdae3e7de43e01（残0、独立603成功・6変異拒否）を根拠に採用。実tree関連173成功。独立expectedの真正性・同writer・実保存・再読込の証明には使用しない。
