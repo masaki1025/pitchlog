@@ -1051,3 +1051,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27 21:04 JST、次の実接続としてE-1段階3（全D5/原本/同writer接合）の最小着手範囲と真正issuerへの依存をcacheで調査中。段階2は純部品であり、任意issuerや認可成功を仮置きして公開しない。DB印unit Aは未適用private表・default-deny migration・未登録profile候補の実装中で、既device/right関数への発行接合はunit B、実DB/activationはunit C以降。各途中点は担当cacheで随時保存し、実repo/共有台帳の書き込みを一本化する。
 
 2026-10-27 21:05 JST、#186 public HEAD b38e8c2284a635bfe52f7ab470a48e0c62229156 のCI run40495457821は全job success。最終独立review/公開委任は既記録済みだが、親計画が要求する実HTTP/DB保存の証拠は未成立なのでDraftを維持し、CI成功を実製品縦断や通常mergeの条件成立へ拡張しない。
+
+2026-10-27、#188 U3途中点 `pr188-u3-finite-owner-candidate-470ba19a-20261027/` を固定。実source 7pathの現51所見と各根拠を `actual-u3-condition2.json` / `per-row-decisions.json`、旧との対応を `old-current-correspondence.json`、宣言案を `candidate-field.json` に保全。51件は未承認候補で、selectorの負例/拒否probe、変更exactpaths、正式受理境界の確認が残る。旧initial47/ledger17/RG1/履歴は別保存して維持。実repo変更0。
