@@ -1073,3 +1073,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、E-1段階3候補 `e1-stage3-core-binding-readiness-20261027/PLAN-CANDIDATE.md` SHA fa582fa7f7a48413c76422c4b2998c0893f2c946ae1a2d22525cb72acf790b5b を固定。非発行accessor 3A-1、原本/台帳束縛W2 3A-2を先行候補とし、core 3Bは既5source/5testにlegacy実入口・phase snapshot関連を加える。0始まりindexと1始まりphaseの変換、全D5/旧DTO/P3/拒否順・同writer、実issuer未供給の閉拒否は必須。非作者plan review・限定承認/実装は未了。
 
 2026-10-27、DB印unit A exact5最終packet `first-ball-db-insert-stamp-plan-20261027/implementation-unit-a/REPORT.md` SHA ad200b2c93a61806f6e600ee805b19123436b6091800438d812f8fb29ef0d0dc、source5.patch SHA a2f1412aa4fa3939a80ec280f2d72c38e3be22725994fcd66c33e70bef0ac748。作者側新292/関連301成功・9変異検出、旧1352byte保持。非作者source review・採用、unit Bの印発行、実DB/正式profile/activationは未了。
+
+2026-10-27、E-1段階3候補fa582fa7…の非作者plan reviewで早期P2：既実broker `_phase_wire` は position=1/d1=1/event_count=1 のみ。複数位置/逆順はpure対向で扱い、実brokerの拒否を黙って緩めない。必要な拡張は別scope。3A非発行accessorの先行可否は最終review後、3B以降は追補後に判断する。
