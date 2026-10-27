@@ -534,3 +534,47 @@ DB格納先・V7/V8写像・D5/event/request fingerprint・HTTP wire・保存後
 2026-10-27 17:36 JST、PO委任によるCodex /root判断。pure formatter exact2 source patch caa4c7cb718bde8bf8a3f94663bee8c4906d908deea0b82e102ba06f0798442f、非作者レビューcbe21556fe1e0a67186236cbb31a5e9bcaca1a6444336893aefdae3e7de43e01（残0、独立603成功・6変異拒否）を根拠に採用。実tree関連173成功。独立expectedの真正性・同writer・実保存・再読込の証明には使用しない。
 
 2026-10-27 17:40 JST、PO委任によるCodex /root判断。単位1の同一artifact identityを評価結果と束縛する具体入口を限定追補する。既typed callerはhashを返さないため、privileged bridgeが既open_domain_hostを一度開き、同hostの検証済みsourceのUTF-8 SHAを取り、同hostでderiveFirstPitchWithContinuationを一回呼び、既decodeを使う。既typed callerと同じ要求実型・全frozen member検査を保持し、hash不一致・host故障は閉じる。同source同host・一回呼出・既callerとの全値一致を対向検査し、前後ファイルhashを実使用証拠にしない。exact4以外の変更・野球計算複製・実Port/保存成功の先取りはしない。
+
+### E-1原wire指紋のpure部品（限定追補）
+
+既親ステップ2・初球操作単位の次の独立部品として、現`docs/design/sync-protocol.md` 4-5「E-1 wire専用の内容同一性」（455–459）の既決規範を実装する。調査`e1-wire-fingerprint-investigation-20261027/REPORT.md` SHA c690dc7340445c79233297a6d34444bc1a0150275cac6992713d898152bbae2cを根拠とし、旧codec・既DTO指紋・保存済み指紋・D5/拒否順・復旧意味を変更しない。実Port/DB/HTTP完成をこのpure部品の着手条件へ戻さない。
+
+**編集所有**：実装作者のexact2は新`backend/src/pitchlog/sync/wire_fingerprint.py`と新`backend/tests/test_sync_apply_wire_fingerprint.py`。既`sync/idempotency.py`/`model.py`/`apply.py`/`prefix_path.py`/`rejection.py`/旧codec/TS/registry/HTTP/DB/正本は変更しない。契約側の最小新規候補は`contracts/state-transition/wire_fingerprint_vectors_v1.json`（新規1資源）。作者はcacheだけへ作成し、正式contracts/Git/親planへの適用はroot唯一writerとする。正式vectorを伴う3資源の前後集合と、core-areas既`backend/src/pitchlog/sync/*`・`backend/tests/test_sync_apply_*.py`・`contracts/state-transition/*`捕捉を照合する。正式vectorの実producer/consumer検出・既凍結対象への影響があればrootが既CLIで実導出する。scan除外・文字列分割・既検査の免除で通さない。
+
+**公開値API案**：
+
+- `freeze_wire_event(raw_event: Mapping[str, object]) -> WireEventValue`
+- `wire_event_fingerprint(event: WireEventValue) -> str`
+- `wire_request_fingerprint(*, game_id: str, d4: str, events: tuple[WireEventValue, ...]) -> str`
+
+WireEventValueはJSON object全体の防御的な再帰不変snapshotで、認可/Ready/nonce/実writer/数学評価/保存証明ではない。既`freeze_json`と`source_fingerprint`を再利用する。受信後の未変換JSON値が入力前提であり、DTO/DB/規則から欠落欄を補完しない。JSONテキストの読取/duplicate-key受付分類はこのAPIへ新設しない。rawを作る実HTTP parserと送信body耐久保持は後続供給のままとする。
+
+freezeは原eventのキー/値をすべて保持し、再帰的に別objectへ移して元dict/listとのaliasを切る。JSONのnull/bool/int/finite float/str/object/arrayを保持し、array順/件数を変えない。tuple/MappingProxyへの内部不変化はJSON array/objectとの対応だけとする。型変換、Unicode正規化、大文字小文字/UUID修正、文字列数値化、float→int化、未知fieldの削除、登録DTO生成は行わない。S-2で拒否される未知event_kind、数値型違い、欠落/null、registrationの不正JSON値も意味検査せず保持する。JSON外のPython値、非文字列object key、非有限値、UTF-8へ表現できない値は既正規化器に従い失敗し、別の値へ修復しない。これらの例外をHTTP/S-STOP/O5等へ割り当てる判断はしない。
+
+**event指紋**：既`source_fingerprint`へexact3 `{codec_version: 1, wire_event: 原event全体, registration: 原event内registration又はnull}`を渡し、戻り値へ`wire-v1:`を付ける。codec_versionはexact int1固定でcallerの別版を黙認しない。registrationが存在すれば元event内にも同じ原値を保持する。欠落時の外側registrationはnullだが、元event内にregistration:nullがある場合とは異なる指紋になる。自由なregistrations引数/DB値/意味変換後eventで補わない。
+
+**request指紋**：exact4 `{codec_version: 1, game_id: URL束縛正規形UUID, d4: 要求D4文字列, events: D1昇順のevent専用指紋配列}`を同じ正規化器へ渡し、`wire-request-v1:`を付ける。各event hashは原snapshotからこの部品が計算し、callerの自由なhash列を受けない。元events tupleを並べ替えず、複製した参照列だけを正規D1順にする。要求入力は既S-1成立済みの非空E-1イベント列を前提とする。URL game_id/要求D4の正規外形、各D1のexact int・正のsafe integer・重複なし・各eventのgame_id/D4一致を既S-1定義と照合し、違反時は指紋を返さない。boolをintとしてsort、欠落D1への0補完、文字列D1の数値化、同値D1の任意tie-breakを行わない。既S-1外形条件を新しい意味仕様として再裁定しない。S-2のevent_kind/payload/state_diff等はrequest指紋の成立前条件へ追加しない。
+
+V12/認証資格/現在の原本・経路/結果/理由/attempt_id/停止参照/再開許可はwrapperに加えない。wire event内の送信済み原値から対象fieldを抜く実装にはしない（既S-1が要求レベルfieldの誤配置を拒否する境界は別）。既`event_source_fingerprint`/`operation_fingerprint`を呼び替えたり、同じD5の既legacy領域を新wire領域へ相互一致させたりしない。
+
+**正規化・例外**：`source_fingerprint`のsort_keys/ensure_ascii=False/UTF8/空白なし/allow_nan=Falseをそのまま使い、独自の第2正規化器を作らない。配列順、欠落/null、bool/int、int/floatを区別する。1と1.0は異なり、Python JSON読取後の1e0と1.0は同じ。Python自身のdict全値比較（True==1等）をhash同一性判定へ使わない。入力/raw/資格を例外文字列・原例外chainへ露出せず、固定の専用例外を`from None`で返す。失敗を空hash/既定event/保存候補へ補完しない。計算中にhost/Port/DB/network/ファイルI/Oへ到達しない。
+
+**正式vector候補（最小新規1資源）**：固定version、規範参照、試験ID、原JSONテキスト（数値lexemeを残す）、既Python規則で読んだ入力のcanonical JSON文字列/UTF8 SHA、event/requestの固定期待hashと同一/相違関係を持つ。正常な初球用synthetic例はV7/V8の正式投影契約を代用しないと明記する。期待値は試験中に製品関数で生成せず、非作者が原入力から独立に全byte/全hashを再導出してrootへ渡す。正式配置前のcache vectorや旧review-example-onlyの7hashを、正式contracts受理と呼ばない。整数/実数を同一にする新規仕様は作らない。
+
+| 受入群 | 具体例と必須結果 |
+| --- | --- |
+| 基本と全値 | 原wire/event wrapper/request wrapperのcanonical byteと固定hashが正式採用vectorへ一致。元event key順/Unicode escape/空白だけの違いは同じ。wire-v1/request-v1の領域を混用しない |
+| 欠落/null・登録 | payload/state_diff等の欠落とnull、registration欠落とnullを区別。registrationのfalse/数値/array/不正objectもそのままeventと外側wrapperへ保持。自由な登録引数・DB補完はAPIに存在しない |
+| 数値/文字列/順序 | 1と1.0、trueと1、-0.0と0.0、array順/件数、Unicode正規化前後を区別。1e0と1.0は同じ。1e-6/1e-7/1e20/大整数、整数に見えるobject key10/2、BMP/非BMP key順を既Python規則で固定 |
+| S-1とS-2の分離 | 正規D1順以外のイベント並びでも同要求hash。重複/欠落/型違い/範囲外D1、別game/D4、不正URL UUIDはhashを返さない。未知event_kindや不正S-2 payloadは意味変換せず別hashを生成し、正規値へ直さない |
+| 除外値と原本不変 | 要求のV12/attempt等を変えてもhash不変（wrapper引数に持たない）。受信原wire V5番号を内部literalへ変えれば別hash。後発の元dict/list変更がsnapshot/hashへ混入せず、元tuple順を変更しない |
+| 不正型/故障 | JSON外型、NaN/Infinity、UTF8不能、強制変異/偽instanceを固定例外で拒否。原入力を例外に出さない。旧指紋の再計算/保存/原本読取を呼ばないことを対向で確認 |
+| 非等価source変異 | wrapper field落とし/原V5上書き/registration補完、欠落null同一化、int/float同一化、D1 sort除去/array順無視、prefix領域混用、未知S-2削除、不変化省略を試験が検出する |
+
+**JS互換性の制限**：JS標準JSON.parse/stringifyだけでは本v1と互換でない。実調査で1.0→1、-0.0→0、1e-6/1e-7/1e20の表記差、safe integer外の丸めを確認した。既定sortのUTF16順、sort後objectの数字key再列挙も一致しない。このpure実装はサーバーPythonの正本規則だけを供給し、TS canonicalizerやlossless parserを新規実装しない。初球の正規生成値をsafe integerとdecimal文字列等で表すことは可能だが、公開E-1の任意不正入力を新しい範囲制限で消して同等性を偽らない。clientが指紋を供給する確認口の接続には、元body/codec版の耐久保持と同じv1結果を得る受渡しを別途閉じる。直列化規則を変えるなら既正本どおりcodec版変更が必要であり、この単位では変更しない。
+
+**後続の未提供境界**：E-1 HTTP/raw parser、SyncEventBatch/実公開混在単一ACK、認可/RG1後の全D5分類、未使用D5の当該D1位置での原本解決、T8/T9/accepted/recheckの全保存経路へのwire領域接合、request hash→AttemptBinding・event hash→EventPhaseBinding/D5の同writer私有束縛、端末送信前body/版耐久保存・停止/再起動/再送は別source単位。旧自由なfingerprint引数を公開して真正性を代替しない。formatterやこの値型から認可/実数学/実保存を証明しない。DB格納先・V7/V8正式写像・原指紋との実照合・保存後GETも本単位で採用しない。
+
+rootのPO委任による対象版付き計画確定後、作者exact2とcache vector候補へ着手する。正式vector/必要影響値はrootが独立全値照合を経て反映し、候補固定版のsource非作者レビュー・関連既指紋/S-1/旧D5回帰・非等価変異を閉じる。正式vector未受理を完了とせず、実E-1/HTTP/Port/DB接続・最初の1球保存/再読込・全T1/P6・MVP完成とも別に報告する。本案は未承認・未実装である。
+
+2026-10-27 17:40 JST、PO委任によるCodex /root判断。追補案c6485e5c16bd7d737f339d48e5982961583d73eb5993d0976fd39e17f25dac26、非作者レビュー984bc4b1d95c607bb750be4de80b1523bc3b772e2e6e8d41d9c4fa274c14b248（残0）を根拠にpure実装exact2とcache vector候補に限り着手を承認する。正式vector・HTTP・端末・保存は未成立、正式資産反映には独立全値照合が必要。
