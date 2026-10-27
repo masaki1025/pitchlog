@@ -467,3 +467,66 @@ DB格納先・V7/V8写像・D5/event/request fingerprint・HTTP wire・保存後
 本追補の計画確認・rootのPO委任承認後に上記exact2へ着手し、対象版/全前後SHA/非作者source review/関連検査を固定して採否へ返す。現在は案の作成だけで、実装/正式採用は未実施。全T1/取消・訂正/成績CSV/故障・復旧/実機などMVP全体の完成条件は維持する。
 
 2026-10-27 17:12 JST、PO委任によるCodex /root判断。追補反映1 SHA ac0f07b0d95ae31610675ba49ae0086227e13615fa09872b3d0b3fcc0ac28bec、非作者第1回898b96e2…のnullable/tuple P2を採用し、第2回6dd2b88fb88348ac7478e4b2263fabf14fcf2349d48d7f080631c7e8a9af94c8（残0）を根拠に上記exact2の計画を承認する。sourceの実装・レビュー・採用および実DB保存は引き続き未完。
+
+### 初球の実Port・同writer保存・記録後GET（単位1を限定承認）
+
+既親ステップ2の操作単位追補を、最初の `batting-result.ball` 一球の実経路へ具体化する。T1/T2数学/23flag/取消・訂正/全MVPの意味・品質を変えない。根拠は既T1計画86～117、443～末尾のpure保存値追補、`mvp-first-pitch-t2-connection/plan.md`、data-model4-2/5-2/5-3/M03、sync-wire-schema/design.md N-8。本案はcacheだけであり、rootが非作者計画確認・PO委任判断を対象版/日時/根拠とともに記録してから、その単位のsourceへ着手する。旧レビュー/P2是正/未達履歴を保持する。
+
+**固定読取基線**：writer-binding HEAD `f581c148974e6954e196554a2e69146594d1b202`。先行のpure `domainrt/first_ball_projection.py` exact2は別担当/既承認単位を維持し、重ねて編集しない。以下は小単位ごとにsource固定→非作者確認→root反映を行う。正式登録・共有assetの書込はrootが直列化する。
+
+#### 単位1：同writerの私有評価frame（最初に着手できる製品単位）
+
+**exact4候補**：新 `backend/src/pitchlog/sync/first_ball_frame.py`、新 `backend/src/pitchlog/sync/first_ball_bridge.py`、新 `backend/tests/test_sync_apply_first_ball_frame.py`、新 `backend/tests/test_sync_apply_first_ball_bridge.py`。
+
+- frameは元event/D5・原指紋・tenant/game/generation/D1・同じ生存writer・真正before/rules/roster・検証済artifact identityと、既CombinedRequest/CombinedSuccessの実pairに私有束縛する。発行者はprivileged bridgeだけ。型が同じなだけのDTO、偽pair、別writer/別event/別D5、失効writer、再使用frameを拒否する。formatter/readの成功を数学/権利/保存の証明へ変換しない。
+- bridgeだけが実 `_TenantTransaction` を受け、既 `read_initial_started_snapshot(handle, game)` を同handleで再利用する。snapshotの全不在確認（event/slot/PlayRow）を保持する。read時に真正before/保存rules/名簿を確保し、既 `evaluate_first_pitch_with_continuation` を**一回だけ**呼ぶ。別Session・別transaction・先読みHTTP snapshotの転用・固定結果は不可。初期名簿の既検証を二重実装しない。
+- registered Portがhost/transaction/dbを推移importできない現guardを維持する。host呼出しはprivileged bridge側に置き、Port側はSQLなしのtokenと私有frame、coreが発行した閉じた呼出入口だけを扱う。任意の外部callbackからframeを発行・bindできるAPIは作らない。exact型・発行元・同writer/lifetime・登録表を検査する。kernelからbridgeへのbind位置/opaque入口の具体型は本単位の型レビューで固定し、dynamic importやguard例外で通さない。
+- この単位の受入は実artifact一回評価、同writerの実read構成、frame拒否・失効・再消費・partial/host故障対向。実DB接続がない試験はpure/transaction double資格と明記する。次のkernel接合前に本単位のsourceを非作者へ渡す。実Port/保存の完成はまだ主張しない。
+
+#### 単位2：初球V7/V8の閉写像（野球意味を増やさない）
+
+**exact3候補**：新 `backend/src/pitchlog/sync/first_ball_payload.py`、新 `backend/tests/test_sync_apply_first_ball_payload.py`、既 `docs/features/tsk544-t1-state-calculation/plan.md` の写像表への最小追記（root専有）。必要なfrontend DTO側は単位6で別指定する。
+
+- N-8はV7/V8の種別別内形を各イベント実装単位へ委任する。wire一般objectを「既に閉じたpayload」と扱わない。実装前に**V7のexact member/形式版とV8のexact member**を一枚の型表で固定し、既CombinedRequest/Success・pure FirstBallCalculationValueとの全field対応を非作者が確認する。この型の具体化は委任内、未確定の野球意味は採用しない。
+- 採る関係は、V7に記録員の実入力（球種key/正式result key/正規化コース/任意球速等）と再現に必要な実評価値を欠落なく保持し、V8に当該一球の新confirmed-playのdifference（変更state/boardのbefore/after＋全23flags）を対応させる。historyContext全stackをV8へ重複保存しない。T2の評価済みtag/4家族根拠、after全state/board、artifact版、request before/rulesをどのV7 memberへ置くかは型表で明示し、本案の語を仮のwire名として実装しない。
+- raw SyncEvent/V5/V7/V8と既D5指紋式は維持する。受信後にV7/V8を実計算値で黙って上書きせず、送信された値と同writer実pairの全値一致を内容検証で確認する。整合しないものを仮成功にしない。初回のrequest作成側は同じTS核を使い、サーバー検証とコピー計算を作らない。
+- first-ballだけの型/規則scopeを明示し、course/球種等の既FR-002必須観測を省略しない。未入力球速を0へ補完しない。観測不足/未知key/部分23flags/partial T2は拒否する。T2未評価等を既B3理由や取引故障へどう運ぶかは既契約に照合し、新公開拒否ID/D5消費規則を創作しない。受理済みclosed ABI外の試合規則を固定falseで通さない。
+
+#### 単位3：PlayRowの閉insert/readと既イベントidentity利用
+
+**exact4 source候補**：新 `backend/src/pitchlog/sync/first_ball_tokens.py`（SQLなし値型）、新 `backend/src/pitchlog/repositories/first_ball_operations.py`（固定SQL/registration）、新 `backend/tests/test_first_ball_operations.py`、新 `backend/tests/db/test_first_ball_projection_atomic.py`。
+
+- 既 `OperationEventReadToken(game,generation,D1)` は全列/idを同tenant・現行行条件で返す。event INSERT後に同writerで再利用し、D5/位置/行1件を照合してPlayRow.source_event_idを得る。新identity read/tokenを無条件に追加しない。
+- PlayRowは既表/列へ投影し、wireV5=`1`・OperationEvent.event_kind=`play_input`・PlayRow.event_kind=`pitch`を混同しない。PlayRow.play_numberは投影の論理表示番号でありD2をコピーしない（M03）。初球=表示1を採る場合も真正な空試合確認と既採番規則へ束縛し、後続の汎用D1/D2番号規則へ拡張しない。
+- tenant/game/source_event FK、同試合名簿からの打者/投手/捕手/打順、admin/tenant語彙の所属、値域/NULL/版/hidden属性を閉じる。23flags/T2/afterの専用列をPlayRowへ新設する前提にしない。正本はOperationEvent、PlayRowは決定的な投影のまま。
+- `CAP:play_rows:insert` はproduct catalogに存在するが、tokenの実登録/許可とは別。rootが出力された最小registration差分を `backend/src/pitchlog/repositories/repository_contract.py` と `contracts/tenant_boundary/repository-contract.json` へ直列反映する。必要なら同時に供給するruntime登録/正式assetの**個々のpathと全値**を別固定し、包括的な全asset編集許可にはしない。既capability-catalogを名前だけで変更せず、app汎用grantを追加しない。
+- 既Port文書が要求する適用核のDB印/トリガを、ContextVarだけで実証済みと扱わない。PlayRow実insertに必要な既DBguardの成立範囲を先に照合し、不足があれば**そのSQL/trigger/migration/正式body pathだけ**を別exact単位として非作者core確認後に追加する。既制約/tenant/RLS/FORCE/不可分性は緩めない。
+
+#### 単位4：実Port登録とP2 kernel接合
+
+**exact5候補**：新 `backend/src/pitchlog/sync/first_ball_ports.py`、既 `backend/src/pitchlog/sync/ports.py`、既 `backend/src/pitchlog/sync/prefix_path.py`、新 `backend/tests/test_sync_apply_first_ball_ports.py`、新 `backend/tests/test_sync_apply_first_ball_persistence.py`。単位1のbridge/frameの変更が必要ならその差分だけ別固定して担当を一本化する。
+
+- **実RecordingRightsPortも別の接続依存**：現基線のPORT_IMPLEMENTATIONSは空、holds_recording_right等はProtocol定義だけである。旧U-R1の固定済み実Port候補が再利用できれば対象SHA/範囲を照合して採用し、無い場合は新 `backend/src/pitchlog/sync/first_ball_rights.py` と新 `backend/tests/test_sync_apply_first_ball_rights.py` のexact2を単位4より先の別小単位としてrootが固定する。実V12/current D4/復旧世代/保持端末/同writer結合、RG1の前後・commit検査は既U-R1/Control provider/tokenを使い、常時True・固定保持者・使い回しreadで代用しない。既providerのSQL/import閉包をPortへ持ち込まない。新しい権利意味やwireを作らず、本T1計算単位へ既UR1の所有を吸収しない。
+- PORT_IMPLEMENTATIONSへ実クラスだけを明示登録する。既exact型・推移import・SQL/DB/host/transaction禁止を保持し、未登録型/派生型/危険importは従来どおり拒否する。port_guard.pyの禁止条件除外はスコープに含めない。必要なbindはprivileged coreに限定し、registered Portからhost/DBへimportで到達しない。
+- 既経路を維持する：実認可/C2・RG1→D5再掲/異内容照合→記録権→連番→⑦の実snapshot/T1→T2一回評価＋V7/V8検証→O4/D2→同TX D5/event/prefix/PlayRow/無効化意図→⑧RG1→commit。登録検査やframeの空bindだけを先行しても、snapshot/readや数学呼出をD5/権利/連番の前へ移さない。
+- 同writerのvalidatorが得た一つの実frameをprojectionで一度消費する。projectionへ渡るeventは既kernelによってC2参照解決と採番後D2へ写されるため、原eventのobject同一性だけを要求しない。元D5/原指紋/位置と、coreが許可したC2/D2変換だけを別に束縛して照合し、それ以外のfield差替えは拒否する。D5再掲/権利・連番拒否では数学/投影を呼ばない。OperationEvent保存とPlayRow投影が同じslot/event/実pairに属することを照合し、O4や途中故障ではframeを失効させ全rollbackする。D06とUNKNOWN/結果照会/後着遮断/全取消未確認時の扱いを維持する。別DB transactionを成功へ見せない。
+- 初球以外は未対応として明示し、他操作の成功fallbackを置かない。これは狭い経路の提供であり、全T1/取消/訂正の完成ではない。
+
+#### 単位5：保存後の真正GET（初期snapshotとは別）
+
+**exact4候補**：新 `backend/src/pitchlog/repositories/recorded_snapshot.py`、新 `backend/src/pitchlog/repositories/recorded_snapshot_operations.py`、新 `backend/tests/test_recorded_snapshot.py`、新 `backend/tests/db/test_first_ball_saved_roundtrip.py`。最小read tokenがPortから使われる場合は値型を単位3のfirst_ball_tokens.pyへ追加し、同pathを他担当と並行編集しない。
+
+- 初期snapshotの「event/slot/PlayRow不在」拒否を削らず、記録後専用readで同tenant/gameのcanonical event・slot/D3・PlayRow FK/有効版をbounded照合する。snapshotを得るreadの整合性と保存水位を明示し、他端末未送信値を混ぜない。最初のscopeは初球1件を明示し、未実装の複数行復元を初期0で代用しない。
+- persisted blobだけをexpectedに自己流用しない。真正な開始原本/保存rules/正式artifactから再現した実pair、又は別途正式受理した同評価証跡との一致で検証する。新しいGET要求で再現評価することと、保存TX内の二重評価禁止を区別する。after/scoreboard/history/23flags/T2の全値とPlayRow一覧の実値を返す。
+- 履歴順は世代連結順＋D1、表示順は正式論理順、DB WHERE/limit/ページングを維持。一般シーズン全件読込を実装しない。初球保存後に初期snapshotへ戻らない再起動対向を付ける。
+
+#### 単位6：実HTTP・画面の最初の縦断（前単位と分けて固定）
+
+**候補pathを次の境界確認時にexact確定**：新 `backend/src/pitchlog/api/schemas/first_ball.py`、新 `backend/src/pitchlog/api/routers/sync.py`、既 `backend/src/pitchlog/api/routers/games.py`、既 `backend/src/pitchlog/api/app.py`、既 `frontend/src/screens/GameScreenPitchEvent.ts`、既 `frontend/src/screens/GameScreenPitchCommit.ts`、新 `frontend/src/api/client.recordedGame.ts`、新 `backend/tests/api/test_first_ball_roundtrip.py`、新 `frontend/src/screens/GameScreenFirstBallRoundtrip.spec.ts`。現app.ROUTERSにsync routeは無く、既E-1核はsync/model.pyのfrom_payloadとsync/apply.pyのapply_sync_requestにある。新routerはこれらを再利用し、既HTTP候補（TSK-506）が別枝で保存済みなら、その実SHA/実装範囲を照合して先に再利用する。既frontend/src/api/client.syncEvents.tsのPOST /games/{game_id}/sync/eventsに整合させる。HTTPの認可/nonce/拒否群と正式route登録のexact差分は、本単位の型確認後に別固定してから着手する。backend/tests/apiディレクトリは現基線に無いため試験pathは新規候補である。
+
+- 既本物の認証session/C2/tenant・記録権・nonce/RG1・既E-1 intakeを再利用。画面が同TS核で実観測からV7/V8を作り、durable queue内のD1採番/保持・既D5/再送を維持してP2へ送る。APIでrawV5/指紋を正規化上書きしない。
+- 受入の最初の製品証拠は**画面新規作成→開始→初期記録権→コース/球種/ボールの実入力→1球実DB保存→再読込でballs1と同じ1行/履歴/23flags/T2を復元**。事前投入試合、固定成功ACK、純JSON往復、PlayRowだけの読取では代替しない。保存後GETは単位5を使う。
+
+**検査と終了条件**：各単位は影響範囲だけを検査し、固定候補で非作者core確認する。実DB原子性/越境/再送/結果不明/権利失効/通信断復旧は隔離DB・専用port/一時dirで行い、共有DBへ適用しない。core/正式登録の全値・必要な7.7・必須CIを最終版で満たして通常統合する。実機/1試合リハーサルはPOへ接続先・データ準備・操作・期待結果・制限を引き渡し、未実施を完了へ読み替えない。最初の1球が通ってもMVP全体/全T1完了ではない。
+
+2026-10-27 17:34 JST、PO委任によるCodex /root判断。追補案SHA43c8bc4b811b68c0eb7231b2c89e73b882d85c37082f9833f15bff52e73c2090、非作者レビュー66bf169a88cd82009c4b4466c778b50a5fe63a3f3792aa6151b8976fba5daf14（残0）を根拠に、単位1 exact4の着手のみ承認する。後続単位は候補であり、V7/V8型表・Port接合・登録・GET・HTTPの各実装前に対象と条件を別固定する。実Port/実DB/画面成功は未成立。
