@@ -926,3 +926,5 @@ V5 pure codec2は作者40成功/6変異拒否・元9source不変でcache固定�
 writer候補7644b780の隔離PG試験で、初回はfixtureのDocker引数上書き、次はcontrol PGの一時起動をreadyと誤認する競合でsetup失敗。rootがfixtureだけを修正しb6537f5fでpush、非作者writer_binding_source_independentが32引数組と権限保持を確認しP0/P1なし。実PGで同一writerのcommitと閉入口への後着拒否が成功。全8件の実行は7成功・1失敗（198.55秒）。失敗1件はapp fixtureの必須pool設定欠落と、UID20002用RG1設定をUID20003へ渡した不一致を順次特定し、隔離fixtureにUID20003用設定を追加して対象1件が成功（29.62秒）。非作者が認可・RG1維持と例外の機微値非出力を確認しP0/P1なし、修正を5c00bb79へ保存・push。全8件が同じ最終treeで通ったとは記録しない。実cookie認証、control、同writer上の端末・記録権確認、commit/rollbackの限定証拠であり、UIからの1球保存・耐久性の全成立ではない。
 
 V5 codec cache候補の独立レビュー完了、FINAL-REVIEW SHA63d30e11b4d640aeba7038db9afce23c8c3e67e8638a1175a50b15a67a95574f、40成功・追加拒否と4変異検出、P0/P1/P2なし。元入力・既D5指紋保持を確認。正式計画への追補と採用、core/Port/HTTP/DBの接合は未完。画面新規作成→開始→1球保存→再読込およびMVP全体は引き続き未完成。
+
+同日16:34 JST、PO委任によるCodex /root判断で追補d1fbf224…を承認。非作者の計画レビューe6fa19e4…残0、sourceレビュー63d30e11…残0を根拠に、初球V5 pure codecと計画を0c970d1bへ反映・push。実treeのcodec＋既冪等性40成功0.51秒。最初の検査コマンドは存在しない試験名を指定し0件だったため、実在pathへ訂正して実施した。core接合exact2は作者がcacheで作業中、独立レビュー・実Port・HTTP・投影保存・記録後GETは未完。
