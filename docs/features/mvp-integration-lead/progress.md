@@ -1081,3 +1081,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、DB印unit A source5 patch a2f1412a… の非作者reviewがP1を指摘：_ADMITのwriter_bindings FOR SHAREはdefiner right_fn_ownerに必要なUPDATE列権限がなく、正常INSERTも失敗する可能性（静的ACL/SQL照合、実PG未実施）。candidateは未採用。既assertが同TXで取得したlockの因果を確認し、再ロック除去等を検討する。UPDATE grantの安易な追加は禁止せずとも権限を増やさない最小案を優先し、source修正と独立再review/実PG対向を必須とする。
 
 2026-10-27、#188 U3の非作者確認途中を `pr188-u3-finite-owner-candidate-470ba19a-20261027/review-by-writer-binding-source-independent/CHECKPOINT.md` に保存。51行/旧対応/7source照合中、正式checker未供給のため正式4面after未導出。E-1 3A-1は既legacy stateにcontextがないため、私有stateへcontext保持を検討し、未束縛は新accessorのみ閉拒否・旧getter ABI維持・issuer不追加を予定。いずれもsource採用/完了ではない。
+
+2026-10-27、E-1 3A-1途中点 `e1-stage3-core-binding-readiness-20261027/implementation-3a1/view/` にexact2初稿、source_binding対象160成功。actual context/request/eventと元bindingを照合する非発行accessorで、旧getter body不変・legacy context未束縛は新accessorのみ閉拒否。初回Ruff/ty指摘を是正中、失効対向・関連閉包・変異・非作者reviewは未完。issuer/factory/実DB/実broker変更0。
