@@ -578,3 +578,7 @@ V12/認証資格/現在の原本・経路/結果/理由/attempt_id/停止参照/
 rootのPO委任による対象版付き計画確定後、作者exact2とcache vector候補へ着手する。正式vector/必要影響値はrootが独立全値照合を経て反映し、候補固定版のsource非作者レビュー・関連既指紋/S-1/旧D5回帰・非等価変異を閉じる。正式vector未受理を完了とせず、実E-1/HTTP/Port/DB接続・最初の1球保存/再読込・全T1/P6・MVP完成とも別に報告する。本案は未承認・未実装である。
 
 2026-10-27 17:40 JST、PO委任によるCodex /root判断。追補案c6485e5c16bd7d737f339d48e5982961583d73eb5993d0976fd39e17f25dac26、非作者レビュー984bc4b1d95c607bb750be4de80b1523bc3b772e2e6e8d41d9c4fa274c14b248（残0）を根拠にpure実装exact2とcache vector候補に限り着手を承認する。正式vector・HTTP・端末・保存は未成立、正式資産反映には独立全値照合が必要。
+
+### 記録世代の同期読取列契約の是正
+
+2026-10-27 17:45 JST、PO委任によるCodex /root判断。開始処理との実接合で、同期repositoryが保護列を除く12列を返す一方、同期consumerが追加後のモデル全14列を期待し失敗する不一致を修正する。編集範囲はbackend/src/pitchlog/sync/{tokens.py,apply.py,prefix_path.py}、backend/src/pitchlog/repositories/sync_apply.py、backend/tests/test_sync_apply_{prefix_path,apply,rejection,operations_boundary}.py、backend/tests/db/test_sync_apply_operations_boundary.pyのexact9。既12列の順序をSQL依存のない単一契約へ移し、read/number/lockと両consumerが共有する。proof_digest/recovery_generationを公開せず、既tenant・認可・記録権・SQL条件・FOR UPDATE・拒否順を維持する。テスト用14列行は実契約へ追随し、3 tokenの全列順・保護列非投影・同lockを純検査と隔離実DBで確かめる。非作者core review、影響検査、対象版の証拠後に採用し、CI全件や記録権の提供をこの修正だけで成立としない。
