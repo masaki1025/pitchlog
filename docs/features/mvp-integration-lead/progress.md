@@ -1112,3 +1112,16 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 並列実行中（workflow）：unit A反映1の実PG診断（owned fixture）＋3観点の非作者レビューとP0/P1反証、#188 U3旧RG1 fixture 4失敗の原因・是正・非作者レビュー、unit B（既device/right成功からの印発行）計画候補と非作者計画レビュー、E-1段階3反映1計画の非作者追認。E-1 3A-1 sourceの非作者レビューも別途実行中。
 
 利用者が新たにできる操作：なし（部品・検証段階）。1球の実API保存と再読込は未達のまま。
+
+### 2026-10-27 夜：3A-1採用・unit A反映2・U3採用・判断票D08〜D17
+
+- **E-1 3A-1採用**：非作者review（Fable 5.1）`baf65a4e…`はP0/P1=0・P2=3、独立165/関連587成功。P2-1の試験空白を1case追加で閉じ（同一性検査を外す変異で失敗を確認、関連588成功）、P2-2の最小拡張を追認。writer-binding `cc676e8d`（source）・`d2df7c0d`（判断記録）をpush。issuer/HTTP/DBは未接続。
+- **unit A**：反映1の実PG診断（正式installer・owned PG17.11、手で足した権限0）で、正常系が4runとも42501。原因は`_ADMIT`のEXCEPTION節がsubtransactionを作り、消費UPDATEのxminがtop-level xidと常に不一致になること（汎用probeでtop=901/例外節内=902）。privilege/causality/scope各review・反証3件も同じP1を独立に確認。拒否すべき全ケースは実際に42501で、例外文に機微値0。EXCEPTION節を外した変形では正常1回成功・印consumed・savepoint内拒否・TX中のclose競合は1.55秒待って55P03、commit後close成功（FOR SHARE除去後も既assertのlockでbindingが保護される実証拠。ただし候補外変形での測定）。「0038のREVOKEがfresh DBを壊す」P1は反証成立で不採用。
+- **unit A反映2**（cache `implementation-unit-a/reflection2/`、patch SHA `7eb81362cfe6d570dab445238ac480ee8e034d2bdc2bad38090b34194d46c07d`、REPORT SHA `be4df2c567dd4999972f837d9282d93991083778cd481432f89f5cf8adfb3b2f`）：読取・照合だけを内側EXCEPTION blockへ閉じ、消費UPDATEとxmin照合を外側（top-level）へ移動。xminを読む2表は列SELECTから表単位SELECTへ（正式catalog照会がattnum>0のため）。本文digestを試験で固定。静的268成功・Ruff/ty成功。実PG再測と非作者reviewを実行中。**`test_schema_manifest`4件はA単独で赤になるため、Aのbranch commitはBのschema-manifest追随と同一stepで行う**（主担当判断）。
+- **#188 U3**：旧RG1 fixture 4失敗の原因は歴史sourceの行・SHA漂移（selector規則ではない）。r1を非作者review（adopt・P0=0）後に採用し、候補WTへ`817ed485`（source）・`1f8052fb`（判断記録）としてlocal commit（未push維持）。tenant検査は13失敗/554成功で13件は対照と同一ID。frozen-baseline終端件数の赤（source3起因）は、allowlist 14組追記と件数更新のexact2を最小追補として承認し実施中。
+- **残り経路の地図**：cache `first-ball-critical-path-map-20261027/MAP.md`・`CRITIC.md`。律速はunit A確定→B→C→PlayRow登録→Port接合→HTTP入口→封鎖解除→縦断実証。0球の開始済みread resolverは採用済みで、残りはHTTP入口。
+- **判断票**：`decision-sheet.md`へMVP-D08〜D17を起票（`7e4484e6`）。初球縦断の最短路を止めるのはD09（承認済みU-S1 ABIの読替え）・D10（端末資格不成立の写像）・D11（タップ座標の量子化）・D12（durableQueueの版）・D13（打撃結果シードの有効投入）。委任判断できる実装上の選択15件は計画追補で扱う。
+
+並行中：unit A反映2の実PG全ケース再測と非作者2観点review、unit B計画反映1（正式profileはA反映2＋B差分の和集合、旧body保有DBは再構築の運用制約、savepoint内呼出しはfail-closed）、E-1段階3計画反映2（F1外の要求は要求単位fail-closed）、#188 frozen-baseline追補、開始済みread HTTP入口の計画、隔離組立の衝突測定。
+
+利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
