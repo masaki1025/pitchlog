@@ -237,7 +237,7 @@ class InitialGrantDatabase:
         code = (
             "import json,os; from pathlib import Path; "
             "p=Path('/control/initial'); p.mkdir(mode=0o755); "
-            f"values={{'client.json':{client!r},'controller.json':{controller!r},"
+            f"values={{'client.json':{client!r},'app-client.json':{{**{client!r},'application_uid':20003}},'controller.json':{controller!r},"
             f"'actor.json':{actor!r}}}; "
             "[(p/name).write_text(json.dumps(value)) "
             "for name,value in values.items()]; "

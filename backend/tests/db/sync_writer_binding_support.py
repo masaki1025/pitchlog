@@ -521,6 +521,10 @@ def binding_app(owner: InitialGrantDatabase, body: str) -> dict:
     ]
     setup = """
 import json,os,traceback,sys
+def error_hook(kind,value,tb):
+ print(json.dumps({'fixture_failure':kind.__name__,
+  'frames':[(f.name,f.lineno) for f in traceback.extract_tb(tb)]}),flush=True)
+sys.excepthook=error_hook
 from pathlib import Path
 from uuid import UUID,uuid4
 from pitchlog.authz.token_presentation import TokenPresentation
@@ -536,17 +540,14 @@ from pitchlog.repositories.first_ball import (
  _BindFirstBallDeviceToken,_CheckFirstBallRightToken)
 os.environ['PITCHLOG_DATABASE_URL']=('postgresql+psycopg://pitchlog_app@/'
  'ledger_fixture?host=%2Fbusiness-socket&sslmode=disable')
+os.environ['PITCHLOG_DATABASE_POOLED']='false'
 signer=TokenPresentation(bytes(range(32)));_activate_presentation(signer)
 cookie=Path('/control/public/binding-test-cookie').read_text()
 issued=issue_tenant_context_from_presented_token(cookie,signer)
 assert issued is not None
 context,_=issued
-configure_runtime(Path('/control/initial/client.json'))
+configure_runtime(Path('/control/initial/app-client.json'))
 control=BindingControl(Path('/control/public/binding-broker.json'))
-def error_hook(kind,value,tb):
- print(json.dumps({'fixture_failure':kind.__name__,
-  'frames':[(f.name,f.lineno) for f in traceback.extract_tb(tb)]}),flush=True)
-sys.excepthook=error_hook
 """
     result = subprocess.run(
         ["docker", *args, "-u", "-c", setup + body],
