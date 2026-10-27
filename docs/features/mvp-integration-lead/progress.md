@@ -1059,3 +1059,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、E-1段階3の途中点 `e1-stage3-core-binding-readiness-20261027/CHECKPOINT.md` SHA ab31e0d35a871fd77ff177e7000f717ffd2b190b9e7ff25fae98e364f342fa4f、eca08a39の原典17点を固定。source_bindingは現状hash getterのみでraw原本を安全に取り出せず、発行しないaccessor exact2の最小候補を調査中。本物legacy entry scope・E-1 issuerとも未供給、全D5/原本/bridgeの実接合と公開は未着手。callsite/依存表と独立review後に着手可否を決める。
 
 2026-10-27、#188 U3候補を `pr188-u3-finite-owner-candidate-470ba19a-20261027/REPORT.md` SHA b4f1df4ed24886df250f8fc05136508a7ec224be90ae40e1e91716ca02d20c5c、manifest 2e93d43ea07244d1654be792aa714a0a9e5f509310c0d6ea0798e19c708ddd5a で固定。実51行のpath/SHA/line/symbol/scopeと根拠を対応、51正例/306否定probe成功。別26所見と旧model6行は除外せず別に維持。まだ非作者確認・限定plan承認・source実装・正式4面が必要であり、tenant緑ではない。
+
+2026-10-27、DB印unit A途中点 `first-ball-db-insert-stamp-plan-20261027/implementation-unit-a/PROGRESS.md` 更新。cache exact4全初稿、対象292成功・Ruff/ty成功。関連検査の初回は存在しないtest名を指定して収集前exit4、実在testへ修正して再実行予定。関連検査・非等価変異・patch固定・非作者reviewは未完。実DB/登録/activationやunit Bの印発行は未実施。
