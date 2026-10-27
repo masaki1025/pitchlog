@@ -37,6 +37,7 @@ from pitchlog.repositories.transaction import (
 )
 from pitchlog.sync import port_guard
 from pitchlog.sync.crash_points import reach
+from pitchlog.sync.first_ball_v5 import first_ball_database_kind
 from pitchlog.sync.gate import RG1Blocked, game_accessible, gated_writer
 from pitchlog.sync.idempotency import (
     D5Candidate,
@@ -222,13 +223,16 @@ def _replacement_state(event: SyncEvent) -> tuple[ReplacementKind, UUID | None]:
 
 def _event_kind(event: SyncEvent) -> str:
     """V5 を DB の D1 付き参加区分へ結び付ける。"""
+    kind = event.v5
+    if type(kind) is str and kind == "1":
+        kind = first_ball_database_kind(kind)
     if (
-        type(event.v5) is not str
-        or event.v5 not in _PLAYER_REFERENCE_FIELDS
-        or event.v5 not in EVENT_KIND_LITERALS
+        type(kind) is not str
+        or kind not in _PLAYER_REFERENCE_FIELDS
+        or kind not in EVENT_KIND_LITERALS
     ):
         raise P1PreconditionError("P1 の V5 は D1 付きイベント種別が必要")
-    return event.v5
+    return kind
 
 
 def _replacement_target(event: SyncEvent) -> tuple[str, str, int]:
@@ -611,10 +615,14 @@ def _apply_locked(
         # ⑦の V 値と内容は、⑤の記録権・⑥の連番を通った後で判定する。
         try:
             replacement, original_d5 = _replacement_state(event)
-            if path == "P2" and (
-                type(event.v5) is not str or event.v5 not in _P2_LOGICAL_KINDS
-            ):
-                raise P1PreconditionError("P2 は論理位置を持つイベント種別だけを受ける")
+            if path == "P2":
+                p2_kind = event.v5
+                if type(p2_kind) is str and p2_kind == "1":
+                    p2_kind = first_ball_database_kind(p2_kind)
+                if type(p2_kind) is not str or p2_kind not in _P2_LOGICAL_KINDS:
+                    raise P1PreconditionError(
+                        "P2 は論理位置を持つイベント種別だけを受ける"
+                    )
             kind = _event_kind(event)
             d2 = _d2(event, replacement)
             if path == "P2" and (d2 is None or order_resolver is None):

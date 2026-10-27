@@ -435,3 +435,5 @@ POから『切りのよいところで一度作業中断』を受領したため
 実Port/同writerの初期snapshot・T1/T2一回評価frame・投影原子保存・E-1 intake・記録後GET・実画面は別後続の必須義務。既request_fingerprint生成器の未供給は実Control caller前の限定照合依存であり、既数学や本pure部品の着手待ちへ戻さない。rootの実反映までsource2はcache候補であり、後続exact2の実装や保存成功をこの追補案から先取りしない。
 
 2026-10-27 16:34 JST、PO委任によるCodex /root判断。追補案ADDENDUM SHA d1fbf224a150b6157e9e2249522d44a1e8998affcc52f4b3b646ed124f386331、計画非作者レビューe6fa19e4eb758136c62d25d76399934ac39dc14de4c2d49367d9ff946f92392e（P0/P1/P2=0/0/0）を根拠に、上記純codec exact2と別途の接合exact2の範囲を承認する。実装・正式統合・実DB接続の完了を意味せず、後続sourceは別固定版で独立レビューする。
+
+2026-10-27 16:49 JST、PO委任によるCodex /root判断。0c970d1b起点の初球V5接合exact2、patch c9ea0c0949c2f99783b1145f1056173728b2194aaf8b0f0966f59d56ee756bfdを、非作者レビュー2f57acb9d6c013b56e000109eb4cb4a1a197fd751792ffc3c061c483f9fa6154（P0/P1/P2=0/0/0、独立95件・旧版対照33件）を根拠に採用。原V5・D5指紋・既拒否順とP2/O4を保持。実Port・HTTP・DB保存の提供または正式統合を意味しない。
