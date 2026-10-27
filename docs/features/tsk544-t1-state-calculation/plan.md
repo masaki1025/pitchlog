@@ -750,3 +750,5 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 本確認は原典のread-only解析。pure/source/DB試験は実行しておらず、repo/Git/正式資産/DB変更・起動0。全原典SHAはprimary-manifest.json、正式値の抜粋はcurrent-formal-facts.json、段階別pathはexactpaths.jsonへ固定した。
 
 2026-10-27 20:26 JST、PO委任によるCodex /root判断。V7/V8 pure codec追補c56cd48ef0c65b5c6b33503d42d0b50305463760d7dd553c5a2f806fa17663f4、非作者d6cc1688e37287e4578cae7cfee196f6b9cf237dbff03111506a925fe7eda7f3残0を根拠にpure exact2+cache vectorのみ着手を承認。PlayRow scope588de14b06d5b065a62a95a39233cce02ac80e5b89b8c34bee086a36ebbff749、非作者06e611aa0808792b4d64266f424a7142aa7ec515359369c675e74d95d32e83ce残0を根拠に未登録token/固定SQL宣言/pure test exact3のみ着手を承認。両候補の正式採用にはsource非作者確認が必要。DB印/実登録/Port/HTTP/保存と再読込を成立扱いにしない。
+
+2026-10-27 20:38 JST、PO委任によるCodex /root判断。未登録PlayRow token/固定SQL宣言/pure test exact3 patch6e5574191ee21b27fc7164f6ee842848a057df49354259c7fce22232ea627302を、非作者review c1c07a0b8f94ce3027923624a27a108e7d67f5c8cfadfff738d90db5971e7763残0・独立98成功に基づき採用。実tree98成功。同game/event/D5/ledger、tenant/限定read/D2非コピーを保持。未登録であることを維持し、実writer資格・DB適用印・実保存/GETを成立としない。
