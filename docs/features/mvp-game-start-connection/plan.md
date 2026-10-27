@@ -537,3 +537,5 @@ PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84
 ### 同期世代12列consumerの開始候補への限定追随
 
 2026-10-27 18:22 JST、PO委任によるCodex /root判断。PR188の72f4118aからwriter側で独立review済み記録世代12列是正を必要8pathへ限定反映する。対象patch 43bbbe34f04c16d178b0cc7bab1b00ad494741a4d233d7aeb57164e9e3ffcf6a。repository・sync tokens/apply/prefixと関連pure fixture/operations testだけを対象とし、既SQL/tenant/lock/権利・拒否順と保護列非SELECTを維持、writer固有V5・DB helperを混ぜない。隔離候補19module 355成功・Ruff/format/ty成功、target固定版の追加独立review・実DB・正式凍結値・新HEAD CIは別条件である。writer側の実DB成功を本PR実DB成功と呼ばない。
+
+2026-10-27 18:29 JST、PO委任によるCodex /root判断。対象c023f73eの限定移植8pathと計画は、非作者レビューcd8ffcccb542f75b12926e4f29262756c9a95c5838c3312b5f114ab53bcd0185（残0、独立境界9成功）、root実tree355成功に基づき採用。実DB・正式値/委任・最終CIは未成立で、公開HEAD72f4118aから変更せず次の接続を進める。
