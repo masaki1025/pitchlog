@@ -657,3 +657,5 @@ F. 実owned DB/HTTP（最後）: accepted T1..T6、T8、T9、各書込直後故�
 source単位ごと影響pytest/Ruff/ty/Port guard、正式CLIのproducer/consumer・core path・凍結射影/coverage/参照値をまとめて導出する。既正式9資産/7.7値が実際に変わる場合だけ前後値付き受理を追加する。独立core reviewはsource版・差分SHA・旧DTO保持と反例を記録する。統合候補が固まって必須全件CIを一回、同入力の赤を反復しない。現段階の所要時間は未算定（実506/SyncEventBatch採用版とsource_binding設計の独立確認が必要）。pure第1段階の着手を実HTTP/DB完成待ちに戻す必要はない。
 
 2026-10-27 20:14 JST、PO委任によるCodex /root判断。計画反映1 SHA4fd984b64c03c34c6e0347bbb60f76f994be7f9e550d9cef528fc1719da214a6、非作者第1回2a1cb793…のE-1資格欠落P1を採用、第2回e634165f7dbadf0068afa336cec9061233598e3111f27a165b105d725f164758残0を根拠に段階1 raw source pure exact2の着手だけ承認する。E-1の資格欠落はfail-closed、legacy入口だけ旧方式。段階2以降・HTTP・全D5・同writer・実DBは未承認/未接続。
+
+2026-10-27 20:21 JST、PO委任によるCodex /root判断。E-1原wire source段階1 exact2 patch 2a18bb8ebcb7499cc4be65e8eb3c19d89dc8619031f208967fd4d425eae6120eを、非作者レビュー5ba527e1cf8d4869d856454cc7de259d59054df351bd9612fd514069718c0afe残0・独立75成功/5対向に基づき採用。実tree関連175成功。pure不変値はS1受付・認証・origin・同writer資格ではなく、P3/旧DTO/全D5/HTTP/DB接続は未成立。
