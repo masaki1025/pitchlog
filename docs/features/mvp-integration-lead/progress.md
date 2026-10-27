@@ -1095,3 +1095,20 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27 中断時、#188 U3 cache source候補 `pr188-u3-finite-owner-candidate-470ba19a-20261027/implementation/REPORT.md` SHA 9ec43ca2b282a2ad3c431a1b90c881fb7f13332e5bf72c97e5f2ce4d12a9d11f、source3.patch SHA 1cd78f6bf96d4d4ef69d5a4774fd02dca0f7099c1eebbce9fb77a858e8a4f6bd、manifest d24b3973d5f1f23a25582630a01e61353366b899f9f5f647bb5ca655c9192b23 を固定。新27件/Ruff/ty成功、旧RG1 fixture4件は歴史source/行漂移で失敗したまま。470ba19a起点のためroot側U1/U5を保ちながら移植、失敗原因の根拠確認と必要是正、別非作者source review、正式after4面/必要受理が次。source/正式値未採用。3A-1 source review未着手。
 
 ユーザー指示により、進行中の区切りと引継ぎ記録の保存後に作業を中断。再開時は冒頭の現在地・上記末尾から始め、各branch/PR HEAD・CI・cacheの実在を確認する。MVP全体と1球保存・再読込は未完。
+
+### 2026-10-27 夜：Claude主担当への引継ぎ受領と unit A 反映1
+
+POの指示によりCodex主担当からClaude（Opus 5.5）主担当へ引継ぎ。Codexは利用上限のため以後の実装・レビュー・判断に使わない。独立レビューは非作者のFable 5.1サブエージェントで行う（作者と同一セッション・同一文脈の自己レビューを独立レビューに数えない）。判断の記録は従来の「PO委任Codex /root判断」と同じ委任範囲で「PO委任Claude主担当判断」とし、本人署名・人間の逐行確認とは記録しない。
+
+照合（実物）：origin/develop `3a24f89e`（台帳の基線と一致、主repoのローカルdevelopは旧1ab398ccで未追随のみ）。#186 Draft HEAD `b38e8c22…` CI run40495457821 completed/success、#187 Draft HEAD `42568333…`、#188 Draft 公開HEAD `72f4118a…`（mergeState BLOCKED）。writer-binding WT `68d6a071` clean・push済。#188候補WT `2e8a816f` clean・remoteより11先行・未push。台帳記載との差分なし。
+
+unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-unit-a/reflection1/`、REPORT SHA `54ed8fbd1f8e4fae3b8c70e7a9a6880c5db52e10a4caffb1381e95e61d866054`、patch `source5-r1.patch` SHA `92613b473c9ecbd5b41a32ecc37d790f2f9d61b30e5c04c21ca199e9cd3a3a00`、68d6a071基点）：
+- P1-ACL採用：binding再読取のFOR SHAREを除去。同TX top-levelのadmission xmin一致が既assertのFOR SHARE保持を示すことを根拠とし、right ownerへUPDATE権限を足さない。
+- P2-NATIVE採用：両guardでlegacy_row_identifier/migration_unverifiedを拒否、元eventのlegacy識別を拒否、operation_events.legacy_row_identifierの列SELECTを有限追加。
+- 新規P1（実測）：使い捨てPG17.11で、列SELECTのみのroleはFOR SHAREもxmin読取も拒否、SELECT(xmin)付与で読めることを確認。印表・admission表のSELECT列へxminを追加。
+- 新規P1（静的）：正式ACLにright ownerの`recording_generations.import_batch_id` SELECTがなく、guardの参照が拒否される。1列SELECTのみ追加（既policyあり、新policyなし）。
+- 静的検査302成功・Ruff/format/ty成功。実DBの正常INSERT/拒否、非作者レビュー、採用は未了。profile登録・印発行B・activationは未実施。
+
+並列実行中（workflow）：unit A反映1の実PG診断（owned fixture）＋3観点の非作者レビューとP0/P1反証、#188 U3旧RG1 fixture 4失敗の原因・是正・非作者レビュー、unit B（既device/right成功からの印発行）計画候補と非作者計画レビュー、E-1段階3反映1計画の非作者追認。E-1 3A-1 sourceの非作者レビューも別途実行中。
+
+利用者が新たにできる操作：なし（部品・検証段階）。1球の実API保存と再読込は未達のまま。
