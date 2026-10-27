@@ -966,3 +966,5 @@ wire純部品と新vectorは非作者1a0767a707e04119cba90ed845f8f42eedb20c7553e
 #188の72f4118aへ世代12列fixを限定patch43bbbe34…で反映。writer固有V5/DB helperを含めず、root実tree19module355成功3.69秒、隔離候補も355成功・SQL/tenant/lock/不正幅維持。PO委任Codex /root判断を親planへ記録しc023f73eとしてlocal保存。target固定版の独立review・owned実DB・凍結値/委任・新CIは未完で未push、既CI失敗の解消完了ではない。
 
 PR187 core path候補b0f0f7c1…は非作者4c170af3…残0、正式9全値不変。PO委任判断のもと宣言source2をc18eae81、core JSON登録を後続7425f411へ別commit。実treeの全test_core_guardは467成功・2失敗：旧RG1/tenant宣言を現行追加層から参照する歴史testのKeyError。旧検査を削除せず歴史fixtureへ参照を整合する必要あり。candidateは未push、最終11×2・Gate6・CIも未成立。pure32成功のみを全core成功と扱わない。
+
+bridge/frame第1回P1（終了/失活/差替え/nestedを見逃す）は反映1で既writer lifetimeをbind時保持・各利用で再照合。非作者第2回3bff1bbaab00c19adadce80dba714d835a57a8c9712ccc1ace13dbbc03a59177残0、62成功、root実tree58成功。2026-10-27 18:26 JST、PO委任Codex /root判断でexact4 patch1c51d31b…を57d198d6に採用・push。待機中はread/評価0、同host一回評価の部品であり、実Port/DB/HTTP接続成功は未成立。
