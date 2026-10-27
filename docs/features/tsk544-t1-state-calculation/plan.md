@@ -659,3 +659,94 @@ source単位ごと影響pytest/Ruff/ty/Port guard、正式CLIのproducer/consume
 2026-10-27 20:14 JST、PO委任によるCodex /root判断。計画反映1 SHA4fd984b64c03c34c6e0347bbb60f76f994be7f9e550d9cef528fc1719da214a6、非作者第1回2a1cb793…のE-1資格欠落P1を採用、第2回e634165f7dbadf0068afa336cec9061233598e3111f27a165b105d725f164758残0を根拠に段階1 raw source pure exact2の着手だけ承認する。E-1の資格欠落はfail-closed、legacy入口だけ旧方式。段階2以降・HTTP・全D5・同writer・実DBは未承認/未接続。
 
 2026-10-27 20:21 JST、PO委任によるCodex /root判断。E-1原wire source段階1 exact2 patch 2a18bb8ebcb7499cc4be65e8eb3c19d89dc8619031f208967fd4d425eae6120eを、非作者レビュー5ba527e1cf8d4869d856454cc7de259d59054df351bd9612fd514069718c0afe残0・独立75成功/5対向に基づき採用。実tree関連175成功。pure不変値はS1受付・認証・origin・同writer資格ではなく、P3/旧DTO/全D5/HTTP/DB接続は未成立。
+
+### 単位2：初球V7/V8型表の固定とpure閉codec（限定追補案）
+
+既「初球の実Port・同writer保存・記録後GET」単位2だけを具体化する。新野球意味・旧拒否順/D5/保護列/認可/耐久性保証は変えない。既型表反映1の対象はcache first-ball-v7-v8-type-table-20261027/reflection1/manifest.json SHA6478dfd6509488b43c7e0128cfea4368e4e3ac95cdf57f22752de324c2081c3a、TYPE-TABLE.md SHAe5b4971fa54be2763db71b85507d40e296bea1742cf560a611c341c5aaecffac、type-fields.json SHA9555f1650b070b08539a7a20b9551f3c67d3f28818630d9b72c7028b649c80d3。全6資産の全SHA・全52member・既66DTO宣言/継承をTYPE-TARGET.json SHA72d2620c6731a5e9367880f2967a7771cc75e5c6e76a18052b988943ff2af921へ固定した。原典bf0822abから今回読取57d198d6013282ea71292103d3505992d41b4479まで該当16原典は全byte不変（primary-compatibility.json）。
+
+非作者第1回75fee69d426f9c9f8b307e34f644bfd14ad9591c34fc141011e6b338c10669a9のP2（V7.response誤参照）と、反映1/第2回4ff42fdaf7a32a7d4fbac6a7c910b0ae2176047b9314e50dcb7861f05a0a79b8・checksd233b801b7c9943d5e5ded4ac7eb9db89bf5542ffb40e34566bf3da270cd8b1f（残0）を維持する。型表承認はpure具体化の資格であり、P6 blind/実装/実UI/DB完了ではない。rootはこの追補の実対象版・日時・判断者・根拠を「PO委任によるCodex判断」として記録してから限定着手を指示する。本人が実値確認/署名したとは記録しない。
+
+**exact2 source**: 新backend/src/pitchlog/sync/first_ball_payload.py、新backend/tests/test_sync_apply_first_ball_payload.py。**必要vector1**: contracts/state-transition/first_ball_payload_vectors_v1.jsonのcache候補を同時作成。正式配置/親plan/7.7等はroot唯一writer。sync/*・test_sync_apply_*・contracts/state-transition/*の既core捕捉を照合し、producer/consumer新規参照の発見は既CLIで導出する。除外や検査緩和をしない。既domain DTO/TS/artifact/host/formatter/frame/bridge/Port/registry/SQL/API/UIは変更しない。
+
+**閉形状（下記の省略をTYPE-TARGET全値への置換で解釈しない）**:
+- V7 exact4 = formatVersion literal first-ball-play-v1、observations、participants、calculation。
+- observations exact5 = pitchTypeKey(nonempty str)、course exact3(unit literal1/263・x/y canonical unsigned decimal string k0..263)、pitchSpeed exact2(kmh=符号付十進文字列又はnull・outsideRangeConfirmed=strict bool)、stance(decimal string1..25又はnull)、battingSide(右/左/null)。全key必須、nullableは型表で指定したmemberだけ。未観測を0/右/空配列へ補完しない。速度は非負限定/60..170硬拒否にしない。型表のregex/単位/確認条件は全値固定対象のまま、未知精度/Double投影をここで仮決めしない。
+- participants exact4 = batterId/pitcherId/catcherId(canonical UUID strings)、battingOrder(初球scope string1)。client値は同frameに由来する独立期待参照へ全一致を要求するが、codec自身が所属/現出場を認定しない。
+- calculationは既FirstBallCalculationValue exact4とCombinedRequest/Success全値を無変更再利用。打撃結果はcalculation.request.t1.resultIdの一箇所に記録者の選択を保持。初球batting-result.ball以外を成功へfallbackせず、T2未評価/partialは拒否する。
+- V8は既HistoryDifference exact3(stateFields/scoreboard/statFlags)を無変更再利用し、calculation.response.value.t1.historyContext[0].differenceへ全一致。初球historyは既ABIの厳密1要素、V8に全stack/新wrapper/Readyを増やさない。全23flag・T1after全欄・T2のtag/時点/4根拠を省略しない。絶対boardはcalculation.response.value.t1.after.scoreboardへ保持、空差分を0scoreへ変えない。
+
+**pure APIと保証の境界**: 閉DTOのformat/parse・V7/V8相互一致だけを実装し、parse/validateは独立に供給する既期待calculationと期待participantsへの全値一致を必須にする。optional期待値・raw自身のexpected流用・正規化書換えを提供しない。型適合の偽pairを両側へ同時注入すればpure値一致でしかなく、真正性は後続私有frameが供給することを明示試験する。raw SyncEvent/V5/V7/V8/既wire専用・旧D5指紋は不変。alias/型・bool-int・数値表現/未知fieldの不一致を黙って修復せず、固定例外で入力/原例外を表示しない。host/数学/Port/DB/network/file I/Oをcodecの実行から呼ばない。domainrtへ到達するこのprivileged codecをregistered Portのimport閉包へ持ち込まない。
+
+**vectorと受入**: 1新規版付きJSONは型表SHA/原典ref・case ID・V7/V8原JSON・独立期待calc/participants・成功全値又は固定拒否分類を持つ。正式採用済みT1/T2の成功4ケース（3規則family）と非成功8ケースは既原典値を変えず再利用し、説明用synthetic観測/名簿はpure資格とする。未知key/省略/null/型/別alias/別participants/原V7V8差替え、全23flag/after/history/T2各改変、course端点0/263/未選択/範囲外、速度null/負/0/範囲外確認・stance null/1/25・両打実側の非推測を検査する。期待値は試験中に製品codecで生成せず、全case ID/件数と全値比較を凍結。候補vectorの非作者再導出とsourceレビュー後、rootが正式反映する。新P6 blindや正式型表未提示配置の拡張とはしない。
+
+作業中はexact2 Ruff/format/ty・関連pureを実行。全値の落とし/比較省略/null補完/型変換/履歴切詰め・raw改変など非等価変異の検出を確認し、既formatter/first-pitch/T2/指紋/同期拒否試験・旧assetを保持する。最終候補を固定し候補作成非関与レビュアーへ渡す。正式vector/必須CI未成立を完了とせず、sourceの有効化はrootの採用記録後とする。
+
+**後続留保（pure着手前条件へ戻さない）**: 現UI float座標→B7整数k/263/Y反転の単一TS接合、Double物理投影と速度精度/overflow/実設定確認、bounded語彙/名簿照合、真正同writer frame・1回消費とC2/D2変換、T2非成功の既公開拒否写像、実RecordingRightsPort/DB印/原子保存/GET/HTTP/端末body耐久は未提供のまま。PlayRowを先行実装する場合もD2をplay_numberへコピーせず、保護列/tenant/同TX/拒否順を変えない。これらの不在を型に適合した定数値・fixtureの常時成功で埋めない。MVP/全T1受入条件は維持する。
+
+### 初球PlayRow insert：最小供給単位と保存依存
+
+固定読取基線 `57d198d6013282ea71292103d3505992d41b4479`。既親plan単位3、実model/schema-manifest/正式DDL・CAP/tenant repository契約・既イベントread・確定済みFR-002/B-7を照合した。**SQLなしtoken＋未登録固定SQL宣言＋純試験のexact3は先行できる。実保存activationにはruntime登録とDB側適用印が別に必要。** 本packetはscope候補であり実装/正式採用ではない。
+
+## 最小exactpaths
+
+| 段階 | exact path | 供給するもの/保持する境界 |
+|---|---|---|
+| 先行A | `backend/src/pitchlog/sync/first_ball_tokens.py` 新 | SQLなし不変値型 `FirstBallPlayRowInsertToken` と必要なら同源限定 `FirstBallPlayRowReadToken`。host/DB/transactionをimportせず、値だけで認可・同writer成功を表さない |
+| 先行A | `backend/src/pitchlog/repositories/first_ball_operations.py` 新 | canonical PlayRow Tableの固定INSERTと、tenant/game/source_eventへ閉じたLIMIT2 read宣言。登録tupleを宣言するだけでPRODUCT_OPERATIONSへ追加しない。独自の野球/座標計算なし |
+| 先行A | `backend/tests/test_first_ball_operations.py` 新 | 全41列/SQL/bind/閉preflight/不正型・越境・未登録SQL0・上限の純対向。成功資格はSQL/row doubleまで |
+| 後続root | `operation_registry.py` / 生成`repository_contract.py` / 正式`contracts/tenant_boundary/repository-contract.json` | 新token exact型・insert CAP1・read/insert operationだけを既prefixへ追加。DB印の拒否/正常証拠と非作者確認前にはruntimeを有効化しない |
+| 後続 | `backend/tests/db/test_first_ball_projection_atomic.py` | owned fixture/実app/Cookie/正規scope・同writer bindingを使う原子性。共有DBやfixtureの常時成功資格へ接続しない |
+
+既unit3のtest命名を維持する案。新repositories/*はtenant-isolationに捕捉されるが、sync/game-stateの意味登録をそれで代用しない。rootが新SQL/test pathのcore登録を既手順で直列処理し、必要な宣言先行/JSON別commitを維持する。元guardの検出/拒否/対象pathを除外しない。
+
+## 全列の由来
+
+**全41列を `all41-column-origins.json` に物理型・nullable/default・由来・FK/CHECK/PK/immutabilityとともに固定。** 型表の原典由来を再利用し、列を追加/削除していない。
+
+| 列群 | 初球の供給源 |
+|---|---|
+| tenant_id / game_id | 生存した同writer contextと認可済URL/event/private frame。callerの自由tenant値をbindしない |
+| id | 受理TX内で割り当てた新UUID。D5再掲では再投影/再割当しない |
+| source_event_id | 同TXで既OperationEventReadToken(game,generation,D1)が返した新現行イベントのid。payloadの自由UUIDを採用しない |
+| play_number | **真正empty初球の表示番号1という限定実装案**。D1/D2は表示番号ではない。D2をコピー/一般採番へ拡張しない |
+| event_kind | このpitch-event scopeの`pitch`。wire V5=`1`、OperationEvent.kind=`play_input`とは別 |
+| batting_order / batter_id / pitcher_id / catcher_id | 同writerの保存初期名簿・既単一TS射影からの期待参照と、V7 participantsの完全一致 |
+| batting_side / stance | 実観測の右/左/null・1..25/null。両打を推測せず、0/右へ不足を補完しない |
+| pitch_type_key / batting_result_key | 記録員が選んだ正式球種key・`batting-result.ball`。同tenant語彙/正式結果・有効性照合はFKだけで成立扱いにしない |
+| course_x/course_y | 元eventに正準整数kと単位1/263を保持。既B7の単一TS/採用済み変換から物理投影値を受け取る。Pythonでk/263/Y反転を再実装しない |
+| pitch_speed | 任意球速の欠損null・有限値。0/負値を未入力扱いしない。範囲外の実確認を60..170硬拒否で代替しない |
+| version / hidden_at | 新規native projectionの初版1、可視null。再送upsertでversionを増やさない |
+| import_batch_id / legacy_row_identifier / migration_unverified | native新規記録scopeに限るnull/null/false。移行由来を検証済みにする定数ではない |
+| 他の作戦/打球/牽制/失策/press等 | この限定初球で非該当又は未観測のnullable欄はnull。入力された未対応観測は捨てず内容codecで拒否し、MVPから機能を削除しない |
+
+先行Aは既に投影されたtyped値の保存形だけを受ける。物理Double列のcourse/球速に独自の算式/丸め/クランプを入れない。finite/range/UUID/型と固定scopeの検査は行うが、単なる値tokenを真正sourceの証明にはしない。
+
+## 既OperationEventReadTokenとFKの閉じ方
+
+既readは同tenant/game/generation/D1・replaced_at=NULLに閉じて全列を返す。新identity readは追加不要。PlayRowの既FKは `(tenant_id,source_event_id)→operation_events(tenant_id,id)` であり、**同gameのFKではない**ため、rowが読めるだけでgame/D5/実pair一致へ昇格できない。
+
+insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`play_input`、replaced/retired/import状態、coreが確定したD2/許可済C2変換を照合する。既readがretired条件をSQLに持たない点もvalidatorで明示拒否する。必要な原指紋一致は既IdempotencyLedgerReadTokenの受理済D5/fingerprintと私有frame/nonce結合を用い、新hash recipeを作らない。generation/D1/D5/D2/原指紋等は検証用でありPlayRow新列やplay_numberへ転用しない。
+
+新readが必要なら同game/source_eventのvisible/native行を最大2件だけ読む。先行AではそのSQL宣言に限定し、正式token/operation登録はrootの後続段階。INSERT結果1行とreadbackの全列/id/FKを一致させ、0/複数/別game/別D5/旧世代/retired/partialを成功としない。bounded readを全件走査に置換しない。
+
+## 認可/DB適用印の不足
+
+正式product CAPはplay_rows read/insert/update、正式ACLはpitchlog_app SELECT/INSERT/UPDATE、RLS+FORCEとtenant_owned ALL/WITH CHECKが既存。一方、tenant repository契約は現時点readのみ、insert token/operationは未登録。新insertのために新CAPやappの広いGRANTを追加する必要はないが、既DB権限があることは核の許可ではない。
+
+**0006の既triggerはid/source_event_id/legacy_row_identifierのUPDATE保護だけ。ports.pyが明記する「適用核の印を要求するDB trigger」のINSERT保証は現取得した正式DDL/モデルからは供給されていない。** `_SYNC_APPLY_ACTIVE` ContextVarやPortWriter exact型の成功で代替しない。
+
+実登録前の別最小unitで、既writer_binding/admissionの真正PG identity・同TX・tenant/game/D5/原指紋・nonce寿命/1回消費を使うDB側限定資格を設計・実証する。clientが設定できるGUCのboolだけを印にしない。SQL/trigger/migration/SECDEF owner/ACL/body/profileの具体exactpathと全前後値は、その設計固定後にrootが承認・正式反映する。既binding ownerへ必要性不明のGRANTや新汎用roleを先に足さない。本packetは新DBguardの実装範囲や正式受理を包括承認するものではない。
+
+## 原子性と必要な受入
+
+既経路を維持する：認可/C2・RG1→D5→記録権→D1→⑦snapshot/同TX一回T1/T2/V7V8照合→O4/D2→D5台帳/slot/event/D3→T4 PlayRow→無効化意図→⑧RG1→commit。insertは同じPortWriter/handleだけから実行し、Session/新scope/独立commitを開かない。実活性top-level TX ownerは採用済frame lifetime検査へ束縛する。
+
+- pure: canonical Table/全列/bind/CAP/固定値・NULL・UUID/finite/未知field/別table・tenant混入・FK原本0/2行・旧/別event・未登録SQL0を検査。旧SQL/型/認可/拒否対向を保持する。
+- owned DB: genuine初期名簿/開始/記録権・admissionから実eventと1行を保存、同TX全列readback。別tenant/game/nonce/権利失効/直接DML/別writer/結果不明/再送で拒否・二重行なしを確認する。
+- fault: ledger/slot/event/D3/PlayRow/意図の各途中とcommit前RG1で、**business TX**の不可分rollbackを実観測。外部Controlの耐久監査/lease消費/UNKNOWN quarantineが残ることを全取消失敗へ読み替えず、反対にその残存を業務commit成功とも扱わない。全取消未確認でD5未消費/新D5置換を許可しない。
+
+初球scopeに新たな野球意味判断は見つけていない。未決は①pure型表採用/観測・語彙供給、②B7/Doubleと球速の技術的投影接点、③DB核資格の最小SQL設計/登録、④実Port/GET/HTTP接合。これらは未登録の先行Aを妨げる追加の全体ゲートではない。DB activation/製品完成は成立扱いにしない。
+
+本確認は原典のread-only解析。pure/source/DB試験は実行しておらず、repo/Git/正式資産/DB変更・起動0。全原典SHAはprimary-manifest.json、正式値の抜粋はcurrent-formal-facts.json、段階別pathはexactpaths.jsonへ固定した。
+
+2026-10-27 20:26 JST、PO委任によるCodex /root判断。V7/V8 pure codec追補c56cd48ef0c65b5c6b33503d42d0b50305463760d7dd553c5a2f806fa17663f4、非作者d6cc1688e37287e4578cae7cfee196f6b9cf237dbff03111506a925fe7eda7f3残0を根拠にpure exact2+cache vectorのみ着手を承認。PlayRow scope588de14b06d5b065a62a95a39233cce02ac80e5b89b8c34bee086a36ebbff749、非作者06e611aa0808792b4d64266f424a7142aa7ec515359369c675e74d95d32e83ce残0を根拠に未登録token/固定SQL宣言/pure test exact3のみ着手を承認。両候補の正式採用にはsource非作者確認が必要。DB印/実登録/Port/HTTP/保存と再読込を成立扱いにしない。
