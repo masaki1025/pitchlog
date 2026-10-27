@@ -582,3 +582,5 @@ rootのPO委任による対象版付き計画確定後、作者exact2とcache ve
 ### 記録世代の同期読取列契約の是正
 
 2026-10-27 17:45 JST、PO委任によるCodex /root判断。開始処理との実接合で、同期repositoryが保護列を除く12列を返す一方、同期consumerが追加後のモデル全14列を期待し失敗する不一致を修正する。編集範囲はbackend/src/pitchlog/sync/{tokens.py,apply.py,prefix_path.py}、backend/src/pitchlog/repositories/sync_apply.py、backend/tests/test_sync_apply_{prefix_path,apply,rejection,operations_boundary}.py、backend/tests/db/test_sync_apply_operations_boundary.pyのexact9。既12列の順序をSQL依存のない単一契約へ移し、read/number/lockと両consumerが共有する。proof_digest/recovery_generationを公開せず、既tenant・認可・記録権・SQL条件・FOR UPDATE・拒否順を維持する。テスト用14列行は実契約へ追随し、3 tokenの全列順・保護列非投影・同lockを純検査と隔離実DBで確かめる。非作者core review、影響検査、対象版の証拠後に採用し、CI全件や記録権の提供をこの修正だけで成立としない。
+
+2026-10-27、PO委任によるCodex /root判断。上記列契約の実DB試験は既operations_boundaryに外部DB供給分岐があるため、同path追記を取りやめ、新規backend/tests/db/test_sync_generation_projection_owned.pyへ限定する。既owned fixtureと実Cookie/app scopeを使い、共有DBへ接続しない。他の範囲・保護列・独立レビュー条件は維持する。
