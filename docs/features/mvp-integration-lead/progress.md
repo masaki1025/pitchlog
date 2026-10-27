@@ -952,3 +952,5 @@ wire指紋の追加照合では、現writer WTの同期入口は依然legacy ope
 同日17:40 JST、bridgeのartifact identityは、実際に検証された同じhostのsource SHAと同hostでの一回評価を束縛する入口へ限定具体化し7793cd16に記録。既型/frozen検査・既decode・故障拒否を維持、前後ファイルhashを実使用証拠としない。wire指紋pure計画c6485e5c…は非作者レビュー984bc4b1…残0、PO委任判断でexact2とcache vector候補のみ71dceb56へ承認。原wire・不正S-2・欠落/null・D1・既D5領域分離を保持し、正式vector/HTTP/端末/DBは未成立。
 
 開始候補#188とwriter実treeで、同期repositoryの保護列除外12列とconsumerのモデル全14列期待が不一致と判明。PO委任Codex /root判断でexact9を計画8ccf22f7へ記録し、rootはSQL依存のない12列契約をrepository・apply・prefixに共有、純fixture追随と3 token/lock検査を3255ce2eへ候補保存・push。関連145件/Ruff成功。証拠列を選択へ戻していない。最終非作者core review、独立したowned実DB検査と正式統合は未実施。
+
+同日、外部DB選択のある既試験ファイルを避け、新規owned専用testへ計画を限定変更。実Cookie・実app scopeから3 tokenが同じ12列を返し、appがproof_digest/recovery_generationをSELECTできないことを隔離PGで確認（1成功28.23秒）。2785e81eへtest/計画を保存・push。3255ce2eと併せて非作者core review中。これは同期1球保存の成功ではない。#188最新CIの224失敗34error/7111成功および残るharness・tenant等はcache調査c47a9588…に保持し、12列修正だけで全CI解消とはしない。
