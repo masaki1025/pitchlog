@@ -948,3 +948,5 @@ PR187 e692f042は最終非作者writer_binding_source_independentが50path/diff 
 wire指紋の追加照合では、現writer WTの同期入口は依然legacy operation_fingerprintで、正本のwire-v1/wire-request-v1生成とE-1接続を提供していない。1と1.0を区別する正本を単純なJavaScript JSON.parse/stringifyで満たすとは扱わない。正規の初球値の範囲と、不正S-2を含む一般wire原値保持の双方を確認し、既D5保存値との領域分離・再送照合を実接続前に閉じる。PR187 run40472685268はcore-guard等成功、harness/backend/frontend実行中（調査時点）。PR186はDraft/mergeState DIRTY、旧CI成功を現状の統合可能性としない。
 
 同日17:34 JST、PO委任Codex /root判断で実Port保存追補43c8bc4b…の単位1 exact4のみ承認しd353dfefへ保存。非作者計画レビュー66bf169a…残0。後続V7/V8型表・Port登録・GET/HTTPは別固定。formatter exact2は非作者sourceレビューcbe21556fe1e0a67186236cbb31a5e9bcaca1a6444336893aefdae3e7de43e01残0、独立603成功・6変異拒否、root実tree173成功後、PO委任判断で2e0a7d96へ採用/push。formatterは期待pairとの値比較だけで、実評価・同writer・権利・保存を証明しない。単位1のbridge/frameは作者がcache実装中。wire指紋pure計画c6485e5c…は独立レビュー中。
+
+同日17:40 JST、bridgeのartifact identityは、実際に検証された同じhostのsource SHAと同hostでの一回評価を束縛する入口へ限定具体化し7793cd16に記録。既型/frozen検査・既decode・故障拒否を維持、前後ファイルhashを実使用証拠としない。wire指紋pure計画c6485e5c…は非作者レビュー984bc4b1…残0、PO委任判断でexact2とcache vector候補のみ71dceb56へ承認。原wire・不正S-2・欠落/null・D1・既D5領域分離を保持し、正式vector/HTTP/端末/DBは未成立。
