@@ -113,6 +113,8 @@ def _copy_static_inputs(root: Path) -> None:
     """生成body検査に必要な資産を一時領域へ複製する。"""
     paths = (
         Path("contracts/db/schema-manifest.json"),
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
         Path("contracts/authz/product/table-classification.json"),
         Path("contracts/authz/product/exposure-facts.json"),
         PRODUCT_SPEC.ddl_elements_path,
@@ -331,6 +333,8 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
     owner_policy_ids = set(_catalog_checker._owner_game_type_seed_policies()) | {
         "POLICY:rg1_restore_gate:rg1_fn_select_singleton",
         "POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
+        "POLICY:rg1_restore_gate:rg1_control_select_singleton",
+        "POLICY:rg1_restore_gate:rg1_control_update_singleton",
     }
     assert {
         element_id
@@ -366,10 +370,12 @@ def test_function_owner_table_acl_is_derived_from_declaration() -> None:
         policy
         for policy in asset["policies"]
         if policy["role_ids"] != ["pitchlog_owner"]
+        and policy["policy_id"] not in _catalog_checker._rg1_control_policies()
     ]
     function = copy.deepcopy(asset["functions"][-1])
     function.update(
         function_id="FUNCTION:authz_private:step4_definer()",
+        schema_name="authz_private",
         function_name="step4_definer",
         identity_args="",
         function_kind="definer",

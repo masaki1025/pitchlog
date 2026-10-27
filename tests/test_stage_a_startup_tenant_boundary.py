@@ -1,4 +1,4 @@
-"""段階起動のDB API許可を7関数の最小集合に限定する。"""
+"""段階起動のDB API許可を9関数の最小集合に限定する。"""
 
 import ast
 from pathlib import Path
@@ -24,7 +24,9 @@ def test_stage_a_allowlist_is_exact() -> None:
         "_require_same_database": psycopg_sql,
         "_require_s0": psycopg_sql,
         "_apply_placement": frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"}),
+        "_apply_epoch": frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"}),
         "_require_s3": psycopg_sql,
+        "_require_epoch_state": psycopg_sql,
         "_require_placed_state": psycopg_sql,
         "resume_stage_a_after_placement": psycopg_sql,
         "advance_stage_a_from_s0": frozenset({"PSYCOPG_CONNECT"}),
@@ -101,3 +103,28 @@ def test_stage_a_permission_does_not_extend_to_another_module() -> None:
         changed_lines=frozenset(range(1, 5)),
     )
     assert any(item.code == "TB005" and item.symbol == "psycopg.connect" for item in violations)
+
+
+def test_stage_a_epoch_functions_reject_extra_apis() -> None:
+    """追加したepochの2許可も、各関数の登録外APIへ拡張しない。"""
+    contract = checker.load_contract(ROOT)
+    source = SOURCE.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for name, extra in (
+        ("_apply_epoch", "    psycopg.connect(owner_dsn)\n"),
+        ("_require_epoch_state", "    create_engine(_owner_url(applicator_dsn))\n"),
+    ):
+        node = next(
+            item for item in tree.body
+            if isinstance(item, ast.FunctionDef) and item.name == name
+        )
+        assert node.end_lineno is not None
+        lines = source.splitlines(keepends=True)
+        lines.insert(node.end_lineno, extra)
+        violations = checker.scan_source(
+            "".join(lines),
+            path="pitchlog/db/stage_a_startup.py",
+            contract=contract,
+            changed_lines=frozenset({node.end_lineno + 1}),
+        )
+        assert any(item.code == "TB005" for item in violations), name

@@ -13,6 +13,12 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from pitchlog.db.engine import create_database_engine
+from pitchlog.recording_rights.rg1_lifecycle import (
+    BusinessBinding,
+    RG1ControlUnavailable,
+    _GateLoan,
+    borrow_gate,
+)
 from pitchlog.repositories.base import (
     _materialize_execution_result,
     _materialize_rows,
@@ -36,6 +42,7 @@ __all__ = ("tenant_transaction_scope",)
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
+_RG1_LOANS: dict[object, _GateLoan] = {}
 _SYNC_APPLY_ACTIVE: ContextVar[bool] = ContextVar("sync_apply_active", default=False)
 
 
@@ -138,7 +145,9 @@ class _TenantTransaction:
             ):
                 raise RuntimeError("実行前検証の再帰は許可されない")
             preflight.validate(tuple(self.run(check) for check in preflight.operations))
-        execution_result = session.execute(statement, parameters)
+        execution_result = session.execute(
+            statement.execution_options(preserve_rowcount=True), parameters
+        )
         return _materialize_execution_result(statement, execution_result)
 
     def run_function(self, operation: TenantOperationToken) -> TenantOperationResult:
@@ -167,6 +176,42 @@ class _TenantTransaction:
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
         decoded = decode_function_result(spec, _materialize_rows(rows))
         return _materialize_rows(decoded.rows)
+
+    def _ensure_rg1_lease(self) -> None:
+        """実Sessionの固定観測だけを使い、scopeが終わるまで借用を所有する。"""
+        from pitchlog.repositories.rg1 import RG1ScopeBindingToken, RG1Unavailable
+
+        key = self._state_key
+        if key is None or key not in _TRANSACTION_RUNTIMES:
+            raise RuntimeError("トランザクションハンドルは失効している")
+        existing = _RG1_LOANS.get(key)
+        try:
+            if existing is not None:
+                existing.assert_held()
+                return
+            result = self.run_function(RG1ScopeBindingToken())
+            if len(result.rows) != 1 or len(result.rows[0]) != 1:
+                raise RG1Unavailable("復元ゲートの実識別を確認できない")
+            value = result.rows[0][0]
+            if not isinstance(value, str):
+                raise RG1Unavailable("復元ゲートの実識別型が不正")
+            binding = BusinessBinding.from_text(value)
+            _RG1_LOANS[key] = borrow_gate(binding)
+        except RG1ControlUnavailable as error:
+            raise RG1Unavailable("復元ゲートの実保持を確認できない") from error
+
+    def _assert_rg1_lease(self) -> None:
+        """未借用や切断を、直前照合の成功へ昇格しない。"""
+        from pitchlog.repositories.rg1 import RG1Unavailable
+
+        key = self._state_key
+        loan = None if key is None else _RG1_LOANS.get(key)
+        if loan is None:
+            raise RG1Unavailable("復元ゲートが借用されていない")
+        try:
+            loan.assert_held()
+        except RG1ControlUnavailable as error:
+            raise RG1Unavailable("復元ゲートの実保持を確認できない") from error
 
     def run_in_savepoint(
         self, operation: TenantOperationToken
@@ -269,6 +314,53 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         Returns:
             既存トランザクション境界の例外伝播判定。
         """
+        handle = self._handle
+        key = None if handle is None else handle._state_key
+        loan = None if key is None else _RG1_LOANS.get(key)
+        if exception is None and loan is not None:
+            from pitchlog.repositories.rg1 import assert_rg1_open_before_commit
+
+            if handle is None:
+                raise RuntimeError("終了前にscopeが失効している")
+            try:
+                assert_rg1_open_before_commit(handle)
+            except BaseException as precommit_error:
+                try:
+                    self.__exit__(
+                        type(precommit_error),
+                        precommit_error,
+                        precommit_error.__traceback__,
+                    )
+                except BaseException as cleanup_error:
+                    raise precommit_error from cleanup_error
+                raise
+        if key is not None:
+            _RG1_LOANS.pop(key, None)
+        try:
+            result = self._exit_after_rg1_check(exception_type, exception, traceback)
+        except BaseException as primary_error:
+            if loan is not None:
+                try:
+                    loan.abandon()
+                except BaseException as abandon_error:
+                    raise primary_error from abandon_error
+            raise
+        if loan is not None:
+            try:
+                loan.release()
+            except BaseException as release_error:
+                if exception is not None and not result:
+                    raise exception.with_traceback(traceback) from release_error
+                raise
+        return result
+
+    def _exit_after_rg1_check(
+        self,
+        exception_type: type[BaseException] | None,
+        exception: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        """旧PG確定/取消/closeの順序を保ち、その完了を借用解放より先にする。"""
         handle = self._handle
         if handle is None:
             raise RuntimeError("開始していないトランザクションスコープを終了できない")

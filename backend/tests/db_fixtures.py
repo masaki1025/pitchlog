@@ -31,8 +31,14 @@ from pitchlog.authz.asset_spec import (
     load_product_application_steps,
 )
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
-from pitchlog.authz.product_provisioning import apply_product_authz_ddl
+from pitchlog.authz.product_catalog import inspect_product_authz_catalog
+from pitchlog.authz.product_provisioning import (
+    apply_product_authz_before_rule_placement,
+    apply_product_authz_ddl,
+    unapply_product_authz_ddl,
+)
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
+from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
@@ -447,6 +453,10 @@ class DisposablePostgres:
     container_name: str
     admin_dsn: str
     role_dsn_template: str
+
+
+# factoryが実際にyieldしている個体だけを、歴史DDLの所有証跡とする。
+_DISPOSABLE_CLUSTER_OWNERS: dict[int, DisposablePostgres] = {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -998,6 +1008,7 @@ def disposable_postgres_cluster() -> Callable[
         username = f"pitchlog_disposable_{token}"
         password = secrets.token_urlsafe(24)
         database = "pitchlog_disposable"
+        cluster: DisposablePostgres | None = None
         try:
             _run_docker(
                 "run",
@@ -1034,12 +1045,16 @@ def disposable_postgres_cluster() -> Callable[
                 password=password,
             )
             _wait_for_postgres(dsn)
-            yield DisposablePostgres(
+            cluster = DisposablePostgres(
                 container_name=container_name,
                 admin_dsn=dsn,
                 role_dsn_template=_disposable_role_dsn_template(dsn),
             )
+            _DISPOSABLE_CLUSTER_OWNERS[id(cluster)] = cluster
+            yield cluster
         finally:
+            if cluster is not None:
+                _DISPOSABLE_CLUSTER_OWNERS.pop(id(cluster), None)
             _run_docker("rm", "--force", "--volumes", container_name, check=False)
 
     return factory
@@ -1315,6 +1330,28 @@ def _product_migration_url(dsn: str) -> str:
     ).render_as_string(hide_password=False)
 
 
+def _prepare_current_product_baseline(
+    *,
+    owner_dsn: str,
+    applicator_dsn: str,
+    applicator: psycopg.Connection[Any],
+) -> None:
+    """正規段階起動と実取り外しで0035の未適用基準を用意する。
+
+    準備時のS3適用と、この基準からの独立DDL試験を区別する。
+    """
+    result = advance_stage_a_from_s0(
+        owner_dsn=owner_dsn,
+        applicator_dsn=applicator_dsn,
+    )
+    assert result.completed_stage == "S3" and result.publishable is False
+    with applicator.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM public.alembic_version")
+        assert cursor.fetchall() == [("0035_rg1_initial_fresh_epoch",)]
+    applicator.rollback()
+    unapply_product_authz_ddl(applicator)
+
+
 @pytest.fixture
 def provisioned_product_catalog(
     disposable_postgres_cluster: Callable[
@@ -1408,6 +1445,11 @@ def provisioned_product_catalog(
             psycopg.connect(applicator_dsn) as applicator,
             psycopg.connect(applicator_dsn) as observer,
         ):
+            _prepare_current_product_baseline(
+                owner_dsn=owner_dsn,
+                applicator_dsn=applicator_dsn,
+                applicator=applicator,
+            )
             pre_application_catalog = _snapshot_product_catalog(observer, role_ids)
             observer.rollback()
             apply_product_authz_ddl(applicator)
@@ -1665,3 +1707,185 @@ def outsider_role_connection(
 ) -> psycopg.Connection[Any]:
     """無所属ロール自身で認証した接続を返す。"""
     return _named_login_role_connection(request, _authz_login_role_connections)
+
+
+def _require_historical_cluster(cluster: DisposablePostgres) -> None:
+    """歴史DDL用はfactory固有名と同じloopback座標だけに限定する。"""
+    assert type(cluster) is DisposablePostgres, "所有cluster型が不一致"
+    assert _DISPOSABLE_CLUSTER_OWNERS.get(id(cluster)) is cluster, (
+        "所有registryにないcluster"
+    )
+    prefix = "pitchlog-authz-"
+    token = cluster.container_name.removeprefix(prefix)
+    assert (
+        cluster.container_name.startswith(prefix)
+        and len(token) == 16
+        and all(char in "0123456789abcdef" for char in token)
+    ), "所有container名が不一致"
+    admin = conninfo_to_dict(cluster.admin_dsn)
+    role = conninfo_to_dict(cluster.role_dsn_template)
+    assert admin.get("host") == "127.0.0.1", "歴史DBは所有loopbackだけを使う"
+    assert admin.get("dbname") == "pitchlog_disposable", "所有初期DBが不一致"
+    assert admin.get("user") == f"pitchlog_disposable_{token}", "所有管理主体が不一致"
+    port = admin.get("port", "")
+    assert isinstance(port, str) and port.isdecimal() and 0 < int(port) <= 65535, (
+        "所有portが不一致"
+    )
+    assert all(admin.get(key) == role.get(key) for key in ("host", "port", "dbname")), (
+        "所有role接続座標が不一致"
+    )
+
+
+@contextmanager
+def _historical_product_catalog(
+    factory: Callable[[], AbstractContextManager[DisposablePostgres]],
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    pre_rule: bool,
+) -> Iterator[ProvisionedProductCatalog]:
+    """別owned clusterの0033を作り、必要な場合だけ正規S1を適用する。"""
+    assert _external_product_catalog is None, "外部供給を歴史DDLへ転用しない"
+    assert type(pre_rule) is bool, "歴史段階を曖昧に選ばない"
+    spec = PRODUCT_SPEC
+    asset = _load_ddl_asset(spec)
+    statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
+    steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
+    container_name: str | None = None
+    try:
+        with factory() as cluster:
+            _require_historical_cluster(cluster)
+            container_name = cluster.container_name
+            published = _run_docker("port", container_name, "5432/tcp").stdout.strip()
+            assert (
+                published == f"127.0.0.1:{conninfo_to_dict(cluster.admin_dsn)['port']}"
+            ), "所有containerとDB endpointが不一致"
+            owner_password = secrets.token_urlsafe(24)
+            database = "pitchlog_product"
+            with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+                admin.execute(
+                    sql.SQL(
+                        "CREATE ROLE pitchlog_owner WITH NOSUPERUSER NOBYPASSRLS "
+                        "LOGIN NOCREATEROLE NOCREATEDB NOREPLICATION "
+                        "NOINHERIT PASSWORD {}"
+                    ).format(sql.Literal(owner_password))
+                )
+                admin.execute(
+                    sql.SQL("CREATE DATABASE {} OWNER pitchlog_owner").format(
+                        sql.Identifier(database)
+                    )
+                )
+            owner_dsn = make_conninfo(
+                cluster.role_dsn_template,
+                dbname=database,
+                user="pitchlog_owner",
+                password=owner_password,
+            )
+            applicator_dsn = make_conninfo(cluster.admin_dsn, dbname=database)
+            monkeypatch.setenv(
+                "PITCHLOG_MIGRATION_DATABASE_URL", _product_migration_url(owner_dsn)
+            )
+            command.upgrade(
+                Config(str(_BACKEND_ROOT / "alembic.ini")), "0033_game_rules_immutable"
+            )
+            with psycopg.connect(owner_dsn) as owner:
+                assert owner.execute(
+                    "SELECT session_user,current_user,current_database()"
+                ).fetchone() == ("pitchlog_owner", "pitchlog_owner", database)
+                assert owner.execute(
+                    "SELECT version_num FROM public.alembic_version"
+                ).fetchall() == [("0033_game_rules_immutable",)]
+            with (
+                psycopg.connect(applicator_dsn) as applicator,
+                psycopg.connect(applicator_dsn) as observer,
+            ):
+                expected_admin = conninfo_to_dict(cluster.admin_dsn)["user"]
+                assert isinstance(expected_admin, str)
+                _assert_authenticated_identity(applicator, expected_admin)
+                _assert_authenticated_identity(observer, expected_admin)
+                applicator.rollback()
+                observer.rollback()
+                baseline = _snapshot_product_catalog(
+                    applicator, _product_role_ids(asset)
+                )
+                applicator.rollback()
+                if pre_rule:
+                    apply_product_authz_before_rule_placement(applicator)
+                yield ProvisionedProductCatalog(
+                    cluster=cluster,
+                    applicator=applicator,
+                    observer=observer,
+                    owner_dsn=owner_dsn,
+                    asset=asset,
+                    statements=statements,
+                    application_steps=steps,
+                    pre_application_catalog=baseline,
+                )
+    finally:
+        if container_name is not None:
+            removed = _run_docker(
+                "container",
+                "inspect",
+                "--format",
+                "{{.Id}}",
+                container_name,
+                check=False,
+            )
+            assert removed.returncode != 0 and (
+                "No such object" in removed.stderr
+                or "No such container" in removed.stderr
+            ), "歴史fixtureの所有containerを回収できない"
+
+
+@pytest.fixture
+def historical_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[ProvisionedProductCatalog]:
+    """currentとは別の所有clusterで0033/S1のFORCE RLSを供給する。"""
+    with _historical_product_catalog(
+        disposable_postgres_cluster, monkeypatch, pre_rule=True
+    ) as catalog:
+        yield catalog
+
+
+@pytest.fixture
+def migration_only_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[ProvisionedProductCatalog]:
+    """NULL ACLの原因を観測する認可適用前0033を、別owned clusterで供給する。"""
+    with _historical_product_catalog(
+        disposable_postgres_cluster, monkeypatch, pre_rule=False
+    ) as catalog:
+        yield catalog
+
+
+def _advance_historical_product_catalog(catalog: ProvisionedProductCatalog) -> None:
+    """歴史往復を終えた実0033だけを正規S3へ進め、全catalogを照合する。"""
+    catalog.observer.rollback()
+    catalog.applicator.rollback()
+    assert catalog.applicator.execute(
+        "SELECT version_num FROM public.alembic_version"
+    ).fetchall() == [("0033_game_rules_immutable",)]
+    catalog.applicator.rollback()
+    result = advance_stage_a_from_s0(
+        owner_dsn=catalog.owner_dsn,
+        applicator_dsn=make_conninfo(
+            catalog.cluster.admin_dsn, dbname=catalog.applicator.info.dbname
+        ),
+    )
+    assert result.completed_stage == "S3" and result.publishable is False
+    role_oid = catalog.applicator.execute(
+        "SELECT oid FROM pg_catalog.pg_roles WHERE rolname=session_user"
+    ).fetchone()
+    catalog.applicator.rollback()
+    assert role_oid is not None and type(role_oid[0]) is int
+    report = inspect_product_authz_catalog(
+        catalog.observer, privileged_role_oids=frozenset({role_oid[0]})
+    )
+    catalog.observer.rollback()
+    assert report.ok, report.violations

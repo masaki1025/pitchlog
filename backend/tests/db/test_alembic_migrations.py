@@ -10,7 +10,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, LiteralString, cast
+from typing import Any, LiteralString
 from uuid import uuid4
 
 import psycopg
@@ -20,10 +20,11 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from db_fixtures import _advance_historical_product_catalog
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
-from sqlalchemy import Column, Integer, MetaData, Table
+from sqlalchemy import BigInteger, CheckConstraint, Column, Integer, MetaData, Table
 from sqlalchemy.engine import URL, create_engine
 from sqlalchemy.exc import DBAPIError
 
@@ -1034,15 +1035,65 @@ def _alembic_config() -> Config:
     return Config(str(_BACKEND_ROOT / "alembic.ini"))
 
 
+def _metadata_for_schema_revision(revision: str) -> MetaData:
+    """採用済みrevisionだけを対応するモデル構造へ射影する。"""
+    if revision == "0035_rg1_initial_fresh_epoch":
+        return Base.metadata
+    if revision not in {"0032_rg1_restore_gate", "0033_game_rules_immutable"}:
+        raise AssertionError("未対応revisionのモデル比較を補完しない")
+    table = Base.metadata.tables.get("rg1_restore_gate")
+    if table is None:
+        # 部分metadataも元のまま比較し、余剰・欠落表を実diffとして検出する。
+        return Base.metadata
+    epoch = table.c.recovery_generation
+    checks = [
+        constraint
+        for constraint in table.constraints
+        if isinstance(constraint, CheckConstraint)
+        and constraint.name == "ck_rg1_restore_gate_recovery_generation"
+    ]
+    assert isinstance(epoch.type, BigInteger) and epoch.nullable
+    assert epoch.default is None and epoch.server_default is None
+    assert not epoch.primary_key and not epoch.foreign_keys
+    assert len(checks) == 1
+    assert str(checks[0].sqltext) == (
+        "recovery_generation IS NULL OR recovery_generation > 0"
+    )
+    historical = MetaData(naming_convention=Base.metadata.naming_convention)
+    for source in Base.metadata.tables.values():
+        source.to_metadata(historical)
+    copied = historical.tables["rg1_restore_gate"]
+    copied_check = next(
+        constraint
+        for constraint in copied.constraints
+        if isinstance(constraint, CheckConstraint)
+        and constraint.name == "ck_rg1_restore_gate_recovery_generation"
+    )
+    copied.constraints.remove(copied_check)
+    # 比較用copyの一列だけを除く。元のORMや比較結果を加工しない。
+    copied._columns.remove(copied.c.recovery_generation)
+    return historical
+
+
 def _pre_placement_metadata_diffs() -> list[object]:
-    """配置前revisionの表構造とモデルの差分を取得する。"""
+    """実revisionに対応した表構造とモデルの差分を取得する。"""
     engine = create_engine(
         normalize_postgresql_url(os.environ["PITCHLOG_MIGRATION_DATABASE_URL"])
     )
     try:
         with engine.connect() as connection:
+            revisions = (
+                connection.exec_driver_sql(
+                    "SELECT version_num FROM public.alembic_version"
+                )
+                .scalars()
+                .all()
+            )
+            assert len(revisions) == 1 and type(revisions[0]) is str
             context = MigrationContext.configure(connection)
-            return compare_metadata(context, Base.metadata)
+            return compare_metadata(
+                context, _metadata_for_schema_revision(revisions[0])
+            )
     finally:
         engine.dispose()
 
@@ -8323,13 +8374,13 @@ def _force_rls_states(connection: psycopg.Connection[Any]) -> dict[str, bool]:
     ),
 )
 def test_0028_preflight_rejects_hidden_rows_under_product_force_rls(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
     case: str,
     reason: str,
 ) -> None:
     """製品 FORCE RLS で隠れた不整合も事前検査で止め、行と FORCE を残す。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     monkeypatch.setenv(
         "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(catalog.owner_dsn)
     )
@@ -8453,11 +8504,11 @@ def test_0028_preflight_rejects_hidden_rows_under_product_force_rls(
 
 
 def test_0028_preflight_restores_product_force_rls_after_success(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    historical_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """事前検査が成功しても元の FORCE 状態と製品認可の構成を保つ。"""
-    catalog = provisioned_product_catalog
+    catalog = historical_product_catalog
     monkeypatch.setenv(
         "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(catalog.owner_dsn)
     )
@@ -8492,34 +8543,9 @@ def test_0028_preflight_restores_product_force_rls_after_success(
         cursor.execute("SELECT singleton_id, state FROM public.rg1_restore_gate")
         assert cursor.fetchall() == [(1, "closed")]
 
-    # downgrade が削除した生成列と関数の ACL だけを資産から再適用する。
-    restored_ids = {
-        "FUNCTION:public:authn_normalize_team_name(text)",
-        "FUNCTION:public:prevent_games_applied_rules_update()",
-        "FUNCTION:public:verify_games_applied_rules_final()",
-        "COLUMN-ACL:public:tenants:name_normalized:pitchlog_auth_fn_owner",
-        "COLUMN-ACL:public:tenants:retired_at:pitchlog_auth_fn_owner",
-        "rg1_restore_gate",
-        "POLICY:rg1_restore_gate:rg1_fn_select_singleton",
-        "POLICY:rg1_restore_gate:rg1_fn_lock_singleton",
-        "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_rg1_fn_owner",
-        "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_rg1_fn_owner",
-    }
-    restored_ids.update(
-        statement.element_id
-        for statement in catalog.statements
-        if statement.element_type == "column_acl_expectation"
-        and statement.element_id.endswith(":pitchlog_rule_resolution_fn_owner")
-    )
-    statements = [
-        statement
-        for statement in catalog.statements
-        if statement.element_id in restored_ids
-    ]
-    assert {statement.element_id for statement in statements} == restored_ids
+    # 全歴史往復の完了後だけ正規S3へ進め、現行profileを照合する。
+    _advance_historical_product_catalog(catalog)
     with catalog.applicator.cursor() as cursor:
-        for statement in statements:
-            cursor.execute(sql.SQL(cast(LiteralString, statement.sql)))
         cursor.execute(
             "SELECT oid FROM pg_catalog.pg_roles WHERE rolname = current_user"
         )
@@ -8604,3 +8630,132 @@ def test_0028_generated_name_normalization_and_limits(
                     "'public.authn_normalize_team_name(text)')"
                 )
                 assert cursor.fetchone() == (None,)
+
+
+@pytest.mark.parametrize(
+    "revision", ["0032_rg1_restore_gate", "0033_game_rules_immutable"]
+)
+def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> None:
+    """歴史モデルcopyの差をepoch列とCHECKにだけ限定する。"""
+    current = Base.metadata.tables["rg1_restore_gate"]
+    projected = _metadata_for_schema_revision(revision)
+    assert projected is not Base.metadata
+    assert set(projected.tables) == set(Base.metadata.tables)
+    assert set(current.c.keys()) == {"singleton_id", "state", "recovery_generation"}
+    for name, table in Base.metadata.tables.items():
+        expected = set(table.c.keys())
+        if name == "rg1_restore_gate":
+            expected.remove("recovery_generation")
+        assert set(projected.tables[name].c.keys()) == expected
+    assert "recovery_generation" in current.c
+    assert any(
+        c.name == "ck_rg1_restore_gate_recovery_generation" for c in current.constraints
+    )
+    assert (
+        _metadata_for_schema_revision("0035_rg1_initial_fresh_epoch") is Base.metadata
+    )
+    with pytest.raises(AssertionError, match="未対応revision"):
+        _metadata_for_schema_revision("unknown")
+
+
+def test_current_metadata_epoch_column_loss_is_detected(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """正規0035は完全モデルで比較し、epoch欠落を必ず検出する。"""
+    engine = create_engine(
+        normalize_postgresql_url(_sqlalchemy_url(provisioned_product_catalog.owner_dsn))
+    )
+    try:
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            try:
+                assert (
+                    connection.exec_driver_sql(
+                        "SELECT version_num FROM public.alembic_version"
+                    ).scalar_one()
+                    == "0035_rg1_initial_fresh_epoch"
+                )
+                assert (
+                    compare_metadata(
+                        MigrationContext.configure(connection), Base.metadata
+                    )
+                    == []
+                )
+                connection.exec_driver_sql(
+                    "ALTER TABLE public.rg1_restore_gate "
+                    "DROP COLUMN recovery_generation"
+                )
+                diffs = compare_metadata(
+                    MigrationContext.configure(connection), Base.metadata
+                )
+                assert any(
+                    difference[0] == "add_column"
+                    and difference[2] == "rg1_restore_gate"
+                    and difference[3].name == "recovery_generation"
+                    for difference in diffs
+                )
+            finally:
+                transaction.rollback()
+            assert (
+                compare_metadata(MigrationContext.configure(connection), Base.metadata)
+                == []
+            )
+    finally:
+        engine.dispose()
+
+
+@pytest.mark.parametrize("change", ("container", "host", "admin", "role_endpoint"))
+def test_historical_cluster_rejects_unowned_coordinates(
+    change: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """歴史fixtureは別container/外部host/主体/混在接続をDB接続前に拒否する。"""
+    from db_fixtures import _DISPOSABLE_CLUSTER_OWNERS, _require_historical_cluster
+
+    token = "0123456789abcdef"
+    admin = make_conninfo(
+        host="127.0.0.1",
+        port=15432,
+        dbname="pitchlog_disposable",
+        user=f"pitchlog_disposable_{token}",
+    )
+    role = make_conninfo(admin, user="public_fixture_role")
+    name = f"pitchlog-authz-{token}"
+    if change == "container":
+        name = "shared-container"
+    elif change == "host":
+        admin = make_conninfo(admin, host="192.0.2.1")
+        role = make_conninfo(role, host="192.0.2.1")
+    elif change == "admin":
+        admin = make_conninfo(admin, user="external_admin")
+    else:
+        role = make_conninfo(role, port=15433)
+    cluster = DisposablePostgres(name, admin, role)
+    monkeypatch.setitem(_DISPOSABLE_CLUSTER_OWNERS, id(cluster), cluster)
+    with pytest.raises(AssertionError):
+        _require_historical_cluster(cluster)
+
+
+def test_historical_fixture_rejects_external_supply_before_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """外部profile供給中には歴史DDLのfactoryさえ開始しない。"""
+    import db_fixtures
+
+    def forbidden_factory() -> AbstractContextManager[DisposablePostgres]:
+        raise AssertionError("factoryへ到達してはいけない")
+
+    unissued = DisposablePostgres(
+        "pitchlog-authz-0123456789abcdef",
+        "host=127.0.0.1 port=15432 dbname=pitchlog_disposable "
+        "user=pitchlog_disposable_0123456789abcdef",
+        "host=127.0.0.1 port=15432 dbname=pitchlog_disposable user=fixture",
+    )
+    with pytest.raises(AssertionError, match="所有registry"):
+        db_fixtures._require_historical_cluster(unissued)
+    monkeypatch.setattr(db_fixtures, "_external_product_catalog", object())
+    with pytest.raises(AssertionError, match="外部供給"):
+        with db_fixtures._historical_product_catalog(
+            forbidden_factory, monkeypatch, pre_rule=True
+        ):
+            raise AssertionError("yieldへ到達してはいけない")

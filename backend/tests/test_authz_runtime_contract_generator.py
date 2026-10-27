@@ -671,6 +671,32 @@ def test_rendered_source_matches_generated_module_byte_for_byte() -> None:
     )
 
 
+@pytest.mark.parametrize("schemas", [["public"], None])
+def test_rendered_schema_tuple_keeps_values_and_line_length(
+    schemas: list[str] | None,
+) -> None:
+    """保護schemaが増えても生成コードの値/順序と行長を維持する。"""
+    asset = _read_asset(_REPOSITORY_ROOT)
+    if schemas is not None:
+        asset["protected_objects"]["schemas"] = schemas
+    expected = tuple(asset["protected_objects"]["schemas"])
+    source = render_runtime_contract(asset)
+    declaration = next(
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "PROTECTED_SCHEMAS"
+    )
+    assert ast.literal_eval(declaration.value) == expected
+    assert declaration.end_lineno is not None
+    lines = source.splitlines()[declaration.lineno - 1 : declaration.end_lineno]
+    assert all(len(line) <= 88 for line in lines)
+    if schemas is not None:
+        assert lines == ['PROTECTED_SCHEMAS = ("public",)']
+
+
 def test_check_succeeds_for_current_repository() -> None:
     """現在のリポジトリで check が成功することを確認する。"""
     expected_state = evaluate_repository(_REPOSITORY_ROOT)[0]

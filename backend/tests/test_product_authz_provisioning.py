@@ -1105,3 +1105,312 @@ def test_subject_change_inside_one_step_is_red_through_public_path(
     assert connection.execute_calls == []
     assert connection.commit_count == 0
     assert connection.rollback_count == 0
+
+
+def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
+    """旧resolver16の保留と新列ACL一件だけの追加保留を照合する。"""
+    generated = product_provisioning.generate_authz_ddl(
+        product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
+    )
+    _, statements = product_provisioning._build_operation_statements(
+        ProductOperation.APPLY_PRE_RULE
+    )
+    sql_text = "\n".join(row.sql for row in statements)
+    withheld = tuple(
+        row
+        for row in generated
+        if row.element_type in {"function", "column_acl_expectation"}
+        and row.sql not in sql_text
+    )
+    old = tuple(
+        row
+        for row in withheld
+        if row.element_id == product_provisioning.RULE_RESOLUTION_FUNCTION_ID
+        or row.element_id.endswith(
+            f":{product_provisioning.RULE_RESOLUTION_OWNER_ROLE_ID}"
+        )
+    )
+    assert len(old) == 16
+    assert {row.element_id for row in withheld} - {row.element_id for row in old} == {
+        "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_rg1_control_owner"
+    }
+    assert "CREATE OR REPLACE FUNCTION rg1_control.bind_initial_fresh_epoch" in sql_text
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate", "wrong-kind"])
+def test_pre_rule_rejects_nonexact_epoch_dependency(
+    mutation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新保留依存の欠落・重複・型変更を拒否する。"""
+    from dataclasses import replace
+
+    generated = product_provisioning.generate_authz_ddl(
+        product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
+    )
+    identifier = (
+        "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+        "pitchlog_rg1_control_owner"
+    )
+    selected = next(row for row in generated if row.element_id == identifier)
+    changed = tuple(row for row in generated if row.element_id != identifier)
+    if mutation == "duplicate":
+        changed += (selected, selected)
+    elif mutation == "wrong-kind":
+        changed += (replace(selected, element_type="acl_expectation"),)
+    monkeypatch.setattr(product_provisioning, "generate_authz_ddl", lambda *_: changed)
+    with pytest.raises(ProductProvisioningError, match="初回epoch列ACL"):
+        product_provisioning._build_operation_statements(
+            ProductOperation.APPLY_PRE_RULE
+        )
+
+
+@pytest.mark.parametrize(
+    "revision", ["0034_stage_a_rule_defaults", "0035_rg1_initial_fresh_epoch"]
+)
+def test_startup_resume_epoch_order_without_db(
+    revision: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """34だけを移行し、35では再移行せず実定義を検査して認可へ進む。"""
+    from pitchlog.db import stage_a_startup as startup
+
+    events: list[str] = []
+
+    class Owner:
+        def __enter__(self) -> Owner:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def cursor(self) -> Owner:
+            return self
+
+        def execute(self, _: str) -> None:
+            pass
+
+        def fetchone(self) -> tuple[str, str]:
+            return ("pitchlog_owner", "pitchlog_owner")
+
+    monkeypatch.setattr(startup.psycopg, "connect", lambda *_: Owner())
+    monkeypatch.setattr(startup, "_require_same_database", lambda *_: None)
+    monkeypatch.setattr(startup, "_require_placed_state", lambda *_: revision)
+    monkeypatch.setattr(startup, "_apply_epoch", lambda *_: events.append("epoch"))
+    monkeypatch.setattr(
+        startup, "_require_epoch_state", lambda *_: events.append("verify")
+    )
+    monkeypatch.setattr(
+        startup, "apply_product_authz_ddl", lambda *_: events.append("authz")
+    )
+    monkeypatch.setattr(startup, "_require_s3", lambda *_: events.append("s3"))
+    result = startup.resume_stage_a_after_placement(
+        owner_dsn="owner", applicator_dsn="admin"
+    )
+    assert events == (["epoch"] if revision.startswith("0034") else []) + [
+        "verify",
+        "authz",
+        "s3",
+    ]
+    assert result.publishable is False
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "valid",
+        "marker",
+        "missing-column",
+        "wrong-type",
+        "not-null",
+        "default",
+        "missing-check",
+        "unvalidated",
+    ],
+)
+def test_startup_checks_real_epoch_metadata(
+    mutation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """35 markerのみ・列型/NULL/default/制約の偽装を全認可前に拒否する。"""
+    from pitchlog.db import stage_a_startup as startup
+
+    rows: list[list[tuple[object, ...]]] = [
+        [("0035_rg1_initial_fresh_epoch",)],
+        [("bigint", False, "", "", None)],
+        [
+            (
+                "CHECK (((recovery_generation IS NULL) OR (recovery_generation > 0)))",
+                True,
+                False,
+            )
+        ],
+    ]
+    if mutation == "marker":
+        rows[0] = [("0036_unknown",)]
+    elif mutation == "missing-column":
+        rows[1] = []
+    elif mutation == "wrong-type":
+        rows[1] = [("integer", False, "", "", None)]
+    elif mutation == "not-null":
+        rows[1] = [("bigint", True, "", "", None)]
+    elif mutation == "default":
+        rows[1] = [("bigint", False, "", "", "1")]
+    elif mutation == "missing-check":
+        rows[2] = []
+    elif mutation == "unvalidated":
+        rows[2] = [(rows[2][0][0], False, False)]
+
+    class Cursor:
+        def __enter__(self) -> Cursor:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def cursor(self) -> Cursor:
+            return self
+
+        def execute(self, _: str) -> None:
+            pass
+
+        def fetchall(self) -> list[tuple[object, ...]]:
+            return rows.pop(0)
+
+    monkeypatch.setattr(startup.psycopg, "connect", lambda *_: Cursor())
+    if mutation == "valid":
+        startup._require_epoch_state("admin")
+    else:
+        with pytest.raises(startup.StageAStartupError):
+            startup._require_epoch_state("admin")
+
+
+def test_startup_unknown_placed_revision_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """既知34/35以外は配置確認や認可へ進まない。"""
+    from pitchlog.db import stage_a_startup as startup
+
+    class Cursor:
+        def __enter__(self) -> Cursor:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            pass
+
+        def cursor(self) -> Cursor:
+            return self
+
+        def execute(self, _: str) -> None:
+            pass
+
+        def fetchall(self) -> list[tuple[str]]:
+            return [("0036_unknown",)]
+
+    monkeypatch.setattr(startup.psycopg, "connect", lambda *_: Cursor())
+    with pytest.raises(startup.StageAStartupError, match="revision"):
+        startup._require_placed_state("admin")
+
+
+def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
+    """新2schemaだけをowner不修復で保護し、旧5schemaのSQLを変えない。"""
+    generated = product_provisioning.generate_authz_ddl(
+        product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
+    )
+    _, applied = product_provisioning._build_operation_statements(
+        ProductOperation.APPLY
+    )
+    sql_texts = {row.sql for row in applied}
+    elements = product_provisioning._load_product_elements()
+    schemas = [row for row in generated if row.element_type == "schema"]
+    assert len(schemas) == 7
+    for row in schemas:
+        if row.element_id not in {"rg1_control", "pitchlog_ledger_observer"}:
+            assert row.sql in sql_texts
+            continue
+        element = product_provisioning._element_for_statement(row, elements)
+        guarded = product_provisioning._strict_lifecycle_schema_sql(element, row.sql)
+        assert guarded in sql_texts
+        assert "r.rolname = '" + str(element.fields["owner"]) + "'" in guarded
+        assert "RAISE EXCEPTION 'schema owner collision:" in guarded
+        assert "ALTER SCHEMA" not in guarded
+        original = (
+            f"CREATE SCHEMA {row.element_id} AUTHORIZATION {element.fields['owner']};"
+        )
+        assert row.sql.replace(original, "") in guarded.replace(
+            guarded[
+                guarded.index("DO $schema_reapply$") : guarded.index(
+                    "$schema_reapply$;"
+                )
+                + len("$schema_reapply$;")
+            ],
+            "",
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation", ["unknown", "wrong-name", "wrong-owner", "duplicate-create"]
+)
+def test_new_schema_guard_rejects_noncanonical_inputs(mutation: str) -> None:
+    """新閉集合の別schema化や正規CREATEの不一致を拒否する。"""
+    from dataclasses import replace
+
+    elements = product_provisioning._load_product_elements()
+    element = next(
+        row
+        for row in elements
+        if row.element_type == "schema" and row.element_id == "rg1_control"
+    )
+    source = "CREATE SCHEMA rg1_control AUTHORIZATION pitchlog_rg1_control_owner;"
+    if mutation == "unknown":
+        element = replace(
+            element,
+            element_id="unknown",
+            fields={**element.fields, "schema_id": "unknown", "schema_name": "unknown"},
+        )
+    elif mutation == "wrong-name":
+        element = replace(element, fields={**element.fields, "schema_name": "public"})
+    elif mutation == "wrong-owner":
+        element = replace(element, fields={**element.fields, "owner": "pitchlog_app"})
+    else:
+        source += source
+    with pytest.raises(ProductProvisioningError):
+        product_provisioning._strict_lifecycle_schema_sql(element, source)
+
+
+@pytest.mark.parametrize(
+    "function_id,source_path,delimiter",
+    [
+        (
+            "FUNCTION:pitchlog_ledger_observer:identity()",
+            "backend/src/pitchlog/durable_rights_ledger/business_identity.sql",
+            "$$",
+        ),
+        (
+            "FUNCTION:rg1_control:bind_initial_fresh_epoch(bigint)",
+            "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+            "$function$",
+        ),
+    ],
+)
+def test_lifecycle_function_header_only_is_normalized(
+    function_id: str, source_path: str, delimiter: str
+) -> None:
+    """二つの固定元SQLの引数・戻り値・AS本文は全byte保持して再適用する。"""
+    from pitchlog.authz.product_function_acl import generate_lifecycle_function_sql
+
+    root = product_provisioning._REPOSITORY_ROOT
+    source = (root / source_path).read_text()
+    physical_name = (
+        function_id.removeprefix("FUNCTION:").split("(")[0].replace(":", ".")
+    )
+    start = source.index("CREATE FUNCTION " + physical_name + "(")
+    body_start = source.index(delimiter, start)
+    end = (
+        source.index(delimiter + ";", body_start + len(delimiter)) + len(delimiter) + 1
+    )
+    original = source[start:end]
+    rendered = generate_lifecycle_function_sql(function_id, root)
+    normalized = original.replace("CREATE FUNCTION ", "CREATE OR REPLACE FUNCTION ", 1)
+    assert normalized in rendered
+    assert (
+        original[original.index(delimiter) :].encode()
+        == normalized[normalized.index(delimiter) :].encode()
+    )

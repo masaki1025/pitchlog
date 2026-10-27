@@ -23,6 +23,7 @@ from pitchlog.authz.product_provisioning import (
 _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 _PRE_PLACEMENT_REVISION = "0033_game_rules_immutable"
 _PLACEMENT_REVISION = "0034_stage_a_rule_defaults"
+_EPOCH_REVISION = "0035_rg1_initial_fresh_epoch"
 _PLACEMENT_SOURCE = _BACKEND_ROOT / "migrations/versions/0034_stage_a_rule_defaults.py"
 
 
@@ -105,11 +106,57 @@ def _apply_placement(owner_dsn: str) -> None:
         engine.dispose()
 
 
+def _apply_epoch(owner_dsn: str) -> None:
+    """0034の確定後にownerで0035だけをtransaction内適用する。"""
+    engine = create_engine(_owner_url(owner_dsn))
+    try:
+        with engine.begin() as connection:
+            config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+            config.attributes["connection"] = connection
+            command.upgrade(config, _EPOCH_REVISION)
+    finally:
+        engine.dispose()
+
+
+def _require_epoch_state(applicator_dsn: str) -> None:
+    """改訂markerだけでなく0035の実列と制約を閉集合で照合する。"""
+    with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM public.alembic_version")
+        if cursor.fetchall() != [(_EPOCH_REVISION,)]:
+            raise StageAStartupError("epoch適用後のschema revisionが不一致です")
+        cursor.execute(
+            "SELECT a.atttypid::regtype::text, a.attnotnull, a.attidentity, "
+            "a.attgenerated, pg_get_expr(d.adbin, d.adrelid) "
+            "FROM pg_catalog.pg_attribute a "
+            "LEFT JOIN pg_catalog.pg_attrdef d "
+            "ON d.adrelid = a.attrelid AND d.adnum = a.attnum "
+            "WHERE a.attrelid = 'public.rg1_restore_gate'::regclass "
+            "AND a.attname = 'recovery_generation' AND NOT a.attisdropped"
+        )
+        if cursor.fetchall() != [("bigint", False, "", "", None)]:
+            raise StageAStartupError("0035のepoch実列定義が不一致です")
+        cursor.execute(
+            "SELECT pg_get_constraintdef(oid), convalidated, connoinherit "
+            "FROM pg_catalog.pg_constraint "
+            "WHERE conrelid = 'public.rg1_restore_gate'::regclass "
+            "AND conname = 'ck_rg1_restore_gate_recovery_generation' "
+            "AND contype = 'c'"
+        )
+        if cursor.fetchall() != [
+            (
+                "CHECK (((recovery_generation IS NULL) OR (recovery_generation > 0)))",
+                True,
+                False,
+            )
+        ]:
+            raise StageAStartupError("0035のepoch実制約が不一致です")
+
+
 def _require_s3(applicator_dsn: str) -> None:
     """適用後も公開せずrevisionと認可カタログの全期待値を照合する。"""
     with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        if cursor.fetchall() != [(_PLACEMENT_REVISION,)]:
+        if cursor.fetchall() != [(_EPOCH_REVISION,)]:
             raise StageAStartupError("S3のschema revisionが不一致です")
         cursor.execute(
             "SELECT p.proowner::regrole::text, p.prosecdef "
@@ -132,7 +179,7 @@ def _require_s3(applicator_dsn: str) -> None:
             raise StageAStartupError("S3の製品認可カタログが不一致です")
 
 
-def _require_placed_state(applicator_dsn: str) -> None:
+def _require_placed_state(applicator_dsn: str) -> str:
     """S2後の再開前に配置と一時権限の完全一致を確認する。"""
     rules = run_path(str(_PLACEMENT_SOURCE))["_RULES"]
     if not isinstance(rules, tuple) or len(rules) != 5:
@@ -141,8 +188,10 @@ def _require_placed_state(applicator_dsn: str) -> None:
     ids = [row[1] for row in rules]
     with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        if cursor.fetchall() != [(_PLACEMENT_REVISION,)]:
+        revisions = cursor.fetchall()
+        if revisions not in ([(_PLACEMENT_REVISION,)], [(_EPOCH_REVISION,)]):
             raise StageAStartupError("S2確定後のschema revisionが不一致です")
+        revision = str(revisions[0][0])
         cursor.execute(
             "SELECT id::text, regulation_innings, called_game_conditions, "
             "extra_innings_limit, tiebreak_rule, uses_dh "
@@ -183,18 +232,22 @@ def _require_placed_state(applicator_dsn: str) -> None:
         )
         if cursor.fetchone() is not None:
             raise StageAStartupError("S2の一時policyが残っています")
+    return revision
 
 
 def resume_stage_a_after_placement(
     *, owner_dsn: str, applicator_dsn: str
 ) -> StageAStartupResult:
-    """S2確定後の状態を照合し、S3だけを再適用して非公開で戻る。"""
+    """既配置を検査し、必要な0035とS3だけを適用して非公開で戻る。"""
     _require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user, session_user")
         if cursor.fetchone() != ("pitchlog_owner", "pitchlog_owner"):
             raise StageAStartupError("S3再開にはpitchlog_owner接続が必要です")
-    _require_placed_state(applicator_dsn)
+    revision = _require_placed_state(applicator_dsn)
+    if revision == _PLACEMENT_REVISION:
+        _apply_epoch(owner_dsn)
+    _require_epoch_state(applicator_dsn)
     with psycopg.connect(applicator_dsn) as applicator:
         apply_product_authz_ddl(applicator)
     _require_placed_state(applicator_dsn)
@@ -222,6 +275,9 @@ def advance_stage_a_from_s0(
     with psycopg.connect(applicator_dsn) as applicator:
         apply_product_authz_before_rule_placement(applicator)
     _apply_placement(owner_dsn)
+    _require_placed_state(applicator_dsn)
+    _apply_epoch(owner_dsn)
+    _require_epoch_state(applicator_dsn)
     with psycopg.connect(applicator_dsn) as applicator:
         apply_product_authz_ddl(applicator)
     _require_s3(applicator_dsn)

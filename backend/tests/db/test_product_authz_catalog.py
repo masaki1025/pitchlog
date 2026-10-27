@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from db_fixtures import _advance_historical_product_catalog
 from psycopg import sql
 
 from pitchlog.authz import product_catalog, product_provisioning
@@ -421,37 +422,67 @@ def test_security_definer_trigger_function_is_red(
 
 
 def test_null_trigger_function_acl_is_red(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    migration_only_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """Migration が作り直した NULL ACL の PUBLIC EXECUTE を拒否する。"""
-    catalog = provisioned_product_catalog
+    """実migrationのNULL ACL/PUBLICだけを帰属させ、S3で解消も確認する。"""
+    catalog = migration_only_product_catalog
     schema_name, function_name = _migration_trigger_function(catalog)
-    unapply_product_authz_ddl(catalog.applicator)
-    try:
-        config = Config(str(_BACKEND_ROOT / "alembic.ini"))
-        command.downgrade(config, "base")
-        command.upgrade(config, "0033_game_rules_immutable")
+    config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+    command.downgrade(config, "base")
+    command.upgrade(config, "0033_game_rules_immutable")
 
-        with catalog.observer.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT routine.proacl IS NULL
-                FROM pg_catalog.pg_proc AS routine
-                JOIN pg_catalog.pg_namespace AS namespace
-                  ON namespace.oid = routine.pronamespace
-                WHERE namespace.nspname = %s
-                  AND routine.proname = %s
-                  AND routine.pronargs = 0
-                """,
-                (schema_name, function_name),
-            )
-            row = cursor.fetchone()
-        catalog.observer.rollback()
-        assert row == (True,)
-        _assert_red(catalog, "PRODUCT-CATALOG:FUNCTION-ACL")
-    finally:
-        catalog.observer.rollback()
-        apply_product_authz_ddl(catalog.applicator)
+    with catalog.observer.cursor() as cursor:
+        cursor.execute(
+            "SELECT routine.proacl IS NULL FROM pg_catalog.pg_proc AS routine "
+            "JOIN pg_catalog.pg_namespace AS namespace "
+            "ON namespace.oid=routine.pronamespace "
+            "WHERE namespace.nspname=%s AND routine.proname=%s AND routine.pronargs=0",
+            (schema_name, function_name),
+        )
+        assert cursor.fetchone() == (True,)
+        cursor.execute(
+            "SELECT privilege.privilege_type,privilege.is_grantable "
+            "FROM pg_catalog.pg_proc AS routine "
+            "JOIN pg_catalog.pg_namespace AS namespace "
+            "ON namespace.oid=routine.pronamespace "
+            "CROSS JOIN LATERAL pg_catalog.aclexplode(COALESCE(routine.proacl, "
+            "pg_catalog.acldefault('f',routine.proowner))) AS privilege "
+            "WHERE namespace.nspname=%s AND routine.proname=%s "
+            "AND routine.pronargs=0 AND privilege.grantee=0",
+            (schema_name, function_name),
+        )
+        assert cursor.fetchall() == [("EXECUTE", False)]
+    catalog.observer.rollback()
+    public_acl = (schema_name, function_name, "", "PUBLIC", "EXECUTE", False)
+    report = _inspect(catalog)
+    function_acl = next(
+        violation
+        for violation in report.violations
+        if violation.check_id == "PRODUCT-CATALOG:FUNCTION-ACL"
+    )
+    assert isinstance(function_acl.actual, tuple)
+    assert isinstance(function_acl.expected, tuple)
+    assert public_acl in function_acl.actual
+    assert public_acl not in function_acl.expected
+    _assert_red(catalog, "PRODUCT-CATALOG:FUNCTION-ACL")
+
+    _advance_historical_product_catalog(catalog)
+    report = _inspect(catalog)
+    assert report.ok, report.violations
+    with catalog.observer.cursor() as cursor:
+        cursor.execute(
+            "SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_proc AS routine "
+            "JOIN pg_catalog.pg_namespace AS namespace "
+            "ON namespace.oid=routine.pronamespace "
+            "CROSS JOIN LATERAL pg_catalog.aclexplode(COALESCE(routine.proacl, "
+            "pg_catalog.acldefault('f',routine.proowner))) AS privilege "
+            "WHERE namespace.nspname=%s AND routine.proname=%s "
+            "AND routine.pronargs=0 AND privilege.grantee=0 "
+            "AND privilege.privilege_type='EXECUTE')",
+            (schema_name, function_name),
+        )
+        assert cursor.fetchone() == (False,)
+    catalog.observer.rollback()
 
 
 def test_authn_definers_have_independent_catalog_shape(

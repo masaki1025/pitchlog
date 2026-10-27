@@ -33,6 +33,14 @@ _FUNCTION_BODY_DIR = (
     / "contracts/authz/product/function-bodies/functions"
 )
 
+_RG1_DEPENDENCY_ASSETS = (
+    "roles/pitchlog_initial_actor.sql",
+    "roles/pitchlog_rg1_control_owner.sql",
+    "roles/pitchlog_rg1_control_actor.sql",
+    "schemas/rg1_control.sql",
+    "functions/FUNCTION:rg1_control:controller_lease_alive().sql",
+)
+
 
 def _create_rg1_fixture(connection: psycopg.Connection[Any]) -> None:
     """運用上の解除とは独立した一時DBに状態行と最小権限を作る。"""
@@ -76,6 +84,9 @@ def _install_rg1_product_functions(
         cursor.execute(
             "CREATE ROLE pitchlog_outsider NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT"
         )
+        for relative in _RG1_DEPENDENCY_ASSETS:
+            body = (_FUNCTION_BODY_DIR.parent / relative).read_text(encoding="utf-8")
+            cursor.execute(sql.SQL(cast(LiteralString, body)))
         cursor.execute("CREATE SCHEMA rg1_api")
         cursor.execute("REVOKE ALL ON SCHEMA rg1_api FROM PUBLIC")
         cursor.execute("GRANT USAGE ON SCHEMA rg1_api TO pitchlog_app")
@@ -159,6 +170,24 @@ def test_rg1_function_install_rolls_back_before_grants_on_failure(
             assert admin.execute(
                 "SELECT to_regprocedure('rg1_api.rg1_read_open(uuid)')"
             ).fetchone() == (None,)
+            assert (
+                admin.execute(
+                    "SELECT rolname FROM pg_catalog.pg_roles WHERE rolname IN "
+                    "('pitchlog_app','pitchlog_outsider','pitchlog_initial_actor',"
+                    "'pitchlog_rg1_control_owner','pitchlog_rg1_control_actor')"
+                ).fetchall()
+                == []
+            )
+            assert (
+                admin.execute(
+                    "SELECT nspname FROM pg_catalog.pg_namespace "
+                    "WHERE nspname IN ('rg1_api','rg1_control')"
+                ).fetchall()
+                == []
+            )
+            assert admin.execute(
+                "SELECT singleton_id, state FROM public.rg1_restore_gate"
+            ).fetchall() == [(1, "closed")]
 
 
 def test_rg1_for_share_nowait_uses_only_singleton_column_update(
@@ -283,6 +312,28 @@ def test_rg1_product_functions_stay_closed_with_open_fixture(
             assert admin.execute(
                 "SELECT rolcanlogin, rolbypassrls FROM pg_catalog.pg_roles "
                 "WHERE rolname = 'pitchlog_rg1_fn_owner'"
+            ).fetchone() == (False, False)
+            assert admin.execute(
+                "SELECT rolname, rolcanlogin, rolbypassrls, rolsuper, rolinherit "
+                "FROM pg_catalog.pg_roles WHERE rolname IN "
+                "('pitchlog_initial_actor','pitchlog_rg1_control_actor',"
+                "'pitchlog_rg1_control_owner') ORDER BY rolname"
+            ).fetchall() == [
+                ("pitchlog_initial_actor", True, False, False, False),
+                ("pitchlog_rg1_control_actor", True, False, False, False),
+                ("pitchlog_rg1_control_owner", False, False, False, False),
+            ]
+            assert admin.execute(
+                "SELECT count(*) FROM pg_catalog.pg_auth_members AS m "
+                "JOIN pg_catalog.pg_roles AS r ON r.oid IN (m.roleid,m.member) "
+                "WHERE r.rolname IN ('pitchlog_initial_actor',"
+                "'pitchlog_rg1_control_actor','pitchlog_rg1_control_owner')"
+            ).fetchone() == (0,)
+            assert admin.execute(
+                "SELECT has_function_privilege('pitchlog_app',"
+                "'rg1_control.controller_lease_alive()','EXECUTE'), "
+                "has_function_privilege('pitchlog_initial_actor',"
+                "'rg1_control.controller_lease_alive()','EXECUTE')"
             ).fetchone() == (False, False)
             tenant_id = uuid4()
             with psycopg.connect(cluster.admin_dsn) as app:

@@ -72,13 +72,21 @@ def test_product_extension_and_new_schema_declarations() -> None:
         )
     )
     schemas = copy.deepcopy(asset["schemas"])
+    checker._validate_product_schema_expectations(
+        schemas, authn_enabled=True, rg1_required=True,
+        rule_resolution_required=True, lifecycle_required=True,
+    )
+    assert len(schemas) == 7
+    # lifecycleの製品閉集合では余分schemaを拒否する。generic拡張参照は別に検査する。
     extra = copy.deepcopy(schemas[1])
     extra["schema_id"] = "test_extension_schema"
     extra["schema_name"] = "test_extension_schema"
     schemas.append(extra)
-    checker._validate_product_schema_expectations(
-        schemas, authn_enabled=True, rg1_required=True, rule_resolution_required=True
-    )
+    with pytest.raises(checker.CatalogError, match="全数集合"):
+        checker._validate_product_schema_expectations(
+            schemas, authn_enabled=True, rg1_required=True,
+            rule_resolution_required=True, lifecycle_required=True,
+        )
     extensions = [
         {
             "extension_id": "test_extension",
@@ -287,6 +295,14 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
         root / checker.PRODUCT_MIGRATION_VERSIONS,
         dirs_exist_ok=True,
     )
+    # 現製品の固定関数生成はmigration外の単一SQL sourceも検証する。
+    for relative_path in (
+        Path("backend/src/pitchlog/recording_rights/rg1_lifecycle.sql"),
+        Path("backend/src/pitchlog/durable_rights_ledger/business_identity.sql"),
+    ):
+        destination = root / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
     schema_manifest = Path("contracts/db/schema-manifest.json")
     _write_json_at(
         root,
@@ -390,6 +406,43 @@ def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return root
+
+
+@pytest.mark.parametrize(
+    "flag", ("authn_enabled", "rule_resolution_required", "lifecycle_required")
+)
+def test_product_schema_cannot_use_legacy_flags(flag: str) -> None:
+    """現lifecycleの製品ACLを旧schema前提のflagで受理しない。"""
+    asset = _read_json_at(REPOSITORY_ROOT, checker.PRODUCT_ASSET)
+    flags = dict(
+        authn_enabled=True, rg1_required=True,
+        rule_resolution_required=True, lifecycle_required=True,
+    )
+    flags[flag] = False
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_schema_expectations(asset["schemas"], **flags)
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
+        "backend/src/pitchlog/durable_rights_ledger/business_identity.sql",
+    ),
+)
+def test_product_runtime_contract_missing_lifecycle_source_is_rejected(
+    tmp_path: Path, relative_path: str,
+) -> None:
+    """正規sourceの複写不足を検査器の許容やskipで補わない。"""
+    root = _copy_product_catalog_repository(tmp_path)
+    assert (root / relative_path).read_bytes() == (
+        REPOSITORY_ROOT / relative_path
+    ).read_bytes()
+    (root / relative_path).unlink()
+    with pytest.raises(checker.CatalogError, match="lifecycleの固定sourceを読めない"):
+        checker.validate_ddl_elements(
+            _read_json_at(root, checker.PRODUCT_ASSET), root, checker.PRODUCT_SPEC,
+        )
 
 
 def test_product_runtime_contract_state_is_accepted(tmp_path: Path) -> None:
@@ -6019,3 +6072,66 @@ def test_preparing_read_route_set_rejects_extra_route() -> None:
     routes[extra['route_id']] = extra
     with pytest.raises(checker.CatalogError, match='exact-set 不一致'):
         checker._validate_record_and_aggregate_route_ids(routes)
+
+
+
+def _initial_actor_database_acl_rows() -> list[dict[str, Any]]:
+    """旧製品DB権限を保持し、独立した3peerの最小CONNECTを構成する。"""
+    source = json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    rows = copy.deepcopy(source["databases"])
+    row = next(entry for entry in rows if entry["database_id"] == "current_database")
+    for role in (
+        "pitchlog_rg1_control_actor", "pitchlog_ledger_identity_probe",
+        "pitchlog_initial_actor",
+    ):
+        grant = {"grantee": role, "privilege": "CONNECT", "grantable": False}
+        if grant not in row["acl_expectations"]:
+            row["acl_expectations"].append(grant)
+        for privilege in ("CREATE", "TEMPORARY"):
+            denial = {"grantee": role, "privilege": privilege, "grantable": False}
+            if denial not in row["revoked_acl_expectations"]:
+                row["revoked_acl_expectations"].append(denial)
+    return rows
+
+
+def test_initial_actor_database_has_only_required_connect() -> None:
+    """正常な初期actor接続宣言を受理し、ownerへの権限は追加しない。"""
+    rows = _initial_actor_database_acl_rows()
+    checker._validate_product_database_expectations(rows, lifecycle_required=True)
+    assert not any(
+        grant["grantee"] == "pitchlog_initial_fn_owner"
+        for row in rows for grant in row["acl_expectations"]
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("missing", "owner-connect", "create", "temporary", "grantable", "integer-bool"),
+)
+def test_initial_actor_database_rejects_missing_or_expanded_permission(
+    mutation: str,
+) -> None:
+    """接続権の不足・拡大・委譲・曖昧なboolを閉じた宣言で拒否する。"""
+    rows = _initial_actor_database_acl_rows()
+    row = next(entry for entry in rows if entry["database_id"] == "current_database")
+    grants = row["acl_expectations"]
+    if mutation == "missing":
+        grants[:] = [g for g in grants if g["grantee"] != "pitchlog_initial_actor"]
+    elif mutation in {"grantable", "integer-bool"}:
+        grant = next(g for g in grants if g["grantee"] == "pitchlog_initial_actor")
+        grant["grantable"] = True if mutation == "grantable" else 0
+    else:
+        grants.append({
+            "grantee": (
+                "pitchlog_initial_fn_owner" if mutation == "owner-connect"
+                else "pitchlog_initial_actor"
+            ),
+            "privilege": "CONNECT" if mutation == "owner-connect" else mutation.upper(),
+            "grantable": False,
+        })
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_database_expectations(rows, lifecycle_required=True)
