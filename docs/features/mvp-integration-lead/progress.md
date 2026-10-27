@@ -954,3 +954,5 @@ wire指紋の追加照合では、現writer WTの同期入口は依然legacy ope
 開始候補#188とwriter実treeで、同期repositoryの保護列除外12列とconsumerのモデル全14列期待が不一致と判明。PO委任Codex /root判断でexact9を計画8ccf22f7へ記録し、rootはSQL依存のない12列契約をrepository・apply・prefixに共有、純fixture追随と3 token/lock検査を3255ce2eへ候補保存・push。関連145件/Ruff成功。証拠列を選択へ戻していない。最終非作者core review、独立したowned実DB検査と正式統合は未実施。
 
 同日、外部DB選択のある既試験ファイルを避け、新規owned専用testへ計画を限定変更。実Cookie・実app scopeから3 tokenが同じ12列を返し、appがproof_digest/recovery_generationをSELECTできないことを隔離PGで確認（1成功28.23秒）。2785e81eへtest/計画を保存・push。3255ce2eと併せて非作者core review中。これは同期1球保存の成功ではない。#188最新CIの224失敗34error/7111成功および残るharness・tenant等はcache調査c47a9588…に保持し、12列修正だけで全CI解消とはしない。
+
+PR187 e692f042のCI run40472685268はharnessのみ失敗、他全job成功。harnessは30638成功・2skip・1失敗（34分27秒）。追加したgeneration_runner.pyとtestが契約参照として自動検出された一方、必要core pathsへ登録されていない。検出/拒否を緩和・除外せず、実paths登録と正式凍結値への影響を導出する。CI失敗を成功へ読み替えず、同じ入力で再実行しない。
