@@ -964,3 +964,5 @@ PR187 e692f042のCI run40472685268はharnessのみ失敗、他全job成功。har
 wire純部品と新vectorは非作者1a0767a707e04119cba90ed845f8f42eedb20c7553ea229b050a1b0a90d98a02がevent32/request8全canonical byte・hashを製品importなしで再導出し一致、残0。2026-10-27 18:15 JST、PO委任Codex /root判断でsource2 patch c011d05f…とvector f2a1e9fb…をbf0822abへ採用・push、実tree100成功。既正式9外部射影は不変、既viewの30pair赤は未解消。E-1/HTTP・同writer・端末再送・保存は未接続。
 
 #188の72f4118aへ世代12列fixを限定patch43bbbe34…で反映。writer固有V5/DB helperを含めず、root実tree19module355成功3.69秒、隔離候補も355成功・SQL/tenant/lock/不正幅維持。PO委任Codex /root判断を親planへ記録しc023f73eとしてlocal保存。target固定版の独立review・owned実DB・凍結値/委任・新CIは未完で未push、既CI失敗の解消完了ではない。
+
+PR187 core path候補b0f0f7c1…は非作者4c170af3…残0、正式9全値不変。PO委任判断のもと宣言source2をc18eae81、core JSON登録を後続7425f411へ別commit。実treeの全test_core_guardは467成功・2失敗：旧RG1/tenant宣言を現行追加層から参照する歴史testのKeyError。旧検査を削除せず歴史fixtureへ参照を整合する必要あり。candidateは未push、最終11×2・Gate6・CIも未成立。pure32成功のみを全core成功と扱わない。
