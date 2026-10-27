@@ -950,3 +950,5 @@ wire指紋の追加照合では、現writer WTの同期入口は依然legacy ope
 同日17:34 JST、PO委任Codex /root判断で実Port保存追補43c8bc4b…の単位1 exact4のみ承認しd353dfefへ保存。非作者計画レビュー66bf169a…残0。後続V7/V8型表・Port登録・GET/HTTPは別固定。formatter exact2は非作者sourceレビューcbe21556fe1e0a67186236cbb31a5e9bcaca1a6444336893aefdae3e7de43e01残0、独立603成功・6変異拒否、root実tree173成功後、PO委任判断で2e0a7d96へ採用/push。formatterは期待pairとの値比較だけで、実評価・同writer・権利・保存を証明しない。単位1のbridge/frameは作者がcache実装中。wire指紋pure計画c6485e5c…は独立レビュー中。
 
 同日17:40 JST、bridgeのartifact identityは、実際に検証された同じhostのsource SHAと同hostでの一回評価を束縛する入口へ限定具体化し7793cd16に記録。既型/frozen検査・既decode・故障拒否を維持、前後ファイルhashを実使用証拠としない。wire指紋pure計画c6485e5c…は非作者レビュー984bc4b1…残0、PO委任判断でexact2とcache vector候補のみ71dceb56へ承認。原wire・不正S-2・欠落/null・D1・既D5領域分離を保持し、正式vector/HTTP/端末/DBは未成立。
+
+開始候補#188とwriter実treeで、同期repositoryの保護列除外12列とconsumerのモデル全14列期待が不一致と判明。PO委任Codex /root判断でexact9を計画8ccf22f7へ記録し、rootはSQL依存のない12列契約をrepository・apply・prefixに共有、純fixture追随と3 token/lock検査を3255ce2eへ候補保存・push。関連145件/Ruff成功。証拠列を選択へ戻していない。最終非作者core review、独立したowned実DB検査と正式統合は未実施。
