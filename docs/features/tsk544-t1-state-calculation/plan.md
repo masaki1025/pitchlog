@@ -532,3 +532,5 @@ DB格納先・V7/V8写像・D5/event/request fingerprint・HTTP wire・保存後
 2026-10-27 17:34 JST、PO委任によるCodex /root判断。追補案SHA43c8bc4b811b68c0eb7231b2c89e73b882d85c37082f9833f15bff52e73c2090、非作者レビュー66bf169a88cd82009c4b4466c778b50a5fe63a3f3792aa6151b8976fba5daf14（残0）を根拠に、単位1 exact4の着手のみ承認する。後続単位は候補であり、V7/V8型表・Port接合・登録・GET・HTTPの各実装前に対象と条件を別固定する。実Port/実DB/画面成功は未成立。
 
 2026-10-27 17:36 JST、PO委任によるCodex /root判断。pure formatter exact2 source patch caa4c7cb718bde8bf8a3f94663bee8c4906d908deea0b82e102ba06f0798442f、非作者レビューcbe21556fe1e0a67186236cbb31a5e9bcaca1a6444336893aefdae3e7de43e01（残0、独立603成功・6変異拒否）を根拠に採用。実tree関連173成功。独立expectedの真正性・同writer・実保存・再読込の証明には使用しない。
+
+2026-10-27 17:40 JST、PO委任によるCodex /root判断。単位1の同一artifact identityを評価結果と束縛する具体入口を限定追補する。既typed callerはhashを返さないため、privileged bridgeが既open_domain_hostを一度開き、同hostの検証済みsourceのUTF-8 SHAを取り、同hostでderiveFirstPitchWithContinuationを一回呼び、既decodeを使う。既typed callerと同じ要求実型・全frozen member検査を保持し、hash不一致・host故障は閉じる。同source同host・一回呼出・既callerとの全値一致を対向検査し、前後ファイルhashを実使用証拠にしない。exact4以外の変更・野球計算複製・実Port/保存成功の先取りはしない。
