@@ -986,3 +986,5 @@ PR187最終42568333は非作者316e6bd2c776b05f7a382683ffd40c9cd2efcea83d872e185
 中断後再開時、PR187公開HEAD42568333の必須CI run40482786801は全job成功・completedを実APIで確認。Gate6委任も同HEADで成立済み。一方親#186はDraft/CONFLICTING、HEAD256838は425の祖先で、親計画のHTTP/DBマージ前義務は未成立。MERGEABLE/CLEAN表示やCI成功だけで依存・実保存を成立とせず、PR187はDraftのまま。必要な実接続・#186/#188の基線/競合解消を並行継続する。
 
 親#186と現developの非変更merge-treeでは委任policy.jsonだけが競合。依存・親HTTP/DB義務を満たさずPR187をmergeしない。E-1接合案51979e47…は非作者第1回2a1cb793…の「資格欠落を旧DTOへ降格」P1を採用、反映1第2回e634165f…残0。2026-10-27 20:14 JST、PO委任Codex /root判断で原wire source pure exact2だけを9c4a7d1bへ限定承認しcache実装開始。E-1 originの資格欠落はfail-closed、legacy専用入口のみ旧式。全D5/HTTP/同writer/実保存は後続。#188 formal frozen2値/tenant候補d78c7952…は独立review中、PR187先行統合時はhistory prefixから再導出し旧revで上書きしない。
+
+親#186のdevelop競合は作業WTで通常merge b38e8c22へlocal保存。policy非targetsは両親全値一致、PR184と186の対象両方を保持、未解消conflict0、rootの関連署名policy検査30成功。非作者core確認・対象HEAD公開委任/CI・実HTTP/DB義務は未完で未push。PR187成功CIを新親HEADの検査へ流用しない。
