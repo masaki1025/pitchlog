@@ -1055,3 +1055,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27、#188 U3途中点 `pr188-u3-finite-owner-candidate-470ba19a-20261027/` を固定。実source 7pathの現51所見と各根拠を `actual-u3-condition2.json` / `per-row-decisions.json`、旧との対応を `old-current-correspondence.json`、宣言案を `candidate-field.json` に保全。51件は未承認候補で、selectorの負例/拒否probe、変更exactpaths、正式受理境界の確認が残る。旧initial47/ledger17/RG1/履歴は別保存して維持。実repo変更0。
 
 2026-10-27、DB印unit A途中点 `first-ball-db-insert-stamp-plan-20261027/implementation-unit-a/{PROGRESS.md,CHECKPOINT.json,view/}`。eca08a39隔離起点で新private model/0038 default-deny初稿、未検査。残る固定profile・2 guard body・pure testsとRuff/ty/非等価変異、非作者reviewが必要。既device/right関数の印発行はunit B、実DB・profile登録・activationは未実施。cacheのみで実repo/Git変更0。
+
+2026-10-27、E-1段階3の途中点 `e1-stage3-core-binding-readiness-20261027/CHECKPOINT.md` SHA ab31e0d35a871fd77ff177e7000f717ffd2b190b9e7ff25fae98e364f342fa4f、eca08a39の原典17点を固定。source_bindingは現状hash getterのみでraw原本を安全に取り出せず、発行しないaccessor exact2の最小候補を調査中。本物legacy entry scope・E-1 issuerとも未供給、全D5/原本/bridgeの実接合と公開は未着手。callsite/依存表と独立review後に着手可否を決める。
