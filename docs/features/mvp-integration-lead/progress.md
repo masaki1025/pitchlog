@@ -1029,3 +1029,5 @@ PlayRow先行source3 patch6e557419…は非作者c1c07a0b8f94ce3027923624a27a108
 2026-10-27 20:50 JST、#188 U5 34f64420は固定ASTへ既bytes→LargeBinary分岐だけを追随。改変型/別bind名/任意呼出しを拒否する6関連検査とRuff成功、非作者確認・正式4面/CIは未完。codec patch 99b6b3fa…は非作者98e1686a…残0・独立479件成功/12変異検出だが、テストがcache限定vectorに依存するためsource採用を保留し、fixtureの供給方法を照合中。
 
 2026-10-27 20:51 JST、初球codec候補を `417852be` へlocal保存。test fixtureを正式contractsではなく backend/tests/fixtures へ同byte配置し、実tree479成功/Ruff・format成功。元source非作者98e1686a…残0、配置/test読取変更の独立確認待ち。E-1段階2はcache `e1-source-selection-original-stage2-addendum-20261027/implementation/PROGRESS.md` に途中保存、source2初稿・test作成中。DB印独立reviewは `first-ball-db-insert-stamp-plan-20261027/review-by-writer-binding-source-independent/STATUS.md` に途中保存、逆順P1とsavepoint/lock・既移行主体の根拠確認が未完。
+
+2026-10-27、DB印候補の順序P1とsavepoint/lock指摘に対する反映1 `first-ball-db-insert-stamp-plan-20261027/reflection1/PLAN-CANDIDATE.md` SHA 42fa28df4eff3598320a0bd3cd26ba0f54b05ceef1141c08498b3ce248edd4be をcache固定。device_verified→right_verified→consumed、失効/逆順拒否とowned PG対向を提案し、再度非作者確認中。既移行主体の実在・既書込み互換は未確認、実装/DB成功ではない。
