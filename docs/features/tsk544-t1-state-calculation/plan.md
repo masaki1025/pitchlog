@@ -588,3 +588,72 @@ rootのPO委任による対象版付き計画確定後、作者exact2とcache ve
 2026-10-27 18:15 JST、PO委任によるCodex /root判断。wire指紋source exact2 patch c011d05f37abcb7a967f7aca68fa1d6eda0753b4ecca8c89777552710bc7d119および新vector f2a1e9fb9557d72eeabe14bb5980be2efcd6aef706912ef74fbe960aae722487を、非作者レビュー1a0767a707e04119cba90ed845f8f42eedb20c7553ea229b050a1b0a90d98a02（残0、製品importなしevent32/request8全値独立再導出・100件）に基づき採用。既正式9資産の実external依存は変わらず、既7.7再受理は不要。実tree100件成功。新規vectorの適用はPO委任判断でありP6 blind・本人署名ではなく、旧全viewの未登録30pair/実E-1接続・端末/DB耐久性/必須CIは未解消。
 
 2026-10-27 18:26 JST、PO委任によるCodex /root判断。初球同writer frame/bridge exact4反映1 patch 1c51d31b067c4f9d2989c7ceca97d9e4107e3c51914c5599c9b3b7cbf9a0edd6を採用。非作者第1回f66a84ae…の実TX寿命P1を既writer lifetime検査で是正、第2回3bff1bbaab00c19adadce80dba714d835a57a8c9712ccc1ace13dbbc03a59177残0、独立62成功、実tree58成功。実Port・実認可・DB・HTTPの接続は未成立。
+
+### E-1 raw wire指紋のcore接合（段階1のみ限定承認）
+
+未承認・未実装。観測WT feature-mvp-first-ball-writer-binding、HEAD57d198d6013282ea71292103d3505992d41b4479。HEADだけでdirty差分を除外したとは言わず、実読取18資産のSHAをobserved-source.jsonへ固定した。repo/Git/DB変更0、DB/pytest/CI実行0。新しい野球意味の判断なし。既親T1 planの操作単位追補へrootが採否・所有・独立レビューを記録するための候補であり、これだけで実HTTP/Port成功とはしない。
+
+## 現実装と既決条件
+
+sync-protocol 4-5「E-1 wire専用の内容同一性」は既決。pure wire_fingerprintはeventをwire-v1:、要求をwire-request-v1:で生成できる。原event内registration（不正値も含む）以外から登録側入力を補わない。V12/現在の経路/結果/拒否理由を指紋へ追加しない。DTO入口と保存済み指紋を変更/移行せず、別領域同D5はDI3/B3bとする。
+
+現在SyncEventにはregistration/raw snapshotを保持する欄がなく、旧from_payloadはregistrationを未知keyとして拒否する。旧SyncRequestは一要求一pathであり、公開E-1の混在要求全体を既pathへ先に一括決定できない。既506枝も確認したが、この実WTにsync HTTP routerは存在しない。古いwire_codec候補や読取済みDB行から原wireを復元して真正入力とはしない。
+
+apply._preflight_d1はoperation_fingerprint(event,path,registrations[event.d5])で全D5を分類する。prefix_path._apply_lockedとrejection._apply_lockedも別TX内で同式を再計算し、IdempotencyLedgerInsertTokenへ同値を渡す。idempotency.recheck_and_insert_result/insert_result_or_recheckはtoken.source_fingerprintを再使用するので、正しいtokenを渡せば競合再照合式の変更は不要。prefix_pathのaccepted台帳/T1とOperationEvent/T2、D3/T3、projection/T4、mapping/T6、通知intentは同TXのまま維持する。
+
+T8/T9はrejection._commit_resultが台帳と原本を同TXへ書く。ただし_originalはevent_source(event)というDTO再構成にoperation_fingerprintを付けるため原registration/未知S-2値を失う。prefix_path._require_rejected_originalは同game/D4/D1/拒否種別/D2継承と原本指紋対台帳を検証する。wire原本を保存するだけでこの既読取互換は閉じない。_original_fingerprintの旧fallbackを新wire envelopeに流用してはいけない。
+
+ordering.apply_p2_eventはprefixの共通局所経路を呼ぶ。P3/change_pathは独立で旧operation_fingerprintを用いる。今回のE-1/D1接合でP3をwire領域へ無断変更しない。bridge._fingerprintも旧operation_fingerprint(event,'P2',None)を用いるため、最終kernelだけwireへ替えるとframeとの同一性が分裂する。
+
+順序は①認証/S-1受付（HTTPの所有）→③自tenant試合認可→③-a RG1→④全D5内部分類→⑤未使用の記録権→⑥D1順/欠落→⑦当該位置の内容/状態/実評価→原子保存→⑧RG1再確認。保存済み結果は現在V12や原本を読み直さず再掲。rejected_d5の元経路を必要とする未使用だけ、そのD1位置で不変拒否原本を読む。後方原本不良をpreflightで検出して前方を止めない。既D06/O4と結果不明/再送条件を変えない。
+
+## 推奨段階とexactpaths候補
+
+各段階でrootの計画採用・core非作者レビューを行う。初球の狭い新規P2成功を先に実装できるが、T8/T9/競合/再掲のwire同一性が未接続なまま公開E-1を開いてはならない。未実装variant/登録は既G-Fで閉じ、成功応答を返さない。
+
+### 1: 原wire request sourceの閉部品（pure、先行可能）
+
+新backend/src/pitchlog/sync/wire_source.pyと新backend/tests/test_sync_apply_wire_source.py（exact2）。既wire_fingerprintを呼び、URL game/D4/codec1・原event tuple・D5索引・D1昇順索引・request/event指紋を防御的不変化する。constructor自由呼出しやdigest文字列引数で真正性を作らず、純粋値とHTTPが発行する受付資格を区別する。任意型registrationをrawのまま保持し、正規PlayerRegistrationは⑦当該位置でその同じrawからだけ作る。未知S-2を削らず、S-1と内容拒否を混同しない。
+
+最初のexact2は値検査だけで、実HTTP資格を発行したとは言わない。既model/idempotencyとDTO型は変更しない。要求sourceと実認証contextを結ぶ私有受付issuerは次の実入口単位の責務として明記する。
+
+### 2: D5 source選択と原本codec（pure+局所core、未公開）
+
+新backend/src/pitchlog/sync/wire_original.py、新backend/tests/test_sync_apply_wire_original.py、新backend/src/pitchlog/sync/source_binding.py、新backend/tests/test_sync_apply_source_binding.py（exact4）を基本案とする。rootが既ファイルへ統合する場合も同一範囲に限定する。
+
+wire sourceはopaqueな私有資格とし、認証contextのtenant/整合proof、実request identity、raw event index/D1/D5/game/D4/codec、request/event指紋、raw registration、内容検査用eventへの損失のない写像を照合する。type(str)digestだけ、caller指定registration、公開fingerprints tuple、DTOからrawを再構成する代替は受け付けない。S-2型違いもhash比較は厳密でbool==1等のPython同値に頼らない。E-1 sourceに他request/他eventを差しても発行しない。受付originを入口の実経路で不変に区別する。legacy専用入口だけ従来のDTO式を使う。E-1由来はsource資格の欠落・偽造・不正・期限切れのいずれでもfail-closedとし、DTO式へ降格/fallbackしない。任意のoriginフラグをcallerに申告させず、E-1実受付issuerが原snapshotと同時に束縛する。sourceなしをlegacyと推定してはいけない。
+
+T8/T9向けは版付きraw原本envelopeを定義し、raw全値・wire fingerprint・必要な既W2識別を保持する。指紋を原rawから再計算し台帳と照合。旧DTO原本は既decoderのまま受ける。未知版/partial/余剰/改竄を拒否し、新wire原本を旧DTOflatとして読まない。元経路の解決は保存済み不変原本の既規則だけで行い、推測しない。物理JSON列に収まるか既token/型/DBACLを確認し、不要なmigrationを追加しない。
+
+### 3: 全D5 read/writeとwriter/frame接合（ここが不可分の実core境界）
+
+既backend/src/pitchlog/sync/apply.py、prefix_path.py、rejection.py、ordering.py、first_ball_bridge.py（source exact5）と対応既tests/test_sync_apply_apply.py、test_sync_apply_prefix_path.py、test_sync_apply_rejection.py、test_sync_apply_ordering.py、test_sync_apply_first_ball_bridge.py（test exact5）。source_binding/wire_originalのaccepted APIのみに依存し、既operation_fingerprint/source_fingerprint本体を変更しない。idempotency.pyはread-only再利用を第一案とする。
+
+preflight・局所再掲・accepted/T8/T9 insert・競合再照合・原本W2照合・bridge全て同じ原event wire fingerprintを用いる。request hashをD5へ書かず、旧DTOとwireの自動照合/再hash/移行を禁止する。取りこぼした一箇所を互換fallbackで隠さない。raw受付資格はrequest lifetime、実writer資格はイベントTX lifetimeとして分ける。preflightが返すwriterをイベントTXへ転用しない。
+
+イベント局所で同じ実TenantTransaction/PortWriter/実top-level Session TX・tenant proofを捕捉し、既_writer_lifetime/_assert_writer_lifetimeと現live_writer_bindingを再利用する。AttemptBinding.request_fingerprintは計算済request専用値、EventPhaseBinding.event_fingerprintは当該raw event専用値。これらdataclass外形一致だけは真正性にならない。実controller lease/nonce、同writer identity照合を経て私有registryへ結ぶ。phase/D1/D5/位置/tenant/game/D4/codec/source/寿命の全不一致を拒否。別writer・終了/inactive/replaced/nested TX・改変event・二重消費を閉じる。
+
+bridgeは真正wire sourceがある場合だけその同一event hashをframeへ保持し、原V5='1'/V7/V8・rawを上書きせず局所codec/実host1回評価へ渡す。DTO callerの既比較・旧fingerprintは全byte/全値保持する。registered Portからsource_bindingのprivileged DB/host importへ到達しない構造を守る。既Port guard/登録/トリガ/認可を緩めない。
+
+この段階は現SyncRequest一pathの制約を解消しない。新規初球P2だけのprivate接合試験は可能だが公開混在E-1対応とは呼ばない。
+
+### 4: 実E-1 intake/混在単一ACKと正式公開（別入口単位）
+
+候補exactpathsは新backend/src/pitchlog/api/routers/sync.py、新backend/src/pitchlog/sync/wire_intake.py、新backend/tests/test_sync_apply_wire_intake.py、新backend/tests/test_sync_apply_wire_dispatch.py、および既api/app.py・sync/apply.py、同API試験。実route登録/認可registry/正式metadataはrootが既route registryと現506候補を照合して追加exactpathsを固定してから着手する。現WTに当該routerがないため、既提供済みとして扱わない。
+
+実Cookie認証→S-1/raw freeze→認可/RG1→全D5分類→D1位置でlazy原本/経路解決、全体一ACK・停止規則を実装。SyncEventBatch候補/506成果を再利用し、未知未実装を成功扱いしない。API起動登録だけ/fixture成功/常時成功Portで実HTTP接合を代替しない。端末が元body/codecを耐久保持して再起動/結果照会/再送できる境界も別実装が必要。JS number/Unicode/指数表現の互換を既Python版と同一と決めつけない。
+
+## 必須対向の最小一覧
+
+A. pure既vector event32/request8を保持。registration欠落/null/false/数値/array/未知field、V5 raw'1'と内部literal、V7/V8欠落/null、1/1.0/bool、Unicode、array順、D1順、raw後変更、request/event領域混同を拒否/区別。
+B. 全D5経路: accepted/rejected/evacuatedで初回hash=再照合hash=保存hash=再送hash、同rawはDI2（現V12無効/語彙変更/原本削除後も再掲）、同D5変更rawはB3b。wire対旧DTO同D5を自動互換しない。recheck一意競合で先着同値/異値の双方、非D5制約故障をO4/偽再掲に変換しない。
+C. 順序spy: 無認証/S-1違反/越境はD5 readもraw原本readも0、RG1閉でD5 read0。後続不良rejected_d5を前方前に読まない。既D5再掲でrights/数学/原本解決0。D1gap、旧D4、⑤不成立、未知S-2/未実装variantの既拒否分類と原子性を維持。
+D. 原本: raw全値/registrationと台帳digest一致、版/欠落/余剰/改竄/別game/D4/D1/旧D5/誤D2継承拒否。旧flat原本全既case保持。rejected_d5解決は不変原本だけ。
+E. writer: E-1 originのsource欠落/偽造/期限切れはDTO selector呼出し0で閉じ、legacy専用入口だけ旧式の全値不変を確認する。caller origin偽装・E-1からlegacy内部関数への持込・例外時のDTO再試行を拒否する。raw受付資格の偽造/別context/別request/別event/別registration、phase position/D1/D5差、request hashとevent hash交換、別writer/別TX/失活/差替え/nested、二重消費を拒否。host評価は該当未使用イベント⑦だけ1回。変換event/保存projectionのhashをrawhashと取り違えない。
+F. 実owned DB/HTTP（最後）: accepted T1..T6、T8、T9、各書込直後故障で全rollback、結果不明で照会/旧要求終結・後着遮断の既条件、実retry競合、tenant越境、非pool/同writer認証を実証。API成功とDB事前投入読取を区別し、初球画面入力→実API→実DB→GETを別到達点として記録。
+
+## 検査/レビュー順
+
+source単位ごと影響pytest/Ruff/ty/Port guard、正式CLIのproducer/consumer・core path・凍結射影/coverage/参照値をまとめて導出する。既正式9資産/7.7値が実際に変わる場合だけ前後値付き受理を追加する。独立core reviewはsource版・差分SHA・旧DTO保持と反例を記録する。統合候補が固まって必須全件CIを一回、同入力の赤を反復しない。現段階の所要時間は未算定（実506/SyncEventBatch採用版とsource_binding設計の独立確認が必要）。pure第1段階の着手を実HTTP/DB完成待ちに戻す必要はない。
+
+2026-10-27 20:14 JST、PO委任によるCodex /root判断。計画反映1 SHA4fd984b64c03c34c6e0347bbb60f76f994be7f9e550d9cef528fc1719da214a6、非作者第1回2a1cb793…のE-1資格欠落P1を採用、第2回e634165f7dbadf0068afa336cec9061233598e3111f27a165b105d725f164758残0を根拠に段階1 raw source pure exact2の着手だけ承認する。E-1の資格欠落はfail-closed、legacy入口だけ旧方式。段階2以降・HTTP・全D5・同writer・実DBは未承認/未接続。
