@@ -415,3 +415,23 @@ runtime24/generatedmodule/ledger source SHA2の最終exact3はroot full-values f
 POから『切りのよいところで一度作業中断』を受領したため、本単位の整合・局所検査・保存pushで止める。実DB8本を新規起動せず、次の開始点はproductの実二度適用・exact catalog/属性変異、実Cookie/v3/nonce/samewriter/U1/終結DB8。次接合のpure V5 codecは別cache（未本体反映）、実Port/同writer結果frame/T1-T2投影/HTTP・UI・記録後GETは後続であり、MVP全体の目標・安全条件を縮小しない。
 
 中断前の整合同一候補で、新認可供給/保存関数登録/VOID境界/52表manifestの影響4moduleをまとめて実行し303成功2.62s。実profile静的整合が成立する保存点に到達した。全件/実DB/二度適用/HTTPの成功ではなく、旧2622成功10fixture追随赤は別残件として維持する。codec独立確認はPO中断指示で未完のまま保存（pause-checkpoint a88573a8…、静的読取りのみ、独立検査/採用判定未実施）。新しい実DB試験は起動せず、全担当を停止する。
+
+### 初球V5 codecの限定採用単位と後続の内容判定接合
+
+本単位は既2026-10-25操作単位追補の「型写像の有限確認→実接合前のexact指定」を具体化する、旧ステップ2内の純部品である。T1/T2数学・既23flag/履歴/全MVP義務・全旧レビュー/未完履歴を変更しない。U-S1/U-F8のV5境界をT1実経路へつなぐ限定範囲を主担当が引き受け、T2規範や独立P-6の所有を取り込まない。
+
+**採用対象はexact2だけ**: `backend/src/pitchlog/sync/first_ball_v5.py`（SHA256 `1364ce1cf3fc5d8562e9fc24d86868a7e049a63f4c7d79269c128d837137cd03`）と`backend/tests/test_sync_apply_first_ball_v5.py`（`5034c354c9bacd684f8b41797895a9ae987560c3a93336114a347078057b4e60`）。元base59c24e4bで両pathは未存在。manifest `d38522d1f06b0916a33685e9192ec8c0c7cb549c39b47b96d658664a65d9d4a0`、patch `fdad4ddd2a2a135266546792fb9dbd286a5677abb6239e840897c0caa89a04e8`が固定対象。作者first_ball_u1_independentの40成功/Ruff/format/tyと6非等価変異拒否は作者資格のまま、非作者product_supply_independentの最終63d30e11b4d640aeba7038db9afce23c8c3e67e8638a1175a50b15a67a95574f/checks3d7d80498c6ac6f9347218b5f50968b330a3c70bc818a1fe1c804e4d982f1eb7（P0/P1/P2=0/0/0、独立40成功0.69秒・追加11拒否・独立4変異拒否・旧9path全byte保持）を採否根拠とする。旧中断checkpoint/未完レビュー記録を消さず、この後発の限定source確認と区別する。rootは実before/after・対象版・判断者・日時・根拠を記録して採用し、本人の逐行確認/署名を代記しない。
+
+**閉じた対応**: exact `str` のwire安定ID`"1"`だけを、既`OPERATION_EVENT_PARTICIPATIONS`の番号1/正本名「毎球入力」/V5/DBliteral `play_input`から導出済みの`PLAY_INPUT_EVENT_KIND`へ解決する。bool/int/文字変種/別番号/内部literalをwire別名として受け入れず、入力を含まない固定例外で拒否する。数学・新規alias・第2のhash式・認可成功・保存成功を生成しない。本部品はprivileged同期核向けであり、registered Portのimport許可を変更しない。
+
+**原値と順序**: `SyncRequest.from_payload`/`SyncEvent.v5`は受信した`"1"`を保持する。既`event_source`→`event_source_fingerprint`は原V5〜V11と欠落/nullを区別し、`operation_fingerprint`はその指紋＋path＋registrationを既単一実装で指紋化する。HTTPで先に`play_input`へ置換すると両指紋が変わるため禁止する。D5再掲/異内容・拒否原本・W2照合の原V5はそのままにし、DBliteralへの解釈だけを既⑦へ接ぐ。既認可/RG1→D5→権利→連番→内容/状態→O4の先行順・D5消費/UNKNOWNの扱いは変更しない。
+
+**実経路はP2**: 毎球は既同期正本の論理位置参加と`GameScreenPitchEvent.PITCH_EVENT_PATH`に従いP2を用いる。以前の数学部品記録にある通常P1の仮定を実画面経路の根拠へ拡張しない。既P2のD2採番/O4を省略せず、本codecの採用だけでP2/HTTP/Portを接続済みとはしない。
+
+**後続の別source範囲（今回未実装）**: rootが対象版を固定して別に実装指示するexact2は、既`backend/src/pitchlog/sync/prefix_path.py`と新`backend/tests/test_sync_apply_first_ball_v5_connection.py`。前者の`_event_kind`はrawV5がexact wire1のときだけ本helperで局所kindを得て既表へ照合し、それ以外は現行内部literal/型/拒否文言を保持する。同じ局所解決を⑦内のP2参加区分判定にも用いるが、未知入力を先に`_event_kind`へ流して既P2の拒否文言/枝を変えない。`_d2`/`_state_diff`/`_event_insert_token`/`_projection_event`は既`_event_kind`経由の解決を再利用し、`SyncEvent`やV7/V8をcodec理由で再生成・書換えしない。指紋source・HTTP・Port/registry・数学・保存SQLはこの後続exact2にも含めない。
+
+後続受入では、wire1のDB列だけplay_inputとなり元V5/指紋/W2原値は同じ、旧内部literal/未知値の拒否理由不変、P2参加判定/D2必須・O4呼出不変、D5再掲/異内容・権利/連番拒否がcodec呼出より先、返却後/故障後の原event不変を確認する。既prefix/P2/apply/idempotencyの関連検査・旧assertを保持し、必要な実凍結値/行位置への影響だけを正式手順で追随する。新しい公開拒否IDや「全取消未確認でもD5未消費」の判断を作らない。
+
+実Port/同writerの初期snapshot・T1/T2一回評価frame・投影原子保存・E-1 intake・記録後GET・実画面は別後続の必須義務。既request_fingerprint生成器の未供給は実Control caller前の限定照合依存であり、既数学や本pure部品の着手待ちへ戻さない。rootの実反映までsource2はcache候補であり、後続exact2の実装や保存成功をこの追補案から先取りしない。
+
+2026-10-27 16:34 JST、PO委任によるCodex /root判断。追補案ADDENDUM SHA d1fbf224a150b6157e9e2249522d44a1e8998affcc52f4b3b646ed124f386331、計画非作者レビューe6fa19e4eb758136c62d25d76399934ac39dc14de4c2d49367d9ff946f92392e（P0/P1/P2=0/0/0）を根拠に、上記純codec exact2と別途の接合exact2の範囲を承認する。実装・正式統合・実DB接続の完了を意味せず、後続sourceは別固定版で独立レビューする。
