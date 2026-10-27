@@ -1004,3 +1004,5 @@ PlayRow先行pure source3 patch6e557419…は作者cache固定、新98/関連159
 PlayRowのDB印設計調査で、writer_admissionの存在だけでは端末/記録権成功を証明しないと判明。既bind_device/check_current_rightはassert_writer_bindingの後にfalseを返し得るため、admissionのみをINSERT許可に採用しない。実device/right成功とtenant/game/event/nonce・同TXをDB側の有限印へ結び、失効/再利用拒否と権利不成立時の実DB拒否を後続の必須対向とする。client GUC・ContextVar・既UPDATE triggerを代替にしない。設計/source/実DBは未確定。
 
 #188 tenant旧110の分類f3ebb341…は対象14sourceが実d1aaと全SHA一致、CLI再実行なし。既採用source由来の厳格登録追随候補98、実禁止構文import_module 1、技術未裁定11（owner3/callable6/socket・file誤分類候補2）と区分。全件を誤検出・許可とは扱わず、各有限単位の実sourceと負例/正式4面を照合して是正する。
+
+同日20:36 JST、#188の実禁止U2（初期権brokerの固定RG1型dynamic import）をPO委任Codex /root判断で局所static importへ是正し6bf49286にlocal保存。ImportError/型不正/実DB identity mismatchの閉拒否を保持、関連17成功・Ruff/ty成功。初回tyはroot cwdで誤package解決157診断、backend cwd/PYTHONPATHで正しく再確認0。非作者core review・tenant残件・正式値再照合/CIは未完。
