@@ -94,6 +94,7 @@ def test_generation_read_operations_share_safe_projection() -> None:
         tokens.RecordingGenerationLockToken,
     ):
         spec = _OPERATION_REGISTRY[token_type]
+        assert isinstance(spec.statement, Select)
         assert tuple(c.key for c in spec.statement.selected_columns) == expected
         assert spec.for_update is (token_type is tokens.RecordingGenerationLockToken)
 
