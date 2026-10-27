@@ -998,3 +998,5 @@ E-1 raw source純exact2は非作者5ba527e1…残0、独立75成功/5対向、ro
 実d1aa2422の正式反映は非作者e07bf598b58f53390ef2310129f487bc04afb62f8fe3f07d670b259d76f1fb5a残0。source3・新snapshot4・旧31履歴/実委任欄を照合、Git実値から全4面を再導出しformal parser32とrepository histories INVARIANT成功。tenant残110の検出は引き続き分類・是正し、実PR条件/必須CIは別に確認する。
 
 2026-10-27 20:26 JST、V7/V8 pure codec exact2+cache vectorと未登録PlayRow token/SQL宣言/test exact3の着手をe7606f72でPO委任承認。独立計画確認d6cc1688…/06e611aa…残0。入力の正本観測・全23flag/V8/同writer期待、41列/同game FK・D2非コピーを保持し、正式登録・DB側適用印・実認可/保存/GETは別未達。各sourceは異なる担当がcacheで並行実装中。
+
+PlayRow先行pure source3 patch6e557419…は作者cache固定、新98/関連159成功・6変異拒否、Ruff/ty成功。runtime registry・DB印・実保存は未接続、非作者core review待ち。DB側INSERT適用印の最小設計も既writer bindingと同TXを基に調査中。#188 tenant残110のうちledger manifest/hash更新不足とsocket/file操作のDB誤分類候補を確認したが、全件を誤検出とは扱わず一次根拠と対向を分類中。
