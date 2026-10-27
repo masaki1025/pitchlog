@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 from uuid import UUID
 
 from pitchlog.repositories.context import TenantContext
@@ -17,7 +18,8 @@ from pitchlog.sync.idempotency import (
     operation_fingerprint,
 )
 from pitchlog.sync.model import ABSENT, SyncEvent, SyncRequest
-from pitchlog.sync.wire_original import _canonical
+from pitchlog.sync.wire_fingerprint import WireEventValue, wire_event_fingerprint
+from pitchlog.sync.wire_original import _canonical, encode_wire_original
 from pitchlog.sync.wire_source import WireSourceValue, checked_wire_source
 
 _ERROR = "E-1又はlegacyの発行済みsourceを利用できません"
@@ -66,6 +68,8 @@ class _LegacyState:
     registrations: tuple[RegistrationSource | None, ...]
     fingerprints: tuple[str, ...]
     active: bool
+    # 旧getterは変更しない。3Bの専用実entryが束縛するまで新accessorは拒否。
+    context: TenantContext | None = None
 
 
 @dataclass(slots=True, repr=False)
@@ -93,6 +97,7 @@ class _Selection:
     source: WireSourceValue | None
     context: TenantContext | None
     registration: RegistrationSource | None
+    entry_context: TenantContext | None = None
 
 
 # 後続issuerの実装なし。unit testの直接登録はpure状態機械のdoubleに限る。
@@ -225,6 +230,7 @@ def legacy_dto_source(
                 None,
                 None,
                 registration,
+                entry_context=state.context,
             )
         )
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
@@ -296,4 +302,119 @@ def selected_event_fingerprint(binding: EventSourceBinding, event: SyncEvent) ->
             raise ValueError(_ERROR)
         return selected.fingerprint
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise SourceBindingError(_ERROR) from None
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class SelectedEventSourceValue:
+    """検証時点の純値。受付/認可/writer/保存の資格として再利用しない。"""
+
+    origin: Literal["legacy", "e1"]
+    position: int
+    event_fingerprint: str
+    request_fingerprint: str | None
+    wire_event: WireEventValue | None
+    wire_original_json: str | None
+
+
+def read_selected_event_source(
+    binding: EventSourceBinding,
+    *,
+    context: TenantContext,
+    request: SyncRequest,
+    event: SyncEvent,
+) -> SelectedEventSourceValue:
+    """元bindingを実callerへ再照合し、原位置とraw純値だけを返す。
+
+    Args:
+        binding: 専用入口に由来する私有選択参照。現単位にはissuerはない。
+        context: 実kernelが同一要求で保持するcontext。値の同値では代用しない。
+        request: 同じ要求実体。
+        event: 同じ要求内の当該イベント実体。
+
+    Returns:
+        1始まりの原位置と指紋/原本純値。重要点で元bindingを再検査する必要がある。
+
+    Raises:
+        SourceBindingError: 未発行/失効/実caller不一致/原値変更の場合。
+    """
+    try:
+        fingerprint = selected_event_fingerprint(binding, event)
+        selected = _SELECTIONS[binding]
+        if (
+            type(context) is not TenantContext
+            or not context._has_valid_integrity_proof()
+            or type(request) is not SyncRequest
+            or request is not selected.request
+            or type(event) is not SyncEvent
+            or event is not selected.event
+            or request.events[selected.position] is not event
+        ):
+            raise ValueError(_ERROR)
+        if type(selected.owner) is E1Receipt:
+            receipt = _receipt(selected.owner)
+            if (
+                receipt is not selected.state
+                or receipt.context is not context
+                or selected.context is not context
+                or receipt.request is not request
+            ):
+                raise ValueError(_ERROR)
+            source = checked_wire_source(receipt.source)
+            if source is not selected.source:
+                raise ValueError(_ERROR)
+            wire = source.events[selected.position]
+            if wire_event_fingerprint(wire) != fingerprint:
+                raise ValueError(_ERROR)
+            value = SelectedEventSourceValue(
+                "e1",
+                selected.position + 1,
+                fingerprint,
+                source.request_fingerprint,
+                wire,
+                encode_wire_original(wire),
+            )
+        elif type(selected.owner) is LegacyEntryScope:
+            legacy = _legacy(selected.owner)
+            if (
+                legacy is not selected.state
+                or legacy.request is not request
+                or legacy.context is not context
+                or selected.entry_context is not context
+            ):
+                raise ValueError(_ERROR)
+            value = SelectedEventSourceValue(
+                "legacy",
+                selected.position + 1,
+                fingerprint,
+                None,
+                None,
+                None,
+            )
+        else:
+            raise ValueError(_ERROR)
+        # JSON描画中を含む後発差替えを再確認。返却値自体は新資格ではない。
+        if (
+            _SELECTIONS[binding] is not selected
+            or selected_event_fingerprint(binding, event) != fingerprint
+            or request is not selected.request
+        ):
+            raise ValueError(_ERROR)
+        if type(selected.owner) is E1Receipt:
+            if _receipt(selected.owner).context is not context:
+                raise ValueError(_ERROR)
+        elif type(selected.owner) is LegacyEntryScope:
+            if _legacy(selected.owner).context is not context:
+                raise ValueError(_ERROR)
+        else:
+            raise ValueError(_ERROR)
+        return value
+    except (
+        AttributeError,
+        IndexError,
+        KeyError,
+        TypeError,
+        ValueError,
+        RecursionError,
+    ):
         raise SourceBindingError(_ERROR) from None

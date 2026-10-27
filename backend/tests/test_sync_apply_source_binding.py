@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 import json
 from dataclasses import dataclass
@@ -386,3 +387,244 @@ def test_subclass_references_are_not_registered_exact_types(kind: Any) -> None:
         cast(Any, api._SELECTIONS)[fake] = api._SELECTIONS[binding]
         with pytest.raises(api.SourceBindingError):
             api.selected_event_fingerprint(fake, request.events[0])
+
+
+@pytest.mark.parametrize("row", _VECTORS["event_cases"], ids=lambda r: r["case_id"])
+def test_accessor_fixed_e1_raw_values(row: dict[str, Any]) -> None:
+    """全固定原wireをDTOで再構成せず、純値として読み出す。"""
+    from pitchlog.sync.wire_original import encode_wire_original
+
+    receipt, request = _receipt_double(json.loads(row["raw_json"]))
+    state = api._RECEIPTS[receipt]
+    binding = api.e1_event_source(receipt, 1)
+    result = api.read_selected_event_source(
+        binding,
+        context=state.context,
+        request=request,
+        event=request.events[0],
+    )
+    assert result.origin == "e1" and result.position == 1
+    assert result.event_fingerprint == row["expected_fingerprint"]
+    assert result.request_fingerprint == state.source.request_fingerprint
+    assert result.wire_event is state.source.events[0]
+    assert result.wire_original_json == encode_wire_original(state.source.events[0])
+    assert "raw_json" not in repr(result) and "秘密" not in repr(result)
+    assert not hasattr(result, "binding") and not hasattr(result, "writer")
+
+
+@pytest.mark.parametrize("mode", ["legacy", "e1"])
+@pytest.mark.parametrize(
+    "change",
+    [
+        "context-other",
+        "context-proof",
+        "context-missing",
+        "request-other",
+        "event-other",
+        "expired",
+        "binding-forged",
+        "origin-swapped",
+        "position",
+        "source-mutated",
+    ],
+)
+def test_accessor_rejects_actual_caller_or_state_changes(
+    mode: str, change: str
+) -> None:
+    """同値contextでも別実体は拒否し、失効/偽造をlegacyへ降格しない。"""
+    if mode == "e1":
+        owner, request = _receipt_double(_raw())
+        state = api._RECEIPTS[owner]
+        context = state.context
+        binding = api.e1_event_source(owner, 1)
+    else:
+        request = _request(_raw())
+        context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+        owner = _legacy_double(request)
+        state = api._LEGACY[owner]
+        state.context = context
+        binding = api.legacy_dto_source(owner, request, request.events[0], None)
+    event = request.events[0]
+    if change == "context-other":
+        context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    elif change == "context-proof":
+        object.__setattr__(context, "_integrity_proof", b"broken")
+    elif change == "context-missing":
+        context = cast(Any, None)
+    elif change == "request-other":
+        request = SyncRequest(
+            request.path, request.game_id, request.events, d4=request.d4
+        )
+    elif change == "event-other":
+        event = _event(_raw())
+    elif change == "expired":
+        state.active = False
+    elif change == "binding-forged":
+        binding = object.__new__(api.EventSourceBinding)
+    elif change == "origin-swapped":
+        selected = api._SELECTIONS[binding]
+        object.__setattr__(
+            selected,
+            "owner",
+            object.__new__(api.LegacyEntryScope if mode == "e1" else api.E1Receipt),
+        )
+    elif change == "position":
+        object.__setattr__(api._SELECTIONS[binding], "position", True)
+    else:
+        object.__setattr__(event, "v5", "changed-secret-marker")
+    with pytest.raises(api.SourceBindingError, match=f"^{_ERROR}$") as error:
+        api.read_selected_event_source(
+            binding, context=context, request=request, event=event
+        )
+    assert error.value.__cause__ is None and "secret-marker" not in str(error.value)
+
+
+def test_legacy_unbound_context_accessor_is_closed_old_getter_unchanged() -> None:
+    """旧scopeは旧getterで保持し、新accessorではcontext未束縛を拒否。"""
+    request = _request(_raw())
+    owner = _legacy_double(request)
+    binding = api.legacy_dto_source(owner, request, request.events[0], None)
+    digest = operation_fingerprint(request.events[0], request.path, None)
+    assert api.selected_event_fingerprint(binding, request.events[0]) == digest
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    with pytest.raises(api.SourceBindingError):
+        api.read_selected_event_source(
+            binding, context=context, request=request, event=request.events[0]
+        )
+
+
+@pytest.mark.parametrize(
+    "registration", [None, _Registration(_TENANT, _TENANT, "秘密名", "active")]
+)
+def test_legacy_accessor_retains_old_formula_without_raw_reconstruction(
+    registration: Any,
+) -> None:
+    """legacyでwire原本/要求hashを捏造しない。"""
+    request = _request(_raw())
+    owner = _legacy_double(request, registration)
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    api._LEGACY[owner].context = context
+    binding = api.legacy_dto_source(owner, request, request.events[0], registration)
+    value = api.read_selected_event_source(
+        binding, context=context, request=request, event=request.events[0]
+    )
+    assert value.origin == "legacy" and value.position == 1
+    assert value.event_fingerprint == operation_fingerprint(
+        request.events[0], request.path, registration
+    )
+    assert value.wire_event is None and value.wire_original_json is None
+    assert value.request_fingerprint is None
+    other_context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    api._LEGACY[owner].context = other_context
+    with pytest.raises(api.SourceBindingError):
+        api.read_selected_event_source(
+            binding,
+            context=other_context,
+            request=request,
+            event=request.events[0],
+        )
+
+
+@pytest.mark.parametrize("row", _VECTORS["request_cases"], ids=lambda r: r["case_id"])
+def test_accessor_original_position_is_one_based_not_sorted_d1(
+    row: dict[str, Any],
+) -> None:
+    """逆順原列でもindex+1を返す。実F1 brokerの多件成功ではない。"""
+    raw = json.loads(row["raw_events_json"])
+    events = tuple(_event(value) for value in raw)
+    request = SyncRequest("P1", row["game_id"], events, d4=row["d4"])
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    source = freeze_wire_source(
+        game_id=row["game_id"], d4=row["d4"], raw_events=tuple(raw)
+    )
+    receipt = object.__new__(api.E1Receipt)
+    api._RECEIPTS[receipt] = api._ReceiptState(
+        context, _TENANT, request, api._request_json(request), source, True
+    )
+    for position, event in enumerate(events, 1):
+        binding = api.e1_event_source(receipt, position)
+        value = api.read_selected_event_source(
+            binding, context=context, request=request, event=event
+        )
+        assert value.position == position
+        assert value.wire_event is source.events[position - 1]
+        assert value.event_fingerprint == source.event_fingerprints[position - 1]
+    assert source.request_fingerprint == row["expected_fingerprint"]
+
+
+def test_accessor_does_not_issue_or_accept_value_as_binding() -> None:
+    """返却純値は次の受付資格や選択参照にならない。"""
+    receipt, request = _receipt_double(_raw())
+    context = api._RECEIPTS[receipt].context
+    binding = api.e1_event_source(receipt, 1)
+    before = (len(api._LEGACY), len(api._RECEIPTS), len(api._SELECTIONS))
+    value = api.read_selected_event_source(
+        binding, context=context, request=request, event=request.events[0]
+    )
+    assert before == (len(api._LEGACY), len(api._RECEIPTS), len(api._SELECTIONS))
+    with pytest.raises(api.SourceBindingError):
+        cast(Any, api.read_selected_event_source)(
+            value, context=context, request=request, event=request.events[0]
+        )
+
+
+@pytest.mark.parametrize(
+    "change", ["expire", "context", "source", "event", "selection"]
+)
+def test_accessor_rechecks_after_original_rendering(
+    change: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """原本描画中の後発差替えも固定拒否し、返却値へ持ち越さない。"""
+    receipt, request = _receipt_double(_raw())
+    state = api._RECEIPTS[receipt]
+    context = state.context
+    binding = api.e1_event_source(receipt, 1)
+    render = api.encode_wire_original
+
+    def render_then_change(wire: Any) -> str:
+        encoded = render(wire)
+        if change == "expire":
+            state.active = False
+        elif change == "context":
+            state.context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+        elif change == "source":
+            raw = _raw()
+            state.source = freeze_wire_source(
+                game_id=raw["game_id"], d4=raw["d4"], raw_events=(raw,)
+            )
+        elif change == "selection":
+            # 同値でも別実体の選択へ差し替えたら、元選択の同一性で拒否する。
+            api._SELECTIONS[binding] = dataclasses.replace(api._SELECTIONS[binding])
+        else:
+            object.__setattr__(request.events[0], "v7", {"bad": "secret-marker"})
+        return encoded
+
+    monkeypatch.setattr(api, "encode_wire_original", render_then_change)
+    with pytest.raises(api.SourceBindingError, match=f"^{_ERROR}$"):
+        api.read_selected_event_source(
+            binding, context=context, request=request, event=request.events[0]
+        )
+
+
+def test_accessor_no_issuer_is_closed_without_legacy_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未発行/別純値から読取を始めても既DTOへ再試行しない。"""
+    request = _request(_raw())
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        pytest.fail("未発行accessorからlegacy hashへ到達")
+
+    monkeypatch.setattr(api, "operation_fingerprint", forbidden)
+    for value in (
+        None,
+        "E1",
+        object.__new__(api.EventSourceBinding),
+        object.__new__(api.E1Receipt),
+    ):
+        with pytest.raises(api.SourceBindingError):
+            cast(Any, api.read_selected_event_source)(
+                value, context=context, request=request, event=request.events[0]
+            )
+    assert not api._LEGACY and not api._RECEIPTS and not api._SELECTIONS
