@@ -2,6 +2,12 @@
 
 更新: 2026-10-28（Claude主担当、Codexへ引継ぎ）。2026-10-27までの判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
 
+## Codex主担当の再引受照合（2026-10-28）
+
+PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
+
+利用者が新たにできる操作：まだ増えていない。主担当は番号順を維持し、unit A+Bの権限/RLSと計画一致の非作者敵対レビューを2担当に開始、待ち時間にU13の読み取りレビューを並行。編集/正式資産はroot一本化。pytestは共有DSNを必ずunsetし、shared DBは利用しない。目標10/31初球縦断・11/12 MVP全体を維持し、未成立条件を省略しない。
+
 ## 再開時の現在地と次の作業（2026-10-28 17:40 JST、Claude主担当→Codex主担当への引継ぎ）
 
 この節を再開入口とする。下の2026-10-27節以前は履歴。判断はPO委任の主担当判断で、本人署名・人間逐行確認ではない。
