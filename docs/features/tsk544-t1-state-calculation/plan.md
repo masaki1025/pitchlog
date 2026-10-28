@@ -828,4 +828,6 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 
 2026-10-28、PO委任によるCodex主担当判断。global ball限定read計画反映1 SHA 7f0025020e69420ad6df038bc41771097a9b189c3c15e0bfcbd3a25650ddbb2c を非作者再review SHA ef4ec87d690ff3ca19b1d1e63f9b57dbc6eb4dca1caeae53eb2414d22bd3e4a5 指摘0に基づき採用。旧P1のSQL入口/context強制点不足を既run内の別閉Reference型・専用validatorと正式asset/負例を含むexact16＋producer差分時1で是正し、既tenant validator・Port境界・SQL実行箇所は保持。source基線/他branch依存を固定し、正式値は直列反映直前版から再導出する。後続⑦接合は同host評価とpayload全値比較成功でreadyとなった後、content phase開始前に限定し、先行不正/host故障・D5再掲では語彙read0、DB故障は既payload拒否へ混ぜずrollbackする。source/正式値・owned PG・接合は未完、本人署名ではない。
 
+2026-10-28、PO委任によるCodex主担当判断。上記の新規reference_unapproved_executor負例を既検査の閉集合へ登録するため、contracts/tenant_boundary/negative-fixtures.json exact1をroot専有scopeに追加する。新負例の実内容を正式producerへ追随し、既負例・検出器・拒否条件を保持。正式反映/値受理・非作者source reviewは後続であり、この追加だけで検査合格とはしない。
+
 2026-10-28、PO委任によるCodex主担当判断。U06登録時に既先行SQLのINSERT RETURNING全41列が正式capability validatorで拒否され、既executorの非SELECT結果がrowcountのみである不整合を実確認。既ガードを緩めず、同exact9内でRETURNINGを除去しINSERT結果((1,),)を厳密確認→同TXの既LIMIT2 readで全41列を回収する最小是正を採用。全列入力/bind/tenant/preflight/DB印を保持し、rowcount不一致・read欠損/複数は非成功、別TX読取にしない。「既SQL不変」の先行指定はこのRETURNING除去だけ読み替え、pure期待は実executor契約へ整合。新権限・新計算・拒否弱化はなく最終非作者source reviewで確認する。
