@@ -1,6 +1,30 @@
 # 初回MVP 主担当引受・進捗台帳
 
-更新: 2026-10-28（Claude主担当、Codexへ引継ぎ）。2026-10-27までの判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+更新: 2026-10-28（Claude主担当、Codexへ引継ぎ、OpenCode主担当が引受）。2026-10-27までの判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+
+## OpenCode主担当の引受照合（2026-10-28 23:38 JST）
+
+PO指示により、台帳冒頭「中断・他AI引継ぎ（2026-10-28）」を読み、実物を照合して引受。**まだ製品repo・正式資産・各branchへの編集/commit/pushは行っていない**（本節commitを除く）。本人署名・人間逐行確認ではない。
+
+**実物照合（一致）**
+- 主repo `/home/ymdms/projects/pitchlog`: HEAD `1ab398cc`（ローカルdevelopは旧。origin/developの追従は未確認）。
+- app台帳WT `feature-mvp-integration-lead`: HEAD `66195b10`、clean、origin と 0/0（push済）。
+- `feature-mvp-first-ball-writer-binding` `45ccc75a` / `feature-mvp-e1-core-binding` `bea25e56` / `feature-mvp-first-ball-product-activation` `60355e84` / `feature-mvp-started-read-http` `bdd1ec8f` / `feature-mvp-coordinate-doc-gate` `62e2f35e`。全て clean。
+- 候補: U09 `source10.patch` SHA256 `25cbc6f96648c93154c5900379ee408eb429fdd28bcbfdc3baef56c66e204f0b`、U11 reflect3 `PLAN-CANDIDATE.md` SHA256 `1e387f731c68cfe19dbcac2488c971e86219adacc0505ce22f0f216de5a96465`。いずれも台帳記載と一致。U09 patch は E1 `f3ef6cfa` へ `git apply --check` 成功。
+- 稼働: 旧vite 2組（Oct21、停止不要）。docker は `pitchlog-db-1`（共有DB、触らない）と `d13r1rev-pg`（既存review用、7h）。pytest/CI の新規稼働なし。
+
+**並行開始（非作者review 2本、結果待ち）**
+1. U09 source10 の非作者source review（認可/loan/proof/失敗閉鎖/SQL固定/guard/bootstrap/テスト変異/スコープ）。作者は計画/source作成者、本担当は非関与レビュアーへ委任。出力 `~/.cache/pitchlog/u09-source10-nonauthor-review-20261028/`。
+2. U11 反映3（cancel/worker所有/shutdown30秒）の非作者plan review。出力 `~/.cache/pitchlog/u11-reflection3-nonauthor-review-20261028/`。反映3作者は反映2のreview担当のため、本担当が別reviewerを立てた。
+
+**実測で確定した事項（製品branch 60355e84）**
+- `test_s09_formal_profile_is_registered_exactly` 赤の原因は、`contracts/authz/product/ddl-elements.json` に `FUNCTION:sync_right_api:read_device_state(uuid, uuid)` の**1行欠落のみ**（他セクションは期待一致）。期待行/本文は source の `first_ball_product.ADDITIONS`/`BODIES` に既定義で、機械導出の3ファイル追補により S09 成功。
+- ただし `runtime_contract_generator check` は同追補で `DERIVED_FIELDS_STALE`（exit1）。**正式行の追加は runtime-authz-contract 26→27 の再導出と不可分**で、tenant_boundary 7.7（履歴末尾#184=repo28/runtime22、現物32/26）の**merge受入時の単一受理記録**に属する。追補patchは `~/.cache/pitchlog/device-formal-followup-20261028/`（SHA `a51cf571…eef3`、3 files +58、未採用）。
+- `scripts/check_tenant_boundary_bypass.py` は exit2「履歴末尾と 7 資産の識別値が不一致」（既知の基線ゲート。隔離組立の実行は妨げないが、PR CI は merge 受入記録まで赤）。
+- 既知赤（本追補の影響ではない）: `test_no_runtime_registration_or_scalar_proof` は `_BindFirstBallDeviceToken` が 670d5313 で正規登録された後も「未登録」前提のため赤（安全性質を弱めず exact 化する別単位）。`test_product_authz_catalog.py` は基点でも3件赤（trigger系込み59件）、新規赤0。
+
+**利用者が新たにできる操作**: 変化なし。初球の実画面保存・再読込は未達のまま。**MVP全体・初球とも完成ではない**。
+**次の一手**: 上記2 review の結果確定 → U09 は指摘是正のうえ E1 へ step commit（非作者review・実PG/HTTP未了を明記）→ U11 は採否後に単位I source着手 → 隔離組立で縦断。
 
 ## Codex主担当の再引受照合（2026-10-28）
 
