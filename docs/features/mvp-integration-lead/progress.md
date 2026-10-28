@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `b4e36a12`、E1 `84e3cc43`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。global結果readは既tenant guardを保つ別有限検証の計画を採用、実装前。G20確定拒否/UNKNOWN分離は実装中で、adapter実値に固定されるmanifest SHAの追随を必要なexact1として追加。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `b4e36a12`、E1 `63b2a2f8`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。global結果readと②端末readの限定登録は各計画を採用し隔離実装中。G20確定拒否/UNKNOWN分離は実装中で、adapter実値に固定されるmanifest SHAの追随を必要なexact1として追加。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1317,3 +1317,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：global ball限定read plan反映1 SHA 7f0025020e69420ad6df038bc41771097a9b189c3c15e0bfcbd3a25650ddbb2c を非作者 ef4ec87d690ff3ca19b1d1e63f9b57dbc6eb4dca1caeae53eb2414d22bd3e4a5 指摘0に基づきwriter b4e36a12でPO委任採用。既runと専用閉validatorで旧SQL入口/tenant guardを維持。後続接合は実hostとpayload照合のready後、content phase前に限定し、D5再掲/先行失敗では読取0、DB故障はrollback。正式資産は別branchのrevision差を直列統合時に再導出する。実装・実DB・実画面は未達。②端末read登録plan SHA3516df5a…は独立review中であり、DB activationは別途必要。
 
 2026-10-28：G20の関連314件は313成功/1失敗。既manifestのadapter SHA固定と新sourceが不一致という正当な追随不足であり、検査を緩めずE1 84e3cc43でmanifestの該当hash exact1を追加採用。最終source実byteから更新し非作者reviewする。②端末readは既token/SQL/呼出順を再利用できるが、登録と正式DB function提供が必要。旧調査の「bodyにowner/ACLを含めない」説明は既unitCの実形式と不一致であり、後発調査で訂正中。
+
+2026-10-28：②端末read登録のplan反映1 SHA154a257b423e57d4cd51e4981acf284b37c6ecfb2342d3d9272f462595b19a9e は初回P1（既正規型を誤って拒否する表現）を是正し、非作者再review c312227187a8c978017263bf7f5209038c182093974f1bfdfb016e9c13d48abf 残0を根拠にE1 63b2a2f8でPO委任採用。source/test5は隔離実装、正式資産2はroot直列、実DB function activation/issuer/HTTPは別途必要。activation候補c84ff15aab4a66db09bc163cbd07c44fad43cb0aef0a93ee9c3325c4ee8a925cで旧body方式の誤説明を訂正したが、同候補は未承認・未実装・未DB。
