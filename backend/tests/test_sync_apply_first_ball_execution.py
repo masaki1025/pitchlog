@@ -394,6 +394,14 @@ def test_prefix_keeps_prior_rejections_before_host_and_closes_context(
     from pitchlog.sync.idempotency import D5Candidate, StoredResult
 
     opened = []
+    consumed = []
+    original_consume = api.consume_first_ball_frame
+
+    def consume_spy(*args, **kwargs):
+        consumed.append(True)
+        return original_consume(*args, **kwargs)
+
+    monkeypatch.setattr(api, "consume_first_ball_frame", consume_spy)
     original = bridge.open_domain_host
 
     def host():
@@ -483,6 +491,7 @@ def test_prefix_keeps_prior_rejections_before_host_and_closes_context(
                 else result.boundary in ("B3b", "B2")
             )
     assert opened == ([True] if stage == "o4" else [])
+    assert consumed == []
     assert not api._EXECUTIONS and not bridge._STATES
 
 

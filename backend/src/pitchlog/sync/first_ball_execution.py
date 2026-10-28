@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -31,11 +32,13 @@ from pitchlog.sync.first_ball_bridge import (
     FirstBallContentRejected,
     _bind_e1_first_ball_at_content_stage,
     _read_ready_first_ball_frame,
+    consume_first_ball_frame,
     evaluate_first_ball_frame,
 )
 from pitchlog.sync.first_ball_frame import (
     FirstBallBridge,
     FirstBallFrame,
+    FirstBallFrameValue,
     FirstBallIntent,
 )
 from pitchlog.sync.first_ball_payload import (
@@ -47,6 +50,7 @@ from pitchlog.sync.first_ball_payload import (
 )
 from pitchlog.sync.idempotency import _json_value
 from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.ordering import _MAX_D2
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
 from pitchlog.sync.tokens import PortValidateFirstBallToken
@@ -82,6 +86,9 @@ class _Execution:
     bridge: FirstBallBridge | None = None
     frame: FirstBallFrame | None = None
     payload: FirstBallPayloadValue | None = None
+    projected_event: SyncEvent | None = None
+    projection_call: object | None = None
+    assigned_d2: int | None = None
 
 
 _EXECUTIONS: dict[object, _Execution] = {}
@@ -337,3 +344,133 @@ def _require_first_ball_projection_completed(handle, event) -> None:
     _live(state)
     if event.d5 != state.event.d5 or state.phase != "projected":
         raise FirstBallExecutionError
+
+
+def _same_wire_value(left: object, right: object) -> bool:
+    """Mapping実装の差だけを許し、bool/int等のwire型差は同値にしない。"""
+    if isinstance(left, Mapping) and isinstance(right, Mapping):
+        return (
+            all(type(key) is str for key in left)
+            and all(type(key) is str for key in right)
+            and set(left) == set(right)
+            and all(_same_wire_value(left[key], right[key]) for key in left)
+        )
+    if type(left) is not type(right):
+        return False
+    if type(left) is tuple and type(right) is tuple:
+        return len(left) == len(right) and all(
+            _same_wire_value(a, b) for a, b in zip(left, right, strict=True)
+        )
+    return left == right
+
+
+def _close_projection(state: _Execution) -> None:
+    """途中失敗したframeを別callbackへ再貸与しない。"""
+    state.phase = "closed"
+    state.projected_event = None
+    state.projection_call = None
+    state.assigned_d2 = None
+
+
+@contextmanager
+def _bind_first_ball_projection(handle, writer, event, projected):
+    """O4後の実projection呼出区間だけへ採番済み元値を束縛する。"""
+    state = _EXECUTIONS.get(handle._state_key)
+    if type(state) is not _Execution:
+        raise FirstBallExecutionError
+    try:
+        _live(state)
+        if (
+            handle is not state.handle
+            or writer is not state.writer
+            or event is not state.event
+            or type(projected) is not SyncEvent
+            or projected is event
+            or state.source.write_started is not True
+            or state.phase != "ready"
+            or state.projection_call is not None
+            or transaction._port_phase(handle) is not None
+            or type(projected.v6) is not int
+            or not 0 <= projected.v6 <= _MAX_D2
+            or any(
+                not _same_wire_value(getattr(event, field), getattr(projected, field))
+                for field in (
+                    "d5",
+                    "game_id",
+                    "d1",
+                    "d4",
+                    "v5",
+                    "v7",
+                    "v8",
+                    "v9",
+                    "v10",
+                    "v11",
+                )
+            )
+        ):
+            raise FirstBallExecutionError
+        state.assigned_d2 = projected.v6
+        state.projected_event = projected
+        state.projection_call = object()
+        state.phase = "projecting"
+        yield
+        _live(state)
+    except BaseException:
+        _close_projection(state)
+        raise
+    finally:
+        state.projected_event = None
+        state.projection_call = None
+        state.assigned_d2 = None
+        if state.phase == "projecting":
+            state.phase = "closed"
+
+
+def _consume_first_ball_projection(handle, projected, writer) -> FirstBallFrameValue:
+    """同callback/同writerの真正frameを原eventで一回だけ消費する。保存しない。"""
+    state = _EXECUTIONS.get(handle._state_key)
+    if type(state) is not _Execution:
+        raise FirstBallExecutionError
+    try:
+        _live(state)
+        if (
+            handle is not state.handle
+            or writer is not state.writer
+            or type(projected) is not SyncEvent
+            or projected is not state.projected_event
+            or state.source.write_started is not True
+            or type(projected.v6) is not int
+            or projected.v6 != state.assigned_d2
+            or any(
+                not _same_wire_value(
+                    getattr(state.event, field), getattr(projected, field)
+                )
+                for field in (
+                    "d5",
+                    "game_id",
+                    "d1",
+                    "d4",
+                    "v5",
+                    "v7",
+                    "v8",
+                    "v9",
+                    "v10",
+                    "v11",
+                )
+            )
+            or state.projection_call is None
+            or state.phase != "projecting"
+            or transaction._port_phase(handle) is not None
+            or type(state.bridge) is not FirstBallBridge
+            or type(state.frame) is not FirstBallFrame
+        ):
+            raise FirstBallExecutionError
+        value = consume_first_ball_frame(
+            state.bridge, state.frame, writer=state.writer, event=state.event
+        )
+        _live(state)
+        state.phase = "consumed"
+        return value
+    except BaseException:
+        _close_projection(state)
+        raise

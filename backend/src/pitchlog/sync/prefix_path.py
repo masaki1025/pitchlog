@@ -850,7 +850,13 @@ def _apply_locked_in_scope(
             if updated.rows != ((1,),):
                 raise RuntimeError("D3 の前進に失敗")
             reach("after_t3_prefix")
-        projection.apply(projected_event, writer)
+        if type(validator) is FirstBallContentValidationPort:
+            from pitchlog.sync.first_ball_execution import _bind_first_ball_projection
+
+            with _bind_first_ball_projection(scope, writer, event, projected_event):
+                projection.apply(projected_event, writer)
+        else:
+            projection.apply(projected_event, writer)
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import (
                 _require_first_ball_projection_completed,
