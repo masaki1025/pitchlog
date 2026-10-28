@@ -1258,3 +1258,8 @@ DB修復cacheは0038配置/実全列・制約検証へ到達したがfullinstall
 2026-10-28：DB修復cacheの現行前段→full1回fixtureで実product catalog正常/余剰ACL拒否2成功、16故障系とinitial_scope ACL1成功。旧UNAPPLY/owner-only試験2群は無変更の既不整合として保全。非等価構造変異とsource最終固定/独立reviewは未完。unit C最小plan `first-ball-unit-c-minimal-addendum-20261028/PLAN-CANDIDATE.md` SHA94986aeb4f25e65c2b641f3ae3567be8db11c6493d5e1286ed4d1937a10235be、新body91実導出を固定、非作者plan review中。正式profile/trigger activationは未実施。
 
 公開固定点の実再照合：ls-remoteでwriter25932c87/U13c7056da9/gate62e2f35e一致。GitHub #188はOPEN Draft/BLOCKED、head72f4118aのまま（ローカルf0a8ce4eを公開済みとは扱わない）。
+
+
+2026-10-28 加速方針（PO指示）：初球に必要な経路へ集中し、旧UNAPPLY等の整備を新たな縦断着手条件に足さない。正式化と同期本体を並行し、レビュー済固定候補で隔離実画面/実API/実DBの接合を先に検証、正式統合/CIの完了とは分ける。unit C catalog観測に必要な既test_product_authz_catalog.py exact1を6e812833でscope追加（閉QueryId/期待map/SQL対向の追随のみ）。
+
+DB修復source非作者8a8e22d4…はP1=2：0038配置中の故障で0037もrollbackする対向不足、installer故障直後のACL等全snapshot比較不足。source権限緩和の発見ではなく計画必須実証不足。両方をreflection1で追加中、旧packetを上書きせずre-reviewへ。3Bは条件fのPort書込み禁止を実効化する最小phase guardがscope外に必要な可能性を調査し、exactpaths/正規stamp境界をrootへ返す。未達をpure成功で代替しない。
