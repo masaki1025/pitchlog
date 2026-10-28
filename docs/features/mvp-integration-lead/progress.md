@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `b4e36a12`、E1 `63b2a2f8`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。global結果readと②端末readの限定登録は各計画を採用し隔離実装中。G20確定拒否/UNKNOWN分離は実装中で、adapter実値に固定されるmanifest SHAの追随を必要なexact1として追加。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `b92e8a5f`、E1 `63b2a2f8`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。global結果readと②端末readの限定登録は各計画を採用し隔離実装中。G20確定拒否/UNKNOWN分離のstep1候補は固定し非作者review中、実PGは未実施。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1319,3 +1319,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：G20の関連314件は313成功/1失敗。既manifestのadapter SHA固定と新sourceが不一致という正当な追随不足であり、検査を緩めずE1 84e3cc43でmanifestの該当hash exact1を追加採用。最終source実byteから更新し非作者reviewする。②端末readは既token/SQL/呼出順を再利用できるが、登録と正式DB function提供が必要。旧調査の「bodyにowner/ACLを含めない」説明は既unitCの実形式と不一致であり、後発調査で訂正中。
 
 2026-10-28：②端末read登録のplan反映1 SHA154a257b423e57d4cd51e4981acf284b37c6ecfb2342d3d9272f462595b19a9e は初回P1（既正規型を誤って拒否する表現）を是正し、非作者再review c312227187a8c978017263bf7f5209038c182093974f1bfdfb016e9c13d48abf 残0を根拠にE1 63b2a2f8でPO委任採用。source/test5は隔離実装、正式資産2はroot直列、実DB function activation/issuer/HTTPは別途必要。activation候補c84ff15aab4a66db09bc163cbd07c44fad43cb0aef0a93ee9c3325c4ee8a925cで旧body方式の誤説明を訂正したが、同候補は未承認・未実装・未DB。
+
+2026-10-28：G20 step1候補 d8c06b9c7d22226c7b3de6918408199cf0579dca8724cb4d340299ae2fd65426 は関連315成功・変異6検出、非作者review中。②登録source5候補 20c92bf337d4c311ee4c33cda863f1d425c4388b5a1bc1e6dbdf1a264432c0d3 は関連483成功・変異3検出、非作者review待ち。いずれも正式採用/実PG成功ではない。global readの新拒否fixtureを既閉集合へ登録するためnegative-fixtures.json exact1をwriter b92e8a5fで追加採用し、既拒否/検出器を維持する。各formal値は直列に実直前版から導出する。
