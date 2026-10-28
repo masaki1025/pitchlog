@@ -509,3 +509,44 @@ class _E1CoreSource:
         """最初の書込tokenより前にsourceを再確認して分岐を閉じる。"""
         self.read(scope, event)
         self.write_started = True
+
+
+@contextmanager
+def _e1_receipt_scope(*, context, request, source, device_presentation=None):
+    """同HTTP/requestの実認証済みcontextとwire原値だけから受付参照を発行する。
+
+    origin は caller 引数ではなく、実 TenantContext と同一 request の原 wire
+    値だけから固定する。device_presentation は実認証側が発行した参照だけで、
+    ここで生成・推定しない。寿命終了で選択参照と受付を同時に失効させる。
+    """
+    try:
+        if (
+            type(context) is not TenantContext
+            or not context._has_valid_integrity_proof()
+            or type(request) is not SyncRequest
+            or type(source) is not WireSourceValue
+            or source.game_id != request.game_id
+            or source.d4 != request.d4
+        ):
+            raise ValueError(_ERROR)
+        state = _ReceiptState(
+            context,
+            context.tenant_id,
+            request,
+            _request_json(request),
+            source,
+            True,
+            device_presentation,
+        )
+        owner = object.__new__(E1Receipt)
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise SourceBindingError(_ERROR) from None
+    _RECEIPTS[owner] = state
+    try:
+        yield owner
+    finally:
+        state.active = False
+        for key, selected in tuple(_SELECTIONS.items()):
+            if selected.owner is owner:
+                del _SELECTIONS[key]
+        _RECEIPTS.pop(owner, None)
