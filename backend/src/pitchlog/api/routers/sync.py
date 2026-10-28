@@ -13,13 +13,18 @@ from fastapi.responses import JSONResponse
 
 from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
+from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
 from pitchlog.recording_rights.initial_grant_broker import _broker_generation
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.initial_recording_right import (
     InitialGrantUnavailable,
     _credential_digest,
 )
-from pitchlog.sync.apply import _apply_e1_f1, _E1OutOfScope
+from pitchlog.sync.apply import (
+    _apply_e1_f1,
+    _E1OutOfScope,
+    _replay_e1_without_binding,
+)
 from pitchlog.sync.control_provider.binding_client import (
     BindingClientConfiguration,
     BindingClientConfigurationError,
@@ -113,7 +118,7 @@ def sync_events(
     cookie: Annotated[str, Depends(require_presented_token)],
     device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
     device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
-    attempt: Annotated[UUID, Header(alias="X-Pitchlog-Attempt")],
+    attempt: Annotated[UUID, Header(alias="X-Pitchlog-Sync-Attempt")],
 ) -> JSONResponse:
     """同HTTPの実認証・実writer・実権利で1球を保存し、実ACKだけを返す。"""
     configuration = _configuration(request)
@@ -124,13 +129,24 @@ def sync_events(
             game_id=sync_request.game_id,
             d4=str(sync_request.d4),
             raw_events=tuple(
-                dict(event) for event in payload["events"]  # type: ignore[union-attr]
+                dict(event)
+                for event in payload["events"]  # type: ignore[union-attr]
             ),
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
         raise HTTPException(status_code=422) from None
     if sync_request.v12 is None:
         raise HTTPException(status_code=422)
+    # DI1/DI2/DI3: ③認可後・V12前に D5 を分類し、保存済み結果だけを再掲する。
+    replayed = _replay_e1_without_binding(
+        context, sync_request, source.event_fingerprints
+    )
+    if replayed == "B6":
+        raise HTTPException(status_code=404)
+    if replayed == "B7":
+        raise HTTPException(status_code=503)
+    if replayed is not None:
+        return JSONResponse(_ack_body(replayed))
     try:
         credential_digest = _credential_digest(device_credential)
     except InitialGrantUnavailable:
@@ -199,6 +215,9 @@ def sync_events(
         raise HTTPException(status_code=422) from None
     except WriterBindingUnavailable:
         # 実端末提示/実writer/実leaseの不成立は値を返さず閉じる。
+        raise HTTPException(status_code=503) from None
+    except LedgerUnavailable:
+        # 試行/leaseの結果不明・同一attemptの異内容付替えはACKを返さず閉じる。
         raise HTTPException(status_code=503) from None
     if result == "B6":
         raise HTTPException(status_code=404)

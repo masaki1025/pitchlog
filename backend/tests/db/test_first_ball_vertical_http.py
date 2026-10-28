@@ -163,7 +163,7 @@ def device_headers(pair,attempt):
     value=headers()
     value.update({'X-Pitchlog-Device-Id':pair['device_id'],
         'X-Pitchlog-Device-Credential':pair['device_credential'],
-        'X-Pitchlog-Attempt':attempt})
+        'X-Pitchlog-Sync-Attempt':attempt})
     return value
 
 def payload_from_artifact(cookie):
@@ -256,6 +256,36 @@ async def run():
         out['ack']=posted.json() if posted.status_code==200 else None
         if posted.status_code!=200:
             out['sync_body']=posted.text[:400]
+        # 同一attempt・同一内容の再送（ACK消失後の再送）は保存済み結果を再掲する。
+        resent=await client.post('/games/'+game+'/sync/events',json=payload,
+            headers=device_headers(pair,attempt))
+        out['stages'].append(['resend',resent.status_code])
+        out['resend_ack']=resent.json() if resent.status_code==200 else None
+        if resent.status_code!=200:
+            out['resend_body']=resent.text[:400]
+        # 同一D5・異なる内容は B3b（A5「拒否」）で再適用しない。
+        changed=json.loads(v7)
+        changed['observations']['course']={'unit':'1/263','x':'1','y':'2'}
+        conflict_event={**event,'payload':changed}
+        conflict=await client.post(
+            '/games/'+game+'/sync/events',
+            json={'recording_right_proof':first['recording_right_proof'],
+                'events':[conflict_event]},
+            headers=device_headers(pair,attempt))
+        out['stages'].append(['conflict',conflict.status_code])
+        out['conflict_ack']=conflict.json() if conflict.status_code==200 else None
+        if conflict.status_code!=200:
+            out['conflict_body']=conflict.text[:400]
+        # 同一attemptへ別内容の新D5を割り当てる付替えはACKを返さず閉じる。
+        retry_event={**event,'d5':str(uuid4())}
+        retried=await client.post(
+            '/games/'+game+'/sync/events',
+            json={'recording_right_proof':first['recording_right_proof'],
+                'events':[retry_event]},
+            headers=device_headers(pair,attempt))
+        out['stages'].append(['attempt_reuse',retried.status_code])
+        if retried.status_code!=200:
+            out['attempt_reuse_body']=retried.text[:200]
         h=headers();after=await client.get('/games/'+game+'/started',headers=h)
         out['stages'].append(['started_after',after.status_code])
         out['d5']=event['d5']
@@ -316,6 +346,9 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
         ["start", 200],
         ["started_before", 200],
         ["sync", 200],
+        ["resend", 200],
+        ["conflict", 200],
+        ["attempt_reuse", 503],
         ["started_after", 409],
     ], value
     assert value["participants"] == {
@@ -330,6 +363,18 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
             {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "受理"}
         ],
     }, value["ack"]
+    assert value["resend_ack"] == {
+        "advancedD3": 1,
+        "eventResults": [
+            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
+        ],
+    }, value["resend_ack"]
+    assert value["conflict_ack"] == {
+        "advancedD3": 1,
+        "eventResults": [
+            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "拒否"}
+        ],
+    }, value["conflict_ack"]
     _assert_recorded_once(db, value["d5"])
 
 

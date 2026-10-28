@@ -352,6 +352,95 @@ def _is_replay(result: D1Result) -> bool:
     return result.replayed
 
 
+def _replay_e1_without_binding(
+    context: TenantContext,
+    request: SyncRequest,
+    fingerprints: tuple[str, ...],
+) -> AckResult | Literal["B6", "B7"] | None:
+    """③認可後・V12前の D5 先行分類を writer binding 前に一度だけ行う。
+
+    正本 sync-protocol DI1〜DI3 と 7-3 の再掲を、単球F1入口（1要求1イベント）
+    の範囲で実装する。同一内容の保存済み D5 は再適用せず、受理→A5「重複」・
+    拒否→同理由・退避→同退避として返し、異内容は B3b とする。未使用 D5 を
+    含む要求は通常の段階順（⑤以降）へ戻すため ``None`` を返す。
+
+    Args:
+        context: 実認証済みのテナント文脈。
+        request: S-1 外形を通過した同期要求。
+        fingerprints: 原wireから凍結した各イベントの指紋（要求順）。
+
+    Returns:
+        再掲 ACK、ACK を返さない境界 ``"B6"``/``"B7"``、または通常経路へ戻す
+        ``None``。
+
+    Raises:
+        SourceBindingError: 入力が単球F1入口の閉形式に合わない場合。
+    """
+    from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
+    from pitchlog.sync.idempotency import classify_d5
+    from pitchlog.sync.prefix_path import _candidate_result
+    from pitchlog.sync.source_binding import SourceBindingError
+
+    if (
+        type(context) is not TenantContext
+        or not context._has_valid_integrity_proof()
+        or type(request) is not SyncRequest
+        or type(fingerprints) is not tuple
+        or len(fingerprints) != len(request.events)
+        or any(type(value) is not str for value in fingerprints)
+    ):
+        raise SourceBindingError("E1再掲の入力が不正")
+    if request.path != "P2" or len(request.events) != 1:
+        # 単球F1入口の範囲外は流儀どおり後段（_E1OutOfScope）へ委ねる。
+        return None
+    event = request.events[0]
+    if type(event.d1) is not int or event.d1 != 1 or type(event.d4) is not str:
+        return None
+    game_id = UUID(request.game_id)
+    if not game_accessible(context, game_id, tenant_transaction_scope):
+        return "B6"
+    with tenant_transaction_scope(context) as scope:
+        try:
+            read_rg1_open(scope)
+        except RG1Unavailable:
+            return "B7"
+        rows = scope.run(RecordingGenerationReadToken(game_id)).rows
+        if len(rows) != 1:
+            raise RuntimeError("自テナントの記録権世代行が一件ではない")
+        d3 = _cell(rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
+        if type(d3) is not int:
+            raise RuntimeError("D3 の型が不正")
+        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], "P2")
+    if candidate.kind == "unused":
+        # 未使用 D5 は ⑤ 以降（V12・content・order）が正本の段階順。
+        return None
+    result = _candidate_result(candidate, d3)
+    if result is None:
+        return None
+    state = _event_state(result)
+    reason = result.reason or (
+        "同じ D5 の内容が異なる" if result.boundary == "B3b" else None
+    )
+    advanced = max(d3, result.d3) if result.accepted else d3
+    boundary: Literal["B1", "B2", "B3", "B4"] = "B1"
+    b3_branch: Literal["B3a", "B3b", "O4"] | None = None
+    if not (state == "退避"):
+        # 再掲の退避は境界結果を決めない（SP 変更履歴 U-14）。
+        if result.boundary in ("B3", "B3a", "B3b"):
+            boundary = "B3"
+            b3_branch = "O4" if result.boundary == "B3" else result.boundary
+        elif result.boundary == "B4":
+            boundary = "B4"
+    return AckResult(
+        boundary,
+        advanced,
+        (A5Result(event.d4, event.d1, event.d5, state, reason),),
+        b3_branch,
+        reason if boundary == "B3" else None,
+        dict(result.temporary_id_mapping) if isinstance(result, P1Result) else None,
+    )
+
+
 def apply_sync_request(
     context: TenantContext,
     request: SyncRequest,
