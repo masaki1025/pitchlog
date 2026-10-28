@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import NoReturn
+from dataclasses import dataclass
+from typing import Literal, NoReturn
 
 from pitchlog.sync.idempotency import _json_value
 from pitchlog.sync.model import _MAX_SAFE_INTEGER, _canonical_uuid, _opaque_string
@@ -122,5 +123,55 @@ def decode_wire_original(
         ):
             raise ValueError(_ERROR)
         return value
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise WireOriginalError(_ERROR) from None
+
+
+@dataclass(frozen=True, slots=True)
+class RejectedOriginalView:
+    """W2用の純値。原本の真正性やwriter資格は発行しない。"""
+
+    origin: Literal["wire", "legacy"]
+    payload: Mapping[str, object]
+    event_fingerprint: str
+
+
+def rejected_original_view(
+    original: Mapping[str, object],
+    *,
+    ledger_fingerprint: str,
+    game_id: str,
+    d4: str,
+    d1: int,
+    d5: str,
+) -> RejectedOriginalView:
+    """台帳domainと原本形式を両方確認し、W2の同名fieldを返す。
+
+    legacyは既指紋helperを再利用し、未知形式をlegacyへ降格させない。
+    各fieldのW2意味判定は従来の呼出側へ残す。
+    """
+    try:
+        if type(ledger_fingerprint) is not str or not ledger_fingerprint:
+            raise ValueError(_ERROR)
+        if not isinstance(original, Mapping):
+            raise ValueError(_ERROR)
+        if ledger_fingerprint.startswith("wire-v1:"):
+            value = decode_wire_original(
+                original,
+                expected_event_fingerprint=ledger_fingerprint,
+                game_id=game_id,
+                d4=d4,
+                d1=d1,
+                d5=d5,
+            )
+            return RejectedOriginalView("wire", value.wire_event, ledger_fingerprint)
+        if ":" in ledger_fingerprint or set(original).intersection(_KEYS):
+            raise ValueError(_ERROR)
+        # prefix_pathは3Bで本moduleを参照するため遅延importし、旧算式をコピーしない。
+        from pitchlog.sync.prefix_path import _original_fingerprint
+
+        if _original_fingerprint(original) != ledger_fingerprint:
+            raise ValueError(_ERROR)
+        return RejectedOriginalView("legacy", original, ledger_fingerprint)
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
         raise WireOriginalError(_ERROR) from None
