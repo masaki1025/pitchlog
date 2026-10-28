@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `45ccc75a`、E1 `f3ef6cfa`、product-activation `60355e84`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime/DB sourceは別枝へ保存、正式資産受理・実Port接合は未完。global結果readは独立reviewのP1是正中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は部分実測。U09初球実記録権Portは採用planに従い隔離実装を開始。座標変換の正本gate/J2、正式7.7・CI、実HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `45ccc75a`、E1 `fcd75c50`、product-activation `60355e84`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime/DB sourceは別枝へ保存、正式資産受理・実Port接合は未完。global結果readは独立reviewのP1是正中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は部分実測。U09初球実記録権Portは採用planに従い隔離実装中。座標変換の正本gate/J2、正式7.7・CI、実HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1361,3 +1361,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：U09 source実装の担当をab_plan_adversarialに固定。計画review関与を保持しsource独立reviewは別担当とする。②activation source reviewは計画作者・source非作者ab_acl_adversarialが担当し、U09 sourceと同じファイルを並行編集しない。ClaudeにはU11 plan reviewを依頼済みで結果未受領。各作業の実DB/正式統合・利用者の初球保存は未達。
 
 2026-10-28：②activation source6は計画作者・source非作者review 4058aa030ed667f66283f2a777f52b8726924dd4f18b39f5c12315f1b1a895d3 指摘0、独立pure488/owned5を根拠にPO委任採用。記録56956c58/source60355e84をproduct枝へ保存・push、実WTの単一source整合検査1成功。formal5候補の実直前版再導出・7.7は未実施で、当該枝の正式資産はsourceへ未追随。実bound Port/initial actor接合・正式develop/画面保存は未完。
+
+2026-10-28：U09影響検査2010成功/2失敗のうち、既②read登録に伴うwriter binding関数pin未追随を別単位として特定。旧20値を維持しread_device_stateの実SQL/bind/型/processor hash 281792f9b426c1fdc7eba3305c069f5fd3afcde268a367fc06583bc006652e71 だけ追加、記録c12e3ca1/test fcd75c50をE1へpush、対象1成功。もう1件のPort登録pinはU09のexact1追補f0ecd1adとして実装中。正式資産受理・U09最終検査成功とは扱わない。
