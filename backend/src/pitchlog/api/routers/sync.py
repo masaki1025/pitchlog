@@ -15,6 +15,10 @@ from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.recording_rights.initial_grant_broker import _broker_generation
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.initial_recording_right import (
+    InitialGrantUnavailable,
+    _credential_digest,
+)
 from pitchlog.sync.apply import _apply_e1_f1, _E1OutOfScope
 from pitchlog.sync.control_provider.binding_client import (
     BindingClientConfiguration,
@@ -27,6 +31,10 @@ from pitchlog.sync.control_provider.evidence import (
     AuthorityBinding,
     EventPhaseBinding,
 )
+from pitchlog.sync.control_provider.writer_binding import (
+    WriterBindingUnavailable,
+    _issue_device_presentation,
+)
 from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
@@ -35,6 +43,7 @@ from pitchlog.sync.source_binding import (
     SourceBindingError,
     _e1_receipt_scope,
     e1_event_source,
+    selected_event_fingerprint,
 )
 from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
 
@@ -122,6 +131,10 @@ def sync_events(
         raise HTTPException(status_code=422) from None
     if sync_request.v12 is None:
         raise HTTPException(status_code=422)
+    try:
+        credential_digest = _credential_digest(device_credential)
+    except InitialGrantUnavailable:
+        raise HTTPException(status_code=422) from None
     entry_token = object()
     rights = FirstBallRecordingRightsPort()
     try:
@@ -133,6 +146,13 @@ def sync_events(
         ) as receipt:
             binding = e1_event_source(receipt, 1)
             event = sync_request.events[0]
+            # 同HTTP受付へ実端末提示を一度だけ結ぶ。発行後は受付の寿命で失効する。
+            _issue_device_presentation(
+                receipt,
+                entry_token,
+                reference_device=device_id,
+                credential_digest=credential_digest,
+            )
             internal_generation = _broker_generation(
                 str(sync_request.d4), context.tenant_id, game_id
             )
@@ -158,7 +178,7 @@ def sync_events(
                 1,
                 1,
                 UUID(event.d5),
-                binding.event_fingerprint,
+                selected_event_fingerprint(binding, event),
             )
             result = _apply_e1_f1(
                 receipt,
@@ -177,6 +197,9 @@ def sync_events(
         raise HTTPException(status_code=501) from None
     except (SourceBindingError, ValueError):
         raise HTTPException(status_code=422) from None
+    except WriterBindingUnavailable:
+        # 実端末提示/実writer/実leaseの不成立は値を返さず閉じる。
+        raise HTTPException(status_code=503) from None
     if result == "B6":
         raise HTTPException(status_code=404)
     if result == "B7":

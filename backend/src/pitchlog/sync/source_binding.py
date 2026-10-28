@@ -556,6 +556,28 @@ def _e1_receipt_scope(
             if selected.owner is owner:
                 del _SELECTIONS[key]
         _RECEIPTS.pop(owner, None)
+        # 受付の寿命終了と同時に、同受付へ結んだ実端末提示も失効させる。
+        from pitchlog.sync.control_provider.writer_binding import (
+            _drop_device_presentations,
+        )
+
+        _drop_device_presentations(owner)
+
+
+def _attach_device_presentation(state, presentation) -> None:
+    """生存中の同一受付へ実端末提示を一度だけ結ぶ。
+
+    発行主体は writer_binding の私有発行口だけとし、受付が有効で未発行の
+    場合に限る。失敗は値・資格を表示しない閉拒否にする。
+    """
+    if (
+        type(state) is not _ReceiptState
+        or not state.active
+        or state.device_presentation is not None
+        or presentation is None
+    ):
+        raise ValueError(_ERROR)
+    state.device_presentation = presentation
 
 
 def _receipt_for_entry(owner, entry_token):

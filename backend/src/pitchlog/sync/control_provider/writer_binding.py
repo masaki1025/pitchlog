@@ -221,6 +221,66 @@ class _DevicePresentationState:
 _DEVICE_PRESENTATIONS: dict[_DevicePresentation, _DevicePresentationState] = {}
 
 
+def _issue_device_presentation(
+    receipt, entry_token, *, reference_device, credential_digest
+) -> _DevicePresentation:
+    """同一HTTP受付の生存期間だけ有効な実端末提示を一度だけ発行する。
+
+    受付は同じ entry_token で開いたものだけを受け、資格は正規化せずに
+    既存の単一 digest 関数が作った32byteだけを保持する。受付が無効・別要求・
+    発行済みのいずれでも閉拒否し、値や資格を例外へ含めない。
+
+    Args:
+        receipt: 同HTTP入口が開いた E1 受付。
+        entry_token: 同入口が発行した不透明token。
+        reference_device: 要求ヘッダの端末ID。
+        credential_digest: 端末資格のSHA-256（32byte）。
+
+    Returns:
+        同受付に閉じた実端末提示。
+
+    Raises:
+        WriterBindingUnavailable: 受付不一致・入力不正・重複発行の場合。
+    """
+    from uuid import UUID
+
+    from pitchlog.sync.source_binding import (
+        _attach_device_presentation,
+        _receipt_for_entry,
+    )
+
+    if (
+        type(reference_device) is not UUID
+        or type(credential_digest) is not bytes
+        or len(credential_digest) != 32
+    ):
+        raise WriterBindingUnavailable("実端末提示の入力が不正")
+    try:
+        state = _receipt_for_entry(receipt, entry_token)
+    except ValueError:
+        raise WriterBindingUnavailable("実端末提示の受付が不一致") from None
+    presentation = object.__new__(_DevicePresentation)
+    try:
+        _attach_device_presentation(state, presentation)
+    except ValueError:
+        raise WriterBindingUnavailable("実端末提示を発行できない") from None
+    _DEVICE_PRESENTATIONS[presentation] = _DevicePresentationState(
+        receipt,
+        state.context,
+        state.request,
+        reference_device,
+        credential_digest,
+    )
+    return presentation
+
+
+def _drop_device_presentations(owner) -> None:
+    """受付の寿命終了時に、同受付へ結んだ提示だけを破棄する。"""
+    for presentation, state in tuple(_DEVICE_PRESENTATIONS.items()):
+        if state.receipt is owner:
+            del _DEVICE_PRESENTATIONS[presentation]
+
+
 def _qualified_device_digest(bound, presentation):
     """Raw scalar/偽参照/別requestから実credentialを作らない。"""
     import json

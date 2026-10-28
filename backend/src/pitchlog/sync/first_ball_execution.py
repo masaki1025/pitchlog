@@ -532,9 +532,10 @@ def _apply_first_ball_projection(handle, operation):
         d2=operation.projected.v6,
         d5=value.d5,
         source_fingerprint=value.source_fingerprint,
-        batter_id=participants.batter_id,
-        pitcher_id=participants.pitcher_id,
-        catcher_id=participants.catcher_id,
+        # 名簿投影の正準UUID文字列を保存列の実UUID型へ写す（値は変えない）。
+        batter_id=UUID(participants.batter_id),
+        pitcher_id=UUID(participants.pitcher_id),
+        catcher_id=UUID(participants.catcher_id),
         pitch_type_key=observations.pitch_type_key,
         course_x=_physical_course(observations.course.x),
         course_y=_physical_course(observations.course.y),
