@@ -10,6 +10,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
+**中断・他AI引継ぎ（2026-10-28）**：ユーザー指示により現在の候補固定で作業を停止。主担当の共同作業エージェント2名は実行中検査を終端し停止済み。E1 `bea25e56`、writer `45ccc75a`、product-activation `60355e84`、本台帳は本追記commitを正とする。初球の実画面保存・再読込は未達。U09 source10候補 SHA `25cbc6f96648c93154c5900379ee408eb429fdd28bcbfdc3baef56c66e204f0b`、REPORT `47e7545406cd9adaf43efb0f946b6128485b24e722b7d8470abfe060e5b87a66`、再開点 `~/.cache/pitchlog/u09-recording-rights-port-plan-20261028/implementation/STOPPOINT.md`。関連2017成功・隔離実DB1成功だが非作者review/正式採用/追加故障系/実HTTPは未了。7.7照合 `~/.cache/pitchlog/post184-product-baseline-77-unit-20261028/REPORT.md` SHA `9b2d3920624a168b184a2a90f31521f66f6fb744248455964e441967ee8aee9b` は正式#184からの8段階候補値・レビューとの一致と旧履歴/スナップショット保持を確認。正式受理・単一履歴append・公式PR検証は未了。U11 cancel反映3 SHA `1e387f731c68cfe19dbcac2488c971e86219adacc0505ce22f0f216de5a96465` は非作者再review未着手。global語彙sourceはP1是正plan段階で未採用。座標D18/D11単一gate/J2未成立、U09/物理投影/同期HTTP/UI/記録後GET・正式値/CIは未完。ClaudeのU11レビュー・OpenCode成績調査は下記履歴参照。userの既承認・PO委任とMVP全範囲を維持し、作業再開は固定点/進行中担当を照合してから、これら独立作業を並行する。人間実機・運用公開は未実施で成功へ読み替えない。
+
 最新固定点：writer `45ccc75a`、E1 `bea25e56`、product-activation `60355e84`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime/DB sourceは別枝へ保存、正式資産受理・実Port接合は未完。global結果readは独立reviewのP1是正中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は部分実測。U09初球実記録権Portは採用planに従い隔離実装中。座標変換の正本gate/J2、正式7.7・CI、実HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
