@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `5ceb8749`、E1 `d43ad6b5`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pure候補は非作者P1を是正し再レビュー中。global結果readは既tenant guardを保つ別有限検証の計画を修正中。G20確定拒否/UNKNOWN分離の最小計画は非作者確認中。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `5ceb8749`、E1 `2cdcff54`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pure候補は非作者P1を是正し再レビュー中。global結果readは既tenant guardを保つ別有限検証の計画を修正中。G20確定拒否/UNKNOWN分離のexact4計画は非作者レビュー指摘0でPO委任採用、実装を開始する。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1309,3 +1309,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：tenant球種readの未登録pure先行exact2計画 4dac68824e726d0eb3baaf1f584e56f9b504a242b3b316addfdcd0ad132f7d27 を非作者review 021f92ff63298b95d74f530d0c7e82dbf06efce7348f481e6bc9ff842ee935d6 指摘0に基づきwriter 5ceb8749でPO委任採用し、隔離候補実装へ着手。正式登録・global結果・実DB・保存接続は未完。物理値調査 023a2d732ec1dc4ad033ef7f2c9059fc0b608a4ff3e4d377b7a6e26efec3fba6 は座標出力口/正本gateを依存として確認し、球速nullが既仕様で有効であるため有値球速の実設定・変換を最初の初球の前提に追加しない。MVPの球速あり対応義務は維持する。
 
 2026-10-28：座標gate前の非製品準備 REPORT SHA 4ce2a112e35551f7e5f0f6c35136b8dc10345a286130f5422d27ec7c2b5fdca2 は期待値なし52純入力と既42の保持を検査した。新たなblind導出・正本確定・製品変換完成ではない。global結果readの初期案は非作者から、新SQL入口のallowlistとcontext強制点の対象不足を指摘された。既拒否を緩めず、正式資産と対向検査を含む最小案を再検討中。tenant球種候補は隔離作成・検査中で、固定後に非作者reviewする。E1 3Bは348dbe29で既保存済みであり、旧cacheを再適用しない。利用者の操作可能範囲はまだ増えていない。
+
+2026-10-28：G20計画 SHA 999e47896696642011be57fb35d30bce7b3f52ecff6c168f8e9e61d7173aec61 は非作者 bc93aa8e8f8fe1c42f847c94204b53d1c0feb9322ea53d8db0f62a12b99ba4f7 指摘0を根拠にE1 2cdcff54でPO委任採用。既採用5診断だけを確定拒否として処理し、commit故障/UNKNOWNの隔離を保持するsource2・既test2を実装する。owned PG準備 REPORT e21ad04a1fcac7f630afd06f927f8a2efa8070ca3c1840abdeeb4fe3ac239d43 は準備のみで実DB試験ではない。実装・非作者source review・実PG故障再起動検査は未完。
