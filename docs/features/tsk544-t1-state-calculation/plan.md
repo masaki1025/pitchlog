@@ -820,4 +820,6 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 
 2026-10-28、PO委任によるCodex主担当判断。記録後read登録R3a計画 `6ba2fa75a7cf8bfc0282d4f7247b4efb5e6fbac764b74a3c84e46e5c6d71dd19` を非作者review `dc5b4f5c60046d1455c97a6b89c5ea535bdae1f26bb0e8753cb13e2a4d660d7d` 指摘0に基づき採用。U06固定版とR1/R2を隔離組立しread3登録を検証、既CAP・tenant境界・LIMIT2を維持。正式資産はrootが直列反映し実値を受理する。物理41列照合・DTO/HTTP・実画面再読込は別途必要。
 
+2026-10-28、PO委任によるCodex主担当判断。U08/U10 B1計画 `25f60f88ba2f90de07ecebe96ead6970af5b98a43f2e0ec612ca4ee38fe3b268` を非作者review `202c0159dc851d4bab73698cf605b8de550dd2a34d04b14322a6bf754df97806` 指摘0に基づき限定採用。exact4で原eventと採番後eventの照合、同writer/source/phase/nonce束縛と真正frame一回消費を実装。B2未供給時のrollback維持。物理値変換・語彙read・実DB保存・HTTPは別途必要。
+
 2026-10-28、PO委任によるCodex主担当判断。U06登録時に既先行SQLのINSERT RETURNING全41列が正式capability validatorで拒否され、既executorの非SELECT結果がrowcountのみである不整合を実確認。既ガードを緩めず、同exact9内でRETURNINGを除去しINSERT結果((1,),)を厳密確認→同TXの既LIMIT2 readで全41列を回収する最小是正を採用。全列入力/bind/tenant/preflight/DB印を保持し、rowcount不一致・read欠損/複数は非成功、別TX読取にしない。「既SQL不変」の先行指定はこのRETURNING除去だけ読み替え、pure期待は実executor契約へ整合。新権限・新計算・拒否弱化はなく最終非作者source reviewで確認する。
