@@ -252,33 +252,45 @@ class ScopedCondition2Owner:
 
 @dataclass(frozen=True)
 class InitialStartCondition2Owner:
-    """開始接合の実sourceとscope付き出現を有限集合へ束縛する。"""
+    """開始接合の実sourceとscope付き出現を有限集合へ束縛する。
+
+    ``source_sha256`` は ``base-allowlist.json`` の宣言から読んだ値で、検査器の
+    ソースには持たない。走査時の照合は改行を正規化した本文に対して行う
+    (RG1・ledger所有と同じ)。raw byteの固定は試験側で行う。
+    """
 
     path: str
     source_sha256: str
     findings: frozenset[tuple[int, str, str]]
 
 
+@dataclass(frozen=True)
+class InitialStartCondition2Scope:
+    """開始接合の審査済みpathとscope付き出現を有限集合へ束縛する(source SHAを含まない)。"""
+
+    path: str
+    findings: frozenset[tuple[int, str, str]]
+
+
 # PO委任による限定受理2e8a816fのexact7path・51出現。宣言の自己申告で増やさない。
-INITIAL_START_CONDITION2_OWNERS = (
-    InitialStartCondition2Owner(
+# 実sourceのSHA-256は本定数に持たない(*.pyへ64桁を直書きしない — 凍結基準の走査規則・7.7-1)。
+# 値の正は base-allowlist.json の宣言で、その移動は凍結資産の履歴(受理記録)が統制する。
+INITIAL_START_CONDITION2_SCOPES = (
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/api/schemas/game_start.py',
-        '5459b62cc6f7de422e011fc4dbfa382639a3499a536d3eed198c4c9ead012ed1',
         frozenset({
             (189, 'str', 'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'),
         }),
     ),
-    InitialStartCondition2Owner(
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/authz/capability_catalog.py',
-        '613f45721c84d869e74586b57c4e4fc75504d7ff68c7a962ba1183b93e35a7f7',
         frozenset({
             (180, 'generation', 'pitchlog.authz.capability_catalog._initial_storage_profile'),
             (183, 'generation', 'pitchlog.authz.capability_catalog._initial_storage_profile'),
         }),
     ),
-    InitialStartCondition2Owner(
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/authz/product_function_acl.py',
-        '89f6678f4ede2fed9a5954758b08160084894671b61388e80e75b5d4be612478',
         frozenset({
             (157, (
                 'pitchlog.authz.product_function_acl.generate_generation_guard_sql'
@@ -289,9 +301,8 @@ INITIAL_START_CONDITION2_OWNERS = (
             (2585, 'generate_generation_guard_sql', 'pitchlog.authz.product_function_acl.<module>'),
         }),
     ),
-    InitialStartCondition2Owner(
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/db/recording_rights/models.py',
-        'ab260eb40fdcd71b07fbc456d7047eb44effbf317af3430cf7294312e79e74b7',
         frozenset({
             (66, 'sqlalchemy.orm.Mapped', (
                 'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>'
@@ -306,9 +317,8 @@ INITIAL_START_CONDITION2_OWNERS = (
             )),
         }),
     ),
-    InitialStartCondition2Owner(
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
-        '5cadb52a5c1a75684b70b4fbed962fe8b42d78cc056b0d3777f5a1113db9489f',
         frozenset({
             (35, 'DurableGenerationSource', (
                 'pitchlog.recording_rights.initial_grant_broker.<module>'
@@ -396,16 +406,14 @@ INITIAL_START_CONDITION2_OWNERS = (
             )),
         }),
     ),
-    InitialStartCondition2Owner(
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/repositories/game_start.py',
-        'ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613',
         frozenset({
             (23, 'pitchlog.sync.idempotency', 'pitchlog.repositories.game_start.<module>'),
         }),
     ),
-    InitialStartCondition2Owner(
+    InitialStartCondition2Scope(
         'backend/src/pitchlog/repositories/initial_recording_right.py',
-        '94adcfd3e4216eb5442aa69ea30d039832081244ae4ffe99a722480ced7d5a9c',
         frozenset({
             (47, '_positive_generation', 'pitchlog.repositories.initial_recording_right.<module>'),
             (158, 'int', (
@@ -1111,6 +1119,15 @@ def _load_inventory(
     )
 
 
+def _initial_start_scope_projection(
+    owners: tuple[InitialStartCondition2Owner, ...],
+) -> tuple[InitialStartCondition2Scope, ...]:
+    """所有登録からsource SHAを除いた審査済みpath/出現の射影を返す。"""
+    return tuple(
+        InitialStartCondition2Scope(owner.path, owner.findings) for owner in owners
+    )
+
+
 def _load_initial_start_condition2_owners(
     value: object,
 ) -> tuple[InitialStartCondition2Owner, ...]:
@@ -1139,7 +1156,7 @@ def _load_initial_start_condition2_owners(
             findings.add(identity)
         owners.append(InitialStartCondition2Owner(path, digest, frozenset(findings)))
     result = tuple(sorted(owners, key=lambda owner: owner.path))
-    if result != INITIAL_START_CONDITION2_OWNERS:
+    if _initial_start_scope_projection(result) != INITIAL_START_CONDITION2_SCOPES:
         raise ContractError("開始条件2登録は審査済み7path/51出現のexact-setが必要")
     return result
 
@@ -6252,9 +6269,12 @@ def scan_source(
     # 合成Contractも固定集合と実sourceの完全一致以外は免除しない。
     initial_owners = contract.initial_start_condition2_owners
     valid_initial_owners = (
-        initial_owners == INITIAL_START_CONDITION2_OWNERS
+        all(type(owner) is InitialStartCondition2Owner for owner in initial_owners)
+        and _initial_start_scope_projection(initial_owners)
+        == INITIAL_START_CONDITION2_SCOPES
         and all(
-            type(owner) is InitialStartCondition2Owner
+            type(owner.source_sha256) is str
+            and re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
             and type(owner.findings) is frozenset
             and all(
                 type(line) is int and type(symbol) is str and type(scope) is str

@@ -8680,14 +8680,16 @@ def test_fixed_function_binary_bind_rejects_altered_body(replacement: str) -> No
     }
 
 
-# PO委任による限定受理2e8a816fの7path/51組を、製品scannerと独立した固定値で比較する。
+# PO委任による限定受理2e8a816fの7path/51組(path/行/記号/scope)を、
+# 製品scannerと独立した固定値で比較する。
+# 実sourceのSHA-256は本定数に持たない(*.pyへ64桁を直書きしない — 凍結基準の走査規則・7.7-1)。
+# 宣言のSHAは実source byteと突き合わせる
+# (test_initial_start_condition2_digests_pin_actual_source)。
 _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas/game_start.py',
-  'source_sha256': '5459b62cc6f7de422e011fc4dbfa382639a3499a536d3eed198c4c9ead012ed1',
   'findings': [{'line': 189,
                 'symbol': 'str',
                 'scope': 'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'}]},
  {'path': 'backend/src/pitchlog/authz/capability_catalog.py',
-  'source_sha256': '613f45721c84d869e74586b57c4e4fc75504d7ff68c7a962ba1183b93e35a7f7',
   'findings': [{'line': 180,
                 'symbol': 'generation',
                 'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile'},
@@ -8695,7 +8697,6 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'symbol': 'generation',
                 'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile'}]},
  {'path': 'backend/src/pitchlog/authz/product_function_acl.py',
-  'source_sha256': '89f6678f4ede2fed9a5954758b08160084894671b61388e80e75b5d4be612478',
   'findings': [{'line': 157,
                 'symbol': 'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
                 'scope': 'pitchlog.authz.product_function_acl.generate_product_function_acl_sql'},
@@ -8703,7 +8704,6 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'symbol': 'generate_generation_guard_sql',
                 'scope': 'pitchlog.authz.product_function_acl.<module>'}]},
  {'path': 'backend/src/pitchlog/db/recording_rights/models.py',
-  'source_sha256': 'ab260eb40fdcd71b07fbc456d7047eb44effbf317af3430cf7294312e79e74b7',
   'findings': [{'line': 66,
                 'symbol': 'sqlalchemy.orm.Mapped',
                 'scope': 'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>'},
@@ -8717,7 +8717,6 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'symbol': 'sqlalchemy.orm.Mapped',
                 'scope': 'pitchlog.db.recording_rights.models.RecordingRightDelivery.<module>'}]},
  {'path': 'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
-  'source_sha256': '5cadb52a5c1a75684b70b4fbed962fe8b42d78cc056b0d3777f5a1113db9489f',
   'findings': [{'line': 35,
                 'symbol': 'DurableGenerationSource',
                 'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
@@ -8815,12 +8814,10 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 ),
                 'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'}]},
  {'path': 'backend/src/pitchlog/repositories/game_start.py',
-  'source_sha256': 'ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613',
   'findings': [{'line': 23,
                 'symbol': 'pitchlog.sync.idempotency',
                 'scope': 'pitchlog.repositories.game_start.<module>'}]},
  {'path': 'backend/src/pitchlog/repositories/initial_recording_right.py',
-  'source_sha256': '94adcfd3e4216eb5442aa69ea30d039832081244ae4ffe99a722480ced7d5a9c',
   'findings': [{'line': 47,
                 'symbol': '_positive_generation',
                 'scope': 'pitchlog.repositories.initial_recording_right.<module>'},
@@ -8934,10 +8931,26 @@ def initial_start_condition2_snapshot() -> tuple[dict[str, str], Any]:
     return sources, checker._build_reexport_map(sources)
 
 
-def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
-    """開始7path/51組だけを追加し、既所有と受理履歴を置換しない。"""
+def _initial_start_declared_digests() -> dict[str, str]:
+    """base-allowlist.json の宣言から開始7pathのsource SHA-256を読む。"""
     value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
-    assert value["condition_2_initial_start_scoped_findings"] == _INITIAL_START_CONDITION2_REVIEWED
+    return {
+        row["path"]: row["source_sha256"]
+        for row in value["condition_2_initial_start_scoped_findings"]
+    }
+
+
+def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
+    """開始7path/51組だけを追加し、既所有と受理履歴を置換しない。
+
+    宣言のsource SHAは本testでは比較しない(*.pyに64桁を持たない)。実source byteとの
+    一致は test_initial_start_condition2_digests_pin_actual_source が固定する。
+    """
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    assert [
+        {key: item for key, item in row.items() if key != "source_sha256"}
+        for row in value["condition_2_initial_start_scoped_findings"]
+    ] == _INITIAL_START_CONDITION2_REVIEWED
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert len(contract.initial_start_condition2_owners) == 7
     assert sum(len(row.findings) for row in contract.initial_start_condition2_owners) == 51
@@ -8948,9 +8961,43 @@ def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
     assert value["condition_2_scoped_findings"] == _accepted_initial_condition2(REPOSITORY_ROOT)
 
 
+def test_initial_start_condition2_digests_pin_actual_source() -> None:
+    """宣言の7digestは作業ツリーの実source byteのSHA-256と一致する。
+
+    source byteの固定は、宣言(凍結資産の履歴が移動を統制する)と実fileの照合で行う。
+    sourceだけ、または宣言だけを動かすと本testが赤になる。
+    """
+    declared = _initial_start_declared_digests()
+    assert sorted(declared) == [row["path"] for row in _INITIAL_START_CONDITION2_REVIEWED]
+    for path, digest in declared.items():
+        assert re.fullmatch(r"[0-9a-f]{64}", digest) is not None, path
+        actual = hashlib.sha256((REPOSITORY_ROOT / path).read_bytes()).hexdigest()
+        assert actual == digest, path
+
+
+def test_initial_start_condition2_wrong_digest_drops_exemption(
+    initial_start_condition2_snapshot: tuple[dict[str, str], Any],
+) -> None:
+    """宣言のdigestだけを書き換えても免除は残らない(書式が正しい別値は読込を通る)。"""
+    sources, reexports = initial_start_condition2_snapshot
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    groups = value["condition_2_initial_start_scoped_findings"]
+    groups[0]["source_sha256"] = "0" * 64
+    owners = checker._load_initial_start_condition2_owners(groups)
+    assert owners[0].source_sha256 == "0" * 64
+    path = groups[0]["path"].removeprefix("backend/src/")
+    allowed = {(r["line"], r["symbol"], r["scope"]) for r in groups[0]["findings"]}
+    found = checker.scan_source(
+        sources[path], path=path,
+        contract=replace(contract, initial_start_condition2_owners=owners),
+        reexport_map=reexports)
+    assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
+
+
 @pytest.mark.parametrize("mutation", (
     "missing-field", "missing-path", "extra-path", "duplicate-path", "path",
-    "digest-format", "digest-value", "empty-findings", "duplicate-finding",
+    "digest-format", "empty-findings", "duplicate-finding",
     "missing-finding", "extra-finding", "zero-line", "bool-line", "line",
     "symbol", "scope", "scope-prefix", "missing-scope", "extra-key",
 ))
@@ -8975,8 +9022,6 @@ def test_initial_start_condition2_rejects_nonexact_declaration(mutation: str) ->
         entry["path"] = "backend/src/pitchlog/api/schemas/other.py"
     elif mutation == "digest-format":
         entry["source_sha256"] = "bad"
-    elif mutation == "digest-value":
-        entry["source_sha256"] = "0" * 64
     elif mutation == "empty-findings":
         entry["findings"] = []
     elif mutation == "duplicate-finding":
@@ -9016,7 +9061,8 @@ def test_initial_start_condition2_filters_exact_source_scope_only(
     sources, reexports = initial_start_condition2_snapshot
     path = profile["path"].removeprefix("backend/src/")
     source = sources[path]
-    assert hashlib.sha256(source.encode()).hexdigest() == profile["source_sha256"]
+    assert (hashlib.sha256(source.encode()).hexdigest()
+            == _initial_start_declared_digests()[profile["path"]])
     raw = checker.scan_source(source, path=path,
         contract=replace(contract, initial_start_condition2_owners=()), reexport_map=reexports)
     actual = checker.scan_source(source, path=path, contract=contract, reexport_map=reexports)
@@ -9040,17 +9086,23 @@ def test_initial_start_condition2_filters_exact_source_scope_only(
         assert any(r.code == "TB002" for r in found)
         if copied_path == path:
             assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
-    first = contract.initial_start_condition2_owners[0]
+    target = next(
+        owner for owner in contract.initial_start_condition2_owners
+        if owner.path == profile["path"]
+    )
     for broken in (
-        replace(first, source_sha256="0" * 64),
-        replace(first, findings=frozenset(
-            (line + 1, symbol, scope) for line, symbol, scope in first.findings
+        replace(target, source_sha256="0" * 64),
+        replace(target, findings=frozenset(
+            (line + 1, symbol, scope) for line, symbol, scope in target.findings
         )),
-        replace(first, findings=frozenset(
-            (line, symbol, scope + ".extra") for line, symbol, scope in first.findings
+        replace(target, findings=frozenset(
+            (line, symbol, scope + ".extra") for line, symbol, scope in target.findings
         )),
     ):
-        owners = (broken, *contract.initial_start_condition2_owners[1:])
+        owners = tuple(
+            broken if owner.path == target.path else owner
+            for owner in contract.initial_start_condition2_owners
+        )
         found = checker.scan_source(source, path=path,
             contract=replace(contract, initial_start_condition2_owners=owners),
             reexport_map=reexports)
