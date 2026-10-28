@@ -11,6 +11,7 @@ from uuid import UUID
 
 from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.sync.intent_ids import derive_sync_intent_id
+from pitchlog.sync.model import SyncEvent
 
 # 保護された初期記録権の証拠列を含めない同期読取の固定順序。
 RECORDING_GENERATION_READ_COLUMNS = (
@@ -376,3 +377,25 @@ class PortCheckCurrentRightToken(_SyncToken):
     recovery_generation: int
     proof_digest: bytes = field(repr=False)
     _capability_id = "CAP:sync_first_ball:check_current_right"
+
+
+@dataclass(frozen=True, slots=True)
+class PortValidateFirstBallToken(_SyncToken):
+    """同原eventの内容照合だけを要求する値命令。source/nonce/成功は受けない。"""
+
+    game_id: UUID
+    d5: UUID
+    event: SyncEvent = field(repr=False)
+    writer: object = field(repr=False)
+    _capability_id = "CAP:operation_events:read"
+
+    def __post_init__(self) -> None:
+        """正規化や同型DTOへの変換をせず、元参照を保持する。"""
+        if (
+            type(self.game_id) is not UUID
+            or type(self.d5) is not UUID
+            or type(self.event) is not SyncEvent
+            or str(self.game_id) != self.event.game_id
+            or str(self.d5) != self.event.d5
+        ):
+            raise ValueError("初球内容命令の入力が不一致です")

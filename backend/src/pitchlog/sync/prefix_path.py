@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID, uuid4
@@ -684,6 +684,7 @@ def _apply_locked_in_scope(
     own_writer = writer is None
     if writer is None:
         writer = _issue_port_writer(scope.run)
+    first_ball_stack = ExitStack()
     try:
         from pitchlog.repositories.transaction import _port_predecision_phase
 
@@ -741,6 +742,14 @@ def _apply_locked_in_scope(
             raise
         if original_d5 is not None:
             _require_rejected_original(scope, event, original_d5)
+        from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+
+        if type(validator) is FirstBallContentValidationPort:
+            from pitchlog.sync.first_ball_execution import _bind_first_ball_execution
+
+            first_ball_stack.enter_context(
+                _bind_first_ball_execution(scope, writer, event, source)
+            )
         with (
             nullcontext()
             if source is _LEGACY_LOCKED_SOURCE
@@ -842,6 +851,12 @@ def _apply_locked_in_scope(
                 raise RuntimeError("D3 の前進に失敗")
             reach("after_t3_prefix")
         projection.apply(projected_event, writer)
+        if type(validator) is FirstBallContentValidationPort:
+            from pitchlog.sync.first_ball_execution import (
+                _require_first_ball_projection_completed,
+            )
+
+            _require_first_ball_projection_completed(scope, projected_event)
         reach("after_t4_projection")
         if registration is not None:
             reach("before_t6_mapping")
@@ -859,8 +874,11 @@ def _apply_locked_in_scope(
             reach("after_d1_intents")
         return P1Result(None, new_d3, True, False, tuple(new_mapping.items()))
     finally:
-        if own_writer:
-            writer._close()
+        try:
+            first_ball_stack.close()
+        finally:
+            if own_writer:
+                writer._close()
 
 
 def _apply_event(

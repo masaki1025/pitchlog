@@ -1147,6 +1147,7 @@ def _is_port_command(operation):
         PortCheckCurrentRightToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
+        PortValidateFirstBallToken,
     )
 
     return isinstance(
@@ -1156,6 +1157,7 @@ def _is_port_command(operation):
             PortCheckCurrentRightToken,
             PortRG1PrecheckToken,
             PortRG1CommitCheckToken,
+            PortValidateFirstBallToken,
         ),
     )
 
@@ -1174,12 +1176,17 @@ def _execute_port_command(handle, operation):
         PortCheckCurrentRightToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
+        PortValidateFirstBallToken,
     )
 
     phase = _port_phase(handle)
     if phase is None:
         raise TenantBindingError("Port値命令は実判定phaseを必要とする")
     phase.bound.assert_current()
+    if type(operation) is PortValidateFirstBallToken and phase.kind == "content":
+        from pitchlog.sync.first_ball_execution import _validate_first_ball_command
+
+        return _validate_first_ball_command(handle, operation)
     lease = phase.bound._lease
     if type(operation) is PortRG1PrecheckToken and phase.kind == "rg1-precheck":
         token = RG1PrecheckToken()

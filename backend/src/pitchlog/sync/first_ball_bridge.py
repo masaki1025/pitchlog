@@ -18,6 +18,8 @@ from pitchlog.domainrt.first_pitch import FirstPitchRequest
 from pitchlog.domainrt.first_pitch_continuation import (
     CombinedRequest,
     CombinedSuccess,
+    FirstPitchFailure,
+    T2NotEvaluatedResponse,
     _check_frozen_members,
     decode_combined_response,
 )
@@ -44,6 +46,10 @@ from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ports import PortWriter
 
 _LEGACY_BRIDGE_SOURCE = object()
+
+
+class FirstBallContentRejected(FirstBallFrameError):
+    """正式decode済みの数学非成功だけを既内容拒否へ運ぶ。"""
 
 
 @dataclass(slots=True, repr=False)
@@ -264,7 +270,17 @@ def evaluate_first_ball_frame(
             if type(host._source) is not str or host._source != source:
                 raise FirstBallFrameError
         _live(state, writer, event)
-        if state.phase != "evaluating" or type(response) is not CombinedSuccess:
+        if state.phase != "evaluating":
+            raise FirstBallFrameError
+        if (
+            type(response) is FirstPitchFailure
+            and response.error.code == "UNSUPPORTED_T1_SCOPE"
+        ) or (
+            type(response) is T2NotEvaluatedResponse
+            and response.value.t2.reason == "input-not-in-closed-unit"
+        ):
+            raise FirstBallContentRejected
+        if type(response) is not CombinedSuccess:
             raise FirstBallFrameError
         _check_frozen_members(response)
         response = CombinedSuccess.model_validate(response)
@@ -283,6 +299,10 @@ def evaluate_first_ball_frame(
         frame = object.__new__(FirstBallFrame)
         state.value, state.frame, state.phase = value, frame, "ready"
         return frame
+    except FirstBallContentRejected:
+        if state is not None:
+            state.phase, state.frame, state.value = "closed", None, None
+        raise FirstBallContentRejected from None
     except Exception:
         if state is None and type(bridge) is FirstBallBridge:
             state = _STATES.get(bridge)
@@ -312,6 +332,33 @@ def consume_first_ball_frame(
         value = replace(state.value)
         state.phase, state.frame, state.value = "consumed", None, None
         return value
+    except Exception:
+        if state is None and type(bridge) is FirstBallBridge:
+            state = _STATES.get(bridge)
+        if state is not None:
+            state.phase, state.frame, state.value = "closed", None, None
+        raise FirstBallFrameError from None
+
+
+def _read_ready_first_ball_frame(
+    bridge: FirstBallBridge,
+    frame: FirstBallFrame,
+    *,
+    writer: PortWriter,
+    event: SyncEvent,
+) -> FirstBallFrameValue:
+    """privileged核だけがready値を複製する。consume/保存資格へは変えない。"""
+    state = None
+    try:
+        state = _state(bridge, writer, event)
+        if (
+            state.phase != "ready"
+            or type(frame) is not FirstBallFrame
+            or frame is not state.frame
+            or type(state.value) is not FirstBallFrameValue
+        ):
+            raise FirstBallFrameError
+        return replace(state.value)
     except Exception:
         if state is None and type(bridge) is FirstBallBridge:
             state = _STATES.get(bridge)

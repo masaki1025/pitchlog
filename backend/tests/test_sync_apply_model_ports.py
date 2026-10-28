@@ -309,7 +309,14 @@ def _register(monkeypatch: pytest.MonkeyPatch, port_type: type[object]) -> None:
 
 def test_unregistered_port_is_rejected_before_call() -> None:
     """未登録のポートは実装呼び出し前に失敗する。"""
-    assert ports.PORT_IMPLEMENTATIONS == frozenset()
+    assert ports.PORT_IMPLEMENTATIONS == frozenset(
+        {
+            ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        }
+    )
+    from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+
+    ports.require_registered_port(FirstBallContentValidationPort())
     port = SafeProjection()
     with pytest.raises(ports.PortRegistrationError, match="未登録"):
         ports.require_registered_port(port)
