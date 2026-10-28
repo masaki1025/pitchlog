@@ -562,6 +562,7 @@ def _apply_e1_f1(
     context,
     request,
     *,
+    entry_token,
     phase,
     cookie,
     reference_device,
@@ -586,11 +587,11 @@ def _apply_e1_f1(
     from pitchlog.sync.source_binding import (
         SourceBindingError,
         _E1CoreSource,
-        _receipt,
+        _receipt_for_entry,
         e1_event_source,
     )
 
-    state = _receipt(receipt)
+    state = _receipt_for_entry(receipt, entry_token)
     if (
         state.context is not context
         or state.request is not request

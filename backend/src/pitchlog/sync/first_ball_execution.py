@@ -503,7 +503,6 @@ def _apply_first_ball_projection(handle, operation):
 
     from pitchlog.db.sync_protocol.models import OperationEvent
     from pitchlog.repositories.tokens import TenantOperationResult
-    from pitchlog.sync.first_ball_course import course_unit_to_double
     from pitchlog.sync.first_ball_tokens import FirstBallPlayRowInsertToken
     from pitchlog.sync.tokens import OperationEventReadToken
 
@@ -537,8 +536,8 @@ def _apply_first_ball_projection(handle, operation):
         pitcher_id=participants.pitcher_id,
         catcher_id=participants.catcher_id,
         pitch_type_key=observations.pitch_type_key,
-        course_x=course_unit_to_double(observations.course.x),
-        course_y=course_unit_to_double(observations.course.y),
+        course_x=_physical_course(observations.course.x),
+        course_y=_physical_course(observations.course.y),
         pitch_speed=None if speed is None else float(speed),
         stance=observations.stance,
         batting_side=observations.batting_side,
@@ -552,3 +551,12 @@ def _apply_first_ball_projection(handle, operation):
         raise FirstBallExecutionError
     state.phase = "projected"
     return TenantOperationResult(((True,),))
+
+
+def _physical_course(value: object) -> float:
+    """正準座標の物理Doubleを単一artifact供給だけから受け取る。
+
+    現在のartifactには k -> Double の単一operationが無い。Pythonで式を
+    重複実装しないため、供給が接続されるまで投影は閉拒否する。
+    """
+    raise FirstBallExecutionError

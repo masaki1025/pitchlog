@@ -85,6 +85,8 @@ class _ReceiptState:
     active: bool
     # U11の同HTTP/request issuerが発行するまで未発行。Noneから成功推定しない。
     device_presentation: object = None
+    # 発行したHTTP要求の寿命だけを保持する不透明token。別要求へ渡せない。
+    entry_token: object = None
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -512,7 +514,9 @@ class _E1CoreSource:
 
 
 @contextmanager
-def _e1_receipt_scope(*, context, request, source, device_presentation=None):
+def _e1_receipt_scope(
+    *, context, request, source, entry_token, device_presentation=None
+):
     """同HTTP/requestの実認証済みcontextとwire原値だけから受付参照を発行する。
 
     origin は caller 引数ではなく、実 TenantContext と同一 request の原 wire
@@ -527,6 +531,7 @@ def _e1_receipt_scope(*, context, request, source, device_presentation=None):
             or type(source) is not WireSourceValue
             or source.game_id != request.game_id
             or source.d4 != request.d4
+            or entry_token is None
         ):
             raise ValueError(_ERROR)
         state = _ReceiptState(
@@ -537,6 +542,7 @@ def _e1_receipt_scope(*, context, request, source, device_presentation=None):
             source,
             True,
             device_presentation,
+            entry_token,
         )
         owner = object.__new__(E1Receipt)
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
@@ -550,3 +556,14 @@ def _e1_receipt_scope(*, context, request, source, device_presentation=None):
             if selected.owner is owner:
                 del _SELECTIONS[key]
         _RECEIPTS.pop(owner, None)
+
+
+def _receipt_for_entry(owner, entry_token):
+    """同HTTP要求の不透明tokenと一致する受付だけを返す。
+
+    別要求への流用、寿命終了後の再利用、token省略を同じ閉拒否にする。
+    """
+    state = _receipt(owner)
+    if entry_token is None or state.entry_token is not entry_token:
+        raise ValueError(_ERROR)
+    return state
