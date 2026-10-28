@@ -1373,3 +1373,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：U11反映2非作者review SHA35866864a6d0a8e3b6cdde1473c90e37855d78796d896a378193c1dabba2ea24 はcancelのP1=1、他の後発具体化は整合。worker終了前に資格を失効させない所有移管/反復cancel/shutdown対向の修正候補を準備する。これはsource未実装の計画指摘。U09はfresh processで正規Port moduleが未読込のまま既guardが閉拒否する問題を発見し、未知module拒否を維持した固定bootstrapと旧・新の単独起動試験を検討中。
 
 2026-10-28：U09 fresh process拒否は実開始後stage2でも確認。E1 bea25e56でport_guard.py exact1をPO委任追補し、既ports読込後に採用済Contentと新Rightsだけ明示importする。未知登録/削除済moduleの既拒否・import閉包を保持し、fresh process対向と非作者reviewを必須にする。U11 cancel修正はworkerへの所有移管案を検討し、shutdownで待機する対象・上限・強制終了時の結果不明を具体化後にreviewする。どちらも実装/受入完了とは扱わない。
+
+2026-10-28：正式履歴の起点をGitHub #184 merged commit 3a24f89e15987ecef3dc45a1173ab99b5f79d16e と実product枝の祖先関係で確認。以降に開始・writer・unit A+B/C・U06・R3a等が各資産を候補更新しており、履歴末尾28/22と現32/26の差を正式受理済みと見なさない。完全前後値・各source採用根拠を照合し、正式PRの単一受理記録とsnapshotを直列に整合する。初球の隔離接続はこれと並行する。
