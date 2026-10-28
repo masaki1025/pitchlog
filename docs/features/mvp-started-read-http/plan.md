@@ -410,7 +410,7 @@ current_d4: str | None                  # U13 の 200 応答では常に str。n
 | H3 | preparing との相互排他 | 開始前: `/games/{id}` が 200、`/started` が 404。開始後: `/games/{id}` が 404、`/started` が 200。既存の :758-775 は変更せずに合格する |
 | H4 | 記録権情報の非開示 | 200 本文の key 集合が DTO 定義と完全一致する。本文の bytes に次が含まれない: holder_device の UUID 文字列、device_id、device_credential の原値、recording_right_proof、recovery_generation の値、`watermark`・`prefix` の key。H2 の 404 本文に d4 が含まれない |
 | H5 | 記録ありの扱い | admin が event_slot を 1 件入れた後に GET すると、409 と固定の本文が返る。値は含まない |
-| H6 | 破損時の扱い | 次の各ケースで 503 と固定の本文。本文と log に SQL の語・DB の値が出ない。(a) lineup を 1 件欠かした (b) 世代が revoked (c) **世代が retired(retired_at が非 NULL)** (d) **現在の世代が recovery 種別(7.3 節 R2 の宣言どおり 503)** (e) 世代が 0 行。**書込みが無いこと**を、ケースの前後で games・世代・event_slot・event・PlayRow の行 digest(admin 接続)が一致することで確かめる。Corrupt は `with` の中の例外として抜け、`except Exception` で 503 に写る(4.1・4.2 節)。「rollback した」とは書かず、観測するのは書込み 0 と 503 だけとする |
+| H6 | 破損時の扱い | 次の各ケースで 503 と固定の本文。本文と log に SQL の語・DB の値が出ない。(a) lineup を 1 件欠かした (b) 世代が revoked (c) **世代が retired(retired_at が非 NULL)** (d) **現在の世代が非normalのmigration種別(7.3 節 R2 の宣言どおり 503)** (e) 世代が 0 行。**書込みが無いこと**を、ケースの前後で games・世代・event_slot・event・PlayRow の行 digest(admin 接続)が一致することで確かめる。Corrupt は `with` の中の例外として抜け、`except Exception` で 503 に写る(4.1・4.2 節)。「rollback した」とは書かず、観測するのは書込み 0 と 503 だけとする |
 | H7 | 認証と C2 の順序 | 未認証は 401。Expected-Tenant が別 tenant、または Challenge が不正なら 404。どちらの場合も games への SQL は 0 件 |
 | H8 | app ロールでの lock 読取 | H1 の成功そのものが、app ロールで FOR UPDATE の lock 読取が通ることの実証になる。42501 が出た場合は、DB grant の不足として root に戻し、U13 では grant を作らない |
 
@@ -444,8 +444,8 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
   - **この route は、同 tenant の認証済み利用者なら誰でも呼べる**(端末限定ではない)。呼出しが続くと、同じ試合の sync writer・start worker を待たせる([事実] route は C2 を通った同 tenant の利用者に開いている。待たせる範囲は作者は実行していない)。
   - 0 球の 1 試合 1 端末なら許容できる見込み。ただし、閲覧者のポーリングへ流用する前に、ロックしない方式を再判断する(A-2 の見直し条件。REQ:448,853,874)。
   - **対処(反映1)**: ① H1 で GET 1 回のロック保持を含む所要時間を計測して記録する(7.1 節)。② **U18 への申し送り**: 「開始直後の 1 回読取だけを行う。ポーリング・定期再取得・複数タブからの連打に使わない」。この route を閲覧者向けの更新に流用する場合は、MVP-D の条件付き票(DECISIONS.md の D1: ロック読取を閲覧者のポーリングへ流用する場合)を起票する。③ API プロセスに製品の Node と artifact が要るので、配備の前提に加える。
-- **R2 recovery 世代**
-  - 現在の世代が recovery 種別のとき、N2 は拒否するので、U13 では 503 になる。
+- **R2 非normal世代**
+  - 現在の世代が非normalのmigration種別のとき、N2 は拒否するので、U13 では 503 になる。
   - 緊急の引継ぎは MVP 外(LEAD progress.md:112)なので、範囲外として記録する。
 - **R3 409 の意味**
   - U14 が入るまでは、1 球目を保存した試合を再取得できない。
@@ -481,7 +481,7 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
 3. d4 符号化の置き場所を `sync/d4_reference.py` にするか。TB002 の owner path に入り、既存の glob で捕捉される。代替案は recording_rights 配下だが、glob の外になるため core 登録が必要になる。
 4. game-state と recording-rights への重複登録を見送る判断(6 節)。
 5. U14 で `"recorded"` を足すまでの間、frontend の U18 が 409 をどう表示するか。U18 の受入条件へ申し送る。あわせて、R1 の申し送り(開始直後の 1 回読取のみ。ポーリング禁止)を U18 の受入条件へ入れる。
-6. **A-3 の「世代が無ければ null を返し、画面は unknown にする」を、U13 では採らず 503 とする**(反映1。レビュー P2-2)。理由: N2 が世代を必須とし、世代が 0 行・不一致・recovery・revoked・retired のとき `StartedSnapshotUnavailable` で拒否する(1 節)。N2 を改変しない(A-2)ので、200 で null を返す経路が作れない。DTO の `current_d4` は型として `str | None` を残すが、U13 の 200 応答では常に `str` で、null は返さない。null 返却の経路(世代が無い開始済み試合を unknown で表示する)は、U14/O1 で N2 の扱いと合わせて再判断する。A-3 からの逸脱なので、主担当の確定点に挙げる。
+6. **A-3 の「世代が無ければ null を返し、画面は unknown にする」を、U13 では採らず 503 とする**(反映1。レビュー P2-2)。理由: N2 が世代を必須とし、世代が 0 行・不一致・非normal（migration）・revoked・retired のとき `StartedSnapshotUnavailable` で拒否する(1 節)。N2 を改変しない(A-2)ので、200 で null を返す経路が作れない。DTO の `current_d4` は型として `str | None` を残すが、U13 の 200 応答では常に `str` で、null は返さない。null 返却の経路(世代が無い開始済み試合を unknown で表示する)は、U14/O1 で N2 の扱いと合わせて再判断する。A-3 からの逸脱なので、主担当の確定点に挙げる。
 7. 反映1で変わった確定点: ① 7.7 は WB 単独では不要、#188 合流版では root が 1 回だけ行う(6 節) ② 組立器①〜③が N2 の判定を二重化することの容認(4.1 節)。(反映1の「期待集合を 14 件にする」は反映2で改め、下の 8 以降に置き換えた。)
 8. **#188 の対象版**(反映2。レビュー P2-B): 合流版の 7.7 で受理する #188 が、GitHub の PR head 72f4118a、ローカル候補 f0a8ce4e、組立が取り込んだ 1f8052fb のどれかを、root に確認する。f0a8ce4e は未 push。
 9. **TB002 の予防**(反映2): 基線のゲートが止まるので、`snapshot.generation` の属性参照が通るかは測れない。退避先(`.generation` を読む箇所を `sync/d4_reference.py` 側へ寄せる。3.1 節)を最初から採るか、基線修復後に実測してから決めるか。
@@ -500,3 +500,5 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
 2026-10-28、PO委任によるCodex主担当判断。U13候補は非作者review0a1b4355b629673ae570506099cb86aa10d7e9f1cd652a654159defc372503b4 追加指摘0・独立backend128/authz35成功を根拠にstep1〜3/step4作者段を限定採用。別branch feature/mvp-started-read-httpをef921539起点で維持し、1step1commit。step4 root JSON/lockを別commit、基線修復/製品DB/step5/6は未完として保持。provenance根拠行は不変。
 
 2026-10-28、step1〜4両段の実取込HEAD d4a9d7ecを非作者followup7a0cad94ff1dc79c59fcce6e3fbc8289aacdcf44ea68d0a9015290f2f2a18cb1 残0で確認。候補14path不変、plan限定metadata・既ABのchecker2関数・U13 AST17・root生成JSON/lock全byteを個別照合。独立backend128/authz37成功、root実WT31/81/16/authz37成功。step4を限定採用し保存するが、基線gate/製品DB/step5/6と記録後U14は未完。新たな利用者操作の実画面実証ではない。
+
+2026-10-28、PO委任によるCodex主担当判断。step5原典照合でRecordingGeneration.kindの実CHECKはnormal/migrationのみ、N2はkind!=normalを拒否しrecovery種別は存在しないと確認。H6(d)/R2/確定点6のrecovery表記を実在する非normal migrationの503対向へ技術的訂正。recovery_generationは別のepoch値で、新kindや拒否条件を追加せずN2/既CHECKを変更しない。原文のrecovery種別ケースは成立不能と記録し、migration対向をrecovery実証済みと読み替えない。
