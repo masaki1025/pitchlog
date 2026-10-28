@@ -832,4 +832,6 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 
 2026-10-28、PO委任によるCodex主担当判断。global readの既run union署名に対し、既正例にはtransaction.pyに加えてtransaction/__init__.pyにも同じ署名stubがあることを統制試験の実失敗で確認。tests/fixtures/tenant_boundary/positive/pitchlog/repositories/transaction/__init__.py exact1をscopeへ追加し、importとrun署名だけを整合させる。run_in_savepointの旧Tenant署名・BEGIN許可、検出器と拒否条件は保持。必要なfixture集合値を正式producerで再導出し、source独立reviewへ含める。
 
+2026-10-28、PO委任によるCodex主担当判断。global固定SQL builderのsqlalchemy.selectが正式scannerでTB005と実検出されたため、既base-allowlistに当該閉builder `_build_read() -> Select[Any]` のSQLA_SELECT exact1を登録し、新positive fixture `tests/fixtures/tenant_boundary/positive/pitchlog/repositories/global_ball_reference.py` exact1をscopeへ追加する。未知builder・DML・新execute入口は拒否を保持し、既検出器を緩めない。base-allowlistおよびfixture集合の正式値は実直前版から再導出し、独立review/正式受理前の候補を完了としない。
+
 2026-10-28、PO委任によるCodex主担当判断。U06登録時に既先行SQLのINSERT RETURNING全41列が正式capability validatorで拒否され、既executorの非SELECT結果がrowcountのみである不整合を実確認。既ガードを緩めず、同exact9内でRETURNINGを除去しINSERT結果((1,),)を厳密確認→同TXの既LIMIT2 readで全41列を回収する最小是正を採用。全列入力/bind/tenant/preflight/DB印を保持し、rowcount不一致・read欠損/複数は非成功、別TX読取にしない。「既SQL不変」の先行指定はこのRETURNING除去だけ読み替え、pure期待は実executor契約へ整合。新権限・新計算・拒否弱化はなく最終非作者source reviewで確認する。
