@@ -38,6 +38,9 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 3. **HTTP 入口が無い**: backend に `/games/{id}/sync/events` route が存在しない（frontend `api/client.syncEvents.ts` は送信実装済み）。U11 反映3の非作者reviewは **fix_required（P0=0/P1=2/P2=14）**: P1-1 単位IIのexactに `test_api_app.py` の route 23本固定が無く必ず赤、P1-2 owner/registry/origin/receipt/presentation の lock 取得順が未定義（route=loop と worker=thread のABBA/loop停止）。report SHA `4737e60e…e488`。
 4. **U09 Port は候補のみ**（source10、非作者review実行中）。実Portが無いと `apply_sync_request` は rights で停止。
 
+**U09 非作者review結果（fix_required）**: P0=0 / P1=1 / P2=8、REPORT SHA `113452bb…1d29`。P1は `test_sync_first_ball_registration.py:24` の `assert not PORT_IMPLEMENTATIONS` が本patchの登録追加で偽になる未追随（既存赤ではあるが受入根拠の「2017成功」も同一集合で再現できず 2005収集/1failed）。P2は epoch定数902・postmaster_started_at・assert_held後のbinding差替えが変異で生存。**P0相当の穴なし**（V12は核の既存proof_digestのみ、epochは実loanのみ、新SQL/GRANT 0、10path以外0）。
+**対応（隔離組立で実施）**: 垂直組立 `32b13d06` に source10 を適用し、登録テストを「監査済み閉集合の完全一致＋未登録型/常true object の拒否」へ強化（弱めずに exact 化）。対象205件成功。P2のfixture非定数化はE1採用前の是正として残す（P1修正のため再reviewが必要）。
+
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
 ## Codex主担当の再引受照合（2026-10-28）
