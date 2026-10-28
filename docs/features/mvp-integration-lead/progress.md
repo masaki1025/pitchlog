@@ -10,6 +10,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
+U13画面向け取得APIは `bdd1ec8f` でpush済。非作者レビュー `ffd1b59ae2459a77d73ecda11bd8c897610e46c729934d612050cace5d19c7db` は重大指摘なし、関連480件成功。利用者の新操作はまだ増えていない。画面接続、記録後read、初球保存と再読込の実証、正式統合は残る。
+
 直近の固定点：初球のDB権限・trigger接続は別branch `feature/mvp-first-ball-product-activation` の `da55e85e` をpush済。独立レビューと隔離実PGの正常・拒否検査を実施したが、正式7.7と全件CIは未完。E-1の単一取引束縛は別branch `feature/mvp-e1-core-binding` の `348dbe29` をpush済、非作者レビュー後の関連117件が成功。実Port・HTTP接続は残る。U13は `f2c45ad4` までpushし、隔離PGで実Cookie・開始・開始済みGETを確認したが、記録後の再取得は未接続。初球保存用U06とU13画面向けAPIは候補検査中。利用者が実画面から1球保存・再読込できる状態はまだ実証していない。次は候補の独立レビュー、正式値の照合、実Port・同期HTTP・記録後readの接続を進める。
 
 1. unit A+B：非作者2観点/ownedPG27/集中489を確認、docs b7baf20f→結合d189a40e→記録ef921539でwriterへ取込・push済。後発review7663e128…残0。正式7.7/unitC/実Port/全件/実画面は未完。
