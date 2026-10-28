@@ -10,7 +10,9 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。初球保存B1はwriter計画 `8aaac330` で採用、隔離実装中。利用者の新操作はまだ実証されていない。
+最新固定点：writer `5ceb8749`、E1 `d43ad6b5`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pure候補は非作者P1を是正し再レビュー中。global結果readは既tenant guardを保つ別有限検証の計画を修正中。G20確定拒否/UNKNOWN分離の最小計画は非作者確認中。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+
+記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
 U08/U10単位AはE1 branch `dc9f4e85` に取込・push。計画非作者のsource review `cb2bf90b7b2dfc4dc0795ebd6d061a505ccc410fde3db8dcf0e3d579596ad67f` P1をreflection1で是正、再review `7cbe4e4b2aaffcebfc76b2c2d6d9a0c895d10d1372f122d3412c85cdb0c157fe` 残0。計画作者の別source review `ba9ee383ce148bb532396ff0613cbc0e1ab7ddcf3f40ce5cfb13300332ade407` のUUID P2も是正。単位Aは実計算を同writerへ束縛し未供給投影を失敗させる範囲。単位B・実記録権・HTTP・正式7.7・画面保存は未完、利用者の新操作はまだ実証されていない。
 
