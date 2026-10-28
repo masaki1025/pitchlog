@@ -68,6 +68,16 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 
 **現在地**: 投影・受付発行・設定読取・束縛検査は実装済み。**初球P2の実保存は、単一TS座標operation（artifact再生成＋pin更新）とroute（device/attempt契約）が揃うまで到達しない**。迂回実装は行わない。
 
+### 2026-10-29：P2同期入口の実装と実DB側の開通
+
+- **座標の確定**: artifact DSL に除算が無く（`frontend/src/domain` 全体で `/` 演算0）、`k/263` は有限小数にならないため artifact 内で binary64 を作れないと実測。screen→k は artifact の責務のまま、k→保存用Double の符号化だけを `sync/first_ball_course.py` の1箇所に単一実装（重複実装0）とし、理由をコードへ明記（`97229d41`）。
+- **同期HTTP入口**: `POST /games/{game_id}/sync/events` を追加（`6ad941db`）。P2限定（P3は501）、実TenantContext/実Cookie/実`_apply_e1_f1`/実Port3種を使用。ACKは実`AckResult`のみから `{advancedD3, eventResults[{d4,d1,d5,a5Result}], playerIdMappings}` を生成。ヘッダ契約は `X-Pitchlog-Device-Id` / `X-Pitchlog-Device-Credential` / `X-Pitchlog-Attempt`。設定未投入は503で閉じる。
+- **再送の同一性**: `_phase_id(attempt, request_fingerprint)` で同一要求→同一phase、別attempt→別phase（`f0b6c356`、unit3件）。
+- **入口の外形**: P2/P3判定・外形不正の拒否をunit9件で固定（`ef4b5829`）。
+- **正式資産の開通**: `read_device_state` の正式行/body/manifest と runtime契約 26→27 を隔離枝で導出（`2006525d`）。`runtime_contract_generator check`=0、**runtime契約SHA `0b104b41…e64788` は先の独立再導出値と一致**。`tests/db/test_first_ball_product_activation.py` = **10 passed**（4分20秒、owned PG17.11）。
+- **物理制約**: binding broker は UID 20003/20005 の専用Unix socket前提。本シェルは UID 1000 のため、**実broker経由のHTTP縦断試験はこの環境では実行できない**（判断待ちではなく権限の制約）。実画面到達には broker/root 実行環境が必要。
+- **残**: merge受入時の7.7履歴記録（#184の28/22→32/26と27の単一記録）、実broker下のcreate→start→1球→GET、実画面Playwright、通信断/再送/結果不明/越境/途中故障、MVP全体（全操作・訂正・終了/再開・成績・CSV・負荷・復旧）。
+
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
 ## Codex主担当の再引受照合（2026-10-28）
