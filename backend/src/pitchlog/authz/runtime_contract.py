@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 25
+RUNTIME_CONTRACT_REVISION = 26
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "200e758918a54a77abcae5c4b9ae824675c0d7970c6b8575d5645ed1193a0728"
+SOURCE_DIGEST = "ddbb10c7e2ab766a5f9e727ca41c35d63df09bcfac1851ce9875496f9053a29f"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -212,6 +212,8 @@ PROTECTED_FUNCTIONS = (
         "check_current_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
     ),
+    ("sync_right_api", "guard_first_ball_projection_admission", ""),
+    ("sync_right_api", "guard_first_ball_projection_lock", ""),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (

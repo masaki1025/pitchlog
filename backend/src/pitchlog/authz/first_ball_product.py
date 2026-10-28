@@ -1370,156 +1370,6 @@ BODIES = {
         "CUTE FUNCTION sync_fence_api.guard"
         "_writer_records();\n"
     ),
-    (
-        "function|FUNCTION:sync_right_api:b"
-        "ind_device(uuid, uuid, uuid, bytea"
-        ", uuid, uuid, bytea)"
-    ): (
-        "-- ELEMENT-TYPE: function\n-- ELEME"
-        "NT-ID: FUNCTION:sync_right_api:bin"
-        "d_device(uuid, uuid, uuid, bytea, "
-        "uuid, uuid, bytea)\n\nCREATE FUNCTIO"
-        "N sync_right_api.bind_device(p_ten"
-        "ant_id uuid,p_attempt_id uuid,p_ph"
-        "ase_id uuid,p_binding_nonce bytea,"
-        "p_device_id uuid,p_game_id uuid,p_"
-        "credential_digest bytea)\nRETURNS T"
-        "ABLE (device_matches boolean) LANG"
-        "UAGE plpgsql VOLATILE SECURITY DEF"
-        "INER\nSET search_path = pg_catalog,"
-        "pg_temp AS $function$\nDECLARE stor"
-        "ed_digest bytea; revoked timestamp"
-        "tz;\nBEGIN\n\nIF session_user <> 'pit"
-        "chlog_app' OR current_user <> 'pit"
-        "chlog_sync_right_fn_owner'\n OR p_t"
-        "enant_id IS NULL OR p_tenant_id IS"
-        " DISTINCT FROM\n NULLIF(pg_catalog."
-        "current_setting('app.tenant_id',tr"
-        "ue),'')::uuid\n OR p_attempt_id IS "
-        "NULL OR p_phase_id IS NULL OR p_de"
-        "vice_id IS NULL\n OR p_game_id IS N"
-        "ULL OR p_binding_nonce IS NULL\n OR"
-        " pg_catalog.octet_length(p_binding"
-        "_nonce) <> 32 THEN\n RAISE EXCEPTIO"
-        "N 'sync writer binding rejected' U"
-        "SING ERRCODE='42501';\nEND IF;\n-- 実"
-        "関数未供給なら例外で閉じる。callerのnonceだけでは成功しな"
-        "い。\nPERFORM sync_fence_api.assert_w"
-        "riter_binding(p_tenant_id,p_attemp"
-        "t_id,\n p_phase_id,p_binding_nonce,"
-        "p_device_id,p_game_id);\n\nIF p_cred"
-        "ential_digest IS NULL OR\n pg_catal"
-        "og.octet_length(p_credential_diges"
-        "t) <> 32 THEN\n RAISE EXCEPTION 'sy"
-        "nc credential input rejected' USIN"
-        "G ERRCODE='42501';\nEND IF;\nSELECT "
-        "d.credential_digest,d.revoked_at I"
-        "NTO stored_digest,revoked\n FROM pu"
-        "blic.trusted_devices d\n WHERE d.te"
-        "nant_id=p_tenant_id AND d.device_i"
-        "d=p_device_id FOR SHARE;\nRETURN QU"
-        "ERY SELECT COALESCE(FOUND AND revo"
-        "ked IS NULL AND\n stored_digest=p_c"
-        "redential_digest,false);\nEND;\n$fun"
-        "ction$;\nALTER FUNCTION sync_right_"
-        "api.bind_device(uuid, uuid, uuid, "
-        "bytea, uuid, uuid, bytea) OWNER TO"
-        " pitchlog_sync_right_fn_owner;\nREV"
-        "OKE ALL ON FUNCTION sync_right_api"
-        ".bind_device(uuid, uuid, uuid, byt"
-        "ea, uuid, uuid, bytea) FROM PUBLIC"
-        ";\nGRANT EXECUTE ON FUNCTION sync_r"
-        "ight_api.bind_device(uuid, uuid, u"
-        "uid, bytea, uuid, uuid, bytea) TO "
-        "pitchlog_app;\n"
-    ),
-    (
-        "function|FUNCTION:sync_right_api:c"
-        "heck_current_right(uuid, uuid, uui"
-        "d, bytea, uuid, uuid, bigint, bigi"
-        "nt, bytea)"
-    ): (
-        "-- ELEMENT-TYPE: function\n-- ELEME"
-        "NT-ID: FUNCTION:sync_right_api:che"
-        "ck_current_right(uuid, uuid, uuid,"
-        " bytea, uuid, uuid, bigint, bigint"
-        ", bytea)\n\nCREATE FUNCTION sync_rig"
-        "ht_api.check_current_right(p_tenan"
-        "t_id uuid,p_attempt_id uuid,p_phas"
-        "e_id uuid,p_binding_nonce bytea,p_"
-        "device_id uuid,p_game_id uuid,p_in"
-        "ternal_generation bigint,p_recover"
-        "y_generation bigint,p_proof_digest"
-        " bytea)\nRETURNS TABLE (recovery_ma"
-        "tches boolean,right_matches boolea"
-        "n) LANGUAGE plpgsql VOLATILE SECUR"
-        "ITY DEFINER\nSET search_path = pg_c"
-        "atalog,pg_temp AS $function$\nDECLA"
-        "RE current_epoch bigint; gate_stat"
-        "e text;\nBEGIN\n\nIF session_user <> "
-        "'pitchlog_app' OR current_user <> "
-        "'pitchlog_sync_right_fn_owner'\n OR"
-        " p_tenant_id IS NULL OR p_tenant_i"
-        "d IS DISTINCT FROM\n NULLIF(pg_cata"
-        "log.current_setting('app.tenant_id"
-        "',true),'')::uuid\n OR p_attempt_id"
-        " IS NULL OR p_phase_id IS NULL OR "
-        "p_device_id IS NULL\n OR p_game_id "
-        "IS NULL OR p_binding_nonce IS NULL"
-        "\n OR pg_catalog.octet_length(p_bin"
-        "ding_nonce) <> 32 THEN\n RAISE EXCE"
-        "PTION 'sync writer binding rejecte"
-        "d' USING ERRCODE='42501';\nEND IF;\n"
-        "-- 実関数未供給なら例外で閉じる。callerのnonceだけでは"
-        "成功しない。\nPERFORM sync_fence_api.asse"
-        "rt_writer_binding(p_tenant_id,p_at"
-        "tempt_id,\n p_phase_id,p_binding_no"
-        "nce,p_device_id,p_game_id);\n\nIF p_"
-        "internal_generation IS NULL OR p_i"
-        "nternal_generation <= 0 OR\n p_reco"
-        "very_generation IS NULL OR p_recov"
-        "ery_generation <= 0 OR\n p_proof_di"
-        "gest IS NULL OR pg_catalog.octet_l"
-        "ength(p_proof_digest) <> 32 THEN\n "
-        "RAISE EXCEPTION 'sync right input "
-        "rejected' USING ERRCODE='42501';\nE"
-        "ND IF;\nSELECT g.recovery_generatio"
-        "n,g.state INTO STRICT current_epoc"
-        "h,gate_state\n FROM public.rg1_rest"
-        "ore_gate g WHERE g.singleton_id=1;"
-        "\nIF current_epoch IS NULL OR gate_"
-        "state <> 'open' THEN\n RAISE EXCEPT"
-        "ION 'sync recovery unavailable' US"
-        "ING ERRCODE='55000';\nEND IF;\nIF cu"
-        "rrent_epoch <> p_recovery_generati"
-        "on THEN\n RETURN QUERY SELECT false"
-        ",false;\n RETURN;\nEND IF;\n-- game→g"
-        "eneration lockは既prefix核が保持。本関数で先取り"
-        "しない。\nRETURN QUERY SELECT true,EXIS"
-        "TS (\n SELECT 1 FROM public.recordi"
-        "ng_generations r WHERE r.tenant_id"
-        "=p_tenant_id\n AND r.game_id=p_game"
-        "_id AND r.generation=p_internal_ge"
-        "neration AND r.kind='normal'\n AND "
-        "r.holder_device=p_device_id::text "
-        "AND r.revoked_at IS NULL\n AND r.re"
-        "tired_at IS NULL AND r.recovery_ge"
-        "neration=current_epoch\n AND r.proo"
-        "f_digest=p_proof_digest);\nEND;\n$fu"
-        "nction$;\nALTER FUNCTION sync_right"
-        "_api.check_current_right(uuid, uui"
-        "d, uuid, bytea, uuid, uuid, bigint"
-        ", bigint, bytea) OWNER TO pitchlog"
-        "_sync_right_fn_owner;\nREVOKE ALL O"
-        "N FUNCTION sync_right_api.check_cu"
-        "rrent_right(uuid, uuid, uuid, byte"
-        "a, uuid, uuid, bigint, bigint, byt"
-        "ea) FROM PUBLIC;\nGRANT EXECUTE ON "
-        "FUNCTION sync_right_api.check_curr"
-        "ent_right(uuid, uuid, uuid, bytea,"
-        " uuid, uuid, bigint, bigint, bytea"
-        ") TO pitchlog_app;\n"
-    ),
     "policy|POLICY:writer_bindings:binding_owner": "-- ELEMENT-TYPE: policy\n"
     "-- ELEMENT-ID: "
     "POLICY:writer_bindings:binding_owner\n"
@@ -1921,6 +1771,89 @@ IDS = {
     "column_acl_expectations": "expectation_id",
 }
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
+
+
+def _activate_stamp_profile() -> None:
+    """単一stamp源を正式宣言へ組み込み、旧本文の独立な写しを持たない。"""
+    from pitchlog.authz.first_ball_write_stamp import (
+        formal_declarations,
+        formal_function_bodies,
+        formal_profile,
+    )
+    from pitchlog.authz.sync_right_sql import render_stamped_function_sql
+
+    profile = formal_profile()
+    declarations = formal_declarations()
+    for section, rows in declarations.items():
+        ADDITIONS[section].extend(rows)
+    schema = next(
+        row for row in ADDITIONS["schemas"] if row["schema_name"] == "sync_fence"
+    )
+    for grant in profile["schemas"]:
+        schema["acl_expectations"].append(
+            {
+                "grantee": grant["grantee"],
+                "privilege": grant["privilege"],
+                "grantable": grant["grantable"],
+            }
+        )
+    for section, rows in declarations.items():
+        for row in rows:
+            kind, key = {
+                "functions": ("function", row.get("function_id")),
+                "policies": ("policy", row.get("policy_id")),
+                "acl_expectations": ("acl_expectation", row.get("acl_id")),
+                "column_acl_expectations": (
+                    "column_acl_expectation",
+                    row.get("expectation_id"),
+                ),
+            }[section]
+            header = f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n"
+            if section == "functions":
+                sql = formal_function_bodies()[str(key)]
+            elif section == "policies":
+                sql = next(
+                    item["sql"]
+                    for item in profile["policies"]
+                    if row["policy_name"] == "first_ball_stamp_" + item["table_id"]
+                )
+            else:
+                privileges = ",".join(row["privilege_ids"])
+                if section == "column_acl_expectations":
+                    privileges = ",".join(
+                        f"{value} ({row['column_id']})"
+                        for value in row["privilege_ids"]
+                    )
+                sql = (
+                    f"GRANT {privileges} ON TABLE "
+                    f"{row['object_schema']}.{row['object_id']} "
+                    f"TO {row['grantee_role_id']};\n"
+                )
+            BODIES[kind + "|" + str(key)] = header + sql.rstrip() + "\n"
+    stamped = render_stamped_function_sql()
+    for row in ADDITIONS["functions"]:
+        if (
+            row["schema_name"] != "sync_right_api"
+            or row["function_name"] not in stamped
+        ):
+            continue
+        key = row["function_id"]
+        identity = f"sync_right_api.{row['function_name']}({row['identity_args']})"
+        sql = stamped[row["function_name"]].replace(
+            "CREATE OR REPLACE FUNCTION", "CREATE FUNCTION", 1
+        )
+        sql += (
+            f"ALTER FUNCTION {identity} OWNER TO {row['owner_role_id']};\n"
+            f"REVOKE ALL ON FUNCTION {identity} FROM PUBLIC;\n"
+            f"GRANT EXECUTE ON FUNCTION {identity} TO pitchlog_app;\n"
+        )
+        BODIES["function|" + key] = (
+            f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {key}\n\n" + sql
+        )
+
+
+_activate_stamp_profile()
+
 TABLES = frozenset(
     {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
 )
@@ -2200,6 +2133,10 @@ def _function_argument_names(sql: str) -> tuple[tuple[str, ...], bool]:
 
 def _guard_reapply_check(function_identity: str) -> str:
     """既guardの全4trigger構造を確認し欠落/余剰/改変を修復で隠さない。"""
+    if function_identity == "sync_right_api.guard_first_ball_projection_lock()":
+        from pitchlog.authz.first_ball_write_stamp import stamp_trigger_reapply_check
+
+        return stamp_trigger_reapply_check()
     if function_identity != "sync_fence_api.guard_writer_records()":
         return ""
     rows = (

@@ -21,6 +21,7 @@ from db.test_product_authz_normalize_function import _normalizer_body_is_safe
 
 from pitchlog.authz import product_catalog
 from pitchlog.authz.asset_spec import PRODUCT_SPEC, validate_product_application_steps
+from pitchlog.authz.first_ball_write_stamp import stamp_trigger_expectations
 from pitchlog.authz.product_catalog import (
     CatalogQueryId,
     ProductCatalogError,
@@ -412,6 +413,9 @@ def _raw_catalog_rows(
         CatalogQueryId.COLUMN_ACL: list(expectations.column_acl),
         CatalogQueryId.FUNCTIONS: list(expectations.functions),
         CatalogQueryId.FUNCTION_ACL: list(expectations.function_acl),
+        CatalogQueryId.FIRST_BALL_TRIGGERS: [
+            (list(row),) for row in stamp_trigger_expectations()
+        ],
         CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS: [
             tuple(row) for row in product_catalog._expected_lifecycle_function_details()
         ],
@@ -997,6 +1001,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.FUNCTION_ACL,
         CatalogQueryId.BUILTIN_FUNCTION_ACL,
         CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS,
+        CatalogQueryId.FIRST_BALL_TRIGGERS,
         CatalogQueryId.MEMBERSHIPS,
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
@@ -1616,3 +1621,47 @@ def test_worker_lookup_runtime_exact_declaration(mutation, monkeypatch):
     else:
         with pytest.raises(ProductCatalogError):
             product_catalog._load_product_expectations()
+
+
+@pytest.mark.parametrize("field", tuple(range(16)))
+def test_first_ball_trigger_all_fields_are_bound(
+    field: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """guard2と旧identityの全trigger属性改変が閉カタログ検査を落とす。"""
+    rows = _raw_catalog_rows(900)
+    changed = rows[CatalogQueryId.FIRST_BALL_TRIGGERS]
+    attributes = changed[0][0]
+    assert isinstance(attributes, list)
+    original = attributes[field]
+    attributes[field] = not original if type(original) is bool else "unregistered"
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS" in {
+        row.check_id for row in report.violations
+    }
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "order"))
+def test_first_ball_trigger_set_and_order_are_bound(
+    mutation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """guard欠落/余剰/順序を修復したことにせず拒否する。"""
+    rows = _raw_catalog_rows(900)
+    values = rows[CatalogQueryId.FIRST_BALL_TRIGGERS]
+    if mutation == "missing":
+        values.pop(0)
+    elif mutation == "extra":
+        values.append(values[0])
+    else:
+        values.reverse()
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS" in {
+        row.check_id for row in report.violations
+    }

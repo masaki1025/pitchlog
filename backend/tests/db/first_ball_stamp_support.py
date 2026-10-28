@@ -1,10 +1,8 @@
-"""初球書込印の実PG試験の補助。候補の適用・scaffold・実peerを集める。
+"""初球書込印の実PG試験補助。正式installerの観測と実peerを集める。
 
-ここで行う適用は「候補の適用」であり、正式installerでの成功ではない。
-(1) unit Aのcandidate_profile()の全キーを機械的にSQLへ描画し(手で権限を足さない)、
-(2) 印を発行するbind_device/check_current_rightの本文を`CREATE OR REPLACE`で
-置き換える。印(sync_fence.first_ball_write_admissions)の行をadminが直接
-INSERT/UPDATEすることは一切ない(scaffoldの台帳で全statementを記録し、0件を表明する)。
+require_formal_activationは正式installer済みのDBを読み取り検査するだけで、
+候補DDLや印のadmin直接INSERT/UPDATEを実行しない。profile_statementsは
+旧profileの形を照合する履歴補助であり、正式activation経路では呼ばない。
 """
 
 from __future__ import annotations
@@ -23,8 +21,7 @@ from uuid import uuid4
 import psycopg
 from psycopg import sql
 
-from pitchlog.authz.first_ball_write_stamp import candidate_profile, require_candidate
-from pitchlog.authz.sync_right_sql import render_stamped_function_sql
+from pitchlog.authz.first_ball_write_stamp import formal_profile, require_formal
 
 from .rg1_lifecycle_support import PeerSession
 from .sync_writer_binding_support import (
@@ -136,13 +133,13 @@ def _grant_option(item: dict[str, Any]) -> sql.SQL:
 
 
 def profile_statements(profile: dict[str, Any]) -> list[tuple[str, sql.Composable]]:
-    """candidate_profile()の全キーを機械的にSQLへ描画する。手で権限を足さない。
+    """formal_profile()の全キーを機械的にSQLへ描画する。手で権限を足さない。
 
     未知キーがあれば失敗する(描画漏れを作らない)。metaキーはコメント、tableキーは
     既migration成果との一致を検査するSELECT(変更なし)として描画する。
 
     Args:
-        profile: candidate_profile()の返す辞書。
+        profile: formal_profile()の返す辞書。
 
     Returns:
         (キー名, SQL)の列。
@@ -235,33 +232,22 @@ def profile_statements(profile: dict[str, Any]) -> list[tuple[str, sql.Composabl
     return out
 
 
-def apply_candidates(owner: Any, *, stamped_bodies: bool = True) -> dict[str, int]:
-    """Aのcandidate_profile(全キー)とBの2 bodyを、admin接続で適用する。
+def require_formal_activation(owner: Any) -> dict[str, int]:
+    """正式installerの適用済みcatalogを確認する。後付け候補DDLを実行しない。"""
+    from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 
-    正式installerの成功ではない(適用後の正式catalog照合はdriftを報告する)。
-
-    Args:
-        owner: InitialGrantDatabase(owned DB一式)。
-        stamped_bodies: Falseならprofileだけを適用する(Bの本文は入れない)。
-
-    Returns:
-        キーごとの適用文数。
-    """
-    profile = candidate_profile()
-    require_candidate(profile)
-    counts: dict[str, int] = {}
+    profile = formal_profile()
+    require_formal(profile)
     with psycopg.connect(owner.authority.database.business_admin) as admin:
-        for key, statement in profile_statements(profile):
-            counts[key] = counts.get(key, 0) + 1
-            if key.startswith("meta:") or key == "table":
-                continue
-            admin.execute(cast(sql.Composed, statement))
-        if stamped_bodies:
-            for name, text in render_stamped_function_sql().items():
-                admin.execute(cast(LiteralString, text))
-                counts["stamped:" + name] = 1
-        admin.commit()
-    return counts
+        row = admin.execute(
+            "SELECT oid FROM pg_catalog.pg_roles WHERE rolname=session_user"
+        ).fetchone()
+        assert row is not None
+        report = inspect_product_authz_catalog(
+            admin, privileged_role_oids=frozenset({row[0]})
+        )
+        assert report.ok, report.violations
+    return {"formal_catalog": 1}
 
 
 _BINDING_COLS = (

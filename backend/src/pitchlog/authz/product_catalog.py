@@ -560,6 +560,7 @@ class CatalogQueryId(Enum):
     FUNCTION_ACL = "function_acl"
     BUILTIN_FUNCTION_ACL = "builtin_function_acl"
     LIFECYCLE_FUNCTION_DETAILS = "lifecycle_function_details"
+    FIRST_BALL_TRIGGERS = "first_ball_triggers"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
     UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
@@ -1377,6 +1378,11 @@ def _catalog_requests(
         _CatalogRequest(CatalogQueryId.FUNCTION_ACL, (schemas, functions)),
         _CatalogRequest(CatalogQueryId.BUILTIN_FUNCTION_ACL, ()),
         _CatalogRequest(CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS, ()),
+        *(
+            (_CatalogRequest(CatalogQueryId.FIRST_BALL_TRIGGERS, ()),)
+            if "guard_first_ball_projection_admission" in expectations.function_names
+            else ()
+        ),
         _CatalogRequest(CatalogQueryId.MEMBERSHIPS, (roles, roles)),
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
@@ -1452,6 +1458,10 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _FUNCTIONS_QUERY
     if query_id is CatalogQueryId.FUNCTION_ACL:
         return _FUNCTION_ACL_QUERY
+    if query_id is CatalogQueryId.FIRST_BALL_TRIGGERS:
+        from pitchlog.authz.first_ball_write_stamp import STAMP_TRIGGER_QUERY
+
+        return STAMP_TRIGGER_QUERY
     if query_id is CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS:
         return _LIFECYCLE_FUNCTION_DETAILS_QUERY
     if query_id is CatalogQueryId.BUILTIN_FUNCTION_ACL:
@@ -2286,6 +2296,22 @@ def inspect_product_authz_catalog(
         (),
         _actual_trigger_definers(function_rows, expectations.trigger_function_keys),
     )
+    if "guard_first_ball_projection_admission" in expectations.function_names:
+        from pitchlog.authz.first_ball_write_stamp import stamp_trigger_expectations
+
+        rows = _observed_rows(frozen_observations, CatalogQueryId.FIRST_BALL_TRIGGERS)
+        if any(len(row) != 1 or type(row[0]) is not list for row in rows):
+            raise ProductCatalogError("初球triggerのカタログ観測形が不一致")
+        actual = []
+        for row in rows:
+            values = row[0]
+            assert isinstance(values, list)  # 上の形検査で確定したJSON配列。
+            actual.append(tuple(values))
+        report.compare(
+            "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS",
+            stamp_trigger_expectations(),
+            tuple(actual),
+        )
     owner_oid = _owner_role_oid(role_rows, "pitchlog_owner")
     expected_dangerous_oids = tuple(sorted((*privileged_role_oids, owner_oid)))
     actual_dangerous_oids = tuple(

@@ -96,8 +96,8 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         for r in cat._expected_lifecycle_function_details()
         if r[0] in {"sync_fence_api", "sync_right_api"}
     ]
-    assert len(rows) == 9
-    assert sum(r[4] is False for r in rows) == 1
+    assert len(rows) == 11
+    assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
 
@@ -116,8 +116,9 @@ def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
     _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
     sql = "\n".join(r.sql for r in s)
     assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 2
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 4
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
+    assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
 
 
 def test_pre_rule_defers_unavailable_dependencies():
@@ -242,7 +243,7 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """元427文+初球書込印の表要素1文のうち新9以外419文を全byteへ束縛する。"""
+    """Unit Cの正式519文のうち関数11以外508文を全byteへ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
@@ -252,11 +253,11 @@ def test_reapply_keeps_all_other_generated_statements_exact():
         for r in rows
         if not r.sql.startswith("DO $first_ball_reapply$")
     ]
-    assert len(rows) == 428 and len(wrappers) == 9 and len(keep) == 419
+    assert len(rows) == 519 and len(wrappers) == 11 and len(keep) == 508
     digest = hashlib.sha256(
         json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
     ).hexdigest()
-    assert digest == "97190ac4433c3d57c7d95b0b76c7890c50d34c362b627209985631325409a7b2"
+    assert digest == "4fd030d3ac2118c8a11624860dc83dcefdf23a2123ebfe7903180b49b505e527"
 
 
 def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():

@@ -154,8 +154,8 @@ def test_static_migration_matches_all_columns_constraints_and_default_deny(
 
 def test_closed_state_and_minimum_privilege_contract() -> None:
     """二flag/逆順/終端復活の許可を宣言せず、ownerだけの狭い権限に閉じる。"""
-    profile = api.candidate_profile()
-    api.require_candidate(profile)
+    profile = api.formal_profile()
+    api.require_formal(profile)
     assert profile["state_transitions"] == [
         ["absent", "device_true", "device_verified"],
         ["device_verified", "device_true", "device_verified"],
@@ -164,8 +164,8 @@ def test_closed_state_and_minimum_privilege_contract() -> None:
         ["right_verified", "consume", "consumed"],
     ]
     assert profile["terminal_states"] == ["consumed", "invalid"]
-    assert profile["roles"] == [] and profile["runtime_registered"] is False
-    assert profile["stamp_issuance"] == "B_NOT_SUPPLIED"
+    assert profile["roles"] == [] and profile["runtime_registered"] is True
+    assert profile["stamp_issuance"] == "STAMPED_BIND_RIGHT"
     assert (
         profile["table"]["force_rls"] is True and profile["table"]["enable_rls"] is True
     )
@@ -206,7 +206,7 @@ def test_closed_state_and_minimum_privilege_contract() -> None:
 
 def test_sql_guard_order_scope_current_conditions_and_consumption() -> None:
     """実PG成功を推定せず、必要SQL述語と権限順を静的に固定する。"""
-    profile = api.candidate_profile()
+    profile = api.formal_profile()
     lock, admit = profile["functions"]
     assert [row["security_mode"] for row in profile["functions"]] == [
         "invoker",
@@ -275,7 +275,7 @@ def test_sql_guard_order_scope_current_conditions_and_consumption() -> None:
 
 def test_reflection1_native_scope_and_owner_privileges_are_closed() -> None:
     """native限定3値と、right ownerの実行に要る最小の列権限だけを固定する。"""
-    profile = api.candidate_profile()
+    profile = api.formal_profile()
     lock, admit = (row["sql"] for row in profile["functions"])
     for sql in (lock, admit):
         assert "NEW.import_batch_id IS NOT NULL" in sql
@@ -328,7 +328,7 @@ def test_reflection1_native_scope_and_owner_privileges_are_closed() -> None:
 
 def test_reflection2_consumption_runs_outside_the_exception_subtransaction() -> None:
     """EXCEPTION付きblockはsubtransactionなので、印の書込とxmin照合をその外へ置く。"""
-    admit = api.candidate_profile()["functions"][1]["sql"]
+    admit = api.formal_profile()["functions"][1]["sql"]
     code = "\n".join(
         line.strip()
         for line in admit.splitlines()
@@ -361,7 +361,7 @@ def test_reflection2_guard_bodies_are_pinned_by_digest() -> None:
     """部分文字列照合では見えない述語の中和も、本文digestの固定で検出する。"""
     digests = {
         row["function_name"]: row["sql_sha256"]
-        for row in api.candidate_profile()["functions"]
+        for row in api.formal_profile()["functions"]
     }
     assert digests == _GUARD_DIGESTS
 
@@ -376,35 +376,85 @@ def _leaves(value: Any, path: tuple[Any, ...] = ()) -> list[tuple[Any, ...]]:
     return [path]
 
 
-@pytest.mark.parametrize("path", _leaves(api.candidate_profile()))
+@pytest.mark.parametrize("path", _leaves(api.formal_profile()))
 def test_every_profile_leaf_mutation_is_rejected(path: tuple[Any, ...]) -> None:
     """各body/属性/ACL/政策/状態の変更を全値比較で拒否する。"""
-    profile = api.candidate_profile()
+    profile = api.formal_profile()
     cursor = profile
     for key in path[:-1]:
         cursor = cursor[key]
     cursor[path[-1]] = "tampered-secret-marker"
     with pytest.raises(ValueError, match="^初球書込印の閉profileが不一致$") as error:
-        api.require_candidate(profile)
+        api.require_formal(profile)
     assert "tampered-secret-marker" not in str(error.value)
     assert error.value.__cause__ is None
 
 
-@pytest.mark.parametrize("key", list(api.candidate_profile()))
+@pytest.mark.parametrize("key", list(api.formal_profile()))
 @pytest.mark.parametrize("mode", ["missing", "extra"])
 def test_top_level_missing_extra_reject(key: str, mode: str) -> None:
     """最上位の未知/欠落を無視しない。"""
-    profile = copy.deepcopy(api.candidate_profile())
+    profile = copy.deepcopy(api.formal_profile())
     if mode == "missing":
         del profile[key]
     else:
         profile["unknown-" + key] = True
     with pytest.raises(ValueError):
-        api.require_candidate(profile)
+        api.require_formal(profile)
 
 
 @pytest.mark.parametrize("value", [None, 1, False, (), {"runtime_registered": 0}])
 def test_profile_requires_exact_json_types(value: object) -> None:
     """JSON型違いを強制変換しない。"""
     with pytest.raises(ValueError):
-        api.require_candidate(value)
+        api.require_formal(value)
+
+
+def test_formal_metadata_has_exact_column_and_table_acl_union() -> None:
+    """xminを列ACLに出さず、state権限の和集合を単一の列行へ写す。"""
+    rows = api.formal_declarations()
+    assert {key: len(value) for key, value in rows.items()} == {
+        "functions": 2,
+        "policies": 5,
+        "acl_expectations": 2,
+        "column_acl_expectations": 82,
+    }
+    assert all(row["column_id"] != "xmin" for row in rows["column_acl_expectations"])
+    state = [
+        row
+        for row in rows["column_acl_expectations"]
+        if row["object_id"] == "first_ball_write_admissions"
+        and row["column_id"] == "state"
+    ]
+    assert len(state) == 1 and state[0]["privilege_ids"] == ["INSERT", "UPDATE"]
+    assert {row["object_id"] for row in rows["acl_expectations"]} == {
+        "first_ball_write_admissions",
+        "writer_admissions",
+    }
+    assert all(
+        row["privilege_ids"] == ["SELECT"] and row["grant_option"] is False
+        for row in rows["acl_expectations"]
+    )
+
+
+def test_invoker_is_last_and_is_the_only_trigger_creation_point() -> None:
+    """既definer→invoker順を変えず両guardの定義後にだけtriggerを配置する。"""
+    bodies = api.formal_function_bodies()
+    lock = bodies["FUNCTION:sync_right_api:guard_first_ball_projection_lock()"]
+    admit = bodies["FUNCTION:sync_right_api:guard_first_ball_projection_admission()"]
+    assert lock.count("CREATE TRIGGER") == 2
+    assert "CREATE TRIGGER" not in admit
+    assert lock.index("$stamp$;") < lock.index("CREATE TRIGGER trg_first_ball_10_lock")
+    assert lock.index("CREATE TRIGGER trg_first_ball_10_lock") < lock.index(
+        "CREATE TRIGGER trg_first_ball_20_admit"
+    )
+    assert (
+        api.stamp_trigger_expectations()[2][0]
+        == "trg_play_rows_projection_identity_immutable"
+    )
+    check = api.stamp_trigger_reapply_check()
+    assert "jsonb_agg(r.value ORDER BY r.value->>0)" in check
+    assert (
+        "NOT t.tgisinternal" in check
+        and "first ball projection trigger definition collision" in check
+    )

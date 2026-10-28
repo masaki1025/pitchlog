@@ -1,7 +1,7 @@
-"""初球DB書込印の未登録unit A定義。既profile/installerへ接合しない。
+"""初球DB書込印の正式profileとguardの単一定義。
 
-既bind_device/check_current_rightによる順序付き印の発行は後続B。従ってこの
-候補だけで成功印/実INSERT/認可/保存/lock寿命を提供済みとは扱わない。
+順序付き印は正式bind_device/check_current_rightだけが発行する。
+profileの値だけを認可や実保存の成功証明として扱わない。
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-from typing import Any
+from typing import Any, LiteralString
 
 _SCHEMA = "sync_fence"
 _TABLE = "first_ball_write_admissions"
@@ -186,7 +186,7 @@ _TRIGGERS = (
 
 
 def _profile() -> dict[str, Any]:
-    """未登録候補の有限body/owner/ACL/状態契約を描画する。"""
+    """正式な有限body/owner/ACL/状態契約を描画する。"""
     from pitchlog.sync.control_provider.writer_binding_models import (
         FirstBallWriteAdmission,
     )
@@ -360,7 +360,7 @@ def _profile() -> dict[str, Any]:
         },
     ]
     return {
-        "status": "UNREGISTERED_UNIT_A_NO_ISSUER_OR_ACTIVATION",
+        "status": "FORMAL_PROFILE_STAMPED_BIND_RIGHT",
         "roles": [],
         "schemas": [
             {
@@ -386,13 +386,13 @@ def _profile() -> dict[str, Any]:
         "policies": policies,
         "state_transitions": [list(row) for row in STATE_TRANSITIONS],
         "terminal_states": sorted(TERMINAL_STATES),
-        "stamp_issuance": "B_NOT_SUPPLIED",
-        "runtime_registered": False,
+        "stamp_issuance": "STAMPED_BIND_RIGHT",
+        "runtime_registered": True,
     }
 
 
-def candidate_profile() -> dict[str, Any]:
-    """独立検査用に未登録候補を返す。実installerを呼ばない。"""
+def formal_profile() -> dict[str, Any]:
+    """正式profileの防御的コピーを返す。実installerを呼ばない。"""
     return copy.deepcopy(_profile())
 
 
@@ -416,10 +416,222 @@ def _strict_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
 
 
-def require_candidate(candidate: object) -> None:
+def require_formal(candidate: object) -> None:
     """候補定義全値の一致だけを検査し、認可/DB成功には昇格させない。"""
     try:
         if _strict_json(candidate) != _strict_json(_profile()):
             raise ValueError("初球書込印の閉profileが不一致")
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
         raise ValueError("初球書込印の閉profileが不一致") from None
+
+
+def formal_declarations() -> dict[str, list[dict[str, Any]]]:
+    """正式asset形へ有限のprofileを写し、独立な権限定義を持たない。"""
+    profile = formal_profile()
+    require_formal(profile)
+    result: dict[str, list[dict[str, Any]]] = {
+        "functions": [],
+        "policies": [],
+        "acl_expectations": [],
+        "column_acl_expectations": [],
+    }
+    for item in profile["functions"]:
+        result["functions"].append(
+            {
+                key: value
+                for key, value in item.items()
+                if key not in {"sql", "sql_sha256"}
+            }
+            | {
+                "function_kind": item["security_mode"],
+                "volatility": "volatile",
+                "revoked_acl_expectations": [
+                    {"grantee": grantee, "privilege": "EXECUTE", "grantable": False}
+                    for grantee in ("PUBLIC", "pitchlog_app")
+                ],
+            }
+        )
+    for item in profile["table_acls"]:
+        result["acl_expectations"].append(
+            {
+                "acl_id": (
+                    f"ACL:{item['schema_name']}:{item['table_id']}:{item['grantee']}"
+                ),
+                "object_kind": "table",
+                "object_schema": item["schema_name"],
+                "object_id": item["table_id"],
+                "profile": "function_only",
+                "grantee_role_id": item["grantee"],
+                "privilege_ids": [item["privilege"]],
+                "grant_option": item["grantable"],
+            }
+        )
+    columns: dict[str, dict[str, Any]] = {}
+    for item in profile["column_acls"]:
+        for column in item["columns"]:
+            key = (
+                f"COLUMN-ACL:{item['schema_name']}:{item['table_id']}:"
+                f"{column}:{item['grantee']}"
+            )
+            value = columns.setdefault(
+                key,
+                {
+                    "expectation_id": key,
+                    "object_kind": "column",
+                    "object_schema": item["schema_name"],
+                    "object_id": item["table_id"],
+                    "column_id": column,
+                    "grantee_role_id": item["grantee"],
+                    "privilege_ids": [],
+                    "grant_option": item["grantable"],
+                },
+            )
+            value["privilege_ids"].append(item["privilege"])
+    result["column_acl_expectations"] = list(columns.values())
+    for item in profile["policies"]:
+        name = "first_ball_stamp_" + item["table_id"]
+        prefix = (
+            f"CREATE POLICY {name} ON {item['schema_name']}.{item['table_id']} "
+            f"FOR {item['command']} TO {item['role']} USING ("
+        )
+        text = item["sql"]
+        if not text.startswith(prefix) or not text.endswith(");"):
+            raise ValueError("正式印policyの閉形式が不一致")
+        using = text[len(prefix) : -2]
+        check = None
+        if item["command"] == "ALL":
+            using, check = using.split(") WITH CHECK (", 1)
+        result["policies"].append(
+            {
+                "policy_id": f"POLICY:{item['table_id']}:{name}",
+                "table_id": item["table_id"],
+                "profile": "function_only",
+                "policy_name": name,
+                "command": item["command"],
+                "policy_mode": "permissive",
+                "role_ids": [item["role"]],
+                "using_predicate_id": None,
+                "using_column": None,
+                "using_expression": using,
+                "with_check_predicate_id": None,
+                "with_check_column": None,
+                "with_check_expression": check,
+            }
+        )
+    return result
+
+
+STAMP_TRIGGER_QUERY: LiteralString = """
+SELECT pg_catalog.jsonb_build_array(t.tgname, t.tgtype::integer, t.tgenabled::text,
+       n.nspname, p.proname, o.rolname, p.prosecdef,
+       ARRAY(SELECT a.attname::text FROM pg_catalog.unnest(t.tgattr::smallint[])
+             WITH ORDINALITY v(attnum,ord)
+             JOIN pg_catalog.pg_attribute a
+             ON a.attrelid=t.tgrelid AND a.attnum=v.attnum
+             ORDER BY v.ord),
+       t.tgdeferrable, t.tginitdeferred, t.tgconstraint=0,
+       t.tgqual IS NULL, t.tgnargs::integer,
+       pg_catalog.encode(t.tgargs,'hex'), t.tgoldtable, t.tgnewtable) AS value
+FROM pg_catalog.pg_trigger t
+JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid
+JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+JOIN pg_catalog.pg_roles o ON o.oid=p.proowner
+WHERE t.tgrelid='public.play_rows'::pg_catalog.regclass AND NOT t.tgisinternal
+ORDER BY t.tgname
+"""
+
+
+def stamp_trigger_expectations() -> tuple[tuple[object, ...], ...]:
+    """新2triggerと既identity triggerの全集合を閉じる。"""
+    return (
+        (
+            "trg_first_ball_10_lock",
+            7,
+            "O",
+            "sync_right_api",
+            "guard_first_ball_projection_lock",
+            _OWNER,
+            False,
+            [],
+            False,
+            False,
+            True,
+            True,
+            0,
+            "",
+            None,
+            None,
+        ),
+        (
+            "trg_first_ball_20_admit",
+            7,
+            "O",
+            "sync_right_api",
+            "guard_first_ball_projection_admission",
+            _OWNER,
+            True,
+            [],
+            False,
+            False,
+            True,
+            True,
+            0,
+            "",
+            None,
+            None,
+        ),
+        (
+            "trg_play_rows_projection_identity_immutable",
+            19,
+            "O",
+            "public",
+            "prevent_play_rows_projection_identity_update",
+            "pitchlog_owner",
+            False,
+            ["id", "source_event_id", "legacy_row_identifier"],
+            False,
+            False,
+            True,
+            True,
+            0,
+            "",
+            None,
+            None,
+        ),
+    )
+
+
+def formal_function_bodies() -> dict[str, str]:
+    """初回だけ2triggerを配置するcanonical SQLを同じguardから描画する。"""
+    profile = formal_profile()
+    require_formal(profile)
+    result = {row["function_id"]: row["sql"] for row in profile["functions"]}
+    key = profile["functions"][0]["function_id"]
+    result[key] += "\n" + "\n".join(row["sql"] for row in profile["triggers"]) + "\n"
+    return result
+
+
+def stamp_trigger_reapply_check() -> str:
+    """再適用で既triggerを修復せず、完全一致した場合だけ通す。"""
+    literal = json.dumps(stamp_trigger_expectations(), separators=(",", ":"))
+    expected = "'" + literal.replace("'", "''") + "'::pg_catalog.jsonb"
+    query = STAMP_TRIGGER_QUERY.strip()
+    return f"""
+    IF (SELECT COALESCE(
+          pg_catalog.jsonb_agg(r.value ORDER BY r.value->>0), '[]'::pg_catalog.jsonb)
+        FROM ({query}) r) IS DISTINCT FROM {expected} THEN
+        RAISE EXCEPTION 'first ball projection trigger definition collision';
+    END IF;"""
+
+
+def is_formal_stamp_lock_declaration(row: object) -> bool:
+    """新invokerの署名・owner・trigger戻り・全ACLを単一正式宣言と照合する。"""
+    try:
+        expected = next(
+            item
+            for item in formal_declarations()["functions"]
+            if item["function_name"] == "guard_first_ball_projection_lock"
+        )
+        return _strict_json(row) == _strict_json(expected)
+    except (ValueError, TypeError, KeyError, StopIteration, RecursionError):
+        return False

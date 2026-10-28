@@ -1,14 +1,13 @@
 """初球書込印の発行(B)と消費(A)を、owned PGの実経路で縦に確かめる。
 
-印はbind_device→check_current_rightの正規経路でだけ作る。adminが印を直接
-INSERT/UPDATEするscaffoldは0件(V10で全statementを表明する)。適用するのは
-「候補」(unit Aのcandidate_profile全キーの機械描画と、印付き2 body)であり、
-正式installerでの成功ではない。DBはfixtureが作るowned PGだけで、共有DSNは使わない。
+印はbind_device→check_current_rightの正規経路でだけ作る。adminによる印の
+直接INSERT/UPDATEは0件(V10で全statementを表明する)。正式installerだけで
+印付きprofileを適用し、require_formal_activationは読取り観測だけを行う。
+DBはfixtureが作るowned PGのみ。共有DSNを使わず、未実行を成功扱いしない。
 
-構成:
-- DB1(module): 候補適用済みの共有DB。破壊しない試験(V・M・T)。
-- DB2(module): 候補適用前から始め、破壊を伴う試験(T22・T15・T11・変異)を順に行う。
-- 実cookie縦断(V11/T16)は候補適用なし/ありの2つの独立DBで行う。
+DB1は非破壊試験、DB2は正式状態からT22・T15・T11等の変異試験を行う。
+実cookie縦断は正式状態と、歴史的な旧2本文へ戻した負例の独立DBで比較する。
+既存のcandidateという観測キー名は過去結果との対応用に保持する。
 """
 
 from __future__ import annotations
@@ -29,7 +28,6 @@ import pytest
 from pitchlog.authz.first_ball_write_stamp import STATE_TRANSITIONS, TERMINAL_STATES
 from pitchlog.authz.sync_right_sql import (
     render_stamped_function_sql,
-    render_sync_right_sql,
 )
 
 from .first_ball_stamp_support import (
@@ -38,11 +36,11 @@ from .first_ball_stamp_support import (
     STAMP_REJECT,
     STAMP_TABLE,
     Ctx,
-    apply_candidates,
     error_lines,
     exec_text,
     leaks,
     peer,
+    require_formal_activation,
     stamp_dml_statements,
 )
 from .sync_writer_binding_support import (
@@ -96,7 +94,7 @@ class Env:
 
 
 def _make_env(monkeypatch: pytest.MonkeyPatch, *, apply: bool) -> Iterator[Env]:
-    """Owned DB(正式installer適用済み)を作り、必要なら候補を適用して供給する。"""
+    """正式installer済みowned DBを作り、必要なら正式profileを読取り確認する。"""
     from db_fixtures import _dsn_names
 
     from pitchlog.repositories.initial_recording_right import _credential_digest
@@ -109,7 +107,7 @@ def _make_env(monkeypatch: pytest.MonkeyPatch, *, apply: bool) -> Iterator[Env]:
         issued = owner.actor("grant=issue(); print(json.dumps(receipt(grant)))")
         ctx = Ctx(db, issued)
         if apply:
-            apply_candidates(owner)
+            require_formal_activation(owner)
         proof = ctx.proof
         yield Env(
             owner=owner,
@@ -884,7 +882,7 @@ def test_t21_sqlstate_contract_and_no_sensitive_values(db1: Env) -> None:
 
 
 def test_t22_ii_signature_after_apply_matches_the_formal_signature(db1: Env) -> None:
-    """T22(ii): 候補適用後のbind/rightの署名・所有者・ACLは正式なものと同じ。"""
+    """T22(ii): 正式installer済みbind/rightの署名・所有者・ACLを照合する。"""
     env = db1
     rows = env.ctx.admin(
         "SELECT p.proname,pg_get_function_identity_arguments(p.oid),"
@@ -935,7 +933,7 @@ def _report(conn: psycopg.Connection, oid: int):
 
 
 def test_t22_i_formal_catalog_before_and_after_candidates(db2: Env) -> None:
-    """T22(i): 結合後の正式installer適用DBでは正式catalogがok。候補適用はdrift。
+    """T22(i): 正式installerだけでstamp profileを満たし、確認はDDLを実行しない。
 
     あわせて、xmin列ACLの付与は正式catalogが見逃し(盲点)、直接検査が検出することを記録する。
     """
@@ -982,7 +980,7 @@ def test_t22_i_formal_catalog_before_and_after_candidates(db2: Env) -> None:
             "ORDER BY 1"
         ).fetchall()
         conn.rollback()
-    counts = apply_candidates(env.owner)
+    counts = require_formal_activation(env.owner)
     env.applied = True
     with psycopg.connect(env.ctx.admin_dsn) as conn:
         after = _report(conn, oid)
@@ -996,15 +994,8 @@ def test_t22_i_formal_catalog_before_and_after_candidates(db2: Env) -> None:
         ).fetchall()
         conn.rollback()
     assert before_sig == after_sig, "適用の前後で署名・所有者・ACLが変わった"
-    assert not after.ok
-    checks = sorted({v.check_id for v in after.violations})
-    assert checks == [
-        "PRODUCT-CATALOG:COLUMN-ACL",
-        "PRODUCT-CATALOG:LIFECYCLE-FUNCTION-DETAILS",
-        "PRODUCT-CATALOG:POLICIES",
-        "PRODUCT-CATALOG:SCHEMA-ACL",
-        "PRODUCT-CATALOG:TABLE-ACL",
-    ], checks
+    assert after.ok and not after.violations
+    checks = []
     _record(
         "T22_i",
         dict(
@@ -1018,7 +1009,7 @@ def test_t22_i_formal_catalog_before_and_after_candidates(db2: Env) -> None:
 
 
 def test_t15_reapply(db2: Env) -> None:
-    """T15: (a)B版bodyのDBへ現行installerを再実行すると衝突停止。(b)適用は冪等。"""
+    """T15: 正式stamped installerの再適用が全署名/ACLを保つ。"""
     from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 
     env = db2
@@ -1036,22 +1027,19 @@ def test_t15_reapply(db2: Env) -> None:
             exec_text(conn, text)
         conn.commit()
     assert env.ctx.admin(sig_sql, fetch=True) == before
-    # (a) 現行installer(0037世代のbody資産)の再実行 → 衝突で停止。
+    # 正式installerは同一本文のときだけ再適用を許す。
     with psycopg.connect(env.ctx.admin_dsn) as applicator:
-        with pytest.raises(
-            psycopg.errors.RaiseException,
-            match="first ball function definition collision",
-        ) as error:
-            apply_product_authz_ddl(applicator)
-        applicator.rollback()
-    assert error.value.sqlstate == "P0001"
+        apply_product_authz_ddl(applicator)
+        applicator.commit()
     assert env.ctx.admin(sig_sql, fetch=True) == before
-    _record("T15", dict(idempotent=True, installer_reapply="collision(P0001)"))
+    _record("T15", dict(idempotent=True, installer_reapply="same_exact_body"))
 
 
 def _old_bind_replace_sql() -> str:
     """正式(0037世代)のbind_deviceを`CREATE OR REPLACE`にした文(変異用)。"""
-    old = render_sync_right_sql()
+    old = (
+        Path(__file__).parents[1] / "fixtures/sync_right_unstamped_0037.sql"
+    ).read_text()
     match = re.search(
         r"CREATE FUNCTION (sync_right_api\.bind_device\(.*?\$function\$;)",
         old,
@@ -1222,7 +1210,7 @@ def test_v10_no_scaffold_stamp_dml(db1: Env, db2: Env) -> None:
 
 @pytest.fixture(params=[False, True], ids=["no-candidate", "candidate"])
 def real_owner(request: pytest.FixtureRequest) -> Iterator[Any]:
-    """実cookie縦断用の独立owned DB(候補適用なし/あり)。"""
+    """実cookie縦断用の独立owned DB(歴史的旧本文/正式profile)。"""
     from db_fixtures import _dsn_names
 
     with pytest.MonkeyPatch.context() as patch:
@@ -1231,7 +1219,22 @@ def real_owner(request: pytest.FixtureRequest) -> Iterator[Any]:
             patch.setenv(admin_name, owner.authority.database.primary_admin)
             patch.setenv(role_name, owner.authority.database.endpoints.primary_dsn)
             if request.param:
-                apply_candidates(owner)
+                require_formal_activation(owner)
+            else:
+                # 歴史的な0037本文を持つDBの負例。製品の自動upgradeではない。
+                old = (
+                    Path(__file__).parents[1] / "fixtures/sync_right_unstamped_0037.sql"
+                ).read_text()
+                functions = re.findall(
+                    r"CREATE FUNCTION (sync_right_api\.\w+\(.*?\$function\$;)",
+                    old,
+                    re.S,
+                )
+                assert len(functions) == 2
+                with psycopg.connect(owner.authority.database.business_admin) as conn:
+                    for text in functions:
+                        exec_text(conn, "CREATE OR REPLACE FUNCTION " + text)
+                    conn.commit()
             setattr(owner, "_stamp_candidate_applied", request.param)
             yield owner
 

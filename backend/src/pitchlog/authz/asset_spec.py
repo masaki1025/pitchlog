@@ -478,12 +478,22 @@ def _validate_element_coverage(
                     raise AuthzApplicationStepsError(
                         f"{label}の関数ACL付与先は配列で宣言しなければならない"
                     )
-                if function_kind == "invoker" and (
-                    raw_row.get("function_id")
-                    != "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
-                    or raw_row.get("security_mode") != "invoker"
-                ):
-                    raise AuthzApplicationStepsError("初球invokerはexact1署名/flagだけ")
+                if function_kind == "invoker":
+                    from pitchlog.authz.first_ball_write_stamp import (
+                        is_formal_stamp_lock_declaration,
+                    )
+
+                    legacy_identity = (
+                        raw_row.get("function_id")
+                        == "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
+                        and raw_row.get("security_mode") == "invoker"
+                    )
+                    if not legacy_identity and not is_formal_stamp_lock_declaration(
+                        raw_row
+                    ):
+                        raise AuthzApplicationStepsError(
+                            "初球invokerは既identityと正式lockのexact2だけ"
+                        )
                 if (
                     function_kind == "definer"
                     and raw_row.get("security_mode") != "definer"

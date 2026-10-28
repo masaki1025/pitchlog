@@ -49,97 +49,10 @@ _RIGHT_EXISTS = """EXISTS (
  AND r.proof_digest=p_proof_digest)"""
 _BIND_DECL = "stored_digest bytea; revoked timestamptz;"
 _RIGHT_DECL = "current_epoch bigint; gate_state text;"
-_FUNCTIONS = (
-    (
-        "bind_device",
-        "uuid,uuid,uuid,bytea,uuid,uuid,bytea",
-        _COMMON + ",p_credential_digest bytea",
-        "device_matches boolean",
-        _BIND_DECL,
-        _BIND_HEAD + f"RETURN QUERY SELECT {_BIND_MATCH};\n",
-    ),
-    (
-        "check_current_right",
-        "uuid,uuid,uuid,bytea,uuid,uuid,bigint,bigint,bytea",
-        _COMMON
-        + (
-            ",p_internal_generation bigint,p_recovery_generation bigint,"
-            "p_proof_digest bytea"
-        ),
-        "recovery_matches boolean,right_matches boolean",
-        _RIGHT_DECL,
-        _RIGHT_HEAD
-        + """IF current_epoch <> p_recovery_generation THEN
- RETURN QUERY SELECT false,false;
- RETURN;
-END IF;
--- game→generation lockは既prefix核が保持。本関数で先取りしない。
-RETURN QUERY SELECT true,"""
-        + _RIGHT_EXISTS
-        + ";\n",
-    ),
-)
-
-
-def render_sync_right_sql() -> str:
-    """未供給の制御照合ABIを参照するexact2 SQL/列ACL候補を返す。"""
-    chunks = [
-        f"""-- U1未登録候補。U2/正式受理前の適用禁止。
-CREATE ROLE {_OWNER} NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT
- NOCREATEROLE NOCREATEDB NOREPLICATION;
-CREATE SCHEMA sync_right_api AUTHORIZATION {_OWNER};
-REVOKE ALL ON SCHEMA sync_right_api FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO {_OWNER};
-GRANT USAGE ON SCHEMA sync_right_api TO pitchlog_app;
-GRANT SELECT (tenant_id,device_id,credential_digest,revoked_at),UPDATE (revoked_at)
- ON TABLE public.trusted_devices TO {_OWNER};
-GRANT SELECT (tenant_id,game_id,generation,kind,holder_device,revoked_at,
- retired_at,proof_digest,recovery_generation)
- ON TABLE public.recording_generations TO {_OWNER};
-GRANT SELECT (singleton_id,state,recovery_generation)
- ON TABLE public.rg1_restore_gate TO {_OWNER};
-"""
-    ]
-    for table in ("trusted_devices", "recording_generations"):
-        chunks.append(f"""ALTER TABLE public.{table} ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.{table} FORCE ROW LEVEL SECURITY;
-CREATE POLICY sync_first_ball_select ON public.{table} FOR SELECT TO {_OWNER}
- USING (tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);
-""")
-    chunks.append(f"""CREATE POLICY sync_first_ball_device_lock
- ON public.trusted_devices
- FOR UPDATE TO {_OWNER}
- USING (tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid)
- WITH CHECK (tenant_id=NULLIF(
- pg_catalog.current_setting('app.tenant_id',true),'')::uuid);
-""")
-    chunks.append(f"""CREATE POLICY sync_first_ball_gate ON public.rg1_restore_gate
- FOR SELECT TO {_OWNER} USING (singleton_id=1);
--- U2実関数が未供給なら権限適用もできない。
-GRANT USAGE ON SCHEMA sync_fence_api TO {_OWNER};
-GRANT EXECUTE ON FUNCTION sync_fence_api.assert_writer_binding(
- uuid,uuid,uuid,bytea,uuid,uuid) TO {_OWNER};
-""")
-    for name, signature, args, results, declarations, body in _FUNCTIONS:
-        identity = f"sync_right_api.{name}({signature})"
-        chunks.append(f"""CREATE FUNCTION sync_right_api.{name}({args})
-RETURNS TABLE ({results}) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = pg_catalog,pg_temp AS $function$
-DECLARE {declarations}
-BEGIN
-{_ASSERT}{body}END;
-$function$;
-ALTER FUNCTION {identity} OWNER TO {_OWNER};
-REVOKE ALL ON FUNCTION {identity} FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION {identity} TO pitchlog_app;
-""")
-    return "\n".join(chunks)
-
-
 # ---- 書込印(sync_fence.first_ball_write_admissions)を発行する2 body ----
 # 既存のbind_device/check_current_rightの実成功と同じ関数呼び出しの中でだけ印を書く。
 # 状態やboolを入力に受ける関数は作らない。上の共有断片(_BIND_HEAD等)から生成し、
-# 既存のrender_sync_right_sql()の出力は変えない。
+# 正式本文はこの単一rendererから生成する。旧版は試験専用fixtureに固定する。
 
 _STAMP_COLS = (
     "tenant_id,attempt_id,phase_id,authority_id,control_instance,business_instance,"

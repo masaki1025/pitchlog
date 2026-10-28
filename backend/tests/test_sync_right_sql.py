@@ -18,14 +18,13 @@ from pitchlog.authz.first_ball_write_stamp import (
     _ADMIT,
     STATE_TRANSITIONS,
     TERMINAL_STATES,
-    candidate_profile,
+    formal_profile,
 )
 from pitchlog.authz.sync_right_sql import (
     _BIND_HEAD,
     _RIGHT_EXISTS,
     _RIGHT_HEAD,
     render_stamped_function_sql,
-    render_sync_right_sql,
 )
 from pitchlog.sync.control_provider.writer_binding_models import (
     FirstBallWriteAdmission,
@@ -34,9 +33,16 @@ from pitchlog.sync.control_provider.writer_binding_models import (
 _ROOT = Path(__file__).resolve().parents[2]
 
 
+def _historical_unstamped_sql() -> str:
+    """旧0037の試験専用fixtureを読む。製品コードでは使用しない。"""
+    return (
+        Path(__file__).parent / "fixtures/sync_right_unstamped_0037.sql"
+    ).read_text()
+
+
 def test_exact_sql_boundary() -> None:
     """有限関数/秘密非射影/未供給binding参照を保持する。"""
-    sql = render_sync_right_sql()
+    sql = _historical_unstamped_sql()
     assert sql.count("CREATE FUNCTION sync_right_api.") == 2
     assert sql.count("PERFORM sync_fence_api.assert_writer_binding(") == 2
     assert sql.count("SECURITY DEFINER") == 2
@@ -240,8 +246,8 @@ def _header(function_sql: str, name: str) -> str:
 
 
 def test_s01_existing_render_is_unchanged() -> None:
-    """S01: 既存のrender_sync_right_sql()の出力はbyte単位で変わらない。"""
-    digest = hashlib.sha256(render_sync_right_sql().encode()).hexdigest()
+    """S01: 既存の_historical_unstamped_sql()の出力はbyte単位で変わらない。"""
+    digest = hashlib.sha256(_historical_unstamped_sql().encode()).hexdigest()
     assert digest == _OLD_RENDER_SHA256
 
 
@@ -250,7 +256,7 @@ def test_s02_stamped_body_keeps_the_abi(name: str) -> None:
     """S02: 印付きbodyの署名(引数・戻り・security・search_path)は既存と同じ。"""
     stamped = _stamped_functions()[name]
     assert stamped.startswith(f"CREATE OR REPLACE FUNCTION sync_right_api.{name}(")
-    assert _header(stamped, name) == _header(render_sync_right_sql(), name)
+    assert _header(stamped, name) == _header(_historical_unstamped_sql(), name)
     # 入口のassert(別phase/nonce/tenantを通さない既存の検査)をそのまま先頭に持つ。
     from pitchlog.authz.sync_right_sql import _ASSERT
 
@@ -510,31 +516,23 @@ def _walk_rows(value: object) -> list[dict]:
     return rows
 
 
-def test_s09_candidate_profile_stays_unregistered() -> None:
-    """S09: Aのcandidate_profileは未登録のまま。installerの資産にgrantを入れない。"""
-    profile = candidate_profile()
-    assert profile["runtime_registered"] is False
+def test_s09_formal_profile_is_registered_exactly() -> None:
+    """S09: 正式profileの全宣言がinstaller資産へ過不足なく存在する。"""
+    from pitchlog.authz.first_ball_write_stamp import formal_declarations
+
+    profile = formal_profile()
+    assert profile["runtime_registered"] is True
+    assert profile["stamp_issuance"] == "STAMPED_BIND_RIGHT"
     ddl = _load_json("contracts/authz/product/ddl-elements.json")
-    owner = "pitchlog_sync_right_fn_owner"
-    for row in _walk_rows(ddl):
-        if (
-            row.get("object_id")
-            in {
-                "first_ball_write_admissions",
-                "writer_admissions",
-                "writer_bindings",
-            }
-            and "grantee_role_id" in row
-        ):
-            assert row["grantee_role_id"] != owner, row
-    assert not any(
-        "guard_first_ball" in str(row.get("function_id", "")) for row in _walk_rows(ddl)
-    )
+    assert first_ball_product.validate(ddl)
+    for section, rows in formal_declarations().items():
+        for row in rows:
+            assert ddl[section].count(row) == 1
 
 
 def test_s10_old_and_stamped_bodies_come_from_the_same_template() -> None:
     """S10: 既存の描画と印付き描画は同じ共有断片から生成される(重複実装を作らない)。"""
-    old = render_sync_right_sql()
+    old = _historical_unstamped_sql()
     stamped = _stamped_functions()
     for fragment in (_BIND_HEAD, _RIGHT_HEAD, _RIGHT_EXISTS):
         assert fragment in old, fragment[:40]
@@ -543,28 +541,40 @@ def test_s10_old_and_stamped_bodies_come_from_the_same_template() -> None:
     assert _RIGHT_EXISTS in stamped["check_current_right"]
 
 
-def test_s11_formal_function_bodies_are_not_replaced_by_this_step() -> None:
-    """S11: 正式資産のbind/rightのbodyは印を書かない(差し替えは正式profileのunit C)。"""
-    keys = [
-        k
-        for k in first_ball_product.BODIES
-        if k.startswith("function|FUNCTION:sync_right_api:")
-    ]
-    assert len(keys) == 2
-    for key in keys:
-        assert "first_ball_write_admissions" not in first_ball_product.BODIES[key], key
-    for path in (_ROOT / "contracts/authz/product/function-bodies/functions").glob(
-        "FUNCTION:sync_right_api:*"
-    ):
-        assert "first_ball_write_admissions" not in path.read_text(encoding="utf-8")
+def test_s11_formal_bodies_are_the_single_stamped_source() -> None:
+    """S11: 正式bind/right本文は単一stamped描画と一致する。"""
+    for name, source in _stamped_functions().items():
+        row = next(
+            row
+            for row in first_ball_product.ADDITIONS["functions"]
+            if row["schema_name"] == "sync_right_api" and row["function_name"] == name
+        )
+        key = "function|" + row["function_id"]
+        value = first_ball_product.BODIES[key]
+        assert (
+            source.replace("CREATE OR REPLACE FUNCTION", "CREATE FUNCTION", 1) in value
+        )
+        assert "first_ball_write_admissions" in value
+        path = (
+            _ROOT
+            / "contracts/authz/product/function-bodies/functions"
+            / (row["function_id"] + ".sql")
+        )
+        assert path.read_text() == value
 
 
-def test_s12_double_rendering_is_pinned_until_the_formal_unit() -> None:
-    """S12: 旧描画と旧BODIESの削除はunit Cの条件。それまでS01・S03・S11で固定。"""
-    old = render_sync_right_sql()
-    assert old.count("CREATE FUNCTION sync_right_api.") == 2
-    assert "CREATE OR REPLACE" not in old
-    assert all("CREATE OR REPLACE" in v for v in _stamped_functions().values())
+def test_s12_old_production_renderer_is_removed() -> None:
+    """S12: 旧描画の並走を終了し、旧SQLは製品が読まないfixtureへ閉じる。"""
+    import inspect
+
+    from pitchlog.authz import sync_right_sql
+
+    assert not hasattr(sync_right_sql, "render_sync_right_sql")
+    assert (
+        hashlib.sha256(_historical_unstamped_sql().encode()).hexdigest()
+        == _OLD_RENDER_SHA256
+    )
+    assert "_historical_unstamped_sql" not in inspect.getsource(sync_right_sql)
 
 
 # ---------------------------------------------------------------------------
