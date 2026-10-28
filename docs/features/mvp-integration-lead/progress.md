@@ -41,6 +41,14 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 **U09 非作者review結果（fix_required）**: P0=0 / P1=1 / P2=8、REPORT SHA `113452bb…1d29`。P1は `test_sync_first_ball_registration.py:24` の `assert not PORT_IMPLEMENTATIONS` が本patchの登録追加で偽になる未追随（既存赤ではあるが受入根拠の「2017成功」も同一集合で再現できず 2005収集/1failed）。P2は epoch定数902・postmaster_started_at・assert_held後のbinding差替えが変異で生存。**P0相当の穴なし**（V12は核の既存proof_digestのみ、epochは実loanのみ、新SQL/GRANT 0、10path以外0）。
 **対応（隔離組立で実施）**: 垂直組立 `32b13d06` に source10 を適用し、登録テストを「監査済み閉集合の完全一致＋未登録型/常true object の拒否」へ強化（弱めずに exact 化）。対象205件成功。P2のfixture非定数化はE1採用前の是正として残す（P1修正のため再reviewが必要）。
 
+**実装（PO許可により主担当が実装、`99449f78` を vertical 枝へ push）**
+- **投影Portを実装**: `sync/first_ball_projection.py`（`FirstBallProjectionPort`）＋ `sync/tokens.py` の `PortProjectFirstBallToken` ＋ `transaction._execute_port_command` の投影分岐 ＋ `first_ball_execution._apply_first_ball_projection`。同handle/writer/projected の実stateを一意特定 → frame一回消費 → `OperationEventReadToken` で実 `source_event_id` を得る → `FirstBallPlayRowInsertToken` を同TXで実行 → INSERT結果 `((1,),)` 厳密確認 → phase=`projected`（既`_require_first_ball_projection_completed` と整合）。外から成功真偽を受けない。
+- **座標の単位写像を実装**: `sync/first_ball_course.py`。wireの正準整数k(0..263, 1/263)を保存用binary64へ `k/263` で写す。画面tap→kの変換（artifact境界・D18）は行わない。全264値の単調・有限・0..1、端点0.0/1.0、非十進/範囲外/非文字列拒否をテスト化（`tests/test_first_ball_course.py`）。
+- **登録閉集合**: `PORT_IMPLEMENTATIONS` を content/projection/rights の3件へ。固定bootstrap（port_guard）も3件を検査後import。既存の登録集合exactテスト・cold-startテストを3件へ追随（拒否は緩めず、未知/未読込の拒否を保持）。
+- 対象188〜241件成功、Ruff成功。**実DB・実HTTP・実画面は未検証**（投影は隔離組立の部品）。
+
+**次の実装（残る律速）**: sync HTTP route（`POST /games/{id}/sync/events`）と、その前提の E1 phase/issuer 供給（U11 単位I/II。P1-1=exact追加、P1-2=lock順）。route→`apply_sync_request` は実装可能な形まで判明（`SyncRequest.from_payload`、`AckResult`→`{advancedD3,eventResults[{d4,d1,d5,a5Result}],playerIdMappings}`）。phase供給が無いと `_preflight_d1` で停止する。
+
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
 ## Codex主担当の再引受照合（2026-10-28）
