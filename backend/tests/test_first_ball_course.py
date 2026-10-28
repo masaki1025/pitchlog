@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from tests.first_ball_course_oracle import (
+from pitchlog.sync.first_ball_course import (
     COURSE_DENOMINATOR,
     FirstBallCourseError,
     course_unit_to_double,

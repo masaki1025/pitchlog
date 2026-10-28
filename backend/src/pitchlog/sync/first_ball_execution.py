@@ -554,9 +554,16 @@ def _apply_first_ball_projection(handle, operation):
 
 
 def _physical_course(value: object) -> float:
-    """正準座標の物理Doubleを単一artifact供給だけから受け取る。
+    """正準座標kを保存用Doubleへ写す唯一の実装を呼ぶ。
 
-    現在のartifactには k -> Double の単一operationが無い。Pythonで式を
-    重複実装しないため、供給が接続されるまで投影は閉拒否する。
+    artifact DSL には除算が無く、k/263 は有限小数にならないため、artifact
+    内で binary64 を作れない（frontend/src/domain 全体で `/` 演算0を確認）。
+    screen->k の変換は artifact の責務のまま、k->Double の保存符号化だけを
+    ここに単一実装する。式の重複実装は作らない。
     """
-    raise FirstBallExecutionError
+    from pitchlog.sync.first_ball_course import course_unit_to_double
+
+    try:
+        return course_unit_to_double(value)
+    except ValueError:
+        raise FirstBallExecutionError from None
