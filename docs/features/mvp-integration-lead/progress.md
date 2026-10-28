@@ -82,6 +82,22 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
+### 2026-10-29：初球P2の実HTTP 1球保存を隔離縦断で実証（`0466e98d`）
+
+PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**利用者が新たにできる操作は実画面ではなくAPI経路の1球保存**であり、画面・実機・正式統合の証拠ではない。
+
+**実測した縦断（1経路・owned PG17.11・実UID20003/20005・実broker・実artifact評価）**: 実HTTP login→実HTTP `/devices/enroll`→実HTTP `POST /games/{id}/start`（実worker）→`GET /started`=200→実HTTP `POST /games/{id}/sync/events`=**200**→実ACK `{advancedD3:1, eventResults:[{d1:1,a5Result:"受理"}]}`→`GET /started`=**409**（記録後は既仕様どおり本文を返さない）。実PGは `idempotency_ledger`/`event_slots`/`operation_events`/`play_rows` 各1行、`play_rows` は play_number=1・batting_order=1・event_kind=pitch・batting_result_key=`batting-result.ball`・pitch_type_key=実tenant語彙・course=`132/263`,`131/263`・pitch_speed/stance/batting_side=null・batter/pitcher/catcher=実名簿のDH枠1/投手/捕手、`sync_fence.first_ball_write_admissions`=`consumed`。`tests/db/test_first_ball_vertical_http.py` **1 passed/35.56s**（**15 passed/104.17s** = 縦断1＋投影atomic12＋判定phase2）。
+
+**route実装で見つかり修正した2つの実欠陥（`0466e98d`）**
+1. 端末提示（`_DevicePresentation`）の発行口が製品に無く、`_verify_bound_device` で必ず閉拒否していた。受付寿命に閉じた一度限りの発行口を writer_binding へ追加（同一 `entry_token`・二重発行拒否・受付終了で同時破棄・既単一 `_credential_digest` だけを使用）。unit 9件で固定。
+2. route が `binding.event_fingerprint`（存在しない属性）を参照し、投影が名簿の正準UUID**文字列**を保存列のUUID型へ渡していた。`selected_event_fingerprint` と UUID 写像へ修正（値は変えない）。
+
+**判明した残件（成功へ読み替えない）**
+- **同一要求再送の同一ACK再掲は未実装**: 実測で再送は `publish_writer_binding` の重複INSERT（42501/23505）→`LedgerUnavailable`→route未捕捉（500）。phase同一性（`_phase_id`）は保たれるが、publish が冪等でなく既存結末の再掲も無い。契約追記（同一要求再送＝同一ACK、結果不明で新IDへ置換しない）と実装が要る。
+- **記録後GET**は409で閉じる（記録後readは別単位）。**実画面Playwright**・**実機/HTTPS**・**正式7.7受理（#184の28/22→32/26,27の単一記録）**は未了。
+- 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
+- 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
