@@ -1,6 +1,37 @@
 # 初回MVP 主担当引受・進捗台帳
 
-更新: 2026-10-27。判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+更新: 2026-10-28（Claude主担当、Codexへ引継ぎ）。2026-10-27までの判断者: Codex主担当。根拠: 2026-10-23のPOの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
+
+## 再開時の現在地と次の作業（2026-10-28 17:40 JST、Claude主担当→Codex主担当への引継ぎ）
+
+この節を再開入口とする。下の2026-10-27節以前は履歴。判断はPO委任の主担当判断で、本人署名・人間逐行確認ではない。
+
+**目標（PO、2026-10-28）**：(a) 初球の縦断実証（隔離環境で実画面→正式経路→1球保存→再読込で同じ状態）を **10/31**。合意済みMVP全体を **11/12**。日程のために安全条件・独立レビュー・実DB確認を省かない。
+
+**固定点**
+- writer-binding WT `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-first-ball-writer-binding` HEAD `dda33eb8`（push済）。10-28の主担当判断は全て `docs/features/tsk544-t1-state-calculation/plan.md` 末尾5段落（d523faa4 1要求1 bound TX／fbb30756 最初の書込訂正とB5段階順／2ed8f977 unit B計画採用とA+B結合候補の作成承認／dda33eb8 U13計画採用）。
+- #188候補WT `~/.cache/pitchlog/verify-game-start-atomic-4f2f2185` local HEAD `f0a8ce4e`（U3 frozen是正 `dda01ca8`、未push維持）。
+- 台帳branch本WT：判断票 `decision-sheet.md`（D09〜D13 PO採用済、D14〜D17回答待ち）、D09対応表 `d09-abi-equivalence.md`（PO条件の表、未担保行は追加実装）。
+- 第2・3波の結果：cache `wave2b-results-20261028/`、`wave3-results-20261028/`（track別JSON、review findings全文）。
+
+**実行中だった作業（Claudeのサブエージェント。セッション終了で止まる可能性あり。成果物の有無を先に確認）**
+1. **unit A+B結合候補**（最優先・初の製品commit候補）：出力 `~/.cache/pitchlog/impl-unit-ab-report/`（REPORT.md、combined.patch〔2ed8f977基点〕、docs.patch、results.json）、作業WT `~/.cache/pitchlog/impl-unit-ab`。計画 `first-ball-db-insert-stamp-plan-20261027/unit-b/reflection2/PLAN-CANDIDATE.md`（23 path）。無ければ同計画で作り直す。次：非作者review（権限・RLS観点と計画一致観点の2本）→P0/P1反証→docs.patchを前置docs commit、combined.patchを1 step 1 commitでwriter-bindingへ（件名に `(ステップ k 付記)`）。A単独commitは不可（test_schema_manifest 4赤）。
+2. **U13 開始済みread HTTP 候補**：出力 `~/.cache/pitchlog/impl-u13-report/`（step別patch、A-2プローブ結果）、WT `~/.cache/pitchlog/impl-u13`。計画 `started-read-http-20261027/reflection3/PLAN-CANDIDATE.md`（採用済）。ステップ4の2段目（route-registry JSON/lock）はroot commit。基線ゲート2つ（tenant境界の受理record欠落、authz catalog oracle seal未再封印）の修復が統合前に必要（別単位）。
+3. **E-1段階3 反映5の非作者review**：計画 `e1-stage3-core-binding-readiness-20261027/reflection5/PLAN-CANDIDATE.md`（SHA 36d8c989…）。②端末資格の読取部品（未適用SQL候補、最小5 path）を3B範囲に含める判断済み。reviewがP1なしなら3A-2・3B採用→実装（Port接合U10）。
+4. **D11計画反映1とMVP-D18の選択肢**：出力 `d11-coordinate-quantization-20261028/reflection1/`（PLAN-CANDIDATE.md、D18-OPTIONS.md）。D18＝座標変換を生成artifactへ載せる根拠がADR-003 D-14-m（T1/T2限定、ADR-003:1163確認済）に無い件。判断票に起票しPOへ（ADR改訂なら確定ゲート・PO承認）。画面組立U17/U19の前に要る。
+
+**次に着手する作業（10/31までの順）**
+- unit C（正式profile登録・activation）→PlayRow登録（U06）→E-1 3B実装（Port接合、1 bound TXの実PG成立条件T-20）→D09表のG20（確定拒否を`binding_rejected`で閉じる、許可リスト5件）→同期HTTP入口（U11）→基線ゲート修復→画面側（U17座標/D11・U18・U19 V7・U20/U21端末キューD12 v4最小部分）→封鎖解除→縦断実証。
+- D12計画（`d12-durable-queue-v4-rebaseline-20261028/`）は反映1が必要（review P1×2：S3解除条件が永久不成立、版繰上げ時の移行ガードが既存印を上書き）。初球に要る最小部分（送信前バリアと未送信保持）から接続し、接続部分にはPO条件（独立再review・所有側受理・最終差分確認）を適用する。
+- D13語彙seed計画は反映1が非作者review adopt（P2=3）。置き場と着手は未決。
+
+**注意（必ず守る）**
+- シェルの `PITCHLOG_TEST_ADMIN_DSN`/`PITCHLOG_TEST_ROLE_DSN`（~/.bashrc）は**共有DBを指す**。pytestは必ず `env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN` を付けるか専用PGへ向ける（10-28に1回事故、残骸なしを確認済）。
+- git_guard hookは `cd X && git` と変数パスの `git -C $W` と宛先なしpushを止める。`git -C <絶対パス>`、`git push origin <branch>` を使う。
+- owned fixtureは匿名volumeを残す。開始前の一覧との差分で自分の分だけ消す。他セッションの分・`docker compose down -v` は触らない。
+- 非作者reviewはP1/P0が出たものだけ再review、P2は反映して採用する運用（10-28）。
+
+利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
 
 ## 再開時の現在地と次の作業（2026-10-27 20:50 JST）
 
