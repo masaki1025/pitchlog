@@ -14,6 +14,7 @@ from pitchlog.api.routers import (
     meta,
     players,
     started_games,
+    sync,
     team_records,
 )
 from pitchlog.api.tenant_access import tenant_match_response_headers
@@ -31,9 +32,11 @@ ROUTERS: tuple[APIRouter, ...] = (
     lineup_memory.router,
     games.router,
     started_games.router,
+    sync.router,
 )
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
 _RG1_CLIENT_CONFIG_PATH = Path("/run/pitchlog/rg1-client.json")
+_BINDING_CLIENT_VARIABLE = "PITCHLOG_BINDING_CLIENT_CONFIG"
 
 
 class _RenewedCookieMiddleware:
@@ -98,5 +101,9 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     for router in ROUTERS:
         app.include_router(router)
+    configured = os.environ.get(_BINDING_CLIENT_VARIABLE)
+    app.state.binding_client_config_path = (
+        Path(configured) if configured else None
+    )
     _activate_presentation(app.state.token_presentation)
     return app

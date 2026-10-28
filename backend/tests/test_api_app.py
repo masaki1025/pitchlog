@@ -81,6 +81,7 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("POST",), "/games/{game_id}/start"),
         (("POST",), "/games/{game_id}/start/resolve"),
         (("GET",), "/games/{game_id}/started"),
+        (("POST",), "/games/{game_id}/sync/events"),
     )
     assert tuple(route.operation_id for route in routes) == (
         "meta_health_read",
@@ -107,6 +108,7 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "initial_game_start",
         "initial_game_start_resolve",
         "started_game_detail",
+        "sync_events",
     )
 
 

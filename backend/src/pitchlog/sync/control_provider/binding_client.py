@@ -16,7 +16,7 @@ from uuid import UUID
 _KEYS = frozenset(
     {
         "schema_version",
-        "socket_path",
+        "broker_endpoint",
         "control_instance",
         "business_instance",
         "restore_epoch",
@@ -33,7 +33,7 @@ class BindingClientConfigurationError(RuntimeError):
 class BindingClientConfiguration:
     """binding broker への接続先と authority3 を固定する。"""
 
-    socket_path: Path
+    broker_endpoint: Path
     control_instance: UUID
     business_instance: UUID
     restore_epoch: UUID
@@ -91,7 +91,7 @@ def load_binding_client_configuration(
         raise BindingClientConfigurationError("binding client 設定のキー集合が不正")
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise BindingClientConfigurationError("binding client 設定の版が不正")
-    socket_name = value["socket_path"]
+    socket_name = value["broker_endpoint"]
     if (
         type(socket_name) is not str
         or not socket_name
@@ -99,12 +99,12 @@ def load_binding_client_configuration(
         or not os.path.isabs(socket_name)
         or not 0 < len(os.fsencode(socket_name)) < 108
     ):
-        raise BindingClientConfigurationError("binding broker のsocketパスが不正")
+        raise BindingClientConfigurationError("binding broker のendpointパスが不正")
     version = value["control_version"]
     if type(version) is not int or not 0 < version < 2**63:
         raise BindingClientConfigurationError("control_version が不正")
     return BindingClientConfiguration(
-        socket_path=Path(socket_name),
+        broker_endpoint=Path(socket_name),
         control_instance=_uuid(value["control_instance"]),
         business_instance=_uuid(value["business_instance"]),
         restore_epoch=_uuid(value["restore_epoch"]),

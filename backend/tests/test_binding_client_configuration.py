@@ -21,7 +21,7 @@ def _write(tmp_path: Path, value: object) -> Path:
 def _valid() -> dict[str, object]:
     return {
         "schema_version": 1,
-        "socket_path": "/run/pitchlog/binding.sock",
+        "broker_endpoint": "/run/pitchlog/binding-endpoint.json",
         "control_instance": str(uuid4()),
         "business_instance": str(uuid4()),
         "restore_epoch": str(uuid4()),
@@ -35,7 +35,7 @@ def test_valid_configuration_is_loaded(tmp_path: Path) -> None:
     config = load_binding_client_configuration(_write(tmp_path, value))
     assert str(config.control_instance) == value["control_instance"]
     assert config.control_version == 3
-    assert str(config.socket_path) == value["socket_path"]
+    assert str(config.broker_endpoint) == value["broker_endpoint"]
 
 
 @pytest.mark.parametrize(
@@ -45,7 +45,7 @@ def test_valid_configuration_is_loaded(tmp_path: Path) -> None:
         lambda v: v.pop("restore_epoch"),
         lambda v: v.update(schema_version=2),
         lambda v: v.update(control_version=0),
-        lambda v: v.update(socket_path="relative.sock"),
+        lambda v: v.update(broker_endpoint="relative.json"),
         lambda v: v.update(control_instance="not-a-uuid"),
         lambda v: v.update(control_instance=str(uuid4()).upper()),
         lambda v: v.update(business_instance=123),
