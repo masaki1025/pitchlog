@@ -54,6 +54,11 @@ def _configuration(request: Request) -> BindingClientConfiguration:
         raise HTTPException(status_code=503) from None
 
 
+def _phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
+    """同一要求の再送で同一 phase を作り、新 attempt だけを別 phase にする。"""
+    return uuid5(_PHASE_NAMESPACE, f"{attempt}:{request_fingerprint}")
+
+
 def _request_path(payload: object) -> str:
     """本文の外形からP2だけを選び、他の経路は閉拒否する。"""
     if not isinstance(payload, dict):
@@ -149,7 +154,7 @@ def sync_events(
             )
             phase = EventPhaseBinding(
                 attempt_binding,
-                uuid5(_PHASE_NAMESPACE, f"{attempt}:{source.request_fingerprint}"),
+                _phase_id(attempt, source.request_fingerprint),
                 1,
                 1,
                 UUID(event.d5),
