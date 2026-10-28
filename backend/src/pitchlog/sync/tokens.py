@@ -418,6 +418,33 @@ class PortValidateFirstBallToken(_SyncToken):
 
 
 @dataclass(frozen=True, slots=True)
+class PortProjectFirstBallToken(_SyncToken):
+    """同writer投影区間のframe一回消費と保存だけを要求する値命令。
+
+    成功真偽や保存値を外から受け取らない。核が束縛した実 state と
+    採番済み event の同一性を自分で確認してから U06 の固定 INSERT を呼ぶ。
+    """
+
+    game_id: UUID
+    d5: UUID
+    projected: SyncEvent = field(repr=False)
+    writer: object = field(repr=False)
+    _capability_id = "CAP:play_rows:insert"
+
+    def __post_init__(self) -> None:
+        """採番済み event の外形だけを確認し、元eventは核が保持する。"""
+        if (
+            type(self.game_id) is not UUID
+            or type(self.d5) is not UUID
+            or type(self.projected) is not SyncEvent
+            or str(self.game_id) != self.projected.game_id
+            or str(self.d5) != self.projected.d5
+            or type(self.projected.v6) is not int
+        ):
+            raise ValueError("初球投影命令の入力が不一致です")
+
+
+@dataclass(frozen=True, slots=True)
 class PortCheckPresentedRightToken(_SyncToken):
     """提示V12を未変換で核へ渡す。proof/epochを発行する資格ではない。"""
 

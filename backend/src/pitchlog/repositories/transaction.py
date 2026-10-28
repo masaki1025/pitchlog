@@ -1146,6 +1146,7 @@ def _is_port_command(operation):
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
         PortCheckPresentedRightToken,
+        PortProjectFirstBallToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
         PortValidateFirstBallToken,
@@ -1157,6 +1158,7 @@ def _is_port_command(operation):
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
             PortCheckPresentedRightToken,
+            PortProjectFirstBallToken,
             PortRG1PrecheckToken,
             PortRG1CommitCheckToken,
             PortValidateFirstBallToken,
@@ -1222,12 +1224,19 @@ def _execute_port_command(handle, operation):
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
         PortCheckPresentedRightToken,
+        PortProjectFirstBallToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
         PortValidateFirstBallToken,
     )
 
     phase = _port_phase(handle)
+    if type(operation) is PortProjectFirstBallToken:
+        if phase is not None:
+            raise TenantBindingError("投影命令は判定phaseの外だけで使う")
+        from pitchlog.sync.first_ball_execution import _apply_first_ball_projection
+
+        return _apply_first_ball_projection(handle, operation)
     if phase is None:
         raise TenantBindingError("Port値命令は実判定phaseを必要とする")
     phase.bound.assert_current()

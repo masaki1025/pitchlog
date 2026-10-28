@@ -16,6 +16,7 @@ from pitchlog.sync.ports import PORT_IMPLEMENTATIONS, PortRegistrationError
 _EXPECTED_PORTS = frozenset(
     {
         ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
     }
 )

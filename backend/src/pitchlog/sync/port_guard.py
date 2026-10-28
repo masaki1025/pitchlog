@@ -497,12 +497,17 @@ def require_registered_port(port: object) -> None:
 
 
 def _load_first_ball_port_classes() -> tuple[type[object], ...]:
-    """固定2実装だけを検査後に読み込み、集合の巡回順に依存させない。"""
+    """固定3実装だけを検査後に読み込み、集合の巡回順に依存させない。"""
     validate_port_modules()
     from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+    from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
     from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
 
-    return (FirstBallContentValidationPort, FirstBallRecordingRightsPort)
+    return (
+        FirstBallContentValidationPort,
+        FirstBallProjectionPort,
+        FirstBallRecordingRightsPort,
+    )
 
 
 _BOOTSTRAPPED_FIRST_BALL_TYPES = _load_first_ball_port_classes()

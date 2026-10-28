@@ -312,6 +312,7 @@ def test_unregistered_port_is_rejected_before_call() -> None:
     assert ports.PORT_IMPLEMENTATIONS == frozenset(
         {
             ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+            ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
             (
                 "pitchlog.sync.first_ball_recording_rights",
                 "FirstBallRecordingRightsPort",
@@ -319,6 +320,9 @@ def test_unregistered_port_is_rejected_before_call() -> None:
         }
     )
     from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+
+    import pitchlog.sync.first_ball_projection  # noqa: F401  # 登録集合の固定bootstrap
+    import pitchlog.sync.first_ball_recording_rights  # noqa: F401
 
     ports.require_registered_port(FirstBallContentValidationPort())
     port = SafeProjection()
@@ -592,6 +596,7 @@ def test_port_signatures_do_not_expose_context_handle_or_session() -> None:
     "module,kind",
     [
         ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
     ],
 )
@@ -603,9 +608,13 @@ def test_fixed_registered_ports_cold_start_and_missing_unknown_refusal(module, k
     program = f"""
 from {module} import {kind}
 from pitchlog.sync import port_guard,ports
+import pitchlog.sync.first_ball_ports
+import pitchlog.sync.first_ball_projection
+import pitchlog.sync.first_ball_recording_rights
 import sys
 port={kind}()
 assert 'pitchlog.sync.first_ball_ports' in sys.modules
+assert 'pitchlog.sync.first_ball_projection' in sys.modules
 assert 'pitchlog.sync.first_ball_recording_rights' in sys.modules
 port_guard.require_registered_port(port)
 ports.PORT_IMPLEMENTATIONS=ports.PORT_IMPLEMENTATIONS | frozenset({{

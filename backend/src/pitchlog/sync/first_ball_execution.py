@@ -474,3 +474,81 @@ def _consume_first_ball_projection(handle, projected, writer) -> FirstBallFrameV
     except BaseException:
         _close_projection(state)
         raise
+
+
+def _projecting_state(handle, operation) -> _Execution:
+    """同handle/writer/event/projected の投影区間stateを一意に特定する。"""
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.handle is not handle
+        or state.writer is not operation.writer
+        or state.projected_event is not operation.projected
+        or state.phase != "projecting"
+        or state.projection_call is None
+        or state.payload is None
+    ):
+        raise FirstBallExecutionError
+    _live(state)
+    return state
+
+
+def _apply_first_ball_projection(handle, operation):
+    """投影区間の真正frameを一回だけ消費し、同TXでU06の固定INSERTを実行する。
+
+    成功真偽は外から受け取らず、実state・実event行・実INSERT結果だけから
+    返す。保存値の組み立てはV7の閉値と正準座標の単位換算だけを使う。
+    """
+    from uuid import uuid4
+
+    from pitchlog.db.sync_protocol.models import OperationEvent
+    from pitchlog.repositories.tokens import TenantOperationResult
+    from pitchlog.sync.first_ball_course import course_unit_to_double
+    from pitchlog.sync.first_ball_tokens import FirstBallPlayRowInsertToken
+    from pitchlog.sync.tokens import OperationEventReadToken
+
+    state = _projecting_state(handle, operation)
+    payload = state.payload
+    observations = payload.v7.observations
+    participants = payload.v7.participants
+    value = _consume_first_ball_projection(
+        handle, operation.projected, operation.writer
+    )
+    rows = handle.run(
+        OperationEventReadToken(
+            value.game_id, value.generation, value.d1
+        )
+    ).rows
+    if type(rows) is not tuple or len(rows) != 1:
+        raise FirstBallExecutionError
+    columns = tuple(OperationEvent.__table__.c.keys())
+    source_event_id = rows[0][columns.index("id")]
+    speed = observations.pitch_speed.kmh
+    token = FirstBallPlayRowInsertToken(
+        id=uuid4(),
+        game_id=value.game_id,
+        source_event_id=source_event_id,
+        generation=value.generation,
+        d1=value.d1,
+        d2=operation.projected.v6,
+        d5=value.d5,
+        source_fingerprint=value.source_fingerprint,
+        batter_id=participants.batter_id,
+        pitcher_id=participants.pitcher_id,
+        catcher_id=participants.catcher_id,
+        pitch_type_key=observations.pitch_type_key,
+        course_x=course_unit_to_double(observations.course.x),
+        course_y=course_unit_to_double(observations.course.y),
+        pitch_speed=None if speed is None else float(speed),
+        stance=observations.stance,
+        batting_side=observations.batting_side,
+    )
+    result = handle.run(token)
+    if (
+        type(result) is not TenantOperationResult
+        or type(result.rows) is not tuple
+        or result.rows != ((1,),)
+    ):
+        raise FirstBallExecutionError
+    state.phase = "projected"
+    return TenantOperationResult(((True,),))
