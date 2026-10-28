@@ -785,3 +785,7 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 候補取り込み後もC5 root全件、C10製品DB/tenant/catalog、T18(c) record_d1_intents PK衝突、T15(c)旧body DB再構築運用、U09/3Bの実Port経路、S13〜15追加後の全件再検査は未完。非DB全件の基線100失敗比較を全件成功にしない。正式7.7値の単一受理、unit C正式profile/activation、最終HEADレビュー・必須CI、実API/画面保存は別義務として残す。
 
 2026-10-28、unit A+B取込は前置docs b7baf20f / 結合 d189a40e。候補24path全SHAを照合後、計画review P2のT09(f)コメント1行だけ実観測へ修正しAST不変を確認、実WT集中489件成功3.12秒。ACL reviewは後始末留保追記により最終REPORT SHAが4845f37347eef41e261dd9931f4779cb5ed32d7a5fa29d367defa300509eb05fへ変わった（検査結果不変、以前の3796d298…は追記前）。開始前volume一覧を保存していないため匿名volumeの帰属推測削除は行わない。正式受理/activation/全件CI/実縦断未達を維持。
+
+2026-10-28、PO委任によるCodex主担当判断。E-1段階3反映6 PLAN-CANDIDATE.md SHA e2d3d60d91a3c81a2f4ec95cec5c1fa18dac2051f91de46f0f000c15ab3a8dcf を、非作者re-review 676d97fd4bde5557d16df2e91d583580aabab8c0b8a8caa1bd8406609df25cfb P0/P1=0/P2=1に基づき3A-2・3Bの計画として限定採用する。P2は追補5431555f5b0c47143bd2da9521ba2c96209b084517d1fe06b530d0f7190cafdfのとおり、端末/試合(a)(b)を先に判定し双方一致時だけDB照会(c)を1回呼ぶ二段構造。同時不一致は既表11→12のB5優先。eager引数評価・自由callback・例外のfalse化を禁止する。旧反映5review全文はcache探索でも未取得で、その要約による反映記録と今回の実計画全文確認を区別する。反映5の旧P1（⑧mark_written条件）は同gated1回/受理T8/T9対向・変異を含む反映6で計画上解消。
+
+3A-2/3Bのexactpaths/段階順・単球F1/1要求1bound top-level TX/書込境界は同反映6を正とし、②端末読取部品の未適用候補5pathを含む。Port4署名を変えず、任意frame迂回や偽issuerを作らない。source差分をcacheで実装し、独立source reviewと影響検査後にstep単位で採否を決める。unit A+B差分を保持し、正式資産・公開HTTP・実Port・正式activationは別単位。T-20等の実PG条件、D09同等性表の未担保行、P3/配信/多件・未提供Portは未達を維持し、成立した部品からの実装と製品接続の完成を混同しない。
