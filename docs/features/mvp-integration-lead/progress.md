@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `45ccc75a`、E1 `d12484a0`、product-activation `59c4e596`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime sourceはE1へ保存、正式資産・DB functionは未完。global結果readは隔離実装中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は未実施。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `45ccc75a`、E1 `d12484a0`、product-activation `bd88eb21`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime sourceはE1へ保存、正式資産・DB functionは未完。global結果readは隔離実装中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は未実施。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1329,3 +1329,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：global結果read候補の正式installer/実Cookie/appによるowned PGは2成功（欠落・無効・有効・別DB誤カテゴリ）。統制で既positive stub一箇所のunion署名未追随を検出し、検出器を緩めずwriter a64241f6で正例exact1追加採用、修正・再検査中。候補/独立review/正式資産受理/初球保存は未完。GitHub #188の公開HEAD 72f4118aはDraft/BLOCKEDで旧CIのcore-guard・harness・tenant-boundary・backendが失敗、未push後発候補の検査へ読み替えない。U11調査 b8f21d28f4e172a2bdcec42c0461454a376172d3a8422111579a23be59d32868 は既receipt照合・Cookie/CSRF等を再利用可能、実issuer/routerは未供給と確認した。
 
 2026-10-28：global固定SQL builderの正式scanner実probeはTB005を検出。検出器を変えず、該当builderのSQLA_SELECT exact登録とpositive fixtureをwriter 45ccc75aでPO委任追補採用し、未知builder・DML・新execute拒否を保持する。正式値と独立reviewは未完。U11最小plan SHA203680e2f63e3fccc684f502d5170819bfe682d2eebf19f27022343a1caaa651 は候補で、正式route/実issuer/phase/Port未提供。G20実PG試験ではFK制約順により一部診断が到達不能の可能性があり、実測し未実証ならそのまま残す。
+
+2026-10-28：②DB activation候補の関連検査478成功/9失敗は、新functionの既body manifest登録不足という同一原因。product bd88eb21でmanifest exact1の正規追随をPO委任採用、既checker/拒否は保持して再検査する。E1の既rendererを固定依存として必要範囲だけ再利用し、別branch全体を移植しない。実PG・正式資産受理・初球提供は未完。
