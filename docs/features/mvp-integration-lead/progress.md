@@ -1238,3 +1238,10 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 作業3：3A-2 source2.patch cee48a7e890cc1507b66ba34925297a92c2c26ae3f76ea84637caad4d8a171ab、REPORT9198507a…をcache固定、作者側216/関連442成功・6変異検出。非作者review中。3Bは `implementation-3b/CHECKPOINT.md` で4594c203基点/未採用3A2 overlayの依存を明示、実repo/DB未変更。
 
 作業4：単一gate初回全文report44915692…はP0=0/P1=1/P2=1。全採用し7fd9e0f9「反映1周目」で方式現況/発効前例外をD14m閉集合へ整合し表示面を拡大せず表記修正。plan gate周回1、worklog採否/反例典拠固定。基本枠2回目は反映差分/影響節のみでレビュー予定。J2/最終確定は未回答/未成立、gate branchを公開して保全。
+
+
+2026-10-28：3A-2は非作者67a6968c…残0/関連533成功・6変異検出後、fb05b86eで取込、25932c87で判断記録・push。実WT216成功。pure W2 viewで実資格ではなく、旧legacyのscope→kind/D2→hash順は3Bで保持することを明示（新helperを早い位置へ移さない）。3Bはactual phase snapshot初稿と新11/既92成功の途中点を保存、まだ全経路未接合。
+
+単一正本gateは第2回f7dea902…可決P0=0/P1=0/P2=1、P2（処理済み/終結済み語彙）を全採用し62e2f35e「反映2周目」で記録だけ整理。基本2回枠完了、最後の記録差分は自動再reviewせずPOへ提示。J2と最終確定の両回答を待つ。未回答を承認とせずapproved0/U17未着手、同期/DB作業は継続。
+
+DB修復cacheは0038配置/実全列・制約検証へ到達したがfullinstaller後の正式catalog照合が失敗。繰返し同原因6件で自run検査を止め、違反内訳の新診断を実行中。autouse認証probeのDSN要求は別ownedPGを用意し、共有DSNは使わない。正式catalog保証は弱めず最小scope差分を先にrootへ返す。修復済みとは扱わない。
