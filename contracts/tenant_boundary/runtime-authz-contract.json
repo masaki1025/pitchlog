@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 26,
+  "runtime_contract_revision": 27,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:26"
+        "runtime_contract_revision:27"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -762,6 +762,11 @@
         "sync_right_api",
         "guard_first_ball_projection_lock",
         ""
+      ],
+      [
+        "sync_right_api",
+        "read_device_state",
+        "uuid, uuid"
       ]
     ]
   },
@@ -788,5 +793,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "ddbb10c7e2ab766a5f9e727ca41c35d63df09bcfac1851ce9875496f9053a29f"
+  "source_digest": "515e04c3affc5eb02565f1719d88a444ce1a8ca6eca2a3939ea44363dc0b6aa3"
 }

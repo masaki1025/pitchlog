@@ -2601,6 +2601,11 @@
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_first_ball_projection_admission().sql",
       "element_type": "function",
       "element_id": "FUNCTION:sync_right_api:guard_first_ball_projection_admission()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_device_state(uuid, uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_device_state(uuid, uuid)"
     }
   ]
 }
