@@ -1214,3 +1214,10 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 2026-10-28 作業2 U13：別WT `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-http` / branch同名、ef921539起点。採用plan1d9f99d6、step1 62f4c417（実WT31成功）、step2 af878182（81成功）、step3 7bf8c08a（16成功）、step4作者段2effe590、root登録段d4a9d7ec（生成registry/lockは旧候補と全byte一致、root対象37成功）。新planは委任承認の実態とbranch一致を記録しprovenance根拠行不変。step4 patchは既に前置配置したplanと衝突し初回適用拒否、同planを除外したpatchで適用（source省略なし）。利用者が新たにできる操作：現時点では未実証、HTTP入口候補と正式登録を供給した段階。基線seal/受理/製品fixtureが未解決のためstep5実DB受入・step6画面は未実施。後発独立確認中、通常統合/初球再読込の完成とはしない。
 
 作業3 E-1反映6は非作者re-review676d97fd…P0/P1=0/P2=1（a/b先照合→一致時だけDB、同時不一致B5優先）。旧反映5 review全文の所在確認と追補文案を依頼し、3A-2/3Bの採用はまだ行っていない。作業4の単一gate草案はcache `d18-d11-single-gate-draft-20261028/`（draft.patch8f5ad625…）に固定、正式in-review/ゲート/承認は未実施。J2未回答。
+
+
+2026-10-28 作業2後発確認：U13 c7056da9へ検査/独立追補を記録しbranch公開（push結果は再開時確認）。非作者7a0cad94…残0、登録含むauthz37/backend128成功。作業3は4594c203で反映6＋P2追補を採用、cache3A-2実装中。旧review全文未取得を記録し今回の実計画全文reviewと区別。
+
+作業4は別WT/branch `feature-mvp-coordinate-doc-gate`、既approved ADR0.9保全ba3e1082、単一gate起案31f493b3。2正本in-reviewとplan/worklogを同commitで固定、適用approved harness v1.19/条文64c9eec7。初回全文敵対reviewを開始（基本2回枠、旧計画レビュー回数を流用しない）。J2はA同一PR一式/B基盤先行の回答を同ゲート資料としてPOへ提示、未回答。正本approved化/実装なし。
+
+作業5診断：製品段階起動/initial_scope fixtureが0036止まりでfullinstallerが0037以降sync_fenceを要求する不整合。ownedPGでef921539の正規test失敗を再現し、診断pluginでfixture到達点だけ0038にすると1成功。ガード/installer/ACLを弱めていない。これは原因診断で正式修正・製品故障/再開保証の検証は未実施。新volume2個は帰属未確定で削除せず保存。最小exactpaths/受入条件をcache計画中。
