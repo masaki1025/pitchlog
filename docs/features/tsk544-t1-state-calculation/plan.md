@@ -783,3 +783,5 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 既計画の観測訂正（意味仕様の新規採用ではない）：(1) T09(f)のrun_in_savepoint(bind token)はDML registry外としてPythonで拒否されSQL/SAVEPOINTを発行しない。同TXはtop-levelのままで後続run_function(bind)は成功し得る。ROLLBACK TO後未RELEASEの拒否は実D5一意衝突T18(a)で別検証。(2) gateを入口前に閉じるとassert_writer_bindingが42501を返しcheck_current_rightの55000へ届かない。assert通過後の競合による55000は未再現。(3) binding欠落時は既assertのINTO STRICT由来P0002。正常保存・確定拒否への自動写像はせず、呼出側の分類/D06を別途検証。(4) 期限切れrightは42501でstatement/TX失敗、device_verified残置の観測はsavepoint取消後に限る。全取消やTX中断中の保持の証明とはしない。
 
 候補取り込み後もC5 root全件、C10製品DB/tenant/catalog、T18(c) record_d1_intents PK衝突、T15(c)旧body DB再構築運用、U09/3Bの実Port経路、S13〜15追加後の全件再検査は未完。非DB全件の基線100失敗比較を全件成功にしない。正式7.7値の単一受理、unit C正式profile/activation、最終HEADレビュー・必須CI、実API/画面保存は別義務として残す。
+
+2026-10-28、unit A+B取込は前置docs b7baf20f / 結合 d189a40e。候補24path全SHAを照合後、計画review P2のT09(f)コメント1行だけ実観測へ修正しAST不変を確認、実WT集中489件成功3.12秒。ACL reviewは後始末留保追記により最終REPORT SHAが4845f37347eef41e261dd9931f4779cb5ed32d7a5fa29d367defa300509eb05fへ変わった（検査結果不変、以前の3796d298…は追記前）。開始前volume一覧を保存していないため匿名volumeの帰属推測削除は行わない。正式受理/activation/全件CI/実縦断未達を維持。
