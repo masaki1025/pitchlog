@@ -7,6 +7,7 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.5 | 2026-10-28 | **6-1-aの実装追随(書込印unit A+B結合 — 版は上げない・設計書 7.6-3 前段)**: 初球PlayRow INSERT用の書込印`sync_fence.first_ball_write_admissions`の構造(31列・PK・FK3・CHECK5)・状態・権限の限定と、`schema-manifest.json`の表登録への追随を記した。既存の2表・記録権・認可・D5消費規則は変更しない。PO委任Claude主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-27 | **同期writer資格の補助2表とnamespace・一意制約を限定7.3で確定**。6-1-aへ既採用N1-U2の`sync_fence.writer_bindings`/`writer_admissions`の構造・不変列・閉鎖/追記・権限・UNKNOWN隔離を記載し、3-4へlease/nonce一意2行と既初期権一意2行の参照を整合。初回の版上げ不要という分類を撤回し、非作者第1回P1=2を全採用・反映1周・第2回0/0/0。PO委任によるCodex /root判断で本文を確定（本人の個別確認・署名ではない）。既1.4までの本文・履歴と野球結果/D5/認可の意味を保持する。正式7.7/個別認可供給/実DB/HTTP/1球保存は別未達。 | **approved** |
 | 1.4 | 2026-10-25 | 既承認6065063b §6.2/6.3の初期記録権4表・世代証拠2列と既前提2主体の制限関数境界を3-2/6-1へ写す。既存1.3/旧1.2両系列の承認・指摘・反映履歴は保持。今回確定する範囲は物理保存と認可の最小構造だけ。個別DDL/ACL/9API・内部trigger・0036・schema-manifest/正式7.7・実DB・broker/enrollment/開始UIは別途検証する。新たな野球結果/D5意味・端末役割を追加しない。限定7.3は初回P1=2全採用・反映1周・第2回0/0/0、PO委任によるCodex root判断で59966185本文を確定（本人の実値逐行確認/署名ではない）。 | **approved** |
 | 1.3 | 2026-10-24 | 正式基線となる外部耐久台帳1.2と、別枝で確定済みのRG1制限主体/安全条件（旧枝内1.2）を通常接合する候補。両方の旧承認/指摘採用/反映周/履歴を保持し、RG1の内容を本版へ再採番する。新たな記録意味や権限緩和は行わず、既606の初回世代束縛/初期peer前提と業務identity観測を有限具体化し、13製品主体/14batch込みの正式登録対象へ整合する。追加限定7.3は非作者0/0/0。PO委任によるCodex root判断で62ed6efe本文を確認し確定（本人の実値逐行確認・署名ではない）。正式資産/7.7/実DBは別。 | **approved** |
@@ -1293,6 +1294,14 @@ PostgreSQL の制約では表せない**。**分散させると「同じ `D5` �
 | `sync_fence.writer_admissions` | 非NULL uuid: `tenant_id,attempt_id,phase_id,lease_id`。非NULL text: `transaction_id` | PK `(tenant_id,attempt_id,phase_id)`。同3列→`sync_fence.writer_bindings`同3列はMATCH FULL/ON DELETE NO ACTION。transaction_idは上記と同じ正十進xid8制約 |
 
 両表にPK/一意制約以外の追加indexはない。bindingsは所有・試行・lease・端末・試合・世代・fingerprint・実PG identity・nonce digest・期限の27列を不変とし、`state/close_id`だけを`open/NULL`から`closed/非NULL`へ一度変更できる。同じclose_idの終結要求の再送で新しい変更は作らず、別close_idへの書換えは拒否する。admissionsは全5列を不変とする追記専用である。両表は業務オブジェクトの削除系統では対象外だが、物理DELETE/TRUNCATEは許可しない。退役述語を持たず、履歴を失うdowngradeも拒否する。
+
+初球PlayRow INSERT用の書込印sync_fence.first_ball_write_admissionsは、writer_bindingsの27不変列の写しと同top-level TXの状態だけを保持し、app/control actorは直接表DMLを持たず、固定関数だけで利用する。本項は書込印unit A(migration `0038_first_ball_write_admission`)のモデルへの実装追随であり、上記2表の定義、新たな記録権・認可・D5消費規則、初期記録権actorの権限を変えない。対応要件はFR-013・NFR-009、manifestの論理名は`first_ball_write_admissions`、物理schemaは`sync_fence`である。
+
+| 表 | 全列と型（記載のない既定値は全てなし） | 制約 |
+| --- | --- | --- |
+| `sync_fence.first_ball_write_admissions` | writer_bindingsの不変27列と同名・同型・同じNOT NULL（`tenant_id,attempt_id,phase_id,authority_id,control_instance,business_instance,restore_epoch,control_version,issuer,lease_id,device_id,game_id,wire_d4,internal_generation,recovery_generation,codec_version,request_fingerprint,d5,event_fingerprint,system_identifier,database_oid,postmaster_started_at,backend_pid,backend_start,transaction_id,nonce_digest,expires_at`）に加え、非NULL text: `state`。NULL可uuid: `source_event_id,play_row_id`。NULL可timestamptz: `consumed_at` | PK `(tenant_id,attempt_id,phase_id)`。同3列→`sync_fence.writer_bindings`同3列はMATCH FULL/ON DELETE NO ACTION。`(tenant_id,source_event_id)→operation_events(tenant_id,id)`と`(tenant_id,play_row_id)→play_rows(tenant_id,id)`はMATCH SIMPLE/ON DELETE NO ACTION（後者はDEFERRABLE INITIALLY DEFERRED）。stateは`device_verified/right_verified/invalid/consumed`で、consumedのときだけ`source_event_id,play_row_id,consumed_at`が全て非NULL。nonce digestは32byte、4 bigintとbackend_pidは正数、`wire_d4,request_fingerprint,event_fingerprint,system_identifier,database_oid`は空文字禁止、`transaction_id`は1〜20桁の正十進文字列かつ18446744073709551615以下 |
+
+書込印は、固定関数`bind_device`と`check_current_right`が同じ関数呼び出しの中で、writer_bindingsの行から不変27列をそのまま写して追加（最初の事象）またはstateだけを更新（以後の事象）する。stateの遷移は、端末資格と現在の記録権の照合が成立したときだけ`device_verified`から`right_verified`へ進み、失敗・逆順・識別の不一致は`invalid`へ進める。`invalid`と`consumed`は終端で再開しない。`consumed`への更新と消費3列の書込は、PlayRowのINSERTを検査する固定guardだけが行う。印の書込は同top-level TXでだけ成立し、savepoint内の書込は拒否する。書込印は業務成功・D5結果・記録権の現在性の証明ではない。印がrejectした事象と、正式profile・runtime登録・activationは別に扱い、本項はそれらの完了を意味しない。
 
 migration単独ではRLS ENABLE/FORCE・PUBLIC権限撤去によるdefault-denyで配置する。業務DBの狭いSECURITY DEFINER関数は専用NOLOGIN ownerで所有し、固定search_path・完全修飾とPUBLIC EXECUTE剥奪を用いる。app/control actorへ表の直接SELECT/INSERT/UPDATE/DELETE/TRUNCATEを与えない。`read_writer_identity`の1関数だけはSECURITY INVOKERで、実`session_user/current_user`のapp照合を保ったまま同じ業務接続のPG PID/full xid8を得る。実system_identifier/database_oid/postmaster_started_at・PID・full xid8・tenant/device/game・世代・期限と外部leaseを照合し、別接続・別transaction・savepoint初進入を正当なadmissionに代替しない。control側の固定関数・資格主体は別DB境界のままである。
 
