@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `45ccc75a`、E1 `fcd75c50`、product-activation `60355e84`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime/DB sourceは別枝へ保存、正式資産受理・実Port接合は未完。global結果readは独立reviewのP1是正中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は部分実測。U09初球実記録権Portは採用planに従い隔離実装中。座標変換の正本gate/J2、正式7.7・CI、実HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `45ccc75a`、E1 `bea25e56`、product-activation `60355e84`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime/DB sourceは別枝へ保存、正式資産受理・実Port接合は未完。global結果readは独立reviewのP1是正中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は部分実測。U09初球実記録権Portは採用planに従い隔離実装中。座標変換の正本gate/J2、正式7.7・CI、実HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1371,3 +1371,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：U11反映2非作者実験はAnyIO cancel scopeと異なりasyncio.Task.cancelでthread終了前にfinallyが走る反例を確認。反映2は未採用で、実worker終了まで資格を保持する方法と反復cancel/shutdownを具体化し再reviewする。U09実装候補は旧基線pin追随後のsync関連2012成功、Ruff/ty成功。owned初回1失敗35.45秒はfixture内のtest helper import失敗で開始/権利判定未到達と診断し、test側pathだけ是正中。変異5は赤を検出。実DB成功とは扱わず、secretや実値を検査logへ出さない条件を維持する。
 
 2026-10-28：U11反映2非作者review SHA35866864a6d0a8e3b6cdde1473c90e37855d78796d896a378193c1dabba2ea24 はcancelのP1=1、他の後発具体化は整合。worker終了前に資格を失効させない所有移管/反復cancel/shutdown対向の修正候補を準備する。これはsource未実装の計画指摘。U09はfresh processで正規Port moduleが未読込のまま既guardが閉拒否する問題を発見し、未知module拒否を維持した固定bootstrapと旧・新の単独起動試験を検討中。
+
+2026-10-28：U09 fresh process拒否は実開始後stage2でも確認。E1 bea25e56でport_guard.py exact1をPO委任追補し、既ports読込後に採用済Contentと新Rightsだけ明示importする。未知登録/削除済moduleの既拒否・import閉包を保持し、fresh process対向と非作者reviewを必須にする。U11 cancel修正はworkerへの所有移管案を検討し、shutdownで待機する対象・上限・強制終了時の結果不明を具体化後にreviewする。どちらも実装/受入完了とは扱わない。
