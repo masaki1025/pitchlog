@@ -19,7 +19,13 @@ def test_port_real_guard_and_original_event_command():
     port = FirstBallContentValidationPort()
     require_registered_port(port)
     assert PORT_IMPLEMENTATIONS == frozenset(
-        {("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort")}
+        {
+            ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+            (
+                "pitchlog.sync.first_ball_recording_rights",
+                "FirstBallRecordingRightsPort",
+            ),
+        }
     )
     event = SyncEvent(str(uuid4()), str(uuid4()), 1, "d4", "1")
     seen = []

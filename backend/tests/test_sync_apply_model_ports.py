@@ -312,6 +312,10 @@ def test_unregistered_port_is_rejected_before_call() -> None:
     assert ports.PORT_IMPLEMENTATIONS == frozenset(
         {
             ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+            (
+                "pitchlog.sync.first_ball_recording_rights",
+                "FirstBallRecordingRightsPort",
+            ),
         }
     )
     from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
@@ -582,3 +586,49 @@ def test_port_signatures_do_not_expose_context_handle_or_session() -> None:
                 for annotation in method.__annotations__.values()
                 for forbidden in ("TenantContext", "_TenantTransaction", "Session")
             )
+
+
+@pytest.mark.parametrize(
+    "module,kind",
+    [
+        ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
+    ],
+)
+def test_fixed_registered_ports_cold_start_and_missing_unknown_refusal(module, kind):
+    """新旧各Portだけから起動しても正規loadし、未読込/未知の拒否は残す。"""
+    import subprocess
+    import sys
+
+    program = f"""
+from {module} import {kind}
+from pitchlog.sync import port_guard,ports
+import sys
+port={kind}()
+assert 'pitchlog.sync.first_ball_ports' in sys.modules
+assert 'pitchlog.sync.first_ball_recording_rights' in sys.modules
+port_guard.require_registered_port(port)
+ports.PORT_IMPLEMENTATIONS=ports.PORT_IMPLEMENTATIONS | frozenset({{
+ ('pitchlog.sync.nonexistent_u09_port','Unknown') }})
+try:
+ port_guard.require_registered_port(port)
+except ports.PortRegistrationError:
+ pass
+else:
+ raise AssertionError('unknown registration accepted')
+ports.PORT_IMPLEMENTATIONS=ports.PORT_IMPLEMENTATIONS - frozenset({{
+ ('pitchlog.sync.nonexistent_u09_port','Unknown') }})
+sys.modules.pop('{module}')
+try:
+ port_guard.require_registered_port(port)
+except ports.PortRegistrationError:
+ pass
+else:
+ raise AssertionError('unloaded registration accepted')
+print('closed-cold-start-ok')
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", program], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "closed-cold-start-ok"

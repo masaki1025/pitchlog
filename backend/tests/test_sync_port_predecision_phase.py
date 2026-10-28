@@ -78,6 +78,30 @@ def rig(monkeypatch):
     monkeypatch.setattr(
         writer_binding._LiveWriterBinding, "assert_current", lambda self: None
     )
+    # 実peer/loan資格でないpure fixture。exact型とassert呼出を別々に検査する。
+    from test_sync_apply_writer_binding import _writer
+
+    from pitchlog.recording_rights.rg1_lifecycle import (
+        BusinessBinding,
+        _Activation,
+        _GateLoan,
+    )
+
+    loan_calls = []
+    loan = object.__new__(_GateLoan)
+    bound._identity = _writer()
+    loan.binding = BusinessBinding(
+        bound._identity.system_identifier,
+        int(bound._identity.database_oid),
+        "fixture_owned_db",
+        bound._identity.postmaster_started_at,
+        bound._identity.backend_pid,
+    )
+    loan._activation = _Activation(UUID(int=91), 1, 902)
+    monkeypatch.setitem(tx._RG1_LOANS, key, loan)
+    monkeypatch.setattr(
+        _GateLoan, "assert_held", lambda actual: loan_calls.append(actual)
+    )
     writer = _issue_port_writer(handle.run)
     yield SimpleNamespace(
         handle=handle,
@@ -85,6 +109,8 @@ def rig(monkeypatch):
         writer=writer,
         statements=statements,
         runtime=runtime,
+        loan=loan,
+        loan_calls=loan_calls,
     )
     writer._close()
     tx._PORT_PHASES.pop(key, None)

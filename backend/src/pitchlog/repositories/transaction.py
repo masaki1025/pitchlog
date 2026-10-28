@@ -1145,6 +1145,7 @@ def _is_port_command(operation):
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
+        PortCheckPresentedRightToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
         PortValidateFirstBallToken,
@@ -1155,11 +1156,57 @@ def _is_port_command(operation):
         (
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
+            PortCheckPresentedRightToken,
             PortRG1PrecheckToken,
             PortRG1CommitCheckToken,
             PortValidateFirstBallToken,
         ),
     )
+
+
+def _verified_recovery_epoch(handle, phase) -> int:
+    """同scopeの実借用だけを照合し、epochをPortへ公開せず核で使う。"""
+    from pitchlog.recording_rights.rg1_lifecycle import _Activation
+
+    if (
+        _port_phase(handle) is not phase
+        or phase.kind not in {"rg1-precheck", "rg1-commit", "rights"}
+        or _TRANSACTION_RUNTIMES.get(handle._state_key) is not phase.runtime
+    ):
+        raise TenantBindingError("記録権の復旧世代scopeが不一致")
+    handle._assert_writer_lifetime(phase.lifetime)
+    key = handle._state_key
+    loan = _RG1_LOANS.get(key)
+    if type(loan) is not _GateLoan:
+        raise TenantBindingError("記録権の実RG1借用がない")
+    from pitchlog.sync.control_provider.writer_binding import WriterIdentity
+
+    identity = phase.bound._identity
+    binding = loan.binding
+    if (
+        type(identity) is not WriterIdentity
+        or type(binding) is not BusinessBinding
+        or (
+            type(binding.database_oid) is not int
+            or type(binding.backend_pid) is not int
+            or binding.system_identifier != identity.system_identifier
+            or str(binding.database_oid) != identity.database_oid
+            or binding.postmaster_started_at != identity.postmaster_started_at
+            or binding.backend_pid != identity.backend_pid
+        )
+    ):
+        raise TenantBindingError("記録権のRG1借用が別DB/backend")
+    loan.assert_held()
+    if loan.binding is not binding or phase.bound._identity is not identity:
+        raise TenantBindingError("記録権のRG1借用が差し替えられた")
+    if _RG1_LOANS.get(key) is not loan or _port_phase(handle) is not phase:
+        raise TenantBindingError("記録権の実RG1借用が失効")
+    activation = loan._activation
+    if type(activation) is not _Activation or (
+        type(activation.epoch) is not int or not 0 < activation.epoch < 2**63
+    ):
+        raise TenantBindingError("記録権の復旧世代が不正")
+    return activation.epoch
 
 
 def _execute_port_command(handle, operation):
@@ -1174,6 +1221,7 @@ def _execute_port_command(handle, operation):
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
+        PortCheckPresentedRightToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
         PortValidateFirstBallToken,
@@ -1188,6 +1236,39 @@ def _execute_port_command(handle, operation):
 
         return _validate_first_ball_command(handle, operation)
     lease = phase.bound._lease
+    if type(operation) is PortCheckPresentedRightToken and phase.kind == "rights":
+        from pitchlog.sync.first_ball_proof import FirstBallProofError, proof_digest
+
+        raw = json.loads(phase.snapshot)["phase"]
+        if (
+            type(operation.game_id) is not UUID
+            or operation.game_id != lease.game_id
+            or type(operation.wire_d4) is not str
+            or operation.wire_d4 != raw["wire_d4"]
+        ):
+            raise TenantBindingError("提示記録権命令がactual bindingと不一致")
+        try:
+            digest = proof_digest(operation.raw_v12)
+        except FirstBallProofError:
+            return TenantOperationResult(((False,),))
+        epoch = _verified_recovery_epoch(handle, phase)
+        result = handle.run(
+            PortCheckCurrentRightToken(
+                operation.game_id, operation.wire_d4, epoch, digest
+            )
+        )
+        if type(result) is not TenantOperationResult or (
+            type(result.rows) is not tuple
+            or len(result.rows) != 1
+            or type(result.rows[0]) is not tuple
+            or len(result.rows[0]) != 2
+            or any(type(value) is not bool for value in result.rows[0])
+        ):
+            raise TenantBindingError("現権利命令の結果が不正")
+        recovery, right = result.rows[0]
+        if recovery is not True:
+            raise TenantBindingError("実RG1借用と業務復旧世代が不一致")
+        return TenantOperationResult(((right,),))
     if type(operation) is PortRG1PrecheckToken and phase.kind == "rg1-precheck":
         token = RG1PrecheckToken()
     elif type(operation) is PortRG1CommitCheckToken and phase.kind == "rg1-commit":
@@ -1234,4 +1315,16 @@ def _execute_port_command(handle, operation):
         )
     else:
         raise TenantBindingError("Port値命令の型又はphaseが不一致")
-    return handle.run_function(token)
+    result = handle.run_function(token)
+    if type(operation) in {PortRG1PrecheckToken, PortRG1CommitCheckToken}:
+        if type(result) is not TenantOperationResult or (
+            type(result.rows) is not tuple
+            or len(result.rows) != 1
+            or type(result.rows[0]) is not tuple
+            or len(result.rows[0]) != 1
+            or type(result.rows[0][0]) is not bool
+        ):
+            raise TenantBindingError("RG1命令の結果が不正")
+        if result.rows[0][0] is True:
+            _verified_recovery_epoch(handle, phase)
+    return result

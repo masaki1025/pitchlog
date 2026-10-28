@@ -415,3 +415,13 @@ class PortValidateFirstBallToken(_SyncToken):
             or str(self.d5) != self.event.d5
         ):
             raise ValueError("初球内容命令の入力が不一致です")
+
+
+@dataclass(frozen=True, slots=True)
+class PortCheckPresentedRightToken(_SyncToken):
+    """提示V12を未変換で核へ渡す。proof/epochを発行する資格ではない。"""
+
+    game_id: UUID
+    wire_d4: str
+    raw_v12: object = field(repr=False)
+    _capability_id = "CAP:sync_first_ball:check_current_right"
