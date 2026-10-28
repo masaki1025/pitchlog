@@ -321,6 +321,12 @@ def _fresh_schema_database(
         product_database = "pitchlog_stage_a_candidate"
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
             with admin.cursor() as cursor:
+                # 自owned seed DBだけを閉じ、initial verifierの別DB到達を拒否する。
+                cursor.execute(
+                    sql.SQL(
+                        "REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC"
+                    ).format(sql.Identifier(admin.info.dbname))
+                )
                 cursor.execute(
                     sql.SQL(
                         "CREATE ROLE pitchlog_owner WITH NOSUPERUSER NOBYPASSRLS "
@@ -366,7 +372,7 @@ def test_formal_stage_a_startup_preserves_closed_publication(
         assert result.publishable is False
         with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")
-            assert cursor.fetchone() == ("0035_rg1_initial_fresh_epoch",)
+            assert cursor.fetchone() == ("0038_first_ball_write_admission",)
             cursor.execute("SELECT count(*) FROM public.game_type_rule_defaults")
             assert cursor.fetchone() == (5,)
             cursor.execute(
@@ -447,7 +453,7 @@ def test_formal_stage_a_startup_authz_failure_keeps_placement_closed(
             )
         with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")
-            assert cursor.fetchone() == ("0035_rg1_initial_fresh_epoch",)
+            assert cursor.fetchone() == ("0038_first_ball_write_admission",)
             cursor.execute("SELECT count(*) FROM public.game_type_rule_defaults")
             assert cursor.fetchone() == (5,)
             cursor.execute(

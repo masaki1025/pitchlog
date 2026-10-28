@@ -35,7 +35,6 @@ from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
     apply_product_authz_ddl,
-    unapply_product_authz_ddl,
 )
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
@@ -1337,9 +1336,10 @@ def _prepare_current_product_baseline(
     applicator_dsn: str,
     applicator: psycopg.Connection[Any],
 ) -> None:
-    """所有seed DBの余剰公開権限を閉じ、0036の未適用基準を用意する。
+    """所有seed DBの余剰公開権限を閉じ、0038の未適用基準を用意する。
 
-    準備時のS3適用と、この基準からの独立DDL試験を区別する。
+    準備はS1と明示配置までに限定し、この基準からfull DDLを1回適用する。
+    保護履歴の取り外しは行わず、旧取り外し基準の試験とは区別する。
     """
     # 外部供給経路では呼ばない。同factoryの実所有clusterだけへ適用する。
     assert _DISPOSABLE_CLUSTER_OWNERS.get(id(cluster)) is cluster
@@ -1350,16 +1350,26 @@ def _prepare_current_product_baseline(
                 sql.Identifier(seed_admin.info.dbname)
             )
         )
-    result = advance_stage_a_from_s0(
-        owner_dsn=owner_dsn,
-        applicator_dsn=applicator_dsn,
+    # 現binding履歴は取り外せない。full→unapplyを行わず正規S1から配置だけ進める。
+    apply_product_authz_before_rule_placement(applicator)
+    command.upgrade(
+        Config(str(_BACKEND_ROOT / "alembic.ini")), "0038_first_ball_write_admission"
     )
-    assert result.completed_stage == "S3" and result.publishable is False
+    from pitchlog.db.stage_a_startup import (
+        _require_epoch_state,
+        _require_initial_state,
+        _require_placed_state,
+        _require_writer_state,
+    )
+
+    _require_placed_state(applicator_dsn)
+    _require_epoch_state(applicator_dsn)
+    _require_initial_state(applicator_dsn)
+    _require_writer_state(applicator_dsn)
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0036_initial_right_storage",)]
+        assert cursor.fetchall() == [("0038_first_ball_write_admission",)]
     applicator.rollback()
-    unapply_product_authz_ddl(applicator)
 
 
 @pytest.fixture
