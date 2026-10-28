@@ -667,3 +667,33 @@ def test_s15_apply_locked_call_order_for_the_caller_windows() -> None:
     ]
     assert order == sorted(order) and len(set(order)) == 5, order
     assert not any(name.endswith("run_in_savepoint") for _, name in calls)
+
+
+def test_device_state_read_single_source_and_old_wrapper_bytes():
+    """E1既wrapperのbyteを保ち、正式CREATEは同じ本文の一部だけを使う。"""
+    from pitchlog.authz.sync_right_sql import (
+        render_device_state_read_create_sql,
+        render_device_state_read_sql,
+    )
+
+    sql = render_device_state_read_sql()
+    create = render_device_state_read_create_sql()
+    assert (
+        hashlib.sha256(sql.encode()).hexdigest()
+        == "a54b9e6e5b1416db84cc110112e82f687b4987a35f42a7fc1826a891b07695a1"
+    )
+    assert create in sql
+    assert create.startswith(
+        "CREATE OR REPLACE FUNCTION sync_right_api.read_device_state("
+    )
+    assert create.count("CREATE OR REPLACE FUNCTION") == 1
+    assert "ALTER FUNCTION" not in create and "GRANT " not in create
+    assert "p_tenant_id IS NULL OR p_device_id IS NULL" in create
+    assert "session_user <> 'pitchlog_app'" in create
+    assert "current_user <> 'pitchlog_sync_right_fn_owner'" in create
+    assert "current_setting('app.tenant_id',true)" in create
+    assert "d.tenant_id=p_tenant_id AND d.device_id=p_device_id" in create
+    assert "d.revoked_at IS NULL" in create
+    assert not re.search(r"\b(INSERT|UPDATE|DELETE|TRUNCATE)\b", create)
+    assert "credential" not in create and "nonce" not in create
+    assert "write_admissions" not in create

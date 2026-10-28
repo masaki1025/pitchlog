@@ -96,7 +96,7 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         for r in cat._expected_lifecycle_function_details()
         if r[0] in {"sync_fence_api", "sync_right_api"}
     ]
-    assert len(rows) == 11
+    assert len(rows) == 12
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -116,7 +116,7 @@ def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
     _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
     sql = "\n".join(r.sql for r in s)
     assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 4
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 5
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
     assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
 
@@ -243,7 +243,7 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """Unit Cの正式519文のうち関数11以外508文を全byteへ束縛する。"""
+    """正式520文のうち関数12以外508文を全byteへ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
@@ -253,7 +253,7 @@ def test_reapply_keeps_all_other_generated_statements_exact():
         for r in rows
         if not r.sql.startswith("DO $first_ball_reapply$")
     ]
-    assert len(rows) == 519 and len(wrappers) == 11 and len(keep) == 508
+    assert len(rows) == 520 and len(wrappers) == 12 and len(keep) == 508
     digest = hashlib.sha256(
         json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
     ).hexdigest()
@@ -295,3 +295,60 @@ def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():
     )
     with pytest.raises(ValueError):
         _function_argument_names("CREATE PROCEDURE x.y() LANGUAGE sql")
+
+
+def test_device_state_formal_declaration_uses_shared_pipeline():
+    """新read1だけを固定owner/ACLと既canonical描画へ追加する。"""
+    from pitchlog.authz.first_ball_product import body, declaration
+    from pitchlog.authz.sync_right_sql import render_device_state_read_create_sql
+
+    key = "FUNCTION:sync_right_api:read_device_state(uuid, uuid)"
+    row = declaration("functions", key)
+    assert row is not None
+    assert row == {
+        "function_id": key,
+        "schema_name": "sync_right_api",
+        "function_name": "read_device_state",
+        "identity_args": "uuid, uuid",
+        "function_kind": "definer",
+        "owner_role_id": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "returns": "TABLE(device_active boolean)",
+        "security_mode": "definer",
+        "volatility": "volatile",
+        "search_path": ["pg_catalog", "pg_temp"],
+        "acl_expectations": [
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+        ],
+    }
+    original = body("function", key)
+    assert original is not None
+    assert (
+        render_device_state_read_create_sql().replace(
+            "CREATE OR REPLACE FUNCTION", "CREATE FUNCTION", 1
+        )
+        in original
+    )
+    assert "OWNER TO pitchlog_sync_right_fn_owner" in original
+    assert "FROM PUBLIC" in original and "TO pitchlog_app" in original
+
+
+def test_device_state_overload_guard_only_extends_new_wrapper():
+    """同名別署名だけを拒否し、真の欠落は既CREATE分岐へ進める。"""
+    from pitchlog.authz.first_ball_product import application_function_sql, body
+
+    for row in ADDITIONS["functions"]:
+        canonical = body("function", row["function_id"])
+        assert canonical is not None
+        wrapped = application_function_sql(row["function_id"], canonical)
+        assert wrapped is not None
+        has_guard = "other.oid IS DISTINCT FROM existing" in wrapped
+        assert has_guard is (row["function_name"] == "read_device_state")
+        if has_guard:
+            assert wrapped.index("other.oid IS DISTINCT FROM existing") < wrapped.index(
+                "IF existing IS NULL THEN"
+            )
+            assert "AND other.proname='read_device_state'" in wrapped

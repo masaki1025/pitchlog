@@ -565,3 +565,38 @@ def test_lifecycle_eight_functions_keep_source_body_and_exact_subjects() -> None
             assert original_definition in source
         else:
             assert definition in source
+
+
+def test_device_state_read_has_exact_formal_owner_and_acl():
+    """read追加を既ACL producerへ通し、他主体へのEXECUTEを許さない。"""
+    from pitchlog.authz.first_ball_product import ADDITIONS
+
+    rows = [
+        r for r in ADDITIONS["functions"] if r["function_name"] == "read_device_state"
+    ]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["owner_role_id"] == "pitchlog_sync_right_fn_owner"
+    assert row["acl_expectations"] == [
+        {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+    ]
+    assert row["revoked_acl_expectations"] == [
+        {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+    ]
+    value = json.loads(
+        (_REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text()
+    )
+    assert [
+        r for r in value["functions"] if r["function_id"] == row["function_id"]
+    ] == [row]
+    mutated = copy.deepcopy(value)
+    target = next(
+        r for r in mutated["functions"] if r["function_id"] == row["function_id"]
+    )
+    target["acl_expectations"].append(
+        {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+    )
+    from pitchlog.authz.first_ball_product import validate
+
+    with pytest.raises(ValueError):
+        validate(mutated)

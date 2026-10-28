@@ -176,3 +176,38 @@ $function$;
 """
         for name, args, results, declarations, body in _STAMPED
     }
+
+
+def render_device_state_read_create_sql() -> str:
+    """端末状態read本文の単一源を返し、適用や権限発行は行わない。"""
+    return """CREATE OR REPLACE FUNCTION sync_right_api.read_device_state(
+ p_tenant_id uuid,p_device_id uuid)
+RETURNS TABLE(device_active boolean) LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp AS $read_device_state$
+BEGIN
+ IF session_user <> 'pitchlog_app' OR current_user <> 'pitchlog_sync_right_fn_owner'
+  OR p_tenant_id IS NULL OR p_device_id IS NULL
+  OR p_tenant_id IS DISTINCT FROM
+   NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid THEN
+  RAISE EXCEPTION 'sync device state input rejected' USING ERRCODE='42501';
+ END IF;
+ RETURN QUERY SELECT EXISTS (
+  SELECT 1 FROM public.trusted_devices d
+  WHERE d.tenant_id=p_tenant_id AND d.device_id=p_device_id
+   AND d.revoked_at IS NULL);
+END;
+$read_device_state$;
+"""
+
+
+def render_device_state_read_sql() -> str:
+    """既E1の未適用wrapperをbyte互換で描画する。"""
+    return (
+        "-- 3B未登録候補。正式受理・所有側確認前の適用禁止。\n"
+        + render_device_state_read_create_sql()
+        + """ALTER FUNCTION sync_right_api.read_device_state(uuid,uuid)
+ OWNER TO pitchlog_sync_right_fn_owner;
+REVOKE ALL ON FUNCTION sync_right_api.read_device_state(uuid,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sync_right_api.read_device_state(uuid,uuid) TO pitchlog_app;
+"""
+    )
