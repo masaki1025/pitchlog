@@ -674,10 +674,13 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
         "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
         "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 53
+    assert len(expected_token_types) == 56
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -711,6 +714,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:operation_events:read",
                 "CAP:play_rows:read",
                 "CAP:play_rows:insert",
+                "CAP:play_rows:read",
+                "CAP:operation_events:read",
+                "CAP:event_slots:read",
                 "CAP:play_rows:read",
             ),
             strict=True,

@@ -16,6 +16,9 @@ from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
+from pitchlog.repositories.recorded_snapshot_operations import (
+    RECORDED_SNAPSHOT_OPERATIONS,
+)
 from pitchlog.repositories.rg1 import (
     RG1CommitCheckToken,
     RG1PrecheckToken,
@@ -48,6 +51,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *TENANT_PROFILE_OPERATIONS,
     *STARTED_SNAPSHOT_OPERATIONS,
     *FIRST_BALL_PLAY_OPERATIONS,
+    *RECORDED_SNAPSHOT_OPERATIONS,
 )
 
 # 既RG1/段階A4件と同writerの閉じた保存用4件だけを登録する。

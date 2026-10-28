@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 31,
+  "contract_revision": 32,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:31"
+        "contract_revision:32"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -224,7 +224,10 @@
     "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
     "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
     "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
-    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken"
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -241,5 +244,5 @@
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding"
   ],
-  "source_digest": "b6959a403add2ac1ecab44ad4e568e354f4d170d4598312f4061a6e7014cae2d"
+  "source_digest": "749950b48c924f3756b0db1bdd9b677f0a3fea7cee296c80b94f1c3039ce0d1d"
 }

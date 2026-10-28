@@ -479,3 +479,16 @@ def test_writer_rebound_during_one_read_is_rejected(
     with pytest.raises(reader.StartedSnapshotUnavailable):
         reader.read_initial_started_snapshot(bundle.handle, bundle.game_id)
     assert len(bundle.calls) == 2
+
+
+def test_shared_initial_before_value_and_nonempty_refusal_remain(
+    bundle: Bundle,
+) -> None:
+    """R2との共有は初期表現だけで、N2の非空拒否を広げない。"""
+    assert (
+        reader._initial_before().model_dump(mode="json", by_alias=True)
+        == CASES[0]["request"]["t1"]["before"]
+    )
+    bundle.nonempty = StartedOperationEventsExistenceToken
+    with pytest.raises(reader.StartedSnapshotUnavailable):
+        reader.read_initial_started_snapshot(bundle.handle, bundle.game_id)
