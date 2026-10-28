@@ -1263,3 +1263,8 @@ DB修復cacheは0038配置/実全列・制約検証へ到達したがfullinstall
 2026-10-28 加速方針（PO指示）：初球に必要な経路へ集中し、旧UNAPPLY等の整備を新たな縦断着手条件に足さない。正式化と同期本体を並行し、レビュー済固定候補で隔離実画面/実API/実DBの接合を先に検証、正式統合/CIの完了とは分ける。unit C catalog観測に必要な既test_product_authz_catalog.py exact1を6e812833でscope追加（閉QueryId/期待map/SQL対向の追随のみ）。
 
 DB修復source非作者8a8e22d4…はP1=2：0038配置中の故障で0037もrollbackする対向不足、installer故障直後のACL等全snapshot比較不足。source権限緩和の発見ではなく計画必須実証不足。両方をreflection1で追加中、旧packetを上書きせずre-reviewへ。3Bは条件fのPort書込み禁止を実効化する最小phase guardがscope外に必要な可能性を調査し、exactpaths/正規stamp境界をrootへ返す。未達をpure成功で代替しない。
+
+
+2026-10-28：unit Cの実producer差分としてasset_spec.py/test_authz_asset_spec.py exact2を623a083dで追加（旧invoker exact1＋新lock exact1のみ、一般許可なし）。既installerのdefiner→invoker順に整合し、admit先→lock後→lock末尾trigger2配置へ0174ff6dで限定訂正。runtime-authz-contract.json/runtime_contract.pyのguard2だけの正規派生追随をbcc427ceで追加承認。作者cacheの生成・試験中で正式root反映/受理/activationは未了。
+
+3Bの条件f/実rights供給案は `implementation-3b/PORT-PHASE-ADDENDUM-CANDIDATE.md` SHA cc40a2d2…で未採用固定。PortWriter ABIと同handleを保つ私有phase guardが⑤/⑦の業務DML/savepointをSQL前拒否し、actual leaseへ閉じた正規stampだけを有限許可する案。credential/V12原典は `CREDENTIAL-PROOF-BOUNDARY.md` SHA36352dba…、devicecredential UTF8 SHA256とraw32byte V12 SHA256を区別。senderの資格transportが未供給のため、所有主担当はHTTPヘッダDevice-ID/Device-Credential＋厳密V12decodeの技術候補を示し、原典照合/独立review待ち。未採用案を成功や実資格としない。
