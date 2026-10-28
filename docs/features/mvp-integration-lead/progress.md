@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `b92e8a5f`、E1 `54cad894`、product-activation `1689ee59`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。global結果readと②端末readの限定登録は各計画を採用し隔離実装中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は未実施。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `b92e8a5f`、E1 `d12484a0`、product-activation `59c4e596`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime sourceはE1へ保存、正式資産・DB functionは未完。global結果readは隔離実装中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は未実施。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1323,3 +1323,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：G20 step1候補 d8c06b9c7d22226c7b3de6918408199cf0579dca8724cb4d340299ae2fd65426 は関連315成功・変異6検出、非作者review中。②登録source5候補 20c92bf337d4c311ee4c33cda863f1d425c4388b5a1bc1e6dbdf1a264432c0d3 は関連483成功・変異3検出、非作者review待ち。いずれも正式採用/実PG成功ではない。global readの新拒否fixtureを既閉集合へ登録するためnegative-fixtures.json exact1をwriter b92e8a5fで追加採用し、既拒否/検出器を維持する。各formal値は直列に実直前版から導出する。
 
 2026-10-28：G20 step1候補は非作者 7b2cb7379391f39bdcd0f9f7e759b48e69f7a2e3e5132659944d6c8eb5564c32 指摘0・独立44＋追加4成功を根拠にPO委任採用。記録428034f1、source 54cad894をE1へ保存・pushし実WT201成功。DB故障/再起動のstep2は未完。②activation scope c84ff15a…は非作者 dc23aded1a62f99296132a9cfb72eb5d66bbe253782ee737e9c2f40c18b558c3 指摘0（既unitC初期候補作者の依存関与留保）だが、source・formal・実PGは未提供。②登録sourceの非作者確認と正式値直列反映を続ける。
+
+2026-10-28：②端末read runtime source5は非作者 db37c8fd9883992473d6d9d59b758da61f6b0f1da87a5c31744e25782ef7e4d1 指摘0・独立483成功を根拠にPO委任採用、記録7e303c9d/source d12484a0をE1へ保存・push、実WT対象90成功。正式資産は候補未受理であり、product rev32等と統合した実直前版から再導出/7.7が必要。DB activation planは非作者reviewの既unitC関与留保を明示しproduct 59c4e596で限定採用。実PG・issuer・画面/初球実証は未達。
