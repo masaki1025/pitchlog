@@ -10,7 +10,7 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
-最新固定点：writer `45ccc75a`、E1 `d12484a0`、product-activation `bd88eb21`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime sourceはE1へ保存、正式資産・DB functionは未完。global結果readは隔離実装中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は未実施。座標変換の正本gate/J2、正式7.7・CI、実記録権・同期HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
+最新固定点：writer `45ccc75a`、E1 `f3ef6cfa`、product-activation `bd88eb21`。B1は独立再レビュー後にE1へ保存済、未供給の物理投影では停止する。tenant球種pureは非作者P1の是正・再レビュー後にwriter保存済、正式登録・実DBは未完。②端末readのruntime sourceはE1へ保存、正式資産・DB functionは未完。global結果readは独立reviewのP1是正中。G20確定拒否/UNKNOWN分離のstep1は非作者review後に保存、実PG step2は部分実測。U09初球実記録権Portは採用planに従い隔離実装を開始。座標変換の正本gate/J2、正式7.7・CI、実HTTP・画面保存/再読込は未完。利用者が新たにできる操作の増加はまだ実証されていない。以下は時点ごとの履歴であり、古い「実装中」「候補」表現を現況へ読み替えない。
 
 記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。
 
@@ -1357,3 +1357,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：U09反映1は非作者再review 2c04f273e2f975886220239b473b2318190eeac2543ab5c930e92aa57f8ee83c 指摘0を根拠にE1 f3ef6cfaでPO委任採用。SQLはrecovery_ok時のみright_okを照合するため、第一Falseは実loan/DB境界不整合として内部例外・業務rollbackへ閉じ、恒久B4やD5消費を推測しない。source・実DB・正式登録は未完。pushはWSL通信エラーとGitHub資格取得不可で失敗、f3ef6cfaはローカル保全・origin未反映。再開時に接続を確認して通常pushする。
 
 同日追補：既git credential helperのWindows実行がWSL通信エラーとなる原因を確認。既存gh認証をその一回のgit commandのcredential helperとして使用し、E1 f3ef6cfaと台帳 f3a6a6a1を通常push成功。永続git設定・秘密情報は変更せず、先の失敗記録は保持する。
+
+2026-10-28：U09 source実装の担当をab_plan_adversarialに固定。計画review関与を保持しsource独立reviewは別担当とする。②activation source reviewは計画作者・source非作者ab_acl_adversarialが担当し、U09 sourceと同じファイルを並行編集しない。ClaudeにはU11 plan reviewを依頼済みで結果未受領。各作業の実DB/正式統合・利用者の初球保存は未達。
