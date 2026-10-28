@@ -1333,3 +1333,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：②DB activation候補の関連検査478成功/9失敗は、新functionの既body manifest登録不足という同一原因。product bd88eb21でmanifest exact1の正規追随をPO委任採用、既checker/拒否は保持して再検査する。E1の既rendererを固定依存として必要範囲だけ再利用し、別branch全体を移植しない。実PG・正式資産受理・初球提供は未完。
 
 2026-10-28：global結果read候補のowned再検査は正式installer・実Cookie/appで3成功（欠落/disabled/有効/誤カテゴリ、実2tenant、未知/非sync/Port/savepoint/期限切れSQL0）。前回fixture HBA干渉による失敗を保持し正規owned fixtureへ切替。正式scanner/producer・非作者review・正式値受理は未完。記録権Portの再利用先を既worktreeの製品sourceで検索し、Protocol以外に `holds_recording_right` の定義は見つからなかった。U-R1引継ぎも本物のPortは新8で未提供と記載。これは全保全bundleの監査ではなく、既契約/既SQLを再利用し実Portを別途供給する必要がある。新操作の利用者実証はまだない。
+
+2026-10-28：G20 owned3は正式関数の実診断4種（attempt/phase 42501、PK 23505、game FK 23503）を1試験で確認し成功27.39秒。不存在tenantはgame FKが先行しtenant FK単独の実診断は未実証。旧2回のfixture wire/HBA失敗を消さず保持、次の正常要求・journal/再起動/UNKNOWNは未完。U11 plan非作者reviewはout-of-scope応答と同Request認証束縛の不足を確認中で、既wire・認証正本との整合を先に閉じる。②DB activation初回は正式installer/実appによるactive/revoked/不存在/別tenantと8業務表・catalog不変が1成功、衝突・故障・実runtime接続は検査中。
