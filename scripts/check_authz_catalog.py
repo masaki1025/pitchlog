@@ -2630,6 +2630,234 @@ def _validate_initial_http_routes(
     if any(key in read_ids for key in expected):
         raise CatalogError("resolveを含むinitial HTTPをgames:readへ接続している")
 
+_STARTED_READ_HTTP_API_PATH = "backend/src/pitchlog/api/routers/started_games.py"
+_STARTED_READ_HTTP_PLAN_PATH = "docs/features/mvp-started-read-http/plan.md"
+_STARTED_READ_HTTP_PLAN_ID = "PLAN-MVP-STARTED-READ-HTTP"
+# 計画書側の根拠行は行頭の固定語で一意に特定する(原文の逐語抽出)。
+_STARTED_READ_HTTP_PLAN_LINE_PREFIX = "開始済み試合readのGET"
+_STARTED_READ_HTTP_ROUTE = "ROUTE:RECORD:games:read"
+_STARTED_READ_HTTP_SOURCE_TOKENS = "backend/src/pitchlog/sync/tokens.py"
+_STARTED_READ_HTTP_SOURCE_OPERATIONS = (
+    "backend/src/pitchlog/repositories/started_snapshot_operations.py"
+)
+_STARTED_READ_HTTP_SOURCE_ROSTER = "backend/src/pitchlog/repositories/roster.py"
+_STARTED_READ_HTTP_READER_PATHS = (
+    "backend/src/pitchlog/repositories/started_read.py",
+    "backend/src/pitchlog/repositories/started_snapshot.py",
+)
+# 新しい論理routeも独自CAPも作らず、既存games:readの論理routeへ、実operationと
+# 読取tokenの実CAPを個別に結ぶ。(operation_id, path, 関数名, 論理route, (token型, 実CAP)...)
+_STARTED_READ_HTTP_BINDINGS = (
+    ("started_game_detail", "/games/{game_id}/started", "read_started_game_detail",
+     _STARTED_READ_HTTP_ROUTE,
+     (("GameLockToken", "CAP:games:read"),
+      ("GameReadToken", "CAP:games:read"),
+      ("RecordingGenerationReadToken", "CAP:recording_generations:read"),
+      ("RecordingGenerationLockToken", "CAP:recording_generations:read"),
+      ("StartedLineupsReadToken", "CAP:game_lineups:read"),
+      ("StartedEventSlotsExistenceToken", "CAP:event_slots:read"),
+      ("StartedOperationEventsExistenceToken", "CAP:operation_events:read"),
+      ("StartedPlayRowsExistenceToken", "CAP:play_rows:read"),
+      ("PlayerReadToken", "CAP:players:read"))),
+)
+# token型ごとの宣言source と、宣言の種別(class直下の代入名 / property名)。
+_STARTED_READ_HTTP_TOKEN_DECLARATIONS = {
+    "GameLockToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "GameReadToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "RecordingGenerationReadToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "RecordingGenerationLockToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "StartedLineupsReadToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "StartedEventSlotsExistenceToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "StartedOperationEventsExistenceToken": (
+        _STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "StartedPlayRowsExistenceToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "PlayerReadToken": (_STARTED_READ_HTTP_SOURCE_ROSTER, "capability_id"),
+}
+_STARTED_READ_HTTP_TOKEN_PREFIX = "STARTED-READ-TOKEN:"
+_STARTED_READ_HTTP_OPERATION_KEY = "HTTP:" + _STARTED_READ_HTTP_BINDINGS[0][0]
+
+
+def _started_read_http_route_ids() -> list[str]:
+    """games:readの論理routeが持つべきprovenance IDの完全な並びを返す。
+
+    既存の準備中2GETの2件を先頭に保ち、その後ろへ新規を足す。
+    """
+    return [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE", "PLAN-MVP-PREPARING-READ-REGISTRATION",
+        _STARTED_READ_HTTP_PLAN_ID, _STARTED_READ_HTTP_OPERATION_KEY,
+        *(_STARTED_READ_HTTP_TOKEN_PREFIX + token
+          for token, _ in _STARTED_READ_HTTP_BINDINGS[0][4]),
+    ]
+
+
+def _started_read_http_provenance(root: Path) -> dict[str, dict[str, str]]:
+    """実GET・C2・読取tokenの実CAP・計画根拠の原文を読み、有限対応を検査する。"""
+    def source(path: str) -> tuple[str, ast.Module]:
+        text = _read_text(root / path, "started read HTTP source")
+        try:
+            return text, ast.parse(text)
+        except SyntaxError as error:
+            raise CatalogError("started read HTTP sourceのASTが不正") from error
+
+    def segment(text: str, node: ast.AST) -> str:
+        value = ast.get_source_segment(text, node)
+        if value is None:
+            raise CatalogError("started read HTTP sourceの原文を取り出せない")
+        return value.strip()
+
+    def excerpt(text: str, node: ast.FunctionDef) -> str:
+        start = min([node.lineno, *(n.lineno for n in node.decorator_list)]) - 1
+        return "".join(text.splitlines(keepends=True)[start:node.end_lineno]).strip()
+
+    operation, route_path, function_name, _, tokens = _STARTED_READ_HTTP_BINDINGS[0]
+    api, tree = source(_STARTED_READ_HTTP_API_PATH)
+    routers = [n.value for n in tree.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "router" for t in n.targets)]
+    if (len(routers) != 1 or not isinstance(routers[0], ast.Call)
+            or not isinstance(routers[0].func, ast.Name) or routers[0].func.id != "APIRouter"
+            or [k.value.id if isinstance(k.value, ast.Name) else None
+                for k in routers[0].keywords if k.arg == "route_class"] != ["TenantMatchedRoute"]):
+        raise CatalogError("started read HTTPの実routerがC2 classへ接続されていない")
+    found: list[ast.FunctionDef] = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not (isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Attribute)
+                    and isinstance(decorator.func.value, ast.Name)
+                    and decorator.func.value.id == "router"):
+                continue
+            operations = [k.value for k in decorator.keywords if k.arg == "operation_id"]
+            if (decorator.func.attr != "get" or len(operations) != 1
+                    or not isinstance(operations[0], ast.Constant)
+                    or type(operations[0].value) is not str):
+                raise CatalogError("started read HTTPの実routeがGET1本の形でない")
+            if (operations[0].value != operation or node.name != function_name
+                    or len(decorator.args) != 1
+                    or not isinstance(decorator.args[0], ast.Constant)
+                    or decorator.args[0].value != route_path):
+                raise CatalogError("started read HTTPの実GET/operationが不一致")
+            found.append(node)
+    if len(found) != 1:
+        raise CatalogError("started read HTTPの実GETが欠落又は重複")
+    _, tenant = source("backend/src/pitchlog/api/tenant_access.py")
+    matches = [n.value for n in tenant.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "_MATCH_OPERATIONS" for t in n.targets)]
+    if (len(matches) != 1 or not isinstance(matches[0], ast.Call)
+            or not isinstance(matches[0].func, ast.Name) or matches[0].func.id != "frozenset"
+            or matches[0].keywords or len(matches[0].args) != 1):
+        raise CatalogError("started read HTTPのC2宣言が不正")
+    try:
+        matched = ast.literal_eval(matches[0].args[0])
+    except (ValueError, TypeError) as error:
+        raise CatalogError("started read HTTPのC2宣言が不正") from error
+    if not isinstance(matched, set) or operation not in matched:
+        raise CatalogError("started read HTTPのC2登録が欠落")
+    # 読取tokenの実CAP: 型ごとに宣言を1つへ特定し、literalと完全一致させる。
+    result: dict[str, dict[str, str]] = {}
+    for token_name, capability in tokens:
+        path, kind = _STARTED_READ_HTTP_TOKEN_DECLARATIONS[token_name]
+        text, module = source(path)
+        classes = [n for n in module.body if isinstance(n, ast.ClassDef) and n.name == token_name]
+        if len(classes) != 1:
+            raise CatalogError("started read HTTPの実CAP tokenが欠落/重複")
+        key = _STARTED_READ_HTTP_TOKEN_PREFIX + token_name
+        if kind == "capability_id":
+            methods = [n for n in classes[0].body
+                       if isinstance(n, ast.FunctionDef) and n.name == kind]
+            if len(methods) != 1:
+                raise CatalogError("started read HTTPの実CAP宣言が欠落/重複")
+            body = [n for n in methods[0].body if not (isinstance(n, ast.Expr)
+                    and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str))]
+            if (len(body) != 1 or not isinstance(body[0], ast.Return)
+                    or not isinstance(body[0].value, ast.Constant)
+                    or body[0].value.value != capability
+                    or [ast.dump(n) for n in methods[0].decorator_list]
+                    != [ast.dump(ast.Name(id="property", ctx=ast.Load()))]):
+                raise CatalogError("started read HTTPの実CAP/provenanceが不一致")
+            result[key] = {"provenance_id": key, "path": path,
+                           "extracted_text": excerpt(text, methods[0])}
+        else:
+            assigns = [n for n in classes[0].body if isinstance(n, ast.Assign)
+                       and [t.id for t in n.targets if isinstance(t, ast.Name)] == [kind]]
+            if (len(assigns) != 1 or not isinstance(assigns[0].value, ast.Constant)
+                    or assigns[0].value.value != capability):
+                raise CatalogError("started read HTTPの実CAP/provenanceが不一致")
+            result[key] = {"provenance_id": key, "path": path,
+                           "extracted_text": segment(text, assigns[0])}
+    # 組立器とN2が実際に使う読取tokenの集合が、結線した種類と完全一致すること。
+    used: set[str] = set()
+    for path in _STARTED_READ_HTTP_READER_PATHS:
+        _, module = source(path)
+        for node in ast.walk(module):
+            if (isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+                    and node.id.endswith("Token") and node.id != "TenantOperationToken"):
+                used.add(node.id)
+    if used != {token for token, _ in tokens}:
+        raise CatalogError("started read HTTPの読取tokenが結線の集合と一致しない")
+    plan = _read_text(root / _STARTED_READ_HTTP_PLAN_PATH, "started read HTTP plan")
+    lines = [line for line in plan.splitlines()
+             if line.startswith(_STARTED_READ_HTTP_PLAN_LINE_PREFIX)]
+    if len(lines) != 1:
+        raise CatalogError("started read HTTPの計画根拠が一意でない")
+    result[_STARTED_READ_HTTP_PLAN_ID] = {"provenance_id": _STARTED_READ_HTTP_PLAN_ID,
+        "path": _STARTED_READ_HTTP_PLAN_PATH, "extracted_text": lines[0]}
+    result[_STARTED_READ_HTTP_OPERATION_KEY] = {
+        "provenance_id": _STARTED_READ_HTTP_OPERATION_KEY,
+        "path": _STARTED_READ_HTTP_API_PATH, "extracted_text": excerpt(api, found[0])}
+    return result
+
+
+def _is_started_read_http_key(key: str) -> bool:
+    """started read HTTPが所有するprovenance IDか。"""
+    return (key == _STARTED_READ_HTTP_PLAN_ID or key == _STARTED_READ_HTTP_OPERATION_KEY
+            or key.startswith(_STARTED_READ_HTTP_TOKEN_PREFIX))
+
+
+def _validate_started_read_http_routes(
+    routes: dict[str, dict[str, object]], provenance: object, root: Path,
+) -> None:
+    """既存games:readの論理routeへ、実GET・実CAPを個別かつ完全一致で対応させる。
+
+    新しいprovenanceもrouteの結線も無い入力は、旧fixtureの個別意味試験として扱う。
+    製品の正式registryがこの登録を持つことは、別の試験が固定する。
+    """
+    if not isinstance(provenance, list):
+        raise CatalogError("started read HTTP provenanceの型が不正")
+    actual: dict[str, dict[str, object]] = {}
+    for row in provenance:
+        if not isinstance(row, dict):
+            raise CatalogError("started read HTTP provenanceの型が不正")
+        key = _expect_string(row.get("provenance_id"), "started read HTTP provenance ID")
+        if key in actual:
+            raise CatalogError("started read HTTP provenanceが重複")
+        actual[key] = row
+    read = routes.get(_STARTED_READ_HTTP_ROUTE)
+    read_ids = (
+        [] if read is None
+        else _expect_string_list(read.get("provenance_ids"), "games:read provenance")
+    )
+    if not any(_is_started_read_http_key(key) for key in (*actual, *read_ids)):
+        return
+    expected = _started_read_http_provenance(root)
+    for key in actual:
+        if _is_started_read_http_key(key) and key not in expected:
+            raise CatalogError("started read HTTPに未知provenance/CAPがある")
+    for key, value in expected.items():
+        if actual.get(key) != value:
+            raise CatalogError("started read HTTP operation/CAP provenanceが不一致")
+    if read_ids != _started_read_http_route_ids():
+        raise CatalogError("started read HTTP論理routeのoperation/CAP対応が不一致")
+    for route_id, row in routes.items():
+        if route_id == _STARTED_READ_HTTP_ROUTE:
+            continue
+        ids = row.get("provenance_ids")
+        if isinstance(ids, list) and any(
+                isinstance(key, str) and _is_started_read_http_key(key) for key in ids):
+            raise CatalogError("started read HTTPをgames:read以外へ接続している")
+
+
 def _validate_authentication_entry_route_ids(
     route_by_id: dict[str, dict[str, object]],
 ) -> None:
@@ -2968,6 +3196,7 @@ def validate_route_registry(
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
     _validate_record_and_aggregate_route_ids(route_by_id)
     _validate_initial_http_routes(route_by_id, raw["design_provenance"], root)
+    _validate_started_read_http_routes(route_by_id, raw["design_provenance"], root)
     _validate_authentication_entry_route_ids(route_by_id)
     routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
     for route_id, route in route_by_id.items():
