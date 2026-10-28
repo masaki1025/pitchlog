@@ -26,6 +26,20 @@ PO指示により、台帳冒頭「中断・他AI引継ぎ（2026-10-28）」を
 **利用者が新たにできる操作**: 変化なし。初球の実画面保存・再読込は未達のまま。**MVP全体・初球とも完成ではない**。
 **次の一手**: 上記2 review の結果確定 → U09 は指摘是正のうえ E1 へ step commit（非作者review・実PG/HTTP未了を明記）→ U11 は採否後に単位I source着手 → 隔離組立で縦断。
 
+### 2026-10-29 未明：縦断の隔離組立と初球の実 blocker 確定（PO方針更新後）
+
+POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の初球を通す」を優先と指示。develop/main へはマージしない。
+
+**組立（push済・clean）**: 新branch `feature/mvp-first-ball-vertical`（`d141fa70`、worktree `pitchlog-worktrees/feature-mvp-first-ball-vertical`）。product `60355e84` 起点に writer `45ccc75a` → E1 `bea25e56` → U13 `bdd1ec8f` → #188候補 `f0a8ce4e` を通常順で取込。衝突は計10ファイル（docs plan 2、recorded_snapshot 2、sync_right_sql/operation_registry/test_sync_right_sql、core_guard系3）で、code は product の後発実装を優先、registry/import と test は和集合、plan は両追記を保持して解消。browser-persistence `8cd0aa6f` は core_guard/core-areas/test_core_guard の16+3衝突が harness 宣言のみに閉じないため**取込中止**（frontendのEntryRecordHostは既に組立内に存在）。組立の関連155件は成功。
+
+**初球保存の実 blocker（コードで確定）**
+1. **座標が NOT NULL**: `repositories/first_ball_operations.py:145-150` が `course_x/course_y` を `float`・有限・0..1 で必須検査。初球の PlayRow は座標なしで保存できない。座標変換は artifact 未供給で、`device-formal`/`u08-u10` の通り D18=A は採用済みだが ADR v0.10 確定・J2（PO未回答）・単一TS operation が未了。**ここが縦断の実律速**。
+2. **ProjectionPort 実装が0件**: `sync/ports.py:89` は Protocol のみ。`prefix_path.py:854-865` は実装を要求し、未供給なら rollback。U08/U10 単位B（frame→PlayRow 一回消費→同TX INSERT）が未実装。
+3. **HTTP 入口が無い**: backend に `/games/{id}/sync/events` route が存在しない（frontend `api/client.syncEvents.ts` は送信実装済み）。U11 反映3の非作者reviewは **fix_required（P0=0/P1=2/P2=14）**: P1-1 単位IIのexactに `test_api_app.py` の route 23本固定が無く必ず赤、P1-2 owner/registry/origin/receipt/presentation の lock 取得順が未定義（route=loop と worker=thread のABBA/loop停止）。report SHA `4737e60e…e488`。
+4. **U09 Port は候補のみ**（source10、非作者review実行中）。実Portが無いと `apply_sync_request` は rights で停止。
+
+**判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
