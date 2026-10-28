@@ -1155,3 +1155,14 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 - 後始末：unit B試作のowned fixtureが残した匿名volume 58個（作成時刻が自runの窓内、全てdangling）を削除。他の未使用volumeは他セッション分が混ざるため触れていない。
 
 利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
+
+### 2026-10-28 夕：D09対応表・E-1・unit B結合・read計画
+
+- **D09対応表（PO採用条件）**：反映3を `d09-abi-equivalence.md`（SHA `75cd541d…0512`）として記録。反映2の非作者review（Fable 5.1）はadopt・P0/P1=0・P2=5で、反映3でP2と主担当判断を反映（再reviewなし）。G20（要求単位の確定拒否がauthority全体の`_blocked`に写り再起動不能）は、register/publishの2呼出点に限った閉じた許可リスト5件（42501 attempt/phase conflict、23505 PK、23503 FK 2件）で`binding_rejected`として閉じ、それ以外（timeout・切断・uq系23505）は従来どおり隔離する方針（PO委任Claude主担当判断）。表は「同等性の担保済み」を意味せず、未担保行（G1・G4〜G7・G12・G14・G17〜G20等）は追加実装として残る。並行publishの窓のtimeoutは隔離・停止を受容（再起動回復の後続規則が要る）。
+- **E-1**：反映4の非作者reviewはP1=1（最初の書込の誤記、主担当判断の誤りを転記）・P2=5。主担当判断を訂正し、B5をsync-protocol 6-2の段階順（②端末資格の読取照合→③→bind_writer→RG1→bind_device）に置いた（writer-binding `fbb30756`）。反映5を作成中。
+- **unit B 計画反映2を承認し、A+B結合候補の作成を開始**（writer-binding `2ed8f977`）。正本data-model追記は7.6の実装追随の節更新として前置docs commitに分ける。正式資産の7.7受理は最終byte確定後に1回。branch commitは結合候補の非作者review・実PG確認の後に判断。
+- **開始済みread HTTP 計画 反映2**：作成済み・非作者review中。基線WBで機械ゲート2つ（tenant境界=受理record欠落、authz catalog=oracle seal未再封印）が契約エラーで止まることを実測。統合前の基線修復として別単位で扱う。
+- **事故と確認**：作者サブエージェントが共有DBを指すシェル環境のDSNを外さずにbackend/testsを1回実行。共有DBを読取のみで確認し、public空・試験用role 0・余分なDB 0で残骸なし。以後の依頼文でDSNを外す指示を必須にした。
+- **workflow停止**：第3波の再開runが完了済みreview 8本をcacheでなく再実行したため停止。以後は単独agentで進める（ultracodeは本作業の後に停止予定）。
+
+利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
