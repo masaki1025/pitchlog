@@ -1245,3 +1245,6 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 単一正本gateは第2回f7dea902…可決P0=0/P1=0/P2=1、P2（処理済み/終結済み語彙）を全採用し62e2f35e「反映2周目」で記録だけ整理。基本2回枠完了、最後の記録差分は自動再reviewせずPOへ提示。J2と最終確定の両回答を待つ。未回答を承認とせずapproved0/U17未着手、同期/DB作業は継続。
 
 DB修復cacheは0038配置/実全列・制約検証へ到達したがfullinstaller後の正式catalog照合が失敗。繰返し同原因6件で自run検査を止め、違反内訳の新診断を実行中。autouse認証probeのDSN要求は別ownedPGを用意し、共有DSNは使わない。正式catalog保証は弱めず最小scope差分を先にrootへ返す。修復済みとは扱わない。
+
+
+2026-10-28 oracle再封印の隔離診断：U13 c7056da9からdetached WT `u13-oracle-reseal-candidate-20261028` を作り、共有DSNをunsetして正式CLI `--reseal-oracle` を実行。旧oracle commit上のroute-registry blob不一致でexit1、資産変更0。単純なdigest再計算ではなく、oracle_input系列の単一commit識別値（frozen ledger由来）・6oracle_context・seal入力の整合と正式7.7受理を先に閉じる必要がある。期待値の緩和やskip-oracleは実施しない。正式資産へ反映していない、診断logをcache同名.logに保存。
