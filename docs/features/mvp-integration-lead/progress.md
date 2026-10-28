@@ -10,6 +10,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
+記録後read登録R3aはU06 branch `1689ee59` にR1/R2と共に取込・push。非作者review `c5bf28a7e86b6f7f226f2104f14bb122dcdb312b5a7a3ee79c0d9a13effcc264` 指摘0、独立386件/隔離PG2件成功。正式7.7、物理41列照合、HTTP/画面での再読込は未完。初球保存B1はwriter計画 `8aaac330` で採用、隔離実装中。利用者の新操作はまだ実証されていない。
+
 U08/U10単位AはE1 branch `dc9f4e85` に取込・push。計画非作者のsource review `cb2bf90b7b2dfc4dc0795ebd6d061a505ccc410fde3db8dcf0e3d579596ad67f` P1をreflection1で是正、再review `7cbe4e4b2aaffcebfc76b2c2d6d9a0c895d10d1372f122d3412c85cdb0c157fe` 残0。計画作者の別source review `ba9ee383ce148bb532396ff0613cbc0e1ab7ddcf3f40ce5cfb13300332ade407` のUUID P2も是正。単位Aは実計算を同writerへ束縛し未供給投影を失敗させる範囲。単位B・実記録権・HTTP・正式7.7・画面保存は未完、利用者の新操作はまだ実証されていない。
 
 記録後read正式登録R3aはwriter `b1e33f1c` でPO委任により計画採用。非作者review `dc5b4f5c60046d1455c97a6b89c5ea535bdae1f26bb0e8753cb13e2a4d660d7d` 指摘0、U06とR1/R2を隔離組立し登録・実PG検証を進行。初球接続単位A候補 `f29d3440e5d93515a2f5980604da696d9358bf1430b91928f305b46b12398a67` は1905件成功、非作者review中。候補作者と計画作者の関与を区別し、計画作者によるsource確認を完全独立reviewに読み替えない。実画面で初球保存・再読込は未達。
