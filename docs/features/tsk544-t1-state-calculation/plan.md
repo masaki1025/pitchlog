@@ -829,3 +829,5 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 2026-10-28、PO委任によるCodex主担当判断。U09の実Port登録で既 `backend/tests/test_sync_apply_first_ball_ports.py` の登録集合pinが旧content1件のままであることを影響検査で確認し、同test exact1をscopeへ追加。旧content登録を保持し新実Portのexact pairのみ追記し、既guard/未知型拒否を緩めない。影響2010成功/2失敗のもう1件は先行②read登録に対するwriter binding関数hash pin未追随であり、同一のU09成功とは扱わず根拠を別固定して是正する。
 
 2026-10-28、PO委任によるCodex主担当判断。先行②read登録後の既 `backend/tests/test_sync_apply_writer_binding.py` 関数SQL/bind/selected型完全pinで旧20件と新actualの差を確認。実登録 `SYNC_FIRST_BALL:read_device_state` の導出hash 281792f9b426c1fdc7eba3305c069f5fd3afcde268a367fc06583bc006652e71 の1行だけを同test exact1へ追記する。旧20値・全件比較・実SQL/認可を保持し、正式資産受理やU09成功とは扱わない。
+
+2026-10-28、PO委任によるCodex主担当判断。U09登録後、fresh processで正規Port moduleの一方が未読込の場合に既guardが閉拒否することをpureとowned開始後stage2で確認。`backend/src/pitchlog/sync/port_guard.py` exact1をscopeへ追加し、既ports読込後に採用済Contentと新Rightsの2 moduleだけを明示importしてから既verifierを設定する。登録集合から任意moduleを動的importせず、未知登録・削除済moduleの拒否と全import閉包検査を維持。既test_sync_apply_model_ports.py内で旧/新Portそれぞれのfresh process起動・循環・未知拒否を対向し、最終非作者source reviewの対象とする。
