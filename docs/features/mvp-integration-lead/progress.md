@@ -10,6 +10,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
+記録後read R1はwriter `59c56ffa` に取込・push。非作者review `86fa1716dd74cf8ee217750145110b612073f94aeabcac801c8d60ddee7e738b` 指摘0、関連245件成功。未登録の限定read宣言であり、正式認可・保存値との照合・実DB復元・HTTP/画面は未提供。U08/U10の接続計画はwriter `fb1a5359` でPO委任判断により採用、単位A実装中。利用者の新操作はまだ実証されていない。
+
 U06初球保存操作はunit C branch `feature/mvp-first-ball-product-activation` の `670d5313` に取込・push。非作者再レビュー `2580337fff500e86bb420159190408e5898f7efb76be6ced1d8ed438d7a56fd9` は前回P1二件を隔離実PGで確認し残0。端末資格はfixture seed、記録権は実issuer、印は正規bind/right。正式7.7・必須CI・実Port/HTTP/UI接続と記録後readは未完。利用者の新操作はまだ実証されていない。
 
 U14記録後readのR1限定計画は非作者レビュー `77b15dc843c4947abbf8cca78b4a4076c8409a1b96a48f431819ac831b81d6eb` 指摘0、PO委任によるCodex判断でwriter `fc3809ed` に採用し、未登録read宣言を隔離実装中。初球のframe→物理保存接続は、現在のartifactに座標変換がないためD18の単一TS出力ABIを要することを確認中。Python側の重複計算は作らない。画面からの初球保存・再読込は未達。
