@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pitchlog.sync.control_provider.binding_control import _BindingLease
+    from pitchlog.sync.source_binding import E1Receipt
 
 
 class WriterBindingUnavailable(RuntimeError):
@@ -68,7 +69,7 @@ _LIVE_BINDINGS: dict[object, _LiveWriterBinding] = {}
 class _LiveWriterBinding:
     """同一scopeの寿命とnonceを結び、外部scalarから生成させない。"""
 
-    __slots__ = ("_handle", "_owner", "_identity", "_lease", "_used")
+    __slots__ = ("_handle", "_owner", "_identity", "_lease", "_used", "_phase_snapshot")
 
     def __init__(
         self,
@@ -88,6 +89,7 @@ class _LiveWriterBinding:
             lease,
             False,
         )
+        self._phase_snapshot = lease._phase_snapshot
 
     def assert_current(self) -> None:
         """実leaseと同top-level TXをその場で再検証する。"""
@@ -108,6 +110,55 @@ class _LiveWriterBinding:
             )
         )
         self._handle._assert_writer_lifetime(self._owner)
+
+    def assert_event_source(self, binding, *, context, request, event, phase):
+        """実RPC snapshotと当該sourceを同writerで再照合し、純値だけを返す。"""
+        import json
+        from uuid import UUID
+
+        from pitchlog.sync.control_provider.binding_control import _phase_wire
+        from pitchlog.sync.control_provider.evidence import EventPhaseBinding
+        from pitchlog.sync.source_binding import read_selected_event_source
+
+        if (
+            self._used
+            or _LIVE_BINDINGS.get(self._owner[0]) is not self
+            or self._handle._context is not context
+            or self._lease._phase_snapshot != self._phase_snapshot
+            or type(phase) is not EventPhaseBinding
+            or type(phase.position) is not int
+            or type(phase.d1) is not int
+            or type(phase.attempt.event_count) is not int
+        ):
+            raise WriterBindingUnavailable("実phaseと入力sourceが不一致")
+        self.assert_current()
+        value = read_selected_event_source(
+            binding, context=context, request=request, event=event
+        )
+        try:
+            snapshot = json.loads(self._phase_snapshot)
+            actual = snapshot["phase"]
+            phase_wire = _phase_wire(
+                phase, UUID(actual["authority_id"]), actual["control_version"]
+            )
+            if (
+                snapshot["tenant_id"] != str(context.tenant_id)
+                or actual != phase_wire
+                or value.origin != "e1"
+                or value.request_fingerprint != actual["request_fingerprint"]
+                or value.event_fingerprint != actual["event_fingerprint"]
+                or value.position != phase.position
+                or event.d1 != phase.d1
+                or event.d5 != actual["d5"]
+                or request.game_id != actual["game_id"]
+                or request.d4 != actual["wire_d4"]
+                or actual["codec_version"] != 1
+            ):
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise WriterBindingUnavailable("実phaseと入力sourceが不一致") from None
+        self.assert_current()
+        return value
 
 
 def _issue_live_writer_binding(handle, lease: _BindingLease) -> _LiveWriterBinding:
@@ -145,3 +196,95 @@ def _after_writer_finish(key: object) -> None:
     if bound is not None:
         bound._used = True
         bound._lease.finish()
+
+
+class _DevicePresentation:
+    """U11実issuer専用の私有参照。3Bに自由発行器は設けない。"""
+
+    __slots__ = ()
+
+    def __new__(cls):
+        raise WriterBindingUnavailable("実端末提示が未発行")
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class _DevicePresentationState:
+    """資格digestを同じ実受付とdeviceへ閉じて保持する未発行state形。"""
+
+    receipt: E1Receipt
+    context: object
+    request: object
+    reference_device: object
+    credential_digest: bytes = field(repr=False)
+
+
+_DEVICE_PRESENTATIONS: dict[_DevicePresentation, _DevicePresentationState] = {}
+
+
+def _qualified_device_digest(bound, presentation):
+    """Raw scalar/偽参照/別requestから実credentialを作らない。"""
+    import json
+    from uuid import UUID
+
+    from pitchlog.sync.source_binding import _receipt
+
+    if type(presentation) is not _DevicePresentation:
+        raise WriterBindingUnavailable("実端末提示が未発行")
+    state = _DEVICE_PRESENTATIONS.get(presentation)
+    if type(state) is not _DevicePresentationState:
+        raise WriterBindingUnavailable("実端末提示が未発行")
+    try:
+        owner = _receipt(state.receipt)
+        phase = json.loads(bound._phase_snapshot)
+        if (
+            owner.device_presentation is not presentation
+            or owner.context is not state.context
+            or owner.request is not state.request
+            or bound._handle._context is not state.context
+            or type(state.reference_device) is not UUID
+            or state.reference_device != bound._lease.device_id
+            or str(owner.tenant_id) != phase["tenant_id"]
+            or owner.source.request_fingerprint != phase["phase"]["request_fingerprint"]
+            or owner.request.game_id != str(bound._lease.game_id)
+            or type(state.credential_digest) is not bytes
+            or len(state.credential_digest) != 32
+        ):
+            raise ValueError
+    except Exception:
+        raise WriterBindingUnavailable("実端末提示の由来が不一致") from None
+    return state.credential_digest
+
+
+def _recheck_bound_device(bound, presentation):
+    """真正提示だけをactual lease付き既bind_deviceへ渡す有限経路。"""
+    from pitchlog.repositories.transaction import _port_predecision_phase
+    from pitchlog.sync.tokens import PortBindCurrentDeviceToken
+
+    digest = _qualified_device_digest(bound, presentation)
+    with _port_predecision_phase(bound._handle, "device"):
+        rows = bound._handle.run(PortBindCurrentDeviceToken(digest)).rows
+    if len(rows) != 1 or len(rows[0]) != 1 or type(rows[0][0]) is not bool:
+        raise WriterBindingUnavailable("実端末資格の結果が不正")
+    return rows[0][0]
+
+
+def _verify_bound_device(bound, reference_device, game_id, *, presentation):
+    """文脈二段判定。別端末→別試合の先行後にだけ実DB再照合する。"""
+    from uuid import UUID
+
+    if (
+        type(bound) is not _LiveWriterBinding
+        or _LIVE_BINDINGS.get(bound._owner[0]) is not bound
+        or type(reference_device) is not UUID
+        or type(game_id) is not str
+    ):
+        raise WriterBindingUnavailable("実端末文脈が不一致")
+    bound.assert_current()
+    if bound._lease.device_id != reference_device:
+        return "different_device"
+    if str(bound._lease.game_id) != game_id:
+        return "different_game"
+    matches = _recheck_bound_device(bound, presentation)
+    if type(matches) is not bool:
+        raise WriterBindingUnavailable("実端末資格の結果が不正")
+    return "match" if matches else "credential_mismatch"

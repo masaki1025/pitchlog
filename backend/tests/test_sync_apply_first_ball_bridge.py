@@ -534,3 +534,37 @@ def test_initial_actor_is_not_a_normal_frame_writer(rig, monkeypatch):
         with bound(rig):
             pytest.fail("initial actor accepted")
     assert not rig.rows.calls
+
+
+def test_e1_bridge_requires_real_source_and_rechecks_wire_fingerprint(rig, monkeypatch):
+    """E1用のsource寿命対向。実issuer/実認可を成立させる試験ではない。"""
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    for invalid in (None, "wire-v1:fake", object()):
+        with pytest.raises(FirstBallFrameError):
+            with api._bind_e1_first_ball_at_content_stage(
+                rig.handle, rig.writer, rig.event, source=invalid
+            ):
+                pytest.fail("偽sourceを受理")
+    source = object.__new__(_E1CoreSource)
+    calls = []
+    fingerprint = ["wire-v1:" + "a" * 64]
+
+    def read(owner, handle, event):
+        assert owner is source and handle is rig.handle and event is rig.event
+        calls.append(event.d5)
+        return SimpleNamespace(event_fingerprint=fingerprint[0])
+
+    monkeypatch.setattr(_E1CoreSource, "read", read)
+    with transaction._sync_apply_active():
+        with api._bind_e1_first_ball_at_content_stage(
+            rig.handle, rig.writer, rig.event, source=source
+        ) as bridge:
+            assert api._STATES[bridge].fingerprint == fingerprint[0]
+            assert api._STATES[bridge].source is source
+            api._state(bridge, rig.writer, rig.event)
+            fingerprint[0] = "wire-v1:" + "b" * 64
+            with pytest.raises(FirstBallFrameError):
+                api._state(bridge, rig.writer, rig.event)
+    assert len(calls) >= 4
+    assert bridge not in api._STATES

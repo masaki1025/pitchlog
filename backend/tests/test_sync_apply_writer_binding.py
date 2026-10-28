@@ -685,3 +685,228 @@ def test_void_adapter_preserves_every_other_registered_function():
         assert actual.get(spec.operation_id, digest) == digest
         actual[spec.operation_id] = digest
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        None,
+        "request_fingerprint",
+        "event_fingerprint",
+        "device_id",
+        "tenant_id",
+        "game_id",
+        "wire_d4",
+        "codec_version",
+        "position",
+        "d1",
+        "event_count",
+    ),
+)
+def test_rpc_phase_snapshot_rejects_later_mutation(field):
+    """送信後のphase差替えを純比較する。真正lease/DBの実証ではない。"""
+    import json
+    from datetime import timedelta
+
+    from pitchlog.sync.control_provider.binding_control import (
+        _LEASE_CREATION,
+        BindingControl,
+        _BindingLease,
+        _phase_wire,
+    )
+    from pitchlog.sync.control_provider.evidence import (
+        AttemptBinding,
+        AuthorityBinding,
+        EventPhaseBinding,
+    )
+
+    attempt = AttemptBinding(
+        AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3)),
+        UUID(int=4),
+        UUID(int=5),
+        UUID(int=6),
+        "generation-A",
+        1,
+        UUID(int=7),
+        1,
+        "wire-request-v1:" + "a" * 64,
+        1,
+    )
+    phase = EventPhaseBinding(
+        attempt, UUID(int=8), 1, 1, UUID(int=9), "wire-v1:" + "b" * 64
+    )
+    snapshot = json.dumps(
+        {
+            "tenant_id": str(attempt.tenant_id),
+            "phase": _phase_wire(phase, UUID(int=10), 1),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    if field is not None:
+        value = (
+            2
+            if field in ("codec_version", "position", "d1", "event_count")
+            else UUID(int=20)
+            if field.endswith("_id")
+            else "other-value"
+        )
+        object.__setattr__(
+            phase if field in ("event_fingerprint", "position", "d1") else attempt,
+            field,
+            value,
+        )
+    stamp = datetime.now(timezone.utc)
+    identity = WriterIdentity("1", "1", stamp, 1, stamp, "1")
+    reply = {
+        "nonce": "01" * 32,
+        "lease_id": str(UUID(int=11)),
+        "expires_at": (stamp + timedelta(seconds=30)).isoformat(),
+    }
+    control = object.__new__(BindingControl)
+    if field is None:
+        lease = _BindingLease(
+            control,
+            None,
+            None,
+            phase,
+            identity,
+            reply,
+            _LEASE_CREATION,
+            phase_snapshot=snapshot,
+        )
+        assert lease._phase_snapshot == snapshot
+    else:
+        with pytest.raises(WriterBindingUnavailable):
+            _BindingLease(
+                control,
+                None,
+                None,
+                phase,
+                identity,
+                reply,
+                _LEASE_CREATION,
+                phase_snapshot=snapshot,
+            )
+
+
+@pytest.mark.parametrize(
+    "change",
+    (
+        None,
+        "request_hash",
+        "event_hash",
+        "position",
+        "game",
+        "device",
+        "codec",
+        "epoch",
+        "snapshot",
+        "handle",
+        "registry",
+    ),
+)
+def test_pure_actual_phase_source_comparison_no_real_lease(monkeypatch, change):
+    """私有registry doubleの比較試験。認証・PG・実leaseの成立ではない。"""
+    import json
+    from types import SimpleNamespace
+
+    import test_sync_apply_source_binding as source_test
+
+    from pitchlog.sync import source_binding as source
+    from pitchlog.sync.control_provider import writer_binding as writer
+    from pitchlog.sync.control_provider.binding_control import _phase_wire
+    from pitchlog.sync.control_provider.evidence import (
+        AttemptBinding,
+        AuthorityBinding,
+        EventPhaseBinding,
+    )
+
+    receipt, request = source_test._receipt_double(source_test._raw())
+    state = source._RECEIPTS[receipt]
+    binding = source.e1_event_source(receipt, 1)
+    assert type(request.d4) is str and type(request.events[0].d1) is int
+    phase = EventPhaseBinding(
+        AttemptBinding(
+            AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3)),
+            state.tenant_id,
+            UUID(int=5),
+            UUID(request.game_id),
+            request.d4,
+            1,
+            UUID(int=7),
+            1,
+            state.source.request_fingerprint,
+            1,
+        ),
+        UUID(int=8),
+        1,
+        request.events[0].d1,
+        UUID(request.events[0].d5),
+        state.source.event_fingerprints[0],
+    )
+    snapshot = json.dumps(
+        {
+            "tenant_id": str(state.tenant_id),
+            "phase": _phase_wire(phase, UUID(int=10), 1),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    bound = object.__new__(writer._LiveWriterBinding)
+    bound._used = False
+    bound._owner = (object(),)
+    bound._handle = SimpleNamespace(_context=state.context)
+    bound._lease = cast(Any, SimpleNamespace(_phase_snapshot=snapshot))
+    bound._phase_snapshot = snapshot
+    writer._LIVE_BINDINGS[bound._owner[0]] = bound
+    calls = []
+    monkeypatch.setattr(
+        writer._LiveWriterBinding,
+        "assert_current",
+        lambda self: calls.append("current"),
+    )
+    try:
+        if change in ("request_hash", "device", "game", "codec"):
+            name, value = {
+                "request_hash": ("request_fingerprint", "wire-request-v1:wrong"),
+                "device": ("device_id", UUID(int=20)),
+                "game": ("game_id", UUID(int=20)),
+                "codec": ("codec_version", 2),
+            }[change]
+            object.__setattr__(phase.attempt, name, value)
+        elif change == "event_hash":
+            object.__setattr__(phase, "event_fingerprint", "wire-v1:wrong")
+        elif change == "position":
+            object.__setattr__(phase, "position", 2)
+        elif change == "epoch":
+            object.__setattr__(phase.attempt.authority, "restore_epoch", UUID(int=20))
+        elif change == "snapshot":
+            bound._lease._phase_snapshot = "{}"
+        elif change == "handle":
+            bound._handle._context = object()
+        elif change == "registry":
+            del writer._LIVE_BINDINGS[bound._owner[0]]
+        if change is None:
+            actual = bound.assert_event_source(
+                binding,
+                context=state.context,
+                request=request,
+                event=request.events[0],
+                phase=phase,
+            )
+            assert actual.event_fingerprint == state.source.event_fingerprints[0]
+            assert calls == ["current", "current"]
+        else:
+            with pytest.raises(WriterBindingUnavailable):
+                bound.assert_event_source(
+                    binding,
+                    context=state.context,
+                    request=request,
+                    event=request.events[0],
+                    phase=phase,
+                )
+    finally:
+        writer._LIVE_BINDINGS.pop(bound._owner[0], None)
+        source._RECEIPTS.clear()
+        source._SELECTIONS.clear()

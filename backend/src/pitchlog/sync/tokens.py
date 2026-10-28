@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
@@ -343,3 +343,36 @@ class EvacuatedOriginalInsertToken(_SyncToken):
     d5: UUID
     payload_json: str
     _capability_id = "CAP:evacuated_event_originals:insert"
+
+
+@dataclass(frozen=True, slots=True)
+class PortRG1PrecheckToken(_SyncToken):
+    """Portから固定RG1読取へだけ到達する値命令。資格ではない。"""
+
+    _capability_id = "CAP:rg1:precheck"
+
+
+@dataclass(frozen=True, slots=True)
+class PortRG1CommitCheckToken(_SyncToken):
+    """同scopeの固定RG1確定前検査だけを要求する。"""
+
+    _capability_id = "CAP:rg1:commit_check"
+
+
+@dataclass(frozen=True, slots=True)
+class PortBindCurrentDeviceToken(_SyncToken):
+    """nonce等を貸与せず核が実bindingへ補う端末照合命令。"""
+
+    credential_digest: bytes = field(repr=False)
+    _capability_id = "CAP:sync_first_ball:bind_device"
+
+
+@dataclass(frozen=True, slots=True)
+class PortCheckCurrentRightToken(_SyncToken):
+    """同bindingだけの現権利照合命令。proof値だけで資格を作らない。"""
+
+    game_id: UUID
+    wire_d4: str
+    recovery_generation: int
+    proof_digest: bytes = field(repr=False)
+    _capability_id = "CAP:sync_first_ball:check_current_right"

@@ -274,9 +274,14 @@ def test_receipt_context_and_raw_all_values_revalidated(change: str) -> None:
 
 
 def test_no_issuer_registration_api_and_no_mutation_of_old_paths() -> None:
-    """本体に真正参照の発行/登録APIを追加していない。"""
+    """E1発行口は0、legacyは承認済み私有scope以外へ登録しない。"""
     source = inspect.getsource(api)
-    assert "_LEGACY[" not in source.replace("state = _LEGACY[owner]", "")
+    # 3Bで承認されたprivate legacy入口だけが旧scopeを発行する。
+    legacy_body = inspect.getsource(api._legacy_entry_scope)
+    assert legacy_body.count("_LEGACY[owner] = state") == 1
+    assert "_LEGACY[" not in source.replace(legacy_body, "").replace(
+        "state = _LEGACY[owner]", ""
+    )
     assert "_RECEIPTS[" not in source.replace("state = _RECEIPTS[owner]", "")
     assert all("issuer" not in name for name in vars(api) if not name.startswith("_"))
     assert set(inspect.signature(api.e1_event_source).parameters) == {
@@ -628,3 +633,46 @@ def test_accessor_no_issuer_is_closed_without_legacy_hash(
                 value, context=context, request=request, event=request.events[0]
             )
     assert not api._LEGACY and not api._RECEIPTS and not api._SELECTIONS
+
+
+def test_actual_legacy_entry_private_scope_lifetime_and_exact_context():
+    """本物Context型と同requestを束縛し、scope終端で全選択値を失効する。"""
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    request = _request(_raw())
+    with api._legacy_entry_scope(context, request, {}) as entry:
+        binding = api.legacy_dto_source(entry, request, request.events[0], None)
+        selected = api.read_selected_event_source(
+            binding, context=context, request=request, event=request.events[0]
+        )
+        assert selected.origin == "legacy"
+        assert selected.event_fingerprint == operation_fingerprint(
+            request.events[0], request.path, None
+        )
+        with pytest.raises(api.SourceBindingError):
+            api.read_selected_event_source(
+                binding,
+                context=TenantContext(_TENANT, _ISSUANCE_CAPABILITY),
+                request=request,
+                event=request.events[0],
+            )
+    with pytest.raises(api.SourceBindingError):
+        api.selected_event_fingerprint(binding, request.events[0])
+    assert not api._LEGACY and not api._SELECTIONS and not api._RECEIPTS
+
+
+@pytest.mark.parametrize("context", (None, object(), False))
+def test_legacy_entry_rejects_unissued_context_without_registry_growth(context):
+    """旧test doubleの都合で新scopeの資格条件を緩めない。"""
+    with pytest.raises(api.SourceBindingError):
+        with api._legacy_entry_scope(context, _request(_raw()), {}):
+            pytest.fail("未発行contextが通過")
+    assert not api._LEGACY and not api._RECEIPTS and not api._SELECTIONS
+
+
+def test_unregistered_receipt_is_a_fixed_closed_error():
+    """実型だけ再構成した未発行receiptをregistry欠落情報なしで拒否する。"""
+    forged = object.__new__(api.E1Receipt)
+    with pytest.raises(
+        ValueError, match="^E-1又はlegacyの発行済みsourceを利用できません$"
+    ):
+        api._receipt(forged)

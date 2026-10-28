@@ -9,7 +9,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from itertools import islice
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Literal, final
+from typing import TYPE_CHECKING, Any, Literal, cast, final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -158,6 +158,8 @@ class _TenantTransaction:
         """実行状態との対応を破棄し、ハンドルを永久に失効させる。"""
         state_key = self._state_key
         self._state_key = None
+        _PORT_PHASES.pop(state_key, None)
+        _PORT_DEVICE_BIND_USED.discard(state_key)
         return state_key
 
     def run(self, operation: TenantOperationToken) -> TenantOperationResult:
@@ -191,10 +193,18 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if _is_port_command(operation):
+            return _execute_port_command(self, operation)
+        phase = _port_phase(self)
+        if phase is not None:
+            _require_port_read_token(phase, operation)
         if state_key in _INITIAL_ACTOR_STATES:
             _validate_initial_memory_operation(self, operation)
         spec = _operation_spec(operation)
         statement, parameters = _prepare_operation(operation, self._bound_tenant_id)
+        if phase is not None:
+            _require_plain_port_select(spec.statement)
+            _require_plain_port_select(statement)
         if spec.preflight is not None:
             preflight = spec.preflight(operation, parameters)
             if any(
@@ -381,6 +391,9 @@ class _TenantTransaction:
         spec, parameters = prepare_function_operation(
             operation, self._bound_tenant_id, registry
         )
+        phase = _port_phase(self)
+        if phase is not None:
+            _require_port_function(phase, operation, spec.function_id)
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
@@ -477,6 +490,8 @@ class _TenantTransaction:
         if state_key is None or state_key not in _TRANSACTION_RUNTIMES:
             raise RuntimeError("トランザクションハンドルは失効している")
         session, _ = _TRANSACTION_RUNTIMES[state_key]
+        if _port_phase(self) is not None:
+            raise TenantBindingError("Port判定phaseでsavepointを作れない")
         if state_key in _INITIAL_ACTOR_STATES:
             raise TenantBindingError("初期権actorへ汎用savepointを公開できない")
         from pitchlog.sync.control_provider.writer_binding import _LIVE_BINDINGS
@@ -953,3 +968,263 @@ def _assert_existing_resolution_owner(handle, context, runtime, owner, bound) ->
         binding.credential_digest,
     ):
         raise TenantBindingError("committed resolveの実ownerが不一致")
+
+
+@dataclass(frozen=True, slots=True)
+class _PortDecisionPhase:
+    """実scopeへ束縛した判定中制約。新しい認可資格ではない。"""
+
+    handle: _TenantTransaction
+    runtime: object
+    lifetime: tuple[object, object]
+    context: TenantContext
+    bound: Any
+    snapshot: str
+    kind: Literal["rg1-precheck", "rg1-commit", "device", "rights", "content"]
+
+
+_PORT_PHASES: dict[object, _PortDecisionPhase] = {}
+_PORT_DEVICE_BIND_USED: set[object] = set()
+
+
+@contextmanager
+def _port_predecision_phase(handle: _TenantTransaction, kind: str):
+    """同じrunを保持したまま、Port判定中の業務DMLを閉じる。"""
+    from pitchlog.sync.control_provider.writer_binding import (
+        _LIVE_BINDINGS,
+        _LiveWriterBinding,
+    )
+
+    if (
+        type(handle) is not _TenantTransaction
+        or type(kind) is not str
+        or kind
+        not in (
+            "rg1-precheck",
+            "rg1-commit",
+            "device",
+            "rights",
+            "content",
+        )
+    ):
+        raise TenantBindingError("Port判定phaseが不正")
+    lifetime = handle._writer_lifetime()
+    key = handle._state_key
+    bound = _LIVE_BINDINGS.get(key)
+    if (
+        key in _PORT_PHASES
+        or key in _INITIAL_ACTOR_STATES
+        or type(bound) is not _LiveWriterBinding
+        or bound._handle is not handle
+        or bound._used
+        or _TRANSACTION_RUNTIMES.get(key) is None
+        or type(bound._phase_snapshot) is not str
+        or bound._lease._phase_snapshot != bound._phase_snapshot
+    ):
+        raise TenantBindingError("Port判定phaseのwriterが不一致")
+    bound.assert_current()
+    phase = _PortDecisionPhase(
+        handle,
+        _TRANSACTION_RUNTIMES[key],
+        lifetime,
+        handle._context,
+        bound,
+        bound._phase_snapshot,
+        cast(Any, kind),
+    )
+    _PORT_PHASES[key] = phase
+    try:
+        yield
+    finally:
+        # writer失効の経路でも自分の短命制約だけを除去する。
+        if _PORT_PHASES.get(key) is phase:
+            del _PORT_PHASES[key]
+
+
+def _port_phase(handle: _TenantTransaction) -> _PortDecisionPhase | None:
+    """再束縛/別runtimeへphaseを貸与しない。SQL発行前だけで確認する。"""
+    phase = _PORT_PHASES.get(handle._state_key)
+    if phase is None:
+        return None
+    from pitchlog.sync.control_provider.writer_binding import _LIVE_BINDINGS
+
+    if (
+        type(phase) is not _PortDecisionPhase
+        or phase.handle is not handle
+        or _TRANSACTION_RUNTIMES.get(handle._state_key) is not phase.runtime
+        or handle._context is not phase.context
+        or _LIVE_BINDINGS.get(handle._state_key) is not phase.bound
+        or phase.bound._used
+        or phase.bound._phase_snapshot != phase.snapshot
+        or phase.bound._lease._phase_snapshot != phase.snapshot
+    ):
+        raise TenantBindingError("Port判定phaseが失効又は不一致")
+    handle._assert_writer_lifetime(phase.lifetime)
+    return phase
+
+
+def _port_read_types(kind: str):
+    """phaseごとの必要read exact型だけを許す。未知Selectを許可しない。"""
+    from pitchlog.repositories.roster import PlayerReadToken
+    from pitchlog.sync.tokens import (
+        GameReadToken,
+        RecordingGenerationByNumberReadToken,
+        RecordingGenerationReadToken,
+        TemporaryPlayerMappingReadToken,
+    )
+
+    return {
+        "rg1-precheck": frozenset(),
+        "rg1-commit": frozenset(),
+        "device": frozenset(),
+        "rights": frozenset(
+            {RecordingGenerationReadToken, RecordingGenerationByNumberReadToken}
+        ),
+        "content": frozenset(
+            {PlayerReadToken, TemporaryPlayerMappingReadToken, GameReadToken}
+        ),
+    }[kind]
+
+
+def _require_port_read_token(phase, operation):
+    if type(operation) not in _port_read_types(phase.kind):
+        raise TenantBindingError("Port判定phaseの業務書込又は未知readを拒否")
+
+
+def _require_plain_port_select(statement):
+    """既登録readでも、DML/行lock/副作用関数へ差し替えた文を拒否する。"""
+    from sqlalchemy.sql import visitors
+    from sqlalchemy.sql.functions import FunctionElement
+    from sqlalchemy.sql.selectable import Select
+
+    if (
+        not isinstance(statement, Select)
+        or statement._for_update_arg is not None
+        or any(
+            isinstance(node, FunctionElement) for node in visitors.iterate(statement)
+        )
+    ):
+        raise TenantBindingError("Port判定phaseの読取文が不正")
+
+
+def _require_port_function(phase, operation, function_id):
+    """正規qualification/stampとRG1だけを有限照合。汎用関数は禁止。"""
+    allowed = {
+        "rg1-precheck": {"rg1_api.rg1_read_open", "rg1_control.scope_binding"},
+        "rg1-commit": {
+            "rg1_api.rg1_assert_open_before_commit",
+            "rg1_control.scope_binding",
+        },
+        "device": {"sync_right_api.bind_device"},
+        "rights": {"sync_right_api.check_current_right"},
+        "content": set(),
+    }[phase.kind] | {
+        "sync_fence_api.assert_writer_binding",
+        "sync_fence_api.read_writer_identity",
+    }
+    if function_id not in allowed:
+        raise TenantBindingError("Port判定phaseの固定関数が未許可")
+    if function_id in {
+        "sync_right_api.bind_device",
+        "sync_right_api.check_current_right",
+        "sync_fence_api.assert_writer_binding",
+    }:
+        lease = phase.bound._lease
+        for field_name, expected in (
+            ("attempt_id", lease.attempt_id),
+            ("phase_id", lease.phase_id),
+            ("binding_nonce", lease.nonce),
+            ("device_id", lease.device_id),
+            ("game_id", lease.game_id),
+        ):
+            if getattr(operation, field_name, None) != expected:
+                raise TenantBindingError("Port判定phaseの固定関数入力が別binding")
+
+
+def _is_port_command(operation):
+    from pitchlog.sync.tokens import (
+        PortBindCurrentDeviceToken,
+        PortCheckCurrentRightToken,
+        PortRG1CommitCheckToken,
+        PortRG1PrecheckToken,
+    )
+
+    return isinstance(
+        operation,
+        (
+            PortBindCurrentDeviceToken,
+            PortCheckCurrentRightToken,
+            PortRG1PrecheckToken,
+            PortRG1CommitCheckToken,
+        ),
+    )
+
+
+def _execute_port_command(handle, operation):
+    """値命令へactual lease/nonceを核だけが補い、既固定関数へ渡す。"""
+    import json
+
+    from pitchlog.repositories.first_ball import (
+        _BindFirstBallDeviceToken,
+        _CheckFirstBallRightToken,
+    )
+    from pitchlog.repositories.rg1 import RG1CommitCheckToken, RG1PrecheckToken
+    from pitchlog.sync.tokens import (
+        PortBindCurrentDeviceToken,
+        PortCheckCurrentRightToken,
+        PortRG1CommitCheckToken,
+        PortRG1PrecheckToken,
+    )
+
+    phase = _port_phase(handle)
+    if phase is None:
+        raise TenantBindingError("Port値命令は実判定phaseを必要とする")
+    phase.bound.assert_current()
+    lease = phase.bound._lease
+    if type(operation) is PortRG1PrecheckToken and phase.kind == "rg1-precheck":
+        token = RG1PrecheckToken()
+    elif type(operation) is PortRG1CommitCheckToken and phase.kind == "rg1-commit":
+        token = RG1CommitCheckToken()
+    elif type(operation) is PortBindCurrentDeviceToken and phase.kind == "device":
+        if handle._state_key in _PORT_DEVICE_BIND_USED:
+            raise TenantBindingError("同writerの端末bindは一度だけ")
+        if (
+            type(operation.credential_digest) is not bytes
+            or len(operation.credential_digest) != 32
+        ):
+            raise TenantBindingError("端末資格digestの型が不正")
+        _PORT_DEVICE_BIND_USED.add(handle._state_key)
+        token = _BindFirstBallDeviceToken(
+            lease.attempt_id,
+            lease.phase_id,
+            lease.nonce,
+            lease.device_id,
+            lease.game_id,
+            operation.credential_digest,
+        )
+    elif type(operation) is PortCheckCurrentRightToken and phase.kind == "rights":
+        raw = json.loads(phase.snapshot)["phase"]
+        if (
+            type(operation.game_id) is not UUID
+            or operation.game_id != lease.game_id
+            or type(operation.wire_d4) is not str
+            or operation.wire_d4 != raw["wire_d4"]
+            or type(operation.recovery_generation) is not int
+            or not 0 < operation.recovery_generation < 2**63
+            or type(operation.proof_digest) is not bytes
+            or len(operation.proof_digest) != 32
+        ):
+            raise TenantBindingError("現権利命令がactual bindingと不一致")
+        token = _CheckFirstBallRightToken(
+            lease.attempt_id,
+            lease.phase_id,
+            lease.nonce,
+            lease.device_id,
+            lease.game_id,
+            raw["internal_generation"],
+            operation.recovery_generation,
+            operation.proof_digest,
+        )
+    else:
+        raise TenantBindingError("Port値命令の型又はphaseが不一致")
+    return handle.run_function(token)

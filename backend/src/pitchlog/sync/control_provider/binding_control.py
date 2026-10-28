@@ -376,6 +376,8 @@ class _BindingLease:
         identity: WriterIdentity,
         reply: object,
         creation: object,
+        *,
+        phase_snapshot: str,
     ) -> None:
         """実channel応答をprivateclientから受ける。"""
         if creation is not _LEASE_CREATION or type(ledger) is not BindingControl:
@@ -394,6 +396,21 @@ class _BindingLease:
             timezone.utc
         ):
             raise WriterBindingUnavailable("binding期限が不正")
+        # RPC前の実送信値を保持し、応答後にcallerが再構成したphaseを採用しない。
+        try:
+            snapshot = json.loads(phase_snapshot)
+            authority = UUID(snapshot["phase"]["authority_id"])
+            version = snapshot["phase"]["control_version"]
+            expected = {
+                "tenant_id": str(phase.attempt.tenant_id),
+                "phase": _phase_wire(phase, authority, version),
+            }
+            canonical = json.dumps(expected, sort_keys=True, separators=(",", ":"))
+            if type(phase_snapshot) is not str or canonical != phase_snapshot:
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise WriterBindingUnavailable("binding phase原本が不一致") from None
+        self._phase_snapshot = phase_snapshot
         self.identity = identity
         self.attempt_id = phase.attempt.attempt_id
         self.phase_id = phase.phase_id
@@ -620,22 +637,35 @@ class BindingControl:
         manager = self._channel()
         channel = manager.__enter__()
         try:
+            phase_wire = _phase_wire(
+                phase,
+                UUID(self._target["authority_id"]),
+                self._target["control_version"],
+            )
+            phase_snapshot = json.dumps(
+                {"tenant_id": str(context.tenant_id), "phase": phase_wire},
+                sort_keys=True,
+                separators=(",", ":"),
+            )
             reply = _request(
                 channel,
                 {
                     "operation": "binding_open",
                     "cookie": cookie,
                     "tenant_id": str(context.tenant_id),
-                    "phase": _phase_wire(
-                        phase,
-                        UUID(self._target["authority_id"]),
-                        self._target["control_version"],
-                    ),
+                    "phase": phase_wire,
                     "writer": identity.wire(),
                 },
             )
             lease = _BindingLease(
-                self, manager, channel, phase, identity, reply, _LEASE_CREATION
+                self,
+                manager,
+                channel,
+                phase,
+                identity,
+                reply,
+                _LEASE_CREATION,
+                phase_snapshot=phase_snapshot,
             )
             return _issue_live_writer_binding(handle, lease)
         except BaseException:
