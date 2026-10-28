@@ -12,8 +12,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 1. unit A+B：非作者2観点/ownedPG27/集中489を確認、docs b7baf20f→結合d189a40e→記録ef921539でwriterへ取込・push済。後発review7663e128…残0。正式7.7/unitC/実Port/全件/実画面は未完。
 2. U13：別branch/WT `feature-mvp-started-read-http` HEAD c7056da9 push済。step1〜4両段commit、実WT31/81/16/authz37成功・独立後発7a0cad94…残0。製品DB受入/画面/記録後状態は未完。
-3. E-1：writer HEAD7a803fee push済で反映6＋P2の二段照合とDB基線修復計画を採用。cache `implementation-3a2/` 候補固定・非作者review中、3Bは途中checkpointで実装中。反映5review全文未取得を維持。
-4. 正本単一gate：別WT `feature-mvp-coordinate-doc-gate` HEAD7fd9e0f9。ADR0.9既承認条文を保全後、ADR0.10/要件2.18をin-review起案。初回レビューP0=0/P1=1/P2=1を全採用、先行適用の閉集合参照/表示境界/表記を反映1周目で修正。次は基本枠2回目の差分review。J2回答はPOへ提示済・未回答、approved/U17コードは未着手。
+3. E-1：writer HEAD25932c87 push済で3A-2を採用（fb05b86e、独立533/実WT216成功）。3Bは途中checkpointで実装中。反映5review全文未取得を維持。
+4. 正本単一gate：別WT `feature-mvp-coordinate-doc-gate` HEAD62e2f35e。ADR0.9を保全しADR0.10/要件2.18を単一in-review起案。基本2回レビュー完了、本文P0/P1解消、最後は採否記録の語彙だけ反映2周目。J2と最終版確定をPOへ提示済。J2回答はPOへ提示済・未回答、approved/U17コードは未着手。
 5. DB基線：0036止まりと0037/38依存の不整合をownedPGで診断。cache `db-baseline-schema-diagnostic-ef921539/PLAN-CANDIDATE.md` SHAf809e96b…を非作者plan review中。正式修正は未実装、owner等の拒否条件を維持。tenant受理record/seal修復も未完。
 
 利用者が新たにできる操作：まだ実画面実証の増分なし。初球縦断とMVP全体は未完。既承認再取得や全体再計画をせず、実装・レビュー・故障再現を独立単位で並行する。
@@ -1253,3 +1253,8 @@ DB修復cacheは0038配置/実全列・制約検証へ到達したがfullinstall
 2026-10-28 作業5 source途中：ownedPGで新writer/旧stage_a計16成功（schema/版rollback・0034〜38有限resume・構造/owner/RLS/未知marker拒否・seed PUBLIC CONNECT変異・installer20文目故障/再開）、initial_scope実app/actorACL1成功。まだ最終source固定/非作者review前。product fixtureは旧full→unapplyが正式UNAPPLY拒否に当たる既不整合を発見。現行正規前段0038からfullを1回適用する案へ、旧owner-only/roundtrip snapshot試験2群は意味が異なるため偽snapshotやskipを作らず別scope追随として残す。正式拒否や退役保証は維持し全件修復完了とはしない。
 
 3B cache途中：actual phase snapshot対向、新wire W2と旧legacy拒否順の複合不正対向、②device_stateの読取専用未適用SQL/未登録tokenを追加し部分検査成功。`implementation-3b/partial-status.json` SHA f5bda810…更新。まだcoredriver/実source照合/legacy入口/全D5/helper/単球boundTXは未接続で採用不可。unit C準備は実profileから新body asset91（列ACL82/表ACL2/policy5/guard2）を導出中、汎用trigger schemaを増やさず閉じた2triggerのinstaller/catalog接合を検討。正式資産は未変更。
+
+
+2026-10-28：DB修復cacheの現行前段→full1回fixtureで実product catalog正常/余剰ACL拒否2成功、16故障系とinitial_scope ACL1成功。旧UNAPPLY/owner-only試験2群は無変更の既不整合として保全。非等価構造変異とsource最終固定/独立reviewは未完。unit C最小plan `first-ball-unit-c-minimal-addendum-20261028/PLAN-CANDIDATE.md` SHA94986aeb4f25e65c2b641f3ae3567be8db11c6493d5e1286ed4d1937a10235be、新body91実導出を固定、非作者plan review中。正式profile/trigger activationは未実施。
+
+公開固定点の実再照合：ls-remoteでwriter25932c87/U13c7056da9/gate62e2f35e一致。GitHub #188はOPEN Draft/BLOCKED、head72f4118aのまま（ローカルf0a8ce4eを公開済みとは扱わない）。
