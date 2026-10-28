@@ -60,6 +60,14 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 - **Aのコード側を実装**（`9c992ce4`）: `sync/control_provider/binding_client.py`（root配置JSONの閉読取: 余剰/欠落/型/非正規UUID/symlink/相対socket を拒否）＋ `source_binding._e1_receipt_scope`（実認証済みcontextと同requestのwire原値だけから受付参照を発行し、寿命終了で選択参照と受付を同時失効）。unit test 10件成功・Ruff成功。
 - **残る未規定のHTTP要素（新規意味/契約）**: ①Device-ID/Device-Credential の実ヘッダ輸送（ledger 1296の技術候補はあるが正本未反映）②attempt_id を再送で安定させる供給（ヘッダかV12内か未規定）③ACK envelope のP3形（P1/P2は確定）。これらは sync-protocol の正本追記（7.3確定ゲート）に属するため、勝手にwireを増やさず、routeは①〜③の確定後に実装する。
 
+**PO指示（2026-10-29）への対応：4条件**
+1. **P3はP2の着手条件にしない**: 入口は初球P2に限定し、P3は未対応として固定拒否（後続のMVP完成条件に残す）。P3のACK envelopeは今回実装しない。
+2. **同一HTTP束縛の追加確認**: `_e1_receipt_scope` に `entry_token` を必須化し、`_ReceiptState.entry_token` と `_receipt_for_entry()` で照合。`_apply_e1_f1` も `entry_token` を要求。別要求token・token無し・寿命終了後を閉拒否する unit 4件を追加（`tests/test_e1_receipt_binding.py`）。**実入口（route）での対向は未了**で、route実装時に同じtokenを発行・消費する形で閉じる。
+3. **座標の単一実装**: Pythonの `k/263` を製品経路から除去。`_physical_course()` は単一artifact供給が無い間 `FirstBallExecutionError` で閉拒否する。旧変換は `tests/first_ball_course_oracle.py` へ移し、**検査専用oracle**（将来のartifact出力照合用）に限定。製品コードからはimportしない。**投影は座標供給が接続されるまで実DB保存に到達しない**（意図した閉拒否）。
+4. **attempt再送・結果不明**: 契約追記（同一要求再送で同一attempt、結果不明で新IDへ置換しない）と故障試験は未着手。route実装と同時に閉じる。
+
+**現在地**: 投影・受付発行・設定読取・束縛検査は実装済み。**初球P2の実保存は、単一TS座標operation（artifact再生成＋pin更新）とroute（device/attempt契約）が揃うまで到達しない**。迂回実装は行わない。
+
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
 ## Codex主担当の再引受照合（2026-10-28）
