@@ -1209,3 +1209,8 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 2026-10-28 Codex再引受後の作業1：unit A+Bを非作者2観点で確認、ACL最終REPORT4845f373…残0（owned実PG27/27・pure489）、計画REPORT44e5af8a…P0/P1=0/P2=2を反映。前置docs b7baf20f、結合d189a40e、後発記録ef921539をwriter-bindingへpush。原24path全SHA一致後の変更はT09(f)コメント1行のみでAST不変、実WT489成功。4観測/後続C5/C10/T18c/T15c/正式7.7/unitC/実接続は計画へ記録。利用者が新たにできる操作：なし（保存印の候補を供給、正式activation/HTTP/画面保存は未達）。次は作業2 U13を別branch/WT feature-mvp-started-read-http（ef921539起点）へstep単位に取り込む。U13非作者review0a1b4355…追加指摘0、backend128/authz35成功。正式root JSON/lock・基線gate・実DB・step5/6は未完。
 
 正本起案の差分：WB ADR本文v0.8に対し既成果7d6ce544に承認済v0.9が存在。v0.10起案で既採用v0.9差分を落とさず、前提として原典確認する。D18=Aと正本確定は分離、J2未回答を維持。
+
+
+2026-10-28 作業2 U13：別WT `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-http` / branch同名、ef921539起点。採用plan1d9f99d6、step1 62f4c417（実WT31成功）、step2 af878182（81成功）、step3 7bf8c08a（16成功）、step4作者段2effe590、root登録段d4a9d7ec（生成registry/lockは旧候補と全byte一致、root対象37成功）。新planは委任承認の実態とbranch一致を記録しprovenance根拠行不変。step4 patchは既に前置配置したplanと衝突し初回適用拒否、同planを除外したpatchで適用（source省略なし）。利用者が新たにできる操作：現時点では未実証、HTTP入口候補と正式登録を供給した段階。基線seal/受理/製品fixtureが未解決のためstep5実DB受入・step6画面は未実施。後発独立確認中、通常統合/初球再読込の完成とはしない。
+
+作業3 E-1反映6は非作者re-review676d97fd…P0/P1=0/P2=1（a/b先照合→一致時だけDB、同時不一致B5優先）。旧反映5 review全文の所在確認と追補文案を依頼し、3A-2/3Bの採用はまだ行っていない。作業4の単一gate草案はcache `d18-d11-single-gate-draft-20261028/`（draft.patch8f5ad625…）に固定、正式in-review/ゲート/承認は未実施。J2未回答。
