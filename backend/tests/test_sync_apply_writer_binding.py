@@ -643,6 +643,9 @@ def test_void_adapter_preserves_every_other_registered_function():
         "SYNC_FIRST_BALL:check_current_right": (
             "d0790dd944798534a8df3d2079aa438e7d3307d0de9acb654c2fd7e874ae8704"
         ),
+        "SYNC_FIRST_BALL:read_device_state": (
+            "281792f9b426c1fdc7eba3305c069f5fd3afcde268a367fc06583bc006652e71"
+        ),
         "SYNC_WRITER_BINDING:read_writer_identity": (
             "4122d688347d16207dbe0129eee860404763b4c2f3fa6dd4ef52d3a20fa74169"
         ),
