@@ -1204,3 +1204,8 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 - **workflow停止**：第3波の再開runが完了済みreview 8本をcacheでなく再実行したため停止。以後は単独agentで進める（ultracodeは本作業の後に停止予定）。
 
 利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
+
+
+2026-10-28 Codex再引受後の作業1：unit A+Bを非作者2観点で確認、ACL最終REPORT4845f373…残0（owned実PG27/27・pure489）、計画REPORT44e5af8a…P0/P1=0/P2=2を反映。前置docs b7baf20f、結合d189a40e、後発記録ef921539をwriter-bindingへpush。原24path全SHA一致後の変更はT09(f)コメント1行のみでAST不変、実WT489成功。4観測/後続C5/C10/T18c/T15c/正式7.7/unitC/実接続は計画へ記録。利用者が新たにできる操作：なし（保存印の候補を供給、正式activation/HTTP/画面保存は未達）。次は作業2 U13を別branch/WT feature-mvp-started-read-http（ef921539起点）へstep単位に取り込む。U13非作者review0a1b4355…追加指摘0、backend128/authz35成功。正式root JSON/lock・基線gate・実DB・step5/6は未完。
+
+正本起案の差分：WB ADR本文v0.8に対し既成果7d6ce544に承認済v0.9が存在。v0.10起案で既採用v0.9差分を落とさず、前提として原典確認する。D18=Aと正本確定は分離、J2未回答を維持。
