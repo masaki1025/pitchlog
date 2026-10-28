@@ -502,3 +502,8 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
 2026-10-28、step1〜4両段の実取込HEAD d4a9d7ecを非作者followup7a0cad94ff1dc79c59fcce6e3fbc8289aacdcf44ea68d0a9015290f2f2a18cb1 残0で確認。候補14path不変、plan限定metadata・既ABのchecker2関数・U13 AST17・root生成JSON/lock全byteを個別照合。独立backend128/authz37成功、root実WT31/81/16/authz37成功。step4を限定採用し保存するが、基線gate/製品DB/step5/6と記録後U14は未完。新たな利用者操作の実画面実証ではない。
 
 2026-10-28、PO委任によるCodex主担当判断。step5原典照合でRecordingGeneration.kindの実CHECKはnormal/migrationのみ、N2はkind!=normalを拒否しrecovery種別は存在しないと確認。H6(d)/R2/確定点6のrecovery表記を実在する非normal migrationの503対向へ技術的訂正。recovery_generationは別のepoch値で、新kindや拒否条件を追加せずN2/既CHECKを変更しない。原文のrecovery種別ケースは成立不能と記録し、migration対向をrecovery実証済みと読み替えない。
+
+
+2026-10-28、PO委任によるCodex主担当判断。step5最終候補reflection2 combined.patch703c08d754c844f60e6e8cc637c0065863c5fa9bc6926e57f32b4fbf1a62b47c を505ddcd8へ取込、実file SHA4968bcc6aa1ab4bca65c8cf1353831f8293eb0259415c8d2b5b0ae66496aad52一致・Ruff成功。初回非作者29c7bc06…P1=2は各H6 snapshot/全peer漏洩検査へ反映、反映1 re-review439ea94b…でlogger例外捕集P1が残り、Formatter1行と実logger対向5種を反映2へ修正。最終非作者641e76bb18910a67eb33d2b30b1f8bc18c74c062242734956a04ede58dd7f4dc 残0で確認。作者最終owned PG1成功40.54秒、H1〜H8機能受入を確認しstep6へ進める。作成はfixture、実画面/1球保存/記録後復元は未実証。
+
+A-2/H8必須probeは実app roleのREAD WRITE FOR UPDATE成功、READ ONLYはSQLSTATE25006/cannot execute SELECT FOR UPDATE in a read-only transactionで拒否。製品read経路はREAD ONLY化しない。H1ではlock区間を含むHTTP10回の計測をlogへ保存（最初の対象版0.119〜0.171秒、しきい値判定ではない）。資源観測は当該run container差0/anonymous volume+3、他run由来の44等の全体差もあり帰属未確定は削除していない。最新POの所有資源のみ削除する方針を優先し、全面volume0を成立扱いにしない。基線CLI/正式受理/通常統合は別条件。
