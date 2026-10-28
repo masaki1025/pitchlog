@@ -11,8 +11,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
 1. unit A+B：非作者2観点/ownedPG27/集中489を確認、docs b7baf20f→結合d189a40e→記録ef921539でwriterへ取込・push済。後発review7663e128…残0。正式7.7/unitC/実Port/全件/実画面は未完。
-2. U13：別branch/WT `feature-mvp-started-read-http` HEAD c7056da9 push済。step1〜4両段commit、実WT31/81/16/authz37成功・独立後発7a0cad94…残0。製品DB受入/画面/記録後状態は未完。
-3. E-1：writer HEAD25932c87 push済で3A-2を採用（fb05b86e、独立533/実WT216成功）。3Bは途中checkpointで実装中。反映5review全文未取得を維持。
+2. U13：別branch/WT `feature-mvp-started-read-http` HEAD98c72cd1 push済。step1〜4とDB修復依存merge2d7664db、step5 cacheで実Cookie→enroll→start→GET10回/H3/H4の最初の実PG成功。残拒否/破損/画面/記録後状態は未完。
+3. E-1：writer HEADb97b57d5までpush済、3A-2（fb05b86e、独立533/実WT216成功）とDB修復fad10d49/8bed3203を採用。3Bは途中checkpointで実装中。反映5review全文未取得を維持。
 4. 正本単一gate：別WT `feature-mvp-coordinate-doc-gate` HEAD62e2f35e。ADR0.9を保全しADR0.10/要件2.18を単一in-review起案。基本2回レビュー完了、本文P0/P1解消、最後は採否記録の語彙だけ反映2周目。J2と最終版確定をPOへ提示済。J2回答はPOへ提示済・未回答、approved/U17コードは未着手。
 5. DB基線：0036止まりと0037/38依存の不整合をownedPGで診断。cache `db-baseline-schema-diagnostic-ef921539/PLAN-CANDIDATE.md` SHAf809e96b…を非作者plan review中。正式修正は未実装、owner等の拒否条件を維持。tenant受理record/seal修復も未完。
 
@@ -1268,3 +1268,12 @@ DB修復source非作者8a8e22d4…はP1=2：0038配置中の故障で0037もroll
 2026-10-28：unit Cの実producer差分としてasset_spec.py/test_authz_asset_spec.py exact2を623a083dで追加（旧invoker exact1＋新lock exact1のみ、一般許可なし）。既installerのdefiner→invoker順に整合し、admit先→lock後→lock末尾trigger2配置へ0174ff6dで限定訂正。runtime-authz-contract.json/runtime_contract.pyのguard2だけの正規派生追随をbcc427ceで追加承認。作者cacheの生成・試験中で正式root反映/受理/activationは未了。
 
 3Bの条件f/実rights供給案は `implementation-3b/PORT-PHASE-ADDENDUM-CANDIDATE.md` SHA cc40a2d2…で未採用固定。PortWriter ABIと同handleを保つ私有phase guardが⑤/⑦の業務DML/savepointをSQL前拒否し、actual leaseへ閉じた正規stampだけを有限許可する案。credential/V12原典は `CREDENTIAL-PROOF-BOUNDARY.md` SHA36352dba…、devicecredential UTF8 SHA256とraw32byte V12 SHA256を区別。senderの資格transportが未供給のため、所有主担当はHTTPヘッダDevice-ID/Device-Credential＋厳密V12decodeの技術候補を示し、原典照合/独立review待ち。未採用案を成功や実資格としない。
+
+
+2026-10-28：DB修復reflection1は再レビュー0dcb51fc…残0/独立owned7成功後、fad10d49へ取り込み、5file全SHA/Ruff一致、8bed3203で採用記録しpush。U13へ依存を通常merge2d7664db、step5をcache `u13-step5-owned-20261028` で開始。H1/H3/H4の実Cookie/端末enroll/POST開始/GET10回が1成功29.43秒、応答0.119〜0.172秒・状態/d4/日時/lineup一致・非開示確認。試合作成はfixtureで、画面作成/初球保存/再読込実証ではない。
+
+U13 plan H6(d)/R2は実DB kind=normal/migrationにrecovery種別が存在しない記載誤りを98c72cd1で技術訂正。実在する非normal migrationの503対向へし、N2/既CHECK/epochの意味は変えない。原文ケース成立不能を記録、recovery検証済みとは呼ばない。
+
+unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72f4a95…でfreeze。非作者reviewは正式installer正常1成功・pure869成功/基線同2赤、後続9ケースfixture DSN解離を検証P1として保留。作者reflection1 source1.patch e74ae538…（test1のみ、SQL/期待不変）で同ownerをinitial_scope_databaseへ結び、review環境でplain pytest/sharedDSNunsetの10owned実PGを実行中。正式採用は全条件後。新正規stampの成功をcandidate後付けで代替しない。
+
+3Bのphase/rights最小exact5はb97b57d5で非作者079b1002…残0を根拠に着手承認。transport方針は採用、API/browser/UR1の追加pathは各単位の後続採用。actualphase/旧拒否順/mark/再掲等のpure対向進捗をcacheへ固定、実issuer/Port/全DB/HTTP未達。readonly代理callbackへwriterを差替えない。
