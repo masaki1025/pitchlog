@@ -42,6 +42,7 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
             "roster_player_list",
             "roster_player_create",
             "roster_player_read",
+            "started_game_detail",
             "roster_player_update",
             "roster_self_team_read",
             "preparing_game_list",
