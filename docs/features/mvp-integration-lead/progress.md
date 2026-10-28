@@ -12,8 +12,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 1. unit A+B：非作者2観点/ownedPG27/集中489を確認、docs b7baf20f→結合d189a40e→記録ef921539でwriterへ取込・push済。後発review7663e128…残0。正式7.7/unitC/実Port/全件/実画面は未完。
 2. U13：別branch/WT `feature-mvp-started-read-http` HEAD c7056da9 push済。step1〜4両段commit、実WT31/81/16/authz37成功・独立後発7a0cad94…残0。製品DB受入/画面/記録後状態は未完。
-3. E-1：writer HEAD4594c203 push済で反映6＋P2の二段照合を採用。cache `implementation-3a2/` を実装中、3Bは後続。反映5review全文未取得を維持。
-4. 正本単一gate：別WT `feature-mvp-coordinate-doc-gate` HEAD31f493b3。ADR0.9既承認条文を保全後、ADR0.10/要件2.18をin-review起案。初回全文レビュー中、方式説明に残るT1/T2限定P1を先行検出。J2回答はPOへ提示済・未回答、approved/U17コードは未着手。
+3. E-1：writer HEAD7a803fee push済で反映6＋P2の二段照合とDB基線修復計画を採用。cache `implementation-3a2/` 候補固定・非作者review中、3Bは途中checkpointで実装中。反映5review全文未取得を維持。
+4. 正本単一gate：別WT `feature-mvp-coordinate-doc-gate` HEAD7fd9e0f9。ADR0.9既承認条文を保全後、ADR0.10/要件2.18をin-review起案。初回レビューP0=0/P1=1/P2=1を全採用、先行適用の閉集合参照/表示境界/表記を反映1周目で修正。次は基本枠2回目の差分review。J2回答はPOへ提示済・未回答、approved/U17コードは未着手。
 5. DB基線：0036止まりと0037/38依存の不整合をownedPGで診断。cache `db-baseline-schema-diagnostic-ef921539/PLAN-CANDIDATE.md` SHAf809e96b…を非作者plan review中。正式修正は未実装、owner等の拒否条件を維持。tenant受理record/seal修復も未完。
 
 利用者が新たにできる操作：まだ実画面実証の増分なし。初球縦断とMVP全体は未完。既承認再取得や全体再計画をせず、実装・レビュー・故障再現を独立単位で並行する。
@@ -1231,3 +1231,10 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 作業4は別WT/branch `feature-mvp-coordinate-doc-gate`、既approved ADR0.9保全ba3e1082、単一gate起案31f493b3。2正本in-reviewとplan/worklogを同commitで固定、適用approved harness v1.19/条文64c9eec7。初回全文敵対reviewを開始（基本2回枠、旧計画レビュー回数を流用しない）。J2はA同一PR一式/B基盤先行の回答を同ゲート資料としてPOへ提示、未回答。正本approved化/実装なし。
 
 作業5診断：製品段階起動/initial_scope fixtureが0036止まりでfullinstallerが0037以降sync_fenceを要求する不整合。ownedPGでef921539の正規test失敗を再現し、診断pluginでfixture到達点だけ0038にすると1成功。ガード/installer/ACLを弱めていない。これは原因診断で正式修正・製品故障/再開保証の検証は未実施。新volume2個は帰属未確定で削除せず保存。最小exactpaths/受入条件をcache計画中。
+
+
+2026-10-28 作業5：DB基線修復plan f809e96b…は非作者60eef328…追加指摘0、主担当7a803feeでexact5採用しcache実装開始。owner同TXの固定0037/38配置・実構造検査・後段installer、rollback/有限resume/非公開/最終appACLを必須とし、実PGでsourceを検証するまで修復済みとしない。
+
+作業3：3A-2 source2.patch cee48a7e890cc1507b66ba34925297a92c2c26ae3f76ea84637caad4d8a171ab、REPORT9198507a…をcache固定、作者側216/関連442成功・6変異検出。非作者review中。3Bは `implementation-3b/CHECKPOINT.md` で4594c203基点/未採用3A2 overlayの依存を明示、実repo/DB未変更。
+
+作業4：単一gate初回全文report44915692…はP0=0/P1=1/P2=1。全採用し7fd9e0f9「反映1周目」で方式現況/発効前例外をD14m閉集合へ整合し表示面を拡大せず表記修正。plan gate周回1、worklog採否/反例典拠固定。基本枠2回目は反映差分/影響節のみでレビュー予定。J2/最終確定は未回答/未成立、gate branchを公開して保全。
