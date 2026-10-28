@@ -10,6 +10,8 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 ### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
 
+記録後復元R2-Aはwriter `6c4d3d14` に取込・push。非作者review `19262db2ef2f9b496ef53bcd20415f06fa04ee1e27350f7eee83034de6c5d777` 指摘0、独立311件成功。開始原本から再構成し同host再評価・保存V7/V8照合を行う内部候補で、物理41列照合・正式登録・実DB復元・HTTP/画面は未完。利用者の新操作はまだ実証されていない。
+
 記録後復元U14 R2-A計画はwriter `ea2dae71` でPO委任により限定採用。非作者review `db42aef84f84ed47dc5be87e68e108f32a2b4f3fe085cfdf03182a5d7065be9d` 指摘0。開始原本からの独立再構成と正式host再評価を隔離実装中。物理41列照合・正式登録・HTTP・画面は未完で、利用者の新操作はまだない。
 
 記録後read R1はwriter `59c56ffa` に取込・push。非作者review `86fa1716dd74cf8ee217750145110b612073f94aeabcac801c8d60ddee7e738b` 指摘0、関連245件成功。未登録の限定read宣言であり、正式認可・保存値との照合・実DB復元・HTTP/画面は未提供。U08/U10の接続計画はwriter `fb1a5359` でPO委任判断により採用、単位A実装中。利用者の新操作はまだ実証されていない。
