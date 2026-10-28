@@ -57,6 +57,8 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
   - B: 開始応答(#188)に authority3 を含め、端末が sync ヘッダで返す。端末に権威値を渡すため改ざん耐性は broker 照合依存。
   - C: 初回bindのみ app 生成の authority3 を broker が受理（既config照合を外す）→ 統制分離が弱まるため**不採用**。
 - 影響: A/Bとも**新しい運用配置物**と起動順の変更を伴う。共有DB・運用公開・秘密発行ではないが、配置物の追加は委任外寄りの判断として記録する。実装はAを前提に進められる状態まで判明（route・ACK変換・投影・座標は完成済み）。
+- **Aのコード側を実装**（`9c992ce4`）: `sync/control_provider/binding_client.py`（root配置JSONの閉読取: 余剰/欠落/型/非正規UUID/symlink/相対socket を拒否）＋ `source_binding._e1_receipt_scope`（実認証済みcontextと同requestのwire原値だけから受付参照を発行し、寿命終了で選択参照と受付を同時失効）。unit test 10件成功・Ruff成功。
+- **残る未規定のHTTP要素（新規意味/契約）**: ①Device-ID/Device-Credential の実ヘッダ輸送（ledger 1296の技術候補はあるが正本未反映）②attempt_id を再送で安定させる供給（ヘッダかV12内か未規定）③ACK envelope のP3形（P1/P2は確定）。これらは sync-protocol の正本追記（7.3確定ゲート）に属するため、勝手にwireを増やさず、routeは①〜③の確定後に実装する。
 
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
