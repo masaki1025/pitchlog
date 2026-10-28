@@ -818,4 +818,6 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 
 2026-10-28、PO委任によるCodex主担当判断。U08/U10単位Aの実Content登録に伴う既存pin追随として `backend/tests/test_sync_apply_model_ports.py` を限定追加する。実Contentのexact登録を検査し、未登録SafeProjectionの拒否は維持する。`test_sync_first_ball_registration.py` はU06側の別追随として共有ファイル編集を直列化する。拒否条件の緩和や単位Bの完成を意味しない。
 
+2026-10-28、PO委任によるCodex主担当判断。記録後read登録R3a計画 `6ba2fa75a7cf8bfc0282d4f7247b4efb5e6fbac764b74a3c84e46e5c6d71dd19` を非作者review `dc5b4f5c60046d1455c97a6b89c5ea535bdae1f26bb0e8753cb13e2a4d660d7d` 指摘0に基づき採用。U06固定版とR1/R2を隔離組立しread3登録を検証、既CAP・tenant境界・LIMIT2を維持。正式資産はrootが直列反映し実値を受理する。物理41列照合・DTO/HTTP・実画面再読込は別途必要。
+
 2026-10-28、PO委任によるCodex主担当判断。U06登録時に既先行SQLのINSERT RETURNING全41列が正式capability validatorで拒否され、既executorの非SELECT結果がrowcountのみである不整合を実確認。既ガードを緩めず、同exact9内でRETURNINGを除去しINSERT結果((1,),)を厳密確認→同TXの既LIMIT2 readで全41列を回収する最小是正を採用。全列入力/bind/tenant/preflight/DB印を保持し、rowcount不一致・read欠損/複数は非成功、別TX読取にしない。「既SQL不変」の先行指定はこのRETURNING除去だけ読み替え、pure期待は実executor契約へ整合。新権限・新計算・拒否弱化はなく最終非作者source reviewで確認する。
