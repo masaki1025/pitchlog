@@ -226,3 +226,43 @@ def test_unknown_function_bigint_rejected(schema: str, name: str) -> None:
             input_fields=(("internal_generation", int),),
             statement=select(table.c.recovery_matches, table.c.right_matches),
         )
+
+
+def test_device_state_read_is_standalone_and_product_registered() -> None:
+    """新readは旧exact2から独立した正式登録でtenantを必須注入する。"""
+    from dataclasses import fields
+
+    from pitchlog.repositories.first_ball import (
+        DEVICE_STATE_READ_OPERATION,
+        _ReadFirstBallDeviceStateToken,
+    )
+
+    assert len(_UNREGISTERED_DECLARATIONS) == 2
+    assert DEVICE_STATE_READ_OPERATION not in _UNREGISTERED_DECLARATIONS
+    from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+
+    assert (
+        FUNCTION_OPERATION_REGISTRY[_ReadFirstBallDeviceStateToken]
+        is DEVICE_STATE_READ_OPERATION
+    )
+    registry = build_function_registry((DEVICE_STATE_READ_OPERATION,), frozenset())
+    token = _ReadFirstBallDeviceStateToken(_IDS[1])
+    assert [item.name for item in fields(token)] == ["device_id"]
+    spec, values = prepare_function_operation(token, _IDS[0], registry)
+    assert values == {"tenant_id": _IDS[0], "device_id": _IDS[1]}
+    for result in (True, False):
+        row = TenantOperationResult(((result,),))
+        assert decode_function_result(spec, row) == row
+    with pytest.raises(FunctionOperationError):
+        prepare_function_operation(token, _IDS[0], _REGISTRY)
+
+
+@pytest.mark.parametrize(
+    "rows", ((), ((None,),), ((1,),), ((True,), (True,)), ((True, False),))
+)
+def test_device_state_read_does_not_coerce_missing_or_numeric_result(rows) -> None:
+    """確認不能・異型をdevice falseやsuccessへ補完しない。"""
+    from pitchlog.repositories.first_ball import DEVICE_STATE_READ_OPERATION
+
+    with pytest.raises(FunctionOperationError):
+        decode_function_result(DEVICE_STATE_READ_OPERATION, TenantOperationResult(rows))

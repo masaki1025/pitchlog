@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID, uuid4
@@ -267,6 +268,42 @@ def _require_rejected_original(
     if len(rows) != 1:
         raise P1PreconditionError("対応する内容拒否原本がない", "w2_violation")
     original = _cell(rows[0], _REJECTION_COLUMNS, "payload")
+    ledger_fingerprint = _cell(ledger_rows[0], _LEDGER_COLUMNS, "source_fingerprint")
+    # legacyのscope→参加区分/D2→指紋という既拒否順は動かさない。
+    # wire/未知domain/混在envelopeだけを先に閉codecへ送る。
+    from pitchlog.sync.wire_original import (
+        _KEYS as _WIRE_ORIGINAL_KEYS,
+    )
+    from pitchlog.sync.wire_original import (
+        WireOriginalError,
+        rejected_original_view,
+    )
+
+    wire_fingerprint = None
+    legacy_original = (
+        type(ledger_fingerprint) is str
+        and ":" not in ledger_fingerprint
+        and isinstance(original, Mapping)
+        and not set(original).intersection(_WIRE_ORIGINAL_KEYS)
+    )
+    if not legacy_original:
+        try:
+            if not isinstance(original, Mapping) or type(ledger_fingerprint) is not str:
+                raise WireOriginalError("wire原本又は台帳値の型が不正")
+            view = rejected_original_view(
+                original,
+                ledger_fingerprint=ledger_fingerprint,
+                game_id=target[0],
+                d4=target[1],
+                d1=target[2],
+                d5=str(original_d5),
+            )
+        except WireOriginalError:
+            raise P1PreconditionError(
+                "内容拒否原本のwire形式又は台帳指紋が不正", "w2_violation"
+            ) from None
+        original = view.payload
+        wire_fingerprint = view.event_fingerprint
     if not isinstance(original, Mapping) or any(
         original.get(field) != value
         for field, value in (
@@ -294,9 +331,10 @@ def _require_rejected_original(
             raise P1PreconditionError(
                 "改訂版は拒否原本の D2 を継承する", "w2_violation"
             )
-    if _original_fingerprint(original) != _cell(
-        ledger_rows[0], _LEDGER_COLUMNS, "source_fingerprint"
-    ):
+    fingerprint = (
+        _original_fingerprint(original) if legacy_original else wire_fingerprint
+    )
+    if fingerprint != ledger_fingerprint:
         raise P1PreconditionError(
             "内容拒否原本と D5 台帳の指紋が一致しない", "w2_violation"
         )
@@ -547,6 +585,52 @@ def _apply_locked(
     writer: PortWriter | None = None,
 ) -> P1Result:
     """試合行の後に世代行をロックし、D1 付き経路の T 要素を束ねる。"""
+    return _apply_locked_in_scope(
+        scope,
+        event,
+        rights,
+        projection,
+        validator,
+        v12,
+        registration,
+        target,
+        source=_LEGACY_LOCKED_SOURCE,
+        path=path,
+        order_resolver=order_resolver,
+        writer=writer,
+    )
+
+
+_LEGACY_LOCKED_SOURCE = object()
+
+
+def _locked_source_fingerprint(scope, event, path, registration, source):
+    """明示legacy入口か真正E1口だけ。source欠落からlegacyを推定しない。"""
+    if source is _LEGACY_LOCKED_SOURCE:
+        return operation_fingerprint(event, path, registration)
+    from pitchlog.sync.source_binding import SourceBindingError, _E1CoreSource
+
+    if type(source) is not _E1CoreSource:
+        raise SourceBindingError("E1局所sourceが不正")
+    return source.read(scope, event).event_fingerprint
+
+
+def _apply_locked_in_scope(
+    scope: _TenantTransaction,
+    event: SyncEvent,
+    rights: RecordingRightsPort,
+    projection: ProjectionPort,
+    validator: ContentValidationPort,
+    v12: object,
+    registration: PlayerRegistration | None,
+    target: P1Target | None,
+    *,
+    source: object,
+    path: Literal["P1", "P2"] = "P1",
+    order_resolver: Callable[[_TenantTransaction, UUID, int], int | None] | None = None,
+    writer: PortWriter | None = None,
+) -> P1Result:
+    """試合行の後に世代行をロックし、D1 付き経路の T 要素を束ねる。"""
     game_id, d5 = UUID(event.game_id), UUID(event.d5)
     locked_state = _lock_game_generation(scope, game_id)
     if locked_state is None:
@@ -565,7 +649,7 @@ def _apply_locked(
     # ロック実体はこのファイル末尾の関数に置く。
     # 公開入口の全経路検査はステップ 15 が担う。
     # この局所経路ではロック取得後に D5 を照合する。
-    fingerprint = operation_fingerprint(event, path, registration)
+    fingerprint = _locked_source_fingerprint(scope, event, path, registration, source)
     # 凍結センサスは以下の呼び出し位置を行単位で追跡する。
     # 共通指紋関数への切替後も、その既存位置を保持する。
     # 入力原本はイベントの全 V 値と欠落を区別する。
@@ -600,8 +684,19 @@ def _apply_locked(
     own_writer = writer is None
     if writer is None:
         writer = _issue_port_writer(scope.run)
+    first_ball_stack = ExitStack()
     try:
-        if not rights.holds_recording_right(event.game_id, event.d4, v12, writer):
+        from pitchlog.repositories.transaction import _port_predecision_phase
+
+        with (
+            nullcontext()
+            if source is _LEGACY_LOCKED_SOURCE
+            else _port_predecision_phase(scope, "rights")
+        ):
+            has_right = rights.holds_recording_right(
+                event.game_id, event.d4, v12, writer
+            )
+        if not has_right:
             raise P1PreconditionError(
                 "P1 の記録権不一致は退避経路へ渡す", "recording_rights"
             )
@@ -647,7 +742,20 @@ def _apply_locked(
             raise
         if original_d5 is not None:
             _require_rejected_original(scope, event, original_d5)
-        valid, reason = validator.validate(event, writer)
+        from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+
+        if type(validator) is FirstBallContentValidationPort:
+            from pitchlog.sync.first_ball_execution import _bind_first_ball_execution
+
+            first_ball_stack.enter_context(
+                _bind_first_ball_execution(scope, writer, event, source)
+            )
+        with (
+            nullcontext()
+            if source is _LEGACY_LOCKED_SOURCE
+            else _port_predecision_phase(scope, "content")
+        ):
+            valid, reason = validator.validate(event, writer)
         if not valid:
             raise P1ContentRejection(reason or "P1 の内容拒否は T9 へ渡す")
 
@@ -665,6 +773,12 @@ def _apply_locked(
                 "w2_violation" if original_d5 is not None else "other",
             )
 
+        if source is not _LEGACY_LOCKED_SOURCE:
+            from pitchlog.sync.source_binding import SourceBindingError, _E1CoreSource
+
+            if type(source) is not _E1CoreSource:
+                raise SourceBindingError("E1局所sourceが不正")
+            source.begin_write(scope, event)
         if order_resolver is not None:
             assert d2 is not None
             assigned = order_resolver(scope, game_id, d2)
@@ -736,7 +850,19 @@ def _apply_locked(
             if updated.rows != ((1,),):
                 raise RuntimeError("D3 の前進に失敗")
             reach("after_t3_prefix")
-        projection.apply(projected_event, writer)
+        if type(validator) is FirstBallContentValidationPort:
+            from pitchlog.sync.first_ball_execution import _bind_first_ball_projection
+
+            with _bind_first_ball_projection(scope, writer, event, projected_event):
+                projection.apply(projected_event, writer)
+        else:
+            projection.apply(projected_event, writer)
+        if type(validator) is FirstBallContentValidationPort:
+            from pitchlog.sync.first_ball_execution import (
+                _require_first_ball_projection_completed,
+            )
+
+            _require_first_ball_projection_completed(scope, projected_event)
         reach("after_t4_projection")
         if registration is not None:
             reach("before_t6_mapping")
@@ -754,8 +880,11 @@ def _apply_locked(
             reach("after_d1_intents")
         return P1Result(None, new_d3, True, False, tuple(new_mapping.items()))
     finally:
-        if own_writer:
-            writer._close()
+        try:
+            first_ball_stack.close()
+        finally:
+            if own_writer:
+                writer._close()
 
 
 def _apply_event(

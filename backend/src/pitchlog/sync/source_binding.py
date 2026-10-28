@@ -1,11 +1,12 @@
-"""未接合のorigin選択境界。実issuer未供給のため両入口は未発行で拒否する。
+"""origin選択境界。E1真正issuerは未供給で閉拒否する。
 
-私有registryに登録するAPIは提供しない。pure検査の登録doubleは実受付の証拠
-ではない。HTTP/既DTO接合、認可順、D5/原本、実writerは変更しない。
+legacy専用私有入口は実Contextと同requestを寿命へ束縛する。E1の自由な
+registry登録APIは提供せず、pure登録doubleを実受付の証拠とはしない。
 """
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
@@ -30,7 +31,7 @@ class SourceBindingError(ValueError):
 
 
 class LegacyEntryScope:
-    """専用legacy入口だけの私有参照。発行元は現単位では未供給。"""
+    """専用legacy私有入口の寿命だけで有効な参照。"""
 
     __slots__ = ()
 
@@ -61,7 +62,7 @@ class EventSourceBinding:
 
 @dataclass(slots=True, repr=False)
 class _LegacyState:
-    """後続専用issuerが登録する状態の形。現単位に登録口はない。"""
+    """専用legacy私有入口が保持する状態。E1へ転用しない。"""
 
     request: SyncRequest
     request_json: str
@@ -82,6 +83,8 @@ class _ReceiptState:
     request_json: str
     source: WireSourceValue
     active: bool
+    # U11の同HTTP/request issuerが発行するまで未発行。Noneから成功推定しない。
+    device_presentation: object = None
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -155,7 +158,7 @@ def _receipt(owner: E1Receipt) -> _ReceiptState:
     """原wire値だけで受付を発行せず、登録済みcontext/scopeを再照合。"""
     if type(owner) is not E1Receipt:
         raise ValueError(_ERROR)
-    state = _RECEIPTS[owner]
+    state = _RECEIPTS.get(owner)
     if (
         type(state) is not _ReceiptState
         or state.active is not True
@@ -418,3 +421,91 @@ def read_selected_event_source(
         RecursionError,
     ):
         raise SourceBindingError(_ERROR) from None
+
+
+@contextmanager
+def _legacy_entry_scope(context, request, registrations):
+    """実legacy入口のcontext/request寿命だけへ閉じる私有scope。
+
+    E1 receiptは受けず、自由digestやoriginを入力にしない。認可は既③が所有し、
+    このscope自体を認可資格としない。実E1 issuerの登録口は追加しない。
+    """
+    try:
+        if (
+            type(context) is not TenantContext
+            or not context._has_valid_integrity_proof()
+            or type(request) is not SyncRequest
+        ):
+            raise ValueError(_ERROR)
+        values = tuple(registrations.get(event.d5) for event in request.events)
+        digests = tuple(
+            operation_fingerprint(event, request.path, registration)
+            for event, registration in zip(request.events, values, strict=True)
+        )
+        state = _LegacyState(
+            request, _request_json(request), values, digests, True, context
+        )
+        owner = object.__new__(LegacyEntryScope)
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise SourceBindingError(_ERROR) from None
+    _LEGACY[owner] = state
+    try:
+        yield owner
+    finally:
+        state.active = False
+        for key, selected in tuple(_SELECTIONS.items()):
+            if selected.owner is owner:
+                del _SELECTIONS[key]
+        _LEGACY.pop(owner, None)
+
+
+class _E1CoreSource:
+    """実bound writerと元sourceの再検査口。純値だけから新資格を作らない。"""
+
+    __slots__ = (
+        "binding",
+        "scope",
+        "context",
+        "request",
+        "event",
+        "phase",
+        "bound",
+        "write_started",
+    )
+
+    def __init__(self, binding, *, scope, context, request, event, phase, bound):
+        from pitchlog.sync.control_provider.writer_binding import _LiveWriterBinding
+
+        if (
+            type(binding) is not EventSourceBinding
+            or type(bound) is not _LiveWriterBinding
+            or bound._handle is not scope
+            or scope._context is not context
+        ):
+            raise SourceBindingError(_ERROR)
+        self.binding, self.scope, self.context = binding, scope, context
+        self.request, self.event, self.phase, self.bound = request, event, phase, bound
+        self.write_started = False
+        self.read(scope, event)
+
+    def read(self, scope, event):
+        """重要点ごとに同じ元bindingと同writerの現在値を照合する。"""
+        if (
+            scope is not self.scope
+            or event is not self.event
+            or self.bound._handle is not scope
+            or scope._context is not self.context
+        ):
+            raise SourceBindingError(_ERROR)
+        return self.bound.assert_event_source(
+            self.binding,
+            context=self.context,
+            request=self.request,
+            event=event,
+            phase=self.phase,
+        )
+
+    def begin_write(self, scope, event):
+        """最初の書込tokenより前にsourceを再確認して分岐を閉じる。"""
+        self.read(scope, event)
+        self.write_started = True

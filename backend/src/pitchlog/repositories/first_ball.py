@@ -1,4 +1,4 @@
-"""初球の未登録固定token宣言。実scopeや端末証明の発行器ではない。"""
+"""初球の固定token宣言。実scopeや端末証明の発行器ではない。"""
 
 from __future__ import annotations
 
@@ -88,3 +88,46 @@ def _declarations() -> tuple[FunctionOperationRegistration, ...]:
 
 # 宣言をimportしても実runtime registry/PORT_IMPLEMENTATIONSは更新しない。
 _UNREGISTERED_DECLARATIONS = _declarations()
+
+
+@dataclass(frozen=True, slots=True)
+class _ReadFirstBallDeviceStateToken(TenantOperationToken):
+    """binding前の状態読取専用。nonce/attempt/phaseを持たない。"""
+
+    device_id: UUID
+
+    @property
+    def capability_id(self) -> str:
+        """固定能力だけを返す。"""
+        return "CAP:sync_first_ball:read_device_state"
+
+
+def _device_state_read_declaration() -> FunctionOperationRegistration:
+    """既exact2へ混入させず、読取の単独宣言を作る。"""
+    inputs, outputs, nullable, aware = _SYNC_FIRST_BALL_FUNCTION_TYPES[
+        "sync_right_api.read_device_state"
+    ]
+    return FunctionOperationRegistration(
+        operation_id="SYNC_FIRST_BALL:read_device_state",
+        capability_id="CAP:sync_first_ball:read_device_state",
+        token_type=_ReadFirstBallDeviceStateToken,
+        function_id="sync_right_api.read_device_state",
+        statement=_build_fixed_function_statement(
+            "sync_right_api",
+            "read_device_state",
+            inputs,
+            tuple(name for name, _ in outputs),
+            True,
+        ),
+        input_fields=inputs,
+        result_fields=outputs,
+        decoder=_identity,
+        min_rows=1,
+        max_rows=1,
+        nullable_results=nullable,
+        aware_datetime_results=aware,
+    )
+
+
+# 既_UNREGISTERED_DECLARATIONSのexact2とは別に正式registryへ渡す。
+DEVICE_STATE_READ_OPERATION = _device_state_read_declaration()

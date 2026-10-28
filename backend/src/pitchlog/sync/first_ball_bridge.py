@@ -18,6 +18,8 @@ from pitchlog.domainrt.first_pitch import FirstPitchRequest
 from pitchlog.domainrt.first_pitch_continuation import (
     CombinedRequest,
     CombinedSuccess,
+    FirstPitchFailure,
+    T2NotEvaluatedResponse,
     _check_frozen_members,
     decode_combined_response,
 )
@@ -43,6 +45,12 @@ from pitchlog.sync.idempotency import operation_fingerprint
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ports import PortWriter
 
+_LEGACY_BRIDGE_SOURCE = object()
+
+
+class FirstBallContentRejected(FirstBallFrameError):
+    """正式decode済みの数学非成功だけを既内容拒否へ運ぶ。"""
+
 
 @dataclass(slots=True, repr=False)
 class _State:
@@ -54,6 +62,7 @@ class _State:
     tenant: UUID
     event: SyncEvent
     fingerprint: str
+    source: object
     phase: Literal["waiting", "evaluating", "ready", "consumed", "closed"] = "waiting"
     frame: FirstBallFrame | None = None
     value: FirstBallFrameValue | None = None
@@ -64,7 +73,7 @@ _STATES: dict[FirstBallBridge, _State] = {}
 _ATTEMPTED: dict[object, set[UUID]] = {}
 
 
-def _fingerprint(event: SyncEvent) -> str:
+def _fingerprint(event: SyncEvent, source: object, handle: _TenantTransaction) -> str:
     """原wire/既P2指紋だけを保持し、新しい指紋式を作らない。"""
     if (
         type(event) is not SyncEvent
@@ -77,7 +86,13 @@ def _fingerprint(event: SyncEvent) -> str:
     for value in (event.d5, event.game_id):
         if type(value) is not str or str(UUID(value)) != value:
             raise FirstBallFrameError
-    return operation_fingerprint(event, "P2", None)
+    if source is _LEGACY_BRIDGE_SOURCE:
+        return operation_fingerprint(event, "P2", None)
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    if type(source) is not _E1CoreSource:
+        raise FirstBallFrameError
+    return source.read(handle, event).event_fingerprint
 
 
 def _live(state: _State, writer: PortWriter, event: SyncEvent) -> None:
@@ -98,7 +113,7 @@ def _live(state: _State, writer: PortWriter, event: SyncEvent) -> None:
         or not handle._context._has_valid_integrity_proof()
         or getattr(writer._execute, "__self__", None) is not handle
         or getattr(writer._execute, "__func__", None) is not _TenantTransaction.run
-        or _fingerprint(event) != state.fingerprint
+        or _fingerprint(event, state.source, handle) != state.fingerprint
         or event.d5 != state.event.d5
         or event.game_id != state.event.game_id
     ):
@@ -126,6 +141,28 @@ def _bind_first_ball_at_content_stage(
     外部のpassed_guards bool・callback・偽のwriter発行入口は受け取らない。
     ここで権利判定済みとは証明しない。後続kernelの⑦だけへ接合する。
     """
+    with _bind_source_first_ball(
+        handle, writer, event, source=_LEGACY_BRIDGE_SOURCE
+    ) as bridge:
+        yield bridge
+
+
+@contextmanager
+def _bind_e1_first_ball_at_content_stage(
+    handle: _TenantTransaction, writer: PortWriter, event: SyncEvent, *, source: object
+) -> Iterator[FirstBallBridge]:
+    """E1の実sourceを必須とする私有bind。未接続Portの代用にはしない。"""
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    if type(source) is not _E1CoreSource:
+        raise FirstBallFrameError
+    with _bind_source_first_ball(handle, writer, event, source=source) as bridge:
+        yield bridge
+
+
+@contextmanager
+def _bind_source_first_ball(handle, writer, event, *, source):
+    """明示入口のsourceを保持し、frameの寿命全体で再照合する。"""
     bridge = object.__new__(FirstBallBridge)
     try:
         if type(handle) is not _TenantTransaction or type(writer) is not PortWriter:
@@ -144,7 +181,8 @@ def _bind_first_ball_at_content_stage(
             handle._writer_lifetime(),
             tenant,
             event,
-            _fingerprint(event),
+            _fingerprint(event, source, handle),
+            source,
         )
         _live(state, writer, event)
     except Exception:
@@ -232,7 +270,17 @@ def evaluate_first_ball_frame(
             if type(host._source) is not str or host._source != source:
                 raise FirstBallFrameError
         _live(state, writer, event)
-        if state.phase != "evaluating" or type(response) is not CombinedSuccess:
+        if state.phase != "evaluating":
+            raise FirstBallFrameError
+        if (
+            type(response) is FirstPitchFailure
+            and response.error.code == "UNSUPPORTED_T1_SCOPE"
+        ) or (
+            type(response) is T2NotEvaluatedResponse
+            and response.value.t2.reason == "input-not-in-closed-unit"
+        ):
+            raise FirstBallContentRejected
+        if type(response) is not CombinedSuccess:
             raise FirstBallFrameError
         _check_frozen_members(response)
         response = CombinedSuccess.model_validate(response)
@@ -251,6 +299,10 @@ def evaluate_first_ball_frame(
         frame = object.__new__(FirstBallFrame)
         state.value, state.frame, state.phase = value, frame, "ready"
         return frame
+    except FirstBallContentRejected:
+        if state is not None:
+            state.phase, state.frame, state.value = "closed", None, None
+        raise FirstBallContentRejected from None
     except Exception:
         if state is None and type(bridge) is FirstBallBridge:
             state = _STATES.get(bridge)
@@ -280,6 +332,33 @@ def consume_first_ball_frame(
         value = replace(state.value)
         state.phase, state.frame, state.value = "consumed", None, None
         return value
+    except Exception:
+        if state is None and type(bridge) is FirstBallBridge:
+            state = _STATES.get(bridge)
+        if state is not None:
+            state.phase, state.frame, state.value = "closed", None, None
+        raise FirstBallFrameError from None
+
+
+def _read_ready_first_ball_frame(
+    bridge: FirstBallBridge,
+    frame: FirstBallFrame,
+    *,
+    writer: PortWriter,
+    event: SyncEvent,
+) -> FirstBallFrameValue:
+    """privileged核だけがready値を複製する。consume/保存資格へは変えない。"""
+    state = None
+    try:
+        state = _state(bridge, writer, event)
+        if (
+            state.phase != "ready"
+            or type(frame) is not FirstBallFrame
+            or frame is not state.frame
+            or type(state.value) is not FirstBallFrameValue
+        ):
+            raise FirstBallFrameError
+        return replace(state.value)
     except Exception:
         if state is None and type(bridge) is FirstBallBridge:
             state = _STATES.get(bridge)

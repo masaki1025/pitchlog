@@ -211,6 +211,12 @@ _SYNC_FIRST_BALL_COMMON = (
 )
 _SYNC_FIRST_BALL_FUNCTION_TYPES = MappingProxyType(
     {
+        "sync_right_api.read_device_state": (
+            (("device_id", UUID),),
+            (("device_active", bool),),
+            (),
+            (),
+        ),
         "sync_right_api.bind_device": (
             (*_SYNC_FIRST_BALL_COMMON, ("credential_digest", bytes)),
             (("device_matches", bool),),

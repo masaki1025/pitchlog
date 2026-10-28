@@ -1065,7 +1065,7 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
 
 
 def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
-    """旧4と追加4登録の生成全fieldを照合し、DMLの登録とは混同しない。"""
+    """旧8と端末状態read登録の生成全fieldを照合し、DMLとは混同しない。"""
     from pitchlog.repositories.operation_registry import (
         PRODUCT_FUNCTION_OPERATIONS,
         PRODUCT_OPERATIONS,
@@ -1082,6 +1082,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
     )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
@@ -1095,6 +1096,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.check_current_right",
         "sync_fence_api.read_writer_identity",
         "sync_fence_api.assert_writer_binding",
+        "sync_right_api.read_device_state",
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,

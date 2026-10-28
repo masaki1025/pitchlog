@@ -647,12 +647,15 @@ def test_s14_port_writer_has_no_function_path_yet() -> None:
 def test_s15_apply_locked_call_order_for_the_caller_windows() -> None:
     """S15: P1/P2の_apply_lockedで、⑤⑦はD5台帳の最初のsavepointより前にある。
 
-    対象はprefix_path._apply_lockedだけである(rejection.pyとchange_path.pyは印を
+    対象はprefix_path._apply_lockedが呼ぶ単一の_apply_locked_in_scope本体である
+    (rejection.pyとchange_path.pyは印を
     書かないTX/別経路で対象外)。呼び出し位置は、⑤ holds_recording_right → ⑦ validate
     → D5台帳(recheck_and_insert_result) → 投影(projection.apply) → intent
     (record_d1_intents)の順で、_apply_locked自身はrun_in_savepointを直接呼ばない。
     """
-    node = _function_node(_SRC / "sync" / "prefix_path.py", "_apply_locked")
+    wrapper = _function_node(_SRC / "sync" / "prefix_path.py", "_apply_locked")
+    assert any(name == "_apply_locked_in_scope" for _, name in _called_names(wrapper))
+    node = _function_node(_SRC / "sync" / "prefix_path.py", "_apply_locked_in_scope")
     calls = _called_names(node)
 
     def first(suffix: str) -> int:
@@ -697,3 +700,32 @@ def test_device_state_read_single_source_and_old_wrapper_bytes():
     assert not re.search(r"\b(INSERT|UPDATE|DELETE|TRUNCATE)\b", create)
     assert "credential" not in create and "nonce" not in create
     assert "write_admissions" not in create
+
+def test_unregistered_device_state_reader_has_no_write_lock_or_binding_dependency():
+    """②は状態読取のみでbinding/credential/印発行を先取りしない。"""
+    from pitchlog.authz.sync_right_sql import render_device_state_read_sql
+
+    sql = render_device_state_read_sql()
+    upper = sql.upper()
+    assert "SECURITY DEFINER" in upper
+    assert "SET SEARCH_PATH=PG_CATALOG,PG_TEMP" in upper
+    assert "SESSION_USER <> 'PITCHLOG_APP'" in upper
+    assert "CURRENT_USER <> 'PITCHLOG_SYNC_RIGHT_FN_OWNER'" in upper
+    assert "P_TENANT_ID IS DISTINCT FROM" in upper
+    assert "D.TENANT_ID=P_TENANT_ID AND D.DEVICE_ID=P_DEVICE_ID" in upper
+    assert "D.REVOKED_AT IS NULL" in upper
+    for forbidden in (
+        "FOR SHARE",
+        "FOR UPDATE",
+        "BINDING_NONCE",
+        "CREDENTIAL_DIGEST",
+        "ASSERT_WRITER_BINDING",
+        "INSERT INTO",
+        "UPDATE PUBLIC",
+        "DELETE FROM",
+        "GRANT SELECT",
+        "CREATE ROLE",
+        "CREATE POLICY",
+    ):
+        assert forbidden not in upper
+    assert upper.count("GRANT EXECUTE") == 1

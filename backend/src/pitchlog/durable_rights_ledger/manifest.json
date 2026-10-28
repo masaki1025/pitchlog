@@ -166,7 +166,7 @@
     "builtin_pg_control_system_explicit_new_grantee": "pitchlog_ledger_identity_owner",
     "startup_barrier": "journal-derived state CAS; no domain change; synchronous no-op WAL before peer row audit; no live leases",
     "source_sha256": "90c0f89d26996fedf5d666e5f0fe032e67a1137f9345f5afef5b69b13a6f6c23",
-    "adapter_sha256": "e12cfa6edaf33a6a57c64a35ff5b205b78c4b5a3999792bc2342283f0a730630",
+    "adapter_sha256": "84467e36f039568c84a11aadaf9b152e8258036a8eba25026369e221bbdcf05d",
     "business_connect_grantee": "pitchlog_ledger_identity_probe; CONNECT only, no TEMP or product-table/authn grant",
     "legacy_genesis_missing_database_admission": false,
     "sql_search_path": [
