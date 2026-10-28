@@ -29,6 +29,22 @@ RECORDING_GENERATION_READ_COLUMNS = (
     "retired_at",
 )
 
+# 保護された初期記録権の証拠列を含めない同期読取の固定順序。
+RECORDING_GENERATION_READ_COLUMNS = (
+    "tenant_id",
+    "game_id",
+    "generation",
+    "kind",
+    "issuance_order",
+    "holder_device",
+    "confirmed_watermark",
+    "applied_prefix",
+    "granted_at",
+    "revoked_at",
+    "import_batch_id",
+    "retired_at",
+)
+
 
 class _SyncToken(TenantOperationToken):
     """各 token の固定 capability を公開する。"""

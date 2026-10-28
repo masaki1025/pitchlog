@@ -6739,8 +6739,13 @@ def historical_lifecycle_schema_input(
     if request.node.originalname != 'test_product_extension_and_new_schema_declarations':
         return
     path = 'contracts/authz/product/ddl-elements.json'
+    revision = json.loads(
+        (REPOSITORY_ROOT / 'contracts/tenant_boundary/frozen-inputs.json').read_text(
+            encoding='utf-8'
+        )
+    )['frozen_inputs']['historical_lifecycle_schema_revision']['value']
     raw = subprocess.run(
-        ['git', 'show', '3a24f89e15987ecef3dc45a1173ab99b5f79d16e:' + path],
+        ['git', 'show', revision + ':' + path],
         cwd=REPOSITORY_ROOT, check=True, capture_output=True,
     ).stdout
     root = tmp_path / 'accepted-lifecycle-7-schema'

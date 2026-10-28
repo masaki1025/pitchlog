@@ -2010,3 +2010,39 @@ def test_worker_actual_ledger_constructor_subject_requirements(
     else:
         with pytest.raises(LedgerUnavailable):
             DurableLedger(Path("/owned/endpoint.json"))
+
+
+@pytest.mark.parametrize("mismatch", [False, True])
+def test_business_binding_static_import_preserves_identity_check(
+    monkeypatch: pytest.MonkeyPatch, mismatch: bool
+) -> None:
+    """固定RG1型で実scopeのDB識別全値を照合し、不一致を拒否する。"""
+    import json
+    from types import SimpleNamespace
+
+    from pitchlog.recording_rights import initial_grant_broker as broker
+
+    config = _b1_verifier_config()
+    body = json.dumps(
+        {
+            "system_identifier": "124" if mismatch else config.system_identifier,
+            "database_oid": config.database_oid,
+            "database_name": config.database_name,
+            "postmaster_started_at": config.postmaster_started_at.isoformat(),
+            "backend_pid": 1,
+        }
+    )
+
+    class Scope:
+        def run_function(self, token: object) -> object:
+            assert token is not None
+            return SimpleNamespace(rows=((body,),))
+
+    monkeypatch.setattr(
+        broker, "_actor_state", lambda runtime: SimpleNamespace(configuration=config)
+    )
+    if mismatch:
+        with pytest.raises(InitialGrantUnavailable, match="実scope binding"):
+            broker._verify_business_binding(cast(Any, Scope()), object())
+    else:
+        broker._verify_business_binding(cast(Any, Scope()), object())

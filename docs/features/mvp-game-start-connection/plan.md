@@ -533,3 +533,49 @@ PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84
 
 
 2026-10-26T15:46:44.660802+00:00、PO委任によるCodex /root判断で認可profile source5を採用保存。manifest656408f5…/patch62352ed1…/独立fc381d623c482740ef915db79ffc430802d765fb7063abdcb815b00a221f86bf/checksbf07df01…（0/0/0）と実5SHAを照合。旧46profile/facts/secret4のlegacy全object/全decorator/既mutation tupleを保持し、更新assert5だけ採用1.4/e296全値へ厳密追随。helperは既_verifier_rowsの6箇所再利用で非list/非dictの型付き拒否へ閉じ、正常期待21field old/new完全同値、独立mixed12対向/作者新36拒否を確認した。作者2724成功29.99s/独立2724成功30.43s・Ruffformatty成功、旧6fail/中間policy69残1は保全。正式metadata/DB/他sourceを変更せず、全backend/全84失敗・431error/正式公開完成とはしない。
+
+### 同期世代12列consumerの開始候補への限定追随
+
+2026-10-27 18:22 JST、PO委任によるCodex /root判断。PR188の72f4118aからwriter側で独立review済み記録世代12列是正を必要8pathへ限定反映する。対象patch 43bbbe34f04c16d178b0cc7bab1b00ad494741a4d233d7aeb57164e9e3ffcf6a。repository・sync tokens/apply/prefixと関連pure fixture/operations testだけを対象とし、既SQL/tenant/lock/権利・拒否順と保護列非SELECTを維持、writer固有V5・DB helperを混ぜない。隔離候補19module 355成功・Ruff/format/ty成功、target固定版の追加独立review・実DB・正式凍結値・新HEAD CIは別条件である。writer側の実DB成功を本PR実DB成功と呼ばない。
+
+2026-10-27 18:29 JST、PO委任によるCodex /root判断。対象c023f73eの限定移植8pathと計画は、非作者レビューcd8ffcccb542f75b12926e4f29262756c9a95c5838c3312b5f114ab53bcd0185（残0、独立境界9成功）、root実tree355成功に基づき採用。実DB・正式値/委任・最終CIは未成立で、公開HEAD72f4118aから変更せず次の接続を進める。
+
+2026-10-27、PO委任によるCodex /root判断。同期世代12列の実DB対向として新backend/tests/db/test_sync_generation_projection_initial_owned.pyだけを追加。既owned initial fixtureとautouse identity、実Cookie/app scope・3token、同tenantの別app NOWAIT 55P03/解放後取得、保護2列SELECT各42501とACL falseを検証する。非作者第1回f0302b45…のtenant GUC不足P1を反映し、反映1 source ba6a908c69f88862cbbf6f9991cfd879d07cb7c9dab435759c1e4c369ecc7bb5、非作者第2回58a4e0d9202617631737970feb9dbaea116bb5d9bf61557264ec632b5a123979残0を根拠に実施。共有DB・writer-only helperは使わず、実DB結果は実施後に記録する。
+
+### PR188の歴史反例2値の正式登録・凍結受理
+
+対象source基点2a2c01364743dc341641476db84f5429ebee9010、実比較元3a24f89e15987ecef3dc45a1173ab99b5f79d16e。旧InitialGameStartResponseのepoch不在と旧lifecycle7schemaの固定原典を保持し、未登録literal2を既frozen-inputsの目的付きfieldへ正規登録する。既scan/tenant拒否を変更せず、旧4field・外部4prefix・正式9資産/31履歴を保持する。source3.patch d78c7952204a35d4911453a640a9af7fc507fd7a95794991e09cc80ff14e4ea0、非作者レビュー8b0bd9a2（残0、root受領報告）が候補根拠。
+
+編集所有はroot単一。backend/tests/test_api_conventions.py、tests/test_check_authz_catalog.py、contracts/tenant_boundary/frozen-inputs.jsonのexact3を同fieldの登録/消費/外部byte固定として扱う。既mvp-game-start-connection/plan.mdへの本追補、base-allowlist.jsonのauthority履歴1追記と必要history-snapshots実4blobを合わせ、候補適用集合は計9path。認可/Port/DB保証・野球意味の変更なし。一般allowlist増設・pending逃し・guard除外は不可。
+
+sourceは既旧原典の同値消費を行う。contract_revisionはfrozen-inputs5→6（当該実baseだけ）、runtime22→23は既製品移植の正式対象として今回同一受理に含める。他7識別値とmovement_policyは不変。before/afterは全9のdeclaration/movement_policy/external_snapshots/asset_snapshotsを既frozen_historyから実導出した値を使う。authority旧31履歴を全保持し、#188に対応する正式1recordだけを追記する。base-allowlist自身は履歴だけの更新なので、その識別値39を根拠なく繰り上げない。
+
+PO委任によるCodex判断はrootが実対象SHA・独立レビュー版・正式全値を確認して実施する。record-templateのapproved_by/approved_onは意図的nullの未受理案であり、rootの実判断後に実態と実日付だけを記入する。山田正輝本人の逐行確認/署名を記入しない。null案を正式履歴へ適用・成功認定しない。
+
+受理手順はsource3全byte固定→rootの対象版採否→authority1record/新4snapshotを同一受理単位で固定→現helperと正式frozen/tenant CLI→関連消費2試験/凍結拒否対向→最終HEAD core独立確認/7.7必要値/Gate6/必須CI。実GITHUB_EVENTとbase-refを一致させる。最終CLIが指摘するsensor/census等の未閉項目があれば、それを正式登録して最終全値だけ再導出し、この案を無条件で成立扱いしない。
+
+PR187は本候補作成時未merge。先にrev6/追加field/履歴が統合された場合はその正式prefixを保持し、今回2fieldの追加を再適用して必要な次revisionへ進め、実merge-base/全4面/履歴単位を再導出する。本案rev6や31履歴を旧値のまま上書きしない。無関係な更新だけで同内容の意味承認を再取得しない。
+
+今回受理は正式値と検査整合の範囲だけ。owned DB試験成功、開始API、1球保存/GET、MVP完成は各既証拠/別到達条件として区別する。
+
+2026-10-27 20:24 JST、PO委任によるCodex /root判断。対象2a2c0136/base3a24、source3 d78c7952…・独立source review 8b0bd9a2…・全4面/旧31履歴と新4snapshotの非作者review 1647999a34dba209e1f3d7c54c384838f4ba11fa574814537ce699784fe41614残0を確認し、対象2fieldとruntime変更の7.7受理を行う。判断者はCodex /rootであり山田正輝本人の署名ではない。CLI/最終review/Gate6/CIは未成立。
+
+### 初期権actorの固定RG1型import是正
+
+2026-10-27 20:36 JST、PO委任によるCodex /root判断。tenant検査の実禁止構文1件（initial_grant_broker._verify_business_bindingの固定文字列import_module）を、固定モジュールの局所static importへ置換する。編集はbackend/src/pitchlog/recording_rights/initial_grant_broker.pyとbackend/tests/test_initial_recording_right_candidate.pyのexact2。既ImportError/RG1ControlUnavailableの閉拒否、実binding identity全値照合・runtime寿命・認可を保持し、検出器に動的import許可を追加しない。非作者core review・変更対象の検査と残るtenant/正式値・最終CIは別条件。
+
+### 2026-10-27 20:45 JST: tenant検査の台帳固定値追随（限定）
+
+PO委任によるCodex /root判断。対象HEAD 6bf492865300e99eb567a01bfd1a75a6e60ad963。既受理台帳の実byteへ検査側を追随する。根拠は非作者調査 `pr188-tenant110-origin-classification-20261027/U1-exact-value-proposal.json` SHA-256 53bd4c76142e4ac75c18a6bb588ed6ee8475ea99cd3691e4a23b775e9c58e340、および `U1-CONCRETE.md`。対象は `contracts/tenant_boundary/base-allowlist.json`、`scripts/check_tenant_boundary_bypass.py`、`tests/test_check_tenant_boundary_bypass.py`、必要時 `tests/test_census_baseline_check.py` と本計画に限定する。
+
+台帳manifestの実SHAを更新し、既condition2 adapterの固定17記号・実source SHA・位置だけを現在値へ揃える。3資産の厳密固定、17組の厳密一致、旧47・既拒否・正式履歴を維持し、pathや件数だけの免除へ緩めない。source/宣言同時改変、隣行・余剰・別path等の拒否を保持する。関連pureと正式射影/coverage/参照値を導出し、値が変わった場合は実前後値の正式受理を別途行う。非作者core確認、残るtenant検出、CIは別条件であり、この追随だけで完了としない。
+
+2026-10-27 20:49 JST、PO委任によるCodex /root判断。tenant検査U5は既 `function_operations._canonical_bind` の採用済み `bytes`→`LargeBinary()` 分岐を検査器が認識していないため、実sourceと完全一致する固定ASTへ同じ分岐だけを追随する。根拠 `pr188-tenant110-origin-classification-20261027/CONCRETE-NEXT-UNITS.md` SHA-256 b36bd11d7a03c380ed98a56da2b6a87383bbcbdee40b401d71b4d235281008b4。対象は既 `scripts/check_tenant_boundary_bypass.py`、`tests/test_check_tenant_boundary_bypass.py`、本計画。未知型・任意callable・追加文・bind改変を拒否し、SQL/DBAPIの一般免除は追加しない。非作者core review・正式値/他tenant残件/CIは別条件。
+
+2026-10-27、PO委任によるCodex /root判断。tenant検査U1 `d568c955` は非作者 `d673ec8ec40a542c360fd9fe218216db071aac65f87be3afa2676e589fc7fd2d` 残0・独立68成功、U5 `34f64420` は非作者 `cde0047af87de7880817a526d8b26eb811aba2d069b716f3e26a3e053966abdc` 残0・独立21成功を根拠に、それぞれ限定採用する。正式4面導出/必要な受理・tenant他残件・CIは別条件であり、完了に含めない。
+
+2026-10-27、PO委任によるCodex /root判断。U3候補 `pr188-u3-finite-owner-candidate-470ba19a-20261027/REPORT.md` SHA b4f1df4ed24886df250f8fc05136508a7ec224be90ae40e1e91716ca02d20c5c、非作者review 72e79521c16b71fd843173a561c0248a9e9d9fa82c26ce4c0882d721ce2711a1 P0/P1=0を根拠に、現470ba19aの7source/51行について条件2の有限登録を限定承認する。編集対象は `scripts/check_tenant_boundary_bypass.py`、`contracts/tenant_boundary/base-allowlist.json`、`tests/test_check_tenant_boundary_bypass.py`、必要時 `tests/test_census_baseline_check.py`、本計画と正式履歴用source snapshotに限定。7path/source SHA/line/symbol/scopeを厳密照合し、他条件26行・旧model6行・initial47/ledger17/RG1/旧historyを保持する。source・宣言の同時改竄、余剰/隣行/別scope/別path等を拒否し、新範囲の非作者coreレビューと正式4面再導出・実差分の必要な受理を後続条件とする。source未実装、tenant/CI全成立ではない。
+
+2026-10-27、PO委任によるClaude主担当判断（Codex上限による主担当引継ぎ後。本人署名・人間逐行確認ではない）。U3有限登録のcache source3（`pr188-u3-finite-owner-candidate-470ba19a-20261027/implementation/source3.patch` SHA 1cd78f6b…）と、旧RG1 fixture 4失敗の是正r1（`implementation-r1/source3-r1-combined.patch` SHA 989d68c28019f894cf104cef45fa1c27e5d057b1b341089e1f04871f5f4e472d）を採用。4失敗の原因は歴史sourceの行・SHA漂移（models.pyの1行ずれ）で、selector規則ではない（対照2e8a816fでも同4件が失敗）。旧RG1宣言は保持し、旧testの期待は緩めていない。非作者review `implementation-r1/independent-review/REPORT.md`（Fable 5.1）はadopt・P0=0/P1=1/P2=3。tenant検査ファイルは13失敗/554成功で、13件は対照と同一ID。P1（`test_frozen_baseline_declarations.py::test_repository_scan_has_the_declared_terminal_population` がsource3起因で赤）は範囲外の後続条件で、`frozen-baseline-scan-allowlist.json` への14組追記と終端件数の更新を本判断で最小追補として承認する（exact2、非作者review必須）。census RG1 8件・frozen_archive runner 22件の既存赤、正式4面の再導出と受理、CIは未了。
+
+2026-10-28、PO委任によるClaude主担当判断（本人署名・人間逐行確認ではない）。2026-10-27承認のfrozen-baseline exact2（allow-listへ14組追記と終端件数更新）は、受理遷移の通常規則がallow-list追加を禁じる（`scripts/check_frozen_baselines.py:1715-1720`）ためCIで必ず赤になると実測され、取り下げる。代わりに最小追補として exact2（既 `scripts/check_tenant_boundary_bypass.py`、既 `tests/test_check_tenant_boundary_bypass.py`）を承認・採用し、開始7 sourceのSHA-256を*.pyから除き、値の正を `contracts/tenant_boundary/base-allowlist.json` の宣言だけに置く（RG1・ledger所有の既存方式、7.7-1）。作者候補 `pr188-u3-finite-owner-candidate-470ba19a-20261027/frozen-fix-r1/frozen-fix.patch` SHA a55d2664d64e4d0267415e9993ad490f6491ccccfcf02c04b4c281e173d2781e、非作者review（Fable 5.1）report SHA d03f0c506333b94a7db6b1c6fcd3f0b0a269802b9ce047a5e08aa5ffcd0d0592 はadopt・P0/P1=0・P2=3。CI pull_request経路を2親mergeで再現し `check_frozen_baselines.py --ci` が変更前exit 1→変更後exit 0、対照（旧exact2）はexit 1。tests/全件で消えた赤16・新しい赤0（残76は変更前と同一ID）。変異6件で宣言・source・検査器の相互固定を確認。失う強度は「sourceと宣言SHAの同時更新」の即時赤で、凍結資産の履歴だけが止める（既存3所有と同等）。P2-1は検査器docstringに「走査時の照合は改行正規化後の本文、raw byteは試験側」と追記して閉じた（source commit `dda01ca8`、関連29件成功）。P2-2（initial_start節の宣言digest変異が履歴で赤になることの実測）は#188の識別値・snapshot・corpus再導出後に1回行う。P2-3は報告文言のみ。#188の正式4面再導出と受理、frozen_archive比較corpusの期待値再pinは、この2 pathの最終byte確定後に1回だけ行う（未了）。2 pathはコア領域で、人間の逐行確認は未実施。

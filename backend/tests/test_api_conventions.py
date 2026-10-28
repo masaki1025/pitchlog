@@ -66,7 +66,11 @@ def _has_database_term(source_text: str) -> bool:
 _INITIAL_RESPONSE_PATH: Final[Path] = Path(
     "backend/src/pitchlog/api/schemas/game_start.py"
 )
-_INITIAL_RESPONSE_REVISION: Final[str] = "5c61271fc97855f485120d6ab94525bab51866b9"
+_INITIAL_RESPONSE_REVISION: Final[str] = json.loads(
+    (_REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text(
+        encoding="utf-8"
+    )
+)["frozen_inputs"]["initial_response_revision"]["value"]
 
 
 def _transport_nodes(

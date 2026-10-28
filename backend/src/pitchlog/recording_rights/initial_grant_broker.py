@@ -15,7 +15,6 @@ import struct
 import threading
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from importlib import import_module
 from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast
@@ -300,11 +299,14 @@ def _verify_business_binding(transaction: _TenantTransaction, runtime: object) -
     if len(rows) != 1 or len(rows[0]) != 1 or type(rows[0][0]) is not str:
         raise InitialGrantUnavailable("実scope bindingを確認できない")
     try:
-        provider = import_module("pitchlog.recording_rights.rg1_lifecycle")
+        from pitchlog.recording_rights.rg1_lifecycle import (
+            BusinessBinding,
+            RG1ControlUnavailable,
+        )
     except ImportError:
         raise InitialGrantUnavailable("固定RG1 binding型が未供給") from None
     try:
-        binding = provider.BusinessBinding.from_text(rows[0][0])
+        binding = BusinessBinding.from_text(rows[0][0])
         config = _actor_state(runtime).configuration
         if (
             binding.system_identifier != config.system_identifier
@@ -313,7 +315,7 @@ def _verify_business_binding(transaction: _TenantTransaction, runtime: object) -
             or binding.postmaster_started_at != config.postmaster_started_at
         ):
             raise InitialGrantUnavailable("実scope bindingがroot配置と一致しない")
-    except provider.RG1ControlUnavailable:
+    except RG1ControlUnavailable:
         raise InitialGrantUnavailable("実scope bindingを確認できない") from None
 
 
