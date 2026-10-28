@@ -221,3 +221,152 @@ def test_valid_full_original_duplicate_keys_rejected(target: str) -> None:
     envelope["wire_event_json"] = envelope["wire_event_json"].replace(old, replacement)
     with pytest.raises(WireOriginalError):
         decode_wire_original(envelope, **_expected(raw))
+
+
+@pytest.mark.parametrize("row", _VECTORS["event_cases"], ids=lambda r: r["case_id"])
+def test_w2_wire_view_all_fixed_events(row: dict[str, Any]) -> None:
+    """既32行の原値全体とd2欠落/nullの区別を保持する。"""
+    from pitchlog.sync.idempotency import _json_value
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw = json.loads(row["raw_json"])
+    expected = _expected(raw)
+    digest = expected.pop("expected_event_fingerprint")
+    view = rejected_original_view(_envelope(raw), ledger_fingerprint=digest, **expected)
+    assert view.origin == "wire"
+    assert view.event_fingerprint == row["expected_fingerprint"]
+    assert _json_value(view.payload) == raw
+    assert ("d2" in view.payload) == ("d2" in raw)
+
+
+@pytest.mark.parametrize("embedded", (False, True))
+def test_w2_legacy_uses_existing_fingerprint(embedded: bool) -> None:
+    """旧helperの両分岐と旧payload参照をそのまま保持する。"""
+    from pitchlog.sync.idempotency import source_fingerprint
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw = _raw()
+    if embedded:
+        raw["operation_fingerprint"] = "a" * 64
+    digest = raw["operation_fingerprint"] if embedded else source_fingerprint(raw)
+    view = rejected_original_view(
+        raw,
+        ledger_fingerprint=digest,
+        **{k: raw[k] for k in ("game_id", "d4", "d1", "d5")},
+    )
+    assert view.origin == "legacy"
+    assert view.payload is raw
+    assert view.event_fingerprint == digest
+
+
+@pytest.mark.parametrize("domain", ("wire-request-v1:abc", "future:abc", "", False, 42))
+@pytest.mark.parametrize("envelope", (False, True))
+def test_w2_unknown_domains_never_fallback(domain: Any, envelope: bool) -> None:
+    """未知/request領域を旧fallbackへ流さない。"""
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw = _raw()
+    source = _envelope(raw) if envelope else raw
+    with pytest.raises(WireOriginalError, match=_ERROR):
+        rejected_original_view(
+            source,
+            ledger_fingerprint=domain,
+            **{k: raw[k] for k in ("game_id", "d4", "d1", "d5")},
+        )
+
+
+@pytest.mark.parametrize(
+    "key", ("format_version", "codec_version", "event_fingerprint", "wire_event_json")
+)
+def test_w2_legacy_rejects_partial_envelope(key: str) -> None:
+    """一部envelope keyと再計算した旧hashでも降格を拒否する。"""
+    from pitchlog.sync.idempotency import source_fingerprint
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw = _raw()
+    raw[key] = None
+    with pytest.raises(WireOriginalError, match=_ERROR):
+        rejected_original_view(
+            raw,
+            ledger_fingerprint=source_fingerprint(raw),
+            **{k: raw[k] for k in ("game_id", "d4", "d1", "d5")},
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "wire_as_legacy",
+        "legacy_as_wire",
+        "digest",
+        "game_id",
+        "d4",
+        "d1",
+        "d5",
+        "format",
+        "extra",
+        "missing",
+    ),
+)
+def test_w2_wire_rejects_domain_scope_format(mutation: str) -> None:
+    """台帳domain/期待scope/原本版の全不一致を拒否する。"""
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw = _raw()
+    source = _envelope(raw)
+    expected = _expected(raw)
+    expected["ledger_fingerprint"] = expected.pop("expected_event_fingerprint")
+    if mutation == "wire_as_legacy":
+        expected["ledger_fingerprint"] = "a" * 64
+    elif mutation == "legacy_as_wire":
+        source = raw
+    elif mutation == "digest":
+        expected["ledger_fingerprint"] = "wire-v1:" + "a" * 64
+    elif mutation in ("game_id", "d5"):
+        expected[mutation] = "99999999-9999-4999-8999-999999999999"
+    elif mutation == "d4":
+        expected[mutation] = "other-generation"
+    elif mutation == "d1":
+        expected[mutation] = 2
+    elif mutation == "format":
+        source["format_version"] = "future"
+    elif mutation == "extra":
+        source["extra"] = None
+    else:
+        del source["format_version"]
+    with pytest.raises(WireOriginalError, match=_ERROR):
+        rejected_original_view(source, **expected)
+
+
+def test_w2_legacy_wrong_hash_type_and_nonmapping_rejected() -> None:
+    """旧helper異型と不一致・非Mappingを固定pure例外で拒否する。"""
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw = _raw()
+    invalid_values: list[Any] = [
+        None,
+        [],
+        {**raw, "operation_fingerprint": False},
+        {**raw, "operation_fingerprint": "b" * 64},
+    ]
+    for source in invalid_values:
+        with pytest.raises(WireOriginalError, match=_ERROR):
+            rejected_original_view(
+                source,
+                ledger_fingerprint="a" * 64,
+                **{k: raw[k] for k in ("game_id", "d4", "d1", "d5")},
+            )
+
+
+@pytest.mark.parametrize("domain", ("wire-request-v1:abc", "future:abc"))
+def test_w2_unknown_domain_matching_embedded_hash_still_rejected(domain: str) -> None:
+    """原本と台帳へ同じ未知domainを入れても旧helper一致で迂回しない。"""
+    from pitchlog.sync.wire_original import rejected_original_view
+
+    raw: dict[str, Any] = {**_raw(), "operation_fingerprint": domain}
+    with pytest.raises(WireOriginalError, match=_ERROR):
+        rejected_original_view(
+            raw,
+            ledger_fingerprint=domain,
+            **{k: raw[k] for k in ("game_id", "d4", "d1", "d5")},
+        )
