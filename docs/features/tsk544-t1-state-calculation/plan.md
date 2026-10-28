@@ -799,3 +799,5 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 2026-10-28、PO委任によるCodex主担当判断。unit Cの新guard2triggerをproduct_catalog閉CatalogQueryIdで観測する実差分に伴い、既backend/tests/test_product_authz_catalog.py exact1をscopeへ追加する。既期待mapは全QueryId固定であり、新観測map/数/SQL対向を厳密追随するため必要。汎用query許可・既検査の除外はしない。source最終非作者reviewで追加差分も確認する。
 
 2026-10-28、PO委任によるCodex主担当判断。unit Cの新lock invoker関数を正式登録するため、既asset_specのread_writer_identity(uuid) exact1制約へ、承認済guard_first_ball_projection_lock()のexact1を追加する必要がある実検査結果を確認。backend/src/pitchlog/authz/asset_spec.py と backend/tests/test_authz_asset_spec.py のexact2をscopeへ追加する。旧exact条件を保持し、新guardのowner/trigger戻り/空引数/security/EXECUTE無し/body等は正式単一宣言と全一致のみ許可。一般invoker許可・既guard拒否の弱化はしない。806成功/30失敗の中間状態を保存し、是正後の新入力検査と非作者最終差分確認を必須とする。
+
+2026-10-28、PO委任によるCodex主担当判断。unit Cの既installerはdefiner→invokerで関数を適用するため、計画のlock先/admit後ではlock未定義でtrigger配置に失敗する実接合条件を確認。汎用順序は変えず、admit definer先→lock invoker後→lock canonical末尾で閉trigger2を配置/再適用検査する順へ限定訂正する。両関数定義後にだけtriggerを置き、既guard/triggerと新2triggerの全属性・順序を厳密検査する不変条件を維持。最終source独立reviewの対象とする。
