@@ -1299,3 +1299,5 @@ U13 plan H6(d)/R2は実DB kind=normal/migrationにrecovery種別が存在しな�
 unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72f4a95…でfreeze。非作者reviewは正式installer正常1成功・pure869成功/基線同2赤、後続9ケースfixture DSN解離を検証P1として保留。作者reflection1 source1.patch e74ae538…（test1のみ、SQL/期待不変）で同ownerをinitial_scope_databaseへ結び、review環境でplain pytest/sharedDSNunsetの10owned実PGを実行中。正式採用は全条件後。新正規stampの成功をcandidate後付けで代替しない。
 
 3Bのphase/rights最小exact5はb97b57d5で非作者079b1002…残0を根拠に着手承認。transport方針は採用、API/browser/UR1の追加pathは各単位の後続採用。actualphase/旧拒否順/mark/再掲等のpure対向進捗をcacheへ固定、実issuer/Port/全DB/HTTP未達。readonly代理callbackへwriterを差替えない。
+
+2026-10-28：初球保存のU08/U10 B1計画はwriter-binding 8aaac330921c68a5e0fb6a32ef3ea45ee10f153cでPO委任による主担当判断として採用。非作者レビューでは既存D2の許容範囲との不一致を指摘し、候補を修正中であり、実装採用・DB保存成功とは扱わない。U06と記録後読取登録はproduct-activation 1689ee59に保存済みだが正式7.7・CIは未完。利用者が新たに完了できる操作の増加はまだない。次は修正候補の非作者再レビュー、保存投影・記録権・同期HTTPの接続と実DB検証。往復spike 41d7175dは上記受領記録の留保を維持して取消等の後続実装に再利用する。
