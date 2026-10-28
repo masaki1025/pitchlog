@@ -1140,3 +1140,18 @@ unit A 反映1（cache `first-ball-db-insert-stamp-plan-20261027/implementation-
 - 結果の写し：cache `wave2b-results-20261028/`（track別JSON）。
 
 利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。次：unit B計画反映2→B実装→A+B結合commit、E-1反映3、#188 frozen是正方式の追補、read/D13/D09の反映1、D11・D12の計画着手（作業担当Sonnet・レビューFable）。
+
+### 2026-10-28 午後：第3波の結果と主担当判断
+
+- **writer binding寿命（PO委任Claude主担当判断）**：F1（件数1）は1要求＝1 bound top-level TX（案(i)）。DB/SQL無変更。成立条件はT-20相当の実PG（分岐が最初の書込前に確定、PlayRow INSERTとadmission assertがtop-level）。不成立なら(ii)＋attempt単位遮断記録。writer-binding `d523faa4`（push済）。
+- **#188 frozen是正 採用**：allow-list追記（旧exact2）を取り下げ、開始7 sourceのSHA literalを*.pyから除き宣言JSONへ一本化（exact2差替え）。CI pull_request経路を2親mergeで再現し変更前exit 1→後exit 0、tests/全件で消えた赤16・新しい赤0。非作者review adopt・P0/P1=0。候補WTに `dda01ca8`（source）・`f0a8ce4e`（判断記録）をlocal commit（未push維持）。#188の正式4面再導出・受理は未了。
+- **D13 打撃結果シード計画 反映1**：非作者review adopt・P0/P1=0・P2=3（cache `d13-batting-result-seed-20261028/reflection1/`）。実装の置き場と着手は未決。
+- **unit B 計画 反映2**（cache `unit-b/reflection2/`）：非作者review fix_required・P0/P1=0・P2=4（PortWriterからrun_functionへ届かない前提の明記など）。実測で、新表をschema-manifestへ載せると登録追随が連鎖し、A+B結合stepは23 path（新規7・変更16、ほぼコア）になる。登録追随込みの試作で非DB失敗集合は基線と同一ID（82件）。正式資産変更の7.7扱いと正本data-model追記の確定ゲート要否は主担当判断が要る。A+B結合候補の実装を実行中。
+- **E-1段階3 反映3→反映4**：反映3のreview P1（B5判定点が2箇所）を1 bound TX化で1箇所に確定した反映4を作成、非作者review中。
+- **D09 対応表 反映1→反映2**：反映1のreview P1（要求単位の確定拒否がauthority全体の`_blocked`に写り再起動でも回復しない、合成probeで再現）を新設G20として「追加実装が必要」に記載、最小設計案と代替2案を付けた。非作者review中。
+- **開始済みread HTTP 計画 反映1**：review P1×2（機械ゲートが基線で契約エラーにより止まり完了条件に到達不能／initial_* 3件の期待集合が#188と衝突）。反映2を作成中（initial_*は#188側で修正、U13はstarted_game_detail 1件のみ追加と主担当判断）。
+- **D11 座標量子化計画**：review P1×2（ADR-003最大版の実測誤り、2^53超の新ベクタ）。加えて作者が新判断J1を提起：座標変換をartifactへ載せる根拠がADR-003 D-14-m（T1/T2限定、ADR-003:1163で確認）に無く、載せるならADR-003の対象追加（確定ゲート・PO承認）が要る。判断票MVP-D18として起票予定。
+- **D12 durableQueue v4再基線計画**：review P1×2（S3解除条件がB3拒否→改訂置換の経路で永久に成立しない、版繰上げ時の移行ガードが既存unresolved/stopped印を上書き）。反映1が必要。
+- 後始末：unit B試作のowned fixtureが残した匿名volume 58個（作成時刻が自runの窓内、全てdangling）を削除。他の未使用volumeは他セッション分が混ざるため触れていない。
+
+利用者が新たにできる操作：なし。1球の実API保存と再読込は未達。
