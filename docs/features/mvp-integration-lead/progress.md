@@ -98,6 +98,23 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：再送の再掲・記録後再読込・実画面の現在地（`3feb8ed0`/`b048aba3`）
+
+**再送（契約追記は不要だった）**: 正本 `docs/design/sync-protocol.md` は既に DI1〜DI5（4-5/433-441）と 7-3（1169-1190）で「③認可後・V12前のD5照合」「同一内容は保存済み結果を再掲し受理→A5『重複』」「異内容はB3b」「混在はD1昇順の最初のB2/B3で停止・以降未処理」を規定し、6-3-A（884-941）で試行ヘッダ `X-Pitchlog-Sync-Attempt`・attempt_idの耐久固定・異内容への付替え拒否を規定済みだった。不足していたのは**実装の適合**で、契約の新設ではない（版繰り上げ・7.3ゲート不要）。
+
+実装（`3feb8ed0`）:
+- `_replay_e1_without_binding`（sync/apply.py）: writer binding の前に D5 を分類し、保存済み結果だけを再掲。未使用D5を含む要求は通常の段階順（V12・content・order）へ戻す。単球F1・P2以外は既存の範囲外拒否へ委譲。
+- 試行ヘッダを正本の `X-Pitchlog-Sync-Attempt` へ一致（旧 `X-Pitchlog-Attempt` は正本不適合）。
+- 結果不明・同一attemptへの異内容付替え（authority の attempt 衝突/重複publish）を未捕捉500→**503（ACKなし）**へ写像。
+- 実HTTP縦断へ再送3種を追加: 同一attempt同一内容→**200「重複」**、同一D5異内容→**200「拒否」(B3b)**、同一attempt新D5→**503**。いずれも `play_rows`/`idempotency_ledger` は**1行のまま**。unit 7件。
+
+**記録後再読込（製品リーダー層まで）**: 実HTTPで1球保存した直後に `repositories/recorded_snapshot` の製品リーダーで同じ試合を再読込し、開始原典と保存初球の独立再評価が一致することを実DBで固定（`b048aba3`）。ボール1で count=1-0・outs=0・1回表・打順継続、参加者とD5は保存時と同一、generation=1。
+
+**記録後GET（HTTP層）は未接続 — 認可カタログの正規再封印が前提**: 実装自体は `started_read` ④→`recorded_snapshot`→`read_kind:"recorded"` で成立する見込みを実測したが、`scripts/check_authz_catalog.py` の `_STARTED_READ_HTTP_BINDINGS` は実GET・読取token・実CAPの**完全一致**を要求し、追加になる token は `IdempotencyLedgerReadToken` / `RecordedEventRowsReadToken` / `RecordedEventSlotsReadToken` / `RecordedPlayRowsReadToken` の4種。`contracts/authz/route-registry.json` の `design_provenance`（GET関数の原文逐語）と `STARTED-READ-TOKEN:*`、`scripts/check_authz_catalog.py` の3定数、および**`--reseal-derived`（ヘルプ上「査読後」限定）**の更新が必要で、これは7.7/認可カタログの単一受理記録と同じ扱い。**査読なしで再封印しない**方針により今回は未実施（コードは破棄し、要件だけを本節へ固定）。加えて frontend は `startedGame.ts` の `read_kind:'initial'` 固定と `isStartedGame` の recorded 拒否（spec 190行）を同一commitで更新する必要がある。
+- 実装順序（次回）: ①`_STARTED_READ_HTTP_READER_PATHS` へ `recorded_snapshot.py` 追加 ②4 token/CAPと宣言源を`_STARTED_READ_HTTP_BINDINGS`/`_STARTED_READ_HTTP_TOKEN_DECLARATIONS`へ追記 ③route-registry の `design_provenance`/`provenance_ids` を原文から再取得 ④`--reseal-derived` を査読記録付きで実行 ⑤`started_read`④の分岐とDTO union ⑥frontend検証器+spec ⑦実HTTP縦断の `started_after` を409→200 recorded へ。
+
+**実画面（Playwright）**: ブラウザ検査基盤は健全（`pnpm exec playwright test --config src/screens/GameScreenPreparingRead.playwright.config.ts` = **3 passed/14.3s**、実Chromium・実FastAPI・専用PG・loopback httpでSecure/HttpOnly Cookie成立）。ただし**初球を実画面から記録する経路は製品に存在しない**: (1) `/games/:gameId/record` の host が `mode="preparing-read"` 固定で `GameScreen.vue` が未mount（`GameScreenEntryRecordHost.vue:8`、`GameScreenEntryRecord.vue:81-90`）(2) `PITCH_COMMIT_BLOCKED=true` かつ確定ボタンに `@click` が無い（`GameScreenCommitGate.ts:19`、`GameScreen.vue:661-671`）(3) enroll/start の client が無い (4) `postSyncEvents` が device/attempt ヘッダを送らない（`client.ts:234-245`）(5) V8/state_diff・座標・語彙の供給が無い（`GameScreenPitchEvent.ts:3-7`、`GameScreen.vue:825-830`、`domainArtifact.ts:1-4`）(6) sync route は `PITCHLOG_BINDING_CLIENT_CONFIG` 未設定で503（`sync.py:55-66`）で、実broker/RG1制御は现行の縦断（コンテナ内ASGI）にしか無い。よって実画面の初球保存・再読込は**未達**であり、成功へ読み替えない。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
