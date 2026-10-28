@@ -22,3 +22,5 @@ created: 2026-10-28
 | 3 | 最終候補の検査・通常統合 | 最終HEADレビュー/必須CI/依存条件成立 |
 
 元source-assets.patch84081813e42c8bed81b1543118a9ed318db3abfbc609390d94120ce82bcbffca、後発fixture test1 delta e74ae53802335636efa0958d0ddca1603c655b61da1e33a14471d2446107eec9。非作者reflection1 REPORT0221e25d7c9dd051404b706850a85dc833a42d913d21c1fa866981546260c245 P0/P1=0/P2=空行1、正式installer owned10成功・権利拒否7成功。空行を是正して取込、残りA/B発行27の正式profile受入・正式7.7/全件CIは完了扱いにしない。期待値/拒否を緩めず基線同2失敗を保持。実画面/HTTP/実Port/初球保存は別未達。本人署名・人間逐行確認ではない。
+
+追記（2026-10-28、PO委任によるCodex主担当判断）：sourceは `da55e85e` に固定。発行残20件と先行7件は隔離PGで成功（報告 `d2aed548a34b58806ab6d2f11e163b3fa448f8c44754282c00feddef4bf31f7a`）。正式再適用後の権利・書込・消費も隔離PGで成功し、権限差分の対向検査を実施（報告 `87574d7015f4687d5f5f504fd8458273daff0d3b385c422f7f9f7bdb89048f9d`）。ACL配列順序は集合として正規化して比較した。正式7.7の前後値・最終CI・製品HTTP接続は別途必要。
