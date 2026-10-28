@@ -211,6 +211,29 @@ def payload_from_artifact(cookie):
     v7,v8=format_first_ball_payload(observations,participants,calculation)
     return v7,v8,dict(participants.model_dump(mode='json',by_alias=True))
 
+def recorded_read(cookie):
+    '''保存後に製品リーダーで同じ初球状態を再読込する（HTTP層は別単位）。'''
+    from pitchlog.repositories.recorded_snapshot import _read_recorded_calculation
+    from pitchlog.repositories.tenant_context_issuance import (
+        issue_tenant_context_from_presented_token)
+    from pitchlog.repositories.transaction import tenant_transaction_scope
+    issued=issue_tenant_context_from_presented_token(
+        cookie,app.state.token_presentation)
+    assert issued is not None
+    context,_=issued
+    with tenant_transaction_scope(context) as scope:
+        candidate=_read_recorded_calculation(scope,UUID(game))
+    after=candidate.response.value.t1.after
+    fields=after.model_dump(mode='json',by_alias=True)['stateFields']
+    return {
+        'state':fields,
+        'participants':dict(candidate.payload.v7.participants.model_dump(
+            mode='json',by_alias=True)),
+        'generation':candidate.generation,
+        'source_event_id':str(candidate.source_event_id),
+        'd5':str(candidate.d5),
+    }
+
 async def run():
     transport=ASGITransport(app=app)
     async with AsyncClient(transport=transport,base_url='https://test') as client:
@@ -286,6 +309,7 @@ async def run():
         out['stages'].append(['attempt_reuse',retried.status_code])
         if retried.status_code!=200:
             out['attempt_reuse_body']=retried.text[:200]
+        out['recorded']=recorded_read(cookie)
         h=headers();after=await client.get('/games/'+game+'/started',headers=h)
         out['stages'].append(['started_after',after.status_code])
         out['d5']=event['d5']
@@ -375,6 +399,34 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
             {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "拒否"}
         ],
     }, value["conflict_ack"]
+    # 保存後の製品リーダー再読込が同じ初球状態を返す（HTTP 409は別単位）。
+    recorded = value["recorded"]
+    assert recorded["d5"] == value["d5"]
+    assert recorded["generation"] == 1
+    assert {
+        key: recorded["state"][key]
+        for key in (
+            "state.count.balls",
+            "state.count.strikes",
+            "state.outs",
+            "state.inning",
+            "state.half",
+        )
+    } == {
+        "state.count.balls": "1",
+        "state.count.strikes": "0",
+        "state.outs": "0",
+        "state.inning": "1",
+        "state.half": "top",
+    }
+    # ボール1球では打席は継続し、打順は変わらない。
+    assert recorded["state"]["state.battingOrder"] == "1"
+    assert recorded["participants"] == {
+        "batterId": str(_BATTER),
+        "pitcherId": str(_PITCHER),
+        "catcherId": str(_CATCHER),
+        "battingOrder": "1",
+    }
     _assert_recorded_once(db, value["d5"])
 
 
