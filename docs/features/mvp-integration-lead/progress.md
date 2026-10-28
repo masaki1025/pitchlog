@@ -1331,3 +1331,5 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：global固定SQL builderの正式scanner実probeはTB005を検出。検出器を変えず、該当builderのSQLA_SELECT exact登録とpositive fixtureをwriter 45ccc75aでPO委任追補採用し、未知builder・DML・新execute拒否を保持する。正式値と独立reviewは未完。U11最小plan SHA203680e2f63e3fccc684f502d5170819bfe682d2eebf19f27022343a1caaa651 は候補で、正式route/実issuer/phase/Port未提供。G20実PG試験ではFK制約順により一部診断が到達不能の可能性があり、実測し未実証ならそのまま残す。
 
 2026-10-28：②DB activation候補の関連検査478成功/9失敗は、新functionの既body manifest登録不足という同一原因。product bd88eb21でmanifest exact1の正規追随をPO委任採用、既checker/拒否は保持して再検査する。E1の既rendererを固定依存として必要範囲だけ再利用し、別branch全体を移植しない。実PG・正式資産受理・初球提供は未完。
+
+2026-10-28：global結果read候補のowned再検査は正式installer・実Cookie/appで3成功（欠落/disabled/有効/誤カテゴリ、実2tenant、未知/非sync/Port/savepoint/期限切れSQL0）。前回fixture HBA干渉による失敗を保持し正規owned fixtureへ切替。正式scanner/producer・非作者review・正式値受理は未完。記録権Portの再利用先を既worktreeの製品sourceで検索し、Protocol以外に `holds_recording_right` の定義は見つからなかった。U-R1引継ぎも本物のPortは新8で未提供と記載。これは全保全bundleの監査ではなく、既契約/既SQLを再利用し実Portを別途供給する必要がある。新操作の利用者実証はまだない。
