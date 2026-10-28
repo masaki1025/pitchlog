@@ -49,6 +49,15 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 
 **次の実装（残る律速）**: sync HTTP route（`POST /games/{id}/sync/events`）と、その前提の E1 phase/issuer 供給（U11 単位I/II。P1-1=exact追加、P1-2=lock順）。route→`apply_sync_request` は実装可能な形まで判明（`SyncRequest.from_payload`、`AckResult`→`{advancedD3,eventResults[{d4,d1,d5,a5Result}],playerIdMappings}`）。phase供給が無いと `_preflight_d1` で停止する。
 
+**E1 HTTP入口の設計ギャップ（実装で確定、要判断）**
+- E1経路は `_apply_e1_f1(receipt, phase, cookie, reference_device, control, ...)` のみが実入口で、`EventPhaseBinding.attempt` に **authority3（control_instance / business_instance / restore_epoch）** を要求する（`control_provider/evidence.py:71-107`）。
+- その3値の正本は root専用の authority 設定 `binding_authority`（`durable_rights_ledger/authority.py:157-169`）にあり、**アプリは読めない**。`rg1-client.json` は v1 キー（socket/uid）のみで authority3 を含まない。開始応答・開始brokerにも含まれない。
+- したがって「HTTPが同requestでphaseを発行する」には、**アプリが読める非秘密のauthority3供給**を新設する必要がある。選択肢:
+  - A（推奨）: root配置の非秘密 client 設定（例 `binding-client.json`）へ authority3 と control_version を追加し、startupで厳格検査。broker側の既`binding_authority`と一致を起動時に照合。新規秘密・鍵は発行しない。
+  - B: 開始応答(#188)に authority3 を含め、端末が sync ヘッダで返す。端末に権威値を渡すため改ざん耐性は broker 照合依存。
+  - C: 初回bindのみ app 生成の authority3 を broker が受理（既config照合を外す）→ 統制分離が弱まるため**不採用**。
+- 影響: A/Bとも**新しい運用配置物**と起動順の変更を伴う。共有DB・運用公開・秘密発行ではないが、配置物の追加は委任外寄りの判断として記録する。実装はAを前提に進められる状態まで判明（route・ACK変換・投影・座標は完成済み）。
+
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
 
 ## Codex主担当の再引受照合（2026-10-28）
