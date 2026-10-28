@@ -8,6 +8,16 @@ PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb
 
 利用者が新たにできる操作：まだ増えていない。主担当は番号順を維持し、unit A+Bの権限/RLSと計画一致の非作者敵対レビューを2担当に開始、待ち時間にU13の読み取りレビューを並行。編集/正式資産はroot一本化。pytestは共有DSNを必ずunsetし、shared DBは利用しない。目標10/31初球縦断・11/12 MVP全体を維持し、未成立条件を省略しない。
 
+### Codex継続中の現在地（2026-10-28、下記Claude引継ぎ固定点より後）
+
+1. unit A+B：非作者2観点/ownedPG27/集中489を確認、docs b7baf20f→結合d189a40e→記録ef921539でwriterへ取込・push済。後発review7663e128…残0。正式7.7/unitC/実Port/全件/実画面は未完。
+2. U13：別branch/WT `feature-mvp-started-read-http` HEAD c7056da9 push済。step1〜4両段commit、実WT31/81/16/authz37成功・独立後発7a0cad94…残0。製品DB受入/画面/記録後状態は未完。
+3. E-1：writer HEAD4594c203 push済で反映6＋P2の二段照合を採用。cache `implementation-3a2/` を実装中、3Bは後続。反映5review全文未取得を維持。
+4. 正本単一gate：別WT `feature-mvp-coordinate-doc-gate` HEAD31f493b3。ADR0.9既承認条文を保全後、ADR0.10/要件2.18をin-review起案。初回全文レビュー中、方式説明に残るT1/T2限定P1を先行検出。J2回答はPOへ提示済・未回答、approved/U17コードは未着手。
+5. DB基線：0036止まりと0037/38依存の不整合をownedPGで診断。cache `db-baseline-schema-diagnostic-ef921539/PLAN-CANDIDATE.md` SHAf809e96b…を非作者plan review中。正式修正は未実装、owner等の拒否条件を維持。tenant受理record/seal修復も未完。
+
+利用者が新たにできる操作：まだ実画面実証の増分なし。初球縦断とMVP全体は未完。既承認再取得や全体再計画をせず、実装・レビュー・故障再現を独立単位で並行する。
+
 ## 再開時の現在地と次の作業（2026-10-28 17:40 JST、Claude主担当→Codex主担当への引継ぎ）
 
 この節を再開入口とする。下の2026-10-27節以前は履歴。判断はPO委任の主担当判断で、本人署名・人間逐行確認ではない。
