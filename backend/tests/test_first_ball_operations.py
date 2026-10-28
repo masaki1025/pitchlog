@@ -1,31 +1,34 @@
-"""未登録初球SQLの全列と原イベントpreflightをpure doubleで確認する。"""
+"""登録初球SQLの全列と原イベントpreflightをpure doubleで確認する。"""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import FrozenInstanceError, fields, replace
 from types import MappingProxyType
+from typing import cast
 from uuid import UUID
 
 import pytest
+from sqlalchemy import Insert, Select
 from sqlalchemy.dialects import postgresql
 
 from pitchlog.db.game_state.models import PlayRow
 from pitchlog.db.sync_protocol.models import IdempotencyLedger, OperationEvent
 from pitchlog.repositories import base
 from pitchlog.repositories.first_ball_operations import (
-    _UNREGISTERED_DECLARATIONS,
+    FIRST_BALL_PLAY_OPERATIONS,
     PLAY_ROW_COLUMNS,
     FirstBallOperationError,
 )
 from pitchlog.repositories.operation_registry import PRODUCT_OPERATIONS
-from pitchlog.repositories.tokens import TenantOperationResult
+from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
 from pitchlog.sync.first_ball_tokens import (
     FirstBallPlayRowInsertToken,
     FirstBallPlayRowReadToken,
 )
 from pitchlog.sync.tokens import IdempotencyLedgerReadToken, OperationEventReadToken
 
-_INSERT, _READ = _UNREGISTERED_DECLARATIONS
+_INSERT, _READ = FIRST_BALL_PLAY_OPERATIONS
 _TENANT = UUID(int=100)
 _OTHER = UUID(int=999)
 _ERROR = "初球PlayRowの投影値又は原イベントが一致しません"
@@ -57,8 +60,12 @@ def _parameters(token: FirstBallPlayRowInsertToken) -> dict[str, object]:
     return _INSERT.prepare(token)[1] | {"tenant_id": _TENANT}
 
 
-def _row(model: type, values: dict[str, object]) -> TenantOperationResult:
-    return TenantOperationResult((tuple(values.get(c.key) for c in model.__table__.c),))
+def _row(
+    model: type[OperationEvent] | type[IdempotencyLedger], values: dict[str, object]
+) -> TenantOperationResult:
+    return TenantOperationResult(
+        (tuple(cast(ImmutableValue, values.get(c.key)) for c in model.__table__.c),)
+    )
 
 
 def _results(token: FirstBallPlayRowInsertToken) -> tuple[TenantOperationResult, ...]:
@@ -99,13 +106,16 @@ def test_canonical_table_full41_columns_and_bind_names() -> None:
     """独自Tableを作らず全41列を明示し、検証用値を新列にしない。"""
     token = _token()
     statement, parameters = _INSERT.prepare(token)
+    assert isinstance(statement, Insert)
+    assert statement._values is not None
     assert statement.table is PlayRow.__table__
     assert _INSERT.tenant_column is PlayRow.__table__.c.tenant_id
     assert PLAY_ROW_COLUMNS == tuple(PlayRow.__table__.c.keys())
     assert len(PLAY_ROW_COLUMNS) == 41
     assert set(statement._values) == set(PLAY_ROW_COLUMNS)
     assert set(parameters) == set(PLAY_ROW_COLUMNS) - {"tenant_id"}
-    assert tuple(c.key for c in statement._returning) == PLAY_ROW_COLUMNS
+    assert not statement._returning
+    assert "RETURNING" not in str(statement.compile(dialect=postgresql.dialect()))
     assert set(statement.compile(dialect=postgresql.dialect()).params) == set(
         PLAY_ROW_COLUMNS
     )
@@ -228,7 +238,7 @@ def test_protected_fields_not_caller_inputs_and_frozen_token() -> None:
         "table",
     }.isdisjoint(names)
     with pytest.raises(FrozenInstanceError):
-        _token().course_x = 0.5
+        setattr(_token(), "course_x", 0.5)
     assert "wire-v1" not in repr(_token())
 
 
@@ -297,7 +307,9 @@ def test_preflight_zero_multiple_partial_rows_rejected(index, shape) -> None:
     results = list(_results(token))
     row = results[index].rows[0]
     rows = {"zero": (), "two": (row, row), "partial": (row[:-1],), "list": [row]}[shape]
-    results[index] = TenantOperationResult(rows)
+    results[index] = TenantOperationResult(
+        cast(tuple[tuple[ImmutableValue, ...], ...], rows)
+    )
     with pytest.raises(FirstBallOperationError):
         _preflight(token).validate(tuple(results))
 
@@ -309,6 +321,7 @@ def test_preflight_rejects_prior_projection_and_changed_sql_bindings() -> None:
     results[2] = TenantOperationResult(((UUID(int=88),),))
     with pytest.raises(FirstBallOperationError):
         _preflight(token).validate(tuple(results))
+    assert _INSERT.preflight is not None
     for changed in (
         {"tenant_id": "bad"},
         {"game_id": _OTHER},
@@ -324,6 +337,7 @@ def test_read_sql_is_same_tenant_game_source_bounded_native() -> None:
     """readの全列と同源条件/上限2を固定する。"""
     token = FirstBallPlayRowReadToken(UUID(int=2), UUID(int=3))
     statement, parameters = _READ.prepare(token)
+    assert isinstance(statement, Select)
     assert tuple(c.key for c in statement.selected_columns) == PLAY_ROW_COLUMNS
     assert statement.get_final_froms() == [PlayRow.__table__]
     assert parameters == {
@@ -347,13 +361,23 @@ def test_read_sql_is_same_tenant_game_source_bounded_native() -> None:
         assert fragment in sql
     assert "FOR UPDATE" not in sql
     with pytest.raises(FirstBallOperationError):
-        _READ.prepare(FirstBallPlayRowReadToken("bad", UUID(int=3)))
+        _READ.prepare(FirstBallPlayRowReadToken(cast(UUID, "bad"), UUID(int=3)))
 
 
-def test_unregistered_tokens_never_enter_production_sql() -> None:
-    """正式registry未登録なので実行器は文準備以前に拒否する。"""
-    for token in (_token(), FirstBallPlayRowReadToken(UUID(int=2), UUID(int=3))):
-        assert all(r.token_type is not type(token) for r in PRODUCT_OPERATIONS)
+def test_registered_exact_tokens_and_unregistered_subclasses() -> None:
+    """exact2型だけを正式解決し、同CAPの未登録派生型はSQL前拒否する。"""
+
+    class ForgedInsert(FirstBallPlayRowInsertToken):
+        pass
+
+    class ForgedRead(FirstBallPlayRowReadToken):
+        pass
+
+    tokens = (_token(), FirstBallPlayRowReadToken(UUID(int=2), UUID(int=3)))
+    for token, registration in zip(tokens, (_INSERT, _READ), strict=True):
+        assert base._operation_spec(token) is registration
+        assert sum(r.token_type is type(token) for r in PRODUCT_OPERATIONS) == 1
+    for token in (object.__new__(ForgedInsert), object.__new__(ForgedRead)):
         with pytest.raises(base._TenantOperationError, match="未登録または偽造"):
             base._operation_spec(token)
     with pytest.raises(FirstBallOperationError):
@@ -366,7 +390,11 @@ def test_unregistered_tokens_never_enter_production_sql() -> None:
 def test_unknown_and_protected_constructor_input_rejected(name: str) -> None:
     """未対応/保護入力を受け捨てる可変dict tokenにしない。"""
     with pytest.raises(TypeError):
-        FirstBallPlayRowInsertToken(**{name: "secret"})
+        # 不正な未知keywordを実constructorへ渡す対向。正常入力の型緩和ではない。
+        constructor = cast(
+            Callable[..., FirstBallPlayRowInsertToken], FirstBallPlayRowInsertToken
+        )
+        constructor(**{name: "secret"})
 
 
 def test_uninitialized_tokens_rejected_and_preflight_snapshot_stable() -> None:
@@ -380,3 +408,36 @@ def test_uninitialized_tokens_rejected_and_preflight_snapshot_stable() -> None:
     check = _preflight(token)
     object.__setattr__(token, "source_event_id", _OTHER)
     check.validate(expected_results)
+
+
+def test_registered_ball_constants_match_real_first_pitch_scope() -> None:
+    """既正式ball caseの実artifact全値と物理定数の限定対応を確認する。"""
+    import json
+    from pathlib import Path
+
+    from pitchlog.domainrt.first_pitch_continuation import (
+        CombinedRequest,
+        evaluate_first_pitch_with_continuation,
+    )
+
+    path = Path(__file__).resolve().parents[2] / (
+        "contracts/state-transition/t2_first_pitch_continuation_cases_v1.json"
+    )
+    case = json.loads(path.read_text())["cases"][0]
+    request = CombinedRequest.model_validate_json(json.dumps(case["request"]))
+    response = evaluate_first_pitch_with_continuation(request)
+    assert response.model_dump(mode="json", by_alias=True) == case["expected"]
+    assert (
+        request.t1.event_kind,
+        request.t1.result_id,
+        request.t1.pitch_event_kind,
+    ) == ("batting-result", "batting-result.ball", "pitch-event")
+    _, physical = _INSERT.prepare(_token())
+    assert physical["event_kind"] == "pitch"
+    assert physical["batting_result_key"] == request.t1.result_id
+    assert physical["play_number"] == physical["batting_order"] == 1
+    assert case["request"]["t1"]["before"]["stateFields"]["state.count.balls"] == "0"
+    assert (
+        case["expected"]["value"]["t1"]["after"]["stateFields"]["state.count.balls"]
+        == "1"
+    )

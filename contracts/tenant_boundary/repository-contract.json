@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 30,
+  "contract_revision": 31,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:30"
+        "contract_revision:31"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -168,7 +168,8 @@
     "CAP:evacuated_event_originals:insert",
     "CAP:tenants:read",
     "CAP:game_lineups:read",
-    "CAP:play_rows:read"
+    "CAP:play_rows:read",
+    "CAP:play_rows:insert"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -221,7 +222,9 @@
     "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
     "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
     "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
-    "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken"
+    "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -238,5 +241,5 @@
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding"
   ],
-  "source_digest": "f33234033f51612042912ef2062bd00fbcbe927dc1d306cce7f461155d867ae6"
+  "source_digest": "b6959a403add2ac1ecab44ad4e568e354f4d170d4598312f4061a6e7014cae2d"
 }

@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 30
+CONTRACT_REVISION = 31
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "f33234033f51612042912ef2062bd00fbcbe927dc1d306cce7f461155d867ae6"
+SOURCE_DIGEST = "b6959a403add2ac1ecab44ad4e568e354f4d170d4598312f4061a6e7014cae2d"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -114,6 +114,7 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:tenants:read",
     "CAP:game_lineups:read",
     "CAP:play_rows:read",
+    "CAP:play_rows:insert",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -167,6 +168,8 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
     "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
     "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (

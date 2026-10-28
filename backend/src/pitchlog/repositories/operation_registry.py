@@ -7,6 +7,7 @@ from types import MappingProxyType
 from pitchlog.repositories.first_ball import (
     _UNREGISTERED_DECLARATIONS as _FIRST_BALL_FUNCTION_OPERATIONS,
 )
+from pitchlog.repositories.first_ball_operations import FIRST_BALL_PLAY_OPERATIONS
 from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     build_function_registry,
@@ -46,6 +47,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *SYNC_APPLY_OPERATIONS,
     *TENANT_PROFILE_OPERATIONS,
     *STARTED_SNAPSHOT_OPERATIONS,
+    *FIRST_BALL_PLAY_OPERATIONS,
 )
 
 # 既RG1/段階A4件と同writerの閉じた保存用4件だけを登録する。

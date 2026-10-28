@@ -1,4 +1,4 @@
-"""初球の投影済み値だけを保持する未登録token。真正な保存資格ではない。"""
+"""初球の投影済み値だけを保持する閉じた登録token。真正な保存資格ではない。"""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ class FirstBallPlayRowInsertToken(TenantOperationToken):
 
 @dataclass(frozen=True, slots=True, repr=False)
 class FirstBallPlayRowReadToken(TenantOperationToken):
-    """同game/source_eventに閉じたnative可視行の未登録read値。"""
+    """同game/source_eventに閉じたnative可視行の限定read値。"""
 
     game_id: UUID
     source_event_id: UUID

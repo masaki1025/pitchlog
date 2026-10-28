@@ -1,4 +1,4 @@
-"""初球PlayRowの固定SQL候補。registry/DB印/Portを有効化しない。"""
+"""初球ball専用PlayRowの固定SQL登録。DB印/実Portは別境界。"""
 
 from __future__ import annotations
 
@@ -82,11 +82,7 @@ if set(_INSERT_COLUMNS) != set(PLAY_ROW_COLUMNS) or len(_INSERT_COLUMNS) != len(
     PLAY_ROW_COLUMNS
 ):
     raise RuntimeError("初球PlayRowの固定全列宣言がmodelと不一致")
-_INSERT = (
-    insert(_PLAYS)
-    .values({name: bindparam(name) for name in _INSERT_COLUMNS})
-    .returning(*_PLAYS.c)
-)
+_INSERT = insert(_PLAYS).values({name: bindparam(name) for name in _INSERT_COLUMNS})
 _READ = (
     select(*_PLAYS.c)
     .where(
@@ -288,8 +284,8 @@ def _preflight(
     )
 
 
-# registryへ追加していない。DB核印と正式レビュー前にruntimeへ移さない。
-_UNREGISTERED_DECLARATIONS = (
+# 初球ballだけの正式登録。真正frame/権利/DB核印は呼出側とDBで別に要求する。
+FIRST_BALL_PLAY_OPERATIONS = (
     OperationRegistration(
         FirstBallPlayRowInsertToken,
         "CAP:play_rows:insert",
