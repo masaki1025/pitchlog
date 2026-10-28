@@ -7,6 +7,7 @@ from types import MappingProxyType
 from pitchlog.repositories.first_ball import (
     _UNREGISTERED_DECLARATIONS as _FIRST_BALL_FUNCTION_OPERATIONS,
 )
+from pitchlog.repositories.first_ball import DEVICE_STATE_READ_OPERATION
 from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     build_function_registry,
@@ -48,7 +49,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *STARTED_SNAPSHOT_OPERATIONS,
 )
 
-# 既RG1/段階A4件と同writerの閉じた保存用4件だけを登録する。
+# 既8関数を保持し、binding前の端末状態readだけを末尾へ加える。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     FunctionOperationRegistration(
         operation_id="RG1:precheck",
@@ -105,6 +106,7 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     *_FIRST_BALL_FUNCTION_OPERATIONS,
     *_WRITER_BINDING_FUNCTION_OPERATIONS,
+    DEVICE_STATE_READ_OPERATION,
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

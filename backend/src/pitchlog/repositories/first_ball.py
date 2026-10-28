@@ -1,4 +1,4 @@
-"""初球の未登録固定token宣言。実scopeや端末証明の発行器ではない。"""
+"""初球の固定token宣言。実scopeや端末証明の発行器ではない。"""
 
 from __future__ import annotations
 
@@ -98,12 +98,12 @@ class _ReadFirstBallDeviceStateToken(TenantOperationToken):
 
     @property
     def capability_id(self) -> str:
-        """未登録の固定能力だけを返す。"""
+        """固定能力だけを返す。"""
         return "CAP:sync_first_ball:read_device_state"
 
 
 def _device_state_read_declaration() -> FunctionOperationRegistration:
-    """既exact2へ混入させず、未登録の単独宣言を作る。"""
+    """既exact2へ混入させず、読取の単独宣言を作る。"""
     inputs, outputs, nullable, aware = _SYNC_FIRST_BALL_FUNCTION_TYPES[
         "sync_right_api.read_device_state"
     ]
@@ -129,5 +129,5 @@ def _device_state_read_declaration() -> FunctionOperationRegistration:
     )
 
 
-# 既_UNREGISTERED_DECLARATIONSも実runtimeも変更しない。
-_UNREGISTERED_DEVICE_STATE_READ = _device_state_read_declaration()
+# 既_UNREGISTERED_DECLARATIONSのexact2とは別に正式registryへ渡す。
+DEVICE_STATE_READ_OPERATION = _device_state_read_declaration()
