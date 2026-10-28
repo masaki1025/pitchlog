@@ -1248,3 +1248,8 @@ DB修復cacheは0038配置/実全列・制約検証へ到達したがfullinstall
 
 
 2026-10-28 oracle再封印の隔離診断：U13 c7056da9からdetached WT `u13-oracle-reseal-candidate-20261028` を作り、共有DSNをunsetして正式CLI `--reseal-oracle` を実行。旧oracle commit上のroute-registry blob不一致でexit1、資産変更0。単純なdigest再計算ではなく、oracle_input系列の単一commit識別値（frozen ledger由来）・6oracle_context・seal入力の整合と正式7.7受理を先に閉じる必要がある。期待値の緩和やskip-oracleは実施しない。正式資産へ反映していない、診断logをcache同名.logに保存。
+
+
+2026-10-28 作業5 source途中：ownedPGで新writer/旧stage_a計16成功（schema/版rollback・0034〜38有限resume・構造/owner/RLS/未知marker拒否・seed PUBLIC CONNECT変異・installer20文目故障/再開）、initial_scope実app/actorACL1成功。まだ最終source固定/非作者review前。product fixtureは旧full→unapplyが正式UNAPPLY拒否に当たる既不整合を発見。現行正規前段0038からfullを1回適用する案へ、旧owner-only/roundtrip snapshot試験2群は意味が異なるため偽snapshotやskipを作らず別scope追随として残す。正式拒否や退役保証は維持し全件修復完了とはしない。
+
+3B cache途中：actual phase snapshot対向、新wire W2と旧legacy拒否順の複合不正対向、②device_stateの読取専用未適用SQL/未登録tokenを追加し部分検査成功。`implementation-3b/partial-status.json` SHA f5bda810…更新。まだcoredriver/実source照合/legacy入口/全D5/helper/単球boundTXは未接続で採用不可。unit C準備は実profileから新body asset91（列ACL82/表ACL2/policy5/guard2）を導出中、汎用trigger schemaを増やさず閉じた2triggerのinstaller/catalog接合を検討。正式資産は未変更。
