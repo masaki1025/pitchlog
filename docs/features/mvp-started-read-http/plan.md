@@ -498,3 +498,5 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
 - いずれも PO 本人の逐行確認・実 DB 確認・独立レビュー・所有側受理の完了を意味しない。この計画候補は承認済みではない。
 
 2026-10-28、PO委任によるCodex主担当判断。U13候補は非作者review0a1b4355b629673ae570506099cb86aa10d7e9f1cd652a654159defc372503b4 追加指摘0・独立backend128/authz35成功を根拠にstep1〜3/step4作者段を限定採用。別branch feature/mvp-started-read-httpをef921539起点で維持し、1step1commit。step4 root JSON/lockを別commit、基線修復/製品DB/step5/6は未完として保持。provenance根拠行は不変。
+
+2026-10-28、step1〜4両段の実取込HEAD d4a9d7ecを非作者followup7a0cad94ff1dc79c59fcce6e3fbc8289aacdcf44ea68d0a9015290f2f2a18cb1 残0で確認。候補14path不変、plan限定metadata・既ABのchecker2関数・U13 AST17・root生成JSON/lock全byteを個別照合。独立backend128/authz37成功、root実WT31/81/16/authz37成功。step4を限定採用し保存するが、基線gate/製品DB/step5/6と記録後U14は未完。新たな利用者操作の実画面実証ではない。
