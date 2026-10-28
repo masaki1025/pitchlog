@@ -75,7 +75,9 @@ POが「部品の正式完了を待たず、隔離で縦につなぎ実画面の
 - **再送の同一性**: `_phase_id(attempt, request_fingerprint)` で同一要求→同一phase、別attempt→別phase（`f0b6c356`、unit3件）。
 - **入口の外形**: P2/P3判定・外形不正の拒否をunit9件で固定（`ef4b5829`）。
 - **正式資産の開通**: `read_device_state` の正式行/body/manifest と runtime契約 26→27 を隔離枝で導出（`2006525d`）。`runtime_contract_generator check`=0、**runtime契約SHA `0b104b41…e64788` は先の独立再導出値と一致**。`tests/db/test_first_ball_product_activation.py` = **10 passed**（4分20秒、owned PG17.11）。
-- **実行環境を開通**: rootコンテナ＋ホストDockerソケット方式で、fixture の broker/UID をそのまま使えることを実証。`tests/db/test_sync_writer_binding.py` = **8 passed / 170.65s**（実PG・実UID20003/20005・実Cookie）。手順と落とし穴（リポジトリをホストと同一絶対パスへマウント、`DOCKER_API_VERSION=1.44`）は `~/.cache/pitchlog/owned-broker-test-howto-20261029.md`。
+- **実行環境を開通**: rootコンテナ＋ホストDockerソケット方式で、fixture の broker/UID をそのまま使えることを実証。`tests/db/test_sync_writer_binding.py` = **8 passed / 170.65s**（実PG・実UID20003/20005・実Cookie）。手順と落とし穴（同一絶対パスマウント、`DOCKER_API_VERSION=1.44`、`PITCHLOG_PYTEST_TMPDIR`=ホスト可視パス）は `~/.cache/pitchlog/owned-broker-test-howto-20261029.md`。
+- **追加実測**: `tests/db/test_first_ball_recording_rights_port.py` = **1 passed / 29.57s**（実V12→実loan→実権利→正常/改変/欠落proof）。
+- **縦断試験の次工程**: `tests/db/` に create→start→`POST /sync/events`→`GET` を追加する。V7の計算pairは `tests/fixtures/first_ball_payload_vectors_v1.json`（`AUTHOR_CACHE_CANDIDATE_NOT_FORMALLY_ADOPTED`）を**試験入力としてのみ**使い、製品の正解値とは扱わない。実画面の証拠とは区別して記録する。
 - **残**: merge受入時の7.7履歴記録（#184の28/22→32/26と27の単一記録）、実broker下のcreate→start→1球→GET、実画面Playwright、通信断/再送/結果不明/越境/途中故障、MVP全体（全操作・訂正・終了/再開・成績・CSV・負荷・復旧）。
 
 **判断**: 上記1〜4は「接続不良」ではなく未実装の製品単位であり、迂回（座標固定値・投影stub・仮ACK）は成功証拠に使わない方針を維持。次は (a) 座標の単一TS operation と閉wire codec の実装準備（J2はPOへ継続提示、コードは候補として隔離）、(b) U08/U10 単位B の ProjectionPort 実装、(c) U11 P1反映後の route 実装、の順で並行する。**1日での初球到達は現時点の実装量では保証できない**。
