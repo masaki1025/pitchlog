@@ -392,7 +392,8 @@ def _exposure_fact_sets(
 
     required_kinds = (
         FACT_KINDS
-        if set(manifest_columns) & {"writer_bindings", "writer_admissions"}
+        if set(manifest_columns)
+        & {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
         else FACT_KINDS - {"sync_writer_binding_storage"}
     )
     if seen_kinds != required_kinds:
@@ -452,9 +453,9 @@ def _validate_assignment_conditions(
         violations.append("初期保存資源の事実が固定4表と一致しない")
     binding_tables = table_facts.get("sync_writer_binding_storage", frozenset())
     if binding_tables and binding_tables != frozenset(
-        {"writer_bindings", "writer_admissions"}
+        {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
     ):
-        violations.append("同期binding保存資源はexact2表が必要")
+        violations.append("同期binding保存資源はexact3表が必要")
     for table_name, profile in profiles.items():
         columns = manifest_columns.get(table_name, frozenset())
         if table_name in special_tables and profile != "function_only":

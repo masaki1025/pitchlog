@@ -224,3 +224,131 @@ class WriterAdmission(LifecycleMixin, Base):
         allowed_update_columns=frozenset(),
         coverage=ImmutabilityCoverage.EXHAUSTIVE,
     )
+
+
+class FirstBallWriteAdmission(LifecycleMixin, Base):
+    """未適用の初球書込印。順序付き成功証跡と一回consumeだけを保持する。"""
+
+    __tablename__ = "first_ball_write_admissions"
+    __table_args__ = (
+        PrimaryKeyConstraint(
+            "tenant_id",
+            "attempt_id",
+            "phase_id",
+            name="pk_first_ball_write_admissions",
+            info={"roles": ("primary_key",)},
+        ),
+        ForeignKeyConstraint(
+            ("tenant_id", "attempt_id", "phase_id"),
+            (
+                "sync_fence.writer_bindings.tenant_id",
+                "sync_fence.writer_bindings.attempt_id",
+                "sync_fence.writer_bindings.phase_id",
+            ),
+            name="fk_first_ball_write_admission_binding",
+            match="FULL",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ("tenant_id", "source_event_id"),
+            ("operation_events.tenant_id", "operation_events.id"),
+            name="fk_first_ball_write_admission_event",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            info={"cross_tenant": False},
+        ),
+        ForeignKeyConstraint(
+            ("tenant_id", "play_row_id"),
+            ("play_rows.tenant_id", "play_rows.id"),
+            name="fk_first_ball_write_admission_projection",
+            match="SIMPLE",
+            ondelete="NO ACTION",
+            deferrable=True,
+            initially="DEFERRED",
+            info={"cross_tenant": False},
+        ),
+        CheckConstraint(
+            "state IN ('device_verified','right_verified','invalid','consumed') AND "
+            "((state='consumed' AND source_event_id IS NOT NULL AND p"
+            "lay_row_id IS NOT NULL "
+            "AND consumed_at IS NOT NULL) OR (state<>'consumed' AND s"
+            "ource_event_id IS NULL "
+            "AND play_row_id IS NULL AND consumed_at IS NULL))",
+            name="ck_first_ball_write_state",
+        ),
+        CheckConstraint(
+            "octet_length(nonce_digest)=32", name="ck_first_ball_write_nonce"
+        ),
+        CheckConstraint(
+            "control_version>0 AND internal_generation>0 AND recovery_generation>0 "
+            "AND codec_version>0 AND backend_pid>0",
+            name="ck_first_ball_write_positive",
+        ),
+        CheckConstraint(
+            "transaction_id ~ '^[1-9][0-9]{0,19}$' AND transaction_id::numeric"
+            " <= 18446744073709551615",
+            name="ck_first_ball_write_xid8",
+        ),
+        CheckConstraint(
+            "wire_d4<>'' AND request_fingerprint<>'' AND event_fingerprint<>''"
+            " AND system_identifier<>'' AND database_oid<>''",
+            name="ck_first_ball_write_text",
+        ),
+        {"schema": "sync_fence"},
+    )
+
+    tenant_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    attempt_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    phase_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    authority_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    control_instance: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    business_instance: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    restore_epoch: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    control_version: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    issuer: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    lease_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    device_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    game_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    wire_d4: Mapped[str] = mapped_column(Text, nullable=False)
+    internal_generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    recovery_generation: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    codec_version: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    request_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    d5: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    event_fingerprint: Mapped[str] = mapped_column(Text, nullable=False)
+    system_identifier: Mapped[str] = mapped_column(Text, nullable=False)
+    database_oid: Mapped[str] = mapped_column(Text, nullable=False)
+    postmaster_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    backend_pid: Mapped[int] = mapped_column(Integer, nullable=False)
+    backend_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    transaction_id: Mapped[str] = mapped_column(Text, nullable=False)
+    nonce_digest: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    state: Mapped[str] = mapped_column(Text, nullable=False)
+    source_event_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    play_row_id: Mapped[UUID | None] = mapped_column(Uuid, nullable=True)
+    consumed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    lifecycle = Lifecycle(
+        deletion=DeletionLifecycle.NOT_APPLICABLE,
+        append_mode=AppendMode.MUTABLE,
+        migration_retirement=MigrationRetirement.NONE,
+    )
+    immutability = Immutability(
+        protected_columns=WriterBinding.immutability.protected_columns,
+        allowed_update_columns=frozenset(),
+        conditional_update_columns=frozenset(
+            {"state", "source_event_id", "play_row_id", "consumed_at"}
+        ),
+        coverage=ImmutabilityCoverage.EXHAUSTIVE,
+    )

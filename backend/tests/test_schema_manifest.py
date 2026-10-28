@@ -554,6 +554,7 @@ def _manifest_foreign_keys(
 _WRITER_PHYSICAL_SCHEMAS = {
     "writer_bindings": "sync_fence",
     "writer_admissions": "sync_fence",
+    "first_ball_write_admissions": "sync_fence",
 }
 
 
@@ -902,8 +903,8 @@ def test_same_logical_table_in_another_schema_is_rejected() -> None:
         _logical_model_table_names(metadata)
 
 
-def test_writer_tables_keep_the_two_exact_physical_namespaces() -> None:
-    """新2表だけをsync_fenceに閉じ、旧50表は元のschemaなしを保つ。"""
+def test_writer_tables_keep_the_three_exact_physical_namespaces() -> None:
+    """新3表だけをsync_fenceに閉じ、旧50表は元のschemaなしを保つ。"""
     assert {
         table.name: table.schema
         for table in Base.metadata.tables.values()
@@ -912,7 +913,7 @@ def test_writer_tables_keep_the_two_exact_physical_namespaces() -> None:
     assert (
         len(_logical_model_table_names(Base.metadata))
         == len(Base.metadata.tables)
-        == 52
+        == 53
     )
 
 

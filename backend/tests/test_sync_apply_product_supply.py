@@ -242,7 +242,7 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """元427文のうち新9以外418文を元固定候補全byteへ束縛する。"""
+    """元427文+初球書込印の表要素1文のうち新9以外419文を全byteへ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
@@ -252,11 +252,11 @@ def test_reapply_keeps_all_other_generated_statements_exact():
         for r in rows
         if not r.sql.startswith("DO $first_ball_reapply$")
     ]
-    assert len(rows) == 427 and len(wrappers) == 9 and len(keep) == 418
+    assert len(rows) == 428 and len(wrappers) == 9 and len(keep) == 419
     digest = hashlib.sha256(
         json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
     ).hexdigest()
-    assert digest == "ccc97ce09627c129527e80ec862920c097af3bd6e42691dee618076c42a79cba"
+    assert digest == "97190ac4433c3d57c7d95b0b76c7890c50d34c362b627209985631325409a7b2"
 
 
 def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():

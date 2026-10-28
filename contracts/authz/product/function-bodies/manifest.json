@@ -1943,6 +1943,11 @@
       "element_id": "writer_admissions"
     },
     {
+      "path": "contracts/authz/product/function-bodies/tables/first_ball_write_admissions.sql",
+      "element_type": "table",
+      "element_id": "first_ball_write_admissions"
+    },
+    {
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_fence_api:read_writer_database_identity(uuid).sql",
       "element_type": "function",
       "element_id": "FUNCTION:sync_fence_api:read_writer_database_identity(uuid)"

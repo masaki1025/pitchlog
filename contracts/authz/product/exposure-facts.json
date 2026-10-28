@@ -403,6 +403,16 @@
               "quote": "同期writer bindingのsecurity補助原本はsync_fence.writer_bindingsとsync_fence.writer_admissionsの2表とする。app/control actorは直接表DMLを持たず、固定関数だけで利用する。writer_bindingsは不変owner/physical TX/nonce digest/期限を保持し、stateとclose_idの一度限りの閉鎖だけを許す。writer_admissionsは同top-level TXの追記専用証跡であり、baseball適用成功やD5結果の証明ではない。"
             }
           ]
+        },
+        {
+          "table": "first_ball_write_admissions",
+          "reason": "初球書込印。汎用app/control DMLを与えない。",
+          "evidence": [
+            {
+              "section": "6-1-a",
+              "quote": "初球PlayRow INSERT用の書込印sync_fence.first_ball_write_admissionsは、writer_bindingsの27不変列の写しと同top-level TXの状態だけを保持し、app/control actorは直接表DMLを持たず、固定関数だけで利用する。"
+            }
+          ]
         }
       ]
     }

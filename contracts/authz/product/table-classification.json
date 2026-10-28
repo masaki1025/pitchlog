@@ -288,6 +288,14 @@
         "reason": "sync_writer_binding_storage",
         "owner_unit": "U-R1"
       }
+    },
+    {
+      "table": "first_ball_write_admissions",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "sync_writer_binding_storage",
+        "owner_unit": "U-R1"
+      }
     }
   ]
 }

@@ -1143,6 +1143,12 @@
       "schema_name": "sync_fence",
       "enable_row_level_security": true,
       "force_row_level_security": true
+    },
+    {
+      "table_id": "first_ball_write_admissions",
+      "schema_name": "sync_fence",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
     }
   ],
   "predicates": [

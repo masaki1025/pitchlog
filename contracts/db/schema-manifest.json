@@ -8560,6 +8560,342 @@
         "conditional_update_columns": [],
         "unclassified_handoff": null
       }
+    },
+    {
+      "name": "first_ball_write_admissions",
+      "source_sections": [
+        "6-1-a"
+      ],
+      "requirement_ids": [
+        "FR-013",
+        "NFR-009"
+      ],
+      "provenance": {
+        "table": "手動転記",
+        "columns": "カタログ照合",
+        "lifecycle": "手動転記",
+        "foreign_keys": "カタログ照合",
+        "checks": "カタログ照合",
+        "unique_constraints": "カタログ照合",
+        "indexes": "カタログ照合",
+        "forbidden_columns": "カタログ照合",
+        "immutability": "手動転記"
+      },
+      "columns": [
+        {
+          "name": "tenant_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "attempt_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "phase_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "authority_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "control_instance",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "business_instance",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "restore_epoch",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "control_version",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "issuer",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "lease_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "device_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "game_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "wire_d4",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "internal_generation",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "recovery_generation",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "codec_version",
+          "type": "bigint",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "request_fingerprint",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "d5",
+          "type": "uuid",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "event_fingerprint",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "system_identifier",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "database_oid",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "postmaster_started_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "backend_pid",
+          "type": "integer",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "backend_start",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "transaction_id",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "nonce_digest",
+          "type": "bytea",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "state",
+          "type": "text",
+          "nullable": false,
+          "default": null
+        },
+        {
+          "name": "source_event_id",
+          "type": "uuid",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "play_row_id",
+          "type": "uuid",
+          "nullable": true,
+          "default": null
+        },
+        {
+          "name": "consumed_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default": null
+        }
+      ],
+      "lifecycle": {
+        "deletion": "対象外",
+        "append_mode": "更新可",
+        "migration_retirement": "持たない"
+      },
+      "foreign_keys": [
+        {
+          "name": "fk_first_ball_write_admission_binding",
+          "columns": [
+            "tenant_id",
+            "attempt_id",
+            "phase_id"
+          ],
+          "references": {
+            "table": "writer_bindings",
+            "columns": [
+              "tenant_id",
+              "attempt_id",
+              "phase_id"
+            ]
+          },
+          "match": "FULL",
+          "on_delete": "NO ACTION",
+          "composite": true,
+          "cross_tenant": false
+        },
+        {
+          "name": "fk_first_ball_write_admission_event",
+          "columns": [
+            "tenant_id",
+            "source_event_id"
+          ],
+          "references": {
+            "table": "operation_events",
+            "columns": [
+              "tenant_id",
+              "id"
+            ]
+          },
+          "match": "SIMPLE",
+          "on_delete": "NO ACTION",
+          "composite": true,
+          "cross_tenant": false
+        },
+        {
+          "name": "fk_first_ball_write_admission_projection",
+          "columns": [
+            "tenant_id",
+            "play_row_id"
+          ],
+          "references": {
+            "table": "play_rows",
+            "columns": [
+              "tenant_id",
+              "id"
+            ]
+          },
+          "match": "SIMPLE",
+          "on_delete": "NO ACTION",
+          "composite": true,
+          "cross_tenant": false
+        }
+      ],
+      "checks": [
+        "control_version>0 AND internal_generation>0 AND recovery_generation>0 AND codec_version>0 AND backend_pid>0",
+        "octet_length(nonce_digest)=32",
+        "state IN ('device_verified','right_verified','invalid','consumed') AND ((state='consumed' AND source_event_id IS NOT NULL AND play_row_id IS NOT NULL AND consumed_at IS NOT NULL) OR (state<>'consumed' AND source_event_id IS NULL AND play_row_id IS NULL AND consumed_at IS NULL))",
+        "transaction_id ~ '^[1-9][0-9]{0,19}$' AND transaction_id::numeric <= 18446744073709551615",
+        "wire_d4<>'' AND request_fingerprint<>'' AND event_fingerprint<>'' AND system_identifier<>'' AND database_oid<>''"
+      ],
+      "unique_constraints": [
+        {
+          "name": "pk_first_ball_write_admissions",
+          "kind": "PRIMARY KEY",
+          "columns": [
+            "tenant_id",
+            "attempt_id",
+            "phase_id"
+          ],
+          "predicate": null,
+          "roles": [
+            "primary_key"
+          ]
+        }
+      ],
+      "indexes": [],
+      "forbidden_columns": [],
+      "immutability": {
+        "protected_columns": [
+          "attempt_id",
+          "authority_id",
+          "backend_pid",
+          "backend_start",
+          "business_instance",
+          "codec_version",
+          "control_instance",
+          "control_version",
+          "d5",
+          "database_oid",
+          "device_id",
+          "event_fingerprint",
+          "expires_at",
+          "game_id",
+          "internal_generation",
+          "issuer",
+          "lease_id",
+          "nonce_digest",
+          "phase_id",
+          "postmaster_started_at",
+          "recovery_generation",
+          "request_fingerprint",
+          "restore_epoch",
+          "system_identifier",
+          "tenant_id",
+          "transaction_id",
+          "wire_d4"
+        ],
+        "allowed_update_columns": [],
+        "coverage": "exhaustive",
+        "conditional_update_columns": [
+          "consumed_at",
+          "play_row_id",
+          "source_event_id",
+          "state"
+        ],
+        "unclassified_handoff": null
+      }
     }
   ]
 }

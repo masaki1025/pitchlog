@@ -4097,9 +4097,10 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     present = manifest_set & initial_tables
     if present and (present != initial_tables or 'rg1_restore_gate' not in manifest_set):
         raise CatalogError('初期4表はRG1既基線と共にexact-setで必要')
-    binding = manifest_set & {'writer_bindings','writer_admissions'}
-    if binding and binding != {'writer_bindings','writer_admissions'}:
-        raise CatalogError('同期binding表はexact2表が必要')
+    binding_ids = {'writer_bindings','writer_admissions','first_ball_write_admissions'}
+    binding = manifest_set & binding_ids
+    if binding and binding != binding_ids:
+        raise CatalogError('同期binding表はexact3表が必要')
     expected_tables = baseline_tables | present | binding
     if "rg1_restore_gate" in manifest_set:
         expected_tables |= {'rg1_restore_gate'}
@@ -4286,7 +4287,11 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
         if (
             row_value['schema_name'] != (
                 'sync_fence'
-                if table_id in {'writer_bindings', 'writer_admissions'}
+                if table_id in {
+                    'writer_bindings',
+                    'writer_admissions',
+                    'first_ball_write_admissions',
+                }
                 else 'public'
             )
             or row_value["enable_row_level_security"] is not True

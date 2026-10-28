@@ -141,6 +141,12 @@ ADDITIONS: dict[str, list[dict[str, Any]]] = {
             "enable_row_level_security": True,
             "force_row_level_security": True,
         },
+        {
+            "table_id": "first_ball_write_admissions",
+            "schema_name": "sync_fence",
+            "enable_row_level_security": True,
+            "force_row_level_security": True,
+        },
     ],
     "policies": [
         {
@@ -933,6 +939,13 @@ BODIES = {
     "ALTER TABLE sync_fence.writer_admissions ENABLE ROW LEVEL SECURITY;\n"
     "ALTER TABLE sync_fence.writer_admissions FORCE ROW LEVEL SECURITY;\n"
     "REVOKE ALL ON TABLE sync_fence.writer_admissions FROM "
+    "PUBLIC,pitchlog_app,pitchlog_sync_binding_actor;\n",
+    "table|first_ball_write_admissions": "-- ELEMENT-TYPE: table\n"
+    "-- ELEMENT-ID: first_ball_write_admissions\n"
+    "\n"
+    "ALTER TABLE sync_fence.first_ball_write_admissions ENABLE ROW LEVEL SECURITY;\n"
+    "ALTER TABLE sync_fence.first_ball_write_admissions FORCE ROW LEVEL SECURITY;\n"
+    "REVOKE ALL ON TABLE sync_fence.first_ball_write_admissions FROM "
     "PUBLIC,pitchlog_app,pitchlog_sync_binding_actor;\n",
     ("function|FUNCTION:sync_fence_api:read_writer_database_identity(uuid)"): (
         "-- ELEMENT-TYPE: function\n-- ELEME"
@@ -1908,7 +1921,9 @@ IDS = {
     "column_acl_expectations": "expectation_id",
 }
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
-TABLES = frozenset({"writer_bindings", "writer_admissions"})
+TABLES = frozenset(
+    {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+)
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])
 BINDING_OWNER = "pitchlog_sync_binding_fn_owner"
 DB_GRANT = {
