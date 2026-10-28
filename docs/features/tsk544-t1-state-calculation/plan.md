@@ -819,3 +819,5 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 2026-10-28、PO委任によるCodex主担当判断。G20 source変更で既testがmanifest.jsonのauthority.adapter_sha256との不一致を検出し、owned fixtureも同一致を要求すると実確認したため、backend/src/pitchlog/durable_rights_ledger/manifest.json exact1を既scopeへ追加する。adapter実byteから該当SHAのみ再導出し、他属性・旧拒否・検査を保持。最終source確定後に値を再確認し、非作者reviewへ含める。313成功/1失敗を全成功とはしない。
 
 2026-10-28、PO委任によるCodex主担当判断。E1②端末状態readの登録計画反映1 SHA 154a257b423e57d4cd51e4981acf284b37c6ecfb2342d3d9272f462595b19a9e を非作者再review SHA c312227187a8c978017263bf7f5209038c182093974f1bfdfb016e9c13d48abf 指摘0を根拠に採用。初回P1の「同型手作り拒否」を既exact正規token/正規UUIDの受理と、同名別型・同CAP未知・派生・異型UUID拒否へ訂正。既関数SQL/入力/decoder・②→③/B5順を保持し、registry/source/test5とroot正式資産2のexact7で登録する。正式値は直列反映直前版から再導出し、DB function activation・実PG・issuerは別途必要。本人署名・実機能完成ではない。
+
+2026-10-28、PO委任によるCodex主担当判断。G20 step1 source4 SHA d8c06b9c7d22226c7b3de6918408199cf0579dca8724cb4d340299ae2fd65426 を非作者review SHA 7b2cb7379391f39bdcd0f9f7e759b48e69f7a2e3e5132659944d6c8eb5564c32 指摘0・独立新44＋追加4対向を根拠に採用。作者関連315成功・変異6検出、manifest実hash一致。2SQLのexecute/fetchだけの限定分類とUNKNOWN隔離・journal失敗時停止を維持。step2の実PG診断/途中故障/再起動は未実施であり、実DB完成・本人確認とは扱わない。
