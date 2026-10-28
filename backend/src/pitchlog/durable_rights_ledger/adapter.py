@@ -711,6 +711,7 @@ def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
                 },
                 "lease_close": {"event", "lease"},
                 "binding_intent": {"event", "lease", "record"},
+                "binding_rejected": {"event", "lease"},
                 "binding_published": {"event", "lease"},
                 "binding_quarantined": {"event", "lease"},
                 "binding_close_requested": {"event", "lease"},
@@ -736,6 +737,7 @@ def _events(journal: ProtectedJournal) -> Iterator[tuple[int, dict[str, Any]]]:
             if value["event"] in {
                 "lease_close",
                 "binding_intent",
+                "binding_rejected",
                 "binding_quarantined",
                 "binding_published",
                 "binding_close_requested",
@@ -847,6 +849,33 @@ def _metadata(pair: _PgLedgerPair) -> dict[str, Any]:
             "database": pair._business["database"],
         },
     }
+
+
+def _validate_binding_rejections(events: list[tuple[int, dict[str, Any]]]) -> None:
+    """確定拒否の終結証拠を、未知leaseや別状態へ拡張しない。"""
+    for ordinal, event in events:
+        if event["event"] != "binding_rejected":
+            continue
+        lease = event["lease"]
+        openings = [(i, v) for i, v in events if i == lease]
+        same = [(i, v) for i, v in events if v.get("lease") == lease]
+        intents = [(i, v) for i, v in same if v["event"] == "binding_intent"]
+        rejected = [i for i, v in same if v["event"] == "binding_rejected"]
+        closes = [i for i, v in same if v["event"] == "lease_close"]
+        if (
+            len(openings) != 1
+            or openings[0][1]["event"] != "lease_open"
+            or len(intents) != 1
+            or not lease < intents[0][0] < ordinal
+            or rejected != [ordinal]
+            or len(closes) > 1
+            or any(i <= ordinal for i in closes)
+            or any(
+                v["event"] not in {"binding_intent", "binding_rejected", "lease_close"}
+                for _, v in same
+            )
+        ):
+            raise LedgerUnavailable("ledger unavailable")
 
 
 class _AuthorityRuntime:
@@ -1016,6 +1045,7 @@ class _AuthorityRuntime:
         )
 
         events = list(_events(self._journal))
+        _validate_binding_rejections(events)
         for _, event in events:
             if event["event"] != "binding_intent":
                 continue
@@ -1024,6 +1054,14 @@ class _AuthorityRuntime:
                 v["event"] == "lease_close" and v["lease"] == lease for _, v in events
             )
             if closed:
+                continue
+            if any(
+                v["event"] == "binding_rejected" and v["lease"] == lease
+                for _, v in events
+            ):
+                self._journal.append(
+                    _encode_event({"event": "lease_close", "lease": lease})
+                )
                 continue
             if self._value.get("schema_version") != 3:
                 raise LedgerUnavailable("ledger unavailable")
@@ -1060,6 +1098,7 @@ class _AuthorityRuntime:
                 )
 
     def _verify_leases(self) -> None:
+        _validate_binding_rejections(list(_events(self._journal)))
         for ordinal, event in _events(self._journal):
             if event["event"] in ("lease_open", "activation_open"):
                 ends = sum(
@@ -1086,6 +1125,7 @@ class _AuthorityRuntime:
 
             if event["event"] in (
                 "binding_intent",
+                "binding_rejected",
                 "binding_quarantined",
                 "binding_published",
                 "binding_close_requested",
@@ -1106,7 +1146,7 @@ class _AuthorityRuntime:
                 )
                 if bound and not any(
                     i < ordinal
-                    and v["event"] == "binding_terminal"
+                    and v["event"] in ("binding_terminal", "binding_rejected")
                     and v["lease"] == event["lease"]
                     for i, v in _events(self._journal)
                 ):
@@ -1444,12 +1484,14 @@ class _AuthorityRuntime:
         from pitchlog.sync.control_provider.binding_control import (
             BindingOutcome,
             _BindingAuthority,
+            _ConfirmedBindingRejection,
         )
 
         if self._value.get("schema_version") != 3 or self._blocked:
             raise LedgerUnavailable("ledger unavailable")
         lease = None
         record = None
+        binding_intent_recorded = False
         authority = _BindingAuthority(self._value, self._journal.authority_id)
         authority.validate_request(request)
         try:
@@ -1461,6 +1503,7 @@ class _AuthorityRuntime:
                         {"event": "binding_intent", "lease": lease, "record": record}
                     )
                 )
+                binding_intent_recorded = True
                 authority.publish_prepared(record, binding, nonce)
                 self._journal.append(
                     _encode_event({"event": "binding_published", "lease": lease})
@@ -1526,6 +1569,20 @@ class _AuthorityRuntime:
                     lease = None
                     _send(channel, {"status": "ok", "result": str(outcome)})
                     return
+        except _ConfirmedBindingRejection:
+            if lease is None:
+                raise LedgerUnavailable("ledger unavailable") from None
+            try:
+                if binding_intent_recorded:
+                    self._journal.append(
+                        _encode_event({"event": "binding_rejected", "lease": lease})
+                    )
+                self._close_lease(lease)
+            except BaseException:
+                self._active.discard(lease)
+                self._blocked = True
+                raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
+            raise LedgerUnavailable("ledger unavailable") from None
         except BaseException:
             if lease is not None:
                 try:

@@ -13,9 +13,10 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, LiteralString, cast
+from typing import Any, Literal, LiteralString, cast
 from uuid import UUID, uuid4
 
+import psycopg
 from psycopg.types.json import Jsonb
 
 from pitchlog.repositories.context import TenantContext
@@ -28,6 +29,32 @@ from pitchlog.sync.control_provider.writer_binding import (
     WriterBindingUnavailable,
     WriterIdentity,
 )
+
+
+class _ConfirmedBindingRejection(WriterBindingUnavailable):
+    """固定2SQLの実行失敗だけから発行する、未commitの確定拒否。"""
+
+    def __init__(self) -> None:
+        """SQL診断や原入力を例外へ保持しない。"""
+        super().__init__("binding要求が確定拒否されました")
+
+
+def _is_confirmed_rejection(
+    error: psycopg.Error, phase: Literal["register", "publish"]
+) -> bool:
+    """採用済5診断だけ。commit/timeout/UNKNOWNは呼出側から渡さない。"""
+    if phase == "register":
+        return error.sqlstate == "42501" and error.diag.message_primary in (
+            "attempt conflict",
+            "phase conflict",
+        )
+    if phase == "publish":
+        return (error.sqlstate, error.diag.constraint_name) in (
+            ("23505", "pk_sync_writer_bindings"),
+            ("23503", "fk_sync_writer_binding_game"),
+            ("23503", "fk_sync_writer_binding_tenant"),
+        )
+    return False
 
 
 class BindingOutcome(StrEnum):
@@ -143,10 +170,27 @@ class _BindingAuthority:
         params: tuple[object, ...],
         *,
         write: bool = False,
+        confirmed_rejection: Literal["register", "publish"] | None = None,
     ) -> tuple[Any, ...]:
         """固定呼出しごとにactual actorとread-committedを確認する。"""
         from pitchlog.durable_rights_ledger.adapter import _commit, _connection
 
+        fixed = {
+            "register": (
+                "control",
+                "SELECT sync_control.register_first_ball_phase(%s,%s)",
+            ),
+            "publish": (
+                "business",
+                "SELECT sync_fence_api.publish_writer_binding(%s,%s,%s,%s,%s)",
+            ),
+        }
+        if confirmed_rejection is not None and (
+            confirmed_rejection not in fixed
+            or (which, statement) != fixed[confirmed_rejection]
+            or write is not True
+        ):
+            raise WriterBindingUnavailable("binding分類対象が不正")
         with _connection(
             self._config[f"binding_{which}_dsn"], self._config["timeout"]
         ) as c:
@@ -160,7 +204,14 @@ class _BindingAuthority:
                 "read committed",
             ):
                 raise WriterBindingUnavailable("binding制御主体が不正")
-            row = c.execute(statement, params).fetchone()
+            try:
+                row = c.execute(statement, params).fetchone()
+            except psycopg.Error as error:
+                if confirmed_rejection is not None and _is_confirmed_rejection(
+                    error, confirmed_rejection
+                ):
+                    raise _ConfirmedBindingRejection from None
+                raise
             if row is None:
                 raise WriterBindingUnavailable("binding原本を取得できない")
             if write:
@@ -251,6 +302,7 @@ class _BindingAuthority:
             "SELECT sync_control.register_first_ball_phase(%s,%s)",
             (tenant, Jsonb(phase)),
             write=True,
+            confirmed_rejection="register",
         )
         attempt, phase_id = UUID(phase["attempt_id"]), UUID(phase["phase_id"])
         saved = self._call(
@@ -308,6 +360,7 @@ class _BindingAuthority:
                 hashlib.sha256(nonce).digest(),
             ),
             write=True,
+            confirmed_rejection="publish",
         )
 
     def check(self, record: dict[str, Any], recovery_generation: int) -> None:
