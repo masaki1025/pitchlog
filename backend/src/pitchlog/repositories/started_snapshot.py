@@ -174,7 +174,7 @@ def _saved_lineup(row: dict[str, Any]) -> SavedStartedLineup:
 
 
 def _initial_before() -> StateSnapshot:
-    """全不在確認後だけ、既採用初球の初期条件を表現する。"""
+    """空原本又は唯一のnative初球の開始原典を呼出側が確認した後に使う。"""
     return StateSnapshot.model_validate(
         {
             "stateFields": {
