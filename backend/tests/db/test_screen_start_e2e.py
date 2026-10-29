@@ -1,4 +1,4 @@
-"""実ブラウザで準備中試合の開始を通すE2E（pytestが実app/DB/brokerを所有する）。
+"""実ブラウザで開始と記録後復元を通すE2E（pytestが実app/DB/brokerを所有する）。
 
 appは実UID20003のコンテナでuvicorn常駐し、DB/broker/RG1はowned PGと実workerを使う。
 ブラウザはホストのPlaywright、frontendはホストのVite（/apiをappへproxy）。
@@ -13,6 +13,8 @@ import os
 import socket
 import subprocess
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -22,7 +24,8 @@ import pytest
 
 from .sync_writer_binding_support import binding_broker
 from .test_first_ball_vertical_http import (
-    _PASSWORD,
+    _APP_SCRIPT,
+    _app_arguments,
     _prepare_app_configuration,
 )
 from .test_first_ball_vertical_http import (
@@ -41,6 +44,9 @@ pytestmark = pytest.mark.requires_db
 
 ROOT = Path(__file__).resolve().parents[3]
 _FRONTEND = ROOT / "frontend"
+_PASSWORD = "public-owned-vertical-password-A1"
+_PITCH_TYPE = "u06-first-ball-fastball"
+_LOGS = Path("/tmp/opencode/pitchlog-screen-e2e")
 
 
 def _free_port() -> int:
@@ -102,99 +108,150 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
     ]
 
 
+@contextmanager
+def _browser_environment(db, spec_config: str, stem: str) -> Iterator[str]:
+    """実appコンテナとViteを起動し、実ブラウザ用のoriginを返す。"""
+    app_port, vite_port = _free_port(), _free_port()
+    origin = f"http://127.0.0.1:{vite_port}"
+    _LOGS.mkdir(parents=True, exist_ok=True)
+    _prepare_app_configuration(db)
+    app_args = _app_container(db, app_port, origin)
+    name = app_args[app_args.index("--name") + 1]
+    app = subprocess.Popen(  # noqa: S603
+        ["docker", *app_args],
+        stdout=(_LOGS / f"{stem}-app.log").open("w"),
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    vite: subprocess.Popen[str] | None = None
+    try:
+        _wait(f"http://127.0.0.1:{app_port}/health", app, time.monotonic() + 90)
+        vite = subprocess.Popen(  # noqa: S603
+            [
+                "pnpm",
+                "exec",
+                "vite",
+                "--config",
+                "src/screens/GameScreenStart.e2e.vite.config.ts",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(vite_port),
+                "--strictPort",
+            ],
+            cwd=_FRONTEND,
+            env={**os.environ, "PITCHLOG_E2E_BACKEND_PORT": str(app_port)},
+            stdout=(_LOGS / f"{stem}-vite.log").open("w"),
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        _wait(origin, vite, time.monotonic() + 60)
+        yield origin
+    finally:
+        if vite is not None:
+            vite.terminate()
+            try:
+                vite.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                vite.kill()
+        subprocess.run(  # noqa: S603
+            ["docker", "stop", name], capture_output=True, text=True
+        )
+        app.wait(timeout=30)
+
+
+def _run_playwright(
+    db, spec_config: str, origin: str, stem: str
+) -> subprocess.CompletedProcess[str]:
+    """実ブラウザspecを実行し、失敗時は実測logを残す。"""
+    result = subprocess.run(  # noqa: S603
+        [
+            "pnpm",
+            "exec",
+            "playwright",
+            "test",
+            "--config",
+            f"src/screens/{spec_config}",
+        ],
+        cwd=_FRONTEND,
+        env={
+            **os.environ,
+            "PITCHLOG_E2E_BASE_URL": origin,
+            "PITCHLOG_E2E_TEAM_NAME": db.team_name,
+            "PITCHLOG_E2E_PASSWORD": _PASSWORD,
+            "PITCHLOG_E2E_GAME_ID": str(db.game_id),
+        },
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    (_LOGS / f"{stem}-playwright.log").write_text(result.stdout + "\n" + result.stderr)
+    return result
+
+
+def _record_first_ball(db) -> dict[str, object]:
+    """製品の実HTTP縦断（enroll→start→sync）で1球を保存済みにする。"""
+    case = {
+        "phase": "record",
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "password": _PASSWORD,
+        "start_request_id": str(db.start_request_id),
+        "pitch_type": _PITCH_TYPE,
+        "course": [132, 131],
+    }
+    process = subprocess.run(  # noqa: S603
+        ["docker", *_app_arguments(db, case), "-u", "-c", _APP_SCRIPT],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert process.returncode == 0, (process.stdout[-1500:], process.stderr[-1500:])
+    return json.loads(process.stdout)
+
+
 def test_screen_start_e2e_uses_real_browser_api_db_and_broker(
     vertical_database,
 ) -> None:
     """画面の端末登録→開始→実GET /startedを、実インフラだけで通す。"""
     db = vertical_database
     token = uuid4()
-    app_port, vite_port = _free_port(), _free_port()
-    origin = f"http://127.0.0.1:{vite_port}"
     with db.broker_worker(token), binding_broker(db, token):
-        _prepare_app_configuration(db)
-        app_args = _app_container(db, app_port, origin)
-        name = app_args[app_args.index("--name") + 1]
-        logs = Path(ROOT / ".pytest-tmp" / f"screen-start-{name}.log")
-        logs.parent.mkdir(parents=True, exist_ok=True)
-        app = subprocess.Popen(  # noqa: S603
-            ["docker", *app_args],
-            stdout=logs.open("w"),
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        vite: subprocess.Popen[str] | None = None
-        try:
-            _wait(f"http://127.0.0.1:{app_port}/health", app, time.monotonic() + 90)
-            vite_log = logs.with_suffix(".vite.log")
-            vite = subprocess.Popen(  # noqa: S603
-                [
-                    "pnpm",
-                    "exec",
-                    "vite",
-                    "--config",
-                    "src/screens/GameScreenStart.e2e.vite.config.ts",
-                    "--host",
-                    "127.0.0.1",
-                    "--port",
-                    str(vite_port),
-                    "--strictPort",
-                ],
-                cwd=_FRONTEND,
-                env={
-                    **os.environ,
-                    "PITCHLOG_E2E_BACKEND_PORT": str(app_port),
-                },
-                stdout=vite_log.open("w"),
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
-            _wait(origin, vite, time.monotonic() + 60)
-            with Path(ROOT / ".pytest-tmp" / "runtime.json").open("w") as runtime:
-                json.dump(
-                    {
-                        "baseURL": origin,
-                        "team": db.team_name,
-                        "password": _PASSWORD,
-                        "game": str(db.game_id),
-                    },
-                    runtime,
-                )
-            result = subprocess.run(  # noqa: S603
-                [
-                    "pnpm",
-                    "exec",
-                    "playwright",
-                    "test",
-                    "--config",
-                    "src/screens/GameScreenStart.playwright.config.ts",
-                ],
-                cwd=_FRONTEND,
-                env={
-                    **os.environ,
-                    "PITCHLOG_E2E_BASE_URL": origin,
-                    "PITCHLOG_E2E_TEAM_NAME": db.team_name,
-                    "PITCHLOG_E2E_PASSWORD": _PASSWORD,
-                    "PITCHLOG_E2E_GAME_ID": str(db.game_id),
-                },
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
-            (ROOT / ".pytest-tmp" / "screen-start-playwright.log").write_text(
-                result.stdout + "\n" + result.stderr
+        with _browser_environment(
+            db, "GameScreenStart.playwright.config.ts", "start"
+        ) as origin:
+            result = _run_playwright(
+                db, "GameScreenStart.playwright.config.ts", origin, "start"
             )
             assert result.returncode == 0, (
-                result.stdout[-12000:],
+                result.stdout[-8000:],
                 result.stderr[-3000:],
             )
-        finally:
-            if vite is not None:
-                vite.terminate()
-                try:
-                    vite.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    vite.kill()
-            subprocess.run(  # noqa: S603
-                ["docker", "stop", name], capture_output=True, text=True
+
+
+def test_screen_recorded_restore_e2e_uses_server_state(
+    vertical_database,
+) -> None:
+    """記録済み1球をページ再読込でサーバーから復元し、失敗時に旧値を残さない。"""
+    db = vertical_database
+    token = uuid4()
+    with db.broker_worker(token), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        recorded = _record_first_ball(db)
+        _LOGS.mkdir(parents=True, exist_ok=True)
+        (_LOGS / "record.json").write_text(
+            json.dumps(recorded, ensure_ascii=False, indent=1)
+        )
+        assert ["sync", 200] in recorded["stages"], recorded
+        assert ["started_after", 200] in recorded["stages"], recorded
+        with _browser_environment(
+            db, "GameScreenRestore.playwright.config.ts", "restore"
+        ) as origin:
+            result = _run_playwright(
+                db, "GameScreenRestore.playwright.config.ts", origin, "restore"
             )
-            app.wait(timeout=30)
+            assert result.returncode == 0, (
+                result.stdout[-8000:],
+                result.stderr[-3000:],
+            )

@@ -107,6 +107,11 @@ it('実hostから利用者選択→要求保存→POST→応答保存を接ぎ�
     'fetch',
     vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
       const target = new URL(String(url), 'https://test')
+      if (
+        target.pathname === `/api/games/${game}/started` &&
+        init?.method === 'GET'
+      )
+        return response({ error: { message: 'Not Found' } }, init, 404)
       if (target.pathname === `/api/games/${game}` && init?.method === 'GET')
         return response(
           started ? { error: { message: 'Not Found' } } : saved,

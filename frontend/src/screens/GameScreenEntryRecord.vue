@@ -5,6 +5,7 @@ import { isPreparingGame } from '../api/games'
 import { canonicalUuid } from '../api/authIntent'
 import { useAuthStore } from '../stores/authStore'
 import GameScreen from './GameScreen.vue'
+import GameScreenRecordedRestore from './GameScreenRecordedRestore.vue'
 import GameScreenEntryPremises from './GameScreenEntryPremises.vue'
 import {
   currentEntrySupply,
@@ -24,6 +25,7 @@ const props = defineProps<{
   preparing?: EntrySupply<PreparingReadDetail> | null
   detail?: EntrySupply<RecordDetail> | null
   environment?: EntrySupply<EntryEnvironment> | null
+  restoreAuto?: boolean
 }>()
 const emit = defineEmits<{ retry: [] }>()
 const route = useRoute()
@@ -210,6 +212,10 @@ const showDraftForm = computed(
         記録を再開（未提供）
       </button>
     </header>
+    <GameScreenRecordedRestore
+      v-if="savedDetail === null && preparingSource?.status === 'denied'"
+      :auto="props.restoreAuto"
+    />
     <GameScreenEntryPremises :environment="environment" />
     <section aria-label="試合の閲覧" class="space-y-2">
       <h2 class="text-lg font-bold">試合の閲覧</h2>
