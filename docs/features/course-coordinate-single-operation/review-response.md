@@ -75,3 +75,44 @@
 - 候補HEAD: `92453a3e`（本表・計画の是正コミットを同一単位で固定）。
 - 差分SHA: 本表＋plan.md の差分を `git diff 92453a3e..<是正HEAD>` で固定。
 - レビュー回数: 第1回・再レビューの2回を保持。次は**差分確認**（変更節のみ）を既存委任で行い、全文周が必要ならPO判断を記録する。未解消を残したまま可決扱いにしない。
+
+## 7. 追加調査（2026-10-30、ユーザー指示2・3への回答）
+
+### 7.1 十進6桁上限は**不採用**（正常入力を拒否し、境界を動かす）
+
+- `StrikeZone.vue:51-53` のタップは `courseScreenXToStoredX` と `Math.max(0.1, Math.min(262.9, y))` を通る **float** で、
+  canvas 比から 131.49999999999997 のような長い十進表現になり得る。6桁で切ると (a) 正常タップの拒否、
+  (b) `toFixed(6)` による**二重丸め**（例 131.4999996→131.500000→132 の境界越え）が起きる。
+- **採用**: 入力は**浮動小数の正確な十進表現（最大17有効桁）**または有理数対とし、artifact 内で BigInt の
+  スケール付き整数へ変換して half-up する。固定小数桁の上限は設けない。UI 側は `String(value)` の
+  往復可能表現（`Number(String(v)) === v`）を渡し、丸めない。**D11 の意味（half-up を一度だけ）を維持**する。
+- 検証: `131.49999999999997`→131、`131.5`→132、`131.50000000000003`→132、`0.1`→0、`262.9`→263（クランプ入力後）、
+  `263`→263、`263.4`は入力で拒否。固定入力で境界前/一致/直後を固定する。
+
+### 7.2 呼出順の実測 — **float 反転が既に画面側にある（二重反転の危険）**
+
+- 現行: `StrikeZone` が `courseScreenXToStoredX`（`263 − screenX`）を **float のまま**適用して emit →
+  下書き → V7。D11=A は「量子化**後**に反転」なので、この順のまま量子化すると**反転が二重**になる。
+- **確定**: `StrikeZone` は**画面座標（反転前）**を emit し、artifact の `quantizeCourse` が
+  「画面 float → half-up 整数 → 反転」を一度だけ行う。`courseScreenXToStoredX` の float 版は削除し、
+  整数版を artifact の出力に置き換える（U3 の置換範囲）。y は `StrikeZone` の画面 y（下向き）を渡し、
+  保存変換は既存B-7（`263−y`）が一度だけ行う。
+- 二重丸め・二重反転の検査: 量子化1回・x反転1回・y軸反転1回を、呼出順のベクタで固定。
+
+### 7.3 manifest・V7・例外の実体
+
+- `backend/domain/manifest.json` は**存在しない**。artifact 宣言の実体は
+  `frontend/public/domain/pitchlog-domain.json`（`domainrt/host.py:17`）。更新対象はこの宣言と
+  `frontend/public/domain/pitchlog-domain.js` の再生成・SHA、および `first_ball_payload_vectors_v1.json` の
+  `artifactSha256`。`backend/domain/` の manifest を新設しない。
+- V7 formatter は backend の Python（`first_ball_payload.py`）にあり、artifact には無い。**座標ゲートの対象に
+  V7 を含めない**（V7 組立は座標の出力を使う別単位）。座標ゲートは「量子化→画面座標→既存B-7の k」まで。
+- `courseScreenXToStoredX` の置換は **U3（画面接続）**の範囲。NFR-018(c) の逐語移植例外は
+  `COURSE_COORDINATE_SIZE` の既存計画が扱い、本ゲートでは**失効の要否だけ**を記録する（V7/画面の実装で判断）。
+
+### 7.4 ゲート前後の分割（拡大しない）
+
+- **ゲート前**: 既存42ケースの不変確認、量子化の固定ベクタ（7.1/7.2）、独立oracle、properties/mutation の
+  descriptor、ADR/要件/B-7注記の改訂差分、ゲート対象正本の列挙。
+- **ゲート後**: artifact primitive/`quantizeCourse`・生成物・pin/manifest・StrikeZone の置換・V7 接続・
+  properties/mutation の実行・U3/U4 の画面E2E。V7 formatter の配置は別判断として分離。
