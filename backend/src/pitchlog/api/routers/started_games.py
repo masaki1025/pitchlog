@@ -7,12 +7,18 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from pitchlog.api.schemas.started_games import (
     StartedGameRead,
+    StartedGameReadResponse,
     StartedLineup,
     StartedLineupEntry,
     StartedLineups,
+    StartedPlayRow,
+    StartedRecordedGameRead,
 )
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.recorded_snapshot_operations import (
+    RECORDED_PLAY_ROW_COLUMNS,
+)
 from pitchlog.repositories.started_read import (
     StartedGameView,
     StartedReadNotVisible,
@@ -72,28 +78,81 @@ def _read(view: StartedGameView) -> StartedGameRead:
     )
 
 
+def _play_row(view: StartedRecordedView) -> StartedPlayRow:
+    """照合済み41列を公開列へ写し、座標だけpayloadの正準整数値に置き換える。
+
+    座標は保存Doubleから逆変換しない。``RecordedCalculationCandidate`` が
+    payloadと全値一致を確認した正準整数kをそのまま返す。
+    """
+    row = dict(zip(RECORDED_PLAY_ROW_COLUMNS, view.play_row, strict=True))
+    public = {
+        name: row[name] for name in StartedPlayRow.model_fields if name != "course"
+    }
+    public["course"] = view.play_course
+    return StartedPlayRow.model_validate(public)
+
+
+def _read_recorded(view: StartedRecordedView) -> StartedRecordedGameRead:
+    """記録後の保存初球を、initialと同形＋after/history/flags/T2/PlayRowで返す。"""
+    return StartedRecordedGameRead.model_validate(
+        {
+            "read_kind": "recorded",
+            "id": view.game_id,
+            "scheduled_at": view.scheduled_at,
+            "game_type_key": view.game_type_key,
+            "tournament_key": view.tournament_key,
+            "away_team_record_id": view.away_team_record_id,
+            "home_team_record_id": view.home_team_record_id,
+            "plate_umpire": view.plate_umpire,
+            "section_label": view.section_label,
+            "week_label": view.week_label,
+            "day_label": view.day_label,
+            "game_number_label": view.game_number_label,
+            "status": "in_progress",
+            "started_at": view.started_at,
+            "applied_rules": view.applied_rules,
+            "lineups": StartedLineups(
+                away=_lineup(view.lineups[0]), home=_lineup(view.lineups[1])
+            ),
+            "roster": view.roster,
+            # `state` は initial と同じ before。記録後は別key `after` に分ける。
+            "state": view.before,
+            "after": view.after,
+            "history": list(view.history),
+            "stat_flags": view.stat_flags,
+            "t2": view.t2,
+            "play_rows": [_play_row(view)],
+            "current_d4": view.current_d4,
+        }
+    )
+
+
 @router.get(
     "/games/{game_id}/started",
-    response_model=StartedGameRead,
+    response_model=StartedGameReadResponse,
     operation_id="started_game_detail",
 )
 def read_started_game_detail(
     game_id: UUID,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
-) -> StartedGameRead:
-    """不可視・別tenant・不存在を同じ404へ閉じ、記録後は409を返す。"""
+) -> StartedGameRead | StartedRecordedGameRead:
+    """不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。"""
     try:
         with tenant_transaction_scope(context) as scope:
             result = read_started_game(scope, game_id)
-            item = _read(result) if type(result) is StartedGameView else None
+            if type(result) is StartedGameView:
+                item: StartedGameRead | StartedRecordedGameRead | None = _read(result)
+            elif type(result) is StartedRecordedView:
+                item = _read_recorded(result)
+            else:
+                item = None
     except Exception:
         # rollback後に固定外形だけを返し、DB値や原例外を公開しない。
         raise HTTPException(status_code=503) from None
     if type(result) is StartedReadNotVisible:
         raise HTTPException(status_code=404)
-    if type(result) in (StartedReadRecorded, StartedRecordedView):
-        # U14-DTO（after/history/23flags/T2/PlayRow）の公開前は、記録後の内容を
-        # 返さない既存の閉じた結果（409）を維持する。DTO接続は別ステップ。
+    if type(result) is StartedReadRecorded:
+        # 2球目以降・訂正・墓標・失効世代など、初球1件を閉じて返せない記録。
         raise HTTPException(status_code=409)
     if item is None:
         raise HTTPException(status_code=503)

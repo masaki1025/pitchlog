@@ -9,13 +9,16 @@ from __future__ import annotations
 import base64
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, get_args
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from httpx import ASGITransport, AsyncClient, Response
+from test_authz_tenant_context import make_tenant_context
+from test_recorded_snapshot import RecordedBundle
+from test_recorded_snapshot import recorded_bundle as recorded_bundle  # noqa: F401
 from test_roster_boundary import (
     _TENANT_A,
     _TENANT_B,
@@ -28,7 +31,12 @@ from test_started_snapshot import Bundle
 from pitchlog.api import app as api_app
 from pitchlog.api import tenant_access
 from pitchlog.api.routers import games, started_games
-from pitchlog.api.schemas.started_games import StartedGameRead
+from pitchlog.api.schemas.started_games import (
+    StartedGameRead,
+    StartedGameReadResponse,
+    StartedPlayRow,
+    StartedRecordedGameRead,
+)
 from pitchlog.domainrt import host as domainrt_host
 from pitchlog.repositories import started_read
 from pitchlog.repositories.context import TenantContext
@@ -111,13 +119,16 @@ async def _get(
 
 
 def test_route_is_registered_as_a_tenant_matched_get() -> None:
-    """GET 1本・固定operation_id・C2対象・response_modelがDTOである(完了条件)。"""
+    """GET 1本・固定operation_id・C2対象・response_modelが記録前後のunionである。"""
     route = _route()
     assert route.path == "/games/{game_id}/started"
     assert set(route.methods or ()) == {"GET"}
     assert isinstance(route, tenant_access.TenantMatchedRoute)
     assert "started_game_detail" in tenant_access._MATCH_OPERATIONS
-    assert route.response_model is StartedGameRead
+    assert route.response_model == StartedGameReadResponse
+    union, discriminator = get_args(route.response_model)
+    assert set(get_args(union)) == {StartedGameRead, StartedRecordedGameRead}
+    assert discriminator.discriminator == "read_kind"
 
 
 def test_dto_key_set_is_exactly_the_confirmed_state() -> None:
@@ -379,3 +390,131 @@ def test_create_app_does_not_start_node(monkeypatch: pytest.MonkeyPatch) -> None
 
     monkeypatch.setattr(domainrt_host.NodeDomainHost, "_start", reject_node_start)
     assert api_app.create_app().title == "Pitchlog API"
+
+
+def _recorded_for_tenant(
+    monkeypatch: pytest.MonkeyPatch, bundle: RecordedBundle
+) -> RecordedBundle:
+    """合成rowと認証済みtenant・scopeを一致させる（読取値そのものは変えない）。"""
+    context = make_tenant_context(_TENANT_A)
+    bundle.tenant = _TENANT_A
+    for row in (
+        bundle.game,
+        bundle.generation,
+        bundle.ledger,
+        *bundle.events,
+        *bundle.slots,
+        *bundle.plays,
+    ):
+        row["tenant_id"] = _TENANT_A
+    for lineup in bundle.lineups:
+        lineup["tenant_id"] = _TENANT_A
+    bundle.nonempty = started_read.StartedPlayRowsExistenceToken
+    bundle.handle._bound_tenant_id = _TENANT_A
+    bundle.handle._context = context
+    bundle.handle._bound_integrity_proof = context._integrity_proof
+    bundle.game.update(
+        scheduled_at=bundle.game["started_at"],
+        game_type_key="game_official",
+        tournament_key="spring",
+        plate_umpire="審判",
+    )
+    return bundle
+
+
+@pytest.mark.anyio
+async def test_recorded_first_ball_is_returned_with_public_values(
+    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle
+) -> None:
+    """実reader・実artifactを通した初球1件の200を、公開値だけで確かめる。"""
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    app, entered = _app(monkeypatch, bundle)
+    response = await _get(app, bundle.game_id)
+    assert response.status_code == 200
+    assert response.headers[_ACK] == "1"
+    body = response.json()
+    assert body["read_kind"] == "recorded" and body["status"] == "in_progress"
+    assert body["id"] == str(bundle.game_id)
+    assert body["current_d4"] == encode_d4_reference(_TENANT_A, bundle.game_id, 2**40)
+    # `state` は initial と同じ before（0-0）で、記録後は after に分かれる。
+    assert body["state"]["stateFields"]["state.count.balls"] == "0"
+    after = body["after"]["stateFields"]
+    assert (
+        after["state.count.balls"],
+        after["state.count.strikes"],
+        after["state.outs"],
+        after["state.inning"],
+        after["state.half"],
+    ) == ("1", "0", "0", "1", "top")
+    (history,) = body["history"]
+    assert history["kind"] == "confirmed-play"
+    assert history["difference"]["stateFields"]["state.count.balls"] == {
+        "before": "0",
+        "after": "1",
+    }
+    assert len(body["stat_flags"]) == 23
+    assert all(type(flag) is bool for flag in body["stat_flags"].values())
+    assert body["stat_flags"]["投球数"] is True
+    assert sorted(body["t2"]) == ["basis", "evaluation_point", "kind"]
+    (play,) = body["play_rows"]
+    assert set(play) == set(StartedPlayRow.model_fields)
+    assert play["id"] == str(bundle.row_id)
+    assert play["game_id"] == str(bundle.game_id)
+    assert play["source_event_id"] == str(bundle.event_id)
+    assert (play["play_number"], play["batting_order"], play["version"]) == (1, 1, 1)
+    assert play["event_kind"] == "pitch"
+    assert play["course"] == {"unit": "1/263", "x": "132", "y": "131"}
+    assert play["pitch_type_key"] == "synthetic-only"
+    assert play["batting_result_key"] == "batting-result.ball"
+    assert (play["pitch_speed"], play["stance"], play["batting_side"]) == (
+        None,
+        None,
+        None,
+    )
+    assert (play["press"], play["fake_run"]) == (None, None)
+    assert len(play) == 35
+    for leaked in (
+        "tenant_id",
+        "hidden_at",
+        "import_batch_id",
+        "legacy_row_identifier",
+        "migration_unverified",
+        "course_x",
+        "course_y",
+    ):
+        assert leaked not in play
+    assert [context.tenant_id for context in entered] == [_TENANT_A]
+
+
+@pytest.mark.anyio
+async def test_recorded_that_is_not_exactly_one_first_ball_is_the_fixed_409(
+    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle
+) -> None:
+    """2球目・墓標は内容を返さず、initialの409と同じ固定外形へ閉じる。"""
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    bundle.plays.append({**bundle.plays[0], "id": uuid4(), "play_number": 2})
+    app, _ = _app(monkeypatch, bundle)
+    second = await _get(app, bundle.game_id)
+
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    bundle.events[0]["is_tombstone"] = True
+    app, _ = _app(monkeypatch, bundle)
+    tombstone = await _get(app, bundle.game_id)
+
+    assert second.status_code == tombstone.status_code == 409
+    assert second.json() == tombstone.json() == _FIXED_REQUEST_ERROR
+    assert _ACK not in second.headers and _ACK not in tombstone.headers
+
+
+@pytest.mark.anyio
+async def test_corrupt_saved_play_row_is_the_fixed_503(
+    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle
+) -> None:
+    """保存値と再評価値の不一致（破損）は409へ畳まず503へ閉じる。"""
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    bundle.plays[0]["course_x"] = 0.123
+    app, _ = _app(monkeypatch, bundle)
+    response = await _get(app, bundle.game_id)
+    assert response.status_code == 503
+    assert response.json() == _FIXED_REQUEST_ERROR
+    assert _ACK not in response.headers

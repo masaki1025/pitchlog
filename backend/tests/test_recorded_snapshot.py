@@ -553,8 +553,11 @@ def test_r2_saved_value_one_field_change_fails(recorded_bundle, path, value):
     for key in path[:-1]:
         target = target[key]
     target[path[-1]] = value
-    with pytest.raises(recorded.RecordedSnapshotUnavailable):
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
         recorded._read_recorded_calculation(b.handle, b.game_id)
+    # 破損は前提不成立の閉じた値へ畳まず、呼出側へ送出する（503へ閉じる）。
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
+        recorded.try_read_recorded_snapshot(b.handle, b.game_id)
 
 
 @pytest.mark.parametrize("name", ["events", "slots", "plays"])
@@ -652,7 +655,7 @@ def test_r2_v8_or_started_original_change_is_not_accepted(recorded_bundle):
     """独立した履歴差分の改変も全値比較で拒否する。"""
     b = recorded_bundle
     b.events[0]["state_diff"]["stateFields"]["state.count.balls"]["after"] = "2"
-    with pytest.raises(recorded.RecordedSnapshotUnavailable):
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
         recorded._read_recorded_calculation(b.handle, b.game_id)
 
 
@@ -713,5 +716,22 @@ def test_r2_physical_mismatch_is_rejected(recorded_bundle):
     """保存PlayRowが再評価値と食い違う場合は候補を返さない（物理未照合を公開しない）。"""
     b = recorded_bundle
     b.plays[0]["course_x"] = 0.123
-    with pytest.raises(recorded.RecordedSnapshotUnavailable):
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
         recorded._read_recorded_calculation(b.handle, b.game_id)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda b: b.plays[0].update(pitch_type_key="other"),
+        lambda b: b.events[0].update(payload={**b.events[0]["payload"], "extra": 1}),
+    ],
+)
+def test_r2_saved_value_corruption_is_not_a_not_available_value(
+    recorded_bundle, change
+):
+    """保存値の破損は「2球目/訂正/墓標」の閉じた値と取り違えない。"""
+    b = recorded_bundle
+    change(b)
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
+        recorded.try_read_recorded_snapshot(b.handle, b.game_id)

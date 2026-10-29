@@ -17,6 +17,7 @@ from uuid import UUID
 from pitchlog.db.game_state.models import Game
 from pitchlog.db.sync_protocol.models import IdempotencyLedger
 from pitchlog.domainrt.first_ball_projection import (
+    FirstBallCalculationValue,
     format_first_ball_calculation,
     read_first_ball_calculation,
 )
@@ -81,6 +82,18 @@ class RecordedSnapshotUnavailable(RuntimeError):
     def __init__(self) -> None:
         """内部計算候補の未照合を成功として返さない。"""
         super().__init__("保存した初球の計算値を確認できません")
+
+
+class RecordedSnapshotCorrupt(Exception):
+    """保存原本どうしが食い違う破損。前提不成立（非公開）とは区別する。
+
+    2球目以降・訂正・墓標・失効世代は「返さない記録」であり 409 へ閉じるが、
+    保存値と独立再評価値の不一致は原本の破損であり 503 へ閉じる。
+    """
+
+    def __init__(self) -> None:
+        """原例外・DB値・入力値を持たない固定外形を作る。"""
+        super().__init__("保存した初球の計算値が保存原本と一致しません")
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -405,12 +418,7 @@ def _read_recorded_calculation(
             expected_response=response,
             expected_artifact_sha256=digest,
         )
-        payload = read_first_ball_payload(
-            json.dumps(_plain(event["payload"])),
-            json.dumps(_plain(event["state_diff"])),
-            expected_calculation=expected,
-            expected_participants=_participants(roster_result.value),
-        )
+        payload = _saved_payload(event, expected, roster_result.value)
         _assert_play_row_matches_payload(play, payload)
         live()
         return RecordedCalculationCandidate(
@@ -436,8 +444,38 @@ class RecordedSnapshotNotAvailable:
     """保存初球の前提を満たさない（2球目以降・訂正・墓標・失効世代など）。
 
     呼出側に例外分岐を置かず、記録後readの「内容を返さない」閉じた結果へ
-    写すための値。破損と区別せず、推測で状態を補わない。
+    写すための値。破損（保存値と再評価値の不一致）は
+    :class:`RecordedSnapshotCorrupt` で表し、この値へ畳まない。
     """
+
+
+def _saved_payload(
+    event: dict[str, Any],
+    expected: FirstBallCalculationValue,
+    roster: InitialRosterProjection,
+) -> FirstBallPayloadValue:
+    """保存V7/V8を独立再評価値と読み戻し、食い違いを破損として閉じる。
+
+    Args:
+        event: 保存済みoperation eventの全列。
+        expected: 同一artifactの独立再評価から得た計算期待値。
+        roster: 実開始原典から再構成した名簿。
+
+    Returns:
+        保存側の観測と再評価の計算が一致した閉値。
+
+    Raises:
+        RecordedSnapshotCorrupt: 保存blobが閉形式でないか期待値と食い違う場合。
+    """
+    try:
+        return read_first_ball_payload(
+            json.dumps(_plain(event["payload"])),
+            json.dumps(_plain(event["state_diff"])),
+            expected_calculation=expected,
+            expected_participants=_participants(roster),
+        )
+    except (ValueError, TypeError):
+        raise RecordedSnapshotCorrupt from None
 
 
 def _assert_play_row_matches_payload(
@@ -454,7 +492,7 @@ def _assert_play_row_matches_payload(
         payload: 同一artifactの独立再評価と照合済みのV7/V8閉値。
 
     Raises:
-        RecordedSnapshotUnavailable: 保存値と再評価値が一致しない場合。
+        RecordedSnapshotCorrupt: 保存値と再評価値が一致しない場合。
     """
     from pitchlog.sync.first_ball_course import course_unit_to_double
 
@@ -480,7 +518,7 @@ def _assert_play_row_matches_payload(
         type(play.get(key)) is not type(value) or play.get(key) != value
         for key, value in expected.items()
     ):
-        raise RecordedSnapshotUnavailable
+        raise RecordedSnapshotCorrupt
 
 
 def try_read_recorded_snapshot(
@@ -490,7 +528,8 @@ def try_read_recorded_snapshot(
     """保存初球の再評価を試み、前提不成立だけを閉じた値で返す。
 
     例外は本module内で閉じる。呼出側（``started_read``）は値の種類だけで
-    分岐し、例外節から応答種別を返さない。
+    分岐し、例外節から応答種別を返さない。保存原本の破損
+    （``RecordedSnapshotCorrupt``）だけは値へ畳まず送出し、503へ閉じる。
 
     Args:
         handle: 呼出元が所有する生存中の同一TX。
@@ -498,6 +537,9 @@ def try_read_recorded_snapshot(
 
     Returns:
         候補、または前提不成立を表す閉じた値。
+
+    Raises:
+        RecordedSnapshotCorrupt: 保存値と独立再評価値が一致しない場合。
     """
     try:
         return _read_recorded_calculation(handle, game_id)

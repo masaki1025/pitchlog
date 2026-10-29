@@ -21,6 +21,7 @@ from pitchlog.domainrt.first_pitch import StateSnapshot
 from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
 from pitchlog.repositories.recorded_snapshot import (
     RecordedCalculationCandidate,
+    RecordedSnapshotCorrupt,
     try_read_recorded_snapshot,
 )
 from pitchlog.repositories.started_snapshot import (
@@ -40,6 +41,7 @@ from pitchlog.repositories.sync_apply import _GENERATION_READ_COLUMNS
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.d4_reference import encode_d4_reference
+from pitchlog.sync.first_ball_payload import FirstBallCourse
 from pitchlog.sync.tokens import (
     GameLockToken,
     GameReadToken,
@@ -100,6 +102,8 @@ class StartedRecordedView:
     先頭1球だけを対象とし、前提を満たさない記録では生成しない。保持者・資格・
     証明・D3は返さない（権利や同期済みの証明ではない）。``history``/``stat_flags``/
     ``t2``/``play_row`` は保存初球の閉値をそのまま保持し、再計算しない。
+    ``before`` は開始原典の初期状態、``play_course`` はpayloadの正準整数座標で、
+    どちらも ``state``/``after`` の意味を反転させないために別に持つ。
     """
 
     game_id: UUID
@@ -117,7 +121,9 @@ class StartedRecordedView:
     applied_rules: dict[str, object]
     lineups: tuple[SavedStartedLineup, SavedStartedLineup]
     roster: InitialRosterProjection
+    before: StateSnapshot
     after: StateSnapshot
+    play_course: FirstBallCourse
     history: tuple[object, ...]
     stat_flags: object
     t2: object
@@ -145,7 +151,14 @@ def read_started_game(handle: _TenantTransaction, game_id: UUID) -> StartedReadR
     """
     try:
         return _assemble(handle, game_id)
-    except (StartedSnapshotUnavailable, ValueError, TypeError, KeyError, RuntimeError):
+    except (
+        RecordedSnapshotCorrupt,
+        StartedSnapshotUnavailable,
+        ValueError,
+        TypeError,
+        KeyError,
+        RuntimeError,
+    ):
         raise StartedReadCorrupt from None
 
 
@@ -240,7 +253,9 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
             ),
             lineups=candidate.lineups,
             roster=candidate.roster,
+            before=candidate.request.t1.before,
             after=candidate.response.value.t1.after,
+            play_course=candidate.payload.v7.observations.course,
             history=tuple(candidate.response.value.t1.history_context),
             stat_flags=candidate.response.value.t1.stat_flags,
             t2=candidate.response.value.t2,
