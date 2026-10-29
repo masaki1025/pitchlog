@@ -116,3 +116,32 @@
   descriptor、ADR/要件/B-7注記の改訂差分、ゲート対象正本の列挙。
 - **ゲート後**: artifact primitive/`quantizeCourse`・生成物・pin/manifest・StrikeZone の置換・V7 接続・
   properties/mutation の実行・U3/U4 の画面E2E。V7 formatter の配置は別判断として分離。
+
+## 8. DSL 実現性（ゲート前・隔離検証）
+
+**結論: 実現できる。** artifact は別個の DSL インタプリタではなく、`frontend/src/domain` の TS 正本を
+`frontend/scripts/domain-build/build.mjs` で単一 JS（`pitchlog-domain.js`）へ閉じた生成物で、既に
+BigInt・十進文字列 codec（`decimalCodec.ts`）・`globalThis.PitchlogDomain` を持つ。ブラウザと Python ホスト
+（`domainrt/host.py` が Node で同一 JS を実行）で同じ実装が動く。字句検査の禁止は import/export/require のみで、
+`BigInt` の `/`・`%` は使用済み。ドメインコードは `number`/`Math.round` を使わない。
+
+**採用する方法**
+- UI はタップの float を `String(value)`（最短往復表現）で渡す。**固定小数桁の上限を設けない**。
+  最短表現は同じ double に復元され、`.5` との大小/一致関係を保つため、half-up の判定を変えない。
+- artifact は十進（指数表記含む）を符号・整数部・小数部・指数へ分解し、`BigInt` のスケール付き整数にする。
+  `q=|n|/|d|`、`r=|n|%|d|`、`2r≥|d|` で切り上げ、符号を戻す。
+- **量子化後に整数で反転**（`size − k`）。`size` は `display_geometry_263_v1.json` の `size` を入力に取り、
+  263 を焼き込まない。範囲外（0..size 外）・非十進・非有限は拒否。クランプは表示入力側。
+- y は画面座標（下向き）を渡し、既存 B-7 が一度だけ `size − y` を行う。
+
+**隔離検証（製品artifact/契約/凍結値は未変更。製品実装済みとは扱わない）**
+- `/tmp/opencode/quant.mjs`（Node・BigInt）と Python `Fraction` の独立 oracle で固定入力を照合:
+  `131.49999999999997→131`、`131.5→132`、`131.50000000000003→132`、`0.49999999999999994→0`、
+  `0.5→1`、`-0.5→-1`、`0.1→0`、`262.9→263`、`263→263`、`263.4→263`、`1e-7→0`。**全一致**。
+  反転は `263−132=131`、`263−131=132`。期待値は Python の厳密有理数から独立に算出。
+- 制約: 指数表記の受理、スケールの上限（指数の絶対値を有限に）、`number`/`Math.round` 不使用、
+  `size` の入力化。`String(value)` は 0..263 の通常タップで指数表記にならないが、0 近傍の極小値は
+  指数で来るため受理する。
+
+**ゲートへの影響**: 実現性は確認済み。ゲート前の残りは非作者の差分確認と ADR/要件の整合改訂。
+artifact への実装・pin・properties/mutation の実行は**ゲート後**。
