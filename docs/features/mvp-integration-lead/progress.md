@@ -410,6 +410,19 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 
 **現在地**: 画面縦断は「開始」「記録済み状態の復元（明示）」まで実インフラで緑。残りは **U1 作成（D19裁定待ち）** と **U3 初球確定（座標ゲート待ち）**、および U3 後の「画面で保存→reload 自動復元」。
 
+### 2026-10-30（続き6）：座標量子化の単一artifact operation計画を起案（7.3ゲート前）
+
+**起案 `docs/features/course-coordinate-single-operation/plan.md`（vertical `9be5ffd8`）**。D11=A / D18=A の実装計画で、ゲート前に許される範囲（契約ベクタ・独立導出・Python試験・計画起案）に限定した。
+
+- **ABI案**: `quantizeCourse({tapX, tapY, view, batterSide}) -> {unit:"1/263", x, y}`。付録A-1 の half-up で量子化し、**量子化後に**投手後方視点の左右反転。非十進・非有限・範囲外・未知入力は fail-closed。
+- **単一実装**: artifact の TS 正本＋生成 JS をブラウザ/サーバーで実行し、Python はホスト経由で同一 artifact を呼ぶ（再実装しない）。V7 の course に直結し、V8 は artifact の historyContext を使う。
+- **ベクタ**: 264点×視点2×打席2、境界131.5/0/263、負例。正本実装から期待値を生成しない独立 oracle。
+- **pin**: domain SHA・payload vectors の artifactSha256（102箇所）・manifest/directTargets を同一段で更新。
+- **5ステップ**: ①ベクタ+oracle →②artifact primitive+再生成+pin →**③7.3確定ゲート（ADR-003 v0.10＋要件 v2.18、PO承認）**→④画面接続（U3）→⑤reload自動復元（U4完成）。
+- **未決**: J2（3層検査をマージ前必須にするか）未回答。必須なら L。ADR v0.10 の射程は D-14-m への座標変換1件追加に限定。
+
+**意味**: U3（画面からの初球確定）は本ゲート通過までコードを書かない（fail-closed）。U1/U2/U4/U5 は独立に進行済み。**ゲートは計画レビュー→ADR/要件改訂→敵対レビュー→PO承認**の順で、PO判断が必要。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
