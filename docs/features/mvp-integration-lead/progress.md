@@ -476,6 +476,14 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **残差**: authz route-registry の作成2 route の provenance＋再封印（`--skip-oracle` は ok のまま）、座標計画の非作者レビュー（実行中）→ADR v0.10/要件 v2.18→U3、A31環境。
 - **記録**: 候補枝成功→統合枝での再実測、の順で確認。枝単独の成功を縦断成立としていない。
 
+### 2026-10-30（続き11）：座標計画の非作者レビュー（否決）とP0/P1是正
+
+- **非作者レビュー: 否決 P0=3 / P1=12 / P2=7**。REPORT `~/.cache/pitchlog/course-coordinate-plan-review-20261030/REPORT.md` SHA `19e0a36acbaa4f521768b62c78676f7e04d984c81227f025b228388174395a4b`。対象は計画 `9be5ffd8`。
+- **P0**: ①ステップ2（artifact改変・pin）が7.3ゲートより前＝D18のゲート前範囲違反 ②「Python k/263は製品経路から除去済み」が事実と逆（`first_ball_execution.py`・`recorded_snapshot.py` で稼働）で、その候補を「既存の単一写像」として受入に使う ③D-6/D-8/D-11 の座標契約（両方向・内外角・往復・クランプ点・打席左右）の真部分集合を「単一実装の契約ベクタ」と認定する。
+- **主なP1**: y軸（B-2/B-7は上向き・263−y、現行StrikeZoneは素通し）／範囲外拒否がB-7クランプと衝突／「DSLに除算が無い」は誤り（BigIntの/・%は可、number/Math.roundが禁止）／263の焼き込みが契約JSONのsizeと二重管理／properties・mutation・descriptor不足／manifest不在／既存float反転の扱い／V7組立の置き場・PITCH_COMMIT_BLOCKED前提／D-14-mとNFR-018のT1/T2限定文は書き換えが必要。
+- **是正 `98472b66`**: ステップ順を「ベクタ/oracle/descriptor（ゲート前）→7.3→artifact（ゲート後）」へ変更。k/263の事実を訂正し、受入で無条件の正解扱いをしない。2.0で契約との関係（(a)入力形成に限定／(b)契約全体へ拡張をゲート裁定、既定(a)）を明記。y軸・十進文法とBigInt剰余丸め・範囲方針・263の出所・反転と逐語移植例外・V7置き場・封鎖解除前提・3層/manifestを追加。
+- **次**: 是正版の再レビュー→ADR-003 v0.10＋要件 v2.18（T1/T2限定文の書き換えを含む）→7.3。作成は統合候補で「画面で新規作成→開始」3件緑（`b23898f2`）を維持。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
