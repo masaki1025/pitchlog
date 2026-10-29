@@ -4,6 +4,10 @@
 開始は実HTTP worker、1球は実HTTP同期入口（実Cookie・実端末資格・実broker・
 実writer・実権利・実artifact評価）を通す。V7/V8は同じartifact評価と実名簿から
 作る試験入力で、実画面の操作証拠や正式V7採用ではない。
+
+記録後GETの負例は、2球目・訂正・墓標=409、別tenant=404、破損=503 を固定する。
+2球目と墓標の保存状態は、製品triggerが正しく拒否するため、状態の構成に限り
+同じowned PGのtriggerを無効化して作り、観測後に戻す。製品経路の迂回ではない。
 """
 
 from __future__ import annotations
@@ -95,6 +99,23 @@ def vertical_database(initial_scope_database: Any, product_node_binary, monkeypa
         ).fetchone()
         assert row is not None
         db.team_name = row[0]
+        # 別tenantの404を実HTTPで確かめるためのログイン資格（fixture準備）。
+        foreign = uuid4()
+        admin.execute(
+            "INSERT INTO public.tenant_auth_subjects(id,tenant_id) VALUES (%s,%s)",
+            (foreign, db.other_tenant_id),
+        )
+        admin.execute(
+            "INSERT INTO public.tenant_credentials"
+            "(auth_subject_id,password_hash) "
+            "VALUES (%s,authn_crypto.crypt(%s,authn_crypto.gen_salt('bf',12)))",
+            (foreign, _PASSWORD),
+        )
+        other = admin.execute(
+            "SELECT name FROM public.tenants WHERE id=%s", (db.other_tenant_id,)
+        ).fetchone()
+        assert other is not None
+        db.other_team_name = other[0]
     return db
 
 
@@ -152,6 +173,7 @@ sys.excepthook=error_hook
 app=create_app()
 tenant=case['tenant'];game=case['game'];team=case['team_name']
 password=case['password']
+phase=case.get('phase','record')
 out={'stages':[]}
 
 def headers():
@@ -242,12 +264,38 @@ def recorded_read(cookie):
         'source_event_id':str(row['source_event_id']),
     }
 
+async def login(client,name):
+    return await client.post('/auth/login',json={'team_name':name,
+        'password':password},headers={'Origin':'https://test',
+        'X-Pitchlog-Request':'1'})
+
+async def read_once(client,name,expected):
+    response=await login(client,name)
+    out['stages'].append(['login',response.status_code])
+    if response.status_code!=200:
+        out['login_body']=response.text[:400]
+        return out
+    h={'Origin':'https://test','X-Pitchlog-Request':'1',
+        'X-Pitchlog-Expected-Tenant':expected,
+        'X-Pitchlog-Tenant-Challenge':str(uuid4())}
+    read=await client.get('/games/'+game+'/started',headers=h)
+    out['stages'].append(['started_read',read.status_code])
+    out['read_status']=read.status_code
+    out['read_body']=read.json() if read.status_code==200 else None
+    out['read_text']=read.text
+    return out
+
 async def run():
     transport=ASGITransport(app=app)
+    if phase=='read':
+        async with AsyncClient(transport=transport,base_url='https://test') as client:
+            return await read_once(client,team,tenant)
+    if phase=='foreign':
+        async with AsyncClient(transport=transport,base_url='https://test') as client:
+            return await read_once(client,case['other_team_name'],
+                case['other_tenant'])
     async with AsyncClient(transport=transport,base_url='https://test') as client:
-        response=await client.post('/auth/login',json={'team_name':team,
-            'password':password},headers={'Origin':'https://test',
-            'X-Pitchlog-Request':'1'})
+        response=await login(client,team)
         out['stages'].append(['login',response.status_code])
         if response.status_code!=200:
             out['login_body']=response.text[:400]
@@ -331,6 +379,7 @@ async def run():
         out['recorded']=recorded_read(cookie)
         h=headers();after=await client.get('/games/'+game+'/started',headers=h)
         out['stages'].append(['started_after',after.status_code])
+        out['started_after']=after.json() if after.status_code==200 else None
         out['d5']=event['d5']
         out['device_id']=pair['device_id']
     return out
@@ -358,13 +407,137 @@ def _app_arguments(db: Any, case: dict[str, Any]) -> list[str]:
     return args
 
 
+def _run_case(db: Any, case: dict[str, Any]) -> dict[str, Any]:
+    """製品app容器を1回起動し、phaseどおりの実HTTP結果を受け取る。"""
+    process = subprocess.run(
+        ["docker", *_app_arguments(db, case), "-u", "-c", _APP_SCRIPT],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert process.returncode == 0, (process.stdout[-600:], process.stderr[-600:])
+    return cast(dict[str, Any], json.loads(process.stdout))
+
+
+def _read_case(db: Any) -> dict[str, Any]:
+    """記録後のGETだけを行うphaseの入力。"""
+    return {
+        "phase": "read",
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "password": _PASSWORD,
+    }
+
+
+def _tamper(db: Any, statement: str, parameters: tuple[Any, ...]) -> None:
+    """負例を構成するfixture操作。製品経路の書込みではない。"""
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(statement, parameters)
+
+
+def _second_play_row(db: Any) -> UUID:
+    """保存初球の写しを2球目として1行足す（2球目以降の記録を構成する）。
+
+    製品の初球admission triggerは2行目を正しく拒否するため、状態の構成に限り
+    同じowned PGでtriggerを無効化する。読取の拒否だけを観測し、製品経路の
+    成功や迂回の証拠にはしない。
+    """
+    row_id = uuid4()
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(
+            "CREATE TEMP TABLE saved_play AS SELECT * FROM public.play_rows "
+            "WHERE tenant_id=%s AND game_id=%s",
+            (db.tenant_id, db.game_id),
+        )
+        admin.execute("UPDATE saved_play SET id=%s, play_number=2", (row_id,))
+        admin.execute(
+            "ALTER TABLE public.play_rows DISABLE TRIGGER trg_first_ball_10_lock"
+        )
+        admin.execute(
+            "ALTER TABLE public.play_rows DISABLE TRIGGER trg_first_ball_20_admit"
+        )
+        try:
+            admin.execute("INSERT INTO public.play_rows SELECT * FROM saved_play")
+        finally:
+            admin.execute(
+                "ALTER TABLE public.play_rows ENABLE TRIGGER trg_first_ball_10_lock"
+            )
+            admin.execute(
+                "ALTER TABLE public.play_rows ENABLE TRIGGER trg_first_ball_20_admit"
+            )
+    return row_id
+
+
+def _tombstone_once(db: Any, action: Any) -> Any:
+    """墓標の保存状態を作り、実HTTPの観測後に元の行へ戻す。
+
+    墓標（is_tombstone）は製品triggerで不変のため、状態の構成に限り同じ
+    owned PGのtriggerを無効化する。製品行の意味は変えず、読取の拒否だけを見る。
+    """
+    admin = psycopg.connect(db.authority.database.business_admin)
+    try:
+        admin.execute(
+            "CREATE TEMP TABLE saved_event AS SELECT * FROM public.operation_events "
+            "WHERE tenant_id=%s AND game_id=%s",
+            (db.tenant_id, db.game_id),
+        )
+        admin.execute(
+            "ALTER TABLE public.operation_events "
+            "DISABLE TRIGGER trg_operation_events_content_immutable"
+        )
+        admin.commit()
+        try:
+            admin.execute(
+                "UPDATE public.operation_events SET is_tombstone=true,"
+                "payload='{}'::jsonb,state_diff=NULL,d2=NULL "
+                "WHERE tenant_id=%s AND game_id=%s",
+                (db.tenant_id, db.game_id),
+            )
+            admin.commit()
+            return action()
+        finally:
+            admin.execute(
+                "UPDATE public.operation_events e SET is_tombstone=s.is_tombstone,"
+                "payload=s.payload,state_diff=s.state_diff,d2=s.d2 "
+                "FROM saved_event s "
+                "WHERE e.tenant_id=s.tenant_id AND e.id=s.id"
+            )
+            admin.execute(
+                "ALTER TABLE public.operation_events "
+                "ENABLE TRIGGER trg_operation_events_content_immutable"
+            )
+            admin.commit()
+    finally:
+        admin.close()
+
+
+_EXCLUDED_PLAY_COLUMNS = (
+    "tenant_id",
+    "hidden_at",
+    "import_batch_id",
+    "legacy_row_identifier",
+    "migration_unverified",
+)
+
+
+def _exposed_columns(play: dict[str, Any]) -> set[str]:
+    """応答の公開keyを物理列名へ戻す（座標2列はcourse 1値へ統合済み）。"""
+    return (set(play) - {"course"}) | {"course_x", "course_y"}
+
+
 def test_first_ball_vertical_http_records_and_refuses_reload(
     vertical_database: Any,
 ) -> None:
-    """開始→1球→ACK→実PG保存→記録後409を一つの実HTTP経路で確認する。"""
+    """開始→1球→ACK→実PG保存→記録後200を実HTTPで確認し、負例を固定する。"""
+    from pitchlog.repositories.recorded_snapshot_operations import (
+        RECORDED_PLAY_ROW_COLUMNS,
+    )
+
     db = vertical_database
     token = uuid4()
     case = {
+        "phase": "record",
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
         "team_name": db.team_name,
@@ -375,84 +548,184 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
     }
     with db.broker_worker(token), binding_broker(db, token):
         _prepare_app_configuration(db)
-        process = subprocess.run(
-            ["docker", *_app_arguments(db, case), "-u", "-c", _APP_SCRIPT],
-            capture_output=True,
-            text=True,
-            timeout=300,
+        value = _run_case(db, case)
+        assert value["stages"] == [
+            ["login", 200],
+            ["enroll", 200],
+            ["start", 200],
+            ["started_before", 200],
+            ["sync", 200],
+            ["resend", 200],
+            ["resend_other_attempt", 200],
+            ["conflict", 200],
+            ["attempt_reuse", 503],
+            ["started_after", 200],
+        ], value
+        assert value["participants"] == {
+            "batterId": str(_BATTER),
+            "pitcherId": str(_PITCHER),
+            "catcherId": str(_CATCHER),
+            "battingOrder": "1",
+        }, value["participants"]
+        assert value["ack"] == {
+            "advancedD3": 1,
+            "eventResults": [
+                {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "受理"}
+            ],
+        }, value["ack"]
+        assert value["resend_ack"] == {
+            "advancedD3": 1,
+            "eventResults": [
+                {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
+            ],
+        }, value["resend_ack"]
+        assert value["reattempt_ack"] == {
+            "advancedD3": 1,
+            "eventResults": [
+                {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
+            ],
+        }, value["reattempt_ack"]
+        assert value["conflict_ack"] == {
+            "advancedD3": 1,
+            "eventResults": [
+                {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "拒否"}
+            ],
+        }, value["conflict_ack"]
+        # 記録後GETは initial と同形＋after/history/23flags/T2/PlayRow を返す。
+        read_back = value["started_after"]
+        assert read_back["read_kind"] == "recorded"
+        assert read_back["status"] == "in_progress"
+        assert read_back["id"] == case["game"]
+        assert read_back["current_d4"] == value["d4"]
+        assert read_back["started_at"] == value["started_at"]
+        # `state` は initial と同じ before（0-0）で、記録後は after に分かれる。
+        assert read_back["state"]["stateFields"]["state.count.balls"] == "0"
+        after = read_back["after"]["stateFields"]
+        assert {
+            key: after[key]
+            for key in (
+                "state.count.balls",
+                "state.count.strikes",
+                "state.outs",
+                "state.inning",
+                "state.half",
+                "state.battingOrder",
+            )
+        } == {
+            "state.count.balls": "1",
+            "state.count.strikes": "0",
+            "state.outs": "0",
+            "state.inning": "1",
+            "state.half": "top",
+            "state.battingOrder": "1",
+        }
+        assert read_back["lineups"]["away"]["lineup_id"] == value["away_lineup_id"]
+        assert read_back["lineups"]["home"]["lineup_id"] == value["home_lineup_id"]
+        assert len(read_back["history"]) == 1
+        assert len(read_back["stat_flags"]) == 23
+        assert all(isinstance(flag, bool) for flag in read_back["stat_flags"].values())
+        assert sorted(read_back["t2"]) == ["basis", "evaluation_point", "kind"]
+        (play,) = read_back["play_rows"]
+        # 公開36列 = 41列 − 5列。座標は正準整数kの1値へ統合し、Doubleを出さない。
+        exposed = _exposed_columns(play)
+        assert len(exposed) == 36
+        assert exposed == set(RECORDED_PLAY_ROW_COLUMNS) - set(_EXCLUDED_PLAY_COLUMNS)
+        assert set(play) == exposed - {"course_x", "course_y"} | {"course"}
+        assert play["course"] == {"unit": "1/263", "x": "132", "y": "131"}
+        assert (play["play_number"], play["batting_order"], play["version"]) == (
+            1,
+            1,
+            1,
         )
-    assert process.returncode == 0, (process.stdout[-600:], process.stderr[-600:])
-    value = cast(dict[str, Any], json.loads(process.stdout))
-    assert value["stages"] == [
-        ["login", 200],
-        ["enroll", 200],
-        ["start", 200],
-        ["started_before", 200],
-        ["sync", 200],
-        ["resend", 200],
-        ["resend_other_attempt", 200],
-        ["conflict", 200],
-        ["attempt_reuse", 503],
-        ["started_after", 409],
-    ], value
-    assert value["participants"] == {
-        "batterId": str(_BATTER),
-        "pitcherId": str(_PITCHER),
-        "catcherId": str(_CATCHER),
-        "battingOrder": "1",
-    }, value["participants"]
-    assert value["ack"] == {
-        "advancedD3": 1,
-        "eventResults": [
-            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "受理"}
-        ],
-    }, value["ack"]
-    assert value["resend_ack"] == {
-        "advancedD3": 1,
-        "eventResults": [
-            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
-        ],
-    }, value["resend_ack"]
-    assert value["reattempt_ack"] == {
-        "advancedD3": 1,
-        "eventResults": [
-            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
-        ],
-    }, value["reattempt_ack"]
-    assert value["conflict_ack"] == {
-        "advancedD3": 1,
-        "eventResults": [
-            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "拒否"}
-        ],
-    }, value["conflict_ack"]
-    # 保存後の製品リーダー再読込が同じ初球状態を返す（HTTP 409は別単位）。
-    recorded = value["recorded"]
-    assert UUID(recorded["source_event_id"])
-    assert recorded["lineup_ids"] == [value["away_lineup_id"], value["home_lineup_id"]]
-    assert recorded["history"] == 1
-    assert recorded["stat_flag_count"] > 0
-    assert recorded["t2_keys"] == ["basis", "evaluation_point", "kind"]
-    assert recorded["play_row_columns"] == 41
-    assert recorded["play_number"] == 1 and recorded["event_kind"] == "pitch"
-    assert {
-        key: recorded["state"][key]
-        for key in (
-            "state.count.balls",
-            "state.count.strikes",
-            "state.outs",
-            "state.inning",
-            "state.half",
+        assert play["event_kind"] == "pitch"
+        assert play["batting_result_key"] == "batting-result.ball"
+        assert play["pitch_type_key"] == _PITCH_TYPE
+        assert (play["pitch_speed"], play["stance"], play["batting_side"]) == (
+            None,
+            None,
+            None,
         )
-    } == {
-        "state.count.balls": "1",
-        "state.count.strikes": "0",
-        "state.outs": "0",
-        "state.inning": "1",
-        "state.half": "top",
-    }
-    # ボール1球では打席は継続し、打順は変わらない。
-    assert recorded["state"]["state.battingOrder"] == "1"
-    _assert_recorded_once(db, value["d5"])
+        assert (play["press"], play["fake_run"]) == (None, None)
+        assert (play["batter_id"], play["pitcher_id"], play["catcher_id"]) == (
+            str(_BATTER),
+            str(_PITCHER),
+            str(_CATCHER),
+        )
+        assert UUID(play["source_event_id"])
+        _assert_recorded_once(db, value["d5"])
+
+        # 負例1: 2球目（保存初球の写しを1行足す）。
+        row_id = _second_play_row(db)
+        try:
+            second = _run_case(db, _read_case(db))
+        finally:
+            _tamper(
+                db,
+                "DELETE FROM public.play_rows WHERE tenant_id=%s AND id=%s",
+                (db.tenant_id, row_id),
+            )
+        # 負例2: 訂正（保存イベントの置換印）。
+        _tamper(
+            db,
+            "UPDATE public.operation_events SET replaced_at=now() "
+            "WHERE tenant_id=%s AND game_id=%s",
+            (db.tenant_id, db.game_id),
+        )
+        try:
+            corrected = _run_case(db, _read_case(db))
+        finally:
+            _tamper(
+                db,
+                "UPDATE public.operation_events SET replaced_at=NULL "
+                "WHERE tenant_id=%s AND game_id=%s",
+                (db.tenant_id, db.game_id),
+            )
+        # 負例3: 墓標（is_tombstone=true の保存状態）。
+        tombstone = _tombstone_once(db, lambda: _run_case(db, _read_case(db)))
+        # 負例4: 破損（保存PlayRowの座標が再評価値と食い違う）。
+        _tamper(
+            db,
+            "UPDATE public.play_rows SET course_x=0.25 "
+            "WHERE tenant_id=%s AND game_id=%s",
+            (db.tenant_id, db.game_id),
+        )
+        try:
+            corrupt = _run_case(db, _read_case(db))
+        finally:
+            _tamper(
+                db,
+                "UPDATE public.play_rows SET course_x=%s "
+                "WHERE tenant_id=%s AND game_id=%s",
+                (_COURSE[0] / 263, db.tenant_id, db.game_id),
+            )
+        # 負例5: 別tenant（実ログインした別tenantからは404で非開示）。
+        foreign = _run_case(
+            db,
+            {
+                "phase": "foreign",
+                "tenant": str(db.tenant_id),
+                "game": str(db.game_id),
+                "team_name": db.team_name,
+                "password": _PASSWORD,
+                "other_tenant": str(db.other_tenant_id),
+                "other_team_name": db.other_team_name,
+            },
+        )
+
+    assert second["read_status"] == corrected["read_status"] == 409
+    assert tombstone["read_status"] == 409
+    # 409は記録後GETの固定外形で、どの記録でも同じ本文になる。
+    assert second["read_text"] == corrected["read_text"] == tombstone["read_text"]
+    assert "game_id" not in second["read_text"]
+    assert corrupt["read_status"] == 503
+    assert "game_id" not in corrupt["read_text"]
+    assert foreign["read_status"] == 404
+    assert case["game"] not in foreign["read_text"]
+    assert case["tenant"] not in foreign["read_text"]
+    # 負例の後片付けが効いていることを、同じ製品入口で再確認する。
+    restored = _run_case(db, _read_case(db))
+    assert restored["read_status"] == 200
+    assert restored["read_body"]["read_kind"] == "recorded"
 
 
 def _assert_recorded_once(db: Any, d5: str) -> None:
