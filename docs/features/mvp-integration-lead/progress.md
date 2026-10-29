@@ -463,6 +463,19 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **残差**: ①authz route-registry 2 route の provenance＋`--reseal-derived` ②frontend 作成画面/provider/一覧導線 ③U5基盤での「画面で作成→開始」E2E ④統合候補への取込（認可registryと画面が揃ってから）。
 - **記録**: 候補環境の成功（service/contract）と正式受理（7.7の単一受理・前後値・レビュー）を分離。`PENDING_ACCEPTANCE` の history は候補であり、受理済みとは扱わない。
 
+### 2026-10-30（続き10）：統合候補で「画面から新規作成→開始」を実測（統合後の再確認）
+
+**固定点 `b23898f2`**（`feature/mvp-first-ball-vertical`、push済）。作成候補 `d8948c65` を統合候補へ **ff 取込**し、**同一候補環境で再実行**して確認した。
+
+- **実測（統合後の vertical）**: `tests/db/test_screen_start_e2e.py` = **3 passed / 119.83s**。
+  - ①画面で新規作成→POST /games 201→記録画面→端末登録→スタメン→**開始**→GET /started initial 200
+  - ②画面で開始（準備中seed）
+  - ③API保存済み1球の**明示**復元（after=1・before=0・履歴1）
+- **作成中継**: 一覧の「新規作成」→作成フォーム→作成応答→記録画面。frontend 2543 passed（候補時）。
+- **正直な範囲**: ①は実ブラウザの連続操作として成立。③は**画面から初球を保存した連続縦断ではなく**、API縦断で保存した記録の明示復元。reload 自動復元は未実測（unitのみ）。初球保存は座標ゲート待ち。
+- **残差**: authz route-registry の作成2 route の provenance＋再封印（`--skip-oracle` は ok のまま）、座標計画の非作者レビュー（実行中）→ADR v0.10/要件 v2.18→U3、A31環境。
+- **記録**: 候補枝成功→統合枝での再実測、の順で確認。枝単独の成功を縦断成立としていない。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
