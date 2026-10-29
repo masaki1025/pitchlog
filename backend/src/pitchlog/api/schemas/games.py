@@ -14,7 +14,7 @@ from uuid import UUID
 
 from pydantic import Field, field_validator
 
-from pitchlog.api.schemas.base import BaseSchema, EntityId, PageRequest, Timestamp
+from pitchlog.api.schemas.base import BaseSchema, EntityId, Page, PageRequest, Timestamp
 from pitchlog.db.game_state.rule_snapshot import (
     DomainValidatedRuleSnapshot,
     decode_applied_rules,
@@ -39,6 +39,14 @@ class NewTournament(BaseSchema):
 
     kind: Literal["new"]
     display_name: str = Field(min_length=1)
+
+    @field_validator("display_name")
+    @classmethod
+    def reject_blank_name(cls, value: str) -> str:
+        """空白だけを拒否し、有効な入力のUnicode表現は変えない。"""
+        if value.isspace():
+            raise ValueError("大会名は空白だけにできません")
+        return value
 
 
 TournamentSelection = Annotated[
@@ -77,6 +85,75 @@ class PreparingGameRead(BaseSchema):
     game_number_label: str | None
     status: Literal["preparing"]
     applied_rules: dict[str, object]
+
+    @field_validator("scheduled_at")
+    @classmethod
+    def normalize_scheduled_at(cls, value: datetime) -> datetime:
+        """保存後readと同じUTC表現へ揃え、同一instantは変更しない。"""
+        return value.astimezone(timezone.utc)
+
+
+def encode_preparation_options_cursor(key: str) -> str:
+    """大会キーを値を変えずに不透明なページ位置へ写す。"""
+    if type(key) is not str or not key:
+        raise ValueError("大会キーは空でない文字列が必要")
+    return base64.urlsafe_b64encode(key.encode("utf-8")).decode("ascii").rstrip("=")
+
+
+def decode_preparation_options_cursor(cursor: str) -> str:
+    """正規形のページ位置だけを元の大会キーへ戻す。"""
+    if type(cursor) is not str or not cursor:
+        raise ValueError("大会ページ位置が不正")
+    try:
+        key = base64.b64decode(
+            cursor + "=" * (-len(cursor) % 4), altchars=b"-_", validate=True
+        ).decode("utf-8")
+        if encode_preparation_options_cursor(key) != cursor:
+            raise ValueError
+        return key
+    except (binascii.Error, UnicodeError, ValueError):
+        raise ValueError("大会ページ位置が不正") from None
+
+
+class PreparationOptionsRequest(PageRequest):
+    """有効大会のページ件数と位置を指定する。"""
+
+    limit: int = Field(default=20, ge=1, le=PREPARING_GAME_PAGE_SIZE_MAX, strict=True)
+
+    @field_validator("limit", mode="before")
+    @classmethod
+    def parse_query_limit(cls, value: object) -> object:
+        """既存のHTTP件数表記と同じ規則を使う。"""
+        return PreparingGameListRequest.parse_query_limit(value)
+
+    @field_validator("cursor")
+    @classmethod
+    def validate_cursor(cls, value: str | None) -> str | None:
+        """位置があれば正規形であることを検査する。"""
+        if value is not None:
+            decode_preparation_options_cursor(value)
+        return value
+
+
+class PreparationGameTypeOption(BaseSchema):
+    """正本seedから供給する固定試合区分の表示。"""
+
+    key: GameTypeKey
+    display_name: str = Field(min_length=1)
+
+
+class PreparationTournamentOption(BaseSchema):
+    """テナント内で有効な大会のキーと表示名。"""
+
+    key: str = Field(min_length=1)
+    display_name: str = Field(min_length=1)
+
+
+class PreparingGamePreparationOptions(BaseSchema):
+    """固定区分とページングした大会選択肢。"""
+
+    game_types: list[PreparationGameTypeOption]
+    tournaments: Page[PreparationTournamentOption]
 
 
 def _copy_preparing_snapshot_json(value: ImmutableValue) -> object:
