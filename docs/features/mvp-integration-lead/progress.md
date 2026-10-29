@@ -362,6 +362,23 @@ pin 102箇所＋264点ベクタ＋manifest＋非作者レビュー＋ADR v0.10/�
 
 **現在地**: 画面縦断は未達。U2（開始の部品）は緑。次は **U5（E2E基盤: broker/RG1常駐＋開始seed）** でU2の実ブラウザ受入を作り、D19裁定後にU1（作成）、座標ゲート後にU3、その後にU4（サーバー再取得の復元）。
 
+### 2026-10-30（続き3）：U5（実ブラウザE2E基盤）の設計確定
+
+U2の実ブラウザ受入に必要な U5 の構造を確定した（コードは未着手。設計のみ）。
+
+**現行E2Eとの差**: `GameScreenE2eServer.py` はホストユーザの uvicorn を起動するため、RG1 broker（UID照合）を使う開始は成立しない。開始は app を **uid 20003 のコンテナ**で動かす必要がある（`test_first_ball_vertical_http.py` の実績）。
+
+**U5の構成（次回実装）**
+1. pytest  orchestrator（新規 `backend/tests/db/test_screen_start_e2e.py`）: owned PG＋`broker_worker`＋`binding_broker`＋`_prepare_app_configuration` を流用し、**app コンテナを `--network host` で uvicorn 常駐**（`PITCHLOG_DATABASE_URL` は business socket、`/control`・`/run/pitchlog` をマウント、`PITCHLOG_ALLOWED_ORIGINS` は Vite origin）。
+2. Vite をホストで起動し `/api` を app コンテナの host port へ proxy（`GameScreenE2eSupport.ts` の proxy 規則を流用）。Playwright は Vite URL を baseURL にする。
+3. seed: 既存 `start_database` の20選手＋規則＋語彙（`batting-result.ball`・pitch_type）＋preparing `game_other`。tenant ログインは既存fixture。
+4. spec（新規 `GameScreenStart.e2e.ts`）: login→`/games/{id}/record`→「この端末を登録」→スタメン40 select（DH有無で 9+DH+投手 か 9ポジション）→「試合を開始」→`GET /started` initial 200 と応答（d4/proof/lineup）を実HTTPで確認。
+5. 受入: 実ブラウザ・実API・実broker・実PG。固定応答・仮Portなし。終了後にコンテナ/volume 0。
+
+**注意**: `GameScreenStart.vue` のスタメンは全行の選手と守備位置の選択が必須（`complete` 条件）。DH時は 1〜9番に DH を1つ含め、10行目を投手専用にする。spec は `detail.applied_rules.dh` を読んで分岐する。
+
+**現在地**: U2（開始の部品）は `74785d0f` で緑。U5 は設計のみ。次は U5 実装 → U2受入 → D19裁定後U1 → 座標ゲート後U3 → U4。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
