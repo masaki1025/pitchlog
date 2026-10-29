@@ -6542,6 +6542,8 @@ def test_started_read_http_formal_registry_registers_the_real_get_and_caps() -> 
         'RecordingGenerationLockToken', 'StartedLineupsReadToken',
         'StartedEventSlotsExistenceToken', 'StartedOperationEventsExistenceToken',
         'StartedPlayRowsExistenceToken', 'PlayerReadToken',
+        'IdempotencyLedgerReadToken', 'RecordedEventRowsReadToken',
+        'RecordedEventSlotsReadToken', 'RecordedPlayRowsReadToken',
     ]
     for key in expected:
         assert key not in {
@@ -6689,7 +6691,9 @@ def test_started_read_http_provenance_rejects_real_source_drift(
         if (name == 'backend/src/pitchlog/repositories/started_read.py'
                 and mutation == 'extra-token-used'):
             text += '\n_unused = ExtraReadToken\n'
-        if (name == 'backend/src/pitchlog/repositories/started_snapshot.py'
+        # 記録後readerも同じtokenを使うため、両方から消して「未使用」を作る。
+        if (name in ('backend/src/pitchlog/repositories/started_snapshot.py',
+                     'backend/src/pitchlog/repositories/recorded_snapshot.py')
                 and mutation == 'missing-token-used'):
             text = text.replace('run(StartedLineupsReadToken(game_id))', 'run(None)')
         if name == checker._STARTED_READ_HTTP_PLAN_PATH:

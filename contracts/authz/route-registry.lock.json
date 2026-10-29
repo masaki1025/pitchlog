@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "365adfb9e26fa31b6b49e322880f9a5e9ec582f5d56da41766a2ade3f0a9c750",
+  "asset_digest": "e0524201691b41b388817bb9d403090d3d2b778af915e65db994cc7d5e79fc3a",
   "entry_count": 248,
-  "aggregate_decision_digest": "fac410d99a5243ecb99535403ba4070603c7322cda3b535c65a466f9fced733d",
+  "aggregate_decision_digest": "c5af8efeaf09469842a18d8ad317bfb2958aca21469d9cc4601ca75790a5b538",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -804,11 +804,15 @@
           "STARTED-READ-TOKEN:StartedEventSlotsExistenceToken",
           "STARTED-READ-TOKEN:StartedOperationEventsExistenceToken",
           "STARTED-READ-TOKEN:StartedPlayRowsExistenceToken",
-          "STARTED-READ-TOKEN:PlayerReadToken"
+          "STARTED-READ-TOKEN:PlayerReadToken",
+          "STARTED-READ-TOKEN:IdempotencyLedgerReadToken",
+          "STARTED-READ-TOKEN:RecordedEventRowsReadToken",
+          "STARTED-READ-TOKEN:RecordedEventSlotsReadToken",
+          "STARTED-READ-TOKEN:RecordedPlayRowsReadToken"
         ],
         "operation": "read"
       },
-      "decision_digest": "d00ac6fa122f9c111fd0b364f82092e951fbf60ac9b51aa082689813ebc12438"
+      "decision_digest": "fb390adf4c6056ca545799f12a0e3ff666a976d4d778f42a1fa73b777dbe355c"
     },
     {
       "entry_id": "route:ROUTE:RECORD:trusted_devices:insert",

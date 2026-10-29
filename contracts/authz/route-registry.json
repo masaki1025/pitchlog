@@ -111,7 +111,7 @@
     {
       "provenance_id": "HTTP:started_game_detail",
       "path": "backend/src/pitchlog/api/routers/started_games.py",
-      "extracted_text": "@router.get(\n    \"/games/{game_id}/started\",\n    response_model=StartedGameRead,\n    operation_id=\"started_game_detail\",\n)\ndef read_started_game_detail(\n    game_id: UUID,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n) -> StartedGameRead:\n    \"\"\"不可視・別tenant・不存在を同じ404へ閉じ、記録後は409を返す。\"\"\"\n    try:\n        with tenant_transaction_scope(context) as scope:\n            result = read_started_game(scope, game_id)\n            item = _read(result) if type(result) is StartedGameView else None\n    except Exception:\n        # rollback後に固定外形だけを返し、DB値や原例外を公開しない。\n        raise HTTPException(status_code=503) from None\n    if type(result) is StartedReadNotVisible:\n        raise HTTPException(status_code=404)\n    if type(result) is StartedReadRecorded:\n        raise HTTPException(status_code=409)\n    if item is None:\n        raise HTTPException(status_code=503)\n    return item"
+      "extracted_text": "@router.get(\n    \"/games/{game_id}/started\",\n    response_model=StartedGameReadResponse,\n    operation_id=\"started_game_detail\",\n)\ndef read_started_game_detail(\n    game_id: UUID,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n) -> StartedGameRead | StartedRecordedGameRead:\n    \"\"\"不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。\"\"\"\n    try:\n        with tenant_transaction_scope(context) as scope:\n            result = read_started_game(scope, game_id)\n            if type(result) is StartedGameView:\n                item: StartedGameRead | StartedRecordedGameRead | None = _read(result)\n            elif type(result) is StartedRecordedView:\n                item = _read_recorded(result)\n            else:\n                item = None\n    except Exception:\n        # rollback後に固定外形だけを返し、DB値や原例外を公開しない。\n        raise HTTPException(status_code=503) from None\n    if type(result) is StartedReadNotVisible:\n        raise HTTPException(status_code=404)\n    if type(result) is StartedReadRecorded:\n        # 2球目以降・訂正・墓標・失効世代など、初球1件を閉じて返せない記録。\n        raise HTTPException(status_code=409)\n    if item is None:\n        raise HTTPException(status_code=503)\n    return item"
     },
     {
       "provenance_id": "STARTED-READ-TOKEN:GameLockToken",
@@ -197,6 +197,26 @@
       "provenance_id": "CAP:initial_right:lookup_existing_start_attempt",
       "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
       "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"非作成lookupだけの能力を返す。\"\"\"\n        return \"CAP:initial_right:lookup_existing_start_attempt\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:IdempotencyLedgerReadToken",
+      "path": "backend/src/pitchlog/sync/tokens.py",
+      "extracted_text": "_capability_id = \"CAP:idempotency_ledger:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordedEventRowsReadToken",
+      "path": "backend/src/pitchlog/repositories/recorded_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:operation_events:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordedEventSlotsReadToken",
+      "path": "backend/src/pitchlog/repositories/recorded_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:event_slots:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordedPlayRowsReadToken",
+      "path": "backend/src/pitchlog/repositories/recorded_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:play_rows:read\""
     }
   ],
   "routes": [
@@ -804,7 +824,11 @@
         "STARTED-READ-TOKEN:StartedEventSlotsExistenceToken",
         "STARTED-READ-TOKEN:StartedOperationEventsExistenceToken",
         "STARTED-READ-TOKEN:StartedPlayRowsExistenceToken",
-        "STARTED-READ-TOKEN:PlayerReadToken"
+        "STARTED-READ-TOKEN:PlayerReadToken",
+        "STARTED-READ-TOKEN:IdempotencyLedgerReadToken",
+        "STARTED-READ-TOKEN:RecordedEventRowsReadToken",
+        "STARTED-READ-TOKEN:RecordedEventSlotsReadToken",
+        "STARTED-READ-TOKEN:RecordedPlayRowsReadToken"
       ],
       "operation": "read"
     },

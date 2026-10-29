@@ -2641,9 +2641,13 @@ _STARTED_READ_HTTP_SOURCE_OPERATIONS = (
     "backend/src/pitchlog/repositories/started_snapshot_operations.py"
 )
 _STARTED_READ_HTTP_SOURCE_ROSTER = "backend/src/pitchlog/repositories/roster.py"
+_STARTED_READ_HTTP_SOURCE_RECORDED = (
+    "backend/src/pitchlog/repositories/recorded_snapshot_operations.py"
+)
 _STARTED_READ_HTTP_READER_PATHS = (
     "backend/src/pitchlog/repositories/started_read.py",
     "backend/src/pitchlog/repositories/started_snapshot.py",
+    "backend/src/pitchlog/repositories/recorded_snapshot.py",
 )
 # 新しい論理routeも独自CAPも作らず、既存games:readの論理routeへ、実operationと
 # 読取tokenの実CAPを個別に結ぶ。(operation_id, path, 関数名, 論理route, (token型, 実CAP)...)
@@ -2658,7 +2662,12 @@ _STARTED_READ_HTTP_BINDINGS = (
       ("StartedEventSlotsExistenceToken", "CAP:event_slots:read"),
       ("StartedOperationEventsExistenceToken", "CAP:operation_events:read"),
       ("StartedPlayRowsExistenceToken", "CAP:play_rows:read"),
-      ("PlayerReadToken", "CAP:players:read"))),
+      ("PlayerReadToken", "CAP:players:read"),
+      # 記録後read（保存初球1件）が同じ論理routeで使う既CAP。
+      ("IdempotencyLedgerReadToken", "CAP:idempotency_ledger:read"),
+      ("RecordedEventRowsReadToken", "CAP:operation_events:read"),
+      ("RecordedEventSlotsReadToken", "CAP:event_slots:read"),
+      ("RecordedPlayRowsReadToken", "CAP:play_rows:read"))),
 )
 # token型ごとの宣言source と、宣言の種別(class直下の代入名 / property名)。
 _STARTED_READ_HTTP_TOKEN_DECLARATIONS = {
@@ -2672,6 +2681,10 @@ _STARTED_READ_HTTP_TOKEN_DECLARATIONS = {
         _STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
     "StartedPlayRowsExistenceToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
     "PlayerReadToken": (_STARTED_READ_HTTP_SOURCE_ROSTER, "capability_id"),
+    "IdempotencyLedgerReadToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "RecordedEventRowsReadToken": (_STARTED_READ_HTTP_SOURCE_RECORDED, "_capability"),
+    "RecordedEventSlotsReadToken": (_STARTED_READ_HTTP_SOURCE_RECORDED, "_capability"),
+    "RecordedPlayRowsReadToken": (_STARTED_READ_HTTP_SOURCE_RECORDED, "_capability"),
 }
 _STARTED_READ_HTTP_TOKEN_PREFIX = "STARTED-READ-TOKEN:"
 _STARTED_READ_HTTP_OPERATION_KEY = "HTTP:" + _STARTED_READ_HTTP_BINDINGS[0][0]
