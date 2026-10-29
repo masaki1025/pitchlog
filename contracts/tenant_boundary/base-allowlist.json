@@ -30861,6 +30861,54 @@
         "PSYCOPG_CONNECTION_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/recording_rights/rg1_allowed/borrower.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.preparing_game_creation._preparing_game_insert_statement",
+      "signature": "_preparing_game_insert_statement() -> Insert",
+      "allowed_api_ids": [
+        "SQLA_INSERT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_game_insert_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.preparing_game_creation._preparing_tournament_insert_statement",
+      "signature": "_preparing_tournament_insert_statement() -> Insert",
+      "allowed_api_ids": [
+        "SQLA_INSERT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_tournament_insert_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.preparing_game_creation._preparing_tournament_options_statement",
+      "signature": "_preparing_tournament_options_statement(cursor_key: str | None=None) -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_tournament_options_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.preparing_game_creation._preparing_tournament_name_exists_statement",
+      "signature": "_preparing_tournament_name_exists_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_tournament_name_exists_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.preparing_game_creation._preparing_tournament_parent_statement",
+      "signature": "_preparing_tournament_parent_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_tournament_parent_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.preparing_game_creation._preparing_team_lock_statement",
+      "signature": "_preparing_team_lock_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_team_lock_statement.py"
     }
   ],
   "conditions": [

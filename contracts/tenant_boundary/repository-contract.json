@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 32,
+  "contract_revision": 33,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:32"
+        "contract_revision:33"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -66,6 +66,30 @@
         "reason": "リポジトリ公開面と戻り値制約を本 PR の受理後基準として初めて確定するため。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "PENDING_ACCEPTANCE",
+        "new_baseline_identifiers": [
+          "contract_revision:33"
+        ],
+        "previous_baseline_identifiers": [
+          "contract_revision:32"
+        ],
+        "change": {
+          "subject": "準備中作成のrepository operation surfaceを隔離候補として追加する",
+          "before": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "cc61773580e188f07b7a9151d5ea1766d4d65ad20ea46b8c3d49e6d893e7a7ce"
+          },
+          "after": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "d38e2779165ed70149316cfe842358191b4a934f692243f3efa33ab732b88af0"
+          }
+        },
+        "movement_fact": "既存の受理済みbaselineに、作成用の3 CAPと7 tokenを追加する。",
+        "reason": "POST /games と GET /games/preparation-options を隔離候補で接続するため。正式受理は7.7の単一受理で行う。",
+        "approved_by": "未承認(候補・非作者レビュー待ち)",
+        "approved_on": "未承認(候補・非作者レビュー待ち)"
       }
     ]
   },
@@ -169,7 +193,10 @@
     "CAP:tenants:read",
     "CAP:game_lineups:read",
     "CAP:play_rows:read",
-    "CAP:play_rows:insert"
+    "CAP:play_rows:insert",
+    "CAP:games:insert",
+    "CAP:tenant_vocabularies:insert",
+    "CAP:tenant_vocabularies:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -227,7 +254,14 @@
     "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
     "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
     "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
-    "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken"
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -244,5 +278,5 @@
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding"
   ],
-  "source_digest": "749950b48c924f3756b0db1bdd9b677f0a3fea7cee296c80b94f1c3039ce0d1d"
+  "source_digest": "0fdaa85d2614de4973b6674dff8b862ad1c28f755f420d1c9543c251f8dd473d"
 }

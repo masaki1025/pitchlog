@@ -613,6 +613,9 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:game_lineups:read",
         "CAP:play_rows:read",
         "CAP:play_rows:insert",
+        "CAP:games:insert",
+        "CAP:tenant_vocabularies:insert",
+        "CAP:tenant_vocabularies:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -677,10 +680,17 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
         "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
         "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 56
+    assert len(expected_token_types) == 63
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -718,6 +728,13 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:operation_events:read",
                 "CAP:event_slots:read",
                 "CAP:play_rows:read",
+                "CAP:games:insert",
+                "CAP:tenant_vocabularies:insert",
+                "CAP:tenant_vocabularies:read",
+                "CAP:tenant_vocabularies:read",
+                "CAP:tenant_vocabularies:read",
+                "CAP:team_records:read",
+                "CAP:team_records:read",
             ),
             strict=True,
         )

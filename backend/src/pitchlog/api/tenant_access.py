@@ -23,6 +23,8 @@ _MATCH_OPERATIONS = frozenset(
     {
         "preparing_game_list",
         "preparing_game_detail",
+        "preparing_game_create",
+        "preparing_game_preparation_options",
         "started_game_detail",
         "initial_device_enroll",
         "initial_game_start",
