@@ -3,7 +3,11 @@ import type {
   OneToNineDecimal,
   ProjectionWire,
 } from '../../../contracts/state-transition/initial_game_roster_v1'
-import type { StateSnapshot } from '../../../contracts/state-transition/t2_first_pitch_continuation_v1'
+import type {
+  StateSnapshot,
+  T1Value,
+  T2NoEndCore,
+} from '../../../contracts/state-transition/t2_first_pitch_continuation_v1'
 import { canonicalUuid } from './authIntent'
 import { ApiError, apiRequest } from './client'
 import type { PreparingGame } from './games'
@@ -46,10 +50,60 @@ export interface StartedGame extends Omit<
   state: StateSnapshot
   current_d4: string
 }
+/** 保存初球1行の公開値。物理41列のうち36列（座標2列はcourse 1値へ統合）。 */
+export type StartedPlayRow = Readonly<{
+  id: string
+  game_id: string
+  source_event_id: string
+  play_number: 1
+  batting_order: 1
+  batter_id: string
+  pitcher_id: string
+  catcher_id: string
+  batting_side: '右' | '左' | null
+  stance: string | null
+  strategy_key: string | null
+  strategy_detail_key: string | null
+  strategy_result_key: string | null
+  batter_status: string | null
+  event_kind: 'pitch'
+  course: Readonly<{ unit: '1/263'; x: string; y: string }>
+  pitch_type_key: string
+  batting_result_key: string
+  secondary_batting_result_key: string | null
+  raw_fielder_position: string | null
+  resolved_fielder_id: string | null
+  batted_ball_type: string | null
+  batted_ball_strength: string | null
+  hit_x: number | null
+  hit_y: number | null
+  pickoff_type: string | null
+  pickoff_detail: string | null
+  error_type: string | null
+  raw_error_position: string | null
+  resolved_error_player_id: string | null
+  pitch_speed: number | null
+  press: '0' | '1プレス' | '3プレス' | '両プレス' | null
+  fake_run: '0' | '1プレス' | '3プレス' | '両プレス' | null
+  comment: string | null
+  version: 1
+}>
+export type StartedStatFlags = T1Value['statFlags']
+export type StartedHistoryEntry = T1Value['historyContext'][number]
+/** 記録後（保存済みの先頭1球）の応答。`state` の意味はinitialと同じbefore。 */
+export interface StartedRecordedGame extends Omit<StartedGame, 'read_kind'> {
+  read_kind: 'recorded'
+  after: StateSnapshot
+  history: readonly StartedHistoryEntry[]
+  stat_flags: StartedStatFlags
+  t2: T2NoEndCore
+  play_rows: readonly StartedPlayRow[]
+}
+export type StartedGameRead = StartedGame | StartedRecordedGame
 export type StartedGameResult =
-  | { kind: 'found'; game: StartedGame }
+  | { kind: 'found'; game: StartedGameRead }
   | { kind: 'not-found' }
-  | { kind: 'recorded-unsupported' }
+  | { kind: 'recorded-unavailable' }
 
 type ObjectValue = Record<string, unknown>
 function object(value: unknown): value is ObjectValue {
@@ -243,31 +297,214 @@ function rules(value: unknown): value is AppliedRules {
     typeof value.dh === 'boolean'
   )
 }
-/** transportの閉じた形だけを検証する。計算・権利・Readyを判定しない。 */
-export function isStartedGame(value: unknown): value is StartedGame {
+const INITIAL_KEYS = [
+  'read_kind',
+  'id',
+  'scheduled_at',
+  'game_type_key',
+  'tournament_key',
+  'away_team_record_id',
+  'home_team_record_id',
+  'plate_umpire',
+  'section_label',
+  'week_label',
+  'day_label',
+  'game_number_label',
+  'status',
+  'started_at',
+  'applied_rules',
+  'lineups',
+  'roster',
+  'state',
+  'current_d4',
+] as const
+const RECORDED_KEYS = [
+  ...INITIAL_KEYS,
+  'after',
+  'history',
+  'stat_flags',
+  't2',
+  'play_rows',
+] as const
+const PRESS_STATES = ['0', '1プレス', '3プレス', '両プレス'] as const
+const STAT_FLAG_KEYS = [
+  '投球回算入アウト',
+  '投球数',
+  '奪三振',
+  '与四球',
+  '与死球',
+  '被安打',
+  '被本塁打',
+  '失点',
+  '失策',
+  '打席',
+  '打数',
+  '安打',
+  '本塁打',
+  '塁打',
+  '犠打',
+  '犠飛',
+  '四球',
+  '死球',
+  '三振',
+  '打撃妨害出塁',
+  '走塁妨害出塁',
+  '得点',
+  '打点',
+] as const
+const PLAY_ROW_KEYS = [
+  'id',
+  'game_id',
+  'source_event_id',
+  'play_number',
+  'batting_order',
+  'batter_id',
+  'pitcher_id',
+  'catcher_id',
+  'batting_side',
+  'stance',
+  'strategy_key',
+  'strategy_detail_key',
+  'strategy_result_key',
+  'batter_status',
+  'event_kind',
+  'course',
+  'pitch_type_key',
+  'batting_result_key',
+  'secondary_batting_result_key',
+  'raw_fielder_position',
+  'resolved_fielder_id',
+  'batted_ball_type',
+  'batted_ball_strength',
+  'hit_x',
+  'hit_y',
+  'pickoff_type',
+  'pickoff_detail',
+  'error_type',
+  'raw_error_position',
+  'resolved_error_player_id',
+  'pitch_speed',
+  'press',
+  'fake_run',
+  'comment',
+  'version',
+] as const
+function finiteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+function unitNumber(value: unknown): value is number {
+  return finiteNumber(value) && value >= 0 && value <= 1
+}
+function nullableAny<T>(
+  check: (value: unknown) => value is T,
+): (value: unknown) => value is T | null {
+  return (value): value is T | null => value === null || check(value)
+}
+function pressState(
+  value: unknown,
+): value is (typeof PRESS_STATES)[number] | null {
   return (
-    exact(value, [
-      'read_kind',
-      'id',
-      'scheduled_at',
-      'game_type_key',
-      'tournament_key',
-      'away_team_record_id',
-      'home_team_record_id',
-      'plate_umpire',
-      'section_label',
-      'week_label',
-      'day_label',
-      'game_number_label',
-      'status',
-      'started_at',
-      'applied_rules',
-      'lineups',
-      'roster',
-      'state',
-      'current_d4',
-    ]) &&
-    value.read_kind === 'initial' &&
+    value === null ||
+    (typeof value === 'string' &&
+      (PRESS_STATES as readonly string[]).includes(value))
+  )
+}
+function course(value: unknown): value is StartedPlayRow['course'] {
+  return (
+    exact(value, ['unit', 'x', 'y']) &&
+    value.unit === '1/263' &&
+    decimal(value.x) &&
+    decimal(value.y) &&
+    BigInt(value.x) <= 263n &&
+    BigInt(value.y) <= 263n
+  )
+}
+function playRow(value: unknown): value is StartedPlayRow {
+  return (
+    exact(value, PLAY_ROW_KEYS) &&
+    uuid(value.id) &&
+    uuid(value.game_id) &&
+    uuid(value.source_event_id) &&
+    value.play_number === 1 &&
+    value.batting_order === 1 &&
+    value.version === 1 &&
+    uuid(value.batter_id) &&
+    uuid(value.pitcher_id) &&
+    uuid(value.catcher_id) &&
+    (value.batting_side === null ||
+      value.batting_side === '右' ||
+      value.batting_side === '左') &&
+    value.event_kind === 'pitch' &&
+    course(value.course) &&
+    typeof value.pitch_type_key === 'string' &&
+    value.pitch_type_key.length > 0 &&
+    typeof value.batting_result_key === 'string' &&
+    value.batting_result_key.length > 0 &&
+    nullableString(value.stance) &&
+    nullableString(value.strategy_key) &&
+    nullableString(value.strategy_detail_key) &&
+    nullableString(value.strategy_result_key) &&
+    nullableString(value.batter_status) &&
+    nullableString(value.secondary_batting_result_key) &&
+    nullableString(value.raw_fielder_position) &&
+    nullableString(value.resolved_fielder_id) &&
+    nullableString(value.batted_ball_type) &&
+    nullableString(value.batted_ball_strength) &&
+    nullableAny(unitNumber)(value.hit_x) &&
+    nullableAny(unitNumber)(value.hit_y) &&
+    nullableString(value.pickoff_type) &&
+    nullableString(value.pickoff_detail) &&
+    nullableString(value.error_type) &&
+    nullableString(value.raw_error_position) &&
+    nullableString(value.resolved_error_player_id) &&
+    nullableAny(finiteNumber)(value.pitch_speed) &&
+    pressState(value.press) &&
+    pressState(value.fake_run) &&
+    nullableString(value.comment)
+  )
+}
+function statFlags(value: unknown): value is StartedStatFlags {
+  return (
+    exact(value, STAT_FLAG_KEYS) &&
+    STAT_FLAG_KEYS.every((key) => typeof value[key] === 'boolean')
+  )
+}
+function historyEntry(value: unknown): value is StartedHistoryEntry {
+  if (!exact(value, ['kind', 'difference']) || value.kind !== 'confirmed-play')
+    return false
+  const difference = value.difference
+  if (!exact(difference, ['stateFields', 'scoreboard', 'statFlags']))
+    return false
+  const fields = difference.stateFields
+  if (!object(fields) || Object.keys(fields).length === 0) return false
+  for (const change of Object.values(fields)) {
+    if (
+      !exact(change, ['before', 'after']) ||
+      !decimal(change.before) ||
+      !decimal(change.after)
+    )
+      return false
+  }
+  return exact(difference.scoreboard, []) && statFlags(difference.statFlags)
+}
+function t2(value: unknown): value is T2NoEndCore {
+  if (!exact(value, ['kind', 'evaluation_point', 'basis'])) return false
+  if (
+    value.kind !== 'evaluated-no-end-condition' ||
+    value.evaluation_point !== 'post-play'
+  )
+    return false
+  const basis = value.basis
+  if (!exact(basis, ['regulation', 'cold', 'extra_and_draw', 'walk_off']))
+    return false
+  return ['regulation', 'cold', 'extra_and_draw', 'walk_off'].every((key) => {
+    const part = basis[key]
+    return object(part) && typeof part.kind === 'string'
+  })
+}
+/** initial と recorded で共通の確定状態を検証する（read_kindは呼出側）。 */
+function confirmedState(value: ObjectValue): boolean {
+  return (
     value.status === 'in_progress' &&
     uuid(value.id) &&
     uuid(value.away_team_record_id) &&
@@ -302,7 +539,37 @@ export function isStartedGame(value: unknown): value is StartedGame {
     /^d4\.1\.[A-Za-z0-9_-]{55}$/.test(value.current_d4)
   )
 }
-/** 開始直後の一回読取用。記録後409を保存成功やReadyに昇格しない。 */
+/** transportの閉じた形だけを検証する。計算・権利・Readyを判定しない。 */
+export function isStartedGame(value: unknown): value is StartedGame {
+  return (
+    exact(value, INITIAL_KEYS) &&
+    value.read_kind === 'initial' &&
+    confirmedState(value)
+  )
+}
+/** 記録後の保存初球1件の閉じた形だけを検証する（再計算しない）。 */
+export function isStartedRecordedGame(
+  value: unknown,
+): value is StartedRecordedGame {
+  return (
+    exact(value, RECORDED_KEYS) &&
+    value.read_kind === 'recorded' &&
+    confirmedState(value) &&
+    state(value.after) &&
+    Array.isArray(value.history) &&
+    value.history.length === 1 &&
+    historyEntry(value.history[0]) &&
+    statFlags(value.stat_flags) &&
+    t2(value.t2) &&
+    Array.isArray(value.play_rows) &&
+    value.play_rows.length === 1 &&
+    playRow(value.play_rows[0])
+  )
+}
+/** 開始直後の一回読取用。記録後の内容を保存成功やReadyに昇格しない。
+
+409（初球1件として返せない記録）は `recorded-unavailable` として値で返す。
+*/
 export async function readStartedGame(
   id: string,
   signal?: AbortSignal,
@@ -317,11 +584,13 @@ export async function readStartedGame(
   } catch (error) {
     if (error instanceof ApiError) {
       if (error.status === 404) return { kind: 'not-found' }
-      if (error.status === 409) return { kind: 'recorded-unsupported' }
+      if (error.status === 409) return { kind: 'recorded-unavailable' }
     }
     throw error
   }
-  if (!isStartedGame(value) || value.id !== id)
-    throw new Error('開始済み詳細の応答が不正です')
-  return { kind: 'found', game: value }
+  if (isStartedGame(value) && value.id === id)
+    return { kind: 'found', game: value }
+  if (isStartedRecordedGame(value) && value.id === id)
+    return { kind: 'found', game: value }
+  throw new Error('開始済み詳細の応答が不正です')
 }

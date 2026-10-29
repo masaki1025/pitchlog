@@ -13,7 +13,11 @@ import {
   ApiSessionUnverifiedError,
   ApiTenantVerificationError,
 } from './client'
-import { isStartedGame, readStartedGame } from './startedGame'
+import {
+  isStartedGame,
+  isStartedRecordedGame,
+  readStartedGame,
+} from './startedGame'
 
 const tenant = '11111111-1111-4111-8111-111111111111'
 const other = '33333333-3333-4333-8333-333333333333'
@@ -91,6 +95,107 @@ function fixture(dh = false) {
     current_d4: `d4.1.${'A'.repeat(55)}`,
   }
 }
+
+function statFlags() {
+  return Object.fromEntries(
+    [
+      '投球回算入アウト',
+      '投球数',
+      '奪三振',
+      '与四球',
+      '与死球',
+      '被安打',
+      '被本塁打',
+      '失点',
+      '失策',
+      '打席',
+      '打数',
+      '安打',
+      '本塁打',
+      '塁打',
+      '犠打',
+      '犠飛',
+      '四球',
+      '死球',
+      '三振',
+      '打撃妨害出塁',
+      '走塁妨害出塁',
+      '得点',
+      '打点',
+    ].map((key) => [key, key === '投球数']),
+  )
+}
+function recordedFixture() {
+  const base = fixture()
+  return {
+    ...base,
+    read_kind: 'recorded',
+    after: {
+      ...base.state,
+      stateFields: { ...base.state.stateFields, 'state.count.balls': '1' },
+    },
+    history: [
+      {
+        kind: 'confirmed-play',
+        difference: {
+          stateFields: { 'state.count.balls': { before: '0', after: '1' } },
+          scoreboard: {},
+          statFlags: statFlags(),
+        },
+      },
+    ],
+    stat_flags: statFlags(),
+    t2: {
+      kind: 'evaluated-no-end-condition',
+      evaluation_point: 'post-play',
+      basis: {
+        regulation: { kind: 'before-regulation-completion' },
+        cold: { kind: 'no-configured-cold-condition' },
+        extra_and_draw: { kind: 'before-extra-inning-boundary' },
+        walk_off: { kind: 'top-half-without-score-change' },
+      },
+    },
+    play_rows: [
+      {
+        id: other,
+        game_id: id,
+        source_event_id: tenant,
+        play_number: 1,
+        batting_order: 1,
+        batter_id: tenant,
+        pitcher_id: other,
+        catcher_id: tenant,
+        batting_side: null,
+        stance: null,
+        strategy_key: null,
+        strategy_detail_key: null,
+        strategy_result_key: null,
+        batter_status: null,
+        event_kind: 'pitch',
+        course: { unit: '1/263', x: '132', y: '131' },
+        pitch_type_key: 'u06-first-ball-fastball',
+        batting_result_key: 'batting-result.ball',
+        secondary_batting_result_key: null,
+        raw_fielder_position: null,
+        resolved_fielder_id: null,
+        batted_ball_type: null,
+        batted_ball_strength: null,
+        hit_x: null,
+        hit_y: null,
+        pickoff_type: null,
+        pickoff_detail: null,
+        error_type: null,
+        raw_error_position: null,
+        resolved_error_player_id: null,
+        pitch_speed: null,
+        press: null,
+        fake_run: null,
+        comment: null,
+        version: 1,
+      },
+    ],
+  }
+}
 let pinia: Pinia
 let body: unknown
 let status: number
@@ -164,7 +269,7 @@ it.each([
 })
 it.each([
   [404, 'not-found'],
-  [409, 'recorded-unsupported'],
+  [409, 'recorded-unavailable'],
 ] as const)('HTTP%dだけを値なしの非成功へ写す', async (code, kind) => {
   status = code
   body = { error: { message: '固定エラー' }, holder_device: '非開示値' }
@@ -382,4 +487,102 @@ it('入れ子UUIDと守備位置の末尾改行を正準値として採用しな
   at(role, ['lineups', 'away', 'entries', 0, 'fielding_position']).position =
     '1\n'
   expect(isStartedGame(role)).toBe(false)
+})
+
+it('記録後200をfoundとして写し、initial検証器とは取り違えない', async () => {
+  body = recordedFixture()
+  expect(await readStartedGame(id)).toEqual({ kind: 'found', game: body })
+  expect(isStartedGame(body)).toBe(false)
+  expect(isStartedRecordedGame(body)).toBe(true)
+})
+it.each([
+  [
+    'after欠落',
+    (value: Record<string, unknown>) => {
+      delete value.after
+    },
+  ],
+  [
+    'history 2件',
+    (value: Record<string, unknown>) => {
+      ;(value.history as unknown[]).push((value.history as unknown[])[0])
+    },
+  ],
+  [
+    'history 0件',
+    (value: Record<string, unknown>) => {
+      value.history = []
+    },
+  ],
+  [
+    'play_rows 2件（2球目）',
+    (value: Record<string, unknown>) => {
+      const rows = value.play_rows as unknown[]
+      rows.push(structuredClone(rows[0]))
+    },
+  ],
+  [
+    'stat_flagsのkey欠落',
+    (value: Record<string, unknown>) => {
+      delete (value.stat_flags as Record<string, unknown>)['打点']
+    },
+  ],
+  [
+    'stat_flagsの非bool',
+    (value: Record<string, unknown>) => {
+      ;(value.stat_flags as Record<string, unknown>)['打点'] = 'true'
+    },
+  ],
+  [
+    'play_rowsの除外列tenant_id',
+    (value: Record<string, unknown>) => {
+      ;(value.play_rows as Record<string, unknown>[])[0]!.tenant_id = value.id
+    },
+  ],
+  [
+    'play_rowsの物理座標',
+    (value: Record<string, unknown>) => {
+      ;(value.play_rows as Record<string, unknown>[])[0]!.course = {
+        unit: '1/263',
+        x: 132,
+        y: '131',
+      }
+    },
+  ],
+  [
+    'pressのbool化',
+    (value: Record<string, unknown>) => {
+      ;(value.play_rows as Record<string, unknown>[])[0]!.press = true
+    },
+  ],
+  [
+    'pressの閉集合外',
+    (value: Record<string, unknown>) => {
+      ;(value.play_rows as Record<string, unknown>[])[0]!.press = '2プレス'
+    },
+  ],
+  [
+    't2の未知kind',
+    (value: Record<string, unknown>) => {
+      ;(value.t2 as Record<string, unknown>).kind = 'unknown'
+    },
+  ],
+  [
+    'historyの未知key',
+    (value: Record<string, unknown>) => {
+      ;(value.history as Record<string, unknown>[])[0]!.extra = 1
+    },
+  ],
+  [
+    'topの未知key',
+    (value: Record<string, unknown>) => {
+      value.holder_device = value.id
+    },
+  ],
+] as const)('記録後の不正transportを採用しない: %s', async (_name, change) => {
+  const invalid = structuredClone(recordedFixture()) as Record<string, unknown>
+  change(invalid)
+  expect(isStartedRecordedGame(invalid)).toBe(false)
+  body = invalid
+  await expect(readStartedGame(id)).rejects.toThrow('応答が不正')
 })
