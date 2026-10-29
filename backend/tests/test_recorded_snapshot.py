@@ -712,6 +712,53 @@ def test_r2_locked_generation_must_match_type_and_value(recorded_bundle):
         recorded._read_recorded_calculation(b.handle, b.game_id)
 
 
+_FIXED_NULL_PLAY_COLUMNS = (
+    "strategy_key",
+    "strategy_detail_key",
+    "strategy_result_key",
+    "batter_status",
+    "secondary_batting_result_key",
+    "raw_fielder_position",
+    "resolved_fielder_id",
+    "batted_ball_type",
+    "batted_ball_strength",
+    "hit_x",
+    "hit_y",
+    "pickoff_type",
+    "pickoff_detail",
+    "error_type",
+    "raw_error_position",
+    "resolved_error_player_id",
+    "press",
+    "fake_run",
+    "comment",
+)
+
+
+def test_r2_fixed_null_columns_match_the_writer_declaration() -> None:
+    """payloadに由来しない19列のNULL固定を、writerの宣言と同じ集合で持つ。"""
+    from pitchlog.repositories.first_ball_operations import _NULL_COLUMNS
+
+    assert recorded._FIXED_NULL_COLUMNS == _FIXED_NULL_PLAY_COLUMNS
+    assert set(recorded._FIXED_NULL_COLUMNS) == set(_NULL_COLUMNS) - {
+        "hidden_at",
+        "legacy_row_identifier",
+        "import_batch_id",
+    }
+
+
+@pytest.mark.parametrize("column", _FIXED_NULL_PLAY_COLUMNS)
+@pytest.mark.parametrize("value", ["3プレス", "任意の文字列", 0.5, uuid4()])
+def test_r2_non_null_unverified_column_is_corruption(
+    recorded_bundle, column, value
+):
+    """payloadに由来しない列の非NULLは、原本と再評価の不一致として公開しない。"""
+    b = recorded_bundle
+    b.plays[0][column] = value
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
+        recorded._read_recorded_calculation(b.handle, b.game_id)
+
+
 def test_r2_physical_mismatch_is_rejected(recorded_bundle):
     """保存PlayRowが再評価値と食い違う場合は候補を返さない（物理未照合を公開しない）。"""
     b = recorded_bundle

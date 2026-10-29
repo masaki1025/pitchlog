@@ -5,7 +5,8 @@
 実writer・実権利・実artifact評価）を通す。V7/V8は同じartifact評価と実名簿から
 作る試験入力で、実画面の操作証拠や正式V7採用ではない。
 
-記録後GETの負例は、2球目・訂正・墓標=409、別tenant=404、破損=503 を固定する。
+記録後GETの負例は、2球目・訂正・墓標=409、別tenant=404、破損=503 を固定する
+（破損は保存値と再評価値の不一致と、payloadに由来しない列の非NULL）。
 2球目と墓標の保存状態は、製品triggerが正しく拒否するため、状態の構成に限り
 同じowned PGのtriggerを無効化して作り、観測後に戻す。製品経路の迂回ではない。
 """
@@ -234,7 +235,7 @@ def payload_from_artifact(cookie):
     return v7,v8,dict(participants.model_dump(mode='json',by_alias=True))
 
 def recorded_read(cookie):
-    '''記録後readの製品入口で同じ初球状態を再読込する（HTTP 409は別ステップ）。'''
+    '''記録後readの製品入口で同じ初球状態を再読込する（HTTP 200は別phaseで検査）。'''
     from pitchlog.repositories.recorded_snapshot import RECORDED_PLAY_ROW_COLUMNS
     from pitchlog.repositories.started_read import (
         StartedRecordedView,read_started_game)
@@ -652,6 +653,35 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
             str(_CATCHER),
         )
         assert UUID(play["source_event_id"])
+        # 記録後200の本文にも、保持者・資格・証明・tenantを出さない。
+        recorded_text = json.dumps(read_back, ensure_ascii=False)
+        assert case["tenant"] not in recorded_text
+        lowered = recorded_text.lower()
+        for word in (
+            "tenant_id",
+            "holder_device",
+            "device_id",
+            "credential",
+            "recording_right_proof",
+            "watermark",
+            "prefix",
+            "issuance_order",
+            "granted_at",
+        ):
+            assert word not in lowered
+        # 同じ初球を製品リーダーでも再読込し、HTTP側と同じ値であることを確かめる。
+        recorded = value["recorded"]
+        assert UUID(recorded["source_event_id"])
+        assert recorded["lineup_ids"] == [
+            value["away_lineup_id"],
+            value["home_lineup_id"],
+        ]
+        assert recorded["history"] == 1
+        assert recorded["stat_flag_count"] == 23
+        assert recorded["t2_keys"] == ["basis", "evaluation_point", "kind"]
+        assert recorded["play_row_columns"] == 41
+        assert recorded["play_number"] == 1 and recorded["event_kind"] == "pitch"
+        assert recorded["state"]["state.count.balls"] == "1"
         _assert_recorded_once(db, value["d5"])
 
         # 負例1: 2球目（保存初球の写しを1行足す）。
@@ -698,7 +728,23 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
                 "WHERE tenant_id=%s AND game_id=%s",
                 (_COURSE[0] / 263, db.tenant_id, db.game_id),
             )
-        # 負例5: 別tenant（実ログインした別tenantからは404で非開示）。
+        # 負例5: payloadに由来しない列の非NULL（writerのNULL固定に反する＝破損）。
+        _tamper(
+            db,
+            "UPDATE public.play_rows SET press='3プレス' "
+            "WHERE tenant_id=%s AND game_id=%s",
+            (db.tenant_id, db.game_id),
+        )
+        try:
+            nullable = _run_case(db, _read_case(db))
+        finally:
+            _tamper(
+                db,
+                "UPDATE public.play_rows SET press=NULL "
+                "WHERE tenant_id=%s AND game_id=%s",
+                (db.tenant_id, db.game_id),
+            )
+        # 負例6: 別tenant（実ログインした別tenantからは404で非開示）。
         foreign = _run_case(
             db,
             {
@@ -717,7 +763,8 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
     # 409は記録後GETの固定外形で、どの記録でも同じ本文になる。
     assert second["read_text"] == corrected["read_text"] == tombstone["read_text"]
     assert "game_id" not in second["read_text"]
-    assert corrupt["read_status"] == 503
+    assert corrupt["read_status"] == nullable["read_status"] == 503
+    assert corrupt["read_text"] == nullable["read_text"]
     assert "game_id" not in corrupt["read_text"]
     assert foreign["read_status"] == 404
     assert case["game"] not in foreign["read_text"]
@@ -726,6 +773,17 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
     restored = _run_case(db, _read_case(db))
     assert restored["read_status"] == 200
     assert restored["read_body"]["read_kind"] == "recorded"
+    # 状態構成に使った製品triggerが有効へ戻っていることを、DBの実値で確かめる。
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        assert admin.execute(
+            "SELECT tgname,tgenabled FROM pg_trigger "
+            "WHERE tgname IN ('trg_first_ball_10_lock','trg_first_ball_20_admit',"
+            "'trg_operation_events_content_immutable') ORDER BY tgname"
+        ).fetchall() == [
+            ("trg_first_ball_10_lock", "O"),
+            ("trg_first_ball_20_admit", "O"),
+            ("trg_operation_events_content_immutable", "O"),
+        ]
 
 
 def _assert_recorded_once(db: Any, d5: str) -> None:

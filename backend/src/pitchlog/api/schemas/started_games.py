@@ -79,7 +79,11 @@ class StartedGameRead(_FrozenSchema):
 
 
 PressWire = Literal["0", "1プレス", "3プレス", "両プレス"]
-"""保存 `text` の4状態。boolへ潰さず、`0` と `1` を同じ値にしない。"""
+"""保存 `text` の4状態。boolへ潰さず、`0` と `1` を同じ値にしない。
+
+初球writerはpress/fake_runを常にNULLで保存し、readerは非NULLを破損として
+拒否する。この型は列の閉じた語彙（legacy値をbool化しないこと）を表す。
+"""
 
 FirstBallInteger = Annotated[int, Field(strict=True, ge=1, le=1)]
 """初球の範囲で1に固定された整数。boolの `True` を1として受理しない。"""

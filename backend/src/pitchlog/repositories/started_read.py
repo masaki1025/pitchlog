@@ -1,8 +1,9 @@
 """開始済み試合の再取得入力を、同一TX・同一lock順で組み立てる。
 
 既存の0球reader(``read_initial_started_snapshot``)を改変せず、その前に
-不可視(404)・記録あり(409)・破損(503)を値の種類で振り分ける。認証・現在権利・
-書込許可の証明は返さない。lock順は games の行 → 記録権世代の行である。
+不可視(404)・記録済み（保存初球1件は独立再評価値、それ以外は409）・破損(503)を
+値の種類で振り分ける。認証・現在権利・書込許可の証明は返さない。lock順は
+games の行 → 記録権世代の行である。
 """
 
 from __future__ import annotations
@@ -69,7 +70,7 @@ class StartedReadNotVisible:
 
 @dataclass(frozen=True, slots=True)
 class StartedReadRecorded:
-    """記録が始まった試合。記録後の内容はここでは返さない。"""
+    """初球1件として閉じられない記録。内容はここでは返さない（409へ写す）。"""
 
 
 @dataclass(frozen=True, slots=True)

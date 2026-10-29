@@ -287,7 +287,7 @@ async def test_invisible_games_return_the_preparing_404_bytes(
 async def test_recorded_game_returns_fixed_409_without_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """記録ありは固定の409で、値を含まない(U13の暫定)。"""
+    """1球目として閉じられない記録は固定の409で、値を含まない。"""
     response = await _get_with(
         monkeypatch,
         lambda b: setattr(b, "nonempty", started_read.StartedPlayRowsExistenceToken),
@@ -484,6 +484,33 @@ async def test_recorded_first_ball_is_returned_with_public_values(
     ):
         assert leaked not in play
     assert [context.tenant_id for context in entered] == [_TENANT_A]
+
+
+@pytest.mark.anyio
+async def test_recorded_body_never_contains_recording_right_values(
+    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle
+) -> None:
+    """記録後200の本文bytesにも、保持者・資格・証明・tenantを出さない。"""
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    app, _ = _app(monkeypatch, bundle)
+    response = await _get(app, bundle.game_id)
+    assert response.status_code == 200
+    assert bundle.generation["holder_device"] not in response.text
+    assert str(_TENANT_A) not in response.text
+    lowered = response.text.lower()
+    for word in (
+        "holder_device",
+        "device_id",
+        "credential",
+        "recording_right_proof",
+        "recovery_generation",
+        "watermark",
+        "prefix",
+        "tenant_id",
+        "issuance_order",
+        "granted_at",
+    ):
+        assert word not in lowered
 
 
 @pytest.mark.anyio

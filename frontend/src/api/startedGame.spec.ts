@@ -149,9 +149,17 @@ function recordedFixture() {
       kind: 'evaluated-no-end-condition',
       evaluation_point: 'post-play',
       basis: {
-        regulation: { kind: 'before-regulation-completion' },
+        regulation: {
+          kind: 'before-regulation-completion',
+          regulation_innings: '9',
+          observed_inning: '1',
+          observed_half: 'top',
+        },
         cold: { kind: 'no-configured-cold-condition' },
-        extra_and_draw: { kind: 'before-extra-inning-boundary' },
+        extra_and_draw: {
+          kind: 'before-extra-inning-boundary',
+          configured_extension_limit: null,
+        },
         walk_off: { kind: 'top-half-without-score-change' },
       },
     },
@@ -571,6 +579,51 @@ it.each([
     'historyの未知key',
     (value: Record<string, unknown>) => {
       ;(value.history as Record<string, unknown>[])[0]!.extra = 1
+    },
+  ],
+  [
+    'historyの差分key追加',
+    (value: Record<string, unknown>) => {
+      const entry = (
+        value.history as {
+          difference: { stateFields: Record<string, unknown> }
+        }[]
+      )[0]!
+      entry.difference.stateFields['state.count.strikes'] = {
+        before: '0',
+        after: '0',
+      }
+    },
+  ],
+  [
+    't2のbasis欠落',
+    (value: Record<string, unknown>) => {
+      delete (value.t2 as { basis: Record<string, unknown> }).basis.regulation
+    },
+  ],
+  [
+    't2の契約外regulation',
+    (value: Record<string, unknown>) => {
+      ;(
+        value.t2 as {
+          basis: { regulation: Record<string, unknown> }
+        }
+      ).basis.regulation.regulation_innings = '12'
+    },
+  ],
+  [
+    't2のbasis未知key',
+    (value: Record<string, unknown>) => {
+      ;(value.t2 as { basis: Record<string, unknown> }).basis.walk_off = {
+        kind: 'top-half-without-score-change',
+        extra: true,
+      }
+    },
+  ],
+  [
+    'play_rowsと試合IDの不一致',
+    (value: Record<string, unknown>) => {
+      ;(value.play_rows as Record<string, unknown>[])[0]!.game_id = other
     },
   ],
   [

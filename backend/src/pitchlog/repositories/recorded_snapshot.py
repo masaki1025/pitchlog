@@ -1,6 +1,8 @@
-"""唯一のnative初球を開始原典から再評価するR2-A内部計算候補。
+"""唯一のnative初球を開始原典から再評価するR2-Aの内部計算。
 
-物理41列は返す前に照合するが、正式登録・recorded DTO・実HTTP復元は返さない。
+保存初球の物理41列は、payload/participants の10列と writer がNULL固定する19列を
+全値照合してから候補として返す。DTO公開の可否は呼出側（記録後read）が決め、
+本moduleは HTTP も権利も作らない。
 """
 
 from __future__ import annotations
@@ -66,6 +68,7 @@ from pitchlog.sync.first_ball_payload import (
     FirstBallParticipants,
     FirstBallPayloadValue,
     read_first_ball_payload,
+    select_first_ball_participants,
 )
 from pitchlog.sync.tokens import (
     GameLockToken,
@@ -114,6 +117,30 @@ class RecordedCalculationCandidate:
     verified_play_row: tuple[ImmutableValue, ...]
 
 
+# 初球writerが常にNULLで保存する列（payloadに由来が無い）。非NULLは原本不一致。
+_FIXED_NULL_COLUMNS = (
+    "strategy_key",
+    "strategy_detail_key",
+    "strategy_result_key",
+    "batter_status",
+    "secondary_batting_result_key",
+    "raw_fielder_position",
+    "resolved_fielder_id",
+    "batted_ball_type",
+    "batted_ball_strength",
+    "hit_x",
+    "hit_y",
+    "pickoff_type",
+    "pickoff_detail",
+    "error_type",
+    "raw_error_position",
+    "resolved_error_player_id",
+    "press",
+    "fake_run",
+    "comment",
+)
+
+
 def _positive(value: object) -> int:
     """boolを世代番号へ変換しない。"""
     if type(value) is not int or not 0 < value < 2**63:
@@ -143,29 +170,11 @@ def _same(row: dict[str, Any], expected: dict[str, Any]) -> None:
 
 
 def _participants(roster: InitialRosterProjection) -> FirstBallParticipants:
-    """単一artifactの配置から一意の先頭打者/投手/捕手を抜き出す。"""
-    away, home = roster.teams
-    batters = [
-        p.player.player_id
-        for p in away.participants
-        if p.batting_slot.kind == "slot" and p.batting_slot.slot == "1"
-    ]
-    defense = {
-        position: [
-            p.player.player_id
-            for p in home.participants
-            if any(r.kind == "fielding" and r.position == position for r in p.roles)
-        ]
-        for position in ("1", "2")
-    }
-    if len(batters) != 1 or any(len(v) != 1 for v in defense.values()):
-        raise RecordedSnapshotUnavailable
-    return FirstBallParticipants(
-        batterId=batters[0],
-        pitcherId=defense["1"][0],
-        catcherId=defense["2"][0],
-        battingOrder="1",
-    )
+    """既共有の単一実装で、一意の先頭打者/投手/捕手を取り出す。"""
+    try:
+        return select_first_ball_participants(roster)
+    except (ValueError, TypeError):
+        raise RecordedSnapshotUnavailable from None
 
 
 def _read_recorded_calculation(
@@ -298,20 +307,20 @@ def _read_recorded_calculation(
         )
         _same(
             play,
-            dict(
-                tenant_id=tenant,
-                game_id=game_id,
-                id=row_id,
-                source_event_id=event_id,
-                play_number=1,
-                batting_order=1,
-                event_kind="pitch",
-                version=1,
-                hidden_at=None,
-                import_batch_id=None,
-                legacy_row_identifier=None,
-                migration_unverified=False,
-            ),
+            {
+                "tenant_id": tenant,
+                "game_id": game_id,
+                "id": row_id,
+                "source_event_id": event_id,
+                "play_number": 1,
+                "batting_order": 1,
+                "event_kind": "pitch",
+                "version": 1,
+                "hidden_at": None,
+                "import_batch_id": None,
+                "legacy_row_identifier": None,
+                "migration_unverified": False,
+            },
         )
         ledger = _one(
             run(IdempotencyLedgerReadToken(d5)),
@@ -498,22 +507,27 @@ def _assert_play_row_matches_payload(
 
     observations = payload.v7.observations
     participants = payload.v7.participants
-    expected = {
-        "batter_id": UUID(participants.batter_id),
-        "pitcher_id": UUID(participants.pitcher_id),
-        "catcher_id": UUID(participants.catcher_id),
-        "pitch_type_key": observations.pitch_type_key,
-        "batting_result_key": "batting-result.ball",
-        "course_x": course_unit_to_double(observations.course.x),
-        "course_y": course_unit_to_double(observations.course.y),
-        "pitch_speed": (
-            None
-            if observations.pitch_speed.kmh is None
-            else float(observations.pitch_speed.kmh)
-        ),
-        "stance": observations.stance,
-        "batting_side": observations.batting_side,
-    }
+    # payloadに由来しない19列は、初球writerがNULLで保存する。非NULLは原本と
+    # 独立再評価の不一致であり、公開しない（破損=503）。
+    expected: dict[str, object] = dict.fromkeys(_FIXED_NULL_COLUMNS)
+    expected.update(
+        {
+            "batter_id": UUID(participants.batter_id),
+            "pitcher_id": UUID(participants.pitcher_id),
+            "catcher_id": UUID(participants.catcher_id),
+            "pitch_type_key": observations.pitch_type_key,
+            "batting_result_key": "batting-result.ball",
+            "course_x": course_unit_to_double(observations.course.x),
+            "course_y": course_unit_to_double(observations.course.y),
+            "pitch_speed": (
+                None
+                if observations.pitch_speed.kmh is None
+                else float(observations.pitch_speed.kmh)
+            ),
+            "stance": observations.stance,
+            "batting_side": observations.batting_side,
+        }
+    )
     if any(
         type(play.get(key)) is not type(value) or play.get(key) != value
         for key, value in expected.items()

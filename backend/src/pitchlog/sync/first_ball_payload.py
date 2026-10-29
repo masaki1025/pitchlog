@@ -30,7 +30,11 @@ from pitchlog.domainrt.first_pitch_continuation import (
     _check_frozen_members,
     _WireFrozen,
 )
-from pitchlog.domainrt.initial_game_roster import CanonicalUUID
+from pitchlog.domainrt.initial_game_roster import (
+    CanonicalUUID,
+    InitialRosterProjection,
+    ProjectedEntry,
+)
 
 _ERROR = "初球payloadの閉形式又は期待値が一致しません"
 _Model = TypeVar("_Model", bound=_Frozen)
@@ -157,6 +161,56 @@ def _raw(raw: str) -> object:
         raise TypeError("JSON文字列が必要")
     return json.loads(
         raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+
+
+def select_first_ball_participants(
+    roster: InitialRosterProjection,
+) -> FirstBallParticipants:
+    """単一artifactの配置から一意の先頭打者/投手/捕手を抜き出す。
+
+    配置・打順・守備を計算しない。一意に取れない場合は ValueError とする。
+    保存経路と再評価経路で同じ規則を共有する（単一実装）。
+
+    Args:
+        roster: 開始原典から再構成した名簿の射影。
+
+    Returns:
+        payloadのparticipants閉値（打順は "1" 固定）。
+
+    Raises:
+        ValueError: 先頭打者/投手/捕手が一意に定まらない場合。
+    """
+    away, home = roster.teams
+
+    def unique(
+        entries: tuple[ProjectedEntry, ...], position: str | None
+    ) -> list[ProjectedEntry]:
+        if position is None:
+            return [
+                entry
+                for entry in entries
+                if entry.batting_slot.kind == "slot" and entry.batting_slot.slot == "1"
+            ]
+        return [
+            entry
+            for entry in entries
+            if any(
+                role.kind == "fielding" and role.position == position
+                for role in entry.roles
+            )
+        ]
+
+    batters = unique(away.participants, None)
+    pitchers = unique(home.participants, "1")
+    catchers = unique(home.participants, "2")
+    if len(batters) != 1 or len(pitchers) != 1 or len(catchers) != 1:
+        raise ValueError("先頭打者/投手/捕手を一意に特定できない")
+    return FirstBallParticipants(
+        batterId=batters[0].player.player_id,
+        pitcherId=pitchers[0].player.player_id,
+        catcherId=catchers[0].player.player_id,
+        battingOrder="1",
     )
 
 

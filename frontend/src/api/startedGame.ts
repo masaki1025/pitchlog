@@ -475,16 +475,16 @@ function historyEntry(value: unknown): value is StartedHistoryEntry {
   const difference = value.difference
   if (!exact(difference, ['stateFields', 'scoreboard', 'statFlags']))
     return false
+  // 初球は常に ball なので、差分は balls の before/after 1件だけである。
   const fields = difference.stateFields
-  if (!object(fields) || Object.keys(fields).length === 0) return false
-  for (const change of Object.values(fields)) {
-    if (
-      !exact(change, ['before', 'after']) ||
-      !decimal(change.before) ||
-      !decimal(change.after)
-    )
-      return false
-  }
+  if (!exact(fields, ['state.count.balls'])) return false
+  const balls = fields['state.count.balls']
+  if (
+    !exact(balls, ['before', 'after']) ||
+    !decimal(balls.before) ||
+    !decimal(balls.after)
+  )
+    return false
   return exact(difference.scoreboard, []) && statFlags(difference.statFlags)
 }
 function t2(value: unknown): value is T2NoEndCore {
@@ -497,10 +497,32 @@ function t2(value: unknown): value is T2NoEndCore {
   const basis = value.basis
   if (!exact(basis, ['regulation', 'cold', 'extra_and_draw', 'walk_off']))
     return false
-  return ['regulation', 'cold', 'extra_and_draw', 'walk_off'].every((key) => {
-    const part = basis[key]
-    return object(part) && typeof part.kind === 'string'
-  })
+  const regulation = basis.regulation
+  const cold = basis.cold
+  const extra = basis.extra_and_draw
+  const walkOff = basis.walk_off
+  return (
+    exact(regulation, [
+      'kind',
+      'regulation_innings',
+      'observed_inning',
+      'observed_half',
+    ]) &&
+    regulation.kind === 'before-regulation-completion' &&
+    (regulation.regulation_innings === '7' ||
+      regulation.regulation_innings === '9') &&
+    decimal(regulation.observed_inning) &&
+    (regulation.observed_half === 'top' ||
+      regulation.observed_half === 'bottom') &&
+    exact(cold, ['kind']) &&
+    cold.kind === 'no-configured-cold-condition' &&
+    exact(extra, ['kind', 'configured_extension_limit']) &&
+    extra.kind === 'before-extra-inning-boundary' &&
+    (extra.configured_extension_limit === null ||
+      decimal(extra.configured_extension_limit)) &&
+    exact(walkOff, ['kind']) &&
+    walkOff.kind === 'top-half-without-score-change'
+  )
 }
 /** initial と recorded で共通の確定状態を検証する（read_kindは呼出側）。 */
 function confirmedState(value: ObjectValue): boolean {
@@ -563,7 +585,8 @@ export function isStartedRecordedGame(
     t2(value.t2) &&
     Array.isArray(value.play_rows) &&
     value.play_rows.length === 1 &&
-    playRow(value.play_rows[0])
+    playRow(value.play_rows[0]) &&
+    value.play_rows[0].game_id === value.id
   )
 }
 /** 開始直後の一回読取用。記録後の内容を保存成功やReadyに昇格しない。

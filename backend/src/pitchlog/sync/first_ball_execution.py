@@ -47,6 +47,7 @@ from pitchlog.sync.first_ball_payload import (
     FirstBallPayloadValue,
     FirstBallPlayPayload,
     read_first_ball_payload,
+    select_first_ball_participants,
 )
 from pitchlog.sync.idempotency import _json_value
 from pitchlog.sync.model import SyncEvent
@@ -144,31 +145,12 @@ def _live(state: _Execution) -> None:
 
 def _participants(raw: str) -> FirstBallParticipants:
     """既artifactの射影の一意な打順/守備参照を取り出すだけ。配置を計算しない。"""
-    roster = InitialRosterProjection.model_validate_json(raw)
-    away, home = roster.teams
-    batters = [
-        entry
-        for entry in away.participants
-        if entry.batting_slot.kind == "slot" and entry.batting_slot.slot == "1"
-    ]
-    pitchers = [
-        entry
-        for entry in home.participants
-        if any(role.kind == "fielding" and role.position == "1" for role in entry.roles)
-    ]
-    catchers = [
-        entry
-        for entry in home.participants
-        if any(role.kind == "fielding" and role.position == "2" for role in entry.roles)
-    ]
-    if len(batters) != 1 or len(pitchers) != 1 or len(catchers) != 1:
-        raise FirstBallExecutionError
-    return FirstBallParticipants(
-        batterId=batters[0].player.player_id,
-        pitcherId=pitchers[0].player.player_id,
-        catcherId=catchers[0].player.player_id,
-        battingOrder="1",
-    )
+    try:
+        return select_first_ball_participants(
+            InitialRosterProjection.model_validate_json(raw)
+        )
+    except (ValueError, TypeError):
+        raise FirstBallExecutionError from None
 
 
 def _raw(value: object) -> str:
@@ -508,15 +490,16 @@ def _apply_first_ball_projection(handle, operation):
 
     state = _projecting_state(handle, operation)
     payload = state.payload
+    if payload is None:
+        # _projecting_state でも拒否済み。型検査にも閉値の存在を明示する。
+        raise FirstBallExecutionError
     observations = payload.v7.observations
     participants = payload.v7.participants
     value = _consume_first_ball_projection(
         handle, operation.projected, operation.writer
     )
     rows = handle.run(
-        OperationEventReadToken(
-            value.game_id, value.generation, value.d1
-        )
+        OperationEventReadToken(value.game_id, value.generation, value.d1)
     ).rows
     if type(rows) is not tuple or len(rows) != 1:
         raise FirstBallExecutionError

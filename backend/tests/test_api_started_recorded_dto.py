@@ -164,11 +164,29 @@ def test_verified_columns_are_required(name: str) -> None:
         StartedPlayRow.model_validate(_row(**{name: None}))
 
 
+_PAYLOAD_NULLABLE = ("stance", "batting_side", "pitch_speed")
+
+
+def test_nullable_columns_are_payload_values_or_fixed_null() -> None:
+    """nullable列は payload値3列と、writerがNULL固定する19列へ分かれる。
+
+    19列は reader が NULL を照合し、非NULLは破損（503）として公開しない。
+    DTO が `| None` なのはその NULL を表すためである。
+    """
+    from pitchlog.repositories.recorded_snapshot import _FIXED_NULL_COLUMNS
+
+    assert set(_FIXED_NULL_COLUMNS) | set(_PAYLOAD_NULLABLE) | set(_REQUIRED) == set(
+        StartedPlayRow.model_fields
+    )
+    assert not set(_FIXED_NULL_COLUMNS) & set(_REQUIRED)
+    assert not set(_FIXED_NULL_COLUMNS) & set(_PAYLOAD_NULLABLE)
+
+
 @pytest.mark.parametrize(
     "name", [name for name in _PUBLIC_FIELDS if name not in _REQUIRED]
 )
-def test_unverified_nullable_columns_accept_null(name: str) -> None:
-    """照合対象でないnullable列は、NULLを表現できる型で受ける。"""
+def test_nullable_columns_accept_null(name: str) -> None:
+    """NULLで保存された列を、NULLのまま表現できる。"""
     assert StartedPlayRow.model_validate(_row(**{name: None}))
 
 

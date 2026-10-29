@@ -418,6 +418,8 @@ asyncio.run(run())
                 _clone_started(db, {"recording_generations": {"omit_all": True}}),
             ]
             recorded = _clone_started(db, {})
+            # 記録の存在だけがある部分状態（event_slot 1件・イベント/PlayRowなし）。
+            # 保存初球1件として閉じられないため、記録後GETは409で内容を返さない。
             with psycopg.connect(db.authority.database.business_admin) as admin:
                 admin.execute(
                     "INSERT INTO public.event_slots(tenant_id,game_id,generation,d1) "

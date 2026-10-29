@@ -299,12 +299,14 @@ base-allowlist(DB API symbol の許可表)は指さない。理由は、U13 が�
 | 結果 | 応答 |
 | --- | --- |
 | NotVisible | 404。本文は preparing の 404 と byte 単位で同じ(同じ `HTTPException(404)` の経路) |
-| Recorded | **409、固定の本文。値は含めない**(U13 の暫定。U14 で 200 に置き換える) |
+| Recorded(保存初球1件) | **200。`read_kind:"recorded"`**。after・history(1件)・23flags・T2・PlayRow(公開36列)を含む(2026-10-29 実装追随) |
+| Recorded(初球1件として閉じられない記録: 2球目以降・訂正・墓標・失効世代など) | **409、固定の本文。値は含めない** |
 | Corrupt(`StartedReadCorrupt`)・その他の例外 | 503、固定の本文。`with` の中で例外として抜け、preparing と同じ `except Exception: raise HTTPException(status_code=503) from None`(games.py:110-111。**作者が 2ed8f977 で `git show` して数えた行番号**。レビューの指摘は :109-110 だが、`except` は :110、`raise` は :111)で写す |
 | 成功 | 200 |
 
 - 成功応答の header は既存の `tenant_match_response_headers` が付ける。`no-store`、match ack、challenge の返送。
 - **409 は主担当が確定する点**。A-1 の「他状態は 404」は status が別のものを指し、記録後の in_progress は該当しない。同じ tenant にしか返らないので、B6 の非開示(SP:973-986)にも触れない([推論])。代替案として 503 も挙げておく。ただし 503 では、端末が「一時障害」と誤って再試行し続ける。
+- **2026-10-29 実装追随**: 記録後は保存初球1件だけを 200(`read_kind:"recorded"`)で返し、2球目以降・訂正・墓標・失効世代など初球1件として閉じられない記録は 409 を維持する。破損(保存値と独立再評価値の不一致、payloadに由来しない列の非NULL)は 503。「409 の固定は削除する」(8-3)は、この初球1件の限定つきで読み替える。
 
 ### 4.3 DTO `StartedGameRead`(A-3・A-11: 確定状態と current_d4 だけ)
 
@@ -340,7 +342,7 @@ current_d4: str | None                  # U13 の 200 応答では常に str。n
 
 - `readStartedGame(id, signal)` は `apiRequest('GET', `/games/${id}/started`, {tenantBound:true, signal})` を呼ぶ。
 - 応答は transport の形だけを検証する。業務規則は再計算しない。state と roster の型は `contracts/state-transition/*.d.ts` から import する(既存の前例: frontend/src/domain/initialGameRoster.spec.ts:7)。
-- 結果の写像: 404 → `not-found`、409 → `recorded-unsupported`、それ以外 → 例外。
+- 結果の写像: 404 → `not-found`、409 → `recorded-unavailable`(初球1件として返せない記録)、それ以外 → 例外。
 - route の選択(開始応答をヒントにする、preparing が 404 のときだけ 1 回試す)と、authEpoch の再照合は **U18 の provider の責務**とし、U13 には入れない(A-1 の frontend 側の記述は U18 で実装する)。
 
 ---
@@ -409,7 +411,7 @@ current_d4: str | None                  # U13 の 200 応答では常に str。n
 | H2 | 別 tenant の in_progress 試合、不存在の UUID、hidden、trashed、**import 済みの in_progress(import_batch_id 非 NULL。4.1 節②の NotVisible 条件)**、preparing、finished(fixture で作る)に対して `/started` を呼ぶ | すべて 404。`len(set(bodies)) == 1`。さらに、preparing route の 404 本文と同じ bytes である。match header は無い |
 | H3 | preparing との相互排他 | 開始前: `/games/{id}` が 200、`/started` が 404。開始後: `/games/{id}` が 404、`/started` が 200。既存の :758-775 は変更せずに合格する |
 | H4 | 記録権情報の非開示 | 200 本文の key 集合が DTO 定義と完全一致する。本文の bytes に次が含まれない: holder_device の UUID 文字列、device_id、device_credential の原値、recording_right_proof、recovery_generation の値、`watermark`・`prefix` の key。H2 の 404 本文に d4 が含まれない |
-| H5 | 記録ありの扱い | admin が event_slot を 1 件入れた後に GET すると、409 と固定の本文が返る。値は含まない |
+| H5 | 記録ありの扱い | 保存初球1件が揃った記録では 200 で `read_kind:"recorded"` を返し、after・history(1件)・23flags・T2・PlayRow(公開36列)を含む。2球目以降・訂正・墓標・失効世代など初球1件として閉じられない記録は 409 と固定の本文で値を含まない。破損(保存値と再評価値の不一致、payloadに由来しない列の非NULL)は 503。event_slot だけの部分状態は 409(U13 の隔離試験が固定) |
 | H6 | 破損時の扱い | 次の各ケースで 503 と固定の本文。本文と log に SQL の語・DB の値が出ない。(a) lineup を 1 件欠かした (b) 世代が revoked (c) **世代が retired(retired_at が非 NULL)** (d) **現在の世代が非normalのmigration種別(7.3 節 R2 の宣言どおり 503)** (e) 世代が 0 行。**書込みが無いこと**を、ケースの前後で games・世代・event_slot・event・PlayRow の行 digest(admin 接続)が一致することで確かめる。Corrupt は `with` の中の例外として抜け、`except Exception` で 503 に写る(4.1・4.2 節)。「rollback した」とは書かず、観測するのは書込み 0 と 503 だけとする |
 | H7 | 認証と C2 の順序 | 未認証は 401。Expected-Tenant が別 tenant、または Challenge が不正なら 404。どちらの場合も games への SQL は 0 件 |
 | H8 | app ロールでの lock 読取 | H1 の成功そのものが、app ロールで FOR UPDATE の lock 読取が通ることの実証になる。42501 が出た場合は、DB grant の不足として root に戻し、U13 では grant を作らない |
@@ -448,8 +450,9 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
   - 現在の世代が非normalのmigration種別のとき、N2 は拒否するので、U13 では 503 になる。
   - 緊急の引継ぎは MVP 外(LEAD progress.md:112)なので、範囲外として記録する。
 - **R3 409 の意味**
-  - U14 が入るまでは、1 球目を保存した試合を再取得できない。
+  - U14(初球1件)以降は、保存初球1件を 200 で返し、2 球目以降・訂正・墓標・失効世代など初球1件として閉じられない記録だけを 409 で返す。
   - これは A-11 の「2 球目は範囲外」と同じく、一時的な非成功として表に出す。FR-008 の復元完了は主張しない。
+  - 失効・非 normal 世代を 503 でなく 409 にするのは、原本の破損ではなく「初球を提供できない記録」だからである(2026-10-29 主担当判断。初球1件の範囲を閉じる)。
 
 ---
 
@@ -459,11 +462,11 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
    - ④の分岐で、tsk544 単位 5 の候補 reader(`repositories/recorded_snapshot.py`。plan.md:515-520)を、**同じ handle・同じロック順**で呼ぶ。A-4④に従い、整合方式は A-2 に揃える。
    - N2 は引き続き「記録ありは拒否」のまま残す(plan.md:375)。
 2. **DTO**
-   - `read_kind` を判別子にした union に `"recorded"` を足す。after・scoreboard・history・23flags・T2・PlayRow の一覧を加える。
+   - `read_kind` を判別子にした union に `"recorded"` を足す。after・history・23flags・T2・PlayRow の一覧を加える。`scoreboard` は別 key を作らず `after` の `StateSnapshot` 内に含める。
    - 既存の `"initial"` の形は変えない。frontend は fail-closed なので、U14 では frontend の検証器も同じ commit で更新する。
 3. **HTTP**
-   - 409 の分岐を 200 に置き換える。H5 は「200 で recorded が返る」に書き換え、409 の固定は削除する。
-   - 404・503 の写像と C2 は変えない。
+   - 記録後を 200(`read_kind:"recorded"`)へ置き換える。H5 は「保存初球1件は 200、閉じられない記録は 409」に書き換える(2026-10-29 実装追随)。409 は初球1件の範囲外にだけ残す。
+   - 404・503 の写像と C2 は変えない。破損(不一致)は 503 に閉じる。
 4. **authz 登録**
    - `_STARTED_READ_HTTP_BINDINGS` の同じ行に、記録後の reader が使う token と CAP を末尾追記する。論理 route は `games:read` のまま。
    - 新しい token を足す場合は、repository-contract・operation_registry・base-allowlist の改訂と、7.7 が必要になる見込み。この点で U13 と性質が変わる。
