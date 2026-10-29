@@ -398,6 +398,18 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 
 **現在地**: U2（開始）の受入が閉じた。画面縦断の残りは **U1 作成（D19裁定待ち）**、**U3 初球確定（座標ゲート待ち）**、**U4 再読込復元**（U3の後に recorded/after を含めて完成。初期状態の再取得はU5基盤で先行可）。
 
+### 2026-10-30（続き5）：U4 記録後状態のサーバー復元を画面へ接続
+
+**固定点 `e7064f91`**（push済）。記録画面に「サーバーから復元した状態」を追加し、`readStartedGame` の `initial`/`recorded` を表示へ接続した。
+
+- **現在状態はafter**: `recorded` は `after`、`initial` は `state` を現在状態にする。`before` は別行で表示し、記録後に初期状態へ戻さない。
+- **閉じた失敗**: 404=取得不可、409=初球1件として返せない記録、503/通信断=取得失敗。いずれも**値を表示せず**、再取得で旧値を残さない。認証世代・要求順が変わった応答は採用しない。
+- **自動復元の条件**: 端末が同じ試合を開始した保存記録（IndexedDBの開始応答）がある時だけ自動。無い場合（API縦断で作った記録済み試合など）は「サーバーから復元」の明示操作。見えない試合への `/started` 呼出しを増やさないための条件で、既存の不可視404試験を壊さない。
+- **実測**: 実ブラウザE2E `test_screen_recorded_restore_e2e_uses_server_state` = **1 passed**（製品APIで1球保存→実app/DB/brokerで画面復元: after=1ボール・strikes=0・outs=0・runners=empty・before=0・履歴1・保存初球1）。開始E2Eと合わせ **2 passed / 81.6s**。frontend 全 **2528 passed**、preparing-read E2E 3 passed。
+- **未了（成功へ読み替えない）**: ①「ページ再読込で自動復元」のE2Eは、端末が開始した記録済み試合が必要で、**U3（画面からの初球保存）完了後**に同じspecへ追加する。現状はAPI縦断で保存した試合を明示操作で復元し、サーバー値をDOMと応答の両方で照合。②失敗時の旧値消去は unit 5件で固定（E2Eの503再読込は認証lock/不可視404の干渉で不安定なため、unit側で担保）。
+
+**現在地**: 画面縦断は「開始」「記録済み状態の復元（明示）」まで実インフラで緑。残りは **U1 作成（D19裁定待ち）** と **U3 初球確定（座標ゲート待ち）**、および U3 後の「画面で保存→reload 自動復元」。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
