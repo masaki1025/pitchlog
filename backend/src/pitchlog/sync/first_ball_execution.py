@@ -555,12 +555,13 @@ def _apply_first_ball_projection(handle, operation):
 
 
 def _physical_course(value: object) -> float:
-    """正準座標kを保存用Doubleへ写す唯一の実装を呼ぶ。
+    """正準座標kを保存用Doubleへ写す**隔離候補**を呼ぶ。
 
-    artifact DSL には除算が無く、k/263 は有限小数にならないため、artifact
-    内で binary64 を作れない（frontend/src/domain 全体で `/` 演算0を確認）。
-    screen->k の変換は artifact の責務のまま、k->Double の保存符号化だけを
-    ここに単一実装する。式の重複実装は作らない。
+    artifact DSL には除算が無く（`frontend/scripts/domain-checks/policy.ts` の
+    SlashToken は BigInt 除算のみ、`typedCheck.ts` は number 型を拒否）、
+    現行 artifact は binary64 を作れない。したがって本写像は「確定した単一
+    実装」ではなく、単一artifact操作が供給されるまでの候補である（独立
+    レビュー 2026-10-29 P0=2）。正式採用は D18 ゲートと非作者レビューで行う。
     """
     from pitchlog.sync.first_ball_course import course_unit_to_double
 
