@@ -490,6 +490,14 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **是正 `92453a3e`**: 既存契約を**再利用**し、量子化は**入力形成（D11=A）**、画面⇄保存（B-7/D-6）は既存契約のまま、という**二段階境界**を明記。`B-7:1321`「画面→保存では丸めを行わない」は変換自体の規定で、入力形成の量子化を禁止しない（**B-7の意味変更ではない**）。§4の候補無条件採用を削除。ステップ1を「既存契約の拡張（新しい計算ファイルを作らない）」へ変更。ゲート対象正本（ADR/要件/既存契約/D-6/D-8/D-11/NFR-019(a)/NFR-018(c)/B-3/J2）を列挙。
 - **現在地**: 座標ゲートは**未通過**。三度目の非作者レビュー→ADR-003 v0.10＋要件 v2.18 の改訂→7.3 が必要で、U3（画面初球・reload自動復元）は引き続き座標待ち。作成は統合候補 `b23898f2` で「画面で新規作成→開始」3件緑を維持（docsのみの追加で挙動不変）。
 
+### 2026-10-30（続き13）：座標の指摘対応表・境界仕様を固定（`19217597`）
+
+- `docs/features/course-coordinate-single-operation/review-response.md` を作成。第1回・再レビューの指摘を**同一IDの対応表**（根拠・問題・是正・確認・解消/未解消）に統合し、過去の判定・件数・REPORTは不変更。
+- **解消**: R1-P0-1（ゲート順）／R2-§4・R1-P0-2（k/263の事実と受入）／R1-P0-3・R2-P0-4（既存B-7契約の再利用と二段階境界、B-7の意味変更なし）／y式・十進文法（最大6桁）・クランプ/拒否・size供給・丸め軸。
+- **未解消**: 3層 properties/mutation の実装（ゲート後）／manifest の実体確認／既存float反転の置換とNFR-018(c)例外の失効／V7配置の確定／ADR-003 v0.10・要件 v2.18 の書き換え（ゲート）。
+- **固定**: 候補HEAD `19217597`（計画は `92453a3e`、差分SHA `40b835826c4f22b5cd590c9a7517bf4b6832f70fcbb6e79c9fb8f92d2bb8e0df`）。レビュー回数は2回を保持し、次は**差分確認**（変更節のみ）を既存委任で行う。未解消を残して可決扱いにしない。
+- 作成→開始の到達点（統合後3件緑）は維持。初球確定は座標ゲート未通過のため引き続き封鎖。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
