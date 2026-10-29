@@ -508,6 +508,13 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **ゲート前/後**: 前=ベクタ/oracle/descriptor/正本改訂、後=artifact/pin/manifest/StrikeZone置換/V7/properties/mutation/画面E2E。
 - **非作者の差分確認は未了**（次に実施）。作成→開始の到達点は維持。
 
+### 2026-10-30（続き15）：座標 DSL 実現性の確認と差分確認（否決→是正）
+
+- **DSL 実現性**: artifact は TS→単一JS（`pitchlog-domain.js`）で、ブラウザと Python ホスト（Node）が同一実行。BigInt・十進 codec を既に持つ。**実現可能**と判断。
+- **ただし隔離スクリプトは artifact 検証規則に不適合**（`**`・正規表現・`throw`・三項・`Number`）で、根拠から撤回。artifact 内の `/`・`%` は0件で、`policy.ts` は許可宣言（使用実績ではない）。**artifact 適合の最小プロトタイプはゲート前の別作業**。
+- **差分確認 REPORT3/REPORT4 は否決**（新P0=2/P1=9、新P0=1+残存P0=1/P1=7）。主な是正 `5b402585`・`22200dd5`: D-11 manifest（`backend/domain/manifest.json`）と artifact 宣言の区別・manifest新設、NFR-018(c) の float 反転失効をゲートで確定、文法を最短往復（固定桁上限なし・指数可）へ統一、範囲はクランプ後 `[0,size]` で `size` 超/負値拒否（263.5→264拒否、263.4/-0.5は丸め関数単体の参考）、入出力型（`quantizeCourse` は保存正準整数を返し、x反転は pitcher のみ、yはB-7で1回）、量子化は**別計算 `course-input-quantization` の別契約**として宣言（既存42ケース不変）。
+- **ゲートは未成立**。次の差分確認（`19217597..HEAD`、差分SHAは次に固定）→ ADR/要件改訂→7.3。作成→開始の到達点（`b23898f2` の統合後3件緑）は維持。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
