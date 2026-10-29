@@ -98,6 +98,16 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：記録後GETの非作者査読（否決）と実画面E2E基盤の実測
+
+**記録後GET（HTTP層）の試作と査読**: `GET /games/{id}/started` の recorded 分岐（`read_kind:"recorded"`・`state`=保存初球の独立再評価・認可カタログへ4token追記・frontend検証器の `initial|recorded` 化）を作成し、実HTTP縦断でも **200/recorded・balls=1** まで到達した。ただし非作者敵対レビューは **否決（P0=0/P1=4/P2=5）**、REPORT SHA `ed36d15d6595646436bb8c8a8f8308a5fc3313ee9c041d9fd22b32bf1f37efe7`（`~/.cache/pitchlog/u14-recorded-read-review-20261029/REPORT.md`、対象diff SHA `86bc982a…546a`）。主なP1は ①lock未再生成 ②認可正例/変異試験の未追随とpath和集合による検出力低下 ③例外節から閉じた型を返す既存不変条件違反 ④**recorded DTOが計画必須の after/scoreboard/history/23flags/T2/PlayRow を欠く**（`tsk544 plan:520`・`mvp-started-read-http plan:462`）。
+**処置**: ④は「最小版は計画受入を満たさない」ため**部分実装を採用せず破棄**し、`GET /started` は409のまま（worktree `b048aba3`、縦断1件再確認 green）。製品リーダー層の再読込一致（`repositories/recorded_snapshot` を実DBで照合）は `b048aba3` で固定済み。
+**次回の順序**: ③（except外で分岐）→②（path→token対応の期待集合＋追加4CAPの変異）→④（(a) 必須項目入りDTOの実装＋非作者レビュー、または (b) 計画射程の改訂ゲート）→①（同一段でlock再生成）。DTO設計は新wire意味なので非作者レビュー必須。
+
+**実画面E2E基盤**: `pnpm install --frozen-lockfile --offline`（1.1s）後、`pnpm exec playwright test --config src/screens/GameScreenPreparingRead.playwright.config.ts` = **3 passed/14.3s**（実Chromium・実FastAPI・専用PG・loopback http）。frontend全Vitest **2373 passed/100 files**、prettier/eslint/vue-tsc 成功。ただし初球記録の製品経路（mode固定・commit未配線・enroll/start client不在・V8/座標/語彙未供給・`PITCHLOG_BINDING_CLIENT_CONFIG`未設定）は不変で、実画面の保存・再読込は**未達**。
+
+**PO判断の起票**: `uf8-game-recording` 6-2(iii)（排他の保持単位）を **MVP-D02** として判断表へ追記（A=1球ごとを推奨、実測と整合）。回答まで `PITCH_COMMIT_BLOCKED` は解除しない。
+
 ### 2026-10-29：再送の再掲・記録後再読込・実画面の現在地（`3feb8ed0`/`b048aba3`）
 
 **再送（契約追記は不要だった）**: 正本 `docs/design/sync-protocol.md` は既に DI1〜DI5（4-5/433-441）と 7-3（1169-1190）で「③認可後・V12前のD5照合」「同一内容は保存済み結果を再掲し受理→A5『重複』」「異内容はB3b」「混在はD1昇順の最初のB2/B3で停止・以降未処理」を規定し、6-3-A（884-941）で試行ヘッダ `X-Pitchlog-Sync-Attempt`・attempt_idの耐久固定・異内容への付替え拒否を規定済みだった。不足していたのは**実装の適合**で、契約の新設ではない（版繰り上げ・7.3ゲート不要）。
@@ -251,6 +261,7 @@ MVP-FR-001〜017 / MVP-NFR-001〜012の個別対応は実装場所確認時に�
 | ID | 具体例・現在の根拠 | 選択肢と推奨 | 影響・再開条件 |
 | --- | --- | --- | --- |
 | MVP-D01 | 9回裏2対2→3対2、9回から1点差でコールド可という有効規則。サヨナラとコールドが同時成立。T2引継ぎはoutcome優先だけを未採用と明記。既採用E08はコールド対通常終了だけで、サヨナラには拡張しない | B推奨: walk-off（サヨナラ）を返す。A: cold-end（コールド）を返す。どちらも検知/ロック/宣言促しtrue、自動終了falseは既存方針維持 | 終了理由の正式値・画面表示・契約case/独立期待値が変わる。PO回答後にその範囲だけ正本/契約へ反映。未回答中は仮仕様で確定せず、保存接合・guard等を継続 |
+| MVP-D02 | 記録画面の排他の保持単位（1球ごと vs 記録セッション保持）が未決。`docs/features/uf8-game-recording/design.md` 6-2 (iii) は「資産はセッション保持前提、現行実装は1球ごと」を封鎖解除の前提条件として残す。現行の隔離縦断は1球ごとに writer binding を開閉し、実HTTPで受理→再送再掲（DI2）→attempt衝突の閉拒否まで実測済み | A（推奨）1球ごと: 現行実装・実測・故障半径・再送再掲と整合。B: 記録セッション保持（1球ごとの再認証コスト削減、失効時の巻き戻し範囲大）。C: 同一要求内だけ保持（実質Aと同じ） | 実画面の commit 配線と E2E モードの前提。Aなら `PITCH_COMMIT_BLOCKED` 解除の設計判断は「1球ごと」で確定し、画面は1球=1同期要求として実装する。Bなら lease 寿命・失効時取消・再送範囲の設計が追加で必要 |
 
 実機/運用資源は製品経路準備と並行で具体化し、利用直前の委任外承認が必要なものだけ同表へ追記する。
 
