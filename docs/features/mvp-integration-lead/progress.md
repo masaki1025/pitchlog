@@ -351,6 +351,17 @@ pin 102箇所＋264点ベクタ＋manifest＋非作者レビュー＋ADR v0.10/�
 
 **次の実装（ゲート非依存で先行可能）**: U2 開始（enroll/start/resolve client・耐久保存・開始画面。新しい認可資産の受理は不要）、U4 再読込（`readStartedGame`→`after`表示）、U5 E2E基盤（broker/RG1常駐＋開始seed）。U1はD19の裁定後、U3の座標はD18ゲート後。
 
+### 2026-10-30（続き2）：U2 開始transport・開始画面の移植（緑）
+
+未マージ枝 `feature/mvp-game-start-browser-persistence` から、開始の実HTTP client・端末耐久保存・開始画面/provider を `feature/mvp-first-ball-vertical` へ移植した。**固定点 `74785d0f`**（`95d87c34` U2a + `74785d0f` U2b、push済）。
+
+- **移植**: `frontend/src/api/gameStart.ts`（enroll/start/resolve の閉じた外形検証）、`frontend/src/lib/gameStartPersistence.ts`（device資格・開始要求・原応答の IndexedDB 耐久保存）、`frontend/src/screens/GameScreenStart.vue` / `GameScreenStartProvider.ts`、`GameScreenEntryRecordHost.vue` への接続、`client.ts` の `/devices/enroll` Cookie更新対象。固定応答・仮Portは使わない。
+- **試験**: 追加108件（client/persistence）＋40件（画面/provider/host）＋全frontend **2523 passed**。preparing-read 実ブラウザE2E **3 passed / 17.1s**。eslint/vue-tsc/prettier 成功。
+- **未了（U2の受入）**: 開始の**実ブラウザE2Eは未構築**。理由は U5（broker/RG1常駐＋開始用seed）が無いため。`/games/:id/record` の準備中試合で開始画面は描画されるが、実broker無しでは開始は成立しない（設定未投入は503で閉じる）。
+- **申し送り**: 開始関連4ファイルの `.claude/core-areas.json` 宣言は、core_guard の exact-set 試験（13件）の追随と同一単位で行う（宣言だけ先行すると新規赤）。今回は未宣言のまま（検査を緩める変更はしていない）。
+
+**現在地**: 画面縦断は未達。U2（開始の部品）は緑。次は **U5（E2E基盤: broker/RG1常駐＋開始seed）** でU2の実ブラウザ受入を作り、D19裁定後にU1（作成）、座標ゲート後にU3、その後にU4（サーバー再取得の復元）。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
