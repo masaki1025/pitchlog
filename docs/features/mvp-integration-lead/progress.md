@@ -98,6 +98,21 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：単位A-1〜2 完了（記録後readの内部値・409維持）
+
+- `recorded_snapshot` に**閉じた値**の入口（`RecordedSnapshotNotAvailable` / `try_read_recorded_snapshot`）を追加し、
+  `started_read` の記録後分岐を**例外節の外**（値の種類で分岐）へ変更。既存不変条件テスト
+  「例外節から不可視・記録ありを返さない／handlerは1個」を維持（座標レビューP1-3相当の指摘を先に閉じた）。
+- `StartedRecordedView` に計画必須値を保持: `after`（scoreboard含む）・`history`・`stat_flags`（23flags）・
+  `t2`・`play_row`（41列）。値は保存初球の独立再評価のみで、再計算しない。
+- HTTPは**409のまま**（viewを明示的に409へ写す暫定）。実DB縦断で再読込内部値を固定:
+  history=1／23flags>0／T2キー3件／PlayRow 41列・play_number=1・event_kind=pitch／lineup id一致。
+- 固定点 `b6a90edd`（実DB1件＋started/recorded系unit 325件 green、HTTP挙動不変）。
+
+**次の一手**: 単位A-3（API DTOとrouter 200・frontend型/検証器の同一commit追随、state意味反転の解消）→
+A-4（`check_authz_catalog` のpath→token期待集合＋変異）→ A-5（route-registry原文再取得と**同一段のlock再封印**）→
+A-6（縦断を200/recordedへ、2球目・訂正・墓標は409固定）。その後 C（座標単一artifact）→ B（画面排他）。
+
 ### 2026-10-29：残り3単位の実行順と「一気に」進める際の分割
 
 PO指示「3まで一気に」に対し、3単位はいずれも**別ゲート/別レビュー**を持ち、1回の変更で同時に green を保てない。
