@@ -102,7 +102,7 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 
 - `recorded_snapshot` に**閉じた値**の入口（`RecordedSnapshotNotAvailable` / `try_read_recorded_snapshot`）を追加し、
   `started_read` の記録後分岐を**例外節の外**（値の種類で分岐）へ変更。既存不変条件テスト
-  「例外節から不可視・記録ありを返さない／handlerは1個」を維持（座標レビューP1-3相当の指摘を先に閉じた）。
+  「例外節から不可視・記録ありを返さない／handlerは1個」を維持（記録後GET査読のP1-3を先に閉じた）。
 - `StartedRecordedView` に計画必須値を保持: `after`（scoreboard含む）・`history`・`stat_flags`（23flags）・
   `t2`・`play_row`（41列）。値は保存初球の独立再評価のみで、再計算しない。
 - HTTPは**409のまま**（viewを明示的に409へ写す暫定）。実DB縦断で再読込内部値を固定:
