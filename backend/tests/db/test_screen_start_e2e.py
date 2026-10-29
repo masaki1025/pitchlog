@@ -161,7 +161,11 @@ def _browser_environment(db, spec_config: str, stem: str) -> Iterator[str]:
 
 
 def _run_playwright(
-    db, spec_config: str, origin: str, stem: str
+    db,
+    spec_config: str,
+    origin: str,
+    stem: str,
+    extra_env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """実ブラウザspecを実行し、失敗時は実測logを残す。"""
     result = subprocess.run(  # noqa: S603
@@ -180,6 +184,7 @@ def _run_playwright(
             "PITCHLOG_E2E_TEAM_NAME": db.team_name,
             "PITCHLOG_E2E_PASSWORD": _PASSWORD,
             "PITCHLOG_E2E_GAME_ID": str(db.game_id),
+            **(extra_env or {}),
         },
         capture_output=True,
         text=True,
@@ -253,5 +258,40 @@ def test_screen_recorded_restore_e2e_uses_server_state(
             )
             assert result.returncode == 0, (
                 result.stdout[-8000:],
+                result.stderr[-3000:],
+            )
+
+
+def test_screen_create_start_e2e_uses_real_browser(
+    vertical_database,
+) -> None:
+    """実画面で新規作成し、その試合を開始して開始済み状態を実APIで確認する。"""
+    import psycopg
+
+    db = vertical_database
+    token = uuid4()
+    with db.broker_worker(token), binding_broker(db, token):
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            teams = admin.execute(
+                "SELECT away_team_record_id,home_team_record_id FROM public.games "
+                "WHERE tenant_id=%s AND id=%s",
+                (db.tenant_id, db.game_id),
+            ).fetchone()
+        assert teams is not None
+        with _browser_environment(
+            db, "GameScreenCreateStart.playwright.config.ts", "create"
+        ) as origin:
+            result = _run_playwright(
+                db,
+                "GameScreenCreateStart.playwright.config.ts",
+                origin,
+                "create",
+                {
+                    "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
+                    "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
+                },
+            )
+            assert result.returncode == 0, (
+                result.stdout[-10000:],
                 result.stderr[-3000:],
             )
