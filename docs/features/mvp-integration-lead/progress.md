@@ -484,6 +484,12 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **是正 `98472b66`**: ステップ順を「ベクタ/oracle/descriptor（ゲート前）→7.3→artifact（ゲート後）」へ変更。k/263の事実を訂正し、受入で無条件の正解扱いをしない。2.0で契約との関係（(a)入力形成に限定／(b)契約全体へ拡張をゲート裁定、既定(a)）を明記。y軸・十進文法とBigInt剰余丸め・範囲方針・263の出所・反転と逐語移植例外・V7置き場・封鎖解除前提・3層/manifestを追加。
 - **次**: 是正版の再レビュー→ADR-003 v0.10＋要件 v2.18（T1/T2限定文の書き換えを含む）→7.3。作成は統合候補で「画面で新規作成→開始」3件緑（`b23898f2`）を維持。
 
+### 2026-10-30（続き12）：座標計画の再レビュー否決と既存B-7契約への是正
+
+- **再レビュー: 否決 P0=2 / P1=12 / P2=7**。REPORT2 SHA `（実値はworklog/REPORT2）`。新P0は「既存の座標変換契約 `contracts/display-geometry/coordinate_transform_contract_v1.json`（42ケース・`calculation:"coordinate-transform"`）があるのに、計画が同じ計算の2本目のベクタを作る」＝D-6の「1契約=1対象計算=1ファイル」違反。P0-2は§4の「既存の単一写像（k→Double）」が候補を無条件の合格条件にしていた点。
+- **是正 `92453a3e`**: 既存契約を**再利用**し、量子化は**入力形成（D11=A）**、画面⇄保存（B-7/D-6）は既存契約のまま、という**二段階境界**を明記。`B-7:1321`「画面→保存では丸めを行わない」は変換自体の規定で、入力形成の量子化を禁止しない（**B-7の意味変更ではない**）。§4の候補無条件採用を削除。ステップ1を「既存契約の拡張（新しい計算ファイルを作らない）」へ変更。ゲート対象正本（ADR/要件/既存契約/D-6/D-8/D-11/NFR-019(a)/NFR-018(c)/B-3/J2）を列挙。
+- **現在地**: 座標ゲートは**未通過**。三度目の非作者レビュー→ADR-003 v0.10＋要件 v2.18 の改訂→7.3 が必要で、U3（画面初球・reload自動復元）は引き続き座標待ち。作成は統合候補 `b23898f2` で「画面で新規作成→開始」3件緑を維持（docsのみの追加で挙動不変）。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
