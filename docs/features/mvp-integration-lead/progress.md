@@ -101,7 +101,7 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 ### 2026-10-29：A-3（記録後DTO）非作者査読は否決 — 候補破棄
 
 A-3 の候補（RecordedGameRead union・StartedPlayRow 36列・router 200・実DB縦断200）を作成し、実DB 1件 green まで確認したが、
-非作者敵対レビューは **否決（P0=2/P1=6/P2=6）**、REPORT SHA `b02a54c…`（`~/.cache/pitchlog/a3-recorded-dto-review-20261029/REPORT.md`、
+非作者敵対レビューは **否決（P0=2/P1=6/P2=6）**、REPORT SHA `2a7c6f2c70ab219067277b43f88db159a297680c1e83d8089d0b99c5935757ab`（`~/.cache/pitchlog/a3-recorded-dto-review-20261029/REPORT.md`、
 対象diff SHA `2107c396…59bc`、HEAD `b6a90edd`）。
 
 **P0**: ①`play_rows` は候補型が「物理41列の一致は返さない」と宣言している**未照合値**なのに、全値一致を確かめず 200 で公開していた
