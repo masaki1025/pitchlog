@@ -98,6 +98,33 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：判断の二層化（委任/新規意味）と D02・座標の非作者レビュー
+
+**PO指示の反映**: 判断を「既存PO委任で主担当が決める」「新たな意味判断（PO）」に分け、**回答待ちを初球作業の停止条件にしない**。
+- 委任: D02=A（下記条件付き）・J2=A（単一artifact operationの追加と正本整合を主担当判断で進める。
+  対象版・レビュー・根拠を記録し、PO本人の個別確認としては記録しない）・B-1〜B-3（対象版固定＋非作者レビューと値照合。
+  B-3は隔離枝の値をそのまま正式受理せず、実PRの基線・最終候補から前後値と履歴を照合）・C-1〜C-6。
+- 新規意味: **D01のみ**（9回裏でサヨナラとコールドが同時成立した場合の終了理由。B=サヨナラを推奨案として保持）。
+  初球は D01 を待たずに進める。
+
+**D02=A の確認対象（ブラウザ排他 ≠ サーバーwriter binding）**: 非作者レビュー REPORT SHA `9549c307…640cd7`。
+A は「確定中の排他」については資産と整合するが、**待球中フリーズ・再送主体・担当交代**は未証明で、A単独では
+6-2(iii)を解決しない。サーバー縦断（`test_first_ball_vertical_http.py`）が証明するのは1プロセス1端末1要求の
+受理/再掲/拒否であり、ブラウザ排他を証明しない。必須対向を計画 `mvp-first-ball-screen-commit/plan.md` 8-1 に固定
+（待球中フリーズの非受理、`revalidateSingleWriter` 本番実装、資産v3、実ブラウザ2ページ、同一D5別attempt再送、
+24h保持）。**別判断**として (1) 7-4 Q2-c/10-2 の期間読替（正本改訂）、(2) 7-3 手順1の再送主体（U-F7）、
+(3) 資産v2→v3 を切り離して起票。
+
+**座標の称呼停止**: 非作者レビュー REPORT SHA `3bfddb0d…957a06` は **P0=2（確定称呼不可）**。D18=A は
+「ゲート通過前は暫定の手書き実装を出さない」、`tsk544 plan:716` は「Pythonで k/263 を再実装しない」と明記し、
+現行 `sync/first_ball_course.py` は候補である。コードの docstring を候補へ是正（挙動変更なし、縦断green）。
+正式採用は単一artifact操作（DSL正規化primitive案を第一候補。264点全一致を実測、17桁は13/264が1ulpずれ）＋
+pin 102箇所＋264点ベクタ＋manifest＋非作者レビュー＋ADR v0.10/要件 v2.18 のゲートで行う。
+
+**現在地**: 利用者が新たにできる操作は増えていない。初球のAPI縦断（受理・再送再掲・記録後409・製品リーダー再読込）は
+`b048aba3` で固定。次は (a) 記録後GETのP1是正（except外分岐→path別token期待集合→DTO）→lock再封印、
+(b) 画面のA+（leaseか限定受容）選択と対向検査、(c) 座標の単一artifact操作、の順で、いずれも委任範囲で進められる。
+
 ### 2026-10-29：記録後GETの非作者査読（否決）と実画面E2E基盤の実測
 
 **記録後GET（HTTP層）の試作と査読**: `GET /games/{id}/started` の recorded 分岐（`read_kind:"recorded"`・`state`=保存初球の独立再評価・認可カタログへ4token追記・frontend検証器の `initial|recorded` 化）を作成し、実HTTP縦断でも **200/recorded・balls=1** まで到達した。ただし非作者敵対レビューは **否決（P0=0/P1=4/P2=5）**、REPORT SHA `ed36d15d6595646436bb8c8a8f8308a5fc3313ee9c041d9fd22b32bf1f37efe7`（`~/.cache/pitchlog/u14-recorded-read-review-20261029/REPORT.md`、対象diff SHA `86bc982a…546a`）。主なP1は ①lock未再生成 ②認可正例/変異試験の未追随とpath和集合による検出力低下 ③例外節から閉じた型を返す既存不変条件違反 ④**recorded DTOが計画必須の after/scoreboard/history/23flags/T2/PlayRow を欠く**（`tsk544 plan:520`・`mvp-started-read-http plan:462`）。
