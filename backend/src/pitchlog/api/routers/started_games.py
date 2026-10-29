@@ -17,6 +17,7 @@ from pitchlog.repositories.started_read import (
     StartedGameView,
     StartedReadNotVisible,
     StartedReadRecorded,
+    StartedRecordedView,
     read_started_game,
 )
 from pitchlog.repositories.started_snapshot import SavedStartedLineup
@@ -90,7 +91,9 @@ def read_started_game_detail(
         raise HTTPException(status_code=503) from None
     if type(result) is StartedReadNotVisible:
         raise HTTPException(status_code=404)
-    if type(result) is StartedReadRecorded:
+    if type(result) in (StartedReadRecorded, StartedRecordedView):
+        # U14-DTO（after/history/23flags/T2/PlayRow）の公開前は、記録後の内容を
+        # 返さない既存の閉じた結果（409）を維持する。DTO接続は別ステップ。
         raise HTTPException(status_code=409)
     if item is None:
         raise HTTPException(status_code=503)

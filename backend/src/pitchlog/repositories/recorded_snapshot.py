@@ -428,3 +428,34 @@ def _read_recorded_calculation(
         )
     except (AttributeError, KeyError, ValueError, TypeError, RuntimeError):
         raise RecordedSnapshotUnavailable from None
+
+
+@dataclass(frozen=True, slots=True)
+class RecordedSnapshotNotAvailable:
+    """保存初球の前提を満たさない（2球目以降・訂正・墓標・失効世代など）。
+
+    呼出側に例外分岐を置かず、記録後readの「内容を返さない」閉じた結果へ
+    写すための値。破損と区別せず、推測で状態を補わない。
+    """
+
+
+def try_read_recorded_snapshot(
+    handle: _TenantTransaction,
+    game_id: UUID,
+) -> RecordedCalculationCandidate | RecordedSnapshotNotAvailable:
+    """保存初球の再評価を試み、前提不成立だけを閉じた値で返す。
+
+    例外は本module内で閉じる。呼出側（``started_read``）は値の種類だけで
+    分岐し、例外節から応答種別を返さない。
+
+    Args:
+        handle: 呼出元が所有する生存中の同一TX。
+        game_id: 対象試合のUUID。
+
+    Returns:
+        候補、または前提不成立を表す閉じた値。
+    """
+    try:
+        return _read_recorded_calculation(handle, game_id)
+    except RecordedSnapshotUnavailable:
+        return RecordedSnapshotNotAvailable()

@@ -19,10 +19,15 @@ from pitchlog.db.game_state.rule_snapshot import (
 )
 from pitchlog.domainrt.first_pitch import StateSnapshot
 from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
+from pitchlog.repositories.recorded_snapshot import (
+    RecordedCalculationCandidate,
+    try_read_recorded_snapshot,
+)
 from pitchlog.repositories.started_snapshot import (
     SavedStartedLineup,
     StartedSnapshotUnavailable,
     _one,
+    _plain,
     _rows,
     read_initial_started_snapshot,
 )
@@ -88,7 +93,41 @@ class StartedGameView:
     current_d4: str
 
 
-StartedReadResult = StartedGameView | StartedReadNotVisible | StartedReadRecorded
+@dataclass(frozen=True, slots=True)
+class StartedRecordedView:
+    """記録後も同じTX・ロック順で読んだ、保存初球の独立再評価値。
+
+    先頭1球だけを対象とし、前提を満たさない記録では生成しない。保持者・資格・
+    証明・D3は返さない（権利や同期済みの証明ではない）。``history``/``stat_flags``/
+    ``t2``/``play_row`` は保存初球の閉値をそのまま保持し、再計算しない。
+    """
+
+    game_id: UUID
+    scheduled_at: datetime
+    game_type_key: str
+    tournament_key: str
+    away_team_record_id: UUID
+    home_team_record_id: UUID
+    plate_umpire: str | None
+    section_label: str | None
+    week_label: str | None
+    day_label: str | None
+    game_number_label: str | None
+    started_at: datetime
+    applied_rules: dict[str, object]
+    lineups: tuple[SavedStartedLineup, SavedStartedLineup]
+    roster: InitialRosterProjection
+    after: StateSnapshot
+    history: tuple[object, ...]
+    stat_flags: object
+    t2: object
+    play_row: tuple[object, ...]
+    current_d4: str
+
+
+StartedReadResult = (
+    StartedGameView | StartedRecordedView | StartedReadNotVisible | StartedReadRecorded
+)
 
 
 def read_started_game(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
@@ -161,13 +200,53 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
         raise StartedReadCorrupt
 
     # (4) 記録ありは0球readerより先に判定する。1件でも行があれば記録後。
+    recorded = False
     for token_type in (
         StartedEventSlotsExistenceToken,
         StartedOperationEventsExistenceToken,
         StartedPlayRowsExistenceToken,
     ):
         if _rows(run(token_type(game_id)), ("game_id",)):
+            recorded = True
+            break
+    if recorded:
+        # 保存初球だけを同じhandle・同じロック順で独立再評価する。前提を満たさ
+        # ない記録（2球目以降・訂正・墓標・失効世代）は、リーダーが返す閉じた値
+        # で「内容を返さない」結果へ写す（例外節から応答種別を返さない）。
+        candidate = try_read_recorded_snapshot(handle, game_id)
+        if type(candidate) is not RecordedCalculationCandidate:
             return StartedReadRecorded()
+        if (
+            candidate.tenant_id != tenant
+            or candidate.game_id != game_id
+            or candidate.generation != number
+        ):
+            raise StartedReadCorrupt
+        return StartedRecordedView(
+            game_id=game_id,
+            scheduled_at=game["scheduled_at"],
+            game_type_key=game["game_type_key"],
+            tournament_key=game["tournament_key"],
+            away_team_record_id=game["away_team_record_id"],
+            home_team_record_id=game["home_team_record_id"],
+            plate_umpire=game["plate_umpire"],
+            section_label=game["section_label"],
+            week_label=game["week_label"],
+            day_label=game["day_label"],
+            game_number_label=game["game_number_label"],
+            started_at=game["started_at"],
+            applied_rules=encode_applied_rules(
+                decode_applied_rules(_plain(game["applied_rules"]))
+            ),
+            lineups=candidate.lineups,
+            roster=candidate.roster,
+            after=candidate.response.value.t1.after,
+            history=tuple(candidate.response.value.t1.history_context),
+            stat_flags=candidate.response.value.t1.stat_flags,
+            t2=candidate.response.value.t2,
+            play_row=tuple(candidate.unverified_play_row),
+            current_d4=encode_d4_reference(tenant, game_id, candidate.generation),
+        )
 
     # (5) 0球readerを改変せず呼ぶ。その拒否は不可視でなく破損として扱う。
     snapshot = read_initial_started_snapshot(handle, game_id)

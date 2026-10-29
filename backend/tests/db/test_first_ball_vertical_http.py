@@ -212,8 +212,10 @@ def payload_from_artifact(cookie):
     return v7,v8,dict(participants.model_dump(mode='json',by_alias=True))
 
 def recorded_read(cookie):
-    '''保存後に製品リーダーで同じ初球状態を再読込する（HTTP層は別単位）。'''
-    from pitchlog.repositories.recorded_snapshot import _read_recorded_calculation
+    '''記録後readの製品入口で同じ初球状態を再読込する（HTTP 409は別ステップ）。'''
+    from pitchlog.repositories.recorded_snapshot import RECORDED_PLAY_ROW_COLUMNS
+    from pitchlog.repositories.started_read import (
+        StartedRecordedView,read_started_game)
     from pitchlog.repositories.tenant_context_issuance import (
         issue_tenant_context_from_presented_token)
     from pitchlog.repositories.transaction import tenant_transaction_scope
@@ -222,16 +224,22 @@ def recorded_read(cookie):
     assert issued is not None
     context,_=issued
     with tenant_transaction_scope(context) as scope:
-        candidate=_read_recorded_calculation(scope,UUID(game))
-    after=candidate.response.value.t1.after
-    fields=after.model_dump(mode='json',by_alias=True)['stateFields']
+        view=read_started_game(scope,UUID(game))
+    assert type(view) is StartedRecordedView
+    fields=view.after.model_dump(mode='json',by_alias=True)['stateFields']
+    row=dict(zip(RECORDED_PLAY_ROW_COLUMNS,view.play_row,strict=True))
+    flags=view.stat_flags.model_dump(mode='json',by_alias=True)
+    t2=view.t2.model_dump(mode='json',by_alias=True)
     return {
         'state':fields,
-        'participants':dict(candidate.payload.v7.participants.model_dump(
-            mode='json',by_alias=True)),
-        'generation':candidate.generation,
-        'source_event_id':str(candidate.source_event_id),
-        'd5':str(candidate.d5),
+        'lineup_ids':[str(view.lineups[0].id),str(view.lineups[1].id)],
+        'history':len(view.history),
+        'stat_flag_count':len(flags),
+        't2_keys':sorted(t2),
+        'play_row_columns':len(row),
+        'play_number':row['play_number'],
+        'event_kind':row['event_kind'],
+        'source_event_id':str(row['source_event_id']),
     }
 
 async def run():
@@ -263,6 +271,9 @@ async def run():
             return out
         first=started.json()
         out['d4']=first['d4']
+        out['started_at']=first['started_at']
+        out['away_lineup_id']=first['away_lineup_id']
+        out['home_lineup_id']=first['home_lineup_id']
         h=headers();pre=await client.get('/games/'+game+'/started',headers=h)
         out['stages'].append(['started_before',pre.status_code])
         v7,v8,people=payload_from_artifact(cookie)
@@ -416,8 +427,13 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
     }, value["conflict_ack"]
     # 保存後の製品リーダー再読込が同じ初球状態を返す（HTTP 409は別単位）。
     recorded = value["recorded"]
-    assert recorded["d5"] == value["d5"]
-    assert recorded["generation"] == 1
+    assert UUID(recorded["source_event_id"])
+    assert recorded["lineup_ids"] == [value["away_lineup_id"], value["home_lineup_id"]]
+    assert recorded["history"] == 1
+    assert recorded["stat_flag_count"] > 0
+    assert recorded["t2_keys"] == ["basis", "evaluation_point", "kind"]
+    assert recorded["play_row_columns"] == 41
+    assert recorded["play_number"] == 1 and recorded["event_kind"] == "pitch"
     assert {
         key: recorded["state"][key]
         for key in (
@@ -436,12 +452,6 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
     }
     # ボール1球では打席は継続し、打順は変わらない。
     assert recorded["state"]["state.battingOrder"] == "1"
-    assert recorded["participants"] == {
-        "batterId": str(_BATTER),
-        "pitcherId": str(_PITCHER),
-        "catcherId": str(_CATCHER),
-        "battingOrder": "1",
-    }
     _assert_recorded_once(db, value["d5"])
 
 
