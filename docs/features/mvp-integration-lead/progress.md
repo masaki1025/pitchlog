@@ -498,6 +498,16 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **固定**: 候補HEAD `19217597`（計画は `92453a3e`、差分SHA `40b835826c4f22b5cd590c9a7517bf4b6832f70fcbb6e79c9fb8f92d2bb8e0df`）。レビュー回数は2回を保持し、次は**差分確認**（変更節のみ）を既存委任で行う。未解消を残して可決扱いにしない。
 - 作成→開始の到達点（統合後3件緑）は維持。初球確定は座標ゲート未通過のため引き続き封鎖。
 
+### 2026-10-30（続き14）：座標の追加調査（十進上限・二重反転・manifest/V7）
+
+- **固定 `421651e3`**（vertical、差分SHA `c92d48dd18ffa5471b00241ca695dc4c15e00b28cc97f7001be62311f7e623c0`）。
+- **十進6桁上限は不採用**。`StrikeZone` の float（131.49999999999997 等）を拒否し、`toFixed(6)` は二重丸めを起こす。入力は**正確な十進（最大17有効桁）または有理数対**とし、artifact 内 BigInt half-up。固定桁上限なし。
+- **二重反転の危険を実測**: 現行 `StrikeZone` は `courseScreenXToStoredX` を float で適用して emit する。D11=A は量子化後に反転なので、**画面座標を emit → artifact で量子化 → 整数反転**へ置換する（U3の置換範囲）。yは画面yを渡し、B-7が一度だけ `263−y`。
+- **manifest**: `backend/domain/manifest.json` は存在しない。実体は `frontend/public/domain/pitchlog-domain.json`（`host.py:17`）。更新対象をそこに固定し、backend側manifestは新設しない。
+- **V7**: backend Pythonにのみ存在。**座標ゲートに含めない**（別単位）。`courseScreenXToStoredX` の置換はU3、NFR-018(c)例外は失効要否のみ記録。
+- **ゲート前/後**: 前=ベクタ/oracle/descriptor/正本改訂、後=artifact/pin/manifest/StrikeZone置換/V7/properties/mutation/画面E2E。
+- **非作者の差分確認は未了**（次に実施）。作成→開始の到達点は維持。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
