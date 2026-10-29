@@ -269,6 +269,41 @@ pin 102箇所＋264点ベクタ＋manifest＋非作者レビュー＋ADR v0.10/�
 
 **実画面（Playwright）**: ブラウザ検査基盤は健全（`pnpm exec playwright test --config src/screens/GameScreenPreparingRead.playwright.config.ts` = **3 passed/14.3s**、実Chromium・実FastAPI・専用PG・loopback httpでSecure/HttpOnly Cookie成立）。ただし**初球を実画面から記録する経路は製品に存在しない**: (1) `/games/:gameId/record` の host が `mode="preparing-read"` 固定で `GameScreen.vue` が未mount（`GameScreenEntryRecordHost.vue:8`、`GameScreenEntryRecord.vue:81-90`）(2) `PITCH_COMMIT_BLOCKED=true` かつ確定ボタンに `@click` が無い（`GameScreenCommitGate.ts:19`、`GameScreen.vue:661-671`）(3) enroll/start の client が無い (4) `postSyncEvents` が device/attempt ヘッダを送らない（`client.ts:234-245`）(5) V8/state_diff・座標・語彙の供給が無い（`GameScreenPitchEvent.ts:3-7`、`GameScreen.vue:825-830`、`domainArtifact.ts:1-4`）(6) sync route は `PITCHLOG_BINDING_CLIENT_CONFIG` 未設定で503（`sync.py:55-66`）で、実broker/RG1制御は现行の縦断（コンテナ内ASGI）にしか無い。よって実画面の初球保存・再読込は**未達**であり、成功へ読み替えない。
 
+### 2026-10-29：A-3（記録後DTO）1単位を実装・非作者査読承認・認可再封印まで完了
+
+**固定点**: `feature/mvp-first-ball-vertical` HEAD `9b54a4fc`（`560f2f08` から7 commit）。
+
+**利用者が新たにできる操作（API隔離縦断・owned PG）**: 実HTTPで1球保存した後、`GET /games/{game_id}/started` が **200 / `read_kind:"recorded"`** を返す。after・history(1件)・23flags・T2・PlayRow（公開36列＝DTO 35 field、座標はpayloadの正準整数`1/263`）を返す。2球目以降・訂正・墓標・失効世代=409、別tenant=404、破損=503。**実画面・実機・正式統合の証拠ではない**。
+
+**実装（7 commit）**
+1. DTO `StartedPlayRow`（物理41列−5列=公開36列、座標2列は`course`1値へ統合して35 field。press/fake_runはDB textの4状態`Literal|None`。`play_number`/`batting_order`/`version`は1固定、`event_kind`は`pitch`固定）と `StartedRecordedGameRead`（`state`=beforeのまま＋別key`after`/`history`/`stat_flags`/`t2`/`play_rows`）。
+2. router を `StartedGameReadResponse`（`read_kind` discriminator 付き union）へ。`StartedRecordedView`→200、`StartedReadRecorded`→409。reader は `before`・`play_course` を保持し、`RecordedSnapshotCorrupt` を新設して破損（保存値と再評価値の不一致）を503へ分離。
+3. frontend `startedGame.ts`/`spec` を同一commitで追随（`StartedRecordedGame`・`isStartedRecordedGame`・200写像、409=`recorded-unavailable`）。t2/history は契約 d.ts の閉形へ。
+4. 実DB試験で負例を固定（2球目・訂正・墓標=409／別tenant=404／破損=503×2／公開36列／trigger復旧）。2球目・墓標の保存状態は製品triggerが正しく拒否するため、状態の構成に限りowned PGのtriggerを無効化し、観測後に戻す（迂回の成功証拠にしない）。
+5. 物理41列の全値照合を **12（identity/watermark）＋10（payload/participants）＋19（writerのNULL固定）** へ完成。`_FIXED_NULL_COLUMNS` と writer `_NULL_COLUMNS` の集合一致を試験で固定。
+6. participants の選定を `select_first_ball_participants`（`sync/first_ball_payload.py`）へ単一実装化（NFR-018）。
+7. 認可: `_STARTED_READ_HTTP_READER_PATHS` へ `recorded_snapshot.py`、bindings へ4 token（`IdempotencyLedgerReadToken`/`RecordedEventRows|Slots|PlayRowsReadToken`）と宣言源を追記。`contracts/authz/route-registry.json` の `design_provenance`/`provenance_ids` を原文から再取得し、**同一段で `--reseal-derived`**（`contracts/authz/route-registry.lock.json`）。`check_authz_catalog.py --skip-oracle` = ok（total=1427/auth_claim=187/out_of_scope=1240/db_claims=191/routes=51/cells=12）。
+
+**非作者査読（別セッションのサブエージェント。PO本人の確認・署名ではない）**
+- 1回目: **否決 P0=1/P1=2/P2=9**。P0は「payloadに由来しない19列を未照合のまま200で公開」。REPORT `~/.cache/pitchlog/a3-recorded-dto-rereview-20261029/REPORT.md` SHA `39585af48002ec6fdd3469151d92c03056b006eae4e70f97f5b3767e0575fce7`、対象 diff `46f48155f558b0cdff7e432304bf3ae4fecc5bae870cdd3176b0e0a27078320a`・HEAD `26e27956`。
+- 修正 `7dae10c6`（19列のNULL固定照合・計画H5/§4.2/§8-3/R3の実装追随・非開示試験・participants単一実装・frontend閉形）。
+- 再査読: **承認 P0=0/P1=0/P2=7**。REPORT `…/REPORT2.md` SHA `91212c677cbb67a4902bd5a92b4f9bebf69601bc2f5d4589eed79f82566ee02b`、対象 diff `104eb76c23eaa0a194ef6c4f5e916adfa5205047e25d7941ca63270871f73ae3`・HEAD `7dae10c6`。
+- 残P2 7件のうち、計画残差（§4.1・§9-1）・StartedPlayRow説明・try_read docstring・失効世代409のHTTP負例・非NULL観測値と`configured_extension_limit:"9"`の実形・participants一意性拒否の直接試験を `0df1ac42` で消化。中間commitのfrontend未追随（P2-9）は「各段でcommit」の指示を優先し、HEADでは解消済み・中間点はfail-closedとして残す。
+
+**試験（実測）**
+- 実DB: `tests/db/test_first_ball_vertical_http.py` + `tests/db/test_started_game_read_http.py` = **2 passed / 83.50s**（実Cookie・実broker・実artifact。200/409×3/409（slotのみ部分状態）/404/503×2/36列/trigger復旧）。
+- backend 対象（started・recorded・sync・participants）= **881 passed**。frontend 全 **2392 passed**、prettier/eslint/vue-tsc 成功。root `tests/test_check_authz_catalog.py` は 52→**37 failed**（再封印で15件解消・新規0）。
+- 既知の基線赤（不変・新規0）: `test_api_conventions` 2、`test_product_authz_catalog` 2、`test_roster_self_team_read` 1、`test_sync_apply_source_binding` 1、root authz 37（oracle seal/product DDL/claims）、tenant_boundary/runtime contract 系。
+
+**判断（主担当・委任範囲。PO本人の個別確認ではない）**
+- 失効・非normal世代は「破損」ではなく「初球を提供できない記録」として409（計画R3へ記録）。
+- 座標はpayloadの正準整数のみを公開し、物理Double→kの逆変換を新設しない。
+- press/fake_run は4状態`Literal`を維持しつつ、初球writerのNULL固定に反する非NULLは503（値の損失も未照合公開もしない）。
+
+**未了（成功へ読み替えない）**: 2球目以降・訂正・閲覧、実画面Playwright（mode固定・commit未配線・enroll/start client・ヘッダ・語彙/座標供給）、実機/HTTPS、正式7.7（#184の28/22→32/26,27の単一受理）、**oracle-seal の再封印**（既存の基線stale。route-registry と http-route-matrix の両方が sealed input と不一致。root/7.7の単一受理に残す）、runtime-contract/tenant-boundary 基線、MVP全体。
+
+**次**: (1) 台帳・PRの単一受理（oracle seal含む）、(2) 単位B 画面のA+（lease/限定受容）と対向検査、(3) 単位C 座標の単一artifact操作。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
