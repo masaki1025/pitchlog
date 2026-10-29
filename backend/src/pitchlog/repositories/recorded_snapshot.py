@@ -541,9 +541,9 @@ def try_read_recorded_snapshot(
 ) -> RecordedCalculationCandidate | RecordedSnapshotNotAvailable:
     """保存初球の再評価を試み、前提不成立だけを閉じた値で返す。
 
-    例外は本module内で閉じる。呼出側（``started_read``）は値の種類だけで
-    分岐し、例外節から応答種別を返さない。保存原本の破損
-    （``RecordedSnapshotCorrupt``）だけは値へ畳まず送出し、503へ閉じる。
+    ``RecordedSnapshotUnavailable`` は閉じた値へ畳み、呼出側（``started_read``）
+    は値の種類だけで分岐する。保存原本の破損（``RecordedSnapshotCorrupt``）だけは
+    値へ畳まず送出し、503へ閉じる（例外節から応答種別を返さない）。
 
     Args:
         handle: 呼出元が所有する生存中の同一TX。

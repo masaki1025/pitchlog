@@ -264,12 +264,12 @@ base-allowlist(DB API symbol の許可表)は指さない。理由は、U13 が�
 | ② | 状態を判定する。**条件は N2 :243-246 の 4 つだけ** | status が in_progress でない、または trashed_at・hidden_at・import_batch_id が非 NULL → **NotVisible**。以後の SQL は実行しない |
 | ③ | `RecordingGenerationReadToken` → `RecordingGenerationLockToken(game_id, n)` | 0 行または不一致 → **Corrupt**(A-3 の「世代が無ければ null」は採らない。9 節の確定点 6) |
 | ④ | 存在確認 token 3 件(`StartedEventSlotsExistenceToken` ほか) | 1 件でも行があれば → **Recorded**(U14 の拡張点)。全件 0 なら次へ |
-| ⑤ | `read_initial_started_snapshot(handle, game_id)` を**そのまま**呼ぶ(N2 は改変しない) | `StartedSnapshotUnavailable` → **Corrupt**。**次は不可視でなく破損であり、404 へ倒さない**: `started_at` が datetime でない・tz を持たない(N2 :247-248)、away と home が同一(N2 :251-255)。この 2 つは組立器が自前で判定せず、N2 の拒否として Corrupt(503)になる(判定の複製を増やさない)。④で Recorded と判定した場合は N2 を呼ばないので、記録ありを優先して 409 になる(U13 の暫定。同 tenant にしか返らない)。 |
+| ⑤ | `read_initial_started_snapshot(handle, game_id)` を**そのまま**呼ぶ(N2 は改変しない) | `StartedSnapshotUnavailable` → **Corrupt**。**次は不可視でなく破損であり、404 へ倒さない**: `started_at` が datetime でない・tz を持たない(N2 :247-248)、away と home が同一(N2 :251-255)。この 2 つは組立器が自前で判定せず、N2 の拒否として Corrupt(503)になる(判定の複製を増やさない)。④で Recorded と判定した場合は N2 を呼ばない。保存初球1件が揃えば 200(`read_kind:"recorded"`)、初球1件として閉じられない記録は 409 になる(2026-10-29 実装追随。同 tenant にしか返らない)。 |
 
 **戻り値と例外の分け方(反映1。レビュー P2-4)**
-- **NotVisible と Recorded は値として返す**(`StartedReadNotVisible`・`StartedReadRecorded` の 2 つの閉じた型)。成功は `StartedGameView` を返す。
+- **NotVisible と Recorded は値として返す**(`StartedReadNotVisible`・`StartedReadRecorded` の 2 つの閉じた型)。成功は `StartedGameView`、記録後は保存初球1件の `StartedRecordedView` を返す(2026-10-29 実装追随)。
 - **Corrupt は `with` の中で例外 `StartedReadCorrupt`(`Exception` の子)として送出する**。値で返さない。理由: 値で返すと `with` が正常終了し、`_TenantTransactionScope.__exit__` は例外なしの経路(`_before_writer_finish` → 確定の経路。transaction.py:583-640)を通る。read-only なので結果は変わらないが、「rollback した」という主張を機構が裏付けない。例外で抜ければ `__exit__` は例外つきの経路へ入り、`ExitStack.__exit__` へ例外が渡る([推論]: 例外つきの終了は Session の取消側へ進む。作者は実行していない)。
-- ④で Recorded と判定した場合、および②で NotVisible と判定した場合は、例外にしない。404・409 は preparing と同じく `with` の外で `HTTPException` に写す(games.py の `with` は :107-109、`except Exception` は :110、503 は :111、404 は `with` の外の :112-113 で送出している)。
+- ④で Recorded と判定した場合(初球1件は 200、閉じられない記録は 409)、および②で NotVisible と判定した場合は、例外にしない。404・409 は preparing と同じく `with` の外で `HTTPException` に写す(games.py の `with` は :107-109、`except Exception` は :110、503 は :111、404 は `with` の外の :112-113 で送出している)。
 
 - ⑤で N2 は lock を取り直すが、同じ TX の中での再取得なので、内容は変わらない([推論])。
 
@@ -412,7 +412,7 @@ current_d4: str | None                  # U13 の 200 応答では常に str。n
 | H3 | preparing との相互排他 | 開始前: `/games/{id}` が 200、`/started` が 404。開始後: `/games/{id}` が 404、`/started` が 200。既存の :758-775 は変更せずに合格する |
 | H4 | 記録権情報の非開示 | 200 本文の key 集合が DTO 定義と完全一致する。本文の bytes に次が含まれない: holder_device の UUID 文字列、device_id、device_credential の原値、recording_right_proof、recovery_generation の値、`watermark`・`prefix` の key。H2 の 404 本文に d4 が含まれない |
 | H5 | 記録ありの扱い | 保存初球1件が揃った記録では 200 で `read_kind:"recorded"` を返し、after・history(1件)・23flags・T2・PlayRow(公開36列)を含む。2球目以降・訂正・墓標・失効世代など初球1件として閉じられない記録は 409 と固定の本文で値を含まない。破損(保存値と再評価値の不一致、payloadに由来しない列の非NULL)は 503。event_slot だけの部分状態は 409(U13 の隔離試験が固定) |
-| H6 | 破損時の扱い | 次の各ケースで 503 と固定の本文。本文と log に SQL の語・DB の値が出ない。(a) lineup を 1 件欠かした (b) 世代が revoked (c) **世代が retired(retired_at が非 NULL)** (d) **現在の世代が非normalのmigration種別(7.3 節 R2 の宣言どおり 503)** (e) 世代が 0 行。**書込みが無いこと**を、ケースの前後で games・世代・event_slot・event・PlayRow の行 digest(admin 接続)が一致することで確かめる。Corrupt は `with` の中の例外として抜け、`except Exception` で 503 に写る(4.1・4.2 節)。「rollback した」とは書かず、観測するのは書込み 0 と 503 だけとする |
+| H6 | 破損時の扱い（**記録なし＝N2 のとき**。記録済みの失効・非normal世代は H5 の 409） | 次の各ケースで 503 と固定の本文。本文と log に SQL の語・DB の値が出ない。(a) lineup を 1 件欠かした (b) 世代が revoked (c) **世代が retired(retired_at が非 NULL)** (d) **現在の世代が非normalのmigration種別(7.3 節 R2 の宣言どおり 503)** (e) 世代が 0 行。**書込みが無いこと**を、ケースの前後で games・世代・event_slot・event・PlayRow の行 digest(admin 接続)が一致することで確かめる。Corrupt は `with` の中の例外として抜け、`except Exception` で 503 に写る(4.1・4.2 節)。「rollback した」とは書かず、観測するのは書込み 0 と 503 だけとする |
 | H7 | 認証と C2 の順序 | 未認証は 401。Expected-Tenant が別 tenant、または Challenge が不正なら 404。どちらの場合も games への SQL は 0 件 |
 | H8 | app ロールでの lock 読取 | H1 の成功そのものが、app ロールで FOR UPDATE の lock 読取が通ることの実証になる。42501 が出た場合は、DB grant の不足として root に戻し、U13 では grant を作らない |
 
@@ -479,7 +479,7 @@ H8 の補足(**反映3で「任意」から「必須の 1 回プローブ」へ�
 
 ## 9. 主担当が計画承認時に確定する点
 
-1. 記録ありのときの応答を 409(推奨)にするか、503 にするか。
+1. 記録ありのときの応答。**解決済み(2026-10-29 実装追随)**: 保存初球1件は 200(`read_kind:"recorded"`)、初球1件として閉じられない記録は 409、破損は 503(H5)。
 2. route 名 `/games/{game_id}/started` と operation_id `started_game_detail`。A-1 は名前を委任内で決めるとしている。
 3. d4 符号化の置き場所を `sync/d4_reference.py` にするか。TB002 の owner path に入り、既存の glob で捕捉される。代替案は recording_rights 配下だが、glob の外になるため core 登録が必要になる。
 4. game-state と recording-rights への重複登録を見送る判断(6 節)。

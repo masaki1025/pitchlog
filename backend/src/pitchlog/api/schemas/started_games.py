@@ -103,8 +103,11 @@ class StartedPlayRow(_FrozenSchema):
     `batting_order` / `event_kind` / `version` は reader が 1 / 1 / `pitch` / 1 を
     厳密一致で確認済みなので、初球の範囲を閉じた `Literal` で表す。
     `batter_id` / `pitcher_id` / `catcher_id` / `pitch_type_key` /
-    `batting_result_key` / `course` も照合済みで必須。それ以外は保存列が
-    nullable で照合対象にも含まれないため `| None` とする。
+    `batting_result_key` / `course` も照合済みで必須。payload が null を取り得る
+    `stance` / `batting_side` / `pitch_speed` は payload と照合する。残る19列
+    （作戦・打球・牽制・失策・press 等）は payload に由来が無く、初球 writer が
+    常に NULL で保存するため、reader が NULL 一致を確認し、非NULLは破損（503）
+    として公開しない。型が `| None` なのはこの NULL を表すためである。
     """
 
     id: EntityId

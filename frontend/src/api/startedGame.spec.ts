@@ -503,6 +503,15 @@ it('記録後200をfoundとして写し、initial検証器とは取り違えな�
   expect(isStartedGame(body)).toBe(false)
   expect(isStartedRecordedGame(body)).toBe(true)
 })
+it('延長上限9の実artifact形も受理する（再計算しない）', () => {
+  const value = structuredClone(recordedFixture())
+  ;(
+    value.t2.basis.extra_and_draw as unknown as {
+      configured_extension_limit: string
+    }
+  ).configured_extension_limit = '9'
+  expect(isStartedRecordedGame(value)).toBe(true)
+})
 it.each([
   [
     'after欠落',

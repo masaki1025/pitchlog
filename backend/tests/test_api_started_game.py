@@ -513,24 +513,39 @@ async def test_recorded_body_never_contains_recording_right_values(
         assert word not in lowered
 
 
-@pytest.mark.anyio
-async def test_recorded_that_is_not_exactly_one_first_ball_is_the_fixed_409(
-    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle
-) -> None:
-    """2球目・墓標は内容を返さず、initialの409と同じ固定外形へ閉じる。"""
-    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+def _second_ball(bundle: RecordedBundle) -> None:
+    """保存初球の写しを2球目として1行足す。"""
     bundle.plays.append({**bundle.plays[0], "id": uuid4(), "play_number": 2})
-    app, _ = _app(monkeypatch, bundle)
-    second = await _get(app, bundle.game_id)
 
-    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+
+def _tombstone(bundle: RecordedBundle) -> None:
+    """保存イベントを墓標にする。"""
     bundle.events[0]["is_tombstone"] = True
-    app, _ = _app(monkeypatch, bundle)
-    tombstone = await _get(app, bundle.game_id)
 
-    assert second.status_code == tombstone.status_code == 409
-    assert second.json() == tombstone.json() == _FIXED_REQUEST_ERROR
-    assert _ACK not in second.headers and _ACK not in tombstone.headers
+
+def _revoked(bundle: RecordedBundle) -> None:
+    """記録権世代を失効させる。"""
+    bundle.generation["revoked_at"] = bundle.game["started_at"]
+
+
+def _migration(bundle: RecordedBundle) -> None:
+    """記録権世代を非normal（migration）にする。"""
+    bundle.generation["kind"] = "migration"
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("change", [_second_ball, _tombstone, _revoked, _migration])
+async def test_recorded_that_is_not_exactly_one_first_ball_is_the_fixed_409(
+    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle, change: Any
+) -> None:
+    """2球目・墓標・失効世代・非normal世代は、initialの409と同じ外形へ閉じる。"""
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    change(bundle)
+    app, _ = _app(monkeypatch, bundle)
+    response = await _get(app, bundle.game_id)
+    assert response.status_code == 409
+    assert response.json() == _FIXED_REQUEST_ERROR
+    assert _ACK not in response.headers
 
 
 @pytest.mark.anyio

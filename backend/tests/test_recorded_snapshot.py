@@ -749,12 +749,31 @@ def test_r2_fixed_null_columns_match_the_writer_declaration() -> None:
 
 @pytest.mark.parametrize("column", _FIXED_NULL_PLAY_COLUMNS)
 @pytest.mark.parametrize("value", ["3プレス", "任意の文字列", 0.5, uuid4()])
-def test_r2_non_null_unverified_column_is_corruption(
-    recorded_bundle, column, value
-):
+def test_r2_non_null_unverified_column_is_corruption(recorded_bundle, column, value):
     """payloadに由来しない列の非NULLは、原本と再評価の不一致として公開しない。"""
     b = recorded_bundle
     b.plays[0][column] = value
+    with pytest.raises(recorded.RecordedSnapshotCorrupt):
+        recorded._read_recorded_calculation(b.handle, b.game_id)
+
+
+def test_r2_payload_observations_may_be_non_null(recorded_bundle):
+    """stance/球速/打席側は payload が持てば非NULLのまま返し、NULL固定に含めない。"""
+    b = recorded_bundle
+    b.saved_payload["observations"].update(
+        pitchSpeed={"kmh": "100.5", "outsideRangeConfirmed": False},
+        stance="1",
+        battingSide="右",
+    )
+    b.plays[0].update(pitch_speed=100.5, stance="1", batting_side="右")
+    result = recorded._read_recorded_calculation(b.handle, b.game_id)
+    observations = result.payload.v7.observations
+    assert (
+        observations.stance,
+        observations.batting_side,
+        observations.pitch_speed.kmh,
+    ) == ("1", "右", "100.5")
+    b.plays[0]["stance"] = "2"
     with pytest.raises(recorded.RecordedSnapshotCorrupt):
         recorded._read_recorded_calculation(b.handle, b.game_id)
 
