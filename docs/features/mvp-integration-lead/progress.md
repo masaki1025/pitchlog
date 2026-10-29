@@ -454,6 +454,15 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 - **既知の基線赤**: `test_stage_a_function_registration...` は本変更前から赤（1 failed/89 passed を確認）。A31環境（root venv sqlalchemy欠落）は未着手。
 - **記録**: 候補環境の成功（service 62）と正式受理（contract revision/history/レビュー）を分離。レビュー実施者・承認者は実態どおりで、PO本人確認の代記はしない。
 
+### 2026-10-30（続き9）：U1 backend＋資産差分を候補へ適用（service/contract緑）
+
+**候補枝 `feature/mvp-create-surface-candidate` `d8948c65`**（統合候補 `49310595` は緑のまま）。
+
+- **適用済み**: 作成の6文・7 token・service・schemas・2 route・operation registry／repository contract **revision 33**（3 CAP・7 token・history `PENDING_ACCEPTANCE`・前後 projection SHA・source_digest）／`base-allowlist` 6 symbol＋fixture／`tenant_access` C2／`test_api_app`・`test_authz_repository_contract` の期待値。
+- **実測**: service境界 **62 passed**、contract/api/create まとめ **151 passed**（残る1件 `test_stage_a_function_registration...` は変更前からの既知赤）。
+- **残差**: ①authz route-registry 2 route の provenance＋`--reseal-derived` ②frontend 作成画面/provider/一覧導線 ③U5基盤での「画面で作成→開始」E2E ④統合候補への取込（認可registryと画面が揃ってから）。
+- **記録**: 候補環境の成功（service/contract）と正式受理（7.7の単一受理・前後値・レビュー）を分離。`PENDING_ACCEPTANCE` の history は候補であり、受理済みとは扱わない。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
