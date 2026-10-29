@@ -1,6 +1,6 @@
 """唯一のnative初球を開始原典から再評価するR2-A内部計算候補。
 
-物理41列の一致、正式登録、recorded DTO、実HTTP復元の成功は返さない。
+物理41列は返す前に照合するが、正式登録・recorded DTO・実HTTP復元は返さない。
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ class RecordedSnapshotUnavailable(RuntimeError):
 
 @dataclass(frozen=True, slots=True, repr=False)
 class RecordedCalculationCandidate:
-    """独立再評価とpayload照合のみ。物理未照合でDTO公開しない。"""
+    """独立再評価・payload照合・物理列の全値照合まで。DTO公開の可否は呼出側。"""
 
     tenant_id: UUID
     game_id: UUID
@@ -98,7 +98,7 @@ class RecordedCalculationCandidate:
     roster: InitialRosterProjection
     lineups: tuple[SavedStartedLineup, SavedStartedLineup]
     payload: FirstBallPayloadValue
-    unverified_play_row: tuple[ImmutableValue, ...]
+    verified_play_row: tuple[ImmutableValue, ...]
 
 
 def _positive(value: object) -> int:

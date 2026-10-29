@@ -244,7 +244,7 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
             history=tuple(candidate.response.value.t1.history_context),
             stat_flags=candidate.response.value.t1.stat_flags,
             t2=candidate.response.value.t2,
-            play_row=tuple(candidate.unverified_play_row),
+            play_row=tuple(candidate.verified_play_row),
             current_d4=encode_d4_reference(tenant, game_id, candidate.generation),
         )
 

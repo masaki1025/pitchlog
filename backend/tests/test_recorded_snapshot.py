@@ -505,7 +505,7 @@ def test_r2_independent_start_and_real_same_host_full_payload(
         "deriveFirstPitchWithContinuation",
     ]
     assert calls[0][0] == calls[1][0]
-    assert len(result.unverified_play_row) == 41
+    assert len(result.verified_play_row) == 41
     assert not hasattr(result, "read_kind") and not hasattr(result, "physical_verified")
 
 
