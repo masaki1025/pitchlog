@@ -438,6 +438,22 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 
 **現在地**: 画面縦断は「開始」「API保存済み記録の明示復元」まで。作成と初球確定はD19/座標ゲートの実装段で継続。MVP全体の完成範囲は変更しない。
 
+### 2026-10-30（続き8）：U1 backend候補を作成（資産差分待ち・統合候補は緑維持）
+
+**統合候補 `49310595` は緑のまま維持**。作成backend一式は候補枝 **`feature/mvp-create-surface-candidate` `e3bd20ae`** に保存した（統合候補へは未取込）。
+
+- **候補の実装**: `repositories/preparing_game_creation.py`（固定6文・7 token）、`services/game_creation.py`、schemas（options cursor/4型・UTC正規化）、router（`GET /games/preparation-options`・`POST /games`）、operation registry。**service境界 62 passed**。
+- **統合に必要な残差（実測）**:
+  1. repository contract: `CAP:games:insert` / `CAP:tenant_vocabularies:insert` / `CAP:tenant_vocabularies:read` と7 token。revision 32→33・`identity.current_identifiers`・history 追記（前後 projection SHA、`PENDING_ACCEPTANCE`）・`source_digest`。外部署名対象は `check_tenant_boundary_bypass.py`/`frozen_history.py`/`frozen_archive.py`/`ci.yml`。
+  2. `base-allowlist.json`: allowed_symbols 6件＋inventory＋fixture（`preparing_game_creation_allowed/*`）。
+  3. `tests/test_api_app.py`: 期待route/operationへ2本追加＋`/games` のGET限定（branch差分）。
+  4. `tests/test_authz_repository_contract.py`: 期待caps/tokensへ追記。
+  5. authz route-registry: 2 route の provenance＋`--reseal-derived`。
+  6. frontend: 作成画面/provider（`GameScreenPreparingCreate*`）と一覧からの導線、`GameScreenStart` 接続。
+  7. E2E: U5基盤で「画面で作成→開始」。
+- **既知の基線赤**: `test_stage_a_function_registration...` は本変更前から赤（1 failed/89 passed を確認）。A31環境（root venv sqlalchemy欠落）は未着手。
+- **記録**: 候補環境の成功（service 62）と正式受理（contract revision/history/レビュー）を分離。レビュー実施者・承認者は実態どおりで、PO本人確認の代記はしない。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
