@@ -39,7 +39,7 @@ created: 2026-10-30
 **既存の座標変換契約を再利用する。** `contracts/display-geometry/coordinate_transform_contract_v1.json`
 （`calculation:"coordinate-transform"`、42ケース、D-6 の「1契約=1対象計算=1ファイル」）が B-7 の
 **画面⇄保存**（`x_norm=x_screen/263`、`y_norm=(263−y_screen)/263`、保存→画面は付録A-1の丸め、往復・内外角・
-クランプ点）を既に定義している。**同じ計算の2本目のベクタは作らない。**
+クランプ点）を既に定義している。**同じ計算（`coordinate-transform`）の2本目のベクタは作らない。** 入力形成の量子化は**別の計算**（`course-input-quantization`）として別契約に宣言し、既存42ケースは変更しない。
 
 **二段階の境界を明示する（B-7 の改訂ではない）**
 1. **入力形成（D11=A）**: タップの float を付録A-1 の half-up で**整数の画面座標**へ量子化し、
@@ -106,7 +106,7 @@ quantizeCourse({
 
 | # | 内容 | 受入 |
 |---|---|---|
-| 1 | **既存の `coordinate_transform_contract_v1.json` を拡張**（入力形成の量子化ケース: float 境界・十進文法・スケール上限・負値・クランプ/拒否・量子化後の反転）し、独立 oracle と properties/mutation の descriptor を追加（ゲート前）。新しい計算ファイルは作らない | 既存42ケースを保持し全点一致・負例拒否・製品コード/artifact を変更していない |
+| 1 | 既存 `coordinate_transform_contract_v1.json` の42ケースは**不変**。入力形成の量子化は**別計算 `course-input-quantization`** として別契約にケース（最短往復表現・指数・境界・範囲外・量子化後の反転）を宣言し、独立 oracle と properties/mutation の descriptor を追加（ゲート前）。**同じ計算の重複ファイルは作らない** | 既存42ケース不変・別計算の宣言・負例拒否・製品コード/artifact を変更していない |
 | 2 | **7.3 確定ゲート**: ADR-003 v0.10（D-14-m の対象追加は「追記」でなく T1/T2 限定文の書き換えを含む）＋要件 v2.18（D11/B-7/NFR-018 の例外表）＋B-3（丸めを伴わない線形写像）への影響を単一ゲートで敵対レビューし、PO 承認 | P0/P1 全件処理・PO 承認・対象版記録 |
 | 3 | **ゲート後**: artifact に量子化 primitive と `quantizeCourse` を追加し、再生成・pin 更新・manifest/directTargets 登録 | 同一 JS をブラウザ/サーバーで実行し全点一致。SHA 宣言一致 |
 | 4 | 画面接続（U3）: wrapper 経由で tap→k を呼び、V7/V8 と D5/D2・queue/ACK を接続。封鎖解除は前提成立後 | 実ブラウザでボール1球→ACK受理→実PG1行 |
