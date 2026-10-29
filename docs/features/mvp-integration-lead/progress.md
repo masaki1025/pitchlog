@@ -98,6 +98,35 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：残り3単位の実行順と「一気に」進める際の分割
+
+PO指示「3まで一気に」に対し、3単位はいずれも**別ゲート/別レビュー**を持ち、1回の変更で同時に green を保てない。
+各単位を**緑の固定点で区切って**連続実行する（回答待ちなし・委任範囲）。
+
+**単位A: 記録後GET（全項目DTO→再封印）** — 前回の否決P1を順に閉じる
+1. `started_read` の recorded 分岐を except 外で判定（P1-3。既存不変条件テストを赤にしない）。
+2. `StartedRecordedView` に計画必須値を載せる: `after`（scoreboard含む）/`history`/`stat_flags`(23flags)/`t2`/`play_rows`（値は `recorded_snapshot` 候補に既存）。
+3. API schema/DTO と router 200 分岐、frontend 型・検証器・spec を同一commitで追随（P2-8の state 意味反転も解消）。
+4. `scripts/check_authz_catalog.py` の期待集合を path→token 対応へ変更し、追加4 CAP の変異を追加（P1-2）。
+5. `contracts/authz/route-registry.json` を原文から再取得し、**同一段で lock を再封印**（P1-1。査読記録と対象版を固定）。
+6. 実HTTP縦断の `started_after` を 200/recorded へ更新し、2球目・訂正・墓標は409のまま固定（P2-5/P2-6）。
+
+**単位B: 画面のA+（排他）** — A を技術方針とし、確認対象を限定
+1. `A+lease`（セッション所有をタブ間の共有事実として持つ）か `A+限定受容` かを選択。前者は正本不改訂、後者は 7-4 Q2-c/10-2 の正本改訂が前提（別判断）。
+2. `revalidateSingleWriter` の本番実装と `withNonBlockingSingleWriter` 経由の固定。
+3. 資産 v3（`freeze-between-balls`/`freeze-during-commit`、再入力測定の変更、v2/v3共存）と契約検査。
+4. 実ブラウザ2ページ試験（同時確定・CDP凍結・強制終了→再開）。
+5. 24h・未解決要求の回帰。**緑まで `PITCH_COMMIT_BLOCKED` は解除しない。**
+
+**単位C: 座標の単一artifact操作（J2=A）**
+1. DSL へ正規化 primitive（BigInt長除法→十進18桁以上・半偶数丸め）を追加し、単一operationを実装。
+2. artifact 再生成と pin 更新（`pitchlog-domain.json`、`first_ball_payload_vectors_v1.json` の artifactSha256 102箇所、計画のSHA記述）。
+3. 264点全数ベクタ（artifact↔保存値）と非等価変異、manifest/directTargets 登録。
+4. 非作者レビュー → ADR v0.10/要件 v2.18 の確定ゲート。
+
+**実行順**: A → C → B（Aは初球の再読込条件、Cは画面の座標供給の前提、Bは最後に画面を開ける）。
+各単位の完了時に本台帳へ「利用者ができる操作」と固定点を追記する。
+
 ### 2026-10-29：初球向けの検査強化（DI2のattempt非依存・座標の独立ベクタ）
 
 - **DI2のattempt非依存を実測で固定**（`80d35f55`）: 実HTTP縦断へ「同一D5・同一内容を**別attempt**で再送」を追加。
