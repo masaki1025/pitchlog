@@ -423,6 +423,21 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
 
 **意味**: U3（画面からの初球確定）は本ゲート通過までコードを書かない（fail-closed）。U1/U2/U4/U5 は独立に進行済み。**ゲートは計画レビュー→ADR/要件改訂→敵対レビュー→PO承認**の順で、PO判断が必要。
 
+### 2026-10-30（続き7）：U1a 作成transportを追加／実画面検証の範囲を確定
+
+**固定点 `49310595`**（push済）。
+
+**実装（緑）**: `frontend/src/api/games.ts` に `readPreparationOptions`（固定5区分・大会1ページの閉じた検証）と `createPreparingGame`（POST `/games` を一度だけ送り、応答が入力と一致しなければ非採用）を追加。`games.spec.ts` 20件 green。**backend `POST /games` と repository contract の差分は未適用**。
+
+**U1 の残り（7.7候補手続き）**: 作成は `CAP:games:insert`・`CAP:tenant_vocabularies:insert/read` と7 token を要し、repository contract（revision 32）の `product_capability_ids`/`product_operation_token_types` に無い。追加は revision 33・凍結射影の前後値・history 追記（`PENDING_ACCEPTANCE` の候補）・`base-allowlist` 6 symbol＋fixture・digest を伴う。構造（`baseline_control.identity/movement_policy/history`、外部署名対象 `check_tenant_boundary_bypass.py`/`frozen_history.py`/`frozen_archive.py`/`ci.yml`）は確認済み。**候補環境の成功と正式受理は分けて記録する**（D19=A の指示どおり）。
+
+**実画面の検証範囲（同一固定HEAD・同一環境での実測。混同しない）**
+- **開始**（`c4528c38`）: 実ブラウザ→実app（uid20003コンテナ・uvicorn）→owned PG→実broker/RG1 で、login→記録画面→端末登録→スタメン→**試合開始→`GET /started` initial 200**。画面からの連続操作として実測。
+- **記録後復元**（`e7064f91`）: 1球は**製品API縦断（`_APP_SCRIPT`）で保存**し、その後ブラウザで login→記録画面→**明示「サーバーから復元」**→`after=1ボール`・`before=0`・履歴1・保存初球1、再取得200。**画面から初球を保存した連続縦断ではなく、reload 自動復元も未実測**（自動はunit 5件）。
+- **未実測**: 画面からの新規作成、画面からの初球保存、作成→開始→初球→reload の一連。
+
+**現在地**: 画面縦断は「開始」「API保存済み記録の明示復元」まで。作成と初球確定はD19/座標ゲートの実装段で継続。MVP全体の完成範囲は変更しない。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
