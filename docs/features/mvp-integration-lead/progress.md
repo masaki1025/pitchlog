@@ -98,6 +98,22 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：A-3再構築の第1段で判明した「fixtureが未照合」— 実装は保留
+
+PlayRow 実値と payload/participants の**全値照合**を `recorded_snapshot` に追加して実測した。
+- **実HTTP縦断の実データは一致**（照合通過・縦断1件 green）。座標は payload の正準kを既存の単一写像で
+  Doubleへ写して比較し、逆変換を新設していない。
+- しかし共有 fixture `recorded_bundle`（`tests/test_recorded_snapshot.py`）の PlayRow は
+  `batter_id/pitcher_id/catcher_id/pitch_type_key/batting_result_key/course_y` が **None の合成行**で、
+  「物理値は未照合」を前提にした2テスト（`test_r2_physical_fields_remain_explicitly_unverified` /
+  `test_r2_independent_start_and_real_same_host_full_payload`）が赤になる。
+- 照合の導入は、**fixtureをpayload由来の実値へ整合**し、上記2テストを「照合済み/不一致は拒否」へ
+  書き換えるのと同一単位で行う必要がある。未整合のまま赤を残さないため、今回の差分は破棄し
+  `b6a90edd`（緑・HTTP409）を維持した。
+- 次回: (1) `recorded_bundle` の PlayRow を payload 由来値へ整合（course/pitch_type/participants/result/
+  speed/stance/side）、(2) 未照合用2テストを反転、(3) 候補名 `unverified_play_row` を実態へ是正、
+  (4) DTO/フロント/認可再封印へ。
+
 ### 2026-10-29：A-3（記録後DTO）非作者査読は否決 — 候補破棄
 
 A-3 の候補（RecordedGameRead union・StartedPlayRow 36列・router 200・実DB縦断200）を作成し、実DB 1件 green まで確認したが、
