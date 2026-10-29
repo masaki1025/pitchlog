@@ -411,6 +411,7 @@ def _read_recorded_calculation(
             expected_calculation=expected,
             expected_participants=_participants(roster_result.value),
         )
+        _assert_play_row_matches_payload(play, payload)
         live()
         return RecordedCalculationCandidate(
             tenant,
@@ -437,6 +438,49 @@ class RecordedSnapshotNotAvailable:
     呼出側に例外分岐を置かず、記録後readの「内容を返さない」閉じた結果へ
     写すための値。破損と区別せず、推測で状態を補わない。
     """
+
+
+def _assert_play_row_matches_payload(
+    play: dict[str, Any], payload: FirstBallPayloadValue
+) -> None:
+    """保存PlayRowの物理値が、独立再評価した初球payloadと全値一致することを確かめる。
+
+    座標は payload の正準整数 k を既存の単一写像（k→Double）で写した値と比較し、
+    逆向きの式を新設しない。1つでも食い違えば公開しない（物理未照合の値をDTOへ
+    出さない）。
+
+    Args:
+        play: 保存済みPlayRowの全41列。
+        payload: 同一artifactの独立再評価と照合済みのV7/V8閉値。
+
+    Raises:
+        RecordedSnapshotUnavailable: 保存値と再評価値が一致しない場合。
+    """
+    from pitchlog.sync.first_ball_course import course_unit_to_double
+
+    observations = payload.v7.observations
+    participants = payload.v7.participants
+    expected = {
+        "batter_id": UUID(participants.batter_id),
+        "pitcher_id": UUID(participants.pitcher_id),
+        "catcher_id": UUID(participants.catcher_id),
+        "pitch_type_key": observations.pitch_type_key,
+        "batting_result_key": "batting-result.ball",
+        "course_x": course_unit_to_double(observations.course.x),
+        "course_y": course_unit_to_double(observations.course.y),
+        "pitch_speed": (
+            None
+            if observations.pitch_speed.kmh is None
+            else float(observations.pitch_speed.kmh)
+        ),
+        "stance": observations.stance,
+        "batting_side": observations.batting_side,
+    }
+    if any(
+        type(play.get(key)) is not type(value) or play.get(key) != value
+        for key, value in expected.items()
+    ):
+        raise RecordedSnapshotUnavailable
 
 
 def try_read_recorded_snapshot(

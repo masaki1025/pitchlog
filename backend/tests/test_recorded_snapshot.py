@@ -411,6 +411,24 @@ class RecordedBundle(Bundle):
             version=1,
             migration_unverified=False,
         )
+        observations = self.saved_payload["observations"]
+        participants = self.saved_payload["participants"]
+        self.plays[0].update(
+            batter_id=UUID(participants["batterId"]),
+            pitcher_id=UUID(participants["pitcherId"]),
+            catcher_id=UUID(participants["catcherId"]),
+            pitch_type_key=observations["pitchTypeKey"],
+            batting_result_key="batting-result.ball",
+            course_x=int(observations["course"]["x"]) / 263,
+            course_y=int(observations["course"]["y"]) / 263,
+            pitch_speed=(
+                None
+                if observations["pitchSpeed"]["kmh"] is None
+                else float(observations["pitchSpeed"]["kmh"])
+            ),
+            stance=observations["stance"],
+            batting_side=observations["battingSide"],
+        )
         self.ledger = dict.fromkeys(recorded.IdempotencyLedger.__table__.c.keys())
         self.ledger.update(
             tenant_id=self.tenant,
@@ -691,13 +709,9 @@ def test_r2_locked_generation_must_match_type_and_value(recorded_bundle):
         recorded._read_recorded_calculation(b.handle, b.game_id)
 
 
-def test_r2_physical_fields_remain_explicitly_unverified(recorded_bundle):
-    """R2-A計算候補を物理41列合格やrecorded DTOへ読み替えない。"""
+def test_r2_physical_mismatch_is_rejected(recorded_bundle):
+    """保存PlayRowが再評価値と食い違う場合は候補を返さない（物理未照合を公開しない）。"""
     b = recorded_bundle
     b.plays[0]["course_x"] = 0.123
-    result = recorded._read_recorded_calculation(b.handle, b.game_id)
-    assert (
-        result.unverified_play_row[RECORDED_PLAY_ROW_COLUMNS.index("course_x")] == 0.123
-    )
-    assert type(result) is recorded.RecordedCalculationCandidate
-    assert not hasattr(result, "read_kind")
+    with pytest.raises(recorded.RecordedSnapshotUnavailable):
+        recorded._read_recorded_calculation(b.handle, b.game_id)
