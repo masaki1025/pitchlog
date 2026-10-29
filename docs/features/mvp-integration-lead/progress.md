@@ -379,6 +379,25 @@ U2の実ブラウザ受入に必要な U5 の構造を確定した（コード�
 
 **現在地**: U2（開始の部品）は `74785d0f` で緑。U5 は設計のみ。次は U5 実装 → U2受入 → D19裁定後U1 → 座標ゲート後U3 → U4。
 
+### 2026-10-30（続き4）：U5 実ブラウザE2E基盤が成立（開始まで実インフラで緑）
+
+**固定点 `c4528c38`**（push済）。実ブラウザ→実app（uid20003コンテナ・uvicorn）→owned PG→実broker/RG1 で、**login→記録画面→端末登録→スタメン→試合開始→`GET /started` initial 200** を通した。固定応答・仮Port・stubなし。
+
+**構成（実装済み）**
+- `backend/tests/db/test_screen_start_e2e.py`: owned PG＋`broker_worker`＋`binding_broker`＋`_prepare_app_configuration` を流用し、appコンテナを `--publish` でuvicorn常駐。Viteをホストで起動（`GameScreenStart.e2e.vite.config.ts` が `/api` をappポートへproxy）。Playwrightを `GameScreenStart.playwright.config.ts` で実行。
+- `frontend/src/screens/GameScreenStart.e2e.ts`: 記録画面へ未認証で入り、guardのloginへ実フォーム認証→元の記録画面へ戻る。端末登録→DH有無でスタメン（DH時は8守備位置＋DH＋投手）→「試合を開始」→実start 200→画面と同じorigin・Cookieのfetchで `GET /started` を取得し `read_kind="initial"`・balls/strikes/outs=0 を確認。
+- 実測: **1 passed / 37.66s**。lint/type green。
+
+**実行コマンド（ホスト実行。node/pnpm と docker の両方が要るためコンテナランナー不可）**
+```
+cd backend
+env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src \
+  PITCHLOG_PYTEST_TMPDIR=/tmp/opencode/pytest-tmp-e2e \
+  .venv/bin/python -m pytest tests/db/test_screen_start_e2e.py -q --rootdir .
+```
+
+**現在地**: U2（開始）の受入が閉じた。画面縦断の残りは **U1 作成（D19裁定待ち）**、**U3 初球確定（座標ゲート待ち）**、**U4 再読込復元**（U3の後に recorded/after を含めて完成。初期状態の再取得はU5基盤で先行可）。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
