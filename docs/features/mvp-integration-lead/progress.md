@@ -304,6 +304,42 @@ pin 102箇所＋264点ベクタ＋manifest＋非作者レビュー＋ADR v0.10/�
 
 **次**: (1) 台帳・PRの単一受理（oracle seal含む）、(2) 単位B 画面のA+（lease/限定受容）と対向検査、(3) 単位C 座標の単一artifact操作。
 
+### 2026-10-30：実画面の初球縦断は未達（直接原因の実測）と正式資産の残件整理
+
+**固定点**: 実装 `feature/mvp-first-ball-vertical` HEAD `9b54a4fc`（push済）。台帳 `54fa33d8`。**API縦断（1球保存→記録後200/recorded）は維持**。画面縦断は未達。
+
+**① 画面縦断の直接原因（実測）**
+1. **新規作成**: HEAD の backend に `POST /games` が無い（`api/routers/games.py` は GET 2本と `POST /devices/enroll`・`POST /games/{id}/start`・`/start/resolve` のみ）。frontend の作成画面・client も無い。作成一式は未マージ枝 `feature/mvp-first-path-isolation`（merge-base `5ee75156`、81 files/+14422）にのみ存在。**HEAD への merge 実測: 16ファイル競合**（authz registry/core-guard/tenant_access/operation_registry 等）。同枝の E2E は「作成→一覧/詳細→reload→実DB照合」で、開始・初球は含まない。
+2. **開始**: `enroll`/`start`/`resolve` の frontend client と開始画面が HEAD に無い。未マージ枝 `feature/mvp-game-start-browser-persistence`（merge-base `30f67cbc`、16 files/+4115）にのみ存在。
+3. **初球確定**: `/games/:id/record` の host が `mode="preparing-read"` 固定（`GameScreenEntryRecordHost.vue:8`）で `GameScreen.vue` が mount されない。確定ボタンに `@click` が無く（`GameScreen.vue:661-671`）、`PITCH_COMMIT_BLOCKED=true`（`GameScreenCommitGate.ts:19`）。`commitPitchEvent`/`postSyncEvents`/`openDurableQueue` は**本番画面から未使用**。**gate解除・commit配線・V7/V8生成はどのブランチにも存在しない**（全ブランチ grep で `PITCH_COMMIT_BLOCKED = true` のみ）。
+4. **再読込復元**: `readStartedGame` は実装済みだが**画面からの呼出し0**（importはspecのみ）。開始後は `GET /games/{id}`（preparing限定）だけを呼び404になる。`after`/`play_rows` を表示へ写す adapter も無い。
+5. **E2E基盤**: 実FastAPI+専用PGの read E2E は健全（`GameScreenPreparingRead.playwright.config.ts` = **3 passed / 14.5s** を本日再測）。ただし broker/RG1/control・開始用seed（選手・名簿・語彙）が無く、`GameScreen.real.e2e.ts` は throw のまま。
+6. **座標/V7**: `StrikeZone` は 0〜263 の float を emit するが、正準整数kへの変換関数が無い。V7（`first-ball-play-v1`）の formatter は backend にのみ存在し、frontend/artifact に無い（NFR-018の単一実装を崩さない置き場の判断が要る）。
+
+**実施した確認（本日）**
+- `pnpm exec playwright test --config src/screens/GameScreenPreparingRead.playwright.config.ts` = **3 passed / 14.5s**（実Chromium・実FastAPI・専用PG・loopback http）。
+- 作成枝の HEAD への merge dry-run = 16 conflicted files（`backend/src/pitchlog/api/tenant_access.py`・`operation_registry.py`・`repository_contract.py`・`contracts/authz/{route-registry,http-route-matrix}.json`・`contracts/tenant_boundary/*`・`scripts/{check_authz_catalog,core_guard}.py`・対応test）。
+- P2是正差分（`0df1ac42`）の最終差分確認: product変更は docstring のみ（`schemas/started_games.py`・`recorded_snapshot.py`）。他は test/docs/plan。承認対象 diff `104eb76c…73ae3` の内容を欠落なく含む。**未確認は実DB/実ブラウザの再実行のみで、コード差分は再確認済み**。
+- stash事故の保全物: **19件すべて維持**（`stash@{0}` は事故前から存在した `feature/mvp-preparing-read-registration` の候補。新規stash・欠落なし）。
+
+**② 正式資産の残件（root suite 37 failed の分類。`docs`は未変更）**
+- **A: 31件** root venv に `sqlalchemy` が無い（`scripts/check_authz_catalog.py`→`pitchlog.authz.first_ball_product` が module 読込時に sqlalchemy を引く。`da55e85e` 由来）。backend venv では該当31件は green（代表2件で確認: full_profile=pass、repository_catalog=oracle理由でfail）。**製品欠陥ではなく実行環境/依存分離**。
+- **B: 1件** 未発効fixtureが `72800152` で base manifest に入った初期4表を落としていない（frozen-inputs rev6 の凍結ファイル）。
+- **C: 2件** `9b54a4fc` が `design_provenance` 末尾へ started-read 4行を足したため、末尾 `pop()`/`[-1]` を狙う変異が initial HTTP 族の外へずれた。同じ変異は `_validate_started_read_http_routes` が拒否する（**検査の穴ではない**）。frozen-inputs の凍結ファイル。
+- **D: 3件** oracle seal の入力4資産（`route-registry.json`/lock は `9b54a4fc`、`http-route-matrix.json`/lock は `72800152`）が未再封印。`--reseal-oracle` 単独では通らず、`oracle_commit` 前進→sealed 6資産の `oracle_context`→mcdc-map/failure-injection-points の2次層→`frozen-baselines` 履歴（`acceptance_id=<repo>#<PR>`）の1 PRが必要（前例 `044ffe78` の12ファイル型）。`oracle-meaning-change-approvals.json` は `oracle_commit` を意味本文から除いて比較するため、pointer前進だけなら追加承認行は不要。
+- **backend 2件**: `test_product_authz_catalog` の 50→53表追随漏れ・`pitchlog_sync_binding_fn_owner` の fixture 欠落（`7644b780`/`da55e85e` 由来、7.7不要）。
+- **委任範囲で今すぐ直せるもの: 0件**。Aは環境判断（CIのroot jobへbackend依存を入れるか、製品側で依存を分離するか）、B/C/Dは 7.7＋単一受理＋人間再レビュー、backend 2件も製品DDL/認可資産の受理が要る。**検査を緩める変更・承認対象未確認の再封印は行っていない**。
+
+**③ 次の検証（単位順）**
+1. **U1 作成**: `feature/mvp-first-path-isolation` の作成API+画面をHEADへポーティング（16競合の解消。authz registry は `POST /games` の原文から再取得）。受入: 実ブラウザで作成→一覧/詳細→reload→実DB照合（同枝の E2E を移植）。
+2. **U2 開始**: `feature/mvp-game-start-browser-persistence` の enroll/start/resolve client・耐久保存・開始画面を移植。受入: 実ブラウザで開始→`GET /started` initial 200。
+3. **U3 初球確定**: V7/V8 の生成（artifact 拡張か共有 formatter）・座標tap→k・D5/D2供給・queue/ACK・`PITCH_COMMIT_BLOCKED` 解除・`@click` 配線。受入: 実ブラウザでボール1球→ACK受理→実PG1行。
+4. **U4 再読込**: `readStartedGame` を画面へ接続し `after`/`play_rows`/`history` を表示。受入: reload後にサーバー再取得で 1ボール・0ストライク・履歴1・得点/アウト/走者不変。端末キャッシュのみの復元は成功扱いにしない。
+5. **U5 E2E基盤**: broker/RG1/control と開始用seedを `GameScreenE2eSupport` 系へ移植し、`real-game` project を実driver化。
+- 各単位の完了条件は「実ブラウザ＋実API＋実PG＋実broker」で、固定応答・仮Portを使わない。1単位ごとに緑の固定点で commit/push する。
+
+**現在地**: 画面縦断は**未達**。API縦断（初球1件の保存・記録後200/409/404/503・再送再掲）は `9b54a4fc` で維持。MVP全体の完成範囲は変更しない。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
