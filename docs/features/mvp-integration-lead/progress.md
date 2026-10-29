@@ -98,6 +98,31 @@ PO指示「隔離で縦につなぎ実画面の初球を通す」の続き。**�
 - 試験側の配置は root非秘密のみ（app容器へ `/control` と `/run/pitchlog` を同時マウントし、`binding-client.json` と `rg1-client.json` を試験が配置）。新規秘密・新SQL・新GRANTは0。
 - 既知の基線赤は不変（`test_api_conventions::test_api_source_has_no_synchronization_terms` ほか計12件。変更前後で同一集合、新規赤0）。`ruff check .` は既存2ファイル（行長/import順）で赤、`ruff format --check` は既存8ファイルで赤（本変更の追加分は整形済み）。
 
+### 2026-10-29：A-3（記録後DTO）非作者査読は否決 — 候補破棄
+
+A-3 の候補（RecordedGameRead union・StartedPlayRow 36列・router 200・実DB縦断200）を作成し、実DB 1件 green まで確認したが、
+非作者敵対レビューは **否決（P0=2/P1=6/P2=6）**、REPORT SHA `b02a54c…`（`~/.cache/pitchlog/a3-recorded-dto-review-20261029/REPORT.md`、
+対象diff SHA `2107c396…59bc`、HEAD `b6a90edd`）。
+
+**P0**: ①`play_rows` は候補型が「物理41列の一致は返さない」と宣言している**未照合値**なのに、全値一致を確かめず 200 で公開していた
+（計画 §8-5 違反）。②`test_api_started_game.py:120` が `response_model is StartedGameRead` を固定しており union 化で赤。
+**主なP1**: `press`/`fake_run` は text の4状態で bool 化は**値の損失**／nullable 7列を必須にして NULL=503・非NULL無検証／
+**座標は B-7 の正準整数で返すべき**（Double のみは逆変換の単一実装が無い）／frontend 検証器の同一commit追随なし／
+負例4経路（2球目・訂正・別tenant・破損）未固定／認可 registry の原文・binding・再封印が未追随。
+
+**処置**: 候補を**破棄**し worktree を `b6a90edd`（緑）へ戻した。次回の1単位は
+(a) reader に PlayRow 実値と payload/participants の**全値照合**を追加（不一致は非公開）
+(b) `press`/`fake_run` を閉じた語彙へ
+(c) nullable 列の期待値を `_same` へ追加し DTO を一致
+(d) 座標を正準整数（unit/x/y）で返す（単位Cの単一実装と接続）
+(e) frontend validator/型/spec を同一commitで追随
+(f) 負例4経路と除外集合（41−5=36）の固定
+(g) `test_api_started_game.py` の union 追随
+(h) 認可 registry 再取得＋同一段の再封印。
+
+**確認された問題なし**: 除外5列の妥当性・tenant分離・不可視条件・`state`=before＋`after`分離・初球限定の構造保証・
+NFR-005/018/023。利用者が新たにできる操作は増えていない（HTTPは409のまま）。
+
 ### 2026-10-29：単位A-1〜2 完了（記録後readの内部値・409維持）
 
 - `recorded_snapshot` に**閉じた値**の入口（`RecordedSnapshotNotAvailable` / `try_read_recorded_snapshot`）を追加し、
