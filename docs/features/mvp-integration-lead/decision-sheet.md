@@ -138,3 +138,11 @@ P3の因果だけの失効・一般同値不成立の公開分類/消費、旧co
 回答者: PO（本スレッドの利用者回答「推奨でいいと思う」）。記録者: Claude主担当。
 - **D18=A採用**。ADR-003をv0.10へ改訂し、D-14-mの対象に座標変換1件だけを追加する。D11の要件書追記（v2.18）と単一の7.3確定ゲートで扱い、改訂はゲートの敵対レビューとPO承認を経て確定する（本採用は方針の採用で、ゲート通過・ADR確定ではない）。ゲート前に先行できるのは契約ベクタ・独立導出・Python試験・計画起案まで。U17のコード着手はゲート通過・承認済み対象別計画・所有側の受理の後。暫定の手書き実装は出さない。
 - **J2（3層検査をマージ前必須にするか）は未回答**。ゲートの起案で選択肢と推奨を示し、同ゲートで裁定を受ける。
+
+## 追加判断票（2026-10-30、MVP-D19）
+
+起票: OpenCode主担当。契機: 実画面縦断のU1（試合作成）をHEAD `9b54a4fc` へ移植する試作で、コードではなく認可資産の受理が律速と判明。試作は破棄し、HEADは未変更。
+
+| 判断項目 | 具体例・現状 | 選択肢と推奨 | 影響 | 期限 | 根拠 |
+| --- | --- | --- | --- | --- | --- |
+| **MVP-D19 準備中作成（`POST /games`）のrepository operation surfaceを、隔離組立で候補として持つか、7.7受理を先にするか** | 作成は `CAP:games:insert`・`CAP:tenant_vocabularies:insert`・`CAP:tenant_vocabularies:read` を使う7 token（`PreparingGameInsertToken` ほか）を要する。両CAPは製品capability catalog（`contracts/authz/product/capability-catalog.json`）に実在するが、repository contract（`contracts/tenant_boundary/repository-contract.json`、現 revision 32）の `product_capability_ids` / `product_operation_token_types` に無い。追加は contract revision 繰上げ・`base-allowlist.json` の allowed_symbols 6件＋fixture・inventory・`repository_contract.py` の digest を伴い、tenant boundary の凍結baseline更新＝7.7の単一受理に当たる。候補実装は未マージ枝 `feature/mvp-first-path-isolation`（merge-base `5ee75156`）に存在。 | **A推奨**: 隔離組立の候補として contract revision 33 相当の差分を積み、実画面E2Eを進める。正式受理・履歴append・CI緑は merge 受入の7.7に残し、「未受理候補」と明記する（既存の隔離資産と同じ扱い）。B: 7.7の単一受理を先に受け、受理済みsurfaceだけを使ってU1へ戻る（安全だが10/31には間に合わない）。C: 作成を fixture seed で代用して画面の作成を省略（POの「実画面で新規作成」に反するため不採用）。 | 実画面の作成→開始→初球の入口。Aでも正式受理・CI緑は別。Cは受入を満たさない。 | 画面U1着手前。 | `contracts/authz/product/capability-catalog.json:66,356`、`contracts/tenant_boundary/repository-contract.json`（revision 32・CAPなし）、`feature/mvp-first-path-isolation` の `repositories/preparing_game_creation.py`（466行）・`services/game_creation.py`（262行）・base-allowlist allowed_symbols 6件。 |

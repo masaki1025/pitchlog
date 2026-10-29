@@ -340,6 +340,17 @@ pin 102箇所＋264点ベクタ＋manifest＋非作者レビュー＋ADR v0.10/�
 
 **現在地**: 画面縦断は**未達**。API縦断（初球1件の保存・記録後200/409/404/503・再送再掲）は `9b54a4fc` で維持。MVP全体の完成範囲は変更しない。
 
+### 2026-10-30（続き）：U1（試合作成）の試作と停止 — 律速は認可資産の受理
+
+実画面縦断のU1に着手し、HEAD `9b54a4fc` から試作用branchを作って `POST /games`・`GET /games/preparation-options`・`preparing_game_creation.py`・`services/game_creation.py`・schemas/router の追加までを試作した。**コードは成立する**（routerは7 operationでimport成功）が、`CAP:games:insert`・`CAP:tenant_vocabularies:insert`・`CAP:tenant_vocabularies:read` と7 tokenが **repository contract（revision 32）に無く**、追加は contract revision 繰上げ・`base-allowlist`（allowed_symbols 6件＋fixture）・inventory・digest 更新を伴うため、**tenant boundary の凍結baseline更新＝7.7の単一受理**に当たる。指示（検査を緩めない・承認対象を確認せず再封印しない）に従い、**試作は破棄**（worktree/branch削除、HEAD未変更）。
+
+- 事実: 両CAPは `contracts/authz/product/capability-catalog.json` に実在（DDL/grants側は既存）。repository contract は revision 32 で未収載。候補実装は未マージ枝 `feature/mvp-first-path-isolation` に存在（HEADへのmergeは16ファイル競合）。
+- 起票: **MVP-D19**（隔離組立で候補として持つか、7.7受理を先にするか。A推奨＝候補として積み、正式受理はmerge受入に残す）。
+- **画面縦断の第2のゲート**: 座標。D11=A（入力形成時に四捨五入）・D18=A（artifactに単一実装）は採用済みだが、**ADR-003 v0.10＋要件 v2.18＋7.3確定ゲート＋PO承認が未了**で、ゲート前は「暫定の手書き実装を出さない」方針。したがって tap→k を実装できず、**画面からの初球V7 courseは現時点で作れない**。初球保存を画面で通すにはこのゲートが律速。
+- 第3のゲート: durableQueue。D12=A採用（条件: 独立再レビュー・所有側受理・最終差分確認）。最終差分確認は既存委任で主担当が実施可能。初球だけなら v3 を使う選択（D12=B）もあるが、A採用済みのため v4 再基線が前提。
+
+**次の実装（ゲート非依存で先行可能）**: U2 開始（enroll/start/resolve client・耐久保存・開始画面。新しい認可資産の受理は不要）、U4 再読込（`readStartedGame`→`after`表示）、U5 E2E基盤（broker/RG1常駐＋開始seed）。U1はD19の裁定後、U3の座標はD18ゲート後。
+
 ## Codex主担当の再引受照合（2026-10-28）
 
 PO指示に基づきClaude主担当から引受。writer-binding実HEAD `dda33eb8771a2a4a51250898a8433eae489edb75`（origin一致・clean）、#188候補 `f0a8ce4effc3312e57eea25c90944a04032984e1`（clean・未push15commit）、台帳 `7ee54addaf0a4750089fc2eac603184bdc8dc6d6`（origin一致・clean）を確認。引継ぎ記載との不一致なし。cacheは読取可能でunit A+BのREPORT/3 patch/after-sha、U13 REPORT/combined patch、E-1反映6 plan/patchの全SHAが記載prefix/suffixと一致。unit A+B候補WTの24pathはafter-sha全一致、前置docs patchは現writer-bindingへ適用検査成功。Docker Server29.1.3へ接続可能（実PG再試験はまだ未実施）。
