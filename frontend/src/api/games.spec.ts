@@ -2,7 +2,12 @@ import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../stores/authStore'
 import { setVerifiedAuthForTest } from './auth.test-support'
-import { listPreparingGames, readPreparingGame } from './games'
+import {
+  createPreparingGame,
+  listPreparingGames,
+  readPreparationOptions,
+  readPreparingGame,
+} from './games'
 const tenant = '11111111-1111-4111-8111-111111111111'
 const id = '22222222-2222-4222-8222-222222222222'
 let pinia: Pinia
@@ -124,3 +129,77 @@ it.each(['list', 'detail'] as const)(
     expect(useAuthStore().isAuthenticated).toBe(true)
   },
 )
+
+const options = {
+  game_types: [
+    { key: 'game_official', display_name: '公式戦' },
+    { key: 'game_semi_official', display_name: '準公式戦' },
+    { key: 'game_open', display_name: 'オープン戦' },
+    { key: 'game_intrasquad', display_name: '紅白戦' },
+    { key: 'game_other', display_name: 'その他' },
+  ],
+  tournaments: {
+    items: [{ key: 'spring', display_name: '春季大会' }],
+    next_cursor: 'next',
+  },
+}
+
+it('作成選択肢は固定5区分と1ページを閉じた形で受け取る', async () => {
+  body = options
+  expect(await readPreparationOptions(null)).toEqual(options)
+  expect(fetch).toHaveBeenLastCalledWith(
+    '/api/games/preparation-options?limit=20',
+    expect.objectContaining({ method: 'GET', credentials: 'include' }),
+  )
+  body = { ...options, game_types: options.game_types.slice(0, 4) }
+  await expect(readPreparationOptions(null)).rejects.toThrow(
+    '作成選択肢の応答が不正です',
+  )
+  body = {
+    ...options,
+    game_types: [
+      options.game_types[0],
+      options.game_types[0],
+      ...options.game_types.slice(2),
+    ],
+  }
+  await expect(readPreparationOptions(null)).rejects.toThrow(
+    '作成選択肢の応答が不正です',
+  )
+})
+
+it('作成要求を一度だけPOSTし、応答が入力と一致しなければ採用しない', async () => {
+  const input = {
+    scheduled_at: '2026-10-31T10:00:00+09:00',
+    game_type_key: 'game_other' as const,
+    away_team_record_id: tenant,
+    home_team_record_id: id,
+    tournament: { kind: 'existing' as const, key: 'spring' },
+    plate_umpire: null,
+    section_label: '節',
+    week_label: null,
+    day_label: null,
+    game_number_label: null,
+  }
+  body = {
+    ...game,
+    scheduled_at: input.scheduled_at,
+    game_type_key: input.game_type_key,
+    tournament_key: 'spring',
+    section_label: input.section_label,
+  }
+  expect(await createPreparingGame(input)).toEqual(body)
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch).toHaveBeenLastCalledWith(
+    '/api/games',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  )
+  body = { ...(body as Record<string, unknown>), tournament_key: 'other' }
+  await expect(createPreparingGame(input)).rejects.toThrow(
+    '作成結果を確認できません',
+  )
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
