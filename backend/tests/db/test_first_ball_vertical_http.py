@@ -286,6 +286,14 @@ async def run():
         out['resend_ack']=resent.json() if resent.status_code==200 else None
         if resent.status_code!=200:
             out['resend_body']=resent.text[:400]
+        # 同一D5・同一内容を**別attempt**で再送しても、DI2はattempt非依存で再掲する。
+        other_attempt=str(uuid4())
+        reattempt=await client.post('/games/'+game+'/sync/events',
+            json=payload,headers=device_headers(pair,other_attempt))
+        out['stages'].append(['resend_other_attempt',reattempt.status_code])
+        out['reattempt_ack']=reattempt.json() if reattempt.status_code==200 else None
+        if reattempt.status_code!=200:
+            out['reattempt_body']=reattempt.text[:400]
         # 同一D5・異なる内容は B3b（A5「拒否」）で再適用しない。
         changed=json.loads(v7)
         changed['observations']['course']={'unit':'1/263','x':'1','y':'2'}
@@ -371,6 +379,7 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
         ["started_before", 200],
         ["sync", 200],
         ["resend", 200],
+        ["resend_other_attempt", 200],
         ["conflict", 200],
         ["attempt_reuse", 503],
         ["started_after", 409],
@@ -393,6 +402,12 @@ def test_first_ball_vertical_http_records_and_refuses_reload(
             {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
         ],
     }, value["resend_ack"]
+    assert value["reattempt_ack"] == {
+        "advancedD3": 1,
+        "eventResults": [
+            {"d4": value["d4"], "d1": 1, "d5": value["d5"], "a5Result": "重複"}
+        ],
+    }, value["reattempt_ack"]
     assert value["conflict_ack"] == {
         "advancedD3": 1,
         "eventResults": [
