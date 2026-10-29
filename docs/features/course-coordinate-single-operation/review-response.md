@@ -15,9 +15,9 @@
 | R1-P0-3 / R2-P0-4 | `contracts/display-geometry/coordinate_transform_contract_v1.json`（42ケース）・D-6/D-8/D-11・B-7:1319-1322 | 契約の真部分集合を「単一実装の契約ベクタ」と認定。同じ計算の2本目ベクタを作る | 既存契約を**再利用**。量子化は**入力形成**、画面⇄保存は既存B-7。二段階境界を明記 | 42ケースの不変・新規計算ファイルの不在 | **解消**（`92453a3e`） |
 | R2-P0-4（B-7） | 要件 B-7:1321「画面→保存では丸めを行わない」 | (a)がB-7改訂を隠す | B-7は変換自体の規定で、入力形成の量子化を禁止しないと原典で確認。**B-7の意味変更なし** | 原典行の引用と二段階仕様 | **解消**（本表 §3） |
 | R1-P1-y / R2-P1 | B-2/B-7:1322、`StrikeZone.vue:51,70` | y軸の向き・`263−y`が未定義 | §3で「画面y下向き→保存 `y_norm=(263−y)/263`」を固定。量子化は画面yに適用 | 固定入力のy期待値 | **解消**（§3） |
-| R1-P1-丸め / R2-P1 | 付録A-1、D-14-e 3、`Math.round(-0.5)` | 「DSLに除算が無い」は誤り。十進文法・スケール上限・BigInt剰余丸めが無い | §3で十進文法（最大6桁小数、超過は拒否）・BigIntスケール・`2r≥|d|`・負値の絶対値丸めを固定 | 境界ベクタ（131.5/-0.5/263.4） | **解消**（§3） |
+| R1-P1-丸め / R2-P1 | 付録A-1、D-14-e 3、`Math.round(-0.5)` | 「DSLに除算が無い」は誤り。十進文法・スケール上限・BigInt剰余丸めが無い | §3/§4/§7.1の文法を最短往復表現（固定桁上限なし・指数可）へ統一し、BigInt剰余の half-up を §8 で実証 | 文法の一致と境界ベクタ | **未解消**（§7.1/§8の反映後に再確認） |
 | R1-P1-範囲 / R2-P1 | B-7のクランプ・D-11のクランプ点 | 範囲外fail-closedがクランプと衝突 | **クランプは表示入力（StrikeZone）で行い、量子化は0..263外を拒否**。クランプ点は既存42ケースの意味を維持 | 0/263/263.4/-0.5の期待 | **解消**（§3/§4） |
-| R1-P1-size / R2-P1 | 要件 B-7「正は `display_geometry_263_v1.json` の size」 | 263/`unit:"1/263"`の焼き込みが二重管理 | `size` を契約から供給し、operationはsizeを入力に取る。unit文字列は境界で契約から導出 | 263変更時の追随試験 | **解消**（§3） |
+| R1-P1-size / R2-P1 | 要件 B-7「正は `display_geometry_263_v1.json` の size」 | 263/`unit:"1/263"`の焼き込みが二重管理 | `size` を契約から供給し、operationはsizeを入力に取る。unit文字列は境界で契約から導出 | 263変更時の追随試験 | **未解消**（§3の「1/263」表現をsize導出へ統一して再確認） |
 | R1-P1-3層 / R2-P1 | ADR D-6 のCI検査4項目・J2 | properties/mutation/descriptorが無い | 既存42ケースに properties（単調・範囲・反転不変）と mutation を追加。J2はADRで既に必須と確認 | descriptorの実在とmutation落ち | **未解消**（材料は§4、実装はゲート後） |
 | R1-P1-manifest / R2-P1 | `frontend/public/domain/pitchlog-domain.json` ほか | `backend/domain/manifest.json`不在でdirectTargets/runner/収集器が未具体 | 既存の artifact 宣言（`frontend/public/domain/pitchlog-domain.json`）を更新対象とし、backend側manifestの実体を確認して計画に書く | manifestの実パスとpin対象 | **未解消**（実体確認が次） |
 | R1-P1-float反転 / R2-P1 | `StrikeZone.vue` の `courseScreenXToStoredX`・NFR-018(c)例外 | 既存float反転と逐語移植例外の扱いが未記載 | 量子化後の**整数**反転へ置換し、float反転は削除。NFR-018(c)例外の失効をゲート対象に | 反転の単一実装grep | **未解消**（ゲート対象） |
@@ -83,9 +83,12 @@
 - `StrikeZone.vue:51-53` のタップは `courseScreenXToStoredX` と `Math.max(0.1, Math.min(262.9, y))` を通る **float** で、
   canvas 比から 131.49999999999997 のような長い十進表現になり得る。6桁で切ると (a) 正常タップの拒否、
   (b) `toFixed(6)` による**二重丸め**（例 131.4999996→131.500000→132 の境界越え）が起きる。
-- **採用**: 入力は**浮動小数の正確な十進表現（最大17有効桁）**または有理数対とし、artifact 内で BigInt の
-  スケール付き整数へ変換して half-up する。固定小数桁の上限は設けない。UI 側は `String(value)` の
-  往復可能表現（`Number(String(v)) === v`）を渡し、丸めない。**D11 の意味（half-up を一度だけ）を維持**する。
+- **採用（文法を §1/§3.2/§4/§5/§7.1 で同一に）**: 入力は `String(value)` の**最短往復表現**
+  （`[+-]?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?`、指数は有限、値は有限）。**固定小数桁の上限を設けない**
+  （最短表現は定義上17有効桁以内）。有理数対は採らない（最短表現が同じ double に復元され、`.5` との
+  大小/一致を保つため）。UI は丸めない。**D11 の意味（half-up を一度だけ）を維持**する。
+- **範囲**: 表示入力で `[0, size]` にクランプした後に渡す。operation は範囲外（`size` 超・負値）を**拒否**する。
+  したがって `263.4` と `-0.5` は**受理しない**。`262.9→263` は half-up の結果。
 - 検証: `131.49999999999997`→131、`131.5`→132、`131.50000000000003`→132、`0.1`→0、`262.9`→263（クランプ入力後）、
   `263`→263、`263.4`は入力で拒否。固定入力で境界前/一致/直後を固定する。
 
@@ -93,22 +96,28 @@
 
 - 現行: `StrikeZone` が `courseScreenXToStoredX`（`263 − screenX`）を **float のまま**適用して emit →
   下書き → V7。D11=A は「量子化**後**に反転」なので、この順のまま量子化すると**反転が二重**になる。
-- **確定**: `StrikeZone` は**画面座標（反転前）**を emit し、artifact の `quantizeCourse` が
-  「画面 float → half-up 整数 → 反転」を一度だけ行う。`courseScreenXToStoredX` の float 版は削除し、
-  整数版を artifact の出力に置き換える（U3 の置換範囲）。y は `StrikeZone` の画面 y（下向き）を渡し、
-  保存変換は既存B-7（`263−y`）が一度だけ行う。
+- **確定（入出力型）**: `quantizeCourse({x, y, view, batterSide, size})`
+  入力 `x,y`: 画面座標（x右・y下、float、表示で `[0,size]` にクランプ済み）、`view`: `catcher|pitcher`、
+  `size`: `display_geometry_263_v1.json` の `size`。出力: `{unit:"1/<size>", x:"<k>", y:"<k>"}`（保存正準整数）。
+  **内部順**: 画面x,yを half-up で整数化（1回）→ 投手後方視点の x 反転（1回）→ B-7 の y 軸反転
+  `size−y`（1回）→ 整数文字列。`courseScreenXToStoredX` の float 版は削除する（U3の置換範囲）。
+- **y の戻り経路**: キーボード入力・マーカー入力も同じ `quantizeCourse` に画面座標を渡す（保存値を
+  直接渡さない）。表示は artifact の保存→画面変換（既存42ケース）を使う。
 - 二重丸め・二重反転の検査: 量子化1回・x反転1回・y軸反転1回を、呼出順のベクタで固定。
 
 ### 7.3 manifest・V7・例外の実体
 
-- `backend/domain/manifest.json` は**存在しない**。artifact 宣言の実体は
-  `frontend/public/domain/pitchlog-domain.json`（`domainrt/host.py:17`）。更新対象はこの宣言と
-  `frontend/public/domain/pitchlog-domain.js` の再生成・SHA、および `first_ball_payload_vectors_v1.json` の
-  `artifactSha256`。`backend/domain/` の manifest を新設しない。
+- **D-11 の manifest と artifact 宣言を区別する（P0）**: `backend/domain/manifest.json` は現状**不在**で、
+  D-11/D-6 が要求する**計算 manifest（entrypoints/directTargets/比較面）**の置き場として**新設が必要**。
+  `frontend/public/domain/pitchlog-domain.json`（`domainrt/host.py:17`）は artifact の SHA 宣言であり、
+  manifest の代用ではない。更新対象は (a) `backend/domain/manifest.json` の新設と operation 登録、
+  (b) `frontend/public/domain/pitchlog-domain.json`/`.js` の再生成と SHA、(c) `first_ball_payload_vectors_v1.json`
+  の `artifactSha256`。**両者を取り違えない**。
 - V7 formatter は backend の Python（`first_ball_payload.py`）にあり、artifact には無い。**座標ゲートの対象に
   V7 を含めない**（V7 組立は座標の出力を使う別単位）。座標ゲートは「量子化→画面座標→既存B-7の k」まで。
-- `courseScreenXToStoredX` の置換は **U3（画面接続）**の範囲。NFR-018(c) の逐語移植例外は
-  `COURSE_COORDINATE_SIZE` の既存計画が扱い、本ゲートでは**失効の要否だけ**を記録する（V7/画面の実装で判断）。
+- `courseScreenXToStoredX` の float 反転は **本ゲートで置換を確定**する（量子化後の整数反転へ置換し、
+  float 版を削除）。NFR-018(c) の逐語移植例外は、`COURSE_COORDINATE_SIZE` の既存計画の扱いを維持しつつ、
+  **float 反転の例外は本ゲートで失効**させる。V7/画面の実装へ先送りしない。
 
 ### 7.4 ゲート前後の分割（拡大しない）
 
@@ -135,10 +144,12 @@ BigInt・十進文字列 codec（`decimalCodec.ts`）・`globalThis.PitchlogDoma
 - y は画面座標（下向き）を渡し、既存 B-7 が一度だけ `size − y` を行う。
 
 **隔離検証（製品artifact/契約/凍結値は未変更。製品実装済みとは扱わない）**
-- `/tmp/opencode/quant.mjs`（Node・BigInt）と Python `Fraction` の独立 oracle で固定入力を照合:
+- `/tmp/opencode/quant.mjs`（Node・BigInt）と Python `Fraction` の独立 oracle で**丸め関数だけ**を照合:
   `131.49999999999997→131`、`131.5→132`、`131.50000000000003→132`、`0.49999999999999994→0`、
   `0.5→1`、`-0.5→-1`、`0.1→0`、`262.9→263`、`263→263`、`263.4→263`、`1e-7→0`。**全一致**。
   反転は `263−132=131`、`263−131=132`。期待値は Python の厳密有理数から独立に算出。
+- **注意**: `-0.5→-1` と `263.4→263` は**丸め関数単体**の結果であり、operation の受理値ではない。
+  operation は範囲外（負値・`size` 超）を拒否する（§7.1）。
 - 制約: 指数表記の受理、スケールの上限（指数の絶対値を有限に）、`number`/`Math.round` 不使用、
   `size` の入力化。`String(value)` は 0..263 の通常タップで指数表記にならないが、0 近傍の極小値は
   指数で来るため受理する。
