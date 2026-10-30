@@ -2019,3 +2019,9 @@ Viteのpublic JSON import警告を一時的に読込停止原因と推定した�
 50e91142で検査を全stateFieldsのtoStrictEqual（balls1以外はbefore全値）＋scoreboard全値不変＋reload after全構造/型比較へ是正し、検査を部分一致へ緩めていない。vue-tsc/eslint成功。同HEADでHTTPS3回目を実行中、sourceは固定。
 
 正式source/route候補の非作者reviewは双方P0/P1/P2=0（route REPORT SHAe536708c1d73bf5b3bbfb5e0c1b4fa16c755f44f0b8ee7928cd3981d39db0299、source REPORT SHA7c9b14a02148edec566f64da021e71089ba121d37f598269903183353a6dff3e）。既auth187全field/digest不変、1429sourceと3blobを独立照合。正式seal/7.7未実施、source実測終了後に直列化する。
+
+### 2026-10-30 初球保存・同一要求再送まで実測、reloadのBoolean境界是正
+
+50e91142のHTTPS3回目は **1failed / 275.98秒**。実画面作成→開始→初球POST200→recorded GET・全after(stateFieldsはballs1以外before全値/scoreboard不変)/history1/play_rows1→同一要求再送200まで進んだ。停止はreload後のGET待ち。再送に新D5/attemptを使わず、原要求をブラウザ内closureで保持した実再送である。DB最終件数/reload表示は後段未実施なので初球縦断完成とはしない。
+
+実原因はEntryRecord.restoreAuto/RecordedRestore.autoの省略可能BooleanがVueの未指定falseにcastされ、hookが既保存開始を照合するundefined経路へ入らないこと。5c351aeeでdefaultundefinedを明示し、明示false/開始保存なしは従来どおり自動取得しない。追加3対向を含む8件・vue-tsc/eslint成功、非作者review依頼済。同固定HEADでHTTPS4回目を実行中。attempt3 log保全済。
