@@ -52,6 +52,46 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('HTTPSが必要です')
   const stageMonitor = await startOrdinaryStageMonitor(page)
+  const prefixReads: {
+    source: string
+    status: number
+    kind: string
+    atExpected: boolean
+  }[] = []
+  let expectedPrefixLength = '0'
+  const observeRead = async (
+    response: import('__PLAYWRIGHT_MODULE__').Response,
+  ) => {
+    const url = new URL(response.url())
+    if (
+      response.request().method() !== 'GET' ||
+      !/\/games\/[^/]+\/started$/.test(url.pathname)
+    )
+      return
+    const read = {
+      source:
+        url.searchParams.get('projection') === 'ordinary-prefix-v1'
+          ? 'ordinary'
+          : 'legacy',
+      status: response.status(),
+      kind: 'unread',
+      atExpected: false,
+    }
+    prefixReads.push(read)
+    if (prefixReads.length > 10) prefixReads.shift()
+    try {
+      const value = await response.json()
+      read.kind = ['recorded-prefix', 'initial', 'recorded'].includes(
+        value.read_kind,
+      )
+        ? value.read_kind
+        : 'other'
+      read.atExpected = value.prefix_ref?.length === expectedPrefixLength
+    } catch {
+      read.kind = 'unreadable'
+    }
+  }
+  page.on('response', observeRead)
   try {
     await page.addInitScript(() => {
       const nativeFetch = window.fetch.bind(window)
@@ -352,6 +392,8 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
     const balls = ['1', '1', '2'],
       strikes = ['0', '1', '1']
     for (let index = 0; index < results.length; index++) {
+      expectedPrefixLength = String(index + 1)
+      prefixReads.length = 0
       for (const id of ['profile', 'mode', 'bucket', 'lockdown'])
         await page.getByTestId(`first-ball-env-${id}`).check()
       await page
@@ -371,6 +413,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
         async (res) =>
           isPrefix(res) &&
           (await res.json()).prefix_ref.length === String(index + 1),
+        { timeout: 30000 },
       )
       // 診断による早期fail後も待機Promiseの二次unhandledを出さない。
       void restored.catch(() => undefined)
@@ -437,7 +480,17 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
           cdpStages: stageMonitor.snapshot(),
         }),
       ).toBe('saved')
-      latest = await (await restored).json()
+      try {
+        latest = await (await restored).json()
+      } catch {
+        throw new Error(
+          JSON.stringify({
+            stage: 'prefix-read-timeout',
+            reads: prefixReads,
+            cdpStages: stageMonitor.snapshot(),
+          }),
+        )
+      }
       expect(latest.read_kind).toBe('recorded-prefix')
       expect(latest.page.items).toHaveLength(index + 1)
       expect(latest.after.stateFields).toStrictEqual({
@@ -490,6 +543,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
     await expect(page.getByTestId('restore-plays')).toHaveText('3件')
     console.log(`PITCHLOG_ORDINARY_GAME_ID=${saved.id}`)
   } finally {
+    page.off('response', observeRead)
     await stageMonitor.close()
   }
 })
@@ -684,11 +738,10 @@ export async function startOrdinaryStageMonitor(page) {
       }
       session.off('Debugger.scriptParsed', parsed)
       session.off('Debugger.paused', paused)
-      try {
-        await session.send('Debugger.disable')
-      } finally {
-        await session.detach()
-      }
+      try { await session.send('Debugger.disable') }
+      catch { /* 終了済みtargetでも元の試験失敗を覆わない。 */ }
+      try { await session.detach() }
+      catch { /* browser終了後のcleanupは元の失敗を維持する。 */ }
     },
   }
 }

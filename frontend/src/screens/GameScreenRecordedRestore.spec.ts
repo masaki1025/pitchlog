@@ -10,6 +10,8 @@ import { pinia } from '../appProviders'
 import { createAppRouter } from '../router'
 import { useAuthStore } from '../stores/authStore'
 import GameScreenRecordedRestore from './GameScreenRecordedRestore.vue'
+import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
+import { ApiError } from '../api/client'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 
 vi.mock('../api/startedGame', async (importOriginal) => ({
@@ -210,13 +212,13 @@ it('auto省略でも開始保存がない試合を自動取得しない', async 
   expect(readStartedGame).not.toHaveBeenCalled()
 })
 
-function prefixFixture() {
+function prefixFixture(index = 2) {
   const value = JSON.parse(
     readFileSync(
       resolve(process.cwd(), 'src/api/fixtures/recordedPrefixGame.v1.json'),
       'utf8',
     ),
-  ).positive[2].value
+  ).positive[index].value
   value.id = game
   value.prefix_ref.gameId = game
   value.prefix_ref.tenantId = tenant
@@ -244,12 +246,12 @@ it('新prefixの現在after/実保存日時/有限pageを表示し、旧開始sn
 })
 it('新prefixの通信断は未更新と明示して最後の確認値を保ち、409失効では閉じる', async () => {
   const value = prefixFixture()
-  vi.mocked(readStartedGame)
-    .mockResolvedValueOnce({ kind: 'recorded-unavailable' })
-    .mockRejectedValueOnce(new TypeError('network failure'))
-    .mockResolvedValueOnce({ kind: 'recorded-unavailable' })
+  vi.mocked(readStartedGame).mockRejectedValue(
+    new ApiError(503, 'legacy unavailable', [], undefined, undefined),
+  )
   vi.mocked(ordinaryRead.readRecordedPrefixGame)
     .mockResolvedValueOnce({ kind: 'found', game: value })
+    .mockRejectedValueOnce(new TypeError('network failure'))
     .mockResolvedValueOnce({ kind: 'unavailable' })
   const wrapper = await mountRestore()
   const reload = () =>
@@ -266,4 +268,105 @@ it('新prefixの通信断は未更新と明示して最後の確認値を保ち�
   await reload().trigger('click')
   await flushPromises()
   expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+})
+
+it('savedイベント後は旧reader503に依存せず新prefixを再取得して保存後afterを表示する', async () => {
+  const initial = prefixFixture(0),
+    saved = prefixFixture(1)
+  vi.mocked(readStartedGame).mockRejectedValue(
+    new ApiError(503, 'legacy unavailable', [], undefined, undefined),
+  )
+  vi.mocked(ordinaryRead.readRecordedPrefixGame)
+    .mockResolvedValueOnce({ kind: 'found', game: initial })
+    .mockResolvedValueOnce({ kind: 'found', game: saved })
+  const wrapper = await mountRestore()
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('0')
+  wrapper.getComponent(GameScreenOrdinaryPitch).vm.$emit('saved')
+  await flushPromises()
+  expect(ordinaryRead.readRecordedPrefixGame).toHaveBeenCalledTimes(2)
+  expect(ordinaryRead.readRecordedPrefixGame).toHaveBeenLastCalledWith(game)
+  expect(readStartedGame).not.toHaveBeenCalled()
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('1')
+  expect(wrapper.get('[data-testid="restore-history"]').text()).toBe('1件')
+})
+
+it.each([0, 1, 3])(
+  'n0/通常n1/旧初球n1のprefix正例index=%iを旧ABIなしで復元する',
+  async (index) => {
+    const value = prefixFixture(index)
+    vi.mocked(readStartedGame).mockRejectedValue(
+      new ApiError(503, 'legacy unavailable', [], undefined, undefined),
+    )
+    vi.mocked(ordinaryRead.readRecordedPrefixGame).mockResolvedValue({
+      kind: 'found',
+      game: value,
+    })
+    const wrapper = await mountRestore()
+    expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe(
+      value.after.stateFields['state.count.balls'],
+    )
+    expect(readStartedGame).not.toHaveBeenCalled()
+  },
+)
+
+it.each([401, 403, 404, 409, 503])(
+  '新projectionのHTTP%sを旧ABI成功で覆わない',
+  async (status) => {
+    vi.mocked(readStartedGame).mockResolvedValue({
+      kind: 'found',
+      game: recorded(),
+    })
+    vi.mocked(ordinaryRead.readRecordedPrefixGame).mockRejectedValue(
+      new ApiError(status, 'unit rejection', [], undefined, undefined),
+    )
+    const wrapper = await mountRestore()
+    expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+    expect(readStartedGame).not.toHaveBeenCalled()
+  },
+)
+
+it('新projectionの破損DTOも旧ABIへfallbackしない', async () => {
+  vi.mocked(readStartedGame).mockResolvedValue({
+    kind: 'found',
+    game: recorded(),
+  })
+  vi.mocked(ordinaryRead.readRecordedPrefixGame).mockRejectedValue(
+    new Error('invalid DTO'),
+  )
+  const wrapper = await mountRestore()
+  expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+  expect(readStartedGame).not.toHaveBeenCalled()
+})
+
+it.each(['not-found', 'unavailable'] as const)(
+  '新projectionの%s結果から旧ABI成功へfallbackしない',
+  async (kind) => {
+    vi.mocked(readStartedGame).mockResolvedValue({
+      kind: 'found',
+      game: recorded(),
+    })
+    vi.mocked(ordinaryRead.readRecordedPrefixGame).mockResolvedValue({ kind })
+    const wrapper = await mountRestore()
+    expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+    expect(readStartedGame).not.toHaveBeenCalled()
+  },
+)
+
+it('新prefix取得中の認証世代変更後は旧応答を表示せず旧ABIも呼ばない', async () => {
+  let finish!: (
+    value: Awaited<ReturnType<typeof ordinaryRead.readRecordedPrefixGame>>,
+  ) => void
+  vi.mocked(ordinaryRead.readRecordedPrefixGame).mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve
+    }),
+  )
+  const wrapper = await mountRestore()
+  expect(ordinaryRead.readRecordedPrefixGame).toHaveBeenCalledOnce()
+  useAuthStore().expireSession()
+  await flushPromises()
+  finish({ kind: 'found', game: prefixFixture(1) })
+  await flushPromises()
+  expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+  expect(readStartedGame).not.toHaveBeenCalled()
 })

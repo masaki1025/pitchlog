@@ -70,67 +70,31 @@ export function useRecordedRestore(
     game.value = retained
     message.value = 'サーバーの記録を取得しています'
     try {
-      const result = await readStartedGame(id)
-      // 認証世代・要求順が変わった応答は採用しない（旧表示を最新にしない）。
+      // 通常記録の読取を旧初球専用readerの成功に従属させない。
+      // 明示unsupportedだけ旧ABIへ戻し、拒否/故障/破損は代替成功にしない。
+      const prefix = await readRecordedPrefixGame(id)
       if (request !== sequence || auth.authEpoch !== epoch) return
-      if (result.kind === 'recorded-unavailable' || result.kind === 'found') {
-        try {
-          const prefix = await readRecordedPrefixGame(id)
-          if (request !== sequence || auth.authEpoch !== epoch) return
-          if (prefix.kind === 'found') {
-            if (prefix.game.prefix_ref.tenantId !== auth.teamId)
-              throw new Error('記録のtenantを確認できません')
-            confirmedEpoch = epoch
-            game.value = prefix.game
-            status.value = 'ready'
-            message.value = `サーバー確認済みの通常投球prefix ${prefix.game.prefix_ref.length}を取得しました。最終保存: ${prefix.game.last_saved_at}`
-            return
-          }
-          if (
-            result.kind === 'recorded-unavailable' &&
-            prefix.kind === 'unsupported'
-          ) {
-            game.value = null
-            status.value = 'unavailable'
-            message.value = '初球1件として返せない記録です'
-            return
-          }
-          if (result.kind !== 'found' || prefix.kind !== 'unsupported') {
-            game.value = null
-            status.value = 'unavailable'
-            message.value = 'サーバーの通常投球prefixを取得できません'
-            return
-          }
-        } catch (error) {
-          if (request !== sequence || auth.authEpoch !== epoch) return
-          if (
-            retained &&
-            (error instanceof TypeError ||
-              (error instanceof ApiError &&
-                (error.status >= 500 || error.status === 429)))
-          ) {
-            game.value = retained
-            status.value = 'failed'
-            message.value = `未更新: サーバーを再取得できません。最後に確認した保存日時: ${retained.last_saved_at}。端末の未確認分は別に表示します`
-            return
-          }
-          if (
-            error instanceof ApiError &&
-            [401, 403, 404, 409].includes(error.status)
-          ) {
-            game.value = null
-            status.value = 'failed'
-            message.value = 'サーバーの記録前提を確認できません'
-            return
-          }
-          if (result.kind !== 'found') {
-            game.value = null
-            status.value = 'failed'
-            message.value = 'サーバーの通常投球prefixを取得できません'
-            return
-          }
-        }
+      if (prefix.kind === 'found') {
+        if (prefix.game.prefix_ref.tenantId !== auth.teamId)
+          throw new Error('記録のtenantを確認できません')
+        confirmedEpoch = epoch
+        game.value = prefix.game
+        status.value = 'ready'
+        message.value = `サーバー確認済みの通常投球prefix ${prefix.game.prefix_ref.length}を取得しました。最終保存: ${prefix.game.last_saved_at}`
+        return
       }
+      if (prefix.kind !== 'unsupported') {
+        game.value = null
+        status.value = prefix.kind === 'not-found' ? 'not-found' : 'unavailable'
+        message.value =
+          prefix.kind === 'not-found'
+            ? 'この試合は取得できません'
+            : 'サーバーの通常投球prefixを取得できません'
+        return
+      }
+      const result = await readStartedGame(id)
+      // 認証世代・要求順が変わった応答は採用しない。
+      if (request !== sequence || auth.authEpoch !== epoch) return
       if (result.kind === 'found') {
         game.value = result.game
         confirmedEpoch = epoch
