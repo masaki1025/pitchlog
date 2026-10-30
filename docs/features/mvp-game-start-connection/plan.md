@@ -582,3 +582,7 @@ PO委任によるCodex主担当判断。root隔離実PG probe pr188-s3-owned-pro
 作者は静的前後・型lint・局所pure対向を固定、rootが実owned PGでstartup故障再開/認可31不一致0/ledger生成・immutabilityを検査する。最終sourceを別非作者へ渡して採否後保存する。全CIや全復旧検証をこの比較だけで成立させず、残るseed/ACL/oracle/censusを維持する。
 
 歴史schema検査3path採用（2026-10-31、PO委任によるCodex主担当判断）: 作者packet b8787ab4bdd1ba7221fa9fc878ded2e44a9ef270c7677e045f50dd6202916d4a/実3byteと非作者REPORT59ca7d70d69be7bf3fab5afa7b28659df2ea56d9c79a1dee658832067c5a56acを照合して採用。新指摘0、独立pure29/ty、root別pure29および所有PGの0032upgrade・故意差分検出・0036epoch欠落検出3成功/10.59秒を確認。最初の必須DSN未供給setup3errorはログ保持し、既認証主体検査を通す所有クラスタ供給後の結果と区別する。製品/正本/manifest変更0、全CI/他migration全件・S3全復旧は未閉。
+
+### 0036固定owner読取のhygiene有限照合（2026-10-31）
+
+PO委任によるCodex主担当判断。実migration hygieneの唯一失敗は0036 upgradeの固定ownerを読むSELECT current_userである。backend/tests/test_migration_hygiene.py exact1だけを指示し、0036の実path/upgrade直下にある既if全AST（op.get_bind().execute(sa.textのexact SELECT current_user).scalar_oneとpitchlog_owner比較・既RuntimeError拒否）に一致する読取だけを有限認識する。任意get_bind execute、SELECT一般、bind alias、他path/function、SQL多文/文字連結/補間、owner比較改変や拒否除去は通さない。既全DML/SQL/get_bind拒否を保持する。製品migrationとowner拒否は不変。許可patternの自己期待更新で変造を通さず、原典の固定owner要件と実本体を比較し、負例でguardの全重要部分を反転して赤を確認する。作者packet/非作者/局所純検査/型を揃えて採用し、正式受理資産の隠れた改変に使わない。
