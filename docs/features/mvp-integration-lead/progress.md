@@ -2011,3 +2011,11 @@ authz cache候補（REPORT SHA4695989fa90c5daca844feb1752f1eada7f0d126923f2ebb84
 Viteのpublic JSON import警告を一時的に読込停止原因と推定したが、pnpm buildは成功（1909 modules/closure conforming）し実画面作成開始も進んでおり、直接原因という判断を訂正。不要なartifact identityコピー等は追加していない。
 
 21a2f0e3でHostの開始応答保存received遷移→既retry→実準備中GETを接続し、実サーバーの結果で復元入口へ移す。結果不明/失敗ではretryしない回帰1件、vue-tsc/eslint成功。E2Eは自動取得後も扱えるよう実button名の復元/再取得を許す。固定同HEADでHTTPS2回目を実行中、非作者差分reviewも依頼済。初回logをcache first-ball-https-evidence-20261030/attempt1-playwright.logへ保全（TLS鍵内容なし）。
+
+### 2026-10-30 HTTPS実画面から初球保存・再取得に到達
+
+21a2f0e3のHTTPS2回目は **1failed / 44.01秒**。画面新規作成→開始→実初球POST200→GET200/recorded・history1・play_rows1まで進んだ。停止は検査のstate.scoreオブジェクトに対するtoBe参照比較（同じJSONでも別参照）。保存成功はこの範囲の実測だが、再送/reload/DB件数の後段は未完で初球縦断完成とはしない。attempt2 logをcacheへ保全。
+
+50e91142で検査を全stateFieldsのtoStrictEqual（balls1以外はbefore全値）＋scoreboard全値不変＋reload after全構造/型比較へ是正し、検査を部分一致へ緩めていない。vue-tsc/eslint成功。同HEADでHTTPS3回目を実行中、sourceは固定。
+
+正式source/route候補の非作者reviewは双方P0/P1/P2=0（route REPORT SHAe536708c1d73bf5b3bbfb5e0c1b4fa16c755f44f0b8ee7928cd3981d39db0299、source REPORT SHA7c9b14a02148edec566f64da021e71089ba121d37f598269903183353a6dff3e）。既auth187全field/digest不変、1429sourceと3blobを独立照合。正式seal/7.7未実施、source実測終了後に直列化する。
