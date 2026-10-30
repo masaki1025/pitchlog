@@ -157,3 +157,9 @@ PO委任によるCodex主担当判断。作者17path packet52814b4e60355c177b594
 ステップ3の実loaded artifact束縛（2026-10-31、PO委任によるCodex主担当判断）: backend/src/pitchlog/domainrt/host.py exact1の既検証済み不変_source UTF-8 byteに対するread-only artifact_sha256 property追加を許可する。新callerのsource証拠hashと実loaded artifactを照合し、一回呼出し前に不一致拒否するため。別artifact供給/host選択/書込/野球計算を追加せず、旧constructor/検証/呼出しの意味は不変。ファイル再読込TOCTOUを避け、同実loaded sourceに束縛する。差分を最終step3非作者対象へ含める。
 
 ステップ3の機械pin追随（2026-10-31、PO委任によるCodex主担当判断）: 再build実artifact052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4/40239byteを照合。backend/domain/manifest.jsonとterminal-pitch-manifest.jsonの各directTargets[0].hash1ずつ、およびfirst_ball_payload_vectors_v1.jsonのartifactSha256/埋込/期待frame102の計104だけを旧0eb0fa99…から差替える。対象course/state sourceのhashは不変、逆置換で元byte完全一致を記録し意味/期待/正式履歴を変更しない。新prefixの正式manifest/BOOT/7.7成立の代替にはしない。
+
+### ステップ3数学接合の採用保存（2026-10-31、PO委任によるCodex主担当判断）
+
+作者18path packetff3806645b2513f05e04a816ef929f770ccd2c1a7e837b71ff7a63f88bc17d4d/実byteと非作者REPORT77cc6f959ad5ca0f53c80f2b4623be1231af9e020a61cccc27d0d6282b814222を照合、新P0/P1/P2=0として数学sourceを採用する。v1保持、T1唯一核/T2共有核、今回history1entry、runner射影、既A-2の24count＋拒否10・bridge拒否16、typed実loaded hash/一回callを対象とする。独立局所24pass/3.33秒、作者419FE/228BE/Chromium100と再buildartifact052f5c0a…/40239byteを確認。root別全frontend132file/2770test全成功121.51秒、終了後18hash不変。104pin逆置換全byte一致、旧ABIと未知拒否を保持。
+
+実source資格/bridge一回消費・runner同TX/元D5再送/原子的取消/GET/UIはdependencies.jsonのステップ4以降で未提供。正式v2 D11宣言・vector/mutation/BOOT/7.7/最終CI・旧20fail/全T1も未閉で、数学成功や全FE成功をこれらへ代替しない。次は作者が準備する実SQL/列ACL/物理有無・head/anchor/digestの具体案を本planへ最小追補し、必要非作者確認後にステップ4のsourceを指示する。新しい全体計画や既判断の再取得は作らない。本人署名/P6 blindではない。
