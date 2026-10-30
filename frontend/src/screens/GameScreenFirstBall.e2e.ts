@@ -149,7 +149,7 @@ test('実HTTPS画面で新規作成・開始・初球ボール保存・同要求
   await page.getByRole('button', { name: '試合を開始', exact: true }).click()
   const startedResponse = await started
   expect(startedResponse.status()).toBe(200)
-  // 実UIの復元操作でrestore stateを更新し、初球フォームを出す。
+  // 開始後の実サーバー再取得で復元入口が出たら、実UIから再取得する。
   const initialRead = page.waitForResponse(
     (res) =>
       res.request().method() === 'GET' &&
@@ -157,7 +157,7 @@ test('実HTTPS画面で新規作成・開始・初球ボール保存・同要求
       res.status() === 200,
   )
   await page
-    .getByRole('button', { name: 'サーバーから復元', exact: true })
+    .getByRole('button', { name: /^サーバーから(?:復元|再取得)$/ })
     .click()
   const view = (await (await initialRead).json()) as {
     read_kind: string
