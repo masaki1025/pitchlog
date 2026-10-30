@@ -16,6 +16,7 @@ from typing import Any, cast
 from uuid import uuid4
 
 import pytest
+from manual_e2e_hold_support import hold_manual_environment, manual_hold_seconds
 
 from .ordinary_screen_e2e_support import write_browser_assets
 from .sync_writer_binding_support import binding_broker
@@ -207,6 +208,7 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
                     ("batting-result.called-pitch",),
                     ("batting-result.ball",),
                 ]
+            hold_manual_environment(origin, manual_hold_seconds(), db.team_name)
     assert _source_snapshot() == snapshot, (
         "実行中に製品sourceが変わったため同一候補実証にできない"
     )
