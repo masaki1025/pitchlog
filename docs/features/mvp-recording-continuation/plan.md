@@ -164,3 +164,7 @@ backend prefix原本readとstep4閉DTO/routerは相互import/共通真正性の�
 ### 保存後readの先行依存是正（2026-10-30T22:50:58.951507+09:00）
 
 PO委任によるCodex主担当判断。通常prefix readを旧初球reader成功から独立させ、新prefix成功時は直採用、既codecが明示unsupportedとする場合だけ旧ABIへfallbackする。認可/404/409/503/破損の成功化なし。packet dbd590c950baafc9519d568177cade0c7fd15bf0c34e3e9af5168123ebddbc9eと3source実hashを照合し、非作者REPORT5761a97250c12d1f77d0de0290bf2ab56d1901bbbd1741c46e86aeab3ff02d9b（P0/P1=0、独立37成功）を採用。作者48成功/型lintと区別。実HTTPS再試験は本保存後に実施する。旧GETが503だったとの推定は実HTTP記録で未確定とし、旧read例外で新GETへ到達しない先行依存の解消を対象とする。E2Eの同水位待機条件は維持し30秒で失敗を報告、cleanupで元の失敗を覆わない。新しい意味/認可/正式契約変更ではない。
+
+### 開始503の試験専用段階観測（2026-10-30、PO委任によるCodex主担当判断）
+
+04d93b06の実HTTPSは開始POST503で88.78秒失敗し、再取得是正の実証へ未到達。既app.log0のため同条件再試行の前にbackend/tests/db/test_screen_start_e2e.pyの_app_container exact1へ明示opt-in診断bootstrapを追加する。既uvicorn factory/host/port/log設定・UID/envを保持し、元broker call/encode/reply_sourceを必ず呼ぶ透過wrapperで段階/処理種の有限enum/経過ms/公開status/限定exception classだけ記録する。原要求/資格/返値本体/例外message/SQLparamsを観測しない。原return objectとbare raiseを保持し、診断自身の出力失敗は業務結果へ影響させない。通常実行は既CLIのまま、期限/認可/成功判定の変更なし。限定非作者確認後に実試験へ供給し、原因未確定をtimeoutと断定しない。
