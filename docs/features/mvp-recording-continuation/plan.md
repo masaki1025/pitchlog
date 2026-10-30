@@ -130,3 +130,11 @@ PO委任によるCodex主担当判断。候補JSON12127d2d…/ABI3237821b…/計
 step2純数学の新合成operationは `frontend/src/domain/ordinaryPitchContinuation.ts` と同spec、`publicApi.ts`、既firstPitchContinuationの共有rules parser/型、公開型caller/宣言・artifact/pin・実host検査の有限追加を編集範囲とする。旧ABIを保持し、count計算を複製しない。新ABIはfinite prefixRef＋今回履歴1entry、前回T2/rules/afterの完全一致と相関を検査する。未評価/既lock/ref不整合は成功にしない。新T2全体やDB/HTTPの完成を純数学source着手の条件へ追加せず、保存と画面はstep3以降の実証で閉じる。
 
 新合成ABIのPython接続はstep2の型callerとして `backend/src/pitchlog/domainrt/ordinary_pitch_continuation.py` と `backend/tests/domain/test_ordinary_pitch_continuation.py` に追加する（PO委任Codex判断）。既固定Node hostを1回呼び、不変・閉wire DTOと重複key/NaN/alias/余剰の拒否だけを担当し、T1/T2をPythonで再計算しない。旧初期状態限定DTOは拡張せず別型で一般stateと今回1entryを保持する。構造単体検査と実artifact全値照合を分け、実prefix/認可/保存証拠とはしない。
+
+### T2判定核の重複P0と通常是正（2026-10-30）
+
+追加非作者REPORT `14a164c95741ae48955939fb5548838eba06082da24e9ec4c8a3ade84110d581` のP0=1（旧初球T2と新ordinary T2の規則判定が重複）を採用し、前source採用は当該指摘に関して保留する。既レビュー系列をリセットせず、先の実artifact成功をNFR-018保証の代わりにはしない。旧失敗候補artifact `41ccdde57c0ca85815e05d066a684ed93d477a4571ce41b6b5a22c3d9fe5309b` とpacketをcache保全した。
+
+既委任の通常是正として、firstPitchContinuationのtyped EndConditionState＋rulesからEndConditionFactsを導出する唯一の共通核へR/L/cold全段/TBの実判定を集約する。旧firstOrdinaryBall・旧支持範囲はguardとして維持し、旧formatterも新formatterも同じfactsを消費する。新ordinary側の別規則核は削除する。両ABI/20完全期待値/37count核/BE callerは変更せず、共通核の状態/規則による分岐検査を追加する。source固定SHAと再生成artifactSHAを別に記録し、是正候補の非作者確認前にP0解消済とは扱わない。
+
+P0是正の採用（2026-10-30、PO委任Codex主担当判断）: 非作者REPORT633bc63596bcf5a9ad98c4a83e52468036d6ad5e2da777d519d49f10f5fbe9ccで重複P0解消・残P0/P1/P2=0を確認し、10path全SHAを照合して是正を採用する。旧/新T2が唯一evaluateEndConditionNoEndを用い、scope guardとformatterだけを分ける。前の採用保留と見落とし訂正の履歴を保持する。新artifact f0ac1ee0…cb80/29129bytes、source/実host/再現検査は成功。実保存と画面継続/正式全T2成立は未実施のまま。
