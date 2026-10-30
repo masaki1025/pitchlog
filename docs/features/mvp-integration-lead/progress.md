@@ -2045,3 +2045,13 @@ rootがprivate checkpoint/admission/historyモデルと0039、DB印/排他INSERT
 画面候補の非作者reviewはP0=0/P1=2（REPORT SHA7ab9457b1b845441364eb2585612f7bcbdd3decafda10266cc35f12f0da08ec2）。結果不明slotでattempt欠落時の再発行、reload時の古い未ACK飛越を検出。作者がretry read必須/欠落HTTP0と有限PKpageの最小未終結再開へ是正中。前回128files/2715tests成功はこの故障条件を保証するものではない。新たに利用者へ提供済みの操作は増えていない。
 
 次: DB候補の独立レビュー→正式資産/installerの一致→ownedPGの保存/rollback/再送対向→同候補HTTPSでボール→見逃し→ボール、reload B2/S1・履歴3。各段で元初球成功を保持。未完の正式CI/通常統合・実機・全操作・成績/CSV/運用復旧も維持。
+
+### 2026-10-30 継続画面候補を保全、実APIは作成・開始・prefix取得まで到達
+
+利用者操作の最新実証は引き続き798395c8の初球HTTPS（新規作成/開始/実1球/再送/reload）。通常複数球画面はまだ未実証。継続branchは1c4bf29d（D2=0既契約整合）→3f0dcf1d（scope/採用記録）→8c46e2f8（画面/耐久slot23source、通常push中/送達はGit照合）。非作者反映1REPORT SHAded706e7e79bf3d7ba77ee7cafa123599e23cdec2a2dc7dce2257ef1935c412a、P0/P1/P2=0、retrymissingで新UUID/HTTP0、再開は最小未終結を有限pageで選択。影響132/独立70成功。全件2715の後発修正は影響試験で確認し、真のofflineブラウザ再起動を完了扱いにしない。
+
+DB候補は新private3表/0039/8限定関数/権限を既正式installerへ接合し、owned PGで構造/PK一致とFORCE RLS/app直接5権限denyの **2passed/38.10秒**。JSON識別子型・CREATE宣言正準形の実不一致を是正、既厳密parser/unknown拒否不変。正式候補JSON/body約138pathは未seal/未7.7受理、rootだけが編集。source profile/hook/order非作者REPORT SHAc386693cf0a8831450651278f44f403f262441cb4f5f044512e5f1602e2d1d82は重大指摘0、後発actual epoch供給1fieldは別差分として追跡。
+
+既初球APIは新候補で1成功、旧投影原子性13件はDB印専用fixtureがpayload{}だったため新unknown-format拒否でsetup停止（1passed/13error/138.15秒）。guardを戻さずfixture2箇所を明示first-ball-play-v1へ追随。guard全body hash/追加payload列ACLのpinも対象版へ追随し271unit成功/.97秒。履歴h本体欠落/不正cursor/consume直接実行拒否のownedPG負対向と旧13回帰を現在まとめ実行。DB専用fixtureの成功を同評価frame/実画面の証拠にしない。
+
+新actual API witness初回は62.20秒でPOST新規create201→start200→新prefixGET200→初回save422。停止点は実model→JSON→strict Python model再検証のtuple/list不整合。実model保持へ局所是正し、既成功契約10要求の全封筒再合成一致を含む31試験/型成功。native記録保存の成功やrollback実証はまだ主張しない。再試行待ちsource46path packet SHAa81d30566b2c7d749c3a369c0d4141f2fc1cdae53f59291356b64de6fc7350a2。次はroot DB16件終了後にAPI ball/called/ball→同要求再送→prefix3再読込、その後host HTTPSの同一固定HEAD画面witness。重DBは直列化し、FE担当は実画面試験新fileを並行準備する。
