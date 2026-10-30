@@ -96,3 +96,15 @@ step1の準備を792候補case/新descriptorまで進めた。これらは作者
 PO委任Codex判断。対象計画85cda279…・scope fixture733275b8…を確認し、非作者の792候補全検算と計画P0/P1=0、旧ABI guard保持・prefix検証境界のP2最小反映を根拠に承認。本人署名・P6 blind・正式全T1成立ではない。
 
 step1の契約/descriptor・独立期待値整備と、成立したordinary純数学部分のstep2を開始する。T2・正式matrix/descriptor受理が未成立の結果を成功応答へ出さず、コードの候補検査と正式受理を区別する。DB/HTTP実装完成を純数学着手の追加条件へしない。SQL/admission/prefix readerは共有取消訂正/水位/ページ構造の先行照合後に実装する。
+
+### 通常非バントの2ストライクファウル4座標（委任採用、2026-10-30）
+
+rootはE-1のファール打席続行、E-2 SO-04（2SバントファウルのK3専用）、採用済research:182と読取専用旧原典の「ファールはS<2のみS+1」を照合し、通常非バントfoulのS2/B0..3据置4座標を既方針の契約具体化として同単位へ追補した。旧33期待値・source基線は保持し、適用count格子は追加4を加え37となる。従前の「S2ファウル未提供」は本追補の受理/実装/検査成立後に限って上書きされる。
+
+`ordinary_two_strike_foul_candidate_v1.json` に4個の完全封筒と一般状態96例・descriptor/変異軸を追加する。strikes/ballsはunchanged、打席継続・out0、既投球数flagを保持し、差分が空でも履歴push1を落とさない。明示された通常非バント `batting-result.foul` の選択だけを受け、K3/SO-04/2Sバントを同IDへ推定置換しない。既33の格子・23flag・旧初球拒否は不変、通常sourceだけを広げる。正式matrix/caseの新4行受理と候補source試験を区別し、37成立をT1全体/MVP完了としない。
+
+### step2 純数学候補の受理（2026-10-30、PO委任Codex主担当判断）
+
+基線ae34a68dの6path作者packetを全SHA一致で確認。非作者REPORT `/home/ymdms/.cache/pitchlog/recording-continuation-math-nonauthor-20261030/REPORT.md` SHA256 `e2f135a355a133dc9342effa6b95acecdd8fd22ad09878750cd9b2b4735df3eb` はP0/P1/P2=0、独立全domain12files375成功・追加4/96値照合、旧33/初球guard・単一核・履歴tail不変を確認。主担当の指示を受け、計画追補を前置docs commit、通常数学のsource/spec/追加4候補をstep2 commitへ固定する。本人の逐行確認・正式matrix/descriptor/case受理・P6 blind・T2/実保存の完成は記録しない。
+
+次は同WTでartifactを再生成し、生成物/SHA宣言・既fixtureのartifactSha256とmanifestの該当artifact識別だけを追随する。既期待値は変更せず、生成JS経由の一般状態/旧初球拒否を確認して別非作者へ渡す。runtime正式受理/接合・prefix read/実画面は後続の未了条件として保持する。
