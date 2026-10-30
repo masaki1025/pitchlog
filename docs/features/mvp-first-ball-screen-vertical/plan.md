@@ -91,3 +91,7 @@ created: 2026-10-30
 実HTTPS初回で開始応答後も準備中providerが古い表示を保持し復元入口が出ない接合欠陥を検知。`GameScreenEntryRecordHost.vue` に開始応答保存(received)後の既provider.retryを接続し、実サーバー結果によって既復元入口へ移す（状態成功を合成しない）。同specを追加する。
 
 HTTPSで初球保存/同一要求再送後のreload停止を検知。`GameScreenEntryRecord.vue`・`GameScreenRecordedRestore.vue` と同specのoptional Boolean省略値を明示undefinedへ是正し、保存開始の存在を照合して自動取得する既hookに到達させる。明示falseは従来どおり自動取得しない。
+
+### 正式認可登録の追補と出典母集合の受理（2026-10-30、PO委任Codex判断）
+
+実画面初球達成後の正式整合として `contracts/authz/requirement-claims.json` と同lock、route-registry/http-route-matrixと同lock、必要auth-catalog lock/oracle seal、`scripts/check_authz_catalog.py` と新 `tests/test_authz_first_ball_routes.py` を直列追随する。既187auth_claim全field/digestとclosed-world参照は不変。source候補9435cd0e…は非作者REPORT7c9b14a0…により1429行分類/対象blob/決定digest一致を確認し委任受理。route/checker/pytestは別の非作者REPORTe536708c…/c2a44cd3…に従い拒否条件を保持した有限追加のみ。rootで前後値を保全し正式CLIを段階実行、途中拒否を全体成功へ読み替えない。本人実値確認/署名の代記はしない。正式7.7とoracle完了は別途検査する。
