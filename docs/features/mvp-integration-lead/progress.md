@@ -1983,3 +1983,5 @@ HTTPS E2Eレビューでstart後のAPI fetchがUIのrestore状態を更新しな
 新規ownedDB球種試験（test_pitch_type_options.py、source SHA679fdc20eb501ed19b7e08bfc8a0566b352895c9530b1ff2feabe8de5d7044b1）はroot読取確認後、shared DSNunset・専用tmpで実行中。実2tenant login/Cookie/C2・正式GET/token/SQL・ページ/cursor/カテゴリ/disabled/越境/語彙不変を検証する。結果未確定。
 
 TLS回答待ちと並行し、正式認可登録のcreate2route/新球種route不足の一次調査・cache候補作成を別担当へ依頼（正式資産/既sealを無reviewで変更しない）。GoalはMVP全体を維持し継続中。
+
+球種ownedDB試験の実測結果: **1passed / 28.62秒**。実2tenant login/Cookie/C2/正式GET・SQLで、正常2ページ・opaque cursor・disabled/別category除外・limit・別tenant拒否・GET前後語彙snapshot不変を確認。候補環境のDBfixture成功であり正式7.7受理や画面初球保存には広げない。縦断branchに試験を保全。縦断枝の通常pushはaa691b90まで成功。
