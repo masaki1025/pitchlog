@@ -168,3 +168,42 @@ PO委任によるCodex主担当判断。通常prefix readを旧初球reader成�
 ### 開始503の試験専用段階観測（2026-10-30、PO委任によるCodex主担当判断）
 
 04d93b06の実HTTPSは開始POST503で88.78秒失敗し、再取得是正の実証へ未到達。既app.log0のため同条件再試行の前にbackend/tests/db/test_screen_start_e2e.pyの_app_container exact1へ明示opt-in診断bootstrapを追加する。既uvicorn factory/host/port/log設定・UID/envを保持し、元broker call/encode/reply_sourceを必ず呼ぶ透過wrapperで段階/処理種の有限enum/経過ms/公開status/限定exception classだけ記録する。原要求/資格/返値本体/例外message/SQLparamsを観測しない。原return objectとbare raiseを保持し、診断自身の出力失敗は業務結果へ影響させない。通常実行は既CLIのまま、期限/認可/成功判定の変更なし。限定非作者確認後に実試験へ供給し、原因未確定をtimeoutと断定しない。
+
+### step3 正式登録の隔離修復候補（2026-10-30）
+
+主担当の担当移管指示により、`fix/mvp-ordinary-registration` WTだけで登録表面を具体化する。通常CAP36は保持、repository34→35のtoken64→65/function8→16、base40→41のSQLA_INSERT単一窓口/fixtureを対象とし、生成定数/digest・全field対向を同期する。checker/拒否条件/対象集合を緩めない。
+
+既developのlegacy記録とauthority#188を維持する。親PR189の未受理repo33候補の原文・基線をcacheへ保全し、親のpending修復/完全9射影候補と子PR190の受理候補を分離する。現実PR190基線が未修復pendingを含むため、子WTだけで履歴prefixを変更して正式CLI成立とは扱わない。親修復候補のレビュー/主担当反映後に実基線を追随し、正式受理の対象版・実前後値・独立レビューを照合する。本節は既step3登録範囲の候補具体化であり、7.7成立/本人確認/署名を代記しない。
+
+登録修復の追加具体化（主担当指示、2026-10-30）: 既承認BigInteger生成形をcheckerの別exact ASTとして保持し、旧形・未知形拒否・対象集合は維持する。実registryはstar展開を許可する検査拡張を行わず、既source groupの各同一registration objectと静的literal IDを照合するdirectCallへ正規化する。helperは実型・閉ID集合・同IDを照合し、別group/偽reg/余剰IDを拒否する。SQL/IO/CAPのコピーや変更はしない。外部checker射影の動く8資産だけ現実基線から1世代追随する（repo35/base41だけを独立確定とはしない）。frozen-inputs6はこのcheckerを外部対象に持たず据置。親189/188固定点留保は上記と同じである。
+
+### 既source登録13件の限定追随候補（2026-10-30、独立採否前）
+
+通常37の正式登録検査で検出した既source/deploymentの旧pinを、実Git前後byteと
+実全siteへ追随させる候補。製品処理は変更せず、所有pathと未知API/余剰site拒否を維持する。
+ledger実装のbinding journal/G20追随は耐久意味の実差分を含むため、単なる行移動とは呼ばず
+既採用根拠と全差分を独立レビュー対象へ渡す。7pathの開始条件2はD4単一符号化の移管で
+51→49site、ledgerは17→20site、段階起動は同一path内の既5helper・実APIのみ追加する。
+全前後値・元commit・対向結果はcacheの`ordinary37-registration-repair-20261030/pin13/`。
+既188公開HEAD/受理記録差と親189history prefixは別留保。正式reseal/受理は未実施。
+
+### 物理境界の残18所見を閉じる最小候補（2026-10-30、未採用）
+
+通常保存repositoryのD5/原event/世代照合8点とtransactionのphase/実epoch参照を、
+別exact2path・全16site・既SHA256・line/symbol/scope登録へ固定する。旧15siteは
+既2型constructorをliteral分岐へ正規化することでfield参照が1回増え、実再導出16とする。
+自由token_typeの許可や未知API/世代の許可は追加しない。
+
+同Session committed再交付の所有照合helper1点はTB002へ混ぜず、別TB001登録単位とする。
+path/FQName/実finding scope/line/symbol/sourceSHAのexact一致に加え、既全body ASTを
+固定する。context/runtime/lookup/device/outcome/owner6値照合の削除・短絡・述語追加は、
+自己申告hashを同時変更しても拒否する。未知owner/同path別scope/copyは拒否を維持する。
+実helper自体の改名/意味変更なし、同MVP対象PRの実現物のみ、正式受理/reseal未実施。
+
+候補はcache`ordinary37-registration-repair-20261030/remaining18/`へ分離し、
+pin13のレビュー対象WT固定版を変更しない。candidateでのpytestは正式WT実証と別に記録。
+既188公開HEADと記録after差/親189history prefixは引続き留保する。
+
+### 正式登録候補の保存判断（2026-10-30T22:47:16.353326+09:00）
+
+PO委任によるCodex主担当判断。全51path packet SHAfa5f1fd760389d9e3312953e7f90eb0e9e0b4d21bd36dcdf9103b9f6404ffcf4と全実byteを照合し、pin13非作者REPORT5963fb363f9a014c4e4f487c0c493732140914f834d62187841b2cda6c83ba95および残18非作者REPORT538efca0ceb019cd3ae5d5cb0318cfe8f8ed52edba5ea5397f25c707f1f2ecf9（いずれもP0/P1=0）を採用。新TB001/002登録とTB007有限2型のsource保存のみを承認する。独立34対向/current_product1/BE236成功、作者root123+追補35/BE608成功と区別。親履歴prefix/188公開版の追随/完全実前後7.7/公式CLI/最終CIは未成立であり、本保存で正式受理や本人逐行確認を代記しない。root記録: cache ordinary37-registration-root-adoption-20261030.json。

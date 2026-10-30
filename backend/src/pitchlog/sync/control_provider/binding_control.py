@@ -293,7 +293,7 @@ class _BindingAuthority:
         except (KeyError, TypeError, ValueError, WriterBindingUnavailable):
             raise WriterBindingUnavailable("binding要求の閉入力が不正") from None
 
-    def prepare(
+    def prepare_writer_binding(
         self, request: dict[str, Any], recovery_generation: int
     ) -> tuple[dict[str, object], dict[str, object], bytes]:
         """control原本全値照合後にintent用の閉値を準備する。"""

@@ -1348,19 +1348,24 @@ def _execute_port_command(handle, operation):
             _ordinary_qualification_active,
         )
 
-        token_type = (
-            BindOrdinaryDeviceToken
-            if _ordinary_qualification_active(handle)
-            else _BindFirstBallDeviceToken
-        )
-        token = token_type(
-            lease.attempt_id,
-            lease.phase_id,
-            lease.nonce,
-            lease.device_id,
-            lease.game_id,
-            operation.credential_digest,
-        )
+        if _ordinary_qualification_active(handle):
+            token = BindOrdinaryDeviceToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                operation.credential_digest,
+            )
+        else:
+            token = _BindFirstBallDeviceToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                operation.credential_digest,
+            )
     elif type(operation) is PortCheckCurrentRightToken and phase.kind == "rights":
         raw = json.loads(phase.snapshot)["phase"]
         if (
@@ -1381,21 +1386,28 @@ def _execute_port_command(handle, operation):
             _ordinary_qualification_active,
         )
 
-        token_type = (
-            CheckOrdinaryRightToken
-            if _ordinary_qualification_active(handle)
-            else _CheckFirstBallRightToken
-        )
-        token = token_type(
-            lease.attempt_id,
-            lease.phase_id,
-            lease.nonce,
-            lease.device_id,
-            lease.game_id,
-            raw["internal_generation"],
-            operation.recovery_generation,
-            operation.proof_digest,
-        )
+        if _ordinary_qualification_active(handle):
+            token = CheckOrdinaryRightToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                raw["internal_generation"],
+                operation.recovery_generation,
+                operation.proof_digest,
+            )
+        else:
+            token = _CheckFirstBallRightToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                raw["internal_generation"],
+                operation.recovery_generation,
+                operation.proof_digest,
+            )
     else:
         raise TenantBindingError("Port値命令の型又はphaseが不一致")
     result = handle.run_function(token)
