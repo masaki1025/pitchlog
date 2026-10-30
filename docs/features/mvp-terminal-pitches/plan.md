@@ -177,3 +177,11 @@ P1旧案を不採用: V7だけ新calculation variant、V8は実newHistoryEntry.d
 非作者初回f6f3fd13…のP1=1は反映1で閉鎖、path閉列挙含む最終REPORT4bd16cdb1344f7b27da6cff435bd1f5bd2c7a96ec09b282bf5f620667def5a23で新指摘0を確認。旧指摘/初版/通算reviewを保持。新pure6+DB1/既stamp検査1とsourceの必要areaを先行core登録し、その追加だけを非作者確認後にsource4を指示する。正式生成資産はmanifest exactのみにrootが実SQL/宣言から生成し、D11・vector/mutation/BOOT/7.7と実PG全取消/越境/再送・GETが未成立の間は製品完了としない。
 
 接合ab530b31の数学18hashは不変。root接合FE29成功/3.71秒、実HTTPSの通常3球＋ACK喪失復旧は2成功/114.27秒。TLS PATH未供給の2skipとbrowser tmp未作成の2失敗は別ログとして保持し、製品成功へ数えない。対象固定HEAD/同一製品版、各試験は別owned DB、実機受入とは別。source4着手前のfreezeは本実検査完了により解除可能。
+
+### ステップ4 source開始指示（2026-10-30T17:17:40.820477+00:00、PO委任によるCodex主担当判断）
+
+反映1/閉78pathと非作者REPORT4bd16cdb…、core57追加/14pathと非作者REPORTd9872ff10f3be5ebbde8989940229849be144c895ec37652ba2c0c29f63f1092・実sourcebadcaa52…を照合し採用。旧全core field/path同順保持・捕捉縮小0。実HTTPSfreezeはab530b31の2成功/114.27秒で解除済。本manifestのsourceAuthor集合に限り、作者pr188_final_reviewへステップ4の実装/pure検査を指示する。新手順/全体計画の待ちは追加しない。
+
+編集順の具体化: 閉manifestのSQL7/ACL10/policy2/trigger2が先行有限宣言であり、作者は実source/SQL生成producerとpureを先に作成できる。rootFormalWriterOnlyの実JSON/配布SQL/compat/D11/生成資産はrootが実sourceから直列反映し、その反映前に未登録SQLをDBへ仮適用して成功を作らない。新modeは必要登録/実資格がなければ閉拒否のまま。正式metadata/7.7と実DB完成をsource起案の前条件へ循環させず、実owned PG/提供/通常統合の必要ゲートは全保持する。
+
+source4は真正source資格/元D5/一回bridge・新ID固定、実T1/T2/差分V8、PlayRow＋PlayRunner＋checkpoint/history/印消費の同TX保存とGETまでを実装する。根拠のないtrue/fixture成功応答/任意SQL/認可迂回0。旧ABI/ACK復旧/元要求再送/拒否優先を保持。段階5のUIへ無断拡張せず、source4のコード/型/API不一致是正・限定検査と原子性の準備を完成まで進め、固定sourceとroot必要正式差分を渡す。PGはrootのみ、実公開/共有DB/新秘密/本人署名なし。

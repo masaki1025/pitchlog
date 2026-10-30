@@ -293,7 +293,21 @@
         "frontend/src/domain/playPrefixContinuation.ts",
         "frontend/src/domain/playPrefixContinuation.spec.ts",
         "backend/src/pitchlog/domainrt/play_prefix_continuation.py",
-        "backend/tests/domainrt/test_play_prefix_continuation.py"
+        "backend/tests/domainrt/test_play_prefix_continuation.py",
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py"
       ]
     },
     {
@@ -439,7 +453,16 @@
         "backend/src/pitchlog/repositories/started_snapshot.py",
         "backend/src/pitchlog/repositories/started_snapshot_operations.py",
         "backend/tests/test_started_snapshot.py",
-        "backend/tests/test_started_snapshot_operations.py"
+        "backend/tests/test_started_snapshot_operations.py",
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/db/test_terminal_pitch_storage.py"
       ]
     },
     {
@@ -563,7 +586,21 @@
         "backend/src/pitchlog/repositories/started_snapshot.py",
         "backend/src/pitchlog/repositories/started_snapshot_operations.py",
         "backend/tests/test_started_snapshot.py",
-        "backend/tests/test_started_snapshot_operations.py"
+        "backend/tests/test_started_snapshot_operations.py",
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py"
       ]
     },
     {
@@ -682,7 +719,21 @@
         "backend/tests/test_sync_right_sql.py",
         "backend/tests/test_sync_first_ball_registration.py",
         "backend/tests/test_started_snapshot.py",
-        "backend/tests/test_started_snapshot_operations.py"
+        "backend/tests/test_started_snapshot_operations.py",
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py"
       ]
     },
     {
@@ -759,7 +810,13 @@
         "frontend/src/testing/artifactAdapter.ts",
         "frontend/src/testing/artifactAdapter.spec.ts",
         "backend/tests/domainrt/*",
-        "backend/Dockerfile"
+        "backend/Dockerfile",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py"
       ]
     }
   ]
