@@ -572,3 +572,11 @@ PO委任によるCodex主担当判断。対象dcc9001422f5fad9891368ad25264c1baf
 第1群の原典行表現の具体化（PO委任によるCodex主担当判断、2026-10-31）: source_row新2件は正本6-1実在quoteを使い、3-4の一意性/キー形/判定fieldを捏造しない。test_schema_manifest内で6-1の当該exact2quote/constraint/表名の対応を完全検査する有限分岐を許可し、既3-4全行と拒否を維持する。別quote/別constraint/別表/曖昧部分一致は拒否する。正本とmanifestは不変でよく、実DB期待化や汎用quote許可ではない。
 
 第1群の既型正規化漏れ追随（2026-10-31、PO委任によるCodex主担当判断）: 影響検査で既test_recording_rights_models.pyの_column_type_nameが正本0036 proof_digestのLargeBinary/byteaを未対応と実確認した。この1pathの既型正規化へLargeBinary→byteaを有限追加し、既比較/全列/未知型拒否を保持することだけを許可する。DB/model/manifestの列型や仕様を変更せず、実値不一致を無視する一般fallbackにはしない。負例を含む局所確認と別非作者採否へ含める。
+
+### 最終CIのS3試験環境・現在revision期待の追随（2026-10-31）
+
+PO委任によるCodex主担当判断。root隔離実PG probe pr188-s3-owned-probe-20261031/result.jsonでS3不一致は唯一INITIAL-VERIFIER-GLOBAL、所有seed DB pitchlog_disposableへのPUBLIC由来CONNECT/TEMPORARY余剰と実測。同じfactoryで所有seedだけを閉じる比較実験seed-closed-result.jsonは実0036/S3到達・31検査全一致。製品query/期待/権限を緩めず、fixture所有準備の欠落を直す。前群3pathは凍結のまま非作者review中。
+
+次の有限集合はbackend/tests/db/test_stage_a_rule_candidates.py（_fresh_schema_databaseの所有cluster確認に既_require_historical_clusterを使い、生成済みseed DBに限りPUBLIC CONNECT/TEMPORARYを閉じる。外部DSNへ適用しない。現在S3結果の0035固定2箇所だけ0036へ）、backend/tests/db/test_rg1_startup_epoch.py（成功後現在revisionの0035固定1箇所だけ0036へ、0035marker偽装/0034故障・拒否は保持）、backend/tests/db/durable_rights_ledger_support.py（成功後現在revisionの0035固定1箇所だけ0036へ）、backend/tests/db/test_immutability_enforcement.py（現在S3成功後0035固定1箇所だけ0036へ）のexact4path。helperの真正所有確認・非所有拒否は既helperのまま使い、未知/外部/共有clusterへ権限操作しない。既assert/故障注入/状態変化順/拒否を維持する。別revisionの歴史試験は変更しない。
+
+作者は静的前後・型lint・局所pure対向を固定、rootが実owned PGでstartup故障再開/認可31不一致0/ledger生成・immutabilityを検査する。最終sourceを別非作者へ渡して採否後保存する。全CIや全復旧検証をこの比較だけで成立させず、残るseed/ACL/oracle/censusを維持する。
