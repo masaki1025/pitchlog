@@ -5,6 +5,7 @@ import json
 from uuid import UUID
 
 import pytest
+from sqlalchemy import Insert
 from sqlalchemy.dialects import postgresql
 
 from pitchlog.db.game_state.models import PlayRow
@@ -78,6 +79,7 @@ def test_exact_full_row_and_metadata_are_retained():
     ):
         expected[name] = UUID(expected[name])
     assert params == expected
+    assert isinstance(statement, Insert)
     assert statement.table is PlayRow.__table__
     assert "INSERT INTO play_rows (" in str(
         statement.compile(dialect=postgresql.dialect())
@@ -114,7 +116,9 @@ def test_preflight_requires_actual_event_ledger_and_empty_prior_row():
     token = _token()
     _, params = operation.prepare(token)
     params = {**params, "tenant_id": UUID(int=1)}
-    preflight = operation.preflight(token, params)
+    prepare_preflight = operation.preflight
+    assert prepare_preflight is not None
+    preflight = prepare_preflight(token, params)
     event = {name: None for name in OperationEvent.__table__.c.keys()}
     event.update(
         tenant_id=UUID(int=1),
@@ -149,7 +153,7 @@ def test_preflight_requires_actual_event_ledger_and_empty_prior_row():
     bad = copy.deepcopy(params)
     bad["tenant_id"] = UUID(int=99)
     with pytest.raises(OrdinaryPlayRowError):
-        operation.preflight(token, bad)
+        prepare_preflight(token, bad)
     for field in ("d2", "d5", "source_fingerprint"):
         changed_event = event.copy()
         changed_ledger = ledger.copy()

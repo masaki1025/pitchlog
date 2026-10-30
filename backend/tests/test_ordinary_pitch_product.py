@@ -114,6 +114,7 @@ def test_all_eight_bodies_use_existing_installer_parser():
     for row in declarations["functions"]:
         key = row["function_id"]
         sql = body("function", key)
+        assert isinstance(sql, str)
         assert "CREATE OR REPLACE FUNCTION" not in sql
         assert application_function_sql(key, sql) is not None
 

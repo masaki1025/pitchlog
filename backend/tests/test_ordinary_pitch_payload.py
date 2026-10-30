@@ -2,11 +2,13 @@
 
 import json
 from pathlib import Path
+from typing import Literal, cast
 
 import pytest
 
 from pitchlog.domainrt.ordinary_pitch_continuation import (
     OrdinaryContinuationRequest,
+    OrdinaryContinuationSuccess,
     decode_ordinary_continuation_response,
 )
 from pitchlog.sync.first_ball_payload import FirstBallObservations
@@ -34,6 +36,7 @@ def _values(case):
     response = decode_ordinary_continuation_response(
         json.dumps(case["expected"]["response"])
     )
+    assert isinstance(response, OrdinaryContinuationSuccess)
     calc = OrdinaryPitchCalculation(
         formatVersion="ordinary-pitch-calculation-v1",
         artifactSha256="a" * 64,
@@ -44,7 +47,10 @@ def _values(case):
         batterId="11111111-0000-4000-8000-000000000001",
         pitcherId="11111111-0000-4000-8000-000000000002",
         catcherId="11111111-0000-4000-8000-000000000003",
-        battingOrder=request.t1.before.state_fields.batting_order,
+        battingOrder=cast(
+            Literal["1", "2", "3", "4", "5", "6", "7", "8", "9"],
+            request.t1.before.state_fields.batting_order,
+        ),
     )
     obs = FirstBallObservations.model_validate(
         {

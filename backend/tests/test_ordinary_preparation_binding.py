@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from types import SimpleNamespace
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -11,6 +12,9 @@ from pitchlog.repositories.ordinary_pitch_qualification import (
 )
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import ordinary_pitch_execution as execution
+from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.ports import PortWriter
+from pitchlog.sync.source_binding import _E1CoreSource
 
 
 def _setup(monkeypatch):
@@ -25,10 +29,10 @@ def _setup(monkeypatch):
     )
     state = execution._Execution(
         handle,
-        None,
-        SimpleNamespace(bound=SimpleNamespace(_lease=lease)),
-        SimpleNamespace(game_id=str(UUID(int=4))),
-        None,
+        cast(PortWriter, None),
+        cast(_E1CoreSource, SimpleNamespace(bound=SimpleNamespace(_lease=lease))),
+        cast(SyncEvent, SimpleNamespace(game_id=str(UUID(int=4)))),
+        cast(tuple[object, object], None),
         None,
     )
     state.phase = "consumed"

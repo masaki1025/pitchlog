@@ -2,6 +2,7 @@
 
 import json
 from types import SimpleNamespace
+from typing import cast
 from unittest.mock import patch
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from pitchlog.repositories.ordinary_order import (
     ORDINARY_ORDER_OPERATIONS,
     OrdinaryOrderSummaryToken,
 )
+from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.ordering import _assign_ordinary_append_d2
 
 
@@ -48,7 +50,12 @@ def test_append_fastpath_uses_one_db_summary(tail, desired, expected):
 
     scope = SimpleNamespace(run_function=run_function, _bound_tenant_id=UUID(int=2))
     with patch("pitchlog.sync.ordering._assign_d2") as old:
-        assert _assign_ordinary_append_d2(scope, UUID(int=1), desired) == expected
+        assert (
+            _assign_ordinary_append_d2(
+                cast(_TenantTransaction, scope), UUID(int=1), desired
+            )
+            == expected
+        )
         old.assert_not_called()
     assert seen == [OrdinaryOrderSummaryToken]
 
@@ -71,7 +78,10 @@ def test_o4_duplicate_precedes_ordinary_append_shortcut():
         ),
         _bound_tenant_id=UUID(int=2),
     )
-    assert _assign_ordinary_append_d2(scope, UUID(int=1), 2001) is None
+    assert (
+        _assign_ordinary_append_d2(cast(_TenantTransaction, scope), UUID(int=1), 2001)
+        is None
+    )
 
 
 def test_old_o1_o2_kernel_is_reused_for_nonappend():
@@ -93,7 +103,12 @@ def test_old_o1_o2_kernel_is_reused_for_nonappend():
         _bound_tenant_id=UUID(int=2),
     )
     with patch("pitchlog.sync.ordering._assign_d2", return_value=999) as old:
-        assert _assign_ordinary_append_d2(scope, UUID(int=1), 1000) == 999
+        assert (
+            _assign_ordinary_append_d2(
+                cast(_TenantTransaction, scope), UUID(int=1), 1000
+            )
+            == 999
+        )
         old.assert_called_once_with(scope, UUID(int=1), 1000)
 
 

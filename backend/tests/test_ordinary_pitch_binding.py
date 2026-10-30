@@ -2,10 +2,12 @@
 
 import json
 from datetime import datetime, timedelta, timezone
+from typing import cast
 from uuid import UUID
 
 import pytest
 
+from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.control_provider.binding_control import (
     _LEASE_CREATION,
     BindingControl,
@@ -173,4 +175,4 @@ def test_existing_first_ball_bridge_still_rejects_d1_above_one():
 
     event = SyncEvent(str(UUID(int=9)), str(UUID(int=6)), 2, "generation-A", "1")
     with pytest.raises(FirstBallFrameError):
-        _fingerprint(event, _LEGACY_BRIDGE_SOURCE, None)
+        _fingerprint(event, _LEGACY_BRIDGE_SOURCE, cast(_TenantTransaction, None))
