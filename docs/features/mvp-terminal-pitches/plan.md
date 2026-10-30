@@ -151,3 +151,5 @@ PO委任によるCodex主担当判断。作者17path packet52814b4e60355c177b594
 本採用により上表ステップ3だけを指示する。v1 ABI/PA=falseを保持し、真正v1→v2 bridge・T2共通核・履歴1entry・runner identity/責任投手境界とterminal後の通常投球を契約と実artifactへ結線する。数学でrunner UUIDや真正性を捏造せず、保存段の実source資格を要求する。ステップ4のSQL/ACL/migration/DBおよび5の画面は未許可で、具体依存を固定した上で次の指示へ渡す。本人署名・P6 blind・全T1/全MVP完成ではない。
 
 ステップ3のcore先行捕捉追補（2026-10-31、PO委任によるCodex主担当判断）: 新playPrefixContinuation.ts/同.spec.ts・play_prefix_continuation.py/同testは既game-state等に捕捉済だが、同期のprefix/source証拠も扱うためsync-protocolへexact4pathを追加する。既path/area/拒否を削除せず、独立レビューで追加だけを確認する。作者のsource編集許可とcore登録のroot直列所有を分ける。
+
+同期core捕捉4path採用（2026-10-31、PO委任によるCodex主担当判断）: 非作者REPORT terminal-core-path-nonauthor-20261031/REPORT.md SHA0bc6e0c501b2227586fafca70e38b3ce1ebfcf26dcb27ef3eb72f23e5449ea8e、実source2405701134ebbcb2338655df05f9784e80c025e59116162b28807740209a0b3bを照合。新指摘0、逆JSON差分で全旧field/area/path同順一致・捕捉縮小0。6.3⑤の有限追加を委任採用し先行登録する。同期の数学/真正資格/DB成功や全MVPの受理ではない。
