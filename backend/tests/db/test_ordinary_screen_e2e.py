@@ -106,6 +106,14 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
         assert path and Path(path).is_absolute() and Path(path).is_file(), (
             "明示された既存TLS証明書/鍵の絶対PATHが両方必要"
         )
+    browser_tmp = os.environ.get("PITCHLOG_E2E_BROWSER_TMPDIR")
+    browser_env = {}
+    if browser_tmp:
+        browser_path = Path(browser_tmp)
+        assert browser_path.is_absolute() and browser_path.is_dir(), (
+            "browser専用TMPDIRは明示した既存絶対ディレクトリが必要"
+        )
+        browser_env["TMPDIR"] = browser_tmp
     db = owned_ordinary_database
     frontend = ROOT / "frontend"
     config = write_browser_assets(tmp_path / "ordinary-browser", frontend)
@@ -144,6 +152,7 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
                 cwd=frontend,
                 env={
                     **os.environ,
+                    **browser_env,
                     "PITCHLOG_E2E_BASE_URL": origin,
                     "PITCHLOG_E2E_TEAM_NAME": db.team_name,
                     "PITCHLOG_E2E_PASSWORD": _PASSWORD,
