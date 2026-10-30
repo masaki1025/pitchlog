@@ -1,6 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
-## 再開時の現在地（2026-10-30、初球HTTPS縦断達成後）
+## 再開時の現在地（2026-10-30 23:37 JST、画面3球・再送・reload達成）
+
+- **利用者が新たに完了できる操作（隔離候補）**: 実HTTPS画面で新規試合を作成→端末登録/開始/初期記録権→ボール・見逃し・ボールを保存→初球の元要求/attemptを再送→reload。サーバー由来で2ボール/1ストライク・履歴3・PlayRow3を復元し、同要求再送は正規A5「重複」/D3=3、native4表各3で二重保存なし。
+- **同一版・同一環境の実証**: HEAD `e81c4edb5d2f55d67579e7e47aa9bbb24b6de055`、owned PG＋実API/broker/認証/記録権/単一artifact/原子的保存＋実Chromium HTTPS loopback。`test_ordinary_screen_e2e.py` **1passed/148.93秒**、実行中source不変照合も成功。cache `ordinary37-screen-success-20261030/result.json` SHA **770658e2982effc1620d01d568076e604c656fe0ed580dd219129ea10fbf0ab3**（source一覧/log保全）。artifact **f0ac1ee02c8baa18d72c68418e899b4264b2e2b9e7a152b483d1464c6724cb80**。固定投入試合の読取を新規作成とは数えていない。旧初球54b83002の成功は別証拠として保持。
+- **現在の主候補**: `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-recording-continuation` branch `feature/mvp-recording-continuation` HEAD **f4e5dfbf**。e81後は採用済開始sourceのchecker/pin3fileだけを追随（非作者aae15bf3…、全20symbol/scope不変/13行とSHAのみ、独立28/current_product0/公式8射影照合）。e81の画面実証をf4の同HEAD実証とは呼ばない。backend全体ty成功、直近Port5exact/root2成功、正式全件CIは未閉。
+- **次の故障系（実装中）**: `/home/ymdms/projects/pitchlog-worktrees/fix-mvp-ordinary-duplicate-ack` HEAD b9a97b28（既plan追補承認済、未commit sourceは担当作業中）。ACK本文が実commit後に失われた場合に、reload→元body/attempt再送→正規重複を元idで既adapterへ渡す→queue終結/二重計算0/サーバー1件を実HTTPSで検証する。製品1file＋spec/owned witness計5path、担当coordinate_contract_preparation。これは既ACK済みraw再送とは別残件。PGはrootだけが直列実行。
+- **次のT1操作単位（計画具体化中）**: `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-terminal-pitches` 起点e81c4edb。無走者のBB/HBPを有効count/out/回/表裏/打順へ閉じ、spike41d7175d/8e1bf431を再利用して、操作単位契約成立後にT1本体へ進める。old ordinary-only prefix/v1を黙って全playへ読替えず、T2/実runner同TX保存は別依存として具体化。担当pr188_final_reviewは本単位では作者役（旧188非作者reviewとは別）。現時点で製品/contract source未着手。
+- **正式統合**: Draft PR188公開HEAD dcc90014（d1aaの受理記録afterと公開版不一致を解消＋対象policy追加）、PR189公開ad6588b1、PR190公開e81c4edb。188の最終266path sourceレビュー0c62eadc…は新規所見0/独立pure252・委任78成功、既tenant110/最終HEAD CI/外部evidenceは未閉でmerge可ではない。189の候補pending正規化/func9漏れ・190追随/完全7.7/必須CI/coreが次の直列統合。既受理行の改変/reseal先行なし。186/187の置換元closeは移管不足を照合後。
+- **保存・再開**: 通常pushのserver500/commit_refsエラーは再試行後にe81公開を確認して解消。local e81差分bundle `~/.cache/pitchlog/ordinary-current-preservation-20261030/continuation-e81c4edb.bundle` SHA fef700b006a67c9437e3adb944d22515caa99bdf8e1e0d90a12192c5ca1de33e・verify成功も保全。新WT/台帳/キャッシュの固定点を読んでから担当pathだけ再開、未知stash/共有DB/.env/秘密へ触れない。
+- **MVP未完**: 正式develop統合、T1全操作/1試合終了・再開・取消/訂正、ACK喪失/通信断/再起動/交代/全故障、閲覧10秒、T5/T6・成績/毎球CSV、3試合×11端末負荷/復旧/実機/運用HTTPS。Chromium自動試験は実機受入ではない。GoalはMVP全体のままactive、初球後も継続する。
+
+## 2026-10-30：初球から通常3球までの時点別記録
 
 - **初球到達（隔離候補）**: 固定 `54b83002b04357f776801a0d2e4c77d157508da8`、実HTTPS画面で新規作成→開始→初球ボール保存→サーバー再取得→同一要求再送→reloadの1ボール/0ストライク/履歴1・PlayRow1、DB4表各1を **1passed/46.29秒**で確認。artifact SHA1a415cbf4ff6b986fefec281005c84b5acf6a4e622178684aed2c02387f515f7。cache first-ball-https-evidence-20261030/result.json SHA156624a509bd4cf64793b4dc918c3eb3ce1d83e80e683c5323d3caca91bd1bfc。
 - **回帰**: frontend117files/2638tests全成功107.61秒、型/lint/build成功、既実API保存/投影原子性14件成功、球種実2tenant read1件成功。対象実機やMVP全体の受入には拡張しない。
