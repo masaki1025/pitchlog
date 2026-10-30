@@ -1,7 +1,7 @@
 ---
 feature: course-coordinate-single-operation
-status: in-review         # ゲート前の起案。承認は 7.3 の確定ゲート + PO 承認で行う
-承認: 未                  # PO 承認前。D11=A / D18=A の方針採用は済みだが、本計画の承認ではない
+status: approved
+承認: PO委任によるCodex主担当判断（2026-10-30、bee806b1＋本確定記録、非作者coordinate_gate_reviewの最終差分P0/P1=0）
 重さ分類: コア領域
 worktree: ../../..
 notion: なし
@@ -137,3 +137,9 @@ quantizeCourse({
 - ADR-003 v0.10 の改訂範囲は **D-14-m の対象追加と座標変換1件に限定**する（他対象の方式切替を含めない）。
 - 既存の `COURSE_COORDINATE_SIZE` 契約テスト（`course-coordinate-contract`）とは別単位。本計画は量子化の単一実装を扱う。
 - ゲート通過までは U3 の画面コードを書かない（fail-closed）。U1/U2/U4/U5 は本ゲートと独立に進められる。
+
+## 7. 限定ゲートの確定記録（2026-10-30）
+
+PO委任によるCodex主担当判断。REPORT〜REPORT7の既履歴を維持し、今回の差分確認・再確認は射程不変の限定追加レビューとして採用。対象は32dccc90とbee806b1までのADR v0.10/要件v2.18改訂・本計画・対応表・草案・量子化候補契約。非作者coordinate_gate_reviewがP0/P1=0と対象別着手前基盤の存在を確認。PO本人の逐行確認・署名ではない。
+
+既存schema・runner・収集器・host基盤と契約1093件/descriptorの供給を着手条件として確認し、step3製品実装を許可する。実manifest entry・operation source/artifact/pin・両runner実行・properties/mutation/収集器登録/必須CIは同一変更のマージ前条件として残す。Python k/263の正式採用、正式7.7受理、画面初球・MVP完成をこの承認に含めない。
