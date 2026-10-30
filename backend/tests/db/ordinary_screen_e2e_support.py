@@ -187,7 +187,8 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
               item?.d1 === event.d1 &&
               item?.d4 === event.d4 &&
               item?.d5 === event.d5,
-            advanced: ack.advancedD3 === 3 && item?.a5Result === '受理',
+            advanced: ack.advancedD3 === 3,
+            duplicate: item?.a5Result === '重複',
           }
         },
       })
@@ -519,6 +520,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
             count: number
             sameSlot: boolean
             advanced: boolean
+            duplicate: boolean
           }>
         }
       ).__ordinaryReplayFirst(),
@@ -528,6 +530,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       count: 3,
       sameSlot: true,
       advanced: true,
+      duplicate: true,
     })
     const reloadedRead = page.waitForResponse(isPrefix)
     await page.reload()
