@@ -1,7 +1,7 @@
 ---
 feature: mvp-first-ball-screen-vertical
-status: draft
-承認: 未
+status: approved
+承認: PO委任によるCodex主担当判断（2026-10-30、32dccc90起案＋本限定追補、非作者coordinate_gate_reviewの実source照合P0/P1=0を根拠）
 重さ分類: コア領域
 branch: feature/mvp-first-ball-vertical
 created: 2026-10-30
@@ -19,7 +19,7 @@ created: 2026-10-30
 
 ## 着手・採用条件
 
-- 座標計画 `course-coordinate-single-operation/plan.md` の7.3ゲート成立と対象版の委任承認、同一artifactの製品operation・pin・必要検査の成立を先行条件とする。本計画は同ゲートの承認を代替しない。
+- 座標計画 `course-coordinate-single-operation/plan.md` の7.3ゲート成立と対象版の委任承認、同一artifactの製品operation・pin・必要検査の成立を先行条件とする。本計画は同ゲートの承認を代替しない。ただし座標に依存しないwire codec・attempt耐久保存・既transportヘッダ接続は、本計画承認後に先行できる。quantize呼出・画面封鎖解除は座標条件成立後に限る。
 - 本計画の非作者レビューとPO委任による主担当承認を記録して製品コードへ着手する。承認欄は主担当が実際の対象版・日時・根拠を確認して更新する。
 - 認可・記録権・RG1・原子性・冪等性・再送・不明結果の既契約は維持する。新たな意味仕様が必要なら判断票へ分離し、その機能は成功扱いにしない。
 - 座標単位と共有ファイルの編集を直列化する。独立レビューは候補作成者以外が固定HEAD/差分SHAで実施し、P-6 blindとは呼ばない。
@@ -34,7 +34,7 @@ created: 2026-10-30
 - 送信ヘッダは実route `api/routers/sync.py` の `X-Pitchlog-Device-Id` / `X-Pitchlog-Device-Credential` / `X-Pitchlog-Sync-Attempt`。別名を新設しない。資格・V12・原要求をログへ出さない。
 - D02=Aの1球排他を `commitPitchEvent` で利用し、D1採番/追記の不可分性は既 `DurableQueue`、A5遷移は既 `ackAdapter`/`queueTransition` に任せる。
 - attemptは送信前に端末へ耐久保存する。同一要求の再送・reloadで保持した同じattempt/D5/D2/本文を使い、不明結果で新要求へ置き換えない。新規storeは既queue DBと独立した専用DBとし、既queue schemaを無断改版しない。本文の同一性を照合し、ACK適用の耐久完了までは削除・TTL失効させない。資格原値はattempt記録へ複製しない。
-- wire ACKは実routeのadvancedD3/eventResults/playerIdMappingsをexact検証し、D4/D1/D5と対象slotを照合して既 `AckResponse` へ構造変換する。未知a5Result、不正ACK、409/503、未応答は同期済み/保存成功へ遷移させない。既codecに無い境界結果を作らない。
+- wire ACKは実routeのadvancedD3/eventResultsと任意のplayerIdMappingsを閉検証し、D4/D1/D5と対象slotを照合して既 `AckResponse` へ構造変換する。a5Resultの既canonとの写像とwireにないboundaryResultの正規導出を既契約と照合し、未成立なら適用しない。未知a5Result、不正ACK、409/503、未応答は同期済み/保存成功へ遷移させない。既codecに無い境界結果を作らない。
 
 ## 変更対象
 
