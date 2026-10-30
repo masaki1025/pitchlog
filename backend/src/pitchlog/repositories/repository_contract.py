@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 34
+CONTRACT_REVISION = 35
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "81e05b24ff00c9ad3d3f1c92028f3c0d05db580ac2920a72fca6829ff2b61085"
+SOURCE_DIGEST = "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -184,6 +184,7 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
@@ -195,4 +196,12 @@ PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
     "SYNC_FIRST_BALL:check_current_right",
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding",
+    "SYNC_FIRST_BALL:read_device_state",
+    "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+    "SYNC_ORDINARY_PITCH:check_ordinary_right",
+    "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+    "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+    "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+    "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+    "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
 )

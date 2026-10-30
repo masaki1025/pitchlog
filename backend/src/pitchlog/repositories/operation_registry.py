@@ -68,6 +68,39 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *ORDINARY_PLAY_OPERATIONS,
 )
 
+
+_STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
+    (
+        "SYNC_FIRST_BALL:bind_device",
+        "SYNC_FIRST_BALL:check_current_right",
+        "SYNC_WRITER_BINDING:read_writer_identity",
+        "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+        "SYNC_ORDINARY_PITCH:check_ordinary_right",
+        "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+        "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+        "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+    )
+)
+
+
+def _registered_product_function(
+    registration: FunctionOperationRegistration, *, operation_id: str
+) -> FunctionOperationRegistration:
+    """単一源の実registrationと静的IDを完全照合し、同じobjectだけを登録する。"""
+    if (
+        type(registration) is not FunctionOperationRegistration
+        or type(operation_id) is not str
+        or operation_id not in _STATIC_PRODUCT_FUNCTION_BINDING_IDS
+        or registration.operation_id != operation_id
+    ):
+        raise ValueError("製品固定関数の実参照と静的IDが不一致")
+    return registration
+
+
 # 既8関数を保持し、binding前の端末状態readだけを末尾へ加える。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     FunctionOperationRegistration(
@@ -123,12 +156,52 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         decoder=_decode_stage_a_rule_result,
         nonempty_inputs=("game_type_key", "tournament_key"),
     ),
-    *_FIRST_BALL_FUNCTION_OPERATIONS,
-    *_WRITER_BINDING_FUNCTION_OPERATIONS,
-    DEVICE_STATE_READ_OPERATION,
-    *ORDINARY_QUALIFICATION_OPERATIONS,
-    *ORDINARY_PREFIX_OPERATIONS,
-    *ORDINARY_ORDER_OPERATIONS,
+    _registered_product_function(
+        _FIRST_BALL_FUNCTION_OPERATIONS[0], operation_id="SYNC_FIRST_BALL:bind_device"
+    ),
+    _registered_product_function(
+        _FIRST_BALL_FUNCTION_OPERATIONS[1],
+        operation_id="SYNC_FIRST_BALL:check_current_right",
+    ),
+    _registered_product_function(
+        _WRITER_BINDING_FUNCTION_OPERATIONS[0],
+        operation_id="SYNC_WRITER_BINDING:read_writer_identity",
+    ),
+    _registered_product_function(
+        _WRITER_BINDING_FUNCTION_OPERATIONS[1],
+        operation_id="SYNC_WRITER_BINDING:assert_writer_binding",
+    ),
+    _registered_product_function(
+        DEVICE_STATE_READ_OPERATION, operation_id="SYNC_FIRST_BALL:read_device_state"
+    ),
+    _registered_product_function(
+        ORDINARY_QUALIFICATION_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:bind_ordinary_device",
+    ),
+    _registered_product_function(
+        ORDINARY_QUALIFICATION_OPERATIONS[1],
+        operation_id="SYNC_ORDINARY_PITCH:check_ordinary_right",
+    ),
+    _registered_product_function(
+        ORDINARY_QUALIFICATION_OPERATIONS[2],
+        operation_id="SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+    ),
+    _registered_product_function(
+        ORDINARY_PREFIX_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+    ),
+    _registered_product_function(
+        ORDINARY_PREFIX_OPERATIONS[1],
+        operation_id="SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+    ),
+    _registered_product_function(
+        ORDINARY_PREFIX_OPERATIONS[2],
+        operation_id="SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+    ),
+    _registered_product_function(
+        ORDINARY_ORDER_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+    ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

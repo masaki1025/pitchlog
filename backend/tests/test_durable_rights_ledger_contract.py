@@ -1531,7 +1531,7 @@ def test_g20_runtime_closes_only_confirmed_request(monkeypatch, stage):
         def validate_request(self, request):
             pass
 
-        def prepare(self, *args):
+        def prepare_writer_binding(self, *args):
             if stage == "register":
                 raise binding._ConfirmedBindingRejection
             return _g20_record(), {}, bytes(32)
@@ -1689,4 +1689,6 @@ def test_g20_only_prepare_publish_enable_classification():
                     if keyword.arg == "confirmed_rejection":
                         assert isinstance(keyword.value, ast.Constant)
                         found.append((method.name, keyword.value.value))
-    assert found == [("prepare", "register"), ("publish_prepared", "publish")]
+    assert found == [
+        ("prepare_writer_binding", "register"), ("publish_prepared", "publish")
+    ]

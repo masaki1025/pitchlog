@@ -688,10 +688,11 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
         "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
         "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+        "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 64
+    assert len(expected_token_types) == 65
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -737,6 +738,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:team_records:read",
                 "CAP:team_records:read",
                 "CAP:tenant_vocabularies:read",
+                "CAP:play_rows:insert",
             ),
             strict=True,
         )
@@ -1102,6 +1104,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+        "SYNC_ORDINARY_PITCH:check_ordinary_right",
+        "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+        "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+        "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
     )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
@@ -1116,6 +1125,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_fence_api.read_writer_identity",
         "sync_fence_api.assert_writer_binding",
         "sync_right_api.read_device_state",
+        "sync_right_api.bind_ordinary_device",
+        "sync_right_api.check_ordinary_right",
+        "sync_right_api.prepare_ordinary_projection",
+        "sync_right_api.read_ordinary_checkpoint",
+        "sync_right_api.lock_ordinary_checkpoint",
+        "sync_right_api.read_ordinary_history_page",
+        "sync_right_api.read_ordinary_order_summary",
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
