@@ -76,3 +76,12 @@ created: 2026-10-30
 画面E2Eはホストで `env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN PYTHONPATH=tests:src PITCHLOG_PYTEST_TMPDIR=/tmp/opencode/pytest-tmp-e2e .venv/bin/python -m pytest tests/db/test_screen_start_e2e.py -q --rootdir .`（backend cwd）。node/pnpmとdockerが必要。shared DBへ接続しない。既fixtureのowned DB/実UID/実brokerを再利用する。
 
 記録する証拠: 最終HEAD・差分SHA・実行コマンド・環境・成功/失敗log・画面操作とHTTP順序・実DB件数・サーバーafterとreload表示の一致・独立レビュー対象/採否。台帳の更新は主担当だけが行う。実機/HTTPS運用・全操作・MVP全体の完成とは扱わない。
+
+### 接続時に判明した供給不足の最小追補（2026-10-30、PO委任Codex判断）
+
+- `frontend/eslint.config.js`: 正規wrappers自身を誤拒否する一般patternだけを修正。artifact/ドメイン正本への直接import禁止は維持し対向検査を追加する。
+- 球種の実tenant供給は未提供。専用 `GET /vocabularies/pitch-types` と固定category/disabled/tenant/limit+cursorの新read token、key/display_nameの閉DTO、C2・認可/登録資産候補を同単位で追加する。大会read tokenを他categoryへ転用しない。既CAP再利用、7.7正式受理は隔離候補成功と区別する。固定語彙を製品へ焼き込まない。新規repo/service/router/schemaと対応試験、既operation_registry/app/tenant_accessおよび関連正式資産の必要最小追随を編集範囲とする。意味仕様・保存保証・MVP射程は変更しない。
+
+### 実画面の接合位置（2026-10-30、PO委任Codex判断）
+
+未接続の汎用draftへ実経路を重ねず、既 `GameScreenRecordedRestore.vue` が取得した同じinitialを新規 `GameScreenFirstBall.vue` / `GameScreenFirstBallController.ts` と同specへ渡す。既StrikeZone・実球種read・正式provider・queue/ACK/排他を利用する。ACK後は同じrestore.reloadを呼び、recordedへ変わるとフォームを閉じる。未応答/reloadでは旧slot/同attemptを再送しcommit再呼出しで新D1を作らない。専用初球フォームの実前提で確定を許可し、未接続の汎用GameScreenの常閉ゲートは維持する（MVPの全操作接続は後続として残る）。
