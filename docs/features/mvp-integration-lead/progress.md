@@ -1949,3 +1949,11 @@ be7c0c08: 実initial/ルール/名簿/画面観測から配布artifactを呼ぶp
 manifest ExpectedValueのP1は作者が契約期待値を変えず正規wrapper/schema消費へ是正し13件成功、非作者再確認中。実画面フォーム/controllerは同じrestore初期値と既queue/ACK/排他を使って実装中。
 
 新たな実接続条件: singleWriterの環境6前提の実supplierが未供給。sync-protocol Q2-aに従い観測不能なprofile/mode/bucketとLockdown非適用は利用者の明示確認、top-level HTTPS/WebLocks/IDBとlock内auth/tenant/game一致は実観測する。常trueへ置換しない。既E2EはHTTP loopbackであり、HTTPS成立を読み替えず最終画面確定の隔離HTTPS構成を準備する。初球画面保存・MVP完成はまだ未達。
+
+### 2026-10-30 同一画面への初球フォーム接合
+
+1b30986dでBE座標manifest/host/schema消費を保存。P1は非作者再確認REPORT SHA e6d79e79234dc02580b5dafe87f896a214dda874fc6e0774355b69f9a6013950で解消（13件成功）。schema用の検証ラッパーへ射影するだけで契約expectedを変更しない。全製品の5判定成立とは扱わない。
+
+初球専用フォーム/controller/API readを新規5pathで実装中。同じGameScreenRecordedRestore.vueのinitialを渡し、保存ACK後は既reloadへ接合済（未commit、vue-tsc成功）。観測不能環境前提4確認の初期値false、実HTTPS/WebLocks/IDBとlock内tenant/auth/game検査、旧slot再送経路を提供。実E2Eはまだ実行前。
+
+球種source/API登録32件成功、正式資産候補89成功/既stage_a失敗1。非作者source review継続中で未commit。repo34の正式7.7未了と既履歴markerエラーを維持する。次は固定candidateでfrontend検査/レビュー→球種owned DB・HTTP→隔離HTTPS実画面初球縦断。利用者の初球保存・再読込が通ったとはまだ記録しない。
