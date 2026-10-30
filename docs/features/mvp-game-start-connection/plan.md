@@ -644,3 +644,9 @@ censusの第二constructor _issue_initial_broker_contextはcookie照合/expected
 bytes exact3は0964f6e2で採用済、旧2行と全拒否を保持。製品業務source/SQL/registry/repository-contract/野球意味は今回対象外。作者は全変更hash/新旧symbol/完全前後・current_productとcensus実結果・有限負例を固定し非作者へ渡す。新規正本版上げ・人間署名は行わない。
 
 censusの限定owner抑止の反事実測定（2026-10-31、PO委任によるCodex主担当判断）: broker TB007説明の成立後、removed_outside_allowed_codes_equals_measured_allowlist_suppressionがresolution-ownerの固定TB001(866..901)を測定できない実拒否を確認。contracts/tenant_boundary/census-baseline.json exact1を候補範囲へ追加し、当該derivationにcondition_1_resolve_scoped_findingの反事実代入だけを明示する。同既述語ではresolution_owner=Noneとの差分が実固定owner1identityだけと測定し、未知scope/広い抑止/field欠落を拒否する対向を固定。旧allowed_codes/anchorと既代入の全測定を保持し、単に許可codeを増やさない。正式revision/識別値/過去履歴/受理はrootが最終candidate全差分から別途再導出する。
+
+### 初期HTTPの認可oracle入力再整合（2026-10-31）
+
+PO委任によるCodex主担当判断。既mvp-preparing-read-registration plan5と独立手順確認pr188-oracle-reseal-procedure-20261031/REPORT.md SHAb5b0105045a563c411c6a82233e91846e93647c78c3718fe492bf7acee9c5235に従う。receiving closureはmodern分岐で既成立し、checker/skip/拒否条件の変更は不要。固定input commit C=706846283aca477b338d29352ac6323fdf3b9684は8入力の全実byteと一致。旧49route保持＋既承認HTTPのtrusted_devices insert/games updateのlogical2route、matrix同2と各lockだけが旧入力と異なる（cache pr188-oracle-input-readiness-20261031/input-delta.json）。実操作/CAP対応の既target1pureも成功0.75秒。
+
+root唯一writerの候補はprobe contracts/authz/{ddl-elements,rejected-configs,claim-mutant-map,attack-tree,boundary-proposal,verification-evidence}.json各oracle_context.oracle_commitとoracle-seal.lock.json top oracle_commitのexact7pathだけをCへ揃える。候補時点はinput/sealed digest未更新で未受理・未再封印と明示。非作者がinput旧49全byte/追加2規範・既分類/物理probe/歴史evidence不変、Cの8git blobを確認してからrootが専用--reseal-oracleでdigestを導出し、flag無し全検査と必要7.7へ進む。過去Supabase実測を新規実施済と記録せず、role/権限/リスク内容/期待結果は一切変更しない。P6blind・本人署名・運用公開ではない。
