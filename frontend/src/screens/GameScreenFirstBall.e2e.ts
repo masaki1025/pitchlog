@@ -162,7 +162,7 @@ test('実HTTPS画面で新規作成・開始・初球ボール保存・同要求
   const view = (await (await initialRead).json()) as {
     read_kind: string
     id: string
-    state: { stateFields: Record<string, string> }
+    state: { stateFields: Record<string, unknown>; scoreboard: unknown }
   }
   await expect(
     page.getByText('開始済み（記録前）', { exact: true }),
@@ -207,15 +207,16 @@ test('実HTTPS画面で新規作成・開始・初球ボール保存・同要求
     read_kind: string
     history: unknown[]
     play_rows: unknown[]
-    after: { stateFields: Record<string, string> }
+    after: { stateFields: Record<string, unknown>; scoreboard: unknown }
   }
   expect(recorded.read_kind).toBe('recorded')
   expect(recorded.history).toHaveLength(1)
   expect(recorded.play_rows).toHaveLength(1)
-  for (const [key, value] of Object.entries(view.state.stateFields))
-    expect(recorded.after.stateFields[key], key).toBe(
-      key === 'state.count.balls' ? '1' : value,
-    )
+  expect(recorded.after.stateFields).toStrictEqual({
+    ...view.state.stateFields,
+    'state.count.balls': '1',
+  })
+  expect(recorded.after.scoreboard).toStrictEqual(view.state.scoreboard)
   await expect(page.getByTestId('restore-balls')).toHaveText('1')
   await expect(page.getByTestId('restore-strikes')).toHaveText('0')
   await expect(page.getByTestId('restore-history')).toHaveText('1件')
@@ -235,7 +236,7 @@ test('実HTTPS画面で新規作成・開始・初球ボール保存・同要求
   await page.reload()
   const reloaded = (await (await reloadRead).json()) as typeof recorded
   expect(reloaded.read_kind).toBe('recorded')
-  expect(reloaded.after).toEqual(recorded.after)
+  expect(reloaded.after).toStrictEqual(recorded.after)
   expect(reloaded.history).toHaveLength(1)
   expect(reloaded.play_rows).toHaveLength(1)
   await expect(page.getByTestId('restore-balls')).toHaveText('1')
