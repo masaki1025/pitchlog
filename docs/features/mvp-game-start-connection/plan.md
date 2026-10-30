@@ -586,3 +586,5 @@ PO委任によるCodex主担当判断。root隔離実PG probe pr188-s3-owned-pro
 ### 0036固定owner読取のhygiene有限照合（2026-10-31）
 
 PO委任によるCodex主担当判断。実migration hygieneの唯一失敗は0036 upgradeの固定ownerを読むSELECT current_userである。backend/tests/test_migration_hygiene.py exact1だけを指示し、0036の実path/upgrade直下にある既if全AST（op.get_bind().execute(sa.textのexact SELECT current_user).scalar_oneとpitchlog_owner比較・既RuntimeError拒否）に一致する読取だけを有限認識する。任意get_bind execute、SELECT一般、bind alias、他path/function、SQL多文/文字連結/補間、owner比較改変や拒否除去は通さない。既全DML/SQL/get_bind拒否を保持する。製品migrationとowner拒否は不変。許可patternの自己期待更新で変造を通さず、原典の固定owner要件と実本体を比較し、負例でguardの全重要部分を反転して赤を確認する。作者packet/非作者/局所純検査/型を揃えて採用し、正式受理資産の隠れた改変に使わない。
+
+S3fixture4pathの採用保存（2026-10-31、PO委任によるCodex主担当判断）: 作者packet9b39fff55c6169e71ab395805bf59cc969195b5d607641db0f34823206666d62/実byteと非作者REPORT7588c3e38610022da9038cdd184b4646aa2cbd49f65f92707a47fa0bb42e38b0を照合、新指摘0/独立pure5・ty/ruff/旧全AST保持を採用。root実owned PGは起動S3・0034故障後再開・実ledger限定roleの3成功、immutability1失敗（計29.96秒）。失敗は新4表all-column UPDATE OR DELETEに対する旧UPDATE OF検査不一致と関数SQLSTATEの不足を含む13件、別原典照合・製品/検査是正が必要で未閉とする。このsource採用を全4実試験成功や全CI成功と記録しない。実log cache pr188-ci-s3-fixtures-20261031/root-owned-pg.logを保持。
