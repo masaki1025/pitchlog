@@ -143,3 +143,7 @@ quantizeCourse({
 PO委任によるCodex主担当判断。REPORT〜REPORT7の既履歴を維持し、今回の差分確認・再確認は射程不変の限定追加レビューとして採用。対象は32dccc90とbee806b1までのADR v0.10/要件v2.18改訂・本計画・対応表・草案・量子化候補契約。非作者coordinate_gate_reviewがP0/P1=0と対象別着手前基盤の存在を確認。PO本人の逐行確認・署名ではない。
 
 既存schema・runner・収集器・host基盤と契約1093件/descriptorの供給を着手条件として確認し、step3製品実装を許可する。実manifest entry・operation source/artifact/pin・両runner実行・properties/mutation/収集器登録/必須CIは同一変更のマージ前条件として残す。Python k/263の正式採用、正式7.7受理、画面初球・MVP完成をこの承認に含めない。
+
+### Step3の編集パス具体化（PO委任Codex判断、2026-10-30）
+
+既承認のoperation/manifest/両runner/実host接続を次へ具体化（射程追加なし）: `frontend/src/domain/courseQuantization.ts` と同spec、`publicApi.ts`、配布JS/宣言と既pin、`backend/domain/manifest.json`、`backend/domain/course-quantization-property-catalog.json` と同schema、`backend/src/pitchlog/domainrt/course_quantization.py`、`backend/tests/domain/test_course_quantization_manifest.py`・`test_course_quantization_host.py`。既synthetic schema・T1/T2 handoff・拒否検査は変更しない。manifest識別値は最終artifact生成後に直列更新する。
