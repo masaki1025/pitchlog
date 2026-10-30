@@ -142,3 +142,10 @@ required-setの不可分参照追補（2026-10-31、PO委任によるCodex主担
 artifact機械pin追随（2026-10-31、PO委任によるCodex主担当判断）: 実再build0eb0fa99fc3fac4e3dfc13e3cb33be2d452e52bd1c6908ceb41925e442f0a08a/31220byteをroot照合し、backend/domain/manifest.jsonの既directTarget1hashとfirst_ball_payload_vectors_v1.jsonのartifactSha256/埋込/期待frame計102だけを旧f0acから差替えた。逆変換で旧filebyte完全一致、caseの意味・期待結果・旧履歴は不変。全前後はcache terminal-pitches-step2-pin-root-20261031/files.jsonへ固定。新T1の対象別manifest/runnerの追加記録は実源に基づく別追補とし、旧quantization宣言のhash更新だけを新操作の正式提供/BOOT全成立/7.7受理とはしない。
 
 ステップ2の既基線型公開表とD11実測記録（2026-10-31、PO委任によるCodex主担当判断）: prohibitions.spec.tsの既DurableQueuePage1名だけを既13名保持のexact14へ追随する。新runtime公開や未知typeを許す変更ではない。重全件1失敗/残2757成功を保全し、そのstatic1行修正後は当該41検査で確認、同入力の重全件を直ちに反復しない。D11は既course定義/閉schemaを緩めず、backend/domain/terminal-pitch-manifest.json・terminal-pitch-property-catalog.json・同.schema.jsonの候補3pathと既test_terminal_pitch.pyの実測structured property/trace出力を許可する。真正実行値/実hash/全比較/明示propertyを持つrecordだけ採取し、未計測60単体をpropertyとして埋めない。別manifestを置くだけで既BOOTへ結線済/wholeJUnitComplete=true/正式vector・mutation全成立としない。対象別宣言/2propertyの限定実証は最終sourceレビューへ渡す。
+
+
+### ステップ2数学source採用とステップ3指示（2026-10-30T16:09:15.594980+00:00）
+
+PO委任によるCodex主担当判断。作者17path packet52814b4e60355c177b5944207ee2cfcdf4e8be92bc7abcd621854a7c62cf547dの全実byte、および非作者REPORT b2da6d22ded5877ac81acf9d2d28d423eaaf811a97f94d5c4c5d9acf8b742879を再照合し数学sourceを採用する。新P0/P1/P2=0、独立810交差＋追加150状態・typed host15例、BE62/FE95＋旧119の成功が対象。旧全件2757成功/型表1失敗→局所41成功という履歴は保持し、最終全件成功へ読み替えない。D11の2recordのみ成立、60除外・wholeJUnitComplete=false、正式vector/mutation/BOOT・旧20fail・正式7.7は未閉である。
+
+本採用により上表ステップ3だけを指示する。v1 ABI/PA=falseを保持し、真正v1→v2 bridge・T2共通核・履歴1entry・runner identity/責任投手境界とterminal後の通常投球を契約と実artifactへ結線する。数学でrunner UUIDや真正性を捏造せず、保存段の実source資格を要求する。ステップ4のSQL/ACL/migration/DBおよび5の画面は未許可で、具体依存を固定した上で次の指示へ渡す。本人署名・P6 blind・全T1/全MVP完成ではない。
