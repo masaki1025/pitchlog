@@ -17,6 +17,7 @@ from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
+from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
 )
@@ -57,6 +58,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *FIRST_BALL_PLAY_OPERATIONS,
     *RECORDED_SNAPSHOT_OPERATIONS,
     *PREPARING_GAME_CREATE_OPERATIONS,
+    *PITCH_TYPE_OPTIONS_OPERATIONS,
 )
 
 # 既8関数を保持し、binding前の端末状態readだけを末尾へ加える。

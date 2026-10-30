@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 39,
+  "contract_revision": 40,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:39"
+        "contract_revision:40"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -30909,6 +30909,14 @@
         "SQLA_SELECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/preparing_game_creation_allowed/_preparing_team_lock_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.pitch_type_options._statement",
+      "signature": "_statement(cursor: str | None=None) -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/pitch_type_options_allowed/_statement.py"
     }
   ],
   "conditions": [

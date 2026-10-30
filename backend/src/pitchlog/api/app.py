@@ -12,6 +12,7 @@ from pitchlog.api.routers import (
     games,
     lineup_memory,
     meta,
+    pitch_type_options,
     players,
     started_games,
     sync,
@@ -31,6 +32,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     team_records.router,
     lineup_memory.router,
     games.router,
+    pitch_type_options.router,
     started_games.router,
     sync.router,
 )

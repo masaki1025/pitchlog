@@ -82,6 +82,7 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("POST",), "/devices/enroll"),
         (("POST",), "/games/{game_id}/start"),
         (("POST",), "/games/{game_id}/start/resolve"),
+        (("GET",), "/vocabularies/pitch-types"),
         (("GET",), "/games/{game_id}/started"),
         (("POST",), "/games/{game_id}/sync/events"),
     )
@@ -111,6 +112,7 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "initial_device_enroll",
         "initial_game_start",
         "initial_game_start_resolve",
+        "pitch_type_options",
         "started_game_detail",
         "sync_events",
     )

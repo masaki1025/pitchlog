@@ -687,10 +687,11 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
         "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
         "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+        "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 63
+    assert len(expected_token_types) == 64
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -735,6 +736,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:tenant_vocabularies:read",
                 "CAP:team_records:read",
                 "CAP:team_records:read",
+                "CAP:tenant_vocabularies:read",
             ),
             strict=True,
         )

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 33,
+  "contract_revision": 34,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:33"
+        "contract_revision:34"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -261,7 +261,8 @@
     "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
     "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
     "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
-    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken"
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+    "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -278,5 +279,5 @@
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding"
   ],
-  "source_digest": "0fdaa85d2614de4973b6674dff8b862ad1c28f755f420d1c9543c251f8dd473d"
+  "source_digest": "81e05b24ff00c9ad3d3f1c92028f3c0d05db580ac2920a72fca6829ff2b61085"
 }
