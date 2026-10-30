@@ -799,6 +799,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex判断（Codex主担当/root、採用前に非作者独立照合）",
       "approved_at": "2026-10-24"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#189",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "e4f53dab05715977bdec846f3b2ba155832622e9"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "8a40519d85a00abdef07fa2ffd8f6fa7301b8835"
+          }
+        ]
+      },
+      "reason": "初球実画面保存・再読込の統合候補PR #189に伴い、作成と球種readの正式登録、承認済み座標仕様の出典追随を含む固定step4入力8資産e4f53dabへoracle_inputを前進する。旧AUTH187件の意味本文・既承認履歴・6oracleのoracle_commit以外は不変。非作者REPORT680f1009…/11a1e613…と8blobの現物/固定commit一致に基づくPO委任の主担当判断であり、本人署名・人間逐行確認・P6 blind・MVP完成ではない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
+      "approved_at": "2026-10-30"
     }
   ]
 }

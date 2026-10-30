@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_route_registry",
   "asset_path": "contracts/authz/route-registry.json",
-  "asset_digest": "e0524201691b41b388817bb9d403090d3d2b778af915e65db994cc7d5e79fc3a",
-  "entry_count": 248,
-  "aggregate_decision_digest": "c5af8efeaf09469842a18d8ad317bfb2958aca21469d9cc4601ca75790a5b538",
+  "asset_digest": "1a6bcbc66dd5eb0a35dec4e31773e01467bbd5369ed6ceeb5289f2146b32bf99",
+  "entry_count": 250,
+  "aggregate_decision_digest": "e2c23e1df92da517adcff00564660004da18690b2d86a533daa98d9b99660301",
   "entries": [
     {
       "entry_id": "route:ROUTE:FR-020",
@@ -850,6 +850,42 @@
         "operation": "update"
       },
       "decision_digest": "40e2d4111fa307d4634c168cba7da419d462182095cdc2c5daec39dbdbe0bd7c"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:games:insert",
+      "decision": {
+        "route_id": "ROUTE:RECORD:games:insert",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE",
+          "PLAN-MVP-FIRST-BALL-OPTIONS",
+          "HTTP:preparing_game_create",
+          "FIRST-BALL-OPTION-TOKEN:PreparingGameInsertToken"
+        ],
+        "operation": "insert"
+      },
+      "decision_digest": "0edd5f009683efc6a637fb883fa7f13c4315401d94ef5b629a2d415c20038711"
+    },
+    {
+      "entry_id": "route:ROUTE:RECORD:tenant_vocabularies:read",
+      "decision": {
+        "route_id": "ROUTE:RECORD:tenant_vocabularies:read",
+        "route_kind": "record_and_aggregate",
+        "origin": "design",
+        "source_claim_ids": [],
+        "provenance_ids": [
+          "PLAN-TSK446-RECORD-AND-AGGREGATE",
+          "PLAN-MVP-FIRST-BALL-OPTIONS",
+          "HTTP:preparing_game_preparation_options",
+          "FIRST-BALL-OPTION-TOKEN:PreparingTournamentOptionsToken",
+          "HTTP:pitch_type_options",
+          "FIRST-BALL-OPTION-TOKEN:PitchTypeOptionsToken"
+        ],
+        "operation": "read"
+      },
+      "decision_digest": "21866fb613a0507eda20c730841db2a3bd228dfe1ff86a4d0c9fd559f800e616"
     },
     {
       "entry_id": "operation:create_group",

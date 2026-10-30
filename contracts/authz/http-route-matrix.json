@@ -3,9 +3,9 @@
   "asset_kind": "authz_http_route_matrix",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "bee02c8b87b602095277c17fde4e49abebbcac84",
+    "requirement_claims_blob_digest": "b1d62146af707c47b106c95ce4e742b6d8684bfe",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "6183b66e5a557761d1231c56096d91f7b7b0b92e"
+    "requirement_claims_lock_blob_digest": "1b95f047fa7df49db1e31af5205cceb90ed711c1"
   },
   "route_classes": [
     "shared_screen",
@@ -492,6 +492,24 @@
       "test_owner": {
         "id": "tests/test_check_authz_catalog.py::test_initial_http_logical_routes_match_real_operations_and_caps",
         "status": "implemented"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:games:insert",
+      "route_id": "ROUTE:RECORD:games:insert",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "tests/test_authz_first_ball_routes.py::test_first_ball_create_and_pitch_options_routes_match_source",
+        "status": "planned"
+      }
+    },
+    {
+      "matrix_route_id": "HTTP:ROUTE:RECORD:tenant_vocabularies:read",
+      "route_id": "ROUTE:RECORD:tenant_vocabularies:read",
+      "disposition": "conditional",
+      "test_owner": {
+        "id": "tests/test_authz_first_ball_routes.py::test_first_ball_create_and_pitch_options_routes_match_source",
+        "status": "planned"
       }
     }
   ],

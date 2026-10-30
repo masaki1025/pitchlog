@@ -319,10 +319,9 @@ def test_unregistered_port_is_rejected_before_call() -> None:
             ),
         }
     )
-    from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
-
     import pitchlog.sync.first_ball_projection  # noqa: F401  # 登録集合の固定bootstrap
     import pitchlog.sync.first_ball_recording_rights  # noqa: F401
+    from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 
     ports.require_registered_port(FirstBallContentValidationPort())
     port = SafeProjection()

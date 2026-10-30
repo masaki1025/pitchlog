@@ -1,6 +1,6 @@
 ---
 feature: mvp-first-ball-screen-vertical
-status: approved
+status: active
 承認: PO委任によるCodex主担当判断（2026-10-30、32dccc90起案＋本限定追補、非作者coordinate_gate_reviewの実source照合P0/P1=0を根拠）
 重さ分類: コア領域
 branch: feature/mvp-first-ball-vertical
@@ -91,3 +91,13 @@ created: 2026-10-30
 実HTTPS初回で開始応答後も準備中providerが古い表示を保持し復元入口が出ない接合欠陥を検知。`GameScreenEntryRecordHost.vue` に開始応答保存(received)後の既provider.retryを接続し、実サーバー結果によって既復元入口へ移す（状態成功を合成しない）。同specを追加する。
 
 HTTPSで初球保存/同一要求再送後のreload停止を検知。`GameScreenEntryRecord.vue`・`GameScreenRecordedRestore.vue` と同specのoptional Boolean省略値を明示undefinedへ是正し、保存開始の存在を照合して自動取得する既hookに到達させる。明示falseは従来どおり自動取得しない。
+
+### 正式認可登録の追補と出典母集合の受理（2026-10-30、PO委任Codex判断）
+
+実画面初球達成後の正式整合として `contracts/authz/requirement-claims.json` と同lock、route-registry/http-route-matrixと同lock、必要auth-catalog lock/oracle seal、`scripts/check_authz_catalog.py` と新 `tests/test_authz_first_ball_routes.py` を直列追随する。既187auth_claim全field/digestとclosed-world参照は不変。source候補9435cd0e…は非作者REPORT7c9b14a0…により1429行分類/対象blob/決定digest一致を確認し委任受理。route/checker/pytestは別の非作者REPORTe536708c…/c2a44cd3…に従い拒否条件を保持した有限追加のみ。rootで前後値を保全し正式CLIを段階実行、途中拒否を全体成功へ読み替えない。本人実値確認/署名の代記はしない。正式7.7とoracle完了は別途検査する。
+
+初球実証後の手動確認用に `backend/tests/manual_e2e_hold_support.py` と非DB unit `test_manual_e2e_hold.py` を追加し、実E2Eの全検査後だけ任意のloopback保持を呼ぶ。既定0、明示最大3600秒、資格/鍵ログ禁止、終了は既owned cleanupへ委譲する。製品動作・保証・運用公開を変更しない。
+
+認可oracle再封印では、step4入力8資産を固定commitへ揃えた後、`oracle-seal.lock.json.oracle_commit` と既封印6資産（ddl-elements/rejected-configs/claim-mutant-map/attack-tree/boundary-proposal/verification-evidence）の `oracle_context.oracle_commit` だけを同commitへ追随する。既oracle意味本文・期待値・承認履歴は変更しない。前後の8blob一致と6資産のcontext以外不変を非作者照合後、正式 `--reseal-oracle` を実行し通常CLIで確認する。7.7や実行時oracle成立の代用にはしない（PO委任によるCodex主担当判断）。
+
+正式CLIが要求する `contracts/authz/frozen-baselines.json` のoracle_input系列も本単位の7.7対象へ含める。既履歴を保持し、実製品統合Draft PR #189の受理ID、旧8a40519d→固定e4f53dabの完全前後値・根拠・Codex主担当の委任判断を1record追記する。単なるcontext置換では通らない拒否条件を保持し、独立差分確認後に再封印へ進む。
