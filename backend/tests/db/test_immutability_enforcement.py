@@ -387,7 +387,7 @@ def _observed_contract(
             conditional_update_columns=frozenset(),
         )
     else:
-        assert revision == [("0035_rg1_initial_fresh_epoch",)]
+        assert revision == [("0036_initial_right_storage",)]
         assert rg1_table.protected_columns == {"singleton_id"}
         assert rg1_table.allowed_update_columns == {"state"}
         assert rg1_table.conditional_update_columns == {"recovery_generation"}
