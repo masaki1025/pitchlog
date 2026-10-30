@@ -598,3 +598,5 @@ PO委任によるCodex主担当判断。cache pr188-ci-root-groups-20261031/acl-
 新trusted_devices/game_start_requests/game_start_attempts/recording_right_deliveriesのseedは実FK/NOT NULL/CHECKを満たすA/B両tenantを順序付きで用意する。exposure-factsは既nonownedのまま、実DB境界の42501拒否へ到達できる準備とする。tenant_ownedへの昇格・app grant復活・RLS/認可/DML成功の迂回は不可。seedに必要な別原本が未提供ならそのデータ依存だけrootへ返し、他pureを継続する。
 
 作者が局所pure/ruff/tyと全期待の規範根拠・旧拒否保持を固定し、別非作者レビュー後rootがowned PGで新4表の両tenant seed/拒否・既profileを検査する。schema/table/role/製品DDL/正本/任意migration/受理履歴/sealへ触れない。正式map等の受理はrootのみ。全CI/source188公開の統合や全MVP完成は別条件。
+
+固定owner読取検査の採用（2026-10-30T16:24:12.593988+00:00、PO委任によるCodex主担当判断）: 作者exact1 source4856c7187f0caf08c4b160fbc1b88f4338d95ed62e2b72f0ce227093cd630251を非作者rootが全差分確認し、cache pr188-ci-owner-hygiene-root-review-20261031/REPORT.md SHA0caf07cb12343679db16d021d42afb07eee027515ab53e482e754e9752e001eaへ固定。旧全test AST保持、独立139成功、新指摘0。限定認識のみを採用し製品migration/owner拒否/任意SQL拒否を不変とする。PG/全CI/本人署名ではない。
