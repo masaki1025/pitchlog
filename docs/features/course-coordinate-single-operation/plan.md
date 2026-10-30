@@ -149,3 +149,5 @@ PO委任によるCodex主担当判断。REPORT〜REPORT7の既履歴を維持し
 既承認のoperation/manifest/両runner/実host接続を次へ具体化（射程追加なし）: `frontend/src/domain/courseQuantization.ts` と同spec、`publicApi.ts`、配布JS/宣言と既pin、`backend/domain/manifest.json`、`backend/domain/course-quantization-property-catalog.json` と同schema、`backend/src/pitchlog/domainrt/course_quantization.py`、`backend/tests/domain/test_course_quantization_manifest.py`・`test_course_quantization_host.py`。既synthetic schema・T1/T2 handoff・拒否検査は変更しない。manifest識別値は最終artifact生成後に直列更新する。
 
 画面接続の具体対象は `frontend/src/components/zone/StrikeZone.vue` と同spec、`frontend/src/lib/courseInputView.ts`。float入力反転を削除しscreen座標をemit、量子化後の反転はartifactに一本化する。既保存→画面の表示変換は削除しない。
+
+画面座標の意味追随として `frontend/src/screens/GameScreen.spec.ts` の投手視点タップ期待値を保存反転値183から実画面値80へ追随する。計算結果ではなくemit/下書き境界の期待値であり、保存整数の左右反転はartifact契約で独立検証する。
