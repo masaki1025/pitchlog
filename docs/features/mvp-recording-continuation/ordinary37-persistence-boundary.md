@@ -57,3 +57,7 @@ prefix0は実開始readerのvalidated原本から導入する。旧first-ball pr
 ### 非作者反映1（2026-10-30）
 
 P1: JSON Schemaの`$`は末尾LF直前にも一致するため、UUID/digest/整数patternを既20ABIと同じ`(?![\s\S])`の完全終端へ統一した。PlayRow ID・writer request fingerprint・source D1それぞれにLF/CRLFを付けた6対向を追加し、補修/stripせずschemaで拒否する。44caseは保存source/実DBの成功とは区別する。
+
+### 実codecへの型整合（2026-10-30）
+
+実E1の `wire_fingerprint.py` は既source_fingerprintに `wire-v1:` を付けた原値を返す。requestは既 `wire_request_fingerprint()` の `wire-request-v1:`、eventは `wire-v1:` を区別する。WriterIdentity.request_fingerprintだけ `(?:wire-request-v1:)?[a-f0-9]{64}`、他3用途（WriterIdentity.event_fingerprint/Source.source_fingerprint/Source.event_fingerprint）は既初球validatorとも整合する `(?:wire-v1:)?[a-f0-9]{64}` の完全終端型へ具体化する。原値をstrip/再ハッシュしない。artifact/content/request-response/nonce等の64桁digest型は不変。これは既codecの技術整合でありD5同一性・指紋算法・資格発行条件を変更しない。

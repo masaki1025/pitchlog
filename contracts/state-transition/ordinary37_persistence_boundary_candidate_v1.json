@@ -151,11 +151,11 @@
           },
           "request_fingerprint": {
             "type": "string",
-            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+            "pattern": "^(?:wire-request-v1:)?[a-f0-9]{64}(?![\\s\\S])"
           },
           "event_fingerprint": {
             "type": "string",
-            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+            "pattern": "^(?:wire-v1:)?[a-f0-9]{64}(?![\\s\\S])"
           },
           "nonce_digest": {
             "type": "string",
@@ -211,11 +211,11 @@
           },
           "source_fingerprint": {
             "type": "string",
-            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+            "pattern": "^(?:wire-v1:)?[a-f0-9]{64}(?![\\s\\S])"
           },
           "event_fingerprint": {
             "type": "string",
-            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+            "pattern": "^(?:wire-v1:)?[a-f0-9]{64}(?![\\s\\S])"
           }
         }
       },
