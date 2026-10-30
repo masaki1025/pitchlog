@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "scope",
+    "predicates"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogId": {
+      "const": "course-quantization-properties"
+    },
+    "scope": {
+      "const": "course-input-quantization"
+    },
+    "predicates": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "propertyId",
+          "propertyKind",
+          "authorityId"
+        ],
+        "properties": {
+          "propertyId": {
+            "enum": [
+              "courseRange",
+              "courseHostParity"
+            ]
+          },
+          "propertyKind": {
+            "enum": [
+              "invariant",
+              "equivalence"
+            ]
+          },
+          "authorityId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
