@@ -274,7 +274,7 @@ def test_receipt_context_and_raw_all_values_revalidated(change: str) -> None:
 
 
 def test_no_issuer_registration_api_and_no_mutation_of_old_paths() -> None:
-    """E1発行口は0、legacyは承認済み私有scope以外へ登録しない。"""
+    """E1/legacyは承認済み私有scope各1箇所以外へ登録しない。"""
     source = inspect.getsource(api)
     # 3Bで承認されたprivate legacy入口だけが旧scopeを発行する。
     legacy_body = inspect.getsource(api._legacy_entry_scope)
@@ -282,7 +282,11 @@ def test_no_issuer_registration_api_and_no_mutation_of_old_paths() -> None:
     assert "_LEGACY[" not in source.replace(legacy_body, "").replace(
         "state = _LEGACY[owner]", ""
     )
-    assert "_RECEIPTS[" not in source.replace("state = _RECEIPTS[owner]", "")
+    receipt_body = inspect.getsource(api._e1_receipt_scope)
+    assert receipt_body.count("_RECEIPTS[owner] = state") == 1
+    assert "_RECEIPTS[" not in source.replace(receipt_body, "").replace(
+        "state = _RECEIPTS[owner]", ""
+    )
     assert all("issuer" not in name for name in vars(api) if not name.startswith("_"))
     assert set(inspect.signature(api.e1_event_source).parameters) == {
         "receipt",

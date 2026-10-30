@@ -112,10 +112,22 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """旧RG1/resolver4件と同writer4件の全集合を照合する。"""
+    """既9件とordinary資格2件・限定prefix関数3件の全集合を照合する。"""
     from pitchlog.repositories.first_ball import (
         _BindFirstBallDeviceToken,
         _CheckFirstBallRightToken,
+        _ReadFirstBallDeviceStateToken,
+    )
+    from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+    from pitchlog.repositories.ordinary_pitch_qualification import (
+        BindOrdinaryDeviceToken,
+        CheckOrdinaryRightToken,
+        PrepareOrdinaryProjectionToken,
+    )
+    from pitchlog.repositories.ordinary_prefix_operations import (
+        OrdinaryCheckpointLockToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryHistoryPageToken,
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
@@ -138,6 +150,14 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+        "SYNC_ORDINARY_PITCH:check_ordinary_right",
+        "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+        "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+        "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
@@ -148,6 +168,14 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _CheckFirstBallRightToken,
         _ReadWriterIdentityToken,
         _AssertWriterBindingToken,
+        _ReadFirstBallDeviceStateToken,
+        BindOrdinaryDeviceToken,
+        CheckOrdinaryRightToken,
+        PrepareOrdinaryProjectionToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryCheckpointLockToken,
+        OrdinaryHistoryPageToken,
+        OrdinaryOrderSummaryToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 

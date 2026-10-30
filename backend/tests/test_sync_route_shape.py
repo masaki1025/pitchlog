@@ -38,3 +38,85 @@ def test_malformed_body_is_rejected(payload: object) -> None:
     """外形不正をP2として扱わない。"""
     with pytest.raises((RequestShapeError, _E1OutOfScope)):
         _request_path(payload)
+
+
+@pytest.mark.parametrize("stage", ["apply", "replay"])
+def test_database_failure_is_503_without_ack_or_exception_values(monkeypatch, stage):
+    """入口の例外写像だけを合成し、実認可・実DB成功とは扱わない。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+    from uuid import UUID
+
+    from fastapi import HTTPException
+    from sqlalchemy.exc import ProgrammingError
+    from test_authz_tenant_context import make_tenant_context
+
+    from pitchlog.api.routers import sync
+
+    tenant, game, device, attempt = (UUID(int=n) for n in (1, 2, 3, 4))
+    config = SimpleNamespace(
+        control_instance=UUID(int=5),
+        business_instance=UUID(int=6),
+        restore_epoch=UUID(int=7),
+        broker_endpoint=object(),
+    )
+    monkeypatch.setattr(sync, "_configuration", lambda request: config)
+    monkeypatch.setattr(
+        sync,
+        "_replay_e1_without_binding",
+        lambda *args: failure() if stage == "replay" else None,
+    )
+    monkeypatch.setattr(sync, "_credential_digest", lambda value: b"a" * 32)
+    closed = []
+
+    @contextmanager
+    def receipt(**kwargs):
+        try:
+            yield object()
+        finally:
+            closed.append(True)
+
+    monkeypatch.setattr(sync, "_e1_receipt_scope", receipt)
+    monkeypatch.setattr(sync, "e1_event_source", lambda *args: object())
+    monkeypatch.setattr(
+        sync, "_issue_device_presentation", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(sync, "_broker_generation", lambda *args: 1)
+    monkeypatch.setattr(
+        sync, "selected_event_fingerprint", lambda *args: "wire-v1:" + "a" * 64
+    )
+    monkeypatch.setattr(sync, "BindingControl", lambda endpoint: object())
+
+    def failure(*args, **kwargs):
+        raise ProgrammingError("private sql", {}, Exception("private diagnostic"))
+
+    monkeypatch.setattr(sync, "_apply_e1_f1", failure)
+    payload = {
+        "recording_right_proof": {},
+        "events": [
+            {
+                "d5": str(UUID(int=8)),
+                "game_id": str(game),
+                "d1": 1,
+                "d4": "generation-A",
+                "d2": 1,
+                "event_kind": "1",
+                "payload": {"formatVersion": "ordinary-pitch-play-v1"},
+                "state_diff": {},
+            }
+        ],
+    }
+    with pytest.raises(HTTPException) as captured:
+        sync.sync_events(
+            game,
+            payload,
+            object(),
+            make_tenant_context(tenant),
+            "test-cookie",
+            device,
+            "test-credential",
+            attempt,
+        )
+    assert captured.value.status_code == 503
+    assert "private" not in str(captured.value.detail)
+    assert closed == ([True] if stage == "apply" else [])

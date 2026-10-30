@@ -27,7 +27,7 @@ _GUARD_DIGESTS = {
         "6f56a458e8709ed56c8908252a5cef1cb51864822ca7c26eab03c1df5397dce9"
     ),
     "guard_first_ball_projection_admission": (
-        "f3c9f6205d52e1a7529fb322d67e3d5592af5362cad456321e3ea3d57513517b"
+        "ad021e8c601e6c74dcb55265e66b236bd735d8e5d9b3e311a6eb5735b0bba74c"
     ),
 }
 _REVISION = _ROOT / "migrations/versions/0038_first_ball_write_admission.py"
@@ -417,7 +417,7 @@ def test_formal_metadata_has_exact_column_and_table_acl_union() -> None:
         "functions": 2,
         "policies": 5,
         "acl_expectations": 2,
-        "column_acl_expectations": 82,
+        "column_acl_expectations": 83,
     }
     assert all(row["column_id"] != "xmin" for row in rows["column_acl_expectations"])
     state = [

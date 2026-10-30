@@ -743,12 +743,23 @@ def _apply_locked_in_scope(
         if original_d5 is not None:
             _require_rejected_original(scope, event, original_d5)
         from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+        from pitchlog.sync.ordinary_pitch_ports import (
+            OrdinaryPitchContentValidationPort,
+        )
 
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import _bind_first_ball_execution
 
             first_ball_stack.enter_context(
                 _bind_first_ball_execution(scope, writer, event, source)
+            )
+        if type(validator) is OrdinaryPitchContentValidationPort:
+            from pitchlog.sync.ordinary_pitch_execution import (
+                _bind_ordinary_pitch_execution,
+            )
+
+            first_ball_stack.enter_context(
+                _bind_ordinary_pitch_execution(scope, writer, event, source)
             )
         with (
             nullcontext()
@@ -855,8 +866,21 @@ def _apply_locked_in_scope(
 
             with _bind_first_ball_projection(scope, writer, event, projected_event):
                 projection.apply(projected_event, writer)
+        elif type(validator) is OrdinaryPitchContentValidationPort:
+            from pitchlog.sync.ordinary_pitch_execution import (
+                _bind_ordinary_pitch_projection,
+            )
+
+            with _bind_ordinary_pitch_projection(scope, writer, event, projected_event):
+                projection.apply(projected_event, writer)
         else:
             projection.apply(projected_event, writer)
+        if type(validator) is OrdinaryPitchContentValidationPort:
+            from pitchlog.sync.ordinary_pitch_execution import (
+                _require_ordinary_projection_completed,
+            )
+
+            _require_ordinary_projection_completed(scope, event)
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import (
                 _require_first_ball_projection_completed,

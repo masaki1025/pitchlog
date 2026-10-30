@@ -77,6 +77,7 @@ SET search_path=pg_catalog,pg_temp AS $stamp$
 DECLARE own_xid text; row_xmin text;
  stamp sync_fence.first_ball_write_admissions%ROWTYPE;
  event_row record; binding sync_fence.writer_bindings%ROWTYPE;
+ ordinary boolean:=false;
 BEGIN
  -- 読取/照合だけをEXCEPTION付き内側blockへ閉じる。この内側はsubtransactionなので
  -- 印への書込とxmin照合は必ず外側(top-level)で行う。
@@ -93,12 +94,22 @@ BEGIN
   RAISE EXCEPTION 'first ball write admission rejected' USING ERRCODE='42501';
  END IF;
  own_xid:=pg_catalog.pg_current_xact_id()::text;
- SELECT e.d5,e.generation INTO STRICT event_row FROM public.operation_events e
+ SELECT e.d5,e.generation,e.d1,e.payload INTO STRICT event_row
+ FROM public.operation_events e
  WHERE e.tenant_id=NEW.tenant_id AND e.id=NEW.source_event_id AND e.game_id=NEW.game_id
  AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
  AND e.generation IS NOT NULL AND e.d1>0 AND e.d2 IS NOT NULL
  AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
  AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified;
+ ordinary:=event_row.payload->>'formatVersion'='ordinary-pitch-play-v1';
+ IF ordinary IS DISTINCT FROM true THEN
+ IF event_row.payload->>'formatVersion' IS DISTINCT FROM 'first-ball-play-v1'
+ OR event_row.d1 IS DISTINCT FROM 1
+ OR EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_write_admissions o
+ WHERE o.tenant_id=NEW.tenant_id AND o.game_id=NEW.game_id AND o.d5=event_row.d5
+ AND o.state IN ('device_verified','right_verified','evaluated','consumed')) THEN
+ RAISE EXCEPTION 'first ball write admission rejected' USING ERRCODE='42501';
+ END IF;
  SELECT s.* INTO STRICT stamp FROM sync_fence.first_ball_write_admissions s
  JOIN sync_fence.writer_bindings b
  ON (b.tenant_id,b.attempt_id,b.phase_id)=(s.tenant_id,s.attempt_id,s.phase_id)
@@ -146,9 +157,14 @@ BEGIN
  IF NOT FOUND THEN
   RAISE EXCEPTION 'first ball write admission rejected' USING ERRCODE='42501';
  END IF;
+ END IF;
  EXCEPTION WHEN no_data_found OR too_many_rows OR invalid_text_representation THEN
   RAISE EXCEPTION 'first ball write admission rejected' USING ERRCODE='42501';
  END;
+ IF ordinary THEN
+ PERFORM sync_right_api.consume_ordinary_projection(pg_catalog.to_jsonb(NEW));
+ RETURN NEW;
+ END IF;
  -- 外側: subtransactionなしで消費する。0行は固定42501、PKなので複数行はない。
  UPDATE sync_fence.first_ball_write_admissions s
  SET state='consumed',source_event_id=NEW.source_event_id,play_row_id=NEW.id,
@@ -252,6 +268,7 @@ def _profile() -> dict[str, Any]:
             "transaction_id",
         ],
         "operation_events": [
+            "payload",
             "tenant_id",
             "id",
             "game_id",

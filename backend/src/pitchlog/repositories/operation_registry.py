@@ -17,6 +17,12 @@ from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
+from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
+from pitchlog.repositories.ordinary_pitch_operations import ORDINARY_PLAY_OPERATIONS
+from pitchlog.repositories.ordinary_pitch_qualification import (
+    ORDINARY_QUALIFICATION_OPERATIONS,
+)
+from pitchlog.repositories.ordinary_prefix_operations import ORDINARY_PREFIX_OPERATIONS
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
@@ -59,6 +65,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *RECORDED_SNAPSHOT_OPERATIONS,
     *PREPARING_GAME_CREATE_OPERATIONS,
     *PITCH_TYPE_OPTIONS_OPERATIONS,
+    *ORDINARY_PLAY_OPERATIONS,
 )
 
 # 既8関数を保持し、binding前の端末状態readだけを末尾へ加える。
@@ -119,6 +126,9 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     *_FIRST_BALL_FUNCTION_OPERATIONS,
     *_WRITER_BINDING_FUNCTION_OPERATIONS,
     DEVICE_STATE_READ_OPERATION,
+    *ORDINARY_QUALIFICATION_OPERATIONS,
+    *ORDINARY_PREFIX_OPERATIONS,
+    *ORDINARY_ORDER_OPERATIONS,
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

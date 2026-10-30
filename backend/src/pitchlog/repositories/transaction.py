@@ -394,6 +394,16 @@ class _TenantTransaction:
         phase = _port_phase(self)
         if phase is not None:
             _require_port_function(phase, operation, spec.function_id)
+        from pitchlog.repositories.ordinary_pitch_qualification import (
+            PrepareOrdinaryProjectionToken,
+        )
+
+        if type(operation) is PrepareOrdinaryProjectionToken:
+            from pitchlog.sync.ordinary_pitch_execution import (
+                _consume_ordinary_preparation,
+            )
+
+            _consume_ordinary_preparation(self, operation)
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
@@ -1115,8 +1125,11 @@ def _require_port_function(phase, operation, function_id):
             "rg1_api.rg1_assert_open_before_commit",
             "rg1_control.scope_binding",
         },
-        "device": {"sync_right_api.bind_device"},
-        "rights": {"sync_right_api.check_current_right"},
+        "device": {"sync_right_api.bind_device", "sync_right_api.bind_ordinary_device"},
+        "rights": {
+            "sync_right_api.check_current_right",
+            "sync_right_api.check_ordinary_right",
+        },
         "content": set(),
     }[phase.kind] | {
         "sync_fence_api.assert_writer_binding",
@@ -1127,6 +1140,8 @@ def _require_port_function(phase, operation, function_id):
     if function_id in {
         "sync_right_api.bind_device",
         "sync_right_api.check_current_right",
+        "sync_right_api.bind_ordinary_device",
+        "sync_right_api.check_ordinary_right",
         "sync_fence_api.assert_writer_binding",
     }:
         lease = phase.bound._lease
@@ -1142,6 +1157,10 @@ def _require_port_function(phase, operation, function_id):
 
 
 def _is_port_command(operation):
+    from pitchlog.sync.ordinary_pitch_tokens import (
+        ProjectOrdinaryPitchToken,
+        ValidateOrdinaryPitchToken,
+    )
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
@@ -1155,6 +1174,8 @@ def _is_port_command(operation):
     return isinstance(
         operation,
         (
+            ValidateOrdinaryPitchToken,
+            ProjectOrdinaryPitchToken,
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
             PortCheckPresentedRightToken,
@@ -1220,6 +1241,10 @@ def _execute_port_command(handle, operation):
         _CheckFirstBallRightToken,
     )
     from pitchlog.repositories.rg1 import RG1CommitCheckToken, RG1PrecheckToken
+    from pitchlog.sync.ordinary_pitch_tokens import (
+        ProjectOrdinaryPitchToken,
+        ValidateOrdinaryPitchToken,
+    )
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
@@ -1231,6 +1256,23 @@ def _execute_port_command(handle, operation):
     )
 
     phase = _port_phase(handle)
+    if type(operation) is ProjectOrdinaryPitchToken:
+        if phase is not None:
+            raise TenantBindingError("通常投影命令は判定phase外だけで使う")
+        operation.__post_init__()
+        from pitchlog.sync.ordinary_pitch_projection import (
+            apply_ordinary_pitch_projection,
+        )
+
+        return apply_ordinary_pitch_projection(handle, operation)
+    if type(operation) is ValidateOrdinaryPitchToken:
+        operation.__post_init__()
+        from pitchlog.sync.ordinary_pitch_execution import _ordinary_content_result
+
+        accepted = _ordinary_content_result(handle, operation.event, operation.writer)
+        return TenantOperationResult(
+            ((accepted, None if accepted else "通常投球の実評価値と不一致"),)
+        )
     if type(operation) is PortProjectFirstBallToken:
         if phase is not None:
             raise TenantBindingError("投影命令は判定phaseの外だけで使う")
@@ -1277,6 +1319,14 @@ def _execute_port_command(handle, operation):
         recovery, right = result.rows[0]
         if recovery is not True:
             raise TenantBindingError("実RG1借用と業務復旧世代が不一致")
+        if right is True:
+            from pitchlog.sync.ordinary_pitch_execution import (
+                _ordinary_qualification_active,
+                _record_ordinary_right_epoch,
+            )
+
+            if _ordinary_qualification_active(handle):
+                _record_ordinary_right_epoch(handle, phase, epoch)
         return TenantOperationResult(((right,),))
     if type(operation) is PortRG1PrecheckToken and phase.kind == "rg1-precheck":
         token = RG1PrecheckToken()
@@ -1291,7 +1341,19 @@ def _execute_port_command(handle, operation):
         ):
             raise TenantBindingError("端末資格digestの型が不正")
         _PORT_DEVICE_BIND_USED.add(handle._state_key)
-        token = _BindFirstBallDeviceToken(
+        from pitchlog.repositories.ordinary_pitch_qualification import (
+            BindOrdinaryDeviceToken,
+        )
+        from pitchlog.sync.ordinary_pitch_execution import (
+            _ordinary_qualification_active,
+        )
+
+        token_type = (
+            BindOrdinaryDeviceToken
+            if _ordinary_qualification_active(handle)
+            else _BindFirstBallDeviceToken
+        )
+        token = token_type(
             lease.attempt_id,
             lease.phase_id,
             lease.nonce,
@@ -1312,7 +1374,19 @@ def _execute_port_command(handle, operation):
             or len(operation.proof_digest) != 32
         ):
             raise TenantBindingError("現権利命令がactual bindingと不一致")
-        token = _CheckFirstBallRightToken(
+        from pitchlog.repositories.ordinary_pitch_qualification import (
+            CheckOrdinaryRightToken,
+        )
+        from pitchlog.sync.ordinary_pitch_execution import (
+            _ordinary_qualification_active,
+        )
+
+        token_type = (
+            CheckOrdinaryRightToken
+            if _ordinary_qualification_active(handle)
+            else _CheckFirstBallRightToken
+        )
+        token = token_type(
             lease.attempt_id,
             lease.phase_id,
             lease.nonce,

@@ -8,16 +8,26 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import AfterValidator, ConfigDict, Field, model_validator
 
 from pitchlog.api.schemas.base import BaseSchema, EntityId, Timestamp
 from pitchlog.api.schemas.games import GameTypeKey
-from pitchlog.domainrt.first_pitch import HistoryEntry, StateSnapshot, StatFlags
-from pitchlog.domainrt.first_pitch_continuation import T2NoEndCore
+from pitchlog.domainrt.first_pitch import (
+    DecimalInteger,
+    HistoryEntry,
+    StateSnapshot,
+    StatFlags,
+)
+from pitchlog.domainrt.first_pitch_continuation import SavedRuleWire, T2NoEndCore
 from pitchlog.domainrt.initial_game_roster import (
     InitialRosterProjection,
     OneToNine,
     Role,
+)
+from pitchlog.domainrt.ordinary_pitch_continuation import (
+    NewHistoryEntry,
+    OrdinaryT2,
+    PrefixRef,
 )
 from pitchlog.sync.first_ball_payload import FirstBallCourse
 
@@ -167,8 +177,119 @@ class StartedRecordedGameRead(StartedGameRead):
     play_rows: Annotated[list[StartedPlayRow], Field(min_length=1, max_length=1)]
 
 
+class RecordedPrefixPlayRow(StartedPlayRow):
+    """現在のordinary行の公開35key。内部41全値照合を別に要求する。"""
+
+    play_number: Annotated[int, Field(strict=True, ge=1, le=2**63 - 1)]
+    batting_order: Annotated[int, Field(strict=True, ge=1, le=9)]
+    version: Annotated[int, Field(strict=True, ge=1, le=2**63 - 1)]
+
+
+class OrdinaryAppendPolicy(_FrozenSchema):
+    """初期D2とgapの限定送信方針。DB bigint上限を変更しない。"""
+
+    version: Literal["ordinary-append-v1"]
+    first_d2: Literal["1"]
+    d2_gap: Literal["1000"]
+    max_d2: Literal["9007199254740991"]
+
+
+def _positive_prefix_integer(value: str) -> str:
+    """非負正準整数型のうち0だけを拒否する。"""
+    if value == "0":
+        raise ValueError("正の位置/版が必要")
+    return value
+
+
+PositivePrefixInteger = Annotated[
+    DecimalInteger, AfterValidator(_positive_prefix_integer)
+]
+
+
+class PrefixNextPosition(_FrozenSchema):
+    """実同期原本から取得する次位置。prefix長/行版から推測しない。"""
+
+    d1: PositivePrefixInteger
+    d2: PositivePrefixInteger
+
+
+class PrefixCheckpointAnchor(_FrozenSchema):
+    """persist済checkpointだけの実識別。GETで生成しない。"""
+
+    id: EntityId
+    revision: PositivePrefixInteger
+    history_version: PositivePrefixInteger
+
+
+class PrefixPageItem(_FrozenSchema):
+    """実保存行とそれに結合した今回entry。全履歴を意味しない。"""
+
+    play_row: RecordedPrefixPlayRow
+    history_entry: NewHistoryEntry
+
+
+class PrefixPage(_FrozenSchema):
+    """checkpointに固定した有限ページ。未送信分を含めない。"""
+
+    items: Annotated[list[PrefixPageItem], Field(max_length=100)]
+    next_cursor: Annotated[str, Field(min_length=1, max_length=2048)] | None
+
+
+class StartedRecordedPrefixGameRead(StartedGameRead):
+    """通常投球の実保存prefix。旧無query応答は変更しない。"""
+
+    read_kind: Literal["recorded-prefix"]
+    after: StateSnapshot
+    prefix_ref: PrefixRef
+    rules: SavedRuleWire
+    t2: T2NoEndCore | OrdinaryT2 | None
+    last_entry: NewHistoryEntry | None
+    next_position: PrefixNextPosition
+    checkpoint_anchor: PrefixCheckpointAnchor | None
+    recovery_generation: PositivePrefixInteger
+    page: PrefixPage
+    append_policy: OrdinaryAppendPolicy
+    last_saved_at: Timestamp
+
+    @model_validator(mode="after")
+    def _prefix_correlations(self):
+        """空prefix/実anchor/今回entryの相関だけを検査する。"""
+        n = int(self.prefix_ref.length)
+        if (
+            self.prefix_ref.game_id != str(self.id)
+            or self.prefix_ref.generation != self.current_d4
+        ):
+            raise ValueError("prefixと試合/現在D4が不一致")
+        if n == 0:
+            if (
+                self.t2 is not None
+                or self.last_entry is not None
+                or self.checkpoint_anchor is not None
+                or self.page.items
+                or self.page.next_cursor is not None
+                or self.after != self.state
+            ):
+                raise ValueError("空prefixへ記録済み値を付与できない")
+        elif (
+            self.t2 is None
+            or self.last_entry is None
+            or (n > 1 and self.checkpoint_anchor is None)
+        ):
+            raise ValueError("記録済みprefixの実根拠が不足")
+        if n > 1 and not isinstance(self.t2, OrdinaryT2):
+            raise ValueError("通常継続T2の型が不一致")
+        if self.page.next_cursor is not None and not self.page.items:
+            raise ValueError("空pageへ次cursorを付与できない")
+        ids = set()
+        for item in self.page.items:
+            if item.play_row.game_id != self.id or item.play_row.id in ids:
+                raise ValueError("pageに別試合/重複行を混ぜられない")
+            ids.add(item.play_row.id)
+        return self
+
+
 StartedGameReadResponse = Annotated[
-    StartedGameRead | StartedRecordedGameRead,
+    StartedGameRead | StartedRecordedGameRead | StartedRecordedPrefixGameRead,
     Field(discriminator="read_kind"),
 ]
 """`read_kind` で判別する記録前後の応答。既存 `initial` の形は変えない。"""

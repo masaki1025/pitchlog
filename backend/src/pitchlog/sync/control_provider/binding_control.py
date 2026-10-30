@@ -90,11 +90,14 @@ def _classify_observation(
 def _phase_wire(
     phase: EventPhaseBinding, authority_id: UUID, version: int
 ) -> dict[str, object]:
-    """既F1単球phaseの全値を、制御3原本の閉形式へ写す。"""
+    """初球/通常の1要求1eventを、D1原値の指紋を保持して閉形式へ写す。"""
     if (
         type(phase) is not EventPhaseBinding
+        or type(phase.position) is not int
         or phase.position != 1
-        or phase.d1 != 1
+        or type(phase.d1) is not int
+        or phase.d1 <= 0
+        or type(phase.attempt.event_count) is not int
         or phase.attempt.event_count != 1
         or type(authority_id) is not UUID
         or type(version) is not int
@@ -119,6 +122,16 @@ def _phase_wire(
         "d5": str(phase.d5),
         "event_fingerprint": phase.event_fingerprint,
     }
+
+
+def _phase_snapshot_value(
+    phase: EventPhaseBinding, tenant_id: UUID, phase_wire: dict[str, object]
+):
+    """RPC wireを変えず、通常D1の原値をprivate snapshotにも固定する。"""
+    value = {"tenant_id": str(tenant_id), "phase": phase_wire}
+    if phase.d1 != 1:
+        value["source_d1"] = phase.d1
+    return value
 
 
 def _writer_from_wire(value: object) -> WriterIdentity:
@@ -454,10 +467,9 @@ class _BindingLease:
             snapshot = json.loads(phase_snapshot)
             authority = UUID(snapshot["phase"]["authority_id"])
             version = snapshot["phase"]["control_version"]
-            expected = {
-                "tenant_id": str(phase.attempt.tenant_id),
-                "phase": _phase_wire(phase, authority, version),
-            }
+            expected = _phase_snapshot_value(
+                phase, phase.attempt.tenant_id, _phase_wire(phase, authority, version)
+            )
             canonical = json.dumps(expected, sort_keys=True, separators=(",", ":"))
             if type(phase_snapshot) is not str or canonical != phase_snapshot:
                 raise ValueError
@@ -696,7 +708,7 @@ class BindingControl:
                 self._target["control_version"],
             )
             phase_snapshot = json.dumps(
-                {"tenant_id": str(context.tenant_id), "phase": phase_wire},
+                _phase_snapshot_value(phase, context.tenant_id, phase_wire),
                 sort_keys=True,
                 separators=(",", ":"),
             )

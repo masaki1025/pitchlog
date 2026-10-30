@@ -82,3 +82,73 @@ def test_multi_event_and_p3_are_left_to_the_existing_out_of_scope() -> None:
         is None
     )
     assert _replay_e1_without_binding(context, _p3(), (_digest(),)) is None
+
+
+@pytest.mark.parametrize("d1,current_d3", [(1, 1), (2, 2), (99, 99), (1, 3), (2, 3)])
+@pytest.mark.parametrize("kind", ["unused", "stored_result", "conflict"])
+def test_positive_d1_classifies_saved_d5_before_any_binding(
+    monkeypatch, d1, current_d3, kind
+):
+    """通常後続単球も同じD5分類を再利用し、未使用だけ通常段へ戻す。"""
+    from contextlib import contextmanager
+
+    from pitchlog.repositories import rg1
+    from pitchlog.repositories.tokens import TenantOperationResult
+    from pitchlog.sync import apply, idempotency
+    from pitchlog.sync.idempotency import D5Candidate, StoredResult
+    from pitchlog.sync.tokens import (
+        RECORDING_GENERATION_READ_COLUMNS,
+        RecordingGenerationReadToken,
+    )
+
+    request = _p2(d1=d1)
+    context = make_tenant_context(uuid4())
+    seen = []
+
+    class Scope:
+        """D3一点のみ合成し、writer関数は提供しない。"""
+
+        def run(self, token):
+            """実原本照会の代替合成。実DB成立とは別。"""
+            assert type(token) is RecordingGenerationReadToken
+            seen.append("D3")
+            values = {"confirmed_watermark": current_d3}
+            return TenantOperationResult(
+                (tuple(values.get(key) for key in RECORDING_GENERATION_READ_COLUMNS),)
+            )
+
+    @contextmanager
+    def scope(context):
+        yield Scope()
+
+    def classify(handle, d5, fingerprint, path):
+        seen.append("D5")
+        assert (
+            str(d5) == request.events[0].d5
+            and fingerprint == _digest()
+            and path == "P2"
+        )
+        if kind == "stored_result":
+            return D5Candidate(
+                kind,
+                stored=StoredResult(
+                    "accepted",
+                    _digest(),
+                    {"state": "受理", "d3": d1, "temporary_id_mapping": {}},
+                    None,
+                ),
+            )
+        return D5Candidate(kind, "B3b" if kind == "conflict" else None)
+
+    monkeypatch.setattr(apply, "game_accessible", lambda *args: True)
+    monkeypatch.setattr(apply, "tenant_transaction_scope", scope)
+    monkeypatch.setattr(rg1, "read_rg1_open", lambda scope: seen.append("RG1"))
+    monkeypatch.setattr(idempotency, "classify_d5", classify)
+    result = _replay_e1_without_binding(context, request, (_digest(),))
+    assert seen == ["RG1", "D3", "D5"]
+    if kind == "unused":
+        assert result is None
+    else:
+        assert result.d3 == current_d3
+        assert result.a5[0].d1 == d1
+        assert result.a5[0].state == ("重複" if kind == "stored_result" else "拒否")

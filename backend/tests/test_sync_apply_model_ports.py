@@ -312,6 +312,11 @@ def test_unregistered_port_is_rejected_before_call() -> None:
     assert ports.PORT_IMPLEMENTATIONS == frozenset(
         {
             ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+            (
+                "pitchlog.sync.ordinary_pitch_ports",
+                "OrdinaryPitchContentValidationPort",
+            ),
+            ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
             ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
             (
                 "pitchlog.sync.first_ball_recording_rights",
@@ -595,6 +600,8 @@ def test_port_signatures_do_not_expose_context_handle_or_session() -> None:
     "module,kind",
     [
         ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchContentValidationPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
         ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
     ],
