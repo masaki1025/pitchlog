@@ -112,10 +112,11 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """旧RG1/resolver4件と同writer4件の全集合を照合する。"""
+    """旧RG1/resolver4件・同writer4件と既端末read1件を完全照合する。"""
     from pitchlog.repositories.first_ball import (
         _BindFirstBallDeviceToken,
         _CheckFirstBallRightToken,
+        _ReadFirstBallDeviceStateToken,
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
@@ -138,6 +139,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
@@ -148,6 +150,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _CheckFirstBallRightToken,
         _ReadWriterIdentityToken,
         _AssertWriterBindingToken,
+        _ReadFirstBallDeviceStateToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -1979,3 +1982,67 @@ def test_worker_existing_adapter_requires_actual_lookup_owner(change, monkeypatc
             transaction._assert_existing_resolution_owner(
                 handle, context, runtime, owner, bound
             )
+
+
+def test_parent_literal_function_bindings_keep_same_objects() -> None:
+    """親9関数の既SQL/IOを複製せず、元の5objectだけを束縛する。"""
+    from pitchlog.repositories.first_ball import (
+        _UNREGISTERED_DECLARATIONS as first_ball,
+    )
+    from pitchlog.repositories.first_ball import (
+        DEVICE_STATE_READ_OPERATION,
+    )
+    from pitchlog.repositories.operation_registry import _registered_product_function
+    from pitchlog.repositories.writer_binding import (
+        _UNREGISTERED_DECLARATIONS as writer,
+    )
+
+    original = (*first_ball, *writer, DEVICE_STATE_READ_OPERATION)
+    assert len(original) == 5
+    assert all(
+        actual is expected
+        for actual, expected in zip(
+            operation_registry.PRODUCT_FUNCTION_OPERATIONS[4:],
+            original,
+            strict=True,
+        )
+    )
+    for registration in original:
+        assert (
+            _registered_product_function(
+                registration,
+                operation_id=registration.operation_id,
+            )
+            is registration
+        )
+    with pytest.raises(ValueError):
+        _registered_product_function(
+            original[0], operation_id="SYNC_FIRST_BALL:unknown"
+        )
+    with pytest.raises(ValueError):
+        _registered_product_function(original[0], operation_id=original[1].operation_id)
+    with pytest.raises(ValueError):
+        _registered_product_function(writer[0], operation_id=first_ball[0].operation_id)
+    with pytest.raises(ValueError):
+        _registered_product_function(
+            original[0],
+            operation_id=typing_cast(str, True),
+        )
+
+
+def test_parent_literal_binding_rejects_fake_and_extra_registrations() -> None:
+    """偽reg/別group/余剰の実regをfinite登録へ入れない。"""
+    from types import SimpleNamespace
+
+    from pitchlog.repositories.operation_registry import _registered_product_function
+
+    actual = operation_registry.PRODUCT_FUNCTION_OPERATIONS[4]
+    for fake in (object(), SimpleNamespace(operation_id=actual.operation_id)):
+        with pytest.raises(ValueError):
+            _registered_product_function(
+                typing_cast(FunctionOperationRegistration, fake),
+                operation_id=actual.operation_id,
+            )
+    extra = _registration()
+    with pytest.raises(ValueError):
+        _registered_product_function(extra, operation_id=extra.operation_id)

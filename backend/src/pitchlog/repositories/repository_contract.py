@@ -5,7 +5,7 @@ CONTRACT_REVISION = 34
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "81e05b24ff00c9ad3d3f1c92028f3c0d05db580ac2920a72fca6829ff2b61085"
+SOURCE_DIGEST = 'b2f50753bec6ae5d5d2d8c0b427796f7f05cb5e43a2fb545d334961cb2dd83c5'
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -186,13 +186,12 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
-PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
-    "RG1:precheck",
-    "RG1:commit_check",
-    "RG1:scope_binding",
-    "RULE:resolve_stage_a",
-    "SYNC_FIRST_BALL:bind_device",
-    "SYNC_FIRST_BALL:check_current_right",
-    "SYNC_WRITER_BINDING:read_writer_identity",
-    "SYNC_WRITER_BINDING:assert_writer_binding",
-)
+PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = ('RG1:precheck',
+ 'RG1:commit_check',
+ 'RG1:scope_binding',
+ 'RULE:resolve_stage_a',
+ 'SYNC_FIRST_BALL:bind_device',
+ 'SYNC_FIRST_BALL:check_current_right',
+ 'SYNC_WRITER_BINDING:read_writer_identity',
+ 'SYNC_WRITER_BINDING:assert_writer_binding',
+ 'SYNC_FIRST_BALL:read_device_state')
