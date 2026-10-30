@@ -600,3 +600,11 @@ PO委任によるCodex主担当判断。cache pr188-ci-root-groups-20261031/acl-
 作者が局所pure/ruff/tyと全期待の規範根拠・旧拒否保持を固定し、別非作者レビュー後rootがowned PGで新4表の両tenant seed/拒否・既profileを検査する。schema/table/role/製品DDL/正本/任意migration/受理履歴/sealへ触れない。正式map等の受理はrootのみ。全CI/source188公開の統合や全MVP完成は別条件。
 
 固定owner読取検査の採用（2026-10-30T16:24:12.593988+00:00、PO委任によるCodex主担当判断）: 作者exact1 source4856c7187f0caf08c4b160fbc1b88f4338d95ed62e2b72f0ce227093cd630251を非作者rootが全差分確認し、cache pr188-ci-owner-hygiene-root-review-20261031/REPORT.md SHA0caf07cb12343679db16d021d42afb07eee027515ab53e482e754e9752e001eaへ固定。旧全test AST保持、独立139成功、新指摘0。限定認識のみを採用し製品migration/owner拒否/任意SQL拒否を不変とする。PG/全CI/本人署名ではない。
+
+### 初期権の不変性強制と独立policy検査の是正（2026-10-31）
+
+PO委任によるCodex主担当判断。owned実immutability検査13違反と非作者診断pr188-initial-immutability-diagnosis-20261031/REPORT.md SHA8a7221bc33db1c5667600903ea28756aa196733da7fd818bee22a9eeb8cf97abを照合。採用済operation-event-immutability計画の全表関数23514とdata-model6-1/削除禁止に従い、製品SQLと検査の両方を修復する。新野球意味・権限緩和ではない。
+
+編集所有client_ack_fresh_diagnostic、exact2pathはbackend/migrations/versions/0036_initial_recording_right_storage.py（_INTERNAL_TRIGGER_SQL内RAISE全5箇所にUSING ERRCODE23514を明示、逆置換で元SQL全文一致、owner/up-down/全列/DELETE拒否/更新条件不変）、backend/tests/db/test_immutability_enforcement.py（旧append-only requests分岐保持、mutable3表だけ全列UPDATE OR DELETEの有限認識＋実関数本文の独立閉policy照合・負例）。既全表母集団/旧N1-N5/関数23514/BEFORE ROW enabled O/同guard・同表・1本・tgattr空/events exactを保持する。新3表はallowed空/保護∪条件=全列を確認し、任意表/別関数/DELETE欠落/部分OF/早期return/条件短絡/例外捕捉を許さない。
+
+本文は観測/製品migrationを期待にコピー・hash固定せず、正本6-1の独立4policy（requests不変、attemptsのowner不変・pending一度終結、device/deliveryの不変owner・失効一度、全DELETE拒否）から全operand/列/分岐/raiseコード/returnの閉oracleを作る。旧RAISE文面自体の差より安全条件の脱落を必ず落とす。fixtureの新4表両tenant seedを待たずpure対向/実artifact読取を進め、source凍結・別非作者確認後rootがowned PGで全表検査/DELETE脱落検出/protected更新DELETE23514と正規一度遷移・再変更拒否を実証する。PG source/seal/正式受理/共有DB操作は作者不可。migrationは未正式統合候補内だけ、共有DBへ再適用しない。
