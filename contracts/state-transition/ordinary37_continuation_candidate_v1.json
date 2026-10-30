@@ -1,0 +1,6282 @@
+{
+  "schemaVersion": 1,
+  "status": "author-candidate-not-independent-not-formally-accepted",
+  "operation": "deriveOrdinaryPitchWithContinuation",
+  "normativeSources": [
+    "req:FR-005",
+    "req:F-1/COLD-01..09",
+    "req:F-1/DRAW-01..10",
+    "docs/features/mvp-recording-continuation/plan.md"
+  ],
+  "authorityBoundary": "ref/after/rules/T2の内部一致を数学検査。真正なprefix/checkpointからの供給は別途サービスが検証。合成caseはその真正性の証拠ではない。",
+  "compatibility": "既deriveOrdinaryPitch fullstack ABI不変。新operationは内部history.stack=[]、historyContextの唯一要素をnewHistoryEntryへ構造変換しhistoryContextを全履歴として公開しない。",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "Score": {
+        "additionalProperties": false,
+        "description": "得点または回別得点の閉じた組。",
+        "properties": {
+          "home": {
+            "title": "Home",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "away": {
+            "title": "Away",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "home",
+          "away"
+        ],
+        "title": "Score",
+        "type": "object"
+      },
+      "Scoreboard": {
+        "additionalProperties": false,
+        "description": "実呼出側が供給する投影。欠落を0で生成しない。",
+        "properties": {
+          "inningScores": {
+            "$ref": "#/$defs/Score"
+          },
+          "hits": {
+            "title": "Hits",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "errors": {
+            "title": "Errors",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "strikeouts": {
+            "title": "Strikeouts",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "walks": {
+            "title": "Walks",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "inningScores",
+          "hits",
+          "errors",
+          "strikeouts",
+          "walks"
+        ],
+        "title": "Scoreboard",
+        "type": "object"
+      },
+      "StateFields": {
+        "additionalProperties": false,
+        "description": "数学核へ渡す状態。対応scopeの判定はartifactが所有する。",
+        "properties": {
+          "state.half": {
+            "enum": [
+              "top",
+              "bottom"
+            ],
+            "title": "State.Half",
+            "type": "string"
+          },
+          "state.count.strikes": {
+            "title": "State.Count.Strikes",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "state.count.balls": {
+            "title": "State.Count.Balls",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "state.outs": {
+            "title": "State.Outs",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "state.runners": {
+            "enum": [
+              "empty",
+              "first",
+              "second",
+              "third",
+              "first-second",
+              "first-third",
+              "second-third",
+              "loaded"
+            ],
+            "title": "State.Runners",
+            "type": "string"
+          },
+          "state.battingOrder": {
+            "title": "State.Battingorder",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "state.tiebreakActive": {
+            "title": "State.Tiebreakactive",
+            "type": "boolean"
+          },
+          "state.gameEnded": {
+            "title": "State.Gameended",
+            "type": "boolean"
+          },
+          "state.inning": {
+            "title": "State.Inning",
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          },
+          "state.score": {
+            "$ref": "#/$defs/Score"
+          }
+        },
+        "required": [
+          "state.half",
+          "state.count.strikes",
+          "state.count.balls",
+          "state.outs",
+          "state.runners",
+          "state.battingOrder",
+          "state.tiebreakActive",
+          "state.gameEnded",
+          "state.inning",
+          "state.score"
+        ],
+        "title": "StateFields",
+        "type": "object"
+      },
+      "StateSnapshot": {
+        "additionalProperties": false,
+        "description": "渡された状態と投影の値。出所や権限を証明する型ではない。",
+        "properties": {
+          "stateFields": {
+            "$ref": "#/$defs/StateFields"
+          },
+          "scoreboard": {
+            "$ref": "#/$defs/Scoreboard"
+          }
+        },
+        "required": [
+          "stateFields",
+          "scoreboard"
+        ],
+        "title": "StateSnapshot",
+        "type": "object"
+      },
+      "SavedRuleWire": {
+        "type": "object",
+        "properties": {
+          "regulationInnings": {
+            "type": "string",
+            "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+          },
+          "coldConditions": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "properties": {
+                "pointDifference": {
+                  "type": "string",
+                  "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+                },
+                "startInning": {
+                  "type": "string",
+                  "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+                }
+              },
+              "required": [
+                "pointDifference",
+                "startInning"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "extensionLimit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "string",
+                "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+              }
+            ]
+          },
+          "tiebreak": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "startInning": {
+                    "type": "string",
+                    "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+                  },
+                  "runnerPlacement": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "leadoffRule": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "startInning",
+                  "runnerPlacement",
+                  "leadoffRule"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "dh": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "regulationInnings",
+          "coldConditions",
+          "extensionLimit",
+          "tiebreak",
+          "dh"
+        ],
+        "additionalProperties": false
+      },
+      "T2NoEndCore": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "evaluated-no-end-condition"
+              },
+              "evaluation_point": {
+                "const": "post-play"
+              },
+              "basis": {
+                "type": "object",
+                "properties": {
+                  "regulation": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "before-regulation-completion"
+                      },
+                      "regulation_innings": {
+                        "const": "7"
+                      },
+                      "observed_inning": {
+                        "const": "1"
+                      },
+                      "observed_half": {
+                        "const": "top"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "regulation_innings",
+                      "observed_inning",
+                      "observed_half"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "cold": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "no-configured-cold-condition"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "extra_and_draw": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "before-extra-inning-boundary"
+                      },
+                      "configured_extension_limit": {
+                        "const": null
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "configured_extension_limit"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "walk_off": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "top-half-without-score-change"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "regulation",
+                  "cold",
+                  "extra_and_draw",
+                  "walk_off"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "evaluation_point",
+              "basis"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "evaluated-no-end-condition"
+              },
+              "evaluation_point": {
+                "const": "post-play"
+              },
+              "basis": {
+                "type": "object",
+                "properties": {
+                  "regulation": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "before-regulation-completion"
+                      },
+                      "regulation_innings": {
+                        "const": "9"
+                      },
+                      "observed_inning": {
+                        "const": "1"
+                      },
+                      "observed_half": {
+                        "const": "top"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "regulation_innings",
+                      "observed_inning",
+                      "observed_half"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "cold": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "no-configured-cold-condition"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "extra_and_draw": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "before-extra-inning-boundary"
+                      },
+                      "configured_extension_limit": {
+                        "const": null
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "configured_extension_limit"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "walk_off": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "top-half-without-score-change"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "regulation",
+                  "cold",
+                  "extra_and_draw",
+                  "walk_off"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "evaluation_point",
+              "basis"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "evaluated-no-end-condition"
+              },
+              "evaluation_point": {
+                "const": "post-play"
+              },
+              "basis": {
+                "type": "object",
+                "properties": {
+                  "regulation": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "before-regulation-completion"
+                      },
+                      "regulation_innings": {
+                        "const": "9"
+                      },
+                      "observed_inning": {
+                        "const": "1"
+                      },
+                      "observed_half": {
+                        "const": "top"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "regulation_innings",
+                      "observed_inning",
+                      "observed_half"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "cold": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "no-configured-cold-condition"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "extra_and_draw": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "before-extra-inning-boundary"
+                      },
+                      "configured_extension_limit": {
+                        "const": "9"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "configured_extension_limit"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "walk_off": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "top-half-without-score-change"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "regulation",
+                  "cold",
+                  "extra_and_draw",
+                  "walk_off"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "evaluation_point",
+              "basis"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PrefixRef": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "const": "1"
+          },
+          "tenantId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "gameId": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "generation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "length": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "version",
+          "tenantId",
+          "gameId",
+          "generation",
+          "length"
+        ],
+        "additionalProperties": false
+      },
+      "T1Input": {
+        "type": "object",
+        "properties": {
+          "eventKind": {
+            "const": "batting-result"
+          },
+          "resultId": {
+            "enum": [
+              "batting-result.called-pitch",
+              "batting-result.swinging-strike",
+              "batting-result.foul",
+              "batting-result.ball"
+            ]
+          },
+          "pitchEventKind": {
+            "const": "pitch-event"
+          },
+          "before": {
+            "$ref": "#/$defs/StateSnapshot"
+          }
+        },
+        "required": [
+          "eventKind",
+          "resultId",
+          "pitchEventKind",
+          "before"
+        ],
+        "additionalProperties": false
+      },
+      "OrdinaryT2": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "evaluated-no-end-condition"
+          },
+          "scope": {
+            "const": "ordinary37"
+          },
+          "evaluation_point": {
+            "const": "post-play"
+          },
+          "basis": {
+            "type": "object",
+            "properties": {
+              "regulationInnings": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+              },
+              "inning": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+              },
+              "half": {
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              },
+              "halfCompleted": {
+                "const": false
+              },
+              "coldBranches": {
+                "type": "array",
+                "maxItems": 16,
+                "items": {
+                  "enum": [
+                    "COLD-01",
+                    "COLD-04",
+                    "COLD-06"
+                  ]
+                }
+              },
+              "coldAggregate": {
+                "const": "COLD-07"
+              },
+              "drawBranch": {
+                "enum": [
+                  "DRAW-07",
+                  "DRAW-08"
+                ]
+              },
+              "scoreUnchanged": {
+                "const": true
+              },
+              "outsUnchanged": {
+                "const": true
+              },
+              "priorOpen": {
+                "const": true
+              },
+              "tiebreakActive": {
+                "type": "boolean"
+              },
+              "configuredExtensionLimit": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "regulationInnings",
+              "inning",
+              "half",
+              "halfCompleted",
+              "coldBranches",
+              "coldAggregate",
+              "drawBranch",
+              "scoreUnchanged",
+              "outsUnchanged",
+              "priorOpen",
+              "tiebreakActive",
+              "configuredExtensionLimit"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "kind",
+          "scope",
+          "evaluation_point",
+          "basis"
+        ],
+        "additionalProperties": false
+      },
+      "Prior": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "started-initial"
+              },
+              "prefixRef": {
+                "$ref": "#/$defs/PrefixRef"
+              },
+              "rules": {
+                "$ref": "#/$defs/SavedRuleWire"
+              },
+              "after": {
+                "$ref": "#/$defs/StateSnapshot"
+              },
+              "t2": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "kind",
+              "prefixRef",
+              "rules",
+              "after",
+              "t2"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "evaluated-prefix"
+              },
+              "prefixRef": {
+                "$ref": "#/$defs/PrefixRef"
+              },
+              "rules": {
+                "$ref": "#/$defs/SavedRuleWire"
+              },
+              "after": {
+                "$ref": "#/$defs/StateSnapshot"
+              },
+              "t2": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/T2NoEndCore"
+                  },
+                  {
+                    "$ref": "#/$defs/OrdinaryT2"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "prefixRef",
+              "rules",
+              "after",
+              "t2"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "locked-prefix"
+              },
+              "prefixRef": {
+                "$ref": "#/$defs/PrefixRef"
+              },
+              "rules": {
+                "$ref": "#/$defs/SavedRuleWire"
+              },
+              "after": {
+                "$ref": "#/$defs/StateSnapshot"
+              },
+              "t2": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "kind",
+              "prefixRef",
+              "rules",
+              "after",
+              "t2"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Request": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "const": "1"
+          },
+          "prefixRef": {
+            "$ref": "#/$defs/PrefixRef"
+          },
+          "rules": {
+            "$ref": "#/$defs/SavedRuleWire"
+          },
+          "t1": {
+            "$ref": "#/$defs/T1Input"
+          },
+          "prior": {
+            "$ref": "#/$defs/Prior"
+          }
+        },
+        "required": [
+          "version",
+          "prefixRef",
+          "rules",
+          "t1",
+          "prior"
+        ],
+        "additionalProperties": false
+      },
+      "T1Output": {
+        "type": "object",
+        "properties": {
+          "countEffect": {
+            "type": "object",
+            "properties": {
+              "strikes": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "unchanged"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "delta"
+                      },
+                      "value": {
+                        "const": "1"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "balls": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "unchanged"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "delta"
+                      },
+                      "value": {
+                        "const": "1"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": [
+              "strikes",
+              "balls"
+            ],
+            "additionalProperties": false
+          },
+          "plateAppearanceEnded": {
+            "const": false
+          },
+          "batterDestination": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "const": "continue"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          "runnerDefaultAdvance": {
+            "type": "object",
+            "properties": {
+              "first": {
+                "type": "object",
+                "properties": {
+                  "modality": {
+                    "enum": [
+                      "hold",
+                      "not-applicable"
+                    ]
+                  },
+                  "destination": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "modality",
+                  "destination"
+                ],
+                "additionalProperties": false
+              },
+              "second": {
+                "type": "object",
+                "properties": {
+                  "modality": {
+                    "enum": [
+                      "hold",
+                      "not-applicable"
+                    ]
+                  },
+                  "destination": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "modality",
+                  "destination"
+                ],
+                "additionalProperties": false
+              },
+              "third": {
+                "type": "object",
+                "properties": {
+                  "modality": {
+                    "enum": [
+                      "hold",
+                      "not-applicable"
+                    ]
+                  },
+                  "destination": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "modality",
+                  "destination"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "first",
+              "second",
+              "third"
+            ],
+            "additionalProperties": false
+          },
+          "outEffect": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "const": "0"
+              },
+              "targets": {
+                "type": "array",
+                "maxItems": 0,
+                "items": false
+              }
+            },
+            "required": [
+              "count",
+              "targets"
+            ],
+            "additionalProperties": false
+          },
+          "statFlags": {
+            "type": "object",
+            "properties": {
+              "投球回算入アウト": {
+                "type": "boolean"
+              },
+              "投球数": {
+                "type": "boolean"
+              },
+              "奪三振": {
+                "type": "boolean"
+              },
+              "与四球": {
+                "type": "boolean"
+              },
+              "与死球": {
+                "type": "boolean"
+              },
+              "被安打": {
+                "type": "boolean"
+              },
+              "被本塁打": {
+                "type": "boolean"
+              },
+              "失点": {
+                "type": "boolean"
+              },
+              "失策": {
+                "type": "boolean"
+              },
+              "打席": {
+                "type": "boolean"
+              },
+              "打数": {
+                "type": "boolean"
+              },
+              "安打": {
+                "type": "boolean"
+              },
+              "本塁打": {
+                "type": "boolean"
+              },
+              "塁打": {
+                "type": "boolean"
+              },
+              "犠打": {
+                "type": "boolean"
+              },
+              "犠飛": {
+                "type": "boolean"
+              },
+              "四球": {
+                "type": "boolean"
+              },
+              "死球": {
+                "type": "boolean"
+              },
+              "三振": {
+                "type": "boolean"
+              },
+              "打撃妨害出塁": {
+                "type": "boolean"
+              },
+              "走塁妨害出塁": {
+                "type": "boolean"
+              },
+              "得点": {
+                "type": "boolean"
+              },
+              "打点": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "投球回算入アウト",
+              "投球数",
+              "奪三振",
+              "与四球",
+              "与死球",
+              "被安打",
+              "被本塁打",
+              "失点",
+              "失策",
+              "打席",
+              "打数",
+              "安打",
+              "本塁打",
+              "塁打",
+              "犠打",
+              "犠飛",
+              "四球",
+              "死球",
+              "三振",
+              "打撃妨害出塁",
+              "走塁妨害出塁",
+              "得点",
+              "打点"
+            ],
+            "additionalProperties": false
+          },
+          "after": {
+            "$ref": "#/$defs/StateSnapshot"
+          }
+        },
+        "required": [
+          "countEffect",
+          "plateAppearanceEnded",
+          "batterDestination",
+          "runnerDefaultAdvance",
+          "outEffect",
+          "statFlags",
+          "after"
+        ],
+        "additionalProperties": false
+      },
+      "NewHistoryEntry": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "const": "confirmed-play"
+          },
+          "difference": {
+            "type": "object",
+            "properties": {
+              "stateFields": {
+                "type": "object",
+                "properties": {
+                  "state.count.balls": {
+                    "type": "object",
+                    "properties": {
+                      "before": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "after": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      }
+                    },
+                    "required": [
+                      "before",
+                      "after"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "state.count.strikes": {
+                    "type": "object",
+                    "properties": {
+                      "before": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "after": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      }
+                    },
+                    "required": [
+                      "before",
+                      "after"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "additionalProperties": false
+              },
+              "scoreboard": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": false
+              },
+              "statFlags": {
+                "type": "object",
+                "properties": {
+                  "投球回算入アウト": {
+                    "type": "boolean"
+                  },
+                  "投球数": {
+                    "type": "boolean"
+                  },
+                  "奪三振": {
+                    "type": "boolean"
+                  },
+                  "与四球": {
+                    "type": "boolean"
+                  },
+                  "与死球": {
+                    "type": "boolean"
+                  },
+                  "被安打": {
+                    "type": "boolean"
+                  },
+                  "被本塁打": {
+                    "type": "boolean"
+                  },
+                  "失点": {
+                    "type": "boolean"
+                  },
+                  "失策": {
+                    "type": "boolean"
+                  },
+                  "打席": {
+                    "type": "boolean"
+                  },
+                  "打数": {
+                    "type": "boolean"
+                  },
+                  "安打": {
+                    "type": "boolean"
+                  },
+                  "本塁打": {
+                    "type": "boolean"
+                  },
+                  "塁打": {
+                    "type": "boolean"
+                  },
+                  "犠打": {
+                    "type": "boolean"
+                  },
+                  "犠飛": {
+                    "type": "boolean"
+                  },
+                  "四球": {
+                    "type": "boolean"
+                  },
+                  "死球": {
+                    "type": "boolean"
+                  },
+                  "三振": {
+                    "type": "boolean"
+                  },
+                  "打撃妨害出塁": {
+                    "type": "boolean"
+                  },
+                  "走塁妨害出塁": {
+                    "type": "boolean"
+                  },
+                  "得点": {
+                    "type": "boolean"
+                  },
+                  "打点": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "投球回算入アウト",
+                  "投球数",
+                  "奪三振",
+                  "与四球",
+                  "与死球",
+                  "被安打",
+                  "被本塁打",
+                  "失点",
+                  "失策",
+                  "打席",
+                  "打数",
+                  "安打",
+                  "本塁打",
+                  "塁打",
+                  "犠打",
+                  "犠飛",
+                  "四球",
+                  "死球",
+                  "三振",
+                  "打撃妨害出塁",
+                  "走塁妨害出塁",
+                  "得点",
+                  "打点"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "stateFields",
+              "scoreboard",
+              "statFlags"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "kind",
+          "difference"
+        ],
+        "additionalProperties": false
+      },
+      "Success": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "value": {
+            "type": "object",
+            "properties": {
+              "t1": {
+                "$ref": "#/$defs/T1Output"
+              },
+              "t2": {
+                "$ref": "#/$defs/OrdinaryT2"
+              },
+              "newHistoryEntry": {
+                "$ref": "#/$defs/NewHistoryEntry"
+              },
+              "previousPrefixRef": {
+                "$ref": "#/$defs/PrefixRef"
+              },
+              "nextPrefixRef": {
+                "$ref": "#/$defs/PrefixRef"
+              }
+            },
+            "required": [
+              "t1",
+              "t2",
+              "newHistoryEntry",
+              "previousPrefixRef",
+              "nextPrefixRef"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "Failure": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "enum": [
+                  "INVALID_JSON",
+                  "INVALID_REQUEST",
+                  "INVALID_DECIMAL_INTEGER",
+                  "UNSUPPORTED_T1_SCOPE",
+                  "T2_NOT_EVALUATED"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "error"
+        ],
+        "additionalProperties": false
+      },
+      "Response": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/Success"
+          },
+          {
+            "$ref": "#/$defs/Failure"
+          }
+        ]
+      }
+    }
+  },
+  "requestSchema": {
+    "$ref": "#/$defs/Request"
+  },
+  "responseSchema": {
+    "$ref": "#/$defs/Response"
+  },
+  "semanticConditions": [
+    "all prefix refs exact structural equality including tenant/game/generation/length",
+    "request.rules exactly equals prior.rules; request.t1.before exactly equals prior.after",
+    "started-initial only length0 and canonical actual start state; evaluated-prefix length>=1; locked-prefix never successful",
+    "newHistoryEntry is exactly the sole entry produced by shared ordinary T1 with local empty stack; no count/difference recomputation",
+    "nextPrefixRef copies all prior fields and increments only length by1 using bigint",
+    "T2 checks all end-related unchanged fields and cold stages/DRAW/lock consistency; unsupported evaluation never success",
+    "gameEnded false does not establish prior open; missing/unknown/unverified prior cannot authorize storage",
+    "actual saved rules deep equality, not only identifier equality; enforce DRAW01..04 correlations",
+    "scope is ordinary open series; contradictory terminal-like states are closed unsupported inputs, not a permanent rule forbidding approved resumed games",
+    "prefix generation is opaque D4, never parse it as recovery_generation or an integer",
+    "prior.t2 is validated semantically against prior.after and prior.rules, not just accepted by schema: no T2 envelope may be transplanted to another state/rules",
+    "legacy first-ball prior T2: require exact after inning1/top/S0/B1/out0/empty/battingOrder1/TBfalse/gameEndedfalse/score and all scoreboard zero, R7 orR9, cold empty, TB null, L null orR9L9; all declared basis fields match those rules and after",
+    "ordinary prior T2: require basis regulationInnings/configuredExtensionLimit/inning/half/tiebreakActive equal saved prior.rules/after; coldBranches count/order equals full evaluation of all configured stages at prior.after/current attack context, aggregate COLD07 only with zero matched terminal stages; DRAW07 iff Lnull else DRAW08 only before final bottom completion; priorOpen/halfCompleted/scoreUnchanged/outsUnchanged are not stand-alone authority proofs",
+    "legacy prior T2 transplantation and ordinary basis mismatch are T2_NOT_EVALUATED even when prefixRef/rules/before-to-after pairwise equal",
+    "every successful test compares the complete assembled response exactly: mathematical expected envelope from immutable case + explicitly fixed after/T2/ref/history values; no field omission or partial-match success"
+  ],
+  "errorOrder": [
+    "JSON/closed shape/canonical integers",
+    "prefix/rules/prior correspondence or prior lock -> T2_NOT_EVALUATED",
+    "shared ordinary T1 rejection -> existing T1 error",
+    "T2 rule correlations/terminal consistency -> T2_NOT_EVALUATED"
+  ],
+  "mutationRequirements": [
+    "missing/extra keys at every new object",
+    "uppercase/noncanonical UUID; empty/over128 opaque D4; leading-zero/signed/float prefix length",
+    "tenant/game/generation/length/rules/prior.after mismatch",
+    "missing/not-evaluated/unknown prior T2",
+    "prior locked while gameEnded=false",
+    "historyContext 0 or 2 entries must never become 1 successful entry",
+    "S2 foul empty difference still exactly1 entry",
+    "finite page/checkpoint missing authority must fail service admission; pure math does not certify it"
+  ],
+  "caseComparison": "All success and failure responses are compared exactly using expected.response. Success responses are statically assembled from existing mathematical envelopes and explicit fixed candidate after/T2/ref/history values; reference expectations are not generated by the implementation under test. No partial match or omitted fields.",
+  "cases": [
+    {
+      "caseId": "O37-T2-01",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "0"
+        },
+        "rules": {
+          "regulationInnings": "7",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "started-initial",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "0"
+          },
+          "rules": {
+            "regulationInnings": "7",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": null
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "0"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "1",
+            "state.score": {
+              "home": "0",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "0",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "7",
+            "inning": "1",
+            "half": "top",
+            "halfCompleted": false,
+            "coldBranches": [],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "top",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "1",
+                  "state.score": {
+                    "home": "0",
+                    "away": "0"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "0",
+                    "away": "0"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "7",
+                "inning": "1",
+                "half": "top",
+                "halfCompleted": false,
+                "coldBranches": [],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "0"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "1"
+            }
+          }
+        }
+      },
+      "note": "開始原本のR7初球。R9は既first-ball契約とsource検査で保持",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-02",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "1",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "1"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "1",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "1",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "2"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "2",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "1",
+            "state.score": {
+              "home": "0",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "0",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "1",
+            "half": "top",
+            "halfCompleted": false,
+            "coldBranches": [],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "top",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "2",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "1",
+                  "state.score": {
+                    "home": "0",
+                    "away": "0"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "0",
+                    "away": "0"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "1",
+                "half": "top",
+                "halfCompleted": false,
+                "coldBranches": [],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "1"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "2"
+            }
+          }
+        }
+      },
+      "note": "確認済前回afterから2球目。局所stack=[]が前回履歴を消した意味にならない",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-03",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "8"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "empty",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "2",
+                "away": "3"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "3"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "8"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "empty",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "2",
+                "away": "3"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "3"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "3",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "8"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "9"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "2",
+            "state.runners": "empty",
+            "state.battingOrder": "7",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "2",
+              "away": "3"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "2",
+              "away": "3"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "3",
+            "half": "bottom",
+            "halfCompleted": false,
+            "coldBranches": [],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "bottom",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "2",
+                  "state.runners": "empty",
+                  "state.battingOrder": "7",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "3",
+                  "state.score": {
+                    "home": "2",
+                    "away": "3"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "2",
+                    "away": "3"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "3",
+                "half": "bottom",
+                "halfCompleted": false,
+                "coldBranches": [],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "8"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "9"
+            }
+          }
+        }
+      },
+      "note": "一般状態の代表。37×全out/塁配置の数学caseは既792+96資産を再利用",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-04",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "2"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.foul",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "2",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "2"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "2",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "1",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "2"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "3"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "1",
+            "state.score": {
+              "home": "0",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "0",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "1",
+            "half": "top",
+            "halfCompleted": false,
+            "coldBranches": [],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_two_strike_foul_candidate_v1.json",
+          "caseId": "ORDINARY-FOUL-S2-B0",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "unchanged"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "top",
+                  "state.count.strikes": "2",
+                  "state.count.balls": "0",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "1",
+                  "state.score": {
+                    "home": "0",
+                    "away": "0"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "0",
+                    "away": "0"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "1",
+                "half": "top",
+                "halfCompleted": false,
+                "coldBranches": [],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {},
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "2"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "3"
+            }
+          }
+        }
+      },
+      "note": "S2通常非バントfoul。count不変でもnewHistoryEntryは1件",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-05",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "20"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [
+            {
+              "pointDifference": "10",
+              "startInning": "5"
+            }
+          ],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "10",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "10",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "20"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [
+              {
+                "pointDifference": "10",
+                "startInning": "5"
+              }
+            ],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "10",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "10",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "5",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [
+                "COLD-01"
+              ],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "20"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "21"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "5",
+            "state.score": {
+              "home": "10",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "10",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "5",
+            "half": "top",
+            "halfCompleted": false,
+            "coldBranches": [
+              "COLD-01"
+            ],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "top",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "5",
+                  "state.score": {
+                    "home": "10",
+                    "away": "0"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "10",
+                    "away": "0"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "5",
+                "half": "top",
+                "halfCompleted": false,
+                "coldBranches": [
+                  "COLD-01"
+                ],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "20"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "21"
+            }
+          }
+        }
+      },
+      "note": "表未完了の後攻リードは未成立",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-06",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "21"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [
+            {
+              "pointDifference": "10",
+              "startInning": "5"
+            }
+          ],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "0",
+                "away": "10"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "10"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "21"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [
+              {
+                "pointDifference": "10",
+                "startInning": "5"
+              }
+            ],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "0",
+                "away": "10"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "10"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "5",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [
+                "COLD-04"
+              ],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "21"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "22"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "5",
+            "state.score": {
+              "home": "0",
+              "away": "10"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "0",
+              "away": "10"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "5",
+            "half": "bottom",
+            "halfCompleted": false,
+            "coldBranches": [
+              "COLD-04"
+            ],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "bottom",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "5",
+                  "state.score": {
+                    "home": "0",
+                    "away": "10"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "0",
+                    "away": "10"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "5",
+                "half": "bottom",
+                "halfCompleted": false,
+                "coldBranches": [
+                  "COLD-04"
+                ],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "21"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "22"
+            }
+          }
+        }
+      },
+      "note": "先攻リードでも裏途中は未成立",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-07",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "21"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [
+            {
+              "pointDifference": "10",
+              "startInning": "5"
+            }
+          ],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "9",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "9",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "21"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [
+              {
+                "pointDifference": "10",
+                "startInning": "5"
+              }
+            ],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "9",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "9",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "5",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [
+                "COLD-06"
+              ],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "21"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "22"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "5",
+            "state.score": {
+              "home": "9",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "9",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "5",
+            "half": "bottom",
+            "halfCompleted": false,
+            "coldBranches": [
+              "COLD-06"
+            ],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "bottom",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "5",
+                  "state.score": {
+                    "home": "9",
+                    "away": "0"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "9",
+                    "away": "0"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "5",
+                "half": "bottom",
+                "halfCompleted": false,
+                "coldBranches": [
+                  "COLD-06"
+                ],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "21"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "22"
+            }
+          }
+        }
+      },
+      "note": "裏でも点差不足は未成立",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-08",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "25"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [
+            {
+              "pointDifference": "7",
+              "startInning": "7"
+            },
+            {
+              "pointDifference": "10",
+              "startInning": "5"
+            }
+          ],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "7",
+              "state.score": {
+                "home": "2",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "1"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "25"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [
+              {
+                "pointDifference": "7",
+                "startInning": "7"
+              },
+              {
+                "pointDifference": "10",
+                "startInning": "5"
+              }
+            ],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "7",
+              "state.score": {
+                "home": "2",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "1"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "7",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [
+                "COLD-01",
+                "COLD-01"
+              ],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "25"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "26"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "7",
+            "state.score": {
+              "home": "2",
+              "away": "1"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "2",
+              "away": "1"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "7",
+            "half": "top",
+            "halfCompleted": false,
+            "coldBranches": [
+              "COLD-01",
+              "COLD-01"
+            ],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-07",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": null
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "top",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "7",
+                  "state.score": {
+                    "home": "2",
+                    "away": "1"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "2",
+                    "away": "1"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "7",
+                "half": "top",
+                "halfCompleted": false,
+                "coldBranches": [
+                  "COLD-01",
+                  "COLD-01"
+                ],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-07",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": null
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "25"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "26"
+            }
+          }
+        }
+      },
+      "note": "複数段を全評価。配列順を保持して双方未成立を報告",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-09",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "50"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "12",
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "12",
+              "state.score": {
+                "home": "4",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "4",
+                "away": "4"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "50"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "12",
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "12",
+              "state.score": {
+                "home": "4",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "4",
+                "away": "4"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "12",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-08",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": "12"
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "50"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "51"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "12",
+            "state.score": {
+              "home": "4",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "4",
+              "away": "4"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "12",
+            "half": "bottom",
+            "halfCompleted": false,
+            "coldBranches": [],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-08",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": false,
+            "configuredExtensionLimit": "12"
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "bottom",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": false,
+                  "state.gameEnded": false,
+                  "state.inning": "12",
+                  "state.score": {
+                    "home": "4",
+                    "away": "4"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "4",
+                    "away": "4"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "12",
+                "half": "bottom",
+                "halfCompleted": false,
+                "coldBranches": [],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-08",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": false,
+                "configuredExtensionLimit": "12"
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "50"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "51"
+            }
+          }
+        }
+      },
+      "note": "最終上限裏途中でも完了前。DRAW08",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-10",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "40"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "12",
+          "tiebreak": {
+            "startInning": "10",
+            "runnerPlacement": "無死一・二塁",
+            "leadoffRule": "継続打順"
+          },
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": true,
+              "state.gameEnded": false,
+              "state.inning": "10",
+              "state.score": {
+                "home": "2",
+                "away": "2"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "2"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "40"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "12",
+            "tiebreak": {
+              "startInning": "10",
+              "runnerPlacement": "無死一・二塁",
+              "leadoffRule": "継続打順"
+            },
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": true,
+              "state.gameEnded": false,
+              "state.inning": "10",
+              "state.score": {
+                "home": "2",
+                "away": "2"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "2"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "10",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-08",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": true,
+              "configuredExtensionLimit": "12"
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "ok": true,
+        "previousPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "40"
+        },
+        "nextPrefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "41"
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": true,
+            "state.gameEnded": false,
+            "state.inning": "10",
+            "state.score": {
+              "home": "2",
+              "away": "2"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "2",
+              "away": "2"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "t2": {
+          "kind": "evaluated-no-end-condition",
+          "scope": "ordinary37",
+          "evaluation_point": "post-play",
+          "basis": {
+            "regulationInnings": "9",
+            "inning": "10",
+            "half": "top",
+            "halfCompleted": false,
+            "coldBranches": [],
+            "coldAggregate": "COLD-07",
+            "drawBranch": "DRAW-08",
+            "scoreUnchanged": true,
+            "outsUnchanged": true,
+            "priorOpen": true,
+            "tiebreakActive": true,
+            "configuredExtensionLimit": "12"
+          }
+        },
+        "newHistoryEntryCount": 1,
+        "absentOutputKeys": [
+          "historyContext",
+          "history",
+          "stack"
+        ],
+        "t1Reference": {
+          "path": "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+          "caseId": "ORDINARY-PITCH-25",
+          "comparison": "same-count-effect-and-23-statflags"
+        },
+        "response": {
+          "ok": true,
+          "value": {
+            "t1": {
+              "countEffect": {
+                "strikes": {
+                  "kind": "unchanged"
+                },
+                "balls": {
+                  "kind": "delta",
+                  "value": "1"
+                }
+              },
+              "plateAppearanceEnded": false,
+              "batterDestination": {
+                "kind": "continue"
+              },
+              "runnerDefaultAdvance": {
+                "first": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "second": {
+                  "modality": "not-applicable",
+                  "destination": null
+                },
+                "third": {
+                  "modality": "not-applicable",
+                  "destination": null
+                }
+              },
+              "outEffect": {
+                "count": "0",
+                "targets": []
+              },
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              },
+              "after": {
+                "stateFields": {
+                  "state.half": "top",
+                  "state.count.strikes": "0",
+                  "state.count.balls": "1",
+                  "state.outs": "0",
+                  "state.runners": "empty",
+                  "state.battingOrder": "1",
+                  "state.tiebreakActive": true,
+                  "state.gameEnded": false,
+                  "state.inning": "10",
+                  "state.score": {
+                    "home": "2",
+                    "away": "2"
+                  }
+                },
+                "scoreboard": {
+                  "inningScores": {
+                    "home": "2",
+                    "away": "2"
+                  },
+                  "hits": "0",
+                  "errors": "0",
+                  "strikeouts": "0",
+                  "walks": "0"
+                }
+              }
+            },
+            "t2": {
+              "kind": "evaluated-no-end-condition",
+              "scope": "ordinary37",
+              "evaluation_point": "post-play",
+              "basis": {
+                "regulationInnings": "9",
+                "inning": "10",
+                "half": "top",
+                "halfCompleted": false,
+                "coldBranches": [],
+                "coldAggregate": "COLD-07",
+                "drawBranch": "DRAW-08",
+                "scoreUnchanged": true,
+                "outsUnchanged": true,
+                "priorOpen": true,
+                "tiebreakActive": true,
+                "configuredExtensionLimit": "12"
+              }
+            },
+            "newHistoryEntry": {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.balls": {
+                    "before": "0",
+                    "after": "1"
+                  }
+                },
+                "scoreboard": {},
+                "statFlags": {
+                  "投球回算入アウト": false,
+                  "投球数": true,
+                  "奪三振": false,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": false,
+                  "打数": false,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": false,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            },
+            "previousPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "40"
+            },
+            "nextPrefixRef": {
+              "version": "1",
+              "tenantId": "11111111-1111-4111-8111-111111111111",
+              "gameId": "22222222-2222-4222-8222-222222222222",
+              "generation": "1",
+              "length": "41"
+            }
+          }
+        }
+      },
+      "note": "真正TB攻撃開始後のopen評価。走者や先頭打者をこの操作で作らない",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-11",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "locked-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "1"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": null
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "gameEnded=falseでも前回lock保持",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-12",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "2",
+            "length": "1"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "1",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "真正性とは別に参照の完全一致が必要。各ref/after/rules項目の変異もsource検査へ",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-13",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "21"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [
+            {
+              "pointDifference": "10",
+              "startInning": "5"
+            }
+          ],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "10",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "10",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "21"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [
+              {
+                "pointDifference": "10",
+                "startInning": "5"
+              }
+            ],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "5",
+              "state.score": {
+                "home": "10",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "10",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "5",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "cold閾値済なのに前回openを自称する矛盾を閉拒否",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-14",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "51"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "12",
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "13",
+              "state.score": {
+                "home": "4",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "4",
+                "away": "4"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "51"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "12",
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "13",
+              "state.score": {
+                "home": "4",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "4",
+                "away": "4"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "13",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-08",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": "12"
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "有限Lの次回に進んだ自称openを拒否し旧DRAWlockを消さない",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-15",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": true,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "1"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": true,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "1",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "UNSUPPORTED_T1_SCOPE"
+          }
+        }
+      },
+      "note": "正式終了済はordinary T1範囲外",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-16",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "1"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "8",
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "1"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "8",
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "1",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-08",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": "8"
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "L<R。保存規則相関の不整合をT2成功へ流さない",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-17",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "8"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "empty",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "2",
+                "away": "3"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "3"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "8"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "empty",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "2",
+                "away": "3"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "3"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulation": {
+                "kind": "before-regulation-completion",
+                "regulation_innings": "9",
+                "observed_inning": "1",
+                "observed_half": "top"
+              },
+              "cold": {
+                "kind": "no-configured-cold-condition"
+              },
+              "extra_and_draw": {
+                "kind": "before-extra-inning-boundary",
+                "configured_extension_limit": "9"
+              },
+              "walk_off": {
+                "kind": "top-half-without-score-change"
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "旧初球T2を3回裏/R9のafterへ移植。shape/prefix/rules/afterの対比較だけでは検出できないためT2意味照合が必須",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-18",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "8"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "empty",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "2",
+                "away": "3"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "3"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "8"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "empty",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "2",
+                "away": "3"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "3"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "1",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "新ordinary T2のbasis回だけを付替え。前回after/rules自身は一致したまま",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-19",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "25"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [
+            {
+              "pointDifference": "7",
+              "startInning": "7"
+            },
+            {
+              "pointDifference": "10",
+              "startInning": "5"
+            }
+          ],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "7",
+              "state.score": {
+                "home": "2",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "1"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "25"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [
+              {
+                "pointDifference": "7",
+                "startInning": "7"
+              },
+              {
+                "pointDifference": "10",
+                "startInning": "5"
+              }
+            ],
+            "extensionLimit": null,
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "7",
+              "state.score": {
+                "home": "2",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "2",
+                "away": "1"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "7",
+              "half": "top",
+              "halfCompleted": false,
+              "coldBranches": [
+                "COLD-06"
+              ],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-07",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": null
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "新ordinary T2のcold段数/枝を付替え。配列全段を再照合",
+      "status": "author-candidate-not-independent"
+    },
+    {
+      "caseId": "O37-T2-20",
+      "request": {
+        "version": "1",
+        "prefixRef": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "50"
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "12",
+          "tiebreak": null,
+          "dh": false
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.ball",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "12",
+              "state.score": {
+                "home": "4",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "4",
+                "away": "4"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          }
+        },
+        "prior": {
+          "kind": "evaluated-prefix",
+          "prefixRef": {
+            "version": "1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "gameId": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "length": "50"
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "12",
+            "tiebreak": null,
+            "dh": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "12",
+              "state.score": {
+                "home": "4",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "4",
+                "away": "4"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-no-end-condition",
+            "scope": "ordinary37",
+            "evaluation_point": "post-play",
+            "basis": {
+              "regulationInnings": "9",
+              "inning": "12",
+              "half": "bottom",
+              "halfCompleted": false,
+              "coldBranches": [],
+              "coldAggregate": "COLD-07",
+              "drawBranch": "DRAW-08",
+              "scoreUnchanged": true,
+              "outsUnchanged": true,
+              "priorOpen": true,
+              "tiebreakActive": false,
+              "configuredExtensionLimit": "11"
+            }
+          }
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "response": {
+          "ok": false,
+          "error": {
+            "code": "T2_NOT_EVALUATED"
+          }
+        }
+      },
+      "note": "同DRAW08でもL実値が保存rulesと不一致なら拒否",
+      "status": "author-candidate-not-independent"
+    }
+  ],
+  "nonClaims": [
+    "P6 blind",
+    "formal matrix acceptance",
+    "all T2 meanings resolved",
+    "DB/HTTP/authorization acceptance",
+    "full history represented by one entry"
+  ],
+  "refSemantics": {
+    "generation": "記録世代D4のopaque string（1..128文字）。正整数ではなく、recovery_generationとも別。サービスは実記録世代へ束縛する。",
+    "length": "ordinary-only確認済prefixに含まれる支持37投球entryの確定水位。全操作履歴長・D1/D2・PlayRow番号ではない。旧初球ordinary投球を含む場合は確認済原本から数える。取消/訂正/再開等を含む一般履歴refへ拡張していない。",
+    "authority": "同game/tenant/generation/prefix水位の真正checkpointにafter/T2/保存rules実内容を束縛する。数学のequal/refshapeだけで実権限成立とはしない。",
+    "increment": "通常37の成功1件だけでlength n->n+1。他のref値は完全不変。再送は同n要求/同結果を同期境界が再掲し数学の再評価回数で水位を増やさない。"
+  }
+}
