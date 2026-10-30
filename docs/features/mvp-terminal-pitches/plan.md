@@ -155,3 +155,5 @@ PO委任によるCodex主担当判断。作者17path packet52814b4e60355c177b594
 同期core捕捉4path採用（2026-10-31、PO委任によるCodex主担当判断）: 非作者REPORT terminal-core-path-nonauthor-20261031/REPORT.md SHA0bc6e0c501b2227586fafca70e38b3ce1ebfcf26dcb27ef3eb72f23e5449ea8e、実source2405701134ebbcb2338655df05f9784e80c025e59116162b28807740209a0b3bを照合。新指摘0、逆JSON差分で全旧field/area/path同順一致・捕捉縮小0。6.3⑤の有限追加を委任採用し先行登録する。同期の数学/真正資格/DB成功や全MVPの受理ではない。
 
 ステップ3の実loaded artifact束縛（2026-10-31、PO委任によるCodex主担当判断）: backend/src/pitchlog/domainrt/host.py exact1の既検証済み不変_source UTF-8 byteに対するread-only artifact_sha256 property追加を許可する。新callerのsource証拠hashと実loaded artifactを照合し、一回呼出し前に不一致拒否するため。別artifact供給/host選択/書込/野球計算を追加せず、旧constructor/検証/呼出しの意味は不変。ファイル再読込TOCTOUを避け、同実loaded sourceに束縛する。差分を最終step3非作者対象へ含める。
+
+ステップ3の機械pin追随（2026-10-31、PO委任によるCodex主担当判断）: 再build実artifact052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4/40239byteを照合。backend/domain/manifest.jsonとterminal-pitch-manifest.jsonの各directTargets[0].hash1ずつ、およびfirst_ball_payload_vectors_v1.jsonのartifactSha256/埋込/期待frame102の計104だけを旧0eb0fa99…から差替える。対象course/state sourceのhashは不変、逆置換で元byte完全一致を記録し意味/期待/正式履歴を変更しない。新prefixの正式manifest/BOOT/7.7成立の代替にはしない。
