@@ -9,6 +9,15 @@
 - **保存・運用境界**: lead/各feature枝を維持しmain/develop直commitなし。共有DB/.env/秘密/未知stashは不触。実機/運用HTTPSは未実施。手動手順は主WT docs/features/mvp-first-ball-screen-vertical/manual-check.md（default0の任意hold、常設接続先なし）。loopback試験証明書は10/31 14:57:45 JST期限。実機受入へ読み替えない。
 - **MVP全体の残り**: 正式統合、T1全操作/走者/交代/取消/過去訂正/終了再開、全操作の通信断/再起動/交代/故障、閲覧10秒、T5/T6と成績・毎球CSV、3試合×11端末負荷/バックアップ復旧、実機・運用受入。Goal全体はactive。初球や本2経路だけを完成条件に縮小しない。
 
+## 2026-10-31：計算から出塁保存へ継続・正式統合の修復
+
+- **T1の現在地**: 数学source採用5226a667を通常push済。ステップ3は作者pr188_final_reviewが同WTで実装中。v1 ABI保持、v2/T2共有核と真正bridge/runner/責任投手、terminal後通常球を接続。既A-2の投手交代時count帰属をTS単一核で扱い、Python二重計算・現在投手fallbackを避ける。host.pyの実loaded artifact hash property追加はedc1b35fで有限許可。まだ保存/UI成功ではない。同期core4pathは非作者0bc6e0c5…を確認し813dc77fで先行登録。
+- **実DBから分かった停止原因**: S3の31認可検査中唯一INITIAL-VERIFIER-GLOBALが、所有seed DBのPUBLIC CONNECT/TEMPORARY余剰で失敗。製品検査を不変にした所有seed閉鎖比較で31項目全一致（cache pr188-s3-owned-probe-20261031、結果ae5a274d…/55068860…）。現在revisionを0036へ厳密追随。
+- **修復して保存した範囲**: WT fix-mvp-pr188-ci-fixturesで歴史schema射影/DDLと原典検査3pathを5fd12967、所有seed/S3現在marker4pathをbeaaee07、固定owner SELECTの全AST認識1pathをb17f3c70へ保存。各非作者/型/負例を確認。root実owned PGのschema3成功10.59秒、起動/故障再開/ledger role3成功・immutability1失敗29.96秒。失敗13項目を成功へ読み替えない。先行DSN未供給setup3errorも別log保持。
+- **現在編集中の修復**: coordinate_contract_preparationがexact11pathの採用済ACL/profile閉集合と新4表の両tenant FK seedを追随。20failed/127passedからの進捗は候補途中であり最終未判定。app直接権限復活/nonowned昇格/任意schema許可は不可。client_ack_fresh_diagnosticは別exact2pathで0036 guardのRAISE5を規範23514へ修正し、mutable3だけのall-column UPDATE OR DELETEと独立policy本文検査を実装。旧DELETE拒否/旧N1-N5を維持、最終source/実PGはこれから。
+- **親登録の保全**: PR189登録候補は非作者267d2a07…、全9射影/受理済snapshot230不変/実9関数同値を確認し60f67bf6へ36pathを保存・通常push済。既知未受理dbb生成物1件だけcache原byte保全後に除外。正式7.7受理/seal/CLI/CIは未了、通常merge不可。188公開dcc/189公開ad658/190公開320f196bと隔離修復候補を分ける。
+- **次の作業**: T1 step3のpin104箇所と契約/実artifact/typedcallerの独立確認→step4の実source/runner同TX投影とGET→画面でBB/HBP→次打者通常球。並行CIは新4表seed/42501拒否、全表immutability・状態遷移23514、残caller/oracle/census/正式値へ。全MVP/実機/運用受入は冒頭の未完を維持。
+
 ## 2026-10-30：初球から通常3球までの時点別記録
 
 - **初球到達（隔離候補）**: 固定 `54b83002b04357f776801a0d2e4c77d157508da8`、実HTTPS画面で新規作成→開始→初球ボール保存→サーバー再取得→同一要求再送→reloadの1ボール/0ストライク/履歴1・PlayRow1、DB4表各1を **1passed/46.29秒**で確認。artifact SHA1a415cbf4ff6b986fefec281005c84b5acf6a4e622178684aed2c02387f515f7。cache first-ball-https-evidence-20261030/result.json SHA156624a509bd4cf64793b4dc918c3eb3ce1d83e80e683c5323d3caca91bd1bfc。
