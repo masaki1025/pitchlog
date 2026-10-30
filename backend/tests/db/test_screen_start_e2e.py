@@ -383,9 +383,9 @@ def test_screen_first_ball_https_create_save_reload(vertical_database) -> None:
                     assert count == (1,), table
                 ledger_count = admin.execute(
                     "SELECT count(*) FROM public.idempotency_ledger AS ledger "
-                    "JOIN public.event_slots AS slot "
-                    "ON ledger.tenant_id=slot.tenant_id AND ledger.d5=slot.d5 "
-                    "WHERE slot.tenant_id=%s AND slot.game_id=%s",
+                    "JOIN public.operation_events AS op "
+                    "ON ledger.tenant_id=op.tenant_id AND ledger.d5=op.d5 "
+                    "WHERE op.tenant_id=%s AND op.game_id=%s",
                     (db.tenant_id, created_game),
                 ).fetchone()
                 assert ledger_count == (1,), "idempotency_ledger"
