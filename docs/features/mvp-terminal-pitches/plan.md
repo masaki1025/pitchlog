@@ -185,3 +185,5 @@ P1旧案を不採用: V7だけ新calculation variant、V8は実newHistoryEntry.d
 編集順の具体化: 閉manifestのSQL7/ACL10/policy2/trigger2が先行有限宣言であり、作者は実source/SQL生成producerとpureを先に作成できる。rootFormalWriterOnlyの実JSON/配布SQL/compat/D11/生成資産はrootが実sourceから直列反映し、その反映前に未登録SQLをDBへ仮適用して成功を作らない。新modeは必要登録/実資格がなければ閉拒否のまま。正式metadata/7.7と実DB完成をsource起案の前条件へ循環させず、実owned PG/提供/通常統合の必要ゲートは全保持する。
 
 source4は真正source資格/元D5/一回bridge・新ID固定、実T1/T2/差分V8、PlayRow＋PlayRunner＋checkpoint/history/印消費の同TX保存とGETまでを実装する。根拠のないtrue/fixture成功応答/任意SQL/認可迂回0。旧ABI/ACK復旧/元要求再送/拒否優先を保持。段階5のUIへ無断拡張せず、source4のコード/型/API不一致是正・限定検査と原子性の準備を完成まで進め、固定sourceとroot必要正式差分を渡す。PGはrootのみ、実公開/共有DB/新秘密/本人署名なし。
+
+実HTTP Port選択の不可分2path（2026-10-31、PO委任によるCodex主担当判断）: sourceAuthorへbackend/src/pitchlog/api/routers/sync.py（既HTTP入口の新v2 modeに対する実Port対選択だけ）およびbackend/src/pitchlog/sync/port_guard.py（新実Port2クラスのexact型登録だけ）を追加許可し、閉78pathへ当該exact2を有限追補する。認証/C2/受付scope/原wire/拒否優先/同writer資格を保持し、shape不正・未知modeを旧Portへfallbackしない。json default parseで重複/原値を補修せず、既type/未知型拒否と寿命を不変とする。新2クラスの実fqnameは最終packetへ固定し、任意subclass/duck type/自由成功boolを通さない。実提供にはroot正式登録・実ownedPG・最終非作者確認が必要であり、本source許可だけで成立扱いしない。
