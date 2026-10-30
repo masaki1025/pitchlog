@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地（2026-10-30、初球HTTPS縦断達成後）
+
+- **初球到達（隔離候補）**: 固定 `54b83002b04357f776801a0d2e4c77d157508da8`、実HTTPS画面で新規作成→開始→初球ボール保存→サーバー再取得→同一要求再送→reloadの1ボール/0ストライク/履歴1・PlayRow1、DB4表各1を **1passed/46.29秒**で確認。artifact SHA1a415cbf4ff6b986fefec281005c84b5acf6a4e622178684aed2c02387f515f7。cache first-ball-https-evidence-20261030/result.json SHA156624a509bd4cf64793b4dc918c3eb3ce1d83e80e683c5323d3caca91bd1bfc。
+- **回帰**: frontend117files/2638tests全成功107.61秒、型/lint/build成功、既実API保存/投影原子性14件成功、球種実2tenant read1件成功。対象実機やMVP全体の受入には拡張しない。
+- **手動確認**: `docs/features/mvp-first-ball-screen-vertical/manual-check.md`。自動環境は終了済み、任意hold付き再起動コマンドを記載（最大1時間/既定0、helper13件成功）。TLS生成はPO明示許可済み、検証専用/1日/loopback/鍵非公開。LAN・運用公開は未実施。
+- **現枝の後発作業**: d894876bでレビュー済み要件出典/decision lockを正式CLIで追随。CLIはその後のderived input blob不一致でexit1、全体成立ではない。前後完全値はcache authz-source-adoption-20261030。route/checker/17pytest候補の非作者reviewは済み、次に共有資産を直列追随してderived/oracle/7.7へ進む。
+- **次MVP単位**: 別WT `feature-mvp-recording-continuation` / branch `feature/mvp-recording-continuation`（54b83002起点）で通常投球33全域の継続保存/prefix n再取得/再送を計画＋契約化、非作者review中。件数2/3専用へ縮めず、初球admissionを改名流用しない。旧spike/ordinary33を再利用、共有取消訂正設計も先行照合する。
+- **未完**: 正式develop統合、通常全操作/1試合終了・再開・訂正、offline/交代/故障、閲覧、T5/T6・成績/毎球CSV、性能/復旧/実機/運用HTTPS。GoalはMVP全体のままactive。
+
+
 ## Codex再開（2026-10-30）：初球画面縦断の引受固定点
 
 引継ぎ照合: 統合候補 `2c87758d`・台帳直前 `a370a6f1` は指定と一致し、追跡ファイル差分なし。共有DB・既存stash・root所有pytest残骸は触らない。主担当が統合候補と本台帳の編集を引受。
