@@ -2003,3 +2003,11 @@ authz cache候補（REPORT SHA4695989fa90c5daca844feb1752f1eada7f0d126923f2ebb84
 ### 2026-10-30 PO許可後のHTTPS初球実測開始
 
 検証専用TLS資材の生成についてPOから「許可します」を受領（decision-sheetへscope記録）。cache内1日有効・loopback限定・mode600で生成し秘密内容を表示/commitせず、固定candidate7069b743で既ownedDB/実app/broker/ホストブラウザのHTTPS初球E2Eを開始。共有DSNunset・専用tmp、実行中で結果未確定。TLS未回答の待ちは解消したが、初球通過はまだ主張しない。
+
+### 2026-10-30 HTTPS初回実測の停止点と再実行
+
+7069b743のHTTPS初回は **1failed / 276.07秒**。実画面login/新規作成/開始POST200までは進み、開始後に『サーバーから復元』buttonが存在せず待機timeout。実原因は開始応答後もpreparing providerが古いreadyを保持し、denied時だけ表示する復元入口がmountされないこと。初球送信/保存に達したとは扱わない。
+
+Viteのpublic JSON import警告を一時的に読込停止原因と推定したが、pnpm buildは成功（1909 modules/closure conforming）し実画面作成開始も進んでおり、直接原因という判断を訂正。不要なartifact identityコピー等は追加していない。
+
+21a2f0e3でHostの開始応答保存received遷移→既retry→実準備中GETを接続し、実サーバーの結果で復元入口へ移す。結果不明/失敗ではretryしない回帰1件、vue-tsc/eslint成功。E2Eは自動取得後も扱えるよう実button名の復元/再取得を許す。固定同HEADでHTTPS2回目を実行中、非作者差分reviewも依頼済。初回logをcache first-ball-https-evidence-20261030/attempt1-playwright.logへ保全（TLS鍵内容なし）。
