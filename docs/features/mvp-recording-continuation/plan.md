@@ -221,3 +221,9 @@ Port登録期待集合の接合追随（2026-10-30、PO委任によるCodex主�
 通常試験型修復の保存判断（2026-10-30、PO委任によるCodex主担当判断）: exact9 packet bc9c06b76e30630c66bd27981e007fa8dffda0838a3b138e78c5a31f7cfddd9aと全実byte、非作者REPORT59edf81029b67321ce26aefac7a37370a8a8fadbc1ae8ec18ac1ad4901cb7a8e（P0/P1/P2=0、独立109pure/全体ty成功）を採用。全旧assert/paramを保持し、cast/narrowing/正規immutable空mapping/preflight alias以外module AST不変を確認。製品source/期待値/拒否条件を変更せず、実DB/正式pin/最終CIは別条件。主WT実HTTPS中は取り込まず隔離枝へ保存する。
 
 再送期待の正本整合（2026-10-30、PO委任によるCodex主担当判断）: exact1 helper patch bfe72aaf7a0c867e2e9795a03993db8ee3d1a348fd74cf577ecc9930adfb20a0、非作者REPORT44d1a438f56209e954aee2baa6f550954a1530eb40d3cb8677e01352cef2dcef（P0/P1=0、NodeVM9/BE22成功）を照合して採用。sync-protocol417/DI2は保存済受理の同D5同内容再送をA5重複と定める。初回受理期待は不変、late replayはD3=3/重複/sameSlot/HTTP200/count3を別々にstrict確認し、DB/reload全assertを保持する。0670実runは複合boolfalseしか記録されず実A5値未確定なので、次実測で正規結果を確認する。未ACKslotの重複による端末終結はこの既ACK済raw再送とは別故障残件であり、完成へ拡張しない。
+
+### step4/5 未ACK原要求の正規重複による終結（2026-10-30、PO委任によるCodex主担当判断）
+
+sync-protocol417/DI2と既ACKadapter/QT02の重複→同期済みを満たすため、受理しか通さないordinary ACK decoderの供給不足を是正する。隔離fix/mvp-ordinary-duplicate-ack、編集exact5はfrontend/src/api/ordinaryPitchAck.ts・同.spec.ts・frontend/src/screens/GameScreenOrdinaryPitchController.spec.ts・backend/tests/db/test_ordinary_ack_loss_e2e.py（新）・backend/tests/db/ordinary_ack_loss_e2e_support.py（新）。decoderは同D1/D4/D5/閉外形を確認した正規重複を元envelope/idのまま既adapterへ通し、受理へ偽装しない。他A5/拒否/破損/認可の成功化、original body/attempt置換、新UUID、二重計算を行わない。既最小未終結slot・read-only元要求再送・#advanceなしを再利用する。
+
+新owned実HTTPS故障は画面新規作成→開始→初球nativeHTTP200/実commit後、ACK本文の受信を一度だけ失敗させる→reloadでserver1/端末未終結→元完全body/attemptの実再送→A5重複→queue同期済み→reload B1S0/履歴1/PlayRow1/native4表各1を照合する。fetch拒否によるCookie不確実性失効は別故障として混ぜない。元通信/認可/保存を必ず実行し、成功応答やPortを代用しない。未到達と実試験成功を分け、DB・port・一時領域を独立させる。pure正負・型lint/非作者確認後、rootがPGを直列実行する。共有DB/実機/公開環境/新秘密/ref/台帳/正式資産は作者の編集対象外。これは既step4/5の是正で、新意味/新PO承認待ちを作らない。
