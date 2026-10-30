@@ -154,3 +154,9 @@ step4 source23pathの有限採用: PO委任によるCodex主担当判断、2026-
 2026-10-30T20:50:20+09:00、PO委任によるCodex主担当判断。対象runtime48path packet SHA4cc21d57accd9c9d5437398f6927a24d7df5f890ae7b0663780bd3de5a6a4ce6＋root8 source packet65439104…＋逐次生成した正式DDL候補を、cache `ordinary37-backend-adoption-20261030.json` SHA73ca160c7b16ac327e345f4e69aa58a971cfb3a9bdaeadfc3597d84a112b7036 の全path/hashで固定。非作者最終REPORT361db72a…/反映1 2d07b4a5…/反映2 cd54b1a7…はP0/P1を解消。単位778/独立778・独立後発33・root guard271・ownedPG構造/故障負/既初球原子性16成功を確認。実API3球の1passed/88.60秒は8c46e2f8＋本未commit source集合、結果SHA5394344d0739035dfdfdee45cd29e836e46fa19c031f99c1bb51c323401dc2ba。
 
 backend prefix原本readとstep4閉DTO/routerは相互import/共通真正性の接合を持つため、このbackend供給だけを同commitで保存する。step4画面source23は別8c46e2f8に保全済。正式HEADの画面縦断、故障全44、正式7.7/reseal/sourceallowlist/repository改訂/CI/通常統合は別残件であり、step3/4全体の受入完了としない。本人逐行確認/署名の代記ではない。4path書式のみの9feb3db3はAST完全一致で意味/入出力不変を別保全。
+
+### step4 送信中controller寿命の是正
+
+2026-10-30T22:34:01+09:00、PO委任によるCodex主担当判断。実b34e0b91のHTTPS診断（1failed/104.54秒）でsend.sent=true/ACK本文読取とparser/adapter全正常、disposedDuringSubmit=true→readAckなし→no-ack-receivedを確認。同内容DTOの新参照だけでwatchが送信中controllerを破棄する再現を旧componentで確認し、全入力snapshot/認証scopeの同値なら維持、真正変更は失効する最小2sourceを採用。files.json SHA5bf8b54a40386a36da945bea1a9e7251d9b15b9e57c65428fe3c9d35ddb0d9d2、作者34試験/型lint、非作者21試験とREPORT SHA91cd5bfdc5c990e4fca9dd1dd69baa5d62128d821dbece74559a046bcd53cc7c（P0/P1=0）。P6blind/本人確認ではない。
+
+真正なgame/D4/recovery/checkpoint/rules/state/位置/auth変更と同参照深部変更は旧ACKを採らない。WebLocksの保持単位・認可・記録権・原要求・成功条件は変更しない。実環境の親再評価が全値同一だったかは未観測なので、修正の実原因解消は同HEAD実HTTPSで検証する。非blocking留保: 初期inspectがblockedだった後の同値DTO再供給だけの復帰は未保証（reload再生成は別）。MVP故障/復旧受入で扱い、今回source採用を実画面成功へ読み替えない。
