@@ -33,6 +33,7 @@ _FUNCTION_ONLY_FACT_KINDS = frozenset(
         "pre_auth_only",
         "migration_only",
         "rg1_control",
+        "initial_right_storage",
     }
 )
 
@@ -177,6 +178,17 @@ def function_only_table_names() -> tuple[str, ...]:
     selected: set[str] = set()
     for kind in _FUNCTION_ONLY_FACT_KINDS:
         selected.update(exposure_fact_table_names(kind))
+    # 秘密列を含むcontrol/preauth表の既分類を変更せず、この1表だけを追加する。
+    facts = _load_object(_EXPOSURE_FACTS_PATH)["facts"]
+    secret_columns = {
+        row["column"]
+        for fact in facts
+        if fact["kind"] == "secret_column"
+        for row in fact["entries"]
+        if row["table"] == "recording_generations"
+    }
+    assert secret_columns == {"proof_digest", "recovery_generation"}
+    selected.add("recording_generations")
     return tuple(name for name in manifest_table_names() if name in selected)
 
 

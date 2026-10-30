@@ -92,19 +92,19 @@ def _assert_fk_targets_precede(
 
 
 def test_other_profile_sets_are_derived_without_classification_asset() -> None:
-    """Manifest と露出事実だけで 1・4・4・14 表を exact に導く。"""
+    """Manifest と露出事実だけで 1・4・4・19 表を exact に導く。"""
     profiles = cases.profile_table_names()
     helper_source = inspect.getsource(cases)
 
     assert {name: len(tables) for name, tables in profiles.items()} == {
-        "tenant_owned": 23,
+        "tenant_owned": 22,
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 14,
+        "function_only": 19,
     }
     assigned = tuple(table for tables in profiles.values() for table in tables)
-    assert len(assigned) == len(set(assigned)) == 46
+    assert len(assigned) == len(set(assigned)) == 50
     assert set(assigned) == set(cases.manifest_table_names())
     assert "table-classification.json" not in helper_source
 

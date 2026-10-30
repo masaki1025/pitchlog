@@ -93,13 +93,13 @@ def _assert_fk_targets_precede(
 
 
 def test_table_sets_are_derived_without_the_profile_assignment_asset() -> None:
-    """23 表と 28 表を manifest・露出事実だけから導く。"""
+    """22 表と 32 表を manifest・露出事実だけから導く。"""
     tenant_id_tables = cases.tenant_id_table_names()
     tenant_owned_tables = cases.tenant_owned_table_names()
     helper_source = inspect.getsource(cases)
 
-    assert len(tenant_id_tables) == 28
-    assert len(tenant_owned_tables) == 23
+    assert len(tenant_id_tables) == 32
+    assert len(tenant_owned_tables) == 22
     assert set(tenant_owned_tables) < set(tenant_id_tables)
     assert all(
         "tenant_id" in _column_names(_manifest_by_name()[table])
@@ -133,7 +133,7 @@ def test_tenant_reassignment_guards_are_derived_from_manifest_and_migrations() -
 
 
 def test_seed_plan_covers_both_tenants_in_fk_dependency_order() -> None:
-    """28 表すべてに A/B 行があり、必須列と FK の投入順を満たす。"""
+    """32 表すべてに A/B 行があり、必須列と FK の投入順を満たす。"""
     rows = cases.seed_rows()
     for index, row in enumerate(rows):
         _assert_required_columns_are_present(row)
@@ -180,3 +180,43 @@ def test_every_tenant_owned_insert_candidate_is_constraint_complete() -> None:
                 == candidate_key
                 for row in seed
             ), (table, columns)
+
+
+def test_initial_storage_seeds_preserve_nonowned_denial_and_closed_values() -> None:
+    """初期権4表の制約用seedでapp権限や製品成功を成立させない。"""
+    initial = {
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+    }
+    assert initial.isdisjoint(cases.tenant_owned_table_names())
+    assert "recording_generations" not in cases.tenant_owned_table_names()
+    for table in initial:
+        rows = [row for row in cases.seed_rows() if row.table == table]
+        assert len(rows) == 2
+        assert {row.values["tenant_id"] for row in rows} == {
+            cases.TENANT_A,
+            cases.TENANT_B,
+        }
+        for row in rows:
+            if table == "trusted_devices":
+                assert isinstance(row.values["credential_digest"], bytes)
+                assert len(row.values["credential_digest"]) == 32
+            elif table == "game_start_requests":
+                assert isinstance(row.values["request_digest"], bytes)
+                assert len(row.values["request_digest"]) == 32
+            elif table == "game_start_attempts":
+                assert row.values["outcome"] == "pending"
+                assert row.values.get("resolved_at") is None
+            else:
+                assert row.values["generation"] == 1
+                assert row.values["key_id"] == "public-fixture-only"
+                assert (
+                    isinstance(row.values["nonce"], bytes)
+                    and len(row.values["nonce"]) == 12
+                )
+                assert (
+                    isinstance(row.values["ciphertext"], bytes)
+                    and len(row.values["ciphertext"]) == 48
+                )

@@ -38,6 +38,98 @@ _STAGE_A_PRODUCT_ATOMS = frozenset(
     }
 )
 
+_INITIAL_START_PRODUCT_ATOMS = frozenset(
+    {
+        "policy:POLICY:lineup_memories:initial_start_actor_lineup_memories_update",
+        "policy:POLICY:game_start_attempts:initial_right_game_start_attempts_insert",
+        "function:FUNCTION:initial_right_api:lock_preparing_game(uuid, uuid)",
+        "policy:POLICY:game_start_requests:initial_right_game_start_requests_insert",
+        "policy:POLICY:trusted_devices:initial_right_trusted_devices_update",
+        "function:FUNCTION:public:protect_initial_right_storage()",
+        "policy:POLICY:game_start_requests:initial_right_game_start_requests_update",
+        (
+            "function:FUNCTION:initial_right_api:resolve_start_attempt(uuid, uuid"
+            ", uuid, uuid)"
+        ),
+        "policy:POLICY:games:initial_right_games_select",
+        "policy:POLICY:rg1_restore_gate:initial_right_rg1_restore_gate_select",
+        "policy:POLICY:game_lineups:initial_start_owner_game_lineups_insert",
+        "policy:POLICY:players:initial_start_actor_players_select",
+        "policy:POLICY:players:initial_start_owner_players_select",
+        "policy:POLICY:trusted_devices:initial_right_trusted_devices_insert",
+        "policy:POLICY:lineup_memories:initial_start_actor_lineup_memories_select",
+        "policy:POLICY:team_records:initial_start_actor_team_records_update",
+        "policy:POLICY:team_records:initial_start_owner_team_records_update",
+        "policy:POLICY:game_start_attempts:initial_right_game_start_attempts_update",
+        "table:game_start_attempts",
+        "table:game_start_requests",
+        "table:recording_right_deliveries",
+        "function:FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)",
+        "role:pitchlog_initial_auth_verifier",
+        "schema:initial_right_api",
+        (
+            "function:FUNCTION:initial_right_api:begin_start_attempt(uuid, uuid, "
+            "uuid, uuid, bytea, uuid)"
+        ),
+        (
+            "function:FUNCTION:initial_right_api:persist_initial_start(uuid, uuid"
+            ", uuid, uuid, bytea, text)"
+        ),
+        "policy:POLICY:team_records:initial_start_actor_team_records_select",
+        "function:FUNCTION:initial_right_api:read_start_game(uuid, uuid)",
+        "policy:POLICY:team_records:initial_start_owner_team_records_select",
+        "function:FUNCTION:initial_right_api:check_business_epoch(uuid, bigint)",
+        "policy:POLICY:game_start_attempts:initial_right_game_start_attempts_select",
+        "policy:POLICY:game_start_requests:initial_right_game_start_requests_select",
+        "function:FUNCTION:initial_right_api:lock_current_start(uuid, uuid, uuid)",
+        (
+            "policy:POLICY:recording_generations:initial_right_recording_generati"
+            "ons_update"
+        ),
+        "policy:POLICY:players:initial_start_actor_players_update",
+        "policy:POLICY:lineup_memories:initial_start_actor_lineup_memories_insert",
+        "policy:POLICY:players:initial_start_owner_players_update",
+        (
+            "policy:POLICY:recording_right_deliveries:initial_right_recording_rig"
+            "ht_deliveries_insert"
+        ),
+        "policy:POLICY:games:initial_right_games_update",
+        "table:trusted_devices",
+        (
+            "policy:POLICY:recording_generations:initial_right_recording_generati"
+            "ons_insert"
+        ),
+        "policy:POLICY:game_lineups:initial_start_owner_game_lineups_select",
+        (
+            "function:FUNCTION:initial_right_api:read_initial_start_context(uuid,"
+            " uuid, uuid, uuid, bytea, text)"
+        ),
+        (
+            "policy:POLICY:recording_right_deliveries:initial_right_recording_rig"
+            "ht_deliveries_update"
+        ),
+        (
+            "policy:POLICY:recording_generations:initial_right_recording_generati"
+            "ons_select"
+        ),
+        (
+            "function:FUNCTION:initial_right_api:lookup_existing_start_attempt(uu"
+            "id, uuid, uuid, uuid, bytea)"
+        ),
+        (
+            "policy:POLICY:recording_right_deliveries:initial_right_recording_rig"
+            "ht_deliveries_select"
+        ),
+        "function:FUNCTION:initial_right_api:lock_device(uuid, uuid)",
+        "function:FUNCTION:initial_right_api:read_existing_start(uuid, uuid, uuid)",
+        "policy:POLICY:trusted_devices:initial_right_trusted_devices_select",
+        (
+            "function:FUNCTION:initial_right_api:insert_initial_grant(uuid, uuid,"
+            " uuid, uuid, uuid, bigint, bigint, bytea, text, bytea, bytea)"
+        ),
+    }
+)
+
 
 def _product_path() -> Path:
     """共有 API が判定した状態の製品資産パスを返す。"""
@@ -268,3 +360,21 @@ def test_app_role_delete_is_forbidden_by_canon() -> None:
 
     assert len(delete_rows) == 2
     assert {row.get("reason") for row in delete_rows} == {"forbidden_by_canon"}
+
+
+def test_initial_start_atoms_and_removed_direct_grants_are_exact() -> None:
+    """採用済初期権/開始の有限51原子と旧直ACL不在を閉集合で照合する。"""
+    mapping, probe, product = _documents()
+    summary = validate_probe_product_map(mapping, probe, product)
+    assert len(_INITIAL_START_PRODUCT_ATOMS) == 51
+    assert _INITIAL_START_PRODUCT_ATOMS <= summary.product_only
+    for privilege in ("SELECT", "INSERT", "UPDATE"):
+        atom = f"acl_privilege:ACL:recording_generations:pitchlog_app:{privilege}"
+        assert atom not in summary.product_atoms
+        assert atom not in summary.mapped_product_atoms
+    for atom in _INITIAL_START_PRODUCT_ATOMS:
+        mutated = copy.deepcopy(mapping)
+        rows = _rows(mutated, "product_only")
+        rows.remove(_row_by_value(rows, key="product", value=atom))
+        with pytest.raises(ProbeProductMapError):
+            validate_probe_product_map(mutated, probe, product)

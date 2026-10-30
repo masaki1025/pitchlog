@@ -33,7 +33,7 @@ _CHALLENGE = "x-pitchlog-tenant-challenge"
 
 
 def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
-    """C2の対象集合へselfの1入口だけを追加する。"""
+    """C2の旧対象と開始/enroll/resolveの採用済3入口を完全照合する。"""
     assert tenant_access._MATCH_OPERATIONS == frozenset(
         {
             "roster_team_list",
@@ -46,6 +46,9 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
             "roster_self_team_read",
             "preparing_game_list",
             "preparing_game_detail",
+            "initial_device_enroll",
+            "initial_game_start",
+            "initial_game_start_resolve",
         }
     )
 

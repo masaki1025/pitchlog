@@ -127,6 +127,7 @@ _CONTEXT_ENFORCEMENT_POINTS = {
         "self._context"
     ),
     "pitchlog.repositories.transaction._TenantTransaction.run": "self._context",
+    "pitchlog.repositories.transaction._assert_initial_actor_transaction": "context",
     "pitchlog.repositories.transaction._TenantTransaction.run_function": (
         "self._context"
     ),
@@ -641,11 +642,11 @@ def _assert_duplicate_fixture_registrations_share_one_session_resource() -> None
 
 
 def test_tenant_context_reader_set_matches_enforcements_and_exemption() -> None:
-    """文脈読取の発見集合を強制点5件と理由付き免除1件に固定する。"""
+    """文脈読取の発見集合を強制点6件と理由付き免除1件に固定する。"""
     readers = _context_reader_functions(_repository_sources())
 
     _assert_declared_context_readers(readers)
-    assert len(readers) == 6
+    assert len(readers) == 7
     assert _CONTEXT_READER_EXEMPTIONS == {
         "pitchlog.repositories.base.TenantRepositoryBase._execute_operation": (
             "execute だけから到達し、そこで exact 型と発行証跡を検査済み"
@@ -654,7 +655,7 @@ def test_tenant_context_reader_set_matches_enforcements_and_exemption() -> None:
 
 
 def test_all_tenant_context_enforcements_check_exact_type_and_proof() -> None:
-    """5強制点が同じ文脈値をexact型と発行証跡で検査する。"""
+    """6強制点が同じ文脈値をexact型と発行証跡で検査する。"""
     functions, _ = _repository_functions(_repository_sources())
 
     for symbol, receiver in _CONTEXT_ENFORCEMENT_POINTS.items():
@@ -1709,3 +1710,38 @@ def test_autocommit_application_session_is_rejected_before_binding_sql(
         engine.dispose()
 
     assert observed_statements == []
+
+
+@pytest.mark.parametrize("mutation", ["type", "proof"])
+def test_initial_actor_context_enforcement_guard_loss_is_red(mutation: str) -> None:
+    """初期actorの型/発行証跡強制を免除せず脱落を検出する。"""
+    symbol = "pitchlog.repositories.transaction._assert_initial_actor_transaction"
+    functions, _ = _repository_functions(_repository_sources())
+    function = ast.parse(ast.unparse(functions[symbol])).body[0]
+    assert isinstance(function, ast.FunctionDef)
+
+    class RemoveGuard(ast.NodeTransformer):
+        def visit_Compare(self, node: ast.Compare) -> ast.AST:
+            if (
+                mutation == "type"
+                and ast.unparse(node) == "type(context) is not TenantContext"
+            ):
+                return ast.Constant(value=False)
+            return self.generic_visit(node)
+
+        def visit_UnaryOp(self, node: ast.UnaryOp) -> ast.AST:
+            if (
+                mutation == "proof"
+                and ast.unparse(node) == "not context._has_valid_integrity_proof()"
+            ):
+                return ast.Constant(value=False)
+            return self.generic_visit(node)
+
+    RemoveGuard().visit(function)
+    assert symbol not in _CONTEXT_READER_EXEMPTIONS
+    if mutation == "type":
+        assert not _has_exact_context_type_rejection(function, "context")
+        assert _has_context_proof_rejection(function, "context")
+    else:
+        assert not _has_context_proof_rejection(function, "context")
+        assert _has_exact_context_type_rejection(function, "context")

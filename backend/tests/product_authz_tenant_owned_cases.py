@@ -417,7 +417,7 @@ def _global_id(table: str, tenant_id: UUID, suffix: str = "base") -> UUID:
 
 
 def _tenant_rows(tenant_id: UUID) -> tuple[SeedRow, ...]:
-    """1 tenant 分の対象 28 表と依存行を FK 順に返す。"""
+    """1 tenant 分の対象 32 表と依存行を FK 順に返す。"""
     label = "a" if tenant_id == TENANT_A else "b"
     return (
         SeedRow(
@@ -522,6 +522,50 @@ def _tenant_rows(tenant_id: UUID) -> tuple[SeedRow, ...]:
                 "generation": 1,
                 "kind": "normal",
                 "issuance_order": 1,
+            },
+        ),
+        # default-denyの4表も両tenantでseedし、appの42501検査へ到達させる。
+        # 以下byte列は公開fixtureの制約用ダミー値で、製品の鍵/暗号文ではない。
+        SeedRow(
+            "trusted_devices",
+            {
+                "tenant_id": tenant_id,
+                "device_id": _id("seed-device"),
+                "credential_digest": b"\x00" * 32,
+            },
+        ),
+        SeedRow(
+            "game_start_requests",
+            {
+                "tenant_id": tenant_id,
+                "game_id": _GAME_ID,
+                "start_request_id": _id("seed-start-request"),
+                "device_id": _id("seed-device"),
+                "request_digest": b"\x00" * 32,
+            },
+        ),
+        SeedRow(
+            "game_start_attempts",
+            {
+                "tenant_id": tenant_id,
+                "game_id": _GAME_ID,
+                "start_request_id": _id("seed-start-request"),
+                "device_id": _id("seed-device"),
+                "attempt_id": _id("seed-start-attempt"),
+                "outcome": "pending",
+            },
+        ),
+        SeedRow(
+            "recording_right_deliveries",
+            {
+                "tenant_id": tenant_id,
+                "game_id": _GAME_ID,
+                "generation": 1,
+                "start_request_id": _id("seed-start-request"),
+                "device_id": _id("seed-device"),
+                "key_id": "public-fixture-only",
+                "nonce": b"\x00" * 12,
+                "ciphertext": b"\x00" * 48,
             },
         ),
         SeedRow(

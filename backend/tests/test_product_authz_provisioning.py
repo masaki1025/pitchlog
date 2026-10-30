@@ -724,6 +724,8 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
     assert len(trigger_function_grants) == sum(
         element.element_type == "function"
         and element.fields.get("function_kind") == "migration_trigger"
+        and element.fields.get("function_id")
+        != "FUNCTION:public:protect_initial_right_storage()"
         for element in asset
     )
     trigger_function_pattern = re.compile(
@@ -732,6 +734,10 @@ def test_generated_unapply_statements_use_structured_quoted_identifiers() -> Non
     assert all(
         trigger_function_pattern.fullmatch(sql_text) is not None
         for sql_text in trigger_function_grants
+    )
+    assert (
+        'REVOKE EXECUTE ON FUNCTION "public".'
+        '"protect_initial_right_storage"() FROM PUBLIC;' in sql_texts
     )
     assert (
         'DROP FUNCTION IF EXISTS "authz_private".'
@@ -1107,8 +1113,152 @@ def test_subject_change_inside_one_step_is_red_through_public_path(
     assert connection.rollback_count == 0
 
 
+_EXPECTED_DEFERRED_INITIAL_IDS = frozenset(
+    {
+        "COLUMN-ACL:public:game_lineups:team_record_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:team_records:hidden_at:pitchlog_initial_actor",
+        "COLUMN-ACL:public:team_records:id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_start_attempts:tenant_id:pitchlog_initial_fn_owner",
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:tenant_id:pitchlog_init"
+            "ial_fn_owner"
+        ),
+        "FUNCTION:initial_right_api:lock_device(uuid, uuid)",
+        "FUNCTION:public:protect_initial_right_storage()",
+        "COLUMN-ACL:public:team_records:id:pitchlog_initial_actor",
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:ciphertext:pitchlog_ini"
+            "tial_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:public:game_lineups:entries_with_uniform_number_snapshot:"
+            "pitchlog_initial_fn_owner"
+        ),
+        "FUNCTION:initial_right_api:lock_current_start(uuid, uuid, uuid)",
+        (
+            "COLUMN-ACL:public:recording_generations:recovery_generation:pitchlog"
+            "_initial_fn_owner"
+        ),
+        "COLUMN-ACL:public:players:uniform_number:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:games:applied_rules:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:players:hidden_at:pitchlog_initial_actor",
+        "COLUMN-ACL:public:players:tenant_id:pitchlog_initial_actor",
+        "COLUMN-ACL:public:game_lineups:id:pitchlog_initial_fn_owner",
+        "FUNCTION:initial_right_api:read_existing_start(uuid, uuid, uuid)",
+        (
+            "FUNCTION:initial_right_api:persist_initial_start(uuid, uuid, uuid, u"
+            "uid, bytea, text)"
+        ),
+        (
+            "FUNCTION:initial_right_api:insert_initial_grant(uuid, uuid, uuid, uu"
+            "id, uuid, bigint, bigint, bytea, text, bytea, bytea)"
+        ),
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:game_id:pitchlog_initia"
+            "l_fn_owner"
+        ),
+        "COLUMN-ACL:public:game_start_attempts:resolved_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:team_records:tenant_id:pitchlog_initial_actor",
+        "FUNCTION:initial_right_api:check_business_epoch(uuid, bigint)",
+        "COLUMN-ACL:public:recording_right_deliveries:key_id:pitchlog_initial_fn_owner",
+        (
+            "COLUMN-ACL:public:game_start_requests:start_request_id:pitchlog_init"
+            "ial_fn_owner"
+        ),
+        "COLUMN-ACL:public:game_start_attempts:game_id:pitchlog_initial_fn_owner",
+        "FUNCTION:initial_right_api:resolve_start_attempt(uuid, uuid, uuid, uuid)",
+        "COLUMN-ACL:public:games:hidden_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_start_requests:device_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:players:roster_status_key:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:tenant_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:device_id:pitchlog_initial_fn_owner",
+        (
+            "COLUMN-ACL:public:game_start_attempts:start_request_id:pitchlog_init"
+            "ial_fn_owner"
+        ),
+        "COLUMN-ACL:public:lineup_memories:id:pitchlog_initial_actor",
+        "COLUMN-ACL:public:games:home_team_record_id:pitchlog_initial_fn_owner",
+        (
+            "FUNCTION:initial_right_api:read_initial_start_context(uuid, uuid, uu"
+            "id, uuid, bytea, text)"
+        ),
+        "COLUMN-ACL:public:players:roster_status_key:pitchlog_initial_actor",
+        (
+            "COLUMN-ACL:public:recording_generations:proof_digest:pitchlog_initia"
+            "l_fn_owner"
+        ),
+        "COLUMN-ACL:public:players:id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:lineup_memories:lineup:pitchlog_initial_actor",
+        (
+            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_init"
+            "ial_fn_owner"
+        ),
+        "COLUMN-ACL:public:players:id:pitchlog_initial_actor",
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:start_request_id:pitchl"
+            "og_initial_fn_owner"
+        ),
+        "FUNCTION:initial_right_api:lock_preparing_game(uuid, uuid)",
+        "COLUMN-ACL:public:game_start_attempts:device_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_start_requests:tenant_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:credential_digest:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:lineup_memories:team_record_id:pitchlog_initial_actor",
+        "COLUMN-ACL:public:players:tenant_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:players:hidden_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:games:trashed_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_start_attempts:attempt_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:team_records:hidden_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_start_requests:game_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_lineups:game_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:game_lineups:tenant_id:pitchlog_initial_fn_owner",
+        "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)",
+        (
+            "FUNCTION:initial_right_api:lookup_existing_start_attempt(uuid, uuid,"
+            " uuid, uuid, bytea)"
+        ),
+        "COLUMN-ACL:public:trusted_devices:revoked_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:lineup_memories:retired_at:pitchlog_initial_actor",
+        "COLUMN-ACL:public:players:team_record_id:pitchlog_initial_fn_owner",
+        (
+            "COLUMN-ACL:public:game_start_requests:request_digest:pitchlog_initia"
+            "l_fn_owner"
+        ),
+        "COLUMN-ACL:public:recording_right_deliveries:nonce:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:games:started_at:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:team_records:kind:pitchlog_initial_actor",
+        "COLUMN-ACL:public:lineup_memories:tenant_id:pitchlog_initial_actor",
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:generation:pitchlog_ini"
+            "tial_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:revoked_at:pitchlog_ini"
+            "tial_fn_owner"
+        ),
+        (
+            "FUNCTION:initial_right_api:begin_start_attempt(uuid, uuid, uuid, uui"
+            "d, bytea, uuid)"
+        ),
+        "COLUMN-ACL:public:games:away_team_record_id:pitchlog_initial_fn_owner",
+        (
+            "COLUMN-ACL:public:lineup_memories:migration_preserved_only:pitchlog_"
+            "initial_actor"
+        ),
+        "COLUMN-ACL:public:team_records:kind:pitchlog_initial_fn_owner",
+        "FUNCTION:initial_right_api:read_start_game(uuid, uuid)",
+        (
+            "COLUMN-ACL:public:recording_right_deliveries:device_id:pitchlog_init"
+            "ial_fn_owner"
+        ),
+        "COLUMN-ACL:public:team_records:tenant_id:pitchlog_initial_fn_owner",
+        "COLUMN-ACL:public:players:team_record_id:pitchlog_initial_actor",
+    }
+)
+
+
 def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
-    """旧resolver16の保留と新列ACL一件だけの追加保留を照合する。"""
+    """旧resolver16/epochと初期権・開始の有限保留集合を照合する。"""
     generated = product_provisioning.generate_authz_ddl(
         product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
     )
@@ -1131,12 +1281,15 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         )
     )
     assert len(old) == 16
-    assert {row.element_id for row in withheld} - {row.element_id for row in old} == {
+    expected_extra = {
         (
-            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
-            "pitchlog_rg1_control_owner"
-        )
-    }
+            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_rg1_"
+            "control_owner"
+        ),
+    } | _EXPECTED_DEFERRED_INITIAL_IDS
+    assert {row.element_id for row in withheld} - {
+        row.element_id for row in old
+    } == expected_extra
     assert "CREATE OR REPLACE FUNCTION rg1_control.bind_initial_fresh_epoch" in sql_text
 
 
@@ -1173,7 +1326,7 @@ def test_pre_rule_rejects_nonexact_epoch_dependency(
 def test_startup_resume_epoch_order_without_db(
     revision: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """34だけを移行し、35では再移行せず実定義を検査して認可へ進む。"""
+    """34だけepoch移行し、35はepoch再適用せず0036を検査して認可へ進む。"""
     from pitchlog.db import stage_a_startup as startup
 
     events: list[str] = []
@@ -1202,6 +1355,12 @@ def test_startup_resume_epoch_order_without_db(
         startup, "_require_epoch_state", lambda *_: events.append("verify")
     )
     monkeypatch.setattr(
+        startup, "_apply_initial_storage", lambda *_: events.append("initial")
+    )
+    monkeypatch.setattr(
+        startup, "_require_initial_state", lambda *_: events.append("verify-initial")
+    )
+    monkeypatch.setattr(
         startup, "apply_product_authz_ddl", lambda *_: events.append("authz")
     )
     monkeypatch.setattr(startup, "_require_s3", lambda *_: events.append("s3"))
@@ -1210,6 +1369,8 @@ def test_startup_resume_epoch_order_without_db(
     )
     assert events == (["epoch"] if revision.startswith("0034") else []) + [
         "verify",
+        "initial",
+        "verify-initial",
         "authz",
         "s3",
     ]
@@ -1313,7 +1474,7 @@ def test_startup_unknown_placed_revision_is_rejected(
 
 
 def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
-    """新2schemaだけをowner不修復で保護し、旧5schemaのSQLを変えない。"""
+    """新3schemaだけをowner不修復で保護し、旧5schemaのSQLを変えない。"""
     generated = product_provisioning.generate_authz_ddl(
         product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
     )
@@ -1323,9 +1484,13 @@ def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
     sql_texts = {row.sql for row in applied}
     elements = product_provisioning._load_product_elements()
     schemas = [row for row in generated if row.element_type == "schema"]
-    assert len(schemas) == 7
+    assert len(schemas) == 8
     for row in schemas:
-        if row.element_id not in {"rg1_control", "pitchlog_ledger_observer"}:
+        if row.element_id not in {
+            "rg1_control",
+            "pitchlog_ledger_observer",
+            "initial_right_api",
+        }:
             assert row.sql in sql_texts
             continue
         element = product_provisioning._element_for_statement(row, elements)

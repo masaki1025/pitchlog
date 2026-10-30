@@ -1190,7 +1190,11 @@ def test_issuance_and_verification_callers_are_exact_sets() -> None:
     """発行入口と照合入口の製品コード内呼び出し元を固定する。"""
     targets = {
         _ISSUER_TARGET: {"pitchlog.api.tenant_access.require_tenant_access"},
-        _VERIFIER_TARGET: {_ISSUER_TARGET, "pitchlog.api.routers.auth.login"},
+        _VERIFIER_TARGET: {
+            _ISSUER_TARGET,
+            "pitchlog.api.routers.auth.login",
+            "pitchlog.recording_rights.initial_grant_broker._verify_initial_cookie",
+        },
     }
     callers: dict[str, set[str]] = {name: set() for name in targets}
     for path in _SOURCE_ROOT.rglob("*.py"):
