@@ -99,3 +99,5 @@ HTTPSで初球保存/同一要求再送後のreload停止を検知。`GameScreen
 初球実証後の手動確認用に `backend/tests/manual_e2e_hold_support.py` と非DB unit `test_manual_e2e_hold.py` を追加し、実E2Eの全検査後だけ任意のloopback保持を呼ぶ。既定0、明示最大3600秒、資格/鍵ログ禁止、終了は既owned cleanupへ委譲する。製品動作・保証・運用公開を変更しない。
 
 認可oracle再封印では、step4入力8資産を固定commitへ揃えた後、`oracle-seal.lock.json.oracle_commit` と既封印6資産（ddl-elements/rejected-configs/claim-mutant-map/attack-tree/boundary-proposal/verification-evidence）の `oracle_context.oracle_commit` だけを同commitへ追随する。既oracle意味本文・期待値・承認履歴は変更しない。前後の8blob一致と6資産のcontext以外不変を非作者照合後、正式 `--reseal-oracle` を実行し通常CLIで確認する。7.7や実行時oracle成立の代用にはしない（PO委任によるCodex主担当判断）。
+
+正式CLIが要求する `contracts/authz/frozen-baselines.json` のoracle_input系列も本単位の7.7対象へ含める。既履歴を保持し、実製品統合Draft PR #189の受理ID、旧8a40519d→固定e4f53dabの完全前後値・根拠・Codex主担当の委任判断を1record追記する。単なるcontext置換では通らない拒否条件を保持し、独立差分確認後に再封印へ進む。
