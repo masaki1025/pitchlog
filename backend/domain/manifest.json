@@ -38,7 +38,7 @@
           "targetClass": "alpha",
           "kind": "single",
           "generated": "courseQuantizationArtifact",
-          "hash": "sha256:f0ac1ee02c8baa18d72c68418e899b4264b2e2b9e7a152b483d1464c6724cb80",
+          "hash": "sha256:0eb0fa99fc3fac4e3dfc13e3cb33be2d452e52bd1c6908ceb41925e442f0a08a",
           "invocation": {
             "adapter": "backend/src/pitchlog/domainrt/course_quantization.py",
             "operation": "quantizeCourse"

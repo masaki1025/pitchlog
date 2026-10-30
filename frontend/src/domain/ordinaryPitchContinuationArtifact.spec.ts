@@ -30,7 +30,7 @@ const built = context.PitchlogDomain as {
 const invoke = (request: unknown) =>
   JSON.parse(built.deriveOrdinaryPitchWithContinuation(JSON.stringify(request)))
 
-it('宣言SHA一致のビルド済み公開7口を実行する', () => {
+it('宣言SHA一致のビルド済み公開8口を実行する', () => {
   expect(createHash('sha256').update(bytes).digest('hex')).toBe(
     declaration.sha256,
   )
@@ -39,6 +39,7 @@ it('宣言SHA一致のビルド済み公開7口を実行する', () => {
     'ping',
     'deriveState',
     'deriveOrdinaryPitch',
+    'deriveTerminalPitch',
     'deriveFirstPitchWithContinuation',
     'deriveOrdinaryPitchWithContinuation',
     'validateInitialGameRoster',

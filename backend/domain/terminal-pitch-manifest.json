@@ -1,0 +1,92 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/terminal-pitch-property-catalog.json",
+    "schema": "backend/domain/terminal-pitch-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "terminal-empty-bb-hbp-v1",
+      "source": {
+        "path": "frontend/src/domain/state.ts",
+        "provenance": "付録E 打撃結果・状態遷移マトリクス"
+      },
+      "generated": [
+        {
+          "generatedId": "terminalPitchArtifact",
+          "path": "frontend/public/domain/pitchlog-domain.js",
+          "artifactKind": "js-artifact"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "terminalPitchMathPublic",
+          "module": "frontend/src/domain/publicApi.ts",
+          "symbol": "domainOperations.deriveTerminalPitch",
+          "adapter": "frontend/src/domain/publicApi.ts"
+        },
+        {
+          "entrypointId": "terminalPitchServer",
+          "module": "backend/src/pitchlog/domainrt/terminal_pitch.py",
+          "symbol": "evaluate_terminal_pitch",
+          "adapter": "backend/src/pitchlog/domainrt/terminal_pitch.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "terminalPitchDirect",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "terminalPitchArtifact",
+          "hash": "sha256:0eb0fa99fc3fac4e3dfc13e3cb33be2d452e52bd1c6908ceb41925e442f0a08a",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domainrt/host.py",
+            "operation": "deriveTerminalPitch"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "terminalPitchVectors",
+          "calculation": "terminal-empty-bb-hbp-v1",
+          "path": "contracts/state-transition/terminal_pitch_cases_v1.json",
+          "runner": "both",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "付録E 打撃結果・状態遷移マトリクス"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "terminalStateAxes",
+          "propertyKind": "invariant",
+          "path": "backend/tests/domainrt/test_terminal_pitch.py",
+          "provenance": "付録E 打撃結果・状態遷移マトリクス"
+        },
+        {
+          "propertyId": "terminalHostParity",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domainrt/test_terminal_pitch.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "terminalPitchMutations",
+          "target": "frontend/src/domain/state.ts",
+          "operators": [
+            "disable-count-reset",
+            "replace-reach-base",
+            "retain-old-batting-order",
+            "remove-walks-increment",
+            "toggle-terminal-stat-flag"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": []
+}
