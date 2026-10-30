@@ -7,6 +7,7 @@ import { pinia } from '../appProviders'
 import { createAppRouter } from '../router'
 import { useAuthStore } from '../stores/authStore'
 import GameScreenRecordedRestore from './GameScreenRecordedRestore.vue'
+import { GameStartPersistence } from '../lib/gameStartPersistence'
 
 vi.mock('../api/startedGame', () => ({ readStartedGame: vi.fn() }))
 
@@ -68,12 +69,14 @@ function initial(): StartedGameRead {
   } as unknown as StartedGameRead
 }
 
-async function mountRestore(): Promise<VueWrapper> {
+async function mountRestore(
+  props: { auto?: boolean } = { auto: true },
+): Promise<VueWrapper> {
   const router = createAppRouter()
   await router.push(`/games/${game}/record`)
   await router.isReady()
   const wrapper = mount(GameScreenRecordedRestore, {
-    props: { auto: true },
+    props,
     global: { plugins: [pinia, router] },
   })
   wrappers.push(wrapper)
@@ -164,4 +167,36 @@ it('認証世代が変わった応答は採用しない', async () => {
   await flushPromises()
   expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
   expect(wrapper.text()).not.toContain('を取得しました')
+})
+
+it('auto省略時は端末の開始保存を確認してサーバーから自動復元する', async () => {
+  const readStart = vi.fn().mockResolvedValue({ status: 'received' })
+  const close = vi.fn()
+  vi.spyOn(GameStartPersistence, 'open').mockResolvedValue({
+    readStart,
+    close,
+  } as unknown as GameStartPersistence)
+  vi.mocked(readStartedGame).mockResolvedValue({
+    kind: 'found',
+    game: recorded(),
+  })
+  const wrapper = await mountRestore({})
+  expect(readStart).toHaveBeenCalledWith(tenant, game)
+  expect(close).toHaveBeenCalled()
+  expect(readStartedGame).toHaveBeenCalledWith(game)
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('1')
+})
+it('auto明示falseでは開始保存の照合もサーバー取得も自動実行しない', async () => {
+  const open = vi.spyOn(GameStartPersistence, 'open')
+  await mountRestore({ auto: false })
+  expect(open).not.toHaveBeenCalled()
+  expect(readStartedGame).not.toHaveBeenCalled()
+})
+it('auto省略でも開始保存がない試合を自動取得しない', async () => {
+  vi.spyOn(GameStartPersistence, 'open').mockResolvedValue({
+    readStart: vi.fn().mockResolvedValue(null),
+    close: vi.fn(),
+  } as unknown as GameStartPersistence)
+  await mountRestore({})
+  expect(readStartedGame).not.toHaveBeenCalled()
 })

@@ -20,13 +20,22 @@ import {
   type PreparingReadDetail,
 } from './GameScreenEntryTypes'
 
-const props = defineProps<{
-  mode?: 'preparing-read'
-  preparing?: EntrySupply<PreparingReadDetail> | null
-  detail?: EntrySupply<RecordDetail> | null
-  environment?: EntrySupply<EntryEnvironment> | null
-  restoreAuto?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    mode?: 'preparing-read'
+    preparing?: EntrySupply<PreparingReadDetail> | null
+    detail?: EntrySupply<RecordDetail> | null
+    environment?: EntrySupply<EntryEnvironment> | null
+    restoreAuto?: boolean
+  }>(),
+  {
+    mode: undefined,
+    preparing: undefined,
+    detail: undefined,
+    environment: undefined,
+    restoreAuto: undefined,
+  },
+)
 const emit = defineEmits<{ retry: [] }>()
 const route = useRoute()
 const auth = useAuthStore()

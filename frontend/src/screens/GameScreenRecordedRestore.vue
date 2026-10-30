@@ -11,7 +11,9 @@ import {
   useRecordedRestore,
 } from './GameScreenRecordedRestore'
 
-const props = defineProps<{ auto?: boolean }>()
+const props = withDefaults(defineProps<{ auto?: boolean }>(), {
+  auto: undefined,
+})
 const route = useRoute()
 const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : undefined,

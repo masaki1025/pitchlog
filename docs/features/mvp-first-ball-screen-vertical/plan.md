@@ -89,3 +89,5 @@ created: 2026-10-30
 球種供給の実DB受入は `backend/tests/db/test_pitch_type_options.py`（同owned fixture、実2tenant login/Cookie/C2/正式token）で行う。既画面E2EとDB・port・tmpを分離する。
 
 実HTTPS初回で開始応答後も準備中providerが古い表示を保持し復元入口が出ない接合欠陥を検知。`GameScreenEntryRecordHost.vue` に開始応答保存(received)後の既provider.retryを接続し、実サーバー結果によって既復元入口へ移す（状態成功を合成しない）。同specを追加する。
+
+HTTPSで初球保存/同一要求再送後のreload停止を検知。`GameScreenEntryRecord.vue`・`GameScreenRecordedRestore.vue` と同specのoptional Boolean省略値を明示undefinedへ是正し、保存開始の存在を照合して自動取得する既hookに到達させる。明示falseは従来どおり自動取得しない。
