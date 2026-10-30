@@ -120,3 +120,5 @@ PO委任によるCodex主担当判断。作者packet ab60a84fd5df7aa4a4845f375f0
 本採用で上表ステップ1の有限契約/schema/types/cases/既2操作参照・必要な当該契約検査だけを指示する。起案段のcontract未許可記述は本対象範囲に限り解除し、製品T1本体/ABI artifact/Port/DB/正本新設・版上げはまだ指示しない。step1の全比較面/15例と810交差/範囲外拒否を別の候補非作者へ渡し、P-1〜P-9の本単位の適用/既成立/未成立を具体値で記録した後にstep2本体へ進む。実Port/T2/HTTP/DB耐久性の完成を計算開始の追加前提にしない。正式資産唯一writer/旧T1全体の未閉/P6封印・曝露履歴/全MVP義務を保持する。山田正輝本人の署名・逐行確認ではない。
 
 ステップ1の契約検査配置（PO委任によるCodex主担当判断、2026-10-30）: 新testpath登録を契約作成の全体待ちにせず、既登録tests/test_state_transition_contract_schema.pyへ本単位専用の関数群として追加する。既JSONでsync-protocol/game-state双方に捕捉されることをrootが確認済。既test/expected/param/拒否を保持し、terminal契約だけの新検査を追加、既fixtureを緩めない。tests/test_terminal_pitch_contract.pyは今回作らず、core対象/拒否を減らさない実装配置の選択とする。
+
+ステップ1の追加正例と参照整合（PO委任によるCodex主担当判断、2026-10-30）: 正規15caseのbranch登録と正式checkerのexact-set整合に必要なcontracts/state-transition/manual_fixture_branch_coverage_v1.jsonのADV01追加正例15件、および既branch_row_mapping_v1.jsonの同15参照を有限追加許可する。旧case/期待/ID/規範・全参照を保持し、新正規caseの真正参照だけを増やす。既input_axes_descriptor_v1.jsonの値域は足りるため、不要なaxis/値/digest目的更新は行わず不変照合でよい。checkerを緩めず、関連CLI/射影/coverageをまとめて検査して整合を閉じる。候補の作成許可であり正式受理ではない。
