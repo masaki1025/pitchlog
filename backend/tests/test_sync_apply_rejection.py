@@ -8,7 +8,6 @@ from uuid import UUID
 
 import pytest
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.repositories.tokens import (
     ImmutableValue,
     TenantOperationResult,
@@ -27,6 +26,7 @@ from pitchlog.sync.prefix_path import (
 )
 from pitchlog.sync.rejection import _candidate_result, content_reason_for_precondition
 from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
     GameLockToken,
     RecordingGenerationLockToken,
     RecordingGenerationReadToken,
@@ -133,7 +133,7 @@ class _LockSpy:
         self.calls.append(type(token))
         if isinstance(token, GameLockToken):
             return TenantOperationResult(((UUID(int=1),),))
-        columns = tuple(RecordingGeneration.__table__.c.keys())
+        columns = RECORDING_GENERATION_READ_COLUMNS
         cells: list[ImmutableValue] = [None] * len(columns)
         cells[columns.index("generation")] = 1
         cells[columns.index("confirmed_watermark")] = 4
@@ -149,3 +149,78 @@ def test_rejection_path_locks_game_before_generation() -> None:
         RecordingGenerationReadToken,
         RecordingGenerationLockToken,
     ]
+
+
+@pytest.mark.parametrize("kind", ("rejected", "evacuated"))
+def test_e1_rejection_pure_producer_keeps_raw_envelope_and_event_hash(
+    monkeypatch, kind
+):
+    """閉doubleでT8/T9原本形式を検査する。実binding/実DB成功ではない。"""
+    import json
+    from typing import Any, cast
+
+    from pitchlog.repositories.tokens import TenantOperationResult
+    from pitchlog.sync import rejection
+    from pitchlog.sync.model import SyncEvent
+    from pitchlog.sync.source_binding import SelectedEventSourceValue, _E1CoreSource
+    from pitchlog.sync.wire_fingerprint import freeze_wire_event, wire_event_fingerprint
+    from pitchlog.sync.wire_original import encode_wire_original
+
+    raw = {
+        "game_id": "10000000-0000-0000-0000-000000000001",
+        "d4": "opaque-epoch",
+        "d1": 1,
+        "d5": "20000000-0000-0000-0000-000000000001",
+        "event_kind": "1",
+        "payload": {"observed": None},
+        "registration": False,
+        "future_unknown": [1, 1.0, -0.0],
+    }
+    wire = freeze_wire_event(raw)
+    digest = wire_event_fingerprint(wire)
+    original = encode_wire_original(wire)
+    event = SyncEvent(
+        raw["d5"], raw["game_id"], 1, raw["d4"], v5="1", v7=raw["payload"]
+    )
+    selected = SelectedEventSourceValue(
+        "e1", 1, digest, "wire-request-v1:raw", wire, original
+    )
+    source = object.__new__(_E1CoreSource)
+    observed = []
+
+    def read(self, scope, actual):
+        assert actual is event
+        observed.append("read")
+        return selected
+
+    def begin(self, scope, actual):
+        assert actual is event
+        observed.append("begin")
+
+    def ledger(scope, token, path):
+        assert token.source_fingerprint == digest
+        observed.append("ledger")
+        return None
+
+    class Scope:
+        def run(self, token):
+            observed.append("original")
+            assert json.loads(token.payload_json) == json.loads(original)
+            return TenantOperationResult(())
+
+    monkeypatch.setattr(_E1CoreSource, "read", read)
+    monkeypatch.setattr(_E1CoreSource, "begin_write", begin)
+    monkeypatch.setattr(rejection, "recheck_and_insert_result", ledger)
+    result = rejection._commit_result_in_scope(
+        cast(Any, Scope()),
+        event,
+        digest,
+        0,
+        source=source,
+        path="P2",
+        kind=kind,
+        reason="synthetic" if kind == "rejected" else None,
+        old_generation=1 if kind == "evacuated" else None,
+    )
+    assert result.state == ("拒否" if kind == "rejected" else "退避")
+    assert observed == ["read", "begin", "ledger", "original"]

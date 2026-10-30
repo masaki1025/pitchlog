@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 28,
+  "contract_revision": 34,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:28"
+        "contract_revision:34"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -66,6 +66,30 @@
         "reason": "リポジトリ公開面と戻り値制約を本 PR の受理後基準として初めて確定するため。",
         "approved_by": "未承認(PR #72 のレビュー待ち)",
         "approved_on": "未承認(PR #72 のレビュー待ち)"
+      },
+      {
+        "source_commit": "PENDING_ACCEPTANCE",
+        "new_baseline_identifiers": [
+          "contract_revision:33"
+        ],
+        "previous_baseline_identifiers": [
+          "contract_revision:32"
+        ],
+        "change": {
+          "subject": "準備中作成のrepository operation surfaceを隔離候補として追加する",
+          "before": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "cc61773580e188f07b7a9151d5ea1766d4d65ad20ea46b8c3d49e6d893e7a7ce"
+          },
+          "after": {
+            "state": "PRESENT",
+            "frozen_projection_sha256": "d38e2779165ed70149316cfe842358191b4a934f692243f3efa33ab732b88af0"
+          }
+        },
+        "movement_fact": "既存の受理済みbaselineに、作成用の3 CAPと7 tokenを追加する。",
+        "reason": "POST /games と GET /games/preparation-options を隔離候補で接続するため。正式受理は7.7の単一受理で行う。",
+        "approved_by": "未承認(候補・非作者レビュー待ち)",
+        "approved_on": "未承認(候補・非作者レビュー待ち)"
       }
     ]
   },
@@ -166,7 +190,13 @@
     "CAP:invalidation_intents:update",
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
-    "CAP:tenants:read"
+    "CAP:tenants:read",
+    "CAP:game_lineups:read",
+    "CAP:play_rows:read",
+    "CAP:play_rows:insert",
+    "CAP:games:insert",
+    "CAP:tenant_vocabularies:insert",
+    "CAP:tenant_vocabularies:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -215,7 +245,24 @@
     "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
-    "pitchlog.repositories.games.PreparingGameDetailToken"
+    "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+    "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -226,7 +273,11 @@
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",
-    "RULE:resolve_stage_a"
+    "RULE:resolve_stage_a",
+    "SYNC_FIRST_BALL:bind_device",
+    "SYNC_FIRST_BALL:check_current_right",
+    "SYNC_WRITER_BINDING:read_writer_identity",
+    "SYNC_WRITER_BINDING:assert_writer_binding"
   ],
-  "source_digest": "f5c09910a58ac2d5e9fbb304fdffba4b86015830e73451065268e0992444e018"
+  "source_digest": "81e05b24ff00c9ad3d3f1c92028f3c0d05db580ac2920a72fca6829ff2b61085"
 }

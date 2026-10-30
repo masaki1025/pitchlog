@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterator, cast
+from typing import Any, Iterator, cast
 from uuid import uuid4
 
 import pytest
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
@@ -22,7 +21,10 @@ from pitchlog.sync.ports import (
 )
 from pitchlog.sync.prefix_path import P1ContentRejection, P1Result
 from pitchlog.sync.rejection import RejectionResult
-from pitchlog.sync.tokens import RecordingGenerationReadToken
+from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
+    RecordingGenerationReadToken,
+)
 
 
 def _request(*d1_values: int) -> SyncRequest:
@@ -240,7 +242,7 @@ def test_preflight_classifies_with_operation_fingerprint_before_rights(
     """全件の④は同じ内容同一性を使い、⑤より先に終わる。"""
     request = _request(2, 1)
     observed: list[str] = []
-    columns = tuple(RecordingGeneration.__table__.c.keys())
+    columns = RECORDING_GENERATION_READ_COLUMNS
     # 要求の D4 = 1 と同じ現世代の行(旧 D4 の要求ではないので要求世代の read は無い)。
     values = {"confirmed_watermark": 4, "generation": 1}
     row = tuple(values.get(name, 0) for name in columns)
@@ -283,8 +285,10 @@ def test_preflight_classifies_with_operation_fingerprint_before_rights(
     monkeypatch.setattr(apply, "gated_writer", fake_gate)
     monkeypatch.setattr(apply, "classify_request_d5", classify)
     monkeypatch.setattr(apply.port_guard, "require_registered_port", lambda *_: None)
+    from test_authz_tenant_context import make_tenant_context
+
     result = apply._preflight_d1(
-        cast(TenantContext, object()), request, cast(RecordingRightsPort, Rights()), {}
+        make_tenant_context(uuid4()), request, cast(RecordingRightsPort, Rights()), {}
     )
     assert result.d3 == 4 and result.has_recording_right
     assert observed == ["rg1", "classify-all", "read-d3", "rights"]
@@ -304,3 +308,238 @@ def test_named_crash_hook_is_scoped_and_raises(point: crash_points.CrashPoint) -
         with pytest.raises(RuntimeError, match="電源断"):
             crash_points.reach(point)
     crash_points.reach(point)
+
+
+@contextmanager
+def _e1_private_flow_double(monkeypatch, mode="accepted", *, device_active=True):
+    """私有registry/controllerのpure double。HTTP/実PG/本物資格ではない。"""
+    import json
+    from types import SimpleNamespace
+    from uuid import UUID
+
+    import test_sync_apply_source_binding as source_test
+
+    from pitchlog.repositories import rg1
+    from pitchlog.sync import prefix_path, rejection
+    from pitchlog.sync import source_binding as source
+    from pitchlog.sync.control_provider import binding_control, writer_binding
+    from pitchlog.sync.control_provider.evidence import (
+        AttemptBinding,
+        AuthorityBinding,
+        EventPhaseBinding,
+    )
+
+    receipt, request = source_test._receipt_double(source_test._raw())
+    state = source._RECEIPTS[receipt]
+    request = SyncRequest("P2", request.game_id, request.events, d4=request.d4)
+    state.request = request
+    state.request_json = source._request_json(request)
+    phase = EventPhaseBinding(
+        AttemptBinding(
+            AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3)),
+            state.tenant_id,
+            UUID(int=5),
+            UUID(request.game_id),
+            cast(str, request.d4),
+            1,
+            UUID(int=7),
+            1,
+            state.source.request_fingerprint,
+            1,
+        ),
+        UUID(int=8),
+        1,
+        1,
+        UUID(request.events[0].d5),
+        state.source.event_fingerprints[0],
+    )
+    snapshot = json.dumps(
+        {
+            "tenant_id": str(state.tenant_id),
+            "phase": binding_control._phase_wire(phase, UUID(int=10), 1),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    trace = []
+    scope = SimpleNamespace(_context=state.context)
+    bound = object.__new__(writer_binding._LiveWriterBinding)
+    bound._used = False
+    bound._owner = (object(),)
+    bound._handle = scope
+    bound._lease = cast(
+        Any,
+        SimpleNamespace(
+            _phase_snapshot=snapshot,
+            device_id=phase.attempt.device_id,
+            game_id=phase.attempt.game_id,
+        ),
+    )
+    bound._phase_snapshot = snapshot
+    writer_binding._LIVE_BINDINGS[bound._owner[0]] = bound
+
+    @contextmanager
+    def open_scope(context):
+        assert context is state.context
+        trace.append("tx-open")
+        try:
+            yield scope
+        except BaseException:
+            trace.append("rollback")
+            raise
+        else:
+            trace.append("commit")
+
+    @contextmanager
+    def gate(actual, rights):
+        assert actual is scope
+        trace.append("rg1-port")
+        gated = SimpleNamespace(writer=object(), written=False)
+
+        def mark():
+            trace.append("mark-written")
+            gated.written = True
+
+        gated.mark_written = mark
+        yield gated
+        if gated.written:
+            trace.append("rg1-commit")
+
+    def preflight(*args, source):
+        trace.append("d5-read")
+        candidate = D5Candidate("unused")
+        return apply._BatchPreflight(0, (candidate,), mode != "t8", 1)
+
+    def reject(*args, **kwargs):
+        trace.append("t8-t9")
+        proof = kwargs["source"]
+        proof.begin_write(scope, request.events[0])
+        return RejectionResult(
+            "B4" if mode == "t8" else "B3a",
+            0,
+            "退避" if mode == "t8" else "拒否",
+            "synthetic",
+        )
+
+    def accepted(*args, **kwargs):
+        trace.append("event")
+        if mode == "t9":
+            raise P1ContentRejection("synthetic")
+        if mode == "replay":
+            return P1Result(None, 1, True, True)
+        kwargs["source"].begin_write(scope, request.events[0])
+        if mode == "post-write-error":
+            from pitchlog.sync.prefix_path import P1PreconditionError
+
+            raise P1PreconditionError("synthetic after write", "recording_rights")
+        return P1Result(None, 1, True)
+
+    def read_device(*args):
+        trace.append("device-read")
+        return device_active
+
+    def game_access(*args):
+        trace.append("game-read")
+        return True
+
+    def bind(self, *args, **kwargs):
+        trace.append("bind")
+        return bound
+
+    def verify(*args):
+        trace.append("device-recheck")
+        return True
+
+    monkeypatch.setattr(apply, "tenant_transaction_scope", open_scope)
+    monkeypatch.setattr(apply, "gated_e1_writer", gate)
+    monkeypatch.setattr(apply, "_read_reference_device_state", read_device)
+    monkeypatch.setattr(apply, "game_accessible", game_access)
+    monkeypatch.setattr(rg1, "read_rg1_open", lambda scope: trace.append("rg1-core"))
+    monkeypatch.setattr(binding_control.BindingControl, "bind_writer", bind)
+    monkeypatch.setattr(
+        writer_binding._LiveWriterBinding, "assert_current", lambda self: None
+    )
+    monkeypatch.setattr(writer_binding, "_recheck_bound_device", verify)
+    monkeypatch.setattr(apply, "_preflight_in_scope", preflight)
+    monkeypatch.setattr(prefix_path, "_apply_locked_in_scope", accepted)
+    monkeypatch.setattr(rejection, "_apply_rejection_in_scope", reject)
+    control = object.__new__(binding_control.BindingControl)
+    args = (receipt, state.context, request)
+    kwargs = {
+        "phase": phase,
+        "cookie": "synthetic-cookie",
+        "reference_device": phase.attempt.device_id,
+        "control": control,
+        "rights": object(),
+        "projection": object(),
+        "validator": object(),
+    }
+    try:
+        yield args, kwargs, trace, bound
+    finally:
+        writer_binding._LIVE_BINDINGS.pop(bound._owner[0], None)
+        source._RECEIPTS.clear()
+        source._SELECTIONS.clear()
+
+
+@pytest.mark.parametrize("mode", ("accepted", "t8", "t9", "replay"))
+def test_e1_private_flow_double_marks_written_exactly_once(monkeypatch, mode):
+    """同gatedの⑧は受理/T8/T9各1回、再掲0回というdriver条件を固定する。"""
+    with _e1_private_flow_double(monkeypatch, mode) as (args, kwargs, trace, bound):
+        result = apply._apply_e1_f1(*args, **kwargs)
+        assert isinstance(result, AckResult)
+        count = 0 if mode == "replay" else 1
+        assert trace.count("mark-written") == trace.count("rg1-commit") == count
+        assert trace.count("tx-open") == trace.count("bind") == 1
+        assert trace[-1] == "commit"
+        assert (
+            trace.index("device-read")
+            < trace.index("game-read")
+            < trace.index("bind")
+            < trace.index("d5-read")
+        )
+
+
+def test_e1_device_false_before_game_or_binding(monkeypatch):
+    """②の不成立では他の読み取り/lease/業務TXを開始しない。"""
+    with _e1_private_flow_double(monkeypatch, device_active=False) as (
+        args,
+        kwargs,
+        trace,
+        bound,
+    ):
+        assert apply._apply_e1_f1(*args, **kwargs) == "B5"
+        assert trace == ["device-read"]
+
+
+@pytest.mark.parametrize("mismatch", ("device", "game", "both"))
+def test_e1_bound_context_mismatch_rolls_back_before_recheck(monkeypatch, mismatch):
+    """二段照合のa/b不一致は実DB再照合0、両不一致はB5先。"""
+    from uuid import UUID
+
+    with _e1_private_flow_double(monkeypatch) as (args, kwargs, trace, bound):
+        if mismatch in ("device", "both"):
+            kwargs["reference_device"] = UUID(int=90)
+        if mismatch in ("game", "both"):
+            bound._lease.game_id = UUID(int=91)
+        expected = "B6" if mismatch == "game" else "B5"
+        assert apply._apply_e1_f1(*args, **kwargs) == expected
+        assert "device-recheck" not in trace and "d5-read" not in trace
+        assert trace[-1] == "rollback"
+
+
+def test_e1_after_write_exception_does_not_branch_to_t8(monkeypatch):
+    """最初の書込marker後の権利例外は全体rollbackしT8へ分岐しない。"""
+    from pitchlog.sync.prefix_path import P1PreconditionError
+
+    with _e1_private_flow_double(monkeypatch, "post-write-error") as (
+        args,
+        kwargs,
+        trace,
+        bound,
+    ):
+        with pytest.raises(P1PreconditionError, match="synthetic after write"):
+            apply._apply_e1_f1(*args, **kwargs)
+        assert "t8-t9" not in trace
+        assert trace[-1] == "rollback"
+        assert "rg1-commit" not in trace

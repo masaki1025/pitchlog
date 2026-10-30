@@ -211,13 +211,17 @@ it.each([404, 403, 503, 200])(
         : '読み取れません',
     )
     assertClosed(wrapper)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // 記録画面は詳細の拒否後にサーバーの開始済み/記録済み状態も確認する。
+    const detailCalls = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url) === `/api/games/${id}`)
+        .length
+    expect(detailCalls()).toBe(1)
     fetchMock.mockImplementation(async (_url, init) => response(game, init))
     await button(wrapper, 'この試合を再試行').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('保存大会')
     assertClosed(wrapper)
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(detailCalls()).toBe(2)
   },
 )
 it('不正UUIDをfetch前に閉じる', async () => {

@@ -55,7 +55,12 @@ export default [
         {
           patterns: [
             {
-              group: ['**/lib/generated/*', '**/lib/generated/artifacts/**'],
+              group: [
+                '**/lib/generated/*',
+                '!**/lib/generated/wrappers',
+                '!**/lib/generated/wrappers/**',
+                '**/lib/generated/artifacts/**',
+              ],
               message:
                 '生成物は generated/wrappers 配下の生成ラッパーを経由してください。',
             },
@@ -125,7 +130,12 @@ export default [
             {
               // flat config の後勝ちは規則ごとオプションを置換するため、
               // 一般ブロックの禁止をここへ書き戻さないとこのファイルだけ消える。
-              group: ['**/lib/generated/*', '**/lib/generated/artifacts/**'],
+              group: [
+                '**/lib/generated/*',
+                '!**/lib/generated/wrappers',
+                '!**/lib/generated/wrappers/**',
+                '**/lib/generated/artifacts/**',
+              ],
               message:
                 '生成物は generated/wrappers 配下の生成ラッパーを経由してください。',
             },

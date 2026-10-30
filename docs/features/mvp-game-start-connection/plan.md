@@ -1,0 +1,581 @@
+---
+feature: mvp-game-start-connection
+status: active
+承認: 済（PO委任によるCodex判断・開始入力の限定単位）
+重さ分類: コア領域
+worktree: ../../..
+branch: feature/mvp-game-start-atomic-candidate
+created: 2026-10-24
+計画レビュー周回: 1
+確定ゲート周回: 0
+実行方式: 通常
+反映周コミット: 適用
+---
+
+# 試合開始の入力境界と実接合の先行単位
+
+## 1. 位置付け
+
+実起点は`4b2db6907f329c3dde113c3b7e1c3515600fb915`（実develop、PR181統合点）。正常PR180の初期付与部品を含む。本起案は新branchのplan/researchだけで、製品実装の承認ではない。巨大なfirst-path隔離組立をmergeせず、台帳・RG1・作成候補は必要な固定sourceを後続で個別供給する。
+
+親は固定`67dff5f707dcb2311a35140ae870b44f46e24803:docs/features/ug1-game-lifecycle/plan.md`の8ステップ中3と、既存[U-F8計画](../uf8-full-game-followup/plan.md)の6・8。親U-G1は本起点に未収録のため固定Git参照とし、旧8/9ステップ・レビュー回数・開始側の着手条件を改番/消去しない。本単位のレビューを#175の旧追加枠へ算入しない。
+
+開始operation/DTO/endpoint/clientの製品実装は実baseに存在しない。既存`InitialGrant`と`issue_initial_recording_right`は単一部品として再利用できるが、`InitialGrantScope`はProtocolだけで実DBadapterがない。開始全体をT1/T2計算核の完成待ちにしない一方、transportを通っただけの入力を開始可能・権利保持・計算Readyとは判定しない。
+
+## 2. 今回提案する1ステップ
+
+最初の小単位は開始要求のtransport DTOだけとする。物理未受理のDBを仮設して成功を返すadapterや、常に拒否するだけの製品endpointを作らない。実scope/実DBadapterに必要な有限の追加集合は[research](research.md)へ具体化し、rootが物理契約/所有を確定した後に同じ親step3の次小単位へ進める。
+
+| パス | 次の製品委任で許す変更 |
+| --- | --- |
+| backend/src/pitchlog/api/schemas/game_start.py | 新設。`GameStartRequest`と両側の`StartLineupInput`を既存`BaseSchema`/`EntityId`で定義する。HTTP/router登録・service・DB呼出しはしない |
+| backend/tests/test_game_preparing_components.py | 既存試験へtransport正負例を追加。既存作成/read試験を保持し、新testpathを作らない |
+| 本feature research.md | 版・結果・失敗・後続接合の記録だけ |
+
+共有metadata/認可/正本、既存U-G1/U-R1/U-M2/U-F8のsource、台帳package/Protocol、plan自体、他worktreeは製品委任の編集対象外。現在の起案は本plan/researchの2pathだけ。
+
+### 要求DTOの閉集合（新規提案、レビュー/PO委任後に採用）
+
+`GameStartRequest`は`start_request_id: EntityId`、`device_id: EntityId`、`device_credential: SecretStr`、`away: tuple[StartLineupInput, ...]`、`home: tuple[StartLineupInput, ...]`のexact5field。資格は非空・repr/検証エラーに原値を含めない。ゲームIDは後続のURL側で受け、tenant/game/status/started_at/D4/D3/V12/復旧世代/予約attempt/名前/背番号/任意extraをbodyへ加えない。UUIDは既存型と同じ解析契約に従い、端末ID自体を資格証明にはしない。
+
+各要素は`player_id: EntityId`、`batting_order: StrictInt | None`、`fielding_position: JsonValue`のexact3field。打順は非nullなら1〜9、両側配列の外形は9又は10枠。fielding_positionは既存U-M2の保存/復元DTOと同じJSON表現を保持する。このDTOでは守備値の業務集合・重複・DH整合・現役/在籍・背番号・権利を検証済みとしない。守備値の正式な値域/表現が未確定である事実を、任意JSONの開始許可へ読み替えない。後続開始serviceにはサーバー保存snapshotの`dh`と名簿に対する単一の確定検証が必須であり、未提供中は開始呼出部を接続しない。
+
+DTOの返却を開始成功receiptとして使わない。成功時の内部値は既存`InitialGrant`を再利用し、D4/V12/復旧世代の新しいwire表現や成功応答DTOをこの小単位で定めない。後続の実commit確認より前にV12を応答へ出さない。
+
+## 3. 実装ステップ（親の改番ではない）
+
+| # | ステップ | 合格条件 |
+| --- | --- | --- |
+| 1 | 開始入力transport DTOと既存component正負例を追加 | exact5/3field、UUID、9/10外形、StrictInt/null、SecretStrの非露出、extra/サーバー所有値の拒否が緑。既存作成/read試験不変、HTTP/DB/権利/状態計算の実提供を主張しない |
+
+独立限定計画レビューとrootのPO委任承認後、指示されたこの1ステップだけを実装・検査・単一ステップcommitして停止する。現時点はsource編集禁止。
+
+## 4. 影響する正本・core・検査
+
+本DTOのtransport先行だけは正本反映なし。既存`api/*`と`test_game_preparing*.py`でtenant-isolationのcore捕捉を確認する。記録権判定・同期動作・DBadapterをこの2pathへ紛れ込ませない。後続の実adapter等は別の具体scope/必要な領域登録を先行宣言→別JSONで確定し、本単位の承認を流用しない。
+
+対象component pytest、backend Ruff/ty、root Ruff/ty・docs/局所plan-sync・diff checkを行う。DB起動/全backend/census反復は本transport単位には不要。入力型の正例は開始成功証拠ではなく、現実の端末資格やD4を試験stubへ置換したことにもならない。新鍵・運用秘密を発行せず、`.env`/共有DB/P6/封印へ触れない。
+
+後続の側列/資格/再交付/epochの構造的変更はdata-model等の具体節とハーネス7.6/7.3をrootが判定し、認可/凍結の実差分と7.7はroot唯一writerが直列受理する。現在の未受理値を成功へ変えない。
+
+## 5. 到達点と時間見込み
+
+この最初のコード小単位は楽観30〜45分、通常1〜2時間（対象検査/commit込み）。実DBadapterは物理契約と所有固定後、楽観3〜4時間・通常6〜10時間を見込む。開始HTTP/UI/実browserはその後の別小単位で、T1計算は開始準備/初期権adapterの着手条件にしない。守備値・側列・端末資格・暗号鍵の実供給/登録の確定時間は現時点で算定しない。
+
+製品開始・初期名簿・初期記録権・同一transaction・1球保存は未完成。全復元/全設備喪失proof完成も本transportの前提には加えない。準備中作成の実画面成功を、開始・MVP完成へ拡張しない。
+
+
+## 計画レビューとPO委任判断
+
+2026-10-24T01:11:08.323361+00:00、Codex主担当/rootは今回PO4/5/8/10の委任により、対象2b6c694743765ba43dfb926ee68a2fce091eb755（plan0a6db0e81f83c85583d9c19b272e051f931f4d1f65befddb4940916ef5fa55ba/research7085e4be6ed16725070e51618287a4a19652ab73dba5f183824a0de3d4f9f158、標準diff f3473cba203d8d84c74518c81169065f654c3a0795e213a1a5603b85fbcc3ab7）を承認する。新案作成に非関与のresolver_ledger_plan_reviewによる初回全文0/0/0と実4b2/UG1親計画/既存型/core捕捉を照合した。exact5/3fieldのtransport入力境界・既存component正負例のステップ1/1だけを指示し、HTTP/権利/DB/新資格・鍵発行/状態計算へ拡張しない。資格の非露出はSecretStr単独とせず、他fieldが不正な場合のerrors()/json()/strも局所検証する。これは既DoDの具体例であり新しい意味仕様ではない。旧U-G1/U-R1/U-F8の承認・ステップ/レビュー系列、実保存/開始の全条件を保持する。起案時の製品編集禁止は本対象版の限定ステップにだけ解除し、本人の実値確認/逐行確認/署名を代記しない。
+
+### step1の非露出保証の適用境界（P1採用・PO委任による技術是正）
+
+7469e676の非作者レビューP1=1を採用し、非露出は公開Classの`model_validate`/`model_validate_json`・通常代入と、既存共通HTTP handlerによる利用者向け応答/ログへ限定する。生TypeAdapter/SchemaValidatorのJSON構文例外、RequestValidationError.bodyなど内部入力が無害化済みとは保証しない。将来のendpointも共通handlerを維持し、body/生parser例外を記録せず、実HTTP応答/ログの非露出を検査する。private Pydantic APIの差替えや入力拒否の黙殺を行わない。rootが2026-10-24のPO委任でこの技術境界と同step1/1是正を指示した。新DBadapter/物理/正本はこの是正の製品scope外であり、全計画・旧レビュー系列を再設定しない。
+
+
+## 6. 次小単位の物理接合候補（未承認・2026-10-24）
+
+この節は次の限定実装を開始するための追補候補であり、上の承認済みtransportステップ1/1・親U-G1の8ステップ・U-R1の9ステップを改番しない。既DTOの145成功/独立P1是正後0を保持する。rootの採否・新単位の計画承認と必要な正本/具体資産ゲート前は製品を編集しない。次の単位名を`mvp-initial-grant-db-scope`とし、rootが別branch/planで有限scopeを引き受けることを提案する。本branchへ台帳/RG1/開始全体を一括mergeしない。
+
+### 6.1 採用を求める実行境界
+
+**一つのinitial issuer brokerが開始の業務transaction全体を所有する。** appは実HTTP認証・C2を行った後に閉じた開始要求だけを渡し、game/世代/配達の行ロックを保持してbrokerを待たない。brokerはroot管理のUnix socketでapp UID20003をSO_PEERCRED照合し、自身は既Ledger client UID20002で稼働する。Ledgerの許可UIDをappへ拡張しない。appの`TenantContext`をJSON化して真正な文脈として使わず、broker内で提示Cookieを既`TokenPresentation`/`verify_tenant_id`/認証関数へ渡し、tenantを再導出する。body/環境変数/peer UIDだけからtenantを作らない。認証の再実装・新署名鍵の発行はしない。
+
+業務DBの新主体は`pitchlog_initial_actor`（LOGIN/NOINHERIT/NOSUPERUSER/NOBYPASSRLS/NO*ROLE/DB/REPLICATION、membership0）と`pitchlog_initial_fn_owner`（NOLOGIN/NOBYPASSRLS、membership0）のexact2 role。actorの接続設定・旧鍵を含む既V12Boxはroot保護配置から注入する。DSN/資格/鍵をRPCや公開factoryの引数にしない。appにはactorへのmembership、SET ROLE、初期権関数EXECUTE、秘密列SELECT/直接DMLを与えない。現在のappの`recording_generations`直接INSERTを剥奪し、後続の通常/緊急引き継ぎも同じowner境界の別操作として供給する。既存read/updateの必要権は列ごとに据え置き、無関係なACLを縮退/拡張しない。
+
+既`create_database_engine()`はsession_user/current_user=`pitchlog_app`に固定されているので、引数や期待roleを広げない。brokerのactor接続は別の私有生成入口にし、実role属性/membership/transport/DB identityを検査する。既`_TenantTransaction`の共通operation検証・結果実体化を再利用する私有factoryを追加し、actor状態で許すtoken/functionの有限集合を別に固定する。公開`tenant_transaction_scope`、Session非公開、scope失効、同一tenantの一度限り束縛は保持し、汎用Session/任意engine/任意SQLを新たに渡す実行器を作らない。新規秘密表/世代挿入は固定関数だけとし、後続U-M2/開始操作は既tokenの必要列に限る別のactor権限と同じハンドルのexact登録へ結ぶ。U-M2の既存検証/ロック/保存をコピーせず、必要な既tokenの実行だけを同じtransactionへ参加させる。
+
+appのgameロック中に別sessionがpermitのgame FKを書く案は採らない。brokerの短いintent transactionを**開始業務transactionより前に完了**させ、両方を一つのbrokerが所有する。業務commit/rollbackをbroker自身が観測し、appからの「commitした」というboolやcaller指定D4/digestを受理しない。V12の原文は既単一発行器からだけ作り、business commit成功確認後の同一端末向け応答へだけ返す。
+
+### 6.2 有限な保存集合
+
+新表は以下の4表だけとする。全表にtenant付きPK/FK、FORCE RLS、物理削除禁止のlifecycle/immutabilityを宣言する。表のactor直接DML/SELECTは0、ownerだけが固定関数を通して操作する`function_only`資源として分類する。RLSのtenant GUC一致は文脈整合であって認証証拠ではない。認証済みtenantの導出は6.1に残す。
+
+| 表/既存列 | 固定する最小列と制約 |
+| --- | --- |
+| `trusted_devices` | PK `(tenant_id,device_id)`、32byte `credential_digest`、`created_at`、nullable `revoked_at`。tenant FK。資格原文/Cookie/V12は保存しない。再ログイン時も有効資格と新しいチームCookieの双方を検証する |
+| `game_start_requests` | PK `(tenant_id,game_id,start_request_id)`、`device_id`、32byte `request_digest`、`created_at`。game/deviceへtenant付きFK。同じ要求IDのdevice/payload変更は拒否。digestは開始要求のserver側正規化にだけ用い、D5内容やT1のcanonical event契約を変更しない |
+| `game_start_attempts` | PK `(tenant_id,attempt_id)`、game/request/deviceのowner列、`created_at`、nullable `resolved_at`、`outcome`（`pending/committed/rolled_back`）。同一requestへのFK、同一requestのpendingはpartial unique1件。予約前に耐久commit。未解決を期限だけでrolled_backへ変更しない。claim不明はpendingのまま止める |
+| `recording_right_deliveries` | PK `(tenant_id,game_id,generation)`、`start_request_id`、`device_id`、`key_id`、12byte `nonce`、48byte `ciphertext`、`created_at`、nullable `revoked_at`。generation/request/deviceへtenant付きFK。同一request unique1件。原V12/鍵は保存しない。暗号長は既V12Boxのraw32byte＋AESGCM tag16byteの現物に一致させる |
+| `recording_generations` | nullable `proof_digest BYTEA`（非null時32byte）とnullable `recovery_generation BIGINT`（非null時正のbigint）を追加。新normal発行は両方必須、holder_deviceはcanonical UUID文字列、D3/prefix0、試合内最初のissuance_order=1。既存行へ仮digest/epoch/holderを補完しない。旧NULL行は初期権の再交付/検証では閉じる。migration行と旧データの意味を自動変更しない |
+| `rg1_restore_gate` | nullable正bigint `recovery_generation`を追加。NULL/欠損/外部epoch不一致は閉じる。新規closed seedに1を推測代入せず、実fresh attestationから既root controllerが設定する閉じた操作を別のroot所有RG1差分で供給する |
+
+`game_lineups.side`/`(tenant_id,game_id,side)`uniqueと対応する側teamの検証は開始service単位に残す。側の曖昧な既存紅白戦行を自動割当しない。scope単位の保存検査に側移行や守備値の意味決定を混入させず、側/単一名簿検証なしの開始成功を提供しない。
+
+### 6.3 InitialGrantScope実装のexact対応
+
+既`issue_initial_recording_right`/`V12Box`/`DurableLedger`を単一実装として使う。新scopeは私有factoryからのみ生成され、tenant/game/request/attemptをその生成時に固定し、各methodで実生存scopeと一致を再照合する。後からcallerのtenant/scalarで再束縛しない。9methodの対応は以下に閉じる。
+
+| 既method | 実行する固定処理 |
+| --- | --- |
+| `assert_bound_tenant` | actor実scopeの登録状態/tenant発行証跡と固定tenantの一致。失効/偽/派生ハンドルを拒否 |
+| `lock_valid_device` | owner関数`lock_device`でtenant/device1行をFOR SHAREし、digest/失効状態をprivate戻り値にする。adapterが`hmac.compare_digest`で提示資格digestを照合し、成功後にだけ同scopeの`resolve_start_attempt`へ固定tenant/game/request/attemptを渡してrequest→attemptを排他lockする。固定`StartOwner`のowner束縛・戻り値・行の存在・outcomeを照合し、欠損/不一致/許可外を閉じる。`pending`だけ新規経路、`committed`は後続`existing_start`で同一現権利を確認する再交付経路とし、その行がなければ閉じる。device共有lockとrequest/attempt排他は同じbusiness Sessionのcommit/rollbackまで保持する。資格原文をSQL bindへ渡さない |
+| `existing_start` | game/request/deliveryと現normal generation1行をtenant付きjoin、未失効/現holder/同epochを確認して既`InitialGrantRecord`を返す。別tenantは不在と同じ外形。原V12はSQLに現れない |
+| `precheck_open_and_game` | 同じscopeで既RG1非ロック読取とgame存在/stateを固定読取。新規はpreparing、再交付は同一確定要求かつ現権利を必要とし、全statusを開始可能へ広げない |
+| `lock_preparing_game` | game1行をFOR UPDATE、preparing再照合。後続start serviceとの接合時には、この取得直後かつgeneration取得前に、brokerに固定した開始payloadを消費する私有`_initialize_start_before_generation`から両team→players→U-M2の有限な同一scope操作を呼ぶ。任意callbackをconstructor/RPCで注入せず、既単一発行器に第2発行経路を作らない。別session commitは受理しない |
+| `lock_current_start` | game→現generation→deliveryを固定順でロックし、request/device/失効/epoch/所有を全再照合。世代の新旧をD4大小で推測しない |
+| `assert_recovery_generation` | 同一scopeのRG1 singleton epochを固定read、正bigint/外部fence値とのexact一致。NULL/旧値/不明を拒否 |
+| `insert_initial_grant` | 単一発行器が実reserve→claimした記録だけをbroker内部で受け、固定owner関数でgeneration＋delivery＋attempt committedを同一transactionにINSERT/更新。app/任意RPC入力のD4/digest/envelopeは入口で拒否。game/request/attempt/ownerと既世代0件を再照合し、unique競合は全取消 |
+| `assert_open_before_commit` | 既RG1固定関数のFOR SHARE NOWAITを同じscopeで呼び、外部同channel fence/actual business bindingとともにcommit/rollback結果確認まで保持 |
+
+この表に加え、予約前のintent作成/実結果解決の固定2操作だけを追加する。intent開始は実有効device/自tenantのgame/requestを照合し、同じpendingを再利用する。commit済みbusiness rowがあれば既delivery再交付へ進み、rollback確認済みなら旧D4を再使用せず新attemptを耐久化できる。不明時はpendingを保持し、次attemptを自動発行しない。broker消失後の解決はDB primaryの排他照会で旧transaction終了と該当成功行不在を確認し、同じownerの外部実予約/claim状態と照合できる場合だけ行う。台帳不明や旧business identityでは停止を維持する。
+
+新固定関数は`initial_right_api`内の下記**exact9件**とする。`assert_bound_tenant`はPythonのみ、`assert_open_before_commit`は既RG1関数を再利用するため、新SQLを増やさない。関数ownerは固定search_path、完全スキーマ修飾、PUBLIC EXECUTE剥奪、actorだけEXECUTE、実`session_user`/tenant一致、既存FORCE RLSを要求する。未使用関数や任意SQL/JSON実行関数を付け足さない。
+
+
+固定SQL署名候補は以下。tenant引数はbrokerで再導出したscopeだけが注入し、game/request/device/attemptは私有scope構築時のowner tupleへ固定する。`StartRecordRow`はtenant/game/request/device UUID4列、generation/epoch bigint2列、proof_digest bytea、key_id text、nonce/ciphertext byteaのexact10列。資格digest/envelopeをappの汎用readへ返さない。
+
+| 関数（schemaは全て`initial_right_api`） | 戻り値/lockと列権限 |
+| --- | --- |
+| `lock_device(uuid,uuid)` | `TABLE(credential_digest bytea,revoked_at timestamptz)`、最大1行、device FOR SHARE。owner SELECT全4識別/資格列＋`UPDATE(device_id)`を行lockのためだけに付与。本文DML0 |
+| `read_existing_start(uuid,uuid,uuid)` | `StartRecordRow`最大1行、現在のgeneration/delivery/request join、非lock。ownerの必要SELECTだけ |
+| `read_start_game(uuid,uuid)` | `TABLE(status text)`最大1行、非lock。adapterが既RG1PrecheckTokenを先に実行し、新規/同一再交付の状態を判定 |
+| `lock_preparing_game(uuid,uuid)` | boolean、game FOR UPDATE/preparing、owner SELECT識別/state＋`UPDATE(status)`（行lockに必要、本文UPDATE0） |
+| `lock_current_start(uuid,uuid,uuid)` | `StartRecordRow`最大1行、game→generation→deliveryを明示個別SELECTでlock。必要SELECTと識別列UPDATEを各表へ限定。JOIN一括lockによる順序の未定義化を避ける |
+| `check_business_epoch(uuid,bigint)` | boolean、singleton1の現epoch一致/NULL拒否、非lock。ownerはsingleton/epoch SELECTだけ。RG1 state更新権0 |
+| `insert_initial_grant(uuid,uuid,uuid,uuid,uuid,bigint,bigint,bytea,text,bytea,bytea)` | boolean、引数順tenant/game/request/device/attempt/D4/epoch/digest/key_id/nonce/ciphertext。既lockの所有/現世代不在/owner tuple/attempt pendingを再確認し、generation＋delivery INSERT、attempt成功markだけ。ownerの新規行INSERTとattempt状態列UPDATE。D3/prefix0・issuance_order1はSQL定数でcaller引数にしない |
+| `begin_start_attempt(uuid,uuid,uuid,uuid,bytea,uuid)` | `TABLE(attempt_id uuid,outcome text)`最大1行。tenant/game/request/device/request_digest/server_attemptを束縛。同request行→pending attemptをlockし、新規intent又は既pendingを返す。before-business専用の短いtransactionでのみ呼ぶ |
+| `resolve_start_attempt(uuid,uuid,uuid,uuid)` | `TABLE(outcome text,generation bigint)`最大1行。固定tenant/game/request/attemptのrequest→attemptを排他lockして、owner束縛・outcome・成功行の有無を実readする。業務scopeでは`lock_valid_device`が実device資格を照合した直後、issuerのreserve/claimより前に呼び、同じSessionのcommit/rollbackまでlockを保持する。`pending`だけ新規経路、`committed`は同一現権利の再交付確認へ進み、欠損/owner不一致/戻り値不正/他outcomeは閉じる。短いintent取引のlockが継続すると扱わない。broker消失後の結果照会も同じ排他で旧業務transactionの終結を待つが、欠損を即rolled_backへ更新する口は作らない。再試行の許可はbrokerが外部同ownerの実状態も照合できた後の別の限定制御差分で行う。それまではpendingを残し新attemptへ進まない |
+
+最初のscope単位では`outcome=rolled_back`は予約済みだが、brokerが同じprocessで業務rollbackの確定を観測した場合の限定後処理を次差分へ残す。未解決pendingの自動解消や期限切れによる新attempt採番は実装しない。これは既MVPの再試行を削除する意味ではなく、source/未知故障の段階供給を明示するもので、通常再試行と再起動後解決のpositive gateは開始接合前に必須として残す。
+
+### 6.4 全順とRG1の必要な最小接合
+
+通常新規は「broker認証再検証→外部epoch共有fence→短いintentの耐久commit→業務scopeのdevice共有lock→要求/attempt lock→既単一発行器のreserve/claim→game FOR UPDATE→両team UUID昇順→対象players UUID昇順→U-M2→現generation→delivery→RG1 FOR SHARE NOWAIT→同じbusiness commit/rollback確認」とする。単一発行器はdevice lockを保持してreserve/claimする実装なので、旧未受理annexの『全業務行lock無しで予約』を成立済みと記録しない。gameロック前の有限timeout内の外部呼出しを維持し、game→generationとU-M2 team→playerの採用済み順を守る。現在の単一発行器にはteam/player処理がないため、その呼出位置は後続start service差分で明示的に接合し、grantだけの成功を開始成功へ読み替えない。
+
+資格失効はdevice行だけをUPDATEし、そのままgameを待たない。intentの短いtransactionは業務scope開始前に終了し、scopeを持ったまま別sessionでFK先gameや同じ要求を更新しない。復元制御はRG1閉鎖だけを先行commitし、外部epoch排他を待つtransactionでgame/世代を取らない。認可/RG1/epoch/資格/現世代は最終ロック下で再照合し、外部fenceと制限scopeをcommit後まで保持する。
+
+RG1候補`5ee75156`の`scope_binding` EXECUTEとcontroller borrowは現在app role/UID20003だけである。broker actorを別sessionでappに偽装しない。現在進行するapp/control2+observer2の正式RG1登録をこのbroker完成待ちへ戻さない。その次のroot所有RG1限定差分として、旧 `(UID20003,pitchlog_app)` を保持し、新 `(UID20002,pitchlog_initial_actor)` のexact1組だけを`scope_binding`・controller peer・実backendのrole/DB/PID照合へ登録する。任意UID/actor追加やboolによるlease証明にしない。controller設定/identity mismatch、別role同UID、別UID同role、失効backendの負例が必要。actorが借用できてもfresh/非0復旧解除が完成したとは扱わない。
+
+このactor exact1組と実epoch/bindingのroot所有固定候補供給は、(c)の正常grant/再交付/競合を実接合で検査する**前**に行う。現app RG1正式登録の先行独立性を維持し、その後の限定供給とする。(c)の型/DDL/単体/拒否の実装はこの供給待ちで止めず、正常系のDoDも削らない。未供給なら正常実接合だけを未実施と明記し、app偽装/常成功RG1/権利stubで埋めない。(d)に残すのはbroker実RPC・実Cookie/認証再検証を含む全経路であり、必要なactor RG1供給を(d)まで後置しない。
+
+### 6.5 編集scope・受入と実行順
+
+次単位の候補製品pathは`backend/src/pitchlog/repositories/initial_recording_right.py`（9method adapter/固定token）、`backend/src/pitchlog/recording_rights/initial_grant_broker.py`（私有actor engine/閉RPC/単一発行器の呼出しとcommit所有）、既`repositories/transaction.py`（私有限定factory/実状態のtoken集合のみ）、既`db/recording_rights/models.py`、新`backend/migrations/versions/0035_initial_recording_right_storage.py`、既`backend/tests/test_game_preparing_components.py`、新`backend/tests/db/test_initial_recording_right_scope.py`/`initial_recording_right_scope_support.py`とする。migration番号は現在実baseのhead0034を次単位作成時に再照合し、他担当の番号を上書きしない。
+
+root所有の有限共有集合は`data-model.md`/`docs/README.md`の表/role/epoch最小確定、既authz productのclassification/capability/ddl/exposure/application-steps、既repository/function operation登録とtenant_boundaryの実影響資産、core先行宣言/別JSON登録とpolicy実PR1件。関数SQLは既product認可資産の生成経路へ置き、新規の未登録SQL資産をruntime検査から免除しない。上のRG1 controller/SQL/manifest接合は既root所有featureへ個別供給し、共有ファイルのwriterはroot一人。列/主体/関数のexact差分と必要7.7はsource由来で別に受理する。静的件数だけで任意DB APIや新接続を許可しない。
+
+
+**最初の製品実装小単位(c)の型と検査。** `InitialRecordingRightScope`は既`InitialGrantScope`を構造的に満たすfinal classとし、公開constructorでSession/DSN/tenantを受けない。私有`_initial_recording_right_scope(context, owner, actor_runtime)`は実登録されたactor runtime/有効TenantContext/凍結`StartOwner(tenant_id,game_id,start_request_id,device_id,attempt_id)`だけを受け、終了時永久失効する。`StartOwner`はprivate型で、JSON/HTTP/外部receiptの証明にはしない。exact9関数のtokenは各1 class（同じ関数への任意引数/statement生成口なし）。既`InitialGrantRecord`/`ProofEnvelope`/例外を再利用し、別のV12/世代DTOや生成アルゴリズムを作らない。
+
+(c)の実DB testはowned business/台帳primary/standby3系、実source/peer client、実限定actorで行う。既公開test-vectorのcredential/AEAD keyはfixture準備でのみ注入し、実暗号/実資格比較/実DB関数を通す。初期device行はfixture投入であることを証拠に記録し、この局所成功をenrollment/画面開始の成功としない。正例は9methodの署名一致、実reserve/claim→D3/prefix0/issuer1/暗号再交付、同requestの同V12/追加予約0、全commit・全rollbackを含む。負例はappから9関数EXECUTE/4秘密表読取DML/generation直接INSERT、actorの直接DML/membership/別tenant、失効/別端末/変更payload/偽scope/失効scope、generation/delivery片側INSERT故障、RG1両順序、外部lease喪失を含める。actor transport前のfixture runtimeと、後続実broker/APIの成功を明確に別記する。
+
+実装へ進める順は、(a) rootの本候補採否・専用単位plan/必要最小7.3、(b) core新pathの先行宣言→別JSON確定、(c) 4表/既存epoch列/actor限定固定関数と9method実scopeの隔離検証、(d) broker実RPC/実Cookie・認証再検証の全経路を接合、(e) 正式asset照合/独立coreレビュー/全件必須検査とする。(c)の型/DDL/単体/拒否を先行し、正常実接合前に6.4のactor RG1固定供給を受けてから正常grant/再交付/競合も検査する。各実装委任は一単位で止める。T1/P6/P7/実Port/HTTP/全非0復旧完成を(a)〜(c)の着手条件に追加しない。broker transport供給前の実actor DB scope局所成功と、(d)の実broker正常経路を分けて記録する。
+
+(c)の実DB証拠は実外部台帳reserve/claim＋実V12Box＋実actor関数で、別tenant/無効資格/偽scope/直接app INSERT拒否、同一requestの同V12再交付、別request/device/payload拒否、rollback後D4非再利用、claim不明停止、commit失敗の全取消、credential失効との直列化、RG1事前/直前両競合、外部fence喪失を含む。(d)は実Cookie再検証/peer/role/binding/切断/応答不明を追加し、app/actorへ常成功RG1や権利stubを渡さない。公開済み既test-vectorだけを隔離暗号試験に用い、新規の運用秘密/署名鍵の生成や共有DB適用を行わない。
+
+(c)の要求lock検査では、`lock_device`成功→資格digest真照合→同Sessionの`resolve_start_attempt`→issuerのreserve/claimという順と、commit/rollbackまでのrequest/attempt排他を実照合する。無効資格ではresolver/予約へ進まず、owner差替え/欠損/不正戻り値/許可外outcomeも閉じる。同requestの並行2要求はrequest→attemptで直列化し、先行commit後の`committed`は同じ現V12を再交付して追加予約0、先行結果不明ならpendingを勝手に解消せず新attemptを発行しない。短intentのcommit後にもlockが残るとみなす負例、別Sessionで結果照会してlock保持を代用する負例を含める。
+
+
+**端末enrollmentの次の有限技術案。** 既UR1の採用済み「有効なチームCookie＋サーバーが検証する同じ端末資格」を保ち、個人account/追加役割を作らない。brokerの閉`enroll_device`操作が既Cookieを再検証後にdevice UUIDと256bit資格を発行し、owner限定登録関数へSHA-256 digestだけ保存する。クライアントは返却pairを端末内へ耐久保存できるまで開始を送らない。応答消失時にdigestから原資格を再生成せず、まだholderでない新端末の再enrollmentとして扱う。既holderの紛失/失効は通常/緊急引き継ぎの明示経路を必要とする。再ログインは既pair＋新Cookieを使い、Cookieだけで保持端末としない。資格失効はdevice1行のUPDATEで直列化しgameを待たない。コードと公開vectorによる隔離検査を先行できるが、今回(c)の9関数へenrollment/revoke関数や公開routeを混入させず、次の有限差分で個別供給する。運用秘密/署名鍵を新たに発行したとは記録せず、実運用発行は既承認境界を維持する。
+
+**依存の区別。** 4表/DTO/固定scope/owner分離/ロック/再送停止は既意味＋PO技術委任で確定できる。守備値/9-DH10の単一名簿検証と側列は既資料との照合・必要な正本確定を後続start serviceの前に完了する。新しい野球結果の意味判断は本物理単位では0件。鍵保管先・運用鍵の新発行・運用配置/共有DB適用は委任外として実行直前に判断資料へ集約し、コード/隔離検証を止める条件へ拡大しない。実grant scopeだけでは製品開始・1球保存・MVPを完成としない。
+
+### §6限定計画の初回2P1採用・反映候補
+
+固定`bc8fdf39dba4415ac368c3a03e4dabfa86769eaf`の非作者rightsによる限定初回はP0=0/P1=2/P2=0（plan SHAe821ea55b6e9fca8dc72bf97275c4a6e3cd04fd7d6f8a9587c483b676166d4e4、research SHA808e5d75d521c3bccc318cfa0f6fd069816cbb442ab364504fe08cc1782bb01c、標準diffcb13c1cf54a06008cb11b157bb6d94e86525fe5a283bd0b056cf294ad9f69fd7、証拠f8527c11a24fa629312e3eecd91c6052c1c23d7e4b6dfa890f547534468847f9）。rootはPO委任の実装順/既契約具体化判断でSTART-SCOPE-PLAN-01/02を全採用し、(c)正常系前のactor RG1固定供給と、`lock_valid_device`内の同Session request/attempt排他を反映指示した。4表/2role/9固定関数/9methodと(c)の正常・負例DoD、旧transport/親全計画・未達は維持する。
+
+本反映は主担当の明示指示によりrightsが作者としてplan/research2pathだけを編集した候補であり、上記初回の非作者資格をこの反映後へ流用しない。rootが別の非作成者へ反映差分と影響を渡し、独立再確認と対象版判断を受けるまで新§6を承認済み/実装開始済みとは記録しない。初回否決/2P1/旧レビュー通算を保持し、人間本人の確認/署名を代記しない。
+
+
+2026-10-24T02:55:16.478688+00:00、PO委任によるCodex主担当/root判断として次物理接合§6を承認する。対象c6ebdd2b0b36966131ede76ff32b9aa3eac1090c、plan62b46d084491aa22417cdc24e9973a6f8960a558d9313c2dfd645afdef946ac4/research24491067bfd52a63b7bf1ae2cca5007ac381f8b455e1040143e832b0848a3192。初回bc8fdf39のP1=2を全採用し、rightsによる限定反映（この反映では作者）を、新しい非作者initial_scope_plan_reviewが第2回相当0/0/0で照合した。証拠62de47cbb58341044425923c9890395363f003972487f1087e592070dc815177。旧否決/2指摘/反映1回/各親レビュー通算を保持し、反映作者を独立判定者へ数えない。4表/2role/9固定関数/9method/同一業務commitと、actor RG1固定供給を正常実接合前に分離する順を採用する。bytes入力/nullable結果も既共通function executorへの有限な型具体化としてsource前にexact宣言する。次専用単位でcore先行登録と指定source/実DBscope検査へ進み、本transport branchへ全sourceを一括輸入しない。実broker/enrollment/開始/1球・親全MVP義務の未達、運用秘密/共有DBの委任外境界を保持する。本人の実値確認/署名を代記しない。
+
+
+## 7. 同一TX開始供給への有限追補（2026-10-26 JST）
+
+元6065063bの計画・transport1/1・§6のレビュー履歴を保持し、実初期grant12DBの固定候補を再利用する。既単位の完了を開始成功へ拡張しない。今回の根拠はPO委任と操作単位で供給する最新指示、作者反映1 plan ed8b506f9eba5dfad8b9af473e8b6b659a6663c8a995d68c54ca999731be5e7c、非作者review90d28e6a7130bfb8d6f4723b329389ceb18282e2b6c85097168270d125a28528。実UI defaultはgame_other R9/extensionLimit9/DHtrue、両team公式10人ずつである。9人/DHfalseも既有効設定として保持する。
+
+初回同TX sourceの設計P1はreadで対象選手を特定する引数不足だった。rootは2026-10-25T15:28:03Z、PO委任によるCodex判断としてsignature-delta SHA0ccc5d56b861d13a23720106d9311f34869529a0dfe075f02d11d8253da203bcを採用。read_initial_start_context/persist_initial_startの両方を(tenant uuid,game uuid,request uuid,attempt uuid,request_digest bytea,typed_payload_json text)へ揃え、同じserver canonical凍結payloadをowner/保存request digestへ再照合する。tenantはscope注入、全対象IDsをexact抽出、game→team UUID順→player UUID順のlock、最大20名。全roster先頭20件やcallerのdigestを権限証明にしない。
+
+### 最初に実装するsource小単位：開始payloadの閉型とcanonical化
+
+編集するのは backend/src/pitchlog/repositories/game_start.py（新設）と backend/tests/test_initial_game_start_components.py（新設）の2pathだけ。初期scope12DBの567入力をhash再照合した隔離WT verify-game-start-atomic-4f2f2185 を利用する（receipt3af62085603dfe9b247aaadae51a2092546e69ac9e6f2dac8e53a430b37f2024）。元fixed WTは変更しない。
+
+既GameStartRequestとT1の閉fielding role表現を再利用し、公式UUID・StrictInt/null打順・fielding(position1..9)/designated-hitter・両side凍結tupleのtransport閉型を具体化する。全nested入力を不変にし、同payload/同canonical bytes/digestと、ownerのtenant/game/request/device/credential digestを結合する型・canonical化部品を供給する。資格原文をrepr/検証エラー/canonical payload/logへ入れず、既資格照合責務を複製しない。caller supplied digestやJSON shapeだけで真正性/認可成功としない。
+
+9/10の外形/閉表現までのtransport検査とし、DH/打順重複/守備網羅/初期状態の野球計算をPythonに実装しない。これらは単一TS artifactの次供給、所属/背番号/権限/lockは実DB側の別責務。新部品は開始成功・V12・D4・同TX保存を返さず、現grant-only committedを開始済みとしない。
+
+正負型/extra/欠損/数値coercion/入れ子変更/UUID/非canonical表現、同payloadの再現bytes、payloadやowner/device等変更時の異なるdigest、資格非露出を検査する。実開始/初期roster受理/DBをfixture成功へ読み替えない。作者はこの2pathで止め、別非作者レビュー後にrootが接合する。Git/index/正式JSON/共有台帳はroot所有。
+
+後続同TX sourceのbroker/read-save固定2operation/限定UM2/SQL/ACL/再送/全取消と単一TS名簿検証は既反映案の次有限範囲として残す。初期resolver・結果不明回収・実Cookie/enroll/RPC/API/UIも実1球保存前に必要だが、この閉型部品や既796数学核の開始前条件へ戻さない。全MVP義務を維持する。
+
+2026-10-26 JST、rootは上記2pathを既承認開始設計の型/保存境界具体化としてPO委任により承認。本人の実値確認・署名の代記ではない。未登録SQL/任意engine/Session/callback/常成功ゲートを導入せず、今回sourceはDB接続0とする。
+
+2026-10-26 JST、§7のread署名欠落P1反映を伴う限定計画レビュー1周をfrontmatterへ追記し、旧transport/§6本文の系列は保持する。閉payload作者の初回0e8c4738/48成功と低水準改変P2を保全。未知roleをDHへfallbackする経路を明示拒否し、nested tuple/entry/UUID/order/role/ownerの閉値再検証へ是正した反映1はhandoff1fb608a97c4f9aecf66dae552f941d9a5fcb93f88f09866c2c0e484b1504eb91、非作者最終evidence210db794faeb4a5a0cb4c74e3e611323659f7105ca0f81f8eb00b5215d64c25e/reviewecac5319a13a7839039a4a4e3d9b6580f152fbe81a121e048c845ae53e245ab2は0/0/0。独立68成功0.60s・旧48test AST/正常9,10人canonical bytesとowner同一・旧破損反例拒否を確認。rootはsource02eec45bfd4587eda46a7f9fe1fad505d5d39a122ebe9497c3ad429da0f7ef6f/testabb54b0f41040b21e317be273063df4e8fa4338fa41e06db0c56f94e3e7b10acをPO委任で受理。既DTOは606実blobの無変更seed da5662d213357b5de4770fe9c30860847136eb86ebe8d6559b6bc5d1aaf0f07aを依存として同時保存する。参考preparing検査の旧migration文字列1失敗は既不整合として保持し、この型部品の完了に含めない。実DB0・開始成功/単一TS名簿業務検証/actor同TX/RPC/UIは未提供。
+
+
+## 8. 開始名簿の単一TS検証・projection小単位
+
+2026-10-26 JST、rootは既開始計画§7の次供給として、作者候補4ba3b4ada73976c29c47325123bad5ef380402b0d3a27c7c6d15d7b11b25f05c/design6617a855def306eede6a81197cb30b5fabea2f440d66a7b00ef12e07b3b61406/schemae98924dd0b1153b28293d98b082cd452b87745e876a52f6493c66e15033087b4をPO委任により採用する。非作者t2_first_pitch_plan_reviewのREVIEW48de52cd8523ef4f95f188024e980f70356994cec7980ec627252e6998751024は0/0/0、一次FR001/data-model7-3,7-4/正式T1型・3正例両側意味と順序・6team正式型・19応答形・18独立負形状・tscを確認した。新意味判断は不要。これは通常の限定ABI/意味確認で、blind導出や全P6とはしない。
+
+実行枝feature/mvp-initial-game-roster、runtime供給基線ed07b0159f9f99e4fdadb78c52ec0418f6e080e9（T1/T2同評価・Python caller・旧alias是正の統合344成功5.90s）。旧開始scope/閉payloadは別固定8a15の履歴として本planへ再利用し、source/profileを全てこの枝へ移したとはしない。旧transport1/1・§6/7とその否決/是正/採否履歴を保持する。現在の編集対象は本節だけで、旧『この単位で止める』指定は各過去単位の記録である。
+
+実装する1小単位はvalidateInitialGameRoster。DH booleanと両側の明示9/10配置を読む唯一のTS核として、DHtrueは投手別枠＋DH＋他8人、falseは9人全員、打順1..9/守備1..9/同side内player一意を検証する。明示input順を保ってofficial PlayerRef/BattingSlot/fieldingまたはDH/initial originのpoint無しProjectionWireへ写す。1..9はwire上canonical十進文字列、唯一のdecimal codecを使い、Pythonへの逆変換は表現adapterに限る。所属/在籍/背番号/ownerful point/startreceipt/generation/prefix0/plays無しはprivate resolver/同TX側に残す。初期state・D2=0・観測推測・新投手兼DHを作らず、同team等の未実装をMVPから除外しない。pure成功は開始/認可/保存成功ではない。
+
+rootがreview済みcontract3を同byte採用する。作者の生成時ラベルはprovenanceとして保持し、今回の正式採用・未実装/検査状況は本節と進捗台帳で追跡する。新3pathはcontracts/state-transition/initial_game_roster_schema_v1.json、initial_game_roster_v1.d.ts、initial_game_roster_cases_v1.json。必要な正式影響/7.7は実diffで照合し、未受理の完成を主張しない。
+
+2026-10-26 JST、初回sourceレビュー553d207d973c32246d99ea0e60a0396e2de1fd7a3977b7402da0bb2954400980は0/0/1。複合不正でdecimal拒否が相手側の形状拒否より先行するP2を採用し、両side全外形の後に十進読取を行う反映1へ是正した。作者handoff7b75e9864ef5fb37b254e4114e2c69775e94bd83f5f3fa7e5992fb02f0695dbb、非作者最終REVIEWbc5bd00ac81344f9f7775b921f1ea5773b67ac737d4003130ba402d42b1d480bは残0/0/0。旧layout/projection/旧222本文/publicApiと保護16pathを保持し、独立226成功2.75s・実artifact40対向全形状拒否・旧19fullwire不変を確認。rootは核a16cc62dc7f18a278daefa0fc5ddf959df10e7f7227d4aefeaae6d82d6a53863/artifact203092e22e860e00ec38042e0a75c8bd482791c5cb79744e6252a3c94e3aa23d（14369byte）をPO委任により受理する。作者の前版frontend全2082成功は新版の全件成功へ拡張せず、今回の局所226・Node/Chromium59・実host18/数値先拒否1・再build同byteを区別する。rootの新版Python接合後domainrt全402成功6.76sは別証拠。実DB/開始/認可の成立を意味しない。
+
+唯一source7path: frontend/src/domain/initialGameRoster.ts、initialGameRoster.spec.ts、publicApi.ts、publicApi.spec.ts、initialGameRosterArtifact.spec.ts、frontend/public/domain/pitchlog-domain.js、pitchlog-domain.json（略記は直前directory）。作者creation_pathはこれだけを編集し、rootがplan/contract/Git/台帳の唯一writerとなる。新method登録以外の既T1/T2 body/error/4-5code/式/state3file/host/first_pitch/first_pitch_continuationは不変。既core globsで捕捉され、新先行登録は不要。AST/guardを変えずsourceを許可構文へ合わせる。Python/SQL/RPC/UI/DBの追加は本source小単位に含めない。
+
+受入は全19caseのTS/ビルド済artifact fullvalue、3正常/両側対称/順序/全配置相関/変異/不変、実product NodeHost・同hash headless Chromium・再build同byte、旧T1/T2・error不変、型lint、別非作者source確認。全frontendは候補固定時にまとめ、実API保存・実機は後続で必須。rootはこの有限source1小単位だけを開始承認し、完成まで人間の同じ承認を待たず進める。
+
+## 9. 開始名簿の固定host型付き呼出し
+
+2026-10-26 JST、rootはPO委任によるCodex判断として、§8の採用済みschema/d.tsを既固定hostから呼ぶ表現境界の2pathだけを承認する。backend/src/pitchlog/domainrt/initial_game_roster.py と backend/tests/domainrt/test_initial_game_roster.py。既first_pitch_continuationの不変/strict JSON/alias/member検査とopen_domain_hostの版/hash/lifetimeを再利用する。private実資格・DB・所属・開始receipt・初期stateはこの小単位で作らない。
+
+要求/応答は採用済みUUID、canonical 1..9文字列、fielding/DH、両側9/10人の閉形を不変DTOとして表現する。PythonでDH配置・打順/守備重複・業務上のteam条件を再計算せず、固定validateInitialGameRosterを一度だけ呼ぶ。成功はpoint無しprojectionの数学結果であり、開始/認可/保存の成功ではない。未知/余剰/欠損/alias重複/非canonical/非有限/型変換は拒否し、既host故障は非成功へ偽装せず伝播させる。既5拒否コードを増減せず、未知応答のprotocol例外は公開メッセージに生応答を含めず標準tracebackのcontext表示を抑制する。例外内部の入力非保持は保証しない。資格はこの数学DTOへ渡さない。DTOのローカルValidationErrorもPydanticの入力情報を含み得るため、HTTP応答/ログへ直接出してよいという保証はしない。実API接合では既sanitize境界を使用し、その確認を残す。
+
+受入は19契約例の同artifact実host照合（既hostが数値を先拒否する例は別記）、全応答のschema/fullvalue、正負JSON/凍結/強制改変/不正応答/固定operation一回/host故障の対象検査、旧domainrtの回帰とRuff/ty。全frontend検査とDB検査は本2pathのために重複実行せず、合成候補の区切りで必要な検査を行う。rootが本2pathの作者となり、候補作成に関与していない担当によるsource/本限定計画の整合レビュー後に採否を記録する。root以外は本plan/Git/正式JSONを編集しない。
+
+2026-10-26 JST、root作者の初回58試験は57成功/1失敗1.59s、数値の既host先行INVALID_BOUNDARYとartifactのINVALID_DECIMAL_INTEGERを混同したtestだけを修正して58成功1.67s。source挙動は変えていない。独立初回REVIEW27141902eedadcbe1bb8aeeca8361facd7b9a0886e3047738180166622ba3b9dは0/0/1で、例外内部への入力非保持を過大に述べていた本節/docstringを実際の公開メッセージ・標準tracebackの保証へ限定した。資格を数学DTOへ渡さず、実APIでのsanitize/ログ確認義務は維持する。最終REVIEW1533b3c494712d1c0561db043a539b57a7493f92594dca64cbcc05162b508b08は残0/0/0、独立58成功1.66s＋追加11故障/5拒否code/強制改変時host0/固定一回/Ruff/tyを確認。rootはsource608d46da7c24e86e3800e0f76d1ce0b5465bbe3ac72ab565ea817a29185af043/test5049abc06070cf05682a7225097524d31226761448aba81649cedc2176639673をPO委任によるCodex判断で受理する。最終docstring差分は実行AST不変、rootの同新版artifactを使うdomainrt全402成功6.76s（新58＋旧344）を別に固定した。新規作成した試合の開始/原子的保存・HTTP/UI成功ではない。
+
+2026-10-26 JST、開始同TX候補8a15へ受理済roster供給366e7921を通常dependency merge。planのみadd/addとなったため、旧§1〜7を保持する供給版§8/9を採用し、frontmatter branchだけ実行枝へ揃えた。未コミットの旧初期profile差分はmergeへ混ぜず保持する。正式develop統合や実開始成功ではない。
+
+## 10. 開始・初期記録権を既brokerの同一TXへ接続する単位
+
+2026-10-26 JST、rootはPO委任によるCodex判断でdesign381c95126bcf834e2fb62474b9118acd684c2ba663932a3b0d02682025891f5e/handoff38c255f40fd7e1d2fbee06e8bc9c0fbfd04bba681c3da15b7b2f8baddf0e734aを採用する。非作者creation_pathのhandoff92497391d0524b141a8c7d9cb51c7863728d3aa8ec6ac15dc8e8ac0a47418e00は順序/再送/既issuer再利用を確認し、認可生成閉集合に接続する2sourceと2testの不足P1を指摘した。rootはその最小追補を本節へ取り込み、一般制約の除去で代替しない。初回P1とレビュー履歴を保持する。基線7789acd9、受理済roster供給366e7921、同合成版の型/実artifact/旧domainrt/payload全470成功7.64s。これを実DB開始成功とはしない。
+
+作者initial_storage_norm_reviewのsource編集は次の11pathだけ：backend/src/pitchlog/repositories/game_start.py、initial_recording_right.py、transaction.py、function_operations.py（直前repositories配下）、backend/src/pitchlog/recording_rights/initial_grant_broker.py、backend/src/pitchlog/authz/product_function_acl.py、product_catalog.py、product_provisioning.py、product_control_access.py、initial_start_sql.py（新設、直前authz配下）、scripts/check_authz_catalog.py。試験はbackend/tests/test_initial_game_start_components.py、test_function_operations_boundary.py、test_initial_recording_right_candidate.py、test_authz_product_control_access.py（直前backend/tests配下）、backend/tests/db/test_initial_game_start.py（新設）、tests/test_check_authz_catalog.pyの6path。plan/Git/正式JSON/共有台帳はrootだけが編集する。開始前に既未コミットprofileも含む全対象before SHAをcache固定し、既source22/data95の供給を新作者成果に数えたり上書き再生成で失わない。他pathが実際に必要なら、そのpath/理由だけをrootへ提示し、無関係な作業を止めない。
+
+既issuer/UM2/DB model/旧migration本文を保持し、private closed start modeへBoundInitialStartPayloadを構築時に束縛する。短intentが返したresolved attemptでboundを再構築するが、attemptをrequest fingerprintへ新規追加しない。既claim→game lockの後に固定start hookを置き、同Sessionでteam UUID順→選択player UUID順のlock/read→単一TS caller→既UM2 exact5tokenの自teamだけ→固定save→既proof/generation/delivery/attempt→RG1/epoch/fence→commitとする。任意callback/engine/Session/汎用DMLを新入口にしない。claim後の故障で外部D4は消費済みであり、全取消/再利用可能へ誤記しない。
+
+read_initial_start_context/persist_initial_startは§7の同6引数を保持し、tenant/game/request/device/attempt/保存digestとcanonical text全bytesを実DBで照合する。readは保存規則と最大20名の実在籍/背番号をexactに読み、saveはimmutable両lineup原本/実started_at/statusを同一関数で保存する。新table/初期state/ParticipationInterval/D2は作らない。start replayは保存原本と現権利を照合し、現在の在籍/背番号/計算で再生成せず、旧grant-only committedやlineup欠損を開始成功に昇格しない。
+
+UM2のactor権限は真正business handle/owner/検証済payload/対象self team/選択player/確定lineupに束縛した短命登録でexact5tokenだけ許す。旧actor全面拒否を一般削除せず、intent/grant-only/偽handle/別tenant/team/payload/他DMLは拒否する。SQL owner/actorの新ACL/RLSも単一exact宣言に基づき、旧全field/旧bodyを保持して既tenant predicate生成器とcatalog checkerへ有限接続する。grantee==ownerを一般削除せず新exactだけを検証し、role/column/privilege/function/qual/checkの変異拒否と実owner越境を残す。正式capability/schema/ACL metadataの候補はcacheへ列挙できるが、正式反映/7.7はrootが完全前後値を確認して別に行う。
+
+受入は旧grant-only回帰、閉mode/owner/固定token/呼出順/非成功時save無し、同payload再送/変更要求拒否、保存当時原本不変、実owned PGでDHtrue公式10×2とDHfalse9×2の開始＋初期権全確定、片側lineup/UM2/status/proof/generation/delivery/commit前故障時のbusiness全取消・外部D4消費の別観測、RG1/epoch/fence/tenant/失効資格/不正所属/選択欠落/SQL role直接アクセス拒否。pending/claim不明/commit不明は新attempt自動発行や成功応答へ変換しない。DB/port/tempはowned隔離のみ、共有DBへ適用しない。候補作成に関与しないsource/認可/耐久レビューと必要正式値/CI後に通常統合する。
+
+この単位は実DB fixtureでの開始＋初期権・同TX原子性まで。実Cookie/enroll/RPC/API/UI、trusted初期stateと初球同期保存/再取得は後続必須とし、ここに未実装のReadyや成功ACKを置かない。全MVP/取消/訂正/耐久・成績/CSV/実機/運用復旧を維持する。
+
+
+2026-10-25T19:57:35.864296+00:00、PO委任によるCodex判断（Codex /root）として§10 source11/test6の有限候補を受理する。固定source17はreflection5/evidence.json、実受理root-finite-source-acceptance.jsonへ全SHAを保存。独立認可review b8b8e8ef61f7484387eef2a547166ca8345d4a19509d463783e0b89415c74742、独立lifecycle review f1d9eeeab03e1c779d7aec9b31bc6c393a088db4b8d684cc38bbf4fa94ccb8fbはいずれも担当範囲の未解消0。旧P1と反映2〜5を消去せず、正規runtime全field期待値9372f2f71699310e064c9c802d2f498f533045944d93483f161056b019c3ec10の不変を確認した。canonical実PG28成功611.72sは反映3、最終反映5はowned PG正常開始/同要求再送と新2関数ACLの2成功40.99s（receipt142b4068e04646feab1985c95a6197ddc625891f4653499dddab768eb8a1a8b1）であり、28件を最終byteの再完走へ読み替えない。
+
+今回の受理は候補source保存であり、正式metadata56/7.7・旧初期profileの正式受理・通常CI/統合は残る。隣接database1宣言/table11headerのruntime自己採用留保は別の有限callchain確認へ残し、初期role実効権限全体の成立へ拡張しない。旧source/profile供給の未コミット集合を一括採用せず、17pathと本追記だけを保存する。実Cookie/enroll/RPC/API/UI/初期state/初球原子的保存、全T1/全P6/P7/P8/全MVPは未達。本人の実値確認/署名を代記しない。
+
+
+## 11. 開始通信の閉型・codec/client先行単位（DB0）
+
+2026-10-25T19:59:54.248131+00:00、PO委任によるCodex判断（Codex /root）で次のA単位だけを承認する。基線1241c47f（§10 source固定、旧profile dirty別管理）。作者候補game-start-http-enroll-next-unit-20261026/handoff SHA8f6bbe9187d430767fd8a0a874f44748218e739152918f51816fd1f1abf33253を限定採用し、非作者t2_first_pitch_plan_reviewの最終REVIEW02ad61e7f1c7d06d3847958ba5cb42872e9ed020461d6b713261d0a6d8258547/checks4a1c774b815520fc3762e64d089f13cbb91371dc594e80ecef3c63637b61ec91を根拠とする。初回receipt全field照合という不能文言P2を以下の実共通field/owner/起源照合へ是正し、最終未解消0。旧レビュー系列を保持する。
+
+作者creation_pathの編集は4pathだけ：backend/src/pitchlog/recording_rights/initial_grant_broker.py、backend/src/pitchlog/api/schemas/game_start.py、backend/tests/test_initial_recording_right_candidate.py、backend/tests/test_game_preparing_components.py。全before SHAと旧dirty/indexを先固定し、旧issuer/start/grant-only business bodyを変えない。rootがGit/本plan/正式JSON/共有台帳の唯一writer。他sourceやSQL/enroll/authn/HTTP/UIを本単位へ入れない。
+
+閉command enroll_device/start_initial_game/resolve_start の型・strict frame codec・client・非実行dispatch境界を作る。提示Cookie/資格をrepr/log/生例外応答へ出さず、既606要求5fieldは保持する。未知command/member/重複JSON key/型coercion/非有限/長さ/余剰/非canonical/EOF/timeoutを閉じ、Unix peer UID/inode/owner/modeを検証する。appのTenantContext/DSN/key/SQL/artifact/callback/digest/D4/RG1 boolを信頼入力にしない。実worker/authn/SQL dispatcherは本単位でstub成功にしない。未接続の実操作を成功応答として公開せず、固定成功や仮認可を作らない。
+
+D4は本issuer専用のprivate参照codecとする。d4.1. + padding無しcanonical base64url、version1byte/tenant UUID16/game UUID16/generation unsigned big-endian8、合計41byte。generationは1..2^63-1、unknown version/余剰/非canonical/別期待tenant-game/0/overflow拒否。同期wire全体をこの形式だけへ狭めず、clientはopaque保存/送信のみ。decode自体は認可証明ではなく、後続実workerで実世代/holder/V12/失効/epoch/RG1を照合する。同要求committed再交付は同参照、str(int)代用や新署名/秘密は追加しない。
+
+receiptとgrantは共通game/deviceを照合する。receipt.owner全値はserverが実解決したownerへ完全照合し、generationは同一postcommit結果の実grantからだけ得る。InitialGrantにtenant/request/attemptがある、receiptにgenerationがあるとは仮定しない。未commit結果から安全な成功応答を作らない。pending/結果不明をrollback/新attemptへ置換しない。
+
+受入は既grant/start/bodyと旧component正負を保持し、strict codecの全wire比較・canonical往復/owner不一致/非成功/秘密非露出/Unix credential/閉frame対向を確認する。独立plan reviewの260roundtrip/8拒否は計画probeとして区別し、実装後の証拠は別に固定する。必要なRuff/ty/対象pytestと候補固定後の非作者source確認で本単位を閉じる。全DB/全frontend/40分CIは型変更の途中に反復せず統合候補の区切りで実行する。
+
+B以降の専用verifier role/実enroll INSERT/実worker/HTTP/UIはこの承認の範囲外。特に『game writeでないからenrollはRG1不要』は採用しない。既sync9-5が通常管理書込みも停止するため、Bの実SQL供給前に既境界へ分類し、必要なRG1 gateを実接続する。これをAや数学核の追加全体条件にはしない。実Cookie/同tenant資格・実enroll・端末要求の送信前耐久保存・実start/再交付・初期state/同期初球保存は後続必須。A成功を画面開始/権利取得/DB/全Port/全MVP完成へ読み替えない。本人の実値確認/署名を代記しない。
+
+
+2026-10-25T20:14:41.707839+00:00、PO委任によるCodex /root判断で§10生成器の通常不具合修正を指示する。正式56候補の独立正規fullview CLIで、pytest30435収集成功後にgenerate_generation_guard_sqlのrun_path(0036)がSQLAlchemy/Alembicをimportし、rootハーネス環境からの固定SQL読取を妨げる不具合を実証した。root依存へDBライブラリを追加したり検査を省略したりせず、backend/src/pitchlog/authz/product_function_acl.pyの当該getterだけをAST/literalによる既_GENERATION_GUARD_SQL定数の非実行読取へ直す（実識別子は既sourceの_GENERATION_GUARD_SQL）。tests/test_check_authz_catalog.pyへ、migrationのimport/トップレベル副作用を実行しない正常例、欠損/重複/非literal/型異常等の拒否と実0036から生成したSQL全byte不変を追加する。この2pathは既§10許可範囲内。migration/SQL/56metadata/野球意味/既role権限/共有DBは変更0、現在author所有4pathへ触れない。旧run_path故障を保持し、非作者の最終差分確認後に保存する。新規承認待ちを作らない。
+
+2026-10-25T20:21:22.713460+00:00、rootはgetter2pathの最終source a6a926d34f937926adbc278b5a64762a31efcf24cf6880e051955f4bdd5dd591/test dc23f7dce1c37946d3138a9f4fc9bfb5c79ca1e1bbf2f9ecdf11198e7804a6a9をPO委任で受理。初回11失敗1成功、反映前の14成功に加え、独立P2=del/import別名/関数定義名の再束縛を採用し最終17成功3.03s・Ruff/root/backend ty成功。初回0/0/1を保持し、非作者最終REVIEWa678612cea521a7631957bf731cbae8c4967a3f31bc30648f1b9717fd60a465b/evidence91ed6193b71c2f3fd0c68ba0d5bf29b201c684f64031455827f7846b5cf52935は残0、独立抽出17成功0.16s・実SQL全byte不変。他定義AST/metadata/SQL/migrationは不変。
+
+正式56候補fullviewに初回getter反映を適用した独立stock CLIは30449collect-only/2.23s後exit0、auth claims全1427/auth187/out-of-scope1240/db191/routes49/cells12（追補REVIEWe62fa6e560dfe4017863be7810784618b8049be1864519ce4aaa715047e6bc0c）。最終再束縛拒否3追加をこの過去runで検証済みとはしない。最終実0036形/生成SQL不変は独立で再確認した。現在liveの正式metadataは未反映、7.7/全tenant/census/実API/DB/全MVPの成立へ拡張しない。
+
+2026-10-25T20:25:58.866215+00:00、PO委任によるCodex /root判断で§11 A source4を受理。handoff76076d3504cbd527f6aea6916ab2949a55c6b6a197f711269236959f84c0b233・全4SHAを実照合。新A非作者initial_storageの最終REVIEW6c0f16e149e453fce8e050d17145c35e0f64a51560f8c0a6556b8aee50698fb6/evidencea83bb8c7413eaf29cce6c772f47970b02a19328c8398d83690de1e3ab62c0420は未解消0。reviewerが旧broker作者だった資格留保を保持し、新A作成非関与と旧business15/606定義3/test26+33 AST不変を照合した。作者93＋後11成功は別実行、独立新104成功1.05s・Ruff/ty4path成功を固定。旧datetime/socket赤と0036旧長revision期待の既1失敗は消さない。
+
+この受理は型/codec/client/非実行dispatchだけ。実worker/enroll/Cookie専用再検証/固定UID20002への正常接続/HTTP/UI/DB・初期記録権の実画面取得は未達。旧business同TXの正常/故障実証をAの実HTTP証拠へ読み替えない。rootのplan-only移動efa65→c7a8とgetter2path是正はA作成者のGit/index操作と分離し、正式metadata/7.7を混入せず4pathと本追記だけ保存する。
+
+2026-10-25T20:26:28.656098+00:00、rootは旧初期profile残source5の有限差分を非作者REVIEWf07d453d45806eaee76c0ac732cb0f83752beda432a62b179a0fe85401a3b4e3/evidence012053569196ba58625329f4135bf2b76acd70b1dbc8d826f45af410a00317b5で確認し、PO委任で採用する。0036/classification/product_table_rls/stage_a_startup/DBsupportの全5SHAはreview固定値へ完全一致、既4表/内部保護trigger literal不変、短revision/世代identity7列水位guard/初期exact4分類と秘密exact2/owner起動/固定peerを保持。r3 canonical28/r5 smoke入力と全5同byteを照合したが新DB再実行とはしない。正式95/56/7.7は別未受理。
+
+同じ通常是正としてbackend/tests/test_game_preparing_components.pyの旧0036 revision期待1箇所だけを既供給の0036_initial_right_storageへ追随し、Alembic保存欄の32文字上限assertを追加する。長旧値は実保存不可、既4表/trigger/物理削除/epoch未backfill等の全assertは保持する。Aで未変更として記録した既1失敗をこの別反映で閉じ、追加の非作者差分確認後にsource5と共に保存する。A最終review時点の旧59 AST保持をこの後発変更の検証へ読み替えない。
+
+2026-10-25T20:29:03.584510+00:00、rootはrevision試験の限定追随も非作者最終REVIEWeca7350caf1579bf72952f34963f2444702415eee1ad1d2cdd2fef18cf8983c7/evidenceb4334184a1a4d4578f618cc67aa768140063e50704b029997cc7fc9ce1eaf9db/未解消0後に受理。root実対象1成功0.68s、独立対象1成功0.63sを別証拠として記録。source5全SHA/他assert/旧A定義不変を再照合し、この5＋revision test1＋本追記だけを保存する。旧初期profile95/新56の正式受理・sharedexternal/実baseとの差の7.7は未了で、source保存を正式統合へ読み替えない。
+
+
+## 12. B1：専用Cookie検証と既TenantContext発行の接合
+
+2026-10-25T20:57:44.079712+00:00、PO委任によるCodex判断（Codex /root）として、529bfcd0基線のB1有限単位だけを承認する。作者候補handoff f9e61f2fd61b8d7cd96d960c8a8bbb29815cc3e40b1783f249f5ac3c00f96264/plan35bd6041cdb90ec06a83a9e0b421db444074e2a5932c763adc1d9c86a37f40ca、非作者initial_registration_supplyのREVIEW87a91ab2e881cf468d2ccc473d68e038cd3f8504668ac5f0dea6a516b8e68763を根拠とし、下記2具体化を全採用する。新野球意味/新ユーザー役割/全体方針の変更ではなく、既合意の実認証・tenant保証の実装具体化である。旧A/同TX/正式profile未受理の履歴を保持する。
+
+作者initial_storage_norm_reviewのsource6はbackend/src/pitchlog/recording_rights/initial_grant_broker.py、backend/src/pitchlog/repositories/tenant_context_issuance.py、backend/src/pitchlog/authz/product_authn_contract.py、backend/src/pitchlog/authz/product_role_contract.py、backend/src/pitchlog/authz/product_catalog.py、scripts/check_authz_catalog.py。test/helper7はbackend/tests/test_initial_recording_right_candidate.py、backend/tests/test_authz_tenant_context.py、backend/tests/test_authz_product_roles.py、backend/tests/test_product_authz_catalog.py、backend/tests/db/initial_recording_right_scope_support.py、backend/tests/db/test_initial_recording_right_scope.py、tests/test_check_authz_catalog.py。先に全13before SHA/現dirtyを固定し、この13だけを編集する。新path0、rootがGit/本計画/正式JSON/台帳の唯一writer。新物理pathが必要と実証した場合はexact差分だけをrootへ戻す。
+
+既brokerへroot限定・registry/失効検査付き私有verifier runtimeを追加。actor runtimeのroot固定Unix DB endpointからuserだけpitchlog_initial_auth_verifierへ閉じ、任意DSN/Engine/callback/role/TCP/passwordをcallerから受けない。既rootでactivateした同一TokenPresentationのみを再利用し、新署名器/keyをRPCで受けず運用鍵を読取/新発行しない。UID20002の専用peer mapだけを許し、app UID20003を偽装せずapp→verifier/actor→appを拒否する。session_user/current_user・role7属性・membership両方向0・GUC空・実DB名/OID/postmaster start timeを実照合。pg_control_system EXECUTEは追加せず、sysidをこのroleで読んだとは記録しない。
+
+実Cookie→既verify_tenant_id/TokenPresentation.decode→同一既authn.verify_token(uuid)・実認証TXのcommit/rollback→既tenant_context_issuance moduleの私有発行だけを接ぐ。期待tenantは一致判定にだけ使い、検証済みtenantから既capabilityでTenantContextを作る。生UUID/self-declared verified bool/任意callbackを証明にしない。既app発行入口本文/署名/__all__、既verified_tenant/token_presentation/context、旧issuer/start/grant-only/A codecは不変。発行module allowlistを広げない。verify_tokenはlast_used_at/expires_atを更新する既意味を持ち、読取専用やenrollと同一TXと呼ばない。拒否Noneと安全例外を分け、生資格/SQL/driver例外を公開しない。
+
+専用DBrole14はLOGIN/NOINHERIT/NOSUPERUSER/NOBYPASSRLS/NOCREATEROLE/NOCREATEDB/NOREPLICATION、membership0/所有0、CONNECTだけ（CREATE/TEMPなし）、authn USAGEだけ、authn.verify_token(uuid) EXECUTE grantable=falseの一件だけを追加する。旧13role/既ACLとauthn関数body/署名/owner/search_path/内部DMLを全byte保持し、authn schemaUSAGEとverify追加grantを単一exact sourceで生成する。authn_crypto USAGE/他authn/private関数/直接表列DMLは追加しない。role14だから任意14件を許容しない。
+
+独立reviewの2具体化を必須受入にする。①product_catalogは新verifier一主体について、宣言schema8/table50/function集合外のuser-objectに効く実権限・ownershipもglobalに観測し固定許可と照合する。metadata unknown拒否を実DB観測の代替にせず、system builtin/PUBLIC既定必要権限を区別し、未知authn関数/別schemaのgrant/ownershipの実負例を持つ。全role/catalog再設計はしない。②新roleSQLは旧固定6roleと同様に7属性/membership衝突を拒否し、強制正規化で直さない。旧6のSQL全byte保持、正常作成/再適用と衝突全取消の対向を確認する。
+
+pure/実owned3PGで、偽/失効runtime・未activate/別signer・署名不正・原UUID先拒否・tenant不一致・role/peer/別DB・余分実grantを検証する。既公開bytes(range(32))試験vectorだけを既root test bootstrapへ設定し、実署名Cookie/正式authn SQL/peer20002/失効・期限・credential世代・tenant無効とTTL実更新を観測。資格原文は証拠へ残さない。auth fixture投入を端末enroll成功としない。対象pytest/Ruff/ty/sourcechecker/runtime/catalogを行い、候補metadataは隔離cacheだけに生成。source固定後に非作者reviewへ渡して停止する。
+
+正式DDL/role/schema/verify関数ACL/body manifestと必要正本・tenant/census/7.7はrootが実差分で直列受理する。新schema/table/functionが増えなければruntime保護objectを件数合わせで増やさない。PR184の正式22受理と開始23候補の依存を保持し、未受理値を正式へ書き込まない。B1source着手へ全T1/P7/Port/HTTP完成を追加しない。
+
+B2の実enroll（固定1関数/列INSERT3/tenantpolicy1/短命cap）・実worker3command・HTTP/UIは後続必須、今回未実装のまま。enrollも通常書込みとして同Session read_rg1_open→実scope_binding/loan→INSERT→assert_rg1_open_before_commit→既exit再照合/loan保持→commitが必要で、非gameを理由に免除しない。結果不明を成功/rollback/未消費D4へ推測せずresolveで新intentを作らない。B1受領を実端末登録/開始/初球保存/全MVP完了へ読み替えない。本人の実値確認/署名を代記しない。
+
+
+## 13. B2a：実device登録SQLと私有Python境界
+
+§12/B1の反映3を非作者確認・root採用して保存した後、その最終byteのbefore SHAを固定して着手する承認済み追補。旧next-unitの「非gameなのでRG1不要」は採用しない。最初は実enroll1関数＋私有Python境界だけとし、worker3command/HTTP/UIは次単位。T1/P7/全Port完成を着手条件へ追加しない。
+
+### exact編集source9 / test7
+
+source: `backend/src/pitchlog/recording_rights/initial_grant_broker.py`、`backend/src/pitchlog/repositories/initial_recording_right.py`、`backend/src/pitchlog/repositories/function_operations.py`、`backend/src/pitchlog/repositories/transaction.py`、`backend/src/pitchlog/authz/product_function_acl.py`、`backend/src/pitchlog/authz/product_control_access.py`、`backend/src/pitchlog/authz/product_catalog.py`、`scripts/check_authz_catalog.py`、`backend/src/pitchlog/authz/product_provisioning.py`。
+
+test: `backend/tests/test_initial_recording_right_candidate.py`、`backend/tests/test_function_operations_boundary.py`、`backend/tests/test_authz_product_control_access.py`、`backend/tests/test_product_authz_catalog.py`、`backend/tests/db/test_initial_recording_right_scope.py`、`tests/test_check_authz_catalog.py`、`backend/tests/test_product_authz_provisioning.py`。新path/既migration/model変更0。B1の既`initial_recording_right_scope_support.py::verifier`がroot runtime＋実peer＋B1署名器を供給できるため、最初からhelperを追加編集範囲へ入れない。
+
+### 固定SQL/ACLと再利用
+
+`initial_right_api.enroll_device(uuid,uuid,bytea)`一件。初期owner/SECURITY DEFINER/pg_catalog,pg_temp、完全修飾、session actorとtenant GUCを実照合。device非NULL/digest32byteを検査し、`trusted_devices(tenant_id,device_id,credential_digest)`のINSERTだけ。created_at/defaultとrevoked_at NULLは既DB定義に委ね、device UUIDだけ返す。upsert、既device変更/失効解除/再key化、原資格をDBから読む経路は0。app/PUBLIC/専用auth verifierへEXECUTEを与えず、既initial_actorだけEXECUTE。既trigger/tenant FK/論理削除/世代表は変更しない。
+
+**3列は新IDではない。** product_control_accessの既53行に、tenant_idはSELECT、device_idはSELECT/UPDATE、credential_digestはSELECTが既にある。同じexpectation IDの3行へINSERTを追加し、既権限は保持する。残50行/開始36列ACLは不変。owner INSERT WITH CHECK TENANT(tenant_id) policy1件を既単一predicate展開器で生成。旧getter53/17/旧9APIとstart2はそのまま保持し、別のenrollment宣言getterで3行overlay＋policy1/関数1を供給、sourcechecker/runtimeの期待集合へexact合成する。表ACLを追加したり列権限を包括化しない。
+
+正規段階起動ではtrusted_devicesが0036で作られる前に新policyを実行しない。product_provisioning.pyの既initial_deferredと_PRE_RULE_DEPENDENCIESへ新関数1/policy1だけをexact追加し、0033/APPLY_PRE_RULEの保留と0036後の適用順を維持する。既3列ACL IDは既保留集合に含まれるため重複登録しない。対応する既provisioning試験へ、片側欠落・重複・型/未知依存・適用順・故障全取消の有限回帰を加える。
+
+### 私有Pythonと短命cap
+
+brokerに閉`_enroll_initial_device(context, actor_runtime)`を追加。実B1 `_issue_initial_broker_context`の文脈と登録actor runtimeだけを受け、callerのdevice/digest/資格/Engine/SQL/callbackを受けない。製品登録自身がUUIDと256bit device credentialを一度生成し、既`_credential_digest`を使う（新運用鍵発行ではない）。同TXの固定関数戻りdeviceが生成値に一致し、実commit完了後だけ既`InitialDeviceEnrollmentResponse`へSecretStr資格を投影する。失敗/応答不明で自動再試行・資格再生・成功補完はしない。原資格/SQL/driver例外はlog/reprへ出さない。
+
+registryは旧9mapping/旧9tuple、既start2mapping/tupleを保持し、別`_INITIAL_ENROLL_FUNCTION_TYPES`/登録tuple1を追加する。tokenはtenant暗黙束縛＋device UUID/digest bytes32、CAPは既命名どおり`CAP:initial_right:enroll_device`一件。transactionに閉`enroll` phaseと実state-key/context/runtime/device/digestに束縛した短命登録を置く。enroll phaseだけでtoken1を許し、intent/business/appへ混ぜない。scope終了finallyで登録を破棄し、別scope/phase/失効token/差替えを拒否する。既汎用DML口を開かない。
+
+同じ実Sessionで `_verify_business_binding` → `read_rg1_open`（scope_binding/実borrow_gate/loan保持）→固定INSERT token→`assert_rg1_open_before_commit`→既`_TenantTransactionScope.__exit__`の再照合/loan保持→実commit→応答。閉鎖/epoch/lease喪失を既RG1で拒否し、別Session precheckやboolで代替しない。D4 reserve/claim、start_request/attempt、generation/delivery、V12発行は0。B1 verify_tokenの期限延長は別の既認証TXであり、enrollとの同一TXだとは呼ばない。
+
+### 受入と正式資産
+
+pureはtoken/短命cap/phase/owner/credential型・不正戻り値・失効scope・app/汎用DML拒否、旧9/start2登録とSQL/ABI全値保持、3列INSERTだけの増分、policy/function閉集合、資格非露出を確認。実ownedPGは既公開署名vectorとB1実Cookie→実context→新enrollを使い、新device行/digest一致/原資格非保存を観測する（既device fixture seedで成功を代替しない）。無効Cookie/別tenant/actor-app直接DML/新関数app-PUBLIC-verifier拒否、RG1事前closed/取得後close両順序・lease失効・確定rollbackとなるINSERT/commit前故障の全取消・短命cap再使用拒否を実証。commit結果不明やcommit後の応答喪失では登録行の有無を推定せず、資格の成功応答・自動再試行・資格再生を行わない。故障後の実DB観測は利用者へ結果不明から推測した応答と区別する。必要な明示再enrollは新端末として行い、旧holderの資格や状態を書き換えない。台帳予約と旧開始/世代/配達が増えないことも比較する。
+
+root正式writerの機械資産は新関数SQL1＋既3列ACL SQL改訂＋新policy SQL1＋DDL/manifest＋runtime protected_functionsの新1と生成Python。署名/凍結revision/7.7実前後・tenant/census/CAP登録は実source差分からrootが直列受理する。候補はcache viewのみへ生成し、旧95/56/B1 metadata6の履歴と重複path前後を保持。人間署名や正式受理値を作者が代記しない。
+
+ここで止める。実workerの3command dispatch、resolve、Cookie再検証のRPC結線、HTTP/C2/Origin/no-store、browserの送信前pair/開始要求耐久保存、UI開始は別の次単位で必須。B2aはそれらの成功を返さず、初期state/Ready/一球保存も生成しない。
+
+
+2026-10-26T05:28:27.097079+00:00、PO委任によるCodex /root判断として本§13を承認する。対象候補plan SHA38089c040b1317c08a7dda5ff7e63e2d2612ce64852e5d6213f10481ed0121fa、exactpaths SHA83047bd3768de99e49cf9de60d9ca1ec30d54c65142a708a287b750839c7a170、非作者最終report95c36226447af72b6723b10050d8b8e58b65fa306c871e0f32f6588e272cedb6/evidence35fba161a148b9c4140c0e6571955959b8f0f53b96248437fec0baf546b1bb92を照合した。初回P1（0036前の依存保留不足）/P2（commit不明と全取消の混同）は反映2で解消し、残0/0/0。作者はinitial_storage_norm_review、唯一source9/test7。Git/本plan/正式JSON/共有台帳はrootだけが編集し、未知pathが必要なら該当差分だけ戻す。B1未採用中の製品編集は禁止し、実着手時にこの許可pathの全beforeを改めて固定する。旧MVP範囲/独立レビュー系列/本人署名非代記を維持する。
+
+
+2026-10-26T05:36:53.725269+00:00、PO委任によるCodex /root判断で§12 B1 source6/test-helper7の全13を受理する。R3 handoff216de254f34102696b316bf6cdde88fe253f6b6c5fb9cfca77293a03fc8637c7/manifest2ba1e78a7a4e76fa30ec7da2fbc26fbe1fefb0b9c65c431d0e54254339f056e5/全13前後SHAを実照合。非作者最終REVIEWd76c32a29ae7bdf0a8f6de37d99bb953022174c17ff63b339cc0d1b84449fa0b/evidence9d4e7276738e5b210f758b9c44f99240102e7417200a55fe19dfd79135d3c390は初回0/1/0→最終0/0/0。未知DB直接ACLとPUBLIC CREATEの除外見逃しをsource2/実対向2だけで是正し、他11/meta6/正常期待全byte保持を確認。独立純37成功1.15s/有限predicate7対向、作者R3実owned PG1成功30.58s（未知権限9/属性7/membership2/rollback後normal復帰）、root full-material view全19SHA一致/stock product CLI exit0 total1427を別資格で受理した。最初のview欠損・archive削除SQL残存のexact-set拒否とR2/R1/初回PGの結果を保全し、R3元tool sessionID不明の留保も保持。backend11file整形検査成功。旧app入口/旧broker46定義/issuer/start/grant-only/A AST不変、旧13role/旧6role SQL保持。
+
+この保存はsource13と本planだけ。metadata6/旧95＋56/正式7.7は未受理で、部分metadataだけを混ぜない。実認証TXをenroll同TXと呼ばず、B2/worker/HTTP/UI/実開始/初球保存・全MVPは未提供のまま。§13 B2aは本固定source保存後に全before SHAを再固定して着手できる。
+
+
+2026-10-26T06:21:55.251075+00:00、PO委任によるCodex /root判断で§13 B2a source9/test7を受理。全16 before928fa573/after SHAを実照合、最終manifest a999047c411ff055c5d920bfa512b05469a5f31de24fa81a636d785bee2ae710/fullpatch ce87ba4bc8260f8b2968d751f1c2a447fcfa7699e96775a0a75ba9662afa106a、非作者最終REVIEW8cbdfe7535fb3283414fbb88510e240ab607f7d5e02a642291caff485db251f9/checksb563b943da3d8bd3a86fdd167115ea7a5bcc93ce26d1e890b06cae8fdbe17a60/残0を確認。新enroll固定SQL/既3列INSERT/policy1、専用短命cap/phase/実同SessionRG1loanとcommit後だけ応答、0036前exact関数/policy保留を実装。旧broker全55定義AST/旧9+start2/旧53列17policy literalを保持。作者pure79/root6/旧336、独立pure79/root6、16Ruff/tyは各実行を区別。全backend整形checkで未受理の旧生成runtime_contract.pyだけ赤が残るがB2変更sourceには無く、正式生成物反映時の別対応へ保持する。
+
+実owned PGは初回fixture token.last_used_at不足で1失敗18.31s、反映1は先行commitunknownの正しいloan.abandonでcontrollerが閉じた後のPID探索に失敗28.20s。0許容/skipにせず、反映2でfreshfixtureの2nodeへ分離し全2成功47.92s（tool4439 exit0/cleanup両label0）。normal+commit後不明は実row delta2/資格成功応答0、別nodeでloan/INSERT後の実所有controller停止→実loan失効→製品commit前拒否/行delta0を確認し、両D4予約0/旧start・generation・配達不変。receipt7472929da80611d7ca3413d4f08d634e196d53d35f82ed8134b9c4b0fd50719fと旧失敗source/logを保持。DB実証は作者実行の独立照合で、未曝露P6/独立DB再走と呼ばない。
+
+本保存は全16sourceと本planだけ。候補metadata9/旧95+56+B1meta6の前後連結・正式7.7/全件CLI/CI・統合は別未完。実worker3command/HTTP/C2/Origin/UI/初期state/初球同期保存はまだ未提供。実enrollの私有製品経路と実DB試験を画面端末登録成功へ読み替えない。
+
+
+## 14. 実Unix workerと既3command
+
+PO委任による限定承認済み追補。B2a保存382d6dcaを基線とし、製品編集0。HTTP/全Port/全T1/正式metadata受理をsource着手前条件へ追加しない。既候補profile＋公開vector＋owned3PG/製品Node/実Unixで検証する。rootがplan/Git/正式JSON/台帳の唯一writer。
+
+**唯一source8 / test7:** `backend/src/pitchlog/recording_rights/initial_grant_broker.py`、`backend/src/pitchlog/repositories/initial_recording_right.py`、`backend/src/pitchlog/repositories/function_operations.py`、`backend/src/pitchlog/repositories/transaction.py`、`backend/src/pitchlog/authz/product_function_acl.py`、`backend/src/pitchlog/authz/product_catalog.py`、`backend/src/pitchlog/authz/product_provisioning.py`、`scripts/check_authz_catalog.py`、`backend/tests/test_initial_recording_right_candidate.py`、`backend/tests/test_function_operations_boundary.py`、`backend/tests/test_product_authz_catalog.py`、`backend/tests/test_product_authz_provisioning.py`、`backend/tests/db/initial_recording_right_scope_support.py`、`backend/tests/db/test_initial_game_start.py`、`tests/test_check_authz_catalog.py`。 新path/新table/新column/role/schema/既policy変更0。既brokerを入口に閉workerを足し、旧A/B1/B2a/通常start bodyを第一案では保持。新resolve用lookupだけを別登録する。私有既scopeを同一handleへ結ぶ局所factorが必要で、任意Session/callbackを受ける公開factoryにはしない。
+
+### root起動と実Unix
+
+root専用serve_initial_broker(config_path, presentation, box)を既brokerへ追加する案。presentation/boxはrootが既検証したTokenPresentation/V12Boxのexact型だけ（既activateと実registry一致を検査）。RPCからkey/署名器/DSN/Engine/設定pathを受けない。既actor設定/ledger generation endpoint/RG1 client設定の保護pathをroot設定で固定し、既loaderとconfigure_runtimeだけを使う。新運用鍵の発行/読取/配置は今回0、owned検証は既公開bytes(range(32))。運用鍵保管先の新実装は成立済みと呼ばない。
+
+既serve_fresh_controllerと同じ順序：root所有・書換不可の親directoryをNOFOLLOW/実descriptorで検査→新socketをexclusive bind（既存をunlink/横取りしない）→socket uid20002/gid20003/mode0660へ固定→実dev/inodeをroot公開endpoint `/run/pitchlog/initial-broker-endpoint.json` にmode0644でexclusive配置→setgroups([])/gid20002/uid20002/NoNewPrivs→**降格後にlisten**。これでAのclient側SO_PEERCRED期待20002:20002と一致し、app20003はsocket group20003で接続できる。endpoint/socket既存・symlink・親可変・inode差替えは閉じる。停止後のroot管理entryをworker権限で削除/再起動補完せず、owned fixture/rootが所有inodeを照合してcleanupする。
+
+serverも受信peer UID/GID20003:20003をkernelから照合（caller申告を使わない）。peerはtenant証明ではない。Aのframe上限/重複key/finite/exact3command/challenge/片方向EOF/有限期限を再利用し、一接続一要求・自動retry0・bounded backlog/処理数とする。client既2秒を無言で延長しない。worker専用の既actor/verifier poolだけへ固定statement/lock timeoutを設定し、待機SQLを無限にしない（候補固定値statement_timeout=1500ms/lock_timeout=1000ms。RPC入力にはしない。実sourceレビュー/owned計測で必要な通常調整は根拠を残す）。wire timeout/切断でも既処理がrollbackしたとは返さず、後の同要求照会へ残す。
+
+待ち境界はworker専用の固定値として具体化する。actor/verifier engineはconnect_timeout=1秒、pool_timeout=0.5秒、pool_size=3/max_overflow=0とし、既root loaderのcreate_engine固定オプション追加だけを許す（署名/registry/role/peer/既発行意味は保持）。処理worker最大3、待機queue最大3/backlog最大3、queue取得待ち上限1秒、各socket frame/read/writeは1.5秒、Nodeは既固定hostの初期化/評価reply各2.0秒と終了待ちの既2.0秒の有限待ちをそのまま使い、host/callerへ新callback/設定を追加しない。caller/RPCから上限やengine設定を受けない。client既2秒は延長しない。queue期限超過はDB開始前に非成功で閉じ、checkout/接続/SQL/Nodeの期限後は資格や成功を補完しない。認証TTLの更新と業務開始の有無は分け、業務/外部claimへ着手済み・commit結果不明・返信消失なら元要求の結果不明を維持する。2秒を超えたことだけでrollback/未消費/新attempt許可とせず、後に実commitされる場合も同要求のcommitted照会で解決する。各待ち上限と閉call graphの有限回数を故障試験で確認し、全処理が必ずclient2秒以内に取消されるとは主張しない。正常3並列とcold pool/queue飽和/接続不能/Node停止を実owned環境で測り、通常調整が必要なら値と根拠を固定して同じ安全分類を維持する。
+
+
+### 閉dispatch
+
+成功のwire化は既A `_encode_initial_reply`/専用projectionだけを使う。SecretStrの通常model_dump_jsonのmaskを端末資格/V12として返さない。実client受取資格→実DBdigest/開始照合を正例に含め、原値をlog/例外/汎用serializerへ開放しない。HTTPの承認済み成功境界に同じ明示projectionを接ぐのは次scopeで必須。
+
+全command：decode/peer→B1 `_issue_initial_broker_context` に提示Cookieと期待tenantを渡す→実Cookie/DB/同tenant成功からだけcontext発行。呼出元TenantContext/attempt/D4/digest/RG1 boolを受けない。拒否Noneはdenied、生driver/資格は応答/logへ出さない。
+
+- enroll：B2a `_enroll_initial_device(context, actor_runtime)` だけ。実同Session/RG1/commit後の戻りだけenrolledへ投影。commit結果不明は資格応答0・接続を閉じ、AのInitialBrokerUnavailableへ（enrollに禁止されている新unresolved statusを追加しない）。資格再生成/自動再試行0。
+- start：既commandのrequestをAの専用serializer→既GameStartRequest公開Class入口へ戻し、既 `bind_initial_start_request` を一回使う（深い凍結/単一fingerprint/閉roleを再実装しない）。server attemptだけuuid4。実 `DurableLedger.recovery_fence` 内で `_start_initial_game` を呼び、commit完了後のreceipt/grantだけ `_postcommit_start_response` へ。intentが既attemptへ解決するので、元boundと実receipt.ownerのtenant/game/request/device/request_digestを照合し、実server解決attemptを使う。元候補attemptを最終ownerと誤認しない。実Node名簿核/UM2/RG1/外部epoch/D4 claim先行/同business TXはそのまま。claim不明・commit不明はunresolved、rollback/未使用D4と断定しない。
+- resolve：同元ID/全payload/資格だけ。以下のlookupで既attemptを実取得し、**committedだけ**同Sessionの既issuer再交付branch＋実immutable receipt検証へ接ぐ。begin/start本体をresolveから呼ばず、新intent/attempt/予約/claim/名簿再保存0。pending/欠損/未対応rolled_back/lock timeout/外部不明はunresolvedで保持し、成功や確定取消に変えない。
+
+### resolveの具体不足と最小1SQL
+
+既 `resolve_start_attempt(tenant,game,request,attempt)` はattemptが必須。wireはattemptを受けない。既 `begin_start_attempt` は欠損時INSERTするため、照会へ流用不可。既 `read_existing_start` はattemptを返さない。従って新固定 `lookup_existing_start_attempt(uuid,uuid,uuid,uuid,bytea)` 一件（tenant/game/request/device/全payload指紋）を提案。戻り最大1行 `attempt_id uuid,outcome text`、作成/更新0、owner/SDEFINER/search_path/actor-onlyは既API型に揃える。
+
+同じ実Sessionで資格lock/真digest照合→request FOR UPDATE（deviceと既request_digest完全一致）→attempt FOR UPDATE、0行/複数/未知拒否。指紋は既game_start._source＋source_fingerprintだけを呼び、attempt無しで計算できる。lookup自身は資格digestを認可にせず、短命のresolve束縛にcontext/runtime/game/request/device/指紋を登録し、tokenを別scopeへ転用させない。既列SELECT/UPDATE-lock ACLだけで足り、created_at/resolved_atを読まない。
+
+committed取得後は既 `_initial_recording_right_scope` のadapter生成/失効処理だけを同handle用の私有helperへfactorする。lookupのrequest/attempt lockを解放して別Sessionへ移さない。真正handle検査＋短命resolve束縛＋owner/credentialを再照合し、既 `issue_initial_recording_right` のcommitted branchだけを呼ぶ。既 `_record` はcommittedのdelivery欠損を新規経路へ落とさず拒否し、lock_current_startは開始receipt/両lineupと全payloadを既原本から照合する。実commit/RG1/epoch/fence後だけstarted応答。
+
+**未供給の境界**：request lockは既にそのlockを持つ旧businessの終了を待てるが、まだそのlockに到達していない遅延処理の消滅は証明しない。pendingをunresolvedと返しても終結receipt/再試行許可を返さないため、本単位は後着を取消済み扱いしない。pending→確定rolled_backと新attempt許可、外部予約/claim状態の非作成照会、旧処理の後着遮断を伴う終結制御は現source未提供（DurableLedger公開APIに非作成status照会なし）。それらが成立したとは記録しない。committedは既状態lock/同現権利の再交付で新規発行を防ぐ。通常再試行/再起動後終結のMVP義務は残す。
+
+### rootの機械資産と有限検査
+
+増分はlookup SQL1＋DDL/manifest＋runtime protected_functions新1/生成Python（計5path見込み）、新token/CAP `CAP:initial_right:lookup_existing_start_attempt` の正式登録。旧9/start2/enroll1のmap/tuple/bodyは保持し、新1を別getter/登録tupleへ。catalog/sourcecheckerは全field/SQL/exact集合、provisioningは0036前保留依存へ新function1だけをexact追加。新列ACL/policy/role/schema0。candidateのみcache viewへ生成し、正式baseline/7.7/tenant/CAP/censusの必要差分はrootが実値で受理する。運用root設定/公開endpointは試験fixtureの有限設定であり、正式秘密資産へ値を埋めない。
+
+pure：3command分岐/実関数呼出順/旧body保持、未知/余剰/frame期限/peer/inode/設定衝突/資格と例外非露出、resolve新attempt UUID生成0・begin/reserve/claim0、全payload相違/別tenant/device/失効、committedのみ再交付、pendingを終結と誤認しない対向。型lint＋閉function/CAP/metadata/provisioning変異。別非作者review後root保存。
+
+実owned PG/Node/Unix：B1の実Cookie→app UID20003の既client→worker UID20002→実enroll→取得した端末pairでDHtrue公式20名/start→同要求resolveで同receipt/V12/D4・予約増分0。canonical game_other規則と旧 `start_database`/製品Node供給を再利用する。無効Cookie/peer/失効/全payload不一致、pending/旧transaction lock待ち・timeoutはunresolved（終結扱い0）、新attempt/予約0。実commit後送信断→元要求committed照会、RG1閉鎖/lease消失/DB/Node/peer断を有限に分離。新SQL app/PUBLIC/verifier拒否、未知catalog変異も確認。所有容器/port/tempを直列隔離してcleanup。実HTTP/C2/Origin/no-store/browser送信前耐久保存/画面開始/初期state/初球保存は次単位で必須、worker成功へ混ぜない。
+
+
+2026-10-26T06:58:36.142312+00:00、PO委任によるCodex /root判断で§14を承認。対象plan b315bcd74d8c9957675b569065cd0f55262d0895fda4e9be2199b474b66206fe、exactpaths6eac1bb687cb527a45ec58270f3903bd440d169fab14de6dd2787d50d4c03016、非作者最終REVIEWdd814f2dc06679e1e1234818d5c158a89877c1e710f580c591a9505c44e351ff/checks5ba6bccbd166116d948f60326806d8cee2623e7250ec4811bba9d02578ca2924/残0。初回P2と反映1のNode上限不整合を保持し、既NodeABIを変えず反映2で解消。作者initial_storage_norm_review、rootが本plan/Git/正式JSON/台帳の唯一writer。保存後のHEAD/全15beforeSHAを固定してこの範囲だけ実装する。源方針やMVP機能削減の承認ではなく、pending非終結/外部status照会・後着fenceの未供給と全MVP義務を維持する。ソース固定後に候補非作者へレビューし、実ownedNode/PG/Unixの成功とHTTP/UIを区別する。
+
+
+## 15. 実開始HTTPの最小接合（PO委任承認）
+
+既workerの単位を画面から呼ぶための有限追補。新全体計画を起こさず、§14とB1/B2の保証をそのまま使う。候補基線d0474cdf、HTTP反映1案SHA202db3b740d35ecb4722e55c79eabc87a9259c4d05a8983d9739cfd43a921636、exactpaths b2f497b01f068c0a98a96f6cda9ccaec46f02e6f9da1e1c7f8a7ea94794b004dを本節の有限詳細とし、cache game-start-http-minimum-20261026/reflection1/ に原版を保持する。初回非作者P1=1（resolveのread過小分類）→反映1残0/0/0、最終review a252d4cad9c70ceab0068ede15c12933c0100cc04c693564ad9142f856b409cd/checks7907585c24761d5e3f86977a221976efbd01efc61cd90166516a36d1e2486d12を連結する。
+
+### 入口・認可・結果不明
+
+既games.routerへPOST /devices/enroll（initial_device_enroll）、POST /games/{game_id}/start（initial_game_start）、POST /games/{game_id}/start/resolve（initial_game_start_resolve）を実mountする。既C2のCookie/状態変更header・Origin/tenant照合を本文検査より先に行い、HTTPは原Cookieとexpected tenant/challengeだけを閉commandへ渡す。workerでB1実再検証を行い、HTTPでTenantContextを発行主体に見立てたり仮attemptを生成しない。payloadは既_entriesと既閉DTOを使い、名簿意味/計算/権利を重複実装しない。
+
+成功は既clientがcommand/challenge/owner/wireを照合したreplyの専用成功projection valueのみ。資格をSecretStr通常dumpのマスク文字列にしない。全成功/拒否/入力不正/通信不明/500でno-store、tenant ackは照合済み2xxだけ。生Cookie/資格/入力/原例外をdetail/logへ渡さない。既denied404、conflict409、unavailable/unresolved503へ閉じ、自動retry/再enroll/attempt作成0。2秒期限は結果不明を含むので元要求ID/全payloadを保持する。
+
+logical routeはtrusted_devices:insertへenroll、games:updateへstart/resolveを各operationと実CAP provenanceで個別に対応させる。committed再交付を含むresolveをgames:readへ分類しない。既games:readの準備中2GETの意味/byteを保持し、resolve→readの誤結線を負例にする。HTTP独自CAP/role/DB ACLを作らず、採用worker/profileの正式CAP登録へ委任する。
+
+### exact範囲・編集所有・段階
+
+core前段source/testはscripts/core_guard.py、tests/test_core_guard.pyだけ。続く別commitで.claude/core-areas.jsonのrecording-rightsへ既5path（backend/src/pitchlog/api/routers/games.py、backend/src/pitchlog/api/tenant_access.py、backend/tests/test_api_app.py、backend/tests/test_api_conventions.py、backend/tests/test_api_tenant_match_metadata.py）をexact追加する。旧先行層/全旧paths/拒否/検出を保持し、実Gitのコード宣言→別JSONと欠落/余剰/並替/同commit変更の拒否を確認後だけHTTPsourceへ進む。新しい意味を単なる既pathとして登録省略しない。
+
+HTTPsourceは上記API2＋scripts/check_authz_catalog.py。testは上記API3＋backend/tests/db/test_api_auth_exit_entry.py＋tests/test_check_authz_catalog.pyの5。新物理path0。作者はrg1_final_review_oct26を予定し、具体着手はrootの別通知後。worker作者が固定した共有checker/root testへ同時書込みしない。Git/本plan/core JSON/正式metadata/台帳はroot唯一writer。root metadataはroute-registry.json/http-route-matrix.jsonの新logical2と実影響lockだけ、既auth-catalog/lock不変を照合する。他影響は実測差分だけをrootへ戻す。
+
+step H1=core前段2の実装/非作者確認、H2=別JSON登録/実先行検査、H3=実3POSTと限定pure検査、H4=owned実Cookie→HTTP/C2→実Unix→DB/Node→enroll/start/resolveの正常・故障検証。worker最終採用前でもH1の独立作業を進められる。H3のclient doubleは輸送外形の証拠で実開始と呼ばない。H4は§14のowned fixtureを再利用し、別tenant/device/失効/commit後応答断→同要求resolve同grant/D4予約増分0/RG1・worker停止の非成功保持・cleanupを実証する。helper不足はexact理由をrootへ返し無断拡張しない。
+
+既source規約のgeneration一律禁止と既DTO recovery_generationの基線矛盾は留保する。禁止集合を削って緑にせず、専用projectionを使い本文に不要な同期語を直書きしない。通常影響検査・最終HEAD別非作者確認・必要正式値受理・必須CI/通常統合を維持する。browserのIDB commit前送信禁止/unknown保持/実UI開始、started read/初期state/T1-T2/実同期保存/全MVPは別未達のままである。
+
+2026-10-26T07:51:51.978034+00:00、PO委任によるCodex /root判断で上記有限範囲と順序を承認。対象反映1原案/非作者最終hashは前記に固定。現時点はH1の2pathだけを次担当通知後に開始可とし、H2以後は各固定/非作者確認後にrootが具体指示する。人間本人の確認・署名、実開始/保存の成立を代記しない。
+
+
+2026-10-26T08:00:58.684288+00:00、H1の実全core試験で既開始test backend/tests/test_initial_game_start_components.py がいずれのareaにも登録されていないことを検出した。PO委任によるCodex /root判断で、意味上初期開始/記録権/tenantを検証するこのexact既1pathだけを、H1合成宣言のsync-protocol/recording-rights/tenant-isolationへ追加しH2別JSONで追随する。順序は旧initialscope3を保持→当該test1→recording-rightsだけHTTP5。編集source/testは既H1の2pathのまま、当該test本体を変更せず、未登録拒否assert/旧全履歴/判定本文は保持する。新globや無関係な検査除外は作らない。初回未登録1失敗と旧map束縛前の失敗ログを保持し、最終非作者はこの追加のexact意味帰属/欠落拒否も確認する。
+
+
+2026-10-26T08:07:10.391185+00:00、PO委任によるCodex /root判断でH1のcore source2を受理。作者evidence0bbf46d04c641c13297ca3425719c66d95d791711d9b5363d7b4294cc8cc0751/patch7c68847a54a52c537132e118cf1e935b8fb1b1a633111e5f50211fdee78a80e9、非作者REVIEW146585249df42e636ccd5ff47b47efa1093e8f0f591a2c84376f50edba3316a5/checks81a8998bd79d71b72cc4dfe07db8670cb24e80afb606eb2b214e9a816548d728、残0を実照合した。guard31判定AST/旧144test decorator・assertを保持、新31件の作者/独立成功は別実行。全core505成功1失敗と現3a→H1部分登録拒否はH2未完の実証として保持し、全成功とはしない。rootは本コードを先に保存し、その後別commitでH2 JSONへcomponent1各3area/HTTP5 recordingだけを追記し、実3a基線/全coreの検査後にH3を具体指示する。旧initial3の追加順と全旧pathは維持。
+
+
+2026-10-26T09:31:31.409254+00:00、PO委任によるCodex /root判断でH2別JSON登録を受理。H1宣言40bebfa8→JSONのみ5c61271f、after e05a759232d31fdbe92a1d55d99da8883dc29d5b865f7877f48ee4bb2a8867fc。非作者追認9947361aa8efb804cebe8b9a98900eaa6d5d225221b5a952ba348f4203df4dd4/残0、実verifyは要求3aに対する実merge-base ada3951cを返し、そのJSONは公式3aと全同値。rootの最初の戻り値誤assertを訂正し判定本文は不変、root全core506成功11.99s。旧H1部分拒否/505成功1失敗は残す。
+
+H3 API5pathはhandoff37910dcb832931e26f4438dfa30a7c8b75adf9e8bcb5e55eee028691bac53d36/evidence de8d12fde052aee7101bf80bf7f5f1545595b219b6061a41c9c47a7944d67517/patch6fc39d7add8bd693590df8cb55a38d339260b0b68e90edc0188d1e3436df044cを非作者REVIEW33a975a76ebd93d6a9a01ddebba4e883264f9a400ef837130aea66ec41e456f8/checksd9d9e3b1ad86392065e26454cb8f818aac203bfc52097fb469ed4351b10f9677（残0）と照合しPO委任受理。作者115成功2.09s/独立115成功2.21s、API3全609成功・既同期語彙不整合1失敗は別に保持し、全成功としない。既GET/C2判定/全旧metadata関数ASTを保持。実3POST mount/closed command/専用資格投影/no-storeを実装した輸送候補で、client double成功を実worker・DB開始成功へ拡張しない。worker source15/正式metadata/認可checker/H4は未完、並行書込みをせず保全する。
+
+同期語彙検査の最小整合はcache sync-term-minimum-proposal/proposal.md cff0c96b85d30245714e6ada6f6920e389626074daff45acf3595719b7a2a8d2を非作者計画REVIEWc9526b8e1bc807b280904d51b0c28616e48fb917d1d807fec41ba0a520945e29/checks9addc752925a8191d7c51780b466f6283a667a5bf06596eeaa719c94e521173e（残0）で確認し、PO委任により次単位を承認。exact編集は既 backend/tests/test_api_conventions.py 1pathだけ。禁止5語/全他API/コメント等の従来拒否を保持し、既承認DTOの単一class/field/validator ASThash一致後、field NAMEとvalidator引数STRINGのexact2tokenだけを控除する。class/行/validator丸ごとの除外・単純replace・語の難読化は禁止。未知位置/追加参照/任意計算/不正ASTは拒否し負例を追加する。正式wire/製品/認可・記録権・同期コード変更0。作者rg1はH3保存後にbefore1SHAを固定して着手可、最終非作者は別担当とする。
+
+
+2026-10-26T09:54:18.402047+00:00、PO委任によるCodex /root判断で§14 worker source8/test7の最終15を受理。最終handoff15397269da7ccfa6451400ae5e2899efc96bb3834db8050f7d9b2713c00d80f1/receipt8bd0164a316583fd1f6a84cd852e473e775526b4b8d3c4d8e66d88b5d7c9a27c/input4edb92847545d7b6fb730296e23c804ec69ab75a91f1d7f689b1d2cc8e3071b4、非作者最終REVIEW74d06e7d3c3f71d5a62b12356e36565f4ce6f9e86ab851d113aa45d660fbc949/checks0c7701b990e0f42cb3e0b63f7bef17fdbe6b57fa043bcfacf7ed5bd83620a248（残0）を実SHA照合した。R6 owned1成功45.59s/session6001exit0、正label cleanup両0。実Cookie→端末pair→正常開始同TX（0.608s）→同V12/receipt再交付・返信喪失、非作成lookup/pending/lock/失効/peer/queue拒否、実ownedNodeのPPid/UID/exe dev-inode照合SIGSTOP→非成功とgame preparing/attempt pending/lineups0/claim保持、businessPG/worker停止まで通過した。作者実証を独立再実行とはせず、別非作者は固定入力/旧失敗・訂正/receipt/logとmonitor純対向5の実行を確認した。
+
+旧6run失敗を保持する。初期Docker引数位置、named volumeのhostPath誤解、未到達のconfigure/Ledger主体順を実停止原因と先報した誤り、queue注入EAGAIN、root monitorのproc権限と安全診断回収不足をそれぞれ別点に固定した。実ownedPG0 processでrootのexe拒否/同UID成功を観測し、権限追加せず同UID monitorへ是正した。旧pure38/旧source0所見は実起動証明ではなかった。最終残14は製品8＋他試験6という意味で、製品14とは記録しない。
+
+保存は本source15＋本planだけ。候補metadata5/旧profile・B1/B2重複正式値はroot後続受理に残す。正式beforeはPR184統合runtime22、未受理候補22を正式継承として扱わない。HTTP/H4/UI開始・初期state・初球同期保存、全MVP/実機・復旧は未完。pendingの確定終結/外部非作成status/後着fenceを新たに供給したとはせず、全取消未確認から新attempt/未消費D4を推定しない。
+
+
+2026-10-26T09:55:17.283621+00:00、PO委任によるCodex /root判断で同期語彙検査の最小整合test1を受理。作者handoffc966af2a0ebf26044d8f499bec69c0a02c12ab29436e43db118b948e6605a98d/evidence87e0460f2077a470a8e3672b5314410c8ea288f734c8888a8384b67a9e64f484/after ab35634adf6544442e6994fc3d55945fa1a9eb4a355dacfa86dbcb14c3a145d1、非作者REVIEWad145d91b63ad251396dae3f7c889a31526ebef1aafea22a1b44fa9eef523ecc/checksef5c46680e9611cb62418f487f65299a040524b9f70d5919534503772c8a7b88（残0）を照合した。独立49対向成功、作者API3全658成功6.47s（旧1赤解消）とconventions69成功1.27sは別実行。旧5禁止・旧15関数/class・旧7定数とH3他4source/既DTO全byteを保持し、exact2token以外は拒否。
+
+原案cacheでPython3.14のvalidator ASTdump digest997db7…とbackend3.12の67db1d…が異なる表示差を、固定source5459同byte/両dumpとversionへ保全した。新実装は固定Git原本とcandidateを同一interpreterで構造比較し、任意の新hash定数を自己申告して通さない。旧refsを改記せず、この差を語彙/契約意味変更へ読み替えない。最終通常CI/正式meta/H4/実UIの未達は維持する。
+
+
+2026-10-26T10:24:41.889298+00:00、PO委任によるCodex /root判断でH4の既DBtest1を受理。反映1handoff9d4e4ee01d709cf91abe22793affae78bb04c6e31a8425c0dc8e198a6bb73b5c/receipt9618db8f08085be3d1bd050fedfd340ac928b64af23965e5ab864a97e1f4c199/input36165246cd04a60546a2c03774db19eb287b2a4c4fe90474400ecdcb84748fc5、非作者REVIEWc9195e160a0bac7cf0e1d99327a5165deb90053d238d1e2725c2fd70deeb9c62/checks4fc1bdd056809e5a6ee38bf9a49d2bc3335ee6f0d3b85be5b9886be73ba583d1（残0）と実sourceSHAを照合した。旧read/auth10定義・既H4fixture4のAST、worker15/meta5と候補inputを保持しhelper追加0。
+
+実owned1成功34.39s/session41266exit0、旧33.52sは旧packetの別実行。実appUID20003/login Cookie/C2→ASGI3POST→Unix worker20002→DB/Nodeで、原資格/正常開始・同V12committed照会/実ASGI応答断後同Cookie・元ID全payload再照会/D4増分0、Origin・tenant・owner拒否、実RG1/worker停止の503/no-store/ACK0を検証した。追加の失効は元committed ownerからtenant/deviceを特定し既revoked_atを1行UPDATE/RETURNING・commit後にmarkerを出し、同processの元Cookie/全本文resolveが503/error-only/資格0/no-store/ACK0、attempt committed・件数/D4全snapshot不変であることを観測した。Cookie期限切れの新H4実HTTPcaseは実行しておらず、旧実入口/B1の適用根拠と別の留保にする。
+
+この実証は実ASGI入口と実worker/DBへの接合で、TCP・ブラウザ操作・正式develop提供の証拠ではない。§15共有checker/root route metadata/旧profile95等・7.7/最終CIは未了。rootはsource1＋planだけを保存し、次に採用済みH3実3POSTの正式route/CAP登録とconsumerの有限接合を直列化する。全MVPの実機/運用復旧・初球保存義務を維持する。
+
+
+2026-10-26T10:53:48.076659+00:00、PO委任によるCodex /root判断で§15の正式metadata接合に必要なgenerator実装追随をexact2だけ追加承認する。有限案11fb88275cd6c20a16e470d7332182f617cd98e5c4c876bddcebb462f12a51d7、非作者第1回全文review d03405d255fb541c3a78fd3c3c66b77ad42b549a39f7ce9d32e207742793116e/checks0490816dff3ec18895e1c672780ed73ec6b0ce454a56254c06b10cbddce39e20（0/0/0）を照合。対象backend/src/pitchlog/authz/capability_catalog.py とbackend/tests/test_authz_capability_catalog.pyのみ。既採用data-model1.4 §6-1のapp直接generation INSERT撤去へ生成器を追随させる通常整合で、意味再裁定ではない。旧初期profileなしのexact74/汎用tenant_owned全3/旧全負例不変、初期reserved4の完全なfunction_only/reason初期storage/ownerU-R1とrecording_generations tenant_ownedが揃うときだけINSERT1行を除去し73へ一致させる。partial/fake/重複/型・key・owner/profile不正は明示拒否し、汎用override/enum追加/INSERT復活/private function CAPの表catalog追加をしない。旧read/updateと全他CAP/順序を保持し、validatorの新profile再INSERT/旧profile欠落拒否を含む。
+
+当該2pathは既tenant-isolationがファイル全体を捕捉済み。6.3①②⑤を照合し、検出・対象path・拒否を変更せず、権利意味を最終非作者レビューに含める。重複帰属は許容であり本追随のため必須ではないため新core登録段階は追加しない。作者initial_storage_norm_reviewがU3 review固定後にbefore2を確認して実装し、source2固定/影響検査/別非作者の最終確認後rootが保存する。正式metadata158・7.7/CI/実UIの受理は別手続きとして残し、root以外の正式JSON/plan/Git編集0。
+
+
+2026-10-26T10:59:33.492228+00:00、PO委任によるCodex /root判断で§15のHTTP consumer exact2を受理保存。handoff03b8cdcc9cf9c7c3f45822c132dd6f3b4268189b272c0b5a4a728a30087d6c90/evidencebcb403f93fc38c9f97e7c2382093f9b664bc3aac3a9fd3ef5edf1a6466cac22e、非作者最終1b68d62f39172d3d06263aae8e12dab7dc33e08340261bbdd524b3a35b12258a/checksb29c4ff9ec3a6e6a415915360ed750e1c3568af5149c0948d0129a88c1a643d6（0/0/0）、作者50成功10.69s/独立31成功1.57sを照合した。旧checker161/test244の許可各2以外AST、old49route全値・enum/read2GET/authcatalog+lock不変。新logical2/実3POST/function CAPprovenanceだけを厳密追加しresolve→read等を拒否する。作者全23701成功8赤はmetadata連結前の実行として保持し、owner集合追随1を解消しても残7赤を全成功とはしない。
+
+metadata158は別非作者全値review e296d514a8ff0207aed01ebf56e0b2aa08abfabea81294eb31719ef142c49186/checksebcf51b4f99edd742eccd15b93598efaff4ce60b045827b20801446ffc270a40（残0）の後、rootが正式before3a24とlive-before全rawを照合して候補反映した（root-reflection158.json）。既role/DDL/13private登録/HTTP51/canonicallock2/runtime22→23と旧95非連続の再baseを追跡、stockCLI-inputの旧indexhashを最終view全158raw一致の独立照合で連結した。最終generator73一致・7.7履歴/CIは別未受理、source2以外/metadata158を本commitへ一括stageしない。
+
+
+2026-10-26T11:05:18.594195+00:00、rootはmetadata158候補の全最終raw/正式3a前値/独立e296d514…との一致を確認し、再開可能な候補checkpointとして保存する。root live stock product CLIはsession2406exit0 total1427/auth187/out1240/db191/routes51/cells12。table catalog73とgenerator74の真の不整合は別作者exact2追随中で、canonical検査/7.7履歴/最終CI完了とはしない。追加root tenant CLIはbase-allowlist.history prefixを正当に拒否しexit2、現枝の正式develop追随前の古い基線履歴という接合残件を新たに確認した。検査を変更せず次に通常develop追随と実派生値受理を行う。git merge-tree previewはrootindex/workingtree変更0で、実競合は既tests/test_check_authz_catalog.pyの1pathだけだった。source/checker authorの無関係な変更を取り込まず、metadata158+本planのみを選択stageする。SQL供給ファイル削除1は旧app表ACL撤去であり利用者データ削除ではない。新UI/初球保存・正式提供を主張しない。
+
+
+2026-10-26T11:17:53.942728+00:00、PO委任によるCodex /root判断で正式3aへの通常追随を受理。競合runtime/source1とtest1を独立確認し、初回review2f73b7bc…のP1 GENERATED_MODULE_STALEを採用、正式merged rendererでruntime23を正規再生成した。source824eb509…→39d94a2de2cbb04f957dce1f7e7e5b8b4f0b6bf1320149265bb230606813e479は全module AST同一の表記だけで、runtimeJSON23/残metadata157/全旧定数/renderer本文とcapability source2は不変。最終ee7cdc697c850a11e92f55bc4a5ee89e65ba0a14a12bde59658e014e34838c40/checks7cb6c3b92213a46b798f03893f8ce26e5e0c0738566ecd6307e99562d7e509e0（0/0/0）、独立54成功2.53sを照合した。旧formal3a7schema試験本文とSQL-copy helperを保持し、その旧test1だけfixed3a実DDL/temp rootに束縛、現初期8schema試験は対象外。source失敗2は期待のSQL欠落点へ到達前の古い生成byteが原因と区別し、検査緩和0で解消した。
+
+root tenant CLIは通常追随前の履歴prefix拒否から、追随解消後は『履歴末尾と7資産識別値不一致』へ進んだ。runtime22→23等の真の新実値について正式7.7記録が未追加なための正当拒否であり、同じ承認の再取得とはせず実前後値/履歴/必要派生値をまとめてrootが受理する。現通常mergeは直接developへpushせずfeature内で保存する。
+
+
+2026-10-26T11:18:15.784317+00:00、PO委任によるCodex /root判断でcapability generator source2を受理保存。authorhandoff560edbf7f243a516d1e3c540f84658fbc3d8ee68095dc682481b46c8f5193e6e、非作者400e8767580474797652d2f3fdfd469f3fbfed26e06a249aa8a5fcf811f85a2f/checksa79316da15b97d814ac493abbfe972eb55425fbc84f1f751cee58ae8d2889c65（0/0/0）と実before/after2を照合。旧74/新73各33成功、追加変異73拒否/旧全値順序同一・新73実catalog一致、登録回帰99成功/Ruffty成功。旧assert16/decorator2を保持し、完全初期4profileだけapp recording_generations INSERT1を除外、partial/fakeは拒否する。新tableCAP/privatefunctionCAP追加0/DDL/role緩和0、採用済み正本1.4へ実生成器を追随した。候補158のgenerator74対73blockerは解消したが、rootの正式7.7履歴/残派生値/CI・新規UIcreate→初球保存縦断は未完のまま保持する。
+
+
+2026-10-26T11:34:20.445740+00:00、実CI188 40314137811のbackendは正規生成runtimeの長tuple4行E501で停止した。PO委任によるCodex /root判断でbackend/src/pitchlog/authz/runtime_contract_state.py とbackend/tests/test_authz_runtime_contract_generator.py、生成runtime_contract.pyのexact3だけを通常生成追随として追加する。_render_rowの出力が4space＋comma込み88を超える場合だけtuple各文字列を改行し、短行は全byte不変。JSON23/全定数値・順序/role・fixture/protected集合/比較・拒否本文は変更0。正規generatorと配布sourceを同時に生成しbyte一致/全AST一致/ruffformat-check/E501を検証、既テストassert保持で行長・全値対向を追加する。検査を緩めてformat差を除外しない。最後に別非作者の限定差分確認を必須とし保存する。
+
+同CIのdocs-lint4件は継承T1planが未収録の旧候補へローカルリンクする不整合。既履歴を消さず当該feature plan内の4リンクだけを元固定Git SHAのGitHub参照へ直す。正本の意味改訂・旧候補採用・本人署名の代筆ではない。
+
+
+2026-10-26T11:41:39.944763+00:00、PO委任によるCodex /root判断でrenderer exact3の通常整合を受理。独立9949f84fea6d860c8009492eba7caebd74dd345d0077977d61cf9fdbd579c68e/evidence4f93317aa2f8b78eacce443efd898644a9c9f972b7f634554a0261df8132ce30（0/0/0）、独立81成功2.26s/root81成功2.24s/Ruffformat-checkを照合した。_render_row以外全AST/旧55定義76assert・runtimeJSON23・生成全定数ASTを保持、escapeと88/89境界対向成功。初回独立runが別WT editableを読んだ57失敗/24成功は__file__観測とともに保全し、正しいPYTHONPATH明示後の独立成功と分ける。配布runtime source39d94a2d…→2c50543cba810a03bac77732416474de94d880d3cf455978a9226bc94c4f505eは正規renderの形式だけを追随し検査除外0。旧T1planの4リンクも固定Git実object存在をcat-file -eで確認した参照へ直し、未取得の候補内容を読了/採用したとは記録しない。
+
+
+2026-10-26T12:06:33.913569+00:00、CI188 a222は長行lint解消後、backend format-checkで既DB helper/test2の表記不整合を検出した。PO委任によるCodex /root判断でbackend/tests/db/initial_recording_right_scope_support.py とtest_initial_game_start.py exact2をruff formatする通常追随を許可。全module AST同値/全assert・文字列payload同値を検証し、差分があれば保存せず切り分ける。製品/認可/故障判定/SQL0変更、同じfault DB再走は不要。CI docs-statusの既adopted data-model1.4/2026-10-25に対する索引1.3/2026-10-24の不一致はdocs/README.mdの当該行だけ実正本へ整合する（7.6実装追随、意味改訂/新version発行0）。必須検査は全backend format/check/typeとdocs-status、最終PRreviewで差分確認。これらの旧赤を成功へ読み替えない。
+
+
+2026-10-26T12:10:42.875550+00:00、rootはCI format追随のexact2全module AST（assert/送信payload/故障診断文字列を含む）同一を確認した。Ruffformat後に公開endpoint文字列のインデントでE501が1件出たため隣接literalへ分割し、最終AST/文字列値は不変。全backend416file format-check・全Ruff・全ty成功、docs-status21文書0違反。indexは当該data-model行末のversion/dateだけ1.4/2026-10-25へ整合し旧承認本文を保持した。source2とindex＋本planだけを保存し、source意味変更/DB再走は行わない。最終PR差分レビューへAST同一receiptを供給する。旧a222 CIのformat/docs赤は保持、tenant/history/scan/公開委任の別残件をこの成功で解消扱いにしない。
+
+
+### 2026-10-26T14:25:50.351163+00:00: CI共通fixtureの所有DB権限と現revision追随
+
+PO委任によるCodex /root判断。固定58e045adのCI40327926837 backendは84failed/6818passed/4skip/431error。rootの実owned対象診断でS3 catalog不一致は唯一PRODUCT-CATALOG:INITIAL-VERIFIER-GLOBAL、製品外のfixture seed DB pitchlog_disposableにPUBLIC由来CONNECT/TEMPORARYが残ることを実観測した。期待は現DB CONNECT/固定authn.verify_token EXECUTE/authn USAGEだけであり、検査を弱めない。隔離専用fixture backend/tests/db_fixtures.py exact1で、同factoryが所有するcluster identityを既所有台帳で確認し、seed DBのPUBLIC CONNECT/TEMPORARYだけを撤去してから正規S0→S3へ進む。外部供給/shared DBへは適用しない。新role/製品grant/期待catalog/検査拒否条件を変更しない。
+
+同helperの0035固定markerは既採用stage実装の0036へ追随し、現実migration完了値を厳密照合する。旧歴史fixture/旧migration試験の原本期待値はこのfollowupで編集しない。初回local診断のrole DSN template未指定1errorと、公開disposable-only template供給後の同S3拒否1errorを保持する。新観測はcache pr188-ci-58e045ad-20261026/catalog-global-access.json。変更済みfixtureで対象1を再検査し、別非作者による所有境界/期待値不変/実観測の差分確認後に保存する。全84/431解消とは事前に主張せず、残るschema/ACL/歴史固定fixture等は各実失敗に沿って有限追随する。
+
+
+2026-10-26T14:34:21.804332+00:00、PO委任によるCodex /root判断で共通fixture exact1を採用保存。before8fba8d9267a807079884162ff05b52655f78c37e0c82f09d965d933c06f7d18a/after22a29c1bde4e6f364538657f69d0a8bfa4544787459699e911f84caf4a6cceca、非作者486df9b18ed53bb07d964bc03e1d98f6bb3b7b1f7d3a65bb501e998733303c3c/checksafced1b5…（0/0/0）、独立AST純7対向成功・外部供給branch全AST同一、root実owned対象1成功4.71s/31catalog一致・Ruffcheck/format/ty成功を照合した。旧失敗/前raw上書きの資格留保を保持し、全件CI成功・全84/431解消を主張しない。
+
+
+共通fixture反映cf4fbcdaの後発CI40340848699はtyで外部test呼出1件のcluster引数未追随を検出した。rootの型検査を変更fileへ限定したため呼出元を取り落とした。PO委任によるCodex /root判断でbackend/tests/db/test_product_authz_round_trip.pyの既helper呼出へ所有catalog.clusterを渡すexact1行の通常追随を許可する。backend全体検索で呼出は内部fixtureとこの2件だけ、helperの所有検査は維持し既assert/期待値/製品sourceを変更しない。型検査はbackend全体へ広げ、実当該往復caseも隔離DBで確認する。旧CIを成功へ改記せず、同じ失敗の無変更再実行はしない。
+
+
+当該実往復caseは新0036が旧0034より先に拒否するため、current側の厳密message期待を採用済0036の「初期権の履歴を消す逆適用は許可しない」へ追随する。OR/曖昧regexへ広げず、migrationの不可逆拒否自体と拒否後全catalog同値のassertを維持。旧0034の拒否試験は他の歴史段階caseで保持し、この変更で削除しない。実行補助のDSN未供給/事前probe role作成による正当setup拒否を保全し、fixture自身が作るprobe roleの未存在を保つ所有seed供給に是正した。sourceを変えた新入力だけを再検査する。
+
+
+現message追随後、歴史補助が同clusterへ追加DBを作ることでverifierへ旧product DBのPUBLIC CONNECT/TEMPORARYが残るS3不一致を実観測した（round-trip-global-access.json）。製品側のグローバル接続先検査を弱めず、既disposable_postgres_cluster factoryを引数として歴史0033往復→現0036基準を別所有clusterへ物理隔離する通常fixture是正を許可する。既role属性・migration33→base→33・全snapshot比較/owner/ACL assertと元catalogの拒否前後同値を保持し、原catalog/共有DBの権限を外側から変更しない。旧seed余剰権限の撤去は既所有検査付きhelperを使う。変更は同test1だけ、後発scope/失敗を独立差分レビューへ渡してから保存する。
+
+
+2026-10-26T15:15:48.089498+00:00、PO委任によるCodex /root判断でDBcaller後発exact1を採用保存。after708d3460…、非作者178511cd8ea40d20bea505ea277a9bc79140677e95e871a4fe58bda3b4f87e15/checksfbadf375…（0/0/0）、旧assert31の意味保持・別所有cluster/元DSN非流用・故障時環境/所有context終了を独立純検査で確認。root実当該往復1成功10.38s/所有container0、全backend ty/Ruffcheckformat成功を照合。古い引数不足/0034message期待/S3他DB公開権限拒否と補助setup失敗は各ログへ保持した。製品checker/期待catalog/0034・0036不可逆拒否は不変で、全CI/全84失敗・431errorの完了とはしない。
+
+
+2026-10-26T15:25:28.251277+00:00、PO委任によるCodex /root判断で既CIの純認可profile検査の通常追随を限定承認。backend/tests/test_authz_product_classification.py・test_authz_product_control_access.py・test_authz_product_function_acls.pyのexact3を別作者へ割当てる。根拠は採用済data-model1.4/開始plan/B1B2/fullprofile全値e296d514…、現candidate schema8/table50/role14/function79/policy70/columnACL123と旧profileの差。旧profileの歴史入力・拒否対向を保持し、新profileを固定新declared値/正本根拠から照合する。実装の出力を見た後の無根拠期待値書換え・部分一致・field無視・skip追加をしない。clone fixtureへ実宣言の新sourceが必要ならexact有限依存だけ追随し、未知sourceの許可へ広げない。製品source/正式JSON/Git/他test/DB変更は作者へ許可しない。新意味未決があれば仮決定せず返し、独立差分レビュー後にrootが保存する。全backend検査は安定候補で必須、作業中は当該pure3/既影響閉包へ限定する。
+
+
+2026-10-26T15:28:56.721622+00:00、指定pure3の実6fail2497passから、関数ACL変異のstring要素がproduct_authn_contract.pyでAttributeErrorを漏らす製品不具合を確認。PO委任によるCodex /root判断でbackend/src/pitchlog/authz/product_authn_contract.py exact1の型拒否追補を同作者へ許可する。既_verifier_rowsをnested ACL配列（functions/schema/databaseのacl_expectations/revoked_acl_expectations）にも再利用し、非list/非dictを既ValueError→ProductCatalogErrorへ閉じる。AttributeErrorを許容する期待変更/包括例外catchで隠す/不正要素を無視する処理をしない。既正常metadata/全field/ACL意味/拒否対向を保持し、実不正配列の既対向で確認する。旧6failを消さず、これを製品helper4file範囲の後発差分として非作者へ渡す。DB/Git/正式JSON/他sourceは作者へ許可しない。
+
+
+2026-10-26T15:35:51.656213+00:00、pure認可profile影響検査の残1がtests/test_product_authz_catalog.pyの旧policy69固定対現70であることを確認。PO委任によるCodex /root判断で当該test1を追加所有とし、採用済70policy全値（既独立e296d514…/正本・既schema fullprofile）から厳密件数だけを追随する。独立根拠なしの出力追認/部分一致/field無視/skipにせず、他assert/製品catalog/正式metadataを保持する。これで指定範囲はpuretest4＋product_authn_contract helper1のexact5。作者は修正・影響閉包を固定して停止し、次のN2 source4へ移る前にrootへ引き渡す。
+
+
+2026-10-26T15:46:44.660802+00:00、PO委任によるCodex /root判断で認可profile source5を採用保存。manifest656408f5…/patch62352ed1…/独立fc381d623c482740ef915db79ffc430802d765fb7063abdcb815b00a221f86bf/checksbf07df01…（0/0/0）と実5SHAを照合。旧46profile/facts/secret4のlegacy全object/全decorator/既mutation tupleを保持し、更新assert5だけ採用1.4/e296全値へ厳密追随。helperは既_verifier_rowsの6箇所再利用で非list/非dictの型付き拒否へ閉じ、正常期待21field old/new完全同値、独立mixed12対向/作者新36拒否を確認した。作者2724成功29.99s/独立2724成功30.43s・Ruffformatty成功、旧6fail/中間policy69残1は保全。正式metadata/DB/他sourceを変更せず、全backend/全84失敗・431error/正式公開完成とはしない。
+
+### 同期世代12列consumerの開始候補への限定追随
+
+2026-10-27 18:22 JST、PO委任によるCodex /root判断。PR188の72f4118aからwriter側で独立review済み記録世代12列是正を必要8pathへ限定反映する。対象patch 43bbbe34f04c16d178b0cc7bab1b00ad494741a4d233d7aeb57164e9e3ffcf6a。repository・sync tokens/apply/prefixと関連pure fixture/operations testだけを対象とし、既SQL/tenant/lock/権利・拒否順と保護列非SELECTを維持、writer固有V5・DB helperを混ぜない。隔離候補19module 355成功・Ruff/format/ty成功、target固定版の追加独立review・実DB・正式凍結値・新HEAD CIは別条件である。writer側の実DB成功を本PR実DB成功と呼ばない。
+
+2026-10-27 18:29 JST、PO委任によるCodex /root判断。対象c023f73eの限定移植8pathと計画は、非作者レビューcd8ffcccb542f75b12926e4f29262756c9a95c5838c3312b5f114ab53bcd0185（残0、独立境界9成功）、root実tree355成功に基づき採用。実DB・正式値/委任・最終CIは未成立で、公開HEAD72f4118aから変更せず次の接続を進める。
+
+2026-10-27、PO委任によるCodex /root判断。同期世代12列の実DB対向として新backend/tests/db/test_sync_generation_projection_initial_owned.pyだけを追加。既owned initial fixtureとautouse identity、実Cookie/app scope・3token、同tenantの別app NOWAIT 55P03/解放後取得、保護2列SELECT各42501とACL falseを検証する。非作者第1回f0302b45…のtenant GUC不足P1を反映し、反映1 source ba6a908c69f88862cbbf6f9991cfd879d07cb7c9dab435759c1e4c369ecc7bb5、非作者第2回58a4e0d9202617631737970feb9dbaea116bb5d9bf61557264ec632b5a123979残0を根拠に実施。共有DB・writer-only helperは使わず、実DB結果は実施後に記録する。
+
+### PR188の歴史反例2値の正式登録・凍結受理
+
+対象source基点2a2c01364743dc341641476db84f5429ebee9010、実比較元3a24f89e15987ecef3dc45a1173ab99b5f79d16e。旧InitialGameStartResponseのepoch不在と旧lifecycle7schemaの固定原典を保持し、未登録literal2を既frozen-inputsの目的付きfieldへ正規登録する。既scan/tenant拒否を変更せず、旧4field・外部4prefix・正式9資産/31履歴を保持する。source3.patch d78c7952204a35d4911453a640a9af7fc507fd7a95794991e09cc80ff14e4ea0、非作者レビュー8b0bd9a2（残0、root受領報告）が候補根拠。
+
+編集所有はroot単一。backend/tests/test_api_conventions.py、tests/test_check_authz_catalog.py、contracts/tenant_boundary/frozen-inputs.jsonのexact3を同fieldの登録/消費/外部byte固定として扱う。既mvp-game-start-connection/plan.mdへの本追補、base-allowlist.jsonのauthority履歴1追記と必要history-snapshots実4blobを合わせ、候補適用集合は計9path。認可/Port/DB保証・野球意味の変更なし。一般allowlist増設・pending逃し・guard除外は不可。
+
+sourceは既旧原典の同値消費を行う。contract_revisionはfrozen-inputs5→6（当該実baseだけ）、runtime22→23は既製品移植の正式対象として今回同一受理に含める。他7識別値とmovement_policyは不変。before/afterは全9のdeclaration/movement_policy/external_snapshots/asset_snapshotsを既frozen_historyから実導出した値を使う。authority旧31履歴を全保持し、#188に対応する正式1recordだけを追記する。base-allowlist自身は履歴だけの更新なので、その識別値39を根拠なく繰り上げない。
+
+PO委任によるCodex判断はrootが実対象SHA・独立レビュー版・正式全値を確認して実施する。record-templateのapproved_by/approved_onは意図的nullの未受理案であり、rootの実判断後に実態と実日付だけを記入する。山田正輝本人の逐行確認/署名を記入しない。null案を正式履歴へ適用・成功認定しない。
+
+受理手順はsource3全byte固定→rootの対象版採否→authority1record/新4snapshotを同一受理単位で固定→現helperと正式frozen/tenant CLI→関連消費2試験/凍結拒否対向→最終HEAD core独立確認/7.7必要値/Gate6/必須CI。実GITHUB_EVENTとbase-refを一致させる。最終CLIが指摘するsensor/census等の未閉項目があれば、それを正式登録して最終全値だけ再導出し、この案を無条件で成立扱いしない。
+
+PR187は本候補作成時未merge。先にrev6/追加field/履歴が統合された場合はその正式prefixを保持し、今回2fieldの追加を再適用して必要な次revisionへ進め、実merge-base/全4面/履歴単位を再導出する。本案rev6や31履歴を旧値のまま上書きしない。無関係な更新だけで同内容の意味承認を再取得しない。
+
+今回受理は正式値と検査整合の範囲だけ。owned DB試験成功、開始API、1球保存/GET、MVP完成は各既証拠/別到達条件として区別する。
+
+2026-10-27 20:24 JST、PO委任によるCodex /root判断。対象2a2c0136/base3a24、source3 d78c7952…・独立source review 8b0bd9a2…・全4面/旧31履歴と新4snapshotの非作者review 1647999a34dba209e1f3d7c54c384838f4ba11fa574814537ce699784fe41614残0を確認し、対象2fieldとruntime変更の7.7受理を行う。判断者はCodex /rootであり山田正輝本人の署名ではない。CLI/最終review/Gate6/CIは未成立。
+
+### 初期権actorの固定RG1型import是正
+
+2026-10-27 20:36 JST、PO委任によるCodex /root判断。tenant検査の実禁止構文1件（initial_grant_broker._verify_business_bindingの固定文字列import_module）を、固定モジュールの局所static importへ置換する。編集はbackend/src/pitchlog/recording_rights/initial_grant_broker.pyとbackend/tests/test_initial_recording_right_candidate.pyのexact2。既ImportError/RG1ControlUnavailableの閉拒否、実binding identity全値照合・runtime寿命・認可を保持し、検出器に動的import許可を追加しない。非作者core review・変更対象の検査と残るtenant/正式値・最終CIは別条件。
+
+### 2026-10-27 20:45 JST: tenant検査の台帳固定値追随（限定）
+
+PO委任によるCodex /root判断。対象HEAD 6bf492865300e99eb567a01bfd1a75a6e60ad963。既受理台帳の実byteへ検査側を追随する。根拠は非作者調査 `pr188-tenant110-origin-classification-20261027/U1-exact-value-proposal.json` SHA-256 53bd4c76142e4ac75c18a6bb588ed6ee8475ea99cd3691e4a23b775e9c58e340、および `U1-CONCRETE.md`。対象は `contracts/tenant_boundary/base-allowlist.json`、`scripts/check_tenant_boundary_bypass.py`、`tests/test_check_tenant_boundary_bypass.py`、必要時 `tests/test_census_baseline_check.py` と本計画に限定する。
+
+台帳manifestの実SHAを更新し、既condition2 adapterの固定17記号・実source SHA・位置だけを現在値へ揃える。3資産の厳密固定、17組の厳密一致、旧47・既拒否・正式履歴を維持し、pathや件数だけの免除へ緩めない。source/宣言同時改変、隣行・余剰・別path等の拒否を保持する。関連pureと正式射影/coverage/参照値を導出し、値が変わった場合は実前後値の正式受理を別途行う。非作者core確認、残るtenant検出、CIは別条件であり、この追随だけで完了としない。
+
+2026-10-27 20:49 JST、PO委任によるCodex /root判断。tenant検査U5は既 `function_operations._canonical_bind` の採用済み `bytes`→`LargeBinary()` 分岐を検査器が認識していないため、実sourceと完全一致する固定ASTへ同じ分岐だけを追随する。根拠 `pr188-tenant110-origin-classification-20261027/CONCRETE-NEXT-UNITS.md` SHA-256 b36bd11d7a03c380ed98a56da2b6a87383bbcbdee40b401d71b4d235281008b4。対象は既 `scripts/check_tenant_boundary_bypass.py`、`tests/test_check_tenant_boundary_bypass.py`、本計画。未知型・任意callable・追加文・bind改変を拒否し、SQL/DBAPIの一般免除は追加しない。非作者core review・正式値/他tenant残件/CIは別条件。
+
+2026-10-27、PO委任によるCodex /root判断。tenant検査U1 `d568c955` は非作者 `d673ec8ec40a542c360fd9fe218216db071aac65f87be3afa2676e589fc7fd2d` 残0・独立68成功、U5 `34f64420` は非作者 `cde0047af87de7880817a526d8b26eb811aba2d069b716f3e26a3e053966abdc` 残0・独立21成功を根拠に、それぞれ限定採用する。正式4面導出/必要な受理・tenant他残件・CIは別条件であり、完了に含めない。
+
+2026-10-27、PO委任によるCodex /root判断。U3候補 `pr188-u3-finite-owner-candidate-470ba19a-20261027/REPORT.md` SHA b4f1df4ed24886df250f8fc05136508a7ec224be90ae40e1e91716ca02d20c5c、非作者review 72e79521c16b71fd843173a561c0248a9e9d9fa82c26ce4c0882d721ce2711a1 P0/P1=0を根拠に、現470ba19aの7source/51行について条件2の有限登録を限定承認する。編集対象は `scripts/check_tenant_boundary_bypass.py`、`contracts/tenant_boundary/base-allowlist.json`、`tests/test_check_tenant_boundary_bypass.py`、必要時 `tests/test_census_baseline_check.py`、本計画と正式履歴用source snapshotに限定。7path/source SHA/line/symbol/scopeを厳密照合し、他条件26行・旧model6行・initial47/ledger17/RG1/旧historyを保持する。source・宣言の同時改竄、余剰/隣行/別scope/別path等を拒否し、新範囲の非作者coreレビューと正式4面再導出・実差分の必要な受理を後続条件とする。source未実装、tenant/CI全成立ではない。
+
+2026-10-27、PO委任によるClaude主担当判断（Codex上限による主担当引継ぎ後。本人署名・人間逐行確認ではない）。U3有限登録のcache source3（`pr188-u3-finite-owner-candidate-470ba19a-20261027/implementation/source3.patch` SHA 1cd78f6b…）と、旧RG1 fixture 4失敗の是正r1（`implementation-r1/source3-r1-combined.patch` SHA 989d68c28019f894cf104cef45fa1c27e5d057b1b341089e1f04871f5f4e472d）を採用。4失敗の原因は歴史sourceの行・SHA漂移（models.pyの1行ずれ）で、selector規則ではない（対照2e8a816fでも同4件が失敗）。旧RG1宣言は保持し、旧testの期待は緩めていない。非作者review `implementation-r1/independent-review/REPORT.md`（Fable 5.1）はadopt・P0=0/P1=1/P2=3。tenant検査ファイルは13失敗/554成功で、13件は対照と同一ID。P1（`test_frozen_baseline_declarations.py::test_repository_scan_has_the_declared_terminal_population` がsource3起因で赤）は範囲外の後続条件で、`frozen-baseline-scan-allowlist.json` への14組追記と終端件数の更新を本判断で最小追補として承認する（exact2、非作者review必須）。census RG1 8件・frozen_archive runner 22件の既存赤、正式4面の再導出と受理、CIは未了。
+
+2026-10-28、PO委任によるClaude主担当判断（本人署名・人間逐行確認ではない）。2026-10-27承認のfrozen-baseline exact2（allow-listへ14組追記と終端件数更新）は、受理遷移の通常規則がallow-list追加を禁じる（`scripts/check_frozen_baselines.py:1715-1720`）ためCIで必ず赤になると実測され、取り下げる。代わりに最小追補として exact2（既 `scripts/check_tenant_boundary_bypass.py`、既 `tests/test_check_tenant_boundary_bypass.py`）を承認・採用し、開始7 sourceのSHA-256を*.pyから除き、値の正を `contracts/tenant_boundary/base-allowlist.json` の宣言だけに置く（RG1・ledger所有の既存方式、7.7-1）。作者候補 `pr188-u3-finite-owner-candidate-470ba19a-20261027/frozen-fix-r1/frozen-fix.patch` SHA a55d2664d64e4d0267415e9993ad490f6491ccccfcf02c04b4c281e173d2781e、非作者review（Fable 5.1）report SHA d03f0c506333b94a7db6b1c6fcd3f0b0a269802b9ce047a5e08aa5ffcd0d0592 はadopt・P0/P1=0・P2=3。CI pull_request経路を2親mergeで再現し `check_frozen_baselines.py --ci` が変更前exit 1→変更後exit 0、対照（旧exact2）はexit 1。tests/全件で消えた赤16・新しい赤0（残76は変更前と同一ID）。変異6件で宣言・source・検査器の相互固定を確認。失う強度は「sourceと宣言SHAの同時更新」の即時赤で、凍結資産の履歴だけが止める（既存3所有と同等）。P2-1は検査器docstringに「走査時の照合は改行正規化後の本文、raw byteは試験側」と追記して閉じた（source commit `dda01ca8`、関連29件成功）。P2-2（initial_start節の宣言digest変異が履歴で赤になることの実測）は#188の識別値・snapshot・corpus再導出後に1回行う。P2-3は報告文言のみ。#188の正式4面再導出と受理、frozen_archive比較corpusの期待値再pinは、この2 pathの最終byte確定後に1回だけ行う（未了）。2 pathはコア領域で、人間の逐行確認は未実施。

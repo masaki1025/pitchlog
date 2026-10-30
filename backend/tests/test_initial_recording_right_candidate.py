@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import psycopg
@@ -771,3 +772,1277 @@ def test_device_credential_lock_serializes_revocation(
                 ).fetchone()
                 is None
             )
+
+
+@pytest.mark.parametrize("start_mode", [False, True])
+def test_real_scope_calls_closed_start_hook_only_after_game_lock(
+    start_mode: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """純scope配線だけを確認し、代役transactionを認証/DB成功と呼ばない。"""
+    from test_authz_tenant_context import make_tenant_context
+    from test_initial_game_start_components import _bind
+
+    from pitchlog.repositories import game_start, transaction
+    from pitchlog.repositories.initial_recording_right import (
+        _SCOPE_BINDINGS,
+        _SCOPE_CREATION,
+        InitialRecordingRightScope,
+    )
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    bound = _bind()
+    seen = []
+
+    class Tx:
+        def run_function(self, token):
+            seen.append("game_lock")
+            return TenantOperationResult(((True,),))
+
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+
+    def initialize(scope, payload):
+        assert scope._game_locked and scope._device_valid
+        assert payload is bound
+        seen.append("closed_start")
+        return object()
+
+    monkeypatch.setattr(game_start, "_initialize_start", initialize)
+    scope = InitialRecordingRightScope(
+        make_tenant_context(bound.owner.tenant_id),
+        cast(Any, Tx()),
+        bound.owner,
+        _SCOPE_CREATION,
+        bound if start_mode else None,
+    )
+    try:
+        scope._device_valid = True
+        scope._outcome = "pending"
+        scope.lock_preparing_game(bound.owner.game_id)
+        assert seen == (["game_lock", "closed_start"] if start_mode else ["game_lock"])
+    finally:
+        _SCOPE_BINDINGS.pop(scope, None)
+
+
+def test_start_business_reuses_the_single_issuer_and_commit_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """新入口は既commit所有本体1回であり、独自発行器を選択しない。"""
+    from datetime import datetime, timezone
+
+    from test_initial_game_start_components import _bind
+
+    from pitchlog.recording_rights import initial_grant_broker as broker
+    from pitchlog.repositories.game_start import InitialStartReceipt
+
+    bound = _bind()
+    seen = []
+    saved = InitialStartReceipt(
+        bound.owner,
+        datetime(2026, 10, 26, tzinfo=timezone.utc),
+        UUID(int=9),
+        UUID(int=10),
+    )
+    grant = object()
+
+    def body(*args):
+        seen.append(args)
+        return grant, saved
+
+    monkeypatch.setattr(broker, "_issue_initial_grant_impl", body)
+    result = broker._start_initial_game(
+        cast(Any, object()),
+        object(),
+        bound,
+        "synthetic",
+        cast(Any, object()),
+        cast(Any, object()),
+    )
+    assert result.receipt is saved and result.grant is grant and len(seen) == 1
+    assert seen[0][-1] is bound and seen[0][2] is bound.owner
+    seen.clear()
+    assert (
+        broker._issue_initial_grant(
+            cast(Any, object()),
+            object(),
+            bound.owner,
+            "synthetic",
+            cast(Any, object()),
+            cast(Any, object()),
+        )
+        is grant
+    )
+    assert len(seen) == 1 and len(seen[0]) == 6
+
+
+def _transport_start():
+    """公開合成値だけで通信外形を作る。発行やcommitの証拠ではない。"""
+    from pydantic import SecretStr
+    from test_initial_game_start_components import _CREDENTIAL, _bind
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    bound = _bind()
+    identity = b._BrokerIdentity(
+        bound.owner.tenant_id, UUID(int=901), SecretStr("test-cookie")
+    )
+    return b._StartInitialGameCommand(
+        identity,
+        bound.owner.game_id,
+        bound.owner.start_request_id,
+        bound.owner.device_id,
+        SecretStr(_CREDENTIAL),
+        bound.payload,
+    )
+
+
+def _transport_postcommit_shape():
+    """同戻り値の投影テスト用。実_start_initial_gameを実行したとはしない。"""
+    from datetime import datetime, timezone
+
+    from test_initial_game_start_components import _bind
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.recording_rights.initial_grant import InitialGrant
+    from pitchlog.repositories.game_start import InitialStartReceipt
+
+    owner = _bind().owner
+    grant = InitialGrant(owner.game_id, 17, "2", owner.device_id, "test-proof")
+    receipt = InitialStartReceipt(
+        owner, datetime(2026, 10, 26, tzinfo=timezone.utc), UUID(int=31), UUID(int=32)
+    )
+    return owner, b._InitialStartedGame(grant, receipt)
+
+
+@pytest.mark.parametrize("generation", [1, 2, 255, 256, 2**53, 2**63 - 1])
+def test_broker_private_d4_codec_has_exact_owner_and_bigint_range(generation) -> None:
+    """D4はopaque往復だけを扱い、parseを権利照合にしない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    value = b._broker_d4(_TENANT, _GAME, generation)
+    assert len(value) == 60 and not value.isdecimal()
+    assert b._broker_generation(value, _TENANT, _GAME) == generation
+    for bad in [value + "=", value + "\n", value[:-1], "d4.2." + value[5:]]:
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._broker_generation(bad, _TENANT, _GAME)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_generation(value, _OTHER_TENANT, _GAME)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_generation(value, _TENANT, UUID(int=999))
+
+
+@pytest.mark.parametrize("generation", [True, False, 0, -1, 1.0, "1", 2**63, None])
+def test_broker_d4_never_coerces_or_reuses_invalid_generation(generation) -> None:
+    """数値coercion/overflowをcodec内で拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_d4(_TENANT, _GAME, generation)
+
+
+@pytest.mark.parametrize("operation", ["enroll", "start", "resolve"])
+def test_broker_command_dispatch_only_roundtrips_immutable_shape(
+    operation, monkeypatch
+) -> None:
+    """dispatchがissuer/SQLを呼ばず、deep frozen要求だけへ分類する。"""
+    from dataclasses import FrozenInstanceError
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A dispatch must not execute a worker")
+
+    monkeypatch.setattr(b, "_start_initial_game", forbidden)
+    monkeypatch.setattr(b, "_issue_initial_grant", forbidden)
+    start = _transport_start()
+    command = (
+        b._EnrollDeviceCommand(start.identity)
+        if operation == "enroll"
+        else b._ResolveStartCommand(start)
+        if operation == "resolve"
+        else start
+    )
+    frame = b._encode_initial_command(command)
+    decoded = b._decode_initial_command(frame)
+    assert type(decoded) is type(command) and decoded == command
+    assert b._encode_initial_command(decoded) == frame
+    assert "test-cookie" not in repr(command)
+    assert start.device_credential.get_secret_value() not in repr(command)
+    with pytest.raises(FrozenInstanceError):
+        start.game_id = UUID(int=999)
+    with pytest.raises(FrozenInstanceError):
+        start.payload.away[0].batting_order = 3
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "extra",
+        "version_bool",
+        "version_float",
+        "unknown",
+        "tenant_upper",
+        "cookie_number",
+        "request_extra",
+        "order_bool",
+        "role_extra",
+        "device_upper",
+        "empty_cookie",
+        "oversize_cookie",
+    ],
+)
+def test_broker_command_rejects_all_unknown_and_normalized_wire_values(
+    mutation,
+) -> None:
+    """閉member/整数/UUIDの正規化穴をwire逆射影で閉じる。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    value: dict[str, Any] = b._broker_command_source(_transport_start())
+    if mutation == "extra":
+        value["tenant_context"] = {"valid": True}
+    elif mutation == "version_bool":
+        value["version"] = True
+    elif mutation == "version_float":
+        value["version"] = 1.0
+    elif mutation == "unknown":
+        value["command"] = "advance"
+    elif mutation == "tenant_upper":
+        value["expected_tenant_id"] = "{00000000-0000-0000-0000-000000000001}"
+    elif mutation == "cookie_number":
+        value["cookie"] = 1
+    elif mutation == "request_extra":
+        value["request"]["attempt_id"] = str(UUID(int=8))
+    elif mutation == "order_bool":
+        value["request"]["away"][0]["batting_order"] = True
+    elif mutation == "role_extra":
+        value["request"]["away"][0]["fielding_position"]["trusted"] = True
+    elif mutation == "device_upper":
+        value["request"]["device_id"] = "00000000000000000000000000000005"
+    elif mutation == "empty_cookie":
+        value["cookie"] = ""
+    elif mutation == "oversize_cookie":
+        value["cookie"] = "x" * 4097
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._decode_initial_command(b._broker_frame(value))
+    assert "test-cookie" not in str(caught.value) and caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"cookie":"sensitive","cookie":"again"}',
+        b'{"cookie":NaN}',
+        b'{"cookie":Infinity}',
+        b'{"cookie":1e999}',
+        b"[]",
+        b"{",
+        b'{"cookie":"sensitive"}\n',
+        b'{ "cookie": "sensitive" }',
+        b"{}{}",
+        b"\xff",
+    ],
+)
+def test_broker_frame_rejects_duplicate_nonfinite_and_ambiguous_json(body) -> None:
+    """資格を含む壊れJSONの元例外を露出しない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._decode_initial_command(len(body).to_bytes(4, "big") + body)
+    assert "sensitive" not in str(caught.value) and caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "frame", [b"", b"\0\0\0\0", b"\0\0\0\x02{", b"\xff" * 4, b"\0\0\0\x02{}x"]
+)
+def test_broker_frame_requires_exact_single_bounded_length(frame) -> None:
+    """不足/余剰/過大のframeを先拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_object(frame)
+
+
+@pytest.mark.parametrize(
+    "owner_field",
+    [
+        "tenant_id",
+        "game_id",
+        "start_request_id",
+        "device_id",
+        "attempt_id",
+        "request_digest",
+    ],
+)
+def test_broker_postcommit_projection_requires_entire_server_resolved_owner(
+    owner_field,
+) -> None:
+    """receiptに無いgeneration等を仮定せず、実在owner全値を照合する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    owner, result = _transport_postcommit_shape()
+    response = b._postcommit_start_response(result, owner)
+    assert (
+        b._broker_generation(response.d4, owner.tenant_id, owner.game_id)
+        == result.grant.generation
+    )
+    bad = replace(
+        owner,
+        **{
+            owner_field: b"x" * 32 if owner_field == "request_digest" else UUID(int=999)
+        },
+    )
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._postcommit_start_response(result, bad)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("game_id", UUID(int=999)),
+        ("holder_device_id", UUID(int=999)),
+        ("generation", True),
+        ("generation", 0),
+        ("recovery_generation", "02"),
+    ],
+)
+def test_broker_postcommit_projection_reads_only_same_result_grant(
+    field, value
+) -> None:
+    """独立に渡す世代はなく、同戻り値の共通game/deviceも再照合する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    owner, result = _transport_postcommit_shape()
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._postcommit_start_response(
+            replace(result, grant=replace(result.grant, **{field: value})), owner
+        )
+
+
+def test_broker_reply_secret_output_is_explicit_and_same_owner() -> None:
+    """合成codec往復だけを検査し、これを実start/commitと呼ばない。"""
+    from pydantic import SecretStr
+
+    from pitchlog.api.schemas.game_start import InitialDeviceEnrollmentResponse
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    start = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    response = b._postcommit_start_response(result, owner)
+    for command in [start, b._ResolveStartCommand(start)]:
+        reply = b._BrokerReply("started", response)
+        frame = b._encode_initial_reply(command, reply)
+        assert b._decode_initial_reply(frame, command) == reply
+        assert b"test-proof" in frame and "test-proof" not in repr(reply)
+        assert "test-proof" not in response.model_dump_json()
+    enroll = b._EnrollDeviceCommand(start.identity)
+    model = InitialDeviceEnrollmentResponse(
+        tenant_id=owner.tenant_id,
+        device_id=owner.device_id,
+        device_credential=SecretStr("device-secret"),
+    )
+    frame = b._encode_initial_reply(enroll, b._BrokerReply("enrolled", model))
+    assert b"device-secret" in frame and "device-secret" not in model.model_dump_json()
+    assert b._decode_initial_reply(frame, enroll).value == model
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "challenge",
+        "command",
+        "tenant_id",
+        "game_id",
+        "start_request_id",
+        "device_id",
+        "d4",
+        "extra",
+        "epoch_bool",
+        "proof_number",
+        "unknown_status",
+        "failure_with_value",
+        "datetime_normalization",
+    ],
+)
+def test_broker_reply_rejects_stale_foreign_extra_and_normalized_values(
+    mutation,
+) -> None:
+    """同frame対応/owner/閉bodyを照合し、未知結果を成功へ落とさない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    value: dict[str, Any] = b._initial_reply_source(
+        command, b._BrokerReply("started", b._postcommit_start_response(result, owner))
+    )
+    if mutation in ("challenge", "command"):
+        value[mutation] = str(UUID(int=999))
+    elif mutation in ("tenant_id", "game_id", "start_request_id", "device_id"):
+        value["value"][mutation] = str(UUID(int=999))
+    elif mutation == "d4":
+        value["value"]["d4"] += "="
+    elif mutation == "extra":
+        value["value"]["recordingRight"] = True
+    elif mutation == "epoch_bool":
+        value["value"]["recovery_generation"] = True
+    elif mutation == "proof_number":
+        value["value"]["recording_right_proof"] = 123
+    elif mutation == "unknown_status":
+        value["status"] = "ready"
+    elif mutation == "failure_with_value":
+        value["status"] = "unresolved"
+    elif mutation == "datetime_normalization":
+        value["value"]["started_at"] = value["value"]["started_at"].replace(
+            "Z", "+00:00"
+        )
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._decode_initial_reply(b._broker_frame(value), command)
+    assert "test-proof" not in str(caught.value) and caught.value.__context__ is None
+
+
+@pytest.mark.parametrize("status", ["denied", "conflict", "unavailable", "unresolved"])
+def test_broker_failure_and_unknown_preserve_no_value_or_new_attempt(status) -> None:
+    """結果不明は型のまま返し、再発行や自動再送へ変換しない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    reply = b._BrokerReply(status)
+    assert (
+        b._decode_initial_reply(b._encode_initial_reply(command, reply), command)
+        == reply
+    )
+    assert reply.value is None
+
+
+def test_broker_real_unix_peer_credential_and_eof_are_enforced(monkeypatch) -> None:
+    """実socketpairの資格/終端を検査。20002配置/製品worker成功ではない。"""
+    import os
+    import socket
+    import threading
+    from time import monotonic
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    left, right = socket.socketpair()
+    try:
+        if os.getuid() != 20002 or os.getgid() != 20002:
+            with pytest.raises(b.InitialBrokerUnavailable):
+                b._check_broker_peer(left)
+        # helperの実peer照合を実UID/GIDで確認。製品固定値はmonkeypatch終了時に戻る。
+        monkeypatch.setattr(b, "_BROKER_SERVER_UID", os.getuid())
+        monkeypatch.setattr(b, "_BROKER_SERVER_GID", os.getgid())
+        b._check_broker_peer(left)
+        wire = b._encode_initial_reply(_transport_start(), b._BrokerReply("unresolved"))
+
+        def write():
+            for part in [wire[:2], wire[2:5], wire[5:]]:
+                right.sendall(part)
+            right.shutdown(socket.SHUT_WR)
+
+        sender = threading.Thread(target=write)
+        sender.start()
+        try:
+            assert b._broker_receive(left, monotonic() + 1) == wire
+        finally:
+            sender.join(timeout=2)
+        assert not sender.is_alive()
+    finally:
+        left.close()
+        right.close()
+
+
+@pytest.mark.parametrize("kind", ["early_eof", "extra", "deadline"])
+def test_broker_actual_socket_rejects_eof_extra_and_expired_deadline(kind) -> None:
+    """Owned socketだけで失敗を実観測し、待機期限を延長しない。"""
+    import socket
+    from time import monotonic
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    left, right = socket.socketpair()
+    try:
+        wire = b._encode_initial_reply(_transport_start(), b._BrokerReply("unresolved"))
+        if kind == "early_eof":
+            right.sendall(wire[:-1])
+            right.shutdown(socket.SHUT_WR)
+        elif kind == "extra":
+            right.sendall(wire + b"x")
+            right.shutdown(socket.SHUT_WR)
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._broker_receive(
+                left, monotonic() - 1 if kind == "deadline" else monotonic() + 1
+            )
+    finally:
+        left.close()
+        right.close()
+
+
+def test_broker_endpoint_and_client_fail_closed_without_root_supply(
+    tmp_path, monkeypatch
+) -> None:
+    """所有uid1000配置をroot設定として採用せず、任意path引数も受けない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    target = tmp_path / "endpoint.json"
+    target.write_text("{}")
+    monkeypatch.setattr(b, "_BROKER_ENDPOINT_PATH", target)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._InitialBrokerClient()
+    with pytest.raises(TypeError):
+        cast(Any, b._InitialBrokerClient)(target)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._broker_trusted_parents(Path("relative.sock"))
+
+
+def test_broker_forced_nested_changes_never_bypass_wire_revalidation() -> None:
+    """model_construct/低水準改変もcodec全wire照合で成功へ採用しない。"""
+    from pitchlog.api.schemas.game_start import InitialGameStartResponse
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    start = _transport_start()
+    object.__setattr__(start.payload.away[0], "batting_order", True)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._encode_initial_command(start)
+    start = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    good = b._postcommit_start_response(result, owner)
+    bad = cast(Any, InitialGameStartResponse.model_construct)(
+        **{**vars(good), "recovery_generation": True}
+    )
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._encode_initial_reply(start, b._BrokerReply("started", bad))
+
+
+def test_broker_actual_socket_inode_mode_owner_and_replacement(
+    tmp_path, monkeypatch
+) -> None:
+    """実statで対向検査。uid1000の低層機構確認でroot配置成功を主張しない。"""
+    import os
+    import socket
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    path = tmp_path / "peer.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as peer:
+        directory = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            # owned pytest pathの長さをAF_UNIX制限へ持ち込まない。
+            peer.bind(f"/proc/self/fd/{directory}/peer.sock")
+        finally:
+            os.close(directory)
+        path.chmod(0o660)
+        info = path.stat(follow_symlinks=False)
+        endpoint = b._BrokerEndpoint(path, info.st_dev, info.st_ino, info.st_gid)
+        if os.getuid() != 20002:
+            with pytest.raises(b.InitialBrokerUnavailable):
+                b._validate_broker_socket_observation(info, endpoint)
+        monkeypatch.setattr(b, "_BROKER_SERVER_UID", os.getuid())
+        b._validate_broker_socket_observation(info, endpoint)
+        for change in [
+            dict(inode=info.st_ino + 1),
+            dict(device=info.st_dev + 1),
+            dict(group=info.st_gid + 1),
+        ]:
+            with pytest.raises(b.InitialBrokerUnavailable):
+                b._validate_broker_socket_observation(info, replace(endpoint, **change))
+        path.chmod(0o666)
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._validate_broker_socket_observation(path.stat(), endpoint)
+        path.unlink()
+        path.write_text("replacement")
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._validate_broker_socket_observation(path.stat(), endpoint)
+
+
+def test_broker_forced_raw_secret_response_never_reaches_warning_or_log(
+    recwarn,
+) -> None:
+    """低水準型すり抜けをserializer前に拒否し、警告への原値流出も防ぐ。"""
+    from pitchlog.api.schemas.game_start import InitialGameStartResponse
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    owner, result = _transport_postcommit_shape()
+    good = b._postcommit_start_response(result, owner)
+    bad = cast(Any, InitialGameStartResponse.model_construct)(
+        **{**vars(good), "recording_right_proof": "raw-private-value"}
+    )
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._encode_initial_reply(command, b._BrokerReply("started", bad))
+    assert not recwarn.list and "raw-private-value" not in str(caught.value)
+    assert caught.value.__context__ is None
+
+
+@pytest.mark.parametrize(
+    "inner",
+    [True, 123, {"secret": "raw-private-value"}, ["raw-private-value"], "\ud800"],
+)
+def test_broker_secret_wrapper_does_not_make_invalid_inner_types_valid(inner) -> None:
+    """SecretStrの直接構築/不正Unicodeでも固定外形で拒否する。"""
+    from pydantic import SecretStr
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable) as caught:
+        b._BrokerIdentity(UUID(int=1), UUID(int=2), cast(Any, SecretStr)(inner))
+    assert "raw-private-value" not in str(caught.value)
+
+
+def _b1_verifier_config():
+    """資格を含まない検証専用接続の純fixtureを作る。"""
+    from datetime import UTC, datetime
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    return b._ActorConfiguration(
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@/fixture?ho"
+            "st=%2Fowned-socket&sslmode=disable"
+        ),
+        "123",
+        42,
+        "fixture",
+        datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+
+@pytest.mark.parametrize("index", range(15))
+def test_b1_verifier_rejects_every_changed_checkout_identity(index) -> None:
+    """role7属性/membership/GUC/実DB identityを全欄厳密に照合する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    config = _b1_verifier_config()
+    row = (
+        [b._INITIAL_AUTH_VERIFIER_ROLE] * 2
+        + [True]
+        + [False] * 6
+        + [0, None, "fixture", 42, config.postmaster_started_at, 3]
+    )
+    b._validate_auth_verifier_observation(tuple(row), config)
+    bad = row.copy()
+    bad[index] = 0 if type(row[index]) is bool else "invalid"
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._validate_auth_verifier_observation(tuple(bad), config)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        (
+            "postgresql+psycopg://pitchlog_app@/fixture?host=%2Fowne"
+            "d-socket&sslmode=disable"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor:private@/fi"
+            "xture?host=%2Fowned-socket&sslmode=disable"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@127.0.0.1/f"
+            "ixture?sslmode=disable"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@/fixture?ho"
+            "st=%2Fowned-socket&service=evil"
+        ),
+        (
+            "postgresql+psycopg://pitchlog_initial_actor@/other?host"
+            "=%2Fowned-socket&sslmode=disable"
+        ),
+    ],
+)
+def test_b1_verifier_cannot_change_endpoint_or_use_app_password_tcp(url) -> None:
+    """Root actorと同じUnix endpointの専用user以外は拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._initial_auth_verifier_url(replace(_b1_verifier_config(), database_url=url))
+
+
+def test_b1_verifier_runtime_requires_root_active_signer_and_expires(
+    monkeypatch,
+) -> None:
+    """pureでは実認証を偽装せず、runtime発行/失効だけを検査する。"""
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from pydantic import SecretStr
+
+    from pitchlog.authz import verified_tenant
+    from pitchlog.authz.token_presentation import TokenPresentation
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    signer = TokenPresentation(bytes(range(32)))
+    monkeypatch.setattr(verified_tenant, "_ACTIVE_PRESENTATION", (signer, signer._key))
+    monkeypatch.setattr(b.os, "geteuid", lambda: 0)
+    monkeypatch.setattr(
+        b,
+        "_actor_state",
+        lambda _: SimpleNamespace(configuration=_b1_verifier_config()),
+    )
+    engine = MagicMock()
+    monkeypatch.setattr(b, "create_engine", lambda *a, **kw: engine)
+    monkeypatch.setattr(b.event, "listen", lambda *args: None)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._load_initial_auth_verifier_runtime(
+            object(), TokenPresentation(bytes(range(32)))
+        )
+    runtime = b._load_initial_auth_verifier_runtime(object(), signer)
+    assert "pitchlog_initial_auth_verifier" in b._initial_auth_verifier_url(
+        _b1_verifier_config()
+    )
+    monkeypatch.setattr(verified_tenant, "verify_tenant_id", lambda *args: None)
+    assert b._verify_initial_cookie(runtime, SecretStr("invalid-cookie")) is None
+    b._close_initial_auth_verifier_runtime(runtime)
+    engine.dispose.assert_called_once()
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._verify_initial_cookie(runtime, SecretStr("private-sentinel"))
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._verify_initial_cookie(object(), SecretStr("private-sentinel"))
+    monkeypatch.setattr(b.os, "geteuid", lambda: 20002)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._load_initial_auth_verifier_runtime(object(), signer)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "binding",
+        "precheck",
+        "insert",
+        "wrong_result",
+        "commit_check",
+        "commit_unknown",
+        "after_commit",
+    ],
+)
+def test_b2_broker_generates_once_and_never_returns_before_commit(
+    fault: str | None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """固定順序/確定取消/commit不明を分け、資格とdriver例外を表示しない。"""
+    import traceback
+    from contextlib import contextmanager
+
+    from pydantic import SecretStr
+    from test_authz_tenant_context import make_tenant_context
+
+    from pitchlog.recording_rights import initial_grant_broker as broker
+    from pitchlog.repositories import rg1, transaction
+    from pitchlog.repositories.tokens import TenantOperationResult
+
+    context = make_tenant_context(_TENANT)
+    actor = cast(Any, object())
+    order = []
+    secret = "PUBLIC-SYNTHETIC-DEVICE-CREDENTIAL-SENTINEL"
+    monkeypatch.setattr(broker, "_initial_actor_engine", lambda runtime: None)
+    monkeypatch.setattr(broker, "uuid4", lambda: _DEVICE)
+    generated = []
+
+    def generate(size):
+        generated.append(size)
+        return secret
+
+    monkeypatch.setattr(broker.secrets, "token_urlsafe", generate)
+
+    def step(name):
+        order.append(name)
+        if fault == name:
+            raise RuntimeError(secret)
+
+    class Handle:
+        """型付き戻り値と実呼出順だけを観測する代役。"""
+
+        def run_function(self, token):
+            step("insert")
+            assert token.device_id == _DEVICE
+            assert token.credential_digest == broker._credential_digest(secret)
+            return TenantOperationResult(
+                ((_OTHER_DEVICE if fault == "wrong_result" else _DEVICE,),)
+            )
+
+    @contextmanager
+    def scope(binding):
+        assert binding.context is context and binding.runtime is actor
+        yield Handle()
+        binding.commit_attempted = True
+        step("commit_unknown")
+        binding.commit_completed = True
+        step("after_commit")
+
+    monkeypatch.setattr(transaction, "_initial_enrollment_transaction_scope", scope)
+    monkeypatch.setattr(
+        broker, "_verify_business_binding", lambda *args: step("binding")
+    )
+    monkeypatch.setattr(rg1, "read_rg1_open", lambda *args: step("precheck"))
+    monkeypatch.setattr(
+        rg1, "assert_rg1_open_before_commit", lambda *args: step("commit_check")
+    )
+    if fault is None:
+        response = broker._enroll_initial_device(context, actor)
+        assert response.tenant_id == _TENANT and response.device_id == _DEVICE
+        assert type(response.device_credential) is SecretStr
+        assert response.device_credential.get_secret_value() == secret
+        assert secret not in repr(response)
+        assert order == [
+            "binding",
+            "precheck",
+            "insert",
+            "commit_check",
+            "commit_unknown",
+            "after_commit",
+        ]
+    else:
+        error_type = (
+            broker._InitialEnrollmentOutcomeUnknown
+            if fault in {"commit_unknown", "after_commit"}
+            else InitialGrantUnavailable
+        )
+        with pytest.raises(error_type) as caught:
+            broker._enroll_initial_device(context, actor)
+        assert secret not in "".join(traceback.format_exception(caught.value))
+        assert caught.value.__context__ is None
+    assert generated == [32]
+
+
+@pytest.mark.parametrize(
+    "operation",
+    [
+        "enroll",
+        "start",
+        "resolve",
+        "pending",
+        "denied",
+        "enroll_unknown",
+        "start_unknown",
+    ],
+)
+def test_worker_dispatch_closed_real_entry_selection(operation, monkeypatch):
+    """純代役は分岐/起源だけを検査し、DB認可/commit成功の証拠にはしない。"""
+    from contextlib import contextmanager
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from test_authz_tenant_context import make_tenant_context
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.repositories import tenant_context_issuance
+    from pitchlog.repositories.game_start import InitialStartReceipt
+
+    command = _transport_start()
+    context = make_tenant_context(command.identity.expected_tenant_id)
+    calls = []
+
+    class Fence:
+        generation = 1
+
+        def assert_held(self):
+            calls.append("held")
+
+    class Source:
+        @contextmanager
+        def recovery_fence(self):
+            calls.append("fence")
+            yield Fence()
+
+    state = SimpleNamespace(actor=object(), verifier=object(), source=Source())
+    monkeypatch.setattr(b, "_worker_state", lambda runtime: state)
+
+    def verify(cookie, tenant, runtime):
+        calls.append("cookie")
+        assert tenant == context.tenant_id
+        return None if operation == "denied" else (context, datetime.now(UTC))
+
+    monkeypatch.setattr(
+        tenant_context_issuance, "_issue_initial_broker_context", verify
+    )
+
+    def enroll(ctx, runtime):
+        calls.append("enroll")
+        if operation == "enroll_unknown":
+            raise b._InitialEnrollmentOutcomeUnknown("synthetic")
+        return b.InitialDeviceEnrollmentResponse(
+            tenant_id=ctx.tenant_id,
+            device_id=_DEVICE,
+            device_credential=__import__("pydantic").SecretStr(
+                "synthetic-enrollment-raw"
+            ),
+        )
+
+    monkeypatch.setattr(b, "_enroll_initial_device", enroll)
+
+    def result(owner):
+        return b._InitialStartedGame(
+            b.InitialGrant(owner.game_id, 1, "1", owner.device_id, "synthetic-proof"),
+            InitialStartReceipt(owner, datetime.now(UTC), UUID(int=90), UUID(int=91)),
+        )
+
+    def start(ctx, runtime, bound, *args):
+        calls.append("start")
+        if operation == "start_unknown":
+            raise RuntimeError("synthetic-private-driver")
+        # intentが実解決したattemptは候補と異なり得る。
+        return result(replace(bound.owner, attempt_id=UUID(int=999)))
+
+    monkeypatch.setattr(b, "_start_initial_game", start)
+
+    def resolve(original, ctx, state, fence):
+        calls.append("resolve")
+        if operation == "pending":
+            return None
+        return result(
+            b._worker_start_bound(original, ctx.tenant_id, UUID(int=999)).owner
+        )
+
+    monkeypatch.setattr(b, "_worker_resolve_start", resolve)
+    if operation in {"enroll", "enroll_unknown"}:
+        command = b._EnrollDeviceCommand(command.identity)
+    elif operation in {"resolve", "pending"}:
+        command = b._ResolveStartCommand(command)
+        monkeypatch.setattr(
+            b, "uuid4", lambda: pytest.fail("resolve generated new UUID")
+        )
+    if operation == "enroll_unknown":
+        with pytest.raises(b.InitialBrokerUnavailable):
+            b._dispatch_initial_command(command, object())
+        assert calls == ["cookie", "enroll"]
+        return
+    reply = b._dispatch_initial_command(command, object())
+    expected = {
+        "enroll": "enrolled",
+        "start": "started",
+        "resolve": "started",
+        "pending": "unresolved",
+        "denied": "denied",
+        "start_unknown": "unresolved",
+    }[operation]
+    assert reply.status == expected
+    assert calls[0] == "cookie"
+    if operation in {"pending", "start_unknown", "denied"}:
+        assert reply.value is None
+    if operation == "resolve":
+        assert "start" not in calls and "enroll" not in calls
+    if reply.value is not None:
+        frame = b._encode_initial_reply(command, reply)
+        assert b._decode_initial_reply(frame, command).status == expected
+
+
+@pytest.mark.parametrize("queued_seconds", [0.0, 1.01])
+@pytest.mark.parametrize("fault", [False, True])
+def test_worker_socket_one_frame_and_queue_expiry(
+    queued_seconds, fault, monkeypatch, capsys
+):
+    """純socket対向でqueue期限前DB0と例外非露出を確認する。peer実証はPG側。"""
+    import socket
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = b._EnrollDeviceCommand(_transport_start().identity)
+    left, right = socket.socketpair()
+    calls = []
+    monkeypatch.setattr(b, "_worker_peer", lambda *_: calls.append("peer"))
+    monkeypatch.setattr(b, "_check_broker_socket", lambda *_: None)
+
+    def dispatch(command, runtime):
+        calls.append("dispatch")
+        if fault:
+            raise RuntimeError("PRIVATE-WORKER-SENTINEL")
+        return b._BrokerReply("denied")
+
+    monkeypatch.setattr(b, "_dispatch_initial_command", dispatch)
+    try:
+        right.sendall(b._encode_initial_command(command))
+        right.shutdown(socket.SHUT_WR)
+        b._worker_connection(
+            left, cast(Any, object()), object(), b.monotonic() - queued_seconds
+        )
+        try:
+            received = right.recv(4096)
+        except ConnectionResetError:
+            assert queued_seconds > 1
+            received = b""
+        if queued_seconds > 1 or fault:
+            assert not received
+        else:
+            assert b._decode_initial_reply(received, command).status == "denied"
+        assert ("dispatch" in calls) == (queued_seconds < 1)
+        assert "PRIVATE-WORKER-SENTINEL" not in str(capsys.readouterr())
+    finally:
+        left.close()
+        right.close()
+
+
+def test_worker_root_and_runtime_are_closed(monkeypatch):
+    """非root起動/偽runtimeを実設定読取やSQLより先に拒否する。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    monkeypatch.setattr(b.os, "geteuid", lambda: 20003)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b.serve_initial_broker(Path("/not-read"), object(), cast(Any, object()))
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._worker_state(object())
+
+
+def test_worker_queue_expiration_does_not_wait_for_busy_workers(monkeypatch):
+    """処理slot3つがbusyでも、mainは期限切れqueueを閉じてDB0を保つ。"""
+    import queue
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    class Channel:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    expired, fresh = Channel(), Channel()
+    pending = queue.Queue(maxsize=3)
+    pending.put((expired, 0))
+    pending.put((fresh, 1.5))
+    monkeypatch.setattr(b, "monotonic", lambda: 2)
+    b._expire_initial_queue(pending)
+    assert expired.closed and not fresh.closed
+    assert pending.get_nowait() == (fresh, 1.5)
+    pending.task_done()
+    pending.join()
+
+
+def test_worker_bootstrap_configures_rg1_after_real_subject_drop(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """実serveの順序をOS代役で検査する。実peer/DB成功はこの純対向で証明しない。"""
+    from types import SimpleNamespace
+
+    from pitchlog import durable_rights_ledger
+    from pitchlog.authz.token_presentation import TokenPresentation
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.recording_rights import rg1_lifecycle as rg1
+
+    uid = [0]
+    gid = [0]
+    priv = [False]
+    configured = [False]
+    events = []
+    endpoint = tmp_path / "endpoint.json"
+    sock = tmp_path / "broker.sock"
+
+    def root_event(name):
+        assert uid[0] == 0
+        events.append(name)
+
+    def config(_):
+        root_event("root_config")
+        return dict(
+            socket_path=str(sock),
+            actor_config="/root-actor",
+            ledger_endpoint="/root-ledger",
+            rg1_client_config="/root-rg1",
+        )
+
+    def actor(*_):
+        root_event("root_actor")
+        return object()
+
+    def verifier(*_):
+        root_event("root_verifier")
+        return object()
+
+    def ledger(*_):
+        assert uid[0] == gid[0] == 20002 and priv[0] and configured[0]
+        events.append("ledger_subject_check")
+        return object()
+
+    def setuid(value):
+        uid[0] = value
+        events.append("drop_uid")
+
+    def setgid(value):
+        gid[0] = value
+
+    def prctl(*_):
+        assert uid[0] == gid[0] == 20002
+        priv[0] = True
+        events.append("no_new_privs")
+        return 0
+
+    def configure(path):
+        assert path == Path("/root-rg1")
+        assert uid[0] == 20002 and priv[0]
+        assert endpoint.exists()
+        configured[0] = True
+        events.append("rg1_subject_check")
+
+    class Listener:
+        """socket作成を行わず、bindとlistenの実呼出順だけを観測する。"""
+
+        def bind(self, path):
+            root_event("root_bind")
+            Path(path).touch()
+
+        def listen(self, count):
+            assert (
+                count == 3 and uid[0] == gid[0] == 20002 and priv[0] and configured[0]
+            )
+            events.append("listen_after_drop")
+
+        def settimeout(self, _):
+            pass
+
+        def accept(self):
+            raise RuntimeError("synthetic service end")
+
+        def close(self):
+            pass
+
+    class Thread:
+        """workerを起動せず、閉3slotの生成だけを数える。"""
+
+        def __init__(self, **kwargs):
+            assert kwargs["daemon"] is True
+
+        def start(self):
+            events.append("worker_slot")
+
+        def join(self, timeout):
+            assert timeout == 2
+
+    monkeypatch.setattr(b, "_worker_configuration", config)
+    monkeypatch.setattr(b, "_load_initial_actor_runtime", actor)
+    monkeypatch.setattr(b, "_load_initial_auth_verifier_runtime", verifier)
+    monkeypatch.setattr(durable_rights_ledger, "DurableLedger", ledger)
+    monkeypatch.setattr(rg1, "configure_runtime", configure)
+    monkeypatch.setattr(b, "_BROKER_ENDPOINT_PATH", endpoint)
+    monkeypatch.setattr(b, "_broker_trusted_parents", lambda _: None)
+    monkeypatch.setattr(
+        b, "_check_broker_socket", lambda _: root_event("root_socket_check")
+    )
+    monkeypatch.setattr(b.socket, "socket", lambda *_: Listener())
+    monkeypatch.setattr(b.os, "geteuid", lambda: uid[0])
+    monkeypatch.setattr(b.os, "getegid", lambda: gid[0])
+    monkeypatch.setattr(b.os, "setuid", setuid)
+    monkeypatch.setattr(b.os, "setgid", setgid)
+    monkeypatch.setattr(
+        b.os,
+        "setgroups",
+        lambda groups: (
+            root_event("drop_groups") if groups == [] else pytest.fail("groups")
+        ),
+    )
+    monkeypatch.setattr(b.os, "chown", lambda *_: root_event("root_socket_owner"))
+    monkeypatch.setattr(b.os, "chmod", lambda *_: root_event("root_socket_mode"))
+    monkeypatch.setattr(b.ctypes, "CDLL", lambda *a, **kw: SimpleNamespace(prctl=prctl))
+    monkeypatch.setattr(b.threading, "Thread", Thread)
+    monkeypatch.setattr(b, "_close_initial_actor_runtime", lambda _: None)
+    monkeypatch.setattr(b, "_close_initial_auth_verifier_runtime", lambda _: None)
+    before = set(b._WORKER_STATES)
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b.serve_initial_broker(
+            Path("/root-config"),
+            TokenPresentation(bytes(range(32))),
+            V12Box("public-vector", bytes(range(32))),
+        )
+    assert set(b._WORKER_STATES) == before
+    assert events.index("root_actor") < events.index("drop_uid")
+    assert events.index("root_verifier") < events.index("drop_uid")
+    assert events.index("root_socket_check") < events.index("drop_uid")
+    assert (
+        events.index("drop_uid")
+        < events.index("no_new_privs")
+        < events.index("rg1_subject_check")
+        < events.index("listen_after_drop")
+    )
+    assert events.index("rg1_subject_check") < events.index("ledger_subject_check")
+    assert events.index("ledger_subject_check") < events.index("listen_after_drop")
+    assert events.count("worker_slot") == 3
+
+
+@pytest.mark.parametrize(
+    "uid,gid,valid",
+    [(0, 0, False), (20002, 0, False), (0, 20002, False), (20002, 20002, True)],
+)
+def test_worker_actual_ledger_constructor_subject_requirements(
+    uid, gid, valid, monkeypatch, tmp_path
+):
+    """実constructor/endpointの主体条件を検査する。rootFS/peerの成功証拠は別実走。"""
+    import os
+    import stat
+    from types import SimpleNamespace
+
+    from pitchlog.durable_rights_ledger import (
+        DurableLedger,
+        LedgerUnavailable,
+        authority,
+    )
+
+    endpoint = dict(
+        schema_version=2,
+        authority_uid=20001,
+        authority_gid=20001,
+        client_uid=20002,
+        client_gid=20002,
+        role="generation",
+        socket_path="/owned/ledger.sock",
+        timeout=1.0,
+    )
+    monkeypatch.setattr(authority, "_read_root_json", lambda *args: dict(endpoint))
+    monkeypatch.setattr(authority.os, "geteuid", lambda: uid)
+    monkeypatch.setattr(authority.os, "getegid", lambda: gid)
+    original_stat = os.stat
+
+    def directory(_):
+        return os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+
+    def metadata(path, *args, **kwargs):
+        if path == "ledger.sock" and "dir_fd" in kwargs:
+            return SimpleNamespace(
+                st_mode=stat.S_IFSOCK | 0o660, st_uid=0, st_gid=20002
+            )
+        return original_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(authority, "_trusted_directory", directory)
+    monkeypatch.setattr(authority.os, "stat", metadata)
+    if valid:
+        ledger = DurableLedger(Path("/owned/endpoint.json"))
+        assert (
+            ledger._target["client_uid"] == uid and ledger._target["client_gid"] == gid
+        )
+    else:
+        with pytest.raises(LedgerUnavailable):
+            DurableLedger(Path("/owned/endpoint.json"))
+
+
+@pytest.mark.parametrize("mismatch", [False, True])
+def test_business_binding_static_import_preserves_identity_check(
+    monkeypatch: pytest.MonkeyPatch, mismatch: bool
+) -> None:
+    """固定RG1型で実scopeのDB識別全値を照合し、不一致を拒否する。"""
+    import json
+    from types import SimpleNamespace
+
+    from pitchlog.recording_rights import initial_grant_broker as broker
+
+    config = _b1_verifier_config()
+    body = json.dumps(
+        {
+            "system_identifier": "124" if mismatch else config.system_identifier,
+            "database_oid": config.database_oid,
+            "database_name": config.database_name,
+            "postmaster_started_at": config.postmaster_started_at.isoformat(),
+            "backend_pid": 1,
+        }
+    )
+
+    class Scope:
+        def run_function(self, token: object) -> object:
+            assert token is not None
+            return SimpleNamespace(rows=((body,),))
+
+    monkeypatch.setattr(
+        broker, "_actor_state", lambda runtime: SimpleNamespace(configuration=config)
+    )
+    if mismatch:
+        with pytest.raises(InitialGrantUnavailable, match="実scope binding"):
+            broker._verify_business_binding(cast(Any, Scope()), object())
+    else:
+        broker._verify_business_binding(cast(Any, Scope()), object())

@@ -3,9 +3,9 @@
   "asset_kind": "authz_route_registry",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "bee02c8b87b602095277c17fde4e49abebbcac84",
+    "requirement_claims_blob_digest": "b1d62146af707c47b106c95ce4e742b6d8684bfe",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "6183b66e5a557761d1231c56096d91f7b7b0b92e"
+    "requirement_claims_lock_blob_digest": "1b95f047fa7df49db1e31af5205cceb90ed711c1"
   },
   "enums": {
     "origins": [
@@ -102,6 +102,156 @@
       "provenance_id": "PLAN-MVP-PREPARING-READ-REGISTRATION",
       "path": "docs/features/mvp-preparing-read-registration/plan.md",
       "extracted_text": "準備中試合の保存値だけを読むGET /gamesおよびGET /games/{game_id}を既存CAP:games:readへ対応させる。"
+    },
+    {
+      "provenance_id": "PLAN-MVP-STARTED-READ-HTTP",
+      "path": "docs/features/mvp-started-read-http/plan.md",
+      "extracted_text": "開始済み試合readのGET `/games/{game_id}/started` は、既存の論理route `ROUTE:RECORD:games:read` へ、実operation `started_game_detail` と読取tokenの実CAPを個別に対応させる。新しい論理route・HTTP独自CAP・role・DB ACLは作らず、準備中試合の2GET(`GET /games`・`GET /games/{game_id}`)のprovenance・意味・byteを保持する。"
+    },
+    {
+      "provenance_id": "HTTP:started_game_detail",
+      "path": "backend/src/pitchlog/api/routers/started_games.py",
+      "extracted_text": "@router.get(\n    \"/games/{game_id}/started\",\n    response_model=StartedGameReadResponse,\n    operation_id=\"started_game_detail\",\n)\ndef read_started_game_detail(\n    game_id: UUID,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n) -> StartedGameRead | StartedRecordedGameRead:\n    \"\"\"不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。\"\"\"\n    try:\n        with tenant_transaction_scope(context) as scope:\n            result = read_started_game(scope, game_id)\n            if type(result) is StartedGameView:\n                item: StartedGameRead | StartedRecordedGameRead | None = _read(result)\n            elif type(result) is StartedRecordedView:\n                item = _read_recorded(result)\n            else:\n                item = None\n    except Exception:\n        # rollback後に固定外形だけを返し、DB値や原例外を公開しない。\n        raise HTTPException(status_code=503) from None\n    if type(result) is StartedReadNotVisible:\n        raise HTTPException(status_code=404)\n    if type(result) is StartedReadRecorded:\n        # 2球目以降・訂正・墓標・失効世代など、初球1件を閉じて返せない記録。\n        raise HTTPException(status_code=409)\n    if item is None:\n        raise HTTPException(status_code=503)\n    return item"
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:GameLockToken",
+      "path": "backend/src/pitchlog/sync/tokens.py",
+      "extracted_text": "_capability_id = \"CAP:games:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:GameReadToken",
+      "path": "backend/src/pitchlog/sync/tokens.py",
+      "extracted_text": "_capability_id = \"CAP:games:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordingGenerationReadToken",
+      "path": "backend/src/pitchlog/sync/tokens.py",
+      "extracted_text": "_capability_id = \"CAP:recording_generations:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordingGenerationLockToken",
+      "path": "backend/src/pitchlog/sync/tokens.py",
+      "extracted_text": "_capability_id = \"CAP:recording_generations:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:StartedLineupsReadToken",
+      "path": "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:game_lineups:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:StartedEventSlotsExistenceToken",
+      "path": "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:event_slots:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:StartedOperationEventsExistenceToken",
+      "path": "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:operation_events:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:StartedPlayRowsExistenceToken",
+      "path": "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:play_rows:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:PlayerReadToken",
+      "path": "backend/src/pitchlog/repositories/roster.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"選手の読み取り capability を返す。\"\"\"\n        return \"CAP:players:read\""
+    },
+    {
+      "provenance_id": "PLAN-MVP-GAME-START-HTTP",
+      "path": "docs/features/mvp-game-start-connection/plan.md",
+      "extracted_text": "logical routeはtrusted_devices:insertへenroll、games:updateへstart/resolveを各operationと実CAP provenanceで個別に対応させる。committed再交付を含むresolveをgames:readへ分類しない。既games:readの準備中2GETの意味/byteを保持し、resolve→readの誤結線を負例にする。HTTP独自CAP/role/DB ACLを作らず、採用worker/profileの正式CAP登録へ委任する。"
+    },
+    {
+      "provenance_id": "HTTP:initial_device_enroll",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/devices/enroll\",\n    response_model=InitialDeviceEnrollmentResponse,\n    operation_id=\"initial_device_enroll\",\n)\ndef enroll_initial_device(\n    request: Request,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n    cookie: Annotated[str, Depends(require_presented_token)],\n) -> JSONResponse:\n    \"\"\"同tenantの登録要求を実workerへ一度だけ渡す。\"\"\"\n    return _initial_response(\n        _EnrollDeviceCommand(_initial_identity(request, context, cookie))\n    )"
+    },
+    {
+      "provenance_id": "HTTP:initial_game_start",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/games/{game_id}/start\",\n    response_model=InitialGameStartResponse,\n    operation_id=\"initial_game_start\",\n)\ndef start_initial_game(\n    game_id: UUID,\n    payload: GameStartRequest,\n    request: Request,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n    cookie: Annotated[str, Depends(require_presented_token)],\n) -> JSONResponse:\n    \"\"\"元要求の全入力を送り、workerの実commit後応答だけを返す。\"\"\"\n    return _initial_response(\n        _initial_start_command(\n            payload,\n            game_id,\n            _initial_identity(request, context, cookie),\n        )\n    )"
+    },
+    {
+      "provenance_id": "HTTP:initial_game_start_resolve",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/games/{game_id}/start/resolve\",\n    response_model=InitialGameStartResponse,\n    operation_id=\"initial_game_start_resolve\",\n)\ndef resolve_initial_game_start(\n    game_id: UUID,\n    payload: GameStartRequest,\n    request: Request,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n    cookie: Annotated[str, Depends(require_presented_token)],\n) -> JSONResponse:\n    \"\"\"同元要求のcommitted再交付だけを照会し、新attemptを生成しない。\"\"\"\n    return _initial_response(\n        _ResolveStartCommand(\n            _initial_start_command(\n                payload,\n                game_id,\n                _initial_identity(request, context, cookie),\n            )\n        )\n    )"
+    },
+    {
+      "provenance_id": "CAP:initial_right:lock_device",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"固定能力だけを返す。\"\"\"\n        return \"CAP:initial_right:lock_device\""
+    },
+    {
+      "provenance_id": "CAP:initial_right:persist_initial_start",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"私有開始能力だけを返す。\"\"\"\n        return \"CAP:initial_right:persist_initial_start\""
+    },
+    {
+      "provenance_id": "CAP:initial_right:enroll_device",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"端末登録一件だけの能力を返す。\"\"\"\n        return \"CAP:initial_right:enroll_device\""
+    },
+    {
+      "provenance_id": "CAP:initial_right:lookup_existing_start_attempt",
+      "path": "backend/src/pitchlog/repositories/initial_recording_right.py",
+      "extracted_text": "@property\n    def capability_id(self) -> str:\n        \"\"\"非作成lookupだけの能力を返す。\"\"\"\n        return \"CAP:initial_right:lookup_existing_start_attempt\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:IdempotencyLedgerReadToken",
+      "path": "backend/src/pitchlog/sync/tokens.py",
+      "extracted_text": "_capability_id = \"CAP:idempotency_ledger:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordedEventRowsReadToken",
+      "path": "backend/src/pitchlog/repositories/recorded_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:operation_events:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordedEventSlotsReadToken",
+      "path": "backend/src/pitchlog/repositories/recorded_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:event_slots:read\""
+    },
+    {
+      "provenance_id": "STARTED-READ-TOKEN:RecordedPlayRowsReadToken",
+      "path": "backend/src/pitchlog/repositories/recorded_snapshot_operations.py",
+      "extracted_text": "_capability = \"CAP:play_rows:read\""
+    },
+    {
+      "provenance_id": "HTTP:preparing_game_create",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.post(\n    \"/games\",\n    response_model=PreparingGameRead,\n    status_code=201,\n    operation_id=\"preparing_game_create\",\n)\ndef create_game(\n    body: PreparingGameCreate,\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n) -> PreparingGameRead:\n    \"\"\"正規serviceの例外をscope外へ伝播し、commit完了後だけ201を返す。\"\"\"\n    try:\n        with tenant_transaction_scope(context) as scope:\n            candidate = create_preparing_game(scope, body)\n        return candidate\n    except RuleResolutionError as error:\n        status = {\n            \"stage_a_unsupported\": 422,\n            \"rule_not_available\": 404,\n            \"invalid_rule\": 409,\n            \"outcome_unconfirmed\": 503,\n        }[error.code]\n        raise HTTPException(status_code=status) from None\n    except PreparingGameCreationError as error:\n        status = {\n            \"not_available\": 404,\n            \"tournament_name_conflict\": 409,\n            \"outcome_unconfirmed\": 503,\n        }[error.code]\n        raise HTTPException(status_code=status) from None\n    except Exception:\n        # 実RG1常閉・競合・commit失敗もrollback後の非成功に閉じる。\n        raise HTTPException(status_code=503) from None"
+    },
+    {
+      "provenance_id": "HTTP:preparing_game_preparation_options",
+      "path": "backend/src/pitchlog/api/routers/games.py",
+      "extracted_text": "@router.get(\n    \"/games/preparation-options\",\n    response_model=PreparingGamePreparationOptions,\n    operation_id=\"preparing_game_preparation_options\",\n)\ndef preparation_options(\n    query: Annotated[PreparationOptionsRequest, Query()],\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n) -> PreparingGamePreparationOptions:\n    \"\"\"認証/C2を先に確認し、有効大会の1ページと固定区分を返す。\"\"\"\n    try:\n        with tenant_transaction_scope(context) as scope:\n            page = read_preparation_options(scope, query)\n        return page\n    except Exception:\n        raise HTTPException(status_code=503) from None"
+    },
+    {
+      "provenance_id": "HTTP:pitch_type_options",
+      "path": "backend/src/pitchlog/api/routers/pitch_type_options.py",
+      "extracted_text": "@router.get(\n    \"/vocabularies/pitch-types\",\n    response_model=Page[PitchTypeOption],\n    operation_id=\"pitch_type_options\",\n)\ndef pitch_type_options(\n    query: Annotated[PitchTypeOptionsRequest, Query()],\n    context: Annotated[TenantContext, Depends(require_tenant_access)],\n) -> Page[PitchTypeOption]:\n    \"\"\"実認証されたtenant内だけの球種を1ページ返す。\"\"\"\n    try:\n        with tenant_transaction_scope(context) as scope:\n            return read_pitch_type_options(scope, query)\n    except Exception:\n        raise HTTPException(status_code=503) from None"
+    },
+    {
+      "provenance_id": "FIRST-BALL-OPTION-TOKEN:PreparingGameInsertToken",
+      "path": "backend/src/pitchlog/repositories/preparing_game_creation.py",
+      "extracted_text": "@dataclass(frozen=True, slots=True)\nclass PreparingGameInsertToken(TenantOperationToken):\n    \"\"\"server値と検証済み保存JSONを1試合のINSERTへ渡す。\"\"\"\n\n    game_id: UUID\n    scheduled_at: datetime\n    game_type_key: GameTypeKey\n    tournament_key: str\n    away_team_record_id: UUID\n    home_team_record_id: UUID\n    applied_rules_json: str\n    plate_umpire: str | None = None\n    section_label: str | None = None\n    week_label: str | None = None\n    day_label: str | None = None\n    game_number_label: str | None = None\n\n    def __post_init__(self) -> None:\n        \"\"\"既存DTO/codecの単一検証を使い、内部tokenも入力を検査する。\"\"\"\n        _uuid(self.game_id)\n        _uuid(self.away_team_record_id)\n        _uuid(self.home_team_record_id)\n        _key(self.tournament_key)\n        if type(self.scheduled_at) is not datetime:\n            raise ValueError(\"予定日時はaware datetimeが必要\")\n        PreparingGameCreate(\n            scheduled_at=self.scheduled_at,\n            game_type_key=self.game_type_key,\n            tournament=ExistingTournament(kind=\"existing\", key=self.tournament_key),\n            away_team_record_id=self.away_team_record_id,\n            home_team_record_id=self.home_team_record_id,\n            plate_umpire=self.plate_umpire,\n            section_label=self.section_label,\n            week_label=self.week_label,\n            day_label=self.day_label,\n            game_number_label=self.game_number_label,\n        )\n        if type(self.applied_rules_json) is not str:\n            raise ValueError(\"保存JSONは文字列が必要\")\n        decode_applied_rules(json.loads(self.applied_rules_json))\n\n    @property\n    def capability_id(self) -> str:\n        \"\"\"既存の試合INSERTを使う。\"\"\"\n        return \"CAP:games:insert\""
+    },
+    {
+      "provenance_id": "FIRST-BALL-OPTION-TOKEN:PreparingTournamentOptionsToken",
+      "path": "backend/src/pitchlog/repositories/preparing_game_creation.py",
+      "extracted_text": "@dataclass(frozen=True, slots=True)\nclass PreparingTournamentOptionsToken(TenantOperationToken):\n    \"\"\"有効大会を最大1ページ読む。\"\"\"\n\n    limit: int = 20\n    cursor: str | None = None\n\n    def __post_init__(self) -> None:\n        \"\"\"件数と位置を既存DTO経由で検査する。\"\"\"\n        if type(self.limit) is not int:\n            raise ValueError(\"件数は整数が必要\")\n        PreparationOptionsRequest(limit=self.limit, cursor=self.cursor)\n\n    @property\n    def capability_id(self) -> str:\n        \"\"\"既存のチーム語彙読取を使う。\"\"\"\n        return \"CAP:tenant_vocabularies:read\""
+    },
+    {
+      "provenance_id": "FIRST-BALL-OPTION-TOKEN:PitchTypeOptionsToken",
+      "path": "backend/src/pitchlog/repositories/pitch_type_options.py",
+      "extracted_text": "@dataclass(frozen=True, slots=True)\nclass PitchTypeOptionsToken(TenantOperationToken):\n    \"\"\"categoryとtenantを外部から受けない球種ページの要求。\"\"\"\n\n    limit: int = 20\n    cursor: str | None = None\n\n    def __post_init__(self) -> None:\n        \"\"\"強制書換え後もexact型と閉じた要求を検査する。\"\"\"\n        if type(self.limit) is not int:\n            raise ValueError(\"球種件数は整数が必要\")\n        PitchTypeOptionsRequest(limit=self.limit, cursor=self.cursor)\n\n    @property\n    def capability_id(self) -> str:\n        \"\"\"既存のtenant語彙readだけを用いる。\"\"\"\n        return \"CAP:tenant_vocabularies:read\""
+    },
+    {
+      "provenance_id": "PLAN-MVP-FIRST-BALL-OPTIONS",
+      "path": "docs/features/mvp-first-ball-screen-vertical/plan.md",
+      "extracted_text": "- 球種の実tenant供給は未提供。専用 `GET /vocabularies/pitch-types` と固定category/disabled/tenant/limit+cursorの新read token、key/display_nameの閉DTO、C2・認可/登録資産候補を同単位で追加する。大会read tokenを他categoryへ転用しない。既CAP再利用、7.7正式受理は隔離候補成功と区別する。固定語彙を製品へ焼き込まない。新規repo/service/router/schemaと対応試験、既operation_registry/app/tenant_accessおよび関連正式資産の必要最小追随を編集範囲とする。意味仕様・保存保証・MVP射程は変更しない。"
     }
   ],
   "routes": [
@@ -698,7 +848,79 @@
       "source_claim_ids": [],
       "provenance_ids": [
         "PLAN-TSK446-RECORD-AND-AGGREGATE",
-        "PLAN-MVP-PREPARING-READ-REGISTRATION"
+        "PLAN-MVP-PREPARING-READ-REGISTRATION",
+        "PLAN-MVP-STARTED-READ-HTTP",
+        "HTTP:started_game_detail",
+        "STARTED-READ-TOKEN:GameLockToken",
+        "STARTED-READ-TOKEN:GameReadToken",
+        "STARTED-READ-TOKEN:RecordingGenerationReadToken",
+        "STARTED-READ-TOKEN:RecordingGenerationLockToken",
+        "STARTED-READ-TOKEN:StartedLineupsReadToken",
+        "STARTED-READ-TOKEN:StartedEventSlotsExistenceToken",
+        "STARTED-READ-TOKEN:StartedOperationEventsExistenceToken",
+        "STARTED-READ-TOKEN:StartedPlayRowsExistenceToken",
+        "STARTED-READ-TOKEN:PlayerReadToken",
+        "STARTED-READ-TOKEN:IdempotencyLedgerReadToken",
+        "STARTED-READ-TOKEN:RecordedEventRowsReadToken",
+        "STARTED-READ-TOKEN:RecordedEventSlotsReadToken",
+        "STARTED-READ-TOKEN:RecordedPlayRowsReadToken"
+      ],
+      "operation": "read"
+    },
+    {
+      "route_id": "ROUTE:RECORD:trusted_devices:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-GAME-START-HTTP",
+        "HTTP:initial_device_enroll",
+        "CAP:initial_right:enroll_device"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:games:update",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-GAME-START-HTTP",
+        "HTTP:initial_game_start",
+        "CAP:initial_right:persist_initial_start",
+        "HTTP:initial_game_start_resolve",
+        "CAP:initial_right:lookup_existing_start_attempt",
+        "CAP:initial_right:lock_device"
+      ],
+      "operation": "update"
+    },
+    {
+      "route_id": "ROUTE:RECORD:games:insert",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-FIRST-BALL-OPTIONS",
+        "HTTP:preparing_game_create",
+        "FIRST-BALL-OPTION-TOKEN:PreparingGameInsertToken"
+      ],
+      "operation": "insert"
+    },
+    {
+      "route_id": "ROUTE:RECORD:tenant_vocabularies:read",
+      "route_kind": "record_and_aggregate",
+      "origin": "design",
+      "source_claim_ids": [],
+      "provenance_ids": [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE",
+        "PLAN-MVP-FIRST-BALL-OPTIONS",
+        "HTTP:preparing_game_preparation_options",
+        "FIRST-BALL-OPTION-TOKEN:PreparingTournamentOptionsToken",
+        "HTTP:pitch_type_options",
+        "FIRST-BALL-OPTION-TOKEN:PitchTypeOptionsToken"
       ],
       "operation": "read"
     }

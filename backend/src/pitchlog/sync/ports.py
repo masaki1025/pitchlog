@@ -131,7 +131,13 @@ class InvalidationSinkPort(Protocol):
 
 
 # 実装を接続するまで空。クラスを module の属性から取得して同一性で照合する。
-PORT_IMPLEMENTATIONS: frozenset[tuple[str, str]] = frozenset()
+PORT_IMPLEMENTATIONS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
+        ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
+    }
+)
 _PORT_VERIFIER: Callable[[object], None] | None = None
 
 

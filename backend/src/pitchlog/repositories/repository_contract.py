@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 28
+CONTRACT_REVISION = 34
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "f5c09910a58ac2d5e9fbb304fdffba4b86015830e73451065268e0992444e018"
+SOURCE_DIGEST = "81e05b24ff00c9ad3d3f1c92028f3c0d05db580ac2920a72fca6829ff2b61085"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -112,6 +112,12 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
     "CAP:tenants:read",
+    "CAP:game_lineups:read",
+    "CAP:play_rows:read",
+    "CAP:play_rows:insert",
+    "CAP:games:insert",
+    "CAP:tenant_vocabularies:insert",
+    "CAP:tenant_vocabularies:read",
 )
 PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -161,6 +167,23 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
     "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+    "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
 )
 CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
 PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
@@ -168,4 +191,8 @@ PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
     "RG1:commit_check",
     "RG1:scope_binding",
     "RULE:resolve_stage_a",
+    "SYNC_FIRST_BALL:bind_device",
+    "SYNC_FIRST_BALL:check_current_right",
+    "SYNC_WRITER_BINDING:read_writer_identity",
+    "SYNC_WRITER_BINDING:assert_writer_binding",
 )

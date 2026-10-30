@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "course-quantization-properties",
+  "scope": "course-input-quantization",
+  "predicates": [
+    {
+      "propertyId": "courseRange",
+      "propertyKind": "invariant",
+      "authorityId": "ADR-003 D-11 3 層表 プロパティ層"
+    },
+    {
+      "propertyId": "courseHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    }
+  ]
+}

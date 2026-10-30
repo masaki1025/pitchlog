@@ -39,6 +39,10 @@ def authority_database(
     request: pytest.FixtureRequest, authority_resources: AuthorityResources
 ) -> AuthorityDatabase:
     """normal群を共有し、故障群は専用cluster/witnessへ直列に切り替える。"""
+    if "dual_scenario" in request.fixturenames:
+        return authority_resources.get(
+            "dual:" + request.getfixturevalue("dual_scenario"), dual_peer=True
+        )
     if "critical_scenario" in request.fixturenames:
         key = "critical:" + request.getfixturevalue("critical_scenario")
     elif "retention_scenario" in request.fixturenames:
@@ -850,6 +854,280 @@ print('FRESH_AND_D4',flush=True)
         if process.poll() is None:
             process.terminate()
             process.communicate(timeout=5)
+
+
+def _dual_raw_refused(
+    authority: AuthorityDatabase,
+    role: str,
+    request: dict[str, object],
+    *,
+    uid: int,
+    gid: int | None = None,
+    supplemental_generation: bool = False,
+    dead_listener: bool = False,
+) -> None:
+    """公開clientの事前拒否を迂回し、実listener/peercredの拒否を観測する。"""
+    assert role in {"generation", "fresh_controller"}
+    path = (
+        "/control/run/service.sock"
+        if role == "generation"
+        else "/control/run/controller.sock"
+    )
+    command = authority.command(uid=uid, gid=gid)
+    if supplemental_generation:
+        # 負例だけでFS group到達性を与え、kernelのprimary GID照合を実証する。
+        command[1:1] = ["--group-add", "20002"]
+    code = f"""
+import socket,json
+with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as c:
+    c.settimeout(2)
+    try:
+        c.connect({path!r})
+    except OSError:
+        assert {dead_listener!r},'expected live listener was inaccessible'
+        reply=b''
+    else:
+        try:
+            c.sendall((json.dumps({request!r})+'\\n').encode())
+            reply=c.recv(4096)
+        except ConnectionError:
+            reply=b''
+    assert not reply or json.loads(reply)=={{'status':'unavailable'}}
+print('RAW_REFUSED')
+"""
+    assert docker(*command, "-c", code) == "RAW_REFUSED"
+
+
+@pytest.mark.parametrize("dual_scenario", ["simultaneous"])
+def test_real_dual_peer_fresh_and_generation_share_one_worker(
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+    dual_scenario: str,
+) -> None:
+    """別UID fresh lease中に実actorが予約/claimし、同じepoch/単一journalを使う。"""
+    import select
+
+    assert dual_scenario == "simultaneous"
+    authority = authority_database
+    process = authority.client_process(
+        """
+import sys
+with s.fresh_activation() as (att,fence):
+    assert att.pair_epoch==1 and att.highwater==att.reservation_count==0
+    print('DUAL_FRESH_READY',flush=True)
+    assert sys.stdin.readline().strip()=='CHECK'
+    fence.assert_held()
+    print('SAME_CHANNEL_FENCE_HELD',flush=True)
+print('DUAL_FRESH_CLOSED',flush=True)
+""",
+        controller=True,
+    )
+    try:
+        assert process.stdout is not None and process.stdin is not None
+        ready, _, _ = select.select([process.stdout], [], [], 15)
+        assert ready and process.stdout.readline().strip() == "DUAL_FRESH_READY"
+        assert (
+            authority.client("""
+params=tuple(uuid4() for _ in range(4))
+with s.recovery_fence() as fence:
+    assert fence.generation==1
+    reservation=s.reserve(*params)
+    assert reservation.generation==1 and reservation.recovery_generation==1
+    s.claim(*params)
+    fence.assert_held()
+print('GENERATION_CLAIMED')
+""")
+            == "GENERATION_CLAIMED"
+        )
+        with psycopg.connect(ledger_connections.primary_admin) as contender:
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                contender.execute(
+                    "SELECT epoch FROM pitchlog_ledger.state FOR UPDATE NOWAIT"
+                )
+        process.stdin.write("CHECK\n")
+        process.stdin.flush()
+        ready, _, _ = select.select([process.stdout], [], [], 10)
+        assert ready and process.stdout.readline().strip() == "SAME_CHANNEL_FENCE_HELD"
+        process.communicate(timeout=10)
+        assert process.returncode == 0
+        success = _ledger_retention_snapshot(ledger_connections.primary_admin)
+        assert success[0] == len(success[1]) == 1 and success[1][0][6:] == (True, False)
+        assert _ledger_retention_snapshot(ledger_connections.standby_admin) == success
+        events = authority.event_counts()
+        assert events["activation_open"] == 1 and events["lease_open"] == 1
+        assert events["lease_close"] == 2
+        assert (
+            authority.controller_client("""
+try:
+    with s.fresh_activation(): raise AssertionError('fresh repeated')
+except LedgerUnavailable: print('PAST_ACTIVATION_REFUSED')
+""")
+            == "PAST_ACTIVATION_REFUSED"
+        )
+        assert authority.client("print(s.current_recovery_generation())") == "1"
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.communicate(timeout=5)
+
+
+@pytest.mark.parametrize("dual_scenario", ["rejections"])
+def test_real_dual_peer_operations_and_kernel_subjects_are_closed(
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+    dual_scenario: str,
+) -> None:
+    """相互操作/偽role/別UID/別primary GIDはPG/journal変化なしに拒否する。"""
+    assert dual_scenario == "rejections"
+    authority = authority_database
+    journal = authority.journal_state()
+    counts = authority.event_counts()
+    before = _ledger_retention_snapshot(ledger_connections.primary_admin)
+    for role, uid, operations in (
+        (
+            "generation",
+            20002,
+            ("fresh_activation_open", "advance", "fence_check", "fence_close"),
+        ),
+        (
+            "fresh_controller",
+            20004,
+            (
+                "epoch",
+                "reserve",
+                "claim",
+                "fence_open",
+                "fence_check",
+                "fence_close",
+                "advance",
+            ),
+        ),
+    ):
+        for operation in operations:
+            _dual_raw_refused(authority, role, {"operation": operation}, uid=uid)
+    _dual_raw_refused(
+        authority,
+        "generation",
+        {"operation": "fresh_activation_open", "role": "fresh_controller"},
+        uid=20002,
+    )
+    _dual_raw_refused(
+        authority, "generation", {"operation": "epoch"}, uid=20005, gid=20002
+    )
+    _dual_raw_refused(
+        authority,
+        "generation",
+        {"operation": "epoch"},
+        uid=20002,
+        gid=20005,
+        supplemental_generation=True,
+    )
+    # endpoint constructorも、相手endpointを同じ権利へ読み替えない。
+    assert (
+        authority.client("""
+try: DurableLedger(Path('/control/public/controller-endpoint.json'))
+except LedgerUnavailable: print('OTHER_ENDPOINT_REFUSED')
+else: raise AssertionError('controller endpoint accepted by generation UID')
+""")
+        == "OTHER_ENDPOINT_REFUSED"
+    )
+    assert (
+        authority.controller_client("""
+try: DurableLedger(Path('/control/public/endpoint.json'))
+except LedgerUnavailable: print('OTHER_ENDPOINT_REFUSED')
+else: raise AssertionError('generation endpoint accepted by controller UID')
+""")
+        == "OTHER_ENDPOINT_REFUSED"
+    )
+    assert authority.journal_state() == journal and authority.event_counts() == counts
+    assert _ledger_retention_snapshot(ledger_connections.primary_admin) == before
+    assert _ledger_retention_snapshot(ledger_connections.standby_admin) == before
+
+
+@pytest.mark.parametrize("dual_scenario", ["disconnect"])
+def test_real_dual_peer_controller_disconnect_blocks_both_and_restart(
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+    dual_scenario: str,
+) -> None:
+    """controller未終端leaseで共有blockedを立て、actor/再起動を閉じる。"""
+    assert dual_scenario == "disconnect"
+    authority = authority_database
+    assert (
+        authority.controller_client("""
+import os
+with s.fresh_activation():
+    print('OPEN_THEN_DISCONNECTED',flush=True)
+    os._exit(0)
+""")
+        == "OPEN_THEN_DISCONNECTED"
+    )
+    assert (
+        authority.client("""
+import time
+deadline=time.monotonic()+5
+while True:
+    try: s.current_recovery_generation()
+    except LedgerUnavailable: break
+    assert time.monotonic()<deadline,'shared worker did not fail closed'
+    time.sleep(0.05)
+try: s.reserve(*(uuid4() for _ in range(4)))
+except LedgerUnavailable: print('SHARED_BLOCKED')
+else: raise AssertionError('actor issued after controller disconnect')
+""")
+        == "SHARED_BLOCKED"
+    )
+    assert authority.event_counts().get("lease_close", 0) == 0
+    assert _ledger_retention_snapshot(ledger_connections.primary_admin) == (0, ())
+    authority.stop()
+    assert authority.start(check=False) is False
+
+
+@pytest.mark.parametrize("dual_scenario", ["startup-partial", "database-peer-mismatch"])
+def test_real_dual_peer_partial_endpoint_publish_never_becomes_ready(
+    authority_database: AuthorityDatabase,
+    ledger_connections: LedgerDatabase,
+    dual_scenario: str,
+) -> None:
+    """第2endpoint配置の実失敗は両端点を閉じ、generationだけでreadyにしない。"""
+    authority = authority_database
+    before = _ledger_retention_snapshot(ledger_connections.primary_admin)
+    counts = authority.event_counts()
+    authority.stop()
+    mutation = (
+        "value['peers'][1]['endpoint_path']='/control/unprovided/controller-endpoint.json'"
+        if dual_scenario == "startup-partial"
+        else "value['database_uid']=20006;value['database_gid']=20006"
+    )
+    code = (
+        """
+from pathlib import Path
+from pitchlog.durable_rights_ledger.authority import _config,_write_root_json
+p=Path('/control/settings/config.json')
+value=_config(p)
+"""
+        + mutation
+        + "\n"
+        + """
+_write_root_json(p,value,0o640,value['authority_gid'])
+"""
+    )
+    docker(*authority.command(root=True), "-c", code)
+    assert authority.start(check=False) is False
+    _dual_raw_refused(
+        authority, "generation", {"operation": "epoch"}, uid=20002, dead_listener=True
+    )
+    _dual_raw_refused(
+        authority,
+        "fresh_controller",
+        {"operation": "fresh_activation_open"},
+        uid=20004,
+        dead_listener=True,
+    )
+    assert _ledger_retention_snapshot(ledger_connections.primary_admin) == before
+    after = authority.event_counts()
+    for event in ("intent", "confirmed", "activation_open", "lease_open"):
+        assert after.get(event, 0) == counts.get(event, 0)
 
 
 @pytest.mark.parametrize(

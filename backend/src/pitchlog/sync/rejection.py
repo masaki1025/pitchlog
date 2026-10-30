@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID, uuid4
@@ -26,7 +27,6 @@ from pitchlog.sync.idempotency import (
     classify_d5,
     decode_stored_negative,
     event_source,
-    operation_fingerprint,
     recheck_and_insert_result,
 )
 from pitchlog.sync.model import SyncEvent
@@ -114,6 +114,50 @@ def _commit_result(
     old_generation: int | None = None,
 ) -> RejectionResult:
     """台帳と対応する原本を一つの T 要素として確定する。"""
+    from pitchlog.sync.prefix_path import _LEGACY_LOCKED_SOURCE
+
+    return _commit_result_in_scope(
+        scope,
+        event,
+        fingerprint,
+        d3,
+        source=_LEGACY_LOCKED_SOURCE,
+        path=path,
+        kind=kind,
+        reason=reason,
+        old_generation=old_generation,
+    )
+
+
+def _commit_result_in_scope(
+    scope: _TenantTransaction,
+    event: SyncEvent,
+    fingerprint: str,
+    d3: int,
+    *,
+    source: object,
+    path: RejectionPath,
+    kind: Literal["rejected", "evacuated"],
+    reason: str | None = None,
+    old_generation: int | None = None,
+) -> RejectionResult:
+    """台帳と対応する原本を一つの T 要素として確定する。"""
+    from pitchlog.sync.prefix_path import _LEGACY_LOCKED_SOURCE
+    from pitchlog.sync.source_binding import SourceBindingError, _E1CoreSource
+
+    if source is _LEGACY_LOCKED_SOURCE:
+        original_json = _original(event, fingerprint)
+    elif type(source) is _E1CoreSource:
+        selected = source.read(scope, event)
+        if (
+            selected.event_fingerprint != fingerprint
+            or selected.wire_original_json is None
+        ):
+            raise SourceBindingError("E1原本と台帳指紋が不一致")
+        original_json = selected.wire_original_json
+        source.begin_write(scope, event)
+    else:
+        raise SourceBindingError("E1拒否sourceが不正")
     d5 = UUID(event.d5)
     state: Literal["拒否", "退避"] = "拒否" if kind == "rejected" else "退避"
     token = IdempotencyLedgerInsertToken(
@@ -131,9 +175,7 @@ def _commit_result(
         raise _RaceReplay(result)
     reach("after_t9_ledger" if kind == "rejected" else "after_t8_ledger")
     if kind == "rejected":
-        scope.run(
-            RejectedOriginalInsertToken(uuid4(), d5, _original(event, fingerprint))
-        )
+        scope.run(RejectedOriginalInsertToken(uuid4(), d5, original_json))
         reach("after_t9_original")
     else:
         if old_generation is None or event.d1 is None:
@@ -145,7 +187,7 @@ def _commit_result(
                 old_generation,
                 event.d1,
                 d5,
-                _original(event, fingerprint),
+                original_json,
             )
         )
         reach("after_t8_original")
@@ -164,11 +206,47 @@ def _apply_locked(
     writer: PortWriter,
 ) -> RejectionResult:
     """DI1〜DI4 を守り、未使用 D5 だけを現在の記録権へ進める。"""
+    from pitchlog.sync.prefix_path import _LEGACY_LOCKED_SOURCE
+
+    return _apply_rejection_in_scope(
+        scope,
+        event,
+        rights,
+        v12,
+        path,
+        registration,
+        reason,
+        cause,
+        writer,
+        source=_LEGACY_LOCKED_SOURCE,
+    )
+
+
+def _apply_rejection_in_scope(
+    scope: _TenantTransaction,
+    event: SyncEvent,
+    rights: RecordingRightsPort,
+    v12: object,
+    path: RejectionPath,
+    registration: PlayerRegistration | None,
+    reason: str | None,
+    cause: Literal["content_rejection", "w2_violation"],
+    writer: PortWriter,
+    *,
+    source: object,
+) -> RejectionResult:
+    """DI1〜DI4 を守り、未使用 D5 だけを現在の記録権へ進める。"""
     locked = _lock_game_generation(scope, UUID(event.game_id))
     if locked is None:
         raise RuntimeError("認可後に試合行が消失した")
     _, d3 = locked
-    fingerprint = operation_fingerprint(event, path, registration)
+    from pitchlog.repositories.transaction import _port_predecision_phase
+    from pitchlog.sync.prefix_path import (
+        _LEGACY_LOCKED_SOURCE,
+        _locked_source_fingerprint,
+    )
+
+    fingerprint = _locked_source_fingerprint(scope, event, path, registration, source)
     candidate = classify_d5(scope, UUID(event.d5), fingerprint, path)
     previous = _candidate_result(candidate, d3)
     if previous is not None:
@@ -177,21 +255,38 @@ def _apply_locked(
     if type(event.d1) is not int or event.d1 <= 0 or not event.d4:
         raise P1PreconditionError("D1 付き経路には D1 と D4 が必要")
     port_guard.require_registered_port(rights)
-    has_right = rights.holds_recording_right(event.game_id, event.d4, v12, writer)
+    with (
+        nullcontext()
+        if source is _LEGACY_LOCKED_SOURCE
+        else _port_predecision_phase(scope, "rights")
+    ):
+        has_right = rights.holds_recording_right(event.game_id, event.d4, v12, writer)
 
     if not has_right:
         # DB の old_generation は bigint。D4 の整数表現がない要求を推測しない。
-        try:
-            old_generation = int(event.d4)
-        except ValueError as error:
-            raise P1PreconditionError("退避する旧 D4 の世代番号が不正") from error
-        if old_generation <= 0 or str(old_generation) != event.d4:
+        from pitchlog.sync.prefix_path import _LEGACY_LOCKED_SOURCE
+        from pitchlog.sync.source_binding import _E1CoreSource
+
+        if source is _LEGACY_LOCKED_SOURCE:
+            try:
+                old_generation = int(event.d4)
+            except ValueError as error:
+                raise P1PreconditionError("退避する旧 D4 の世代番号が不正") from error
+            if old_generation <= 0 or str(old_generation) != event.d4:
+                raise P1PreconditionError("退避する旧 D4 の世代番号が不正")
+        elif type(source) is _E1CoreSource:
+            source.read(scope, event)
+            old_generation = source.phase.attempt.internal_generation
+            if type(old_generation) is not int or not 0 < old_generation < 2**63:
+                raise P1PreconditionError("退避する旧 D4 の世代番号が不正")
+        else:
             raise P1PreconditionError("退避する旧 D4 の世代番号が不正")
-        return _commit_result(
+        return _commit_result_in_scope(
             scope,
             event,
             fingerprint,
             d3,
+            source=source,
             path=path,
             kind="evacuated",
             old_generation=old_generation,
@@ -204,8 +299,15 @@ def _apply_locked(
         raise P1PreconditionError("確定済み D1 は内容拒否原本にできない")
     if not reason:
         raise P1PreconditionError("内容拒否の理由が空")
-    return _commit_result(
-        scope, event, fingerprint, d3, path=path, kind="rejected", reason=reason
+    return _commit_result_in_scope(
+        scope,
+        event,
+        fingerprint,
+        d3,
+        source=source,
+        path=path,
+        kind="rejected",
+        reason=reason,
     )
 
 

@@ -855,3 +855,838 @@ def test_fresh_attestation_codec_is_closed_and_immutable() -> None:
     ):
         with pytest.raises(LedgerUnavailable):
             adapter._activation_from(changed)
+
+
+def _dual_config() -> dict[str, Any]:
+    """正規v2の閉fieldだけを持つ非秘密の構造試験vector。実配置ではない。"""
+    return dict(
+        schema_version=2,
+        authority_uid=20001,
+        authority_gid=20001,
+        application_uid=20003,
+        application_gid=20003,
+        database_uid=999,
+        database_gid=999,
+        witness_path="/w/state",
+        timeout=2.0,
+        primary_dsn="fixture-primary",
+        standby_dsn="fixture-standby",
+        business_dsn="fixture-business",
+        control_dsn="fixture-control",
+        enrollment_state="enrolled",
+        peers=[
+            dict(
+                role="generation",
+                client_uid=20002,
+                client_gid=20002,
+                socket_path="/control/run/generation.sock",
+                endpoint_path="/control/public/generation.json",
+            ),
+            dict(
+                role="fresh_controller",
+                client_uid=20004,
+                client_gid=20004,
+                socket_path="/control/run/controller.sock",
+                endpoint_path="/control/public/controller.json",
+            ),
+        ],
+    )
+
+
+def _config_read_boundary(
+    monkeypatch: pytest.MonkeyPatch, value: dict[str, Any]
+) -> Path:
+    """構造試験だけでroot読取済み値を供給する。実file保護の証拠にはしない。"""
+    from types import SimpleNamespace
+
+    from pitchlog.durable_rights_ledger import authority
+
+    path = Path("/control/settings/config.json")
+    original = authority.os.stat
+    monkeypatch.setattr(authority, "_read_root_json", lambda *_: value)
+    monkeypatch.setattr(
+        authority.os,
+        "stat",
+        lambda name, *a, **kw: (
+            SimpleNamespace(st_gid=20001) if name == path else original(name, *a, **kw)
+        ),
+    )
+    return path
+
+
+def test_dual_config_exact_roles_and_v1_unchanged(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """v2はexact二主体、v1は旧閉field/単一peerのまま受理する。"""
+    from pitchlog.durable_rights_ledger import authority
+
+    value = _dual_config()
+    path = _config_read_boundary(monkeypatch, value)
+    assert authority._config(path) == value
+    assert tuple(p["role"] for p in authority._listener_peers(value)) == (
+        "generation",
+        "fresh_controller",
+    )
+    generation = value["peers"][0]
+    legacy = {
+        k: v
+        for k, v in value.items()
+        if k
+        not in {
+            "peers",
+            "application_uid",
+            "application_gid",
+            "database_uid",
+            "database_gid",
+        }
+    }
+    legacy.update({k: v for k, v in generation.items() if k != "role"})
+    legacy["schema_version"] = 1
+    with monkeypatch.context() as patch:
+        _config_read_boundary(patch, legacy)
+        assert authority._config(path) == legacy
+        assert authority._listener_peers(legacy)[0]["role"] is None
+    legacy["peers"] = value["peers"]
+    with monkeypatch.context() as patch:
+        _config_read_boundary(patch, legacy)
+        with pytest.raises(authority.AuthorityUnavailable):
+            authority._config(path)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "version_bool",
+        "version_float",
+        "unknown",
+        "missing",
+        "one",
+        "three",
+        "tuple",
+        "role",
+        "role_list",
+        "duplicate_role",
+        "uid",
+        "gid",
+        "bool_uid",
+        "actor_uid",
+        "authority_uid",
+        "authority_gid",
+        "app_uid",
+        "app_gid",
+        "db_uid",
+        "db_gid",
+        "unknown_peer",
+        "missing_peer",
+        "socket",
+        "endpoint",
+        "cross_path",
+        "relative",
+        "parent",
+        "null",
+        "long",
+        "config",
+        "witness",
+        "run_config_directory",
+        "run_endpoint_directory",
+        "path_type",
+        "witness_type",
+        "run_ancestor",
+        "application_gid",
+    ],
+)
+def test_dual_config_rejects_partial_collisions_and_unknowns(
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    """型/主体/role/配置衝突をPG/journalの構築より先に拒否する。"""
+    from pitchlog.durable_rights_ledger import authority
+
+    value = _dual_config()
+    first, second = value["peers"]
+    mutations = {
+        "version_bool": lambda: value.update(schema_version=True),
+        "version_float": lambda: value.update(schema_version=2.0),
+        "unknown": lambda: value.update(extra=True),
+        "missing": lambda: value.pop("application_gid"),
+        "one": lambda: value.update(peers=[first]),
+        "three": lambda: value["peers"].append(dict(second)),
+        "tuple": lambda: value.update(peers=tuple(value["peers"])),
+        "role": lambda: second.update(role="administrator"),
+        "role_list": lambda: second.update(role=["fresh_controller"]),
+        "duplicate_role": lambda: second.update(role="generation"),
+        "uid": lambda: second.update(client_uid=20002),
+        "gid": lambda: second.update(client_gid=20002),
+        "bool_uid": lambda: second.update(client_uid=True),
+        "actor_uid": lambda: first.update(client_uid=20005),
+        "authority_uid": lambda: second.update(client_uid=20001),
+        "authority_gid": lambda: second.update(client_gid=20001),
+        "app_uid": lambda: second.update(client_uid=20003),
+        "app_gid": lambda: second.update(client_gid=20003),
+        "db_uid": lambda: second.update(client_uid=999),
+        "db_gid": lambda: second.update(client_gid=999),
+        "unknown_peer": lambda: second.update(operations=["reserve"]),
+        "missing_peer": lambda: second.pop("role"),
+        "socket": lambda: second.update(socket_path=first["socket_path"]),
+        "endpoint": lambda: second.update(endpoint_path=first["endpoint_path"]),
+        "cross_path": lambda: second.update(endpoint_path=first["socket_path"]),
+        "relative": lambda: second.update(socket_path="relative.sock"),
+        "parent": lambda: second.update(socket_path="/control/run/../evil.sock"),
+        "null": lambda: second.update(socket_path="/control/run/a\0b"),
+        "long": lambda: second.update(socket_path="/control/run/" + "a" * 108),
+        "config": lambda: second.update(endpoint_path="/control/settings/config.json"),
+        "witness": lambda: second.update(endpoint_path="/w/state/journal"),
+        "run_config_directory": lambda: second.update(
+            socket_path="/control/settings/a.sock"
+        ),
+        "run_endpoint_directory": lambda: second.update(
+            socket_path="/control/public/a.sock"
+        ),
+        "path_type": lambda: second.update(
+            socket_path=["/control/run/controller.sock"]
+        ),
+        "witness_type": lambda: value.update(witness_path=[]),
+        "run_ancestor": lambda: second.update(socket_path="/control/ancestor.sock"),
+        "application_gid": lambda: value.update(application_gid=20005),
+    }
+    mutations[change]()
+    path = _config_read_boundary(monkeypatch, value)
+    with pytest.raises(authority.AuthorityUnavailable):
+        authority._config(path)
+
+
+@pytest.mark.parametrize(
+    "role,operation",
+    [
+        ("generation", "fresh_activation_open"),
+        ("fresh_controller", "epoch"),
+        ("fresh_controller", "reserve"),
+        ("fresh_controller", "claim"),
+        ("fresh_controller", "fence_open"),
+        ("generation", "fence_check"),
+        ("fresh_controller", "fence_close"),
+        ("generation", "advance"),
+        ("unknown", "epoch"),
+        ("generation", ["epoch"]),
+        ("generation", {"operation": "epoch", "role": "fresh_controller"}),
+        ("generation", {"operation": "reserve", "params": ["bad"] * 4}),
+        ("fresh_controller", {"operation": "fresh_activation_open", "highwater": 0}),
+    ],
+)
+def test_dual_runtime_denies_before_pg_or_journal(role: str, operation: Any) -> None:
+    """実socket要求の能力拒否はruntimeのPG/journal/lockへ到達しない。"""
+    import socket
+    from threading import Thread
+
+    # __init__は実PGに接続する。負例は明示trapで不要なアクセス自体を記録する。
+    # 単なる未初期化AttributeErrorによるunavailableでは検査を通さない。
+    accessed = []
+
+    class ForbiddenRuntimeAccess:
+        """負例のPG/排他/journalアクセスを成功応答に置換せず記録する。"""
+
+        def __getattr__(self, name: str) -> Any:
+            """未承認アクセスを必ず外側のassertへ残す。"""
+            accessed.append(name)
+            raise AssertionError("rejected role reached runtime/PG/journal")
+
+    runtime = object.__new__(adapter._AuthorityRuntime)
+    runtime._blocked = False
+    runtime._active = set()
+    runtime._value = {"timeout": 2.0}
+    runtime._mutex = cast(Any, ForbiddenRuntimeAccess())
+    runtime._pair = cast(Any, ForbiddenRuntimeAccess())
+    runtime._journal = cast(Any, ForbiddenRuntimeAccess())
+    client, server = socket.socketpair()
+    thread = Thread(target=runtime.handle, args=(server,), kwargs={"role": role})
+    thread.start()
+    try:
+        with client:
+            adapter._send(
+                client,
+                operation if type(operation) is dict else {"operation": operation},
+            )
+            assert adapter._receive(client) == {"status": "unavailable"}
+    finally:
+        server.close()
+        thread.join(timeout=2)
+        assert not thread.is_alive()
+    assert accessed == []
+    assert runtime._blocked is False and runtime._active == set()
+
+
+@pytest.mark.parametrize(
+    "role,operation",
+    [
+        ("generation", "epoch"),
+        ("generation", "reserve"),
+        ("generation", "claim"),
+        ("generation", "fence_open"),
+        ("fresh_controller", "fresh_activation_open"),
+    ],
+)
+def test_dual_operation_exact_positive_set(role: str, operation: str) -> None:
+    """新能力の正例集合は二役割のexact五操作だけである。"""
+    adapter._authorize_operation(role, operation)
+    # v1は従来のdispatch/leaseループへ判断を委ねる。
+    adapter._authorize_operation(None, operation)
+
+
+@pytest.mark.parametrize("operation", ["epoch", "reserve", "claim", "fence", "fresh"])
+def test_dual_client_rejects_wrong_role_before_connect(operation: str) -> None:
+    """公開clientでも権限外をsocket接続/結果不明へ変換する前に拒否する。"""
+    ledger = object.__new__(DurableLedger)
+    ledger._target = {
+        "role": "generation" if operation == "fresh" else "fresh_controller"
+    }
+    methods = {
+        "epoch": lambda: ledger.current_recovery_generation(),
+        "reserve": lambda: ledger.reserve(*(UUID(int=1) for _ in range(4))),
+        "claim": lambda: ledger.claim(*(UUID(int=1) for _ in range(4))),
+        "fence": lambda: ledger.recovery_fence().__enter__(),
+        "fresh": lambda: ledger.fresh_activation().__enter__(),
+    }
+    with pytest.raises(LedgerUnavailable):
+        methods[operation]()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "valid",
+        "legacy",
+        "extra",
+        "role",
+        "role_type",
+        "uid",
+        "gid",
+        "authority_gid",
+        "missing_role",
+        "version",
+        "socket_type",
+        "socket_relative",
+        "v1_extra_role",
+    ],
+)
+def test_dual_endpoint_remains_closed_and_subject_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    change: str,
+) -> None:
+    """root読取後の形/主体検査を試す。実immutable/peer検査は実DB群で別証明する。"""
+    import os
+    import stat
+    from types import SimpleNamespace
+
+    from pitchlog.durable_rights_ledger import authority
+
+    value: dict[str, Any] = dict(
+        schema_version=2,
+        role="generation",
+        authority_uid=20001,
+        authority_gid=20001,
+        client_uid=20002,
+        client_gid=20002,
+        socket_path="/control/run/service.sock",
+        timeout=2.0,
+    )
+    changes = {
+        "valid": lambda: None,
+        "legacy": lambda: (
+            value.update(schema_version=1),
+            value.pop("role"),
+            value.pop("authority_gid"),
+        ),
+        "extra": lambda: value.update(extra=1),
+        "role": lambda: value.update(role="unknown"),
+        "role_type": lambda: value.update(role=["generation"]),
+        "uid": lambda: value.update(client_uid=20004),
+        "gid": lambda: value.update(client_gid=20004),
+        "authority_gid": lambda: value.update(authority_gid=20002),
+        "missing_role": lambda: value.pop("role"),
+        "version": lambda: value.update(schema_version=True),
+        "socket_type": lambda: value.update(socket_path=["/control/run/service.sock"]),
+        "socket_relative": lambda: value.update(socket_path="relative"),
+        "v1_extra_role": lambda: (
+            value.update(schema_version=1),
+            value.pop("authority_gid"),
+        ),
+    }
+    changes[change]()
+    monkeypatch.setattr(authority, "_read_root_json", lambda *_: value)
+    monkeypatch.setattr(
+        authority, "_trusted_directory", lambda _: os.open(tmp_path, os.O_RDONLY)
+    )
+    original = authority.os.stat
+    monkeypatch.setattr(
+        authority.os,
+        "stat",
+        lambda name, *args, **kwargs: (
+            SimpleNamespace(st_mode=stat.S_IFSOCK | 0o660, st_uid=0, st_gid=20002)
+            if name == "service.sock"
+            else original(name, *args, **kwargs)
+        ),
+    )
+    monkeypatch.setattr(authority.os, "geteuid", lambda: 20002)
+    monkeypatch.setattr(authority.os, "getegid", lambda: 20002)
+    if change in {"valid", "legacy"}:
+        assert authority._endpoint(Path("/control/public/endpoint.json")) == value
+    else:
+        with pytest.raises(authority.AuthorityUnavailable):
+            authority._endpoint(Path("/control/public/endpoint.json"))
+
+
+@pytest.mark.parametrize("changed", ["uid", "gid"])
+def test_dual_business_identity_checks_real_socket_peer_before_query(
+    monkeypatch: pytest.MonkeyPatch,
+    changed: str,
+) -> None:
+    """v2設定の自己申告だけではDB主体にせず、実kernel不一致をSQL前に拒否する。"""
+    import socket
+    import struct
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    left, right = socket.socketpair()
+    _, uid, gid = struct.unpack(
+        "3i", left.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+    )
+    pair = object.__new__(adapter._PgLedgerPair)
+    pair._endpoints = LedgerEndpoints("p", "s", "b", "c")
+    pair._business_peer = (uid + 1, gid) if changed == "uid" else (uid, gid + 1)
+
+    @contextmanager
+    def connection(*_: object):
+        yield SimpleNamespace(fileno=left.fileno)
+
+    def forbidden_query(*_: object) -> None:
+        raise AssertionError("kernel identity rejection reached SQL")
+
+    monkeypatch.setattr(adapter, "_connection", connection)
+    monkeypatch.setattr(adapter, "_query", forbidden_query)
+    try:
+        with pytest.raises(LedgerUnavailable):
+            pair._observe_business()
+    finally:
+        left.close()
+        right.close()
+
+
+# G20のPG/authority資格はpure double。実診断/再起動はowned側で別受入する。
+def _g20_diagnostic(state, message=None, constraint=None):
+    """公開合成diagで許可リストだけ検査する。実PG診断とは別。"""
+    from types import SimpleNamespace
+
+    kind = type(
+        "SyntheticG20Diagnostic",
+        (psycopg.Error,),
+        {
+            "sqlstate": state,
+            "diag": property(
+                lambda _: SimpleNamespace(
+                    message_primary=message, constraint_name=constraint
+                )
+            ),
+        },
+    )
+    return kind("PUBLIC_SYNTHETIC_DIAGNOSTIC")
+
+
+@pytest.mark.parametrize(
+    "phase,state,message,constraint,expected",
+    [
+        ("register", "42501", "attempt conflict", None, True),
+        ("register", "42501", "phase conflict", None, True),
+        ("publish", "23505", None, "pk_sync_writer_bindings", True),
+        ("publish", "23503", None, "fk_sync_writer_binding_game", True),
+        ("publish", "23503", None, "fk_sync_writer_binding_tenant", True),
+        ("publish", "23505", None, "uq_sync_writer_binding_lease", False),
+        ("publish", "23505", None, "uq_sync_writer_binding_nonce", False),
+        ("register", "42501", "attempt conflict extra", None, False),
+        ("register", "42501", "publication identity rejected", None, False),
+        ("register", "23505", None, "pk_sync_writer_bindings", False),
+        ("publish", "42501", "attempt conflict", None, False),
+        ("publish", "23503", None, "other_constraint", False),
+        ("publish", "57014", None, None, False),
+        ("publish", "55P03", None, None, False),
+        ("publish", "57P01", None, None, False),
+        ("publish", "55000", None, None, False),
+        ("publish", None, None, None, False),
+    ],
+)
+def test_g20_exact_five_diagnostics(phase, state, message, constraint, expected):
+    """段階とsqlstate/diagの完全一致以外を確定拒否にしない。"""
+    from pitchlog.sync.control_provider.binding_control import _is_confirmed_rejection
+
+    assert (
+        _is_confirmed_rejection(_g20_diagnostic(state, message, constraint), phase)
+        is expected
+    )
+
+
+@pytest.mark.parametrize("phase", ["register", "publish"])
+@pytest.mark.parametrize("where", ["execute", "fetch", "commit", "identity", "none"])
+def test_g20_classifier_only_covers_fixed_execution(monkeypatch, phase, where):
+    """commit/主体照合/空応答は、同じ診断でも新分類を通らない。"""
+    from contextlib import contextmanager
+
+    from test_sync_apply_writer_binding import _config
+
+    from pitchlog.sync.control_provider.binding_control import (
+        WriterBindingUnavailable,
+        _BindingAuthority,
+        _ConfirmedBindingRejection,
+    )
+
+    diagnostic = _g20_diagnostic(
+        "42501" if phase == "register" else "23505",
+        "attempt conflict" if phase == "register" else None,
+        "pk_sync_writer_bindings" if phase == "publish" else None,
+    )
+    calls = []
+
+    class Connection:
+        def execute(self, statement, params=()):
+            calls.append("execute")
+            if len(calls) == 1:
+                if where == "identity":
+                    raise diagnostic
+
+                class Identity:
+                    def fetchone(self):
+                        return (
+                            "pitchlog_sync_binding_actor",
+                            "pitchlog_sync_binding_actor",
+                            "read committed",
+                        )
+
+                return Identity()
+            if where == "execute":
+                raise diagnostic
+
+            class Result:
+                def fetchone(self):
+                    if where == "fetch":
+                        raise diagnostic
+                    return None if where == "none" else (None,)
+
+            return Result()
+
+    @contextmanager
+    def connection(*args):
+        try:
+            yield Connection()
+        finally:
+            calls.append("close")
+
+    def commit(*args):
+        calls.append("commit")
+        raise diagnostic
+
+    monkeypatch.setattr(adapter, "_connection", connection)
+    monkeypatch.setattr(adapter, "_commit", commit)
+    authority = _BindingAuthority(_config() | {"timeout": 1.0}, UUID(int=1))
+    statement = (
+        "SELECT sync_control.register_first_ball_phase(%s,%s)"
+        if phase == "register"
+        else "SELECT sync_fence_api.publish_writer_binding(%s,%s,%s,%s,%s)"
+    )
+    expected = (
+        _ConfirmedBindingRejection
+        if where in ("execute", "fetch")
+        else WriterBindingUnavailable
+        if where == "none"
+        else psycopg.Error
+    )
+    with pytest.raises(expected) as captured:
+        authority._call(
+            "control" if phase == "register" else "business",
+            statement,
+            (),
+            write=True,
+            confirmed_rejection=phase,
+        )
+    assert ("commit" in calls) is (where == "commit")
+    assert calls[-1] == "close"
+    if where in ("execute", "fetch"):
+        assert str(captured.value) == "binding要求が確定拒否されました"
+        assert captured.value.__suppress_context__ is True
+    else:
+        assert not isinstance(captured.value, _ConfirmedBindingRejection)
+
+
+def test_g20_wrong_callsite_never_connects(monkeypatch):
+    """分類modeを別SQL/read/checkへ流用できない。"""
+    from test_sync_apply_writer_binding import _config
+
+    from pitchlog.sync.control_provider.binding_control import (
+        WriterBindingUnavailable,
+        _BindingAuthority,
+    )
+
+    calls = []
+    monkeypatch.setattr(adapter, "_connection", lambda *a: calls.append(True))
+    authority = _BindingAuthority(_config(), UUID(int=1))
+    for which, statement, write in (
+        ("control", "SELECT 1", True),
+        ("business", "SELECT sync_control.register_first_ball_phase(%s,%s)", True),
+        ("control", "SELECT sync_control.register_first_ball_phase(%s,%s)", False),
+    ):
+        with pytest.raises(WriterBindingUnavailable):
+            authority._call(
+                which, statement, (), write=write, confirmed_rejection="register"
+            )
+    assert calls == []
+
+
+def _g20_record():
+    """実issuerでない公開固定record。journal形/分岐だけの検査。"""
+    from test_sync_apply_writer_binding import _writer
+
+    return dict(
+        tenant_id=str(UUID(int=11)),
+        attempt_id=str(UUID(int=12)),
+        phase_id=str(UUID(int=13)),
+        lease_id=str(UUID(int=14)),
+        recovery_generation=1,
+        close_id=str(UUID(int=15)),
+        phase={},
+        writer=_writer().wire(),
+        nonce_digest=bytes(32).hex(),
+        expires_at="2026-10-28T00:00:00+00:00",
+    )
+
+
+class _G20Journal:
+    """保護/耐久性を代替しない純frame入出力。"""
+
+    authority_id = UUID(int=1)
+
+    def __init__(self, events=()):
+        self.events = list(events)
+
+    def append(self, payload):
+        from types import SimpleNamespace
+
+        self.events.append(json.loads(payload))
+        return SimpleNamespace(ordinal=len(self.events), payload=payload)
+
+    def records(self):
+        from types import SimpleNamespace
+
+        return [
+            SimpleNamespace(ordinal=i, payload=adapter._encode_event(v))
+            for i, v in enumerate(self.events, 1)
+        ]
+
+
+def _g20_runtime(events=()):
+    from threading import RLock
+
+    runtime = object.__new__(adapter._AuthorityRuntime)
+    runtime._value = {"schema_version": 3, "timeout": 1.0}
+    runtime._blocked = False
+    runtime._active = set()
+    runtime._mutex = RLock()
+    runtime._journal = cast(Any, _G20Journal(events))
+    return runtime
+
+
+def _g20_open_intent():
+    return [
+        {"event": "lease_open", "epoch": 1},
+        {"event": "binding_intent", "lease": 1, "record": _g20_record()},
+    ]
+
+
+@pytest.mark.parametrize("stage", ["register", "publish", "unknown", "journal-fault"])
+def test_g20_runtime_closes_only_confirmed_request(monkeypatch, stage):
+    """実handle分岐は確定時だけ全体停止せず閉じる。不明/追記故障は停止。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from pitchlog.sync.control_provider import binding_control as binding
+
+    runtime = _g20_runtime()
+
+    @contextmanager
+    def fence():
+        yield SimpleNamespace(generation=1, assert_held=lambda: None)
+
+    runtime._pair = SimpleNamespace(recovery_fence=fence)
+
+    def start(self, fence, fresh):
+        frame = self._journal.append(
+            adapter._encode_event({"event": "lease_open", "epoch": 1})
+        )
+        self._active.add(frame.ordinal)
+        return frame.ordinal, 1
+
+    monkeypatch.setattr(adapter._AuthorityRuntime, "_start_lease", start)
+
+    class Authority:
+        def __init__(self, *args):
+            pass
+
+        def validate_request(self, request):
+            pass
+
+        def prepare(self, *args):
+            if stage == "register":
+                raise binding._ConfirmedBindingRejection
+            return _g20_record(), {}, bytes(32)
+
+        def publish_prepared(self, *args):
+            if stage == "unknown":
+                raise psycopg.OperationalError("PUBLIC_SYNTHETIC")
+            raise binding._ConfirmedBindingRejection
+
+    monkeypatch.setattr(binding, "_BindingAuthority", Authority)
+    if stage == "journal-fault":
+        append = runtime._journal.append
+
+        def fail(payload):
+            if json.loads(payload)["event"] == "binding_rejected":
+                raise adapter.WitnessUnavailable("PUBLIC_SYNTHETIC")
+            return append(payload)
+
+        runtime._journal.append = fail
+    error = (
+        LedgerOutcomeUnconfirmed
+        if stage == "journal-fault"
+        else psycopg.Error
+        if stage == "unknown"
+        else LedgerUnavailable
+    )
+    with pytest.raises(error):
+        runtime._handle_binding(cast(Any, object()), {})
+    names = [v["event"] for v in runtime._journal.events]
+    if stage == "register":
+        assert names == ["lease_open", "lease_close"]
+    if stage == "publish":
+        assert names == [
+            "lease_open",
+            "binding_intent",
+            "binding_rejected",
+            "lease_close",
+        ]
+    if stage in ("register", "publish"):
+        assert not runtime._blocked and runtime._active == set()
+        runtime._verify_leases()
+    else:
+        assert (
+            runtime._blocked and runtime._active == set() and "lease_close" not in names
+        )
+
+
+@pytest.mark.parametrize("rejected", [True, False])
+def test_g20_restart_closes_rejected_without_resolving_unknown(monkeypatch, rejected):
+    """rejectedが耐久済の時だけresolve0で閉じ、不明intentは確認不能を保持。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from pitchlog.sync.control_provider import binding_control as binding
+
+    events = _g20_open_intent()
+    if rejected:
+        events.append({"event": "binding_rejected", "lease": 1})
+    runtime = _g20_runtime(events)
+    calls = []
+
+    @contextmanager
+    def fence():
+        yield SimpleNamespace(generation=1, assert_held=lambda: None)
+
+    runtime._pair = SimpleNamespace(recovery_fence=fence)
+
+    class Authority:
+        def __init__(self, *args):
+            pass
+
+        def resolve(self, *args):
+            calls.append(True)
+            return binding.BindingOutcome.UNKNOWN
+
+    monkeypatch.setattr(binding, "_BindingAuthority", Authority)
+    if rejected:
+        runtime._recover_binding_leases()
+        assert calls == [] and runtime._journal.events[-1] == {
+            "event": "lease_close",
+            "lease": 1,
+        }
+        runtime._verify_leases()
+    else:
+        with pytest.raises(LedgerOutcomeUnconfirmed):
+            runtime._recover_binding_leases()
+        assert calls == [True]
+        assert all(v["event"] != "lease_close" for v in runtime._journal.events)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "orphan",
+        "duplicate",
+        "prior-close",
+        "future-lease",
+        "published",
+        "quarantined",
+        "terminal",
+        "double-close",
+    ],
+)
+def test_g20_invalid_rejected_journal_never_recovers_unknown(change):
+    """markerを偽造・移動して未知leaseの終結証明へ昇格しない。"""
+    events = _g20_open_intent() + [{"event": "binding_rejected", "lease": 1}]
+    if change == "orphan":
+        events.pop(1)
+    elif change == "duplicate":
+        events.append({"event": "binding_rejected", "lease": 1})
+    elif change == "prior-close":
+        events.insert(2, {"event": "lease_close", "lease": 1})
+    elif change == "future-lease":
+        events[-1]["lease"] = 4
+    elif change in ("published", "quarantined", "terminal"):
+        event = {"event": "binding_" + change, "lease": 1}
+        if change == "terminal":
+            event["outcome"] = "ROLLBACK_CONFIRMED"
+        events.insert(2, event)
+    elif change == "double-close":
+        events.extend([{"event": "lease_close", "lease": 1}] * 2)
+    runtime = _g20_runtime(events)
+    before = list(runtime._journal.events)
+    with pytest.raises(LedgerUnavailable):
+        runtime._recover_binding_leases()
+    assert runtime._journal.events == before
+
+
+def test_g20_register_crash_keeps_old_refusal():
+    """register側openだけのcrashは旧どおり再起動拒否。回復を推測しない。"""
+    runtime = _g20_runtime([{"event": "lease_open", "epoch": 1}])
+    runtime._recover_binding_leases()
+    with pytest.raises(LedgerUnavailable):
+        runtime._verify_leases()
+
+
+def test_g20_only_prepare_publish_enable_classification():
+    """私有modeをread/check/resolve等の呼出点へ広げない。"""
+    from pitchlog.sync.control_provider.binding_control import _BindingAuthority
+
+    tree = ast.parse(inspect.getsource(_BindingAuthority))
+    found = []
+    definition = tree.body[0]
+    assert isinstance(definition, ast.ClassDef)
+    for method in definition.body:
+        if not isinstance(method, ast.FunctionDef):
+            continue
+        for node in ast.walk(method):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "_call"
+            ):
+                for keyword in node.keywords:
+                    if keyword.arg == "confirmed_rejection":
+                        assert isinstance(keyword.value, ast.Constant)
+                        found.append((method.name, keyword.value.value))
+    assert found == [("prepare", "register"), ("publish_prepared", "publish")]

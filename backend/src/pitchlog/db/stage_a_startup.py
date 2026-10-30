@@ -24,6 +24,10 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 _PRE_PLACEMENT_REVISION = "0033_game_rules_immutable"
 _PLACEMENT_REVISION = "0034_stage_a_rule_defaults"
 _EPOCH_REVISION = "0035_rg1_initial_fresh_epoch"
+_INITIAL_REVISION = "0036_initial_right_storage"
+_BINDING_REVISION = "0037_sync_writer_binding"
+_WRITER_REVISION = "0038_first_ball_write_admission"
+_POST_INITIAL_REVISIONS = (_INITIAL_REVISION, _BINDING_REVISION, _WRITER_REVISION)
 _PLACEMENT_SOURCE = _BACKEND_ROOT / "migrations/versions/0034_stage_a_rule_defaults.py"
 
 
@@ -122,7 +126,10 @@ def _require_epoch_state(applicator_dsn: str) -> None:
     """改訂markerだけでなく0035の実列と制約を閉集合で照合する。"""
     with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        if cursor.fetchall() != [(_EPOCH_REVISION,)]:
+        if cursor.fetchall() not in (
+            [(_EPOCH_REVISION,)],
+            *([(r,)] for r in _POST_INITIAL_REVISIONS),
+        ):
             raise StageAStartupError("epoch適用後のschema revisionが不一致です")
         cursor.execute(
             "SELECT a.atttypid::regtype::text, a.attnotnull, a.attidentity, "
@@ -156,7 +163,7 @@ def _require_s3(applicator_dsn: str) -> None:
     """適用後も公開せずrevisionと認可カタログの全期待値を照合する。"""
     with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        if cursor.fetchall() != [(_EPOCH_REVISION,)]:
+        if cursor.fetchall() != [(_WRITER_REVISION,)]:
             raise StageAStartupError("S3のschema revisionが不一致です")
         cursor.execute(
             "SELECT p.proowner::regrole::text, p.prosecdef "
@@ -189,7 +196,11 @@ def _require_placed_state(applicator_dsn: str) -> str:
     with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
         revisions = cursor.fetchall()
-        if revisions not in ([(_PLACEMENT_REVISION,)], [(_EPOCH_REVISION,)]):
+        if revisions not in (
+            [(_PLACEMENT_REVISION,)],
+            [(_EPOCH_REVISION,)],
+            *([(r,)] for r in _POST_INITIAL_REVISIONS),
+        ):
             raise StageAStartupError("S2確定後のschema revisionが不一致です")
         revision = str(revisions[0][0])
         cursor.execute(
@@ -238,7 +249,7 @@ def _require_placed_state(applicator_dsn: str) -> str:
 def resume_stage_a_after_placement(
     *, owner_dsn: str, applicator_dsn: str
 ) -> StageAStartupResult:
-    """既配置を検査し、必要な0035とS3だけを適用して非公開で戻る。"""
+    """既配置を検査し、必要な0035〜0038とS3を適用して非公開で戻る。"""
     _require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user, session_user")
@@ -248,9 +259,15 @@ def resume_stage_a_after_placement(
     if revision == _PLACEMENT_REVISION:
         _apply_epoch(owner_dsn)
     _require_epoch_state(applicator_dsn)
+    if revision not in _POST_INITIAL_REVISIONS:
+        _apply_initial_storage(owner_dsn)
+    _require_initial_state(applicator_dsn)
+    _apply_writer_storage(owner_dsn)
+    _require_writer_state(applicator_dsn)
     with psycopg.connect(applicator_dsn) as applicator:
         apply_product_authz_ddl(applicator)
     _require_placed_state(applicator_dsn)
+    _require_writer_state(applicator_dsn)
     _require_s3(applicator_dsn)
     return StageAStartupResult()
 
@@ -278,7 +295,430 @@ def advance_stage_a_from_s0(
     _require_placed_state(applicator_dsn)
     _apply_epoch(owner_dsn)
     _require_epoch_state(applicator_dsn)
+    _apply_initial_storage(owner_dsn)
+    _require_initial_state(applicator_dsn)
+    _apply_writer_storage(owner_dsn)
+    _require_writer_state(applicator_dsn)
     with psycopg.connect(applicator_dsn) as applicator:
         apply_product_authz_ddl(applicator)
+    _require_writer_state(applicator_dsn)
     _require_s3(applicator_dsn)
     return StageAStartupResult()
+
+
+def _apply_initial_storage(owner_dsn: str) -> None:
+    """0035確認後にownerで0036だけをtransaction内適用する。"""
+    engine = create_engine(_owner_url(owner_dsn))
+    try:
+        with engine.begin() as connection:
+            config = Config(str(_BACKEND_ROOT / "alembic.ini"))
+            config.attributes["connection"] = connection
+            command.upgrade(config, _INITIAL_REVISION)
+    finally:
+        engine.dispose()
+
+
+def _require_initial_state(applicator_dsn: str) -> None:
+    """36markerだけの偽装を拒否し、新2列/制約/4表/triggerを実照合する。"""
+    with psycopg.connect(applicator_dsn) as connection, connection.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM public.alembic_version")
+        if cursor.fetchall() not in ([(r,)] for r in _POST_INITIAL_REVISIONS):
+            raise StageAStartupError("0036のschema revisionが不一致です")
+        cursor.execute(
+            "SELECT a.attname, a.atttypid::regtype::text, a.attnotnull, "
+            "a.attidentity, a.attgenerated, pg_get_expr(d.adbin, d.adrelid) "
+            "FROM pg_catalog.pg_attribute a LEFT JOIN pg_catalog.pg_attrdef d "
+            "ON d.adrelid=a.attrelid AND d.adnum=a.attnum "
+            "WHERE a.attrelid='public.recording_generations'::regclass "
+            "AND a.attname IN ('proof_digest','recovery_generation') "
+            "AND NOT a.attisdropped ORDER BY a.attname"
+        )
+        if cursor.fetchall() != [
+            ("proof_digest", "bytea", False, "", "", None),
+            ("recovery_generation", "bigint", False, "", "", None),
+        ]:
+            raise StageAStartupError("0036の世代証拠実列が不一致です")
+        cursor.execute(
+            "SELECT conname, pg_get_constraintdef(oid), convalidated, connoinherit "
+            "FROM pg_catalog.pg_constraint "
+            "WHERE conrelid='public.recording_generations'::regclass "
+            "AND conname IN ('ck_recording_generations_proof_digest', "
+            "'ck_recording_generations_recovery_generation') AND contype='c' "
+            "ORDER BY conname"
+        )
+        if cursor.fetchall() != [
+            (
+                "ck_recording_generations_proof_digest",
+                "CHECK (((proof_digest IS NULL) OR (octet_length(proof_digest) = 32)))",
+                True,
+                False,
+            ),
+            (
+                "ck_recording_generations_recovery_generation",
+                "CHECK (((recovery_generation IS NULL) OR (recovery_generation > 0)))",
+                True,
+                False,
+            ),
+        ]:
+            raise StageAStartupError("0036の世代証拠実制約が不一致です")
+        tables = (
+            "game_start_attempts",
+            "game_start_requests",
+            "recording_right_deliveries",
+            "trusted_devices",
+        )
+        cursor.execute(
+            "SELECT c.relname, r.rolname, c.relrowsecurity, c.relforcerowsecurity "
+            "FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace"
+            " n ON n.oid=c.relnamespace "
+            "JOIN pg_catalog.pg_roles r ON r.oid=c.relowner "
+            "WHERE n.nspname='public' AND c.relkind='r' AND c.relnam"
+            "e=ANY(%s) ORDER BY c.relname",
+            (list(tables),),
+        )
+        if cursor.fetchall() != [
+            (table, "pitchlog_owner", True, True) for table in tables
+        ]:
+            raise StageAStartupError("0036の4表owner/RLSが不一致です")
+        cursor.execute(
+            "SELECT c.relname, t.tgname, t.tgenabled, t.tgtype, p.proname, "
+            "r.rolname, p.prosecdef, p.proconfig "
+            "FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_class c"
+            " ON c.oid=t.tgrelid "
+            "JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
+            "JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid "
+            "JOIN pg_catalog.pg_roles r ON r.oid=p.proowner "
+            "WHERE n.nspname='public' AND c.relname=ANY(%s) AND NOT "
+            "t.tgisinternal ORDER BY c.relname,t.tgname",
+            (list(tables),),
+        )
+        if cursor.fetchall() != [
+            (
+                table,
+                f"trg_{table}_initial_right_guard",
+                "O",
+                27,
+                "protect_initial_right_storage",
+                "pitchlog_owner",
+                False,
+                ["search_path=pg_catalog, pg_temp"],
+            )
+            for table in tables
+        ]:
+            raise StageAStartupError("0036の内部保護triggerが不一致です")
+
+        cursor.execute(
+            "SELECT t.tgname, t.tgenabled, t.tgtype, n.nspname, p.proname, "
+            "ARRAY(SELECT a.attname FROM unnest(t.tgattr::smallint[]) "
+            "WITH ORDINALITY AS member(attnum, ordinal_position) "
+            "JOIN pg_catalog.pg_attribute a ON a.attrelid=t.tgrelid "
+            "AND a.attnum=member.attnum ORDER BY member.ordinal_position) "
+            "FROM pg_catalog.pg_trigger t JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid "
+            "JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace "
+            "WHERE t.tgrelid='public.recording_generations'::regclass "
+            "AND t.tgname='trg_recording_generations_update_guard' "
+            "AND NOT t.tgisinternal"
+        )
+        if cursor.fetchall() != [
+            (
+                "trg_recording_generations_update_guard",
+                "O",
+                19,
+                "public",
+                "protect_recording_generations_updates",
+                [
+                    "generation",
+                    "kind",
+                    "issuance_order",
+                    "holder_device",
+                    "granted_at",
+                    "confirmed_watermark",
+                    "proof_digest",
+                    "recovery_generation",
+                ],
+            )
+        ]:
+            raise StageAStartupError("0036の世代guard発火列が不一致です")
+
+
+# 正式0037/0038のPG17正準制約。marker/制約名だけの偽装を拒否する。
+_WRITER_CONSTRAINTS = (
+    (
+        "first_ball_write_admissions",
+        "ck_first_ball_write_nonce",
+        "CHECK ((octet_length(nonce_digest) = 32))",
+        True,
+        False,
+    ),
+    (
+        "first_ball_write_admissions",
+        "ck_first_ball_write_positive",
+        "CHECK (((control_version > 0) AND (internal_generation > 0) AND "
+        "(recovery_generation > 0) AND (codec_version > 0) AND (backend_pid > 0)))",
+        True,
+        False,
+    ),
+    (
+        "first_ball_write_admissions",
+        "ck_first_ball_write_state",
+        "CHECK (((state = ANY (ARRAY['device_verified'::text, 'right_verified'::text, "
+        "'invalid'::text, 'consumed'::text])) AND (((state = 'consumed'::text) AND "
+        "(source_event_id IS NOT NULL) AND (play_row_id IS NOT NULL) "
+        "AND (consumed_at IS NOT "
+        "NULL)) OR ((state <> 'consumed'::text) AND (source_event_id IS NULL) AND "
+        "(play_row_id IS NULL) AND (consumed_at IS NULL)))))",
+        True,
+        False,
+    ),
+    (
+        "first_ball_write_admissions",
+        "ck_first_ball_write_text",
+        "CHECK (((wire_d4 <> ''::text) AND (request_fingerprint <> ''::text) AND "
+        "(event_fingerprint <> ''::text) AND (system_identifier <> ''::text) AND "
+        "(database_oid <> ''::text)))",
+        True,
+        False,
+    ),
+    (
+        "first_ball_write_admissions",
+        "ck_first_ball_write_xid8",
+        "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND "
+        "((transaction_id)::numeric <= '18446744073709551615'::numeric)))",
+        True,
+        False,
+    ),
+    (
+        "first_ball_write_admissions",
+        "fk_first_ball_write_admission_binding",
+        "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES "
+        "sync_fence.writer_bindings(tenant_id, attempt_id, phase_id) MATCH FULL",
+        True,
+        True,
+    ),
+    (
+        "first_ball_write_admissions",
+        "fk_first_ball_write_admission_event",
+        "FOREIGN KEY (tenant_id, source_event_id) REFERENCES operatio"
+        "n_events(tenant_id, id)",
+        True,
+        True,
+    ),
+    (
+        "first_ball_write_admissions",
+        "fk_first_ball_write_admission_projection",
+        "FOREIGN KEY (tenant_id, play_row_id) REFERENCES play_rows(te"
+        "nant_id, id) DEFERRABLE "
+        "INITIALLY DEFERRED",
+        True,
+        True,
+    ),
+    (
+        "first_ball_write_admissions",
+        "pk_first_ball_write_admissions",
+        "PRIMARY KEY (tenant_id, attempt_id, phase_id)",
+        True,
+        True,
+    ),
+    (
+        "writer_admissions",
+        "ck_sync_writer_admission_xid8",
+        "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND "
+        "((transaction_id)::numeric <= '18446744073709551615'::numeric)))",
+        True,
+        False,
+    ),
+    (
+        "writer_admissions",
+        "fk_sync_writer_admission_binding",
+        "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES "
+        "sync_fence.writer_bindings(tenant_id, attempt_id, phase_id) MATCH FULL",
+        True,
+        True,
+    ),
+    (
+        "writer_admissions",
+        "pk_sync_writer_admissions",
+        "PRIMARY KEY (tenant_id, attempt_id, phase_id)",
+        True,
+        True,
+    ),
+    (
+        "writer_bindings",
+        "ck_sync_writer_binding_nonce",
+        "CHECK ((octet_length(nonce_digest) = 32))",
+        True,
+        False,
+    ),
+    (
+        "writer_bindings",
+        "ck_sync_writer_binding_positive",
+        "CHECK (((control_version > 0) AND (internal_generation > 0) AND "
+        "(recovery_generation > 0) AND (codec_version > 0) AND (backend_pid > 0)))",
+        True,
+        False,
+    ),
+    (
+        "writer_bindings",
+        "ck_sync_writer_binding_state",
+        "CHECK (((state = ANY (ARRAY['open'::text, 'closed'::text])) AND (((state = "
+        "'open'::text) AND (close_id IS NULL)) OR ((state = 'closed':"
+        ":text) AND (close_id IS "
+        "NOT NULL)))))",
+        True,
+        False,
+    ),
+    (
+        "writer_bindings",
+        "ck_sync_writer_binding_text",
+        "CHECK (((wire_d4 <> ''::text) AND (request_fingerprint <> ''::text) AND "
+        "(event_fingerprint <> ''::text) AND (system_identifier <> ''::text) AND "
+        "(database_oid <> ''::text)))",
+        True,
+        False,
+    ),
+    (
+        "writer_bindings",
+        "ck_sync_writer_binding_xid8",
+        "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND "
+        "((transaction_id)::numeric <= '18446744073709551615'::numeric)))",
+        True,
+        False,
+    ),
+    (
+        "writer_bindings",
+        "fk_sync_writer_binding_game",
+        "FOREIGN KEY (tenant_id, game_id) REFERENCES games(tenant_id, id) MATCH FULL",
+        True,
+        True,
+    ),
+    (
+        "writer_bindings",
+        "fk_sync_writer_binding_tenant",
+        "FOREIGN KEY (tenant_id) REFERENCES tenants(id) MATCH FULL",
+        True,
+        True,
+    ),
+    (
+        "writer_bindings",
+        "pk_sync_writer_bindings",
+        "PRIMARY KEY (tenant_id, attempt_id, phase_id)",
+        True,
+        True,
+    ),
+    (
+        "writer_bindings",
+        "uq_sync_writer_binding_lease",
+        "UNIQUE (lease_id)",
+        True,
+        True,
+    ),
+    (
+        "writer_bindings",
+        "uq_sync_writer_binding_nonce",
+        "UNIQUE (nonce_digest)",
+        True,
+        True,
+    ),
+)
+
+
+def _check_writer_storage(connection: Any, revision: str) -> None:
+    """同transactionでwriter原本のowner/RLS/全列・全制約を厳密照合する。"""
+    from sqlalchemy.dialects.postgresql import dialect
+
+    from pitchlog.sync.control_provider.writer_binding_models import (
+        FirstBallWriteAdmission,
+        WriterAdmission,
+        WriterBinding,
+    )
+
+    models = (WriterBinding, WriterAdmission)
+    if revision == _WRITER_REVISION:
+        models += (FirstBallWriteAdmission,)
+    elif revision != _BINDING_REVISION:
+        raise StageAStartupError("writer storage revisionが不一致です")
+    names = sorted(model.__tablename__ for model in models)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT n.nspname,r.rolname FROM pg_namespace n "
+            "JOIN pg_roles r ON r.oid=n.nspowner WHERE n.nspname='sync_fence'"
+        )
+        if cursor.fetchall() != [("sync_fence", "pitchlog_owner")]:
+            raise StageAStartupError("writer schema ownerが不一致です")
+        cursor.execute(
+            "SELECT c.relname,r.rolname,c.relrowsecurity,c.relforcerowsecurity "
+            "FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "JOIN pg_roles r ON r.oid=c.relowner WHERE n.nspname='sync_fence' "
+            "AND c.relkind IN ('r','p') ORDER BY c.relname"
+        )
+        if cursor.fetchall() != [
+            (name, "pitchlog_owner", True, True) for name in names
+        ]:
+            raise StageAStartupError("writer tables owner/RLSが不一致です")
+        for model in models:
+            cursor.execute(
+                "SELECT a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,"
+                "a.attidentity,a.attgenerated,pg_get_expr(d.adbin,d.adrelid) "
+                "FROM pg_attribute a LEFT JOIN pg_attrdef d "
+                "ON d.adrelid=a.attrelid AND d.adnum=a.attnum "
+                "WHERE a.attrelid=to_regclass(%s) AND a.attnum>0 "
+                "AND NOT a.attisdropped ORDER BY a.attnum",
+                ("sync_fence." + model.__tablename__,),
+            )
+            expected = [
+                (
+                    column.name,
+                    column.type.compile(dialect=dialect()).lower(),
+                    not column.nullable,
+                    "",
+                    "",
+                    None,
+                )
+                for column in model.__table__.c
+            ]
+            if cursor.fetchall() != expected:
+                raise StageAStartupError("writer columnsが不一致です")
+        cursor.execute(
+            "SELECT c.relname,k.conname,pg_get_constraintdef(k.oid),"
+            "k.convalidated,k.connoinherit FROM pg_constraint k "
+            "JOIN pg_class c ON c.oid=k.conrelid "
+            "JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "WHERE n.nspname='sync_fence' ORDER BY c.relname,k.conname"
+        )
+        if cursor.fetchall() != [row for row in _WRITER_CONSTRAINTS if row[0] in names]:
+            raise StageAStartupError("writer constraintsが不一致です")
+
+
+def _apply_writer_storage(owner_dsn: str) -> None:
+    """承認済み0037/0038だけを同owner transactionで配置・検証する。"""
+    engine = create_engine(_owner_url(owner_dsn))
+    try:
+        with engine.begin() as connection:
+            raw = connection.connection.driver_connection
+            if raw is None:
+                raise StageAStartupError("writer配置の実接続がありません")
+            with raw.cursor() as cursor:
+                cursor.execute("SELECT version_num FROM public.alembic_version")
+                revisions = cursor.fetchall()
+            if revisions not in ([(r,)] for r in _POST_INITIAL_REVISIONS):
+                raise StageAStartupError("writer配置前revisionが不一致です")
+            revision = revisions[0][0]
+            if revision != _INITIAL_REVISION:
+                _check_writer_storage(raw, revision)
+            if revision != _WRITER_REVISION:
+                configuration = Config(str(_BACKEND_ROOT / "alembic.ini"))
+                configuration.attributes["connection"] = connection
+                command.upgrade(configuration, _WRITER_REVISION)
+            _check_writer_storage(raw, _WRITER_REVISION)
+    finally:
+        engine.dispose()
+
+
+def _require_writer_state(applicator_dsn: str) -> None:
+    """full認可適用の前後で0038実構造を再検証する。"""
+    with psycopg.connect(applicator_dsn) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT version_num FROM public.alembic_version")
+            if cursor.fetchall() != [(_WRITER_REVISION,)]:
+                raise StageAStartupError("writer適用後revisionが不一致です")
+        _check_writer_storage(connection, _WRITER_REVISION)

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/schemas/domain/boot-operation-bindings.schema.json",
+  "title": "座標入力形成operationの有限BOOT対象binding候補",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bindings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "bindings": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operation",
+          "targetId",
+          "coverage",
+          "source",
+          "authority",
+          "scope"
+        ],
+        "properties": {
+          "operation": {
+            "const": "course-input-quantization"
+          },
+          "targetId": {
+            "const": "nfr018-alpha-02"
+          },
+          "coverage": {
+            "const": "partial"
+          },
+          "source": {
+            "const": "frontend/src/domain/courseQuantization.ts"
+          },
+          "authority": {
+            "const": "ADR-003 D-14-m 座標入力形成の量子化"
+          },
+          "scope": {
+            "const": "座標入力形成の量子化およびquantizeCourse内部のB-7変換。入力と表示の座標変換全体の供給ではない。"
+          }
+        }
+      }
+    }
+  }
+}

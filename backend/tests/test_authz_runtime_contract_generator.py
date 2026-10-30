@@ -1339,3 +1339,29 @@ def test_runtime_modules_do_not_import_generator_or_shared_state(
         module.endswith(("runtime_contract_state", "runtime_contract_generator"))
         for module in imported
     )
+
+
+@pytest.mark.parametrize(
+    ("asset_key", "constant_name"),
+    [("tables", "PROTECTED_TABLES"), ("functions", "PROTECTED_FUNCTIONS")],
+)
+def test_rendered_protected_rows_preserve_values_and_line_length(
+    asset_key: str,
+    constant_name: str,
+) -> None:
+    """長い関数署名でも保護集合の全値/順序を保持して行長へ収める。"""
+    asset = _read_asset(_REPOSITORY_ROOT)
+    source = render_runtime_contract(asset)
+    declaration = next(
+        node
+        for node in ast.parse(source).body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == constant_name
+    )
+    expected = tuple(tuple(row) for row in asset["protected_objects"][asset_key])
+    assert ast.literal_eval(declaration.value) == expected
+    assert declaration.end_lineno is not None
+    lines = source.splitlines()[declaration.lineno - 1 : declaration.end_lineno]
+    assert all(len(line) <= 88 for line in lines)

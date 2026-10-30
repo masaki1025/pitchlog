@@ -1,0 +1,17 @@
+# 初球T1数学部品のDraft提出
+
+2026-10-25T20:05:34.568863+00:00、PO委任によるCodex判断（Codex /root）。唯一の承認済TSK-544計画の操作単位追補を実装し、初回表/0対0/0out/無走者/B0S0/打順1/非TB/未終了のball1に限定した数学核とサーバ呼出部品をDraft提出する。ユーザー操作としての開始・保存成功は未達。
+
+単一TS核/同artifact（28d07c5c52fc08aebbf84bf0105368708cd7d14367a112e1b913d83177b4312d）で23flag、遷移後状態/scoreboard、一履歴差分を全比較。spikeの採用範囲は数学型/式だけで、認可・保存の代替実装は採用していない。未対応は非成功。Pythonへ計算を複製せず既固定Node hostを使用する。
+
+旧INVALID_STATEの閉4code外P1を既INVALID_REQUESTへ是正して独立de56668d8b27946bc1af6df87ec7c6990983a9b4490f7cd08036bc8e1f0341e1/残0。後発二重aliasの脱落反例は旧8失敗40成功を保存し、全wire構造同値を追加して独立59f16acf7c739ee7df0b842c44611368308a0c3e4628b01fba98eeaf6b06ad08/残0、旧208＋新48=256成功。旧検証が後発反例も検出済みだったとは記録しない。
+
+公式develop30f67への追随5478b8c3で数学11pathと既case全値不変、root domainrt全256成功3.91s。frontend全93file/1923成功99.38s、独立の今回2module237成功3.27sは各別実行として保持。必須CI/累積最終HEADレビュー/委任証拠はDraft公開後に対象版で記録する。/check全緑や全件CI成功を現時点で主張しない。
+
+正本変更0。§3を今回の差分へ整合し、旧正本確定の履歴・旧10計画レビュー/2確定ゲートは保持。未収録4参照は実在Git objectへ置換。ハーネス運用評価台帳への追記なし：今回の閉ABI是正と候補固定は本製品単位の検証であり、新たな一般統制変更/再現する運用傾向は確定していない。
+
+全T1のOUT3/RBI/G6/取消等、T2所有、開始/初期記録権/API/UI、同期/原子的DB保存/再読込・再送・結果不明、成績/双方CSV/全MVP受入は後続へ維持する。親§4のHTTP/DBマージ前義務が成立するまでDraftを解除しない。今回の数学提出を全T1完了・P6blind・本人の署名へ読み替えない。
+
+2026-10-25T20:59:20.721469+00:00追記。初回709d4e1a CI40229702557はbackend/frontendを含む他検査成功、harness1失敗/30241成功/2skip。core-guard初回はrootの証拠comment余分fence/後文を正しく拒否し、strict JSONへ掲載形式だけ是正した。同HEADのcore-guard限定再実行は成功（他run結果はGitHub再実行表示を実態に従い保持）。harnessの残1は既fixtureが実在PR186と同番号を重複追加する不正入力であり、checkerの拒否は正しい。
+
+rootは既PO委任の通常入力追随として合成後続eventを既targets最大値+1へ変更し、追加targetにも同event番号/branchを使う。tests/test_human_review_signature.pyだけ追加scope、製品ソース/認可/計算/正式契約・record/全期待文・拒否assertは不変。正規当該module全131成功36.18s、Ruff/ty成功。これを初回全件CI成功とは記録せず、最終HEADの別非作者レビュー/公開証拠/必須CIを更新する。親全T1/実HTTP・DBマージ前義務とDraft保持は不変。

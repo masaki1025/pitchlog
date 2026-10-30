@@ -1,0 +1,452 @@
+{
+  "vector_version": 1,
+  "status": "AUTHOR_CANDIDATE_NOT_FORMALLY_ADOPTED",
+  "normative_source": "docs/design/sync-protocol.md#e-1-wire-専用の内容同一性d-2限定追補v011",
+  "qualification": "Synthetic JSON values only; not the formal V7/V8 first-ball payload, HTTP/DB evidence, P6 blind, or cross-runtime compatibility. Expectations generated once outside tests without product imports; independent re-derivation required before adoption.",
+  "event_cases": [
+    {
+      "case_id": "base",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16",
+      "expected_fingerprint": "wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16"
+    },
+    {
+      "case_id": "object-key-order",
+      "raw_json": "{\n  \"state_diff\": {\n    \"flags\": []\n  },\n  \"payload\": {\n    \"label\": \"é😀\",\n    \"result\": \"batting-result.ball\",\n    \"value\": 1\n  },\n  \"d2\": 10,\n  \"event_kind\": \"1\",\n  \"game_id\": \"10000000-0000-0000-0000-000000000001\",\n  \"d4\": \"generation-A\",\n  \"d1\": 1,\n  \"d5\": \"20000000-0000-0000-0000-000000000001\"\n}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16",
+      "expected_fingerprint": "wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16"
+    },
+    {
+      "case_id": "unicode-escape",
+      "raw_json": "{\"d5\": \"20000000-0000-0000-0000-000000000001\", \"d1\": 1, \"d4\": \"generation-A\", \"game_id\": \"10000000-0000-0000-0000-000000000001\", \"event_kind\": \"1\", \"d2\": 10, \"payload\": {\"label\": \"\\u00e9\\ud83d\\ude00\", \"result\": \"batting-result.ball\", \"value\": 1}, \"state_diff\": {\"flags\": []}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16",
+      "expected_fingerprint": "wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16"
+    },
+    {
+      "case_id": "registration-null",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":null,\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":null,\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":null,\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "bfc185f43506a8dac7b5e672e8a337f5e1376f62ccf52e5c44542571de97865b",
+      "expected_fingerprint": "wire-v1:bfc185f43506a8dac7b5e672e8a337f5e1376f62ccf52e5c44542571de97865b"
+    },
+    {
+      "case_id": "registration-false",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":false,\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":false,\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":false,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":false,\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "a7228a0d1878a133a7c0817a30dd602e91d7059b41afebf524062be5d50c2918",
+      "expected_fingerprint": "wire-v1:a7228a0d1878a133a7c0817a30dd602e91d7059b41afebf524062be5d50c2918"
+    },
+    {
+      "case_id": "registration-int",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":7,\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":7,\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":7,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":7,\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "1e372f79da1969b39e205999cd3311215d50ff658fc3de3e2e7302a2860a9da3",
+      "expected_fingerprint": "wire-v1:1e372f79da1969b39e205999cd3311215d50ff658fc3de3e2e7302a2860a9da3"
+    },
+    {
+      "case_id": "registration-array",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":[\"bad\",null],\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":[\"bad\",null],\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":[\"bad\",null],\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":[\"bad\",null],\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "4b3952990f55fddf43602f8ec53f27d48776679dd3c86a3ac0e3e366416434ea",
+      "expected_fingerprint": "wire-v1:4b3952990f55fddf43602f8ec53f27d48776679dd3c86a3ac0e3e366416434ea"
+    },
+    {
+      "case_id": "registration-object",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":{\"unexpected\":true},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":{\"unexpected\":true},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":{\"unexpected\":true},\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":{\"unexpected\":true},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "e73f622a208dcff8690721bd06380e7bd6fb0adfc20e8e6675a973aa8a5b8054",
+      "expected_fingerprint": "wire-v1:e73f622a208dcff8690721bd06380e7bd6fb0adfc20e8e6675a973aa8a5b8054"
+    },
+    {
+      "case_id": "payload-missing",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "ac83b50660646397bf19f00312355326c6fab491c0c090d4be1cac1278a32996",
+      "expected_fingerprint": "wire-v1:ac83b50660646397bf19f00312355326c6fab491c0c090d4be1cac1278a32996"
+    },
+    {
+      "case_id": "payload-null",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":null,\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":null,\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":null,\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "20f8b142ff6887c0b3b80ff0292d3ba7a0c97ff16400d045a2464e09c8a77cc6",
+      "expected_fingerprint": "wire-v1:20f8b142ff6887c0b3b80ff0292d3ba7a0c97ff16400d045a2464e09c8a77cc6"
+    },
+    {
+      "case_id": "state_diff-missing",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1}}}",
+      "wrapper_utf8_sha256": "01d99376278912caa4103ddad80d1cd6f5439e97c3c72324db3dbadebf51b2d8",
+      "expected_fingerprint": "wire-v1:01d99376278912caa4103ddad80d1cd6f5439e97c3c72324db3dbadebf51b2d8"
+    },
+    {
+      "case_id": "state_diff-null",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":null}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":null}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":null}}",
+      "wrapper_utf8_sha256": "f3a9cb6639cf8aff679de95408e7368f5e18c554fd67e6cc123574b555a1b81e",
+      "expected_fingerprint": "wire-v1:f3a9cb6639cf8aff679de95408e7368f5e18c554fd67e6cc123574b555a1b81e"
+    },
+    {
+      "case_id": "event-kind-unknown",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"unknown\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"unknown\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"unknown\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "4520a85a60c2b98e0a99c02022b397df2042c4b5396d8ba723315007e8794f2d",
+      "expected_fingerprint": "wire-v1:4520a85a60c2b98e0a99c02022b397df2042c4b5396d8ba723315007e8794f2d"
+    },
+    {
+      "case_id": "event-kind-internal",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"play_input\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"play_input\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"play_input\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "eef5247cef6cb4ea780ef7bb519e9a7752c667f783a0add1baed152950bc9b64",
+      "expected_fingerprint": "wire-v1:eef5247cef6cb4ea780ef7bb519e9a7752c667f783a0add1baed152950bc9b64"
+    },
+    {
+      "case_id": "event-kind-number",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":1,\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":1,\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":1,\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "605dede1438dbadc12c4af5d3ce27989a6e881a82a058d198f218c675a7fed36",
+      "expected_fingerprint": "wire-v1:605dede1438dbadc12c4af5d3ce27989a6e881a82a058d198f218c675a7fed36"
+    },
+    {
+      "case_id": "number-int",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "9f6825d795ab72cf118cc0bcc265f3b4495d4d25f221da3d55dc9437b5b04248",
+      "expected_fingerprint": "wire-v1:9f6825d795ab72cf118cc0bcc265f3b4495d4d25f221da3d55dc9437b5b04248"
+    },
+    {
+      "case_id": "number-float",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1.0},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "16a4ca6a75414af0f1f835ee7175afb464f908bfa8df21932512e71c20a4f4ff",
+      "expected_fingerprint": "wire-v1:16a4ca6a75414af0f1f835ee7175afb464f908bfa8df21932512e71c20a4f4ff"
+    },
+    {
+      "case_id": "number-exponent-one",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1.0},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "16a4ca6a75414af0f1f835ee7175afb464f908bfa8df21932512e71c20a4f4ff",
+      "expected_fingerprint": "wire-v1:16a4ca6a75414af0f1f835ee7175afb464f908bfa8df21932512e71c20a4f4ff"
+    },
+    {
+      "case_id": "number-bool",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":true},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":true},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":true},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "4cc8e82d020297e60ce8697baae109c5110b0a9ed0114c1c6dc277b7ef6b0196",
+      "expected_fingerprint": "wire-v1:4cc8e82d020297e60ce8697baae109c5110b0a9ed0114c1c6dc277b7ef6b0196"
+    },
+    {
+      "case_id": "number-negative-zero",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":-0.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":-0.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":-0.0},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "18004812b5615f753b8b5928a8f402badb5e94faa24fe3ea5d75206754e67a57",
+      "expected_fingerprint": "wire-v1:18004812b5615f753b8b5928a8f402badb5e94faa24fe3ea5d75206754e67a57"
+    },
+    {
+      "case_id": "number-positive-zero",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":0.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":0.0},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":0.0},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "fed1a9c8a8e614e8dc7c45f0f1db8e4e7969f14931c52c1a230c14d4723ed0be",
+      "expected_fingerprint": "wire-v1:fed1a9c8a8e614e8dc7c45f0f1db8e4e7969f14931c52c1a230c14d4723ed0be"
+    },
+    {
+      "case_id": "number-small6",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e-6},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e-06},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e-06},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "9cfdc1c640baffc27b02a0ec0f1cd92c49c8e283f3c775b3274347364e490b24",
+      "expected_fingerprint": "wire-v1:9cfdc1c640baffc27b02a0ec0f1cd92c49c8e283f3c775b3274347364e490b24"
+    },
+    {
+      "case_id": "number-small7",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e-7},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e-07},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e-07},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "67157577ea12688eefb00a29150d21c94a8a44879ca7650d2b97e5cadbf2173d",
+      "expected_fingerprint": "wire-v1:67157577ea12688eefb00a29150d21c94a8a44879ca7650d2b97e5cadbf2173d"
+    },
+    {
+      "case_id": "number-large20",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e20},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e+20},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":1e+20},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "ef599e09293f6e6255eee1752bdeb9cd8773345c79cef81d037bcb3a3ac3b99b",
+      "expected_fingerprint": "wire-v1:ef599e09293f6e6255eee1752bdeb9cd8773345c79cef81d037bcb3a3ac3b99b"
+    },
+    {
+      "case_id": "number-unsafe-integer",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":9007199254740993},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":9007199254740993},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":9007199254740993},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "396a5168a041391610aaa5636f1d3e63c362f90fc937169747d8247e19f0a9a3",
+      "expected_fingerprint": "wire-v1:396a5168a041391610aaa5636f1d3e63c362f90fc937169747d8247e19f0a9a3"
+    },
+    {
+      "case_id": "nfc",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":\"é\"},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":\"é\"},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":\"é\"},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "b0b600ac8265191948dffdadb129f8becf2daade6fcc717c1d4ef943468ad7a0",
+      "expected_fingerprint": "wire-v1:b0b600ac8265191948dffdadb129f8becf2daade6fcc717c1d4ef943468ad7a0"
+    },
+    {
+      "case_id": "nfd",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":\"é\"},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":\"é\"},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":\"é\"},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "8dcafd699f9b01db67b7d37ed09df5022bdc9506cc6a4a4c6b80a53503ba18df",
+      "expected_fingerprint": "wire-v1:8dcafd699f9b01db67b7d37ed09df5022bdc9506cc6a4a4c6b80a53503ba18df"
+    },
+    {
+      "case_id": "key-order",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":{\"10\":1,\"2\":2,\"\":3,\"😀\":4}},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":{\"10\":1,\"2\":2,\"\":3,\"😀\":4}},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":{\"10\":1,\"2\":2,\"\":3,\"😀\":4}},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "8b8a68fcc0a58f918e94f77fd1e848858b05b55f3edf88ad6e3ea2191240391e",
+      "expected_fingerprint": "wire-v1:8b8a68fcc0a58f918e94f77fd1e848858b05b55f3edf88ad6e3ea2191240391e"
+    },
+    {
+      "case_id": "array-12",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[1,2]},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[1,2]},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[1,2]},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "2fa2b6a8ad204fff123bc7d425231031eac2b95351efd3379a5609066d7a466e",
+      "expected_fingerprint": "wire-v1:2fa2b6a8ad204fff123bc7d425231031eac2b95351efd3379a5609066d7a466e"
+    },
+    {
+      "case_id": "array-21",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[2,1]},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[2,1]},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[2,1]},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "a69edfd33efed10acfa2700a747c22cad5d87805a015f3683cfa0de9edef7002",
+      "expected_fingerprint": "wire-v1:a69edfd33efed10acfa2700a747c22cad5d87805a015f3683cfa0de9edef7002"
+    },
+    {
+      "case_id": "array-1",
+      "raw_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[1]},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[1]},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"value\":[1]},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "3eeb416f35da8d708473a0d5851266cc337f6e5f4d806f66727f66317bd5170d",
+      "expected_fingerprint": "wire-v1:3eeb416f35da8d708473a0d5851266cc337f6e5f4d806f66727f66317bd5170d"
+    },
+    {
+      "case_id": "d1-max-safe",
+      "raw_json": "{\"d1\":9007199254740991,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_event_json": "{\"d1\":9007199254740991,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}",
+      "canonical_wrapper_json": "{\"codec_version\":1,\"registration\":null,\"wire_event\":{\"d1\":9007199254740991,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}}",
+      "wrapper_utf8_sha256": "b001728058792f8016b9a86495121cf270e46e129c16b560c33d8fd41c41db9a",
+      "expected_fingerprint": "wire-v1:b001728058792f8016b9a86495121cf270e46e129c16b560c33d8fd41c41db9a"
+    }
+  ],
+  "request_cases": [
+    {
+      "case_id": "ordered",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}},{\"d1\":2,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000002\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16",
+        "wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16\",\"wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "a9fc4d8ac5308da91f13e99f282c2fa8fd43b67050bef7dd22f1284abbbe1ad1",
+      "expected_fingerprint": "wire-request-v1:a9fc4d8ac5308da91f13e99f282c2fa8fd43b67050bef7dd22f1284abbbe1ad1"
+    },
+    {
+      "case_id": "reversed",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":2,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000002\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}},{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16",
+        "wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16\",\"wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "a9fc4d8ac5308da91f13e99f282c2fa8fd43b67050bef7dd22f1284abbbe1ad1",
+      "expected_fingerprint": "wire-request-v1:a9fc4d8ac5308da91f13e99f282c2fa8fd43b67050bef7dd22f1284abbbe1ad1"
+    },
+    {
+      "case_id": "singleton",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:e7301813049985ea68422b8fdfc35b41983f2958bdb3e18aed2cb73c8c15fa16\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "4739aad5214c449d4780ade813e80465b4c3faecbcbb37a644eb3c4ec29e558c",
+      "expected_fingerprint": "wire-request-v1:4739aad5214c449d4780ade813e80465b4c3faecbcbb37a644eb3c4ec29e558c"
+    },
+    {
+      "case_id": "changed-registration",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"registration\":null,\"state_diff\":{\"flags\":[]}},{\"d1\":2,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000002\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:bfc185f43506a8dac7b5e672e8a337f5e1376f62ccf52e5c44542571de97865b",
+        "wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:bfc185f43506a8dac7b5e672e8a337f5e1376f62ccf52e5c44542571de97865b\",\"wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "d0c79c6fe5ea82e187f6fd2fa46e2e7bfd256dcbbec6f3cf22930bb58e340691",
+      "expected_fingerprint": "wire-request-v1:d0c79c6fe5ea82e187f6fd2fa46e2e7bfd256dcbbec6f3cf22930bb58e340691"
+    },
+    {
+      "case_id": "changed-d4",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-B",
+      "raw_events_json": "[{\"d1\":1,\"d2\":10,\"d4\":\"generation-B\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:b5fd55122da0abf4fb29d16eaf644bd8960f98d386caad865376ad332336c076"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-B\",\"events\":[\"wire-v1:b5fd55122da0abf4fb29d16eaf644bd8960f98d386caad865376ad332336c076\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "4bb2dfbdd6ef94f9b45bc2b886cc6bb9fcd6d6b42726305d68bd8f28315b432b",
+      "expected_fingerprint": "wire-request-v1:4bb2dfbdd6ef94f9b45bc2b886cc6bb9fcd6d6b42726305d68bd8f28315b432b"
+    },
+    {
+      "case_id": "changed-game",
+      "game_id": "10000000-0000-0000-0000-000000000002",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":1,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000002\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:16903bda2b93761ccf5cb87ff1215b8f4531125fedc7c7ad76dd0ac8785be9e8"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:16903bda2b93761ccf5cb87ff1215b8f4531125fedc7c7ad76dd0ac8785be9e8\"],\"game_id\":\"10000000-0000-0000-0000-000000000002\"}",
+      "wrapper_utf8_sha256": "a77790611f489fba19414635914f5abcd4bae23ba4ab2f6ff3cfff484cdae9c2",
+      "expected_fingerprint": "wire-request-v1:a77790611f489fba19414635914f5abcd4bae23ba4ab2f6ff3cfff484cdae9c2"
+    },
+    {
+      "case_id": "numeric-d1-order",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":10,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000010\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}},{\"d1\":2,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000002\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73",
+        "wire-v1:4afdf40db885f3047678f6bd066a28c6ebfe3e2b498f1b1f4ced21b805868666"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:e223daf759abbb1dfd28dd9d144ddf1569d67c1497035cfd140e5b81bdc9be73\",\"wire-v1:4afdf40db885f3047678f6bd066a28c6ebfe3e2b498f1b1f4ced21b805868666\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "4a9677394d89a903ae63937b3ec20284be5c9a1029868b4e1d0c2decb65c3e27",
+      "expected_fingerprint": "wire-request-v1:4a9677394d89a903ae63937b3ec20284be5c9a1029868b4e1d0c2decb65c3e27"
+    },
+    {
+      "case_id": "d1-max-safe",
+      "game_id": "10000000-0000-0000-0000-000000000001",
+      "d4": "generation-A",
+      "raw_events_json": "[{\"d1\":9007199254740991,\"d2\":10,\"d4\":\"generation-A\",\"d5\":\"20000000-0000-0000-0000-000000000001\",\"event_kind\":\"1\",\"game_id\":\"10000000-0000-0000-0000-000000000001\",\"payload\":{\"label\":\"é😀\",\"result\":\"batting-result.ball\",\"value\":1},\"state_diff\":{\"flags\":[]}}]",
+      "expected_event_fingerprints_d1_order": [
+        "wire-v1:b001728058792f8016b9a86495121cf270e46e129c16b560c33d8fd41c41db9a"
+      ],
+      "canonical_wrapper_json": "{\"codec_version\":1,\"d4\":\"generation-A\",\"events\":[\"wire-v1:b001728058792f8016b9a86495121cf270e46e129c16b560c33d8fd41c41db9a\"],\"game_id\":\"10000000-0000-0000-0000-000000000001\"}",
+      "wrapper_utf8_sha256": "443c10c06707909d8800893bcc96b16f6c2edf118ede4f0910d6f8058af38169",
+      "expected_fingerprint": "wire-request-v1:443c10c06707909d8800893bcc96b16f6c2edf118ede4f0910d6f8058af38169"
+    }
+  ],
+  "relations": {
+    "event_equal": [
+      [
+        "base",
+        "object-key-order"
+      ],
+      [
+        "base",
+        "unicode-escape"
+      ],
+      [
+        "number-float",
+        "number-exponent-one"
+      ]
+    ],
+    "event_different": [
+      [
+        "base",
+        "registration-null"
+      ],
+      [
+        "registration-null",
+        "registration-false"
+      ],
+      [
+        "payload-missing",
+        "payload-null"
+      ],
+      [
+        "state_diff-missing",
+        "state_diff-null"
+      ],
+      [
+        "number-int",
+        "number-float"
+      ],
+      [
+        "number-int",
+        "number-bool"
+      ],
+      [
+        "number-negative-zero",
+        "number-positive-zero"
+      ],
+      [
+        "nfc",
+        "nfd"
+      ],
+      [
+        "array-12",
+        "array-21"
+      ],
+      [
+        "array-12",
+        "array-1"
+      ],
+      [
+        "base",
+        "event-kind-internal"
+      ]
+    ],
+    "request_equal": [
+      [
+        "ordered",
+        "reversed"
+      ]
+    ],
+    "request_different": [
+      [
+        "ordered",
+        "singleton"
+      ],
+      [
+        "ordered",
+        "changed-registration"
+      ],
+      [
+        "singleton",
+        "changed-d4"
+      ],
+      [
+        "singleton",
+        "changed-game"
+      ]
+    ]
+  }
+}

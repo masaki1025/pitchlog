@@ -43,7 +43,8 @@
       "operation_kind": "product_apply_helper_functions",
       "element_groups": [
         "functions:rls_helper",
-        "functions:definer"
+        "functions:definer",
+        "functions:invoker"
       ]
     },
     {

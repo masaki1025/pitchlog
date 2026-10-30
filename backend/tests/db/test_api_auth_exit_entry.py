@@ -7,7 +7,7 @@ import secrets
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -842,4 +842,429 @@ async def test_preparing_read_real_select_denial_is_sanitized(
         assert "SELECT games" not in response.text + caplog.text
         _assert_read_metadata(
             response, _read_headers(db.identity.tenant_id), success=False
+        )
+
+
+# H4だけに既owned fixtureを適用し、旧read/authのfixture解決を変更しない。
+class TestInitialGameStartHttpOwned:
+    """実app peer/HTTP/worker/DBを既fixtureで接ぐ有限検証。UI証拠ではない。"""
+
+    @pytest.fixture
+    def initial_scope_database(self, monkeypatch: pytest.MonkeyPatch):
+        """既owned3PGの初期化/cleanup/実identity設定をそのまま委譲する。"""
+        from . import test_initial_game_start as support
+
+        yield from cast(Any, support.initial_scope_database).__wrapped__(monkeypatch)
+
+    @pytest.fixture
+    def admin_connection(self, initial_scope_database):
+        """既initialの真正admin接続をH4 classだけへ供給する。"""
+        from . import test_initial_game_start as support
+
+        yield from cast(Any, support.admin_connection).__wrapped__(
+            initial_scope_database
+        )
+
+    @pytest.fixture
+    def tested_role_connection(self, initial_scope_database):
+        """既initialの真正限定role接続をH4 classだけへ供給する。"""
+        from . import test_initial_game_start as support
+
+        yield from cast(Any, support.tested_role_connection).__wrapped__(
+            initial_scope_database
+        )
+
+    @pytest.fixture
+    def start_database(
+        self, initial_scope_database, tmp_path_factory, monkeypatch: pytest.MonkeyPatch
+    ):
+        """既製品Node/20公式選手/canonical規則を変更せず委譲する。"""
+        from . import test_initial_game_start as support
+
+        node = cast(Any, support.product_node_binary).__wrapped__(tmp_path_factory)
+        try:
+            binary = next(node)
+            yield cast(Any, support.start_database).__wrapped__(
+                initial_scope_database, binary, monkeypatch
+            )
+        finally:
+            node.close()
+
+    def test_real_cookie_http_worker_start_and_faults(self, start_database, tmp_path):
+        """実3POST・資格原値・同要求再交付・拒否/応答断/停止を分離して検査する。"""
+        import hashlib
+        import subprocess
+        from concurrent.futures import ThreadPoolExecutor
+        from time import monotonic, sleep
+
+        import psycopg
+
+        from .durable_rights_ledger_support import docker
+
+        db = start_database
+        public_password = "public-owned-h4-password-A1"
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            settings = {
+                "auth.token_ttl_seconds": 3600,
+                "auth.team_login.window_seconds": 3600,
+                "auth.team_login.throttle_threshold": 3,
+                "auth.team_login.throttle_step_ms": 25,
+                "auth.team_login.throttle_max_ms": 200,
+            }
+            for key, value in settings.items():
+                admin.execute(
+                    "INSERT INTO public.system_settings(key,value) VALUES (%s,%s) "
+                    "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
+                    (key, str(value)),
+                )
+            for tenant in (db.tenant_id, db.other_tenant_id):
+                subject = uuid4()
+                admin.execute(
+                    "INSERT INTO public.tenant_auth_subjects(id,tenant_id) "
+                    "VALUES (%s,%s)",
+                    (subject, tenant),
+                )
+                admin.execute(
+                    "INSERT INTO public.tenant_credentials"
+                    "(auth_subject_id,password_hash) "
+                    "VALUES (%s,authn_crypto.crypt(%s,authn_crypto.gen_salt('bf',12)))",
+                    (subject, public_password),
+                )
+            names = {}
+            for tenant in (db.tenant_id, db.other_tenant_id):
+                row = admin.execute(
+                    "SELECT name FROM public.tenants WHERE id=%s", (tenant,)
+                ).fetchone()
+                assert row is not None
+                names[str(tenant)] = row[0]
+        lost_game, lost_request = uuid4(), uuid4()
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute(
+                "INSERT INTO public.games(tenant_id,id,scheduled_at,game_type_key,"
+                "tournament_key,away_team_record_id,home_team_record_id,applied_rules) "
+                "SELECT tenant_id,%s,scheduled_at,game_type_key,tournament_key,"
+                "away_team_record_id,home_team_record_id,applied_rules "
+                "FROM public.games WHERE tenant_id=%s AND id=%s",
+                (lost_game, db.tenant_id, db.game_id),
+            )
+
+        client_names: list[str] = []
+
+        def http(body: str) -> dict[str, Any]:
+            """実appUID容器へ公開設定だけを供給し、元例外/資格を出力しない。"""
+            args = db._broker_arguments(uid=20003)
+            client_names.append(args[args.index("--name") + 1])
+            args[1:1] = [
+                "--volume",
+                f"{db.authority.database.business_socket}:/business-socket:ro",
+            ]
+            prefix = f"""
+import os,sys,json,asyncio,base64,traceback
+from pathlib import Path
+from uuid import UUID,uuid4
+assert os.geteuid()==20003 and os.getegid()==20003
+os.environ['PITCHLOG_TOKEN_SIGNING_KEY_B64']=base64.b64encode(bytes(range(32))).decode()
+os.environ['PITCHLOG_ALLOWED_ORIGINS']='https://test'
+os.environ['PITCHLOG_DATABASE_URL']='postgresql+psycopg://pitchlog_app@/ledger_fixture?host=%2Fbusiness-socket&sslmode=disable'
+os.environ['PITCHLOG_DATABASE_POOLED']='false'
+sys.path.insert(0,'/fixture/backend/tests')
+from httpx import AsyncClient,ASGITransport
+from pitchlog.api.app import create_app
+from test_initial_game_start_components import _body
+app=create_app()
+tenant='{db.tenant_id}';other='{db.other_tenant_id}';game='{db.game_id}'
+names={names!r};password={public_password!r}
+def error_hook(kind,value,tb):
+    print(json.dumps({{'fixture_failure':kind.__name__,
+        'frames':[(f.name,f.lineno) for f in traceback.extract_tb(tb)]}}),flush=True)
+sys.excepthook=error_hook
+def headers(selected=tenant):
+    return {{'Origin':'https://test','X-Pitchlog-Request':'1',
+        'X-Pitchlog-Expected-Tenant':selected,'X-Pitchlog-Tenant-Challenge':str(uuid4())}}
+def metadata(response,h,success):
+    assert response.headers['cache-control']=='no-store'
+    if success:
+        assert response.headers['X-Pitchlog-Tenant-Match']=='1'
+        assert response.headers['X-Pitchlog-Tenant-Challenge']==(
+            h['X-Pitchlog-Tenant-Challenge'])
+    else:
+        assert 'X-Pitchlog-Tenant-Match' not in response.headers
+        assert 'X-Pitchlog-Tenant-Challenge' not in response.headers
+async def login(client,selected=tenant):
+    response=await client.post('/auth/login',json={{'team_name':names[selected],
+        'password':password}},headers={{'Origin':'https://test','X-Pitchlog-Request':'1'}})
+    assert response.status_code==200
+    assert response.json()['tenant_id']==selected
+    assert '__Host-pitchlog_token' in client.cookies
+    assert 'Secure' in response.headers['set-cookie']
+    assert 'HttpOnly' in response.headers['set-cookie']
+"""
+            try:
+                process = subprocess.run(
+                    ["docker", *args, "-u", "-c", prefix + body],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+            except (subprocess.TimeoutExpired, OSError):
+                raise AssertionError("H4実HTTP容器の起動/期限が非成功") from None
+            try:
+                value = json.loads(process.stdout)
+                assert type(value) is dict
+            except (ValueError, AssertionError):
+                raise AssertionError("H4実HTTP容器の安全応答が非成功") from None
+            if process.returncode:
+                assert set(value) == {"fixture_failure", "frames"}
+                raise AssertionError(f"H4実HTTPが非成功: {value}")
+            return value
+
+        with db.broker_worker(uuid4()) as worker:
+            normal_script = f"""
+async def run():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),base_url='https://test'
+    ) as client:
+        await login(client)
+        raw_cookie=client.cookies.get('__Host-pitchlog_token')
+        h=headers();enrolled=await client.post('/devices/enroll',headers=h)
+        assert enrolled.status_code==200;metadata(enrolled,h,True)
+        pair=enrolled.json()
+        assert pair['tenant_id']==tenant and len(pair['device_credential'])==43
+        assert pair['device_credential']!='**********'
+        body=_body(10);body.update(device_id=pair['device_id'],device_credential=pair['device_credential'],start_request_id='{db.start_request_id}')
+        h=headers()
+        started=await client.post('/games/'+game+'/start',json=body,headers=h)
+        assert started.status_code==200;metadata(started,h,True)
+        first=started.json();assert first['device_id']==pair['device_id']
+        assert first['start_request_id']==body['start_request_id']
+        assert first['game_id']==game
+        assert len(first['recording_right_proof'])==43
+        assert first['recording_right_proof']!='**********'
+        h=headers()
+        again=await client.post('/games/'+game+'/start/resolve',json=body,headers=h)
+        assert again.status_code==200;metadata(again,h,True);assert again.json()==first
+        assert client.cookies.get('__Host-pitchlog_token')==raw_cookie
+        # C2/Originを不正bodyより先に拒否し、元資格/本文を外へ返さない。
+        for bad,expected in (
+            ({{**headers(),'Origin':'https://untrusted.example'}},403),
+            (headers(other),404),
+        ):
+            denied=await client.post(
+                '/games/'+game+'/start',content='not-json',headers=bad)
+            assert denied.status_code==expected;metadata(denied,bad,False)
+            assert pair['device_credential'] not in denied.text
+            assert first['recording_right_proof'] not in denied.text
+        changed={{**body,'device_id':'{db.other_device_id}'}}
+        h=headers()
+        wrong=await client.post(
+            '/games/'+game+'/start/resolve',json=changed,headers=h)
+        assert wrong.status_code==503;metadata(wrong,h,False)
+        # 実HTTP送信境界だけを切断。実worker/DB結果を差し替えない。
+        lost_body={{**body,'start_request_id':'{lost_request}'}}
+        captured={{}}
+        async def cut(scope,receive,send):
+            async def drop(message):
+                if message['type']=='http.response.start':
+                    captured['status']=message['status'];return
+                if message['type']=='http.response.body':
+                    captured['wire']=json.loads(message['body'])
+                    raise OSError('public response-cut fault')
+            await app(scope,receive,drop)
+        async with AsyncClient(
+            transport=ASGITransport(app=cut,raise_app_exceptions=False),
+            base_url='https://test',cookies=client.cookies
+        ) as lost:
+            broken=await lost.post(
+                '/games/{lost_game}/start',json=lost_body,headers=headers())
+            assert broken.status_code!=200
+        assert captured['status']==200
+        h=headers()
+        resolved=await client.post(
+            '/games/{lost_game}/start/resolve',json=lost_body,headers=h)
+        assert resolved.status_code==200;metadata(resolved,h,True)
+        assert resolved.json()==captured['wire']
+        assert client.cookies.get('__Host-pitchlog_token')==raw_cookie
+        # 別tenantの真正loginCookieでも元所有者のgrantを取得しない。
+        async with AsyncClient(
+            transport=ASGITransport(app=app),base_url='https://test'
+        ) as outsider:
+            await login(outsider,other)
+            h=headers(other)
+            denied=await outsider.post(
+                '/games/'+game+'/start/resolve',json=body,headers=h)
+            assert denied.status_code in (404,503);metadata(denied,h,False)
+        # 元Cookie/pair/payloadはこの実HTTP process内に保持する。
+        ready=Path('/tmp/h4-ready-revoke');ready.write_text('ready')
+        deadline=asyncio.get_running_loop().time()+20
+        while not Path('/tmp/h4-device-revoked').exists():
+            if asyncio.get_running_loop().time()>=deadline:
+                raise AssertionError('owned revocation coordination expired')
+            await asyncio.sleep(0.02)
+        assert client.cookies.get('__Host-pitchlog_token')==raw_cookie
+        h=headers()
+        revoked=await client.post(
+            '/games/'+game+'/start/resolve',json=body,headers=h)
+        assert revoked.status_code==503;metadata(revoked,h,False)
+        assert set(revoked.json())=={{'error'}}
+        assert 'device_credential' not in revoked.text
+        assert 'recording_right_proof' not in revoked.text
+        assert pair['device_credential'] not in revoked.text
+        assert first['recording_right_proof'] not in revoked.text
+        assert client.cookies.get('__Host-pitchlog_token')==raw_cookie
+        print(json.dumps({{'actual_login_Cookie':True,'app_uid':os.geteuid(),
+            'raw_credentials_used':True,'same_V12_committed_resolve':True,
+            'same_original_after_response_cut':True,'C2_Origin_owner_rejected':True,
+            'revoked_device_same_Cookie_payload_denied':True,
+            'device_id':pair['device_id'],'HTTP_UI':False}}))
+asyncio.run(run())
+"""
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                normal_future = executor.submit(http, normal_script)
+                deadline = monotonic() + 25
+                while monotonic() < deadline:
+                    if normal_future.done():
+                        normal_future.result()
+                        raise AssertionError("H4失効前の同期点へ未到達")
+                    if (
+                        client_names
+                        and docker(
+                            "exec",
+                            "--user",
+                            "0",
+                            client_names[0],
+                            "/runtime/bin/python3.12",
+                            "-c",
+                            "from pathlib import Path; "
+                            "print(Path('/tmp/h4-ready-revoke').is_file())",
+                            check=False,
+                        )
+                        == "True"
+                    ):
+                        break
+                    sleep(0.05)
+                else:
+                    raise AssertionError("H4所有HTTPの失効同期期限超過")
+                before_revocation = db.ledger_snapshot()
+                assert len(before_revocation) == 2
+                with psycopg.connect(db.authority.database.business_admin) as admin:
+                    row = admin.execute(
+                        "SELECT device_id FROM public.game_start_requests "
+                        "WHERE tenant_id=%s AND game_id=%s AND start_request_id=%s",
+                        (db.tenant_id, db.game_id, db.start_request_id),
+                    ).fetchone()
+                    assert row is not None
+                    issued_device = row[0]
+                    attempt_count = admin.execute(
+                        "SELECT count(*) FROM public.game_start_attempts"
+                    ).fetchone()
+                    changed = admin.execute(
+                        "UPDATE public.trusted_devices "
+                        "SET revoked_at=clock_timestamp() "
+                        "WHERE tenant_id=%s AND device_id=%s AND revoked_at IS NULL "
+                        "RETURNING device_id,revoked_at",
+                        (db.tenant_id, issued_device),
+                    ).fetchall()
+                    assert len(changed) == 1 and changed[0][0] == issued_device
+                    assert isinstance(changed[0][1], datetime)
+                # 上のadmin transaction確定後だけ、同processの元要求を再送させる。
+                docker(
+                    "exec",
+                    "--user",
+                    "0",
+                    client_names[0],
+                    "/runtime/bin/python3.12",
+                    "-c",
+                    "from pathlib import Path; "
+                    "Path('/tmp/h4-device-revoked').write_text('committed')",
+                )
+                normal = normal_future.result(timeout=30)
+            assert normal["revoked_device_same_Cookie_payload_denied"] is True
+            assert db.ledger_snapshot() == before_revocation
+            with psycopg.connect(db.authority.database.business_admin) as admin:
+                assert (
+                    admin.execute(
+                        "SELECT count(*) FROM public.game_start_attempts"
+                    ).fetchone()
+                    == attempt_count
+                )
+                assert admin.execute(
+                    "SELECT outcome FROM public.game_start_attempts "
+                    "WHERE tenant_id=%s AND game_id=%s AND start_request_id=%s",
+                    (db.tenant_id, db.game_id, db.start_request_id),
+                ).fetchall() == [("committed",)]
+            assert normal["same_V12_committed_resolve"] is True
+            assert len(db.ledger_snapshot()) == 2
+            before_faults = db.ledger_snapshot()
+            with psycopg.connect(db.authority.database.business_admin) as admin:
+                assert admin.execute(
+                    "SELECT id,status FROM public.games WHERE id=ANY(%s) ORDER BY id",
+                    ([db.game_id, lost_game],),
+                ).fetchall() == sorted(
+                    [(db.game_id, "in_progress"), (lost_game, "in_progress")]
+                )
+                assert admin.execute(
+                    "SELECT count(*) FROM public.game_lineups WHERE game_id=ANY(%s)",
+                    ([db.game_id, lost_game],),
+                ).fetchone() == (4,)
+                device_count = admin.execute(
+                    "SELECT count(*) FROM public.trusted_devices"
+                ).fetchone()
+                credential = admin.execute(
+                    "SELECT credential_digest FROM public.trusted_devices "
+                    "WHERE device_id=%s",
+                    (UUID(normal["device_id"]),),
+                ).fetchone()
+                assert (
+                    credential is not None
+                    and len(bytes(credential[0])) == hashlib.sha256().digest_size
+                )
+            assert db.controller is not None
+            docker("stop", "--time", "1", db.controller)
+            stopped_rg1 = http("""
+async def run():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),base_url='https://test'
+    ) as client:
+        await login(client)
+        h=headers();response=await client.post('/devices/enroll',headers=h)
+        assert response.status_code==503;metadata(response,h,False)
+        print(json.dumps({'RG1_stopped_non_success':True}))
+asyncio.run(run())
+""")
+            assert stopped_rg1 == {"RG1_stopped_non_success": True}
+            assert db.ledger_snapshot() == before_faults
+            with psycopg.connect(db.authority.database.business_admin) as admin:
+                assert (
+                    admin.execute(
+                        "SELECT count(*) FROM public.trusted_devices"
+                    ).fetchone()
+                    == device_count
+                )
+            docker("stop", "--time", "1", worker)
+            stopped_worker = http("""
+async def run():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),base_url='https://test'
+    ) as client:
+        await login(client)
+        h=headers();response=await client.post('/devices/enroll',headers=h)
+        assert response.status_code==503;metadata(response,h,False)
+        print(json.dumps({'worker_stopped_non_success':True}))
+asyncio.run(run())
+""")
+            assert stopped_worker == {"worker_stopped_non_success": True}
+        (tmp_path / "h4-http-observations.json").write_text(
+            json.dumps(
+                {
+                    "normal": normal,
+                    "RG1": stopped_rg1,
+                    "worker": stopped_worker,
+                    "D4_after_committed_resolves": 2,
+                    "candidate_metadata_not_formal": True,
+                    "UI_initial_state_Ready": False,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n"
         )

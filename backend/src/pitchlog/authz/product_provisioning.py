@@ -19,8 +19,11 @@ from pitchlog.authz.asset_spec import (
 )
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 from pitchlog.authz.product_control_access import (
+    INITIAL_STORAGE_TABLES,
     RULE_RESOLUTION_FUNCTION_ID,
     RULE_RESOLUTION_OWNER_ROLE_ID,
+    is_enrollment_column_acl,
+    is_initial_column_acl,
     is_rg1_control_column_acl,
     is_rg1_singleton_update_acl,
     is_rule_resolution_update_acl,
@@ -314,11 +317,21 @@ def _strict_lifecycle_schema_sql(element: _ProductElement, sql_text: str) -> str
     owner = _element_text(element, "owner")
     if (
         schema_name != _element_text(element, "schema_id")
-        or schema_name not in {"rg1_control", "pitchlog_ledger_observer"}
+        or schema_name
+        not in {"rg1_control", "pitchlog_ledger_observer", "initial_right_api"}
         or _element_text(element, "creation") != "product_ddl"
         or _element_text(element, "ownership_path") != "direct"
     ):
         raise ProductProvisioningError("新schemaの再適用対象が閉集合と不一致")
+    if (
+        owner
+        != {
+            "rg1_control": "pitchlog_rg1_control_owner",
+            "pitchlog_ledger_observer": "pitchlog_ledger_identity_owner",
+            "initial_right_api": "pitchlog_initial_fn_owner",
+        }[schema_name]
+    ):
+        raise ProductProvisioningError("新schemaのownerが閉集合と不一致")
     original_create = f"CREATE SCHEMA {schema_name} AUTHORIZATION {owner};"
     if sql_text.count(original_create) != 1:
         raise ProductProvisioningError("新schemaの正規CREATE文が一意でない")
@@ -358,11 +371,21 @@ def _application_statements(
             continue
         sequence = _application_sequence(statement, steps, element)
         sql_text = statement.sql
+        if statement.element_type == "function":
+            from pitchlog.authz.first_ball_product import application_function_sql
+
+            try:
+                replacement = application_function_sql(statement.element_id, sql_text)
+            except ValueError as error:
+                raise ProductProvisioningError(str(error)) from error
+            if replacement is not None:
+                sql_text = replacement
         if statement.element_type == "schema" and _element_text(
             element, "schema_name"
         ) in {
             "rg1_control",
             "pitchlog_ledger_observer",
+            "initial_right_api",
         }:
             sql_text = _strict_lifecycle_schema_sql(element, sql_text)
         if statement.element_type == "policy":
@@ -471,6 +494,11 @@ END;
 $authz$;
 GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;
 """
+        if (
+            element.fields.get("function_id")
+            == "FUNCTION:public:protect_initial_right_storage()"
+        ):
+            return f"REVOKE EXECUTE ON FUNCTION {identity} FROM PUBLIC;"
         if function_kind == "migration_trigger":
             return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
         raise ProductProvisioningError(f"未知の製品関数種別: {function_kind}")
@@ -479,6 +507,11 @@ GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;
             _element_text(element, "schema_name"),
             _element_text(element, "table_id"),
         )
+        if element.fields.get("table_id") in INITIAL_STORAGE_TABLES:
+            return (
+                f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;\n"
+                f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY;"
+            )
         return f"""
 ALTER TABLE {table} NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
@@ -519,7 +552,25 @@ ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;
         )
         column = _quote_identifier(_element_text(element, "column_id"))
         grantee = _quote_identifier(_element_text(element, "grantee_role_id"))
+        from pitchlog.authz.initial_start_sql import is_start_column_acl
+
         if (
+            is_initial_column_acl(element.fields)
+            or is_start_column_acl(element.fields)
+            or is_enrollment_column_acl(element.fields)
+        ):
+            privileges_value = element.fields["privilege_ids"]
+            assert isinstance(privileges_value, list)
+            privileges = ", ".join(
+                f"{privilege} ({column})" for privilege in privileges_value
+            )
+        elif element.fields.get("grantee_role_id") in {
+            "pitchlog_initial_fn_owner",
+            "pitchlog_initial_actor",
+            "pitchlog_app",
+        }:
+            raise ProductProvisioningError("初期主体の撤去列ACLが閉集合にない")
+        elif (
             is_rg1_singleton_update_acl(element.fields)
             or is_rule_resolution_update_acl(element.fields)
             or (
@@ -572,6 +623,22 @@ def _build_operation_statements(
     operation: ProductOperation,
 ) -> tuple[ProductApplicationSteps, tuple[_ProductStatement, ...]]:
     """正規の置き場だけから手順と実行文を生成する。"""
+    from pitchlog.authz.first_ball_product import (
+        pre_rule_deferred_ids,
+        validate,
+    )
+
+    candidate = json.loads(
+        (_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_bytes()
+    )
+    try:
+        added_profile = validate(candidate)
+    except ValueError as error:
+        raise ProductProvisioningError(str(error)) from error
+    if added_profile and operation is ProductOperation.UNAPPLY:
+        raise ProductProvisioningError(
+            "同期binding履歴の退役は未提供。PUBLIC再付与/履歴削除を拒否する"
+        )
     steps = load_product_application_steps(_REPOSITORY_ROOT, PRODUCT_SPEC)
     generated = generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     if operation is ProductOperation.APPLY_PRE_RULE:
@@ -598,8 +665,226 @@ def _build_operation_statements(
         ):
             raise ProductProvisioningError("初回epoch列ACLの保留対象がexact-set不一致")
         deferred.add(epoch_acl_id)
+        initial_deferred = frozenset(
+            (
+                "FUNCTION:initial_right_api:lock_device(uuid, uuid)",
+                "FUNCTION:initial_right_api:read_existing_start(uuid, uuid, uuid)",
+                "FUNCTION:initial_right_api:read_start_game(uuid, uuid)",
+                "FUNCTION:initial_right_api:lock_preparing_game(uuid, uuid)",
+                "FUNCTION:initial_right_api:lock_current_start(uuid, uuid, uuid)",
+                "FUNCTION:initial_right_api:check_business_epoch(uuid, bigint)",
+                (
+                    "FUNCTION:initial_right_api:insert_initial_grant(uuid, u"
+                    "uid, uuid, uuid, uuid, bigint, bigint, bytea, text, byt"
+                    "ea, bytea)"
+                ),
+                (
+                    "FUNCTION:initial_right_api:begin_start_attempt(uuid, uu"
+                    "id, uuid, uuid, bytea, uuid)"
+                ),
+                (
+                    "FUNCTION:initial_right_api:resolve_"
+                    "start_attempt(uuid, uuid, uuid, uui"
+                    "d)"
+                ),
+                "FUNCTION:public:protect_initial_right_storage()",
+                "trusted_devices",
+                "game_start_requests",
+                "game_start_attempts",
+                "recording_right_deliveries",
+                "POLICY:trusted_devices:initial_right_trusted_devices_select",
+                "POLICY:trusted_devices:initial_right_trusted_devices_update",
+                "POLICY:game_start_requests:initial_right_game_start_requests_select",
+                "POLICY:game_start_requests:initial_right_game_start_requests_insert",
+                "POLICY:game_start_requests:initial_right_game_start_requests_update",
+                "POLICY:game_start_attempts:initial_right_game_start_attempts_select",
+                "POLICY:game_start_attempts:initial_right_game_start_attempts_insert",
+                "POLICY:game_start_attempts:initial_right_game_start_attempts_update",
+                (
+                    "POLICY:recording_right_deliveries:initial_right_recordi"
+                    "ng_right_deliveries_select"
+                ),
+                (
+                    "POLICY:recording_right_deliveries:initial_right_recordi"
+                    "ng_right_deliveries_insert"
+                ),
+                (
+                    "POLICY:recording_right_deliveries:initial_right_recordi"
+                    "ng_right_deliveries_update"
+                ),
+                "COLUMN-ACL:public:trusted_devices:tenant_id:pitchlog_initial_fn_owner",
+                "COLUMN-ACL:public:trusted_devices:device_id:pitchlog_initial_fn_owner",
+                (
+                    "COLUMN-ACL:public:trusted_devices:credential_digest:pit"
+                    "chlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:trusted_devices:r"
+                    "evoked_at:pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_requests:tenant_id:pitchlo"
+                    "g_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_reques"
+                    "ts:game_id:pitchlog_initial_fn_owne"
+                    "r"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_requests:start_request_id:"
+                    "pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_requests:device_id:pitchlo"
+                    "g_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_requests:request_digest:pi"
+                    "tchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attempts:tenant_id:pitchlo"
+                    "g_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attempts:attempt_id:pitchl"
+                    "og_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attemp"
+                    "ts:game_id:pitchlog_initial_fn_owne"
+                    "r"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attempts:start_request_id:"
+                    "pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attempts:device_id:pitchlo"
+                    "g_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attemp"
+                    "ts:outcome:pitchlog_initial_fn_owne"
+                    "r"
+                ),
+                (
+                    "COLUMN-ACL:public:game_start_attempts:resolved_at:pitch"
+                    "log_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:tenant_id:"
+                    "pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:game_id:pi"
+                    "tchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:generation"
+                    ":pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:start_requ"
+                    "est_id:pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:device_id:"
+                    "pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:key_id:pit"
+                    "chlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:nonce:pitc"
+                    "hlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:ciphertext"
+                    ":pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_right_deliveries:revoked_at"
+                    ":pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_generations:proof_digest:pi"
+                    "tchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:recording_generations:recovery_genera"
+                    "tion:pitchlog_initial_fn_owner"
+                ),
+                (
+                    "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:"
+                    "pitchlog_initial_fn_owner"
+                ),
+            )
+        )
+        enrollment_dependencies = {
+            "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)": "function",
+            "POLICY:trusted_devices:initial_right_trusted_devices_insert": "policy",
+        }
+        has_enrollment = any(
+            row.element_id in enrollment_dependencies for row in generated
+        )
+        if has_enrollment:
+            initial_deferred = initial_deferred | frozenset(enrollment_dependencies)
+        lookup_id = (
+            "FUNCTION:initial_right_api:lookup_existing_start_attemp"
+            "t(uuid, uuid, uuid, uuid, bytea)"
+        )
+        has_lookup = any(row.element_id == lookup_id for row in generated)
+        if has_lookup:
+            initial_deferred = initial_deferred | {lookup_id}
+        actual_initial = {
+            statement.element_id
+            for statement in generated
+            if statement.element_id in initial_deferred
+        }
+        if actual_initial != initial_deferred:
+            raise ProductProvisioningError("初期保存の保留対象がexact-set不一致")
+        from pitchlog.authz.initial_start_sql import (
+            start_column_acl_declarations,
+            start_function_declarations,
+            start_policy_declarations,
+        )
+
+        new_dependencies = {
+            **dict.fromkeys(start_column_acl_declarations(), "column_acl_expectation"),
+            **dict.fromkeys(start_policy_declarations(), "policy"),
+            **dict.fromkeys(start_function_declarations(), "function"),
+        }
+        has_start = any(row.element_id in new_dependencies for row in generated)
+        deferred.update(initial_deferred)
+        expected_dependencies = dict(_PRE_RULE_DEPENDENCIES)
+        if not has_lookup:
+            expected_dependencies.pop(lookup_id)
+        if not has_enrollment:
+            for key in enrollment_dependencies:
+                expected_dependencies.pop(key)
+        if has_start:
+            deferred.update(new_dependencies)
+            expected_dependencies.update(new_dependencies)
+        selected = tuple(row for row in generated if row.element_id in deferred)
+        if (
+            len(selected) != len(expected_dependencies)
+            or {row.element_id: row.element_type for row in selected}
+            != expected_dependencies
+            or deferred != set(expected_dependencies)
+        ):
+            raise ProductProvisioningError("前段保留70のID/種別/一意性が不一致")
         generated = tuple(
             statement for statement in generated if statement.element_id not in deferred
+        )
+    if added_profile and operation is ProductOperation.APPLY_PRE_RULE:
+        deferred_binding = pre_rule_deferred_ids()
+        generated = tuple(
+            statement
+            for statement in generated
+            if statement.element_id not in deferred_binding
         )
     elements = _load_product_elements()
     if operation in (ProductOperation.APPLY, ProductOperation.APPLY_PRE_RULE):
@@ -800,3 +1085,238 @@ def _run_product_operation(
         _record_product_checkpoint(commit_checkpoint)
     finally:
         connection.autocommit = False
+
+
+_PRE_RULE_DEPENDENCIES: dict[str, str] = {
+    (
+        "FUNCTION:initial_right_api:lookup_existing_start_attemp"
+        "t(uuid, uuid, uuid, uuid, bytea)"
+    ): "function",
+    ("FUNCTION:public:resolve_stage_a_rule(uuid, text, text, boolean)"): "function",
+    "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)": "function",
+    "POLICY:trusted_devices:initial_right_trusted_devices_insert": "policy",
+    "FUNCTION:initial_right_api:lock_device(uuid, uuid)": "function",
+    "FUNCTION:initial_right_api:read_existing_start(uuid, uuid, uuid)": "function",
+    "FUNCTION:initial_right_api:read_start_game(uuid, uuid)": "function",
+    "FUNCTION:initial_right_api:lock_preparing_game(uuid, uuid)": "function",
+    "FUNCTION:initial_right_api:lock_current_start(uuid, uuid, uuid)": "function",
+    "FUNCTION:initial_right_api:check_business_epoch(uuid, bigint)": "function",
+    (
+        "FUNCTION:initial_right_api:insert_i"
+        "nitial_grant(uuid, uuid, uuid, uuid"
+        ", uuid, bigint, bigint, bytea, text"
+        ", bytea, bytea)"
+    ): "function",
+    (
+        "FUNCTION:initial_right_api:begin_st"
+        "art_attempt(uuid, uuid, uuid, uuid,"
+        " bytea, uuid)"
+    ): "function",
+    (
+        "FUNCTION:initial_right_api:resolve_start_attempt(uuid, uuid, uuid, uuid)"
+    ): "function",
+    "FUNCTION:public:protect_initial_right_storage()": "function",
+    "trusted_devices": "table",
+    "game_start_requests": "table",
+    "game_start_attempts": "table",
+    "recording_right_deliveries": "table",
+    "POLICY:trusted_devices:initial_right_trusted_devices_select": "policy",
+    "POLICY:trusted_devices:initial_right_trusted_devices_update": "policy",
+    "POLICY:game_start_requests:initial_right_game_start_requests_select": "policy",
+    "POLICY:game_start_requests:initial_right_game_start_requests_insert": "policy",
+    "POLICY:game_start_requests:initial_right_game_start_requests_update": "policy",
+    "POLICY:game_start_attempts:initial_right_game_start_attempts_select": "policy",
+    "POLICY:game_start_attempts:initial_right_game_start_attempts_insert": "policy",
+    "POLICY:game_start_attempts:initial_right_game_start_attempts_update": "policy",
+    (
+        "POLICY:recording_right_deliveries:i"
+        "nitial_right_recording_right_delive"
+        "ries_select"
+    ): "policy",
+    (
+        "POLICY:recording_right_deliveries:i"
+        "nitial_right_recording_right_delive"
+        "ries_insert"
+    ): "policy",
+    (
+        "POLICY:recording_right_deliveries:i"
+        "nitial_right_recording_right_delive"
+        "ries_update"
+    ): "policy",
+    (
+        "COLUMN-ACL:public:game_type_rule_de"
+        "faults:game_type_category:pitchlog_"
+        "rule_resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_type_rule_de"
+        "faults:game_type_key:pitchlog_rule_"
+        "resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_type_rule_de"
+        "faults:rule_set_id:pitchlog_rule_re"
+        "solution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rule_sets:called_"
+        "game_conditions:pitchlog_rule_resol"
+        "ution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rule_sets:extra_i"
+        "nnings_limit:pitchlog_rule_resoluti"
+        "on_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rule_sets:id:pitchlog_rule_resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rule_sets:regulat"
+        "ion_innings:pitchlog_rule_resolutio"
+        "n_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rule_sets:tiebreak_rule:pitchlog_rule_resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rule_sets:uses_dh:pitchlog_rule_resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:tenant_vocabulari"
+        "es:category:pitchlog_rule_resolutio"
+        "n_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:tenant_vocabulari"
+        "es:disabled:pitchlog_rule_resolutio"
+        "n_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:tenant_vocabularies:key:pitchlog_rule_resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:tenant_vocabulari"
+        "es:tenant_id:pitchlog_rule_resoluti"
+        "on_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:tournament_rule_a"
+        "ssignments:tenant_id:pitchlog_rule_"
+        "resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:tournament_rule_a"
+        "ssignments:tournament_key:pitchlog_"
+        "rule_resolution_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rg1_restore_gate:"
+        "recovery_generation:pitchlog_rg1_co"
+        "ntrol_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:trusted_devices:tenant_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:trusted_devices:device_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:trusted_devices:credential_digest:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:trusted_devices:revoked_at:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_requests:tenant_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_requests:game_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_reques"
+        "ts:start_request_id:pitchlog_initia"
+        "l_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_requests:device_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_requests:request_digest:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attempts:tenant_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attempts:attempt_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attempts:game_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attemp"
+        "ts:start_request_id:pitchlog_initia"
+        "l_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attempts:device_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:game_start_attempts:resolved_at:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_d"
+        "eliveries:tenant_id:pitchlog_initia"
+        "l_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_deliveries:game_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_d"
+        "eliveries:generation:pitchlog_initi"
+        "al_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_d"
+        "eliveries:start_request_id:pitchlog"
+        "_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_d"
+        "eliveries:device_id:pitchlog_initia"
+        "l_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_deliveries:key_id:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_deliveries:nonce:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_d"
+        "eliveries:ciphertext:pitchlog_initi"
+        "al_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_right_d"
+        "eliveries:revoked_at:pitchlog_initi"
+        "al_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_generations:proof_digest:pitchlog_initial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:recording_generat"
+        "ions:recovery_generation:pitchlog_i"
+        "nitial_fn_owner"
+    ): "column_acl_expectation",
+    (
+        "COLUMN-ACL:public:rg1_restore_gate:"
+        "recovery_generation:pitchlog_initia"
+        "l_fn_owner"
+    ): "column_acl_expectation",
+}

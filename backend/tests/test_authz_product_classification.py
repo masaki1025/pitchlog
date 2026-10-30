@@ -45,7 +45,7 @@ def _product_ddl_path() -> Path:
 
 _PRODUCT_DDL_PATH = _product_ddl_path()
 
-_EXPECTED_PROFILES = {
+_EXPECTED_LEGACY_PROFILES = {
     "tenant_owned": {
         "team_records",
         "players",
@@ -101,7 +101,19 @@ _EXPECTED_PROFILES = {
         "tournament_rule_assignments",
     },
 }
-_EXPECTED_FACT_TABLES = {
+_INITIAL_RIGHT_STORAGE_TABLES = {
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+}
+# data-model v1.4の初期権4表だけを旧46表profileへ加える。
+_EXPECTED_PROFILES = {
+    **_EXPECTED_LEGACY_PROFILES,
+    "function_only": _EXPECTED_LEGACY_PROFILES["function_only"]
+    | _INITIAL_RIGHT_STORAGE_TABLES,
+}
+_EXPECTED_LEGACY_FACT_TABLES = {
     "rg1_control": {"rg1_restore_gate"},
     "non_tenant": {
         "game_type_rule_defaults",
@@ -137,11 +149,19 @@ _EXPECTED_FACT_TABLES = {
         "migration_warning_reports",
     },
 }
-_EXPECTED_SECRET_COLUMNS = {
+_EXPECTED_FACT_TABLES = {
+    **_EXPECTED_LEGACY_FACT_TABLES,
+    "initial_right_storage": _INITIAL_RIGHT_STORAGE_TABLES,
+}
+_EXPECTED_LEGACY_SECRET_COLUMNS = {
     ("tenant_credentials", "password_hash"),
     ("admin_credentials", "password_hash"),
     ("group_invitations", "code_hash"),
     ("tenant_tokens", "id"),
+}
+_EXPECTED_SECRET_COLUMNS = _EXPECTED_LEGACY_SECRET_COLUMNS | {
+    ("recording_generations", "proof_digest"),
+    ("recording_generations", "recovery_generation"),
 }
 _PROFILE_MUTATIONS = (
     ("admin_credentials", "global_read_only"),
@@ -306,7 +326,7 @@ def test_design_assignment_satisfies_all_classification_conditions(
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 14,
+        "function_only": 18,
     }
     assert (
         _row_for_table(classification, "rule_sets")["access_path"]["owner_unit"]
@@ -337,7 +357,7 @@ def test_manifest_models_and_classification_have_the_same_population(
         row["table"] for row in _classification_rows(classification)
     }
 
-    assert len(manifest_tables) == len(model_tables) == 46
+    assert len(manifest_tables) == len(model_tables) == 50
     assert manifest_tables == model_tables == classification_tables
 
 
@@ -350,7 +370,7 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
         frozenset[str],
     ],
 ) -> None:
-    """8種の事実が期待集合を持ち、その表と列が manifest に実在する。"""
+    """9種の事実が期待集合を持ち、その表と列が manifest に実在する。"""
     _classification, exposure_facts, manifest, _data_model, _models = documents
     manifest_columns = {
         table["name"]: {column["name"] for column in table["columns"]}
@@ -374,6 +394,14 @@ def test_exposure_facts_are_complete_and_reference_manifest_objects(
     }
     assert "id" in manifest_columns["tenant_tokens"]
     scanned_secret_columns.add(("tenant_tokens", "id"))
+    # data-model v1.4の保護証拠2列を汎用app列へ広げない。
+    assert {"proof_digest", "recovery_generation"} <= manifest_columns[
+        "recording_generations"
+    ]
+    scanned_secret_columns.update(
+        ("recording_generations", column)
+        for column in ("proof_digest", "recovery_generation")
+    )
 
     assert actual_table_facts == _EXPECTED_FACT_TABLES
     assert actual_secret_columns == scanned_secret_columns == _EXPECTED_SECRET_COLUMNS

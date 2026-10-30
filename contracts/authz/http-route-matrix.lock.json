@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "b597164ec801b4a2ef866624a146c742a84d57ba5b2853b281f9aa7dbd160e5d",
-  "entry_count": 61,
-  "aggregate_decision_digest": "af48c3a314b3572042a8a5f68f3498c838d7cfc0e254ffdde1a98c88a16f7093",
+  "asset_digest": "19042fadf8e41027b45ec2b4182e7da7f7973e7c3643ba8a5bd0d86f42bc8a25",
+  "entry_count": 65,
+  "aggregate_decision_digest": "7485bb21b2c557489bd03dde937dac2c251980b5bc44ab2b17d48e1628b72f1b",
   "entries": [
     {
       "entry_id": "route:HTTP:ROUTE:FR-020",
@@ -642,6 +642,58 @@
         }
       },
       "decision_digest": "68606929c2685f54fe614133f8ad1fa6a60a4d01d4388d022aafbdda79e91fbb"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:trusted_devices:insert",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:trusted_devices:insert",
+        "route_id": "ROUTE:RECORD:trusted_devices:insert",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_initial_http_logical_routes_match_real_operations_and_caps",
+          "status": "implemented"
+        }
+      },
+      "decision_digest": "63fe1105f45d90b88d7621cdcd9b1edaf848ba90e2f610bf690544803cee6639"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:games:update",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:games:update",
+        "route_id": "ROUTE:RECORD:games:update",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_check_authz_catalog.py::test_initial_http_logical_routes_match_real_operations_and_caps",
+          "status": "implemented"
+        }
+      },
+      "decision_digest": "1290347919afb386b21c0fd22c37fc1a9d355362eac47e628ca5ff849795690f"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:games:insert",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:games:insert",
+        "route_id": "ROUTE:RECORD:games:insert",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_authz_first_ball_routes.py::test_first_ball_create_and_pitch_options_routes_match_source",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "103df663d8bc0ef10842cc2a528e11bba966f633faae967e223bb52d53dc3f22"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:tenant_vocabularies:read",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:tenant_vocabularies:read",
+        "route_id": "ROUTE:RECORD:tenant_vocabularies:read",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_authz_first_ball_routes.py::test_first_ball_create_and_pitch_options_routes_match_source",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "fd15f86cea3c5d9c4563c79b5403a8ebe54090c6cbf35cc568e67b47dca2c72e"
     },
     {
       "entry_id": "cell:CELL:shared_screen:team_metrics:screen",

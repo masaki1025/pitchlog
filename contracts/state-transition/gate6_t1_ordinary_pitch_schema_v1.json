@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evidenceKind",
+    "status",
+    "authority",
+    "anchor",
+    "assets",
+    "scopeReceipt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "evidenceKind": {
+      "type": "string",
+      "const": "t1-ordinary-pitch-33"
+    },
+    "status": {
+      "type": "string",
+      "const": "candidate-for-delegated-verification"
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "pr",
+        "branch",
+        "baseRevision"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "const": "masaki1025/pitchlog"
+        },
+        "pr": {
+          "type": "integer",
+          "const": 187
+        },
+        "branch": {
+          "type": "string",
+          "const": "feature/mvp-t1-ordinary-pitches"
+        },
+        "baseRevision": {
+          "type": "string",
+          "const": "3a24f89e15987ecef3dc45a1173ab99b5f79d16e"
+        }
+      }
+    },
+    "anchor": {
+      "type": "string",
+      "const": "30f67cbc0afbdae00919606a17439d64fa7e9832"
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contracts/state-transition/state_transition_contract_v1.json",
+        "contracts/state-transition/required_set_input_coverage_v1.json",
+        "contracts/state-transition/branch_row_mapping_v1.json",
+        "contracts/state-transition/game_end_coverage_declaration_v1.json",
+        "contracts/state-transition/appendix_e_consumer_handoff_v1.json",
+        "contracts/state-transition/ordinary_pitch_request_schema_v1.json",
+        "contracts/state-transition/ordinary_pitch_response_schema_v1.json",
+        "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+        "contracts/state-transition/ordinary_pitch_v1.d.ts"
+      ],
+      "properties": {
+        "contracts/state-transition/state_transition_contract_v1.json": {
+          "type": "string",
+          "const": "c93f0cc7336bebba5a336a2c74233b290301f67a093bcce7ffd5948727d3cf2d"
+        },
+        "contracts/state-transition/required_set_input_coverage_v1.json": {
+          "type": "string",
+          "const": "f9733fb068910534d06538f08a629382492ce60d8c4905770c53e69206b5cb5c"
+        },
+        "contracts/state-transition/branch_row_mapping_v1.json": {
+          "type": "string",
+          "const": "46c131215e753d56fe856ba6c5a42e09ecbdb4648efecbe98c13d742194f79d3"
+        },
+        "contracts/state-transition/game_end_coverage_declaration_v1.json": {
+          "type": "string",
+          "const": "941c470bb14e1b27aecacfed1049b504df2d070751af3d1eeb19a46576c0cfda"
+        },
+        "contracts/state-transition/appendix_e_consumer_handoff_v1.json": {
+          "type": "string",
+          "const": "bf0c0827044d1c5daebb4ec9c25eaacbc24f7899bea836c68f386328daa94510"
+        },
+        "contracts/state-transition/ordinary_pitch_request_schema_v1.json": {
+          "type": "string",
+          "const": "53b4bb5faa28173bd304f043eef085c8b3e69e0387bfc96859f602fac7267c8a"
+        },
+        "contracts/state-transition/ordinary_pitch_response_schema_v1.json": {
+          "type": "string",
+          "const": "284dea29eda613ff7a0c95913acac8ea77eb914785b178acdf4db6ea8e7ce794"
+        },
+        "contracts/state-transition/ordinary_pitch_vectors_v1.json": {
+          "type": "string",
+          "const": "802eca35e3a42bec0c3687adb5f11435b5cf6928009b3ae1f0957bead68dd0c4"
+        },
+        "contracts/state-transition/ordinary_pitch_v1.d.ts": {
+          "type": "string",
+          "const": "eb7832899dc6cd3085dec92f6e71cbe142ea5ee89a524fa8b8aeaa6b3ad5c844"
+        }
+      }
+    },
+    "scopeReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "personalReviewClaimed",
+        "P6FullAcceptance",
+        "P7FullAcceptance",
+        "T1BodyStartComplete"
+      ],
+      "properties": {
+        "personalReviewClaimed": {
+          "type": "boolean",
+          "const": false
+        },
+        "P6FullAcceptance": {
+          "type": "boolean",
+          "const": false
+        },
+        "P7FullAcceptance": {
+          "type": "boolean",
+          "const": false
+        },
+        "T1BodyStartComplete": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    }
+  }
+}

@@ -25,3 +25,9 @@ BEGIN
     EXECUTE pg_catalog.format('GRANT CONNECT ON DATABASE %I TO pitchlog_initial_actor', database_name);
 END;
 $authz$;
+DO $authz$ BEGIN EXECUTE pg_catalog.format('GRANT CONNECT ON DATABASE %I TO pitchlog_initial_auth_verifier', pg_catalog.current_database()); EXECUTE pg_catalog.format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM pitchlog_initial_auth_verifier', pg_catalog.current_database()); END; $authz$;
+
+DO $sync_connect$ BEGIN
+ EXECUTE pg_catalog.format('GRANT CONNECT ON DATABASE %I TO pitchlog_sync_binding_actor',pg_catalog.current_database());
+ EXECUTE pg_catalog.format('REVOKE CREATE,TEMPORARY ON DATABASE %I FROM pitchlog_sync_binding_actor',pg_catalog.current_database());
+END;$sync_connect$;

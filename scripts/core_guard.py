@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import fnmatch
 import hashlib
 import json
@@ -85,11 +86,94 @@ RG1_LIFECYCLE_PATH_ADDITIONS = (
     'backend/src/pitchlog/recording_rights/rg1_lifecycle.sql',
     'backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json',
 )
+INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS = (
+    "backend/src/pitchlog/repositories/initial_recording_right.py",
+    "backend/src/pitchlog/repositories/function_operations.py",
+    "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+)
+INITIAL_GAME_START_COMPONENT_PATH_ADDITIONS = (
+    "backend/tests/test_initial_game_start_components.py",
+)
+INITIAL_GAME_START_HTTP_PATH_ADDITIONS = (
+    "backend/src/pitchlog/api/routers/games.py",
+    "backend/src/pitchlog/api/tenant_access.py",
+    "backend/tests/test_api_app.py",
+    "backend/tests/test_api_conventions.py",
+    "backend/tests/test_api_tenant_match_metadata.py",
+)
+# 実merge-baseで未登録のinitial scope層も合成し、既追加を失わない。
 AREA_PATH_ADDITIONS: Mapping[str, tuple[str, ...]] = {
-    'sync-protocol': RG1_LIFECYCLE_PATH_ADDITIONS,
-    'recording-rights': RG1_LIFECYCLE_PATH_ADDITIONS,
-    'tenant-isolation': RG1_LIFECYCLE_PATH_ADDITIONS,
+    'sync-protocol': (
+        *INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+        *INITIAL_GAME_START_COMPONENT_PATH_ADDITIONS,
+    ),
+    'recording-rights': (
+        *INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+        *INITIAL_GAME_START_COMPONENT_PATH_ADDITIONS,
+        *INITIAL_GAME_START_HTTP_PATH_ADDITIONS,
+    ),
+    'tenant-isolation': (
+        *INITIAL_GRANT_DB_SCOPE_PATH_ADDITIONS,
+        *INITIAL_GAME_START_COMPONENT_PATH_ADDITIONS,
+    ),
 }
+# 初球接続の新規pathだけを既知の有限層として扱う。任意metadataから導出しない。
+FIRST_BALL_RIGHT_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "sync-protocol": (
+        "backend/src/pitchlog/repositories/first_ball.py",
+        "backend/src/pitchlog/authz/sync_right_sql.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/repositories/first_ball.py",
+        "backend/src/pitchlog/authz/sync_right_sql.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py",
+    ),
+    "tenant-isolation": (
+        "backend/src/pitchlog/sync/first_ball_proof.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py",
+    ),
+}
+FIRST_BALL_SNAPSHOT_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "sync-protocol": (
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py",
+    ),
+    "game-state": (
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py",
+    ),
+    "tenant-isolation": (
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py",
+    ),
+}
+_FIRST_BALL_LAYER_MAPS = {
+    "N1_U1": FIRST_BALL_RIGHT_CORE_ADDITIONS,
+    "N2_A": FIRST_BALL_SNAPSHOT_CORE_ADDITIONS,
+}
+_FIRST_BALL_LAYER_ORDERS = (
+    (), ("N1_U1",), ("N2_A",), ("N1_U1", "N2_A"), ("N2_A", "N1_U1"),
+)
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
 )
@@ -363,6 +447,57 @@ def validate_area_path_layers(
             )
 
 
+def _project_first_ball_layers(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    """既知の完全suffixだけを非破壊で外し、旧検査へ渡す文書を返す。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    known_paths = {
+        path for layer in _FIRST_BALL_LAYER_MAPS.values()
+        for paths in layer.values() for path in paths
+    }
+    matches: list[tuple[dict[str, Any], tuple[str, ...]]] = []
+    for order in _FIRST_BALL_LAYER_ORDERS:
+        required_areas = {
+            area_id for layer_name in order
+            for area_id in _FIRST_BALL_LAYER_MAPS[layer_name]
+        }
+        if not required_areas <= set(paths_by_id):
+            continue
+        prefixes: dict[str, tuple[str, ...]] = {}
+        for area_id, paths in paths_by_id.items():
+            suffix = tuple(
+                path for layer_name in order
+                for path in _FIRST_BALL_LAYER_MAPS[layer_name].get(area_id, ())
+            )
+            if suffix and paths[-len(suffix):] != suffix:
+                break
+            prefix = paths[:-len(suffix)] if suffix else paths
+            # 部分登録や想定外areaへのliteral追加を旧prefixへ紛れ込ませない。
+            if any(path in known_paths for path in prefix):
+                break
+            prefixes[area_id] = prefix
+        else:
+            projected = copy.deepcopy(dict(document))
+            for area in projected["areas"]:
+                area["paths"] = list(prefixes[area["id"]])
+            matches.append((projected, order))
+    if len(matches) != 1:
+        raise GuardError(f"{label} の初球core層が完全suffixの5状態に不一致")
+    return matches[0]
+
+
+def validate_first_ball_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> None:
+    """新層の完全性と単調な追記を要求し、旧領域検査はそのまま適用する。"""
+    old_baseline, baseline_order = _project_first_ball_layers(baseline, "merge-base")
+    old_candidate, candidate_order = _project_first_ball_layers(candidate, "PR head")
+    validate_area_path_layers(old_baseline, old_candidate)
+    if candidate_order[:len(baseline_order)] != baseline_order:
+        raise GuardError("初球core層の削除・前挿入・順序変更は許可しない")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -432,7 +567,7 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_area_path_layers(baseline, candidate)
+    validate_first_ball_area_path_layers(baseline, candidate)
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)

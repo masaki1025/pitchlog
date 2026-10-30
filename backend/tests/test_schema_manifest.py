@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
 import type_boundary_contract
-from sqlalchemy import MetaData, Table
+from sqlalchemy import Column, Integer, MetaData, Table
 from type_boundary_contract import (
     _markdown_tables,
     _plain_markdown_cell,
@@ -421,10 +422,90 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
     return violations
 
 
+_INITIAL_STORAGE_MIGRATION = "0036_initial_recording_right_storage.py"
+_INITIAL_STORAGE_TABLES = (
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+)
+_INITIAL_STORAGE_DDL_SHA256 = (
+    "72a8bee9c6538e4cba9f7af8e9d47ce5983dd370fb874c46055065fa170b60ca"
+)
+
+_INITIAL_STORAGE_UPGRADE_AST_SHA256 = (
+    "30a47fe02d30b17a444166676365147969f50d84de05109be1db2254cbc910b1"
+)
+
+
+def _initial_storage_static_table_names(migration_path: Path) -> set[str]:
+    """承認済0036の定数DDLと実実行loopだけを静的な4表へ束縛する。"""
+    assert migration_path.name == _INITIAL_STORAGE_MIGRATION
+    tree = ast.parse(migration_path.read_text(encoding="utf-8"))
+    declarations: dict[str, Any] = {}
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if isinstance(target, ast.Name) and target.id in {"_TABLE_NAMES", "_TABLE_DDL"}:
+            assert target.id not in declarations
+            declarations[target.id] = ast.literal_eval(node.value)
+    assert set(declarations) == {"_TABLE_NAMES", "_TABLE_DDL"}
+    assert declarations["_TABLE_NAMES"] == _INITIAL_STORAGE_TABLES
+    ddls = declarations["_TABLE_DDL"]
+    assert isinstance(ddls, tuple) and len(ddls) == 5
+    detected = []
+    for index, ddl in enumerate(ddls):
+        assert isinstance(ddl, str)
+        if index == 3:
+            assert ddl == (
+                "CREATE UNIQUE INDEX uq_game_start_attempts_pending ON "
+                "public.game_start_attempts (tenant_id, game_id, start_request_id) "
+                "WHERE outcome = 'pending'"
+            )
+            continue
+        match = re.match(r"\s*CREATE TABLE public\.([a-z_]+)\s*\(", ddl)
+        assert match is not None
+        assert len(re.findall(r"\bCREATE\s+TABLE\b", ddl)) == 1
+        detected.append(match.group(1))
+    assert tuple(detected) == _INITIAL_STORAGE_TABLES
+    # 既定数DDL以外の任意SQLを、表名の自己申告だけで実装済みにしない。
+    assert (
+        hashlib.sha256(
+            json.dumps(
+                ddls,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        == _INITIAL_STORAGE_DDL_SHA256
+    )
+    upgrades = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+    ]
+    assert len(upgrades) == 1
+    # loopの存在だけでは到達可能性を保証しない。既owner拒否を含む全bodyを固定する。
+    assert (
+        hashlib.sha256(
+            ast.dump(upgrades[0], include_attributes=False).encode()
+        ).hexdigest()
+        == _INITIAL_STORAGE_UPGRADE_AST_SHA256
+    )
+    expected_loop = ast.parse("for ddl in _TABLE_DDL:\n    op.execute(ddl)\n").body[0]
+    assert (
+        sum(ast.dump(node) == ast.dump(expected_loop) for node in upgrades[0].body) == 1
+    )
+    return set(detected)
+
+
 def _migration_table_names(migrations_path: Path) -> set[str]:
     """Migration ディレクトリを全走査して create_table の対象を返す。"""
     table_names: set[str] = set()
     for migration_path in migrations_path.rglob("*.py"):
+        if migration_path.name == _INITIAL_STORAGE_MIGRATION:
+            table_names.update(_initial_storage_static_table_names(migration_path))
         tree = ast.parse(migration_path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not isinstance(
@@ -470,13 +551,33 @@ def _manifest_foreign_keys(
     }
 
 
+_WRITER_PHYSICAL_SCHEMAS = {
+    "writer_bindings": "sync_fence",
+    "writer_admissions": "sync_fence",
+    "first_ball_write_admissions": "sync_fence",
+}
+
+
+def _logical_model_table_names(metadata: MetaData) -> set[str]:
+    """既public表と固定writer2表のnamespaceを検査して論理名を返す。"""
+    names: set[str] = set()
+    for table in metadata.tables.values():
+        assert table.name not in names, f"論理表名が重複: {table.name}"
+        assert table.schema == _WRITER_PHYSICAL_SCHEMAS.get(table.name), (
+            f"物理schemaが不一致: {table.fullname}"
+        )
+        names.add(table.name)
+    return names
+
+
 def _model_foreign_keys(metadata: MetaData) -> set[_ForeignKeyContract]:
     """Models の FK を manifest と同じ比較用集合へ変換する。"""
+    _logical_model_table_names(metadata)
     contracts: set[_ForeignKeyContract] = set()
     for table in metadata.tables.values():
         for foreign_key in table.foreign_key_constraints:
             targets = [
-                element.target_fullname.rsplit(".", maxsplit=1)
+                (element.column.table.name, element.column.name)
                 for element in foreign_key.elements
             ]
             target_tables = {target[0] for target in targets}
@@ -590,7 +691,7 @@ def test_all_manifest_tables_have_models_and_migrations() -> None:
     """Manifest 全46表が models と migration の両方に存在する。"""
     assert all_models.IMPORTED_MODEL_MODULE_NAMES
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
-    model_tables = set(Base.metadata.tables)
+    model_tables = _logical_model_table_names(Base.metadata)
     migration_tables = _migration_table_names(_MIGRATIONS_PATH)
 
     missing = _missing_implementation_tables(
@@ -618,7 +719,11 @@ def test_all_model_immutability_contracts_cover_the_same_table_population() -> N
     }
 
     assert len(model_contracts) == len(manifest_tables) == len(Base.metadata.tables)
-    assert set(model_contracts) == manifest_tables == set(Base.metadata.tables)
+    assert (
+        set(model_contracts)
+        == manifest_tables
+        == _logical_model_table_names(Base.metadata)
+    )
     assert all(
         immutability.unclassified_handoff is None
         or is_task_handoff_id(immutability.unclassified_handoff)
@@ -690,7 +795,7 @@ def test_partial_manifest_without_unclassified_columns_is_red() -> None:
 def test_model_foreign_keys_match_manifest_or_have_unimplemented_targets() -> None:
     """Models の FK と、参照先未実装による保留だけが manifest と食い違う。"""
     manifest = _load_manifest()
-    model_tables = set(Base.metadata.tables)
+    model_tables = _logical_model_table_names(Base.metadata)
     migration_tables = _migration_table_names(_MIGRATIONS_PATH)
     implemented_tables = model_tables & migration_tables
     manifest_foreign_keys = _manifest_foreign_keys(manifest, implemented_tables)
@@ -768,3 +873,134 @@ def test_one_sided_table_implementation_remains_missing() -> None:
     assert (
         _missing_implementation_tables(manifest_tables, {"example"}, {"example"}) == []
     )
+
+
+@pytest.mark.parametrize(
+    "name,schema",
+    [
+        ("writer_bindings", None),
+        ("writer_admissions", "public"),
+        ("writer_bindings", "forged"),
+        ("games", "sync_fence"),
+        ("games", "public"),
+        ("unknown", "forged"),
+    ],
+)
+def test_physical_schema_drift_is_rejected(name: str, schema: str | None) -> None:
+    """固定writer2以外のschemaと既public表の偽装を拒否する。"""
+    metadata = MetaData()
+    Table(name, metadata, Column("id", Integer), schema=schema)
+    with pytest.raises(AssertionError, match="物理schemaが不一致"):
+        _logical_model_table_names(metadata)
+
+
+def test_same_logical_table_in_another_schema_is_rejected() -> None:
+    """schemaを落として同名2表をsetへ畳み込まない。"""
+    metadata = MetaData()
+    Table("games", metadata, Column("id", Integer))
+    Table("games", metadata, Column("id", Integer), schema="forged")
+    with pytest.raises(AssertionError, match="論理表名が重複"):
+        _logical_model_table_names(metadata)
+
+
+def test_writer_tables_keep_the_three_exact_physical_namespaces() -> None:
+    """新3表だけをsync_fenceに閉じ、旧50表は元のschemaなしを保つ。"""
+    assert {
+        table.name: table.schema
+        for table in Base.metadata.tables.values()
+        if table.schema is not None
+    } == _WRITER_PHYSICAL_SCHEMAS
+    assert (
+        len(_logical_model_table_names(Base.metadata))
+        == len(Base.metadata.tables)
+        == 53
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing-name",
+        "extra-name",
+        "wrong-name",
+        "wrong-schema",
+        "missing-ddl",
+        "extra-ddl",
+        "arbitrary-sql",
+        "removed-execute",
+        "wrong-filename",
+        "early-return",
+        "early-raise",
+        "extra-code",
+    ],
+)
+def test_initial_storage_static_detection_rejects_drift(
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """既0036以外の自己申告や未実行DDLを4表検出へ昇格させない。"""
+    original = (_MIGRATIONS_PATH / _INITIAL_STORAGE_MIGRATION).read_text()
+    tree = ast.parse(original)
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or not isinstance(
+            node.targets[0], ast.Name
+        ):
+            continue
+        name = node.targets[0].id
+        if name == "_TABLE_NAMES" and mutation in {
+            "missing-name",
+            "extra-name",
+            "wrong-name",
+        }:
+            values = list(ast.literal_eval(node.value))
+            if mutation == "missing-name":
+                values.pop()
+            elif mutation == "extra-name":
+                values.append("forged")
+            else:
+                values[0] = "forged"
+            node.value = ast.parse(repr(tuple(values)), mode="eval").body
+        if name == "_TABLE_DDL" and mutation in {
+            "wrong-schema",
+            "missing-ddl",
+            "extra-ddl",
+            "arbitrary-sql",
+        }:
+            values = list(ast.literal_eval(node.value))
+            if mutation == "wrong-schema":
+                values[0] = values[0].replace("public.", "forged.", 1)
+            elif mutation == "missing-ddl":
+                values.pop()
+            elif mutation == "extra-ddl":
+                values.append("CREATE TABLE public.forged (id integer)")
+            else:
+                values[0] += "; DROP TABLE public.games;"
+            node.value = ast.parse(repr(tuple(values)), mode="eval").body
+    if mutation in {"early-return", "early-raise", "extra-code"}:
+        upgrade = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+        )
+        statement = {
+            "early-return": "return",
+            "early-raise": "raise RuntimeError('stop')",
+            "extra-code": "pass",
+        }[mutation]
+        upgrade.body.insert(1, ast.parse(statement).body[0])
+    changed = ast.unparse(tree)
+    if mutation == "removed-execute":
+        changed = changed.replace("op.execute(ddl)", "pass")
+    path = tmp_path / (
+        "forged.py" if mutation == "wrong-filename" else _INITIAL_STORAGE_MIGRATION
+    )
+    path.write_text(changed)
+    with pytest.raises(AssertionError):
+        _initial_storage_static_table_names(path)
+
+
+def test_initial_storage_static_detection_keeps_exact_four_tables() -> None:
+    """実0036の実行loopから既4表だけを検出する。"""
+    assert _initial_storage_static_table_names(
+        _MIGRATIONS_PATH / _INITIAL_STORAGE_MIGRATION
+    ) == set(_INITIAL_STORAGE_TABLES)

@@ -21,6 +21,7 @@ from db.test_product_authz_normalize_function import _normalizer_body_is_safe
 
 from pitchlog.authz import product_catalog
 from pitchlog.authz.asset_spec import PRODUCT_SPEC, validate_product_application_steps
+from pitchlog.authz.first_ball_write_stamp import stamp_trigger_expectations
 from pitchlog.authz.product_catalog import (
     CatalogQueryId,
     ProductCatalogError,
@@ -412,6 +413,9 @@ def _raw_catalog_rows(
         CatalogQueryId.COLUMN_ACL: list(expectations.column_acl),
         CatalogQueryId.FUNCTIONS: list(expectations.functions),
         CatalogQueryId.FUNCTION_ACL: list(expectations.function_acl),
+        CatalogQueryId.FIRST_BALL_TRIGGERS: [
+            (list(row),) for row in stamp_trigger_expectations()
+        ],
         CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS: [
             tuple(row) for row in product_catalog._expected_lifecycle_function_details()
         ],
@@ -434,6 +438,9 @@ def _raw_catalog_rows(
                 False,
             ),
         ],
+        CatalogQueryId.INITIAL_VERIFIER_GLOBAL: list(
+            product_catalog._initial_verifier_global_expectations()
+        ),
         CatalogQueryId.MEMBERSHIPS: [],
         CatalogQueryId.DANGEROUS_LOGIN_ROLES: [
             (owner_oid, "pitchlog_owner"),
@@ -474,8 +481,9 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
 
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
-    assert len(expectations.tables) == 46
-    assert len(expectations.policies) == 39
+    assert len(expectations.tables) == 50
+    # 採用済data-model1.4/fullprofileは旧69へlookup1を加えた70policy。
+    assert len(expectations.policies) == 70
     assert {
         row[2]
         for row in expectations.policies
@@ -506,6 +514,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert expectations.database_acl == (
         ("pitchlog_app", "CONNECT", False),
         ("pitchlog_initial_actor", "CONNECT", False),
+        ("pitchlog_initial_auth_verifier", "CONNECT", False),
         ("pitchlog_ledger_identity_probe", "CONNECT", False),
         ("pitchlog_rg1_control_actor", "CONNECT", False),
     )
@@ -977,6 +986,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
     assert report.violations == ()
     assert calls == [
         CatalogQueryId.ROLES,
+        CatalogQueryId.INITIAL_VERIFIER_GLOBAL,
         CatalogQueryId.DATABASE,
         CatalogQueryId.DATABASE_ACL,
         CatalogQueryId.SCHEMAS,
@@ -991,11 +1001,12 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.FUNCTION_ACL,
         CatalogQueryId.BUILTIN_FUNCTION_ACL,
         CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS,
+        CatalogQueryId.FIRST_BALL_TRIGGERS,
         CatalogQueryId.MEMBERSHIPS,
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 30
+    assert len(report.checked_ids) == 31
 
 
 def test_unqualified_public_relation_in_policy_is_red(
@@ -1445,6 +1456,212 @@ def test_lifecycle_details_reject_unknown_function_and_every_attribute_drift(
 def test_lifecycle_details_query_covers_entire_two_schemas() -> None:
     """既知名ANYではなく2schema全関数を読み、未知関数を検出する。"""
     query = product_catalog._query_for_id(CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS)
-    assert "namespace.nspname IN ('rg1_control', 'pitchlog_ledger_observer')" in query
+    assert "namespace.nspname IN (" in query
+    assert "'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api'" in query
+    assert "protect_initial_right_storage" in query
     assert "routine.proconfig" in query and "routine.prosrc" in query
     assert "proname = ANY" not in query and "%s" not in query
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ("function", "authn", "unknown", "", "", "EXECUTE", False),
+        ("function", "foreign_ns", "unknown", "", "", "EXECUTE", False),
+        ("schema", "", "foreign_ns", "", "", "USAGE", False),
+        ("table", "foreign_ns", "unknown", "", "", "SELECT", False),
+        ("ownership", "", "", "function foreign_ns.unknown()", "", "OWNER", False),
+    ],
+)
+def test_b1_global_projection_rejects_unknown_actual_permissions(
+    extra, monkeypatch
+) -> None:
+    """宣言外user-objectの実観測をmetadataの許可集合へ自己採用しない。"""
+    rows = _raw_catalog_rows(900)
+    rows[CatalogQueryId.INITIAL_VERIFIER_GLOBAL].append(extra)
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()), privileged_role_oids=frozenset({900})
+    )
+    assert "PRODUCT-CATALOG:INITIAL-VERIFIER-GLOBAL" in {
+        v.check_id for v in report.violations
+    }
+
+
+def test_b1_global_projection_query_is_unfiltered_by_declared_targets() -> None:
+    """新role一件だけを固定し、declared schema/table/function配列を渡さない。"""
+    expected = product_catalog._load_product_expectations()
+    request = next(
+        r
+        for r in product_catalog._catalog_requests(expected, frozenset())
+        if r.query_id is CatalogQueryId.INITIAL_VERIFIER_GLOBAL
+    )
+    assert request.params == ()
+    sql = product_catalog._query_for_id(request.query_id)
+    assert "pitchlog_initial_auth_verifier" in sql and "= ANY(%s)" not in sql
+    assert "pg_shdepend" in sql and "has_function_privilege" in sql
+    # 実末端は空paramsを渡す。固定queryに生%を含めてplaceholder解析を壊さない。
+    assert "%" not in sql
+    assert "pg_catalog.left(nspname,3)<>'pg_'" in sql
+
+
+@pytest.mark.parametrize(
+    "surface",
+    [
+        "table",
+        "column",
+        "function",
+        "schema",
+        "membership",
+        "owner",
+        "grantable",
+        "role",
+    ],
+)
+def test_b1_runtime_metadata_unknown_verifier_is_rejected(surface, monkeypatch) -> None:
+    """sourcecheckerの代わりにruntime期待生成入口でも未知権限を拒否する。"""
+    asset = cast(dict[str, Any], copy.deepcopy(product_catalog._load_product_asset()))
+    role = "pitchlog_initial_auth_verifier"
+    if surface in ("table", "column"):
+        group = "acl_expectations" if surface == "table" else "column_acl_expectations"
+        row = copy.deepcopy(asset[group][0])
+        row["grantee_role_id"] = role
+        asset[group].append(row)
+    elif surface in ("function", "grantable"):
+        row = next(
+            r
+            for r in asset["functions"]
+            if r["function_name"]
+            == ("logout" if surface == "function" else "verify_token")
+        )
+        if surface == "function":
+            row["acl_expectations"].append(
+                dict(grantee=role, privilege="EXECUTE", grantable=False)
+            )
+        else:
+            next(g for g in row["acl_expectations"] if g["grantee"] == role)[
+                "grantable"
+            ] = 0
+    elif surface == "schema":
+        next(r for r in asset["schemas"] if r["schema_id"] == "public")[
+            "acl_expectations"
+        ].append(dict(grantee=role, privilege="CREATE", grantable=False))
+    elif surface == "owner":
+        asset["schemas"][0]["owner"] = role
+    elif surface == "membership":
+        asset["membership_edges"].append(
+            dict(role_id=role, member_role_id="pitchlog_app")
+        )
+    else:
+        next(r for r in asset["roles"] if r["role_id"] == role)["inherit"] = True
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    with pytest.raises(ProductCatalogError):
+        product_catalog._load_product_expectations()
+
+
+def test_b2_enrollment_positive_expected_set_uses_closed_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """正規合成assetだけを実runtime期待生成へ通す。"""
+    from test_authz_product_control_access import _b2_enrollment_asset
+
+    from pitchlog.authz.product_function_acl import generate_enrollment_function_sql
+
+    asset = _b2_enrollment_asset()
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    expectations = product_catalog._load_product_expectations()
+    assert expectations
+    sql_text = generate_enrollment_function_sql()
+    assert (
+        "INSERT INTO public.trusted_devices(tenant_id,device_id,credential_digest)"
+        in sql_text
+    )
+    assert "RETURN p_device_id" in sql_text
+    assert "ON CONFLICT" not in sql_text and "UPDATE public." not in sql_text
+    assert "DELETE" not in sql_text
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["valid", "owner", "acl", "returns", "extra", "duplicate", "missing", "name"],
+)
+def test_worker_lookup_runtime_exact_declaration(mutation, monkeypatch):
+    """lookup一件の全fieldと集合を自己採用させず単一sourceへ閉じる。"""
+    from pitchlog.authz.product_function_acl import (
+        LOOKUP_FUNCTION_ID,
+        build_lookup_function_declarations,
+    )
+
+    asset = cast(dict[str, Any], copy.deepcopy(product_catalog._load_product_asset()))
+    expected = build_lookup_function_declarations()[LOOKUP_FUNCTION_ID]
+    row = next(r for r in asset["functions"] if r["function_id"] == LOOKUP_FUNCTION_ID)
+    assert row == expected
+    if mutation == "owner":
+        row["owner_role_id"] = "pitchlog_app"
+    elif mutation == "acl":
+        row["acl_expectations"].append(
+            dict(grantee="PUBLIC", privilege="EXECUTE", grantable=False)
+        )
+    elif mutation == "returns":
+        row["returns"] = "text"
+    elif mutation == "extra":
+        row["unknown"] = True
+    elif mutation == "duplicate":
+        asset["functions"].append(copy.deepcopy(row))
+    elif mutation == "missing":
+        asset["functions"].remove(row)
+        # 新profileの他宣言がlookupを含まない旧形に戻ることとは分け、未知IDへ改名。
+        row["function_id"] += ":missing"
+        asset["functions"].append(row)
+    elif mutation == "name":
+        row["function_name"] = "other"
+    monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
+    if mutation == "valid":
+        assert product_catalog._load_product_expectations()
+    else:
+        with pytest.raises(ProductCatalogError):
+            product_catalog._load_product_expectations()
+
+
+@pytest.mark.parametrize("field", tuple(range(16)))
+def test_first_ball_trigger_all_fields_are_bound(
+    field: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """guard2と旧identityの全trigger属性改変が閉カタログ検査を落とす。"""
+    rows = _raw_catalog_rows(900)
+    changed = rows[CatalogQueryId.FIRST_BALL_TRIGGERS]
+    attributes = changed[0][0]
+    assert isinstance(attributes, list)
+    original = attributes[field]
+    attributes[field] = not original if type(original) is bool else "unregistered"
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS" in {
+        row.check_id for row in report.violations
+    }
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "order"))
+def test_first_ball_trigger_set_and_order_are_bound(
+    mutation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """guard欠落/余剰/順序を修復したことにせず拒否する。"""
+    rows = _raw_catalog_rows(900)
+    values = rows[CatalogQueryId.FIRST_BALL_TRIGGERS]
+    if mutation == "missing":
+        values.pop(0)
+    elif mutation == "extra":
+        values.append(values[0])
+    else:
+        values.reverse()
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS" in {
+        row.check_id for row in report.violations
+    }

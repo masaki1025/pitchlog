@@ -191,3 +191,37 @@ def test_each_stale_generated_allowlist_field_is_red(field: str) -> None:
     generated[field] = object()
 
     assert generated != _asset_snapshot(_read_allowlist())
+
+
+def test_b1_private_issuer_uses_actual_verified_tenant_and_keeps_public_entry(
+    monkeypatch,
+) -> None:
+    """型だけのCookieから発行せず、実verifier戻り値と期待tenantを照合する。"""
+    from datetime import UTC, datetime
+
+    from pydantic import SecretStr
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+    from pitchlog.repositories.tenant_context_issuance import (
+        _issue_initial_broker_context,
+    )
+
+    tenant = uuid4()
+    stamp = datetime(2026, 1, 1, tzinfo=UTC)
+    monkeypatch.setattr(b, "_verify_initial_cookie", lambda *args: (tenant, stamp))
+    result = _issue_initial_broker_context(
+        SecretStr("public-fixture"), tenant, object()
+    )
+    assert result is not None and result[0].tenant_id == tenant
+    assert result[0]._has_valid_integrity_proof() and result[1] == stamp
+    assert (
+        _issue_initial_broker_context(SecretStr("public-fixture"), uuid4(), object())
+        is None
+    )
+    monkeypatch.setattr(b, "_verify_initial_cookie", lambda *args: None)
+    assert (
+        _issue_initial_broker_context(SecretStr("public-fixture"), tenant, object())
+        is None
+    )
+    with pytest.raises(b.InitialBrokerUnavailable):
+        _issue_initial_broker_context("raw-string", tenant, object())

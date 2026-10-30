@@ -610,6 +610,12 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:evacuated_event_originals:read",
         "CAP:evacuated_event_originals:insert",
         "CAP:tenants:read",
+        "CAP:game_lineups:read",
+        "CAP:play_rows:read",
+        "CAP:play_rows:insert",
+        "CAP:games:insert",
+        "CAP:tenant_vocabularies:insert",
+        "CAP:tenant_vocabularies:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -665,10 +671,27 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
         "pitchlog.repositories.games.PreparingGameListToken",
         "pitchlog.repositories.games.PreparingGameDetailToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+        "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+        "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+        "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     )
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 47
+    assert len(expected_token_types) == 64
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -694,9 +717,26 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 expected_capabilities[0],
                 *expected_capabilities[8:11],
                 *(capability for _, capability in expected_sync_operations),
-                expected_capabilities[-1],
+                "CAP:tenants:read",
                 "CAP:games:read",
                 "CAP:games:read",
+                "CAP:game_lineups:read",
+                "CAP:event_slots:read",
+                "CAP:operation_events:read",
+                "CAP:play_rows:read",
+                "CAP:play_rows:insert",
+                "CAP:play_rows:read",
+                "CAP:operation_events:read",
+                "CAP:event_slots:read",
+                "CAP:play_rows:read",
+                "CAP:games:insert",
+                "CAP:tenant_vocabularies:insert",
+                "CAP:tenant_vocabularies:read",
+                "CAP:tenant_vocabularies:read",
+                "CAP:tenant_vocabularies:read",
+                "CAP:team_records:read",
+                "CAP:team_records:read",
+                "CAP:tenant_vocabularies:read",
             ),
             strict=True,
         )
@@ -1044,7 +1084,7 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
 
 
 def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
-    """固定4登録と生成全fieldを照合し、DMLの登録とは混同しない。"""
+    """旧8と端末状態read登録の生成全fieldを照合し、DMLとは混同しない。"""
     from pitchlog.repositories.operation_registry import (
         PRODUCT_FUNCTION_OPERATIONS,
         PRODUCT_OPERATIONS,
@@ -1057,6 +1097,11 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "RG1:commit_check",
         "RG1:scope_binding",
         "RULE:resolve_stage_a",
+        "SYNC_FIRST_BALL:bind_device",
+        "SYNC_FIRST_BALL:check_current_right",
+        "SYNC_WRITER_BINDING:read_writer_identity",
+        "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
     )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
@@ -1066,6 +1111,11 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "rg1_api.rg1_assert_open_before_commit",
         "rg1_control.scope_binding",
         "public.resolve_stage_a_rule",
+        "sync_right_api.bind_device",
+        "sync_right_api.check_current_right",
+        "sync_fence_api.read_writer_identity",
+        "sync_fence_api.assert_writer_binding",
+        "sync_right_api.read_device_state",
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
@@ -1087,7 +1137,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         assert row.statement.compile().params == {"tenant_id": None}
         assert row.min_rows == row.max_rows == 1
         assert all(item.token_type is not token for item in PRODUCT_OPERATIONS)
-    registration = PRODUCT_FUNCTION_OPERATIONS[-1]
+    registration = PRODUCT_FUNCTION_OPERATIONS[3]
     assert registration.token_type is StageAResolveRuleToken
     assert registration.capability_id == "CAP:rules:resolve_stage_a"
     assert registration.input_fields == (
@@ -1115,7 +1165,7 @@ def test_stage_a_function_identity_mutation_is_rejected(function_id: str) -> Non
     from pitchlog.repositories.operation_registry import PRODUCT_FUNCTION_OPERATIONS
 
     with pytest.raises(FunctionOperationError):
-        replace(PRODUCT_FUNCTION_OPERATIONS[-1], function_id=function_id)
+        replace(PRODUCT_FUNCTION_OPERATIONS[3], function_id=function_id)
 
 
 @pytest.mark.parametrize("symbol", sorted(_LEXICAL_SYMBOLS))

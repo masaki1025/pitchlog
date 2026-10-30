@@ -254,14 +254,22 @@
             "value": "empty"
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.strikes",
-            "value": 0
+            "values": [
+              0,
+              1
+            ]
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.balls",
-            "value": 0
+            "values": [
+              0,
+              1,
+              2,
+              3
+            ]
           },
           {
             "op": "eq",
@@ -345,14 +353,22 @@
             "value": "empty"
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.strikes",
-            "value": 0
+            "values": [
+              0,
+              1
+            ]
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.balls",
-            "value": 0
+            "values": [
+              0,
+              1,
+              2,
+              3
+            ]
           },
           {
             "op": "eq",
@@ -436,14 +452,22 @@
             "value": "empty"
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.strikes",
-            "value": 0
+            "values": [
+              0,
+              1
+            ]
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.balls",
-            "value": 0
+            "values": [
+              0,
+              1,
+              2,
+              3
+            ]
           },
           {
             "op": "eq",
@@ -527,14 +551,22 @@
             "value": "empty"
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.strikes",
-            "value": 0
+            "values": [
+              0,
+              1,
+              2
+            ]
           },
           {
-            "op": "eq",
+            "op": "in",
             "axisId": "state.count.balls",
-            "value": 0
+            "values": [
+              0,
+              1,
+              2
+            ]
           },
           {
             "op": "eq",
@@ -9013,14 +9045,22 @@
                     "value": "empty"
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.strikes",
-                    "value": 0
+                    "values": [
+                      0,
+                      1
+                    ]
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.balls",
-                    "value": 0
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
                   },
                   {
                     "op": "eq",
@@ -9050,14 +9090,22 @@
                     "value": "empty"
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.strikes",
-                    "value": 0
+                    "values": [
+                      0,
+                      1
+                    ]
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.balls",
-                    "value": 0
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
                   },
                   {
                     "op": "eq",
@@ -9087,14 +9135,22 @@
                     "value": "empty"
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.strikes",
-                    "value": 0
+                    "values": [
+                      0,
+                      1
+                    ]
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.balls",
-                    "value": 0
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
                   },
                   {
                     "op": "eq",
@@ -9124,14 +9180,22 @@
                     "value": "empty"
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.strikes",
-                    "value": 0
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
                   },
                   {
-                    "op": "eq",
+                    "op": "in",
                     "axisId": "state.count.balls",
-                    "value": 0
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
                   },
                   {
                     "op": "eq",
@@ -12348,7 +12412,7 @@
   "requiredSet": {},
   "cases": [
     {
-      "caseId": "ST-MATRIX-07c1f26a645dae53",
+      "caseId": "ST-MATRIX-d9d9eed7a690d48d",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12368,14 +12432,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -12570,7 +12642,7 @@
       }
     },
     {
-      "caseId": "ST-MATRIX-fc643ce7a079df4f",
+      "caseId": "ST-MATRIX-46ce2f059dfc233d",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12590,14 +12662,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -12792,7 +12872,7 @@
       }
     },
     {
-      "caseId": "ST-MATRIX-2bc8d110689a88e4",
+      "caseId": "ST-MATRIX-b931c9ca96959a1e",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -12812,14 +12892,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -13014,7 +13102,7 @@
       }
     },
     {
-      "caseId": "ST-MATRIX-0529a0eb116d64a9",
+      "caseId": "ST-MATRIX-99b1523fb41399e3",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -13034,14 +13122,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
               },
               {
                 "op": "eq",
@@ -21967,7 +22063,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-5ffabae886307443",
+      "caseId": "ST-COVERAGE-baf65198d047cf8a",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -21987,14 +22083,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -22192,7 +22296,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-07195169e423e561",
+      "caseId": "ST-COVERAGE-f709e5fc1069d6ac",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -22212,14 +22316,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -22417,7 +22529,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-9e3198e12b1d2e23",
+      "caseId": "ST-COVERAGE-8c8d497a5880b267",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -22437,14 +22549,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -22642,7 +22762,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-9999f9fbf18b91f6",
+      "caseId": "ST-COVERAGE-01ea03a03cd16776",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -22662,14 +22782,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
               },
               {
                 "op": "eq",
@@ -32514,7 +32642,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-459bc92fd7655892",
+      "caseId": "ST-COVERAGE-0d22f0ed34b83a2e",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -32534,14 +32662,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -32739,7 +32875,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-a6919767c2d92d6c",
+      "caseId": "ST-COVERAGE-f1078be57353ce09",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -32759,14 +32895,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -32964,7 +33108,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-68907918cdcec80e",
+      "caseId": "ST-COVERAGE-b1e096211962a847",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -32984,14 +33128,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -33189,7 +33341,7 @@
       }
     },
     {
-      "caseId": "ST-COVERAGE-74908e4c51a7dd84",
+      "caseId": "ST-COVERAGE-a0b70e858a97e151",
       "rowRef": {
         "layer": "matrixRows",
         "coordinate": {
@@ -33209,14 +33361,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2
+                ]
               },
               {
                 "op": "eq",
@@ -44665,6 +44825,236 @@
         "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay": false
       },
       "normalizationRuleId": "identity"
+    },
+    {
+      "caseId": "ST-COVERAGE-8d5c59594f90b5bd",
+      "rowRef": {
+        "layer": "matrixRows",
+        "coordinate": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.foul",
+          "precondition": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "axisId": "state.outs",
+                "value": 0
+              },
+              {
+                "op": "eq",
+                "axisId": "state.runners",
+                "value": "empty"
+              },
+              {
+                "op": "in",
+                "axisId": "state.count.strikes",
+                "values": [
+                  0,
+                  1
+                ]
+              },
+              {
+                "op": "in",
+                "axisId": "state.count.balls",
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              {
+                "op": "eq",
+                "axisId": "event.perPitch.pitchEventKind",
+                "value": "pitch-event"
+              }
+            ]
+          }
+        }
+      },
+      "inputCoordinate": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul",
+        "state.count.strikes": 0,
+        "state.count.balls": 1,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "expected": {
+        "countEffect": {
+          "strikes": {
+            "kind": "delta",
+            "value": 1
+          },
+          "balls": {
+            "kind": "unchanged"
+          }
+        },
+        "plateAppearanceEnded": false,
+        "batterDestination": {
+          "kind": "continue"
+        },
+        "runnerDefaultAdvance": {
+          "first": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "second": {
+            "modality": "not-applicable",
+            "destination": null
+          },
+          "third": {
+            "modality": "not-applicable",
+            "destination": null
+          }
+        },
+        "outEffect": {
+          "count": 0,
+          "targets": []
+        },
+        "statFlags": {
+          "投球回算入アウト": false,
+          "投球数": true,
+          "奪三振": false,
+          "与四球": false,
+          "与死球": false,
+          "被安打": false,
+          "被本塁打": false,
+          "失点": false,
+          "失策": false,
+          "打席": false,
+          "打数": false,
+          "安打": false,
+          "本塁打": false,
+          "塁打": false,
+          "犠打": false,
+          "犠飛": false,
+          "四球": false,
+          "死球": false,
+          "三振": false,
+          "打撃妨害出塁": false,
+          "走塁妨害出塁": false,
+          "得点": false,
+          "打点": false
+        },
+        "historyContext": [
+          {
+            "kind": "confirmed-play",
+            "difference": {
+              "stateFields": {
+                "state.count.strikes": {
+                  "before": 0,
+                  "after": 1
+                }
+              },
+              "scoreboard": {},
+              "statFlags": {
+                "投球回算入アウト": false,
+                "投球数": true,
+                "奪三振": false,
+                "与四球": false,
+                "与死球": false,
+                "被安打": false,
+                "被本塁打": false,
+                "失点": false,
+                "失策": false,
+                "打席": false,
+                "打数": false,
+                "安打": false,
+                "本塁打": false,
+                "塁打": false,
+                "犠打": false,
+                "犠飛": false,
+                "四球": false,
+                "死球": false,
+                "三振": false,
+                "打撃妨害出塁": false,
+                "走塁妨害出塁": false,
+                "得点": false,
+                "打点": false
+              }
+            }
+          }
+        ]
+      },
+      "raw": {
+        "eventKind": "batting-result",
+        "resultId": "ファール",
+        "state.count.strikes": 0,
+        "state.count.balls": 1,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "normalizationRuleId": "result-display-name-to-id",
+      "normalized": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.foul",
+        "state.count.strikes": 0,
+        "state.count.balls": 1,
+        "state.outs": 0,
+        "state.runners": "empty",
+        "event.perPitch.pitchEventKind": "pitch-event"
+      },
+      "historyInput": {
+        "stack": [],
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": 0,
+            "state.count.balls": 1,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.battingOrder": 1,
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": 1,
+            "state.score": {
+              "home": 0,
+              "away": 0
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": 0,
+              "away": 0
+            },
+            "hits": 0,
+            "errors": 0,
+            "strikeouts": 0,
+            "walks": 0
+          }
+        },
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": 1,
+            "state.count.balls": 1,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.battingOrder": 1,
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": 1,
+            "state.score": {
+              "home": 0,
+              "away": 0
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": 0,
+              "away": 0
+            },
+            "hits": 0,
+            "errors": 0,
+            "strikeouts": 0,
+            "walks": 0
+          }
+        }
+      }
     }
   ]
 }

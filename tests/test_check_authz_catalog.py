@@ -1458,7 +1458,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1427 auth_claim=187 out_of_scope=1240" in result.stdout
+    assert "total=1429 auth_claim=187 out_of_scope=1242" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1975,8 +1975,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1240
-    assert attempts == 1240
+    assert len(out_claims) == 1242
+    assert attempts == 1242
     assert escaped == []
 
 
@@ -2309,7 +2309,7 @@ def _allow_record_and_aggregate_route_for_semantic_test(
 
 
 def test_record_and_aggregate_route_ids_match_approved_set() -> None:
-    """既存7経路とread候補1経路がregistry・HTTP行列の集合に一致する。"""
+    """既存10経路と作成/球種追加2経路がregistry・HTTP行列で一致する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry_ids = {
         route["route_id"]
@@ -2320,6 +2320,10 @@ def test_record_and_aggregate_route_ids_match_approved_set() -> None:
     all_registry_ids = {route["route_id"] for route in assets["route_registry"]["routes"]}
 
     assert registry_ids == {
+        "ROUTE:RECORD:games:insert",
+        "ROUTE:RECORD:tenant_vocabularies:read",
+        "ROUTE:RECORD:games:update",
+        "ROUTE:RECORD:trusted_devices:insert",
         "ROUTE:RECORD:games:read",
         "ROUTE:RECORD:lineup_memories:read",
         "ROUTE:RECORD:players:insert",
@@ -5994,6 +5998,10 @@ def test_all_positive_cases_and_positive_kill_flags_reject_removal() -> None:
 
 _PREPARING_READ_ROUTE = 'ROUTE:RECORD:games:read'
 _RECORD_READ_ROUTE_SET = frozenset({
+    'ROUTE:RECORD:games:insert',
+    'ROUTE:RECORD:games:update',
+    'ROUTE:RECORD:trusted_devices:insert',
+    'ROUTE:RECORD:tenant_vocabularies:read',
     'ROUTE:RECORD:lineup_memories:read',
     'ROUTE:RECORD:players:insert',
     'ROUTE:RECORD:players:read',
@@ -6006,26 +6014,29 @@ _RECORD_READ_ROUTE_SET = frozenset({
 
 
 def test_preparing_read_registered_route_matches_real_gets(request: pytest.FixtureRequest) -> None:
-    """実GET2とread論理route/matrix・provenance・実収集ownerを対応付ける。"""
+    """実GET3の完全集合と既準備中readの登録・provenanceを対応付ける。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry = assets['route_registry']
     matrix = assets['http_matrix']
     requirement_catalog, _ = _repository_catalog_and_lock()
     implemented = frozenset({
         IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID, request.node.nodeid,
+        _INITIAL_HTTP_OWNER,
     })
     validated = checker.validate_route_registry(
         registry, requirement_catalog, REPOSITORY_ROOT, implemented,
     )
     checker.validate_http_route_matrix(matrix, validated, REPOSITORY_ROOT, implemented)
     route = next(row for row in registry['routes'] if row['route_id'] == _PREPARING_READ_ROUTE)
+    # 準備中2GETの旧2件を先頭に保ち、後ろへ開始済みread(U13)の登録を足した完全一致。
+    assert route['provenance_ids'][:2] == [
+        'PLAN-TSK446-RECORD-AND-AGGREGATE',
+        'PLAN-MVP-PREPARING-READ-REGISTRATION',
+    ]
     assert route == {
         'route_id': _PREPARING_READ_ROUTE, 'route_kind': 'record_and_aggregate',
         'origin': 'design', 'source_claim_ids': [],
-        'provenance_ids': [
-            'PLAN-TSK446-RECORD-AND-AGGREGATE',
-            'PLAN-MVP-PREPARING-READ-REGISTRATION',
-        ], 'operation': 'read',
+        'provenance_ids': checker._started_read_http_route_ids(), 'operation': 'read',
     }
     row = next(row for row in matrix['routes'] if row['route_id'] == _PREPARING_READ_ROUTE)
     assert row == {
@@ -6050,6 +6061,7 @@ def test_preparing_read_registered_route_matches_real_gets(request: pytest.Fixtu
                 gets.add((ast.literal_eval(decorator.args[0]), ast.literal_eval(operation)))
     assert gets == {
         ('/games', 'preparing_game_list'), ('/games/{game_id}', 'preparing_game_detail'),
+        ('/games/preparation-options', 'preparing_game_preparation_options'),
     }
 
 
@@ -6135,3 +6147,693 @@ def test_initial_actor_database_rejects_missing_or_expanded_permission(
         })
     with pytest.raises(checker.CatalogError):
         checker._validate_product_database_expectations(rows, lifecycle_required=True)
+
+
+@pytest.mark.parametrize('group,field',[
+    ('functions','owner_role_id'),('functions','search_path'),
+    ('policies','using_expression'),('policies','with_check_expression'),
+    ('column_acl_expectations','privilege_ids'),('column_acl_expectations','grantee_role_id'),
+])
+def test_initial_start_exact_sets_reject_missing_and_changed_declarations(
+    group: str, field: str,
+) -> None:
+    """新開始全field/集合はcheckerの一般owner許可へ広がらない。"""
+    from pitchlog.authz.initial_start_sql import (  # ty: ignore[unresolved-import]
+        start_column_acl_declarations,
+        start_function_declarations,
+        start_policy_declarations,
+        validate_start_asset_sets,
+    )
+    asset={'functions':list(start_function_declarations().values()),
+           'policies':list(start_policy_declarations().values()),
+           'column_acl_expectations':list(start_column_acl_declarations().values())}
+    validate_start_asset_sets(asset)
+    broken=copy.deepcopy(asset)
+    broken[group][0][field]='mutated'
+    with pytest.raises(ValueError):
+        validate_start_asset_sets(broken)
+    missing=copy.deepcopy(asset)
+    missing[group].pop()
+    with pytest.raises(ValueError):
+        validate_start_asset_sets(missing)
+
+
+def test_generation_guard_literal_does_not_execute_migration(tmp_path: Path) -> None:
+    """固定SQLの読取りでmigrationのimportや副作用を実行しない。"""
+    module = importlib.import_module("pitchlog.authz.product_function_acl")
+    migration = tmp_path / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text(
+        "import unavailable_migration_dependency\n"
+        "raise RuntimeError('must not execute')\n"
+        "_GENERATION_GUARD_SQL = ('CREATE FUNCTION fixed_guard()', "
+        "'DROP TRIGGER fixed', 'CREATE TRIGGER fixed')\n",
+        encoding="utf-8",
+    )
+    assert module.generate_generation_guard_sql(tmp_path) == (
+        "-- ELEMENT-TYPE: function\n"
+        "-- ELEMENT-ID: FUNCTION:public:protect_recording_generations_updates()\n\n"
+        "CREATE FUNCTION fixed_guard();\n"
+        "REVOKE EXECUTE ON FUNCTION public.protect_recording_generations_updates() "
+        "FROM PUBLIC, pitchlog_app;\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "declaration",
+    [
+        "unrelated = ('x', 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n_GENERATION_GUARD_SQL = ('a', 'b', 'c')",
+        "_GENERATION_GUARD_SQL = tuple(['x', 'y', 'z'])",
+        "_GENERATION_GUARD_SQL = ['x', 'y', 'z']",
+        "_GENERATION_GUARD_SQL = (1, 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ()",
+        "_GENERATION_GUARD_SQL: tuple = ('x', 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n_GENERATION_GUARD_SQL += ('a',)",
+        "_GENERATION_GUARD_SQL = (",
+        "_GENERATION_GUARD_SQL = alias = ('x', 'y', 'z')",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n"
+        "(_GENERATION_GUARD_SQL, other) = (('a', 'b', 'c'), 0)",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\n"
+        "for _GENERATION_GUARD_SQL in [('a', 'b', 'c')]: pass",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\ndel _GENERATION_GUARD_SQL",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\nimport os as _GENERATION_GUARD_SQL",
+        "_GENERATION_GUARD_SQL = ('x', 'y', 'z')\ndef _GENERATION_GUARD_SQL(): pass",
+    ],
+)
+def test_generation_guard_literal_rejects_ambiguous_source(
+    tmp_path: Path, declaration: str
+) -> None:
+    """未提示形・複数代入・動的定数を勝手に実行・補完しない。"""
+    module = importlib.import_module("pitchlog.authz.product_function_acl")
+    migration = tmp_path / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+    migration.parent.mkdir(parents=True)
+    migration.write_text(declaration + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="0036"):
+        module.generate_generation_guard_sql(tmp_path)
+
+
+def test_generation_guard_literal_matches_preserved_product_sql() -> None:
+    """実0036からの読取結果は既初期profileのSQL全byteと一致する。"""
+    module = importlib.import_module("pitchlog.authz.product_function_acl")
+    expected = REPOSITORY_ROOT / (
+        "contracts/authz/product/function-bodies/functions/"
+        "FUNCTION:public:protect_recording_generations_updates().sql"
+    )
+    assert module.generate_generation_guard_sql(REPOSITORY_ROOT) == expected.read_text(
+        encoding="utf-8"
+    )
+
+
+
+def test_b1_verifier_role_database_acl_is_fixed_not_any_fourteenth_role() -> None:
+    """role数だけで通さず独立role値と実DB用途を検査する。"""
+    checker = _load_checker()
+    role = checker.expected_product_roles({})["pitchlog_initial_auth_verifier"]
+    assert role["login"] is True
+    assert all(
+        role[k] is False
+        for k in ("superuser", "bypass_rls", "inherit", "create_role", "create_db", "replication")
+    )
+    asset = json.loads((REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text())
+    checker._validate_product_database_expectations(asset["databases"], lifecycle_required=True)
+    extra = {
+        "grantee": "pitchlog_initial_auth_verifier",
+        "privilege": "TEMPORARY", "grantable": False,
+    }
+    asset["databases"][0]["acl_expectations"].append(extra)
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_database_expectations(asset["databases"], lifecycle_required=True)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["valid", "missing", "duplicate", "unknown", "execute", "extra"]
+)
+def test_b2_enrollment_sourcechecker_exact_function(mutation: str) -> None:
+    """新関数の全field/bodyを既checkerで照合し、未知を受けない。"""
+    function_id = "FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)"
+
+    asset = json.loads((REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text())
+    row = next(row for row in asset["functions"] if row["function_id"] == function_id)
+    if mutation == "missing":
+        asset["functions"].remove(row)
+    elif mutation == "duplicate":
+        asset["functions"].append(copy.deepcopy(row))
+    elif mutation == "unknown":
+        row["function_name"] = "unknown"
+    elif mutation == "execute":
+        row["acl_expectations"].append(dict(grantee="PUBLIC", privilege="EXECUTE", grantable=False))
+    elif mutation == "extra":
+        row["unknown_field"] = True
+    if mutation == "valid":
+        checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+    else:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize("mutation", ["valid", "acl", "owner", "extra", "duplicate", "name"])
+def test_worker_lookup_sourcechecker_exact(mutation):
+    """新lookup一件だけを全field/固定SQLで認識する。"""
+    asset = json.loads((REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_text())
+    key = "FUNCTION:initial_right_api:lookup_existing_start_attempt(uuid, uuid, uuid, uuid, bytea)"
+    row = next(r for r in asset["functions"] if r["function_id"] == key)
+    if mutation == "acl":
+        row["acl_expectations"].append(
+            dict(grantee="PUBLIC", privilege="EXECUTE", grantable=False)
+        )
+    elif mutation == "owner":
+        row["owner_role_id"] = "pitchlog_app"
+    elif mutation == "extra":
+        row["unknown"] = True
+    elif mutation == "duplicate":
+        asset["functions"].append(copy.deepcopy(row))
+    elif mutation == "name":
+        row["function_name"] = "other"
+    if mutation == "valid":
+        checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+    else:
+        with pytest.raises(checker.CatalogError):
+            checker._validate_initial_start_function_assets(asset, REPOSITORY_ROOT)
+
+
+_INITIAL_HTTP_OWNER = (
+    'tests/test_check_authz_catalog.py::test_initial_http_logical_routes_match_real_operations_and_caps'
+)
+_INITIAL_HTTP_ROUTE_PROVENANCE = {
+    'ROUTE:RECORD:trusted_devices:insert': [
+        'PLAN-TSK446-RECORD-AND-AGGREGATE', 'PLAN-MVP-GAME-START-HTTP',
+        'HTTP:initial_device_enroll', 'CAP:initial_right:enroll_device',
+    ],
+    'ROUTE:RECORD:games:update': [
+        'PLAN-TSK446-RECORD-AND-AGGREGATE', 'PLAN-MVP-GAME-START-HTTP',
+        'HTTP:initial_game_start', 'CAP:initial_right:persist_initial_start',
+        'HTTP:initial_game_start_resolve', 'CAP:initial_right:lookup_existing_start_attempt',
+        'CAP:initial_right:lock_device',
+    ],
+}
+
+
+def _initial_http_candidate_assets() -> tuple[dict[str, Any], dict[str, Any]]:
+    """正式資産を変更せず、採用済みHTTPに対応するlogical2候補だけを作る。"""
+    assets, _, _ = _repository_derived_assets()
+    registry, matrix = copy.deepcopy(assets['route_registry']), copy.deepcopy(assets['http_matrix'])
+    provenance = checker._initial_http_provenance(REPOSITORY_ROOT)
+    existing = {row['provenance_id'] for row in registry['design_provenance']}
+    registry['design_provenance'].extend(
+        row for key, row in provenance.items() if key not in existing)
+    routes = {row['route_id'] for row in registry['routes']}
+    matrices = {row['route_id'] for row in matrix['routes']}
+    for route_id, ids in _INITIAL_HTTP_ROUTE_PROVENANCE.items():
+        if route_id not in routes:
+            registry['routes'].append({
+                'route_id': route_id, 'route_kind': 'record_and_aggregate', 'origin': 'design',
+                'source_claim_ids': [], 'provenance_ids': ids,
+                'operation': route_id.rsplit(':', 1)[1],
+            })
+        if route_id not in matrices:
+            matrix['routes'].append({
+                'matrix_route_id': 'HTTP:' + route_id, 'route_id': route_id,
+                'disposition': 'conditional',
+                'test_owner': {'id': _INITIAL_HTTP_OWNER, 'status': 'implemented'},
+            })
+    return registry, matrix
+
+
+def test_initial_http_logical_routes_match_real_operations_and_caps() -> None:
+    """実3POST/C2とfunction_only能力をlogical2へ個別に結び、read2GETを保持する。"""
+    registry, matrix = _initial_http_candidate_assets()
+    catalog, _ = _repository_catalog_and_lock()
+    ids = frozenset(row['test_owner']['id'] for row in matrix['routes']
+                    if row['test_owner']['status'] == 'implemented')
+    result = checker.validate_route_registry(registry, catalog, REPOSITORY_ROOT, ids)
+    checker.validate_http_route_matrix(matrix, result, REPOSITORY_ROOT, ids)
+    routes = result['route_by_id']
+    for route_id, provenance in _INITIAL_HTTP_ROUTE_PROVENANCE.items():
+        assert routes[route_id]['provenance_ids'] == provenance
+    original, _, _ = _repository_derived_assets()
+    pairs = ((original['route_registry'], registry), (original['http_matrix'], matrix))
+    for asset, candidate in pairs:
+        actual_read = next(row for row in candidate['routes']
+                           if row['route_id'] == _PREPARING_READ_ROUTE)
+        assert actual_read == next(
+            row for row in asset['routes'] if row['route_id'] == _PREPARING_READ_ROUTE)
+    assert registry['enums'] == original['route_registry']['enums']
+    assert len(registry['routes']) == len(original['route_registry']['routes']) + (
+        0 if set(_INITIAL_HTTP_ROUTE_PROVENANCE) <= {
+            row['route_id'] for row in original['route_registry']['routes']} else 2)
+    assert checker._INITIAL_HTTP_BINDINGS[2][3] == 'ROUTE:RECORD:games:update'
+
+
+@pytest.mark.parametrize('mutation', (
+    'missing-route', 'unknown-route', 'resolve-read', 'missing-operation', 'extra-cap',
+    'wrong-cap', 'reorder', 'duplicate', 'wrong-type', 'missing-provenance',
+    'extra-field', 'duplicate-provenance', 'unknown-provenance',
+))
+def test_initial_http_logical_route_rejects_wrong_binding(mutation: str) -> None:
+    """欠落/余剰/型/重複とresolveのread過小分類を明示拒否する。"""
+    registry, _ = _initial_http_candidate_assets()
+    routes = {row['route_id']: row for row in registry['routes']}
+    row = routes['ROUTE:RECORD:games:update']
+    ids = row['provenance_ids']
+    if mutation == 'missing-route':
+        del routes['ROUTE:RECORD:trusted_devices:insert']
+    elif mutation == 'unknown-route':
+        routes['ROUTE:RECORD:unknown:update'] = {**row, 'route_id': 'ROUTE:RECORD:unknown:update'}
+    elif mutation == 'resolve-read':
+        ids.remove('HTTP:initial_game_start_resolve')
+        routes[_PREPARING_READ_ROUTE]['provenance_ids'].append('HTTP:initial_game_start_resolve')
+    elif mutation == 'missing-operation':
+        ids.remove('HTTP:initial_game_start_resolve')
+    elif mutation == 'extra-cap':
+        ids.append('CAP:games:update')
+    elif mutation == 'wrong-cap':
+        ids[-1] = 'CAP:initial_right:not_registered'
+    elif mutation == 'reorder':
+        ids.reverse()
+    elif mutation == 'duplicate':
+        ids.append(ids[-1])
+    elif mutation == 'wrong-type':
+        row['provenance_ids'] = True
+    elif mutation == 'missing-provenance':
+        registry['design_provenance'].pop()
+    elif mutation == 'extra-field':
+        registry['design_provenance'][-1]['capability'] = 'CAP:games:read'
+    elif mutation == 'duplicate-provenance':
+        registry['design_provenance'].append(copy.deepcopy(registry['design_provenance'][-1]))
+    else:
+        registry['design_provenance'].append({
+            'provenance_id': 'CAP:initial_right:unknown',
+            'path': 'unknown', 'extracted_text': 'unknown',
+        })
+    with pytest.raises(checker.CatalogError):
+        checker._validate_record_and_aggregate_route_ids(routes)
+        checker._validate_initial_http_routes(
+            routes, registry['design_provenance'], REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize('mutation', (
+    'missing-post', 'wrong-path', 'wrong-operation', 'operation-type', 'duplicate-post',
+    'missing-c2', 'wrong-cap', 'missing-token', 'wrong-registration', 'missing-registry',
+    'wrong-function', 'wrong-router', 'wrong-factory', 'extra-registration-field',
+    'duplicate-registration-field', 'wrong-registry-builder', 'mutable-type-map',
+))
+def test_initial_http_provenance_rejects_real_source_drift(
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """sourceの実POST/C2/13専用登録の欠落や相違を原文一致だけで隠さない。"""
+    original = checker._read_text
+
+    def altered(path: Path, label: str) -> str:
+        text = original(path, label)
+        name = path.relative_to(REPOSITORY_ROOT).as_posix()
+        if name == 'backend/src/pitchlog/api/routers/games.py':
+            if mutation == 'wrong-router':
+                text = text.replace('route_class=TenantMatchedRoute', 'route_class=OtherRoute')
+            if mutation == 'missing-post':
+                text = text.replace('"/games/{game_id}/start/resolve",', '"/lost",').replace(
+                    'operation_id="initial_game_start_resolve"', 'operation_id="unrelated"')
+            elif mutation == 'wrong-path':
+                text = text.replace('"/games/{game_id}/start/resolve"', '"/wrong"')
+            elif mutation == 'wrong-operation':
+                text = text.replace('operation_id="initial_game_start_resolve"',
+                                    'operation_id="initial_unknown"')
+            elif mutation == 'operation-type':
+                text = text.replace('operation_id="initial_game_start_resolve"',
+                                    'operation_id=True')
+            elif mutation == 'duplicate-post':
+                text += ('\n@router.post("/duplicate", operation_id="initial_game_start")'
+                         '\ndef extra():\n    pass\n')
+        if name == 'backend/src/pitchlog/api/tenant_access.py' and mutation == 'missing-c2':
+            text = text.replace('"initial_game_start_resolve",', '')
+        if name == 'backend/src/pitchlog/repositories/initial_recording_right.py':
+            if mutation == 'extra-registration-field':
+                text = text.replace('operation_id="INITIAL_RIGHT:enroll_device",',
+                                    'operation_id="INITIAL_RIGHT:enroll_device", extra="x",')
+            elif mutation == 'duplicate-registration-field':
+                text = text.replace('operation_id="INITIAL_RIGHT:enroll_device",',
+                                    'operation_id="INITIAL_RIGHT:enroll_device",'
+                                    'operation_id="INITIAL_RIGHT:enroll_device",')
+            elif mutation == 'wrong-registry-builder':
+                text = text.replace('_INITIAL_FUNCTION_REGISTRY = build_function_registry(',
+                                    '_INITIAL_FUNCTION_REGISTRY = other_registry(')
+            if mutation == 'wrong-factory':
+                text = text.replace('capability_id=f"CAP:initial_right:{name}"',
+                                    'capability_id=f"CAP:wrong:{name}"')
+            if mutation == 'wrong-cap':
+                text = text.replace('return "CAP:initial_right:lock_device"',
+                                    'return "CAP:games:read"')
+            elif mutation == 'missing-token':
+                text = text.replace('    _PersistInitialStartToken,\n)', ')')
+            elif mutation == 'wrong-registration':
+                text = text.replace('capability_id="CAP:initial_right:enroll_device"',
+                                    'capability_id="CAP:initial_right:unknown"')
+            elif mutation == 'missing-registry':
+                text = text.replace('        *_INITIAL_RESOLVE_FUNCTION_OPERATIONS,', '')
+        if (name == 'backend/src/pitchlog/repositories/function_operations.py'
+                and mutation == 'mutable-type-map'):
+            text = text.replace('_INITIAL_RESOLVE_FUNCTION_TYPES = MappingProxyType(',
+                                '_INITIAL_RESOLVE_FUNCTION_TYPES = dict(')
+        if (name == 'backend/src/pitchlog/repositories/function_operations.py'
+                and mutation == 'wrong-function'):
+            text = text.replace('"initial_right_api.lookup_existing_start_attempt":',
+                                '"initial_right_api.unknown":')
+        return text
+
+    monkeypatch.setattr(checker, '_read_text', altered)
+    with pytest.raises(checker.CatalogError):
+        checker._initial_http_provenance(REPOSITORY_ROOT)
+
+
+_STARTED_READ_ROUTE_IDS_OLD = [
+    'PLAN-TSK446-RECORD-AND-AGGREGATE', 'PLAN-MVP-PREPARING-READ-REGISTRATION',
+]
+
+
+def _started_read_http_candidate() -> tuple[dict[str, Any], dict[str, Any]]:
+    """正式資産を変更せず、開始済みreadの登録を足した候補registryとrouteの表を作る。"""
+    assets, _, _ = _repository_derived_assets()
+    registry = copy.deepcopy(assets['route_registry'])
+    provenance = checker._started_read_http_provenance(REPOSITORY_ROOT)
+    rows = registry['design_provenance']
+    existing = {row['provenance_id'] for row in rows}
+    # 同じgames:read系の根拠行(準備中2GET)の直後へ置き、初期HTTPの行を末尾に保つ。
+    at = 1 + next(i for i, row in enumerate(rows)
+                  if row['provenance_id'] == 'PLAN-MVP-PREPARING-READ-REGISTRATION')
+    rows[at:at] = [row for key, row in provenance.items() if key not in existing]
+    routes = {row['route_id']: row for row in registry['routes']}
+    routes[_PREPARING_READ_ROUTE]['provenance_ids'] = checker._started_read_http_route_ids()
+    return registry, routes
+
+
+def test_started_read_http_formal_registry_registers_the_real_get_and_caps() -> None:
+    """正式registryが、実GETと読取tokenの実CAPを既存games:readへ個別に結ぶ。"""
+    assets, _, _ = _repository_derived_assets()
+    registry = assets['route_registry']
+    expected = checker._started_read_http_provenance(REPOSITORY_ROOT)
+    rows = {row['provenance_id']: row for row in registry['design_provenance']}
+    for key, row in expected.items():
+        assert rows.get(key) == row, key
+    route = next(row for row in registry['routes'] if row['route_id'] == _PREPARING_READ_ROUTE)
+    assert route['provenance_ids'] == checker._started_read_http_route_ids()
+    assert route['provenance_ids'][:2] == _STARTED_READ_ROUTE_IDS_OLD
+    # 新しい論理routeは増えず、準備中2GETの根拠行はそのまま残る。
+    assert [row['route_id'] for row in registry['routes']].count(_PREPARING_READ_ROUTE) == 1
+    assert rows['PLAN-MVP-PREPARING-READ-REGISTRATION']['path'] == (
+        'docs/features/mvp-preparing-read-registration/plan.md')
+    bindings = checker._STARTED_READ_HTTP_BINDINGS
+    assert len(bindings) == 1 and bindings[0][3] == _PREPARING_READ_ROUTE
+    assert bindings[0][0] == 'started_game_detail'
+    assert [token for token, _ in bindings[0][4]] == [
+        'GameLockToken', 'GameReadToken', 'RecordingGenerationReadToken',
+        'RecordingGenerationLockToken', 'StartedLineupsReadToken',
+        'StartedEventSlotsExistenceToken', 'StartedOperationEventsExistenceToken',
+        'StartedPlayRowsExistenceToken', 'PlayerReadToken',
+        'IdempotencyLedgerReadToken', 'RecordedEventRowsReadToken',
+        'RecordedEventSlotsReadToken', 'RecordedPlayRowsReadToken',
+    ]
+    for key in expected:
+        assert key not in {
+            k for r in registry['routes'] if r['route_id'] != _PREPARING_READ_ROUTE
+            for k in r.get('provenance_ids', [])}
+
+
+def test_started_read_http_candidate_passes_the_full_validation() -> None:
+    """候補registryは全体検査を通り、論理routeの数を変えない。"""
+    registry, routes = _started_read_http_candidate()
+    catalog, _ = _repository_catalog_and_lock()
+    original, _, _ = _repository_derived_assets()
+    ids = frozenset({IMPLEMENTED_CATALOG_TEST_ID, IMPLEMENTED_ORACLE_TEST_ID,
+                     _INITIAL_HTTP_OWNER, 'tests/test_check_authz_catalog.py::'
+                     'test_preparing_read_registered_route_matches_real_gets'})
+    result = checker.validate_route_registry(registry, catalog, REPOSITORY_ROOT, ids)
+    assert len(result['route_by_id']) == len(original['route_registry']['routes'])
+    checker._validate_started_read_http_routes(
+        routes, registry['design_provenance'], REPOSITORY_ROOT)
+    assert registry['enums'] == original['route_registry']['enums']
+
+
+def test_started_read_http_without_any_registration_is_the_old_fixture_mode() -> None:
+    """登録が無い入力は個別意味試験として通し、片方だけの登録は拒否する。"""
+    original, _, _ = _repository_derived_assets()
+    routes = {row['route_id']: copy.deepcopy(row)
+              for row in original['route_registry']['routes']}
+    plain = [row for row in original['route_registry']['design_provenance']
+             if not checker._is_started_read_http_key(row['provenance_id'])]
+    routes[_PREPARING_READ_ROUTE]['provenance_ids'] = list(_STARTED_READ_ROUTE_IDS_OLD)
+    checker._validate_started_read_http_routes(routes, plain, REPOSITORY_ROOT)
+    routes[_PREPARING_READ_ROUTE]['provenance_ids'] = checker._started_read_http_route_ids()
+    with pytest.raises(checker.CatalogError):
+        checker._validate_started_read_http_routes(routes, plain, REPOSITORY_ROOT)
+    registry, _ = _started_read_http_candidate()
+    routes[_PREPARING_READ_ROUTE]['provenance_ids'] = list(_STARTED_READ_ROUTE_IDS_OLD)
+    with pytest.raises(checker.CatalogError):
+        checker._validate_started_read_http_routes(
+            routes, registry['design_provenance'], REPOSITORY_ROOT)
+
+
+@pytest.mark.parametrize('mutation', (
+    'missing-operation', 'missing-plan', 'extra-cap', 'wrong-cap', 'reorder', 'duplicate-id',
+    'preparing-not-first', 'drop-preparing', 'wrong-type', 'missing-provenance-row',
+    'extra-field', 'duplicate-provenance', 'unknown-provenance', 'altered-text',
+    'attach-to-games-update', 'drop-token',
+))
+def test_started_read_http_binding_rejects_wrong_registration(mutation: str) -> None:
+    """欠落・余剰・順序・型・重複・別routeへの結線を、個別に拒否する。"""
+    registry, routes = _started_read_http_candidate()
+    row = routes[_PREPARING_READ_ROUTE]
+    ids = row['provenance_ids']
+    provenance = registry['design_provenance']
+    started = [r for r in provenance if checker._is_started_read_http_key(r['provenance_id'])]
+    if mutation == 'missing-operation':
+        ids.remove('HTTP:started_game_detail')
+    elif mutation == 'missing-plan':
+        ids.remove('PLAN-MVP-STARTED-READ-HTTP')
+    elif mutation == 'extra-cap':
+        ids.append('CAP:games:update')
+    elif mutation == 'wrong-cap':
+        ids[-1] = 'CAP:initial_right:lock_device'
+    elif mutation == 'reorder':
+        ids[-2], ids[-1] = ids[-1], ids[-2]
+    elif mutation == 'duplicate-id':
+        ids.append(ids[-1])
+    elif mutation == 'preparing-not-first':
+        ids[0], ids[1] = ids[1], ids[0]
+    elif mutation == 'drop-preparing':
+        ids.remove('PLAN-MVP-PREPARING-READ-REGISTRATION')
+    elif mutation == 'wrong-type':
+        row['provenance_ids'] = True
+    elif mutation == 'missing-provenance-row':
+        provenance.remove(started[-1])
+    elif mutation == 'extra-field':
+        started[-1]['capability'] = 'CAP:games:read'
+    elif mutation == 'duplicate-provenance':
+        provenance.append(copy.deepcopy(started[-1]))
+    elif mutation == 'unknown-provenance':
+        provenance.append({'provenance_id': 'STARTED-READ-TOKEN:Unknown',
+                           'path': 'unknown', 'extracted_text': 'unknown'})
+    elif mutation == 'altered-text':
+        target = next(r for r in provenance if r['provenance_id'] == 'HTTP:started_game_detail')
+        target['extracted_text'] += ' '
+        target['extracted_text'] = target['extracted_text'].replace('404', '403')
+    elif mutation == 'attach-to-games-update':
+        routes['ROUTE:RECORD:games:update']['provenance_ids'].append(
+            'HTTP:started_game_detail')
+    else:
+        ids.remove('STARTED-READ-TOKEN:PlayerReadToken')
+    with pytest.raises(checker.CatalogError):
+        checker._validate_started_read_http_routes(routes, provenance, REPOSITORY_ROOT)
+
+
+_STARTED_READ_SOURCE_DRIFTS = (
+    'wrong-router', 'wrong-path', 'wrong-operation', 'operation-type', 'duplicate-get',
+    'post-instead-of-get', 'wrong-function-name', 'missing-c2', 'wrong-cap-lock',
+    'wrong-cap-player', 'missing-token-class', 'wrong-assignment-name', 'extra-token-used',
+    'missing-token-used', 'plan-line-missing', 'plan-line-duplicate',
+)
+
+
+@pytest.mark.parametrize('mutation', _STARTED_READ_SOURCE_DRIFTS)
+def test_started_read_http_provenance_rejects_real_source_drift(
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """実GET・C2・実CAP・読取token集合・計画根拠の相違を、原文一致だけで隠さない。"""
+    original = checker._read_text
+
+    def altered(path: Path, label: str) -> str:
+        text = original(path, label)
+        name = path.relative_to(REPOSITORY_ROOT).as_posix()
+        if name == checker._STARTED_READ_HTTP_API_PATH:
+            if mutation == 'wrong-router':
+                text = text.replace('route_class=TenantMatchedRoute', 'route_class=OtherRoute')
+            elif mutation == 'wrong-path':
+                text = text.replace('"/games/{game_id}/started"', '"/wrong"')
+            elif mutation == 'wrong-operation':
+                text = text.replace('operation_id="started_game_detail"',
+                                    'operation_id="started_unknown"')
+            elif mutation == 'operation-type':
+                text = text.replace('operation_id="started_game_detail"', 'operation_id=True')
+            elif mutation == 'duplicate-get':
+                text += ('\n@router.get("/duplicate", operation_id="started_duplicate")'
+                         '\ndef extra():\n    pass\n')
+            elif mutation == 'post-instead-of-get':
+                text = text.replace('@router.get(', '@router.post(')
+            elif mutation == 'wrong-function-name':
+                text = text.replace('def read_started_game_detail(', 'def other_name(')
+        if name == 'backend/src/pitchlog/api/tenant_access.py' and mutation == 'missing-c2':
+            text = text.replace('"started_game_detail",', '')
+        if name == 'backend/src/pitchlog/sync/tokens.py':
+            if mutation == 'wrong-cap-lock':
+                head, tail = text.split('class GameLockToken(', 1)
+                tail = tail.replace('"CAP:games:read"', '"CAP:games:update"', 1)
+                text = head + 'class GameLockToken(' + tail
+            elif mutation == 'missing-token-class':
+                text = text.replace('class GameLockToken(', 'class GameLockTokenRenamed(')
+        if name == 'backend/src/pitchlog/repositories/roster.py' and mutation == 'wrong-cap-player':
+            text = text.replace('return "CAP:players:read"', 'return "CAP:games:read"')
+        if (name == 'backend/src/pitchlog/repositories/started_snapshot_operations.py'
+                and mutation == 'wrong-assignment-name'):
+            text = text.replace('    _capability = "CAP:play_rows:read"',
+                                '    _capability_x = "CAP:play_rows:read"')
+        if (name == 'backend/src/pitchlog/repositories/started_read.py'
+                and mutation == 'extra-token-used'):
+            text += '\n_unused = ExtraReadToken\n'
+        # 記録後readerも同じtokenを使うため、両方から消して「未使用」を作る。
+        if (name in ('backend/src/pitchlog/repositories/started_snapshot.py',
+                     'backend/src/pitchlog/repositories/recorded_snapshot.py')
+                and mutation == 'missing-token-used'):
+            text = text.replace('run(StartedLineupsReadToken(game_id))', 'run(None)')
+        if name == checker._STARTED_READ_HTTP_PLAN_PATH:
+            if mutation == 'plan-line-missing':
+                text = text.replace(checker._STARTED_READ_HTTP_PLAN_LINE_PREFIX, 'x')
+            elif mutation == 'plan-line-duplicate':
+                text += '\n' + checker._STARTED_READ_HTTP_PLAN_LINE_PREFIX + 'の重複\n'
+        return text
+
+    monkeypatch.setattr(checker, '_read_text', altered)
+    with pytest.raises(checker.CatalogError):
+        checker._started_read_http_provenance(REPOSITORY_ROOT)
+
+
+def test_started_read_http_source_mutations_all_change_the_source() -> None:
+    """変異の置換が空振りしていないこと(置換前の原文に対象の文字列がある)を確かめる。"""
+    texts = {
+        'api': (REPOSITORY_ROOT / checker._STARTED_READ_HTTP_API_PATH).read_text(),
+        'tenant': (REPOSITORY_ROOT / 'backend/src/pitchlog/api/tenant_access.py').read_text(),
+        'tokens': (REPOSITORY_ROOT / 'backend/src/pitchlog/sync/tokens.py').read_text(),
+        'roster': (REPOSITORY_ROOT / 'backend/src/pitchlog/repositories/roster.py').read_text(),
+        'operations': (REPOSITORY_ROOT
+                       / 'backend/src/pitchlog/repositories/started_snapshot_operations.py'
+                       ).read_text(),
+        'snapshot': (REPOSITORY_ROOT / 'backend/src/pitchlog/repositories/started_snapshot.py'
+                     ).read_text(),
+        'plan': (REPOSITORY_ROOT / checker._STARTED_READ_HTTP_PLAN_PATH).read_text(),
+    }
+    for needle, key in (
+        ('route_class=TenantMatchedRoute', 'api'), ('"/games/{game_id}/started"', 'api'),
+        ('operation_id="started_game_detail"', 'api'), ('@router.get(', 'api'),
+        ('def read_started_game_detail(', 'api'), ('"started_game_detail",', 'tenant'),
+        ('class GameLockToken(', 'tokens'),
+        ('return "CAP:players:read"', 'roster'),
+        ('    _capability = "CAP:play_rows:read"', 'operations'),
+        ('run(StartedLineupsReadToken(game_id))', 'snapshot'),
+        (checker._STARTED_READ_HTTP_PLAN_LINE_PREFIX, 'plan'),
+    ):
+        assert needle in texts[key], needle
+
+
+@pytest.fixture(autouse=True)
+def historical_lifecycle_schema_input(
+    request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧lifecycle7schemaの対向を固定Gitへ束縛し、現initial8検査と分離する。"""
+    if request.node.originalname != 'test_product_extension_and_new_schema_declarations':
+        return
+    path = 'contracts/authz/product/ddl-elements.json'
+    revision = json.loads(
+        (REPOSITORY_ROOT / 'contracts/tenant_boundary/frozen-inputs.json').read_text(
+            encoding='utf-8'
+        )
+    )['frozen_inputs']['historical_lifecycle_schema_revision']['value']
+    raw = subprocess.run(
+        ['git', 'show', revision + ':' + path],
+        cwd=REPOSITORY_ROOT, check=True, capture_output=True,
+    ).stdout
+    root = tmp_path / 'accepted-lifecycle-7-schema'
+    target = root / path
+    target.parent.mkdir(parents=True)
+    target.write_bytes(raw)
+    monkeypatch.setattr(sys.modules[__name__], 'REPOSITORY_ROOT', root)
+
+
+
+def _first_ball_product_asset() -> dict[str, Any]:
+    return json.loads(
+        (REPOSITORY_ROOT / "contracts/authz/product/ddl-elements.json").read_bytes()
+    )
+
+
+def test_first_ball_product_full_profile_uses_closed_actual_declarations() -> None:
+    """新規要素は実source/canonical/bodyの全検査後だけ受理する。"""
+    result = checker.validate_ddl_elements(
+        _first_ball_product_asset(), REPOSITORY_ROOT, checker.PRODUCT_SPEC
+    )
+    assert result["product_role_count"] == 17
+
+
+@pytest.mark.parametrize("fault", [
+    "old-role", "old-force", "wrong-namespace", "unknown-schema",
+    "invoker-flag", "unknown-invoker", "partial",
+])
+def test_first_ball_product_rejects_old_and_added_mutations(fault: str) -> None:
+    """既部分を含む余剰・権限緩和・部分profileを拒否する。"""
+    value = _first_ball_product_asset()
+    if fault == "old-role":
+        next(r for r in value["roles"] if r["role_id"] == "pitchlog_app")["superuser"] = True
+    elif fault == "old-force":
+        value["tables"][0]["force_row_level_security"] = False
+    elif fault == "wrong-namespace":
+        value["tables"][-1]["schema_name"] = "public"
+    elif fault == "unknown-schema":
+        value["schemas"].append({
+            **value["schemas"][-1], "schema_id": "unknown_sync", "schema_name": "unknown_sync",
+        })
+    elif fault == "partial":
+        value["functions"].pop()
+    else:
+        row = next(r for r in value["functions"] if r["function_kind"] == "invoker")
+        if fault == "invoker-flag":
+            row["security_mode"] = "definer"
+        else:
+            row["function_id"] = "FUNCTION:sync_fence_api:unknown(uuid)"
+    with pytest.raises(checker.CatalogError):
+        checker.validate_ddl_elements(value, REPOSITORY_ROOT, checker.PRODUCT_SPEC)
+
+
+def test_first_ball_invoker_unknown_mode_and_order_are_rejected(tmp_path: Path) -> None:
+    """exact1 INVOKERとhelper段階の順序だけを認める。"""
+    from pitchlog.authz.asset_spec import (
+        PRODUCT_SPEC,
+        AuthzApplicationStepsError,
+        load_product_application_steps,
+    )
+
+    product = "contracts/authz/product/ddl-elements.json"
+    steps = "contracts/authz/product/application-steps.json"
+    for fault in ["unknown", "security", "order"]:
+        root = tmp_path / fault
+        asset = _first_ball_product_asset()
+        order = json.loads((REPOSITORY_ROOT / steps).read_bytes())
+        row = next(r for r in asset["functions"] if r["function_kind"] == "invoker")
+        if fault == "unknown":
+            row["function_id"] = "FUNCTION:sync_fence_api:other(uuid)"
+        elif fault == "security":
+            row["security_mode"] = "definer"
+        else:
+            order["application_steps"][2]["element_groups"].reverse()
+        for rel, value in [(product, asset), (steps, order)]:
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(value))
+        with pytest.raises(AuthzApplicationStepsError):
+            load_product_application_steps(root, PRODUCT_SPEC)

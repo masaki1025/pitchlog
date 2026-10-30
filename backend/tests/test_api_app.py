@@ -76,7 +76,15 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("DELETE",), "/team-records/{team_record_id:uuid}"),
         (("GET",), "/team-records/{team_record_id:uuid}/lineup-memory"),
         (("GET",), "/games"),
+        (("GET",), "/games/preparation-options"),
+        (("POST",), "/games"),
         (("GET",), "/games/{game_id}"),
+        (("POST",), "/devices/enroll"),
+        (("POST",), "/games/{game_id}/start"),
+        (("POST",), "/games/{game_id}/start/resolve"),
+        (("GET",), "/vocabularies/pitch-types"),
+        (("GET",), "/games/{game_id}/started"),
+        (("POST",), "/games/{game_id}/sync/events"),
     )
     assert tuple(route.operation_id for route in routes) == (
         "meta_health_read",
@@ -98,7 +106,15 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "roster_team_delete",
         "lineup_memory_read",
         "preparing_game_list",
+        "preparing_game_preparation_options",
+        "preparing_game_create",
         "preparing_game_detail",
+        "initial_device_enroll",
+        "initial_game_start",
+        "initial_game_start_resolve",
+        "pitch_type_options",
+        "started_game_detail",
+        "sync_events",
     )
 
 
@@ -240,7 +256,9 @@ def test_preparing_read_metadata_keeps_two_real_c2_routes() -> None:
         route
         for router in api_app.ROUTERS
         for route in router.routes
-        if isinstance(route, APIRoute) and route.path in {"/games", "/games/{game_id}"}
+        if isinstance(route, APIRoute)
+        and route.path in {"/games", "/games/{game_id}"}
+        and route.methods == {"GET"}
     ]
     assert len(routes) == 2
     assert {

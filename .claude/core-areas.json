@@ -275,7 +275,21 @@
         "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+        "backend/tests/test_initial_game_start_components.py",
+        "backend/src/pitchlog/repositories/first_ball.py",
+        "backend/src/pitchlog/authz/sync_right_sql.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py",
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
@@ -417,7 +431,11 @@
         "tests/test_field_geometry_numeric_lexemes.py",
         "tests/test_fielder_estimation_contract.py",
         "tests/test_field_geometry_ci_wiring.py",
-        "backend/src/pitchlog/db/stage_a_startup.py"
+        "backend/src/pitchlog/db/stage_a_startup.py",
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
@@ -522,7 +540,26 @@
         "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+        "backend/tests/test_initial_game_start_components.py",
+        "backend/src/pitchlog/api/routers/games.py",
+        "backend/src/pitchlog/api/tenant_access.py",
+        "backend/tests/test_api_app.py",
+        "backend/tests/test_api_conventions.py",
+        "backend/tests/test_api_tenant_match_metadata.py",
+        "backend/src/pitchlog/repositories/first_ball.py",
+        "backend/src/pitchlog/authz/sync_right_sql.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py",
+        "backend/src/pitchlog/repositories/started_snapshot.py",
+        "backend/src/pitchlog/repositories/started_snapshot_operations.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
@@ -630,7 +667,18 @@
         "backend/tests/test_durable_rights_ledger_contract.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+        "backend/tests/test_initial_game_start_components.py",
+        "backend/src/pitchlog/sync/first_ball_proof.py",
+        "backend/tests/test_first_ball_proof.py",
+        "backend/tests/test_first_ball_function_operations.py",
+        "backend/tests/test_sync_right_sql.py",
+        "backend/tests/test_sync_first_ball_registration.py",
+        "backend/tests/test_started_snapshot.py",
+        "backend/tests/test_started_snapshot_operations.py"
       ]
     },
     {
