@@ -1991,3 +1991,11 @@ TLS回答待ちと並行し、正式認可登録のcreate2route/新球種route�
 固定candidate af68c201（製品sourceはaa691b90と同一、以降は球種DB試験/計画追補）で、shared DSNunset・専用tmpのhost pytest `tests/db/test_first_ball_vertical_http.py tests/db/test_first_ball_projection_atomic.py` を実行し **14passed / 108.69秒**。実API初球保存/再取得と投影原子性の既受入を新artifact/pinの候補で再確認した。実画面入力の保存・HTTPS成立へは広げない。
 
 現物GitHub照合: origin/developは3a24f89e、#186/#187/#188はいずれもDraftで未統合。通常統合の実残条件の読取確認を独立担当へ依頼（PR状態・refs・正式資産は未変更）。TLS回答待ちの間も認可登録候補と通常統合準備を続行する。
+
+### 2026-10-30 HTTPS境界の拒否確認と正式登録候補review
+
+縦断branchの最新commitでHTTP画面の対向を追加。secureContext=true・利用者環境確認4件・球種/座標入力が揃っても実protocolがhttpなら確定disabled/HTTP0を確認。controller関連7件・vue-tsc/eslint成功。TLS未回答を承認とせずHTTPS実測はまだ未実施。
+
+#186/#187の公開HEADとCI/委任識別値の独立照合REPORT SHA8de8946628ec026f0f4fc02fce28a48d899130137e5e39f962e877b7da2fded8を受領。各12job成功だが既親planの実経路/全取消等merge前義務は未充足、Draft解除/merge未実施。
+
+authz cache候補（REPORT SHA4695989fa90c5daca844feb1752f1eada7f0d126923f2ebb84149055a5bf5dee）は新論理route2/HTTP3操作の有限追加。非作者がrouter constructor/認証symbol再束縛のP1をprobeで検知し、共有資産へ適用せず作者へ是正依頼。旧要件sourceblob不一致・母集合更新・derived lock・oracle sealは別順序で維持。独立したsource基線候補もcacheで準備し、根拠/完全前後値をreview後に扱う。
