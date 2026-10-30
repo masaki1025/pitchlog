@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import GameScreenFirstBall from './GameScreenFirstBall.vue'
 import { useRoute } from 'vue-router'
 import {
   beforeState,
@@ -36,6 +37,12 @@ const history = computed(() =>
   >
     <h2 class="text-lg font-bold">サーバーから復元した状態</h2>
     <p role="status">{{ restore.message.value }}</p>
+    <GameScreenFirstBall
+      v-if="restore.game.value"
+      :key="restore.game.value.id"
+      :game="restore.game.value"
+      @saved="restore.reload()"
+    />
     <button
       type="button"
       class="min-h-11 rounded-lg border px-3 py-2"
