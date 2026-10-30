@@ -106,6 +106,70 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
         "--env",
         "PITCHLOG_BINDING_CLIENT_CONFIG=/run/pitchlog/public/binding-client.json",
     ]
+    if os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") == "1":
+        # 試験だけの透過観測。原要求・資格・例外本文は一切出力しない。
+        bootstrap = r"""
+import json,sys,time
+import uvicorn
+from pitchlog.api.routers import games
+
+def observe(stage, command, result, error, started):
+    try:
+        operation = {
+            '_EnrollDeviceCommand': 'enroll',
+            '_StartInitialGameCommand': 'start',
+            '_ResolveStartCommand': 'resolve',
+        }.get(type(command).__name__, 'other')
+        statuses = (
+            'enrolled', 'started', 'denied', 'conflict', 'unavailable', 'unresolved',
+        )
+        status = getattr(result, 'status', None) if stage == 'call' else None
+        if type(status) is not str or status not in statuses:
+            status = 'none-or-other'
+        names = (
+            'InitialBrokerUnavailable', 'DomainRuntimeError', 'TimeoutError',
+            'PermissionError', 'FileNotFoundError', 'ConnectionError', 'OSError',
+            'TypeError', 'ValueError', 'RuntimeError', 'OperationalError',
+            'InterfaceError', 'DBAPIError', 'StatementError', 'IntegrityError',
+            'QueryCanceled', 'LockNotAvailable',
+        )
+        name = type(error).__name__ if error is not None else None
+        elapsed = max(0, min(3600000, int((time.monotonic() - started) * 1000)))
+        print('PITCHLOG_INITIAL_DIAGNOSTIC ' + json.dumps({
+            'stage': stage,
+            'operation': operation,
+            'outcome': 'returned' if error is None else 'raised',
+            'status': status,
+            'exception': name if name in names else 'none-or-other',
+            'elapsed_ms': elapsed,
+        }), flush=True)
+    except BaseException:
+        pass
+
+def wrap(original, stage, command_index):
+    def observed(*args, **kwargs):
+        try:
+            started = time.monotonic()
+            command = args[command_index]
+        except BaseException:
+            started = None
+            command = None
+        try:
+            result = original(*args, **kwargs)
+        except BaseException as error:
+            observe(stage, command, None, error, started)
+            raise
+        observe(stage, command, result, None, started)
+        return result
+    return observed
+
+games._InitialBrokerClient.call = wrap(games._InitialBrokerClient.call, 'call', 1)
+games._encode_initial_reply = wrap(games._encode_initial_reply, 'encode', 0)
+games._initial_reply_source = wrap(games._initial_reply_source, 'source', 0)
+uvicorn.run('pitchlog.api.app:create_app', factory=True, host='0.0.0.0',
+            port=int(sys.argv[1]), log_level='warning')
+"""
+        return [*args, "-c", bootstrap, str(app_port)]
     return [
         *args,
         "-m",
