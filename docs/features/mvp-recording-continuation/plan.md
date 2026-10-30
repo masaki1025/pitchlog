@@ -148,3 +148,9 @@ PO委任Codex主担当判断。保存境界候補JSON0a279f77…/境界docs5c14a
 送信済み結果不明slotのattempt欠落を新規生成で補わずread必須とし、HTTP0で閉拒否する。serverNext-1だけに依存する再開を廃し、既durableQueueの主複合key `[game,d4,d1]` を用いる `readSlotsPage` の有限keyset/limit+1読取と既read effect分類/specを追補する。新DBindex/version・queue書込意味・他slotのACKみなし受理は追加しない。最小未終結slotから原要求を順に終結する。非作者のP1指摘への技術的是正であり新野球意味の承認ではない。主担当はPO委任で本範囲の編集を承認、source反映後の非作者再確認は必須。
 
 step4 source23pathの有限採用: PO委任によるCodex主担当判断、2026-10-30T20:30:03+09:00。対象files.json SHA9d61da89be3bba09a2f3956c1ee81d99fcc5d339cbf78cc9a34c094d1f8eae04、非作者反映1REPORT SHAded706e7e79bf3d7ba77ee7cafa123599e23cdec2a2dc7dce2257ef1935c412a（P0/P1/P2=0）。初回2P1と是正履歴を保持し、影響132件/独立70件成功を確認。source候補の採用であり実API/DB/HTTPS複数球、真のoffline再起動、MVP全体は未成立。本人の署名/逐行確認ではない。
+
+### step3 source/正式資産候補の採用とstep4供給の同時接合
+
+2026-10-30T20:50:20+09:00、PO委任によるCodex主担当判断。対象runtime48path packet SHA4cc21d57accd9c9d5437398f6927a24d7df5f890ae7b0663780bd3de5a6a4ce6＋root8 source packet65439104…＋逐次生成した正式DDL候補を、cache `ordinary37-backend-adoption-20261030.json` SHA73ca160c7b16ac327e345f4e69aa58a971cfb3a9bdaeadfc3597d84a112b7036 の全path/hashで固定。非作者最終REPORT361db72a…/反映1 2d07b4a5…/反映2 cd54b1a7…はP0/P1を解消。単位778/独立778・独立後発33・root guard271・ownedPG構造/故障負/既初球原子性16成功を確認。実API3球の1passed/88.60秒は8c46e2f8＋本未commit source集合、結果SHA5394344d0739035dfdfdee45cd29e836e46fa19c031f99c1bb51c323401dc2ba。
+
+backend prefix原本readとstep4閉DTO/routerは相互import/共通真正性の接合を持つため、このbackend供給だけを同commitで保存する。step4画面source23は別8c46e2f8に保全済。正式HEADの画面縦断、故障全44、正式7.7/reseal/sourceallowlist/repository改訂/CI/通常統合は別残件であり、step3/4全体の受入完了としない。本人逐行確認/署名の代記ではない。4path書式のみの9feb3db3はAST完全一致で意味/入出力不変を別保全。
