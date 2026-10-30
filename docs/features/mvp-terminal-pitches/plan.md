@@ -136,3 +136,5 @@ required-setの不可分参照追補（2026-10-31、PO委任によるCodex主担
 全13path packet53615ab01fe4cbbe1742ffcaa5b270087ba05056bdca231714a270ac45f02ac3/実byteと非作者REPORTa82076b57bc7fd529f4392fa9c28d8f65e96fbd4c3cf34c6dc62c698565363e5（新P0/P1/P2=0、独立15全応答/810/履歴45・pure62/正式関連CLI成功）を照合し、数学操作単位の契約候補基線を受理する。旧117case/49row/12ID対応・到達4集合/missing5を保持。項目別判断はcache terminal-pitches-root-step1-acceptance-20261031.jsonに固定する。P2/P6/P7/P8は本無走者2操作/対象版の値と責任境界だけを採用し、旧20fail・歴史baseline/正式7.7/pin・全P6/P8/T1の残件は別未完として保持する。新blind/本人逐行確認/正式develop統合ではない。
 
 本契約基線に従うステップ2の唯一T1核共通化・新閉ABI/同artifact/固定Python caller・必要試験を指示する。step3以降T2/Port/DB/HTTPの完成をこの着手条件へ追加しない。型/15全値/変異/旧37/初球の回帰・新artifact再現値と非作者source確認が揃うまで提供完了にしない。必要なsourcepin/既fixture内artifactSha256等の機械的追随は実新hashをrootへ渡し、正式writerが直列化する。
+
+ステップ2の公開ABI個数の厳密追随（2026-10-31、PO委任によるCodex主担当判断）: 既firstPitchContinuationArtifact.spec.ts/ordinaryPitchContinuationArtifact.spec.tsの公開口一覧・見出しだけを旧7名保持＋deriveTerminalPitch1名のexact8へ追随する。未知extraやpartial比較は許可せず旧assert/順序を保持する。旧flag変異testは変更せず、共有sourceでfalse再代入が旧変異を打消す部分を除き、BB/HBP時だけtrue設定する。artifact再build実hash確定後にrootが機械pinを更新し、同入力の既知hash失敗を重全件で反復しない。
