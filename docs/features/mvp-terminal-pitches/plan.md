@@ -149,3 +149,5 @@ artifact機械pin追随（2026-10-31、PO委任によるCodex主担当判断）:
 PO委任によるCodex主担当判断。作者17path packet52814b4e60355c177b5944207ee2cfcdf4e8be92bc7abcd621854a7c62cf547dの全実byte、および非作者REPORT b2da6d22ded5877ac81acf9d2d28d423eaaf811a97f94d5c4c5d9acf8b742879を再照合し数学sourceを採用する。新P0/P1/P2=0、独立810交差＋追加150状態・typed host15例、BE62/FE95＋旧119の成功が対象。旧全件2757成功/型表1失敗→局所41成功という履歴は保持し、最終全件成功へ読み替えない。D11の2recordのみ成立、60除外・wholeJUnitComplete=false、正式vector/mutation/BOOT・旧20fail・正式7.7は未閉である。
 
 本採用により上表ステップ3だけを指示する。v1 ABI/PA=falseを保持し、真正v1→v2 bridge・T2共通核・履歴1entry・runner identity/責任投手境界とterminal後の通常投球を契約と実artifactへ結線する。数学でrunner UUIDや真正性を捏造せず、保存段の実source資格を要求する。ステップ4のSQL/ACL/migration/DBおよび5の画面は未許可で、具体依存を固定した上で次の指示へ渡す。本人署名・P6 blind・全T1/全MVP完成ではない。
+
+ステップ3のcore先行捕捉追補（2026-10-31、PO委任によるCodex主担当判断）: 新playPrefixContinuation.ts/同.spec.ts・play_prefix_continuation.py/同testは既game-state等に捕捉済だが、同期のprefix/source証拠も扱うためsync-protocolへexact4pathを追加する。既path/area/拒否を削除せず、独立レビューで追加だけを確認する。作者のsource編集許可とcore登録のroot直列所有を分ける。
