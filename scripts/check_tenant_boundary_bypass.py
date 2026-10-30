@@ -2316,6 +2316,8 @@ _FIXED_BIND_BODY = _expected_function_body(
     "        return bindparam(name, type_=Integer())\n"
     "    if expected_type is bool:\n"
     "        return bindparam(name, type_=Boolean())\n"
+    "    if expected_type is bytes:\n"
+    "        return bindparam(name, type_=LargeBinary())\n"
     '    raise FunctionOperationError("固定関数入力に未対応の型")\n'
 )
 

@@ -2653,6 +2653,52 @@ def test_fixed_function_builder_rejects_other_sql_generation(
     }
 
 
+@pytest.mark.parametrize("root", (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT))
+def test_fixed_function_bytes_bind_accepts_exact_shape(root: Path) -> None:
+    """実sourceと正例のbytesだけを既4型と同じ固定bind形で認識する。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(root / relative)
+    assert "if expected_type is bytes:" in source
+    assert "return bindparam(name, type_=LargeBinary())" in source
+    violations = checker.scan_source(
+        source, path=relative, contract=checker.load_contract(REPOSITORY_ROOT)
+    )
+    assert not any(
+        item.code == "TB005"
+        and item.symbol == "pitchlog.repositories.function_operations._canonical_bind"
+        for item in violations
+    )
+
+
+@pytest.mark.parametrize("root", (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT))
+@pytest.mark.parametrize(
+    "old,new",
+    (
+        ("type_=LargeBinary()", "type_=String()"),
+        ("type_=LargeBinary()", 'type_=literal_column("secret")'),
+        ("if expected_type is bytes:", "if expected_type is object:"),
+        (
+            "if expected_type is bytes:",
+            "return bindparam(name)\n    if expected_type is bytes:",
+        ),
+    ),
+)
+def test_fixed_function_bytes_bind_rejects_noncanonical_shape(
+    root: Path, old: str, new: str
+) -> None:
+    """新bytes経路でも別SQL型・任意SQL・未知型・早期returnを拒否する。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(root / relative)
+    mutated = source.replace(old, new, 1)
+    assert mutated != source
+    violations = checker.scan_source(
+        mutated, path=relative, contract=checker.load_contract(REPOSITORY_ROOT)
+    )
+    assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
 def test_fixed_function_bind_rejects_literal_sql() -> None:
     """固定関数の引数生成経路にも任意SQL式を混入させない。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
