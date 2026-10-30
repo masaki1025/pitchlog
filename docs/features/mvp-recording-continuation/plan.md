@@ -142,3 +142,9 @@ P0是正の採用（2026-10-30、PO委任Codex主担当判断）: 非作者REPOR
 ### 通常継続の実保存step3開始受理（2026-10-30）
 
 PO委任Codex主担当判断。保存境界候補JSON0a279f77…/境界docs5c14a6d9…を全SHA照合、非作者REPORT3e6d5a9af46c140f59952de3a8f84e3610c32ee7b01d01a8494cf49a1c9dfa2e（P0/P1/P2=0、末尾LF/CRLF拒否）を採用。44対向の設計/Schema成功を実保存・原子性の成功へ読み替えない。境界docs6章の閉source集合と必要なprivateモデル/migration・installer・既初球guard排他接合・source登録/テストの最小編集をstep3として開始する。正式共有登録資産/受理履歴の書込みはrootが直列管理し、作者の候補を正式受理済としない。全TX/冪等/認可/結果不明/既先行拒否を維持し、まず新規作成・開始からordinaryの連続保存と再取得を実PGで通す。数学sourceの完成を実prefix真正性の代用にしない。
+
+### step4 再送レビューの有限是正範囲
+
+送信済み結果不明slotのattempt欠落を新規生成で補わずread必須とし、HTTP0で閉拒否する。serverNext-1だけに依存する再開を廃し、既durableQueueの主複合key `[game,d4,d1]` を用いる `readSlotsPage` の有限keyset/limit+1読取と既read effect分類/specを追補する。新DBindex/version・queue書込意味・他slotのACKみなし受理は追加しない。最小未終結slotから原要求を順に終結する。非作者のP1指摘への技術的是正であり新野球意味の承認ではない。主担当はPO委任で本範囲の編集を承認、source反映後の非作者再確認は必須。
+
+step4 source23pathの有限採用: PO委任によるCodex主担当判断、2026-10-30T20:30:03+09:00。対象files.json SHA9d61da89be3bba09a2f3956c1ee81d99fcc5d339cbf78cc9a34c094d1f8eae04、非作者反映1REPORT SHAded706e7e79bf3d7ba77ee7cafa123599e23cdec2a2dc7dce2257ef1935c412a（P0/P1/P2=0）。初回2P1と是正履歴を保持し、影響132件/独立70件成功を確認。source候補の採用であり実API/DB/HTTPS複数球、真のoffline再起動、MVP全体は未成立。本人の署名/逐行確認ではない。
