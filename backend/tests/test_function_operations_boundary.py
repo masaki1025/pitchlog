@@ -112,10 +112,22 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """旧RG1/resolver4件と同writer4件の全集合を照合する。"""
+    """既9件とordinary資格2件・限定prefix関数3件の全集合を照合する。"""
     from pitchlog.repositories.first_ball import (
         _BindFirstBallDeviceToken,
         _CheckFirstBallRightToken,
+        _ReadFirstBallDeviceStateToken,
+    )
+    from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+    from pitchlog.repositories.ordinary_pitch_qualification import (
+        BindOrdinaryDeviceToken,
+        CheckOrdinaryRightToken,
+        PrepareOrdinaryProjectionToken,
+    )
+    from pitchlog.repositories.ordinary_prefix_operations import (
+        OrdinaryCheckpointLockToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryHistoryPageToken,
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
@@ -138,6 +150,14 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+        "SYNC_ORDINARY_PITCH:check_ordinary_right",
+        "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+        "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+        "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
@@ -148,6 +168,14 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _CheckFirstBallRightToken,
         _ReadWriterIdentityToken,
         _AssertWriterBindingToken,
+        _ReadFirstBallDeviceStateToken,
+        BindOrdinaryDeviceToken,
+        CheckOrdinaryRightToken,
+        PrepareOrdinaryProjectionToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryCheckpointLockToken,
+        OrdinaryHistoryPageToken,
+        OrdinaryOrderSummaryToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -1979,3 +2007,57 @@ def test_worker_existing_adapter_requires_actual_lookup_owner(change, monkeypatc
             transaction._assert_existing_resolution_owner(
                 handle, context, runtime, owner, bound
             )
+
+
+def test_literal_product_function_bindings_preserve_original_objects() -> None:
+    """静的IDの登録表示へ直しても、実SQL/型/IOの単一源objectをコピーしない。"""
+    from pitchlog.repositories.operation_registry import _registered_product_function
+    from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
+    from pitchlog.repositories.ordinary_pitch_qualification import (
+        ORDINARY_QUALIFICATION_OPERATIONS,
+    )
+    from pitchlog.repositories.ordinary_prefix_operations import (
+        ORDINARY_PREFIX_OPERATIONS,
+    )
+
+    original = (
+        *ORDINARY_QUALIFICATION_OPERATIONS,
+        *ORDINARY_PREFIX_OPERATIONS,
+        *ORDINARY_ORDER_OPERATIONS,
+    )
+    registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[-len(original) :]
+    assert len(registered) == 7
+    assert all(
+        actual is expected
+        for actual, expected in zip(registered, original, strict=True)
+    )
+    with pytest.raises(ValueError, match="静的ID"):
+        _registered_product_function(
+            original[0], operation_id="SYNC_ORDINARY_PITCH:unknown"
+        )
+    with pytest.raises(ValueError, match="静的ID"):
+        _registered_product_function(
+            typing_cast(Any, object()), operation_id=original[0].operation_id
+        )
+
+
+def test_literal_binding_rejects_other_group_and_extra_real_registration() -> None:
+    """別groupの実regや有限ID外の実型も登録窓口へ入れない。"""
+    from types import SimpleNamespace
+
+    from pitchlog.repositories.first_ball import _UNREGISTERED_DECLARATIONS
+    from pitchlog.repositories.operation_registry import _registered_product_function
+
+    actual = _UNREGISTERED_DECLARATIONS[0]
+    with pytest.raises(ValueError):
+        _registered_product_function(
+            actual, operation_id="SYNC_ORDINARY_PITCH:bind_ordinary_device"
+        )
+    with pytest.raises(ValueError):
+        _registered_product_function(
+            typing_cast(Any, SimpleNamespace(operation_id=actual.operation_id)),
+            operation_id=actual.operation_id,
+        )
+    extra = _registration()
+    with pytest.raises(ValueError):
+        _registered_product_function(extra, operation_id=extra.operation_id)

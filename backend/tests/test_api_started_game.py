@@ -36,6 +36,7 @@ from pitchlog.api.schemas.started_games import (
     StartedGameReadResponse,
     StartedPlayRow,
     StartedRecordedGameRead,
+    StartedRecordedPrefixGameRead,
 )
 from pitchlog.domainrt import host as domainrt_host
 from pitchlog.repositories import started_read
@@ -127,7 +128,11 @@ def test_route_is_registered_as_a_tenant_matched_get() -> None:
     assert "started_game_detail" in tenant_access._MATCH_OPERATIONS
     assert route.response_model == StartedGameReadResponse
     union, discriminator = get_args(route.response_model)
-    assert set(get_args(union)) == {StartedGameRead, StartedRecordedGameRead}
+    assert set(get_args(union)) == {
+        StartedGameRead,
+        StartedRecordedGameRead,
+        StartedRecordedPrefixGameRead,
+    }
     assert discriminator.discriminator == "read_kind"
 
 

@@ -1277,6 +1277,130 @@ def test_broker_actual_socket_rejects_eof_extra_and_expired_deadline(kind) -> No
         right.close()
 
 
+@pytest.mark.parametrize(
+    "kind,delay,budget,failure",
+    [
+        ("start", 3.0, 10.0, None),
+        ("enroll", 3.0, 2.0, "timeout"),
+        ("resolve", 3.0, 2.0, "timeout"),
+        ("start", 10.0, 10.0, "timeout"),
+        ("start", 0.1, 10.0, "early_eof"),
+        ("start", 0.1, 10.0, "extra"),
+    ],
+)
+def test_broker_client_uses_one_operation_deadline_through_partial_response(
+    monkeypatch, kind, delay, budget, failure
+) -> None:
+    """実call/codec/peer/受信を通し、固定時計で部分受信と総期限を検査する。"""
+    import struct
+
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    start = _transport_start()
+    command = (
+        b._EnrollDeviceCommand(start.identity)
+        if kind == "enroll"
+        else b._ResolveStartCommand(start)
+        if kind == "resolve"
+        else start
+    )
+    reply = b._BrokerReply("unavailable" if kind == "enroll" else "unresolved")
+    wire = b._encode_initial_reply(command, reply)
+    chunks = [wire[:2], wire[2:4], wire[4:], b""]
+    if failure == "early_eof":
+        chunks = [wire[:2], b""]
+    elif failure == "extra":
+        chunks[-1] = b"x"
+    clock = [100.0]
+    timeouts: list[float] = []
+    deadlines: list[float] = []
+    events: list[str] = []
+
+    class Channel:
+        """socket期限に従う一回通信を、実時間を待たずに供給する。"""
+
+        def __enter__(self):
+            events.append("open")
+            return self
+
+        def __exit__(self, *_):
+            events.append("close")
+
+        def settimeout(self, value):
+            timeouts.append(value)
+            deadlines.append(clock[0] + value)
+
+        def connect(self, path):
+            assert path == "/owned/initial.sock"
+            events.append("connect")
+            clock[0] += 0.25
+
+        def getsockopt(self, *_):
+            events.append("peer")
+            return struct.pack("3i", 123, 20002, 20002)
+
+        def sendall(self, frame):
+            assert frame == b._encode_initial_command(command)
+            events.append("send")
+            clock[0] += 0.25
+
+        def shutdown(self, _):
+            events.append("shutdown")
+
+        def recv(self, wanted):
+            wait = delay if len(chunks) == 4 else 0.1
+            if wait >= timeouts[-1]:
+                clock[0] += timeouts[-1]
+                raise TimeoutError
+            clock[0] += wait
+            part = chunks.pop(0)
+            assert len(part) <= wanted
+            return part
+
+    endpoint = b._BrokerEndpoint(Path("/owned/initial.sock"), 1, 2, 20003)
+    monkeypatch.setattr(b, "_load_broker_endpoint", lambda: endpoint)
+    monkeypatch.setattr(b, "_check_broker_socket", lambda _: events.append("socket"))
+    monkeypatch.setattr(b, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(b.socket, "socket", lambda *_: Channel())
+    client = b._InitialBrokerClient()
+    if failure is None:
+        assert client.call(command) == reply
+        assert not chunks
+        assert clock[0] > 102.0
+    else:
+        with pytest.raises(b.InitialBrokerUnavailable):
+            client.call(command)
+    assert timeouts[0] == budget
+    assert deadlines == pytest.approx([100.0 + budget] * len(deadlines))
+    assert all(0 < value <= budget for value in timeouts)
+    assert all(a > z for a, z in zip(timeouts, timeouts[1:], strict=False))
+    assert events == [
+        "socket",
+        "open",
+        "connect",
+        "peer",
+        "socket",
+        "send",
+        "shutdown",
+        "close",
+    ]
+
+
+def test_broker_client_rejects_changed_start_before_opening_socket(monkeypatch) -> None:
+    """開始待機の延長も閉codec拒否を迂回せず、送信や再試行を起こさない。"""
+    from pitchlog.recording_rights import initial_grant_broker as b
+
+    command = _transport_start()
+    object.__setattr__(command.payload.away[0], "batting_order", True)
+    endpoint = b._BrokerEndpoint(Path("/owned/initial.sock"), 1, 2, 20003)
+    monkeypatch.setattr(b, "_load_broker_endpoint", lambda: endpoint)
+    monkeypatch.setattr(
+        b.socket, "socket", lambda *_: pytest.fail("codec拒否後にsocketを作らない")
+    )
+    with pytest.raises(b.InitialBrokerUnavailable):
+        b._InitialBrokerClient().call(command)
+
+
 def test_broker_endpoint_and_client_fail_closed_without_root_supply(
     tmp_path, monkeypatch
 ) -> None:

@@ -229,7 +229,7 @@ with tenant_transaction_scope(context) as tx:
   {foreign_grant["epoch"]},bytes.fromhex('{foreign_grant["proof_digest"]}'))).rows==((True,True),)
  assert tx.run(IdempotencyLedgerInsertToken(d5,'accepted',fp,'{{}}')).rows==((1,),)
  assert tx.run(EventSlotInsertToken(a.game_id,a.internal_generation,1)).rows==((1,),)
- assert tx.run(OperationEventInsertToken(event_id,a.game_id,d5,'play_input','{{}}',
+ assert tx.run(OperationEventInsertToken(event_id,a.game_id,d5,'play_input','{{"formatVersion":"first-ball-play-v1"}}',
   a.internal_generation,1,1,'{{}}')).rows==((1,),)
  value=FirstBallPlayRowInsertToken(row_id,a.game_id,event_id,a.internal_generation,
   1,1,d5,fp,UUID('{foreign_players[0]}'),UUID('{foreign_players[1]}'),
@@ -309,7 +309,7 @@ try:
   assert tx.run(EventSlotInsertToken(
    attempt.game_id,attempt.internal_generation,1)).rows==((1,),)
   assert tx.run(OperationEventInsertToken(
-   event_id,attempt.game_id,d5,'play_input','{{}}',
+   event_id,attempt.game_id,d5,'play_input','{{"formatVersion":"first-ball-play-v1"}}',
    attempt.internal_generation,1,1,'{{}}')).rows==((1,),)
   if MODE=='other-d5': value=replace(value,d5=uuid4())
   elif MODE=='other-tenant':

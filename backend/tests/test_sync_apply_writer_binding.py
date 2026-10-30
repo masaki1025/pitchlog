@@ -650,6 +650,31 @@ def test_void_adapter_preserves_every_other_registered_function():
             "4122d688347d16207dbe0129eee860404763b4c2f3fa6dd4ef52d3a20fa74169"
         ),
     }
+    expected.update(
+        {
+            "SYNC_ORDINARY_PITCH:read_ordinary_order_summary": (
+                "9fe964ac9acdc55affd49aeec9af7e5bfdf9d7423cb7f40e05964ce04901ae0a"
+            ),
+            "SYNC_ORDINARY_PITCH:bind_ordinary_device": (
+                "62979ada626c6a44ba564a67b172c82592939c0add19aa32c5c9b9aa1f71ba8f"
+            ),
+            "SYNC_ORDINARY_PITCH:check_ordinary_right": (
+                "81a812e044a95a1da0ec1032e269f6bd9a8748a0267376577629790a5362d901"
+            ),
+            "SYNC_ORDINARY_PITCH:prepare_ordinary_projection": (
+                "8fea7cdc1033a5db6bce8b5e4a96b8d5b4ddddba57b76b6709c3520c88bcc313"
+            ),
+            "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint": (
+                "fe353fa7741a11b5654f7a0ddab87faf1138fc45ea67c527c591202221fb7d2c"
+            ),
+            "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint": (
+                "9109e453e8aa0cc6011444c735d5d59a4b73a3abfce6725558d298abf797fdee"
+            ),
+            "SYNC_ORDINARY_PITCH:read_ordinary_history_page": (
+                "3e80687f6ebbf0f09c830534fa40e5a78ccb3fea4cd5d1b0396a2ab59a05494d"
+            ),
+        }
+    )
     dialect = postgresql.dialect()
     actual = {}
     registrations = (

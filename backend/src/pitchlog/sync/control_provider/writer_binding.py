@@ -143,6 +143,8 @@ class _LiveWriterBinding:
             )
             if (
                 snapshot["tenant_id"] != str(context.tenant_id)
+                or (phase.d1 != 1 and snapshot.get("source_d1") != phase.d1)
+                or (phase.d1 == 1 and "source_d1" in snapshot)
                 or actual != phase_wire
                 or value.origin != "e1"
                 or value.request_fingerprint != actual["request_fingerprint"]

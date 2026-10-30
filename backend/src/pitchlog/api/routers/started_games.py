@@ -1,9 +1,10 @@
 """開始済み試合の保存値をtenant限定で再取得する。"""
 
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 
 from pitchlog.api.schemas.started_games import (
     StartedGameRead,
@@ -13,9 +14,14 @@ from pitchlog.api.schemas.started_games import (
     StartedLineups,
     StartedPlayRow,
     StartedRecordedGameRead,
+    StartedRecordedPrefixGameRead,
 )
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.ordinary_prefix_read import (
+    OrdinaryPrefixView,
+    read_ordinary_prefix,
+)
 from pitchlog.repositories.recorded_snapshot_operations import (
     RECORDED_PLAY_ROW_COLUMNS,
 )
@@ -135,11 +141,37 @@ def _read_recorded(view: StartedRecordedView) -> StartedRecordedGameRead:
 def read_started_game_detail(
     game_id: UUID,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
-) -> StartedGameRead | StartedRecordedGameRead:
+    projection: Literal["ordinary-prefix-v1"] | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    cursor: Annotated[str | None, Query(min_length=1, max_length=2048)] = None,
+) -> StartedGameRead | StartedRecordedGameRead | Response:
     """不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。"""
     try:
         with tenant_transaction_scope(context) as scope:
-            result = read_started_game(scope, game_id)
+            if projection == "ordinary-prefix-v1":
+                prefix = read_ordinary_prefix(
+                    scope, game_id, limit=limit, cursor=cursor
+                )
+                if type(prefix) is OrdinaryPrefixView:
+                    metadata = _read(prefix.metadata).model_dump(
+                        mode="python", by_alias=True
+                    )
+                    value = StartedRecordedPrefixGameRead.model_validate(
+                        {
+                            **metadata,
+                            "read_kind": "recorded-prefix",
+                            **prefix.projection,
+                        }
+                    )
+                    # 未提示History軸をnull補完しない。旧応答serializerは不変。
+                    return Response(
+                        value.model_dump_json(by_alias=True, exclude_unset=True),
+                        media_type="application/json",
+                    )
+                result = prefix
+                item = None
+            else:
+                result = read_started_game(scope, game_id)
             if type(result) is StartedGameView:
                 item: StartedGameRead | StartedRecordedGameRead | None = _read(result)
             elif type(result) is StartedRecordedView:

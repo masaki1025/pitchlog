@@ -2910,6 +2910,8 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/domain/test_boot_seal.py",
             "tests/test_ci_wiring.py",
             "tests/test_plan_generation.py",
+            "backend/tests/test_api_conventions.py",
+            "tests/test_check_authz_catalog.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
@@ -8423,7 +8425,7 @@ def test_rg1_owned_condition2_requires_each_source_path_and_occurrence() -> None
         checker.RG1_CONDITION2_OWNER_PATHS
     )
     assert len(contract.condition2_scoped_findings) == 47
-    assert len(contract.ledger_condition2_findings) == 17
+    assert len(contract.ledger_condition2_findings) == 20
     for owner in contract.rg1_condition2_owners:
         relative = owner.path.removeprefix("backend/src/")
         source = _rg1_registered_source(owner)
@@ -8641,7 +8643,7 @@ def test_ledger_current_adapter_exact_profile_and_shift_are_distinguished() -> N
     contract = checker.load_contract(REPOSITORY_ROOT)
     source = (REPOSITORY_ROOT / checker.LEDGER_CONDITION2_PATH).read_text()
     path = checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
-    assert len(contract.ledger_condition2_findings) == 17
+    assert len(contract.ledger_condition2_findings) == 20
     assert not [row for row in checker.scan_source(source, path=path, contract=contract)
                 if row.code == "TB002"]
     shifted = checker.scan_source("\n" + source, path=path, contract=contract)
@@ -8680,53 +8682,111 @@ def test_fixed_function_binary_bind_rejects_altered_body(replacement: str) -> No
     }
 
 
-# PO委任による限定受理2e8a816fの7path/51組(path/行/記号/scope)を、
+# PO委任による限定受理2e8a816fの7path/49組(path/行/記号/scope)を、
 # 製品scannerと独立した固定値で比較する。
 # 実sourceのSHA-256は本定数に持たない(*.pyへ64桁を直書きしない — 凍結基準の走査規則・7.7-1)。
 # 宣言のSHAは実source byteと突き合わせる
 # (test_initial_start_condition2_digests_pin_actual_source)。
-_INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas/game_start.py',
-  'findings': [{'line': 189,
+_INITIAL_START_CONDITION2_REVIEWED = [
+    {
+        'path': 'backend/src/pitchlog/api/schemas/game_start.py',
+        'findings': [
+            {
+                'line': 189,
                 'symbol': 'str',
-                'scope': 'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'}]},
- {'path': 'backend/src/pitchlog/authz/capability_catalog.py',
-  'findings': [{'line': 180,
+                'scope': (
+                    'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'
+                ),
+            },
+        ],
+    },
+    {
+        'path': 'backend/src/pitchlog/authz/capability_catalog.py',
+        'findings': [
+            {
+                'line': 180,
                 'symbol': 'generation',
-                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile'},
-               {'line': 183,
+                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile',
+            },
+            {
+                'line': 183,
                 'symbol': 'generation',
-                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile'}]},
- {'path': 'backend/src/pitchlog/authz/product_function_acl.py',
-  'findings': [{'line': 157,
-                'symbol': 'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
-                'scope': 'pitchlog.authz.product_function_acl.generate_product_function_acl_sql'},
-               {'line': 2585,
+                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile',
+            },
+        ],
+    },
+    {
+        'path': 'backend/src/pitchlog/authz/product_function_acl.py',
+        'findings': [
+            {
+                'line': 177,
+                'symbol': (
+                    'pitchlog.authz.product_function_acl.generate_generation_guard_sql'
+                ),
+                'scope': (
+                    'pitchlog.authz.product_function_acl.generate_product_function_acl'
+                    '_sql'
+                ),
+            },
+            {
+                'line': 2614,
                 'symbol': 'generate_generation_guard_sql',
-                'scope': 'pitchlog.authz.product_function_acl.<module>'}]},
- {'path': 'backend/src/pitchlog/db/recording_rights/models.py',
-  'findings': [{'line': 66,
+                'scope': 'pitchlog.authz.product_function_acl.<module>',
+            },
+        ],
+    },
+    {
+        'path': 'backend/src/pitchlog/db/recording_rights/models.py',
+        'findings': [
+            {
+                'line': 66,
                 'symbol': 'sqlalchemy.orm.Mapped',
-                'scope': 'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>'},
-               {'line': 194,
+                'scope': 'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>',
+            },
+            {
+                'line': 194,
                 'symbol': 'RecordingGeneration',
-                'scope': 'pitchlog.db.recording_rights.models.<module>'},
-               {'line': 267,
+                'scope': 'pitchlog.db.recording_rights.models.<module>',
+            },
+            {
+                'line': 267,
                 'symbol': 'sqlalchemy.orm.Mapped',
-                'scope': 'pitchlog.db.recording_rights.models.RecordingGeneration.<module>'},
-               {'line': 567,
+                'scope': (
+                    'pitchlog.db.recording_rights.models.RecordingGeneration.<module>'
+                ),
+            },
+            {
+                'line': 567,
                 'symbol': 'sqlalchemy.orm.Mapped',
-                'scope': 'pitchlog.db.recording_rights.models.RecordingRightDelivery.<module>'}]},
- {'path': 'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
-  'findings': [{'line': 35,
+                'scope': (
+                    'pitchlog.db.recording_rights.models.RecordingRightDelivery.<modul'
+                    'e>'
+                ),
+            },
+        ],
+    },
+    {
+        'path': 'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
+        'findings': [
+            {
+                'line': 35,
                 'symbol': 'DurableGenerationSource',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 35,
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 35,
                 'symbol': 'assert_write_recovery_generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 326,
-                'symbol': 'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 405,
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 327,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
+                ),
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 406,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
                     'eration'
@@ -8734,8 +8794,10 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
                     'nt_impl'
-                )},
-               {'line': 406,
+                ),
+            },
+            {
+                'line': 407,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'
@@ -8743,44 +8805,70 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
                     'nt_impl'
-                )},
-               {'line': 430,
-                'symbol': 'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 445,
-                'symbol': 'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 485,
+                ),
+            },
+            {
+                'line': 431,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
+                ),
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 446,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
+                ),
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 487,
                 'symbol': 'generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 490,
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 494,
                 'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4'},
-               {'line': 491,
-                'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4'},
-               {'line': 494,
-                'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4'},
-               {'line': 498,
+                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4',
+            },
+            {
+                'line': 499,
                 'symbol': '_broker_generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>'},
-               {'line': 512,
+                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
+            },
+            {
+                'line': 513,
                 'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_generation'},
-               {'line': 516,
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
+                ),
+            },
+            {
+                'line': 517,
                 'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_generation'},
-               {'line': 522,
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
+                ),
+            },
+            {
+                'line': 523,
                 'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_generation'},
-               {'line': 806,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
+                ),
+            },
+            {
+                'line': 807,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrant.generation'
+                ),
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
                     'response'
-                )},
-               {'line': 807,
+                ),
+            },
+            {
+                'line': 808,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'
@@ -8788,109 +8876,211 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
                     'response'
-                )},
-               {'line': 807,
+                ),
+            },
+            {
+                'line': 808,
                 'symbol': 'recovery_generation',
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
                     'response'
-                )},
-               {'line': 931,
-                'symbol': 'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._decode_initial_reply'},
-               {'line': 1462,
+                ),
+            },
+            {
+                'line': 932,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
+                ),
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._decode_initial_re'
+                    'ply'
+                ),
+            },
+            {
+                'line': 1470,
                 'symbol': 'pitchlog.sync.idempotency',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'},
-               {'line': 1519,
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
+                    'art'
+                ),
+            },
+            {
+                'line': 1527,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
                     'eration'
                 ),
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'},
-               {'line': 1520,
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
+                    'art'
+                ),
+            },
+            {
+                'line': 1528,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'
                 ),
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start'}]},
- {'path': 'backend/src/pitchlog/repositories/game_start.py',
-  'findings': [{'line': 23,
+                'scope': (
+                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
+                    'art'
+                ),
+            },
+        ],
+    },
+    {
+        'path': 'backend/src/pitchlog/repositories/game_start.py',
+        'findings': [
+            {
+                'line': 23,
                 'symbol': 'pitchlog.sync.idempotency',
-                'scope': 'pitchlog.repositories.game_start.<module>'}]},
- {'path': 'backend/src/pitchlog/repositories/initial_recording_right.py',
-  'findings': [{'line': 47,
+                'scope': 'pitchlog.repositories.game_start.<module>',
+            },
+        ],
+    },
+    {
+        'path': 'backend/src/pitchlog/repositories/initial_recording_right.py',
+        'findings': [
+            {
+                'line': 47,
                 'symbol': '_positive_generation',
-                'scope': 'pitchlog.repositories.initial_recording_right.<module>'},
-               {'line': 158,
+                'scope': 'pitchlog.repositories.initial_recording_right.<module>',
+            },
+            {
+                'line': 158,
                 'symbol': 'int',
                 'scope': (
                     'pitchlog.repositories.initial_recording_right._CheckBusinessEpoch'
                     'Token.<module>'
-                )},
-               {'line': 174,
+                ),
+            },
+            {
+                'line': 174,
                 'symbol': 'int',
                 'scope': (
                     'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
                     'Token.<module>'
-                )},
-               {'line': 175,
+                ),
+            },
+            {
+                'line': 175,
                 'symbol': 'int',
                 'scope': (
                     'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
                     'Token.<module>'
-                )},
-               {'line': 264,
-                'symbol': 'pitchlog.repositories.initial_recording_right._positive_generation',
-                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
-               {'line': 276,
+                ),
+            },
+            {
+                'line': 264,
+                'symbol': (
+                    'pitchlog.repositories.initial_recording_right._positive_generatio'
+                    'n'
+                ),
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                    'ult'
+                ),
+            },
+            {
+                'line': 276,
                 'symbol': 'int',
-                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
-               {'line': 278,
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                    'ult'
+                ),
+            },
+            {
+                'line': 278,
                 'symbol': 'int',
-                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
-               {'line': 279,
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                    'ult'
+                ),
+            },
+            {
+                'line': 279,
                 'symbol': 'int',
-                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
-               {'line': 279,
-                'symbol': 'pitchlog.repositories.initial_recording_right._positive_generation',
-                'scope': 'pitchlog.repositories.initial_recording_right._decode_initial_result'},
-               {'line': 466,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                    'ult'
+                ),
+            },
+            {
+                'line': 279,
+                'symbol': (
+                    'pitchlog.repositories.initial_recording_right._positive_generatio'
+                    'n'
+                ),
+                'scope': (
+                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
+                    'ult'
+                ),
+            },
+            {
+                'line': 466,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                    'tion'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.__init__'
-                )},
-               {'line': 559,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                ),
+            },
+            {
+                'line': 559,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                    'tion'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.lock_valid_device'
-                )},
-               {'line': 593,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                ),
+            },
+            {
+                'line': 593,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                    'tion'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope._record'
-                )},
-               {'line': 666,
+                ),
+            },
+            {
+                'line': 666,
                 'symbol': 'assert_recovery_generation',
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.<module>'
-                )},
-               {'line': 669,
-                'symbol': 'pitchlog.repositories.initial_recording_right._positive_generation',
+                ),
+            },
+            {
+                'line': 669,
+                'symbol': (
+                    'pitchlog.repositories.initial_recording_right._positive_generatio'
+                    'n'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.assert_recovery_generation'
-                )},
-               {'line': 700,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                ),
+            },
+            {
+                'line': 700,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                    'tion'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.insert_initial_grant'
-                )},
-               {'line': 701,
+                ),
+            },
+            {
+                'line': 701,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
                     'ry_generation'
@@ -8898,14 +9088,21 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.insert_initial_grant'
-                )},
-               {'line': 715,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                ),
+            },
+            {
+                'line': 715,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                    'tion'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.insert_initial_grant'
-                )},
-               {'line': 716,
+                ),
+            },
+            {
+                'line': 716,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
                     'ry_generation'
@@ -8913,13 +9110,22 @@ _INITIAL_START_CONDITION2_REVIEWED = [{'path': 'backend/src/pitchlog/api/schemas
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.insert_initial_grant'
-                )},
-               {'line': 725,
-                'symbol': 'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+                ),
+            },
+            {
+                'line': 725,
+                'symbol': (
+                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
+                    'tion'
+                ),
                 'scope': (
                     'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
                     'htScope.insert_initial_grant'
-                )}]}]
+                ),
+            },
+        ],
+    },
+]
 
 
 @pytest.fixture(scope="module")
@@ -8941,7 +9147,7 @@ def _initial_start_declared_digests() -> dict[str, str]:
 
 
 def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
-    """開始7path/51組だけを追加し、既所有と受理履歴を置換しない。
+    """開始7path/49組だけを追加し、既所有と受理履歴を置換しない。
 
     宣言のsource SHAは本testでは比較しない(*.pyに64桁を持たない)。実source byteとの
     一致は test_initial_start_condition2_digests_pin_actual_source が固定する。
@@ -8953,9 +9159,9 @@ def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
     ] == _INITIAL_START_CONDITION2_REVIEWED
     contract = checker.load_contract(REPOSITORY_ROOT)
     assert len(contract.initial_start_condition2_owners) == 7
-    assert sum(len(row.findings) for row in contract.initial_start_condition2_owners) == 51
+    assert sum(len(row.findings) for row in contract.initial_start_condition2_owners) == 49
     assert len(contract.condition2_scoped_findings) == 47
-    assert len(contract.ledger_condition2_findings) == 17
+    assert len(contract.ledger_condition2_findings) == 20
     assert len(contract.rg1_condition2_owners) == 2
     assert all(len(row.findings) == 1 for row in contract.rg1_condition2_owners)
     assert value["condition_2_scoped_findings"] == _accepted_initial_condition2(REPOSITORY_ROOT)
@@ -9056,7 +9262,7 @@ def test_initial_start_condition2_rejects_nonexact_declaration(mutation: str) ->
 def test_initial_start_condition2_filters_exact_source_scope_only(
     profile: dict[str, Any], initial_start_condition2_snapshot: tuple[dict[str, str], Any]
 ) -> None:
-    """実sourceの有限51組だけを除外し、旧6行・他条件・copy・追加処理を残す。"""
+    """実sourceの有限49組だけを除外し、旧6行・他条件・copy・追加処理を残す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     sources, reexports = initial_start_condition2_snapshot
     path = profile["path"].removeprefix("backend/src/")
@@ -9219,3 +9425,142 @@ def test_recording_generation_u3_registration_exempts_only_declared_class_row() 
     assert declared <= raw
     assert live == raw - declared
     assert {line for line, _symbol, _scope in live} == {305, 306, 307}
+
+
+def test_ordinary_insert_window_keeps_exact_symbol_and_insert_only() -> None:
+    """通常投影の一窓口だけを許し、同窓口の別API/別名を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/repositories/ordinary_pitch_operations.py"
+    source = (
+        "from sqlalchemy import insert, select, text\n"
+        "from sqlalchemy.sql.dml import Insert\n"
+        "def _ordinary_play_row_insert_statement() -> Insert:\n"
+        "    return insert(1)\n"
+    )
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    for mutation, forbidden in (
+        (source.replace("return insert(1)", "return select(1)"), "sqlalchemy.select"),
+        (source.replace("return insert(1)", "return text('SELECT 1')"), "sqlalchemy.text"),
+        (
+            source.replace("def _ordinary_play_row_insert_statement", "def unregistered_insert"),
+            "sqlalchemy.insert",
+        ),
+    ):
+        violations = checker.scan_source(mutation, path=path, contract=contract)
+        assert {(item.code, item.symbol) for item in violations} == {("TB005", forbidden)}
+
+
+@pytest.mark.parametrize(
+    "mutation", ["normal", "float", "text", "dynamic-schema", "unknown-function"]
+)
+def test_fixed_bigint_shape_is_exact_and_does_not_open_other_sql(mutation: str) -> None:
+    """実採用BigInt形のみを追加し、Float/任意SQL/未知枝を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/function_operations.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text(encoding="utf-8")
+    if mutation == "float":
+        source = source.replace("type_=BigInteger()", "type_=Float()", 1)
+    elif mutation == "text":
+        source = source.replace("type_=BigInteger()", "type_=String()", 1)
+    elif mutation == "dynamic-schema":
+        source = source.replace('schema == "sync_right_api"', "True", 1)
+    elif mutation == "unknown-function":
+        source = source.replace('{"check_current_right", "check_ordinary_right"}',
+                                '{"check_current_right", "free_function"}', 1)
+    violations = checker.scan_source(source, path=relative, contract=contract)
+    if mutation == "normal":
+        assert violations == []
+    else:
+        expected = (
+            "TB005", "pitchlog.repositories.function_operations._build_fixed_function_statement"
+        )
+        assert expected in {
+            (item.code, item.symbol) for item in violations
+        }
+
+
+@pytest.mark.parametrize("mutation", ["star", "dynamic-id", "extra-id"])
+def test_product_function_literal_surface_still_rejects_unknown_expansion(
+    tmp_path: Path, mutation: str
+) -> None:
+    """directCall正準化後も未知star/動的ID/余剰登録の拒否を維持する。"""
+    module_root = tmp_path / "backend/src/pitchlog/repositories"
+    module_root.mkdir(parents=True)
+    for name in ("function_operations.py", "operation_registry.py", "transaction.py"):
+        shutil.copyfile(REPOSITORY_ROOT / "backend/src/pitchlog/repositories" / name,
+                        module_root / name)
+    path = module_root / "operation_registry.py"
+    tree = ast.parse(path.read_text())
+    assignment = next(node for node in tree.body if isinstance(node, ast.AnnAssign)
+                      and isinstance(node.target, ast.Name)
+                      and node.target.id == "PRODUCT_FUNCTION_OPERATIONS")
+    assert isinstance(assignment.value, ast.Tuple)
+    last = assignment.value.elts[-1]
+    assert isinstance(last, ast.Call)
+    if mutation == "star":
+        assignment.value.elts[-1] = ast.Starred(
+            value=ast.Name(id="UNKNOWN_GROUP", ctx=ast.Load()), ctx=ast.Load()
+        )
+    elif mutation == "dynamic-id":
+        keyword = next(item for item in last.keywords if item.arg == "operation_id")
+        keyword.value = ast.Name(id="dynamic_id", ctx=ast.Load())
+    else:
+        assignment.value.elts.append(copy.deepcopy(last))
+    path.write_text(ast.unparse(ast.fix_missing_locations(tree)))
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json").read_text()
+    )
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(tmp_path, asset)
+
+
+@pytest.mark.parametrize(("name", "signature", "apis"), [
+    ("_apply_initial_storage", "_apply_initial_storage(owner_dsn: str) -> None",
+     frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"})),
+    ("_require_initial_state", "_require_initial_state(applicator_dsn: str) -> None",
+     frozenset({"PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
+    ("_check_writer_storage", "_check_writer_storage(connection: Any, revision: str) -> None",
+     frozenset({"PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
+    ("_apply_writer_storage", "_apply_writer_storage(owner_dsn: str) -> None",
+     frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN",
+                "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
+    ("_require_writer_state", "_require_writer_state(applicator_dsn: str) -> None",
+     frozenset({"PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
+])
+def test_initial_writer_startup_registration_is_exact_and_required(
+    name: str, signature: str, apis: frozenset[str],
+) -> None:
+    """既5helperの署名/APIだけを許し、欠落・別署名・余分APIは拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    symbol = "pitchlog.db.stage_a_startup." + name
+    selected = [row for row in contract.allowed_symbols if row.symbol == symbol]
+    assert len(selected) == 1
+    assert selected[0].signature == signature
+    assert selected[0].allowed_api_ids == apis
+    path = "pitchlog/db/stage_a_startup.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    for replacement in (None, replace(selected[0], signature=signature + "_invalid")):
+        rows = tuple(row for row in contract.allowed_symbols if row.symbol != symbol)
+        if replacement is not None:
+            rows = (*rows, replacement)
+        violations = checker.scan_source(
+            source, path=path, contract=replace(contract, allowed_symbols=rows),
+        )
+        assert any(v.code == "TB005" and v.scope == symbol for v in violations)
+    tree = ast.parse(source)
+    target = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
+    target.body.append(ast.parse('cursor.executemany("SELECT 1", [])').body[0])
+    changed = ast.unparse(tree)
+    assert any(v.code == "TB005" and v.scope == symbol for v in checker.scan_source(
+        changed, path=path, contract=contract,
+    ))
+
+
+def test_private_binding_name_does_not_allow_sql_session_prepare() -> None:
+    """内部用途名へ改めてもSession.prepareの保守的拒否は維持する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    source = "def unknown(value):\n    value.prepare()\n"
+    violations = checker.scan_source(source, path="pitchlog/unknown.py", contract=contract)
+    assert any(v.code == "TB005" and v.symbol == "sqlalchemy.orm.Session.prepare"
+               for v in violations)

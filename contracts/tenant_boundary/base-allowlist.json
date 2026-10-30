@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 40,
+  "contract_revision": 41,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:40"
+        "contract_revision:41"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -30495,7 +30495,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "84cebac79a24607d0b36565ecdccfe909cf304e282f851fc2af8bab40a789c83"
+    "sha256": "77d6b9a65c1e6f6e1273d4c8a26b471b06bf39517cae078ad7cca7e646b8e111"
   },
   "allowed_symbols": [
     {
@@ -30917,6 +30917,63 @@
         "SQLA_SELECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/pitch_type_options_allowed/_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.ordinary_pitch_operations._ordinary_play_row_insert_statement",
+      "signature": "_ordinary_play_row_insert_statement() -> Insert",
+      "allowed_api_ids": [
+        "SQLA_INSERT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/ordinary_pitch_operations_allowed/_ordinary_play_row_insert_statement.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._apply_initial_storage",
+      "signature": "_apply_initial_storage(owner_dsn: str) -> None",
+      "allowed_api_ids": [
+        "SQLA_CREATE_ENGINE",
+        "SQLA_ENGINE_BEGIN"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_initial_storage.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_initial_state",
+      "signature": "_require_initial_state(applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_initial_state.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._check_writer_storage",
+      "signature": "_check_writer_storage(connection: Any, revision: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_check_writer_storage.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._apply_writer_storage",
+      "signature": "_apply_writer_storage(owner_dsn: str) -> None",
+      "allowed_api_ids": [
+        "SQLA_CREATE_ENGINE",
+        "SQLA_ENGINE_BEGIN",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_writer_storage.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_writer_state",
+      "signature": "_require_writer_state(applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_writer_state.py"
     }
   ],
   "conditions": [
@@ -31213,7 +31270,7 @@
   },
   "condition_2_ledger_scoped_findings": {
     "path": "backend/src/pitchlog/durable_rights_ledger/adapter.py",
-    "source_sha256": "4d1cc4c5c955a5bdcc5d459583a7a8b8b9d9923375c5e86393d013ab42941c2e",
+    "source_sha256": "2e1a103ffab9b862358ec28d67c26e68fa70904b4de4971048918b56263aa316",
     "findings": [
       {
         "line": 21,
@@ -31252,42 +31309,54 @@
         "symbol": "current_recovery_generation"
       },
       {
-        "line": 1212,
-        "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation"
-      },
-      {
-        "line": 1247,
+        "line": 1075,
         "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
       },
       {
-        "line": 1448,
+        "line": 1384,
+        "symbol": "pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation"
+      },
+      {
+        "line": 1419,
+        "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
+      },
+      {
+        "line": 1501,
+        "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
+      },
+      {
+        "line": 1544,
+        "symbol": "pitchlog.durable_rights_ledger.adapter._RemoteFence.generation"
+      },
+      {
+        "line": 1741,
         "symbol": "generation"
       },
       {
-        "line": 1462,
+        "line": 1755,
         "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource"
       },
       {
-        "line": 1500,
+        "line": 1793,
         "symbol": "current_recovery_generation"
       },
       {
-        "line": 1508,
+        "line": 1801,
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
       },
       {
-        "line": 1525,
+        "line": 1818,
         "symbol": "pitchlog.recording_rights.initial_grant.ReservedGeneration"
       },
       {
-        "line": 1545,
+        "line": 1838,
         "symbol": "advance_recovery_generation"
       }
     ]
   },
   "ledger_deployment_assets": {
     "backend/src/pitchlog/durable_rights_ledger/business_identity.sql": "a3218c0484dcdc765b4c8bdb71ab98dd63ab10e98c39f370f1127dbb4f091beb",
-    "backend/src/pitchlog/durable_rights_ledger/manifest.json": "8b4b1101c891affadb20ef5e38d629ff36705ee65108df97dec66da1d5664ca8",
+    "backend/src/pitchlog/durable_rights_ledger/manifest.json": "865e9cdcb14e84b61814f91f741d3b154a9334ad4b5137630df239ceee94a46a",
     "backend/src/pitchlog/durable_rights_ledger/schema.sql": "fdbc4b159895fc13020a5147f48ef1010420f2c4b65a4bc96f80cd3e28a7c5fe"
   },
   "rg1_deployment_assets": {
@@ -31344,15 +31413,15 @@
     },
     {
       "path": "backend/src/pitchlog/authz/product_function_acl.py",
-      "source_sha256": "89f6678f4ede2fed9a5954758b08160084894671b61388e80e75b5d4be612478",
+      "source_sha256": "1f81421c7d3c22591bd1c7dbab4814b06ab2e524cfc6292653ec8c1bb5d56607",
       "findings": [
         {
-          "line": 157,
+          "line": 177,
           "symbol": "pitchlog.authz.product_function_acl.generate_generation_guard_sql",
           "scope": "pitchlog.authz.product_function_acl.generate_product_function_acl_sql"
         },
         {
-          "line": 2585,
+          "line": 2614,
           "symbol": "generate_generation_guard_sql",
           "scope": "pitchlog.authz.product_function_acl.<module>"
         }
@@ -31386,7 +31455,7 @@
     },
     {
       "path": "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
-      "source_sha256": "5cadb52a5c1a75684b70b4fbed962fe8b42d78cc056b0d3777f5a1113db9489f",
+      "source_sha256": "31d740cce24a9bbeba7e5e4bd83d3d760df6533d8b411d22700dce686e06f519",
       "findings": [
         {
           "line": 35,
@@ -31399,44 +31468,34 @@
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 326,
+          "line": 327,
           "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 405,
+          "line": 406,
           "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._issue_initial_grant_impl"
         },
         {
-          "line": 406,
+          "line": 407,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._issue_initial_grant_impl"
         },
         {
-          "line": 430,
+          "line": 431,
           "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 445,
+          "line": 446,
           "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 485,
+          "line": 487,
           "symbol": "generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
-        },
-        {
-          "line": 490,
-          "symbol": "int",
-          "scope": "pitchlog.recording_rights.initial_grant_broker._broker_d4"
-        },
-        {
-          "line": 491,
-          "symbol": "int",
-          "scope": "pitchlog.recording_rights.initial_grant_broker._broker_d4"
         },
         {
           "line": 494,
@@ -31444,57 +31503,57 @@
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_d4"
         },
         {
-          "line": 498,
+          "line": 499,
           "symbol": "_broker_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 512,
+          "line": 513,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
         },
         {
-          "line": 516,
+          "line": 517,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
         },
         {
-          "line": 522,
+          "line": 523,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
         },
         {
-          "line": 806,
+          "line": 807,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
         },
         {
-          "line": 807,
+          "line": 808,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
         },
         {
-          "line": 807,
+          "line": 808,
           "symbol": "recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
         },
         {
-          "line": 931,
+          "line": 932,
           "symbol": "pitchlog.recording_rights.initial_grant_broker._broker_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._decode_initial_reply"
         },
         {
-          "line": 1462,
+          "line": 1470,
           "symbol": "pitchlog.sync.idempotency",
           "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
         },
         {
-          "line": 1519,
+          "line": 1527,
           "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
         },
         {
-          "line": 1520,
+          "line": 1528,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
         }
@@ -31612,5 +31671,107 @@
         }
       ]
     }
-  ]
+  ],
+  "condition_2_ordinary_scoped_findings": [
+    {
+      "path": "backend/src/pitchlog/repositories/ordinary_pitch_operations.py",
+      "source_sha256": "df826c7ffeb4bf0535a2a70d06025bc9c1970633697bd65b16cb578dfd84810d",
+      "findings": [
+        {
+          "line": 15,
+          "symbol": "IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations.<module>"
+        },
+        {
+          "line": 25,
+          "symbol": "IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations.<module>"
+        },
+        {
+          "line": 78,
+          "symbol": "token.generation",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations._row"
+        },
+        {
+          "line": 139,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight.validate"
+        },
+        {
+          "line": 139,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight.validate"
+        },
+        {
+          "line": 147,
+          "symbol": "token.generation",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight.validate"
+        },
+        {
+          "line": 190,
+          "symbol": "token.generation",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight"
+        },
+        {
+          "line": 191,
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight"
+        }
+      ]
+    },
+    {
+      "path": "backend/src/pitchlog/repositories/transaction.py",
+      "source_sha256": "64e95e22d7510b8bd86ef6d26ec161f2a117ae477759979a6255ff2a693a399f",
+      "findings": [
+        {
+          "line": 1079,
+          "symbol": "RecordingGenerationByNumberReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1079,
+          "symbol": "RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1091,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1091,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1376,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1377,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1397,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1408,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        }
+      ]
+    }
+  ],
+  "condition_1_resolve_scoped_finding": {
+    "path": "backend/src/pitchlog/repositories/transaction.py",
+    "fqname": "pitchlog.repositories.transaction._assert_existing_resolution_owner",
+    "scope": "pitchlog.repositories.transaction.<module>",
+    "line": 945,
+    "symbol": "_assert_existing_resolution_owner",
+    "source_sha256": "64e95e22d7510b8bd86ef6d26ec161f2a117ae477759979a6255ff2a693a399f"
+  }
 }

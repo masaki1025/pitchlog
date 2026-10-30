@@ -238,6 +238,73 @@ _SYNC_FIRST_BALL_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+_SYNC_ORDINARY_PITCH_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.prepare_ordinary_projection": (
+            (*_SYNC_FIRST_BALL_COMMON, ("preparation_json", str)),
+            (("prepared", bool),),
+            (),
+            (),
+        ),
+        "sync_right_api.bind_ordinary_device": _SYNC_FIRST_BALL_FUNCTION_TYPES[
+            "sync_right_api.bind_device"
+        ],
+        "sync_right_api.check_ordinary_right": _SYNC_FIRST_BALL_FUNCTION_TYPES[
+            "sync_right_api.check_current_right"
+        ],
+    }
+)
+
+
+_SYNC_ORDINARY_PREFIX_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.read_ordinary_order_summary": (
+            (("game_id", UUID),),
+            (("record_json", str),),
+            (),
+            (),
+            1,
+            1,
+        ),
+        "sync_right_api.read_ordinary_checkpoint": (
+            (("game_id", UUID), ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+            0,
+            1,
+        ),
+        "sync_right_api.lock_ordinary_checkpoint": (
+            (*_SYNC_FIRST_BALL_COMMON, ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+            0,
+            1,
+        ),
+        "sync_right_api.read_ordinary_history_page": (
+            (
+                ("game_id", UUID),
+                ("generation", int),
+                ("history_version", int),
+                ("checkpoint_id", UUID),
+                ("checkpoint_revision", int),
+                ("upper_watermark", int),
+                ("after_d1", int),
+                ("after_d2", int),
+                ("after_id", UUID),
+                ("page_size", int),
+            ),
+            (("record_json", str),),
+            (),
+            (),
+            0,
+            101,
+        ),
+    }
+)
+
+
 _SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
     {
         "sync_fence_api.read_writer_identity": (
@@ -350,6 +417,8 @@ class FunctionOperationRegistration:
         if initial is None:
             initial = _INITIAL_RESOLVE_FUNCTION_TYPES.get(self.function_id)
         first_ball = _SYNC_FIRST_BALL_FUNCTION_TYPES.get(self.function_id)
+        ordinary = _SYNC_ORDINARY_PITCH_FUNCTION_TYPES.get(self.function_id)
+        ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
@@ -376,6 +445,27 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("初球関数の有限型宣言が不一致")
+        elif ordinary is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != ordinary
+                or self.operation_id != f"SYNC_ORDINARY_PITCH:{name}"
+                or self.capability_id != f"CAP:sync_ordinary_pitch:{name}"
+                or self.min_rows != 1
+                or self.max_rows != 1
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("通常投球関数の有限型宣言が不一致")
+        elif ordinary_prefix is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != ordinary_prefix[:4]
+                or (self.min_rows, self.max_rows) != ordinary_prefix[4:]
+                or self.operation_id != f"SYNC_ORDINARY_PITCH:{name}"
+                or self.capability_id != f"CAP:sync_ordinary_pitch:{name}"
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("通常prefix関数の有限型宣言が不一致")
         elif writer_binding is not None:
             name = self.function_id.rsplit(".", 1)[1]
             if (
@@ -485,15 +575,40 @@ class FunctionOperationRegistration:
                     (
                         initial is not None
                         or first_ball is not None
+                        or ordinary is not None
+                        or ordinary_prefix is not None
                         or writer_binding is not None
                     )
                     and expected_type is bytes
                     and type(argument.type) is LargeBinary
                 )
                 and not (
-                    first_ball is not None
-                    and self.function_id == "sync_right_api.check_current_right"
+                    (
+                        (
+                            first_ball is not None
+                            and self.function_id == "sync_right_api.check_current_right"
+                        )
+                        or (
+                            ordinary is not None
+                            and self.function_id
+                            == "sync_right_api.check_ordinary_right"
+                        )
+                    )
                     and argument.key in ("internal_generation", "recovery_generation")
+                    and expected_type is int
+                    and type(argument.type) is BigInteger
+                )
+                and not (
+                    ordinary_prefix is not None
+                    and argument.key
+                    in (
+                        "generation",
+                        "checkpoint_revision",
+                        "history_version",
+                        "upper_watermark",
+                        "after_d1",
+                        "after_d2",
+                    )
                     and expected_type is int
                     and type(argument.type) is BigInteger
                 )
@@ -531,8 +646,25 @@ def _build_fixed_function_statement(
             bindparam(name, type_=BigInteger())
             if (
                 schema == "sync_right_api"
-                and function_name == "check_current_right"
-                and name in ("internal_generation", "recovery_generation")
+                and (
+                    (
+                        function_name in {"check_current_right", "check_ordinary_right"}
+                        and name in ("internal_generation", "recovery_generation")
+                    )
+                    or (
+                        f"{schema}.{function_name}"
+                        in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+                        and name
+                        in (
+                            "generation",
+                            "checkpoint_revision",
+                            "history_version",
+                            "upper_watermark",
+                            "after_d1",
+                            "after_d2",
+                        )
+                    )
+                )
                 and field_type is int
             )
             else _canonical_bind(name, field_type)
@@ -606,6 +738,14 @@ def prepare_function_operation(
         value = getattr(operation, name)
         if type(value) is not expected_type:
             raise FunctionOperationError(f"固定関数入力{name}の型が不一致")
+        if spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES:
+            if expected_type is bytes and len(value) != 32:
+                raise FunctionOperationError("通常prefixのnonce長が不一致")
+            if expected_type is int:
+                lower = 0 if name in {"upper_watermark", "after_d1", "after_d2"} else 1
+                upper = 100 if name == "page_size" else 2**63 - 1
+                if not lower <= value <= upper:
+                    raise FunctionOperationError("通常prefixの整数範囲が不一致")
         if (
             spec.function_id in _INITIAL_FUNCTION_TYPES
             or spec.function_id in _INITIAL_START_FUNCTION_TYPES
@@ -627,6 +767,7 @@ def prepare_function_operation(
                 raise FunctionOperationError("初期権の文字列を空にできない")
         if (
             spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES
+            or spec.function_id in _SYNC_ORDINARY_PITCH_FUNCTION_TYPES
             or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
         ):
             if expected_type is bytes and len(value) != 32:
