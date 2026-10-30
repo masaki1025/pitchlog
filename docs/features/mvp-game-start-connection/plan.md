@@ -559,3 +559,12 @@ PR187は本候補作成時未merge。先にrev6/追加field/履歴が統合さ�
 今回受理は正式値と検査整合の範囲だけ。owned DB試験成功、開始API、1球保存/GET、MVP完成は各既証拠/別到達条件として区別する。
 
 2026-10-27 20:24 JST、PO委任によるCodex /root判断。対象2a2c0136/base3a24、source3 d78c7952…・独立source review 8b0bd9a2…・全4面/旧31履歴と新4snapshotの非作者review 1647999a34dba209e1f3d7c54c384838f4ba11fa574814537ce699784fe41614残0を確認し、対象2fieldとruntime変更の7.7受理を行う。判断者はCodex /rootであり山田正輝本人の署名ではない。CLI/最終review/Gate6/CIは未成立。
+
+
+### 最終CIの歴史schema射影・DDL検査の有限修復（2026-10-30T16:09:53.305274+00:00）
+
+PO委任によるCodex主担当判断。対象dcc9001422f5fad9891368ad25264c1baf2af15e、CI run41068611634のbackend86failed/7251passed/34errorsを保持する。読取診断cache pr188-ci-root-groups-20261031/REPORT.md（SHA4e639dcca57ad7b593ae63452c555b4871d7132db5598c3c6c27fa276b5b33fa）の第1群に基づき、既開始実装の検査追随を指示する。編集所有coordinate_contract_preparation、別WT fix-mvp-pr188-ci-fixtures。
+
+今回の有限集合はbackend/tests/db/test_alembic_migrations.py（0032/33/35時点の承認済schemaを投影し0036新4表を混入させない）、backend/tests/test_schema_manifest.py（0036の固定_TABLE_DDLを正しく静的抽出する正負例）、必要ならcontracts/db/schema-manifest.json（uq_game_start_attempts_pending/uq_recording_right_deliveries_requestのsource_rowだけ、データモデル原典へ忠実な既schema整合）の最大3path。現DBの観測値から期待を生成しない。期待の削除・skip・get/defaultでKeyErrorを隠すこと、未知DDLの一律許可、権限/tenant/prod source/旧履歴/sealの変更は禁止。原典から両source_rowを解決できなければ当該2fieldだけ根拠とともにrootへ返し、他2pathを進める。
+
+局所pure/静的検査と負例、ruff/tyを作者が実行し、修復全hash/完全前後/旧集合保持を非作者へ渡す。PGはrootだけが隔離fixtureで旧revisionのupgrade/downgrade/metadata照合を直列実施する。owner current_user検査のhygiene・ACL/seed/S3・正式freeze/TB005は別未解消のまま保持し、本3pathを修正しただけでCI成功としない。既親ステップ1の実装追随であり、新しい野球意味・保証・正本版上げの判断ではない。最終差分の独立レビュー前に通常統合しない。
