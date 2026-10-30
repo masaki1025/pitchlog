@@ -125,6 +125,7 @@ def test_history_page_rejects_missing_originals_and_bad_cursor(
             (storage_owner.tenant_id, storage_owner.game_id, checkpoint_id, "a" * 64),
         )
     database = conninfo_to_dict(cluster.business_admin)["dbname"]
+    assert isinstance(database, str)
     with StderrPeer(cluster.business, database, "pitchlog_app") as app:
         app.query(f"SET app.tenant_id TO '{storage_owner.tenant_id}'")
         for after_d2, message in (

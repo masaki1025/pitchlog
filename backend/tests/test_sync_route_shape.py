@@ -1,5 +1,7 @@
 """同期入口の経路選択がP2に限定され、P3を成功扱いにしないことを固定する。"""
 
+from typing import cast
+
 import pytest
 
 from pitchlog.api.routers.sync import _request_path
@@ -47,7 +49,7 @@ def test_database_failure_is_503_without_ack_or_exception_values(monkeypatch, st
     from types import SimpleNamespace
     from uuid import UUID
 
-    from fastapi import HTTPException
+    from fastapi import HTTPException, Request
     from sqlalchemy.exc import ProgrammingError
     from test_authz_tenant_context import make_tenant_context
 
@@ -91,7 +93,7 @@ def test_database_failure_is_503_without_ack_or_exception_values(monkeypatch, st
         raise ProgrammingError("private sql", {}, Exception("private diagnostic"))
 
     monkeypatch.setattr(sync, "_apply_e1_f1", failure)
-    payload = {
+    payload: dict[str, object] = {
         "recording_right_proof": {},
         "events": [
             {
@@ -110,7 +112,7 @@ def test_database_failure_is_503_without_ack_or_exception_values(monkeypatch, st
         sync.sync_events(
             game,
             payload,
-            object(),
+            cast(Request, object()),
             make_tenant_context(tenant),
             "test-cookie",
             device,

@@ -3,6 +3,7 @@
 実DB・実writer・実権利の成立はここで主張しない。外形の拒否だけを見る。
 """
 
+from types import MappingProxyType
 from typing import cast
 from uuid import uuid4
 
@@ -10,7 +11,7 @@ import pytest
 from test_authz_tenant_context import make_tenant_context
 
 from pitchlog.sync.apply import _replay_e1_without_binding
-from pitchlog.sync.model import SyncEvent, SyncRequest
+from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
 from pitchlog.sync.source_binding import SourceBindingError
 
 _D4 = "d4.1.example"
@@ -135,7 +136,11 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
                 stored=StoredResult(
                     "accepted",
                     _digest(),
-                    {"state": "受理", "d3": d1, "temporary_id_mapping": {}},
+                    {
+                        "state": "受理",
+                        "d3": d1,
+                        "temporary_id_mapping": MappingProxyType({}),
+                    },
                     None,
                 ),
             )
@@ -150,6 +155,7 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
     if kind == "unused":
         assert result is None
     else:
+        assert isinstance(result, AckResult)
         assert result.d3 == current_d3
         assert result.a5[0].d1 == d1
         assert result.a5[0].state == ("重複" if kind == "stored_result" else "拒否")
