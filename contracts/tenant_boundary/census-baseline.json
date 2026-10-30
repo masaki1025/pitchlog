@@ -112,7 +112,10 @@
             "contracts/tenant_boundary/cache-invalidation-contract.json#/api/condition4_allowed_call_symbols"
           ],
           "condition4_substituted_from": "anchor_symbol_set",
-          "condition4_code": "TB004"
+          "condition4_code": "TB004",
+          "condition1_substituted_field": "contracts/tenant_boundary/base-allowlist.json#/condition_1_resolve_scoped_finding",
+          "condition1_substituted_from": "none",
+          "condition1_code": "TB001"
         },
         "quantifier": "every"
       },

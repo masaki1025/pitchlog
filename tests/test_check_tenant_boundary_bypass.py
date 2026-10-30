@@ -8680,3 +8680,110 @@ def test_rg1_registered_controller_still_rejects_extra_db_api() -> None:
         and v.symbol == "psycopg.pq.PGconn.exec_"
         for v in found
     )
+
+
+@pytest.mark.parametrize("name,apis", [
+    ("_apply_initial_storage", frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"})),
+    ("_require_initial_state", frozenset({
+        "PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE",
+    })),
+])
+def test_initial_storage_startup_registration_is_exact(name: str, apis: frozenset[str]) -> None:
+    """0036の2helperだけを登録し欠落/余剰APIを拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    symbol = "pitchlog.db.stage_a_startup." + name
+    row = next(row for row in contract.allowed_symbols if row.symbol == symbol)
+    assert row.allowed_api_ids == apis
+    path = "pitchlog/db/stage_a_startup.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    for replacement in (None, replace(row, signature=row.signature + "_invalid")):
+        rows = tuple(x for x in contract.allowed_symbols if x.symbol != symbol)
+        if replacement is not None:
+            rows = (*rows, replacement)
+        broken = replace(contract, allowed_symbols=rows)
+        assert any(
+            v.code == "TB005" and (v.scope == symbol or v.symbol == symbol)
+            for v in checker.scan_source(source, path=path, contract=broken)
+        )
+    positive = REPOSITORY_ROOT / row.fixture
+    fixture_source = positive.read_text(encoding="utf-8")
+    fixture_path = "pitchlog/db.py"
+    assert checker.scan_source(fixture_source, path=fixture_path, contract=contract) == []
+    assert checker.scan_source(
+        fixture_source, path=fixture_path, contract=contract, reject_all_db_calls=True,
+    )
+    if name == "_require_initial_state":
+        changed = source.replace(
+            "def _require_initial_state(applicator_dsn: str) -> None:",
+            "def _require_initial_state(applicator_dsn: str) -> None:"
+            "\n    psycopg.connect(applicator_dsn).commit()", 1,
+        )
+        assert any(
+            v.code == "TB005" and v.scope == symbol
+            for v in checker.scan_source(changed, path=path, contract=contract)
+        )
+
+
+@pytest.mark.parametrize("mutation", [
+    "path", "scope", "line", "bool-line", "symbol", "hash", "missing", "extra",
+])
+def test_resolution_owner_declaration_is_one_closed_site(mutation: str) -> None:
+    """再交付owner登録の型/一箇所/余剰fieldを閉じる。"""
+    asset_path = REPOSITORY_ROOT / "contracts/tenant_boundary/base-allowlist.json"
+    row = json.loads(asset_path.read_text())["condition_1_resolve_scoped_finding"]
+    if mutation == "missing":
+        row.pop("scope")
+    elif mutation == "extra":
+        row["extra"] = True
+    else:
+        key = (
+            "line" if mutation == "bool-line"
+            else "source_sha256" if mutation == "hash" else mutation
+        )
+        row[key] = True if mutation == "bool-line" else 867 if mutation == "line" else "unknown"
+    with pytest.raises(checker.ContractError):
+        checker._load_resolution_owner(row)
+
+
+@pytest.mark.parametrize("mutation", [
+    "hash", "runtime", "context", "lookup", "device", "outcome", "owner", "return", "copied-path",
+])
+def test_resolution_owner_body_cannot_self_authorize_new_hash(mutation: str) -> None:
+    """同時hash更新でも実owner/実scope照合の脱落は通らない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/repositories/transaction.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    changes = {
+        "hash": (
+            "def _assert_existing_resolution_owner", "\ndef _assert_existing_resolution_owner",
+        ),
+        "runtime": ("        or binding.runtime is not runtime\n", ""),
+        "context": ("        or binding.context is not context\n", ""),
+        "lookup": ("        or not binding.looked_up\n", ""),
+        "device": ("        or not binding.device_checked\n", ""),
+        "outcome": ('        or binding.outcome != "committed"\n', ""),
+        "owner": ("        owner.request_digest,\n", "        owner.device_id,\n"),
+        "return": (
+            "    binding = _RESOLVE_BINDINGS.get(handle._state_key)\n",
+            "    return\n    binding = _RESOLVE_BINDINGS.get(handle._state_key)\n",
+        ),
+    }
+    if mutation == "copied-path":
+        changed = source
+        path = "pitchlog/copy.py"
+    else:
+        old, new = changes[mutation]
+        assert old in source
+        changed = source.replace(old, new, 1)
+        if mutation != "hash":
+            assert contract.resolution_owner is not None
+            contract = replace(contract, resolution_owner=replace(
+                contract.resolution_owner,
+                source_sha256=hashlib.sha256(changed.encode()).hexdigest(),
+            ))
+    assert any(
+        v.code == "TB001"
+        for v in checker.scan_source(changed, path=path, contract=contract)
+    )

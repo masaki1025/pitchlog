@@ -1352,7 +1352,10 @@ def _assert_removed_tb007_matches_declared_relaxations(
             if callable_name == constructor_name:
                 if (
                     symbol == contract.tenant_context.constructor_symbol
-                    and scope == contract.tenant_context.issuance_entrypoint_symbol
+                    and (
+                        scope == contract.tenant_context.issuance_entrypoint_symbol
+                        or checker._is_fixed_initial_broker_context(tree, path=path, scope=scope)
+                    )
                     and scanner.module
                     in contract.tenant_context.allowed_product_modules
                     and (
@@ -1871,6 +1874,40 @@ def _measured_condition4_suppression(
     return suppression
 
 
+def _measured_resolution_owner_suppression(
+    *, substituted_field: str, substituted_from: str, code: str,
+    source_root: Path, current_census: frozenset[CensusIdentity], current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """固定owner登録だけを外し、唯一の実TB001抑止を反事実で測る。"""
+    assert substituted_field == (
+        "contracts/tenant_boundary/base-allowlist.json#/condition_1_resolve_scoped_finding"
+    )
+    assert substituted_from == "none" and code == "TB001"
+    owner = current_contract.resolution_owner
+    assert owner is not None and checker._resolution_owner_shape_is_exact(owner)
+    assert owner == checker._load_resolution_owner(_load_json_pointer(substituted_field))
+    path = owner.path.removeprefix("backend/src/")
+    tree = ast.parse((source_root / path).read_text(encoding="utf-8"))
+    nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == owner.symbol]
+    assert len(nodes) == 1 and nodes[0].lineno == owner.line
+    assert ast.dump(nodes[0]) == ast.dump(checker._RESOLUTION_OWNER_EXPECTED_AST)
+    assert nodes[0].end_lineno is not None
+    expected: CensusIdentity = (
+        path, owner.line, nodes[0].end_lineno, owner.scope, code, owner.symbol,
+        "条件 1 の禁止シンボルを検出",
+    )
+    counterfactual = frozenset(
+        (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+        for v in checker.scan_directory(
+            source_root, contract=replace(current_contract, resolution_owner=None)
+        )
+    )
+    assert not current_census - counterfactual
+    suppression = counterfactual - current_census
+    assert suppression == frozenset({expected})
+    return suppression
+
+
 def _assert_removed_equals_measured_allowlist_suppression(
     predicate: dict[str, Any],
     *,
@@ -1909,6 +1946,9 @@ def _assert_removed_equals_measured_allowlist_suppression(
             "condition4_substituted_fields",
             "condition4_substituted_from",
             "condition4_code",
+            "condition1_substituted_field",
+            "condition1_substituted_from",
+            "condition1_code",
         },
         f"{predicate['id']}.derivation",
     )
@@ -1950,6 +1990,17 @@ def _assert_removed_equals_measured_allowlist_suppression(
         reference_repository_root=reference_repository_root,
         source_root=source_root,
         current_census=data_sets["current_census"],
+        current_contract=current_contract,
+    )
+    suppression |= _measured_resolution_owner_suppression(
+        substituted_field=_string(
+            derivation.get("condition1_substituted_field"), "condition1_substituted_field"
+        ),
+        substituted_from=_string(
+            derivation.get("condition1_substituted_from"), "condition1_substituted_from"
+        ),
+        code=_string(derivation.get("condition1_code"), "condition1_code"),
+        source_root=source_root, current_census=data_sets["current_census"],
         current_contract=current_contract,
     )
     code_index = identity_indexes["code"]
@@ -4764,3 +4815,111 @@ def test_allowlist_counterfactual_preserves_actual_core_context(
         source_root=context["source_root"], current_census=context["data_sets"]["current_census"],
     )
     assert observed
+
+
+def test_initial_broker_constructor_is_an_exact_second_scope() -> None:
+    """既module全体へ広げず実brokerのconstructorだけを説明する。"""
+    path = "pitchlog/repositories/tenant_context_issuance.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    scope = checker._INITIAL_BROKER_SCOPE
+    assert checker._is_fixed_initial_broker_context(tree, path=path, scope=scope)
+    function = next(
+        n for n in tree.body
+        if isinstance(n, ast.FunctionDef) and n.name == "_issue_initial_broker_context"
+    )
+    call = next(
+        n for n in ast.walk(function)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "TenantContext"
+    )
+    assert call.end_lineno is not None
+    identity = (
+        path, call.lineno, call.end_lineno, scope, "TB007",
+        "pitchlog.repositories.context.TenantContext",
+        "TenantContext は生成箇所 allowlist 内のモジュールだけで構築できる",
+    )
+    _assert_removed_tb007_matches_declared_relaxations(frozenset({identity}), expected_code="TB007")
+    with pytest.raises(AssertionError):
+        _assert_removed_tb007_matches_declared_relaxations(
+            frozenset({_replace_identity_field(identity, index=3, value=scope + ".other")}),
+            expected_code="TB007",
+        )
+
+
+@pytest.mark.parametrize("mutation", [
+    "cookie-type", "tenant-type", "verifier", "expected-tenant", "capability", "scope", "path",
+])
+def test_initial_broker_constructor_guard_loss_has_no_census_explanation(mutation: str) -> None:
+    """型/実照合/expected tenant/真正Capability/帰属の全条件を保つ。"""
+    path = "pitchlog/repositories/tenant_context_issuance.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    scope = checker._INITIAL_BROKER_SCOPE
+    changes = {
+        "cookie-type": ("type(cookie) is not SecretStr", "False"),
+        "tenant-type": ("type(expected_tenant_id) is not UUID", "False"),
+        "verifier": (
+            "verified = _verify_initial_cookie(verifier_runtime, cookie)",
+            "verified = (expected_tenant_id, None)",
+        ),
+        "expected-tenant": ("verified[0] != expected_tenant_id", "False"),
+        "capability": (
+            "TenantContext(tenant_id, _ISSUANCE_CAPABILITY), expires_at",
+            "TenantContext(tenant_id, object()), expires_at",
+        ),
+    }
+    if mutation == "scope":
+        scope += ".other"
+    elif mutation == "path":
+        path = "pitchlog/repositories/copy.py"
+    else:
+        old, new = changes[mutation]
+        assert old in source
+        source = source.replace(old, new)
+    assert not checker._is_fixed_initial_broker_context(ast.parse(source), path=path, scope=scope)
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing-declaration", "unknown-scope", "broad-suppression",
+    "missing-suppression", "unknown-field", "wrong-code",
+])
+def test_resolution_owner_counterfactual_is_one_closed_identity(
+    mutation: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """owner抑止の測定宣言/真正scope/唯一identityを厳密に保つ。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owner = contract.resolution_owner
+    assert owner is not None
+    source_root = REPOSITORY_ROOT / "backend/src"
+    path = owner.path.removeprefix("backend/src/")
+    tree = ast.parse((source_root / path).read_text(encoding="utf-8"))
+    function = next(
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == owner.symbol
+    )
+    assert function.end_lineno is not None
+    violation = checker.Violation(
+        path=path, line=owner.line, end_line=function.end_lineno, condition=1,
+        scope=owner.scope, code="TB001", symbol=owner.symbol,
+        message="条件 1 の禁止シンボルを検出",
+    )
+    observed = [violation]
+    field = "contracts/tenant_boundary/base-allowlist.json#/condition_1_resolve_scoped_finding"
+    code = "TB001"
+    if mutation == "missing-declaration":
+        monkeypatch.setattr(sys.modules[__name__], "_load_json_pointer", lambda *_: None)
+    elif mutation == "unknown-scope":
+        contract = replace(contract, resolution_owner=replace(owner, scope=owner.scope + ".other"))
+    elif mutation == "broad-suppression":
+        observed.append(replace(violation, line=owner.line + 1))
+    elif mutation == "missing-suppression":
+        observed.clear()
+    elif mutation == "unknown-field":
+        field += "/unknown"
+    else:
+        code = "TB005"
+    monkeypatch.setattr(checker, "scan_directory", lambda *_args, **_kwargs: observed)
+    with pytest.raises((AssertionError, checker.ContractError)):
+        _measured_resolution_owner_suppression(
+            substituted_field=field, substituted_from="none", code=code,
+            source_root=source_root, current_census=frozenset(), current_contract=contract,
+        )

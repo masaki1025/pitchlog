@@ -74,18 +74,18 @@ LEDGER_CONDITION2_FINDINGS = frozenset(
         (387, 'generation'),
         (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
         (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
-        (552, 'current_recovery_generation'),
+        (568, 'current_recovery_generation'),
         (
-            1193,
-            'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation',
+            1212,
+            'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation'
         ),
-        (1228, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
-        (1400, 'generation'),
-        (1414, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
-        (1449, 'current_recovery_generation'),
-        (1456, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (1472, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (1491, 'advance_recovery_generation'),
+        (1247, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1448, 'generation'),
+        (1462, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (1500, 'current_recovery_generation'),
+        (1508, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1525, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1545, 'advance_recovery_generation'),
     }
 )
 
@@ -248,6 +248,18 @@ class ScopedCondition2Owner:
 
 
 @dataclass(frozen=True)
+class ResolutionOwnershipRegistration:
+    """同Sessionのcommitted再交付照合1点だけの不変登録。"""
+
+    path: str
+    fqname: str
+    scope: str
+    line: int
+    symbol: str
+    source_sha256: str
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -271,6 +283,7 @@ class Contract:
     tenant_context: TenantContextConstructionContract
     cache_invalidation: CacheInvalidationBypassContract
     diff_command: tuple[str, ...]
+    resolution_owner: ResolutionOwnershipRegistration | None = None
 
 
 @dataclass(frozen=True, order=True)
@@ -848,6 +861,40 @@ def _load_inventory(
     )
 
 
+def _load_resolution_owner(value: object) -> ResolutionOwnershipRegistration:
+    """再交付照合の実現物1path/1scope/1所見を閉読取する。"""
+    location = "allowlist.condition_1_resolve_scoped_finding"
+    entry = _object(value, location)
+    _strict_keys(entry, {"path", "fqname", "scope", "line", "symbol", "source_sha256"}, location)
+    registration = ResolutionOwnershipRegistration(
+        path=_string(entry["path"], location),
+        fqname=_string(entry["fqname"], location),
+        scope=_string(entry["scope"], location),
+        line=_integer(entry["line"], location),
+        symbol=_string(entry["symbol"], location),
+        source_sha256=_string(entry["source_sha256"], location),
+    )
+    if not _resolution_owner_shape_is_exact(registration):
+        raise ContractError("再交付所有照合は固定1path/1scope/1所見が必要")
+    return registration
+
+
+def _resolution_owner_shape_is_exact(registration: ResolutionOwnershipRegistration) -> bool:
+    """合成Contractでも未知scopeや型不正へ広げない。"""
+    return (
+        type(registration) is ResolutionOwnershipRegistration
+        and registration.path == "backend/src/pitchlog/repositories/transaction.py"
+        and registration.fqname == (
+            "pitchlog.repositories.transaction._assert_existing_resolution_owner"
+        )
+        and registration.scope == "pitchlog.repositories.transaction.<module>"
+        and type(registration.line) is int and registration.line == 866
+        and registration.symbol == "_assert_existing_resolution_owner"
+        and type(registration.source_sha256) is str
+        and re.fullmatch(r"[0-9a-f]{64}", registration.source_sha256) is not None
+    )
+
+
 def _load_allowlist(
     value: dict[str, Any], inventory_bytes: bytes, apis: tuple[ApiSpec, ...]
 ) -> tuple[
@@ -879,6 +926,7 @@ def _load_allowlist(
             "condition_2_scoped_findings",
             "condition_2_ledger_scoped_findings",
             "condition_2_rg1_scoped_findings",
+            "condition_1_resolve_scoped_finding",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
             "baseline_control",
@@ -1242,6 +1290,38 @@ def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...
     if {fixture.condition for fixture in fixtures} != CONDITION_IDS:
         raise ContractError("負例 fixture は条件 1〜5 をすべて含まなければならない")
     return tuple(fixtures)
+
+
+_INITIAL_BROKER_SCOPE = (
+    "pitchlog.repositories.tenant_context_issuance._issue_initial_broker_context"
+)
+_INITIAL_BROKER_EXPECTED_AST = ast.parse(
+    'def _issue_initial_broker_context(cookie: object, expected_tenant_id: objec'
+    't, verifier_runtime: object) -> tuple[TenantContext, datetime] | None:\n'
+    '    """私有verifierの実照合tenantだけを既module内で発行する。"""\n'
+    '    from uuid import UUID\n'
+    '    from pydantic import SecretStr\n'
+    '    from pitchlog.recording_rights.initial_grant_broker import _broker_inva'
+    'lid, _verify_initial_cookie\n'
+    '    if type(cookie) is not SecretStr or type(expected_tenant_id) is not UUID:\n'
+    '        raise _broker_invalid()\n'
+    '    verified = _verify_initial_cookie(verifier_runtime, cookie)\n'
+    '    if verified is None or verified[0] != expected_tenant_id:\n'
+    '        return None\n'
+    '    tenant_id, expires_at = verified\n'
+    '    return (TenantContext(tenant_id, _ISSUANCE_CAPABILITY), expires_at)'
+).body[0]
+
+
+def _is_fixed_initial_broker_context(tree: ast.Module, *, path: str, scope: str) -> bool:
+    """実cookie/期待tenant/真正Capabilityの既第二発行関数だけを照合する。"""
+    if path != "pitchlog/repositories/tenant_context_issuance.py" or scope != _INITIAL_BROKER_SCOPE:
+        return False
+    nodes = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "_issue_initial_broker_context"
+    ]
+    return len(nodes) == 1 and ast.dump(nodes[0]) == ast.dump(_INITIAL_BROKER_EXPECTED_AST)
 
 
 def _load_tenant_context_allowlist(
@@ -1768,6 +1848,7 @@ def load_contract(repository_root: Path) -> Contract:
         tenant_context=tenant_context,
         cache_invalidation=cache_invalidation,
         diff_command=diff_command,
+        resolution_owner=_load_resolution_owner(allowlist_value["condition_1_resolve_scoped_finding"]),
     )
 
 
@@ -5845,6 +5926,48 @@ class _SourceScanner(ast.NodeVisitor):
             )
 
 
+_RESOLUTION_OWNER_EXPECTED_AST = ast.parse(
+    '''
+def _assert_existing_resolution_owner(handle, context, runtime, owner, bound) -> None:
+    """lookupの実結果とowner全値を照合し、別Sessionへadapterを移さない。"""
+    from pitchlog.repositories.game_start import BoundInitialStartPayload
+    from pitchlog.repositories.initial_recording_right import _StartOwner
+
+    _assert_initial_actor_transaction(handle, context, "business")
+    binding = _RESOLVE_BINDINGS.get(handle._state_key)
+    if (
+        binding is None
+        or binding.runtime is not runtime
+        or binding.context is not context
+        or not binding.looked_up
+        or not binding.device_checked
+        or binding.outcome != "committed"
+        or type(owner) is not _StartOwner
+        or type(bound) is not BoundInitialStartPayload
+    ):
+        raise TenantBindingError("committed resolve登録がない")
+    owner.__post_init__()
+    bound.assert_owner(owner)
+    if (
+        owner.game_id,
+        owner.start_request_id,
+        owner.device_id,
+        owner.attempt_id,
+        owner.request_digest,
+        bound.credential_digest,
+    ) != (
+        binding.game_id,
+        binding.start_request_id,
+        binding.device_id,
+        binding.attempt_id,
+        binding.request_digest,
+        binding.credential_digest,
+    ):
+        raise TenantBindingError("committed resolveの実ownerが不一致")
+'''
+).body[0]
+
+
 def scan_source(
     source: str,
     *,
@@ -5946,6 +6069,24 @@ def scan_source(
                 if violation.code != "TB002"
                 or (violation.line, violation.symbol) not in owner.findings
             ]
+    resolution = contract.resolution_owner
+    if (
+        resolution is not None
+        and _resolution_owner_shape_is_exact(resolution)
+        and path == resolution.path.removeprefix("backend/src/")
+        and hashlib.sha256(source.encode("utf-8")).hexdigest() == resolution.source_sha256
+    ):
+        nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+                 and n.name == resolution.symbol]
+        if (
+            len(nodes) == 1
+            and nodes[0].lineno == resolution.line
+            and ast.dump(nodes[0], include_attributes=False)
+            == ast.dump(_RESOLUTION_OWNER_EXPECTED_AST, include_attributes=False)
+        ):
+            violations = [v for v in violations if v.code != "TB001"
+                          or (v.line, v.symbol, v.scope)
+                          != (resolution.line, resolution.symbol, resolution.scope)]
     return sorted(violations)
 
 
