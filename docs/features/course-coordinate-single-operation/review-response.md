@@ -161,3 +161,26 @@ BigInt・十進文字列 codec（`decimalCodec.ts`）・`globalThis.PitchlogDoma
 
 **ゲートへの影響**: 実現性は確認済み。ゲート前の残りは非作者の差分確認と ADR/要件の整合改訂。
 artifact への実装・pin・properties/mutation の実行は**ゲート後**。
+
+## 9. artifact 適合の最小プロトタイプ（隔離・証拠）
+
+前回の `quant.mjs` は撤回し、**artifact の検査器を通る最小プロトタイプ**を作成した。製品 artifact・正式契約・凍結値・公開経路は変更していない。
+
+- **入力**: `{x, y, view, size}`。`x,y` は画面座標の最短往復表現（符号・整数・小数・指数を受理、先頭0と空指数は拒否）。
+  `view` は `catcher|pitcher`、`size` は BigInt（契約 `display_geometry_263_v1.json` の `size`）。
+- **出力**: `{ok:true, value:{unit:"1/<size>", x:"<k>", y:"<k>"}}`。範囲外・非正準・不正 view は `ok:false` と閉じた code。
+- **内部**: 十進/指数 → BigInt スケール整数 → `q=|n|/|d|`・`r=|n|%|d|`・`2r≥|d|` の half-up（符号を戻す）→
+  **量子化後に** `view==='pitcher'` のときだけ x を `size−x` → y を `size−y`（B-7、1回）。
+- **制約**: `number`・`Math.*`・`**`・`throw`・三項・正規表現を使わない（`for..of`・`BigInt`・`if/else`・文字列 codec のみ）。
+- **証拠（固定入力・独立期待値）**
+  - artifact 字句検査 `inspectArtifactTokens` = **violations 0**（`import/export/require` なし）。
+  - **Node** 15ケース（境界・指数・不正・反転）= **全て一致**。
+  - **Chromium** 14ケース＋反転 = **全て一致**。
+  - **Python ホスト経由**（Python から Node を起動し同一 JS を実行）と Python `Decimal`→`Fraction` の独立 oracle
+    15ケース = **全て一致**。
+  - 反転: `131.5` は catcher で `x=132`、pitcher で `x=131`（y は両方 139）。
+  - 境界: `131.49999999999997→131`、`131.5→132`、`131.50000000000003→132`、`0.5→1`、`0.49999999999999994→0`、
+    `262.9→263`、`263→263`、`263.5→OUT_OF_RANGE`、`-0.5→OUT_OF_RANGE`、`1e2→100`、`1e-7→0`、` 1`/`01`/`1e`→INVALID_DECIMAL。
+  - プロトタイプ SHA256: `eeb5603d6beac0e86dd3f77ed952a3560480df10b7075e3aa1aab856b8a8d302`。
+- **位置づけ**: 実現性の隔離証拠であり、製品実装済みではない。製品化はゲート後に artifact へ移植し、
+  properties/mutation・pin・manifest を同一段で行う。
