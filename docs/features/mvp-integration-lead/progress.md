@@ -1904,3 +1904,10 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 2026-10-28：U09候補の隔離owned検査は実開始応答V12をapp内に保持し、実Cookie/broker/loan/同writerで正常True・改変proof False・欠落proof SQL0、両RG1と外側rollbackまで1成功37.21秒。別backend loanを拒否する同identity対向の追加と最終source固定/非作者reviewは未完。候補依存を合成した部品試験でありHTTP/画面保存ではない。成績旧3文書の現plan SHA6aad32b0c5101f8a85815f2961cd1e09db56a63ea0cfa580a7292aeeee5dbbd0と記録済み承認対象cbb144c987994e0d955681c89cdb713baf7c5243a470a6c0c33b71fe5724716bの不一致を実照合。承認の対象版・限定範囲を検証し直すまで製品実装承認へ拡張しない。
 
 2026-10-28：U09候補の後発sync検査は2017成功33.25秒、owned最終logは1成功41.99秒、当該実行前後のcontainer/volume差分0を現物確認。最終source差分・個別の観測範囲は担当packet固定後に照合し、非作者review前に採用しない。正式履歴は#184自体が公式検査成功、product枝はrepo28→32/runtime22→26の未受理差分とsnapshot不足で拒否されることを独立再導出中。既history prefix/他7資産/外部8fileは保持されているが、正式7.7完了ではない。
+
+### 2026-10-30 Codex再開後の実測・接続残件
+
+- 既存画面E2Eをホスト・共有DSN unset・専用tmpで再実行し **3 passed / 134.18秒**。対象製品は引継ぎ2c87758dと同じ（後発3168c103/32dccc90はdocsのみ）。画面新規作成→開始とAPI先行保存の明示復元を確認し、画面初球保存の証拠へ拡張しない。
+- 7.3非作者差分確認: 2c87758dはP0=0/P1=3/P2=5（REPORT SHA 7e5c1de502da5255e8424dbae9527f236cdfbc4fb090aaa4ac2f4350575396f8）。3168c103でD14m伝播/例外表/文法/ABIを是正し、再確認SHA d90c1717e81a1cc55bc94b3744a29118b43925a386b64ece39b58ecb9f2e7c48で修正採用可能。契約/descriptor不足は残り、ゲート成立ではない。32dccc90でP2資料整合とU3計画起案を保存。
+- U3で再利用する既commit/queue/ACK/1球排他を確認。実transportにはDevice-Id/Device-Credential/X-Pitchlog-Sync-Attempt供給が無く、そのままでは成功しない。送信前の耐久attempt固定・V7/V8 codec・正式artifact入力・画面click配線を専用4ステップ計画に起案し非作者確認中。
+- 新たに利用者ができる操作: 今回は既成果の再実証まで。次: 座標契約の独立期待値/descriptor固定→ゲート残件是正、独立したtransport/attempt接続を進める。正式7.7・実機・MVP全体は未了。
