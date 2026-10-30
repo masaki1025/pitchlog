@@ -51,13 +51,14 @@ const expectedFirst = first.expected as {
   value: { t1: unknown; t2: unknown }
 }
 
-it('単一artifactが旧3口とT2・初期名簿の5口を保持する', () => {
+it('単一artifactが既存5口と量子化の6口を保持する', () => {
   expect(Object.keys(built)).toEqual([
     'ping',
     'deriveState',
     'deriveOrdinaryPitch',
     'deriveFirstPitchWithContinuation',
     'validateInitialGameRoster',
+    'quantizeCourse',
   ])
   expect(Object.isFrozen(built)).toBe(true)
   expect(JSON.parse(built.ping('{"value":"9007199254740993"}'))).toEqual({
