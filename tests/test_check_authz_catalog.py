@@ -1458,7 +1458,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1427 auth_claim=187 out_of_scope=1240" in result.stdout
+    assert "total=1429 auth_claim=187 out_of_scope=1242" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1975,8 +1975,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1240
-    assert attempts == 1240
+    assert len(out_claims) == 1242
+    assert attempts == 1242
     assert escaped == []
 
 
@@ -2309,7 +2309,7 @@ def _allow_record_and_aggregate_route_for_semantic_test(
 
 
 def test_record_and_aggregate_route_ids_match_approved_set() -> None:
-    """既存7経路とread候補1経路がregistry・HTTP行列の集合に一致する。"""
+    """既存10経路と作成/球種追加2経路がregistry・HTTP行列で一致する。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry_ids = {
         route["route_id"]
@@ -2320,6 +2320,8 @@ def test_record_and_aggregate_route_ids_match_approved_set() -> None:
     all_registry_ids = {route["route_id"] for route in assets["route_registry"]["routes"]}
 
     assert registry_ids == {
+        "ROUTE:RECORD:games:insert",
+        "ROUTE:RECORD:tenant_vocabularies:read",
         "ROUTE:RECORD:games:update",
         "ROUTE:RECORD:trusted_devices:insert",
         "ROUTE:RECORD:games:read",
@@ -5996,6 +5998,10 @@ def test_all_positive_cases_and_positive_kill_flags_reject_removal() -> None:
 
 _PREPARING_READ_ROUTE = 'ROUTE:RECORD:games:read'
 _RECORD_READ_ROUTE_SET = frozenset({
+    'ROUTE:RECORD:games:insert',
+    'ROUTE:RECORD:games:update',
+    'ROUTE:RECORD:trusted_devices:insert',
+    'ROUTE:RECORD:tenant_vocabularies:read',
     'ROUTE:RECORD:lineup_memories:read',
     'ROUTE:RECORD:players:insert',
     'ROUTE:RECORD:players:read',
@@ -6008,7 +6014,7 @@ _RECORD_READ_ROUTE_SET = frozenset({
 
 
 def test_preparing_read_registered_route_matches_real_gets(request: pytest.FixtureRequest) -> None:
-    """実GET2とread論理route/matrix・provenance・実収集ownerを対応付ける。"""
+    """実GET3の完全集合と既準備中readの登録・provenanceを対応付ける。"""
     assets, _locks, _paths = _repository_derived_assets()
     registry = assets['route_registry']
     matrix = assets['http_matrix']
@@ -6055,6 +6061,7 @@ def test_preparing_read_registered_route_matches_real_gets(request: pytest.Fixtu
                 gets.add((ast.literal_eval(decorator.args[0]), ast.literal_eval(operation)))
     assert gets == {
         ('/games', 'preparing_game_list'), ('/games/{game_id}', 'preparing_game_detail'),
+        ('/games/preparation-options', 'preparing_game_preparation_options'),
     }
 
 
