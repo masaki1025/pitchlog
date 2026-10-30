@@ -1957,3 +1957,13 @@ manifest ExpectedValueのP1は作者が契約期待値を変えず正規wrapper/
 初球専用フォーム/controller/API readを新規5pathで実装中。同じGameScreenRecordedRestore.vueのinitialを渡し、保存ACK後は既reloadへ接合済（未commit、vue-tsc成功）。観測不能環境前提4確認の初期値false、実HTTPS/WebLocks/IDBとlock内tenant/auth/game検査、旧slot再送経路を提供。実E2Eはまだ実行前。
 
 球種source/API登録32件成功、正式資産候補89成功/既stage_a失敗1。非作者source review継続中で未commit。repo34の正式7.7未了と既履歴markerエラーを維持する。次は固定candidateでfrontend検査/レビュー→球種owned DB・HTTP→隔離HTTPS実画面初球縦断。利用者の初球保存・再読込が通ったとはまだ記録しない。
+
+### 2026-10-30 フォーム接合の故障是正とHTTPS実行準備
+
+実統合検査でVue reactive DTOのDataCloneError3（13tests自体成功でもrun失敗）を検知し、toRaw境界＋初期化閉拒否へ是正。非作者が球種opaque cursorを生key扱いするP1とattemptDB欠落時の新attempt置換P1を検知し、BE正規base64urlページング・missing時常閉拒否へ修正。root再実行3files17passed/Unhandled0。FEの非作者差分再確認は継続中。
+
+専用HTTPS初球画面E2Eを作成。TLS未供給での実行は1skipかつDB必須未実行exit1であり成功証拠ではない。top-level HTTPSの前提を緩めず、検証専用TLS資材の生成許可/既存PATHを一度だけPOへ照会（decision-sheet参照）。新規秘密/署名鍵発行の委任境界によるもので、他の実装は継続する。
+
+HTTPS E2Eレビューでstart後のAPI fetchがUIのrestore状態を更新しない接合不足も検知。実UIのサーバー復元操作→initialフォーム出現へ是正中。候補全体frontend pnpm testを実行中。正式資産候補review SHA4753c2b894b15f168ef8bb141caa09c21cd62b9dbe879cf775ea2b4fa544b684 P0/P1=0だが7.7履歴受理は未了。
+
+台帳pushは直列再試行でa67516a2まで成功、前回remote rejected失敗は保持。新たな初球実画面保存の実証はまだない。
