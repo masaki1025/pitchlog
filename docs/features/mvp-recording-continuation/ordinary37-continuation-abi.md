@@ -1,6 +1,6 @@
 # 通常37の有限prefix接続ABI候補
 
-状態: 非作者レビュー前。既計画5stepの有限追補であり、新全体計画ではない。機械形/20caseの正は `contracts/state-transition/ordinary37_continuation_candidate_v1.json`。
+状態: 20case候補を非作者再確認P0/P1/P2=0・PO委任主担当判断でsource開始受理（74444640/b2e1108a）。正式全T2受理・実保存成立とは別。既計画5stepの有限追補であり、新全体計画ではない。機械形/20caseの正は `contracts/state-transition/ordinary37_continuation_candidate_v1.json`。
 
 新公開operation `deriveOrdinaryPitchWithContinuation` のrequestは exact `version,prefixRef,rules,t1,prior`。t1は旧ordinaryのeventKind/resultId/pitchEventKind/beforeだけ（historyを受けない）。prefixRefは exact `version,tenantId,gameId,generation,length`、UUIDはlowercase8-4-4-4-12、generationはD4（記録世代）のopaque string（1..128文字）/lengthは非負整数の正準十進文字列。refの真正性は文字列検査では成立しない。サービスが確認済checkpoint/prefixの同game/rules/水位から供給する。
 

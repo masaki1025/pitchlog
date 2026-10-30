@@ -128,3 +128,5 @@ rules/afterの対比較に加え、prior.t2自身のbasisをprior.rules/afterへ
 PO委任によるCodex主担当判断。候補JSON12127d2d…/ABI3237821b…/計画c73ff228…を全SHA照合し、非作者REPORT6b149f8a1a1a605809cdc5e259fc2ce3d688a76e4da68b0577ffbf4035d0d2f0（P0/P1/P2=0、20完全応答の独立比較、前回T2移植等の対向）を採用。作者のSchema検査を実source成功に読み替えない。新P6 blind/正式全T2受理/実prefix真正性/実DB完成ではない。
 
 step2純数学の新合成operationは `frontend/src/domain/ordinaryPitchContinuation.ts` と同spec、`publicApi.ts`、既firstPitchContinuationの共有rules parser/型、公開型caller/宣言・artifact/pin・実host検査の有限追加を編集範囲とする。旧ABIを保持し、count計算を複製しない。新ABIはfinite prefixRef＋今回履歴1entry、前回T2/rules/afterの完全一致と相関を検査する。未評価/既lock/ref不整合は成功にしない。新T2全体やDB/HTTPの完成を純数学source着手の条件へ追加せず、保存と画面はstep3以降の実証で閉じる。
+
+新合成ABIのPython接続はstep2の型callerとして `backend/src/pitchlog/domainrt/ordinary_pitch_continuation.py` と `backend/tests/domain/test_ordinary_pitch_continuation.py` に追加する（PO委任Codex判断）。既固定Node hostを1回呼び、不変・閉wire DTOと重複key/NaN/alias/余剰の拒否だけを担当し、T1/T2をPythonで再計算しない。旧初期状態限定DTOは拡張せず別型で一般stateと今回1entryを保持する。構造単体検査と実artifact全値照合を分け、実prefix/認可/保存証拠とはしない。
