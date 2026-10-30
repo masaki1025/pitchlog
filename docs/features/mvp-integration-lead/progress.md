@@ -1999,3 +1999,7 @@ TLS回答待ちと並行し、正式認可登録のcreate2route/新球種route�
 #186/#187の公開HEADとCI/委任識別値の独立照合REPORT SHA8de8946628ec026f0f4fc02fce28a48d899130137e5e39f962e877b7da2fded8を受領。各12job成功だが既親planの実経路/全取消等merge前義務は未充足、Draft解除/merge未実施。
 
 authz cache候補（REPORT SHA4695989fa90c5daca844feb1752f1eada7f0d126923f2ebb84149055a5bf5dee）は新論理route2/HTTP3操作の有限追加。非作者がrouter constructor/認証symbol再束縛のP1をprobeで検知し、共有資産へ適用せず作者へ是正依頼。旧要件sourceblob不一致・母集合更新・derived lock・oracle sealは別順序で維持。独立したsource基線候補もcacheで準備し、根拠/完全前後値をreview後に扱う。
+
+### 2026-10-30 PO許可後のHTTPS初球実測開始
+
+検証専用TLS資材の生成についてPOから「許可します」を受領（decision-sheetへscope記録）。cache内1日有効・loopback限定・mode600で生成し秘密内容を表示/commitせず、固定candidate7069b743で既ownedDB/実app/broker/ホストブラウザのHTTPS初球E2Eを開始。共有DSNunset・専用tmp、実行中で結果未確定。TLS未回答の待ちは解消したが、初球通過はまだ主張しない。
