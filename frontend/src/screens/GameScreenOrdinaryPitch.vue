@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 import type { OrdinaryRecordingContext } from './GameScreenOrdinaryPitchProvider'
-import type { OrdinaryResultId } from '../api/ordinaryPitchWire'
+import {
+  sameOrdinaryWire,
+  type OrdinaryResultId,
+} from '../api/ordinaryPitchWire'
 import {
   readPitchTypeOptions,
   type PitchTypeOption,
@@ -172,6 +175,11 @@ async function retry() {
     if (controller === current) busy.value = false
   }
 }
+let watchedInput: {
+  context: OrdinaryRecordingContext
+  identity: ReturnType<typeof identity>
+  hydrated: boolean
+} | null = null
 watch(
   () =>
     [
@@ -186,7 +194,17 @@ watch(
       auth.hasHydrated,
     ] as const,
   async () => {
+    const input = {
+      context: toRaw(props.context),
+      identity: identity(),
+      hydrated: auth.hasHydrated,
+    }
+    // 親の同値DTO再供給では送信中の所有者を失効させない。
+    // anchor/世代/状態/位置を含む全値と認証scopeが変われば必ず失効する。
+    if (watchedInput !== null && sameOrdinaryWire(watchedInput, input)) return
     controller?.dispose()
+    controller = null
+    watchedInput = null
     generation++
     request?.abort()
     items.value = []
@@ -198,10 +216,11 @@ watch(
     status.value = 'blocked'
     if (!identity().verified) return
     try {
+      watchedInput = structuredClone(input)
       // APIで閉DTO検証された値からVueの観測Proxyだけを外す。
       // controllerは独立した固定snapshotへcloneし、元のreactive値を保持しない。
       const current = new GameScreenOrdinaryPitchController(
-        structuredClone(toRaw(props.context)),
+        watchedInput.context,
         identity,
         writer,
       )
@@ -223,7 +242,7 @@ watch(
       status.value = 'blocked'
     }
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
 onScopeDispose(() => {
   generation++
