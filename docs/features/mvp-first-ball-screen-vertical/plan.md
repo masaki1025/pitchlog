@@ -85,3 +85,5 @@ created: 2026-10-30
 ### 実画面の接合位置（2026-10-30、PO委任Codex判断）
 
 未接続の汎用draftへ実経路を重ねず、既 `GameScreenRecordedRestore.vue` が取得した同じinitialを新規 `GameScreenFirstBall.vue` / `GameScreenFirstBallController.ts` と同specへ渡す。既StrikeZone・実球種read・正式provider・queue/ACK/排他を利用する。ACK後は同じrestore.reloadを呼び、recordedへ変わるとフォームを閉じる。未応答/reloadでは旧slot/同attemptを再送しcommit再呼出しで新D1を作らない。専用初球フォームの実前提で確定を許可し、未接続の汎用GameScreenの常閉ゲートは維持する（MVPの全操作接続は後続として残る）。
+
+球種供給の実DB受入は `backend/tests/db/test_pitch_type_options.py`（同owned fixture、実2tenant login/Cookie/C2/正式token）で行う。既画面E2EとDB・port・tmpを分離する。
