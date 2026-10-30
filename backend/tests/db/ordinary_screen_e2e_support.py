@@ -102,6 +102,86 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
     })
   })
   await login(page)
+  await page.evaluate(async () => {
+    // 試験だけの観測。元関数を必ず実行し、状態・成功応答・認可を変更しない。
+    const { DurableQueue } = await import('/src/lib/sync/durableQueue.ts')
+    const { GameScreenOrdinaryPitchController } =
+      await import('/src/screens/GameScreenOrdinaryPitchController.ts')
+    const { GameStartPersistence } =
+      await import('/src/lib/gameStartPersistence.ts')
+    const { useAuthStore } = await import('/src/stores/authStore.ts')
+    const diag: Record<string, string | boolean> = {}
+    Object.defineProperty(window, '__ordinarySafeDiagnostic', {
+      value: diag,
+    })
+    const exception = (error: unknown) => {
+      const name = error instanceof Error ? error.name : 'other'
+      return [
+        'DataCloneError',
+        'TransactionInactiveError',
+        'AbortError',
+        'QuotaExceededError',
+        'TypeError',
+        'Error',
+      ].includes(name)
+        ? name
+        : 'other'
+    }
+    for (const name of [
+      'prepareA5Transition',
+      'persistA5Transition',
+    ] as const) {
+      const original = DurableQueue.prototype[name]
+      DurableQueue.prototype[name] = async function (...args: never[]) {
+        try {
+          const result = await original.apply(this, args)
+          diag[name] = result ? 'provided' : 'absent'
+          return result
+        } catch (error) {
+          diag[name] = exception(error)
+          throw error
+        }
+      } as never
+    }
+    const original = GameScreenOrdinaryPitchController.prototype.submit
+    GameScreenOrdinaryPitchController.prototype.submit = async function (
+      ...args
+    ) {
+      for (const key of Object.keys(diag)) delete diag[key]
+      diag.done = false
+      const auth = useAuthStore(),
+        epoch = auth.authEpoch
+      diag.authVerifiedBefore = auth.isAuthenticated
+      const context = this.context
+      const store = await GameStartPersistence.open()
+      try {
+        const saved = await store.readStart(
+          context.prefixRef.tenantId,
+          context.game.id,
+        )
+        diag.grantMatches =
+          saved?.status === 'received' &&
+          saved.grant?.d4 === context.game.current_d4 &&
+          saved.grant?.recovery_generation ===
+            context.serverStamp?.recoveryGeneration
+      } finally {
+        store.close()
+      }
+      try {
+        const result = await original.apply(this, args)
+        diag.submitOutcome = result
+        return result
+      } catch (error) {
+        diag.submitOutcome = 'threw'
+        diag.exception = exception(error)
+        throw error
+      } finally {
+        diag.authEpochStable = epoch === auth.authEpoch
+        diag.authVerifiedAfter = auth.isAuthenticated
+        diag.done = true
+      }
+    }
+  })
   await page.getByRole('button', { name: '新規作成', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
@@ -230,6 +310,8 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
         isPrefix(res) &&
         (await res.json()).prefix_ref.length === String(index + 1),
     )
+    // 診断による早期fail後も待機Promiseの二次unhandledを出さない。
+    void restored.catch(() => undefined)
     await expect(page.getByTestId('first-ball-save')).toBeEnabled()
     await page.getByTestId('first-ball-save').click()
     const acknowledged = await synchronized
@@ -245,6 +327,35 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
         ack.eventResults[0].d5 === sent.d5 &&
         ack.advancedD3 === index + 1,
     ).toBe(true)
+    await page.waitForFunction(
+      () =>
+        (
+          window as unknown as {
+            __ordinarySafeDiagnostic?: { done?: boolean }
+          }
+        ).__ordinarySafeDiagnostic?.done === true,
+      null,
+      { timeout: 20000 },
+    )
+    const diagnostic = await page.evaluate(
+      async ({ value, key }) => {
+        const { readOrdinaryPitchAck } =
+          await import('/src/api/ordinaryPitchAck.ts')
+        return {
+          ...(
+            window as unknown as {
+              __ordinarySafeDiagnostic: Record<string, string | boolean>
+            }
+          ).__ordinarySafeDiagnostic,
+          ackParserAccepts: !!readOrdinaryPitchAck(value, key),
+        }
+      },
+      { value: ack, key: { d4: sent.d4, d1: sent.d1, d5: sent.d5 } },
+    )
+    // 失敗出力は列挙済みのenum/booleanのみ。原要求・資格・ACK原値は出力しない。
+    expect(diagnostic.submitOutcome, JSON.stringify(diagnostic)).toBe(
+      'saved',
+    )
     latest = await (await restored).json()
     expect(latest.read_kind).toBe('recorded-prefix')
     expect(latest.page.items).toHaveLength(index + 1)
