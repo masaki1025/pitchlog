@@ -8,7 +8,7 @@
 
 ## 接続先と起動
 
-自動試験の環境は終了済みで、固定の公開URLはない。以下の明示holdで専用環境を起動し、表示される `PITCHLOG_MANUAL_URL` のloopback URLを同じPCのブラウザで開く（hold機能の反映版を使用）。`PITCHLOG_MANUAL_TEAM` が試験チーム名。LAN公開や共有DBへの適用は行わない。
+自動試験の環境は終了済みで、固定の公開URLはない。以下の明示holdで専用環境を起動し、表示される `PITCHLOG_E2E_MANUAL_ORIGIN` のloopback URLを同じPCのブラウザで開く（hold機能の反映版を使用）。`PITCHLOG_E2E_MANUAL_TEAM_NAME` が試験チーム名。LAN公開や共有DBへの適用は行わない。
 
 ```bash
 cd /home/ymdms/projects/pitchlog-worktrees/feature-mvp-first-ball-vertical/backend

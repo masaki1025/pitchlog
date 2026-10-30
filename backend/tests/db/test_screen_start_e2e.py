@@ -23,6 +23,7 @@ from urllib.request import urlopen
 from uuid import uuid4
 
 import pytest
+from manual_e2e_hold_support import hold_manual_environment, manual_hold_seconds
 
 from .sync_writer_binding_support import binding_broker
 from .test_first_ball_vertical_http import (
@@ -389,3 +390,4 @@ def test_screen_first_ball_https_create_save_reload(vertical_database) -> None:
                     (db.tenant_id, created_game),
                 ).fetchone()
                 assert ledger_count == (1,), "idempotency_ledger"
+            hold_manual_environment(origin, manual_hold_seconds(), db.team_name)
