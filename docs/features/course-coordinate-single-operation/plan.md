@@ -60,8 +60,8 @@ quantizeCourse({
   tapX: "<十進文字列>",        # 表示座標（入力形成時の実数）
   tapY: "<十進文字列>",
   view: "catcher" | "pitcher", # 捕手視点 / 投手後方視点
-  batterSide: "right" | "left"
-}) -> { unit: "1/263", x: "<k>", y: "<k>" }
+  size: "<十進文字列>"          # contracts/display_geometry_263_v1.json の size（263 を焼き込まない）
+}) -> { unit: "1/<size>", x: "<k>", y: "<k>" }
 ```
 
 - **規則**: 付録A-1 の四捨五入（half-up）で整数化し、**量子化後に**投手後方視点の左右反転を行う（D11=A）。
@@ -72,7 +72,7 @@ quantizeCourse({
   `263.4→263`（クランプ時）または拒否。`Math.round(-0.5)=-0` の罠を避ける。
 - **範囲方針**: B-7 のクランプと D-11 のクランプ点を優先するか、範囲外を fail-closed にするかをゲートで確定する
   （初版の「範囲外は拒否」は B-7 と衝突）。クランプ点はベクタに含める。
-- **263 の出所**: `contracts/display_geometry_263_v1.json` の `size` を単一の出所とし、`unit:"1/263"` を
+- **263 の出所**: `contracts/display_geometry_263_v1.json` の `size` を単一の出所とし、`unit:"1/<size>"` を契約から導出し、263 を
   焼き込まない（I-17 の二重管理を再生産しない）。
 - **反転と既存実装**: 既存の float 反転 `courseScreenXToStoredX` の扱い（置換か温存か）と、NFR-018 の逐語移植例外
   との関係を明記する。
