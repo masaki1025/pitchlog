@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 from collections.abc import Callable, Collection, Sequence
@@ -69,6 +70,181 @@ class _PopulationCounts:
     manifest: int
     population: int
     database: int
+
+
+# data-model 6-1の4保存表から独立に定める。観測SQL/DDLを期待値へ取り込まない。
+_INITIAL_STORAGE_POLICY = {
+    "trusted_devices": (
+        frozenset({"tenant_id", "device_id", "credential_digest", "created_at"}),
+        frozenset({"revoked_at"}),
+    ),
+    "game_start_requests": (
+        frozenset(
+            {
+                "tenant_id",
+                "game_id",
+                "start_request_id",
+                "device_id",
+                "request_digest",
+                "created_at",
+            }
+        ),
+        frozenset(),
+    ),
+    "game_start_attempts": (
+        frozenset(
+            {
+                "tenant_id",
+                "attempt_id",
+                "game_id",
+                "start_request_id",
+                "device_id",
+                "created_at",
+            }
+        ),
+        frozenset({"outcome", "resolved_at"}),
+    ),
+    "recording_right_deliveries": (
+        frozenset(
+            {
+                "tenant_id",
+                "game_id",
+                "generation",
+                "start_request_id",
+                "device_id",
+                "key_id",
+                "nonce",
+                "ciphertext",
+                "created_at",
+            }
+        ),
+        frozenset({"revoked_at"}),
+    ),
+}
+_INITIAL_MUTABLE_TABLES = frozenset(_INITIAL_STORAGE_POLICY) - {"game_start_requests"}
+_POLICY_TOKEN = re.compile(
+    r"\s+|'(?:''|[^'])*'|[a-zA-Z_][a-zA-Z_0-9]*|->>|->|<>|:=|::|[(),;.=\-]"
+)
+
+
+def _policy_tokens(body: str) -> tuple[str, ...]:
+    """閉文法の全字句を読み、説明用RAISE文面だけを意味比較から外す。"""
+    tokens: list[str] = []
+    position = 0
+    while position < len(body):
+        match = _POLICY_TOKEN.match(body, position)
+        if match is None:
+            raise ValueError("初期権guardの閉文法外")
+        value = match[0]
+        position = match.end()
+        if value.isspace():
+            continue
+        if value.startswith("'"):
+            if tokens[-2:] == ["raise", "exception"]:
+                value = "'diagnostic'"
+        else:
+            value = value.lower()
+        tokens.append(value)
+    return tuple(tokens)
+
+
+def _initial_storage_policy_body() -> str:
+    """原典の不変/一度遷移policyから完全な閉oracleを構成する。"""
+    reject = "RAISE EXCEPTION 'diagnostic' USING ERRCODE = '23514';"
+
+    def changed_except(columns: tuple[str, ...]) -> str:
+        def row(name: str) -> str:
+            return "(" + name + "".join(" - '" + c + "'" for c in columns) + ")"
+
+        return row("new_row") + " IS DISTINCT FROM " + row("old_row")
+
+    targets = ",".join("'" + name + "'" for name in _INITIAL_STORAGE_POLICY)
+    any_change = "new_row IS DISTINCT FROM old_row"
+    return " ".join(
+        (
+            "DECLARE old_row jsonb; new_row jsonb; BEGIN",
+            "IF TG_TABLE_SCHEMA <> 'public' OR TG_TABLE_NAME NOT IN (" + targets + ")",
+            "THEN " + reject + " END IF;",
+            "IF TG_OP = 'DELETE' THEN " + reject + " END IF;",
+            "old_row := pg_catalog.to_jsonb(OLD); new_row := pg_catalog.to_jsonb(NEW);",
+            "IF TG_TABLE_NAME = 'game_start_requests' THEN",
+            "IF " + any_change + " THEN " + reject + " END IF;",
+            "ELSIF TG_TABLE_NAME = 'game_start_attempts' THEN",
+            "IF " + changed_except(("outcome", "resolved_at")) + " OR",
+            "(old_row->>'outcome' <> 'pending' AND " + any_change + ")",
+            "THEN " + reject + " END IF; ELSE",
+            "IF " + changed_except(("revoked_at",)) + " OR",
+            "(old_row->'revoked_at' <> 'null'::jsonb AND new_row->'revoked_at'",
+            "IS DISTINCT FROM old_row->'revoked_at') THEN " + reject + " END IF;",
+            "END IF; RETURN NEW; END",
+        )
+    )
+
+
+def _initial_storage_guard_matches(definition: str) -> bool:
+    """実関数identity/属性と全bodyを独立policyへ照合し、余分な文も拒否する。"""
+    match = re.fullmatch(
+        r"\s*CREATE(?: OR REPLACE)? FUNCTION public\.protect_initial_right_storage"
+        r"\(\s*\)\s+RETURNS trigger\s+LANGUAGE plpgsql\s+"
+        r"(?:SECURITY INVOKER\s+)?SET search_path TO (?:pg_catalog|'pg_catalog'),\s*"
+        r"(?:pg_temp|'pg_temp')\s+"
+        r"AS (?P<tag>\$(?:[a-zA-Z_][a-zA-Z_0-9]*)?\$)(?P<body>.*)(?P=tag)\s*;?\s*",
+        definition,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if match is None:
+        return False
+    try:
+        return _policy_tokens(match["body"]) == _policy_tokens(
+            _initial_storage_policy_body()
+        )
+    except ValueError:
+        return False
+
+
+def _initial_storage_trigger_violations(
+    table: _ManifestTable, triggers: Sequence[_CatalogTrigger]
+) -> list[str]:
+    """初期権4表だけを原典の列分類・実トリガ・完全policyへ閉じる。"""
+    protected, conditional = _INITIAL_STORAGE_POLICY[table.name]
+    violations: list[str] = []
+    if (
+        table.protected_columns != protected
+        or table.conditional_update_columns != conditional
+        or table.columns != protected | conditional
+        or table.allowed_update_columns
+        or table.check_protected_columns
+        or table.append_only != (table.name == "game_start_requests")
+    ):
+        violations.append(f"{table.name}: 初期権の原典列分類が不一致")
+    actual = [trigger for trigger in triggers if trigger.table == table.name]
+    if len(actual) != 1:
+        violations.append(f"{table.name}: 初期権トリガは全eventで1本だけが必要")
+        return violations
+    trigger = actual[0]
+    expected_name = "trg_" + table.name + "_initial_right_guard"
+    normalized = _normalize_sql(trigger.definition)
+    if (
+        trigger.name != expected_name
+        or not normalized.startswith("CREATE TRIGGER " + expected_name + " ")
+        or re.search(
+            r" ON (?:public\.)?"
+            + re.escape(table.name)
+            + r" FOR EACH ROW EXECUTE FUNCTION (?:public\.)?"
+            + r"protect_initial_right_storage\(\)$",
+            normalized,
+        )
+        is None
+        or _trigger_events(trigger.definition) != {"UPDATE", "DELETE"}
+        or _before_event_clause(trigger.definition)
+        not in {"UPDATE OR DELETE", "DELETE OR UPDATE"}
+        or trigger.columns
+        or trigger.enabled != "O"
+    ):
+        violations.append(f"{table.name}: 初期権の全列UPDATE/DELETE guard属性が不一致")
+    if not _initial_storage_guard_matches(trigger.function_definition):
+        violations.append(f"{table.name}: 初期権guardが独立policy全文と不一致")
+    return violations
 
 
 def _load_manifest() -> dict[str, Any]:
@@ -304,6 +480,9 @@ def _enforcement_violations(
                         f"{table.name}: 追記専用トリガに UPDATE OF 列がある: "
                         f"{list(trigger.columns)!r}"
                     )
+        elif table.name in _INITIAL_MUTABLE_TABLES:
+            # この3表だけが全列UPDATE/DELETE型。任意表のUPDATE OFを一般免除しない。
+            pass
         elif table.protected_columns - table.check_protected_columns:
             if len(table_triggers) != 1:
                 violations.append(
@@ -348,6 +527,8 @@ def _enforcement_violations(
                 violations.append(
                     f"{table.name}.{trigger.name}: 関数が SQLSTATE 23514 を投げない"
                 )
+        if table.name in _INITIAL_STORAGE_POLICY:
+            violations.extend(_initial_storage_trigger_violations(table, triggers))
     return violations
 
 
@@ -517,6 +698,198 @@ def test_all_manifest_immutability_declarations_are_enforced(
         _validate_observed_contract(manifest, population, database_tables, triggers)
         == []
     )
+
+
+def _initial_guard_migration_input() -> str:
+    """被検査入力だけを実migrationから読む。期待policyの導出には使わない。"""
+    source = (
+        _BACKEND_ROOT / "migrations/versions/0036_initial_recording_right_storage.py"
+    ).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    value = next(
+        node.value
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(t, ast.Name) and t.id == "_INTERNAL_TRIGGER_SQL"
+            for t in node.targets
+        )
+    )
+    result = ast.literal_eval(value)
+    assert isinstance(result, str)
+    return result
+
+
+def test_initial_storage_actual_guard_matches_independent_policy() -> None:
+    """実DDLを独立policyへ照合し、説明文とdollar tagに依存しない。"""
+    definition = _initial_guard_migration_input()
+    assert _initial_storage_guard_matches(definition)
+    assert _initial_storage_guard_matches(
+        definition.replace("$body$", "$function$").replace(
+            "initial request is immutable", "different diagnostic"
+        )
+    )
+    population = _manifest_population(_load_manifest())
+    for table in population:
+        if table.name not in _INITIAL_STORAGE_POLICY:
+            continue
+        trigger = _CatalogTrigger(
+            name="trg_" + table.name + "_initial_right_guard",
+            definition="CREATE TRIGGER trg_"
+            + table.name
+            + "_initial_right_guard BEFORE DELETE OR UPDATE ON public."
+            + table.name
+            + " FOR EACH ROW EXECUTE FUNCTION "
+            + "public.protect_initial_right_storage()",
+            table=table.name,
+            columns=(),
+            enabled="O",
+            function_definition=definition,
+        )
+        assert _initial_storage_trigger_violations(table, (trigger,)) == []
+        for changed in (
+            replace(trigger, definition=trigger.definition.replace("DELETE OR ", "")),
+            replace(trigger, definition=trigger.definition.replace("BEFORE", "AFTER")),
+            replace(trigger, enabled="D"),
+            replace(trigger, columns=("tenant_id",)),
+            replace(
+                trigger,
+                definition=trigger.definition.replace(
+                    "public.protect_initial_right_storage()", "public.other_guard()"
+                ),
+            ),
+            replace(
+                trigger,
+                definition=trigger.definition.replace(
+                    "DELETE OR UPDATE", "INSERT OR DELETE OR UPDATE"
+                ),
+            ),
+        ):
+            assert _initial_storage_trigger_violations(table, (changed,))
+        assert _initial_storage_trigger_violations(table, (trigger, trigger))
+        assert _initial_storage_trigger_violations(
+            replace(table, allowed_update_columns=frozenset({"created_at"})), (trigger,)
+        )
+
+
+@pytest.mark.parametrize(
+    "old,new",
+    [
+        ("TG_TABLE_SCHEMA <> 'public'", "TG_TABLE_SCHEMA <> 'other'"),
+        ("'trusted_devices','game_start_requests'", "'game_start_requests'"),
+        ("IF TG_OP = 'DELETE'", "IF FALSE"),
+        ("IF new_row IS DISTINCT FROM old_row THEN", "IF FALSE THEN"),
+        ("new_row - 'outcome' - 'resolved_at'", "new_row - 'outcome'"),
+        ("old_row->>'outcome' <> 'pending'", "old_row->>'outcome' = 'pending'"),
+        ("new_row - 'revoked_at'", "new_row - 'revoked_at' - 'created_at'"),
+        ("old_row->'revoked_at' <> 'null'::jsonb", "FALSE"),
+        ("DECLARE old_row", "RETURN NEW; DECLARE old_row"),
+        ("IF TG_OP = 'DELETE' THEN", "IF TG_OP = 'DELETE' OR TRUE THEN"),
+        ("RETURN NEW;", "EXCEPTION WHEN OTHERS THEN RETURN NEW;"),
+        ("'23514'", "'P0001'"),
+        ("SECURITY INVOKER", "SECURITY DEFINER"),
+        ("pg_catalog, pg_temp", "public, pg_temp"),
+    ],
+)
+def test_initial_storage_policy_rejects_body_mutations(old: str, new: str) -> None:
+    """保護項/遷移/DELETE/例外codeの変造を本文自身で正当化しない。"""
+    original = _initial_guard_migration_input()
+    changed = original.replace(old, new, 1)
+    assert changed != original
+    assert not _initial_storage_guard_matches(changed)
+
+
+def test_initial_storage_delete_event_removal_is_detected(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """実同guardのDELETE eventだけを落としても不変性検査を赤にする。"""
+    connection = provisioned_product_catalog.applicator
+    privileged = frozenset({_bootstrap_superuser_oid(provisioned_product_catalog)})
+    with connection.transaction(force_rollback=True):
+        manifest, population, tables, triggers = _observed_contract(
+            connection, privileged_role_oids=privileged
+        )
+        assert _validate_observed_contract(manifest, population, tables, triggers) == []
+        trigger = _single_table_trigger(triggers, "trusted_devices")
+        connection.execute(
+            sql.SQL("DROP TRIGGER {} ON public.trusted_devices").format(
+                sql.Identifier(trigger.name)
+            )
+        )
+        connection.execute(
+            sql.SQL(
+                "CREATE TRIGGER {} BEFORE UPDATE ON public.trusted_devices "
+                "FOR EACH ROW EXECUTE FUNCTION public.protect_initial_right_storage()"
+            ).format(sql.Identifier(trigger.name))
+        )
+        assert any(
+            "trusted_devices: 初期権の全列UPDATE/DELETE guard属性が不一致" in item
+            for item in _validate_observed_contract(
+                manifest, population, tables, _catalog_triggers(connection)
+            )
+        )
+
+
+def test_initial_storage_rows_enforce_protected_and_one_time_updates(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """両tenantの実4表で保護UPDATE/DELETE拒否と一度遷移だけを確認する。"""
+    from product_authz_tenant_owned_cases import TENANT_IDS, insert_statement, seed_rows
+
+    connection = provisioned_product_catalog.applicator
+    with connection.transaction(force_rollback=True):
+        for row in seed_rows():
+            statement, params = insert_statement(row)
+            connection.execute(statement, params)
+        for tenant in TENANT_IDS:
+            for table in _INITIAL_STORAGE_POLICY:
+                relation = sql.Identifier("public", table)
+                assert connection.execute(
+                    sql.SQL("SELECT count(*) FROM {} WHERE tenant_id=%s").format(
+                        relation
+                    ),
+                    (tenant,),
+                ).fetchone() == (1,)
+                for statement in (
+                    sql.SQL(
+                        "UPDATE {} SET created_at=created_at + interval '1 second' "
+                        "WHERE tenant_id=%s"
+                    ).format(relation),
+                    sql.SQL("DELETE FROM {} WHERE tenant_id=%s").format(relation),
+                ):
+                    with pytest.raises(psycopg.errors.CheckViolation) as caught:
+                        with connection.transaction():
+                            connection.execute(statement, (tenant,))
+                    assert caught.value.sqlstate == "23514"
+                if table == "game_start_requests":
+                    continue
+                column = (
+                    "resolved_at" if table == "game_start_attempts" else "revoked_at"
+                )
+                assignments = (
+                    sql.SQL("resolved_at=created_at, outcome='committed'")
+                    if (table == "game_start_attempts")
+                    else sql.SQL("revoked_at=created_at")
+                )
+                changed = connection.execute(
+                    sql.SQL("UPDATE {} SET {} WHERE tenant_id=%s").format(
+                        relation, assignments
+                    ),
+                    (tenant,),
+                )
+                assert changed.rowcount == 1
+                with pytest.raises(psycopg.errors.CheckViolation) as caught:
+                    with connection.transaction():
+                        connection.execute(
+                            sql.SQL(
+                                "UPDATE {} SET {}={} + interval '1 second' "
+                                "WHERE tenant_id=%s"
+                            ).format(
+                                relation, sql.Identifier(column), sql.Identifier(column)
+                            ),
+                            (tenant,),
+                        )
+                assert caught.value.sqlstate == "23514"
 
 
 def test_rg1_fixed_id_check_removal_is_detected(
