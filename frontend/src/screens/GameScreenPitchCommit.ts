@@ -14,6 +14,7 @@
 //
 // 第 1 期では利用者からこの経路へ到達できない(GameScreenCommitGate が塞ぐ)。
 // 合否はモックの状態差分と契約モックのサーバー相手の隔離試験でのみ判定する。
+import type { SyncRequestCredentials } from '../api/client'
 import type { DurableQueueSlot } from '../lib/sync/durableQueue'
 import type { EventKind } from '../lib/sync/eventKinds'
 import { queueStateId } from '../lib/sync/queueState'
@@ -25,6 +26,7 @@ import {
 import {
   postSyncEvents,
   type SyncEventSendResult,
+  type SyncEventSendRequest,
 } from '../api/client.syncEvents'
 import {
   applyAckToSlot,
@@ -61,6 +63,10 @@ export type PitchCommitDependencies = Readonly<{
   queue: PitchCommitQueue
   singleWriterInjections?: SingleWriterInjections
   warningThreshold?: number
+  /** 追記後・HTTP前に耐久保存を完了し、同じ要求の実資格だけを返す。 */
+  prepareSend?: (
+    request: SyncEventSendRequest,
+  ) => Promise<SyncRequestCredentials>
   /**
    * 応答から ACK を取り出す。応答の物理形を解釈する codec が製品側に無いため、
    * U-F8 で形を決め打ちせず呼出元から受け取る。ACK が無ければ undefined を返す。
@@ -81,6 +87,8 @@ export type PitchCommitResult =
       acceptance: PitchAcceptanceResult
       /** 受理できなければ送らないので undefined。 */
       send?: SyncEventSendResult
+      /** 端末の送信準備が成立しなかった。HTTP未送信であり結果不明ではない。 */
+      sendPreparation?: Readonly<{ outcome: 'failed' }>
       /** 送れなければ、または ACK が無ければ undefined。 */
       ackApplication?: AckApplicationResult
       /**
@@ -138,11 +146,28 @@ export async function commitPitchEvent(
         }
       }
 
-      const send = await postSyncEvents({
+      const request: SyncEventSendRequest = {
         gameId: input.gameIdentifier,
         recordingRightProof: input.recordingRightProof,
         slots: [acceptance.slot],
         eventKinds: input.eventKinds,
+      }
+      let syncCredentials: SyncRequestCredentials | undefined
+      if (dependencies.prepareSend) {
+        try {
+          syncCredentials = await dependencies.prepareSend(request)
+        } catch {
+          return {
+            outcome: 'attempted',
+            acceptance,
+            sendPreparation: { outcome: 'failed' },
+            latestSlot: acceptance.slot,
+          }
+        }
+      }
+      const send = await postSyncEvents({
+        ...request,
+        ...(syncCredentials === undefined ? {} : { syncCredentials }),
       })
       if (!send.sent) {
         // ACK が返らないのでスロットは未送信のまま(sync-protocol.md:764)。

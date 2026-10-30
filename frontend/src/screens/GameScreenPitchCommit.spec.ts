@@ -548,3 +548,102 @@ describe('最新のスロットと、既に遷移したスロットの扱い', (
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 })
+
+describe('HTTP前の耐久送信準備', () => {
+  const credentials = {
+    deviceId: '11111111-1111-4111-8111-111111111111',
+    deviceCredential: 'fixture-device-credential',
+    attempt: '22222222-2222-4222-8222-222222222222',
+  }
+  it('追記後の準備を同じ排他内で待ち、完了までHTTPを送らない', async () => {
+    const queue = await openIsolatedQueue()
+    const lockLog: string[] = []
+    let complete!: (value: typeof credentials) => void
+    let preparing!: () => void
+    const started = new Promise<void>((resolve) => {
+      preparing = resolve
+    })
+    const barrier = new Promise<typeof credentials>((resolve) => {
+      complete = resolve
+    })
+    const prepareSend: NonNullable<
+      PitchCommitDependencies['prepareSend']
+    > = async (request) => {
+      expect(request.gameId).toBe(gameId)
+      expect(request.slots).toHaveLength(1)
+      expect(request.slots[0]!.d1).toBe(1)
+      expect((await queue.readSlot(scope, 1))?.state).toBe(
+        queueStateId('未送信'),
+      )
+      preparing()
+      return barrier
+    }
+    respond('{}')
+    const pending = commitPitchEvent(
+      input(),
+      dependencies(queue, {
+        prepareSend,
+        singleWriterInjections: singleWriterInjections({
+          lockManager: recordingLockManager(lockLog),
+        }),
+      }),
+    )
+    await started
+    expect(fetch).not.toHaveBeenCalled()
+    expect(lockLog).toEqual([`acquire:pitchlog:game:${gameId}`])
+    complete(credentials)
+    const result = await pending
+    expect(result.outcome).toBe('attempted')
+    if (result.outcome !== 'attempted') return
+    expect(result.send?.sent).toBe(true)
+    expect(result.sendPreparation).toBeUndefined()
+    expect(vi.mocked(fetch).mock.calls[0]![1]!.headers).toMatchObject({
+      'X-Pitchlog-Sync-Attempt': credentials.attempt,
+      'X-Pitchlog-Device-Id': credentials.deviceId,
+      'X-Pitchlog-Device-Credential': credentials.deviceCredential,
+    })
+    expect(lockLog).toEqual([
+      `acquire:pitchlog:game:${gameId}`,
+      `release:pitchlog:game:${gameId}`,
+    ])
+  })
+  it('準備失敗はHTTP未送信として明示し、追記済みslotを保持する', async () => {
+    const queue = await openIsolatedQueue()
+    const result = await commitPitchEvent(
+      input(),
+      dependencies(queue, {
+        prepareSend: async () => {
+          throw new Error('private-material-marker')
+        },
+      }),
+    )
+    expect(fetch).not.toHaveBeenCalled()
+    expect(result.outcome).toBe('attempted')
+    if (result.outcome !== 'attempted') return
+    expect(result.sendPreparation).toEqual({ outcome: 'failed' })
+    expect(result.send).toBeUndefined()
+    expect(result.ackApplication).toBeUndefined()
+    expect(result.latestSlot?.d1).toBe(1)
+    expect(result.latestSlot?.state).toBe(queueStateId('未送信'))
+    expect((await queue.readSlot(scope, 1))?.state).toBe(queueStateId('未送信'))
+    expect(await queue.readNextD1(scope)).toBe(2)
+    expect(JSON.stringify(result)).not.toContain('private-material-marker')
+  })
+  it('排他が得られなければ送信準備も行わない', async () => {
+    const queue = await openIsolatedQueue()
+    const prepareSend = vi.fn(async () => credentials)
+    await commitPitchEvent(
+      input(),
+      dependencies(queue, {
+        prepareSend,
+        singleWriterInjections: singleWriterInjections({
+          lockManager: {
+            request: async (_name, callback) => callback(null),
+          },
+        }),
+      }),
+    )
+    expect(prepareSend).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+})

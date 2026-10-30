@@ -168,7 +168,8 @@ function failure(
   return { sent: false, reason, ...detail }
 }
 
-function buildRequestBody(
+/** 既存スロットから送信直前と同じwire本文を組み立てる。資格は含めない。 */
+export function buildSyncEventRequestBody(
   request: SyncEventSendRequest,
 ): SyncEventRequestBody | SyncEventSendResult {
   if (request.slots.length === 0) {
@@ -254,7 +255,7 @@ function buildRequestBody(
 export async function postSyncEvents(
   request: SyncEventSendRequest,
 ): Promise<SyncEventSendResult> {
-  const built = buildRequestBody(request)
+  const built = buildSyncEventRequestBody(request)
   if ('sent' in built) {
     return built
   }
