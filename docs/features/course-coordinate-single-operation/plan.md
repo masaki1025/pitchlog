@@ -153,3 +153,17 @@ PO委任によるCodex主担当判断。REPORT〜REPORT7の既履歴を維持し
 画面座標の意味追随として `frontend/src/screens/GameScreen.spec.ts` の投手視点タップ期待値を保存反転値183から実画面値80へ追随する。計算結果ではなくemit/下書き境界の期待値であり、保存整数の左右反転はartifact契約で独立検証する。
 
 step3の公開操作集合追随: `frontend/src/domain/publicApi.spec.ts`・`firstPitchContinuationArtifact.spec.ts` のexact集合に承認済quantizeCourseのみ追加し、既5操作を保持する。部分一致に緩めない。
+
+### Step3のBOOT対象binding具体化候補（2026-10-30、委任承認前）
+
+実CIの`boot.report`はmanifestの計算識別値を正本対象のstable IDと同一視し、既承認`course-input-quantization`を未知対象として拒否した。operation/契約/descriptorの識別値を維持し、`nfr018-alpha-02`（入力と表示のための座標変換）への**部分供給**を1件だけ閉登録する。D18=A/ADR-003 v0.10の実装具体化であり、新たな野球意味・対象集合・全体完成条件を追加しない。本追補は非作者確認・主担当のPO委任承認後にsource着手する。
+
+候補資産は`backend/domain/boot-operation-bindings.json`と同`.schema.json`、対向ケースは`backend/tests/domain/fixtures/boot_coordinate_binding_cases_v1.json`。schemaは1件のoperation/target/source/coverage=partial/根拠をconstで閉じ、未知operationへ任意targetを付けても拒否する。既manifest schema・既13対象・boot封印・契約1093件/既42件・artifact/pinは変更しない。
+
+承認後のsource最小編集集合は新規`backend/src/pitchlog/domaincheck/boot/operation_bindings.py`、既`snapshot.py`・`report.py`、新規`tests/domain/boot/test_operation_bindings.py`および既`test_snapshot.py`・`test_report.py`の必要回帰のみ。専用loaderで閉schemaと対応の規範対象実在を検証し、既`InputAssetCollector`でbinding/schemaのdigestを証跡化。before/afterとも同じ固定対応を用い、過去manifest blobを変更しない。旧stable IDの登録は従来通り、未知operation/target拒否は保持する。
+
+部分operationについても既source/生成物/入口/direct adapter/3層登録先の全実在検査を通す。六集合への写像ではoperationの3層成功をtarget全体の3層成功へ昇格させず、verified_checks供給時も当該targetを全体成功集合へ加えない。未供給なら既Noneを維持する。他対象の実測結果は変えない。部分登録があるtargetについてstable IDの別行を追加して完全化したと偽る混在も閉拒否し、全体完成への移行は別変更とする。
+
+合否: 実manifestのreport生成/再検査と既snapshot/phase2回帰を通す。全layer成功でも当該targetのresolutionは空、既封印要素は未解消のまま。binding欠落・重複・target差替え・partial→complete偽装・実在欠落・不正schemaを拒否する。CI greenは従来通り移行要件のみで、NFR-018/019全体成立を主張しない。
+
+PO委任によるCodex主担当判断（2026-10-30）: 上記binding候補4pathを全SHA照合し、非作者REPORTdd87b3423ed48ba0affd35bcd74cd650a0acc3a77b83f5f9a52007f1d883808d（P0/P1/P2=0、10変異拒否）を採用してstep3の有限登録是正へ進む。15対向の実source実行・report成功は未実施であり、本受理だけで成立としない。
