@@ -647,3 +647,29 @@ describe('HTTP前の耐久送信準備', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 })
+
+it('同じ書込排他内の前提拒否では追記・採番・送信を開始しない', async () => {
+  const queue = await openIsolatedQueue()
+  const log: string[] = []
+  await expect(
+    commitPitchEvent(
+      input(),
+      dependencies(queue, {
+        beforeAppend: async () => {
+          expect(log).toEqual([`acquire:pitchlog:game:${gameId}`])
+          throw new Error('初球は既に処理中')
+        },
+        singleWriterInjections: singleWriterInjections({
+          lockManager: recordingLockManager(log),
+        }),
+      }),
+    ),
+  ).rejects.toThrow('初球は既に処理中')
+  expect(await queue.readNextD1(scope)).toBe(1)
+  expect(await queue.readSlot(scope, 1)).toBeUndefined()
+  expect(fetch).not.toHaveBeenCalled()
+  expect(log).toEqual([
+    `acquire:pitchlog:game:${gameId}`,
+    `release:pitchlog:game:${gameId}`,
+  ])
+})

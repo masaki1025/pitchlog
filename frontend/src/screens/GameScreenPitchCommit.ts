@@ -61,6 +61,8 @@ export type PitchCommitInput = PitchAcceptanceInput &
 
 export type PitchCommitDependencies = Readonly<{
   queue: PitchCommitQueue
+  /** 同じ書込排他内で、追記前に実永続状態の前提を再確認する。 */
+  beforeAppend?: () => Promise<void>
   singleWriterInjections?: SingleWriterInjections
   warningThreshold?: number
   /** 追記後・HTTP前に耐久保存を完了し、同じ要求の実資格だけを返す。 */
@@ -128,6 +130,7 @@ export async function commitPitchEvent(
   const started = await runAsSingleWriter<PitchCommitResult>(
     { gameIdentifier: input.gameIdentifier },
     async () => {
+      await dependencies.beforeAppend?.()
       const acceptance = await appendPitchEventUnderLock(
         input,
         queue,

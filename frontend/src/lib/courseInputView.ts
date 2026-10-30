@@ -8,17 +8,6 @@ export function sanitizeCourseInputView(value: unknown): CourseInputView {
   return value === 'pitcher' ? 'pitcher' : DEFAULT_COURSE_INPUT_VIEW
 }
 
-/**
- * 保存座標は従来どおり捕手側視点の 0〜263 を正本とする。
- * 投手後方視点は画面上のX座標だけを反転し、既存データを書き換えない。
- */
-export function courseScreenXToStoredX(
-  screenX: number,
-  view: CourseInputView,
-): number {
-  return view === 'pitcher' ? COURSE_COORDINATE_SIZE - screenX : screenX
-}
-
 export function courseStoredXToScreenX(
   storedX: number,
   view: CourseInputView,
