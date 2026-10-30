@@ -1,6 +1,7 @@
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
 import {
   readContinuationRules,
+  evaluateEndConditionNoEnd,
   type ContinuationRules,
 } from './firstPitchContinuation'
 
@@ -113,29 +114,6 @@ function prefix(value: unknown): JsonObject | null {
   return result
 }
 
-/** 新しい保存意味を決めず、採用済DRAW-01..04の相関だけを検査する。 */
-function validRules(rules: ContinuationRules): boolean {
-  if (
-    rules.extensionLimit !== null &&
-    rules.extensionLimit < rules.regulationInnings
-  )
-    return false
-  if (
-    rules.coldConditions.some(
-      (stage) => stage.startInning > rules.regulationInnings,
-    )
-  )
-    return false
-  if (
-    rules.tiebreak !== null &&
-    (rules.tiebreak.startInning <= rules.regulationInnings ||
-      (rules.extensionLimit !== null &&
-        rules.tiebreak.startInning > rules.extensionLimit))
-  )
-    return false
-  return true
-}
-
 /** 同じ攻撃中の非終端stateから、実規則の非成立根拠を評価する。 */
 function ordinaryBasis(
   snapshot: unknown,
@@ -169,49 +147,37 @@ function ordinaryBasis(
     return null
   const home = parseDecimalInteger(score.home)
   const away = parseDecimalInteger(score.away)
-  if (home === null || away === null || home < 0n || away < 0n) return null
-  if (rules.extensionLimit !== null && inning > rules.extensionLimit)
-    return null
-  // 今回は通常open系列。再開後の例外状態に対する恒久的な意味拒否ではない。
-  if (
-    (half === 'bottom' && inning >= rules.regulationInnings && home > away) ||
-    (half === 'top' && inning > rules.regulationInnings && home > away)
+  if (home === null || away === null) return null
+  const active = read('state.tiebreakActive')
+  const ended = read('state.gameEnded')
+  if (typeof active !== 'boolean' || typeof ended !== 'boolean') return null
+  const facts = evaluateEndConditionNoEnd(
+    {
+      inning: inning,
+      half: half,
+      home: home,
+      away: away,
+      tiebreakActive: active,
+      gameEnded: ended,
+    },
+    rules,
   )
-    return null
-  let expectedTiebreak = false
-  if (rules.tiebreak !== null && inning >= rules.tiebreak.startInning)
-    expectedTiebreak = true
-  if (read('state.tiebreakActive') !== expectedTiebreak) return null
-  let branches: Array<string> = []
-  for (const stage of rules.coldConditions) {
-    let branch = 'COLD-06'
-    if (inning < stage.startInning) branch = 'COLD-01'
-    else if (half === 'top') {
-      branch = 'COLD-01'
-      if (away - home >= stage.pointDifference) branch = 'COLD-04'
-    } else {
-      if (home - away >= stage.pointDifference) return null
-      if (away - home >= stage.pointDifference) branch = 'COLD-04'
-    }
-    branches = branches.concat([branch])
-  }
-  let drawBranch = 'DRAW-07'
-  if (rules.extensionLimit !== null) drawBranch = 'DRAW-08'
+  if (facts === null) return null
   let extension: string | null = null
-  if (rules.extensionLimit !== null)
-    extension = formatDecimalInteger(rules.extensionLimit)
+  if (facts.configuredExtensionLimit !== null)
+    extension = formatDecimalInteger(facts.configuredExtensionLimit)
   return {
-    regulationInnings: formatDecimalInteger(rules.regulationInnings),
-    inning: formatDecimalInteger(inning),
-    half: half,
+    regulationInnings: formatDecimalInteger(facts.regulationInnings),
+    inning: formatDecimalInteger(facts.inning),
+    half: facts.half,
     halfCompleted: false,
-    coldBranches: branches,
+    coldBranches: facts.coldBranches,
     coldAggregate: 'COLD-07',
-    drawBranch: drawBranch,
+    drawBranch: facts.drawBranch,
     scoreUnchanged: true,
     outsUnchanged: true,
     priorOpen: true,
-    tiebreakActive: expectedTiebreak,
+    tiebreakActive: facts.tiebreakActive,
     configuredExtensionLimit: extension,
   }
 }
@@ -371,7 +337,7 @@ export function finishOrdinaryContinuation(
   const value = response.value as JsonObject
   const prior = request.prior as JsonObject
   const rules = readContinuationRules(request.rules)
-  if (!rules.ok || !validRules(rules.value)) return failure('T2_NOT_EVALUATED')
+  if (!rules.ok) return failure('T2_NOT_EVALUATED')
   if (
     prior.kind === 'evaluated-prefix' &&
     !previousEvaluation(prior, rules.value)
