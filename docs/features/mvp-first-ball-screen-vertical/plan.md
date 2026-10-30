@@ -107,3 +107,28 @@ HTTPSで初球保存/同一要求再送後のreload停止を検知。`GameScreen
 既step5の必須CI是正として、PR189固定5ee01162のbackend job124047601114で確認した28型診断を、隔離fix/mvp-first-ball-type-checkで修正する。編集対象はbackend/src/pitchlog/api/routers/sync.py、backend/tests/db/test_first_ball_vertical_http.py、backend/tests/db/test_screen_start_e2e.py、backend/tests/test_e1_receipt_binding.py、backend/tests/test_recorded_snapshot.py、backend/tests/test_sync_apply_replay_before_binding.py、backend/tests/test_sync_apply_wire_source.py、backend/tests/test_sync_first_ball_registration.pyのexact8。runtime検査/認可/拒否順/保存/不正入力の実行やassertは保持し、既型契約との整合/テストの実shape narrowing/意図的不正入力の明示castに限定する。Anyやignore追加、検査対象除外、正常化で不正例を消すことは禁止。実挙動変更が必要なら範囲外として返す。型検査/関連pytest/ruff/formatと非作者確認後に保存する。正式frozen sourcepinへ影響する差分は別に実再導出し、型通過を受理や最終CI成功としない。主WT/台帳/共有DB/Git refsへの並行書込なし。
 
 型修復のsource保存判断（2026-10-30、PO委任によるCodex主担当判断）: 全8path packet SHA2dc25b49651388e1678e318e9851d0a7fe1c527be5f6493c4206f1689062ae9eと実byte、非作者REPORT e9a1ef8af703d556abbc6aa7f0089143c432d05cd1bcd32af870c65741a651c5（P0/P1=0、独立291成功・backend全体ty成功、製品型erase AST不変）を照合して採用。検査除外/Any/ignoreなし、既不正入力/readonly代入実行/全assert維持。rootは型修復8pathの保存を承認し、handler sourcepin/正式7.7・最終CIは別未成立とする。本人逐行確認/署名ではない。
+
+### PR189の実9関数・親登録を閉じる最小追補案（2026-10-31、主担当採否前）
+
+固定ad6588b1の実registry9に対し正式候補8のread_device_state欠落、旧star/BigInteger検査不整合、
+旧source pinと未受理pending重複を同じ初球候補内で追随する。CAP36/token64を保持し、
+通常投球のordinary7関数/INSERT/専用admission/bridge/migrationを親へ持ち込まない。
+
+編集閉集合の候補はcache `pr189-registration-scope-20261031/exact-scope.json` の26pathと、
+既公式射影から導出する必要history-snapshotsだけ。実9登録を同object/SQL/IO/CAP不変の
+finite directCallへ正規化し、checkerは親BigIntegerの実exact AST形だけを追加する。
+unknown/star/dynamic/Float/Textを許可しない。既source pin/開始7path/ledger/段階起動5helperは
+実source全site・署名/API/現役割境界へ限定追随し、旧legacy/受理188全prefixを保持する。
+再交付所有helper935のTB0011点とwriter/Port参照のTB0021path7は別exact登録とし、
+未知owner/型/path/hashと自己申告hash更新によるbody短絡を拒否する。
+
+旧private prepare用途名だけの明確化は既採用修復を最小移植し、旧D1=1/wire/lease/journal
+動作を変えない。source/契約/checkerの実編集はこの閉集合への主担当承認後。
+実brokerの旧API/再輸出13所見は黙って許可せず、188/dccとの実差分へ分離し必要時その範囲だけ戻す。
+未受理rowは原文保全してcandidateだけ正規化する。正式基線/7.7/受理/sealは未成立でroot直列。
+checkerの外部byteが動く8資産は実188基線から最終値を1回導出し、既に動いた識別値を
+同じ候補内で無意味に増やさない。子190のbefore/値は親採用後に再導出する。
+
+PR189親修復のsource着手承認（2026-10-31、PO委任によるCodex主担当判断）: 実ad6588b1とscope55e55d2f7c48914c4d719c91c9f9a98d5aabd41d99fbd71cec2ffdee1ae1f773、既child修復の限定レビュー系列5963fb36…/538efca0…を根拠に親に適合する登録修復候補の実装を指示する。新testpathは作らず既登録test_check_tenant_boundary_bypass.py内へ専用関数群を追加する。repository実9関数への正規追随でruntime派生が必要な場合だけruntime-authz-contract.json/既runtime_contract.pyを加え、approved-scope.jsonの限定27path＋公式必要snapshotを対象とする。CAP36/token64/SQL/IO/旧legacy/受理188prefix/全旧拒否を保持し、child ordinary実装は混入しない。全9射影/外部byte/前後と源hashは最後の安定候補で一括導出、識別値は実変化に応じ同未受理候補で不必要に反復繰上げない。runtimeが無変化なら未編集でよい。
+
+旧private prepare用途名は逆ASTで意味不変確認、所有helper1/Port7の新登録はfullbody固定と自己申告hash更新付き削除/追加/短絡拒否を必須とする。broker旧13は188/dccとの差で新規なしとしたcache診断を正式基線成立へ読み替えず、未知API許可にしない。candidate pendingだけ原文保全して正規化し、legacy/正式受理行は改変しない。独立source確認・実前後7.7・親実develop統合/最終CI前に正式受理/reseal/mergeを行わない。作者は隔離候補だけを編集し、root唯一の正式writer/refs/台帳/共有DB/PG境界を保持する。
