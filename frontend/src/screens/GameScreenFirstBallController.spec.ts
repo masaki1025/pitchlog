@@ -5,6 +5,7 @@ import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import { useAuthStore } from '../stores/authStore'
 import * as options from '../api/pitchTypeOptions'
 import GameScreenFirstBall from './GameScreenFirstBall.vue'
+import StrikeZone from '../components/zone/StrikeZone.vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createContext, Script } from 'node:vm'
@@ -324,6 +325,25 @@ it('Vue reactiveの実DTOを画面境界で固定snapshotへ変換し非同期�
     expect(
       wrapper.get('[data-testid="first-ball-save"]').attributes('disabled'),
     ).toBeDefined()
+    // loopbackのsecure contextだけで規範のHTTPSを成立扱いにしない。
+    expect(window.location.protocol).toBe('http:')
+    vi.stubGlobal('isSecureContext', true)
+    for (const suffix of ['profile', 'mode', 'bucket', 'lockdown']) {
+      await wrapper
+        .get(`[data-testid="first-ball-env-${suffix}"]`)
+        .setValue(true)
+    }
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await wrapper.vm.$nextTick()
+    const post = vi.spyOn(transport, 'postSyncEvents')
+    expect(
+      wrapper.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeDefined()
+    await wrapper.get('[data-testid="first-ball-save"]').trigger('click')
+    expect(post).not.toHaveBeenCalled()
   } finally {
     wrapper.unmount()
   }
