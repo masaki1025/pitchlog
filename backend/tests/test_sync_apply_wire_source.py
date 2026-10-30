@@ -5,10 +5,11 @@ from __future__ import annotations
 import copy
 import inspect
 import json
+from collections.abc import Mapping, MutableMapping
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Protocol, cast
 
 import pytest
 
@@ -118,6 +119,12 @@ def test_indexes_preserve_original_order_and_duplicate_d5_positions() -> None:
     assert checked_wire_source(value) is value
 
 
+class _MutableGameIdProbe(Protocol):
+    """凍結値への意図的不正代入を、実行時にそのまま試す試験用の見かけ型。"""
+
+    game_id: str
+
+
 def test_defensive_snapshot_and_read_only_members() -> None:
     """原入力の後変更と外側member書換えを遮断する。"""
     raw = _raw()
@@ -126,13 +133,15 @@ def test_defensive_snapshot_and_read_only_members() -> None:
     fingerprint = value.request_fingerprint
     raw["registration"]["extra"].append(2)
     raw["event_kind"] = "play_input"
-    assert value.events[0].wire_event["registration"]["extra"] == (1,)
+    registration = value.events[0].wire_event["registration"]
+    assert isinstance(registration, Mapping)
+    assert registration["extra"] == (1,)
     assert value.events[0].wire_event["event_kind"] == "1"
     assert value.request_fingerprint == fingerprint
     with pytest.raises(TypeError):
-        value.positions_by_d5["bad"] = (1,)
+        cast(MutableMapping[str, tuple[int, ...]], value.positions_by_d5)["bad"] = (1,)
     with pytest.raises(FrozenInstanceError):
-        value.game_id = "different"
+        cast(_MutableGameIdProbe, value).game_id = "different"
     with pytest.raises(TypeError):
         WireSourceValue()
 
@@ -164,7 +173,11 @@ def test_p3_empty_duplicate_d1_and_container_rejected() -> None:
     p3 = {"d5": _raw()["d5"], "game_id": _GAME, "payload": {}}
     for events in ((p3,), (), [_raw()], (_raw(), _raw())):
         with pytest.raises(WireSourceError):
-            freeze_wire_source(game_id=_GAME, d4=_D4, raw_events=events)
+            freeze_wire_source(
+                game_id=_GAME,
+                d4=_D4,
+                raw_events=cast(tuple[Mapping[str, object], ...], events),
+            )
 
 
 @pytest.mark.parametrize(
@@ -200,7 +213,7 @@ def test_fake_source_and_non_json_redact_input() -> None:
     """偽値とJSON外の値を機微値なしで拒否する。"""
     for value in (None, object(), object.__new__(WireSourceValue)):
         with pytest.raises(WireSourceError, match=_ERROR):
-            checked_wire_source(value)
+            checked_wire_source(cast(WireSourceValue, value))
     for invalid in (float("nan"), float("inf"), object(), "\ud800"):
         raw = _raw()
         raw["registration"] = {"secret-name": invalid}

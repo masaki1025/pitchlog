@@ -5,7 +5,8 @@ P3は本入口の対象外で、ACK P3形も発行しない（後続のMVP完成
 
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Mapping
+from typing import Annotated, Literal, cast
 from uuid import UUID, uuid5
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -73,7 +74,7 @@ def _phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
     return uuid5(_PHASE_NAMESPACE, f"{attempt}:{request_fingerprint}")
 
 
-def _request_path(payload: object) -> str:
+def _request_path(payload: object) -> Literal["P2"]:
     """本文の外形からP2だけを選び、他の経路は閉拒否する。"""
     if not isinstance(payload, dict):
         raise RequestShapeError("S-1: 本文が object ではない")
@@ -130,7 +131,7 @@ def sync_events(
             d4=str(sync_request.d4),
             raw_events=tuple(
                 dict(event)
-                for event in payload["events"]  # type: ignore[union-attr]
+                for event in cast(list[Mapping[str, object]], payload["events"])
             ),
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):

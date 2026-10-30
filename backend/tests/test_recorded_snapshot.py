@@ -413,19 +413,22 @@ class RecordedBundle(Bundle):
         )
         observations = self.saved_payload["observations"]
         participants = self.saved_payload["participants"]
+        course = observations["course"]
+        speed = observations["pitchSpeed"]
+        assert isinstance(course, dict) and isinstance(speed, dict)
+        course_x, course_y = course["x"], course["y"]
+        kmh = speed["kmh"]
+        assert isinstance(course_x, str) and isinstance(course_y, str)
+        assert kmh is None or isinstance(kmh, str)
         self.plays[0].update(
             batter_id=UUID(participants["batterId"]),
             pitcher_id=UUID(participants["pitcherId"]),
             catcher_id=UUID(participants["catcherId"]),
             pitch_type_key=observations["pitchTypeKey"],
             batting_result_key="batting-result.ball",
-            course_x=int(observations["course"]["x"]) / 263,
-            course_y=int(observations["course"]["y"]) / 263,
-            pitch_speed=(
-                None
-                if observations["pitchSpeed"]["kmh"] is None
-                else float(observations["pitchSpeed"]["kmh"])
-            ),
+            course_x=int(course_x) / 263,
+            course_y=int(course_y) / 263,
+            pitch_speed=None if kmh is None else float(kmh),
             stance=observations["stance"],
             batting_side=observations["battingSide"],
         )
