@@ -1937,3 +1937,15 @@ root実測: FE座標source/property/mutation＋実配布artifact34成功、Chrom
 BE manifest/host新規6pathは未commit・非作者review中。期待値schemaの正規ラッパーと契約expectedの整合にP1候補を検知し、検査を緩めず作者是正を依頼。pure V7/V8/providerも実装中。画面封鎖解除・初球の実画面保存・再送の実接続は未達。
 
 通常push: 縦断枝は26a0829fまで成功。台帳pushはremote rejectedで失敗、ls-remoteは旧a370a6f1で変更競合なし（理由未確定）。forceしない、ローカルcommit保全済。
+
+### 2026-10-30 初球wire生成・画面座標・球種readの実接続
+
+be7c0c08: 実initial/ルール/名簿/画面観測から配布artifactを呼ぶpure providerとV7/V8/単一受理ACKcodecを保存。関連14件＋正規wrapper importのeslint対向1件成功、vue-tsc成功。eslintの正規wrapper誤拒否は最小是正し、直接generated import拒否を維持（非作者REPORT SHA8256c0ef34d3197c916e9ab4160f281cd215b233ecf71f84fa81f9c54651870e）。
+
+5aea0442: StrikeZoneのfloat事前反転を削除しscreen値をemit、量子化後反転をartifactへ一本化。131.5を両視点でそのまま渡す2対向を含め9件成功。同じ書込排他内のbeforeAppend確認も追加し18件成功、未成立時はappend/採番/HTTP0・lock解放を確認。
+
+実tenant球種の画面供給が不在と確認し、専用GET /vocabularies/pitch-types＋固定category/disabled/tenant/limit+cursorのread tokenを実装。既CAP再利用、作者16件・root API登録込み32件成功、Ruff成功。新規sourceと登録・正式資産候補は未commit/非作者確認中。候補repo34/allowlist40は未受理で、既履歴を保全し重複PENDING行を追加しない。既stage_a失敗・scannerの既repo履歴重複停止は成功と呼ばない。
+
+manifest ExpectedValueのP1は作者が契約期待値を変えず正規wrapper/schema消費へ是正し13件成功、非作者再確認中。実画面フォーム/controllerは同じrestore初期値と既queue/ACK/排他を使って実装中。
+
+新たな実接続条件: singleWriterの環境6前提の実supplierが未供給。sync-protocol Q2-aに従い観測不能なprofile/mode/bucketとLockdown非適用は利用者の明示確認、top-level HTTPS/WebLocks/IDBとlock内auth/tenant/game一致は実観測する。常trueへ置換しない。既E2EはHTTP loopbackであり、HTTPS成立を読み替えず最終画面確定の隔離HTTPS構成を準備する。初球画面保存・MVP完成はまだ未達。
