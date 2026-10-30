@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from typing import Any, cast
+from typing import Any, LiteralString, cast
 from uuid import UUID, uuid4
 
 import psycopg
@@ -431,7 +431,7 @@ def _read_case(db: Any) -> dict[str, Any]:
     }
 
 
-def _tamper(db: Any, statement: str, parameters: tuple[Any, ...]) -> None:
+def _tamper(db: Any, statement: LiteralString, parameters: tuple[Any, ...]) -> None:
     """負例を構成するfixture操作。製品経路の書込みではない。"""
     with psycopg.connect(db.authority.database.business_admin) as admin:
         admin.execute(statement, parameters)

@@ -1,5 +1,6 @@
 """Port 登録の閉集合と、未登録型・常true object が実 Port にならないことを確認する。"""
 
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -9,6 +10,7 @@ from pitchlog.repositories.function_operations import (
     prepare_function_operation,
 )
 from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.sync.port_guard import require_registered_port
 from pitchlog.sync.ports import PORT_IMPLEMENTATIONS, PortRegistrationError
 
@@ -43,8 +45,14 @@ def test_unregistered_objects_are_not_ports_or_operations() -> None:
     with pytest.raises(PortRegistrationError):
         require_registered_port(_AlwaysTrue())
     with pytest.raises(FunctionOperationError):
-        prepare_function_operation(object(), UUID(int=5), FUNCTION_OPERATION_REGISTRY)
+        prepare_function_operation(
+            cast(TenantOperationToken, object()),
+            UUID(int=5),
+            FUNCTION_OPERATION_REGISTRY,
+        )
     with pytest.raises(FunctionOperationError):
         prepare_function_operation(
-            _AlwaysTrue(), UUID(int=5), FUNCTION_OPERATION_REGISTRY
+            cast(TenantOperationToken, _AlwaysTrue()),
+            UUID(int=5),
+            FUNCTION_OPERATION_REGISTRY,
         )

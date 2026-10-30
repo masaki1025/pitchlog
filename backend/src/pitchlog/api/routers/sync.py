@@ -6,7 +6,7 @@ P3は本入口の対象外で、ACK P3形も発行しない（後続のMVP完成
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 from uuid import UUID, uuid5
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -140,7 +140,9 @@ def sync_events(
         source = freeze_wire_source(
             game_id=sync_request.game_id,
             d4=str(sync_request.d4),
-            raw_events=tuple(dict(event) for event in raw_events),
+            raw_events=tuple(
+                dict(event) for event in cast(list[Mapping[str, object]], raw_events)
+            ),
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
         raise HTTPException(status_code=422) from None

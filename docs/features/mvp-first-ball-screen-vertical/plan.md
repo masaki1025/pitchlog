@@ -101,3 +101,9 @@ HTTPSで初球保存/同一要求再送後のreload停止を検知。`GameScreen
 認可oracle再封印では、step4入力8資産を固定commitへ揃えた後、`oracle-seal.lock.json.oracle_commit` と既封印6資産（ddl-elements/rejected-configs/claim-mutant-map/attack-tree/boundary-proposal/verification-evidence）の `oracle_context.oracle_commit` だけを同commitへ追随する。既oracle意味本文・期待値・承認履歴は変更しない。前後の8blob一致と6資産のcontext以外不変を非作者照合後、正式 `--reseal-oracle` を実行し通常CLIで確認する。7.7や実行時oracle成立の代用にはしない（PO委任によるCodex主担当判断）。
 
 正式CLIが要求する `contracts/authz/frozen-baselines.json` のoracle_input系列も本単位の7.7対象へ含める。既履歴を保持し、実製品統合Draft PR #189の受理ID、旧8a40519d→固定e4f53dabの完全前後値・根拠・Codex主担当の委任判断を1record追記する。単なるcontext置換では通らない拒否条件を保持し、独立差分確認後に再封印へ進む。
+
+### CI型検査の有限是正（2026-10-30、PO委任によるCodex主担当判断）
+
+既step5の必須CI是正として、PR189固定5ee01162のbackend job124047601114で確認した28型診断を、隔離fix/mvp-first-ball-type-checkで修正する。編集対象はbackend/src/pitchlog/api/routers/sync.py、backend/tests/db/test_first_ball_vertical_http.py、backend/tests/db/test_screen_start_e2e.py、backend/tests/test_e1_receipt_binding.py、backend/tests/test_recorded_snapshot.py、backend/tests/test_sync_apply_replay_before_binding.py、backend/tests/test_sync_apply_wire_source.py、backend/tests/test_sync_first_ball_registration.pyのexact8。runtime検査/認可/拒否順/保存/不正入力の実行やassertは保持し、既型契約との整合/テストの実shape narrowing/意図的不正入力の明示castに限定する。Anyやignore追加、検査対象除外、正常化で不正例を消すことは禁止。実挙動変更が必要なら範囲外として返す。型検査/関連pytest/ruff/formatと非作者確認後に保存する。正式frozen sourcepinへ影響する差分は別に実再導出し、型通過を受理や最終CI成功としない。主WT/台帳/共有DB/Git refsへの並行書込なし。
+
+型修復のsource保存判断（2026-10-30、PO委任によるCodex主担当判断）: 全8path packet SHA2dc25b49651388e1678e318e9851d0a7fe1c527be5f6493c4206f1689062ae9eと実byte、非作者REPORT e9a1ef8af703d556abbc6aa7f0089143c432d05cd1bcd32af870c65741a651c5（P0/P1=0、独立291成功・backend全体ty成功、製品型erase AST不変）を照合して採用。検査除外/Any/ignoreなし、既不正入力/readonly代入実行/全assert維持。rootは型修復8pathの保存を承認し、handler sourcepin/正式7.7・最終CIは別未成立とする。本人逐行確認/署名ではない。

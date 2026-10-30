@@ -3,6 +3,7 @@
 実DB・実writer・実権利の成立はここで主張しない。外形の拒否だけを見る。
 """
 
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -70,7 +71,7 @@ def test_mismatched_fingerprints_are_rejected(fingerprints: object) -> None:
         _replay_e1_without_binding(
             make_tenant_context(uuid4()),
             _p2(),
-            fingerprints,  # type: ignore[arg-type]
+            cast(tuple[str, ...], fingerprints),  # 意図的不正入力を補修せず渡す。
         )
 
 

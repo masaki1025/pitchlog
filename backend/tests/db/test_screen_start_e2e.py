@@ -331,8 +331,10 @@ def test_screen_recorded_restore_e2e_uses_server_state(
         (_LOGS / "record.json").write_text(
             json.dumps(recorded, ensure_ascii=False, indent=1)
         )
-        assert ["sync", 200] in recorded["stages"], recorded
-        assert ["started_after", 200] in recorded["stages"], recorded
+        stages = recorded["stages"]
+        assert isinstance(stages, list), recorded
+        assert ["sync", 200] in stages, recorded
+        assert ["started_after", 200] in stages, recorded
         with _browser_environment(
             db, "GameScreenRestore.playwright.config.ts", "restore"
         ) as origin:

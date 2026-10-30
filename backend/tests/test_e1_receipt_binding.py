@@ -40,7 +40,11 @@ def _payload(game: str, d5: str) -> dict[str, object]:
 
 def _source(payload: dict[str, object], game: str):
     """同じ原wire列から不変の索引付き値を作る。"""
-    raw = dict(payload["events"][0])  # type: ignore[index]
+    events = payload["events"]
+    assert isinstance(events, list)
+    event = events[0]
+    assert isinstance(event, dict)
+    raw = dict(event)
     return freeze_wire_source(game_id=game, d4=str(raw["d4"]), raw_events=(raw,))
 
 
