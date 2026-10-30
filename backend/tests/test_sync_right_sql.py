@@ -701,6 +701,7 @@ def test_device_state_read_single_source_and_old_wrapper_bytes():
     assert "credential" not in create and "nonce" not in create
     assert "write_admissions" not in create
 
+
 def test_unregistered_device_state_reader_has_no_write_lock_or_binding_dependency():
     """②は状態読取のみでbinding/credential/印発行を先取りしない。"""
     from pitchlog.authz.sync_right_sql import render_device_state_read_sql

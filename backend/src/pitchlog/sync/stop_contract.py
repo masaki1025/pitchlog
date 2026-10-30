@@ -70,4 +70,3 @@ class AttemptIdentity:
         """stop_ref を含む余剰項目を拒否する。"""
         fields = _exact_mapping(value, frozenset(cls.__dataclass_fields__))
         return cast(Any, cls)(**fields)
-

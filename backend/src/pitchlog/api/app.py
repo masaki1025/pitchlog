@@ -104,8 +104,6 @@ def create_app() -> FastAPI:
     for router in ROUTERS:
         app.include_router(router)
     configured = os.environ.get(_BINDING_CLIENT_VARIABLE)
-    app.state.binding_client_config_path = (
-        Path(configured) if configured else None
-    )
+    app.state.binding_client_config_path = Path(configured) if configured else None
     _activate_presentation(app.state.token_presentation)
     return app
