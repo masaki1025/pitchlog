@@ -568,3 +568,5 @@ PO委任によるCodex主担当判断。対象dcc9001422f5fad9891368ad25264c1baf
 今回の有限集合はbackend/tests/db/test_alembic_migrations.py（0032/33/35時点の承認済schemaを投影し0036新4表を混入させない）、backend/tests/test_schema_manifest.py（0036の固定_TABLE_DDLを正しく静的抽出する正負例）、必要ならcontracts/db/schema-manifest.json（uq_game_start_attempts_pending/uq_recording_right_deliveries_requestのsource_rowだけ、データモデル原典へ忠実な既schema整合）の最大3path。現DBの観測値から期待を生成しない。期待の削除・skip・get/defaultでKeyErrorを隠すこと、未知DDLの一律許可、権限/tenant/prod source/旧履歴/sealの変更は禁止。原典から両source_rowを解決できなければ当該2fieldだけ根拠とともにrootへ返し、他2pathを進める。
 
 局所pure/静的検査と負例、ruff/tyを作者が実行し、修復全hash/完全前後/旧集合保持を非作者へ渡す。PGはrootだけが隔離fixtureで旧revisionのupgrade/downgrade/metadata照合を直列実施する。owner current_user検査のhygiene・ACL/seed/S3・正式freeze/TB005は別未解消のまま保持し、本3pathを修正しただけでCI成功としない。既親ステップ1の実装追随であり、新しい野球意味・保証・正本版上げの判断ではない。最終差分の独立レビュー前に通常統合しない。
+
+第1群の原典行表現の具体化（PO委任によるCodex主担当判断、2026-10-31）: source_row新2件は正本6-1実在quoteを使い、3-4の一意性/キー形/判定fieldを捏造しない。test_schema_manifest内で6-1の当該exact2quote/constraint/表名の対応を完全検査する有限分岐を許可し、既3-4全行と拒否を維持する。別quote/別constraint/別表/曖昧部分一致は拒否する。正本とmanifestは不変でよく、実DB期待化や汎用quote許可ではない。
