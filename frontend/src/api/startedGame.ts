@@ -419,14 +419,17 @@ function course(value: unknown): value is StartedPlayRow['course'] {
     BigInt(value.y) <= 263n
   )
 }
-function playRow(value: unknown): value is StartedPlayRow {
+function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
   return (
     exact(value, PLAY_ROW_KEYS) &&
     uuid(value.id) &&
     uuid(value.game_id) &&
     uuid(value.source_event_id) &&
-    value.play_number === 1 &&
-    value.batting_order === 1 &&
+    integer(value.play_number) &&
+    value.play_number >= 1 &&
+    integer(value.batting_order) &&
+    value.batting_order >= 1 &&
+    value.batting_order <= 9 &&
     value.version === 1 &&
     uuid(value.batter_id) &&
     uuid(value.pitcher_id) &&
@@ -461,6 +464,13 @@ function playRow(value: unknown): value is StartedPlayRow {
     pressState(value.press) &&
     pressState(value.fake_run) &&
     nullableString(value.comment)
+  )
+}
+function playRow(value: unknown): value is StartedPlayRow {
+  return (
+    ordinaryPlayRow(value) &&
+    value.play_number === 1 &&
+    value.batting_order === 1
   )
 }
 function statFlags(value: unknown): value is StartedStatFlags {
@@ -616,4 +626,31 @@ export async function readStartedGame(
   if (isStartedRecordedGame(value) && value.id === id)
     return { kind: 'found', game: value }
   throw new Error('開始済み詳細の応答が不正です')
+}
+
+/** 普通投球の閉codecも同じ保存state/flag/旧T2の構造検査を再利用する。 */
+export {
+  state as isStartedGameStateSnapshot,
+  timestamp as isStartedGameTimestamp,
+  statFlags as isStartedGameStatFlags,
+  t2 as isLegacyStartedT2,
+}
+
+/** 初球と同じ全公開列を保持し、普通投球の実位置だけを一般化する。 */
+export type RecordedPrefixPlayRow = Readonly<
+  Omit<StartedPlayRow, 'play_number' | 'batting_order'> & {
+    play_number: number
+    batting_order: number
+  }
+>
+export type StartedGameMetadata = Omit<StartedGame, 'read_kind'>
+/** 新projectionでも共通metadataを再計算せず同じ検証で読む。 */
+export function isStartedGameMetadata(
+  value: unknown,
+): value is StartedGameMetadata & Record<string, unknown> {
+  return object(value) && confirmedState(value)
+}
+export {
+  ordinaryPlayRow as isRecordedPrefixPlayRow,
+  INITIAL_KEYS as STARTED_GAME_BASE_KEYS,
 }

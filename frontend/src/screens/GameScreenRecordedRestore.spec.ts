@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import * as ordinaryRead from '../api/recordedPrefixGame'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -9,7 +12,10 @@ import { useAuthStore } from '../stores/authStore'
 import GameScreenRecordedRestore from './GameScreenRecordedRestore.vue'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 
-vi.mock('../api/startedGame', () => ({ readStartedGame: vi.fn() }))
+vi.mock('../api/startedGame', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/startedGame')>()),
+  readStartedGame: vi.fn(),
+}))
 
 const tenant = '10000000-0000-4000-8000-000000000001'
 const game = '10000000-0000-4000-8000-000000000002'
@@ -85,6 +91,9 @@ async function mountRestore(
 }
 
 beforeEach(() => {
+  vi.spyOn(ordinaryRead, 'readRecordedPrefixGame').mockResolvedValue({
+    kind: 'unsupported',
+  })
   setActivePinia(pinia)
   setVerifiedAuthForTest(useAuthStore(), { teamId: tenant, teamName: 'A' })
   vi.mocked(readStartedGame).mockReset()
@@ -199,4 +208,62 @@ it('auto省略でも開始保存がない試合を自動取得しない', async 
   } as unknown as GameStartPersistence)
   await mountRestore({})
   expect(readStartedGame).not.toHaveBeenCalled()
+})
+
+function prefixFixture() {
+  const value = JSON.parse(
+    readFileSync(
+      resolve(process.cwd(), 'src/api/fixtures/recordedPrefixGame.v1.json'),
+      'utf8',
+    ),
+  ).positive[2].value
+  value.id = game
+  value.prefix_ref.gameId = game
+  value.prefix_ref.tenantId = tenant
+  for (const item of value.page.items) item.play_row.game_id = game
+  return value
+}
+it('新prefixの現在after/実保存日時/有限pageを表示し、旧開始snapshotへ戻さない', async () => {
+  const value = prefixFixture()
+  vi.mocked(readStartedGame).mockResolvedValue({ kind: 'recorded-unavailable' })
+  vi.mocked(ordinaryRead.readRecordedPrefixGame).mockResolvedValue({
+    kind: 'found',
+    game: value,
+  })
+  const wrapper = await mountRestore()
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('2')
+  expect(wrapper.get('[data-testid="restore-before-balls"]').text()).toBe('0')
+  expect(wrapper.get('[data-testid="restore-last-saved-at"]').text()).toBe(
+    value.last_saved_at,
+  )
+  expect(wrapper.text()).toContain('有限ページ')
+  expect(wrapper.text()).toContain('通常投球の確定水位')
+  expect(wrapper.find('section[aria-label="通常投球を記録"]').exists()).toBe(
+    true,
+  )
+})
+it('新prefixの通信断は未更新と明示して最後の確認値を保ち、409失効では閉じる', async () => {
+  const value = prefixFixture()
+  vi.mocked(readStartedGame)
+    .mockResolvedValueOnce({ kind: 'recorded-unavailable' })
+    .mockRejectedValueOnce(new TypeError('network failure'))
+    .mockResolvedValueOnce({ kind: 'recorded-unavailable' })
+  vi.mocked(ordinaryRead.readRecordedPrefixGame)
+    .mockResolvedValueOnce({ kind: 'found', game: value })
+    .mockResolvedValueOnce({ kind: 'unavailable' })
+  const wrapper = await mountRestore()
+  const reload = () =>
+    wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'サーバーから再取得')!
+  await reload().trigger('click')
+  await flushPromises()
+  expect(wrapper.text()).toContain('未更新')
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('2')
+  expect(wrapper.get('[data-testid="restore-last-saved-at"]').text()).toBe(
+    value.last_saved_at,
+  )
+  await reload().trigger('click')
+  await flushPromises()
+  expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
 })
