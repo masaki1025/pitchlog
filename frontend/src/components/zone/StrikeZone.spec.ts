@@ -134,15 +134,13 @@ it.each(['catcher', 'pitcher'] as const)(
     const wrapper = mount(StrikeZone, {
       props: { plateSide: '右', point: null, viewpoint },
     })
-    wrapper
-      .get('svg')
-      .element.dispatchEvent(
-        new MouseEvent('pointerdown', {
-          bubbles: true,
-          clientX: 141.5,
-          clientY: 144,
-        }),
-      )
+    wrapper.get('svg').element.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        clientX: 141.5,
+        clientY: 144,
+      }),
+    )
     expect(wrapper.emitted('tap')).toEqual([[131.5, 124]])
   },
 )

@@ -1,6 +1,6 @@
 ---
 feature: course-coordinate-single-operation
-status: approved
+status: active
 承認: PO委任によるCodex主担当判断（2026-10-30、bee806b1＋本確定記録、非作者coordinate_gate_reviewの最終差分P0/P1=0）
 重さ分類: コア領域
 worktree: ../../..

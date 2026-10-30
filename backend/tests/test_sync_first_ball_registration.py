@@ -12,7 +12,8 @@ from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
 from pitchlog.sync.port_guard import require_registered_port
 from pitchlog.sync.ports import PORT_IMPLEMENTATIONS, PortRegistrationError
 
-# 監査済みの閉集合。増減は Port 登録の独立レビューを要し、この値を書き換えるだけでは通さない。
+# 監査済みの閉集合。増減は Port 登録の独立レビューを要する。
+# この値を書き換えるだけでは通さない。
 _EXPECTED_PORTS = frozenset(
     {
         ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
@@ -44,4 +45,6 @@ def test_unregistered_objects_are_not_ports_or_operations() -> None:
     with pytest.raises(FunctionOperationError):
         prepare_function_operation(object(), UUID(int=5), FUNCTION_OPERATION_REGISTRY)
     with pytest.raises(FunctionOperationError):
-        prepare_function_operation(_AlwaysTrue(), UUID(int=5), FUNCTION_OPERATION_REGISTRY)
+        prepare_function_operation(
+            _AlwaysTrue(), UUID(int=5), FUNCTION_OPERATION_REGISTRY
+        )

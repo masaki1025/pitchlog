@@ -1,6 +1,6 @@
 ---
 feature: mvp-first-ball-screen-vertical
-status: approved
+status: active
 承認: PO委任によるCodex主担当判断（2026-10-30、32dccc90起案＋本限定追補、非作者coordinate_gate_reviewの実source照合P0/P1=0を根拠）
 重さ分類: コア領域
 branch: feature/mvp-first-ball-vertical
