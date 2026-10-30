@@ -1925,3 +1925,15 @@ U3計画は非作者REPORT `0a5067aa67af9fc3e855c6b117824dcb68488e58469fe5b618d4
 - 耐久attempt候補は新規2ファイル・18テスト成功を主担当でも再実行。非作者レビュー前・未commit。既別DB queueとの故障接続は未実証。
 - 次の実装: 座標TS operation（担当coordinate_gate_review、ゲートreviewから作者へ移管しsourceの独立性は別担当で確保）、実host/manifest（screen_connection_readiness、新規6path）、rootは最終artifact/pin/画面codec/providerを担当。共有ファイルへの並行書込を避ける。
 - transport非作者確認ではC2不足P1という途中推定を実routeの_MATCH_OPERATIONS照合で撤回。tenantBoundの単独追加は応答契約に合わないため行っていない。既Cookie/認証世代保護を維持。新たな画面操作の実証はまだ増えず初球未達。
+
+### 2026-10-30 製品座標artifactと送信前バリアの実装
+
+9bff2d64で座標operationを単一JSへ実装。TS作者とは別の非作者REPORT SHA321f5f301c9eb673ec1a32a50f3b3094bf85ca3a1ce7e1bcb54fadf70094f1d9はP0/P1/P2=0、非作者追加3009入力も独立期待値と一致。artifact SHA1a415cbf4ff6b986fefec281005c84b5acf6a4e622178684aed2c02387f515f7、20613bytes。既fixtureはpin102箇所のみ更新。
+
+root実測: FE座標source/property/mutation＋実配布artifact34成功、Chromium実配布1093全一致、BE実Node host/manifest/契約13成功、既初球course/payload/projection664成功、vue-tsc/eslint成功。各実行は座標・既初球計算の技術検証であり画面入力保存の証拠ではない。
+
+耐久attempt7b615987（非作者REPORT SHA5ad59906c244abbdf8e1a9f08b9b537edb7887306a8c4796175783b4f6874a8d P0/P1=0）とqueue追記後の送信前バリア26a0829fを保存。バリア作者検査45成功、失敗時HTTP0/ACK0・未送信維持。commitPitchEventの再呼出しは新D1採番なので再送に流用しない（旧slot再送経路が必要）。
+
+BE manifest/host新規6pathは未commit・非作者review中。期待値schemaの正規ラッパーと契約expectedの整合にP1候補を検知し、検査を緩めず作者是正を依頼。pure V7/V8/providerも実装中。画面封鎖解除・初球の実画面保存・再送の実接続は未達。
+
+通常push: 縦断枝は26a0829fまで成功。台帳pushはremote rejectedで失敗、ls-remoteは旧a370a6f1で変更競合なし（理由未確定）。forceしない、ローカルcommit保全済。
