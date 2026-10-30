@@ -1,4 +1,8 @@
 import {
+  preparePlayPrefixContinuation,
+  finishPlayPrefixContinuation,
+} from './playPrefixContinuation'
+import {
   prepareOrdinaryContinuation,
   finishOrdinaryContinuation,
 } from './ordinaryPitchContinuation'
@@ -799,12 +803,35 @@ function deriveOrdinaryPitchWithContinuation(requestJson: string): string {
   return finishOrdinaryContinuation(prepared.request, response)
 }
 
+/** 真正source資格とは区別したv2数学接続。T1は同artifact内で一回だけ評価する。 */
+function derivePlayPrefixWithContinuation(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const prepared = preparePlayPrefixContinuation(requestJson)
+  if (!prepared.ok) return prepared.response
+  let response: string
+  if (prepared.terminal)
+    response = deriveTerminalPitch(JSON.stringify(prepared.t1))
+  else response = deriveOrdinaryPitch(JSON.stringify(prepared.t1))
+  return finishPlayPrefixContinuation(
+    prepared.request,
+    response,
+    prepared.responsiblePitcherId,
+  )
+}
+
 /** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
   deriveState,
   deriveOrdinaryPitch,
   deriveTerminalPitch,
+  derivePlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,
   deriveOrdinaryPitchWithContinuation,
   validateInitialGameRoster,
