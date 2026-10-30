@@ -1,3 +1,4 @@
+import { quantizeCourse } from './courseQuantization'
 import { validateInitialGameRoster } from './initialGameRoster'
 import {
   evaluateFirstPitchContinuation,
@@ -676,4 +677,5 @@ export const domainOperations = Object.freeze({
   deriveOrdinaryPitch,
   deriveFirstPitchWithContinuation,
   validateInitialGameRoster,
+  quantizeCourse,
 })
