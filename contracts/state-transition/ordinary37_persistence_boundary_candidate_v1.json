@@ -1,0 +1,1944 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate-before-nonauthor-review",
+  "scope": "ordinary37-persistence-boundary-v1",
+  "authorityBoundary": "内部DB/frame/投影の資格境界。既同期wire・D5消費・先行拒否順・取消訂正の意味は変更しない。schema合格や候補比較例は実DB証拠ではない。",
+  "schemaImports": [
+    {
+      "schemaId": "urn:pitchlog:ordinary37-continuation:schema:v1",
+      "path": "contracts/state-transition/ordinary37_continuation_candidate_v1.json",
+      "selector": "/schema",
+      "sha256": "12127d2d9c048765bee751bb9d805d0e676c418ebf526747f0ab6106b5d1dde9"
+    }
+  ],
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+      "WriterIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tenant_id",
+          "attempt_id",
+          "phase_id",
+          "authority_id",
+          "control_instance",
+          "business_instance",
+          "restore_epoch",
+          "issuer",
+          "lease_id",
+          "device_id",
+          "game_id",
+          "control_version",
+          "internal_generation",
+          "recovery_generation",
+          "codec_version",
+          "backend_pid",
+          "wire_d4",
+          "system_identifier",
+          "database_oid",
+          "postmaster_started_at",
+          "backend_start",
+          "expires_at",
+          "transaction_id",
+          "request_fingerprint",
+          "event_fingerprint",
+          "nonce_digest"
+        ],
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "attempt_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "phase_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "authority_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "control_instance": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "business_instance": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "restore_epoch": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "issuer": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "lease_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "device_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "game_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "control_version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "internal_generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "recovery_generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "codec_version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "backend_pid": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "wire_d4": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "system_identifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "database_oid": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "postmaster_started_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "backend_start": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "expires_at": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "transaction_id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]{0,19}(?![\\s\\S])"
+          },
+          "request_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "event_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "nonce_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          }
+        }
+      },
+      "Source": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "tenant_id",
+          "game_id",
+          "generation",
+          "d1",
+          "d2",
+          "d5",
+          "source_fingerprint",
+          "event_fingerprint"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "tenant_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "game_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "d1": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "d2": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "d5": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "source_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "event_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          }
+        }
+      },
+      "Checkpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "id",
+          "revision",
+          "history_version",
+          "prefix_ref",
+          "wire_d4",
+          "internal_generation",
+          "recovery_generation",
+          "confirmed_watermark",
+          "applied_watermark",
+          "last_source",
+          "history_depth",
+          "after",
+          "rules",
+          "t2",
+          "roster_digest",
+          "content_digest",
+          "artifact_sha256",
+          "state"
+        ],
+        "properties": {
+          "version": {
+            "const": "1"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "history_version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "prefix_ref": {
+            "$ref": "urn:pitchlog:ordinary37-continuation:schema:v1#/$defs/PrefixRef"
+          },
+          "wire_d4": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "internal_generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "recovery_generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "confirmed_watermark": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "applied_watermark": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "last_source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Source"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history_depth": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "after": {
+            "$ref": "urn:pitchlog:ordinary37-continuation:schema:v1#/$defs/StateSnapshot"
+          },
+          "rules": {
+            "$ref": "urn:pitchlog:ordinary37-continuation:schema:v1#/$defs/SavedRuleWire"
+          },
+          "t2": {
+            "anyOf": [
+              {
+                "$ref": "urn:pitchlog:ordinary37-continuation:schema:v1#/$defs/OrdinaryT2"
+              },
+              {
+                "$ref": "urn:pitchlog:ordinary37-continuation:schema:v1#/$defs/T2NoEndCore"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "roster_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "content_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "state": {
+            "enum": [
+              "current",
+              "invalidated"
+            ]
+          }
+        }
+      },
+      "FrameBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "checkpoint_id",
+          "checkpoint_revision",
+          "checkpoint_digest",
+          "prefix_ref",
+          "source_id",
+          "request_digest",
+          "response_digest",
+          "artifact_sha256",
+          "new_history_entry_digest"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "checkpoint_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "checkpoint_revision": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "checkpoint_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "prefix_ref": {
+            "$ref": "urn:pitchlog:ordinary37-continuation:schema:v1#/$defs/PrefixRef"
+          },
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "request_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "response_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "artifact_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          },
+          "new_history_entry_digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}(?![\\s\\S])"
+          }
+        }
+      },
+      "Admission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "kind",
+          "writer",
+          "checkpoint",
+          "source",
+          "frame",
+          "play_row_id",
+          "state"
+        ],
+        "properties": {
+          "version": {
+            "const": "1"
+          },
+          "kind": {
+            "const": "ordinary37"
+          },
+          "writer": {
+            "$ref": "#/$defs/WriterIdentity"
+          },
+          "checkpoint": {
+            "$ref": "#/$defs/Checkpoint"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "frame": {
+            "$ref": "#/$defs/FrameBinding"
+          },
+          "play_row_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "state": {
+            "enum": [
+              "evaluated",
+              "consumed",
+              "invalid"
+            ]
+          }
+        }
+      },
+      "PageCursor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "tenant_id",
+          "game_id",
+          "wire_d4",
+          "internal_generation",
+          "recovery_generation",
+          "checkpoint_id",
+          "checkpoint_revision",
+          "history_version",
+          "upper_watermark",
+          "after_d1",
+          "after_d2",
+          "after_id"
+        ],
+        "properties": {
+          "version": {
+            "const": "1"
+          },
+          "tenant_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "game_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "wire_d4": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "internal_generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "recovery_generation": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "checkpoint_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "checkpoint_revision": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "history_version": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "upper_watermark": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "after_d1": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "after_d2": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "after_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          }
+        }
+      },
+      "PageRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "cursor",
+          "checkpoint_id",
+          "checkpoint_revision",
+          "limit"
+        ],
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PageCursor"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "checkpoint_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "checkpoint_revision": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+            "maxLength": 19
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      },
+      "ExecutionEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "actual_writer",
+          "actual_checkpoint",
+          "actual_source",
+          "actual_frame",
+          "actual_play_row_id",
+          "top_level_transaction",
+          "writer_live",
+          "frame_consumed",
+          "source_current_native_accepted",
+          "first_admission_count",
+          "ordinary_admission_count",
+          "d5_classification",
+          "operation_supported",
+          "checkpoint_origin",
+          "fault_at"
+        ],
+        "properties": {
+          "actual_writer": {
+            "$ref": "#/$defs/WriterIdentity"
+          },
+          "actual_checkpoint": {
+            "$ref": "#/$defs/Checkpoint"
+          },
+          "actual_source": {
+            "$ref": "#/$defs/Source"
+          },
+          "actual_frame": {
+            "$ref": "#/$defs/FrameBinding"
+          },
+          "actual_play_row_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "top_level_transaction": {
+            "type": "boolean"
+          },
+          "writer_live": {
+            "type": "boolean"
+          },
+          "frame_consumed": {
+            "type": "boolean"
+          },
+          "source_current_native_accepted": {
+            "type": "boolean"
+          },
+          "first_admission_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "ordinary_admission_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "d5_classification": {
+            "enum": [
+              "new",
+              "same-original",
+              "different-original"
+            ]
+          },
+          "operation_supported": {
+            "type": "boolean"
+          },
+          "checkpoint_origin": {
+            "enum": [
+              "actual-start-reader",
+              "verified-firstball-reader",
+              "same-tx-ordinary-checkpoint",
+              "caller-unverified"
+            ]
+          },
+          "fault_at": {
+            "enum": [
+              "none",
+              "after-projection",
+              "after-checkpoint",
+              "commit-response",
+              "rollback-status"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "types": {
+    "WriterIdentity": {
+      "$ref": "#/$defs/WriterIdentity"
+    },
+    "Source": {
+      "$ref": "#/$defs/Source"
+    },
+    "Checkpoint": {
+      "$ref": "#/$defs/Checkpoint"
+    },
+    "FrameBinding": {
+      "$ref": "#/$defs/FrameBinding"
+    },
+    "Admission": {
+      "$ref": "#/$defs/Admission"
+    },
+    "PageCursor": {
+      "$ref": "#/$defs/PageCursor"
+    },
+    "PageRequest": {
+      "$ref": "#/$defs/PageRequest"
+    },
+    "ExecutionEvidence": {
+      "$ref": "#/$defs/ExecutionEvidence"
+    }
+  },
+  "examples": {
+    "admission0": {
+      "version": "1",
+      "kind": "ordinary37",
+      "writer": {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "attempt_id": "0000000b-0000-4000-8000-00000000000b",
+        "phase_id": "0000000c-0000-4000-8000-00000000000c",
+        "authority_id": "0000000d-0000-4000-8000-00000000000d",
+        "control_instance": "0000000e-0000-4000-8000-00000000000e",
+        "business_instance": "0000000f-0000-4000-8000-00000000000f",
+        "restore_epoch": "00000010-0000-4000-8000-000000000010",
+        "issuer": "00000011-0000-4000-8000-000000000011",
+        "lease_id": "00000012-0000-4000-8000-000000000012",
+        "device_id": "00000013-0000-4000-8000-000000000013",
+        "game_id": "22222222-2222-4222-8222-222222222222",
+        "control_version": "1",
+        "internal_generation": "1",
+        "recovery_generation": "1",
+        "codec_version": "1",
+        "backend_pid": "101",
+        "wire_d4": "1",
+        "system_identifier": "1",
+        "database_oid": "1",
+        "postmaster_started_at": "2026-10-30T00:00:00Z",
+        "backend_start": "2026-10-30T00:00:01Z",
+        "expires_at": "2026-10-30T00:02:00Z",
+        "transaction_id": "4294967301",
+        "request_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "event_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "nonce_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "checkpoint": {
+        "version": "1",
+        "id": "0000003c-0000-4000-8000-00000000003c",
+        "revision": "1",
+        "history_version": "1",
+        "prefix_ref": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "0"
+        },
+        "wire_d4": "1",
+        "internal_generation": "1",
+        "recovery_generation": "1",
+        "confirmed_watermark": "0",
+        "applied_watermark": "0",
+        "last_source": null,
+        "history_depth": "0",
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "0",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "1",
+            "state.score": {
+              "home": "0",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "0",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "rules": {
+          "regulationInnings": "7",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t2": null,
+        "roster_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "content_digest": "8af9d13da1893117ee9d3a27155933818a7301a13a12243c0775dd0b6210dc37",
+        "artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "state": "current"
+      },
+      "source": {
+        "id": "00000046-0000-4000-8000-000000000046",
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "game_id": "22222222-2222-4222-8222-222222222222",
+        "generation": "1",
+        "d1": "1",
+        "d2": "1",
+        "d5": "00000047-0000-4000-8000-000000000047",
+        "source_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "event_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "frame": {
+        "id": "00000050-0000-4000-8000-000000000050",
+        "checkpoint_id": "0000003c-0000-4000-8000-00000000003c",
+        "checkpoint_revision": "1",
+        "checkpoint_digest": "8af9d13da1893117ee9d3a27155933818a7301a13a12243c0775dd0b6210dc37",
+        "prefix_ref": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "0"
+        },
+        "source_id": "00000046-0000-4000-8000-000000000046",
+        "request_digest": "3239fd8ccb12e56689dc5a9824861b5879ded7030474f70d784bca11aaa96eb3",
+        "response_digest": "79c9a392676a87cbf59f7a00bf28193ee746a01ee009d8846ed158c0d1427de5",
+        "artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "new_history_entry_digest": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "play_row_id": "0000005a-0000-4000-8000-00000000005a",
+      "state": "evaluated"
+    },
+    "execution0": {
+      "actual_writer": {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "attempt_id": "0000000b-0000-4000-8000-00000000000b",
+        "phase_id": "0000000c-0000-4000-8000-00000000000c",
+        "authority_id": "0000000d-0000-4000-8000-00000000000d",
+        "control_instance": "0000000e-0000-4000-8000-00000000000e",
+        "business_instance": "0000000f-0000-4000-8000-00000000000f",
+        "restore_epoch": "00000010-0000-4000-8000-000000000010",
+        "issuer": "00000011-0000-4000-8000-000000000011",
+        "lease_id": "00000012-0000-4000-8000-000000000012",
+        "device_id": "00000013-0000-4000-8000-000000000013",
+        "game_id": "22222222-2222-4222-8222-222222222222",
+        "control_version": "1",
+        "internal_generation": "1",
+        "recovery_generation": "1",
+        "codec_version": "1",
+        "backend_pid": "101",
+        "wire_d4": "1",
+        "system_identifier": "1",
+        "database_oid": "1",
+        "postmaster_started_at": "2026-10-30T00:00:00Z",
+        "backend_start": "2026-10-30T00:00:01Z",
+        "expires_at": "2026-10-30T00:02:00Z",
+        "transaction_id": "4294967301",
+        "request_fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "event_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "nonce_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "actual_checkpoint": {
+        "version": "1",
+        "id": "0000003c-0000-4000-8000-00000000003c",
+        "revision": "1",
+        "history_version": "1",
+        "prefix_ref": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "0"
+        },
+        "wire_d4": "1",
+        "internal_generation": "1",
+        "recovery_generation": "1",
+        "confirmed_watermark": "0",
+        "applied_watermark": "0",
+        "last_source": null,
+        "history_depth": "0",
+        "after": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "0",
+            "state.count.balls": "0",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "1",
+            "state.score": {
+              "home": "0",
+              "away": "0"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "0",
+              "away": "0"
+            },
+            "hits": "0",
+            "errors": "0",
+            "strikeouts": "0",
+            "walks": "0"
+          }
+        },
+        "rules": {
+          "regulationInnings": "7",
+          "coldConditions": [],
+          "extensionLimit": null,
+          "tiebreak": null,
+          "dh": false
+        },
+        "t2": null,
+        "roster_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "content_digest": "8af9d13da1893117ee9d3a27155933818a7301a13a12243c0775dd0b6210dc37",
+        "artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "state": "current"
+      },
+      "actual_source": {
+        "id": "00000046-0000-4000-8000-000000000046",
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "game_id": "22222222-2222-4222-8222-222222222222",
+        "generation": "1",
+        "d1": "1",
+        "d2": "1",
+        "d5": "00000047-0000-4000-8000-000000000047",
+        "source_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "event_fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "actual_frame": {
+        "id": "00000050-0000-4000-8000-000000000050",
+        "checkpoint_id": "0000003c-0000-4000-8000-00000000003c",
+        "checkpoint_revision": "1",
+        "checkpoint_digest": "8af9d13da1893117ee9d3a27155933818a7301a13a12243c0775dd0b6210dc37",
+        "prefix_ref": {
+          "version": "1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "gameId": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "length": "0"
+        },
+        "source_id": "00000046-0000-4000-8000-000000000046",
+        "request_digest": "3239fd8ccb12e56689dc5a9824861b5879ded7030474f70d784bca11aaa96eb3",
+        "response_digest": "79c9a392676a87cbf59f7a00bf28193ee746a01ee009d8846ed158c0d1427de5",
+        "artifact_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+        "new_history_entry_digest": "4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "actual_play_row_id": "0000005a-0000-4000-8000-00000000005a",
+      "top_level_transaction": true,
+      "writer_live": true,
+      "frame_consumed": false,
+      "source_current_native_accepted": true,
+      "first_admission_count": 0,
+      "ordinary_admission_count": 1,
+      "d5_classification": "new",
+      "operation_supported": true,
+      "checkpoint_origin": "actual-start-reader",
+      "fault_at": "none"
+    }
+  },
+  "semanticConditions": [
+    "WriterIdentity全列は実writer_bindings/同lease/同source phaseの現在値と等値。transaction_idは完全txid8値を一致させ、xmin低32一致だけでは代用しない。期限/失効/RG1/認証/tenantの全既条件維持。",
+    "Checkpointは同TXのgame→current generation順lock後のDB原本のみ。state=current、confirmed=appliedの実現在水位に一致し、tenant/game/wireD4/internal/recovery/history_version/revisionを照合。prefix_ref.lengthとD1/D2/history_depthは別軸。",
+    "Checkpoint.content_digestはcheckpoint全fieldからcontent_digest自身のみ除いた既source_fingerprint正規化で導出、after/rules/T2/roster/artifactを含む。caller値からcheckpointを発行しない。",
+    "prefix0は実開始readerのvalidated原本、旧first-ball prefix1は既recorded readerが原イベント/slot/PlayRow/再計算を全照合した原本から同TXで導入。既初球専用成功条件は外さない。",
+    "Source.id/tenant/game/generation/d1/d2/d5/fingerprintsは実accepted operation eventかつ現行非墓標非置換非退役native原本と一致。d1は既次連番、d2は既正史順序の割当値を使い独自採番しない。",
+    "FrameBindingはlive handle/runtime/writer/source-event/phase/nonce/checkpoint参照に束縛した非公開registryの評価済1回frame。UUID/hashは照合値であり文字列保有だけで資格は発行しない。T1/T2は共通artifactを実評価しclient結果を期待値にしない。",
+    "Admissionは独立ordinary37資格。writer＋checkpoint＋実source＋frame＋最終PlayRow IDが全て一致した場合だけtop-level同TXで消費。first_ball_write_admissionsの改名共有禁止。",
+    "同game現在のcheckpointをpoint-lockし、source履歴1entry/PlayRow/checkpoint revision+1/ordinary prefix length+1と既operation/slot/ledger/watermark/invalidationを不可分に確定。history_depthは既履歴規約から導出しnと同一視しない。",
+    "Native INSERT dispatchは実source eventの閉payload versionによりfirst_ball/ordinary37を排他的に選ぶ。対応admission1件のみ存在し、他種別資格が同eventにあれば拒否。どちらでもない/両方/未知kindは拒否。旧import経路や認可条件を新規に開かない。",
+    "PageCursorは非権限のopaque値。tenant/game/wireD4/internal/recovery/checkpoint_id/revision/history_version/upper_watermarkをDB現値と照合し、ORDER(d1,d2,id)の厳密keyset。limit1..100、SQL limit+1、tenant/game/正しい版/水位WHEREを必須。partial tailをfull historyと偽らない。",
+    "訂正/取消/再開/旧世代/復旧/unsupportedイベントでcheckpoint原典関係が変わった場合は失効し、既正式owner規約で再導出するまでordinary-write/readを閉じる。これらの操作を提供済みとしない。将来無条件永久拒否へ固定しない。",
+    "候補kernelDecisionは試験内分類のみ。wireの理由/優先順/D5消費は既sync-protocolと既owner関数に従う。結果不明/rollback未確認は旧要求/D5/attemptを保持し、新要求置換や未消費を主張しない。",
+    "UUID/digest/正準整数は完全終端で検査し、末尾LF/CRLFを補修/stripせず拒否する。schema不正値をDB資格原本へ導入しない。"
+  ],
+  "cases": [
+    {
+      "caseId": "PERSIST-01",
+      "scenario": "initial-zero-prefix",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "admit",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-02",
+      "scenario": "verified-legacy-first-ball-prefix",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "admit",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "verified-legacy-firstball-seed",
+        "prefixLength": "1",
+        "confirmedWatermark": "1",
+        "nextD1": "2",
+        "nextD2": "2",
+        "requireExistingRecordedReaderExactComparison": true
+      }
+    },
+    {
+      "caseId": "PERSIST-03",
+      "scenario": "arbitrary-long-confirmed-ordinary-prefix",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "admit",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "same-tx-checkpoint",
+        "prefixLength": "100001",
+        "confirmedWatermark": "100001",
+        "nextD1": "100002",
+        "nextD2": "100002",
+        "noFullHistoryLoad": true
+      }
+    },
+    {
+      "caseId": "PERSIST-04",
+      "scenario": "S2-nonbunt-foul-count-hold-history-push",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "admit",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "two-strike-nonbunt-foul",
+        "beforeBalls": "3",
+        "beforeStrikes": "2",
+        "afterBalls": "3",
+        "afterStrikes": "2",
+        "newHistoryEntryCount": 1,
+        "prefixIncrement": "1"
+      }
+    },
+    {
+      "caseId": "PERSIST-05",
+      "scenario": "same-D5-same-original-replay",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "replay",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "d5_classification",
+          "value": "same-original"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-06",
+      "scenario": "same-D5-different-original",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "existing-rejection",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "existing-protocol-regression",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "d5_classification",
+          "value": "different-original"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-07",
+      "scenario": "unsupported-result",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "unsupported",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "existing-protocol-regression",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "operation_supported",
+          "value": false
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-08",
+      "scenario": "stale-checkpoint-revision",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "frame.checkpoint_revision",
+          "value": "2"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-09",
+      "scenario": "checkpoint-digest-mismatch",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "frame.checkpoint_digest",
+          "value": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-10",
+      "scenario": "tenant-cross",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "source.tenant_id",
+          "value": "00000190-0000-4000-8000-000000000190"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-11",
+      "scenario": "game-cross",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "source.game_id",
+          "value": "00000191-0000-4000-8000-000000000191"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-12",
+      "scenario": "wireD4-cross",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "writer.wire_d4",
+          "value": "another-D4"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-13",
+      "scenario": "internal-generation-cross",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "source.generation",
+          "value": "2"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-14",
+      "scenario": "authority-epoch-cross",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_writer.restore_epoch",
+          "value": "00000099-0000-4000-8000-000000000099"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-15",
+      "scenario": "txid8-cross-same-low32",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_writer.transaction_id",
+          "value": "8589934597"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-16",
+      "scenario": "other-connection",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_writer.backend_pid",
+          "value": "102"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-17",
+      "scenario": "savepoint-issuance-or-consumption",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "top_level_transaction",
+          "value": false
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-18",
+      "scenario": "different-source-event",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "frame.source_id",
+          "value": "00000192-0000-4000-8000-000000000192"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-19",
+      "scenario": "different-D1",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "source.d1",
+          "value": "2"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-20",
+      "scenario": "different-D5",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_source.d5",
+          "value": "00000098-0000-4000-8000-000000000098"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-21",
+      "scenario": "different-frame-identity",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_frame.id",
+          "value": "00000097-0000-4000-8000-000000000097"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-22",
+      "scenario": "different-PlayRow",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_play_row_id",
+          "value": "00000096-0000-4000-8000-000000000096"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-23",
+      "scenario": "frame-second-consume",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "frame_consumed",
+          "value": true
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-24",
+      "scenario": "expired-or-revoked-writer",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "writer_live",
+          "value": false
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-25",
+      "scenario": "both-first-and-ordinary-admissions",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "first_admission_count",
+          "value": 1
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-26",
+      "scenario": "neither-admission",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "ordinary_admission_count",
+          "value": 0
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-27",
+      "scenario": "first-only-legacy-success",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "legacy-admit",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "first_admission_count",
+          "value": 1
+        },
+        {
+          "path": "ordinary_admission_count",
+          "value": 0
+        }
+      ],
+      "setup": {
+        "mode": "legacy-first-ball",
+        "dispatch": "first-ball-original-guard"
+      }
+    },
+    {
+      "caseId": "PERSIST-28",
+      "scenario": "checkpoint-invalidated",
+      "baseAdmission": "admission0",
+      "mutations": [
+        {
+          "path": "checkpoint.state",
+          "value": "invalidated"
+        }
+      ],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-29",
+      "scenario": "checkpoint-untrusted-caller-after",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "checkpoint_origin",
+          "value": "caller-unverified"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-30",
+      "scenario": "unsupported-event-invalidates-checkpoint",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "actual_checkpoint.state",
+          "value": "invalidated"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-31",
+      "scenario": "cursor-tenant-game-version-watermark-change",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "page-cursor",
+        "mutateEachSeparately": [
+          "tenant_id",
+          "game_id",
+          "wire_d4",
+          "internal_generation",
+          "recovery_generation",
+          "checkpoint_id",
+          "checkpoint_revision",
+          "history_version",
+          "upper_watermark"
+        ],
+        "eachExpected": "reject"
+      }
+    },
+    {
+      "caseId": "PERSIST-32",
+      "scenario": "page-keyset-limit-plus-one",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "bounded-page",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "page-cursor",
+        "limits": [
+          1,
+          100
+        ],
+        "invalidLimits": [
+          0,
+          101,
+          true
+        ],
+        "readLimit": "limit+1",
+        "queryBounded": true,
+        "nextCursor": "last-returned-key-only-if-extra-row",
+        "mustNotReadAllHistory": true
+      }
+    },
+    {
+      "caseId": "PERSIST-33",
+      "scenario": "partial-prefix-chain-or-missing-row",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "checkpoint-chain-corruption",
+        "mutateEachSeparately": [
+          "missing-operation",
+          "missing-slot",
+          "missing-PlayRow",
+          "watermark-mismatch",
+          "missing-checkpoint",
+          "checkpoint-revision-mismatch"
+        ],
+        "eachExpected": "reject"
+      }
+    },
+    {
+      "caseId": "PERSIST-34",
+      "scenario": "between-projection-and-checkpoint-fault",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "rollback",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "fault_at",
+          "value": "after-projection"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-35",
+      "scenario": "between-checkpoint-and-ledger-fault",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "rollback",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "fault_at",
+          "value": "after-checkpoint"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-36",
+      "scenario": "commit-response-unknown",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "retain-original",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "fault_at",
+          "value": "commit-response"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-37",
+      "scenario": "rollback-not-confirmed",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "retain-original",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [
+        {
+          "path": "fault_at",
+          "value": "rollback-status"
+        }
+      ],
+      "setup": {
+        "mode": "ordinary-one-append"
+      }
+    },
+    {
+      "caseId": "PERSIST-38",
+      "scenario": "backend-host-T2-not-evaluated",
+      "baseAdmission": "admission0",
+      "mutations": [],
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "unit-and-owned-db",
+      "baseExecutionEvidence": "execution0",
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "real-host-failure",
+        "artifactReturns": "T2_NOT_EVALUATED",
+        "callerMayNotSupplyFixedNoEnd": true
+      }
+    },
+    {
+      "caseId": "PERSIST-39",
+      "scenario": "reject-trailing-LF-play_row_id",
+      "baseAdmission": "admission0",
+      "baseExecutionEvidence": "execution0",
+      "mutations": [
+        {
+          "path": "play_row_id",
+          "append": "\n"
+        }
+      ],
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "schema-invalid-no-normalization"
+      },
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "schema-and-boundary"
+    },
+    {
+      "caseId": "PERSIST-40",
+      "scenario": "reject-trailing-CRLF-play_row_id",
+      "baseAdmission": "admission0",
+      "baseExecutionEvidence": "execution0",
+      "mutations": [
+        {
+          "path": "play_row_id",
+          "append": "\r\n"
+        }
+      ],
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "schema-invalid-no-normalization"
+      },
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "schema-and-boundary"
+    },
+    {
+      "caseId": "PERSIST-41",
+      "scenario": "reject-trailing-LF-writer.request_fingerprint",
+      "baseAdmission": "admission0",
+      "baseExecutionEvidence": "execution0",
+      "mutations": [
+        {
+          "path": "writer.request_fingerprint",
+          "append": "\n"
+        }
+      ],
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "schema-invalid-no-normalization"
+      },
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "schema-and-boundary"
+    },
+    {
+      "caseId": "PERSIST-42",
+      "scenario": "reject-trailing-CRLF-writer.request_fingerprint",
+      "baseAdmission": "admission0",
+      "baseExecutionEvidence": "execution0",
+      "mutations": [
+        {
+          "path": "writer.request_fingerprint",
+          "append": "\r\n"
+        }
+      ],
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "schema-invalid-no-normalization"
+      },
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "schema-and-boundary"
+    },
+    {
+      "caseId": "PERSIST-43",
+      "scenario": "reject-trailing-LF-source.d1",
+      "baseAdmission": "admission0",
+      "baseExecutionEvidence": "execution0",
+      "mutations": [
+        {
+          "path": "source.d1",
+          "append": "\n"
+        }
+      ],
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "schema-invalid-no-normalization"
+      },
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "schema-and-boundary"
+    },
+    {
+      "caseId": "PERSIST-44",
+      "scenario": "reject-trailing-CRLF-source.d1",
+      "baseAdmission": "admission0",
+      "baseExecutionEvidence": "execution0",
+      "mutations": [
+        {
+          "path": "source.d1",
+          "append": "\r\n"
+        }
+      ],
+      "evidenceMutations": [],
+      "setup": {
+        "mode": "schema-invalid-no-normalization"
+      },
+      "expected": {
+        "kernelDecision": "reject",
+        "claimsProductEvidence": false,
+        "wireAndD5Authority": "existing-sync-contract"
+      },
+      "requiredTestLayer": "schema-and-boundary"
+    }
+  ],
+  "nonClaims": [
+    "正式P6/P7/P8受理",
+    "実DB耐久性/真正prefix成立",
+    "取消/訂正/終了/再開/全MVP完成",
+    "新HTTP結果やD5意味変更"
+  ],
+  "evidenceBoundary": "ExecutionEvidenceは単体試験がownerの観測を表現する比較資料であり、HTTP/Port/DB発行APIの入力ではない。製品はlive runtime registry/実writer/同TX DB原本からのみ観測し、自由生成boolから資格を発行しない。各caseのsetupは実DB層で実行し、unit比較で代替しない。",
+  "examplesProvenance": "比較用の合成内部record。checkpoint/request/response digestは既source_fingerprintで導出したが、writer/frame/live DB/実artifactの発行証拠はない。この封筒を渡すだけでadmitする実装は禁止。成功caseはsetupに従う実owner由来のfixtureを別途発行して検証する。"
+}
