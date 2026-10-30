@@ -62,6 +62,10 @@
     {
       "pr": 184,
       "branch": "feature/mvp-rg1-profile-integration-candidate"
+    },
+    {
+      "pr": 188,
+      "branch": "feature/mvp-game-start-atomic-candidate"
     }
   ]
 }

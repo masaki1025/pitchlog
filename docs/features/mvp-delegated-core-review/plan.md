@@ -94,3 +94,9 @@ CI run39950625656のtenant-boundary-bypassは、認証用CI2行が既存8資産�
 修正実装開始時のactive遷移が後追いとなったため、コードコミット前にこのメタデータ遷移を記録する。未レビューの変更を旧固定HEADの確認済みと扱わない。意味仕様・既存拒否能力の緩和なし、最終新HEADの第2回差分レビューと証拠再固定を行う。
 
 最終是正版: core350 passed/20.89s、Ruff/ty全体、文書20件0違反、diff-check成功。実無認証API取得成功。正式資産9件と全外部対象は基線とバイト一致、movement=False/affected=[]、作業木を対象とするchecker違反0。コミット後の正式PRイベントでも再検証し、旧d5d85134証拠は新HEADでは拒否する。
+
+### PR188の限定対象追加（2026-10-30、PO委任によるCodex主担当判断）
+
+既採用の対象表方式を維持し、policy.jsonへ実PR188/feature/mvp-game-start-atomic-candidateの完全一致1組だけ追加する。POのMVP継続委任に基づく対象具体化であり、source d1aa2422の既非作者review/正式記録と公開版を一致させた後に行う。core検出/拒否条件/本人確認欄を変更しない。最終commit後の外部証拠は実base/head/diff/path/独立結果を固定し、証拠不在/版違い/重大未解消は従来どおり拒否する。対象追加自体を非作者確認してから保存し、最終CI/通常mergeは別条件とする。本人署名/逐行確認ではない。
+
+対象追加の保存判断: PO委任によるCodex主担当判断（2026-10-30）。packet a3863731bd5bb4de6b57719900df9f8c3c112b6c0893ddd1923c0e9766a81501と実2path、独立REPORT c993e36f8dea09804a17d50aa52cd5f9ba02c8dff978ec52a6da4590760b877c（P0/P1=0、関連coreguard81成功）を照合してPR188対象1組の追加を採用。coordinate_gate_reviewは同patch起案者のため当該policyの確認を作者整合として区別し、独立採否には使わない。最終全差分レビュー/evidence/CI/通常mergeは残る。
