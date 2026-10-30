@@ -1975,3 +1975,11 @@ HTTPS E2Eレビューでstart後のAPI fetchがUIのrestore状態を更新しな
 最初のfrontend全件は116files/2634tests中3failed・2631passed（107.05秒）。新量子化operationに対する既公開操作集合2件と、float反転削除に対する下書き座標期待値1件の追随不足を確認。aa691b90でexact集合を6操作へ、タップ訂正点を実画面値へ追随し部分一致に緩めない。関連57件・全vue-tsc・全eslint成功、全件再検査を同候補で実行中（成功未確定）。
 
 次: frontend全件結果回収→球種owned実DB試験（新規test作成中）→実HTTPS初球試験（TLS生成許可/既存PATH回答待ち）。回答待ちでも正式資産/原子性/再送の独立作業は継続する。新しい画面操作の実証はまだない。
+
+### 2026-10-30 frontend全件成立と球種実DB確認
+
+固定candidate aa691b90でfrontend `pnpm test` を再実行し **116files / 2634tests 全件成功、107.20秒**。初回3failedの履歴を保持し、今回の成功はexact集合/画面境界期待値の追随後の別run。既全eslint/vue-tscも成功。HTTPS実画面保存の成立を意味しない。
+
+新規ownedDB球種試験（test_pitch_type_options.py、source SHA679fdc20eb501ed19b7e08bfc8a0566b352895c9530b1ff2feabe8de5d7044b1）はroot読取確認後、shared DSNunset・専用tmpで実行中。実2tenant login/Cookie/C2・正式GET/token/SQL・ページ/cursor/カテゴリ/disabled/越境/語彙不変を検証する。結果未確定。
+
+TLS回答待ちと並行し、正式認可登録のcreate2route/新球種route不足の一次調査・cache候補作成を別担当へ依頼（正式資産/既sealを無reviewで変更しない）。GoalはMVP全体を維持し継続中。
