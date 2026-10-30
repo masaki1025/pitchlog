@@ -6,6 +6,10 @@ from collections.abc import Callable, Collection, Mapping
 from pathlib import PurePosixPath
 from typing import cast
 
+from pitchlog.domaincheck.boot.operation_bindings import (
+    PartialOperationBinding,
+    validate_partial_bindings,
+)
 from pitchlog.domaincheck.boot.phase2 import SemanticSnapshot
 from pitchlog.domaincheck.cli import CheckerExecutionError, CheckerViolation
 
@@ -61,6 +65,7 @@ def collect_semantic_snapshot(
     allowed_target_ids: Collection[str],
     path_exists: Callable[[str], bool],
     verified_checks: Mapping[str, frozenset[str]] | None = None,
+    operation_bindings: tuple[PartialOperationBinding, ...] = (),
 ) -> SemanticSnapshot:
     """Manifest の六構成要素を対象 ID ごとに観測する。
 
@@ -72,6 +77,7 @@ def collect_semantic_snapshot(
         allowed_target_ids: 封印集合が許す対象 ID。
         path_exists: 当該時点で参照先が実在するかを調べる関数。
         verified_checks: 実行済み検査で成功した対象 ID の層別集合。
+        operation_bindings: 検証済みの有限な部分供給対応。
 
     Returns:
         六集合を持つ意味スナップショット。観測不能な集合は ``None``。
@@ -100,17 +106,29 @@ def collect_semantic_snapshot(
     }
     seen: set[str] = set()
     allowed = frozenset(allowed_target_ids)
+    validate_partial_bindings(operation_bindings, allowed)
+    bindings = {binding.operation: binding for binding in operation_bindings}
+    if len(bindings) != len(operation_bindings):
+        raise CheckerViolation("BOOT operation bindingが重複")
+    seen_targets: set[str] = set()
     for index, raw in enumerate(calculations):
         label = f"manifest.calculations[{index}]"
         calculation = _object(raw, label)
-        target = calculation.get("calculation")
-        if not isinstance(target, str) or not target or target in seen:
+        operation = calculation.get("calculation")
+        if not isinstance(operation, str) or not operation or operation in seen:
             raise CheckerExecutionError(f"{label}.calculation が不正または重複")
+        binding = bindings.get(operation)
+        target = binding.target_id if binding is not None else operation
         if target not in allowed:
             raise CheckerViolation(f"NFR-018 柱書: 対象欄にない宣言={target!r}")
-        seen.add(target)
+        seen.add(operation)
+        if target in seen_targets:
+            raise CheckerViolation("BOOT同対象の部分供給と全体登録を混在できない")
+        seen_targets.add(target)
         source = _object(calculation.get("source"), f"{label}.source")
         source_path = _path(source.get("path"), f"{label}.source.path")
+        if binding is not None and source_path != binding.source:
+            raise CheckerViolation("BOOT operation bindingのsourceが一致しない")
         if path_exists(source_path):
             declarations.add(target)
         else:
@@ -159,6 +177,7 @@ def collect_semantic_snapshot(
             elif (
                 observable[component]
                 and verified_checks is not None
+                and binding is None
                 and target in verified_checks[component]
             ):
                 checks[component].add(target)
