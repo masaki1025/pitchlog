@@ -61,3 +61,9 @@ P1: JSON Schemaの`$`は末尾LF直前にも一致するため、UUID/digest/整
 ### 実codecへの型整合（2026-10-30）
 
 実E1の `wire_fingerprint.py` は既source_fingerprintに `wire-v1:` を付けた原値を返す。requestは既 `wire_request_fingerprint()` の `wire-request-v1:`、eventは `wire-v1:` を区別する。WriterIdentity.request_fingerprintだけ `(?:wire-request-v1:)?[a-f0-9]{64}`、他3用途（WriterIdentity.event_fingerprint/Source.source_fingerprint/Source.event_fingerprint）は既初球validatorとも整合する `(?:wire-v1:)?[a-f0-9]{64}` の完全終端型へ具体化する。原値をstrip/再ハッシュしない。artifact/content/request-response/nonce等の64桁digest型は不変。これは既codecの技術整合でありD5同一性・指紋算法・資格発行条件を変更しない。
+
+#### 既D2値域との技術整合
+
+Source.d2は既ordering/recorded snapshotに従い正準非負整数（0を含む、int64上限）とする。D1の正整数とは別。画面appendの初回1・間隔1000・JavaScriptの安全整数境界は入力形成の別制約であり、DB/D2の全値域を縮小しない。既44対向と数学期待値は不変。この追随自体は実DB検証済みを意味しない。
+
+本D2追随のみPO委任によるCodex主担当判断で採用（2026-10-30、JSON SHA256 `b7d69116ccde4ef1ae1aaec37b346ee62cc9e25b9bcba5d4471219ac23e5c516`）。非作者REPORT `ordinary37-db-root-source-nonauthor-20261030/REPORT.md` SHA1e64e02f34a856316f2a9a81d2561dd9cf937d7923dab8978556c1a4169a64caのD2=0照合、およびzero正常/負数・先頭ゼロ・改行・型違い7拒否を確認。DB/frame合同保証と履歴欠落のP1は別是正であり、本追随の採用をSQL/実DB全体の成立へ広げない。人間の逐行確認ではない。
