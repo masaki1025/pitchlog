@@ -4,7 +4,15 @@ import type { ApiErrorBody } from './types'
 
 export type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
+export type SyncRequestCredentials = Readonly<{
+  deviceId: string
+  deviceCredential: string
+  attempt: string
+}>
+
 export interface RequestOptions {
+  /** 同期POST専用。資格を他経路へ転送しない。 */
+  syncCredentials?: SyncRequestCredentials
   body?: unknown
   query?: Record<
     string,
@@ -233,7 +241,23 @@ async function requestResponse<T>(
     throw new Error('認証Cookieフックはlogin/logoutだけで利用できます')
   }
 
+  const sync = options.syncCredentials
+  if (
+    sync !== undefined &&
+    (method !== 'POST' ||
+      !/^\/games\/[0-9a-f-]{36}\/sync\/events$/.test(path) ||
+      !isCanonicalUuid(sync.deviceId) ||
+      !isCanonicalUuid(sync.attempt) ||
+      !/^[\x21-\x7e]+$/.test(sync.deviceCredential))
+  ) {
+    throw new Error('同期要求の資格または送信先が不正です')
+  }
   const headers: Record<string, string> = {}
+  if (sync !== undefined) {
+    headers['X-Pitchlog-Device-Id'] = sync.deviceId
+    headers['X-Pitchlog-Device-Credential'] = sync.deviceCredential
+    headers['X-Pitchlog-Sync-Attempt'] = sync.attempt
+  }
   if (options.tenantBound) {
     headers['X-Pitchlog-Expected-Tenant'] = expectedTenant!
     headers['X-Pitchlog-Tenant-Challenge'] = challenge!

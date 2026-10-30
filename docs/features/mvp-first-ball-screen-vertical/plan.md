@@ -42,6 +42,7 @@ created: 2026-10-30
 
 - `frontend/src/lib/generated/wrappers/domainArtifact.ts` と同spec
 - `frontend/src/api/client.syncEvents.ts` と同spec
+- `frontend/src/api/client.ts`（既共通認証/Cookie処理を使ったまま同期POST専用資格を閉じて渡すための最小追補）
 - `frontend/src/screens/GameScreenPitchCommit.ts` と同spec（実資格/attemptをtransportへ渡す接続）
 - `frontend/src/screens/GameScreenCommitGate.ts` / `GameScreenCommitGate.spec.ts`
 - `frontend/src/screens/GameScreenEntryRecordHost.vue` / `GameScreen.vue`

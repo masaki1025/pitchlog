@@ -14,7 +14,7 @@ import {
   checkSyncEvent,
   type SyncEventViolation,
 } from '../lib/sync/validateSyncEvent'
-import { ApiError, apiRequest } from './client'
+import { ApiError, apiRequest, type SyncRequestCredentials } from './client'
 
 /** スロットと wire のキーの対応(sync-wire-schema/design.md 3-2・3-3 の表)。 */
 const WIRE_KEY_BY_SLOT_ID = {
@@ -86,6 +86,8 @@ export type SyncEventSendFailure =
   (typeof SYNC_EVENT_SEND_FAILURE)[keyof typeof SYNC_EVENT_SEND_FAILURE]
 
 export type SyncEventSendRequest = Readonly<{
+  /** 実端末資格と、送信前に耐久固定した要求attempt。 */
+  syncCredentials?: SyncRequestCredentials
   /** path の `{game_id}`。 */
   gameId: string
   /** V12。不透明な値のまま運ぶ。 */
@@ -261,7 +263,12 @@ export async function postSyncEvents(
     const response = await apiRequest<unknown>(
       'POST',
       `/games/${encodeURIComponent(request.gameId)}/sync/events`,
-      { body: built },
+      {
+        body: built,
+        ...(request.syncCredentials === undefined
+          ? {}
+          : { syncCredentials: request.syncCredentials }),
+      },
     )
     return { sent: true, requestBody: built, response }
   } catch (error) {

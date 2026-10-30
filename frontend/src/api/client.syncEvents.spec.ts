@@ -419,3 +419,36 @@ describe('送信の失敗でキューの状態を変えない', () => {
     }
   })
 })
+
+describe('同期POST専用の実資格輸送', () => {
+  const credentials = {
+    deviceId: '11111111-1111-4111-8111-111111111111',
+    deviceCredential: 'fixture-device-credential',
+    attempt: '22222222-2222-4222-8222-222222222222',
+  }
+  it('資格と固定attemptをヘッダへ渡し本文へ複製しない', async () => {
+    respond('{}')
+    const result = await postSyncEvents(
+      request({ syncCredentials: credentials }),
+    )
+    expect(result.sent).toBe(true)
+    const init = vi.mocked(fetch).mock.calls[0]![1]!
+    expect(init.headers).toMatchObject({
+      'X-Pitchlog-Device-Id': credentials.deviceId,
+      'X-Pitchlog-Device-Credential': credentials.deviceCredential,
+      'X-Pitchlog-Sync-Attempt': credentials.attempt,
+    })
+    expect(init.body).not.toContain(credentials.deviceCredential)
+    expect(init.credentials).toBe('include')
+  })
+  it.each(['', 'bad\r\nheader', '非ASCII'])(
+    '不正資格は送信しない: %s',
+    async (deviceCredential) => {
+      const result = await postSyncEvents(
+        request({ syncCredentials: { ...credentials, deviceCredential } }),
+      )
+      expect(result.sent).toBe(false)
+      expect(fetch).not.toHaveBeenCalled()
+    },
+  )
+})
