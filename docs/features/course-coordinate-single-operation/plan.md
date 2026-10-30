@@ -55,6 +55,8 @@ created: 2026-10-30
 
 ### 2.1 単一 operation の ABI（案）
 
+実ホストはJSON文字列in/outとし、成功は `{ok:true,value:{unit,x,y}}`、失敗は `{ok:false,error:{code}}`（revision-draft参照）。下記は封筒内の値型。
+
 ```
 quantizeCourse({
   x: "<十進文字列>",        # 表示座標（入力形成時の実数）
