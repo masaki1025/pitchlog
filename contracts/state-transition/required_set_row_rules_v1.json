@@ -232,6 +232,26 @@
             "req:RBI-04",
             "req:RBI-08"
           ]
+        },
+        {
+          "vocabularyId": "batting-result.walk",
+          "partitions": [
+            "empty-runners"
+          ],
+          "sourceClauseIds": [
+            "req:E-1",
+            "req:ADV-01"
+          ]
+        },
+        {
+          "vocabularyId": "batting-result.hit-by-pitch",
+          "partitions": [
+            "empty-runners"
+          ],
+          "sourceClauseIds": [
+            "req:E-1",
+            "req:ADV-01"
+          ]
         }
       ]
     },

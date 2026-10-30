@@ -2508,3 +2508,180 @@ def test_historical_coverage_copy_rejects_live_only_vector_contamination(
     assert any(command[:3] == ["git", "ls-tree", "-r"] for command in commands)
     state = view / "contracts/state-transition/state_transition_contract_v1.json"
     assert len(json.loads(state.read_text())["cases"]) == 116
+# 無走者BB/HBPは旧116→117移行の外側にある閉じた15例だけを追加する。
+def test_terminal_extension_keeps_the_exact_old_117_and_twelve_migrations() -> None:
+    contract = _asset("state_transition_contract_v1.json")
+    extension = checker._terminal_case_extension(_LIVE_ROOT, contract)
+    assert len(extension) == 15
+    assert len(contract["cases"]) == 132
+    expected = _asset("ordinary_pitch_vectors_v1.json")["caseIdMigrations"]["caseIds"]
+    assert checker._ordinary_case_id_migrations(_LIVE_ROOT, contract) == expected
+    legacy = copy.deepcopy(contract)
+    legacy["cases"] = [case for case in legacy["cases"] if case["caseId"] not in extension]
+    assert len(legacy["cases"]) == 117
+    assert checker._ordinary_case_id_migrations(_LIVE_ROOT, legacy) == expected
+
+
+@pytest.mark.parametrize("mutation", (
+    "missing", "duplicate", "unknown", "old-value", "old-missing", "old-117th",
+    "row-ref", "row-effects", "new-expected", "new-input", "new-history", "old-mapping",
+    "wire-number", "wire-leading-zero", "asset-and-case", "asset-id", "asset-extra-input",
+))
+def test_terminal_extension_rejects_unauthorized_union_and_self_acceptance(
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    contract = _asset("state_transition_contract_v1.json")
+    asset = _asset("terminal_pitch_cases_v1.json")
+    ordinary = _asset("ordinary_pitch_vectors_v1.json")
+    added = [case for case in contract["cases"] if case["caseId"].startswith("ST-TERMINAL-")]
+    selected = added[0]
+    if mutation == "missing":
+        contract["cases"].remove(selected)
+    elif mutation == "duplicate":
+        contract["cases"].append(copy.deepcopy(selected))
+    elif mutation == "unknown":
+        other = copy.deepcopy(selected)
+        other["caseId"] = "ST-TERMINAL-BB-S3-B3"
+        contract["cases"].append(other)
+    elif mutation == "old-value":
+        contract["cases"][0]["expected"]["statFlags"]["打席"] = True
+    elif mutation == "old-missing":
+        contract["cases"].pop(0)
+    elif mutation == "old-117th":
+        next(case for case in contract["cases"]
+             if case["caseId"] == "ST-COVERAGE-8d5c59594f90b5bd")["unknown"] = True
+    elif mutation == "row-ref":
+        selected["rowRef"] = copy.deepcopy(contract["cases"][0]["rowRef"])
+    elif mutation == "row-effects":
+        next(row for row in contract["matrixRows"]
+             if row["precondition"] == selected["rowRef"]["coordinate"]["precondition"]
+             )["statFlags"]["打数"] = True
+    elif mutation == "new-expected":
+        selected["expected"]["statFlags"]["打数"] = True
+    elif mutation == "new-input":
+        selected["inputCoordinate"]["state.runners"] = "first"
+    elif mutation == "new-history":
+        selected["historyInput"]["after"]["stateFields"]["state.battingOrder"] = 9
+    elif mutation == "old-mapping":
+        mapping = ordinary["caseIdMigrations"]["caseIds"]
+        mapping[next(iter(mapping))] = selected["caseId"]
+    elif mutation == "wire-number":
+        asset["cases"][0]["request"]["before"]["stateFields"]["state.count.strikes"] = 0
+    elif mutation == "wire-leading-zero":
+        asset["cases"][0]["request"]["before"]["stateFields"]["state.count.strikes"] = "00"
+    elif mutation == "asset-and-case":
+        selected["expected"]["statFlags"]["打数"] = True
+        asset["cases"][0]["expected"]["value"]["statFlags"]["打数"] = True
+    elif mutation == "asset-id":
+        asset["cases"][0]["formalCaseId"] = "ST-TERMINAL-BB-S3-B3"
+    else:
+        asset["cases"][0]["request"]["freeRunnerId"] = "caller-id"
+    document = checker._document
+    monkeypatch.setattr(checker, "_document", lambda root, name:
+                        asset if name == "terminal_pitch_cases_v1.json" else
+                        ordinary if name == "ordinary_pitch_vectors_v1.json" else
+                        document(root, name))
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker._ordinary_case_id_migrations(_LIVE_ROOT, contract)
+# matrixの範囲外でも、別layer自身が明示し既束縛で実現する値は失わない。
+def _terminal_ended_rows(contract: dict[str, Any]) -> list[dict[str, Any]]:
+    """既operationのgameEnded=true明示行だけを得る。"""
+    return [row for row in contract["operationRows"] if row["precondition"] == {
+        "op": "eq", "axisId": "state.gameEnded", "value": True,
+    }]
+
+
+def _terminal_replace_predicate(
+    contract: dict[str, Any], row: dict[str, Any], predicate: dict[str, Any],
+) -> None:
+    """候補rowの変更を実宣言/実case参照へ同じ値で反映する試験専用helper。"""
+    old = {key: copy.deepcopy(row[key])
+           for key in ("operationKind", "payloadShape", "precondition")}
+    row["precondition"] = copy.deepcopy(predicate)
+    for mapping in contract["mustOperationCoverage"]["mappings"]:
+        for reference in mapping["rowRefs"]:
+            if reference == {"layer": "operationRows", "coordinate": old}:
+                reference["coordinate"]["precondition"] = copy.deepcopy(predicate)
+    for case in contract["cases"]:
+        if case["rowRef"] == {"layer": "operationRows", "coordinate": old}:
+            case["rowRef"]["coordinate"]["precondition"] = copy.deepcopy(predicate)
+
+
+def test_terminal_reachability_preserves_legacy_explicit_nonmatrix_values() -> None:
+    contract = _asset("state_transition_contract_v1.json")
+    original = json.loads(subprocess.check_output(
+        ["git", "show", "HEAD:contracts/state-transition/state_transition_contract_v1.json"],
+        cwd=_LIVE_ROOT,
+    ))
+    assert {row["operationKind"] for row in _terminal_ended_rows(contract)} == {
+        "substitution", "game-end-declaration", "adhoc-registration",
+    }
+    assert original["operationRows"] == contract["operationRows"]
+    assert checker.check_input_coverage_exact(_LIVE_ROOT, original) == (228, 51, 0)
+    assert checker.check_input_coverage_exact(_LIVE_ROOT, contract) == (228, 51, 0)
+    # 明示finiteでも、自分の行/参照の正当な値だけなら同じ到達集合を保つ。
+    finite = copy.deepcopy(contract)
+    for row in _terminal_ended_rows(finite):
+        _terminal_replace_predicate(finite, row, {
+            "op": "in", "axisId": "state.gameEnded", "values": [True],
+        })
+    assert checker.check_input_coverage_exact(_LIVE_ROOT, finite) == (228, 51, 0)
+
+
+@pytest.mark.parametrize("mutation", (
+    "free", "contradiction", "unknown-axis", "unknown-row", "undeclared-field",
+    "missing-binding", "duplicate-binding", "remove-explicit-rows",
+))
+def test_terminal_reachability_rejects_free_or_unbound_layer_fill(mutation: str) -> None:
+    contract = _asset("state_transition_contract_v1.json")
+    rows = _terminal_ended_rows(contract)
+    assert len(rows) == 3
+    for row in rows:
+        if mutation == "free":
+            _terminal_replace_predicate(contract, row, {
+                "op": "eq", "axisId": "state.outs", "value": 0,
+            })
+        elif mutation in {"contradiction", "unknown-axis"}:
+            other = {"op": "not", "args": [copy.deepcopy(row["precondition"])]}
+            if mutation == "unknown-axis":
+                other = {"op": "eq", "axisId": "state.undeclared", "value": 0}
+            _terminal_replace_predicate(contract, row, {
+                "op": "and", "args": [copy.deepcopy(row["precondition"]), other],
+            })
+        elif mutation == "undeclared-field":
+            row["free_state_override"] = {"state.gameEnded": True}
+        elif mutation == "unknown-row":
+            row["operationKind"] = "unknown-operation"
+        elif mutation == "remove-explicit-rows":
+            contract["operationRows"].remove(row)
+        else:
+            reference = {"layer": "operationRows", "coordinate": {
+                key: row[key] for key in ("operationKind", "payloadShape", "precondition")
+            }}
+            mapping = next(item for item in contract["mustOperationCoverage"]["mappings"]
+                           if item["operationType"] == row["operationKind"])
+            if mutation == "missing-binding":
+                mapping["rowRefs"].remove(reference)
+            else:
+                mapping["rowRefs"].append(copy.deepcopy(reference))
+    if mutation in {"free", "unknown-axis"}:
+        # case側にも値を与えて既predicate評価を通し、新しい除外判定へ到達させる。
+        axis = "state.outs" if mutation == "free" else "state.undeclared"
+        predicates = [row["precondition"] for row in rows]
+        for case in contract["cases"]:
+            reference = case["rowRef"]
+            if (reference["layer"] == "operationRows"
+                    and reference["coordinate"]["precondition"] in predicates):
+                for surface in ("inputCoordinate", "raw", "normalized"):
+                    case[surface][axis] = 0
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker.check_input_coverage_exact(_LIVE_ROOT, contract)
+
+
+def test_terminal_reachability_does_not_authorize_ended_per_pitch_input() -> None:
+    contract = _asset("state_transition_contract_v1.json")
+    terminal = next(case for case in contract["cases"]
+                    if case["caseId"] == "ST-TERMINAL-BB-S0-B3")
+    terminal["historyInput"]["before"]["stateFields"]["state.gameEnded"] = True
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker._terminal_case_extension(_LIVE_ROOT, contract)

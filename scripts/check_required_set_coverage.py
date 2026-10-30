@@ -654,6 +654,120 @@ def _row_finite_input_values(predicate: dict[str, Any], axis_id: str) -> set[str
     return set()
 
 
+def _terminal_case_extension(root: Path, contract: dict[str, Any]) -> set[str]:
+    """既移行の外側へ足す無走者15例だけを、実入力/効果/参照で閉じる。"""
+    supplied = contract["cases"]
+    expected_ids = {
+        f"ST-TERMINAL-{kind}-S{s}-B{b}"
+        for kind, counts in (("BB", [(s, 3) for s in range(3)]),
+                             ("HBP", [(s, b) for s in range(3) for b in range(4)]))
+        for s, b in counts
+    }
+    present = {case["caseId"] for case in supplied} & expected_ids
+    if not present:
+        return set()
+    if present != expected_ids:
+        raise RequiredSetCoverageError("無走者terminalの追加15IDが不完全")
+    asset = _document(root, "terminal_pitch_cases_v1.json")
+    cases = asset.get("cases")
+    if (asset.get("calculation") != "terminal-empty-bb-hbp-v1"
+            or asset.get("operation") != "deriveTerminalPitch"
+            or not isinstance(cases, list) or len(cases) != 15
+            or not all(isinstance(case, dict)
+                       and isinstance(case.get("formalCaseId"), str) for case in cases)
+            or {case.get("formalCaseId") for case in cases} != expected_ids):
+        raise RequiredSetCoverageError("無走者terminalの正準case資産が不一致")
+    keys = (
+        "投球回算入アウト", "投球数", "奪三振", "与四球", "与死球", "被安打",
+        "被本塁打", "失点", "失策", "打席", "打数", "安打", "本塁打", "塁打",
+        "犠打", "犠飛", "四球", "死球", "三振", "打撃妨害出塁", "走塁妨害出塁",
+        "得点", "打点",
+    )
+
+    def wire(value: Any) -> Any:
+        """固定した期待整数を正準wireへ写し、入力の型変換は行わない。"""
+        if isinstance(value, dict):
+            return {key: wire(child) for key, child in value.items()}
+        if isinstance(value, list):
+            return [wire(child) for child in value]
+        if type(value) is int:
+            return str(value)
+        return value
+
+    for source in cases:
+        identifier = source["formalCaseId"]
+        kind, strikes, balls = identifier.removeprefix("ST-TERMINAL-").split("-")
+        s, b = int(strikes[1:]), int(balls[1:])
+        walk = kind == "BB"
+        result = "batting-result.walk" if walk else "batting-result.hit-by-pitch"
+        predicate = {"op": "and", "args": [
+            {"op": "in", "axisId": "state.outs", "values": [0, 1, 2]},
+            {"op": "eq", "axisId": "state.runners", "value": "empty"},
+            {"op": "in", "axisId": "state.count.strikes", "values": [0, 1, 2]},
+            {"op": "eq", "axisId": "state.count.balls", "value": 3} if walk else
+            {"op": "in", "axisId": "state.count.balls", "values": [0, 1, 2, 3]},
+            {"op": "eq", "axisId": "state.gameEnded", "value": False},
+            {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"},
+        ]}
+        coordinate = {"eventKind": "batting-result", "resultId": result,
+                      "precondition": predicate}
+        row_ref = {"layer": "matrixRows", "coordinate": coordinate}
+        flags = {key: key in ({"投球数", "打席", "与四球", "四球"} if walk else
+                             {"投球数", "打席", "与死球", "死球"}) for key in keys}
+        effects = {"countEffect": {"strikes": {"kind": "reset"}, "balls": {"kind": "reset"}},
+                   "plateAppearanceEnded": True, "batterDestination": {"kind": "reach", "base": 1},
+                   "runnerDefaultAdvance": {
+                       base: {"modality": "not-applicable", "destination": None}
+                       for base in ("first", "second", "third")},
+                   "outEffect": {"count": 0, "targets": []}, "statFlags": flags}
+        before = {"stateFields": {
+            "state.half": "top", "state.count.strikes": s, "state.count.balls": b,
+            "state.outs": 0, "state.runners": "empty", "state.battingOrder": 1,
+            "state.tiebreakActive": False, "state.gameEnded": False, "state.inning": 1,
+            "state.score": {"home": 0, "away": 0},
+        }, "scoreboard": {"inningScores": {"home": 0, "away": 0},
+                          "hits": 0, "errors": 0, "strikeouts": 0, "walks": 0}}
+        after = {"stateFields": {**before["stateFields"], "state.count.strikes": 0,
+                                "state.count.balls": 0, "state.runners": "first",
+                                "state.battingOrder": 2},
+                 "scoreboard": {**before["scoreboard"], "walks": 1 if walk else 0}}
+        request = {"eventKind": "batting-result", "resultId": result,
+                   "pitchEventKind": "pitch-event", "before": before, "history": {"stack": []}}
+        difference: dict[str, object] = {
+            name: {key: {"before": old, "after": after[name][key]}
+                   for key, old in before[name].items() if old != after[name][key]}
+            for name in ("stateFields", "scoreboard")
+        }
+        difference["statFlags"] = flags
+        response = {"ok": True, "value": {
+            **effects, "after": after,
+            "historyContext": [{"kind": "confirmed-play", "difference": difference}],
+        }}
+        input_coordinate = {"eventKind": "batting-result", "resultId": result,
+                            "state.count.strikes": s, "state.count.balls": b, "state.outs": 0,
+                            "state.runners": "empty", "state.gameEnded": False,
+                            "event.perPitch.pitchEventKind": "pitch-event"}
+        expected = {"caseId": identifier, "rowRef": row_ref,
+                    "inputCoordinate": input_coordinate, "expected": effects,
+                    "historyInput": {"stack": [], "before": before, "after": after},
+                    "raw": {**input_coordinate, "resultId": "四球" if walk else "死球"},
+                    "normalizationRuleId": "result-display-name-to-id",
+                    "normalized": input_coordinate}
+        matches = [case for case in supplied if case["caseId"] == identifier]
+        equal = deriver.descriptor_checker._json_equal
+        rows = [row for row in contract["matrixRows"]
+                if equal({key: row.get(key) for key in coordinate}, coordinate)]
+        if (len(matches) != 1 or not equal(matches[0], expected)
+                or source.get("caseId") != identifier.removeprefix("ST-")
+                or not equal(source.get("request"), wire(request))
+                or not equal(source.get("expected"), wire(response))
+                or len(rows) != 1 or not equal(
+                    {key: value for key, value in rows[0].items()
+                     if key not in {"eventKind", "resultId", "precondition", "remarks"}}, effects)):
+            raise RequiredSetCoverageError("無走者terminalの入力/効果/履歴/実row参照が不一致")
+    return expected_ids
+
+
 def _ordinary_case_id_migrations(
     root: Path, contract: dict[str, Any],
 ) -> dict[str, str]:
@@ -711,7 +825,9 @@ def _ordinary_case_id_migrations(
         for case in old_cases
         if case.get("caseId") in mapping and case["caseId"].startswith("ST-MATRIX-")
     }
-    if set(representatives) != set(guards) or len(old) != 116 or len(new) != 117:
+    extension = _terminal_case_extension(root, contract)
+    if (set(representatives) != set(guards) or len(old) != 116
+            or len(new) != 117 + len(extension)):
         raise RequiredSetCoverageError("通常投球の4代表・116→117移行が不一致")
 
     def matrix_id(coordinate: dict[str, Any]) -> str:
@@ -771,6 +887,19 @@ def _ordinary_case_id_migrations(
         changed.add(result_id)
     if changed != set(guards):
         raise RequiredSetCoverageError("通常投球の4代表移行が不足")
+    ordinary_ids = {mapping.get(identifier, identifier) for identifier in old}
+    remaining = set(new) - ordinary_ids - extension
+    foul = json.loads(json.dumps(new[mapping[representatives["batting-result.foul"]["caseId"]]]))
+    encoded = json.dumps([foul["caseId"], "state.count.balls", 1],
+                         sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    foul["caseId"] = "ST-COVERAGE-" + hashlib.sha256(encoded.encode()).hexdigest()[:16]
+    for field in ("inputCoordinate", "raw", "normalized"):
+        foul[field]["state.count.balls"] = 1
+    for field in ("before", "after"):
+        foul["historyInput"][field]["stateFields"]["state.count.balls"] = 1
+    if (remaining != {foul["caseId"]}
+            or not deriver.descriptor_checker._json_equal(new[foul["caseId"]], foul)):
+        raise RequiredSetCoverageError("通常投球の117番目の既正例が変更/欠落/置換された")
     return mapping
 
 
@@ -944,6 +1073,40 @@ def check_input_coverage_exact(
     if not observed <= required_ids:
         raise RequiredSetCoverageError("②に要求外の被覆がある")
 
+    row_schema = _document(root, "state_transition_contract_schema_v1.json")
+
+    def explicit_bound_row(layer: str, row: dict[str, Any]) -> bool:
+        """別layer自身の明示入力を、既宣言へ束縛した合法行だけに認める。"""
+        fields_by_layer = {
+            "operationRows": ("operationKind", "payloadShape", "precondition"),
+            "undoRows": ("targetKind", "precondition"),
+        }
+        if layer not in fields_by_layer:
+            return False
+        definition = "operationRow" if layer == "operationRows" else "undoRow"
+        try:
+            deriver.descriptor_checker._validate_instance(
+                row, row_schema["$defs"][definition], row_schema, "$",
+            )
+        except deriver.descriptor_checker.DescriptorCheckError:
+            return False
+        if not representative_selection.predicate_axes(row["precondition"]) <= set(values_by_axis):
+            return False
+        kind = row.get("operationKind") if layer == "operationRows" else "undo"
+        if kind not in values_by_axis["event.operationKind"]:
+            return False
+        coordinate = {field: row[field] for field in fields_by_layer[layer]}
+        equal = deriver.descriptor_checker._json_equal
+        references = [
+            reference
+            for mapping in contract["mustOperationCoverage"]["mappings"]
+            if mapping.get("operationType") == kind
+            for reference in mapping["rowRefs"]
+            if reference.get("layer") == layer
+            and equal(reference.get("coordinate"), coordinate)
+        ]
+        return len(references) == 1
+
     def row_accepts(item: deriver.InputCoordinateRequirement, layer: str,
                     row: dict[str, Any]) -> bool:
         axis_id = item.axis_id
@@ -973,14 +1136,19 @@ def check_input_coverage_exact(
             # 先頭差分は保証範囲内の適用行が値を固定したときだけ到達する。
             return False
         identity = item.identity[1]
-        if axis_id in fixed_state_values and identity not in fixed_state_values[axis_id]:
-            return False
         fixed_values = _row_fixed_input_values(row["precondition"], axis_id)
         if fixed_values and fixed_values != {identity}:
             return False
         finite_values = _row_finite_input_values(row["precondition"], axis_id)
         if finite_values and identity not in finite_values:
             return False
+        if axis_id in fixed_state_values and identity not in fixed_state_values[axis_id]:
+            # matrixの固定範囲を他操作の自由値で埋めない。自身の明示値と
+            # 既row束縛の両方がある別layerだけ、後段の全述語充足へ進める。
+            if not (identity in fixed_values or identity in finite_values):
+                return False
+            if not explicit_bound_row(layer, row):
+                return False
         if axis_id in unbound and layer == "matrixRows":
             explicitly_fixed = bool(fixed_values or finite_values)
             declared_binding = row.get("resultId") in value_bindings.get(
