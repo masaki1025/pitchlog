@@ -1985,3 +1985,9 @@ HTTPS E2Eレビューでstart後のAPI fetchがUIのrestore状態を更新しな
 TLS回答待ちと並行し、正式認可登録のcreate2route/新球種route不足の一次調査・cache候補作成を別担当へ依頼（正式資産/既sealを無reviewで変更しない）。GoalはMVP全体を維持し継続中。
 
 球種ownedDB試験の実測結果: **1passed / 28.62秒**。実2tenant login/Cookie/C2/正式GET・SQLで、正常2ページ・opaque cursor・disabled/別category除外・limit・別tenant拒否・GET前後語彙snapshot不変を確認。候補環境のDBfixture成功であり正式7.7受理や画面初球保存には広げない。縦断branchに試験を保全。縦断枝の通常pushはaa691b90まで成功。
+
+### 2026-10-30 新artifactでの初球保存・原子性回帰
+
+固定candidate af68c201（製品sourceはaa691b90と同一、以降は球種DB試験/計画追補）で、shared DSNunset・専用tmpのhost pytest `tests/db/test_first_ball_vertical_http.py tests/db/test_first_ball_projection_atomic.py` を実行し **14passed / 108.69秒**。実API初球保存/再取得と投影原子性の既受入を新artifact/pinの候補で再確認した。実画面入力の保存・HTTPS成立へは広げない。
+
+現物GitHub照合: origin/developは3a24f89e、#186/#187/#188はいずれもDraftで未統合。通常統合の実残条件の読取確認を独立担当へ依頼（PR状態・refs・正式資産は未変更）。TLS回答待ちの間も認可登録候補と通常統合準備を続行する。
