@@ -570,3 +570,5 @@ PO委任によるCodex主担当判断。対象dcc9001422f5fad9891368ad25264c1baf
 局所pure/静的検査と負例、ruff/tyを作者が実行し、修復全hash/完全前後/旧集合保持を非作者へ渡す。PGはrootだけが隔離fixtureで旧revisionのupgrade/downgrade/metadata照合を直列実施する。owner current_user検査のhygiene・ACL/seed/S3・正式freeze/TB005は別未解消のまま保持し、本3pathを修正しただけでCI成功としない。既親ステップ1の実装追随であり、新しい野球意味・保証・正本版上げの判断ではない。最終差分の独立レビュー前に通常統合しない。
 
 第1群の原典行表現の具体化（PO委任によるCodex主担当判断、2026-10-31）: source_row新2件は正本6-1実在quoteを使い、3-4の一意性/キー形/判定fieldを捏造しない。test_schema_manifest内で6-1の当該exact2quote/constraint/表名の対応を完全検査する有限分岐を許可し、既3-4全行と拒否を維持する。別quote/別constraint/別表/曖昧部分一致は拒否する。正本とmanifestは不変でよく、実DB期待化や汎用quote許可ではない。
+
+第1群の既型正規化漏れ追随（2026-10-31、PO委任によるCodex主担当判断）: 影響検査で既test_recording_rights_models.pyの_column_type_nameが正本0036 proof_digestのLargeBinary/byteaを未対応と実確認した。この1pathの既型正規化へLargeBinary→byteaを有限追加し、既比較/全列/未知型拒否を保持することだけを許可する。DB/model/manifestの列型や仕様を変更せず、実値不一致を無視する一般fallbackにはしない。負例を含む局所確認と別非作者採否へ含める。
