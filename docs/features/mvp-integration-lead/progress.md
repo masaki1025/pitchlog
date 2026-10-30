@@ -1911,3 +1911,9 @@ unit C旧最終packetはsource-assets84081813…/manifestcea5f35f…、REPORTc72
 - 7.3非作者差分確認: 2c87758dはP0=0/P1=3/P2=5（REPORT SHA 7e5c1de502da5255e8424dbae9527f236cdfbc4fb090aaa4ac2f4350575396f8）。3168c103でD14m伝播/例外表/文法/ABIを是正し、再確認SHA d90c1717e81a1cc55bc94b3744a29118b43925a386b64ece39b58ecb9f2e7c48で修正採用可能。契約/descriptor不足は残り、ゲート成立ではない。32dccc90でP2資料整合とU3計画起案を保存。
 - U3で再利用する既commit/queue/ACK/1球排他を確認。実transportにはDevice-Id/Device-Credential/X-Pitchlog-Sync-Attempt供給が無く、そのままでは成功しない。送信前の耐久attempt固定・V7/V8 codec・正式artifact入力・画面click配線を専用4ステップ計画に起案し非作者確認中。
 - 新たに利用者ができる操作: 今回は既成果の再実証まで。次: 座標契約の独立期待値/descriptor固定→ゲート残件是正、独立したtransport/attempt接続を進める。正式7.7・実機・MVP全体は未了。
+
+### 2026-10-30 初球接続コードの先行実装
+
+U3計画は非作者REPORT `0a5067aa67af9fc3e855c6b117824dcb68488e58469fe5b618d4756a92d8b000` P0/P1=0を根拠に、f3cdfc0aでPO委任Codex承認。座標非依存のcodec/attempt/transportだけ先行可能、画面封鎖解除は座標条件成立後。b36d17c7で同期POST専用の実端末資格・固定attemptヘッダを既Cookie認証transportへ接続。未知送信先/不正UUID/非ASCII・改行資格は送信前拒否。関連Vitest85成功、vue-tsc/eslint成功。既呼出互換のoptionalフィールドであり、画面が資格を供給する接続は未完。利用者の画面初球保存は未達。
+
+座標step1契約候補1093件＋properties/mutation各5、新規構造/独立有理数照合4成功（担当報告）を未commitで保全し、非作者確認中。新規attempt persistenceは専用担当が新規2ファイルのみ実装中。次は両候補の検査・指摘是正→座標ゲート残件を閉じ、artifact実装と画面providerを接続する。共有台帳はrootだけが更新する。
