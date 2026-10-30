@@ -1,6 +1,6 @@
 ---
 feature: mvp-recording-continuation
-status: approved
+status: active
 承認: PO委任によるCodex主担当判断（2026-10-30、候補85cda279…、非作者REPORT1b279c19… P0/P1=0と限定P2反映を照合）
 重さ分類: コア領域
 branch: feature/mvp-recording-continuation
@@ -108,3 +108,23 @@ rootはE-1のファール打席続行、E-2 SO-04（2SバントファウルのK3
 基線ae34a68dの6path作者packetを全SHA一致で確認。非作者REPORT `/home/ymdms/.cache/pitchlog/recording-continuation-math-nonauthor-20261030/REPORT.md` SHA256 `e2f135a355a133dc9342effa6b95acecdd8fd22ad09878750cd9b2b4735df3eb` はP0/P1/P2=0、独立全domain12files375成功・追加4/96値照合、旧33/初球guard・単一核・履歴tail不変を確認。主担当の指示を受け、計画追補を前置docs commit、通常数学のsource/spec/追加4候補をstep2 commitへ固定する。本人の逐行確認・正式matrix/descriptor/case受理・P6 blind・T2/実保存の完成は記録しない。
 
 次は同WTでartifactを再生成し、生成物/SHA宣言・既fixtureのartifactSha256とmanifestの該当artifact識別だけを追随する。既期待値は変更せず、生成JS経由の一般状態/旧初球拒否を確認して別非作者へ渡す。runtime正式受理/接合・prefix read/実画面は後続の未了条件として保持する。
+
+### step1/2 有限prefix ABIの追補候補（2026-10-30）
+
+既5stepの範囲は維持する。`ordinary37_continuation_candidate_v1.json` と `ordinary37-continuation-abi.md` へ、版付きprefixRef(n)・前回after/T2/rulesへの束縛・今回1historyEntryだけの新operationを具体化した。旧full-stack ABIは保持し、新接続では局所stack=[]で既単一T1を一度だけ評価する。返るhistoryContext唯一要素をnewHistoryEntryへ構造変換し、これを全履歴とは呼ばない。履歴は別の有限ページ＋真正checkpointから取得する。count/差分計算は複製しない。
+
+本追補は非作者照合前の作者候補。20caseは既数学封筒と静的after/T2/ref/history値から組んだ完全responseのexact比較であり、新しい独立ゴールデン/P6受理ではない。新operationのsource着手はこの有限ABI/caseの非作者P0/P1解消と主担当の委任判断後。全T2や全同期・DBの完成をその追加開始条件へ戻さない。実保存には真正prefix由来entryと同TX/admissionの接続検査が別途必要。
+
+ref.generationはD4のopaque string<=128を指し、recovery_generationと混同しない。lengthはordinary-only支持37の確定水位で、D1/D2・一般履歴長・PlayRow番号とは別。rulesは実保存内容の完全一致とDRAW-01..04相関を実検査する。今回の通常open系列で説明できない再開後状態等は未対応として閉じ、恒久的な意味拒否へ拡張しない。
+
+#### 前回T2の意味束縛（非作者P1反映、2026-10-30）
+
+rules/afterの対比較に加え、prior.t2自身のbasisをprior.rules/afterへ意味束縛する。旧初球封筒は対応する初球after（1表/S0B1/0out/空塁/打順1/無得点・全board0/TBなし）とR/L/cold/TBの既閉条件を照合する。新ordinary封筒はR/L実値・回/表裏/TB・cold全段の順序付き分岐・DRAWを保存rules/afterへ照合する。未知/不一致はT2_NOT_EVALUATED。純数学内部一致は実prefix真正性の代わりではない。
+
+成功期待値は既数学封筒＋静的after/T2/ref/history値から完全responseを組み、全項目のexact比較を行う。候補JSONは20caseへ追加し、旧T2移植・新basis回/cold/L不一致の対向を含む。元の16件固定を品質条件にせず、部分一致へ緩めない。
+
+### 通常37・有限prefix T2のsource開始受理（2026-10-30）
+
+PO委任によるCodex主担当判断。候補JSON12127d2d…/ABI3237821b…/計画c73ff228…を全SHA照合し、非作者REPORT6b149f8a1a1a605809cdc5e259fc2ce3d688a76e4da68b0577ffbf4035d0d2f0（P0/P1/P2=0、20完全応答の独立比較、前回T2移植等の対向）を採用。作者のSchema検査を実source成功に読み替えない。新P6 blind/正式全T2受理/実prefix真正性/実DB完成ではない。
+
+step2純数学の新合成operationは `frontend/src/domain/ordinaryPitchContinuation.ts` と同spec、`publicApi.ts`、既firstPitchContinuationの共有rules parser/型、公開型caller/宣言・artifact/pin・実host検査の有限追加を編集範囲とする。旧ABIを保持し、count計算を複製しない。新ABIはfinite prefixRef＋今回履歴1entry、前回T2/rules/afterの完全一致と相関を検査する。未評価/既lock/ref不整合は成功にしない。新T2全体やDB/HTTPの完成を純数学source着手の条件へ追加せず、保存と画面はstep3以降の実証で閉じる。
