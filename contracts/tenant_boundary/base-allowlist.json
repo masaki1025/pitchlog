@@ -31455,7 +31455,7 @@
     },
     {
       "path": "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
-      "source_sha256": "19b90d8d71a91a69c1a76d687ab6130b27a3deb1d63e4a16ccfd4560338eafa1",
+      "source_sha256": "31d740cce24a9bbeba7e5e4bd83d3d760df6533d8b411d22700dce686e06f519",
       "findings": [
         {
           "line": 35,
@@ -31493,67 +31493,67 @@
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 486,
+          "line": 487,
           "symbol": "generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 493,
+          "line": 494,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_d4"
         },
         {
-          "line": 498,
+          "line": 499,
           "symbol": "_broker_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
         },
         {
-          "line": 512,
+          "line": 513,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
         },
         {
-          "line": 516,
+          "line": 517,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
         },
         {
-          "line": 522,
+          "line": 523,
           "symbol": "int",
           "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
         },
         {
-          "line": 806,
+          "line": 807,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
         },
         {
-          "line": 807,
+          "line": 808,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
         },
         {
-          "line": 807,
+          "line": 808,
           "symbol": "recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
         },
         {
-          "line": 931,
+          "line": 932,
           "symbol": "pitchlog.recording_rights.initial_grant_broker._broker_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._decode_initial_reply"
         },
         {
-          "line": 1462,
+          "line": 1470,
           "symbol": "pitchlog.sync.idempotency",
           "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
         },
         {
-          "line": 1519,
+          "line": 1527,
           "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
         },
         {
-          "line": 1520,
+          "line": 1528,
           "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
           "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
         }

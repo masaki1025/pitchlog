@@ -1,3 +1,5 @@
+import * as domainWrapper from '../lib/generated/wrappers/domainArtifact'
+import { queueStateId } from '../lib/sync/queueState'
 import { canonicalAttemptEvents } from '../lib/firstBallAttemptPersistence'
 import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
@@ -126,7 +128,7 @@ async function slots() {
     q.close()
   }
 }
-function accepted() {
+function accepted(a5Result = '受理') {
   return vi
     .spyOn(transport, 'postSyncEvents')
     .mockImplementation(async (request) => {
@@ -138,9 +140,7 @@ function accepted() {
         requestBody: body,
         response: {
           advancedD3: slot.d1,
-          eventResults: [
-            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
-          ],
+          eventResults: [{ d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result }],
         },
       }
     })
@@ -558,7 +558,7 @@ it('server確定3/localACK1だけのrestartでslot2→3を原body/attemptのま�
   )
   controllers.push(reloaded)
   expect(await reloaded.inspect()).toBe('pending')
-  const online = accepted()
+  const online = accepted('重複')
   expect(await reloaded.retry()).toBe('saved')
   expect(await reloaded.retry()).toBe('saved')
   expect(online.mock.calls.map((call) => call[0].slots[0]!.d1)).toEqual([2, 3])
@@ -579,3 +579,77 @@ function sameCanonical(events: readonly unknown[]): string {
   // テスト側も既の正準化のみを使い、再送本文を補修しない。
   return canonicalAttemptEvents(events)
 }
+
+it('commit後ACK喪失のreloadはserver1/未ACKslot1から元attemptで重複を終結し、追加計算・UUID・暫定加算をしない', async () => {
+  const offline = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const first = controller()
+  expect(await first.submit(observation, vocabulary)).toBe('pending')
+  const original = offline.mock.calls[0]![0]
+  const local = first.context
+  const confirmed = structuredClone(
+    JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), 'src/api/fixtures/recordedPrefixGame.v1.json'),
+        'utf8',
+      ),
+    ).positive[1].value,
+  )
+  confirmed.prefix_ref = local.prefixRef
+  confirmed.after = local.after
+  confirmed.t2 = local.t2
+  confirmed.rules = local.rules
+  confirmed.next_position = local.nextPosition
+  confirmed.page = { items: [], next_cursor: null }
+  confirmed.last_entry = (
+    original.slots[0]!.event.fields.V7 as {
+      calculation: { response: { value: { newHistoryEntry: unknown } } }
+    }
+  ).calculation.response.value.newHistoryEntry
+  first.dispose()
+  offline.mockRestore()
+  const next = new GameScreenOrdinaryPitchController(
+    {
+      ...ordinaryContextFromRead(confirmed, tenant),
+      serverStamp: {
+        recoveryGeneration: confirmed.recovery_generation,
+        checkpointAnchor: confirmed.checkpoint_anchor,
+        lastSavedAt: confirmed.last_saved_at,
+      },
+    },
+    () => identity,
+    writer,
+  )
+  controllers.push(next)
+  const math = vi.spyOn(domainWrapper, 'invokeFirstBallDomain'),
+    uuid = vi.spyOn(crypto, 'randomUUID')
+  expect(await next.inspect()).toBe('pending')
+  expect(next.context.after).toEqual(confirmed.after)
+  expect(next.context.source).toBe('server-confirmed')
+  const online = accepted('重複')
+  expect(await next.retry()).toBe('saved')
+  expect(online).toHaveBeenCalledOnce()
+  const retried = online.mock.calls[0]![0]
+  expect(retried.syncCredentials?.attempt).toBe(
+    original.syncCredentials?.attempt,
+  )
+  expect(transport.buildSyncEventRequestBody(retried)).toEqual(
+    transport.buildSyncEventRequestBody(original),
+  )
+  expect(math).not.toHaveBeenCalled()
+  expect(uuid).not.toHaveBeenCalled()
+  expect(next.context.after).toEqual(confirmed.after)
+  expect(next.context.prefixRef.length).toBe('1')
+  const queue = await openDurableQueue({
+    databaseName: 'pitchlog-first-ball-queue-' + tenant,
+  })
+  try {
+    expect(
+      (await queue.readSlot({ game: raw.id, d4: raw.current_d4 }, 1))?.state,
+    ).toBe(queueStateId('同期済み'))
+    expect(await queue.countSlots()).toBe(1)
+  } finally {
+    queue.close()
+  }
+})

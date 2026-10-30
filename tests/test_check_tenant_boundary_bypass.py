@@ -8822,43 +8822,43 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
             },
             {
-                'line': 486,
+                'line': 487,
                 'symbol': 'generation',
                 'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
             },
             {
-                'line': 493,
+                'line': 494,
                 'symbol': 'int',
                 'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4',
             },
             {
-                'line': 498,
+                'line': 499,
                 'symbol': '_broker_generation',
                 'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
             },
             {
-                'line': 512,
+                'line': 513,
                 'symbol': 'int',
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
             },
             {
-                'line': 516,
+                'line': 517,
                 'symbol': 'int',
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
             },
             {
-                'line': 522,
+                'line': 523,
                 'symbol': 'int',
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
             },
             {
-                'line': 806,
+                'line': 807,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.generation'
                 ),
@@ -8868,7 +8868,7 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 ),
             },
             {
-                'line': 807,
+                'line': 808,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'
@@ -8879,7 +8879,7 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 ),
             },
             {
-                'line': 807,
+                'line': 808,
                 'symbol': 'recovery_generation',
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
@@ -8887,7 +8887,7 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 ),
             },
             {
-                'line': 931,
+                'line': 932,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
@@ -8897,7 +8897,7 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 ),
             },
             {
-                'line': 1462,
+                'line': 1470,
                 'symbol': 'pitchlog.sync.idempotency',
                 'scope': (
                     'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
@@ -8905,7 +8905,7 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 ),
             },
             {
-                'line': 1519,
+                'line': 1527,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
                     'eration'
@@ -8916,7 +8916,7 @@ _INITIAL_START_CONDITION2_REVIEWED = [
                 ),
             },
             {
-                'line': 1520,
+                'line': 1528,
                 'symbol': (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'

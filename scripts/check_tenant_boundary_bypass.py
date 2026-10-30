@@ -404,43 +404,43 @@ INITIAL_START_CONDITION2_SCOPES = (
                 'pitchlog.recording_rights.initial_grant_broker.<module>',
             ),
             (
-                486,
+                487,
                 'generation',
                 'pitchlog.recording_rights.initial_grant_broker.<module>',
             ),
             (
-                493,
+                494,
                 'int',
                 'pitchlog.recording_rights.initial_grant_broker._broker_d4',
             ),
             (
-                498,
+                499,
                 '_broker_generation',
                 'pitchlog.recording_rights.initial_grant_broker.<module>',
             ),
             (
-                512,
+                513,
                 'int',
                 (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
             ),
             (
-                516,
+                517,
                 'int',
                 (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
             ),
             (
-                522,
+                523,
                 'int',
                 (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
             ),
             (
-                806,
+                807,
                 (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.generation'
                 ),
@@ -450,7 +450,7 @@ INITIAL_START_CONDITION2_SCOPES = (
                 ),
             ),
             (
-                807,
+                808,
                 (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'
@@ -461,7 +461,7 @@ INITIAL_START_CONDITION2_SCOPES = (
                 ),
             ),
             (
-                807,
+                808,
                 'recovery_generation',
                 (
                     'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
@@ -469,7 +469,7 @@ INITIAL_START_CONDITION2_SCOPES = (
                 ),
             ),
             (
-                931,
+                932,
                 (
                     'pitchlog.recording_rights.initial_grant_broker._broker_generation'
                 ),
@@ -479,7 +479,7 @@ INITIAL_START_CONDITION2_SCOPES = (
                 ),
             ),
             (
-                1462,
+                1470,
                 'pitchlog.sync.idempotency',
                 (
                     'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
@@ -487,7 +487,7 @@ INITIAL_START_CONDITION2_SCOPES = (
                 ),
             ),
             (
-                1519,
+                1527,
                 (
                     'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
                     'eration'
@@ -498,7 +498,7 @@ INITIAL_START_CONDITION2_SCOPES = (
                 ),
             ),
             (
-                1520,
+                1528,
                 (
                     'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
                     'eration'

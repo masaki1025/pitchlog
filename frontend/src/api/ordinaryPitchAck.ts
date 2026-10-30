@@ -36,7 +36,8 @@ export function readOrdinaryPitchAck(
       item.d4 !== key.d4 ||
       item.d1 !== key.d1 ||
       item.d5 !== key.d5 ||
-      item.a5Result.id !== CANON_ACK_STATE_RESULT.ACCEPTED
+      (item.a5Result.id !== CANON_ACK_STATE_RESULT.ACCEPTED &&
+        item.a5Result.id !== CANON_ACK_STATE_RESULT.DUPLICATE)
     )
       return undefined
     const terminal = readCanonBoundaryResults().find(
