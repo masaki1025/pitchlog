@@ -215,3 +215,5 @@ Port登録期待集合の接合追随（2026-10-30、PO委任によるCodex主�
 ### 通常接合後の試験型22診断の是正（2026-10-30、PO委任によるCodex主担当判断）
 
 初球型修復を接合後、819cd2ffでbackend全体tyが新ordinary試験側22診断を報告した。隔離fix/mvp-ordinary-type-checkの編集はbackend/tests/db/test_ordinary_pitch_storage.py、backend/tests/test_ordinary_order.py、backend/tests/test_ordinary_pitch_binding.py、backend/tests/test_ordinary_pitch_operations.py、backend/tests/test_ordinary_pitch_product.py、backend/tests/test_ordinary_preparation_binding.py、backend/tests/test_sync_apply_replay_before_binding.py、backend/tests/test_sync_route_shape.pyのexact8だけ。実shape narrowing/既正負fixtureの明示型castへ限定し、製品source/期待値/不正入力/readonly操作/全assertを保持する。Any/ignore/除外や検査緩和は禁止。実DBではないpure影響検査・全体ty/ruff/formatと非作者確認後に採用する。PG/主WT/ref/台帳/共有資産は作者が変更しない。新しい型診断を既CI28修復の失敗や全CI成功と混同しない。
+
+上記型22診断の実内訳照合でtests/test_ordinary_pitch_payload.pyの2診断（Success|Failureの実narrowing/打順Literal）も同じ試験型是正であることを確認した。PO委任によるCodex主担当判断で当該1pathを追加しexact9へ限定する。製品/期待値/正負入力/全assert保持、Any/ignore/除外禁止、独立確認等の条件は同じ。
