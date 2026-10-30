@@ -187,3 +187,7 @@ P1旧案を不採用: V7だけ新calculation variant、V8は実newHistoryEntry.d
 source4は真正source資格/元D5/一回bridge・新ID固定、実T1/T2/差分V8、PlayRow＋PlayRunner＋checkpoint/history/印消費の同TX保存とGETまでを実装する。根拠のないtrue/fixture成功応答/任意SQL/認可迂回0。旧ABI/ACK復旧/元要求再送/拒否優先を保持。段階5のUIへ無断拡張せず、source4のコード/型/API不一致是正・限定検査と原子性の準備を完成まで進め、固定sourceとroot必要正式差分を渡す。PGはrootのみ、実公開/共有DB/新秘密/本人署名なし。
 
 実HTTP Port選択の不可分2path（2026-10-31、PO委任によるCodex主担当判断）: sourceAuthorへbackend/src/pitchlog/api/routers/sync.py（既HTTP入口の新v2 modeに対する実Port対選択だけ）およびbackend/src/pitchlog/sync/port_guard.py（新実Port2クラスのexact型登録だけ）を追加許可し、閉78pathへ当該exact2を有限追補する。認証/C2/受付scope/原wire/拒否優先/同writer資格を保持し、shape不正・未知modeを旧Portへfallbackしない。json default parseで重複/原値を補修せず、既type/未知型拒否と寿命を不変とする。新2クラスの実fqnameは最終packetへ固定し、任意subclass/duck type/自由成功boolを通さない。実提供にはroot正式登録・実ownedPG・最終非作者確認が必要であり、本source許可だけで成立扱いしない。
+
+HTTP/Port core追加の採用（2026-10-31、PO委任によるCodex主担当判断）: 非作者追補REPORT5796e39b1ff6b70a99c1c60f9c454e78bcfc8cb69ad0ddf2dac06d4c1fdabe04と実core08108152…を照合。exact2path×3areaの6追加だけ、旧57/全field/順序不変、新指摘0で採用し1063ee45の2path編集も解禁する。
+
+PlayRunner物理row IDの安定化（同日、Codex主担当判断）: 新modeだけplay予約UUIDをnamespaceとし、正準base1..3の固定名からUUIDv5を私有frame内で生成・固定してよい。実際のname接頭辞/式はsource/pure対向へ固定する。runner本人/責任投手は真正実player/source由来のまま、物理IDを本人資格やsecretに使わない。tenant内PK/FK/全10列期待・私有印・同TXを維持し、同D5で再発番/付替えしない。旧v1のID発番は不変、他tenant同UUIDをglobal拒否へ拡大せず、衝突/不正参照は既閉拒否・全取消条件を保持する。
