@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_verification_evidence",
   "oracle_context": {
-    "oracle_commit": "8a40519d85a00abdef07fa2ffd8f6fa7301b8835",
+    "oracle_commit": "706846283aca477b338d29352ac6323fdf3b9684",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "supabase_verification": {

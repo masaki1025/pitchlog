@@ -799,6 +799,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex判断（Codex主担当/root、採用前に非作者独立照合）",
       "approved_at": "2026-10-24"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#188",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "706846283aca477b338d29352ac6323fdf3b9684"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "8a40519d85a00abdef07fa2ffd8f6fa7301b8835"
+          }
+        ]
+      },
+      "reason": "採用済初期HTTPのlogical2routeに伴い、旧49全順prefix/既分類・期待・物理probe・歴史実測を保持した8入力commit70684628へoracle_inputを前進する。非作者REPORTdbd6e736cd3bdc9a8443044b530bb5ed9eb85e84eb609c9ade3b673a3d03040dで8Gitblob/7context全byte/局所正負14を確認しPO委任のCodex主担当が実対象を採用。専用再封印とflagなし検査は別証拠、develop統合・本人直接確認/署名・新規Supabase実測を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
+      "approved_at": "2026-10-31"
     }
   ]
 }
