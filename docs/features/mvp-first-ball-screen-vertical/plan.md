@@ -201,3 +201,5 @@ seed主体の明確化（2026-11-01、PO委任によるCodex主担当判断）: 
 ### A31導入後の意図的負例の型注記（2026-11-01、PO委任によるCodex主担当判断）
 
 root最終tyで、SQLAlchemyの正規型解決が有効になったため既negative fixture `tests/fixtures/tenant_boundary/negative/pitchlog/services/c5_function_direct_session.py` の任意objectをSession.executeへ直接渡す行だけがno-matching-overloadとなる。これは条件5の不正直実行を意図的に含む入力である。対象1行に理由付きの限定 `ty: ignore[no-matching-overload]` コメントのみ追記し、AST/実コード/負例の期待違反/走査対象を保持する。root型検査の対象除外や製品Any化は行わない。公式fixture検査とroot型検査を実行し、正式assetのhashへ影響する場合は公式helperで追随する。候補作成に関与しないレビューを経て採用し、本人の確認を代記しない。
+
+同じA31型解決によりunused-ignore-commentとなった64箇所・34fixture（正負ともtenant_boundary配下）の旧import用ty ignoreも、実診断のpath/行だけを対象に削除する。34fileの前後SHAとAST同一をcacheへ固定し、検査範囲・各期待違反・SQL・定数・assertは不変とする。実装writerはrootのみ、修復後に非作者が全差分を確認する。
