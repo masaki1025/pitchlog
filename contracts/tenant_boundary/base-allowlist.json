@@ -31477,8 +31477,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "9ec790f514d02a1ca89569939e953fd5c3bdaf56fc1d7d7fcb3dc7ce5283df14",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9ec790f514d02a1ca89569939e953fd5c3bdaf56fc1d7d7fcb3dc7ce5283df14"
+                "sha256": "c7532c01aa7313f8045fad38b50a281d146e227cbfbc58238414d07412a966ff",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c7532c01aa7313f8045fad38b50a281d146e227cbfbc58238414d07412a966ff"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -31547,7 +31547,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "77d6b9a65c1e6f6e1273d4c8a26b471b06bf39517cae078ad7cca7e646b8e111"
+    "sha256": "3b33bf9da4a5af7f06526c6ad70544d592faa1fecda29c37b564fb3b386e6d14"
   },
   "allowed_symbols": [
     {
