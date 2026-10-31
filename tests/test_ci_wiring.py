@@ -2057,7 +2057,10 @@ def _derive_asset_actuals(
             "single_command",
             "db_tests_included_in_existing_invocation",
         ): len(pytest_commands) == 1
-        and "-m" not in shlex.split(pytest_commands[0])[shlex.split(pytest_commands[0]).index("pytest") :],
+        and "-m"
+        not in shlex.split(pytest_commands[0])[
+            shlex.split(pytest_commands[0]).index("pytest") :
+        ],
         (
             "test_execution",
             "single_command",
@@ -3557,7 +3560,12 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
     ]
     assert pytest_commands == [BACKEND_SHARD_PYTEST_COMMAND]
     # 分割しても DB 必須テストの 0 件拒否は各シャードの通常会話で有効なまま。
-    assert expectations["test_execution"]["single_command"]["db_tests_included_in_existing_invocation"] is True
+    assert (
+        expectations["test_execution"]["single_command"][
+            "db_tests_included_in_existing_invocation"
+        ]
+        is True
+    )
 
 
 def test_orm_stack_is_exact_product_dependency() -> None:

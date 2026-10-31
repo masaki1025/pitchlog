@@ -138,6 +138,21 @@ jobs:
       - run: uv sync --locked --dev
       # 全シャードの収集結果が全件と一致することを、実行後に改めて検証する。
       - run: uv run python scripts/pytest_shards.py verify --suite harness
+      - name: シャード結果の厳密確認
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ['NEEDS'])
+          bad = {name: value.get('result') for name, value in needs.items()
+                 if value.get('result') != 'success'}
+          if bad:
+              raise SystemExit(f'必須ジョブが success ではない: {bad}')
+          print('all required jobs succeeded')
+          PY
 
   # NFR-018 (e) BOOT-ACTIVATION の機構・負例・正例と、計画・履歴監査を常時実行する。
   # harness の単体テストとは所有を分け、同じテストを二重実行しない。
