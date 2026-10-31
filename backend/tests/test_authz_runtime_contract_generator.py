@@ -1351,6 +1351,22 @@ def test_rendered_protected_rows_preserve_values_and_line_length(
 ) -> None:
     """長い関数署名でも保護集合の全値/順序を保持して行長へ収める。"""
     asset = _read_asset(_REPOSITORY_ROOT)
+    if asset_key == "functions":
+        asset["protected_objects"][asset_key].extend(
+            [
+                [
+                    "sync_right_api",
+                    "history_page",
+                    "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, "
+                    "bigint, bigint, uuid, integer",
+                ],
+                [
+                    "sync_right_api",
+                    "escaped_literal",
+                    'quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語quote"\\newline\n日本語',
+                ],
+            ]
+        )
     source = render_runtime_contract(asset)
     declaration = next(
         node
