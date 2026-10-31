@@ -27,7 +27,7 @@ _GUARD_DIGESTS = {
         "6f56a458e8709ed56c8908252a5cef1cb51864822ca7c26eab03c1df5397dce9"
     ),
     "guard_first_ball_projection_admission": (
-        "ad021e8c601e6c74dcb55265e66b236bd735d8e5d9b3e311a6eb5735b0bba74c"
+        "9bd0dffbde1f502302f8ebdbaab385696806a58ddd25b9eb8fc4e2fdcc2b45ea"
     ),
 }
 _REVISION = _ROOT / "migrations/versions/0038_first_ball_write_admission.py"

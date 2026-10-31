@@ -561,6 +561,7 @@ class CatalogQueryId(Enum):
     BUILTIN_FUNCTION_ACL = "builtin_function_acl"
     LIFECYCLE_FUNCTION_DETAILS = "lifecycle_function_details"
     FIRST_BALL_TRIGGERS = "first_ball_triggers"
+    PLAY_PREFIX_TRIGGERS = "play_prefix_triggers"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
     UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
@@ -1383,6 +1384,11 @@ def _catalog_requests(
             if "guard_first_ball_projection_admission" in expectations.function_names
             else ()
         ),
+        *(
+            (_CatalogRequest(CatalogQueryId.PLAY_PREFIX_TRIGGERS, ()),)
+            if "finish_play_prefix_projection" in expectations.function_names
+            else ()
+        ),
         _CatalogRequest(CatalogQueryId.MEMBERSHIPS, (roles, roles)),
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
@@ -1458,6 +1464,15 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _FUNCTIONS_QUERY
     if query_id is CatalogQueryId.FUNCTION_ACL:
         return _FUNCTION_ACL_QUERY
+    if query_id is CatalogQueryId.PLAY_PREFIX_TRIGGERS:
+        from pitchlog.authz.terminal_pitch_write_stamp import trigger_query
+
+        return trigger_query().replace(
+            "pg_catalog.jsonb_build_array(t.tgname,",
+            "pg_catalog.jsonb_build_array(CASE WHEN "
+            "t.tgrelid='public.play_rows'::pg_catalog.regclass THEN 'play_rows' "
+            "ELSE 'play_runners' END,t.tgname,",
+        )
     if query_id is CatalogQueryId.FIRST_BALL_TRIGGERS:
         from pitchlog.authz.first_ball_write_stamp import STAMP_TRIGGER_QUERY
 
@@ -2310,6 +2325,32 @@ def inspect_product_authz_catalog(
         report.compare(
             "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS",
             stamp_trigger_expectations(),
+            tuple(actual),
+        )
+    if "finish_play_prefix_projection" in expectations.function_names:
+        from pitchlog.authz.terminal_pitch_write_stamp import trigger_expectations
+
+        observed = _observed_rows(
+            frozen_observations, CatalogQueryId.PLAY_PREFIX_TRIGGERS
+        )
+        if any(len(row) != 1 or type(row[0]) is not list for row in observed):
+            raise ProductCatalogError("v2 triggerのカタログ観測形が不一致")
+        actual = []
+        for row in observed:
+            values = row[0]
+            assert isinstance(values, list)
+            actual.append(tuple(values))
+        report.compare(
+            "PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS",
+            tuple(
+                (
+                    "play_runners"
+                    if row[0] == "trg_play_prefix_runner_10_admit"
+                    else "play_rows",
+                    *row,
+                )
+                for row in trigger_expectations()
+            ),
             tuple(actual),
         )
     owner_oid = _owner_role_oid(role_rows, "pitchlog_owner")

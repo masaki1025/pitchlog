@@ -305,6 +305,56 @@ _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+_SYNC_PLAY_PREFIX_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.read_play_prefix_checkpoint": (
+            (("game_id", UUID), ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+            0,
+            1,
+        ),
+        "sync_right_api.lock_play_prefix_checkpoint": (
+            (*_SYNC_FIRST_BALL_COMMON, ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+            0,
+            1,
+        ),
+        "sync_right_api.read_play_prefix_history_page": (
+            (
+                ("game_id", UUID),
+                ("generation", int),
+                ("storage_history_epoch", int),
+                ("wire_checkpoint_id", UUID),
+                ("wire_checkpoint_revision", int),
+                ("wire_history_version", int),
+                ("upper_watermark", int),
+                ("after_d1", int),
+                ("after_d2", int),
+                ("after_id", UUID),
+                ("page_size", int),
+            ),
+            (("record_json", str),),
+            (),
+            (),
+            0,
+            101,
+        ),
+        "sync_right_api.prepare_play_prefix_projection": (
+            (*_SYNC_FIRST_BALL_COMMON, ("preparation_json", str)),
+            (("prepared", bool),),
+            (),
+            (),
+            1,
+            1,
+        ),
+    }
+)
+
+
 _SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
     {
         "sync_fence_api.read_writer_identity": (
@@ -419,6 +469,7 @@ class FunctionOperationRegistration:
         first_ball = _SYNC_FIRST_BALL_FUNCTION_TYPES.get(self.function_id)
         ordinary = _SYNC_ORDINARY_PITCH_FUNCTION_TYPES.get(self.function_id)
         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
+        play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
@@ -466,6 +517,16 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("通常prefix関数の有限型宣言が不一致")
+        elif play_prefix is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != play_prefix[:4]
+                or (self.min_rows, self.max_rows) != play_prefix[4:]
+                or self.operation_id != f"SYNC_PLAY_PREFIX:{name}"
+                or self.capability_id != f"CAP:sync_play_prefix:{name}"
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("v2 prefix関数の有限型宣言が不一致")
         elif writer_binding is not None:
             name = self.function_id.rsplit(".", 1)[1]
             if (
@@ -577,6 +638,7 @@ class FunctionOperationRegistration:
                         or first_ball is not None
                         or ordinary is not None
                         or ordinary_prefix is not None
+                        or play_prefix is not None
                         or writer_binding is not None
                     )
                     and expected_type is bytes
@@ -599,11 +661,14 @@ class FunctionOperationRegistration:
                     and type(argument.type) is BigInteger
                 )
                 and not (
-                    ordinary_prefix is not None
+                    (ordinary_prefix is not None or play_prefix is not None)
                     and argument.key
                     in (
                         "generation",
                         "checkpoint_revision",
+                        "storage_history_epoch",
+                        "wire_checkpoint_revision",
+                        "wire_history_version",
                         "history_version",
                         "upper_watermark",
                         "after_d1",
@@ -658,6 +723,9 @@ def _build_fixed_function_statement(
                         in (
                             "generation",
                             "checkpoint_revision",
+                            "storage_history_epoch",
+                            "wire_checkpoint_revision",
+                            "wire_history_version",
                             "history_version",
                             "upper_watermark",
                             "after_d1",
@@ -738,7 +806,10 @@ def prepare_function_operation(
         value = getattr(operation, name)
         if type(value) is not expected_type:
             raise FunctionOperationError(f"固定関数入力{name}の型が不一致")
-        if spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES:
+        if (
+            spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+            or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+        ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("通常prefixのnonce長が不一致")
             if expected_type is int:
@@ -769,10 +840,16 @@ def prepare_function_operation(
             spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES
             or spec.function_id in _SYNC_ORDINARY_PITCH_FUNCTION_TYPES
             or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
+            or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
         ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("初球の固定byte長が不一致")
-            if expected_type is int and not 0 < value < 2**63:
+            if expected_type is int and not (
+                0 <= value < 2**63
+                if spec.function_id == "sync_right_api.read_play_prefix_history_page"
+                and name in {"upper_watermark", "after_d1", "after_d2"}
+                else 0 < value < 2**63
+            ):
                 raise FunctionOperationError("初球の整数は正bigintが必要")
         if name in spec.nonempty_inputs and value == "":
             raise FunctionOperationError(f"固定関数入力{name}は空文字を許可しない")

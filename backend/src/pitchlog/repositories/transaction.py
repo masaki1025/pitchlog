@@ -397,8 +397,12 @@ class _TenantTransaction:
         from pitchlog.repositories.ordinary_pitch_qualification import (
             PrepareOrdinaryProjectionToken,
         )
+        from pitchlog.sync.terminal_pitch_tokens import PreparePlayPrefixProjectionToken
 
-        if type(operation) is PrepareOrdinaryProjectionToken:
+        if type(operation) in {
+            PrepareOrdinaryProjectionToken,
+            PreparePlayPrefixProjectionToken,
+        }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _consume_ordinary_preparation,
             )
@@ -1161,6 +1165,10 @@ def _is_port_command(operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.terminal_pitch_tokens import (
+        ProjectPlayPrefixToken,
+        ValidatePlayPrefixToken,
+    )
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
@@ -1176,6 +1184,8 @@ def _is_port_command(operation):
         (
             ValidateOrdinaryPitchToken,
             ProjectOrdinaryPitchToken,
+            ValidatePlayPrefixToken,
+            ProjectPlayPrefixToken,
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
             PortCheckPresentedRightToken,
@@ -1245,6 +1255,10 @@ def _execute_port_command(handle, operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.terminal_pitch_tokens import (
+        ProjectPlayPrefixToken,
+        ValidatePlayPrefixToken,
+    )
     from pitchlog.sync.tokens import (
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
@@ -1256,6 +1270,23 @@ def _execute_port_command(handle, operation):
     )
 
     phase = _port_phase(handle)
+    if type(operation) is ProjectPlayPrefixToken:
+        if phase is not None:
+            raise TenantBindingError("v2投影命令は判定phase外だけで使う")
+        operation.__post_init__()
+        from pitchlog.sync.terminal_pitch_projection import apply_play_prefix_projection
+
+        return apply_play_prefix_projection(handle, operation)
+    if type(operation) is ValidatePlayPrefixToken:
+        operation.__post_init__()
+        from pitchlog.sync.ordinary_pitch_execution import _ordinary_content_result
+
+        accepted = _ordinary_content_result(
+            handle, operation.event, operation.writer, mode="play-prefix-play-v2"
+        )
+        return TenantOperationResult(
+            ((accepted, None if accepted else "v2投球の実評価値と不一致"),)
+        )
     if type(operation) is ProjectOrdinaryPitchToken:
         if phase is not None:
             raise TenantBindingError("通常投影命令は判定phase外だけで使う")

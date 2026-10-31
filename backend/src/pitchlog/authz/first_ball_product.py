@@ -1883,9 +1883,12 @@ def _activate_stamp_profile() -> None:
 _activate_stamp_profile()
 
 
-def _activate_ordinary_profile() -> None:
+def _activate_ordinary_profile(*, play_prefix=False) -> None:
     """承認対象の有限ordinary宣言だけを同じ正式installerへ接合する。"""
-    from pitchlog.authz.ordinary_pitch_product import candidate_declarations
+    if play_prefix:
+        from pitchlog.authz.terminal_pitch_product import candidate_declarations
+    else:
+        from pitchlog.authz.ordinary_pitch_product import candidate_declarations
 
     declarations, bodies = candidate_declarations()
     for section, rows in declarations.items():
@@ -1922,6 +1925,7 @@ def _activate_ordinary_profile() -> None:
 
 
 _activate_ordinary_profile()
+_activate_ordinary_profile(play_prefix=True)
 
 TABLES = frozenset(
     {
@@ -2213,6 +2217,31 @@ def _guard_reapply_check(function_identity: str) -> str:
         from pitchlog.authz.first_ball_write_stamp import stamp_trigger_reapply_check
 
         return stamp_trigger_reapply_check()
+    terminal_triggers = {
+        "sync_right_api.finish_play_prefix_projection()": (
+            "trg_play_prefix_30_project_after",
+            "play_rows",
+            5,
+        ),
+        "sync_right_api.guard_play_prefix_runner_insert()": (
+            "trg_play_prefix_runner_10_admit",
+            "play_runners",
+            7,
+        ),
+    }
+    if function_identity in terminal_triggers:
+        name, table, kind = terminal_triggers[function_identity]
+        return f"""
+    IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger t
+        WHERE t.tgrelid={_sql_literal("public." + table)}::pg_catalog.regclass
+          AND t.tgname={_sql_literal(name)} AND t.tgfoid=existing
+          AND t.tgtype={kind} AND t.tgenabled='O' AND NOT t.tgisinternal
+          AND NOT t.tgdeferrable AND NOT t.tginitdeferred AND t.tgconstraint=0
+          AND t.tgnargs=0 AND t.tgattr::text='' AND t.tgqual IS NULL
+          AND t.tgargs=''::pg_catalog.bytea
+          AND t.tgoldtable IS NULL AND t.tgnewtable IS NULL) <> 1 THEN
+        RAISE EXCEPTION 'play prefix trigger definition collision';
+    END IF;"""
     if function_identity != "sync_fence_api.guard_writer_records()":
         return ""
     rows = (

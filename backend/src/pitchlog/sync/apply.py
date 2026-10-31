@@ -701,9 +701,15 @@ def _apply_e1_f1(
         return "B5"
     if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):
         return "B6"
-    from pitchlog.sync.ordinary_pitch_ports import OrdinaryPitchContentValidationPort
+    from pitchlog.sync.ordinary_pitch_ports import (
+        OrdinaryPitchContentValidationPort,
+        PlayPrefixContentValidationPort,
+    )
 
-    ordinary = type(validator) is OrdinaryPitchContentValidationPort
+    ordinary = type(validator) in {
+        OrdinaryPitchContentValidationPort,
+        PlayPrefixContentValidationPort,
+    }
     if len(request.events) != 1 or (not ordinary and request.events[0].d1 != 1):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]

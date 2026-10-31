@@ -97,10 +97,10 @@ source_row.payload->'calculation'->'request'->'rules'
  OR before_cp->'t2' IS DISTINCT FROM
 source_row.payload->'calculation'->'request'->'source'->'t2'
  OR before_cp->'prefix_ref' IS DISTINCT FROM
-CASE WHEN before_cp->>'version'='1' THEN
+(CASE WHEN before_cp->>'version'='1' THEN
 source_row.payload->'calculation'->'response'->'value'->'previousPrefixRef'->'origin'
 ELSE source_row.payload->'calculation'->'response'->'value'->'previousPrefixRef'
-END
+END)
  OR after_cp->'prefix_ref' IS DISTINCT FROM
 source_row.payload->'calculation'->'response'->'value'->'nextPrefixRef'
  OR after_cp->'after' IS DISTINCT FROM
@@ -129,15 +129,15 @@ r.retired_at IS NULL
 
  IF after_cp->>'version' IS DISTINCT FROM '2'
  OR after_cp->>'artifact_sha256' IS DISTINCT FROM p->>'artifact_sha256'
- OR after_cp->'pa_start_source' IS DISTINCT FROM CASE
+ OR after_cp->'pa_start_source' IS DISTINCT FROM (CASE
  WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
  ->>'plateAppearanceEnded'='true'
  THEN pg_catalog.jsonb_build_object('kind','confirmed-play','id',source_row.id::text)
  ELSE source_row.payload->'calculation'->'request'->'source'
- ->'responsibility'->'paStartSource' END
- OR after_cp->'bridge_origin' IS DISTINCT FROM CASE WHEN before_cp->>'version'='1'
+ ->'responsibility'->'paStartSource' END)
+ OR after_cp->'bridge_origin' IS DISTINCT FROM (CASE WHEN before_cp->>'version'='1'
  THEN source_row.payload->'calculation'->'request'->'source'->'bridge'
- ELSE before_cp->'bridge_origin' END
+ ELSE before_cp->'bridge_origin' END)
  OR after_cp->'storage_anchor'->>'id' IS DISTINCT FROM before_cp->>'id'
  OR after_cp->'storage_anchor'->>'history_epoch' IS DISTINCT FROM
 before_cp->>'history_version'
@@ -165,9 +165,9 @@ END IF;
 
  IF source_row.payload->'calculation'->'request'->'source'
  ->'responsibility'->'paStartSource'
- IS DISTINCT FROM CASE WHEN before_cp->>'version'='1' THEN
+ IS DISTINCT FROM (CASE WHEN before_cp->>'version'='1' THEN
  pg_catalog.jsonb_build_object('kind','started-game','id',p_game_id::text)
- ELSE before_cp->'pa_start_source' END
+ ELSE before_cp->'pa_start_source' END)
  OR EXISTS(SELECT 1 FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id
  AND e.generation=stamp.internal_generation AND e.d1<=previous_d1
@@ -177,12 +177,12 @@ END IF;
  OR EXISTS(SELECT 1 FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id
  AND e.generation=stamp.internal_generation AND e.d1<=previous_d1
- AND e.event_kind<>'play_input' AND e.d1>CASE
+ AND e.event_kind<>'play_input' AND e.d1>(CASE
  WHEN before_cp->>'version'='2'
  AND before_cp->'pa_start_source'->>'kind'='confirmed-play'
  THEN (SELECT z.d1 FROM public.operation_events z WHERE z.tenant_id=p_tenant_id
  AND z.game_id=p_game_id AND z.generation=stamp.internal_generation
- AND z.id=(before_cp->'pa_start_source'->>'id')::uuid) ELSE 0 END)
+ AND z.id=(before_cp->'pa_start_source'->>'id')::uuid) ELSE 0 END))
  OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  after_cp->'projection_snapshot'->'play_runners') r WHERE
  (SELECT pg_catalog.array_agg(k ORDER BY k) FROM pg_catalog.jsonb_object_keys(r) k)
