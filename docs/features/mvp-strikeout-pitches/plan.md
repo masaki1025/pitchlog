@@ -72,3 +72,8 @@ T2の現halfCompleted=false/outsUnchanged=trueを第3outへ流用しない。真
 ## 6. 初回採用（2026-10-31、PO委任によるCodex /root判断）
 
 作者ready-v2 filesd3b4afcf912d09797f7140e36f81bc7cd7cc36099113ff0fd8f1ab5ab49bc345、追補90bd6943964ae666cf562975acf231878b9f4b9edebaf22e181f93c935984acbと、非作者REPORT8f109109297bf2e8d87c40c2909a9c188e0e3fad05af427a1442c1b4008b4cf0（P0/P1=0）を照合し本操作の計画を採用。子plan/branchを分離し、inactive cursorの独立性/履歴の具体化を反映した。契約schemaのファイル名は既terminalと揃えてstrikeout_pitch_schema_v1.jsonとする実装選択。許可は上記ステップ1の契約作成のみ、核/公開ABI/保存/T2/UIは単位契約採否後。旧失敗/レビュー通算/P6留保は保持。山田正輝本人の実値確認・署名ではない。
+
+
+ステップ1の不可分CLI整合追補（2026-10-31、PO委任によるCodex /root判断）: descriptor/branch-map/normalization404caseの正規CLI通過後、required-setの旧SO2代表行を保持した16配置別新rowが既identityに重複すると実測した。既required/covered/missingを減らさず、新row自身の行要求区分を追加するexact5を許可する。contracts/state-transition/required_set_row_rules_v1.json（SO各8新partition）、required_set_coverage_declaration_v1.json（旧identityと新16rowの真正観測）、scripts/check_required_set_coverage.py（_ordinary_case_id_migrationsの既117＋terminal15を全保持し新canonicalSO24の有限exact unionだけ）、既tests/test_required_set_coverage.py（未知/重複/旧保持の対向）、contracts/state-transition/game_end_coverage_declaration_v1.json（normalCaseCounts.stateTransition132→156）。旧SO2case/期待/既normative/旧missing5を削らない。required56/covered51/missing5→72/67/5は候補算定で、実CLI・非作者が値を照合するまで受理値にしない。
+
+同じ新24caseに必然なcontracts/state-transition配下既JSONのcount/source digest/真正参照だけは、実CLI依存閉包に限り機械追随できる。具体path/field/完全前後/算出元SHAを最終manifestへ必ず固定する。semantic predicate/未充足/旧期待/unknown拒否/過去履歴/正本/正式受理・sealの変更は含めない。checkerは登録済み新24caseの有限集合だけを受け、任意new caseや不正migrationを通す一般化は禁止。mathematics/ABI/T2/DB/UIの正式実装はまだ指示しない。
