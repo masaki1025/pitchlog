@@ -136,3 +136,6 @@ APIで_broker_generation直接import/内部generation識別子が既禁止語彙
 - 群T（作者3）: contracts/authz/product/probe-product-map.json・backend/tests/test_product_authz_probe_product_map.py・test_product_authz_provisioning.py・test_product_authz_failure_injection_points.py・contracts/authz/product/failure-injection-points.json、および必要な既validator backend/src/pitchlog/authz/failure_injection.py（実パス確認後、異なる場合は主担当へ差戻し）。probeは診断の欠落40atomだけを正式asset根拠付きでproduct_onlyへ機械追加し、旧mapping/probe48/旧product_only全値を保持。provisioningは既承認tsk544 plan 362行に従い新profile UNAPPLYのSQL生成/実行前拒否と旧profile挙動双方を検証し、旧7故障点/原子性/往復義務を消さない。有限fake stage・ID引渡し・schema追随のみで製品許可を拡張しない。failure点pinは最終source版へ公式導出し、歴史fixture成功をcurrent未提供の成功へ読み替えない。現validatorが新profile前提だけで旧機能を検査不能なら、必要な最小path/保持証拠を主担当へ提示してから変更する。
 
 三群の編集pathは重複させず、共有plan/正式tenant受理/生成定数/seal/台帳/refsは主担当だけが編集する。各群は影響範囲の非DB検査と全前後SHAを保存後に凍結し、非作者レビューを受ける。pytestは両PITCHLOG_TEST_*_DSNをunsetし、not requires_dbを明示、DB/dockerは別の主担当所有環境まで実行しない。新たなPO意味判断は追加しない。
+
+
+群Sへの追加exact1path（2026-11-01、PO委任によるCodex主担当判断）: backend/tests/db/test_alembic_migrations.py の既 _index_catalog_contract に後方互換のschemaキーワード（既定public）とpg_namespace照合を追加し、schema auditから明示schemaを渡す。旧呼出/旧返値5項目・全SQLの列順/一意性/述語検査を保持する。namespaceを問わない索引名だけのfetchoneによる同名衝突を拒否し、未知/privateを黙ってpublicへ補完しない。新pure spy/SQL構造対向は既群Sのunit fileへ置き、同名public/private・欠落/未知の拒否を検証する。正式DDL/移行/共有DBを変えず、実PGの成功は未実施として別記する。
