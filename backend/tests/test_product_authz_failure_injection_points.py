@@ -9,6 +9,13 @@ import json
 from pathlib import Path
 
 import pytest
+from test_product_authz_provisioning import (
+    _as_psycopg_connection,
+    _FakeConnection,
+)
+from test_product_authz_provisioning import (
+    legacy_product_profile as legacy_product_profile,
+)
 
 from pitchlog.authz import product_provisioning
 from pitchlog.authz.product_provisioning import ProductOperation
@@ -238,6 +245,7 @@ def _validate_single_transaction_source(source: str) -> None:
         ancestor = parents.get(ancestor)
 
 
+@pytest.mark.usefixtures("legacy_product_profile")
 def test_failure_injection_asset_matches_steps_digest_and_checkpoints() -> None:
     """適用5点・取り外し2点が手順資産と実記録点へ一致する。"""
     points = _validate_failure_injection_asset()
@@ -264,6 +272,7 @@ def test_changed_application_steps_digest_is_red() -> None:
         "product:3:after_policy_drop",
     ),
 )
+@pytest.mark.usefixtures("legacy_product_profile")
 def test_removing_one_real_checkpoint_is_red(
     monkeypatch: pytest.MonkeyPatch,
     removed_checkpoint: str,
@@ -314,3 +323,87 @@ def test_adding_commit_inside_a_step_is_red() -> None:
 
     with pytest.raises(AssertionError, match="commit を 1 回"):
         _validate_single_transaction_source(mutated)
+
+
+def test_current_profile_apply_checkpoints_and_unapply_unavailability() -> None:
+    """現profileの実apply5点とunapply生成前拒否を区別する。"""
+    points = _object_rows(_json_object(_ASSET_PATH)["injection_points"], "points")
+    expected = tuple(
+        (
+            _positive_int(p["sequence"], "sequence"),
+            _text(p["checkpoint_id"], "checkpoint_id"),
+        )
+        for p in points
+        if p["operation"] == "apply"
+    )
+    assert len(expected) == 5
+    assert _actual_operation_checkpoints(ProductOperation.APPLY) == expected
+    with pytest.raises(
+        product_provisioning.ProductProvisioningError, match="退役は未提供"
+    ):
+        _actual_operation_checkpoints(ProductOperation.UNAPPLY)
+
+
+@pytest.mark.usefixtures("legacy_product_profile")
+@pytest.mark.parametrize(
+    "operation,checkpoint",
+    [
+        (ProductOperation.APPLY, "product:1:after"),
+        (ProductOperation.APPLY, "product:3:after_helper_function_creation"),
+        (ProductOperation.APPLY, "product:4:after"),
+        (ProductOperation.APPLY, "product:5:after_policy_creation"),
+        (ProductOperation.APPLY, "product:6:during"),
+        (ProductOperation.UNAPPLY, "product:3:after_policy_drop"),
+        (ProductOperation.UNAPPLY, "product:5:after_helper_function_drop"),
+    ],
+)
+def test_legacy_profile_each_of_seven_failures_rolls_back(
+    monkeypatch: pytest.MonkeyPatch, operation: ProductOperation, checkpoint: str
+) -> None:
+    """旧7故障点の実assemblyを公開経路で通しrollback境界を保持する。"""
+    observed: list[str] = []
+
+    class Injected(RuntimeError):
+        pass
+
+    def record(key: str) -> None:
+        observed.append(key)
+        if key == checkpoint:
+            raise Injected(key)
+
+    monkeypatch.setattr(product_provisioning, "_record_product_checkpoint", record)
+    connection = _FakeConnection()
+    terminal = (
+        product_provisioning.apply_product_authz_ddl
+        if operation is ProductOperation.APPLY
+        else product_provisioning.unapply_product_authz_ddl
+    )
+    with pytest.raises(Injected, match=checkpoint):
+        terminal(_as_psycopg_connection(connection))
+    assert connection.executed_statements
+    assert connection.commit_count == 0 and connection.rollback_count == 1
+    assert observed[-1] == f"product:{checkpoint.split(':')[1]}:after_rollback"
+    assert connection.autocommit is False
+
+
+@pytest.mark.usefixtures("legacy_product_profile")
+def test_legacy_profile_apply_unapply_apply_control_flow_roundtrip() -> None:
+    """旧profileの往復は実SQL計画/公開経路で検証しDB一致とは区別する。"""
+    connection = _FakeConnection()
+    expected = []
+    for operation in (
+        ProductOperation.APPLY,
+        ProductOperation.UNAPPLY,
+        ProductOperation.APPLY,
+    ):
+        _, statements = product_provisioning._build_operation_statements(operation)
+        expected.extend(s.sql.encode() for s in statements)
+        terminal = (
+            product_provisioning.apply_product_authz_ddl
+            if operation is ProductOperation.APPLY
+            else product_provisioning.unapply_product_authz_ddl
+        )
+        terminal(_as_psycopg_connection(connection))
+    assert connection.executed_statements == expected
+    assert connection.commit_count == 3 and connection.rollback_count == 0
+    assert connection.autocommit is False

@@ -17,6 +17,58 @@ from pitchlog.authz.runtime_contract_state import (
     product_asset_path_for_state,
 )
 
+# 正式製品assetから機械抽出した追加40原子。旧写像・probe48は不変。
+_FIRST_BALL_PRODUCT_ATOMS = frozenset(
+    {
+        "acl_privilege:ACL:pg_catalog:pg_control_system():pitchlog_sync_binding_fn_owner:EXECUTE",
+        "acl_privilege:ACL:sync_fence:first_ball_write_admissions:pitchlog_sync_right_fn_owner:SELECT",
+        "acl_privilege:ACL:sync_fence:writer_admissions:pitchlog_sync_binding_fn_owner:INSERT",
+        "acl_privilege:ACL:sync_fence:writer_admissions:pitchlog_sync_binding_fn_owner:SELECT",
+        "acl_privilege:ACL:sync_fence:writer_admissions:pitchlog_sync_right_fn_owner:SELECT",
+        "acl_privilege:ACL:sync_fence:writer_bindings:pitchlog_sync_binding_fn_owner:INSERT",
+        "acl_privilege:ACL:sync_fence:writer_bindings:pitchlog_sync_binding_fn_owner:SELECT",
+        "function:FUNCTION:sync_fence_api:assert_writer_binding(uuid, uuid, "
+        "uuid, bytea, uuid, uuid)",
+        "function:FUNCTION:sync_fence_api:close_writer_binding(uuid, uuid, "
+        "uuid, uuid, uuid)",
+        "function:FUNCTION:sync_fence_api:guard_writer_records()",
+        "function:FUNCTION:sync_fence_api:observe_writer_binding(uuid, uuid, "
+        "uuid, uuid, uuid)",
+        "function:FUNCTION:sync_fence_api:publish_writer_binding(uuid, uuid, "
+        "uuid, jsonb, bytea)",
+        "function:FUNCTION:sync_fence_api:read_writer_database_identity(uuid)",
+        "function:FUNCTION:sync_fence_api:read_writer_identity(uuid)",
+        "function:FUNCTION:sync_right_api:bind_device(uuid, uuid, uuid, "
+        "bytea, uuid, uuid, bytea)",
+        "function:FUNCTION:sync_right_api:check_current_right(uuid, uuid, "
+        "uuid, bytea, uuid, uuid, bigint, bigint, bytea)",
+        "function:FUNCTION:sync_right_api:guard_first_ball_projection_admission()",
+        "function:FUNCTION:sync_right_api:guard_first_ball_projection_lock()",
+        "function:FUNCTION:sync_right_api:read_device_state(uuid, uuid)",
+        "policy:POLICY:first_ball_write_admissions:first_ball_stamp_first_ball_write_admissions",
+        "policy:POLICY:idempotency_ledger:first_ball_stamp_idempotency_ledger",
+        "policy:POLICY:operation_events:first_ball_stamp_operation_events",
+        "policy:POLICY:recording_generations:sync_first_ball_select",
+        "policy:POLICY:rg1_restore_gate:binding_gate",
+        "policy:POLICY:rg1_restore_gate:sync_first_ball_gate",
+        "policy:POLICY:trusted_devices:sync_first_ball_device_lock",
+        "policy:POLICY:trusted_devices:sync_first_ball_select",
+        "policy:POLICY:writer_admissions:admission_owner",
+        "policy:POLICY:writer_admissions:first_ball_stamp_writer_admissions",
+        "policy:POLICY:writer_bindings:binding_owner",
+        "policy:POLICY:writer_bindings:first_ball_stamp_writer_bindings",
+        "role:pitchlog_sync_binding_actor",
+        "role:pitchlog_sync_binding_fn_owner",
+        "role:pitchlog_sync_right_fn_owner",
+        "schema:sync_fence",
+        "schema:sync_fence_api",
+        "schema:sync_right_api",
+        "table:first_ball_write_admissions",
+        "table:writer_admissions",
+        "table:writer_bindings",
+    }
+)
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MAP_PATH = _REPOSITORY_ROOT / "contracts/authz/product/probe-product-map.json"
 _PROBE_PATH = _REPOSITORY_ROOT / "contracts/authz/ddl-elements.json"
@@ -378,3 +430,30 @@ def test_initial_start_atoms_and_removed_direct_grants_are_exact() -> None:
         rows.remove(_row_by_value(rows, key="product", value=atom))
         with pytest.raises(ProbeProductMapError):
             validate_probe_product_map(mutated, probe, product)
+
+
+def test_first_ball_product_only_atoms_are_exact() -> None:
+    """初球の追加40原子を正式全集合と理由付きで完全照合する。"""
+    mapping, probe, product = _documents()
+    summary = validate_probe_product_map(mapping, probe, product)
+    assert len(_FIRST_BALL_PRODUCT_ATOMS) == 40
+    assert {
+        row["product"]
+        for row in _rows(mapping, "product_only")
+        if isinstance(row, dict)
+        and row.get("product") in _FIRST_BALL_PRODUCT_ATOMS
+        and row.get("reason") == "product_only"
+    } == _FIRST_BALL_PRODUCT_ATOMS
+    assert not _FIRST_BALL_PRODUCT_ATOMS & summary.mapped_product_atoms
+
+
+@pytest.mark.parametrize("atom", sorted(_FIRST_BALL_PRODUCT_ATOMS))
+def test_each_first_ball_product_only_atom_is_required(atom: str) -> None:
+    """追加40原子のどの1件を落としても双方向exact-setを拒否する。"""
+    mapping, probe, product = _documents()
+    rows = _rows(mapping, "product_only")
+    rows.remove(
+        next(row for row in rows if isinstance(row, dict) and row["product"] == atom)
+    )
+    with pytest.raises(ProbeProductMapError, match="双方向 exact-set"):
+        validate_probe_product_map(mapping, probe, product)

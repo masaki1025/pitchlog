@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
 from collections.abc import Iterator
 from pathlib import Path, PurePosixPath
@@ -28,6 +29,290 @@ from pitchlog.authz.product_provisioning import (
     ProductOperation,
     ProductProvisioningError,
     apply_product_authz_ddl,
+)
+
+_LEGACY_CONTACT_SQL = {
+    "current_database": "-- ELEMENT-TYPE: database\n"
+    "-- ELEMENT-ID: current_database\n"
+    "\n"
+    "DO $authz$\n"
+    "DECLARE\n"
+    "    database_name TEXT := "
+    "pg_catalog.current_database();\n"
+    "BEGIN\n"
+    "    EXECUTE pg_catalog.format(\n"
+    "        'ALTER DATABASE %I OWNER TO "
+    "pitchlog_owner',\n"
+    "        database_name\n"
+    "    );\n"
+    "    EXECUTE pg_catalog.format(\n"
+    "        'REVOKE ALL PRIVILEGES ON DATABASE %I "
+    "FROM PUBLIC, pitchlog_app, "
+    "pitchlog_shared_fn_owner, "
+    "pitchlog_management_fn_owner',\n"
+    "        database_name\n"
+    "    );\n"
+    "    EXECUTE pg_catalog.format(\n"
+    "        'GRANT CONNECT ON DATABASE %I TO "
+    "pitchlog_app',\n"
+    "        database_name\n"
+    "    );\n"
+    "    EXECUTE pg_catalog.format('REVOKE CREATE, "
+    "TEMPORARY ON DATABASE %I FROM "
+    "pitchlog_rg1_control_actor', database_name);\n"
+    "    EXECUTE pg_catalog.format('GRANT CONNECT ON "
+    "DATABASE %I TO pitchlog_rg1_control_actor', "
+    "database_name);\n"
+    "    EXECUTE pg_catalog.format('REVOKE CREATE, "
+    "TEMPORARY ON DATABASE %I FROM "
+    "pitchlog_ledger_identity_probe', "
+    "database_name);\n"
+    "    EXECUTE pg_catalog.format('GRANT CONNECT ON "
+    "DATABASE %I TO pitchlog_ledger_identity_probe', "
+    "database_name);\n"
+    "    EXECUTE pg_catalog.format('REVOKE CREATE, "
+    "TEMPORARY ON DATABASE %I FROM "
+    "pitchlog_initial_actor', database_name);\n"
+    "    EXECUTE pg_catalog.format('GRANT CONNECT ON "
+    "DATABASE %I TO pitchlog_initial_actor', "
+    "database_name);\n"
+    "END;\n"
+    "$authz$;\n"
+    "DO $authz$ BEGIN EXECUTE "
+    "pg_catalog.format('GRANT CONNECT ON DATABASE %I "
+    "TO pitchlog_initial_auth_verifier', "
+    "pg_catalog.current_database()); EXECUTE "
+    "pg_catalog.format('REVOKE CREATE, TEMPORARY ON "
+    "DATABASE %I FROM "
+    "pitchlog_initial_auth_verifier', "
+    "pg_catalog.current_database()); END; $authz$;\n",
+    "public": "-- ELEMENT-TYPE: schema\n"
+    "-- ELEMENT-ID: public\n"
+    "\n"
+    "ALTER SCHEMA public OWNER TO pg_database_owner;\n"
+    "REVOKE ALL PRIVILEGES ON SCHEMA public\n"
+    "    FROM PUBLIC, pitchlog_app, pitchlog_shared_fn_owner, "
+    "pitchlog_management_fn_owner, pitchlog_auth_fn_owner, "
+    "pitchlog_rg1_fn_owner, pitchlog_rule_resolution_fn_owner;\n"
+    "GRANT USAGE ON SCHEMA public TO pitchlog_app, "
+    "pitchlog_shared_fn_owner, pitchlog_auth_fn_owner, "
+    "pitchlog_rg1_fn_owner, pitchlog_rule_resolution_fn_owner;\n"
+    "GRANT USAGE ON SCHEMA public TO "
+    "pitchlog_rg1_control_owner;\n"
+    "GRANT USAGE ON SCHEMA public TO "
+    "pitchlog_initial_fn_owner;\n"
+    "REVOKE CREATE ON SCHEMA public FROM "
+    "pitchlog_initial_fn_owner;\n"
+    "GRANT USAGE ON SCHEMA public TO pitchlog_initial_actor;\n"
+    "REVOKE CREATE ON SCHEMA public FROM "
+    "pitchlog_initial_actor;\n",
+}
+_FIRST_BALL_CONTACT_SUFFIX = {
+    "current_database": "\n"
+    "DO $sync_connect$ BEGIN\n"
+    " EXECUTE pg_catalog.format('GRANT CONNECT ON "
+    "DATABASE %I TO "
+    "pitchlog_sync_binding_actor',pg_catalog.current_database());\n"
+    " EXECUTE pg_catalog.format('REVOKE "
+    "CREATE,TEMPORARY ON DATABASE %I FROM "
+    "pitchlog_sync_binding_actor',pg_catalog.current_database());\n"
+    "END;$sync_connect$;\n",
+    "public": "\n"
+    "GRANT USAGE ON SCHEMA public TO "
+    "pitchlog_sync_binding_fn_owner, "
+    "pitchlog_sync_right_fn_owner;\n",
+}
+
+
+@pytest.fixture
+def legacy_product_profile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """公式投影の旧profileと実SQL assemblyで旧取り外し義務を検査する。"""
+    from dataclasses import replace
+
+    from pitchlog.authz.first_ball_product import legacy_asset
+
+    current = json.loads(
+        (_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text()
+    )
+    legacy = legacy_asset(current)
+    assert [len(legacy[k]) for k in ("roles", "schemas", "tables", "functions")] == [
+        14,
+        8,
+        50,
+        79,
+    ]
+    root = tmp_path / "legacy-profile"
+    asset_path = root / PRODUCT_SPEC.ddl_elements_path
+    asset_path.parent.mkdir(parents=True)
+    asset_path.write_text(json.dumps(legacy))
+    assert PRODUCT_SPEC.application_steps_path is not None
+    steps_path = root / PRODUCT_SPEC.application_steps_path
+    legacy_steps = json.loads(
+        (_REPOSITORY_ROOT / PRODUCT_SPEC.application_steps_path).read_text()
+    )
+    helper_step = next(
+        row for row in legacy_steps["application_steps"] if row["sequence"] == 3
+    )
+    assert helper_step["element_groups"].count("functions:invoker") == 1
+    helper_step["element_groups"].remove("functions:invoker")
+    steps_path.write_text(json.dumps(legacy_steps))
+    generated = product_provisioning.generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
+    keys = {
+        (section.element_type, row[section.id_field])
+        for section in PRODUCT_SPEC.element_sections
+        for row in legacy[section.section_name]
+    }
+    historical = []
+    for statement in generated:
+        if (statement.element_type, statement.element_id) not in keys:
+            continue
+        if (
+            statement.element_type in {"database", "schema"}
+            and statement.element_id in _LEGACY_CONTACT_SQL
+        ):
+            key = statement.element_id
+            assert (
+                statement.sql
+                == _LEGACY_CONTACT_SQL[key] + _FIRST_BALL_CONTACT_SUFFIX[key]
+            )
+            statement = replace(statement, sql=_LEGACY_CONTACT_SQL[key])
+        historical.append(statement)
+    assert {(s.element_type, s.element_id) for s in historical} == keys
+
+    def historical_generated(
+        requested_root: Path, spec: object
+    ) -> tuple[DDLStatement, ...]:
+        assert requested_root == root and spec == PRODUCT_SPEC
+        return tuple(historical)
+
+    monkeypatch.setattr(product_provisioning, "_REPOSITORY_ROOT", root)
+    monkeypatch.setattr(
+        product_provisioning, "generate_authz_ddl", historical_generated
+    )
+
+
+_EXPECTED_DEFERRED_FIRST_BALL_IDS = frozenset(
+    {
+        "COLUMN-ACL:public:idempotency_ledger:d5:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:idempotency_ledger:import_batch_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:idempotency_ledger:kind:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:idempotency_ledger:retired_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:idempotency_ledger:source_fingerprint:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:idempotency_ledger:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:d1:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:d2:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:d5:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:event_kind:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:game_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:import_batch_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:is_tombstone:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:ledger_kind:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:legacy_row_identifier:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:migration_unverified:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:replaced_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:retired_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:game_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:holder_device:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:import_batch_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:kind:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:proof_digest:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:recovery_generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:retired_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:revoked_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:recording_generations:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_sync_binding_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_sync_binding_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:singleton_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_sync_binding_fn_owner",
+        "COLUMN-ACL:public:rg1_restore_gate:state:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:credential_digest:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:device_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:revoked_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:trusted_devices:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:attempt_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:authority_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:backend_pid:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:backend_start:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:business_instance:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:codec_version:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:consumed_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:control_instance:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:control_version:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:d5:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:database_oid:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:device_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:event_fingerprint:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:expires_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:game_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:internal_generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:issuer:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:lease_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:nonce_digest:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:phase_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:play_row_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:postmaster_started_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:recovery_generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:request_fingerprint:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:restore_epoch:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:source_event_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:state:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:system_identifier:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:transaction_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:first_ball_write_admissions:wire_d4:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:attempt_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:authority_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:backend_pid:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:backend_start:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:business_instance:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:close_id:pitchlog_sync_binding_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:close_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:codec_version:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:control_instance:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:control_version:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:d5:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:database_oid:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:device_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:event_fingerprint:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:expires_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:game_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:internal_generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:issuer:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:lease_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:nonce_digest:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:phase_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:postmaster_started_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:recovery_generation:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:request_fingerprint:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:restore_epoch:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:state:pitchlog_sync_binding_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:state:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:system_identifier:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:transaction_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:writer_bindings:wire_d4:pitchlog_sync_right_fn_owner",
+        "FUNCTION:sync_fence_api:assert_writer_binding(uuid, uuid, uuid, "
+        "bytea, uuid, uuid)",
+        "FUNCTION:sync_fence_api:close_writer_binding(uuid, uuid, uuid, uuid, uuid)",
+        "FUNCTION:sync_fence_api:guard_writer_records()",
+        "FUNCTION:sync_fence_api:observe_writer_binding(uuid, uuid, uuid, uuid, uuid)",
+        "FUNCTION:sync_fence_api:publish_writer_binding(uuid, uuid, uuid, "
+        "jsonb, bytea)",
+        "FUNCTION:sync_fence_api:read_writer_database_identity(uuid)",
+        "FUNCTION:sync_fence_api:read_writer_identity(uuid)",
+        "FUNCTION:sync_right_api:bind_device(uuid, uuid, uuid, bytea, uuid, "
+        "uuid, bytea)",
+        "FUNCTION:sync_right_api:check_current_right(uuid, uuid, uuid, bytea, "
+        "uuid, uuid, bigint, bigint, bytea)",
+        "FUNCTION:sync_right_api:guard_first_ball_projection_admission()",
+        "FUNCTION:sync_right_api:guard_first_ball_projection_lock()",
+        "FUNCTION:sync_right_api:read_device_state(uuid, uuid)",
+    }
 )
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -661,6 +946,7 @@ def test_literal_public_module_all_is_green(tmp_path: Path) -> None:
     _validate_terminal_boundary(tmp_path)
 
 
+@pytest.mark.usefixtures("legacy_product_profile")
 def test_generated_apply_and_unapply_statements_never_change_subject() -> None:
     """正規資産から作る適用・取り外し文に主体変更が 1 件もない。"""
     for operation in ProductOperation:
@@ -704,6 +990,7 @@ def test_generated_apply_and_unapply_statements_never_change_subject() -> None:
     )
 
 
+@pytest.mark.usefixtures("legacy_product_profile")
 def test_generated_unapply_statements_use_structured_quoted_identifiers() -> None:
     """取り外し全文は要素 ID を SQL に流さず全識別子を正しく引用する。"""
     _, statements = product_provisioning._build_operation_statements(
@@ -844,9 +1131,9 @@ def test_product_identifier_quoting_escapes_embedded_double_quotes() -> None:
     assert product_provisioning._quote_identifier('schema"name') == ('"schema""name"')
 
 
-def test_apply_and_unapply_sql_assembly_never_reads_element_id() -> None:
-    """適用・取り外しの SQL 組み立ては要素 ID の分解へ依存しない。"""
-    tree = _parse_source(_SOURCE_PATH.read_text(encoding="utf-8"))
+def _validate_assembly_element_id_reads(source: str) -> None:
+    """IDは専用helperへのexact1引渡し以外のSQL組立に使用させない。"""
+    tree = _parse_source(source)
     assembly_functions = {
         node.name: node
         for node in tree.body
@@ -857,6 +1144,11 @@ def test_apply_and_unapply_sql_assembly_never_reads_element_id() -> None:
         "_application_statements",
         "_unapplication_sql",
     }
+    parents = {
+        child: parent
+        for parent in ast.walk(tree)
+        for child in ast.iter_child_nodes(parent)
+    }
     for function in assembly_functions.values():
         element_id_reads = tuple(
             node
@@ -865,7 +1157,45 @@ def test_apply_and_unapply_sql_assembly_never_reads_element_id() -> None:
             and isinstance(node.ctx, ast.Load)
             and node.attr == "element_id"
         )
-        assert element_id_reads == ()
+        if function.name == "_unapplication_sql":
+            assert element_id_reads == ()
+            continue
+        assert len(element_id_reads) == 1
+        read = element_id_reads[0]
+        call = parents[read]
+        assert isinstance(call, ast.Call)
+        assert (
+            isinstance(call.func, ast.Name)
+            and call.func.id == "application_function_sql"
+        )
+        assert len(call.args) == 2
+        assert call.args[0] is read
+        assert isinstance(call.args[1], ast.Name) and call.args[1].id == "sql_text"
+        assert isinstance(read.value, ast.Name) and read.value.id == "statement"
+        assert call.keywords == []
+
+
+def test_apply_and_unapply_sql_assembly_never_reads_element_id() -> None:
+    """専用選択helperへの引渡しを除き、IDをSQLへ流せない。"""
+    _validate_assembly_element_id_reads(_SOURCE_PATH.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "application_function_sql(statement.element_id.split(':')[0], sql_text)",
+        "application_function_sql(sql_text, statement.element_id)",
+        "application_function_sql(statement.element_id, statement.element_id)",
+        "application_function_sql(statement.element_id + sql_text, sql_text)",
+    ],
+)
+def test_element_id_selection_does_not_allow_sql_construction(replacement: str) -> None:
+    """ID分割・順序付替え・複製・連結を一般の許可へ拡張しない。"""
+    source = _SOURCE_PATH.read_text(encoding="utf-8")
+    original = "application_function_sql(statement.element_id, sql_text)"
+    assert source.count(original) == 1
+    with pytest.raises(AssertionError):
+        _validate_assembly_element_id_reads(source.replace(original, replacement))
 
 
 def test_public_apply_executes_the_canonical_generated_plan() -> None:
@@ -1281,12 +1611,16 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         )
     )
     assert len(old) == 16
-    expected_extra = {
-        (
-            "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_rg1_"
-            "control_owner"
-        ),
-    } | _EXPECTED_DEFERRED_INITIAL_IDS
+    expected_extra = (
+        {
+            (
+                "COLUMN-ACL:public:rg1_restore_gate:recovery_generation:pitchlog_rg1_"
+                "control_owner"
+            ),
+        }
+        | _EXPECTED_DEFERRED_INITIAL_IDS
+        | _EXPECTED_DEFERRED_FIRST_BALL_IDS
+    )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old
     } == expected_extra
@@ -1361,6 +1695,12 @@ def test_startup_resume_epoch_order_without_db(
         startup, "_require_initial_state", lambda *_: events.append("verify-initial")
     )
     monkeypatch.setattr(
+        startup, "_apply_writer_storage", lambda *_: events.append("writer")
+    )
+    monkeypatch.setattr(
+        startup, "_require_writer_state", lambda *_: events.append("verify-writer")
+    )
+    monkeypatch.setattr(
         startup, "apply_product_authz_ddl", lambda *_: events.append("authz")
     )
     monkeypatch.setattr(startup, "_require_s3", lambda *_: events.append("s3"))
@@ -1371,7 +1711,10 @@ def test_startup_resume_epoch_order_without_db(
         "verify",
         "initial",
         "verify-initial",
+        "writer",
+        "verify-writer",
         "authz",
+        "verify-writer",
         "s3",
     ]
     assert result.publishable is False
@@ -1484,7 +1827,20 @@ def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
     sql_texts = {row.sql for row in applied}
     elements = product_provisioning._load_product_elements()
     schemas = [row for row in generated if row.element_type == "schema"]
-    assert len(schemas) == 8
+    assert {r.element_id for r in schemas} == {
+        "public",
+        "authz_private",
+        "rg1_api",
+        "rg1_control",
+        "pitchlog_ledger_observer",
+        "initial_right_api",
+        "authn",
+        "authn_crypto",
+        "sync_fence",
+        "sync_fence_api",
+        "sync_right_api",
+    }
+    assert len(schemas) == 8 + 3
     for row in schemas:
         if row.element_id not in {
             "rg1_control",
@@ -1664,3 +2020,24 @@ def test_worker_lookup_deferred_until_initial_storage(mutation, monkeypatch):
             product_provisioning._build_operation_statements(
                 ProductOperation.APPLY_PRE_RULE
             )
+
+
+def test_current_profile_unapply_rejects_before_sql_generation_and_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """現profileの未提供unapplyはSQL生成/実行前に拒否する。"""
+
+    def forbidden(*_: object) -> None:
+        pytest.fail("未提供unapplyがSQL生成へ到達")
+
+    monkeypatch.setattr(product_provisioning, "generate_authz_ddl", forbidden)
+    with pytest.raises(ProductProvisioningError, match="退役は未提供"):
+        product_provisioning._build_operation_statements(ProductOperation.UNAPPLY)
+    connection = _FakeConnection()
+    with pytest.raises(ProductProvisioningError, match="退役は未提供"):
+        product_provisioning.unapply_product_authz_ddl(
+            _as_psycopg_connection(connection)
+        )
+    assert connection.executed_statements == []
+    assert connection.identity_query_count == 0
+    assert connection.commit_count == connection.rollback_count == 0
