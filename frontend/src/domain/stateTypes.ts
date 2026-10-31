@@ -123,3 +123,15 @@ export type Derived = {
   }
   after: { stateFields: StateFields; scoreboard: Scoreboard }
 }
+
+/** 新三振の局所cursor表現。公開readonly型は独立契約が所有する。 */
+export type BattingOrderBySide = { away: bigint; home: bigint }
+
+/** 旧DerivedのABIを広げず、三振だけが両cursorを返す。 */
+export type StrikeoutDerived = Derived & {
+  after: {
+    stateFields: StateFields
+    scoreboard: Scoreboard
+    battingOrderBySide: BattingOrderBySide
+  }
+}

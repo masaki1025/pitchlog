@@ -40,6 +40,7 @@ it('宣言SHA一致のビルド済み公開9口を実行する', () => {
     'deriveState',
     'deriveOrdinaryPitch',
     'deriveTerminalPitch',
+    'deriveStrikeoutPitch',
     'derivePlayPrefixWithContinuation',
     'deriveFirstPitchWithContinuation',
     'deriveOrdinaryPitchWithContinuation',

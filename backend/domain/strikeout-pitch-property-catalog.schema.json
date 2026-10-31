@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogId": {
+      "const": "strikeout-pitch-properties"
+    },
+    "scope": {
+      "const": "regular-caught-strikeout-v1"
+    },
+    "predicates": {
+      "const": [
+        {
+          "propertyId": "strikeoutHostParity",
+          "propertyKind": "equivalence",
+          "authorityId": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "scope",
+    "predicates"
+  ]
+}

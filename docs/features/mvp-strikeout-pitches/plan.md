@@ -1,7 +1,7 @@
 ---
 feature: mvp-strikeout-pitches
 status: active
-承認: 済（PO委任によるCodex主担当判断・操作単位契約作成のステップ1のみ）
+承認: 済（PO委任によるCodex主担当判断・ステップ1契約とステップ2数学核を限定採用、保存/UI未了）
 重さ分類: コア領域
 branch: feature/mvp-strikeout-pitches
 created: 2026-10-31
@@ -105,3 +105,12 @@ D11は新backend/domain/strikeout-pitch-{manifest.json,property-catalog.json,pro
 ステップ2 pin後のwire自己echo追随（同PO委任によるroot判断）: 全VitestでterminalPitchWireの56全値＋小数観測1が失敗し、実行SHAだけ置換したpayloadのnextCheckpoint.digest/nextPrefixRef.checkpoint.digestが旧wire-head hashのままと確定。数学契約56の期待を変えず、play_prefix_v2_payload_vectors.jsonの自己echo112欄だけを既正式play-prefix-wire-head-v2の正準SHA規則から再導出する。Python実consumerと独立field列挙/JSON正準化の一致を確認し、同T1/T2/差分V8/観測/参加者・旧priorを維持する。wire-head fieldや検証関数/拒否の変更は0。未変更metadataと関係ない期待を候補出力で更新しない。frontendのhandoff-loader依存3失敗は別に現固定契約byte/依存OID/versionへ照合し、実値が変わった登録だけに限定して追随する。全件失敗・修復前source26レビューと後発修復を区別し、追加非作者確認後に採否する。
 
 上記handoff追随のexact1はcontracts/state-transition/appendix_e_consumer_handoff_v1.jsonのartifacts中state_transition_contract_v1.jsonのdigest一欄。SO24追加後の実SHA-256へ再計算し、出自OID/version/consumerBindings/未受理・消費pending/他artifact2と拒否検査を変更しない。受理や曝露の更新ではなく現実byte参照の修復である。
+
+
+## ステップ2の採用保存（2026-10-31、PO委任によるCodex /root判断）
+
+source27 manifest592d8e3de04def872e02824e68ed58f27d23047b9c6c5a4cf1c72ff826726dc1を全byte照合し採用。非作者REPORT03234246f36b02ad193b58fa17c88ebd4f8c9f641a8e4527d0538f71dc04dbb1、後発r2 REPORT4e9eb001a90bf44ecb122e81d974f7c4ca7507d04fca0687ee917263e551fdd1で新P0/P1=0。作者核14＋root pin7/互換1/D11期待包絡・宣言/実consumer/handoff1を一単位で保存する。数学24/独立cursor31,104/大整数/全拒否・旧回帰、実Git旧artifactとの互換9組7536全応答、旧7行/旧prior不変、artifact再現BFB492ec…43004Bを確認。D11新equivalence1の五判定/hash成立、wholeJUnitComplete=false/旧91除外・全mutation/BOOT未完は保持する。
+
+全FE初回60failed/2813passed（wire自己echo112/旧handoff参照1）を保存し、期待値や検査を緩めず正式hash規則から機械修復。非作者独立wirehead56/FE88/BEseal59、root修復後全FE135files/2873passed133.92秒、BE数学D11旧92passed38.91秒・pin影響610passed5.25秒・backend全体ty/関連ruff成功。数学sourceは後発2JSON修復前後不変。これらはSO計算/固定hostの完成であり、SO保存・画面/全T1/P6新blind/正式7.7/CI/通常mergeの完成ではない。ステップ3は次の真正source/T2/両チーム実参加者への接続単位として続ける。
+
+主担当判断receipt: cache strikeout-root-artifact-pins-20261031/root-step2-approval.json SHA5a88bc9713c9dd2d90ee4c087989e5aaae005341aca5dbe48393106ffa3ad09c。PO本人の逐行確認/実値確認/署名は代記しない。

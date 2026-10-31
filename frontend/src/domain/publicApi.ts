@@ -13,8 +13,20 @@ import {
   readContinuationRules,
 } from './firstPitchContinuation'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
-import { derive, deriveOrdinary, deriveTerminal, emptyFlags } from './state'
-import type { Derived, Runners, Scoreboard, StateFields } from './stateTypes'
+import {
+  derive,
+  deriveOrdinary,
+  deriveTerminal,
+  deriveStrikeout,
+  emptyFlags,
+} from './state'
+import type {
+  BattingOrderBySide,
+  Derived,
+  Runners,
+  Scoreboard,
+  StateFields,
+} from './stateTypes'
 
 type DomainErrorCode =
   | 'INVALID_JSON'
@@ -96,12 +108,16 @@ function textField(value: unknown): string | null {
 }
 
 /** 契約の `stateFields`（フラットなキー）を内部型へ読む。 */
-function readState(source: Record<string, unknown>): StateFields | null {
+function readState(
+  source: Record<string, unknown>,
+  canonicalRunners: boolean = false,
+): StateFields | null {
   const half = textField(fieldValue(source, 'state.half'))
   const strikes = intField(fieldValue(source, 'state.count.strikes'))
   const balls = intField(fieldValue(source, 'state.count.balls'))
   const outs = intField(fieldValue(source, 'state.outs'))
-  const runners = textField(fieldValue(source, 'state.runners'))
+  let runners = textField(fieldValue(source, 'state.runners'))
+  if (canonicalRunners && runners === 'first-second-third') runners = 'loaded'
   const battingOrder = intField(fieldValue(source, 'state.battingOrder'))
   const tiebreakActive = boolField(fieldValue(source, 'state.tiebreakActive'))
   const gameEnded = boolField(fieldValue(source, 'state.gameEnded'))
@@ -191,13 +207,18 @@ function advanceJson(
 }
 
 /** 遷移後の状態を JSON へ書く。 */
-function stateJson(state: StateFields): Record<string, unknown> {
+function stateJson(
+  state: StateFields,
+  canonicalRunners: boolean = false,
+): Record<string, unknown> {
+  let runners: string = state.runners
+  if (canonicalRunners && runners === 'loaded') runners = 'first-second-third'
   return {
     'state.half': state.half,
     'state.count.strikes': formatDecimalInteger(state.strikes),
     'state.count.balls': formatDecimalInteger(state.balls),
     'state.outs': formatDecimalInteger(state.outs),
-    'state.runners': state.runners,
+    'state.runners': runners,
     'state.battingOrder': formatDecimalInteger(state.battingOrder),
     'state.tiebreakActive': state.tiebreakActive,
     'state.gameEnded': state.gameEnded,
@@ -223,13 +244,24 @@ function boardJson(board: Scoreboard): Record<string, unknown> {
   }
 }
 
+/** 両cursorを算術せず正準wireへ写す。 */
+function orderJson(cursors: BattingOrderBySide): Record<string, unknown> {
+  return {
+    away: formatDecimalInteger(cursors.away),
+    home: formatDecimalInteger(cursors.home),
+  }
+}
+
 /** 導出結果を境界の JSON へ書く（整数は十進文字列）。 */
 function derivedJson(
   derived: Derived,
   stack: Array<unknown> = [],
   before: StateFields | null = null,
   board: Scoreboard | null = null,
+  beforeCursors: BattingOrderBySide | null = null,
+  afterCursors: BattingOrderBySide | null = null,
 ): Record<string, unknown> {
+  const cursorVariant = beforeCursors !== null && afterCursors !== null
   const differences: Record<string, unknown> = {}
   if (derived.history.ballsBefore !== derived.history.ballsAfter) {
     Object.assign(differences, {
@@ -250,11 +282,14 @@ function derivedJson(
   const boardDifferences: Record<string, unknown> = {}
   if (before !== null && board !== null) {
     // 同じwire射影を比較し、算術や過去履歴の再計算は行わない。
-    for (const pair of Object.entries(stateJson(before))) {
+    for (const pair of Object.entries(stateJson(before, cursorVariant))) {
       const key = pair.shift()
       const value = pair.pop()
       if (typeof key !== 'string') continue
-      const after = fieldValue(stateJson(derived.after.stateFields), key)
+      const after = fieldValue(
+        stateJson(derived.after.stateFields, cursorVariant),
+        key,
+      )
       if (JSON.stringify(value) !== JSON.stringify(after))
         Object.assign(
           differences,
@@ -273,6 +308,20 @@ function derivedJson(
         )
     }
   }
+  const cursorDifferences: Record<string, unknown> = {}
+  if (beforeCursors !== null && afterCursors !== null) {
+    for (const pair of Object.entries(orderJson(beforeCursors))) {
+      const key = pair.shift()
+      const value = pair.pop()
+      if (typeof key !== 'string') continue
+      const after = fieldValue(orderJson(afterCursors), key)
+      if (value !== after)
+        Object.assign(
+          cursorDifferences,
+          Object.fromEntries([[key, { before: value, after: after }]]),
+        )
+    }
+  }
   const destination: Record<string, unknown> = {
     kind: derived.batterDestination.kind,
   }
@@ -283,6 +332,19 @@ function derivedJson(
     if (target.kind === 'batter') return 'batter' as unknown
     return { runner: formatDecimalInteger(target.base) } as unknown
   })
+  const difference: Record<string, unknown> = {
+    stateFields: differences,
+    scoreboard: boardDifferences,
+    statFlags: derived.statFlags,
+  }
+  if (cursorVariant)
+    Object.assign(difference, { battingOrderBySide: cursorDifferences })
+  const after: Record<string, unknown> = {
+    stateFields: stateJson(derived.after.stateFields, cursorVariant),
+    scoreboard: boardJson(derived.after.scoreboard),
+  }
+  if (afterCursors !== null)
+    Object.assign(after, { battingOrderBySide: orderJson(afterCursors) })
   return {
     countEffect: {
       strikes: countJson(
@@ -319,18 +381,11 @@ function derivedJson(
       [
         {
           kind: 'confirmed-play',
-          difference: {
-            stateFields: differences,
-            scoreboard: boardDifferences,
-            statFlags: derived.statFlags,
-          },
+          difference: difference,
         },
       ] as Array<unknown>
     ).concat(stack),
-    after: {
-      stateFields: stateJson(derived.after.stateFields),
-      scoreboard: boardJson(derived.after.scoreboard),
-    },
+    after: after,
   }
 }
 
@@ -454,6 +509,7 @@ function historyFields(
 function validateHistoryEntry(
   value: unknown,
   terminal: boolean = false,
+  strikeout: boolean = false,
 ): DomainErrorCode | null {
   const entry = asObject(value)
   if (
@@ -463,15 +519,37 @@ function validateHistoryEntry(
   )
     return 'INVALID_REQUEST'
   const difference = asObject(entry.difference)
+  let keys = ['stateFields', 'scoreboard', 'statFlags']
   if (
-    difference === null ||
-    !exactKeys(difference, ['stateFields', 'scoreboard', 'statFlags'])
+    strikeout &&
+    difference !== null &&
+    Object.prototype.hasOwnProperty.call(difference, 'battingOrderBySide')
   )
+    keys = keys.concat(['battingOrderBySide'])
+  if (difference === null || !exactKeys(difference, keys))
     return 'INVALID_REQUEST'
   const stateError = historyFields(difference.stateFields, true, terminal)
   if (stateError !== null) return stateError
   const boardError = historyFields(difference.scoreboard, false, terminal)
   if (boardError !== null) return boardError
+  if (strikeout && keys.includes('battingOrderBySide')) {
+    const cursors = asObject(difference.battingOrderBySide)
+    if (
+      cursors === null ||
+      Object.keys(cursors).some((key) => key !== 'away' && key !== 'home')
+    )
+      return 'INVALID_REQUEST'
+    for (const value of Object.values(cursors)) {
+      const pair = asObject(value)
+      if (pair === null || !exactKeys(pair, ['before', 'after']))
+        return 'INVALID_REQUEST'
+      for (const item of [pair.before, pair.after]) {
+        const number = parseDecimalInteger(item)
+        if (number === null) return 'INVALID_DECIMAL_INTEGER'
+        if (number < 1n || number > 9n) return 'INVALID_REQUEST'
+      }
+    }
+  }
   const flags = asObject(difference.statFlags)
   if (
     flags === null ||
@@ -520,19 +598,21 @@ function evaluatePitch(
   requestJson: string,
   ordinary: boolean,
   terminal: boolean = false,
+  strikeout: boolean = false,
 ): string {
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
     parsed = JSON.parse(requestJson) as unknown
-    if (terminal && hasDuplicateKeys(requestJson))
+    if ((terminal || strikeout) && hasDuplicateKeys(requestJson))
       return errorResponse('INVALID_JSON')
   } catch {
     return errorResponse('INVALID_JSON')
   }
   const request = asObject(parsed)
   let requestKeys = ['eventKind', 'resultId', 'pitchEventKind', 'before']
-  if (ordinary || terminal) requestKeys = requestKeys.concat(['history'])
+  if (ordinary || terminal || strikeout)
+    requestKeys = requestKeys.concat(['history'])
   if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
   }
@@ -543,7 +623,7 @@ function evaluatePitch(
   )
     return errorResponse('INVALID_REQUEST')
   let stack: Array<unknown> = []
-  if (ordinary || terminal) {
+  if (ordinary || terminal || strikeout) {
     const history = asObject(request.history)
     if (
       history === null ||
@@ -552,13 +632,19 @@ function evaluatePitch(
     )
       return errorResponse('INVALID_REQUEST')
     for (const entry of history.stack) {
-      const historyError = validateHistoryEntry(entry, terminal)
+      const historyError = validateHistoryEntry(
+        entry,
+        terminal || strikeout,
+        strikeout,
+      )
       if (historyError !== null) return errorResponse(historyError)
     }
     stack = history.stack
   }
   const before = asObject(request.before)
-  if (before === null || !exactKeys(before, ['stateFields', 'scoreboard']))
+  let beforeKeys = ['stateFields', 'scoreboard']
+  if (strikeout) beforeKeys = beforeKeys.concat(['battingOrderBySide'])
+  if (before === null || !exactKeys(before, beforeKeys))
     return errorResponse('INVALID_REQUEST')
   const fields = asObject(before.stateFields)
   const board = asObject(before.scoreboard)
@@ -605,16 +691,20 @@ function evaluatePitch(
     innings.home,
     innings.away,
   ]
+  if (strikeout && integerValues.some((value) => typeof value !== 'string'))
+    return errorResponse('INVALID_REQUEST')
   if (
     integerValues.some(
       (value) =>
         parseDecimalInteger(value) === null ||
-        (terminal && typeof value === 'string' && value.startsWith('-')),
+        ((terminal || strikeout) &&
+          typeof value === 'string' &&
+          value.startsWith('-')),
     )
   ) {
     return errorResponse('INVALID_DECIMAL_INTEGER')
   }
-  const state = readState(fields)
+  const state = readState(fields, strikeout)
   const scoreboard = readBoard(board)
   if (state === null || scoreboard === null)
     return errorResponse('INVALID_REQUEST')
@@ -623,17 +713,58 @@ function evaluatePitch(
   let calculator = derive
   if (ordinary || terminal) calculator = deriveOrdinary
   if (terminal) calculator = deriveTerminal
-  const derived = calculator(
-    state,
-    scoreboard,
-    request.resultId,
-    request.pitchEventKind,
-  )
+  let derived: Derived | null
+  let cursors: BattingOrderBySide | null = null
+  let afterCursors: BattingOrderBySide | null = null
+  if (strikeout) {
+    const raw = asObject(before.battingOrderBySide)
+    if (
+      raw === null ||
+      !exactKeys(raw, ['away', 'home']) ||
+      typeof raw.away !== 'string' ||
+      typeof raw.home !== 'string'
+    )
+      return errorResponse('INVALID_REQUEST')
+    const away = parseDecimalInteger(raw.away)
+    const home = parseDecimalInteger(raw.home)
+    if (
+      away === null ||
+      home === null ||
+      raw.away.startsWith('-') ||
+      raw.home.startsWith('-')
+    )
+      return errorResponse('INVALID_DECIMAL_INTEGER')
+    if (fieldValue(fields, 'state.runners') === 'loaded')
+      return errorResponse('UNSUPPORTED_T1_SCOPE')
+    cursors = Object.freeze({ away: away, home: home })
+    const result = deriveStrikeout(
+      state,
+      scoreboard,
+      request.resultId,
+      request.pitchEventKind,
+      cursors,
+    )
+    derived = result
+    if (result !== null) afterCursors = result.after.battingOrderBySide
+  } else
+    derived = calculator(
+      state,
+      scoreboard,
+      request.resultId,
+      request.pitchEventKind,
+    )
   if (derived === null) return errorResponse('UNSUPPORTED_T1_SCOPE')
-  if (terminal)
+  if (terminal || strikeout)
     return JSON.stringify({
       ok: true,
-      value: derivedJson(derived, stack, state, scoreboard),
+      value: derivedJson(
+        derived,
+        stack,
+        state,
+        scoreboard,
+        cursors,
+        afterCursors,
+      ),
     })
   return JSON.stringify({ ok: true, value: derivedJson(derived, stack) })
 }
@@ -651,6 +782,11 @@ function deriveOrdinaryPitch(requestJson: string): string {
 /** 無走者BB/HBPの閉契約。旧投球ABIとは独立した入口。 */
 function deriveTerminalPitch(requestJson: string): string {
   return evaluatePitch(requestJson, false, true)
+}
+
+/** 正規捕球三振の両cursor variant。旧入口の要求形を広げない。 */
+function deriveStrikeoutPitch(requestJson: string): string {
+  return evaluatePitch(requestJson, false, false, true)
 }
 
 type T1Evaluation =
@@ -831,6 +967,7 @@ export const domainOperations = Object.freeze({
   deriveState,
   deriveOrdinaryPitch,
   deriveTerminalPitch,
+  deriveStrikeoutPitch,
   derivePlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,
   deriveOrdinaryPitchWithContinuation,

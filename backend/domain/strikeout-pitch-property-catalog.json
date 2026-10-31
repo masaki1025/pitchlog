@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "strikeout-pitch-properties",
+  "scope": "regular-caught-strikeout-v1",
+  "predicates": [
+    {
+      "propertyId": "strikeoutHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    }
+  ]
+}
