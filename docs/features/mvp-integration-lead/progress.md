@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 04:42 JST（#189残件修復を保存、実API成功を保持）
+
+- **実証/提供の区別**: 現統合候補の実API初球は1passed/56.83秒（前節）、画面新規作成の現候補再実証/正式develop/最終CIは未成立。#189公開は依然ad6588b1、source push0・merge未了。#188/#193は既merge。
+- **保存済み修復**: 群R df9640c8（331非DB成功/18DB分類維持）、群S e4f2e172（69非DB成功/旧seed全tuple・public50/tenant32保持/schema別索引監査）、群T deb6e295（158非DB成功/probe欠落40全atom・旧profile7故障比較と現profileUNAPPLY拒否を区別）。全群非作者P0/P1/P2=0、cache各pr189-residual-*-20261101。これらを実DB故障比較や全CI完了へ読み替えない。
+- **認可/型**: 1e62680aで認可8入力3dd固定/6context/oracle正式再封印と凍結台帳16＋189一行、47ea37edで二層venv既import境界の型注記だけAST完全同一に整合。通常/製品authz CLI成功（1429行、既AUTH187保持）。元root広域subset25943成功/34失敗は32件SQLAlchemy依存不足＋2件旧provenance対向末尾誤選択。A31作者はdev依存2.0.52とID明示選択へ修復し元34を含む63成功、exact3の非作者レビュー中。全25977再検査成功とはしない。
+- **凍結scan**: 新35組のPython直書きが拒否される。allowlist追加/scan緩和は行わず、test側30SHA＋歴史anchor1を独立fixtureへ機械移設（旧224関数AST同値/1340BE＋root12成功・非作者0指摘、保存済み）。ordinary4pinは旧ad658全値一致の独立JSONをcc0e87a8に先行保存、既承認oracle_input固定Gitから読む閉loader exact2を別作者が実装中。oracle8入力byteは不変で参照pinのみcc0eへ追随中、再封印成功・生成後レビュー待ち。current JSON/現record自己から期待値を導出するfallbackは禁止。
+- **次の依存**: core reader完了/独立review→全scan、A31採用→正式source/tenant v2全前後・参照値/corpus→最終HEAD証拠→元189へ一回push・必須CI。併行して既知の共通製品DBfixtureの0036固定assert＋現profileUNAPPLY不整合を読取診断中。ownedAPI成功fixtureと共通DBfixtureの成立を混同せず、旧0036profile7故障/往復義務は保持する。署名/共有DB/HTTPS新鍵/実機/全MVP残件の境界は不変。
+
 ## 続き：2026-11-01 04:24 JST（現在の統合候補で初球実API回帰成功）
 
 - **新たな実証**: pr189 WT/HEAD3dd1bfa1の実API初球縦断が1passed/56.83秒。実login/enroll/start→初球200→同attempt再送/別attempt同D5再送は重複→同D5異内容は拒否→attempt付替え503→記録後GET200/recorded、after/history/23flags/T2/PlayRowとDB保存を既対向で確認。共有DSN2変数unset、実owned3PG/実UIDapp・broker・単一artifactを使用。fixtureで用意した試合のAPI経路であり、画面新規作成の再実証とは区別する。
