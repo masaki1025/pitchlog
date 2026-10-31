@@ -191,3 +191,7 @@ source4は真正source資格/元D5/一回bridge・新ID固定、実T1/T2/差分V
 HTTP/Port core追加の採用（2026-10-31、PO委任によるCodex主担当判断）: 非作者追補REPORT5796e39b1ff6b70a99c1c60f9c454e78bcfc8cb69ad0ddf2dac06d4c1fdabe04と実core08108152…を照合。exact2path×3areaの6追加だけ、旧57/全field/順序不変、新指摘0で採用し1063ee45の2path編集も解禁する。
 
 PlayRunner物理row IDの安定化（同日、Codex主担当判断）: 新modeだけplay予約UUIDをnamespaceとし、正準base1..3の固定名からUUIDv5を私有frame内で生成・固定してよい。実際のname接頭辞/式はsource/pure対向へ固定する。runner本人/責任投手は真正実player/source由来のまま、物理IDを本人資格やsecretに使わない。tenant内PK/FK/全10列期待・私有印・同TXを維持し、同D5で再発番/付替えしない。旧v1のID発番は不変、他tenant同UUIDをglobal拒否へ拡大せず、衝突/不正参照は既閉拒否・全取消条件を保持する。
+
+旧初球原本の限定互換reader（2026-10-31、PO委任によるCodex主担当判断）: backend/src/pitchlog/repositories/recorded_snapshot.py exact1を追加許可。v2内部callerだけが有限compat witnessを要求するopt-inを使い、旧呼出しは不変。実event payloadのprior hash/source formatと実loaded execution hashの組をroot JSONへ照合し、単一current実数学の全request/response/全41列と元sourceを比較してからhash metadataだけ実旧値へ対応する。旧期待lookup/出力差替/自由digestの資格化/全hash許可は不可。sourceFormatは実旧形式に閉じ、first-ballはderiveState/deriveFirstPitchWithContinuation、ordinaryは既4口の証拠を要求する。存在しない旧公開口の互換性を一律宣言しない。
+
+GET再構築用readonly2field（同日、Codex主担当判断）: 新StartedPlayPrefixGameReadへprior_artifact_sha256とpa_start_sourceを実保存doc/初球payload/真正start原本から供給する。空sourceのpriorは実loaded hash、PA開始は真正game-start/gameIDまたは実保存play source。callerが推測せず再構築できるmetadataであり、権利/資格を発行せず旧DTOを変更しない。既許可schema/router path内で具体化する。
