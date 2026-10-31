@@ -274,3 +274,6 @@ step5の追加編集はfrontend/src/screens/GameScreenEntryProvider.tsと既.spe
 
 
 PR191のCI書式修復（2026-10-31、PO委任によるCodex /root判断）: run41164999052のbackendは全検査前のruff E501一件（既backend/tests/db/test_first_ball_projection_atomic.py232の生成child source行）で停止した。該当1行を括弧内で折り返すだけのexact1を通常修復として適用し、生成childの全ASTと対象literal以外の親全ASTが前後一致、backend全ruff成功を確認した。cache pr191-ci-triage-20261031/atomic-e501-format-proof.json。実行意味/SQL/期待/拒否/fixtureは不変で、同じDB試験やfrontend全件は反復しない。CI frontendはSUCCESS、harnessのrawpin登録/consistency BOOT/core委任/tenantのstacked base条件と親正式受理は別の未成立条件として残す。CI全成功や通常mergeを成立扱いにしない。
+
+
+次操作の契約起案（2026-10-31、PO委任によるCodex /root判断）: [三振・第3アウト子計画](../mvp-strikeout-pitches/plan.md)を別branch/WTで開始する。本BB/HBPの旧5段/レビュー/失敗/正式未成立を保持し、子計画は操作限定contract段だけを承認する。全T1/MVPの再計画・完了宣言ではない。
