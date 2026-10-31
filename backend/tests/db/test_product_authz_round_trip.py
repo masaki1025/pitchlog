@@ -13,7 +13,7 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from db_fixtures import (
-    _prepare_current_product_baseline,
+    _prepare_legacy_product_baseline,
     _product_migration_url,
     _product_role_ids,
     _snapshot_product_catalog,
@@ -83,6 +83,7 @@ def _snapshot(catalog: ProvisionedProductCatalog) -> ProductCatalogSnapshot:
         return _snapshot_product_catalog(
             catalog.observer,
             _product_role_ids(catalog.asset),
+            asset=catalog.asset,
         )
     finally:
         catalog.observer.rollback()
@@ -146,14 +147,14 @@ def _historical_round_trip_baseline(
             command.upgrade(config, "0033_game_rules_immutable")
             with psycopg.connect(applicator_dsn) as applicator:
                 assert applicator.info.dbname == database
-                _prepare_current_product_baseline(
+                _prepare_legacy_product_baseline(
                     cluster=cluster,
                     owner_dsn=owner_dsn,
                     applicator_dsn=applicator_dsn,
                     applicator=applicator,
                 )
                 return _snapshot_product_catalog(
-                    applicator, _product_role_ids(catalog.asset)
+                    applicator, _product_role_ids(catalog.asset), asset=catalog.asset
                 )
 
 
@@ -178,14 +179,14 @@ def test_second_application_converges_to_the_first_catalog(
 
 
 def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    legacy_initial_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
     ],
 ) -> None:
     """取り外し・migration 往復・再適用が各基準カタログへ戻る。"""
-    catalog = provisioned_product_catalog
+    catalog = legacy_initial_product_catalog
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
     first_report = _inspect(catalog, privileged_role_oid)
     first_snapshot = _snapshot(catalog)

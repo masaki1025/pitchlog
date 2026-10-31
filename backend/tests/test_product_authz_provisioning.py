@@ -125,70 +125,49 @@ _FIRST_BALL_CONTACT_SUFFIX = {
 
 
 @pytest.fixture
-def legacy_product_profile(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """公式投影の旧profileと実SQL assemblyで旧取り外し義務を検査する。"""
-    from dataclasses import replace
+def legacy_product_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> Iterator[None]:
+    """忠実な固定0036データを実公開適用器へ渡し、旧義務を検査する。"""
+    from product_authz_legacy_profile import legacy_profile_context
 
-    from pitchlog.authz.first_ball_product import legacy_asset
-
-    current = json.loads(
-        (_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text()
-    )
-    legacy = legacy_asset(current)
-    assert [len(legacy[k]) for k in ("roles", "schemas", "tables", "functions")] == [
-        14,
-        8,
-        50,
-        79,
-    ]
-    root = tmp_path / "legacy-profile"
-    asset_path = root / PRODUCT_SPEC.ddl_elements_path
-    asset_path.parent.mkdir(parents=True)
-    asset_path.write_text(json.dumps(legacy))
-    assert PRODUCT_SPEC.application_steps_path is not None
-    steps_path = root / PRODUCT_SPEC.application_steps_path
-    legacy_steps = json.loads(
-        (_REPOSITORY_ROOT / PRODUCT_SPEC.application_steps_path).read_text()
-    )
-    helper_step = next(
-        row for row in legacy_steps["application_steps"] if row["sequence"] == 3
-    )
-    assert helper_step["element_groups"].count("functions:invoker") == 1
-    helper_step["element_groups"].remove("functions:invoker")
-    steps_path.write_text(json.dumps(legacy_steps))
-    generated = product_provisioning.generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
-    keys = {
-        (section.element_type, row[section.id_field])
-        for section in PRODUCT_SPEC.element_sections
-        for row in legacy[section.section_name]
-    }
-    historical = []
-    for statement in generated:
-        if (statement.element_type, statement.element_id) not in keys:
-            continue
-        if (
-            statement.element_type in {"database", "schema"}
-            and statement.element_id in _LEGACY_CONTACT_SQL
-        ):
-            key = statement.element_id
-            assert (
-                statement.sql
-                == _LEGACY_CONTACT_SQL[key] + _FIRST_BALL_CONTACT_SUFFIX[key]
-            )
-            statement = replace(statement, sql=_LEGACY_CONTACT_SQL[key])
-        historical.append(statement)
-    assert {(s.element_type, s.element_id) for s in historical} == keys
-
-    def historical_generated(
-        requested_root: Path, spec: object
-    ) -> tuple[DDLStatement, ...]:
-        assert requested_root == root and spec == PRODUCT_SPEC
-        return tuple(historical)
-
-    monkeypatch.setattr(product_provisioning, "_REPOSITORY_ROOT", root)
-    monkeypatch.setattr(
-        product_provisioning, "generate_authz_ddl", historical_generated
-    )
+    with legacy_profile_context(monkeypatch, tmp_path / "legacy-profile") as root:
+        assert product_provisioning._REPOSITORY_ROOT == root
+        legacy = json.loads((root / PRODUCT_SPEC.ddl_elements_path).read_text())
+        assert [
+            len(legacy[k]) for k in ("roles", "schemas", "tables", "functions")
+        ] == [14, 8, 50, 79]
+        assert PRODUCT_SPEC.application_steps_path is not None
+        current_steps = json.loads(
+            (_REPOSITORY_ROOT / PRODUCT_SPEC.application_steps_path).read_text()
+        )
+        helper_step = next(
+            row for row in current_steps["application_steps"] if row["sequence"] == 3
+        )
+        assert helper_step["element_groups"].count("functions:invoker") == 1
+        keys = {
+            (section.element_type, row[section.id_field])
+            for section in PRODUCT_SPEC.element_sections
+            for row in legacy[section.section_name]
+        }
+        historical = product_provisioning.generate_authz_ddl(root, PRODUCT_SPEC)
+        generated = product_provisioning.generate_authz_ddl(
+            _REPOSITORY_ROOT, PRODUCT_SPEC
+        )
+        for statement in generated:
+            if (
+                statement.element_type in {"database", "schema"}
+                and statement.element_id in _LEGACY_CONTACT_SQL
+            ):
+                key = statement.element_id
+                assert (
+                    statement.sql
+                    == _LEGACY_CONTACT_SQL[key] + _FIRST_BALL_CONTACT_SUFFIX[key]
+                )
+        assert {
+            (statement.element_type, statement.element_id) for statement in historical
+        } == keys
+        yield
 
 
 _EXPECTED_DEFERRED_FIRST_BALL_IDS = frozenset(
@@ -2041,3 +2020,387 @@ def test_current_profile_unapply_rejects_before_sql_generation_and_execution(
     assert connection.executed_statements == []
     assert connection.identity_query_count == 0
     assert connection.commit_count == connection.rollback_count == 0
+
+
+def test_common_legacy_materializer_preserves_fixed_all_sections_and_sql(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """全JSON/380SQL/stepsを固定Gitへ照合し、現公開readerへ渡す。"""
+    import hashlib
+    import subprocess
+
+    from product_authz_legacy_profile import (
+        legacy_profile_context,
+        legacy_profile_metadata,
+        verify_legacy_migration_sources,
+    )
+
+    from pitchlog.authz import product_catalog
+
+    metadata = legacy_profile_metadata()
+    assert (
+        metadata["revision"]
+        == subprocess.check_output(
+            ["git", "rev-parse", "c2e5e4dd"], cwd=_REPOSITORY_ROOT, text=True
+        ).strip()
+    )
+    verify_legacy_migration_sources()
+    original_root = product_provisioning._REPOSITORY_ROOT
+    with legacy_profile_context(monkeypatch, tmp_path / "fixed-profile") as root:
+        for row in metadata["files"]:
+            data = (root / row["path"]).read_bytes()
+            assert hashlib.sha256(data).hexdigest() == row["sha256"]
+            assert data == subprocess.check_output(
+                ["git", "show", f"{metadata['revision']}:{row['path']}"],
+                cwd=_REPOSITORY_ROOT,
+            )
+        generated = product_provisioning.generate_authz_ddl(root, PRODUCT_SPEC)
+        assert len(generated) == 380
+        expected = product_catalog._load_product_expectations()
+        assert len(expected.table_names) == 50
+        assert len(expected.role_ids) == 14
+        assert len(expected.schema_names) == 8
+        assert len(expected.functions) == 79
+        # 固定成功へ置換せず、公開適用器の実SQL構築で旧両操作を検証する。
+        for operation in ProductOperation:
+            steps, statements = product_provisioning._build_operation_statements(
+                operation
+            )
+            assert steps.transaction == "single"
+            assert statements
+    assert product_provisioning._REPOSITORY_ROOT == original_root
+
+
+@pytest.mark.parametrize(
+    "mutation", ("unknown", "duplicate", "bool-version", "traversal", "digest")
+)
+def test_legacy_metadata_is_closed_and_has_no_current_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mutation: str,
+) -> None:
+    """固定metadataの未知field・重複・型・path・hashを閉拒否する。"""
+    import product_authz_legacy_profile as legacy
+
+    metadata = legacy.legacy_profile_metadata()
+    if mutation == "unknown":
+        metadata["unexpected"] = True
+    elif mutation == "duplicate":
+        metadata["files"].append(dict(metadata["files"][0]))
+    elif mutation == "bool-version":
+        metadata["schema_version"] = True
+    elif mutation == "traversal":
+        metadata["files"][0]["path"] = "../forbidden"
+    else:
+        metadata["files"][0]["sha256"] = "invalid"
+    fixture = tmp_path / "metadata.json"
+    fixture.write_text(json.dumps(metadata))
+    monkeypatch.setattr(legacy, "_FIXTURE", fixture)
+    with pytest.raises(ValueError):
+        legacy.legacy_profile_metadata()
+
+
+def test_legacy_reader_rejects_unknown_path_and_wrong_blob(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未知pathと不一致blobを現sourceへfallbackせず拒否する。"""
+    import product_authz_legacy_profile as legacy
+
+    with pytest.raises(ValueError, match="未登録"):
+        legacy.legacy_file("unknown")
+    monkeypatch.setattr(
+        legacy.subprocess, "check_output", lambda *args, **kwargs: b"wrong"
+    )
+    with pytest.raises(ValueError, match="hash"):
+        legacy.legacy_file("contracts/authz/product/ddl-elements.json")
+
+
+def test_current_and_legacy_owned_baselines_do_not_forge_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """current実stage入口と旧0036の独立した段階順を保持する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    import db_fixtures
+
+    trace = []
+    revision = "0038_first_ball_write_admission"
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(
+            execute=lambda query: trace.append("marker"), fetchall=lambda: [(revision,)]
+        )
+
+    connection = cast(
+        psycopg.Connection[Any],
+        SimpleNamespace(cursor=cursor, rollback=lambda: trace.append("rollback")),
+    )
+    monkeypatch.setattr(
+        db_fixtures,
+        "_close_owned_seed_database_access",
+        lambda cluster: trace.append("close"),
+    )
+
+    def advance(**kwargs):
+        trace.append("real-stage-entry")
+        assert kwargs == {
+            "owner_dsn": "synthetic-owner",
+            "applicator_dsn": "synthetic-applicator",
+        }
+        return SimpleNamespace(completed_stage="S3", publishable=False)
+
+    monkeypatch.setattr(db_fixtures, "advance_stage_a_from_s0", advance)
+    monkeypatch.setattr(
+        db_fixtures,
+        "unapply_product_authz_ddl",
+        lambda conn: pytest.fail("current unapply"),
+    )
+    cluster = db_fixtures.DisposablePostgres(
+        "synthetic-cluster", "synthetic-admin", "synthetic-role"
+    )
+    db_fixtures._prepare_current_product_baseline(
+        cluster=cluster,
+        owner_dsn="synthetic-owner",
+        applicator_dsn="synthetic-applicator",
+        applicator=connection,
+    )
+    assert trace == ["close", "real-stage-entry", "marker", "rollback"]
+    revision = "0036_initial_right_storage"
+    with pytest.raises(AssertionError):
+        db_fixtures._prepare_current_product_baseline(
+            cluster=cluster,
+            owner_dsn="synthetic-owner",
+            applicator_dsn="synthetic-applicator",
+            applicator=connection,
+        )
+    trace.clear()
+    monkeypatch.setattr(
+        db_fixtures, "verify_legacy_migration_sources", lambda: trace.append("source")
+    )
+    monkeypatch.setattr(
+        db_fixtures,
+        "apply_product_authz_before_rule_placement",
+        lambda conn: trace.append("pre-rule"),
+    )
+    monkeypatch.setattr(
+        db_fixtures.command, "upgrade", lambda config, target: trace.append(target)
+    )
+    monkeypatch.setattr(
+        db_fixtures, "apply_product_authz_ddl", lambda conn: trace.append("apply")
+    )
+    monkeypatch.setattr(
+        db_fixtures, "unapply_product_authz_ddl", lambda conn: trace.append("unapply")
+    )
+    db_fixtures._prepare_legacy_product_baseline(
+        cluster=cluster,
+        owner_dsn="synthetic-owner",
+        applicator_dsn="synthetic-applicator",
+        applicator=connection,
+    )
+    assert trace == [
+        "source",
+        "close",
+        "pre-rule",
+        "0036_initial_right_storage",
+        "marker",
+        "rollback",
+        "apply",
+        "unapply",
+    ]
+
+
+def test_product_snapshot_uses_closed_current_schema_and_private_tables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """公開全行を保つsnapshotのschema/私有3母集合だけを有限追加する。"""
+    import copy
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    import db_fixtures
+
+    captured = []
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace()
+
+    connection = cast(Any, SimpleNamespace(cursor=cursor))
+    monkeypatch.setattr(
+        db_fixtures,
+        "_fetch_snapshot_rows",
+        lambda cursor, query, params=(): captured.append((query, params)) or (),
+    )
+    asset = json.loads((_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text())
+    db_fixtures._snapshot_product_catalog(connection, (), asset=asset)
+    schema_queries = [(q, p) for q, p in captured if "namespace.nspname = ANY(%s)" in q]
+    private_queries = [(q, p) for q, p in captured if "relation.relname = ANY(%s)" in q]
+    assert len(schema_queries) == 5
+    assert len(private_queries) == 4
+    assert all(
+        set(p[0]) == {r["schema_name"] for r in asset["schemas"]}
+        for _, p in schema_queries
+    )
+    assert all(
+        set(p[0])
+        == {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+        for _, p in private_queries
+    )
+    assert all("namespace.nspname = 'public'" in q for q, _ in private_queries)
+    builtin_queries = [
+        (q, params) for q, params in captured if "procedure.pronargs = 0" in q
+    ]
+    assert len(builtin_queries) == 1
+    query, params = builtin_queries[0]
+    assert "namespace.nspname = 'pg_catalog'" in query
+    assert params[1] == ["pg_control_system"]
+    assert "privilege.privilege_type, privilege.is_grantable" in query
+    for mutate in (
+        "schema",
+        "table",
+        "duplicate",
+        "builtin",
+        "builtin-signature",
+        "builtin-missing",
+    ):
+        bad = copy.deepcopy(asset)
+        if mutate == "schema":
+            bad["schemas"][0]["schema_name"] = "unknown"
+        elif mutate == "table":
+            next(row for row in bad["tables"] if row["table_id"] == "writer_bindings")[
+                "schema_name"
+            ] = "unknown"
+        elif mutate.startswith("builtin"):
+            row = next(
+                r
+                for r in bad["acl_expectations"]
+                if r["object_kind"] == "builtin_function"
+            )
+            if mutate == "builtin":
+                row["object_id"] = "unknown"
+            elif mutate == "builtin-signature":
+                row["acl_id"] = row["acl_id"].replace("()", "(uuid)")
+            else:
+                bad["acl_expectations"].remove(row)
+        else:
+            bad["schemas"].append(copy.deepcopy(bad["schemas"][0]))
+        before = len(captured)
+        with pytest.raises(AssertionError, match="閉集合|builtin exact"):
+            db_fixtures._snapshot_product_catalog(connection, (), asset=bad)
+        assert len(captured) == before
+
+
+def test_legacy_materializer_rejects_live_or_stale_destination(tmp_path: Path) -> None:
+    """実repository上書きと既存dataによる不足補完を拒否する。"""
+    from product_authz_legacy_profile import materialize_legacy_profile
+
+    with pytest.raises(ValueError, match="repository外"):
+        materialize_legacy_profile(_REPOSITORY_ROOT)
+    (tmp_path / "stale").write_text("not a source")
+    with pytest.raises(ValueError, match="fallback"):
+        materialize_legacy_profile(tmp_path)
+
+
+@pytest.mark.parametrize("selection", ("unknown", "mixed-root", "legacy-with-current"))
+def test_owned_profile_selection_rejects_unknown_or_mixed_context(
+    selection: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """未知profileや新旧root混在をowned cluster生成前に拒否する。"""
+    import db_fixtures
+
+    legacy = (
+        cast(Any, "unknown")
+        if selection == "unknown"
+        else selection == "legacy-with-current"
+    )
+    root = tmp_path if selection == "mixed-root" else _REPOSITORY_ROOT
+
+    def factory():
+        pytest.fail("不正選択がcluster生成へ到達")
+
+    with pytest.raises(ValueError):
+        with db_fixtures._owned_product_catalog(
+            factory, monkeypatch, legacy=legacy, profile_root=root
+        ):
+            pytest.fail("不正profileを供給")
+
+
+def test_current_sync_roles_have_strict_all_attribute_collision_sql() -> None:
+    """新3主体をskipせず専用21対向へ分類する正式SQL根拠を照合する。"""
+    from db.test_product_authz_provisioning import (
+        _ROLE_ATTRIBUTES,
+        _SYNC_COLLISION_ROLES,
+    )
+
+    assert set(_SYNC_COLLISION_ROLES) == {
+        "pitchlog_sync_binding_fn_owner",
+        "pitchlog_sync_binding_actor",
+        "pitchlog_sync_right_fn_owner",
+    }
+    assert len(_ROLE_ATTRIBUTES) == 7
+    statements = product_provisioning.generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
+    roles = {
+        row["role_id"]: row
+        for row in json.loads(
+            (_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text()
+        )["roles"]
+    }
+    for role_id in _SYNC_COLLISION_ROLES:
+        sql = next(
+            row.sql
+            for row in statements
+            if row.element_type == "role" and row.element_id == role_id
+        )
+        assert f"sync role collision: {role_id}" in sql
+        assert "ALTER ROLE" not in sql
+        for attribute, column in _ROLE_ATTRIBUTES:
+            guard = (
+                f"r.{column} IS {'TRUE' if roles[role_id][attribute] else 'FALSE'}"
+                if attribute == "login"
+                else f"NOT r.{column}"
+            )
+            assert guard in sql
+
+
+def test_legacy_snapshot_keeps_old_builtin_targets_and_excludes_private_tables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧profileのbuiltin2宣言も観測し、current私有表を混ぜない。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    import db_fixtures
+    from product_authz_legacy_profile import legacy_file
+
+    captured = []
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace()
+
+    monkeypatch.setattr(
+        db_fixtures,
+        "_fetch_snapshot_rows",
+        lambda cursor, query, params=(): captured.append((query, params)) or (),
+    )
+    asset = json.loads(legacy_file("contracts/authz/product/ddl-elements.json"))
+    db_fixtures._snapshot_product_catalog(
+        cast(Any, SimpleNamespace(cursor=cursor)),
+        (),
+        asset=asset,
+    )
+    builtins = [
+        (query, params)
+        for query, params in captured
+        if "procedure.pronargs = 0" in query
+    ]
+    assert len(builtins) == 1 and builtins[0][1][1] == ["pg_control_system"]
+    private = [
+        params for query, params in captured if "relation.relname = ANY(%s)" in query
+    ]
+    assert len(private) == 4 and all(params == ([],) for params in private)

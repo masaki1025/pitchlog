@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any, cast
+from typing import Any, LiteralString, cast
 
 import psycopg
 import pytest
@@ -38,6 +38,13 @@ _LIFECYCLE_COLLISION_ROLES = (
     "pitchlog_initial_actor",
     "pitchlog_initial_fn_owner",
     "pitchlog_initial_auth_verifier",
+)
+
+
+_SYNC_COLLISION_ROLES = (
+    "pitchlog_sync_binding_fn_owner",
+    "pitchlog_sync_binding_actor",
+    "pitchlog_sync_right_fn_owner",
 )
 
 
@@ -325,7 +332,7 @@ def test_product_fixture_migrates_as_owner_then_applies_as_external_superuser(
         str(row[0]): tuple(bool(value) for value in row[1:])
         for row in catalog.pre_application_catalog.roles
     }
-    assert pre_roles == {"pitchlog_owner": expected["pitchlog_owner"]}
+    assert pre_roles == expected
     assert _role_rows(catalog.observer, role_ids) == expected
 
 
@@ -335,7 +342,11 @@ def test_reapplication_normalizes_all_seven_role_attributes(
     """正規化対象の全roleは7属性を戻し、固定衝突拒否roleは変えない。"""
     catalog = provisioned_product_catalog
     roles = _asset_roles(catalog)
-    collision_roles = {*_LIFECYCLE_COLLISION_ROLES, "pitchlog_rule_resolution_fn_owner"}
+    collision_roles = {
+        *_LIFECYCLE_COLLISION_ROLES,
+        "pitchlog_rule_resolution_fn_owner",
+        *_SYNC_COLLISION_ROLES,
+    }
     assert collision_roles <= set(roles)
     positive_tokens = {
         "superuser": sql.SQL("SUPERUSER"),
@@ -463,3 +474,93 @@ def test_all_connection_preconditions_leave_observed_catalog_unchanged(
             app_connection,
             "pitchlog_app",
         )
+
+
+def test_legacy_initial_fixture_retains_owner_only_fresh_role_baseline(
+    legacy_initial_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """旧0036未適用のowner-onlyと、適用後の全role7属性を保持する。"""
+    catalog = legacy_initial_product_catalog
+    expected = _expected_role_rows(catalog)
+    pre_roles = {
+        str(row[0]): tuple(bool(value) for value in row[1:])
+        for row in catalog.pre_application_catalog.roles
+    }
+    assert pre_roles == {"pitchlog_owner": expected["pitchlog_owner"]}
+    assert _role_rows(catalog.observer, tuple(expected)) == expected
+
+
+@pytest.mark.parametrize("role_id", _SYNC_COLLISION_ROLES)
+@pytest.mark.parametrize("attribute,column", _ROLE_ATTRIBUTES)
+def test_sync_role_all_seven_attribute_collisions_are_rejected_and_rolled_back(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    role_id: str,
+    attribute: str,
+    column: str,
+) -> None:
+    """新3主体の全7属性は正規SQLが衝突拒否し、catalog全体を取消す。"""
+    catalog = provisioned_product_catalog
+    roles = _asset_roles(catalog)
+    role_sql = next(
+        statement.sql
+        for statement in catalog.statements
+        if statement.element_type == "role" and statement.element_id == role_id
+    )
+    assert f"sync role collision: {role_id}" in role_sql
+    expected_guard = (
+        f"r.{column} IS {'TRUE' if roles[role_id][attribute] else 'FALSE'}"
+        if attribute == "login"
+        else f"NOT r.{column}"
+    )
+    assert expected_guard in role_sql
+    assert "ALTER ROLE" not in role_sql
+    schema_rows = catalog.asset["schemas"]
+    assert isinstance(schema_rows, list)
+    schema_names = tuple(row["schema_name"] for row in schema_rows)
+    role_ids = tuple(roles)
+    pristine = _catalog_fingerprint(catalog.observer, role_ids, schema_names)
+    positive: dict[str, LiteralString] = {
+        "superuser": "SUPERUSER",
+        "bypass_rls": "BYPASSRLS",
+        "login": "LOGIN",
+        "create_role": "CREATEROLE",
+        "create_db": "CREATEDB",
+        "replication": "REPLICATION",
+        "inherit": "INHERIT",
+    }
+    negative: dict[str, LiteralString] = {
+        "superuser": "NOSUPERUSER",
+        "bypass_rls": "NOBYPASSRLS",
+        "login": "NOLOGIN",
+        "create_role": "NOCREATEROLE",
+        "create_db": "NOCREATEDB",
+        "replication": "NOREPLICATION",
+        "inherit": "NOINHERIT",
+    }
+    expected = bool(roles[role_id][attribute])
+    changed_token = negative[attribute] if expected else positive[attribute]
+    original_token = positive[attribute] if expected else negative[attribute]
+    try:
+        catalog.applicator.execute(
+            sql.SQL("ALTER ROLE {} ").format(sql.Identifier(role_id))
+            + sql.SQL(changed_token)
+        )
+        catalog.applicator.commit()
+        contaminated = _catalog_fingerprint(catalog.observer, role_ids, schema_names)
+        assert contaminated != pristine
+        with pytest.raises(psycopg.errors.RaiseException, match="sync role collision"):
+            apply_product_authz_ddl(catalog.applicator)
+        assert catalog.applicator.info.transaction_status is pq.TransactionStatus.IDLE
+        assert (
+            _catalog_fingerprint(catalog.observer, role_ids, schema_names)
+            == contaminated
+        )
+    finally:
+        catalog.applicator.rollback()
+        catalog.applicator.execute(
+            sql.SQL("ALTER ROLE {} ").format(sql.Identifier(role_id))
+            + sql.SQL(original_token)
+        )
+        catalog.applicator.commit()
+    assert _catalog_fingerprint(catalog.observer, role_ids, schema_names) == pristine
+    assert _role_rows(catalog.observer, tuple(roles)) == _expected_role_rows(catalog)
