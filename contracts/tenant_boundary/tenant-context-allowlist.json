@@ -101,5 +101,5 @@
   "allowed_product_modules": [
     "pitchlog.repositories.tenant_context_issuance"
   ],
-  "source_digest": "15cfd6f2dc2c1b3893cbd57d0570d28ab2b7e6a7f3ab167fa776a05b6a1c3db2"
+  "source_digest": "b27b87f3c39e4e897e2d377bdbc6a577fbb6c8fe22e23a32d0148bac2bf500bc"
 }
