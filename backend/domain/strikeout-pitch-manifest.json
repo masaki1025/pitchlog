@@ -1,0 +1,86 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/strikeout-pitch-property-catalog.json",
+    "schema": "backend/domain/strikeout-pitch-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "regular-caught-strikeout-v1",
+      "source": {
+        "path": "frontend/src/domain/state.ts",
+        "provenance": "NFR-018 (b)② 差分の検出可能性"
+      },
+      "generated": [
+        {
+          "generatedId": "strikeoutPitchArtifact",
+          "path": "frontend/public/domain/pitchlog-domain.js",
+          "artifactKind": "js-artifact"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "strikeoutPitchPublic",
+          "module": "frontend/src/domain/publicApi.ts",
+          "symbol": "domainOperations.deriveStrikeoutPitch",
+          "adapter": "frontend/src/domain/publicApi.ts"
+        },
+        {
+          "entrypointId": "strikeoutPitchServer",
+          "module": "backend/src/pitchlog/domainrt/strikeout_pitch.py",
+          "symbol": "evaluate_strikeout_pitch",
+          "adapter": "backend/src/pitchlog/domainrt/strikeout_pitch.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "strikeoutPitchDirect",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "strikeoutPitchArtifact",
+          "hash": "sha256:4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domainrt/host.py",
+            "operation": "deriveStrikeoutPitch"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "strikeoutPitchVectors",
+          "calculation": "regular-caught-strikeout-v1",
+          "path": "contracts/state-transition/strikeout_pitch_d11_vectors_v1.json",
+          "runner": "pytest",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "strikeoutHostParity",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domainrt/test_strikeout_pitch.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "strikeoutPitchMutations",
+          "target": "frontend/src/domain/state.ts",
+          "operators": [
+            "retain-outgoing-batting-order",
+            "replace-incoming-batting-order",
+            "remove-third-out-half-change",
+            "retain-third-out-runners",
+            "toggle-strikeout-stat-flag"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": []
+}

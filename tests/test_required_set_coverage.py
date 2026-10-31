@@ -2511,6 +2511,8 @@ def test_historical_coverage_copy_rejects_live_only_vector_contamination(
 # 無走者BB/HBPは旧116→117移行の外側にある閉じた15例だけを追加する。
 def test_terminal_extension_keeps_the_exact_old_117_and_twelve_migrations() -> None:
     contract = _asset("state_transition_contract_v1.json")
+    strikeout_ids = checker._strikeout_case_extension(_LIVE_ROOT, contract)
+    contract["cases"] = [case for case in contract["cases"] if case["caseId"] not in strikeout_ids]
     extension = checker._terminal_case_extension(_LIVE_ROOT, contract)
     assert len(extension) == 15
     assert len(contract["cases"]) == 132
@@ -2685,3 +2687,138 @@ def test_terminal_reachability_does_not_authorize_ended_per_pitch_input() -> Non
     terminal["historyInput"]["before"]["stateFields"]["state.gameEnded"] = True
     with pytest.raises(checker.RequiredSetCoverageError):
         checker._terminal_case_extension(_LIVE_ROOT, contract)
+
+
+def test_strikeout_twenty_four_are_a_closed_union_after_ordinary_and_terminal() -> None:
+    """旧117+terminal15をそのまま保持し、SO24だけを厳密に追加する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    identifiers = checker._strikeout_case_extension(_LIVE_ROOT, contract)
+    assert identifiers == {f"ST-STRIKEOUT-{kind}-B{balls}-O{outs}"
+                           for kind in (1, 2) for balls in range(4) for outs in range(3)}
+    assert len(checker._terminal_case_extension(_LIVE_ROOT, contract)) == 15
+    assert len(checker._ordinary_case_id_migrations(_LIVE_ROOT, contract)) == 12
+    assert len(contract["cases"]) == 117 + 15 + 24
+
+
+def test_strikeout_row_requirements_keep_original_scope_and_five_missing() -> None:
+    """新16区分だけを追加し、旧範囲・未充足を縮めずloadedを明示変換する。"""
+    contract = _asset("state_transition_contract_v1.json")
+    declaration = _asset("required_set_coverage_declaration_v1.json")
+    rules = _asset("required_set_row_rules_v1.json")
+    old = json.loads(subprocess.check_output(
+        ["git", "show", "7646daab:contracts/state-transition/state_transition_contract_v1.json"],
+        cwd=_LIVE_ROOT,
+    ))
+    original_declaration = json.loads(subprocess.check_output(
+        ["git", "show", "7646daab:contracts/state-transition/"
+         "required_set_coverage_declaration_v1.json"],
+        cwd=_LIVE_ROOT,
+    ))
+    assert old["matrixRows"] == contract["matrixRows"][:51]
+    assert old["cases"] == contract["cases"][:132]
+    assert declaration["uncoveredRowRequirements"] == (
+        original_declaration["uncoveredRowRequirements"]
+    )
+    assert len(declaration["uncoveredRowRequirements"]) == 5
+    assert declaration["rowPartitionObservations"][:11] == (
+        original_declaration["rowPartitionObservations"]
+    )
+    assert declaration["rowPartitionRefinements"] == original_declaration["rowPartitionRefinements"]
+    assert checker.check_row_requirements(_LIVE_ROOT, contract) == (72, 67, 0)
+    assert checker.check_input_coverage_exact(_LIVE_ROOT, contract) == (228, 51, 0)
+    identity = next(rule for rule in rules["partitionRules"]
+                    if rule["partitionRuleId"] == "identity")
+    additions = identity["additionalPartitions"][-2:]
+    assert len(additions) == 2
+    assert all(len(item["partitions"]) == 8 for item in additions)
+    rows = [row for row in contract["matrixRows"]
+            if row["resultId"] in {
+                "batting-result.called-strikeout", "batting-result.swinging-strikeout",
+            }]
+    observed = [checker._observed_partition(row, declaration["rowPartitionObservations"])
+                for row in rows]
+    assert len(set(observed)) == len(observed) == 18
+    assert sum(identity[2] == "identity" for identity in observed) == 2
+    source = _asset("strikeout_pitch_cases_v1.json")
+    assert source["runnerProjection"]["formalToWire"]["loaded"] == "first-second-third"
+    assert len(set(source["runnerProjection"]["formalToWire"].values())) == 8
+
+
+@pytest.mark.parametrize("change", (
+    "unknown-addition", "missing-old", "old-expectation", "missing-so", "duplicate-so",
+    "unknown-so-id", "wrong-row", "wrong-scope", "free-field", "old-mapping-replacement",
+))
+def test_strikeout_union_rejects_unknown_missing_or_replaced_old_cases(
+    change: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contract = _asset("state_transition_contract_v1.json")
+    candidate = next(case for case in contract["cases"] if case["caseId"] == "ST-STRIKEOUT-1-B0-O0")
+    if change == "unknown-addition":
+        extra = copy.deepcopy(candidate)
+        extra["caseId"] = "ST-FREE-ADDITION"
+        contract["cases"].append(extra)
+    elif change == "missing-old":
+        contract["cases"].pop(0)
+    elif change == "old-expectation":
+        contract["cases"][0]["expected"]["plateAppearanceEnded"] = True
+    elif change == "missing-so":
+        contract["cases"].remove(candidate)
+    elif change == "duplicate-so":
+        contract["cases"].append(copy.deepcopy(candidate))
+    elif change == "unknown-so-id":
+        candidate["caseId"] = "ST-STRIKEOUT-3-B0-O0"
+    elif change == "wrong-row":
+        candidate["rowRef"] = copy.deepcopy(contract["cases"][0]["rowRef"])
+    elif change == "wrong-scope":
+        candidate["historyInput"]["before"]["stateFields"]["state.outs"] = 3
+    elif change == "free-field":
+        candidate["free"] = True
+    else:
+        original = checker._document
+        asset = _asset("ordinary_pitch_vectors_v1.json")
+        values = list(asset["caseIdMigrations"]["caseIds"])
+        asset["caseIdMigrations"]["caseIds"][values[0]] = "ST-FREE-REPLACEMENT"
+        monkeypatch.setattr(checker, "_document", lambda root, name: (
+            asset if name == "ordinary_pitch_vectors_v1.json" else original(root, name)
+        ))
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker._ordinary_case_id_migrations(_LIVE_ROOT, contract)
+
+
+@pytest.mark.parametrize("change", (
+    "scope", "flag-number", "cursor", "history-cursor",
+    "wire-loaded", "projection", "schema-domain",
+))
+def test_strikeout_canonical_asset_and_formal_simultaneous_mutation_is_rejected(
+    change: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """自己申告の正準期待と正式caseを一緒に変えても閉規範を上書きしない。"""
+    contract = _asset("state_transition_contract_v1.json")
+    asset = _asset("strikeout_pitch_cases_v1.json")
+    schema = _asset("strikeout_pitch_schema_v1.json")
+    source = asset["cases"][0]
+    formal = next(case for case in contract["cases"] if case["caseId"] == source["formalCaseId"])
+    if change == "scope":
+        source["request"]["before"]["stateFields"]["state.outs"] = "3"
+        formal["historyInput"]["before"]["stateFields"]["state.outs"] = 3
+    elif change == "flag-number":
+        source["expected"]["value"]["statFlags"]["投球回算入アウト"] = 1
+        formal["expected"]["statFlags"]["投球回算入アウト"] = 1
+    elif change == "cursor":
+        source["request"]["before"]["battingOrderBySide"]["home"] = "8"
+        formal["historyInput"]["before"]["battingOrderBySide"]["home"] = 8
+    elif change == "history-cursor":
+        del source["expected"]["value"]["historyContext"][0]["difference"]["battingOrderBySide"]
+    elif change == "wire-loaded":
+        asset["cases"][7]["request"]["before"]["stateFields"]["state.runners"] = "loaded"
+    elif change == "projection":
+        asset["runnerProjection"]["formalToWire"]["loaded"] = "loaded"
+    else:
+        schema["$defs"]["BattingOrderBySide"]["properties"]["home"]["enum"] = ["1"]
+    original = checker._document
+    monkeypatch.setattr(checker, "_document", lambda root, name: (
+        asset if name == "strikeout_pitch_cases_v1.json" else
+        schema if name == "strikeout_pitch_schema_v1.json" else original(root, name)
+    ))
+    with pytest.raises(checker.RequiredSetCoverageError):
+        checker._strikeout_case_extension(_LIVE_ROOT, contract)
