@@ -186,6 +186,8 @@ def copy_product_test_repository(
     for relative_path in (
         Path("backend/tests/conftest.py"),
         Path("backend/tests/test_authz_runtime_contract_repository.py"),
+        Path("backend/tests/test_schema_manifest.py"),
+        Path("backend/tests/type_boundary_contract.py"),
         *PRODUCT_STATE_TEST_FILES,
     ):
         target = destination_root / relative_path
