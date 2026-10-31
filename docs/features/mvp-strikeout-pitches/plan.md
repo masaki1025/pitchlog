@@ -137,3 +137,6 @@ DB読取・lock・真正sourceの実供給/bridge一回consume・SQL/ACL/token�
 
 
 ステップ3前半の新閉ABI採用（2026-10-31、PO委任によるCodex /root判断）: r2 files869a5688…全新6byteと非作者REPORT24e690e4…を照合し採用。全34full/旧SO24数学不変/真正started手順10/明示wire32field、102schema/782flag型拒否/1088wire変異/272request拒否/strict型を確認。DHtrueで投手が打順1と重なるP1は実BFB名簿核の旧拒否→9打順外の投手ID修復後受理で閉鎖。before/after参加者/責任/roster-layout/wire依存だけ機械追随しT1/T2/history全34不変。他の型指摘は旧Participantsが既catcher必須4欄と判明して誤認撤回、変更0。作者初稿/失敗/撤回を保全、回数reset0。root-shape-approval.json SHA14c58617d53563db9d3496d7e3f31c56fab19ebf3749f624910322d21f93131dへ実判断対象/日時/根拠を記録。これは契約shapeの採用であり、新公開口・T2全6outcome/実source/DB/UI・P6blind/7.7の成立ではない。次に前節の有限source/host/T2一般化を実装する。新artifactのcurrent実行SHA/wire自己echo/旧保存互換は実build後にrootが再導出する。旧v2 ABI・検知終了/宣言分離・未供給TB次投球拒否を保持する。
+
+
+ステップ3唯一核の不可分exact1追補（2026-10-31、PO委任によるCodex /root判断）: frontend/src/domain/state.tsを作者許可へ追加する。既applyCountRuleだけが両cursor更新を持ち、旧ordinary/terminal公開口は旧Snapshot shapeのためcursorを受けない。新内部deriveLineupPitchで既scope判定を共有し、同applyCountRuleを一回だけ呼んで新v3の両cursorを得る。publicApi/Pythonへcursor算式を複製しない。旧export・旧scope/拒否・旧ABI/返値/全ベクタを保持、新たな載塁BB等の未実装操作を成功へ拡張しない。stateRules/stateTypesの無関係変更は許可しない。最終source差分と一回計算/旧全値不変の独立レビューへ含める。
