@@ -186,3 +186,10 @@ localは旧14か固定18の閉policyモードで同じ数学を検証しTECHNICA
 
 
 手動入口の実環境追随（2026-11-01、PO委任によるCodex主担当判断）: 同featureのmanual-check.mdのみを現統合WT/SSD tmpへ更新し、旧54b83002の実証を歴史証拠として保持する。既検証専用自己署名の期限切れと、既ignoreHTTPSErrorsによる隔離技術検証を信頼済み運用TLS/実機から区別し、新鍵/新秘密の発行許可を推定しない。新しい最終HEADでの実測証拠は主担当台帳/cacheへ記録し、文書更新で事後的に実測HEADを変えない。
+
+
+実PG回帰の限定是正（2026-11-01、PO委任によるCodex主担当判断）: source-freeze4b548194…でcurrent/schema2成功9.95秒、別scope回帰47成功/10失敗313.25秒。9件はother_profilesの旧直接seedが新first-ball guardへ拒否される正しい製品動作、1件は旧0036別cluster往復のbuiltin ACL比較へランダムbootstrap管理者名が追加されたことによる環境座標差。既source8を再利用し、backend/tests/db/test_product_authz_other_profiles.pyを追加exact1として、必要なdb_fixtures.py・db/test_product_authz_round_trip.py・既pure test_product_authz_provisioning.py内だけを修復する。
+
+ガード/trigger/role権限/実validationを無効化せず、旧public32/全seed tupleをowned環境の正規0036後・writer guard配置前へ供給してから実0038/S3を完走する準備順へ変更する。実advanceS0を成功応答へ置換せず、旧データを準備したACL試験であることを明記し新規画面保存の証拠にはしない。専用owned fixture/hookを使う場合は外部供給を拒否し、元共通外部分岐は不変。seed先/実revision/所有DBを明示照合し、既ガード下の直接投入を許可しない。
+
+別cluster比較はpg_control_system()の実ownerと各owned clusterのbootstrap管理者が一致しsuperuserであることを実照合した、その1identityだけを明示対応付けする。PUBLIC/pg_monitor/他grantee/privilege/grantable/全ACL行・重複を保持し、同cluster A/B/Cは生値で比較する。builtin ACLをsnapshotから削らず、未知role/不一致から期待値を緩めない。全10失敗/旧成功logを保全し、必要な純対向と実PGの同scope再検証/非作者差分確認を行う。新PO意味裁定/製品source変更/共有DB適用は不要。
