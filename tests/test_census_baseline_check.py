@@ -2462,7 +2462,11 @@ def _validated_pure_fingerprint_decrements(
         "symbol": "pitchlog.sync.idempotency.source_fingerprint",
         "source_sha256": "a41df2351661e4f61811912e64ae5ad946e8641f8ded6a0ffaac1f6f5d19de43",
     }
-    assert dict(callee) == expected_callee, "純粋helperの対象版が不一致"
+    validated_callee = {
+        key: _string(callee.get(key), f"pure_helper_references.callee.{key}")
+        for key in ("path", "symbol", "source_sha256")
+    }
+    assert validated_callee == expected_callee, "純粋helperの対象版が不一致"
     expected_sites = {
         ("pitchlog/repositories/game_start.py", 187, 187,
          "pitchlog.repositories.game_start.BoundInitialStartPayload.__post_init__",
@@ -2487,7 +2491,7 @@ def _validated_pure_fingerprint_decrements(
     assert len(sites) == len(set(sites)) == len(expected_sites)
     assert set(sites) == expected_sites, "純粋helper参照の有限集合が不一致"
     _string(value.get("reason"), "pure_helper_references.reason")
-    pinned_sources = {(expected_callee["path"], expected_callee["source_sha256"])} | {
+    pinned_sources = {(validated_callee["path"], validated_callee["source_sha256"])} | {
         (path, digest) for path, _, _, _, digest in expected_sites
     }
     if any(
@@ -2499,7 +2503,7 @@ def _validated_pure_fingerprint_decrements(
     # 全source pinはimport・scope・呼出式・真正照合・pure helper閉包を含む。
     # 別scope/別callee/DB API/原本照合欠落を現出力の差だけで免除しない。
     return frozenset(
-        (path, line, end_line, scope, "TB002", expected_callee["symbol"],
+        (path, line, end_line, scope, "TB002", validated_callee["symbol"],
          "条件 2 の禁止シンボルを検出")
         for path, line, end_line, scope, _ in expected_sites
     )
@@ -5130,6 +5134,15 @@ def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) ->
     root = REPOSITORY_ROOT / "backend/src"
     accepted = _validated_pure_fingerprint_decrements(declaration, source_root=root)
     assert len(accepted) == 3
+    audit = _DeclarationImplementationAudit()
+    tracked = _TrackedDeclaration(
+        declaration, path="pure_helper_references", audit=audit,
+    )
+    assert _validated_pure_fingerprint_decrements(tracked, source_root=root) == accepted
+    assert {
+        f"pure_helper_references.callee.{key}"
+        for key in ("path", "symbol", "source_sha256")
+    } <= audit.read_fields
     for path in {declaration["callee"]["path"], *(site["path"] for site in declaration["sites"])}:
         assert isinstance(path, str)
         target = tmp_path / path

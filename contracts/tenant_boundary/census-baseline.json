@@ -1,11 +1,11 @@
 {
-  "contract_revision": 18,
+  "contract_revision": 19,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:18"
+        "contract_revision:19"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -147,7 +147,38 @@
             "delimiter": "."
           }
         },
-        "required_current_code": "TB002"
+        "required_current_code": "TB002",
+        "pure_helper_references": {
+          "callee": {
+            "path": "pitchlog/sync/idempotency.py",
+            "symbol": "pitchlog.sync.idempotency.source_fingerprint",
+            "source_sha256": "a41df2351661e4f61811912e64ae5ad946e8641f8ded6a0ffaac1f6f5d19de43"
+          },
+          "sites": [
+            {
+              "path": "pitchlog/recording_rights/initial_grant_broker.py",
+              "line": 1466,
+              "end_line": 1475,
+              "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
+              "source_sha256": "733c8e3fd9f1bbd7720c2b85b1ce979cd6302d5974a7e63aa7646740b6c6960d"
+            },
+            {
+              "path": "pitchlog/repositories/game_start.py",
+              "line": 187,
+              "end_line": 187,
+              "scope": "pitchlog.repositories.game_start.BoundInitialStartPayload.__post_init__",
+              "source_sha256": "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613"
+            },
+            {
+              "path": "pitchlog/repositories/game_start.py",
+              "line": 296,
+              "end_line": 305,
+              "scope": "pitchlog.repositories.game_start.bind_initial_start_request",
+              "source_sha256": "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613"
+            }
+          ],
+          "reason": "旧namespaceのidempotencyに反応した純粋JSON正準化・SHA256 helper参照。DB APIへ到達しない。"
+        }
       },
       {
         "id": "added_equals_independently_derived_condition_2_candidates",
@@ -245,6 +276,19 @@
     "pass_fail_mapping.predicates[].candidate_enumeration.identifier_normalization",
     "pass_fail_mapping.predicates[].candidate_enumeration.condition",
     "pass_fail_mapping.predicates[].candidate_enumeration.message",
-    "pass_fail_mapping.predicates[].nonempty_sets"
+    "pass_fail_mapping.predicates[].nonempty_sets",
+    "pass_fail_mapping.predicates[].derivation.condition1_code",
+    "pass_fail_mapping.predicates[].derivation.condition1_substituted_field",
+    "pass_fail_mapping.predicates[].derivation.condition1_substituted_from",
+    "pass_fail_mapping.predicates[].pure_helper_references.callee.path",
+    "pass_fail_mapping.predicates[].pure_helper_references.callee.source_sha256",
+    "pass_fail_mapping.predicates[].pure_helper_references.callee.symbol",
+    "pass_fail_mapping.predicates[].pure_helper_references.reason",
+    "pass_fail_mapping.predicates[].pure_helper_references.sites",
+    "pass_fail_mapping.predicates[].pure_helper_references.sites[].end_line",
+    "pass_fail_mapping.predicates[].pure_helper_references.sites[].line",
+    "pass_fail_mapping.predicates[].pure_helper_references.sites[].path",
+    "pass_fail_mapping.predicates[].pure_helper_references.sites[].scope",
+    "pass_fail_mapping.predicates[].pure_helper_references.sites[].source_sha256"
   ]
 }
