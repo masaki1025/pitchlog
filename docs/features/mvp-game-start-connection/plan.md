@@ -731,3 +731,11 @@ population73 source2の有限採用（2026-10-31、PO委任によるCodex /root�
 census独立proofの宣言面追補（2026-10-31、PO委任によるCodex /root判断）: 前段cache-only許可に加え、既frozen-inputs.jsonのci_scope_proof_source_revision.sources末尾へtests/test_census_baseline_check.py:_validated_initial_population_suppressionだけを登録する候補と、scripts/check_tenant_boundary_bypass.pyの同consumer閉集合期待tuple末尾1だけの一致追随を許可する。旧3consumer順/value/purpose/Git8/処理本体は不変、unknown consumerは拒否する。正式writerはroot。
 
 新census説明fieldはinitial_population_proofの有限kind/原典locator/73site（path/source_key/line/code/symbol/owner）/identity_fields7と実read inventoryのみを候補化できる。既許容code/旧未裁定symbol/既6predicate/旧43・18/ledger22・1は維持。独立規範表・Git原典・ORM定数/発行直後のscope-source-fence/assert鎖を検査し、candidate evidence出力を期待oracleにしない。実counterfactual差分全7fieldと一致し、未知/余分/欠損site・field/原典・decl同時変造を拒否することを別非作者が確認する。新説明を加えること自体を正式全体成立にせず、全前後/実read/既値保持を固定し、最終9再導出へ一回束縛する。
+
+
+有限census r3の限定採用（2026-10-31、PO委任によるCodex /root判断）: files91379e2d…/testcensus54ac9350…/非作者REPORT73000fc6…を全before/after byte照合し、58独立normgate/consumer反例・71局所と最終audit2の2passed433.50秒（auditJSONca3354b3…）に基づきcode2・有限宣言2を適用。旧P1のSQL末尾/role死分岐/checkout例外swallowとregistry/cleanupの全control枠を閉鎖、旧6predicate/43-18/ledger22-1/未知拒否を保持、inventory実byte不変。root-r3-adoption.jsonへ対象版・日時・根拠を固定した。これは正式9資産/7.7受理・全CI/通常mergeではなく、新OUTで最終4面/生成/snapshot/31prefixを再導出し別の値レビュー後に受理する。旧r1/r2失敗/旧候補auditを保持し、人間確認・署名は代記しない。
+
+
+PR188同一受理行の最終実値反映（2026-10-31T14:31:35.770147+09:00、PO委任によるCodex /root判断）: candidate33 manifest93a47cdc…/非作者REPORT1ead8cea…の全before/after実byte、remote develop3a24、完全4面/識別値/生成全constant/runtime全byte/239snapshot・base226保持を照合し、正式31履歴を不変のまま末尾32単一188の実値を反映。旧candidateはbefore/cacheに保全、非baseかつ新全履歴非参照の中間11snapshotだけを保存後に除去。承認欄2だけを実態に沿うCodex委任判断/実日付で補記し、本人確認・署名は代記しない。cache pr188-final77-censusr3-candidate-20261031/root-approval/receipt.jsonへ対象版・判断日時・根拠・実承認後asset SHAを固定。全9base比一回/runtime23/frozen6、旧6predicate/43-18/ledger22-1/未知拒否を保持。ここから公式CLI/最終HEADレビュー/必須CIを実行し、未実施を成功へ繰り上げない。
+
+公式working-tree検査結果: actual受理欄補記後、tenant-boundary --base-ref3a24・frozen --invariants-only・census単独CLIが全成功。root本来のuv環境のruff/ty/authz --skip-oracle（1427）も成功、既backend venvの代用成功とは区別。委任policy有限4追加の既core検査82も成功。source33（承認2欄以外実byte）/r3 code2を保存し、commit後に実PRと同じ2親/イベント形の受理検査・最終HEAD独立レビュー/実CIへ進む。working-tree成功を実PR受理/全CI/mergeへ読み替えない。

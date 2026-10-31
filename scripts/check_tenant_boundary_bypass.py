@@ -7564,6 +7564,7 @@ def _scope_proof_source_bytes(
         "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
         "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
         "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
+        "tests/test_census_baseline_check.py:_validated_initial_population_suppression",
     ):
         raise ContractError("scope proofのconsumer閉集合が不一致")
     revision = _string(entry["value"], "scope proof revision")

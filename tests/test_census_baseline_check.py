@@ -13,8 +13,8 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import symtable
+import sys
 import tempfile
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -1944,9 +1944,3333 @@ def _measured_resolution_owner_suppression(
     return suppression
 
 
+_INITIAL_CENSUS_SITES: tuple[tuple[str, str, int, str, str, str], ...] = (
+('pitchlog/api/schemas/game_start.py',
+  'initial_response_annotations',
+  189,
+  'TB002',
+  'str',
+  'InitialGameStartResponse.<module>'),
+ ('pitchlog/authz/capability_catalog.py',
+  'initial_storage_classification',
+  180,
+  'TB002',
+  'generation',
+  '_initial_storage_profile'),
+ ('pitchlog/authz/capability_catalog.py',
+  'initial_storage_classification',
+  183,
+  'TB002',
+  'generation',
+  '_initial_storage_profile'),
+ ('pitchlog/authz/product_function_acl.py',
+  'initial_generation_guard_ddl',
+  157,
+  'TB002',
+  'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
+  'generate_product_function_acl_sql'),
+ ('pitchlog/authz/product_function_acl.py',
+  'initial_generation_guard_ddl',
+  2585,
+  'TB002',
+  'generate_generation_guard_sql',
+  '<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  194,
+  'TB002',
+  'RecordingGeneration',
+  '<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  267,
+  'TB002',
+  'sqlalchemy.orm.Mapped',
+  'RecordingGeneration.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  344,
+  'TB005',
+  'sqlalchemy.text',
+  'TrustedDevice.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  407,
+  'TB005',
+  'sqlalchemy.text',
+  'GameStartRequest.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  470,
+  'TB005',
+  'sqlalchemy.text',
+  'GameStartAttempt.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  481,
+  'TB005',
+  'sqlalchemy.text',
+  'GameStartAttempt.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  487,
+  'TB005',
+  'sqlalchemy.text',
+  'GameStartAttempt.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  567,
+  'TB002',
+  'sqlalchemy.orm.Mapped',
+  'RecordingRightDelivery.<module>'),
+ ('pitchlog/db/recording_rights/models.py',
+  'initial_storage_model_declarations',
+  576,
+  'TB005',
+  'sqlalchemy.text',
+  'RecordingRightDelivery.<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  36,
+  'TB002',
+  'DurableGenerationSource',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  36,
+  'TB002',
+  'assert_write_recovery_generation',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  165,
+  'TB005',
+  'psycopg.Connection.cursor',
+  '_verify_initial_actor_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  166,
+  'TB005',
+  'psycopg.Cursor.execute',
+  '_verify_initial_actor_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  185,
+  'TB005',
+  'psycopg.Connection.rollback',
+  '_verify_initial_actor_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  188,
+  'TB005',
+  'psycopg.Connection.rollback',
+  '_verify_initial_actor_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  255,
+  'TB005',
+  'sqlalchemy.create_engine',
+  '_load_initial_actor_runtime'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  302,
+  'TB005',
+  'importlib.import_module',
+  '_verify_business_binding'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  324,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  403,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+  '_issue_initial_grant_impl'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  404,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+  '_issue_initial_grant_impl'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  428,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  443,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  483,
+  'TB002',
+  'generation',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  488,
+  'TB002',
+  'int',
+  '_broker_d4'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  489,
+  'TB002',
+  'int',
+  '_broker_d4'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  492,
+  'TB002',
+  'int',
+  '_broker_d4'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  496,
+  'TB002',
+  '_broker_generation',
+  '<module>'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  510,
+  'TB002',
+  'int',
+  '_broker_generation'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  514,
+  'TB002',
+  'int',
+  '_broker_generation'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  520,
+  'TB002',
+  'int',
+  '_broker_generation'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  804,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
+  '_postcommit_start_response'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  805,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+  '_postcommit_start_response'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  805,
+  'TB002',
+  'recovery_generation',
+  '_postcommit_start_response'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  929,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant_broker._broker_generation',
+  '_decode_initial_reply'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1119,
+  'TB005',
+  'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
+  '_InitialBrokerClient.call'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1210,
+  'TB005',
+  'psycopg.Connection.cursor',
+  '_verify_auth_verifier_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1211,
+  'TB005',
+  'psycopg.Cursor.execute',
+  '_verify_auth_verifier_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1216,
+  'TB005',
+  'psycopg.Connection.rollback',
+  '_verify_auth_verifier_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1219,
+  'TB005',
+  'psycopg.Connection.rollback',
+  '_verify_auth_verifier_checkout'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1279,
+  'TB005',
+  'sqlalchemy.create_engine',
+  '_load_initial_auth_verifier_runtime'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1460,
+  'TB002',
+  'pitchlog.sync.idempotency',
+  '_worker_resolve_start'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1517,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+  '_worker_resolve_start'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1518,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+  '_worker_resolve_start'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1745,
+  'TB005',
+  'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
+  'serve_initial_broker'),
+ ('pitchlog/recording_rights/initial_grant_broker.py',
+  'initial_grant_broker_caller',
+  1758,
+  'TB007',
+  'pitchlog.durable_rights_ledger.DurableLedger',
+  'serve_initial_broker'),
+ ('pitchlog/repositories/game_start.py',
+  'game_start_caller',
+  23,
+  'TB002',
+  'pitchlog.sync.idempotency',
+  '<module>'),
+ ('pitchlog/repositories/game_start.py', 'game_start_caller', 340, 'TB007', 'cls', '_start_token'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  47,
+  'TB002',
+  '_positive_generation',
+  '<module>'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  158,
+  'TB002',
+  'int',
+  '_CheckBusinessEpochToken.<module>'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  174,
+  'TB002',
+  'int',
+  '_InsertInitialGrantToken.<module>'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  175,
+  'TB002',
+  'int',
+  '_InsertInitialGrantToken.<module>'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  264,
+  'TB002',
+  'pitchlog.repositories.initial_recording_right._positive_generation',
+  '_decode_initial_result'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  276,
+  'TB002',
+  'int',
+  '_decode_initial_result'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  278,
+  'TB002',
+  'int',
+  '_decode_initial_result'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  279,
+  'TB002',
+  'int',
+  '_decode_initial_result'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  279,
+  'TB002',
+  'pitchlog.repositories.initial_recording_right._positive_generation',
+  '_decode_initial_result'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  466,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+  'InitialRecordingRightScope.__init__'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  559,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+  'InitialRecordingRightScope.lock_valid_device'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  593,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+  'InitialRecordingRightScope._record'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  666,
+  'TB002',
+  'assert_recovery_generation',
+  'InitialRecordingRightScope.<module>'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  669,
+  'TB002',
+  'pitchlog.repositories.initial_recording_right._positive_generation',
+  'InitialRecordingRightScope.assert_recovery_generation'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  700,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+  'InitialRecordingRightScope.insert_initial_grant'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  701,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
+  'InitialRecordingRightScope.insert_initial_grant'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  715,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+  'InitialRecordingRightScope.insert_initial_grant'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  716,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
+  'InitialRecordingRightScope.insert_initial_grant'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  725,
+  'TB002',
+  'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+  'InitialRecordingRightScope.insert_initial_grant'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  761,
+  'TB001',
+  '_assert_existing_resolution_owner',
+  '_existing_start_scope_on_handle'),
+ ('pitchlog/repositories/initial_recording_right.py',
+  'initial_recording_right_guard',
+  763,
+  'TB001',
+  'pitchlog.repositories.transaction._assert_existing_resolution_owner',
+  '_existing_start_scope_on_handle'))
+
+def _initial_population_identity_shape(
+    source: str, path: str, line: int, code: str, symbol: str,
+) -> tuple[int, str]:
+    """固定siteの実ASTからend_lineと規範messageを独立に導出する。"""
+    tree = ast.parse(source, filename=path)
+    nodes = [n for n in ast.walk(tree) if getattr(n, 'lineno', None) == line]
+    terminal = symbol.rsplit('.', 1)[-1]
+    matches: list[ast.AST]
+    if code in {'TB005', 'TB007'}:
+        matches = [n for n in nodes if isinstance(n, ast.Call)]
+        # メタデータSQL/engine・cursor・socket等は当該APIのCall全体である。
+        if code == 'TB005':
+            name = {'sqlalchemy.create_engine': 'create_engine',
+                    'importlib.import_module': 'import_module'}.get(symbol, terminal)
+            # union APIの実source receiver名は、既不変原典に加え上の意味consumerが固定する。
+            names = {part.rsplit('.', 1)[-1] for part in symbol.split('|')} | {name}
+            matches = [n for n in matches if isinstance(n, ast.Call) and (
+                isinstance(n.func, ast.Name) and n.func.id in names
+            ) or (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                  and n.func.attr in names)]
+        elif symbol == 'cls':
+            matches = [n for n in matches if isinstance(n, ast.Call)
+                       and isinstance(n.func, ast.Name) and n.func.id == 'cls']
+        else:
+            matches = [n for n in matches if isinstance(n, ast.Call)
+                       and isinstance(n.func, ast.Name) and n.func.id == terminal]
+    else:
+        matches = [n for n in nodes if (
+            isinstance(n, (ast.Name, ast.arg, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and (n.id if isinstance(n, ast.Name) else n.arg if isinstance(n, ast.arg) else n.name)
+            == terminal
+        ) or (isinstance(n, ast.Attribute) and n.attr == terminal) or (
+            isinstance(n, ast.alias) and n.name.rsplit('.', 1)[-1] == terminal
+        ) or (isinstance(n, ast.ImportFrom) and n.module == symbol)]
+    if code == 'TB002':
+        calls = [n for n in nodes if isinstance(n, ast.Call) and (
+            isinstance(n.func, ast.Name) and n.func.id == terminal
+        )]
+        if calls:
+            matches = [cast(ast.AST, n) for n in calls]
+    # 由来伝播が変数の実参照へ現れる場合も、原典の同一行のAST範囲が一意なら固定する。
+    if not matches:
+        matches = [n for n in nodes if isinstance(n, (ast.Name, ast.Attribute))] or nodes
+    ends = {getattr(n, 'end_lineno', None) for n in matches}
+    assert len(ends) == 1 and None not in ends, (path, line, code, symbol, ends)
+    end = ends.pop()
+    assert isinstance(end, int)
+    if code in {'TB001', 'TB002'}:
+        message = f'条件 {code[-1]} の禁止シンボルを検出'
+    elif code == 'TB005':
+        message = ('動的評価・import による保護対象 API への到達は禁止'
+                   if symbol == 'importlib.import_module' else
+                   'DB 到達 API は許可された基底シンボルの内側だけで使用できる')
+    else:
+        assert code == 'TB007'
+        message = ('由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否'
+                   if symbol == 'cls'
+                   else '再輸出 callable の起源を一意に解決できない')
+    return end, message
+
+
+
+# 採用source2の既規範をchecker実行と独立に消費する。コード独立、意味根拠は共有。
+def _independent_initial_population_meaning(tree: ast.Module, path: str) -> bool:
+    """不変原典照合とは別に、既規範の有限安全条件を実ASTへ検査する。
+
+    原典byteも改変した試験でこの検査自体の拒否を確認する。呼出しの
+    名前存在だけでなくreceiver・全引数・列/型・制御順序を閉じて比較する。
+    """
+    def shape(node: ast.AST) -> str:
+        return ast.dump(node, include_attributes=False)
+
+    def expression(text: str) -> str:
+        return shape(ast.parse(text, mode="eval").body)
+
+    def function(name: str) -> ast.FunctionDef | None:
+        names = name.split(".")
+        owner: ast.Module | ast.FunctionDef | ast.ClassDef = tree
+        for part in names:
+            found = [n for n in owner.body if isinstance(
+                n, (ast.FunctionDef, ast.ClassDef),
+            ) and n.name == part]
+            if len(found) != 1:
+                return None
+            owner = found[0]
+        return owner if isinstance(owner, ast.FunctionDef) else None
+
+    def body(node: ast.FunctionDef | ast.ClassDef) -> list[ast.stmt]:
+        return [n for n in node.body if not (
+            isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+            and isinstance(n.value.value, str)
+        )]
+
+    def has(node: ast.AST | None, text: str) -> bool:
+        if node is None:
+            return False
+        expected = ast.parse(text).body
+        return all(any(shape(n) == shape(
+            target.value if isinstance(target, ast.Expr) else target,
+        ) for n in ast.walk(node)) for target in expected)
+
+    def calls(node: ast.AST, name: str) -> list[ast.Call]:
+        return [n for n in ast.walk(node) if isinstance(n, ast.Call)
+                and shape(n.func) == expression(name)]
+
+    def assignment(name: str, value: str) -> bool:
+        expected = ast.parse(f"{name} = {value}").body[0]
+        stores = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                  and n.id == name and isinstance(n.ctx, (ast.Store, ast.Del))]
+        others = [n for n in ast.walk(tree) if (
+            isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name == name
+        ) or (isinstance(n, ast.arg) and n.arg == name) or (
+            isinstance(n, ast.alias) and (n.asname or n.name.split(".")[0]) == name
+        )]
+        return len(stores) == 1 and not others and any(
+            shape(n) == shape(expected) for n in tree.body
+        )
+
+    # 宣言はDB実行ではない。許可するSQL片はdefault/partial indexの3定数のみ。
+    if path == "pitchlog/db/recording_rights/models.py":
+        names = {
+            "RecordingGeneration": "recording_generations",
+            "TrustedDevice": "trusted_devices",
+            "GameStartRequest": "game_start_requests",
+            "GameStartAttempt": "game_start_attempts",
+            "RecordingRightDelivery": "recording_right_deliveries",
+        }
+        for name, table in names.items():
+            declared = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name]
+            if len(declared) != 1 or not has(declared[0], f"__tablename__ = {table!r}"):
+                return False
+        checks = {
+            "RecordingGeneration": (
+                "recovery_generation: Mapped[int | None] = mapped_column("
+                "BigInteger, nullable=True)",
+            ),
+            "TrustedDevice": (
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+            "GameStartRequest": (
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+            "GameStartAttempt": (
+                'Index("uq_game_start_attempts_pending", "tenant_id", "game_id", '
+                '"start_request_id", unique=True, postgresql_where=text("outcome = \'pending\'"), '
+                'info={"roles": ("business_unique",)})',
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+                'outcome: Mapped[str] = mapped_column(Text, nullable=False, '
+                'server_default=text("\'pending\'"))',
+            ),
+            "RecordingRightDelivery": (
+                'generation: Mapped[int] = mapped_column(BigInteger, nullable=False)',
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+        }
+        for name, expected in checks.items():
+            declared = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name)
+            if any(isinstance(n, (ast.If, ast.Try, ast.With)) for n in declared.body):
+                return False
+            for statement in expected:
+                parsed = ast.parse(statement).body[0]
+                if isinstance(parsed, ast.AnnAssign) and isinstance(parsed.target, ast.Name):
+                    definitions = [n for n in declared.body if isinstance(n, ast.AnnAssign)
+                                   and isinstance(n.target, ast.Name)
+                                   and n.target.id == parsed.target.id]
+                    if len(definitions) != 1 or shape(definitions[0]) != shape(parsed):
+                        return False
+                elif not has(declared, statement):
+                    return False
+            if name != "RecordingGeneration":
+                sql_calls = calls(declared, "text")
+                expected_sql = (["outcome = 'pending'", "CURRENT_TIMESTAMP", "'pending'"]
+                                if name == "GameStartAttempt" else ["CURRENT_TIMESTAMP"])
+                if sorted(shape(n) for n in sql_calls) != sorted(
+                    expression(f"text({value!r})") for value in expected_sql
+                ):
+                    return False
+        return True
+    if path == "pitchlog/api/schemas/game_start.py":
+        declared = [n for n in tree.body if isinstance(n, ast.ClassDef)
+                    and n.name == "InitialGameStartResponse"]
+        return len(declared) == 1 and has(declared[0], "recovery_generation: str")
+    if path == "pitchlog/authz/capability_catalog.py":
+        fn = function("_initial_storage_profile")
+        expected = ast.parse('''generation = [
+    row for row in rows if _optional(row, "table") == "recording_generations"
+]
+if len(generation) != 1 or generation[0] != {
+    "table": "recording_generations", "profile": "tenant_owned",
+}:
+    violations.append("初期保存でも記録権世代の既存tenant_owned分類が必要")
+if violations:
+    raise CapabilityCatalogError(violations)
+return True
+''').body
+        return fn is not None and [shape(n) for n in body(fn)[-4:]] == [
+            shape(n) for n in expected
+        ]
+    if path == "pitchlog/authz/product_function_acl.py":
+        fn = function("generate_generation_guard_sql")
+        if fn is None:
+            return False
+        expected = ast.parse('''
+migration = root / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+try:
+    tree = ast.parse(migration.read_text(encoding="utf-8"))
+    bindings = [node for node in ast.walk(tree) if isinstance(node, ast.Name)
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+                and node.id == "_GENERATION_GUARD_SQL"]
+    declarations = [node for node in tree.body if isinstance(node, ast.Assign)
+                    and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "_GENERATION_GUARD_SQL"]
+    other_bindings = any(
+        (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+         and node.name == "_GENERATION_GUARD_SQL")
+        or (isinstance(node, ast.alias)
+            and (node.asname or node.name.split(".")[0]) == "_GENERATION_GUARD_SQL")
+        for node in ast.walk(tree))
+    if other_bindings or len(bindings) != 1 or len(declarations) != 1:
+        raise ValueError("固定定数の単一トップレベル代入でない")
+    declaration = declarations[0]
+    values = ast.literal_eval(declaration.value)
+    if type(values) is not tuple or len(values) != 3 or any(
+        type(value) is not str or not value.strip() for value in values):
+        raise ValueError("固定DDL三要素でない")
+    sql = values[0]
+except (OSError, SyntaxError, ValueError, TypeError) as exc:
+    raise ValueError("0036の世代guard供給が不正") from exc
+return (
+    "-- ELEMENT-TYPE: function\\n"
+    "-- ELEMENT-ID: FUNCTION:public:protect_recording_generations_updates()\\n\\n"
+    + sql.rstrip(";\\n") + ";\\n"
+    "REVOKE EXECUTE ON FUNCTION public.protect_recording_generations_updates() "
+    "FROM PUBLIC, pitchlog_app;\\n")
+''').body
+        return [shape(n) for n in body(fn)] == [shape(n) for n in expected] and has(
+            function("generate_product_function_acl_sql"),
+            "return generate_generation_guard_sql(_REPOSITORY_ROOT)",
+        )
+    if path == "pitchlog/repositories/game_start.py":
+        fn = function("_start_token")
+        if fn is None:
+            return False
+        # 2型ternary以外のconstructorやowner/原bytesの変更を許可しない。
+        expected = ast.parse('''
+from pitchlog.repositories.initial_recording_right import (
+    _PersistInitialStartToken, _ReadInitialStartContextToken,
+)
+bound.__post_init__()
+owner = bound.owner
+cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken
+return cls(owner.game_id, owner.start_request_id, owner.attempt_id,
+           owner.request_digest, bound.canonical_bytes.decode("utf-8"))
+''').body
+        return [shape(n) for n in body(fn)] == [shape(n) for n in expected]
+    if path == "pitchlog/repositories/initial_recording_right.py":
+        fn = function("_existing_start_scope_on_handle")
+        positive = function("_positive_generation")
+        if fn is None or positive is None:
+            return False
+        expected = ast.parse('''
+from pitchlog.repositories.transaction import _assert_existing_resolution_owner
+_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)
+with _bound_initial_adapter(context, transaction, owner, bound) as scope:
+    yield scope
+''').body
+        return ([shape(n) for n in body(fn)] == [shape(n) for n in expected]
+                and len(body(positive)) == 1 and has(positive,
+                    "return type(value) is int and 0 < value < 2**63"))
+    if path != "pitchlog/recording_rights/initial_grant_broker.py":
+        return False
+
+    sql = """SELECT session_user::text, current_user::text,
+        r.rolcanlogin, r.rolsuper, r.rolbypassrls, r.rolinherit,
+        r.rolcreaterole, r.rolcreatedb, r.rolreplication,
+        (SELECT count(*) FROM pg_catalog.pg_auth_members AS m
+         WHERE m.member = r.oid OR m.roleid = r.oid),
+        pg_catalog.current_setting('app.tenant_id', true),
+        pg_catalog.current_database()::text, d.oid::integer,
+        pg_catalog.pg_postmaster_start_time(), pg_catalog.pg_backend_pid()
+        FROM pg_catalog.pg_roles AS r JOIN pg_catalog.pg_database AS d
+        ON d.datname = pg_catalog.current_database() WHERE r.rolname = session_user"""
+    def normalize_sql(value: str) -> str:
+        return " ".join(value.split())
+    if not assignment("_ACTOR_ROLE", "'pitchlog_initial_actor'") or not assignment(
+        "_INITIAL_AUTH_VERIFIER_ROLE", "'pitchlog_initial_auth_verifier'",
+    ):
+        return False
+    actor = function("_validate_actor_observation")
+    verifier = function("_validate_auth_verifier_observation")
+    if actor is None or verifier is None:
+        return False
+    actor_conditions = (
+        "len(row) != 15 or row[:2] != (_ACTOR_ROLE, _ACTOR_ROLE)",
+        "tuple(row[2:9]) != (True, False, False, False, False, False, False) "
+        "or any(type(v) is not bool for v in row[2:9])",
+        "type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '')",
+        "row[11] != config.database_name or type(row[12]) is not int "
+        "or row[12] != config.database_oid or type(row[13]) is not datetime "
+        "or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0",
+    )
+    actor_checks = body(actor)
+    if len(actor_checks) != 4 or any(
+        not isinstance(node, ast.If) or shape(node.test) != expression(test)
+        or len(node.body) != 1 or not isinstance(node.body[0], ast.Raise) or node.orelse
+        for node, test in zip(actor_checks, actor_conditions, strict=True)
+    ):
+        return False
+    verifier_condition = (
+        "len(row) != 15 or row[:2] != (_INITIAL_AUTH_VERIFIER_ROLE, _INITIAL_AUTH_VERIFIER_ROLE) "
+        "or tuple(row[2:9]) != (True, False, False, False, False, False, False) "
+        "or any(type(v) is not bool for v in row[2:9]) "
+        "or type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '') "
+        "or row[11] != config.database_name or type(row[12]) is not int "
+        "or row[12] != config.database_oid or type(row[13]) is not datetime "
+        "or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0"
+    )
+    verifier_checks = body(verifier)
+    if len(verifier_checks) != 1 or not isinstance(verifier_checks[0], ast.If) or (
+        shape(verifier_checks[0].test) != expression(verifier_condition)
+    ) or len(verifier_checks[0].body) != 1 or not isinstance(
+        verifier_checks[0].body[0], ast.Raise,
+    ):
+        return False
+    constants = [n.value.value for n in tree.body if isinstance(n, ast.Assign)
+                 and any(isinstance(t, ast.Name) and t.id == "_AUTH_VERIFIER_CHECKOUT_SQL"
+                         for t in n.targets) and isinstance(n.value, ast.Constant)]
+    sql_stores = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                  and n.id == "_AUTH_VERIFIER_CHECKOUT_SQL"
+                  and isinstance(n.ctx, (ast.Store, ast.Del))]
+    if len(sql_stores) != 1:
+        return False
+    if len(constants) != 1 or type(constants[0]) is not str or (
+        normalize_sql(constants[0]) != normalize_sql(sql)
+    ):
+        return False
+    for fn_name, validate in (
+        ("_verify_initial_actor_checkout", "_validate_actor_observation"),
+        ("_verify_auth_verifier_checkout", "_validate_auth_verifier_observation"),
+    ):
+        fn = function(fn_name)
+        if fn is None or len(body(fn)) != 1 or not isinstance(body(fn)[0], ast.Try):
+            return False
+        block = body(fn)[0]
+        if not isinstance(block, ast.Try):
+            return False
+        if len(block.body) != 2 or not isinstance(block.body[0], ast.With) or (
+            not isinstance(block.body[1], ast.Expr)
+            or shape(block.body[1].value) != expression("connection.rollback()")
+        ):
+            return False
+        context = block.body[0]
+        if len(context.items) != 1 or shape(context.items[0].context_expr) != expression(
+            "connection.cursor()",
+        ) or not isinstance(context.items[0].optional_vars, ast.Name) or (
+            context.items[0].optional_vars.id != "cursor"
+        ) or len(context.body) != 4:
+            return False
+        execute = context.body[0]
+        if not isinstance(execute, ast.Expr) or not isinstance(execute.value, ast.Call):
+            return False
+        call = execute.value
+        if shape(call.func) != expression("cursor.execute") or call.keywords or len(call.args) != 1:
+            return False
+        if fn_name == "_verify_initial_actor_checkout":
+            if (not isinstance(call.args[0], ast.Constant)
+                or type(call.args[0].value) is not str or (
+                normalize_sql(call.args[0].value) != normalize_sql(sql)
+            )):
+                return False
+        elif shape(call.args[0]) != expression("_AUTH_VERIFIER_CHECKOUT_SQL"):
+            return False
+        expected_tail = ast.parse(f'''
+row = cursor.fetchone()
+if row is None or cursor.fetchone() is not None:
+    raise REJECT()
+{validate}(tuple(row), config)
+''').body
+        expected_if = expected_tail[1]
+        assert isinstance(expected_if, ast.If)
+        if shape(context.body[1]) != shape(expected_tail[0]) or (
+            not isinstance(context.body[2], ast.If)
+            or shape(context.body[2].test) != shape(expected_if.test)
+            or len(context.body[2].body) != 1
+            or not isinstance(context.body[2].body[0], ast.Raise)
+        ) or shape(context.body[3]) != shape(expected_tail[2]):
+            return False
+        if len(block.handlers) != 1 or block.orelse or block.finalbody:
+            return False
+        handler = block.handlers[0]
+        if handler.type is None or shape(handler.type) != expression("Exception") or (
+            len(handler.body) != 2 or not isinstance(handler.body[0], ast.Try)
+            or not isinstance(handler.body[1], ast.Raise)
+        ):
+            return False
+        rollback = handler.body[0]
+        if [shape(n) for n in rollback.body] != [shape(ast.parse(
+            "connection.rollback()",
+        ).body[0])] or len(rollback.handlers) != 1 or (
+            rollback.handlers[0].type is None
+            or shape(rollback.handlers[0].type) != expression("BaseException")
+            or len(rollback.handlers[0].body) != 1
+            or not isinstance(rollback.handlers[0].body[0], ast.Pass)
+        ):
+            return False
+    for name, url in (
+        ("_load_initial_actor_runtime", "normalize_postgresql_url(config.database_url)"),
+        ("_load_initial_auth_verifier_runtime", "_initial_auth_verifier_url(config)"),
+    ):
+        fn = function(name)
+        if fn is None:
+            return False
+        main_tries = [n for n in body(fn) if isinstance(n, ast.Try)]
+        if len(main_tries) != 1:
+            return False
+        prefix = (f"url = {url}\n" if name == "_load_initial_auth_verifier_runtime" else "")
+        suffix = (f"url = {url}\n" if name == "_load_initial_actor_runtime" else "")
+        passfile = ('args["passfile"] = "/dev/null"\n'
+                    if name == "_load_initial_auth_verifier_runtime" else "")
+        validate_checkout = ("_verify_initial_actor_checkout"
+                             if name == "_load_initial_actor_runtime"
+                             else "_verify_auth_verifier_checkout")
+        expected_suffix = ast.parse(prefix + '''args = engine_connect_args(False)
+args["gssencmode"] = "disable"
+args["connect_timeout"] = 1
+args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"
+''' + passfile + suffix + f'''require_database_transport(url, args)
+engine = create_engine(url, connect_args=args, hide_parameters=True,
+                       pool_size=3, max_overflow=0, pool_timeout=0.5)
+def checkout(connection: Any, record: Any, proxy: Any) -> None:
+    del record, proxy
+    {validate_checkout}(connection, config)
+event.listen(engine, "checkout", checkout)
+''').body
+        actual_suffix = main_tries[0].body[-len(expected_suffix):]
+        # nested callbackのdocstringだけを意味比較から除く。body/引数は完全比較。
+        actual_shapes = []
+        for stmt in actual_suffix:
+            if isinstance(stmt, ast.FunctionDef):
+                stmt = copy.deepcopy(stmt)
+                stmt.body = body(stmt)
+            actual_shapes.append(shape(stmt))
+        if actual_shapes != [shape(n) for n in expected_suffix]:
+            return False
+        expected_engine = expression(
+            "create_engine(url, connect_args=args, hide_parameters=True, "
+            "pool_size=3, max_overflow=0, pool_timeout=0.5)",
+        )
+        engines = calls(fn, "create_engine")
+        transports = calls(fn, "require_database_transport")
+        if len(engines) != 1 or shape(engines[0]) != expected_engine or len(transports) != 1 or (
+            shape(transports[0]) != expression("require_database_transport(url, args)")
+            or transports[0].lineno >= engines[0].lineno
+        ):
+            return False
+        required = (
+            "args = engine_connect_args(False)", 'args["gssencmode"] = "disable"',
+            'args["connect_timeout"] = 1',
+            'args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"',
+            f"url = {url}", 'event.listen(engine, "checkout", checkout)',
+        )
+        if not all(has(fn, statement) for statement in required):
+            return False
+        validate = ("_verify_initial_actor_checkout" if name == "_load_initial_actor_runtime"
+                    else "_verify_auth_verifier_checkout")
+        if not has(fn, f'''def checkout(connection: Any, record: Any, proxy: Any) -> None:
+            del record, proxy
+            {validate}(connection, config)'''):
+            # docstringは振舞いではなく、別の不変全byte照合が保持する。
+            nested = [n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef)
+                      and n.name == "checkout"]
+            expected = ast.parse(f"del record, proxy\n{validate}(connection, config)").body
+            if len(nested) != 1 or [shape(n) for n in body(nested[0])] != [
+                shape(n) for n in expected
+            ]:
+                return False
+    def exact_body(name: str, expected: str) -> bool:
+        actual = function(name)
+        return actual is not None and [shape(n) for n in body(actual)] == [
+            shape(n) for n in ast.parse(expected).body
+        ]
+
+    if not exact_body("_broker_generation", '''
+try:
+    if type(value) is not str or len(value) != 60 or not value.startswith("d4.1."):
+        raise ValueError
+    encoded = value[5:]
+    if any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+           for ch in encoded):
+        raise ValueError
+    raw = base64.b64decode(encoded + "=", altchars=b"-_", validate=True)
+    if len(raw) != 41 or raw[0] != 1:
+        raise ValueError
+    generation = int.from_bytes(raw[33:], "big")
+    if (raw[1:17] != tenant_id.bytes or raw[17:33] != game_id.bytes
+        or _broker_d4(tenant_id, game_id, generation) != value):
+        raise ValueError
+except (ValueError, TypeError, AttributeError):
+    pass
+else:
+    return generation
+raise _broker_invalid()
+'''):
+        return False
+
+    # 実registryの消費/所有poolだけのcleanupとUnix/専用role制約。
+    if not exact_body("_close_initial_actor_runtime", '''
+state = _actor_state(runtime)
+assert type(runtime) is _InitialActorRuntime
+_ACTOR_RUNTIMES.pop(runtime._key)
+state.engine.dispose()
+''') or not exact_body("_close_initial_auth_verifier_runtime", '''
+state = _auth_verifier_state(runtime)
+assert type(runtime) is _InitialAuthVerifierRuntime
+del _AUTH_VERIFIER_RUNTIMES[runtime._key]
+try:
+    state.engine.dispose()
+except Exception:
+    pass
+else:
+    return
+raise _broker_invalid()
+''') or not exact_body("_initial_auth_verifier_url", '''
+from sqlalchemy.engine import make_url
+try:
+    url = make_url(normalize_postgresql_url(config.database_url))
+    query = dict(url.query)
+    host = query.get("host", url.host)
+    if (url.username != _ACTOR_ROLE or url.password is not None
+        or type(host) is not str or not host.startswith("/") or "," in host
+        or any(k not in {"host", "port", "sslmode", "gssencmode"} for k in query)
+        or query.get("sslmode", "disable") != "disable"
+        or query.get("gssencmode", "disable") != "disable"
+        or url.database != config.database_name):
+        raise ValueError
+    return url.set(username=_INITIAL_AUTH_VERIFIER_ROLE).render_as_string(hide_password=False)
+except (ValueError, TypeError, AttributeError):
+    pass
+raise _broker_invalid()
+'''):
+        return False
+    verifier_loader = function("_load_initial_auth_verifier_runtime")
+    actor_loader = function("_load_initial_actor_runtime")
+    if verifier_loader is None or actor_loader is None:
+        return False
+    verifier_tries = [n for n in body(verifier_loader) if isinstance(n, ast.Try)]
+    expected_handler = ast.parse('''try:
+    pass
+except Exception:
+    if engine is not None:
+        try:
+            engine.dispose()
+        except Exception:
+            pass
+else:
+    key = object()
+    _AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)
+    return _InitialAuthVerifierRuntime(key, _RUNTIME_CREATION)
+''').body[0]
+    assert isinstance(expected_handler, ast.Try)
+    if len(verifier_tries) != 1 or [shape(n) for n in verifier_tries[0].handlers] != [
+        shape(n) for n in expected_handler.handlers
+    ] or [shape(n) for n in verifier_tries[0].orelse] != [
+        shape(n) for n in expected_handler.orelse
+    ]:
+        return False
+    actor_tail = ast.parse('''key = object()
+_ACTOR_RUNTIMES[key] = _ActorState(engine, config, box)
+return _InitialActorRuntime(key, _RUNTIME_CREATION)
+''').body
+    if [shape(n) for n in body(actor_loader)[-3:]] != [shape(n) for n in actor_tail]:
+        return False
+    # 副作用のない名称の存在ではなく、外部guardの実import束縛を固定する。
+    imported: dict[str, list[str]] = {}
+    for n in tree.body:
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                imported.setdefault(a.asname or a.name.split(".")[0], []).append(a.name)
+        elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
+            for a in n.names:
+                imported.setdefault(a.asname or a.name, []).append(f"{n.module}.{a.name}")
+    for name, origin in {
+        "socket": "socket", "os": "os", "create_engine": "sqlalchemy.create_engine",
+        "event": "sqlalchemy.event", "import_module": "importlib.import_module",
+        "require_database_transport": (
+            "pitchlog.authz.database_transport.require_database_transport"
+        ),
+        "engine_connect_args": "pitchlog.db.engine.engine_connect_args",
+    }.items():
+        if imported.get(name) != [origin] or any(
+            isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, (ast.Store, ast.Del))
+            for n in ast.walk(tree)
+        ):
+            return False
+
+    client = function("_InitialBrokerClient.call")
+    server = function("serve_initial_broker")
+    if client is None or server is None:
+        return False
+    sockets = [n for n in ast.walk(client) if isinstance(n, ast.With) and len(n.items) == 1
+               and shape(n.items[0].context_expr) == expression(
+                   "socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)",
+               ) and n.items[0].optional_vars is not None
+               and shape(n.items[0].optional_vars) == shape(
+                   ast.Name(id="channel", ctx=ast.Store()),
+               )]
+    client_tries = [n for n in body(client) if isinstance(n, ast.Try)]
+    socket_body = ast.parse('''_broker_remaining(channel, deadline)
+channel.connect(str(self._endpoint.path))
+_check_broker_peer(channel)
+_check_broker_socket(self._endpoint)
+_broker_remaining(channel, deadline)
+channel.sendall(frame)
+channel.shutdown(socket.SHUT_WR)
+response = _broker_receive(channel, deadline)
+''').body
+    if len(sockets) != 1 or len(client_tries) != 1 or sockets[0] not in client_tries[0].body or (
+        [shape(n) for n in sockets[0].body] != [shape(n) for n in socket_body]
+    ):
+        return False
+    if len(sockets) != 1 or len(calls(client, "channel.connect")) != 1 or not has(
+        sockets[0], "channel.connect(str(self._endpoint.path))",
+    ):
+        return False
+    files = [n for n in ast.walk(server) if isinstance(n, ast.With) and len(n.items) == 1
+             and shape(n.items[0].context_expr) == expression('os.fdopen(fd, "wb")')
+             and n.items[0].optional_vars is not None
+             and shape(n.items[0].optional_vars) == shape(ast.Name(id="output", ctx=ast.Store()))]
+    expected_file = ast.parse('''os.fchmod(output.fileno(), 0o644)
+output.write(_broker_json(endpoint_body))
+output.flush()
+os.fsync(output.fileno())''').body
+    server_tries = [n for n in body(server) if isinstance(n, ast.Try)]
+    if len(files) != 1 or len(server_tries) != 1 or files[0] not in server_tries[0].body or (
+        [shape(n) for n in files[0].body] != [shape(n) for n in expected_file]
+    ):
+        return False
+    durable_assignment = ast.parse(
+        'source = DurableLedger(Path(config["ledger_endpoint"]))',
+    ).body[0]
+    if not any(shape(n) == shape(durable_assignment) for n in server_tries[0].body) or not has(
+        server, "from pitchlog.durable_rights_ledger import DurableLedger",
+    ):
+        return False
+    imported_ledger = ast.parse(
+        "from pitchlog.durable_rights_ledger import DurableLedger",
+    ).body[0]
+    if sum(shape(n) == shape(imported_ledger) for n in body(server)) != 1 or any(
+        isinstance(n, ast.Name) and n.id == "DurableLedger"
+        and isinstance(n.ctx, (ast.Store, ast.Del)) for n in ast.walk(server)
+    ):
+        return False
+    # importの固定先、実owner復旧世代照合、および純bigint codecの型/範囲を保持。
+    return (
+        has(function("_verify_business_binding"),
+            'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")')
+        and has(function("_issue_initial_grant_impl"),
+                "assert_write_recovery_generation(scope, source, fence, "
+                "int(grant.recovery_generation))")
+        and has(function("_worker_resolve_start"),
+                "assert_write_recovery_generation(scope, state.source, fence, "
+                "int(grant.recovery_generation))")
+        and has(function("_broker_d4"), '''if (type(tenant_id) is not UUID
+            or type(game_id) is not UUID
+            or type(generation) is not int or not 0 < generation < 2**63):
+                raise _broker_invalid()''')
+    )
+
+_INITIAL_CENSUS_CONTROL_FRAMES = {
+    '_validate_actor_observation':
+    (((),
+      'FunctionDef',
+      ('_validate_actor_observation',
+       "arguments(posonlyargs=[], args=[arg(arg='row', "
+       "annotation=Subscript(value=Name(id='tuple', "
+       "ctx=Load()), slice=Tuple(elts=[Name(id='object', "
+       'ctx=Load()), Constant(value=Ellipsis)], ctx=Load()), '
+       "ctx=Load())), arg(arg='config', "
+       "annotation=Name(id='_ActorConfiguration', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 4),)),
+     (('body', 0),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='len', "
+       "ctx=Load()), args=[Name(id='row', ctx=Load())], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=15)]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Slice(upper=Constant(value=2)), '
+       'ctx=Load()), ops=[NotEq()], '
+       "comparators=[Tuple(elts=[Name(id='_ACTOR_ROLE', "
+       "ctx=Load()), Name(id='_ACTOR_ROLE', ctx=Load())], "
+       'ctx=Load())])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       'ctx=Load()), '
+       "args=[Constant(value='actorの実DB主体が一致しない')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 1),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='tuple', "
+       "ctx=Load()), args=[Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Slice(lower=Constant(value=2), '
+       'upper=Constant(value=9)), ctx=Load())], keywords=[]), '
+       'ops=[NotEq()], '
+       'comparators=[Tuple(elts=[Constant(value=True), '
+       'Constant(value=False), Constant(value=False), '
+       'Constant(value=False), Constant(value=False), '
+       'Constant(value=False), Constant(value=False)], '
+       "ctx=Load())]), Call(func=Name(id='any', ctx=Load()), "
+       "args=[GeneratorExp(elt=Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Name(id='v', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='bool', ctx=Load())]), "
+       "generators=[comprehension(target=Name(id='v', "
+       "ctx=Store()), iter=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Slice(lower=Constant(value=2), '
+       'upper=Constant(value=9)), ctx=Load()), ifs=[], '
+       'is_async=0)])], keywords=[])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       'ctx=Load()), '
+       "args=[Constant(value='actorの実DB属性が一致しない')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 2),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=9), ctx=Load())], '
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='int', ctx=Load())]), "
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=9), ctx=Load()), '
+       'ops=[NotEq()], comparators=[Constant(value=0)]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=10), ctx=Load()), '
+       'ops=[NotIn()], '
+       'comparators=[Tuple(elts=[Constant(value=None), '
+       "Constant(value='')], ctx=Load())])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       'ctx=Load()), '
+       "args=[Constant(value='actorのmembership又はtenant初期値が不正')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 3),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=11), ctx=Load()), '
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_name', ctx=Load())]), "
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Subscript(value=Name(id='row', ctx=Load()), "
+       'slice=Constant(value=12), ctx=Load())], keywords=[]), '
+       "ops=[IsNot()], comparators=[Name(id='int', "
+       'ctx=Load())]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=12), ctx=Load()), '
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_oid', ctx=Load())]), "
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Subscript(value=Name(id='row', ctx=Load()), "
+       'slice=Constant(value=13), ctx=Load())], keywords=[]), '
+       "ops=[IsNot()], comparators=[Name(id='datetime', "
+       'ctx=Load())]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=13), ctx=Load()), '
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='postmaster_started_at', "
+       "ctx=Load())]), Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=14), ctx=Load())], '
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='int', ctx=Load())]), "
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=14), ctx=Load()), '
+       'ops=[LtE()], comparators=[Constant(value=0)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='actorの接続先DB "
+       "identityが一致しない')], keywords=[]))",),
+      ())),
+    '_verify_initial_actor_checkout':
+    (((),
+      'FunctionDef',
+      ('_verify_initial_actor_checkout',
+       "arguments(posonlyargs=[], args=[arg(arg='connection', "
+       "annotation=Name(id='Any', ctx=Load())), "
+       "arg(arg='config', "
+       "annotation=Name(id='_ActorConfiguration', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 1),)),
+     (('body', 0),
+      'Try',
+      (),
+      (('body', 2),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 0, 'body', 0),
+      'With',
+      (("withitem(context_expr=Call(func=Attribute(value=Name(id='connection', "
+        "ctx=Load()), attr='cursor', ctx=Load()), args=[], "
+        "keywords=[]), optional_vars=Name(id='cursor', "
+        'ctx=Store()))',),),
+      (('body', 4),)),
+     (('body', 0, 'body', 0, 'body', 0), 'Expr', (), ()),
+     (('body', 0, 'body', 0, 'body', 1), 'Assign', (), ()),
+     (('body', 0, 'body', 0, 'body', 2),
+      'If',
+      ("BoolOp(op=Or(), values=[Compare(left=Name(id='row', "
+       'ctx=Load()), ops=[Is()], '
+       'comparators=[Constant(value=None)]), '
+       "Compare(left=Call(func=Attribute(value=Name(id='cursor', "
+       "ctx=Load()), attr='fetchone', ctx=Load()), args=[], "
+       'keywords=[]), ops=[IsNot()], '
+       'comparators=[Constant(value=None)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0, 'body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       'ctx=Load()), '
+       "args=[Constant(value='actor属性を一意に確認できない')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 0, 'body', 0, 'body', 3), 'Expr', (), ()),
+     (('body', 0, 'body', 1), 'Expr', (), ()),
+     (('body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 2),)),
+     (('body', 0, 'handlers', 0, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 0, 'handlers', 0, 'body', 0, 'body', 0),
+      'Expr',
+      (),
+      ()),
+     (('body', 0, 'handlers', 0, 'body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='BaseException', ctx=Load())", None),
+      (('body', 1),)),
+     (('body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Pass',
+      (),
+      ()),
+     (('body', 0, 'handlers', 0, 'body', 1),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='DisconnectionError', "
+       'ctx=Load()), '
+       "args=[Constant(value='初期権actorの接続検査に失敗した')], "
+       'keywords=[]), cause=Constant(value=None))',),
+      ())),
+    '_load_initial_actor_runtime':
+    (((),
+      'FunctionDef',
+      ('_load_initial_actor_runtime',
+       "arguments(posonlyargs=[], args=[arg(arg='path', "
+       "annotation=Name(id='Path', ctx=Load())), "
+       "arg(arg='box', annotation=Name(id='V12Box', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 5),)),
+     (('body', 0),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Attribute(value=Name(id='os', "
+       "ctx=Load()), attr='geteuid', ctx=Load()), args=[], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=0)]), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='box', ctx=Load())], keywords=[]), "
+       "ops=[IsNot()], comparators=[Name(id='V12Box', "
+       'ctx=Load())])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='actor設定はroot "
+       "bootstrapだけが読める')], keywords=[]))",),
+      ()),
+     (('body', 1),
+      'Try',
+      (),
+      (('body', 17),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 1, 'body', 0),
+      'If',
+      ('UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='path', "
+       "ctx=Load()), attr='is_absolute', ctx=Load()), args=[], "
+       'keywords=[]))',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), "
+       "args=[Constant(value='絶対pathでない')], keywords=[]))",),
+      ()),
+     (('body', 1, 'body', 1),
+      'For',
+      ("Name(id='parent', ctx=Store())",
+       "Attribute(value=Name(id='path', ctx=Load()), "
+       "attr='parents', ctx=Load())"),
+      (('body', 2), ('orelse', 0))),
+     (('body', 1, 'body', 1, 'body', 0), 'Assign', (), ()),
+     (('body', 1, 'body', 1, 'body', 1),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Call(func=Attribute(value=Name(id='parent', "
+       "ctx=Load()), attr='is_symlink', ctx=Load()), args=[], "
+       'keywords=[]), '
+       "Compare(left=Attribute(value=Name(id='metadata', "
+       "ctx=Load()), attr='st_uid', ctx=Load()), "
+       'ops=[NotEq()], comparators=[Constant(value=0)]), '
+       "BinOp(left=Call(func=Attribute(value=Name(id='stat', "
+       "ctx=Load()), attr='S_IMODE', ctx=Load()), "
+       "args=[Attribute(value=Name(id='metadata', ctx=Load()), "
+       "attr='st_mode', ctx=Load())], keywords=[]), "
+       'op=BitAnd(), right=Constant(value=18))])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 1, 'body', 1, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), "
+       "args=[Constant(value='保護されていない親directory')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 1, 'body', 2), 'Assign', (), ()),
+     (('body', 1, 'body', 3),
+      'With',
+      (("withitem(context_expr=Call(func=Attribute(value=Name(id='os', "
+        "ctx=Load()), attr='fdopen', ctx=Load()), "
+        "args=[Name(id='fd', ctx=Load()), "
+        "Constant(value='rb')], keywords=[]), "
+        "optional_vars=Name(id='file', ctx=Store()))",),),
+      (('body', 3),)),
+     (('body', 1, 'body', 3, 'body', 0), 'Assign', (), ()),
+     (('body', 1, 'body', 3, 'body', 1),
+      'If',
+      ('BoolOp(op=Or(), values=[UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='stat', "
+       "ctx=Load()), attr='S_ISREG', ctx=Load()), "
+       "args=[Attribute(value=Name(id='metadata', ctx=Load()), "
+       "attr='st_mode', ctx=Load())], keywords=[])), "
+       "Compare(left=Attribute(value=Name(id='metadata', "
+       "ctx=Load()), attr='st_uid', ctx=Load()), "
+       'ops=[NotEq()], comparators=[Constant(value=0)]), '
+       "Compare(left=Call(func=Attribute(value=Name(id='stat', "
+       "ctx=Load()), attr='S_IMODE', ctx=Load()), "
+       "args=[Attribute(value=Name(id='metadata', ctx=Load()), "
+       "attr='st_mode', ctx=Load())], keywords=[]), "
+       'ops=[NotEq()], comparators=[Constant(value=384)]), '
+       "Compare(left=Attribute(value=Name(id='metadata', "
+       "ctx=Load()), attr='st_size', ctx=Load()), ops=[Gt()], "
+       'comparators=[Constant(value=16384)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 3, 'body', 1, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), "
+       "args=[Constant(value='root保護設定でない')], keywords=[]))",),
+      ()),
+     (('body', 1, 'body', 3, 'body', 2), 'Assign', (), ()),
+     (('body', 1, 'body', 4),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Name(id='value', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='dict', ctx=Load())]), "
+       "Compare(left=Call(func=Name(id='set', ctx=Load()), "
+       "args=[Name(id='value', ctx=Load())], keywords=[]), "
+       'ops=[NotEq()], '
+       "comparators=[Set(elts=[Constant(value='database_url'), "
+       "Constant(value='system_identifier'), "
+       "Constant(value='database_oid'), "
+       "Constant(value='database_name'), "
+       "Constant(value='postmaster_started_at')])])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 4, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), "
+       "args=[Constant(value='設定field不一致')], keywords=[]))",),
+      ()),
+     (('body', 1, 'body', 5), 'Assign', (), ()),
+     (('body', 1, 'body', 6),
+      'If',
+      ("Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='stamp', ctx=Load())], keywords=[]), "
+       "ops=[IsNot()], comparators=[Name(id='str', "
+       'ctx=Load())])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 6, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='ValueError', ctx=Load()), "
+       "args=[Constant(value='日時型不一致')], keywords=[]))",),
+      ()),
+     (('body', 1, 'body', 7), 'Assign', (), ()),
+     (('body', 1, 'body', 8), 'Assign', (), ()),
+     (('body', 1, 'body', 9), 'Assign', (), ()),
+     (('body', 1, 'body', 10), 'Assign', (), ()),
+     (('body', 1, 'body', 11), 'Assign', (), ()),
+     (('body', 1, 'body', 12), 'Assign', (), ()),
+     (('body', 1, 'body', 13), 'Expr', (), ()),
+     (('body', 1, 'body', 14), 'Assign', (), ()),
+     (('body', 1, 'body', 15),
+      'FunctionDef',
+      ('checkout',
+       "arguments(posonlyargs=[], args=[arg(arg='connection', "
+       "annotation=Name(id='Any', ctx=Load())), "
+       "arg(arg='record', annotation=Name(id='Any', "
+       "ctx=Load())), arg(arg='proxy', "
+       "annotation=Name(id='Any', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 2),)),
+     (('body', 1, 'body', 15, 'body', 0), 'Delete', (), ()),
+     (('body', 1, 'body', 15, 'body', 1), 'Expr', (), ()),
+     (('body', 1, 'body', 16), 'Expr', (), ()),
+     (('body', 1, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body', 1, 'handlers', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       'ctx=Load()), '
+       "args=[Constant(value='初期権actorのroot設定を検証できない')], "
+       'keywords=[]), cause=Constant(value=None))',),
+      ()),
+     (('body', 2), 'Assign', (), ()),
+     (('body', 3), 'Assign', (), ()),
+     (('body', 4),
+      'Return',
+      ("Return(value=Call(func=Name(id='_InitialActorRuntime', "
+       "ctx=Load()), args=[Name(id='key', ctx=Load()), "
+       "Name(id='_RUNTIME_CREATION', ctx=Load())], "
+       'keywords=[]))',),
+      ())),
+    '_close_initial_actor_runtime':
+    (((),
+      'FunctionDef',
+      ('_close_initial_actor_runtime',
+       "arguments(posonlyargs=[], args=[arg(arg='runtime', "
+       "annotation=Name(id='object', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 4),)),
+     (('body', 0), 'Assign', (), ()),
+     (('body', 1), 'Assert', (), ()),
+     (('body', 2), 'Expr', (), ()),
+     (('body', 3), 'Expr', (), ())),
+    '_actor_state':
+    (((),
+      'FunctionDef',
+      ('_actor_state',
+       "arguments(posonlyargs=[], args=[arg(arg='runtime', "
+       "annotation=Name(id='object', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 4),)),
+     (('body', 0),
+      'If',
+      ("Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='runtime', ctx=Load())], keywords=[]), "
+       'ops=[IsNot()], '
+       "comparators=[Name(id='_InitialActorRuntime', "
+       'ctx=Load())])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='actor "
+       "runtimeを確認できない')], keywords=[]))",),
+      ()),
+     (('body', 1), 'Assign', (), ()),
+     (('body', 2),
+      'If',
+      ("Compare(left=Name(id='state', ctx=Load()), ops=[Is()], "
+       'comparators=[Constant(value=None)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='actor "
+       "runtimeは失効している')], keywords=[]))",),
+      ()),
+     (('body', 3),
+      'Return',
+      ("Return(value=Name(id='state', ctx=Load()))",),
+      ())),
+    '_validate_auth_verifier_observation':
+    (((),
+      'FunctionDef',
+      ('_validate_auth_verifier_observation',
+       "arguments(posonlyargs=[], args=[arg(arg='row', "
+       "annotation=Subscript(value=Name(id='tuple', "
+       "ctx=Load()), slice=Tuple(elts=[Name(id='object', "
+       'ctx=Load()), Constant(value=Ellipsis)], ctx=Load()), '
+       "ctx=Load())), arg(arg='config', "
+       "annotation=Name(id='_ActorConfiguration', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 1),)),
+     (('body', 0),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='len', "
+       "ctx=Load()), args=[Name(id='row', ctx=Load())], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=15)]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Slice(upper=Constant(value=2)), '
+       'ctx=Load()), ops=[NotEq()], '
+       "comparators=[Tuple(elts=[Name(id='_INITIAL_AUTH_VERIFIER_ROLE', "
+       "ctx=Load()), Name(id='_INITIAL_AUTH_VERIFIER_ROLE', "
+       'ctx=Load())], ctx=Load())]), '
+       "Compare(left=Call(func=Name(id='tuple', ctx=Load()), "
+       "args=[Subscript(value=Name(id='row', ctx=Load()), "
+       'slice=Slice(lower=Constant(value=2), '
+       'upper=Constant(value=9)), ctx=Load())], keywords=[]), '
+       'ops=[NotEq()], '
+       'comparators=[Tuple(elts=[Constant(value=True), '
+       'Constant(value=False), Constant(value=False), '
+       'Constant(value=False), Constant(value=False), '
+       'Constant(value=False), Constant(value=False)], '
+       "ctx=Load())]), Call(func=Name(id='any', ctx=Load()), "
+       "args=[GeneratorExp(elt=Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Name(id='v', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='bool', ctx=Load())]), "
+       "generators=[comprehension(target=Name(id='v', "
+       "ctx=Store()), iter=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Slice(lower=Constant(value=2), '
+       'upper=Constant(value=9)), ctx=Load()), ifs=[], '
+       'is_async=0)])], keywords=[]), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Subscript(value=Name(id='row', ctx=Load()), "
+       'slice=Constant(value=9), ctx=Load())], keywords=[]), '
+       "ops=[IsNot()], comparators=[Name(id='int', "
+       'ctx=Load())]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=9), ctx=Load()), '
+       'ops=[NotEq()], comparators=[Constant(value=0)]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=10), ctx=Load()), '
+       'ops=[NotIn()], '
+       'comparators=[Tuple(elts=[Constant(value=None), '
+       "Constant(value='')], ctx=Load())]), "
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=11), ctx=Load()), '
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_name', ctx=Load())]), "
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Subscript(value=Name(id='row', ctx=Load()), "
+       'slice=Constant(value=12), ctx=Load())], keywords=[]), '
+       "ops=[IsNot()], comparators=[Name(id='int', "
+       'ctx=Load())]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=12), ctx=Load()), '
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_oid', ctx=Load())]), "
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Subscript(value=Name(id='row', ctx=Load()), "
+       'slice=Constant(value=13), ctx=Load())], keywords=[]), '
+       "ops=[IsNot()], comparators=[Name(id='datetime', "
+       'ctx=Load())]), '
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=13), ctx=Load()), '
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='postmaster_started_at', "
+       "ctx=Load())]), Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=14), ctx=Load())], '
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='int', ctx=Load())]), "
+       "Compare(left=Subscript(value=Name(id='row', "
+       'ctx=Load()), slice=Constant(value=14), ctx=Load()), '
+       'ops=[LtE()], comparators=[Constant(value=0)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ())),
+    '_verify_auth_verifier_checkout':
+    (((),
+      'FunctionDef',
+      ('_verify_auth_verifier_checkout',
+       "arguments(posonlyargs=[], args=[arg(arg='connection', "
+       "annotation=Name(id='Any', ctx=Load())), "
+       "arg(arg='config', "
+       "annotation=Name(id='_ActorConfiguration', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 1),)),
+     (('body', 0),
+      'Try',
+      (),
+      (('body', 2),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 0, 'body', 0),
+      'With',
+      (("withitem(context_expr=Call(func=Attribute(value=Name(id='connection', "
+        "ctx=Load()), attr='cursor', ctx=Load()), args=[], "
+        "keywords=[]), optional_vars=Name(id='cursor', "
+        'ctx=Store()))',),),
+      (('body', 4),)),
+     (('body', 0, 'body', 0, 'body', 0), 'Expr', (), ()),
+     (('body', 0, 'body', 0, 'body', 1), 'Assign', (), ()),
+     (('body', 0, 'body', 0, 'body', 2),
+      'If',
+      ("BoolOp(op=Or(), values=[Compare(left=Name(id='row', "
+       'ctx=Load()), ops=[Is()], '
+       'comparators=[Constant(value=None)]), '
+       "Compare(left=Call(func=Attribute(value=Name(id='cursor', "
+       "ctx=Load()), attr='fetchone', ctx=Load()), args=[], "
+       'keywords=[]), ops=[IsNot()], '
+       'comparators=[Constant(value=None)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0, 'body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 0, 'body', 0, 'body', 3), 'Expr', (), ()),
+     (('body', 0, 'body', 1), 'Expr', (), ()),
+     (('body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 2),)),
+     (('body', 0, 'handlers', 0, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 0, 'handlers', 0, 'body', 0, 'body', 0),
+      'Expr',
+      (),
+      ()),
+     (('body', 0, 'handlers', 0, 'body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='BaseException', ctx=Load())", None),
+      (('body', 1),)),
+     (('body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Pass',
+      (),
+      ()),
+     (('body', 0, 'handlers', 0, 'body', 1),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='DisconnectionError', "
+       'ctx=Load()), '
+       "args=[Constant(value='専用Cookie検証接続を確認できない')], "
+       'keywords=[]), cause=Constant(value=None))',),
+      ())),
+    '_load_initial_auth_verifier_runtime':
+    (((),
+      'FunctionDef',
+      ('_load_initial_auth_verifier_runtime',
+       'arguments(posonlyargs=[], '
+       "args=[arg(arg='actor_runtime', "
+       "annotation=Name(id='object', ctx=Load())), "
+       "arg(arg='presentation', annotation=Name(id='object', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 5),)),
+     (('body', 0), 'ImportFrom', (), ()),
+     (('body', 1), 'ImportFrom', (), ()),
+     (('body', 2), 'AnnAssign', (), ()),
+     (('body', 3),
+      'Try',
+      (),
+      (('body', 14),
+       ('handlers', 1),
+       ('orelse', 3),
+       ('finalbody', 0))),
+     (('body', 3, 'body', 0),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Attribute(value=Name(id='os', "
+       "ctx=Load()), attr='geteuid', ctx=Load()), args=[], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=0)]), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='presentation', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='TokenPresentation', "
+       'ctx=Load())])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 3, 'body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 3, 'body', 1), 'Assign', (), ()),
+     (('body', 3, 'body', 2),
+      'If',
+      ("BoolOp(op=Or(), values=[Compare(left=Name(id='active', "
+       'ctx=Load()), ops=[Is()], '
+       'comparators=[Constant(value=None)]), '
+       "Compare(left=Subscript(value=Name(id='active', "
+       'ctx=Load()), slice=Constant(value=0), ctx=Load()), '
+       "ops=[IsNot()], comparators=[Name(id='presentation', "
+       'ctx=Load())]), '
+       "Compare(left=Subscript(value=Name(id='active', "
+       'ctx=Load()), slice=Constant(value=1), ctx=Load()), '
+       'ops=[IsNot()], '
+       "comparators=[Attribute(value=Name(id='presentation', "
+       "ctx=Load()), attr='_key', ctx=Load())])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 3, 'body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 3, 'body', 3), 'Assign', (), ()),
+     (('body', 3, 'body', 4), 'Assign', (), ()),
+     (('body', 3, 'body', 5), 'Assign', (), ()),
+     (('body', 3, 'body', 6), 'Assign', (), ()),
+     (('body', 3, 'body', 7), 'Assign', (), ()),
+     (('body', 3, 'body', 8), 'Assign', (), ()),
+     (('body', 3, 'body', 9), 'Assign', (), ()),
+     (('body', 3, 'body', 10), 'Expr', (), ()),
+     (('body', 3, 'body', 11), 'Assign', (), ()),
+     (('body', 3, 'body', 12),
+      'FunctionDef',
+      ('checkout',
+       "arguments(posonlyargs=[], args=[arg(arg='connection', "
+       "annotation=Name(id='Any', ctx=Load())), "
+       "arg(arg='record', annotation=Name(id='Any', "
+       "ctx=Load())), arg(arg='proxy', "
+       "annotation=Name(id='Any', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 2),)),
+     (('body', 3, 'body', 12, 'body', 0), 'Delete', (), ()),
+     (('body', 3, 'body', 12, 'body', 1), 'Expr', (), ()),
+     (('body', 3, 'body', 13), 'Expr', (), ()),
+     (('body', 3, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body', 3, 'handlers', 0, 'body', 0),
+      'If',
+      ("Compare(left=Name(id='engine', ctx=Load()), "
+       'ops=[IsNot()], comparators=[Constant(value=None)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 3, 'handlers', 0, 'body', 0, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body',
+       3,
+       'handlers',
+       0,
+       'body',
+       0,
+       'body',
+       0,
+       'body',
+       0),
+      'Expr',
+      (),
+      ()),
+     (('body',
+       3,
+       'handlers',
+       0,
+       'body',
+       0,
+       'body',
+       0,
+       'handlers',
+       0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body',
+       3,
+       'handlers',
+       0,
+       'body',
+       0,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Pass',
+      (),
+      ()),
+     (('body', 3, 'orelse', 0), 'Assign', (), ()),
+     (('body', 3, 'orelse', 1), 'Assign', (), ()),
+     (('body', 3, 'orelse', 2),
+      'Return',
+      ("Return(value=Call(func=Name(id='_InitialAuthVerifierRuntime', "
+       "ctx=Load()), args=[Name(id='key', ctx=Load()), "
+       "Name(id='_RUNTIME_CREATION', ctx=Load())], "
+       'keywords=[]))',),
+      ()),
+     (('body', 4),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ())),
+    '_close_initial_auth_verifier_runtime':
+    (((),
+      'FunctionDef',
+      ('_close_initial_auth_verifier_runtime',
+       "arguments(posonlyargs=[], args=[arg(arg='runtime', "
+       "annotation=Name(id='object', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 5),)),
+     (('body', 0), 'Assign', (), ()),
+     (('body', 1), 'Assert', (), ()),
+     (('body', 2), 'Delete', (), ()),
+     (('body', 3),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 1),
+       ('finalbody', 0))),
+     (('body', 3, 'body', 0), 'Expr', (), ()),
+     (('body', 3, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body', 3, 'handlers', 0, 'body', 0), 'Pass', (), ()),
+     (('body', 3, 'orelse', 0), 'Return', ('Return()',), ()),
+     (('body', 4),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ())),
+    '_auth_verifier_state':
+    (((),
+      'FunctionDef',
+      ('_auth_verifier_state',
+       "arguments(posonlyargs=[], args=[arg(arg='runtime', "
+       "annotation=Name(id='object', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 4),)),
+     (('body', 0),
+      'If',
+      ("Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='runtime', ctx=Load())], keywords=[]), "
+       'ops=[IsNot()], '
+       "comparators=[Name(id='_InitialAuthVerifierRuntime', "
+       'ctx=Load())])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 1), 'Assign', (), ()),
+     (('body', 2),
+      'If',
+      ("Compare(left=Name(id='state', ctx=Load()), ops=[Is()], "
+       'comparators=[Constant(value=None)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 3),
+      'Return',
+      ("Return(value=Name(id='state', ctx=Load()))",),
+      ())),
+    '_initial_auth_verifier_url':
+    (((),
+      'FunctionDef',
+      ('_initial_auth_verifier_url',
+       "arguments(posonlyargs=[], args=[arg(arg='config', "
+       "annotation=Name(id='_ActorConfiguration', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 3),)),
+     (('body', 0), 'ImportFrom', (), ()),
+     (('body', 1),
+      'Try',
+      (),
+      (('body', 5),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 1, 'body', 0), 'Assign', (), ()),
+     (('body', 1, 'body', 1), 'Assign', (), ()),
+     (('body', 1, 'body', 2), 'Assign', (), ()),
+     (('body', 1, 'body', 3),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Attribute(value=Name(id='url', "
+       "ctx=Load()), attr='username', ctx=Load()), "
+       "ops=[NotEq()], comparators=[Name(id='_ACTOR_ROLE', "
+       'ctx=Load())]), '
+       "Compare(left=Attribute(value=Name(id='url', "
+       "ctx=Load()), attr='password', ctx=Load()), "
+       'ops=[IsNot()], comparators=[Constant(value=None)]), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='host', ctx=Load())], keywords=[]), "
+       "ops=[IsNot()], comparators=[Name(id='str', "
+       'ctx=Load())]), UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='host', "
+       "ctx=Load()), attr='startswith', ctx=Load()), "
+       "args=[Constant(value='/')], keywords=[])), "
+       "Compare(left=Constant(value=','), ops=[In()], "
+       "comparators=[Name(id='host', ctx=Load())]), "
+       "Call(func=Name(id='any', ctx=Load()), "
+       "args=[GeneratorExp(elt=Compare(left=Name(id='k', "
+       'ctx=Load()), ops=[NotIn()], '
+       "comparators=[Set(elts=[Constant(value='host'), "
+       "Constant(value='port'), Constant(value='sslmode'), "
+       "Constant(value='gssencmode')])]), "
+       "generators=[comprehension(target=Name(id='k', "
+       "ctx=Store()), iter=Name(id='query', ctx=Load()), "
+       'ifs=[], is_async=0)])], keywords=[]), '
+       "Compare(left=Call(func=Attribute(value=Name(id='query', "
+       "ctx=Load()), attr='get', ctx=Load()), "
+       "args=[Constant(value='sslmode'), "
+       "Constant(value='disable')], keywords=[]), "
+       'ops=[NotEq()], '
+       "comparators=[Constant(value='disable')]), "
+       "Compare(left=Call(func=Attribute(value=Name(id='query', "
+       "ctx=Load()), attr='get', ctx=Load()), "
+       "args=[Constant(value='gssencmode'), "
+       "Constant(value='disable')], keywords=[]), "
+       'ops=[NotEq()], '
+       "comparators=[Constant(value='disable')]), "
+       "Compare(left=Attribute(value=Name(id='url', "
+       "ctx=Load()), attr='database', ctx=Load()), "
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_name', ctx=Load())])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 1, 'body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Name(id='ValueError', ctx=Load()))",),
+      ()),
+     (('body', 1, 'body', 4),
+      'Return',
+      ("Return(value=Call(func=Attribute(value=Call(func=Attribute(value=Name(id='url', "
+       "ctx=Load()), attr='set', ctx=Load()), args=[], "
+       "keywords=[keyword(arg='username', "
+       "value=Name(id='_INITIAL_AUTH_VERIFIER_ROLE', "
+       "ctx=Load()))]), attr='render_as_string', ctx=Load()), "
+       "args=[], keywords=[keyword(arg='hide_password', "
+       'value=Constant(value=False))]))',),
+      ()),
+     (('body', 1, 'handlers', 0),
+      'ExceptHandler',
+      ("Tuple(elts=[Name(id='ValueError', ctx=Load()), "
+       "Name(id='TypeError', ctx=Load()), "
+       "Name(id='AttributeError', ctx=Load())], ctx=Load())",
+       None),
+      (('body', 1),)),
+     (('body', 1, 'handlers', 0, 'body', 0), 'Pass', (), ()),
+     (('body', 2),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ())),
+    '_verify_business_binding':
+    (((),
+      'FunctionDef',
+      ('_verify_business_binding',
+       "arguments(posonlyargs=[], args=[arg(arg='transaction', "
+       "annotation=Name(id='_TenantTransaction', ctx=Load())), "
+       "arg(arg='runtime', annotation=Name(id='object', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 8),)),
+     (('body', 0), 'ImportFrom', (), ()),
+     (('body', 1), 'Assign', (), ()),
+     (('body', 2),
+      'If',
+      ("Compare(left=Call(func=Name(id='len', ctx=Load()), "
+       "args=[Name(id='registrations', ctx=Load())], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=1)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='actor用の固定scope "
+       "bindingが未供給')], keywords=[]))",),
+      ()),
+     (('body', 3), 'Assign', (), ()),
+     (('body', 4), 'Assign', (), ()),
+     (('body', 5),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='len', "
+       "ctx=Load()), args=[Name(id='rows', ctx=Load())], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=1)]), '
+       "Compare(left=Call(func=Name(id='len', ctx=Load()), "
+       "args=[Subscript(value=Name(id='rows', ctx=Load()), "
+       'slice=Constant(value=0), ctx=Load())], keywords=[]), '
+       'ops=[NotEq()], comparators=[Constant(value=1)]), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Subscript(value=Subscript(value=Name(id='rows', "
+       'ctx=Load()), slice=Constant(value=0), ctx=Load()), '
+       'slice=Constant(value=0), ctx=Load())], keywords=[]), '
+       "ops=[IsNot()], comparators=[Name(id='str', "
+       'ctx=Load())])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 5, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='実scope "
+       "bindingを確認できない')], keywords=[]))",),
+      ()),
+     (('body', 6),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 6, 'body', 0), 'Assign', (), ()),
+     (('body', 6, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='ImportError', ctx=Load())", None),
+      (('body', 1),)),
+     (('body', 6, 'handlers', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='固定RG1 "
+       "binding型が未供給')], keywords=[]), "
+       'cause=Constant(value=None))',),
+      ()),
+     (('body', 7),
+      'Try',
+      (),
+      (('body', 3),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 7, 'body', 0), 'Assign', (), ()),
+     (('body', 7, 'body', 1), 'Assign', (), ()),
+     (('body', 7, 'body', 2),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Attribute(value=Name(id='binding', "
+       "ctx=Load()), attr='system_identifier', ctx=Load()), "
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='system_identifier', ctx=Load())]), "
+       "Compare(left=Attribute(value=Name(id='binding', "
+       "ctx=Load()), attr='database_oid', ctx=Load()), "
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_oid', ctx=Load())]), "
+       "Compare(left=Attribute(value=Name(id='binding', "
+       "ctx=Load()), attr='database_name', ctx=Load()), "
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='database_name', ctx=Load())]), "
+       "Compare(left=Attribute(value=Name(id='binding', "
+       "ctx=Load()), attr='postmaster_started_at', "
+       'ctx=Load()), ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='config', "
+       "ctx=Load()), attr='postmaster_started_at', "
+       'ctx=Load())])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 7, 'body', 2, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='実scope "
+       "bindingがroot配置と一致しない')], keywords=[]))",),
+      ()),
+     (('body', 7, 'handlers', 0),
+      'ExceptHandler',
+      ("Attribute(value=Name(id='provider', ctx=Load()), "
+       "attr='RG1ControlUnavailable', ctx=Load())",
+       None),
+      (('body', 1),)),
+     (('body', 7, 'handlers', 0, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='実scope "
+       "bindingを確認できない')], keywords=[]), "
+       'cause=Constant(value=None))',),
+      ())),
+    '_issue_initial_grant_impl':
+    (((),
+      'FunctionDef',
+      ('_issue_initial_grant_impl',
+       "arguments(posonlyargs=[], args=[arg(arg='context', "
+       "annotation=Name(id='TenantContext', ctx=Load())), "
+       "arg(arg='runtime', annotation=Name(id='object', "
+       "ctx=Load())), arg(arg='owner', "
+       "annotation=Name(id='_StartOwner', ctx=Load())), "
+       "arg(arg='credential', annotation=Name(id='str', "
+       "ctx=Load())), arg(arg='source', "
+       "annotation=Name(id='DurableGenerationSource', "
+       "ctx=Load())), arg(arg='fence', "
+       "annotation=Name(id='RecoveryEpochFence', ctx=Load())), "
+       "arg(arg='start_payload', "
+       "annotation=BinOp(left=Name(id='BoundInitialStartPayload', "
+       'ctx=Load()), op=BitOr(), '
+       'right=Constant(value=None)))], kwonlyargs=[], '
+       'kw_defaults=[], defaults=[Constant(value=None)])',
+       ()),
+      (('body', 11),)),
+     (('body', 0), 'ImportFrom', (), ()),
+     (('body', 1), 'ImportFrom', (), ()),
+     (('body', 2), 'Assign', (), ()),
+     (('body', 3),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Name(id='context', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='TenantContext', ctx=Load())]), "
+       'UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='context', "
+       "ctx=Load()), attr='_has_valid_integrity_proof', "
+       'ctx=Load()), args=[], keywords=[])), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='owner', ctx=Load())], keywords=[]), "
+       "ops=[IsNot()], comparators=[Name(id='_StartOwner', "
+       'ctx=Load())]), '
+       "Compare(left=Attribute(value=Name(id='context', "
+       "ctx=Load()), attr='tenant_id', ctx=Load()), "
+       'ops=[NotEq()], '
+       "comparators=[Attribute(value=Name(id='owner', "
+       "ctx=Load()), attr='tenant_id', ctx=Load())])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='初期権の認証済み文脈が不正')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 4),
+      'If',
+      ("Compare(left=Name(id='start_payload', ctx=Load()), "
+       'ops=[IsNot()], comparators=[Constant(value=None)])',),
+      (('body', 4), ('orelse', 0))),
+     (('body', 4, 'body', 0), 'ImportFrom', (), ()),
+     (('body', 4, 'body', 1),
+      'If',
+      ("Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='start_payload', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='BoundInitialStartPayload', "
+       'ctx=Load())])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 4, 'body', 1, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='開始payloadの閉型が不正')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 4, 'body', 2), 'Expr', (), ()),
+     (('body', 4, 'body', 3),
+      'If',
+      ('UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='hmac', "
+       "ctx=Load()), attr='compare_digest', ctx=Load()), "
+       "args=[Attribute(value=Name(id='start_payload', "
+       "ctx=Load()), attr='credential_digest', ctx=Load()), "
+       "Call(func=Name(id='_credential_digest', ctx=Load()), "
+       "args=[Name(id='credential', ctx=Load())], "
+       'keywords=[])], keywords=[]))',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 4, 'body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       'ctx=Load()), '
+       "args=[Constant(value='開始payloadの資格束縛が不一致')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 5), 'Expr', (), ()),
+     (('body', 6),
+      'With',
+      (("withitem(context_expr=Call(func=Name(id='_initial_actor_transaction_scope', "
+        "ctx=Load()), args=[Name(id='context', ctx=Load()), "
+        "Name(id='runtime', ctx=Load()), "
+        "Constant(value='intent')], keywords=[]), "
+        "optional_vars=Name(id='transaction', "
+        'ctx=Store()))',),),
+      (('body', 10),)),
+     (('body', 6, 'body', 0), 'Expr', (), ()),
+     (('body', 6, 'body', 1), 'Expr', (), ()),
+     (('body', 6, 'body', 2), 'Assign', (), ()),
+     (('body', 6, 'body', 3),
+      'If',
+      ('BoolOp(op=Or(), values=[UnaryOp(op=Not(), '
+       "operand=Name(id='rows', ctx=Load())), "
+       "Compare(left=Subscript(value=Subscript(value=Name(id='rows', "
+       'ctx=Load()), slice=Constant(value=0), ctx=Load()), '
+       'slice=Constant(value=1), ctx=Load()), ops=[IsNot()], '
+       'comparators=[Constant(value=None)]), UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='hmac', "
+       "ctx=Load()), attr='compare_digest', ctx=Load()), "
+       "args=[Call(func=Name(id='cast', ctx=Load()), "
+       "args=[Name(id='bytes', ctx=Load()), "
+       "Subscript(value=Subscript(value=Name(id='rows', "
+       'ctx=Load()), slice=Constant(value=0), ctx=Load()), '
+       'slice=Constant(value=0), ctx=Load())], keywords=[]), '
+       "Call(func=Name(id='_credential_digest', ctx=Load()), "
+       "args=[Name(id='credential', ctx=Load())], "
+       'keywords=[])], keywords=[]))])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 6, 'body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='端末資格を確認できない')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 6, 'body', 4), 'Assign', (), ()),
+     (('body', 6, 'body', 5),
+      'If',
+      ("UnaryOp(op=Not(), operand=Name(id='rows', "
+       'ctx=Load()))',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 6, 'body', 5, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='開始intentを確認できない')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 6, 'body', 6), 'Assign', (), ()),
+     (('body', 6, 'body', 7), 'ImportFrom', (), ()),
+     (('body', 6, 'body', 8), 'Expr', (), ()),
+     (('body', 6, 'body', 9), 'Expr', (), ()),
+     (('body', 7),
+      'If',
+      ("Compare(left=Name(id='start_payload', ctx=Load()), "
+       'ops=[IsNot()], comparators=[Constant(value=None)])',),
+      (('body', 2), ('orelse', 0))),
+     (('body', 7, 'body', 0), 'ImportFrom', (), ()),
+     (('body', 7, 'body', 1), 'Assign', (), ()),
+     (('body', 8),
+      'With',
+      (("withitem(context_expr=Call(func=Name(id='_initial_recording_right_scope', "
+        "ctx=Load()), args=[Name(id='context', ctx=Load()), "
+        "Name(id='owner', ctx=Load()), Name(id='runtime', "
+        "ctx=Load()), Name(id='start_payload', ctx=Load())], "
+        "keywords=[]), optional_vars=Name(id='scope', "
+        'ctx=Store()))',),),
+      (('body', 6),)),
+     (('body', 8, 'body', 0), 'Expr', (), ()),
+     (('body', 8, 'body', 1), 'Assign', (), ()),
+     (('body', 8, 'body', 2), 'Expr', (), ()),
+     (('body', 8, 'body', 3), 'Expr', (), ()),
+     (('body', 8, 'body', 4), 'Assign', (), ()),
+     (('body', 8, 'body', 5),
+      'If',
+      ('BoolOp(op=And(), '
+       "values=[Compare(left=Name(id='start_payload', "
+       'ctx=Load()), ops=[IsNot()], '
+       'comparators=[Constant(value=None)]), '
+       "Compare(left=Name(id='receipt', ctx=Load()), "
+       'ops=[Is()], comparators=[Constant(value=None)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 8, 'body', 5, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
+       "ctx=Load()), args=[Constant(value='開始保存原本を確認できない')], "
+       'keywords=[]))',),
+      ()),
+     (('body', 9), 'Expr', (), ()),
+     (('body', 10),
+      'Return',
+      ("Return(value=Tuple(elts=[Name(id='grant', ctx=Load()), "
+       "Name(id='receipt', ctx=Load())], ctx=Load()))",),
+      ())),
+    '_worker_resolve_start':
+    (((),
+      'FunctionDef',
+      ('_worker_resolve_start',
+       "arguments(posonlyargs=[], args=[arg(arg='command', "
+       "annotation=Name(id='_StartInitialGameCommand', "
+       "ctx=Load())), arg(arg='context', "
+       "annotation=Name(id='TenantContext', ctx=Load())), "
+       "arg(arg='state', annotation=Name(id='_WorkerState', "
+       "ctx=Load())), arg(arg='fence', "
+       "annotation=Name(id='RecoveryEpochFence', "
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
+       'defaults=[])',
+       ()),
+      (('body', 14),)),
+     (('body', 0), 'ImportFrom', (), ()),
+     (('body', 1), 'ImportFrom', (), ()),
+     (('body', 2), 'ImportFrom', (), ()),
+     (('body', 3), 'ImportFrom', (), ()),
+     (('body', 4), 'ImportFrom', (), ()),
+     (('body', 5), 'Expr', (), ()),
+     (('body', 6), 'Assign', (), ()),
+     (('body', 7), 'Assign', (), ()),
+     (('body', 8), 'Assign', (), ()),
+     (('body', 9), 'Assign', (), ()),
+     (('body', 10), 'Expr', (), ()),
+     (('body', 11),
+      'With',
+      (("withitem(context_expr=Call(func=Name(id='_initial_resolution_transaction_scope', "
+        "ctx=Load()), args=[Name(id='binding', ctx=Load())], "
+        "keywords=[]), optional_vars=Name(id='transaction', "
+        'ctx=Store()))',),),
+      (('body', 11),)),
+     (('body', 11, 'body', 0), 'Expr', (), ()),
+     (('body', 11, 'body', 1), 'Expr', (), ()),
+     (('body', 11, 'body', 2), 'Expr', (), ()),
+     (('body', 11, 'body', 3), 'Assign', (), ()),
+     (('body', 11, 'body', 4),
+      'If',
+      ('BoolOp(op=Or(), values=[UnaryOp(op=Not(), '
+       "operand=Name(id='rows', ctx=Load())), "
+       "Compare(left=Subscript(value=Subscript(value=Name(id='rows', "
+       'ctx=Load()), slice=Constant(value=0), ctx=Load()), '
+       'slice=Constant(value=1), ctx=Load()), ops=[NotEq()], '
+       "comparators=[Constant(value='committed')])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'body', 4, 'body', 0),
+      'Return',
+      ('Return(value=Constant(value=None))',),
+      ()),
+     (('body', 11, 'body', 5), 'Assign', (), ()),
+     (('body', 11, 'body', 6),
+      'If',
+      ("Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='attempt', ctx=Load())], keywords=[]), "
+       "ops=[IsNot()], comparators=[Name(id='UUID', "
+       'ctx=Load())])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'body', 6, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 11, 'body', 7), 'Assign', (), ()),
+     (('body', 11, 'body', 8),
+      'With',
+      (("withitem(context_expr=Call(func=Name(id='_existing_start_scope_on_handle', "
+        "ctx=Load()), args=[Name(id='context', ctx=Load()), "
+        "Attribute(value=Name(id='bound', ctx=Load()), "
+        "attr='owner', ctx=Load()), "
+        "Attribute(value=Name(id='state', ctx=Load()), "
+        "attr='actor', ctx=Load()), Name(id='transaction', "
+        "ctx=Load()), Name(id='bound', ctx=Load())], "
+        "keywords=[]), optional_vars=Name(id='scope', "
+        'ctx=Store()))',),),
+      (('body', 4),)),
+     (('body', 11, 'body', 8, 'body', 0), 'Assign', (), ()),
+     (('body', 11, 'body', 8, 'body', 1), 'Expr', (), ()),
+     (('body', 11, 'body', 8, 'body', 2), 'Assign', (), ()),
+     (('body', 11, 'body', 8, 'body', 3),
+      'If',
+      ("Compare(left=Name(id='receipt', ctx=Load()), "
+       'ops=[Is()], comparators=[Constant(value=None)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'body', 8, 'body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 11, 'body', 9), 'Expr', (), ()),
+     (('body', 11, 'body', 10), 'Expr', (), ()),
+     (('body', 12), 'Expr', (), ()),
+     (('body', 13),
+      'Return',
+      ("Return(value=Call(func=Name(id='_InitialStartedGame', "
+       "ctx=Load()), args=[Name(id='grant', ctx=Load()), "
+       "Name(id='receipt', ctx=Load())], keywords=[]))",),
+      ())),
+    '_InitialBrokerClient.call':
+    (((),
+      'FunctionDef',
+      ('call',
+       "arguments(posonlyargs=[], args=[arg(arg='self'), "
+       "arg(arg='command', "
+       "annotation=Name(id='_BrokerCommand', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 2),)),
+     (('body', 0),
+      'Try',
+      (),
+      (('body', 5),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 0, 'body', 0), 'Assign', (), ()),
+     (('body', 0, 'body', 1), 'Expr', (), ()),
+     (('body', 0, 'body', 2), 'Assign', (), ()),
+     (('body', 0, 'body', 3),
+      'With',
+      (("withitem(context_expr=Call(func=Attribute(value=Name(id='socket', "
+        "ctx=Load()), attr='socket', ctx=Load()), "
+        "args=[Attribute(value=Name(id='socket', ctx=Load()), "
+        "attr='AF_UNIX', ctx=Load()), "
+        "Attribute(value=Name(id='socket', ctx=Load()), "
+        "attr='SOCK_STREAM', ctx=Load())], keywords=[]), "
+        "optional_vars=Name(id='channel', ctx=Store()))",),),
+      (('body', 8),)),
+     (('body', 0, 'body', 3, 'body', 0), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 1), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 2), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 3), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 4), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 5), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 6), 'Expr', (), ()),
+     (('body', 0, 'body', 3, 'body', 7), 'Assign', (), ()),
+     (('body', 0, 'body', 4),
+      'Return',
+      ("Return(value=Call(func=Name(id='_decode_initial_reply', "
+       "ctx=Load()), args=[Name(id='response', ctx=Load()), "
+       "Name(id='command', ctx=Load())], keywords=[]))",),
+      ()),
+     (('body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Tuple(elts=[Name(id='OSError', ctx=Load()), "
+       "Name(id='ValueError', ctx=Load()), "
+       "Name(id='TypeError', ctx=Load()), "
+       "Name(id='InitialBrokerUnavailable', ctx=Load())], "
+       'ctx=Load())',
+       None),
+      (('body', 1),)),
+     (('body', 0, 'handlers', 0, 'body', 0), 'Pass', (), ()),
+     (('body', 1),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ())),
+    'serve_initial_broker':
+    (((),
+      'FunctionDef',
+      ('serve_initial_broker',
+       "arguments(posonlyargs=[], args=[arg(arg='config_path', "
+       "annotation=Name(id='Path', ctx=Load())), "
+       "arg(arg='presentation', annotation=Name(id='object', "
+       "ctx=Load())), arg(arg='box', "
+       "annotation=Name(id='V12Box', ctx=Load()))], "
+       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 13),)),
+     (('body', 0), 'ImportFrom', (), ()),
+     (('body', 1), 'ImportFrom', (), ()),
+     (('body', 2), 'ImportFrom', (), ()),
+     (('body', 3),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Attribute(value=Name(id='os', "
+       "ctx=Load()), attr='geteuid', ctx=Load()), args=[], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=0)]), '
+       "Compare(left=Call(func=Name(id='type', ctx=Load()), "
+       "args=[Name(id='presentation', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='TokenPresentation', "
+       "ctx=Load())]), Compare(left=Call(func=Name(id='type', "
+       "ctx=Load()), args=[Name(id='box', ctx=Load())], "
+       'keywords=[]), ops=[IsNot()], '
+       "comparators=[Name(id='V12Box', ctx=Load())])])",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 3, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 4), 'Assign', (), ()),
+     (('body', 5), 'Assign', (), ()),
+     (('body', 6), 'Assign', (), ()),
+     (('body', 7), 'AnnAssign', (), ()),
+     (('body', 8), 'Assign', (), ()),
+     (('body', 9), 'Assign', (), ()),
+     (('body', 10), 'Assign', (), ()),
+     (('body', 11),
+      'Try',
+      (),
+      (('body', 30),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 7))),
+     (('body', 11, 'body', 0), 'Assign', (), ()),
+     (('body', 11, 'body', 1), 'Assign', (), ()),
+     (('body', 11, 'body', 2), 'Assign', (), ()),
+     (('body', 11, 'body', 3), 'Assign', (), ()),
+     (('body', 11, 'body', 4), 'Expr', (), ()),
+     (('body', 11, 'body', 5),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Call(func=Attribute(value=Name(id='endpoint_path', "
+       "ctx=Load()), attr='exists', ctx=Load()), args=[], "
+       'keywords=[]), '
+       "Call(func=Attribute(value=Name(id='endpoint_path', "
+       "ctx=Load()), attr='is_symlink', ctx=Load()), args=[], "
+       'keywords=[])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'body', 5, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 11, 'body', 6), 'Assign', (), ()),
+     (('body', 11, 'body', 7), 'Expr', (), ()),
+     (('body', 11, 'body', 8), 'Expr', (), ()),
+     (('body', 11, 'body', 9), 'Expr', (), ()),
+     (('body', 11, 'body', 10), 'Assign', (), ()),
+     (('body', 11, 'body', 11), 'Assign', (), ()),
+     (('body', 11, 'body', 12), 'Expr', (), ()),
+     (('body', 11, 'body', 13), 'Assign', (), ()),
+     (('body', 11, 'body', 14), 'Assign', (), ()),
+     (('body', 11, 'body', 15),
+      'With',
+      (("withitem(context_expr=Call(func=Attribute(value=Name(id='os', "
+        "ctx=Load()), attr='fdopen', ctx=Load()), "
+        "args=[Name(id='fd', ctx=Load()), "
+        "Constant(value='wb')], keywords=[]), "
+        "optional_vars=Name(id='output', ctx=Store()))",),),
+      (('body', 4),)),
+     (('body', 11, 'body', 15, 'body', 0), 'Expr', (), ()),
+     (('body', 11, 'body', 15, 'body', 1), 'Expr', (), ()),
+     (('body', 11, 'body', 15, 'body', 2), 'Expr', (), ()),
+     (('body', 11, 'body', 15, 'body', 3), 'Expr', (), ()),
+     (('body', 11, 'body', 16), 'Expr', (), ()),
+     (('body', 11, 'body', 17), 'Expr', (), ()),
+     (('body', 11, 'body', 18), 'Expr', (), ()),
+     (('body', 11, 'body', 19), 'Assign', (), ()),
+     (('body', 11, 'body', 20),
+      'If',
+      ('BoolOp(op=Or(), '
+       "values=[Compare(left=Call(func=Attribute(value=Name(id='libc', "
+       "ctx=Load()), attr='prctl', ctx=Load()), "
+       'args=[Constant(value=38), Constant(value=1), '
+       'Constant(value=0), Constant(value=0), '
+       'Constant(value=0)], keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=0)]), '
+       "Compare(left=Call(func=Attribute(value=Name(id='os', "
+       "ctx=Load()), attr='geteuid', ctx=Load()), args=[], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=20002)]), '
+       "Compare(left=Call(func=Attribute(value=Name(id='os', "
+       "ctx=Load()), attr='getegid', ctx=Load()), args=[], "
+       'keywords=[]), ops=[NotEq()], '
+       'comparators=[Constant(value=20002)])])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'body', 20, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]))',),
+      ()),
+     (('body', 11, 'body', 21), 'Expr', (), ()),
+     (('body', 11, 'body', 22), 'Assign', (), ()),
+     (('body', 11, 'body', 23), 'Assign', (), ()),
+     (('body', 11, 'body', 24), 'Assign', (), ()),
+     (('body', 11, 'body', 25), 'Expr', (), ()),
+     (('body', 11, 'body', 26), 'Expr', (), ()),
+     (('body', 11, 'body', 27),
+      'FunctionDef',
+      ('work',
+       'arguments(posonlyargs=[], args=[], kwonlyargs=[], '
+       'kw_defaults=[], defaults=[])',
+       ()),
+      (('body', 1),)),
+     (('body', 11, 'body', 27, 'body', 0),
+      'While',
+      ('UnaryOp(op=Not(), '
+       "operand=Call(func=Attribute(value=Name(id='stop', "
+       "ctx=Load()), attr='is_set', ctx=Load()), args=[], "
+       'keywords=[]))',),
+      (('body', 2), ('orelse', 0))),
+     (('body', 11, 'body', 27, 'body', 0, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 11, 'body', 27, 'body', 0, 'body', 0, 'body', 0),
+      'Assign',
+      (),
+      ()),
+     (('body',
+       11,
+       'body',
+       27,
+       'body',
+       0,
+       'body',
+       0,
+       'handlers',
+       0),
+      'ExceptHandler',
+      ("Attribute(value=Name(id='queue', ctx=Load()), "
+       "attr='Empty', ctx=Load())",
+       None),
+      (('body', 1),)),
+     (('body',
+       11,
+       'body',
+       27,
+       'body',
+       0,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Continue',
+      ('Continue()',),
+      ()),
+     (('body', 11, 'body', 27, 'body', 0, 'body', 1),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 0),
+       ('orelse', 0),
+       ('finalbody', 1))),
+     (('body', 11, 'body', 27, 'body', 0, 'body', 1, 'body', 0),
+      'Expr',
+      (),
+      ()),
+     (('body',
+       11,
+       'body',
+       27,
+       'body',
+       0,
+       'body',
+       1,
+       'finalbody',
+       0),
+      'Expr',
+      (),
+      ()),
+     (('body', 11, 'body', 28),
+      'For',
+      ("Name(id='_', ctx=Store())",
+       "Call(func=Name(id='range', ctx=Load()), "
+       'args=[Constant(value=3)], keywords=[])'),
+      (('body', 3), ('orelse', 0))),
+     (('body', 11, 'body', 28, 'body', 0), 'Assign', (), ()),
+     (('body', 11, 'body', 28, 'body', 1), 'Expr', (), ()),
+     (('body', 11, 'body', 28, 'body', 2), 'Expr', (), ()),
+     (('body', 11, 'body', 29),
+      'While',
+      ('Constant(value=True)',),
+      (('body', 3), ('orelse', 0))),
+     (('body', 11, 'body', 29, 'body', 0), 'Expr', (), ()),
+     (('body', 11, 'body', 29, 'body', 1),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 11, 'body', 29, 'body', 1, 'body', 0),
+      'Assign',
+      (),
+      ()),
+     (('body', 11, 'body', 29, 'body', 1, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='TimeoutError', ctx=Load())", None),
+      (('body', 1),)),
+     (('body',
+       11,
+       'body',
+       29,
+       'body',
+       1,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Continue',
+      ('Continue()',),
+      ()),
+     (('body', 11, 'body', 29, 'body', 2),
+      'Try',
+      (),
+      (('body', 2),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 11, 'body', 29, 'body', 2, 'body', 0),
+      'Expr',
+      (),
+      ()),
+     (('body', 11, 'body', 29, 'body', 2, 'body', 1),
+      'Expr',
+      (),
+      ()),
+     (('body', 11, 'body', 29, 'body', 2, 'handlers', 0),
+      'ExceptHandler',
+      ("Tuple(elts=[Name(id='OSError', ctx=Load()), "
+       "Name(id='InitialBrokerUnavailable', ctx=Load()), "
+       "Attribute(value=Name(id='queue', ctx=Load()), "
+       "attr='Full', ctx=Load())], ctx=Load())",
+       None),
+      (('body', 1),)),
+     (('body',
+       11,
+       'body',
+       29,
+       'body',
+       2,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Expr',
+      (),
+      ()),
+     (('body', 11, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body', 11, 'handlers', 0, 'body', 0), 'Assign', (), ()),
+     (('body', 11, 'finalbody', 0), 'Expr', (), ()),
+     (('body', 11, 'finalbody', 1), 'Expr', (), ()),
+     (('body', 11, 'finalbody', 2),
+      'While',
+      ('Constant(value=True)',),
+      (('body', 3), ('orelse', 0))),
+     (('body', 11, 'finalbody', 2, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 11, 'finalbody', 2, 'body', 0, 'body', 0),
+      'Assign',
+      (),
+      ()),
+     (('body', 11, 'finalbody', 2, 'body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Attribute(value=Name(id='queue', ctx=Load()), "
+       "attr='Empty', ctx=Load())",
+       None),
+      (('body', 1),)),
+     (('body',
+       11,
+       'finalbody',
+       2,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Break',
+      ('Break()',),
+      ()),
+     (('body', 11, 'finalbody', 2, 'body', 1), 'Expr', (), ()),
+     (('body', 11, 'finalbody', 2, 'body', 2), 'Expr', (), ()),
+     (('body', 11, 'finalbody', 3),
+      'For',
+      ("Name(id='worker', ctx=Store())",
+       "Name(id='workers', ctx=Load())"),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'finalbody', 3, 'body', 0), 'Expr', (), ()),
+     (('body', 11, 'finalbody', 4), 'Expr', (), ()),
+     (('body', 11, 'finalbody', 5),
+      'If',
+      ("Compare(left=Name(id='verifier', ctx=Load()), "
+       'ops=[IsNot()], comparators=[Constant(value=None)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'finalbody', 5, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 11, 'finalbody', 5, 'body', 0, 'body', 0),
+      'Expr',
+      (),
+      ()),
+     (('body', 11, 'finalbody', 5, 'body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body',
+       11,
+       'finalbody',
+       5,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Assign',
+      (),
+      ()),
+     (('body', 11, 'finalbody', 6),
+      'If',
+      ("Compare(left=Name(id='actor', ctx=Load()), "
+       'ops=[IsNot()], comparators=[Constant(value=None)])',),
+      (('body', 1), ('orelse', 0))),
+     (('body', 11, 'finalbody', 6, 'body', 0),
+      'Try',
+      (),
+      (('body', 1),
+       ('handlers', 1),
+       ('orelse', 0),
+       ('finalbody', 0))),
+     (('body', 11, 'finalbody', 6, 'body', 0, 'body', 0),
+      'Expr',
+      (),
+      ()),
+     (('body', 11, 'finalbody', 6, 'body', 0, 'handlers', 0),
+      'ExceptHandler',
+      ("Name(id='Exception', ctx=Load())", None),
+      (('body', 1),)),
+     (('body',
+       11,
+       'finalbody',
+       6,
+       'body',
+       0,
+       'handlers',
+       0,
+       'body',
+       0),
+      'Assign',
+      (),
+      ()),
+     (('body', 12),
+      'If',
+      ("Name(id='failed', ctx=Load())",),
+      (('body', 1), ('orelse', 0))),
+     (('body', 12, 'body', 0),
+      'Raise',
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
+       'ctx=Load()), args=[], keywords=[]), '
+       'cause=Constant(value=None))',),
+      ())),
+}
+
+
+def _initial_population_control_frame(node: ast.AST) -> tuple[tuple[Any, ...], ...]:
+    """実行文列と全control-flow枝・拒否/returnの行先を独立に投影する。"""
+    # call/代入の値は別の規範consumerが閉比較する。ここでは全枝の追加/削除を拒否する。
+    scalar = []
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        scalar = [node.name, ast.dump(node.args, include_attributes=False),
+                  tuple(ast.dump(n, include_attributes=False) for n in node.decorator_list)]
+    elif isinstance(node, ast.If):
+        scalar = [ast.dump(node.test, include_attributes=False)]
+    elif isinstance(node, ast.While):
+        scalar = [ast.dump(node.test, include_attributes=False)]
+    elif isinstance(node, (ast.For, ast.AsyncFor)):
+        scalar = [ast.dump(node.target, include_attributes=False),
+                  ast.dump(node.iter, include_attributes=False)]
+    elif isinstance(node, (ast.With, ast.AsyncWith)):
+        scalar = [tuple(ast.dump(item, include_attributes=False) for item in node.items)]
+    elif isinstance(node, ast.ExceptHandler):
+        scalar = [ast.dump(node.type, include_attributes=False) if node.type else None, node.name]
+    elif isinstance(node, (ast.Raise, ast.Return, ast.Break, ast.Continue)):
+        scalar = [ast.dump(node, include_attributes=False)]
+    branches = []
+    for name in ('body', 'handlers', 'orelse', 'finalbody'):
+        children = getattr(node, name, None)
+        if isinstance(children, list):
+            branches.append((name, tuple(_initial_population_control_frame(child)
+                                         for child in children if not (
+                isinstance(child, ast.Expr) and isinstance(child.value, ast.Constant)
+                and isinstance(child.value.value, str)
+            ))))
+    # 型と枝順は全保持し、定数表を深いネストにしないためflatな経路表へする。
+    rows = [((), type(node).__name__, tuple(scalar),
+             tuple((name, len(children)) for name, children in branches))]
+    for name, children in branches:
+        for index, child in enumerate(children):
+            for route, kind, values, counts in child:
+                rows.append(((name, index, *route), kind, values, counts))
+    return tuple(rows)
+
+
+def _assert_initial_population_control_frames(tree: ast.Module, path: str) -> None:
+    """原典取得を偽造しても、既承認の有限owner全control-flow形を保持する。"""
+    if path != 'pitchlog/recording_rights/initial_grant_broker.py':
+        return
+    for owner, expected in _INITIAL_CENSUS_CONTROL_FRAMES.items():
+        current: ast.AST = tree
+        for part in owner.split('.'):
+            found = [n for n in current.body if isinstance(
+                n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef),
+            ) and n.name == part]
+            assert len(found) == 1
+            current = found[0]
+        assert _initial_population_control_frame(current) == expected, (
+            'control-flow全枝/rollback/rethrow/registry/ownedcleanupが不一致', owner,
+        )
+        # 実moduleの関数を後から代入/import/引数で差し替えない。
+        if '.' not in owner:
+            assert sum(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                       and n.name == owner for n in ast.walk(tree)) == 1
+            for node in ast.walk(tree):
+                assert not (isinstance(node, ast.Name) and node.id == owner
+                            and isinstance(node.ctx, (ast.Store, ast.Del)))
+                assert not (isinstance(node, ast.arg) and node.arg == owner)
+                assert not (isinstance(node, ast.alias)
+                            and (node.asname or node.name.split('.')[0]) == owner)
+
+
+
+def _assert_initial_population_meaning(source: str, path: str) -> None:
+    """新減分の型・metadata・復旧世代照合を、実所見とは独立に検査する。"""
+    tree = ast.parse(source, filename=path)
+    def shape(node: ast.AST) -> str:
+        return ast.dump(node, include_attributes=False)
+    def statements(text: str) -> list[str]:
+        return [shape(n) for n in ast.parse(text).body]
+    def function(name: str) -> ast.FunctionDef:
+        matches = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name]
+        assert len(matches) == 1, (path, name)
+        return matches[0]
+    if path == "pitchlog/db/recording_rights/models.py":
+        # text()をDB実行と混同しない。型/既table/partial indexは不変全ownerも保持する。
+        classes = [n for n in tree.body if isinstance(n, ast.ClassDef)]
+        assert len(classes) == 7
+        sql = [n for cls in classes for n in ast.walk(cls) if isinstance(n, ast.Call)
+               and isinstance(n.func, ast.Name) and n.func.id == "text"]
+        values = []
+        for call in sql:
+            assert not call.keywords and len(call.args) == 1
+            assert isinstance(call.args[0], ast.Constant)
+            assert isinstance(call.args[0].value, str)
+            values.append(call.args[0].value)
+        assert sorted(values) == sorted([
+            "CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP", "CURRENT_TIMESTAMP",
+            "CURRENT_TIMESTAMP", "outcome = 'pending'", "'pending'",
+            "'evacuated'", "'pending'",
+            "retention_deadline IS NOT NULL AND discarded_at IS NULL",
+            "'normal'", "0", "0", "CURRENT_TIMESTAMP",
+            "kind = 'normal' AND revoked_at IS NULL",
+            "kind = 'migration' AND retired_at IS NULL",
+        ]), "ORM metadata以外のSQLを説明できない"
+        assert all(isinstance(n, (ast.ClassDef, ast.Import, ast.ImportFrom, ast.Expr))
+                   for n in tree.body), "ORM moduleへ実行文を追加できない"
+    if path == "pitchlog/recording_rights/initial_grant_broker.py":
+        # 原典と自己申告の同時改変でも、role/SQLとbroker404の実assertを固定する。
+        for name, role in (("_ACTOR_ROLE", "pitchlog_initial_actor"),
+                           ("_INITIAL_AUTH_VERIFIER_ROLE", "pitchlog_initial_auth_verifier")):
+            bindings = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                        and isinstance(n.ctx, (ast.Store, ast.Del)) and n.id == name]
+            assert len(bindings) == 1
+            decl = [n for n in tree.body if isinstance(n, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == name for t in n.targets)]
+            assert len(decl) == 1 and isinstance(decl[0].value, ast.Constant)
+            assert decl[0].value.value == role, "DB roleの差替は説明できない"
+        for name, source_name in (("_issue_initial_grant_impl", "source"),
+                                  ("_worker_resolve_start", "state.source")):
+            fn = function(name)
+            expected = statements(
+                f"assert_write_recovery_generation(scope, {source_name}, fence, "
+                "int(grant.recovery_generation))"
+            )[0]
+            parents = [n for n in ast.walk(fn) if isinstance(n, ast.With)
+                       and any(isinstance(s, ast.Assign) and any(
+                           isinstance(t, ast.Name) and t.id == 'grant' for t in s.targets
+                       ) for s in n.body)]
+            assert len(parents) == 1
+            body = parents[0].body
+            assignments = [i for i, n in enumerate(body) if isinstance(n, ast.Assign)
+                           and any(isinstance(t, ast.Name) and t.id == 'grant' for t in n.targets)]
+            assert len(assignments) == 1
+            i = assignments[0]
+            statement = body[i]
+            assert isinstance(statement, ast.Assign)
+            assert isinstance(statement.value, ast.Call)
+            assert shape(statement.value.func) == shape(ast.Name(
+                id='issue_initial_recording_right', ctx=ast.Load(),
+            ))
+            assert i + 1 < len(body) and shape(body[i + 1]) == expected, (
+                "発行と同scope/source/fence/grant復旧世代assertの実隣接鎖が必要"
+            )
+        # registry取得のtarget/valueはcontrol frameのAssign型だけでは固定できない。
+        state_bodies = {
+            '_actor_state': """if type(runtime) is not _InitialActorRuntime:
+    raise InitialGrantUnavailable("actor runtimeを確認できない")
+state = _ACTOR_RUNTIMES.get(runtime._key)
+if state is None:
+    raise InitialGrantUnavailable("actor runtimeは失効している")
+return state
+""",
+            '_auth_verifier_state': """if type(runtime) is not _InitialAuthVerifierRuntime:
+    raise _broker_invalid()
+state = _AUTH_VERIFIER_RUNTIMES.get(runtime._key)
+if state is None:
+    raise _broker_invalid()
+return state
+""",
+        }
+        for name, expected_body in state_bodies.items():
+            actual = [n for n in function(name).body if not (
+                isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+                and isinstance(n.value.value, str)
+            )]
+            assert [shape(n) for n in actual] == statements(expected_body), (
+                '実型/registry lookup/失効/同state returnが不一致', name,
+            )
+        observation_sql = """SELECT session_user::text, current_user::text,
+        r.rolcanlogin, r.rolsuper, r.rolbypassrls, r.rolinherit,
+        r.rolcreaterole, r.rolcreatedb, r.rolreplication,
+        (SELECT count(*) FROM pg_catalog.pg_auth_members AS m
+         WHERE m.member = r.oid OR m.roleid = r.oid),
+        pg_catalog.current_setting('app.tenant_id', true),
+        pg_catalog.current_database()::text, d.oid::integer,
+        pg_catalog.pg_postmaster_start_time(), pg_catalog.pg_backend_pid()
+        FROM pg_catalog.pg_roles AS r JOIN pg_catalog.pg_database AS d
+        ON d.datname = pg_catalog.current_database() WHERE r.rolname = session_user"""
+        def sql_shape(sql: str) -> str:
+            return ' '.join(sql.split())
+        # SELECTの全15列/WHERE/membership/role/接続identityを閉じる。prefix一致ではない。
+        sql_constants = [n for n in tree.body if isinstance(n, ast.Assign)
+                         and any(isinstance(t, ast.Name)
+                                 and t.id == '_AUTH_VERIFIER_CHECKOUT_SQL' for t in n.targets)]
+        assert len(sql_constants) == 1
+        sql_value = sql_constants[0].value
+        assert isinstance(sql_value, ast.Constant) and isinstance(sql_value.value, str)
+        assert sql_shape(sql_value.value) == sql_shape(observation_sql)
+        protected = {'_ACTOR_ROLE', '_INITIAL_AUTH_VERIFIER_ROLE', '_AUTH_VERIFIER_CHECKOUT_SQL'}
+        for node in ast.walk(tree):
+            assert not (isinstance(node, ast.arg) and node.arg in protected)
+            assert not (isinstance(node, ast.alias)
+                        and (node.asname or node.name.split('.')[0]) in protected)
+            assert not (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                        and node.name in protected)
+        for name in protected:
+            assert sum(isinstance(n, ast.Name) and n.id == name
+                       and isinstance(n.ctx, (ast.Store, ast.Del)) for n in ast.walk(tree)) == 1
+        role = 'row[:2] != (_ACTOR_ROLE, _ACTOR_ROLE)'
+        flags = ('tuple(row[2:9]) != (True, False, False, False, False, False, False) '
+                 'or any(type(v) is not bool for v in row[2:9])')
+        membership = "type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '')"
+        identity = (
+            'row[11] != config.database_name or type(row[12]) is not int '
+            'or row[12] != config.database_oid or type(row[13]) is not datetime '
+            'or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0'
+        )
+        actor_conditions = ('len(row) != 15 or ' + role, flags, membership, identity)
+        actor_errors = (
+            'actorの実DB主体が一致しない', 'actorの実DB属性が一致しない',
+            'actorのmembership又はtenant初期値が不正', 'actorの接続先DB identityが一致しない',
+        )
+        verifier_conditions = (
+            'len(row) != 15 or ' + role.replace('_ACTOR_ROLE', '_INITIAL_AUTH_VERIFIER_ROLE')
+            + ' or ' + flags + ' or ' + membership + ' or ' + identity,
+        )
+        for name, conditions in (
+            ('_validate_actor_observation', actor_conditions),
+            ('_validate_auth_verifier_observation', verifier_conditions),
+        ):
+            fn = function(name)
+            assert not fn.decorator_list and not fn.args.posonlyargs
+            assert [arg.arg for arg in fn.args.args] == ['row', 'config']
+            assert not fn.args.kwonlyargs and fn.args.vararg is None and fn.args.kwarg is None
+            assert not fn.args.defaults and not fn.args.kw_defaults
+            actual = [n for n in fn.body if not (isinstance(n, ast.Expr)
+                      and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str))]
+            assert len(actual) == len(conditions), 'role検証へ文を追加/削除できない'
+            for index, (node, condition) in enumerate(zip(actual, conditions, strict=True)):
+                assert isinstance(node, ast.If)
+                assert shape(node.test) == shape(ast.parse(condition, mode='eval').body)
+                assert not node.orelse and len(node.body) == 1
+                expected_raise = (
+                    f'raise InitialGrantUnavailable({actor_errors[index]!r})'
+                    if name == '_validate_actor_observation' else 'raise _broker_invalid()'
+                )
+                assert shape(node.body[0]) == statements(expected_raise)[0], (
+                    '不正roleは副作用のない既拒否へ実直下で到達する'
+                )
+
+        # checkout SQLの追加DB動作を原典一致だけで承認しない。
+        for name in ("_verify_initial_actor_checkout", "_verify_auth_verifier_checkout"):
+            fn = function(name)
+            actual_body = [n for n in fn.body if not (
+                isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+                and isinstance(n.value.value, str)
+            )]
+            assert len(actual_body) == 1 and isinstance(actual_body[0], ast.Try)
+            block = actual_body[0]
+            assert len(block.body) == 2 and isinstance(block.body[0], ast.With)
+            context = block.body[0]
+            assert len(context.items) == 1
+            assert shape(context.items[0].context_expr) == shape(
+                ast.parse('connection.cursor()', mode='eval').body,
+            )
+            assert context.items[0].optional_vars is not None
+            assert shape(context.items[0].optional_vars) == shape(
+                ast.Name(id='cursor', ctx=ast.Store()),
+            )
+            assert len(context.body) == 4
+            assert shape(context.body[1]) == statements('row = cursor.fetchone()')[0]
+            missing = context.body[2]
+            assert isinstance(missing, ast.If)
+            assert shape(missing.test) == shape(ast.parse(
+                'row is None or cursor.fetchone() is not None', mode='eval',
+            ).body)
+            assert len(missing.body) == 1 and isinstance(missing.body[0], ast.Raise)
+            assert not missing.orelse
+            validate = ('_validate_actor_observation' if name == '_verify_initial_actor_checkout'
+                        else '_validate_auth_verifier_observation')
+            assert shape(context.body[3]) == statements(f'{validate}(tuple(row), config)')[0]
+            assert shape(block.body[1]) == statements('connection.rollback()')[0]
+            executions = [n for n in ast.walk(fn) if isinstance(n, ast.Call)
+                          and isinstance(n.func, ast.Attribute) and n.func.attr == 'execute']
+            assert len(executions) == 1, "checkoutへ追加SQLを登録できない"
+            call = executions[0]
+            assert isinstance(call.func, ast.Attribute)
+            assert shape(call.func.value) == shape(ast.Name(id='cursor', ctx=ast.Load()))
+            assert len(call.args) == 1 and not call.keywords
+            if name == '_verify_initial_actor_checkout':
+                assert isinstance(call.args[0], ast.Constant)
+                assert isinstance(call.args[0].value, str)
+                assert sql_shape(call.args[0].value) == sql_shape(observation_sql)
+            else:
+                assert shape(call.args[0]) == shape(ast.Name(
+                    id='_AUTH_VERIFIER_CHECKOUT_SQL', ctx=ast.Load(),
+                ))
+    # 既採用の全7module規範consumerも成立させる。これだけを期待集合には使わない。
+    assert _independent_initial_population_meaning(tree, path), "独立消費した既規範が不成立"
+    _assert_initial_population_control_frames(tree, path)
+
+
+def _validated_initial_population_suppression(
+    declaration: dict[str, Any], *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """不変Git/有限site/意味と実counterfactual全7fieldの効果を照合する。"""
+    proof = _object(declaration.get('initial_population_proof'), 'initial_population_proof')
+    _exact_keys(proof, {'kind', 'revision', 'sites', 'identity_fields'}, 'initial_population_proof')
+    assert _string(proof.get('kind'), 'initial_population_proof.kind') == (
+        'immutable_git_sites_and_counterfactual'
+    )
+    assert _string(proof.get('revision'), 'initial_population_proof.revision') == (
+        'contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/ci_scope_proof_source_revision/value'
+    )
+    assert _string_array(
+        proof.get('identity_fields'), 'initial_population_proof.identity_fields',
+    ) == (
+        'path', 'line', 'end_line', 'scope', 'code', 'symbol', 'message',
+    )
+    sites = _array(proof.get('sites'), 'initial_population_proof.sites')
+    expected_rows = _INITIAL_CENSUS_SITES
+    rows = []
+    for raw in sites:
+        row = _object(raw, 'initial_population_proof.site')
+        _exact_keys(
+            row, {'path', 'source_key', 'line', 'code', 'symbol', 'owner'},
+            'initial_population_proof.site',
+        )
+        line = row.get('line')
+        assert type(line) is int and line > 0
+        rows.append((
+            _string(row.get('path'), 'site.path'),
+            _string(row.get('source_key'), 'site.source_key'),
+            line, _string(row.get('code'), 'site.code'), _string(row.get('symbol'), 'site.symbol'),
+            _string(row.get('owner'), 'site.owner'),
+        ))
+    assert tuple(rows) == expected_rows, '未知/変更siteは有限証明へ追加できない'
+    revision = _load_json_pointer(proof['revision'])
+    assert isinstance(revision, str) and re.fullmatch(r'[0-9a-f]{40}', revision)
+    result: set[CensusIdentity] = set()
+    sources = {p.relative_to(source_root).as_posix(): p.read_text(encoding='utf-8')
+               for p in sorted(source_root.rglob('*.py'))}
+    reexports = checker._build_reexport_map(sources)
+    for path, key in dict((row[0], row[1]) for row in rows).items():
+        target = source_root / path
+        if not target.is_file():
+            continue
+        source = target.read_text(encoding='utf-8')
+        original = checker._scope_proof_source_bytes(key)
+        if source.encode('utf-8') != original:
+            continue
+        _assert_initial_population_meaning(source, path)
+        tree = ast.parse(source, filename=path)
+        module = _module_name(path)
+        # 全source一致に加え、実ownerの範囲とsite全ASTが存在することを独立確認。
+        owners: dict[str, ast.AST] = {'<module>': tree}
+        def collect(node: ast.AST, prefix: str) -> None:
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    name = f'{prefix}.{child.name}' if prefix else child.name
+                    assert name not in owners, 'ownerの同名再定義'
+                    owners[name] = child
+                    collect(child, name)
+                else:
+                    collect(child, prefix)
+        collect(tree, '')
+        relevant = [row for row in rows if row[0] == path]
+        expected = set()
+        for _, _, line, code, symbol, owner in relevant:
+            owner_node = owners[owner.removesuffix('.<module>')]
+            assert any(getattr(n, 'lineno', None) == line for n in ast.walk(owner_node))
+            end_line, message = _initial_population_identity_shape(
+                source, path, line, code, symbol,
+            )
+            expected.add((path, line, end_line, f'{module}.{owner}', code, symbol, message))
+        def census() -> frozenset[CensusIdentity]:
+            return frozenset(
+                (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                for v in checker.scan_source(
+                    source, path=path, contract=current_contract, reexport_map=reexports,
+                )
+            )
+        after = census()
+        with pytest.MonkeyPatch.context() as mutation:
+            mutation.setattr(checker, '_initial_population_evidence', lambda *_args: frozenset())
+            before = census()
+        assert not after - before, '新証明が新所見を発生させた'
+        measured = before - after
+        assert measured == frozenset(expected), (
+            '有限siteとcounterfactual抑止効果が不一致', path,
+            frozenset(expected) - measured,
+            measured - frozenset(expected),
+        )
+        result.update(measured)
+    return frozenset(result)
+
+
 def _assert_removed_equals_measured_allowlist_suppression(
     predicate: dict[str, Any],
     *,
+    declaration: dict[str, Any],
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
     source_root: Path,
@@ -2038,6 +5362,9 @@ def _assert_removed_equals_measured_allowlist_suppression(
         code=_string(derivation.get("condition1_code"), "condition1_code"),
         source_root=source_root, current_census=data_sets["current_census"],
         current_contract=current_contract,
+    )
+    suppression |= _validated_initial_population_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
     )
     code_index = identity_indexes["code"]
     for identity in data_sets[set_name]:
@@ -2514,6 +5841,7 @@ def _validated_pure_fingerprint_decrements(
 def _assert_unadjudicated_removed_remains(
     predicate: dict[str, Any],
     *,
+    declaration: dict[str, Any],
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
     current_contract: Any,
@@ -2653,9 +5981,12 @@ def _assert_unadjudicated_removed_remains(
     pure_decrements = _validated_pure_fingerprint_decrements(
         predicate.get("pure_helper_references"), source_root=source_root,
     )
+    initial_removed = _validated_initial_population_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
     for identity in data_sets[set_name]:
         if (
-            identity in scoped_removed or identity in ledger_removed
+            identity in initial_removed or identity in scoped_removed or identity in ledger_removed
             or identity in rg1_removed or identity in pure_decrements
         ):
             continue
@@ -2803,7 +6134,11 @@ def _assert_added_equals_independently_derived_candidates(
     rg1_suppressed = _validated_rg1_condition2_identities(
         source_root=source_root, current_contract=current_contract
     )
-    expected = expected - rg1_suppressed
+    expected = _canonical_proven_builtin_identities(expected - rg1_suppressed, source_root)
+    initial = _validated_initial_population_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
+    expected -= _canonical_proven_builtin_identities(initial, source_root)
     actual = _canonical_proven_builtin_identities(data_sets[set_name], source_root)
     expected = _canonical_proven_builtin_identities(expected, source_root)
     assert actual == expected, (
@@ -5284,3 +8619,358 @@ def test_pure_helper_source_and_declaration_cannot_move_together(
             entry["source_sha256"] = changed_digest
     with pytest.raises(AssertionError, match="対象版|有限集合"):
         _validated_pure_fingerprint_decrements(declaration, source_root=tmp_path)
+
+
+def test_initial_population_census_measures_exact_finite_effect() -> None:
+    """出力件数だけでなく正本73siteと実抑止の全identityを比較する。"""
+    identities = _validated_initial_population_suppression(
+        _load_census_baseline_declaration(),
+        source_root=REPOSITORY_ROOT / 'backend/src',
+        current_contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert len(identities) == 73
+    assert {code: sum(i[4] == code for i in identities)
+            for code in ('TB001', 'TB002', 'TB005', 'TB007')} == {
+        'TB001': 2, 'TB002': 50, 'TB005': 19, 'TB007': 2,
+    }
+
+
+@pytest.mark.parametrize(
+    'field', ('path', 'source_key', 'line', 'code', 'symbol', 'owner', 'extra'),
+)
+def test_initial_population_census_rejects_changed_declared_site(field: str) -> None:
+    """未知site/field・code・owner等の申告を有限正本へ混入させない。"""
+    declaration = copy.deepcopy(_load_census_baseline_declaration())
+    row = declaration['initial_population_proof']['sites'][0]
+    row[field] = 999_999 if field == 'line' else 'unapproved'
+    with pytest.raises(AssertionError):
+        _validated_initial_population_suppression(
+            declaration, source_root=REPOSITORY_ROOT / 'backend/src',
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+@pytest.mark.parametrize('field', ('kind', 'revision', 'identity_fields', 'extra'))
+def test_initial_population_census_rejects_changed_proof_field(field: str) -> None:
+    """有限証明の戦略・原典参照・identity全7field・未知値をexact拒否する。"""
+    declaration = copy.deepcopy(_load_census_baseline_declaration())
+    declaration['initial_population_proof'][field] = 'unapproved'
+    with pytest.raises(AssertionError):
+        _validated_initial_population_suppression(
+            declaration, source_root=REPOSITORY_ROOT / 'backend/src',
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+@pytest.mark.parametrize(('path', 'before', 'after'), (
+    ('pitchlog/db/recording_rights/models.py',
+     'server_default=text("CURRENT_TIMESTAMP")', 'server_default=text("SELECT 1")'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     '"pitchlog_initial_auth_verifier"', '"pitchlog_app"'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     'scope, source, fence, int(grant.recovery_generation)',
+     'scope, source, fence, int(0)'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     'WHERE r.rolname = session_user',
+     'WHERE r.rolname = session_user; SELECT pg_catalog.pg_sleep(1)'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     'row[:2] != (_ACTOR_ROLE, _ACTOR_ROLE)', 'False'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     'raise DisconnectionError("初期権actorの接続検査に失敗した") from None', 'pass'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     'except Exception:\n        try:\n            connection.rollback()',
+     'except BaseException:\n        try:\n            connection.rollback()'),
+    ('pitchlog/recording_rights/initial_grant_broker.py',
+     'cursor.execute(_AUTH_VERIFIER_CHECKOUT_SQL)',
+     'cursor.execute(_AUTH_VERIFIER_CHECKOUT_SQL); cursor.execute("SELECT 1")'),
+))
+def test_initial_population_census_rejects_forged_source_and_original(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, path: str, before: str, after: str,
+) -> None:
+    """source/申告/原典同時追随・checker意味検査bypassでも独立規範が拒否する。"""
+    original = (REPOSITORY_ROOT / 'backend/src' / path).read_text(encoding='utf-8')
+    assert before in original
+    changed = original.replace(before, after, 1)
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text(changed, encoding='utf-8')
+    declaration = copy.deepcopy(_load_census_baseline_declaration())
+    # siteのpath/line/owner申告は同じまま原典も偽造する。hash差や行移動で赤くしない。
+    monkeypatch.setattr(checker, '_scope_proof_source_bytes', lambda *_args: changed.encode())
+    monkeypatch.setattr(checker, '_initial_population_semantics', lambda *_args: True)
+    monkeypatch.setattr(sys.modules[__name__], '_load_json_pointer', lambda *_args: '0' * 40)
+    with pytest.raises(AssertionError):
+        _validated_initial_population_suppression(
+            declaration, source_root=tmp_path,
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+def test_initial_population_census_rejects_additional_effect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """既site外の所見までcheckerが抑止しても正本73siteとの実効果比較で拒否する。"""
+    original = checker._initial_population_evidence
+    extra = (143, 'TB005', 'sqlalchemy.text',
+             'pitchlog.db.recording_rights.models.EvacuatedEventOriginal.<module>')
+    def suppress_extra(source: str, path: str) -> frozenset[tuple[int, str, str, str]]:
+        result = original(source, path)
+        return result | {extra} if path == 'pitchlog/db/recording_rights/models.py' else result
+    monkeypatch.setattr(checker, '_initial_population_evidence', suppress_extra)
+    with pytest.raises(AssertionError, match='抑止効果が不一致'):
+        _validated_initial_population_suppression(
+            _load_census_baseline_declaration(),
+            source_root=REPOSITORY_ROOT / 'backend/src',
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+@pytest.mark.parametrize('field', ('end_line', 'message'))
+def test_initial_population_census_rejects_changed_identity_field(
+    monkeypatch: pytest.MonkeyPatch, field: str,
+) -> None:
+    """line/code/symbol/scopeが同じでもend_line/messageを偽造した実効果は拒否する。"""
+    original = checker.scan_source
+    def corrupted(*args: Any, **kwargs: Any) -> list[Any]:
+        result = original(*args, **kwargs)
+        return [replace(v, **{field: v.end_line + 1 if field == 'end_line' else 'unapproved'})
+                if v.path == 'pitchlog/db/recording_rights/models.py' and v.line == 407
+                else v for v in result]
+    monkeypatch.setattr(checker, 'scan_source', corrupted)
+    with pytest.raises(AssertionError, match='抑止効果が不一致'):
+        _validated_initial_population_suppression(
+            _load_census_baseline_declaration(),
+            source_root=REPOSITORY_ROOT / 'backend/src',
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+_INITIAL_CENSUS_EXISTING_NORM_MUTATIONS = (('recording_rights/initial_grant_broker.py',
+  'require_database_transport(url, args)',
+  'pass  # transport removed',
+  'transport'),
+ ('recording_rights/initial_grant_broker.py',
+  'connection.rollback()',
+  'pass  # rollback removed',
+  'rollback'),
+ ('recording_rights/initial_grant_broker.py',
+  'cursor.execute(_AUTH_VERIFIER_CHECKOUT_SQL)',
+  "cursor.execute('SELECT 1')",
+  'verifier-sql'),
+ ('recording_rights/initial_grant_broker.py',
+  'WHERE r.rolname = session_user',
+  'WHERE TRUE',
+  'actor-role-sql'),
+ ('recording_rights/initial_grant_broker.py',
+  'row[12] != config.database_oid',
+  'False',
+  'database-identity'),
+ ('recording_rights/initial_grant_broker.py',
+  'tuple(row[2:9]) != (True, False, False, False, False, False, False)',
+  'False',
+  'role-superuser'),
+ ('recording_rights/initial_grant_broker.py',
+  'event.listen(engine, "checkout", checkout)',
+  'pass  # checkout removed',
+  'checkout-binding'),
+ ('recording_rights/initial_grant_broker.py',
+  'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")',
+  'provider = import_module("other.module")',
+  'fixed-import'),
+ ('recording_rights/initial_grant_broker.py',
+  'channel.connect(str(self._endpoint.path))',
+  'engine.connect()',
+  'socket-to-db'),
+ ('recording_rights/initial_grant_broker.py',
+  'output.flush()',
+  'session.flush()',
+  'file-to-db'),
+ ('recording_rights/initial_grant_broker.py',
+  'DurableLedger(Path(config["ledger_endpoint"]))',
+  'TenantContext(Path(config["ledger_endpoint"]))',
+  'ledger-to-context'),
+ ('recording_rights/initial_grant_broker.py',
+  'hide_parameters=True',
+  'hide_parameters=False',
+  'parameter-leak-policy'),
+ ('repositories/game_start.py',
+  'cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken',
+  'cls = _PersistInitialStartToken if save else TenantContext',
+  'third-constructor'),
+ ('repositories/game_start.py',
+  'bound.canonical_bytes.decode("utf-8"),',
+  '"forged",',
+  'token-full-arguments'),
+ ('repositories/initial_recording_right.py',
+  '_assert_existing_resolution_owner(transaction, context, actor_runtime, '
+  'owner, bound)',
+  'pass',
+  'guard-removed'),
+ ('repositories/initial_recording_right.py',
+  '_assert_existing_resolution_owner(transaction, context, actor_runtime, '
+  'owner, bound)',
+  '_assert_existing_resolution_owner(transaction, other, actor_runtime, owner, '
+  'bound)',
+  'guard-context'),
+ ('repositories/initial_recording_right.py',
+  '_assert_existing_resolution_owner(transaction, context, actor_runtime, '
+  'owner, bound)',
+  '_assert_existing_resolution_owner(transaction, context, actor_runtime, '
+  'other, bound)',
+  'guard-owner'),
+ ('repositories/initial_recording_right.py',
+  '_assert_existing_resolution_owner(transaction, context, actor_runtime, '
+  'owner, bound)',
+  '_assert_existing_resolution_owner(transaction, context, actor_runtime, '
+  'owner, None)',
+  'guard-bound'),
+ ('api/schemas/game_start.py',
+  'recovery_generation: str',
+  'recovery_generation: int',
+  'wire-type'),
+ ('authz/capability_catalog.py',
+  '"profile": "tenant_owned",',
+  '"profile": "function_only",',
+  'classification'),
+ ('authz/product_function_acl.py',
+  'node.targets[0].id == "_GENERATION_GUARD_SQL"',
+  'node.targets[0].id == "ARBITRARY_SQL"',
+  'ddl-binding'),
+ ('authz/product_function_acl.py',
+  'if other_bindings or len(bindings) != 1 or len(declarations) != 1:',
+  'if False:',
+  'ddl-shadow'),
+ ('db/recording_rights/models.py',
+  'server_default=text("CURRENT_TIMESTAMP")',
+  'server_default=text("SELECT 1")',
+  'metadata-sql'),
+ ('db/recording_rights/models.py',
+  'postgresql_where=text("outcome = \'pending\'")',
+  'postgresql_where=text("true")',
+  'metadata-partial-index'),
+ ('db/recording_rights/models.py',
+  'recovery_generation: Mapped[int | None]',
+  'recovery_generation: Mapped[str | None]',
+  'metadata-type'),
+ ('recording_rights/initial_grant_broker.py',
+  'event.listen(engine, "checkout", checkout)',
+  'event.listen(engine, "checkout", checkout); event.remove(engine, '
+  '"checkout", checkout)',
+  'review-callback-removed'),
+ ('recording_rights/initial_grant_broker.py',
+  'require_database_transport(url, args)',
+  'if False: require_database_transport(url, args)',
+  'review-dead-transport'),
+ ('recording_rights/initial_grant_broker.py',
+  '_ACTOR_ROLE = "pitchlog_initial_actor"',
+  '_ACTOR_ROLE = "pitchlog_initial_actor"; _ACTOR_ROLE = "postgres"',
+  'review-role-rebound'),
+ ('recording_rights/initial_grant_broker.py',
+  'state.engine.dispose()',
+  'pass',
+  'owned-cleanup-removed'),
+ ('recording_rights/initial_grant_broker.py',
+  '_ACTOR_RUNTIMES.pop(runtime._key)',
+  'pass',
+  'registry-not-consumed'),
+ ('recording_rights/initial_grant_broker.py',
+  'not host.startswith("/")',
+  'not host.startswith("localhost")',
+  'unix-endpoint'),
+ ('recording_rights/initial_grant_broker.py',
+  'url.username != _ACTOR_ROLE',
+  'False',
+  'url-role'),
+ ('recording_rights/initial_grant_broker.py',
+  '                engine.dispose()',
+  '                pass',
+  'failure-cleanup-removed'),
+ ('recording_rights/initial_grant_broker.py',
+  'raw[1:17] != tenant_id.bytes',
+  'False',
+  'd4-owner-tenant'),
+ ('recording_rights/initial_grant_broker.py',
+  'raw[17:33] != game_id.bytes',
+  'False',
+  'd4-owner-game'),
+ ('authz/product_function_acl.py',
+  'other_bindings = any(',
+  'other_bindings = False and any(',
+  'ddl-shadow-binding-disabled'))
+
+
+@pytest.mark.parametrize('relative,before,after,reason', _INITIAL_CENSUS_EXISTING_NORM_MUTATIONS)
+def test_initial_population_census_rejects_all_registered_norm_faults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    relative: str, before: str, after: str, reason: str,
+) -> None:
+    """既規範36故障をまとめて測り、candidate checkerの意味検査を信頼しない。"""
+    path = f'pitchlog/{relative}'
+    source = (REPOSITORY_ROOT / 'backend/src' / path).read_text(encoding='utf-8')
+    assert before in source
+    if reason in {'metadata-sql', 'metadata-type'}:
+        marker = ('class TrustedDevice(' if reason == 'metadata-sql'
+                  else 'class RecordingGeneration(')
+        prefix, suffix = source.split(marker, 1)
+        changed = prefix + marker + suffix.replace(before, after, 1)
+    else:
+        changed = source.replace(before, after, 1)
+    assert changed.count('\n') == source.count('\n')
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text(changed, encoding='utf-8')
+    monkeypatch.setattr(checker, '_scope_proof_source_bytes', lambda *_args: changed.encode())
+    monkeypatch.setattr(checker, '_initial_population_semantics', lambda *_args: True)
+    monkeypatch.setattr(sys.modules[__name__], '_load_json_pointer', lambda *_args: '0' * 40)
+    with pytest.raises(AssertionError):
+        _validated_initial_population_suppression(
+            _load_census_baseline_declaration(), source_root=tmp_path,
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+@pytest.mark.parametrize(('before', 'after'), (
+    ('raise DisconnectionError("専用Cookie検証接続を確認できない") from None', 'pass'),
+    ('_validate_actor_observation(tuple(row), config)', 'return'),
+    ('_validate_auth_verifier_observation(tuple(row), config)', 'pass'),
+    ('_ACTOR_RUNTIMES.pop(runtime._key)', 'pass'),
+    ('del _AUTH_VERIFIER_RUNTIMES[runtime._key]', 'pass'),
+    ('raise DisconnectionError("初期権actorの接続検査に失敗した") from None\n\n',
+     'raise DisconnectionError("初期権actorの接続検査に失敗した") from None\n'
+     '    finally: connection.rollback()\n'),
+    ('_AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)',
+     '_AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation); '
+     'event.remove(engine, "checkout", checkout)'),
+    ('state = _ACTOR_RUNTIMES.get(runtime._key)',
+     'state = _AUTH_VERIFIER_RUNTIMES.get(runtime._key)'),
+    ('state = _AUTH_VERIFIER_RUNTIMES.get(runtime._key)',
+     'state = _ACTOR_RUNTIMES.get(runtime._key)'),
+    ('_ACTOR_RUNTIMES[key] = _ActorState(engine, config, box)',
+     '_AUTH_VERIFIER_RUNTIMES[key] = _ActorState(engine, config, box)'),
+    ('_AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)',
+     '_ACTOR_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)'),
+    ('require_database_transport(url, args)', 'return None'),
+))
+def test_initial_population_census_closes_all_control_frames(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, before: str, after: str,
+) -> None:
+    """意味consumerもbypassしたモデルで例外全枝/return/登録/cleanup枠が拒否する。"""
+    path = 'pitchlog/recording_rights/initial_grant_broker.py'
+    source = (REPOSITORY_ROOT / 'backend/src' / path).read_text(encoding='utf-8')
+    assert before in source
+    changed = source.replace(before, after, 1)
+    assert changed.count('\n') == source.count('\n')
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    target.write_text(changed, encoding='utf-8')
+    monkeypatch.setattr(checker, '_scope_proof_source_bytes', lambda *_args: changed.encode())
+    monkeypatch.setattr(checker, '_initial_population_semantics', lambda *_args: True)
+    if not before.startswith(('_ACTOR_RUNTIMES[key]', '_AUTH_VERIFIER_RUNTIMES[key]')):
+        monkeypatch.setattr(sys.modules[__name__], '_independent_initial_population_meaning',
+                            lambda *_args: True)
+    monkeypatch.setattr(sys.modules[__name__], '_load_json_pointer', lambda *_args: '0' * 40)
+    with pytest.raises(AssertionError):
+        _validated_initial_population_suppression(
+            _load_census_baseline_declaration(), source_root=tmp_path,
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
