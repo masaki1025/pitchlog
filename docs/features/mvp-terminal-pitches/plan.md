@@ -274,3 +274,6 @@ step5の追加編集はfrontend/src/screens/GameScreenEntryProvider.tsと既.spe
 
 
 PR191のCI書式修復（2026-10-31、PO委任によるCodex /root判断）: run41164999052のbackendは全検査前のruff E501一件（既backend/tests/db/test_first_ball_projection_atomic.py232の生成child source行）で停止した。該当1行を括弧内で折り返すだけのexact1を通常修復として適用し、生成childの全ASTと対象literal以外の親全ASTが前後一致、backend全ruff成功を確認した。cache pr191-ci-triage-20261031/atomic-e501-format-proof.json。実行意味/SQL/期待/拒否/fixtureは不変で、同じDB試験やfrontend全件は反復しない。CI frontendはSUCCESS、harnessのrawpin登録/consistency BOOT/core委任/tenantのstacked base条件と親正式受理は別の未成立条件として残す。CI全成功や通常mergeを成立扱いにしない。
+
+
+最終保存後の書式・手動入口追随（2026-10-31、PO委任によるCodex /root判断）: CI7646daabは次段ruff formatで既test_durable_rights_ledger_contract.pyのtuple並び1箇所だけ停止した。同test exact1をformatterで整形し全module AST不変、backend全ruff/format（587file）と明示既venvの全ty成功。既manual-check.mdを成功版の四球/死球と1caseだけのhold入口へ追随、実画面/実DB成功・有限prefix長と表示ページ件数・自己署名loopback/実機未実施・TLS期限/秘密内容非共有を区別した。command bash構文/DSN unset/専用temp/既venvを確認、manual holdや実機を実施したとは記録しない。rootcache pr191-ci-triage-20261031へAST/command証拠を保存。frontend/runtime/契約/認可/保存意味に変更0、全画面とfrontendは反復せず既同一機能版の証拠を保持する。
