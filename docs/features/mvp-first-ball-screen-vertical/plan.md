@@ -221,3 +221,5 @@ rootは計画/台帳/正式値導出の唯一writer、実装writerは別担当�
 既16対向の入力/全assertと『変異前source緑』前提は保持し、BigIntegerの型/2列/関数/schema/int、voidのnamespace/function/table_valued/result_names/typeを各1変更する拒否、旧simple正例を追加する。旧broker fixed-import2の現在存在しないimport_module文字列は、現静的from importを別moduleへ変える対向へ移し、正例_evidenceと同じ拒否assertを保持する。broker正例が別未成立の間はテストをskip/前提削除せず未成立と記録する。
 
 writerはregistration担当のexact2へ一本化し、別担当Aのallowlist/fixture3/test新fileに触れない。計画と候補を非作者確認し、rootが正式値/履歴/corpusを最後に一括導出する。残るtenant149の他群をB成功で閉じず、全CLI/最終HEAD/必須CIまでmergeしない。
+
+Aの既exact期待追随（同日）: tests/test_stage_a_startup_tenant_boundary.pyを追加exact1とし、既11関数/API全値を保持したまま新3関数の有限集合だけを明示追記する。未知関数/API/別module/署名変更の拒否対向は全件維持する。Aの総対象は6path、許可の拡張根拠は上記3実関数だけであり、単なる件数更新やsubset比較への変更は行わない。
