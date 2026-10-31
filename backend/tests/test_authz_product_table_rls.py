@@ -22,6 +22,27 @@ from pitchlog.authz.runtime_contract_state import (
     product_asset_path_for_state,
 )
 
+_EXPECTED_PRIVATE_TABLES = [
+    {
+        "table_id": "writer_bindings",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+    {
+        "table_id": "writer_admissions",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+    {
+        "table_id": "first_ball_write_admissions",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+]
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _SCHEMA_MANIFEST = _REPOSITORY_ROOT / "contracts/db/schema-manifest.json"
@@ -112,7 +133,11 @@ def test_all_manifest_and_classified_tables_have_generated_enable_and_force() ->
     """両母集合の全50表が生成済みENABLE・FORCE SQLと一致する。"""
     manifest_tables = _manifest_table_names()
     classified_tables = _classified_table_names()
-    assert len(manifest_tables) == len(classified_tables) == 50
+    assert (
+        len(manifest_tables)
+        == len(classified_tables)
+        == 50 + len(_EXPECTED_PRIVATE_TABLES)
+    )
     assert manifest_tables == classified_tables
 
     asset = _product_asset()
@@ -121,11 +146,20 @@ def test_all_manifest_and_classified_tables_have_generated_enable_and_force() ->
     assert isinstance(rows, list)
     declared_tables = {str(row["table_id"]) for row in rows}
     assert declared_tables == manifest_tables
+    assert [
+        row
+        for row in rows
+        if row["table_id"] in {r["table_id"] for r in _EXPECTED_PRIVATE_TABLES}
+    ] == _EXPECTED_PRIVATE_TABLES
     assert all(
         row
         == {
             "table_id": row["table_id"],
-            "schema_name": "public",
+            "schema_name": (
+                "sync_fence"
+                if row["table_id"] in {r["table_id"] for r in _EXPECTED_PRIVATE_TABLES}
+                else "public"
+            ),
             "enable_row_level_security": True,
             "force_row_level_security": True,
         }
@@ -173,16 +207,24 @@ def test_removing_enable_or_force_from_one_body_is_rejected(
         _validate_product_asset(asset, root)
 
 
-def test_removing_one_declared_table_is_rejected() -> None:
+@pytest.mark.parametrize(
+    "table_id", ["games", *(r["table_id"] for r in _EXPECTED_PRIVATE_TABLES)]
+)
+def test_removing_one_declared_table_is_rejected(table_id: str) -> None:
     """正常宣言を確認後、1表の宣言欠落をexact-setで拒否する。"""
     asset = _product_asset()
     _validate_product_asset(asset)
     mutated = copy.deepcopy(asset)
     rows = mutated["tables"]
-    assert isinstance(rows, list) and len(rows) == 50
-    rows.pop()
+    assert isinstance(rows, list) and len(rows) == 50 + len(_EXPECTED_PRIVATE_TABLES)
+    rows.remove(next(row for row in rows if row["table_id"] == table_id))
+    expected_error = (
+        "初球認可資産の部分/余剰/全field不一致: tables"
+        if table_id in {r["table_id"] for r in _EXPECTED_PRIVATE_TABLES}
+        else "exact-set不一致"
+    )
 
-    with pytest.raises(_catalog_checker.CatalogError, match="exact-set不一致"):
+    with pytest.raises(_catalog_checker.CatalogError, match=expected_error):
         _validate_product_asset(mutated)
 
 
@@ -214,3 +256,23 @@ def test_table_sql_generator_rejects_noncanonical_identifiers(table_id: str) -> 
     """SQL生成器は引用や修飾が必要な識別子を拒否する。"""
     with pytest.raises(ValueError, match="表識別子が不正"):
         generate_product_table_rls_sql(table_id)
+
+
+@pytest.mark.parametrize("table_id", [r["table_id"] for r in _EXPECTED_PRIVATE_TABLES])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("schema_name", "public"),
+        ("schema_name", "unknown"),
+        ("enable_row_level_security", False),
+        ("force_row_level_security", False),
+    ],
+)
+def test_private_table_rls_identity_and_flags_are_closed(
+    table_id: str, field: str, value: object
+) -> None:
+    """私有3表のnamespace/ENABLE/FORCE付替えを拒否する。"""
+    asset = _product_asset()
+    next(r for r in asset["tables"] if r["table_id"] == table_id)[field] = value
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)

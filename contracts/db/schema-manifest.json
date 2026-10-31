@@ -7893,9 +7893,7 @@
           "verification": "手動転記",
           "source_row": {
             "section": "6-1",
-            "uniqueness": "初期開始要求のpending attemptは1件",
-            "key_shape": "UNIQUE (tenant_id, game_id, start_request_id) WHERE outcome = 'pending'",
-            "scope": "scoped"
+            "quote": "| `game_start_attempts` | PK `(tenant_id,attempt_id)`、game/request/deviceのowner列、`created_at`、nullable `resolved_at`、`outcome`。同一request/ownerへのtenant付き複合FK。同一requestのpendingは部分一意1件 | outcomeは`pending/committed/rolled_back`。pendingのresolved_atはNULL、終結は作成日時以後のresolved_atを必須とし、一度終結した行を再変更しない。owner/作成日時を変更しない |"
           }
         }
       ],
@@ -8085,9 +8083,7 @@
           "verification": "手動転記",
           "source_row": {
             "section": "6-1",
-            "uniqueness": "初期記録権の同一開始要求への交付は1件",
-            "key_shape": "UNIQUE (tenant_id, game_id, start_request_id)",
-            "scope": "scoped"
+            "quote": "| `recording_right_deliveries` | PK `(tenant_id,game_id,generation)`、`start_request_id`、`device_id`、空でない`key_id`、12byte `nonce`、48byte `ciphertext`、`created_at`、nullable `revoked_at`。generation/request/ownerへtenant付き複合FK。同一requestは一意1件。generationは正bigint | 失効だけを未失効から一度確定し、他列は変更しない。原V12/暗号鍵は保存せず、同じ要求・端末への再交付用暗号文だけを保持する。暗号長は既V12Boxのraw32byte＋tag16byteに対応する |"
           }
         }
       ],

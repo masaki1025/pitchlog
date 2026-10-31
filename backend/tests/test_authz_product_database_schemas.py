@@ -16,6 +16,88 @@ import pytest
 from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 
+# cdf1256dの採用済み3schemaを独立の全field期待として固定する。
+_EXPECTED_FIRST_BALL_SCHEMAS = [
+    {
+        "schema_id": "sync_fence",
+        "schema_name": "sync_fence",
+        "creation": "existing",
+        "owner": "pitchlog_owner",
+        "ownership_path": "direct",
+        "acl_expectations": [
+            {
+                "grantee": "pitchlog_sync_binding_fn_owner",
+                "privilege": "USAGE",
+                "grantable": False,
+            },
+            {
+                "grantee": "pitchlog_sync_right_fn_owner",
+                "privilege": "USAGE",
+                "grantable": False,
+            },
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False},
+            {"grantee": "PUBLIC", "privilege": "CREATE", "grantable": False},
+            {
+                "grantee": "pitchlog_sync_binding_fn_owner",
+                "privilege": "CREATE",
+                "grantable": False,
+            },
+        ],
+    },
+    {
+        "schema_id": "sync_fence_api",
+        "schema_name": "sync_fence_api",
+        "creation": "product_ddl",
+        "owner": "pitchlog_sync_binding_fn_owner",
+        "ownership_path": "direct",
+        "acl_expectations": [
+            {"grantee": "pitchlog_app", "privilege": "USAGE", "grantable": False},
+            {
+                "grantee": "pitchlog_sync_binding_actor",
+                "privilege": "USAGE",
+                "grantable": False,
+            },
+            {
+                "grantee": "pitchlog_sync_right_fn_owner",
+                "privilege": "USAGE",
+                "grantable": False,
+            },
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False},
+            {"grantee": "PUBLIC", "privilege": "CREATE", "grantable": False},
+            {"grantee": "pitchlog_app", "privilege": "CREATE", "grantable": False},
+            {
+                "grantee": "pitchlog_sync_binding_actor",
+                "privilege": "CREATE",
+                "grantable": False,
+            },
+            {
+                "grantee": "pitchlog_sync_right_fn_owner",
+                "privilege": "CREATE",
+                "grantable": False,
+            },
+        ],
+    },
+    {
+        "schema_id": "sync_right_api",
+        "schema_name": "sync_right_api",
+        "creation": "product_ddl",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "ownership_path": "direct",
+        "acl_expectations": [
+            {"grantee": "pitchlog_app", "privilege": "USAGE", "grantable": False}
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False},
+            {"grantee": "PUBLIC", "privilege": "CREATE", "grantable": False},
+            {"grantee": "pitchlog_app", "privilege": "CREATE", "grantable": False},
+        ],
+    },
+]
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -87,6 +169,7 @@ _DATABASE_PEERS = (
     "pitchlog_ledger_identity_probe",
     "pitchlog_initial_actor",
     "pitchlog_initial_auth_verifier",
+    "pitchlog_sync_binding_actor",
 )
 _EXPECTED_DATABASE["acl_expectations"].update(
     (role, "CONNECT", False) for role in _DATABASE_PEERS
@@ -173,6 +256,10 @@ _EXPECTED_SCHEMAS["initial_right_api"] = {
         ("pitchlog_initial_actor", "CREATE", False),
     },
 }
+
+
+for _role in ("pitchlog_sync_binding_fn_owner", "pitchlog_sync_right_fn_owner"):
+    _EXPECTED_SCHEMAS["public"]["acl_expectations"].add((_role, "USAGE", False))
 
 
 def _load_catalog_checker() -> Any:
@@ -330,13 +417,25 @@ def test_product_database_and_schema_assets_match_design() -> None:
     databases = asset["databases"]
     schemas = asset["schemas"]
     assert isinstance(databases, list) and len(databases) == 1
-    assert isinstance(schemas, list) and len(schemas) == len(_EXPECTED_SCHEMAS) + 2
+    assert isinstance(schemas, list) and len(schemas) == len(
+        _EXPECTED_SCHEMAS
+    ) + 2 + len(_EXPECTED_FIRST_BALL_SCHEMAS)
     assert _normalized_object(databases[0], "database_id") == _EXPECTED_DATABASE
     normalized = {
         str(row["schema_id"]): _normalized_object(row, "schema_id") for row in schemas
     }
     assert {key: normalized[key] for key in _EXPECTED_SCHEMAS} == _EXPECTED_SCHEMAS
-    assert set(normalized) == {*_EXPECTED_SCHEMAS, "authn", "authn_crypto"}
+    assert set(normalized) == {
+        *_EXPECTED_SCHEMAS,
+        "authn",
+        "authn_crypto",
+        *(row["schema_id"] for row in _EXPECTED_FIRST_BALL_SCHEMAS),
+    }
+    assert [
+        row
+        for row in schemas
+        if row["schema_id"] in {"sync_fence", "sync_fence_api", "sync_right_api"}
+    ] == _EXPECTED_FIRST_BALL_SCHEMAS
     assert normalized["authn"]["owner"] == "pitchlog_owner"
     assert normalized["authn"]["acl_expectations"] == {
         (role, "USAGE", False)
@@ -409,3 +508,30 @@ def test_product_database_and_schema_acl_mutations_are_rejected(
 
     with pytest.raises(_catalog_checker.CatalogError):
         _validate_product_asset(mutated)
+
+
+@pytest.mark.parametrize(
+    "schema_id", [r["schema_id"] for r in _EXPECTED_FIRST_BALL_SCHEMAS]
+)
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("owner", "pitchlog_app"),
+        ("schema_name", "unknown"),
+        (
+            "acl_expectations",
+            [{"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False}],
+        ),
+        ("revoked_acl_expectations", []),
+    ],
+)
+def test_first_ball_schema_full_declarations_are_closed(
+    schema_id: str, field: str, value: object
+) -> None:
+    """追加3schemaの所有・名前・ACL・剥奪の付替えを拒否する。"""
+    asset = _read_product_asset()
+    next(r for r in asset["schemas"] if r["schema_id"] == schema_id)[field] = (
+        copy.deepcopy(value)
+    )
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
