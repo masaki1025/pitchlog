@@ -21,9 +21,11 @@ from typing import Any
 
 import psycopg
 import pytest
+from product_authz_tenant_owned_cases import table_schema
 from psycopg import sql
 from test_schema_manifest import (
     _business_uniqueness_violations,
+    _contract_table_name,
     _manifest_business_uniqueness_row,
 )
 
@@ -49,6 +51,34 @@ _CANONICAL_RETIREMENT_CONSTRAINTS = {
     "recording_generations": "uq_recording_generations_migration",
     "medical_notes": "uq_medical_notes_active",
     "migrated_final_lineups": "uq_migrated_final_lineups_active",
+}
+_PRIVATE_BUSINESS_UNIQUES = {
+    "uq_sync_writer_binding_lease": {
+        "name": "uq_sync_writer_binding_lease",
+        "kind": "UNIQUE",
+        "columns": ["lease_id"],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-a",
+            "uniqueness": "同期writer資格のlease",
+            "key_shape": "lease_id",
+            "scope": "outside",
+        },
+    },
+    "uq_sync_writer_binding_nonce": {
+        "name": "uq_sync_writer_binding_nonce",
+        "kind": "UNIQUE",
+        "columns": ["nonce_digest"],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-a",
+            "uniqueness": "同期writer資格のnonce digest",
+            "key_shape": "nonce_digest",
+            "scope": "outside",
+        },
+    },
 }
 _AUDIT_AUTHORITIES = {
     "1_tenant_owned_foreign_keys": (
@@ -146,21 +176,25 @@ def _set_violations(label: str, expected: set[Any], actual: set[Any]) -> list[st
 
 
 def _table_catalog(connection: psycopg.Connection[Any]) -> set[str]:
-    """Public schema の通常表を pg_class から返す。"""
+    """既publicと有限privateの通常表をschema付きで照合する。"""
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT relation.relname
+            SELECT namespace.nspname, relation.relname
             FROM pg_class AS relation
             JOIN pg_namespace AS namespace
               ON namespace.oid = relation.relnamespace
-            WHERE namespace.nspname = 'public'
+            WHERE namespace.nspname IN ('public', 'sync_fence')
               AND relation.relkind IN ('r', 'p')
             ORDER BY relation.relname
             """
         )
         rows = cursor.fetchall()
-    return {str(row[0]) for row in rows} - _ALEMBIC_INTERNAL_TABLES
+    return {
+        _contract_table_name(str(schema), str(table))
+        for schema, table in rows
+        if (schema, table) != ("public", "alembic_version")
+    }
 
 
 def _normalized_type(data_type: str) -> str:
@@ -206,6 +240,7 @@ def _column_catalog(
         cursor.execute(
             """
             SELECT
+                namespace.nspname,
                 relation.relname,
                 attribute.attname,
                 format_type(attribute.atttypid, attribute.atttypmod),
@@ -220,7 +255,7 @@ def _column_catalog(
             LEFT JOIN pg_attrdef AS default_row
               ON default_row.adrelid = attribute.attrelid
              AND default_row.adnum = attribute.attnum
-            WHERE namespace.nspname = 'public'
+            WHERE namespace.nspname IN ('public', 'sync_fence')
               AND relation.relkind IN ('r', 'p')
               AND relation.relname <> ALL(%s)
               AND attribute.attnum > 0
@@ -232,13 +267,13 @@ def _column_catalog(
         rows = cursor.fetchall()
     return {
         _ColumnContract(
-            table=str(table),
+            table=_contract_table_name(str(schema), str(table)),
             name=str(name),
             data_type=_normalized_type(str(data_type)),
             nullable=bool(nullable),
             default=_normalized_default(None if default is None else str(default)),
         )
-        for table, name, data_type, nullable, default in rows
+        for schema, table, name, data_type, nullable, default in rows
     }
 
 
@@ -270,7 +305,7 @@ def _generated_expression_violations(
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT relation.relname, attribute.attname,
+            SELECT namespace.nspname, relation.relname, attribute.attname,
                    pg_catalog.pg_get_expr(definition.adbin, definition.adrelid, true)
             FROM pg_catalog.pg_attribute AS attribute
             JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
@@ -279,7 +314,7 @@ def _generated_expression_violations(
             JOIN pg_catalog.pg_attrdef AS definition
               ON definition.adrelid = attribute.attrelid
              AND definition.adnum = attribute.attnum
-            WHERE namespace.nspname = 'public'
+            WHERE namespace.nspname IN ('public', 'sync_fence')
               AND attribute.attgenerated = 's'
             """
         )
@@ -289,8 +324,10 @@ def _generated_expression_violations(
         return _normalize_sql(expression).replace("public.", "")
 
     actual = {
-        (str(table), str(column)): normalize(str(expr))
-        for table, column, expr in observed
+        (_contract_table_name(str(schema), str(table)), str(column)): normalize(
+            str(expr)
+        )
+        for schema, table, column, expr in observed
     }
     return _set_violations(
         "生成列の式",
@@ -301,12 +338,13 @@ def _generated_expression_violations(
 
 def _index_kinds(
     connection: psycopg.Connection[Any],
-) -> dict[str, str | None]:
-    """索引名ごとに主キー・一意制約・独立索引の区分を返す。"""
+) -> dict[tuple[str, str], str | None]:
+    """Schema/索引名ごとに主キー・一意制約・独立索引の区分を返す。"""
     with connection.cursor() as cursor:
         cursor.execute(
             """
-            SELECT index_relation.relname, constraint_row.contype
+            SELECT namespace.nspname, table_relation.relname,
+                   index_relation.relname, constraint_row.contype
             FROM pg_index AS index_row
             JOIN pg_class AS index_relation
               ON index_relation.oid = index_row.indexrelid
@@ -317,17 +355,21 @@ def _index_kinds(
             LEFT JOIN pg_constraint AS constraint_row
               ON constraint_row.conindid = index_row.indexrelid
              AND constraint_row.contype IN ('p', 'u')
-            WHERE namespace.nspname = 'public'
+            WHERE namespace.nspname IN ('public', 'sync_fence')
               AND table_relation.relname <> ALL(%s)
             ORDER BY index_relation.relname
             """,
             (sorted(_ALEMBIC_INTERNAL_TABLES),),
         )
         rows = cursor.fetchall()
-    return {
-        str(name): None if constraint_type is None else str(constraint_type)
-        for name, constraint_type in rows
-    }
+    result = {}
+    for schema, table, name, constraint_type in rows:
+        _contract_table_name(str(schema), str(table))
+        key = (str(schema), str(name))
+        if key in result:
+            raise AssertionError(f"索引identityが重複: {key}")
+        result[key] = None if constraint_type is None else str(constraint_type)
+    return result
 
 
 def _unique_catalog(
@@ -336,9 +378,9 @@ def _unique_catalog(
     """全主キー・一意制約・部分一意索引を pg_index から返す。"""
     kinds = _index_kinds(connection)
     contracts: set[_UniqueContract] = set()
-    for name, constraint_type in kinds.items():
+    for (schema, name), constraint_type in kinds.items():
         definition, table, columns, predicate, unique = _index_catalog_contract(
-            connection, name
+            connection, name, schema=schema
         )
         del definition
         if not unique:
@@ -350,7 +392,7 @@ def _unique_catalog(
         }[constraint_type]
         contracts.add(
             _UniqueContract(
-                table=table,
+                table=_contract_table_name(schema, table),
                 name=name,
                 kind=kind,
                 columns=tuple(columns),
@@ -382,16 +424,16 @@ def _index_catalog(
 ) -> set[_IndexContract]:
     """全非一意索引を列順・方向と述語つきで返す。"""
     contracts: set[_IndexContract] = set()
-    for name in _index_kinds(connection):
+    for schema, name in _index_kinds(connection):
         definition, table, columns, predicate, unique = _index_catalog_contract(
-            connection, name
+            connection, name, schema=schema
         )
         del definition
         if unique:
             continue
         contracts.add(
             _IndexContract(
-                table=table,
+                table=_contract_table_name(schema, table),
                 name=name,
                 columns=tuple(columns),
                 predicate=predicate,
@@ -422,6 +464,8 @@ def _foreign_key_catalog(
         cursor.execute(
             """
             SELECT
+                source_namespace.nspname,
+                target_namespace.nspname,
                 source_relation.relname,
                 constraint_row.conname,
                 ARRAY(
@@ -455,8 +499,7 @@ def _foreign_key_catalog(
             JOIN pg_namespace AS target_namespace
               ON target_namespace.oid = target_relation.relnamespace
             WHERE constraint_row.contype = 'f'
-              AND source_namespace.nspname = 'public'
-              AND target_namespace.nspname = 'public'
+              AND source_namespace.nspname IN ('public', 'sync_fence')
             ORDER BY source_relation.relname, constraint_row.conname
             """
         )
@@ -471,15 +514,25 @@ def _foreign_key_catalog(
     }
     return {
         _ForeignKeyContract(
-            table=str(table),
+            table=_contract_table_name(str(schema), str(table)),
             name=str(name),
             columns=tuple(str(column) for column in columns),
-            target_table=str(target_table),
+            target_table=_contract_table_name(str(target_schema), str(target_table)),
             target_columns=tuple(str(column) for column in target_columns),
             match=match_types[str(match)],
             on_delete=delete_actions[str(on_delete)],
         )
-        for table, name, columns, target_table, target_columns, match, on_delete in rows
+        for (
+            schema,
+            target_schema,
+            table,
+            name,
+            columns,
+            target_table,
+            target_columns,
+            match,
+            on_delete,
+        ) in rows
     }
 
 
@@ -510,6 +563,7 @@ def _check_catalog(
         cursor.execute(
             """
             SELECT
+                namespace.nspname,
                 relation.relname,
                 pg_get_expr(
                     constraint_row.conbin,
@@ -523,18 +577,18 @@ def _check_catalog(
             JOIN pg_namespace AS namespace
               ON namespace.oid = relation.relnamespace
             WHERE constraint_row.contype = 'c'
-              AND namespace.nspname = 'public'
+              AND namespace.nspname IN ('public', 'sync_fence')
             ORDER BY relation.relname, constraint_row.conname
             """
         )
         rows = cursor.fetchall()
     return [
         _CheckContract(
-            table=str(table),
+            table=_contract_table_name(str(schema), str(table)),
             expression=_normalize_sql(str(expression)),
             validated=bool(validated),
         )
-        for table, expression, validated in rows
+        for schema, table, expression, validated in rows
     ]
 
 
@@ -551,7 +605,7 @@ def _manifest_checks(
             cursor.execute(
                 sql.SQL("CREATE TEMP TABLE {} (LIKE {}.{})").format(
                     sql.Identifier(temporary_table),
-                    sql.Identifier("public"),
+                    sql.Identifier(table_schema(table["name"])),
                     sql.Identifier(table["name"]),
                 )
             )
@@ -760,6 +814,25 @@ def _cross_table_audit_violations(
         for constraint in table["unique_constraints"]
         if "business_unique" in constraint["roles"]
     }
+    private_rows = [
+        (table["name"], constraint)
+        for table in manifest["tables"]
+        for constraint in table["unique_constraints"]
+        if "business_unique" in constraint["roles"]
+        and (
+            table["name"]
+            in {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+            or constraint["name"] in _PRIVATE_BUSINESS_UNIQUES
+            or constraint["source_row"].get("section") == "6-1-a"
+        )
+    ]
+    private_constraints = {row["name"]: row for _, row in private_rows}
+    if (
+        len(private_rows) != len(_PRIVATE_BUSINESS_UNIQUES)
+        or private_constraints != _PRIVATE_BUSINESS_UNIQUES
+        or any(table != "writer_bindings" for table, _ in private_rows)
+    ):
+        raise ValueError("6-1-aの私有一意制約exact2全fieldが不一致")
     canonical_outside = {
         name
         for name, constraint in business_constraints.items()
@@ -768,7 +841,7 @@ def _cross_table_audit_violations(
     }
     global_uniqueness_violations = [
         f"{name}: 正本でテナント外だが表が tenant_id を持つ"
-        for name in sorted(canonical_outside)
+        for name in sorted(canonical_outside - _PRIVATE_BUSINESS_UNIQUES.keys())
         if "tenant_id" in columns_by_table.get(business_constraint_tables[name], {})
     ]
     # 旧3-4の29行と、正規6-1 quote形式のexact2行を既原典パーサで照合する。
@@ -789,15 +862,16 @@ def _cross_table_audit_violations(
             dict(manifest),
         )
     )
-    if len(business_constraints) != 31:
+    if len(business_constraints) != 31 + len(_PRIVATE_BUSINESS_UNIQUES):
         global_uniqueness_violations.append(
-            "business_unique が旧29件＋6-1の2件ではない: "
+            "business_unique が旧31件＋6-1-aの2件ではない: "
             f"{len(business_constraints)} 件"
         )
 
-    if len(canonical_outside) != 5:
+    if len(canonical_outside) != 5 + len(_PRIVATE_BUSINESS_UNIQUES):
         global_uniqueness_violations.append(
-            f"テナント外 business_unique が 5 件ではない: {len(canonical_outside)} 件"
+            "テナント外 business_unique が旧5件＋6-1-aの2件ではない: "
+            f"{len(canonical_outside)} 件"
         )
 
     violations = {

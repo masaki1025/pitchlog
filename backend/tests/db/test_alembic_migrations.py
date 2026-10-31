@@ -1486,9 +1486,11 @@ def _normalized_predicate(predicate: str | None) -> str | None:
 
 
 def _index_catalog_contract(
-    connection: psycopg.Connection[Any], index_name: str
+    connection: psycopg.Connection[Any], index_name: str, *, schema: str = "public"
 ) -> tuple[str, str, list[str], str | None, bool]:
     """索引定義・対象表・列順・述語・一意性をカタログから取得する。"""
+    if schema not in {"public", "sync_fence"}:
+        raise AssertionError(f"未登録の索引schema: {schema}")
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -1520,9 +1522,11 @@ def _index_catalog_contract(
               ON index_relation.oid = index_row.indexrelid
             JOIN pg_class AS table_relation
               ON table_relation.oid = index_row.indrelid
-            WHERE index_relation.relname = %s
+            JOIN pg_namespace AS namespace
+              ON namespace.oid = index_relation.relnamespace
+            WHERE index_relation.relname = %s AND namespace.nspname = %s
             """,
-            (index_name,),
+            (index_name, schema),
         )
         row = cursor.fetchone()
     if row is None:

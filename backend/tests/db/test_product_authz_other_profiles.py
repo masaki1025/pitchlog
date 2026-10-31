@@ -28,6 +28,8 @@ from product_authz_tenant_owned_cases import (
     TENANT_A,
     TENANT_B,
     insert_statement,
+    private_function_only_table_names,
+    table_schema,
 )
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
@@ -103,7 +105,7 @@ def _select_count(
             if tenant_id is not None:
                 _set_tenant_context(cursor, tenant_id)
             statement = sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                sql.Identifier("public", table)
+                sql.Identifier(table_schema(table), table)
             )
             params: tuple[object, ...] = ()
             if key_column is not None:
@@ -128,7 +130,7 @@ def _insert_default_row(
         with connection.cursor() as cursor:
             cursor.execute(
                 sql.SQL("INSERT INTO {} DEFAULT VALUES").format(
-                    sql.Identifier("public", table)
+                    sql.Identifier(table_schema(table), table)
                 )
             )
     finally:
@@ -167,7 +169,7 @@ def _superuser_count(catalog: ProvisionedProductCatalog, table: str) -> int:
         with catalog.applicator.cursor() as cursor:
             cursor.execute(
                 sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                    sql.Identifier("public", table)
+                    sql.Identifier(table_schema(table), table)
                 )
             )
             row = cursor.fetchone()
@@ -489,7 +491,7 @@ def test_global_read_only_tables_are_readable_but_not_insertable(
 def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_it(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """全表関数限定18表は42501になり、SELECT付与変異を観測する。"""
+    """旧18表と私有3表は42501になり、既SELECT付与変異を観測する。"""
     catalog = provisioned_product_catalog
     _seed_other_profiles(catalog)
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
@@ -500,6 +502,9 @@ def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_i
             count = _superuser_count(catalog, table)
             if table == "rg1_restore_gate":
                 assert count == 1
+            elif table in private_function_only_table_names():
+                # 私有行を汎用INSERTで捏造せず、空でも権限検査へ到達する。
+                assert count == 0, table
             else:
                 assert count >= 2, table
             _assert_sqlstate(
@@ -507,19 +512,24 @@ def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_i
                 lambda table=table: _select_count(app, table),
             )
 
+        for table in private_function_only_table_names():
+            _assert_sqlstate(
+                "42501", lambda table=table: _insert_default_row(app, table)
+            )
+
         mutated_table = tables[0]
         try:
             with catalog.applicator.cursor() as cursor:
                 cursor.execute(
                     sql.SQL("GRANT SELECT ON TABLE {} TO {}").format(
-                        sql.Identifier("public", mutated_table),
+                        sql.Identifier(table_schema(mutated_table), mutated_table),
                         sql.Identifier(_APP_ROLE),
                     )
                 )
                 _set_local_app_role(cursor)
                 cursor.execute(
                     sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                        sql.Identifier("public", mutated_table)
+                        sql.Identifier(table_schema(mutated_table), mutated_table)
                     )
                 )
                 row = cursor.fetchone()
