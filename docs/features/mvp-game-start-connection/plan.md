@@ -750,3 +750,7 @@ PO委任によるCodex主担当 /root判断として、最終9d9d7b1cで実CIが
 - `tests/fixtures/frozen-archive-cases/manifest.json` は最終入力一式のcorpus_inputs.digestだけを正規runnerで導出する。固定prefix/snapshot集合・比較case全期待・拒否条件を変更しない。全該当caseを実runner経由で再確認し、単にdigestを合わせただけでは採用しない。
 
 候補の完全前後・現input由来・独立非作者レビューを保存し、対象固定後に採用する。ORM受入シート・その他DB/認可資産の変更範囲は診断後に別の有限追補を行う。人間本人の確認/署名やP6blindの成立を代記しない。
+
+実CIのfixture再基線追補（2026-10-31、PO委任によるCodex /root判断）: 次の既存7pathを限定追加する。`tests/test_stage_a_startup_tenant_boundary.py`は既許可済み初期保存2関数のAPI全tupleを既9に足すexact11期待へ追随し、未知API/署名/別moduleの拒否は維持する。`tests/test_check_authz_catalog.py`の未発効fixtureは暫定版の実Git schema-manifest/table-classificationを復元して現初期4表とRG1の混入を除き、暫定版後の0036も複製fixtureだけから除く。製品checkerや本物資産/migrationを変更せず、未発効状態専用検査が実行されることを維持する。
+
+ORM受入出力5path `docs/features/orm-schema-migration/acceptance-sheets/{N1-table-completeness,N3-immutability-completeness,N4-deletion-lifecycle,N7-required-attributes,README}.md`は公式generate_orm_acceptance_sheetsのcarry-judgments手続きで現入力へ再生成する。既本人判定の出典は同一判定対象で安全な行だけ原文持越し、変動/新規行を本人承認済みに補わない。失効・新規行は空欄のまま別に管理し、必要な主担当確認はPO委任として明記する。原資料/全前後/引継ぎ理由をcacheへ固定し非作者確認する。
