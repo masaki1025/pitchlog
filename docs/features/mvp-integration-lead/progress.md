@@ -1,6 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
-## 再開時の現在地（2026-10-31 10:44 JST、出塁保存の正式登録を供給・実PGで構文停止を検出）
+## 再開時の現在地（2026-10-31 12:00 JST、四球・死球の実DB保存成功／画面拡張は修復中）
+
+- **利用者が完了できる操作の証拠**: 隔離固定ab530b31の実HTTPS画面で新規作成→実開始/初期記録権→通常3球→元要求再送→reload B2S1/履歴3、別試験でcommit後ACK本文喪失→reload→原要求再送→正規重複→reload B1S0/履歴1を2passed/114.27秒で確認済み。cache terminal-prefix-joined-screen-success-20261031/result.json SHA d417cc77bc31f270dcb44f58e8bee8955b7c8a20bf5606b31aaecc428b71dedf。正式develop・対象実機の成功ではない。
+- **今回増えた製品到達点（API/実DB、画面とは分離）**: 四球/死球→次打者通常球の正式計算/実認証/初期権/broker/単一artifact/原子的保存/再取得が989ed1acで2passed/186.90秒。6003fc1eでは外国tenant実ログインのGET・元要求再送を404拒否し、所有者の保存全値不変まで追加して2passed/195.70秒。各caseは画面事前投入ではなくPOST新規作成から実経路、prefix5/履歴5・物理operation_events/play_rows各5、空走者BB/HBPのPlayRunner0→次球1、同D5再送で重複、T2後/T4後故障時の全取消と同D5再試行を照合。cache terminal-pitches-owned-storage-20261031/attempt3-tenant/result.json SHA 3e455adb9285728b2fde26a2f310e173cde264fbc0559ebd2fa911aeb1d2c77f。foreign再送対象は最後の通常球でありterminalそのものの別tenant再送まで実証したとはしない。初回SQL42601失敗は保存、r4のCASE括弧修正後に成功。
+- **T1候補固定点**: feature/mvp-terminal-pitches HEAD b4e5285c。step4 source40・SQL r4は989ed1acへ保存済み、実tenant拒否testは6003fc1e。D11公式typed24/JUnit全値56、runtime/repository155・型成功は既証拠のまま。数学/保存の対象は現在の有限BB/HBP経路で、OUT3/RBI/G6/取消など全T1成立を意味しない。
+- **画面step5の現在地**: 同候補で18pathを実装、frontend133files/2840tests成功124.02秒。ただしこれは修正前候補。実HTTPS4caseは3failed/1passed、472.43秒で終了し、source凍結を解除。通常3球はstatus200後の本文待機、BB/HBPは送信前save disabledで失敗。監視globalをfull page.gotoで失う試験側の問題と、保存前UI条件を分離して修復する。独立レビューP1二件（未確認prefixのpaStartSourceがplayIdを参照しeventIdでない／BB再送試験が最初のballを再送）はcache修正済み・WT適用/影響検証中。cache terminal-pitches-step5-https-20261031/root-real-https.log、terminal-pitches-step5-r1-combined-20261031、terminal-pitches-step5-https-diagnostic-20261031。最新画面BB/HBP成功は未成立。
+- **PR188正式統合の残条件**: CI修復WT f174428dの最終9資産/4面/生成/履歴snapshot候補を非作者確認・PO委任によるroot判断で適用したが未commit。公式runtime check成功、tenant checkはinventory cross-seal不一致、frozen invariantはsource SHA4literal未登録で拒否。内部候補照合だけを公式成功へ読み替えない。scan allowlist追加や値隠蔽をせず、既frozen-inputs目的付き不変Git原典登録を使う最小修正候補を作成中。inventory seal修正後も同一未統合PR188の末尾32行目だけを実base31から再導出し、独立レビュー・公式CLI・最終CIを揃える。cache pr188-final77-root-approved-20261031 と pr188-source-pin-registration-procedure-20261031。公開PR188 dcc90014、189 ad6588b1、190 320f196bの成立条件と隔離候補は区別する。
+- **次の具体作業**: step5の既P1修正＋試験監視修正→閉booleanでdisabled原因確定→影響検査→同一候補/owned HTTPSでBB/HBP保存・真terminal再送・reload・ACK復旧を実測。並行でPR188上記2拒否を是正し正式統合を進める。重いPG/browser試験はrootが直列実行、各DSNはunset、共有DB使用0。運用TLS/実機検証を完了扱いにしない。
+- **MVP全体の未完**: 正式統合、全操作/1試合終了・再開・過去訂正・取消、全操作offline/担当交代/故障、閲覧更新、T5/T6基本成績/暦年JST/区分切替、毎球・成績CSV、3試合×11端末、backup/復旧、実機・運用HTTPS。Goalは全MVPのままactive。判断者はPO委任によるCodex主担当、山田正輝の本人確認/署名とは記録しない。
+
+### 直前の記録（10:44 JST、上記で更新された経過を保全）
 
 - **実画面で完了できる操作（隔離候補）**: 新規作成→実開始/初期記録権→ball/called-pitch/ball保存→元要求再送→reload B2S1/履歴3。別系列は実commit後ACK本文喪失→reload→元body/attempt再送→正規重複→queue終結→reload B1S0/履歴1、二重保存なし。
 - **最新の同一版実証**: T1数学9736e06dと既ACK復旧320f196bを接合した固定ab530b31で上記2本を再検証、2passed/114.27秒。各試験は別owned PG、同一製品版/実認証/API/broker/権利/単一artifact/Chromium HTTPS。artifact052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4。cache terminal-prefix-joined-screen-success-20261031/result.json SHAd417cc77bc31f270dcb44f58e8bee8955b7c8a20bf5606b31aaecc428b71dedf。TLS PATH未供給2skip、browser TMP未作成2failは別log保持。旧320/e81/e64/54bの実証も履歴保全。新BB/HBPの保存成功ではない。
