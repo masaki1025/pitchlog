@@ -243,6 +243,11 @@ class NodeDomainHost:
         self._next_id = 0
         self._start()
 
+    @property
+    def artifact_sha256(self) -> str:
+        """検証済みの実loaded不変sourceのhashを返す。ファイルを再読込しない。"""
+        return hashlib.sha256(self._source.encode("utf-8")).hexdigest()
+
     def __enter__(self) -> "NodeDomainHost":
         """ホストをコンテキストへ渡す。"""
         return self

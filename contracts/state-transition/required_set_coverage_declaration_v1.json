@@ -71,6 +71,46 @@
         "axisId": "event.perPitch.thirdOutTimingByRunner.third",
         "value": "not-before-third-out"
       }
+    },
+    {
+      "vocabularyId": "batting-result.walk",
+      "partitionRuleId": "identity",
+      "partitionId": "identity",
+      "signal": {
+        "location": "precondition",
+        "axisId": "state.runners",
+        "value": "first-third"
+      }
+    },
+    {
+      "vocabularyId": "batting-result.walk",
+      "partitionRuleId": "identity",
+      "partitionId": "empty-runners",
+      "signal": {
+        "location": "precondition",
+        "axisId": "state.runners",
+        "value": "empty"
+      }
+    },
+    {
+      "vocabularyId": "batting-result.hit-by-pitch",
+      "partitionRuleId": "identity",
+      "partitionId": "identity",
+      "signal": {
+        "location": "precondition",
+        "axisId": "state.runners",
+        "value": "first-third"
+      }
+    },
+    {
+      "vocabularyId": "batting-result.hit-by-pitch",
+      "partitionRuleId": "identity",
+      "partitionId": "empty-runners",
+      "signal": {
+        "location": "precondition",
+        "axisId": "state.runners",
+        "value": "empty"
+      }
     }
   ],
   "uncoveredRowRequirements": [

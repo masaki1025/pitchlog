@@ -28,6 +28,7 @@ export function getDomainArtifact(): DomainArtifact {
 export type FirstBallDomainOperation =
   | 'deriveFirstPitchWithContinuation'
   | 'deriveOrdinaryPitchWithContinuation'
+  | 'derivePlayPrefixWithContinuation'
   | 'quantizeCourse'
 
 /** 計算を複製せず、配布物の閉じた操作へJSONを渡す。 */

@@ -190,6 +190,7 @@ test('実commit後のACK本文喪失から同要求を重複再掲し1球へ復�
     })
     .click()
   await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`)
+    await page.goto(`${baseURL}/games/${saved.id}/record?recording=ordinary-prefix-v1`)
   await expect(
     page.getByRole('heading', { name: 'スタメンと試合開始' }),
   ).toBeVisible()

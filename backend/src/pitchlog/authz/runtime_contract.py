@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 28
+RUNTIME_CONTRACT_REVISION = 29
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "9a19846ba23c617f35f3c4f9ef1fd35a8e2bd7bffc93b88a171fa5c704d8ffb0"
+SOURCE_DIGEST = "fea92004627062253ccd6dd860ea607e8cf849a0813876e9c482a41c590584bf"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -100,6 +100,9 @@ PROTECTED_TABLES = (
     ("public", "tournament_rule_assignments"),
     ("public", "trusted_devices"),
     ("sync_fence", "first_ball_write_admissions"),
+    ("sync_fence", "ordinary_pitch_checkpoints"),
+    ("sync_fence", "ordinary_pitch_history"),
+    ("sync_fence", "ordinary_pitch_write_admissions"),
     ("sync_fence", "writer_admissions"),
     ("sync_fence", "writer_bindings"),
 )
@@ -206,15 +209,68 @@ PROTECTED_FUNCTIONS = (
     ("sync_fence_api", "publish_writer_binding", "uuid, uuid, uuid, jsonb, bytea"),
     ("sync_fence_api", "read_writer_database_identity", "uuid"),
     ("sync_fence_api", "read_writer_identity", "uuid"),
+    ("sync_right_api", "assert_play_prefix_projection", "jsonb"),
     ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
+    (
+        "sync_right_api",
+        "bind_ordinary_device",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
+    ),
     (
         "sync_right_api",
         "check_current_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
     ),
+    (
+        "sync_right_api",
+        "check_ordinary_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    ("sync_right_api", "consume_ordinary_projection", "jsonb"),
+    ("sync_right_api", "finish_play_prefix_projection", ""),
     ("sync_right_api", "guard_first_ball_projection_admission", ""),
     ("sync_right_api", "guard_first_ball_projection_lock", ""),
+    ("sync_right_api", "guard_play_prefix_runner_insert", ""),
+    (
+        "sync_right_api",
+        "lock_ordinary_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "lock_play_prefix_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "prepare_ordinary_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "sync_right_api",
+        "prepare_play_prefix_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
     ("sync_right_api", "read_device_state", "uuid, uuid"),
+    ("sync_right_api", "read_ordinary_checkpoint", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_ordinary_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, in"
+            "teger"
+        ),
+    ),
+    ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
+    ("sync_right_api", "read_play_prefix_checkpoint", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_play_prefix_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, "
+            "uuid, integer"
+        ),
+    ),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (

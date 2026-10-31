@@ -1,4 +1,8 @@
 import {
+  preparePlayPrefixContinuation,
+  finishPlayPrefixContinuation,
+} from './playPrefixContinuation'
+import {
   prepareOrdinaryContinuation,
   finishOrdinaryContinuation,
 } from './ordinaryPitchContinuation'
@@ -9,7 +13,7 @@ import {
   readContinuationRules,
 } from './firstPitchContinuation'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
-import { derive, deriveOrdinary, emptyFlags } from './state'
+import { derive, deriveOrdinary, deriveTerminal, emptyFlags } from './state'
 import type { Derived, Runners, Scoreboard, StateFields } from './stateTypes'
 
 type DomainErrorCode =
@@ -223,6 +227,8 @@ function boardJson(board: Scoreboard): Record<string, unknown> {
 function derivedJson(
   derived: Derived,
   stack: Array<unknown> = [],
+  before: StateFields | null = null,
+  board: Scoreboard | null = null,
 ): Record<string, unknown> {
   const differences: Record<string, unknown> = {}
   if (derived.history.ballsBefore !== derived.history.ballsAfter) {
@@ -240,6 +246,32 @@ function derivedJson(
         after: formatDecimalInteger(derived.history.strikesAfter),
       },
     })
+  }
+  const boardDifferences: Record<string, unknown> = {}
+  if (before !== null && board !== null) {
+    // 同じwire射影を比較し、算術や過去履歴の再計算は行わない。
+    for (const pair of Object.entries(stateJson(before))) {
+      const key = pair.shift()
+      const value = pair.pop()
+      if (typeof key !== 'string') continue
+      const after = fieldValue(stateJson(derived.after.stateFields), key)
+      if (JSON.stringify(value) !== JSON.stringify(after))
+        Object.assign(
+          differences,
+          Object.fromEntries([[key, { before: value, after: after }]]),
+        )
+    }
+    for (const pair of Object.entries(boardJson(board))) {
+      const key = pair.shift()
+      const value = pair.pop()
+      if (typeof key !== 'string') continue
+      const after = fieldValue(boardJson(derived.after.scoreboard), key)
+      if (JSON.stringify(value) !== JSON.stringify(after))
+        Object.assign(
+          boardDifferences,
+          Object.fromEntries([[key, { before: value, after: after }]]),
+        )
+    }
   }
   const destination: Record<string, unknown> = {
     kind: derived.batterDestination.kind,
@@ -289,7 +321,7 @@ function derivedJson(
           kind: 'confirmed-play',
           difference: {
             stateFields: differences,
-            scoreboard: {},
+            scoreboard: boardDifferences,
             statFlags: derived.statFlags,
           },
         },
@@ -314,9 +346,17 @@ function exactKeys(
 }
 
 /** 履歴の前後値を閉じた型として検査する。真正性や過去計算は推測しない。 */
-function historyScalar(value: unknown, kind: string): DomainErrorCode | null {
+function historyScalar(
+  value: unknown,
+  kind: string,
+  terminal: boolean = false,
+): DomainErrorCode | null {
   if (kind === 'integer') {
-    if (parseDecimalInteger(value) === null) return 'INVALID_DECIMAL_INTEGER'
+    if (
+      parseDecimalInteger(value) === null ||
+      (terminal && typeof value === 'string' && value.startsWith('-'))
+    )
+      return 'INVALID_DECIMAL_INTEGER'
     return null
   }
   if (kind === 'boolean') {
@@ -328,6 +368,8 @@ function historyScalar(value: unknown, kind: string): DomainErrorCode | null {
     return null
   }
   if (kind === 'runners') {
+    let full = 'loaded'
+    if (terminal) full = 'first-second-third'
     if (
       typeof value !== 'string' ||
       ![
@@ -338,7 +380,7 @@ function historyScalar(value: unknown, kind: string): DomainErrorCode | null {
         'first-second',
         'first-third',
         'second-third',
-        'loaded',
+        full,
       ].includes(value)
     )
       return 'INVALID_REQUEST'
@@ -349,7 +391,11 @@ function historyScalar(value: unknown, kind: string): DomainErrorCode | null {
     return 'INVALID_REQUEST'
   if (
     parseDecimalInteger(score.home) === null ||
-    parseDecimalInteger(score.away) === null
+    parseDecimalInteger(score.away) === null ||
+    (terminal &&
+      typeof score.home === 'string' &&
+      score.home.startsWith('-')) ||
+    (terminal && typeof score.away === 'string' && score.away.startsWith('-'))
   )
     return 'INVALID_DECIMAL_INTEGER'
   return null
@@ -359,6 +405,7 @@ function historyScalar(value: unknown, kind: string): DomainErrorCode | null {
 function historyFields(
   source: unknown,
   state: boolean,
+  terminal: boolean = false,
 ): DomainErrorCode | null {
   const fields = asObject(source)
   if (fields === null) return 'INVALID_REQUEST'
@@ -389,16 +436,25 @@ function historyFields(
     if (key === 'state.tiebreakActive' || key === 'state.gameEnded')
       kind = 'boolean'
     if (key === 'state.score' || key === 'inningScores') kind = 'score'
-    const beforeError = historyScalar(pair.before, kind)
+    const beforeError = historyScalar(pair.before, kind, terminal)
     if (beforeError !== null) return beforeError
-    const afterError = historyScalar(pair.after, kind)
+    const afterError = historyScalar(pair.after, kind, terminal)
     if (afterError !== null) return afterError
+    if (
+      terminal &&
+      key === 'state.inning' &&
+      (pair.before === '0' || pair.after === '0')
+    )
+      return 'INVALID_REQUEST'
   }
   return null
 }
 
 /** 履歴の欠落・余剰・型を検査する。既定stackやflagは生成しない。 */
-function validateHistoryEntry(value: unknown): DomainErrorCode | null {
+function validateHistoryEntry(
+  value: unknown,
+  terminal: boolean = false,
+): DomainErrorCode | null {
   const entry = asObject(value)
   if (
     entry === null ||
@@ -412,9 +468,9 @@ function validateHistoryEntry(value: unknown): DomainErrorCode | null {
     !exactKeys(difference, ['stateFields', 'scoreboard', 'statFlags'])
   )
     return 'INVALID_REQUEST'
-  const stateError = historyFields(difference.stateFields, true)
+  const stateError = historyFields(difference.stateFields, true, terminal)
   if (stateError !== null) return stateError
-  const boardError = historyFields(difference.scoreboard, false)
+  const boardError = historyFields(difference.scoreboard, false, terminal)
   if (boardError !== null) return boardError
   const flags = asObject(difference.statFlags)
   if (
@@ -426,18 +482,57 @@ function validateHistoryEntry(value: unknown): DomainErrorCode | null {
   return null
 }
 
+/** JSON.parse済みの文法に対し、object内の復号済みキー重複だけを検査する。 */
+function hasDuplicateKeys(text: string): boolean {
+  let frames: Array<Array<string>> = []
+  let quoted = false
+  let escaped = false
+  let token = ''
+  let lastString = ''
+  for (const character of text) {
+    if (quoted) {
+      token = token + character
+      if (escaped) escaped = false
+      else if (character === '\\') escaped = true
+      else if (character === '"') {
+        quoted = false
+        lastString = JSON.parse(token) as string
+      }
+      continue
+    }
+    if (character === '"') {
+      quoted = true
+      token = character
+    } else if (character === '{' || character === '[')
+      frames = frames.concat([[]])
+    else if (character === '}' || character === ']') frames.pop()
+    else if (character === ':') {
+      const keys = frames.pop()
+      if (typeof keys === 'undefined' || keys.includes(lastString)) return true
+      frames = frames.concat([keys.concat([lastString])])
+    }
+  }
+  return false
+}
+
 /** 正規化済み一球だけを単一の数学核へ渡す。認可や保存ACKは返さない。 */
-function evaluatePitch(requestJson: string, ordinary: boolean): string {
+function evaluatePitch(
+  requestJson: string,
+  ordinary: boolean,
+  terminal: boolean = false,
+): string {
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
     parsed = JSON.parse(requestJson) as unknown
+    if (terminal && hasDuplicateKeys(requestJson))
+      return errorResponse('INVALID_JSON')
   } catch {
     return errorResponse('INVALID_JSON')
   }
   const request = asObject(parsed)
   let requestKeys = ['eventKind', 'resultId', 'pitchEventKind', 'before']
-  if (ordinary) requestKeys = requestKeys.concat(['history'])
+  if (ordinary || terminal) requestKeys = requestKeys.concat(['history'])
   if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
   }
@@ -448,7 +543,7 @@ function evaluatePitch(requestJson: string, ordinary: boolean): string {
   )
     return errorResponse('INVALID_REQUEST')
   let stack: Array<unknown> = []
-  if (ordinary) {
+  if (ordinary || terminal) {
     const history = asObject(request.history)
     if (
       history === null ||
@@ -457,7 +552,7 @@ function evaluatePitch(requestJson: string, ordinary: boolean): string {
     )
       return errorResponse('INVALID_REQUEST')
     for (const entry of history.stack) {
-      const historyError = validateHistoryEntry(entry)
+      const historyError = validateHistoryEntry(entry, terminal)
       if (historyError !== null) return errorResponse(historyError)
     }
     stack = history.stack
@@ -510,7 +605,13 @@ function evaluatePitch(requestJson: string, ordinary: boolean): string {
     innings.home,
     innings.away,
   ]
-  if (integerValues.some((value) => parseDecimalInteger(value) === null)) {
+  if (
+    integerValues.some(
+      (value) =>
+        parseDecimalInteger(value) === null ||
+        (terminal && typeof value === 'string' && value.startsWith('-')),
+    )
+  ) {
     return errorResponse('INVALID_DECIMAL_INTEGER')
   }
   const state = readState(fields)
@@ -520,7 +621,8 @@ function evaluatePitch(requestJson: string, ordinary: boolean): string {
   if (request.eventKind !== 'batting-result')
     return errorResponse('UNSUPPORTED_T1_SCOPE')
   let calculator = derive
-  if (ordinary) calculator = deriveOrdinary
+  if (ordinary || terminal) calculator = deriveOrdinary
+  if (terminal) calculator = deriveTerminal
   const derived = calculator(
     state,
     scoreboard,
@@ -528,6 +630,11 @@ function evaluatePitch(requestJson: string, ordinary: boolean): string {
     request.pitchEventKind,
   )
   if (derived === null) return errorResponse('UNSUPPORTED_T1_SCOPE')
+  if (terminal)
+    return JSON.stringify({
+      ok: true,
+      value: derivedJson(derived, stack, state, scoreboard),
+    })
   return JSON.stringify({ ok: true, value: derivedJson(derived, stack) })
 }
 
@@ -539,6 +646,11 @@ function deriveState(requestJson: string): string {
 /** 必須履歴と通常33座標だけを単一計算核へ渡す。 */
 function deriveOrdinaryPitch(requestJson: string): string {
   return evaluatePitch(requestJson, true)
+}
+
+/** 無走者BB/HBPの閉契約。旧投球ABIとは独立した入口。 */
+function deriveTerminalPitch(requestJson: string): string {
+  return evaluatePitch(requestJson, false, true)
 }
 
 type T1Evaluation =
@@ -691,11 +803,35 @@ function deriveOrdinaryPitchWithContinuation(requestJson: string): string {
   return finishOrdinaryContinuation(prepared.request, response)
 }
 
+/** 真正source資格とは区別したv2数学接続。T1は同artifact内で一回だけ評価する。 */
+function derivePlayPrefixWithContinuation(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const prepared = preparePlayPrefixContinuation(requestJson)
+  if (!prepared.ok) return prepared.response
+  let response: string
+  if (prepared.terminal)
+    response = deriveTerminalPitch(JSON.stringify(prepared.t1))
+  else response = deriveOrdinaryPitch(JSON.stringify(prepared.t1))
+  return finishPlayPrefixContinuation(
+    prepared.request,
+    response,
+    prepared.responsiblePitcherId,
+  )
+}
+
 /** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
   deriveState,
   deriveOrdinaryPitch,
+  deriveTerminalPitch,
+  derivePlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,
   deriveOrdinaryPitchWithContinuation,
   validateInitialGameRoster,

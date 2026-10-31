@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import TypeAdapter
 
 from pitchlog.api.schemas.started_games import (
     StartedGameRead,
@@ -12,6 +13,7 @@ from pitchlog.api.schemas.started_games import (
     StartedLineup,
     StartedLineupEntry,
     StartedLineups,
+    StartedPlayPrefixGameRead,
     StartedPlayRow,
     StartedRecordedGameRead,
     StartedRecordedPrefixGameRead,
@@ -21,6 +23,7 @@ from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.ordinary_prefix_read import (
     OrdinaryPrefixView,
     read_ordinary_prefix,
+    read_play_prefix,
 )
 from pitchlog.repositories.recorded_snapshot_operations import (
     RECORDED_PLAY_ROW_COLUMNS,
@@ -141,28 +144,68 @@ def _read_recorded(view: StartedRecordedView) -> StartedRecordedGameRead:
 def read_started_game_detail(
     game_id: UUID,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
-    projection: Literal["ordinary-prefix-v1"] | None = None,
+    projection: Literal["ordinary-prefix-v1", "play-prefix-v2"] | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     cursor: Annotated[str | None, Query(min_length=1, max_length=2048)] = None,
 ) -> StartedGameRead | StartedRecordedGameRead | Response:
     """不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。"""
     try:
         with tenant_transaction_scope(context) as scope:
-            if projection == "ordinary-prefix-v1":
-                prefix = read_ordinary_prefix(
-                    scope, game_id, limit=limit, cursor=cursor
+            if projection in {"ordinary-prefix-v1", "play-prefix-v2"}:
+                reader = (
+                    read_play_prefix
+                    if projection == "play-prefix-v2"
+                    else read_ordinary_prefix
                 )
+                prefix = reader(scope, game_id, limit=limit, cursor=cursor)
                 if type(prefix) is OrdinaryPrefixView:
                     metadata = _read(prefix.metadata).model_dump(
                         mode="python", by_alias=True
                     )
-                    value = StartedRecordedPrefixGameRead.model_validate(
-                        {
-                            **metadata,
-                            "read_kind": "recorded-prefix",
-                            **prefix.projection,
-                        }
-                    )
+                    projected = dict(prefix.projection)
+                    model = StartedRecordedPrefixGameRead
+                    kind = "recorded-prefix"
+                    if projection == "play-prefix-v2":
+                        model = StartedPlayPrefixGameRead
+                        kind = "play-prefix"
+                        for key, default in {
+                            "bridge_checkpoint": None,
+                            "storage_anchor": None,
+                            "bridge_origin": None,
+                            "runners": [],
+                            "participants": None,
+                        }.items():
+                            projected.setdefault(key, default)
+                        page = dict(projected["page"])
+                        page["items"] = [
+                            {
+                                **item,
+                                "play_runners": [
+                                    {
+                                        k: v
+                                        for k, v in runner.items()
+                                        if k
+                                        not in {
+                                            "tenant_id",
+                                            "import_batch_id",
+                                            "retired_at",
+                                        }
+                                    }
+                                    for runner in item.get("play_runners", [])
+                                ],
+                            }
+                            for item in page["items"]
+                        ]
+                        projected["page"] = page
+                    packet = {**metadata, "read_kind": kind, **projected}
+                    if projection == "play-prefix-v2":
+                        value = model.model_validate_json(
+                            TypeAdapter(dict).dump_json(
+                                packet, by_alias=True, exclude_unset=True
+                            )
+                        )
+                    else:
+                        value = model.model_validate(packet)
                     # 未提示History軸をnull補完しない。旧応答serializerは不変。
                     return Response(
                         value.model_dump_json(by_alias=True, exclude_unset=True),

@@ -1,0 +1,383 @@
+{
+  "status": "FINITE_PROPOSAL_FOR_ROOT_PLAN_CORE_REGISTRATION_NOT_SOURCE_AUTHORIZATION",
+  "reflection1": {
+    "path": "/home/ymdms/.cache/pitchlog/terminal-pitches-step4-connection-20261031/CONNECTION-reflection1.md",
+    "sha256": "588a84a277b3b2f9f951b15af0a6fdfa96f3a4da40e13f3ab42c34c614caeec8",
+    "V8": "canonical(actual response.value.newHistoryEntry.difference), not calculation; V7 only new calculation variant"
+  },
+  "sourceAuthor": {
+    "newPaths": [
+      "backend/src/pitchlog/repositories/play_prefix.py",
+      "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+      "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+      "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+      "backend/src/pitchlog/authz/terminal_pitch_product.py",
+      "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py"
+    ],
+    "existingPlanPaths": [
+      "backend/src/pitchlog/repositories/ordinary_prefix.py",
+      "backend/src/pitchlog/repositories/ordinary_prefix_read.py",
+      "backend/src/pitchlog/repositories/ordinary_prefix_operations.py",
+      "backend/src/pitchlog/repositories/ordinary_pitch_operations.py",
+      "backend/src/pitchlog/repositories/operation_registry.py",
+      "backend/src/pitchlog/repositories/transaction.py",
+      "backend/src/pitchlog/sync/apply.py",
+      "backend/src/pitchlog/sync/ports.py",
+      "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+      "backend/src/pitchlog/sync/ordinary_pitch_ports.py",
+      "backend/src/pitchlog/sync/ordinary_pitch_projection.py",
+      "backend/src/pitchlog/authz/ordinary_prefix_sql.py",
+      "backend/src/pitchlog/authz/product_catalog.py",
+      "backend/src/pitchlog/authz/product_function_acl.py",
+      "backend/src/pitchlog/authz/product_provisioning.py",
+      "backend/src/pitchlog/api/schemas/started_games.py",
+      "backend/src/pitchlog/api/routers/started_games.py"
+    ],
+    "exactAdditionalPaths": [
+      "backend/src/pitchlog/sync/prefix_path.py",
+      "backend/src/pitchlog/repositories/function_operations.py",
+      "backend/src/pitchlog/authz/first_ball_write_stamp.py",
+      "backend/src/pitchlog/authz/first_ball_product.py",
+      "backend/src/pitchlog/sync/ordinary_pitch_payload.py",
+      "backend/src/pitchlog/sync/ordinary_pitch_physical.py"
+    ],
+    "newPureTestPaths": [
+      "backend/tests/test_play_prefix.py",
+      "backend/tests/test_terminal_pitch_payload.py",
+      "backend/tests/test_terminal_pitch_projection.py",
+      "backend/tests/test_terminal_pitch_product.py",
+      "backend/tests/test_terminal_pitch_write_stamp.py",
+      "backend/tests/test_play_prefix_read.py"
+    ],
+    "newOwnedDBTestPath": "backend/tests/db/test_terminal_pitch_storage.py",
+    "existingTestExactFollowupPaths": [
+      "backend/tests/test_first_ball_write_stamp.py"
+    ],
+    "candidateContractPaths": [
+      "contracts/state-transition/play_prefix_v2_payload_schema.json",
+      "contracts/state-transition/play_prefix_v2_payload_v1.d.ts",
+      "contracts/state-transition/play_prefix_v2_payload_vectors.json"
+    ],
+    "reuseTestsWithoutEdits": [
+      "backend/tests/test_ordinary_prefix.py",
+      "backend/tests/test_ordinary_prefix_read.py",
+      "backend/tests/test_ordinary_pitch_payload.py",
+      "backend/tests/test_ordinary_pitch_product.py",
+      "backend/tests/domainrt/test_play_prefix_continuation.py"
+    ]
+  },
+  "rootFormalWriterOnly": {
+    "functions": [
+      {
+        "name": "sync_right_api.read_play_prefix_checkpoint",
+        "identityArgs": "uuid, uuid, bigint",
+        "returns": "TABLE(record_json text)",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": true,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint).sql"
+      },
+      {
+        "name": "sync_right_api.lock_play_prefix_checkpoint",
+        "identityArgs": "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+        "returns": "TABLE(record_json text)",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": true,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint).sql"
+      },
+      {
+        "name": "sync_right_api.read_play_prefix_history_page",
+        "identityArgs": "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer",
+        "returns": "TABLE(record_json text)",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": true,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql"
+      },
+      {
+        "name": "sync_right_api.prepare_play_prefix_projection",
+        "identityArgs": "uuid, uuid, uuid, bytea, uuid, uuid, text",
+        "returns": "TABLE(prepared boolean)",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": true,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text).sql"
+      },
+      {
+        "name": "sync_right_api.assert_play_prefix_projection",
+        "identityArgs": "jsonb",
+        "returns": "void",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": false,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb).sql"
+      },
+      {
+        "name": "sync_right_api.finish_play_prefix_projection",
+        "identityArgs": "",
+        "returns": "trigger",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": false,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:finish_play_prefix_projection().sql"
+      },
+      {
+        "name": "sync_right_api.guard_play_prefix_runner_insert",
+        "identityArgs": "",
+        "returns": "trigger",
+        "owner": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "security": "definer",
+        "volatility": "volatile",
+        "searchPath": [
+          "pg_catalog",
+          "pg_temp"
+        ],
+        "appExecute": false,
+        "publicExecute": false,
+        "bodyPath": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_play_prefix_runner_insert().sql"
+      }
+    ],
+    "revisedExistingFunctionBodies": [
+      "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_first_ball_projection_admission().sql"
+    ],
+    "columnACL": [
+      {
+        "column": "tenant_id",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:tenant_id:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "id",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:id:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "play_id",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:play_id:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "base",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:base:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "runner_id",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:runner_id:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "status",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:status:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "status_source",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:status_source:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "responsible_pitcher_id",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:responsible_pitcher_id:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "import_batch_id",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:import_batch_id:pitchlog_sync_right_fn_owner.sql"
+      },
+      {
+        "column": "retired_at",
+        "privileges": [
+          "SELECT",
+          "INSERT"
+        ],
+        "grantOption": false,
+        "role": "pitchlog_sync_right_fn_owner",
+        "bodyPath": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:retired_at:pitchlog_sync_right_fn_owner.sql"
+      }
+    ],
+    "policies": [
+      {
+        "name": "play_prefix_select_play_runners",
+        "command": "SELECT",
+        "bodyPath": "contracts/authz/product/function-bodies/policies/POLICY:play_runners:play_prefix_select_play_runners.sql"
+      },
+      {
+        "name": "play_prefix_insert_play_runners",
+        "command": "INSERT",
+        "bodyPath": "contracts/authz/product/function-bodies/policies/POLICY:play_runners:play_prefix_insert_play_runners.sql"
+      }
+    ],
+    "triggers": [
+      {
+        "name": "trg_play_prefix_30_project_after",
+        "table": "public.play_rows",
+        "timing": "AFTER",
+        "events": [
+          "INSERT"
+        ],
+        "level": "ROW",
+        "enabled": "O",
+        "deferrable": false,
+        "function": "sync_right_api.finish_play_prefix_projection()",
+        "ddlAppendedTo": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:finish_play_prefix_projection().sql"
+      },
+      {
+        "name": "trg_play_prefix_runner_10_admit",
+        "table": "public.play_runners",
+        "timing": "BEFORE",
+        "events": [
+          "INSERT"
+        ],
+        "level": "ROW",
+        "enabled": "O",
+        "deferrable": false,
+        "function": "sync_right_api.guard_play_prefix_runner_insert()",
+        "ddlAppendedTo": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_play_prefix_runner_insert().sql"
+      }
+    ],
+    "triggerPlacementReason": "既generatorはtrigger独立directoryを持たず、first_ball_write_stamp.candidate_bodiesがfunction-body末尾へCREATE TRIGGERを同封。新2も各対応function-bodyへ同封する。",
+    "sharedMetadataExactPaths": [
+      "contracts/authz/product/ddl-elements.json",
+      "contracts/authz/product/function-bodies/manifest.json",
+      "contracts/authz/product/capability-catalog.json",
+      "contracts/authz/product/exposure-facts.json",
+      "contracts/authz/product/application-steps.json",
+      "contracts/authz/product/failure-injection-points.json",
+      "contracts/authz/product/probe-product-map.json",
+      "contracts/tenant_boundary/runtime-authz-contract.json",
+      "contracts/tenant_boundary/repository-contract.json",
+      "contracts/tenant_boundary/census-baseline.json",
+      "contracts/tenant_boundary/db-api-inventory.json",
+      "contracts/tenant_boundary/negative-fixtures.json",
+      "contracts/tenant_boundary/frozen-inputs.json"
+    ],
+    "semanticRegistrationExactPaths": [
+      "contracts/state-transition/play_prefix_v2_source_compatibility_v1.json",
+      "backend/domain/play-prefix-manifest.json",
+      "backend/domain/play-prefix-property-catalog.json",
+      "backend/domain/play-prefix-property-catalog.schema.json"
+    ],
+    "coreDeclarationPath": ".claude/core-areas.json",
+    "schemaManifestVerifyOnlyPath": "contracts/db/schema-manifest.json",
+    "schemaManifestExpectedChange": "new table/column/model0のため原則不変。新trigger/関数はauthz profile/catalog側へ。異なる物理field差分が出ればexactを返す。",
+    "historicalSnapshots": "過去history-snapshots/署名/受理は変更しない。新hash名snapshotが正式gateに必要になった場合はrootが算出後にexact pathを別登録。",
+    "rootWriteRule": "source作者はSQL/metadata候補をcache生成できるが、正式pathへのwrite/受理/sealはroot writerのみ。"
+  },
+  "physicalDecision": {
+    "newTables": [],
+    "alterColumns": [],
+    "newAlembicTableMigration": false,
+    "DDLRequired": [
+      "new7 functions",
+      "revised1 BEFORE admit function",
+      "new2 triggers appended in function bodies",
+      "new2 RLS policies",
+      "exact10 column ACL entries"
+    ],
+    "storage": "reuse ordinary_pitch_checkpoints/history/write_admissions. storage immutable anchor/history epoch are distinct from per-play logical wire head/historyVersion. raw storage-before V1 stays raw during bridge."
+  },
+  "testScopeSummary": {
+    "test_play_prefix.py": "v1 raw source→v2 view、artifact compatibility、wire/private digest分離、ID予約、真正PA交代なしsource拒否",
+    "test_terminal_pitch_payload.py": "V7閉variant、V8差分全値、metadata自己echoだけseal、選択field全改変、同D5 bytes安定",
+    "test_terminal_pitch_projection.py": "私有frame一回、同writer/lease、41列+10列mapper、event/play予約ID実使用、prefix/history1entry",
+    "test_terminal_pitch_product.py": "7署名/4appEXECUTE/3private拒否/10列ACL/2policy/2triggerの完全一致",
+    "test_terminal_pitch_write_stamp.py": "BEFORE/AFTER/depth/source/xid/xmin/nonce/epoch/runner全列・数・別frame拒否",
+    "test_play_prefix_read.py": "logical-head/storage-epoch cursor束縛、v1/v2分岐、有界100+1、actual runner/次打者/責任/差分再読込",
+    "test_terminal_pitch_storage.py": "owned PG BB/HBP→ordinary、全取消、RLS越境・D5再送/commit応答断、旧v1 artifact origin、trigger/ACL実catalog"
+  },
+  "noAutomaticExpansion": true,
+  "unknownPathRule": "上記以外に不可分編集が必要ならpath/field/理由をrootへ提示してから着手。未知生成pathをglobで許可しない。",
+  "repoChangesThisTask": false,
+  "PGStarted": false
+}

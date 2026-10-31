@@ -653,7 +653,864 @@
           }
         }
       },
-      "fixtureRelation": "row-output"
+      "fixtureRelation": "row-output",
+      "additionalCaseMappings": [
+        {
+          "caseId": "ST-TERMINAL-BB-S0-B3",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.walk",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.balls",
+                    "value": 3
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-BB-S1-B3",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.walk",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.balls",
+                    "value": 3
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-BB-S2-B3",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.walk",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.count.balls",
+                    "value": 3
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B0",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B1",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B2",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B3",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B0",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B1",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B2",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B3",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B0",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B1",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B2",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B3",
+          "rowRef": {
+            "layer": "matrixRows",
+            "coordinate": {
+              "eventKind": "batting-result",
+              "resultId": "batting-result.hit-by-pitch",
+              "precondition": {
+                "op": "and",
+                "args": [
+                  {
+                    "op": "in",
+                    "axisId": "state.outs",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.runners",
+                    "value": "empty"
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.strikes",
+                    "values": [
+                      0,
+                      1,
+                      2
+                    ]
+                  },
+                  {
+                    "op": "in",
+                    "axisId": "state.count.balls",
+                    "values": [
+                      0,
+                      1,
+                      2,
+                      3
+                    ]
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "state.gameEnded",
+                    "value": false
+                  },
+                  {
+                    "op": "eq",
+                    "axisId": "event.perPitch.pitchEventKind",
+                    "value": "pitch-event"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "branchId": "ADV-02",

@@ -94,9 +94,11 @@ def owned_ordinary_database(vertical_database):
     and not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
     reason="明示TLS証明書/鍵PATH未供給のため通常3球HTTPS画面縦断は未実証",
 )
+@pytest.mark.parametrize("scenario", ["ordinary", "walk", "hit-by-pitch"])
 def test_screen_three_ordinary_pitches_https_save_replay_reload(
     owned_ordinary_database,
     tmp_path: Path,
+    scenario: str,
 ) -> None:
     """画面で新規保存した3件だけを、実prefixとnative4表に照合する。"""
     import psycopg
@@ -117,7 +119,18 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
         browser_env["TMPDIR"] = browser_tmp
     db = owned_ordinary_database
     frontend = ROOT / "frontend"
-    config = write_browser_assets(tmp_path / "ordinary-browser", frontend)
+    config = write_browser_assets(
+        tmp_path / "ordinary-browser",
+        frontend,
+        terminal=None if scenario == "ordinary" else scenario,
+    )
+    results = (
+        ["batting-result.ball", "batting-result.called-pitch", "batting-result.ball"]
+        if scenario == "ordinary"
+        else (["batting-result.ball"] * 3 if scenario == "walk" else [])
+        + [f"batting-result.{scenario}", "batting-result.ball"]
+    )
+    expected_count = len(results)
     snapshot = _source_snapshot()
     head = subprocess.run(  # noqa: S603
         ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
@@ -134,6 +147,15 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
             "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
             "ON CONFLICT(key) DO NOTHING"
         )
+        if scenario != "ordinary":
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
+                (
+                    f"batting-result.{scenario}",
+                    "四球" if scenario == "walk" else "死球",
+                ),
+            )
         teams = admin.execute(
             "SELECT away_team_record_id,home_team_record_id FROM public.games "
             "WHERE tenant_id=%s AND id=%s",
@@ -185,7 +207,7 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
                         ).format(sql.Identifier(table)),
                         (db.tenant_id, game_id),
                     ).fetchone()
-                    assert count == (3,), table
+                    assert count == (expected_count,), table
                 assert admin.execute(
                     "SELECT count(*) FROM public.idempotency_ledger AS ledger "
                     "JOIN public.operation_events AS op "
@@ -193,21 +215,39 @@ def test_screen_three_ordinary_pitches_https_save_replay_reload(
                     "WHERE op.tenant_id=%s AND op.game_id=%s "
                     "AND ledger.kind='accepted'",
                     (db.tenant_id, game_id),
-                ).fetchone() == (3,)
+                ).fetchone() == (expected_count,)
                 assert admin.execute(
                     "SELECT d1,d2 FROM public.operation_events "
                     "WHERE tenant_id=%s AND game_id=%s ORDER BY d1",
                     (db.tenant_id, game_id),
-                ).fetchall() == [(1, 1), (2, 1001), (3, 2001)]
+                ).fetchall() == [
+                    (n, 1 + (n - 1) * 1000) for n in range(1, expected_count + 1)
+                ]
                 assert admin.execute(
                     "SELECT batting_result_key FROM public.play_rows "
                     "WHERE tenant_id=%s AND game_id=%s ORDER BY play_number",
                     (db.tenant_id, game_id),
-                ).fetchall() == [
-                    ("batting-result.ball",),
-                    ("batting-result.called-pitch",),
-                    ("batting-result.ball",),
-                ]
+                ).fetchall() == [(result,) for result in results]
+                if scenario != "ordinary":
+                    rows = admin.execute(
+                        "SELECT r.base,r.runner_id,r.responsible_pitcher_id,"
+                        "p.batter_id,"
+                        "p.pitcher_id FROM public.play_runners r "
+                        "JOIN public.play_rows p "
+                        "ON r.tenant_id=p.tenant_id AND r.play_id=p.id "
+                        "WHERE p.tenant_id=%s AND p.game_id=%s ORDER BY p.play_number",
+                        (db.tenant_id, game_id),
+                    ).fetchall()
+                    assert len(rows) == 1
+                    terminal = admin.execute(
+                        "SELECT batter_id,pitcher_id FROM public.play_rows "
+                        "WHERE tenant_id=%s AND game_id=%s AND batting_result_key=%s",
+                        (db.tenant_id, game_id, f"batting-result.{scenario}"),
+                    ).fetchone()
+                    assert terminal is not None
+                    assert rows[0][:3] == (1, *terminal)
+                    assert rows[0][3] != terminal[0]
+                    assert rows[0][4] == terminal[1]
             hold_manual_environment(origin, manual_hold_seconds(), db.team_name)
     assert _source_snapshot() == snapshot, (
         "実行中に製品sourceが変わったため同一候補実証にできない"

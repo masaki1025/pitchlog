@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
-import type { OrdinaryRecordingContext } from './GameScreenOrdinaryPitchProvider'
 import {
-  sameOrdinaryWire,
-  type OrdinaryResultId,
-} from '../api/ordinaryPitchWire'
+  isPlayRecordingContext,
+  type RecordingContext,
+  type PlayScreenObservation,
+} from './GameScreenOrdinaryPitchProvider'
+import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
   readPitchTypeOptions,
   type PitchTypeOption,
@@ -15,17 +16,36 @@ import {
   GameScreenOrdinaryPitchController,
   type OrdinaryOperationResult,
 } from './GameScreenOrdinaryPitchController'
-const props = defineProps<{ context: OrdinaryRecordingContext }>()
+const props = defineProps<{ context: RecordingContext }>()
 const emit = defineEmits<{ saved: [] }>()
 const auth = useAuthStore()
 const point = ref<{ x: number; y: number } | null>(null)
 const viewpoint = ref<'catcher' | 'pitcher'>('catcher')
 const selected = ref('')
-const resultId = ref<OrdinaryResultId>('batting-result.ball')
+const resultId = ref<PlayScreenObservation['resultId']>('batting-result.ball')
+const nextBatterId = ref('')
+const terminal = computed(
+  () =>
+    resultId.value === 'batting-result.walk' ||
+    resultId.value === 'batting-result.hit-by-pitch',
+)
+const nextBatters = computed(() => {
+  const c = displayed.value,
+    side = c.after.stateFields['state.half'] === 'top' ? 'away' : 'home'
+  return (
+    c.game.roster.teams
+      .find((t) => t.side === side)
+      ?.participants.filter((p) => p.batting_slot.kind === 'slot') ?? []
+  )
+})
 const canAppend = ref(false)
 const retryEvidenceUnavailable = ref(false)
-const displayed = ref<OrdinaryRecordingContext>(
-  structuredClone(toRaw(props.context)),
+const displayed = ref<RecordingContext>(structuredClone(toRaw(props.context)))
+watch(
+  [resultId, () => displayed.value.after.stateFields['state.battingOrder']],
+  () => {
+    nextBatterId.value = ''
+  },
 )
 const items = ref<readonly PitchTypeOption[]>([])
 const cursor = ref<string | null>(null)
@@ -78,10 +98,12 @@ const message = computed(() => {
   if (status.value === 'saved')
     return '保存応答を受け取りました。サーバーから再取得しています'
   if (status.value === 'pending')
-    return '未確認の要求が端末に残っています。同じ要求を順序どおり再送します。端末の次の独立操作は記録できます'
+    return canAppend.value
+      ? '未確認の要求が端末に残っています。同じ要求を順序どおり再送します。端末の次の独立操作は記録できます'
+      : '未確認の要求が端末に残っています。同じ要求を再送した後、サーバーから再取得してください'
   if (status.value === 'blocked')
-    return 'この入力を確定できません。対応範囲と資格・記録位置を確認してください'
-  return '投球を記録できます。未接続の終端操作は確定しません'
+    return 'この入力を確定できません。結果・打者と最新の記録を確認してください'
+  return '投球を記録できます'
 })
 async function load(page: string | null) {
   const own = ++generation
@@ -137,6 +159,19 @@ async function save() {
     const result = await current.submit(
       {
         resultId: resultId.value,
+        nextBatter: terminal.value
+          ? (() => {
+              const p = nextBatters.value.find(
+                (p) => p.player.player_id === nextBatterId.value,
+              )
+              return p?.batting_slot.kind === 'slot'
+                ? {
+                    batterId: p.player.player_id,
+                    battingOrder: p.batting_slot.slot,
+                  }
+                : null
+            })()
+          : null,
         pitchTypeKey: selected.value,
         screenX: point.value.x,
         screenY: point.value.y,
@@ -176,7 +211,7 @@ async function retry() {
   }
 }
 let watchedInput: {
-  context: OrdinaryRecordingContext
+  context: RecordingContext
   identity: ReturnType<typeof identity>
   hydrated: boolean
 } | null = null
@@ -290,7 +325,7 @@ onScopeDispose(() => {
     </p>
     <p role="status" data-testid="first-ball-status">{{ message }}</p>
     <p>
-      ボール・見逃し・空振り・通常のファウルに対応しています。四球・三振などの終端球と他の操作は接続準備中です。
+      ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。
     </p>
     <p data-testid="ordinary-state-source">
       {{
@@ -321,11 +356,42 @@ onScopeDispose(() => {
           <option value="batting-result.swinging-strike">
             空振りストライク
           </option>
+          <option
+            v-if="isPlayRecordingContext(displayed)"
+            value="batting-result.walk"
+          >
+            四球
+          </option>
+          <option
+            v-if="isPlayRecordingContext(displayed)"
+            value="batting-result.hit-by-pitch"
+          >
+            死球
+          </option>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
           </option>
         </select></label
       >
+      <label v-if="terminal" class="block"
+        >次の打者を確認
+        <select
+          v-model="nextBatterId"
+          data-testid="terminal-next-batter"
+          :disabled="busy"
+        >
+          <option value="">次の打者を選択</option>
+          <option
+            v-for="p in nextBatters"
+            :key="p.player.player_id"
+            :value="p.player.player_id"
+          >
+            {{
+              p.batting_slot.kind === 'slot' ? p.batting_slot.slot : ''
+            }}番の打者
+          </option>
+        </select>
+      </label>
       <label class="block"
         >球種
         <select
@@ -394,6 +460,7 @@ onScopeDispose(() => {
           !confirmed ||
           loading ||
           failed ||
+          (terminal && nextBatterId === '') ||
           selected === '' ||
           point === null
         "

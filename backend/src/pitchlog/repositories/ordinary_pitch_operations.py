@@ -22,6 +22,7 @@ from pitchlog.repositories.operation_registration import (
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.sync.first_ball_tokens import FirstBallPlayRowReadToken
 from pitchlog.sync.ordinary_pitch_tokens import OrdinaryPlayRowInsertToken
+from pitchlog.sync.terminal_pitch_tokens import PlayPrefixPlayRowInsertToken
 from pitchlog.sync.tokens import IdempotencyLedgerReadToken, OperationEventReadToken
 
 _PLAY = cast(Table, PlayRow.__table__)
@@ -45,7 +46,10 @@ class OrdinaryPlayRowError(RuntimeError):
 
 def _row(token):
     """全列と実型を照合し、観測を生成/補修しない。"""
-    if type(token) is not OrdinaryPlayRowInsertToken or type(token.row_json) is not str:
+    if (
+        type(token) not in {OrdinaryPlayRowInsertToken, PlayPrefixPlayRowInsertToken}
+        or type(token.row_json) is not str
+    ):
         raise OrdinaryPlayRowError
     try:
         row = json.loads(
@@ -198,6 +202,17 @@ def _preflight(token, parameters):
 ORDINARY_PLAY_OPERATIONS = (
     OperationRegistration(
         OrdinaryPlayRowInsertToken,
+        "CAP:play_rows:insert",
+        _INSERT,
+        _PLAY.c.tenant_id,
+        _prepare,
+        preflight=_preflight,
+    ),
+)
+
+PLAY_PREFIX_PLAY_OPERATIONS = (
+    OperationRegistration(
+        PlayPrefixPlayRowInsertToken,
         "CAP:play_rows:insert",
         _INSERT,
         _PLAY.c.tenant_id,

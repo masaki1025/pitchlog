@@ -20,7 +20,39 @@ def ordinary_pitch_physical_row(
     """実payloadと独立した原本参照からだけ保存列を構成する。"""
     if type(payload) is not OrdinaryPitchPlayPayload:
         raise ValueError("通常payloadの実型が必要")
-    observations, people = payload.observations, payload.participants
+    return pitch_physical_row(
+        payload.observations,
+        payload.participants,
+        payload.calculation.request.t1.result_id,
+        tenant_id=tenant_id,
+        game_id=game_id,
+        source_event_id=source_event_id,
+        row_id=row_id,
+        play_number=play_number,
+    )
+
+
+def pitch_physical_row(
+    observations,
+    people,
+    result_id,
+    *,
+    tenant_id,
+    game_id,
+    source_event_id,
+    row_id,
+    play_number,
+):
+    """旧v1/v2の実観測を同じ全41列mapperへ渡す。数学は再計算しない。"""
+    from pitchlog.sync.first_ball_payload import FirstBallObservations
+    from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
+
+    if (
+        type(observations) is not FirstBallObservations
+        or type(people) is not OrdinaryPitchParticipants
+        or type(result_id) is not str
+    ):
+        raise ValueError("物理mapperの実型が不正")
     speed = observations.pitch_speed.kmh
     row = {
         **dict.fromkeys(_NULL_COLUMNS),
@@ -31,7 +63,7 @@ def ordinary_pitch_physical_row(
         "play_number": play_number,
         "batting_order": int(people.batting_order),
         "event_kind": "pitch",
-        "batting_result_key": payload.calculation.request.t1.result_id,
+        "batting_result_key": result_id,
         "version": 1,
         "migration_unverified": False,
         "batter_id": people.batter_id,

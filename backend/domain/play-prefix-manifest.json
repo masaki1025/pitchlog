@@ -1,0 +1,85 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/play-prefix-property-catalog.json",
+    "schema": "backend/domain/play-prefix-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "play-prefix-v2",
+      "source": {
+        "path": "frontend/src/domain/playPrefixContinuation.ts",
+        "provenance": "NFR-018 (b)② 差分の検出可能性"
+      },
+      "generated": [
+        {
+          "generatedId": "playPrefixArtifact",
+          "path": "frontend/public/domain/pitchlog-domain.js",
+          "artifactKind": "js-artifact"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "playPrefixPublic",
+          "module": "frontend/src/domain/publicApi.ts",
+          "symbol": "domainOperations.derivePlayPrefixWithContinuation",
+          "adapter": "frontend/src/domain/publicApi.ts"
+        },
+        {
+          "entrypointId": "playPrefixServer",
+          "module": "backend/src/pitchlog/domainrt/play_prefix_continuation.py",
+          "symbol": "evaluate_play_prefix_continuation",
+          "adapter": "backend/src/pitchlog/domainrt/play_prefix_continuation.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "playPrefixDirect",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "playPrefixArtifact",
+          "hash": "sha256:052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domainrt/host.py",
+            "operation": "derivePlayPrefixWithContinuation"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "playPrefixVectors",
+          "calculation": "play-prefix-v2",
+          "path": "contracts/state-transition/play_prefix_v2_d11_vectors.json",
+          "runner": "pytest",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "playPrefixHostParity",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domainrt/test_play_prefix_continuation.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "playPrefixMutations",
+          "target": "frontend/src/domain/playPrefixContinuation.ts",
+          "operators": [
+            "remove-source-prefix-binding",
+            "replace-responsible-pitcher",
+            "remove-history-entry",
+            "change-terminal-count-reset"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": []
+}

@@ -18,11 +18,17 @@ from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERA
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
-from pitchlog.repositories.ordinary_pitch_operations import ORDINARY_PLAY_OPERATIONS
+from pitchlog.repositories.ordinary_pitch_operations import (
+    ORDINARY_PLAY_OPERATIONS,
+    PLAY_PREFIX_PLAY_OPERATIONS,
+)
 from pitchlog.repositories.ordinary_pitch_qualification import (
     ORDINARY_QUALIFICATION_OPERATIONS,
 )
-from pitchlog.repositories.ordinary_prefix_operations import ORDINARY_PREFIX_OPERATIONS
+from pitchlog.repositories.ordinary_prefix_operations import (
+    ORDINARY_PREFIX_OPERATIONS,
+    PLAY_PREFIX_OPERATIONS,
+)
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
@@ -66,6 +72,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *PREPARING_GAME_CREATE_OPERATIONS,
     *PITCH_TYPE_OPTIONS_OPERATIONS,
     *ORDINARY_PLAY_OPERATIONS,
+    *PLAY_PREFIX_PLAY_OPERATIONS,
 )
 
 
@@ -83,6 +90,10 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
         "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
         "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+        "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     )
 )
 
@@ -201,6 +212,22 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     _registered_product_function(
         ORDINARY_ORDER_OPERATIONS[0],
         operation_id="SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+    ),
+    _registered_product_function(
+        PLAY_PREFIX_OPERATIONS[0],
+        operation_id="SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+    ),
+    _registered_product_function(
+        PLAY_PREFIX_OPERATIONS[1],
+        operation_id="SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+    ),
+    _registered_product_function(
+        PLAY_PREFIX_OPERATIONS[2],
+        operation_id="SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+    ),
+    _registered_product_function(
+        PLAY_PREFIX_OPERATIONS[3],
+        operation_id="SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

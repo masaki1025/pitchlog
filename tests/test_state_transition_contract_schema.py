@@ -7324,3 +7324,285 @@ def test_g6_s02_reference_definitions_and_formal_cases_are_unchanged() -> None:
     assert [len(contract[k]) for k in ("matrixRows", "operationRows", "undoRows", "cases")] == [
         49, 10, 10, 116,
     ]
+
+
+def _terminal_assets() -> tuple[dict[str, Any], dict[str, Any]]:
+    """未受理の無走者BB/HBP候補を読み、製品計算を一切呼ばない。"""
+    directory = REPOSITORY_ROOT / "contracts/state-transition"
+    return (
+        _load_object(directory / "terminal_pitch_schema_v1.json"),
+        _load_object(directory / "terminal_pitch_cases_v1.json"),
+    )
+
+
+def _terminal_pair(request: dict[str, Any], response: dict[str, Any]) -> None:
+    """schema外の要求応答相関を規範から別途照合する試験oracle。"""
+    schema, vectors = _terminal_assets()
+    for name, value in (("TerminalPitchRequest", request), ("SuccessResponse", response)):
+        schema_checker._validate_instance(value, schema["$defs"][name], schema, "$")
+    before = request["before"]
+    state = before["stateFields"]
+    board = before["scoreboard"]
+    assert state["state.score"] == board["inningScores"]
+    walk = request["resultId"] == "batting-result.walk"
+    true_flags = {"投球数", "打席", "与四球", "四球"} if walk else {
+        "投球数", "打席", "与死球", "死球",
+    }
+    value = response["value"]
+    assert {key for key, flag in value["statFlags"].items() if flag} == true_flags
+    assert set(value["statFlags"]) == set(schema["$defs"]["StatFlags"]["properties"])
+    next_order = vectors["crossProduct"]["nextBattingOrder"][state["state.battingOrder"]]
+    expected_state = {
+        **state, "state.count.strikes": "0", "state.count.balls": "0",
+        "state.runners": "first", "state.battingOrder": next_order,
+    }
+    expected_board = {**board, "walks": str(int(board["walks"]) + (1 if walk else 0))}
+    assert value["after"] == {"stateFields": expected_state, "scoreboard": expected_board}
+    expected_difference = {
+        "stateFields": {
+            key: {"before": old, "after": expected_state[key]}
+            for key, old in state.items() if old != expected_state[key]
+        },
+        "scoreboard": {
+            key: {"before": old, "after": expected_board[key]}
+            for key, old in board.items() if old != expected_board[key]
+        },
+        "statFlags": value["statFlags"],
+    }
+    assert value["historyContext"] == [
+        {"kind": "confirmed-play", "difference": expected_difference},
+        *request["history"]["stack"],
+    ]
+
+
+def _terminal_context(
+    case: dict[str, Any], outs: str, half: str, order: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """15手規範例の独立状態軸だけを置換し、計算核は参照しない。"""
+    request, response = copy.deepcopy(case["request"]), copy.deepcopy(case["expected"])
+    state = request["before"]["stateFields"]
+    after = response["value"]["after"]["stateFields"]
+    state.update({"state.outs": outs, "state.half": half, "state.battingOrder": order})
+    next_order = {"1": "2", "2": "3", "3": "4", "4": "5", "5": "6",
+                  "6": "7", "7": "8", "8": "9", "9": "1"}[order]
+    after.update({"state.outs": outs, "state.half": half, "state.battingOrder": next_order})
+    response["value"]["historyContext"][0]["difference"]["stateFields"][
+        "state.battingOrder"
+    ] = {"before": order, "after": next_order}
+    return request, response
+
+
+def test_terminal_fifteen_full_responses_and_all_810_state_crosses() -> None:
+    schema, vectors = _terminal_assets()
+    assert vectors["status"] == "AUTHOR_CANDIDATE_NOT_ACCEPTED_NOT_RUNTIME_EXECUTED"
+    assert vectors["independentVerifierId"] == "not-performed"
+    assert vectors["boundary"] == {
+        "T1Only": True, "T2Provided": False, "runnerIdentityProvided": False,
+        "DBProvided": False, "fullP6Claimed": False,
+    }
+    cases = vectors["cases"]
+    coordinates = {
+        (case["request"]["resultId"],
+         case["request"]["before"]["stateFields"]["state.count.strikes"],
+         case["request"]["before"]["stateFields"]["state.count.balls"])
+        for case in cases
+    }
+    assert len(cases) == 15
+    assert coordinates == {
+        *(('batting-result.walk', str(s), "3") for s in range(3)),
+        *(('batting-result.hit-by-pitch', str(s), str(b)) for s in range(3) for b in range(4)),
+    }
+    crossed = set()
+    for case, outs, half, order in product(
+        cases, ["0", "1", "2"], ["top", "bottom"], list("123456789"),
+    ):
+        request, expected = _terminal_context(case, outs, half, order)
+        _terminal_pair(request, expected)
+        crossed.add((case["caseId"], outs, half, order))
+    assert len(crossed) == vectors["crossProduct"]["expectedCardinality"] == 810
+    assert vectors["crossProduct"]["caseIds"] == [case["caseId"] for case in cases]
+    assert vectors["crossProduct"]["outs"] == ["0", "1", "2"]
+    assert vectors["crossProduct"]["half"] == ["top", "bottom"]
+    assert vectors["crossProduct"]["battingOrder"] == list("123456789")
+    assert schema["$defs"]["HistoryEntry"]["additionalProperties"] is False
+
+
+def test_terminal_context_independence_and_history_tail_full_value() -> None:
+    _, vectors = _terminal_assets()
+    for case, context in product(vectors["cases"], vectors["contextPairs"]):
+        request, expected = _terminal_context(case, "2", context["half"], "9")
+        for snapshot in (request["before"], expected["value"]["after"]):
+            snapshot["stateFields"].update({
+                "state.inning": context["inning"], "state.score": context["score"],
+                "state.tiebreakActive": context["tiebreakActive"],
+            })
+            snapshot["scoreboard"].update({
+                "inningScores": context["score"], "hits": context["hits"],
+                "errors": context["errors"], "strikeouts": context["strikeouts"],
+                "walks": context["walks"],
+            })
+        if request["resultId"] == "batting-result.walk":
+            next_walks = str(int(context["walks"]) + 1)
+            expected["value"]["after"]["scoreboard"]["walks"] = next_walks
+            expected["value"]["historyContext"][0]["difference"]["scoreboard"] = {
+                "walks": {"before": context["walks"], "after": next_walks},
+            }
+        tail = copy.deepcopy(vectors["cases"][0]["expected"]["value"]["historyContext"])
+        request["history"]["stack"] = tail
+        expected["value"]["historyContext"].extend(copy.deepcopy(tail))
+        _terminal_pair(request, expected)
+        assert expected["value"]["historyContext"][1:] == tail
+
+
+@pytest.mark.parametrize(
+    "value", ["00", "01", "+1", "-1", "1.0", "1e0", " 1", "1 ", "1\n", 1, True],
+)
+def test_terminal_schema_rejects_noncanonical_decimal_without_coercion(value: object) -> None:
+    schema, vectors = _terminal_assets()
+    for case in (vectors["cases"][0], vectors["cases"][3]):
+        request = copy.deepcopy(case["request"])
+        request["before"]["scoreboard"]["hits"] = value
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["TerminalPitchRequest"], schema, "$",
+            )
+
+
+def test_terminal_scope_rejections_do_not_turn_into_normalization() -> None:
+    schema, vectors = _terminal_assets()
+    changes = [
+        ("state.count.strikes", "3"), ("state.count.balls", "4"),
+        ("state.outs", "3"), ("state.battingOrder", "0"),
+        ("state.battingOrder", "10"), ("state.gameEnded", True),
+        *(("state.runners", value) for value in [
+            "first", "second", "third", "first-second", "first-third",
+            "second-third", "first-second-third", "loaded",
+        ]),
+    ]
+    for case, (field, value) in product(vectors["cases"], changes):
+        request = copy.deepcopy(case["request"])
+        request["before"]["stateFields"][field] = value
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["TerminalPitchRequest"], schema, "$",
+            )
+    for balls in ["0", "1", "2"]:
+        request = copy.deepcopy(vectors["cases"][0]["request"])
+        request["before"]["stateFields"]["state.count.balls"] = balls
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["TerminalPitchRequest"], schema, "$",
+            )
+    for key, value in [("resultId", "batting-result.ball"),
+                       ("pitchEventKind", "non-pitch-event"), ("runnerId", "free-id"),
+                       ("runnerEventPayload", {}), ("t2", {"ok": True})]:
+        request = {**copy.deepcopy(vectors["cases"][0]["request"]), key: value}
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["TerminalPitchRequest"], schema, "$",
+            )
+
+
+def test_terminal_mutations_reject_every_flag_and_dynamic_comparison_face() -> None:
+    _, vectors = _terminal_assets()
+    for case in vectors["cases"]:
+        request, response = case["request"], case["expected"]
+        for flag in response["value"]["statFlags"]:
+            changed = copy.deepcopy(response)
+            changed["value"]["statFlags"][flag] = not changed["value"]["statFlags"][flag]
+            with pytest.raises((AssertionError, schema_checker.DescriptorCheckError)):
+                _terminal_pair(request, changed)
+        for field in response["value"]["after"]["stateFields"]:
+            changed = copy.deepcopy(response)
+            old = changed["value"]["after"]["stateFields"][field]
+            changed["value"]["after"]["stateFields"][field] = (
+                not old if type(old) is bool else "2" if old != "2" else "3"
+            )
+            with pytest.raises((AssertionError, schema_checker.DescriptorCheckError)):
+                _terminal_pair(request, changed)
+        for field in response["value"]["after"]["scoreboard"]:
+            changed = copy.deepcopy(response)
+            changed["value"]["after"]["scoreboard"][field] = "999"
+            with pytest.raises((AssertionError, schema_checker.DescriptorCheckError)):
+                _terminal_pair(request, changed)
+        changed = copy.deepcopy(response)
+        changed["value"]["historyContext"][0]["difference"]["stateFields"].pop("state.runners")
+        with pytest.raises(AssertionError):
+            _terminal_pair(request, changed)
+        changed_request = copy.deepcopy(request)
+        changed_request["before"]["stateFields"]["state.score"]["home"] = "9"
+        with pytest.raises(AssertionError):
+            _terminal_pair(changed_request, response)
+
+
+def test_terminal_normative_rows_manual_cases_and_mapping_are_exact_pairs() -> None:
+    _, vectors = _terminal_assets()
+    contract = _load_object(CONTRACT_PATH)
+    directory = CONTRACT_PATH.parent
+    fixtures = _load_object(directory / "state_transition_manual_fixtures_v1.json")
+    mapping = _load_object(directory / "branch_row_mapping_v1.json")
+    fixture = next(x for x in fixtures["fixtures"] if x["case"]["branchId"] == "ADV-01")
+    entry = next(x for x in mapping["mappings"] if x["branchId"] == "ADV-01")
+    ids = {case["formalCaseId"] for case in vectors["cases"]}
+    assert len(ids) == 15
+    assert {case["caseId"] for case in fixture["additionalCases"]} == ids
+    assert {item["caseId"] for item in entry["additionalCaseMappings"]} == ids
+    for case in vectors["cases"]:
+        formal = next(x for x in contract["cases"] if x["caseId"] == case["formalCaseId"])
+        source = next(x for x in fixture["additionalCases"] if x["caseId"] == formal["caseId"])
+        reference = next(
+            x for x in entry["additionalCaseMappings"] if x["caseId"] == formal["caseId"]
+        )
+        assert formal["rowRef"] == reference["rowRef"]
+        assert formal["inputCoordinate"] == source["inputCoordinate"]
+        assert formal["expected"] == source["expected"]
+        assert formal["historyInput"]["before"]["stateFields"]["state.runners"] == "empty"
+        assert formal["historyInput"]["after"]["stateFields"]["state.runners"] == "first"
+    axes = _load_object(DESCRIPTOR_PATH)["stateTransitionAxes"]
+    by_id = {axis["axisId"]: axis for axis in axes}
+    assert by_id["state.count.strikes"]["values"] == [0, 1, 2]
+    assert by_id["state.count.balls"]["values"] == [0, 1, 2, 3]
+    assert by_id["state.outs"]["values"] == [0, 1, 2]
+    assert by_id["state.battingOrder"]["values"] == list(range(1, 10))
+
+
+def test_terminal_rejection_corpus_is_closed_and_raw_duplicates_are_not_lost() -> None:
+    schema, vectors = _terminal_assets()
+    by_id = {case["caseId"]: case for case in vectors["cases"]}
+    ids = set()
+    for case in vectors["rejectionCases"]:
+        assert case["caseId"] not in ids
+        ids.add(case["caseId"])
+        request = copy.deepcopy(by_id[case["baseCaseId"]]["request"])
+        target = request
+        for key in case["path"][:-1]:
+            target = target[key]
+        target[case["path"][-1]] = case["value"]
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["TerminalPitchRequest"], schema, "$",
+            )
+        schema_checker._validate_instance(
+            case["expected"], schema["$defs"]["FailureResponse"], schema, "$",
+        )
+
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        """契約raw corpusは通常JSON object化前に重複memberを拒否する。"""
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate member")
+            result[key] = value
+        return result
+
+    def finite(_value: str) -> None:
+        """JSON外の非有限値を成功parseへ正規化しない。"""
+        raise ValueError("nonfinite")
+
+    assert {case["caseId"] for case in vectors["rawRejections"]} == {
+        "DUPLICATE-MEMBER", "NONFINITE", "MALFORMED",
+    }
+    for case in vectors["rawRejections"]:
+        with pytest.raises(ValueError):
+            json.loads(case["requestJson"], object_pairs_hook=unique, parse_constant=finite)
+        assert case["expected"] == {"ok": False, "error": {"code": "INVALID_JSON"}}

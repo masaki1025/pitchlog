@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogId": {
+      "const": "terminal-pitch-properties"
+    },
+    "scope": {
+      "const": "terminal-empty-bb-hbp-v1"
+    },
+    "predicates": {
+      "const": [
+        {
+          "propertyId": "terminalStateAxes",
+          "propertyKind": "invariant",
+          "authorityId": "付録E 打撃結果・状態遷移マトリクス"
+        },
+        {
+          "propertyId": "terminalHostParity",
+          "propertyKind": "equivalence",
+          "authorityId": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "scope",
+    "predicates"
+  ]
+}

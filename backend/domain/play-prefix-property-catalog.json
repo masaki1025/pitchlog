@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "play-prefix-properties",
+  "scope": "play-prefix-v2",
+  "predicates": [
+    {
+      "propertyId": "playPrefixHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    }
+  ]
+}

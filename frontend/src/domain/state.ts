@@ -1,6 +1,11 @@
 import { ordinaryStateSupported, ordinaryRunnerHold } from './ordinaryState'
-import { FIRST_BALL_RULE, ORDINARY_STRIKE_RULE } from './stateRules'
+import {
+  FIRST_BALL_RULE,
+  ORDINARY_STRIKE_RULE,
+  TERMINAL_REACH_RULE,
+} from './stateRules'
 import type {
+  BatterKind,
   CountEffectKind,
   Derived,
   Rule,
@@ -117,25 +122,74 @@ export function deriveOrdinary(
   return applyCountRule(before, board, ORDINARY_STRIKE_RULE)
 }
 
-/** 初球・通常投球で共有する単一のカウント計算。 */
+/** 受理済みの無走者BB/HBPだけを共有核へ渡す。 */
+export function deriveTerminal(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+): Derived | null {
+  if (
+    pitchEventKind !== 'pitch-event' ||
+    !ordinaryStateSupported(before, board) ||
+    before.runners !== 'empty' ||
+    before.strikes < 0n ||
+    before.strikes > 2n ||
+    before.balls < 0n ||
+    before.balls > 3n ||
+    before.home !== board.home ||
+    before.away !== board.away
+  )
+    return null
+  if (resultId === 'batting-result.walk') {
+    if (before.balls !== 3n) return null
+  } else if (resultId !== 'batting-result.hit-by-pitch') return null
+  return applyCountRule(before, board, TERMINAL_REACH_RULE, resultId)
+}
+
+/** 初球・通常投球・打席終了で共有する単一の遷移計算。 */
 function applyCountRule(
   before: StateFields,
   board: Scoreboard,
   rule: Rule,
+  resultId: string = '',
 ): Derived {
-  const balls = before.balls + rule.ballDelta
+  let balls = before.balls + rule.ballDelta
+  let strikes = before.strikes + rule.strikeDelta
+  if (rule.ballEffect === 'reset') balls = 0n
+  if (rule.strikeEffect === 'reset') strikes = 0n
+  const walk = resultId === 'batting-result.walk'
+  const hitByPitch = resultId === 'batting-result.hit-by-pitch'
   const flags = emptyFlags()
   flags.投球数 = true
   flags.投球回算入アウト = rule.outs > 0n
   flags.打席 = rule.pa === true
-  // 同時の走者/特殊効果を含まない非終端投球。回・得点・在塁者の状態を保持する。
+  if (walk) {
+    flags.与四球 = true
+    flags.四球 = true
+  }
+  if (hitByPitch) {
+    flags.与死球 = true
+    flags.死球 = true
+  }
+  // 出塁は無走者の受理済み操作に限定。走者の帰属/保存は補完しない。
+  const destination: { kind: BatterKind; base?: bigint } = { kind: rule.batter }
+  let runners = before.runners
+  let battingOrder = before.battingOrder
+  let walks = board.walks
+  if (rule.batter === 'reach') {
+    destination.base = rule.batterBase
+    runners = 'first'
+  }
+  if (rule.pa === true) battingOrder = (before.battingOrder % 9n) + 1n
+  if (walk) walks = board.walks + 1n
   return {
     countEffect: {
       strikes: { kind: rule.strikeEffect, value: rule.strikeDelta },
       balls: { kind: rule.ballEffect, value: rule.ballDelta },
     },
     plateAppearanceEnded: rule.pa,
-    batterDestination: { kind: rule.batter },
+    batterDestination: destination,
     runnerDefaultAdvance: {
       first: ordinaryRunnerHold(before.runners, 'first'),
       second: ordinaryRunnerHold(before.runners, 'second'),
@@ -147,17 +201,17 @@ function applyCountRule(
       ballsBefore: before.balls,
       ballsAfter: balls,
       strikesBefore: before.strikes,
-      strikesAfter: before.strikes + rule.strikeDelta,
+      strikesAfter: strikes,
     },
     after: {
       stateFields: {
         half: before.half,
         inning: before.inning,
         outs: before.outs + rule.outs,
-        strikes: before.strikes + rule.strikeDelta,
+        strikes: strikes,
         balls: balls,
-        runners: before.runners,
-        battingOrder: before.battingOrder,
+        runners: runners,
+        battingOrder: battingOrder,
         tiebreakActive: before.tiebreakActive,
         gameEnded: before.gameEnded,
         home: before.home,
@@ -169,7 +223,7 @@ function applyCountRule(
         hits: board.hits,
         errors: board.errors,
         strikeouts: board.strikeouts,
-        walks: board.walks,
+        walks: walks,
       },
     },
   }

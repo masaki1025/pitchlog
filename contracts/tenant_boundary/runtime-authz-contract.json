@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 28,
+  "runtime_contract_revision": 29,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:28"
+        "runtime_contract_revision:29"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -302,6 +302,18 @@
       [
         "sync_fence",
         "first_ball_write_admissions"
+      ],
+      [
+        "sync_fence",
+        "ordinary_pitch_checkpoints"
+      ],
+      [
+        "sync_fence",
+        "ordinary_pitch_history"
+      ],
+      [
+        "sync_fence",
+        "ordinary_pitch_write_admissions"
       ],
       [
         "sync_fence",
@@ -745,13 +757,38 @@
       ],
       [
         "sync_right_api",
+        "assert_play_prefix_projection",
+        "jsonb"
+      ],
+      [
+        "sync_right_api",
         "bind_device",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
+      ],
+      [
+        "sync_right_api",
+        "bind_ordinary_device",
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
       ],
       [
         "sync_right_api",
         "check_current_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"
+      ],
+      [
+        "sync_right_api",
+        "check_ordinary_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"
+      ],
+      [
+        "sync_right_api",
+        "consume_ordinary_projection",
+        "jsonb"
+      ],
+      [
+        "sync_right_api",
+        "finish_play_prefix_projection",
+        ""
       ],
       [
         "sync_right_api",
@@ -765,8 +802,58 @@
       ],
       [
         "sync_right_api",
+        "guard_play_prefix_runner_insert",
+        ""
+      ],
+      [
+        "sync_right_api",
+        "lock_ordinary_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "lock_play_prefix_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "prepare_ordinary_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
+        "prepare_play_prefix_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
         "read_device_state",
         "uuid, uuid"
+      ],
+      [
+        "sync_right_api",
+        "read_ordinary_checkpoint",
+        "uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "read_ordinary_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, integer"
+      ],
+      [
+        "sync_right_api",
+        "read_ordinary_order_summary",
+        "uuid, uuid"
+      ],
+      [
+        "sync_right_api",
+        "read_play_prefix_checkpoint",
+        "uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "read_play_prefix_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
       ]
     ]
   },
@@ -793,5 +880,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "9a19846ba23c617f35f3c4f9ef1fd35a8e2bd7bffc93b88a171fa5c704d8ffb0"
+  "source_digest": "fea92004627062253ccd6dd860ea607e8cf849a0813876e9c482a41c590584bf"
 }
