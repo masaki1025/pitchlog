@@ -68,11 +68,26 @@ STAGE_A_BOOTSTRAP_MARKERS = (
 )
 CHECKOUT_SHA_RE = re.compile(r"[0-9a-f]{40}")
 TENANT_BOUNDARY_JOB = "tenant-boundary-bypass"
+BODY_WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "pr-body.yml"
+EXPECTED_BODY_JOB_ORDER = ("core-guard",)
+REQUIRED_STATUS_CONTEXTS = (
+    "secrets",
+    "docs-lint",
+    "core-guard",
+    "harness",
+    "consistency",
+    "mutation",
+    "nfr021-append-only",
+    "frontend-changes",
+    "backend-changes",
+    "frontend",
+    "backend",
+    "tenant-boundary-bypass",
+)
 TENANT_BOUNDARY_COMMAND = "uv run python scripts/check_tenant_boundary_bypass.py"
 EXPECTED_JOB_ORDER = (
     "secrets",
     "docs-lint",
-    "core-guard",
     "harness",
     "consistency",
     "mutation",
@@ -100,7 +115,6 @@ SILENT_DISABLE_STEP_KEYS = frozenset({"if", "continue-on-error", "shell"})
 CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO = frozenset(
     {
         "secrets",
-        "core-guard",
         "harness",
         "nfr021-append-only",
         TENANT_BOUNDARY_JOB,
@@ -116,7 +130,6 @@ LEGACY_JOB_IDS = frozenset(
     {
         "secrets",
         "docs-lint",
-        "core-guard",
         "harness",
         "nfr021-append-only",
         "frontend-changes",
@@ -3018,9 +3031,15 @@ def test_required_job_documentation_matches_the_workflow() -> None:
     assert isinstance(jobs, dict)
 
     assert documented == actual
+    body = _load_workflow(BODY_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    body_jobs = body.get("jobs")
+    assert isinstance(body_jobs, dict)
+    assert tuple(body_jobs) == EXPECTED_BODY_JOB_ORDER
+    all_job_ids = set(jobs) | set(body_jobs)
     assert len(contexts) == len(set(contexts))
-    assert set(jobs) - set(contexts) == set()
-    assert set(contexts) - set(jobs) == set()
+    # 必須 context は変更しない。core-guard は pr-body.yml が報告する。
+    assert contexts == REQUIRED_STATUS_CONTEXTS
+    assert set(contexts) <= all_job_ids
     assert ruleset["name"] == "protect-main-develop"
     assert ruleset["enforcement"] == "active"
     assert ruleset["bypass_actors"] == []
@@ -3047,10 +3066,13 @@ def test_required_job_documentation_detects_one_missing_context() -> None:
     contexts[:] = [item for item in contexts if item["context"] != removed]
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict)
+    body = _load_workflow(BODY_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    all_job_ids = set(jobs) | set(body["jobs"])
     actual = set(_required_status_contexts(mutated))
 
-    assert set(jobs) - actual == {removed}
-    assert actual - set(jobs) == set()
+    # 必須 context は ci.yml と pr-body.yml の実ジョブから 1 件だけ落ちる。
+    assert (set(REQUIRED_STATUS_CONTEXTS) - actual) == {removed}
+    assert actual - all_job_ids == set()
 
 
 def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
