@@ -159,3 +159,6 @@ core pin移設の回帰path（2026-11-01、PO委任によるCodex主担当判断
 
 
 A31/root局所検査の有限是正（2026-11-01、PO委任によるCodex主担当判断）: root認可検査25943成功/34失敗を保全。32失敗は新製品認可readerがSQLAlchemyを必要とするのにroot dev依存が無い環境不足で、pyproject.toml/uv.lockへbackendと同一sqlalchemy==2.0.52をdev依存として固定し、root/BE二環境・lock検査・型対象は不変とする。残2はtests/test_check_authz_catalog.pyのinitial_http限定負対向がdesign_provenance末尾の無関係な新初球行をpop/改変しているため、既initialのprovenance_idを明示選択して同じ欠落/余剰fieldの拒否を検査する。validatorの検査条件を緩めず、旧負対向全件を保持する。追加exact3pathのみ、候補固定後非作者確認。正式認可8入力は変更しない。
+
+
+移設単位のwriter割当て追補（2026-11-01、PO委任によるCodex主担当判断）: rootはauthority JSON/oracle/凍結台帳/allow-listの唯一writerを維持し、stageBのscripts/check_human_review_signature.py・tests/test_human_review_signature.py exact2は単独作者pr189_source_pin_independentへ割り当てる。rootは当該2へ並行書込しない。元4値/旧全拒否を保持した遅延readerと最終HEADのmetadata/reader束縛を実装し、別非作者が最終2pathを確認する。
