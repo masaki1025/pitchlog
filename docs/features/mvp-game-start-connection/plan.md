@@ -772,3 +772,5 @@ ORM受入出力5path `docs/features/orm-schema-migration/acceptance-sheets/{N1-t
 - `backend/tests/db/test_schema_audit.py`
 
 歴史fixtureでもowned seed DBのPUBLIC CONNECT/TEMPを閉鎖し、新verifier全DB検査を維持する。不変probe/0036実revision/全LOGIN原則に対する既契約verifier唯一口/動的trigger実全identity4接続/秘密列と既列count ACL/実role属性/schema既quote2を原典と実SQLから照合する。範囲を広く無効化せず、期待は全対象exactで確認する。trigger抽出修復には正負pure対向を付ける。source固定後は非作者レビュー→root所有隔離PGで全該当DB試験を行い、診断推定を実証と区別する。workerはDB/docker操作・commit/pushをしない。他WTの保存接続とDB競合させない。
+
+実CI参照修復5path採用（2026-10-31、PO委任によるCodex /root判断）: cache pr188-ci-harness-reference-repair-20261031/files.jsonの全前後と独立REPORT53ede520…/checks276a75d7…を照合、P0/P1/P2=0。root局所33・frozen実比較65/37.45秒・独立34成功を別々に記録。3digestは原source実byteだけ、RG宣言1/実参照3を分離しproof破壊で宣言も拒否、frozen正規corpus c30e29f7…は全case期待不変を確認。root-approval.jsonへ実判断を固定した。全CI/mergeは未了。初回system pythonのpytest不足と旧digest33失敗は別logとして保全。

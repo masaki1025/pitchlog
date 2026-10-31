@@ -2301,7 +2301,7 @@ generation: MutationGeneration
 
 
 def test_recording_generation_remains_red_in_product_tree() -> None:
-    """記録権世代の実モデル参照4行を条件2の候補として維持する。"""
+    """証明済み宣言と未裁定の実モデル参照3行を分離して維持する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source_root = REPOSITORY_ROOT / "backend" / "src"
     path = "pitchlog/db/recording_rights/models.py"
@@ -2322,10 +2322,16 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
     expected_lines = {
         node.lineno
         for node in ast.walk(tree)
-        if (isinstance(node, ast.ClassDef) and node.name == "RecordingGeneration")
-        or (isinstance(node, ast.Name) and node.id == "RecordingGeneration")
+        if isinstance(node, ast.Name) and node.id == "RecordingGeneration"
     }
-    assert len(expected_lines) == 4
+    declaration_lines = {
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and node.name == "RecordingGeneration"
+    }
+    assert len(declaration_lines) == 1
+    assert recording_generation_lines.isdisjoint(declaration_lines)
+    assert len(expected_lines) == 3
     assert recording_generation_lines == expected_lines
 
 
