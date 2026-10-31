@@ -196,3 +196,8 @@ localは旧14か固定18の閉policyモードで同じ数学を検証しTECHNICA
 
 
 seed主体の明確化（2026-11-01、PO委任によるCodex主担当判断）: 上記のowner投入はtest所有環境の既seed主体を保持する意味で、FORCE RLSがあるpitchlog_owner接続へ新たに権限を与える指示ではない。既seedと同じowned bootstrap適用主体を使い、実session/current_user同一・superuser・所有cluster/DB座標・DBowner=pitchlog_owner・0036 marker・writer guard未配置を照合して、正規036/038間に固定fixtureデータを投入する。role属性/FORCE RLS/policy/guardを変更しない。これは移行前データを準備するACL試験であり、製品APIの新規保存・認可成功を代替しない。
+
+
+### A31導入後の意図的負例の型注記（2026-11-01、PO委任によるCodex主担当判断）
+
+root最終tyで、SQLAlchemyの正規型解決が有効になったため既negative fixture `tests/fixtures/tenant_boundary/negative/pitchlog/services/c5_function_direct_session.py` の任意objectをSession.executeへ直接渡す行だけがno-matching-overloadとなる。これは条件5の不正直実行を意図的に含む入力である。対象1行に理由付きの限定 `ty: ignore[no-matching-overload]` コメントのみ追記し、AST/実コード/負例の期待違反/走査対象を保持する。root型検査の対象除外や製品Any化は行わない。公式fixture検査とroot型検査を実行し、正式assetのhashへ影響する場合は公式helperで追随する。候補作成に関与しないレビューを経て採用し、本人の確認を代記しない。
