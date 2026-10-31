@@ -153,3 +153,6 @@ root型境界の限定整合（2026-11-01、PO委任によるCodex主担当判�
 2. core側: 独立contracts/state-transition/gate6_t1_ordinary_pitch_pins_v1.jsonへad6588b1の旧4定数（anchor/public_base/record_sha256/schema_sha256）を機械抽出して先にcommitし、非作者全値確認。そのcommitで既8oracle入力が3dd固定byteと同一であることを確認してoracle_inputを当該commitへ追随（同PR189の未正式受理末尾record1件へ最終実値だけ反映）。verifierは既frozen_baselines readerの承認済み単一commitからgit showで固定JSONを読み、exact4key/重複/40・64桁を閉検査する。current JSON/検査対象record/schemaの値・任意HEADへのfallbackは禁止。旧PR187限定/ancestor/旧policy prefix/record-schema hash/拒否条件を保持。読込不明は閉拒否。新frozen系列/比較strategy/検査除外は作らない。
 
 rootはcore verifier/authority JSON/oracle/台帳/allow-listの唯一writer、分離作者はtest側exact9pathのみ。各scopeは候補凍結後に非作者review。文字列分割・走査対象変更・判定緩和で回避しない。正式source7.7/最終CIは最終版で直列導出する。
+
+
+core pin移設の回帰path（2026-11-01、PO委任によるCodex主担当判断）: tests/test_human_review_signature.pyを追加exact1pathとして旧ordinary対向を全保持し、authority JSON/台帳の欠落・重複・不正型/桁・Git欠落・現JSON改変と自己申告fallback拒否を追加する。verifierはordinary実行時に遅延取得し、reader/authority JSON/凍結台帳も最終HEADへ束縛する。新JSONの先行候補は非作者REPORTd6980069…でad6588b1旧4値完全一致/closed4keyを確認済み（実SHA8c448a69…）。新JSONと実loaderの検証は分離して記録する。
