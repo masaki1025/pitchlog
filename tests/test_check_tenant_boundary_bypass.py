@@ -8950,3 +8950,355 @@ def test_scope_proof_requires_a_regular_git_blob(
     monkeypatch.setattr(checker, "_run_git", altered_tree)
     with pytest.raises(checker.ContractError):
         checker._scope_proof_source_sha256("source_fingerprint_callee")
+
+
+_INITIAL_POPULATION_MUTATIONS = (
+    # 各根拠を別々に壊す。未知呼出し・SQL・scopeへ原典site許可を転用しない。
+    (
+        'recording_rights/initial_grant_broker.py',
+        'require_database_transport(url, args)',
+        'pass  # transport removed',
+        'transport',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'connection.rollback()',
+        'pass  # rollback removed',
+        'rollback',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'cursor.execute(_AUTH_VERIFIER_CHECKOUT_SQL)',
+        "cursor.execute('SELECT 1')",
+        'verifier-sql',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'WHERE r.rolname = session_user',
+        'WHERE TRUE',
+        'actor-role-sql',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'row[12] != config.database_oid',
+        'False',
+        'database-identity',
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        "tuple(row[2:9]) != (True, False, False, False, False, False, False)",
+        "False", "role-superuser",
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'event.listen(engine, "checkout", checkout)',
+        'pass  # checkout removed',
+        'checkout-binding',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")',
+        'provider = import_module("other.module")',
+        'fixed-import',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'channel.connect(str(self._endpoint.path))',
+        'engine.connect()',
+        'socket-to-db',
+    ),
+    ("recording_rights/initial_grant_broker.py", "output.flush()", "session.flush()", "file-to-db"),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'DurableLedger(Path(config["ledger_endpoint"]))',
+        'TenantContext(Path(config["ledger_endpoint"]))',
+        'ledger-to-context',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'hide_parameters=True',
+        'hide_parameters=False',
+        'parameter-leak-policy',
+    ),
+    (
+        'repositories/game_start.py',
+        'cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken',
+        'cls = _PersistInitialStartToken if save else TenantContext',
+        'third-constructor',
+    ),
+    (
+        'repositories/game_start.py',
+        'bound.canonical_bytes.decode("utf-8"),',
+        '"forged",',
+        'token-full-arguments',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        'pass',
+        'guard-removed',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        '_assert_existing_resolution_owner(transaction, other, actor_runtime, owner, bound)',
+        'guard-context',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, other, bound)',
+        'guard-owner',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, None)',
+        'guard-bound',
+    ),
+    (
+        'api/schemas/game_start.py',
+        'recovery_generation: str',
+        'recovery_generation: int',
+        'wire-type',
+    ),
+    (
+        'authz/capability_catalog.py',
+        '"profile": "tenant_owned",',
+        '"profile": "function_only",',
+        'classification',
+    ),
+    (
+        'authz/product_function_acl.py',
+        'node.targets[0].id == "_GENERATION_GUARD_SQL"',
+        'node.targets[0].id == "ARBITRARY_SQL"',
+        'ddl-binding',
+    ),
+    (
+        'authz/product_function_acl.py',
+        'if other_bindings or len(bindings) != 1 or len(declarations) != 1:',
+        'if False:',
+        'ddl-shadow',
+    ),
+    (
+        'db/recording_rights/models.py',
+        'server_default=text("CURRENT_TIMESTAMP")',
+        'server_default=text("SELECT 1")',
+        'metadata-sql',
+    ),
+    (
+        'db/recording_rights/models.py',
+        'postgresql_where=text("outcome = \'pending\'")',
+        'postgresql_where=text("true")',
+        'metadata-partial-index',
+    ),
+    (
+        'db/recording_rights/models.py',
+        'recovery_generation: Mapped[int | None]',
+        'recovery_generation: Mapped[str | None]',
+        'metadata-type',
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'event.listen(engine, "checkout", checkout)',
+        'event.listen(engine, "checkout", checkout); event.remove(engine, "checkout", checkout)',
+        "review-callback-removed",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'require_database_transport(url, args)',
+        'if False: require_database_transport(url, args)',
+        "review-dead-transport",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        '_ACTOR_ROLE = "pitchlog_initial_actor"',
+        '_ACTOR_ROLE = "pitchlog_initial_actor"; _ACTOR_ROLE = "postgres"',
+        "review-role-rebound",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'state.engine.dispose()', 'pass', "owned-cleanup-removed",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        '_ACTOR_RUNTIMES.pop(runtime._key)', 'pass', "registry-not-consumed",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'not host.startswith("/")', 'not host.startswith("localhost")', "unix-endpoint",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'url.username != _ACTOR_ROLE', 'False', "url-role",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        '                engine.dispose()', '                pass',
+        "failure-cleanup-removed",
+    ),
+
+    (
+        "recording_rights/initial_grant_broker.py",
+        'raw[1:17] != tenant_id.bytes', 'False', "d4-owner-tenant",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'raw[17:33] != game_id.bytes', 'False', "d4-owner-game",
+    ),
+
+    (
+        "authz/product_function_acl.py",
+        'other_bindings = any(', 'other_bindings = False and any(',
+        "ddl-shadow-binding-disabled",
+    ),
+
+)
+
+
+@pytest.mark.parametrize("relative,before,after,reason", _INITIAL_POPULATION_MUTATIONS)
+def test_initial_population_proof_rejects_semantic_mutations(
+    relative: str, before: str, after: str, reason: str,
+) -> None:
+    """独立した安全条件の変造を旧原典の許可siteで隠さない。"""
+    path = f"pitchlog/{relative}"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    assert before in source, reason
+    if reason in {"metadata-sql", "metadata-type"}:
+        marker = ("class TrustedDevice(" if reason == "metadata-sql"
+                  else "class RecordingGeneration(")
+        prefix, suffix = source.split(marker, 1)
+        changed = prefix + marker + suffix.replace(before, after, 1)
+    else:
+        changed = source.replace(before, after, 1)
+    assert checker._initial_population_evidence(source, path)
+    assert not checker._initial_population_evidence(changed, path)
+    assert checker.scan_source(
+        changed, path=path, contract=checker.load_contract(REPOSITORY_ROOT),
+    ), reason
+
+
+def test_initial_population_policy_preserves_unrelated_fullscan_findings() -> None:
+    """所見数から期待を作らず、対象外の実DBと型/語彙所見が残ると示す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    cases = (
+        ("pitchlog/db/recording_rights/models.py", "sqlalchemy.text", "TB005"),
+        ("pitchlog/db/recording_rights/models.py", "sqlalchemy.orm.Mapped", "TB002"),
+    )
+    sources = {
+        p.relative_to(REPOSITORY_ROOT / "backend/src").as_posix(): p.read_text()
+        for p in (REPOSITORY_ROOT / "backend/src").rglob("*.py")
+    }
+    exports = checker._build_reexport_map(sources)
+    for path, symbol, code in cases:
+        violations = checker.scan_source(
+            sources[path], path=path, contract=contract, reexport_map=exports,
+        )
+        assert any(v.symbol == symbol and v.code == code for v in violations)
+
+
+@pytest.mark.parametrize("source_key,relative", (
+    ("initial_response_annotations", "api/schemas/game_start.py"),
+    ("initial_storage_classification", "authz/capability_catalog.py"),
+    ("initial_generation_guard_ddl", "authz/product_function_acl.py"),
+    ("initial_storage_model_declarations", "db/recording_rights/models.py"),
+))
+def test_initial_population_additional_originals_are_immutable_git(
+    source_key: str, relative: str,
+) -> None:
+    """追加原典4用途も現sourceや申告SHAから期待byteを生成しない。"""
+    declaration = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_bytes()
+    )
+    revision = declaration["frozen_inputs"]["ci_scope_proof_source_revision"]["value"]
+    expected = subprocess.run(
+        ["git", "show", f"{revision}:backend/src/pitchlog/{relative}"],
+        cwd=REPOSITORY_ROOT, capture_output=True, check=True,
+    ).stdout
+    assert checker._scope_proof_source_bytes(source_key) == expected
+    assert checker._scope_proof_source_sha256(source_key) == hashlib.sha256(expected).hexdigest()
+
+
+def test_initial_population_unknown_path_and_extra_site_remain_closed() -> None:
+    """既siteを別module・scope・追記したcallableへ流用できない。"""
+    path = "pitchlog/repositories/game_start.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    assert not checker._initial_population_evidence(source, "other/game_start.py")
+    extra = source + "\n\ndef arbitrary():\n    return TenantContext()\n"
+    assert not checker._initial_population_evidence(extra, path)
+    assert any(v.code == "TB007" for v in checker.scan_source(
+        extra, path=path, contract=checker.load_contract(REPOSITORY_ROOT),
+    ))
+
+
+@pytest.mark.parametrize("change", ("purpose-claim", "extra-sha-field", "unknown-consumer"))
+def test_initial_population_source_and_declaration_do_not_replace_original(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str,
+) -> None:
+    """現sourceと自己申告を同時変造しても不変原典を上書きできない。"""
+    asset_path = "contracts/tenant_boundary/frozen-inputs.json"
+    declaration = json.loads((REPOSITORY_ROOT / asset_path).read_bytes())
+    entry = declaration["frozen_inputs"]["ci_scope_proof_source_revision"]
+    path = "pitchlog/repositories/game_start.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    changed = source.replace(
+        "cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken",
+        "cls = _PersistInitialStartToken if save else TenantContext",
+        1,
+    )
+    claimed = hashlib.sha256(changed.encode()).hexdigest()
+    if change == "purpose-claim":
+        entry["purpose"] = f"self claimed source: {claimed}"
+    elif change == "extra-sha-field":
+        entry["source_sha256"] = claimed
+    else:
+        entry["sources"].append("other:caller")
+    target = tmp_path / asset_path
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(declaration))
+    original = checker._scope_proof_source_bytes
+
+    def reference(key: str, **_roots: Any) -> bytes:
+        return original(
+            key,
+            declaration_repository_root=tmp_path,
+            git_repository_root=REPOSITORY_ROOT,
+        )
+
+    monkeypatch.setattr(checker, "_scope_proof_source_bytes", reference)
+    if change == "purpose-claim":
+        assert not checker._initial_population_evidence(changed, path)
+        assert checker.scan_source(
+            changed, path=path, contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+    else:
+        with pytest.raises(checker.ContractError):
+            reference("game_start_caller")
+        assert not checker._initial_population_evidence(changed, path)
+
+
+@pytest.mark.parametrize("relative,before,after,reason", _INITIAL_POPULATION_MUTATIONS)
+def test_initial_population_semantics_rejects_even_a_forged_matching_original(
+    relative: str, before: str, after: str, reason: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全byte/owner/site ASTが通るよう原典も変造しても、独立規範が拒否する。"""
+    path = f"pitchlog/{relative}"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    assert before in source
+    if reason in {"metadata-sql", "metadata-type"}:
+        marker = ("class TrustedDevice(" if reason == "metadata-sql"
+                  else "class RecordingGeneration(")
+        prefix, suffix = source.split(marker, 1)
+        changed = prefix + marker + suffix.replace(before, after, 1)
+    else:
+        changed = source.replace(before, after, 1)
+    # 改行/owner喪失を理由とする失効に依存せず、旧gateを確実に通す。
+    assert changed.count("\n") == source.count("\n")
+    monkeypatch.setattr(checker, "_scope_proof_source_bytes", lambda *_a, **_k: changed.encode())
+    validate = checker._initial_population_semantics
+    with monkeypatch.context() as bypass:
+        bypass.setattr(checker, "_initial_population_semantics", lambda *_a: True)
+        assert checker._initial_population_evidence(changed, path), reason
+    assert not validate(ast.parse(changed), path), reason
+    assert not checker._initial_population_evidence(changed, path), reason

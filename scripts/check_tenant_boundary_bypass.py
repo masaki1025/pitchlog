@@ -6041,6 +6041,908 @@ def _assert_existing_resolution_owner(handle, context, runtime, owner, bound) ->
 ).body[0]
 
 
+# 初期開始の既レビュー済みsiteだけを、用途付き不変原典と全ASTへ束縛する。
+# 件数ではなく実owner/式/引数/receiverを固定し、新規SQL・呼出し・語彙は許可しない。
+_INITIAL_POPULATION_POLICY: dict[str, tuple[str, tuple[tuple[int, str, str, str], ...]]] = {
+    "pitchlog/api/schemas/game_start.py": ("initial_response_annotations", (
+        (189, "TB002", "str", "InitialGameStartResponse.<module>"),
+    )),
+    "pitchlog/authz/capability_catalog.py": ("initial_storage_classification", (
+        (180, "TB002", "generation", "_initial_storage_profile"),
+        (183, "TB002", "generation", "_initial_storage_profile"),
+    )),
+    "pitchlog/authz/product_function_acl.py": ("initial_generation_guard_ddl", (
+        (
+            157,
+            'TB002',
+            'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
+            'generate_product_function_acl_sql',
+        ),
+        (2585, "TB002", "generate_generation_guard_sql", "<module>"),
+    )),
+    "pitchlog/db/recording_rights/models.py": ("initial_storage_model_declarations", (
+        (194, "TB002", "RecordingGeneration", "<module>"),
+        (267, "TB002", "sqlalchemy.orm.Mapped", "RecordingGeneration.<module>"),
+        (344, "TB005", "sqlalchemy.text", "TrustedDevice.<module>"),
+        (407, "TB005", "sqlalchemy.text", "GameStartRequest.<module>"),
+        (470, "TB005", "sqlalchemy.text", "GameStartAttempt.<module>"),
+        (481, "TB005", "sqlalchemy.text", "GameStartAttempt.<module>"),
+        (487, "TB005", "sqlalchemy.text", "GameStartAttempt.<module>"),
+        (567, "TB002", "sqlalchemy.orm.Mapped", "RecordingRightDelivery.<module>"),
+        (576, "TB005", "sqlalchemy.text", "RecordingRightDelivery.<module>"),
+    )),
+    "pitchlog/recording_rights/initial_grant_broker.py": ("initial_grant_broker_caller", (
+        # checkoutの固定SELECTは実role/DB identity比較とrollbackまで不変原典へ束縛。
+        (36, "TB002", "DurableGenerationSource", "<module>"),
+        (36, "TB002", "assert_write_recovery_generation", "<module>"),
+        (165, "TB005", "psycopg.Connection.cursor", "_verify_initial_actor_checkout"),
+        (166, "TB005", "psycopg.Cursor.execute", "_verify_initial_actor_checkout"),
+        (185, "TB005", "psycopg.Connection.rollback", "_verify_initial_actor_checkout"),
+        (188, "TB005", "psycopg.Connection.rollback", "_verify_initial_actor_checkout"),
+        (255, "TB005", "sqlalchemy.create_engine", "_load_initial_actor_runtime"),
+        (302, "TB005", "importlib.import_module", "_verify_business_binding"),
+        (
+            324,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+            '<module>',
+        ),
+        (
+            403,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+            '_issue_initial_grant_impl',
+        ),
+        (
+            404,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+            '_issue_initial_grant_impl',
+        ),
+        (
+            428,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+            '<module>',
+        ),
+        (
+            443,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+            '<module>',
+        ),
+        (483, "TB002", "generation", "<module>"),
+        (488, "TB002", "int", "_broker_d4"),
+        (489, "TB002", "int", "_broker_d4"),
+        (492, "TB002", "int", "_broker_d4"),
+        (496, "TB002", "_broker_generation", "<module>"),
+        (510, "TB002", "int", "_broker_generation"),
+        (514, "TB002", "int", "_broker_generation"),
+        (520, "TB002", "int", "_broker_generation"),
+        (
+            804,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
+            '_postcommit_start_response',
+        ),
+        (
+            805,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+            '_postcommit_start_response',
+        ),
+        (805, "TB002", "recovery_generation", "_postcommit_start_response"),
+        (
+            929,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
+            '_decode_initial_reply',
+        ),
+        # AF_UNIX socket.connect と fdopen file.flush。未知receiverへ一般化しない。
+        (
+            1119,
+            'TB005',
+            'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
+            '_InitialBrokerClient.call',
+        ),
+        (1210, "TB005", "psycopg.Connection.cursor", "_verify_auth_verifier_checkout"),
+        (1211, "TB005", "psycopg.Cursor.execute", "_verify_auth_verifier_checkout"),
+        (1216, "TB005", "psycopg.Connection.rollback", "_verify_auth_verifier_checkout"),
+        (1219, "TB005", "psycopg.Connection.rollback", "_verify_auth_verifier_checkout"),
+        (1279, "TB005", "sqlalchemy.create_engine", "_load_initial_auth_verifier_runtime"),
+        (1460, "TB002", "pitchlog.sync.idempotency", "_worker_resolve_start"),
+        (
+            1517,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+            '_worker_resolve_start',
+        ),
+        (
+            1518,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+            '_worker_resolve_start',
+        ),
+        (
+            1745,
+            'TB005',
+            'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
+            'serve_initial_broker',
+        ),
+        (1758, "TB007", "pitchlog.durable_rights_ledger.DurableLedger", "serve_initial_broker"),
+    )),
+    "pitchlog/repositories/game_start.py": ("game_start_caller", (
+        (23, "TB002", "pitchlog.sync.idempotency", "<module>"),
+        (340, "TB007", "cls", "_start_token"),
+    )),
+    "pitchlog/repositories/initial_recording_right.py": ("initial_recording_right_guard", (
+        (47, "TB002", "_positive_generation", "<module>"),
+        (158, "TB002", "int", "_CheckBusinessEpochToken.<module>"),
+        (174, "TB002", "int", "_InsertInitialGrantToken.<module>"),
+        (175, "TB002", "int", "_InsertInitialGrantToken.<module>"),
+        (
+            264,
+            'TB002',
+            'pitchlog.repositories.initial_recording_right._positive_generation',
+            '_decode_initial_result',
+        ),
+        (276, "TB002", "int", "_decode_initial_result"),
+        (278, "TB002", "int", "_decode_initial_result"),
+        (279, "TB002", "int", "_decode_initial_result"),
+        (
+            279,
+            'TB002',
+            'pitchlog.repositories.initial_recording_right._positive_generation',
+            '_decode_initial_result',
+        ),
+        (
+            466,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.__init__',
+        ),
+        (
+            559,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.lock_valid_device',
+        ),
+        (
+            593,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope._record',
+        ),
+        (666, "TB002", "assert_recovery_generation", "InitialRecordingRightScope.<module>"),
+        (
+            669,
+            'TB002',
+            'pitchlog.repositories.initial_recording_right._positive_generation',
+            'InitialRecordingRightScope.assert_recovery_generation',
+        ),
+        (
+            700,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            701,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            715,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            716,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            725,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (761, "TB001", "_assert_existing_resolution_owner", "_existing_start_scope_on_handle"),
+        (
+            763,
+            'TB001',
+            'pitchlog.repositories.transaction._assert_existing_resolution_owner',
+            '_existing_start_scope_on_handle',
+        ),
+    )),
+}
+
+
+
+def _initial_population_semantics(tree: ast.Module, path: str) -> bool:
+    """不変原典照合とは別に、既規範の有限安全条件を実ASTへ検査する。
+
+    原典byteも改変した試験でこの検査自体の拒否を確認する。呼出しの
+    名前存在だけでなくreceiver・全引数・列/型・制御順序を閉じて比較する。
+    """
+    def shape(node: ast.AST) -> str:
+        return ast.dump(node, include_attributes=False)
+
+    def expression(text: str) -> str:
+        return shape(ast.parse(text, mode="eval").body)
+
+    def function(name: str) -> ast.FunctionDef | None:
+        names = name.split(".")
+        owner: ast.Module | ast.FunctionDef | ast.ClassDef = tree
+        for part in names:
+            found = [n for n in owner.body if isinstance(
+                n, (ast.FunctionDef, ast.ClassDef),
+            ) and n.name == part]
+            if len(found) != 1:
+                return None
+            owner = found[0]
+        return owner if isinstance(owner, ast.FunctionDef) else None
+
+    def body(node: ast.FunctionDef | ast.ClassDef) -> list[ast.stmt]:
+        return [n for n in node.body if not (
+            isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+            and isinstance(n.value.value, str)
+        )]
+
+    def has(node: ast.AST | None, text: str) -> bool:
+        if node is None:
+            return False
+        expected = ast.parse(text).body
+        return all(any(shape(n) == shape(
+            target.value if isinstance(target, ast.Expr) else target,
+        ) for n in ast.walk(node)) for target in expected)
+
+    def calls(node: ast.AST, name: str) -> list[ast.Call]:
+        return [n for n in ast.walk(node) if isinstance(n, ast.Call)
+                and shape(n.func) == expression(name)]
+
+    def assignment(name: str, value: str) -> bool:
+        expected = ast.parse(f"{name} = {value}").body[0]
+        stores = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                  and n.id == name and isinstance(n.ctx, (ast.Store, ast.Del))]
+        others = [n for n in ast.walk(tree) if (
+            isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name == name
+        ) or (isinstance(n, ast.arg) and n.arg == name) or (
+            isinstance(n, ast.alias) and (n.asname or n.name.split(".")[0]) == name
+        )]
+        return len(stores) == 1 and not others and any(
+            shape(n) == shape(expected) for n in tree.body
+        )
+
+    # 宣言はDB実行ではない。許可するSQL片はdefault/partial indexの3定数のみ。
+    if path == "pitchlog/db/recording_rights/models.py":
+        names = {
+            "RecordingGeneration": "recording_generations",
+            "TrustedDevice": "trusted_devices",
+            "GameStartRequest": "game_start_requests",
+            "GameStartAttempt": "game_start_attempts",
+            "RecordingRightDelivery": "recording_right_deliveries",
+        }
+        for name, table in names.items():
+            declared = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name]
+            if len(declared) != 1 or not has(declared[0], f"__tablename__ = {table!r}"):
+                return False
+        checks = {
+            "RecordingGeneration": (
+                "recovery_generation: Mapped[int | None] = mapped_column("
+                "BigInteger, nullable=True)",
+            ),
+            "TrustedDevice": (
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+            "GameStartRequest": (
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+            "GameStartAttempt": (
+                'Index("uq_game_start_attempts_pending", "tenant_id", "game_id", '
+                '"start_request_id", unique=True, postgresql_where=text("outcome = \'pending\'"), '
+                'info={"roles": ("business_unique",)})',
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+                'outcome: Mapped[str] = mapped_column(Text, nullable=False, '
+                'server_default=text("\'pending\'"))',
+            ),
+            "RecordingRightDelivery": (
+                'generation: Mapped[int] = mapped_column(BigInteger, nullable=False)',
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+        }
+        for name, expected in checks.items():
+            declared = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name)
+            if any(isinstance(n, (ast.If, ast.Try, ast.With)) for n in declared.body):
+                return False
+            for statement in expected:
+                parsed = ast.parse(statement).body[0]
+                if isinstance(parsed, ast.AnnAssign) and isinstance(parsed.target, ast.Name):
+                    definitions = [n for n in declared.body if isinstance(n, ast.AnnAssign)
+                                   and isinstance(n.target, ast.Name)
+                                   and n.target.id == parsed.target.id]
+                    if len(definitions) != 1 or shape(definitions[0]) != shape(parsed):
+                        return False
+                elif not has(declared, statement):
+                    return False
+            if name != "RecordingGeneration":
+                sql_calls = calls(declared, "text")
+                expected_sql = (["outcome = 'pending'", "CURRENT_TIMESTAMP", "'pending'"]
+                                if name == "GameStartAttempt" else ["CURRENT_TIMESTAMP"])
+                if sorted(shape(n) for n in sql_calls) != sorted(
+                    expression(f"text({value!r})") for value in expected_sql
+                ):
+                    return False
+        return True
+    if path == "pitchlog/api/schemas/game_start.py":
+        declared = [n for n in tree.body if isinstance(n, ast.ClassDef)
+                    and n.name == "InitialGameStartResponse"]
+        return len(declared) == 1 and has(declared[0], "recovery_generation: str")
+    if path == "pitchlog/authz/capability_catalog.py":
+        fn = function("_initial_storage_profile")
+        expected = ast.parse('''generation = [
+    row for row in rows if _optional(row, "table") == "recording_generations"
+]
+if len(generation) != 1 or generation[0] != {
+    "table": "recording_generations", "profile": "tenant_owned",
+}:
+    violations.append("初期保存でも記録権世代の既存tenant_owned分類が必要")
+if violations:
+    raise CapabilityCatalogError(violations)
+return True
+''').body
+        return fn is not None and [shape(n) for n in body(fn)[-4:]] == [
+            shape(n) for n in expected
+        ]
+    if path == "pitchlog/authz/product_function_acl.py":
+        fn = function("generate_generation_guard_sql")
+        if fn is None:
+            return False
+        expected = ast.parse('''
+migration = root / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+try:
+    tree = ast.parse(migration.read_text(encoding="utf-8"))
+    bindings = [node for node in ast.walk(tree) if isinstance(node, ast.Name)
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+                and node.id == "_GENERATION_GUARD_SQL"]
+    declarations = [node for node in tree.body if isinstance(node, ast.Assign)
+                    and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "_GENERATION_GUARD_SQL"]
+    other_bindings = any(
+        (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+         and node.name == "_GENERATION_GUARD_SQL")
+        or (isinstance(node, ast.alias)
+            and (node.asname or node.name.split(".")[0]) == "_GENERATION_GUARD_SQL")
+        for node in ast.walk(tree))
+    if other_bindings or len(bindings) != 1 or len(declarations) != 1:
+        raise ValueError("固定定数の単一トップレベル代入でない")
+    declaration = declarations[0]
+    values = ast.literal_eval(declaration.value)
+    if type(values) is not tuple or len(values) != 3 or any(
+        type(value) is not str or not value.strip() for value in values):
+        raise ValueError("固定DDL三要素でない")
+    sql = values[0]
+except (OSError, SyntaxError, ValueError, TypeError) as exc:
+    raise ValueError("0036の世代guard供給が不正") from exc
+return (
+    "-- ELEMENT-TYPE: function\\n"
+    "-- ELEMENT-ID: FUNCTION:public:protect_recording_generations_updates()\\n\\n"
+    + sql.rstrip(";\\n") + ";\\n"
+    "REVOKE EXECUTE ON FUNCTION public.protect_recording_generations_updates() "
+    "FROM PUBLIC, pitchlog_app;\\n")
+''').body
+        return [shape(n) for n in body(fn)] == [shape(n) for n in expected] and has(
+            function("generate_product_function_acl_sql"),
+            "return generate_generation_guard_sql(_REPOSITORY_ROOT)",
+        )
+    if path == "pitchlog/repositories/game_start.py":
+        fn = function("_start_token")
+        if fn is None:
+            return False
+        # 2型ternary以外のconstructorやowner/原bytesの変更を許可しない。
+        expected = ast.parse('''
+from pitchlog.repositories.initial_recording_right import (
+    _PersistInitialStartToken, _ReadInitialStartContextToken,
+)
+bound.__post_init__()
+owner = bound.owner
+cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken
+return cls(owner.game_id, owner.start_request_id, owner.attempt_id,
+           owner.request_digest, bound.canonical_bytes.decode("utf-8"))
+''').body
+        return [shape(n) for n in body(fn)] == [shape(n) for n in expected]
+    if path == "pitchlog/repositories/initial_recording_right.py":
+        fn = function("_existing_start_scope_on_handle")
+        positive = function("_positive_generation")
+        if fn is None or positive is None:
+            return False
+        expected = ast.parse('''
+from pitchlog.repositories.transaction import _assert_existing_resolution_owner
+_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)
+with _bound_initial_adapter(context, transaction, owner, bound) as scope:
+    yield scope
+''').body
+        return ([shape(n) for n in body(fn)] == [shape(n) for n in expected]
+                and len(body(positive)) == 1 and has(positive,
+                    "return type(value) is int and 0 < value < 2**63"))
+    if path != "pitchlog/recording_rights/initial_grant_broker.py":
+        return False
+
+    sql = """SELECT session_user::text, current_user::text,
+        r.rolcanlogin, r.rolsuper, r.rolbypassrls, r.rolinherit,
+        r.rolcreaterole, r.rolcreatedb, r.rolreplication,
+        (SELECT count(*) FROM pg_catalog.pg_auth_members AS m
+         WHERE m.member = r.oid OR m.roleid = r.oid),
+        pg_catalog.current_setting('app.tenant_id', true),
+        pg_catalog.current_database()::text, d.oid::integer,
+        pg_catalog.pg_postmaster_start_time(), pg_catalog.pg_backend_pid()
+        FROM pg_catalog.pg_roles AS r JOIN pg_catalog.pg_database AS d
+        ON d.datname = pg_catalog.current_database() WHERE r.rolname = session_user"""
+    def normalize_sql(value: str) -> str:
+        return " ".join(value.split())
+    if not assignment("_ACTOR_ROLE", "'pitchlog_initial_actor'") or not assignment(
+        "_INITIAL_AUTH_VERIFIER_ROLE", "'pitchlog_initial_auth_verifier'",
+    ):
+        return False
+    actor = function("_validate_actor_observation")
+    verifier = function("_validate_auth_verifier_observation")
+    if actor is None or verifier is None:
+        return False
+    actor_conditions = (
+        "len(row) != 15 or row[:2] != (_ACTOR_ROLE, _ACTOR_ROLE)",
+        "tuple(row[2:9]) != (True, False, False, False, False, False, False) "
+        "or any(type(v) is not bool for v in row[2:9])",
+        "type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '')",
+        "row[11] != config.database_name or type(row[12]) is not int "
+        "or row[12] != config.database_oid or type(row[13]) is not datetime "
+        "or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0",
+    )
+    actor_checks = body(actor)
+    if len(actor_checks) != 4 or any(
+        not isinstance(node, ast.If) or shape(node.test) != expression(test)
+        or len(node.body) != 1 or not isinstance(node.body[0], ast.Raise) or node.orelse
+        for node, test in zip(actor_checks, actor_conditions, strict=True)
+    ):
+        return False
+    verifier_condition = (
+        "len(row) != 15 or row[:2] != (_INITIAL_AUTH_VERIFIER_ROLE, _INITIAL_AUTH_VERIFIER_ROLE) "
+        "or tuple(row[2:9]) != (True, False, False, False, False, False, False) "
+        "or any(type(v) is not bool for v in row[2:9]) "
+        "or type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '') "
+        "or row[11] != config.database_name or type(row[12]) is not int "
+        "or row[12] != config.database_oid or type(row[13]) is not datetime "
+        "or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0"
+    )
+    verifier_checks = body(verifier)
+    if len(verifier_checks) != 1 or not isinstance(verifier_checks[0], ast.If) or (
+        shape(verifier_checks[0].test) != expression(verifier_condition)
+    ) or len(verifier_checks[0].body) != 1 or not isinstance(
+        verifier_checks[0].body[0], ast.Raise,
+    ):
+        return False
+    constants = [n.value.value for n in tree.body if isinstance(n, ast.Assign)
+                 and any(isinstance(t, ast.Name) and t.id == "_AUTH_VERIFIER_CHECKOUT_SQL"
+                         for t in n.targets) and isinstance(n.value, ast.Constant)]
+    sql_stores = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                  and n.id == "_AUTH_VERIFIER_CHECKOUT_SQL"
+                  and isinstance(n.ctx, (ast.Store, ast.Del))]
+    if len(sql_stores) != 1:
+        return False
+    if len(constants) != 1 or type(constants[0]) is not str or (
+        normalize_sql(constants[0]) != normalize_sql(sql)
+    ):
+        return False
+    for fn_name, validate in (
+        ("_verify_initial_actor_checkout", "_validate_actor_observation"),
+        ("_verify_auth_verifier_checkout", "_validate_auth_verifier_observation"),
+    ):
+        fn = function(fn_name)
+        if fn is None or len(body(fn)) != 1 or not isinstance(body(fn)[0], ast.Try):
+            return False
+        block = body(fn)[0]
+        if not isinstance(block, ast.Try):
+            return False
+        if len(block.body) != 2 or not isinstance(block.body[0], ast.With) or (
+            not isinstance(block.body[1], ast.Expr)
+            or shape(block.body[1].value) != expression("connection.rollback()")
+        ):
+            return False
+        context = block.body[0]
+        if len(context.items) != 1 or shape(context.items[0].context_expr) != expression(
+            "connection.cursor()",
+        ) or not isinstance(context.items[0].optional_vars, ast.Name) or (
+            context.items[0].optional_vars.id != "cursor"
+        ) or len(context.body) != 4:
+            return False
+        execute = context.body[0]
+        if not isinstance(execute, ast.Expr) or not isinstance(execute.value, ast.Call):
+            return False
+        call = execute.value
+        if shape(call.func) != expression("cursor.execute") or call.keywords or len(call.args) != 1:
+            return False
+        if fn_name == "_verify_initial_actor_checkout":
+            if (not isinstance(call.args[0], ast.Constant)
+                or type(call.args[0].value) is not str or (
+                normalize_sql(call.args[0].value) != normalize_sql(sql)
+            )):
+                return False
+        elif shape(call.args[0]) != expression("_AUTH_VERIFIER_CHECKOUT_SQL"):
+            return False
+        expected_tail = ast.parse(f'''
+row = cursor.fetchone()
+if row is None or cursor.fetchone() is not None:
+    raise REJECT()
+{validate}(tuple(row), config)
+''').body
+        expected_if = expected_tail[1]
+        assert isinstance(expected_if, ast.If)
+        if shape(context.body[1]) != shape(expected_tail[0]) or (
+            not isinstance(context.body[2], ast.If)
+            or shape(context.body[2].test) != shape(expected_if.test)
+            or len(context.body[2].body) != 1
+            or not isinstance(context.body[2].body[0], ast.Raise)
+        ) or shape(context.body[3]) != shape(expected_tail[2]):
+            return False
+        if len(block.handlers) != 1 or block.orelse or block.finalbody:
+            return False
+        handler = block.handlers[0]
+        if handler.type is None or shape(handler.type) != expression("Exception") or (
+            len(handler.body) != 2 or not isinstance(handler.body[0], ast.Try)
+            or not isinstance(handler.body[1], ast.Raise)
+        ):
+            return False
+        rollback = handler.body[0]
+        if [shape(n) for n in rollback.body] != [shape(ast.parse(
+            "connection.rollback()",
+        ).body[0])] or len(rollback.handlers) != 1 or (
+            rollback.handlers[0].type is None
+            or shape(rollback.handlers[0].type) != expression("BaseException")
+            or len(rollback.handlers[0].body) != 1
+            or not isinstance(rollback.handlers[0].body[0], ast.Pass)
+        ):
+            return False
+    for name, url in (
+        ("_load_initial_actor_runtime", "normalize_postgresql_url(config.database_url)"),
+        ("_load_initial_auth_verifier_runtime", "_initial_auth_verifier_url(config)"),
+    ):
+        fn = function(name)
+        if fn is None:
+            return False
+        main_tries = [n for n in body(fn) if isinstance(n, ast.Try)]
+        if len(main_tries) != 1:
+            return False
+        prefix = (f"url = {url}\n" if name == "_load_initial_auth_verifier_runtime" else "")
+        suffix = (f"url = {url}\n" if name == "_load_initial_actor_runtime" else "")
+        passfile = ('args["passfile"] = "/dev/null"\n'
+                    if name == "_load_initial_auth_verifier_runtime" else "")
+        validate_checkout = ("_verify_initial_actor_checkout"
+                             if name == "_load_initial_actor_runtime"
+                             else "_verify_auth_verifier_checkout")
+        expected_suffix = ast.parse(prefix + '''args = engine_connect_args(False)
+args["gssencmode"] = "disable"
+args["connect_timeout"] = 1
+args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"
+''' + passfile + suffix + f'''require_database_transport(url, args)
+engine = create_engine(url, connect_args=args, hide_parameters=True,
+                       pool_size=3, max_overflow=0, pool_timeout=0.5)
+def checkout(connection: Any, record: Any, proxy: Any) -> None:
+    del record, proxy
+    {validate_checkout}(connection, config)
+event.listen(engine, "checkout", checkout)
+''').body
+        actual_suffix = main_tries[0].body[-len(expected_suffix):]
+        # nested callbackのdocstringだけを意味比較から除く。body/引数は完全比較。
+        actual_shapes = []
+        for stmt in actual_suffix:
+            if isinstance(stmt, ast.FunctionDef):
+                stmt = copy.deepcopy(stmt)
+                stmt.body = body(stmt)
+            actual_shapes.append(shape(stmt))
+        if actual_shapes != [shape(n) for n in expected_suffix]:
+            return False
+        expected_engine = expression(
+            "create_engine(url, connect_args=args, hide_parameters=True, "
+            "pool_size=3, max_overflow=0, pool_timeout=0.5)",
+        )
+        engines = calls(fn, "create_engine")
+        transports = calls(fn, "require_database_transport")
+        if len(engines) != 1 or shape(engines[0]) != expected_engine or len(transports) != 1 or (
+            shape(transports[0]) != expression("require_database_transport(url, args)")
+            or transports[0].lineno >= engines[0].lineno
+        ):
+            return False
+        required = (
+            "args = engine_connect_args(False)", 'args["gssencmode"] = "disable"',
+            'args["connect_timeout"] = 1',
+            'args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"',
+            f"url = {url}", 'event.listen(engine, "checkout", checkout)',
+        )
+        if not all(has(fn, statement) for statement in required):
+            return False
+        validate = ("_verify_initial_actor_checkout" if name == "_load_initial_actor_runtime"
+                    else "_verify_auth_verifier_checkout")
+        if not has(fn, f'''def checkout(connection: Any, record: Any, proxy: Any) -> None:
+            del record, proxy
+            {validate}(connection, config)'''):
+            # docstringは振舞いではなく、別の不変全byte照合が保持する。
+            nested = [n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef)
+                      and n.name == "checkout"]
+            expected = ast.parse(f"del record, proxy\n{validate}(connection, config)").body
+            if len(nested) != 1 or [shape(n) for n in body(nested[0])] != [
+                shape(n) for n in expected
+            ]:
+                return False
+    def exact_body(name: str, expected: str) -> bool:
+        actual = function(name)
+        return actual is not None and [shape(n) for n in body(actual)] == [
+            shape(n) for n in ast.parse(expected).body
+        ]
+
+    if not exact_body("_broker_generation", '''
+try:
+    if type(value) is not str or len(value) != 60 or not value.startswith("d4.1."):
+        raise ValueError
+    encoded = value[5:]
+    if any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+           for ch in encoded):
+        raise ValueError
+    raw = base64.b64decode(encoded + "=", altchars=b"-_", validate=True)
+    if len(raw) != 41 or raw[0] != 1:
+        raise ValueError
+    generation = int.from_bytes(raw[33:], "big")
+    if (raw[1:17] != tenant_id.bytes or raw[17:33] != game_id.bytes
+        or _broker_d4(tenant_id, game_id, generation) != value):
+        raise ValueError
+except (ValueError, TypeError, AttributeError):
+    pass
+else:
+    return generation
+raise _broker_invalid()
+'''):
+        return False
+
+    # 実registryの消費/所有poolだけのcleanupとUnix/専用role制約。
+    if not exact_body("_close_initial_actor_runtime", '''
+state = _actor_state(runtime)
+assert type(runtime) is _InitialActorRuntime
+_ACTOR_RUNTIMES.pop(runtime._key)
+state.engine.dispose()
+''') or not exact_body("_close_initial_auth_verifier_runtime", '''
+state = _auth_verifier_state(runtime)
+assert type(runtime) is _InitialAuthVerifierRuntime
+del _AUTH_VERIFIER_RUNTIMES[runtime._key]
+try:
+    state.engine.dispose()
+except Exception:
+    pass
+else:
+    return
+raise _broker_invalid()
+''') or not exact_body("_initial_auth_verifier_url", '''
+from sqlalchemy.engine import make_url
+try:
+    url = make_url(normalize_postgresql_url(config.database_url))
+    query = dict(url.query)
+    host = query.get("host", url.host)
+    if (url.username != _ACTOR_ROLE or url.password is not None
+        or type(host) is not str or not host.startswith("/") or "," in host
+        or any(k not in {"host", "port", "sslmode", "gssencmode"} for k in query)
+        or query.get("sslmode", "disable") != "disable"
+        or query.get("gssencmode", "disable") != "disable"
+        or url.database != config.database_name):
+        raise ValueError
+    return url.set(username=_INITIAL_AUTH_VERIFIER_ROLE).render_as_string(hide_password=False)
+except (ValueError, TypeError, AttributeError):
+    pass
+raise _broker_invalid()
+'''):
+        return False
+    verifier_loader = function("_load_initial_auth_verifier_runtime")
+    actor_loader = function("_load_initial_actor_runtime")
+    if verifier_loader is None or actor_loader is None:
+        return False
+    verifier_tries = [n for n in body(verifier_loader) if isinstance(n, ast.Try)]
+    expected_handler = ast.parse('''try:
+    pass
+except Exception:
+    if engine is not None:
+        try:
+            engine.dispose()
+        except Exception:
+            pass
+else:
+    key = object()
+    _AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)
+    return _InitialAuthVerifierRuntime(key, _RUNTIME_CREATION)
+''').body[0]
+    assert isinstance(expected_handler, ast.Try)
+    if len(verifier_tries) != 1 or [shape(n) for n in verifier_tries[0].handlers] != [
+        shape(n) for n in expected_handler.handlers
+    ] or [shape(n) for n in verifier_tries[0].orelse] != [
+        shape(n) for n in expected_handler.orelse
+    ]:
+        return False
+    actor_tail = ast.parse('''key = object()
+_ACTOR_RUNTIMES[key] = _ActorState(engine, config, box)
+return _InitialActorRuntime(key, _RUNTIME_CREATION)
+''').body
+    if [shape(n) for n in body(actor_loader)[-3:]] != [shape(n) for n in actor_tail]:
+        return False
+    # 副作用のない名称の存在ではなく、外部guardの実import束縛を固定する。
+    imported: dict[str, list[str]] = {}
+    for n in tree.body:
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                imported.setdefault(a.asname or a.name.split(".")[0], []).append(a.name)
+        elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
+            for a in n.names:
+                imported.setdefault(a.asname or a.name, []).append(f"{n.module}.{a.name}")
+    for name, origin in {
+        "socket": "socket", "os": "os", "create_engine": "sqlalchemy.create_engine",
+        "event": "sqlalchemy.event", "import_module": "importlib.import_module",
+        "require_database_transport": (
+            "pitchlog.authz.database_transport.require_database_transport"
+        ),
+        "engine_connect_args": "pitchlog.db.engine.engine_connect_args",
+    }.items():
+        if imported.get(name) != [origin] or any(
+            isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, (ast.Store, ast.Del))
+            for n in ast.walk(tree)
+        ):
+            return False
+
+    client = function("_InitialBrokerClient.call")
+    server = function("serve_initial_broker")
+    if client is None or server is None:
+        return False
+    sockets = [n for n in ast.walk(client) if isinstance(n, ast.With) and len(n.items) == 1
+               and shape(n.items[0].context_expr) == expression(
+                   "socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)",
+               ) and n.items[0].optional_vars is not None
+               and shape(n.items[0].optional_vars) == shape(
+                   ast.Name(id="channel", ctx=ast.Store()),
+               )]
+    client_tries = [n for n in body(client) if isinstance(n, ast.Try)]
+    socket_body = ast.parse('''_broker_remaining(channel, deadline)
+channel.connect(str(self._endpoint.path))
+_check_broker_peer(channel)
+_check_broker_socket(self._endpoint)
+_broker_remaining(channel, deadline)
+channel.sendall(frame)
+channel.shutdown(socket.SHUT_WR)
+response = _broker_receive(channel, deadline)
+''').body
+    if len(sockets) != 1 or len(client_tries) != 1 or sockets[0] not in client_tries[0].body or (
+        [shape(n) for n in sockets[0].body] != [shape(n) for n in socket_body]
+    ):
+        return False
+    if len(sockets) != 1 or len(calls(client, "channel.connect")) != 1 or not has(
+        sockets[0], "channel.connect(str(self._endpoint.path))",
+    ):
+        return False
+    files = [n for n in ast.walk(server) if isinstance(n, ast.With) and len(n.items) == 1
+             and shape(n.items[0].context_expr) == expression('os.fdopen(fd, "wb")')
+             and n.items[0].optional_vars is not None
+             and shape(n.items[0].optional_vars) == shape(ast.Name(id="output", ctx=ast.Store()))]
+    expected_file = ast.parse('''os.fchmod(output.fileno(), 0o644)
+output.write(_broker_json(endpoint_body))
+output.flush()
+os.fsync(output.fileno())''').body
+    server_tries = [n for n in body(server) if isinstance(n, ast.Try)]
+    if len(files) != 1 or len(server_tries) != 1 or files[0] not in server_tries[0].body or (
+        [shape(n) for n in files[0].body] != [shape(n) for n in expected_file]
+    ):
+        return False
+    durable_assignment = ast.parse(
+        'source = DurableLedger(Path(config["ledger_endpoint"]))',
+    ).body[0]
+    if not any(shape(n) == shape(durable_assignment) for n in server_tries[0].body) or not has(
+        server, "from pitchlog.durable_rights_ledger import DurableLedger",
+    ):
+        return False
+    imported_ledger = ast.parse(
+        "from pitchlog.durable_rights_ledger import DurableLedger",
+    ).body[0]
+    if sum(shape(n) == shape(imported_ledger) for n in body(server)) != 1 or any(
+        isinstance(n, ast.Name) and n.id == "DurableLedger"
+        and isinstance(n.ctx, (ast.Store, ast.Del)) for n in ast.walk(server)
+    ):
+        return False
+    # importの固定先、実owner復旧世代照合、および純bigint codecの型/範囲を保持。
+    return (
+        has(function("_verify_business_binding"),
+            'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")')
+        and has(function("_issue_initial_grant_impl"),
+                "assert_write_recovery_generation(scope, source, fence, "
+                "int(grant.recovery_generation))")
+        and has(function("_worker_resolve_start"),
+                "assert_write_recovery_generation(scope, state.source, fence, "
+                "int(grant.recovery_generation))")
+        and has(function("_broker_d4"), '''if (type(tenant_id) is not UUID
+            or type(game_id) is not UUID
+            or type(generation) is not int or not 0 < generation < 2**63):
+                raise _broker_invalid()''')
+    )
+
+
+def _initial_population_evidence(
+    source: str, path: str,
+) -> frozenset[tuple[int, str, str, str]]:
+    """既承認の単一siteを、不変Git原典の実owner/全ASTへ束縛する。
+
+    書式・import/再束縛も含む原典全byteを前提とするが、許可は下記の
+    有限siteだけである。型・DB API・module・未知callableへの一般免除ではない。
+    """
+    policy = _INITIAL_POPULATION_POLICY.get(path)
+    if policy is None:
+        return frozenset()
+    source_key, sites = policy
+    if not _initial_population_semantics(ast.parse(source, filename=path), path):
+        return frozenset()
+    original = _scope_proof_source_bytes(source_key)
+    if source.encode("utf-8") != original:
+        return frozenset()
+    expected_tree = ast.parse(original, filename=path)
+    current_tree = ast.parse(source, filename=path)
+    module = _module_name(path)
+    def owners(tree: ast.Module) -> dict[str, ast.AST]:
+        result: dict[str, ast.AST] = {"<module>": tree}
+
+        def collect(node: ast.AST, prefix: str) -> None:
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    name = f"{prefix}.{child.name}" if prefix else child.name
+                    if name in result:
+                        # 同名再定義も単一ownerとして採用しない。
+                        result.pop(name)
+                        continue
+                    result[name] = child
+                    collect(child, name)
+                else:
+                    collect(child, prefix)
+
+        collect(tree, "")
+        return result
+
+    expected_owners, current_owners = owners(expected_tree), owners(current_tree)
+    evidence: set[tuple[int, str, str, str]] = set()
+    for line, code, symbol, owner in sites:
+        owner_name = owner.removesuffix(".<module>")
+        expected_owner = expected_owners.get(owner_name)
+        current_owner = current_owners.get(owner_name)
+        if expected_owner is None or current_owner is None:
+            continue
+        # owner全ASTによりrole/identity/TLS設定・SQL・rollback・callback束縛を保持。
+        if ast.dump(expected_owner, include_attributes=False) != ast.dump(
+            current_owner, include_attributes=False,
+        ):
+            continue
+        # 呼出しならreceiverと全引数を含むCall、注釈/参照なら実statement全体。
+        expected_nodes = [
+            node for node in ast.walk(expected_tree)
+            if getattr(node, "lineno", None) == line
+            and isinstance(node, (ast.stmt, ast.Call, ast.expr))
+        ]
+        current_nodes = [
+            node for node in ast.walk(current_tree)
+            if getattr(node, "lineno", None) == line
+            and isinstance(node, (ast.stmt, ast.Call, ast.expr))
+        ]
+        if not expected_nodes or [
+            ast.dump(node, include_attributes=False) for node in expected_nodes
+        ] != [ast.dump(node, include_attributes=False) for node in current_nodes]:
+            continue
+        evidence.add((line, code, symbol, f"{module}.{owner}"))
+    return frozenset(evidence)
+
+
 def scan_source(
     source: str,
     *,
@@ -6160,6 +7062,11 @@ def scan_source(
             violations = [v for v in violations if v.code != "TB001"
                           or (v.line, v.symbol, v.scope)
                           != (resolution.line, resolution.symbol, resolution.scope)]
+    initial_evidence = _initial_population_evidence(source, path)
+    violations = [
+        item for item in violations
+        if (item.line, item.code, item.symbol, item.scope) not in initial_evidence
+    ]
     return sorted(violations)
 
 
@@ -6598,13 +7505,13 @@ def _git_regular_blob(
     return True
 
 
-def _scope_proof_source_sha256(
+def _scope_proof_source_bytes(
     source_key: str,
     *,
     declaration_repository_root: Path | None = None,
     git_repository_root: Path | None = None,
-) -> str:
-    """目的付き不変Git原典の固定4pathから全byte SHA256を読む。
+) -> bytes:
+    """目的付き不変Git原典の固定8pathから全byteを読む。
 
     Args:
         source_key: 既承認の有限sourceの用途キー。
@@ -6612,7 +7519,7 @@ def _scope_proof_source_sha256(
         git_repository_root: 不変Gitobjectを解決するroot。検査source rootとは別。
 
     Returns:
-        固定revisionの通常Gitblob全byteから導いたSHA256。
+        固定revisionの通常Gitblob全byte。
 
     Raises:
         ContractError: 未知用途、宣言不足、不正revision、Git参照失敗の場合。
@@ -6627,6 +7534,12 @@ def _scope_proof_source_sha256(
             "backend/src/pitchlog/recording_rights/initial_grant_broker.py"
         ),
     }
+    paths.update({
+        "initial_response_annotations": "backend/src/pitchlog/api/schemas/game_start.py",
+        "initial_storage_classification": "backend/src/pitchlog/authz/capability_catalog.py",
+        "initial_generation_guard_ddl": "backend/src/pitchlog/authz/product_function_acl.py",
+        "initial_storage_model_declarations": "backend/src/pitchlog/db/recording_rights/models.py",
+    })
     if source_key not in paths:
         raise ContractError("scope proofの未知source用途")
     declaration_root = declaration_repository_root or Path(__file__).resolve().parents[1]
@@ -6650,6 +7563,7 @@ def _scope_proof_source_sha256(
     if _string_array(entry["sources"], "scope proof sources") != (
         "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
         "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
+        "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
     ):
         raise ContractError("scope proofのconsumer閉集合が不一致")
     revision = _string(entry["value"], "scope proof revision")
@@ -6667,7 +7581,22 @@ def _scope_proof_source_sha256(
     )
     if result.returncode != 0:
         raise ContractError("scope proofのGit原典byteを取得できない")
-    return hashlib.sha256(result.stdout).hexdigest()
+    return result.stdout
+
+
+
+def _scope_proof_source_sha256(
+    source_key: str,
+    *,
+    declaration_repository_root: Path | None = None,
+    git_repository_root: Path | None = None,
+) -> str:
+    """既承認の用途別原典全byteからSHA256を導く。"""
+    return hashlib.sha256(_scope_proof_source_bytes(
+        source_key,
+        declaration_repository_root=declaration_repository_root,
+        git_repository_root=git_repository_root,
+    )).hexdigest()
 
 
 def _asset_external_files(asset: Mapping[str, object], location: str) -> tuple[str, ...]:
