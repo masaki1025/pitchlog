@@ -315,27 +315,25 @@ def _copy_product_catalog_repository(tmp_path: Path) -> Path:
 def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
     """製品状態からでも正しい未発効状態の検査用複製を組み立てる。"""
     root = _copy_product_catalog_repository(tmp_path)
-    # 版固定の未発効候補はRG1追加前の45表を表す。
-    schema_manifest_path = Path("contracts/db/schema-manifest.json")
-    schema_manifest = _read_json_at(root, schema_manifest_path)
-    schema_manifest["tables"] = [
-        row for row in schema_manifest["tables"] if row["name"] != "rg1_restore_gate"
-    ]
-    _write_json_at(root, schema_manifest_path, schema_manifest)
-    classification_path = Path("contracts/authz/product/table-classification.json")
-    classification = _read_json_at(root, classification_path)
-    classification["tables"] = [
-        row for row in classification["tables"] if row["table"] != "rg1_restore_gate"
-    ]
-    _write_json_at(root, classification_path, classification)
     provisional_revision = runtime_contract_support.provisional_reference_revision(
         REPOSITORY_ROOT
     )
+    # 未発効fixtureの母集合は暫定版の実原本へ戻す。現製品の新表を混在させない。
+    for relative_path in (
+        "contracts/db/schema-manifest.json",
+        "contracts/authz/product/table-classification.json",
+        "contracts/authz/product/exposure-facts.json",
+    ):
+        (root / relative_path).write_text(
+            _run_git(REPOSITORY_ROOT, "show", f"{provisional_revision}:{relative_path}"),
+            encoding="utf-8",
+        )
     # 未発効候補は暫定契約の版で固定する。暫定契約より後に足した migration の関数は
-    # その版の契約に無いため、候補の複製からは外す(0028・0033)。
+    # その版の契約に無いため、候補の複製からは外す(0028・0033・0036)。
     for filename in (
         "0028_tenant_login_identity.py",
         "0033_game_rules_immutable.py",
+        "0036_initial_recording_right_storage.py",
     ):
         (root / checker.PRODUCT_MIGRATION_VERSIONS / filename).unlink()
     steps_path = root / checker.PRODUCT_SPEC.application_steps_path
@@ -356,10 +354,26 @@ def _copy_pending_catalog_repository(tmp_path: Path) -> Path:
         for row in staged.get(section.section_name, [])
     }
     body_manifest_path = checker.PRODUCT_SPEC.asset_root / "function-bodies/manifest.json"
-    body_manifest = _read_json_at(root, body_manifest_path)
-    for entry in body_manifest["entries"]:
+    current_body_manifest = _read_json_at(root, body_manifest_path)
+    for entry in current_body_manifest["entries"]:
         if (entry["element_type"], entry["element_id"]) not in allowed:
             (root / entry["path"]).unlink()
+    # 製品で表ACLが列ACLへ移った識別子も、暫定版のmanifestから復元する。
+    body_manifest = _read_base_staged_asset(body_manifest_path)
+    for entry in body_manifest["entries"]:
+        if entry["element_id"] == "ACL:recording_generations:pitchlog_app":
+            # 現製品では秘密列を含むため列ACLだが、暫定版は表SELECTを持つ。
+            declaration = next(
+                row for row in staged["acl_expectations"]
+                if row["acl_id"] == entry["element_id"]
+            )
+            (root / entry["path"]).parent.mkdir(parents=True, exist_ok=True)
+            (root / entry["path"]).write_text(
+                checker.generate_product_table_acl_sql(
+                    declaration["object_id"], declaration["profile"]
+                ),
+                encoding="utf-8",
+            )
     body_manifest["entries"] = [
         entry for entry in body_manifest["entries"]
         if (entry["element_type"], entry["element_id"]) in allowed
