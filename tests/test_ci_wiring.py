@@ -3721,9 +3721,13 @@ def test_pytest_shard_config_matches_the_ci_command() -> None:
     ]
     tokens = shlex.split(HARNESS_PYTEST_COMMAND)
     assert tokens[tokens.index("--shard-count") + 1] == str(harness["shards"])
+    assert "--shard-index ${{ matrix.shard }}" in HARNESS_PYTEST_COMMAND
     assert "--shard-index" in tokens
     assert harness["targets"] == ["tests/"]
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    for job_name in ("harness-shard", "backend-shard"):
+        matrix = workflow["jobs"][job_name]["strategy"]["matrix"]["shard"]
+        assert len(matrix) == harness["shards"] == backend["shards"]
     commands = [
         str(step.get("run"))
         for step in workflow["jobs"]["harness"]["steps"]
