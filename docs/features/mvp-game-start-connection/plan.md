@@ -754,3 +754,21 @@ PO委任によるCodex主担当 /root判断として、最終9d9d7b1cで実CIが
 実CIのfixture再基線追補（2026-10-31、PO委任によるCodex /root判断）: 次の既存7pathを限定追加する。`tests/test_stage_a_startup_tenant_boundary.py`は既許可済み初期保存2関数のAPI全tupleを既9に足すexact11期待へ追随し、未知API/署名/別moduleの拒否は維持する。`tests/test_check_authz_catalog.py`の未発効fixtureは暫定版の実Git schema-manifest/table-classificationを復元して現初期4表とRG1の混入を除き、暫定版後の0036も複製fixtureだけから除く。製品checkerや本物資産/migrationを変更せず、未発効状態専用検査が実行されることを維持する。
 
 ORM受入出力5path `docs/features/orm-schema-migration/acceptance-sheets/{N1-table-completeness,N3-immutability-completeness,N4-deletion-lifecycle,N7-required-attributes,README}.md`は公式generate_orm_acceptance_sheetsのcarry-judgments手続きで現入力へ再生成する。既本人判定の出典は同一判定対象で安全な行だけ原文持越し、変動/新規行を本人承認済みに補わない。失効・新規行は空欄のまま別に管理し、必要な主担当確認はPO委任として明記する。原資料/全前後/引継ぎ理由をcacheへ固定し非作者確認する。
+
+実CI backend13失敗の有限修復起動（2026-10-31、PO委任によるCodex /root判断）: 非編集診断REPORT2ac0990e…/checks04a82577…を根拠に、次の既13pathを実装ステップ1/1追補として割り当てる。製品source/過去migration/正式契約JSONは変更しない。
+
+- `backend/tests/db_fixtures.py`
+- `backend/tests/db/test_immutability_matrix.py`
+- `backend/tests/db/test_migration_round_trip.py`
+- `backend/tests/db/test_product_authz_authn_security.py`
+- `backend/tests/product_authz_tenant_owned_cases.py`
+- `backend/tests/product_authz_cross_cutting_cases.py`
+- `backend/tests/db/test_product_authz_cross_cutting.py`
+- `backend/tests/test_product_authz_tenant_owned_cases.py`
+- `backend/tests/product_authz_other_profiles_cases.py`
+- `backend/tests/db/test_product_authz_other_profiles.py`
+- `backend/tests/test_product_authz_other_profiles_cases.py`
+- `backend/tests/db/test_product_authz_provisioning.py`
+- `backend/tests/db/test_schema_audit.py`
+
+歴史fixtureでもowned seed DBのPUBLIC CONNECT/TEMPを閉鎖し、新verifier全DB検査を維持する。不変probe/0036実revision/全LOGIN原則に対する既契約verifier唯一口/動的trigger実全identity4接続/秘密列と既列count ACL/実role属性/schema既quote2を原典と実SQLから照合する。範囲を広く無効化せず、期待は全対象exactで確認する。trigger抽出修復には正負pure対向を付ける。source固定後は非作者レビュー→root所有隔離PGで全該当DB試験を行い、診断推定を実証と区別する。workerはDB/docker操作・commit/pushをしない。他WTの保存接続とDB競合させない。
