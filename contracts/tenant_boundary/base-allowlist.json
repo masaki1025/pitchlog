@@ -33038,6 +33038,36 @@
         "SQLA_SELECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/pitch_type_options_allowed/_statement.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._check_writer_storage",
+      "signature": "_check_writer_storage(connection: Any, revision: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_check_writer_storage.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._apply_writer_storage",
+      "signature": "_apply_writer_storage(owner_dsn: str) -> None",
+      "allowed_api_ids": [
+        "SQLA_CREATE_ENGINE",
+        "SQLA_ENGINE_BEGIN",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_apply_writer_storage.py"
+    },
+    {
+      "symbol": "pitchlog.db.stage_a_startup._require_writer_state",
+      "signature": "_require_writer_state(applicator_dsn: str) -> None",
+      "allowed_api_ids": [
+        "PSYCOPG_CONNECT",
+        "PSYCOPG_CONNECTION_CURSOR",
+        "PSYCOPG_CURSOR_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_writer_state.py"
     }
   ],
   "conditions": [
