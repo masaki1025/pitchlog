@@ -187,3 +187,5 @@ zero論理refはid=実start_request_id/rev1/history0、自己循環なしinitial
 物理PlayRow/flags/責任とPlayRunnerはbefore（第三outのbefore走者を消さない）、after checkpointは反対側実投捕/次打者。T2検知lock後newpitchは拒否し旧D5再送は解決、gameEnded自動true0。未供給終了宣言/再開/TB開始をnoend成功へ補完しない。別device拒否試験はwrite資格を対象とし、同team viewerのGET閲覧権を不必要に塞がない。oldDTO/reader保持＋v3別DTO/読取を提供する。
 
 実owned PGの実POST作成/開始/初期権→zeroGET→三振3PA→反対側ordinary→GET/再読込を通す。同D5/故障全取消/別tenant・write device・失効epoch/nonce二重消費/歴史A→B/lock後newD5拒否を検証する。事前投入試合/常時成功/仮Port/数学fixtureを原本にしない。新reader/SQL/実DB/GETはこれから、正式7.7/最終CI/通常merge・全MVPは未成立。UIの接続はステップ5へ残す。
+
+先行BIGINT修復の採用（2026-10-31、PO委任によるCodex /root判断）: actual既3pathはcache r2と全byte一致、独立REPORT341c878b…/checks21246bc9…（P0/P1/P2=0、独立309成功）と作者342成功を区別して確認した。有限PLAY_PREFIX登録集合のORだけを既BigInteger条件へ追加し、3関数9bindの型を正す。他16関数/prepareのSQL・拒否条件は保持、strict20登録期待と全11binding objectを照合。root-approval.jsonへ実版/各SHA/判断時刻を固定し、commit後に実接続writerへ当該3pathの所有を移す。実DB・三振保存成功とはしない。

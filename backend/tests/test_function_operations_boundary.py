@@ -112,7 +112,7 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """既9件とordinary資格2件・限定prefix関数3件の全集合を照合する。"""
+    """既16件を保持し、v2 prefixの正規4件を含む全集合を照合する。"""
     from pitchlog.repositories.first_ball import (
         _BindFirstBallDeviceToken,
         _CheckFirstBallRightToken,
@@ -138,6 +138,12 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _AssertWriterBindingToken,
         _ReadWriterIdentityToken,
     )
+    from pitchlog.sync.terminal_pitch_tokens import (
+        PlayPrefixCheckpointLockToken,
+        PlayPrefixCheckpointReadToken,
+        PlayPrefixHistoryPageToken,
+        PreparePlayPrefixProjectionToken,
+    )
 
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
@@ -158,6 +164,10 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
         "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
         "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+        "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
@@ -176,6 +186,10 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OrdinaryCheckpointLockToken,
         OrdinaryHistoryPageToken,
         OrdinaryOrderSummaryToken,
+        PlayPrefixCheckpointReadToken,
+        PlayPrefixCheckpointLockToken,
+        PlayPrefixHistoryPageToken,
+        PreparePlayPrefixProjectionToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -2018,15 +2032,17 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
     )
     from pitchlog.repositories.ordinary_prefix_operations import (
         ORDINARY_PREFIX_OPERATIONS,
+        PLAY_PREFIX_OPERATIONS,
     )
 
     original = (
         *ORDINARY_QUALIFICATION_OPERATIONS,
         *ORDINARY_PREFIX_OPERATIONS,
         *ORDINARY_ORDER_OPERATIONS,
+        *PLAY_PREFIX_OPERATIONS,
     )
     registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[-len(original) :]
-    assert len(registered) == 7
+    assert len(original) == len(registered) == 11
     assert all(
         actual is expected
         for actual, expected in zip(registered, original, strict=True)
@@ -2061,3 +2077,224 @@ def test_literal_binding_rejects_other_group_and_extra_real_registration() -> No
     extra = _registration()
     with pytest.raises(ValueError):
         _registered_product_function(extra, operation_id=extra.operation_id)
+
+
+_PLAY_PREFIX_BIGINT_INPUTS = frozenset(
+    {
+        "generation",
+        "storage_history_epoch",
+        "wire_checkpoint_revision",
+        "wire_history_version",
+        "upper_watermark",
+        "after_d1",
+        "after_d2",
+    }
+)
+_PLAY_PREFIX_SIGNATURES = (
+    ("read_play_prefix_checkpoint", "uuid, uuid, bigint"),
+    ("lock_play_prefix_checkpoint", "uuid, uuid, uuid, bytea, uuid, uuid, bigint"),
+    (
+        "read_play_prefix_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, "
+        "bigint, bigint, uuid, integer",
+    ),
+    ("prepare_play_prefix_projection", "uuid, uuid, uuid, bytea, uuid, uuid, text"),
+)
+
+
+@pytest.mark.parametrize("name,signature", _PLAY_PREFIX_SIGNATURES)
+def test_play_prefix_psycopg_binds_match_existing_sql_signature(name, signature):
+    """既4関数の完全SQLと実psycopg型を正式BIGINT署名へ合わせる。"""
+    from pathlib import Path
+
+    from sqlalchemy import BigInteger, LargeBinary
+    from sqlalchemy.dialects.postgresql.psycopg import dialect
+
+    from pitchlog.repositories.ordinary_prefix_operations import PLAY_PREFIX_OPERATIONS
+
+    spec = next(s for s in PLAY_PREFIX_OPERATIONS if s.function_id.endswith("." + name))
+    asset = (
+        Path(__file__).resolve().parents[2]
+        / "contracts/authz/product/function-bodies/functions"
+        / f"FUNCTION:sync_right_api:{name}({signature}).sql"
+    )
+    header = asset.read_text().split("RETURNS", 1)[0].split("CREATE FUNCTION", 1)[1]
+    sql_arguments = header.split("(", 1)[1].split(")", 1)[0].split(",")
+    expected_fields = (("tenant_id", UUID), *spec.input_fields)
+    assert tuple(arg.strip().split()[0] for arg in sql_arguments) == tuple(
+        "p_" + key for key, _ in expected_fields
+    )
+    sql_types = tuple(arg.strip().split()[1] for arg in sql_arguments)
+    assert ", ".join(sql_types) == signature
+    compiled = spec.statement.compile(dialect=dialect())
+    expected_binds = []
+    bind_types = {
+        "uuid": Uuid,
+        "bytea": LargeBinary,
+        "text": String,
+        "integer": Integer,
+    }
+    for (key, _), sql_type in zip(expected_fields, sql_types, strict=True):
+        expected_type = (
+            BigInteger if key in _PLAY_PREFIX_BIGINT_INPUTS else bind_types[sql_type]
+        )
+        assert type(compiled.binds[key].type) is expected_type
+        cast_suffix = (
+            ""
+            if sql_type == "bytea"
+            else "::" + ("VARCHAR" if sql_type == "text" else sql_type.upper())
+        )
+        expected_binds.append(f"%({key})s{cast_suffix}")
+    columns = ", ".join("anon_1." + key for key, _ in spec.result_fields)
+    assert str(compiled) == (
+        f"SELECT {columns} \nFROM sync_right_api.{name}"
+        f"({', '.join(expected_binds)}) AS anon_1"
+    )
+    assert tuple(compiled.params) == tuple(key for key, _ in expected_fields)
+    assert replace(spec, statement=spec.statement).statement.compare(spec.statement)
+
+
+def _play_prefix_test_token(spec, value=1):
+    """既tokenだけを使い、検査対象整数へ実値を供給する。"""
+    values = {}
+    for name, kind in spec.input_fields:
+        if kind is UUID:
+            values[name] = _TENANT_ID
+        elif kind is bytes:
+            values[name] = b"n" * 32
+        elif kind is str:
+            values[name] = "{}"
+        else:
+            values[name] = 100 if name == "page_size" else value
+    return spec.token_type(**values)
+
+
+@pytest.mark.parametrize("value", (2**31 - 1, 2**31, 2**31 + 1, 2**63 - 1))
+def test_play_prefix_bigint_values_survive_prepare_and_psycopg_compile(value):
+    """32bit境界と最大世代を全読取経路で値・型を変えず渡す。"""
+    from sqlalchemy import BigInteger
+    from sqlalchemy.dialects.postgresql.psycopg import dialect
+
+    from pitchlog.repositories.ordinary_prefix_operations import PLAY_PREFIX_OPERATIONS
+
+    registry = build_function_registry(PLAY_PREFIX_OPERATIONS, frozenset())
+    for spec in PLAY_PREFIX_OPERATIONS:
+        token = _play_prefix_test_token(spec, value)
+        actual, params = prepare_function_operation(token, _TENANT_ID, registry)
+        compiled = actual.statement.params(**params).compile(dialect=dialect())
+        assert compiled.params == params
+        for name in _PLAY_PREFIX_BIGINT_INPUTS.intersection(params):
+            assert type(compiled.binds[name].type) is BigInteger
+            assert type(compiled.params[name]) is int
+            assert compiled.params[name] == value
+
+
+@pytest.mark.parametrize(
+    "invalid", (-(2**63), -1, True, False, 2**63, 2**64, "1", None)
+)
+def test_play_prefix_bigint_invalid_values_remain_rejected(invalid):
+    """既正世代・非負cursorの範囲外とboolを構築段・実行直前で拒否する。"""
+    from pitchlog.repositories.ordinary_prefix_operations import PLAY_PREFIX_OPERATIONS
+
+    registry = build_function_registry(PLAY_PREFIX_OPERATIONS, frozenset())
+    for spec in PLAY_PREFIX_OPERATIONS:
+        for name in _PLAY_PREFIX_BIGINT_INPUTS.intersection(dict(spec.input_fields)):
+            token = _play_prefix_test_token(spec)
+            try:
+                replace(token, **{name: invalid})
+            except ValueError:
+                pass
+            else:
+                with pytest.raises(FunctionOperationError):
+                    prepare_function_operation(
+                        replace(token, **{name: invalid}), _TENANT_ID, registry
+                    )
+            object.__setattr__(token, name, invalid)
+            with pytest.raises(FunctionOperationError):
+                prepare_function_operation(token, _TENANT_ID, registry)
+
+
+def test_play_prefix_zero_bounds_remain_field_specific():
+    """世代等の0拒否と水位/cursorの0許可を既契約のまま保つ。"""
+    from pitchlog.repositories.ordinary_prefix_operations import PLAY_PREFIX_OPERATIONS
+
+    registry = build_function_registry(PLAY_PREFIX_OPERATIONS, frozenset())
+    for spec in PLAY_PREFIX_OPERATIONS:
+        for name in _PLAY_PREFIX_BIGINT_INPUTS.intersection(dict(spec.input_fields)):
+            token = _play_prefix_test_token(spec)
+            object.__setattr__(token, name, 0)
+            if name in {"upper_watermark", "after_d1", "after_d2"}:
+                _, params = prepare_function_operation(token, _TENANT_ID, registry)
+                assert params[name] == 0
+            else:
+                with pytest.raises(FunctionOperationError):
+                    prepare_function_operation(token, _TENANT_ID, registry)
+
+
+@pytest.mark.parametrize("change", ("unknown", "capability", "signature", "extra"))
+def test_play_prefix_bigint_fix_keeps_registration_closed(change):
+    """既4登録の未知名・別能力・不正署名・余剰bindを拒否する。"""
+    from pitchlog.repositories.ordinary_prefix_operations import PLAY_PREFIX_OPERATIONS
+
+    for spec in PLAY_PREFIX_OPERATIONS:
+        changes = {
+            "unknown": {"function_id": "sync_right_api.unknown_play_prefix"},
+            "capability": {
+                "capability_id": "CAP:sync_ordinary_pitch:read_ordinary_checkpoint"
+            },
+            "signature": {"input_fields": (*spec.input_fields, ("extra", int))},
+            "extra": {
+                "statement": select(
+                    Function(
+                        spec.function_id.rsplit(".", 1)[1],
+                        bindparam("tenant_id", type_=Uuid()),
+                        *(bindparam(key) for key, _ in spec.input_fields),
+                        bindparam("extra", type_=Integer()),
+                        packagenames=("sync_right_api",),
+                    ).label(spec.result_fields[0][0])
+                )
+            },
+        }
+        with pytest.raises(FunctionOperationError):
+            replace(spec, **changes[change])
+
+
+def test_play_prefix_fix_does_not_allow_bigint_for_unknown_function_or_page_size():
+    """BIGINTを一般関数やINTEGERのpage上限へ開放しない。"""
+    from sqlalchemy import BigInteger
+
+    from pitchlog.repositories.ordinary_prefix_operations import PLAY_PREFIX_OPERATIONS
+
+    unknown = _registration()
+    with pytest.raises(FunctionOperationError):
+        replace(
+            unknown,
+            input_fields=(("marker", int),),
+            statement=select(
+                func.public.fixed_probe(
+                    bindparam("tenant_id", type_=Uuid()),
+                    bindparam("marker", type_=BigInteger()),
+                ).label("value")
+            ),
+        )
+    page = PLAY_PREFIX_OPERATIONS[2]
+    with pytest.raises(FunctionOperationError):
+        replace(
+            page,
+            statement=select(
+                Function(
+                    "read_play_prefix_history_page",
+                    bindparam("tenant_id", type_=Uuid()),
+                    *(
+                        bindparam(key, type_=BigInteger())
+                        if key == "page_size"
+                        else bindparam(key)
+                        for key, _ in page.input_fields
+                    ),
+                    packagenames=("sync_right_api",),
+                ).label("record_json")
+            ),
+        )
+    registry = build_function_registry(PLAY_PREFIX_OPERATIONS, frozenset())
+    with pytest.raises(FunctionOperationError, match="未登録"):
+        prepare_function_operation(_UnregisteredToken(), _TENANT_ID, registry)
