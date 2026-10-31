@@ -1,0 +1,2343 @@
+{
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "const": "play-prefix-play-v3"
+    },
+    "observations": {
+      "$ref": "#/$defs/PayloadObservations"
+    },
+    "participants": {
+      "$ref": "#/$defs/PayloadParticipants"
+    },
+    "calculation": {
+      "$ref": "#/$defs/PayloadCalculation"
+    }
+  },
+  "required": [
+    "formatVersion",
+    "observations",
+    "participants",
+    "calculation"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.local/contracts/lineup_play_prefix_payload_schema_v1.json",
+  "$defs": {
+    "CanonicalUnsigned": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "CanonicalPositive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+    },
+    "Score": {
+      "type": "object",
+      "properties": {
+        "home": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "away": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        }
+      },
+      "required": [
+        "home",
+        "away"
+      ],
+      "additionalProperties": false
+    },
+    "StateFields": {
+      "type": "object",
+      "properties": {
+        "state.half": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "state.count.strikes": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.count.balls": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.outs": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "first-second-third"
+          ]
+        },
+        "state.battingOrder": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.tiebreakActive": {
+          "type": "boolean"
+        },
+        "state.gameEnded": {
+          "type": "boolean"
+        },
+        "state.inning": {
+          "$ref": "#/$defs/CanonicalPositive"
+        },
+        "state.score": {
+          "$ref": "#/$defs/Score"
+        }
+      },
+      "required": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "state.inning",
+        "state.score"
+      ],
+      "additionalProperties": false
+    },
+    "Scoreboard": {
+      "type": "object",
+      "properties": {
+        "inningScores": {
+          "$ref": "#/$defs/Score"
+        },
+        "hits": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "errors": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "strikeouts": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "walks": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        }
+      },
+      "required": [
+        "inningScores",
+        "hits",
+        "errors",
+        "strikeouts",
+        "walks"
+      ],
+      "additionalProperties": false
+    },
+    "Snapshot": {
+      "type": "object",
+      "properties": {
+        "stateFields": {
+          "$ref": "#/$defs/StateFields"
+        },
+        "scoreboard": {
+          "$ref": "#/$defs/Scoreboard"
+        },
+        "battingOrderBySide": {
+          "$ref": "#/$defs/BattingOrderBySide"
+        }
+      },
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "battingOrderBySide"
+      ],
+      "additionalProperties": false
+    },
+    "StatFlags": {
+      "type": "object",
+      "properties": {
+        "投球回算入アウト": {
+          "type": "boolean"
+        },
+        "投球数": {
+          "type": "boolean"
+        },
+        "奪三振": {
+          "type": "boolean"
+        },
+        "与四球": {
+          "type": "boolean"
+        },
+        "与死球": {
+          "type": "boolean"
+        },
+        "被安打": {
+          "type": "boolean"
+        },
+        "被本塁打": {
+          "type": "boolean"
+        },
+        "失点": {
+          "type": "boolean"
+        },
+        "失策": {
+          "type": "boolean"
+        },
+        "打席": {
+          "type": "boolean"
+        },
+        "打数": {
+          "type": "boolean"
+        },
+        "安打": {
+          "type": "boolean"
+        },
+        "本塁打": {
+          "type": "boolean"
+        },
+        "塁打": {
+          "type": "boolean"
+        },
+        "犠打": {
+          "type": "boolean"
+        },
+        "犠飛": {
+          "type": "boolean"
+        },
+        "四球": {
+          "type": "boolean"
+        },
+        "死球": {
+          "type": "boolean"
+        },
+        "三振": {
+          "type": "boolean"
+        },
+        "打撃妨害出塁": {
+          "type": "boolean"
+        },
+        "走塁妨害出塁": {
+          "type": "boolean"
+        },
+        "得点": {
+          "type": "boolean"
+        },
+        "打点": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false
+    },
+    "StateDifference": {
+      "type": "object",
+      "properties": {
+        "state.half": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            },
+            "after": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.count.strikes": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.count.balls": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.outs": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.runners": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "empty",
+                "first",
+                "second",
+                "third",
+                "first-second",
+                "first-third",
+                "second-third",
+                "first-second-third"
+              ]
+            },
+            "after": {
+              "enum": [
+                "empty",
+                "first",
+                "second",
+                "third",
+                "first-second",
+                "first-third",
+                "second-third",
+                "first-second-third"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.battingOrder": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.tiebreakActive": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.gameEnded": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.inning": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalPositive"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalPositive"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.score": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Score"
+            },
+            "after": {
+              "$ref": "#/$defs/Score"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ScoreboardDifference": {
+      "type": "object",
+      "properties": {
+        "inningScores": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Score"
+            },
+            "after": {
+              "$ref": "#/$defs/Score"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "hits": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "errors": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "strikeouts": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "walks": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "HistoryEntry": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "confirmed-play"
+        },
+        "difference": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "$ref": "#/$defs/StateDifference"
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/ScoreboardDifference"
+            },
+            "statFlags": {
+              "$ref": "#/$defs/StatFlags"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/CursorDifference"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "statFlags"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "difference"
+      ],
+      "additionalProperties": false
+    },
+    "BattingOrderBySide": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "x-pitchlog-axis-id": "state.battingOrder",
+          "$comment": "既descriptor同軸の独立context写像。active値一致・inactive独立性は相関検査。"
+        },
+        "home": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "x-pitchlog-axis-id": "state.battingOrder",
+          "$comment": "既descriptor同軸の独立context写像。active値一致・inactive独立性は相関検査。"
+        }
+      },
+      "required": [
+        "away",
+        "home"
+      ],
+      "additionalProperties": false
+    },
+    "CursorDifference": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            "after": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "home": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            "after": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "Unsigned": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "Positive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+    },
+    "Checkpoint": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "revision": {
+          "$ref": "#/$defs/Positive"
+        },
+        "digest": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "digest"
+      ],
+      "additionalProperties": false
+    },
+    "PlayIdentity": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "d5": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "playId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "eventId",
+        "d5",
+        "playId"
+      ],
+      "additionalProperties": false
+    },
+    "Position": {
+      "type": "object",
+      "properties": {
+        "d1": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "d2": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "appliedWatermark": {
+          "$ref": "#/$defs/Unsigned"
+        }
+      },
+      "required": [
+        "d1",
+        "d2",
+        "appliedWatermark"
+      ],
+      "additionalProperties": false
+    },
+    "SavedRuleWire": {
+      "type": "object",
+      "properties": {
+        "regulationInnings": {
+          "type": "string",
+          "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+        },
+        "coldConditions": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "properties": {
+              "pointDifference": {
+                "type": "string",
+                "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+              },
+              "startInning": {
+                "type": "string",
+                "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+              }
+            },
+            "required": [
+              "pointDifference",
+              "startInning"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "extensionLimit": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+            }
+          ]
+        },
+        "tiebreak": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "startInning": {
+                  "type": "string",
+                  "pattern": "^(?:[1-9]|[1-9][0-9])(?![\\s\\S])"
+                },
+                "runnerPlacement": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "leadoffRule": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "startInning",
+                "runnerPlacement",
+                "leadoffRule"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "dh": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "regulationInnings",
+        "coldConditions",
+        "extensionLimit",
+        "tiebreak",
+        "dh"
+      ],
+      "additionalProperties": false
+    },
+    "Runner": {
+      "type": "object",
+      "properties": {
+        "runnerId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "responsiblePitcherId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "base": {
+          "enum": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "status": {
+          "const": "継続"
+        },
+        "statusSource": {
+          "const": "auto"
+        }
+      },
+      "required": [
+        "runnerId",
+        "responsiblePitcherId",
+        "base",
+        "status",
+        "statusSource"
+      ],
+      "additionalProperties": false
+    },
+    "Responsibility": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "no-change"
+        },
+        "paStartSource": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "started-game",
+                "confirmed-play"
+              ]
+            },
+            "id": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "previousPitcherId": {
+          "const": null
+        },
+        "strikesAtChange": {
+          "const": null
+        },
+        "ballsAtChange": {
+          "const": null
+        }
+      },
+      "required": [
+        "kind",
+        "paStartSource",
+        "previousPitcherId",
+        "strikesAtChange",
+        "ballsAtChange"
+      ],
+      "additionalProperties": false
+    },
+    "Slot": {
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    "LineupTeam": {
+      "type": "object",
+      "properties": {
+        "teamId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "battingOrder": {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "2": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "3": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "4": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "5": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "6": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "7": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "8": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "9": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "additionalProperties": false
+        },
+        "pitcherId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "catcherId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "teamId",
+        "battingOrder",
+        "pitcherId",
+        "catcherId"
+      ],
+      "additionalProperties": false
+    },
+    "Lineup": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "$ref": "#/$defs/LineupTeam"
+        },
+        "home": {
+          "$ref": "#/$defs/LineupTeam"
+        }
+      },
+      "required": [
+        "away",
+        "home"
+      ],
+      "additionalProperties": false
+    },
+    "Participant": {
+      "type": "object",
+      "properties": {
+        "batterId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pitcherId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "catcherId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "battingOrder": {
+          "$ref": "#/$defs/Slot"
+        }
+      },
+      "required": [
+        "batterId",
+        "pitcherId",
+        "catcherId",
+        "battingOrder"
+      ],
+      "additionalProperties": false
+    },
+    "Origin": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "started-game"
+        },
+        "eventId": {
+          "$ref": "#/$defs/Uuid"
+        }
+      },
+      "required": [
+        "kind",
+        "eventId"
+      ],
+      "additionalProperties": false
+    },
+    "PrefixRef": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "3"
+        },
+        "scope": {
+          "const": "play-prefix-v3"
+        },
+        "tenantId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "gameId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "generation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "length": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "historyVersion": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        }
+      },
+      "required": [
+        "version",
+        "scope",
+        "tenantId",
+        "gameId",
+        "generation",
+        "length",
+        "checkpoint",
+        "historyVersion",
+        "origin"
+      ],
+      "additionalProperties": false
+    },
+    "BoundaryFacts": {
+      "type": "object",
+      "properties": {
+        "beforeInning": {
+          "$ref": "#/$defs/Positive"
+        },
+        "beforeHalf": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "beforeOuts": {
+          "enum": [
+            "0",
+            "1",
+            "2"
+          ]
+        },
+        "afterInning": {
+          "$ref": "#/$defs/Positive"
+        },
+        "afterHalf": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "afterOuts": {
+          "enum": [
+            "0",
+            "1",
+            "2"
+          ]
+        },
+        "halfCompleted": {
+          "type": "boolean"
+        },
+        "outsUnchanged": {
+          "type": "boolean"
+        },
+        "scoreUnchanged": {
+          "type": "boolean"
+        },
+        "priorOpen": {
+          "const": true
+        }
+      },
+      "required": [
+        "beforeInning",
+        "beforeHalf",
+        "beforeOuts",
+        "afterInning",
+        "afterHalf",
+        "afterOuts",
+        "halfCompleted",
+        "outsUnchanged",
+        "scoreUnchanged",
+        "priorOpen"
+      ],
+      "additionalProperties": false
+    },
+    "Decision": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "normal-end"
+            },
+            "endConditionDetected": {
+              "const": true
+            },
+            "lockFurtherPlayInput": {
+              "const": true
+            },
+            "promptEndDeclaration": {
+              "const": true
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "extra-continue"
+            },
+            "endConditionDetected": {
+              "const": false
+            },
+            "lockFurtherPlayInput": {
+              "const": false
+            },
+            "promptEndDeclaration": {
+              "const": false
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "limit-draw"
+            },
+            "endConditionDetected": {
+              "const": true
+            },
+            "lockFurtherPlayInput": {
+              "const": true
+            },
+            "promptEndDeclaration": {
+              "const": true
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "tiebreak-continue"
+            },
+            "endConditionDetected": {
+              "const": false
+            },
+            "lockFurtherPlayInput": {
+              "const": false
+            },
+            "promptEndDeclaration": {
+              "const": false
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "cold-end"
+            },
+            "endConditionDetected": {
+              "const": true
+            },
+            "lockFurtherPlayInput": {
+              "const": true
+            },
+            "promptEndDeclaration": {
+              "const": true
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "x-mark"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "walk-off"
+            },
+            "endConditionDetected": {
+              "const": true
+            },
+            "lockFurtherPlayInput": {
+              "const": true
+            },
+            "promptEndDeclaration": {
+              "const": true
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "normal-end"
+            },
+            "endConditionDetected": {
+              "const": true
+            },
+            "lockFurtherPlayInput": {
+              "const": true
+            },
+            "promptEndDeclaration": {
+              "const": true
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "x-mark"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "no-end"
+            },
+            "endConditionDetected": {
+              "const": false
+            },
+            "lockFurtherPlayInput": {
+              "const": false
+            },
+            "promptEndDeclaration": {
+              "const": false
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T2": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "evaluated-end-condition"
+        },
+        "scope": {
+          "const": "play-prefix-v3"
+        },
+        "evaluation_point": {
+          "const": "post-play"
+        },
+        "facts": {
+          "$ref": "#/$defs/BoundaryFacts"
+        },
+        "decision": {
+          "$ref": "#/$defs/Decision"
+        },
+        "tiebreakStartRequired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "scope",
+        "evaluation_point",
+        "facts",
+        "decision",
+        "tiebreakStartRequired"
+      ],
+      "additionalProperties": false
+    },
+    "SourceProvenance": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "started-game"
+            },
+            "eventId": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "eventId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "confirmed-prefix"
+            },
+            "checkpoint": {
+              "$ref": "#/$defs/Checkpoint"
+            },
+            "sourceIdentity": {
+              "$ref": "#/$defs/PlayIdentity"
+            },
+            "historyDepth": {
+              "$ref": "#/$defs/Unsigned"
+            }
+          },
+          "required": [
+            "kind",
+            "checkpoint",
+            "sourceIdentity",
+            "historyDepth"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "started-initial-v3"
+            },
+            "prefixRef": {
+              "$ref": "#/$defs/PrefixRef"
+            },
+            "rules": {
+              "$ref": "#/$defs/SavedRuleWire"
+            },
+            "after": {
+              "$ref": "#/$defs/Snapshot"
+            },
+            "t2": {
+              "const": null
+            },
+            "historyDepth": {
+              "const": "0"
+            },
+            "playCount": {
+              "const": "0"
+            },
+            "lastSource": {
+              "const": null
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "priorArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "executionArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rulesDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "layoutDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rosterDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "lineup": {
+              "$ref": "#/$defs/Lineup"
+            },
+            "runners": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Runner"
+              }
+            },
+            "participants": {
+              "$ref": "#/$defs/Participant"
+            },
+            "responsibility": {
+              "$ref": "#/$defs/Responsibility"
+            },
+            "provenance": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "started-game"
+                },
+                "eventId": {
+                  "$ref": "#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "eventId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "prefixRef",
+            "rules",
+            "after",
+            "t2",
+            "historyDepth",
+            "playCount",
+            "lastSource",
+            "position",
+            "priorArtifactSha256",
+            "executionArtifactSha256",
+            "rulesDigest",
+            "layoutDigest",
+            "rosterDigest",
+            "lineup",
+            "runners",
+            "participants",
+            "responsibility",
+            "provenance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "evaluated-prefix-v3",
+                "locked-prefix-v3"
+              ]
+            },
+            "prefixRef": {
+              "$ref": "#/$defs/PrefixRef"
+            },
+            "rules": {
+              "$ref": "#/$defs/SavedRuleWire"
+            },
+            "after": {
+              "$ref": "#/$defs/Snapshot"
+            },
+            "t2": {
+              "$ref": "#/$defs/T2"
+            },
+            "historyDepth": {
+              "$ref": "#/$defs/Unsigned"
+            },
+            "playCount": {
+              "$ref": "#/$defs/Unsigned"
+            },
+            "lastSource": {
+              "$ref": "#/$defs/PlayIdentity"
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "priorArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "executionArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rulesDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "layoutDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rosterDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "lineup": {
+              "$ref": "#/$defs/Lineup"
+            },
+            "runners": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Runner"
+              }
+            },
+            "participants": {
+              "$ref": "#/$defs/Participant"
+            },
+            "responsibility": {
+              "$ref": "#/$defs/Responsibility"
+            },
+            "provenance": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "confirmed-prefix"
+                },
+                "checkpoint": {
+                  "$ref": "#/$defs/Checkpoint"
+                },
+                "sourceIdentity": {
+                  "$ref": "#/$defs/PlayIdentity"
+                },
+                "historyDepth": {
+                  "$ref": "#/$defs/Unsigned"
+                }
+              },
+              "required": [
+                "kind",
+                "checkpoint",
+                "sourceIdentity",
+                "historyDepth"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "prefixRef",
+            "rules",
+            "after",
+            "t2",
+            "historyDepth",
+            "playCount",
+            "lastSource",
+            "position",
+            "priorArtifactSha256",
+            "executionArtifactSha256",
+            "rulesDigest",
+            "layoutDigest",
+            "rosterDigest",
+            "lineup",
+            "runners",
+            "participants",
+            "responsibility",
+            "provenance"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "T1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.called-pitch",
+            "batting-result.swinging-strike",
+            "batting-result.ball",
+            "batting-result.foul",
+            "batting-result.walk",
+            "batting-result.hit-by-pitch",
+            "batting-result.called-strikeout",
+            "batting-result.swinging-strikeout"
+          ]
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before"
+      ],
+      "additionalProperties": false
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "3"
+        },
+        "prefixRef": {
+          "$ref": "#/$defs/PrefixRef"
+        },
+        "rules": {
+          "$ref": "#/$defs/SavedRuleWire"
+        },
+        "t1": {
+          "$ref": "#/$defs/T1Input"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "nextCheckpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        }
+      },
+      "required": [
+        "version",
+        "prefixRef",
+        "rules",
+        "t1",
+        "source",
+        "playIdentity",
+        "nextCheckpoint"
+      ],
+      "additionalProperties": false
+    },
+    "T1": {
+      "type": "object",
+      "properties": {
+        "countEffect": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "reset"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "const": "1"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "balls": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "reset"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "const": "1"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "plateAppearanceEnded": {
+          "type": "boolean"
+        },
+        "batterDestination": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "continue"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reach"
+                },
+                "base": {
+                  "const": "1"
+                }
+              },
+              "required": [
+                "kind",
+                "base"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "out"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "runnerDefaultAdvance": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "enum": [
+                    "hold",
+                    "not-applicable"
+                  ]
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "second": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "enum": [
+                    "hold",
+                    "not-applicable"
+                  ]
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "third": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "enum": [
+                    "hold",
+                    "not-applicable"
+                  ]
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "outEffect": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "const": "0"
+                },
+                "targets": {
+                  "const": []
+                }
+              },
+              "required": [
+                "count",
+                "targets"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "const": "1"
+                },
+                "targets": {
+                  "const": [
+                    "batter"
+                  ]
+                }
+              },
+              "required": [
+                "count",
+                "targets"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "statFlags": {
+          "$ref": "#/$defs/StatFlags"
+        },
+        "after": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "after"
+      ],
+      "additionalProperties": false
+    },
+    "Value": {
+      "type": "object",
+      "properties": {
+        "t1": {
+          "$ref": "#/$defs/T1"
+        },
+        "t2": {
+          "$ref": "#/$defs/T2"
+        },
+        "newHistoryEntry": {
+          "$ref": "#/$defs/HistoryEntry"
+        },
+        "previousPrefixRef": {
+          "$ref": "#/$defs/PrefixRef"
+        },
+        "nextPrefixRef": {
+          "$ref": "#/$defs/PrefixRef"
+        },
+        "runners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Runner"
+          }
+        },
+        "beforeParticipants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "participants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "lineup": {
+          "$ref": "#/$defs/Lineup"
+        },
+        "rosterDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "responsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "nextResponsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "sourcePosition": {
+          "$ref": "#/$defs/Position"
+        },
+        "executionArtifactSha256": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "t1",
+        "t2",
+        "newHistoryEntry",
+        "previousPrefixRef",
+        "nextPrefixRef",
+        "runners",
+        "beforeParticipants",
+        "participants",
+        "lineup",
+        "rosterDigest",
+        "responsibility",
+        "nextResponsibility",
+        "playIdentity",
+        "sourcePosition",
+        "executionArtifactSha256"
+      ],
+      "additionalProperties": false
+    },
+    "Success": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Failure": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "INVALID_JSON",
+                "INVALID_REQUEST",
+                "INVALID_DECIMAL_INTEGER",
+                "UNSUPPORTED_T1_SCOPE",
+                "T2_NOT_EVALUATED",
+                "PREFIX_SOURCE_MISMATCH"
+              ]
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "ok",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "Response": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Success"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ]
+    },
+    "PayloadObservations": {
+      "type": "object",
+      "properties": {
+        "pitchTypeKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "course": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "const": "1/263"
+            },
+            "x": {
+              "type": "string",
+              "pattern": "^(?:0|[1-9][0-9]?|1[0-9]{2}|2[0-5][0-9]|26[0-3])(?![\\s\\S])"
+            },
+            "y": {
+              "type": "string",
+              "pattern": "^(?:0|[1-9][0-9]?|1[0-9]{2}|2[0-5][0-9]|26[0-3])(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "unit",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        "pitchSpeed": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kmh": {
+                  "type": "null"
+                },
+                "outsideRangeConfirmed": {
+                  "const": false
+                }
+              },
+              "required": [
+                "kmh",
+                "outsideRangeConfirmed"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kmh": {
+                  "type": "string",
+                  "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?(?![\\s\\S])"
+                },
+                "outsideRangeConfirmed": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "kmh",
+                "outsideRangeConfirmed"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "stance": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^(?:[1-9]|1[0-9]|2[0-5])(?![\\s\\S])"
+            }
+          ]
+        },
+        "battingSide": {
+          "enum": [
+            "右",
+            "左",
+            null
+          ]
+        }
+      },
+      "required": [
+        "pitchTypeKey",
+        "course",
+        "pitchSpeed",
+        "stance",
+        "battingSide"
+      ],
+      "additionalProperties": false
+    },
+    "PayloadParticipants": {
+      "type": "object",
+      "properties": {
+        "batterId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "pitcherId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "catcherId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "battingOrder": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ]
+        }
+      },
+      "required": [
+        "batterId",
+        "pitcherId",
+        "catcherId",
+        "battingOrder"
+      ],
+      "additionalProperties": false
+    },
+    "PayloadCalculation": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "play-prefix-calculation-v3"
+        },
+        "artifactSha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "request": {
+          "$ref": "#/$defs/Request"
+        },
+        "response": {
+          "$ref": "#/$defs/Success"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "artifactSha256",
+        "request",
+        "response"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
