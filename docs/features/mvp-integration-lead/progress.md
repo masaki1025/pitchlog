@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 04:24 JST（現在の統合候補で初球実API回帰成功）
+
+- **新たな実証**: pr189 WT/HEAD3dd1bfa1の実API初球縦断が1passed/56.83秒。実login/enroll/start→初球200→同attempt再送/別attempt同D5再送は重複→同D5異内容は拒否→attempt付替え503→記録後GET200/recorded、after/history/23flags/T2/PlayRowとDB保存を既対向で確認。共有DSN2変数unset、実owned3PG/実UIDapp・broker・単一artifactを使用。fixtureで用意した試合のAPI経路であり、画面新規作成の再実証とは区別する。
+- **固定証拠**: cache `pr189-integration-20261101/owned-api.log` / `owned-api.xml` / `owned-api-result.json`。source4SHA/JUnit SHA/対象HEADを保持。実画面・HTTPS・実機・正式develop・全MVP/全故障の受入は未成立。
+- **修復保存**: df9640c8へ群R exact8を非作者REPORT281bc380…（P0/P1/P2=0、全SHA/旧381assert/全test・parametrize保持）に基づき保存。331passed/18deselectedは非DB subsetで、18実DBnodeはCIに残る。群S/Tは別pathで継続中。台帳は随時pushするが#189製品は正式資産/証拠凍結前にpushしない。
+
 ## 続き：2026-11-01 04:20 JST（#189の認可・同期修復を独立レビュー後に保存）
 
 - **利用者の到達点**: 過去候補の実画面初球/通常3球/四球・死球の実証は前節を維持。今回のc2e5e4dd統合候補で新たな画面成功・正式develop初球成功は未実証。#189公開ad6588b1のまま、source push/新CI/mergeは未了。
