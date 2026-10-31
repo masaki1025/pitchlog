@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from db_fixtures import (
     _VERIFIED_AUTHZ_ROLE_IDS,
@@ -118,6 +120,11 @@ def pytest_sessionfinish(
         exitstatus: フック開始時点の終了状態。
     """
     del exitstatus
+    # 収集専用の実行(--collect-only)は定義上なにも実行しない。CI のシャード被覆
+    # 検査がこのモードを使うため、収集専用に限って 0 件実行の判定を外す。通常の
+    # 実行では環境変数が立たないので、この抜け道は本番経路に影響しない。
+    if os.environ.get("PITCHLOG_PYTEST_COLLECT_ONLY") == "1":
+        return
     error = _required_db_execution_error(
         _COLLECTED_DB_TESTS,
         _EXECUTED_DB_TESTS,

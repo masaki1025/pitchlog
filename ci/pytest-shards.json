@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "suites": {
+    "harness": {
+      "root": ".",
+      "targets": ["tests/"],
+      "ignore": [
+        "tests/domain/boot",
+        "tests/domain/mut",
+        "tests/test_plan_generation.py",
+        "tests/test_step_history_audit.py"
+      ],
+      "shards": 4
+    },
+    "backend": {
+      "root": "backend",
+      "targets": ["tests/"],
+      "ignore": [],
+      "shards": 4
+    }
+  }
+}

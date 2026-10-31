@@ -72,7 +72,8 @@ TENANT_BOUNDARY_COMMAND = "uv run python scripts/check_tenant_boundary_bypass.py
 EXPECTED_JOB_ORDER = (
     "secrets",
     "docs-lint",
-    "core-guard",
+    "harness-static",
+    "harness-shard",
     "harness",
     "consistency",
     "mutation",
@@ -81,17 +82,42 @@ EXPECTED_JOB_ORDER = (
     "frontend-changes",
     "frontend",
     "backend-changes",
+    "backend-static",
+    "backend-shard",
     "backend",
+)
+# core-guard は本文編集でも再評価するため pr-body.yml へ分離した。必須 context は
+# 変更しない(GitHub 側 Ruleset の 12 件をそのまま維持する)。
+BODY_WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "pr-body.yml"
+EXPECTED_BODY_JOB_ORDER = ("core-guard",)
+REQUIRED_STATUS_CONTEXTS = (
+    "secrets",
+    "docs-lint",
+    "core-guard",
+    "harness",
+    "consistency",
+    "mutation",
+    "nfr021-append-only",
+    "frontend-changes",
+    "backend-changes",
+    "frontend",
+    "backend",
+    "tenant-boundary-bypass",
+)
+BACKEND_CHANGES_CONDITION = (
+    "github.event_name == 'workflow_dispatch' || "
+    "needs.backend-changes.outputs.backend == 'true'"
 )
 EXPECTED_CONDITIONAL_JOBS = {
     "frontend": (
         "github.event_name == 'workflow_dispatch' || "
         "needs.frontend-changes.outputs.frontend == 'true'"
     ),
-    "backend": (
-        "github.event_name == 'workflow_dispatch' || "
-        "needs.backend-changes.outputs.backend == 'true'"
-    ),
+    "backend-static": BACKEND_CHANGES_CONDITION,
+    "backend-shard": BACKEND_CHANGES_CONDITION,
+    # 集約は分割ジョブの結果で判断するため always() で起動し、内部で厳密判定する。
+    "harness": "always()",
+    "backend": f"always() && (\n{BACKEND_CHANGES_CONDITION})",
 }
 SILENT_DISABLE_STEP_KEYS = frozenset({"if", "continue-on-error", "shell"})
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
@@ -100,12 +126,15 @@ SILENT_DISABLE_STEP_KEYS = frozenset({"if", "continue-on-error", "shell"})
 CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO = frozenset(
     {
         "secrets",
-        "core-guard",
+        "harness-static",
+        "harness-shard",
         "harness",
         "nfr021-append-only",
         TENANT_BOUNDARY_JOB,
         "frontend-changes",
         "backend-changes",
+        "backend-static",
+        "backend-shard",
         "backend",
         "consistency",
         "mutation",
@@ -116,7 +145,6 @@ LEGACY_JOB_IDS = frozenset(
     {
         "secrets",
         "docs-lint",
-        "core-guard",
         "harness",
         "nfr021-append-only",
         "frontend-changes",
@@ -126,14 +154,21 @@ LEGACY_JOB_IDS = frozenset(
     }
 )
 NEW_JOB_IDS = frozenset({"consistency", "mutation"})
+SHARD_JOB_IDS = frozenset(
+    {"harness-static", "harness-shard", "backend-static", "backend-shard"}
+)
 CONSISTENCY_TIMEOUT_MINUTES = 20
 MUTATION_TIMEOUT_MINUTES = 40
 HARNESS_PYTEST_COMMAND = (
-    "uv run pytest -c pyproject.toml tests/ "
+    "uv run python -m pytest -c pyproject.toml tests/ "
     "--ignore=tests/domain/boot "
     "--ignore=tests/domain/mut "
     "--ignore=tests/test_plan_generation.py "
-    "--ignore=tests/test_step_history_audit.py"
+    "--ignore=tests/test_step_history_audit.py "
+    "-p pytest_shard_plugin "
+    "--shard-count 4 "
+    "--shard-index ${{ matrix.shard }} "
+    "--durations=25"
 )
 CONSISTENCY_PYTEST_COMMAND = (
     "uv run pytest -c pyproject.toml "
@@ -465,6 +500,16 @@ def _harness_job(workflow: dict[str, Any]) -> dict[str, Any]:
     harness = jobs.get("harness")
     assert isinstance(harness, dict), "harness ジョブが必要"
     return harness
+
+
+def _backend_pytest_job(workflow: dict[str, Any]) -> dict[str, Any]:
+    """pytest を実行する backend 分割ジョブを返す。"""
+    return _named_job(workflow, "backend-shard")
+
+
+def _harness_pytest_job(workflow: dict[str, Any]) -> dict[str, Any]:
+    """pytest を実行する harness 分割ジョブを返す。"""
+    return _named_job(workflow, "harness-shard")
 
 
 def _named_job(workflow: dict[str, Any], name: str) -> dict[str, Any]:
@@ -1134,10 +1179,10 @@ def _ci_contract_tree(workflow: dict[str, Any]) -> dict[str, Any]:
     Returns:
         全葉変異の対象となる JSON 互換木。
     """
-    harness_commands = _pytest_commands(_harness_job(workflow))
+    harness_commands = _pytest_commands(_harness_pytest_job(workflow))
     assert len(harness_commands) == 1, "harness の pytest は 1 回でなければならない"
     return {
-        "backend": _backend_ci_contract_tree(_backend_job(workflow)),
+        "backend": _backend_ci_contract_tree(_backend_pytest_job(workflow)),
         "harness": {"pytest": harness_commands[0]},
         "consistency": copy.deepcopy(_named_job(workflow, "consistency")),
         "mutation": copy.deepcopy(_named_job(workflow, "mutation")),
@@ -2594,8 +2639,8 @@ def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
     jobs = _mapping_at(workflow, ("jobs",))
     assert isinstance(jobs, dict)
     assert tuple(jobs) == EXPECTED_JOB_ORDER
-    harness = _harness_job(workflow)
-    checkout = _checkout_step("harness", harness)
+    harness = _named_job(workflow, "harness-static")
+    checkout = _checkout_step("harness-static", harness)
     assert _mapping_at(checkout, ("with", "fetch-depth")) == 0
     steps = _mapping_at(harness, ("steps",))
     assert isinstance(steps, list)
@@ -2885,7 +2930,7 @@ def test_document_checker_registry_enumeration_is_fail_closed(
 def test_pytest_commands_and_working_directories_are_exact() -> None:
     """pytest コマンドと harness/backend の実行ディレクトリを固定する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
-    harness = _harness_job(workflow)
+    harness = _harness_pytest_job(workflow)
     harness_pytest_commands = [
         command
         for command in _harness_commands(harness)
@@ -3018,9 +3063,15 @@ def test_required_job_documentation_matches_the_workflow() -> None:
     assert isinstance(jobs, dict)
 
     assert documented == actual
+    body = _load_workflow(BODY_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    body_jobs = body.get("jobs")
+    assert isinstance(body_jobs, dict)
+    assert tuple(body_jobs) == EXPECTED_BODY_JOB_ORDER
+    all_job_ids = set(jobs) | set(body_jobs)
     assert len(contexts) == len(set(contexts))
-    assert set(jobs) - set(contexts) == set()
-    assert set(contexts) - set(jobs) == set()
+    # 必須 context は変更しない。新設した分割ジョブは集約ジョブ越しに評価する。
+    assert contexts == REQUIRED_STATUS_CONTEXTS
+    assert set(contexts) <= all_job_ids
     assert ruleset["name"] == "protect-main-develop"
     assert ruleset["enforcement"] == "active"
     assert ruleset["bypass_actors"] == []
