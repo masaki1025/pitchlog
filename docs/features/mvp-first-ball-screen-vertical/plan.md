@@ -139,3 +139,6 @@ APIで_broker_generation直接import/内部generation識別子が既禁止語彙
 
 
 群Sへの追加exact1path（2026-11-01、PO委任によるCodex主担当判断）: backend/tests/db/test_alembic_migrations.py の既 _index_catalog_contract に後方互換のschemaキーワード（既定public）とpg_namespace照合を追加し、schema auditから明示schemaを渡す。旧呼出/旧返値5項目・全SQLの列順/一意性/述語検査を保持する。namespaceを問わない索引名だけのfetchoneによる同名衝突を拒否し、未知/privateを黙ってpublicへ補完しない。新pure spy/SQL構造対向は既群Sのunit fileへ置き、同名public/private・欠落/未知の拒否を検証する。正式DDL/移行/共有DBを変えず、実PGの成功は未実施として別記する。
+
+
+oracle基準台帳の限定追随（2026-11-01、PO委任によるCodex主担当判断）: 非作者REPORT9edd03ec…で固定8入力の旧AUTH187/全正負cell/4lock完全保持と3dd1bfa1への技術pin採用が成立。既97行の6oracle_context＋seal追随に加え、contracts/authz/frozen-baselines.json のoracle_input系列へ#189末尾1recordを追記する。旧全history/規範状態/placementsを保持し、旧70684628→3dd1bfa1のprior/new identityと委任判断・根拠のみを記録。公式CLIがboundary proposalの基準版一致を要求するための必須伝播で、既凍結値の手動書換/本人承認代記はしない。生成後8pathは非作者最終差分確認し、正式7.7/全件CIは別に確認する。
