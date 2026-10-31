@@ -474,7 +474,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: backend-coverage-${{ matrix.shard }}
-          path: backend/.coverage.shard${{ matrix.shard }}
+          path: backend/.coverage*
           if-no-files-found: error
 
   # 必須チェック名 ``backend`` を維持する集約ジョブ。全シャードの success を
@@ -630,5 +630,5 @@ jobs:
         env:
           COVERAGE_FILE: .coverage
         run: |
-          uv run coverage combine .coverage.shard0 .coverage.shard1 .coverage.shard2 .coverage.shard3
+          uv run coverage combine
           uv run coverage report
