@@ -80,3 +80,14 @@ T2の現halfCompleted=false/outsUnchanged=trueを第3outへ流用しない。真
 
 
 JSON型比較P1の是正（2026-10-31、PO委任によるCodex /root判断）: 非作者が新SO応答の23flag全てをtrue→1/false→0へ置換しても既schema consumerと全応答testが通る偽positiveを再現。要件/標準schema/野球意味ではなく、既check_input_axes_descriptor._json_equalのdocstring『booleanとintegerを混同せず』をnested object/arrayで満たさない実装不具合である。新SO testの型保存fullresponse/flag型対向は維持した上で、scripts/check_input_axes_descriptor.pyと既tests/test_input_axes_descriptor.pyのexact2を追加許可する。現type一致条件は保ち、dictキー/array長と各値を再帰的に同じ規則で比較する最小修復とする。const/enumの既拒否を緩めず、nested boolean/integer・array/object・null/string・samevalueを対向に含め、全23flag/history/request boolの実schema拒否を検査する。他の_json_equal関数へ無関係な伝播をしない。schema/期待/受入を緩める変更は0。既descriptor全test/正規CLIとSO局所をまとめて実行し、旧合法例が維持されることを非作者へ渡す。
+
+
+## ステップ1の本操作限定受理とステップ2指示（2026-10-31、PO委任によるCodex /root判断）
+
+固定14manifest4a3a9e328e441c387bcb0b6d93331728b95c6f5eb9ad0f2a2d9d529436bfe4ab/diff34d961b4a5feb111d6beb922b817963e7eaf6df1bca1a4b4b9039bf84d76bf7dと非作者REPORTec491621e379620c24d47f78dd3b7d696f5ba1e5f82065801a8bce8c71fb85beを全byte照合して採用。初回nestedbool/int P1は実schema/実24consumer全23fault拒否で閉鎖。作者58/descriptor52、独立39/24full/31,104/90桁24/192配置/readonly型/CLI4成功。旧51/132/全operation-undo・旧missing5を保持、新required72/covered67/宣言missing5。旧33failと不採用symlink対照・未達は保全する。
+
+P1-P9はcache strikeout-root-stage1-approval-20261031/receipt.json SHA e2e5ce54eed46cbc81edf0210e6b0a2cbae25007185a16627d2ef9fe2bdfe120 で項目別受理。P6は通常非作者の数学射影/履歴比較資格だけを受領し、旧封印/曝露留保・新blind未成立・全P6未了を保持する。全T1/正式共有資産7.7/全CIを成立扱いしない。数学source/artifact/hostは次段成果であり、T2/実Port/DB完成を着手前へ循環追加しない。
+
+ステップ2の編集はfrontend/src/domain/{state.ts,stateRules.ts,stateTypes.ts,publicApi.ts,publicApi.spec.ts,terminalPitch.spec.ts}、新strikeoutPitch.spec.ts/strikeoutPitchArtifact.spec.ts、新backend/src/pitchlog/domainrt/strikeout_pitch.py/既対応dirのtest_strikeout_pitch.py、配布frontend/public/domain/pitchlog-domain.js/.jsonに限る。既firstPitchArtifact/firstPitchContinuationArtifact/ordinaryPitchArtifact/ordinaryPitchContinuationArtifact/initialGameRosterArtifact/courseQuantizationArtifact各.spec.tsは既公開口全保持＋新deriveStrikeoutPitch一名の完全集合追随だけを許可する。旧操作の意味/期待・未知拒否を緩めない。build scriptや追加sourceが不可分なら先にexact path/必要差分を返す。
+
+state/stateRulesの単一核へcache候補を選別統合し、履歴生成は実before/after/flags/両cursorから一回。Pythonに算式/履歴差分を複製せず固定host一回、JSONの未知/余剰/duplicate/nonfinite・alias/coercion拒否を守る。旧全ABI/37/BBHBP・新24fullresponse/31104/90桁/tail/変造を実artifactへ通す。生成artifactの実shaをrootへ渡し、contracts内pin/正式宣言はrootだけが追随する。公開ABI/typed caller/再現build/三層・非作者source確認をこれから実施し、step3のT2/qualifiedsource/wire/save/UIはまだ実装指示しない。本人逐行確認/署名は代記しない。

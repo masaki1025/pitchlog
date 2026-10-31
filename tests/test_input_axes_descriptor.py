@@ -1178,3 +1178,32 @@ def test_stage1_descriptor_declares_stage2_parity_without_external_dependency() 
     }
     assert "history-depth.json" not in raw_text
     assert "主要フラグ" not in raw_text
+
+
+@pytest.mark.parametrize("left,right", (
+    ({"flag": True}, {"flag": 1}), ({"flag": False}, {"flag": 0}),
+    ({"flags": [True, {"flag": False}]}, {"flags": [1, {"flag": 0}]}),
+    ([{"flag": True}], [{"flag": 1}]), ([[False]], [[0]]),
+    ({"number": 1}, {"number": 1.0}),
+    ({"a": True}, {"b": True}), ({"a": True}, {"a": True, "b": False}),
+    ([True], [True, False]), ([True, False], [False, True]),
+))
+def test_json_equality_rejects_nested_type_key_length_and_order_changes(
+    left: object, right: object,
+) -> None:
+    """JSON比較の全階層で既存の型一致条件を維持する。"""
+    assert not checker._json_equal(left, right)
+    assert not checker._json_equal(right, left)
+    assert checker._json_equal(left, copy.deepcopy(left))
+    assert checker._json_equal(right, copy.deepcopy(right))
+
+
+@pytest.mark.parametrize("keyword", ("const", "enum"))
+def test_actual_schema_consumer_rejects_nested_boolean_integer_imitation(keyword: str) -> None:
+    """実schema consumerのobject/array内でboolを数値へ置換できない。"""
+    expected = {"flags": [True, {"flag": False}], "number": 1}
+    schema = {keyword: expected if keyword == "const" else [expected]}
+    checker._validate_instance(copy.deepcopy(expected), schema, schema, "$")
+    changed = {"flags": [1, {"flag": 0}], "number": 1}
+    with pytest.raises(checker.DescriptorCheckError):
+        checker._validate_instance(changed, schema, schema, "$")

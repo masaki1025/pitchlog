@@ -7606,3 +7606,395 @@ def test_terminal_rejection_corpus_is_closed_and_raw_duplicates_are_not_lost() -
         with pytest.raises(ValueError):
             json.loads(case["requestJson"], object_pairs_hook=unique, parse_constant=finite)
         assert case["expected"] == {"ok": False, "error": {"code": "INVALID_JSON"}}
+
+
+def _strikeout_json_equal(actual: object, expected: object) -> bool:
+    """nested boolとintを混同せず、新SO契約の全JSON型/値を比較する。"""
+    return json.dumps(actual, sort_keys=True, ensure_ascii=False, allow_nan=False) == json.dumps(
+        expected, sort_keys=True, ensure_ascii=False, allow_nan=False,
+    )
+
+
+def _strikeout_assets() -> tuple[dict[str, Any], dict[str, Any]]:
+    """正規捕球三振の独立契約候補だけを読む。製品核は参照しない。"""
+    directory = CONTRACT_PATH.parent
+    return (
+        _load_object(directory / "strikeout_pitch_schema_v1.json"),
+        _load_object(directory / "strikeout_pitch_cases_v1.json"),
+    )
+
+
+def _strikeout_normative_response(request: dict[str, Any]) -> dict[str, Any]:
+    """SO-01/02・FR-005/020・第3アウト共通後処理から全応答を照合する。"""
+    before = request["before"]
+    state = before["stateFields"]
+    cursors = before["battingOrderBySide"]
+    assert state["state.score"] == before["scoreboard"]["inningScores"]
+    assert state["state.count.strikes"] == "2"
+    assert state["state.gameEnded"] is False
+    assert request["eventKind"] == "batting-result"
+    assert request["pitchEventKind"] == "pitch-event"
+    assert request["resultId"] in {
+        "batting-result.called-strikeout", "batting-result.swinging-strikeout",
+    }
+    side = {"top": "away", "bottom": "home"}[state["state.half"]]
+    other = {"away": "home", "home": "away"}[side]
+    assert all(value in {str(i) for i in range(1, 10)} for value in cursors.values())
+    assert cursors[side] == state["state.battingOrder"]
+    after = copy.deepcopy(before)
+    after["battingOrderBySide"][side] = str(int(cursors[side]) % 9 + 1)
+    third = state["state.outs"] == "2"
+    after["stateFields"].update({
+        "state.count.strikes": "0", "state.count.balls": "0",
+        "state.outs": "0" if third else str(int(state["state.outs"]) + 1),
+        "state.runners": "empty" if third else state["state.runners"],
+        "state.battingOrder": cursors[other] if third else after["battingOrderBySide"][side],
+    })
+    if third:
+        after["stateFields"]["state.half"] = {"top": "bottom", "bottom": "top"}[
+            state["state.half"]
+        ]
+        after["stateFields"]["state.inning"] = str(
+            int(state["state.inning"]) + int(state["state.half"] == "bottom")
+        )
+    after["scoreboard"]["strikeouts"] = str(int(before["scoreboard"]["strikeouts"]) + 1)
+    flags = {key: key in {"投球回算入アウト", "投球数", "奪三振", "打席", "打数", "三振"}
+             for key in _stat_flag_values()}
+    difference: dict[str, Any] = {
+        face: {key: {"before": copy.deepcopy(old), "after": copy.deepcopy(after[face][key])}
+               for key, old in fields.items() if old != after[face][key]}
+        for face, fields in before.items()
+    }
+    difference["statFlags"] = flags
+    runners = state["state.runners"].split("-")
+    return {"ok": True, "value": {
+        "countEffect": {"strikes": {"kind": "reset"}, "balls": {"kind": "reset"}},
+        "plateAppearanceEnded": True, "batterDestination": {"kind": "out"},
+        "runnerDefaultAdvance": {
+            runner: {"modality": "hold" if runner in runners else "not-applicable",
+                     "destination": None}
+            for runner in ("first", "second", "third")
+        },
+        "outEffect": {"count": "1", "targets": ["batter"]}, "statFlags": flags,
+        "after": after, "historyContext": [
+            {"kind": "confirmed-play", "difference": difference},
+            *copy.deepcopy(request["history"]["stack"]),
+        ],
+    }}
+
+
+def test_strikeout_twenty_four_normative_full_responses() -> None:
+    schema, vectors = _strikeout_assets()
+    schema_checker._validate_instance(schema, {"type": "object"}, schema, "$")
+    assert vectors["status"] == "AUTHOR_CANDIDATE_NOT_ACCEPTED_NOT_RUNTIME_EXECUTED"
+    assert vectors["independentVerifierId"] == "not-performed"
+    assert len(vectors["cases"]) == 24
+    coordinates = set()
+    for case in vectors["cases"]:
+        request, response = case["request"], case["expected"]
+        schema_checker._validate_instance(
+            request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+        )
+        schema_checker._validate_instance(response, schema["$defs"]["SuccessResponse"], schema, "$")
+        assert _strikeout_json_equal(response, _strikeout_normative_response(request))
+        state = request["before"]["stateFields"]
+        coordinates.add((request["resultId"], state["state.count.balls"], state["state.outs"]))
+        assert sum(response["value"]["statFlags"].values()) == 6
+    assert len(coordinates) == 24
+
+
+def test_strikeout_independent_both_cursor_all_31104_crosses() -> None:
+    """active3456×inactive9。相手cursorを旧攻撃側nextへ混同しない。"""
+    _, vectors = _strikeout_assets()
+    axes = vectors["crossProduct"]
+    crossed = set()
+    unchanged_scalar_with_changed_cursor = 0
+    # 全状態軸を独立に交差し、旧24手応答の非動的六効果とも全値比較する。
+    for case, half, order, runners, inactive in product(
+        vectors["cases"], axes["halves"], axes["battingOrders"],
+        axes["runners"], axes["inactiveBattingOrders"],
+    ):
+        request = copy.deepcopy(case["request"])
+        state = request["before"]["stateFields"]
+        state.update({"state.half": half, "state.battingOrder": order, "state.runners": runners})
+        side = "away" if half == "top" else "home"
+        other = "home" if side == "away" else "away"
+        request["before"]["battingOrderBySide"] = {side: order, other: inactive}
+        response = _strikeout_normative_response(request)
+        value = response["value"]
+        old = case["expected"]["value"]
+        for field in (
+            "countEffect", "plateAppearanceEnded", "batterDestination", "outEffect", "statFlags",
+        ):
+            assert value[field] == old[field]
+        after = value["after"]
+        assert after["battingOrderBySide"][other] == inactive
+        assert after["battingOrderBySide"][side] == axes["nextBattingOrder"][order]
+        expected_order = inactive if state["state.outs"] == "2" else axes["nextBattingOrder"][order]
+        assert after["stateFields"]["state.battingOrder"] == expected_order
+        difference = value["historyContext"][0]["difference"]
+        assert difference["battingOrderBySide"] == {
+            side: {"before": order, "after": axes["nextBattingOrder"][order]},
+        }
+        if state["state.outs"] == "2" and inactive == order:
+            unchanged_scalar_with_changed_cursor += 1
+            assert "state.battingOrder" not in difference["stateFields"]
+        crossed.add((case["caseId"], half, order, runners, inactive))
+    assert len(crossed) == axes["independentCursorCardinality"] == 31104
+    assert len({row[:-1] for row in crossed}) == axes["activeCardinality"] == 3456
+    assert unchanged_scalar_with_changed_cursor == 1152
+
+
+def test_strikeout_history_tail_big_integers_and_cursor_change_are_full_value() -> None:
+    schema, vectors = _strikeout_assets()
+    _, terminal = _terminal_assets()
+    for case in vectors["cases"]:
+        request = copy.deepcopy(case["request"])
+        huge = "9" * 90
+        state = request["before"]["stateFields"]
+        state["state.inning"] = huge
+        state["state.tiebreakActive"] = True
+        state["state.score"] = {"home": huge, "away": "123456789012345678901234567890"}
+        board = request["before"]["scoreboard"]
+        board.update({key: huge for key in ("hits", "errors", "strikeouts", "walks")})
+        board["inningScores"] = copy.deepcopy(state["state.score"])
+        tail = terminal["cases"][0]["expected"]["value"]["historyContext"]
+        request["history"]["stack"] = copy.deepcopy(tail * 2)
+        response = _strikeout_normative_response(request)
+        schema_checker._validate_instance(
+            request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+        )
+        schema_checker._validate_instance(response, schema["$defs"]["SuccessResponse"], schema, "$")
+        assert response["value"]["historyContext"][1:] == tail * 2
+        assert response["value"]["after"]["scoreboard"]["strikeouts"] == "1" + "0" * 90
+        assert response["value"]["after"]["stateFields"]["state.tiebreakActive"] is True
+
+
+def test_strikeout_schema_scope_and_correlation_reject_without_fallback() -> None:
+    schema, vectors = _strikeout_assets()
+    base = vectors["cases"][0]["request"]
+    invalid_states: list[tuple[str, object]] = [
+        ("state.count.strikes", "0"), ("state.count.strikes", "1"),
+        ("state.count.strikes", "3"), ("state.count.balls", "4"),
+        ("state.outs", "3"), ("state.runners", "loaded"),
+        ("state.battingOrder", "0"), ("state.battingOrder", "10"),
+        ("state.gameEnded", True), ("state.inning", "0"),
+        ("state.inning", "01"), ("state.inning", "1\n"),
+        ("state.inning", 1), ("state.inning", True),
+    ]
+    for field, value in invalid_states:
+        request = copy.deepcopy(base)
+        request["before"]["stateFields"][field] = value
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+            )
+    for field, value in (
+        ("resultId", "batting-result.ball"), ("resultId", "batting-result.strikeout-double-play"),
+        ("resultId", "batting-result.dropped-third-strike"), ("pitchEventKind", "non-pitch-event"),
+        ("eventKind", "runner-event"), ("runnerEventPayload", {}), ("t2", {"ok": True}),
+    ):
+        request = {**copy.deepcopy(base), field: value}
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+            )
+    for side, value in product(("away", "home"), ("0", "10", "01", "1\n", 1, True, None)):
+        request = copy.deepcopy(base)
+        request["before"]["battingOrderBySide"][side] = value
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(
+                request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+            )
+    for change in ("missing-cursors", "extra-cursor", "active-mismatch", "score-mismatch"):
+        request = copy.deepcopy(base)
+        if change == "missing-cursors":
+            del request["before"]["battingOrderBySide"]
+        elif change == "extra-cursor":
+            request["before"]["battingOrderBySide"]["other"] = "1"
+        elif change == "active-mismatch":
+            request["before"]["battingOrderBySide"]["away"] = "2"
+        else:
+            request["before"]["scoreboard"]["inningScores"]["home"] = "8"
+        if change in {"missing-cursors", "extra-cursor"}:
+            with pytest.raises(schema_checker.DescriptorCheckError):
+                schema_checker._validate_instance(
+                    request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+                )
+        else:
+            with pytest.raises(AssertionError):
+                _strikeout_normative_response(request)
+
+
+def test_strikeout_every_flag_history_and_after_comparison_face_mutation_is_red() -> None:
+    _, vectors = _strikeout_assets()
+    for case in vectors["cases"]:
+        request, expected = case["request"], case["expected"]
+        mutations = []
+        for flag in expected["value"]["statFlags"]:
+            changed = copy.deepcopy(expected)
+            changed["value"]["statFlags"][flag] = not changed["value"]["statFlags"][flag]
+            mutations.append(changed)
+        for face, fields in expected["value"]["after"].items():
+            for key in fields:
+                changed = copy.deepcopy(expected)
+                changed["value"]["after"][face][key] = None
+                mutations.append(changed)
+        for face, fields in expected["value"]["historyContext"][0]["difference"].items():
+            for key in fields:
+                changed = copy.deepcopy(expected)
+                del changed["value"]["historyContext"][0]["difference"][face][key]
+                mutations.append(changed)
+        for field in (
+            "countEffect", "plateAppearanceEnded", "batterDestination",
+            "runnerDefaultAdvance", "outEffect",
+        ):
+            changed = copy.deepcopy(expected)
+            changed["value"][field] = None
+            mutations.append(changed)
+        changed = copy.deepcopy(expected)
+        changed["value"]["historyContext"].append(copy.deepcopy(changed["value"]["historyContext"][0]))
+        mutations.append(changed)
+        for changed in mutations:
+            with pytest.raises(AssertionError):
+                assert _strikeout_json_equal(changed, _strikeout_normative_response(request))
+
+
+def test_strikeout_formal_references_preserve_old_rows_and_pair_all_twenty_four() -> None:
+    _, vectors = _strikeout_assets()
+    contract = _load_object(CONTRACT_PATH)
+    fixtures = _load_object(CONTRACT_PATH.parent / "state_transition_manual_fixtures_v1.json")
+    mapping = _load_object(CONTRACT_PATH.parent / "branch_row_mapping_v1.json")
+    ids = {case["formalCaseId"] for case in vectors["cases"]}
+    assert len(ids) == 24
+    assert len(contract["cases"]) == 132 + 24
+    assert len(contract["matrixRows"]) == 51 + 16
+    for case in vectors["cases"]:
+        request = case["request"]
+        branch = "SO-01" if request["resultId"] == "batting-result.called-strikeout" else "SO-02"
+        fixture = next(x for x in fixtures["fixtures"] if x["case"]["branchId"] == branch)
+        entry = next(x for x in mapping["mappings"] if x["branchId"] == branch)
+        assert len(fixture["additionalCases"]) == len(entry["additionalCaseMappings"]) == 12
+        source = next(x for x in fixture["additionalCases"] if x["caseId"] == case["formalCaseId"])
+        ref = next(
+            x for x in entry["additionalCaseMappings"]
+            if x["caseId"] == case["formalCaseId"]
+        )
+        formal = next(x for x in contract["cases"] if x["caseId"] == case["formalCaseId"])
+        assert formal["rowRef"] == ref["rowRef"]
+        assert formal["inputCoordinate"] == source["inputCoordinate"]
+        assert formal["expected"] == source["expected"]
+        value = case["expected"]["value"]
+        expected_six = copy.deepcopy(formal["expected"])
+        expected_six["outEffect"]["count"] = str(expected_six["outEffect"]["count"])
+        assert _strikeout_json_equal(expected_six, {k: value[k] for k in expected_six})
+        assert formal["historyInput"]["before"]["battingOrderBySide"] == {
+            k: int(v) for k, v in request["before"]["battingOrderBySide"].items()
+        }
+    axes = _descriptor()["stateTransitionAxes"]
+    axis = next(x for x in axes if x["axisId"] == "state.battingOrder")
+    assert axis["values"] == list(range(1, 10))
+    assert vectors["contextProjection"]["axisId"] == "state.battingOrder"
+
+
+def test_strikeout_context_projection_consumes_existing_descriptor_domain_exactly() -> None:
+    """新軸を捏造せず同一打順domainを独立した両contextへ射影する。"""
+    schema, vectors = _strikeout_assets()
+    projection = vectors["contextProjection"]
+    axis = next(x for x in _descriptor()["stateTransitionAxes"]
+                if x["axisId"] == projection["axisId"])
+    expected = {str(value) for value in axis["values"]}
+    assert expected == {str(i) for i in range(1, 10)}
+    assert projection["targets"] == [
+        "before.stateFields.state.battingOrder",
+        "before.battingOrderBySide.away", "before.battingOrderBySide.home",
+    ]
+    for side in ("away", "home"):
+        field = schema["$defs"]["BattingOrderBySide"]["properties"][side]
+        assert field["x-pitchlog-axis-id"] == axis["axisId"]
+        assert set(field["enum"]) == expected
+    for name in ("StrikeoutPitchRequest", "AfterSnapshot"):
+        before = (schema["$defs"][name]["properties"]["before"]
+                  if name == "StrikeoutPitchRequest" else schema["$defs"][name])
+        state = before["properties"]["stateFields"]["properties"]
+        assert set(state["state.battingOrder"]["enum"]) == expected
+        assert before["properties"]["battingOrderBySide"] == {"$ref": "#/$defs/BattingOrderBySide"}
+
+
+def test_strikeout_closed_rejection_corpus_and_raw_json_members() -> None:
+    schema, vectors = _strikeout_assets()
+    by_id = {case["caseId"]: case for case in vectors["cases"]}
+    assert len({case["caseId"] for case in vectors["rejectionCases"]}) == 41
+    assert len(vectors["rejectionCases"]) == 41
+    for case in vectors["rejectionCases"]:
+        request = copy.deepcopy(by_id[case["baseCaseId"]]["request"])
+        target = request
+        for key in case["path"][:-1]:
+            target = target[key]
+        target[case["path"][-1]] = case["value"]
+        if case["rejectionLayer"] == "schema":
+            with pytest.raises(schema_checker.DescriptorCheckError):
+                schema_checker._validate_instance(
+                    request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+                )
+        else:
+            with pytest.raises(AssertionError):
+                _strikeout_normative_response(request)
+        schema_checker._validate_instance(
+            case["expected"], schema["$defs"]["FailureResponse"], schema, "$",
+        )
+
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        """重複memberをJSON辞書化で失わず拒否する。"""
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate member")
+            result[key] = value
+        return result
+
+    def finite(_value: str) -> None:
+        """非有限値はJSONではない。"""
+        raise ValueError("nonfinite")
+
+    assert {case["caseId"] for case in vectors["rawRejections"]} == {
+        "DUPLICATE-MEMBER", "NONFINITE", "MALFORMED",
+    }
+    for case in vectors["rawRejections"]:
+        with pytest.raises(ValueError):
+            json.loads(case["requestJson"], object_pairs_hook=unique, parse_constant=finite)
+        assert case["expected"] == {"ok": False, "error": {"code": "INVALID_JSON"}}
+
+
+def test_strikeout_every_boolean_numeric_imitation_fails_full_value_comparison() -> None:
+    """既const-object検査のbool/int同値に依存せず、SO比較面全体を閉じる。"""
+    schema, vectors = _strikeout_assets()
+    for case in vectors["cases"]:
+        request, response = case["request"], case["expected"]
+        flags = response["value"]["statFlags"]
+        assert all(type(value) is bool for value in flags.values())
+        for flag in flags:
+            for face in ("statFlags", "history"):
+                changed = copy.deepcopy(response)
+                target = (changed["value"]["statFlags"] if face == "statFlags" else
+                          changed["value"]["historyContext"][0]["difference"]["statFlags"])
+                target[flag] = int(target[flag])
+                assert not _strikeout_json_equal(changed, _strikeout_normative_response(request))
+                with pytest.raises(schema_checker.DescriptorCheckError):
+                    schema_checker._validate_instance(
+                        changed, schema["$defs"]["SuccessResponse"], schema, "$",
+                    )
+        for field in ("state.tiebreakActive", "state.gameEnded"):
+            changed = copy.deepcopy(response)
+            changed["value"]["after"]["stateFields"][field] = int(
+                changed["value"]["after"]["stateFields"][field]
+            )
+            assert not _strikeout_json_equal(changed, _strikeout_normative_response(request))
+            changed_request = copy.deepcopy(request)
+            changed_request["before"]["stateFields"][field] = int(
+                changed_request["before"]["stateFields"][field]
+            )
+            with pytest.raises(schema_checker.DescriptorCheckError):
+                schema_checker._validate_instance(
+                    changed_request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
+                )

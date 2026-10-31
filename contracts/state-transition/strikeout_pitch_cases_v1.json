@@ -1,0 +1,5885 @@
+{
+  "status": "AUTHOR_CANDIDATE_NOT_ACCEPTED_NOT_RUNTIME_EXECUTED",
+  "calculation": "strikeout-caught-both-cursors-v1",
+  "schemaPath": "contracts/state-transition/strikeout_pitch_schema_v1.json",
+  "operation": "deriveStrikeoutPitch",
+  "independentVerifierId": "not-performed",
+  "source": {
+    "requirements": "docs/requirements/requirements-pitchlog-2026-07-22.md",
+    "expectedDerivation": "SO-01/02・FR-003/005/020・XC03/06/10/11/13・攻守交代共通後処理から作者記述。kernel/spike出力不使用",
+    "plan": "docs/features/mvp-strikeout-pitches/plan.md"
+  },
+  "contextProjection": {
+    "descriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+    "axisId": "state.battingOrder",
+    "targets": [
+      "before.stateFields.state.battingOrder",
+      "before.battingOrderBySide.away",
+      "before.battingOrderBySide.home"
+    ],
+    "activeConstraint": "top→away / bottom→home equals state.battingOrder",
+    "independentlyCrossed": [
+      "inactive battingOrderBySide cursor"
+    ],
+    "historyDifference": "difference.battingOrderBySide retains outgoing cursor change even when scalar order unchanged"
+  },
+  "semanticConstraints": [
+    "score == scoreboard.inningScores",
+    "six true flags and seventeen false",
+    "before runner hold effects; out3 after empty",
+    "only outgoing cursor advances 9→1; after selects current side cursor",
+    "history head contains every actual change including cursor; unchanged fields absent; tail all-value preserved",
+    "T2 evaluation and qualified ID attribution are later dependencies"
+  ],
+  "cases": [
+    {
+      "caseId": "STRIKEOUT-1-B0-O0",
+      "formalCaseId": "ST-STRIKEOUT-1-B0-O0",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "1",
+            "home": "5"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "empty",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "2",
+              "home": "5"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B0-O1",
+      "formalCaseId": "ST-STRIKEOUT-1-B0-O1",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "1",
+            "state.runners": "first",
+            "state.battingOrder": "2",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "3",
+            "home": "2"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "first",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "3"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B0-O2",
+      "formalCaseId": "ST-STRIKEOUT-1-B0-O2",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "2",
+            "state.runners": "second",
+            "state.battingOrder": "3",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "3",
+            "home": "6"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "6",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "4",
+              "home": "6"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "top",
+                    "after": "bottom"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.runners": {
+                    "before": "second",
+                    "after": "empty"
+                  },
+                  "state.battingOrder": {
+                    "before": "3",
+                    "after": "6"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B1-O0",
+      "formalCaseId": "ST-STRIKEOUT-1-B1-O0",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "third",
+            "state.battingOrder": "4",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "7",
+            "home": "4"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "third",
+              "state.battingOrder": "5",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "7",
+              "home": "5"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "4",
+                    "after": "5"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "4",
+                    "after": "5"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B1-O1",
+      "formalCaseId": "ST-STRIKEOUT-1-B1-O1",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.outs": "1",
+            "state.runners": "first-second",
+            "state.battingOrder": "5",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "5",
+            "home": "7"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "first-second",
+              "state.battingOrder": "6",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "7"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "5",
+                    "after": "6"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "5",
+                    "after": "6"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B1-O2",
+      "formalCaseId": "ST-STRIKEOUT-1-B1-O2",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.outs": "2",
+            "state.runners": "first-third",
+            "state.battingOrder": "6",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "6",
+            "home": "6"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "6",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "4",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "7"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "bottom",
+                    "after": "top"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.runners": {
+                    "before": "first-third",
+                    "after": "empty"
+                  },
+                  "state.inning": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "6",
+                    "after": "7"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B2-O0",
+      "formalCaseId": "ST-STRIKEOUT-1-B2-O0",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "2",
+            "state.outs": "0",
+            "state.runners": "second-third",
+            "state.battingOrder": "7",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "7",
+            "home": "8"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "second-third",
+              "state.battingOrder": "8",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "8",
+              "home": "8"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "7",
+                    "after": "8"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "7",
+                    "after": "8"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B2-O1",
+      "formalCaseId": "ST-STRIKEOUT-1-B2-O1",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "2",
+            "state.outs": "1",
+            "state.runners": "first-second-third",
+            "state.battingOrder": "8",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "6",
+            "home": "8"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "first-second-third",
+              "state.battingOrder": "9",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "9"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "8",
+                    "after": "9"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "8",
+                    "after": "9"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B2-O2",
+      "formalCaseId": "ST-STRIKEOUT-1-B2-O2",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "2",
+            "state.outs": "2",
+            "state.runners": "empty",
+            "state.battingOrder": "9",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "9",
+            "home": "9"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "9",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "1",
+              "home": "9"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "top",
+                    "after": "bottom"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "9",
+                    "after": "1"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B3-O0",
+      "formalCaseId": "ST-STRIKEOUT-1-B3-O0",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "3",
+            "state.outs": "0",
+            "state.runners": "first",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "1",
+            "home": "1"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "first",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "1",
+              "home": "2"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "3",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B3-O1",
+      "formalCaseId": "ST-STRIKEOUT-1-B3-O1",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "3",
+            "state.outs": "1",
+            "state.runners": "second",
+            "state.battingOrder": "2",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "2",
+            "home": "1"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "second",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "1"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "3",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-1-B3-O2",
+      "formalCaseId": "ST-STRIKEOUT-1-B3-O2",
+      "sourceClauseIds": [
+        "req:SO-01",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.called-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "3",
+            "state.outs": "2",
+            "state.runners": "third",
+            "state.battingOrder": "3",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "3",
+            "home": "3"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "4",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "4"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "bottom",
+                    "after": "top"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "3",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.runners": {
+                    "before": "third",
+                    "after": "empty"
+                  },
+                  "state.inning": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B0-O0",
+      "formalCaseId": "ST-STRIKEOUT-2-B0-O0",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "0",
+            "state.runners": "empty",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "1",
+            "home": "5"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "empty",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "2",
+              "home": "5"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B0-O1",
+      "formalCaseId": "ST-STRIKEOUT-2-B0-O1",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "1",
+            "state.runners": "first",
+            "state.battingOrder": "2",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "3",
+            "home": "2"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "first",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "3"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B0-O2",
+      "formalCaseId": "ST-STRIKEOUT-2-B0-O2",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "0",
+            "state.outs": "2",
+            "state.runners": "second",
+            "state.battingOrder": "3",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "3",
+            "home": "6"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "6",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "4",
+              "home": "6"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "top",
+                    "after": "bottom"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.runners": {
+                    "before": "second",
+                    "after": "empty"
+                  },
+                  "state.battingOrder": {
+                    "before": "3",
+                    "after": "6"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B1-O0",
+      "formalCaseId": "ST-STRIKEOUT-2-B1-O0",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.outs": "0",
+            "state.runners": "third",
+            "state.battingOrder": "4",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "7",
+            "home": "4"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "third",
+              "state.battingOrder": "5",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "7",
+              "home": "5"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "4",
+                    "after": "5"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "4",
+                    "after": "5"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B1-O1",
+      "formalCaseId": "ST-STRIKEOUT-2-B1-O1",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.outs": "1",
+            "state.runners": "first-second",
+            "state.battingOrder": "5",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "5",
+            "home": "7"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "first-second",
+              "state.battingOrder": "6",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "7"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "5",
+                    "after": "6"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "5",
+                    "after": "6"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B1-O2",
+      "formalCaseId": "ST-STRIKEOUT-2-B1-O2",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.outs": "2",
+            "state.runners": "first-third",
+            "state.battingOrder": "6",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "6",
+            "home": "6"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "6",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "4",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "7"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "bottom",
+                    "after": "top"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "1",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.runners": {
+                    "before": "first-third",
+                    "after": "empty"
+                  },
+                  "state.inning": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "6",
+                    "after": "7"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B2-O0",
+      "formalCaseId": "ST-STRIKEOUT-2-B2-O0",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "2",
+            "state.outs": "0",
+            "state.runners": "second-third",
+            "state.battingOrder": "7",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "7",
+            "home": "8"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "second-third",
+              "state.battingOrder": "8",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "8",
+              "home": "8"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "7",
+                    "after": "8"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "7",
+                    "after": "8"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B2-O1",
+      "formalCaseId": "ST-STRIKEOUT-2-B2-O1",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "2",
+            "state.outs": "1",
+            "state.runners": "first-second-third",
+            "state.battingOrder": "8",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "6",
+            "home": "8"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "first-second-third",
+              "state.battingOrder": "9",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "9"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "8",
+                    "after": "9"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "8",
+                    "after": "9"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B2-O2",
+      "formalCaseId": "ST-STRIKEOUT-2-B2-O2",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "2",
+            "state.outs": "2",
+            "state.runners": "empty",
+            "state.battingOrder": "9",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "9",
+            "home": "9"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "9",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "1",
+              "home": "9"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "top",
+                    "after": "bottom"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "9",
+                    "after": "1"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B3-O0",
+      "formalCaseId": "ST-STRIKEOUT-2-B3-O0",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "3",
+            "state.outs": "0",
+            "state.runners": "first",
+            "state.battingOrder": "1",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "1",
+            "home": "1"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "hold",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "first",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "1",
+              "home": "2"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "3",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "0",
+                    "after": "1"
+                  },
+                  "state.battingOrder": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "1",
+                    "after": "2"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B3-O1",
+      "formalCaseId": "ST-STRIKEOUT-2-B3-O1",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "top",
+            "state.count.strikes": "2",
+            "state.count.balls": "3",
+            "state.outs": "1",
+            "state.runners": "second",
+            "state.battingOrder": "2",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "2",
+            "home": "1"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "hold",
+              "destination": null
+            },
+            "third": {
+              "modality": "not-applicable",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "second",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "3",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "1"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "3",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "1",
+                    "after": "2"
+                  },
+                  "state.battingOrder": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "away": {
+                    "before": "2",
+                    "after": "3"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "caseId": "STRIKEOUT-2-B3-O2",
+      "formalCaseId": "ST-STRIKEOUT-2-B3-O2",
+      "sourceClauseIds": [
+        "req:SO-02",
+        "req:XC-03",
+        "req:XC-06",
+        "req:XC-10",
+        "req:XC-11",
+        "req:XC-13",
+        "req:FR-003",
+        "req:FR-005",
+        "req:FR-020"
+      ],
+      "request": {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.swinging-strikeout",
+        "pitchEventKind": "pitch-event",
+        "before": {
+          "stateFields": {
+            "state.half": "bottom",
+            "state.count.strikes": "2",
+            "state.count.balls": "3",
+            "state.outs": "2",
+            "state.runners": "third",
+            "state.battingOrder": "3",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.inning": "3",
+            "state.score": {
+              "home": "7",
+              "away": "4"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "7",
+              "away": "4"
+            },
+            "hits": "5",
+            "errors": "2",
+            "strikeouts": "11",
+            "walks": "3"
+          },
+          "battingOrderBySide": {
+            "away": "3",
+            "home": "3"
+          }
+        },
+        "history": {
+          "stack": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "countEffect": {
+            "strikes": {
+              "kind": "reset"
+            },
+            "balls": {
+              "kind": "reset"
+            }
+          },
+          "plateAppearanceEnded": true,
+          "batterDestination": {
+            "kind": "out"
+          },
+          "runnerDefaultAdvance": {
+            "first": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "second": {
+              "modality": "not-applicable",
+              "destination": null
+            },
+            "third": {
+              "modality": "hold",
+              "destination": null
+            }
+          },
+          "outEffect": {
+            "count": "1",
+            "targets": [
+              "batter"
+            ]
+          },
+          "statFlags": {
+            "投球回算入アウト": true,
+            "投球数": true,
+            "奪三振": true,
+            "与四球": false,
+            "与死球": false,
+            "被安打": false,
+            "被本塁打": false,
+            "失点": false,
+            "失策": false,
+            "打席": true,
+            "打数": true,
+            "安打": false,
+            "本塁打": false,
+            "塁打": false,
+            "犠打": false,
+            "犠飛": false,
+            "四球": false,
+            "死球": false,
+            "三振": true,
+            "打撃妨害出塁": false,
+            "走塁妨害出塁": false,
+            "得点": false,
+            "打点": false
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "4",
+              "state.score": {
+                "home": "7",
+                "away": "4"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "7",
+                "away": "4"
+              },
+              "hits": "5",
+              "errors": "2",
+              "strikeouts": "12",
+              "walks": "3"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "4"
+            }
+          },
+          "historyContext": [
+            {
+              "kind": "confirmed-play",
+              "difference": {
+                "stateFields": {
+                  "state.half": {
+                    "before": "bottom",
+                    "after": "top"
+                  },
+                  "state.count.strikes": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.count.balls": {
+                    "before": "3",
+                    "after": "0"
+                  },
+                  "state.outs": {
+                    "before": "2",
+                    "after": "0"
+                  },
+                  "state.runners": {
+                    "before": "third",
+                    "after": "empty"
+                  },
+                  "state.inning": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "scoreboard": {
+                  "strikeouts": {
+                    "before": "11",
+                    "after": "12"
+                  }
+                },
+                "battingOrderBySide": {
+                  "home": {
+                    "before": "3",
+                    "after": "4"
+                  }
+                },
+                "statFlags": {
+                  "投球回算入アウト": true,
+                  "投球数": true,
+                  "奪三振": true,
+                  "与四球": false,
+                  "与死球": false,
+                  "被安打": false,
+                  "被本塁打": false,
+                  "失点": false,
+                  "失策": false,
+                  "打席": true,
+                  "打数": true,
+                  "安打": false,
+                  "本塁打": false,
+                  "塁打": false,
+                  "犠打": false,
+                  "犠飛": false,
+                  "四球": false,
+                  "死球": false,
+                  "三振": true,
+                  "打撃妨害出塁": false,
+                  "走塁妨害出塁": false,
+                  "得点": false,
+                  "打点": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "crossProduct": {
+    "resultIds": [
+      "batting-result.called-strikeout",
+      "batting-result.swinging-strikeout"
+    ],
+    "balls": [
+      "0",
+      "1",
+      "2",
+      "3"
+    ],
+    "outs": [
+      "0",
+      "1",
+      "2"
+    ],
+    "halves": [
+      "top",
+      "bottom"
+    ],
+    "battingOrders": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "runners": [
+      "empty",
+      "first",
+      "second",
+      "third",
+      "first-second",
+      "first-third",
+      "second-third",
+      "first-second-third"
+    ],
+    "inactiveBattingOrders": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "activeCardinality": 3456,
+    "independentCursorCardinality": 31104,
+    "nextBattingOrder": {
+      "1": "2",
+      "2": "3",
+      "3": "4",
+      "4": "5",
+      "5": "6",
+      "6": "7",
+      "7": "8",
+      "8": "9",
+      "9": "1"
+    }
+  },
+  "rejectionCases": [
+    {
+      "caseId": "SCOPE-state.count.strikes-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.count.strikes"
+      ],
+      "value": "0",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.count.strikes-1",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.count.strikes"
+      ],
+      "value": "1",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.count.strikes-2",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.count.strikes"
+      ],
+      "value": "3",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.count.balls-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.count.balls"
+      ],
+      "value": "4",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.outs-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.outs"
+      ],
+      "value": "3",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.battingOrder-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.battingOrder"
+      ],
+      "value": "0",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.battingOrder-1",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.battingOrder"
+      ],
+      "value": "10",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.gameEnded-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.gameEnded"
+      ],
+      "value": true,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCOPE-state.runners-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.runners"
+      ],
+      "value": "loaded",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": "01",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-1",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": "-1",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-2",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": "1.0",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-3",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": "1\n",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-4",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": " 1",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-5",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": 1,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-6",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": true,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "DECIMAL-7",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "stateFields",
+        "state.inning"
+      ],
+      "value": null,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": "0",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-1",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": "10",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-2",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": "01",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-3",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": "1\n",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-4",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": 1,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-5",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": true,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-away-6",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": null,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": "0",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-1",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": "10",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-2",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": "01",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-3",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": "1\n",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_DECIMAL_INTEGER"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-4",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": 1,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-5",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": true,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "CURSOR-home-6",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "home"
+      ],
+      "value": null,
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "OTHER-RESULT-0",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "resultId"
+      ],
+      "value": "batting-result.k3",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "OTHER-RESULT-1",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "resultId"
+      ],
+      "value": "batting-result.strikeout-double-play",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "OTHER-RESULT-2",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "resultId"
+      ],
+      "value": "batting-result.dropped-third-strike",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "OTHER-RESULT-3",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "resultId"
+      ],
+      "value": "batting-result.called-pitch",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "NON-PITCH",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "pitchEventKind"
+      ],
+      "value": "non-pitch-event",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "EXTRA-freeRunnerId",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "freeRunnerId"
+      ],
+      "value": "caller",
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "EXTRA-runnerEventPayload",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "runnerEventPayload"
+      ],
+      "value": {},
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "EXTRA-t2",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "t2"
+      ],
+      "value": {
+        "ok": true
+      },
+      "rejectionLayer": "schema",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_REQUEST"
+        }
+      }
+    },
+    {
+      "caseId": "ACTIVE-MISMATCH",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "battingOrderBySide",
+        "away"
+      ],
+      "value": "2",
+      "rejectionLayer": "correlation",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    },
+    {
+      "caseId": "SCORE-MISMATCH",
+      "baseCaseId": "STRIKEOUT-1-B0-O0",
+      "path": [
+        "before",
+        "scoreboard",
+        "inningScores",
+        "home"
+      ],
+      "value": "8",
+      "rejectionLayer": "correlation",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "UNSUPPORTED_T1_SCOPE"
+        }
+      }
+    }
+  ],
+  "rawRejections": [
+    {
+      "caseId": "DUPLICATE-MEMBER",
+      "requestJson": "{\"eventKind\":\"batting-result\",\"eventKind\":\"batting-result\",\"resultId\":\"batting-result.walk\",\"pitchEventKind\":\"pitch-event\",\"before\":{\"stateFields\":{\"state.half\":\"top\",\"state.count.strikes\":\"0\",\"state.count.balls\":\"3\",\"state.outs\":\"0\",\"state.runners\":\"empty\",\"state.battingOrder\":\"1\",\"state.tiebreakActive\":false,\"state.gameEnded\":false,\"state.inning\":\"1\",\"state.score\":{\"home\":\"0\",\"away\":\"0\"}},\"scoreboard\":{\"inningScores\":{\"home\":\"0\",\"away\":\"0\"},\"hits\":\"0\",\"errors\":\"0\",\"strikeouts\":\"0\",\"walks\":\"0\"}},\"history\":{\"stack\":[]}}",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_JSON"
+        }
+      }
+    },
+    {
+      "caseId": "NONFINITE",
+      "requestJson": "{\"eventKind\":\"batting-result\",\"resultId\":\"batting-result.walk\",\"pitchEventKind\":\"pitch-event\",\"before\":{\"stateFields\":{\"state.half\":\"top\",\"state.count.strikes\":\"0\",\"state.count.balls\":\"3\",\"state.outs\":\"0\",\"state.runners\":\"empty\",\"state.battingOrder\":\"1\",\"state.tiebreakActive\":false,\"state.gameEnded\":false,\"state.inning\":\"1\",\"state.score\":{\"home\":\"0\",\"away\":\"0\"}},\"scoreboard\":{\"inningScores\":{\"home\":\"0\",\"away\":\"0\"},\"hits\":NaN,\"errors\":\"0\",\"strikeouts\":\"0\",\"walks\":\"0\"}},\"history\":{\"stack\":[]}}",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_JSON"
+        }
+      }
+    },
+    {
+      "caseId": "MALFORMED",
+      "requestJson": "{",
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "INVALID_JSON"
+        }
+      }
+    }
+  ],
+  "boundary": {
+    "provided": "T1契約候補のみ。実kernel/host未実行。",
+    "notProvided": [
+      "真正両team roster/cursor source",
+      "T2終了判定",
+      "DB/Port/HTTP",
+      "画面",
+      "P6blind",
+      "正式受理"
+    ]
+  },
+  "runnerProjection": {
+    "descriptorAxisId": "state.runners",
+    "formalToWire": {
+      "empty": "empty",
+      "first": "first",
+      "second": "second",
+      "third": "third",
+      "first-second": "first-second",
+      "first-third": "first-third",
+      "second-third": "second-third",
+      "loaded": "first-second-third"
+    },
+    "boundary": "formal descriptor loaded / public wire first-second-third / kernel loaded。語彙変換だけで占有状態を変更しない。"
+  }
+}

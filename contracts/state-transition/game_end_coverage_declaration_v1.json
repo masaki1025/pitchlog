@@ -448,7 +448,7 @@
     "verification": "derived-exact-set"
   },
   "normalCaseCounts": {
-    "stateTransition": 132,
+    "stateTransition": 156,
     "gameEnd": 248
   },
   "stateTransitionCaseAliases": [

@@ -768,6 +768,200 @@ def _terminal_case_extension(root: Path, contract: dict[str, Any]) -> set[str]:
     return expected_ids
 
 
+def _strikeout_case_extension(root: Path, contract: dict[str, Any]) -> set[str]:
+    """通常117/BBHBP15を広げず、SO規範の固定24例だけを別閉集合で照合する。"""
+    ids = {f"ST-STRIKEOUT-{kind}-B{balls}-O{outs}"
+           for kind in (1, 2) for balls in range(4) for outs in range(3)}
+    supplied = contract["cases"]
+    present = {case["caseId"] for case in supplied} & ids
+    if not present:
+        return set()
+    if present != ids:
+        raise RequiredSetCoverageError("三振の追加24IDが不完全")
+    asset = _document(root, "strikeout_pitch_cases_v1.json")
+    sources = asset.get("cases")
+    if (asset.get("calculation") != "strikeout-caught-both-cursors-v1"
+            or asset.get("operation") != "deriveStrikeoutPitch"
+            or not isinstance(sources, list) or len(sources) != 24
+            or not all(isinstance(case, dict) for case in sources)
+            or {case.get("formalCaseId") for case in sources} != ids):
+        raise RequiredSetCoverageError("三振の正準24case資産が不一致")
+    def equal(actual: Any, expected: Any) -> bool:
+        """この24例ではnested bool/intも混同せず、全JSON型と値を比較する。"""
+        return json.dumps(actual, sort_keys=True, allow_nan=False) == json.dumps(
+            expected, sort_keys=True, allow_nan=False,
+        )
+
+    schema = _document(root, "strikeout_pitch_schema_v1.json")
+    descriptor = _document(root, "input_axes_descriptor_v1.json")
+    axes = [axis for axis in descriptor["stateTransitionAxes"]
+            if axis["axisId"] == "state.battingOrder"]
+    projection = {
+        "descriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
+        "axisId": "state.battingOrder",
+        "targets": ["before.stateFields.state.battingOrder",
+                    "before.battingOrderBySide.away", "before.battingOrderBySide.home"],
+        "activeConstraint": "top→away / bottom→home equals state.battingOrder",
+        "independentlyCrossed": ["inactive battingOrderBySide cursor"],
+        "historyDifference": "difference.battingOrderBySide retains outgoing cursor change "
+                             "even when scalar order unchanged",
+    }
+    if (len(axes) != 1 or not equal(axes[0]["values"], list(range(1, 10)))
+            or not equal(asset.get("contextProjection"), projection)):
+        raise RequiredSetCoverageError("三振の両cursorと既descriptor写像が不一致")
+    order_domain = [str(value) for value in axes[0]["values"]]
+    runner_axes = [axis for axis in descriptor["stateTransitionAxes"]
+                   if axis["axisId"] == "state.runners"]
+    runner_map = {runner: ("first-second-third" if runner == "loaded" else runner)
+                  for runner in ("empty", "first", "second", "third", "first-second",
+                                 "first-third", "second-third", "loaded")}
+    runner_projection = asset.get("runnerProjection")
+    if (len(runner_axes) != 1 or not equal(runner_axes[0]["values"], list(runner_map))
+            or not isinstance(runner_projection, dict)
+            or runner_projection.get("descriptorAxisId") != "state.runners"
+            or not equal(runner_projection.get("formalToWire"), runner_map)
+            or not equal(schema["$defs"]["StateFields"]["properties"]["state.runners"][
+                "enum"
+            ], list(runner_map.values()))):
+        raise RequiredSetCoverageError("三振のformal loaded/public wire塁配置写像が不一致")
+    try:
+        for side in ("away", "home"):
+            field = schema["$defs"]["BattingOrderBySide"]["properties"][side]
+            if (field.get("x-pitchlog-axis-id") != "state.battingOrder"
+                    or not equal(field.get("enum"), order_domain)):
+                raise RequiredSetCoverageError("三振schemaの両cursor domainが不一致")
+        before_schema = schema["$defs"]["StrikeoutPitchRequest"]["properties"]["before"]
+        for snapshot in (before_schema, schema["$defs"]["AfterSnapshot"]):
+            if not equal(snapshot["properties"]["stateFields"]["properties"][
+                "state.battingOrder"
+            ]["enum"], order_domain) or snapshot["properties"]["battingOrderBySide"] != {
+                "$ref": "#/$defs/BattingOrderBySide"
+            }:
+                raise RequiredSetCoverageError("三振schemaのactive打順写像が不一致")
+    except (KeyError, TypeError) as error:
+        raise RequiredSetCoverageError("三振schemaのcontext構造が不正") from error
+
+    def wire(value: Any) -> Any:
+        """固定した規範期待整数をwireへ写すだけで入力はcoerceしない。"""
+        if isinstance(value, dict):
+            return {key: ("first-second-third" if key == "state.runners" and child == "loaded"
+                          else wire(child)) for key, child in value.items()}
+        if isinstance(value, list):
+            return [wire(child) for child in value]
+        return str(value) if type(value) is int else value
+
+    # 24手例の入力座標はcaseIdから固定する。自己申告で任意scopeを受理しない。
+    contexts = (
+        ("top", "empty", 1, 1, 5), ("bottom", "first", 2, 3, 2),
+        ("top", "second", 3, 3, 6), ("bottom", "third", 4, 7, 4),
+        ("top", "first-second", 5, 5, 7), ("bottom", "first-third", 6, 6, 6),
+        ("top", "second-third", 7, 7, 8),
+        ("bottom", "loaded", 8, 6, 8),
+        ("top", "empty", 9, 9, 9), ("bottom", "first", 1, 1, 1),
+        ("top", "second", 2, 2, 1), ("bottom", "third", 3, 3, 3),
+    )
+    keys = _document(root, "state_transition_contract_schema_v1.json")["$defs"][
+        "statFlags"
+    ]["properties"]
+    flags = {key: key in {"投球回算入アウト", "投球数", "奪三振", "打席", "打数", "三振"}
+             for key in keys}
+    for source in sources:
+        identifier = source["formalCaseId"]
+        kind, balls_part, outs_part = identifier.removeprefix("ST-STRIKEOUT-").split("-")
+        balls, outs = int(balls_part[1:]), int(outs_part[1:])
+        result = "batting-result." + ("called-strikeout" if kind == "1"
+                                      else "swinging-strikeout")
+        half, runners, order, away, home = contexts[balls * 3 + outs]
+        before = {"stateFields": {
+            "state.half": half, "state.count.strikes": 2, "state.count.balls": balls,
+            "state.outs": outs, "state.runners": runners, "state.battingOrder": order,
+            "state.tiebreakActive": False, "state.gameEnded": False, "state.inning": 3,
+            "state.score": {"home": 7, "away": 4},
+        }, "scoreboard": {"inningScores": {"home": 7, "away": 4}, "hits": 5,
+                          "errors": 2, "strikeouts": 11, "walks": 3},
+            "battingOrderBySide": {"away": away, "home": home}}
+        side, other = ("away", "home") if half == "top" else ("home", "away")
+        cursors = {"away": away, "home": home}
+        cursors[side] = order % 9 + 1
+        third = outs == 2
+        after = {"stateFields": {
+            **before["stateFields"], "state.count.strikes": 0, "state.count.balls": 0,
+            "state.outs": 0 if third else outs + 1,
+            "state.runners": "empty" if third else runners,
+            "state.battingOrder": cursors[other] if third else cursors[side],
+            "state.half": ("bottom" if half == "top" else "top") if third else half,
+            "state.inning": 3 + int(third and half == "bottom"),
+        }, "scoreboard": {**before["scoreboard"], "strikeouts": 12},
+            "battingOrderBySide": cursors}
+        effects = {"countEffect": {"strikes": {"kind": "reset"}, "balls": {"kind": "reset"}},
+                   "plateAppearanceEnded": True, "batterDestination": {"kind": "out"},
+                   "runnerDefaultAdvance": {
+                       base: {"modality": "hold" if base in (("first", "second", "third")
+                                if runners == "loaded" else runners.split("-"))
+                              else "not-applicable", "destination": None}
+                       for base in ("first", "second", "third")},
+                   "outEffect": {"count": 1, "targets": ["batter"]}, "statFlags": flags}
+        arguments: list[dict[str, Any]] = [
+            {"op": "eq", "axisId": "state.runners", "value": runners},
+            {"op": "in", "axisId": "state.outs", "values": [0, 1, 2]},
+            {"op": "eq", "axisId": "state.count.strikes", "value": 2},
+            {"op": "in", "axisId": "state.count.balls", "values": [0, 1, 2, 3]},
+            {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"},
+            {"op": "eq", "axisId": "state.gameEnded", "value": False},
+        ]
+        predicate: dict[str, Any] = {"op": "and", "args": arguments}
+        if runners == "empty":
+            arguments.append({"op": "not", "args": [{"op": "and", "args": [
+                {"op": "eq", "axisId": "state.outs", "value": 0},
+                {"op": "eq", "axisId": "state.count.balls", "value": 0},
+            ]}]})
+            if outs == balls == 0:
+                predicate = {"op": "and", "args": [
+                    {"op": "eq", "axisId": "state.outs", "value": 0},
+                    {"op": "eq", "axisId": "state.runners", "value": "empty"},
+                    {"op": "eq", "axisId": "state.count.strikes", "value": 2},
+                    {"op": "eq", "axisId": "state.count.balls", "value": 0},
+                    {"op": "eq", "axisId": "event.perPitch.pitchEventKind", "value": "pitch-event"},
+                ]}
+        coordinate = {"eventKind": "batting-result", "resultId": result,
+                      "precondition": predicate}
+        input_coordinate = {"eventKind": "batting-result", "resultId": result,
+                            "state.outs": outs, "state.runners": runners,
+                            "state.count.strikes": 2, "state.count.balls": balls,
+                            "event.perPitch.pitchEventKind": "pitch-event",
+                            "state.gameEnded": False}
+        expected = {"caseId": identifier,
+                    "rowRef": {"layer": "matrixRows", "coordinate": coordinate},
+                    "inputCoordinate": input_coordinate, "expected": effects,
+                    "historyInput": {"stack": [], "before": before, "after": after},
+                    "raw": input_coordinate, "normalizationRuleId": "identity",
+                    "normalized": input_coordinate}
+        difference: dict[str, Any] = {
+            face: {key: {"before": old, "after": after[face][key]}
+                   for key, old in fields.items() if old != after[face][key]}
+            for face, fields in before.items()
+        }
+        difference["statFlags"] = flags
+        request = {"eventKind": "batting-result", "resultId": result,
+                   "pitchEventKind": "pitch-event", "before": before, "history": {"stack": []}}
+        response = {"ok": True, "value": {
+            **effects, "after": after,
+            "historyContext": [{"kind": "confirmed-play", "difference": difference}],
+        }}
+        matches = [case for case in supplied if case["caseId"] == identifier]
+        rows = [row for row in contract["matrixRows"]
+                if equal({key: row.get(key) for key in coordinate}, coordinate)]
+        if (len(matches) != 1 or not equal(matches[0], expected)
+                or source.get("caseId") != identifier.removeprefix("ST-")
+                or not equal(source.get("request"), wire(request))
+                or not equal(source.get("expected"), wire(response))
+                or len(rows) != 1 or not equal(
+                    {key: value for key, value in rows[0].items()
+                     if key not in {"eventKind", "resultId", "precondition", "remarks"}}, effects)):
+            raise RequiredSetCoverageError("三振24例の入力/全応答/効果/履歴/実row参照が不一致")
+    return ids
+
+
 def _ordinary_case_id_migrations(
     root: Path, contract: dict[str, Any],
 ) -> dict[str, str]:
@@ -825,7 +1019,7 @@ def _ordinary_case_id_migrations(
         for case in old_cases
         if case.get("caseId") in mapping and case["caseId"].startswith("ST-MATRIX-")
     }
-    extension = _terminal_case_extension(root, contract)
+    extension = _terminal_case_extension(root, contract) | _strikeout_case_extension(root, contract)
     if (set(representatives) != set(guards) or len(old) != 116
             or len(new) != 117 + len(extension)):
         raise RequiredSetCoverageError("通常投球の4代表・116→117移行が不一致")
