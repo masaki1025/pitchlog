@@ -280,14 +280,6 @@ jobs:
       # 資産が base_ref を宣言できると HEAD を指定して差分を空にでき、検査母集団が 0 件になって
       # 迂回検査そのものが no-op になる。pull_request 以外(develop/main への push・手動実行)は
       # 比較対象の PR が無いため、検査器側の凍結された既定値を使う。
-      - name: 一時診断（snapshot 実体の確認）
-        run: |
-          set +e
-          ls contracts/tenant_boundary/history-snapshots | grep -i 2b5431f5 || echo "no such name"
-          sha256sum contracts/tenant_boundary/history-snapshots/* | grep 2b5431f5 || echo "no such content"
-          git rev-parse HEAD
-          git log --oneline -1
-          git status --porcelain | head -5
       - name: tenant-boundary 迂回検査
         env:
           PR_BASE_REF: ${{ github.base_ref }}
