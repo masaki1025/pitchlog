@@ -1,4 +1,4 @@
-"""段階起動のDB API許可を9関数の最小集合に限定する。"""
+"""段階起動のDB API許可を既登録11関数の最小集合に限定する。"""
 
 import ast
 from pathlib import Path
@@ -25,6 +25,8 @@ def test_stage_a_allowlist_is_exact() -> None:
         "_require_s0": psycopg_sql,
         "_apply_placement": frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"}),
         "_apply_epoch": frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"}),
+        "_apply_initial_storage": frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"}),
+        "_require_initial_state": psycopg_sql,
         "_require_s3": psycopg_sql,
         "_require_epoch_state": psycopg_sql,
         "_require_placed_state": psycopg_sql,

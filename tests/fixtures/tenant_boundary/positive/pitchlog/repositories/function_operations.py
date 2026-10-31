@@ -8,7 +8,13 @@ from uuid import UUID
 from sqlalchemy import bindparam, select  # ty: ignore[unresolved-import]
 from sqlalchemy.sql.functions import Function  # ty: ignore[unresolved-import]
 from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.sqltypes import Boolean, Integer, String, Uuid  # ty: ignore[unresolved-import]
+from sqlalchemy.sql.sqltypes import (  # ty: ignore[unresolved-import]
+    Boolean,
+    Integer,
+    LargeBinary,
+    String,
+    Uuid,
+)
 
 
 def _build_fixed_function_statement(
@@ -40,6 +46,8 @@ def _canonical_bind(name: str, expected_type: type) -> Any:
         return bindparam(name, type_=Integer())
     if expected_type is bool:
         return bindparam(name, type_=Boolean())
+    if expected_type is bytes:
+        return bindparam(name, type_=LargeBinary())
     raise FunctionOperationError("固定関数入力に未対応の型")
 
 

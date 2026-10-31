@@ -109,10 +109,10 @@ def _copy_static_table_inputs(root: Path) -> None:
 
 
 def test_all_manifest_and_classified_tables_have_generated_enable_and_force() -> None:
-    """両母集合の全46表が生成済みENABLE・FORCE SQLと一致する。"""
+    """両母集合の全50表が生成済みENABLE・FORCE SQLと一致する。"""
     manifest_tables = _manifest_table_names()
     classified_tables = _classified_table_names()
-    assert len(manifest_tables) == len(classified_tables) == 46
+    assert len(manifest_tables) == len(classified_tables) == 50
     assert manifest_tables == classified_tables
 
     asset = _product_asset()
@@ -179,7 +179,7 @@ def test_removing_one_declared_table_is_rejected() -> None:
     _validate_product_asset(asset)
     mutated = copy.deepcopy(asset)
     rows = mutated["tables"]
-    assert isinstance(rows, list) and len(rows) == 46
+    assert isinstance(rows, list) and len(rows) == 50
     rows.pop()
 
     with pytest.raises(_catalog_checker.CatalogError, match="exact-set不一致"):

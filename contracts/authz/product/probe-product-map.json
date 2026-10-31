@@ -158,7 +158,6 @@
         "acl_privilege:ACL:idempotency_ledger:pitchlog_app:SELECT",
         "acl_privilege:ACL:rejected_event_originals:pitchlog_app:SELECT",
         "acl_privilege:ACL:evacuated_event_originals:pitchlog_app:SELECT",
-        "acl_privilege:ACL:recording_generations:pitchlog_app:SELECT",
         "acl_privilege:ACL:medical_notes:pitchlog_app:SELECT",
         "acl_privilege:ACL:medical_note_versions:pitchlog_app:SELECT",
         "acl_privilege:ACL:pdf_export_records:pitchlog_app:SELECT",
@@ -186,7 +185,6 @@
         "acl_privilege:ACL:idempotency_ledger:pitchlog_app:INSERT",
         "acl_privilege:ACL:rejected_event_originals:pitchlog_app:INSERT",
         "acl_privilege:ACL:evacuated_event_originals:pitchlog_app:INSERT",
-        "acl_privilege:ACL:recording_generations:pitchlog_app:INSERT",
         "acl_privilege:ACL:medical_notes:pitchlog_app:INSERT",
         "acl_privilege:ACL:medical_note_versions:pitchlog_app:INSERT",
         "acl_privilege:ACL:pdf_export_records:pitchlog_app:INSERT",
@@ -214,7 +212,6 @@
         "acl_privilege:ACL:idempotency_ledger:pitchlog_app:UPDATE",
         "acl_privilege:ACL:rejected_event_originals:pitchlog_app:UPDATE",
         "acl_privilege:ACL:evacuated_event_originals:pitchlog_app:UPDATE",
-        "acl_privilege:ACL:recording_generations:pitchlog_app:UPDATE",
         "acl_privilege:ACL:medical_notes:pitchlog_app:UPDATE",
         "acl_privilege:ACL:medical_note_versions:pitchlog_app:UPDATE",
         "acl_privilege:ACL:pdf_export_records:pitchlog_app:UPDATE",
@@ -891,6 +888,210 @@
     },
     {
       "product": "role:pitchlog_initial_fn_owner",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:begin_start_attempt(uuid, uuid, uuid, uuid, bytea, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:check_business_epoch(uuid, bigint)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:enroll_device(uuid, uuid, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:insert_initial_grant(uuid, uuid, uuid, uuid, uuid, bigint, bigint, bytea, text, bytea, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:lock_current_start(uuid, uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:lock_device(uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:lock_preparing_game(uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:lookup_existing_start_attempt(uuid, uuid, uuid, uuid, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:persist_initial_start(uuid, uuid, uuid, uuid, bytea, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:read_existing_start(uuid, uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:read_initial_start_context(uuid, uuid, uuid, uuid, bytea, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:read_start_game(uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:initial_right_api:resolve_start_attempt(uuid, uuid, uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:public:protect_initial_right_storage()",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_lineups:initial_start_owner_game_lineups_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_lineups:initial_start_owner_game_lineups_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_attempts:initial_right_game_start_attempts_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_attempts:initial_right_game_start_attempts_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_attempts:initial_right_game_start_attempts_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_requests:initial_right_game_start_requests_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_requests:initial_right_game_start_requests_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_requests:initial_right_game_start_requests_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:games:initial_right_games_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:games:initial_right_games_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:lineup_memories:initial_start_actor_lineup_memories_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:lineup_memories:initial_start_actor_lineup_memories_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:lineup_memories:initial_start_actor_lineup_memories_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:players:initial_start_actor_players_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:players:initial_start_actor_players_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:players:initial_start_owner_players_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:players:initial_start_owner_players_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_generations:initial_right_recording_generations_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_generations:initial_right_recording_generations_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_generations:initial_right_recording_generations_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_right_deliveries:initial_right_recording_right_deliveries_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_right_deliveries:initial_right_recording_right_deliveries_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_right_deliveries:initial_right_recording_right_deliveries_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:rg1_restore_gate:initial_right_rg1_restore_gate_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:team_records:initial_start_actor_team_records_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:team_records:initial_start_actor_team_records_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:team_records:initial_start_owner_team_records_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:team_records:initial_start_owner_team_records_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:trusted_devices:initial_right_trusted_devices_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:trusted_devices:initial_right_trusted_devices_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:trusted_devices:initial_right_trusted_devices_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "role:pitchlog_initial_auth_verifier",
+      "reason": "product_only"
+    },
+    {
+      "product": "schema:initial_right_api",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:game_start_attempts",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:game_start_requests",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:recording_right_deliveries",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:trusted_devices",
       "reason": "product_only"
     }
   ]

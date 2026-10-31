@@ -23,7 +23,7 @@ _RECORDED_AT = datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc)
 _FUNCTION_PATTERN = re.compile(
     r"CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+"
     r"(?:public\.)?(?P<name>[a-z_][a-z0-9_]*)\s*\(\s*\).*?"
-    r"AS\s+\$\$(?P<body>.*?)\$\$",
+    r"AS\s+(?P<delimiter>\$(?:body)?\$)(?P<body>.*?)(?P=delimiter)",
     re.IGNORECASE | re.DOTALL,
 )
 _RAISE_PATTERN = re.compile(
@@ -211,6 +211,8 @@ def _render_migration_sql(
     """定数文字列だけから成る op.execute 引数を展開する。"""
     if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
         return expression.value
+    if isinstance(expression, ast.Name):
+        return constants.get(expression.id)
     if not isinstance(expression, ast.JoinedStr):
         return None
     fragments: list[str] = []
@@ -244,25 +246,78 @@ def _upgrade_sql(path: Path) -> tuple[str, ...]:
     )
     if upgrade is None:
         raise AssertionError(f"upgrade() が無い migration: {path}")
-    calls = sorted(
-        (
-            node
-            for node in ast.walk(upgrade)
-            if isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "execute"
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "op"
-            and node.args
-        ),
-        key=lambda node: node.lineno,
-    )
-    result: list[str] = []
-    for call in calls:
-        rendered = _render_migration_sql(call.args[0], constants)
-        if rendered is not None:
-            result.append(rendered)
-    return tuple(result)
+    sequences = {}
+    for statement in tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and isinstance(statement.value, ast.Tuple)
+            and all(
+                isinstance(v, ast.Constant) and isinstance(v.value, str)
+                for v in statement.value.elts
+            )
+        ):
+            sequences[statement.targets[0].id] = tuple(
+                v.value
+                for v in statement.value.elts
+                if isinstance(v, ast.Constant) and isinstance(v.value, str)
+            )
+
+    def contains_sql(node: ast.AST) -> bool:
+        """未解釈の構文にop.executeが隠れた場合も黙って落とさない。"""
+        return any(
+            isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Attribute)
+            and isinstance(child.func.value, ast.Name)
+            and child.func.value.id == "op"
+            and child.func.attr == "execute"
+            for child in ast.walk(node)
+        )
+
+    def render_block(nodes: list[ast.stmt], bindings: dict[str, str]) -> list[str]:
+        """定数tupleの有限forだけを展開し、コードを実行しない。"""
+        rendered_sql = []
+        for node in nodes:
+            if isinstance(node, ast.For):
+                # SQLを直接渡さないデータ投入loopはこの抽出器の対象外。
+                if not contains_sql(node):
+                    continue
+                values = (
+                    sequences.get(node.iter.id)
+                    if isinstance(node.iter, ast.Name)
+                    else None
+                )
+                if (
+                    values is None
+                    or not isinstance(node.target, ast.Name)
+                    or node.orelse
+                ):
+                    raise AssertionError("migrationのSQL loopは定数tupleだけを許可する")
+                for value in values:
+                    rendered_sql.extend(
+                        render_block(node.body, {**bindings, node.target.id: value})
+                    )
+            elif isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+                call = node.value
+                if (
+                    isinstance(call.func, ast.Attribute)
+                    and isinstance(call.func.value, ast.Name)
+                    and call.func.value.id == "op"
+                    and call.func.attr == "execute"
+                    and call.args
+                ):
+                    rendered = _render_migration_sql(call.args[0], bindings)
+                    if rendered is None:
+                        raise AssertionError("migrationのSQLは静的な文字列が必要")
+                    rendered_sql.append(rendered)
+                elif contains_sql(node):
+                    raise AssertionError("migrationのSQLは未対応の構文にある")
+            elif contains_sql(node):
+                raise AssertionError("migrationのSQLは未対応の構文にある")
+        return rendered_sql
+
+    return tuple(render_block(upgrade.body, constants))
 
 
 def _trigger_update_columns(scope: str) -> frozenset[str] | None:
@@ -314,7 +369,7 @@ def _migration_trigger_facts() -> tuple[
     return functions, triggers
 
 
-def _migration_attached_trigger_functions() -> tuple[str, ...]:
+def _migration_attached_trigger_identities() -> tuple[tuple[str, str, str], ...]:
     """直接op.executeした単純CREATE/DROPの最終接続を返し、重複も保持する。"""
     attached: dict[tuple[str, str], str] = {}
     for path in sorted(_MIGRATIONS_PATH.glob("*.py")):
@@ -328,7 +383,16 @@ def _migration_attached_trigger_functions() -> tuple[str, ...]:
                 attached[
                     (match.group("table").lower(), match.group("trigger").lower())
                 ] = match.group("function").lower()
-    return tuple(attached.values())
+    return tuple(
+        (function, table, trigger) for (table, trigger), function in attached.items()
+    )
+
+
+def _migration_attached_trigger_functions() -> tuple[str, ...]:
+    """既呼出側には全接続の関数名を重複を保って返す。"""
+    return tuple(
+        function for function, _, _ in _migration_attached_trigger_identities()
+    )
 
 
 def _tenant_update_candidate_names() -> tuple[str, ...]:
@@ -417,7 +481,7 @@ def _global_id(table: str, tenant_id: UUID, suffix: str = "base") -> UUID:
 
 
 def _tenant_rows(tenant_id: UUID) -> tuple[SeedRow, ...]:
-    """1 tenant 分の対象 28 表と依存行を FK 順に返す。"""
+    """1 tenant 分の対象 32 表と依存行を FK 順に返す。"""
     label = "a" if tenant_id == TENANT_A else "b"
     return (
         SeedRow(
@@ -522,6 +586,50 @@ def _tenant_rows(tenant_id: UUID) -> tuple[SeedRow, ...]:
                 "generation": 1,
                 "kind": "normal",
                 "issuance_order": 1,
+            },
+        ),
+        # default-denyの4表も両tenantでseedし、appの42501検査へ到達させる。
+        # 以下byte列は公開fixtureの制約用ダミー値で、製品の鍵/暗号文ではない。
+        SeedRow(
+            "trusted_devices",
+            {
+                "tenant_id": tenant_id,
+                "device_id": _id("seed-device"),
+                "credential_digest": b"\x00" * 32,
+            },
+        ),
+        SeedRow(
+            "game_start_requests",
+            {
+                "tenant_id": tenant_id,
+                "game_id": _GAME_ID,
+                "start_request_id": _id("seed-start-request"),
+                "device_id": _id("seed-device"),
+                "request_digest": b"\x00" * 32,
+            },
+        ),
+        SeedRow(
+            "game_start_attempts",
+            {
+                "tenant_id": tenant_id,
+                "game_id": _GAME_ID,
+                "start_request_id": _id("seed-start-request"),
+                "device_id": _id("seed-device"),
+                "attempt_id": _id("seed-start-attempt"),
+                "outcome": "pending",
+            },
+        ),
+        SeedRow(
+            "recording_right_deliveries",
+            {
+                "tenant_id": tenant_id,
+                "game_id": _GAME_ID,
+                "generation": 1,
+                "start_request_id": _id("seed-start-request"),
+                "device_id": _id("seed-device"),
+                "key_id": "public-fixture-only",
+                "nonce": b"\x00" * 12,
+                "ciphertext": b"\x00" * 48,
             },
         ),
         SeedRow(

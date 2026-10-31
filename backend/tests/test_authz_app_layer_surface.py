@@ -48,6 +48,7 @@ _OTHER_AUTHZ_MODULES = frozenset(
         "authz.catalog",
         "authz.classification",
         "authz.ddl",
+        "authz.initial_start_sql",
         "authz.product_authn_contract",
         "authz.product_catalog",
         "authz.product_control_access",
@@ -91,6 +92,18 @@ _DB_REACH = frozenset(
 )
 _PUBLIC_CALLERS = frozenset(
     {
+        (
+            "recording_rights.initial_grant_broker._verify_initial_cookie",
+            "authz.verified_tenant.verify_tenant_id",
+        ),
+        (
+            "recording_rights.initial_grant_broker._load_initial_actor_runtime",
+            "authz.database_transport.require_database_transport",
+        ),
+        (
+            "recording_rights.initial_grant_broker._load_initial_auth_verifier_runtime",
+            "authz.database_transport.require_database_transport",
+        ),
         (
             "api.app.create_app",
             "authz.signing_key_config.require_signing_key_configuration",

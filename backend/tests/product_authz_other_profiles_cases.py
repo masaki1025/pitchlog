@@ -33,6 +33,7 @@ _FUNCTION_ONLY_FACT_KINDS = frozenset(
         "pre_auth_only",
         "migration_only",
         "rg1_control",
+        "initial_right_storage",
     }
 )
 
@@ -180,6 +181,21 @@ def function_only_table_names() -> tuple[str, ...]:
     return tuple(name for name in manifest_table_names() if name in selected)
 
 
+def generation_secret_columns() -> tuple[str, ...]:
+    """全表関数限定と分け、既世代の秘密2列を全数で保持する。"""
+    facts = _load_object(_EXPOSURE_FACTS_PATH)["facts"]
+    columns = tuple(
+        row["column"]
+        for fact in facts
+        if fact["kind"] == "secret_column"
+        for row in fact["entries"]
+        if row["table"] == "recording_generations"
+    )
+    if len(columns) != 2 or set(columns) != {"proof_digest", "recovery_generation"}:
+        raise AssertionError("世代秘密列のexact2集合が不一致")
+    return tuple(sorted(columns))
+
+
 def profile_table_names() -> dict[str, tuple[str, ...]]:
     """分類資産に依存しない 5 プロファイルの表集合を返す。"""
     return {
@@ -188,6 +204,7 @@ def profile_table_names() -> dict[str, tuple[str, ...]]:
         "effective_group_control": control_resource_table_names(),
         "global_read_only": global_read_only_table_names(),
         "function_only": function_only_table_names(),
+        "column_restricted": ("recording_generations",),
     }
 
 

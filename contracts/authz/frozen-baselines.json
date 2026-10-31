@@ -801,7 +801,7 @@
       "approved_at": "2026-10-24"
     },
     {
-      "acceptance_id": "masaki1025/pitchlog#189",
+      "acceptance_id": "masaki1025/pitchlog#188",
       "changes": [],
       "moved": false,
       "new_identity": {
@@ -809,7 +809,7 @@
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "e4f53dab05715977bdec846f3b2ba155832622e9"
+            "value": "706846283aca477b338d29352ac6323fdf3b9684"
           }
         ]
       },
@@ -838,10 +838,10 @@
           }
         ]
       },
-      "reason": "初球実画面保存・再読込の統合候補PR #189に伴い、作成と球種readの正式登録、承認済み座標仕様の出典追随を含む固定step4入力8資産e4f53dabへoracle_inputを前進する。旧AUTH187件の意味本文・既承認履歴・6oracleのoracle_commit以外は不変。非作者REPORT680f1009…/11a1e613…と8blobの現物/固定commit一致に基づくPO委任の主担当判断であり、本人署名・人間逐行確認・P6 blind・MVP完成ではない。",
+      "reason": "採用済初期HTTPのlogical2routeに伴い、旧49全順prefix/既分類・期待・物理probe・歴史実測を保持した8入力commit70684628へoracle_inputを前進する。非作者REPORTdbd6e736cd3bdc9a8443044b530bb5ed9eb85e84eb609c9ade3b673a3d03040dで8Gitblob/7context全byte/局所正負14を確認しPO委任のCodex主担当が実対象を採用。専用再封印とflagなし検査は別証拠、develop統合・本人直接確認/署名・新規Supabase実測を代記しない。",
       "series": "oracle_input",
-      "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
-      "approved_at": "2026-10-30"
+      "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
+      "approved_at": "2026-10-31"
     }
   ]
 }
