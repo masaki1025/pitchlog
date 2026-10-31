@@ -166,7 +166,7 @@ BACKEND_SHARD_PYTEST_COMMAND = (
     "--shard-count 4 "
     "--shard-index ${{ matrix.shard }} "
     "--cov "
-    "--cov-report= "
+    "--cov-report=term "
     "--durations=25"
 )
 CONSISTENCY_PYTEST_COMMAND = (
