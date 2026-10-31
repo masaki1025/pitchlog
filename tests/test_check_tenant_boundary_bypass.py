@@ -2956,6 +2956,8 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/domain/test_boot_seal.py",
             "tests/test_ci_wiring.py",
             "tests/test_plan_generation.py",
+            "backend/tests/test_api_conventions.py",
+            "tests/test_check_authz_catalog.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
