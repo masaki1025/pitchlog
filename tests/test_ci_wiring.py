@@ -3720,7 +3720,18 @@ def test_pytest_shard_config_matches_the_ci_command() -> None:
         "tests/test_step_history_audit.py",
     ]
     tokens = shlex.split(HARNESS_PYTEST_COMMAND)
-    assert "--shard-count" in tokens and "--shard-index" in tokens
+    assert tokens[tokens.index("--shard-count") + 1] == str(harness["shards"])
+    assert "--shard-index" in tokens
+    assert harness["targets"] == ["tests/"]
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    commands = [
+        str(step.get("run"))
+        for step in workflow["jobs"]["harness"]["steps"]
+        if isinstance(step, dict)
+    ]
+    assert (
+        "uv run python scripts/pytest_shards.py verify --suite harness" in commands
+    )
     for ignored in harness["ignore"]:
         assert f"--ignore={ignored}" in tokens
     assert backend["targets"] == ["tests/"] and backend["ignore"] == []

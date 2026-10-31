@@ -41,7 +41,40 @@ backend 59分31秒(pytest 58分32秒・単一プロセス)、harness 43分20秒(
 - `backend/tests/db/conftest.py`: 収集専用実行に限り 0 件実行の判定を外す
   (通常実行の判定は不変)。
 
-## 未了(このPRで続ける)
+## 影響する正本
+
+- `docs/development/dev-harness-design-2026-08-07.md`(6.1 段階実装・CI の必須ジョブ)
+- `docs/development/github-setup.md`(必須 context・ジョブ分類)
+- `.github/workflows/ci.yml` / `.github/workflows/pr-body.yml`(外部凍結入力)
+- `tests/test_ci_wiring.py`(外部凍結入力)
+- `contracts/tenant_boundary/*`(v2 受理record)
+
+## 実装ステップ
+
+| # | 内容 | 状態 |
+| --- | --- | --- |
+| 1 | 分割機構(プラグイン・被覆検査・定義)と CI 配線、本文検査の分離 | 完了 |
+| 2 | CI 配線契約の追随、凍結資産(tenant v2 record・corpus digest・生成モジュール)の再導出 | 完了 |
+
+## テスト計画
+
+- `tests/test_ci_wiring.py`: ジョブ順・fetch-depth・条件式・集約ゲート・分割定義と CI コマンドの結線
+- `tests/test_frozen_archive.py` / `tests/test_check_tenant_boundary_bypass.py`: 凍結資産の整合
+- `scripts/pytest_shards.py verify`: 収集したテスト ID による全件被覆
+- 実 CI: 各ジョブの所要時間を計測し、短縮目標を確定する
+
+## 未了
+
+- 実 CI のジョブ所要計測と目標値の確定(17〜20 分は実測前の目標値)。
+
+## 完了条件(DoD)
+
+- 必須チェック名 `backend` / `harness` / `core-guard` が維持され、集約ジョブが success 以外を拒否する
+- 分割の全件被覆が収集テスト ID で検証され、DB 0 件拒否とカバレッジ測定範囲が維持される
+- 凍結資産(tenant v2 record・corpus digest・生成モジュール)が実 byte と一致する
+- 実 CI で全ジョブ green となり、所要時間を記録する
+
+## 旧未了(解消済みの記録)
 
 - `tests/test_ci_wiring.py` の構造契約を新配線へ追随させる(ジョブ順・fetch-depth 集合・
   既知コマンド許可・契約葉の変異回数・段階A/配布イメージの対象ジョブ)。
