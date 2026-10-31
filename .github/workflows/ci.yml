@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
-    # edited を含める: PR 本文のチェックボックス編集で core-guard を再評価するため(github-setup.md 2 章)
-    types: [opened, synchronize, reopened, edited]
+    # 本文の編集は .github/workflows/pr-body.yml が担う。ここへ edited を入れると
+    # 委任証拠コメントの差し替えだけで 1 時間の検査がキャンセル・再実行される。
+    types: [opened, synchronize, reopened]
   push:
     branches:
       - develop
@@ -52,24 +53,8 @@ jobs:
       - run: uv run python scripts/check_design_propagation.py
       - run: uv run python scripts/check_doc_coverage.py
 
-  core-guard:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          version: "0.8.13"
-          enable-cache: true
-          prune-cache: true
-      - run: uv python install
-      - run: uv run python scripts/core_guard.py
-
-  harness:
+  # 静的検査は pytest と分離し、分割実行を待たずに赤を返す。
+  harness-static:
     runs-on: ubuntu-latest
     steps:
       # manifest.json の source_commit を解決するため fetch-depth: 0 が必須(既定の 1 では到達できない)。
@@ -94,12 +79,83 @@ jobs:
       - run: uv run python tests/test_census_baseline_check.py
       - run: uv run ruff check .
       - run: uv run ty check
-      - run: >-
-          uv run pytest -c pyproject.toml tests/
+      # パッケージング/uv sync/ty の結合検証は分割せず静的ジョブで 1 回だけ実行する。
+      - run: uv run pytest tests/test_packaging.py -q
+
+  # 30,777 件を 4 分割する。各シャードは同じ全件集合の部分集合を実行し、
+  # 合計が全件と一致することは harness 集約ジョブが機械検証する。
+  harness-shard:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          version: "2026.8.6"
+          install: true
+          cache: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+      - run: uv python install
+      - run: uv sync --locked --dev
+      - name: pytest (shard ${{ matrix.shard }}/4)
+        run: >-
+          uv run python -m pytest -c pyproject.toml tests/
           --ignore=tests/domain/boot
           --ignore=tests/domain/mut
           --ignore=tests/test_plan_generation.py
           --ignore=tests/test_step_history_audit.py
+          --ignore=tests/test_packaging.py
+          -p pytest_shard_plugin
+          --shard-count 4
+          --shard-index ${{ matrix.shard }}
+          --durations=25
+
+  # 必須チェック名 ``harness`` を維持する集約ジョブ。失敗・キャンセル・
+  # 予期しない skip をここで拒否する(GitHub の required status checks は
+  # ジョブ単位で評価されるため、集約で全シャードを代表させる)。
+  harness:
+    needs: [harness-static, harness-shard]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+      - run: uv python install
+      - run: uv sync --locked --dev
+      # 全シャードの収集結果が全件と一致することを、実行後に改めて検証する。
+      - run: uv run python scripts/pytest_shards.py verify --suite harness
+      - name: シャード結果の厳密確認
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ['NEEDS'])
+          bad = {name: value.get('result') for name, value in needs.items()
+                 if value.get('result') != 'success'}
+          if bad:
+              raise SystemExit(f'必須ジョブが success ではない: {bad}')
+          print('all required jobs succeeded')
+          PY
 
   # NFR-018 (e) BOOT-ACTIVATION の機構・負例・正例と、計画・履歴監査を常時実行する。
   # harness の単体テストとは所有を分け、同じテストを二重実行しない。
@@ -318,11 +374,124 @@ jobs:
               - '.dockerignore'
               - 'mise.toml'
 
-  backend:
+  # lint/型は 1 回だけ実行し、pytest の分割と並走させる。
+  backend-static:
     needs: backend-changes
     if: >-
       github.event_name == 'workflow_dispatch' ||
       needs.backend-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+          cache-dependency-glob: |
+            backend/pyproject.toml
+            backend/uv.lock
+      - run: uv python install
+      - run: uv sync --locked --dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run ty check
+
+  # 7,432 件を 4 分割する。各シャードは独立した PostgreSQL service を持ち、
+  # DB 試験の隔離はジョブ単位で保たれる。カバレッジは全シャードで計測し、
+  # 集約ジョブで結合する(測定範囲を狭めない)。
+  backend-shard:
+    needs: backend-changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      needs.backend-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_USER: pitchlog_ci_admin
+          POSTGRES_PASSWORD: pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: pitchlog_test
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=libc --locale=C.UTF-8"
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U pitchlog_ci_admin -d pitchlog_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 10s
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      PITCHLOG_TEST_ADMIN_DSN: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_TEST_ROLE_DSN: postgresql://pitchlog_test_role:pitchlog-role-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_MIGRATION_DATABASE_URL: postgresql://pitchlog_ci_admin:pitchlog-ci-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_test
+      PITCHLOG_STAGE_A_OWNER_DSN: postgresql://pitchlog_owner:pitchlog-owner-${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/pitchlog_stage_a_ci
+      COVERAGE_FILE: .coverage.shard${{ matrix.shard }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # DB の SQL 生成試験と domainrt は mise.toml の Node 版を使う。
+      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
+        with:
+          version: "2026.8.6"
+          install: true
+          cache: false
+      # SQL 生成試験の生成器は frontend の typescript を読むため、frontend の依存を入れる。
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.8.13"
+          enable-cache: true
+          prune-cache: true
+          cache-dependency-glob: |
+            backend/pyproject.toml
+            backend/uv.lock
+      - run: uv python install
+      - run: uv sync --locked --dev
+      - name: pytest (shard ${{ matrix.shard }}/4)
+        run: >-
+          uv run python -m pytest -c pyproject.toml
+          -p pytest_shard_plugin
+          --shard-count 4
+          --shard-index ${{ matrix.shard }}
+          --cov
+          --cov-report=term
+          --durations=25
+      - name: カバレッジの計測結果を記録
+        run: |
+          uv run coverage report
+          uv run coverage json -o coverage-shard${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-coverage-${{ matrix.shard }}
+          path: backend/coverage-shard${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  # 必須チェック名 ``backend`` を維持する集約ジョブ。全シャードの success を
+  # 厳密に要求し、カバレッジを結合して測定範囲を分割前と同一に保つ。
+  # 段階A起動と配布イメージの疎通もここで 1 回だけ実行する。
+  backend:
+    needs: [backend-changes, backend-static, backend-shard]
+    if: >-
+      always() && (github.event_name == 'workflow_dispatch' ||
+      needs.backend-changes.outputs.backend == 'true')
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -349,20 +518,24 @@ jobs:
       run:
         working-directory: backend
     steps:
-      # manifest.json の source_commit を解決するため fetch-depth: 0 が必須(既定の 1 では到達できない)。
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      # DB の SQL 生成試験と domainrt は mise.toml の Node 版を使う。
-      - uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
-        with:
-          version: "2026.8.6"
-          install: true
-          cache: false
-      # SQL 生成試験の生成器は frontend の typescript を読むため、frontend の依存を入れる。
-      - run: corepack enable
-      - run: pnpm install --frozen-lockfile
-        working-directory: frontend
+      - name: シャード結果の厳密確認
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+
+          needs = json.loads(os.environ['NEEDS'])
+          bad = {name: value.get('result') for name, value in needs.items()
+                 if value.get('result') != 'success'}
+          if bad:
+              raise SystemExit(f'必須ジョブが success ではない: {bad}')
+          print('all required jobs succeeded')
+          PY
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.8.13"
@@ -373,10 +546,8 @@ jobs:
             backend/uv.lock
       - run: uv python install
       - run: uv sync --locked --dev
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run ty check
-      - run: uv run pytest -c pyproject.toml --cov
+      # 分割実行の被覆を収集したテスト ID で検証する(DB 試験の被覆も含む)。
+      - run: uv run python ../scripts/pytest_shards.py verify --suite backend --require-db
       # pytest用DBと分離し、実migrationの所有者とS0を一致させる。
       - run: |
           uv run python - <<'PY'

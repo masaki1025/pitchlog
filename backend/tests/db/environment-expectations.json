@@ -161,7 +161,7 @@
       }
     },
     "single_command": {
-      "expected": "uv run pytest -c pyproject.toml --cov",
+      "expected": "uv run python -m pytest -c pyproject.toml -p pytest_shard_plugin --shard-count 4 --shard-index ${{ matrix.shard }} --cov --cov-report=term --durations=25",
       "comparison": "exact",
       "db_tests_included_in_existing_invocation": true,
       "marker_selection_argument_allowed": false,
@@ -170,7 +170,7 @@
       "provenance": [
         {
           "path": ".github/workflows/ci.yml",
-          "extracted_text": "- run: uv run pytest -c pyproject.toml --cov"
+          "extracted_text": "- name: pytest (shard ${{ matrix.shard }}/4)"
         },
         {
           "path": "docs/features/core-area-paths/plan.md",
