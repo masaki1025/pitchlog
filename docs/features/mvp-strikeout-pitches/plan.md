@@ -162,3 +162,6 @@ D11の新34はnormative包絡/実factory34/direct34を実消費し、公式colle
 初期/2/8/9prefixと第三out→相手ordinaryを実artifact再生するpure source verifierは成立したが、これはDB資格・実Port/tenant/fence/anchor/lock/ページングを発行しない。これらを提供するreader/同TX保存/GET/ACK/画面はステップ4/5の未提供依存として残す。全T1/全MVP/P6blind/正式7.7/必須CI/通常mergeを成立扱いしない。次は既v2実接続を再利用した実reader・SQL/token/ACL・one-use frame・同TX原子的保存へ進む。
 
 主担当判断receipt: cache lineup-root-artifact-pins-r4-20261031/root-step3-approval.json SHAb78a5202f3440a461c7d176c99918e03d316b1d72188341186cf4b7fe119cb24。本人逐行確認/実値確認/署名を代記しない。
+
+
+ステップ4の独立先行不具合修復（2026-10-31、PO委任によるCodex /root判断）: 計画非作者が実psycopg dialectで既prefix read系のBIGINT generation署名をINTEGER bindへ狭める既存不具合を再現した。新origin/ACL起案の完了を待たず、既契約に合う修復をbackend/src/pitchlog/repositories/function_operations.pyと既backend/tests/test_function_operations_boundary.pyのexact2へ許可する。既再利用4prefix tokenの正規SQL署名を実assetから照合し、必要な有限BigInteger型登録/bindだけを直す。2^31境界/2^63-1と負数・bool・範囲外/unknown関数の拒否を維持し、新SQL/役割/自由関数名/新origin登録はこの先行修復に含めない。作者一名にこの2pathを専有させて非作者差分確認後に保存し、旧v2/承認済み派生値を無関係に再裁定しない。全step4の正式起動はoriginの最小ACL/RLS閉包・exact登録の反映r2を確認してから行う。
