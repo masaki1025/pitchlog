@@ -155,6 +155,7 @@ HARNESS_PYTEST_COMMAND = (
     "--ignore=tests/domain/mut "
     "--ignore=tests/test_plan_generation.py "
     "--ignore=tests/test_step_history_audit.py "
+    "--ignore=tests/test_packaging.py "
     "-p pytest_shard_plugin "
     "--shard-count 4 "
     "--shard-index ${{ matrix.shard }} "
@@ -1408,7 +1409,9 @@ def _ci_wiring_errors(
         "uv sync --locked --dev",
         BACKEND_SHARD_PYTEST_COMMAND,
     ]
-    if shard_commands != required_shard_commands:
+    if shard_commands[: len(required_shard_commands)] != required_shard_commands or len(
+        shard_commands
+    ) not in (len(required_shard_commands), len(required_shard_commands) + 1):
         errors.append("backend 分割ジョブの実行順序が期待値と異なる")
     # 集約ジョブの先頭は checkout とシャード結果の厳密確認なので、uv 準備から比較する。
     gate_start = commands.index("uv python install") if "uv python install" in commands else 0
@@ -1614,6 +1617,7 @@ def _domain_ci_wiring_errors(
         "uv run python tests/test_census_baseline_check.py",
         "uv run ruff check .",
         "uv run ty check",
+        "uv run pytest tests/test_packaging.py -q",
     ]
     if _harness_commands(harness) != expected_harness_commands:
         errors.append("harness の単体テスト所有または既存検査コマンドが不正")
@@ -2058,16 +2062,13 @@ def _derive_asset_actuals(
             "db_tests_included_in_existing_invocation",
         ): len(pytest_commands) == 1
         and "-m"
-        not in shlex.split(pytest_commands[0])[
-            shlex.split(pytest_commands[0]).index("pytest") :
-        ],
+        not in shlex.split(pytest_commands[0])[shlex.split(pytest_commands[0]).index("pytest") :],
         (
             "test_execution",
             "single_command",
             "marker_selection_argument_allowed",
         ): any(
-            "-m"
-            in shlex.split(command)[shlex.split(command).index("pytest") :]
+            "-m" in shlex.split(command)[shlex.split(command).index("pytest") :]
             for command in pytest_commands
         ),
         (
@@ -3561,9 +3562,7 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
     assert pytest_commands == [BACKEND_SHARD_PYTEST_COMMAND]
     # 分割しても DB 必須テストの 0 件拒否は各シャードの通常会話で有効なまま。
     assert (
-        expectations["test_execution"]["single_command"][
-            "db_tests_included_in_existing_invocation"
-        ]
+        expectations["test_execution"]["single_command"]["db_tests_included_in_existing_invocation"]
         is True
     )
 
@@ -3706,9 +3705,7 @@ def test_aggregate_jobs_reject_non_success_needs() -> None:
 
 def test_pytest_shard_config_matches_the_ci_command() -> None:
     """分割定義と CI の pytest コマンドが同じ対象・同じ分割数である。"""
-    config = json.loads(
-        (REPOSITORY_ROOT / "ci" / "pytest-shards.json").read_text(encoding="utf-8")
-    )
+    config = json.loads((REPOSITORY_ROOT / "ci" / "pytest-shards.json").read_text(encoding="utf-8"))
     harness = config["suites"]["harness"]
     backend = config["suites"]["backend"]
     assert harness["shards"] == 4
@@ -3718,6 +3715,7 @@ def test_pytest_shard_config_matches_the_ci_command() -> None:
         "tests/domain/mut",
         "tests/test_plan_generation.py",
         "tests/test_step_history_audit.py",
+        "tests/test_packaging.py",
     ]
     tokens = shlex.split(HARNESS_PYTEST_COMMAND)
     assert tokens[tokens.index("--shard-count") + 1] == str(harness["shards"])
@@ -3733,9 +3731,7 @@ def test_pytest_shard_config_matches_the_ci_command() -> None:
         for step in workflow["jobs"]["harness"]["steps"]
         if isinstance(step, dict)
     ]
-    assert (
-        "uv run python scripts/pytest_shards.py verify --suite harness" in commands
-    )
+    assert "uv run python scripts/pytest_shards.py verify --suite harness" in commands
     for ignored in harness["ignore"]:
         assert f"--ignore={ignored}" in tokens
     assert backend["targets"] == ["tests/"] and backend["ignore"] == []

@@ -79,6 +79,8 @@ jobs:
       - run: uv run python tests/test_census_baseline_check.py
       - run: uv run ruff check .
       - run: uv run ty check
+      # パッケージング/uv sync/ty の結合検証は分割せず静的ジョブで 1 回だけ実行する。
+      - run: uv run pytest tests/test_packaging.py -q
 
   # 30,777 件を 4 分割する。各シャードは同じ全件集合の部分集合を実行し、
   # 合計が全件と一致することは harness 集約ジョブが機械検証する。
@@ -113,6 +115,7 @@ jobs:
           --ignore=tests/domain/mut
           --ignore=tests/test_plan_generation.py
           --ignore=tests/test_step_history_audit.py
+          --ignore=tests/test_packaging.py
           -p pytest_shard_plugin
           --shard-count 4
           --shard-index ${{ matrix.shard }}
