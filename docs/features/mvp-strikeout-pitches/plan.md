@@ -91,3 +91,12 @@ P1-P9はcache strikeout-root-stage1-approval-20261031/receipt.json SHA e2e5ce54e
 ステップ2の編集はfrontend/src/domain/{state.ts,stateRules.ts,stateTypes.ts,publicApi.ts,publicApi.spec.ts,terminalPitch.spec.ts}、新strikeoutPitch.spec.ts/strikeoutPitchArtifact.spec.ts、新backend/src/pitchlog/domainrt/strikeout_pitch.py/既対応dirのtest_strikeout_pitch.py、配布frontend/public/domain/pitchlog-domain.js/.jsonに限る。既firstPitchArtifact/firstPitchContinuationArtifact/ordinaryPitchArtifact/ordinaryPitchContinuationArtifact/initialGameRosterArtifact/courseQuantizationArtifact各.spec.tsは既公開口全保持＋新deriveStrikeoutPitch一名の完全集合追随だけを許可する。旧操作の意味/期待・未知拒否を緩めない。build scriptや追加sourceが不可分なら先にexact path/必要差分を返す。
 
 state/stateRulesの単一核へcache候補を選別統合し、履歴生成は実before/after/flags/両cursorから一回。Pythonに算式/履歴差分を複製せず固定host一回、JSONの未知/余剰/duplicate/nonfinite・alias/coercion拒否を守る。旧全ABI/37/BBHBP・新24fullresponse/31104/90桁/tail/変造を実artifactへ通す。生成artifactの実shaをrootへ渡し、contracts内pin/正式宣言はrootだけが追随する。公開ABI/typed caller/再現build/三層・非作者source確認をこれから実施し、step3のT2/qualifiedsource/wire/save/UIはまだ実装指示しない。本人逐行確認/署名は代記しない。
+
+
+### ステップ2の不可分な実行pin・D11・旧保存互換の追補
+
+2026-10-31、PO委任によるCodex /root判断。唯一artifactへ新公開操作を追加したため、既実行pin7path（backend/domain/manifest.json、terminal-pitch-manifest.json、play-prefix-manifest.json、backend/tests/fixtures/first_ball_payload_vectors_v1.json、contracts/state-transition/play_prefix_v2_cases.json、play_prefix_v2_d11_vectors.json、play_prefix_v2_payload_vectors.json）の現在実行SHAだけを新実byteへ追随する。旧priorArtifactSha256・既互換7行・既意味値を保持し、派生sourceSha256/sourceCasesSha256は実source byteから再計算する。cache strikeout-root-artifact-pins-20261031 は全field/逆比較を固定し、旧Git artifactと新artifactで56全応答の一致を確認済み。fixture照合を実HTTP/DB成功とはしない。
+
+旧保存互換はplay_prefix_v2_source_compatibility_v1.jsonの既7行を保持し、新executionとの有限組だけを追加候補にする。各旧artifactを実Git blob/SHAからロードし、該当sourceFormatの全既受理ベクタ・historyTail・宣言操作を新artifactと全応答比較してwitnessを固定する。新artifact自身への保存互換も旧受理済artifactとの比較を根拠とし、自己比較で可決しない。不一致の組を許可せず、未知SHA/未知format/操作欠落の拒否を維持する。新三振の保存互換はステップ3以後の別契約であり今回追加しない。
+
+D11は新backend/domain/strikeout-pitch-{manifest.json,property-catalog.json,property-catalog.schema.json}、contracts/state-transition/strikeout_pitch_d11_vectors_v1.jsonを既manifest schemaに整合して追加し、backend/tests/domainrt/test_strikeout_pitch.pyの全24比較を実消費/JUnit traceへ結ぶ。同testの数式/期待生成/旧拒否を変更しない。rootだけが正式JSONを編集し、作者14path固定後のtest追補はrootが所有する。独立レビューで新manifest・全pin・witness・三層比較を確認後に実装ステップ2を採否する。全T1/P6/共有7.7や保存/画面の完了を意味しない。
