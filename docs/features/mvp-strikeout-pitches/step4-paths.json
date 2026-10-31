@@ -302,5 +302,10 @@
       "after_d1",
       "after_d2"
     ]
-  }
+  },
+  "rootApprovedAdditionalProductPaths": [
+    "backend/src/pitchlog/sync/prefix_path.py",
+    "backend/src/pitchlog/sync/apply.py"
+  ],
+  "additionalPathsReason": "新LineupPort2/mode3の実core資格選択への有限到達。既認可・拒否・再送順は不変。"
 }

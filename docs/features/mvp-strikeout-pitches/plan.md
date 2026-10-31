@@ -189,3 +189,5 @@ zero論理refはid=実start_request_id/rev1/history0、自己循環なしinitial
 実owned PGの実POST作成/開始/初期権→zeroGET→三振3PA→反対側ordinary→GET/再読込を通す。同D5/故障全取消/別tenant・write device・失効epoch/nonce二重消費/歴史A→B/lock後newD5拒否を検証する。事前投入試合/常時成功/仮Port/数学fixtureを原本にしない。新reader/SQL/実DB/GETはこれから、正式7.7/最終CI/通常merge・全MVPは未成立。UIの接続はステップ5へ残す。
 
 先行BIGINT修復の採用（2026-10-31、PO委任によるCodex /root判断）: actual既3pathはcache r2と全byte一致、独立REPORT341c878b…/checks21246bc9…（P0/P1/P2=0、独立309成功）と作者342成功を区別して確認した。有限PLAY_PREFIX登録集合のORだけを既BigInteger条件へ追加し、3関数9bindの型を正す。他16関数/prepareのSQL・拒否条件は保持、strict20登録期待と全11binding objectを照合。root-approval.jsonへ実版/各SHA/判断時刻を固定し、commit後に実接続writerへ当該3pathの所有を移す。実DB・三振保存成功とはしない。
+
+実core到達に必要な有限追加（2026-10-31、PO委任によるCodex /root判断）: 実prefix_pathのmode検出/実Port exact型から_bind_ordinary_pitch_executionへの呼出と、applyのPort資格選択に新v3が未登録であるため、`backend/src/pitchlog/sync/prefix_path.py`と`backend/src/pitchlog/sync/apply.py`の既2pathをステップ4へ追加する。新LineupPort2/mode3の閉じた分岐だけを既経路に接続し、旧認可・D06/D5・再送先行・拒否順・未実装操作拒否を変えない。既23productは25になる。他file/未知modeの開放はしない。候補最終差分の非作者確認で旧経路不変を検査する。
