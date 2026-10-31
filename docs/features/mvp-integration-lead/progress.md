@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 05:09 JST（実DB18成功・非DB全体の残1を局所解消、最終接合中）
+
+- **現在の固定点**: pr189 WT/feature/pr189-integration、保存HEAD1e1e9ab7。源流ad658＋正式c2を保持。A31は9430cf9f、test期待fixture移設7d8b3f00、oracle最終固定Git cc0eへの参照bcf49409、製品状態copy依存供給1e1e9ab7まで保存。#189 remote ad658のまま/source push0、#190 remote320f196b/#19119c1c125/#192f38b7673のDraft依存順をGitHubで確認。
+- **新たな技術実証**: ロック/復元競合・初期付与の実DB18件が全成功49.99秒、153非対象。run-owned-rg1.pyは共有DSNを継承せず所有ラベル/一意loopbackのPGだけを供給し、container削除も確認。cache owned-rg1.log/xml/owner/result。初球実API1成功56.83秒は前節。画面/正式develop/実機/全故障受入へ拡張しない。
+- **全体回帰**: backend非DB r4は10326成功/4skip/918非対象/1失敗275.64秒。残1は製品状態のchildコピーにschema helper2が無い収集不足で、scope exact1にコピー供給だけ追加し、局所実child1成功82.80秒（旧対象/検査/AST保持、非作者REPORT2b136dbb…0指摘）。全体再完走とはしない。root先行25943成功/34失敗はA31のSQLAlchemy固定と既provenance ID明示選択で元34を含む63成功、非作者4384a37d…0指摘で採用。通常root環境のauthz/product CLIも両方成功。
+- **凍結**: 新35Python固定値は期待と比較を保って正規移設、全scan `check_frozen_baselines --invariants-only` exit0。oracle 8入力は3dd/cc0/current全byte同値、旧AUTH187/全正負/6意味本文/旧16history保持。正式189末尾1rowの参照だけ最終Gitへ整合し、本人署名を追加しない。SOURCE/宣言/移動規則/asset全前後のtenant最終受理は後続。
+- **編集中のexact範囲**: core作者は署名checker/test＋pr-body workflow/test_ci_wiringの4path、作者419成功/型lint成功で凍結準備中。policyはc2正式18のまま、旧187新受理/189候補統合/190以降base-first/localTECHNICAL ONLYを分離して実189委任検証を必須化。非作者review/公開CI未了。DB作者はcommon fixture旧0036前提を現0038/S3と忠実旧0036profileに分離する8path、作者非DB134成功、実PG未実施。旧7故障点/実catalog往復義務を保持し、現在未提供unapply拒否は変えない。
+- **次**: 最終4/8候補の非作者review→所有PGでcurrent/schema/legacy故障・往復を実証→公式helperでtenant9asset/生成3module/全snapshotを一回導出（cache prepare-final-acceptance.pyはclean固定HEAD必須・cache-only、まだ未実行）→参照/corpus/最終HEADレビュー→189証拠/public CLI/一回push/必須CI。既TLS期限/実機/運用境界は未実施のまま。
+- **先の192固定点差分（読取のみ）**: 保存9457099bは同一だが、保全38のうちordinary_pitch_execution.py一つが10/31 16:56 JSTに後発変更され、test_ordinary_pitch_native_evidence.pyが未追跡追加（16:58）。既P1のwire再構成らしいが作者/採否は未確定、37他sourceは保全SHA一致。編集/採用/削除/検査0。cache future-pr192-observed-delta.jsonへ保全し、192着手時にこの範囲だけ照合する。
+
 ## 続き：2026-11-01 04:42 JST（#189残件修復を保存、実API成功を保持）
 
 - **実証/提供の区別**: 現統合候補の実API初球は1passed/56.83秒（前節）、画面新規作成の現候補再実証/正式develop/最終CIは未成立。#189公開は依然ad6588b1、source push0・merge未了。#188/#193は既merge。
