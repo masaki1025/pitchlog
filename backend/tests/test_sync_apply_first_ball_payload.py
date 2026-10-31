@@ -11,6 +11,7 @@ from typing import Any, cast
 
 import psycopg
 import pytest
+from first_ball_expected_source_pins import read_expected_source_pins
 from pydantic import ValidationError
 
 from pitchlog.domainrt import first_pitch, first_pitch_continuation, host
@@ -34,6 +35,10 @@ from pitchlog.sync.first_ball_payload import (
 from pitchlog.sync.idempotency import operation_fingerprint
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.wire_fingerprint import freeze_wire_event, wire_event_fingerprint
+
+_EXPECTED_SOURCE_PINS = read_expected_source_pins(
+    "test_sync_apply_first_ball_payload.py"
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 VECTOR = json.loads(
@@ -159,14 +164,8 @@ def test_vector_count_and_type_target_are_exact() -> None:
     assert VECTOR["caseCount"] == len(VECTOR["cases"]) == 87
     assert len({x["id"] for x in VECTOR["cases"]}) == 87
     assert sum(x["expected"]["kind"] == "accepted" for x in VECTOR["cases"]) == 15
-    assert (
-        VECTOR["typeTargetSha256"]
-        == "72d2620c6731a5e9367880f2967a7771cc75e5c6e76a18052b988943ff2af921"
-    )
-    assert (
-        VECTOR["typeFieldsSha256"]
-        == "9555f1650b070b08539a7a20b9551f3c67d3f28818630d9b72c7028b649c80d3"
-    )
+    assert VECTOR["typeTargetSha256"] == _EXPECTED_SOURCE_PINS["type_target_sha256"]
+    assert VECTOR["typeFieldsSha256"] == _EXPECTED_SOURCE_PINS["type_fields_sha256"]
     assert set(FirstBallPlayPayload.model_fields) == {
         "format_version",
         "observations",

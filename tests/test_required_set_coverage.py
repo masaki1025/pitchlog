@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -15,6 +16,32 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+
+
+def _read_legacy_coverage_pin(path: Path) -> str:
+    """独立fixtureの歴史anchorを重複/未知/欠落/不正桁で閉拒否する。"""
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("歴史anchorのkeyが重複")
+            result[key] = value
+        return result
+
+    raw = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    if type(raw) is not dict or set(raw) != {"schema_version", "baseline_commit"}:
+        raise ValueError("歴史anchorのキーが不正")
+    if type(raw["schema_version"]) is not int or raw["schema_version"] != 1:
+        raise ValueError("歴史anchorの版が不正")
+    commit = raw["baseline_commit"]
+    if type(commit) is not str or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError("歴史anchorのcommitが不正")
+    return commit
+
+
+_LEGACY_COVERAGE_COMMIT = _read_legacy_coverage_pin(
+    Path(__file__).parent / "fixtures/required_set_coverage_legacy_pin_v1.json"
+)
 
 
 def _load_module(name: str, path: Path) -> Any:
@@ -71,7 +98,7 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """旧assertとファイル集合を固定Gitへ束縛し、新vectorを混入させない。"""
     root = tmp_path_factory.mktemp("coverage-history-30f67")
     for name in subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", "30f67cbc"],
+        ["git", "ls-tree", "-r", "--name-only", _LEGACY_COVERAGE_COMMIT],
         cwd=_LIVE_ROOT, text=True,
     ).splitlines():
         source = _LIVE_ROOT / name
@@ -87,7 +114,7 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     git = root / ".git"
     (git / "objects/info").mkdir(parents=True)
     (git / "refs").mkdir()
-    (git / "HEAD").write_text("30f67cbc0afbdae00919606a17439d64fa7e9832\n")
+    (git / "HEAD").write_text(_LEGACY_COVERAGE_COMMIT + "\n")
     (git / "objects/info/alternates").write_text(str(Path(common) / "objects") + "\n")
     for name in (
         "state_transition_contract_v1.json", "required_set_input_coverage_v1.json",
@@ -95,7 +122,7 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     ):
         relative = "contracts/state-transition/" + name
         (root / relative).write_bytes(subprocess.check_output(
-            ["git", "show", "30f67cbc:" + relative], cwd=_LIVE_ROOT,
+            ["git", "show", _LEGACY_COVERAGE_COMMIT + ":" + relative], cwd=_LIVE_ROOT,
         ))
     return root
 
@@ -2254,7 +2281,8 @@ _ORDINARY_CASE_IDS = {
 def _ordinary_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
     """旧Git原本を保ち、受理候補の4guard/12ID/B1一件だけを合成する。"""
     raw = subprocess.check_output(
-        ["git", "show", "30f67cbc:contracts/state-transition/state_transition_contract_v1.json"],
+        ["git", "show",
+         f"{_LEGACY_COVERAGE_COMMIT}:contracts/state-transition/state_transition_contract_v1.json"],
         cwd=ROOT,
     )
     contract = json.loads(raw)
@@ -2295,7 +2323,7 @@ def _ordinary_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
     asset = {
         "schemaVersion": 1, "operation": "deriveOrdinaryPitch",
         "caseIdMigrations": {
-            "baselineCommit": "30f67cbc0afbdae00919606a17439d64fa7e9832",
+            "baselineCommit": _LEGACY_COVERAGE_COMMIT,
             "baselineContractSHA256": hashlib.sha256(raw).hexdigest(),
             "caseIds": copy.deepcopy(_ORDINARY_CASE_IDS),
         },
@@ -2400,7 +2428,8 @@ def test_ordinary_coverage_keeps_old_history_and_rejects_pending_approval(
     monkeypatch.setattr(checker, "_document", lambda root, name: asset
                         if name == "ordinary_pitch_vectors_v1.json" else original(root, name))
     record = json.loads(subprocess.check_output([
-        "git", "show", "30f67cbc:contracts/state-transition/required_set_input_coverage_v1.json"
+        "git", "show",
+        f"{_LEGACY_COVERAGE_COMMIT}:contracts/state-transition/required_set_input_coverage_v1.json"
     ], cwd=ROOT))
     historical = copy.deepcopy(record["history"])
     observed = _observed_coverage(contract["cases"], contract)
@@ -2457,7 +2486,7 @@ def test_historical_coverage_view_uses_only_fixed_git_file_set(
 ) -> None:
     """旧Gitにないordinary vectorは実在/追跡後でも歴史viewへ混入しない。"""
     fixed = set(subprocess.check_output(
-        ["git", "ls-tree", "-r", "--name-only", "30f67cbc"],
+        ["git", "ls-tree", "-r", "--name-only", _LEGACY_COVERAGE_COMMIT],
         cwd=_LIVE_ROOT, text=True,
     ).splitlines())
     actual = {
@@ -2472,7 +2501,8 @@ def test_historical_coverage_view_uses_only_fixed_git_file_set(
         historical_coverage_root / "contracts/state-transition/state_transition_contract_v1.json"
     )
     assert json.loads(historical_state.read_text())["cases"] == json.loads(subprocess.check_output(
-        ["git", "show", "30f67cbc:contracts/state-transition/state_transition_contract_v1.json"],
+        ["git", "show",
+         f"{_LEGACY_COVERAGE_COMMIT}:contracts/state-transition/state_transition_contract_v1.json"],
         cwd=_LIVE_ROOT, text=True,
     ))["cases"]
 
@@ -2508,3 +2538,46 @@ def test_historical_coverage_copy_rejects_live_only_vector_contamination(
     assert any(command[:3] == ["git", "ls-tree", "-r"] for command in commands)
     state = view / "contracts/state-transition/state_transition_contract_v1.json"
     assert len(json.loads(state.read_text())["cases"]) == 116
+
+
+def test_legacy_coverage_pin_fixture_is_closed() -> None:
+    """歴史anchorの独立fixture全値を読取結果と照合する。"""
+    path = Path(__file__).parent / "fixtures/required_set_coverage_legacy_pin_v1.json"
+    assert json.loads(path.read_text()) == {
+        "schema_version": 1,
+        "baseline_commit": _read_legacy_coverage_pin(path),
+    }
+    assert _read_legacy_coverage_pin(path) == _LEGACY_COVERAGE_COMMIT
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing", "extra", "version", "type", "short", "uppercase", "duplicate"]
+)
+def test_legacy_coverage_pin_rejects_invalid_fixture(mutation: str, tmp_path: Path) -> None:
+    """未知/欠落/型/桁/重複を歴史anchorへ採用しない。"""
+    raw: dict[str, object] = {"schema_version": 1, "baseline_commit": _LEGACY_COVERAGE_COMMIT}
+    if mutation == "missing":
+        del raw["baseline_commit"]
+    elif mutation == "extra":
+        raw["extra"] = None
+    elif mutation == "version":
+        raw["schema_version"] = True
+    elif mutation == "type":
+        raw["baseline_commit"] = False
+    elif mutation == "short":
+        raw["baseline_commit"] = _LEGACY_COVERAGE_COMMIT[:-1]
+    elif mutation == "uppercase":
+        raw["baseline_commit"] = _LEGACY_COVERAGE_COMMIT.upper()
+    text = json.dumps(raw)
+    if mutation == "duplicate":
+        text = text.replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1')
+    target = tmp_path / "pin.json"
+    target.write_text(text)
+    with pytest.raises(ValueError):
+        _read_legacy_coverage_pin(target)
+
+
+def test_legacy_coverage_pin_rejects_missing_file(tmp_path: Path) -> None:
+    """歴史fixture欠落時にHEADや製品期待へfallbackしない。"""
+    with pytest.raises(OSError):
+        _read_legacy_coverage_pin(tmp_path / "missing.json")

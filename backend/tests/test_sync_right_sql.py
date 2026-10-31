@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import pytest
+from first_ball_expected_source_pins import read_expected_source_pins
 
 from pitchlog.authz import first_ball_product
 from pitchlog.authz.first_ball_write_stamp import (
@@ -29,6 +30,8 @@ from pitchlog.authz.sync_right_sql import (
 from pitchlog.sync.control_provider.writer_binding_models import (
     FirstBallWriteAdmission,
 )
+
+_EXPECTED_SOURCE_PINS = read_expected_source_pins("test_sync_right_sql.py")
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -72,13 +75,11 @@ def test_exact_sql_boundary() -> None:
 # ---------------------------------------------------------------------------
 
 # 既存の描画(render_sync_right_sql)の出力。変えない(S01)。
-_OLD_RENDER_SHA256 = "55ff49bc530e55325c2f9e7ad1f17fbe41b8f40071431777bf6efc8641bf705e"
+_OLD_RENDER_SHA256 = _EXPECTED_SOURCE_PINS["old_render_sha256"]
 # 印付き2 bodyの文字列そのもの。意図した変更のときだけ更新する(S03)。
 _STAMPED_SHA256 = {
-    "bind_device": "8994f14153a7ff696e932b60a1e44785d27420412c7e9a35f407727192d383bf",
-    "check_current_right": (
-        "0088634a6910663565944b7c4d80b469a2416218e0a50a7912bc397f67aeb86c"
-    ),
+    "bind_device": _EXPECTED_SOURCE_PINS["bind_device"],
+    "check_current_right": (_EXPECTED_SOURCE_PINS["check_current_right"]),
 }
 _STAMP_TABLE = "sync_fence.first_ball_write_admissions"
 _DOLLAR = re.compile(r"\$[A-Za-z_]*\$")
@@ -683,7 +684,7 @@ def test_device_state_read_single_source_and_old_wrapper_bytes():
     create = render_device_state_read_create_sql()
     assert (
         hashlib.sha256(sql.encode()).hexdigest()
-        == "a54b9e6e5b1416db84cc110112e82f687b4987a35f42a7fc1826a891b07695a1"
+        == _EXPECTED_SOURCE_PINS["device_state_read_sha256"]
     )
     assert create in sql
     assert create.startswith(

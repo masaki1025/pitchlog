@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 import sqlalchemy as sa
+from first_ball_expected_source_pins import read_expected_source_pins
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
@@ -21,13 +22,15 @@ from pitchlog.sync.control_provider.writer_binding_models import (
     WriterBinding,
 )
 
+_EXPECTED_SOURCE_PINS = read_expected_source_pins("test_first_ball_write_stamp.py")
+
 _ROOT = Path(__file__).resolve().parents[1]
 _GUARD_DIGESTS = {
     "guard_first_ball_projection_lock": (
-        "6f56a458e8709ed56c8908252a5cef1cb51864822ca7c26eab03c1df5397dce9"
+        _EXPECTED_SOURCE_PINS["guard_first_ball_projection_lock"]
     ),
     "guard_first_ball_projection_admission": (
-        "f3c9f6205d52e1a7529fb322d67e3d5592af5362cad456321e3ea3d57513517b"
+        _EXPECTED_SOURCE_PINS["guard_first_ball_projection_admission"]
     ),
 }
 _REVISION = _ROOT / "migrations/versions/0038_first_ball_write_admission.py"
