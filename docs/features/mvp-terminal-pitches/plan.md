@@ -277,3 +277,6 @@ PR191のCI書式修復（2026-10-31、PO委任によるCodex /root判断）: run
 
 
 次操作の契約起案（2026-10-31、PO委任によるCodex /root判断）: [三振・第3アウト子計画](../mvp-strikeout-pitches/plan.md)を別branch/WTで開始する。本BB/HBPの旧5段/レビュー/失敗/正式未成立を保持し、子計画は操作限定contract段だけを承認する。全T1/MVPの再計画・完了宣言ではない。
+
+
+最終保存後の書式・手動入口追随（2026-10-31、PO委任によるCodex /root判断）: CI7646daabは次段ruff formatで既test_durable_rights_ledger_contract.pyのtuple並び1箇所だけ停止した。同test exact1をformatterで整形し全module AST不変、backend全ruff/format（587file）と明示既venvの全ty成功。既manual-check.mdを成功版の四球/死球と1caseだけのhold入口へ追随、実画面/実DB成功・有限prefix長と表示ページ件数・自己署名loopback/実機未実施・TLS期限/秘密内容非共有を区別した。command bash構文/DSN unset/専用temp/既venvを確認、manual holdや実機を実施したとは記録しない。rootcache pr191-ci-triage-20261031へAST/command証拠を保存。frontend/runtime/契約/認可/保存意味に変更0、全画面とfrontendは反復せず既同一機能版の証拠を保持する。
