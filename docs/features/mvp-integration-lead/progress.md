@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 05:58 JST（統合候補で実画面の初球縦断を再実証、tenant正式検査を修復中）
+
+- **利用者操作と実証**: pr189 WT/feature/pr189-integration、HEAD `6ff509bd9c16b012ea8213118a1031b8aca6e99b` の同一owned環境で、実画面新規作成→開始/初期権→初球ボール保存→server再取得→同一要求再送→reloadを1 passed / 50.10秒で実証。reload後1ボール/0ストライク/履歴1/PlayRow1、得点・アウト・走者不変、DB二重保存なし。事前投入済み試合のAPI実証とは別の成功。cache `pr189-integration-20261101/screen-final{.log,.xml,-result.json}` にHEAD/証拠SHA/限界を固定。既自己署名TLSは期限切れのため既存ignoreHTTPSErrorsの隔離技術例外であり、信頼済みTLS/実機/運用受入ではない。新鍵を発行しない。
+- **保存・検証**: PG共通fixtureは先行47成功/10失敗の原因を修復し、元失敗10が全成功64.55秒。全57を同HEADで再完走したとの主張はしない。非作者REPORT-B-R2 f8db9c54…はP0/P1/P2=0。単一tenant正式値9資産/4面とsnapshot13件・corpusを6ff509bdへ公式helper導出、旧33履歴/251保護snapshot保持。非作者の導出前確認REPORT-77-PREFLIGHT 7daa6001…と実全前後からPO委任で採用、最終HEADレビューは継続中。
+- **未成立と原因**: `check_frozen_baselines --invariants-only`成功。`check_tenant_boundary_bypass --base-ref c2e5e4dd`はTB000/2/5/7で失敗。event無しだけが原因ではなく、develop取込時checker/allowlistをdevelop側へ揃えたことで元ad658の限定source登録を失った疑い。元c2/ad658/currentを非作者・別担当で照合し、既拒否を維持する最小修復を行う。現HEADの正式CI/merge成功とは扱わない。sourceはまだremote ad658、push0。
+- **次**: tenant限定登録の両側統合→対向/公式CLI→変更が及ぶ正式値とcorpusを一括再導出→最終非作者HEAD確認/必要な同版画面確認→公開委任証拠→一回push/必須CI/189通常merge。その後190→191→192を順に接合し、MVP全体の残る操作・耐久復旧・成績/両CSV・実機/運用受入まで継続する。旧レビュー履歴をリセットせず、委任を本人署名やP-6 blind成立と記録しない。
+
+
 ## 続き：2026-11-01 05:09 JST（実DB18成功・非DB全体の残1を局所解消、最終接合中）
 
 - **現在の固定点**: pr189 WT/feature/pr189-integration、保存HEAD5500fd83。源流ad658＋正式c2を保持。A31は9430cf9f、test期待fixture移設7d8b3f00、oracle最終固定Git cc0eへの参照bcf49409、製品状態copy依存供給1e1e9ab7まで保存。#189 remote ad658のまま/source push0、#190 remote320f196b/#19119c1c125/#192f38b7673のDraft依存順をGitHubで確認。
