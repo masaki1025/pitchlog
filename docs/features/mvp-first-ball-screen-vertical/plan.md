@@ -142,3 +142,6 @@ APIで_broker_generation直接import/内部generation識別子が既禁止語彙
 
 
 oracle基準台帳の限定追随（2026-11-01、PO委任によるCodex主担当判断）: 非作者REPORT9edd03ec…で固定8入力の旧AUTH187/全正負cell/4lock完全保持と3dd1bfa1への技術pin採用が成立。既97行の6oracle_context＋seal追随に加え、contracts/authz/frozen-baselines.json のoracle_input系列へ#189末尾1recordを追記する。旧全history/規範状態/placementsを保持し、旧70684628→3dd1bfa1のprior/new identityと委任判断・根拠のみを記録。公式CLIがboundary proposalの基準版一致を要求するための必須伝播で、既凍結値の手動書換/本人承認代記はしない。生成後8pathは非作者最終差分確認し、正式7.7/全件CIは別に確認する。
+
+
+root型境界の限定整合（2026-11-01、PO委任によるCodex主担当判断）: 非作者診断REPORTd86078ef…でroot/BE独立venvの既設計と、新import9診断（checker8/test1）を特定。scripts/check_authz_catalog.pyのfirst_ball_productへの8local importとtests/test_check_authz_catalog.pyのasset_spec import1だけへ、既同境界10statementと同じunresolved-import限定注記を追加する。2fileのPython AST100%同一、runtime/全拒否/テスト対象/ルール不変を検査する。新Any・広域ignore・fixture除外・backend全体の検索path追加は行わない。backend本体は別tyで検査するが、rootからの具体的呼出型を完全検査する保証を新たに主張しない。影響試験・root ty/ruffと非作者候補照合後に保存する。
