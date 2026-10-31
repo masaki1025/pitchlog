@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-10-31 16:22 JST（実CI修復を保存・実PGの残失敗を解消）
+
+- **新たな製品操作の実証範囲**は従前の初球/通常3球/BB・HBP→次打者/ACK喪失復旧の隔離UI証拠のまま。三振の新v3は実reader/Port/同TX保存/GETを接続中で、実保存/UI成功に読み替えない。正式PR188は9d9d7b1cのCI失敗で未merge、fix枝の後発修復と区別する。
+- **保存した通常修復**: fix/mvp-pr188-ci-fixturesのfd9afbf7でauthz原典3digest/宣言候補/frozen正規corpusを整合（独立34/root局所33/frozen65成功）、b5414caeで実暫定版fixtureと既stage-a11関数期待を復元（全authz+stage25914passed177.92秒、独立REPORT120c67e0…P0/P1=0）。a4686694はN4『プレイ0件の試合』へのgames.hidden_at候補漏れだけを直し、主系ゴミ箱/他8対象/判定空欄/全数freeze104/113/59/105を保持、非作者/root source-only18成功。正式sheet本文比較1はまだ未了で全module成功とはしない。
+- **実PGを通した13失敗修復**: 1dbd8da6にbackend/tests exact13の歴史owned seed権限閉鎖、0036移行検査、不変probe、verifier唯一口/衝突、全43trigger identity/guard4、旧列と秘密2列ACL、既quote2原典を保存。root非作者全差分確認/pure39（作者41と区別）後、外部DSNをunsetして既owned factoryが発行した試験DSNだけを供給、既実認証主体検査も維持しPG16を実行。最初15passed1failed78.73秒、残1はinfo.dsnがpasswordを再供給しないfixture接続問題。rootが同owned cluster管理資格のdbnameだけproductへ合わせ、非作者REPORT91c9be36…が全probe等AST不変を確認、該当PG1passed4.82秒。全16を最終同一treeで再実行済みとはしない。cache pr188-backend-ci-repair-r3-20261031に全13before/after/files/diff/15+1各JUnit/root-approvalを固定、共有DB/製品source/過去migration/正式認可JSONの変更0。
+- **残るCI依存と既判断保持**: ORM受入候補381行は本人の再確認を代記せず、非作者REPORTe72f2bc1…で分類、うち旧意味突合258行中224は実Git原典節/対象manifest/ORM原子不変をREPORT6c70fcd8…で証明（旧判断出典付き維持候補）。残34と新source分類122＋N4補助1は追加意味突合中、全381一致を自動記入しない。正式5sheet反映と全harness/最終HEADレビュー/委任証拠/必須CI/通常mergeはこれから。
+- **T1実保存の並行成果/不具合発見**: SO branchではc743c229のbigint修復・dac1ad4c/654cd3f6/5a4129f8の有限接続範囲を起動し、作者が実sourceを継続。先行8関数SQL候補cache strikeout-step4-sql-producer-r1-20261031（functions cd930146…/declarations dba73558…/bodies bda6b636…）を非作者敵対レビュー中。read_play_prefix_checkpointだけlast_historyを外側へ出し、新readerのrow.last_historyへ届かないP1を検出、r1は採用不可、作者が同scopeで修正中。正式34assetはroot直列writerで未反映、source固定前に再封印や値を採用しない。
+- **次の具体作業**: ORMの不変旧判断と実変動行を根拠付きで採否し正式5sheetを反映→全CI修復の最終レビュー/CIへ。並行してv3の正規D1/D2位置/実reader/SQLを整合固定→正規root登録/単一artifactと全pin/D11をまとめて追随→owned PGで三振3PA→攻守交代→相手通常球/save/再取得/再送/故障を検証。運用TLS/実機/全MVP・両CSV・負荷復旧は未了のまま維持、Goal active。
+
 ## 続き：2026-10-31 16:07 JST（実CI失敗の修復・三振の実保存へ接続中）
 
 - **利用者が完了できる操作**: 既証拠の隔離候補では実画面で新規作成→開始/初期権→初球保存→server再取得/reload、通常3球、BB/HBP→次打者1球、保存後ACK喪失→元要求再送/二重保存なしまで。新v3三振のDB保存/UIや正式develop提供へ広げない。既TLSは期限到来、実機/運用HTTPSは未実施。
