@@ -309,7 +309,8 @@
         "backend/tests/test_first_ball_write_stamp.py",
         "backend/tests/db/test_terminal_pitch_storage.py",
         "backend/src/pitchlog/api/routers/sync.py",
-        "backend/src/pitchlog/sync/port_guard.py"
+        "backend/src/pitchlog/sync/port_guard.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py"
       ]
     },
     {
@@ -464,7 +465,8 @@
         "backend/tests/test_terminal_pitch_payload.py",
         "backend/tests/test_terminal_pitch_projection.py",
         "backend/tests/test_play_prefix_read.py",
-        "backend/tests/db/test_terminal_pitch_storage.py"
+        "backend/tests/db/test_terminal_pitch_storage.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py"
       ]
     },
     {
@@ -604,7 +606,8 @@
         "backend/tests/test_first_ball_write_stamp.py",
         "backend/tests/db/test_terminal_pitch_storage.py",
         "backend/src/pitchlog/api/routers/sync.py",
-        "backend/src/pitchlog/sync/port_guard.py"
+        "backend/src/pitchlog/sync/port_guard.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py"
       ]
     },
     {
@@ -739,7 +742,8 @@
         "backend/tests/test_first_ball_write_stamp.py",
         "backend/tests/db/test_terminal_pitch_storage.py",
         "backend/src/pitchlog/api/routers/sync.py",
-        "backend/src/pitchlog/sync/port_guard.py"
+        "backend/src/pitchlog/sync/port_guard.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py"
       ]
     },
     {
