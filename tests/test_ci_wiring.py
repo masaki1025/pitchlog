@@ -26,20 +26,13 @@ WORKFLOW_PATH = REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
 FROZEN_INPUTS_PATH = REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json"
 FROZEN_INPUTS = json.loads(FROZEN_INPUTS_PATH.read_text(encoding="utf-8"))["frozen_inputs"]
 COMPOSE_PATH = REPOSITORY_ROOT / "docker-compose.yml"
-EXPECTATIONS_PATH = (
-    REPOSITORY_ROOT / "backend" / "tests" / "db" / "environment-expectations.json"
-)
+EXPECTATIONS_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "environment-expectations.json"
 BACKEND_PYPROJECT_PATH = REPOSITORY_ROOT / "backend" / "pyproject.toml"
 BACKEND_LOCK_PATH = REPOSITORY_ROOT / "backend" / "uv.lock"
 DB_CONFTEST_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db" / "conftest.py"
 STEPS_PATH = REPOSITORY_ROOT / "docs" / "features" / "domain-calc-dsl" / "steps.json"
 GITHUB_SETUP_PATH = REPOSITORY_ROOT / "docs" / "development" / "github-setup.md"
-HARNESS_DESIGN_PATH = (
-    REPOSITORY_ROOT
-    / "docs"
-    / "development"
-    / "dev-harness-design-2026-08-07.md"
-)
+HARNESS_DESIGN_PATH = REPOSITORY_ROOT / "docs" / "development" / "dev-harness-design-2026-08-07.md"
 DOCS_INDEX_PATH = REPOSITORY_ROOT / "docs" / "README.md"
 ACTIVATION_EVIDENCE_MARKER = "<!-- BOOT-ACTIVATION-EVIDENCE -->"
 DB_FIXTURES_PATH = REPOSITORY_ROOT / "backend" / "tests" / "db_fixtures.py"
@@ -105,8 +98,7 @@ REQUIRED_STATUS_CONTEXTS = (
     "tenant-boundary-bypass",
 )
 BACKEND_CHANGES_CONDITION = (
-    "github.event_name == 'workflow_dispatch' || "
-    "needs.backend-changes.outputs.backend == 'true'"
+    "github.event_name == 'workflow_dispatch' || needs.backend-changes.outputs.backend == 'true'"
 )
 EXPECTED_CONDITIONAL_JOBS = {
     "frontend": (
@@ -117,7 +109,7 @@ EXPECTED_CONDITIONAL_JOBS = {
     "backend-shard": BACKEND_CHANGES_CONDITION,
     # 集約は分割ジョブの結果で判断するため always() で起動し、内部で厳密判定する。
     "harness": "always()",
-    "backend": f"always() && (\n{BACKEND_CHANGES_CONDITION})",
+    "backend": f"always() && ({BACKEND_CHANGES_CONDITION})",
 }
 SILENT_DISABLE_STEP_KEYS = frozenset({"if", "continue-on-error", "shell"})
 # ci.yml には履歴を要するジョブを機械導出できる標識がなく、履歴依存は
@@ -154,9 +146,7 @@ LEGACY_JOB_IDS = frozenset(
     }
 )
 NEW_JOB_IDS = frozenset({"consistency", "mutation"})
-SHARD_JOB_IDS = frozenset(
-    {"harness-static", "harness-shard", "backend-static", "backend-shard"}
-)
+SHARD_JOB_IDS = frozenset({"harness-static", "harness-shard", "backend-static", "backend-shard"})
 CONSISTENCY_TIMEOUT_MINUTES = 20
 MUTATION_TIMEOUT_MINUTES = 40
 HARNESS_PYTEST_COMMAND = (
@@ -255,27 +245,19 @@ def _workflow_job_categories(
 def _documented_job_categories(text: str) -> dict[str, frozenset[str]]:
     """github-setup.md の手続 2 から必須ジョブの 3 分類を読む。"""
     line = next(
-        (
-            item
-            for item in text.splitlines()
-            if "常時実行" in item and "変更検知" in item
-        ),
+        (item for item in text.splitlines() if "常時実行" in item and "変更検知" in item),
         None,
     )
     assert line is not None, "必須ジョブの 3 分類がない"
     always_match = re.search(r"常時実行 (\d+) ジョブ\((.*?)\)\+ 変更検知", line)
-    change_match = re.search(
-        r"変更検知 (\d+) ジョブ\((.*?)\)\+ \*\*paths", line
-    )
-    filtered_match = re.search(r"発火した場合の (`[^`]+` / `[^`]+`)", line)
+    change_match = re.search(r"変更検知 (\d+) ジョブ\((.*?)\)\+ \*\*paths", line)
+    filtered_match = re.search(r"発火した場合の (`[^`]+`(?: / `[^`]+`)*)", line)
     assert always_match is not None
     assert change_match is not None
     assert filtered_match is not None
     categories = {
         "always": frozenset(re.findall(r"`([^`]+)`", always_match[2])),
-        "changeDetection": frozenset(
-            re.findall(r"`([^`]+)`", change_match[2])
-        ),
+        "changeDetection": frozenset(re.findall(r"`([^`]+)`", change_match[2])),
         "filtered": frozenset(re.findall(r"`([^`]+)`", filtered_match[1])),
     }
     assert len(categories["always"]) == int(always_match[1])
@@ -352,9 +334,7 @@ def _assert_activation_evidence(
         {"conclusion", "activationRequirements", "structuralAudits"},
         "consistency 証跡",
     )
-    mutation = _assert_exact_keys(
-        jobs["mutation"], {"conclusion"}, "mutation 証跡"
-    )
+    mutation = _assert_exact_keys(jobs["mutation"], {"conclusion"}, "mutation 証跡")
     assert consistency["conclusion"] == "success"
     assert mutation["conclusion"] == "success"
 
@@ -383,9 +363,7 @@ def _assert_activation_evidence(
 
     audits = consistency["structuralAudits"]
     assert isinstance(audits, list)
-    assert tuple(audits) == _step_test_paths(51, 52), (
-        "structuralAudits の証跡集合が不一致"
-    )
+    assert tuple(audits) == _step_test_paths(51, 52), "structuralAudits の証跡集合が不一致"
     for path in audits:
         assert _selected_root_test_jobs(workflow, path) == {"consistency"}
 
@@ -423,8 +401,7 @@ def _docs_lint_commands(workflow: dict[str, Any]) -> list[str]:
     return [
         command
         for step in steps
-        if isinstance(step, dict)
-        and isinstance((command := step.get("run")), str)
+        if isinstance(step, dict) and isinstance((command := step.get("run")), str)
     ]
 
 
@@ -606,15 +583,12 @@ def _checkout_step(job_name: str, job: object) -> dict[str, Any]:
         raise AssertionError(f"{job_name} に checkout ステップが無い")
     if len(checkout_candidates) > 1:
         candidate_uses = [candidate["uses"] for candidate in checkout_candidates]
-        raise AssertionError(
-            f"{job_name} に checkout ステップが複数ある: uses={candidate_uses}"
-        )
+        raise AssertionError(f"{job_name} に checkout ステップが複数ある: uses={candidate_uses}")
 
     checkout = checkout_candidates[0]
     uses = checkout["uses"]
     assert _is_pinned_checkout_action(uses), (
-        f"{job_name} の checkout は actions/checkout@<40桁SHA> でない: "
-        f"actual={uses!r}"
+        f"{job_name} の checkout は actions/checkout@<40桁SHA> でない: actual={uses!r}"
     )
     return checkout
 
@@ -623,9 +597,7 @@ def _assert_checkout_fetch_depth_contract(
     workflow: dict[str, Any],
     *,
     with_fetch_depth_zero: frozenset[str] = CHECKOUT_JOBS_WITH_FETCH_DEPTH_ZERO,
-    without_fetch_depth_zero: frozenset[str] = (
-        CHECKOUT_JOBS_WITHOUT_FETCH_DEPTH_ZERO
-    ),
+    without_fetch_depth_zero: frozenset[str] = (CHECKOUT_JOBS_WITHOUT_FETCH_DEPTH_ZERO),
 ) -> None:
     """全ジョブの checkout 件数と fetch-depth 分類を exact-set 検査する。
 
@@ -669,9 +641,7 @@ def _assert_no_silent_disable_controls(workflow: dict[str, Any]) -> None:
     assert tuple(jobs) == EXPECTED_JOB_ORDER, "必須ジョブの exact-set が不一致"
     for job_name, job in jobs.items():
         assert isinstance(job, dict), f"{job_name} ジョブはマッピングが必要"
-        assert "continue-on-error" not in job, (
-            f"{job_name} ジョブで失敗を黙殺してはならない"
-        )
+        assert "continue-on-error" not in job, f"{job_name} ジョブで失敗を黙殺してはならない"
         expected_if = EXPECTED_CONDITIONAL_JOBS.get(job_name)
         if expected_if is None:
             assert "if" not in job, f"{job_name} ジョブを条件付きにしてはならない"
@@ -685,8 +655,7 @@ def _assert_no_silent_disable_controls(workflow: dict[str, Any]) -> None:
             assert isinstance(step, dict), f"{job_name}.steps[{index}] はマッピングが必要"
             forbidden = SILENT_DISABLE_STEP_KEYS & set(step)
             assert not forbidden, (
-                f"{job_name}.steps[{index}] に無効化属性がある: "
-                f"{sorted(forbidden)}"
+                f"{job_name}.steps[{index}] に無効化属性がある: {sorted(forbidden)}"
             )
 
 
@@ -705,8 +674,7 @@ def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
     jobs = _mapping_at(workflow, ("jobs",))
     assert isinstance(jobs, dict), "ci.yml に jobs が必要"
     assert tuple(jobs) == EXPECTED_JOB_ORDER, (
-        f"CI ジョブ列が期待順と一致しない: actual={tuple(jobs)!r}, "
-        f"expected={EXPECTED_JOB_ORDER!r}"
+        f"CI ジョブ列が期待順と一致しない: actual={tuple(jobs)!r}, expected={EXPECTED_JOB_ORDER!r}"
     )
     job = jobs.get(declared_job)
     assert isinstance(job, dict), f"{declared_job} ジョブが必要"
@@ -760,14 +728,12 @@ def _assert_tenant_boundary_bypass_wiring(workflow: dict[str, Any]) -> None:
         if isinstance(step, dict)
         and isinstance((candidate_run := step.get("run")), str)
         and any(
-            line.strip() == declared_command
-            or line.strip().startswith(f"{declared_command} ")
+            line.strip() == declared_command or line.strip().startswith(f"{declared_command} ")
             for line in candidate_run.splitlines()
         )
     ]
     assert command_locations == [(declared_job, 3)], (
-        "テナント境界迂回検査コマンドは宣言ジョブの末尾に1件だけ必要: "
-        f"actual={command_locations!r}"
+        f"テナント境界迂回検査コマンドは宣言ジョブの末尾に1件だけ必要: actual={command_locations!r}"
     )
     _assert_checkout_fetch_depth_contract(workflow)
     _assert_no_silent_disable_controls(workflow)
@@ -784,16 +750,10 @@ def _leaf_paths(node: object, path: NodePath = ()) -> list[NodePath]:
         深さ優先順の全葉パス。
     """
     if isinstance(node, dict):
-        return [
-            leaf
-            for key, value in node.items()
-            for leaf in _leaf_paths(value, (*path, key))
-        ]
+        return [leaf for key, value in node.items() for leaf in _leaf_paths(value, (*path, key))]
     if isinstance(node, list):
         return [
-            leaf
-            for index, value in enumerate(node)
-            for leaf in _leaf_paths(value, (*path, index))
+            leaf for index, value in enumerate(node) for leaf in _leaf_paths(value, (*path, index))
         ]
     return [path]
 
@@ -828,8 +788,7 @@ def _backend_commands(backend: dict[str, Any]) -> list[str]:
     return [
         command
         for step in steps
-        if isinstance(step, dict)
-        and isinstance((command := step.get("run")), str)
+        if isinstance(step, dict) and isinstance((command := step.get("run")), str)
     ]
 
 
@@ -921,8 +880,7 @@ def _orm_stack_dependency_errors(
         specifications = [
             dependency
             for dependency in dependencies
-            if isinstance(dependency, str)
-            and _canonical_distribution_name(dependency) == name
+            if isinstance(dependency, str) and _canonical_distribution_name(dependency) == name
         ]
         if len(specifications) != 1:
             errors.append(f"{name} の直接依存はちょうど 1 件必要")
@@ -955,10 +913,7 @@ def _orm_stack_dependency_errors(
         ("alembic", exact_versions.get("alembic")),
     )
     for name, expected_version in lock_expectations:
-        if (
-            expected_version is not None
-            and locked_versions.get(name) != expected_version
-        ):
+        if expected_version is not None and locked_versions.get(name) != expected_version:
             errors.append(f"lock の {name} が pyproject の固定版と一致しない")
     return errors
 
@@ -978,8 +933,7 @@ def _harness_commands(harness: dict[str, Any]) -> list[str]:
     return [
         command
         for step in steps
-        if isinstance(step, dict)
-        and isinstance((command := step.get("run")), str)
+        if isinstance(step, dict) and isinstance((command := step.get("run")), str)
     ]
 
 
@@ -1065,9 +1019,7 @@ def _health_command(options: object) -> list[str]:
         health command の token 配列。構文不正なら空配列。
     """
     command = _service_options(options).get("--health-cmd")
-    if not isinstance(command, list) or not all(
-        isinstance(token, str) for token in command
-    ):
+    if not isinstance(command, list) or not all(isinstance(token, str) for token in command):
         return []
     return command
 
@@ -1141,7 +1093,7 @@ def _workflow_from_ci_contract_tree(
         検査器へ渡せる workflow のコピー。
     """
     mutated = copy.deepcopy(workflow)
-    original_backend = _backend_job(mutated)
+    original_backend = _backend_pytest_job(mutated)
     rebuilt_backend: dict[str, Any] = {}
     skipping_contract_block = False
     inserted = False
@@ -1158,7 +1110,7 @@ def _workflow_from_ci_contract_tree(
 
     jobs = mutated["jobs"]
     assert isinstance(jobs, dict)
-    jobs["backend"] = rebuilt_backend
+    jobs["backend-shard"] = rebuilt_backend
 
     options_path = ("services", "postgres", "options")
     options = _mapping_at(rebuilt_backend, options_path)
@@ -1189,9 +1141,7 @@ def _ci_contract_tree(workflow: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _workflow_from_contract_tree(
-    workflow: dict[str, Any], tree: dict[str, Any]
-) -> dict[str, Any]:
+def _workflow_from_contract_tree(workflow: dict[str, Any], tree: dict[str, Any]) -> dict[str, Any]:
     """一般化した CI 契約木を workflow へ戻す。
 
     Args:
@@ -1210,7 +1160,7 @@ def _workflow_from_contract_tree(
     harness_tree = tree.get("harness")
     assert isinstance(harness_tree, dict)
     replacement = harness_tree.get("pytest")
-    harness = _harness_job(mutated)
+    harness = _harness_pytest_job(mutated)
     steps = harness.get("steps")
     assert isinstance(steps, list)
     replaced = 0
@@ -1244,9 +1194,7 @@ def _dsn_template_parts(value: object) -> tuple[str, str, str, str] | None:
     """
     if not isinstance(value, str):
         return None
-    match = re.fullmatch(
-        r"postgresql://([^:/]+):([^@]+)@([^:/]+):5432/([^/?#]+)", value
-    )
+    match = re.fullmatch(r"postgresql://([^:/]+):([^@]+)@([^:/]+):5432/([^/?#]+)", value)
     if match is None:
         return None
     return match[1], match[2], match[3], match[4]
@@ -1279,16 +1227,12 @@ def _ci_wiring_errors(
     if not isinstance(service, dict):
         return ["backend.services.postgres がない"]
     image = service.get("image")
-    if image != database["image"]["expected"] or image != compose_database.get(
-        "image"
-    ):
+    if image != database["image"]["expected"] or image != compose_database.get("image"):
         errors.append("postgres image が期待値・開発 DB と一致しない")
 
     service_environment = service.get("env")
     compose_environment = compose_database.get("environment")
-    if not isinstance(service_environment, dict) or not isinstance(
-        compose_environment, dict
-    ):
+    if not isinstance(service_environment, dict) or not isinstance(compose_environment, dict):
         errors.append("postgres service env がない")
     else:
         initdb_args = service_environment.get("POSTGRES_INITDB_ARGS")
@@ -1299,8 +1243,7 @@ def _ci_wiring_errors(
 
     ports = service.get("ports")
     if not isinstance(ports, list) or not any(
-        isinstance(port, str) and port.rsplit(":", maxsplit=1)[-1] == "5432"
-        for port in ports
+        isinstance(port, str) and port.rsplit(":", maxsplit=1)[-1] == "5432" for port in ports
     ):
         errors.append("PostgreSQL の TCP port 5432 が公開されていない")
 
@@ -1316,9 +1259,7 @@ def _ci_wiring_errors(
         errors.append("health command が開発 DB の TCP 性質と一致しない")
 
     service_user = (
-        service_environment.get("POSTGRES_USER")
-        if isinstance(service_environment, dict)
-        else None
+        service_environment.get("POSTGRES_USER") if isinstance(service_environment, dict) else None
     )
     service_password = (
         service_environment.get("POSTGRES_PASSWORD")
@@ -1326,9 +1267,7 @@ def _ci_wiring_errors(
         else None
     )
     service_database = (
-        service_environment.get("POSTGRES_DB")
-        if isinstance(service_environment, dict)
-        else None
+        service_environment.get("POSTGRES_DB") if isinstance(service_environment, dict) else None
     )
     expected_health_command = [
         "pg_isready",
@@ -1357,9 +1296,7 @@ def _ci_wiring_errors(
         if isinstance(expected, int) and isinstance(ci_value, str) and ci_value.isdigit():
             ci_value = int(ci_value)
         compose_value = (
-            compose_health.get(compose_key)
-            if isinstance(compose_health, dict)
-            else None
+            compose_health.get(compose_key) if isinstance(compose_health, dict) else None
         )
         if ci_value != expected or compose_value != expected:
             errors.append(f"{option} が期待値・開発 DB と一致しない")
@@ -1411,7 +1348,9 @@ def _ci_wiring_errors(
     defaults = _mapping_at(backend, ("defaults", "run", "working-directory"))
     if defaults != "backend":
         errors.append("backend working-directory が維持されていない")
-    if backend.get("needs") != "backend-changes":
+    backend_needs = backend.get("needs")
+    backend_needs_list = [backend_needs] if isinstance(backend_needs, str) else backend_needs
+    if not isinstance(backend_needs_list, list) or "backend-changes" not in backend_needs_list:
         errors.append("backend-changes の発火制御が維持されていない")
 
     jobs = workflow.get("jobs")
@@ -1428,9 +1367,7 @@ def _ci_wiring_errors(
         errors.append("backend-changes の paths-filter がない")
     else:
         parsed_filter = yaml.safe_load(filter_definition)
-        backend_paths = (
-            parsed_filter.get("backend") if isinstance(parsed_filter, dict) else None
-        )
+        backend_paths = parsed_filter.get("backend") if isinstance(parsed_filter, dict) else None
         if backend_paths != [
             "backend/**",
             "contracts/**",
@@ -1449,15 +1386,15 @@ def _ci_wiring_errors(
         marker not in bootstrap_commands[0] for marker in STAGE_A_BOOTSTRAP_MARKERS
     ):
         errors.append("backend の段階起動用DBがowner所有で初期化されない")
-    stage_a_commands = [
-        command for command in commands if "advance_stage_a_from_s0" in command
-    ]
+    stage_a_commands = [command for command in commands if "advance_stage_a_from_s0" in command]
     if len(stage_a_commands) != 1 or any(
         marker not in stage_a_commands[0] for marker in STAGE_A_CI_MARKERS
     ):
         errors.append("backend の段階起動 S1〜S3 が固定の閉鎖経路でない")
     required_backend_commands = [
-        "corepack enable", "pnpm install --frozen-lockfile", "uv python install",
+        "corepack enable",
+        "pnpm install --frozen-lockfile",
+        "uv python install",
         "uv sync --locked --dev",
         "uv run ruff check .",
         "uv run ruff format --check .",
@@ -1473,12 +1410,9 @@ def _ci_wiring_errors(
         or len(commands) != len(required_backend_commands) + 1
     ):
         errors.append(
-            "backend の frontend 依存 2 件 + 既存 6 件 + "
-            "段階起動・Alembic 3 段が順序どおりでない"
+            "backend の frontend 依存 2 件 + 既存 6 件 + 段階起動・Alembic 3 段が順序どおりでない"
         )
-    expected_alembic_locations = [
-        ("backend", command) for command in ALEMBIC_CI_COMMANDS
-    ]
+    expected_alembic_locations = [("backend", command) for command in ALEMBIC_CI_COMMANDS]
     if _alembic_command_locations(workflow) != expected_alembic_locations:
         errors.append("Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する")
     pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
@@ -1538,9 +1472,7 @@ def _activation_upload_step(workflow: dict[str, Any]) -> tuple[dict[str, Any], l
     if len(candidates) != 1:
         errors.append("consistency の upload-artifact ステップは 1 件必要")
     uses = candidates[0] if len(candidates) == 1 else ""
-    if not isinstance(uses, str) or not re.fullmatch(
-        r"actions/upload-artifact@[0-9a-f]{40}", uses
-    ):
+    if not isinstance(uses, str) or not re.fullmatch(r"actions/upload-artifact@[0-9a-f]{40}", uses):
         errors.append("consistency の upload-artifact は 40 桁 SHA ピンが必要")
     return {"uses": uses, "with": ACTIVATION_UPLOAD_WITH}, errors
 
@@ -1613,9 +1545,7 @@ def _job_invokes_backend_tests(job_name: str, job: dict[str, Any]) -> bool:
             step_directory == "backend" or step_directory.startswith("backend/")
         ):
             return True
-        if any(
-            token == "backend" or token.startswith("backend/tests") for token in tokens
-        ):
+        if any(token == "backend" or token.startswith("backend/tests") for token in tokens):
             return True
     return False
 
@@ -1650,10 +1580,15 @@ def _domain_ci_wiring_errors(
     except AssertionError as exc:
         errors.append(str(exc))
 
-    harness = jobs.get("harness")
+    harness = jobs.get("harness-static")
     backend = jobs.get("backend")
-    if not isinstance(harness, dict) or not isinstance(backend, dict):
-        return [*errors, "harness または backend ジョブがない"]
+    if (
+        not isinstance(harness, dict)
+        or not isinstance(backend, dict)
+        or not isinstance(jobs.get("harness"), dict)
+        or not isinstance(jobs.get("backend-shard"), dict)
+    ):
+        return [*errors, "harness/backend 系ジョブがない"]
     expected_harness_commands = [
         "uv python install",
         "uv sync --locked --dev",
@@ -1662,7 +1597,6 @@ def _domain_ci_wiring_errors(
         "uv run python tests/test_census_baseline_check.py",
         "uv run ruff check .",
         "uv run ty check",
-        HARNESS_PYTEST_COMMAND,
     ]
     if _harness_commands(harness) != expected_harness_commands:
         errors.append("harness の単体テスト所有または既存検査コマンドが不正")
@@ -1770,16 +1704,12 @@ def _executed_commands(command: str) -> tuple[str, ...]:
     """CI step 自身と、発効証跡器が実際に起動する内側 command を返す。"""
     tokens = shlex.split(command)
     nested = [
-        tokens[index + 1]
-        for index, token in enumerate(tokens[:-1])
-        if token == "--execute-command"
+        tokens[index + 1] for index, token in enumerate(tokens[:-1]) if token == "--execute-command"
     ]
     return (command, *nested)
 
 
-def _selected_root_test_jobs(
-    workflow: dict[str, Any], test_path: str
-) -> set[str]:
+def _selected_root_test_jobs(workflow: dict[str, Any], test_path: str) -> set[str]:
     """指定したルートテストを直接所有するジョブ集合を返す。
 
     Args:
@@ -1906,9 +1836,7 @@ def _history_command_owner_errors(workflow: dict[str, Any]) -> list[str]:
             selectors, _ = _pytest_selection(command)
             if not selectors:
                 return set()
-            selected = [
-                _selected_root_test_jobs(workflow, path) for path in selectors
-            ]
+            selected = [_selected_root_test_jobs(workflow, path) for path in selectors]
             return set.intersection(*selected) if selected else set()
         return {
             job_name
@@ -1958,9 +1886,7 @@ def _step_test_paths(first: int, last: int) -> tuple[str, ...]:
         command = step.get("command")
         assert isinstance(command, str)
         test_paths = [
-            token
-            for token in shlex.split(command.strip("`"))
-            if token.startswith("tests/")
+            token for token in shlex.split(command.strip("`")) if token.startswith("tests/")
         ]
         assert len(test_paths) == 1
         paths.append(test_paths[0])
@@ -2006,9 +1932,7 @@ def _derive_asset_actuals(
     marker_entries = marker_config["tool"]["pytest"]["ini_options"]["markers"]
     marker_name = str(marker_entries[0]).split(":", maxsplit=1)[0]
     conftest_text = DB_CONFTEST_PATH.read_text(encoding="utf-8")
-    fixture_contract_text = "\n".join(
-        (conftest_text, DB_FIXTURES_PATH.read_text(encoding="utf-8"))
-    )
+    fixture_contract_text = "\n".join((conftest_text, DB_FIXTURES_PATH.read_text(encoding="utf-8")))
     job_environment = backend["env"]
     assert isinstance(job_environment, dict)
     admin_names = [name for name in job_environment if "ADMIN" in name]
@@ -2088,9 +2012,7 @@ def _derive_asset_actuals(
         ("healthcheck", "timeout", "comparison"): exact,
         ("healthcheck", "retries", "expected"): compose_health["retries"],
         ("healthcheck", "retries", "comparison"): exact,
-        ("healthcheck", "start_period", "expected"): compose_health[
-            "start_period"
-        ],
+        ("healthcheck", "start_period", "expected"): compose_health["start_period"],
         ("healthcheck", "start_period", "comparison"): exact,
         ("test_execution", "required_marker", "expected"): marker_name,
         ("test_execution", "required_marker", "comparison"): exact,
@@ -2127,9 +2049,7 @@ def _derive_asset_actuals(
             "pytest.skip" in fixture_contract_text
         ),
         ("test_execution", "missing_dsn_policy", "comparison"): exact,
-        ("dsn_environment_variables", "admin_connection", "expected_name"): (
-            admin_name
-        ),
+        ("dsn_environment_variables", "admin_connection", "expected_name"): (admin_name),
         (
             "dsn_environment_variables",
             "admin_connection",
@@ -2159,9 +2079,7 @@ def _derive_asset_actuals(
             "dsn_environment_variables",
             "separation",
             "role_identity_check_required",
-        ): all(
-            token in fixture_contract_text for token in ("session_user", "current_user")
-        ),
+        ): all(token in fixture_contract_text for token in ("session_user", "current_user")),
     }
     return actuals
 
@@ -2182,18 +2100,17 @@ def _asset_contract_errors(
     for path, actual in actuals.items():
         expected = _mapping_at(expectations, path)
         if expected != actual:
-            errors.append(
-                f"{_format_path(path)}: expected={expected!r}, actual={actual!r}"
-            )
+            errors.append(f"{_format_path(path)}: expected={expected!r}, actual={actual!r}")
 
     if expectations.get("schema_version") != 1:
         errors.append("schema_version は 1 が必要")
     if expectations.get("asset_kind") != "db_environment_expectations":
         errors.append("asset_kind が不正")
     source_revision = expectations.get("source_revision")
-    if not isinstance(source_revision, str) or re.fullmatch(
-        r"[0-9a-f]{40}", source_revision
-    ) is None:
+    if (
+        not isinstance(source_revision, str)
+        or re.fullmatch(r"[0-9a-f]{40}", source_revision) is None
+    ):
         errors.append("source_revision は 40 桁の commit ID が必要")
 
     errors.extend(_provenance_errors(expectations))
@@ -2247,9 +2164,7 @@ def _provenance_errors(node: object) -> list[str]:
             if not isinstance(extracted_text, str) or not extracted_text:
                 errors.append("provenance.extracted_text は空でない文字列が必要")
                 continue
-            normalized_source = "".join(
-                source_path.read_text(encoding="utf-8").split()
-            )
+            normalized_source = "".join(source_path.read_text(encoding="utf-8").split())
             if "".join(extracted_text.split()) not in normalized_source:
                 errors.append(f"provenance が逐語一致しない: {path_text}")
 
@@ -2336,9 +2251,7 @@ def _assert_full_docs_lint_wiring(text: str) -> None:
     matched_indexes: list[int] = []
     for check_name in REQUIRED_FULL_CHECKS:
         matches = [
-            (index, command)
-            for index, command in enumerate(commands)
-            if check_name in command
+            (index, command) for index, command in enumerate(commands) if check_name in command
         ]
         assert len(matches) == 1, f"{check_name} を走らせる step は 1 件必要"
         index, command = matches[0]
@@ -2379,11 +2292,7 @@ def test_frontend_paths_filter_includes_sync_protocol_oracle() -> None:
     steps = frontend_changes.get("steps")
     assert isinstance(steps, list), "frontend-changes.steps は配列が必要"
     filter_step = next(
-        (
-            step
-            for step in steps
-            if isinstance(step, dict) and step.get("id") == "filter"
-        ),
+        (step for step in steps if isinstance(step, dict) and step.get("id") == "filter"),
         None,
     )
     assert isinstance(filter_step, dict), "frontend の paths-filter が必要"
@@ -2431,17 +2340,14 @@ def test_domain_runtime_ci_paths_and_artifact_build_are_wired() -> None:
 def test_domain_runtime_ci_uses_mise_and_checks_distribution_image() -> None:
     """Python 系ジョブの Node と x86_64 配布物の起動検査を固定する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
-    node_version = tomllib.loads((REPOSITORY_ROOT / "mise.toml").read_text())[
-        "tools"
-    ]["node"]
+    node_version = tomllib.loads((REPOSITORY_ROOT / "mise.toml").read_text())["tools"]["node"]
     assert node_version == "24.16.0"
     for job_name in ("harness", "backend"):
         job = _named_job(workflow, job_name)
         mise_steps = [
             step
             for step in job["steps"]
-            if isinstance(step, dict)
-            and str(step.get("uses", "")).startswith("jdx/mise-action@")
+            if isinstance(step, dict) and str(step.get("uses", "")).startswith("jdx/mise-action@")
         ]
         assert len(mise_steps) == 1
         assert mise_steps[0]["with"] == {
@@ -2651,9 +2557,7 @@ def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
         and isinstance((command := step.get("run")), str)
         and "scripts/check_frozen_baselines.py" in command
     ]
-    assert frozen_steps == [
-        {"run": "uv run python scripts/check_frozen_baselines.py --ci"}
-    ]
+    assert frozen_steps == [{"run": "uv run python scripts/check_frozen_baselines.py --ci"}]
     parity_steps = [
         step
         for step in steps
@@ -2662,12 +2566,7 @@ def test_frozen_baseline_commands_run_in_full_history_harness_job() -> None:
         and "scripts/check_input_axes_three_way_parity.py" in command
     ]
     assert parity_steps == [
-        {
-            "run": (
-                "uv run python "
-                "scripts/check_input_axes_three_way_parity.py --ci"
-            )
-        }
+        {"run": ("uv run python scripts/check_input_axes_three_way_parity.py --ci")}
     ]
     assert steps.index(parity_steps[0]) == steps.index(frozen_steps[0]) + 1
 
@@ -2839,9 +2738,7 @@ def _staging_profile_registry(tmp_path: Path, *, include_second: bool) -> Path:
     source = REPOSITORY_ROOT / "tests" / "fixtures" / "profile-sample" / "profiles"
     destination = tmp_path / "profiles"
     destination.mkdir(parents=True, exist_ok=True)
-    source_registry = json.loads(
-        (source / "registry.json").read_text(encoding="utf-8")
-    )
+    source_registry = json.loads((source / "registry.json").read_text(encoding="utf-8"))
     entries = source_registry["profiles"][: 2 if include_second else 1]
     filenames = ("profile.json", "data-model-like.json")[: len(entries)]
     for entry, filename in zip(entries, filenames, strict=True):
@@ -2932,9 +2829,7 @@ def test_pytest_commands_and_working_directories_are_exact() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     harness = _harness_pytest_job(workflow)
     harness_pytest_commands = [
-        command
-        for command in _harness_commands(harness)
-        if "pytest" in shlex.split(command)
+        command for command in _harness_commands(harness) if "pytest" in shlex.split(command)
     ]
     assert harness_pytest_commands == [HARNESS_PYTEST_COMMAND]
 
@@ -2942,9 +2837,7 @@ def test_pytest_commands_and_working_directories_are_exact() -> None:
     harness_steps = harness.get("steps")
     assert isinstance(harness_steps, list), "harness.steps は配列でなければならない"
     assert all(
-        "working-directory" not in step
-        for step in harness_steps
-        if isinstance(step, dict)
+        "working-directory" not in step for step in harness_steps if isinstance(step, dict)
     ), "harness の各 step はリポジトリルートで実行しなければならない"
 
     backend = _backend_job(workflow)
@@ -2954,36 +2847,42 @@ def test_pytest_commands_and_working_directories_are_exact() -> None:
 def test_backend_postgres_wiring_matches_asset_and_development_database() -> None:
     """backend ジョブの PostgreSQL 配線が期待値と開発 DB に一致する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
-    assert _ci_wiring_errors(
-        workflow,
-        _load_expectations(),
-        _load_yaml_mapping(COMPOSE_PATH),
-    ) == []
+    assert (
+        _ci_wiring_errors(
+            workflow,
+            _load_expectations(),
+            _load_yaml_mapping(COMPOSE_PATH),
+        )
+        == []
+    )
 
 
 def test_database_jobs_match_asset_and_development_database() -> None:
     """DB 利用ジョブすべての PostgreSQL image を 3 者一致させる。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
-    assert _combined_ci_wiring_errors(
-        workflow,
-        _load_expectations(),
-        _load_yaml_mapping(COMPOSE_PATH),
-    ) == []
+    assert (
+        _combined_ci_wiring_errors(
+            workflow,
+            _load_expectations(),
+            _load_yaml_mapping(COMPOSE_PATH),
+        )
+        == []
+    )
 
 
 def test_new_jobs_accept_valid_wiring_with_explicit_timeouts() -> None:
     """所有分離・DB 配線・二段目の時間上限を持つ実配線を受理する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
 
-    assert _domain_ci_wiring_errors(
-        workflow,
-        _load_expectations(),
-        _load_yaml_mapping(COMPOSE_PATH),
-    ) == []
     assert (
-        _named_job(workflow, "consistency")["timeout-minutes"]
-        == CONSISTENCY_TIMEOUT_MINUTES
+        _domain_ci_wiring_errors(
+            workflow,
+            _load_expectations(),
+            _load_yaml_mapping(COMPOSE_PATH),
+        )
+        == []
     )
+    assert _named_job(workflow, "consistency")["timeout-minutes"] == CONSISTENCY_TIMEOUT_MINUTES
     assert _named_job(workflow, "mutation")["timeout-minutes"] == MUTATION_TIMEOUT_MINUTES
 
 
@@ -3024,9 +2923,7 @@ def test_all_database_job_images_match_the_three_sources() -> None:
     """DB 利用ジョブごとに image の 3 者一致を要求する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     mutated = copy.deepcopy(workflow)
-    mutation_service = _mapping_at(
-        _named_job(mutated, "mutation"), ("services", "postgres")
-    )
+    mutation_service = _mapping_at(_named_job(mutated, "mutation"), ("services", "postgres"))
     assert isinstance(mutation_service, dict)
     mutation_service["image"] = "postgres:16.0-bookworm"
 
@@ -3076,9 +2973,7 @@ def test_required_job_documentation_matches_the_workflow() -> None:
     assert ruleset["enforcement"] == "active"
     assert ruleset["bypass_actors"] == []
     status_rule = next(
-        rule
-        for rule in ruleset["rules"]
-        if rule["type"] == "required_status_checks"
+        rule for rule in ruleset["rules"] if rule["type"] == "required_status_checks"
     )
     assert status_rule["parameters"]["strict_required_status_checks_policy"] is True
 
@@ -3119,7 +3014,7 @@ def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
 
 def test_current_head_activation_evidence_is_emitted_after_command_and_verified() -> None:
     """成功 command と現在 HEAD に束縛した証跡が実際に通る。"""
-    command = f'{sys.executable} -c "print(\'1 passed\')"'
+    command = f"{sys.executable} -c \"print('1 passed')\""
     executions = ACTIVATION.execute_commands(REPOSITORY_ROOT, (command,))
     evidence = ACTIVATION.build_runtime_evidence(
         REPOSITORY_ROOT,
@@ -3151,9 +3046,7 @@ def test_activation_evidence_records_each_pytest_selector_count(
         "tests/test_step_history_audit.py",
     )
     for index, selector in enumerate(selectors):
-        relative = (
-            f"{selector}test_boot.py" if selector.endswith("/") else selector
-        )
+        relative = f"{selector}test_boot.py" if selector.endswith("/") else selector
         _write_activation_selector_fixture(
             tmp_path,
             relative,
@@ -3163,9 +3056,7 @@ def test_activation_evidence_records_each_pytest_selector_count(
 
     executions = ACTIVATION.execute_commands(tmp_path, (command,))
 
-    assert [item["selector"] for item in executions[0]["selectors"]] == list(
-        selectors
-    )
+    assert [item["selector"] for item in executions[0]["selectors"]] == list(selectors)
     assert all(item["collectedCount"] == 1 for item in executions[0]["selectors"])
     assert all(item["executedCount"] == 1 for item in executions[0]["selectors"])
 
@@ -3180,9 +3071,7 @@ def test_activation_evidence_rejects_zero_count_structural_selector(
         "def test_boot():\n    assert True\n",
     )
     _write_activation_selector_fixture(tmp_path, "tests/test_plan_generation.py", "")
-    _write_activation_selector_fixture(
-        tmp_path, "tests/test_step_history_audit.py", ""
-    )
+    _write_activation_selector_fixture(tmp_path, "tests/test_step_history_audit.py", "")
     command = (
         f"{sys.executable} -m pytest -q tests/domain/boot/ "
         "tests/test_plan_generation.py tests/test_step_history_audit.py"
@@ -3194,7 +3083,7 @@ def test_activation_evidence_rejects_zero_count_structural_selector(
 
 def test_stale_activation_head_is_rejected() -> None:
     """現在 HEAD と異なる古い実行証跡を受理しない。"""
-    command = f'{sys.executable} -c "print(\'1 passed\')"'
+    command = f"{sys.executable} -c \"print('1 passed')\""
     executions = ACTIVATION.execute_commands(REPOSITORY_ROOT, (command,))
     evidence = ACTIVATION.build_runtime_evidence(
         REPOSITORY_ROOT,
@@ -3237,13 +3126,9 @@ def test_consistency_wires_current_head_activation_verification() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     steps = workflow["jobs"]["consistency"]["steps"]
     runs = _consistency_run_steps(workflow)
-    activation_runs = [
-        command for command in runs if "domaincheck.activation_evidence" in command
-    ]
+    activation_runs = [command for command in runs if "domaincheck.activation_evidence" in command]
     execute_index = next(
-        index
-        for index, step in enumerate(steps)
-        if "--execute-command" in str(step.get("run", ""))
+        index for index, step in enumerate(steps) if "--execute-command" in str(step.get("run", ""))
     )
     verify_index = next(
         index
@@ -3342,9 +3227,7 @@ def _document_index_version(index_text: str, label: str) -> str:
     raise AssertionError(f"文書索引の版列を読めない: {label}")
 
 
-def _assert_document_index_version(
-    index_text: str, label: str, expected: str
-) -> None:
+def _assert_document_index_version(index_text: str, label: str, expected: str) -> None:
     """索引の版列が正本の現行版と完全一致することを検査する。"""
     actual = _document_index_version(index_text, label)
     assert actual == expected, (label, expected, actual)
@@ -3376,17 +3259,14 @@ def test_harness_job_table_and_document_index_are_current() -> None:
         _assert_document_index_version(index_text, label, canon_version)
 
 
-def test_document_index_rejects_stale_version_column_with_current_description(
-) -> None:
+def test_document_index_rejects_stale_version_column_with_current_description() -> None:
     """説明欄に現行版が残っていても版列だけ古ければ拒否する。"""
     index_text = DOCS_INDEX_PATH.read_text(encoding="utf-8")
     label = "開発ハーネス設計書"
     expected = _latest_change_log_version(HARNESS_DESIGN_PATH)
     lines = index_text.splitlines()
     row_index = next(
-        index
-        for index, line in enumerate(lines)
-        if line.startswith("|") and f"[{label}]" in line
+        index for index, line in enumerate(lines) if line.startswith("|") and f"[{label}]" in line
     )
     cells = [cell.strip() for cell in lines[row_index].strip().strip("|").split("|")]
     assert expected in cells[1], "負例は説明欄に現行版を残さなければならない"
@@ -3426,11 +3306,7 @@ def test_history_command_exclusion_without_owner_execution_is_red() -> None:
     """所有先から command を外して「除外=未検査」にすると不合格にする。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     frontend = workflow["jobs"]["frontend"]
-    frontend["steps"] = [
-        step
-        for step in frontend["steps"]
-        if step.get("run") != "pnpm run build"
-    ]
+    frontend["steps"] = [step for step in frontend["steps"] if step.get("run") != "pnpm run build"]
 
     assert any("command 所有が不一致" in error for error in _history_command_owner_errors(workflow))
 
@@ -3541,9 +3417,7 @@ def test_stage_a_ci_migrations_use_owner_database() -> None:
     backend = _backend_job(workflow)
     environment = backend["env"]
     assert isinstance(environment, dict)
-    assert str(environment["PITCHLOG_STAGE_A_OWNER_DSN"]).endswith(
-        "/pitchlog_stage_a_ci"
-    )
+    assert str(environment["PITCHLOG_STAGE_A_OWNER_DSN"]).endswith("/pitchlog_stage_a_ci")
     steps = backend["steps"]
     assert isinstance(steps, list)
     for command in ALEMBIC_CI_COMMANDS:
@@ -3623,17 +3497,13 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
 
     db_test_files = sorted(
         path
-        for path in (REPOSITORY_ROOT / "backend" / "tests" / "db").glob(
-            "test_*.py"
-        )
+        for path in (REPOSITORY_ROOT / "backend" / "tests" / "db").glob("test_*.py")
         if path.name != "test_environment_expectations.py"
     )
     assert db_test_files, "DB 必須テストが 1 件もない"
     for path in db_test_files:
         text = path.read_text(encoding="utf-8")
-        assert f"pytestmark = pytest.mark.{marker}" in text, (
-            f"{path}: DB 必須 marker がない"
-        )
+        assert f"pytestmark = pytest.mark.{marker}" in text, f"{path}: DB 必須 marker がない"
 
     conftest = DB_CONFTEST_PATH.read_text(encoding="utf-8")
     assert "def pytest_sessionfinish(" in conftest
@@ -3646,13 +3516,9 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
 
     backend = _backend_job(_load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8")))
     pytest_commands = [
-        command
-        for command in _backend_commands(backend)
-        if "pytest" in shlex.split(command)
+        command for command in _backend_commands(backend) if "pytest" in shlex.split(command)
     ]
-    assert pytest_commands == [
-        expectations["test_execution"]["single_command"]["expected"]
-    ]
+    assert pytest_commands == [expectations["test_execution"]["single_command"]["expected"]]
 
 
 def test_orm_stack_is_exact_product_dependency() -> None:
@@ -3728,11 +3594,7 @@ dependencies = [
 def _consistency_run_steps(workflow: dict[str, Any]) -> list[str]:
     """`consistency` ジョブが実行する `run` の一覧を返す。"""
     job = workflow["jobs"]["consistency"]
-    return [
-        str(step["run"])
-        for step in job["steps"]
-        if isinstance(step, dict) and "run" in step
-    ]
+    return [str(step["run"]) for step in job["steps"] if isinstance(step, dict) and "run" in step]
 
 
 def test_consistency_emits_boot_report_against_the_real_state() -> None:
@@ -3745,17 +3607,9 @@ def test_consistency_emits_boot_report_against_the_real_state() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     runs = _consistency_run_steps(workflow)
 
-    emitters = [
-        run
-        for run in runs
-        if "domaincheck.boot.report" in run and "--verify" not in run
-    ]
+    emitters = [run for run in runs if "domaincheck.boot.report" in run and "--verify" not in run]
     assert len(emitters) == 1, runs
-    guards = [
-        run
-        for run in runs
-        if "domaincheck.boot.report" in run and "--verify" in run
-    ]
+    guards = [run for run in runs if "domaincheck.boot.report" in run and "--verify" in run]
     assert len(guards) == 1, runs
 
 
