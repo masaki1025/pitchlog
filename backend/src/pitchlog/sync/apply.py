@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from typing import Literal, cast
 from uuid import UUID
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.transaction import (
     _sync_apply_active,
@@ -55,6 +54,7 @@ from pitchlog.sync.rejection import (
     content_reason_for_precondition,
 )
 from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
     RecordingGenerationByNumberReadToken,
     RecordingGenerationReadToken,
 )
@@ -62,7 +62,7 @@ from pitchlog.sync.tokens import (
 type ApplyResult = AckResult | ChangeResult | Literal["B6", "B7"]
 type D1Result = P1Result | RejectionResult
 
-_GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
+_GENERATION_COLUMNS = RECORDING_GENERATION_READ_COLUMNS
 
 
 @dataclass(frozen=True, slots=True)

@@ -67,7 +67,12 @@ def test_all_migrations_round_trip_through_base(
         )
         config = _alembic_config()
         script = ScriptDirectory.from_config(config)
-        revision_files = {path.stem for path in _VERSIONS_ROOT.rglob("[0-9]*.py")}
+        # 適用済みrevisionの同一性はファイル名と独立。既0036の一組だけを対応する。
+        aliases = {"0036_initial_recording_right_storage": "0036_initial_right_storage"}
+        file_stems = {path.stem for path in _VERSIONS_ROOT.rglob("[0-9]*.py")}
+        assert set(aliases) <= file_stems
+        revision_files = {aliases.get(stem, stem) for stem in file_stems}
+        assert len(revision_files) == len(file_stems)
         revision_ids = {
             revision.revision for revision in script.walk_revisions(base="base")
         }

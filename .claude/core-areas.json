@@ -275,7 +275,11 @@
         "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+        "backend/tests/test_initial_game_start_components.py"
       ]
     },
     {
@@ -522,7 +526,16 @@
         "tests/fixtures/tenant_boundary/positive/pitchlog/durable_rights_ledger/*",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+        "backend/tests/test_initial_game_start_components.py",
+        "backend/src/pitchlog/api/routers/games.py",
+        "backend/src/pitchlog/api/tenant_access.py",
+        "backend/tests/test_api_app.py",
+        "backend/tests/test_api_conventions.py",
+        "backend/tests/test_api_tenant_match_metadata.py"
       ]
     },
     {
@@ -630,7 +643,11 @@
         "backend/tests/test_durable_rights_ledger_contract.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.sql",
-        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json"
+        "backend/src/pitchlog/recording_rights/rg1_lifecycle_manifest.json",
+        "backend/src/pitchlog/repositories/initial_recording_right.py",
+        "backend/src/pitchlog/repositories/function_operations.py",
+        "backend/src/pitchlog/recording_rights/initial_grant_broker.py",
+        "backend/tests/test_initial_game_start_components.py"
       ]
     },
     {

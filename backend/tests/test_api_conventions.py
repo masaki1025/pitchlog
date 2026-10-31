@@ -1,9 +1,17 @@
 """API 器が非コアの規約を守ることを検証する。"""
 
+import ast
 import base64
+import hashlib
+import io
 import json
 import re
 import secrets
+import subprocess
+import sys
+import token
+import tokenize
+from functools import cache
 from pathlib import Path
 from typing import Final
 
@@ -53,6 +61,131 @@ def _has_database_term(source_text: str) -> bool:
     for identifier in _ALLOWED_DATABASE_TERM_IDENTIFIERS:
         inspected = re.sub(rf"\b{re.escape(identifier)}\b", "", inspected)
     return any(term in inspected for term in _DATABASE_TERMS)
+
+
+_INITIAL_RESPONSE_PATH: Final[Path] = Path(
+    "backend/src/pitchlog/api/schemas/game_start.py"
+)
+_INITIAL_RESPONSE_REVISION: Final[str] = json.loads(
+    (_REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text(
+        encoding="utf-8"
+    )
+)["frozen_inputs"]["initial_response_revision"]["value"]
+
+
+def _transport_nodes(
+    source: str,
+) -> tuple[ast.Name, ast.Constant, ast.AnnAssign, ast.FunctionDef]:
+    """単一DTOのfieldと既validatorを曖昧な候補なしで特定する。"""
+    tree = ast.parse(source)
+    classes = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.ClassDef) and n.name == "InitialGameStartResponse"
+    ]
+    assert len(classes) == 1 and classes[0] in tree.body
+    fields = [
+        n
+        for n in classes[0].body
+        if isinstance(n, ast.AnnAssign)
+        and isinstance(n.target, ast.Name)
+        and n.target.id == "recovery_generation"
+    ]
+    methods = [
+        n
+        for n in classes[0].body
+        if isinstance(n, ast.FunctionDef) and n.name == "_epoch_present"
+    ]
+    assert len(fields) == len(methods) == 1
+    field, method = fields[0], methods[0]
+    assert isinstance(field.target, ast.Name)
+    decorators = [
+        n
+        for n in method.decorator_list
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and n.func.id == "field_validator"
+    ]
+    assert len(decorators) == 1
+    decorator = decorators[0]
+    assert len(decorator.args) == 1 and not decorator.keywords
+    literal = decorator.args[0]
+    assert isinstance(literal, ast.Constant) and literal.value == "recovery_generation"
+    return field.target, literal, field, method
+
+
+def _ast_digest(node: ast.AST) -> str:
+    """位置や整形に依存しない承認済み構造のdigestを求める。"""
+    return hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
+
+
+@cache
+def _approved_transport_hashes() -> tuple[str, str]:
+    """固定Gitの承認済みDTOからだけ2構造を導出し、現在値を正解にしない。"""
+    source = subprocess.check_output(
+        [
+            "git",
+            "show",
+            f"{_INITIAL_RESPONSE_REVISION}:{_INITIAL_RESPONSE_PATH.as_posix()}",
+        ],
+        cwd=_REPOSITORY_ROOT,
+        text=True,
+    )
+    _, _, field, method = _transport_nodes(source)
+    return _ast_digest(field), _ast_digest(method)
+
+
+def _node_span(source: str, node: ast.AST) -> tuple[int, int]:
+    """ASTのUTF-8列位置をsource文字単位の半開区間へ直す。"""
+    lines = source.splitlines(keepends=True)
+    start_line, end_line = getattr(node, "lineno"), getattr(node, "end_lineno")
+    start_column, end_column = (
+        getattr(node, "col_offset"),
+        getattr(node, "end_col_offset"),
+    )
+    assert start_line is not None and end_line is not None
+    assert start_column is not None and end_column is not None
+
+    def offset(line: int, column: int) -> int:
+        prefix = lines[line - 1].encode("utf-8")[:column].decode("utf-8")
+        return sum(map(len, lines[: line - 1])) + len(prefix)
+
+    return offset(start_line, start_column), offset(end_line, end_column)
+
+
+def _without_transport_tokens(path: Path, source: str) -> str | None:
+    """exact2tokenだけを空白化し、他の全文字と従来の禁止語を残す。"""
+    if path != _REPOSITORY_ROOT / _INITIAL_RESPONSE_PATH:
+        return source
+    try:
+        name, literal, field, method = _transport_nodes(source)
+        if (_ast_digest(field), _ast_digest(method)) != _approved_transport_hashes():
+            return None
+        spans = (_node_span(source, name), _node_span(source, literal))
+        lines = source.splitlines(keepends=True)
+        matched = []
+        for item in tokenize.generate_tokens(io.StringIO(source).readline):
+            start = sum(map(len, lines[: item.start[0] - 1])) + item.start[1]
+            end = sum(map(len, lines[: item.end[0] - 1])) + item.end[1]
+            if (start, end) in spans:
+                assert item.type == (
+                    token.NAME if (start, end) == spans[0] else token.STRING
+                )
+                matched.append((start, end))
+        assert sorted(matched) == sorted(spans) and len(set(spans)) == 2
+        for start, end in sorted(spans, reverse=True):
+            source = source[:start] + " " * (end - start) + source[end:]
+        return source
+    except (AssertionError, SyntaxError, ValueError, UnicodeError, tokenize.TokenError):
+        return None
+
+
+def _has_synchronization_term(path: Path, source: str) -> bool:
+    """許可不能な形を閉じ、exact2token以外は全5語の部分一致を保つ。"""
+    inspected = _without_transport_tokens(path, source)
+    return inspected is None or any(
+        term in inspected for term in _SYNCHRONIZATION_TERMS
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -156,9 +289,10 @@ def test_database_term_guard_rejects_embedded_forbidden_terms(
 
 def test_api_source_has_no_synchronization_terms() -> None:
     """API ソースに同期セマンティクスの語彙が無いことを確認する。"""
-    source_text = _api_source_text()
-
-    assert all(term not in source_text for term in _SYNCHRONIZATION_TERMS)
+    assert all(
+        not _has_synchronization_term(path, path.read_text(encoding="utf-8"))
+        for path in _api_source_files()
+    )
 
 
 @pytest.mark.anyio
@@ -181,10 +315,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_login_roster_and_meta() -> None:
-    """静的登録したメタ情報・認証・選手・チーム・試合の20本を照合する。"""
+    """静的登録したメタ情報・認証・選手・チーム・試合の23本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 20
+    assert len(routes) == 23
     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
@@ -206,6 +340,9 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
         ("/team-records/{team_record_id:uuid}/lineup-memory", frozenset({"GET"})),
         ("/games", frozenset({"GET"})),
         ("/games/{game_id}", frozenset({"GET"})),
+        ("/devices/enroll", frozenset({"POST"})),
+        ("/games/{game_id}/start", frozenset({"POST"})),
+        ("/games/{game_id}/start/resolve", frozenset({"POST"})),
     )
     assert all(route.response_model is not None for route in routes)
 
@@ -235,3 +372,159 @@ def test_error_handlers_do_not_access_request_data() -> None:
     source_text = error_source_path.read_text(encoding="utf-8")
 
     assert all(pattern not in source_text for pattern in _REQUEST_ACCESS_PATTERNS)
+
+
+def _transport_source() -> tuple[Path, str]:
+    """対向へ渡す承認済みの実DTOと正確なパスを得る。"""
+    path = _REPOSITORY_ROOT / _INITIAL_RESPONSE_PATH
+    return path, path.read_text(encoding="utf-8")
+
+
+def test_sync_term_guard_allows_exact_two_approved_transport_tokens() -> None:
+    """既2token以外のsource文字は日本語・コメントも含め変更しない。"""
+    path, source = _transport_source()
+    inspected = _without_transport_tokens(path, source)
+    assert inspected is not None and len(inspected) == len(source)
+    name, literal, field, method = _transport_nodes(source)
+    assert (_ast_digest(field), _ast_digest(method)) == _approved_transport_hashes()
+    spans = [_node_span(source, node) for node in (name, literal)]
+    assert source[spans[0][0] : spans[0][1]] == "recovery_generation"
+    assert source[spans[1][0] : spans[1][1]] == '"recovery_generation"'
+    for index, (original, result) in enumerate(zip(source, inspected, strict=True)):
+        assert result == (
+            " " if any(start <= index < end for start, end in spans) else original
+        )
+    assert not _has_synchronization_term(path, source)
+
+
+@pytest.mark.parametrize("term", _SYNCHRONIZATION_TERMS)
+@pytest.mark.parametrize(
+    "location", ("module", "field-line", "validator", "comment", "string")
+)
+def test_sync_term_guard_keeps_all_five_terms_red_outside_exact_tokens(
+    term: str,
+    location: str,
+) -> None:
+    """他の全位置ではコメント/文字列/行末も従来の部分一致で拒否する。"""
+    path, source = _transport_source()
+    if location == "module":
+        source += f"\n{term} = 1\n"
+    elif location == "field-line":
+        source = source.replace(
+            "    recovery_generation: str", f"    recovery_generation: str  # {term}"
+        )
+    elif location == "validator":
+        source = source.replace(
+            "            or int(value) > 2**63 - 1",
+            f"            or int(value) > 2**63 - 1  # {term}",
+        )
+    elif location == "comment":
+        source += f"\n# {term}\n"
+    else:
+        source += f'\nextra = "{term}"\n'
+    assert _has_synchronization_term(path, source)
+
+
+@pytest.mark.parametrize("term", _SYNCHRONIZATION_TERMS)
+def test_sync_term_guard_preserves_other_api_file_rejection(term: str) -> None:
+    """通常APIの同じ語をDTO例外へ巻き込まない。"""
+    path = _API_SOURCE_ROOT / "routers/games.py"
+    assert _has_synchronization_term(path, f"before_{term}_after = 1\n")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "other-path",
+        "other-class",
+        "other-method",
+        "unknown-field",
+        "reference",
+        "field-annotation",
+        "decorator-extra",
+        "decorator-alias",
+        "calculation",
+        "duplicate-field",
+        "duplicate-method",
+        "duplicate-class",
+        "syntax",
+        "adjacent-string",
+        "same-line-expression",
+    ),
+)
+def test_sync_term_guard_rejects_unknown_owners_and_modified_validator(
+    mutation: str,
+) -> None:
+    """承認済み構造の変更/重複/未知場所/任意計算を例外で隠さない。"""
+    path, source = _transport_source()
+    _, _, _, method = _transport_nodes(source)
+    if mutation == "other-path":
+        path = _API_SOURCE_ROOT / "schemas/other.py"
+    elif mutation == "other-class":
+        source = source.replace(
+            "class InitialGameStartResponse(", "class OtherResponse("
+        )
+    elif mutation == "other-method":
+        source = source.replace("def _epoch_present(", "def _other_epoch_present(")
+    elif mutation == "unknown-field":
+        source += "\n    unknown_generation: str\n"
+    elif mutation == "reference":
+        source += "\n    def other(self):\n        return self.recovery_generation\n"
+    elif mutation == "field-annotation":
+        source = source.replace(
+            "recovery_generation: str", "recovery_generation: object"
+        )
+    elif mutation == "decorator-extra":
+        source = source.replace(
+            '@field_validator("recovery_generation")',
+            '@field_validator("recovery_generation", "d4")',
+        )
+    elif mutation == "decorator-alias":
+        source = source.replace(
+            '@field_validator("recovery_generation")',
+            '@validator_alias("recovery_generation")',
+        )
+    elif mutation == "calculation":
+        source = source.replace(
+            "or int(value) > 2**63 - 1", "or int(value) > 2**62 - 1"
+        )
+    elif mutation == "duplicate-field":
+        source += "\n    recovery_generation: str\n"
+    elif mutation == "duplicate-method":
+        lines = source.splitlines(keepends=True)
+        assert method.end_lineno is not None
+        source += "\n" + "".join(
+            lines[method.decorator_list[0].lineno - 1 : method.end_lineno]
+        )
+    elif mutation == "duplicate-class":
+        source += "\nclass InitialGameStartResponse:\n    pass\n"
+    elif mutation == "syntax":
+        source += "\n(\n"
+    elif mutation == "adjacent-string":
+        source = source.replace(
+            '@field_validator("recovery_generation")',
+            '@field_validator("recovery_" "generation")',
+        )
+    else:
+        source = source.replace(
+            "recovery_generation: str", "recovery_generation: str; extra_generation = 1"
+        )
+    assert _has_synchronization_term(path, source)
+
+
+def test_sync_term_guard_converts_utf8_columns_without_losing_source_text() -> None:
+    """AST byte列とtokenize文字列の差を非ASCIIの同一行で確かめる。"""
+    source = 'label = "球"; recovery_generation\n'
+    expression = ast.parse(source).body[1]
+    assert isinstance(expression, ast.Expr)
+    start, end = _node_span(source, expression.value)
+    assert source[start:end] == "recovery_generation"
+
+
+def test_sync_term_guard_unknown_position_is_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AST構造が同じでもtokenの位置照合を一意にできなければ拒否する。"""
+    path, source = _transport_source()
+    monkeypatch.setattr(sys.modules[__name__], "_node_span", lambda *_: (0, 1))
+    assert _has_synchronization_term(path, source)

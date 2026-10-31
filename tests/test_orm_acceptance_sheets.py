@@ -147,15 +147,6 @@ def test_acceptance_sheets_are_generated_from_current_sources() -> None:
         "上書きしない",
         "書き換えない",
     )
-    assert {
-        filename: len(generator.parse_sheet_rows(expected[filename]))
-        for filename in generator.SHEET_FILENAMES
-    } == {
-        "N1-table-completeness.md": 103,
-        "N3-immutability-completeness.md": 112,
-        "N4-deletion-lifecycle.md": 55,
-        "N7-required-attributes.md": 101,
-    }
     assert all(
         "manifest=" in row.implementation
         and "models=" in row.implementation
@@ -443,3 +434,105 @@ def test_rg1_fresh_open_invariant_is_captured_in_n3() -> None:
         "conditional=['recovery_generation']; coverage=exhaustive; "
         "unclassified_handoff=None"
     )
+
+
+
+def test_generated_row_counts_match_all_current_source_rows() -> None:
+    """正本・manifestの全抽出行数を上限ではなく完全一致で固定する。"""
+    expected = generator.render_sheets(REPO_ROOT)
+    assert {
+        filename: len(generator.parse_sheet_rows(expected[filename]))
+        for filename in generator.SHEET_FILENAMES
+    } == {
+        "N1-table-completeness.md": 104,
+        "N3-immutability-completeness.md": 113,
+        "N4-deletion-lifecycle.md": 59,
+        "N7-required-attributes.md": 105,
+    }
+
+
+
+def test_n4_playless_game_supplement_preserves_all_other_direct_targets() -> None:
+    """プレイ0件の試合だけに実列を補助表示し、主系統と旧8対象を保つ。"""
+    tables = generator._load_manifest_tables(REPO_ROOT)
+    before = json.dumps(tables, sort_keys=True)
+    source = (REPO_ROOT / generator.DATA_MODEL_RELATIVE_PATH).read_text().splitlines()
+    rows = generator._n4_direct_rows(generator._markdown_tables(source), tables)
+    assert json.dumps(tables, sort_keys=True) == before
+    assert len(rows) == 9
+    assert tuple(row.target for row in rows) == (
+        "11-1 対象 01: 試合のみ",
+        "11-1 対象 02: 選手",
+        "11-1 対象 03: プレイ行",
+        "11-1 対象 04: 対戦相手チームレコード",
+        "11-1 対象 05: プレイ 0 件の試合(ゴミ箱を経ず即時)",
+        "11-1 対象 06: テナント(データ全保全)",
+        "11-1 対象 07: 語彙(削除不可・無効化のみ)",
+        "11-1 対象 08: グループの終了(不可逆)",
+        "11-1 対象 09: 参加の離脱",
+    )
+    old_candidates = (
+        "manifest lifecycle.deletion=ゴミ箱 の候補: games",
+        "manifest lifecycle.deletion=非表示 の候補: team_records, players, play_rows",
+        "manifest lifecycle.deletion=非表示 の候補: team_records, players, play_rows",
+        "manifest lifecycle.deletion=非表示 の候補: team_records, players, play_rows",
+        None,
+        "manifest lifecycle.deletion=無効化 の候補: tenants, system_vocabularies, "
+        "admin_vocabularies, tenant_vocabularies, trusted_devices, recording_right_deliveries",
+        "manifest lifecycle.deletion=無効化 の候補: tenants, system_vocabularies, "
+        "admin_vocabularies, tenant_vocabularies, trusted_devices, recording_right_deliveries",
+        "manifest lifecycle.deletion=終了・離脱 の候補: analysis_groups, "
+        "group_memberships, group_invitations",
+        "manifest lifecycle.deletion=終了・離脱 の候補: analysis_groups, "
+        "group_memberships, group_invitations",
+    )
+    for row, old in zip(rows, old_candidates, strict=True):
+        if old is not None:
+            assert row.implementation == old
+        assert row.judgment == row.rationale == ""
+    assert rows[4].canonical == "data-model.md §11-1 — 軸1=非表示"
+    assert rows[4].implementation == (
+        "manifest lifecycle.deletion=非表示 の候補: team_records, players, play_rows"
+        " / 条件付き補助参照: games.hidden_at（プレイ0件、"
+        "11-1/P-10の条件付き非表示。主系統はゴミ箱）"
+    )
+    games = next(t for t in tables if t["name"] == "games")
+    assert games["lifecycle"]["deletion"] == "ゴミ箱"
+    assert any(column["name"] == "hidden_at" for column in games["columns"])
+
+
+def test_n4_supplement_requires_exact_source_target_lifecycle_and_real_column() -> None:
+    """任意の試合語や別系統へ補助参照を広げず、存在しない列を生成しない。"""
+    import copy
+    from dataclasses import replace
+
+    source = (REPO_ROOT / generator.DATA_MODEL_RELATIVE_PATH).read_text().splitlines()
+    markdown_tables = generator._markdown_tables(source)
+    tables = generator._load_manifest_tables(REPO_ROOT)
+    for mode in ("target", "lifecycle", "missing_column", "main_lifecycle"):
+        changed_markdown = list(markdown_tables)
+        changed_tables = copy.deepcopy(tables)
+        if mode in {"missing_column", "main_lifecycle"}:
+            games = next(t for t in changed_tables if t["name"] == "games")
+            if mode == "missing_column":
+                games["columns"] = [c for c in games["columns"] if c["name"] != "hidden_at"]
+            else:
+                games["lifecycle"]["deletion"] = "終了・離脱"
+        else:
+            index = next(i for i, t in enumerate(changed_markdown)
+                         if t.section == "11-1" and t.headers[:2] == ("系統", "対象"))
+            table = changed_markdown[index]
+            rows = list(table.rows)
+            index_row = next(i for i, r in enumerate(rows) if "プレイ 0 件の試合" in r.cells[1])
+            row = rows[index_row]
+            cells = list(row.cells)
+            if mode == "target":
+                cells[1] = cells[1].replace("プレイ 0 件の試合", "すべての試合")
+            else:
+                cells[0] = "ゴミ箱"
+            rows[index_row] = replace(row, cells=tuple(cells))
+            changed_markdown[index] = replace(table, rows=tuple(rows))
+        rows = generator._n4_direct_rows(changed_markdown, changed_tables)
+        assert len(rows) == 9
+        assert all("条件付き補助参照" not in row.implementation for row in rows)
+        assert all(row.judgment == row.rationale == "" for row in rows)

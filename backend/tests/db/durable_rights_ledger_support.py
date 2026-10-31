@@ -97,7 +97,7 @@ def _install_product_business(dsn: str) -> None:
     with psycopg.connect(dsn) as connection:
         assert connection.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [("0035_rg1_initial_fresh_epoch",)]
+        ).fetchall() == [("0036_initial_right_storage",)]
         assert connection.execute(
             "SELECT p.proowner::regrole::text,p.prosecdef "
             "FROM pg_catalog.pg_proc p WHERE p.oid = "
@@ -339,9 +339,10 @@ def isolated_ledger_database() -> Iterator[LedgerDatabase]:
 class AuthorityDatabase:
     """専用volume/実UID/実Unix peerで製品authorityを呼ぶ。"""
 
-    def __init__(self, database: LedgerDatabase) -> None:
+    def __init__(self, database: LedgerDatabase, *, dual_peer: bool = False) -> None:
         """このfixtureが所有する名前だけを先に固定する。"""
         self.database = database
+        self.dual_peer = dual_peer
         self.token = "pitchlog-authority-" + uuid4().hex[:12]
         self.control = self.token + "-control"
         self.witness = self.token + "-witness"
@@ -351,7 +352,12 @@ class AuthorityDatabase:
         self._business_backup: str | None = None
 
     def command(
-        self, *, root: bool = False, persistent: bool = False, uid: int = 20002
+        self,
+        *,
+        root: bool = False,
+        persistent: bool = False,
+        uid: int = 20002,
+        gid: int | None = None,
     ) -> list[str]:
         """実workerとclientのmount/UID/capabilityを分離する。"""
         name = self.service if persistent else self.token + "-" + uuid4().hex[:6]
@@ -392,7 +398,7 @@ class AuthorityDatabase:
         else:
             args += [
                 "--user",
-                f"{uid}:{uid}",
+                f"{uid}:{uid if gid is None else gid}",
                 "--cap-drop",
                 "ALL",
                 "--security-opt",
@@ -410,15 +416,32 @@ class AuthorityDatabase:
         )
         return docker(*self.command(uid=uid), "-c", prefix + code, check=check)
 
-    def client_process(self, code: str) -> subprocess.Popen[str]:
+    def controller_client(
+        self, code: str, *, uid: int = 20004, check: bool = True
+    ) -> str:
+        """v2専用の別UID/controller端点からだけfreshを借用する。"""
+        assert self.dual_peer
+        prefix = (
+            "from pathlib import Path; from uuid import UUID, uuid4; "
+            "from pitchlog.durable_rights_ledger import DurableLedger, "
+            "LedgerUnavailable, LedgerOutcomeUnconfirmed; "
+            "s=DurableLedger(Path('/control/public/controller-endpoint.json'));\n"
+        )
+        return docker(*self.command(uid=uid), "-c", prefix + code, check=check)
+
+    def client_process(
+        self, code: str, *, controller: bool = False
+    ) -> subprocess.Popen[str]:
         """実clientのstdin/stdoutを制御し、lease中の実排他lockを別主体で照合する。"""
+        assert not controller or self.dual_peer
+        endpoint = "controller-endpoint.json" if controller else "endpoint.json"
         prefix = (
             "from pathlib import Path; from uuid import UUID, uuid4; "
             "from pitchlog.durable_rights_ledger import DurableLedger, "
             "FreshActivationAttestation,LedgerUnavailable,LedgerOutcomeUnconfirmed; "
-            "s=DurableLedger(Path('/control/public/endpoint.json'));\n"
+            f"s=DurableLedger(Path('/control/public/{endpoint}'));\n"
         )
-        command = self.command()
+        command = self.command(uid=20004 if controller else 20002)
         command.insert(1, "--interactive")
         return subprocess.Popen(
             ["docker", *command, "-u", "-c", prefix + code],
@@ -561,6 +584,11 @@ except PermissionError as error:
                 check=False,
             )
             if result == "AUTHORITY_READY":
+                if self.dual_peer:
+                    assert (
+                        self.controller_client("print('CONTROLLER_READY')")
+                        == "CONTROLLER_READY"
+                    )
                 return True
             sleep(0.1)
         raise AssertionError("real authority readiness deadline exceeded")
@@ -619,7 +647,7 @@ except Exception as exc:
                 password=_PUBLIC_FIXTURE_PASSWORD,
             )
 
-        value = dict(
+        value: dict[str, Any] = dict(
             schema_version=1,
             authority_uid=20001,
             authority_gid=20001,
@@ -639,6 +667,35 @@ except Exception as exc:
             control_dsn=dsn("pitchlog_ledger_control", database.primary),
             enrollment_state="new",
         )
+        if self.dual_peer:
+            server_uid, server_gid = map(
+                int,
+                docker(
+                    "exec", database.business, "stat", "-c", "%u %g", "/proc/1"
+                ).split(),
+            )
+            generation = {
+                key: value.pop(key)
+                for key in ("client_uid", "client_gid", "socket_path", "endpoint_path")
+            }
+            generation["role"] = "generation"
+            value.update(
+                schema_version=2,
+                application_uid=20003,
+                application_gid=20003,
+                database_uid=server_uid,
+                database_gid=server_gid,
+                peers=[
+                    generation,
+                    dict(
+                        role="fresh_controller",
+                        client_uid=20004,
+                        client_gid=20004,
+                        socket_path="/control/run/controller.sock",
+                        endpoint_path="/control/public/controller-endpoint.json",
+                    ),
+                ],
+            )
         code = (
             "from pathlib import Path; "
             "from pitchlog.durable_rights_ledger.authority import _write_root_json; "
@@ -985,10 +1042,12 @@ for top in ('/w', '/control'):
 
 
 @contextmanager
-def isolated_authority_database() -> Iterator[AuthorityDatabase]:
+def isolated_authority_database(
+    *, dual_peer: bool = False
+) -> Iterator[AuthorityDatabase]:
     """実3PG＋復元外witness＋別UID authorityを所有し、必ず掃除する。"""
     with isolated_ledger_database() as database:
-        authority = AuthorityDatabase(database)
+        authority = AuthorityDatabase(database, dual_peer=dual_peer)
         try:
             authority.provision()
             yield authority
@@ -1005,14 +1064,17 @@ class AuthorityResources:
         self._value: AuthorityDatabase | None = None
         self._stack = ExitStack()
 
-    def get(self, key: str) -> AuthorityDatabase:
+    def get(self, key: str, *, dual_peer: bool = False) -> AuthorityDatabase:
         """新シナリオは別cluster/witnessで開始し、既存pairをfreshへ再初期化しない。"""
         if key != self._key:
             self.close()
             self._stack = ExitStack()
-            self._value = self._stack.enter_context(isolated_authority_database())
+            self._value = self._stack.enter_context(
+                isolated_authority_database(dual_peer=dual_peer)
+            )
             self._key = key
         assert self._value is not None
+        assert self._value.dual_peer == dual_peer
         return self._value
 
     def close(self) -> None:

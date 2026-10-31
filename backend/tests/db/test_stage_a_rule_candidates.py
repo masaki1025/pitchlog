@@ -19,6 +19,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
+from db_fixtures import _require_historical_cluster
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from sqlalchemy import Engine, create_engine, event, text
@@ -317,10 +318,18 @@ def _fresh_schema_database(
 ) -> Iterator[tuple[str, str]]:
     """空DBから現行Alembic headまで起動し、認可前で渡す。"""
     with disposable_postgres_cluster() as cluster:
+        _require_historical_cluster(cluster)
         owner_password = secrets.token_urlsafe(24)
         product_database = "pitchlog_stage_a_candidate"
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            assert admin.info.dbname == "pitchlog_disposable"
             with admin.cursor() as cursor:
+                # factoryが所有を証明したseed DBだけを閉じる。
+                cursor.execute(
+                    sql.SQL(
+                        "REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC"
+                    ).format(sql.Identifier(admin.info.dbname))
+                )
                 cursor.execute(
                     sql.SQL(
                         "CREATE ROLE pitchlog_owner WITH NOSUPERUSER NOBYPASSRLS "
@@ -366,7 +375,7 @@ def test_formal_stage_a_startup_preserves_closed_publication(
         assert result.publishable is False
         with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")
-            assert cursor.fetchone() == ("0035_rg1_initial_fresh_epoch",)
+            assert cursor.fetchone() == ("0036_initial_right_storage",)
             cursor.execute("SELECT count(*) FROM public.game_type_rule_defaults")
             assert cursor.fetchone() == (5,)
             cursor.execute(
@@ -447,7 +456,7 @@ def test_formal_stage_a_startup_authz_failure_keeps_placement_closed(
             )
         with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")
-            assert cursor.fetchone() == ("0035_rg1_initial_fresh_epoch",)
+            assert cursor.fetchone() == ("0036_initial_right_storage",)
             cursor.execute("SELECT count(*) FROM public.game_type_rule_defaults")
             assert cursor.fetchone() == (5,)
             cursor.execute(

@@ -19,7 +19,6 @@ from test_sync_apply_port_prefix import (
     PrefixValidator,
 )
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.db.sync_protocol.event_kinds import (
     C12_REQUIREMENT_MATRIX,
     EVENT_KIND_LITERALS,
@@ -54,6 +53,7 @@ from pitchlog.sync.prefix_path import (
     apply_p1_event,
 )
 from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
     EventSlotInsertToken,
     EventSlotReadToken,
     GameLockToken,
@@ -73,7 +73,7 @@ from pitchlog.sync.tokens import (
 
 GAME = "123e4567-e89b-12d3-a456-426614174000"
 D5 = "123e4567-e89b-12d3-a456-426614174001"
-_GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
+_GENERATION_COLUMNS = RECORDING_GENERATION_READ_COLUMNS
 _P1_PARTICIPATIONS = tuple(
     participation
     for participation in OPERATION_EVENT_PARTICIPATIONS

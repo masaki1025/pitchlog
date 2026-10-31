@@ -469,15 +469,31 @@ def _n4_direct_rows(
             == lifecycle_value
         ]
         for target in targets:
+            plain_target = _plain_markdown(target)
+            implementation = (
+                f"manifest lifecycle.deletion={lifecycle_value} の候補: "
+                + (", ".join(candidates) if candidates else "なし")
+            )
+            if (
+                lifecycle_value == "非表示"
+                and plain_target == "プレイ 0 件の試合(ゴミ箱を経ず即時)"
+                and any(
+                    table["name"] == "games"
+                    and table["lifecycle"]["deletion"] == "ゴミ箱"
+                    and any(column["name"] == "hidden_at" for column in table["columns"])
+                    for table in tables
+                )
+            ):
+                implementation += (
+                    " / 条件付き補助参照: games.hidden_at（プレイ0件、"
+                    "11-1/P-10の条件付き非表示。主系統はゴミ箱）"
+                )
             ordinal += 1
             rows.append(
                 SheetRow(
-                    target=f"11-1 対象 {ordinal:02d}: {_plain_markdown(target)}",
+                    target=f"11-1 対象 {ordinal:02d}: {plain_target}",
                     canonical=f"data-model.md §11-1 — 軸1={lifecycle_value}",
-                    implementation=(
-                        f"manifest lifecycle.deletion={lifecycle_value} の候補: "
-                        + (", ".join(candidates) if candidates else "なし")
-                    ),
+                    implementation=implementation,
                 )
             )
     return tuple(rows)

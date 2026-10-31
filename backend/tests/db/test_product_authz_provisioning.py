@@ -37,6 +37,7 @@ _LIFECYCLE_COLLISION_ROLES = (
     "pitchlog_ledger_identity_probe",
     "pitchlog_initial_actor",
     "pitchlog_initial_fn_owner",
+    "pitchlog_initial_auth_verifier",
 )
 
 
@@ -382,7 +383,7 @@ def test_lifecycle_role_collision_rejects_full_apply_and_rolls_back(
     provisioned_product_catalog: ProvisionedProductCatalog,
     role_id: str,
 ) -> None:
-    """固定6roleの衝突は正規applyで拒否し、途中のDDLも全て取り消す。"""
+    """固定7roleの衝突は正規applyで拒否し、途中のDDLも全て取り消す。"""
     catalog = provisioned_product_catalog
     roles = _asset_roles(catalog)
     assert roles[role_id]["bypass_rls"] is False

@@ -62,6 +62,26 @@
     {
       "pr": 184,
       "branch": "feature/mvp-rg1-profile-integration-candidate"
+    },
+    {
+      "pr": 188,
+      "branch": "feature/mvp-game-start-atomic-candidate"
+    },
+    {
+      "pr": 189,
+      "branch": "feature/mvp-first-ball-vertical"
+    },
+    {
+      "pr": 190,
+      "branch": "feature/mvp-recording-continuation"
+    },
+    {
+      "pr": 191,
+      "branch": "feature/mvp-terminal-pitches"
+    },
+    {
+      "pr": 192,
+      "branch": "feature/mvp-strikeout-pitches"
     }
   ]
 }

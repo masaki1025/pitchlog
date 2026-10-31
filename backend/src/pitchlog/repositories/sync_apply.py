@@ -34,6 +34,8 @@ from pitchlog.sync import tokens as sync_tokens
 
 _GAMES = cast(Table, Game.__table__)
 _GENERATIONS = cast(Table, RecordingGeneration.__table__)
+# 初期権の保護証拠列を既存appの同期読取へ自動投影しない。
+_GENERATION_READ_COLUMNS = sync_tokens.RECORDING_GENERATION_READ_COLUMNS
 _SLOTS = cast(Table, EventSlot.__table__)
 _EVENTS = cast(Table, OperationEvent.__table__)
 _MAPPINGS = cast(Table, TemporaryPlayerIdMapping.__table__)
@@ -60,7 +62,14 @@ def _build_sync_statement(
 ) -> Select[Any] | Insert | Update:
     """固定表の read・lock・insert・update だけを構築する SQL API 窓口。"""
     if kind in {"read", "lock"}:
-        statement = select(table).where(table.c.tenant_id == bindparam("tenant_id"))
+        projection = (
+            tuple(table.c[name] for name in _GENERATION_READ_COLUMNS)
+            if table is _GENERATIONS
+            else tuple(table.c)
+        )
+        statement = select(*projection).where(
+            table.c.tenant_id == bindparam("tenant_id")
+        )
         for name in columns:
             parameter = f"where_{name}" if kind == "lock" else name
             statement = statement.where(table.c[name] == bindparam(parameter))

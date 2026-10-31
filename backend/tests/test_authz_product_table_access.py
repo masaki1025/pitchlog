@@ -57,6 +57,61 @@ _PROFILE_RULES = {
     },
 }
 
+_INITIAL_POLICY_IDS = frozenset(
+    {
+        "POLICY:game_lineups:initial_start_owner_game_lineups_insert",
+        "POLICY:game_lineups:initial_start_owner_game_lineups_select",
+        "POLICY:game_start_attempts:initial_right_game_start_attempts_insert",
+        "POLICY:game_start_attempts:initial_right_game_start_attempts_select",
+        "POLICY:game_start_attempts:initial_right_game_start_attempts_update",
+        "POLICY:game_start_requests:initial_right_game_start_requests_insert",
+        "POLICY:game_start_requests:initial_right_game_start_requests_select",
+        "POLICY:game_start_requests:initial_right_game_start_requests_update",
+        "POLICY:games:initial_right_games_select",
+        "POLICY:games:initial_right_games_update",
+        "POLICY:lineup_memories:initial_start_actor_lineup_memories_insert",
+        "POLICY:lineup_memories:initial_start_actor_lineup_memories_select",
+        "POLICY:lineup_memories:initial_start_actor_lineup_memories_update",
+        "POLICY:players:initial_start_actor_players_select",
+        "POLICY:players:initial_start_actor_players_update",
+        "POLICY:players:initial_start_owner_players_select",
+        "POLICY:players:initial_start_owner_players_update",
+        "POLICY:recording_generations:initial_right_recording_generations_insert",
+        "POLICY:recording_generations:initial_right_recording_generations_select",
+        "POLICY:recording_generations:initial_right_recording_generations_update",
+        (
+            "POLICY:recording_right_deliveries:initial_right_recording_right_deli"
+            "veries_insert"
+        ),
+        (
+            "POLICY:recording_right_deliveries:initial_right_recording_right_deli"
+            "veries_select"
+        ),
+        (
+            "POLICY:recording_right_deliveries:initial_right_recording_right_deli"
+            "veries_update"
+        ),
+        "POLICY:rg1_restore_gate:initial_right_rg1_restore_gate_select",
+        "POLICY:team_records:initial_start_actor_team_records_select",
+        "POLICY:team_records:initial_start_actor_team_records_update",
+        "POLICY:team_records:initial_start_owner_team_records_select",
+        "POLICY:team_records:initial_start_owner_team_records_update",
+        "POLICY:trusted_devices:initial_right_trusted_devices_insert",
+        "POLICY:trusted_devices:initial_right_trusted_devices_select",
+        "POLICY:trusted_devices:initial_right_trusted_devices_update",
+    }
+)
+
+
+def _assert_initial_policy_ids(asset: dict[str, Any]) -> None:
+    """初期権/開始のproducerから独立した有限31IDを要求する。"""
+    assert {
+        row["policy_id"]
+        for row in asset["policies"]
+        if set(row["role_ids"])
+        & {"pitchlog_initial_fn_owner", "pitchlog_initial_actor"}
+    } == _INITIAL_POLICY_IDS
+
 
 def _load_catalog_checker() -> Any:
     """静的検査を独立したモジュール名で読み込む。"""
@@ -255,7 +310,7 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
     }
     assert len(control_tables) == 4
     assert set(policies) == direct_tables | control_tables
-    assert set(table_acls) == direct_tables
+    assert set(table_acls) == direct_tables - {"recording_generations"}
 
     predicates = asset["predicates"]
     assert predicates == [
@@ -287,11 +342,14 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
             continue
         rule = _PROFILE_RULES[profile]
         policy = policies[table_id]
-        acl = table_acls[table_id]
         assert policy["command"] == rule["command"]
         assert policy["role_ids"] == ["pitchlog_app"]
         assert policy["using_column"] == rule["column"]
         assert (policy["with_check_expression"] is not None) is rule["with_check"]
+        if table_id == "recording_generations":
+            assert table_id not in table_acls
+            continue
+        acl = table_acls[table_id]
         assert tuple(acl["privilege_ids"]) == rule["privileges"]
         assert acl["grantee_role_id"] == "pitchlog_app"
         assert "DELETE" not in acl["privilege_ids"]
@@ -323,9 +381,10 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         expected_sql[("policy", f"POLICY:{table_id}:{profile}")] = (
             generate_product_policy_sql(table_id, profile)
         )
-        expected_sql[("acl_expectation", f"ACL:{table_id}:pitchlog_app")] = (
-            generate_product_table_acl_sql(table_id, profile)
-        )
+        if table_id != "recording_generations":
+            expected_sql[("acl_expectation", f"ACL:{table_id}:pitchlog_app")] = (
+                generate_product_table_acl_sql(table_id, profile)
+            )
     for table_id in control_tables:
         expected_sql[("policy", f"POLICY:{table_id}:{CONTROL_PROFILE}")] = (
             generate_control_policy_sql(table_id)
@@ -336,6 +395,8 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         "POLICY:rg1_restore_gate:rg1_control_select_singleton",
         "POLICY:rg1_restore_gate:rg1_control_update_singleton",
     }
+    _assert_initial_policy_ids(asset)
+    owner_policy_ids |= _INITIAL_POLICY_IDS
     assert {
         element_id
         for element_type, element_id in actual_sql
@@ -444,3 +505,22 @@ def test_hand_edited_expanded_policy_body_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(_catalog_checker.CatalogError, match="生成器と不一致"):
         _validate_product_asset(asset, root)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "unknown"])
+def test_each_initial_policy_id_mutation_is_rejected(mutation: str) -> None:
+    """31IDの各欠落/未知置換を製品producerと独立に拒否する。"""
+    original = _product_asset()
+    _assert_initial_policy_ids(original)
+    assert len(_INITIAL_POLICY_IDS) == 31
+    for policy_id in _INITIAL_POLICY_IDS:
+        candidate = copy.deepcopy(original)
+        policy = next(
+            row for row in candidate["policies"] if row["policy_id"] == policy_id
+        )
+        if mutation == "missing":
+            candidate["policies"].remove(policy)
+        else:
+            policy["policy_id"] = policy_id + "_unknown"
+        with pytest.raises(AssertionError):
+            _assert_initial_policy_ids(candidate)

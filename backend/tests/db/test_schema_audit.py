@@ -22,6 +22,10 @@ from typing import Any
 import psycopg
 import pytest
 from psycopg import sql
+from test_schema_manifest import (
+    _business_uniqueness_violations,
+    _manifest_business_uniqueness_row,
+)
 
 from .conftest import ProvisionedProductCatalog
 from .test_alembic_migrations import (
@@ -759,17 +763,38 @@ def _cross_table_audit_violations(
     canonical_outside = {
         name
         for name, constraint in business_constraints.items()
-        if constraint["source_row"]["scope"] == "outside"
+        if "scope" in constraint["source_row"]
+        and constraint["source_row"]["scope"] == "outside"
     }
     global_uniqueness_violations = [
         f"{name}: 正本でテナント外だが表が tenant_id を持つ"
         for name in sorted(canonical_outside)
         if "tenant_id" in columns_by_table.get(business_constraint_tables[name], {})
     ]
-    if len(business_constraints) != 29:
-        global_uniqueness_violations.append(
-            f"business_unique が 29 件ではない: {len(business_constraints)} 件"
+    # 旧3-4の29行と、正規6-1 quote形式のexact2行を既原典パーサで照合する。
+    for table in manifest["tables"]:
+        for constraint in table["unique_constraints"]:
+            if "business_unique" in constraint["roles"]:
+                _manifest_business_uniqueness_row(table, constraint)
+                if (
+                    "quote" in constraint["source_row"]
+                    and constraint["columns"][0] != "tenant_id"
+                ):
+                    global_uniqueness_violations.append(
+                        f"{constraint['name']}: 6-1の一意性はtenant付きで必要"
+                    )
+    global_uniqueness_violations.extend(
+        _business_uniqueness_violations(
+            (_BACKEND_ROOT.parent / "docs/design/data-model.md").read_text(),
+            dict(manifest),
         )
+    )
+    if len(business_constraints) != 31:
+        global_uniqueness_violations.append(
+            "business_unique が旧29件＋6-1の2件ではない: "
+            f"{len(business_constraints)} 件"
+        )
+
     if len(canonical_outside) != 5:
         global_uniqueness_violations.append(
             f"テナント外 business_unique が 5 件ではない: {len(canonical_outside)} 件"

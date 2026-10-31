@@ -8,7 +8,6 @@ from uuid import UUID
 
 import pytest
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.repositories.tokens import (
     ImmutableValue,
     TenantOperationResult,
@@ -27,6 +26,7 @@ from pitchlog.sync.prefix_path import (
 )
 from pitchlog.sync.rejection import _candidate_result, content_reason_for_precondition
 from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
     GameLockToken,
     RecordingGenerationLockToken,
     RecordingGenerationReadToken,
@@ -133,7 +133,7 @@ class _LockSpy:
         self.calls.append(type(token))
         if isinstance(token, GameLockToken):
             return TenantOperationResult(((UUID(int=1),),))
-        columns = tuple(RecordingGeneration.__table__.c.keys())
+        columns = RECORDING_GENERATION_READ_COLUMNS
         cells: list[ImmutableValue] = [None] * len(columns)
         cells[columns.index("generation")] = 1
         cells[columns.index("confirmed_watermark")] = 4

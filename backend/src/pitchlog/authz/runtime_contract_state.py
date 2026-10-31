@@ -922,8 +922,13 @@ def _python_string_or_none(value: str | None) -> str:
 
 
 def _render_row(row: tuple[str, ...]) -> str:
-    """文字列 tuple の 1 行を描画する。"""
-    return f"({', '.join(_python_string(value) for value in row)})"
+    """短い tuple は 1 行、長い tuple は値ごとの行で描画する。"""
+    values = tuple(_python_string(value) for value in row)
+    compact = f"({', '.join(values)})"
+    # 呼出側のインデント4文字と末尾commaも行長へ含める。
+    if len(compact) + 5 <= 88:
+        return compact
+    return "(\n" + "".join(f"        {value},\n" for value in values) + "    )"
 
 
 def _render_string_tuple(values: list[str]) -> str:

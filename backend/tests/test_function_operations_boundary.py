@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from dataclasses import FrozenInstanceError, dataclass, field, replace
 from types import MappingProxyType
 from typing import Any
+from typing import cast as typing_cast
 from uuid import UUID
 
 import pytest
@@ -1361,3 +1362,604 @@ def test_public_resolver_reuses_integer_codec_for_float_values(
     assert encoded["ruleSetId"] == str(_TENANT_ID)
     assert encoded == raw
     assert resolver_runtime.events == ["session", "begin", "execute", "commit", "close"]
+
+
+def _initial_spec(name: str) -> FunctionOperationRegistration:
+    """候補actorの固定関数宣言だけを返す。実DB登録成功ではない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        INITIAL_FUNCTION_OPERATIONS,
+    )
+
+    return next(
+        spec
+        for spec in INITIAL_FUNCTION_OPERATIONS
+        if spec.function_id == f"initial_right_api.{name}"
+    )
+
+
+def test_initial_nine_function_signatures_are_closed_and_separate() -> None:
+    """私有9登録はSQL/入力順を固定し、旧app登録へ紛れ込ませない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        INITIAL_FUNCTION_OPERATIONS,
+    )
+
+    names = (
+        "lock_device",
+        "read_existing_start",
+        "read_start_game",
+        "lock_preparing_game",
+        "lock_current_start",
+        "check_business_epoch",
+        "insert_initial_grant",
+        "begin_start_attempt",
+        "resolve_start_attempt",
+    )
+    assert tuple(spec.function_id for spec in INITIAL_FUNCTION_OPERATIONS) == tuple(
+        f"initial_right_api.{name}" for name in names
+    )
+    assert not (
+        {spec.token_type for spec in INITIAL_FUNCTION_OPERATIONS}
+        & set(operation_registry.FUNCTION_OPERATION_REGISTRY)
+    )
+    for spec in INITIAL_FUNCTION_OPERATIONS:
+        compiled = spec.statement.compile(dialect=postgresql.dialect())
+        assert spec.function_id in str(compiled)
+        assert tuple(compiled.params) == (
+            "tenant_id",
+            *(name for name, _ in spec.input_fields),
+        )
+        assert spec.max_rows == 1
+
+
+@pytest.mark.parametrize(
+    "invalid", (memoryview(b"a" * 32), bytearray(b"a" * 32), "a" * 32, None, True)
+)
+def test_initial_bytes_bind_rejects_nonexact_values(invalid: object) -> None:
+    """memoryviewや文字列を資格/暗号のbytesへ黙って変換しない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _BeginStartAttemptToken,
+    )
+
+    token = _BeginStartAttemptToken(
+        _TENANT_ID, _TENANT_ID, _TENANT_ID, typing_cast(Any, invalid), _TENANT_ID
+    )
+    with pytest.raises(FunctionOperationError, match="型が不一致"):
+        prepare_function_operation(token, _TENANT_ID, _INITIAL_FUNCTION_REGISTRY)
+
+
+@pytest.mark.parametrize("value", (None,))
+def test_old_function_results_do_not_gain_nullable(value: object) -> None:
+    """旧登録のNone拒否は新nullable宣言と独立に保つ。"""
+    with pytest.raises(FunctionOperationError):
+        decode_function_result(
+            _registration(), TenantOperationResult(((typing_cast(Any, value),),))
+        )
+    with pytest.raises(FunctionOperationError, match="拡張型宣言"):
+        replace(_registration(), nullable_results=("value",))
+
+
+def test_initial_device_nullable_time_requires_real_aware_datetime() -> None:
+    """新deviceの失効列だけNULL又はaware日時を許す。"""
+    from datetime import datetime, timezone
+
+    spec = _initial_spec("lock_device")
+    for revoked in (None, datetime(2026, 10, 24, tzinfo=timezone.utc)):
+        result = TenantOperationResult(((b"a" * 32, revoked),))
+        assert decode_function_result(spec, result) is result
+    for revoked in (datetime(2026, 10, 24), "2026-10-24T00:00:00Z", True):
+        with pytest.raises(FunctionOperationError):
+            decode_function_result(spec, TenantOperationResult(((b"a" * 32, revoked),)))
+    with pytest.raises(FunctionOperationError):
+        decode_function_result(spec, TenantOperationResult(((None, None),)))
+
+
+@pytest.mark.parametrize(
+    "outcome,generation,valid",
+    (
+        ("pending", None, True),
+        ("committed", 1, True),
+        ("pending", 1, False),
+        ("committed", None, False),
+        ("committed", True, False),
+        ("committed", 0, False),
+        ("committed", 2**63, False),
+        ("rolled_back", None, False),
+        ("unknown", None, False),
+    ),
+)
+def test_initial_resolver_nullable_is_state_specific(
+    outcome: str, generation: object, valid: bool
+) -> None:
+    """NULLをすべての状態へ許可せず、不明から新attemptへ進めない。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+
+    result = TenantOperationResult(((outcome, typing_cast(Any, generation)),))
+    if valid:
+        assert (
+            decode_function_result(_initial_spec("resolve_start_attempt"), result)
+            is result
+        )
+    else:
+        with pytest.raises((FunctionOperationError, InitialGrantUnavailable)):
+            decode_function_result(_initial_spec("resolve_start_attempt"), result)
+
+
+@pytest.mark.parametrize(
+    "column,value",
+    ((4, True), (5, 0), (6, b"x"), (7, ""), (8, b"n" * 11), (9, b"c" * 47)),
+)
+def test_initial_record_ten_columns_and_envelope_lengths(
+    column: int, value: object
+) -> None:
+    """初期権recordの型/正bigint/32-12-48byteを境界で拒否する。"""
+    from pitchlog.recording_rights.initial_grant import InitialGrantUnavailable
+
+    row: list[Any] = [_TENANT_ID] * 4 + [
+        1,
+        1,
+        b"d" * 32,
+        "public-vector-key",
+        b"n" * 12,
+        b"c" * 48,
+    ]
+    assert decode_function_result(
+        _initial_spec("read_existing_start"), TenantOperationResult((tuple(row),))
+    )
+    row[column] = value
+    with pytest.raises((FunctionOperationError, InitialGrantUnavailable)):
+        decode_function_result(
+            _initial_spec("read_existing_start"), TenantOperationResult((tuple(row),))
+        )
+
+
+def test_app_handle_cannot_execute_initial_private_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """App scopeの拒否はSession.executeより先に成立する。"""
+    from pitchlog.repositories.initial_recording_right import _LockDeviceToken
+
+    context = make_tenant_context(_TENANT_ID)
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    with pytest.raises(TenantBindingError, match="app scope"):
+        handle.run_function(_LockDeviceToken(_TENANT_ID))
+    handle._expire()
+    with pytest.raises(RuntimeError, match="失効"):
+        handle.run_function(_LockDeviceToken(_TENANT_ID))
+
+
+@pytest.mark.parametrize("size", (0, 31, 33))
+def test_initial_binary_input_length_is_rejected_before_sql(size: int) -> None:
+    """bytes型だけを満たす不定長digestを固定関数へ渡さない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _BeginStartAttemptToken,
+    )
+
+    token = _BeginStartAttemptToken(
+        _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * size, _TENANT_ID
+    )
+    with pytest.raises(FunctionOperationError, match="固定byte長"):
+        prepare_function_operation(token, _TENANT_ID, _INITIAL_FUNCTION_REGISTRY)
+
+
+@pytest.mark.parametrize("value", (0, -1, 2**63))
+def test_initial_epoch_input_stays_in_positive_bigint(value: int) -> None:
+    """新epoch入力だけの正域を閉じ、旧int入力の意味を変えない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _CheckBusinessEpochToken,
+    )
+
+    with pytest.raises(FunctionOperationError, match="正bigint"):
+        prepare_function_operation(
+            _CheckBusinessEpochToken(value), _TENANT_ID, _INITIAL_FUNCTION_REGISTRY
+        )
+
+
+@pytest.mark.parametrize(
+    "token_name,locked",
+    (
+        ("RecordingGenerationReadToken", False),
+        ("RecordingGenerationByNumberReadToken", False),
+        ("RecordingGenerationLockToken", True),
+    ),
+)
+def test_generation_sync_reads_keep_original_columns_and_lock(
+    token_name: str,
+    locked: bool,
+) -> None:
+    """ORMに証拠列を追加しても旧同期DTO/tenant述語/行lockを維持する。"""
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.sql.selectable import Select
+
+    from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
+    from pitchlog.sync import tokens as sync_tokens
+
+    expected = (
+        "tenant_id",
+        "game_id",
+        "generation",
+        "kind",
+        "issuance_order",
+        "holder_device",
+        "confirmed_watermark",
+        "applied_prefix",
+        "granted_at",
+        "revoked_at",
+        "import_batch_id",
+        "retired_at",
+    )
+    token_type = getattr(sync_tokens, token_name)
+    registration = next(r for r in SYNC_APPLY_OPERATIONS if r.token_type is token_type)
+    statement = registration.statement
+    assert isinstance(statement, Select)
+    assert tuple(column.key for column in statement.selected_columns) == expected
+    assert {"proof_digest", "recovery_generation"}.isdisjoint(
+        column.key for column in statement.selected_columns
+    )
+    sql = str(statement.compile(dialect=postgresql.dialect()))
+    assert "recording_generations.tenant_id = %(tenant_id)s" in sql
+    assert ("FOR UPDATE" in sql) is locked
+
+
+def test_initial_start_two_functions_keep_old_nine_separate() -> None:
+    """新2署名はtenant注入+同5bindだけで、旧9tupleを保持する。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _INITIAL_START_FUNCTION_OPERATIONS,
+        INITIAL_FUNCTION_OPERATIONS,
+        _ReadInitialStartContextToken,
+    )
+
+    assert len(INITIAL_FUNCTION_OPERATIONS) == 9
+    assert tuple(s.function_id for s in _INITIAL_START_FUNCTION_OPERATIONS) == (
+        "initial_right_api.read_initial_start_context",
+        "initial_right_api.persist_initial_start",
+    )
+    token = _ReadInitialStartContextToken(
+        _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * 32, "{}"
+    )
+    spec, params = prepare_function_operation(
+        token, _TENANT_ID, _INITIAL_FUNCTION_REGISTRY
+    )
+    assert tuple(params) == (
+        "tenant_id",
+        "game_id",
+        "start_request_id",
+        "attempt_id",
+        "request_digest",
+        "typed_payload_json",
+    )
+    assert spec.max_rows == 1
+    assert spec.function_id == "initial_right_api.read_initial_start_context"
+
+
+@pytest.mark.parametrize("phase", ["intent", "business"])
+def test_actor_without_start_scope_rejects_new_functions(
+    phase: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """真正actorを代役化してもstart専用束縛がなければSQL前に拒否する。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _ReadInitialStartContextToken,
+    )
+
+    context = make_tenant_context(_TENANT_ID)
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (object(), phase))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    with pytest.raises(TenantBindingError):
+        handle.run_function(
+            _ReadInitialStartContextToken(
+                _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * 32, "{}"
+            )
+        )
+    handle._expire()
+
+
+@pytest.mark.parametrize("phase", [None, "intent", "business", "enroll"])
+@pytest.mark.parametrize(
+    "change",
+    ["valid", "device", "digest", "runtime", "context", "used", "expired", "no_loan"],
+)
+def test_b2_enrollment_token_is_bound_to_one_real_scope(
+    phase: str | None,
+    change: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧phase/app/別資格/失効はSQL前拒否し、enroll一致一回だけ通す。"""
+    from pitchlog.repositories.initial_recording_right import _EnrollDeviceToken
+
+    context = make_tenant_context(_TENANT_ID)
+    actor = object()
+    key = object()
+    executed = []
+
+    class SessionProbe:
+        """業務SQL到達回数だけを観測する。"""
+
+        def execute(self, statement, parameters):
+            executed.append((statement, parameters))
+            return [(_TENANT_ID,)]
+
+    monkeypatch.setitem(
+        transaction._TRANSACTION_RUNTIMES, key, (SessionProbe(), object())
+    )
+    if phase is not None:
+        monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (actor, phase))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+
+    class LoanProbe:
+        """純検査では借用の実再照合呼出しを観測する。"""
+
+        def assert_held(self):
+            pass
+
+    if change != "no_loan":
+        monkeypatch.setitem(transaction._RG1_LOANS, key, LoanProbe())
+    binding = transaction._EnrollmentBinding(context, actor, _TENANT_ID, b"d" * 32)
+    binding.consumed = True
+    if change == "device":
+        binding.device_id = UUID(int=9)
+    elif change == "digest":
+        binding.credential_digest = b"x" * 32
+    elif change == "runtime":
+        binding.runtime = object()
+    elif change == "context":
+        binding.context = make_tenant_context(_TENANT_ID)
+    elif change == "used":
+        binding.operation_used = True
+    if change != "expired":
+        monkeypatch.setitem(transaction._ENROLL_BINDINGS, key, binding)
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    token = _EnrollDeviceToken(_TENANT_ID, b"d" * 32)
+    if phase == "enroll" and change == "valid":
+        assert handle.run_function(token).rows == ((_TENANT_ID,),)
+        with pytest.raises(TenantBindingError):
+            handle.run_function(token)
+        assert len(executed) == 1
+    else:
+        with pytest.raises(TenantBindingError):
+            handle.run_function(token)
+        assert executed == []
+    handle._expire()
+    with pytest.raises(RuntimeError):
+        handle.run_function(token)
+
+
+@pytest.mark.parametrize("digest", [b"", b"x" * 31, b"x" * 33, bytearray(32), "x" * 32])
+def test_b2_enrollment_fixed_abi_rejects_invalid_digest(digest: object) -> None:
+    """32bytes以外を汎用byteaへ広げない。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_FUNCTION_REGISTRY,
+        _EnrollDeviceToken,
+    )
+
+    with pytest.raises(FunctionOperationError):
+        prepare_function_operation(
+            _EnrollDeviceToken(_TENANT_ID, typing_cast(Any, digest)),
+            _TENANT_ID,
+            _INITIAL_FUNCTION_REGISTRY,
+        )
+
+
+def test_b2_legacy9_start2_and_new1_are_separate() -> None:
+    """旧tupleを保持し、新登録を別tuple一件として供給する。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        _INITIAL_START_FUNCTION_OPERATIONS,
+        INITIAL_FUNCTION_OPERATIONS,
+    )
+
+    assert len(INITIAL_FUNCTION_OPERATIONS) == 9
+    assert len(_INITIAL_START_FUNCTION_OPERATIONS) == 2
+    assert len(_INITIAL_ENROLL_FUNCTION_OPERATIONS) == 1
+    spec = _INITIAL_ENROLL_FUNCTION_OPERATIONS[0]
+    assert spec.function_id == "initial_right_api.enroll_device"
+    assert spec.capability_id == "CAP:initial_right:enroll_device"
+    assert tuple(k for k, _ in spec.input_fields) == ("device_id", "credential_digest")
+    assert spec.min_rows == spec.max_rows == 1
+    for rows in [
+        (),
+        (("bad",),),
+        ((_TENANT_ID,), (_TENANT_ID,)),
+        ((None,),),
+        ((_TENANT_ID, True),),
+    ]:
+        with pytest.raises(FunctionOperationError):
+            decode_function_result(spec, TenantOperationResult(rows))
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["consumed", "commit_attempted", "commit_completed", "bad_digest", "bad_device"],
+)
+def test_b2_enrollment_scope_cannot_reuse_or_coerce_binding(change: str) -> None:
+    """短命登録の再使用と不定長/別型はengine生成前に拒否する。"""
+    binding = transaction._EnrollmentBinding(
+        make_tenant_context(_TENANT_ID), object(), _TENANT_ID, b"d" * 32
+    )
+    if change in {"consumed", "commit_attempted", "commit_completed"}:
+        setattr(binding, change, True)
+    elif change == "bad_digest":
+        binding.credential_digest = b"x"
+    else:
+        binding.device_id = typing_cast(Any, str(_TENANT_ID))
+    with (
+        pytest.raises(TenantBindingError),
+        transaction._initial_enrollment_transaction_scope(binding),
+    ):
+        raise AssertionError("invalid binding opened")
+
+
+def test_worker_lookup_registration_keeps_previous_tuples() -> None:
+    """既9/start2/enroll1の反復を変えずlookup一件だけを足す。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+        _INITIAL_RESOLVE_FUNCTION_OPERATIONS,
+        _INITIAL_START_FUNCTION_OPERATIONS,
+        INITIAL_FUNCTION_OPERATIONS,
+    )
+
+    assert tuple(
+        map(
+            len,
+            (
+                INITIAL_FUNCTION_OPERATIONS,
+                _INITIAL_START_FUNCTION_OPERATIONS,
+                _INITIAL_ENROLL_FUNCTION_OPERATIONS,
+                _INITIAL_RESOLVE_FUNCTION_OPERATIONS,
+            ),
+        )
+    ) == (9, 2, 1, 1)
+    spec = _INITIAL_RESOLVE_FUNCTION_OPERATIONS[0]
+    assert spec.capability_id == "CAP:initial_right:lookup_existing_start_attempt"
+    assert tuple(k for k, _ in spec.input_fields) == (
+        "game_id",
+        "start_request_id",
+        "device_id",
+        "request_digest",
+    )
+    for rows in [((_TENANT_ID, "pending"),), ((_TENANT_ID, "committed"),), ()]:
+        assert decode_function_result(spec, TenantOperationResult(rows)).rows == rows
+    for rows in [
+        ((_TENANT_ID, "rolled_back"),),
+        ((_TENANT_ID, "unknown"),),
+        ((None, "pending"),),
+        ((_TENANT_ID, "pending"), (_TENANT_ID, "pending")),
+    ]:
+        with pytest.raises((FunctionOperationError, RuntimeError)):
+            decode_function_result(spec, TenantOperationResult(rows))
+
+
+@pytest.mark.parametrize("phase", [None, "intent", "enroll", "business"])
+def test_worker_lookup_requires_same_scope_resolution_cap(phase, monkeypatch):
+    """普通のbusinessさえ新lookupを実行できず、短命登録を必要とする。"""
+    from pitchlog.repositories.initial_recording_right import (
+        _LookupExistingStartAttemptToken,
+    )
+
+    context = make_tenant_context(_TENANT_ID)
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    if phase is not None:
+        monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (object(), phase))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    with pytest.raises(TenantBindingError):
+        handle.run_function(
+            _LookupExistingStartAttemptToken(
+                _TENANT_ID, _TENANT_ID, _TENANT_ID, b"d" * 32
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "valid",
+        "game",
+        "request",
+        "device",
+        "digest",
+        "credential",
+        "outcome",
+        "unchecked",
+        "no_lookup",
+    ],
+)
+def test_worker_existing_adapter_requires_actual_lookup_owner(change, monkeypatch):
+    """Committed lookupの実結果以外から、別Session用adapterを作らない。"""
+    from test_initial_game_start_components import _body
+
+    from pitchlog.api.schemas.game_start import GameStartRequest
+    from pitchlog.repositories.game_start import bind_initial_start_request
+
+    context = make_tenant_context(_TENANT_ID)
+    runtime = object()
+    key = object()
+    monkeypatch.setitem(transaction._TRANSACTION_RUNTIMES, key, (object(), object()))
+    monkeypatch.setitem(transaction._INITIAL_ACTOR_STATES, key, (runtime, "business"))
+    monkeypatch.setattr(
+        transaction, "_assert_initial_actor_transaction", lambda *args: None
+    )
+    request = GameStartRequest.model_validate(_body(10))
+    bound = bind_initial_start_request(
+        request, tenant_id=_TENANT_ID, game_id=_TENANT_ID, attempt_id=_TENANT_ID
+    )
+    owner = bound.owner
+    binding = transaction._ResolutionBinding(
+        context,
+        runtime,
+        owner.game_id,
+        owner.start_request_id,
+        owner.device_id,
+        owner.request_digest,
+        bound.credential_digest,
+    )
+    binding.looked_up = binding.device_checked = True
+    binding.attempt_id = owner.attempt_id
+    binding.outcome = "committed"
+    changes = {
+        "game": ("game_id", UUID(int=9)),
+        "request": ("start_request_id", UUID(int=9)),
+        "device": ("device_id", UUID(int=9)),
+        "digest": ("request_digest", b"x" * 32),
+        "credential": ("credential_digest", b"x" * 32),
+        "outcome": ("outcome", "pending"),
+        "unchecked": ("device_checked", False),
+        "no_lookup": ("looked_up", False),
+    }
+    if change in changes:
+        setattr(binding, *changes[change])
+    monkeypatch.setitem(transaction._RESOLVE_BINDINGS, key, binding)
+    handle = transaction._TenantTransaction(
+        context,
+        key,
+        _TENANT_ID,
+        context._integrity_proof,
+        transaction._HANDLE_CREATION_TOKEN,
+    )
+    if change == "valid":
+        transaction._assert_existing_resolution_owner(
+            handle, context, runtime, owner, bound
+        )
+    else:
+        with pytest.raises(TenantBindingError):
+            transaction._assert_existing_resolution_owner(
+                handle, context, runtime, owner, bound
+            )

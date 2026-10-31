@@ -1,0 +1,780 @@
+{
+  "status": "DRAFT_FINITE_TYPED_BOUNDARY_NOT_IMPLEMENTED_NOT_ACCEPTED",
+  "author": "Codex root",
+  "at_utc": "2026-10-25T13:54:54.453344+00:00",
+  "target_base": "dcd4fda8fb80cdff5811e7e2ec5742095f1dc9a8",
+  "operation": "deriveState",
+  "request_schema": {
+    "type": "object",
+    "properties": {
+      "eventKind": {
+        "const": "batting-result"
+      },
+      "resultId": {
+        "const": "batting-result.ball"
+      },
+      "pitchEventKind": {
+        "const": "pitch-event"
+      },
+      "before": {
+        "type": "object",
+        "properties": {
+          "stateFields": {
+            "type": "object",
+            "properties": {
+              "state.half": {
+                "const": "top"
+              },
+              "state.count.strikes": {
+                "type": "string",
+                "const": "0"
+              },
+              "state.count.balls": {
+                "type": "string",
+                "const": "0"
+              },
+              "state.outs": {
+                "type": "string",
+                "const": "0"
+              },
+              "state.runners": {
+                "const": "empty"
+              },
+              "state.battingOrder": {
+                "type": "string",
+                "const": "1"
+              },
+              "state.tiebreakActive": {
+                "const": false
+              },
+              "state.gameEnded": {
+                "const": false
+              },
+              "state.inning": {
+                "type": "string",
+                "const": "1"
+              },
+              "state.score": {
+                "type": "object",
+                "properties": {
+                  "home": {
+                    "type": "string",
+                    "const": "0"
+                  },
+                  "away": {
+                    "type": "string",
+                    "const": "0"
+                  }
+                },
+                "required": [
+                  "home",
+                  "away"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "state.half",
+              "state.count.strikes",
+              "state.count.balls",
+              "state.outs",
+              "state.runners",
+              "state.battingOrder",
+              "state.tiebreakActive",
+              "state.gameEnded",
+              "state.inning",
+              "state.score"
+            ],
+            "additionalProperties": false
+          },
+          "scoreboard": {
+            "type": "object",
+            "properties": {
+              "inningScores": {
+                "type": "object",
+                "properties": {
+                  "home": {
+                    "type": "string",
+                    "const": "0"
+                  },
+                  "away": {
+                    "type": "string",
+                    "const": "0"
+                  }
+                },
+                "required": [
+                  "home",
+                  "away"
+                ],
+                "additionalProperties": false
+              },
+              "hits": {
+                "type": "string",
+                "const": "0"
+              },
+              "errors": {
+                "type": "string",
+                "const": "0"
+              },
+              "strikeouts": {
+                "type": "string",
+                "const": "0"
+              },
+              "walks": {
+                "type": "string",
+                "const": "0"
+              }
+            },
+            "required": [
+              "inningScores",
+              "hits",
+              "errors",
+              "strikeouts",
+              "walks"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "stateFields",
+          "scoreboard"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "required": [
+      "eventKind",
+      "resultId",
+      "pitchEventKind",
+      "before"
+    ],
+    "additionalProperties": false
+  },
+  "source_of_shape": "formal first-ball case inputCoordinate + historyInput.before, integer decimal normalization by existing decimalCodec",
+  "projection_from_full_input": {
+    "eventKind": "per_pitch.kind",
+    "resultId": "per_pitch.resultId",
+    "pitchEventKind": "per_pitch.pitchEventKind",
+    "before.stateFields": "pre_state mapped names, exact existing values; no fabricated game/roster/rights claims",
+    "before.scoreboard": "actual trusted starting projection snapshot, never manufactured all-zero as a substitute for missing DB input"
+  },
+  "output": "existing six row effects + after stateFields/scoreboard + full confirmed history difference; all domain integers via existing decimal codec",
+  "errors": {
+    "INVALID_JSON": "malformed JSON",
+    "INVALID_REQUEST": "missing/extra/wrong structural type",
+    "INVALID_DECIMAL_INTEGER": "noncanonical decimal / number instead of decimal string",
+    "UNSUPPORTED_T1_SCOPE": "well-typed discriminator/state outside advertised first-ball capability, including unsupported/unknown result ID; internal artifact code only, never a sync ACK"
+  },
+  "normalization": "no JSON coercion, arbitrary default, schema weakening, expected-value/caseId lookup; structured first-ball request must be canonically formed",
+  "context_responsibility": "server adapter must independently validate full readonly roster/rules/state/context from same trusted scope; this pure mathematical boundary is not auth/rights/Ready proof",
+  "shared_safety": "single TS implementation and artifact; same transaction/effects/history retain future undo compatibility; unsupported throws/unavailable rolls back via existing sync failure contract, unknown commit never inferred unusedD5",
+  "T2_dependency": "T1 mathematical response contains no fabricated gameEndDecision. Formal no-match/continue wrapper and actual T2 evaluation remain separate required dependency before successful real save. No fixed false/no-decision provider.",
+  "scope_omissions": [
+    "other pitch/count/result/operation not offered as supported",
+    "no claimed full T1/P6/P7/T2/MVP completion"
+  ],
+  "response_schema": {
+    "oneOf": [
+      {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": true
+          },
+          "value": {
+            "type": "object",
+            "properties": {
+              "countEffect": {
+                "type": "object",
+                "properties": {
+                  "strikes": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "unchanged"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "balls": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "delta"
+                      },
+                      "value": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "value"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "strikes",
+                  "balls"
+                ],
+                "additionalProperties": false
+              },
+              "plateAppearanceEnded": {
+                "type": "boolean"
+              },
+              "batterDestination": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "continue"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              },
+              "runnerDefaultAdvance": {
+                "type": "object",
+                "properties": {
+                  "first": {
+                    "type": "object",
+                    "properties": {
+                      "modality": {
+                        "const": "not-applicable"
+                      },
+                      "destination": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "modality",
+                      "destination"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "second": {
+                    "type": "object",
+                    "properties": {
+                      "modality": {
+                        "const": "not-applicable"
+                      },
+                      "destination": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "modality",
+                      "destination"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "third": {
+                    "type": "object",
+                    "properties": {
+                      "modality": {
+                        "const": "not-applicable"
+                      },
+                      "destination": {
+                        "type": "null"
+                      }
+                    },
+                    "required": [
+                      "modality",
+                      "destination"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "first",
+                  "second",
+                  "third"
+                ],
+                "additionalProperties": false
+              },
+              "outEffect": {
+                "type": "object",
+                "properties": {
+                  "count": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                  },
+                  "targets": {
+                    "type": "array",
+                    "items": false,
+                    "maxItems": 0
+                  }
+                },
+                "required": [
+                  "count",
+                  "targets"
+                ],
+                "additionalProperties": false
+              },
+              "statFlags": {
+                "type": "object",
+                "properties": {
+                  "投球回算入アウト": {
+                    "type": "boolean"
+                  },
+                  "投球数": {
+                    "type": "boolean"
+                  },
+                  "奪三振": {
+                    "type": "boolean"
+                  },
+                  "与四球": {
+                    "type": "boolean"
+                  },
+                  "与死球": {
+                    "type": "boolean"
+                  },
+                  "被安打": {
+                    "type": "boolean"
+                  },
+                  "被本塁打": {
+                    "type": "boolean"
+                  },
+                  "失点": {
+                    "type": "boolean"
+                  },
+                  "失策": {
+                    "type": "boolean"
+                  },
+                  "打席": {
+                    "type": "boolean"
+                  },
+                  "打数": {
+                    "type": "boolean"
+                  },
+                  "安打": {
+                    "type": "boolean"
+                  },
+                  "本塁打": {
+                    "type": "boolean"
+                  },
+                  "塁打": {
+                    "type": "boolean"
+                  },
+                  "犠打": {
+                    "type": "boolean"
+                  },
+                  "犠飛": {
+                    "type": "boolean"
+                  },
+                  "四球": {
+                    "type": "boolean"
+                  },
+                  "死球": {
+                    "type": "boolean"
+                  },
+                  "三振": {
+                    "type": "boolean"
+                  },
+                  "打撃妨害出塁": {
+                    "type": "boolean"
+                  },
+                  "走塁妨害出塁": {
+                    "type": "boolean"
+                  },
+                  "得点": {
+                    "type": "boolean"
+                  },
+                  "打点": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "投球回算入アウト",
+                  "投球数",
+                  "奪三振",
+                  "与四球",
+                  "与死球",
+                  "被安打",
+                  "被本塁打",
+                  "失点",
+                  "失策",
+                  "打席",
+                  "打数",
+                  "安打",
+                  "本塁打",
+                  "塁打",
+                  "犠打",
+                  "犠飛",
+                  "四球",
+                  "死球",
+                  "三振",
+                  "打撃妨害出塁",
+                  "走塁妨害出塁",
+                  "得点",
+                  "打点"
+                ],
+                "additionalProperties": false
+              },
+              "after": {
+                "type": "object",
+                "properties": {
+                  "stateFields": {
+                    "type": "object",
+                    "properties": {
+                      "state.half": {
+                        "enum": [
+                          "top",
+                          "bottom"
+                        ]
+                      },
+                      "state.count.strikes": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "state.count.balls": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "state.outs": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "state.runners": {
+                        "enum": [
+                          "empty",
+                          "first",
+                          "second",
+                          "third",
+                          "first-second",
+                          "first-third",
+                          "second-third",
+                          "loaded"
+                        ]
+                      },
+                      "state.battingOrder": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "state.tiebreakActive": {
+                        "type": "boolean"
+                      },
+                      "state.gameEnded": {
+                        "type": "boolean"
+                      },
+                      "state.inning": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "state.score": {
+                        "type": "object",
+                        "properties": {
+                          "home": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                          },
+                          "away": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                          }
+                        },
+                        "required": [
+                          "home",
+                          "away"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "state.half",
+                      "state.count.strikes",
+                      "state.count.balls",
+                      "state.outs",
+                      "state.runners",
+                      "state.battingOrder",
+                      "state.tiebreakActive",
+                      "state.gameEnded",
+                      "state.inning",
+                      "state.score"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "scoreboard": {
+                    "type": "object",
+                    "properties": {
+                      "inningScores": {
+                        "type": "object",
+                        "properties": {
+                          "home": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                          },
+                          "away": {
+                            "type": "string",
+                            "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                          }
+                        },
+                        "required": [
+                          "home",
+                          "away"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "hits": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "errors": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "strikeouts": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      },
+                      "walks": {
+                        "type": "string",
+                        "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                      }
+                    },
+                    "required": [
+                      "inningScores",
+                      "hits",
+                      "errors",
+                      "strikeouts",
+                      "walks"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "stateFields",
+                  "scoreboard"
+                ],
+                "additionalProperties": false
+              },
+              "historyContext": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "confirmed-play"
+                    },
+                    "difference": {
+                      "type": "object",
+                      "properties": {
+                        "stateFields": {
+                          "type": "object",
+                          "properties": {
+                            "state.count.balls": {
+                              "type": "object",
+                              "properties": {
+                                "before": {
+                                  "type": "string",
+                                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                                },
+                                "after": {
+                                  "type": "string",
+                                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])"
+                                }
+                              },
+                              "required": [
+                                "before",
+                                "after"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "state.count.balls"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "scoreboard": {
+                          "type": "object",
+                          "properties": {},
+                          "required": [],
+                          "additionalProperties": false
+                        },
+                        "statFlags": {
+                          "type": "object",
+                          "properties": {
+                            "投球回算入アウト": {
+                              "type": "boolean"
+                            },
+                            "投球数": {
+                              "type": "boolean"
+                            },
+                            "奪三振": {
+                              "type": "boolean"
+                            },
+                            "与四球": {
+                              "type": "boolean"
+                            },
+                            "与死球": {
+                              "type": "boolean"
+                            },
+                            "被安打": {
+                              "type": "boolean"
+                            },
+                            "被本塁打": {
+                              "type": "boolean"
+                            },
+                            "失点": {
+                              "type": "boolean"
+                            },
+                            "失策": {
+                              "type": "boolean"
+                            },
+                            "打席": {
+                              "type": "boolean"
+                            },
+                            "打数": {
+                              "type": "boolean"
+                            },
+                            "安打": {
+                              "type": "boolean"
+                            },
+                            "本塁打": {
+                              "type": "boolean"
+                            },
+                            "塁打": {
+                              "type": "boolean"
+                            },
+                            "犠打": {
+                              "type": "boolean"
+                            },
+                            "犠飛": {
+                              "type": "boolean"
+                            },
+                            "四球": {
+                              "type": "boolean"
+                            },
+                            "死球": {
+                              "type": "boolean"
+                            },
+                            "三振": {
+                              "type": "boolean"
+                            },
+                            "打撃妨害出塁": {
+                              "type": "boolean"
+                            },
+                            "走塁妨害出塁": {
+                              "type": "boolean"
+                            },
+                            "得点": {
+                              "type": "boolean"
+                            },
+                            "打点": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "投球回算入アウト",
+                            "投球数",
+                            "奪三振",
+                            "与四球",
+                            "与死球",
+                            "被安打",
+                            "被本塁打",
+                            "失点",
+                            "失策",
+                            "打席",
+                            "打数",
+                            "安打",
+                            "本塁打",
+                            "塁打",
+                            "犠打",
+                            "犠飛",
+                            "四球",
+                            "死球",
+                            "三振",
+                            "打撃妨害出塁",
+                            "走塁妨害出塁",
+                            "得点",
+                            "打点"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "stateFields",
+                        "scoreboard",
+                        "statFlags"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "difference"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1,
+                "maxItems": 1
+              }
+            },
+            "required": [
+              "countEffect",
+              "plateAppearanceEnded",
+              "batterDestination",
+              "runnerDefaultAdvance",
+              "outEffect",
+              "statFlags",
+              "after",
+              "historyContext"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "const": false
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "enum": [
+                  "INVALID_JSON",
+                  "INVALID_REQUEST",
+                  "INVALID_DECIMAL_INTEGER",
+                  "UNSUPPORTED_T1_SCOPE"
+                ]
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "ok",
+          "error"
+        ],
+        "additionalProperties": false
+      }
+    ]
+  },
+  "output_mapping": {
+    "value.countEffect/plateAppearanceEnded/batterDestination/runnerDefaultAdvance/outEffect/statFlags": "formal case.expected same six effects after decimal-only integer projection",
+    "value.after": "formal case.historyInput.after exact fields after decimal-only integer projection",
+    "value.historyContext": "formal case.expected.historyContext exact confirmed difference, no full stack manufactured",
+    "ok/error": "artifact-local protocol only; not sync ACK/rejection classification; no D5 interpretation"
+  },
+  "reflected_at_utc": "2026-10-25T13:59:30.346690+00:00",
+  "prior_proposal_sha256": "c10625f94bb5370d0ca56936f8aebf888cd581e41542049a98cbf474330a44f6",
+  "output_note": "schema fixes closed field/type/codec; semantic values and equality to independent derivation are separately tested, not inferred from shape validation",
+  "decimal_pattern_note": "ECMA/Python dollar accepts final newline, so exact end uses negative any-character lookahead. Single decimalCodec validation remains required."
+}

@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID, uuid4
 
-from pitchlog.db.recording_rights.models import RecordingGeneration
 from pitchlog.db.sync_protocol.event_kinds import (
     _LOGICAL_POSITION_EVENT_KINDS,
     C12_REQUIREMENT_MATRIX,
@@ -56,6 +55,7 @@ from pitchlog.sync.ports import (
     _issue_port_writer,
 )
 from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
     EventSlotInsertToken,
     EventSlotReadToken,
     GameLockToken,
@@ -75,7 +75,7 @@ type ReplacementKind = Literal["none", "tombstone", "revision"]
 type P1Boundary = Literal["B2", "B3", "B3a", "B3b", "B4", "B6", "B7"] | None
 type P1PreconditionCategory = Literal["w2_violation", "recording_rights", "other"]
 
-_GENERATION_COLUMNS = tuple(RecordingGeneration.__table__.c.keys())
+_GENERATION_COLUMNS = RECORDING_GENERATION_READ_COLUMNS
 _MAPPING_COLUMNS = tuple(TemporaryPlayerIdMapping.__table__.c.keys())
 _REJECTION_COLUMNS = tuple(RejectedEventOriginal.__table__.c.keys())
 _LEDGER_COLUMNS = tuple(IdempotencyLedger.__table__.c.keys())

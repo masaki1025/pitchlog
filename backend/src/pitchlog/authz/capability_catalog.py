@@ -18,6 +18,14 @@ _PROFILE_OPERATIONS = {
     "global_read_only": ("read",),
     "function_only": (),
 }
+_INITIAL_STORAGE_TABLES = frozenset(
+    {
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+    }
+)
 
 
 class CapabilityCatalogError(ValueError):
@@ -126,6 +134,62 @@ def _capability_id(table_id: str, operation: str) -> str:
     return f"CAP:{table_id}:{operation}"
 
 
+def _initial_storage_profile(classification: Mapping[str, object]) -> bool:
+    """初期保存の完全な閉分類だけで世代INSERTの専用関数移管を認識する。"""
+    violations: list[str] = []
+    rows = _object_rows(
+        _optional(classification, "tables"), "table-classification.tables", violations
+    )
+    reserved = {
+        row["table"]: row
+        for row in rows
+        if isinstance(_optional(row, "table"), str)
+        and row["table"] in _INITIAL_STORAGE_TABLES
+    }
+    marked = [
+        row
+        for row in rows
+        if isinstance(_optional(row, "access_path"), dict)
+        and cast(dict[str, object], row["access_path"]).get("reason")
+        == "initial_right_storage"
+    ]
+    if not reserved and not marked:
+        return False
+    if (
+        type(_optional(classification, "schema_version")) is not int
+        or set(reserved) != _INITIAL_STORAGE_TABLES
+        or len(marked) != len(_INITIAL_STORAGE_TABLES)
+    ):
+        violations.append("初期保存分類は固定4表の完全な組でなければならない")
+    for table in sorted(_INITIAL_STORAGE_TABLES):
+        expected = {
+            "table": table,
+            "profile": "function_only",
+            "access_path": {
+                "reason": "initial_right_storage",
+                "owner_unit": "U-R1",
+            },
+        }
+        actual = reserved.get(table)
+        if (
+            type(actual) is not dict
+            or actual != expected
+            or type(actual.get("access_path")) is not dict
+        ):
+            violations.append(f"{table}: 初期保存の閉分類と一致しない")
+    generation = [
+        row for row in rows if _optional(row, "table") == "recording_generations"
+    ]
+    if len(generation) != 1 or generation[0] != {
+        "table": "recording_generations",
+        "profile": "tenant_owned",
+    }:
+        violations.append("初期保存でも記録権世代の既存tenant_owned分類が必要")
+    if violations:
+        raise CapabilityCatalogError(violations)
+    return True
+
+
 def generate_capability_catalog(
     classification: Mapping[str, object],
 ) -> dict[str, object]:
@@ -140,9 +204,16 @@ def generate_capability_catalog(
     Raises:
         CapabilityCatalogError: 表分類を安全に解釈できない場合。
     """
+    assignments = _classification_assignments(classification)
+    initial_storage = _initial_storage_profile(classification)
     capabilities: list[dict[str, str]] = []
-    for table_id, profile in _classification_assignments(classification):
+    for table_id, profile in assignments:
         for operation in _PROFILE_OPERATIONS[profile]:
+            if initial_storage and (table_id, operation) == (
+                "recording_generations",
+                "insert",
+            ):
+                continue
             capabilities.append(
                 {
                     "capability_id": _capability_id(table_id, operation),

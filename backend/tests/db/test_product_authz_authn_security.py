@@ -81,7 +81,9 @@ def test_authn_public_and_untrusted_logins_cannot_execute(
                       role.oid, procedure.oid, 'EXECUTE')
                 """
             )
-            assert cursor.fetchall() == []
+            assert cursor.fetchall() == [
+                ("pitchlog_initial_auth_verifier", "verify_token", "uuid")
+            ]
     finally:
         catalog.observer.rollback()
     with psycopg.connect(outsider_dsn) as connection:

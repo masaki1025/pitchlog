@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, field
 from itertools import islice
 from types import TracebackType
-from typing import final
+from typing import TYPE_CHECKING, Any, Literal, final
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -37,12 +39,66 @@ from pitchlog.repositories.tokens import (
     TenantOperationToken,
 )
 
+if TYPE_CHECKING:
+    from pitchlog.repositories.game_start import BoundInitialStartPayload
+    from pitchlog.repositories.initial_recording_right import InitialRecordingRightScope
+
 __all__ = ("tenant_transaction_scope",)
 
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
+_INITIAL_ACTOR_STATES: dict[
+    object, tuple[object, Literal["intent", "business", "enroll"]]
+] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
+
+
+@dataclass(slots=True)
+class _EnrollmentBinding:
+    """一回の実scopeと生成資格digestにだけ対応する短命記録。"""
+
+    context: TenantContext
+    runtime: object = field(repr=False)
+    device_id: UUID
+    credential_digest: bytes = field(repr=False)
+    consumed: bool = False
+    operation_used: bool = False
+    commit_attempted: bool = False
+    commit_completed: bool = False
+
+
+_ENROLL_BINDINGS: dict[object, _EnrollmentBinding] = {}
+
+
+@dataclass(slots=True)
+class _ResolutionBinding:
+    """一回の同Session lookupと再交付へだけ束縛する閉記録。"""
+
+    context: TenantContext
+    runtime: object = field(repr=False)
+    game_id: UUID
+    start_request_id: UUID
+    device_id: UUID
+    request_digest: bytes = field(repr=False)
+    credential_digest: bytes = field(repr=False)
+    consumed: bool = False
+    device_checked: bool = False
+    looked_up: bool = False
+    attempt_id: UUID | None = None
+    outcome: str | None = None
+
+
+_RESOLVE_BINDINGS: dict[object, _ResolutionBinding] = {}
+_START_MEMORY_BINDINGS: dict[
+    object,
+    tuple[
+        InitialRecordingRightScope,
+        BoundInitialStartPayload,
+        UUID,
+        tuple[dict[str, Any], ...],
+    ],
+] = {}
 _SYNC_APPLY_ACTIVE: ContextVar[bool] = ContextVar("sync_apply_active", default=False)
 
 
@@ -135,6 +191,8 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if state_key in _INITIAL_ACTOR_STATES:
+            _validate_initial_memory_operation(self, operation)
         spec = _operation_spec(operation)
         statement, parameters = _prepare_operation(operation, self._bound_tenant_id)
         if spec.preflight is not None:
@@ -168,13 +226,184 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        from pitchlog.repositories.initial_recording_right import (
+            _INITIAL_BUSINESS_TOKENS,
+            _INITIAL_FUNCTION_REGISTRY,
+            _INITIAL_INTENT_TOKENS,
+            _CheckBusinessEpochToken,
+            _EnrollDeviceToken,
+            _LockCurrentStartToken,
+            _LockDeviceToken,
+            _LookupExistingStartAttemptToken,
+            _ReadExistingStartToken,
+            _ReadInitialStartContextToken,
+            _ReadStartGameToken,
+            _ResolveStartAttemptToken,
+        )
+
+        actor = _INITIAL_ACTOR_STATES.get(state_key)
+        registry = FUNCTION_OPERATION_REGISTRY
+        if actor is not None:
+            _assert_initial_actor_transaction(self, self._context, actor[1])
+            if actor[1] == "enroll":
+                binding = _ENROLL_BINDINGS.get(state_key)
+                if binding is None or (
+                    binding.context is not self._context
+                    or binding.runtime is not actor[0]
+                    or type(binding.device_id) is not UUID
+                    or type(binding.credential_digest) is not bytes
+                    or len(binding.credential_digest) != 32
+                ):
+                    raise TenantBindingError("enroll能力が失効又は別owner")
+                if type(operation) is _EnrollDeviceToken and (
+                    binding.operation_used
+                    or type(operation.device_id) is not UUID
+                    or type(operation.credential_digest) is not bytes
+                    or operation.device_id != binding.device_id
+                    or operation.credential_digest != binding.credential_digest
+                ):
+                    raise TenantBindingError("enroll能力の生成資格が不一致")
+            allowed = (
+                frozenset({_EnrollDeviceToken})
+                if actor[1] == "enroll"
+                else _INITIAL_INTENT_TOKENS
+                if actor[1] == "intent"
+                else _INITIAL_BUSINESS_TOKENS
+            )
+            resolution = _RESOLVE_BINDINGS.get(state_key)
+            if resolution is not None:
+                if actor[1] != "business" or (
+                    resolution.context is not self._context
+                    or resolution.runtime is not actor[0]
+                    or any(
+                        type(v) is not UUID
+                        for v in (
+                            resolution.game_id,
+                            resolution.start_request_id,
+                            resolution.device_id,
+                        )
+                    )
+                    or any(
+                        type(v) is not bytes or len(v) != 32
+                        for v in (
+                            resolution.request_digest,
+                            resolution.credential_digest,
+                        )
+                    )
+                ):
+                    raise TenantBindingError("resolve束縛が不一致")
+                allowed = frozenset(
+                    {
+                        _LockDeviceToken,
+                        _LookupExistingStartAttemptToken,
+                        _ReadExistingStartToken,
+                        _ReadStartGameToken,
+                        _ResolveStartAttemptToken,
+                        _LockCurrentStartToken,
+                        _CheckBusinessEpochToken,
+                        _ReadInitialStartContextToken,
+                    }
+                )
+                if (
+                    type(operation) is _LockDeviceToken
+                    and operation.device_id != resolution.device_id
+                ):
+                    raise TenantBindingError("resolve端末が不一致")
+                if type(operation) is _LookupExistingStartAttemptToken:
+                    expected = _LookupExistingStartAttemptToken(
+                        resolution.game_id,
+                        resolution.start_request_id,
+                        resolution.device_id,
+                        resolution.request_digest,
+                    )
+                    loan = _RG1_LOANS.get(state_key)
+                    if (
+                        operation != expected
+                        or not resolution.device_checked
+                        or resolution.looked_up
+                        or loan is None
+                    ):
+                        raise TenantBindingError("非作成lookupの短命能力が不一致")
+                    loan.assert_held()
+                    resolution.looked_up = True
+            if type(operation) in allowed:
+                from pitchlog.repositories.initial_recording_right import (
+                    _SCOPE_BINDINGS,
+                    _PersistInitialStartToken,
+                    _ReadInitialStartContextToken,
+                )
+
+                if type(operation) in {
+                    _ReadInitialStartContextToken,
+                    _PersistInitialStartToken,
+                }:
+                    from pitchlog.repositories.game_start import _start_token
+
+                    matches = [
+                        scope
+                        for scope in _SCOPE_BINDINGS
+                        if scope._transaction is self
+                        and scope._start_payload is not None
+                    ]
+                    if len(matches) != 1:
+                        raise TenantBindingError("開始専用scopeがない")
+                    scope = matches[0]
+                    scope._require_device()
+                    bound = scope._start_payload
+                    if bound is None:
+                        raise TenantBindingError("開始payloadがない")
+                    expected = _start_token(
+                        bound,
+                        save=type(operation) is _PersistInitialStartToken,
+                    )
+                    if operation != expected or (
+                        type(operation) is _PersistInitialStartToken
+                        and (not scope._game_locked or not scope._start_um2_saved)
+                    ):
+                        raise TenantBindingError("開始操作のowner/payloadが不一致")
+                if actor[1] == "enroll":
+                    loan = _RG1_LOANS.get(state_key)
+                    if loan is None:
+                        raise TenantBindingError("enrollは実RG1借用が必要")
+                    loan.assert_held()
+                    binding.operation_used = True
+                registry = _INITIAL_FUNCTION_REGISTRY
+            else:
+                spec = registry.get(type(operation))
+                if spec is None or (spec.operation_id, spec.function_id) not in {
+                    ("RG1:precheck", "rg1_api.rg1_read_open"),
+                    ("RG1:commit_check", "rg1_api.rg1_assert_open_before_commit"),
+                    ("RG1:scope_binding", "rg1_control.scope_binding"),
+                }:
+                    raise TenantBindingError("初期権actorのphaseに未登録の操作")
+        elif type(operation) in _INITIAL_FUNCTION_REGISTRY:
+            raise TenantBindingError("app scopeは初期権関数を実行できない")
         spec, parameters = prepare_function_operation(
-            operation, self._bound_tenant_id, FUNCTION_OPERATION_REGISTRY
+            operation, self._bound_tenant_id, registry
         )
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
         decoded = decode_function_result(spec, _materialize_rows(rows))
+        resolution = _RESOLVE_BINDINGS.get(state_key)
+        if resolution is not None:
+            if type(operation) is _LockDeviceToken:
+                resolution.device_checked = bool(
+                    len(decoded.rows) == 1
+                    and decoded.rows[0][1] is None
+                    and type(decoded.rows[0][0]) is bytes
+                    and hmac.compare_digest(
+                        decoded.rows[0][0], resolution.credential_digest
+                    )
+                )
+                if not resolution.device_checked:
+                    raise TenantBindingError("resolve端末資格が不一致")
+            elif type(operation) is _LookupExistingStartAttemptToken and decoded.rows:
+                attempt_id, outcome = decoded.rows[0]
+                if type(attempt_id) is not UUID or type(outcome) is not str:
+                    raise TenantBindingError("lookup実戻り型が不正")
+                resolution.attempt_id = attempt_id
+                resolution.outcome = outcome
         return _materialize_rows(decoded.rows)
 
     def _ensure_rg1_lease(self) -> None:
@@ -228,6 +457,8 @@ class _TenantTransaction:
         if state_key is None or state_key not in _TRANSACTION_RUNTIMES:
             raise RuntimeError("トランザクションハンドルは失効している")
         session, _ = _TRANSACTION_RUNTIMES[state_key]
+        if state_key in _INITIAL_ACTOR_STATES:
+            raise TenantBindingError("初期権actorへ汎用savepointを公開できない")
         with session.begin_nested():
             return self.run(operation)
 
@@ -235,9 +466,15 @@ class _TenantTransaction:
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_handle")
+    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase")
 
-    def __init__(self, context: TenantContext) -> None:
+    def __init__(
+        self,
+        context: TenantContext,
+        *,
+        _actor_runtime: object | None = None,
+        _actor_phase: Literal["intent", "business", "enroll"] | None = None,
+    ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
         Args:
@@ -245,6 +482,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         """
         self._context = context
         self._handle: _TenantTransaction | None = None
+        self._actor_runtime = _actor_runtime
+        self._actor_phase = _actor_phase
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -266,10 +505,24 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         bound_tenant_id = self._context.tenant_id
         bound_integrity_proof = self._context._integrity_proof
 
-        session = Session(create_database_engine())
+        if self._actor_runtime is None:
+            if self._actor_phase is not None:
+                raise TenantBindingError("actor phaseとruntimeが不一致")
+            engine = create_database_engine()
+        else:
+            from pitchlog.recording_rights.initial_grant_broker import (
+                _initial_actor_engine,
+            )
+
+            if self._actor_phase not in ("intent", "business", "enroll"):
+                raise TenantBindingError("actor phaseが未登録")
+            engine = _initial_actor_engine(self._actor_runtime)
+        session = Session(engine)
         exit_stack = ExitStack()
         state_key = object()
         _TRANSACTION_RUNTIMES[state_key] = (session, exit_stack)
+        if self._actor_runtime is not None and self._actor_phase is not None:
+            _INITIAL_ACTOR_STATES[state_key] = (self._actor_runtime, self._actor_phase)
         handle: _TenantTransaction | None = None
         try:
             handle = _TenantTransaction(
@@ -287,6 +540,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         except BaseException as primary_error:
             expired_key = state_key if handle is None else handle._expire()
             runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
+            _INITIAL_ACTOR_STATES.pop(expired_key, None)
             self._handle = None
             runtime_session = session if runtime is None else runtime[0]
             try:
@@ -368,9 +622,13 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         expired_key = handle._expire()
         self._handle = None
         runtime = _TRANSACTION_RUNTIMES.pop(expired_key, None)
+        _INITIAL_ACTOR_STATES.pop(expired_key, None)
         if runtime is None:
             raise RuntimeError("トランザクションハンドルの実行状態が既に失効している")
         session, exit_stack = runtime
+        binding = _ENROLL_BINDINGS.get(expired_key)
+        if binding is not None and exception is None:
+            binding.commit_attempted = True
         try:
             exit_result = ExitStack.__exit__(
                 exit_stack,
@@ -385,6 +643,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
                 raise primary_error from close_error
             raise
 
+        if binding is not None and exception is None:
+            binding.commit_completed = True
         try:
             session.close()
         except BaseException as close_error:
@@ -406,3 +666,236 @@ def tenant_transaction_scope(
         Session の生成・束縛・確定・取消・close を所有するスコープ。
     """
     return _TenantTransactionScope(context)
+
+
+def _assert_initial_actor_transaction(
+    handle: _TenantTransaction,
+    context: TenantContext,
+    phase: Literal["intent", "business", "enroll"],
+) -> None:
+    """真正な実登録actorハンドルと同一tenant/phaseを毎回照合する。"""
+    from pitchlog.recording_rights.initial_grant_broker import _initial_actor_engine
+
+    if type(handle) is not _TenantTransaction or type(context) is not TenantContext:
+        raise TenantBindingError("初期権scopeの型が不正")
+    key = handle._state_key
+    actor = _INITIAL_ACTOR_STATES.get(key)
+    if (
+        key is None
+        or key not in _TRANSACTION_RUNTIMES
+        or actor is None
+        or actor[1] != phase
+        or handle._context is not context
+        or handle._bound_tenant_id != context.tenant_id
+        or handle._bound_integrity_proof != context._integrity_proof
+        or not context._has_valid_integrity_proof()
+    ):
+        raise TenantBindingError("初期権scopeは失効又は別文脈")
+    _initial_actor_engine(actor[0])
+
+
+def _initial_actor_transaction_scope(
+    context: TenantContext,
+    actor_runtime: object,
+    phase: Literal["intent", "business", "enroll"],
+) -> AbstractContextManager[_TenantTransaction]:
+    """登録済みactorの閉scopeを作り、既tenant境界/commit処理を再利用する。"""
+    if phase not in ("intent", "business", "enroll"):
+        raise TenantBindingError("初期権scopeのphaseが不正")
+    return _TenantTransactionScope(
+        context, _actor_runtime=actor_runtime, _actor_phase=phase
+    )
+
+
+def _validate_initial_memory_operation(
+    handle: _TenantTransaction, operation: TenantOperationToken
+) -> None:
+    """開始で検証済みの自チームexact5操作だけを同handleに限定する。"""
+    from pitchlog.repositories.initial_recording_right import _SCOPE_BINDINGS
+    from pitchlog.repositories.lineup_memory import (
+        LineupMemoryReadToken,
+        _ActiveLineupPlayerLockToken,
+        _LineupMemoryInsertToken,
+        _LineupMemoryUpdateToken,
+        _SelfTeamLockToken,
+    )
+
+    binding = _START_MEMORY_BINDINGS.get(handle._state_key)
+    if binding is None:
+        raise TenantBindingError("初期権actorへ汎用DMLを公開できない")
+    scope, bound, team, lineup = binding
+    if (
+        scope not in _SCOPE_BINDINGS
+        or scope._transaction is not handle
+        or scope._start_payload is not bound
+    ):
+        raise TenantBindingError("開始UM2束縛が失効")
+    scope._require_device()
+    if not scope._game_locked or scope._outcome != "pending":
+        raise TenantBindingError("開始UM2のphaseが不正")
+    _assert_initial_actor_transaction(handle, handle._context, "business")
+    if type(operation) not in {
+        _SelfTeamLockToken,
+        _ActiveLineupPlayerLockToken,
+        LineupMemoryReadToken,
+        _LineupMemoryInsertToken,
+        _LineupMemoryUpdateToken,
+    }:
+        raise TenantBindingError("開始UM2のexact操作でない")
+    if type(operation) is _LineupMemoryUpdateToken:
+        # 既UM2のread直後に選んだ同一memoryだけを更新できる。
+        expected_id = handle.run(LineupMemoryReadToken(team)).rows
+        if len(expected_id) != 1 or operation.id != expected_id[0][0]:
+            raise TenantBindingError("開始UM2の更新対象が不一致")
+    elif getattr(operation, "team_record_id", None) != team:
+        raise TenantBindingError("開始UM2の自チームが不一致")
+    if type(operation) is _ActiveLineupPlayerLockToken:
+        if operation.player_id not in {UUID(e["player_id"]) for e in lineup}:
+            raise TenantBindingError("開始UM2の選手が不一致")
+    if type(operation) in {_LineupMemoryInsertToken, _LineupMemoryUpdateToken}:
+        import json
+
+        from pitchlog.domainrt.first_pitch import _invalid_constant, _unique_object
+
+        try:
+            actual = json.loads(
+                getattr(operation, "lineup_json"),
+                object_pairs_hook=_unique_object,
+                parse_constant=_invalid_constant,
+            )
+        except ValueError:
+            raise TenantBindingError("開始UM2のpayloadが不正") from None
+        if actual != list(lineup):
+            raise TenantBindingError("開始UM2のpayloadが不一致")
+
+
+def _save_initial_lineup_memory(
+    scope: InitialRecordingRightScope,
+    bound: BoundInitialStartPayload,
+    team: UUID,
+    lineup: tuple[dict[str, Any], ...],
+) -> None:
+    """閉start hookから既UM2を短命登録内で直接呼ぶ。callbackを渡さない。"""
+    from pitchlog.repositories.initial_recording_right import _SCOPE_BINDINGS
+    from pitchlog.repositories.lineup_memory import save_lineup_memory
+
+    if scope not in _SCOPE_BINDINGS or scope._start_payload is not bound:
+        raise TenantBindingError("開始UM2の真正scopeがない")
+    scope._require_device()
+    bound.assert_owner(scope._owner)
+    context = scope._start_context
+    if (
+        context is None
+        or str(team) != context["self_team_id"]
+        or not scope._game_locked
+        or scope._outcome != "pending"
+    ):
+        raise TenantBindingError("開始UM2の検証済contextがない")
+    side = "away" if str(team) == context["away_team_id"] else "home"
+    expected = tuple(
+        {k: v for k, v in e.items() if k != "uniform_number_snapshot"}
+        for e in context[side]
+    )
+    if lineup != expected:
+        raise TenantBindingError("開始UM2の確定payloadが不一致")
+    handle = scope._transaction
+    _assert_initial_actor_transaction(handle, handle._context, "business")
+    key = handle._state_key
+    if key in _START_MEMORY_BINDINGS:
+        raise TenantBindingError("開始UM2へ再入できない")
+    _START_MEMORY_BINDINGS[key] = (scope, bound, team, lineup)
+    try:
+        save_lineup_memory(handle, team, lineup)
+    finally:
+        _START_MEMORY_BINDINGS.pop(key, None)
+
+
+@contextmanager
+def _initial_enrollment_transaction_scope(
+    binding: _EnrollmentBinding,
+) -> Iterator[_TenantTransaction]:
+    """新1関数だけを真正な同Sessionへ束縛し、確定後も登録を残さない。"""
+    if type(binding) is not _EnrollmentBinding or (
+        type(binding.device_id) is not UUID
+        or type(binding.credential_digest) is not bytes
+        or len(binding.credential_digest) != 32
+        or binding.consumed
+        or binding.commit_attempted
+        or binding.commit_completed
+    ):
+        raise TenantBindingError("enroll束縛値が不正")
+    binding.consumed = True
+    key = None
+    try:
+        with _initial_actor_transaction_scope(
+            binding.context, binding.runtime, "enroll"
+        ) as handle:
+            key = handle._state_key
+            if key is None or key in _ENROLL_BINDINGS:
+                raise TenantBindingError("enroll scopeが不正")
+            _ENROLL_BINDINGS[key] = binding
+            yield handle
+    finally:
+        if key is not None:
+            _ENROLL_BINDINGS.pop(key, None)
+
+
+@contextmanager
+def _initial_resolution_transaction_scope(
+    binding: _ResolutionBinding,
+) -> Iterator[_TenantTransaction]:
+    """新規作成を許さない、同Sessionのlookup/既存再交付登録。"""
+    if type(binding) is not _ResolutionBinding or binding.consumed:
+        raise TenantBindingError("resolve登録が不正又は再使用")
+    binding.consumed = True
+    key = None
+    try:
+        with _initial_actor_transaction_scope(
+            binding.context, binding.runtime, "business"
+        ) as handle:
+            key = handle._state_key
+            if key is None or key in _RESOLVE_BINDINGS:
+                raise TenantBindingError("resolve実scopeが不正")
+            _RESOLVE_BINDINGS[key] = binding
+            yield handle
+    finally:
+        if key is not None:
+            _RESOLVE_BINDINGS.pop(key, None)
+
+
+def _assert_existing_resolution_owner(handle, context, runtime, owner, bound) -> None:
+    """lookupの実結果とowner全値を照合し、別Sessionへadapterを移さない。"""
+    from pitchlog.repositories.game_start import BoundInitialStartPayload
+    from pitchlog.repositories.initial_recording_right import _StartOwner
+
+    _assert_initial_actor_transaction(handle, context, "business")
+    binding = _RESOLVE_BINDINGS.get(handle._state_key)
+    if (
+        binding is None
+        or binding.runtime is not runtime
+        or binding.context is not context
+        or not binding.looked_up
+        or not binding.device_checked
+        or binding.outcome != "committed"
+        or type(owner) is not _StartOwner
+        or type(bound) is not BoundInitialStartPayload
+    ):
+        raise TenantBindingError("committed resolve登録がない")
+    owner.__post_init__()
+    bound.assert_owner(owner)
+    if (
+        owner.game_id,
+        owner.start_request_id,
+        owner.device_id,
+        owner.attempt_id,
+        owner.request_digest,
+        bound.credential_digest,
+    ) != (
+        binding.game_id,
+        binding.start_request_id,
+        binding.device_id,
+        binding.attempt_id,
+        binding.request_digest,
+        binding.credential_digest,
+    ):
+        raise TenantBindingError("committed resolveの実ownerが不一致")

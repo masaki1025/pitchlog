@@ -86,6 +86,7 @@ _DATABASE_PEERS = (
     "pitchlog_rg1_control_actor",
     "pitchlog_ledger_identity_probe",
     "pitchlog_initial_actor",
+    "pitchlog_initial_auth_verifier",
 )
 _EXPECTED_DATABASE["acl_expectations"].update(
     (role, "CONNECT", False) for role in _DATABASE_PEERS
@@ -151,6 +152,27 @@ _EXPECTED_SCHEMAS.update(
         },
     }
 )
+
+# 初期権owner/actorは公開schemaを使用し、新APIはactorだけに公開する。
+for _role in ("pitchlog_initial_fn_owner", "pitchlog_initial_actor"):
+    _EXPECTED_SCHEMAS["public"]["acl_expectations"].add((_role, "USAGE", False))
+    _EXPECTED_SCHEMAS["public"]["revoked_acl_expectations"].add(
+        (_role, "CREATE", False)
+    )
+_EXPECTED_SCHEMAS["initial_right_api"] = {
+    "schema_name": "initial_right_api",
+    "creation": "product_ddl",
+    "owner": "pitchlog_initial_fn_owner",
+    "ownership_path": "direct",
+    "acl_expectations": {("pitchlog_initial_actor", "USAGE", False)},
+    "revoked_acl_expectations": {
+        ("PUBLIC", "USAGE", False),
+        ("PUBLIC", "CREATE", False),
+        ("pitchlog_app", "USAGE", False),
+        ("pitchlog_app", "CREATE", False),
+        ("pitchlog_initial_actor", "CREATE", False),
+    },
+}
 
 
 def _load_catalog_checker() -> Any:
@@ -322,6 +344,7 @@ def test_product_database_and_schema_assets_match_design() -> None:
             "pitchlog_app",
             "pitchlog_management_fn_owner",
             "pitchlog_auth_fn_owner",
+            "pitchlog_initial_auth_verifier",
         )
     }
     assert normalized["authn_crypto"]["owner"] == "pitchlog_owner"

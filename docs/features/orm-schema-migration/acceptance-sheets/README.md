@@ -20,10 +20,10 @@ uv run python scripts/generate_orm_acceptance_sheets.py --carry-judgments-from <
 
 ## シート
 
-- [N1 表の全数性](N1-table-completeness.md): 103 行
-- [N3 不変列マトリクスの全数性](N3-immutability-completeness.md): 112 行
-- [N4 削除系統の割り当て](N4-deletion-lifecycle.md): 55 行
-- [N7 必須属性の全数性](N7-required-attributes.md): 101 行
+- [N1 表の全数性](N1-table-completeness.md): 104 行
+- [N3 不変列マトリクスの全数性](N3-immutability-completeness.md): 113 行
+- [N4 削除系統の割り当て](N4-deletion-lifecycle.md): 59 行
+- [N7 必須属性の全数性](N7-required-attributes.md): 105 行
 
 ## シートを作らない受け取り先
 

@@ -1330,16 +1330,31 @@ def _product_migration_url(dsn: str) -> str:
     ).render_as_string(hide_password=False)
 
 
+def _close_owned_seed_database_access(cluster: DisposablePostgres) -> None:
+    """同factoryの実所有seedだけのPUBLIC接続・一時表権限を閉じる。"""
+    # 外部供給経路では呼ばない。同factoryの実所有clusterだけへ適用する。
+    assert _DISPOSABLE_CLUSTER_OWNERS.get(id(cluster)) is cluster
+    with psycopg.connect(cluster.admin_dsn) as seed_admin:
+        assert seed_admin.info.dbname == "pitchlog_disposable"
+        seed_admin.execute(
+            sql.SQL("REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC").format(
+                sql.Identifier(seed_admin.info.dbname)
+            )
+        )
+
+
 def _prepare_current_product_baseline(
     *,
+    cluster: DisposablePostgres,
     owner_dsn: str,
     applicator_dsn: str,
     applicator: psycopg.Connection[Any],
 ) -> None:
-    """正規段階起動と実取り外しで0035の未適用基準を用意する。
+    """所有seed DBの余剰公開権限を閉じ、0036の未適用基準を用意する。
 
     準備時のS3適用と、この基準からの独立DDL試験を区別する。
     """
+    _close_owned_seed_database_access(cluster)
     result = advance_stage_a_from_s0(
         owner_dsn=owner_dsn,
         applicator_dsn=applicator_dsn,
@@ -1347,7 +1362,7 @@ def _prepare_current_product_baseline(
     assert result.completed_stage == "S3" and result.publishable is False
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0035_rg1_initial_fresh_epoch",)]
+        assert cursor.fetchall() == [("0036_initial_right_storage",)]
     applicator.rollback()
     unapply_product_authz_ddl(applicator)
 
@@ -1446,6 +1461,7 @@ def provisioned_product_catalog(
             psycopg.connect(applicator_dsn) as observer,
         ):
             _prepare_current_product_baseline(
+                cluster=cluster,
                 owner_dsn=owner_dsn,
                 applicator_dsn=applicator_dsn,
                 applicator=applicator,
@@ -1754,6 +1770,7 @@ def _historical_product_catalog(
     try:
         with factory() as cluster:
             _require_historical_cluster(cluster)
+            _close_owned_seed_database_access(cluster)
             container_name = cluster.container_name
             published = _run_docker("port", container_name, "5432/tcp").stdout.strip()
             assert (

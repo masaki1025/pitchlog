@@ -33,6 +33,9 @@ _PROVISIONAL_PRODUCT_ROLES = {
 }
 _PRODUCT_ROLES = {
     **_PROVISIONAL_PRODUCT_ROLES,
+    "pitchlog_initial_auth_verifier": _role(
+        "product_ddl", login=True, bypass_rls=False
+    ),
     "pitchlog_auth_fn_owner": _role("product_ddl", login=False, bypass_rls=True),
     "pitchlog_rg1_fn_owner": _role("product_ddl", login=False, bypass_rls=False),
     "pitchlog_rule_resolution_fn_owner": _role(
@@ -74,7 +77,7 @@ MIGRATION_BATCH_ROLE_ATTRIBUTES = {
 
 
 def expected_product_roles(asset: dict[str, Any]) -> dict[str, dict[str, object]]:
-    """資産の有無に依存しない、製品状態の 13 ロールを返す。
+    """資産の有無に依存しない、製品状態の 14 ロールを返す。
 
     Args:
         asset: 呼出側との互換性のために受け取る製品資産。判定には使わない。
@@ -90,6 +93,7 @@ def expected_provisional_product_roles() -> dict[str, dict[str, object]]:
 
 _LIFECYCLE_ROLE_IDS = frozenset(
     {
+        "pitchlog_initial_auth_verifier",
         "pitchlog_rg1_control_owner",
         "pitchlog_rg1_control_actor",
         "pitchlog_ledger_identity_owner",

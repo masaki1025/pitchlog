@@ -12,8 +12,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
 import type_boundary_contract
-from sqlalchemy import MetaData, Table
+from sqlalchemy import Column, Integer, MetaData, Table
 from type_boundary_contract import (
     _markdown_tables,
     _plain_markdown_cell,
@@ -106,8 +107,27 @@ def _immutability_coverage_violation(
     return None
 
 
+# 6-1の採用済み保存表だけに属する2制約。3-4の全数表へ架空の行を加えない。
+_INITIAL_STORAGE_UNIQUE_SOURCES = {
+    "game_start_attempts": "uq_game_start_attempts_pending",
+    "recording_right_deliveries": "uq_recording_right_deliveries_request",
+}
+
+
+def _initial_storage_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
+    """6-1の実在する全原文行と制約の有限対応を返す。"""
+    body = _section_body(document, "6-1")
+    result: set[tuple[str, str, str, str]] = set()
+    for table, constraint in _INITIAL_STORAGE_UNIQUE_SOURCES.items():
+        rows = [line for line in body.splitlines() if line.startswith(f"| `{table}` |")]
+        if len(rows) != 1:
+            raise ValueError(f"6-1の一意性原典行が一意でない: {table}")
+        result.add(("6-1", rows[0], table, constraint))
+    return result
+
+
 def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
-    """3-4 節の業務的一意性全数表を節見出しから抽出する。"""
+    """3-4の全数表と6-1の有限追加2行を別の原典形式で抽出する。"""
     body = _section_body(document, "3-4")
     for headers, rows in _markdown_tables(body):
         if headers == ["節", "一意性", "キーの形", "判定"]:
@@ -121,7 +141,7 @@ def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
                     else "scoped",
                 )
                 for section, uniqueness, key_shape, judgement in rows
-            }
+            } | _initial_storage_uniqueness_rows(document)
     raise ValueError("3-4 節の業務的一意性全数表を解決できない")
 
 
@@ -130,25 +150,33 @@ def _destination_categories(document: str) -> set[str]:
     return set(type_boundary_contract.destination_columns(document))
 
 
+def _manifest_business_uniqueness_row(
+    table: dict[str, Any], constraint: dict[str, Any]
+) -> tuple[str, str, str, str]:
+    """原典形式ごとの完全キーを要求し、quote形式を有限2制約へ閉じる。"""
+    row = constraint["source_row"]
+    if set(row) == {"section", "quote"}:
+        if (
+            row["section"] != "6-1"
+            or _INITIAL_STORAGE_UNIQUE_SOURCES.get(table["name"]) != constraint["name"]
+        ):
+            raise ValueError("6-1 quoteの表/制約対応が未登録")
+        return (row["section"], row["quote"], table["name"], constraint["name"])
+    if set(row) != {"section", "uniqueness", "key_shape", "scope"}:
+        raise ValueError("business_uniqueの原典形式が不正")
+    return (row["section"], row["uniqueness"], row["key_shape"], row["scope"])
+
+
 def _manifest_business_uniqueness_rows(
     manifest: dict[str, Any],
 ) -> set[tuple[str, str, str, str]]:
-    """Manifest の business_unique タグ付き制約を比較用集合にする。"""
-    rows: set[tuple[str, str, str, str]] = set()
-    for table in manifest["tables"]:
-        for constraint in table["unique_constraints"]:
-            if "business_unique" not in constraint["roles"]:
-                continue
-            source_row = constraint["source_row"]
-            rows.add(
-                (
-                    source_row["section"],
-                    source_row["uniqueness"],
-                    source_row["key_shape"],
-                    source_row["scope"],
-                )
-            )
-    return rows
+    """Manifest の業務的一意性を原典帰属込みの比較用集合にする。"""
+    return {
+        _manifest_business_uniqueness_row(table, constraint)
+        for table in manifest["tables"]
+        for constraint in table["unique_constraints"]
+        if "business_unique" in constraint["roles"]
+    }
 
 
 def _business_uniqueness_violations(
@@ -395,12 +423,7 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
             violations.append(f"{name}: 主キーがちょうど 1 件ではない")
 
     business_rows = [
-        (
-            constraint["source_row"]["section"],
-            constraint["source_row"]["uniqueness"],
-            constraint["source_row"]["key_shape"],
-            constraint["source_row"]["scope"],
-        )
+        _manifest_business_uniqueness_row(table, constraint)
         for table in manifest["tables"]
         for constraint in table["unique_constraints"]
         if "business_unique" in constraint["roles"]
@@ -421,11 +444,75 @@ def _manifest_shape_violations(manifest: dict[str, Any]) -> list[str]:
     return violations
 
 
+def _executed_literal_table_names(tree: ast.Module) -> set[str]:
+    """upgrade内で直接実行する固定tupleのCREATE TABLEだけを抽出する。"""
+    assignments = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+        and node.id == "_TABLE_DDL"
+        and isinstance(node.ctx, ast.Store)
+    ]
+    declarations = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "_TABLE_DDL"
+        and isinstance(node.value, ast.Tuple)
+        and all(
+            isinstance(item, ast.Constant) and type(item.value) is str
+            for item in node.value.elts
+        )
+    ]
+    if len(assignments) != 1 or len(declarations) != 1:
+        return set()
+    loops = [
+        node
+        for function in tree.body
+        if isinstance(function, ast.FunctionDef) and function.name == "upgrade"
+        for node in function.body
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and isinstance(node.iter, ast.Name)
+        and node.iter.id == "_TABLE_DDL"
+        and not node.orelse
+        and len(node.body) == 1
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Call)
+        and isinstance(node.body[0].value.func, ast.Attribute)
+        and isinstance(node.body[0].value.func.value, ast.Name)
+        and node.body[0].value.func.value.id == "op"
+        and node.body[0].value.func.attr == "execute"
+        and not node.body[0].value.keywords
+        and len(node.body[0].value.args) == 1
+        and isinstance(node.body[0].value.args[0], ast.Name)
+        and node.body[0].value.args[0].id == node.target.id
+    ]
+    if len(loops) != 1:
+        return set()
+    names: set[str] = set()
+    literal_tuple = declarations[0].value
+    assert isinstance(literal_tuple, ast.Tuple)
+    for item in literal_tuple.elts:
+        assert isinstance(item, ast.Constant) and isinstance(item.value, str)
+        match = re.fullmatch(
+            r"\s*CREATE TABLE public\.([a-z_][a-z0-9_]*)\s*\(.*\)\s*",
+            item.value,
+            flags=re.DOTALL,
+        )
+        if match is not None and ";" not in item.value:
+            names.add(match[1])
+    return names
+
+
 def _migration_table_names(migrations_path: Path) -> set[str]:
-    """Migration ディレクトリを全走査して create_table の対象を返す。"""
+    """create_tableとupgradeで実行する固定DDLの表名を静的に抽出する。"""
     table_names: set[str] = set()
     for migration_path in migrations_path.rglob("*.py"):
         tree = ast.parse(migration_path.read_text(encoding="utf-8"))
+        table_names.update(_executed_literal_table_names(tree))
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not isinstance(
                 node.func, ast.Attribute
@@ -768,3 +855,158 @@ def test_one_sided_table_implementation_remains_missing() -> None:
     assert (
         _missing_implementation_tables(manifest_tables, {"example"}, {"example"}) == []
     )
+
+
+@pytest.mark.parametrize(
+    "revision",
+    [
+        "0032_rg1_restore_gate",
+        "0033_game_rules_immutable",
+        "0035_rg1_initial_fresh_epoch",
+    ],
+)
+def test_historical_projection_excludes_only_declared_migration_changes(
+    revision: str,
+) -> None:
+    """DBへ接続せず歴史射影の全表/全列と現在metadataの不変を照合する。"""
+    from db.test_alembic_migrations import (
+        test_historical_metadata_copy_retains_all_other_tables,
+    )
+
+    before = {
+        name: tuple(table.c.keys()) for name, table in Base.metadata.tables.items()
+    }
+    test_historical_metadata_copy_retains_all_other_tables(revision)
+    assert before == {
+        name: tuple(table.c.keys()) for name, table in Base.metadata.tables.items()
+    }
+
+
+def test_literal_table_ddl_requires_actual_upgrade_loop() -> None:
+    """未実行文字列や別用途のSQLをmigration表の存在証明にしない。"""
+    declaration = "_TABLE_DDL = ('CREATE TABLE public.example (id UUID)',)\n"
+    execution = "def upgrade():\n    for ddl in _TABLE_DDL:\n        op.execute(ddl)\n"
+    assert _executed_literal_table_names(ast.parse(declaration + execution)) == {
+        "example"
+    }
+    for source in (
+        declaration,
+        declaration + execution.replace("upgrade", "downgrade"),
+        declaration + execution.replace("op.execute", "print"),
+        declaration + execution.replace("op.execute(ddl)", "op.execute('SELECT 1')"),
+        declaration + "_TABLE_DDL = ()\n" + execution,
+        declaration.replace("public.example", "other.example") + execution,
+        declaration.replace("(id UUID)", "(id UUID); DROP TABLE public.other")
+        + execution,
+        declaration.replace("'CREATE TABLE public.example (id UUID)'", "make_ddl()")
+        + execution,
+    ):
+        assert _executed_literal_table_names(ast.parse(source)) == set()
+
+
+@pytest.mark.parametrize(
+    "mutation", ["quote", "constraint", "table", "section", "extra"]
+)
+def test_initial_storage_uniqueness_provenance_is_exact(mutation: str) -> None:
+    """6-1全原文/表/制約の付け替えや部分引用を拒否する。"""
+    manifest = copy.deepcopy(_load_manifest())
+    table = next(t for t in manifest["tables"] if t["name"] == "game_start_attempts")
+    constraint = next(
+        c
+        for c in table["unique_constraints"]
+        if c["name"] == "uq_game_start_attempts_pending"
+    )
+    if mutation == "quote":
+        constraint["source_row"]["quote"] = "同一requestのpendingは部分一意1件"
+    elif mutation == "constraint":
+        constraint["name"] = "other_constraint"
+    elif mutation == "table":
+        table["name"] = "other_table"
+    elif mutation == "section":
+        constraint["source_row"]["section"] = "3-4"
+    else:
+        constraint["source_row"]["ignore"] = True
+    document = _DATA_MODEL_PATH.read_text(encoding="utf-8")
+    if mutation == "quote":
+        assert len(_business_uniqueness_violations(document, manifest)) == 2
+    else:
+        with pytest.raises(ValueError):
+            _business_uniqueness_violations(document, manifest)
+
+
+def test_historical_projection_uses_only_0036_declared_changes() -> None:
+    """除外表/列/CHECKが承認済0036 upgradeのexact集合に一致する。"""
+    from db.test_alembic_migrations import _INITIAL_RIGHT_STORAGE_TABLES
+
+    tree = ast.parse(
+        (_MIGRATIONS_PATH / "0036_initial_recording_right_storage.py").read_text(
+            encoding="utf-8"
+        )
+    )
+    declaration = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.Assign)
+        and any(
+            isinstance(target, ast.Name) and target.id == "_TABLE_NAMES"
+            for target in node.targets
+        )
+    )
+    assert set(ast.literal_eval(declaration.value)) == _INITIAL_RIGHT_STORAGE_TABLES
+    upgrade = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+    )
+    columns: set[tuple[str, str]] = set()
+    checks: set[tuple[str, str]] = set()
+    for node in ast.walk(upgrade):
+        if (
+            not isinstance(node, ast.Call)
+            or not isinstance(node.func, ast.Attribute)
+            or not isinstance(node.func.value, ast.Name)
+            or node.func.value.id != "op"
+        ):
+            continue
+        if node.func.attr == "add_column":
+            table, column = node.args[:2]
+            assert isinstance(table, ast.Constant) and isinstance(table.value, str)
+            assert isinstance(column, ast.Call) and isinstance(
+                column.args[0], ast.Constant
+            )
+            assert isinstance(column.args[0].value, str)
+            columns.add((table.value, column.args[0].value))
+        elif node.func.attr == "create_check_constraint":
+            name, table = node.args[:2]
+            assert isinstance(name, ast.Constant) and isinstance(table, ast.Constant)
+            assert isinstance(table.value, str) and isinstance(name.value, str)
+            checks.add((table.value, name.value))
+    assert columns == {
+        ("recording_generations", "proof_digest"),
+        ("recording_generations", "recovery_generation"),
+    }
+    assert checks == {
+        ("recording_generations", "ck_recording_generations_proof_digest"),
+        ("recording_generations", "ck_recording_generations_recovery_generation"),
+    }
+
+
+def test_historical_projection_keeps_unknown_table_and_missing_known_table(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未知の余剰表や既存表の欠落を射影によって隠さない。"""
+    from db.test_alembic_migrations import _metadata_for_schema_revision
+
+    partial = MetaData()
+    Table("unexpected_table", partial, Column("id", Integer, primary_key=True))
+    monkeypatch.setattr(Base, "metadata", partial)
+    for revision in (
+        "0032_rg1_restore_gate",
+        "0033_game_rules_immutable",
+        "0035_rg1_initial_fresh_epoch",
+    ):
+        projected = _metadata_for_schema_revision(revision)
+        assert set(projected.tables) == {"unexpected_table"}
+        assert tuple(projected.tables["unexpected_table"].c.keys()) == ("id",)
+        assert "rg1_restore_gate" not in projected.tables
+        assert "recording_generations" not in projected.tables

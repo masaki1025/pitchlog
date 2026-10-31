@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 5,
+  "contract_revision": 6,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:5"
+        "contract_revision:6"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -20,7 +20,11 @@
           "scripts/frozen_archive.py",
           "tests/domain/test_boot_seal.py",
           "tests/test_ci_wiring.py",
-          "tests/test_plan_generation.py"
+          "tests/test_plan_generation.py",
+          "backend/tests/test_api_conventions.py",
+          "tests/test_check_authz_catalog.py",
+          "scripts/check_tenant_boundary_bypass.py",
+          "tests/test_census_baseline_check.py"
         ]
       }
     },
@@ -68,6 +72,26 @@
       "algorithm": "sha256",
       "purpose": "pb_false 封印の固定 blob digest",
       "source": "tests/test_plan_generation.py:PB_FALSE_SEAL.blobDigest"
+    },
+    "initial_response_revision": {
+      "value": "5c61271fc97855f485120d6ab94525bab51866b9",
+      "purpose": "旧InitialGameStartResponseのepoch不在対向の固定原典",
+      "source": "backend/tests/test_api_conventions.py:_INITIAL_RESPONSE_REVISION"
+    },
+    "historical_lifecycle_schema_revision": {
+      "value": "3a24f89e15987ecef3dc45a1173ab99b5f79d16e",
+      "purpose": "旧lifecycle7schema対向の固定原典",
+      "source": "tests/test_check_authz_catalog.py:historical_lifecycle_schema_input"
+    },
+    "ci_scope_proof_source_revision": {
+      "value": "f174428d005b2013a02efd35d3774bfb538b08b9",
+      "purpose": "既承認PR188のscope guardと純粋helper/caller閉包の全byteを不変Git原典へ固定する",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
+        "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
+        "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
+        "tests/test_census_baseline_check.py:_validated_initial_population_suppression"
+      ]
     }
   }
 }

@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 22
+RUNTIME_CONTRACT_REVISION = 23
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "8b94635ec4f2c39dd986c3c09323f58624cb8b65bac0f57a3cec505a21730209"
+SOURCE_DIGEST = "609148c8b3b7c2dbacd5ed31d49ed8cc671888cc2b51e2e7ec71a66c990e3320"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -39,6 +39,7 @@ PROTECTED_SCHEMAS = (
     "authn",
     "authn_crypto",
     "authz_private",
+    "initial_right_api",
     "pitchlog_ledger_observer",
     "public",
     "rg1_api",
@@ -53,6 +54,8 @@ PROTECTED_TABLES = (
     ("public", "evacuated_event_originals"),
     ("public", "event_slots"),
     ("public", "game_lineups"),
+    ("public", "game_start_attempts"),
+    ("public", "game_start_requests"),
     ("public", "game_type_rule_defaults"),
     ("public", "games"),
     ("public", "group_invitations"),
@@ -77,6 +80,7 @@ PROTECTED_TABLES = (
     ("public", "players"),
     ("public", "rate_limit_counters"),
     ("public", "recording_generations"),
+    ("public", "recording_right_deliveries"),
     ("public", "rejected_event_originals"),
     ("public", "rg1_restore_gate"),
     ("public", "rule_sets"),
@@ -91,6 +95,7 @@ PROTECTED_TABLES = (
     ("public", "tenant_vocabularies"),
     ("public", "tenants"),
     ("public", "tournament_rule_assignments"),
+    ("public", "trusted_devices"),
 )
 PROTECTED_FUNCTIONS = (
     ("authn", "change_password", "uuid, text, text"),
@@ -106,6 +111,35 @@ PROTECTED_FUNCTIONS = (
     ("authn", "setting_positive_integer", "text"),
     ("authn", "verify_token", "uuid"),
     ("authz_private", "tenant_has_effective_membership", "uuid, boolean"),
+    ("initial_right_api", "begin_start_attempt", "uuid, uuid, uuid, uuid, bytea, uuid"),
+    ("initial_right_api", "check_business_epoch", "uuid, bigint"),
+    ("initial_right_api", "enroll_device", "uuid, uuid, bytea"),
+    (
+        "initial_right_api",
+        "insert_initial_grant",
+        "uuid, uuid, uuid, uuid, uuid, bigint, bigint, bytea, text, bytea, bytea",
+    ),
+    ("initial_right_api", "lock_current_start", "uuid, uuid, uuid"),
+    ("initial_right_api", "lock_device", "uuid, uuid"),
+    ("initial_right_api", "lock_preparing_game", "uuid, uuid"),
+    (
+        "initial_right_api",
+        "lookup_existing_start_attempt",
+        "uuid, uuid, uuid, uuid, bytea",
+    ),
+    (
+        "initial_right_api",
+        "persist_initial_start",
+        "uuid, uuid, uuid, uuid, bytea, text",
+    ),
+    ("initial_right_api", "read_existing_start", "uuid, uuid, uuid"),
+    (
+        "initial_right_api",
+        "read_initial_start_context",
+        "uuid, uuid, uuid, uuid, bytea, text",
+    ),
+    ("initial_right_api", "read_start_game", "uuid, uuid"),
+    ("initial_right_api", "resolve_start_attempt", "uuid, uuid, uuid, uuid"),
     ("pitchlog_ledger_observer", "identity", ""),
     ("public", "authn_normalize_team_name", "text"),
     ("public", "prevent_admin_credentials_id_update", ""),
@@ -145,6 +179,7 @@ PROTECTED_FUNCTIONS = (
     ("public", "prevent_tenant_credentials_subject_update", ""),
     ("public", "prevent_tenant_tokens_identity_update", ""),
     ("public", "prevent_tenant_vocabularies_identity_update", ""),
+    ("public", "protect_initial_right_storage", ""),
     ("public", "protect_recording_generations_updates", ""),
     ("public", "resolve_stage_a_rule", "uuid, text, text, boolean"),
     ("public", "verify_games_applied_rules_final", ""),

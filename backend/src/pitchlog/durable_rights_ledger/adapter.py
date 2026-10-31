@@ -405,12 +405,18 @@ class _Fence(RecoveryEpochFence):
 class _PgLedgerPair:
     """authorityがjournal照合に用いる私有の実同期PG部品。"""
 
-    def __init__(self, endpoints: LedgerEndpoints) -> None:
+    def __init__(
+        self,
+        endpoints: LedgerEndpoints,
+        *,
+        business_peer: tuple[int, int] | None = None,
+    ) -> None:
         """隔離初回pairを同定し、その起動identityへ寿命を固定する。"""
         if type(endpoints) is not LedgerEndpoints:
             raise LedgerUnavailable("ledger unavailable")
         _require_client()
         self._endpoints = endpoints
+        self._business_peer = business_peer
         self._lock = RLock()
         self._closed = False
         self._primary: dict[str, Any] = {}
@@ -438,6 +444,16 @@ class _PgLedgerPair:
         with _connection(
             self._endpoints.business_dsn, self._endpoints.timeout
         ) as connection:
+            if self._business_peer is not None:
+                # v2のroot固定値を、実接続のkernel主体とも毎回照合する。
+                with socket.fromfd(
+                    connection.fileno(), socket.AF_UNIX, socket.SOCK_STREAM
+                ) as peer:
+                    _, uid, gid = struct.unpack(
+                        "3i", peer.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+                    )
+                if (uid, gid) != self._business_peer:
+                    raise LedgerUnavailable("ledger unavailable")
             role = _query(connection, "business_identity")
         if (
             len(role) != 3
@@ -829,7 +845,10 @@ class _AuthorityRuntime:
                 value["business_dsn"],
                 value["control_dsn"],
                 value["timeout"],
-            )
+            ),
+            business_peer=(value["database_uid"], value["database_gid"])
+            if value.get("schema_version") == 2
+            else None,
         )
 
     @classmethod
@@ -1288,12 +1307,25 @@ class _AuthorityRuntime:
         finally:
             self._mutex.release()
 
-    def handle(self, channel: socket.socket) -> None:
+    def handle(self, channel: socket.socket, *, role: str | None = None) -> None:
         """実peer認証済みchannel上で閉じた要求と実fenceだけを実行する。"""
         lease = None
         try:
             request = _receive(channel)
             operation = request.get("operation")
+            # roleはroot固定listenerからだけ受け、要求本文では選択しない。
+            # PG/fence/journalに触れる前に能力外の操作を拒否する。
+            _authorize_operation(role, operation)
+            if role is not None:
+                keys = (
+                    {"operation", "params"}
+                    if operation in ("reserve", "claim")
+                    else {"operation"}
+                )
+                if set(request) != keys:
+                    raise LedgerUnavailable("ledger unavailable")
+                if operation in ("reserve", "claim"):
+                    _params(request["params"])
             if operation not in ("fence_open", "fresh_activation_open"):
                 result = self._dispatch(operation, request)
                 _send(channel, {"status": "ok", "result": result})
@@ -1338,6 +1370,22 @@ class _AuthorityRuntime:
             if lease is not None:
                 self._active.discard(lease)
                 self._blocked = True
+
+
+def _authorize_operation(role: str | None, operation: object) -> None:
+    """v1の既存閉集合を保ち、v2だけを固定された二つの能力へ分離する。"""
+    if role is None:
+        return
+    allowed = {
+        "generation": frozenset({"epoch", "reserve", "claim", "fence_open"}),
+        "fresh_controller": frozenset({"fresh_activation_open"}),
+    }
+    if (
+        type(role) is not str
+        or type(operation) is not str
+        or operation not in allowed.get(role, ())
+    ):
+        raise LedgerUnavailable("ledger unavailable")
 
 
 def _receive(channel: socket.socket) -> dict[str, Any]:
@@ -1435,10 +1483,13 @@ class DurableLedger(DurableGenerationSource):
                 raise LedgerUnavailable("ledger unavailable")
             channel.settimeout(self._target["timeout"])
             channel.connect(self._target["socket_path"])
-            _, uid, _ = struct.unpack(
+            _, uid, gid = struct.unpack(
                 "3i", channel.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
             )
-            if uid != self._target["authority_uid"]:
+            if uid != self._target["authority_uid"] or (
+                self._target["schema_version"] == 2
+                and gid != self._target["authority_gid"]
+            ):
                 raise LedgerUnavailable("ledger unavailable")
             yield channel
         except OSError:
@@ -1448,6 +1499,7 @@ class DurableLedger(DurableGenerationSource):
 
     def current_recovery_generation(self) -> int:
         """実authorityが照合した現在epochだけを返す。"""
+        _authorize_operation(self._target.get("role"), "epoch")
         with self._channel() as channel:
             return _positive(_request(channel, {"operation": "epoch"}))
 
@@ -1455,6 +1507,7 @@ class DurableLedger(DurableGenerationSource):
         self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
     ) -> ReservedGeneration:
         """journal/実同期PGの両耐久化後にだけ単一ProtocolのDTOを返す。"""
+        _authorize_operation(self._target.get("role"), "reserve")
         params = (attempt_id, tenant_id, game_id, start_request_id)
         _owner(params)
         with self._channel() as channel:
@@ -1475,6 +1528,7 @@ class DurableLedger(DurableGenerationSource):
         self, attempt_id: UUID, tenant_id: UUID, game_id: UUID, start_request_id: UUID
     ) -> None:
         """一度のclaimとCONFIRMED fsyncを実authorityへ要求する。"""
+        _authorize_operation(self._target.get("role"), "claim")
         params = (attempt_id, tenant_id, game_id, start_request_id)
         _owner(params)
         with self._channel() as channel:
@@ -1496,6 +1550,7 @@ class DurableLedger(DurableGenerationSource):
     @contextmanager
     def recovery_fence(self) -> Iterator[RecoveryEpochFence]:
         """実共有epoch lockを同じ認証済みchannelで業務commitまで借用する。"""
+        _authorize_operation(self._target.get("role"), "fence_open")
         with self._channel() as channel:
             fence = _RemoteFence(
                 channel, _request(channel, {"operation": "fence_open"})
@@ -1514,6 +1569,7 @@ class DurableLedger(DurableGenerationSource):
         self,
     ) -> Iterator[tuple[FreshActivationAttestation, RecoveryEpochFence]]:
         """一度限り開始の不変metadataと同channelの実共有fenceを借用する。"""
+        _authorize_operation(self._target.get("role"), "fresh_activation_open")
         with self._channel() as channel:
             value = _request(
                 channel, {"operation": "fresh_activation_open"}, mutation=True

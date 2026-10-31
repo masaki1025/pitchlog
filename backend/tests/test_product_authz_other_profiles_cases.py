@@ -92,19 +92,20 @@ def _assert_fk_targets_precede(
 
 
 def test_other_profile_sets_are_derived_without_classification_asset() -> None:
-    """Manifest と露出事実だけで 1・4・4・14 表を exact に導く。"""
+    """Manifest と露出事実だけで 1・4・4・18表と列限定1表を exact に導く。"""
     profiles = cases.profile_table_names()
     helper_source = inspect.getsource(cases)
 
     assert {name: len(tables) for name, tables in profiles.items()} == {
-        "tenant_owned": 23,
+        "tenant_owned": 22,
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 14,
+        "function_only": 18,
+        "column_restricted": 1,
     }
     assigned = tuple(table for tables in profiles.values() for table in tables)
-    assert len(assigned) == len(set(assigned)) == 46
+    assert len(assigned) == len(set(assigned)) == 50
     assert set(assigned) == set(cases.manifest_table_names())
     assert "table-classification.json" not in helper_source
 
@@ -217,3 +218,33 @@ def test_each_helper_mutation_removes_one_condition_and_changes_exact_cells() ->
             or mutation.nonexistent_general_visible
             or mutation.nonexistent_invitation_visible
         )
+
+
+def test_generation_secret_columns_are_separate_and_closed(monkeypatch) -> None:
+    """既列の読取を保ち、秘密列母集団の欠落・余剰・重複を拒否する。"""
+    import copy
+
+    import pytest
+
+    assert cases.generation_secret_columns() == ("proof_digest", "recovery_generation")
+    assert cases.profile_table_names()["column_restricted"] == (
+        "recording_generations",
+    )
+    assert "recording_generations" not in cases.function_only_table_names()
+    asset = cases._load_object(cases._EXPOSURE_FACTS_PATH)
+    original = copy.deepcopy(asset)
+    for mode in ("missing", "extra", "duplicate"):
+        changed = copy.deepcopy(original)
+        entries = next(
+            f["entries"] for f in changed["facts"] if f["kind"] == "secret_column"
+        )
+        target = next(r for r in entries if r["table"] == "recording_generations")
+        if mode == "missing":
+            entries.remove(target)
+        else:
+            entries.append(
+                {**target, "column": "unknown"} if mode == "extra" else dict(target)
+            )
+        monkeypatch.setattr(cases, "_load_object", lambda path, asset=changed: asset)
+        with pytest.raises(AssertionError, match="exact2"):
+            cases.generation_secret_columns()

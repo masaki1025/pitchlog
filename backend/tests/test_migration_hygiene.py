@@ -572,6 +572,45 @@ def _dialect_read_is_safe(node: ast.Attribute, parents: Mapping[int, ast.AST]) -
         return not isinstance(parent, ast.Call)
 
 
+_INITIAL_OWNER_MIGRATION = "migrations/versions/0036_initial_recording_right_storage.py"
+_INITIAL_OWNER_GUARD = ast.parse(
+    'if op.get_bind().execute(sa.text("SELECT current_user")).scalar_one() '
+    '!= "pitchlog_owner":\n'
+    '    raise RuntimeError("初期権migrationには固定ownerが必要")\n'
+).body[0]
+
+
+def _initial_owner_guard_bind(tree: ast.Module) -> ast.Call | None:
+    """0036 upgrade先頭の固定owner拒否全ASTだけを認識する。"""
+    upgrades = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+    ]
+    if len(upgrades) != 1 or not upgrades[0].body:
+        return None
+    body = upgrades[0].body
+    # Google形式docstringは実行文ではない。先行する任意処理は許可しない。
+    if (
+        isinstance(body[0], ast.Expr)
+        and isinstance(body[0].value, ast.Constant)
+        and isinstance(body[0].value.value, str)
+    ):
+        body = body[1:]
+    if not body:
+        return None
+    guard = body[0]
+    if ast.dump(guard) != ast.dump(_INITIAL_OWNER_GUARD):
+        return None
+    calls = [
+        node
+        for node in ast.walk(guard)
+        if isinstance(node, ast.Call) and _op_call(node, "get_bind")
+    ]
+    assert len(calls) == 1
+    return calls[0]
+
+
 def _get_bind_usage_violations(
     tree: ast.Module,
     path: str,
@@ -590,9 +629,16 @@ def _get_bind_usage_violations(
         接続経由の実行と追跡できない用途の違反一覧。
     """
     violations: list[str] = []
+    owner_bind = None
+    if path == _INITIAL_OWNER_MIGRATION:
+        owner_bind = _initial_owner_guard_bind(tree)
+        if owner_bind is None:
+            violations.append(f"{path}: 固定owner拒否の全ASTが不一致")
     bound_names: set[tuple[int, str]] = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call) or not _op_call(node, "get_bind"):
+            continue
+        if node is owner_bind:
             continue
         parent = parents.get(id(node))
         if isinstance(parent, ast.Assign) and parent.value is node:
@@ -2458,3 +2504,99 @@ def test_rg1_singleton_seed_candidate_rejects_scope_expansion(case: str) -> None
             1,
         )
     assert _migration_source_violations({path: source}, ledger=ledger)
+
+
+def test_initial_storage_owner_read_requires_exact_full_guard() -> None:
+    """実0036の固定owner読取だけが任意SQL拒否と両立する。"""
+    source = (_BACKEND_ROOT / _INITIAL_OWNER_MIGRATION).read_text(encoding="utf-8")
+    assert _migration_source_violations({_INITIAL_OWNER_MIGRATION: source}) == []
+    guard = _initial_owner_guard_bind(ast.parse(source))
+    assert guard is not None
+    assert _migration_source_violations({"synthetic.py": source})
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ('sa.text("SELECT current_user")', 'sa.text("SELECT 1")'),
+        ('sa.text("SELECT current_user")', 'sa.text("SELECT current_user; SELECT 1")'),
+        ('sa.text("SELECT current_user")', 'sa.text("SELECT " + "current_user")'),
+        ('sa.text("SELECT current_user")', 'sa.text(f"SELECT {owner}")'),
+        ('!= "pitchlog_owner"', '== "pitchlog_owner"'),
+        ('!= "pitchlog_owner"', '!= "other_owner"'),
+        ('raise RuntimeError("初期権migrationには固定ownerが必要")', "pass"),
+        ('raise RuntimeError("初期権migrationには固定ownerが必要")', "return"),
+        ("def upgrade()", "def downgrade()"),
+        (".scalar_one()", ".scalar()"),
+        ("op.get_bind().execute", "bind.execute"),
+    ],
+)
+def test_initial_storage_owner_read_mutations_are_red(old: str, new: str) -> None:
+    """SQL/比較/拒否/位置の変造を固定owner例外で通さない。"""
+    source = (_BACKEND_ROOT / _INITIAL_OWNER_MIGRATION).read_text(encoding="utf-8")
+    assert old in source
+    mutated = source.replace(old, new, 1)
+    violations = _migration_source_violations({_INITIAL_OWNER_MIGRATION: mutated})
+    assert any("固定owner拒否の全ASTが不一致" in violation for violation in violations)
+
+
+def test_initial_storage_owner_guard_omission_and_additional_sql_are_red() -> None:
+    """固定拒否の削除や固定読取以外の追加SQLを見逃さない。"""
+    source = (_BACKEND_ROOT / _INITIAL_OWNER_MIGRATION).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    upgrade = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+    )
+    guard_index = next(
+        index for index, node in enumerate(upgrade.body) if isinstance(node, ast.If)
+    )
+    removed_guard = upgrade.body.pop(guard_index)
+    assert any(
+        "固定owner拒否の全ASTが不一致" in violation
+        for violation in _migration_source_violations(
+            {_INITIAL_OWNER_MIGRATION: ast.unparse(tree)}
+        )
+    )
+    upgrade.body.insert(guard_index, removed_guard)
+    upgrade.body.append(ast.parse('op.get_bind().execute(sa.text("SELECT 1"))').body[0])
+    violations = _migration_source_violations(
+        {_INITIAL_OWNER_MIGRATION: ast.unparse(tree)}
+    )
+    assert any(
+        "get_bind 経由の execute() は禁止" in violation for violation in violations
+    )
+
+
+def test_initial_storage_owner_guard_other_scope_and_alias_are_red() -> None:
+    """同じ読取でも別scope/別bind/先行処理は固定owner証明にしない。"""
+    source = (_BACKEND_ROOT / _INITIAL_OWNER_MIGRATION).read_text(encoding="utf-8")
+    for replacement in (
+        "    bind = op.get_bind()\n    if (",
+        "    if True:\n        if (",
+    ):
+        if replacement.startswith("    bind"):
+            mutated = source.replace("    if (", replacement, 1).replace(
+                "op.get_bind().execute", "bind.execute", 1
+            )
+        else:
+            tree = ast.parse(source)
+            upgrade = next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == "upgrade"
+            )
+            index = next(
+                i for i, node in enumerate(upgrade.body) if isinstance(node, ast.If)
+            )
+            upgrade.body[index] = ast.If(
+                test=ast.Constant(value=True), body=[upgrade.body[index]], orelse=[]
+            )
+            mutated = ast.unparse(tree)
+        assert any(
+            "固定owner拒否の全ASTが不一致" in violation
+            for violation in _migration_source_violations(
+                {_INITIAL_OWNER_MIGRATION: mutated}
+            )
+        )
