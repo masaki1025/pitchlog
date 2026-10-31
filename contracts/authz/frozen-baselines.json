@@ -852,7 +852,7 @@
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "3dd1bfa1281da073b7e3b354caf725e44cc5cbe7"
+            "value": "cc0e87a8c44a1af9491dd2b44fe169fcc377b1b5"
           }
         ]
       },
@@ -881,7 +881,7 @@
           }
         ]
       },
-      "reason": "採用済み初球・試合作成・球種供給の8入力を3dd1bfa1へ固定。非作者REPORT9edd03ecbcadf299e7e2677bdb1299480ad009f08f9bc357638d64208bb406acで旧AUTH187全field/digest・旧全正負cell・4lock・実HTTP3/C2/CAPを照合し採用。旧全履歴と規範状態を保持し、6oracleの意味本文・期待/拒否を変えずcommit参照だけ伝播する。専用再封印後の差分レビュー・正式7.7/全件CIは別証拠。PO本人の直接確認/署名・新規実機/運用実測を代記しない。",
+      "reason": "採用済み初球・試合作成・球種供給の8入力を3dd1bfa1へ固定。非作者REPORT9edd03ecbcadf299e7e2677bdb1299480ad009f08f9bc357638d64208bb406acで旧AUTH187全field/digest・旧全正負cell・4lock・実HTTP3/C2/CAPを照合し採用。旧全履歴と規範状態を保持し、6oracleの意味本文・期待/拒否を変えずcommit参照だけ伝播する。専用再封印後の差分レビュー・正式7.7/全件CIは別証拠。PO本人の直接確認/署名・新規実機/運用実測を代記しない。 固定8入力のbyteを変えず、旧ordinary4pinの独立JSON（非作者REPORTd6980069…で旧ad658値完全一致）を含むcc0e87a8へ最終参照を更新する。未正式受理の#189末尾1recordのみを最終実値へ揃え、旧16履歴は変更しない。",
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
       "approved_at": "2026-11-01"

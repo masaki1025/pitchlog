@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_claim_mutant_map",
   "oracle_context": {
-    "oracle_commit": "3dd1bfa1281da073b7e3b354caf725e44cc5cbe7",
+    "oracle_commit": "cc0e87a8c44a1af9491dd2b44fe169fcc377b1b5",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "execution_classes": [
