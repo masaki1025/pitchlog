@@ -103,3 +103,5 @@ D11は新backend/domain/strikeout-pitch-{manifest.json,property-catalog.json,pro
 
 
 ステップ2 pin後のwire自己echo追随（同PO委任によるroot判断）: 全VitestでterminalPitchWireの56全値＋小数観測1が失敗し、実行SHAだけ置換したpayloadのnextCheckpoint.digest/nextPrefixRef.checkpoint.digestが旧wire-head hashのままと確定。数学契約56の期待を変えず、play_prefix_v2_payload_vectors.jsonの自己echo112欄だけを既正式play-prefix-wire-head-v2の正準SHA規則から再導出する。Python実consumerと独立field列挙/JSON正準化の一致を確認し、同T1/T2/差分V8/観測/参加者・旧priorを維持する。wire-head fieldや検証関数/拒否の変更は0。未変更metadataと関係ない期待を候補出力で更新しない。frontendのhandoff-loader依存3失敗は別に現固定契約byte/依存OID/versionへ照合し、実値が変わった登録だけに限定して追随する。全件失敗・修復前source26レビューと後発修復を区別し、追加非作者確認後に採否する。
+
+上記handoff追随のexact1はcontracts/state-transition/appendix_e_consumer_handoff_v1.jsonのartifacts中state_transition_contract_v1.jsonのdigest一欄。SO24追加後の実SHA-256へ再計算し、出自OID/version/consumerBindings/未受理・消費pending/他artifact2と拒否検査を変更しない。受理や曝露の更新ではなく現実byte参照の修復である。
