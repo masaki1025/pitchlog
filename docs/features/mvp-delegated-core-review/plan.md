@@ -100,3 +100,10 @@ CI run39950625656のtenant-boundary-bypassは、認証用CI2行が既存8資産�
 既採用の対象表方式を維持し、policy.jsonへ実PR188/feature/mvp-game-start-atomic-candidateの完全一致1組だけ追加する。POのMVP継続委任に基づく対象具体化であり、source d1aa2422の既非作者review/正式記録と公開版を一致させた後に行う。core検出/拒否条件/本人確認欄を変更しない。最終commit後の外部証拠は実base/head/diff/path/独立結果を固定し、証拠不在/版違い/重大未解消は従来どおり拒否する。対象追加自体を非作者確認してから保存し、最終CI/通常mergeは別条件とする。本人署名/逐行確認ではない。
 
 対象追加の保存判断: PO委任によるCodex主担当判断（2026-10-30）。packet a3863731bd5bb4de6b57719900df9f8c3c112b6c0893ddd1923c0e9766a81501と実2path、独立REPORT c993e36f8dea09804a17d50aa52cd5f9ba02c8dff978ec52a6da4590760b877c（P0/P1=0、関連coreguard81成功）を照合してPR188対象1組の追加を採用。coordinate_gate_reviewは同patch起案者のため当該policyの確認を作者整合として区別し、独立採否には使わない。最終全差分レビュー/evidence/CI/通常mergeは残る。
+
+
+### PR189〜192の有限対象追加（2026-10-31、PO委任によるCodex /root判断）
+
+実GitHubでopen/branchを照合したPR189 feature/mvp-first-ball-vertical、190 feature/mvp-recording-continuation、191 feature/mvp-terminal-pitches、192 feature/mvp-strikeout-pitchesのexact4組だけをpolicy.targets末尾へ追加する。既13組とauthority/失効/掲載主体/引用/他全field、core検出/拒否条件/本人確認欄は不変。既計画の対象表具体化の範囲であり、実PR最終HEADの証拠を省略したり、承認文言だけで通す例外ではない。
+
+packet c7c04c6adce6789a9f79ed95c154f8c15915820c73ffaf1468e741159cc6457e・非作者REPORT7e39b56dacba4e9f7edddc9b62ad358bf0a7a387129d54251b4cd1c401b1c803を全byte照合し採用。実current guard/隔離Gitの独立32probe（正常4/拒否28）で対象外・別branch・head不一致・証拠欠落・重大未解消などを拒否。架空commentは試験専用で実外部承認/人間確認ではない。root-approval receipt SHA26e43edf070705cad457fbd9c320b9c9a2a952837ca8d2a9261c221ebe0cdbfbに実判断版/日時/根拠を固定し、各PRの最終差分レビュー/base/head/diff/authority hash・実外部証拠・必須CI/通常mergeは後続のまま。正式9資産の4面凍結対象にpolicy pathが無いことを確認、7.7実値は変更しない。
