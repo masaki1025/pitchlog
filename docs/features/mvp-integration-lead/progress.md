@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-10-31 16:07 JST（実CI失敗の修復・三振の実保存へ接続中）
+
+- **利用者が完了できる操作**: 既証拠の隔離候補では実画面で新規作成→開始/初期権→初球保存→server再取得/reload、通常3球、BB/HBP→次打者1球、保存後ACK喪失→元要求再送/二重保存なしまで。新v3三振のDB保存/UIや正式develop提供へ広げない。既TLSは期限到来、実機/運用HTTPSは未実施。
+- **実CIの確定結果**: PR188 HEAD9d9d7b1cのrun41173912913はterminal failure。10job成功、harness41failed/30732passed/2skip・backend13failed/7407passed/4skip。従前15:26の「実行中」はこの結果で更新。失敗全logはcache pr188-ci-harness-reference-repair-20261031/ci-failed.logへ保全、全CI成功/mergeは未了。harnessの多くは比較corpus旧digestの派生失敗、backend13は8根因群へ静的診断（REPORT2ac0990e…、診断推定と実PG実証は別）。
+- **完了した修復**: CI WT fd9afbf7でsource実byteのauthz3digest・RecordingGeneration証明済宣言1/拒否継続Name3の分離・frozen正規corpus c30e29f7…を採用。root局所33/frozen全65、非作者34/REPORT53ede520…指摘0、全前後と委任判断をcache固定。別の歴史未発効fixtureは実暫定版schema/classification/exposure/body-manifestと既recording_generations表ACLを復元、既登録stage-a11関数exact期待と合わせ局所6成功・全認可試験中。現製品checker/認可拒否/本物migrationを緩めない。
+- **T1から実保存への実作業**: SO WT c743c229で既prefix3関数9bindのInteger→BigInteger修復をcommit、作者342/非作者309成功・REPORT341c878b…指摘0、既他16関数/prepare/拒否条件を保持。実writerへ所有移管済み。dac1ad4cで実reader/Port/同TX保存/GETステップ4の有限範囲を起動、654cd3f6でcore資格2path、5a4129f8で正規SourcePositionとの接合修復を追加した。作者は実reader・SQLproducer・one-use Port・保存/GETを実装中。source.positionは今回D1/D2/既watermarkで初回1/1/0であり、旧v3候補の三値同一/started0は接合不具合。偽値を与えず既protocolへ整合、T1/T2/履歴/打順/参加者は不変。新artifact/全pinは固定後に一括追随し独立確認する。
+- **並行作業と次の検証**: backend13試験のfixture/helper修復13pathは0ff6b015の有限planに従い別worker専有、rootだけがowned PGを直列実行する。ORM5受入sheetは公式carryで候補のみ作成（現381行、旧本人判定を自動代記しない）、非作者が静的成立と実DB未確認を分離中。次は全authz影響結果→fixture/DB source固定と独立レビュー→owned PG実検証、同時にv3実保存source/SQL固定→正規登録/原子的保存/再送/GET検証。MVP全機能/両CSV/負荷/復旧/実機を削減せず、Goal active。
+
 ## 続き：2026-10-31 15:26 JST（PR188を最終公開・三振の攻守交代/T2接続を保存）
 
 - **正式統合の現在地**: 修復最終HEAD9d9d7b1c5efa1141a7073a70ae97993a60fa15e5をfix枝と実PR188の元branchへ通常FF push済み。正式9資産/4面はmanifest93a47cdc…・独立REPORT1ead8cea…を全照合し31履歴不変/32単一188へ実値反映、root receiptffd1c2e…にPO委任判断と実日付を記録。旧226snapshot全byte保持、孤児33不増、旧中間非参照分はGit/cache保全。actual公式tenant/frozen不変量/census単独CLI/root本来uvのruff/ty/authz1427/core82成功、同treeの隔離2親PR形でもtenant/frozen受理が成功。最終source全319path/後発65pathは非作者REPORT711df2a4…（P0/P1/P2=0、独立82+116成功）で確認し公開証拠 https://github.com/masaki1025/pitchlog/pull/188#issuecomment-6539711167 を掲載、actual current core guardが実公開証拠を取得して成功。GitHub実CI41173912913はcore/tenant/consistency/frontend等10job成功、backend+harness実行中。初回push run41173821771は本文更新editedイベントでcancel、失敗/未完を成功扱いしない。実CI完走・最終base/head確認・通常mergeはまだ未了。
