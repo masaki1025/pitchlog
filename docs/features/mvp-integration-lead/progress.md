@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開：2026-11-01 03:13 JST（他LLMからPR統合を引受・#189を検証中）
+
+- **GitHub確認済み**: #188は8be972d8、#193はc2e5e4ddでmerge済み。#189はDraft/OPEN・公開ad6588b1、developはc2e5e4dd。CI60分→17分43秒は引継ぎ報告値で、本主担当が同runを再計測したとはしない。
+- **固定点の差分**: 引継ぎf294643cは親ad6588b1＋8be972d8で、#193は未収録だった。origin/developをfetchし、root所有WT `/home/ymdms/projects/pitchlog-worktrees/pr189`、branch `feature/pr189-integration`をf294から作成。追加merge時のruntime JSON/生成module2衝突は最新正式developを採用し26e61775に保存、旧/tmp/opencode/pr189・旧feature WT・stashは変更0。受理record/公開証拠は古い8beではなく実PR基線c2e5e4ddへ束縛する。
+- **環境・編集範囲**: /tmpは実92%/667MB空き、削除せずTMPDIRとpytest tmpをSSD側 `~/.cache/pitchlog/pr189-integration-20261101/`へ隔離。backend uv sync --locked成功、全ty成功。ruff1件は同一辞書key/value重複で、実評価不変の1行削除だけをa0cb3817の既初球plan step4へ有限追補。policy #189 branchは最新developに既登録、重複追加しない。
+- **次の実作業**: 関連backend非DB subsetをsession59181で実行中、未完を成功扱いしない。結果修復→必要な既registration候補再利用/公式生成→#189 tenant v2受理の全前後導出/固定snapshot保護→非作者最終レビュー/委任証拠→元PRへ通常FF一回push→必須12context確認→Draft解除/通常merge。その後190→191→192へ。凍結/受理/公開証拠の途中pushは行わない。main/develop直接commit/push/共有DB/秘密/運用公開はしない。
+- **MVPの範囲**: 前回保存した初球UI実証と、今回の正式統合成功を分ける。全試合/取消訂正/終了再開/耐久offline/閲覧/成績/両CSV/負荷復旧/実機までの未完を維持し、旧三振38dirty候補・未解消P1は前停止節/packetを参照する。今回の主担当はPR統合から再開し、完了済み188を再実装しない。
+
 ## 再開入口：2026-10-31 16:49 JST（他LLMへの引継ぎ・ユーザー指示で中断）
 
 **実装担当/レビュー担当は全停止、主担当の検査も停止済み。MVP未完。既PO委任・全MVP目標・安全条件は維持する。次担当はAGENTS.md→本節→各固定packetを確認し、同じ判断を再取得せず未解消P1の実装修復から再開する。**
