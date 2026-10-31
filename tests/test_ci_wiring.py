@@ -160,6 +160,15 @@ HARNESS_PYTEST_COMMAND = (
     "--shard-index ${{ matrix.shard }} "
     "--durations=25"
 )
+BACKEND_SHARD_PYTEST_COMMAND = (
+    "uv run python -m pytest -c pyproject.toml "
+    "-p pytest_shard_plugin "
+    "--shard-count 4 "
+    "--shard-index ${{ matrix.shard }} "
+    "--cov "
+    "--cov-report= "
+    "--durations=25"
+)
 CONSISTENCY_PYTEST_COMMAND = (
     "uv run pytest -c pyproject.toml "
     "tests/domain/boot/ "
@@ -1093,7 +1102,7 @@ def _workflow_from_ci_contract_tree(
         検査器へ渡せる workflow のコピー。
     """
     mutated = copy.deepcopy(workflow)
-    original_backend = _backend_pytest_job(mutated)
+    original_backend = _backend_job(mutated)
     rebuilt_backend: dict[str, Any] = {}
     skipping_contract_block = False
     inserted = False
@@ -1110,7 +1119,7 @@ def _workflow_from_ci_contract_tree(
 
     jobs = mutated["jobs"]
     assert isinstance(jobs, dict)
-    jobs["backend-shard"] = rebuilt_backend
+    jobs["backend"] = rebuilt_backend
 
     options_path = ("services", "postgres", "options")
     options = _mapping_at(rebuilt_backend, options_path)
@@ -1134,7 +1143,7 @@ def _ci_contract_tree(workflow: dict[str, Any]) -> dict[str, Any]:
     harness_commands = _pytest_commands(_harness_pytest_job(workflow))
     assert len(harness_commands) == 1, "harness の pytest は 1 回でなければならない"
     return {
-        "backend": _backend_ci_contract_tree(_backend_pytest_job(workflow)),
+        "backend": _backend_ci_contract_tree(_backend_job(workflow)),
         "harness": {"pytest": harness_commands[0]},
         "consistency": copy.deepcopy(_named_job(workflow, "consistency")),
         "mutation": copy.deepcopy(_named_job(workflow, "mutation")),
@@ -1391,35 +1400,43 @@ def _ci_wiring_errors(
         marker not in stage_a_commands[0] for marker in STAGE_A_CI_MARKERS
     ):
         errors.append("backend の段階起動 S1〜S3 が固定の閉鎖経路でない")
-    required_backend_commands = [
+    shard_commands = _backend_commands(_backend_pytest_job(workflow))
+    required_shard_commands = [
         "corepack enable",
         "pnpm install --frozen-lockfile",
         "uv python install",
         "uv sync --locked --dev",
-        "uv run ruff check .",
-        "uv run ruff format --check .",
-        "uv run ty check",
-        execution["single_command"]["expected"],
+        BACKEND_SHARD_PYTEST_COMMAND,
+    ]
+    if shard_commands != required_shard_commands:
+        errors.append("backend 分割ジョブの実行順序が期待値と異なる")
+    # 集約ジョブの先頭は checkout とシャード結果の厳密確認なので、uv 準備から比較する。
+    gate_start = commands.index("uv python install") if "uv python install" in commands else 0
+    gate_commands = commands[gate_start:]
+    required_gate_commands = [
+        "uv python install",
+        "uv sync --locked --dev",
+        "uv run python ../scripts/pytest_shards.py verify --suite backend --require-db",
         *(bootstrap_commands[:1] or ["<専用DBなし>"]),
         ALEMBIC_CI_COMMANDS[0],
         *(stage_a_commands[:1] or ["<段階起動なし>"]),
         *ALEMBIC_CI_COMMANDS[1:],
     ]
-    if (
-        commands[: len(required_backend_commands)] != required_backend_commands
-        or len(commands) != len(required_backend_commands) + 1
-    ):
-        errors.append(
-            "backend の frontend 依存 2 件 + 既存 6 件 + 段階起動・Alembic 3 段が順序どおりでない"
-        )
+    if gate_commands[: len(required_gate_commands)] != required_gate_commands:
+        errors.append("backend 集約ジョブの順序が期待値と異なる")
     expected_alembic_locations = [("backend", command) for command in ALEMBIC_CI_COMMANDS]
     if _alembic_command_locations(workflow) != expected_alembic_locations:
         errors.append("Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する")
-    pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
+    if "shard_commands" not in locals():
+        shard_commands = _backend_commands(_backend_pytest_job(workflow))
+    pytest_commands = [command for command in shard_commands if "pytest" in shlex.split(command)]
     single_command = execution["single_command"]
-    if pytest_commands != [single_command["expected"]]:
+    if pytest_commands != [BACKEND_SHARD_PYTEST_COMMAND]:
         errors.append("pytest の単一実行コマンドが期待値と一致しない")
-    if any("-m" in shlex.split(command) for command in pytest_commands):
+    if any(
+        "-m" in shlex.split(command)[shlex.split(command).index("pytest") :]
+        for command in pytest_commands
+    ):
         errors.append("DB テストを marker 選択で別実行している")
     if len(pytest_commands) != single_command["expected_backend_pytest_invocation_count"]:
         errors.append("pytest の実行回数が期待値と一致しない")
@@ -1749,6 +1766,14 @@ def _selected_root_test_jobs(workflow: dict[str, Any], test_path: str) -> set[st
     return selected
 
 
+# シャード分割後も steps.json の所有宣言は論理ジョブ名(harness/backend)のままにし、
+# 実ジョブへの解決だけをここで行う(宣言の意味を分割都合で書き換えない)。
+OWNER_JOB_ALIASES: dict[str, frozenset[str]] = {
+    "harness": frozenset({"harness", "harness-static", "harness-shard"}),
+    "backend": frozenset({"backend", "backend-static", "backend-shard"}),
+}
+
+
 def _history_command_owner_errors(workflow: dict[str, Any]) -> list[str]:
     """全 step command の宣言所有と CI の実 selector を双方向に突合する。"""
     source = json.loads(STEPS_PATH.read_text(encoding="utf-8"))
@@ -1851,7 +1876,8 @@ def _history_command_owner_errors(workflow: dict[str, Any]) -> list[str]:
 
     for step_id, command, owner in ci_rows:
         selected_jobs = owners_for(command)
-        if selected_jobs != {owner}:
+        allowed = OWNER_JOB_ALIASES.get(owner, frozenset({owner}))
+        if not selected_jobs or not selected_jobs <= allowed:
             errors.append(
                 f"ステップ {step_id} の command 所有が不一致: "
                 f"declared={owner} actual={sorted(selected_jobs)}"
@@ -1927,7 +1953,9 @@ def _derive_asset_actuals(
     compose_health = compose_database["healthcheck"]
     assert isinstance(compose_health, dict)
     commands = _backend_commands(backend)
-    pytest_commands = [command for command in commands if "pytest" in shlex.split(command)]
+    if "shard_commands" not in locals():
+        shard_commands = _backend_commands(_backend_pytest_job(workflow))
+    pytest_commands = [command for command in shard_commands if "pytest" in shlex.split(command)]
     marker_config = tomllib.loads(BACKEND_PYPROJECT_PATH.read_text(encoding="utf-8"))
     marker_entries = marker_config["tool"]["pytest"]["ini_options"]["markers"]
     marker_name = str(marker_entries[0]).split(":", maxsplit=1)[0]
@@ -2028,12 +2056,17 @@ def _derive_asset_actuals(
             "test_execution",
             "single_command",
             "db_tests_included_in_existing_invocation",
-        ): len(pytest_commands) == 1 and "-m" not in shlex.split(pytest_commands[0]),
+        ): len(pytest_commands) == 1
+        and "-m" not in shlex.split(pytest_commands[0])[shlex.split(pytest_commands[0]).index("pytest") :],
         (
             "test_execution",
             "single_command",
             "marker_selection_argument_allowed",
-        ): any("-m" in shlex.split(command) for command in pytest_commands),
+        ): any(
+            "-m"
+            in shlex.split(command)[shlex.split(command).index("pytest") :]
+            for command in pytest_commands
+        ),
         (
             "test_execution",
             "single_command",
@@ -2342,7 +2375,7 @@ def test_domain_runtime_ci_uses_mise_and_checks_distribution_image() -> None:
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     node_version = tomllib.loads((REPOSITORY_ROOT / "mise.toml").read_text())["tools"]["node"]
     assert node_version == "24.16.0"
-    for job_name in ("harness", "backend"):
+    for job_name in ("harness-shard", "backend-shard"):
         job = _named_job(workflow, job_name)
         mise_steps = [
             step
@@ -2517,7 +2550,7 @@ def test_other_required_execution_disable_attributes_are_red(
     jobs = _mapping_at(mutated, ("jobs",))
     assert isinstance(jobs, dict)
     if scope == "other-step":
-        target = _mapping_at(jobs, ("harness", "steps", 6))
+        target = _mapping_at(jobs, ("harness-static", "steps", 6))
     elif scope == "unconditional-job":
         target = jobs["harness"]
     else:
@@ -2993,10 +3026,13 @@ def test_required_job_documentation_detects_one_missing_context() -> None:
     contexts[:] = [item for item in contexts if item["context"] != removed]
     jobs = workflow.get("jobs")
     assert isinstance(jobs, dict)
+    body = _load_workflow(BODY_WORKFLOW_PATH.read_text(encoding="utf-8"))
+    all_job_ids = set(jobs) | set(body["jobs"])
     actual = set(_required_status_contexts(mutated))
 
-    assert set(jobs) - actual == {removed}
-    assert actual - set(jobs) == set()
+    # 必須 context は ci.yml と pr-body.yml の実ジョブから 1 件だけ落ちる。
+    assert (set(REQUIRED_STATUS_CONTEXTS) - actual) == {removed}
+    assert actual - all_job_ids == set()
 
 
 def test_historical_activation_evidence_records_both_new_jobs_green() -> None:
@@ -3514,11 +3550,14 @@ def test_db_marker_zero_execution_guard_and_single_invocation_are_wired() -> Non
     assert "pytest.ExitCode.TESTS_FAILED" in conftest
     assert "SET ROLE" not in conftest
 
-    backend = _backend_job(_load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8")))
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    backend = _backend_pytest_job(workflow)
     pytest_commands = [
         command for command in _backend_commands(backend) if "pytest" in shlex.split(command)
     ]
-    assert pytest_commands == [expectations["test_execution"]["single_command"]["expected"]]
+    assert pytest_commands == [BACKEND_SHARD_PYTEST_COMMAND]
+    # 分割しても DB 必須テストの 0 件拒否は各シャードの通常会話で有効なまま。
+    assert expectations["test_execution"]["single_command"]["db_tests_included_in_existing_invocation"] is True
 
 
 def test_orm_stack_is_exact_product_dependency() -> None:

@@ -531,12 +531,6 @@ jobs:
           pattern: backend-coverage-*
           merge-multiple: true
           path: backend
-      - name: カバレッジの結合
-        env:
-          COVERAGE_FILE: .coverage
-        run: |
-          uv run coverage combine .coverage.shard0 .coverage.shard1 .coverage.shard2 .coverage.shard3
-          uv run coverage report
       # pytest用DBと分離し、実migrationの所有者とS0を一致させる。
       - run: |
           uv run python - <<'PY'
@@ -617,3 +611,9 @@ jobs:
           print('FastAPI startup and domain ping OK')
           PY
         working-directory: ${{ github.workspace }}
+      - name: カバレッジの結合
+        env:
+          COVERAGE_FILE: .coverage
+        run: |
+          uv run coverage combine .coverage.shard0 .coverage.shard1 .coverage.shard2 .coverage.shard3
+          uv run coverage report
