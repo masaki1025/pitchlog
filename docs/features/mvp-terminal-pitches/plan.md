@@ -215,3 +215,9 @@ GET再構築用readonly2field（同日、Codex主担当判断）: 新StartedPlay
 physical PlayRunnerはrequest.source.runners(beforeの起点塁実本人/責任投手)に対する今回の実T1既定/観測結果であり、private doc.runners/GET runnersはresponse.runners(after占有)である。無走者BB/HBPは当該physical0行、新打者出塁はPlayRow＋after checkpointへ、次ordinaryでbefore一塁走者のphysical継続1行。snapshot物理期待/AFTER stampはbefore実結果集合、checkpointのafterは別集合として同時に束縛・個別照合する。未来の本進/アウト走者をafterから消して記録喪失させる共用はしない。
 
 作者は既許可projection/SQL prepare/GET/新pure・owned期待の該当箇所だけを是正し、旧candidate69b2fa30…を履歴として保持して新版source/producer packetへ固定する。追加path/表/role/権限は不要、rootは旧producerを未適用のまま維持する。新AFTER全取消/元D5/tenant・FK/全10列/metadata seal/非循環digestと一回評価の条件は不変。
+
+### ステップ4のD11登録における期待値包絡（2026-10-31、PO委任によるCodex /root判断）
+
+既許可root3宣言play-prefix-manifest/property-catalog/schemaへ登録するvectorは、既play_prefix_v2_cases.jsonの56全期待をそのまま消費する。既契約/旧18固定hashを変更せず、root専有のcontracts/state-transition/play_prefix_v2_d11_vectors.json exact1を追加し、各期待をmanifest.schemaのExpectedValue（expected/comparison/provenance）へ包む。比較方式はexact、規範期待そのものは全値一致、元ケースID/request/expected hashとauthorityを追跡する。製品計算やruntimeのlookupには使わない。
+
+登録3宣言とvector1は非作者照合を経て正式pathへ反映する。実在のtyped caller/public operation/source/direct target/現loaded052fを指し、既全56host照合とsource-binding拒否検査をpropertyの実検査箇所へ対応付ける。mutation宣言は実施義務の登録であり未実施を成功扱いしない。structured propertyの新測定/全BOOT/全D11/正式7.7は残件のまま、登録だけで完了としない。旧terminal manifestの別未完も黙って閉じない。
