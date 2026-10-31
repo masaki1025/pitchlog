@@ -201,3 +201,5 @@ GET再構築用readonly2field（同日、Codex主担当判断）: 新StartedPlay
 旧原本互換readerのcore採用（2026-10-31、PO委任によるCodex主担当判断）: 非作者追補4f4809970210d1d62692a1dc0cb6e0f2c81da0aa2639d09eeedd26ecc96a0154/実corefc9be827…を照合。recorded_snapshot.py exact1×4area追加のみ、旧全field/path同順保持・新指摘0として採用、59659b6cのreader編集も解禁する。旧caller不変・有限hash/実sourceFormat別・数学全値比較の条件は保持する。
 
 新GETの元要求識別の復元（2026-10-31、PO委任によるCodex主担当判断）: 新StartedPlayPrefixGameReadだけへlast_source: PlayIdentity|nullを追加可。実checkpoint.last_sourceのeventId/D5と実last PlayRow.idを同tenant/game/D4の原本へ結合して供給し、0球はnull。D5は識別子であり資格/nonce/secretではなく、返却によって記録権を発行しない。既GET2pathのreadonly値に限定し、旧DTO/応答と越境拒否を保持する。ブラウザに欠落値の推測をさせず、未知D5の新発番や他tenant照会を増やさない。
+
+既API応答型の閉集合追随（2026-10-31、PO委任によるCodex主担当判断）: backend/tests/test_api_started_game.py exact1の既tenant-matched GET応答union期待を旧3全保持＋採用済StartedPlayPrefixGameRead1だけのexact4へ追随可。route/tenantmatched/未知型拒否/他全assertは不変、新variantを実OpenAPIから隠して回避しない。
