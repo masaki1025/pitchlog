@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 27,
+  "runtime_contract_revision": 24,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:27"
+        "runtime_contract_revision:24"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -93,10 +93,7 @@
       "pitchlog_ledger_observer",
       "public",
       "rg1_api",
-      "rg1_control",
-      "sync_fence",
-      "sync_fence_api",
-      "sync_right_api"
+      "rg1_control"
     ],
     "tables": [
       [
@@ -298,18 +295,6 @@
       [
         "public",
         "trusted_devices"
-      ],
-      [
-        "sync_fence",
-        "first_ball_write_admissions"
-      ],
-      [
-        "sync_fence",
-        "writer_admissions"
-      ],
-      [
-        "sync_fence",
-        "writer_bindings"
       ]
     ],
     "functions": [
@@ -707,66 +692,6 @@
         "rg1_control",
         "try_controller_lease",
         ""
-      ],
-      [
-        "sync_fence_api",
-        "assert_writer_binding",
-        "uuid, uuid, uuid, bytea, uuid, uuid"
-      ],
-      [
-        "sync_fence_api",
-        "close_writer_binding",
-        "uuid, uuid, uuid, uuid, uuid"
-      ],
-      [
-        "sync_fence_api",
-        "guard_writer_records",
-        ""
-      ],
-      [
-        "sync_fence_api",
-        "observe_writer_binding",
-        "uuid, uuid, uuid, uuid, uuid"
-      ],
-      [
-        "sync_fence_api",
-        "publish_writer_binding",
-        "uuid, uuid, uuid, jsonb, bytea"
-      ],
-      [
-        "sync_fence_api",
-        "read_writer_database_identity",
-        "uuid"
-      ],
-      [
-        "sync_fence_api",
-        "read_writer_identity",
-        "uuid"
-      ],
-      [
-        "sync_right_api",
-        "bind_device",
-        "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
-      ],
-      [
-        "sync_right_api",
-        "check_current_right",
-        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"
-      ],
-      [
-        "sync_right_api",
-        "guard_first_ball_projection_admission",
-        ""
-      ],
-      [
-        "sync_right_api",
-        "guard_first_ball_projection_lock",
-        ""
-      ],
-      [
-        "sync_right_api",
-        "read_device_state",
-        "uuid, uuid"
       ]
     ]
   },
@@ -793,5 +718,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "515e04c3affc5eb02565f1719d88a444ce1a8ca6eca2a3939ea44363dc0b6aa3"
+  "source_digest": "0c4eca96eba8e4b141e32d41b7785074088ef2a54a58d41cf61a062ac234db12"
 }

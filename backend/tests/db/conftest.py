@@ -118,6 +118,11 @@ def pytest_sessionfinish(
         exitstatus: フック開始時点の終了状態。
     """
     del exitstatus
+    # 収集専用の実行(--collect-only)は定義上なにも実行しない。CI のシャード被覆
+    # 検査がこのモードを使うため、pytest 自身のオプションで判定して 0 件実行の
+    # 判定を外す(環境変数ではなく起動方法へ束縛し、通常実行では常に有効にする)。
+    if session.config.getoption("collectonly", default=False):
+        return
     error = _required_db_execution_error(
         _COLLECTED_DB_TESTS,
         _EXECUTED_DB_TESTS,

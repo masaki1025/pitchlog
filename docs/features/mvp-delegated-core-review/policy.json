@@ -82,6 +82,10 @@
     {
       "pr": 192,
       "branch": "feature/mvp-strikeout-pitches"
+    },
+    {
+      "pr": 193,
+      "branch": "feature/ci-shard-pytest"
     }
   ]
 }
