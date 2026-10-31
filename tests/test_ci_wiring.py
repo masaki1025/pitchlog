@@ -3684,3 +3684,43 @@ def test_boot_report_output_is_not_tracked_in_the_repository() -> None:
         check=False,
     )
     assert tracked.stdout.strip() == "", "BOOT-REPORT の出力が追跡対象になっている"
+
+
+def test_aggregate_jobs_reject_non_success_needs() -> None:
+    """集約ジョブが失敗・キャンセル・skip を success と誤認しない。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    for name in ("harness", "backend"):
+        steps = workflow["jobs"][name]["steps"]
+        gates = [
+            step
+            for step in steps
+            if isinstance(step, dict) and step.get("name") == "シャード結果の厳密確認"
+        ]
+        assert len(gates) == 1, f"{name}: 厳密確認 step が 1 件でない"
+        gate = gates[0]
+        assert gate.get("env") == {"NEEDS": "${{ toJSON(needs) }}"}
+        run = str(gate.get("run"))
+        assert "value.get('result') != 'success'" in run
+        assert "raise SystemExit" in run
+
+
+def test_pytest_shard_config_matches_the_ci_command() -> None:
+    """分割定義と CI の pytest コマンドが同じ対象・同じ分割数である。"""
+    config = json.loads(
+        (REPOSITORY_ROOT / "ci" / "pytest-shards.json").read_text(encoding="utf-8")
+    )
+    harness = config["suites"]["harness"]
+    backend = config["suites"]["backend"]
+    assert harness["shards"] == 4
+    assert backend["shards"] == 4
+    assert harness["ignore"] == [
+        "tests/domain/boot",
+        "tests/domain/mut",
+        "tests/test_plan_generation.py",
+        "tests/test_step_history_audit.py",
+    ]
+    tokens = shlex.split(HARNESS_PYTEST_COMMAND)
+    assert "--shard-count" in tokens and "--shard-index" in tokens
+    for ignored in harness["ignore"]:
+        assert f"--ignore={ignored}" in tokens
+    assert backend["targets"] == ["tests/"] and backend["ignore"] == []

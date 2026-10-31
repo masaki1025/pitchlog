@@ -104,7 +104,6 @@ def _environment(root: Path) -> dict[str, str]:
     """プラグインを import 可能にする環境変数を返す。"""
     environment = dict(os.environ)
     scripts = str(root / SCRIPTS_RELATIVE_PATH)
-    environment["PITCHLOG_PYTEST_COLLECT_ONLY"] = "1"
     existing = environment.get("PYTHONPATH")
     environment["PYTHONPATH"] = f"{scripts}{os.pathsep}{existing}" if existing else scripts
     return environment
