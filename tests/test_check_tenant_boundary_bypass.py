@@ -2958,6 +2958,8 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_plan_generation.py",
             "backend/tests/test_api_conventions.py",
             "tests/test_check_authz_catalog.py",
+            "scripts/check_tenant_boundary_bypass.py",
+            "tests/test_census_baseline_check.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
@@ -8872,3 +8874,79 @@ def test_known_instance_constructor_is_not_hidden_by_definition_order(source: st
     )
     run_line = next(i for i, line in enumerate(source.splitlines(), 1) if "def run" in line)
     assert any(v.code == "TB007" and v.line == run_line for v in violations)
+
+
+
+@pytest.mark.parametrize("source_key, relative_path", [
+    ("initial_recording_right_guard", "repositories/initial_recording_right.py"),
+    ("source_fingerprint_callee", "sync/idempotency.py"),
+    ("game_start_caller", "repositories/game_start.py"),
+    ("initial_grant_broker_caller", "recording_rights/initial_grant_broker.py"),
+])
+def test_scope_proof_uses_immutable_git_bytes(
+    source_key: str, relative_path: str,
+) -> None:
+    """期待値を現sourceから取らず目的付きrevisionのGitbyteへ束縛する。"""
+    declaration = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_bytes()
+    )
+    revision = declaration["frozen_inputs"]["ci_scope_proof_source_revision"]["value"]
+    expected = subprocess.run(
+        ["git", "show", f"{revision}:backend/src/pitchlog/{relative_path}"],
+        cwd=REPOSITORY_ROOT, capture_output=True, check=True,
+    ).stdout
+    assert checker._scope_proof_source_sha256(source_key) == hashlib.sha256(expected).hexdigest()
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing-field", "short-revision", "missing-commit", "unknown-consumer",
+    "unknown-key", "missing-git-root", "symbolic-revision",
+])
+def test_scope_proof_reference_resolution_is_closed(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """原典不足/未知用途/曖昧参照を現在sourceへの代替で通さない。"""
+    asset_path = "contracts/tenant_boundary/frozen-inputs.json"
+    asset = json.loads((REPOSITORY_ROOT / asset_path).read_bytes())
+    inputs = asset["frozen_inputs"]
+    entry = inputs["ci_scope_proof_source_revision"]
+    key = "source_fingerprint_callee"
+    git_root = REPOSITORY_ROOT
+    if mutation == "missing-field":
+        del inputs["ci_scope_proof_source_revision"]
+    elif mutation == "short-revision":
+        entry["value"] = entry["value"][:7]
+    elif mutation == "missing-commit":
+        entry["value"] = "f" * 40
+    elif mutation == "symbolic-revision":
+        entry["value"] = "HEAD"
+    elif mutation == "unknown-consumer":
+        entry["sources"].append("foreign.py:consumer")
+    elif mutation == "unknown-key":
+        key = "unknown_source"
+    elif mutation == "missing-git-root":
+        git_root = tmp_path
+    target = tmp_path / asset_path
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(asset), encoding="utf-8")
+    with pytest.raises(checker.ContractError):
+        checker._scope_proof_source_sha256(
+            key, declaration_repository_root=tmp_path, git_repository_root=git_root,
+        )
+
+
+@pytest.mark.parametrize("tree_entry", ["", "120000 blob symlink", "040000 tree directory"])
+def test_scope_proof_requires_a_regular_git_blob(
+    monkeypatch: pytest.MonkeyPatch, tree_entry: str,
+) -> None:
+    """原典pathの欠落/symlink/treeをsource全byteの証明に使わない。"""
+    original = checker._run_git
+
+    def altered_tree(repository_root: Path, arguments: Any) -> str:
+        if "ls-tree" in arguments:
+            return tree_entry + "\tbackend/src/pitchlog/sync/idempotency.py" if tree_entry else ""
+        return original(repository_root, arguments)
+
+    monkeypatch.setattr(checker, "_run_git", altered_tree)
+    with pytest.raises(checker.ContractError):
+        checker._scope_proof_source_sha256("source_fingerprint_callee")

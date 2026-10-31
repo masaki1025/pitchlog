@@ -4613,7 +4613,7 @@ class _SourceScanner(ast.NodeVisitor):
             and hashlib.sha256(
                 binding_source.encode("utf-8")
             ).hexdigest() == (
-                "94adcfd3e4216eb5442aa69ea30d039832081244ae4ffe99a722480ced7d5a9c"
+                _scope_proof_source_sha256("initial_recording_right_guard")
             )
         ) else frozenset()
         self.fixed_builder_binding_nodes = (
@@ -6596,6 +6596,78 @@ def _git_regular_blob(
     ):
         raise ContractError(f"Git treeの通常blobが必要: {revision}:{path}")
     return True
+
+
+def _scope_proof_source_sha256(
+    source_key: str,
+    *,
+    declaration_repository_root: Path | None = None,
+    git_repository_root: Path | None = None,
+) -> str:
+    """目的付き不変Git原典の固定4pathから全byte SHA256を読む。
+
+    Args:
+        source_key: 既承認の有限sourceの用途キー。
+        declaration_repository_root: 原典revisionを登録した正式資産のroot。
+        git_repository_root: 不変Gitobjectを解決するroot。検査source rootとは別。
+
+    Returns:
+        固定revisionの通常Gitblob全byteから導いたSHA256。
+
+    Raises:
+        ContractError: 未知用途、宣言不足、不正revision、Git参照失敗の場合。
+    """
+    paths = {
+        "initial_recording_right_guard": (
+            "backend/src/pitchlog/repositories/initial_recording_right.py"
+        ),
+        "source_fingerprint_callee": "backend/src/pitchlog/sync/idempotency.py",
+        "game_start_caller": "backend/src/pitchlog/repositories/game_start.py",
+        "initial_grant_broker_caller": (
+            "backend/src/pitchlog/recording_rights/initial_grant_broker.py"
+        ),
+    }
+    if source_key not in paths:
+        raise ContractError("scope proofの未知source用途")
+    declaration_root = declaration_repository_root or Path(__file__).resolve().parents[1]
+    git_root = git_repository_root or declaration_root
+    asset_path = "contracts/tenant_boundary/frozen-inputs.json"
+    try:
+        source = frozen_history.read_repository_file(
+            declaration_root, asset_path, "scope proof原典",
+        )
+        asset = _object(
+            json.loads(source, object_pairs_hook=_unique_json_object), "scope proof資産",
+        )
+    except (ValueError, OSError, frozen_history.ContractError) as error:
+        raise ContractError(f"scope proof原典を解決できない: {error}") from error
+    inputs = _object(asset.get("frozen_inputs"), "scope proof frozen_inputs")
+    entry = _object(
+        inputs.get("ci_scope_proof_source_revision"), "scope proof revision登録",
+    )
+    _strict_keys(entry, {"value", "purpose", "sources"}, "scope proof revision登録")
+    _string(entry["purpose"], "scope proof purpose")
+    if _string_array(entry["sources"], "scope proof sources") != (
+        "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
+        "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
+    ):
+        raise ContractError("scope proofのconsumer閉集合が不一致")
+    revision = _string(entry["value"], "scope proof revision")
+    if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+        raise ContractError("scope proof原典はfull commit SHAが必要")
+    resolved = _run_git(git_root, ["rev-parse", "--verify", f"{revision}^{{commit}}"])
+    if resolved.strip() != revision:
+        raise ContractError("scope proof原典は直接のcommit objectが必要")
+    _run_git(git_root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+    path = Path(paths[source_key])
+    _git_regular_blob(git_root, revision, path)
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{path.as_posix()}"],
+        cwd=git_root, capture_output=True, check=False,
+    )
+    if result.returncode != 0:
+        raise ContractError("scope proofのGit原典byteを取得できない")
+    return hashlib.sha256(result.stdout).hexdigest()
 
 
 def _asset_external_files(asset: Mapping[str, object], location: str) -> tuple[str, ...]:

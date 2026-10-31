@@ -2462,7 +2462,7 @@ def _validated_pure_fingerprint_decrements(
     expected_callee = {
         "path": "pitchlog/sync/idempotency.py",
         "symbol": "pitchlog.sync.idempotency.source_fingerprint",
-        "source_sha256": "a41df2351661e4f61811912e64ae5ad946e8641f8ded6a0ffaac1f6f5d19de43",
+        "source_sha256": checker._scope_proof_source_sha256("source_fingerprint_callee"),
     }
     validated_callee = {
         key: _string(callee.get(key), f"pure_helper_references.callee.{key}")
@@ -2472,13 +2472,13 @@ def _validated_pure_fingerprint_decrements(
     expected_sites = {
         ("pitchlog/repositories/game_start.py", 187, 187,
          "pitchlog.repositories.game_start.BoundInitialStartPayload.__post_init__",
-         "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613"),
+         checker._scope_proof_source_sha256("game_start_caller")),
         ("pitchlog/repositories/game_start.py", 296, 305,
          "pitchlog.repositories.game_start.bind_initial_start_request",
-         "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613"),
+         checker._scope_proof_source_sha256("game_start_caller")),
         ("pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
          "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
-         "733c8e3fd9f1bbd7720c2b85b1ce979cd6302d5974a7e63aa7646740b6c6960d"),
+         checker._scope_proof_source_sha256("initial_grant_broker_caller")),
     }
     sites = []
     for raw in _array(value.get("sites"), "pure_helper_references.sites"):
@@ -3241,6 +3241,11 @@ def test_measured_suppression_predicate_accepts_actual_a2_census(
         ],
         "condition4_substituted_from": "anchor_symbol_set",
         "condition4_code": "TB004",
+        "condition1_substituted_field": (
+            "contracts/tenant_boundary/base-allowlist.json#/condition_1_resolve_scoped_finding"
+        ),
+        "condition1_substituted_from": "none",
+        "condition1_code": "TB001",
     }
     _assert_declared_predicate(predicate, data_sets=data_sets, **arguments)
 
@@ -5117,7 +5122,7 @@ def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) ->
         "callee": {
             "path": "pitchlog/sync/idempotency.py",
             "symbol": "pitchlog.sync.idempotency.source_fingerprint",
-            "source_sha256": "a41df2351661e4f61811912e64ae5ad946e8641f8ded6a0ffaac1f6f5d19de43",
+            "source_sha256": checker._scope_proof_source_sha256("source_fingerprint_callee"),
         },
         "sites": [
             {"path": path, "line": line, "end_line": end, "scope": scope, "source_sha256": digest}
@@ -5125,17 +5130,17 @@ def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) ->
                 (
                     "pitchlog/repositories/game_start.py", 187, 187,
                     "pitchlog.repositories.game_start.BoundInitialStartPayload.__post_init__",
-                    "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613",
+                    checker._scope_proof_source_sha256("game_start_caller"),
                 ),
                 (
                     "pitchlog/repositories/game_start.py", 296, 305,
                     "pitchlog.repositories.game_start.bind_initial_start_request",
-                    "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613",
+                    checker._scope_proof_source_sha256("game_start_caller"),
                 ),
                 (
                     "pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
                     "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
-                    "733c8e3fd9f1bbd7720c2b85b1ce979cd6302d5974a7e63aa7646740b6c6960d",
+                    checker._scope_proof_source_sha256("initial_grant_broker_caller"),
                 ),
             )
         ],
@@ -5248,3 +5253,34 @@ def test_initial_broker_module_is_read_from_issuance_contract() -> None:
     assert not checker._is_fixed_initial_broker_context(
         tree, path=path, scope=scope, contract=unlisted,
     )
+
+
+
+@pytest.mark.parametrize("role", ["callee", "game_start", "initial_grant_broker"])
+def test_pure_helper_source_and_declaration_cannot_move_together(
+    tmp_path: Path, role: str,
+) -> None:
+    """現sourceと申告SHAの同時改変で不変Git原典を追随させない。"""
+    baseline = json.loads(CENSUS_BASELINE_PATH.read_text(encoding="utf-8"))
+    predicate = next(
+        p for p in baseline["pass_fail_mapping"]["predicates"]
+        if "pure_helper_references" in p
+    )
+    declaration = copy.deepcopy(predicate["pure_helper_references"])
+    entries = [declaration["callee"], *declaration["sites"]]
+    paths = {entry["path"] for entry in entries}
+    for path in paths:
+        target = tmp_path / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / "backend/src" / path).read_bytes())
+    changed_path = declaration["callee"]["path"] if role == "callee" else next(
+        path for path in paths if role in path
+    )
+    target = tmp_path / changed_path
+    target.write_bytes(target.read_bytes() + b"\n# counterexample\n")
+    changed_digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    for entry in entries:
+        if entry["path"] == changed_path:
+            entry["source_sha256"] = changed_digest
+    with pytest.raises(AssertionError, match="対象版|有限集合"):
+        _validated_pure_fingerprint_decrements(declaration, source_root=tmp_path)
