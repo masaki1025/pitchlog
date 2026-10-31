@@ -28,6 +28,7 @@ describe('三振を追加した単一artifact', () => {
       'deriveTerminalPitch',
       'deriveStrikeoutPitch',
       'derivePlayPrefixWithContinuation',
+      'deriveLineupPlayPrefixWithContinuation',
       'deriveFirstPitchWithContinuation',
       'deriveOrdinaryPitchWithContinuation',
       'validateInitialGameRoster',

@@ -42,6 +42,7 @@ it('宣言SHA一致のビルド済み公開9口を実行する', () => {
     'deriveTerminalPitch',
     'deriveStrikeoutPitch',
     'derivePlayPrefixWithContinuation',
+    'deriveLineupPlayPrefixWithContinuation',
     'deriveFirstPitchWithContinuation',
     'deriveOrdinaryPitchWithContinuation',
     'validateInitialGameRoster',

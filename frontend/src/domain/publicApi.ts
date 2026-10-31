@@ -1,4 +1,8 @@
 import {
+  prepareLineupContinuation,
+  finishLineupContinuation,
+} from './lineupPlayPrefixContinuation'
+import {
   preparePlayPrefixContinuation,
   finishPlayPrefixContinuation,
 } from './playPrefixContinuation'
@@ -18,6 +22,7 @@ import {
   deriveOrdinary,
   deriveTerminal,
   deriveStrikeout,
+  deriveLineupPitch,
   emptyFlags,
 } from './state'
 import type {
@@ -599,19 +604,21 @@ function evaluatePitch(
   ordinary: boolean,
   terminal: boolean = false,
   strikeout: boolean = false,
+  lineup: boolean = false,
 ): string {
+  const cursorMode = strikeout || lineup
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
     parsed = JSON.parse(requestJson) as unknown
-    if ((terminal || strikeout) && hasDuplicateKeys(requestJson))
+    if ((terminal || cursorMode) && hasDuplicateKeys(requestJson))
       return errorResponse('INVALID_JSON')
   } catch {
     return errorResponse('INVALID_JSON')
   }
   const request = asObject(parsed)
   let requestKeys = ['eventKind', 'resultId', 'pitchEventKind', 'before']
-  if (ordinary || terminal || strikeout)
+  if (ordinary || terminal || cursorMode)
     requestKeys = requestKeys.concat(['history'])
   if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
@@ -623,7 +630,7 @@ function evaluatePitch(
   )
     return errorResponse('INVALID_REQUEST')
   let stack: Array<unknown> = []
-  if (ordinary || terminal || strikeout) {
+  if (ordinary || terminal || cursorMode) {
     const history = asObject(request.history)
     if (
       history === null ||
@@ -634,8 +641,8 @@ function evaluatePitch(
     for (const entry of history.stack) {
       const historyError = validateHistoryEntry(
         entry,
-        terminal || strikeout,
-        strikeout,
+        terminal || cursorMode,
+        cursorMode,
       )
       if (historyError !== null) return errorResponse(historyError)
     }
@@ -643,7 +650,7 @@ function evaluatePitch(
   }
   const before = asObject(request.before)
   let beforeKeys = ['stateFields', 'scoreboard']
-  if (strikeout) beforeKeys = beforeKeys.concat(['battingOrderBySide'])
+  if (cursorMode) beforeKeys = beforeKeys.concat(['battingOrderBySide'])
   if (before === null || !exactKeys(before, beforeKeys))
     return errorResponse('INVALID_REQUEST')
   const fields = asObject(before.stateFields)
@@ -691,20 +698,20 @@ function evaluatePitch(
     innings.home,
     innings.away,
   ]
-  if (strikeout && integerValues.some((value) => typeof value !== 'string'))
+  if (cursorMode && integerValues.some((value) => typeof value !== 'string'))
     return errorResponse('INVALID_REQUEST')
   if (
     integerValues.some(
       (value) =>
         parseDecimalInteger(value) === null ||
-        ((terminal || strikeout) &&
+        ((terminal || cursorMode) &&
           typeof value === 'string' &&
           value.startsWith('-')),
     )
   ) {
     return errorResponse('INVALID_DECIMAL_INTEGER')
   }
-  const state = readState(fields, strikeout)
+  const state = readState(fields, cursorMode)
   const scoreboard = readBoard(board)
   if (state === null || scoreboard === null)
     return errorResponse('INVALID_REQUEST')
@@ -716,7 +723,7 @@ function evaluatePitch(
   let derived: Derived | null
   let cursors: BattingOrderBySide | null = null
   let afterCursors: BattingOrderBySide | null = null
-  if (strikeout) {
+  if (cursorMode) {
     const raw = asObject(before.battingOrderBySide)
     if (
       raw === null ||
@@ -737,7 +744,9 @@ function evaluatePitch(
     if (fieldValue(fields, 'state.runners') === 'loaded')
       return errorResponse('UNSUPPORTED_T1_SCOPE')
     cursors = Object.freeze({ away: away, home: home })
-    const result = deriveStrikeout(
+    let cursorCalculator = deriveStrikeout
+    if (lineup) cursorCalculator = deriveLineupPitch
+    const result = cursorCalculator(
       state,
       scoreboard,
       request.resultId,
@@ -754,7 +763,7 @@ function evaluatePitch(
       request.pitchEventKind,
     )
   if (derived === null) return errorResponse('UNSUPPORTED_T1_SCOPE')
-  if (terminal || strikeout)
+  if (terminal || cursorMode)
     return JSON.stringify({
       ok: true,
       value: derivedJson(
@@ -961,6 +970,31 @@ function derivePlayPrefixWithContinuation(requestJson: string): string {
   )
 }
 
+/** 新v3だけを両cursor付きの一回T1と共有T2へ接続する。 */
+function deriveLineupPlayPrefixWithContinuation(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  try {
+    const prepared = prepareLineupContinuation(requestJson)
+    if (!prepared.ok) return prepared.response
+    const response = evaluatePitch(
+      JSON.stringify(prepared.t1),
+      false,
+      false,
+      false,
+      true,
+    )
+    return finishLineupContinuation(prepared.request, response)
+  } catch {
+    return errorResponse('INVALID_REQUEST')
+  }
+}
+
 /** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
@@ -969,6 +1003,7 @@ export const domainOperations = Object.freeze({
   deriveTerminalPitch,
   deriveStrikeoutPitch,
   derivePlayPrefixWithContinuation,
+  deriveLineupPlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,
   deriveOrdinaryPitchWithContinuation,
   validateInitialGameRoster,

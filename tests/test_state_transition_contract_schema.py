@@ -7998,3 +7998,60 @@ def test_strikeout_every_boolean_numeric_imitation_fails_full_value_comparison()
                 schema_checker._validate_instance(
                     changed_request, schema["$defs"]["StrikeoutPitchRequest"], schema, "$",
                 )
+
+
+def test_lineup_prefix_v3_closed_schema_all_34_and_numeric_flags() -> None:
+    """v3閉shape/全比較面を既実schema consumerへ通しbool数値混同を拒否する。"""
+    base = REPOSITORY_ROOT / "contracts/state-transition"
+    schema = _load_object(base / "lineup_play_prefix_schema_v1.json")
+    vectors = _load_object(base / "lineup_play_prefix_cases_v1.json")
+    payload_schema = _load_object(base / "lineup_play_prefix_payload_schema_v1.json")
+    payloads = _load_object(base / "lineup_play_prefix_payload_vectors_v1.json")
+    assert len(vectors["cases"]) == len(payloads["cases"]) == 34
+    for case, payload in zip(vectors["cases"], payloads["cases"], strict=True):
+        schema_checker._validate_instance(case["request"], schema["$defs"]["Request"], schema, "$")
+        schema_checker._validate_instance(case["expected"], schema["$defs"]["Success"], schema, "$")
+        schema_checker._validate_instance(payload["V7"], payload_schema, payload_schema, "$")
+        assert _strikeout_json_equal(payload["V7"]["calculation"]["request"], case["request"])
+        assert _strikeout_json_equal(payload["V7"]["calculation"]["response"], case["expected"])
+        assert _strikeout_json_equal(
+            payload["V8"], case["expected"]["value"]["newHistoryEntry"]["difference"],
+        )
+        for flag, value in case["expected"]["value"]["t1"]["statFlags"].items():
+            changed = copy.deepcopy(case["expected"])
+            changed["value"]["t1"]["statFlags"][flag] = int(value)
+            with pytest.raises(schema_checker.DescriptorCheckError):
+                schema_checker._validate_instance(changed, schema["$defs"]["Success"], schema, "$")
+
+
+def test_lineup_prefix_t1_reuses_normative_so_and_started_chain() -> None:
+    """新接続期待を受理SOの独立規範と全値比較し、元24を変更しない。"""
+    base = REPOSITORY_ROOT / "contracts/state-transition"
+    cases = _load_object(base / "lineup_play_prefix_cases_v1.json")["cases"]
+    for case in cases[:24]:
+        request = copy.deepcopy(case["request"]["t1"])
+        request["history"] = {"stack": []}
+        normative = _strikeout_normative_response(request)["value"]
+        expected = case["expected"]["value"]
+        assert _strikeout_json_equal(expected["newHistoryEntry"], normative["historyContext"][0])
+        del normative["historyContext"]
+        assert _strikeout_json_equal(expected["t1"], normative)
+    chain = cases[24:]
+    assert len(chain) == 10
+    for prior, current in zip(chain, chain[1:]):
+        assert _strikeout_json_equal(
+            prior["expected"]["value"]["t1"]["after"], current["request"]["t1"]["before"],
+        )
+        assert _strikeout_json_equal(
+            prior["expected"]["value"]["nextPrefixRef"], current["request"]["prefixRef"],
+        )
+    last_so = chain[8]["expected"]["value"]
+    assert last_so["t1"]["after"]["battingOrderBySide"] == {"away": "4", "home": "1"}
+    assert last_so["t1"]["after"]["stateFields"]["state.half"] == "bottom"
+    assert last_so["t2"]["facts"]["halfCompleted"] is True
+    assert last_so["t2"]["facts"]["outsUnchanged"] is False
+    assert (
+        last_so["nextResponsibility"]["paStartSource"]["id"]
+        == last_so["playIdentity"]["eventId"]
+    )
+    assert last_so["playIdentity"]["eventId"] != last_so["playIdentity"]["playId"]

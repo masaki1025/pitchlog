@@ -1,3 +1,6 @@
+import { evaluateEndConditionNoEnd } from './endConditionCore'
+export { evaluateEndConditionNoEnd } from './endConditionCore'
+export type { EndConditionState, EndConditionFacts } from './endConditionCore'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
 import type { Derived, Scoreboard, StateFields } from './stateTypes'
 
@@ -114,99 +117,6 @@ export function readContinuationRules(value: unknown): RuleRead {
       tiebreak: tiebreak,
       dh: source.dh,
     },
-  }
-}
-
-/** 終了規則核へ渡す正規化済みの非終端位置。真正な前回lockは呼出側が保持する。 */
-export type EndConditionState = {
-  inning: bigint
-  half: 'top' | 'bottom'
-  home: bigint
-  away: bigint
-  tiebreakActive: boolean
-  gameEnded: boolean
-}
-
-/** 共通核が実規則から導出した事実。各ABIのformatterは再判定しない。 */
-export type EndConditionFacts = {
-  regulationInnings: bigint
-  inning: bigint
-  half: 'top' | 'bottom'
-  coldBranches: Array<string>
-  drawBranch: string
-  tiebreakActive: boolean
-  configuredExtensionLimit: bigint | null
-}
-
-/** 通常open系列の終了非成立を評価する唯一の規則核。未対応/矛盾はnullで閉じる。 */
-export function evaluateEndConditionNoEnd(
-  state: EndConditionState,
-  rules: ContinuationRules,
-): EndConditionFacts | null {
-  if (
-    state.inning < 1n ||
-    state.home < 0n ||
-    state.away < 0n ||
-    state.gameEnded
-  )
-    return null
-  if (
-    rules.extensionLimit !== null &&
-    rules.extensionLimit < rules.regulationInnings
-  )
-    return null
-  if (
-    rules.coldConditions.some(
-      (stage) => stage.startInning > rules.regulationInnings,
-    )
-  )
-    return null
-  if (
-    rules.tiebreak !== null &&
-    (rules.tiebreak.startInning <= rules.regulationInnings ||
-      (rules.extensionLimit !== null &&
-        rules.tiebreak.startInning > rules.extensionLimit))
-  )
-    return null
-  if (rules.extensionLimit !== null && state.inning > rules.extensionLimit)
-    return null
-  // 再開後等へ恒久的な意味拒否を拡張せず、今回の通常open系列を検査する。
-  if (
-    (state.half === 'bottom' &&
-      state.inning >= rules.regulationInnings &&
-      state.home > state.away) ||
-    (state.half === 'top' &&
-      state.inning > rules.regulationInnings &&
-      state.home > state.away)
-  )
-    return null
-  let expectedTiebreak = false
-  if (rules.tiebreak !== null && state.inning >= rules.tiebreak.startInning)
-    expectedTiebreak = true
-  if (state.tiebreakActive !== expectedTiebreak) return null
-  let branches: Array<string> = []
-  for (const stage of rules.coldConditions) {
-    let branch = 'COLD-06'
-    if (state.inning < stage.startInning) branch = 'COLD-01'
-    else if (state.half === 'top') {
-      branch = 'COLD-01'
-      if (state.away - state.home >= stage.pointDifference) branch = 'COLD-04'
-    } else {
-      if (state.home - state.away >= stage.pointDifference) return null
-      if (state.away - state.home >= stage.pointDifference) branch = 'COLD-04'
-    }
-    branches = branches.concat([branch])
-  }
-  let drawBranch = 'DRAW-07'
-  if (rules.extensionLimit !== null) drawBranch = 'DRAW-08'
-  return {
-    regulationInnings: rules.regulationInnings,
-    inning: state.inning,
-    half: state.half,
-    coldBranches: branches,
-    drawBranch: drawBranch,
-    tiebreakActive: expectedTiebreak,
-    configuredExtensionLimit: rules.extensionLimit,
   }
 }
 

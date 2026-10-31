@@ -1,7 +1,7 @@
 ---
 feature: mvp-strikeout-pitches
 status: active
-承認: 済（PO委任によるCodex主担当判断・ステップ1契約とステップ2数学核を限定採用、保存/UI未了）
+承認: 済（PO委任によるCodex主担当判断・ステップ1〜3の契約/計算/型付き呼出し/純source検証機構を限定採用、実保存/UI未了）
 重さ分類: コア領域
 branch: feature/mvp-strikeout-pitches
 created: 2026-10-31
@@ -140,3 +140,25 @@ DB読取・lock・真正sourceの実供給/bridge一回consume・SQL/ACL/token�
 
 
 ステップ3唯一核の不可分exact1追補（2026-10-31、PO委任によるCodex /root判断）: frontend/src/domain/state.tsを作者許可へ追加する。既applyCountRuleだけが両cursor更新を持ち、旧ordinary/terminal公開口は旧Snapshot shapeのためcursorを受けない。新内部deriveLineupPitchで既scope判定を共有し、同applyCountRuleを一回だけ呼んで新v3の両cursorを得る。publicApi/Pythonへcursor算式を複製しない。旧export・旧scope/拒否・旧ABI/返値/全ベクタを保持、新たな載塁BB等の未実装操作を成功へ拡張しない。stateRules/stateTypesの無関係変更は許可しない。最終source差分と一回計算/旧全値不変の独立レビューへ含める。
+
+
+ステップ3の実artifact参照とwire派生（2026-10-31、PO委任によるCodex /root判断）: author pin-request cd85f221…の現在実行653欄に加え既firstball v7Json内86欄を明示追随する。cache lineup-root-artifact-pins-20261031に対象11path/1120全leaf前後を固定。旧v2/新v3の自己echoを正式選択field26/32から再導出し、実Python selector/hash90例と実818e artifactの旧v2全56/新v3全34全応答へ照合した。数学T1/T2/history/カーソル/参加者/IDは全不変。started chain02〜10だけは実前v3出力のexecutionをpriorへ結び、前sealed nextCheckpointのdigestをrequest/source/provenance/previousRefへ順次受継いでwireを再導出する。初回startedのBFB priorと旧互換16行・他の歴史的priorは保持する。一括prior置換/期待から数学出力生成/成功仮応答0。これは数学とwireの機械整合で実DB/HTTP/記録権資格/全T1/P6成立ではない。旧保存互換の新execution有限witnessと新D11登録/最終sourceレビューはこれから別に固定する。
+
+
+ステップ3 current再導出とD11の有限追加（2026-10-31、PO委任によるCodex /root判断）: 共有T2 COLD03のcompleted-bottom有効得点境界（R9/cold7点7回/7回裏2out→有効home7点＋thirdout→8回表）の欠落を唯一coreの同loopへ修復し、818eを未採用中間として保全、実7dcへ同11path/1120leafを再導出した。新34/旧56実artifact全値と実Python wire90例が再一致、旧wrapper boundary=nullでは返値拒否不変。COLD03一般境界をSO/実保存到達へ拡張しない。新D11はrootのみがbackend/domain/lineup-prefix-manifest.json・lineup-prefix-property-catalog.json・lineup-prefix-property-catalog.schema.json、contracts/state-transition/lineup_play_prefix_d11_vectors_v1.json、新backend/tests/domainrt/test_lineup_prefix_d11.pyを作る。採用済み34の全期待値を包絡し実34typed/direct host/実hashを一つのequivalence traceへ記録、別testをroot専有して作者既testの並行書込みを避ける。未計測mutation/全BOOT/P6/DBを登録だけで成立扱いにしない。root旧保存互換は未採用818eを追加せず、旧16全行保持＋実旧Git artifactとの新execution有限11witnessだけを独立比較後に追記する。
+
+
+step3境界P1の有限修復（2026-10-31、PO委任によるCodex /root判断）: 非作者が実7dcのCOLD05（R9/cold7点7回、away7点優位の7回裏thirdout→8回表）でcold-end/recorded-scoreを確認したのに、新Decision契約がx-markだけを許していた。既COLD05/完了裏COLD03に対する型宣言漏れで新意味判断は不要。root writerが新d.ts/新schema/新payloadschemaのexact3にcold-end/recorded-scoreの同literalflag variantだけを追加、既8variant/34math/wire/7dc byteは不変。Python側は作者が同閉variantを合わせ、既Decisionのoutcome/flag偽装受理P1も全enum・bool対向で閉じる。検査を緩める一般bool/任意xMark許可はしない。cache lineup-cold-decision-shape-repair-20261031に完全前後を保全し、最終非作者closureを確認する。
+
+
+## ステップ3接続数学・typed/source検証機構の採用保存
+
+2026-10-31、PO委任によるCodex /root判断。source18 files0df2ccac0cbeae3c44a4a87e532881e58df007fbed7671510ed1846dd82e0e9b/patchb5096675…とroot後発を含むsource39 manifest0684b89c…を全byte照合。非作者REPORT5716f64c9d7434e7133f9a516ae81f7af97dbbbafd66e47ddd41096ea5eb24d0/独立combined c524917f…は同39byteと完全一致し未解消P0/P1=0。Decision偽装・COLD05 recorded-score型漏れ・prior beforeInning=0の3件を実対向で閉鎖、旧DH P1とParticipants誤認撤回・自己echo48更新漏れ・中間818e/7dcを保全し回数reset0。最終唯一artifact4cf1eceb…/57405Bの再build一致。
+
+作者BE154/FE582/契約2、独立BE63/FE310、root全frontend136files/3180passed137.19秒が成功。独立旧no-end wrapper66,560全返値/null一致、一般248/12のadapterは規範位置から境界を形成し期待decisionから入力逆算しない。cold14境界、384Decisionの合法9/拒否375、schema不正2163leafの公開口成功0、新34/旧56artifact全応答、wire90全field/hash、旧Git5から新有限11互換9414全応答を確認。actual互換27は旧16全保持＋最終4cf11で、未採用818e/7dcを歴史的priorへ追加しない。
+
+D11の新34はnormative包絡/実factory34/direct34を実消費し、公式collectorで新equivalence1の五判定/hash/値連鎖が成立（対象testだけのcomplete、全BOOT/全D11/全mutationは未成立）。数学T1/T2/履歴/カーソル/参加者・旧ABIは機械pin追随以外不変。fresh Chromiumの新34/旧56は純数学検査でHTTP/DB/画面ではない。
+
+初期/2/8/9prefixと第三out→相手ordinaryを実artifact再生するpure source verifierは成立したが、これはDB資格・実Port/tenant/fence/anchor/lock/ページングを発行しない。これらを提供するreader/同TX保存/GET/ACK/画面はステップ4/5の未提供依存として残す。全T1/全MVP/P6blind/正式7.7/必須CI/通常mergeを成立扱いしない。次は既v2実接続を再利用した実reader・SQL/token/ACL・one-use frame・同TX原子的保存へ進む。
+
+主担当判断receipt: cache lineup-root-artifact-pins-r4-20261031/root-step3-approval.json SHAb78a5202f3440a461c7d176c99918e03d316b1d72188341186cf4b7fe119cb24。本人逐行確認/実値確認/署名を代記しない。

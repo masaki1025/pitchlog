@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "lineup-prefix-properties",
+  "scope": "lineup-play-prefix-v3",
+  "predicates": [
+    {
+      "propertyId": "lineupPrefixHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    }
+  ]
+}

@@ -1402,6 +1402,38 @@
             "xMark"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "const": "cold-end"
+            },
+            "endConditionDetected": {
+              "const": true
+            },
+            "lockFurtherPlayInput": {
+              "const": true
+            },
+            "promptEndDeclaration": {
+              "const": true
+            },
+            "automaticallyEndsGame": {
+              "const": false
+            },
+            "xMark": {
+              "const": "recorded-score"
+            }
+          },
+          "required": [
+            "outcome",
+            "endConditionDetected",
+            "lockFurtherPlayInput",
+            "promptEndDeclaration",
+            "automaticallyEndsGame",
+            "xMark"
+          ],
+          "additionalProperties": false
         }
       ]
     },

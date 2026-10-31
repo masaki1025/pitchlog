@@ -88,12 +88,74 @@ export function derive(
 }
 
 /** 契約が成立した通常33座標だけを同じカウント核へ渡す。 */
+/** 旧通常ABIはcursorなしで同一scope/返値を保持する。 */
 export function deriveOrdinary(
   before: StateFields,
   board: Scoreboard,
   resultId: string,
   pitchEventKind: string,
 ): Derived | null {
+  return deriveOrdinaryCore(before, board, resultId, pitchEventKind)
+}
+/** 旧終端ABIはcursorなしで同一scope/返値を保持する。 */
+export function deriveTerminal(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+): Derived | null {
+  return deriveTerminalCore(before, board, resultId, pitchEventKind)
+}
+/** v3の全投球は両cursorを同じ唯一核へ渡す。旧入口のshapeを広げない。 */
+export function deriveLineupPitch(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived | null {
+  let active = cursors.away
+  if (before.half === 'bottom') active = cursors.home
+  if (
+    cursors.away < 1n ||
+    cursors.away > 9n ||
+    cursors.home < 1n ||
+    cursors.home > 9n ||
+    active !== before.battingOrder
+  )
+    return null
+  if (
+    resultId === 'batting-result.called-strikeout' ||
+    resultId === 'batting-result.swinging-strikeout'
+  )
+    return deriveStrikeout(before, board, resultId, pitchEventKind, cursors)
+  if (
+    resultId === 'batting-result.walk' ||
+    resultId === 'batting-result.hit-by-pitch'
+  )
+    return deriveTerminalCore(
+      before,
+      board,
+      resultId,
+      pitchEventKind,
+      cursors,
+    ) as StrikeoutDerived | null
+  return deriveOrdinaryCore(
+    before,
+    board,
+    resultId,
+    pitchEventKind,
+    cursors,
+  ) as StrikeoutDerived | null
+}
+
+function deriveOrdinaryCore(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived | null {
   if (
     pitchEventKind !== 'pitch-event' ||
     !ordinaryStateSupported(before, board)
@@ -102,7 +164,7 @@ export function deriveOrdinary(
   if (before.strikes < 0n || before.balls < 0n) return null
   if (resultId === 'batting-result.ball') {
     if (before.strikes > 2n || before.balls > 2n) return null
-    return applyCountRule(before, board, FIRST_BALL_RULE)
+    return applyCountRule(before, board, FIRST_BALL_RULE, resultId, cursors)
   }
   if (
     resultId !== 'batting-result.called-pitch' &&
@@ -120,19 +182,20 @@ export function deriveOrdinary(
       strikeEffect: 'unchanged' as CountEffectKind,
       strikeDelta: 0n,
     })
-    return applyCountRule(before, board, holdRule)
+    return applyCountRule(before, board, holdRule, resultId, cursors)
   }
   if (before.strikes > 1n || before.balls > 3n) return null
-  return applyCountRule(before, board, ORDINARY_STRIKE_RULE)
+  return applyCountRule(before, board, ORDINARY_STRIKE_RULE, resultId, cursors)
 }
 
 /** 受理済みの無走者BB/HBPだけを共有核へ渡す。 */
-export function deriveTerminal(
+function deriveTerminalCore(
   before: StateFields,
   board: Scoreboard,
   resultId: string,
   pitchEventKind: string,
-): Derived | null {
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived | null {
   if (
     pitchEventKind !== 'pitch-event' ||
     !ordinaryStateSupported(before, board) ||
@@ -148,7 +211,7 @@ export function deriveTerminal(
   if (resultId === 'batting-result.walk') {
     if (before.balls !== 3n) return null
   } else if (resultId !== 'batting-result.hit-by-pitch') return null
-  return applyCountRule(before, board, TERMINAL_REACH_RULE, resultId)
+  return applyCountRule(before, board, TERMINAL_REACH_RULE, resultId, cursors)
 }
 
 /** 正規捕球の三振だけを、両cursorを検証して同じ核へ渡す。 */
@@ -194,6 +257,13 @@ function applyCountRule(
   rule: Rule,
   resultId?: string,
 ): Derived
+function applyCountRule(
+  before: StateFields,
+  board: Scoreboard,
+  rule: Rule,
+  resultId: string,
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived
 /** 初球・通常投球・打席終了で共有する単一の遷移計算。 */
 function applyCountRule(
   before: StateFields,

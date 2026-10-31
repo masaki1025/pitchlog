@@ -4,7 +4,7 @@ import './entry'
 import { domainOperations } from './publicApi'
 
 describe('ドメイン公開口の疎通操作', () => {
-  it('操作表を凍結し、公開操作を承認済み10口に限定する', () => {
+  it('操作表を凍結し、公開操作を承認済み11口に限定する', () => {
     expect(Object.isFrozen(domainOperations)).toBe(true)
     expect(Object.keys(domainOperations)).toEqual([
       'ping',
@@ -13,6 +13,7 @@ describe('ドメイン公開口の疎通操作', () => {
       'deriveTerminalPitch',
       'deriveStrikeoutPitch',
       'derivePlayPrefixWithContinuation',
+      'deriveLineupPlayPrefixWithContinuation',
       'deriveFirstPitchWithContinuation',
       'deriveOrdinaryPitchWithContinuation',
       'validateInitialGameRoster',
