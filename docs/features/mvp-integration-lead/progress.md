@@ -1,6 +1,6 @@
 # 初回MVP 主担当引受・進捗台帳
 
-## 続き：2026-10-31 14:22 JST（三振本体を保存・Draft192、新artifactの実画面回帰を確認）
+## 続き：2026-10-31 14:21 JST（三振本体を保存・Draft192、新artifactの実画面回帰を確認）
 
 - **新しい製品実装/提供版**: feature/mvp-strikeout-pitchesでe1af69d8に正規捕球三振/第3アウトの唯一核・閉ABI・固定Python host・実D11包絡/trace・実行pin/有限旧保存互換をcommit/push。非作者REPORT03234246…と後発r2 REPORT4e9eb001…（新P0/P1=0）、source27manifest592d8e3d…全byteに基づくPO委任のroot判断receipt5a88bc97…。数学24/独立31,104・互換9組7536全値、公式92/610・非作者FE88/BE59、修復後全FE135files/2873passed133.92秒、全backend ty/関連ruff/再build成功。旧7互換行/全prior/既拒否保持。Draft PR https://github.com/masaki1025/pitchlog/pull/192（base191）へ保存。親19c1c125のAST不変書式/手動docsを2bde6a3dで接合し両計画追記を保持、runtime差0。三振の保存/UI成功や全T1/P6新blind/全D11/BOOT/7.7/全CIはまだ成立しない。
 - **全件検査で検出し直したこと**: 初回FE60failed/2813passed135.67秒は、artifact実行SHA499の追随だけではwire自己echo112とhandoff実SHA1が旧値だったため。正式wirehead26欄を独立列挙した正準SHAと実Python hashを56全例で照合、他全値/T1/T2/V8/観測/参加者不変で再導出。非作者再検証/失敗2spec88成功後、全FE2873成功を確認。初回失敗はcache strikeout-root-artifact-pins-20261031/frontend-full.logへ保持し、先の数学レビューを全FE成功へ読み替えていない。
