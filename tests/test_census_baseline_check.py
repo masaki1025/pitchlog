@@ -1388,7 +1388,9 @@ def _assert_removed_tb007_matches_declared_relaxations(
                     symbol == contract.tenant_context.constructor_symbol
                     and (
                         scope == contract.tenant_context.issuance_entrypoint_symbol
-                        or checker._is_fixed_initial_broker_context(tree, path=path, scope=scope)
+                        or checker._is_fixed_initial_broker_context(
+                            tree, path=path, scope=scope, contract=contract,
+                        )
                     )
                     and scanner.module
                     in contract.tenant_context.allowed_product_modules
@@ -4977,8 +4979,12 @@ def test_initial_broker_constructor_is_an_exact_second_scope() -> None:
     path = "pitchlog/repositories/tenant_context_issuance.py"
     source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
     tree = ast.parse(source)
-    scope = checker._INITIAL_BROKER_SCOPE
-    assert checker._is_fixed_initial_broker_context(tree, path=path, scope=scope)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    issuer_module = contract.tenant_context.issuance_entrypoint_symbol.rpartition(".")[0]
+    scope = f"{issuer_module}._issue_initial_broker_context"
+    assert checker._is_fixed_initial_broker_context(
+        tree, path=path, scope=scope, contract=contract,
+    )
     function = next(
         n for n in tree.body
         if isinstance(n, ast.FunctionDef) and n.name == "_issue_initial_broker_context"
@@ -5008,7 +5014,9 @@ def test_initial_broker_constructor_guard_loss_has_no_census_explanation(mutatio
     """型/実照合/expected tenant/真正Capability/帰属の全条件を保つ。"""
     path = "pitchlog/repositories/tenant_context_issuance.py"
     source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
-    scope = checker._INITIAL_BROKER_SCOPE
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    issuer_module = contract.tenant_context.issuance_entrypoint_symbol.rpartition(".")[0]
+    scope = f"{issuer_module}._issue_initial_broker_context"
     changes = {
         "cookie-type": ("type(cookie) is not SecretStr", "False"),
         "tenant-type": ("type(expected_tenant_id) is not UUID", "False"),
@@ -5030,7 +5038,9 @@ def test_initial_broker_constructor_guard_loss_has_no_census_explanation(mutatio
         old, new = changes[mutation]
         assert old in source
         source = source.replace(old, new)
-    assert not checker._is_fixed_initial_broker_context(ast.parse(source), path=path, scope=scope)
+    assert not checker._is_fixed_initial_broker_context(
+        ast.parse(source), path=path, scope=scope, contract=contract,
+    )
 
 
 @pytest.mark.parametrize("mutation", [
@@ -5201,3 +5211,40 @@ def test_independent_candidates_measure_anchor_signature_blind_spots(
     )
     assert expected
     assert current - anchor == expected
+
+
+def test_initial_broker_module_is_read_from_issuance_contract() -> None:
+    """発行moduleだけを契約から導出し、旧pathや許可外moduleを受け入れない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    entrypoint = contract.tenant_context.issuance_entrypoint_symbol
+    module, _, function = entrypoint.rpartition(".")
+    original_path = module.replace(".", "/") + ".py"
+    tree = ast.parse((REPOSITORY_ROOT / "backend/src" / original_path).read_text())
+    alternate_module = "pitchlog.repositories.another_registered_issuer"
+    alternate = replace(
+        contract,
+        tenant_context=replace(
+            contract.tenant_context,
+            issuance_entrypoint_symbol=f"{alternate_module}.{function}",
+            allowed_product_modules=frozenset({alternate_module}),
+        ),
+    )
+    scope = f"{alternate_module}._issue_initial_broker_context"
+    path = alternate_module.replace(".", "/") + ".py"
+    assert checker._is_fixed_initial_broker_context(
+        tree, path=path, scope=scope, contract=alternate,
+    )
+    assert not checker._is_fixed_initial_broker_context(
+        tree, path=original_path, scope=scope, contract=alternate,
+    )
+    assert not checker._is_fixed_initial_broker_context(
+        tree, path=path, scope=scope, contract=contract,
+    )
+    unlisted = replace(
+        alternate, tenant_context=replace(
+            alternate.tenant_context, allowed_product_modules=frozenset(),
+        ),
+    )
+    assert not checker._is_fixed_initial_broker_context(
+        tree, path=path, scope=scope, contract=unlisted,
+    )

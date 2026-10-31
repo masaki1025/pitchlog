@@ -1292,9 +1292,7 @@ def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...
     return tuple(fixtures)
 
 
-_INITIAL_BROKER_SCOPE = (
-    "pitchlog.repositories.tenant_context_issuance._issue_initial_broker_context"
-)
+_INITIAL_BROKER_FUNCTION = "_issue_initial_broker_context"
 _INITIAL_BROKER_EXPECTED_AST = ast.parse(
     'def _issue_initial_broker_context(cookie: object, expected_tenant_id: objec'
     't, verifier_runtime: object) -> tuple[TenantContext, datetime] | None:\n'
@@ -1313,13 +1311,22 @@ _INITIAL_BROKER_EXPECTED_AST = ast.parse(
 ).body[0]
 
 
-def _is_fixed_initial_broker_context(tree: ast.Module, *, path: str, scope: str) -> bool:
-    """実cookie/期待tenant/真正Capabilityの既第二発行関数だけを照合する。"""
-    if path != "pitchlog/repositories/tenant_context_issuance.py" or scope != _INITIAL_BROKER_SCOPE:
+def _is_fixed_initial_broker_context(
+    tree: ast.Module, *, path: str, scope: str, contract: Contract,
+) -> bool:
+    """契約の発行module内で実cookie/tenant/Capabilityの固定関数だけを照合する。"""
+    issuer_module, separator, _ = contract.tenant_context.issuance_entrypoint_symbol.rpartition(".")
+    expected_path = issuer_module.replace(".", "/") + ".py"
+    expected_scope = f"{issuer_module}.{_INITIAL_BROKER_FUNCTION}"
+    if (
+        not separator or not issuer_module
+        or issuer_module not in contract.tenant_context.allowed_product_modules
+        or path != expected_path or scope != expected_scope
+    ):
         return False
     nodes = [
         node for node in tree.body
-        if isinstance(node, ast.FunctionDef) and node.name == "_issue_initial_broker_context"
+        if isinstance(node, ast.FunctionDef) and node.name == _INITIAL_BROKER_FUNCTION
     ]
     return len(nodes) == 1 and ast.dump(nodes[0]) == ast.dump(_INITIAL_BROKER_EXPECTED_AST)
 
