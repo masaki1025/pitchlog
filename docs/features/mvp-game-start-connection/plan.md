@@ -658,3 +658,11 @@ oracle_input単一行受理（2026-10-31、PO委任によるCodex主担当判断
 実31所見のsource7候補採用（2026-10-31、PO委任によるCodex主担当判断）: 作者packetaf22e6d6…/実7byteと非作者REPORTf39c43b17ef3324c25152c9d3ffd4405af583043bff54aff8c4ad798e0c85f36を照合、新指摘0で候補を採用。独立62局所成功・ownerNone反事実の差は厳密1identity/逆差0、実CAP30/token47/SQL47/別fn4が現宣言と一致。旧allowlist他field/17symbol multiset/bytes核AST/旧277test定義・旧履歴/revisionを保持。current_product31→0はこの候補検査の実結果、raw scan258・正式tenant CLI成功とは別。ledger scoped fixture2fieldと正式全9影響/7.7/生成値はrootが別途再導出する。未知code追加/原本owner保証緩和/後続189の機能移植なし。
 
 oracle最終8asset採用保存（2026-10-31、PO委任によるCodex主担当判断）: final packetc8747b12de3030cbb6ca7ba0b1931d26acd1aaf299e6d7003eefcb244c393b9f/実8byteと非作者REPORT8084bd36749c302c11606bfd5fd77fcbe6506c241174492a2568b53d528c0d6cを照合、新指摘0で保存する。C8input gitblob/6canonical digestの独立再算出、旧15ledger全保持＋1実受理、旧期待/物理probe/権限/歴史実測不変を確認。専用--reseal-oracle成功後のflag無しdefault検査1427/51route/oracle202/mutants235/cutsets24、frozen--invariants-onlyとも成功。root実行と非作者pureを区別し、tenant9正式値/全CI/通常merge/MVP完成へは広げない。初回台帳旧値停止・未sealed段階もcache履歴保持、本人署名0。
+
+### censusの残差4群を原本根拠で解消する有限追補（2026-10-31）
+
+PO委任によるCodex /root判断。対象4bf88379、read-only分類REPORT 75269bd4fec9ff9d81e3e03b0081fa9212574bca2a4c86c922c47f4b8310d41cを根拠とする。scripts/check_tenant_boundary_bypass.py、tests/test_check_tenant_boundary_bypass.py、tests/test_census_baseline_check.pyのexact3を作者へ割当てる。正式JSONはroot専有とし、必要なcensus-baseline.jsonの有限宣言はcache候補として返す。製品source・SQL・認可catalog・旧43/18・anchor・allowed_codesは変更しない。
+
+対象は(1)source_fingerprintの3参照について実callee/呼出元AST/source SHAに束縛した旧namespace誤報の説明、(2)int/strとbuiltins修飾の13同一siteの規範的正準化、(3)Protocol annotation3件の実行callとの区別、(4)self.assert_bound_tenant/dict.get/popの4件でdata originをcallable originへ誤伝播する問題。一般的な名前除外・get/pop免除・Context起源削除・現checker出力から独立期待の生成は禁止する。実原典/解析責務に沿って修復し、shadow/import alias/未知型、dictに格納したconstructorの取出し後呼出し、instance callback、未知callback、別scope、ガード欠落、DB到達calleeへの置換を拒否する対向を維持・追加する。
+
+source fingerprint本体/暗号/同期意味は不変。全候補は非作者敵対確認後にroot採用する。ledger_removed22のdigestは別の独立照合を経てrootがfixture1fieldだけ更新し、added1/旧43/18を保持する。各群を無条件skipしてCLIを通さず、未解消があれば全差分を一括固定する。正式tenant9 revision/7.7/生成/snapshot/必須CIは別の直列作業であり本追補だけでは成立しない。
