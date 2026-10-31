@@ -145,3 +145,11 @@ oracle基準台帳の限定追随（2026-11-01、PO委任によるCodex主担当
 
 
 root型境界の限定整合（2026-11-01、PO委任によるCodex主担当判断）: 非作者診断REPORTd86078ef…でroot/BE独立venvの既設計と、新import9診断（checker8/test1）を特定。scripts/check_authz_catalog.pyのfirst_ball_productへの8local importとtests/test_check_authz_catalog.pyのasset_spec import1だけへ、既同境界10statementと同じunresolved-import限定注記を追加する。2fileのPython AST100%同一、runtime/全拒否/テスト対象/ルール不変を検査する。新Any・広域ignore・fixture除外・backend全体の検索path追加は行わない。backend本体は別tyで検査するが、rootからの具体的呼出型を完全検査する保証を新たに主張しない。影響試験・root ty/ruffと非作者候補照合後に保存する。
+
+
+凍結scanの正規移設（2026-11-01、PO委任によるCodex主担当判断）: 通常allow-list追加は禁止のため一切追加しない。公式scanが検出した新35組は、backend5test fileの旧期待30、tests/test_required_set_coverage.pyの歴史anchor1、scripts/check_human_review_signature.pyのordinary4pinである。既値・全比較・負対向を保持して次の2単位へ分離する。
+
+1. test側: backend/tests/test_first_ball_write_stamp.py・test_sync_apply_first_ball_payload.py・test_sync_apply_product_supply.py・test_sync_apply_writer_binding.py・test_sync_right_sql.py、およびtests/test_required_set_coverage.pyの該当固定値だけを独立tracked JSON fixture（backend/tests/fixtures/first_ball_expected_source_pins_v1.json、tests/fixtures/required_set_coverage_legacy_pin_v1.json）へ機械移設する。必要な共通閉readerはbackend/tests/first_ball_expected_source_pins.pyだけ。旧固定期待を製品sourceから再計算せず、元Gitと全値一致/既testの完全比較・未知/欠落拒否を維持する。新35以外の旧allow-list値を移設で除去した場合は、公式scanで消えたexact組だけallow-listから削除（旧残存全byte保持、追加0）する。
+2. core側: 独立contracts/state-transition/gate6_t1_ordinary_pitch_pins_v1.jsonへad6588b1の旧4定数（anchor/public_base/record_sha256/schema_sha256）を機械抽出して先にcommitし、非作者全値確認。そのcommitで既8oracle入力が3dd固定byteと同一であることを確認してoracle_inputを当該commitへ追随（同PR189の未正式受理末尾record1件へ最終実値だけ反映）。verifierは既frozen_baselines readerの承認済み単一commitからgit showで固定JSONを読み、exact4key/重複/40・64桁を閉検査する。current JSON/検査対象record/schemaの値・任意HEADへのfallbackは禁止。旧PR187限定/ancestor/旧policy prefix/record-schema hash/拒否条件を保持。読込不明は閉拒否。新frozen系列/比較strategy/検査除外は作らない。
+
+rootはcore verifier/authority JSON/oracle/台帳/allow-listの唯一writer、分離作者はtest側exact9pathのみ。各scopeは候補凍結後に非作者review。文字列分割・走査対象変更・判定緩和で回避しない。正式source7.7/最終CIは最終版で直列導出する。
