@@ -288,6 +288,42 @@ _EXTRA = r"""
                 != snapshot["prefix_ref"]["checkpoint"]["id"]
             )
             previous_d5.append(d5)
+        # 別tenantの実ログインでも元tenantの記録を読めず、元D5も再掲しない。
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test"
+        ) as foreign_client:
+            logged = await login(foreign_client, case["other_team_name"])
+            assert logged.status_code == 200
+            foreign_headers = headers()
+            foreign_headers["X-Pitchlog-Expected-Tenant"] = case["other_tenant_id"]
+            denied_read = await foreign_client.get(
+                "/games/" + game + "/started?projection=play-prefix-v2&limit=100",
+                headers=foreign_headers,
+            )
+            assert denied_read.status_code == 404, (
+                "foreign-read", denied_read.status_code, denied_read.text
+            )
+            assert not {"after", "runners", "prefix_ref", "page"} & set(
+                denied_read.json()
+            )
+            foreign_write_headers = device_headers(pair, str(uuid4()))
+            foreign_write_headers["X-Pitchlog-Expected-Tenant"] = (
+                case["other_tenant_id"]
+            )
+            denied_replay = await foreign_client.post(
+                "/games/" + game + "/sync/events",
+                headers=foreign_write_headers,
+                json=payload,
+            )
+            assert denied_replay.status_code == 404, (
+                "foreign-replay", denied_replay.status_code, denied_replay.text
+            )
+            assert "eventResults" not in denied_replay.json()
+        owner_again = await client.get(
+            "/games/" + game + "/started?projection=play-prefix-v2&limit=100",
+            headers=headers(),
+        )
+        assert owner_again.status_code == 200 and owner_again.json() == snapshot
         return {
             "game": game,
             "prefix": snapshot["prefix_ref"]["length"],
@@ -334,6 +370,8 @@ def test_actual_owned_terminal_then_ordinary_and_original_d5(
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
         "team_name": db.team_name,
+        "other_team_name": db.other_team_name,
+        "other_tenant_id": str(db.other_tenant_id),
         "password": _PASSWORD,
         "pitch_type": _PITCH_TYPE,
     }
