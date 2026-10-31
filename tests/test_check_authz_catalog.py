@@ -6826,7 +6826,7 @@ def test_first_ball_product_rejects_old_and_added_mutations(fault: str) -> None:
 
 def test_first_ball_invoker_unknown_mode_and_order_are_rejected(tmp_path: Path) -> None:
     """exact1 INVOKERとhelper段階の順序だけを認める。"""
-    from pitchlog.authz.asset_spec import (
+    from pitchlog.authz.asset_spec import (  # ty: ignore[unresolved-import]
         PRODUCT_SPEC,
         AuthzApplicationStepsError,
         load_product_application_steps,
