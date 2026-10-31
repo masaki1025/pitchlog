@@ -5,8 +5,9 @@ from __future__ import annotations
 import secrets
 from collections.abc import Callable
 from contextlib import AbstractContextManager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Any
 
 import psycopg
 import pytest
@@ -16,10 +17,11 @@ from db_fixtures import (
     _prepare_legacy_product_baseline,
     _product_migration_url,
     _product_role_ids,
+    _require_historical_cluster,
     _snapshot_product_catalog,
 )
 from psycopg import sql
-from psycopg.conninfo import make_conninfo
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.pq import TransactionStatus
 
 from pitchlog.authz.product_catalog import (
@@ -107,10 +109,83 @@ def _alembic_config() -> Config:
     return Config(str(_BACKEND_ROOT / "alembic.ini"))
 
 
+@dataclass(frozen=True)
+class _VerifiedBuiltinBootstrap:
+    """所有cluster・実superuser・builtin ownerを照合済みの座標。"""
+
+    name: str
+    identity_arguments: str
+
+
+def _verified_builtin_bootstrap(
+    cluster: DisposablePostgres, connection: psycopg.Connection[Any]
+) -> _VerifiedBuiltinBootstrap:
+    """宣言対象builtinの実ownerだけを同clusterのbootstrapへ照合する。"""
+    _require_historical_cluster(cluster)
+    admin = conninfo_to_dict(cluster.admin_dsn)
+    bootstrap = admin["user"]
+    port = admin["port"]
+    assert isinstance(bootstrap, str) and isinstance(port, str)
+    assert connection.info.host == admin["host"]
+    assert connection.info.port == int(port)
+    assert connection.info.dbname in {"pitchlog_product", _HISTORICAL_DATABASE}
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT owner.rolname, owner.rolsuper, current_user::text,
+                       session_user::text, subject.rolsuper,
+                       pg_catalog.pg_get_function_identity_arguments(procedure.oid)
+                FROM pg_catalog.pg_proc AS procedure
+                JOIN pg_catalog.pg_namespace AS namespace
+                  ON namespace.oid = procedure.pronamespace
+                JOIN pg_catalog.pg_roles AS owner ON owner.oid = procedure.proowner
+                JOIN pg_catalog.pg_roles AS subject ON subject.rolname = session_user
+                WHERE namespace.nspname = 'pg_catalog'
+                  AND procedure.proname = 'pg_control_system'
+                  AND procedure.pronargs = 0
+                """
+            )
+            rows = cursor.fetchall()
+        assert len(rows) == 1
+        row = rows[0]
+        assert row[:5] == (bootstrap, True, bootstrap, bootstrap, True)
+        assert type(row[1]) is bool and type(row[4]) is bool
+        assert isinstance(row[5], str)
+        return _VerifiedBuiltinBootstrap(bootstrap, row[5])
+    finally:
+        connection.rollback()
+
+
+def _map_owned_builtin_bootstrap(
+    snapshot: ProductCatalogSnapshot,
+    source: _VerifiedBuiltinBootstrap,
+    target: _VerifiedBuiltinBootstrap,
+) -> ProductCatalogSnapshot:
+    """別cluster間だけで証明済みbuiltin ownerのgrantee一座標を対応させる。"""
+    assert source.identity_arguments == target.identity_arguments
+    mapped = []
+    matches = 0
+    for row in snapshot.function_acl:
+        if row[3] == source.name:
+            assert row[:3] == (
+                "pg_catalog",
+                "pg_control_system",
+                source.identity_arguments,
+            )
+            matches += 1
+            mapped.append((*row[:3], target.name, *row[4:]))
+        else:
+            mapped.append(row)
+    assert matches == 1
+    return replace(snapshot, function_acl=tuple(mapped))
+
+
 def _historical_round_trip_baseline(
     catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
     factory: Callable[[], AbstractContextManager[DisposablePostgres]],
+    target_bootstrap: _VerifiedBuiltinBootstrap,
 ) -> ProductCatalogSnapshot:
     """別所有clusterで可逆な0033を往復し、現基準へ進める。"""
     database = _HISTORICAL_DATABASE
@@ -153,8 +228,12 @@ def _historical_round_trip_baseline(
                     applicator_dsn=applicator_dsn,
                     applicator=applicator,
                 )
-                return _snapshot_product_catalog(
+                source_bootstrap = _verified_builtin_bootstrap(cluster, applicator)
+                snapshot = _snapshot_product_catalog(
                     applicator, _product_role_ids(catalog.asset), asset=catalog.asset
+                )
+                return _map_owned_builtin_bootstrap(
+                    snapshot, source_bootstrap, target_bootstrap
                 )
 
 
@@ -229,6 +308,7 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
         row[0] == catalog.applicator.info.dbname
         for row in migration_snapshot.database_acl
     )
+    target_bootstrap = _verified_builtin_bootstrap(catalog.cluster, catalog.observer)
     historical_expected = replace(
         migration_snapshot,
         database=tuple(
@@ -240,7 +320,7 @@ def test_unapply_migration_round_trip_and_reapply_restore_both_catalogs(
     )
     assert (
         _historical_round_trip_baseline(
-            catalog, monkeypatch, disposable_postgres_cluster
+            catalog, monkeypatch, disposable_postgres_cluster, target_bootstrap
         )
         == historical_expected
     )

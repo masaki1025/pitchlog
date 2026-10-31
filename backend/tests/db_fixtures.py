@@ -43,6 +43,7 @@ from pitchlog.authz.product_provisioning import (
     unapply_product_authz_ddl,
 )
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
+from pitchlog.db import stage_a_startup
 from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -1617,6 +1618,103 @@ def _owned_product_catalog(
                 application_steps=application_steps,
                 pre_application_catalog=pre_application_catalog,
             )
+
+
+@contextmanager
+def _seed_after_real_initial_storage(
+    cluster: DisposablePostgres,
+    monkeypatch: pytest.MonkeyPatch,
+    seed: Callable[[psycopg.Connection[Any]], None],
+    completed: list[bool],
+) -> Iterator[None]:
+    """実0036直後・writer配置前だけへowned fixtureのデータ供給を閉じる。"""
+    if _external_product_catalog is not None or completed:
+        raise AssertionError("外部供給/再使用へのpre-writer seedは禁止")
+    _require_historical_cluster(cluster)
+    admin_parts = conninfo_to_dict(cluster.admin_dsn)
+    original = stage_a_startup._apply_initial_storage
+    called = False
+
+    def real_then_seed(owner_dsn: str) -> None:
+        nonlocal called
+        if called:
+            raise AssertionError("pre-writer seedの再実行は禁止")
+        owner = conninfo_to_dict(owner_dsn)
+        if (
+            owner.get("user") != "pitchlog_owner"
+            or owner.get("dbname") != "pitchlog_product"
+            or any(owner.get(k) != admin_parts.get(k) for k in ("host", "port"))
+        ):
+            raise AssertionError("owned seedのowner/DB座標が不一致")
+        called = True
+        original(owner_dsn)
+        dsn = make_conninfo(cluster.admin_dsn, dbname=owner["dbname"])
+        with psycopg.connect(dsn) as connection, connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT current_user::text, session_user::text, current_database(),
+                       owner.rolname, subject.rolsuper
+                FROM pg_catalog.pg_database database
+                JOIN pg_catalog.pg_roles owner ON owner.oid=database.datdba
+                JOIN pg_catalog.pg_roles subject ON subject.rolname=session_user
+                WHERE database.datname=current_database()
+            """)
+            identity = cursor.fetchone()
+            if (
+                identity
+                != (
+                    admin_parts["user"],
+                    admin_parts["user"],
+                    owner["dbname"],
+                    "pitchlog_owner",
+                    True,
+                )
+                or type(identity[4]) is not bool
+            ):
+                raise AssertionError("owned seedの実主体/DBowner/superuserが不一致")
+            cursor.execute("SELECT version_num FROM public.alembic_version")
+            if cursor.fetchall() != [("0036_initial_right_storage",)]:
+                raise AssertionError("seedは実0036直後だけ許可")
+            cursor.execute("""
+                SELECT count(*) FROM pg_catalog.pg_trigger AS trigger_row
+                JOIN pg_catalog.pg_proc AS procedure ON procedure.oid=trigger_row.tgfoid
+                WHERE procedure.proname IN (
+                    'guard_first_ball_projection_lock',
+                    'guard_first_ball_projection_admission'
+                ) AND NOT trigger_row.tgisinternal
+            """)
+            if cursor.fetchone() != (0,):
+                raise AssertionError("writer guard配置後のseedは禁止")
+            seed(connection)
+            connection.commit()
+        completed.append(True)
+
+    with monkeypatch.context() as context:
+        context.setattr(stage_a_startup, "_apply_initial_storage", real_then_seed)
+        yield
+
+
+@contextmanager
+def _seeded_owned_product_catalog(
+    factory: Callable[[], AbstractContextManager[DisposablePostgres]],
+    monkeypatch: pytest.MonkeyPatch,
+    seed: Callable[[psycopg.Connection[Any]], None],
+) -> Iterator[ProvisionedProductCatalog]:
+    """旧データを0036後へ供給し、実advanceS0の全検証で現S3へ進める。"""
+    if _external_product_catalog is not None:
+        raise AssertionError("外部供給へpre-writer seedを追加しない")
+    completed: list[bool] = []
+
+    @contextmanager
+    def owned_factory() -> Iterator[DisposablePostgres]:
+        with factory() as cluster:
+            with _seed_after_real_initial_storage(
+                cluster, monkeypatch, seed, completed
+            ):
+                yield cluster
+
+    with _owned_product_catalog(owned_factory, monkeypatch) as catalog:
+        assert completed == [True]
+        yield catalog
 
 
 def _prepare_legacy_product_baseline(

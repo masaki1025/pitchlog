@@ -2404,3 +2404,301 @@ def test_legacy_snapshot_keeps_old_builtin_targets_and_excludes_private_tables(
         params for query, params in captured if "relation.relname = ANY(%s)" in query
     ]
     assert len(private) == 4 and all(params == ([],) for params in private)
+
+
+def _registered_seed_test_cluster(monkeypatch: pytest.MonkeyPatch):
+    """純unitだけの所有registry個体と合成接続座標を作る。"""
+    import db_fixtures
+
+    token = "0123456789abcdef"
+    dsn = (
+        "host=127.0.0.1 port=54321 dbname=pitchlog_disposable "
+        f"user=pitchlog_disposable_{token}"
+    )
+    cluster = db_fixtures.DisposablePostgres(f"pitchlog-authz-{token}", dsn, dsn)
+    monkeypatch.setitem(db_fixtures._DISPOSABLE_CLUSTER_OWNERS, id(cluster), cluster)
+    return cluster
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "external",
+        "foreign",
+        "repeat",
+        "host",
+        "database",
+        "owner",
+        "session",
+        "superuser",
+        "bool",
+        "revision",
+        "guard",
+        "real_error",
+        "seed_error",
+    ],
+)
+def test_owned_seed_runs_only_after_real_initial_storage(
+    monkeypatch: pytest.MonkeyPatch, fault: str | None
+) -> None:
+    """0036実呼出→検査→seed→commitを保ち、外部/座標/主体/guard異常を拒否する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    import db_fixtures
+    from psycopg.conninfo import make_conninfo
+
+    cluster = _registered_seed_test_cluster(monkeypatch)
+    completed: list[bool] = [True] if fault == "repeat" else []
+    trace: list[str] = []
+    identity: list[object] = ["pitchlog_disposable_0123456789abcdef"] * 2 + [
+        "pitchlog_product",
+        "pitchlog_owner",
+        True,
+    ]
+    if fault == "session":
+        identity[1] = "other"
+    if fault == "superuser":
+        identity[4] = False
+    if fault == "bool":
+        identity[4] = 1
+    if fault == "foreign":
+        monkeypatch.delitem(db_fixtures._DISPOSABLE_CLUSTER_OWNERS, id(cluster))
+    monkeypatch.setattr(
+        db_fixtures,
+        "_external_product_catalog",
+        object() if fault == "external" else None,
+    )
+
+    def real_initial(dsn):
+        trace.append("real36")
+        if fault == "real_error":
+            raise RuntimeError("real migration failure")
+
+    def seed(connection):
+        if fault == "seed_error":
+            raise RuntimeError("seed failure")
+        trace.append("seed")
+
+    monkeypatch.setattr(
+        db_fixtures.stage_a_startup, "_apply_initial_storage", real_initial
+    )
+    responses = iter([tuple(identity), (1,) if fault == "guard" else (0,)])
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(
+            execute=lambda query: trace.append("inspect"),
+            fetchone=lambda: next(responses),
+            fetchall=lambda: [
+                (
+                    "0038_first_ball_write_admission"
+                    if fault == "revision"
+                    else "0036_initial_right_storage",
+                )
+            ],
+        )
+
+    @contextmanager
+    def connect(dsn):
+        trace.append("connect")
+        yield SimpleNamespace(cursor=cursor, commit=lambda: trace.append("commit"))
+
+    monkeypatch.setattr(db_fixtures.psycopg, "connect", connect)
+    dsn = make_conninfo(
+        cluster.admin_dsn, dbname="pitchlog_product", user="pitchlog_owner"
+    )
+    if fault in {"host", "database", "owner"}:
+        key, value = {
+            "host": ("host", "192.0.2.1"),
+            "database": ("dbname", "other"),
+            "owner": ("user", "other"),
+        }[fault]
+        dsn = make_conninfo(dsn, **{key: value})
+
+    def invoke():
+        with db_fixtures._seed_after_real_initial_storage(
+            cluster, monkeypatch, seed, completed
+        ):
+            db_fixtures.stage_a_startup._apply_initial_storage(dsn)
+            if fault is None:
+                with pytest.raises(AssertionError, match="再実行"):
+                    db_fixtures.stage_a_startup._apply_initial_storage(dsn)
+
+    if fault is None:
+        invoke()
+        assert trace == [
+            "real36",
+            "connect",
+            "inspect",
+            "inspect",
+            "inspect",
+            "seed",
+            "commit",
+        ]
+        assert completed == [True]
+    else:
+        with pytest.raises(
+            RuntimeError if fault in {"real_error", "seed_error"} else AssertionError
+        ):
+            invoke()
+        assert "seed" not in trace and "commit" not in trace
+        assert completed == ([True] if fault == "repeat" else [])
+        if fault in {"external", "foreign", "repeat", "host", "database", "owner"}:
+            assert "real36" not in trace
+
+
+def test_other_profiles_keeps_all_seed_rows_and_reads_them_after_writer() -> None:
+    """全132tupleの順序/値/SQL供給を維持し、配置後は全行の実在だけを読む。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db.test_product_authz_other_profiles import (
+        _seed_other_profiles,
+        _seed_rows_before_writer,
+    )
+    from product_authz_other_profiles_cases import other_profile_seed_rows
+    from product_authz_tenant_owned_cases import insert_statement
+
+    rows = other_profile_seed_rows()
+    from psycopg.types.json import Jsonb
+
+    def normalized(params):
+        return tuple(
+            value.obj if isinstance(value, Jsonb) else value for value in params
+        )
+
+    expected = [insert_statement(row) for row in rows]
+    assert len(rows) == 132
+    calls = []
+    rollbacks = []
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(
+            execute=lambda statement, params: calls.append((statement, params)),
+            fetchone=lambda: (1,),
+        )
+
+    connection = SimpleNamespace(cursor=cursor, rollback=lambda: rollbacks.append(True))
+    _seed_rows_before_writer(cast(Any, connection))
+    assert [
+        (statement.as_string(), normalized(params)) for statement, params in calls
+    ] == [(statement.as_string(), normalized(params)) for statement, params in expected]
+    calls.clear()
+    _seed_other_profiles(cast(Any, SimpleNamespace(applicator=connection)))
+    assert len(calls) == len(rows)
+    assert [normalized(params) for _, params in calls] == [
+        normalized(params) for _, params in expected
+    ]
+    assert all(
+        statement.as_string().startswith("SELECT count(*) FROM ")
+        for statement, _ in calls
+    )
+    assert rollbacks == [True]
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [None, "owner", "session", "superuser", "bool", "duplicate", "foreign", "port"],
+)
+def test_builtin_bootstrap_mapping_requires_owned_actual_superuser(
+    monkeypatch: pytest.MonkeyPatch, fault: str | None
+) -> None:
+    """builtin実owner/主体/所有座標を証明し、不一致や多義を拒否する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db.test_product_authz_round_trip import _verified_builtin_bootstrap
+
+    cluster = _registered_seed_test_cluster(monkeypatch)
+    name = "pitchlog_disposable_0123456789abcdef"
+    row = [name, True, name, name, True, "OUT system_identifier bigint"]
+    if fault == "owner":
+        row[0] = "other"
+    if fault == "session":
+        row[3] = "other"
+    if fault == "superuser":
+        row[1] = False
+    if fault == "bool":
+        row[4] = 1
+    rows = [tuple(row)] * (2 if fault == "duplicate" else 1)
+    rollbacks = []
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(execute=lambda query: None, fetchall=lambda: rows)
+
+    if fault == "foreign":
+        import db_fixtures
+
+        monkeypatch.delitem(db_fixtures._DISPOSABLE_CLUSTER_OWNERS, id(cluster))
+    connection = SimpleNamespace(
+        cursor=cursor,
+        rollback=lambda: rollbacks.append(True),
+        info=SimpleNamespace(
+            host="127.0.0.1",
+            port=54322 if fault == "port" else 54321,
+            dbname="pitchlog_product",
+        ),
+    )
+    if fault is None:
+        proof = _verified_builtin_bootstrap(cluster, cast(Any, connection))
+        assert (proof.name, proof.identity_arguments) == (name, row[5])
+        assert rollbacks == [True]
+    else:
+        with pytest.raises(AssertionError):
+            _verified_builtin_bootstrap(cluster, cast(Any, connection))
+
+
+@pytest.mark.parametrize(
+    "fault", [None, "missing", "duplicate", "signature", "other_target"]
+)
+def test_cross_cluster_builtin_mapping_keeps_every_other_acl_field_and_row(
+    fault: str | None,
+) -> None:
+    """証明した一granteeのみ対応付け、余剰ACLや重複を削除しない。"""
+    from dataclasses import replace
+
+    from db.test_product_authz_round_trip import (
+        _map_owned_builtin_bootstrap,
+        _VerifiedBuiltinBootstrap,
+    )
+    from db_fixtures import ProductCatalogSnapshot
+
+    signature = "OUT system_identifier bigint"
+    source = _VerifiedBuiltinBootstrap("owned_source", signature)
+    target = _VerifiedBuiltinBootstrap(
+        "owned_target", "other" if fault == "signature" else signature
+    )
+    owner = ("pg_catalog", "pg_control_system", signature, source.name, "EXECUTE", True)
+    other = (
+        "pg_catalog",
+        "pg_control_system",
+        signature,
+        "unknown_grantee",
+        "EXECUTE",
+        False,
+    )
+    rows = (owner, other, other, ("public", "unknown", "", "PUBLIC", "EXECUTE", False))
+    if fault == "missing":
+        rows = rows[1:]
+    if fault == "duplicate":
+        rows = (owner, *rows)
+    if fault == "other_target":
+        rows = (
+            owner,
+            ("public", "unknown", "", source.name, "EXECUTE", False),
+            *rows[1:],
+        )
+    snapshot = ProductCatalogSnapshot(
+        (), (), (), (), (), (), (), (), (), rows, (), (), ()
+    )
+    if fault is None:
+        result = _map_owned_builtin_bootstrap(snapshot, source, target)
+        assert result.function_acl == ((*owner[:3], target.name, *owner[4:]), *rows[1:])
+        assert replace(result, function_acl=snapshot.function_acl) == snapshot
+    else:
+        with pytest.raises(AssertionError):
+            _map_owned_builtin_bootstrap(snapshot, source, target)

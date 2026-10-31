@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from typing import Any, LiteralString
 from uuid import UUID
 
 import psycopg
 import pytest
+from db_fixtures import _seeded_owned_product_catalog
 from product_authz_other_profiles_cases import (
     NONEXISTENT_GROUP_ID,
     ControlMatrixCase,
@@ -36,7 +37,7 @@ from psycopg.conninfo import make_conninfo
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import DisposablePostgres, ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
 
@@ -48,13 +49,47 @@ _HELPER_SIGNATURE = sql.SQL("{}.{}(uuid, boolean)").format(
 )
 
 
-def _seed_other_profiles(catalog: ProvisionedProductCatalog) -> None:
-    """外部適用主体で、その他プロファイルの対象行を FK 順に作る。"""
-    with catalog.applicator.cursor() as cursor:
+def _seed_rows_before_writer(connection: psycopg.Connection[Any]) -> None:
+    """旧全132行をguard配置前のowned適用主体で同じ順に投入する。"""
+    with connection.cursor() as cursor:
         for row in other_profile_seed_rows():
             statement, params = insert_statement(row)
             cursor.execute(statement, params)
-    catalog.applicator.commit()
+
+
+@pytest.fixture
+def provisioned_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[ProvisionedProductCatalog]:
+    """ACL試験用旧データを準備して実0038/S3を供給する（画面保存ではない）。"""
+    with _seeded_owned_product_catalog(
+        disposable_postgres_cluster, monkeypatch, _seed_rows_before_writer
+    ) as catalog:
+        yield catalog
+
+
+def _seed_other_profiles(catalog: ProvisionedProductCatalog) -> None:
+    """準備済み全seedの実在を読むだけにし、guard下の直接INSERTをしない。"""
+    try:
+        with catalog.applicator.cursor() as cursor:
+            for row in other_profile_seed_rows():
+                _, params = insert_statement(row)
+                predicates = sql.SQL(" AND ").join(
+                    sql.SQL("{} IS NOT DISTINCT FROM %s").format(sql.Identifier(column))
+                    for column in row.values
+                )
+                cursor.execute(
+                    sql.SQL("SELECT count(*) FROM {} WHERE {}").format(
+                        sql.Identifier(table_schema(row.table), row.table), predicates
+                    ),
+                    params,
+                )
+                assert cursor.fetchone() == (1,), row.table
+    finally:
+        catalog.applicator.rollback()
 
 
 @contextmanager
