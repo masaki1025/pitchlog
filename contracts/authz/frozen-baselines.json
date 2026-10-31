@@ -842,6 +842,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
       "approved_at": "2026-10-31"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#189",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "3dd1bfa1281da073b7e3b354caf725e44cc5cbe7"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "706846283aca477b338d29352ac6323fdf3b9684"
+          }
+        ]
+      },
+      "reason": "採用済み初球・試合作成・球種供給の8入力を3dd1bfa1へ固定。非作者REPORT9edd03ecbcadf299e7e2677bdb1299480ad009f08f9bc357638d64208bb406acで旧AUTH187全field/digest・旧全正負cell・4lock・実HTTP3/C2/CAPを照合し採用。旧全履歴と規範状態を保持し、6oracleの意味本文・期待/拒否を変えずcommit参照だけ伝播する。専用再封印後の差分レビュー・正式7.7/全件CIは別証拠。PO本人の直接確認/署名・新規実機/運用実測を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
+      "approved_at": "2026-11-01"
     }
   ]
 }
