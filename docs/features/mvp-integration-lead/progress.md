@@ -1,5 +1,39 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開入口：2026-10-31 16:49 JST（他LLMへの引継ぎ・ユーザー指示で中断）
+
+**実装担当/レビュー担当は全停止、主担当の検査も停止済み。MVP未完。既PO委任・全MVP目標・安全条件は維持する。次担当はAGENTS.md→本節→各固定packetを確認し、同じ判断を再取得せず未解消P1の実装修復から再開する。**
+
+### 固定点と完了したこと
+
+- **PR188修復**: WT `/home/ymdms/projects/pitchlog-worktrees/fix-mvp-pr188-ci-fixtures`、branch `fix/mvp-pr188-ci-fixtures`、HEAD **`5bc26f0f514de7f9a4500f5c138dfe2fdfbe1621`**、clean・push済み。remote developは **`3a24f89e15987ecef3dc45a1173ab99b5f79d16e`**。最終非作者レビューcache `~/.cache/pitchlog/pr188-ci-repaired-final-head-review-20261031/` REPORT **`ed4f5914665ade7ceeffa18e093534874cf83e4278f8ae7fc5c757000cd5a77b`**、全diff **`e994ddd87c4a4a67f0c3bae4f60e70a74756f1c5106b02b441c7ca78414163bc`**/339path、後発28path、P0/P1/P2=0。旧安全assetのbyte不変、元226snapshot/現239/履歴31＋単一188行32保持。rootが最終source/各受理値のレビューを済ませたが実CI/mergeは未了。
+- **実PRの状態**（GitHubを再確認済み）: **#188はDraft/OPEN、元branch `feature/mvp-game-start-atomic-candidate` は依然9d9d7b1c**。旧実CI41173912913はharness41/backend13失敗。修復5bcを元branchへまだ供給していない。公開委任commentも9d9版なので、5bc用の独立証拠comment/本文pointerを正確に更新→通常FF push→実core guard/必須CIを確認する。新しい元PR CIは起動していない。#189→190→191→192の依存順は維持。置換元は公開引継ぎ確認後に閉じ、未完をmerge済み扱いしない。
+- **修復の実証**: authz+stage全25914成功、ORM19成功、参照値33＋frozen65成功。backend exact13修復はowned PGで15成功/1接続失敗→該当DSN最小修復後1成功、追加初期4表不変1成功。`~/.cache/pitchlog/pr188-backend-ci-repair-r3-20261031/` と `pr188-ci-orm-sheets-repair-20261031/` に原本/全前後/各JUnit/委任判断。ORM381行は旧対象不変224（旧出典を保持）＋新委任確認157（非作者一致36/対象外121）で、本人再確認・署名を代記していない。
+- **全harnessの中断**: 同固定5bcでCI同等全件をsession76889で実行し、ユーザー停止に合わせて所有main pytestへSIGINT、**exit2・30773passed/2skipped/641.56秒だが完走未確認**。`~/.cache/pitchlog/pr188-final-harness-after-ci-repairs-20261031/pytest.log`, `results.xml`, `requested-pause.json`, `candidate.json`を保存。成功へ読み替えない。該当pytest/execnet processが残っていないことを確認済み。再開時の必須CI/必要な全件確認は未了として扱う。
+
+### 三振・攻守交代の実保存候補：未解消P1から再開
+
+- WT `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-strikeout-pitches`、local branch `feature/mvp-strikeout-pitches`、local HEAD **`9457099b1867742b427c5f82ba8c42e3c75f8604`**。**製品source38pathは未commit・dirtyを意図的に保全、未採用**。実PR192はDraft/OPEN、公開HEADは **`f38b7673237aecab63170a0a09eaa820abcccd80`** のまま。勝手にreset/stash/cleanしない。local後発commitはcacheの `local-commits-since-f38.bundle`（prerequisite f38）へ保全、未commit38は別の全before/after・patchで保全した。
+- 引継ぎpacket **`~/.cache/pitchlog/strikeout-step4-pause-handoff-20261031/packet.json` SHA `fe9eefb8ac0fa7e42d7561507f4ee25504112f0da2fbf4735604662b871a337d`**。現source38 manifest **`b1f7fb0a23813cba801515c20bbf54241b0b07acb89df6b340027a8278ce2c03`**、全patch **`95dffe5fb86ea9a94a098d8a7093d3dabd4c722e5a720f074b2209f59edd29f7`**。rootが全38現byte一致を確認し `root-pause-verification.json`へ保存。r1 freeze/途中r2 exact2差分・全失敗logも保持。担当の稼働process0、PG/HTTP/commit/ref操作0。
+- **未解消P1=1**: `backend/src/pitchlog/sync/ordinary_pitch_execution.py` の `_evaluate_lineup_prefix_bound` が `NativeLineupEvidence(expected_source=..., previous_response=previous.response)` をPython型から直接構成すると、`_Frozen revalidate_instances=always`が省略差分の既定Noneを明示nullへ戻してValidationError16件となる。実artifactで最初の保存応答→2球目要求を与えた非作者pure反例で再現、**native2球目は成功できない**。`~/.cache/pitchlog/strikeout-step4-source-independent-20261031/native-python-constructor-failure.log`を読む。次の最小修復は既 `exclude_unset=True` の閉wire JSON経由で再構成し、native正例・差替え/host再生不一致の専用負対向を追加すること。全体の再検証を無効化/unknown許容/固定成功で迂回しない。これは既委任・既編集範囲の通常不具合で、新たなPO意味承認待ちは不要。
+- 元P2（write側の外側row identity/revision/epoch/content_digest/state全比較不足）はr2の `play_prefix.py`＋既spec exact2で是正、3passed1.38秒/ty成功・非作者差分確認済み。最終非作者REPORT **`d1a0900e7e680e2877fde10f2742263a7045fd6a71f149da1ec61a354b71c5ab`**、checks **`4e4178941048f2ea36e37583176309b3347fd860fd701c28324594ef527e9bd1`**、manifest **`750df9a64bc008eae650a70fba60a2887ef189b8fc3a6962af577e66b9185286`**。最終P0=0/P1=1/P2=0。初稿P2/未修復P1を成功へまとめない。
+
+### 未反映のroot候補（次担当がそのまま再利用）
+
+1. **SQL r2**: `~/.cache/pitchlog/strikeout-step4-sql-producer-r2-20261031/packet.json` **`8670d62507bb7307eb15cc881939938e232b9cd060b0eff2f2eb9ea6d7983f42`**、独立REPORT8977441c…/未解消P0/P1=0。9producer/既7署名と旧分岐を保持、新originはrequests4列＋attempts5列/FnOwnerだけ/SELECT2policy、r1 last_history階層P1を是正済み。r1否決履歴は保持。
+2. **正式22asset cache**: `~/.cache/pitchlog/strikeout-step4-root-sql-assets-20261031/` の `prepare.py`, `files.json`, `derivation.json`, before/after。20SQL=既8置換/新12、JSON2、新declはfunction1/policy2/列ACL9、旧decl/manifest/runner2policy＋10列ACLの全byte保持。独立REPORT **`fe60b6fad17ae615dc1204d3b2041d424890d61ff9bdd8e6baeb264701510f1f`**、checks0c7d4fa6…、manifest180ba650…、今回22のみ未解消P0/P1=0。**正式WTへ未反映**。source修復でproducerが変われば差分だけ再確認。root正式34＋生成定数/spec既2追加はplan記録済み。
+3. **新artifact/位置**: 実 `.js/.json` は作者source38内で **`cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070` /57468B**。FE意味2は独立可決REPORTa97dd90b…、旧4cfから位置以外34全応答不変/不正2641拒否/再build一致。位置候補は `strikeout-step4-position-candidate-20261031/positions.json` SHA0d1eae90…（24数学はD1=101/D2=100/applied100、started10は実append policyに従い1/1/0…10/9001/9）。数学24を実DB到達としない。実zeroは開始原本に未保存の過去投球artifactを捏造せずprior=execution=current loaded profile、native以後は直近実保存SHAへ束縛する。
+4. **全pin/seal13候補**: `~/.cache/pitchlog/lineup-step4-root-artifact-pins-20261031/prepare.py`, `files.json`, before/after。既r4手順を再利用し723current＋86encoded V7、34位置/全wire/sourceSHA/chain既前checkpoint連鎖、13path/1704leafをcache導出。T1/T2/履歴/走者/参加者/打順は不変assert。**独立レビュー・正式WT反映・実consumer再確認は未了**。作者留保の旧pin不一致3＋installer1はここまで未解消、検査を緩めない。
+5. **旧保存形式互換の実計算**: `~/.cache/pitchlog/lineup-step4-root-compatibility-20261031/compat-probe-result.json`。Git実旧artifact6＋新selfを旧4cfと比較し、旧11operation系のsource-formatごと13pair・**11292全応答一致**（pure/HTTP・DBではない）。旧27rowを変えず新13rowを正式互換表へ追加する候補化・非作者確認・反映はまだ行っていない。full witness13/旧Gitlocators/実JS/再現scriptを保存、未提供v3保存形式の互換へ拡張しない。
+
+### 再開後の順序・完成境界
+
+- まずNativeEvidence P1と専用対向を既scopeで修復→現source38と後発差分の非作者確認。並行してroot正式22/生成定数・13pin/互換/正規CLIの接合を一括整合し、既未完4局所を再実行する。新契約の全操作閉鎖を再び着手条件に追加しない。
+- owned PGは主担当が直列実行、外部DSNを継承しない既wrapperと実認証主体検査を維持。作者脚本 `test_actual_owned_lineup_three_strikeouts_then_opposite_ordinary` は実create/start→SO3PA→相手ordinary→再送/GET全page/T2・T4原子性/越境を準備済みだが**実PG0**。source停止packet内に既BB/HBP2case不変も記録。仮Port/事前投入試合を実縦断として数えない。
+- 正式#188→189→190→191→192のCI/レビュー/通常統合を進める一方で、候補接続を止めない。#188新実CI待ちに実装を休止しない（今回はユーザー中断のみ）。最終画面step5・新artifactでの三振UI・HTTPS/実機は未実施。既fixture TLSは10/31 14:57:45 JST期限到来、renew/新鍵/運用公開は未承認、秘密を読まない。
+- 既初球/通常3球/BB・HBP→次打者/ACK喪失復旧の画面実証は下記の旧固定点の証拠として保持する。新cda候補や正式develop成功へ読み替えない。全操作/取消・訂正/終了再開/全offline・担当交代/閲覧10秒/基本成績T5T6/両CSV/JST暦年/3試合×11端末/backup復旧/実機運用まで、元のMVP完成条件は未完のまま維持する。
+
+
 ## 続き：2026-10-31 16:22 JST（実CI修復を保存・実PGの残失敗を解消）
 
 - **新たな製品操作の実証範囲**は従前の初球/通常3球/BB・HBP→次打者/ACK喪失復旧の隔離UI証拠のまま。三振の新v3は実reader/Port/同TX保存/GETを接続中で、実保存/UI成功に読み替えない。正式PR188は9d9d7b1cのCI失敗で未merge、fix枝の後発修復と区別する。
