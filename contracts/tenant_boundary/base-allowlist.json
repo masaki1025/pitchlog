@@ -31425,8 +31425,8 @@
             "external_snapshots": [
               {
                 "path": ".github/workflows/ci.yml",
-                "sha256": "459e1e2ef9fe393430b4f19167c0a0f0fc3d2cfde51187ecee4502aeeae30900",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/459e1e2ef9fe393430b4f19167c0a0f0fc3d2cfde51187ecee4502aeeae30900"
+                "sha256": "6f5c69fe9e651a979c27095c9733f362b15d5420274a128a19f6d1341c2311cd",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6f5c69fe9e651a979c27095c9733f362b15d5420274a128a19f6d1341c2311cd"
               },
               {
                 "path": "backend/tests/test_api_conventions.py",
@@ -31465,8 +31465,8 @@
               },
               {
                 "path": "tests/test_ci_wiring.py",
-                "sha256": "ce72ec381a2d82e79098f070aebfe0ae90bdd78a46afcdcf661f2c89f539f9a2",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ce72ec381a2d82e79098f070aebfe0ae90bdd78a46afcdcf661f2c89f539f9a2"
+                "sha256": "6c45f9b9209e5146bd68b1cb557a90de1fb990154d46b8a5de8ff5cadc7ce789",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6c45f9b9209e5146bd68b1cb557a90de1fb990154d46b8a5de8ff5cadc7ce789"
               },
               {
                 "path": "tests/test_plan_generation.py",
@@ -31477,48 +31477,48 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "c7532c01aa7313f8045fad38b50a281d146e227cbfbc58238414d07412a966ff",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c7532c01aa7313f8045fad38b50a281d146e227cbfbc58238414d07412a966ff"
+                "sha256": "a34bcd88ccb8ea4d95cd8db02abeb0bc2fd3de42c1eea12e00f3497b064c15fd",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a34bcd88ccb8ea4d95cd8db02abeb0bc2fd3de42c1eea12e00f3497b064c15fd"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "d9d9df291c6c5c155a3eac25537250a6796a9cd82c1592f6c1a8ce53c2b3c7bf",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d9d9df291c6c5c155a3eac25537250a6796a9cd82c1592f6c1a8ce53c2b3c7bf"
+                "sha256": "d1ca5b7c8f239128926e47677f02d23dddcc61895179e754a8254a809f37897a",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d1ca5b7c8f239128926e47677f02d23dddcc61895179e754a8254a809f37897a"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "27412d58bb27cad545ef17d74ea971da90def5dc581c1106aa1ec3c8517af8e9",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/27412d58bb27cad545ef17d74ea971da90def5dc581c1106aa1ec3c8517af8e9"
+                "sha256": "892893c23eaed3a40ee47f8d2044140d5d1c199430e0a1444f414305bef73444",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/892893c23eaed3a40ee47f8d2044140d5d1c199430e0a1444f414305bef73444"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "a6856260c16b052357cf8dbf39cdcd80e6c9e4b61fc8398af13cb4fc45b11304",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a6856260c16b052357cf8dbf39cdcd80e6c9e4b61fc8398af13cb4fc45b11304"
+                "sha256": "7230bcafe0ae1268a0ebb683fbe9ed9c0315aaf99955aa5131d11219a6391ec0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/7230bcafe0ae1268a0ebb683fbe9ed9c0315aaf99955aa5131d11219a6391ec0"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "79e29290e3290c2ffeb57069e054d4fd53a9aa4c4f055a23aeff65a95431f18c",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/79e29290e3290c2ffeb57069e054d4fd53a9aa4c4f055a23aeff65a95431f18c"
+                "sha256": "3783ef157f54a066268462ee38801272c627bf9b5a44014dc530e301752e8fca",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3783ef157f54a066268462ee38801272c627bf9b5a44014dc530e301752e8fca"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "dd92284dfa5b3473a257eaac2cd10f6e30a1d03b64d755b453ca3bfa826da194",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/dd92284dfa5b3473a257eaac2cd10f6e30a1d03b64d755b453ca3bfa826da194"
+                "sha256": "9a4aa34c0e77137313f8331f6908a871e50be6024733ba1d9ba2994d10fa9a01",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9a4aa34c0e77137313f8331f6908a871e50be6024733ba1d9ba2994d10fa9a01"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "90d7a76245fc9435f015ef80133140149ac2c49c9ab2db44090bb2d678a4c527",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/90d7a76245fc9435f015ef80133140149ac2c49c9ab2db44090bb2d678a4c527"
+                "sha256": "113e591a83dfb03ccbd9ddb7a03535b313da716ee7892827db7f27d7ae81969a",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/113e591a83dfb03ccbd9ddb7a03535b313da716ee7892827db7f27d7ae81969a"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "2b5431f521e5114fa40bfc31a70f12a0e6455325609e02a0ab425a60898e9599",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2b5431f521e5114fa40bfc31a70f12a0e6455325609e02a0ab425a60898e9599"
+                "sha256": "9b73e26b6f53fc37cb7737967ca7459fd53d074b85c284943eef4be459c6287c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9b73e26b6f53fc37cb7737967ca7459fd53d074b85c284943eef4be459c6287c"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "b2951c7f1146700ed082bcc2205e6e7cae07e6404a36a7b41f7c10543e8d0aac",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b2951c7f1146700ed082bcc2205e6e7cae07e6404a36a7b41f7c10543e8d0aac"
+                "sha256": "5447704cb45dba19b7de3fda479f56fee6326a0a2277d74a277cb12997481257",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5447704cb45dba19b7de3fda479f56fee6326a0a2277d74a277cb12997481257"
               }
             ]
           }
