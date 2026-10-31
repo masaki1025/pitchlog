@@ -484,6 +484,7 @@ def test_write_epoch_fence_is_required_and_unknown_stops_write() -> None:
         assert_write_recovery_generation(scope, ledger, fence, 1)
 
 
+@pytest.mark.requires_db
 def test_external_epoch_lock_and_d4_counter_are_independent_rows(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -535,6 +536,7 @@ def test_external_epoch_lock_and_d4_counter_are_independent_rows(
             ).fetchone() == (2,)
 
 
+@pytest.mark.requires_db
 def test_external_claim_sql_rejects_other_owner_and_second_use(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -593,6 +595,7 @@ def test_external_claim_sql_rejects_other_owner_and_second_use(
             )
 
 
+@pytest.mark.requires_db
 def test_external_reservation_is_recovered_by_owner_after_lost_response(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -674,6 +677,7 @@ def test_external_reservation_is_recovered_by_owner_after_lost_response(
             ).fetchone() == (1,)
 
 
+@pytest.mark.requires_db
 def test_external_reservation_rejects_parallel_attempt_for_same_start(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]
@@ -720,6 +724,7 @@ def test_external_reservation_rejects_parallel_attempt_for_same_start(
                 )
 
 
+@pytest.mark.requires_db
 def test_device_credential_lock_serializes_revocation(
     disposable_postgres_cluster: Callable[
         [], AbstractContextManager[DisposablePostgres]

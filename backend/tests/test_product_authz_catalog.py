@@ -437,6 +437,14 @@ def _raw_catalog_rows(
                 "EXECUTE",
                 False,
             ),
+            (
+                "pg_catalog",
+                "pg_control_system",
+                "",
+                "pitchlog_sync_binding_fn_owner",
+                "EXECUTE",
+                False,
+            ),
         ],
         CatalogQueryId.INITIAL_VERIFIER_GLOBAL: list(
             product_catalog._initial_verifier_global_expectations()
@@ -481,9 +489,9 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
 
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
-    assert len(expectations.tables) == 50
-    # 採用済data-model1.4/fullprofileは旧69へlookup1を加えた70policy。
-    assert len(expectations.policies) == 70
+    assert len(expectations.tables) == 53
+    # 旧70policyを保持し、同期writer/初球の12policyを加える。
+    assert len(expectations.policies) == 82
     assert {
         row[2]
         for row in expectations.policies
@@ -517,6 +525,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         ("pitchlog_initial_auth_verifier", "CONNECT", False),
         ("pitchlog_ledger_identity_probe", "CONNECT", False),
         ("pitchlog_rg1_control_actor", "CONNECT", False),
+        ("pitchlog_sync_binding_actor", "CONNECT", False),
     )
     assert tuple(
         step.sequence for step in expectations.application_steps.application_steps
@@ -1006,7 +1015,7 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 31
+    assert len(report.checked_ids) == 32
 
 
 def test_unqualified_public_relation_in_policy_is_red(

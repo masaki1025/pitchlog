@@ -9,6 +9,11 @@ from uuid import UUID
 import pytest
 from sqlalchemy.dialects import postgresql
 
+from pitchlog.repositories.first_ball import (
+    _BindFirstBallDeviceToken,
+    _CheckFirstBallRightToken,
+    _ReadFirstBallDeviceStateToken,
+)
 from pitchlog.repositories.function_operations import (
     FunctionOperationError,
     decode_function_result,
@@ -27,6 +32,10 @@ from pitchlog.repositories.rg1 import (
 from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.repositories.writer_binding import (
+    _AssertWriterBindingToken,
+    _ReadWriterIdentityToken,
+)
 
 _TENANT_ID = UUID("00000000-0000-0000-0000-000000000392")
 
@@ -48,6 +57,11 @@ def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> No
         RG1ScopeBindingToken,
         RG1CommitCheckToken,
         StageAResolveRuleToken,
+        _BindFirstBallDeviceToken,
+        _CheckFirstBallRightToken,
+        _ReadWriterIdentityToken,
+        _AssertWriterBindingToken,
+        _ReadFirstBallDeviceStateToken,
     }
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),

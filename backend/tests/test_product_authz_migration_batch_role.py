@@ -188,6 +188,9 @@ def test_function_execute_request_covers_every_declared_product_schema(
         "rg1_control",
         "pitchlog_ledger_observer",
         "initial_right_api",
+        "sync_fence",
+        "sync_fence_api",
+        "sync_right_api",
     }
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     expected = product_catalog._load_migration_batch_expectations()
