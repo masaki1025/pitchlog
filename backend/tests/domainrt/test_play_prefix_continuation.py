@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -50,23 +51,79 @@ def test_contract_closed_request_response_and_no_expected_output_generation() ->
         )
 
 
-def test_all_56_through_product_host_and_typed_caller() -> None:
-    """型付き製品callerと直接hostを別々に実行して全規範期待へ一致させる。"""
+def test_all_56_through_product_host_and_typed_caller(
+    record_property: Callable[[str, object], None],
+) -> None:
+    """D11包絡も実消費し、型付きcaller/直接hostの56全値実測を記録する。"""
+    source = _BASE / "play_prefix_v2_cases.json"
+    wrapped = json.loads((_BASE / "play_prefix_v2_d11_vectors.json").read_text())
+    assert (
+        wrapped["sourcePath"] == "contracts/state-transition/play_prefix_v2_cases.json"
+    )
+    assert wrapped["sourceSha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+    assert len(wrapped["cases"]) == len(_VECTORS["cases"]) == 56
+    manifest_schema = json.loads(
+        (_ROOT / "backend/domain/manifest.schema.json").read_text()
+    )
+    expectation_schema = Draft202012Validator(
+        {"$ref": "#/$defs/ExpectedValue", "$defs": manifest_schema["$defs"]}
+    )
     digest = hashlib.sha256(_ARTIFACT.read_bytes()).hexdigest()
+    assert wrapped["executionArtifactSha256"] == digest
+    count = 0
+    last = None
     with NodeDomainHost(_ARTIFACT, _DECLARATION) as host:
         assert host.artifact_sha256 == digest
-        for case in _VECTORS["cases"]:
-            typed = PlayPrefixRequest.model_validate_json(json.dumps(case["request"]))
+        for case, envelope in zip(_VECTORS["cases"], wrapped["cases"], strict=True):
+            assert set(envelope) == {"caseId", "request", "expected"}
+            assert envelope["caseId"] == case["caseId"]
+            assert envelope["request"] == case["request"]
+            expectation_schema.validate(envelope["expected"])
+            assert envelope["expected"]["comparison"] == "exact"
+            assert envelope["expected"]["provenance"] == (
+                "NFR-018 (b)② 差分の検出可能性"
+            )
+            expected = envelope["expected"]["expected"]
+            assert expected == case["expected"]
+            typed = PlayPrefixRequest.model_validate_json(
+                json.dumps(envelope["request"])
+            )
             raw = host.call(
                 "derivePlayPrefixWithContinuation",
                 typed.model_dump_json(by_alias=True, exclude_unset=True),
             )
-            assert json.loads(raw) == case["expected"], case["caseId"]
+            direct = json.loads(raw)
+            assert direct == expected, case["caseId"]
             result = evaluate_play_prefix_continuation(typed)
-            assert (
-                result.model_dump(mode="json", by_alias=True, exclude_unset=True)
-                == case["expected"]
-            ), case["caseId"]
+            entrypoint = result.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            )
+            assert entrypoint == expected, case["caseId"]
+            last = (case["caseId"], expected, entrypoint, direct)
+            count += 1
+    assert count == 56 and last is not None
+    case_id, expected, entrypoint, direct = last
+    measured = {
+        "calculation": "play-prefix-v2",
+        "propertyId": "playPrefixHostParity",
+        "propertyKind": "equivalence",
+        "generatedCases": count,
+        "status": "passed",
+        "trace": {
+            "vector": "playPrefixVectors",
+            "case": case_id,
+            "entrypointId": "playPrefixServer",
+            "directTargetId": "playPrefixDirect",
+            "expected": expected,
+            "entrypointOutput": entrypoint,
+            "directTargetOutput": direct,
+            "artifactHashes": {"single": "sha256:" + digest},
+            "issuedSqlOrAst": None,
+            "stageIO": [],
+        },
+    }
+    for name, value in measured.items():
+        record_property(name, json.dumps(value) if isinstance(value, dict) else value)
 
 
 def test_fixed_host_once_and_loaded_hash_mismatch_is_not_success() -> None:
