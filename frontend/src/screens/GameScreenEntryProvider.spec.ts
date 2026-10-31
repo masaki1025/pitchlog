@@ -257,11 +257,17 @@ it.each(['tenant', 'epoch', 'path', 'unmount'])(
     else if (kind === 'path') await router.push('/help')
     else wrapper.unmount()
     await flushPromises()
-    expect(signal?.aborted).toBe(true)
-    pending.resolve(
-      response({ ...game, tournament_key: '旧応答固有値' }, oldInit),
+    if (kind === 'path' || kind === 'unmount')
+      expect(signal?.aborted).toBe(false)
+    const lateResponse = response(
+      { ...game, tournament_key: '旧応答固有値' },
+      oldInit,
     )
+    const observeBody = vi.spyOn(lateResponse, 'text')
+    pending.resolve(lateResponse)
     await flushPromises()
+    if (kind === 'path' || kind === 'unmount')
+      expect(observeBody).toHaveBeenCalledOnce()
     expect(wrapper.text()).not.toContain('旧応答固有値')
     expect(
       JSON.stringify(
@@ -292,7 +298,7 @@ it('本文待ち中の失効後に内容を採用しない', async () => {
   expect(wrapper.text()).not.toContain('本文旧値')
   expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
 })
-it('A→B→Aと非協調abortでも内部要求世代で旧Aを拒否する', async () => {
+it('A→B→Aでも通信を観測し内部要求世代で旧Aを拒否する', async () => {
   const pending = deferred<Response>()
   let oldInit: RequestInit | undefined
   let count = 0
@@ -316,7 +322,7 @@ it('A→B→Aと非協調abortでも内部要求世代で旧Aを拒否する', a
   await router.push('/help')
   await router.push('/games')
   await flushPromises()
-  expect(oldInit?.signal?.aborted).toBe(true)
+  expect(oldInit?.signal?.aborted).toBe(false)
   pending.resolve(
     response(
       { items: [{ ...game, section_label: '旧A応答' }], next_cursor: null },
@@ -406,4 +412,167 @@ it('一覧の失敗pageから直前のnullページへ戻り、履歴に失敗�
     '/api/games?limit=20&cursor=opaque',
     '/api/games?limit=20',
   ])
+})
+
+it('同documentのroute移動は進行GETをAbortせず完了観測し、旧UIを閉じ自己queryを掃除する', async () => {
+  let held = false,
+    denied = 0,
+    aborted = 0,
+    started = 0
+  vi.mocked(navigator.locks.request).mockImplementation(
+    async (_name, _options, action) => {
+      await Promise.resolve()
+      if (held) {
+        denied++
+        return action!(null)
+      }
+      held = true
+      try {
+        return await action!({ name: 'native-like' } as Lock)
+      } finally {
+        held = false
+      }
+    },
+  )
+  const completions: {
+    finish: () => void
+    signal: AbortSignal | null | undefined
+  }[] = []
+  fetchMock.mockImplementation(
+    async (_url, init) =>
+      new Promise<Response>((resolve, reject) => {
+        started++
+        completions.push({
+          finish: () =>
+            resolve(
+              response(
+                {
+                  items: [{ ...game, section_label: '遅延旧値' }],
+                  next_cursor: null,
+                },
+                init,
+              ),
+            ),
+          signal: init?.signal,
+        })
+        init?.signal?.addEventListener(
+          'abort',
+          () => {
+            aborted++
+            reject(new DOMException('unit aborted', 'AbortError'))
+          },
+          { once: true },
+        )
+      }),
+  )
+  const router = createAppRouter(createMemoryHistory())
+  await router.push('/games')
+  const captures: ReturnType<typeof usePreparingEntryProvider>[] = []
+  const probe = providerProbe((value) => captures.push(value))
+  const mountOptions = {
+    global: { plugins: [{ install: installAppProviders }, router] },
+  }
+  const wrapper = mount(probe, mountOptions),
+    second = mount(probe, mountOptions)
+  wrappers.push(wrapper, second)
+  try {
+    await flushPromises()
+    expect(started).toBe(2)
+    expect(held).toBe(false)
+    // pending中の重複操作は新しいqueryを増やさない。
+    captures.forEach((c) => {
+      c.retry()
+      c.requestPage(null)
+    })
+    await flushPromises()
+    expect(started).toBe(2)
+    await router.push('/help')
+    await flushPromises()
+    expect(aborted).toBe(0)
+    expect(completions.every((c) => c.signal?.aborted === false)).toBe(true)
+    expect(captures.every((c) => c.page.value === null)).toBe(true)
+    expect(useAuthStore(pinia).isAuthenticated).toBe(true)
+    completions.forEach((c) => c.finish())
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('遅延旧値')
+    expect(second.text()).not.toContain('遅延旧値')
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+    expect(denied).toBe(0)
+    expect(useAuthStore(pinia).environmentReason).toBeNull()
+  } finally {
+    completions.forEach((c) => c.finish())
+    await flushPromises()
+  }
+})
+it('別ownerのpending queryは一方のunmount/完了で取消・掃除されない', async () => {
+  const pending: {
+    finish: () => void
+    signal: AbortSignal | null | undefined
+  }[] = []
+  fetchMock.mockImplementation(
+    async (_url, init) =>
+      new Promise<Response>((resolve) => {
+        pending.push({
+          finish: () =>
+            resolve(response({ items: [game], next_cursor: null }, init)),
+          signal: init?.signal,
+        })
+      }),
+  )
+  const router = createAppRouter(createMemoryHistory())
+  await router.push('/games')
+  const probe = providerProbe(() => {}),
+    options = {
+      global: { plugins: [{ install: installAppProviders }, router] },
+    }
+  const first = mount(probe, options),
+    second = mount(probe, options)
+  wrappers.push(first, second)
+  try {
+    await flushPromises()
+    expect(pending).toHaveLength(2)
+    first.unmount()
+    await flushPromises()
+    expect(pending.every((p) => p.signal?.aborted === false)).toBe(true)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(2)
+    pending[0]!.finish()
+    await flushPromises()
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(1)
+    expect(pending[1]!.signal?.aborted).toBe(false)
+    pending[1]!.finish()
+    await flushPromises()
+    expect(second.text()).toContain(game.section_label)
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+  } finally {
+    pending.forEach((p) => p.finish())
+    await flushPromises()
+  }
+})
+
+it('unmount後の通信結果不明も実apiRequestで認証を未確認へ移し成功に置換しない', async () => {
+  let fail!: (e: Error) => void
+  fetchMock.mockImplementation(
+    async () =>
+      new Promise<Response>((_resolve, reject) => {
+        fail = reject
+      }),
+  )
+  const router = createAppRouter(createMemoryHistory())
+  await router.push('/games')
+  const wrapper = mount(
+    providerProbe(() => {}),
+    { global: { plugins: [{ install: installAppProviders }, router] } },
+  )
+  wrappers.push(wrapper)
+  await flushPromises()
+  expect(fetchMock).toHaveBeenCalledOnce()
+  wrapper.unmount()
+  await flushPromises()
+  expect(useAuthStore(pinia).isAuthenticated).toBe(true)
+  fail(new TypeError('unit no response'))
+  await flushPromises()
+  expect(useAuthStore(pinia).isAuthenticated).toBe(false)
+  expect(useAuthStore(pinia).automaticVerificationBlocked).toBe(true)
+  expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
+  expect(fetchMock).toHaveBeenCalledOnce()
 })

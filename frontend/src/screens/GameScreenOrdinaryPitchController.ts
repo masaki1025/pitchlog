@@ -21,6 +21,8 @@ import {
   readOrdinaryPitchAck,
   type OrdinaryPitchPayload,
 } from '../api/ordinaryPitchWire'
+import { formatTerminalPitchWire } from '../api/terminalPitchWire'
+import type { PlayPrefixV7 } from '../api/terminalPitchWire'
 import { nextOrdinaryD2 } from '../api/ordinaryAppendPolicy'
 import artifactIdentity from '../../public/domain/pitchlog-domain.json'
 import { invokeFirstBallDomain } from '../lib/generated/wrappers/domainArtifact'
@@ -50,9 +52,14 @@ import type { FirstBallIdentity } from './GameScreenFirstBallController'
 import {
   prepareOrdinaryPitch,
   ordinaryPitchEvent,
-  type OrdinaryRecordingContext,
   type OrdinaryScreenObservation,
   type PreparedOrdinaryPitch,
+  type RecordingContext,
+  type PlayScreenObservation,
+  type PreparedPlayPrefix,
+  isPlayRecordingContext,
+  preparePlayPrefix,
+  playPrefixEvent,
 } from './GameScreenOrdinaryPitchProvider'
 export type OrdinaryOperationResult = 'ready' | 'saved' | 'pending' | 'blocked'
 type Resources = {
@@ -74,7 +81,7 @@ function sequence(v: string): number {
 
 /** 端末受理と送信を分け、同じ旧slotを同attemptのまま再送する。 */
 export class GameScreenOrdinaryPitchController {
-  #context: OrdinaryRecordingContext
+  #context: RecordingContext
   #identity: FirstBallIdentity
   #readIdentity: () => FirstBallIdentity
   #resources: Resources | null = null
@@ -86,7 +93,7 @@ export class GameScreenOrdinaryPitchController {
   #canAppend = true
   #retryEvidenceUnavailable = false
   constructor(
-    context: OrdinaryRecordingContext,
+    context: RecordingContext,
     readIdentity: () => FirstBallIdentity,
     writer: SingleWriterInjections = {},
   ) {
@@ -96,7 +103,7 @@ export class GameScreenOrdinaryPitchController {
     this.#writer = writer
     this.#head = sequence(context.nextPosition.d1)
   }
-  get context(): OrdinaryRecordingContext {
+  get context(): RecordingContext {
     return structuredClone(this.#context)
   }
   get retryEvidenceUnavailable(): boolean {
@@ -176,7 +183,7 @@ export class GameScreenOrdinaryPitchController {
         for (let d1 = serverNext; d1 < localNext; d1++) {
           const slot = await r.queue.readSlot(this.#scope(), d1)
           this.#assert()
-          if (!slot || !this.#restoreLocal(slot)) {
+          if (!slot || !(await this.#restoreLocal(slot))) {
             this.#canAppend = false
             return
           }
@@ -217,6 +224,8 @@ export class GameScreenOrdinaryPitchController {
     usedD2: string,
     slot: DurableQueueSlot,
   ): void {
+    if (isPlayRecordingContext(this.#context))
+      throw new Error('旧記録からの接続を確認してください')
     const next = nextOrdinaryD2(usedD2, this.#context.appendPolicy)
     const d1 = slot.d1 + 1
     if (!Number.isSafeInteger(d1) || next === null) this.#canAppend = false
@@ -230,7 +239,57 @@ export class GameScreenOrdinaryPitchController {
       nextPosition: { d1: String(d1), d2: next ?? usedD2 },
     }
   }
-  #advance(prepared: PreparedOrdinaryPitch, slot: DurableQueueSlot): void {
+  #advance(
+    prepared: PreparedOrdinaryPitch | PreparedPlayPrefix,
+    slot: DurableQueueSlot,
+  ): void {
+    if (prepared.payload.formatVersion === 'play-prefix-play-v2') {
+      if (!isPlayRecordingContext(this.#context))
+        throw new Error('記録形式が一致しません')
+      const r = prepared.payload.calculation.response.value,
+        q = prepared.payload.calculation.request
+      const d1 = slot.d1 + 1,
+        d2 = nextOrdinaryD2(
+          prepared.nextPosition.d2,
+          this.#context.appendPolicy,
+        )
+      if (!Number.isSafeInteger(d1) || d2 === null) this.#canAppend = false
+      const nextPosition = {
+        d1: String(d1),
+        d2: d2 ?? prepared.nextPosition.d2,
+      }
+      this.#context = {
+        ...this.#context,
+        prefixRef: r.nextPrefixRef,
+        after: r.t1.after,
+        t2: r.t2,
+        nextPosition,
+        source: 'local-provisional',
+        playSource: {
+          ...q.source,
+          kind: 'evaluated-prefix-v2',
+          prefixRef: r.nextPrefixRef,
+          after: r.t1.after,
+          t2: r.t2,
+          historyDepth: r.nextPrefixRef.length,
+          playCount: r.nextPrefixRef.length,
+          lastSource: q.playIdentity,
+          position: { ...nextPosition, appliedWatermark: String(slot.d1) },
+          priorArtifactSha256: r.executionArtifactSha256,
+          runners: r.runners,
+          participants: r.participants,
+          nextBatter: null,
+          bridge: null,
+          responsibility: {
+            ...q.source.responsibility,
+            paStartSource: r.t1.plateAppearanceEnded
+              ? { kind: 'confirmed-play', id: q.playIdentity.eventId }
+              : q.source.responsibility.paStartSource,
+          },
+        },
+      }
+      return
+    }
     const value = prepared.payload.calculation.response.value
     this.#advanceValues(
       value.nextPrefixRef,
@@ -240,8 +299,66 @@ export class GameScreenOrdinaryPitchController {
       slot,
     )
   }
-  #restoreLocal(slot: DurableQueueSlot): boolean {
+  async #restoreLocal(slot: DurableQueueSlot): Promise<boolean> {
     try {
+      const play = slot.event.fields.V7 as PlayPrefixV7
+      if (play?.formatVersion === 'play-prefix-play-v2') {
+        if (
+          !isPlayRecordingContext(this.#context) ||
+          !play.calculation ||
+          play.calculation.formatVersion !== 'play-prefix-calculation-v2' ||
+          play.calculation.artifactSha256 !== artifactIdentity.sha256 ||
+          slot.d1 !== sequence(this.#context.nextPosition.d1) ||
+          slot.event.fields.V6 !== sequence(this.#context.nextPosition.d2) ||
+          slot.d5 !== play.calculation.request.playIdentity.d5 ||
+          slot.state === queueStateId('要操作') ||
+          slot.state === queueStateId('退避済み')
+        )
+          return false
+        const q = play.calculation.request
+        if (
+          !sameOrdinaryWire(q.prefixRef, this.#context.prefixRef) ||
+          !sameOrdinaryWire(q.rules, this.#context.rules) ||
+          !sameOrdinaryWire(q.t1.before, this.#context.after) ||
+          !sameOrdinaryWire(
+            { ...q.source, nextBatter: null },
+            this.#context.playSource,
+          )
+        )
+          return false
+        const actual = {
+          ok: true as const,
+          value: invokeFirstBallDomain(
+            'derivePlayPrefixWithContinuation',
+            q,
+          ) as PlayPrefixV7['calculation']['response']['value'],
+        }
+        if (!sameOrdinaryWire(actual, play.calculation.response)) return false
+        const wire = await formatTerminalPitchWire(
+          q,
+          actual,
+          play.observations,
+          play.participants,
+        )
+        if (
+          !sameOrdinaryWire(wire.payload, play) ||
+          !sameOrdinaryWire(wire.stateDiff, slot.event.fields.V8)
+        )
+          return false
+        this.#advance(
+          {
+            ...wire,
+            gameId: this.#context.game.id,
+            d4: this.#context.game.current_d4,
+            nextPosition: this.#context.nextPosition,
+            source: 'local-provisional',
+          },
+          slot,
+        )
+        return true
+      }
+      // 未確認v1 suffixへprivate bridgeを創作しない。元slotの再送は別経路で可能。
+      if (isPlayRecordingContext(this.#context)) return false
       const legacy = slot.event.fields.V7 as FirstBallPayload
       if (legacy?.formatVersion === 'first-ball-play-v1') {
         if (
@@ -417,7 +534,10 @@ export class GameScreenOrdinaryPitchController {
         legacy.close()
       }
     } else {
-      if (payload?.formatVersion !== 'ordinary-pitch-play-v1')
+      if (
+        payload?.formatVersion !== 'ordinary-pitch-play-v1' &&
+        payload?.formatVersion !== 'play-prefix-play-v2'
+      )
         throw new Error('要求形式を確認できません')
       const key = {
         tenantId: this.#identity.tenantId!,
@@ -446,7 +566,7 @@ export class GameScreenOrdinaryPitchController {
     }
   }
   async submit(
-    observation: OrdinaryScreenObservation,
+    observation: PlayScreenObservation,
     vocabulary: Readonly<{
       tenantId: string
       pitchTypeKeys: readonly string[]
@@ -459,14 +579,24 @@ export class GameScreenOrdinaryPitchController {
       this.#assert()
       if (!this.#canAppend) return 'blocked'
       const r = this.#resources!,
-        prepared = prepareOrdinaryPitch(
-          this.#context,
-          observation,
-          vocabulary,
-          this.#identity.tenantId!,
-        ),
-        expected = sequence(prepared.nextPosition.d1),
         d5 = crypto.randomUUID()
+      const prepared = isPlayRecordingContext(this.#context)
+        ? await preparePlayPrefix(
+            this.#context,
+            observation,
+            vocabulary,
+            this.#identity.tenantId!,
+            { d5, eventId: crypto.randomUUID(), playId: crypto.randomUUID() },
+            crypto.randomUUID(),
+          )
+        : prepareOrdinaryPitch(
+            this.#context,
+            observation as OrdinaryScreenObservation,
+            vocabulary,
+            this.#identity.tenantId!,
+          )
+      this.#assert()
+      const expected = sequence(prepared.nextPosition.d1)
       let key: { d4: string; d1: number; d5: string } | null = null
       const result = await commitPitchEvent(
         {
@@ -474,7 +604,10 @@ export class GameScreenOrdinaryPitchController {
           scope: this.#scope(),
           d5,
           version: 1,
-          event: ordinaryPitchEvent(prepared, d5),
+          event:
+            prepared.payload.formatVersion === 'play-prefix-play-v2'
+              ? playPrefixEvent(prepared as PreparedPlayPrefix, d5)
+              : ordinaryPitchEvent(prepared as PreparedOrdinaryPitch, d5),
           recordingRightProof: r.grant.recording_right_proof,
           eventKinds: kinds,
         },

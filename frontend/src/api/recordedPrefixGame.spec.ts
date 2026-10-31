@@ -145,3 +145,46 @@ it('未提供/409/404を成功と表示せず、未知/不正応答を捨てる'
     expect(await readRecordedPrefixGame(value.id)).toEqual({ kind })
   }
 })
+
+import { isPlayPrefixGame, readPlayPrefixGame } from './recordedPrefixGame'
+function playInitial() {
+  const old = structuredClone(fixtures[0].value)
+  return {
+    ...old,
+    read_kind: 'play-prefix',
+    last_source: null,
+    prior_artifact_sha256: 'a'.repeat(64),
+    pa_start_source: { kind: 'started-game', id: old.id },
+    bridge_checkpoint: {
+      id: '10000000-0000-4000-8000-000000000099',
+      revision: '1',
+      digest: 'a'.repeat(64),
+    },
+    storage_anchor: null,
+    bridge_origin: null,
+    runners: [],
+    participants: null,
+  }
+}
+it('新v2初期GETを閉検証し旧DTOの成功や欠落sourceへ置換しない', async () => {
+  body = playInitial()
+  expect(isPlayPrefixGame(body)).toBe(true)
+  expect((await readPlayPrefixGame(fixtures[0].value.id)).kind).toBe('found')
+  expect(vi.mocked(fetch).mock.calls.at(-1)?.[0]).toContain(
+    'projection=play-prefix-v2',
+  )
+  for (const change of [
+    { bridge_checkpoint: null },
+    {
+      storage_anchor: {
+        id: '10000000-0000-4000-8000-000000000099',
+        history_epoch: '1',
+      },
+    },
+    { last_source: { eventId: 'bad', d5: 'bad', playId: 'bad' } },
+    { unknown: true },
+  ])
+    expect(isPlayPrefixGame({ ...playInitial(), ...change })).toBe(false)
+  body = fixtures[0].value
+  await expect(readPlayPrefixGame(fixtures[0].value.id)).rejects.toThrow()
+})
