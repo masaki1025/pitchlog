@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 06:07 JST（初球実証保持・tenant残件を最小接合単位へ分割）
+
+- **実画面の成果**: 6ff509bdの新規作成→開始→初球保存→再取得/再送/reload成功50.10秒を維持。API fixture成功との混同なし。以後は型注記/計画のみで製品sourceは不変。#189 remote/source push0、正式統合は未了。
+- **正式検査の実態**: 非作者最終REPORT-FINAL-6ff509bd（b22a7a00…）はP0=0/P1=1でmerge不可。tenant149件はTB0003/TB00288/TB00533/TB00725。ad658にもwriter限定登録自体が無く、単純取り込み漏れという初期仮説は訂正。現c2の安全意味/固定Git証明を古いcheckerへ戻さず、製品の実有限経路を正式登録する。root tenant試験は63失敗/604成功53.03秒、主に正例不成立で負対向へ未到達。成功へ読み替えない。
+- **完了した独立修復**: 依存解決済みの旧import ignore64削除/意図的負例の限定ignore1を34fixtureへ適用、AST/行数完全同一。非作者REPORT-A31-34fixtures 0a05523c…/P0P1P2=0から46dedcf9へ保存、root ty/ruffとも成功。認可CLI1429とfrozen関連78成功44.29秒は別証拠。fixture本文変更によるcorpusは最終一括追随する。
+- **次の最小接合A**: plan bb80c66dでstage_a_startup新3関数を既allowed_symbols方式へ有限登録するexact5を起案、非作者確認中。次段190に同じ3row/3fixture/拒否対向が既存なので再利用する（ordinary部分を混ぜない）。149のうち12だけを対象にし、残137を成功扱いしない。並行でfixed builderの189専用完全AST/拒否対向を準備し、既190のordinary完全形を丸コピーしない。rootは台帳/計画/正式値の唯一writer、他担当pathは固定して一本化する。
+- **再開入口**: `pr189-integration-20261101/{screen-final-result.json,tenant-fixture-comment-tests.log,final-root-ty-r3.log,final-authz-cli.log,final-corpus-tests.log}`、非作者cache `pr189-final-nonauthor-20261101/`。正式値は6ff導出済みだが後続修復により最終189単一record/全snapshot/corpusを一括再導出し、最終review→公開証拠→一回push→必須CI→通常mergeへ進む。実機/信頼済み運用TLS/全MVPは未了。
+
+
 ## 続き：2026-11-01 05:58 JST（統合候補で実画面の初球縦断を再実証、tenant正式検査を修復中）
 
 - **利用者操作と実証**: pr189 WT/feature/pr189-integration、HEAD `6ff509bd9c16b012ea8213118a1031b8aca6e99b` の同一owned環境で、実画面新規作成→開始/初期権→初球ボール保存→server再取得→同一要求再送→reloadを1 passed / 50.10秒で実証。reload後1ボール/0ストライク/履歴1/PlayRow1、得点・アウト・走者不変、DB二重保存なし。事前投入済み試合のAPI実証とは別の成功。cache `pr189-integration-20261101/screen-final{.log,.xml,-result.json}` にHEAD/証拠SHA/限界を固定。既自己署名TLSは期限切れのため既存ignoreHTTPSErrorsの隔離技術例外であり、信頼済みTLS/実機/運用受入ではない。新鍵を発行しない。
