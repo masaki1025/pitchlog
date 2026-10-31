@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-10-31 14:06 JST（画面4経路を維持し、三振の計算本体と互換接続を進行）
+
+- **利用者が新たに完了できた操作**: 隔離候補1fa8f21aの実画面で新規作成→開始/初期権→四球→次打者通常球、死球→次打者通常球、通常3球、保存後ACK本文喪失から原要求再送/reloadの4経路が成功済み。各経路は実API/実broker/所有PG/唯一artifactを通り、事前投入/仮成功ではない。証拠 terminal-pitches-step5-https-r3-20261031/result.json SHA0e6f6ec2da566526aac9074063758ced515ea2d9fec88a72329f80638653d503、全FE2857成功2822f05d…。最新PR191 HEAD19c1c125は実証版からbackend書式だけAST同値で是正し、手動確認入口も現在化。正式develop/実機/全MVPの成功ではない。
+- **三振T1の本体着手・実装**: 操作単位24契約を637a4ea3へcommit/push。独立通常比較REPORTec491621…、P1 nestedbool/intは全23flag対向で閉鎖。P1-P9限定受理receipt e2e5ce54…に基づき正規捕球の見逃し/空振り三振と第3アウトを唯一核へ実装。作者14sourceはcache strikeout-pitches-stage2-author-20261031/files.json SHAb46daf1095e25041272169082f0c4eacf83f3491267d764837c00ce3df1b9600で停止freeze。新artifact BFB492ec…/43004B、作者FE新38＋旧artifact178、実Chromium24/31104/旧52/拒否44、Python6/32.92秒（無patch製品factory24＋拒否3を含む）、lint/type成功。これは計算/固定hostの証拠で三振保存/画面・新P6blindではない。非作者sourceレビューはこれから。
+- **rootの次接続**: e3148ce7でstep2不可分のpin7/D11/旧互換を最小追補。現在実行SHA499箇所＋source digest2箇所だけを追随、旧priorSHA不変。Git旧artifactと新artifactのv2全56応答一致を確認。実Git4artifact/新self有限9組は全値比較7536回（first各24/ordinary各1854）、既互換7行を完全保持した追加候補。cache strikeout-root-artifact-pins-20261031 に入力/実両出力/witnessを保存、実HTTP/DBの証拠にはしない。新D11宣言3/包絡24/実typed記録を追加し公式pytest実行中、非作者レビュー・ステップ2採否→prefix/T2/真正両打順/実参加者→同TX保存→画面を続ける。
+- **正式統合の検査**: PR191 run41166979176はfrontend/docs-lint/秘密/append-only/mutation成功、backendは書式/型を通ってpytestで失敗。core-guard/BOOT/frozen/stacked-base tenantは未閉でCI全緑ではない。PR188 source73の有限独立意味検査5b468801は採用保存済みだが、census側独立説明にwhole-controlflow不足のP1が2候補で検出され、どちらも正式適用/可決0。別非作者census_final_independentと作者が両checkout例外/rollback/raise/registryの一括matrixを先に閉じ、その後一度だけ全audit/7.7再導出へ進む。受理履歴31prefix/旧証拠/検査拒否は保持する。
+- **所有と未完**: rootが正式JSON/受理/共有台帳、三振作者が有限source14、census作者がcache候補、非作者は読取とcache対向のみ。全T1（打球/走塁/交代/取消/過去訂正/終了再開等）・全操作offline/交代/閲覧・T5/T6/毎球・成績CSV/負荷/復旧/対象実機/運用HTTPSは残件。Goalは合意済みMVP全体のままactive。PO本人逐行確認/署名の代記は0。
+
 ## 再開時の現在地（2026-10-31 12:48 JST、画面4経路/2857成功を保存・Draft191、SO契約へ着手）
 
 - **現在の固定点・次作業**: 四球/死球成功版PR191は実装1fa8f21aの後、旧backend CIのE501一件を生成child/親全AST同値で折返した7646daabへ通常push（frontend/runtime/artifactの差0、全backend ruff成功）。全画面/全frontendの実証対象1faと後発書式差を分離する。CI run41164999052のfrontendはSUCCESS、backendはruffで停止、harnessはrawpin登録、consistencyはBOOT、core-guardは適用証拠、tenantはstacked base!=developの拒否が未閉。検査を緩めず、親188→189→190の正式受理・統合後に必要な追随を行う。
