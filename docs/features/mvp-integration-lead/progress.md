@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-10-31 14:22 JST（三振本体を保存・Draft192、新artifactの実画面回帰を確認）
+
+- **新しい製品実装/提供版**: feature/mvp-strikeout-pitchesでe1af69d8に正規捕球三振/第3アウトの唯一核・閉ABI・固定Python host・実D11包絡/trace・実行pin/有限旧保存互換をcommit/push。非作者REPORT03234246…と後発r2 REPORT4e9eb001…（新P0/P1=0）、source27manifest592d8e3d…全byteに基づくPO委任のroot判断receipt5a88bc97…。数学24/独立31,104・互換9組7536全値、公式92/610・非作者FE88/BE59、修復後全FE135files/2873passed133.92秒、全backend ty/関連ruff/再build成功。旧7互換行/全prior/既拒否保持。Draft PR https://github.com/masaki1025/pitchlog/pull/192（base191）へ保存。親19c1c125のAST不変書式/手動docsを2bde6a3dで接合し両計画追記を保持、runtime差0。三振の保存/UI成功や全T1/P6新blind/全D11/BOOT/7.7/全CIはまだ成立しない。
+- **全件検査で検出し直したこと**: 初回FE60failed/2813passed135.67秒は、artifact実行SHA499の追随だけではwire自己echo112とhandoff実SHA1が旧値だったため。正式wirehead26欄を独立列挙した正準SHAと実Python hashを56全例で照合、他全値/T1/T2/V8/観測/参加者不変で再導出。非作者再検証/失敗2spec88成功後、全FE2873成功を確認。初回失敗はcache strikeout-root-artifact-pins-20261031/frontend-full.logへ保持し、先の数学レビューを全FE成功へ読み替えていない。
+- **実画面の新artifact回帰**: 新BFB492ec…/43004B、実画面POST作成→開始/初期権→通常3球/四球→次打者球/死球→次打者球、元要求再送/GET/reload/native件数・走者・責任投手を3passed192.33秒で確認。各caseは独立owned PG/実認証/API/broker/HTTPS Chromium、仮応答/事前試合投入0。全1741製品source不変、3case source snapshot同一。実行HEADは2b/2b/7be（途中rootが計画だけcommit）、よって『単一GitHEAD全case受入』とは主張しない。cache strikeout-stage2-real-screen-20261031/{result.json,case-source-heads.json,source-before.json,screen.log}に完全scopeを固定。旧ACK本文喪失の新artifact再実証/三振保存・画面は本run未実施、以前の052f四経路成功とは分ける。
+- **次の実装**: 非作者計画REPORT-step3 e121f56e…に基づき7beac6aaで最小追補を保存、作者pr188_final_reviewが新v3契約6の唯一writer。旧v2 ABI維持、新単一公開口、真正両cursor/両9枠/実投捕/PA開始eventId・明示wireを閉固定→既T1核と一般化単一T2coreへ接続する。現T2はnoend部分核しかなく、単なる移設で6outcome済と記録しない。既wrapper全応答/拒否・248case/12拒否を保持して実核へ通す。初回started→top1三振3PA→bottomordinaryを優先し、任意v2のinactive=1補完禁止/真正全履歴bridge・実保存SQLは後続依存として明示する。sourcefreeze解除済み、同WTのroot書込みは正式pin/登録/共有台帳へ限定し作者と同じsourceを並行編集しない。
+- **正式統合の前進**: census r3の独立58matrix/71test/shape5とREPORT73000fc6…で旧P1閉鎖、同固定91379e/54acで最終audit2が2passed433.50秒。rootはr3 code2・有限宣言2だけをactual修復WTへ全byte照合して適用（未commit）、inventory実byte不変。root receipt5108ea57…に判断日時/版/根拠を記録。作者は新OUT pr188-final77-censusr3-candidate-20261031へ9資産/4面/生成/snapshotの最終7.7候補を再導出中、旧31履歴prefix・旧失敗/候補を保全。正式値受理/必須CI/通常mergeは未了。PR191最新CIは全体failure、backend284failed/10911passed/664errorsを保全しPR本文にも明記、緑へ読み替えない。
+- **残る全MVP**: 三振の保存/画面以後、打球/走塁/交代/取消/過去訂正/終了再開・全操作offline/担当交代/閲覧・T5/T6/成績/毎球CSV/負荷/復旧/対象実機/運用HTTPSを維持。Goalはactive、実機・リハーサルはPO担当。検証専用既TLSは10/31 14:57:45 JST期限、運用HTTPS/実機済とはしない。委任による確認を本人逐行確認/実値確認/署名へ代記しない。
+
 ## 続き：2026-10-31 14:06 JST（画面4経路を維持し、三振の計算本体と互換接続を進行）
 
 - **利用者が新たに完了できた操作**: 隔離候補1fa8f21aの実画面で新規作成→開始/初期権→四球→次打者通常球、死球→次打者通常球、通常3球、保存後ACK本文喪失から原要求再送/reloadの4経路が成功済み。各経路は実API/実broker/所有PG/唯一artifactを通り、事前投入/仮成功ではない。証拠 terminal-pitches-step5-https-r3-20261031/result.json SHA0e6f6ec2da566526aac9074063758ced515ea2d9fec88a72329f80638653d503、全FE2857成功2822f05d…。最新PR191 HEAD19c1c125は実証版からbackend書式だけAST同値で是正し、手動確認入口も現在化。正式develop/実機/全MVPの成功ではない。
