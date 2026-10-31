@@ -193,3 +193,6 @@ localは旧14か固定18の閉policyモードで同じ数学を検証しTECHNICA
 ガード/trigger/role権限/実validationを無効化せず、旧public32/全seed tupleをowned環境の正規0036後・writer guard配置前へ供給してから実0038/S3を完走する準備順へ変更する。実advanceS0を成功応答へ置換せず、旧データを準備したACL試験であることを明記し新規画面保存の証拠にはしない。専用owned fixture/hookを使う場合は外部供給を拒否し、元共通外部分岐は不変。seed先/実revision/所有DBを明示照合し、既ガード下の直接投入を許可しない。
 
 別cluster比較はpg_control_system()の実ownerと各owned clusterのbootstrap管理者が一致しsuperuserであることを実照合した、その1identityだけを明示対応付けする。PUBLIC/pg_monitor/他grantee/privilege/grantable/全ACL行・重複を保持し、同cluster A/B/Cは生値で比較する。builtin ACLをsnapshotから削らず、未知role/不一致から期待値を緩めない。全10失敗/旧成功logを保全し、必要な純対向と実PGの同scope再検証/非作者差分確認を行う。新PO意味裁定/製品source変更/共有DB適用は不要。
+
+
+seed主体の明確化（2026-11-01、PO委任によるCodex主担当判断）: 上記のowner投入はtest所有環境の既seed主体を保持する意味で、FORCE RLSがあるpitchlog_owner接続へ新たに権限を与える指示ではない。既seedと同じowned bootstrap適用主体を使い、実session/current_user同一・superuser・所有cluster/DB座標・DBowner=pitchlog_owner・0036 marker・writer guard未配置を照合して、正規036/038間に固定fixtureデータを投入する。role属性/FORCE RLS/policy/guardを変更しない。これは移行前データを準備するACL試験であり、製品APIの新規保存・認可成功を代替しない。
