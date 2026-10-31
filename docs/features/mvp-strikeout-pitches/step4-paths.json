@@ -1,0 +1,306 @@
+{
+  "status": "CACHE_ONLY_R2_PLAN_FIX_P1_TWO",
+  "head": "f38b7673237aecab63170a0a09eaa820abcccd80",
+  "source18FrozenManifest": "0df2ccac0cbeae3c44a4a87e532881e58df007fbed7671510ed1846dd82e0e9b",
+  "author_source_exact_proposal": [
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+    "backend/src/pitchlog/sync/ordinary_pitch_ports.py",
+    "backend/src/pitchlog/sync/ports.py",
+    "backend/src/pitchlog/sync/port_guard.py",
+    "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+    "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+    "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+    "backend/src/pitchlog/repositories/play_prefix.py",
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py",
+    "backend/src/pitchlog/repositories/recorded_snapshot.py",
+    "backend/src/pitchlog/repositories/ordinary_pitch_operations.py",
+    "backend/src/pitchlog/repositories/operation_registry.py",
+    "backend/src/pitchlog/repositories/transaction.py",
+    "backend/src/pitchlog/api/routers/sync.py",
+    "backend/src/pitchlog/api/routers/started_games.py",
+    "backend/src/pitchlog/api/schemas/started_games.py",
+    "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+    "backend/src/pitchlog/authz/terminal_pitch_product.py",
+    "backend/src/pitchlog/authz/first_ball_write_stamp.py",
+    "backend/src/pitchlog/domainrt/lineup_prefix_source.py",
+    "backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py",
+    "backend/src/pitchlog/repositories/ordinary_prefix_operations.py",
+    "backend/src/pitchlog/repositories/function_operations.py"
+  ],
+  "author_existing_tests_exact_proposal": [
+    "backend/tests/test_terminal_pitch_payload.py",
+    "backend/tests/test_terminal_pitch_projection.py",
+    "backend/tests/test_terminal_pitch_write_stamp.py",
+    "backend/tests/test_terminal_pitch_product.py",
+    "backend/tests/test_play_prefix.py",
+    "backend/tests/test_play_prefix_read.py",
+    "backend/tests/test_ordinary_pitch_operations.py",
+    "backend/tests/test_sync_apply_first_ball_ports.py",
+    "backend/tests/test_api_started_game.py",
+    "backend/tests/test_api_started_recorded_dto.py",
+    "backend/tests/domainrt/test_lineup_prefix_source.py",
+    "backend/tests/domainrt/test_lineup_play_prefix_continuation.py",
+    "backend/tests/db/test_terminal_pitch_storage.py",
+    "backend/tests/db/test_started_game_read_http.py",
+    "backend/tests/test_function_operations_boundary.py"
+  ],
+  "root_formal_writer_exact_proposal": [
+    "contracts/authz/product/ddl-elements.json",
+    "contracts/authz/product/function-bodies/manifest.json",
+    "contracts/tenant_boundary/repository-contract.json",
+    "contracts/tenant_boundary/runtime-authz-contract.json",
+    "contracts/state-transition/lineup_play_prefix_cases_v1.json",
+    "contracts/state-transition/lineup_play_prefix_payload_vectors_v1.json",
+    "contracts/state-transition/lineup_play_prefix_d11_vectors_v1.json",
+    "backend/domain/lineup-prefix-manifest.json",
+    "backend/domain/lineup-prefix-property-catalog.json",
+    "backend/domain/lineup-prefix-property-catalog.schema.json",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint).sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint).sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb).sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:finish_play_prefix_projection().sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_play_prefix_runner_insert().sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_first_ball_projection_admission().sql",
+    "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint).sql",
+    "contracts/authz/product/capability-catalog.json",
+    "contracts/authz/product/application-steps.json",
+    "contracts/tenant_boundary/db-api-inventory.json",
+    "backend/src/pitchlog/authz/runtime_contract.py",
+    "contracts/authz/product/function-bodies/policies/POLICY:game_start_requests:lineup_prefix_game_start_requests_select.sql",
+    "contracts/authz/product/function-bodies/policies/POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:tenant_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:game_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:start_request_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:device_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:tenant_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:game_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:start_request_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:device_id:pitchlog_sync_right_fn_owner.sql",
+    "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_sync_right_fn_owner.sql"
+  ],
+  "migration_proposal": {
+    "new_table": false,
+    "new_column": false,
+    "new_alembic_migration": null,
+    "reason": "existing sync_fence checkpoint/history/admission JSON fields can hold closed content version3; only function bodies and registration derive change"
+  },
+  "sql_existing_signature_preserved": [
+    {
+      "schema": "sync_right_api",
+      "name": "read_play_prefix_checkpoint",
+      "identity_args": "uuid, uuid, bigint"
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "lock_play_prefix_checkpoint",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "read_play_prefix_history_page",
+      "identity_args": "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "prepare_play_prefix_projection",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, text"
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "assert_play_prefix_projection",
+      "identity_args": "jsonb"
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "finish_play_prefix_projection",
+      "identity_args": ""
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "guard_play_prefix_runner_insert",
+      "identity_args": ""
+    },
+    {
+      "schema": "sync_right_api",
+      "name": "guard_first_ball_projection_admission",
+      "identity_args": ""
+    }
+  ],
+  "additional_table_acl_if_missing": [
+    "game_start_requests:tenant_id,game_id,start_request_id,device_id",
+    "game_start_attempts:tenant_id,game_id,start_request_id,device_id,outcome"
+  ],
+  "secret_columns_forbidden": [
+    "credential_digest",
+    "request_digest",
+    "ciphertext",
+    "nonce",
+    "key_id"
+  ],
+  "inputs": {
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": "18f134daacffae1521cbc1f7a0456feb08888e6dae4479c4a67cf15ff984eb56",
+    "backend/src/pitchlog/sync/ordinary_pitch_ports.py": "68474268cbb0389e9f1136e601ee98d74228adf673a38a31ce2465b50101b719",
+    "backend/src/pitchlog/sync/ports.py": "7df3c34654c4a25103b21ee921d2666c0687d51098c41188a42ebb93baeb8df9",
+    "backend/src/pitchlog/sync/port_guard.py": "ad6e36b5e3aeebc6e922f51469835fd00b1896ac4477d041ec6e2780520bb3d3",
+    "backend/src/pitchlog/sync/terminal_pitch_tokens.py": "f3fa3507b3f46be64e67e63ddad68ef55b7a5c6a46de3239c36a9059aa607553",
+    "backend/src/pitchlog/sync/terminal_pitch_payload.py": "a4d4e0aada63d4904252101c6ced510c5cf4e42d7280104ca0ae6742a9c7afc8",
+    "backend/src/pitchlog/sync/terminal_pitch_projection.py": "4f2aa44b10fe10c346bfd6e98c1d5d3da687dd45f85ff8e650449b6870f20fc7",
+    "backend/src/pitchlog/repositories/play_prefix.py": "78d24fdc8fcaa8a119cdd080d5ef00bb8f2c76ad6dc7832651ae7e3e2168f0f2",
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py": "487b7518a5a745c60084e1ba025ae1e518f8dd418fbe4277b0c9d085d0dd79d5",
+    "backend/src/pitchlog/repositories/recorded_snapshot.py": "e5a7f7a150d94afc89bcf8f63bf603e109bca47b41e3844454e146167477602e",
+    "backend/src/pitchlog/repositories/ordinary_pitch_operations.py": "4e4d71a80ce2f95b03e40fa9cd24be08604b3af68bed1ff11c06f0b86e2ca4d7",
+    "backend/src/pitchlog/repositories/operation_registry.py": "6bd2be0304299e735ef161e61792c99ebdf55016a7e31ce94227343a3628b6a9",
+    "backend/src/pitchlog/repositories/transaction.py": "08cd9f35d61e65427c0de9aca47669f859e07b6a7677d08784d3d1a094d847ec",
+    "backend/src/pitchlog/api/routers/sync.py": "20b71faed43899a627509391a018c0cdeadab28b4c210a3c0b7c496e6fe9eb09",
+    "backend/src/pitchlog/api/routers/started_games.py": "04e9b96d799e8021e9a00e881a59c9944c7d5b70b81bff39c122c720ddfb5db9",
+    "backend/src/pitchlog/api/schemas/started_games.py": "82119245265fa87c2ab0a4fde6fafd10027d5ff63947148982b9c2f28baf8b99",
+    "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py": "f74ec5b576679c45a7885bd568a1867975cb824a4f1062c8eadbd7e422faeeb9",
+    "backend/src/pitchlog/authz/terminal_pitch_product.py": "d270dec922a2675ea05372417a10893a81437af09714b1f06e917c39922dc693",
+    "backend/src/pitchlog/authz/first_ball_write_stamp.py": "f55d0c50fd32c6f6c0e62f2ce78ae5dfa3638d7be3403762ab78113bc07ecdea",
+    "backend/src/pitchlog/domainrt/lineup_prefix_source.py": "150002af4e9776887808496b8d21da8ea61fecc84b7dd5ada2a455f244cc72d8",
+    "backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py": "b96552911749ff309dd51ed41249569e220a70c148eb6b0bbd53ffec4fbcc46e",
+    "backend/src/pitchlog/repositories/started_snapshot.py": "4a73c3eb4a84cf1a69842c9a84b5a4c8d3c8cd033e7c85a8ef22cdb72fc941e9",
+    "backend/src/pitchlog/repositories/started_snapshot_operations.py": "a981b9f613820a28b5b6a9fdc34f9bf86929cfca1e493a70a4573834f45a97d2",
+    "backend/src/pitchlog/db/recording_rights/models.py": "ab260eb40fdcd71b07fbc456d7047eb44effbf317af3430cf7294312e79e74b7",
+    "backend/src/pitchlog/db/game_state/models.py": "24d23b537af06d124ce22b01bd592a622c9047f5fa0ad6461e7e1de2a50bf8fe",
+    "backend/src/pitchlog/authz/initial_start_sql.py": "60e020e2dfa41e49173284749bc10258e9c0ab963f8f856b7b621a5f4190e819",
+    "backend/src/pitchlog/repositories/ordinary_prefix_operations.py": "f38848b9149bdbee37e013d6356979af00c683e632b8b439ce99187840e61771",
+    "backend/src/pitchlog/repositories/function_operations.py": "05f2a0cd2d285642290577cb1f4c30091789c229549a5fb4c78f865337ba60bb",
+    "backend/tests/test_function_operations_boundary.py": "427c1ec53fbe5befae3ec64648734f58f364f0061ba51fe6dda7656aa8941832"
+  },
+  "sql_new_minimal_origin_function": {
+    "schema": "sync_right_api",
+    "name": "read_lineup_started_origin",
+    "identity_args": "uuid, uuid, bigint",
+    "returns": "TABLE(record_json text)",
+    "owner": "pitchlog_sync_right_fn_owner",
+    "app_grant": "EXECUTE only; exact new registered read token",
+    "reason": "old prefix lock/read returns None at zero; cannot add an origin outer row to that result without changing old zero-reader meaning",
+    "row_bound": {
+      "min": 1,
+      "max": 1
+    },
+    "input_fields": [
+      [
+        "game_id",
+        "UUID"
+      ],
+      [
+        "generation",
+        "int/BIGINT"
+      ]
+    ],
+    "CAP": "CAP:sync_lineup_prefix:read_started_origin",
+    "operation_id": "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+    "generation_range": "1..2^63-1, bool/0/negative/2^63 reject; no INTEGER narrowing",
+    "authority": "historical origin only; current game/generation/roster/rules/currentwriter already bound by existing live same-TX reader; function output alone is not epoch/recording permission"
+  },
+  "technical_decisions_before_source": [
+    "Root-approved historical origin=start_request_id; historical original device distinct from current writer device",
+    "new 3arg scalar origin read function and exact token scope; old7 signatures unchanged",
+    "explicit initial logical ref/digest definition required; recommend initial checkpoint id actual start_request_id, no new UUID issuance",
+    "native checkpoint evidence path must avoid all-prefix replay; preserve pure full replay as separate variant"
+  ],
+  "reserved_parallel_worker": {
+    "paths": [
+      "backend/src/pitchlog/repositories/function_operations.py",
+      "backend/tests/test_function_operations_boundary.py"
+    ],
+    "owner": "root-assigned existing4prefix BIGINT fix worker until handoff; cache proposal only here",
+    "new_origin_registration": "separate author change only after worker handoff"
+  },
+  "new_origin_query_reads_only": [
+    "public.game_start_requests",
+    "public.game_start_attempts"
+  ],
+  "no_new_origin_acl_for": [
+    "public.games",
+    "public.game_lineups",
+    "public.recording_right_deliveries"
+  ],
+  "new_policies": [
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_start_requests:lineup_prefix_game_start_requests_select.sql",
+      "table": "game_start_requests",
+      "command": "SELECT",
+      "role": "pitchlog_sync_right_fn_owner",
+      "using": "COALESCE(tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::UUID, FALSE)",
+      "existing_force_rls": true,
+      "app_direct_grant": false
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select.sql",
+      "table": "game_start_attempts",
+      "command": "SELECT",
+      "role": "pitchlog_sync_right_fn_owner",
+      "using": "COALESCE(tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::UUID, FALSE)",
+      "existing_force_rls": true,
+      "app_direct_grant": false
+    }
+  ],
+  "origin_uniqueness": {
+    "logical_key": [
+      "tenant_id",
+      "game_id",
+      "start_request_id",
+      "historical_device_id"
+    ],
+    "attempt_filter": "outcome=committed and tenant/game/request/device exact FK match",
+    "many_committed_attempts_same_logical_key": "accepted as same historical logical origin; no attempt_id chosen",
+    "zero_or_two_distinct_logical_origins": "reject; no latest/min/max choice",
+    "output": "one logical start_request_id; historical device internal only; no credential/digest/ciphertext/nonce"
+  },
+  "zero_revision_required_tests": {
+    "v3_logical_before_revision": 1,
+    "v3_first_after_revision": 2,
+    "v3_next_after_revision": 3,
+    "wire_history_before_after": [
+      "0",
+      "1"
+    ],
+    "physical_missing": "must not substitute logical rev0; coalesce(physical,0)+1 legacy formula is not the v3 logical transition",
+    "old_v1_v2": "preserve their own bootstrap/revision behavior; test separately"
+  },
+  "canonical_bind_test_matrix": {
+    "read_lineup_started_origin": [
+      "generation"
+    ],
+    "read_play_prefix_checkpoint": [
+      "generation"
+    ],
+    "lock_play_prefix_checkpoint": [
+      "generation"
+    ],
+    "read_play_prefix_history_page": [
+      "generation",
+      "storage_history_epoch",
+      "wire_checkpoint_revision",
+      "wire_history_version",
+      "upper_watermark",
+      "after_d1",
+      "after_d2"
+    ],
+    "prepare_play_prefix_projection": [],
+    "prepare_note": "no SQL BIGINT argument; UUID/BYTEA/TEXT signature remains exact, JSON payload counters are separate",
+    "page_size": "INTEGER 1..100, never widened",
+    "positive_bigint_values": [
+      1,
+      2147483647,
+      2147483648,
+      9223372036854775807
+    ],
+    "negative_tests": [
+      "bool",
+      "0 for positive fields",
+      "negative",
+      "9223372036854775808"
+    ],
+    "zero_legal_only": [
+      "upper_watermark",
+      "after_d1",
+      "after_d2"
+    ]
+  }
+}

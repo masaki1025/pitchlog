@@ -168,3 +168,22 @@ D11の新34はnormative包絡/実factory34/direct34を実消費し、公式colle
 
 
 既登録prefix4の期待追随（同PO委任によるroot判断）: 先行binder修復の影響7moduleは338成功/4失敗、同4は修復前にも再現した。既registry期待が16件のまま・既PLAY_PREFIX4追加後もdevice-stateを末尾と仮定したことが原因。backend/tests/test_sync_apply_function_registration.py exact1を同workerへ追加許可、既boundary試験の閉全16＋正規4literal=20と旧7＋新4objectsの全11identityを厳格に固定し、device-state実位置と全20tupleで検証する。未知/余剰拒否・元全16項目を保持、actual自己参照で期待を生成/部分比較へ緩和しない。元candidate3d90…/4fail/新対向7failを保全、影響全件と非作者確認後に保存する。
+
+
+## ステップ4：真正reader・実Port・同TX保存・GETの起動
+
+2026-10-31、PO委任によるCodex /root判断。cache step4 r2 CONNECTION7b8e7fbe…/paths62dc9eb3…と非作者REPORT-r2 7617d99d…を照合、旧P1二件は有限署名/BigInteger/実最小ACLとRLSへ反映した。残る同2表9列の個別SQL9pathだけを機械追記した反映r3をstep4-paths.jsonへ正本化し、他全field不変・root正式writer25→34を検証した。これは既採用方針/実装選択の範囲で新PO意味裁定・新全体計画ではない。
+
+作者の許可23製品/15既試験とroot正式writer34は同JSONのexact集合。function_operations.py/test_function_operations_boundary.pyと、先行期待修復のtest_sync_apply_function_registration.pyはprefix_generation_bind_fixの専有を独立採用handoffまで維持、それ以外の新reader/Port/源泉・private v3/GETを担当pr188_final_reviewへ許可する。rootがproducer由来SQL/manifest/DDL/role・columnACL/RLS/CAP/正式runtime/repositoryとsource説明/源泉wireの最小追補を直列管理、作者は仮SQL/stubで成功経路を作らない。必要追加pathは不可分理由とexact差分を返す。
+
+started-game tagのeventIdは実成功開始原本のstart_request_idへ技術binding、confirmed-playはOperationEvent.idのまま。成功attemptが複数でも同tenant/game/start_request_id/historicalDeviceなら同一logical origin、0/異なる原本2つは拒否しlatest/min選択0。歴史Aのdeviceと現在Bのwriter認可/epoch/fenceは別、origin取得はrequests4列＋attempts5列だけ、FnOwner専用SELECT policy2と既FORCE RLSを保持。app新直接grantやgames/lineups/delivery新権限は追加しない。秘密nonce/credential/暗号文は取得/露出しない。現在game/roster/rules等は既同TX readerから供給する。
+
+zero論理refはid=実start_request_id/rev1/history0、自己循環なしinitial-wire-head別tagを実zero原本から正準hashする（private content digestと別）。旧None readerを黙ってouterrowへ変えず新exact origin read token/一行関数を追加。既SQL初回coalesce0+1との差はv3初回1→2/次2→3と物理history epochの区別を対向に含める。fixture a…digestは真正値にしない。
+
+新v3 private checkpointに両cursor/lineup実投捕/PA参照/after/T2/走者/元before物理投影/前wire/last event+ledger/全digestを保存。以後は同TX locked CP＋直近accepted event/ledger/PlayRow41/PlayRunner10/history1を全照合→同artifact一回再数学、毎球startedから全履歴を再取得しない。旧pure全再生をnative fastpathへ黙って読替えずEvidence別variantを置く。旧v2 bridgeは別依存でinactive1補完0、履歴は既keyset25/max100/水位・epoch・tenant/game/generationに束縛する。
+
+既D06/認可/device/元D5内容一致と連番・内容拒否の先行順、結果不明を新D5/新bodyへ置換しない保証を維持。新D5の実source lock→実一回artifact/loadedhash/fullcompare→私有ready frame→既kernel event/ledger→同writerで一回consume→SQL prepare/PlayRow/runner/history/checkpoint/水位/admission→RG1最終確認/commitを不可分にする。T2/T4/runner/history/checkpoint途中故障は全取消を実証、成功boolを外から受けない。
+
+物理PlayRow/flags/責任とPlayRunnerはbefore（第三outのbefore走者を消さない）、after checkpointは反対側実投捕/次打者。T2検知lock後newpitchは拒否し旧D5再送は解決、gameEnded自動true0。未供給終了宣言/再開/TB開始をnoend成功へ補完しない。別device拒否試験はwrite資格を対象とし、同team viewerのGET閲覧権を不必要に塞がない。oldDTO/reader保持＋v3別DTO/読取を提供する。
+
+実owned PGの実POST作成/開始/初期権→zeroGET→三振3PA→反対側ordinary→GET/再読込を通す。同D5/故障全取消/別tenant・write device・失効epoch/nonce二重消費/歴史A→B/lock後newD5拒否を検証する。事前投入試合/常時成功/仮Port/数学fixtureを原本にしない。新reader/SQL/実DB/GETはこれから、正式7.7/最終CI/通常merge・全MVPは未成立。UIの接続はステップ5へ残す。
