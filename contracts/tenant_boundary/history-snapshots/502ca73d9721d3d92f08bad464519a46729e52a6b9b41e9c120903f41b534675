@@ -471,10 +471,14 @@ jobs:
           --cov
           --cov-report=term
           --durations=25
+      - name: カバレッジの計測結果を記録
+        run: |
+          uv run coverage report
+          uv run coverage json -o coverage-shard${{ matrix.shard }}.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: backend-coverage-${{ matrix.shard }}
-          path: backend/.coverage.shard${{ matrix.shard }}*
+          path: backend/coverage-shard${{ matrix.shard }}.json
           if-no-files-found: error
 
   # 必須チェック名 ``backend`` を維持する集約ジョブ。全シャードの success を
