@@ -8479,7 +8479,7 @@ def test_rg1_owned_condition2_requires_each_source_path_and_occurrence() -> None
         checker.RG1_CONDITION2_OWNER_PATHS
     )
     assert len(contract.condition2_scoped_findings) == 47
-    assert len(contract.ledger_condition2_findings) == 17
+    assert len(contract.ledger_condition2_findings) == 20
     for owner in contract.rg1_condition2_owners:
         relative = owner.path.removeprefix("backend/src/")
         source = (REPOSITORY_ROOT / owner.path).read_text()

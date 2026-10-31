@@ -75,17 +75,20 @@ LEDGER_CONDITION2_FINDINGS = frozenset(
         (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
         (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
         (568, 'current_recovery_generation'),
+        (1075, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
         (
-            1212,
+            1384,
             'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation'
         ),
-        (1247, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
-        (1448, 'generation'),
-        (1462, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
-        (1500, 'current_recovery_generation'),
-        (1508, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (1525, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
-        (1545, 'advance_recovery_generation'),
+        (1419, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1501, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1544, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1741, 'generation'),
+        (1755, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (1793, 'current_recovery_generation'),
+        (1801, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1818, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1838, 'advance_recovery_generation'),
     }
 )
 
@@ -888,7 +891,7 @@ def _resolution_owner_shape_is_exact(registration: ResolutionOwnershipRegistrati
             "pitchlog.repositories.transaction._assert_existing_resolution_owner"
         )
         and registration.scope == "pitchlog.repositories.transaction.<module>"
-        and type(registration.line) is int and registration.line == 866
+        and type(registration.line) is int and registration.line == 935
         and registration.symbol == "_assert_existing_resolution_owner"
         and type(registration.source_sha256) is str
         and re.fullmatch(r"[0-9a-f]{64}", registration.source_sha256) is not None
@@ -1170,7 +1173,7 @@ def _load_allowlist(
             raise ContractError("台帳条件2登録は正の行番号と一意の記号が必要")
         ledger_findings.add((line, symbol))
     if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
-        raise ContractError("台帳条件2登録は独立確認済み17所見のexact-setが必要")
+        raise ContractError("台帳条件2登録は独立確認済み20所見のexact-setが必要")
     rg1_location = "allowlist.condition_2_rg1_scoped_findings"
     rg1_scopes = _object(value["condition_2_rg1_scoped_findings"], rg1_location)
     _strict_keys(rg1_scopes, RG1_CONDITION2_OWNER_PATHS, rg1_location)

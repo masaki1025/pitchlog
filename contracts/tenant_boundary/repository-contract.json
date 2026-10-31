@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 30,
+  "contract_revision": 31,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:30"
+        "contract_revision:31"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -166,7 +166,13 @@
     "CAP:invalidation_intents:update",
     "CAP:evacuated_event_originals:read",
     "CAP:evacuated_event_originals:insert",
-    "CAP:tenants:read"
+    "CAP:tenants:read",
+    "CAP:game_lineups:read",
+    "CAP:play_rows:read",
+    "CAP:play_rows:insert",
+    "CAP:games:insert",
+    "CAP:tenant_vocabularies:insert",
+    "CAP:tenant_vocabularies:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -215,7 +221,24 @@
     "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
     "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
     "pitchlog.repositories.games.PreparingGameListToken",
-    "pitchlog.repositories.games.PreparingGameDetailToken"
+    "pitchlog.repositories.games.PreparingGameDetailToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
+    "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+    "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+    "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+    "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+    "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -226,7 +249,12 @@
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",
-    "RULE:resolve_stage_a"
+    "RULE:resolve_stage_a",
+    "SYNC_FIRST_BALL:bind_device",
+    "SYNC_FIRST_BALL:check_current_right",
+    "SYNC_WRITER_BINDING:read_writer_identity",
+    "SYNC_WRITER_BINDING:assert_writer_binding",
+    "SYNC_FIRST_BALL:read_device_state"
   ],
-  "source_digest": "6535f6fd00228b684b73e6a17a801ad7ba81ed88235cc844c5c8bf360527c94e"
+  "source_digest": "b90ab2b656ad08adc98944a7794f9da201d184b056963c40edfe59b4cfca2b74"
 }

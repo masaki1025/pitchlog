@@ -122,7 +122,6 @@ _REPOSITORY_SOURCE_ROOT = (
 )
 _CONTEXT_ENFORCEMENT_POINTS = {
     "pitchlog.repositories.base.TenantRepositoryBase.execute": "context",
-    "pitchlog.repositories.transaction._assert_initial_actor_transaction": "context",
     "pitchlog.repositories.binding._tenant_transaction": "context",
     "pitchlog.repositories.transaction._TenantTransactionScope.__enter__": (
         "self._context"

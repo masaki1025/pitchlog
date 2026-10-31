@@ -61,6 +61,31 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *PITCH_TYPE_OPTIONS_OPERATIONS,
 )
 
+_STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
+    {
+        "SYNC_FIRST_BALL:bind_device",
+        "SYNC_FIRST_BALL:check_current_right",
+        "SYNC_WRITER_BINDING:read_writer_identity",
+        "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
+    }
+)
+
+
+def _registered_product_function(
+    registration: FunctionOperationRegistration, *, operation_id: str
+) -> FunctionOperationRegistration:
+    """既実宣言とliteral IDの一致だけを検証し同objectを返す。"""
+    if (
+        type(registration) is not FunctionOperationRegistration
+        or type(operation_id) is not str
+        or operation_id not in _STATIC_PRODUCT_FUNCTION_BINDING_IDS
+        or registration.operation_id != operation_id
+    ):
+        raise ValueError("製品関数の有限登録が不一致")
+    return registration
+
+
 # 既8関数を保持し、binding前の端末状態readだけを末尾へ加える。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     FunctionOperationRegistration(
@@ -116,9 +141,24 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         decoder=_decode_stage_a_rule_result,
         nonempty_inputs=("game_type_key", "tournament_key"),
     ),
-    *_FIRST_BALL_FUNCTION_OPERATIONS,
-    *_WRITER_BINDING_FUNCTION_OPERATIONS,
-    DEVICE_STATE_READ_OPERATION,
+    _registered_product_function(
+        _FIRST_BALL_FUNCTION_OPERATIONS[0], operation_id="SYNC_FIRST_BALL:bind_device"
+    ),
+    _registered_product_function(
+        _FIRST_BALL_FUNCTION_OPERATIONS[1],
+        operation_id="SYNC_FIRST_BALL:check_current_right",
+    ),
+    _registered_product_function(
+        _WRITER_BINDING_FUNCTION_OPERATIONS[0],
+        operation_id="SYNC_WRITER_BINDING:read_writer_identity",
+    ),
+    _registered_product_function(
+        _WRITER_BINDING_FUNCTION_OPERATIONS[1],
+        operation_id="SYNC_WRITER_BINDING:assert_writer_binding",
+    ),
+    _registered_product_function(
+        DEVICE_STATE_READ_OPERATION, operation_id="SYNC_FIRST_BALL:read_device_state"
+    ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

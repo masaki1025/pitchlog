@@ -1497,7 +1497,9 @@ class _AuthorityRuntime:
         try:
             with self._pair.recovery_fence() as fence:
                 lease, _ = self._start_lease(fence, fresh=False)
-                record, binding, nonce = authority.prepare(request, fence.generation)
+                record, binding, nonce = authority.prepare_writer_binding(
+                    request, fence.generation
+                )
                 self._journal.append(
                     _encode_event(
                         {"event": "binding_intent", "lease": lease, "record": record}

@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 24
+RUNTIME_CONTRACT_REVISION = 25
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "0c4eca96eba8e4b141e32d41b7785074088ef2a54a58d41cf61a062ac234db12"
+SOURCE_DIGEST = "130e3ea6ac79ae882527704db23cca8b25c09c2fcd5d85b7c3a938598fa67161"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -44,6 +44,9 @@ PROTECTED_SCHEMAS = (
     "public",
     "rg1_api",
     "rg1_control",
+    "sync_fence",
+    "sync_fence_api",
+    "sync_right_api",
 )
 PROTECTED_TABLES = (
     ("public", "admin_credentials"),
@@ -96,6 +99,9 @@ PROTECTED_TABLES = (
     ("public", "tenants"),
     ("public", "tournament_rule_assignments"),
     ("public", "trusted_devices"),
+    ("sync_fence", "first_ball_write_admissions"),
+    ("sync_fence", "writer_admissions"),
+    ("sync_fence", "writer_bindings"),
 )
 PROTECTED_FUNCTIONS = (
     ("authn", "change_password", "uuid, text, text"),
@@ -193,6 +199,22 @@ PROTECTED_FUNCTIONS = (
     ("rg1_control", "release_controller_lease", ""),
     ("rg1_control", "scope_binding", "uuid"),
     ("rg1_control", "try_controller_lease", ""),
+    ("sync_fence_api", "assert_writer_binding", "uuid, uuid, uuid, bytea, uuid, uuid"),
+    ("sync_fence_api", "close_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
+    ("sync_fence_api", "guard_writer_records", ""),
+    ("sync_fence_api", "observe_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
+    ("sync_fence_api", "publish_writer_binding", "uuid, uuid, uuid, jsonb, bytea"),
+    ("sync_fence_api", "read_writer_database_identity", "uuid"),
+    ("sync_fence_api", "read_writer_identity", "uuid"),
+    ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
+    (
+        "sync_right_api",
+        "check_current_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    ("sync_right_api", "guard_first_ball_projection_admission", ""),
+    ("sync_right_api", "guard_first_ball_projection_lock", ""),
+    ("sync_right_api", "read_device_state", "uuid, uuid"),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (
