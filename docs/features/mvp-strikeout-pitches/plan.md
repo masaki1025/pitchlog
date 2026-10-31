@@ -165,3 +165,6 @@ D11の新34はnormative包絡/実factory34/direct34を実消費し、公式colle
 
 
 ステップ4の独立先行不具合修復（2026-10-31、PO委任によるCodex /root判断）: 計画非作者が実psycopg dialectで既prefix read系のBIGINT generation署名をINTEGER bindへ狭める既存不具合を再現した。新origin/ACL起案の完了を待たず、既契約に合う修復をbackend/src/pitchlog/repositories/function_operations.pyと既backend/tests/test_function_operations_boundary.pyのexact2へ許可する。既再利用4prefix tokenの正規SQL署名を実assetから照合し、必要な有限BigInteger型登録/bindだけを直す。2^31境界/2^63-1と負数・bool・範囲外/unknown関数の拒否を維持し、新SQL/役割/自由関数名/新origin登録はこの先行修復に含めない。作者一名にこの2pathを専有させて非作者差分確認後に保存し、旧v2/承認済み派生値を無関係に再裁定しない。全step4の正式起動はoriginの最小ACL/RLS閉包・exact登録の反映r2を確認してから行う。
+
+
+既登録prefix4の期待追随（同PO委任によるroot判断）: 先行binder修復の影響7moduleは338成功/4失敗、同4は修復前にも再現した。既registry期待が16件のまま・既PLAY_PREFIX4追加後もdevice-stateを末尾と仮定したことが原因。backend/tests/test_sync_apply_function_registration.py exact1を同workerへ追加許可、既boundary試験の閉全16＋正規4literal=20と旧7＋新4objectsの全11identityを厳格に固定し、device-state実位置と全20tupleで検証する。未知/余剰拒否・元全16項目を保持、actual自己参照で期待を生成/部分比較へ緩和しない。元candidate3d90…/4fail/新対向7failを保全、影響全件と非作者確認後に保存する。
