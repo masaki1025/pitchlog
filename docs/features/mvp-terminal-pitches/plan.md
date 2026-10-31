@@ -207,3 +207,11 @@ GET再構築用readonly2field（同日、Codex主担当判断）: 新StartedPlay
 有限legacy compat候補供給（2026-10-31、PO委任によるCodex主担当判断）: rootが予定のplay_prefix_v2_source_compatibility_v1.jsonへsourceFormat別7組を候補作成。実Git 54b83002/e81c4edb/5226a667/9736e06dのJS byte/SHAと公開口を確認、firstは2口/ordinaryは4口。旧/現artifactを別VMで実行しfirst24・ordinary1840（一般888含む）全応答を型/全field比較して全組差0。witnessはcache terminal-prefix-compat-readiness-20261031の各JSON/compare.cjs/indexに全入力hash/出力hash/accepted拒否件数を固定しJSONのwitnessSha256で参照。旧期待をruntime lookupしない。root候補は非作者確認前で正式受理ではなく、実source/登録/完全request-response照合が無ければ資格として使わない。任意hash/未存在APIを一律互換にしない。
 
 有限compat登録の採用（2026-10-31、PO委任によるCodex主担当判断）: 実JSON621137eb696944dd548816840aea74f5287c1fbb5f50de2a5f65a07704184fe3と非作者REPORT4d54c61b4e336b66f7a3d2474cb8b31186d827b7fa4be63d1900279aa783ab4fを照合、新指摘0で限定7組を採用。実Git4artifact/入力/旧出力/現出力/witnessの全hashと全5616比較（正常5499/拒否117）を独立再現、差0。実行時の期待lookup/任意hash許可ではなく、真正DB source/現一回数学との全値比較が別途必要。DB互換・全ABI任意入力・P6blind・D11/BOOT/7.7/Port提供の完了は未成立。root供給JSONだけ保存し作者のsource4とは別履歴にする。
+
+### PlayRunner物理意味の是正（2026-10-31、PO委任によるCodex主担当判断）
+
+原典data-model5-2/旧20-25・36-38の起点塁走者triplet、FR003/ADVの走者別実結果と非作者REPORT95ebdbfd88c614bc732f0bf6edbb59f0e1ed29d014f1cafff722228b63075392を照合し、先行案のafter snapshotを既PlayRunnerへ流す混同を是正する。新意味裁定ではなく保存仕様への整合で、source3数学/P6期待は変更しない。
+
+physical PlayRunnerはrequest.source.runners(beforeの起点塁実本人/責任投手)に対する今回の実T1既定/観測結果であり、private doc.runners/GET runnersはresponse.runners(after占有)である。無走者BB/HBPは当該physical0行、新打者出塁はPlayRow＋after checkpointへ、次ordinaryでbefore一塁走者のphysical継続1行。snapshot物理期待/AFTER stampはbefore実結果集合、checkpointのafterは別集合として同時に束縛・個別照合する。未来の本進/アウト走者をafterから消して記録喪失させる共用はしない。
+
+作者は既許可projection/SQL prepare/GET/新pure・owned期待の該当箇所だけを是正し、旧candidate69b2fa30…を履歴として保持して新版source/producer packetへ固定する。追加path/表/role/権限は不要、rootは旧producerを未適用のまま維持する。新AFTER全取消/元D5/tenant・FK/全10列/metadata seal/非循環digestと一回評価の条件は不変。
