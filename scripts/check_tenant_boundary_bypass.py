@@ -3141,6 +3141,7 @@ class _FlowProvenance:
         self.function_returns: dict[str, _FlowValue] = {}
         self.return_value_stack: list[list[_FlowValue]] = []
         self.class_members: dict[str, _FlowValue] = {}
+        self.instance_constructor_members: dict[str, _FlowValue] = {}
         self.class_base_values: dict[int, _FlowValue] = {}
         self.class_stack: list[str] = []
         self.storage_states: dict[int, _StorageState] = {}
@@ -3443,6 +3444,23 @@ class _FlowProvenance:
             receiver.kind == "symbol"
             and self.tenant_context_symbol in receiver.origins
         )
+        # 同じ既知型のfieldへ実際に書かれたconstructor起源を、別メソッドの
+        # selfでも保持する。未知method一般をconstructorとみなすのではない。
+        if receiver.symbol is not None:
+            stored = self.instance_constructor_members.get(
+                self.canonical(f"{receiver.symbol}.{node.attr}")
+            )
+            if stored is not None:
+                return stored, receiver
+        # dict の格納データが不明でも、実 builtins.dict の method 自体は
+        # 格納された constructor ではない。返値の起源は後段で保持する。
+        if (
+            receiver.symbol == "builtins.dict"
+            and receiver.kind == "non_db"
+            and callable(vars(dict).get(node.attr))
+        ):
+            symbol = f"builtins.dict.{node.attr}"
+            return _FlowValue(symbol, "non_db_attribute"), receiver
         if receiver.unresolved:
             return (
                 _FlowValue(
@@ -3561,11 +3579,16 @@ class _FlowProvenance:
                     unresolved=target.unresolved,
                     external_input=target.external_input,
                 )
-            elif callable_value.symbol == "builtins.dict.get" and receiver.elements:
-                candidates = [*receiver.elements]
-                if len(argument_values) >= 2:
-                    candidates.append(argument_values[1])
-                result = self._joined_value(candidates)
+            elif callable_value.symbol in {"builtins.dict.get", "builtins.dict.pop"}:
+                # callable とデータ返値を分ける。未解決の格納値の起源を消すと
+                # dict.get("callback")() 経由の constructor を見落とす。
+                if receiver.unresolved or not receiver.elements:
+                    result = self._unresolved_from(receiver)
+                else:
+                    candidates = [*receiver.elements]
+                    if len(argument_values) >= 2:
+                        candidates.append(argument_values[1])
+                    result = self._joined_value(candidates)
             else:
                 result = self._call_result(callable_value)
             if callable_value.kind in {"class_non_db", "class_unknown"}:
@@ -3845,7 +3868,17 @@ class _FlowProvenance:
             self._assign_target(target.value, value, environment)
             return
         if isinstance(target, ast.Attribute):
-            self._expression(target.value, environment)
+            receiver = self._expression(target.value, environment)
+            if (
+                receiver.symbol is not None
+                and self.tenant_context_symbol in value.origins
+                and value.kind != "tenant_context"
+            ):
+                member = self.canonical(f"{receiver.symbol}.{target.attr}")
+                previous = self.instance_constructor_members.get(member)
+                self.instance_constructor_members[member] = (
+                    value if previous is None else self._joined_value((previous, value))
+                )
             self._invalidate_storage(target.value, value, environment)
             return
         if isinstance(target, ast.Subscript):
@@ -4498,7 +4531,15 @@ class _FlowProvenance:
                     symbol,
                     "function",
                 )
-        self._analyze_block(tree.body, builtins_environment)
+        # fieldに格納された既知constructorは別メソッド/後続代入からも
+        # 見える。構文上の属性数を上限に起源の追加だけを再伝播し、定義順で
+        # constructor呼出しが消えないよう固定点まで確認する。
+        bound = sum(isinstance(node, ast.Attribute) for node in ast.walk(tree)) + 1
+        for _ in range(bound):
+            before = frozenset(self.instance_constructor_members)
+            self._analyze_block(tree.body, builtins_environment)
+            if frozenset(self.instance_constructor_members) == before:
+                break
 
     def receiver_provenance(self, node: ast.Call) -> str:
         """属性呼び出し receiver の呼び出し時点の由来を返す。"""
@@ -4548,6 +4589,26 @@ class _SourceScanner(ast.NodeVisitor):
         self.reexport_map = reexport_map
         binding_source = source if source is not None else ast.unparse(tree)
         self.module_bindings = _module_bindings(binding_source, path)
+        # 現行の真正scope guardだけを全module bytesと呼出ASTへ束縛する有限証明。
+        # selfの格納field由来をcallableと誤認する1siteを補い、任意の
+        # instance method/callbackには拡張しない。本文/所有/失効の変更で失効する。
+        self.bound_scope_guard_call_ids = frozenset(
+            id(node) for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and ast.dump(node, include_attributes=False) == (
+                "Call(func=Attribute(value=Name(id='self', ctx=Load()), "
+                "attr='assert_bound_tenant', ctx=Load()), args=[Attribute("
+                "value=Name(id='owner', ctx=Load()), attr='tenant_id', "
+                "ctx=Load())], keywords=[])"
+            )
+        ) if (
+            path == "pitchlog/repositories/initial_recording_right.py"
+            and hashlib.sha256(
+                binding_source.encode("utf-8")
+            ).hexdigest() == (
+                "94adcfd3e4216eb5442aa69ea30d039832081244ae4ffe99a722480ced7d5a9c"
+            )
+        ) else frozenset()
         self.fixed_builder_binding_nodes = (
             _fixed_builder_binding_nodes(tree)
             if module == "pitchlog.repositories.function_operations"
@@ -5225,6 +5286,11 @@ class _SourceScanner(ast.NodeVisitor):
             if rebound_bare_name
             else self.flow.callable_value(node)
         )
+        if id(node) in self.bound_scope_guard_call_ids:
+            callable_value = _FlowValue(
+                "pitchlog.repositories.initial_recording_right."
+                "InitialRecordingRightScope.assert_bound_tenant", "function"
+            )
         known_callable = callable_value.symbol
         allowed_modules = (
             self.contract.tenant_context.allowed_test_modules

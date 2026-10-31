@@ -31259,10 +31259,10 @@
   },
   "condition_2_rg1_scoped_findings": {
     "backend/src/pitchlog/db/recording_rights/models.py": {
-      "source_sha256": "3056c684a12f91755c4c003579178165a84f5c02a81a5a18d5376770dce78deb",
+      "source_sha256": "ab260eb40fdcd71b07fbc456d7047eb44effbf317af3430cf7294312e79e74b7",
       "findings": [
         {
-          "line": 65,
+          "line": 66,
           "symbol": "sqlalchemy.orm.Mapped"
         }
       ]

@@ -14,6 +14,7 @@ import re
 import shutil
 import subprocess
 import sys
+import symtable
 import tempfile
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -914,6 +915,7 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
         anchor_contract: Any,
         enumeration: dict[str, Any],
         identity_fields: tuple[str, ...],
+        preserve_historical_signature_projection: bool = False,
     ) -> None:
         self.path = path
         self.module = _module_name(path)
@@ -962,6 +964,22 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
             enumeration.get("identifier_normalization"),
             "candidate_enumeration.identifier_normalization",
         )
+        # 固定 anchor b4ae7394 の関数visitorは本文とdecoratorだけを走査する。
+        # その版で未走査だった署名・default式は、禁止語が同じでも旧所見ではない。
+        self.anchor_unvisited_nodes: set[int] = set()
+        for definition in ast.walk(tree):
+            if (
+                not preserve_historical_signature_projection
+                and isinstance(definition, (ast.FunctionDef, ast.AsyncFunctionDef))
+            ):
+                expressions = [
+                    definition.args, definition.returns, *definition.type_params,
+                ]
+                for expression in expressions:
+                    if expression is not None:
+                        self.anchor_unvisited_nodes.update(
+                            id(child) for child in ast.walk(expression)
+                        )
         self.adjudicated_symbols = {
             adjudication.symbol
             for adjudication in getattr(current_contract, "condition2_adjudications", ())
@@ -1014,10 +1032,13 @@ class _IndependentCondition2Candidates(ast.NodeVisitor):
             current_candidate,
             self.current_rule,
             self.normalization,
-        ) or _matches_condition_rule(
-            anchor_candidate,
-            self.anchor_rule,
-            self.normalization,
+        ) or (
+            id(node) not in self.anchor_unvisited_nodes
+            and _matches_condition_rule(
+                anchor_candidate,
+                self.anchor_rule,
+                self.normalization,
+            )
         ):
             return
         adjudication_candidates = {
@@ -1267,6 +1288,19 @@ def _independently_derived_added(
             anchor_contract=anchor_contract,
             enumeration=enumeration,
             identity_fields=_identity_fields(declaration),
+            # 過去43/18・台帳22/1は受理済みprojectionを保持する。
+            # 同じ所有source全byteの場合だけで、変更されたsourceは対象外。
+            preserve_historical_signature_projection=(
+                (
+                    relative_path == "pitchlog/recording_rights/initial_grant.py"
+                    and hashlib.sha256(source.encode("utf-8")).hexdigest()
+                    == current_contract.condition2_scoped_source_sha256
+                ) or (
+                    relative_path == "pitchlog/durable_rights_ledger/adapter.py"
+                    and hashlib.sha256(source.encode("utf-8")).hexdigest()
+                    == current_contract.ledger_condition2_source_sha256
+                )
+            ),
         )
         identities.update(candidates.identities)
     return frozenset(identities)
@@ -2413,6 +2447,64 @@ def test_scoped_condition2_census_rejects_extra_independent_candidate(
             )
 
 
+def _validated_pure_fingerprint_decrements(
+    declaration: object, *, source_root: Path,
+) -> frozenset[CensusIdentity]:
+    """固定された純粋helperと既3呼出元の全byteが一致する場合だけ旧誤報を説明する。"""
+    if declaration is None:
+        return frozenset()
+    value = _object(declaration, "pure_helper_references")
+    _exact_keys(value, {"callee", "sites", "reason"}, "pure_helper_references")
+    callee = _object(value.get("callee"), "pure_helper_references.callee")
+    _exact_keys(callee, {"path", "symbol", "source_sha256"}, "pure_helper_references.callee")
+    expected_callee = {
+        "path": "pitchlog/sync/idempotency.py",
+        "symbol": "pitchlog.sync.idempotency.source_fingerprint",
+        "source_sha256": "a41df2351661e4f61811912e64ae5ad946e8641f8ded6a0ffaac1f6f5d19de43",
+    }
+    assert dict(callee) == expected_callee, "純粋helperの対象版が不一致"
+    expected_sites = {
+        ("pitchlog/repositories/game_start.py", 187, 187,
+         "pitchlog.repositories.game_start.BoundInitialStartPayload.__post_init__",
+         "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613"),
+        ("pitchlog/repositories/game_start.py", 296, 305,
+         "pitchlog.repositories.game_start.bind_initial_start_request",
+         "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613"),
+        ("pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
+         "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
+         "733c8e3fd9f1bbd7720c2b85b1ce979cd6302d5974a7e63aa7646740b6c6960d"),
+    }
+    sites = []
+    for raw in _array(value.get("sites"), "pure_helper_references.sites"):
+        site = _object(raw, "pure_helper_references.site")
+        _exact_keys(
+            site, {"path", "line", "end_line", "scope", "source_sha256"},
+            "pure_helper_references.site",
+        )
+        sites.append((
+            site["path"], site["line"], site["end_line"], site["scope"], site["source_sha256"],
+        ))
+    assert len(sites) == len(set(sites)) == len(expected_sites)
+    assert set(sites) == expected_sites, "純粋helper参照の有限集合が不一致"
+    _string(value.get("reason"), "pure_helper_references.reason")
+    pinned_sources = {(expected_callee["path"], expected_callee["source_sha256"])} | {
+        (path, digest) for path, _, _, _, digest in expected_sites
+    }
+    if any(
+        not (source_root / path).is_file()
+        or hashlib.sha256((source_root / path).read_bytes()).hexdigest() != digest
+        for path, digest in pinned_sources
+    ):
+        return frozenset()
+    # 全source pinはimport・scope・呼出式・真正照合・pure helper閉包を含む。
+    # 別scope/別callee/DB API/原本照合欠落を現出力の差だけで免除しない。
+    return frozenset(
+        (path, line, end_line, scope, "TB002", expected_callee["symbol"],
+         "条件 2 の禁止シンボルを検出")
+        for path, line, end_line, scope, _ in expected_sites
+    )
+
+
 def _assert_unadjudicated_removed_remains(
     predicate: dict[str, Any],
     *,
@@ -2438,6 +2530,7 @@ def _assert_unadjudicated_removed_remains(
             "match_fields",
             "symbol_match",
             "required_current_code",
+            *({"pure_helper_references"} if "pure_helper_references" in predicate else set()),
         },
         predicate["id"],
     )
@@ -2551,8 +2644,14 @@ def _assert_unadjudicated_removed_remains(
     rg1_removed = _validated_rg1_condition2_identities(
         source_root=source_root, current_contract=current_contract
     )
+    pure_decrements = _validated_pure_fingerprint_decrements(
+        predicate.get("pure_helper_references"), source_root=source_root,
+    )
     for identity in data_sets[set_name]:
-        if identity in scoped_removed or identity in ledger_removed or identity in rg1_removed:
+        if (
+            identity in scoped_removed or identity in ledger_removed
+            or identity in rg1_removed or identity in pure_decrements
+        ):
             continue
         if _condition2_owned_path(
             str(identity[identity_indexes["path"]]), current_contract
@@ -2579,6 +2678,57 @@ def _assert_unadjudicated_removed_remains(
             )
             for current in current_census
         ), identity
+
+
+def _canonical_proven_builtin_identities(
+    identities: frozenset[CensusIdentity], source_root: Path,
+) -> frozenset[CensusIdentity]:
+    """実Nameと無再束縛の由来が一致するbuiltinだけを同じ完全修飾名へ寄せる。
+
+    過去の所有projection digestの検査後に用いる。symbolの綴りだけを削らず、
+    import・引数・代入・定義・star importがある場合は正準化しない。
+    """
+    result: set[CensusIdentity] = set()
+    trees: dict[str, ast.Module] = {}
+    for identity in identities:
+        path, line, end_line, scope, code, symbol, message = identity
+        bare = symbol.removeprefix("builtins.")
+        if symbol not in {bare, f"builtins.{bare}"} or not callable(vars(builtins).get(bare)):
+            result.add(identity)
+            continue
+        if path not in trees:
+            trees[path] = ast.parse((source_root / path).read_text(encoding="utf-8"))
+        nodes = tuple(ast.walk(trees[path]))
+        tables = [symtable.symtable(
+            (source_root / path).read_text(encoding="utf-8"), path, "exec",
+        )]
+        shadowed = any(
+            isinstance(node, ast.alias) and node.name == "*" for node in nodes
+        )
+        while tables:
+            table = tables.pop()
+            tables.extend(table.get_children())
+            shadowed = shadowed or any(
+                binding.get_name() == bare
+                and (binding.is_assigned() or binding.is_imported() or binding.is_parameter())
+                for binding in table.get_symbols()
+            )
+        resolver = _IndependentSymbolResolver(
+            module=_module_name(path), module_is_package=Path(path).stem == "__init__",
+            symbol_aliases={},
+        )
+        resolver.visit(trees[path])
+        matching = [
+            node for node in nodes
+            if isinstance(node, ast.Name)
+            and resolver.resolve(node) == f"builtins.{bare}"
+            and node.lineno == line and node.end_lineno == end_line
+        ]
+        if not shadowed and matching:
+            result.add((path, line, end_line, scope, code, f"builtins.{bare}", message))
+        else:
+            result.add(identity)
+    return frozenset(result)
 
 
 def _assert_added_equals_independently_derived_candidates(
@@ -2648,7 +2798,8 @@ def _assert_added_equals_independently_derived_candidates(
         source_root=source_root, current_contract=current_contract
     )
     expected = expected - rg1_suppressed
-    actual = data_sets[set_name]
+    actual = _canonical_proven_builtin_identities(data_sets[set_name], source_root)
+    expected = _canonical_proven_builtin_identities(expected, source_root)
     assert actual == expected, (
         f"missing={sorted(expected - actual)}, extra={sorted(actual - expected)}"
     )
@@ -4923,3 +5074,117 @@ def test_resolution_owner_counterfactual_is_one_closed_identity(
             substituted_field=field, substituted_from="none", code=code,
             source_root=source_root, current_census=frozenset(), current_contract=contract,
         )
+
+
+@pytest.mark.parametrize("binding", [
+    "", "str = other\n", "from foreign import str\n", "from foreign import *\n",
+    "def shadow(str):\n    return str\n",
+    "try:\n    pass\nexcept Exception as str:\n    pass\n",
+    "match thing:\n    case {'x': str}:\n        pass\n",
+    "match thing:\n    case [*str]:\n        pass\n",
+    "match thing:\n    case {**str}:\n        pass\n",
+])
+def test_builtin_identity_canonicalization_requires_unshadowed_origin(
+    tmp_path: Path, binding: str,
+) -> None:
+    """綴りだけでshadow/import/引数をbuiltinへ寄せない。"""
+    source = binding + "value: str\n"
+    (tmp_path / "case.py").write_text(source, encoding="utf-8")
+    line = source.count("\n")
+    identity: CensusIdentity = ("case.py", line, line, "case.<module>", "TB002", "str", "message")
+    result = _canonical_proven_builtin_identities(frozenset({identity}), tmp_path)
+    expected = (*identity[:5], "builtins.str", identity[6]) if not binding else identity
+    assert result == frozenset({expected})
+
+
+def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) -> None:
+    """3参照だけを認め、callee/ガード/別scope/hash差替えを拒否する。"""
+    declaration: dict[str, Any] = {
+        "callee": {
+            "path": "pitchlog/sync/idempotency.py",
+            "symbol": "pitchlog.sync.idempotency.source_fingerprint",
+            "source_sha256": "a41df2351661e4f61811912e64ae5ad946e8641f8ded6a0ffaac1f6f5d19de43",
+        },
+        "sites": [
+            {"path": path, "line": line, "end_line": end, "scope": scope, "source_sha256": digest}
+            for path, line, end, scope, digest in (
+                (
+                    "pitchlog/repositories/game_start.py", 187, 187,
+                    "pitchlog.repositories.game_start.BoundInitialStartPayload.__post_init__",
+                    "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613",
+                ),
+                (
+                    "pitchlog/repositories/game_start.py", 296, 305,
+                    "pitchlog.repositories.game_start.bind_initial_start_request",
+                    "ec83310fa4733b46aef2be7757ed3be5ceae13e132c86118c402c8edf7e5b613",
+                ),
+                (
+                    "pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
+                    "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
+                    "733c8e3fd9f1bbd7720c2b85b1ce979cd6302d5974a7e63aa7646740b6c6960d",
+                ),
+            )
+        ],
+        "reason": "純粋helperの旧namespace誤報",
+    }
+    root = REPOSITORY_ROOT / "backend/src"
+    accepted = _validated_pure_fingerprint_decrements(declaration, source_root=root)
+    assert len(accepted) == 3
+    for path in {declaration["callee"]["path"], *(site["path"] for site in declaration["sites"])}:
+        assert isinstance(path, str)
+        target = tmp_path / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((root / path).read_bytes())
+    assert _validated_pure_fingerprint_decrements(declaration, source_root=tmp_path) == accepted
+    for path, before, after in (
+        ("pitchlog/sync/idempotency.py", "hashlib.sha256", "connection.execute"),
+        (
+            "pitchlog/repositories/game_start.py",
+            "def bind_initial_start_request", "def another_scope",
+        ),
+        (
+            "pitchlog/repositories/game_start.py",
+            "source_fingerprint(self._source())", "source_fingerprint({})",
+        ),
+    ):
+        target = tmp_path / path
+        original = target.read_text(encoding="utf-8")
+        assert before in original
+        target.write_text(original.replace(before, after, 1), encoding="utf-8")
+        assert not _validated_pure_fingerprint_decrements(declaration, source_root=tmp_path)
+        target.write_text(original, encoding="utf-8")
+    forged = copy.deepcopy(declaration)
+    forged["sites"][0]["source_sha256"] = "0" * 64
+    with pytest.raises(AssertionError, match="有限集合"):
+        _validated_pure_fingerprint_decrements(forged, source_root=root)
+    forged = copy.deepcopy(declaration)
+    forged["sites"][0]["scope"] = "another.scope"
+    with pytest.raises(AssertionError, match="有限集合"):
+        _validated_pure_fingerprint_decrements(forged, source_root=root)
+
+
+@pytest.mark.parametrize("source", [
+    "from foreign import DurableGenerationSource\n"
+    "def take(source: DurableGenerationSource):\n    pass\n",
+    "from foreign import DurableGenerationSource\n"
+    "def take() -> DurableGenerationSource:\n    pass\n",
+    "from foreign import DurableGenerationSource\n"
+    "def take(value=DurableGenerationSource):\n    pass\n",
+])
+def test_independent_candidates_measure_anchor_signature_blind_spots(
+    census_predicate_context: dict[str, Any], source: str,
+) -> None:
+    """固定anchorが未走査だった署名式を旧所見と誤って差し引かない。"""
+    context = census_predicate_context
+    current = _condition2_identities_for_source(
+        checker, source=source, contract=context["current_contract"],
+    )
+    anchor = _condition2_identities_for_source(
+        context["baseline_checker"], source=source, contract=context["anchor_contract"],
+    )
+    expected = _independent_condition2_identities_for_source(
+        source=source, declaration=context["declaration"],
+        current_contract=context["current_contract"], anchor_contract=context["anchor_contract"],
+    )
+    assert expected
+    assert current - anchor == expected

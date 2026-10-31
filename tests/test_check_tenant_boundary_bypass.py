@@ -8787,3 +8787,86 @@ def test_resolution_owner_body_cannot_self_authorize_new_hash(mutation: str) -> 
         v.code == "TB001"
         for v in checker.scan_source(changed, path=path, contract=contract)
     )
+
+
+@pytest.mark.parametrize("access", ["get", "pop"])
+def test_builtin_dict_method_preserves_retrieved_constructor_origin(access: str) -> None:
+    """dict method自体と、取り出したconstructorの呼出しを混同しない。"""
+    source = (
+        "from pitchlog.repositories.context import TenantContext\n"
+        "callbacks = {'cb': TenantContext}\n"
+        f"callbacks.{access}('cb')()\n"
+    )
+    violations = checker.scan_source(
+        source, path="foreign.py", contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert any(v.code == "TB007" and v.line == 3 for v in violations)
+
+
+def test_bound_scope_guard_proof_expires_on_any_module_ast_change() -> None:
+    """真正guardの有限証明を別scope/ガード欠落へ持ち出さない。"""
+    path = "pitchlog/repositories/initial_recording_right.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    original = checker.scan_source(source, path=path, contract=contract)
+    assert not any(v.code == "TB007" and v.line in {489, 491, 498, 782} for v in original)
+    for changed, changed_path in (
+        (source.replace(
+            "self.assert_bound_tenant(owner.tenant_id)",
+            "self.assert_bound_tenant(other_tenant)", 1,
+        ), path),
+        (source.replace("def _check(self)", "def _removed_guard(self)", 1), path),
+        (source, "pitchlog/repositories/another_scope.py"),
+    ):
+        violations = checker.scan_source(changed, path=changed_path, contract=contract)
+        assert any(v.code == "TB007" and v.line == 489 for v in violations)
+
+
+@pytest.mark.parametrize("assignment", [
+    "self.cb = TenantContext", "constructor = TenantContext\n        self.cb = constructor",
+    "box = {'cb': TenantContext}\n        self.cb = box.get('cb')",
+])
+def test_instance_field_retains_known_constructor_between_methods(assignment: str) -> None:
+    """別メソッドへ持ち越された既知constructorの実field起源を拒否する。"""
+    source = (
+        "from pitchlog.repositories.context import TenantContext\n"
+        "class A:\n"
+        "    def __init__(self):\n"
+        f"        {assignment}\n"
+        "    def run(self):\n"
+        "        self.cb()\n"
+        "A().run()\n"
+    )
+    violations = checker.scan_source(
+        source, path="foreign.py", contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert any(
+        v.code == "TB007" and v.line == source.splitlines().index("        self.cb()") + 1
+        for v in violations
+    )
+
+
+@pytest.mark.parametrize("source", [
+    "class A:\n"
+    "    def run(self): self.cb()\n"
+    "    def __init__(self): self.cb = TenantContext\n"
+    "A().run()\n",
+    "class A:\n"
+    "    def run(self): self.cb()\n"
+    "a = A()\n"
+    "a.cb = TenantContext\n"
+    "a.run()\n",
+    "class A:\n"
+    "    def run(self): self.cb2()\n"
+    "    def copy(self): self.cb2 = self.cb\n"
+    "    def __init__(self): self.cb = TenantContext\n"
+    "a = A()\na.copy()\na.run()\n",
+])
+def test_known_instance_constructor_is_not_hidden_by_definition_order(source: str) -> None:
+    """既知constructorの保持をメソッド順や後置代入・別fieldで迂回させない。"""
+    source = "from pitchlog.repositories.context import TenantContext\n" + source
+    violations = checker.scan_source(
+        source, path="foreign.py", contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    run_line = next(i for i, line in enumerate(source.splitlines(), 1) if "def run" in line)
+    assert any(v.code == "TB007" and v.line == run_line for v in violations)
