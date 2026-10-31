@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 04:20 JST（#189の認可・同期修復を独立レビュー後に保存）
+
+- **利用者の到達点**: 過去候補の実画面初球/通常3球/四球・死球の実証は前節を維持。今回のc2e5e4dd統合候補で新たな画面成功・正式develop初球成功は未実証。#189公開ad6588b1のまま、source push/新CI/mergeは未了。
+- **固定点/修復**: root WT `/home/ymdms/projects/pitchlog-worktrees/pr189` / feature/pr189-integration、HEAD7973f8a7。49b78043でruntime11schema/53表/91関数・repository36CAP/64token/9関数・旧7builder復元・private method名/実source pinを修復。9b6f5225でnested ACL不正shapeのValueError閉拒否と旧public50保持/私有3追加の試験、c97c111aで実受付scopeのunit接続・既codec一回呼び出し・ACK全5状態の閉DTOを保存。新認可成功や固定計算結果で迂回しない。
+- **検査/レビュー**: 関連初球1518成功、frontend117file/2638成功・型/lint成功。登録293/ledger201、authz作者2863＋追加後schema33、sync487（skip0）成功。非作者REPORTはauthz `6a1c713cb26c140b9cce5fef3fb4f4472b6377eb51e56f4803250aa20f178bbe`、sync `3c00c8001ce665f1559ad61ca21178f9a64777c43dafdad098b2bd2ae16419f5`、いずれもP0/P1/P2=0で全対象SHA一致。cacheは `~/.cache/pitchlog/pr189-integration-20261101/` と各 `pr189-*-20261101`。全非DBの初回121失敗/9943成功は保全、修復前結果を全件greenへ読み替えない。正規authz skip-oracle1429成功、oracle/seal/正式7.7/最終CI/実PGは未成立。
+- **事故・境界**: 先行登録レビュアーがenv解除を欠くpytestを実施し、既設定接続でpg_roles読取後、既存role検知によりCREATE前に停止した。共有DBへ変更/掃除は行わず、当該実行は成功証拠から除外。全後続レビューはpytest/DB禁止の静的・純メモリ確認、作者pytestは両DSN unset＋not requires_dbを必須化した。rootによる本段実DB試験は未実施。
+- **次の作業**: 7973f8a7で既step4へ有限3群を追補し、各1作者/重複pathなし。R: DB分類18node/旧route・関数集合/catalog fixture、S: public seed保持とprivate3の別母集合/実schema/既一意性の有限例外、T: probe欠落40atom/実stage fake/旧profile unapply保持と現profile明示拒否。source固定→非作者→正式tenant v2全前後（base c2e、ID#189）/oracle/凍結corpus→最終HEAD証拠→元PRへ一回push→必須CI→通常merge。未提供操作と全MVP残件は削減しない。
+
 ## 再開：2026-11-01 03:13 JST（他LLMからPR統合を引受・#189を検証中）
 
 - **GitHub確認済み**: #188は8be972d8、#193はc2e5e4ddでmerge済み。#189はDraft/OPEN・公開ad6588b1、developはc2e5e4dd。CI60分→17分43秒は引継ぎ報告値で、本主担当が同runを再計測したとはしない。
