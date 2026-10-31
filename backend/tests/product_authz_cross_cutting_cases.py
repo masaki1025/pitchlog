@@ -10,6 +10,7 @@ from typing import Any
 from product_authz_other_profiles_cases import other_profile_seed_rows
 from product_authz_tenant_owned_cases import (
     _migration_attached_trigger_functions,
+    _migration_attached_trigger_identities,
     _migration_trigger_facts,
 )
 from test_authz_runtime_contract_repository import product_spec_for_repository
@@ -68,7 +69,31 @@ def trigger_expectations() -> tuple[TriggerExpectation, ...]:
     attached_connections = _migration_attached_trigger_functions()
     attached_names = frozenset(attached_connections)
     fireable_names = [trigger.function_name for trigger in migration_triggers.values()]
-    if len(attached_connections) != len(attached_names):
+    initial_name = "protect_initial_right_storage"
+    expected_initial_connections = {
+        (initial_name, table, f"trg_{table}_initial_right_guard")
+        for table in (
+            "trusted_devices",
+            "game_start_requests",
+            "game_start_attempts",
+            "recording_right_deliveries",
+        )
+    }
+    if initial_name in asset_names:
+        actual_initial = tuple(
+            row
+            for row in _migration_attached_trigger_identities()
+            if row[0] == initial_name
+        )
+        if (
+            len(actual_initial) != 4
+            or set(actual_initial) != expected_initial_connections
+        ):
+            raise AssertionError("初期storage guardの4接続identityが不一致")
+    ordinary_connections = tuple(
+        name for name in attached_connections if name != initial_name
+    )
+    if len(ordinary_connections) != len(set(ordinary_connections)):
         raise AssertionError("1 個の migration トリガ関数が複数箇所に接続されている")
     if asset_names != attached_names:
         raise AssertionError(
@@ -90,7 +115,11 @@ def trigger_expectations() -> tuple[TriggerExpectation, ...]:
             TriggerExpectation(
                 function_name=function_name,
                 sqlstate=function.sqlstate,
-                message=function.message,
+                message=(
+                    "initial right storage cannot be physically deleted"
+                    if function_name == initial_name
+                    else function.message
+                ),
             )
         )
     return tuple(result)
