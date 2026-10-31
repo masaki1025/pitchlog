@@ -203,3 +203,5 @@ GET再構築用readonly2field（同日、Codex主担当判断）: 新StartedPlay
 新GETの元要求識別の復元（2026-10-31、PO委任によるCodex主担当判断）: 新StartedPlayPrefixGameReadだけへlast_source: PlayIdentity|nullを追加可。実checkpoint.last_sourceのeventId/D5と実last PlayRow.idを同tenant/game/D4の原本へ結合して供給し、0球はnull。D5は識別子であり資格/nonce/secretではなく、返却によって記録権を発行しない。既GET2pathのreadonly値に限定し、旧DTO/応答と越境拒否を保持する。ブラウザに欠落値の推測をさせず、未知D5の新発番や他tenant照会を増やさない。
 
 既API応答型の閉集合追随（2026-10-31、PO委任によるCodex主担当判断）: backend/tests/test_api_started_game.py exact1の既tenant-matched GET応答union期待を旧3全保持＋採用済StartedPlayPrefixGameRead1だけのexact4へ追随可。route/tenantmatched/未知型拒否/他全assertは不変、新variantを実OpenAPIから隠して回避しない。
+
+有限legacy compat候補供給（2026-10-31、PO委任によるCodex主担当判断）: rootが予定のplay_prefix_v2_source_compatibility_v1.jsonへsourceFormat別7組を候補作成。実Git 54b83002/e81c4edb/5226a667/9736e06dのJS byte/SHAと公開口を確認、firstは2口/ordinaryは4口。旧/現artifactを別VMで実行しfirst24・ordinary1840（一般888含む）全応答を型/全field比較して全組差0。witnessはcache terminal-prefix-compat-readiness-20261031の各JSON/compare.cjs/indexに全入力hash/出力hash/accepted拒否件数を固定しJSONのwitnessSha256で参照。旧期待をruntime lookupしない。root候補は非作者確認前で正式受理ではなく、実source/登録/完全request-response照合が無ければ資格として使わない。任意hash/未存在APIを一律互換にしない。
