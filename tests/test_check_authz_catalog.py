@@ -6430,9 +6430,13 @@ def test_initial_http_logical_route_rejects_wrong_binding(mutation: str) -> None
     elif mutation == 'wrong-type':
         row['provenance_ids'] = True
     elif mutation == 'missing-provenance':
-        registry['design_provenance'].pop()
+        target = next(provenance for provenance in registry['design_provenance']
+                      if provenance['provenance_id'] == 'HTTP:initial_game_start_resolve')
+        registry['design_provenance'].remove(target)
     elif mutation == 'extra-field':
-        registry['design_provenance'][-1]['capability'] = 'CAP:games:read'
+        target = next(provenance for provenance in registry['design_provenance']
+                      if provenance['provenance_id'] == 'HTTP:initial_game_start_resolve')
+        target['capability'] = 'CAP:games:read'
     elif mutation == 'duplicate-provenance':
         registry['design_provenance'].append(copy.deepcopy(registry['design_provenance'][-1]))
     else:
