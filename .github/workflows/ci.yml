@@ -400,6 +400,12 @@ jobs:
                       sql.Identifier('pitchlog_owner'),
                   )
               )
+              # 認可カタログは同一クラスタ内の全非template DBのPUBLIC権限も対象にする。
+              # pytest用DBをPUBLIC既定のまま残すとS3のINITIAL-VERIFIER-GLOBALだけが
+              # 失敗するため、seed DB側を閉じて製品検査の意味を変えない。
+              connection.execute(
+                  "REVOKE CONNECT, TEMPORARY ON DATABASE pitchlog_test FROM PUBLIC"
+              )
           PY
       - run: uv run alembic upgrade 0033_game_rules_immutable
         env:
