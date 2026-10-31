@@ -739,3 +739,14 @@ census独立proofの宣言面追補（2026-10-31、PO委任によるCodex /root�
 PR188同一受理行の最終実値反映（2026-10-31T14:31:35.770147+09:00、PO委任によるCodex /root判断）: candidate33 manifest93a47cdc…/非作者REPORT1ead8cea…の全before/after実byte、remote develop3a24、完全4面/識別値/生成全constant/runtime全byte/239snapshot・base226保持を照合し、正式31履歴を不変のまま末尾32単一188の実値を反映。旧candidateはbefore/cacheに保全、非baseかつ新全履歴非参照の中間11snapshotだけを保存後に除去。承認欄2だけを実態に沿うCodex委任判断/実日付で補記し、本人確認・署名は代記しない。cache pr188-final77-censusr3-candidate-20261031/root-approval/receipt.jsonへ対象版・判断日時・根拠・実承認後asset SHAを固定。全9base比一回/runtime23/frozen6、旧6predicate/43-18/ledger22-1/未知拒否を保持。ここから公式CLI/最終HEADレビュー/必須CIを実行し、未実施を成功へ繰り上げない。
 
 公式working-tree検査結果: actual受理欄補記後、tenant-boundary --base-ref3a24・frozen --invariants-only・census単独CLIが全成功。root本来のuv環境のruff/ty/authz --skip-oracle（1427）も成功、既backend venvの代用成功とは区別。委任policy有限4追加の既core検査82も成功。source33（承認2欄以外実byte）/r3 code2を保存し、commit後に実PRと同じ2親/イベント形の受理検査・最終HEAD独立レビュー/実CIへ進む。working-tree成功を実PR受理/全CI/mergeへ読み替えない。
+
+
+### 実CI41173912913の参照資産・受入試験追随（2026-10-31）
+
+PO委任によるCodex主担当 /root判断として、最終9d9d7b1cで実CIがharness41失敗・backend13失敗だった事実を固定する。成功済みjobや局所検査を全件成功へ広げない。実logはcacheへ保全し、次の有限既存pathを通常修復へ追加する。
+
+- `contracts/authz/failure-injection-points.json` の既source_asset.git_blob_digest、`contracts/authz/shared-preconditions.json` の既source_documentsの実byte digest、`contracts/authz/mcdc-map.json` の既sources.claim_mutant_map.blob_digestのみを現実入力へ追随する。抽出条文・注入点・MC/DC判定・権限・期待意味は変更しない。
+- `tests/test_check_tenant_boundary_bypass.py` のRecordingGeneration実モデル候補試験は、採用済み有限ORM宣言証明で除かれるClassDef一件と、引き続き拒否するName参照三件を分離して完全一致させる。行を無条件に減らさず、クラス宣言が許される証明と実参照の拒否を両方検査する。checker/allowlistの許容範囲は変えない。
+- `tests/fixtures/frozen-archive-cases/manifest.json` は最終入力一式のcorpus_inputs.digestだけを正規runnerで導出する。固定prefix/snapshot集合・比較case全期待・拒否条件を変更しない。全該当caseを実runner経由で再確認し、単にdigestを合わせただけでは採用しない。
+
+候補の完全前後・現input由来・独立非作者レビューを保存し、対象固定後に採用する。ORM受入シート・その他DB/認可資産の変更範囲は診断後に別の有限追補を行う。人間本人の確認/署名やP6blindの成立を代記しない。
