@@ -2697,6 +2697,40 @@
       "with_check_predicate_id": null,
       "with_check_column": null,
       "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:play_runners:play_prefix_select_play_runners",
+      "table_id": "play_runners",
+      "profile": "function_only",
+      "policy_name": "play_prefix_select_play_runners",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:play_runners:play_prefix_insert_play_runners",
+      "table_id": "play_runners",
+      "profile": "function_only",
+      "policy_name": "play_prefix_insert_play_runners",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'"
     }
   ],
   "functions": [
@@ -5399,6 +5433,213 @@
       "revoked_acl_expectations": [
         {
           "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)",
+      "schema_name": "sync_right_api",
+      "function_name": "read_play_prefix_checkpoint",
+      "identity_args": "uuid, uuid, bigint",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint)",
+      "schema_name": "sync_right_api",
+      "function_name": "lock_play_prefix_checkpoint",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)",
+      "schema_name": "sync_right_api",
+      "function_name": "read_play_prefix_history_page",
+      "identity_args": "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text)",
+      "schema_name": "sync_right_api",
+      "function_name": "prepare_play_prefix_projection",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(prepared boolean)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)",
+      "schema_name": "sync_right_api",
+      "function_name": "assert_play_prefix_projection",
+      "identity_args": "jsonb",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "void",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:finish_play_prefix_projection()",
+      "schema_name": "sync_right_api",
+      "function_name": "finish_play_prefix_projection",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "trigger",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+      "schema_name": "sync_right_api",
+      "function_name": "guard_play_prefix_runner_insert",
+      "identity_args": "",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "trigger",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
           "privilege": "EXECUTE",
           "grantable": false
         }
@@ -10165,6 +10406,136 @@
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
         "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:tenant_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "tenant_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:play_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "play_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:base:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "base",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:runner_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "runner_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:status:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "status",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:status_source:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "status_source",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:responsible_pitcher_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "responsible_pitcher_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:import_batch_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "import_batch_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:play_runners:retired_at:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "play_runners",
+      "column_id": "retired_at",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     }
