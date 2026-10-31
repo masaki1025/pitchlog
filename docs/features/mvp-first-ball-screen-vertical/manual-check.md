@@ -2,6 +2,8 @@
 
 ## 実証済みの範囲
 
+以下は過去の隔離候補の証拠。最新統合版の固定HEAD・実行結果は主担当台帳 `docs/features/mvp-integration-lead/progress.md` と対応cacheを参照する（過去の成功を最新HEADの成功へ読み替えない）。
+
 固定HEAD `54b83002b04357f776801a0d2e4c77d157508da8`、同一owned DB・実API/broker・Chromium・loopback HTTPSで、画面新規作成→開始→初球ボール保存→サーバー再取得→同一要求再送→reloadを実証。pytest全体1 passed / 46.29秒。reload後は1ボール・0ストライク・履歴1・PlayRow1、得点/アウト/走者/scoreboard不変。DBのplay_rows/operation_events/event_slots/idempotency_ledgerも各1件。
 
 証跡は `~/.cache/pitchlog/first-ball-https-evidence-20261030/result.json` と `attempt5-playwright.log`。正式develop統合・対象実機・全操作・MVP完成の証拠ではない。
@@ -11,10 +13,11 @@
 自動試験の環境は終了済みで、固定の公開URLはない。以下の明示holdで専用環境を起動し、表示される `PITCHLOG_E2E_MANUAL_ORIGIN` のloopback URLを同じPCのブラウザで開く（hold機能の反映版を使用）。`PITCHLOG_E2E_MANUAL_TEAM_NAME` が試験チーム名。LAN公開や共有DBへの適用は行わない。
 
 ```bash
-cd /home/ymdms/projects/pitchlog-worktrees/feature-mvp-first-ball-vertical/backend
+cd /home/ymdms/projects/pitchlog-worktrees/pr189/backend
 env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN \
+  TMPDIR=/home/ymdms/.cache/pitchlog/pr189-integration-20261101/tmp \
   PYTHONPATH=tests:src \
-  PITCHLOG_PYTEST_TMPDIR=/tmp/opencode/pytest-tmp-manual-first-ball \
+  PITCHLOG_PYTEST_TMPDIR=/home/ymdms/.cache/pitchlog/pr189-integration-20261101/manual-pytest-tmp \
   PITCHLOG_E2E_TLS_CERT_PATH=/home/ymdms/.cache/pitchlog/first-ball-https-tls-20261030/cert.pem \
   PITCHLOG_E2E_TLS_KEY_PATH=/home/ymdms/.cache/pitchlog/first-ball-https-tls-20261030/key.pem \
   PITCHLOG_E2E_MANUAL_HOLD_SECONDS=1800 \
@@ -22,7 +25,7 @@ env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN \
     -k first_ball_https -s -q --rootdir .
 ```
 
-自動縦断とDB件数検査が通った後、最大30分保持する。終了は期限またはCtrl-Cで、当該owned環境だけを後始末する。TLS資材はPOが許可した検証専用自己署名・1日有効。鍵の内容を表示/共有/commitしない。証明書の期限が切れた場合は同じ検証専用範囲で再準備する。
+自動縦断とDB件数検査が通った後、最大30分保持する。終了は期限またはCtrl-Cで、当該owned環境だけを後始末する。TLS資材はPOが許可した検証専用自己署名・1日有効。鍵の内容を表示/共有/commitしない。既資材は2026-10-31 14:57:45 JSTで期限切れ。既自動試験の`ignoreHTTPSErrors`による自己署名例外は隔離技術検証だけに限定し、信頼済みTLSや実機検証済みとは扱わない。新しい鍵・秘密情報の発行や公開環境への適用は、この手順から許可を推定しない。
 
 ログインのパスワードは既存の**公開fixture値** `public-owned-vertical-password-A1`（運用資格ではない）。実利用者データは投入しない。ブラウザでは検証用自己署名証明書の確認が必要。
 

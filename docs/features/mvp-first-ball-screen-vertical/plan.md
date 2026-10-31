@@ -183,3 +183,6 @@ PR189限定の候補統合carry（2026-11-01、PO委任によるCodex主担当�
 localは旧14か固定18の閉policyモードで同じ数学を検証しTECHNICAL ONLY、公開成功とはしない。190以降は実baseに同全hashのordinary両資産が存在して全原本不変のときだけ従来base-firstを継承する（旧14系と正式189後18系を明示区別）。未知PR初導入・base片側欠損/改変はcurrentより先に拒否し、結果不明から別モードへfallbackしない。workflowは既core-guard job/権限/required context名と旧core_guard実行を維持して公開Gate6 CLIを追加する。新required contextは増減しない。
 
 最終非作者レビューはこの限定例外手続き自体と全拒否対向を含む。rootの実公開CLI/実CIが最終189証拠へ束縛されるまで正式成立/mergeと扱わない。人間逐行欄の自動check・コアpath除外・署名record代記はしない。
+
+
+手動入口の実環境追随（2026-11-01、PO委任によるCodex主担当判断）: 同featureのmanual-check.mdのみを現統合WT/SSD tmpへ更新し、旧54b83002の実証を歴史証拠として保持する。既検証専用自己署名の期限切れと、既ignoreHTTPSErrorsによる隔離技術検証を信頼済み運用TLS/実機から区別し、新鍵/新秘密の発行許可を推定しない。新しい最終HEADでの実測証拠は主担当台帳/cacheへ記録し、文書更新で事後的に実測HEADを変えない。
