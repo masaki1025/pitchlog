@@ -1,13 +1,13 @@
 """無効化意図の INSERT 文の組み立てだけを許可する正例。"""
 
-from sqlalchemy import (  # ty: ignore[unresolved-import]
+from sqlalchemy import (
     Column,
     Integer,
     MetaData,
     Table,
     insert,
 )
-from sqlalchemy.sql.dml import Insert  # ty: ignore[unresolved-import]
+from sqlalchemy.sql.dml import Insert
 
 _INTENTS = Table("invalidation_intents", MetaData(), Column("tenant_id", Integer))
 

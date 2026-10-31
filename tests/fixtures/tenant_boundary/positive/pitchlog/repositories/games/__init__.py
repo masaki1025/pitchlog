@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy import select
+from sqlalchemy.sql.selectable import Select
 
 
 def _preparing_game_detail_statement() -> Select[Any]:

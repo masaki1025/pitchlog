@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sqlalchemy import text  # ty: ignore
+from sqlalchemy import text
 
 
 def bind(session: Any) -> None:

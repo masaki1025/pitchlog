@@ -8,7 +8,7 @@ from pitchlog.repositories.tokens import (  # ty: ignore[unresolved-import]
     TenantOperationResult,
     TenantOperationToken,
 )
-from sqlalchemy.orm import Session  # ty: ignore[unresolved-import]
+from sqlalchemy.orm import Session
 
 
 class _TenantTransaction:
