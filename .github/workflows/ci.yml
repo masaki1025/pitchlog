@@ -469,12 +469,12 @@ jobs:
           --shard-count 4
           --shard-index ${{ matrix.shard }}
           --cov
-          --cov-report=
+          --cov-report=term
           --durations=25
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: backend-coverage-${{ matrix.shard }}
-          path: backend/.coverage*
+          path: backend/.coverage.shard${{ matrix.shard }}*
           if-no-files-found: error
 
   # 必須チェック名 ``backend`` を維持する集約ジョブ。全シャードの success を
