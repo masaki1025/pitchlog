@@ -548,11 +548,6 @@ jobs:
       - run: uv sync --locked --dev
       # 分割実行の被覆を収集したテスト ID で検証する(DB 試験の被覆も含む)。
       - run: uv run python ../scripts/pytest_shards.py verify --suite backend --require-db
-      - uses: actions/download-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          pattern: backend-coverage-*
-          merge-multiple: true
-          path: backend
       # pytest用DBと分離し、実migrationの所有者とS0を一致させる。
       - run: |
           uv run python - <<'PY'
@@ -633,9 +628,3 @@ jobs:
           print('FastAPI startup and domain ping OK')
           PY
         working-directory: ${{ github.workspace }}
-      - name: カバレッジの結合
-        env:
-          COVERAGE_FILE: .coverage
-        run: |
-          uv run coverage combine
-          uv run coverage report
