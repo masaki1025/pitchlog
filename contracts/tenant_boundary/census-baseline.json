@@ -160,7 +160,7 @@
               "line": 1466,
               "end_line": 1475,
               "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
-              "source_sha256": "733c8e3fd9f1bbd7720c2b85b1ce979cd6302d5974a7e63aa7646740b6c6960d"
+              "source_sha256": "19b90d8d71a91a69c1a76d687ab6130b27a3deb1d63e4a16ccfd4560338eafa1"
             },
             {
               "path": "pitchlog/repositories/game_start.py",
@@ -332,7 +332,7 @@
       {
         "path": "pitchlog/authz/product_function_acl.py",
         "source_key": "initial_generation_guard_ddl",
-        "line": 157,
+        "line": 177,
         "code": "TB002",
         "symbol": "pitchlog.authz.product_function_acl.generate_generation_guard_sql",
         "owner": "generate_product_function_acl_sql"
@@ -340,7 +340,7 @@
       {
         "path": "pitchlog/authz/product_function_acl.py",
         "source_key": "initial_generation_guard_ddl",
-        "line": 2585,
+        "line": 2614,
         "code": "TB002",
         "symbol": "generate_generation_guard_sql",
         "owner": "<module>"
@@ -420,7 +420,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 36,
+        "line": 35,
         "code": "TB002",
         "symbol": "DurableGenerationSource",
         "owner": "<module>"
@@ -428,7 +428,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 36,
+        "line": 35,
         "code": "TB002",
         "symbol": "assert_write_recovery_generation",
         "owner": "<module>"
@@ -476,15 +476,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 302,
-        "code": "TB005",
-        "symbol": "importlib.import_module",
-        "owner": "_verify_business_binding"
-      },
-      {
-        "path": "pitchlog/recording_rights/initial_grant_broker.py",
-        "source_key": "initial_grant_broker_caller",
-        "line": 324,
+        "line": 327,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
         "owner": "<module>"
@@ -492,7 +484,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 403,
+        "line": 406,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
         "owner": "_issue_initial_grant_impl"
@@ -500,7 +492,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 404,
+        "line": 407,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
         "owner": "_issue_initial_grant_impl"
@@ -508,7 +500,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 428,
+        "line": 431,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
         "owner": "<module>"
@@ -516,7 +508,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 443,
+        "line": 446,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
         "owner": "<module>"
@@ -524,7 +516,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 483,
+        "line": 486,
         "code": "TB002",
         "symbol": "generation",
         "owner": "<module>"
@@ -532,7 +524,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 488,
+        "line": 493,
         "code": "TB002",
         "symbol": "int",
         "owner": "_broker_d4"
@@ -540,23 +532,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 489,
-        "code": "TB002",
-        "symbol": "int",
-        "owner": "_broker_d4"
-      },
-      {
-        "path": "pitchlog/recording_rights/initial_grant_broker.py",
-        "source_key": "initial_grant_broker_caller",
-        "line": 492,
-        "code": "TB002",
-        "symbol": "int",
-        "owner": "_broker_d4"
-      },
-      {
-        "path": "pitchlog/recording_rights/initial_grant_broker.py",
-        "source_key": "initial_grant_broker_caller",
-        "line": 496,
+        "line": 498,
         "code": "TB002",
         "symbol": "_broker_generation",
         "owner": "<module>"
@@ -564,7 +540,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 510,
+        "line": 512,
         "code": "TB002",
         "symbol": "int",
         "owner": "_broker_generation"
@@ -572,7 +548,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 514,
+        "line": 516,
         "code": "TB002",
         "symbol": "int",
         "owner": "_broker_generation"
@@ -580,7 +556,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 520,
+        "line": 522,
         "code": "TB002",
         "symbol": "int",
         "owner": "_broker_generation"
@@ -588,7 +564,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 804,
+        "line": 806,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.generation",
         "owner": "_postcommit_start_response"
@@ -596,7 +572,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 805,
+        "line": 807,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
         "owner": "_postcommit_start_response"
@@ -604,7 +580,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 805,
+        "line": 807,
         "code": "TB002",
         "symbol": "recovery_generation",
         "owner": "_postcommit_start_response"
@@ -612,7 +588,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 929,
+        "line": 931,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant_broker._broker_generation",
         "owner": "_decode_initial_reply"
@@ -620,7 +596,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1119,
+        "line": 1121,
         "code": "TB005",
         "symbol": "sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect",
         "owner": "_InitialBrokerClient.call"
@@ -628,7 +604,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1210,
+        "line": 1212,
         "code": "TB005",
         "symbol": "psycopg.Connection.cursor",
         "owner": "_verify_auth_verifier_checkout"
@@ -636,7 +612,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1211,
+        "line": 1213,
         "code": "TB005",
         "symbol": "psycopg.Cursor.execute",
         "owner": "_verify_auth_verifier_checkout"
@@ -644,7 +620,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1216,
+        "line": 1218,
         "code": "TB005",
         "symbol": "psycopg.Connection.rollback",
         "owner": "_verify_auth_verifier_checkout"
@@ -652,7 +628,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1219,
+        "line": 1221,
         "code": "TB005",
         "symbol": "psycopg.Connection.rollback",
         "owner": "_verify_auth_verifier_checkout"
@@ -660,7 +636,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1279,
+        "line": 1281,
         "code": "TB005",
         "symbol": "sqlalchemy.create_engine",
         "owner": "_load_initial_auth_verifier_runtime"
@@ -668,7 +644,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1460,
+        "line": 1462,
         "code": "TB002",
         "symbol": "pitchlog.sync.idempotency",
         "owner": "_worker_resolve_start"
@@ -676,7 +652,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1517,
+        "line": 1519,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
         "owner": "_worker_resolve_start"
@@ -684,7 +660,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1518,
+        "line": 1520,
         "code": "TB002",
         "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
         "owner": "_worker_resolve_start"
@@ -692,7 +668,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1745,
+        "line": 1747,
         "code": "TB005",
         "symbol": "sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush",
         "owner": "serve_initial_broker"
@@ -700,7 +676,7 @@
       {
         "path": "pitchlog/recording_rights/initial_grant_broker.py",
         "source_key": "initial_grant_broker_caller",
-        "line": 1758,
+        "line": 1760,
         "code": "TB007",
         "symbol": "pitchlog.durable_rights_ledger.DurableLedger",
         "owner": "serve_initial_broker"

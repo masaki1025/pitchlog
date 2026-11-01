@@ -33114,6 +33114,30 @@
         "SQLA_ASYNC_ENGINE_CONNECT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/sync/control_provider/binding_control_allowed/_channel.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.first_ball_operations._insert_statement",
+      "signature": "_insert_statement() -> Insert",
+      "allowed_api_ids": [
+        "SQLA_INSERT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/first_ball_operations_allowed/_insert_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.first_ball_operations._read_statement",
+      "signature": "_read_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/first_ball_operations_allowed/_read_statement.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.first_ball_vocabulary_operations._read_statement",
+      "signature": "_read_statement() -> Select[Any]",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/first_ball_vocabulary_operations_allowed/_read_statement.py"
     }
   ],
   "conditions": [
@@ -33538,7 +33562,7 @@
       ]
     },
     "backend/src/pitchlog/repositories/first_ball_operations.py": {
-      "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
+      "source_sha256": "00869fc0c97a147ecfb2e8c3380f3d461f75d80e4b274a0ff0f832bfc3a8e4ea",
       "findings": [
         {
           "line": 14,
@@ -33557,23 +33581,23 @@
           "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys"
         },
         {
-          "line": 137,
+          "line": 150,
           "symbol": "pitchlog.repositories.tokens.TenantOperationToken.generation"
         },
         {
-          "line": 138,
+          "line": 151,
           "symbol": "pitchlog.repositories.tokens.TenantOperationToken.generation"
         },
         {
-          "line": 239,
+          "line": 252,
           "symbol": "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation"
         },
         {
-          "line": 279,
+          "line": 292,
           "symbol": "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation"
         },
         {
-          "line": 280,
+          "line": 293,
           "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken"
         }
       ]
@@ -33820,34 +33844,6 @@
     }
   },
   "condition_5_first_ball_scoped_findings": {
-    "backend/src/pitchlog/repositories/first_ball_operations.py": {
-      "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
-      "findings": [
-        {
-          "line": 85,
-          "code": "TB005",
-          "symbol": "sqlalchemy.insert",
-          "scope": "pitchlog.repositories.first_ball_operations.<module>"
-        },
-        {
-          "line": 87,
-          "code": "TB005",
-          "symbol": "sqlalchemy.select",
-          "scope": "pitchlog.repositories.first_ball_operations.<module>"
-        }
-      ]
-    },
-    "backend/src/pitchlog/repositories/first_ball_vocabulary_operations.py": {
-      "source_sha256": "d2dafb7041649126c631ca36f64816c0c17a0479a80bc24990d668cd65a3c4ab",
-      "findings": [
-        {
-          "line": 21,
-          "code": "TB005",
-          "symbol": "sqlalchemy.select",
-          "scope": "pitchlog.repositories.first_ball_vocabulary_operations.<module>"
-        }
-      ]
-    },
     "backend/src/pitchlog/repositories/started_read.py": {
       "source_sha256": "6cc8bf42c95ec2979fb17619497be9062e156162885de1d57bb08e1ae640b3e0",
       "findings": [

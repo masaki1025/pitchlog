@@ -9597,7 +9597,7 @@ def test_first_ball_operation_registered_symbol_rejects_extra_db_api() -> None:
     ),
 )
 def test_first_ball_condition5_shape_is_closed(mutation: str) -> None:
-    """初球11pathの条件5登録を欠落・余剰・別scope/別codeへ広げられない。"""
+    """初球9pathの条件5登録を欠落・余剰・別scope/別codeへ広げられない。"""
     value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
     key = "condition_5_first_ball_scoped_findings"
     groups = value[key]
@@ -9640,7 +9640,7 @@ def test_first_ball_condition5_requires_each_source_path_and_occurrence() -> Non
     )
     assert sum(
         len(owner.findings) for owner in contract.first_ball_condition5_owners
-    ) == 27
+    ) == 24
     for owner in contract.first_ball_condition5_owners:
         relative = owner.path.removeprefix("backend/src/")
         source = (REPOSITORY_ROOT / owner.path).read_text()
@@ -9687,7 +9687,7 @@ def test_first_ball_condition5_requires_each_source_path_and_occurrence() -> Non
 def test_first_ball_condition5_synthetic_contract_is_not_an_escape(
     mutation: str,
 ) -> None:
-    """合成Contractでも固定11path・固定出現以外への免除を拒否する。"""
+    """合成Contractでも固定9path・固定出現以外への免除を拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     owners = contract.first_ball_condition5_owners
     if mutation == "missing":
