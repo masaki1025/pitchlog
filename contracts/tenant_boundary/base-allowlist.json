@@ -1,6 +1,12 @@
 {
   "schema_version": 1,
   "contract_revision": 42,
+    "writer_binding_deployment_assets": {
+      "backend/src/pitchlog/sync/control_provider/sql/control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
+      "backend/src/pitchlog/sync/control_provider/sql/writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
+      "backend/src/pitchlog/sync/control_provider/sql/writer-binding-functions.sql": "69ea20ef3d2facb2c2f2eca1dff9eed52a4b967029c3c10f68cb92dde5488359",
+      "backend/src/pitchlog/sync/control_provider/sql/writer-binding-manifest.json": "5d255e0d58d93607acc0ce3115aa56b70a7e7548c888c28821ba17a941543fba"
+    },
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",

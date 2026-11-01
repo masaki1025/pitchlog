@@ -533,6 +533,7 @@ class Contract:
     first_ball_condition5_owners: tuple[ScopedCondition5Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
     rg1_deployment_assets: tuple[tuple[str, str], ...]
+    writer_binding_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
@@ -1257,6 +1258,7 @@ def _load_allowlist(
     tuple[ScopedCondition5Owner, ...],
     tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
+    tuple[tuple[str, str], ...],
     tuple[str, ...],
 ]:
     """基底 allowlist と禁止識別子規則を検証して読む。"""
@@ -1279,6 +1281,7 @@ def _load_allowlist(
             "condition_1_resolve_scoped_finding",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
+            "writer_binding_deployment_assets",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1561,6 +1564,9 @@ def _load_allowlist(
         ),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
+        _load_writer_binding_deployment_assets(
+            value["writer_binding_deployment_assets"]
+        ),
         command,
     )
 
@@ -2159,6 +2165,7 @@ def load_contract(repository_root: Path) -> Contract:
         first_ball_condition5_owners,
         ledger_deployment_assets,
         rg1_deployment_assets,
+        writer_binding_deployment_assets,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -2210,6 +2217,7 @@ def load_contract(repository_root: Path) -> Contract:
         first_ball_condition5_owners=first_ball_condition5_owners,
         ledger_deployment_assets=ledger_deployment_assets,
         rg1_deployment_assets=rg1_deployment_assets,
+        writer_binding_deployment_assets=writer_binding_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
@@ -8427,6 +8435,68 @@ def _validated_ledger_deployment_assets(repository_root: Path, contract: Contrac
     return True
 
 
+_WRITER_BINDING_DEPLOYMENT_ASSETS = (
+    "pitchlog/sync/control_provider/sql/control-phase-schema.sql",
+    "pitchlog/sync/control_provider/sql/writer-binding-control.sql",
+    "pitchlog/sync/control_provider/sql/writer-binding-functions.sql",
+    "pitchlog/sync/control_provider/sql/writer-binding-manifest.json",
+)
+
+# 未統合候補の閉じた構造面。manifestの自己申告ではなく実SQL本文から抽出して比較する。
+_WRITER_BINDING_CLOSED_MANIFEST = {
+    "schema_version": 1,
+    "status": "unintegrated_candidate",
+    "purpose": "別PG専用のwriter-binding制御候補。製品runtimeからの配備・実行権は未提供。",
+    "deployment_authority": "none_unintegrated_candidate",
+    "evidence_boundaries": [
+        "tests_only_application",
+        "no_product_runtime_deployment",
+        "no_trusted_operational_acceptance",
+    ],
+}
+_WRITER_BINDING_CLOSED_SURFACE = {
+    "schemas": frozenset({"sync_control", "sync_fence_api"}),
+    "tables": frozenset({
+        "sync_control.authorities",
+        "sync_control.attempts",
+        "sync_control.event_phases",
+    }),
+    "indexes": frozenset({
+        "ix_sync_control_phase_d5",
+        "ix_sync_one_active_authority",
+    }),
+    "functions": frozenset({
+        "sync_control.read_first_ball_phase(uuid,uuid,uuid)",
+        "sync_control.register_first_ball_phase(uuid,jsonb)",
+        "sync_fence_api.assert_writer_binding(uuid,uuid,uuid,bytea,uuid,uuid)",
+        "sync_fence_api.close_writer_binding(uuid,uuid,uuid,uuid,uuid)",
+        "sync_fence_api.guard_writer_records()",
+        "sync_fence_api.observe_writer_binding(uuid,uuid,uuid,uuid,uuid)",
+        "sync_fence_api.publish_writer_binding(uuid,uuid,uuid,jsonb,bytea)",
+        "sync_fence_api.read_writer_database_identity(uuid)",
+        "sync_fence_api.read_writer_identity(uuid)",
+    }),
+    "policies": frozenset({
+        "sync_control.authorities.binding_owner",
+        "sync_control.attempts.binding_owner",
+        "sync_control.event_phases.binding_owner",
+        "sync_fence.writer_admissions.admission_owner",
+        "sync_fence.writer_bindings.binding_owner",
+        "public.rg1_restore_gate.binding_gate",
+    }),
+    "triggers": frozenset({
+        "sync_fence.writer_admissions.sync_writer_admission_immutable",
+        "sync_fence.writer_admissions.sync_writer_admission_no_truncate",
+        "sync_fence.writer_bindings.sync_writer_binding_immutable",
+        "sync_fence.writer_bindings.sync_writer_binding_no_truncate",
+    }),
+    "roles": frozenset({
+        "pitchlog_sync_binding_actor",
+        "pitchlog_sync_binding_fn_owner",
+    }),
+}
+
+
 _RG1_DEPLOYMENT_ASSETS = (
     "pitchlog/recording_rights/rg1_lifecycle.sql",
     "pitchlog/recording_rights/rg1_lifecycle_manifest.json",
@@ -8596,6 +8666,132 @@ def _validated_rg1_deployment_assets(repository_root: Path, contract: Contract) 
     return True
 
 
+def _load_writer_binding_deployment_assets(
+    value: object,
+) -> tuple[tuple[str, str], ...]:
+    """未統合候補の固定4pathとSHAを読み、任意pathへの拡張を拒否する。"""
+    location = "allowlist.writer_binding_deployment_assets"
+    assets = _object(value, location)
+    paths = tuple(
+        f"backend/src/{relative}" for relative in _WRITER_BINDING_DEPLOYMENT_ASSETS
+    )
+    _strict_keys(assets, frozenset(paths), location)
+    result: list[tuple[str, str]] = []
+    for relative in paths:
+        digest = _string(assets[relative], f"{location}.{relative}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError(f"{location}.{relative}: SHA-256が不正")
+        result.append((relative, digest))
+    return tuple(result)
+
+
+def _writer_binding_surface(sql_texts: tuple[str, ...]) -> dict[str, frozenset[str]]:
+    """実SQL本文から閉じた構造面だけを抽出する。"""
+    joined = "\n".join(sql_texts)
+    def signatures(pattern: str) -> frozenset[str]:
+        found = set()
+        for raw in re.findall(pattern, joined, re.MULTILINE):
+            name, _, rest = raw.partition("(")
+            args = rest.rsplit(")", 1)[0]
+            types = [
+                parts[1] if len(parts) > 1 else parts[0]
+                for parts in (arg.split() for arg in args.split(","))
+                if parts
+            ]
+            found.add(f"{name}({','.join(types)})")
+        return frozenset(found)
+    return {
+        "schemas": frozenset(re.findall(
+            r"^CREATE SCHEMA (?:IF NOT EXISTS )?([a-z_]+)", joined, re.MULTILINE,
+        )),
+        "tables": frozenset(re.findall(
+            r"^CREATE TABLE (?:IF NOT EXISTS )?([a-z_.]+)", joined, re.MULTILINE,
+        )),
+        "indexes": frozenset(re.findall(
+            r"^CREATE (?:UNIQUE )?INDEX ([a-z0-9_]+)", joined, re.MULTILINE,
+        )),
+        "functions": signatures(
+            r"^CREATE (?:OR REPLACE )?FUNCTION ([a-z_.]+\([^)]*\))",
+        ),
+        "policies": frozenset(
+            f"{table}.{name}"
+            for name, table in re.findall(
+                r"^CREATE POLICY ([a-z_]+) ON ([a-z0-9_.]+)", joined, re.MULTILINE,
+            )
+        ),
+        "triggers": frozenset(
+            f"{table}.{name}"
+            for name, table in re.findall(
+                r"^CREATE TRIGGER ([a-z_]+) .*? ON ([a-z0-9_.]+)", joined, re.MULTILINE,
+            )
+        ),
+        "roles": frozenset(re.findall(
+            r"CREATE ROLE ([a-z_]+)", joined, re.MULTILINE,
+        )),
+    }
+
+
+def _validated_writer_binding_deployment_assets(
+    repository_root: Path, contract: Contract,
+) -> bool:
+    """未統合候補4資産を実byte・閉manifest・実SQL構造面で検査する。
+
+    製品runtimeからの配備・実行権は与えない。未知path/bytes/構造は従来の
+    TB000へ戻す。
+    """
+    contents: dict[str, bytes] = {}
+    try:
+        expected_assets = _load_writer_binding_deployment_assets(
+            dict(contract.writer_binding_deployment_assets)
+        )
+        if expected_assets != contract.writer_binding_deployment_assets:
+            return False
+        for relative, expected in expected_assets:
+            path = repository_root / relative
+            for component in (path, *path.parents):
+                if component == repository_root:
+                    break
+                if component.is_symlink():
+                    return False
+            if not path.is_file():
+                return False
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                return False
+            contents[Path(relative).name] = content
+        manifest = json.loads(
+            contents["writer-binding-manifest.json"],
+            object_pairs_hook=_unique_json_object,
+        )
+        sql_names = {
+            name for name in contents if name.endswith(".sql")
+        }
+        if type(manifest) is not dict or set(manifest) != (
+            set(_WRITER_BINDING_CLOSED_MANIFEST) | {"files"}
+        ):
+            return False
+        for key, expected in _WRITER_BINDING_CLOSED_MANIFEST.items():
+            if manifest[key] != expected:
+                return False
+        declared = manifest["files"]
+        if type(declared) is not dict or set(declared) != sql_names:
+            return False
+        declared_assets = dict(expected_assets)
+        for name in sql_names:
+            digest = hashlib.sha256(contents[name]).hexdigest()
+            if declared[name] != digest:
+                return False
+            if declared_assets[f"backend/src/pitchlog/sync/control_provider/sql/{name}"] != digest:
+                return False
+        if _writer_binding_surface(
+            tuple(contents[name].decode("utf-8") for name in sorted(sql_names))
+        ) != _WRITER_BINDING_CLOSED_SURFACE:
+            return False
+    except (OSError, ValueError, KeyError, TypeError, UnicodeDecodeError):
+        return False
+    return True
+
+
 def _changed_source_violations(
     repository_root: Path,
     inspection_population: Mapping[str, frozenset[int]],
@@ -8624,8 +8820,13 @@ def _changed_source_violations(
     if rg1 in head_sources or rg1 in (baseline_sources or {}):
         for relative in _RG1_DEPLOYMENT_ASSETS:
             population.setdefault(relative, frozenset())
+    writer_binding = "pitchlog/sync/control_provider/binding_control.py"
+    if writer_binding in head_sources or writer_binding in (baseline_sources or {}):
+        for relative in _WRITER_BINDING_DEPLOYMENT_ASSETS:
+            population.setdefault(relative, frozenset())
     deployment_valid: bool | None = None
     rg1_deployment_valid: bool | None = None
+    writer_binding_valid: bool | None = None
     for relative, lines in sorted(population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
@@ -8642,6 +8843,15 @@ def _changed_source_violations(
                         repository_root, contract,
                     )
                 if rg1_deployment_valid:
+                    continue
+            if relative in _WRITER_BINDING_DEPLOYMENT_ASSETS:
+                if writer_binding_valid is None:
+                    writer_binding_valid = (
+                        _validated_writer_binding_deployment_assets(
+                            repository_root, contract,
+                        )
+                    )
+                if writer_binding_valid:
                     continue
             violations.append(
                 Violation(

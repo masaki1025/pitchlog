@@ -1210,6 +1210,8 @@ def _write_test_repository_sources(
         _copy_ledger_deployment_assets(repository)
     if "pitchlog/recording_rights/rg1_lifecycle.py" in sources:
         _copy_rg1_deployment_assets(repository)
+    if "pitchlog/sync/control_provider/binding_control.py" in sources:
+        _copy_writer_binding_assets(repository)
     for relative, source in sources.items():
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -9711,3 +9713,128 @@ def test_first_ball_condition5_synthetic_contract_is_not_an_escape(
     assert owner.findings <= {
         (v.line, v.code, v.symbol, v.scope) for v in found
     }
+
+
+def _copy_writer_binding_assets(root: Path) -> None:
+    """未統合候補4資産を試験用rootへ複写する。"""
+    for relative in checker._WRITER_BINDING_DEPLOYMENT_ASSETS:
+        target = root / "backend/src" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / "backend/src" / relative).read_bytes())
+
+
+def test_writer_binding_candidate_manifest_is_closed() -> None:
+    """候補manifestは閉じた宣言と実SQL構造面の完全一致だけを受理する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert checker._validated_writer_binding_deployment_assets(
+        REPOSITORY_ROOT, contract,
+    )
+    manifest_path = REPOSITORY_ROOT / "backend/src" / (
+        checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    )
+    manifest = json.loads(manifest_path.read_text())
+    assert set(manifest) == set(checker._WRITER_BINDING_CLOSED_MANIFEST) | {"files"}
+    for key, expected in checker._WRITER_BINDING_CLOSED_MANIFEST.items():
+        assert manifest[key] == expected
+    assert manifest["deployment_authority"] == "none_unintegrated_candidate"
+    assert manifest["status"] == "unintegrated_candidate"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("status", "extra", "files", "authority", "boundaries", "duplicate-key"),
+)
+def test_writer_binding_candidate_manifest_rejects_unknown_values(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """状態・権限・境界・file集合を自己申告で変えられない。"""
+    _copy_writer_binding_assets(tmp_path)
+    relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    path = tmp_path / "backend/src" / relative
+    original = path.read_text()
+    value = json.loads(original)
+    if mutation == "status":
+        value["status"] = "integrated"
+        raw = json.dumps(value)
+    elif mutation == "extra":
+        value["unexpected"] = True
+        raw = json.dumps(value)
+    elif mutation == "files":
+        value["files"].pop(next(iter(value["files"])))
+        raw = json.dumps(value)
+    elif mutation == "authority":
+        value["deployment_authority"] = "full"
+        raw = json.dumps(value)
+    elif mutation == "boundaries":
+        value["evidence_boundaries"] = ["trusted"]
+        raw = json.dumps(value)
+    else:
+        raw = original.replace(
+            '"schema_version": 1,', '"schema_version": 1,"schema_version": 1,', 1,
+        )
+    path.write_text(raw)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    declared[f"backend/src/{relative}"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_cannot_self_authorize_new_ddl(
+    tmp_path: Path,
+) -> None:
+    """SQLとmanifestのSHAを協調して追随しても閉じた構造面を越えられない。"""
+    _copy_writer_binding_assets(tmp_path)
+    sql_relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[0]
+    sql = tmp_path / "backend/src" / sql_relative
+    sql.write_bytes(
+        sql.read_bytes()
+        + b"\nCREATE TABLE sync_control.unapproved (id UUID NOT NULL);\n"
+    )
+    manifest_relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    manifest_path = tmp_path / "backend/src" / manifest_relative
+    value = json.loads(manifest_path.read_text())
+    value["files"]["control-phase-schema.sql"] = hashlib.sha256(
+        sql.read_bytes()
+    ).hexdigest()
+    manifest_path.write_text(json.dumps(value))
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    for relative in (sql_relative, manifest_relative):
+        declared[f"backend/src/{relative}"] = hashlib.sha256(
+            (tmp_path / "backend/src" / relative).read_bytes()
+        ).hexdigest()
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_path_set_cannot_widen(tmp_path: Path) -> None:
+    """allowlistで候補集合の外へpathを足せない。"""
+    _copy_writer_binding_assets(tmp_path)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    declared["backend/src/pitchlog/sync/control_provider/sql/other.sql"] = "0" * 64
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_unlisted_python_change_still_reports_tb000(
+    tmp_path: Path,
+) -> None:
+    """候補4資産が揃っていても、宣言外の非Python変更はTB000のまま残す。"""
+    _copy_writer_binding_assets(tmp_path)
+    extra = tmp_path / "backend/src/pitchlog/sync/control_provider/sql/other.sql"
+    extra.write_text("CREATE TABLE x (id int);\n")
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    violations = checker._changed_source_violations(
+        tmp_path,
+        {"pitchlog/sync/control_provider/sql/other.sql": frozenset()},
+        contract,
+        head_sources={},
+        baseline_sources={},
+    )
+    assert any(
+        item.code == "TB000"
+        and item.path.endswith("control_provider/sql/other.sql")
+        for item in violations
+    )
