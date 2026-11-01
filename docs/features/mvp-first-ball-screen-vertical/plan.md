@@ -243,3 +243,12 @@ Aの既exact期待追随（同日）: tests/test_stage_a_startup_tenant_boundary
 範囲は`contracts/tenant_boundary/base-allowlist.json`の4行、正例fixture4file、`tests/test_check_tenant_boundary_bypass.py`の3試験。署名は実sourceのAST完全一致を要求し、正例は宣言APIだけを呼ぶ。登録symbol内への許可外API追加と、同一モジュール内の未登録関数へのSQL構築を拒否する対向を置く。
 
 `pitchlog/repositories/first_ball_operations.py`（module-level `_INSERT`/`_READ`）と`first_ball_vocabulary_operations.py`（module-level `_READ`）は関数でないため本単位に含めない。source refactorか別mechanismを要する別単位とする。TB002/TB007/TB000の扱いと既50+3+4行の全fieldは変更しない。製品sourceは触らない。正式値/corpus/受理recordは残単位後に一括再導出する。
+
+
+### 初球縦断の条件5有限登録E（2026-11-01、PO委任によるCodex主担当判断）
+
+単位D後の実測は65件（TB000 3/TB002 22/TB005 15/TB007 25）。次に、broker（初期付与callerは既`_INITIAL_POPULATION_POLICY`の束縛先再導出で扱う）を除く条件5の27出現を、条件2単位Cと同型の固定投影登録で閉じる。対象は11path: `repositories/first_ball_operations.py`2（module-level `_INSERT`/`_READ`）、`repositories/first_ball_vocabulary_operations.py`1（module-level `_READ`）、`repositories/started_read.py`1、`repositories/started_snapshot.py`1、`sync/control_provider/store_contract.py`7、`sync/control_provider/writer_binding.py`1、`sync/first_ball_bridge.py`4、`sync/source_binding.py`3、`sync/stop_contract.py`1、`sync/wire_fingerprint.py`4、`sync/wire_source.py`2。
+
+内容は、module-levelの固定`select`/`insert`宣言、frozen dataclassの`object.__setattr__`初期化、封印値オブジェクトの`object.__new__`、検証用`dataclasses.replace`、`cast(Any, cls)(**fields)`による自己型構築であり、いずれもTenantContextの生成・改竄ではない。期待投影はchecker側の固定定数`FIRST_BALL_CONDITION5_SCOPES`に(line, code, symbol, scope)で置き、allowlistはsource SHAと出現だけを持つ。path/行/記号/scope/codeの追加・欠落・別値は契約不成立とし、source 1byteの変更で免除を全て無効にする。条件5の規則自体、`forbidden_construction_symbols`、TenantContext正規構築経路、他条件の扱いは変更しない。
+
+範囲は`scripts/check_tenant_boundary_bypass.py`、`contracts/tenant_boundary/base-allowlist.json`、`tests/test_check_tenant_boundary_bypass.py`のexact3。拒否対向として、1byte改変での免除消滅、登録行への別scope/別code、合成Contractでの欠落・重複・別path・別出現を検査する。broker 33件・acl 2件・SQL3件は本単位に含めない。製品sourceは触らない。正式値/corpus/受理recordは残単位後に一括再導出する。
