@@ -32491,8 +32491,8 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "1e91421bdd00c5bc998dc0e799e3f86bd8153fccbcbeecf559746be2ba2fe15b",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1e91421bdd00c5bc998dc0e799e3f86bd8153fccbcbeecf559746be2ba2fe15b"
+                "sha256": "442b62b885c7a544a439cea167f64ba572f037e6de5d7c80267249b6d898650c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/442b62b885c7a544a439cea167f64ba572f037e6de5d7c80267249b6d898650c"
               },
               {
                 "path": "scripts/frozen_archive.py",
@@ -32511,8 +32511,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "54ac9350b7b8a86817b070e24b0a4affc9c37abd40d5be2542e6d66d68f6e6ea",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/54ac9350b7b8a86817b070e24b0a4affc9c37abd40d5be2542e6d66d68f6e6ea"
+                "sha256": "856b1830e4e66fab4dbca93d3b51947e5cfbb734678f5eb778c96caf23e0b451",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/856b1830e4e66fab4dbca93d3b51947e5cfbb734678f5eb778c96caf23e0b451"
               },
               {
                 "path": "tests/test_check_authz_catalog.py",
@@ -32533,56 +32533,56 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "618bb5ab83e299156e8ea71f796982b7284eca9a10103b3a37741262689f04de",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/618bb5ab83e299156e8ea71f796982b7284eca9a10103b3a37741262689f04de"
+                "sha256": "be4ffcbf7260b771e9a23ce4f66984ebc5264419ebd6a7f27bd5997bc6a75c52",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/be4ffcbf7260b771e9a23ce4f66984ebc5264419ebd6a7f27bd5997bc6a75c52"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "d758273244fceee8194e405703cd270975da46a044db4e2bb5c942b5ed8c32c0",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d758273244fceee8194e405703cd270975da46a044db4e2bb5c942b5ed8c32c0"
+                "sha256": "96668251d11420eda99d3599a959c9a17fd52fb79edd6fcdcaa17788c10a602b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/96668251d11420eda99d3599a959c9a17fd52fb79edd6fcdcaa17788c10a602b"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "6180835b8e299826c30401b005ebbfa168d6a7b996c0bcb6e4ad5c9345cad66c",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6180835b8e299826c30401b005ebbfa168d6a7b996c0bcb6e4ad5c9345cad66c"
+                "sha256": "fca781581fefbe779990348ed6caaab47730d94a290596baab8a909ede65f720",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fca781581fefbe779990348ed6caaab47730d94a290596baab8a909ede65f720"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "99fda9ce9c0aa5fcbebc67a16a113b7dbc284ba967870d269b057fc0f8a6c7fd",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/99fda9ce9c0aa5fcbebc67a16a113b7dbc284ba967870d269b057fc0f8a6c7fd"
+                "sha256": "c45ed463a408bf47abd17c08de271e3d966e8a546312accd7cb4f6a1637972f1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c45ed463a408bf47abd17c08de271e3d966e8a546312accd7cb4f6a1637972f1"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "6001571843dc7a8c32ef68fd7ea749198c94815ba5965b65501d175eccce92df",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6001571843dc7a8c32ef68fd7ea749198c94815ba5965b65501d175eccce92df"
+                "sha256": "27ac6d4addcf93e43dc517189527e2510ae6275143492536c9cdf3be05aeecda",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/27ac6d4addcf93e43dc517189527e2510ae6275143492536c9cdf3be05aeecda"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "022c4eadd44a4778ec11fea758677901745551acb565dbba7a8c0ecf7b051118",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/022c4eadd44a4778ec11fea758677901745551acb565dbba7a8c0ecf7b051118"
+                "sha256": "8ddd91714b4739ba587e678305c0dbf53e4ce287c6580fedbbc4bbe3664f0ab6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8ddd91714b4739ba587e678305c0dbf53e4ce287c6580fedbbc4bbe3664f0ab6"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "03f3314cf6b1243b9af3ff7d3e47edcb42b642c704318d5ebb6bc377ba385321",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/03f3314cf6b1243b9af3ff7d3e47edcb42b642c704318d5ebb6bc377ba385321"
+                "sha256": "b5f327823956786905312a1cd687b9e5e1154eef14bd328d6c298cd6cc6bfc8b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b5f327823956786905312a1cd687b9e5e1154eef14bd328d6c298cd6cc6bfc8b"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "f40cb18050a2d0cbd173bbaa60204f2e65605770eec6c17eed6ab87b3c6fb2d3",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f40cb18050a2d0cbd173bbaa60204f2e65605770eec6c17eed6ab87b3c6fb2d3"
+                "sha256": "6e479fb34b305ae17ac4b175968cb83a0a4acc426c89f4328b0e85662a325001",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6e479fb34b305ae17ac4b175968cb83a0a4acc426c89f4328b0e85662a325001"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "1fcdcf903b05c0b47b95a2078e0dc6c9eeb757feb9759d8a6ee0033b89539612",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1fcdcf903b05c0b47b95a2078e0dc6c9eeb757feb9759d8a6ee0033b89539612"
+                "sha256": "88e9a8cbc8ab186684739731677932c9026b72e1cc86855cf0338129c38e09ff",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/88e9a8cbc8ab186684739731677932c9026b72e1cc86855cf0338129c38e09ff"
               }
             ]
           }
         },
-        "movement_fact": "実develop c2e5e4ddの正式33prefixを保持し、固定候補d7e6799034724df3617a2a76f13fde275d5270a6の宣言/移動規則/外部source/asset値の4面を単一189 v2記録へ導出。各影響識別値は同base+1の一回分だけ進め、独立レビューと実CIは別証拠で照合する。",
+        "movement_fact": "実develop c2e5e4ddの正式33prefixを保持し、固定候補bb97edf55244ab21c15adbcd56f33c1be6e87471の宣言/移動規則/外部source/asset値の4面を単一189 v2記録へ導出。各影響識別値は同base+1の一回分だけ進め、独立レビューと実CIは別証拠で照合する。",
         "reason": "採用済み初球・試合作成・球種供給を正式開始/記録権/同期保存へ接合し、実登録36CAP/64token/9関数・私有3表/12関数の保護・旧builder7件を全前後値で反映する。既認可/冪等性/原子性/未知拒否と旧正式履歴を保持。通常統合の型/試験補助/限定189委任carry/CI接続を実sourceへ束縛し、候補成功と正式統合・実機・全MVP受入を分離する。",
         "approved_by": "PO委任によるCodex主担当 /root 判断（本人直接確認・署名の代記ではない）",
-        "approved_on": "2026-11-01"
+        "approved_on": "2026-11-02"
       }
     ]
   },
