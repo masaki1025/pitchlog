@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 22:53 JST（tenant必須検査0件・受理record再導出、census残件を分離）
+
+- **単位F採用**: 計画`ef3b4404`。writer-binding候補DDL3件はtest専用の構造候補（自headerに「正式受理は未提供」）なので、RG1前例の`status: unintegrated_candidate`閉manifestを新設し、**配備権なし**（`deployment_authority: none_unintegrated_candidate`）で登録。manifestは自己申告を信じず、実SQL本文から`CREATE SCHEMA/TABLE/INDEX/FUNCTION/POLICY/TRIGGER/ROLE`を抽出して固定構造面（2/3/2/9/6/4/2）と完全一致を要求。SQLとmanifestのSHAを協調追随しても閉構造面を越えるDDL追加は拒否。`07c3e3c6`。
+- **単位G採用（確定移動）**: 計画追補。`_INITIAL_POPULATION_POLICY`2ファイル分を現行出現へ更新し、`_initial_population_semantics`を現行形（RG1型静的import、`_broker_d4`の`encode_d4_reference`委譲）へ追随。束縛先`ci_scope_proof_source_revision`を、両ファイル現行byteが揃う既存祖先`d141fa70a85d85c01fdbb6ddd1956e3f9ba01525`へ移動。`d7e67990`。
+- **受理record再導出**: cache`prepare-final-acceptance-r2.py`で`d7e67990`から公式helper導出（9資産/22出力/11差分）。`base-allowlist.json`の単一189 v2 record（33→34）と新snapshot10件を適用し、旧local recordの孤立snapshot10件だけを`(HEAD−base)−referenced`の差分として削除（一括削除なし）。`0190fdea`。
+- **実測**: `check_tenant_boundary_bypass --base-ref c2e5e4dd` = **ok（違反0件、136→0）**。tenant試験**733件全成功**（`test_repository_is_green`含む）。`check_frozen_baselines --invariants-only` OK。ruff/ty成功。
+- **残件（重要・未解消）**: `tests/test_census_baseline_check.py`は**着手前から赤**（起点`5cb1f754`で17失敗、単位F後`07c3e3c6`で15失敗、G後に22失敗）。Gのpolicy移動でcensus側の固定期待（`product_function_acl`の157/2585→177/2614、broker sha 733c8e3f→19b90d8d、抑止site集合）が追随を要する。これは`census-baseline.json`とtest直書きpinの再導出単位で、tenant受理recordの導出helperは扱わない。**必須CI harnessを緑にするにはこの単位が必須**。着手前からの赤を含むため、Gのせいだけではない。
+- **固定点/次**: HEAD`0190fdea`（未push、#189 remoteは`ad6588b1`）。次は(a) census baseline再導出（`census-baseline.json`＋test pin＋必要なら`fix-census-baseline-pin`系の既存知見）、(b) 全root/backend非DB・frontendの再実行、(c) 非作者最終review（単位C〜Gは未review）、(d) 委任証拠コメント→**一回push**→必須CI→Draft解除→通常merge。
+
+
 ## 続き：2026-11-01 22:17 JST（単位D/E採用でtenant 136→38、broker/SQLの残件を分離）
 
 - **単位D採用**: 計画`0f75bfe3`。TB005のうち関数として登録できる5件を既`allowed_symbols`方式で閉じた。対象は`recorded_snapshot_operations._registration`／`started_snapshot_operations._registration`（SQLA_SELECT）、`binding_control._BindingAuthority._call`（実行系8 API。receiver型未解決のためscannerが返す和集合と同一）、`BindingControl._channel`（connect系2 API）の4symbol＋正例fixture4file＋拒否対向3件。`f9a7bf74`。tenant 70→65。
