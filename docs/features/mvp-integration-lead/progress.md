@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 21:57 JST（tenant残件の再計測・単位B採用・条件2有限登録C）
+
+- **再計測（引継ぎ前提の訂正）**: pr189 WT/feature/pr189-integration。`check_tenant_boundary_bypass --base-ref c2e5e4dd`（origin/develop先端）は **136件の違反・合格0**。内訳 TB000=3/TB002=88/TB005=20/TB007=25。引継ぎの「149件中4件失敗」は**149件の違反が4コードに分布**する意味で、単位A（起動3関数）が13件（TB005）を閉じた後の値。**単位AではP1は閉じない**。cache `pr189-integration-20261101/tenant-scope-finding-20261101.md` と `tenant-violations-f2ae0caa.json`、CLI出力 `tenant-cli-now.log`。
+- **旧ad658登録の寄与は35件まで**: ad658の`condition_2_initial_start_scoped_findings`はdevelopの`_INITIAL_POPULATION_POLICY`へ置換済みで機構自体は現存。実際に未適用なのは束縛先`frozen-inputs.json:ci_scope_proof_source_revision=f174428d`が現行byteと一致しない2ファイル（`product_function_acl.py`2／`initial_grant_broker.py`33）。後者は`_initial_population_semantics`もFalseで単純再束縛では閉じない。**残り98件（17ファイル）+SQL3件は現行checkerに登録機構が無い**。17ファイル中14はad658からbyte不変＝#189は最初からこの検査を通っていない（`sync/control_provider/binding_control.py`のみad658から変更）。
+- **単位B採用**: 未コミット2path（checkerの`_FIXED_FIRST_BALL_BUILDER_BODY`と14変異拒否test）は計画B（c9afe18e/4204740f）の実装で、非作者REPORT-SOURCE-builder-B P0/P1/P2=0。`f2ae0caa`として採用。専用15件成功・ruff/ty成功。
+- **単位C採用**: 計画e33a6202。条件2（TB002）のうち登録機構の無い6path/66出現を既RG1方式（固定path集合+実source SHA-256+(行,記号)exact-set、期待投影はchecker定数`FIRST_BALL_CONDITION2_SCOPES`）で有限登録。allowlistは新キー`condition_2_first_ball_scoped_findings`。`308e6427`。tenant違反は**136→70**（TB002 88→22）。専用44件成功、tenant test file全体671成功/27失敗（失敗は全て変更前から同一のbroker/acl束縛切れ・repository_is_green系で、f2ae0caaの別WT実行でも2 failedを確認）、ruff/ty成功。
+- **未了（次）**: 残70件＝broker/acl 35（束縛先再導出+意味条件診断）、TB007 25（store_contract7/first_ball_bridge4/wire_fingerprint4/source_binding3/wire_source2/started_read1/started_snapshot1/writer_binding1/stop_contract1/broker1）、TB005 8（first_ball_operations2/first_ball_vocabulary_operations1/recorded_snapshot_operations1/started_snapshot_operations1/binding_control3）、TB000 3（writer-binding SQL3）。allowlist変更に伴う正式9資産/corpus/受理recordは**未導出**（revision未更新。途中状態を正式受理としない）。非作者reviewは単位Bのみ取得済みで、Cは未取得。
+- **固定点**: HEAD`308e6427`、未push（#189 remoteは`ad6588b1`）。backup branch `origin/backup/pr189-integration-20261101`=`f2ae0caa`をpush済み（PRブランチは未変更）。
+
+
 ## 続き：2026-11-01 06:07 JST（初球実証保持・tenant残件を最小接合単位へ分割）
 
 - **実画面の成果**: 6ff509bdの新規作成→開始→初球保存→再取得/再送/reload成功50.10秒を維持。API fixture成功との混同なし。以後は型注記/計画のみで製品sourceは不変。#189 remote/source push0、正式統合は未了。
