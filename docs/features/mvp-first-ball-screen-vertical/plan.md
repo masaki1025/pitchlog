@@ -234,3 +234,12 @@ Aの既exact期待追随（同日）: tests/test_stage_a_startup_tenant_boundary
 対象は`scripts/check_tenant_boundary_bypass.py`、`contracts/tenant_boundary/base-allowlist.json`、`tests/test_check_tenant_boundary_bypass.py`のexact3。既`condition_2_scoped_findings`47件／台帳20件／RG1 2path／ad658由来7pathの全値を保持し、TB002以外（TB000/TB005/TB007）の扱いを変えない。拒否対向として、登録pathの1byte改変で免除が消えること、登録行に別記号を置いても拒否されること、allowlistへ未知path・余剰行・欠落行・別SHAを足すと契約が成立しないことを検査する。`initial_grant_broker.py`と`product_function_acl.py`は本単位に含めず、束縛先の再導出と意味条件の診断を別単位に残す。
 
 条件2の禁止語彙そのもの、owner_paths、他の免除機構、検査対象範囲は変更しない。製品sourceは触らない。正式9資産/corpus/受理recordは残単位完了後に単一189受理として一括再導出し、本単位の実装だけではrevisionを進めない（途中状態を正式受理と扱わない）。
+
+
+### 初球操作4symbolのDB API有限登録D（2026-11-01、PO委任によるCodex主担当判断）
+
+単位C後の実測は65件（TB000 3/TB002 22/TB005 15/TB007 25）。次に、関数として登録可能なTB005 5件だけを既`allowed_symbols`方式で閉じる。対象は`pitchlog.repositories.recorded_snapshot_operations._registration`、`pitchlog.repositories.started_snapshot_operations._registration`（いずれもSQLA_SELECT）、`pitchlog.sync.control_provider.binding_control._BindingAuthority._call`（実行系8 API。receiver型が未解決なため既scannerが返す和集合と同じ集合）、`BindingControl._channel`（connect系2 API。AF_UNIX socket.connectを既RG1と同じ扱いにする）の4symbol。
+
+範囲は`contracts/tenant_boundary/base-allowlist.json`の4行、正例fixture4file、`tests/test_check_tenant_boundary_bypass.py`の3試験。署名は実sourceのAST完全一致を要求し、正例は宣言APIだけを呼ぶ。登録symbol内への許可外API追加と、同一モジュール内の未登録関数へのSQL構築を拒否する対向を置く。
+
+`pitchlog/repositories/first_ball_operations.py`（module-level `_INSERT`/`_READ`）と`first_ball_vocabulary_operations.py`（module-level `_READ`）は関数でないため本単位に含めない。source refactorか別mechanismを要する別単位とする。TB002/TB007/TB000の扱いと既50+3+4行の全fieldは変更しない。製品sourceは触らない。正式値/corpus/受理recordは残単位後に一括再導出する。
