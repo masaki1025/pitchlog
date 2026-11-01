@@ -367,8 +367,8 @@
           "sites": [
             {
               "path": "pitchlog/recording_rights/initial_grant_broker.py",
-              "line": 1466,
-              "end_line": 1475,
+              "line": 1468,
+              "end_line": 1477,
               "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
               "source_sha256": "19b90d8d71a91a69c1a76d687ab6130b27a3deb1d63e4a16ccfd4560338eafa1"
             },
@@ -490,6 +490,16 @@
     "pass_fail_mapping.predicates[].derivation.condition1_code",
     "pass_fail_mapping.predicates[].derivation.condition1_substituted_field",
     "pass_fail_mapping.predicates[].derivation.condition1_substituted_from",
+    "pass_fail_mapping.predicates[].declared_relaxations.kind",
+    "pass_fail_mapping.predicates[].declared_relaxations.allowed_symbols",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].path",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].line",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].end_line",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].scope",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].code",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].symbol",
+    "pass_fail_mapping.predicates[].declared_relaxations.sites[].message",
     "pass_fail_mapping.predicates[].pure_helper_references.callee.path",
     "pass_fail_mapping.predicates[].pure_helper_references.callee.source_sha256",
     "pass_fail_mapping.predicates[].pure_helper_references.callee.symbol",

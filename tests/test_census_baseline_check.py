@@ -1334,10 +1334,13 @@ def _declared_relaxation_identities(predicate: dict[str, Any]) -> frozenset[Cens
             {"path", "line", "end_line", "scope", "code", "symbol", "message"},
             "declared_relaxations.site",
         )
-        identity = (
+        line = row.get("line")
+        end_line = row.get("end_line")
+        assert type(line) is int and type(end_line) is int
+        identity: CensusIdentity = (
             _string(row.get("path"), "site.path"),
-            row.get("line"),
-            row.get("end_line"),
+            line,
+            end_line,
             _string(row.get("scope"), "site.scope"),
             _string(row.get("code"), "site.code"),
             _string(row.get("symbol"), "site.symbol"),
@@ -1345,7 +1348,6 @@ def _declared_relaxation_identities(predicate: dict[str, Any]) -> frozenset[Cens
         )
         assert identity[4] == "TB007"
         assert identity[5] in allowed, "不変値構築以外の symbol は緩和できない"
-        assert type(identity[1]) is int and type(identity[2]) is int
         assert identity not in identities, "緩和 site の重複"
         identities.add(identity)
     return frozenset(identities)
@@ -5544,6 +5546,71 @@ def _validated_rg1_condition2_identities(
     return frozenset(result)
 
 
+def _validated_first_ball_condition2_identities(
+    *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """初球6pathの条件2有限登録を実source/hashと全7fieldの抑止差分へ束縛する。"""
+    owners = current_contract.first_ball_condition2_owners
+    assert len(owners) == len(checker.FIRST_BALL_CONDITION2_SCOPES)
+    assert {owner.path for owner in owners} == set(
+        checker.FIRST_BALL_CONDITION2_SCOPES
+    )
+    unsuppressed = replace(current_contract, first_ball_condition2_owners=())
+    result: set[CensusIdentity] = set()
+    for owner in owners:
+        assert owner.findings == checker.FIRST_BALL_CONDITION2_SCOPES[owner.path]
+        relative = owner.path.removeprefix("backend/src/")
+        path = source_root / relative
+        if not path.is_file():
+            continue
+        source = path.read_text(encoding="utf-8")
+        if hashlib.sha256(source.encode()).hexdigest() != owner.source_sha256:
+            continue
+
+        def census(contract: Any) -> frozenset[CensusIdentity]:
+            """当該sourceの全7fieldを保った実走査を得る。"""
+            return frozenset(
+                (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                for v in checker.scan_source(source, path=relative, contract=contract)
+            )
+
+        before, after = census(unsuppressed), census(current_contract)
+        difference = before - after
+        assert not after - before
+        assert {(i[1], i[5]) for i in difference} == owner.findings
+        assert all(i[4] == "TB002" for i in difference)
+        result.update(difference)
+    return frozenset(result)
+
+
+def _first_ball_registration_explains(
+    identity: CensusIdentity,
+    *,
+    source_root: Path,
+    current_contract: Any,
+) -> bool:
+    """anchor側の短いsymbol綴りも、同一siteの登録所見へ束縛して説明する。"""
+    path, line, _, _, code, symbol, _ = identity
+    if code != "TB002":
+        return False
+    for owner in current_contract.first_ball_condition2_owners:
+        if owner.path.removeprefix("backend/src/") != path:
+            continue
+        target = source_root / path
+        if not target.is_file():
+            return False
+        if hashlib.sha256(target.read_bytes()).hexdigest() != owner.source_sha256:
+            return False
+        return any(
+            finding_line == line
+            and _matches_equal_or_delimited_prefix(
+                finding_symbol, symbol, delimiter=".",
+            )
+            for finding_line, finding_symbol in owner.findings
+        )
+    return False
+
+
 def _scoped_identity_digest(identities: frozenset[CensusIdentity]) -> str:
     """限定所見の完全な identity 集合を順序非依存で固定する。"""
     encoded = json.dumps(
@@ -5843,7 +5910,7 @@ def _validated_pure_fingerprint_decrements(
         ("pitchlog/repositories/game_start.py", 296, 305,
          "pitchlog.repositories.game_start.bind_initial_start_request",
          checker._scope_proof_source_sha256("game_start_caller")),
-        ("pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
+        ("pitchlog/recording_rights/initial_grant_broker.py", 1468, 1477,
          "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
          checker._scope_proof_source_sha256("initial_grant_broker_caller")),
     }
@@ -6018,6 +6085,9 @@ def _assert_unadjudicated_removed_remains(
     rg1_removed = _validated_rg1_condition2_identities(
         source_root=source_root, current_contract=current_contract
     )
+    first_ball_removed = _validated_first_ball_condition2_identities(
+        source_root=source_root, current_contract=current_contract
+    )
     pure_decrements = _validated_pure_fingerprint_decrements(
         predicate.get("pure_helper_references"), source_root=source_root,
     )
@@ -6027,7 +6097,13 @@ def _assert_unadjudicated_removed_remains(
     for identity in data_sets[set_name]:
         if (
             identity in initial_removed or identity in scoped_removed or identity in ledger_removed
-            or identity in rg1_removed or identity in pure_decrements
+            or identity in rg1_removed or identity in first_ball_removed
+            or identity in pure_decrements
+            or _first_ball_registration_explains(
+                identity,
+                source_root=source_root,
+                current_contract=current_contract,
+            )
         ):
             continue
         if _condition2_owned_path(
@@ -6179,6 +6255,15 @@ def _assert_added_equals_independently_derived_candidates(
         declaration, source_root=source_root, current_contract=current_contract,
     )
     expected -= _canonical_proven_builtin_identities(initial, source_root)
+    first_ball_suppressed = _validated_first_ball_condition2_identities(
+        source_root=source_root, current_contract=current_contract,
+    )
+    # 独立列挙は変数名、実scannerは型名を返すため、登録siteの(path,行,code)で控除する。
+    suppressed_sites = {(i[0], i[1], i[4]) for i in first_ball_suppressed}
+    expected = frozenset(
+        identity for identity in expected
+        if (identity[0], identity[1], identity[4]) not in suppressed_sites
+    )
     actual = _canonical_proven_builtin_identities(data_sets[set_name], source_root)
     expected = _canonical_proven_builtin_identities(expected, source_root)
     assert actual == expected, (
@@ -8513,7 +8598,7 @@ def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) ->
                     checker._scope_proof_source_sha256("game_start_caller"),
                 ),
                 (
-                    "pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
+                    "pitchlog/recording_rights/initial_grant_broker.py", 1468, 1477,
                     "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
                     checker._scope_proof_source_sha256("initial_grant_broker_caller"),
                 ),
@@ -8662,16 +8747,16 @@ def test_pure_helper_source_and_declaration_cannot_move_together(
 
 
 def test_initial_population_census_measures_exact_finite_effect() -> None:
-    """出力件数だけでなく正本73siteと実抑止の全identityを比較する。"""
+    """出力件数だけでなく正本70siteと実抑止の全identityを比較する。"""
     identities = _validated_initial_population_suppression(
         _load_census_baseline_declaration(),
         source_root=REPOSITORY_ROOT / 'backend/src',
         current_contract=checker.load_contract(REPOSITORY_ROOT),
     )
-    assert len(identities) == 73
+    assert len(identities) == 70
     assert {code: sum(i[4] == code for i in identities)
             for code in ('TB001', 'TB002', 'TB005', 'TB007')} == {
-        'TB001': 2, 'TB002': 50, 'TB005': 19, 'TB007': 2,
+        'TB001': 2, 'TB002': 48, 'TB005': 18, 'TB007': 2,
     }
 
 
@@ -8749,7 +8834,7 @@ def test_initial_population_census_rejects_forged_source_and_original(
 def test_initial_population_census_rejects_additional_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """既site外の所見までcheckerが抑止しても正本73siteとの実効果比較で拒否する。"""
+    """既site外の所見までcheckerが抑止しても正本70siteとの実効果比較で拒否する。"""
     original = checker._initial_population_evidence
     extra = (143, 'TB005', 'sqlalchemy.text',
              'pitchlog.db.recording_rights.models.EvacuatedEventOriginal.<module>')
