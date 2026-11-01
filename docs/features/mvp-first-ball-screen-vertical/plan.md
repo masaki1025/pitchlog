@@ -223,3 +223,14 @@ rootは計画/台帳/正式値導出の唯一writer、実装writerは別担当�
 writerはregistration担当のexact2へ一本化し、別担当Aのallowlist/fixture3/test新fileに触れない。計画と候補を非作者確認し、rootが正式値/履歴/corpusを最後に一括導出する。残るtenant149の他群をB成功で閉じず、全CLI/最終HEAD/必須CIまでmergeしない。
 
 Aの既exact期待追随（同日）: tests/test_stage_a_startup_tenant_boundary.pyを追加exact1とし、既11関数/API全値を保持したまま新3関数の有限集合だけを明示追記する。未知関数/API/別module/署名変更の拒否対向は全件維持する。Aの総対象は6path、許可の拡張根拠は上記3実関数だけであり、単なる件数更新やsubset比較への変更は行わない。
+
+
+### 初球縦断の条件2有限登録C（2026-11-01、PO委任によるCodex主担当判断）
+
+実測の再計測: 単位A/B適用後のtenant必須検査は136件（TB000 3/TB002 88/TB005 20/TB007 25）で合格0件。引継ぎの「149件中4件失敗」は149件の違反が4コードに分布する意味であり、単位Aで13件（TB005）減っただけである。旧ad658の限定登録（`condition_2_initial_start_scoped_findings`）の復元で説明できるのは35件まで（`product_function_acl.py` 2／`initial_grant_broker.py` 33。後者は`_initial_population_semantics`もFalse）で、残る98件（17ファイル）+SQL3件は現行checkerに登録機構が無い。したがって残件を単位分割し、1単位ごとに既方式の有限登録として積む。1単位の成功を全CLI合格・最終HEAD・必須CI成功へ読み替えない。
+
+第一の単位Cは件数最大の条件2（TB002）だけを対象にする。既RG1方式（固定path集合 + 実source SHA-256 + (行,記号)のexact-set）と同型の登録を追加し、`pitchlog/repositories/first_ball.py`、`first_ball_operations.py`、`recorded_snapshot.py`、`started_read.py`、`started_snapshot.py`、`transaction.py`の6path・66出現を閉じる。期待投影はchecker側の固定定数`FIRST_BALL_CONDITION2_SCOPES`に置き、allowlistはsource SHAと出現だけを持つ。allowlistから新しいpath/行/記号を自己申告できない形（固定集合との完全一致を要求）にし、source 1byteでも変われば免除が全て無効になる。
+
+対象は`scripts/check_tenant_boundary_bypass.py`、`contracts/tenant_boundary/base-allowlist.json`、`tests/test_check_tenant_boundary_bypass.py`のexact3。既`condition_2_scoped_findings`47件／台帳20件／RG1 2path／ad658由来7pathの全値を保持し、TB002以外（TB000/TB005/TB007）の扱いを変えない。拒否対向として、登録pathの1byte改変で免除が消えること、登録行に別記号を置いても拒否されること、allowlistへ未知path・余剰行・欠落行・別SHAを足すと契約が成立しないことを検査する。`initial_grant_broker.py`と`product_function_acl.py`は本単位に含めず、束縛先の再導出と意味条件の診断を別単位に残す。
+
+条件2の禁止語彙そのもの、owner_paths、他の免除機構、検査対象範囲は変更しない。製品sourceは触らない。正式9資産/corpus/受理recordは残単位完了後に単一189受理として一括再導出し、本単位の実装だけではrevisionを進めない（途中状態を正式受理と扱わない）。
