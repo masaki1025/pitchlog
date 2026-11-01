@@ -252,3 +252,12 @@ Aの既exact期待追随（同日）: tests/test_stage_a_startup_tenant_boundary
 内容は、module-levelの固定`select`/`insert`宣言、frozen dataclassの`object.__setattr__`初期化、封印値オブジェクトの`object.__new__`、検証用`dataclasses.replace`、`cast(Any, cls)(**fields)`による自己型構築であり、いずれもTenantContextの生成・改竄ではない。期待投影はchecker側の固定定数`FIRST_BALL_CONDITION5_SCOPES`に(line, code, symbol, scope)で置き、allowlistはsource SHAと出現だけを持つ。path/行/記号/scope/codeの追加・欠落・別値は契約不成立とし、source 1byteの変更で免除を全て無効にする。条件5の規則自体、`forbidden_construction_symbols`、TenantContext正規構築経路、他条件の扱いは変更しない。
 
 範囲は`scripts/check_tenant_boundary_bypass.py`、`contracts/tenant_boundary/base-allowlist.json`、`tests/test_check_tenant_boundary_bypass.py`のexact3。拒否対向として、1byte改変での免除消滅、登録行への別scope/別code、合成Contractでの欠落・重複・別path・別出現を検査する。broker 33件・acl 2件・SQL3件は本単位に含めない。製品sourceは触らない。正式値/corpus/受理recordは残単位後に一括再導出する。
+
+
+### writer-binding候補DDLの未統合登録F（2026-11-01、PO委任によるCodex主担当判断）
+
+単位E後の残件は38件（broker33＋acl2＋SQL3）。うち`backend/src/pitchlog/sync/control_provider/sql/`の3 SQLは**test専用の構造候補**で、自headerに「role/固定保存器/正式受理は未提供」と明記し、参照は`backend/tests/db/sync_writer_binding_support.py`と`backend/tests/test_sync_apply_writer_binding.py`だけで製品runtimeは読まない。`ledger/rg1_deployment_assets`と同型の「配備資産」として扱うと正式配備権を偽るため、RG1前例（`status: unintegrated_candidate`の閉manifest）に倣い、**配備権なしの未統合候補**として登録する。
+
+範囲は`backend/src/pitchlog/sync/control_provider/sql/writer-binding-manifest.json`の新設、`contracts/tenant_boundary/base-allowlist.json`の新キー`writer_binding_deployment_assets`4path、`scripts/check_tenant_boundary_bypass.py`の固定定数・loader・validator・population供給、`tests/test_check_tenant_boundary_bypass.py`の試験。manifestは`schema_version`/`status`/`purpose`/`deployment_authority`/`files`/`evidence_boundaries`の閉集合とし、`deployment_authority`は`none_unintegrated_candidate`に固定する。
+
+validatorはmanifestの自己申告を信じず、**実SQL本文から**`CREATE SCHEMA/TABLE/INDEX/FUNCTION/POLICY/TRIGGER/ROLE`を抽出し、checker側の固定構造面（2 schema/3 table/2 index/9 function/6 policy/4 trigger/2 role）と完全一致を要求する。manifestの`files`SHAは実byteとallowlist宣言SHAの双方に一致しなければならない。したがって、SQLとmanifestのSHAを協調して追随しても、閉じた構造面を越えるDDL追加は受理されない。宣言外の非Python変更は従来どおりTB000へ戻し、検査を緩めない。製品runtimeへの配備・実行権、正式7.7受理、実機/運用受入は与えない。broker33＋acl2は確定単位（policy・frozen revision・受理recordの一括移動）へ残す。
