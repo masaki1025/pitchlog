@@ -261,3 +261,12 @@ Aの既exact期待追随（同日）: tests/test_stage_a_startup_tenant_boundary
 範囲は`backend/src/pitchlog/sync/control_provider/sql/writer-binding-manifest.json`の新設、`contracts/tenant_boundary/base-allowlist.json`の新キー`writer_binding_deployment_assets`4path、`scripts/check_tenant_boundary_bypass.py`の固定定数・loader・validator・population供給、`tests/test_check_tenant_boundary_bypass.py`の試験。manifestは`schema_version`/`status`/`purpose`/`deployment_authority`/`files`/`evidence_boundaries`の閉集合とし、`deployment_authority`は`none_unintegrated_candidate`に固定する。
 
 validatorはmanifestの自己申告を信じず、**実SQL本文から**`CREATE SCHEMA/TABLE/INDEX/FUNCTION/POLICY/TRIGGER/ROLE`を抽出し、checker側の固定構造面（2 schema/3 table/2 index/9 function/6 policy/4 trigger/2 role）と完全一致を要求する。manifestの`files`SHAは実byteとallowlist宣言SHAの双方に一致しなければならない。したがって、SQLとmanifestのSHAを協調して追随しても、閉じた構造面を越えるDDL追加は受理されない。宣言外の非Python変更は従来どおりTB000へ戻し、検査を緩めない。製品runtimeへの配備・実行権、正式7.7受理、実機/運用受入は与えない。broker33＋acl2は確定単位（policy・frozen revision・受理recordの一括移動）へ残す。
+
+
+### broker/acl束縛の確定移動G（2026-11-01、PO委任によるCodex主担当判断）
+
+単位F後、tenant必須検査の残件は初期付与caller33件と`product_function_acl.py`2件だけ。両ファイルは旧`f174428d`から変更済みで、`_initial_population_evidence`のbyte束縛が外れていた。`_INITIAL_POPULATION_POLICY`の2ファイル分を現行sourceの実出現へ更新し、`_initial_population_semantics`を現行形（RG1型の静的import、`_broker_d4`の`encode_d4_reference`委譲）へ追随させる。旧inline形を要求する条件は残さないが、委譲先`pitchlog/sync/d4_reference.py`は同じ型/範囲検査を持ち、NFR-018の単一実装である。
+
+束縛先`ci_scope_proof_source_revision`は、両ファイルの現行byteが既に揃っている既存祖先`d141fa70a85d85c01fdbb6ddd1956e3f9ba01525`へ移す。新しい自己参照commitを作らず、レビュー済みの既存状態へ束縛する。`_INITIAL_POPULATION_POLICY`はbaseline側scanにも適用されるため、policy・revision・受理record・snapshot/corpusは同一の確定単位で一括移動し、途中状態で部分更新しない（部分更新はbaseline側の免除を外し、既存違反として差し引かれる偽の減少を生む）。
+
+この移動でtenant必須検査は0件、tenant試験は733件全成功。ただし正式9資産の受理record・snapshot・corpusは別途公式helperで一括再導出し、非作者レビューと必須CIを経るまで統合済みとは扱わない。

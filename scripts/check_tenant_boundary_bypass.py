@@ -6459,12 +6459,12 @@ _INITIAL_POPULATION_POLICY: dict[str, tuple[str, tuple[tuple[int, str, str, str]
     )),
     "pitchlog/authz/product_function_acl.py": ("initial_generation_guard_ddl", (
         (
-            157,
+            177,
             'TB002',
             'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
             'generate_product_function_acl_sql',
         ),
-        (2585, "TB002", "generate_generation_guard_sql", "<module>"),
+        (2614, 'TB002', 'generate_generation_guard_sql', '<module>'),
     )),
     "pitchlog/db/recording_rights/models.py": ("initial_storage_model_declarations", (
         (194, "TB002", "RecordingGeneration", "<module>"),
@@ -6478,104 +6478,99 @@ _INITIAL_POPULATION_POLICY: dict[str, tuple[str, tuple[tuple[int, str, str, str]
         (576, "TB005", "sqlalchemy.text", "RecordingRightDelivery.<module>"),
     )),
     "pitchlog/recording_rights/initial_grant_broker.py": ("initial_grant_broker_caller", (
-        # checkoutの固定SELECTは実role/DB identity比較とrollbackまで不変原典へ束縛。
-        (36, "TB002", "DurableGenerationSource", "<module>"),
-        (36, "TB002", "assert_write_recovery_generation", "<module>"),
-        (165, "TB005", "psycopg.Connection.cursor", "_verify_initial_actor_checkout"),
-        (166, "TB005", "psycopg.Cursor.execute", "_verify_initial_actor_checkout"),
-        (185, "TB005", "psycopg.Connection.rollback", "_verify_initial_actor_checkout"),
-        (188, "TB005", "psycopg.Connection.rollback", "_verify_initial_actor_checkout"),
-        (255, "TB005", "sqlalchemy.create_engine", "_load_initial_actor_runtime"),
-        (302, "TB005", "importlib.import_module", "_verify_business_binding"),
+        (35, 'TB002', 'DurableGenerationSource', '<module>'),
+        (35, 'TB002', 'assert_write_recovery_generation', '<module>'),
+        (165, 'TB005', 'psycopg.Connection.cursor', '_verify_initial_actor_checkout'),
+        (166, 'TB005', 'psycopg.Cursor.execute', '_verify_initial_actor_checkout'),
+        (185, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
+        (188, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
+        (255, 'TB005', 'sqlalchemy.create_engine', '_load_initial_actor_runtime'),
         (
-            324,
+            327,
             'TB002',
             'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
             '<module>',
         ),
         (
-            403,
+            406,
             'TB002',
             'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
             '_issue_initial_grant_impl',
         ),
         (
-            404,
+            407,
             'TB002',
             'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
             '_issue_initial_grant_impl',
         ),
         (
-            428,
+            431,
             'TB002',
             'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
             '<module>',
         ),
         (
-            443,
+            446,
             'TB002',
             'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
             '<module>',
         ),
-        (483, "TB002", "generation", "<module>"),
-        (488, "TB002", "int", "_broker_d4"),
-        (489, "TB002", "int", "_broker_d4"),
-        (492, "TB002", "int", "_broker_d4"),
-        (496, "TB002", "_broker_generation", "<module>"),
-        (510, "TB002", "int", "_broker_generation"),
-        (514, "TB002", "int", "_broker_generation"),
-        (520, "TB002", "int", "_broker_generation"),
+        (486, 'TB002', 'generation', '<module>'),
+        (493, 'TB002', 'int', '_broker_d4'),
+        (498, 'TB002', '_broker_generation', '<module>'),
+        (512, 'TB002', 'int', '_broker_generation'),
+        (516, 'TB002', 'int', '_broker_generation'),
+        (522, 'TB002', 'int', '_broker_generation'),
         (
-            804,
+            806,
             'TB002',
             'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
             '_postcommit_start_response',
         ),
         (
-            805,
+            807,
             'TB002',
             'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
             '_postcommit_start_response',
         ),
-        (805, "TB002", "recovery_generation", "_postcommit_start_response"),
+        (807, 'TB002', 'recovery_generation', '_postcommit_start_response'),
         (
-            929,
+            931,
             'TB002',
             'pitchlog.recording_rights.initial_grant_broker._broker_generation',
             '_decode_initial_reply',
         ),
-        # AF_UNIX socket.connect と fdopen file.flush。未知receiverへ一般化しない。
         (
-            1119,
+            1121,
             'TB005',
             'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
             '_InitialBrokerClient.call',
         ),
-        (1210, "TB005", "psycopg.Connection.cursor", "_verify_auth_verifier_checkout"),
-        (1211, "TB005", "psycopg.Cursor.execute", "_verify_auth_verifier_checkout"),
-        (1216, "TB005", "psycopg.Connection.rollback", "_verify_auth_verifier_checkout"),
-        (1219, "TB005", "psycopg.Connection.rollback", "_verify_auth_verifier_checkout"),
-        (1279, "TB005", "sqlalchemy.create_engine", "_load_initial_auth_verifier_runtime"),
-        (1460, "TB002", "pitchlog.sync.idempotency", "_worker_resolve_start"),
+        (1212, 'TB005', 'psycopg.Connection.cursor', '_verify_auth_verifier_checkout'),
+        (1213, 'TB005', 'psycopg.Cursor.execute', '_verify_auth_verifier_checkout'),
+        (1218, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
+        (1221, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
+        (1281, 'TB005', 'sqlalchemy.create_engine', '_load_initial_auth_verifier_runtime'),
+        (1462, 'TB002', 'pitchlog.sync.idempotency', '_worker_resolve_start'),
         (
-            1517,
+            1519,
             'TB002',
             'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
             '_worker_resolve_start',
         ),
         (
-            1518,
+            1520,
             'TB002',
             'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
             '_worker_resolve_start',
         ),
         (
-            1745,
+            1747,
             'TB005',
             'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
             'serve_initial_broker',
         ),
-        (1758, "TB007", "pitchlog.durable_rights_ledger.DurableLedger", "serve_initial_broker"),
+        (1760, 'TB007', 'pitchlog.durable_rights_ledger.DurableLedger', 'serve_initial_broker'),
     )),
     "pitchlog/repositories/game_start.py": ("game_start_caller", (
         (23, "TB002", "pitchlog.sync.idempotency", "<module>"),
@@ -7192,7 +7187,7 @@ return _InitialActorRuntime(key, _RUNTIME_CREATION)
                 imported.setdefault(a.asname or a.name, []).append(f"{n.module}.{a.name}")
     for name, origin in {
         "socket": "socket", "os": "os", "create_engine": "sqlalchemy.create_engine",
-        "event": "sqlalchemy.event", "import_module": "importlib.import_module",
+        "event": "sqlalchemy.event",
         "require_database_transport": (
             "pitchlog.authz.database_transport.require_database_transport"
         ),
@@ -7261,20 +7256,36 @@ os.fsync(output.fileno())''').body
         and isinstance(n.ctx, (ast.Store, ast.Del)) for n in ast.walk(server)
     ):
         return False
-    # importの固定先、実owner復旧世代照合、および純bigint codecの型/範囲を保持。
+    # importの固定先、実owner復旧世代照合、および純bigint codecの委譲先を保持。
+    business = function("_verify_business_binding")
+    if business is None or not has(
+        business,
+        "from pitchlog.recording_rights.rg1_lifecycle import "
+        "BusinessBinding, RG1ControlUnavailable",
+    ) or not has(business, "binding = BusinessBinding.from_text(rows[0][0])"):
+        return False
+    if not any(
+        handler.type is not None
+        and shape(handler.type) == expression("RG1ControlUnavailable")
+        for node in ast.walk(business)
+        if isinstance(node, ast.Try)
+        for handler in node.handlers
+    ):
+        return False
+    # 符号化の型/範囲検査は単一実装が持つ(NFR-018)。本文の委譲だけを固定する。
     return (
-        has(function("_verify_business_binding"),
-            'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")')
-        and has(function("_issue_initial_grant_impl"),
+        has(function("_issue_initial_grant_impl"),
                 "assert_write_recovery_generation(scope, source, fence, "
                 "int(grant.recovery_generation))")
         and has(function("_worker_resolve_start"),
                 "assert_write_recovery_generation(scope, state.source, fence, "
                 "int(grant.recovery_generation))")
-        and has(function("_broker_d4"), '''if (type(tenant_id) is not UUID
-            or type(game_id) is not UUID
-            or type(generation) is not int or not 0 < generation < 2**63):
-                raise _broker_invalid()''')
+        and exact_body("_broker_d4", '''
+try:
+    return encode_d4_reference(tenant_id, game_id, generation)
+except D4ReferenceInvalid:
+    raise _broker_invalid() from None
+''')
     )
 
 
