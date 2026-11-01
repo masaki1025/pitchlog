@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 09:20 JST（統合枝の既存赤 18→7件）
+
+- **追加削減**: `test_state_transition_contract_schema` の件数pin（case117/legacy110/changed72）を実測へ追随し、**3→2件**。残る2件は新matrix行の `precondition.op="in"` に起因（`_manual_fixture_coordinate` の `eq` 前提、history expansion の座標比較、constraint-negative候補の差分1件前提）。座標一致を `eq`/`in` 両対応へ広げる案は試作したが、候補差分・expansion の意味論まで波及するため巻き戻し、独立作業として残す。
+- **残7件**: `test_state_transition_contract_schema`2（`in` 述語の座標意味論）、`test_orm_acceptance_sheets`3（新table追加に伴うsheet再生成＋新規行の**人間judgment**が必要。`030→031`のpin、row counts）、`tests/domain/test_collect_fe`2（新Vue入口8件の静的解決）。
+- **#189固有**: tenant0・census211・frozen archive65・invariants OK・ruff/ty OKを維持。HEAD`607be157`。
+- **注記**: ORM acceptance sheetのjudgmentは人間判断の資産であり、生成器で自動補完しない（`judgment_errors` が空であることを要求）。ここは主担当の独断で埋めない。
+
+
 ## 続き：2026-11-02 07:40 JST（統合枝の既存赤 18→8件、#189固有ゲートは緑のまま）
 
 - **削減**: 統合枝が持ち込んだ無関係な既存赤を **18→8件** へ。develop(c2e5e4dd)では全て成功する回帰。
