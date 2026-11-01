@@ -2413,6 +2413,40 @@ _FIXED_BIND_BODY = _expected_function_body(
 )
 
 
+
+# 初球の採用済み2入力bind/単一void返値だけの完全形。旧simpleも保持する。
+_FIXED_FIRST_BALL_BUILDER_BODY = _expected_function_body(
+    """def expected():
+    safe_arguments = (
+        _canonical_bind("tenant_id", UUID),
+        *(
+            bindparam(name, type_=BigInteger())
+            if (
+                schema == "sync_right_api"
+                and function_name == "check_current_right"
+                and name in ("internal_generation", "recovery_generation")
+                and field_type is int
+            )
+            else _canonical_bind(name, field_type)
+            for name, field_type in input_fields
+        ),
+    )
+    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if (
+        schema == "sync_fence_api"
+        and function_name == "assert_writer_binding"
+        and not table_valued
+        and result_names == ("asserted",)
+    ):
+        safe_function.type = _WriterAssertVoidResult()
+    if not table_valued:
+        return select(safe_function.label(result_names[0]))
+    safe_table = safe_function.table_valued(*result_names)
+    return select(*(safe_table.c[name] for name in result_names))
+"""
+)
+
+
 def _is_fixed_builder_body(
     node: ast.FunctionDef | ast.AsyncFunctionDef, expected: list[ast.stmt]
 ) -> bool:
@@ -2422,11 +2456,15 @@ def _is_fixed_builder_body(
         body[0].value, ast.Constant
     ) and isinstance(body[0].value.value, str):
         body = body[1:]
-    return not node.decorator_list and ast.dump(
-        ast.Module(body=body, type_ignores=[]), include_attributes=False
-    ) == ast.dump(
-        ast.Module(body=expected, type_ignores=[]),
-        include_attributes=False,
+    expected_bodies = (
+        (expected, _FIXED_FIRST_BALL_BUILDER_BODY)
+        if expected is _FIXED_BUILDER_BODY
+        else (expected,)
+    )
+    actual = ast.dump(ast.Module(body=body, type_ignores=[]), include_attributes=False)
+    return not node.decorator_list and any(
+        actual == ast.dump(ast.Module(body=allowed, type_ignores=[]), include_attributes=False)
+        for allowed in expected_bodies
     )
 
 

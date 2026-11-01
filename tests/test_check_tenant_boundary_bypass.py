@@ -9003,8 +9003,8 @@ _INITIAL_POPULATION_MUTATIONS = (
     ),
     (
         'recording_rights/initial_grant_broker.py',
-        'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")',
-        'provider = import_module("other.module")',
+        'from pitchlog.recording_rights.rg1_lifecycle import (',
+        'from other.module import (',
         'fixed-import',
     ),
     (
@@ -9308,3 +9308,70 @@ def test_initial_population_semantics_rejects_even_a_forged_matching_original(
         assert checker._initial_population_evidence(changed, path), reason
     assert not validate(ast.parse(changed), path), reason
     assert not checker._initial_population_evidence(changed, path), reason
+
+
+def test_fixed_first_ball_builder_keeps_current_and_legacy_complete_shapes() -> None:
+    """189現形と旧simpleだけを全本文で受理し、他期待へ許可を広げない。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    for root in (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT):
+        source = _fixture_source(root / relative)
+        assert checker.scan_source(source, path=relative, contract=contract) == []
+        function = next(
+            node for node in ast.parse(source).body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_build_fixed_function_statement"
+        )
+        assert checker._is_fixed_builder_body(function, checker._FIXED_BUILDER_BODY)
+        assert not checker._is_fixed_builder_body(function, checker._FIXED_BIND_BODY)
+        function.decorator_list = [ast.Name(id="unapproved", ctx=ast.Load())]
+        assert not checker._is_fixed_builder_body(function, checker._FIXED_BUILDER_BODY)
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        ('type_=BigInteger()', 'type_=Float()'),
+        ('type_=BigInteger()', 'type_=String()'),
+        ('name in ("internal_generation", "recovery_generation")',
+         'name in ("internal_generation",)'),
+        ('name in ("internal_generation", "recovery_generation")',
+         'name in ("internal_generation", "recovery_generation", "other")'),
+        ('function_name == "check_current_right"',
+         'function_name == "unapproved"'),
+        ('schema == "sync_right_api"', 'schema == "other_api"'),
+        ('and field_type is int', 'and field_type is bool'),
+        ('_canonical_bind("tenant_id", UUID)', '_canonical_bind("tenant_id", str)'),
+        ('schema == "sync_fence_api"', 'schema == "other_api"'),
+        ('function_name == "assert_writer_binding"',
+         'function_name == "unapproved"'),
+        ('and not table_valued', 'and table_valued'),
+        ('and result_names == ("asserted",)', 'and result_names == ("other",)'),
+        ('and result_names == ("asserted",)',
+         'and result_names == ("asserted", "other")'),
+        ('safe_function.type = _WriterAssertVoidResult()',
+         'safe_function.type = Integer()'),
+    ],
+    ids=[
+        "bigint-float", "bigint-text", "missing-generation", "extra-generation",
+        "bigint-function", "bigint-schema", "bigint-bool", "tenant-bind-type",
+        "void-schema", "void-function", "void-table", "void-result-name",
+        "void-extra-result", "void-result-type",
+    ],
+)
+def test_fixed_first_ball_builder_rejects_each_finite_shape_change(
+    before: str, after: str,
+) -> None:
+    """2入力BigIntegerと専用voidの各境界を1箇所ずつ変えて拒否する。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    assert source.count(before) == 1
+    mutated = source.replace(before, after, 1)
+    violations = _scan_diff_mutation(
+        source, mutated, path=relative,
+        changed_lines=_changed_lines_containing(mutated, after),
+        contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert (
+        "TB005", "pitchlog.repositories.function_operations._build_fixed_function_statement"
+    ) in {(item.code, item.symbol) for item in violations}
