@@ -9509,3 +9509,78 @@ def test_first_ball_condition2_synthetic_contract_is_not_an_escape(
     assert owner.findings <= {
         (v.line, v.symbol) for v in found if v.code == "TB002"
     }
+
+
+_FIRST_BALL_OPERATION_API_SETS = {
+    "pitchlog.repositories.recorded_snapshot_operations._registration": frozenset(
+        {"SQLA_SELECT"}
+    ),
+    "pitchlog.repositories.started_snapshot_operations._registration": frozenset(
+        {"SQLA_SELECT"}
+    ),
+    "pitchlog.sync.control_provider.binding_control._BindingAuthority._call": frozenset(
+        {
+            "PSYCOPG_ASYNC_CONNECTION_EXECUTE",
+            "PSYCOPG_ASYNC_CURSOR_EXECUTE",
+            "PSYCOPG_CONNECTION_EXECUTE",
+            "PSYCOPG_CURSOR_EXECUTE",
+            "SQLA_ASYNC_CONNECTION_EXECUTE",
+            "SQLA_ASYNC_SESSION_EXECUTE",
+            "SQLA_CONNECTION_EXECUTE",
+            "SQLA_SESSION_EXECUTE",
+        }
+    ),
+    "pitchlog.sync.control_provider.binding_control.BindingControl._channel": frozenset(
+        {"SQLA_ENGINE_CONNECT", "SQLA_ASYNC_ENGINE_CONNECT"}
+    ),
+}
+
+
+def test_first_ball_operation_registration_api_sets_are_exact() -> None:
+    """初球操作4symbolの許可APIに余分な拡張がないことを確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    actual = {
+        item.symbol: item.allowed_api_ids
+        for item in contract.allowed_symbols
+        if item.symbol in _FIRST_BALL_OPERATION_API_SETS
+    }
+    assert actual == _FIRST_BALL_OPERATION_API_SETS
+
+
+def test_first_ball_operation_unlisted_symbol_is_rejected() -> None:
+    """同じモジュールでも未登録関数のSQL構築は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/recorded_snapshot_operations.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    mutated = (
+        f"{source.rstrip()}\n\n\ndef _unlisted_statement() -> Any:\n"
+        "    return select(1)\n"
+    )
+    lines = frozenset(range(source.count("\n") + 1, mutated.count("\n") + 2))
+    violations = checker.scan_source(
+        mutated, path=relative, contract=contract, changed_lines=lines,
+    )
+    assert any(
+        item.code == "TB005" and item.symbol == "sqlalchemy.select"
+        for item in violations
+    )
+
+
+def test_first_ball_operation_registered_symbol_rejects_extra_db_api() -> None:
+    """登録済みsymbolでも許可外のDB API追加は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/sync/control_provider/binding_control.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    marker = '            identity = c.execute(\n'
+    assert source.count(marker) == 1
+    mutated = source.replace(
+        marker, '            psycopg.connect("dbname=unapproved")\n' + marker, 1,
+    )
+    lines = _changed_lines_containing(mutated, "psycopg.connect(")
+    violations = checker.scan_source(
+        mutated, path=relative, contract=contract, changed_lines=lines,
+    )
+    assert any(
+        item.code == "TB005" and item.symbol == "psycopg.connect"
+        for item in violations
+    )

@@ -33068,6 +33068,46 @@
         "PSYCOPG_CURSOR_EXECUTE"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/startup_allowed/_require_writer_state.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.recorded_snapshot_operations._registration",
+      "signature": "_registration(token_type: type[_RecordedReadToken], table: Table, order: tuple[str, ...]) -> OperationRegistration",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/recorded_snapshot_operations_allowed/_registration.py"
+    },
+    {
+      "symbol": "pitchlog.repositories.started_snapshot_operations._registration",
+      "signature": "_registration(token_type: type[_StartedReadToken], model: Any, *, lineups: bool=False) -> OperationRegistration",
+      "allowed_api_ids": [
+        "SQLA_SELECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/started_snapshot_operations_allowed/_registration.py"
+    },
+    {
+      "symbol": "pitchlog.sync.control_provider.binding_control._BindingAuthority._call",
+      "signature": "_call(self, which: str, statement: LiteralString, params: tuple[object, ...], *, write: bool=False, confirmed_rejection: Literal['register', 'publish'] | None=None) -> tuple[Any, ...]",
+      "allowed_api_ids": [
+        "PSYCOPG_ASYNC_CONNECTION_EXECUTE",
+        "PSYCOPG_ASYNC_CURSOR_EXECUTE",
+        "PSYCOPG_CONNECTION_EXECUTE",
+        "PSYCOPG_CURSOR_EXECUTE",
+        "SQLA_ASYNC_CONNECTION_EXECUTE",
+        "SQLA_ASYNC_SESSION_EXECUTE",
+        "SQLA_CONNECTION_EXECUTE",
+        "SQLA_SESSION_EXECUTE"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/sync/control_provider/binding_control_allowed/_BindingAuthority.py"
+    },
+    {
+      "symbol": "pitchlog.sync.control_provider.binding_control.BindingControl._channel",
+      "signature": "_channel(self)",
+      "allowed_api_ids": [
+        "SQLA_ENGINE_CONNECT",
+        "SQLA_ASYNC_ENGINE_CONNECT"
+      ],
+      "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/sync/control_provider/binding_control_allowed/_channel.py"
     }
   ],
   "conditions": [
