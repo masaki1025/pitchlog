@@ -5773,7 +5773,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
             assert case["raw"]["resultId"] in result_axis["values"]
             assert case["raw"] != case["normalized"]
             changed.append(case)
-    assert len(changed) == 71
+    assert len(changed) == 72
     assert "existing-cases-have-normalization-triple" not in declaration[
         "claimBoundary"
     ]["notGuaranteed"]
