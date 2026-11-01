@@ -1306,8 +1306,10 @@ def _independently_derived_added(
     return frozenset(identities)
 
 
-def _declared_relaxation_identities(predicate: dict[str, Any]) -> frozenset[CensusIdentity]:
-    """宣言済みの不変値構築緩和を完全一致の site 集合として読む。"""
+def _declared_relaxation_identities(
+    predicate: dict[str, Any], *, source_root: Path,
+) -> frozenset[CensusIdentity]:
+    """宣言済みの不変値構築緩和を実source SHA付きの完全一致siteとして読む。"""
     raw = predicate.get("declared_relaxations")
     if raw is None:
         return frozenset()
@@ -1331,7 +1333,10 @@ def _declared_relaxation_identities(predicate: dict[str, Any]) -> frozenset[Cens
         row = _object(item, f"declared_relaxations.sites[{index}]")
         _exact_keys(
             row,
-            {"path", "line", "end_line", "scope", "code", "symbol", "message"},
+            {
+                "path", "line", "end_line", "scope", "code", "symbol", "message",
+                "source_sha256",
+            },
             "declared_relaxations.site",
         )
         line = row.get("line")
@@ -1348,6 +1353,13 @@ def _declared_relaxation_identities(predicate: dict[str, Any]) -> frozenset[Cens
         )
         assert identity[4] == "TB007"
         assert identity[5] in allowed, "不変値構築以外の symbol は緩和できない"
+        digest = _string(row.get("source_sha256"), "site.source_sha256")
+        assert re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+        target = source_root / identity[0]
+        assert target.is_file(), "緩和 site の source が存在しない"
+        assert hashlib.sha256(target.read_bytes()).hexdigest() == digest, (
+            "緩和 site の source SHA が不一致"
+        )
         assert identity not in identities, "緩和 site の重複"
         identities.add(identity)
     return frozenset(identities)
@@ -5421,6 +5433,7 @@ def _assert_removed_matches_declared_relaxations(
     *,
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
+    source_root: Path,
     **_: Any,
 ) -> None:
     """宣言対象の減分がすべて宣言済み緩和で説明できることを検証する。"""
@@ -5441,7 +5454,7 @@ def _assert_removed_matches_declared_relaxations(
     _assert_removed_tb007_matches_declared_relaxations(
         selected,
         expected_code=code,
-        declared=_declared_relaxation_identities(predicate),
+        declared=_declared_relaxation_identities(predicate, source_root=source_root),
     )
 
 

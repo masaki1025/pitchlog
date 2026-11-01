@@ -1189,7 +1189,7 @@ def _load_first_ball_condition5_owners(
         value: allowlist の ``condition_5_first_ball_scoped_findings``。
 
     Returns:
-        固定11pathと実source SHA・出現集合を持つ所有者。
+        固定9pathと実source SHA・出現集合を持つ所有者。
 
     Raises:
         ContractError: path・SHA・出現が固定投影と一致しない場合。
@@ -7176,6 +7176,8 @@ return _InitialActorRuntime(key, _RUNTIME_CREATION)
     for name, origin in {
         "socket": "socket", "os": "os", "create_engine": "sqlalchemy.create_engine",
         "event": "sqlalchemy.event",
+        "encode_d4_reference": "pitchlog.sync.d4_reference.encode_d4_reference",
+        "D4ReferenceInvalid": "pitchlog.sync.d4_reference.D4ReferenceInvalid",
         "require_database_transport": (
             "pitchlog.authz.database_transport.require_database_transport"
         ),
@@ -7497,7 +7499,7 @@ def scan_source(
         if (item.line, item.code, item.symbol, item.scope) not in initial_evidence
     ]
     condition5_owners = contract.first_ball_condition5_owners
-    # 合成Contractでも固定11path・固定出現以外の条件5免除を認めない。
+    # 合成Contractでも固定9path・固定出現以外の条件5免除を認めない。
     valid_condition5_owners = (
         len(condition5_owners) == len(FIRST_BALL_CONDITION5_SCOPES)
         and {owner.path for owner in condition5_owners}
@@ -8701,31 +8703,35 @@ def _writer_binding_surface(sql_texts: tuple[str, ...]) -> dict[str, frozenset[s
         return frozenset(found)
     return {
         "schemas": frozenset(re.findall(
-            r"^CREATE SCHEMA (?:IF NOT EXISTS )?([a-z_]+)", joined, re.MULTILINE,
+            r"^\s*CREATE\s+SCHEMA\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
         )),
         "tables": frozenset(re.findall(
-            r"^CREATE TABLE (?:IF NOT EXISTS )?([a-z_.]+)", joined, re.MULTILINE,
+            r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_.]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
         )),
         "indexes": frozenset(re.findall(
-            r"^CREATE (?:UNIQUE )?INDEX ([a-z0-9_]+)", joined, re.MULTILINE,
+            r"^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+([a-z0-9_]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
         )),
         "functions": signatures(
-            r"^CREATE (?:OR REPLACE )?FUNCTION ([a-z_.]+\([^)]*\))",
+            r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-z_.]+\([^)]*\))",
         ),
         "policies": frozenset(
             f"{table}.{name}"
             for name, table in re.findall(
-                r"^CREATE POLICY ([a-z_]+) ON ([a-z0-9_.]+)", joined, re.MULTILINE,
+                r"^\s*CREATE\s+POLICY\s+([a-z_]+)\s+ON\s+([a-z0-9_.]+)", joined, re.MULTILINE,
             )
         ),
         "triggers": frozenset(
             f"{table}.{name}"
             for name, table in re.findall(
-                r"^CREATE TRIGGER ([a-z_]+) .*? ON ([a-z0-9_.]+)", joined, re.MULTILINE,
+                r"^\s*CREATE\s+TRIGGER\s+([a-z_]+).*?\sON\s+([a-z0-9_.]+)", joined, re.MULTILINE,
             )
         ),
         "roles": frozenset(re.findall(
-            r"CREATE ROLE ([a-z_]+)", joined, re.MULTILINE,
+            r"CREATE\s+ROLE\s+([a-z_]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
         )),
     }
 
