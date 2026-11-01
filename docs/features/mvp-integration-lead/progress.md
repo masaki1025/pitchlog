@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 00:20 JST（TB007緩和を正式宣言、census 17→10失敗）
+
+- **PO判断**: 「不変値構築」をcensusの第3緩和種別として正式宣言（前節の選択肢a）。計画追補`d86fac9e`。
+- **実装**: `census-baseline.json`の述語`removed_tb007_matches_declared_relaxations`へ`declared_relaxations`（`kind: immutable_value_construction`、`allowed_symbols`5つに閉集合、`sites`完全一致22件）を追加。test側`_declared_relaxation_identities`が形・symbol閉集合・site重複を検査し、`declared <= removed`を要求（宣言済み緩和が実減分に無ければ拒否）。`7dfd45ba`。
+- **実測**: census失敗は**17（起点`5cb1f754`）→10**。tenant必須検査0件・tenant試験728成功・ruff/ty成功を維持。`first_ball_bridge.py:332/361`はanchor censusに無いため宣言から除外（実減分との完全一致を優先）。
+- **残るcensus失敗10件**: `test_checker_census_matches_declared_anchor`系のanchor比較、`ledger_removed_checker`固定digest（`0bb7d021…` vs 実測`cc9e8a25…`）、condition2候補列挙・宣言⇔実装の未使用field系。いずれも**独立した固定pinの再導出**で、着手前から赤だった群を含む。`test_measured_suppression_predicate_accepts_actual_a2_census`はHEAD/現行とも成功。
+- **固定点/次**: HEAD`d86fac9e`（未push、#189 remoteは`ad6588b1`）。次は(a)残10 pinの再導出（各pinの由来を確認してから更新）、(b) `c073dfbc`以降のsource/asset変更に対するtenant受理recordの再導出、(c) 全root/backend非DB・frontend再実行、(d) 非作者最終review（C〜H未review）、(e) 委任証拠→一回push→必須CI。
+
+
 ## 続き：2026-11-01 23:51 JST（census追随を11まで低減、TB007緩和宣言がPO判断点）
 
 - **census再導出（機械追随）**: `census-baseline.json`の`initial_population_proof.sites`と`tests/test_census_baseline_check.py`の`_INITIAL_CENSUS_SITES`を現行`_INITIAL_POPULATION_POLICY`（70出現）へ、`pure_helper_references`のbroker SHAを`19b90d8d…`へ追随。test側の独立意味検査`_independent_initial_population_meaning`も現行形（静的import＋`encode_d4_reference`委譲）へ、`_INITIAL_CENSUS_CONTROL_FRAMES`の`_verify_business_binding`枠を実ASTから再生成。census失敗は**17→11**（起点`5cb1f754`は17失敗）。
