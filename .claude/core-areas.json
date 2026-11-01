@@ -289,7 +289,14 @@
         "backend/src/pitchlog/repositories/started_snapshot.py",
         "backend/src/pitchlog/repositories/started_snapshot_operations.py",
         "backend/tests/test_started_snapshot.py",
-        "backend/tests/test_started_snapshot_operations.py"
+        "backend/tests/test_started_snapshot_operations.py",
+        "backend/src/pitchlog/db/writer_binding/__init__.py",
+        "backend/src/pitchlog/db/writer_binding/models.py",
+        "backend/tests/first_ball_expected_source_pins.py",
+        "backend/tests/test_first_ball_operations.py",
+        "backend/tests/test_first_ball_vocabulary_operations.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/test_recorded_snapshot.py"
       ]
     },
     {
