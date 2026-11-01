@@ -9584,3 +9584,130 @@ def test_first_ball_operation_registered_symbol_rejects_extra_db_api() -> None:
         item.code == "TB005" and item.symbol == "psycopg.connect"
         for item in violations
     )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-field", "missing-path", "extra-path", "digest", "extra-finding",
+        "missing-finding", "changed-scope", "changed-code", "zero-line",
+        "bool-line", "empty-symbol", "extra-key",
+    ),
+)
+def test_first_ball_condition5_shape_is_closed(mutation: str) -> None:
+    """初球11pathの条件5登録を欠落・余剰・別scope/別codeへ広げられない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    key = "condition_5_first_ball_scoped_findings"
+    groups = value[key]
+    path = sorted(groups)[0]
+    if mutation == "missing-field":
+        del value[key]
+    elif mutation == "missing-path":
+        del groups[path]
+    elif mutation == "extra-path":
+        groups["backend/src/pitchlog/other.py"] = copy.deepcopy(groups[path])
+    elif mutation == "digest":
+        groups[path]["source_sha256"] = "not-a-digest"
+    elif mutation == "extra-finding":
+        groups[path]["findings"].append(copy.deepcopy(groups[path]["findings"][0]))
+    elif mutation == "missing-finding":
+        groups[path]["findings"].pop()
+    elif mutation == "changed-scope":
+        groups[path]["findings"][0]["scope"] = "pitchlog.other.<module>"
+    elif mutation == "changed-code":
+        groups[path]["findings"][0]["code"] = "TB002"
+    elif mutation == "zero-line":
+        groups[path]["findings"][0]["line"] = 0
+    elif mutation == "bool-line":
+        groups[path]["findings"][0]["line"] = True
+    elif mutation == "empty-symbol":
+        groups[path]["findings"][0]["symbol"] = ""
+    else:
+        groups[path]["findings"][0]["condition"] = 5
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis = checker.load_contract(REPOSITORY_ROOT).apis
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory, apis)
+
+
+def test_first_ball_condition5_requires_each_source_path_and_occurrence() -> None:
+    """同source/位置/記号/scopeだけを束縛し、変更sourceと追加siteは残す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert {owner.path for owner in contract.first_ball_condition5_owners} == set(
+        checker.FIRST_BALL_CONDITION5_SCOPES
+    )
+    assert sum(
+        len(owner.findings) for owner in contract.first_ball_condition5_owners
+    ) == 27
+    for owner in contract.first_ball_condition5_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        source = (REPOSITORY_ROOT / owner.path).read_text()
+        assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
+        raw = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, first_ball_condition5_owners=()),
+        )
+        assert owner.findings <= {
+            (v.line, v.code, v.symbol, v.scope) for v in raw
+        }
+        clean = checker.scan_source(source, path=relative, contract=contract)
+        assert not any(
+            (v.line, v.code, v.symbol, v.scope) in owner.findings for v in clean
+        )
+        broken = source + "\n# sourceの完全同一性を壊す\n"
+        found = checker.scan_source(broken, path=relative, contract=contract)
+        assert owner.findings <= {
+            (v.line, v.code, v.symbol, v.scope) for v in found
+        }
+        for replacement in (
+            replace(owner, source_sha256="0" * 64),
+            replace(
+                owner,
+                findings=frozenset({
+                    (next(iter(owner.findings))[0], "TB007", "other", "other.<module>")
+                }),
+            ),
+        ):
+            owners = tuple(
+                replacement if o.path == owner.path else o
+                for o in contract.first_ball_condition5_owners
+            )
+            found = checker.scan_source(
+                source, path=relative,
+                contract=replace(contract, first_ball_condition5_owners=owners),
+            )
+            assert owner.findings <= {
+                (v.line, v.code, v.symbol, v.scope) for v in found
+            }
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "duplicate", "widened"))
+def test_first_ball_condition5_synthetic_contract_is_not_an_escape(
+    mutation: str,
+) -> None:
+    """合成Contractでも固定11path・固定出現以外への免除を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owners = contract.first_ball_condition5_owners
+    if mutation == "missing":
+        owners = owners[:-1]
+    elif mutation == "duplicate":
+        owners = (*owners, owners[0])
+    elif mutation == "extra":
+        owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
+    else:
+        owners = (
+            replace(
+                owners[0],
+                findings=frozenset({(1, "TB007", "object.__new__", "<module>")}),
+            ),
+            *owners[1:],
+        )
+    owner = contract.first_ball_condition5_owners[0]
+    source = (REPOSITORY_ROOT / owner.path).read_text()
+    found = checker.scan_source(
+        source, path=owner.path.removeprefix("backend/src/"),
+        contract=replace(contract, first_ball_condition5_owners=owners),
+    )
+    assert owner.findings <= {
+        (v.line, v.code, v.symbol, v.scope) for v in found
+    }

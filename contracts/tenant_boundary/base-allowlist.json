@@ -33813,6 +33813,225 @@
         ]
       }
     },
+    "condition_5_first_ball_scoped_findings": {
+      "backend/src/pitchlog/repositories/first_ball_operations.py": {
+        "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
+        "findings": [
+          {
+            "line": 85,
+            "code": "TB005",
+            "symbol": "sqlalchemy.insert",
+            "scope": "pitchlog.repositories.first_ball_operations.<module>"
+          },
+          {
+            "line": 87,
+            "code": "TB005",
+            "symbol": "sqlalchemy.select",
+            "scope": "pitchlog.repositories.first_ball_operations.<module>"
+          }
+        ]
+      },
+      "backend/src/pitchlog/repositories/first_ball_vocabulary_operations.py": {
+        "source_sha256": "d2dafb7041649126c631ca36f64816c0c17a0479a80bc24990d668cd65a3c4ab",
+        "findings": [
+          {
+            "line": 21,
+            "code": "TB005",
+            "symbol": "sqlalchemy.select",
+            "scope": "pitchlog.repositories.first_ball_vocabulary_operations.<module>"
+          }
+        ]
+      },
+      "backend/src/pitchlog/repositories/started_read.py": {
+        "source_sha256": "6cc8bf42c95ec2979fb17619497be9062e156162885de1d57bb08e1ae640b3e0",
+        "findings": [
+          {
+            "line": 223,
+            "code": "TB007",
+            "symbol": "token_type",
+            "scope": "pitchlog.repositories.started_read._assemble"
+          }
+        ]
+      },
+      "backend/src/pitchlog/repositories/started_snapshot.py": {
+        "source_sha256": "4a73c3eb4a84cf1a69842c9a84b5a4c8d3c8cd033e7c85a8ef22cdb72fc941e9",
+        "findings": [
+          {
+            "line": 318,
+            "code": "TB007",
+            "symbol": "token_type",
+            "scope": "pitchlog.repositories.started_snapshot.read_initial_started_snapshot"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/control_provider/store_contract.py": {
+        "source_sha256": "1eef0a645f71696ea6a8c563552d33738f6d495dbc5db784c12b3632063ea238",
+        "findings": [
+          {
+            "line": 34,
+            "code": "TB007",
+            "symbol": "dataclasses.replace",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__"
+          },
+          {
+            "line": 41,
+            "code": "TB007",
+            "symbol": "dataclasses.replace",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__"
+          },
+          {
+            "line": 85,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+          },
+          {
+            "line": 86,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+          },
+          {
+            "line": 87,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+          },
+          {
+            "line": 88,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+          },
+          {
+            "line": 89,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/control_provider/writer_binding.py": {
+        "source_sha256": "0081f406a90a1cdfe4afbbbd6d4adf1f7190f341bcbc493481f15c6a1ab8134f",
+        "findings": [
+          {
+            "line": 262,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.control_provider.writer_binding._issue_device_presentation"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/first_ball_bridge.py": {
+        "source_sha256": "cc45734284dab5b1fe96f4931b7d73fb67b0c4f6a71dc1389e6b7eeeb8788948",
+        "findings": [
+          {
+            "line": 166,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.first_ball_bridge._bind_source_first_ball"
+          },
+          {
+            "line": 299,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.first_ball_bridge.evaluate_first_ball_frame"
+          },
+          {
+            "line": 332,
+            "code": "TB007",
+            "symbol": "dataclasses.replace",
+            "scope": "pitchlog.sync.first_ball_bridge.consume_first_ball_frame"
+          },
+          {
+            "line": 361,
+            "code": "TB007",
+            "symbol": "dataclasses.replace",
+            "scope": "pitchlog.sync.first_ball_bridge._read_ready_first_ball_frame"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/source_binding.py": {
+        "source_sha256": "25e3124a354420bd1543661064e693d359bf0b61bb67df5ede75ca08f7c9a450",
+        "findings": [
+          {
+            "line": 205,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.source_binding._select"
+          },
+          {
+            "line": 450,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.source_binding._legacy_entry_scope"
+          },
+          {
+            "line": 547,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.source_binding._e1_receipt_scope"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/stop_contract.py": {
+        "source_sha256": "a15b8807a21fa2cc5c798b7aafd10800a28a140513f079845ac5d56b0b576a87",
+        "findings": [
+          {
+            "line": 72,
+            "code": "TB007",
+            "symbol": "<unresolved-callable>",
+            "scope": "pitchlog.sync.stop_contract.AttemptIdentity.from_mapping"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/wire_fingerprint.py": {
+        "source_sha256": "d50de0c123d8e634ce443661b12ec0b28db7fb630f4d91da0dfcf3d982ef0deb",
+        "findings": [
+          {
+            "line": 122,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+          },
+          {
+            "line": 123,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+          },
+          {
+            "line": 124,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+          },
+          {
+            "line": 125,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/wire_source.py": {
+        "source_sha256": "b9fb9b063da70a971ff806b59ee39d0f1877360262747558f2ce3a860a8ab02c",
+        "findings": [
+          {
+            "line": 91,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.wire_source.freeze_wire_source"
+          },
+          {
+            "line": 103,
+            "code": "TB007",
+            "symbol": "builtins.object.__setattr__",
+            "scope": "pitchlog.sync.wire_source.freeze_wire_source"
+          }
+        ]
+      }
+    },
   "condition_1_resolve_scoped_finding": {
     "path": "backend/src/pitchlog/repositories/transaction.py",
     "fqname": "pitchlog.repositories.transaction._assert_existing_resolution_owner",

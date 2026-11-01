@@ -182,6 +182,165 @@ FIRST_BALL_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str]]] = {
     }),
 }
 
+
+# 初球縦断の既承認な不変値/固定宣言siteだけを追加する。code/位置/記号/scopeは凍結資産が保持する。
+FIRST_BALL_CONDITION5_SCOPES: dict[str, frozenset[tuple[int, str, str, str]]] = {
+    "backend/src/pitchlog/repositories/first_ball_operations.py": frozenset({
+        (85, 'TB005', 'sqlalchemy.insert', 'pitchlog.repositories.first_ball_operations.<module>'),
+        (87, 'TB005', 'sqlalchemy.select', 'pitchlog.repositories.first_ball_operations.<module>'),
+    }),
+    "backend/src/pitchlog/repositories/first_ball_vocabulary_operations.py": frozenset({
+        (
+            21,
+            'TB005',
+            'sqlalchemy.select',
+            'pitchlog.repositories.first_ball_vocabulary_operations.<module>',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/started_read.py": frozenset({
+        (223, 'TB007', 'token_type', 'pitchlog.repositories.started_read._assemble'),
+    }),
+    "backend/src/pitchlog/repositories/started_snapshot.py": frozenset({
+        (
+            318,
+            'TB007',
+            'token_type',
+            'pitchlog.repositories.started_snapshot.read_initial_started_snapshot',
+        ),
+    }),
+    "backend/src/pitchlog/sync/control_provider/store_contract.py": frozenset({
+        (
+            34,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__',
+        ),
+        (
+            41,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__',
+        ),
+        (
+            85,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            86,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            87,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            88,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            89,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+    }),
+    "backend/src/pitchlog/sync/control_provider/writer_binding.py": frozenset({
+        (
+            262,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.control_provider.writer_binding._issue_device_presentation',
+        ),
+    }),
+    "backend/src/pitchlog/sync/first_ball_bridge.py": frozenset({
+        (
+            166,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.first_ball_bridge._bind_source_first_ball',
+        ),
+        (
+            299,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.first_ball_bridge.evaluate_first_ball_frame',
+        ),
+        (
+            332,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.first_ball_bridge.consume_first_ball_frame',
+        ),
+        (
+            361,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.first_ball_bridge._read_ready_first_ball_frame',
+        ),
+    }),
+    "backend/src/pitchlog/sync/source_binding.py": frozenset({
+        (205, 'TB007', 'builtins.object.__new__', 'pitchlog.sync.source_binding._select'),
+        (
+            450,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.source_binding._legacy_entry_scope',
+        ),
+        (547, 'TB007', 'builtins.object.__new__', 'pitchlog.sync.source_binding._e1_receipt_scope'),
+    }),
+    "backend/src/pitchlog/sync/stop_contract.py": frozenset({
+        (
+            72,
+            'TB007',
+            '<unresolved-callable>',
+            'pitchlog.sync.stop_contract.AttemptIdentity.from_mapping',
+        ),
+    }),
+    "backend/src/pitchlog/sync/wire_fingerprint.py": frozenset({
+        (
+            122,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+        (
+            123,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+        (
+            124,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+        (
+            125,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+    }),
+    "backend/src/pitchlog/sync/wire_source.py": frozenset({
+        (91, 'TB007', 'builtins.object.__new__', 'pitchlog.sync.wire_source.freeze_wire_source'),
+        (
+            103,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_source.freeze_wire_source',
+        ),
+    }),
+}
+
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
 )
@@ -333,6 +492,15 @@ class ScopedCondition2Owner:
 
 
 @dataclass(frozen=True)
+class ScopedCondition5Owner:
+    """承認された条件5 siteの完全出現と実sourceを束縛する。"""
+
+    path: str
+    source_sha256: str
+    findings: frozenset[tuple[int, str, str, str]]
+
+
+@dataclass(frozen=True)
 class ResolutionOwnershipRegistration:
     """同Sessionのcommitted再交付照合1点だけの不変登録。"""
 
@@ -362,6 +530,7 @@ class Contract:
     ledger_condition2_source_sha256: str
     rg1_condition2_owners: tuple[ScopedCondition2Owner, ...]
     first_ball_condition2_owners: tuple[ScopedCondition2Owner, ...]
+    first_ball_condition5_owners: tuple[ScopedCondition5Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
     rg1_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
@@ -1022,6 +1191,56 @@ def _load_first_ball_condition2_owners(
     return tuple(owners)
 
 
+def _load_first_ball_condition5_owners(
+    value: object,
+) -> tuple[ScopedCondition5Owner, ...]:
+    """初球縦断の条件5登録を審査済みpath/hash/出現のexact-setへ閉じる。
+
+    Args:
+        value: allowlist の ``condition_5_first_ball_scoped_findings``。
+
+    Returns:
+        固定11pathと実source SHA・出現集合を持つ所有者。
+
+    Raises:
+        ContractError: path・SHA・出現が固定投影と一致しない場合。
+    """
+    location = "allowlist.condition_5_first_ball_scoped_findings"
+    scopes = _object(value, location)
+    _strict_keys(scopes, frozenset(FIRST_BALL_CONDITION5_SCOPES), location)
+    owners: list[ScopedCondition5Owner] = []
+    for full_path in sorted(FIRST_BALL_CONDITION5_SCOPES):
+        entry = _object(scopes[full_path], f"{location}.{full_path}")
+        _strict_keys(entry, {"source_sha256", "findings"}, location)
+        digest = _string(entry["source_sha256"], f"{location}.{full_path}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("初球条件5登録には実source SHA-256が必要")
+        findings: set[tuple[int, str, str, str]] = set()
+        for raw in _array(entry["findings"], location):
+            finding = _object(raw, location)
+            _strict_keys(finding, {"line", "code", "symbol", "scope"}, location)
+            line = _integer(finding["line"], location)
+            code = _string(finding["code"], location)
+            symbol = _string(finding["symbol"], location)
+            scope = _string(finding["scope"], location)
+            identity = (line, code, symbol, scope)
+            if (
+                line < 1
+                or code not in {"TB005", "TB007"}
+                or not symbol
+                or not scope
+                or identity in findings
+            ):
+                raise ContractError("初球条件5登録は条件5の一意な完全出現が必要")
+            findings.add(identity)
+        if frozenset(findings) != FIRST_BALL_CONDITION5_SCOPES[full_path]:
+            raise ContractError(
+                "初球条件5登録は審査済み11path/27出現のexact-setが必要"
+            )
+        owners.append(ScopedCondition5Owner(full_path, digest, frozenset(findings)))
+    return tuple(owners)
+
+
 def _load_allowlist(
     value: dict[str, Any], inventory_bytes: bytes, apis: tuple[ApiSpec, ...]
 ) -> tuple[
@@ -1035,6 +1254,7 @@ def _load_allowlist(
     str,
     tuple[ScopedCondition2Owner, ...],
     tuple[ScopedCondition2Owner, ...],
+    tuple[ScopedCondition5Owner, ...],
     tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
     tuple[str, ...],
@@ -1055,6 +1275,7 @@ def _load_allowlist(
             "condition_2_ledger_scoped_findings",
             "condition_2_rg1_scoped_findings",
             "condition_2_first_ball_scoped_findings",
+            "condition_5_first_ball_scoped_findings",
             "condition_1_resolve_scoped_finding",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
@@ -1334,6 +1555,9 @@ def _load_allowlist(
         tuple(rg1_owners),
         _load_first_ball_condition2_owners(
             value["condition_2_first_ball_scoped_findings"]
+        ),
+        _load_first_ball_condition5_owners(
+            value["condition_5_first_ball_scoped_findings"]
         ),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
@@ -1932,6 +2156,7 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_source_sha256,
         rg1_condition2_owners,
         first_ball_condition2_owners,
+        first_ball_condition5_owners,
         ledger_deployment_assets,
         rg1_deployment_assets,
         diff_command,
@@ -1982,6 +2207,7 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
         rg1_condition2_owners=rg1_condition2_owners,
         first_ball_condition2_owners=first_ball_condition2_owners,
+        first_ball_condition5_owners=first_ball_condition5_owners,
         ledger_deployment_assets=ledger_deployment_assets,
         rg1_deployment_assets=rg1_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
@@ -7263,6 +7489,29 @@ def scan_source(
         item for item in violations
         if (item.line, item.code, item.symbol, item.scope) not in initial_evidence
     ]
+    condition5_owners = contract.first_ball_condition5_owners
+    # 合成Contractでも固定11path・固定出現以外の条件5免除を認めない。
+    valid_condition5_owners = (
+        len(condition5_owners) == len(FIRST_BALL_CONDITION5_SCOPES)
+        and {owner.path for owner in condition5_owners}
+        == set(FIRST_BALL_CONDITION5_SCOPES)
+        and all(
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and owner.findings == FIRST_BALL_CONDITION5_SCOPES[owner.path]
+            for owner in condition5_owners
+        )
+    )
+    for owner in condition5_owners if valid_condition5_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
+        ):
+            violations = [
+                item for item in violations
+                if (item.line, item.code, item.symbol, item.scope)
+                not in owner.findings
+            ]
     return sorted(violations)
 
 
