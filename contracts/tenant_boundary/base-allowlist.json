@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "contract_revision": 42,
-    "writer_binding_deployment_assets": {
-      "backend/src/pitchlog/sync/control_provider/sql/control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
-      "backend/src/pitchlog/sync/control_provider/sql/writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
-      "backend/src/pitchlog/sync/control_provider/sql/writer-binding-functions.sql": "69ea20ef3d2facb2c2f2eca1dff9eed52a4b967029c3c10f68cb92dde5488359",
-      "backend/src/pitchlog/sync/control_provider/sql/writer-binding-manifest.json": "5d255e0d58d93607acc0ce3115aa56b70a7e7548c888c28821ba17a941543fba"
-    },
+  "writer_binding_deployment_assets": {
+    "backend/src/pitchlog/sync/control_provider/sql/control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
+    "backend/src/pitchlog/sync/control_provider/sql/writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
+    "backend/src/pitchlog/sync/control_provider/sql/writer-binding-functions.sql": "69ea20ef3d2facb2c2f2eca1dff9eed52a4b967029c3c10f68cb92dde5488359",
+    "backend/src/pitchlog/sync/control_provider/sql/writer-binding-manifest.json": "5d255e0d58d93607acc0ce3115aa56b70a7e7548c888c28821ba17a941543fba"
+  },
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
@@ -32491,8 +32491,8 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "2dbb955b253c4c30b336698e52398838b76e73a5a8a3a688efa72098606d3ccc",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2dbb955b253c4c30b336698e52398838b76e73a5a8a3a688efa72098606d3ccc"
+                "sha256": "1e91421bdd00c5bc998dc0e799e3f86bd8153fccbcbeecf559746be2ba2fe15b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1e91421bdd00c5bc998dc0e799e3f86bd8153fccbcbeecf559746be2ba2fe15b"
               },
               {
                 "path": "scripts/frozen_archive.py",
@@ -32533,53 +32533,53 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "aeb71579ee1c58f2e8e2601c197b6abfe31e96a5df28d98c250d2954b0e7cb25",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/aeb71579ee1c58f2e8e2601c197b6abfe31e96a5df28d98c250d2954b0e7cb25"
+                "sha256": "618bb5ab83e299156e8ea71f796982b7284eca9a10103b3a37741262689f04de",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/618bb5ab83e299156e8ea71f796982b7284eca9a10103b3a37741262689f04de"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "c1b5ea9a0736000efb817d0cf7c991da3b35723ca7b2ac635d7eb464b0cdb7ca",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c1b5ea9a0736000efb817d0cf7c991da3b35723ca7b2ac635d7eb464b0cdb7ca"
+                "sha256": "d758273244fceee8194e405703cd270975da46a044db4e2bb5c942b5ed8c32c0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d758273244fceee8194e405703cd270975da46a044db4e2bb5c942b5ed8c32c0"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "131740ee59060e06b573407abb32463dd6a4c6102556129634f664e00cbd40e7",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/131740ee59060e06b573407abb32463dd6a4c6102556129634f664e00cbd40e7"
+                "sha256": "6180835b8e299826c30401b005ebbfa168d6a7b996c0bcb6e4ad5c9345cad66c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6180835b8e299826c30401b005ebbfa168d6a7b996c0bcb6e4ad5c9345cad66c"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "87cc281a1b9039bb176ba5bb31761a44da975a443ca061181c38d5aefc3d41bf",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/87cc281a1b9039bb176ba5bb31761a44da975a443ca061181c38d5aefc3d41bf"
+                "sha256": "99fda9ce9c0aa5fcbebc67a16a113b7dbc284ba967870d269b057fc0f8a6c7fd",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/99fda9ce9c0aa5fcbebc67a16a113b7dbc284ba967870d269b057fc0f8a6c7fd"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "65207143d6c7e189347dbf6011a69c8eab80020f6904a147afeaa0c07b766a4d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/65207143d6c7e189347dbf6011a69c8eab80020f6904a147afeaa0c07b766a4d"
+                "sha256": "6001571843dc7a8c32ef68fd7ea749198c94815ba5965b65501d175eccce92df",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6001571843dc7a8c32ef68fd7ea749198c94815ba5965b65501d175eccce92df"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "6303be0c16d17a3e67b6c94be0458869e4bcdbae2765864c43f948adeff34ad9",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6303be0c16d17a3e67b6c94be0458869e4bcdbae2765864c43f948adeff34ad9"
+                "sha256": "022c4eadd44a4778ec11fea758677901745551acb565dbba7a8c0ecf7b051118",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/022c4eadd44a4778ec11fea758677901745551acb565dbba7a8c0ecf7b051118"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "9d33d306d9a4a6bd2ae8b5a8a046a4d26e3a42999d8851abad332d6367917b63",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9d33d306d9a4a6bd2ae8b5a8a046a4d26e3a42999d8851abad332d6367917b63"
+                "sha256": "03f3314cf6b1243b9af3ff7d3e47edcb42b642c704318d5ebb6bc377ba385321",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/03f3314cf6b1243b9af3ff7d3e47edcb42b642c704318d5ebb6bc377ba385321"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "6f8c359e61dcaf689bf5e22a20a98295f2217a468dba9f763d4a353a7108906b",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6f8c359e61dcaf689bf5e22a20a98295f2217a468dba9f763d4a353a7108906b"
+                "sha256": "f40cb18050a2d0cbd173bbaa60204f2e65605770eec6c17eed6ab87b3c6fb2d3",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f40cb18050a2d0cbd173bbaa60204f2e65605770eec6c17eed6ab87b3c6fb2d3"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "0c4e4c2ebd4771e9099a67a90b867cd4b1737060589dc03d2809a94d7df8a691",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0c4e4c2ebd4771e9099a67a90b867cd4b1737060589dc03d2809a94d7df8a691"
+                "sha256": "1fcdcf903b05c0b47b95a2078e0dc6c9eeb757feb9759d8a6ee0033b89539612",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1fcdcf903b05c0b47b95a2078e0dc6c9eeb757feb9759d8a6ee0033b89539612"
               }
             ]
           }
         },
-        "movement_fact": "実develop c2e5e4ddの正式33prefixを保持し、固定候補7a9e1c0d75ccfeaecd60107bdece7d3f2ed84366の宣言/移動規則/外部source/asset値の4面を単一189 v2記録へ導出。各影響識別値は同base+1の一回分だけ進め、独立レビューと実CIは別証拠で照合する。",
+        "movement_fact": "実develop c2e5e4ddの正式33prefixを保持し、固定候補d7e6799034724df3617a2a76f13fde275d5270a6の宣言/移動規則/外部source/asset値の4面を単一189 v2記録へ導出。各影響識別値は同base+1の一回分だけ進め、独立レビューと実CIは別証拠で照合する。",
         "reason": "採用済み初球・試合作成・球種供給を正式開始/記録権/同期保存へ接合し、実登録36CAP/64token/9関数・私有3表/12関数の保護・旧builder7件を全前後値で反映する。既認可/冪等性/原子性/未知拒否と旧正式履歴を保持。通常統合の型/試験補助/限定189委任carry/CI接続を実sourceへ束縛し、候補成功と正式統合・実機・全MVP受入を分離する。",
         "approved_by": "PO委任によるCodex主担当 /root 判断（本人直接確認・署名の代記ではない）",
         "approved_on": "2026-11-01"
@@ -33523,521 +33523,521 @@
       ]
     }
   },
-    "condition_2_first_ball_scoped_findings": {
-      "backend/src/pitchlog/repositories/first_ball.py": {
-        "source_sha256": "9fd2cc714c48c06466e2f13505f33ca711584b3de412de5fbacf70be68ef242d",
-        "findings": [
-          {
-            "line": 43,
-            "symbol": "int"
-          },
-          {
-            "line": 44,
-            "symbol": "int"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/first_ball_operations.py": {
-        "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
-        "findings": [
-          {
-            "line": 14,
-            "symbol": "IdempotencyLedger"
-          },
-          {
-            "line": 26,
-            "symbol": "IdempotencyLedgerReadToken"
-          },
-          {
-            "line": 31,
-            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger"
-          },
-          {
-            "line": 31,
-            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys"
-          },
-          {
-            "line": 137,
-            "symbol": "pitchlog.repositories.tokens.TenantOperationToken.generation"
-          },
-          {
-            "line": 138,
-            "symbol": "pitchlog.repositories.tokens.TenantOperationToken.generation"
-          },
-          {
-            "line": 239,
-            "symbol": "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation"
-          },
-          {
-            "line": 279,
-            "symbol": "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation"
-          },
-          {
-            "line": 280,
-            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/recorded_snapshot.py": {
-        "source_sha256": "6f757e98f4a6e709c3586d24d859a5fdd9d7d722a97a8150c348482ff22c3f9b",
-        "findings": [
-          {
-            "line": 20,
-            "symbol": "IdempotencyLedger"
-          },
-          {
-            "line": 64,
-            "symbol": "_GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 73,
-            "symbol": "IdempotencyLedgerReadToken"
-          },
-          {
-            "line": 73,
-            "symbol": "RecordingGenerationLockToken"
-          },
-          {
-            "line": 73,
-            "symbol": "RecordingGenerationReadToken"
-          },
-          {
-            "line": 110,
-            "symbol": "int"
-          },
-          {
-            "line": 246,
-            "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 246,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
-          },
-          {
-            "line": 248,
-            "symbol": "int"
-          },
-          {
-            "line": 249,
-            "symbol": "locked_generation"
-          },
-          {
-            "line": 250,
-            "symbol": "int"
-          },
-          {
-            "line": 250,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken"
-          },
-          {
-            "line": 251,
-            "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 253,
-            "symbol": "locked_generation"
-          },
-          {
-            "line": 280,
-            "symbol": "generation"
-          },
-          {
-            "line": 280,
-            "symbol": "int"
-          },
-          {
-            "line": 284,
-            "symbol": "is_tombstone"
-          },
-          {
-            "line": 290,
-            "symbol": "target_generation"
-          },
-          {
-            "line": 303,
-            "symbol": "generation"
-          },
-          {
-            "line": 303,
-            "symbol": "int"
-          },
-          {
-            "line": 326,
-            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken"
-          },
-          {
-            "line": 327,
-            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger"
-          },
-          {
-            "line": 327,
-            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys"
-          },
-          {
-            "line": 438,
-            "symbol": "int"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/started_read.py": {
-        "source_sha256": "6cc8bf42c95ec2979fb17619497be9062e156162885de1d57bb08e1ae640b3e0",
-        "findings": [
-          {
-            "line": 41,
-            "symbol": "_GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 46,
-            "symbol": "RecordingGenerationLockToken"
-          },
-          {
-            "line": 46,
-            "symbol": "RecordingGenerationReadToken"
-          },
-          {
-            "line": 206,
-            "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 206,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
-          },
-          {
-            "line": 211,
-            "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 211,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken"
-          },
-          {
-            "line": 236,
-            "symbol": "candidate.generation"
-          },
-          {
-            "line": 264,
-            "symbol": "candidate.generation"
-          },
-          {
-            "line": 296,
-            "symbol": "snapshot.generation"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/started_snapshot.py": {
-        "source_sha256": "4a73c3eb4a84cf1a69842c9a84b5a4c8d3c8cd033e7c85a8ef22cdb72fc941e9",
-        "findings": [
-          {
-            "line": 34,
-            "symbol": "_GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 37,
-            "symbol": "RecordingGenerationLockToken"
-          },
-          {
-            "line": 37,
-            "symbol": "RecordingGenerationReadToken"
-          },
-          {
-            "line": 77,
-            "symbol": "dict"
-          },
-          {
-            "line": 257,
-            "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 257,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
-          },
-          {
-            "line": 259,
-            "symbol": "dict"
-          },
-          {
-            "line": 260,
-            "symbol": "dict"
-          },
-          {
-            "line": 262,
-            "symbol": "dict"
-          },
-          {
-            "line": 263,
-            "symbol": "dict"
-          },
-          {
-            "line": 263,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken"
-          },
-          {
-            "line": 264,
-            "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
-          },
-          {
-            "line": 267,
-            "symbol": "dict"
-          },
-          {
-            "line": 351,
-            "symbol": "dict"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/transaction.py": {
-        "source_sha256": "e3445354c924c302357708c3775888ca65ec4950905c7309c3e49458151a24a5",
-        "findings": [
-          {
-            "line": 1069,
-            "symbol": "RecordingGenerationByNumberReadToken"
-          },
-          {
-            "line": 1069,
-            "symbol": "RecordingGenerationReadToken"
-          },
-          {
-            "line": 1081,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken"
-          },
-          {
-            "line": 1081,
-            "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
-          },
-          {
-            "line": 1309,
-            "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation"
-          },
-          {
-            "line": 1310,
-            "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation"
-          },
-          {
-            "line": 1322,
-            "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation"
-          }
-        ]
-      }
+  "condition_2_first_ball_scoped_findings": {
+    "backend/src/pitchlog/repositories/first_ball.py": {
+      "source_sha256": "9fd2cc714c48c06466e2f13505f33ca711584b3de412de5fbacf70be68ef242d",
+      "findings": [
+        {
+          "line": 43,
+          "symbol": "int"
+        },
+        {
+          "line": 44,
+          "symbol": "int"
+        }
+      ]
     },
-    "condition_5_first_ball_scoped_findings": {
-      "backend/src/pitchlog/repositories/first_ball_operations.py": {
-        "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
-        "findings": [
-          {
-            "line": 85,
-            "code": "TB005",
-            "symbol": "sqlalchemy.insert",
-            "scope": "pitchlog.repositories.first_ball_operations.<module>"
-          },
-          {
-            "line": 87,
-            "code": "TB005",
-            "symbol": "sqlalchemy.select",
-            "scope": "pitchlog.repositories.first_ball_operations.<module>"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/first_ball_vocabulary_operations.py": {
-        "source_sha256": "d2dafb7041649126c631ca36f64816c0c17a0479a80bc24990d668cd65a3c4ab",
-        "findings": [
-          {
-            "line": 21,
-            "code": "TB005",
-            "symbol": "sqlalchemy.select",
-            "scope": "pitchlog.repositories.first_ball_vocabulary_operations.<module>"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/started_read.py": {
-        "source_sha256": "6cc8bf42c95ec2979fb17619497be9062e156162885de1d57bb08e1ae640b3e0",
-        "findings": [
-          {
-            "line": 223,
-            "code": "TB007",
-            "symbol": "token_type",
-            "scope": "pitchlog.repositories.started_read._assemble"
-          }
-        ]
-      },
-      "backend/src/pitchlog/repositories/started_snapshot.py": {
-        "source_sha256": "4a73c3eb4a84cf1a69842c9a84b5a4c8d3c8cd033e7c85a8ef22cdb72fc941e9",
-        "findings": [
-          {
-            "line": 318,
-            "code": "TB007",
-            "symbol": "token_type",
-            "scope": "pitchlog.repositories.started_snapshot.read_initial_started_snapshot"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/control_provider/store_contract.py": {
-        "source_sha256": "1eef0a645f71696ea6a8c563552d33738f6d495dbc5db784c12b3632063ea238",
-        "findings": [
-          {
-            "line": 34,
-            "code": "TB007",
-            "symbol": "dataclasses.replace",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__"
-          },
-          {
-            "line": 41,
-            "code": "TB007",
-            "symbol": "dataclasses.replace",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__"
-          },
-          {
-            "line": 85,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
-          },
-          {
-            "line": 86,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
-          },
-          {
-            "line": 87,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
-          },
-          {
-            "line": 88,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
-          },
-          {
-            "line": 89,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/control_provider/writer_binding.py": {
-        "source_sha256": "0081f406a90a1cdfe4afbbbd6d4adf1f7190f341bcbc493481f15c6a1ab8134f",
-        "findings": [
-          {
-            "line": 262,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.control_provider.writer_binding._issue_device_presentation"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/first_ball_bridge.py": {
-        "source_sha256": "cc45734284dab5b1fe96f4931b7d73fb67b0c4f6a71dc1389e6b7eeeb8788948",
-        "findings": [
-          {
-            "line": 166,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.first_ball_bridge._bind_source_first_ball"
-          },
-          {
-            "line": 299,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.first_ball_bridge.evaluate_first_ball_frame"
-          },
-          {
-            "line": 332,
-            "code": "TB007",
-            "symbol": "dataclasses.replace",
-            "scope": "pitchlog.sync.first_ball_bridge.consume_first_ball_frame"
-          },
-          {
-            "line": 361,
-            "code": "TB007",
-            "symbol": "dataclasses.replace",
-            "scope": "pitchlog.sync.first_ball_bridge._read_ready_first_ball_frame"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/source_binding.py": {
-        "source_sha256": "25e3124a354420bd1543661064e693d359bf0b61bb67df5ede75ca08f7c9a450",
-        "findings": [
-          {
-            "line": 205,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.source_binding._select"
-          },
-          {
-            "line": 450,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.source_binding._legacy_entry_scope"
-          },
-          {
-            "line": 547,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.source_binding._e1_receipt_scope"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/stop_contract.py": {
-        "source_sha256": "a15b8807a21fa2cc5c798b7aafd10800a28a140513f079845ac5d56b0b576a87",
-        "findings": [
-          {
-            "line": 72,
-            "code": "TB007",
-            "symbol": "<unresolved-callable>",
-            "scope": "pitchlog.sync.stop_contract.AttemptIdentity.from_mapping"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/wire_fingerprint.py": {
-        "source_sha256": "d50de0c123d8e634ce443661b12ec0b28db7fb630f4d91da0dfcf3d982ef0deb",
-        "findings": [
-          {
-            "line": 122,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
-          },
-          {
-            "line": 123,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
-          },
-          {
-            "line": 124,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
-          },
-          {
-            "line": 125,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
-          }
-        ]
-      },
-      "backend/src/pitchlog/sync/wire_source.py": {
-        "source_sha256": "b9fb9b063da70a971ff806b59ee39d0f1877360262747558f2ce3a860a8ab02c",
-        "findings": [
-          {
-            "line": 91,
-            "code": "TB007",
-            "symbol": "builtins.object.__new__",
-            "scope": "pitchlog.sync.wire_source.freeze_wire_source"
-          },
-          {
-            "line": 103,
-            "code": "TB007",
-            "symbol": "builtins.object.__setattr__",
-            "scope": "pitchlog.sync.wire_source.freeze_wire_source"
-          }
-        ]
-      }
+    "backend/src/pitchlog/repositories/first_ball_operations.py": {
+      "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
+      "findings": [
+        {
+          "line": 14,
+          "symbol": "IdempotencyLedger"
+        },
+        {
+          "line": 26,
+          "symbol": "IdempotencyLedgerReadToken"
+        },
+        {
+          "line": 31,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger"
+        },
+        {
+          "line": 31,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys"
+        },
+        {
+          "line": 137,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.generation"
+        },
+        {
+          "line": 138,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.generation"
+        },
+        {
+          "line": 239,
+          "symbol": "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation"
+        },
+        {
+          "line": 279,
+          "symbol": "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation"
+        },
+        {
+          "line": 280,
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken"
+        }
+      ]
     },
+    "backend/src/pitchlog/repositories/recorded_snapshot.py": {
+      "source_sha256": "6f757e98f4a6e709c3586d24d859a5fdd9d7d722a97a8150c348482ff22c3f9b",
+      "findings": [
+        {
+          "line": 20,
+          "symbol": "IdempotencyLedger"
+        },
+        {
+          "line": 64,
+          "symbol": "_GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 73,
+          "symbol": "IdempotencyLedgerReadToken"
+        },
+        {
+          "line": 73,
+          "symbol": "RecordingGenerationLockToken"
+        },
+        {
+          "line": 73,
+          "symbol": "RecordingGenerationReadToken"
+        },
+        {
+          "line": 110,
+          "symbol": "int"
+        },
+        {
+          "line": 246,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 246,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
+        },
+        {
+          "line": 248,
+          "symbol": "int"
+        },
+        {
+          "line": 249,
+          "symbol": "locked_generation"
+        },
+        {
+          "line": 250,
+          "symbol": "int"
+        },
+        {
+          "line": 250,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken"
+        },
+        {
+          "line": 251,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 253,
+          "symbol": "locked_generation"
+        },
+        {
+          "line": 280,
+          "symbol": "generation"
+        },
+        {
+          "line": 280,
+          "symbol": "int"
+        },
+        {
+          "line": 284,
+          "symbol": "is_tombstone"
+        },
+        {
+          "line": 290,
+          "symbol": "target_generation"
+        },
+        {
+          "line": 303,
+          "symbol": "generation"
+        },
+        {
+          "line": 303,
+          "symbol": "int"
+        },
+        {
+          "line": 326,
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken"
+        },
+        {
+          "line": 327,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger"
+        },
+        {
+          "line": 327,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys"
+        },
+        {
+          "line": 438,
+          "symbol": "int"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/started_read.py": {
+      "source_sha256": "6cc8bf42c95ec2979fb17619497be9062e156162885de1d57bb08e1ae640b3e0",
+      "findings": [
+        {
+          "line": 41,
+          "symbol": "_GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 46,
+          "symbol": "RecordingGenerationLockToken"
+        },
+        {
+          "line": 46,
+          "symbol": "RecordingGenerationReadToken"
+        },
+        {
+          "line": 206,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 206,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
+        },
+        {
+          "line": 211,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 211,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken"
+        },
+        {
+          "line": 236,
+          "symbol": "candidate.generation"
+        },
+        {
+          "line": 264,
+          "symbol": "candidate.generation"
+        },
+        {
+          "line": 296,
+          "symbol": "snapshot.generation"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/started_snapshot.py": {
+      "source_sha256": "4a73c3eb4a84cf1a69842c9a84b5a4c8d3c8cd033e7c85a8ef22cdb72fc941e9",
+      "findings": [
+        {
+          "line": 34,
+          "symbol": "_GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 37,
+          "symbol": "RecordingGenerationLockToken"
+        },
+        {
+          "line": 37,
+          "symbol": "RecordingGenerationReadToken"
+        },
+        {
+          "line": 77,
+          "symbol": "dict"
+        },
+        {
+          "line": 257,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 257,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
+        },
+        {
+          "line": 259,
+          "symbol": "dict"
+        },
+        {
+          "line": 260,
+          "symbol": "dict"
+        },
+        {
+          "line": 262,
+          "symbol": "dict"
+        },
+        {
+          "line": 263,
+          "symbol": "dict"
+        },
+        {
+          "line": 263,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken"
+        },
+        {
+          "line": 264,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS"
+        },
+        {
+          "line": 267,
+          "symbol": "dict"
+        },
+        {
+          "line": 351,
+          "symbol": "dict"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/transaction.py": {
+      "source_sha256": "e3445354c924c302357708c3775888ca65ec4950905c7309c3e49458151a24a5",
+      "findings": [
+        {
+          "line": 1069,
+          "symbol": "RecordingGenerationByNumberReadToken"
+        },
+        {
+          "line": 1069,
+          "symbol": "RecordingGenerationReadToken"
+        },
+        {
+          "line": 1081,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken"
+        },
+        {
+          "line": 1081,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken"
+        },
+        {
+          "line": 1309,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation"
+        },
+        {
+          "line": 1310,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation"
+        },
+        {
+          "line": 1322,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation"
+        }
+      ]
+    }
+  },
+  "condition_5_first_ball_scoped_findings": {
+    "backend/src/pitchlog/repositories/first_ball_operations.py": {
+      "source_sha256": "a853e611dc611ce59867ee6acf446c85ebbabba368b3554ed3ea833f8803c587",
+      "findings": [
+        {
+          "line": 85,
+          "code": "TB005",
+          "symbol": "sqlalchemy.insert",
+          "scope": "pitchlog.repositories.first_ball_operations.<module>"
+        },
+        {
+          "line": 87,
+          "code": "TB005",
+          "symbol": "sqlalchemy.select",
+          "scope": "pitchlog.repositories.first_ball_operations.<module>"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/first_ball_vocabulary_operations.py": {
+      "source_sha256": "d2dafb7041649126c631ca36f64816c0c17a0479a80bc24990d668cd65a3c4ab",
+      "findings": [
+        {
+          "line": 21,
+          "code": "TB005",
+          "symbol": "sqlalchemy.select",
+          "scope": "pitchlog.repositories.first_ball_vocabulary_operations.<module>"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/started_read.py": {
+      "source_sha256": "6cc8bf42c95ec2979fb17619497be9062e156162885de1d57bb08e1ae640b3e0",
+      "findings": [
+        {
+          "line": 223,
+          "code": "TB007",
+          "symbol": "token_type",
+          "scope": "pitchlog.repositories.started_read._assemble"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/started_snapshot.py": {
+      "source_sha256": "4a73c3eb4a84cf1a69842c9a84b5a4c8d3c8cd033e7c85a8ef22cdb72fc941e9",
+      "findings": [
+        {
+          "line": 318,
+          "code": "TB007",
+          "symbol": "token_type",
+          "scope": "pitchlog.repositories.started_snapshot.read_initial_started_snapshot"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/control_provider/store_contract.py": {
+      "source_sha256": "1eef0a645f71696ea6a8c563552d33738f6d495dbc5db784c12b3632063ea238",
+      "findings": [
+        {
+          "line": 34,
+          "code": "TB007",
+          "symbol": "dataclasses.replace",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__"
+        },
+        {
+          "line": 41,
+          "code": "TB007",
+          "symbol": "dataclasses.replace",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__"
+        },
+        {
+          "line": 85,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+        },
+        {
+          "line": 86,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+        },
+        {
+          "line": 87,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+        },
+        {
+          "line": 88,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+        },
+        {
+          "line": 89,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/control_provider/writer_binding.py": {
+      "source_sha256": "0081f406a90a1cdfe4afbbbd6d4adf1f7190f341bcbc493481f15c6a1ab8134f",
+      "findings": [
+        {
+          "line": 262,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.control_provider.writer_binding._issue_device_presentation"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/first_ball_bridge.py": {
+      "source_sha256": "cc45734284dab5b1fe96f4931b7d73fb67b0c4f6a71dc1389e6b7eeeb8788948",
+      "findings": [
+        {
+          "line": 166,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.first_ball_bridge._bind_source_first_ball"
+        },
+        {
+          "line": 299,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.first_ball_bridge.evaluate_first_ball_frame"
+        },
+        {
+          "line": 332,
+          "code": "TB007",
+          "symbol": "dataclasses.replace",
+          "scope": "pitchlog.sync.first_ball_bridge.consume_first_ball_frame"
+        },
+        {
+          "line": 361,
+          "code": "TB007",
+          "symbol": "dataclasses.replace",
+          "scope": "pitchlog.sync.first_ball_bridge._read_ready_first_ball_frame"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/source_binding.py": {
+      "source_sha256": "25e3124a354420bd1543661064e693d359bf0b61bb67df5ede75ca08f7c9a450",
+      "findings": [
+        {
+          "line": 205,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.source_binding._select"
+        },
+        {
+          "line": 450,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.source_binding._legacy_entry_scope"
+        },
+        {
+          "line": 547,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.source_binding._e1_receipt_scope"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/stop_contract.py": {
+      "source_sha256": "a15b8807a21fa2cc5c798b7aafd10800a28a140513f079845ac5d56b0b576a87",
+      "findings": [
+        {
+          "line": 72,
+          "code": "TB007",
+          "symbol": "<unresolved-callable>",
+          "scope": "pitchlog.sync.stop_contract.AttemptIdentity.from_mapping"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/wire_fingerprint.py": {
+      "source_sha256": "d50de0c123d8e634ce443661b12ec0b28db7fb630f4d91da0dfcf3d982ef0deb",
+      "findings": [
+        {
+          "line": 122,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+        },
+        {
+          "line": 123,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+        },
+        {
+          "line": 124,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+        },
+        {
+          "line": 125,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/wire_source.py": {
+      "source_sha256": "b9fb9b063da70a971ff806b59ee39d0f1877360262747558f2ce3a860a8ab02c",
+      "findings": [
+        {
+          "line": 91,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.wire_source.freeze_wire_source"
+        },
+        {
+          "line": 103,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.sync.wire_source.freeze_wire_source"
+        }
+      ]
+    }
+  },
   "condition_1_resolve_scoped_finding": {
     "path": "backend/src/pitchlog/repositories/transaction.py",
     "fqname": "pitchlog.repositories.transaction._assert_existing_resolution_owner",
