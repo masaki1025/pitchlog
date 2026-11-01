@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 02:10 JST（census全緑・受理record再導出・#189 merge準備）
+
+- **census緑化**: `tests/test_census_baseline_check.py` **211件全成功**（起点は17失敗）。要因は(a)宣言へ初球条件2登録を説明源として接続（`_validated_first_ball_condition2_identities`＋anchor短綴り用`_first_ball_registration_explains`＋独立列挙と実scannerのsymbol差を(path,行,code)控除で吸収）、(b)`implementation_field_inventory`へ`declared_relaxations`10 field追加、(c)stale pinの実測追随（`ledger_removed_checker` digest、`pure_helper_references` broker site 1468-1477、initial population総数70・TB002 48/TB005 18）。`bb97edf5`。
+- **受理record再導出**: `prepare-final-acceptance-r3.py`（r2の6ff固定assertを「旧33prefix一致＋末尾単一#189 v2 record」へ置換）で`bb97edf5`から導出（9資産/23出力/12差分）。適用＋孤立snapshot10件を`(HEAD−base)−referenced`差分として削除。`debe29da`。
+- **実測**: tenant必須検査 ok（0件）、`check_frozen_baselines --invariants-only` OK、census 211成功、ruff/ty成功。
+- **固定点/次**: HEAD`debe29da`（未push、#189 remoteは`ad6588b1`）。次はtenant/census合同再実行→root全suite・backend非DB・frontend→非作者最終review（C〜H未review）→委任証拠（policy targetsへ#189、`authority_sha256`/`head`/`diff_sha256`/`paths`）→PR本文`PO-DELEGATION-EVIDENCE:`→**push 1回**→必須12チェック→Draft解除→#189 merge。その後#190→#191→#192。
+
+
 ## 続き：2026-11-02 00:55 JST（census残10件の切り分け・pin更新は保留）
 
 - **診断**: `~/.cache/pitchlog/pr189-integration-20261101/census-diag-20261102.py`で`_declared_anchor_checker`→`_compare_checker_census`→`_checker_census`を一括実行し、added/removed/currentと各scoped digestを1回で出力できるようにした（約90秒/回）。
