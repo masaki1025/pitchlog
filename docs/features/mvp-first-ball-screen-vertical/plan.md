@@ -270,3 +270,12 @@ validatorはmanifestの自己申告を信じず、**実SQL本文から**`CREATE 
 束縛先`ci_scope_proof_source_revision`は、両ファイルの現行byteが既に揃っている既存祖先`d141fa70a85d85c01fdbb6ddd1956e3f9ba01525`へ移す。新しい自己参照commitを作らず、レビュー済みの既存状態へ束縛する。`_INITIAL_POPULATION_POLICY`はbaseline側scanにも適用されるため、policy・revision・受理record・snapshot/corpusは同一の確定単位で一括移動し、途中状態で部分更新しない（部分更新はbaseline側の免除を外し、既存違反として差し引かれる偽の減少を生む）。
 
 この移動でtenant必須検査は0件、tenant試験は733件全成功。ただし正式9資産の受理record・snapshot・corpusは別途公式helperで一括再導出し、非作者レビューと必須CIを経るまで統合済みとは扱わない。
+
+
+### 不変値構築のTB007緩和宣言H（2026-11-01、PO判断）
+
+census述語`removed_tb007_matches_declared_relaxations`は、減分TB007を「発行入口constructor」「固定登録statement初期化」の2緩和だけで説明できることしか許さない。本PRの残TB007のうち、封印値の`object.__new__`、frozen dataclassの`object.__setattr__`、検証用`dataclasses.replace`、read tokenの`token_type`構築、`cast(Any, cls)(**fields)`はどちらにも該当せず、tenant免除を維持したままではcensusが赤になる。
+
+PO判断により、`census-baseline.json`の当該述語へ第3の緩和種別`immutable_value_construction`を正式宣言する。宣言は`kind`・`allowed_symbols`（`builtins.object.__new__`/`builtins.object.__setattr__`/`dataclasses.replace`/`token_type`/`<unresolved-callable>`の5つに閉じる）・`sites`（path/line/end_line/scope/code/symbol/messageの完全一致22件）を持つ。test側`_declared_relaxation_identities`は宣言の形・symbol閉集合・site重複を検査し、`declared <= removed`（宣言済み緩和が実減分に無い場合は拒否）を要求する。宣言外のTB007は従来どおり発行入口/固定登録の説明を要する。
+
+範囲は`contracts/tenant_boundary/census-baseline.json`と`tests/test_census_baseline_check.py`のexact2。tenant検査条件・`_INITIAL_POPULATION_POLICY`・`FIRST_BALL_CONDITION5_SCOPES`・製品sourceは変更しない。`first_ball_bridge.py`の332/361はanchor censusに存在しないため宣言へ含めない（実減分との完全一致を優先）。本宣言はsecurity policyの変更であり、docゲートと非作者reviewを要する。censusの他pin（ledger限定identity等）は別途再導出する。
