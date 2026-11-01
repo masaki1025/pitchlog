@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 00:55 JST（census残10件の切り分け・pin更新は保留）
+
+- **診断**: `~/.cache/pitchlog/pr189-integration-20261101/census-diag-20261102.py`で`_declared_anchor_checker`→`_compare_checker_census`→`_checker_census`を一括実行し、added/removed/currentと各scoped digestを1回で出力できるようにした（約90秒/回）。
+- **分かったこと**: `removed`は本PRの24件だけでなく、anchor（`b4ae7394`）から現行checkerへの進化で消えた多数のTB007（port_guard/prefix_path/rejection/wire_original等）を含む。`removed_tb007_matches_declared_relaxations`は今回の22件宣言＋既存説明で**通過**するようになった。addedはTB002 13件のみで許容集合内。
+- **残る矛盾（保留理由）**: `ledger_removed_checker`のdigestは、`census_predicate_context`経由（`test_measured_suppression_predicate_accepts_actual_a2_census`）では**固定値`0bb7d021…`と一致して成功**する一方、`_run_declared_census_check_core`経由（`test_checker_census_matches_declared_anchor`）では**実測`cc9e8a25…`で不一致**になる。同一keyで2経路の実測が異なるため、**どちらのpinを更新すべきか決める前に経路差（anchor materialize先/`source_root`の差）を特定する必要がある**。当て推量でpinを書き換えると成功中のtestを壊すため、更新は保留した。
+- **固定点**: HEAD`d86fac9e`（未push）。census 17→10失敗、tenant0・tenant試験728成功・ruff/ty成功は維持。次は(a)上記2経路差の特定→pin再導出、(b) `c073dfbc`以降のtenant受理record再導出、(c) 全suite再実行、(d) 非作者review、(e) 委任証拠→一回push→必須CI。
+
+
 ## 続き：2026-11-02 00:20 JST（TB007緩和を正式宣言、census 17→10失敗）
 
 - **PO判断**: 「不変値構築」をcensusの第3緩和種別として正式宣言（前節の選択肢a）。計画追補`d86fac9e`。
