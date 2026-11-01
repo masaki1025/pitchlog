@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 07:40 JST（統合枝の既存赤 18→8件、#189固有ゲートは緑のまま）
+
+- **削減**: 統合枝が持ち込んだ無関係な既存赤を **18→8件** へ。develop(c2e5e4dd)では全て成功する回帰。
+  - `test_core_guard.py` **624件全緑**: `.claude/core-areas.json` の sync-protocol へ7path登録、`scripts/core_guard.py` に `FIRST_BALL_WRITER_BINDING_CORE_ADDITIONS` と6状態の順序を宣言、test側の層/順序/遷移集合（19遷移）・件数（38追加）・parametrize（層ごとの最小順序）を追随。`54ab1dae`
+  - `test_state_transition_normalization.py` **9件緑**: case総数364→365、消えたcase id `ST-MATRIX-07c1f26a645dae53`→`ST-MATRIX-d9d9eed7a690d48d`。`17763a86`
+  - 認可3検査（failure-injection/mcdc/shared-preconditions）と corpus digest、契約資産数は前段で修正済み。
+- **残8件**: `test_state_transition_contract_schema`3（新matrix行が`precondition.op="in"`を導入し、`_coordinate`の`eq`前提・history expansion比較・changed件数71→72が追随要）、`test_orm_acceptance_sheets`3（judgment持ち越し）、`tests/domain/test_collect_fe`2（新Vue入口8件の静的解決）。
+- **#189固有**: tenant0・census211・frozen archive65・invariants OK・ruff/ty OKを維持。独立レビューP0=0/P1=2/P2=6のうちP1-1/P1-2とP2-1〜4を反映済み。
+- **固定点**: HEAD`17763a86`（未push、#189 remoteは`ad6588b1`）。
+
+
 ## 続き：2026-11-02 05:10 JST（#189固有ゲート緑・統合枝の無関係な既存赤13件が残る）
 
 - **#189固有のゲートは緑**: tenant必須検査0件、census 211成功、frozen archive 65成功、`check_frozen_baselines --invariants-only` OK、ruff/ty OK。独立レビュー（別エージェント）は**P0=0/P1=2/P2=6**。
