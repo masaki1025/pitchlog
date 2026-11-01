@@ -124,7 +124,217 @@
         "set": "removed",
         "code": "TB007",
         "quantifier": "every",
-        "requirement": "matches_declared_relaxation"
+        "requirement": "matches_declared_relaxation",
+        "declared_relaxations": {
+          "kind": "immutable_value_construction",
+          "allowed_symbols": [
+            "builtins.object.__new__",
+            "builtins.object.__setattr__",
+            "dataclasses.replace",
+            "token_type",
+            "<unresolved-callable>"
+          ],
+          "sites": [
+            {
+              "path": "pitchlog/repositories/started_read.py",
+              "line": 223,
+              "end_line": 223,
+              "scope": "pitchlog.repositories.started_read._assemble",
+              "code": "TB007",
+              "symbol": "token_type",
+              "message": "由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否"
+            },
+            {
+              "path": "pitchlog/repositories/started_snapshot.py",
+              "line": 318,
+              "end_line": 318,
+              "scope": "pitchlog.repositories.started_snapshot.read_initial_started_snapshot",
+              "code": "TB007",
+              "symbol": "token_type",
+              "message": "由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 34,
+              "end_line": 34,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__",
+              "code": "TB007",
+              "symbol": "dataclasses.replace",
+              "message": "dataclasses.replace による TenantContext 複製迂回は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 41,
+              "end_line": 41,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__",
+              "code": "TB007",
+              "symbol": "dataclasses.replace",
+              "message": "dataclasses.replace による TenantContext 複製迂回は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 85,
+              "end_line": 85,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 86,
+              "end_line": 86,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 87,
+              "end_line": 87,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 88,
+              "end_line": 88,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/store_contract.py",
+              "line": 89,
+              "end_line": 89,
+              "scope": "pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/control_provider/writer_binding.py",
+              "line": 262,
+              "end_line": 262,
+              "scope": "pitchlog.sync.control_provider.writer_binding._issue_device_presentation",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/first_ball_bridge.py",
+              "line": 166,
+              "end_line": 166,
+              "scope": "pitchlog.sync.first_ball_bridge._bind_source_first_ball",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/first_ball_bridge.py",
+              "line": 299,
+              "end_line": 299,
+              "scope": "pitchlog.sync.first_ball_bridge.evaluate_first_ball_frame",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/source_binding.py",
+              "line": 205,
+              "end_line": 205,
+              "scope": "pitchlog.sync.source_binding._select",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/source_binding.py",
+              "line": 450,
+              "end_line": 450,
+              "scope": "pitchlog.sync.source_binding._legacy_entry_scope",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/source_binding.py",
+              "line": 547,
+              "end_line": 547,
+              "scope": "pitchlog.sync.source_binding._e1_receipt_scope",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/stop_contract.py",
+              "line": 72,
+              "end_line": 72,
+              "scope": "pitchlog.sync.stop_contract.AttemptIdentity.from_mapping",
+              "code": "TB007",
+              "symbol": "<unresolved-callable>",
+              "message": "由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否"
+            },
+            {
+              "path": "pitchlog/sync/wire_fingerprint.py",
+              "line": 122,
+              "end_line": 122,
+              "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/wire_fingerprint.py",
+              "line": 123,
+              "end_line": 123,
+              "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/wire_fingerprint.py",
+              "line": 124,
+              "end_line": 124,
+              "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/wire_fingerprint.py",
+              "line": 125,
+              "end_line": 125,
+              "scope": "pitchlog.sync.wire_fingerprint.freeze_wire_event",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            },
+            {
+              "path": "pitchlog/sync/wire_source.py",
+              "line": 91,
+              "end_line": 91,
+              "scope": "pitchlog.sync.wire_source.freeze_wire_source",
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+            },
+            {
+              "path": "pitchlog/sync/wire_source.py",
+              "line": 103,
+              "end_line": 103,
+              "scope": "pitchlog.sync.wire_source.freeze_wire_source",
+              "code": "TB007",
+              "symbol": "builtins.object.__setattr__",
+              "message": "正規構築箇所以外の object.__setattr__ による文脈改竄は禁止"
+            }
+          ]
+        }
       },
       {
         "id": "unadjudicated_removed_tb002_remains_in_current_census",

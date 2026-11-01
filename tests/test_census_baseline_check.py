@@ -1306,12 +1306,59 @@ def _independently_derived_added(
     return frozenset(identities)
 
 
+def _declared_relaxation_identities(predicate: dict[str, Any]) -> frozenset[CensusIdentity]:
+    """宣言済みの不変値構築緩和を完全一致の site 集合として読む。"""
+    raw = predicate.get("declared_relaxations")
+    if raw is None:
+        return frozenset()
+    declaration = _object(raw, "declared_relaxations")
+    _exact_keys(declaration, {"kind", "allowed_symbols", "sites"}, "declared_relaxations")
+    assert declaration.get("kind") == "immutable_value_construction"
+    allowed = frozenset(_string_array(
+        declaration.get("allowed_symbols"), "declared_relaxations.allowed_symbols",
+    ))
+    assert allowed == {
+        "builtins.object.__new__",
+        "builtins.object.__setattr__",
+        "dataclasses.replace",
+        "token_type",
+        "<unresolved-callable>",
+    }, "不変値構築以外の symbol へ緩和を広げられない"
+    identities: set[CensusIdentity] = set()
+    for index, item in enumerate(
+        _array(declaration.get("sites"), "declared_relaxations.sites")
+    ):
+        row = _object(item, f"declared_relaxations.sites[{index}]")
+        _exact_keys(
+            row,
+            {"path", "line", "end_line", "scope", "code", "symbol", "message"},
+            "declared_relaxations.site",
+        )
+        identity = (
+            _string(row.get("path"), "site.path"),
+            row.get("line"),
+            row.get("end_line"),
+            _string(row.get("scope"), "site.scope"),
+            _string(row.get("code"), "site.code"),
+            _string(row.get("symbol"), "site.symbol"),
+            _string(row.get("message"), "site.message"),
+        )
+        assert identity[4] == "TB007"
+        assert identity[5] in allowed, "不変値構築以外の symbol は緩和できない"
+        assert type(identity[1]) is int and type(identity[2]) is int
+        assert identity not in identities, "緩和 site の重複"
+        identities.add(identity)
+    return frozenset(identities)
+
+
 def _assert_removed_tb007_matches_declared_relaxations(
     removed: frozenset[CensusIdentity],
     *,
     expected_code: str,
+    declared: frozenset[CensusIdentity] = frozenset(),
 ) -> None:
     """減分を宣言済みの緩和と発行入口の exact な許可に帰属させる。"""
+    assert declared <= removed, "宣言済み緩和が実減分に存在しない"
     source_root = REPOSITORY_ROOT / "backend" / "src"
     sources = {
         path.relative_to(source_root).as_posix(): path.read_text(encoding="utf-8")
@@ -1324,6 +1371,8 @@ def _assert_removed_tb007_matches_declared_relaxations(
     for identity in removed:
         path, line, end_line, scope, code, symbol, _ = identity
         assert code == expected_code
+        if identity in declared:
+            continue
         if path not in scanners:
             tree = ast.parse(sources[path], filename=path)
             scanner = checker._SourceScanner(
@@ -5373,11 +5422,10 @@ def _assert_removed_matches_declared_relaxations(
     **_: Any,
 ) -> None:
     """宣言対象の減分がすべて宣言済み緩和で説明できることを検証する。"""
-    _exact_keys(
-        predicate,
-        {"id", "set", "code", "quantifier", "requirement"},
-        predicate["id"],
-    )
+    allowed_keys = {"id", "set", "code", "quantifier", "requirement"}
+    if "declared_relaxations" in predicate:
+        allowed_keys.add("declared_relaxations")
+    _exact_keys(predicate, allowed_keys, predicate["id"])
     assert predicate.get("quantifier") == "every"
     assert predicate.get("requirement") == "matches_declared_relaxation"
     set_name = _string(predicate.get("set"), f"{predicate['id']}.set")
@@ -5391,6 +5439,7 @@ def _assert_removed_matches_declared_relaxations(
     _assert_removed_tb007_matches_declared_relaxations(
         selected,
         expected_code=code,
+        declared=_declared_relaxation_identities(predicate),
     )
 
 
