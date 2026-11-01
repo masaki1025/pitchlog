@@ -85,7 +85,7 @@
     },
     "ci_scope_proof_source_revision": {
       "value": "d141fa70a85d85c01fdbb6ddd1956e3f9ba01525",
-      "purpose": "既承認PR188のscope guardと純粋helper/caller閉包の全byteを不変Git原典へ固定する",
+      "purpose": "本PRレビュー対象のscope guardと純粋helper/caller閉包の全byteを不変Git原典へ固定する(revisionはHEADの祖先であることを検査し、統合後はdevelopの祖先となる)",
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
         "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",

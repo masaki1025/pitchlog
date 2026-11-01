@@ -17,6 +17,8 @@ from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationT
 _ERROR = "初球球種の読取入力又は結果が不正です"
 _TABLE = cast(Table, TenantVocabulary.__table__)
 _COLUMNS = ("key", "category", "disabled")
+
+
 def _read_statement() -> Select[Any]:
     """球種一覧の固定条件SELECTを組み立てる。"""
     return (

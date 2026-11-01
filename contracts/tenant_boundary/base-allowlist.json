@@ -33562,7 +33562,7 @@
       ]
     },
     "backend/src/pitchlog/repositories/first_ball_operations.py": {
-      "source_sha256": "00869fc0c97a147ecfb2e8c3380f3d461f75d80e4b274a0ff0f832bfc3a8e4ea",
+      "source_sha256": "c93ff9cfefb5fde346fcc7ccc93df20c7e883ad47b49260fa8298ca71ae8c2a4",
       "findings": [
         {
           "line": 14,

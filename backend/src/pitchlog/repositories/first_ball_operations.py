@@ -82,11 +82,11 @@ if set(_INSERT_COLUMNS) != set(PLAY_ROW_COLUMNS) or len(_INSERT_COLUMNS) != len(
     PLAY_ROW_COLUMNS
 ):
     raise RuntimeError("初球PlayRowの固定全列宣言がmodelと不一致")
+
+
 def _insert_statement() -> Insert:
     """固定全列のINSERT文を組み立てる。"""
-    return insert(_PLAYS).values(
-        {name: bindparam(name) for name in _INSERT_COLUMNS}
-    )
+    return insert(_PLAYS).values({name: bindparam(name) for name in _INSERT_COLUMNS})
 
 
 def _read_statement() -> Select[Any]:
