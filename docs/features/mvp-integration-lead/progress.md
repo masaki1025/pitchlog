@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 05:10 JST（#189固有ゲート緑・統合枝の無関係な既存赤13件が残る）
+
+- **#189固有のゲートは緑**: tenant必須検査0件、census 211成功、frozen archive 65成功、`check_frozen_baselines --invariants-only` OK、ruff/ty OK。独立レビュー（別エージェント）は**P0=0/P1=2/P2=6**。
+- **レビュー反映**: P1-1 backend `ruff format`（2ファイル）修正、P1-2 `ci_scope_proof_source_revision`のpurposeを実態へ、P2-1 docstring/計画の9path/24出現へ、P2-2 `declared_relaxations`へsite別`source_sha256`追加、P2-3 DDL抽出の大小文字/字下げ許容、P2-4 `encode_d4_reference`/`D4ReferenceInvalid`のimport起源固定。`536ef537`。受理record再導出`b1e2f7c6`、corpus再導出と認可pin追随`5dbd38d7`、契約資産数追随`56c22db5`。
+- **起点baseline実測**: `5cb1f754` の同suiteは**126失敗**（tenant58/frozen-archive-case22/census17/frozen_archive11/state_transition6/orm3/core_guard2/mcdc2/collect_fe2/field_geometry1/shared_precond1/failure_injection1）。
+- **現在の残**: **13件**。内訳は `test_state_transition_contract_schema`4＋`test_state_transition_normalization`2（case数116→117/109→110等の凍結期待）、`test_orm_acceptance_sheets`3（judgment持ち越し。`--carry-judgments-from HEAD`でも未解消）、`test_core_guard`2（`.claude/core-areas.json`へ7path未登録。追加には`FIRST_BALL_EXPECTED_MAPS`のsuffix層追加が必要で、単純追加は437件を壊す）、`tests/domain/test_collect_fe`2（新Vue入口8件が静的解決不能）。**いずれもdevelop(c2e5e4dd)では成功する＝統合枝が持ち込んだ回帰**で、#189の内容とは独立。
+- **判断**: CIは`harness`で`tests/`全件を要求するため、この13件を閉じない限り#189はmerge不可。各項目は凍結/生成機構（state_transition freeze、ORM judgment carry、core-areas suffix層、FE入口解決）の個別作業を要し、#189の設計判断ではない。
+- **固定点**: HEAD`56c22db5`（未push、#189 remoteは`ad6588b1`）。backup branchは別途更新要。
+
+
 ## 続き：2026-11-02 02:10 JST（census全緑・受理record再導出・#189 merge準備）
 
 - **census緑化**: `tests/test_census_baseline_check.py` **211件全成功**（起点は17失敗）。要因は(a)宣言へ初球条件2登録を説明源として接続（`_validated_first_ball_condition2_identities`＋anchor短綴り用`_first_ball_registration_explains`＋独立列挙と実scannerのsymbol差を(path,行,code)控除で吸収）、(b)`implementation_field_inventory`へ`declared_relaxations`10 field追加、(c)stale pinの実測追随（`ledger_removed_checker` digest、`pure_helper_references` broker site 1468-1477、initial population総数70・TB002 48/TB005 18）。`bb97edf5`。
