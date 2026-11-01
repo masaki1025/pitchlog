@@ -5790,8 +5790,11 @@ def test_http_core_complete_declared_configuration_covers_component_asset() -> N
     """先行宣言の全登録後に実schema参照の旧検出assertも成立する。"""
     guard = load_core_guard_module()
     document = http_core_configuration(registered=True)
-    patterns = tuple(p for area in document["areas"] for p in area["paths"])
-    configured = guard.CoreAreas(patterns, frozenset(document["guard_paths"]))
+    patterns = [p for area in document["areas"] for p in area["paths"]]
+    # 投影で外れる先行層（first-ball層）は実configの宣言済みpathで補う。
+    for area in _first_ball_raw_core_areas()["areas"]:
+        patterns.extend(p for p in area["paths"] if p not in patterns)
+    configured = guard.CoreAreas(tuple(patterns), frozenset(document["guard_paths"]))
     assert_schema_contract_assets_are_registered(schema_contract_asset_paths(),
                                                 configured=configured)
 
@@ -5847,9 +5850,21 @@ FIRST_BALL_EXPECTED_MAPS: dict[str, dict[str, tuple[str, ...]]] = {
             "backend/tests/test_started_snapshot_operations.py",
         ),
     },
+    "WRITER_BINDING": {
+        "sync-protocol": (
+            "backend/src/pitchlog/db/writer_binding/__init__.py",
+            "backend/src/pitchlog/db/writer_binding/models.py",
+            "backend/tests/first_ball_expected_source_pins.py",
+            "backend/tests/test_first_ball_operations.py",
+            "backend/tests/test_first_ball_vocabulary_operations.py",
+            "backend/tests/test_first_ball_write_stamp.py",
+            "backend/tests/test_recorded_snapshot.py",
+        ),
+    },
 }
 FIRST_BALL_EXPECTED_ORDERS = (
     (), ("N1_U1",), ("N2_A",), ("N1_U1", "N2_A"), ("N2_A", "N1_U1"),
+    ("N1_U1", "N2_A", "WRITER_BINDING"),
 )
 
 
@@ -5948,19 +5963,28 @@ FIRST_BALL_ALLOWED_TRANSITIONS = {
     (("N2_A",), ("N2_A",)), (("N2_A",), ("N2_A", "N1_U1")),
     (("N1_U1", "N2_A"), ("N1_U1", "N2_A")),
     (("N2_A", "N1_U1"), ("N2_A", "N1_U1")),
+    ((), ("N1_U1", "N2_A", "WRITER_BINDING")),
+    ((), ("N2_A", "N1_U1", "WRITER_BINDING")),
+    (("N1_U1",), ("N1_U1", "N2_A", "WRITER_BINDING")),
+    (("N2_A",), ("N2_A", "N1_U1", "WRITER_BINDING")),
+    (("N1_U1", "N2_A"), ("N1_U1", "N2_A", "WRITER_BINDING")),
+    (("N2_A", "N1_U1"), ("N2_A", "N1_U1", "WRITER_BINDING")),
+    (("N1_U1", "N2_A", "WRITER_BINDING"), ("N1_U1", "N2_A", "WRITER_BINDING")),
+    (("N2_A", "N1_U1", "WRITER_BINDING"), ("N2_A", "N1_U1", "WRITER_BINDING")),
 }
 
 
 def test_first_ball_exact_declarations_and_legacy_area_map_are_preserved() -> None:
-    """新31件だけを閉宣言し、旧追加層とguard対象を保持する。"""
+    """新38件だけを閉宣言し、旧追加層とguard対象を保持する。"""
     guard = load_core_guard_module()
     assert dict(guard.FIRST_BALL_RIGHT_CORE_ADDITIONS) == FIRST_BALL_EXPECTED_MAPS["N1_U1"]
     assert dict(guard.FIRST_BALL_SNAPSHOT_CORE_ADDITIONS) == FIRST_BALL_EXPECTED_MAPS["N2_A"]
     assert dict(guard.AREA_PATH_ADDITIONS) == HTTP_COMPOSITE_ADDITIONS
     assert tuple(guard._FIRST_BALL_LAYER_ORDERS) == FIRST_BALL_EXPECTED_ORDERS
-    assert len(FIRST_BALL_ALLOWED_TRANSITIONS) == 11
+    assert len(FIRST_BALL_ALLOWED_TRANSITIONS) == 19
     assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["N1_U1"].values())) == 17
     assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["N2_A"].values())) == 14
+    assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["WRITER_BINDING"].values())) == 7
     raw = _first_ball_raw_core_areas()
     projected = load_actual_core_areas()
     assert raw["guard_paths"] == projected["guard_paths"]
@@ -5971,10 +5995,10 @@ def test_first_ball_exact_declarations_and_legacy_area_map_are_preserved() -> No
     (before, after) for before in FIRST_BALL_EXPECTED_ORDERS
     for after in FIRST_BALL_EXPECTED_ORDERS
 ])
-def test_first_ball_exact_25_transitions_in_real_git(
+def test_first_ball_exact_transitions_in_real_git(
     tmp_path: Path, before_order: tuple[str, ...], after_order: tuple[str, ...],
 ) -> None:
-    """基線の新層順をprefixに持つ11遷移だけを実Gitで受理する。"""
+    """基線の新層順をprefixに持つ19遷移だけを実Gitで受理する。"""
     guard = load_core_guard_module()
     root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(before_order))
     # 同一状態でも独立HEADを作り、現在JSONの実blobを検査する。
@@ -5991,17 +6015,26 @@ def test_first_ball_exact_25_transitions_in_real_git(
             guard.verify_area_path_baseline(root, base, head)
 
 
-@pytest.mark.parametrize(("layer_name", "area_id", "missing_path"), [
-    (name, area_id, path) for name, areas in FIRST_BALL_EXPECTED_MAPS.items()
+FIRST_BALL_LAYER_MINIMAL_ORDER = {
+    "N1_U1": ("N1_U1",),
+    "N2_A": ("N2_A",),
+    "WRITER_BINDING": ("N1_U1", "N2_A", "WRITER_BINDING"),
+}
+
+
+@pytest.mark.parametrize(("order", "layer_name", "area_id", "missing_path"), [
+    (FIRST_BALL_LAYER_MINIMAL_ORDER[name], name, area_id, path)
+    for name, areas in FIRST_BALL_EXPECTED_MAPS.items()
     for area_id, paths in areas.items() for path in paths
 ])
-def test_first_ball_each_of_31_required_additions_is_rejected_when_missing(
-    tmp_path: Path, layer_name: str, area_id: str, missing_path: str,
+def test_first_ball_each_of_38_required_additions_is_rejected_when_missing(
+    tmp_path: Path, order: tuple[str, ...], layer_name: str,
+    area_id: str, missing_path: str,
 ) -> None:
     """新層は一領域の一件だけ不足しても実Git検査で閉じる。"""
     guard = load_core_guard_module()
     root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(()))
-    candidate = _first_ball_configuration((layer_name,))
+    candidate = _first_ball_configuration(order)
     next(area for area in candidate["areas"] if area["id"] == area_id)["paths"].remove(missing_path)
     _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
     with pytest.raises(guard.GuardError):
@@ -6209,10 +6242,10 @@ def test_first_ball_current_raw_configuration_keeps_registered_rights_layer() ->
 
 
 @pytest.mark.parametrize("order", FIRST_BALL_EXPECTED_ORDERS)
-def test_first_ball_all_five_states_pass_actual_raw_capture_entry(
+def test_first_ball_all_states_pass_actual_raw_capture_entry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, order: tuple[str, ...],
 ) -> None:
-    """両複合順を含む全5状態を実raw入口へ渡し、投影で代用しない。"""
+    """両複合順を含む全6状態を実raw入口へ渡し、投影で代用しない。"""
     raw = _first_ball_configuration(order)
     path = tmp_path / "raw-core-areas.json"
     path.write_text(json.dumps(raw))
