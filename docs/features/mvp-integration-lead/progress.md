@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 22:17 JST（単位D/E採用でtenant 136→38、broker/SQLの残件を分離）
+
+- **単位D採用**: 計画`0f75bfe3`。TB005のうち関数として登録できる5件を既`allowed_symbols`方式で閉じた。対象は`recorded_snapshot_operations._registration`／`started_snapshot_operations._registration`（SQLA_SELECT）、`binding_control._BindingAuthority._call`（実行系8 API。receiver型未解決のためscannerが返す和集合と同一）、`BindingControl._channel`（connect系2 API）の4symbol＋正例fixture4file＋拒否対向3件。`f9a7bf74`。tenant 70→65。
+- **単位E採用**: 計画`9b2a691f`。brokerを除く条件5の27出現（11path）を条件2と同型の固定投影（checker定数`FIRST_BALL_CONDITION5_SCOPES`、allowlistキー`condition_5_first_ball_scoped_findings`）で登録。内訳はmodule-level固定`select`/`insert`宣言3、frozen dataclassの`object.__setattr__`初期化、封印値の`object.__new__`、検証用`dataclasses.replace`、`cast(Any, cls)(**fields)`。`dd1774b7`。tenant 65→**38**。tenant test file 696成功/27失敗（失敗は変更前から同一のbroker/acl束縛切れ・repository_is_green系）、ruff/ty成功。専用33件成功。
+- **broker/acl 35件の扱い（重要）**: 現行`_INITIAL_POPULATION_POLICY`の2ファイル分を現行行へ更新し、`_initial_population_semantics`を現行形（RG1型の静的import、`_broker_d4`の`encode_d4_reference`委譲）へ追随させると、両ファイルの現行byteは既存祖先`d141fa70`に揃って存在するため、revisionを`d141fa70`へ再束縛するだけで35件が消え**残りはSQL3件のみ**になることを一時patchで実測確認した（patchは`~/.cache/pitchlog/pr189-integration-20261101/unit-broker-policy-candidate.patch`）。ただし`_INITIAL_POPULATION_POLICY`は**baseline側のscanにも適用**されるため、policyだけ先に更新しrevisionを旧`f174428d`のままにすると、baseline（develop）側の免除が外れて「既存違反」として差し引かれ、**38→4件という偽の減少**が起きる（実測）。したがってpolicy・`frozen-inputs.json`のrevision・受理record・snapshot/corpusは**同一の確定単位で一括移動**し、途中状態で部分更新しない。現在のWTは安全側（HEAD）へ戻し済み。
+- **SQL3件の未決**: `sync/control_provider/sql/{control-phase-schema,writer-binding-control,writer-binding-functions}.sql`は**test専用の構造候補**（自headerに「role/固定保存器/正式受理は未提供」、参照は`backend/tests/db/sync_writer_binding_support.py`と`test_sync_apply_writer_binding.py`のみ、製品runtimeは読まない）。`ledger/rg1_deployment_assets`方式で「配備資産」として登録すると正式配備権を偽って与えるため**未登録のまま**。解消は(a) RG1前例（`status: unintegrated_candidate`の閉manifest＋固定asset登録）を新設する、(b) 候補DDLを`backend/src`外（tests配下）へ移す、(c) PO判断、のいずれか。検査は緩めていない。
+- **固定点/次**: HEAD`dd1774b7`（未push、#189 remoteは`ad6588b1`）。tenant残38＝broker33＋acl2（確定単位で一括移動）＋SQL3（要判断）。次の実装単位はSQL3の扱い決定後に確定導出（revision/record/snapshot/corpus一括）→非作者最終review→委任証拠→一回push→必須CI。
+
+
 ## 続き：2026-11-01 21:57 JST（tenant残件の再計測・単位B採用・条件2有限登録C）
 
 - **再計測（引継ぎ前提の訂正）**: pr189 WT/feature/pr189-integration。`check_tenant_boundary_bypass --base-ref c2e5e4dd`（origin/develop先端）は **136件の違反・合格0**。内訳 TB000=3/TB002=88/TB005=20/TB007=25。引継ぎの「149件中4件失敗」は**149件の違反が4コードに分布**する意味で、単位A（起動3関数）が13件（TB005）を閉じた後の値。**単位AではP1は閉じない**。cache `pr189-integration-20261101/tenant-scope-finding-20261101.md` と `tenant-violations-f2ae0caa.json`、CLI出力 `tenant-cli-now.log`。
