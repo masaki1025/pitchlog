@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-01 23:51 JST（census追随を11まで低減、TB007緩和宣言がPO判断点）
+
+- **census再導出（機械追随）**: `census-baseline.json`の`initial_population_proof.sites`と`tests/test_census_baseline_check.py`の`_INITIAL_CENSUS_SITES`を現行`_INITIAL_POPULATION_POLICY`（70出現）へ、`pure_helper_references`のbroker SHAを`19b90d8d…`へ追随。test側の独立意味検査`_independent_initial_population_meaning`も現行形（静的import＋`encode_d4_reference`委譲）へ、`_INITIAL_CENSUS_CONTROL_FRAMES`の`_verify_business_binding`枠を実ASTから再生成。census失敗は**17→11**（起点`5cb1f754`は17失敗）。
+- **条件5のTB005を撤去**: census述語`removed_outside_allowed_codes_equals_measured_allowlist_suppression`はTB005の減分を`allowed_symbols`置換で説明できることしか許さない。module-level固定文3件は新設の登録関数`_insert_statement`/`_read_statement`（first_ball_operations）と`_read_statement`（first_ball_vocabulary_operations）へ移し、`allowed_symbols`3行＋正例3fileで登録。文object同一性は`_INSERT=_insert_statement()`で維持（backend143成功）。条件5の対象は**9path/24出現**（TB007のみ）、条件2は**6path/66出現**（first_ball_operationsの9 TB002を移設）。`c073dfbc`。
+- **実測**: tenant必須検査**0件**、tenant試験**728件全成功**、backend `test_first_ball_operations`/`test_first_ball_vocabulary_operations`**143成功**、ruff/ty成功。受理recordは`0190fdea`で導出済みだが、`c073dfbc`のsource/asset変更により**再導出が必要**（未実施）。
+- **残るcensus失敗11件の本体（PO判断点）**: `removed_tb007_matches_declared_relaxations`は、減分TB007を「発行入口constructor」または「固定登録statement初期化」の2緩和だけで説明できることを要求する。本PRの残24 TB007のうち`object.__new__`（封印値5）と`object.__setattr__`（frozen dataclass 9）はどちらにも該当せず、test独立再導出でも`explanations`が空になる（`writer_binding.py:262`等）。**検査条件を緩めずに通すには、censusの`pass_fail_mapping`へ「不変値オブジェクト構築」を第3の緩和種別として正式宣言する必要がある**（test述語＋`census-baseline.json`＋docゲート＋非作者review）。これはsecurity policyの変更であり、主担当の独断では行っていない。
+- **固定点/次**: HEAD`c073dfbc`（未push、#189 remoteは`ad6588b1`）。選択肢は(a)不変値構築のTB007緩和を正式宣言（推奨・tenant0を維持）、(b)当該24件を未抑止へ戻す（tenant24赤・census改善）、(c)POへ差戻し。決めた後、record再導出→全root/backend/frontend再実行→非作者最終review→委任証拠→一回push→必須CI。
+
+
 ## 続き：2026-11-01 22:53 JST（tenant必須検査0件・受理record再導出、census残件を分離）
 
 - **単位F採用**: 計画`ef3b4404`。writer-binding候補DDL3件はtest専用の構造候補（自headerに「正式受理は未提供」）なので、RG1前例の`status: unintegrated_candidate`閉manifestを新設し、**配備権なし**（`deployment_authority: none_unintegrated_candidate`）で登録。manifestは自己申告を信じず、実SQL本文から`CREATE SCHEMA/TABLE/INDEX/FUNCTION/POLICY/TRIGGER/ROLE`を抽出して固定構造面（2/3/2/9/6/4/2）と完全一致を要求。SQLとmanifestのSHAを協調追随しても閉構造面を越えるDDL追加は拒否。`07c3e3c6`。
