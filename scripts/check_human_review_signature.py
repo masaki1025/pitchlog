@@ -2213,9 +2213,16 @@ def _ordinary_body(root: Path, *, allow_policy_append: bool = False,
             "ST-COVERAGE-1ea6f651c912d341",
         ]
         insertion = next(
-            index for index, case in enumerate(rebuilt["cases"])
-            if case["caseId"] == "ST-COVERAGE-8c8d497a5880b267"
+            (
+                index for index, case in enumerate(rebuilt["cases"])
+                if case["caseId"] == "ST-COVERAGE-8c8d497a5880b267"
+            ),
+            None,
         )
+        if insertion is None:
+            raise HumanReviewSignatureRecordError(
+                "通常33のcoverage代表caseが再構成にない"
+            )
         for offset, case_id in enumerate(derived):
             rebuilt["cases"].insert(insertion + offset, new_cases[case_id])
 

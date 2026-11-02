@@ -281,3 +281,27 @@ PO判断により、`census-baseline.json`の当該述語へ第3の緩和種別`
 範囲は`contracts/tenant_boundary/census-baseline.json`と`tests/test_census_baseline_check.py`のexact2。tenant検査条件・`_INITIAL_POPULATION_POLICY`・`FIRST_BALL_CONDITION5_SCOPES`・製品sourceは変更しない。`first_ball_bridge.py`の332/361はanchor censusに存在しないため宣言へ含めない（実減分との完全一致を優先）。本宣言はsecurity policyの変更であり、docゲートと非作者reviewを要する。censusの他pin（ledger限定identity等）は別途再導出する。
 
 単位H追補（2026-11-02）: census述語へ初球条件2登録を説明源として接続する。`_validated_first_ball_condition2_identities`で固定6path/66出現を実source SHAとbefore/after差分へ束縛し、`unadjudicated_removed_tb002_remains_in_current_census`の説明集合へ加える。anchor側checkerが返す短いsymbol綴り（`...__table__`等）は同一siteの登録所見へ`_first_ball_registration_explains`で束縛する。`added_equals_independently_derived_condition_2_candidates`では、独立列挙が変数名・実scannerが型名を返す差があるため、登録siteの(path,行,code)で控除する。あわせて`implementation_field_inventory`へ`declared_relaxations`の10 fieldを追加し、`ledger_removed_checker` digest・`pure_helper_references`のbroker site（1468-1477）・initial population site総数（70）を実測へ追随する。これらは宣言の意味を変えず、実測との一致を回復する追随である。
+
+
+### 状態遷移coverageの代表割当安定化I（2026-11-03、PO判断・PO承認済み）
+
+**承認記録**: 対象版 `contracts/state-transition/state_transition_contract_v1.json` SHA-256 `3c88a2ec22bf150916b616e33ea97585d08970c2addd665feda72ba53f530642`（119件／coverage 50）。承認者: PO（本スレッド、2026-11-03）。承認日: 2026-11-03。記録先はPR #189本文とする（本追補の最終文面へのPO承認）。tsk544 の承認SHA `40340ce0…` は旧subjectのままであり、本追補を新subjectの承認として流用しない。非作者レビューのP0/P1件数はPR #189本文、7.7受理record（`masaki1025/pitchlog#189`）は `contracts/state-transition/input_axes_descriptor_v1.json` の `freezeBaseline.history` へ記録する。記録するまで「受理済み」と呼ばない。
+
+本単位は、状態遷移契約のcoverage代表割当を「`in` guard を宣言順の先頭値の `eq` として扱う」A方式へ安定化し、契約を119件（coverage 50）へ再凍結する。これは全枝・全consumerが参照する共有契約の変更であり、`docs/features/tsk544-t1-state-calculation/plan.md` の §2(1)「coverageのB1一件だけ追加して116→117」、§2(2)「in値setの等値扱い…は拒否」および「authorに許すsourceは既check_required_set_coverage.pyと既testだけ」、§2(3)「game_end宣言件数116→117」、§4 単位A表の「117case」を、本追補が置き換える。置換の対象行は、現行49行のうち述語最上位 `and` の直下に `in` guard を持つ matrixRows 先頭4行（called-pitch / swinging-strike / foul / ball）に限る（全枝共通）。`in` guard が他の行へ増えた場合は本追補の射程外として再判断する。PO判断（2026-11-03、承認記録はPR #189本文へ記入）による。
+
+理由:
+
+- guardを `eq 0` から `in [0,1,...]` へ広げると述語を通る値が増え、ラウンドロビンの代表割当が回転する。旧caseの意味（resultId と座標）を保つには、割当計算だけを「宣言順先頭値の `eq`」とみなす必要がある。
+- 拡張で新たに通る値（foul strikes=1、balls=1/2）は、従来割当を動かさず後段で追加する。これにより旧47 coverageの内容を保持しつつ、B1（balls=1）を含む新規入力tupleを被覆する。
+- 正準化は代表順序の計算にだけ使い、caseの受理は元の `in` 述語で判定する（正準述語は元述語の十分条件）。現行119 caseが元述語を満たすことは独立に実測済み（119/119）。
+
+維持する制約:
+
+- tsk544 §2(2) の他の禁止（無関係operationの自由値、expectedから不足を埋める処理、旧history/baselineCaseIdsのbyte書換え）と、§2(1) の旧104 case全object同値・12 case明示移行は維持する。
+- 件数は 116→119（B1 + strikes=1 + balls=2）。required-set coverageは177のまま。game_end宣言の`stateTransition`は119（commit `160811d4` で117→119へ追随済み）。
+- 変更範囲は次のexact列挙に限り、製品source（`backend/src`・`frontend/src`）は触らない:
+  - contracts/state-transition: `state_transition_contract_v1.json`・`game_end_coverage_declaration_v1.json`・`appendix_e_consumer_handoff_v1.json`・`gate6_t1_ordinary_pitch_v1.json`・`gate6_t1_ordinary_pitch_schema_v1.json`・`gate6_t1_ordinary_pitch_pins_v1.json`
+  - contracts/authz: `oracle-seal.lock.json`・`frozen-baselines.json`・`failure-injection-points.json`・`mcdc-map.json`・`attack-tree.json`・`boundary-proposal.json`・`claim-mutant-map.json`・`ddl-elements.json`・`rejected-configs.json`・`verification-evidence.json`
+  - scripts: `expand_state_transition_cases.py`・`check_required_set_coverage.py`・`check_human_review_signature.py`
+  - tests: `test_required_set_coverage.py`・`test_state_transition_normalization.py`・`test_state_transition_contract_schema.py`・`tests/domain/runners/fixtures/handoff-loader/mutations.json`
+- 非作者レビューP0/P1=0とPO承認は満たした。7.7受理recordと必須CIを経るまで製品提供済みとは扱わない。旧history・固定8入力のbyte・個人署名を代記しない。
