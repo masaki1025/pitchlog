@@ -31,6 +31,9 @@ _RESOLUTION_SUFFIXES = (
     ".json",
     ".css",
 )
+# 型宣言(.d.ts)と、拡張子に見えるが実体は名前の一部（client.syncEvents 等）を解決する。
+_APPEND_SUFFIXES = (".d.ts", *_RESOLUTION_SUFFIXES)
+_KNOWN_SUFFIXES = frozenset(_APPEND_SUFFIXES) | {".d.ts"}
 _IGNORED_DIRECTORIES = frozenset({".git", "node_modules", "dist", "coverage"})
 _FROM_IMPORT = re.compile(
     r"\b(?:import|export)\s+(?:type\s+)?[^;]*?\s+from\s*"
@@ -473,12 +476,12 @@ def _resolve_file(base: Path, specifier: str, frontend: Path) -> Path | None:
     expanded: list[Path] = []
     for candidate in candidates:
         expanded.append(candidate)
-        if not candidate.suffix:
+        if candidate.suffix not in _KNOWN_SUFFIXES:
             expanded.extend(
-                Path(f"{candidate}{suffix}") for suffix in _RESOLUTION_SUFFIXES
+                Path(f"{candidate}{suffix}") for suffix in _APPEND_SUFFIXES
             )
             expanded.extend(
-                candidate / f"index{suffix}" for suffix in _RESOLUTION_SUFFIXES
+                candidate / f"index{suffix}" for suffix in _APPEND_SUFFIXES
             )
     matches = [candidate.resolve() for candidate in expanded if candidate.is_file()]
     unique = list(dict.fromkeys(matches))
