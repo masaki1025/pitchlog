@@ -44,12 +44,12 @@ N7_PROSE_TERMS = ("必須", "無条件", "保持する")
 
 _HEADING_RE = re.compile(r"^(?P<marks>#{2,6})\s+(?P<title>.+?)\s*$")
 _NUMBERED_SECTION_RE = re.compile(
-    r"^(?P<section>\d+(?:-\d+(?:-[A-Z])?)?)\.\s*"
+    r"^(?P<section>\d+(?:-\d+(?:-[A-Za-z])?)?)\.\s*"
 )
 _SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
 _MODEL_TABLE_RE = re.compile(r'^\s*__tablename__\s*=\s*["\'](?P<table>[^"\']+)["\']')
 _REFERENCE_RE = re.compile(
-    r"(?:docs/[^ :|]+\.md|[^ :|]+\.md):§?\d+(?:-\d+(?:-[A-Z])?)?"
+    r"(?:docs/[^ :|]+\.md|[^ :|]+\.md):§?\d+(?:-\d+(?:-[A-Za-z])?)?"
 )
 _QUOTED_FRAGMENT_RE = re.compile(
     r'''(?P<quote>["'])(?P<value>.*?)(?P=quote)'''
