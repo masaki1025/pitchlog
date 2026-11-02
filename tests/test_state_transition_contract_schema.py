@@ -5803,7 +5803,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 117
+    assert len(cases) == 119
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5819,7 +5819,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
             assert case["raw"]["resultId"] in result_axis["values"]
             assert case["raw"] != case["normalized"]
             changed.append(case)
-    assert len(changed) == 72
+    assert len(changed) == 74
     assert "existing-cases-have-normalization-triple" not in declaration[
         "claimBoundary"
     ]["notGuaranteed"]
@@ -5864,7 +5864,7 @@ def test_legacy_committed_cases_match_history_expansion() -> None:
         text=True,
     )
     legacy_cases = [case for case in _repository_contract()["cases"] if "inputPayload" not in case]
-    assert len(legacy_cases) == 110
+    assert len(legacy_cases) == 112
     assert json.loads(result.stdout) == legacy_cases
 
 
@@ -7368,5 +7368,5 @@ def test_g6_s02_reference_definitions_and_formal_cases_are_unchanged() -> None:
         for case in author["cases"] if case["existing_positive_reference"] is not None
     )
     assert [len(contract[k]) for k in ("matrixRows", "operationRows", "undoRows", "cases")] == [
-        49, 10, 10, 117,
+        49, 10, 10, 119,
     ]
