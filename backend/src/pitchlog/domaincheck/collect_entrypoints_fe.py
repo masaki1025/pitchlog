@@ -477,12 +477,8 @@ def _resolve_file(base: Path, specifier: str, frontend: Path) -> Path | None:
     for candidate in candidates:
         expanded.append(candidate)
         if candidate.suffix not in _KNOWN_SUFFIXES:
-            expanded.extend(
-                Path(f"{candidate}{suffix}") for suffix in _APPEND_SUFFIXES
-            )
-            expanded.extend(
-                candidate / f"index{suffix}" for suffix in _APPEND_SUFFIXES
-            )
+            expanded.extend(Path(f"{candidate}{suffix}") for suffix in _APPEND_SUFFIXES)
+            expanded.extend(candidate / f"index{suffix}" for suffix in _APPEND_SUFFIXES)
     matches = [candidate.resolve() for candidate in expanded if candidate.is_file()]
     unique = list(dict.fromkeys(matches))
     if len(unique) == 1:

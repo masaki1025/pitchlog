@@ -305,3 +305,13 @@ PO判断により、`census-baseline.json`の当該述語へ第3の緩和種別`
   - scripts: `expand_state_transition_cases.py`・`check_required_set_coverage.py`・`check_human_review_signature.py`
   - tests: `test_required_set_coverage.py`・`test_state_transition_normalization.py`・`test_state_transition_contract_schema.py`・`tests/domain/runners/fixtures/handoff-loader/mutations.json`
 - 非作者レビューP0/P1=0とPO承認は満たした。7.7受理recordと必須CIを経るまで製品提供済みとは扱わない。旧history・固定8入力のbyte・個人署名を代記しない。
+
+
+### CI是正J（2026-11-03、PO委任によるCodex主担当判断）
+
+CIの `backend-static` と `consistency` を緑にするための機械的追随。範囲は次のexact2。
+
+- `backend/src/pitchlog/domaincheck/collect_entrypoints_fe.py`: `ruff format` のみ。整形以外の論理変更をしない（既存unitの未整形を解消）。
+- `tests/domain/boot/test_operation_bindings.py`: BIND-10 の一時fixtureで `GITHUB_BASE_REF` を解除する。一時fixtureはPR checkoutではないため、CIのbase解決を継承させない。
+
+本単位はunit Iの方式・件数・契約・承認範囲を変えない。製品sourceの論理変更・新規意味仕様を含まない。
