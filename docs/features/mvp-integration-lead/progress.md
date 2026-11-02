@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 10:40 JST（統合枝の既存赤 18→5件、残りは意味論/人間判断）
+
+- **FE入口解決を解消**: `collect_endpoints_fe` の `_resolve_file` が (a) `.d.ts` を解決しない、(b) `client.syncEvents` のように名前にドットを含む指定を拡張子扱いして解決しない、(c) 同一stemの `.ts`/`.vue` 併存を曖昧として拒否する、(d) frontend外の型宣言/JSON参照を未解決にする、の4点を修正。**6件全て解決し `tests/domain` 754成功/2skip**。`45011750`
+- **残5件**:
+  - `test_state_transition_contract_schema`2: 新matrix行の `precondition.op="in"`（strikes/balls の範囲）に伴い、`_manual_fixture_coordinate` の `eq` 前提と constraint-negative の「変異1件」前提が崩れる。加えて新fixture `ST-XC-11` は `state.outs=2` で、契約の `batting-result.double-play` 行（outs=0）と値が一致せず、**どちらが正かはドメイン判断**（2アウトで併殺は成立しないため、負例の意図確認が必要）。
+  - `test_orm_acceptance_sheets`3: 新table（`writer_bindings`/`writer_admissions`/`first_ball_write_admissions`）追加に伴うsheet再生成と、**新規行の人間judgment**、`030→031` pin、row counts。
+- **#189固有**: tenant0・census211・frozen archive65・invariants OK・ruff/ty OKを維持。HEAD`45011750`（未push、#189 remoteは`ad6588b1`）。
+
+
 ## 続き：2026-11-02 09:20 JST（統合枝の既存赤 18→7件）
 
 - **追加削減**: `test_state_transition_contract_schema` の件数pin（case117/legacy110/changed72）を実測へ追随し、**3→2件**。残る2件は新matrix行の `precondition.op="in"` に起因（`_manual_fixture_coordinate` の `eq` 前提、history expansion の座標比較、constraint-negative候補の差分1件前提）。座標一致を `eq`/`in` 両対応へ広げる案は試作したが、候補差分・expansion の意味論まで波及するため巻き戻し、独立作業として残す。
