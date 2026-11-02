@@ -5140,6 +5140,42 @@ def _manual_fixture_assets() -> tuple[dict[str, Any], dict[str, Any]]:
     return _load_object(REPOSITORY_ROOT / path), schema
 
 
+def _row_axis_set(row: dict[str, Any]) -> set[str]:
+    """規範行が参照する軸の全集合を返す。"""
+    return {"eventKind", "resultId"} | {
+        predicate["axisId"] for predicate in row["precondition"]["args"]
+    }
+
+
+def _row_is_eq_only(row: dict[str, Any]) -> bool:
+    """preconditionがeqだけの規範行か返す。"""
+    return all(
+        predicate["op"] == "eq" for predicate in row["precondition"]["args"]
+    )
+
+
+def _row_matches_coordinate(row: dict[str, Any], coordinate: dict[str, Any]) -> bool:
+    """規範行のprecondition（eq/in）を入力座標が満たすか返す。"""
+    if (
+        row["eventKind"] != coordinate["eventKind"]
+        or row["resultId"] != coordinate["resultId"]
+    ):
+        return False
+    for predicate in row["precondition"]["args"]:
+        axis = predicate["axisId"]
+        if axis not in coordinate:
+            return False
+        if predicate["op"] == "eq":
+            if coordinate[axis] != predicate["value"]:
+                return False
+        elif predicate["op"] == "in":
+            if coordinate[axis] not in predicate["values"]:
+                return False
+        else:
+            return False
+    return True
+
+
 def _manual_fixture_coordinate(row: dict[str, Any]) -> dict[str, Any]:
     """規範行の自然キーを軸値の対へ展開する。
 
@@ -5285,20 +5321,30 @@ def _validate_manual_fixtures(
             for row in contract["matrixRows"]
             if row["eventKind"] == coordinate["eventKind"]
             and row["resultId"] == coordinate["resultId"]
-            and set(_manual_fixture_coordinate(row)) <= set(coordinate)
-            and (kind != "normative-branch" or _manual_fixture_coordinate(row) == coordinate)
+            and _row_axis_set(row) <= set(coordinate)
+            and (
+                kind == "constraint-negative"
+                or (
+                    _row_matches_coordinate(row, coordinate)
+                    and _row_axis_set(row) == set(coordinate)
+                )
+            )
         ]
         assert len(rows) == 1
         row = rows[0]
         if kind == "normative-branch":
-            assert coordinate == _manual_fixture_coordinate(row)
+            assert _row_matches_coordinate(row, coordinate)
+            assert _row_axis_set(row) == set(coordinate)
             assert case["expected"] == {field: row[field] for field in output_fields}
         else:
             assert case["expected"] == {"rejectedBy": case["branchId"]}
             candidate = _manual_fixture_candidate(case, row)
             assert candidate != row
+            # in述語行は候補のeq展開が前提形の差だけを生むため、変異1件の数から除く。
             assert sum(
-                candidate[field] != row[field] for field in row
+                candidate[field] != row[field]
+                for field in row
+                if not (field == "precondition" and not _row_is_eq_only(row))
             ) == 1
             assert _cross_rule_violation(
                 candidate, rule_by_id[case["branchId"]], configuration
