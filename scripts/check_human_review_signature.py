@@ -2205,7 +2205,19 @@ def _ordinary_body(root: Path, *, allow_policy_append: bool = False,
                 row["precondition"] = old_refs[_compact_json(ref)]["coordinate"]["precondition"]
         rebuilt["cases"] = [new_cases[mapping.get(case["caseId"], case["caseId"])]
                             for case in old["cases"]]
-        rebuilt["cases"].append(new_cases["ST-COVERAGE-8d5c59594f90b5bd"])
+        # guard拡張で新たに通る値のcoverage caseは、代表行のcoverage直後へ
+        # 有限追加としてだけ許す。
+        derived = [
+            "ST-COVERAGE-05a89716e39b67b0",
+            "ST-COVERAGE-8d5c59594f90b5bd",
+            "ST-COVERAGE-1ea6f651c912d341",
+        ]
+        insertion = next(
+            index for index, case in enumerate(rebuilt["cases"])
+            if case["caseId"] == "ST-COVERAGE-8c8d497a5880b267"
+        )
+        for offset, case_id in enumerate(derived):
+            rebuilt["cases"].insert(insertion + offset, new_cases[case_id])
 
         def migrate_refs(value: Any) -> Any:
             if isinstance(value, dict):
