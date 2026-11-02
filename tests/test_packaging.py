@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import json
 import os
 import shutil
 import subprocess
@@ -307,6 +308,25 @@ def test_built_wheel_contains_packages_but_not_normative_json(
     assert not any(member.endswith(".mjs") for member in members)
 
     asset_names = {path.name for path in DOMAIN_ASSETS.glob("*.json")}
-    packaged_json = {Path(member).name for member in members if member.endswith(".json")}
+    # 正式登録済みの配備資産（SQL/配備manifest）は配布対象。規範ドメインJSONとは区別する。
+    allowlist = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/base-allowlist.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    deployment_members = {
+        relative.removeprefix("backend/src/")
+        for key in (
+            "ledger_deployment_assets",
+            "rg1_deployment_assets",
+            "writer_binding_deployment_assets",
+        )
+        for relative in allowlist.get(key, {})
+    }
+    packaged_json = {
+        Path(member).name
+        for member in members
+        if member.endswith(".json") and member not in deployment_members
+    }
     assert packaged_json.isdisjoint(asset_names)
     assert all("backend/domain/" not in member for member in members)
