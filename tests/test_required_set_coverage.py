@@ -2312,14 +2312,29 @@ def _ordinary_fixture() -> tuple[dict[str, Any], dict[str, Any]]:
     broaden(contract)
     for case in contract["cases"]:
         case["caseId"] = _ORDINARY_CASE_IDS.get(case["caseId"], case["caseId"])
-    added = copy.deepcopy(next(case for case in contract["cases"]
-                               if case["caseId"] == "ST-MATRIX-b931c9ca96959a1e"))
-    added["caseId"] = "ST-COVERAGE-8d5c59594f90b5bd"
-    for surface in ("inputCoordinate", "raw", "normalized"):
-        added[surface]["state.count.balls"] = 1
-    for surface in ("before", "after"):
-        added["historyInput"][surface]["stateFields"]["state.count.balls"] = 1
-    contract["cases"].append(added)
+    representative = next(case for case in contract["cases"]
+                          if case["caseId"] == "ST-MATRIX-b931c9ca96959a1e")
+    # guard拡張で新たに通る値は代表caseの差分を保ったまま後段追加する。
+    for axis, value, case_id in (
+        ("state.count.strikes", 1, "ST-COVERAGE-05a89716e39b67b0"),
+        ("state.count.balls", 1, "ST-COVERAGE-8d5c59594f90b5bd"),
+        ("state.count.balls", 2, "ST-COVERAGE-1ea6f651c912d341"),
+    ):
+        added = copy.deepcopy(representative)
+        added["caseId"] = case_id
+        for surface in ("inputCoordinate", "raw", "normalized"):
+            added[surface][axis] = value
+        before = added["historyInput"]["before"]["stateFields"]
+        after = added["historyInput"]["after"]["stateFields"]
+        delta = after[axis] - before[axis]
+        before[axis] = value
+        after[axis] = value + delta
+        difference = added["expected"]["historyContext"][0]["difference"]["stateFields"]
+        if delta:
+            difference[axis] = {"before": value, "after": value + delta}
+        else:
+            difference.pop(axis, None)
+        contract["cases"].append(added)
     asset = {
         "schemaVersion": 1, "operation": "deriveOrdinaryPitch",
         "caseIdMigrations": {
@@ -2472,7 +2487,7 @@ def test_current_ordinary_contract_closes_all_cases_and_history_migration() -> N
         assert checker.check_input_coverage_exact(ROOT) == (228, 52, 0)
         return
     assert checker._ordinary_case_id_migrations(ROOT, contract) == _ORDINARY_CASE_IDS
-    assert len(contract["cases"]) == 117
+    assert len(contract["cases"]) == 119
     observed = _observed_coverage(contract["cases"], contract)
     assert len(observed) == 177
     assert checker.check_input_coverage_exact(ROOT) == (228, 51, 0)

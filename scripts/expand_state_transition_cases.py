@@ -57,6 +57,29 @@ def _document_by_key(
     return matches[0]
 
 
+def _canonical_guard_predicate(predicate: dict[str, Any]) -> dict[str, Any]:
+    """in guardを宣言順の先頭値のeqとして扱う。
+
+    coverage の代表割当を guard 拡張の前後で同一に保つための正準化。
+    実際の受理判定は元の述語で行う。
+
+    Args:
+        predicate: 規範行の事前条件。
+
+    Returns:
+        正準化した事前条件。
+    """
+    clone = copy.deepcopy(predicate)
+    for leaf in clone.get("args", []):
+        if isinstance(leaf, dict) and leaf.get("op") == "in":
+            values = leaf.get("values") or []
+            if values:
+                axis = leaf.get("axisId")
+                leaf.clear()
+                leaf.update(op="eq", axisId=axis, value=values[0])
+    return clone
+
+
 def _row_bound_value_exceptions(
     policy: dict[str, Any],
     descriptor: dict[str, Any],
@@ -349,7 +372,24 @@ def _expand_from_declared_inputs(
                 )
             ):
                 continue
-            for value in values_by_axis[axis_id]:
+            # 正準化述語で通る値（従来の割当）を先に、guard拡張で新たに通る値を後に回す。
+            canonical_values = [
+                value for value in values_by_axis[axis_id]
+                if any(
+                    representative_selection.predicate_holds(
+                        _canonical_guard_predicate(
+                            base["rowRef"]["coordinate"]["precondition"]
+                        ),
+                        {**copy.deepcopy(base["inputCoordinate"]), axis_id: value},
+                    )
+                    for base in cases[:limit]
+                )
+            ]
+            ordered_values = canonical_values + [
+                value for value in values_by_axis[axis_id]
+                if value not in canonical_values
+            ]
+            for value in ordered_values:
                 permitted_rows = value_row_bindings.get(axis_id, {}).get(
                     json.dumps(value, sort_keys=True, ensure_ascii=False)
                 )
@@ -380,8 +420,16 @@ def _expand_from_declared_inputs(
                         continue
                     coordinate = copy.deepcopy(base["inputCoordinate"])
                     coordinate[axis_id] = copy.deepcopy(value)
-                    if representative_selection.predicate_holds(
-                        base["rowRef"]["coordinate"]["precondition"], coordinate
+                    if (
+                        representative_selection.predicate_holds(
+                            _canonical_guard_predicate(
+                                base["rowRef"]["coordinate"]["precondition"]
+                            ),
+                            coordinate,
+                        )
+                        or representative_selection.predicate_holds(
+                            base["rowRef"]["coordinate"]["precondition"], coordinate
+                        )
                     ):
                         identity = json.dumps(
                             [base["caseId"], axis_id, value],
@@ -397,7 +445,9 @@ def _expand_from_declared_inputs(
                                 "inputCoordinate": coordinate,
                             }
                         )
-                        next_row = (next_row + offset + 1) % limit
+                        # 従来の割当を保つため、拡張で新たに通る値では回転を進めない。
+                        if value in canonical_values:
+                            next_row = (next_row + offset + 1) % limit
                         break
     if operation_limit:
         operation_rows = contract.get("operationRows")

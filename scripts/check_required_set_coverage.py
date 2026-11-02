@@ -711,8 +711,8 @@ def _ordinary_case_id_migrations(
         for case in old_cases
         if case.get("caseId") in mapping and case["caseId"].startswith("ST-MATRIX-")
     }
-    if set(representatives) != set(guards) or len(old) != 116 or len(new) != 117:
-        raise RequiredSetCoverageError("通常投球の4代表・116→117移行が不一致")
+    if set(representatives) != set(guards) or len(old) != 116 or len(new) != 119:
+        raise RequiredSetCoverageError("通常投球の4代表・116→119移行が不一致")
 
     def matrix_id(coordinate: dict[str, Any]) -> str:
         encoded = json.dumps(coordinate, sort_keys=True, ensure_ascii=False,
