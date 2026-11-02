@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 12:10 JST（統合枝の既存赤 18→4件）
+
+- **`in` 述語対応（1件解消）**: `_row_matches_coordinate`/`_row_axis_set`/`_row_is_eq_only` を導入し、normative-branch は値一致＋軸完全一致、constraint-negative は軸集合一致で行を引き、変異1件の数からは `in` 行の前提形差だけを除く。**PO推奨判断**: `ST-XC-11`（`state.outs=2` の併殺）は2アウトで併殺が成立しないため**制約違反の負例**として扱う。`19d9eb17`
+- **残4件**:
+  - `test_state_transition_contract_schema::test_legacy_committed_cases_match_history_expansion`: 現行 `expand_state_transition_cases.py`（`--limit 42 --mode coverage`）は112 caseを生成するが契約は110 case。`in` 行追加で展開結果が2件増えており、**契約caseの再凍結（freeze機構）**が必要。
+  - `test_orm_acceptance_sheets` 3: `generate_orm_acceptance_sheets.py --carry-judgments-from HEAD` で未判定は**13行**（N1 2 / N3 8 / N4 3、すべて §6-1 writer binding系と見出し行）。**人間judgmentの記入**と、`030→031` pin・row counts の追随が必要。プレーン再生成は全行未判定になるため使わない。
+- **#189固有**: tenant0・census211・frozen archive65・invariants OK・ruff/ty OKを維持。HEAD`19d9eb17`（未push、#189 remoteは`ad6588b1`）。
+
+
 ## 続き：2026-11-02 10:40 JST（統合枝の既存赤 18→5件、残りは意味論/人間判断）
 
 - **FE入口解決を解消**: `collect_endpoints_fe` の `_resolve_file` が (a) `.d.ts` を解決しない、(b) `client.syncEvents` のように名前にドットを含む指定を拡張子扱いして解決しない、(c) 同一stemの `.ts`/`.vue` 併存を曖昧として拒否する、(d) frontend外の型宣言/JSON参照を未解決にする、の4点を修正。**6件全て解決し `tests/domain` 754成功/2skip**。`45011750`
