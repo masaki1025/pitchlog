@@ -298,7 +298,7 @@ PO判断により、`census-baseline.json`の当該述語へ第3の緩和種別`
 維持する制約:
 
 - tsk544 §2(2) の他の禁止（無関係operationの自由値、expectedから不足を埋める処理、旧history/baselineCaseIdsのbyte書換え）と、§2(1) の旧104 case全object同値・12 case明示移行は維持する。
-- 件数は 116→119（B1 + strikes=1 + balls=2）。required-set coverageは177のまま。game_end宣言の`stateTransition`は119（commit `160811d4` で117→119へ追随済み）。
+- 件数は 116→119（B1 + strikes=1 + balls=2）。required-set coverageは177のまま。game_end宣言の`stateTransition`は119（commit `6a214c9d` で117→119へ追随済み）。
 - 変更範囲は次のexact列挙に限り、製品source（`backend/src`・`frontend/src`）は触らない:
   - contracts/state-transition: `state_transition_contract_v1.json`・`game_end_coverage_declaration_v1.json`・`appendix_e_consumer_handoff_v1.json`・`gate6_t1_ordinary_pitch_v1.json`・`gate6_t1_ordinary_pitch_schema_v1.json`・`gate6_t1_ordinary_pitch_pins_v1.json`
   - contracts/authz: `oracle-seal.lock.json`・`frozen-baselines.json`・`failure-injection-points.json`・`mcdc-map.json`・`attack-tree.json`・`boundary-proposal.json`・`claim-mutant-map.json`・`ddl-elements.json`・`rejected-configs.json`・`verification-evidence.json`
