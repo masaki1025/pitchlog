@@ -1043,24 +1043,49 @@ _INITIAL_RIGHT_STORAGE_TABLES = frozenset(
         "recording_right_deliveries",
     }
 )
+_WRITER_BINDING_TABLES = frozenset(
+    {
+        "sync_fence.writer_bindings",
+        "sync_fence.writer_admissions",
+        "sync_fence.first_ball_write_admissions",
+    }
+)
 
 
 def _metadata_for_schema_revision(revision: str) -> MetaData:
-    """0035/0036の実migration差だけを逆射影し、他の差は保持する。"""
-    if revision == "0036_initial_right_storage":
+    """0035/0036/0037/0038の実migration差だけを逆射影し、他の差は保持する。"""
+    if revision == "0038_first_ball_write_admission":
         return Base.metadata
+    if revision == "0037_sync_writer_binding":
+        historical = MetaData(naming_convention=Base.metadata.naming_convention)
+        for name, source in Base.metadata.tables.items():
+            if name != "sync_fence.first_ball_write_admissions":
+                source.to_metadata(historical)
+        return historical
     if revision not in {
         "0032_rg1_restore_gate",
         "0033_game_rules_immutable",
         "0035_rg1_initial_fresh_epoch",
+        "0036_initial_right_storage",
     }:
         raise AssertionError("未対応revisionのモデル比較を補完しない")
     historical = MetaData(naming_convention=Base.metadata.naming_convention)
-    # 0036の_TABLE_NAMESはこの4表だけを新設し、旧46表を変更しない。
+    # 0037/0038のwriter binding 3表は後続migrationの新設なので除外する。
+    # 0036の4表は0036より前のrevisionだけ除外する。
     for name, source in Base.metadata.tables.items():
-        if name not in _INITIAL_RIGHT_STORAGE_TABLES:
-            source.to_metadata(historical)
-    generations = historical.tables.get("recording_generations")
+        if name in _WRITER_BINDING_TABLES:
+            continue
+        if (
+            revision != "0036_initial_right_storage"
+            and name in _INITIAL_RIGHT_STORAGE_TABLES
+        ):
+            continue
+        source.to_metadata(historical)
+    generations = (
+        historical.tables.get("recording_generations")
+        if revision != "0036_initial_right_storage"
+        else None
+    )
     if generations is not None:
         # 0036 upgradeのadd_column/create_check_constraint exact2組だけを戻す。
         for column_name, check_name, expression in (
@@ -1088,7 +1113,7 @@ def _metadata_for_schema_revision(revision: str) -> MetaData:
             assert str(checks[0].sqltext) == expression
             generations.constraints.remove(checks[0])
             generations._columns.remove(column)
-    if revision != "0035_rg1_initial_fresh_epoch":
+    if revision in {"0032_rg1_restore_gate", "0033_game_rules_immutable"}:
         copied = historical.tables.get("rg1_restore_gate")
         if copied is not None:
             epoch = copied.c.recovery_generation
@@ -8684,11 +8709,14 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
     current = Base.metadata.tables["rg1_restore_gate"]
     projected = _metadata_for_schema_revision(revision)
     assert projected is not Base.metadata
-    assert set(projected.tables) == set(Base.metadata.tables) - (
-        _INITIAL_RIGHT_STORAGE_TABLES
+    assert (
+        set(projected.tables)
+        == set(Base.metadata.tables)
+        - (_INITIAL_RIGHT_STORAGE_TABLES)
+        - _WRITER_BINDING_TABLES
     )
     for name, table in Base.metadata.tables.items():
-        if name in _INITIAL_RIGHT_STORAGE_TABLES:
+        if name in _INITIAL_RIGHT_STORAGE_TABLES or name in _WRITER_BINDING_TABLES:
             continue
         expected = set(table.c.keys())
         if name == "rg1_restore_gate" and revision != "0035_rg1_initial_fresh_epoch":
@@ -8700,7 +8728,10 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
     assert {"proof_digest", "recovery_generation"} <= set(
         Base.metadata.tables["recording_generations"].c.keys()
     )
-    assert _metadata_for_schema_revision("0036_initial_right_storage") is Base.metadata
+    assert (
+        set(_metadata_for_schema_revision("0036_initial_right_storage").tables)
+        == set(Base.metadata.tables) - _WRITER_BINDING_TABLES
+    )
     with pytest.raises(AssertionError, match="未対応revision"):
         _metadata_for_schema_revision("unknown")
 
@@ -8708,7 +8739,7 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
 def test_current_metadata_epoch_column_loss_is_detected(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """正規0036は完全モデルで比較し、epoch欠落を必ず検出する。"""
+    """正規0038は完全モデルで比較し、epoch欠落を必ず検出する。"""
     engine = create_engine(
         normalize_postgresql_url(_sqlalchemy_url(provisioned_product_catalog.owner_dsn))
     )
@@ -8720,11 +8751,12 @@ def test_current_metadata_epoch_column_loss_is_detected(
                     connection.exec_driver_sql(
                         "SELECT version_num FROM public.alembic_version"
                     ).scalar_one()
-                    == "0036_initial_right_storage"
+                    == "0038_first_ball_write_admission"
                 )
                 assert (
                     compare_metadata(
-                        MigrationContext.configure(connection), Base.metadata
+                        MigrationContext.configure(connection),
+                        _metadata_for_schema_revision("0036_initial_right_storage"),
                     )
                     == []
                 )
@@ -8733,7 +8765,8 @@ def test_current_metadata_epoch_column_loss_is_detected(
                     "DROP COLUMN recovery_generation"
                 )
                 diffs = compare_metadata(
-                    MigrationContext.configure(connection), Base.metadata
+                    MigrationContext.configure(connection),
+                    _metadata_for_schema_revision("0036_initial_right_storage"),
                 )
                 assert any(
                     difference[0] == "add_column"
@@ -8744,7 +8777,10 @@ def test_current_metadata_epoch_column_loss_is_detected(
             finally:
                 transaction.rollback()
             assert (
-                compare_metadata(MigrationContext.configure(connection), Base.metadata)
+                compare_metadata(
+                    MigrationContext.configure(connection),
+                    _metadata_for_schema_revision("0036_initial_right_storage"),
+                )
                 == []
             )
     finally:

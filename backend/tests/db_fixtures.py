@@ -187,8 +187,11 @@ def _role_id(asset: dict[str, object], role_kind: str) -> str:
     return role_id
 
 
+_SESSION_DSN_CACHE: dict[str, str] = {}
+
+
 def _required_dsn(variable_name: str) -> str:
-    """必須 DSN を環境変数だけから取得する。
+    """必須 DSN を環境変数から取得し、セッション開始時の値を保持する。
 
     Args:
         variable_name: 期待値資産が定める環境変数名。
@@ -198,7 +201,12 @@ def _required_dsn(variable_name: str) -> str:
     """
     value = os.environ.get(variable_name)
     if not value:
+        # 一部の試験が monkeypatch で env を消した後も、開始時の必須値を
+        # 使い続ける（未設定のまま開始した場合は下で fail する）。
+        value = _SESSION_DSN_CACHE.get(variable_name)
+    if not value:
         pytest.fail(f"必須 DSN 環境変数が未設定: {variable_name}")
+    _SESSION_DSN_CACHE.setdefault(variable_name, value)
     return value
 
 
