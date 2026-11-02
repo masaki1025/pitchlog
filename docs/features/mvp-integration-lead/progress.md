@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-02 14:40 JST（統合枝の既存赤 18→1件、残りはcoverage再凍結のみ）
+
+- **ORM sheet を全緑化（19件）**: `generate_orm_acceptance_sheets.py` の `_NUMBERED_SECTION_RE`/`_REFERENCE_RE` が小文字サブ節（`6-1-a`）を認識せず、writer-binding 3表が `recording_generations` に誤対応していたのを修正。`--carry-judgments-from HEAD` 後、未判定13行へ判定を記帳（N1 2＝§6見出し対象外/§6-1-a一致、N3 8＝変更履歴対象外/§6-1-a一致、N4 3＝削除ライフサイクル対象外）。判定はPO委任による主担当判断と明記し、根拠は `docs/design/data-model.md:6 / :10 / :1285 / :11-1` と manifest の実在に限定（架空REPORT SHAなし）。pin追随は `030→031`、行数 N1 104→105 / N3 113→121 / N4 59→62。`bc1cc4f1`
+- **残1件**: `test_legacy_committed_cases_match_history_expansion`。現行 expander は coverage **50件**（旧48件＋2件、case IDは全件ハッシュ変更）を生成するが、契約は旧coverageを含む110 legacy。各coverage caseは `historyInput`（`stateFields`/`scoreboard`/`stack`）を契約側に持つ必要があり、**`state.inning: "N-1"` のような記号値は履歴展開後（8等）で保持**されるため、座標からの単純導出はできない（実測: 48件中15件で不一致）。したがって expander の履歴展開を通した coverage 50件の再生成＋契約cases差し替え＋件数pin（117/110/72等）の追随が必要。
+- **#189固有**: tenant0・census211・frozen archive65・invariants OK・ruff/ty OKを維持。HEAD`bc1cc4f1`（未push、#189 remoteは`ad6588b1`）。
+
+
 ## 続き：2026-11-02 12:10 JST（統合枝の既存赤 18→4件）
 
 - **`in` 述語対応（1件解消）**: `_row_matches_coordinate`/`_row_axis_set`/`_row_is_eq_only` を導入し、normative-branch は値一致＋軸完全一致、constraint-negative は軸集合一致で行を引き、変異1件の数からは `in` 行の前提形差だけを除く。**PO推奨判断**: `ST-XC-11`（`state.outs=2` の併殺）は2アウトで併殺が成立しないため**制約違反の負例**として扱う。`19d9eb17`
