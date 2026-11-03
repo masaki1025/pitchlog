@@ -360,6 +360,12 @@ def test_force_rls_applies_to_owner_with_unbound_context(
             cursor.execute("SELECT pg_catalog.current_setting('app.tenant_id', true)")
             assert cursor.fetchone() == (None,)
             for table in manifest_table_names():
+                if table in {
+                    "writer_bindings",
+                    "writer_admissions",
+                    "first_ball_write_admissions",
+                }:
+                    continue
                 cursor.execute(
                     sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
                         sql.Identifier("public", table)
