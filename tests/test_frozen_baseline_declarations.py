@@ -285,9 +285,9 @@ def test_repository_scan_has_the_declared_terminal_population() -> None:
     entries = checker._load_worktree_scan_allowlist(REPOSITORY_ROOT)
 
     assert scan.occurrences_40 == 13
-    assert scan.occurrences_64 == 1
+    assert scan.occurrences_64 == 9
     assert len({pair for pair in scan.pairs if len(pair.value) == 40}) == 9
-    assert len({pair for pair in scan.pairs if len(pair.value) == 64}) == 1
-    assert len(entries) == 10
-    assert sum(entry.pending_removal for entry in entries) == 4
+    assert len({pair for pair in scan.pairs if len(pair.value) == 64}) == 9
+    assert len(entries) == 18
+    assert sum(entry.pending_removal for entry in entries) == 12
     assert sum(not entry.pending_removal for entry in entries) == 6
