@@ -237,3 +237,37 @@ ACK本文喪失後の重複終結候補の保存（2026-10-30、PO委任によ�
 ACK喪失実試験の作成503切分け（2026-10-31、PO委任によるCodex主担当判断）: b5029edcのowned実HTTPSは作成POST503/111.61秒で故障注入前に停止。既fixtureは実RG1 open/epochとbroker readyを確認済みなので、待機無しやRG1raceと断定しない。既test-only initial diagnostic bootstrapのbackend/tests/db/test_screen_start_e2e.py exact1を追加編集許可し計6pathとする。明示opt-in時だけ、実create serviceの既RG1/大会選択/teamlock/resolver/codec/INSERT確認/最終RG1/全体と既scope enter/exitを透過観測し、stage・returned/raised・許可class・既public error.codeだけを記録する。元args/同return object/同例外/with enter-exit/suppression/cleanupを保持、observer故障は元処理へ影響しない。原要求/資格/rows/SQL/params/例外本文/digestを出さず、成功補完/固定成功/ゲート緩和/無条件retry/sleepを加えない。純透過対向・非作者確認後にrootが同owned実経路を再実行する。新6path以外のsource/formal/refs/共有DBは作者編集禁止。
 
 作成段階観測の保存（2026-10-31、PO委任によるCodex主担当判断）: 追加shared helper6f6c7a255148391860b2f9add361b89b3792c0a26f0e1455a431ed48c9ec0f79/packet6ab1ce3a4c9ebb38326f7662f9bf6e3d899433523f785b3f3c797d06fe28531eと独立REPORT2e44a1d06f36d02e4f36b6f381a378fe6a2ce751574e4fef2ceba624133a33e7（P0/P1/P2=0、透過probe/実scope型拒否/型ruff成功）を照合して採用。create flagを明示した試験だけ観測、default/initial-only argv不変、元Guard/型/factory/Token/Port/callsite拒否を保持。scope-exit returnedはrollback正常終了でも出るためcommit成功とは解釈せず、他scope混在も留保する。既5source不変、rootがnative実経路を再測定するまで原因/復旧成功は未確定。
+
+## 統合追補: #189統合後の再接続（2026-11-03）
+
+根拠: `docs/features/post-189-integration/plan.md`（PR #195 で承認済み・develop `6d4b1b3f`）。本追補は同計画の手順を本ブランチで実行するための連番ステップであり、新しい意味・スコープを追加しない。PO委任は `docs/features/mvp-delegated-core-review/policy.json` の #190 対象branchに基づくが、本人逐行確認・署名は代記しない。
+
+## 影響する正本（統合追補）
+
+| 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
+| --- | --- | --- |
+| `docs/features/post-189-integration/plan.md` | 反映なし（参照のみ） | なし |
+| `docs/requirements/requirements-pitchlog-2026-07-22.md` | 反映なし（意味変更なし） | なし |
+| `contracts/tenant_boundary/*` | 本PRで受理record・snapshot・宣言を公式導出で再生成 | PRレビュー |
+| `contracts/authz/*` | 本PRで派生資産・lockを公式helperで再導出 | PRレビュー |
+
+### 実行ステップ（本ブランチ）
+
+| # | ステップ(何を作るか) | 合格条件(このステップの検証方法) |
+| --- | --- | --- |
+| 1 | `origin/develop` を merge する（rebaseしない） | 競合が統合計画の26件と一致する（`git diff --name-only --diff-filter=U`） |
+| 2 | 26件を統合計画の3区分で解消する（develop採用10 / develop採用+追記1 / union 10 / 再導出4 / union+再導出1） | `git diff --name-only --diff-filter=U` が空。製品sourceの機能差分を失っていない |
+| 3 | tenant生成モジュールを公式経路で再導出する | `cd backend && uv run python -m pitchlog.authz.runtime_contract_generator rederive --base origin/develop` → `render` → `check` が0 |
+| 4 | authz catalogの派生資産とlockを再導出する | `uv run python scripts/check_authz_catalog.py --asset-spec product --reseal-derived` が0（oracle移動がある場合のみ `--reseal-oracle`） |
+| 5 | tenant宣言を統合する（`base-allowlist.json` の宣言union、`repository-contract.json` の限定追記・revision再採番・`source_digest` 再計算） | `check_tenant_boundary_bypass.py --base-ref origin/develop` が「宣言不足」を出さない（受理record未了の指摘だけが残る） |
+| 6 | `repository_contract.py` / `tenant_context_contract.py` を薄い再導出スクリプトで更新する（writerが無いため。手編集禁止） | 追加スクリプトの単体テストが緑。両モジュールの定数が資産と一致 |
+| 7 | 凍結archive corpusとCI期待値を受理recordより前に確定する（`tests/test_ci_wiring.py` は `external_files`） | `tests/fixtures/frozen-archive-cases/manifest.json` の pin が `corpus_input_digest()` と一致。`test_ci_wiring.py` が緑 |
+| 8 | 受理recordとsnapshotを公式helperで生成・適用する（全入力の確定後・最後） | `cd backend && uv run python -m pitchlog.authz.runtime_contract_acceptance --repository <repo> --base origin/develop --acceptance-id masaki1025/pitchlog#190 --approved-by '<値>' --approved-on 2026-11-03 --reason '<理由>' --movement-fact '<事実>' --output <リポジトリ外>` の `record`・`snapshots_base64` を適用し、`change.after` を手修正していない |
+| 9 | 全件検査を実行する | `check_tenant_boundary_bypass.py --base-ref origin/develop` / `check_authz_catalog.py --asset-spec product` / `runtime_contract_generator check` / `pytest tests/test_check_tenant_boundary_bypass.py tests/test_frozen_history.py tests/test_frozen_archive.py tests/test_frozen_archive_case_runner.py tests/test_ci_wiring.py tests/test_census_baseline_check.py` / `cd backend && uv run pytest` が緑 |
+| 10 | 非作者レビューと必須CIを通す | P0/P1=0、`gh pr checks 190` の必須ジョブが全pass。受理recordの `change.after` が実HEADと一致 |
+
+### 停止条件
+
+- 手順2〜9のいずれかで検査が非0になったら**その段階で停止**し、前段の出力を手で直して先へ進めない。
+- 受理record適用後（手順8以降）は、9資産の識別値と `external_files` の実装を動かさない。動かす必要が出たら record コミットを取り消して手順7からやり直す。
+- 検査を緩めない。拒否対向・negative fixtures の件数を減らさない。
