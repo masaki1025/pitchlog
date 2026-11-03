@@ -5861,10 +5861,19 @@ FIRST_BALL_EXPECTED_MAPS: dict[str, dict[str, tuple[str, ...]]] = {
             "backend/tests/test_recorded_snapshot.py",
         ),
     },
+    "ORDINARY_PITCH": {
+        "sync-protocol": (
+            "backend/src/pitchlog/db/writer_binding/ordinary_models.py",
+            "backend/tests/manual_e2e_hold_support.py",
+            "backend/tests/test_ordinary_order.py",
+            "backend/tests/test_ordinary_pitch_operations.py",
+        ),
+    },
 }
 FIRST_BALL_EXPECTED_ORDERS = (
     (), ("N1_U1",), ("N2_A",), ("N1_U1", "N2_A"), ("N2_A", "N1_U1"),
     ("N1_U1", "N2_A", "WRITER_BINDING"),
+    ("N1_U1", "N2_A", "WRITER_BINDING", "ORDINARY_PITCH"),
 )
 
 
@@ -5957,20 +5966,30 @@ def _first_ball_git_repo(
 
 
 FIRST_BALL_ALLOWED_TRANSITIONS = {
-    ((), ()), ((), ("N1_U1",)), ((), ("N2_A",)),
-    ((), ("N1_U1", "N2_A")), ((), ("N2_A", "N1_U1")),
-    (("N1_U1",), ("N1_U1",)), (("N1_U1",), ("N1_U1", "N2_A")),
-    (("N2_A",), ("N2_A",)), (("N2_A",), ("N2_A", "N1_U1")),
-    (("N1_U1", "N2_A"), ("N1_U1", "N2_A")),
-    (("N2_A", "N1_U1"), ("N2_A", "N1_U1")),
-    ((), ("N1_U1", "N2_A", "WRITER_BINDING")),
-    ((), ("N2_A", "N1_U1", "WRITER_BINDING")),
-    (("N1_U1",), ("N1_U1", "N2_A", "WRITER_BINDING")),
-    (("N2_A",), ("N2_A", "N1_U1", "WRITER_BINDING")),
-    (("N1_U1", "N2_A"), ("N1_U1", "N2_A", "WRITER_BINDING")),
-    (("N2_A", "N1_U1"), ("N2_A", "N1_U1", "WRITER_BINDING")),
-    (("N1_U1", "N2_A", "WRITER_BINDING"), ("N1_U1", "N2_A", "WRITER_BINDING")),
-    (("N2_A", "N1_U1", "WRITER_BINDING"), ("N2_A", "N1_U1", "WRITER_BINDING")),
+    ((), ()),
+    ((), ('N1_U1',)),
+    ((), ('N2_A',)),
+    ((), ('N1_U1', 'N2_A',)),
+    ((), ('N2_A', 'N1_U1',)),
+    ((), ('N1_U1', 'N2_A', 'WRITER_BINDING',)),
+    ((), ('N2_A', 'N1_U1', 'WRITER_BINDING',)),
+    ((), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
+    (('N1_U1',), ('N1_U1',)),
+    (('N1_U1',), ('N1_U1', 'N2_A',)),
+    (('N1_U1',), ('N1_U1', 'N2_A', 'WRITER_BINDING',)),
+    (('N1_U1',), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
+    (('N2_A',), ('N2_A',)),
+    (('N2_A',), ('N2_A', 'N1_U1',)),
+    (('N2_A',), ('N2_A', 'N1_U1', 'WRITER_BINDING',)),
+    (('N1_U1', 'N2_A',), ('N1_U1', 'N2_A',)),
+    (('N1_U1', 'N2_A',), ('N1_U1', 'N2_A', 'WRITER_BINDING',)),
+    (('N1_U1', 'N2_A',), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
+    (('N2_A', 'N1_U1',), ('N2_A', 'N1_U1',)),
+    (('N2_A', 'N1_U1',), ('N2_A', 'N1_U1', 'WRITER_BINDING',)),
+    (('N1_U1', 'N2_A', 'WRITER_BINDING',), ('N1_U1', 'N2_A', 'WRITER_BINDING',)),
+    (('N1_U1', 'N2_A', 'WRITER_BINDING',), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
+    (('N2_A', 'N1_U1', 'WRITER_BINDING',), ('N2_A', 'N1_U1', 'WRITER_BINDING',)),
+    (('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
 }
 
 
@@ -5981,7 +6000,7 @@ def test_first_ball_exact_declarations_and_legacy_area_map_are_preserved() -> No
     assert dict(guard.FIRST_BALL_SNAPSHOT_CORE_ADDITIONS) == FIRST_BALL_EXPECTED_MAPS["N2_A"]
     assert dict(guard.AREA_PATH_ADDITIONS) == HTTP_COMPOSITE_ADDITIONS
     assert tuple(guard._FIRST_BALL_LAYER_ORDERS) == FIRST_BALL_EXPECTED_ORDERS
-    assert len(FIRST_BALL_ALLOWED_TRANSITIONS) == 19
+    assert len(FIRST_BALL_ALLOWED_TRANSITIONS) == 24
     assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["N1_U1"].values())) == 17
     assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["N2_A"].values())) == 14
     assert sum(map(len, FIRST_BALL_EXPECTED_MAPS["WRITER_BINDING"].values())) == 7
@@ -5998,7 +6017,7 @@ def test_first_ball_exact_declarations_and_legacy_area_map_are_preserved() -> No
 def test_first_ball_exact_transitions_in_real_git(
     tmp_path: Path, before_order: tuple[str, ...], after_order: tuple[str, ...],
 ) -> None:
-    """基線の新層順をprefixに持つ19遷移だけを実Gitで受理する。"""
+    """基線の新層順をprefixに持つ24遷移だけを実Gitで受理する。"""
     guard = load_core_guard_module()
     root, base = _first_ball_git_repo(tmp_path, _first_ball_configuration(before_order))
     # 同一状態でも独立HEADを作り、現在JSONの実blobを検査する。
@@ -6019,6 +6038,7 @@ FIRST_BALL_LAYER_MINIMAL_ORDER = {
     "N1_U1": ("N1_U1",),
     "N2_A": ("N2_A",),
     "WRITER_BINDING": ("N1_U1", "N2_A", "WRITER_BINDING"),
+    "ORDINARY_PITCH": ("N1_U1", "N2_A", "WRITER_BINDING", "ORDINARY_PITCH"),
 }
 
 
