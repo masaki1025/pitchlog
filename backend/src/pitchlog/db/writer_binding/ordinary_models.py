@@ -120,7 +120,7 @@ class OrdinaryPitchWriteAdmission(LifecycleMixin, Base):
         Base.metadata,
         # 型付きwriter identityだけを再利用し、初球資格表は参照しない。
         *(
-            Column(c.name, c.type.copy(), nullable=False)
+            Column(c.name, c.type.adapt(type(c.type)), nullable=False)
             for c in WriterBinding.__table__.c
             if c.name not in {"state", "close_id"}
         ),

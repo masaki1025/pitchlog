@@ -195,100 +195,6 @@ ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
             'pitchlog.domainrt.ordinary_pitch_continuation.PrefixRef.<module>',
         ),
     }),
-    "backend/src/pitchlog/recording_rights/initial_grant_broker.py": frozenset({
-        (
-            35,
-            'DurableGenerationSource',
-            'pitchlog.recording_rights.initial_grant_broker.<module>',
-        ),
-        (
-            35,
-            'assert_write_recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker.<module>',
-        ),
-        (
-            327,
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            'pitchlog.recording_rights.initial_grant_broker.<module>',
-        ),
-        (
-            406,
-            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker._issue_initial_grant_impl',
-        ),
-        (
-            407,
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker._issue_initial_grant_impl',
-        ),
-        (
-            431,
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            'pitchlog.recording_rights.initial_grant_broker.<module>',
-        ),
-        (
-            446,
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            'pitchlog.recording_rights.initial_grant_broker.<module>',
-        ),
-        (487, 'generation', 'pitchlog.recording_rights.initial_grant_broker.<module>'),
-        (494, 'int', 'pitchlog.recording_rights.initial_grant_broker._broker_d4'),
-        (
-            499,
-            '_broker_generation',
-            'pitchlog.recording_rights.initial_grant_broker.<module>',
-        ),
-        (
-            513,
-            'int',
-            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-        ),
-        (
-            517,
-            'int',
-            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-        ),
-        (
-            523,
-            'int',
-            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-        ),
-        (
-            807,
-            'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
-            'pitchlog.recording_rights.initial_grant_broker._postcommit_start_response',
-        ),
-        (
-            808,
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker._postcommit_start_response',
-        ),
-        (
-            808,
-            'recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker._postcommit_start_response',
-        ),
-        (
-            932,
-            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-            'pitchlog.recording_rights.initial_grant_broker._decode_initial_reply',
-        ),
-        (
-            1470,
-            'pitchlog.sync.idempotency',
-            'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start',
-        ),
-        (
-            1527,
-            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start',
-        ),
-        (
-            1528,
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            'pitchlog.recording_rights.initial_grant_broker._worker_resolve_start',
-        ),
-    }),
     "backend/src/pitchlog/repositories/ordinary_pitch_operations.py": frozenset({
         (
             15,
@@ -727,94 +633,6 @@ ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
 
 # 通常投球接合で承認した条件5出現（DB到達APIと生成迂回）だけを許す。
 ORDINARY_CONDITION5_SCOPES: dict[str, frozenset[tuple[int, str, str, str]]] = {
-    "backend/src/pitchlog/db/writer_binding/ordinary_models.py": frozenset({
-        (
-            123,
-            'TB005',
-            'psycopg.AsyncCursor.copy|psycopg.Cursor.copy',
-            'pitchlog.db.writer_binding.ordinary_models.OrdinaryPitchWriteAdmission.<module>',
-        ),
-    }),
-    "backend/src/pitchlog/recording_rights/initial_grant_broker.py": frozenset({
-        (
-            165,
-            'TB005',
-            'psycopg.Connection.cursor',
-            'pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout',
-        ),
-        (
-            166,
-            'TB005',
-            'psycopg.Cursor.execute',
-            'pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout',
-        ),
-        (
-            185,
-            'TB005',
-            'psycopg.Connection.rollback',
-            'pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout',
-        ),
-        (
-            188,
-            'TB005',
-            'psycopg.Connection.rollback',
-            'pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout',
-        ),
-        (
-            255,
-            'TB005',
-            'sqlalchemy.create_engine',
-            'pitchlog.recording_rights.initial_grant_broker._load_initial_actor_runtime',
-        ),
-        (
-            1129,
-            'TB005',
-            'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
-            'pitchlog.recording_rights.initial_grant_broker._InitialBrokerClient.call',
-        ),
-        (
-            1220,
-            'TB005',
-            'psycopg.Connection.cursor',
-            'pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout',
-        ),
-        (
-            1221,
-            'TB005',
-            'psycopg.Cursor.execute',
-            'pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout',
-        ),
-        (
-            1226,
-            'TB005',
-            'psycopg.Connection.rollback',
-            'pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout',
-        ),
-        (
-            1229,
-            'TB005',
-            'psycopg.Connection.rollback',
-            'pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout',
-        ),
-        (
-            1289,
-            'TB005',
-            'sqlalchemy.create_engine',
-            'pitchlog.recording_rights.initial_grant_broker._load_initial_auth_verifier_runtime',
-        ),
-        (
-            1755,
-            'TB005',
-            'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
-            'pitchlog.recording_rights.initial_grant_broker.serve_initial_broker',
-        ),
-        (
-            1768,
-            'TB007',
-            'pitchlog.durable_rights_ledger.DurableLedger',
-            'pitchlog.recording_rights.initial_grant_broker.serve_initial_broker',
-        ),
-    }),
     "backend/src/pitchlog/sync/ordinary_pitch_execution.py": frozenset({
         (
             183,
@@ -1871,7 +1689,7 @@ def _load_ordinary_condition2_owners(
                 )
             findings.add((line, symbol, scope))
         if frozenset(findings) != ORDINARY_CONDITION2_SCOPES[full_path]:
-            raise ContractError("通常条件2登録は審査対象9path/108出現のexact-setが必要")
+            raise ContractError("通常条件2登録は審査対象8path/88出現のexact-setが必要")
         owners.append(
             OrdinaryCondition2Owner(full_path, digest, frozenset(findings))
         )
@@ -7231,101 +7049,68 @@ _INITIAL_POPULATION_POLICY: dict[str, tuple[str, tuple[tuple[int, str, str, str]
         (567, "TB002", "sqlalchemy.orm.Mapped", "RecordingRightDelivery.<module>"),
         (576, "TB005", "sqlalchemy.text", "RecordingRightDelivery.<module>"),
     )),
-    "pitchlog/recording_rights/initial_grant_broker.py": ("initial_grant_broker_caller", (
-        (35, 'TB002', 'DurableGenerationSource', '<module>'),
-        (35, 'TB002', 'assert_write_recovery_generation', '<module>'),
-        (165, 'TB005', 'psycopg.Connection.cursor', '_verify_initial_actor_checkout'),
-        (166, 'TB005', 'psycopg.Cursor.execute', '_verify_initial_actor_checkout'),
-        (185, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
-        (188, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
-        (255, 'TB005', 'sqlalchemy.create_engine', '_load_initial_actor_runtime'),
-        (
-            327,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            '<module>',
-        ),
-        (
-            406,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
-            '_issue_initial_grant_impl',
-        ),
-        (
-            407,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            '_issue_initial_grant_impl',
-        ),
-        (
-            431,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            '<module>',
-        ),
-        (
-            446,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            '<module>',
-        ),
-        (486, 'TB002', 'generation', '<module>'),
-        (493, 'TB002', 'int', '_broker_d4'),
-        (498, 'TB002', '_broker_generation', '<module>'),
-        (512, 'TB002', 'int', '_broker_generation'),
-        (516, 'TB002', 'int', '_broker_generation'),
-        (522, 'TB002', 'int', '_broker_generation'),
-        (
-            806,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
-            '_postcommit_start_response',
-        ),
-        (
-            807,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            '_postcommit_start_response',
-        ),
-        (807, 'TB002', 'recovery_generation', '_postcommit_start_response'),
-        (
-            931,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-            '_decode_initial_reply',
-        ),
-        (
-            1121,
-            'TB005',
-            'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
-            '_InitialBrokerClient.call',
-        ),
-        (1212, 'TB005', 'psycopg.Connection.cursor', '_verify_auth_verifier_checkout'),
-        (1213, 'TB005', 'psycopg.Cursor.execute', '_verify_auth_verifier_checkout'),
-        (1218, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
-        (1221, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
-        (1281, 'TB005', 'sqlalchemy.create_engine', '_load_initial_auth_verifier_runtime'),
-        (1462, 'TB002', 'pitchlog.sync.idempotency', '_worker_resolve_start'),
-        (
-            1519,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
-            '_worker_resolve_start',
-        ),
-        (
-            1520,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            '_worker_resolve_start',
-        ),
-        (
-            1747,
-            'TB005',
-            'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
-            'serve_initial_broker',
-        ),
-        (1760, 'TB007', 'pitchlog.durable_rights_ledger.DurableLedger', 'serve_initial_broker'),
-    )),
+    "pitchlog/recording_rights/initial_grant_broker.py": (
+        "initial_grant_broker_caller",
+        ((35, 'TB002', 'DurableGenerationSource', '<module>'),
+         (35, 'TB002', 'assert_write_recovery_generation', '<module>'),
+         (165, 'TB005', 'psycopg.Connection.cursor', '_verify_initial_actor_checkout'),
+         (166, 'TB005', 'psycopg.Cursor.execute', '_verify_initial_actor_checkout'),
+         (185,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_initial_actor_checkout'),
+         (188,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_initial_actor_checkout'),
+         (255, 'TB005', 'sqlalchemy.create_engine', '_load_initial_actor_runtime'),
+         (327,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+          '<module>'),
+         (406,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+          '_issue_initial_grant_impl'),
+         (407,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+          '_issue_initial_grant_impl'),
+         (431,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+          '<module>'),
+         (446,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+          '<module>'),
+         (487, 'TB002', 'generation', '<module>'),
+         (494, 'TB002', 'int', '_broker_d4'),
+         (499, 'TB002', '_broker_generation', '<module>'),
+         (513, 'TB002', 'int', '_broker_generation'),
+         (517, 'TB002', 'int', '_broker_generation'),
+         (523, 'TB002', 'int', '_broker_generation'),
+         (808, 'TB002', 'recovery_generation', '_postcommit_start_response'),
+         (1220, 'TB005', 'psycopg.Connection.cursor', '_verify_auth_verifier_checkout'),
+         (1221, 'TB005', 'psycopg.Cursor.execute', '_verify_auth_verifier_checkout'),
+         (1226,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_auth_verifier_checkout'),
+         (1229,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_auth_verifier_checkout'),
+         (1289,
+          'TB005',
+          'sqlalchemy.create_engine',
+          '_load_initial_auth_verifier_runtime'),
+         (1470, 'TB002', 'pitchlog.sync.idempotency', '_worker_resolve_start'),
+         (1768,
+          'TB007',
+          'pitchlog.durable_rights_ledger.DurableLedger',
+          'serve_initial_broker')),
+    ),
     "pitchlog/repositories/game_start.py": ("game_start_caller", (
         (23, "TB002", "pitchlog.sync.idempotency", "<module>"),
         (340, "TB007", "cls", "_start_token"),
@@ -9209,7 +8994,7 @@ def _load_ordinary_condition5_owners(
             findings.add(identity)
         if frozenset(findings) != ORDINARY_CONDITION5_SCOPES[full_path]:
             raise ContractError(
-                "通常条件5登録は審査済み3path/15出現のexact-setが必要"
+                "通常条件5登録は審査済み1path/1出現のexact-setが必要"
             )
         owners.append(ScopedCondition5Owner(full_path, digest, frozenset(findings)))
     return tuple(owners)
