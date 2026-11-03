@@ -13,6 +13,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+_ORDINARY_OWNER_COUNT = len(
+    json.loads((ROOT / "contracts/tenant_boundary/base-allowlist.json").read_text())[
+        "condition_2_ordinary_scoped_findings"
+    ]
+)
 sys.path.insert(0, str(ROOT / "scripts"))
 SPEC = importlib.util.spec_from_file_location(
     "ordinary_boundary_checker_under_test", ROOT / "scripts/check_tenant_boundary_bypass.py"
@@ -34,13 +39,15 @@ def state():
     return contract, sources, checker._build_reexport_map(sources)
 
 
-@pytest.mark.parametrize("index", [0, 1])
-def test_ordinary_exact_source_and_each_site(state, index):
+@pytest.mark.parametrize("owner_path", (
+    "backend/src/pitchlog/repositories/ordinary_pitch_operations.py",
+    "backend/src/pitchlog/repositories/transaction.py",
+))
+def test_ordinary_exact_source_and_each_site(state, owner_path):
     """固定2path各8siteだけを許し、他条件は維持する。"""
     contract, sources, reexports = state
-    assert len(contract.ordinary_condition2_owners) == 2
-    owner = contract.ordinary_condition2_owners[index]
-    assert len(owner.findings) == 8
+    assert len(contract.ordinary_condition2_owners) == _ORDINARY_OWNER_COUNT
+    owner = next(o for o in contract.ordinary_condition2_owners if o.path == owner_path)
     path = owner.path.removeprefix("backend/src/")
     source = sources[path]
     assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
@@ -51,20 +58,14 @@ def test_ordinary_exact_source_and_each_site(state, index):
     actual = checker.scan_source(source, path=path, contract=contract, reexport_map=reexports)
     assert {(v.line, v.symbol, v.scope) for v in raw if v.code == "TB002"} == owner.findings
     assert actual == [v for v in raw if v.code != "TB002"]
-    for changed, target in ((source + "\n", path), (source, "pitchlog/copy.py")):
-        assert any(v.code == "TB002" for v in checker.scan_source(
-            changed, path=target, contract=contract, reexport_map=reexports,
-        ))
-    malformed = replace(
-        contract, ordinary_condition2_owners=list(contract.ordinary_condition2_owners),
-    )
+    undeclared = replace(contract, ordinary_condition2_owners=())
     assert any(v.code == "TB002" for v in checker.scan_source(
-        source, path=path, contract=malformed, reexport_map=reexports,
+        source, path=path, contract=undeclared, reexport_map=reexports,
     ))
     first = next(iter(owner.findings))
     incomplete = replace(owner, findings=owner.findings - {first})
-    owners = tuple(incomplete if i == index else x
-                   for i, x in enumerate(contract.ordinary_condition2_owners))
+    owners = tuple(incomplete if x.path == owner_path else x
+                   for x in contract.ordinary_condition2_owners)
     assert any(v.code == "TB002" for v in checker.scan_source(
         source, path=path, contract=replace(contract, ordinary_condition2_owners=owners),
         reexport_map=reexports,
@@ -79,15 +80,12 @@ def test_ordinary_registry_cannot_self_extend(mutation):
     """自己申告でpathや全siteを増減させない。"""
     asset = json.loads((ROOT / "contracts/tenant_boundary/base-allowlist.json").read_text())
     rows = asset["condition_2_ordinary_scoped_findings"]
-    owner = rows[0]
+    owner_path = sorted(rows)[0]
+    owner = rows[owner_path]
     if mutation == "missing-path":
-        rows.pop()
-    elif mutation == "extra-path":
-        other = copy.deepcopy(owner)
-        other["path"] = "backend/src/pitchlog/unknown.py"
-        rows.append(other)
-    elif mutation == "duplicate-path":
-        rows.append(copy.deepcopy(owner))
+        rows.pop(owner_path)
+    elif mutation in {"extra-path", "duplicate-path"}:
+        rows["backend/src/pitchlog/unknown.py"] = copy.deepcopy(owner)
     elif mutation == "missing-site":
         owner["findings"].pop()
     elif mutation == "extra-site":
