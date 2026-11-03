@@ -323,11 +323,14 @@ def test_database_failure_is_503_without_ack_or_exception_values(monkeypatch, st
     monkeypatch.setattr(
         sync, "_issue_device_presentation", lambda *args, **kwargs: None
     )
-    monkeypatch.setattr(sync, "_broker_generation", lambda *args: 1)
     monkeypatch.setattr(
         sync, "selected_event_fingerprint", lambda *args: "wire-v1:" + "a" * 64
     )
     monkeypatch.setattr(sync, "BindingControl", lambda endpoint: object())
+    monkeypatch.setattr(
+        "pitchlog.sync.http_recording_key._broker_generation",
+        lambda *args: 1,
+    )
 
     def failure(*args, **kwargs):
         raise ProgrammingError("private sql", {}, Exception("private diagnostic"))
