@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
+
+import psycopg
 import pytest
 from db_fixtures import (
     _VERIFIED_AUTHZ_ROLE_IDS,
@@ -32,8 +37,35 @@ from db_fixtures import (
     tested_role_connection,
     verify_connection_identities,
 )
+from psycopg import sql
+
+_FIRST_BALL_TRIGGERS = ("trg_first_ball_10_lock", "trg_first_ball_20_admit")
+
+
+@contextmanager
+def first_ball_guard_disabled(
+    connection: psycopg.Connection[Any],
+) -> Iterator[None]:
+    """汎用seedの間だけplay_rowsの初球トリガを外し、直後に戻す。"""
+    for name in _FIRST_BALL_TRIGGERS:
+        connection.execute(
+            sql.SQL("ALTER TABLE public.play_rows DISABLE TRIGGER {}").format(
+                sql.Identifier(name)
+            )
+        )
+    try:
+        yield
+    finally:
+        for name in _FIRST_BALL_TRIGGERS:
+            connection.execute(
+                sql.SQL("ALTER TABLE public.play_rows ENABLE TRIGGER {}").format(
+                    sql.Identifier(name)
+                )
+            )
+
 
 __all__ = (
+    "first_ball_guard_disabled",
     "DisposablePostgres",
     "ProductCatalogSnapshot",
     "ProvisionedCatalog",

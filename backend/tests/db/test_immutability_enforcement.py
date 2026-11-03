@@ -18,7 +18,11 @@ from psycopg import sql
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 
-from .conftest import DisposablePostgres, ProvisionedProductCatalog
+from .conftest import (
+    DisposablePostgres,
+    ProvisionedProductCatalog,
+    first_ball_guard_disabled,
+)
 from .test_alembic_migrations import (
     _alembic_config,
     _normalize_sql,
@@ -29,6 +33,7 @@ from .test_alembic_migrations import (
 from .test_product_authz_catalog import _bootstrap_superuser_oid
 
 pytestmark = pytest.mark.requires_db
+
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
@@ -568,7 +573,7 @@ def _observed_contract(
             conditional_update_columns=frozenset(),
         )
     else:
-        assert revision == [("0036_initial_right_storage",)]
+        assert revision == [("0038_first_ball_write_admission",)]
         assert rg1_table.protected_columns == {"singleton_id"}
         assert rg1_table.allowed_update_columns == {"state"}
         assert rg1_table.conditional_update_columns == {"recovery_generation"}
@@ -838,9 +843,10 @@ def test_initial_storage_rows_enforce_protected_and_one_time_updates(
 
     connection = provisioned_product_catalog.applicator
     with connection.transaction(force_rollback=True):
-        for row in seed_rows():
-            statement, params = insert_statement(row)
-            connection.execute(statement, params)
+        with first_ball_guard_disabled(connection):
+            for row in seed_rows():
+                statement, params = insert_statement(row)
+                connection.execute(statement, params)
         for tenant in TENANT_IDS:
             for table in _INITIAL_STORAGE_POLICY:
                 relation = sql.Identifier("public", table)

@@ -26,6 +26,7 @@ from .conftest import ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
 
+
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 _BEHAVIOR_TABLES = (
@@ -499,7 +500,7 @@ def test_selected_immutability_update_behavior(
     with psycopg.connect(admin_dsn, autocommit=True) as connection:
         assert connection.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [("0036_initial_right_storage",)]
+        ).fetchall() == [("0038_first_ball_write_admission",)]
         probes = _seed_behavior_rows(connection)
         assert set(probes) == set(_BEHAVIOR_TABLES)
         _assert_update_behavior(connection, matrix, probes)
