@@ -246,10 +246,12 @@ ACK喪失実試験の作成503切分け（2026-10-31、PO委任によるCodex主
 
 | 正本 | 変更内容 | ゲート(PRレビュー / finalize-doc) |
 | --- | --- | --- |
-| `docs/features/post-189-integration/plan.md` | 反映なし（参照のみ） | なし |
+| `docs/features/post-189-integration/plan.md` | census-baselineの区分を実測へ訂正（P2-3） | PRレビュー |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | 反映なし（意味変更なし） | なし |
 | `contracts/tenant_boundary/*` | 本PRで受理record・snapshot・宣言を公式導出で再生成 | PRレビュー |
 | `contracts/authz/*` | 本PRで派生資産・lockを公式helperで再導出 | PRレビュー |
+| `docs/design/data-model.md` | 6-1-b（通常投球3表の実装追随）と変更履歴1行を追記（版は上げない・7.6-3前段） | PRレビュー |
+| `docs/README.md` | データモデル索引の最終更新日を現行化 | PRレビュー |
 
 ### 実行ステップ（本ブランチ）
 

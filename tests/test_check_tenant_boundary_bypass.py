@@ -9388,7 +9388,7 @@ def test_fixed_first_ball_builder_rejects_each_finite_shape_change(
     ),
 )
 def test_first_ball_condition2_shape_is_closed(mutation: str) -> None:
-    """初球6pathの条件2登録を欠落・余剰・別記号へ広げられない。"""
+    """初球5pathの条件2登録を欠落・余剰・別記号へ広げられない。"""
     value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
     key = "condition_2_first_ball_scoped_findings"
     groups = value[key]

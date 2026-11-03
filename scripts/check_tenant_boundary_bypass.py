@@ -1661,7 +1661,7 @@ def _load_ordinary_condition2_owners(
         value: allowlist の ``condition_2_ordinary_scoped_findings``。
 
     Returns:
-        固定2pathと実source SHA・出現集合を持つ所有者。
+        固定8pathと実source SHA・出現集合を持つ所有者。
 
     Raises:
         ContractError: path・SHA・出現が固定投影と一致しない場合。
@@ -8959,7 +8959,7 @@ def _load_ordinary_condition5_owners(
         value: allowlist の ``condition_5_ordinary_scoped_findings``。
 
     Returns:
-        固定3pathと実source SHA・出現集合を持つ所有者。
+        固定1pathと実source SHA・出現集合を持つ所有者。
 
     Raises:
         ContractError: path・SHA・出現が固定投影と一致しない場合。
