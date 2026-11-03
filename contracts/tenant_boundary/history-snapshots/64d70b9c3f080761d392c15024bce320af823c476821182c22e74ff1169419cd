@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "contract_revision": 8,
+  "baseline_control": {
+    "identity": {
+      "scheme": "integer_revision_field",
+      "field": "contract_revision",
+      "current_identifiers": [
+        "contract_revision:8"
+      ],
+      "no_baseline_marker": "NO_BASELINE",
+      "frozen_projection": {
+        "algorithm": "sha256-canonical-json-and-external-files-v1",
+        "included": "all_top_level_fields",
+        "excluded": [
+          "baseline_control",
+          "source_digest"
+        ],
+        "external_files": [
+          "scripts/frozen_archive.py",
+          "tests/domain/test_boot_seal.py",
+          "tests/test_ci_wiring.py",
+          "tests/test_plan_generation.py",
+          "backend/tests/test_api_conventions.py",
+          "tests/test_check_authz_catalog.py",
+          "scripts/check_tenant_boundary_bypass.py",
+          "tests/test_census_baseline_check.py"
+        ]
+      }
+    },
+    "movement_policy": {
+      "acceptance_unit": "single_review_acceptance",
+      "previous_state": "state_immediately_before_review_acceptance",
+      "new_state": "state_immediately_after_review_acceptance",
+      "intermediate_commits_are_records": false,
+      "movement_triggers": [
+        "baseline_set",
+        "baseline_value",
+        "declaration_location",
+        "frozen_target_mapping",
+        "identity_granularity",
+        "identifier_interpretation",
+        "pass_fail_mapping"
+      ],
+      "affected_baselines": "all_baselines_matching_any_declared_trigger",
+      "history_append_only": true
+    },
+    "history": [],
+    "history_authority": false
+  },
+  "frozen_inputs": {
+    "boot_seal_base_commit": {
+      "value": "50501ebeea70cee77a9ff4ca8e6c0951015d517a",
+      "purpose": "封印集合の固定比較元コミット",
+      "source": "tests/domain/test_boot_seal.py:BASE_COMMIT"
+    },
+    "activation_evidence_head_sha": {
+      "value": "aab80b11d60241798d76e5c725d9a3ad6dd20065",
+      "purpose": "発効証跡の headSha の期待値",
+      "sources": [
+        "tests/test_ci_wiring.py:2894",
+        "tests/test_ci_wiring.py:3069"
+      ]
+    },
+    "pb_false_base_commit": {
+      "value": "a7849e1b705a845e02ba77a4c6ff83b76d7de407",
+      "purpose": "計画生成の pb_false 封印に使う固定比較元コミット",
+      "source": "tests/test_plan_generation.py:PB_FALSE_BASE_COMMIT"
+    },
+    "pb_false_blob_digest": {
+      "value": "400d36bdbd1d1113a4e7c4aa925354a4ebc7a771e803a94e8a08de55ea4879f5",
+      "algorithm": "sha256",
+      "purpose": "pb_false 封印の固定 blob digest",
+      "source": "tests/test_plan_generation.py:PB_FALSE_SEAL.blobDigest"
+    },
+    "initial_response_revision": {
+      "value": "5c61271fc97855f485120d6ab94525bab51866b9",
+      "purpose": "旧InitialGameStartResponseのepoch不在対向の固定原典",
+      "source": "backend/tests/test_api_conventions.py:_INITIAL_RESPONSE_REVISION"
+    },
+    "historical_lifecycle_schema_revision": {
+      "value": "3a24f89e15987ecef3dc45a1173ab99b5f79d16e",
+      "purpose": "旧lifecycle7schema対向の固定原典",
+      "source": "tests/test_check_authz_catalog.py:historical_lifecycle_schema_input"
+    },
+    "ci_scope_proof_source_revision": {
+      "value": "d141fa70a85d85c01fdbb6ddd1956e3f9ba01525",
+      "purpose": "本PRレビュー対象のscope guardと純粋helper/caller閉包の全byteを不変Git原典へ固定する(revisionはHEADの祖先であることを検査し、統合後はdevelopの祖先となる)",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
+        "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
+        "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
+        "tests/test_census_baseline_check.py:_validated_initial_population_suppression"
+      ]
+    }
+  }
+}
