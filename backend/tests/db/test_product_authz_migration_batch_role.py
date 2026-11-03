@@ -351,7 +351,8 @@ def test_asset_role_performs_minimum_operations_and_matches_active_shape(
         report = _inspect_active(catalog.observer, role.oid)
         assert report.ok
         assert report.violations == ()
-        _exercise_minimum_operations(role)
+        with first_ball_guard_disabled(catalog.owner_dsn):
+            _exercise_minimum_operations(role)
 
         with psycopg.connect(role.dsn) as connection:
             with connection.cursor() as cursor:

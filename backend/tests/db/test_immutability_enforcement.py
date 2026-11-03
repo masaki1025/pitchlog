@@ -37,6 +37,11 @@ pytestmark = pytest.mark.requires_db
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
+
+# sync_fence の private 3表は専用の authz 試験が担う。
+_NON_PUBLIC_MANIFEST_TABLES = frozenset(
+    {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+)
 _CHECK_VIOLATION_PATTERN = re.compile(
     r"\bRAISE\b.*?(?:USING\s+ERRCODE\s*=\s*|SQLSTATE\s*)'23514'",
     re.IGNORECASE | re.DOTALL,
@@ -274,6 +279,7 @@ def _manifest_population(manifest: dict[str, Any]) -> tuple[_ManifestTable, ...]
             append_only=table["lifecycle"]["append_mode"] == "追記専用",
         )
         for table in manifest["tables"]
+        if table["name"] not in _NON_PUBLIC_MANIFEST_TABLES
     )
 
 
@@ -621,7 +627,13 @@ def _validate_observed_contract(
 ) -> list[str]:
     """観測済みの宣言・表・トリガを全表判定へ渡す。"""
     return _enforcement_violations(
-        manifest_table_count=len(manifest["tables"]),
+        manifest_table_count=len(
+            [
+                table
+                for table in manifest["tables"]
+                if table["name"] not in _NON_PUBLIC_MANIFEST_TABLES
+            ]
+        ),
         population=population,
         database_tables=database_tables,
         triggers=triggers,
@@ -696,7 +708,17 @@ def test_all_manifest_immutability_declarations_are_enforced(
             connection, privileged_role_oids=privileged
         )
 
-    counts = _population_counts(len(manifest["tables"]), population, database_tables)
+    counts = _population_counts(
+        len(
+            [
+                table
+                for table in manifest["tables"]
+                if table["name"] not in _NON_PUBLIC_MANIFEST_TABLES
+            ]
+        ),
+        population,
+        database_tables,
+    )
     assert counts.manifest > 0
     assert counts.manifest == counts.population == counts.database
     assert (

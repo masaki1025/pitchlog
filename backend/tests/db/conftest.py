@@ -44,24 +44,35 @@ _FIRST_BALL_TRIGGERS = ("trg_first_ball_10_lock", "trg_first_ball_20_admit")
 
 @contextmanager
 def first_ball_guard_disabled(
-    connection: psycopg.Connection[Any],
+    target: str | psycopg.Connection[Any],
 ) -> Iterator[None]:
-    """汎用seedの間だけplay_rowsの初球トリガを外し、直後に戻す。"""
-    for name in _FIRST_BALL_TRIGGERS:
-        connection.execute(
-            sql.SQL("ALTER TABLE public.play_rows DISABLE TRIGGER {}").format(
-                sql.Identifier(name)
-            )
-        )
+    """汎用seedの間だけplay_rowsの初球トリガを外し、直後に戻す。
+
+    DSNを渡した場合は専用のautocommit接続で切り替え、呼出側のtransactionへ
+    影響させない。接続を渡した場合は呼出側のtransactionに従う。
+    """
+    connection = (
+        psycopg.connect(target, autocommit=True) if isinstance(target, str) else target
+    )
     try:
-        yield
-    finally:
         for name in _FIRST_BALL_TRIGGERS:
             connection.execute(
-                sql.SQL("ALTER TABLE public.play_rows ENABLE TRIGGER {}").format(
+                sql.SQL("ALTER TABLE public.play_rows DISABLE TRIGGER {}").format(
                     sql.Identifier(name)
                 )
             )
+        try:
+            yield
+        finally:
+            for name in _FIRST_BALL_TRIGGERS:
+                connection.execute(
+                    sql.SQL("ALTER TABLE public.play_rows ENABLE TRIGGER {}").format(
+                        sql.Identifier(name)
+                    )
+                )
+    finally:
+        if isinstance(target, str):
+            connection.close()
 
 
 __all__ = (
