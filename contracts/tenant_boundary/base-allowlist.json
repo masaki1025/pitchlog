@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 43,
+  "contract_revision": 47,
   "writer_binding_deployment_assets": {
     "backend/src/pitchlog/sync/control_provider/sql/control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
     "backend/src/pitchlog/sync/control_provider/sql/writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
@@ -12,7 +12,7 @@
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:43"
+        "contract_revision:47"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -32618,31 +32618,31 @@
         },
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:43"
+            "contract_revision:47"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
-            "contract_revision:23"
+            "contract_revision:25"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
-            "contract_revision:22"
+            "contract_revision:24"
           ],
           "contracts/tenant_boundary/db-api-inventory.json": [
-            "inventory_revision:23"
+            "inventory_revision:25"
           ],
           "contracts/tenant_boundary/frozen-inputs.json": [
-            "contract_revision:9"
+            "contract_revision:13"
           ],
           "contracts/tenant_boundary/negative-fixtures.json": [
-            "fixture_set_revision:25"
+            "fixture_set_revision:27"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:32"
+            "contract_revision:34"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
-            "runtime_contract_revision:26"
+            "runtime_contract_revision:28"
           ],
           "contracts/tenant_boundary/tenant-context-allowlist.json": [
-            "contract_revision:24"
+            "contract_revision:26"
           ]
         },
         "change": {
@@ -33147,7 +33147,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:43"
+                    "contract_revision:47"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33172,7 +33172,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:23"
+                    "contract_revision:25"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33197,7 +33197,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:22"
+                    "contract_revision:24"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33223,7 +33223,7 @@
                   "scheme": "integer_revision_field",
                   "field": "inventory_revision",
                   "current_identifiers": [
-                    "inventory_revision:23"
+                    "inventory_revision:25"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33248,7 +33248,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:9"
+                    "contract_revision:13"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33277,7 +33277,7 @@
                   "scheme": "integer_revision_field",
                   "field": "fixture_set_revision",
                   "current_identifiers": [
-                    "fixture_set_revision:25"
+                    "fixture_set_revision:27"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33302,7 +33302,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:32"
+                    "contract_revision:34"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33327,7 +33327,7 @@
                   "scheme": "integer_revision_field",
                   "field": "runtime_contract_revision",
                   "current_identifiers": [
-                    "runtime_contract_revision:26"
+                    "runtime_contract_revision:28"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33352,7 +33352,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:24"
+                    "contract_revision:26"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33541,8 +33541,8 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "c607627b03528f3c0fccdac924e8a1faff5ef1dbed01a7371522195f96cefdce",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c607627b03528f3c0fccdac924e8a1faff5ef1dbed01a7371522195f96cefdce"
+                "sha256": "77f812ca4b4b1d177090e04cca72376f52e2c51b815798f173b18b13cbd9971e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/77f812ca4b4b1d177090e04cca72376f52e2c51b815798f173b18b13cbd9971e"
               },
               {
                 "path": "scripts/frozen_archive.py",
@@ -33583,54 +33583,54 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "a37ebf7e063879cef1abe6ba5971d0f9b5407641d8f95bd66bf87747fad36a7e",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a37ebf7e063879cef1abe6ba5971d0f9b5407641d8f95bd66bf87747fad36a7e"
+                "sha256": "5a47ea30e779a2e9fa9aa96726a55f3044adc7b1aa54cd9f3a46a5145d16d48b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5a47ea30e779a2e9fa9aa96726a55f3044adc7b1aa54cd9f3a46a5145d16d48b"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "8ac668fc645e170db519d4ecf31fcc8b5db33522b202157b45a73d9436260ae7",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8ac668fc645e170db519d4ecf31fcc8b5db33522b202157b45a73d9436260ae7"
+                "sha256": "29c781df77ae61a3bcc15a539e876eb9fc2d0ded05971bea5a76360360cd0e33",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/29c781df77ae61a3bcc15a539e876eb9fc2d0ded05971bea5a76360360cd0e33"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "2998765d97082b4e8aedc71d1c49ea4d1d8300674b4d473b6d9e4cfe36947266",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2998765d97082b4e8aedc71d1c49ea4d1d8300674b4d473b6d9e4cfe36947266"
+                "sha256": "5b95d8c2745d9058e9822e433081043b7611fbd8e15e9700861370ea1dfc7ef9",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5b95d8c2745d9058e9822e433081043b7611fbd8e15e9700861370ea1dfc7ef9"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "c4239ae0e7d9a3893ba5edb46f41bd75b9e6bef97a5d51cd919176288d3c9d7d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c4239ae0e7d9a3893ba5edb46f41bd75b9e6bef97a5d51cd919176288d3c9d7d"
+                "sha256": "aade3de7fe822dd797d72699e926add639be930844d5603bfa4277baca91a613",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/aade3de7fe822dd797d72699e926add639be930844d5603bfa4277baca91a613"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "f46ea506d569c338efea9f89c1c575c99684f3351b46e745d7194d4f09dd93fe",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f46ea506d569c338efea9f89c1c575c99684f3351b46e745d7194d4f09dd93fe"
+                "sha256": "6cbc3071b85001de848a1b6d6e8baa0457fce0915c3a8b5b5c7f252c431f5933",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6cbc3071b85001de848a1b6d6e8baa0457fce0915c3a8b5b5c7f252c431f5933"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "23b58e98ee13444466e7c4bd7dc71f81589f68c933904fab7d204b2d3e172759",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/23b58e98ee13444466e7c4bd7dc71f81589f68c933904fab7d204b2d3e172759"
+                "sha256": "dff69079e9fc45b39d9ed984aa09372a21a47e1d247660c3792744c6d76bf00f",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/dff69079e9fc45b39d9ed984aa09372a21a47e1d247660c3792744c6d76bf00f"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "16f9814100e11b96c9c5455d93f9d5726e74ee0b2d1df0b009e0e11b0d87c759",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/16f9814100e11b96c9c5455d93f9d5726e74ee0b2d1df0b009e0e11b0d87c759"
+                "sha256": "8fa1bc2c3a5752333ef695f3d341997e8c6c2b959f16d4601757deaa2c823791",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8fa1bc2c3a5752333ef695f3d341997e8c6c2b959f16d4601757deaa2c823791"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "ebba8a376445de21ed2042a30ef297a5f5149ce2f8e54e41ffa393ae33d729ed",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ebba8a376445de21ed2042a30ef297a5f5149ce2f8e54e41ffa393ae33d729ed"
+                "sha256": "4056c0cec88033f1f0f26ebb1697f560e1160b14413cae66028a0a692517f645",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4056c0cec88033f1f0f26ebb1697f560e1160b14413cae66028a0a692517f645"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "4348cab19295bc86fce9cb8faa87b807ffd4ab978507af7ea2ac65cc100b2240",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4348cab19295bc86fce9cb8faa87b807ffd4ab978507af7ea2ac65cc100b2240"
+                "sha256": "cd057178e9a84f812b1440b3d2ff42e1d8a5eff6600c20c59e97671c8d926a27",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cd057178e9a84f812b1440b3d2ff42e1d8a5eff6600c20c59e97671c8d926a27"
               }
             ]
           }
         },
-        "movement_fact": "develop fd1bb20a系の受理済みtenant資産を基礎に、#190の通常投球分（base-allowlist宣言・repository-contractの関数operation7件とtoken1件・runtime contract revision 26・検査器の通常投球対応）だけを追加した。",
-        "reason": "通常投球の連続保存・prefix再読込を#189受理値へ再接続し、通常投球3表のowner/許可シンボル/条件2所有を公式導出で追加する。既認可・冪等性・原子性・未知拒否と旧正式履歴を保持。",
+        "movement_fact": "develop fd1bb20a系の受理済みtenant資産を基礎に、#190の通常投球分（base-allowlist宣言・repository-contractの関数operation7件とtoken1件・runtime contract revision・検査器の通常投球対応・scope proof原典の前進）だけを追加した。",
+        "reason": "通常投球の連続保存・prefix再読込を#189受理値へ再接続し、通常投球3表のowner/許可シンボル/条件2・5所有を公式導出で追加する。既認可・冪等性・原子性・未知拒否と旧正式履歴を保持。",
         "approved_by": "PO委任による主担当判断（本人直接確認・署名の代記ではない）",
         "approved_on": "2026-11-04"
       }
@@ -33653,7 +33653,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "ce01df46beb980650aaf7c1f39976a44fe8029590a19b009c868bbf08b75d140"
+    "sha256": "a6cdc210291e907b5047d9b6d4fa3c62f6653e41faa1c78bbffdf2716629c672"
   },
   "allowed_symbols": [
     {
@@ -34939,10 +34939,10 @@
       ]
     },
     "backend/src/pitchlog/sync/control_provider/writer_binding.py": {
-      "source_sha256": "0081f406a90a1cdfe4afbbbd6d4adf1f7190f341bcbc493481f15c6a1ab8134f",
+      "source_sha256": "e90b592044e757fe78da9064efbb8c075e8a109f9572ad8fce12d290abd0bf47",
       "findings": [
         {
-          "line": 262,
+          "line": 264,
           "code": "TB007",
           "symbol": "builtins.object.__new__",
           "scope": "pitchlog.sync.control_provider.writer_binding._issue_device_presentation"
@@ -35155,6 +35155,608 @@
           "line": 1408,
           "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
           "scope": "pitchlog.repositories.transaction._execute_port_command"
+        }
+      ]
+    },
+    "backend/src/pitchlog/api/schemas/started_games.py": {
+      "findings": [
+        {
+          "line": 249,
+          "symbol": "typing.Annotated",
+          "scope": "pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead.<module>"
+        },
+        {
+          "line": 260,
+          "symbol": "pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead.prefix_ref.generation",
+          "scope": "pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead._prefix_correlations"
+        }
+      ],
+      "source_sha256": "ce07cb7345345ba3561eb8816854932e17ba58029116df3183b2ec8eaae77e28"
+    },
+    "backend/src/pitchlog/domainrt/ordinary_pitch_continuation.py": {
+      "findings": [
+        {
+          "line": 61,
+          "symbol": "typing.Annotated",
+          "scope": "pitchlog.domainrt.ordinary_pitch_continuation.PrefixRef.<module>"
+        }
+      ],
+      "source_sha256": "537aabbd572951e43fbe7e4a195f89ff6a432b2522b89b867fdbf2d522df0476"
+    },
+    "backend/src/pitchlog/recording_rights/initial_grant_broker.py": {
+      "findings": [
+        {
+          "line": 35,
+          "symbol": "DurableGenerationSource",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 35,
+          "symbol": "assert_write_recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 327,
+          "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 406,
+          "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._issue_initial_grant_impl"
+        },
+        {
+          "line": 407,
+          "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._issue_initial_grant_impl"
+        },
+        {
+          "line": 431,
+          "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 446,
+          "symbol": "pitchlog.recording_rights.initial_grant.DurableGenerationSource",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 487,
+          "symbol": "generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 494,
+          "symbol": "int",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._broker_d4"
+        },
+        {
+          "line": 499,
+          "symbol": "_broker_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.<module>"
+        },
+        {
+          "line": 513,
+          "symbol": "int",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
+        },
+        {
+          "line": 517,
+          "symbol": "int",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
+        },
+        {
+          "line": 523,
+          "symbol": "int",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._broker_generation"
+        },
+        {
+          "line": 807,
+          "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
+        },
+        {
+          "line": 808,
+          "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
+        },
+        {
+          "line": 808,
+          "symbol": "recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._postcommit_start_response"
+        },
+        {
+          "line": 932,
+          "symbol": "pitchlog.recording_rights.initial_grant_broker._broker_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._decode_initial_reply"
+        },
+        {
+          "line": 1470,
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
+        },
+        {
+          "line": 1527,
+          "symbol": "pitchlog.recording_rights.initial_grant.assert_write_recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
+        },
+        {
+          "line": 1528,
+          "symbol": "pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start"
+        }
+      ],
+      "source_sha256": "31d740cce24a9bbeba7e5e4bd83d3d760df6533d8b411d22700dce686e06f519"
+    },
+    "backend/src/pitchlog/repositories/ordinary_pitch_qualification.py": {
+      "findings": [
+        {
+          "line": 29,
+          "symbol": "int",
+          "scope": "pitchlog.repositories.ordinary_pitch_qualification.CheckOrdinaryRightToken.<module>"
+        },
+        {
+          "line": 30,
+          "symbol": "int",
+          "scope": "pitchlog.repositories.ordinary_pitch_qualification.CheckOrdinaryRightToken.<module>"
+        }
+      ],
+      "source_sha256": "e137e09cb6b5281a825e816ad7130c6f239c12b94ddaa883334a15e3d274a213"
+    },
+    "backend/src/pitchlog/repositories/ordinary_prefix.py": {
+      "findings": [
+        {
+          "line": 21,
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.ordinary_prefix.<module>"
+        },
+        {
+          "line": 74,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.PrefixSource.<module>"
+        },
+        {
+          "line": 91,
+          "symbol": "typing.Annotated",
+          "scope": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.<module>"
+        },
+        {
+          "line": 92,
+          "symbol": "typing.Annotated",
+          "scope": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.<module>"
+        },
+        {
+          "line": 110,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.prefix_ref.generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest"
+        },
+        {
+          "line": 128,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest"
+        },
+        {
+          "line": 128,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.last_source.generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest"
+        },
+        {
+          "line": 181,
+          "symbol": "_GENERATION_READ_COLUMNS",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 184,
+          "symbol": "IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 184,
+          "symbol": "RecordingGenerationLockToken",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 184,
+          "symbol": "RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 234,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 234,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 235,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 237,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 237,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 237,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 241,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 242,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 244,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 284,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 310,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 324,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 324,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 325,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.recovery_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 377,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 380,
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 381,
+          "symbol": "IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 383,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 383,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 400,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 431,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 460,
+          "symbol": "IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 462,
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 468,
+          "symbol": "IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 476,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 482,
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 483,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 483,
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        },
+        {
+          "line": 489,
+          "symbol": "pitchlog.repositories.ordinary_prefix.CheckpointDocument.last_source.generation",
+          "scope": "pitchlog.repositories.ordinary_prefix._verify_persisted_last_source"
+        }
+      ],
+      "source_sha256": "94e7187459547a802bd37ef736f24c431b478e007caf0c9cfc33f480f9d9f8ad"
+    },
+    "backend/src/pitchlog/repositories/ordinary_prefix_operations.py": {
+      "findings": [
+        {
+          "line": 22,
+          "symbol": "int",
+          "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointReadToken.<module>"
+        },
+        {
+          "line": 28,
+          "symbol": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointReadToken.__post_init__"
+        },
+        {
+          "line": 29,
+          "symbol": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointReadToken.__post_init__"
+        },
+        {
+          "line": 43,
+          "symbol": "int",
+          "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointLockToken.<module>"
+        },
+        {
+          "line": 56,
+          "symbol": "int",
+          "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.<module>"
+        },
+        {
+          "line": 75,
+          "symbol": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.__post_init__"
+        }
+      ],
+      "source_sha256": "b025aba709c4992f61224ab335aece1847885ca34b3db9e84f5db357b6fb2f4d"
+    },
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py": {
+      "findings": [
+        {
+          "line": 52,
+          "symbol": "_GENERATION_READ_COLUMNS",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+        },
+        {
+          "line": 56,
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+        },
+        {
+          "line": 58,
+          "symbol": "RecordingGenerationLockToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+        },
+        {
+          "line": 58,
+          "symbol": "RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+        },
+        {
+          "line": 148,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 148,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 149,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 150,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 152,
+          "symbol": "locked_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 153,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 153,
+          "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 153,
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 157,
+          "symbol": "locked_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 170,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 188,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 200,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 297,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 403,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 431,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 490,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 493,
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        }
+      ],
+      "source_sha256": "1a6dfa38b0c22bc494fa1b20170a21c7a15484413aef56624e303b4af5e83cfc"
+    }
+  },
+  "condition_5_ordinary_scoped_findings": {
+    "backend/src/pitchlog/db/writer_binding/ordinary_models.py": {
+      "source_sha256": "c2b3897b0f30ac833d2a831a55f4868e6a730c20d652863ea150c586aaa3c6ca",
+      "findings": [
+        {
+          "line": 123,
+          "code": "TB005",
+          "symbol": "psycopg.AsyncCursor.copy|psycopg.Cursor.copy",
+          "scope": "pitchlog.db.writer_binding.ordinary_models.OrdinaryPitchWriteAdmission.<module>"
+        }
+      ]
+    },
+    "backend/src/pitchlog/recording_rights/initial_grant_broker.py": {
+      "source_sha256": "31d740cce24a9bbeba7e5e4bd83d3d760df6533d8b411d22700dce686e06f519",
+      "findings": [
+        {
+          "line": 165,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout"
+        },
+        {
+          "line": 166,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout"
+        },
+        {
+          "line": 185,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.rollback",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout"
+        },
+        {
+          "line": 188,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.rollback",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_initial_actor_checkout"
+        },
+        {
+          "line": 255,
+          "code": "TB005",
+          "symbol": "sqlalchemy.create_engine",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._load_initial_actor_runtime"
+        },
+        {
+          "line": 1129,
+          "code": "TB005",
+          "symbol": "sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._InitialBrokerClient.call"
+        },
+        {
+          "line": 1220,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout"
+        },
+        {
+          "line": 1221,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout"
+        },
+        {
+          "line": 1226,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.rollback",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout"
+        },
+        {
+          "line": 1229,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.rollback",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._verify_auth_verifier_checkout"
+        },
+        {
+          "line": 1289,
+          "code": "TB005",
+          "symbol": "sqlalchemy.create_engine",
+          "scope": "pitchlog.recording_rights.initial_grant_broker._load_initial_auth_verifier_runtime"
+        },
+        {
+          "line": 1755,
+          "code": "TB005",
+          "symbol": "sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.serve_initial_broker"
+        },
+        {
+          "line": 1768,
+          "code": "TB007",
+          "symbol": "pitchlog.durable_rights_ledger.DurableLedger",
+          "scope": "pitchlog.recording_rights.initial_grant_broker.serve_initial_broker"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": {
+      "source_sha256": "26e378d878482e4b52ef04e26ebf0070bc856eb6bd87b483502c9a3eded64aff",
+      "findings": [
+        {
+          "line": 183,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution"
         }
       ]
     }
