@@ -271,3 +271,15 @@ ACK喪失実試験の作成503切分け（2026-10-31、PO委任によるCodex主
 - 手順2〜9のいずれかで検査が非0になったら**その段階で停止**し、前段の出力を手で直して先へ進めない。
 - 受理record適用後（手順8以降）は、9資産の識別値と `external_files` の実装を動かさない。動かす必要が出たら record コミットを取り消して手順7からやり直す。
 - 検査を緩めない。拒否対向・negative fixtures の件数を減らさない。
+
+### 統合の現状と再開手順（2026-11-04）
+
+**完了**: develop統合（26競合・3区分）、ランタイム契約再導出（revision 28）、認可カタログ再封印、通常投球3表のschema-manifest/表分類/exposure-facts/data-model 6-1-b登録、`repository_contract.py`/`tenant_context_contract.py`再導出、受理record（history 35件・snapshot）適用、条件2・5所有宣言の再導出（tenant検査 ok・tenant試験728 passed）、凍結archive/CI配線262 passed。
+
+**残**: `tests/test_census_baseline_check.py` の20件。原因は `initial_grant_broker.py` の期限分岐追加による **initial population site表（`_INITIAL_POPULATION_POLICY` / `_INITIAL_CENSUS_SITES` / `census-baseline.json` の sites）の行ずれ**。control-flow期待表は再生成済み。
+
+**再開手順**:
+1. `_INITIAL_POPULATION_POLICY` のbrokerサイトを、**baseline-aware の `scan_source_change`（reexport map付き）** で現行ASTから再導出する（`scan_source` 単体では当該ファイルのTB002/TB005を返さない）。
+2. 同値で `_INITIAL_CENSUS_SITES` と `census-baseline.json` の `initial_population_proof.sites` を更新する。
+3. 受理recordを再生成（census-baselineは射影対象）し、tenant検査・census試験・全件試験を再実行する。
+4. 以降: backend全試験・frontend試験 → 非作者レビュー → CI → #190マージ → #191/#192。
