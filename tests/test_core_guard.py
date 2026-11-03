@@ -5987,9 +5987,15 @@ FIRST_BALL_ALLOWED_TRANSITIONS = {
     (('N2_A', 'N1_U1',), ('N2_A', 'N1_U1',)),
     (('N2_A', 'N1_U1',), ('N2_A', 'N1_U1', 'WRITER_BINDING',)),
     (('N1_U1', 'N2_A', 'WRITER_BINDING',), ('N1_U1', 'N2_A', 'WRITER_BINDING',)),
-    (('N1_U1', 'N2_A', 'WRITER_BINDING',), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
+    (
+        ('N1_U1', 'N2_A', 'WRITER_BINDING'),
+        ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH'),
+    ),
     (('N2_A', 'N1_U1', 'WRITER_BINDING',), ('N2_A', 'N1_U1', 'WRITER_BINDING',)),
-    (('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',), ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH',)),
+    (
+        ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH'),
+        ('N1_U1', 'N2_A', 'WRITER_BINDING', 'ORDINARY_PITCH'),
+    ),
 }
 
 

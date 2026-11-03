@@ -37,13 +37,34 @@ from pitchlog.authz.runtime_contract_state import (
 )
 
 _EXPECTED_ORDINARY_FUNCTIONS = [
-    ("sync_right_api", "bind_ordinary_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
-    ("sync_right_api", "check_ordinary_right", "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"),
+    (
+        "sync_right_api",
+        "bind_ordinary_device",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
+    ),
+    (
+        "sync_right_api",
+        "check_ordinary_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
     ("sync_right_api", "consume_ordinary_projection", "jsonb"),
-    ("sync_right_api", "lock_ordinary_checkpoint", "uuid, uuid, uuid, bytea, uuid, uuid, bigint"),
-    ("sync_right_api", "prepare_ordinary_projection", "uuid, uuid, uuid, bytea, uuid, uuid, text"),
+    (
+        "sync_right_api",
+        "lock_ordinary_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "prepare_ordinary_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
     ("sync_right_api", "read_ordinary_checkpoint", "uuid, uuid, bigint"),
-    ("sync_right_api", "read_ordinary_history_page", "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, integer"),
+    (
+        "sync_right_api",
+        "read_ordinary_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, "
+        "integer",
+    ),
     ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
 ]
 

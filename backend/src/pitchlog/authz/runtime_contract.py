@@ -243,7 +243,10 @@ PROTECTED_FUNCTIONS = (
     (
         "sync_right_api",
         "read_ordinary_history_page",
-        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, integer",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, "
+            "integer"
+        ),
     ),
     ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
 )

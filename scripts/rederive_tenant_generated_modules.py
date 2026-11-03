@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -129,17 +130,15 @@ def _lookup(asset: dict[str, Any], dotted: str) -> Any:
     return value
 
 
-def _render_value(value: Any, *, indent: int = 0) -> str:
-    """値を Python リテラルへ描画する。
+def _flat(value: Any) -> str:
+    """値を 1 行の Python リテラルへ描画する。
 
     Args:
         value: 文字列・整数・真偽値・文字列配列のいずれか。
-        indent: 出力の基準インデント（0 は代入式の続き行）。
 
     Returns:
-        Python リテラル文字列。
+        1 行のリテラル。配列は ``(...)`` 形式。
     """
-    pad = " " * (indent + 4)
     if isinstance(value, bool):
         return "True" if value else "False"
     if isinstance(value, int):
@@ -147,11 +146,73 @@ def _render_value(value: Any, *, indent: int = 0) -> str:
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
     if isinstance(value, (list, tuple)):
-        if not value:
+        items = [_flat(item) for item in value]
+        if not items:
             return "()"
-        items = "".join(f"{pad}{_render_value(item, indent=indent + 4)},\n" for item in value)
-        return "(\n" + items + " " * indent + ")"
+        if len(items) == 1:
+            return f"({items[0]},)"
+        return "(" + ", ".join(items) + ")"
     raise TypeError(f"未対応の値型: {type(value).__name__}")
+
+
+def _split_literal(text: str, *, limit: int = 80) -> list[str]:
+    """長い文字列を暗黙連結用の断片へ分割する。
+
+    単語境界（空白・ドット）を優先し、1 語が上限を超える場合だけ強制分割する。
+
+    Args:
+        text: 分割する文字列。
+        limit: 1 断片の最大長。
+
+    Returns:
+        連結すると元の文字列になる断片列。
+    """
+    tokens = [part for part in re.split(r"(?<= )|(?<=\.)", text) if part]
+    chunks: list[str] = []
+    current = ""
+    for token in tokens:
+        while len(token) > limit:
+            head, token = token[:limit], token[limit:]
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(head)
+        if current and len(current) + len(token) > limit:
+            chunks.append(current)
+            current = ""
+        current += token
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _render_assignment(name: str, value: Any, *, width: int = 88) -> str:
+    """ruff format と一致する形で代入文を描画する。
+
+    Args:
+        name: 定数名。
+        value: 代入する値。
+        width: 1 行に収める最大幅。
+
+    Returns:
+        代入文の本文（末尾改行を含む）。
+    """
+    flat = _flat(value)
+    single = f"{name} = {flat}"
+    if isinstance(value, (list, tuple)):
+        if len(single) <= width:
+            return f"{single}\n"
+        items = "".join(f"    {_flat(item)},\n" for item in value)
+        return f"{name} = (\n{items})\n"
+    if len(single) > width:
+        if len(flat) + 4 <= width:
+            return f"{name} = (\n    {flat}\n)\n"
+        chunks = _split_literal(value, limit=width - 8)
+        body = "".join(
+            f"    {json.dumps(chunk, ensure_ascii=False)}\n" for chunk in chunks
+        )
+        return f"{name} = (\n{body})\n"
+    return f"{single}\n"
 
 
 def _assignment_name(node: ast.stmt) -> str | None:
@@ -197,21 +258,10 @@ def render_module(asset: dict[str, Any], source: str, mapping: tuple[tuple[str, 
             if constant != name:
                 continue
             value = _lookup(asset, dotted)
-            rendered_value = _render_value(value, indent=0)
-            single = f"{name} = {rendered_value}"
-            if "\n" not in rendered_value and len(single) <= 88:
-                rendered = f"{single}\n"
-            elif isinstance(value, str):
-                chunks = [
-                    value[index : index + 60] for index in range(0, len(value), 60)
-                ]
-                body = "".join(
-                    f"    {json.dumps(chunk, ensure_ascii=False)}\n" for chunk in chunks
-                )
-                rendered = f"{name} = (\n{body})\n"
-            else:
-                rendered = f"{name} = {rendered_value}\n"
-            replacements.append((node.lineno - 1, node.end_lineno - 1, rendered))
+            rendered = _render_assignment(name, value)
+            end_line = node.end_lineno
+            assert end_line is not None
+            replacements.append((node.lineno - 1, end_line - 1, rendered))
             break
     found = {name for _, _, text in replacements for name in [text.split(" = ", 1)[0]]}
     missing = {constant for _, constant in mapping} - found

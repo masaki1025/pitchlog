@@ -2013,7 +2013,8 @@ def _measured_resolution_owner_suppression(
     return suppression
 
 
-_INITIAL_CENSUS_SITES: tuple[tuple[str, str, int, str, str, str], ...] = (('pitchlog/api/schemas/game_start.py',
+_INITIAL_CENSUS_SITES: tuple[tuple[str, str, int, str, str, str], ...] = (
+('pitchlog/api/schemas/game_start.py',
   'initial_response_annotations',
   189,
   'TB002',

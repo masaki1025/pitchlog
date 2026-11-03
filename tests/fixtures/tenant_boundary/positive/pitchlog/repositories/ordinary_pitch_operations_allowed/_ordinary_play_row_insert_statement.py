@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import cast
 
-from sqlalchemy import Table, bindparam, insert  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.dml import Insert  # ty: ignore[unresolved-import]
+from sqlalchemy import Table, bindparam, insert
+from sqlalchemy.sql.dml import Insert
 
 _PLAY = cast(Table, object())
 

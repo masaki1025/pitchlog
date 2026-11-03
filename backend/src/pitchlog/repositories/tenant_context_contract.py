@@ -27,15 +27,11 @@ ISSUANCE_CAPABILITY_ALLOWED_SYMBOLS = (
     "pitchlog.repositories.context.TenantContext.__init__",
 )
 ISSUANCE_ENTRYPOINT_SYMBOL = (
-    "pitchlog.repositories.tenant_context_issuance.issue_tenant_c"
-    "ontext_from_presented_token"
+    "pitchlog.repositories.tenant_context_issuance."
+    "issue_tenant_context_from_presented_token"
 )
 ISSUANCE_ENTRYPOINT_ALLOWED_SYMBOLS = (
     "pitchlog.api.tenant_access.require_tenant_access",
 )
-ALLOWED_TEST_MODULES = (
-    "test_authz_tenant_context",
-)
-ALLOWED_PRODUCT_MODULES = (
-    "pitchlog.repositories.tenant_context_issuance",
-)
+ALLOWED_TEST_MODULES = ("test_authz_tenant_context",)
+ALLOWED_PRODUCT_MODULES = ("pitchlog.repositories.tenant_context_issuance",)
