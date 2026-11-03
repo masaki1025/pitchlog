@@ -36,6 +36,17 @@ from pitchlog.authz.runtime_contract_state import (
     evaluate_repository,
 )
 
+_EXPECTED_ORDINARY_FUNCTIONS = [
+    ("sync_right_api", "bind_ordinary_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
+    ("sync_right_api", "check_ordinary_right", "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"),
+    ("sync_right_api", "consume_ordinary_projection", "jsonb"),
+    ("sync_right_api", "lock_ordinary_checkpoint", "uuid, uuid, uuid, bytea, uuid, uuid, bigint"),
+    ("sync_right_api", "prepare_ordinary_projection", "uuid, uuid, uuid, bytea, uuid, uuid, text"),
+    ("sync_right_api", "read_ordinary_checkpoint", "uuid, uuid, bigint"),
+    ("sync_right_api", "read_ordinary_history_page", "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, integer"),
+    ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
+]
+
 _EXPECTED_FIRST_BALL_TABLES = [
     {
         "table_id": "writer_bindings",
@@ -1509,7 +1520,7 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
 
     result = product_catalog._load_product_expectations()
     # 採用済data-model1.4/正式fullprofileの母集合を固定する。
-    assert len(result.table_names) == 50 + len(_EXPECTED_FIRST_BALL_TABLES)
+    assert len(result.table_names) == 50 + len(_EXPECTED_FIRST_BALL_TABLES) + 3
     assert set(result.table_names) == {
         t["name"]
         for t in _read_json_object(
@@ -1528,12 +1539,14 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         "sync_fence_api",
         "sync_right_api",
     } == set(result.schema_names)
-    assert len(result.functions) == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS)
-    assert set(_EXPECTED_LEGACY_FUNCTION_KEYS) | set(
-        _EXPECTED_FIRST_BALL_FUNCTIONS
+    assert len(result.functions) == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS) + 8
+    assert (
+        set(_EXPECTED_LEGACY_FUNCTION_KEYS)
+        | set(_EXPECTED_FIRST_BALL_FUNCTIONS)
+        | set(_EXPECTED_ORDINARY_FUNCTIONS)
     ) == {tuple(r[:3]) for r in result.functions}
-    assert len(result.policies) == 70 + 12
-    assert len(_product_asset()["column_acl_expectations"]) == 123 + 103
+    assert len(result.policies) == 91
+    assert len(_product_asset()["column_acl_expectations"]) == 342
 
 
 @pytest.mark.parametrize(

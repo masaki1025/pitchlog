@@ -489,9 +489,9 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
 
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
-    assert len(expectations.tables) == 53
+    assert len(expectations.tables) == 56
     # 旧70policyを保持し、同期writer/初球の12policyを加える。
-    assert len(expectations.policies) == 82
+    assert len(expectations.policies) == 91
     assert {
         row[2]
         for row in expectations.policies
