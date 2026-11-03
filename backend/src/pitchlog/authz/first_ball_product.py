@@ -2023,6 +2023,18 @@ def validate(asset: dict[str, Any]) -> bool:
             or any(not any(_exact(r, e) for e in ADDITIONS[section]) for r in chosen)
         ):
             raise ValueError("初球認可資産の部分/余剰/全field不一致: " + section)
+    # legacy検査へ渡す前に、count/連結/getが扱う全nested ACLの形を閉じる。
+    for section in ("databases", "schemas"):
+        rows = asset.get(section)
+        if type(rows) is not list or any(type(row) is not dict for row in rows):
+            raise ValueError("初球metadata配列の形が不正")
+        for row in rows:
+            for field in ("acl_expectations", "revoked_acl_expectations"):
+                grants = row.get(field)
+                if type(grants) is not list or any(
+                    type(grant) is not dict for grant in grants
+                ):
+                    raise ValueError("初球metadata配列の形が不正")
     db = asset.get("databases")
     pub = [r for r in asset.get("schemas", []) if r.get("schema_name") == "public"]
     if (

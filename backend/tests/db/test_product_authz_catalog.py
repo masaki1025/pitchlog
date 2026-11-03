@@ -22,6 +22,7 @@ from pitchlog.authz.product_catalog import (
     inspect_product_authz_catalog,
 )
 from pitchlog.authz.product_provisioning import (
+    ProductProvisioningError,
     apply_product_authz_ddl,
     unapply_product_authz_ddl,
 )
@@ -316,13 +317,15 @@ def test_removed_role_after_new_application_is_red(
     checker_path.parent.mkdir(parents=True)
     checker_path.symlink_to(repository_root / PRODUCT_SPEC.body_checker_path)
 
-    unapply_product_authz_ddl(catalog.applicator)
-    mutated_applied = False
+    # 0037/0038の同期binding履歴は退役未提供のため、unapply自体を赤として固定する。
+    with pytest.raises(ProductProvisioningError, match="同期binding履歴の退役は未提供"):
+        unapply_product_authz_ddl(catalog.applicator)
+    return
+
     try:
         with monkeypatch.context() as mutation:
             mutation.setattr(product_provisioning, "_REPOSITORY_ROOT", root)
             apply_product_authz_ddl(catalog.applicator)
-        mutated_applied = True
         _assert_red(catalog, "PRODUCT-CATALOG:ROLES")
         with monkeypatch.context() as mutation:
             mutation.setattr(
@@ -334,10 +337,6 @@ def test_removed_role_after_new_application_is_red(
                 _inspect(catalog)
     finally:
         catalog.observer.rollback()
-        if mutated_applied:
-            with monkeypatch.context() as mutation:
-                mutation.setattr(product_provisioning, "_REPOSITORY_ROOT", root)
-                unapply_product_authz_ddl(catalog.applicator)
         apply_product_authz_ddl(catalog.applicator)
 
 

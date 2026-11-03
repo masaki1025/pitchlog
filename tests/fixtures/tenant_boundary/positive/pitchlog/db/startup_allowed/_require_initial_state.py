@@ -12,4 +12,6 @@ class stage_a_startup:
         """宣言したAPIのみを固定した名前で呼ぶ。"""
         with psycopg.connect(applicator_dsn) as connection:
             with connection.cursor() as cursor:
-                cursor.execute("SELECT 1")
+                cursor.execute("SELECT version_num FROM public.alembic_version")
+                if cursor.fetchall() != [("0036_initial_right_storage",)]:
+                    raise RuntimeError("0036以外は補完しない")

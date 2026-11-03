@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "e4f53dab05715977bdec846f3b2ba155832622e9",
+  "oracle_commit": "6a214c9dc33c7f6e54530510d6d625f25a39348f",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
@@ -42,37 +42,37 @@
       "path": "contracts/authz/ddl-elements.json",
       "asset_role": "expectation",
       "asset_kind": "authz_candidate_ddl_manifest",
-      "canonical_sha256": "3f09f8f54b8b155f3e86c96b4f75afc1989745f537692729206429302feee6c1"
+      "canonical_sha256": "3b22e3923928d0957c1544a4e6b65a6fe593bd708413d71915a33fed67165052"
     },
     {
       "path": "contracts/authz/rejected-configs.json",
       "asset_role": "evidence",
       "asset_kind": "authz_rejected_configurations",
-      "canonical_sha256": "47aa486c184b47434fa2f63133eb48bc1b1fcfe75debfdec093568d701e9d9d6"
+      "canonical_sha256": "8473896bc919d85a32b2b48b3290fbc2661c1427d9534545fb763c68a487f054"
     },
     {
       "path": "contracts/authz/claim-mutant-map.json",
       "asset_role": "expectation",
       "asset_kind": "authz_claim_mutant_map",
-      "canonical_sha256": "6577d416042587616f6e3b8772d62a637d05d00134352ad3fe7cf5bf13979146"
+      "canonical_sha256": "fdf7a00beada26946ae318252c3193ffbde24b2ea8add48ee49d04542f927171"
     },
     {
       "path": "contracts/authz/attack-tree.json",
       "asset_role": "expectation",
       "asset_kind": "authz_attack_tree",
-      "canonical_sha256": "5a58b468833f2e93e93f903c26c738f9acbb772e37665ca41eb4499191110c2c"
+      "canonical_sha256": "aa0ac57497884936d5b5b428e834754645e45fdcf73a4f791c65ebf722a64985"
     },
     {
       "path": "contracts/authz/boundary-proposal.json",
       "asset_role": "expectation",
       "asset_kind": "authz_boundary_proposal",
-      "canonical_sha256": "2b0eea7e245abb4bb42303fe0310d3beb12b13dda43209e76d7315998122f5bd"
+      "canonical_sha256": "a0e1dbbfb283432b28414110b92f488dbb3129872e6c5ffc3622a203bf110ae3"
     },
     {
       "path": "contracts/authz/verification-evidence.json",
       "asset_role": "evidence",
       "asset_kind": "authz_verification_evidence",
-      "canonical_sha256": "ba05be8c2b4013103f82ac0d1602bd9425d5069c5332b0983b57b4619e915ac6"
+      "canonical_sha256": "b73f6daa2d1b305b8eea74040cf6230ce2561ec74985ce5f0eb1dbdc0883c392"
     }
   ],
   "review_policy": {

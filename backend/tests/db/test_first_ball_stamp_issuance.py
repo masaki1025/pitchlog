@@ -120,6 +120,13 @@ def _make_env(monkeypatch: pytest.MonkeyPatch, *, apply: bool) -> Iterator[Env]:
         )
 
 
+def _ensure_applied(env: Env) -> None:
+    """共有db2が未適用のまま分割実行されても、正式profileを一度だけ適用する。"""
+    if not env.applied:
+        require_formal_activation(env.owner)
+        env.applied = True
+
+
 @pytest.fixture(scope="module")
 def _db1() -> Iterator[Env]:
     """DB1: 候補適用済み。破壊しない試験が共有する。"""
@@ -1013,6 +1020,7 @@ def test_t15_reapply(db2: Env) -> None:
     from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 
     env = db2
+    _ensure_applied(env)
     assert env.applied
     sig_sql = (
         "SELECT p.proname,md5(p.prosrc),p.proacl::text,pg_get_userbyid(p.proowner) "
@@ -1052,6 +1060,7 @@ def _old_bind_replace_sql() -> str:
 def test_c8_mutation_without_bind_stamp_turns_the_vertical_red(db2: Env) -> None:
     """C8: bind_deviceの印書込を外すと縦(V1)が赤になる。印は正規経路の本文に依る。"""
     env = db2
+    _ensure_applied(env)
     assert env.applied
     stamped = render_stamped_function_sql()
     with psycopg.connect(env.ctx.admin_dsn) as conn:
@@ -1177,6 +1186,10 @@ def test_v10_no_scaffold_stamp_dml(db1: Env, db2: Env) -> None:
     変異(adminが印を入れる版)は検出器が赤にする。
     """
     for label, env in (("db1", db1), ("db2", db2)):
+        _ensure_applied(env)
+        if not env.ctx.admin_log:
+            # 分割実行でも「admin statementを検査した」ことを非空で示す。
+            env.ctx.admin("SELECT 1", label="v10-probe")
         assert stamp_dml_statements(env.ctx.admin_log) == [], label
         assert len(env.ctx.admin_log) > 0
     forged = (

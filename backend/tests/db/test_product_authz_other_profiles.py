@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from typing import Any, LiteralString
 from uuid import UUID
 
 import psycopg
 import pytest
+from db_fixtures import _seeded_owned_product_catalog
 from product_authz_other_profiles_cases import (
     NONEXISTENT_GROUP_ID,
     ControlMatrixCase,
@@ -17,6 +18,7 @@ from product_authz_other_profiles_cases import (
     control_matrix_cases,
     control_resource_table_names,
     function_only_table_names,
+    generation_secret_columns,
     global_read_only_table_names,
     helper_condition_mutations,
     mutated_membership_helper_sql,
@@ -27,13 +29,15 @@ from product_authz_tenant_owned_cases import (
     TENANT_A,
     TENANT_B,
     insert_statement,
+    private_function_only_table_names,
+    table_schema,
 )
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import DisposablePostgres, ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
 
@@ -45,13 +49,47 @@ _HELPER_SIGNATURE = sql.SQL("{}.{}(uuid, boolean)").format(
 )
 
 
-def _seed_other_profiles(catalog: ProvisionedProductCatalog) -> None:
-    """外部適用主体で、その他プロファイルの対象行を FK 順に作る。"""
-    with catalog.applicator.cursor() as cursor:
+def _seed_rows_before_writer(connection: psycopg.Connection[Any]) -> None:
+    """旧全132行をguard配置前のowned適用主体で同じ順に投入する。"""
+    with connection.cursor() as cursor:
         for row in other_profile_seed_rows():
             statement, params = insert_statement(row)
             cursor.execute(statement, params)
-    catalog.applicator.commit()
+
+
+@pytest.fixture
+def provisioned_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[ProvisionedProductCatalog]:
+    """ACL試験用旧データを準備して実0038/S3を供給する（画面保存ではない）。"""
+    with _seeded_owned_product_catalog(
+        disposable_postgres_cluster, monkeypatch, _seed_rows_before_writer
+    ) as catalog:
+        yield catalog
+
+
+def _seed_other_profiles(catalog: ProvisionedProductCatalog) -> None:
+    """準備済み全seedの実在を読むだけにし、guard下の直接INSERTをしない。"""
+    try:
+        with catalog.applicator.cursor() as cursor:
+            for row in other_profile_seed_rows():
+                _, params = insert_statement(row)
+                predicates = sql.SQL(" AND ").join(
+                    sql.SQL("{} IS NOT DISTINCT FROM %s").format(sql.Identifier(column))
+                    for column in row.values
+                )
+                cursor.execute(
+                    sql.SQL("SELECT count(*) FROM {} WHERE {}").format(
+                        sql.Identifier(table_schema(row.table), row.table), predicates
+                    ),
+                    params,
+                )
+                assert cursor.fetchone() == (1,), row.table
+    finally:
+        catalog.applicator.rollback()
 
 
 @contextmanager
@@ -102,7 +140,7 @@ def _select_count(
             if tenant_id is not None:
                 _set_tenant_context(cursor, tenant_id)
             statement = sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                sql.Identifier("public", table)
+                sql.Identifier(table_schema(table), table)
             )
             params: tuple[object, ...] = ()
             if key_column is not None:
@@ -127,7 +165,7 @@ def _insert_default_row(
         with connection.cursor() as cursor:
             cursor.execute(
                 sql.SQL("INSERT INTO {} DEFAULT VALUES").format(
-                    sql.Identifier("public", table)
+                    sql.Identifier(table_schema(table), table)
                 )
             )
     finally:
@@ -166,7 +204,7 @@ def _superuser_count(catalog: ProvisionedProductCatalog, table: str) -> int:
         with catalog.applicator.cursor() as cursor:
             cursor.execute(
                 sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                    sql.Identifier("public", table)
+                    sql.Identifier(table_schema(table), table)
                 )
             )
             row = cursor.fetchone()
@@ -488,7 +526,7 @@ def test_global_read_only_tables_are_readable_but_not_insertable(
 def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_it(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """14 表は 0 行ではなく 42501 になり、SELECT 付与変異を観測する。"""
+    """旧18表と私有3表は42501になり、既SELECT付与変異を観測する。"""
     catalog = provisioned_product_catalog
     _seed_other_profiles(catalog)
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
@@ -499,6 +537,9 @@ def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_i
             count = _superuser_count(catalog, table)
             if table == "rg1_restore_gate":
                 assert count == 1
+            elif table in private_function_only_table_names():
+                # 私有行を汎用INSERTで捏造せず、空でも権限検査へ到達する。
+                assert count == 0, table
             else:
                 assert count >= 2, table
             _assert_sqlstate(
@@ -506,19 +547,24 @@ def test_function_only_tables_are_permission_denied_and_grant_mutation_changes_i
                 lambda table=table: _select_count(app, table),
             )
 
+        for table in private_function_only_table_names():
+            _assert_sqlstate(
+                "42501", lambda table=table: _insert_default_row(app, table)
+            )
+
         mutated_table = tables[0]
         try:
             with catalog.applicator.cursor() as cursor:
                 cursor.execute(
                     sql.SQL("GRANT SELECT ON TABLE {} TO {}").format(
-                        sql.Identifier("public", mutated_table),
+                        sql.Identifier(table_schema(mutated_table), mutated_table),
                         sql.Identifier(_APP_ROLE),
                     )
                 )
                 _set_local_app_role(cursor)
                 cursor.execute(
                     sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                        sql.Identifier("public", mutated_table)
+                        sql.Identifier(table_schema(mutated_table), mutated_table)
                     )
                 )
                 row = cursor.fetchone()
@@ -646,3 +692,77 @@ def test_each_removed_helper_condition_changes_its_matrix_cell_and_rolls_back(
             catalog.applicator.rollback()
 
         _assert_catalog_green(catalog, privileged_role_oid)
+
+
+@pytest.mark.parametrize("secret_column", ("proof_digest", "recovery_generation"))
+def test_generation_secret_column_acl_and_grant_mutation(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    secret_column: str,
+) -> None:
+    """既12列の読取を保持し、秘密各列のACL変異を観測して復旧する。"""
+    catalog = provisioned_product_catalog
+    _seed_other_profiles(catalog)
+    assert generation_secret_columns() == ("proof_digest", "recovery_generation")
+    readable = (
+        "tenant_id",
+        "import_batch_id",
+        "retired_at",
+        "game_id",
+        "generation",
+        "kind",
+        "issuance_order",
+        "holder_device",
+        "confirmed_watermark",
+        "applied_prefix",
+        "granted_at",
+        "revoked_at",
+    )
+    privileged_role_oid = _bootstrap_superuser_oid(catalog)
+    with _open_app_connection(catalog) as app:
+
+        def read_columns(columns):
+            try:
+                with app.cursor() as cursor:
+                    _set_tenant_context(cursor, TENANT_A)
+                    cursor.execute(
+                        sql.SQL("SELECT {} FROM public.recording_generations").format(
+                            sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+                        )
+                    )
+                    return cursor.fetchall()
+            finally:
+                app.rollback()
+
+        assert read_columns(readable)
+        assert _select_count(app, "recording_generations", tenant_id=TENANT_A) > 0
+        for column in generation_secret_columns():
+            _assert_sqlstate("42501", lambda column=column: read_columns((column,)))
+        _assert_sqlstate(
+            "42501", lambda: read_columns((*readable, *generation_secret_columns()))
+        )
+        try:
+            with catalog.applicator.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL(
+                        "GRANT SELECT ({}) ON public.recording_generations "
+                        "TO pitchlog_app"
+                    ).format(sql.Identifier(secret_column))
+                )
+                cursor.execute(
+                    "SELECT pg_catalog.has_column_privilege('pitchlog_app', "
+                    "'public.recording_generations', %s, 'SELECT')",
+                    (secret_column,),
+                )
+                assert cursor.fetchone() == (True,)
+                _set_local_app_role(cursor)
+                _set_tenant_context(cursor, TENANT_A)
+                cursor.execute(
+                    sql.SQL("SELECT {} FROM public.recording_generations").format(
+                        sql.Identifier(secret_column)
+                    )
+                )
+                assert cursor.fetchall()
+        finally:
+            catalog.applicator.rollback()
+        _assert_catalog_green(catalog, privileged_role_oid)
+        _assert_sqlstate("42501", lambda: read_columns((secret_column,)))

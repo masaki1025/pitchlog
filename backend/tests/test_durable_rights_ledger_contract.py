@@ -1690,5 +1690,6 @@ def test_g20_only_prepare_publish_enable_classification():
                         assert isinstance(keyword.value, ast.Constant)
                         found.append((method.name, keyword.value.value))
     assert found == [
-        ("prepare_writer_binding", "register"), ("publish_prepared", "publish")
+        ("prepare_writer_binding", "register"),
+        ("publish_prepared", "publish"),
     ]

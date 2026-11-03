@@ -1210,6 +1210,8 @@ def _write_test_repository_sources(
         _copy_ledger_deployment_assets(repository)
     if "pitchlog/recording_rights/rg1_lifecycle.py" in sources:
         _copy_rg1_deployment_assets(repository)
+    if "pitchlog/sync/control_provider/binding_control.py" in sources:
+        _copy_writer_binding_assets(repository)
     for relative, source in sources.items():
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -2301,7 +2303,7 @@ generation: MutationGeneration
 
 
 def test_recording_generation_remains_red_in_product_tree() -> None:
-    """記録権世代の実モデル参照4行を条件2の候補として維持する。"""
+    """証明済み宣言と未裁定の実モデル参照3行を分離して維持する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
     source_root = REPOSITORY_ROOT / "backend" / "src"
     path = "pitchlog/db/recording_rights/models.py"
@@ -2309,7 +2311,7 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
     violations = checker.scan_source(
         _fixture_source(source_root / path),
         path=path,
-        contract=replace(contract, initial_start_condition2_owners=()),
+        contract=contract,
     )
     condition2 = [violation for violation in violations if violation.code == "TB002"]
 
@@ -2322,10 +2324,16 @@ def test_recording_generation_remains_red_in_product_tree() -> None:
     expected_lines = {
         node.lineno
         for node in ast.walk(tree)
-        if (isinstance(node, ast.ClassDef) and node.name == "RecordingGeneration")
-        or (isinstance(node, ast.Name) and node.id == "RecordingGeneration")
+        if isinstance(node, ast.Name) and node.id == "RecordingGeneration"
     }
-    assert len(expected_lines) == 4
+    declaration_lines = {
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and node.name == "RecordingGeneration"
+    }
+    assert len(declaration_lines) == 1
+    assert recording_generation_lines.isdisjoint(declaration_lines)
+    assert len(expected_lines) == 3
     assert recording_generation_lines == expected_lines
 
 
@@ -2653,6 +2661,52 @@ def test_fixed_function_builder_rejects_other_sql_generation(
     }
 
 
+@pytest.mark.parametrize("root", (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT))
+def test_fixed_function_bytes_bind_accepts_exact_shape(root: Path) -> None:
+    """実sourceと正例のbytesだけを既4型と同じ固定bind形で認識する。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(root / relative)
+    assert "if expected_type is bytes:" in source
+    assert "return bindparam(name, type_=LargeBinary())" in source
+    violations = checker.scan_source(
+        source, path=relative, contract=checker.load_contract(REPOSITORY_ROOT)
+    )
+    assert not any(
+        item.code == "TB005"
+        and item.symbol == "pitchlog.repositories.function_operations._canonical_bind"
+        for item in violations
+    )
+
+
+@pytest.mark.parametrize("root", (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT))
+@pytest.mark.parametrize(
+    "old,new",
+    (
+        ("type_=LargeBinary()", "type_=String()"),
+        ("type_=LargeBinary()", 'type_=literal_column("secret")'),
+        ("if expected_type is bytes:", "if expected_type is object:"),
+        (
+            "if expected_type is bytes:",
+            "return bindparam(name)\n    if expected_type is bytes:",
+        ),
+    ),
+)
+def test_fixed_function_bytes_bind_rejects_noncanonical_shape(
+    root: Path, old: str, new: str
+) -> None:
+    """新bytes経路でも別SQL型・任意SQL・未知型・早期returnを拒否する。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(root / relative)
+    mutated = source.replace(old, new, 1)
+    assert mutated != source
+    violations = checker.scan_source(
+        mutated, path=relative, contract=checker.load_contract(REPOSITORY_ROOT)
+    )
+    assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
+        (item.code, item.symbol) for item in violations
+    }
+
+
 def test_fixed_function_bind_rejects_literal_sql() -> None:
     """固定関数の引数生成経路にも任意SQL式を混入させない。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -2912,6 +2966,8 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_plan_generation.py",
             "backend/tests/test_api_conventions.py",
             "tests/test_check_authz_catalog.py",
+            "scripts/check_tenant_boundary_bypass.py",
+            "tests/test_census_baseline_check.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
@@ -8428,7 +8484,7 @@ def test_rg1_owned_condition2_requires_each_source_path_and_occurrence() -> None
     assert len(contract.ledger_condition2_findings) == 20
     for owner in contract.rg1_condition2_owners:
         relative = owner.path.removeprefix("backend/src/")
-        source = _rg1_registered_source(owner)
+        source = (REPOSITORY_ROOT / owner.path).read_text()
         assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
         raw = checker.scan_source(
             source, path=relative,
@@ -8489,7 +8545,7 @@ def test_rg1_owned_condition2_synthetic_contract_is_not_an_escape(mutation: str)
     else:
         owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
     owner = contract.rg1_condition2_owners[0]
-    source = _rg1_registered_source(owner)
+    source = (REPOSITORY_ROOT / owner.path).read_text()
     found = checker.scan_source(
         source, path=owner.path.removeprefix("backend/src/"),
         contract=replace(contract, rg1_condition2_owners=owners),
@@ -8638,929 +8694,1147 @@ def test_rg1_registered_controller_still_rejects_extra_db_api() -> None:
     )
 
 
-def test_ledger_current_adapter_exact_profile_and_shift_are_distinguished() -> None:
-    """現adapterの17組だけを認め、行移動した別byteは免除しない。"""
+@pytest.mark.parametrize("name,apis", [
+    ("_apply_initial_storage", frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"})),
+    ("_require_initial_state", frozenset({
+        "PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE",
+    })),
+])
+def test_initial_storage_startup_registration_is_exact(name: str, apis: frozenset[str]) -> None:
+    """0036の2helperだけを登録し欠落/余剰APIを拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    source = (REPOSITORY_ROOT / checker.LEDGER_CONDITION2_PATH).read_text()
-    path = checker.LEDGER_CONDITION2_PATH.removeprefix("backend/src/")
-    assert len(contract.ledger_condition2_findings) == 20
-    assert not [row for row in checker.scan_source(source, path=path, contract=contract)
-                if row.code == "TB002"]
-    shifted = checker.scan_source("\n" + source, path=path, contract=contract)
-    assert {(row.line, row.symbol) for row in shifted if row.code == "TB002"} == {
-        (line + 1, symbol) for line, symbol in contract.ledger_condition2_findings
+    symbol = "pitchlog.db.stage_a_startup." + name
+    row = next(row for row in contract.allowed_symbols if row.symbol == symbol)
+    assert row.allowed_api_ids == apis
+    path = "pitchlog/db/stage_a_startup.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    for replacement in (None, replace(row, signature=row.signature + "_invalid")):
+        rows = tuple(x for x in contract.allowed_symbols if x.symbol != symbol)
+        if replacement is not None:
+            rows = (*rows, replacement)
+        broken = replace(contract, allowed_symbols=rows)
+        assert any(
+            v.code == "TB005" and (v.scope == symbol or v.symbol == symbol)
+            for v in checker.scan_source(source, path=path, contract=broken)
+        )
+    positive = REPOSITORY_ROOT / row.fixture
+    fixture_source = positive.read_text(encoding="utf-8")
+    fixture_path = "pitchlog/db.py"
+    assert checker.scan_source(fixture_source, path=fixture_path, contract=contract) == []
+    assert checker.scan_source(
+        fixture_source, path=fixture_path, contract=contract, reject_all_db_calls=True,
+    )
+    if name == "_require_initial_state":
+        changed = source.replace(
+            "def _require_initial_state(applicator_dsn: str) -> None:",
+            "def _require_initial_state(applicator_dsn: str) -> None:"
+            "\n    psycopg.connect(applicator_dsn).commit()", 1,
+        )
+        assert any(
+            v.code == "TB005" and v.scope == symbol
+            for v in checker.scan_source(changed, path=path, contract=contract)
+        )
+
+
+@pytest.mark.parametrize("mutation", [
+    "path", "scope", "line", "bool-line", "symbol", "hash", "missing", "extra",
+])
+def test_resolution_owner_declaration_is_one_closed_site(mutation: str) -> None:
+    """再交付owner登録の型/一箇所/余剰fieldを閉じる。"""
+    asset_path = REPOSITORY_ROOT / "contracts/tenant_boundary/base-allowlist.json"
+    row = json.loads(asset_path.read_text())["condition_1_resolve_scoped_finding"]
+    if mutation == "missing":
+        row.pop("scope")
+    elif mutation == "extra":
+        row["extra"] = True
+    else:
+        key = (
+            "line" if mutation == "bool-line"
+            else "source_sha256" if mutation == "hash" else mutation
+        )
+        row[key] = True if mutation == "bool-line" else 867 if mutation == "line" else "unknown"
+    with pytest.raises(checker.ContractError):
+        checker._load_resolution_owner(row)
+
+
+@pytest.mark.parametrize("mutation", [
+    "hash", "runtime", "context", "lookup", "device", "outcome", "owner", "return", "copied-path",
+])
+def test_resolution_owner_body_cannot_self_authorize_new_hash(mutation: str) -> None:
+    """同時hash更新でも実owner/実scope照合の脱落は通らない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/repositories/transaction.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    assert checker.scan_source(source, path=path, contract=contract) == []
+    changes = {
+        "hash": (
+            "def _assert_existing_resolution_owner", "\ndef _assert_existing_resolution_owner",
+        ),
+        "runtime": ("        or binding.runtime is not runtime\n", ""),
+        "context": ("        or binding.context is not context\n", ""),
+        "lookup": ("        or not binding.looked_up\n", ""),
+        "device": ("        or not binding.device_checked\n", ""),
+        "outcome": ('        or binding.outcome != "committed"\n', ""),
+        "owner": ("        owner.request_digest,\n", "        owner.device_id,\n"),
+        "return": (
+            "    binding = _RESOLVE_BINDINGS.get(handle._state_key)\n",
+            "    return\n    binding = _RESOLVE_BINDINGS.get(handle._state_key)\n",
+        ),
     }
+    if mutation == "copied-path":
+        changed = source
+        path = "pitchlog/copy.py"
+    else:
+        old, new = changes[mutation]
+        assert old in source
+        changed = source.replace(old, new, 1)
+        if mutation != "hash":
+            assert contract.resolution_owner is not None
+            contract = replace(contract, resolution_owner=replace(
+                contract.resolution_owner,
+                source_sha256=hashlib.sha256(changed.encode()).hexdigest(),
+            ))
+    assert any(
+        v.code == "TB001"
+        for v in checker.scan_source(changed, path=path, contract=contract)
+    )
+
+
+@pytest.mark.parametrize("access", ["get", "pop"])
+def test_builtin_dict_method_preserves_retrieved_constructor_origin(access: str) -> None:
+    """dict method自体と、取り出したconstructorの呼出しを混同しない。"""
+    source = (
+        "from pitchlog.repositories.context import TenantContext\n"
+        "callbacks = {'cb': TenantContext}\n"
+        f"callbacks.{access}('cb')()\n"
+    )
+    violations = checker.scan_source(
+        source, path="foreign.py", contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert any(v.code == "TB007" and v.line == 3 for v in violations)
+
+
+def test_bound_scope_guard_proof_expires_on_any_module_ast_change() -> None:
+    """真正guardの有限証明を別scope/ガード欠落へ持ち出さない。"""
+    path = "pitchlog/repositories/initial_recording_right.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    original = checker.scan_source(source, path=path, contract=contract)
+    assert not any(v.code == "TB007" and v.line in {489, 491, 498, 782} for v in original)
+    for changed, changed_path in (
+        (source.replace(
+            "self.assert_bound_tenant(owner.tenant_id)",
+            "self.assert_bound_tenant(other_tenant)", 1,
+        ), path),
+        (source.replace("def _check(self)", "def _removed_guard(self)", 1), path),
+        (source, "pitchlog/repositories/another_scope.py"),
+    ):
+        violations = checker.scan_source(changed, path=changed_path, contract=contract)
+        assert any(v.code == "TB007" and v.line == 489 for v in violations)
+
+
+@pytest.mark.parametrize("assignment", [
+    "self.cb = TenantContext", "constructor = TenantContext\n        self.cb = constructor",
+    "box = {'cb': TenantContext}\n        self.cb = box.get('cb')",
+])
+def test_instance_field_retains_known_constructor_between_methods(assignment: str) -> None:
+    """別メソッドへ持ち越された既知constructorの実field起源を拒否する。"""
+    source = (
+        "from pitchlog.repositories.context import TenantContext\n"
+        "class A:\n"
+        "    def __init__(self):\n"
+        f"        {assignment}\n"
+        "    def run(self):\n"
+        "        self.cb()\n"
+        "A().run()\n"
+    )
+    violations = checker.scan_source(
+        source, path="foreign.py", contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert any(
+        v.code == "TB007" and v.line == source.splitlines().index("        self.cb()") + 1
+        for v in violations
+    )
+
+
+@pytest.mark.parametrize("source", [
+    "class A:\n"
+    "    def run(self): self.cb()\n"
+    "    def __init__(self): self.cb = TenantContext\n"
+    "A().run()\n",
+    "class A:\n"
+    "    def run(self): self.cb()\n"
+    "a = A()\n"
+    "a.cb = TenantContext\n"
+    "a.run()\n",
+    "class A:\n"
+    "    def run(self): self.cb2()\n"
+    "    def copy(self): self.cb2 = self.cb\n"
+    "    def __init__(self): self.cb = TenantContext\n"
+    "a = A()\na.copy()\na.run()\n",
+])
+def test_known_instance_constructor_is_not_hidden_by_definition_order(source: str) -> None:
+    """既知constructorの保持をメソッド順や後置代入・別fieldで迂回させない。"""
+    source = "from pitchlog.repositories.context import TenantContext\n" + source
+    violations = checker.scan_source(
+        source, path="foreign.py", contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    run_line = next(i for i, line in enumerate(source.splitlines(), 1) if "def run" in line)
+    assert any(v.code == "TB007" and v.line == run_line for v in violations)
+
+
+
+@pytest.mark.parametrize("source_key, relative_path", [
+    ("initial_recording_right_guard", "repositories/initial_recording_right.py"),
+    ("source_fingerprint_callee", "sync/idempotency.py"),
+    ("game_start_caller", "repositories/game_start.py"),
+    ("initial_grant_broker_caller", "recording_rights/initial_grant_broker.py"),
+])
+def test_scope_proof_uses_immutable_git_bytes(
+    source_key: str, relative_path: str,
+) -> None:
+    """期待値を現sourceから取らず目的付きrevisionのGitbyteへ束縛する。"""
+    declaration = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_bytes()
+    )
+    revision = declaration["frozen_inputs"]["ci_scope_proof_source_revision"]["value"]
+    expected = subprocess.run(
+        ["git", "show", f"{revision}:backend/src/pitchlog/{relative_path}"],
+        cwd=REPOSITORY_ROOT, capture_output=True, check=True,
+    ).stdout
+    assert checker._scope_proof_source_sha256(source_key) == hashlib.sha256(expected).hexdigest()
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing-field", "short-revision", "missing-commit", "unknown-consumer",
+    "unknown-key", "missing-git-root", "symbolic-revision",
+])
+def test_scope_proof_reference_resolution_is_closed(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """原典不足/未知用途/曖昧参照を現在sourceへの代替で通さない。"""
+    asset_path = "contracts/tenant_boundary/frozen-inputs.json"
+    asset = json.loads((REPOSITORY_ROOT / asset_path).read_bytes())
+    inputs = asset["frozen_inputs"]
+    entry = inputs["ci_scope_proof_source_revision"]
+    key = "source_fingerprint_callee"
+    git_root = REPOSITORY_ROOT
+    if mutation == "missing-field":
+        del inputs["ci_scope_proof_source_revision"]
+    elif mutation == "short-revision":
+        entry["value"] = entry["value"][:7]
+    elif mutation == "missing-commit":
+        entry["value"] = "f" * 40
+    elif mutation == "symbolic-revision":
+        entry["value"] = "HEAD"
+    elif mutation == "unknown-consumer":
+        entry["sources"].append("foreign.py:consumer")
+    elif mutation == "unknown-key":
+        key = "unknown_source"
+    elif mutation == "missing-git-root":
+        git_root = tmp_path
+    target = tmp_path / asset_path
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(asset), encoding="utf-8")
+    with pytest.raises(checker.ContractError):
+        checker._scope_proof_source_sha256(
+            key, declaration_repository_root=tmp_path, git_repository_root=git_root,
+        )
+
+
+@pytest.mark.parametrize("tree_entry", ["", "120000 blob symlink", "040000 tree directory"])
+def test_scope_proof_requires_a_regular_git_blob(
+    monkeypatch: pytest.MonkeyPatch, tree_entry: str,
+) -> None:
+    """原典pathの欠落/symlink/treeをsource全byteの証明に使わない。"""
+    original = checker._run_git
+
+    def altered_tree(repository_root: Path, arguments: Any) -> str:
+        if "ls-tree" in arguments:
+            return tree_entry + "\tbackend/src/pitchlog/sync/idempotency.py" if tree_entry else ""
+        return original(repository_root, arguments)
+
+    monkeypatch.setattr(checker, "_run_git", altered_tree)
+    with pytest.raises(checker.ContractError):
+        checker._scope_proof_source_sha256("source_fingerprint_callee")
+
+
+_INITIAL_POPULATION_MUTATIONS = (
+    # 各根拠を別々に壊す。未知呼出し・SQL・scopeへ原典site許可を転用しない。
+    (
+        'recording_rights/initial_grant_broker.py',
+        'require_database_transport(url, args)',
+        'pass  # transport removed',
+        'transport',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'connection.rollback()',
+        'pass  # rollback removed',
+        'rollback',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'cursor.execute(_AUTH_VERIFIER_CHECKOUT_SQL)',
+        "cursor.execute('SELECT 1')",
+        'verifier-sql',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'WHERE r.rolname = session_user',
+        'WHERE TRUE',
+        'actor-role-sql',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'row[12] != config.database_oid',
+        'False',
+        'database-identity',
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        "tuple(row[2:9]) != (True, False, False, False, False, False, False)",
+        "False", "role-superuser",
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'event.listen(engine, "checkout", checkout)',
+        'pass  # checkout removed',
+        'checkout-binding',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'from pitchlog.recording_rights.rg1_lifecycle import (',
+        'from other.module import (',
+        'fixed-import',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'channel.connect(str(self._endpoint.path))',
+        'engine.connect()',
+        'socket-to-db',
+    ),
+    ("recording_rights/initial_grant_broker.py", "output.flush()", "session.flush()", "file-to-db"),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'DurableLedger(Path(config["ledger_endpoint"]))',
+        'TenantContext(Path(config["ledger_endpoint"]))',
+        'ledger-to-context',
+    ),
+    (
+        'recording_rights/initial_grant_broker.py',
+        'hide_parameters=True',
+        'hide_parameters=False',
+        'parameter-leak-policy',
+    ),
+    (
+        'repositories/game_start.py',
+        'cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken',
+        'cls = _PersistInitialStartToken if save else TenantContext',
+        'third-constructor',
+    ),
+    (
+        'repositories/game_start.py',
+        'bound.canonical_bytes.decode("utf-8"),',
+        '"forged",',
+        'token-full-arguments',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        'pass',
+        'guard-removed',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        '_assert_existing_resolution_owner(transaction, other, actor_runtime, owner, bound)',
+        'guard-context',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, other, bound)',
+        'guard-owner',
+    ),
+    (
+        'repositories/initial_recording_right.py',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)',
+        '_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, None)',
+        'guard-bound',
+    ),
+    (
+        'api/schemas/game_start.py',
+        'recovery_generation: str',
+        'recovery_generation: int',
+        'wire-type',
+    ),
+    (
+        'authz/capability_catalog.py',
+        '"profile": "tenant_owned",',
+        '"profile": "function_only",',
+        'classification',
+    ),
+    (
+        'authz/product_function_acl.py',
+        'node.targets[0].id == "_GENERATION_GUARD_SQL"',
+        'node.targets[0].id == "ARBITRARY_SQL"',
+        'ddl-binding',
+    ),
+    (
+        'authz/product_function_acl.py',
+        'if other_bindings or len(bindings) != 1 or len(declarations) != 1:',
+        'if False:',
+        'ddl-shadow',
+    ),
+    (
+        'db/recording_rights/models.py',
+        'server_default=text("CURRENT_TIMESTAMP")',
+        'server_default=text("SELECT 1")',
+        'metadata-sql',
+    ),
+    (
+        'db/recording_rights/models.py',
+        'postgresql_where=text("outcome = \'pending\'")',
+        'postgresql_where=text("true")',
+        'metadata-partial-index',
+    ),
+    (
+        'db/recording_rights/models.py',
+        'recovery_generation: Mapped[int | None]',
+        'recovery_generation: Mapped[str | None]',
+        'metadata-type',
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'event.listen(engine, "checkout", checkout)',
+        'event.listen(engine, "checkout", checkout); event.remove(engine, "checkout", checkout)',
+        "review-callback-removed",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'require_database_transport(url, args)',
+        'if False: require_database_transport(url, args)',
+        "review-dead-transport",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        '_ACTOR_ROLE = "pitchlog_initial_actor"',
+        '_ACTOR_ROLE = "pitchlog_initial_actor"; _ACTOR_ROLE = "postgres"',
+        "review-role-rebound",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'state.engine.dispose()', 'pass', "owned-cleanup-removed",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        '_ACTOR_RUNTIMES.pop(runtime._key)', 'pass', "registry-not-consumed",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'not host.startswith("/")', 'not host.startswith("localhost")', "unix-endpoint",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'url.username != _ACTOR_ROLE', 'False', "url-role",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        '                engine.dispose()', '                pass',
+        "failure-cleanup-removed",
+    ),
+
+    (
+        "recording_rights/initial_grant_broker.py",
+        'raw[1:17] != tenant_id.bytes', 'False', "d4-owner-tenant",
+    ),
+    (
+        "recording_rights/initial_grant_broker.py",
+        'raw[17:33] != game_id.bytes', 'False', "d4-owner-game",
+    ),
+
+    (
+        "authz/product_function_acl.py",
+        'other_bindings = any(', 'other_bindings = False and any(',
+        "ddl-shadow-binding-disabled",
+    ),
+
+)
+
+
+@pytest.mark.parametrize("relative,before,after,reason", _INITIAL_POPULATION_MUTATIONS)
+def test_initial_population_proof_rejects_semantic_mutations(
+    relative: str, before: str, after: str, reason: str,
+) -> None:
+    """独立した安全条件の変造を旧原典の許可siteで隠さない。"""
+    path = f"pitchlog/{relative}"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    assert before in source, reason
+    if reason in {"metadata-sql", "metadata-type"}:
+        marker = ("class TrustedDevice(" if reason == "metadata-sql"
+                  else "class RecordingGeneration(")
+        prefix, suffix = source.split(marker, 1)
+        changed = prefix + marker + suffix.replace(before, after, 1)
+    else:
+        changed = source.replace(before, after, 1)
+    assert checker._initial_population_evidence(source, path)
+    assert not checker._initial_population_evidence(changed, path)
+    assert checker.scan_source(
+        changed, path=path, contract=checker.load_contract(REPOSITORY_ROOT),
+    ), reason
+
+
+def test_initial_population_policy_preserves_unrelated_fullscan_findings() -> None:
+    """所見数から期待を作らず、対象外の実DBと型/語彙所見が残ると示す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    cases = (
+        ("pitchlog/db/recording_rights/models.py", "sqlalchemy.text", "TB005"),
+        ("pitchlog/db/recording_rights/models.py", "sqlalchemy.orm.Mapped", "TB002"),
+    )
+    sources = {
+        p.relative_to(REPOSITORY_ROOT / "backend/src").as_posix(): p.read_text()
+        for p in (REPOSITORY_ROOT / "backend/src").rglob("*.py")
+    }
+    exports = checker._build_reexport_map(sources)
+    for path, symbol, code in cases:
+        violations = checker.scan_source(
+            sources[path], path=path, contract=contract, reexport_map=exports,
+        )
+        assert any(v.symbol == symbol and v.code == code for v in violations)
+
+
+@pytest.mark.parametrize("source_key,relative", (
+    ("initial_response_annotations", "api/schemas/game_start.py"),
+    ("initial_storage_classification", "authz/capability_catalog.py"),
+    ("initial_generation_guard_ddl", "authz/product_function_acl.py"),
+    ("initial_storage_model_declarations", "db/recording_rights/models.py"),
+))
+def test_initial_population_additional_originals_are_immutable_git(
+    source_key: str, relative: str,
+) -> None:
+    """追加原典4用途も現sourceや申告SHAから期待byteを生成しない。"""
+    declaration = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_bytes()
+    )
+    revision = declaration["frozen_inputs"]["ci_scope_proof_source_revision"]["value"]
+    expected = subprocess.run(
+        ["git", "show", f"{revision}:backend/src/pitchlog/{relative}"],
+        cwd=REPOSITORY_ROOT, capture_output=True, check=True,
+    ).stdout
+    assert checker._scope_proof_source_bytes(source_key) == expected
+    assert checker._scope_proof_source_sha256(source_key) == hashlib.sha256(expected).hexdigest()
+
+
+def test_initial_population_unknown_path_and_extra_site_remain_closed() -> None:
+    """既siteを別module・scope・追記したcallableへ流用できない。"""
+    path = "pitchlog/repositories/game_start.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    assert not checker._initial_population_evidence(source, "other/game_start.py")
+    extra = source + "\n\ndef arbitrary():\n    return TenantContext()\n"
+    assert not checker._initial_population_evidence(extra, path)
+    assert any(v.code == "TB007" for v in checker.scan_source(
+        extra, path=path, contract=checker.load_contract(REPOSITORY_ROOT),
+    ))
+
+
+@pytest.mark.parametrize("change", ("purpose-claim", "extra-sha-field", "unknown-consumer"))
+def test_initial_population_source_and_declaration_do_not_replace_original(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, change: str,
+) -> None:
+    """現sourceと自己申告を同時変造しても不変原典を上書きできない。"""
+    asset_path = "contracts/tenant_boundary/frozen-inputs.json"
+    declaration = json.loads((REPOSITORY_ROOT / asset_path).read_bytes())
+    entry = declaration["frozen_inputs"]["ci_scope_proof_source_revision"]
+    path = "pitchlog/repositories/game_start.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    changed = source.replace(
+        "cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken",
+        "cls = _PersistInitialStartToken if save else TenantContext",
+        1,
+    )
+    claimed = hashlib.sha256(changed.encode()).hexdigest()
+    if change == "purpose-claim":
+        entry["purpose"] = f"self claimed source: {claimed}"
+    elif change == "extra-sha-field":
+        entry["source_sha256"] = claimed
+    else:
+        entry["sources"].append("other:caller")
+    target = tmp_path / asset_path
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(declaration))
+    original = checker._scope_proof_source_bytes
+
+    def reference(key: str, **_roots: Any) -> bytes:
+        return original(
+            key,
+            declaration_repository_root=tmp_path,
+            git_repository_root=REPOSITORY_ROOT,
+        )
+
+    monkeypatch.setattr(checker, "_scope_proof_source_bytes", reference)
+    if change == "purpose-claim":
+        assert not checker._initial_population_evidence(changed, path)
+        assert checker.scan_source(
+            changed, path=path, contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+    else:
+        with pytest.raises(checker.ContractError):
+            reference("game_start_caller")
+        assert not checker._initial_population_evidence(changed, path)
+
+
+@pytest.mark.parametrize("relative,before,after,reason", _INITIAL_POPULATION_MUTATIONS)
+def test_initial_population_semantics_rejects_even_a_forged_matching_original(
+    relative: str, before: str, after: str, reason: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全byte/owner/site ASTが通るよう原典も変造しても、独立規範が拒否する。"""
+    path = f"pitchlog/{relative}"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text()
+    assert before in source
+    if reason in {"metadata-sql", "metadata-type"}:
+        marker = ("class TrustedDevice(" if reason == "metadata-sql"
+                  else "class RecordingGeneration(")
+        prefix, suffix = source.split(marker, 1)
+        changed = prefix + marker + suffix.replace(before, after, 1)
+    else:
+        changed = source.replace(before, after, 1)
+    # 改行/owner喪失を理由とする失効に依存せず、旧gateを確実に通す。
+    assert changed.count("\n") == source.count("\n")
+    monkeypatch.setattr(checker, "_scope_proof_source_bytes", lambda *_a, **_k: changed.encode())
+    validate = checker._initial_population_semantics
+    with monkeypatch.context() as bypass:
+        bypass.setattr(checker, "_initial_population_semantics", lambda *_a: True)
+        assert checker._initial_population_evidence(changed, path), reason
+    assert not validate(ast.parse(changed), path), reason
+    assert not checker._initial_population_evidence(changed, path), reason
+
+
+def test_fixed_first_ball_builder_keeps_current_and_legacy_complete_shapes() -> None:
+    """189現形と旧simpleだけを全本文で受理し、他期待へ許可を広げない。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    for root in (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT):
+        source = _fixture_source(root / relative)
+        assert checker.scan_source(source, path=relative, contract=contract) == []
+        function = next(
+            node for node in ast.parse(source).body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_build_fixed_function_statement"
+        )
+        assert checker._is_fixed_builder_body(function, checker._FIXED_BUILDER_BODY)
+        assert not checker._is_fixed_builder_body(function, checker._FIXED_BIND_BODY)
+        function.decorator_list = [ast.Name(id="unapproved", ctx=ast.Load())]
+        assert not checker._is_fixed_builder_body(function, checker._FIXED_BUILDER_BODY)
 
 
 @pytest.mark.parametrize(
-    "replacement",
-    (
-        "return bindparam(name, type_=String())",
-        "return bindparam('tenant_id', type_=LargeBinary())",
-        "return dynamic_bind(name)",
-    ),
+    "before,after",
+    [
+        ('type_=BigInteger()', 'type_=Float()'),
+        ('type_=BigInteger()', 'type_=String()'),
+        ('name in ("internal_generation", "recovery_generation")',
+         'name in ("internal_generation",)'),
+        ('name in ("internal_generation", "recovery_generation")',
+         'name in ("internal_generation", "recovery_generation", "other")'),
+        ('function_name == "check_current_right"',
+         'function_name == "unapproved"'),
+        ('schema == "sync_right_api"', 'schema == "other_api"'),
+        ('and field_type is int', 'and field_type is bool'),
+        ('_canonical_bind("tenant_id", UUID)', '_canonical_bind("tenant_id", str)'),
+        ('schema == "sync_fence_api"', 'schema == "other_api"'),
+        ('function_name == "assert_writer_binding"',
+         'function_name == "unapproved"'),
+        ('and not table_valued', 'and table_valued'),
+        ('and result_names == ("asserted",)', 'and result_names == ("other",)'),
+        ('and result_names == ("asserted",)',
+         'and result_names == ("asserted", "other")'),
+        ('safe_function.type = _WriterAssertVoidResult()',
+         'safe_function.type = Integer()'),
+    ],
+    ids=[
+        "bigint-float", "bigint-text", "missing-generation", "extra-generation",
+        "bigint-function", "bigint-schema", "bigint-bool", "tenant-bind-type",
+        "void-schema", "void-function", "void-table", "void-result-name",
+        "void-extra-result", "void-result-type",
+    ],
 )
-def test_fixed_function_binary_bind_rejects_altered_body(replacement: str) -> None:
-    """bytesの固定bindを追加しても別型・別名・任意呼出しを認めない。"""
-    contract = checker.load_contract(REPOSITORY_ROOT)
+def test_fixed_first_ball_builder_rejects_each_finite_shape_change(
+    before: str, after: str,
+) -> None:
+    """2入力BigIntegerと専用voidの各境界を1箇所ずつ変えて拒否する。"""
     relative = "pitchlog/repositories/function_operations.py"
     source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
-    expected = "return bindparam(name, type_=LargeBinary())"
-    assert source.count(expected) == 1
-    changed = _changed_lines_containing(source, expected)
-    assert not [row for row in checker.scan_source(
-        source, path=relative, changed_lines=changed, contract=contract,
-    ) if row.code == "TB005"]
-    mutated = source.replace(expected, replacement, 1)
+    assert source.count(before) == 1
+    mutated = source.replace(before, after, 1)
     violations = _scan_diff_mutation(
         source, mutated, path=relative,
-        changed_lines=_changed_lines_containing(mutated, replacement),
-        contract=contract,
+        changed_lines=_changed_lines_containing(mutated, after),
+        contract=checker.load_contract(REPOSITORY_ROOT),
     )
-    assert ("TB005", "pitchlog.repositories.function_operations._canonical_bind") in {
-        (row.code, row.symbol) for row in violations
-    }
+    assert (
+        "TB005", "pitchlog.repositories.function_operations._build_fixed_function_statement"
+    ) in {(item.code, item.symbol) for item in violations}
 
 
-# PO委任による限定受理2e8a816fの7path/49組(path/行/記号/scope)を、
-# 製品scannerと独立した固定値で比較する。
-# 実sourceのSHA-256は本定数に持たない(*.pyへ64桁を直書きしない — 凍結基準の走査規則・7.7-1)。
-# 宣言のSHAは実source byteと突き合わせる
-# (test_initial_start_condition2_digests_pin_actual_source)。
-_INITIAL_START_CONDITION2_REVIEWED = [
-    {
-        'path': 'backend/src/pitchlog/api/schemas/game_start.py',
-        'findings': [
-            {
-                'line': 189,
-                'symbol': 'str',
-                'scope': (
-                    'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'
-                ),
-            },
-        ],
-    },
-    {
-        'path': 'backend/src/pitchlog/authz/capability_catalog.py',
-        'findings': [
-            {
-                'line': 180,
-                'symbol': 'generation',
-                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile',
-            },
-            {
-                'line': 183,
-                'symbol': 'generation',
-                'scope': 'pitchlog.authz.capability_catalog._initial_storage_profile',
-            },
-        ],
-    },
-    {
-        'path': 'backend/src/pitchlog/authz/product_function_acl.py',
-        'findings': [
-            {
-                'line': 177,
-                'symbol': (
-                    'pitchlog.authz.product_function_acl.generate_generation_guard_sql'
-                ),
-                'scope': (
-                    'pitchlog.authz.product_function_acl.generate_product_function_acl'
-                    '_sql'
-                ),
-            },
-            {
-                'line': 2614,
-                'symbol': 'generate_generation_guard_sql',
-                'scope': 'pitchlog.authz.product_function_acl.<module>',
-            },
-        ],
-    },
-    {
-        'path': 'backend/src/pitchlog/db/recording_rights/models.py',
-        'findings': [
-            {
-                'line': 66,
-                'symbol': 'sqlalchemy.orm.Mapped',
-                'scope': 'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>',
-            },
-            {
-                'line': 194,
-                'symbol': 'RecordingGeneration',
-                'scope': 'pitchlog.db.recording_rights.models.<module>',
-            },
-            {
-                'line': 267,
-                'symbol': 'sqlalchemy.orm.Mapped',
-                'scope': (
-                    'pitchlog.db.recording_rights.models.RecordingGeneration.<module>'
-                ),
-            },
-            {
-                'line': 567,
-                'symbol': 'sqlalchemy.orm.Mapped',
-                'scope': (
-                    'pitchlog.db.recording_rights.models.RecordingRightDelivery.<modul'
-                    'e>'
-                ),
-            },
-        ],
-    },
-    {
-        'path': 'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
-        'findings': [
-            {
-                'line': 35,
-                'symbol': 'DurableGenerationSource',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 35,
-                'symbol': 'assert_write_recovery_generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 327,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
-                ),
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 406,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
-                    'eration'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
-                    'nt_impl'
-                ),
-            },
-            {
-                'line': 407,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
-                    'eration'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
-                    'nt_impl'
-                ),
-            },
-            {
-                'line': 431,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
-                ),
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 446,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
-                ),
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 487,
-                'symbol': 'generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 494,
-                'symbol': 'int',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker._broker_d4',
-            },
-            {
-                'line': 499,
-                'symbol': '_broker_generation',
-                'scope': 'pitchlog.recording_rights.initial_grant_broker.<module>',
-            },
-            {
-                'line': 513,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-            },
-            {
-                'line': 517,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-            },
-            {
-                'line': 523,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-            },
-            {
-                'line': 807,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.generation'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
-                    'response'
-                ),
-            },
-            {
-                'line': 808,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
-                    'eration'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
-                    'response'
-                ),
-            },
-            {
-                'line': 808,
-                'symbol': 'recovery_generation',
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
-                    'response'
-                ),
-            },
-            {
-                'line': 932,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._decode_initial_re'
-                    'ply'
-                ),
-            },
-            {
-                'line': 1470,
-                'symbol': 'pitchlog.sync.idempotency',
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
-                    'art'
-                ),
-            },
-            {
-                'line': 1527,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
-                    'eration'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
-                    'art'
-                ),
-            },
-            {
-                'line': 1528,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
-                    'eration'
-                ),
-                'scope': (
-                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
-                    'art'
-                ),
-            },
-        ],
-    },
-    {
-        'path': 'backend/src/pitchlog/repositories/game_start.py',
-        'findings': [
-            {
-                'line': 23,
-                'symbol': 'pitchlog.sync.idempotency',
-                'scope': 'pitchlog.repositories.game_start.<module>',
-            },
-        ],
-    },
-    {
-        'path': 'backend/src/pitchlog/repositories/initial_recording_right.py',
-        'findings': [
-            {
-                'line': 47,
-                'symbol': '_positive_generation',
-                'scope': 'pitchlog.repositories.initial_recording_right.<module>',
-            },
-            {
-                'line': 158,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._CheckBusinessEpoch'
-                    'Token.<module>'
-                ),
-            },
-            {
-                'line': 174,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
-                    'Token.<module>'
-                ),
-            },
-            {
-                'line': 175,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
-                    'Token.<module>'
-                ),
-            },
-            {
-                'line': 264,
-                'symbol': (
-                    'pitchlog.repositories.initial_recording_right._positive_generatio'
-                    'n'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            },
-            {
-                'line': 276,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            },
-            {
-                'line': 278,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            },
-            {
-                'line': 279,
-                'symbol': 'int',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            },
-            {
-                'line': 279,
-                'symbol': (
-                    'pitchlog.repositories.initial_recording_right._positive_generatio'
-                    'n'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            },
-            {
-                'line': 466,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.__init__'
-                ),
-            },
-            {
-                'line': 559,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.lock_valid_device'
-                ),
-            },
-            {
-                'line': 593,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope._record'
-                ),
-            },
-            {
-                'line': 666,
-                'symbol': 'assert_recovery_generation',
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.<module>'
-                ),
-            },
-            {
-                'line': 669,
-                'symbol': (
-                    'pitchlog.repositories.initial_recording_right._positive_generatio'
-                    'n'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.assert_recovery_generation'
-                ),
-            },
-            {
-                'line': 700,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            },
-            {
-                'line': 701,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
-                    'ry_generation'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            },
-            {
-                'line': 715,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            },
-            {
-                'line': 716,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
-                    'ry_generation'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            },
-            {
-                'line': 725,
-                'symbol': (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                'scope': (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            },
-        ],
-    },
-]
-
-
-@pytest.fixture(scope="module")
-def initial_start_condition2_snapshot() -> tuple[dict[str, str], Any]:
-    """同じ実source snapshotで再輸出の起源まで解決する。"""
-    root = REPOSITORY_ROOT / "backend/src"
-    sources = {path.relative_to(root).as_posix(): path.read_text(encoding="utf-8")
-               for path in root.rglob("*.py")}
-    return sources, checker._build_reexport_map(sources)
-
-
-def _initial_start_declared_digests() -> dict[str, str]:
-    """base-allowlist.json の宣言から開始7pathのsource SHA-256を読む。"""
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-field", "missing-path", "extra-path", "digest", "extra-finding",
+        "missing-finding", "changed-symbol", "zero-line", "bool-line",
+        "empty-symbol", "extra-key",
+    ),
+)
+def test_first_ball_condition2_shape_is_closed(mutation: str) -> None:
+    """初球6pathの条件2登録を欠落・余剰・別記号へ広げられない。"""
     value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
-    return {
-        row["path"]: row["source_sha256"]
-        for row in value["condition_2_initial_start_scoped_findings"]
-    }
-
-
-def test_initial_start_condition2_fixed_declaration_and_old_owners() -> None:
-    """開始7path/49組だけを追加し、既所有と受理履歴を置換しない。
-
-    宣言のsource SHAは本testでは比較しない(*.pyに64桁を持たない)。実source byteとの
-    一致は test_initial_start_condition2_digests_pin_actual_source が固定する。
-    """
-    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
-    assert [
-        {key: item for key, item in row.items() if key != "source_sha256"}
-        for row in value["condition_2_initial_start_scoped_findings"]
-    ] == _INITIAL_START_CONDITION2_REVIEWED
-    contract = checker.load_contract(REPOSITORY_ROOT)
-    assert len(contract.initial_start_condition2_owners) == 7
-    assert sum(len(row.findings) for row in contract.initial_start_condition2_owners) == 49
-    assert len(contract.condition2_scoped_findings) == 47
-    assert len(contract.ledger_condition2_findings) == 20
-    assert len(contract.rg1_condition2_owners) == 2
-    assert all(len(row.findings) == 1 for row in contract.rg1_condition2_owners)
-    assert value["condition_2_scoped_findings"] == _accepted_initial_condition2(REPOSITORY_ROOT)
-
-
-def test_initial_start_condition2_digests_pin_actual_source() -> None:
-    """宣言の7digestは作業ツリーの実source byteのSHA-256と一致する。
-
-    source byteの固定は、宣言(凍結資産の履歴が移動を統制する)と実fileの照合で行う。
-    sourceだけ、または宣言だけを動かすと本testが赤になる。
-    """
-    declared = _initial_start_declared_digests()
-    assert sorted(declared) == [row["path"] for row in _INITIAL_START_CONDITION2_REVIEWED]
-    for path, digest in declared.items():
-        assert re.fullmatch(r"[0-9a-f]{64}", digest) is not None, path
-        actual = hashlib.sha256((REPOSITORY_ROOT / path).read_bytes()).hexdigest()
-        assert actual == digest, path
-
-
-def test_initial_start_condition2_wrong_digest_drops_exemption(
-    initial_start_condition2_snapshot: tuple[dict[str, str], Any],
-) -> None:
-    """宣言のdigestだけを書き換えても免除は残らない(書式が正しい別値は読込を通る)。"""
-    sources, reexports = initial_start_condition2_snapshot
-    contract = checker.load_contract(REPOSITORY_ROOT)
-    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
-    groups = value["condition_2_initial_start_scoped_findings"]
-    groups[0]["source_sha256"] = "0" * 64
-    owners = checker._load_initial_start_condition2_owners(groups)
-    assert owners[0].source_sha256 == "0" * 64
-    path = groups[0]["path"].removeprefix("backend/src/")
-    allowed = {(r["line"], r["symbol"], r["scope"]) for r in groups[0]["findings"]}
-    found = checker.scan_source(
-        sources[path], path=path,
-        contract=replace(contract, initial_start_condition2_owners=owners),
-        reexport_map=reexports)
-    assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
-
-
-@pytest.mark.parametrize("mutation", (
-    "missing-field", "missing-path", "extra-path", "duplicate-path", "path",
-    "digest-format", "empty-findings", "duplicate-finding",
-    "missing-finding", "extra-finding", "zero-line", "bool-line", "line",
-    "symbol", "scope", "scope-prefix", "missing-scope", "extra-key",
-))
-def test_initial_start_condition2_rejects_nonexact_declaration(mutation: str) -> None:
-    """自己申告source/宣言の同時更新でも審査済み集合を広げられない。"""
-    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
-    key = "condition_2_initial_start_scoped_findings"
+    key = "condition_2_first_ball_scoped_findings"
     groups = value[key]
-    entry = groups[0]
-    finding = entry["findings"][0]
+    path = sorted(groups)[0]
     if mutation == "missing-field":
         del value[key]
     elif mutation == "missing-path":
-        groups.pop()
+        del groups[path]
     elif mutation == "extra-path":
-        other = copy.deepcopy(entry)
-        other["path"] = "backend/src/pitchlog/services/unreviewed.py"
-        groups.append(other)
-    elif mutation == "duplicate-path":
-        groups.append(copy.deepcopy(entry))
-    elif mutation == "path":
-        entry["path"] = "backend/src/pitchlog/api/schemas/other.py"
-    elif mutation == "digest-format":
-        entry["source_sha256"] = "bad"
-    elif mutation == "empty-findings":
-        entry["findings"] = []
-    elif mutation == "duplicate-finding":
-        entry["findings"].append(copy.deepcopy(finding))
-    elif mutation == "missing-finding":
-        entry["findings"].pop()
+        groups["backend/src/pitchlog/other.py"] = copy.deepcopy(groups[path])
+    elif mutation == "digest":
+        groups[path]["source_sha256"] = "not-a-digest"
     elif mutation == "extra-finding":
-        entry["findings"].append({**finding, "line": finding["line"] + 1})
+        groups[path]["findings"].append(copy.deepcopy(groups[path]["findings"][0]))
+    elif mutation == "missing-finding":
+        groups[path]["findings"].pop()
+    elif mutation == "changed-symbol":
+        groups[path]["findings"][0]["symbol"] = "other_generation"
     elif mutation == "zero-line":
-        finding["line"] = 0
+        groups[path]["findings"][0]["line"] = 0
     elif mutation == "bool-line":
-        finding["line"] = True
-    elif mutation == "line":
-        finding["line"] += 1
-    elif mutation == "symbol":
-        finding["symbol"] += ".extra"
-    elif mutation == "scope":
-        finding["scope"] = "pitchlog.unreviewed"
-    elif mutation == "scope-prefix":
-        finding["scope"] += ".extra"
-    elif mutation == "missing-scope":
-        del finding["scope"]
+        groups[path]["findings"][0]["line"] = True
+    elif mutation == "empty-symbol":
+        groups[path]["findings"][0]["symbol"] = ""
     else:
-        finding["condition"] = 5
+        groups[path]["findings"][0]["condition"] = 5
     inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
     apis = checker.load_contract(REPOSITORY_ROOT).apis
     with pytest.raises(checker.ContractError):
         checker._load_allowlist(value, inventory, apis)
 
 
-@pytest.mark.parametrize("profile", _INITIAL_START_CONDITION2_REVIEWED)
-def test_initial_start_condition2_filters_exact_source_scope_only(
-    profile: dict[str, Any], initial_start_condition2_snapshot: tuple[dict[str, str], Any]
-) -> None:
-    """実sourceの有限49組だけを除外し、旧6行・他条件・copy・追加処理を残す。"""
+def test_first_ball_condition2_requires_each_source_path_and_occurrence() -> None:
+    """同source/位置/記号だけを束縛し、変更sourceと追加識別子は残す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    sources, reexports = initial_start_condition2_snapshot
-    path = profile["path"].removeprefix("backend/src/")
-    source = sources[path]
-    assert (hashlib.sha256(source.encode()).hexdigest()
-            == _initial_start_declared_digests()[profile["path"]])
-    raw = checker.scan_source(source, path=path,
-        contract=replace(contract, initial_start_condition2_owners=()), reexport_map=reexports)
-    actual = checker.scan_source(source, path=path, contract=contract, reexport_map=reexports)
-    allowed = {(r["line"], r["symbol"], r["scope"]) for r in profile["findings"]}
-    assert allowed <= {(r.line, r.symbol, r.scope) for r in raw if r.code == "TB002"}
-    assert actual == [
-        r for r in raw
-        if r.code != "TB002" or (r.line, r.symbol, r.scope) not in allowed
-    ]
-    assert [r for r in actual if r.code != "TB002"] == [r for r in raw if r.code != "TB002"]
-    if path == "pitchlog/db/recording_rights/models.py":
-        assert len([r for r in actual if r.code == "TB002"]) == 6
-    for changed, copied_path in (
-        (source + "\n", path),
-        (source + "\nextra_generation = 1\n", path),
-        (source, "pitchlog/services/copied_initial.py"),
-    ):
-        found = checker.scan_source(
-            changed, path=copied_path, contract=contract, reexport_map=reexports
-        )
-        assert any(r.code == "TB002" for r in found)
-        if copied_path == path:
-            assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
-    target = next(
-        owner for owner in contract.initial_start_condition2_owners
-        if owner.path == profile["path"]
+    assert {owner.path for owner in contract.first_ball_condition2_owners} == set(
+        checker.FIRST_BALL_CONDITION2_SCOPES
     )
-    for broken in (
-        replace(target, source_sha256="0" * 64),
-        replace(target, findings=frozenset(
-            (line + 1, symbol, scope) for line, symbol, scope in target.findings
-        )),
-        replace(target, findings=frozenset(
-            (line, symbol, scope + ".extra") for line, symbol, scope in target.findings
-        )),
-    ):
-        owners = tuple(
-            broken if owner.path == target.path else owner
-            for owner in contract.initial_start_condition2_owners
-        )
-        found = checker.scan_source(source, path=path,
-            contract=replace(contract, initial_start_condition2_owners=owners),
-            reexport_map=reexports)
-        assert allowed <= {(r.line, r.symbol, r.scope) for r in found if r.code == "TB002"}
-
-
-# 登録後に現treeのbyteが変わったRG1 path。これ以外は現treeで照合する。
-_RG1_HISTORICAL_SOURCE_PATHS = frozenset(
-    {"backend/src/pitchlog/db/recording_rights/models.py"}
-)
-
-
-def _rg1_registered_source(owner: checker.ScopedCondition2Owner) -> str:
-    """RG1宣言が束縛した原sourceを返す。
-
-    歴史pathは、宣言のsource SHAを正式allow-listへ初めて記録したcommit
-    (RG1正式登録の歴史座標)の原byteを読む。
-
-    Args:
-        owner: RG1所有境界の宣言。
-
-    Returns:
-        歴史pathは登録commitの原byte、他は現treeのsource。
-    """
-    if owner.path not in _RG1_HISTORICAL_SOURCE_PATHS:
-        return (REPOSITORY_ROOT / owner.path).read_text()
-    revisions = checker._run_git(
-        REPOSITORY_ROOT,
-        [
-            "log", "--format=%H", "--reverse", f"-S{owner.source_sha256}",
-            "HEAD", "--", checker.DEFAULT_ALLOWLIST.as_posix(),
-        ],
-    ).split()
-    assert revisions
-    return checker._run_git(REPOSITORY_ROOT, ["show", f"{revisions[0]}:{owner.path}"])
-
-
-def test_rg1_historical_source_coordinate_is_exact_and_current_row_moves_to_u3() -> None:
-    """歴史座標は漂移pathだけに限り、現行の同一行はU3の有限登録だけが免除する。"""
-    contract = checker.load_contract(REPOSITORY_ROOT)
-    drifted = {
-        owner.path
-        for owner in contract.rg1_condition2_owners
-        if hashlib.sha256((REPOSITORY_ROOT / owner.path).read_bytes()).hexdigest()
-        != owner.source_sha256
-    }
-    assert drifted == _RG1_HISTORICAL_SOURCE_PATHS
-    for owner in contract.rg1_condition2_owners:
-        source = _rg1_registered_source(owner)
+    assert sum(
+        len(owner.findings) for owner in contract.first_ball_condition2_owners
+    ) == 66
+    for owner in contract.first_ball_condition2_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        source = (REPOSITORY_ROOT / owner.path).read_text()
         assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
-
-    (owner,) = (
-        o for o in contract.rg1_condition2_owners
-        if o.path in _RG1_HISTORICAL_SOURCE_PATHS
-    )
-    (initial,) = (
-        o for o in contract.initial_start_condition2_owners if o.path == owner.path
-    )
-    relative = owner.path.removeprefix("backend/src/")
-    historical = _rg1_registered_source(owner).splitlines()
-    current_source = (REPOSITORY_ROOT / owner.path).read_text()
-    current = current_source.splitlines()
-    scope = "pitchlog.db.recording_rights.models.RG1RestoreGate.<module>"
-    for line, symbol in owner.findings:
-        moved = [
-            row for row in initial.findings
-            if row[1] == symbol and row[2] == scope
-            and current[row[0] - 1] == historical[line - 1]
-        ]
-        assert len(moved) == 1
-
-    live = checker.scan_source(current_source, path=relative, contract=contract)
-    assert not any(
-        v.code == "TB002" and (v.line, v.symbol, v.scope) in initial.findings
-        for v in live
-    )
-    raw = checker.scan_source(
-        current_source, path=relative,
-        contract=replace(contract, initial_start_condition2_owners=()),
-    )
-    assert initial.findings <= {
-        (v.line, v.symbol, v.scope) for v in raw if v.code == "TB002"
-    }
-
-
-def test_recording_generation_u3_registration_exempts_only_declared_class_row() -> None:
-    """記録権世代の実モデル参照4行のうち、U3宣言の1行だけを免除する。"""
-    contract = checker.load_contract(REPOSITORY_ROOT)
-    path = "pitchlog/db/recording_rights/models.py"
-    source = _fixture_source(REPOSITORY_ROOT / "backend" / "src" / path)
-    (initial,) = (
-        o for o in contract.initial_start_condition2_owners
-        if o.path == f"backend/src/{path}"
-    )
-    declared = {
-        row for row in initial.findings if "RecordingGeneration" in row[1]
-    }
-    assert declared == {
-        (194, "RecordingGeneration", "pitchlog.db.recording_rights.models.<module>")
-    }
-    raw = {
-        (v.line, v.symbol, v.scope)
-        for v in checker.scan_source(
-            source, path=path,
-            contract=replace(contract, initial_start_condition2_owners=()),
+        raw = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, first_ball_condition2_owners=()),
         )
-        if v.code == "TB002" and "RecordingGeneration" in v.symbol
-    }
-    live = {
-        (v.line, v.symbol, v.scope)
-        for v in checker.scan_source(source, path=path, contract=contract)
-        if v.code == "TB002" and "RecordingGeneration" in v.symbol
-    }
-    assert declared <= raw
-    assert live == raw - declared
-    assert {line for line, _symbol, _scope in live} == {305, 306, 307}
+        assert owner.findings <= {
+            (v.line, v.symbol) for v in raw if v.code == "TB002"
+        }
+        clean = checker.scan_source(source, path=relative, contract=contract)
+        assert not any(
+            v.code == "TB002" and (v.line, v.symbol) in owner.findings for v in clean
+        )
+        for broken in (
+            source + "\n# sourceの完全同一性を壊す\n",
+            source + "\nextra_generation = 1\n",
+        ):
+            found = checker.scan_source(broken, path=relative, contract=contract)
+            assert owner.findings <= {
+                (v.line, v.symbol) for v in found if v.code == "TB002"
+            }
+        for replacement in (
+            replace(owner, source_sha256="0" * 64),
+            replace(owner, findings=frozenset({(next(iter(owner.findings))[0], "wrong")})),
+        ):
+            owners = tuple(
+                replacement if o.path == owner.path else o
+                for o in contract.first_ball_condition2_owners
+            )
+            found = checker.scan_source(
+                source, path=relative,
+                contract=replace(contract, first_ball_condition2_owners=owners),
+            )
+            assert owner.findings <= {
+                (v.line, v.symbol) for v in found if v.code == "TB002"
+            }
+        changed = source + "\nunregistered_generation = 1\n"
+        # source hashを追随しても、登録外の追加識別子は条件2の免除で消せない。
+        replacement = replace(
+            owner, source_sha256=hashlib.sha256(changed.encode()).hexdigest()
+        )
+        owners = tuple(
+            replacement if o.path == owner.path else o
+            for o in contract.first_ball_condition2_owners
+        )
+        found = checker.scan_source(
+            changed, path=relative,
+            contract=replace(contract, first_ball_condition2_owners=owners),
+        )
+        assert any(
+            v.code == "TB002" and (v.line, v.symbol) not in owner.findings
+            for v in found
+        )
 
 
-def test_ordinary_insert_window_keeps_exact_symbol_and_insert_only() -> None:
-    """通常投影の一窓口だけを許し、同窓口の別API/別名を拒否する。"""
+@pytest.mark.parametrize("mutation", ("missing", "extra", "duplicate", "widened"))
+def test_first_ball_condition2_synthetic_contract_is_not_an_escape(
+    mutation: str,
+) -> None:
+    """合成Contractでも固定6path・固定出現以外への免除を拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    path = "pitchlog/repositories/ordinary_pitch_operations.py"
-    source = (
-        "from sqlalchemy import insert, select, text\n"
-        "from sqlalchemy.sql.dml import Insert\n"
-        "def _ordinary_play_row_insert_statement() -> Insert:\n"
-        "    return insert(1)\n"
+    owners = contract.first_ball_condition2_owners
+    if mutation == "missing":
+        owners = owners[:-1]
+    elif mutation == "duplicate":
+        owners = (*owners, owners[0])
+    elif mutation == "extra":
+        owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
+    else:
+        owners = (replace(owners[0], findings=frozenset({(1, "generation")})), *owners[1:])
+    owner = contract.first_ball_condition2_owners[0]
+    source = (REPOSITORY_ROOT / owner.path).read_text()
+    found = checker.scan_source(
+        source, path=owner.path.removeprefix("backend/src/"),
+        contract=replace(contract, first_ball_condition2_owners=owners),
     )
-    assert checker.scan_source(source, path=path, contract=contract) == []
-    for mutation, forbidden in (
-        (source.replace("return insert(1)", "return select(1)"), "sqlalchemy.select"),
-        (source.replace("return insert(1)", "return text('SELECT 1')"), "sqlalchemy.text"),
-        (
-            source.replace("def _ordinary_play_row_insert_statement", "def unregistered_insert"),
-            "sqlalchemy.insert",
-        ),
-    ):
-        violations = checker.scan_source(mutation, path=path, contract=contract)
-        assert {(item.code, item.symbol) for item in violations} == {("TB005", forbidden)}
+    assert owner.findings <= {
+        (v.line, v.symbol) for v in found if v.code == "TB002"
+    }
+
+
+_FIRST_BALL_OPERATION_API_SETS = {
+    "pitchlog.repositories.recorded_snapshot_operations._registration": frozenset(
+        {"SQLA_SELECT"}
+    ),
+    "pitchlog.repositories.started_snapshot_operations._registration": frozenset(
+        {"SQLA_SELECT"}
+    ),
+    "pitchlog.sync.control_provider.binding_control._BindingAuthority._call": frozenset(
+        {
+            "PSYCOPG_ASYNC_CONNECTION_EXECUTE",
+            "PSYCOPG_ASYNC_CURSOR_EXECUTE",
+            "PSYCOPG_CONNECTION_EXECUTE",
+            "PSYCOPG_CURSOR_EXECUTE",
+            "SQLA_ASYNC_CONNECTION_EXECUTE",
+            "SQLA_ASYNC_SESSION_EXECUTE",
+            "SQLA_CONNECTION_EXECUTE",
+            "SQLA_SESSION_EXECUTE",
+        }
+    ),
+    "pitchlog.sync.control_provider.binding_control.BindingControl._channel": frozenset(
+        {"SQLA_ENGINE_CONNECT", "SQLA_ASYNC_ENGINE_CONNECT"}
+    ),
+}
+
+
+def test_first_ball_operation_registration_api_sets_are_exact() -> None:
+    """初球操作4symbolの許可APIに余分な拡張がないことを確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    actual = {
+        item.symbol: item.allowed_api_ids
+        for item in contract.allowed_symbols
+        if item.symbol in _FIRST_BALL_OPERATION_API_SETS
+    }
+    assert actual == _FIRST_BALL_OPERATION_API_SETS
+
+
+def test_first_ball_operation_unlisted_symbol_is_rejected() -> None:
+    """同じモジュールでも未登録関数のSQL構築は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/recorded_snapshot_operations.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    mutated = (
+        f"{source.rstrip()}\n\n\ndef _unlisted_statement() -> Any:\n"
+        "    return select(1)\n"
+    )
+    lines = frozenset(range(source.count("\n") + 1, mutated.count("\n") + 2))
+    violations = checker.scan_source(
+        mutated, path=relative, contract=contract, changed_lines=lines,
+    )
+    assert any(
+        item.code == "TB005" and item.symbol == "sqlalchemy.select"
+        for item in violations
+    )
+
+
+def test_first_ball_operation_registered_symbol_rejects_extra_db_api() -> None:
+    """登録済みsymbolでも許可外のDB API追加は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/sync/control_provider/binding_control.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    marker = '            identity = c.execute(\n'
+    assert source.count(marker) == 1
+    mutated = source.replace(
+        marker, '            psycopg.connect("dbname=unapproved")\n' + marker, 1,
+    )
+    lines = _changed_lines_containing(mutated, "psycopg.connect(")
+    violations = checker.scan_source(
+        mutated, path=relative, contract=contract, changed_lines=lines,
+    )
+    assert any(
+        item.code == "TB005" and item.symbol == "psycopg.connect"
+        for item in violations
+    )
 
 
 @pytest.mark.parametrize(
-    "mutation", ["normal", "float", "text", "dynamic-schema", "unknown-function"]
+    "mutation",
+    (
+        "missing-field", "missing-path", "extra-path", "digest", "extra-finding",
+        "missing-finding", "changed-scope", "changed-code", "zero-line",
+        "bool-line", "empty-symbol", "extra-key",
+    ),
 )
-def test_fixed_bigint_shape_is_exact_and_does_not_open_other_sql(mutation: str) -> None:
-    """実採用BigInt形のみを追加し、Float/任意SQL/未知枝を拒否する。"""
-    contract = checker.load_contract(REPOSITORY_ROOT)
-    relative = "pitchlog/repositories/function_operations.py"
-    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text(encoding="utf-8")
-    if mutation == "float":
-        source = source.replace("type_=BigInteger()", "type_=Float()", 1)
-    elif mutation == "text":
-        source = source.replace("type_=BigInteger()", "type_=String()", 1)
-    elif mutation == "dynamic-schema":
-        source = source.replace('schema == "sync_right_api"', "True", 1)
-    elif mutation == "unknown-function":
-        source = source.replace('{"check_current_right", "check_ordinary_right"}',
-                                '{"check_current_right", "free_function"}', 1)
-    violations = checker.scan_source(source, path=relative, contract=contract)
-    if mutation == "normal":
-        assert violations == []
+def test_first_ball_condition5_shape_is_closed(mutation: str) -> None:
+    """初球9pathの条件5登録を欠落・余剰・別scope/別codeへ広げられない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    key = "condition_5_first_ball_scoped_findings"
+    groups = value[key]
+    path = sorted(groups)[0]
+    if mutation == "missing-field":
+        del value[key]
+    elif mutation == "missing-path":
+        del groups[path]
+    elif mutation == "extra-path":
+        groups["backend/src/pitchlog/other.py"] = copy.deepcopy(groups[path])
+    elif mutation == "digest":
+        groups[path]["source_sha256"] = "not-a-digest"
+    elif mutation == "extra-finding":
+        groups[path]["findings"].append(copy.deepcopy(groups[path]["findings"][0]))
+    elif mutation == "missing-finding":
+        groups[path]["findings"].pop()
+    elif mutation == "changed-scope":
+        groups[path]["findings"][0]["scope"] = "pitchlog.other.<module>"
+    elif mutation == "changed-code":
+        groups[path]["findings"][0]["code"] = "TB002"
+    elif mutation == "zero-line":
+        groups[path]["findings"][0]["line"] = 0
+    elif mutation == "bool-line":
+        groups[path]["findings"][0]["line"] = True
+    elif mutation == "empty-symbol":
+        groups[path]["findings"][0]["symbol"] = ""
     else:
-        expected = (
-            "TB005", "pitchlog.repositories.function_operations._build_fixed_function_statement"
-        )
-        assert expected in {
-            (item.code, item.symbol) for item in violations
-        }
-
-
-@pytest.mark.parametrize("mutation", ["star", "dynamic-id", "extra-id"])
-def test_product_function_literal_surface_still_rejects_unknown_expansion(
-    tmp_path: Path, mutation: str
-) -> None:
-    """directCall正準化後も未知star/動的ID/余剰登録の拒否を維持する。"""
-    module_root = tmp_path / "backend/src/pitchlog/repositories"
-    module_root.mkdir(parents=True)
-    for name in ("function_operations.py", "operation_registry.py", "transaction.py"):
-        shutil.copyfile(REPOSITORY_ROOT / "backend/src/pitchlog/repositories" / name,
-                        module_root / name)
-    path = module_root / "operation_registry.py"
-    tree = ast.parse(path.read_text())
-    assignment = next(node for node in tree.body if isinstance(node, ast.AnnAssign)
-                      and isinstance(node.target, ast.Name)
-                      and node.target.id == "PRODUCT_FUNCTION_OPERATIONS")
-    assert isinstance(assignment.value, ast.Tuple)
-    last = assignment.value.elts[-1]
-    assert isinstance(last, ast.Call)
-    if mutation == "star":
-        assignment.value.elts[-1] = ast.Starred(
-            value=ast.Name(id="UNKNOWN_GROUP", ctx=ast.Load()), ctx=ast.Load()
-        )
-    elif mutation == "dynamic-id":
-        keyword = next(item for item in last.keywords if item.arg == "operation_id")
-        keyword.value = ast.Name(id="dynamic_id", ctx=ast.Load())
-    else:
-        assignment.value.elts.append(copy.deepcopy(last))
-    path.write_text(ast.unparse(ast.fix_missing_locations(tree)))
-    asset = json.loads(
-        (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json").read_text()
-    )
+        groups[path]["findings"][0]["condition"] = 5
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis = checker.load_contract(REPOSITORY_ROOT).apis
     with pytest.raises(checker.ContractError):
-        checker._validate_function_operation_surface(tmp_path, asset)
+        checker._load_allowlist(value, inventory, apis)
 
 
-@pytest.mark.parametrize(("name", "signature", "apis"), [
-    ("_apply_initial_storage", "_apply_initial_storage(owner_dsn: str) -> None",
-     frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN"})),
-    ("_require_initial_state", "_require_initial_state(applicator_dsn: str) -> None",
-     frozenset({"PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
-    ("_check_writer_storage", "_check_writer_storage(connection: Any, revision: str) -> None",
-     frozenset({"PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
-    ("_apply_writer_storage", "_apply_writer_storage(owner_dsn: str) -> None",
-     frozenset({"SQLA_CREATE_ENGINE", "SQLA_ENGINE_BEGIN",
-                "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
-    ("_require_writer_state", "_require_writer_state(applicator_dsn: str) -> None",
-     frozenset({"PSYCOPG_CONNECT", "PSYCOPG_CONNECTION_CURSOR", "PSYCOPG_CURSOR_EXECUTE"})),
-])
-def test_initial_writer_startup_registration_is_exact_and_required(
-    name: str, signature: str, apis: frozenset[str],
-) -> None:
-    """既5helperの署名/APIだけを許し、欠落・別署名・余分APIは拒否する。"""
+def test_first_ball_condition5_requires_each_source_path_and_occurrence() -> None:
+    """同source/位置/記号/scopeだけを束縛し、変更sourceと追加siteは残す。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    symbol = "pitchlog.db.stage_a_startup." + name
-    selected = [row for row in contract.allowed_symbols if row.symbol == symbol]
-    assert len(selected) == 1
-    assert selected[0].signature == signature
-    assert selected[0].allowed_api_ids == apis
-    path = "pitchlog/db/stage_a_startup.py"
-    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
-    assert checker.scan_source(source, path=path, contract=contract) == []
-    for replacement in (None, replace(selected[0], signature=signature + "_invalid")):
-        rows = tuple(row for row in contract.allowed_symbols if row.symbol != symbol)
-        if replacement is not None:
-            rows = (*rows, replacement)
-        violations = checker.scan_source(
-            source, path=path, contract=replace(contract, allowed_symbols=rows),
+    assert {owner.path for owner in contract.first_ball_condition5_owners} == set(
+        checker.FIRST_BALL_CONDITION5_SCOPES
+    )
+    assert sum(
+        len(owner.findings) for owner in contract.first_ball_condition5_owners
+    ) == 24
+    for owner in contract.first_ball_condition5_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        source = (REPOSITORY_ROOT / owner.path).read_text()
+        assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
+        raw = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, first_ball_condition5_owners=()),
         )
-        assert any(v.code == "TB005" and v.scope == symbol for v in violations)
-    tree = ast.parse(source)
-    target = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == name)
-    target.body.append(ast.parse('cursor.executemany("SELECT 1", [])').body[0])
-    changed = ast.unparse(tree)
-    assert any(v.code == "TB005" and v.scope == symbol for v in checker.scan_source(
-        changed, path=path, contract=contract,
-    ))
+        assert owner.findings <= {
+            (v.line, v.code, v.symbol, v.scope) for v in raw
+        }
+        clean = checker.scan_source(source, path=relative, contract=contract)
+        assert not any(
+            (v.line, v.code, v.symbol, v.scope) in owner.findings for v in clean
+        )
+        broken = source + "\n# sourceの完全同一性を壊す\n"
+        found = checker.scan_source(broken, path=relative, contract=contract)
+        assert owner.findings <= {
+            (v.line, v.code, v.symbol, v.scope) for v in found
+        }
+        for replacement in (
+            replace(owner, source_sha256="0" * 64),
+            replace(
+                owner,
+                findings=frozenset({
+                    (next(iter(owner.findings))[0], "TB007", "other", "other.<module>")
+                }),
+            ),
+        ):
+            owners = tuple(
+                replacement if o.path == owner.path else o
+                for o in contract.first_ball_condition5_owners
+            )
+            found = checker.scan_source(
+                source, path=relative,
+                contract=replace(contract, first_ball_condition5_owners=owners),
+            )
+            assert owner.findings <= {
+                (v.line, v.code, v.symbol, v.scope) for v in found
+            }
 
 
-def test_private_binding_name_does_not_allow_sql_session_prepare() -> None:
-    """内部用途名へ改めてもSession.prepareの保守的拒否は維持する。"""
+@pytest.mark.parametrize("mutation", ("missing", "extra", "duplicate", "widened"))
+def test_first_ball_condition5_synthetic_contract_is_not_an_escape(
+    mutation: str,
+) -> None:
+    """合成Contractでも固定9path・固定出現以外への免除を拒否する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    source = "def unknown(value):\n    value.prepare()\n"
-    violations = checker.scan_source(source, path="pitchlog/unknown.py", contract=contract)
-    assert any(v.code == "TB005" and v.symbol == "sqlalchemy.orm.Session.prepare"
-               for v in violations)
+    owners = contract.first_ball_condition5_owners
+    if mutation == "missing":
+        owners = owners[:-1]
+    elif mutation == "duplicate":
+        owners = (*owners, owners[0])
+    elif mutation == "extra":
+        owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
+    else:
+        owners = (
+            replace(
+                owners[0],
+                findings=frozenset({(1, "TB007", "object.__new__", "<module>")}),
+            ),
+            *owners[1:],
+        )
+    owner = contract.first_ball_condition5_owners[0]
+    source = (REPOSITORY_ROOT / owner.path).read_text()
+    found = checker.scan_source(
+        source, path=owner.path.removeprefix("backend/src/"),
+        contract=replace(contract, first_ball_condition5_owners=owners),
+    )
+    assert owner.findings <= {
+        (v.line, v.code, v.symbol, v.scope) for v in found
+    }
+
+
+def _copy_writer_binding_assets(root: Path) -> None:
+    """未統合候補4資産を試験用rootへ複写する。"""
+    for relative in checker._WRITER_BINDING_DEPLOYMENT_ASSETS:
+        target = root / "backend/src" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / "backend/src" / relative).read_bytes())
+
+
+def test_writer_binding_candidate_manifest_is_closed() -> None:
+    """候補manifestは閉じた宣言と実SQL構造面の完全一致だけを受理する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert checker._validated_writer_binding_deployment_assets(
+        REPOSITORY_ROOT, contract,
+    )
+    manifest_path = REPOSITORY_ROOT / "backend/src" / (
+        checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    )
+    manifest = json.loads(manifest_path.read_text())
+    assert set(manifest) == set(checker._WRITER_BINDING_CLOSED_MANIFEST) | {"files"}
+    for key, expected in checker._WRITER_BINDING_CLOSED_MANIFEST.items():
+        assert manifest[key] == expected
+    assert manifest["deployment_authority"] == "none_unintegrated_candidate"
+    assert manifest["status"] == "unintegrated_candidate"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("status", "extra", "files", "authority", "boundaries", "duplicate-key"),
+)
+def test_writer_binding_candidate_manifest_rejects_unknown_values(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """状態・権限・境界・file集合を自己申告で変えられない。"""
+    _copy_writer_binding_assets(tmp_path)
+    relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    path = tmp_path / "backend/src" / relative
+    original = path.read_text()
+    value = json.loads(original)
+    if mutation == "status":
+        value["status"] = "integrated"
+        raw = json.dumps(value)
+    elif mutation == "extra":
+        value["unexpected"] = True
+        raw = json.dumps(value)
+    elif mutation == "files":
+        value["files"].pop(next(iter(value["files"])))
+        raw = json.dumps(value)
+    elif mutation == "authority":
+        value["deployment_authority"] = "full"
+        raw = json.dumps(value)
+    elif mutation == "boundaries":
+        value["evidence_boundaries"] = ["trusted"]
+        raw = json.dumps(value)
+    else:
+        raw = original.replace(
+            '"schema_version": 1,', '"schema_version": 1,"schema_version": 1,', 1,
+        )
+    path.write_text(raw)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    declared[f"backend/src/{relative}"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_cannot_self_authorize_new_ddl(
+    tmp_path: Path,
+) -> None:
+    """SQLとmanifestのSHAを協調して追随しても閉じた構造面を越えられない。"""
+    _copy_writer_binding_assets(tmp_path)
+    sql_relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[0]
+    sql = tmp_path / "backend/src" / sql_relative
+    sql.write_bytes(
+        sql.read_bytes()
+        + b"\nCREATE TABLE sync_control.unapproved (id UUID NOT NULL);\n"
+    )
+    manifest_relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    manifest_path = tmp_path / "backend/src" / manifest_relative
+    value = json.loads(manifest_path.read_text())
+    value["files"]["control-phase-schema.sql"] = hashlib.sha256(
+        sql.read_bytes()
+    ).hexdigest()
+    manifest_path.write_text(json.dumps(value))
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    for relative in (sql_relative, manifest_relative):
+        declared[f"backend/src/{relative}"] = hashlib.sha256(
+            (tmp_path / "backend/src" / relative).read_bytes()
+        ).hexdigest()
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_path_set_cannot_widen(tmp_path: Path) -> None:
+    """allowlistで候補集合の外へpathを足せない。"""
+    _copy_writer_binding_assets(tmp_path)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    declared["backend/src/pitchlog/sync/control_provider/sql/other.sql"] = "0" * 64
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_unlisted_python_change_still_reports_tb000(
+    tmp_path: Path,
+) -> None:
+    """候補4資産が揃っていても、宣言外の非Python変更はTB000のまま残す。"""
+    _copy_writer_binding_assets(tmp_path)
+    extra = tmp_path / "backend/src/pitchlog/sync/control_provider/sql/other.sql"
+    extra.write_text("CREATE TABLE x (id int);\n")
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    violations = checker._changed_source_violations(
+        tmp_path,
+        {"pitchlog/sync/control_provider/sql/other.sql": frozenset()},
+        contract,
+        head_sources={},
+        baseline_sources={},
+    )
+    assert any(
+        item.code == "TB000"
+        and item.path.endswith("control_provider/sql/other.sql")
+        for item in violations
+    )

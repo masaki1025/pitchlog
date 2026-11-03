@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import (  # ty: ignore[unresolved-import]
+from sqlalchemy import (
     Column,
     Integer,
     MetaData,
     Table,
     select,
 )
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy.sql.selectable import Select
 
 _TENANTS = Table("tenants", MetaData(), Column("id", Integer))
 

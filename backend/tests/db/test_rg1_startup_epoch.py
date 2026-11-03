@@ -89,7 +89,7 @@ def test_formal_stage_a_epoch_failure_resumes_from_0034(
     with psycopg.connect(admin_dsn) as admin:
         assert admin.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchone() == ("0035_rg1_initial_fresh_epoch",)
+        ).fetchone() == ("0038_first_ball_write_admission",)
 
 
 def test_formal_stage_a_resume_rejects_epoch_marker_without_column(

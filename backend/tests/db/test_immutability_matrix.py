@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Mapping
-from contextlib import AbstractContextManager
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,17 +18,14 @@ from uuid import uuid4
 
 import psycopg
 import pytest
-from alembic import command
 from psycopg import sql
+from psycopg.conninfo import make_conninfo
 from psycopg.types.json import Jsonb
 
-from .conftest import DisposablePostgres
-from .test_alembic_migrations import (
-    _alembic_config,
-    _sqlalchemy_url,
-)
+from .conftest import ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
+
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
@@ -279,6 +275,8 @@ def _seed_behavior_rows(
                 "issuance_order": 2,
                 "holder_device": "device-b",
                 "granted_at": datetime(2026, 9, 12, tzinfo=UTC),
+                "proof_digest": b"p" * 32,
+                "recovery_generation": 1,
             },
             {
                 "confirmed_watermark": 6,
@@ -484,10 +482,7 @@ def _assert_append_and_mutable_delete_behavior(
 
 
 def test_selected_immutability_update_behavior(
-    disposable_postgres_cluster: Callable[
-        [], AbstractContextManager[DisposablePostgres]
-    ],
-    monkeypatch: pytest.MonkeyPatch,
+    provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
     """TSK-374 までの明示的な 7 表で更新・削除挙動を検査する。"""
     matrix = _load_behavior_matrix()
@@ -497,14 +492,16 @@ def test_selected_immutability_update_behavior(
         "admin_operation_logs"
     }
 
-    with disposable_postgres_cluster() as cluster:
-        monkeypatch.setenv(
-            "PITCHLOG_MIGRATION_DATABASE_URL", _sqlalchemy_url(cluster.admin_dsn)
-        )
-        config = _alembic_config()
-        command.upgrade(config, "0032_rg1_restore_gate")
-        with psycopg.connect(cluster.admin_dsn, autocommit=True) as connection:
-            probes = _seed_behavior_rows(connection)
-            assert set(probes) == set(_BEHAVIOR_TABLES)
-            _assert_update_behavior(connection, matrix, probes)
-            _assert_append_and_mutable_delete_behavior(connection, probes)
+    catalog = provisioned_product_catalog
+    # info.dsnはpasswordを返さないため、同owned clusterの管理接続から実DBだけ指定。
+    admin_dsn = make_conninfo(
+        catalog.cluster.admin_dsn, dbname=catalog.applicator.info.dbname
+    )
+    with psycopg.connect(admin_dsn, autocommit=True) as connection:
+        assert connection.execute(
+            "SELECT version_num FROM public.alembic_version"
+        ).fetchall() == [("0038_first_ball_write_admission",)]
+        probes = _seed_behavior_rows(connection)
+        assert set(probes) == set(_BEHAVIOR_TABLES)
+        _assert_update_behavior(connection, matrix, probes)
+        _assert_append_and_mutable_delete_behavior(connection, probes)

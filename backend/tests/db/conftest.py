@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
+
+import psycopg
 import pytest
 from db_fixtures import (
     _VERIFIED_AUTHZ_ROLE_IDS,
@@ -22,6 +27,7 @@ from db_fixtures import (
     app_role_connection,
     disposable_postgres_cluster,
     historical_product_catalog,
+    legacy_initial_product_catalog,
     management_caller_connection,
     migration_only_product_catalog,
     outsider_role_connection,
@@ -31,8 +37,46 @@ from db_fixtures import (
     tested_role_connection,
     verify_connection_identities,
 )
+from psycopg import sql
+
+_FIRST_BALL_TRIGGERS = ("trg_first_ball_10_lock", "trg_first_ball_20_admit")
+
+
+@contextmanager
+def first_ball_guard_disabled(
+    target: str | psycopg.Connection[Any],
+) -> Iterator[None]:
+    """汎用seedの間だけplay_rowsの初球トリガを外し、直後に戻す。
+
+    DSNを渡した場合は専用のautocommit接続で切り替え、呼出側のtransactionへ
+    影響させない。接続を渡した場合は呼出側のtransactionに従う。
+    """
+    connection = (
+        psycopg.connect(target, autocommit=True) if isinstance(target, str) else target
+    )
+    try:
+        for name in _FIRST_BALL_TRIGGERS:
+            connection.execute(
+                sql.SQL("ALTER TABLE public.play_rows DISABLE TRIGGER {}").format(
+                    sql.Identifier(name)
+                )
+            )
+        try:
+            yield
+        finally:
+            for name in _FIRST_BALL_TRIGGERS:
+                connection.execute(
+                    sql.SQL("ALTER TABLE public.play_rows ENABLE TRIGGER {}").format(
+                        sql.Identifier(name)
+                    )
+                )
+    finally:
+        if isinstance(target, str):
+            connection.close()
+
 
 __all__ = (
+    "first_ball_guard_disabled",
     "DisposablePostgres",
     "ProductCatalogSnapshot",
     "ProvisionedCatalog",
@@ -51,6 +95,7 @@ __all__ = (
     "app_role_connection",
     "disposable_postgres_cluster",
     "historical_product_catalog",
+    "legacy_initial_product_catalog",
     "management_caller_connection",
     "migration_only_product_catalog",
     "outsider_role_connection",
@@ -118,6 +163,11 @@ def pytest_sessionfinish(
         exitstatus: フック開始時点の終了状態。
     """
     del exitstatus
+    # 収集専用の実行(--collect-only)は定義上なにも実行しない。CI のシャード被覆
+    # 検査がこのモードを使うため、pytest 自身のオプションで判定して 0 件実行の
+    # 判定を外す(環境変数ではなく起動方法へ束縛し、通常実行では常に有効にする)。
+    if session.config.getoption("collectonly", default=False):
+        return
     error = _required_db_execution_error(
         _COLLECTED_DB_TESTS,
         _EXECUTED_DB_TESTS,

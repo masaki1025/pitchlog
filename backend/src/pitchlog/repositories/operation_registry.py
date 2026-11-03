@@ -68,9 +68,8 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *ORDINARY_PLAY_OPERATIONS,
 )
 
-
 _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
-    (
+    {
         "SYNC_FIRST_BALL:bind_device",
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
@@ -83,7 +82,7 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
         "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
         "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
-    )
+    }
 )
 
 

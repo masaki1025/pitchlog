@@ -318,6 +318,7 @@ def _e1_private_flow_double(monkeypatch, mode="accepted", *, device_active=True)
     from uuid import UUID
 
     import test_sync_apply_source_binding as source_test
+    from test_authz_tenant_context import make_tenant_context
 
     from pitchlog.repositories import rg1
     from pitchlog.sync import prefix_path, rejection
@@ -329,157 +330,175 @@ def _e1_private_flow_double(monkeypatch, mode="accepted", *, device_active=True)
         EventPhaseBinding,
     )
 
-    receipt, request = source_test._receipt_double(source_test._raw())
-    state = source._RECEIPTS[receipt]
-    request = SyncRequest("P2", request.game_id, request.events, d4=request.d4)
-    state.request = request
-    state.request_json = source._request_json(request)
-    phase = EventPhaseBinding(
-        AttemptBinding(
-            AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3)),
-            state.tenant_id,
-            UUID(int=5),
-            UUID(request.game_id),
-            cast(str, request.d4),
-            1,
-            UUID(int=7),
-            1,
-            state.source.request_fingerprint,
-            1,
-        ),
-        UUID(int=8),
-        1,
-        1,
-        UUID(request.events[0].d5),
-        state.source.event_fingerprints[0],
+    raw = source_test._raw()
+    original = source_test._request(raw)
+    request = SyncRequest("P2", original.game_id, original.events, d4=original.d4)
+    context = make_tenant_context(UUID(int=4))
+    wire = source_test.freeze_wire_source(
+        game_id=raw["game_id"], d4=raw["d4"], raw_events=(raw,)
     )
-    snapshot = json.dumps(
-        {
-            "tenant_id": str(state.tenant_id),
-            "phase": binding_control._phase_wire(phase, UUID(int=10), 1),
-        },
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    trace = []
-    scope = SimpleNamespace(_context=state.context)
-    bound = object.__new__(writer_binding._LiveWriterBinding)
-    bound._used = False
-    bound._owner = (object(),)
-    bound._handle = scope
-    bound._lease = cast(
-        Any,
-        SimpleNamespace(
-            _phase_snapshot=snapshot,
-            device_id=phase.attempt.device_id,
-            game_id=phase.attempt.game_id,
-        ),
-    )
-    bound._phase_snapshot = snapshot
-    writer_binding._LIVE_BINDINGS[bound._owner[0]] = bound
+    entry_token = object()
+    with source._e1_receipt_scope(
+        context=context, request=request, source=wire, entry_token=entry_token
+    ) as receipt:
+        state = source._RECEIPTS[receipt]
+        phase = EventPhaseBinding(
+            AttemptBinding(
+                AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3)),
+                state.tenant_id,
+                UUID(int=5),
+                UUID(request.game_id),
+                cast(str, request.d4),
+                1,
+                UUID(int=7),
+                1,
+                state.source.request_fingerprint,
+                1,
+            ),
+            UUID(int=8),
+            1,
+            1,
+            UUID(request.events[0].d5),
+            state.source.event_fingerprints[0],
+        )
+        snapshot = json.dumps(
+            {
+                "tenant_id": str(state.tenant_id),
+                "phase": binding_control._phase_wire(phase, UUID(int=10), 1),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        trace = []
+        scope = SimpleNamespace(_context=state.context)
+        bound = object.__new__(writer_binding._LiveWriterBinding)
+        bound._used = False
+        bound._owner = (object(),)
+        bound._handle = scope
+        bound._lease = cast(
+            Any,
+            SimpleNamespace(
+                _phase_snapshot=snapshot,
+                device_id=phase.attempt.device_id,
+                game_id=phase.attempt.game_id,
+            ),
+        )
+        bound._phase_snapshot = snapshot
+        writer_binding._LIVE_BINDINGS[bound._owner[0]] = bound
 
-    @contextmanager
-    def open_scope(context):
-        assert context is state.context
-        trace.append("tx-open")
-        try:
-            yield scope
-        except BaseException:
-            trace.append("rollback")
-            raise
-        else:
-            trace.append("commit")
+        @contextmanager
+        def open_scope(context):
+            assert context is state.context
+            trace.append("tx-open")
+            try:
+                yield scope
+            except BaseException:
+                trace.append("rollback")
+                raise
+            else:
+                trace.append("commit")
 
-    @contextmanager
-    def gate(actual, rights):
-        assert actual is scope
-        trace.append("rg1-port")
-        gated = SimpleNamespace(writer=object(), written=False)
+        @contextmanager
+        def gate(actual, rights):
+            assert actual is scope
+            trace.append("rg1-port")
+            gated = SimpleNamespace(writer=object(), written=False)
 
-        def mark():
-            trace.append("mark-written")
-            gated.written = True
+            def mark():
+                trace.append("mark-written")
+                gated.written = True
 
-        gated.mark_written = mark
-        yield gated
-        if gated.written:
-            trace.append("rg1-commit")
+            gated.mark_written = mark
+            yield gated
+            if gated.written:
+                trace.append("rg1-commit")
 
-    def preflight(*args, source):
-        trace.append("d5-read")
-        candidate = D5Candidate("unused")
-        return apply._BatchPreflight(0, (candidate,), mode != "t8", 1)
+        def preflight(*args, source):
+            trace.append("d5-read")
+            candidate = D5Candidate("unused")
+            return apply._BatchPreflight(0, (candidate,), mode != "t8", 1)
 
-    def reject(*args, **kwargs):
-        trace.append("t8-t9")
-        proof = kwargs["source"]
-        proof.begin_write(scope, request.events[0])
-        return RejectionResult(
-            "B4" if mode == "t8" else "B3a",
-            0,
-            "退避" if mode == "t8" else "拒否",
-            "synthetic",
+        def reject(*args, **kwargs):
+            trace.append("t8-t9")
+            proof = kwargs["source"]
+            proof.begin_write(scope, request.events[0])
+            return RejectionResult(
+                "B4" if mode == "t8" else "B3a",
+                0,
+                "退避" if mode == "t8" else "拒否",
+                "synthetic",
+            )
+
+        def accepted(*args, **kwargs):
+            trace.append("event")
+            if mode == "t9":
+                raise P1ContentRejection("synthetic")
+            if mode == "replay":
+                return P1Result(None, 1, True, True)
+            kwargs["source"].begin_write(scope, request.events[0])
+            if mode == "post-write-error":
+                from pitchlog.sync.prefix_path import P1PreconditionError
+
+                raise P1PreconditionError("synthetic after write", "recording_rights")
+            return P1Result(None, 1, True)
+
+        def read_device(*args):
+            trace.append("device-read")
+            return device_active
+
+        def game_access(*args):
+            trace.append("game-read")
+            return True
+
+        def bind(self, *args, **kwargs):
+            trace.append("bind")
+            return bound
+
+        presentation = writer_binding._issue_device_presentation(
+            receipt,
+            entry_token,
+            reference_device=phase.attempt.device_id,
+            credential_digest=b"\x01" * 32,
         )
 
-    def accepted(*args, **kwargs):
-        trace.append("event")
-        if mode == "t9":
-            raise P1ContentRejection("synthetic")
-        if mode == "replay":
-            return P1Result(None, 1, True, True)
-        kwargs["source"].begin_write(scope, request.events[0])
-        if mode == "post-write-error":
-            from pitchlog.sync.prefix_path import P1PreconditionError
+        def verify(actual, actual_presentation):
+            assert actual is bound
+            assert actual_presentation is presentation
+            assert "device-recheck" not in trace
+            trace.append("device-recheck")
+            return True
 
-            raise P1PreconditionError("synthetic after write", "recording_rights")
-        return P1Result(None, 1, True)
-
-    def read_device(*args):
-        trace.append("device-read")
-        return device_active
-
-    def game_access(*args):
-        trace.append("game-read")
-        return True
-
-    def bind(self, *args, **kwargs):
-        trace.append("bind")
-        return bound
-
-    def verify(*args):
-        trace.append("device-recheck")
-        return True
-
-    monkeypatch.setattr(apply, "tenant_transaction_scope", open_scope)
-    monkeypatch.setattr(apply, "gated_e1_writer", gate)
-    monkeypatch.setattr(apply, "_read_reference_device_state", read_device)
-    monkeypatch.setattr(apply, "game_accessible", game_access)
-    monkeypatch.setattr(rg1, "read_rg1_open", lambda scope: trace.append("rg1-core"))
-    monkeypatch.setattr(binding_control.BindingControl, "bind_writer", bind)
-    monkeypatch.setattr(
-        writer_binding._LiveWriterBinding, "assert_current", lambda self: None
-    )
-    monkeypatch.setattr(writer_binding, "_recheck_bound_device", verify)
-    monkeypatch.setattr(apply, "_preflight_in_scope", preflight)
-    monkeypatch.setattr(prefix_path, "_apply_locked_in_scope", accepted)
-    monkeypatch.setattr(rejection, "_apply_rejection_in_scope", reject)
-    control = object.__new__(binding_control.BindingControl)
-    args = (receipt, state.context, request)
-    kwargs = {
-        "phase": phase,
-        "cookie": "synthetic-cookie",
-        "reference_device": phase.attempt.device_id,
-        "control": control,
-        "rights": object(),
-        "projection": object(),
-        "validator": object(),
-    }
-    try:
-        yield args, kwargs, trace, bound
-    finally:
-        writer_binding._LIVE_BINDINGS.pop(bound._owner[0], None)
-        source._RECEIPTS.clear()
-        source._SELECTIONS.clear()
+        monkeypatch.setattr(apply, "tenant_transaction_scope", open_scope)
+        monkeypatch.setattr(apply, "gated_e1_writer", gate)
+        monkeypatch.setattr(apply, "_read_reference_device_state", read_device)
+        monkeypatch.setattr(apply, "game_accessible", game_access)
+        monkeypatch.setattr(
+            rg1, "read_rg1_open", lambda scope: trace.append("rg1-core")
+        )
+        monkeypatch.setattr(binding_control.BindingControl, "bind_writer", bind)
+        monkeypatch.setattr(
+            writer_binding._LiveWriterBinding, "assert_current", lambda self: None
+        )
+        monkeypatch.setattr(writer_binding, "_recheck_bound_device", verify)
+        monkeypatch.setattr(apply, "_preflight_in_scope", preflight)
+        monkeypatch.setattr(prefix_path, "_apply_locked_in_scope", accepted)
+        monkeypatch.setattr(rejection, "_apply_rejection_in_scope", reject)
+        control = object.__new__(binding_control.BindingControl)
+        args = (receipt, state.context, request)
+        kwargs = {
+            "entry_token": entry_token,
+            "phase": phase,
+            "cookie": "synthetic-cookie",
+            "reference_device": phase.attempt.device_id,
+            "control": control,
+            "rights": object(),
+            "projection": object(),
+            "validator": object(),
+        }
+        try:
+            yield args, kwargs, trace, bound
+        finally:
+            writer_binding._LIVE_BINDINGS.pop(bound._owner[0], None)
 
 
 @pytest.mark.parametrize("mode", ("accepted", "t8", "t9", "replay"))
@@ -491,6 +510,7 @@ def test_e1_private_flow_double_marks_written_exactly_once(monkeypatch, mode):
         count = 0 if mode == "replay" else 1
         assert trace.count("mark-written") == trace.count("rg1-commit") == count
         assert trace.count("tx-open") == trace.count("bind") == 1
+        assert trace.count("device-recheck") == 1
         assert trace[-1] == "commit"
         assert (
             trace.index("device-read")

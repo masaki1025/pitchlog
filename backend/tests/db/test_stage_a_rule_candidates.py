@@ -19,6 +19,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
+from db_fixtures import _require_historical_cluster
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from sqlalchemy import Engine, create_engine, event, text
@@ -317,11 +318,13 @@ def _fresh_schema_database(
 ) -> Iterator[tuple[str, str]]:
     """空DBから現行Alembic headまで起動し、認可前で渡す。"""
     with disposable_postgres_cluster() as cluster:
+        _require_historical_cluster(cluster)
         owner_password = secrets.token_urlsafe(24)
         product_database = "pitchlog_stage_a_candidate"
         with psycopg.connect(cluster.admin_dsn, autocommit=True) as admin:
+            assert admin.info.dbname == "pitchlog_disposable"
             with admin.cursor() as cursor:
-                # 自owned seed DBだけを閉じ、initial verifierの別DB到達を拒否する。
+                # factoryが所有を証明したseed DBだけを閉じる。
                 cursor.execute(
                     sql.SQL(
                         "REVOKE CONNECT, TEMPORARY ON DATABASE {} FROM PUBLIC"

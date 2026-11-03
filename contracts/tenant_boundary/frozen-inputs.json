@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 6,
+  "contract_revision": 8,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:6"
+        "contract_revision:8"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -22,7 +22,9 @@
           "tests/test_ci_wiring.py",
           "tests/test_plan_generation.py",
           "backend/tests/test_api_conventions.py",
-          "tests/test_check_authz_catalog.py"
+          "tests/test_check_authz_catalog.py",
+          "scripts/check_tenant_boundary_bypass.py",
+          "tests/test_census_baseline_check.py"
         ]
       }
     },
@@ -80,6 +82,16 @@
       "value": "3a24f89e15987ecef3dc45a1173ab99b5f79d16e",
       "purpose": "旧lifecycle7schema対向の固定原典",
       "source": "tests/test_check_authz_catalog.py:historical_lifecycle_schema_input"
+    },
+    "ci_scope_proof_source_revision": {
+      "value": "d141fa70a85d85c01fdbb6ddd1956e3f9ba01525",
+      "purpose": "本PRレビュー対象のscope guardと純粋helper/caller閉包の全byteを不変Git原典へ固定する(revisionはHEADの祖先であることを検査し、統合後はdevelopの祖先となる)",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
+        "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
+        "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
+        "tests/test_census_baseline_check.py:_validated_initial_population_suppression"
+      ]
     }
   }
 }

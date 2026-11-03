@@ -390,13 +390,15 @@ def test_general_player_row_lock_does_not_need_lineup_shape() -> None:
 
 
 def test_lineup_locks_explicitly_request_specialized_validation() -> None:
-    """U-M2 の限定形だけは既存の capability 検査器へ元の文を渡す。"""
+    """U-M2 と準備中作成の限定形は既存の検査器へ元の文を渡す。"""
     specialized = [
         spec for spec in PRODUCT_OPERATIONS if spec.use_capability_lock_shape
     ]
     assert {spec.token_type.__name__ for spec in specialized} == {
         "_SelfTeamLockToken",
         "_ActiveLineupPlayerLockToken",
+        "PreparingSelfTeamLockToken",
+        "PreparingOpponentTeamLockToken",
     }
     for spec in specialized:
         _validate_prepared_statement(spec, spec.statement)

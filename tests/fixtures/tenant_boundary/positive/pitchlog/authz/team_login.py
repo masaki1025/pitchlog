@@ -3,8 +3,8 @@
 from datetime import datetime as _datetime
 
 from pitchlog.authz.token_presentation import TokenPresentation as _TokenPresentation  # ty: ignore
-from sqlalchemy import Engine as _Engine  # ty: ignore
-from sqlalchemy import text as _text  # ty: ignore
+from sqlalchemy import Engine as _Engine
+from sqlalchemy import text as _text
 
 
 def login_attempt(

@@ -17,6 +17,7 @@ cd /home/ymdms/projects/pitchlog-worktrees/feature-mvp-recording-continuation/ba
 mkdir -p /home/ymdms/.cache/pitchlog/pytest-tmp-manual-ordinary \
   /home/ymdms/.cache/pitchlog/browser-tmp-manual-ordinary
 env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN \
+  TMPDIR=/home/ymdms/.cache/pitchlog/pr189-integration-20261101/tmp \
   PYTHONPATH=tests:src \
   PITCHLOG_PYTEST_TMPDIR=/home/ymdms/.cache/pitchlog/pytest-tmp-manual-ordinary \
   PITCHLOG_E2E_BROWSER_TMPDIR=/home/ymdms/.cache/pitchlog/browser-tmp-manual-ordinary \

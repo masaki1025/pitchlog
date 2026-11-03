@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from db_fixtures import DisposablePostgres
 
 pytest_plugins = ("db_fixtures",)
+pytestmark = pytest.mark.requires_db
 _FUNCTION_BODY_DIR = (
     Path(__file__).resolve().parents[2]
     / "contracts/authz/product/function-bodies/functions"

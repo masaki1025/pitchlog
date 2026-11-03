@@ -32,6 +32,9 @@ _NAMES = frozenset(
         "guard_writer_records",
         "bind_device",
         "check_current_right",
+        "guard_first_ball_projection_lock",
+        "guard_first_ball_projection_admission",
+        "read_device_state",
     }
 )
 _TRIGGERS = (
@@ -177,9 +180,9 @@ def _subject(applicator: psycopg.Connection[Any], expected: str) -> None:
 def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """単一所有clusterで正常1・本文9・無効化4を直列に実証する。"""
+    """単一所有clusterで正常1・本文12・writer無効化4を直列に実証する。"""
     functions = ADDITIONS["functions"]
-    assert len(functions) == 9
+    assert len(functions) == 12
     assert {row["function_name"] for row in functions} == _NAMES
     visited_functions: set[str] = set()
     visited_triggers: set[str] = set()

@@ -36,6 +36,169 @@ from pitchlog.authz.runtime_contract_state import (
     evaluate_repository,
 )
 
+_EXPECTED_FIRST_BALL_TABLES = [
+    {
+        "table_id": "writer_bindings",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+    {
+        "table_id": "writer_admissions",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+    {
+        "table_id": "first_ball_write_admissions",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+]
+_EXPECTED_FIRST_BALL_FUNCTIONS = [
+    ("sync_fence_api", "read_writer_database_identity", "uuid"),
+    ("sync_fence_api", "read_writer_identity", "uuid"),
+    ("sync_fence_api", "publish_writer_binding", "uuid, uuid, uuid, jsonb, bytea"),
+    ("sync_fence_api", "assert_writer_binding", "uuid, uuid, uuid, bytea, uuid, uuid"),
+    ("sync_fence_api", "close_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
+    ("sync_fence_api", "observe_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
+    ("sync_fence_api", "guard_writer_records", ""),
+    ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
+    (
+        "sync_right_api",
+        "check_current_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    ("sync_right_api", "guard_first_ball_projection_lock", ""),
+    ("sync_right_api", "guard_first_ball_projection_admission", ""),
+    ("sync_right_api", "read_device_state", "uuid, uuid"),
+]
+
+_EXPECTED_LEGACY_FUNCTION_KEYS = [
+    ("public", "authn_normalize_team_name", "text"),
+    ("public", "prevent_admin_credentials_id_update", ""),
+    ("public", "prevent_admin_operation_logs_mutation", ""),
+    ("public", "prevent_admin_sessions_identity_update", ""),
+    ("public", "prevent_admin_vocabularies_identity_update", ""),
+    ("public", "prevent_analysis_groups_id_update", ""),
+    ("public", "prevent_evacuated_event_originals_identity_update", ""),
+    ("public", "prevent_event_slots_key_update", ""),
+    ("public", "prevent_game_lineups_entries_update", ""),
+    ("public", "prevent_group_invitations_identity_update", ""),
+    ("public", "prevent_group_memberships_identity_update", ""),
+    ("public", "prevent_idempotency_ledger_result_update", ""),
+    ("public", "prevent_invalidation_intents_target_update", ""),
+    ("public", "prevent_medical_note_versions_content_update", ""),
+    ("public", "prevent_medical_notes_identity_update", ""),
+    ("public", "prevent_migrated_final_lineups_source_update", ""),
+    ("public", "prevent_migration_quarantine_mutation", ""),
+    ("public", "prevent_migration_resolution_reports_mutation", ""),
+    ("public", "prevent_migration_runs_source_update", ""),
+    ("public", "prevent_migration_warning_reports_mutation", ""),
+    ("public", "prevent_operation_events_content_update", ""),
+    ("public", "prevent_pdf_export_records_mutation", ""),
+    ("public", "prevent_play_rows_projection_identity_update", ""),
+    ("public", "prevent_player_merge_events_content_update", ""),
+    ("public", "prevent_player_move_records_mutation", ""),
+    ("public", "prevent_players_identity_update", ""),
+    ("public", "prevent_rate_limit_counters_identity_update", ""),
+    ("public", "prevent_rejected_event_originals_content_update", ""),
+    ("public", "prevent_sharing_grants_membership_update", ""),
+    ("public", "prevent_system_settings_key_update", ""),
+    ("public", "prevent_system_vocabularies_update", ""),
+    ("public", "prevent_team_records_kind_update", ""),
+    ("public", "prevent_temporary_player_id_mappings_identity_update", ""),
+    ("public", "prevent_tenant_auth_subjects_update", ""),
+    ("public", "prevent_tenant_credentials_subject_update", ""),
+    ("public", "prevent_tenant_tokens_identity_update", ""),
+    ("public", "prevent_tenant_vocabularies_identity_update", ""),
+    ("public", "protect_recording_generations_updates", ""),
+    ("authz_private", "tenant_has_effective_membership", "uuid, boolean"),
+    ("authn", "login_attempt", "text, text, text"),
+    ("authn", "verify_token", "uuid"),
+    ("authn", "logout", "uuid"),
+    ("authn", "observe_rate_limit_counters", ""),
+    ("authn", "change_password", "uuid, text, text"),
+    ("authn", "issue_initial_password", "uuid, text"),
+    ("authn", "reset_password", "uuid, text"),
+    ("authn", "revoke_tenant_tokens", "uuid"),
+    ("authn", "record_admin_login_failure", "text"),
+    ("authn", "password_policy_ok", "text"),
+    ("authn", "setting_positive_integer", "text"),
+    ("authn", "record_failure", "text, bigint, bigint, bigint, boolean"),
+    ("rg1_api", "rg1_read_open", "uuid"),
+    ("rg1_api", "rg1_assert_open_before_commit", "uuid"),
+    ("public", "prevent_games_applied_rules_update", ""),
+    ("public", "resolve_stage_a_rule", "uuid, text, text, boolean"),
+    ("public", "verify_games_applied_rules_final", ""),
+    ("rg1_control", "try_controller_lease", ""),
+    ("rg1_control", "release_controller_lease", ""),
+    ("rg1_control", "close_gate", ""),
+    ("rg1_control", "open_fresh_gate", ""),
+    ("rg1_control", "controller_lease_alive", ""),
+    ("rg1_control", "read_closed_gate", ""),
+    ("rg1_control", "scope_binding", "uuid"),
+    ("pitchlog_ledger_observer", "identity", ""),
+    ("rg1_control", "bind_initial_fresh_epoch", "bigint"),
+    ("initial_right_api", "lock_device", "uuid, uuid"),
+    ("initial_right_api", "read_existing_start", "uuid, uuid, uuid"),
+    ("initial_right_api", "read_start_game", "uuid, uuid"),
+    ("initial_right_api", "lock_preparing_game", "uuid, uuid"),
+    ("initial_right_api", "lock_current_start", "uuid, uuid, uuid"),
+    ("initial_right_api", "check_business_epoch", "uuid, bigint"),
+    (
+        "initial_right_api",
+        "insert_initial_grant",
+        "uuid, uuid, uuid, uuid, uuid, bigint, bigint, bytea, text, bytea, bytea",
+    ),
+    ("initial_right_api", "begin_start_attempt", "uuid, uuid, uuid, uuid, bytea, uuid"),
+    ("initial_right_api", "resolve_start_attempt", "uuid, uuid, uuid, uuid"),
+    ("public", "protect_initial_right_storage", ""),
+    (
+        "initial_right_api",
+        "read_initial_start_context",
+        "uuid, uuid, uuid, uuid, bytea, text",
+    ),
+    (
+        "initial_right_api",
+        "persist_initial_start",
+        "uuid, uuid, uuid, uuid, bytea, text",
+    ),
+    ("initial_right_api", "enroll_device", "uuid, uuid, bytea"),
+    (
+        "initial_right_api",
+        "lookup_existing_start_attempt",
+        "uuid, uuid, uuid, uuid, bytea",
+    ),
+]
+_EXPECTED_LEGACY_ROLE_IDS = {
+    "pitchlog_app",
+    "pitchlog_auth_fn_owner",
+    "pitchlog_initial_actor",
+    "pitchlog_initial_auth_verifier",
+    "pitchlog_initial_fn_owner",
+    "pitchlog_ledger_identity_owner",
+    "pitchlog_ledger_identity_probe",
+    "pitchlog_management_fn_owner",
+    "pitchlog_owner",
+    "pitchlog_rg1_control_actor",
+    "pitchlog_rg1_control_owner",
+    "pitchlog_rg1_fn_owner",
+    "pitchlog_rule_resolution_fn_owner",
+    "pitchlog_shared_fn_owner",
+}
+_EXPECTED_LEGACY_SCHEMA_NAMES = {
+    "authn",
+    "authn_crypto",
+    "authz_private",
+    "initial_right_api",
+    "pitchlog_ledger_observer",
+    "public",
+    "rg1_api",
+    "rg1_control",
+}
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PRODUCT_SPEC = product_spec_for_repository(_REPOSITORY_ROOT)
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -1346,10 +1509,31 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
 
     result = product_catalog._load_product_expectations()
     # 採用済data-model1.4/正式fullprofileの母集合を固定する。
-    assert len(result.table_names) == 50 and len(result.role_ids) == 14
-    assert len(result.schema_names) == 8
-    assert len(result.functions) == 79 and len(result.policies) == 70
-    assert len(_product_asset()["column_acl_expectations"]) == 123
+    assert len(result.table_names) == 50 + len(_EXPECTED_FIRST_BALL_TABLES)
+    assert set(result.table_names) == {
+        t["name"]
+        for t in _read_json_object(
+            _REPOSITORY_ROOT / "contracts/db/schema-manifest.json"
+        )["tables"]
+    }
+    assert len(result.role_ids) == 14 + 3
+    assert set(result.role_ids) == _EXPECTED_LEGACY_ROLE_IDS | {
+        "pitchlog_sync_binding_fn_owner",
+        "pitchlog_sync_binding_actor",
+        "pitchlog_sync_right_fn_owner",
+    }
+    assert len(result.schema_names) == 8 + 3
+    assert _EXPECTED_LEGACY_SCHEMA_NAMES | {
+        "sync_fence",
+        "sync_fence_api",
+        "sync_right_api",
+    } == set(result.schema_names)
+    assert len(result.functions) == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS)
+    assert set(_EXPECTED_LEGACY_FUNCTION_KEYS) | set(
+        _EXPECTED_FIRST_BALL_FUNCTIONS
+    ) == {tuple(r[:3]) for r in result.functions}
+    assert len(result.policies) == 70 + 12
+    assert len(_product_asset()["column_acl_expectations"]) == 123 + 103
 
 
 @pytest.mark.parametrize(
@@ -1689,3 +1873,80 @@ def test_runtime_verifier_nested_acl_rejects_non_object_arrays(
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
     with pytest.raises(product_catalog.ProductCatalogError, match="metadata配列の形"):
         product_catalog._load_product_expectations()
+
+
+@pytest.mark.parametrize(
+    "group,identity,key",
+    [
+        ("schemas", "schema_id", "public"),
+        ("databases", "database_id", "current_database"),
+    ],
+)
+@pytest.mark.parametrize("field", ["acl_expectations", "revoked_acl_expectations"])
+@pytest.mark.parametrize("value", [None, {}, "invalid", ["invalid"], [None], [0]])
+def test_first_ball_direct_validator_rejects_nested_acl_shape(
+    group: str, identity: str, key: str, field: str, value: object
+) -> None:
+    """直接validatorでもnested ACLの型例外をValueErrorへ閉じる。"""
+    from pitchlog.authz.first_ball_product import validate
+
+    asset = _product_asset()
+    next(r for r in asset[group] if r[identity] == key)[field] = copy.deepcopy(value)
+    with pytest.raises(ValueError, match="metadata配列の形"):
+        validate(asset)
+
+
+@pytest.mark.parametrize(
+    "group,identity,key,field,grant",
+    [
+        (
+            "schemas",
+            "schema_id",
+            "public",
+            "acl_expectations",
+            {
+                "grantee": "pitchlog_sync_binding_fn_owner",
+                "privilege": "USAGE",
+                "grantable": False,
+            },
+        ),
+        (
+            "databases",
+            "database_id",
+            "current_database",
+            "acl_expectations",
+            {
+                "grantee": "pitchlog_sync_binding_actor",
+                "privilege": "CONNECT",
+                "grantable": False,
+            },
+        ),
+        (
+            "databases",
+            "database_id",
+            "current_database",
+            "revoked_acl_expectations",
+            {
+                "grantee": "pitchlog_sync_binding_actor",
+                "privilege": "CREATE",
+                "grantable": False,
+            },
+        ),
+    ],
+)
+@pytest.mark.parametrize("mode", ["remove", "duplicate", "grant_option"])
+def test_first_ball_direct_validator_preserves_required_grant_rejection(
+    group: str, identity: str, key: str, field: str, grant: dict[str, object], mode: str
+) -> None:
+    """型検査追加後も必要grantの欠落・重複・全field改変を拒否する。"""
+    from pitchlog.authz.first_ball_product import validate
+
+    asset = _product_asset()
+    grants = next(r for r in asset[group] if r[identity] == key)[field]
+    grants.remove(grant)
+    if mode == "duplicate":
+        grants.extend([copy.deepcopy(grant), copy.deepcopy(grant)])
+    elif mode == "grant_option":
+        grants.append({**grant, "grantable": True})
+    with pytest.raises(ValueError):
+        validate(asset)

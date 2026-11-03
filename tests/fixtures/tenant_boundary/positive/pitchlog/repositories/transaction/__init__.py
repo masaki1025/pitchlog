@@ -1,7 +1,7 @@
 """テナント操作の SAVEPOINT を許す正例。"""
 
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken  # ty: ignore
-from sqlalchemy.orm import Session  # ty: ignore
+from sqlalchemy.orm import Session
 
 
 class _TenantTransaction:

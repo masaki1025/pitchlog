@@ -1,6 +1,6 @@
 """段階起動DB APIの限定許可正例。"""
 
-from sqlalchemy import create_engine  # ty: ignore
+from sqlalchemy import create_engine
 
 
 class stage_a_startup:

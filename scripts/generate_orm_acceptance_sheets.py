@@ -44,12 +44,12 @@ N7_PROSE_TERMS = ("必須", "無条件", "保持する")
 
 _HEADING_RE = re.compile(r"^(?P<marks>#{2,6})\s+(?P<title>.+?)\s*$")
 _NUMBERED_SECTION_RE = re.compile(
-    r"^(?P<section>\d+(?:-\d+(?:-[A-Z])?)?)\.\s*"
+    r"^(?P<section>\d+(?:-\d+(?:-[A-Za-z])?)?)\.\s*"
 )
 _SEPARATOR_CELL_RE = re.compile(r"^:?-{3,}:?$")
 _MODEL_TABLE_RE = re.compile(r'^\s*__tablename__\s*=\s*["\'](?P<table>[^"\']+)["\']')
 _REFERENCE_RE = re.compile(
-    r"(?:docs/[^ :|]+\.md|[^ :|]+\.md):§?\d+(?:-\d+(?:-[A-Z])?)?"
+    r"(?:docs/[^ :|]+\.md|[^ :|]+\.md):§?\d+(?:-\d+(?:-[A-Za-z])?)?"
 )
 _QUOTED_FRAGMENT_RE = re.compile(
     r'''(?P<quote>["'])(?P<value>.*?)(?P=quote)'''
@@ -469,15 +469,31 @@ def _n4_direct_rows(
             == lifecycle_value
         ]
         for target in targets:
+            plain_target = _plain_markdown(target)
+            implementation = (
+                f"manifest lifecycle.deletion={lifecycle_value} の候補: "
+                + (", ".join(candidates) if candidates else "なし")
+            )
+            if (
+                lifecycle_value == "非表示"
+                and plain_target == "プレイ 0 件の試合(ゴミ箱を経ず即時)"
+                and any(
+                    table["name"] == "games"
+                    and table["lifecycle"]["deletion"] == "ゴミ箱"
+                    and any(column["name"] == "hidden_at" for column in table["columns"])
+                    for table in tables
+                )
+            ):
+                implementation += (
+                    " / 条件付き補助参照: games.hidden_at（プレイ0件、"
+                    "11-1/P-10の条件付き非表示。主系統はゴミ箱）"
+                )
             ordinal += 1
             rows.append(
                 SheetRow(
-                    target=f"11-1 対象 {ordinal:02d}: {_plain_markdown(target)}",
+                    target=f"11-1 対象 {ordinal:02d}: {plain_target}",
                     canonical=f"data-model.md §11-1 — 軸1={lifecycle_value}",
-                    implementation=(
-                        f"manifest lifecycle.deletion={lifecycle_value} の候補: "
-                        + (", ".join(candidates) if candidates else "なし")
-                    ),
+                    implementation=implementation,
                 )
             )
     return tuple(rows)

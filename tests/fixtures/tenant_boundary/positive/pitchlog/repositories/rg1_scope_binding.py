@@ -1,7 +1,7 @@
 """同Sessionの固定RG1識別SELECTだけの正例。"""
 
-from sqlalchemy import Uuid, bindparam, func, select  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy import Uuid, bindparam, func, select
+from sqlalchemy.sql.selectable import Select
 
 
 class rg1:
