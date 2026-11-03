@@ -7,6 +7,7 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.5 | 2026-11-04 | **6-1-bの実装追随(通常投球のprivate原本3表 — 版は上げない・設計書 7.6-3 前段)**: `sync_fence.ordinary_pitch_checkpoints`(14列・PK1・UNIQUE1・FK1・CHECK4)、`sync_fence.ordinary_pitch_write_admissions`(45列・PK1・UNIQUE3・FK4・CHECK7)、`sync_fence.ordinary_pitch_history`(8列・PK1・UNIQUE1・FK1・CHECK2)の構造・不変列・追記/更新・権限の限定と、`schema-manifest.json`・`table-classification.json`への表登録を記した。既存の2表・初球書込印・記録権・認可・D5消費規則は変更しない。PO委任による主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-28 | **6-1-aの実装追随(書込印unit A+B結合 — 版は上げない・設計書 7.6-3 前段)**: 初球PlayRow INSERT用の書込印`sync_fence.first_ball_write_admissions`の構造(31列・PK・FK3・CHECK5)・状態・権限の限定と、`schema-manifest.json`の表登録への追随を記した。既存の2表・記録権・認可・D5消費規則は変更しない。PO委任Claude主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-27 | **同期writer資格の補助2表とnamespace・一意制約を限定7.3で確定**。6-1-aへ既採用N1-U2の`sync_fence.writer_bindings`/`writer_admissions`の構造・不変列・閉鎖/追記・権限・UNKNOWN隔離を記載し、3-4へlease/nonce一意2行と既初期権一意2行の参照を整合。初回の版上げ不要という分類を撤回し、非作者第1回P1=2を全採用・反映1周・第2回0/0/0。PO委任によるCodex /root判断で本文を確定（本人の個別確認・署名ではない）。既1.4までの本文・履歴と野球結果/D5/認可の意味を保持する。正式7.7/個別認可供給/実DB/HTTP/1球保存は別未達。 | **approved** |
 | 1.4 | 2026-10-25 | 既承認6065063b §6.2/6.3の初期記録権4表・世代証拠2列と既前提2主体の制限関数境界を3-2/6-1へ写す。既存1.3/旧1.2両系列の承認・指摘・反映履歴は保持。今回確定する範囲は物理保存と認可の最小構造だけ。個別DDL/ACL/9API・内部trigger・0036・schema-manifest/正式7.7・実DB・broker/enrollment/開始UIは別途検証する。新たな野球結果/D5意味・端末役割を追加しない。限定7.3は初回P1=2全採用・反映1周・第2回0/0/0、PO委任によるCodex root判断で59966185本文を確定（本人の実値逐行確認/署名ではない）。 | **approved** |
@@ -485,6 +486,10 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 | 6-1 | 初期記録権の同一開始要求への交付は1件 | UNIQUE (tenant_id, game_id, start_request_id) | ✅ テナント内（既6-1の初期記録権保存制約の再記載） |
 | 6-1-a | 同期writer資格のlease | lease_id | ➖ 対象外（業務データの識別ではない同期実TX資格の再利用防止。既採用モデルの全DB一意を再記載） |
 | 6-1-a | 同期writer資格のnonce digest | nonce_digest | ➖ 対象外（業務データの識別ではない同期実TX資格の再利用防止。既採用モデルの全DB一意を再記載） |
+| 6-1-b | 通常投球のframeは1 admissionだけが消費する | UNIQUE (tenant_id, frame_id) | ✅ テナント内 |
+| 6-1-b | 通常投球のsource eventは1 admissionだけが消費する | UNIQUE (tenant_id, source_event_id) | ✅ テナント内 |
+| 6-1-b | 通常投球のPlayRowは1 admissionだけが消費する | UNIQUE (tenant_id, play_row_id) | ✅ テナント内 |
+| 6-1-b | 通常投球の履歴は同game/世代/版/打順で1件 | UNIQUE (tenant_id, game_id, internal_generation, history_version, d1) | ✅ テナント内 |
 
 **一意制約を意図的に置かない箇所**(要件が「置かない」と定めているもの):
 
@@ -1306,6 +1311,18 @@ PostgreSQL の制約では表せない**。**分散させると「同じ `D5` �
 migration単独ではRLS ENABLE/FORCE・PUBLIC権限撤去によるdefault-denyで配置する。業務DBの狭いSECURITY DEFINER関数は専用NOLOGIN ownerで所有し、固定search_path・完全修飾とPUBLIC EXECUTE剥奪を用いる。app/control actorへ表の直接SELECT/INSERT/UPDATE/DELETE/TRUNCATEを与えない。`read_writer_identity`の1関数だけはSECURITY INVOKERで、実`session_user/current_user`のapp照合を保ったまま同じ業務接続のPG PID/full xid8を得る。実system_identifier/database_oid/postmaster_started_at・PID・full xid8・tenant/device/game・世代・期限と外部leaseを照合し、別接続・別transaction・savepoint初進入を正当なadmissionに代替しない。control側の固定関数・資格主体は別DB境界のままである。
 
 生の端末資格・鍵・Cookie・V12・raw nonceを2表へ保存しない。bindingsへ保存するnonce情報は32byte digestのみであり、照合用raw nonceをログへ出さない。bindingの公開やadmission挿入を業務成功・D5結果の証明とはしない。業務transactionのcommit/rollbackをPGの実状態とadmissionへ照合し、`ENTRY_CLOSED_UNADMITTED`や`UNKNOWN`を成功・全取消へ補完しない。不明は耐久quarantineを維持し、期限切れ・行欠損だけで資格を解放しない。正式runtime/ACL登録・実DB故障系・HTTP/1球保存の成立はそれぞれ別の接続・検証義務であり、2表のモデル/migration存在から推定しない。
+
+#### 6-1-b. 通常投球のprivate原本3表
+
+通常投球の接続は、初球の書込印と同じくapp/control actorへ表DMLを与えず、固定のSECURITY DEFINER関数だけで読み書きするprivate原本として`sync_fence`へ3表を置く。本項はmigration `0039_ordinary_pitch_storage`のモデルへの実装追随であり、既存の`writer_bindings`/`writer_admissions`/`first_ball_write_admissions`の定義、記録権・認可・D5消費規則、初期記録権actorの権限を変えない。対応要件はFR-013・NFR-009で、manifestの論理名は`ordinary_pitch_checkpoints`・`ordinary_pitch_write_admissions`・`ordinary_pitch_history`、物理schemaはすべて`sync_fence`である。
+
+| 表 | 全列と型（記載のない既定値は全てなし） | 制約 |
+| --- | --- | --- |
+| `sync_fence.ordinary_pitch_checkpoints` | 非NULL uuid: `tenant_id,game_id,id`。非NULL bigint: `internal_generation,revision,history_version,recovery_generation,confirmed_watermark,applied_watermark`。非NULL text: `content_digest,state`。非NULL jsonb: `content,roster`。非NULL timestamptz: `saved_at` | PK `(tenant_id,game_id,internal_generation)`、一意`(tenant_id,id)`。`(tenant_id,game_id)→games(tenant_id,id)`はMATCH SIMPLE/ON DELETE NO ACTION。`internal_generation,revision,history_version,recovery_generation`は正、`confirmed_watermark>=0`かつ`confirmed_watermark=applied_watermark`、stateは`current/invalidated`、`content_digest`は64桁小文字hex、`content`と`roster`はjsonb object |
+| `sync_fence.ordinary_pitch_write_admissions` | writer_bindingsの不変27列（`state/close_id`を除く）と同名・同型・同じNOT NULLに加え、非NULL text: `state`。NULL可uuid: `checkpoint_id,frame_id,source_event_id,play_row_id`。NULL可bigint: `checkpoint_revision,prefix_length,source_d1,source_d2`。NULL可text: `checkpoint_digest,frame_digest,artifact_sha256`。NULL可jsonb: `checkpoint_content,next_checkpoint_content,roster_snapshot,history_entry,expected_play_row`。NULL可timestamptz: `consumed_at` | PK `(tenant_id,attempt_id,phase_id)`、一意`(tenant_id,frame_id)`・`(tenant_id,source_event_id)`・`(tenant_id,play_row_id)`。同3列→`sync_fence.writer_bindings`同3列はMATCH FULL/ON DELETE NO ACTION。`(tenant_id,checkpoint_id)→sync_fence.ordinary_pitch_checkpoints(tenant_id,id)`、`(tenant_id,source_event_id)→operation_events(tenant_id,id)`、`(tenant_id,play_row_id)→play_rows(tenant_id,id)`はON DELETE NO ACTIONでDEFERRABLE INITIALLY DEFERRED。stateは`device_verified/right_verified/evaluated/consumed/invalid`で、`evaluated/consumed`のときだけ評価列が非NULL、`consumed`と`consumed_at`は同時に非NULL。3 digestは64桁小文字hex、`nonce_digest`は32byte、5 jsonbはobject、`transaction_id`は1〜20桁の正十進文字列かつ18446744073709551615以下 |
+| `sync_fence.ordinary_pitch_history` | 非NULL uuid: `tenant_id,game_id,source_event_id`。非NULL bigint: `internal_generation,history_version,d1,d2`。非NULL jsonb: `entry` | PK `(tenant_id,source_event_id,history_version)`、一意`(tenant_id,game_id,internal_generation,history_version,d1)`。`(tenant_id,source_event_id)→operation_events(tenant_id,id)`はON DELETE NO ACTIONでDEFERRABLE INITIALLY DEFERRED。`internal_generation,history_version,d1`は正、`d2>=0`、`entry`はjsonb object |
+
+3表ともPK/一意制約以外の追加indexを持たない。checkpointsは`id/internal_generation`と`tenant_id/game_id`を不変とし、現在値の9列（`revision,history_version,confirmed_watermark,applied_watermark,content_digest,content,roster,state,saved_at`）だけを更新できる。write_admissionsは資格identityとnonce/期限を不変とし、評価・消費の18列だけを更新できる。historyは全列を不変とする追記専用である。3表とも業務オブジェクトの削除系統では対象外で、物理DELETE/TRUNCATEを許可せず、退役述語を持たず、履歴を失うdowngradeを拒否する。migration単独ではRLS ENABLE/FORCEとPUBLIC・app/control actor・right関数所有roleの権限撤去でdefault-denyに配置する。本項は構造の追随だけを定め、通常投球の保存成立・実DB故障系・正式7.7・runtime登録を意味しない。
 
 ### 6-2. 交代はイベントとして永続化し、投影として「出場区間」を持つ(FR-011)
 

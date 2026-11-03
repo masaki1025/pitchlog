@@ -71,6 +71,7 @@ class OrdinaryPitchCheckpoint(LifecycleMixin, Base):
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],
             ["games.tenant_id", "games.id"],
+            name="fk_ordinary_checkpoint_game",
             ondelete="NO ACTION",
         ),
         CheckConstraint(
@@ -162,6 +163,7 @@ class OrdinaryPitchWriteAdmission(LifecycleMixin, Base):
                 "sync_fence.ordinary_pitch_checkpoints.tenant_id",
                 "sync_fence.ordinary_pitch_checkpoints.id",
             ],
+            name="fk_ordinary_admission_checkpoint",
             ondelete="NO ACTION",
             deferrable=True,
             initially="DEFERRED",
@@ -173,12 +175,14 @@ class OrdinaryPitchWriteAdmission(LifecycleMixin, Base):
                 "sync_fence.writer_bindings.attempt_id",
                 "sync_fence.writer_bindings.phase_id",
             ],
+            name="fk_ordinary_admission_binding",
             match="FULL",
             ondelete="NO ACTION",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "source_event_id"],
             ["operation_events.tenant_id", "operation_events.id"],
+            name="fk_ordinary_admission_event",
             ondelete="NO ACTION",
             deferrable=True,
             initially="DEFERRED",
@@ -186,6 +190,7 @@ class OrdinaryPitchWriteAdmission(LifecycleMixin, Base):
         ForeignKeyConstraint(
             ["tenant_id", "play_row_id"],
             ["play_rows.tenant_id", "play_rows.id"],
+            name="fk_ordinary_admission_projection",
             ondelete="NO ACTION",
             deferrable=True,
             initially="DEFERRED",
@@ -295,6 +300,7 @@ class OrdinaryPitchHistory(LifecycleMixin, Base):
         ForeignKeyConstraint(
             ["tenant_id", "source_event_id"],
             ["operation_events.tenant_id", "operation_events.id"],
+            name="fk_ordinary_history_event",
             ondelete="NO ACTION",
             deferrable=True,
             initially="DEFERRED",

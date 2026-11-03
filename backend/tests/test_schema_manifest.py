@@ -26,7 +26,14 @@ from pitchlog.db.base import Base
 from pitchlog.db.model_metadata import Immutability, is_task_handoff_id
 
 _PRIVATE_TABLE_NAMES = frozenset(
-    {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+    {
+        "writer_bindings",
+        "writer_admissions",
+        "first_ball_write_admissions",
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_history",
+    }
 )
 
 
@@ -559,6 +566,17 @@ def _migration_table_names(migrations_path: Path) -> set[str]:
             if not isinstance(node, ast.Call) or not isinstance(
                 node.func, ast.Attribute
             ):
+                continue
+            if node.func.attr == "execute" and node.args:
+                statement = node.args[0]
+                if isinstance(statement, ast.Constant) and isinstance(
+                    statement.value, str
+                ):
+                    for match in re.finditer(
+                        r"CREATE TABLE\s+(?:public|sync_fence)\.([a-z_][a-z0-9_]*)",
+                        statement.value,
+                    ):
+                        table_names.add(match[1])
                 continue
             if node.func.attr != "create_table" or not node.args:
                 continue

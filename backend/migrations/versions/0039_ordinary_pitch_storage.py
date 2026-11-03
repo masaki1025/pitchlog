@@ -29,8 +29,8 @@ def upgrade() -> None:
         saved_at TIMESTAMP WITH TIME ZONE NOT NULL,
         PRIMARY KEY (tenant_id, game_id, internal_generation),
         UNIQUE (tenant_id, id),
-        FOREIGN KEY(tenant_id, game_id) REFERENCES public.games (tenant_id, id) ON
-        DELETE NO ACTION,
+        CONSTRAINT fk_ordinary_checkpoint_game FOREIGN KEY(tenant_id, game_id)
+        REFERENCES public.games (tenant_id, id) ON DELETE NO ACTION,
         CONSTRAINT ck_ordinary_checkpoint_positions CHECK (internal_generation>0 AND
         revision>0 AND history_version>0 AND recovery_generation>0 AND
         confirmed_watermark>=0 AND confirmed_watermark=applied_watermark),
@@ -117,16 +117,18 @@ def upgrade() -> None:
         UNIQUE (tenant_id, frame_id),
         UNIQUE (tenant_id, source_event_id),
         UNIQUE (tenant_id, play_row_id),
-        FOREIGN KEY(tenant_id, checkpoint_id) REFERENCES
-        sync_fence.ordinary_pitch_checkpoints (tenant_id, id) ON DELETE NO ACTION
-        DEFERRABLE INITIALLY DEFERRED,
-        FOREIGN KEY(tenant_id, attempt_id, phase_id) REFERENCES
-        sync_fence.writer_bindings (tenant_id, attempt_id, phase_id) MATCH FULL ON
-        DELETE NO ACTION,
-        FOREIGN KEY(tenant_id, source_event_id) REFERENCES public.operation_events
-        (tenant_id, id) ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
-        FOREIGN KEY(tenant_id, play_row_id) REFERENCES public.play_rows (tenant_id,
-        id) ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
+        CONSTRAINT fk_ordinary_admission_checkpoint FOREIGN KEY(tenant_id,
+        checkpoint_id) REFERENCES sync_fence.ordinary_pitch_checkpoints (tenant_id, id)
+        ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
+        CONSTRAINT fk_ordinary_admission_binding FOREIGN KEY(tenant_id, attempt_id,
+        phase_id) REFERENCES sync_fence.writer_bindings (tenant_id, attempt_id,
+        phase_id) MATCH FULL ON DELETE NO ACTION,
+        CONSTRAINT fk_ordinary_admission_event FOREIGN KEY(tenant_id,
+        source_event_id) REFERENCES public.operation_events (tenant_id, id)
+        ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
+        CONSTRAINT fk_ordinary_admission_projection FOREIGN KEY(tenant_id,
+        play_row_id) REFERENCES public.play_rows (tenant_id, id)
+        ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
         CONSTRAINT ck_ordinary_admission_state CHECK (state IN
         ('device_verified','right_verified','evaluated','consumed','invalid')),
         CONSTRAINT ck_ordinary_admission_xid8 CHECK (transaction_id ~
@@ -201,8 +203,9 @@ def upgrade() -> None:
         entry JSONB NOT NULL,
         PRIMARY KEY (tenant_id, source_event_id, history_version),
         UNIQUE (tenant_id, game_id, internal_generation, history_version, d1),
-        FOREIGN KEY(tenant_id, source_event_id) REFERENCES public.operation_events
-        (tenant_id, id) ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
+        CONSTRAINT fk_ordinary_history_event FOREIGN KEY(tenant_id, source_event_id)
+        REFERENCES public.operation_events (tenant_id, id)
+        ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
         CONSTRAINT ck_ordinary_history_positive CHECK (internal_generation>0 AND
         history_version>0 AND d1>0 AND d2>=0),
         CONSTRAINT ck_ordinary_history_entry CHECK (jsonb_typeof(entry)='object')
