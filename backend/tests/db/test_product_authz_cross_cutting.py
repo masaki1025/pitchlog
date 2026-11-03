@@ -80,7 +80,7 @@ class _AttachedTrigger:
 
 def _seed_all_tables(catalog: ProvisionedProductCatalog) -> None:
     """外部適用主体で全プロファイルの対象行を FK 順に作る。"""
-    with first_ball_guard_disabled(catalog.applicator):
+    with first_ball_guard_disabled(catalog.owner_dsn):
         with catalog.applicator.cursor() as cursor:
             for row in other_profile_seed_rows():
                 statement, params = insert_statement(row)

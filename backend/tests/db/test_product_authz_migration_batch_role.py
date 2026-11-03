@@ -105,7 +105,7 @@ def _assert_active_red(
 
 def _seed_dependencies(catalog: ProvisionedProductCatalog) -> None:
     """19 表の INSERT・UPDATE に必要な依存行を外部主体で作る。"""
-    with first_ball_guard_disabled(catalog.applicator):
+    with first_ball_guard_disabled(catalog.owner_dsn):
         with catalog.applicator.cursor() as cursor:
             for row in other_profile_seed_rows():
                 statement, params = insert_statement(row)

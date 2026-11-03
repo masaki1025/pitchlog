@@ -1189,7 +1189,7 @@ def test_v10_no_scaffold_stamp_dml(db1: Env, db2: Env) -> None:
         _ensure_applied(env)
         if not env.ctx.admin_log:
             # 分割実行でも「admin statementを検査した」ことを非空で示す。
-            env.ctx.admin("SELECT 1")
+            env.ctx.admin("SELECT 1", label="v10-probe")
         assert stamp_dml_statements(env.ctx.admin_log) == [], label
         assert len(env.ctx.admin_log) > 0
     forged = (

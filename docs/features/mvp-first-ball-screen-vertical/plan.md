@@ -315,3 +315,17 @@ CIの `backend-static` と `consistency` を緑にするための機械的追随
 - `tests/domain/boot/test_operation_bindings.py`: BIND-10 の一時fixtureで `GITHUB_BASE_REF` を解除する。一時fixtureはPR checkoutではないため、CIのbase解決を継承させない。
 
 本単位はunit Iの方式・件数・契約・承認範囲を変えない。製品sourceの論理変更・新規意味仕様を含まない。
+
+
+### backend DB整合K（2026-11-03、PO判断）
+
+0038の初球 `play_rows` トリガと、0037/0038追加に追随していない既存DB試験の固定期待を整合する。製品の振る舞いは変えず、テスト側で次を行う。
+
+- 汎用seed/最小操作の区間だけ初球トリガを無効化し、直後に再有効化する（初球guard検証試験はトリガ有効のまま）。
+- 不変manifestの母集団から `sync_fence` private 3表を除外し、public 50表で比較する。
+- 0036固定のrevision期待を0038へ追随する。
+- stamp試験の共有db2を各試験で必要時に適用する。
+- backend-shardへPlaywright chromium導入を追加し、実画面E2Eの実行環境を揃える。
+
+範囲は次のexact列挙に限り、製品sourceの意味変更を含まない。
+`backend/tests/db/conftest.py`・`db_fixtures.py`・`test_alembic_migrations.py`・`test_rg1_startup_epoch.py`・`test_tenant_transaction_scope.py`・`test_immutability_enforcement.py`・`test_immutability_matrix.py`・`test_product_authz_tenant_owned.py`・`test_product_authz_cross_cutting.py`・`test_product_authz_migration_batch_role.py`・`test_product_authz_catalog.py`・`test_sync_writer_binding_reapply.py`・`test_first_ball_stamp_issuance.py`・`test_stage_a_rule_candidates.py`・`durable_rights_ledger_support.py`・`backend/tests/test_authz_runtime_contract_repository.py`・`.github/workflows/ci.yml`

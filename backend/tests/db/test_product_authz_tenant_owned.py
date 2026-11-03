@@ -40,7 +40,7 @@ _TENANT_UPDATE_GUARDS = {guard.table: guard for guard in tenant_update_guards()}
 
 def _seed_two_tenants(catalog: ProvisionedProductCatalog) -> None:
     """Superuser で FK 順の A/B 行を投入する。"""
-    with first_ball_guard_disabled(catalog.applicator):
+    with first_ball_guard_disabled(catalog.owner_dsn):
         with catalog.applicator.cursor() as cursor:
             for row in seed_rows():
                 statement, params = insert_statement(row)
