@@ -892,6 +892,12 @@ class _IndependentSymbolResolver(ast.NodeVisitor):
 def _condition2_owned_path(path: str, contract: Any) -> bool:
     """宣言と core 領域の交差から条件 2 の所有パスを独立に判定する。"""
     source_path = f"backend/src/{path}"
+    ordinary_owned = {
+        owner.path
+        for owner in getattr(contract, "ordinary_condition2_owners", ())
+    }
+    if source_path in ordinary_owned:
+        return True
     return any(
         fnmatch.fnmatchcase(source_path, pattern)
         for pattern in contract.condition2_owner_paths
@@ -5874,7 +5880,7 @@ def _validated_pure_fingerprint_decrements(
         ("pitchlog/repositories/game_start.py", 296, 305,
          "pitchlog.repositories.game_start.bind_initial_start_request",
          checker._scope_proof_source_sha256("game_start_caller")),
-        ("pitchlog/recording_rights/initial_grant_broker.py", 1468, 1477,
+        ("pitchlog/recording_rights/initial_grant_broker.py", 1476, 1485,
          "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
          checker._scope_proof_source_sha256("initial_grant_broker_caller")),
     }
@@ -8562,7 +8568,7 @@ def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) ->
                     checker._scope_proof_source_sha256("game_start_caller"),
                 ),
                 (
-                    "pitchlog/recording_rights/initial_grant_broker.py", 1468, 1477,
+                    "pitchlog/recording_rights/initial_grant_broker.py", 1476, 1485,
                     "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
                     checker._scope_proof_source_sha256("initial_grant_broker_caller"),
                 ),
@@ -8717,10 +8723,10 @@ def test_initial_population_census_measures_exact_finite_effect() -> None:
         source_root=REPOSITORY_ROOT / 'backend/src',
         current_contract=checker.load_contract(REPOSITORY_ROOT),
     )
-    assert len(identities) == 70
+    assert len(identities) == 63
     assert {code: sum(i[4] == code for i in identities)
             for code in ('TB001', 'TB002', 'TB005', 'TB007')} == {
-        'TB001': 2, 'TB002': 48, 'TB005': 18, 'TB007': 2,
+        'TB001': 2, 'TB002': 43, 'TB005': 16, 'TB007': 2,
     }
 
 
