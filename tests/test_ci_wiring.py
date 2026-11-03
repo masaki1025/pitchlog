@@ -1405,6 +1405,7 @@ def _ci_wiring_errors(
     required_shard_commands = [
         "corepack enable",
         "pnpm install --frozen-lockfile",
+        "pnpm exec playwright install --with-deps chromium",
         "uv python install",
         "uv sync --locked --dev",
         BACKEND_SHARD_PYTEST_COMMAND,
