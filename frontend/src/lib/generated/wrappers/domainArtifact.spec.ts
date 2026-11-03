@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getDomainArtifact } from './domainArtifact'
+import { getDomainArtifact, invokeFirstBallDomain } from './domainArtifact'
 
 const artifactPath = resolve(process.cwd(), 'public/domain/pitchlog-domain.js')
 
@@ -45,5 +45,28 @@ describe('配布済みドメイン artifact の読み込み口', () => {
 
     vi.stubGlobal('PitchlogDomain', Object.freeze({ ping: 'invalid' }))
     expect(() => getDomainArtifact()).toThrow('公開口が不正')
+  })
+})
+
+describe('初球の単一artifact操作呼出', () => {
+  it('操作未供給時に成功値を補わない', () => {
+    vi.stubGlobal('PitchlogDomain', Object.freeze({ ping: () => '{}' }))
+    expect(() => invokeFirstBallDomain('quantizeCourse', {})).toThrow(
+      '供給されていません',
+    )
+  })
+  it('失敗封筒や余剰キーを成功値へ読み替えない', () => {
+    for (const response of [
+      '{"ok":false,"error":{"code":"INVALID_REQUEST"}}',
+      '{"ok":true,"value":{},"extra":1}',
+    ]) {
+      vi.stubGlobal(
+        'PitchlogDomain',
+        Object.freeze({ ping: () => '{}', quantizeCourse: () => response }),
+      )
+      expect(() => invokeFirstBallDomain('quantizeCourse', {})).toThrow(
+        '成立しませんでした',
+      )
+    }
   })
 })

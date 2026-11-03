@@ -25,6 +25,27 @@ from pitchlog.db import all_models
 from pitchlog.db.base import Base
 from pitchlog.db.model_metadata import Immutability, is_task_handoff_id
 
+_PRIVATE_TABLE_NAMES = frozenset(
+    {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+)
+
+
+def _contract_table_name(schema: str | None, name: str) -> str:
+    """既publicと採用済み私有3表だけをmanifestのIDへ写像する。"""
+    expected_schema = "sync_fence" if name in _PRIVATE_TABLE_NAMES else "public"
+    if ("public" if schema is None else schema) != expected_schema:
+        raise AssertionError(f"未登録の表schema: {schema}.{name}")
+    return name
+
+
+def _model_table_names(metadata: MetaData) -> set[str]:
+    """schemaを検査し、裸名の重複を拒否した母集合を返す。"""
+    names = [_contract_table_name(t.schema, t.name) for t in metadata.tables.values()]
+    if len(names) != len(set(names)):
+        raise AssertionError("表の裸名が重複")
+    return set(names)
+
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts" / "db" / "schema-manifest.json"
 _DATA_MODEL_PATH = _REPOSITORY_ROOT / "docs" / "design" / "data-model.md"
@@ -131,7 +152,7 @@ def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
     body = _section_body(document, "3-4")
     for headers, rows in _markdown_tables(body):
         if headers == ["節", "一意性", "キーの形", "判定"]:
-            return {
+            parsed = {
                 (
                     _plain_markdown_cell(section),
                     _plain_markdown_cell(uniqueness),
@@ -141,7 +162,28 @@ def _business_uniqueness_rows(document: str) -> set[tuple[str, str, str, str]]:
                     else "scoped",
                 )
                 for section, uniqueness, key_shape, judgement in rows
-            } | _initial_storage_uniqueness_rows(document)
+            }
+            # v1.5の再記載2行は既6-1全原文への参照。未知6-1行は除外しない。
+            references = {
+                (
+                    "6-1",
+                    "初期開始要求のpending attemptは1件",
+                    (
+                        "UNIQUE (tenant_id, game_id, start_request_id) "
+                        "WHERE outcome = 'pending'"
+                    ),
+                    "scoped",
+                ),
+                (
+                    "6-1",
+                    "初期記録権の同一開始要求への交付は1件",
+                    "UNIQUE (tenant_id, game_id, start_request_id)",
+                    "scoped",
+                ),
+            }
+            if not references <= parsed:
+                raise ValueError("6-1再記載の有限2行が不一致")
+            return (parsed - references) | _initial_storage_uniqueness_rows(document)
     raise ValueError("3-4 節の業務的一意性全数表を解決できない")
 
 
@@ -577,7 +619,10 @@ def _model_foreign_keys(metadata: MetaData) -> set[_ForeignKeyContract]:
                     source_table=table.name,
                     name=foreign_key_name,
                     columns=tuple(foreign_key.columns.keys()),
-                    target_table=target_tables.pop(),
+                    target_table=_contract_table_name(
+                        foreign_key.elements[0].column.table.schema,
+                        foreign_key.elements[0].column.table.name,
+                    ),
                     target_columns=tuple(target[1] for target in targets),
                     match=foreign_key.match or "SIMPLE",
                     on_delete=foreign_key.ondelete or "NO ACTION",
@@ -677,7 +722,7 @@ def test_all_manifest_tables_have_models_and_migrations() -> None:
     """Manifest 全46表が models と migration の両方に存在する。"""
     assert all_models.IMPORTED_MODEL_MODULE_NAMES
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
-    model_tables = set(Base.metadata.tables)
+    model_tables = _model_table_names(Base.metadata)
     migration_tables = _migration_table_names(_MIGRATIONS_PATH)
 
     missing = _missing_implementation_tables(
@@ -705,7 +750,7 @@ def test_all_model_immutability_contracts_cover_the_same_table_population() -> N
     }
 
     assert len(model_contracts) == len(manifest_tables) == len(Base.metadata.tables)
-    assert set(model_contracts) == manifest_tables == set(Base.metadata.tables)
+    assert set(model_contracts) == manifest_tables == _model_table_names(Base.metadata)
     assert all(
         immutability.unclassified_handoff is None
         or is_task_handoff_id(immutability.unclassified_handoff)
@@ -777,7 +822,7 @@ def test_partial_manifest_without_unclassified_columns_is_red() -> None:
 def test_model_foreign_keys_match_manifest_or_have_unimplemented_targets() -> None:
     """Models の FK と、参照先未実装による保留だけが manifest と食い違う。"""
     manifest = _load_manifest()
-    model_tables = set(Base.metadata.tables)
+    model_tables = _model_table_names(Base.metadata)
     migration_tables = _migration_table_names(_MIGRATIONS_PATH)
     implemented_tables = model_tables & migration_tables
     manifest_foreign_keys = _manifest_foreign_keys(manifest, implemented_tables)
@@ -1010,3 +1055,47 @@ def test_historical_projection_keeps_unknown_table_and_missing_known_table(
         assert tuple(projected.tables["unexpected_table"].c.keys()) == ("id",)
         assert "rg1_restore_gate" not in projected.tables
         assert "recording_generations" not in projected.tables
+
+
+@pytest.mark.parametrize(
+    "schema,name",
+    [
+        ("unknown", "games"),
+        ("", "games"),
+        ("public", "writer_bindings"),
+        ("unknown", "writer_admissions"),
+        ("sync_fence", "games"),
+    ],
+)
+def test_model_table_identity_rejects_unregistered_schema(
+    schema: str, name: str
+) -> None:
+    """既publicと私有3表のnamespace付替えは拒否する。"""
+    metadata = MetaData()
+    Table(name, metadata, Column("id", Integer), schema=schema)
+    with pytest.raises(AssertionError, match="未登録"):
+        _model_table_names(metadata)
+
+
+def test_model_table_identity_rejects_same_name_in_other_namespace() -> None:
+    """別schemaの同名表で母集合の欠落を隠せない。"""
+    metadata = MetaData()
+    Table("games", metadata, Column("id", Integer))
+    Table("games", metadata, Column("id", Integer), schema="unknown")
+    with pytest.raises(AssertionError):
+        _model_table_names(metadata)
+
+
+@pytest.mark.parametrize(
+    "original",
+    [
+        "初期開始要求のpending attemptは1件",
+        "初期記録権の同一開始要求への交付は1件",
+    ],
+)
+def test_initial_storage_reference_rows_cannot_be_changed(original: str) -> None:
+    """3-4再記載の有限対応を勝手に変えて6-1全原文を省略できない。"""
+    document = _DATA_MODEL_PATH.read_text(encoding="utf-8")
+    assert original in document
+    with pytest.raises(ValueError, match="有限2行"):
+        _business_uniqueness_rows(document.replace(original, "unknown uniqueness"))

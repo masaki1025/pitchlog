@@ -1306,12 +1306,73 @@ def _independently_derived_added(
     return frozenset(identities)
 
 
+def _declared_relaxation_identities(
+    predicate: dict[str, Any], *, source_root: Path,
+) -> frozenset[CensusIdentity]:
+    """宣言済みの不変値構築緩和を実source SHA付きの完全一致siteとして読む。"""
+    raw = predicate.get("declared_relaxations")
+    if raw is None:
+        return frozenset()
+    declaration = _object(raw, "declared_relaxations")
+    _exact_keys(declaration, {"kind", "allowed_symbols", "sites"}, "declared_relaxations")
+    assert declaration.get("kind") == "immutable_value_construction"
+    allowed = frozenset(_string_array(
+        declaration.get("allowed_symbols"), "declared_relaxations.allowed_symbols",
+    ))
+    assert allowed == {
+        "builtins.object.__new__",
+        "builtins.object.__setattr__",
+        "dataclasses.replace",
+        "token_type",
+        "<unresolved-callable>",
+    }, "不変値構築以外の symbol へ緩和を広げられない"
+    identities: set[CensusIdentity] = set()
+    for index, item in enumerate(
+        _array(declaration.get("sites"), "declared_relaxations.sites")
+    ):
+        row = _object(item, f"declared_relaxations.sites[{index}]")
+        _exact_keys(
+            row,
+            {
+                "path", "line", "end_line", "scope", "code", "symbol", "message",
+                "source_sha256",
+            },
+            "declared_relaxations.site",
+        )
+        line = row.get("line")
+        end_line = row.get("end_line")
+        assert type(line) is int and type(end_line) is int
+        identity: CensusIdentity = (
+            _string(row.get("path"), "site.path"),
+            line,
+            end_line,
+            _string(row.get("scope"), "site.scope"),
+            _string(row.get("code"), "site.code"),
+            _string(row.get("symbol"), "site.symbol"),
+            _string(row.get("message"), "site.message"),
+        )
+        assert identity[4] == "TB007"
+        assert identity[5] in allowed, "不変値構築以外の symbol は緩和できない"
+        digest = _string(row.get("source_sha256"), "site.source_sha256")
+        assert re.fullmatch(r"[0-9a-f]{64}", digest) is not None
+        target = source_root / identity[0]
+        assert target.is_file(), "緩和 site の source が存在しない"
+        assert hashlib.sha256(target.read_bytes()).hexdigest() == digest, (
+            "緩和 site の source SHA が不一致"
+        )
+        assert identity not in identities, "緩和 site の重複"
+        identities.add(identity)
+    return frozenset(identities)
+
+
 def _assert_removed_tb007_matches_declared_relaxations(
     removed: frozenset[CensusIdentity],
     *,
     expected_code: str,
+    declared: frozenset[CensusIdentity] = frozenset(),
 ) -> None:
     """減分を宣言済みの緩和と発行入口の exact な許可に帰属させる。"""
+    assert declared <= removed, "宣言済み緩和が実減分に存在しない"
     source_root = REPOSITORY_ROOT / "backend" / "src"
     sources = {
         path.relative_to(source_root).as_posix(): path.read_text(encoding="utf-8")
@@ -1324,6 +1385,8 @@ def _assert_removed_tb007_matches_declared_relaxations(
     for identity in removed:
         path, line, end_line, scope, code, symbol, _ = identity
         assert code == expected_code
+        if identity in declared:
+            continue
         if path not in scanners:
             tree = ast.parse(sources[path], filename=path)
             scanner = checker._SourceScanner(
@@ -1951,428 +2014,415 @@ _INITIAL_CENSUS_SITES: tuple[tuple[str, str, int, str, str, str], ...] = (
   'TB002',
   'str',
   'InitialGameStartResponse.<module>'),
- ('pitchlog/authz/capability_catalog.py',
+('pitchlog/authz/capability_catalog.py',
   'initial_storage_classification',
   180,
   'TB002',
   'generation',
   '_initial_storage_profile'),
- ('pitchlog/authz/capability_catalog.py',
+('pitchlog/authz/capability_catalog.py',
   'initial_storage_classification',
   183,
   'TB002',
   'generation',
   '_initial_storage_profile'),
- ('pitchlog/authz/product_function_acl.py',
+('pitchlog/authz/product_function_acl.py',
   'initial_generation_guard_ddl',
-  157,
+  177,
   'TB002',
   'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
   'generate_product_function_acl_sql'),
- ('pitchlog/authz/product_function_acl.py',
+('pitchlog/authz/product_function_acl.py',
   'initial_generation_guard_ddl',
-  2585,
+  2614,
   'TB002',
   'generate_generation_guard_sql',
   '<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   194,
   'TB002',
   'RecordingGeneration',
   '<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   267,
   'TB002',
   'sqlalchemy.orm.Mapped',
   'RecordingGeneration.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   344,
   'TB005',
   'sqlalchemy.text',
   'TrustedDevice.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   407,
   'TB005',
   'sqlalchemy.text',
   'GameStartRequest.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   470,
   'TB005',
   'sqlalchemy.text',
   'GameStartAttempt.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   481,
   'TB005',
   'sqlalchemy.text',
   'GameStartAttempt.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   487,
   'TB005',
   'sqlalchemy.text',
   'GameStartAttempt.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   567,
   'TB002',
   'sqlalchemy.orm.Mapped',
   'RecordingRightDelivery.<module>'),
- ('pitchlog/db/recording_rights/models.py',
+('pitchlog/db/recording_rights/models.py',
   'initial_storage_model_declarations',
   576,
   'TB005',
   'sqlalchemy.text',
   'RecordingRightDelivery.<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  36,
+  35,
   'TB002',
   'DurableGenerationSource',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  36,
+  35,
   'TB002',
   'assert_write_recovery_generation',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
   165,
   'TB005',
   'psycopg.Connection.cursor',
   '_verify_initial_actor_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
   166,
   'TB005',
   'psycopg.Cursor.execute',
   '_verify_initial_actor_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
   185,
   'TB005',
   'psycopg.Connection.rollback',
   '_verify_initial_actor_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
   188,
   'TB005',
   'psycopg.Connection.rollback',
   '_verify_initial_actor_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
   255,
   'TB005',
   'sqlalchemy.create_engine',
   '_load_initial_actor_runtime'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  302,
-  'TB005',
-  'importlib.import_module',
-  '_verify_business_binding'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
-  'initial_grant_broker_caller',
-  324,
+  327,
   'TB002',
   'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  403,
+  406,
   'TB002',
   'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
   '_issue_initial_grant_impl'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  404,
+  407,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
   '_issue_initial_grant_impl'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  428,
+  431,
   'TB002',
   'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  443,
+  446,
   'TB002',
   'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  483,
+  486,
   'TB002',
   'generation',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  488,
+  493,
   'TB002',
   'int',
   '_broker_d4'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  489,
-  'TB002',
-  'int',
-  '_broker_d4'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
-  'initial_grant_broker_caller',
-  492,
-  'TB002',
-  'int',
-  '_broker_d4'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
-  'initial_grant_broker_caller',
-  496,
+  498,
   'TB002',
   '_broker_generation',
   '<module>'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  510,
+  512,
   'TB002',
   'int',
   '_broker_generation'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  514,
+  516,
   'TB002',
   'int',
   '_broker_generation'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  520,
+  522,
   'TB002',
   'int',
   '_broker_generation'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  804,
+  806,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
   '_postcommit_start_response'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  805,
+  807,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
   '_postcommit_start_response'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  805,
+  807,
   'TB002',
   'recovery_generation',
   '_postcommit_start_response'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  929,
+  931,
   'TB002',
   'pitchlog.recording_rights.initial_grant_broker._broker_generation',
   '_decode_initial_reply'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1119,
+  1121,
   'TB005',
   'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
   '_InitialBrokerClient.call'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1210,
+  1212,
   'TB005',
   'psycopg.Connection.cursor',
   '_verify_auth_verifier_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1211,
+  1213,
   'TB005',
   'psycopg.Cursor.execute',
   '_verify_auth_verifier_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1216,
+  1218,
   'TB005',
   'psycopg.Connection.rollback',
   '_verify_auth_verifier_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1219,
+  1221,
   'TB005',
   'psycopg.Connection.rollback',
   '_verify_auth_verifier_checkout'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1279,
+  1281,
   'TB005',
   'sqlalchemy.create_engine',
   '_load_initial_auth_verifier_runtime'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1460,
+  1462,
   'TB002',
   'pitchlog.sync.idempotency',
   '_worker_resolve_start'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1517,
+  1519,
   'TB002',
   'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
   '_worker_resolve_start'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1518,
+  1520,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
   '_worker_resolve_start'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1745,
+  1747,
   'TB005',
   'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
   'serve_initial_broker'),
- ('pitchlog/recording_rights/initial_grant_broker.py',
+('pitchlog/recording_rights/initial_grant_broker.py',
   'initial_grant_broker_caller',
-  1758,
+  1760,
   'TB007',
   'pitchlog.durable_rights_ledger.DurableLedger',
   'serve_initial_broker'),
- ('pitchlog/repositories/game_start.py',
+('pitchlog/repositories/game_start.py',
   'game_start_caller',
   23,
   'TB002',
   'pitchlog.sync.idempotency',
   '<module>'),
- ('pitchlog/repositories/game_start.py', 'game_start_caller', 340, 'TB007', 'cls', '_start_token'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/game_start.py',
+  'game_start_caller',
+  340,
+  'TB007',
+  'cls',
+  '_start_token'),
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   47,
   'TB002',
   '_positive_generation',
   '<module>'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   158,
   'TB002',
   'int',
   '_CheckBusinessEpochToken.<module>'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   174,
   'TB002',
   'int',
   '_InsertInitialGrantToken.<module>'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   175,
   'TB002',
   'int',
   '_InsertInitialGrantToken.<module>'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   264,
   'TB002',
   'pitchlog.repositories.initial_recording_right._positive_generation',
   '_decode_initial_result'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   276,
   'TB002',
   'int',
   '_decode_initial_result'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   278,
   'TB002',
   'int',
   '_decode_initial_result'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   279,
   'TB002',
   'int',
   '_decode_initial_result'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   279,
   'TB002',
   'pitchlog.repositories.initial_recording_right._positive_generation',
   '_decode_initial_result'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   466,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
   'InitialRecordingRightScope.__init__'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   559,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
   'InitialRecordingRightScope.lock_valid_device'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   593,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
   'InitialRecordingRightScope._record'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   666,
   'TB002',
   'assert_recovery_generation',
   'InitialRecordingRightScope.<module>'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   669,
   'TB002',
   'pitchlog.repositories.initial_recording_right._positive_generation',
   'InitialRecordingRightScope.assert_recovery_generation'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   700,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
   'InitialRecordingRightScope.insert_initial_grant'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   701,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
   'InitialRecordingRightScope.insert_initial_grant'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   715,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
   'InitialRecordingRightScope.insert_initial_grant'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   716,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
   'InitialRecordingRightScope.insert_initial_grant'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   725,
   'TB002',
   'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
   'InitialRecordingRightScope.insert_initial_grant'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   761,
   'TB001',
   '_assert_existing_resolution_owner',
   '_existing_start_scope_on_handle'),
- ('pitchlog/repositories/initial_recording_right.py',
+('pitchlog/repositories/initial_recording_right.py',
   'initial_recording_right_guard',
   763,
   'TB001',
@@ -2966,7 +3016,7 @@ return _InitialActorRuntime(key, _RUNTIME_CREATION)
                 imported.setdefault(a.asname or a.name, []).append(f"{n.module}.{a.name}")
     for name, origin in {
         "socket": "socket", "os": "os", "create_engine": "sqlalchemy.create_engine",
-        "event": "sqlalchemy.event", "import_module": "importlib.import_module",
+        "event": "sqlalchemy.event",
         "require_database_transport": (
             "pitchlog.authz.database_transport.require_database_transport"
         ),
@@ -3035,20 +3085,36 @@ os.fsync(output.fileno())''').body
         and isinstance(n.ctx, (ast.Store, ast.Del)) for n in ast.walk(server)
     ):
         return False
-    # importの固定先、実owner復旧世代照合、および純bigint codecの型/範囲を保持。
+    # importの固定先、実owner復旧世代照合、および純bigint codecの委譲先を保持。
+    business = function("_verify_business_binding")
+    if business is None or not has(
+        business,
+        "from pitchlog.recording_rights.rg1_lifecycle import "
+        "BusinessBinding, RG1ControlUnavailable",
+    ) or not has(business, "binding = BusinessBinding.from_text(rows[0][0])"):
+        return False
+    if not any(
+        handler.type is not None
+        and shape(handler.type) == expression("RG1ControlUnavailable")
+        for node in ast.walk(business)
+        if isinstance(node, ast.Try)
+        for handler in node.handlers
+    ):
+        return False
+    # 符号化の型/範囲検査は単一実装が持つ(NFR-018)。本文の委譲だけを固定する。
     return (
-        has(function("_verify_business_binding"),
-            'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")')
-        and has(function("_issue_initial_grant_impl"),
+        has(function("_issue_initial_grant_impl"),
                 "assert_write_recovery_generation(scope, source, fence, "
                 "int(grant.recovery_generation))")
         and has(function("_worker_resolve_start"),
                 "assert_write_recovery_generation(scope, state.source, fence, "
                 "int(grant.recovery_generation))")
-        and has(function("_broker_d4"), '''if (type(tenant_id) is not UUID
-            or type(game_id) is not UUID
-            or type(generation) is not int or not 0 < generation < 2**63):
-                raise _broker_invalid()''')
+        and exact_body("_broker_d4", '''
+try:
+    return encode_d4_reference(tenant_id, game_id, generation)
+except D4ReferenceInvalid:
+    raise _broker_invalid() from None
+''')
     )
 
 _INITIAL_CENSUS_CONTROL_FRAMES = {
@@ -4009,14 +4075,13 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
        'ctx=Load()), args=[], keywords=[]))',),
       ())),
     '_verify_business_binding':
-    (((),
+(((),
       'FunctionDef',
       ('_verify_business_binding',
        "arguments(posonlyargs=[], args=[arg(arg='transaction', "
        "annotation=Name(id='_TenantTransaction', ctx=Load())), "
        "arg(arg='runtime', annotation=Name(id='object', "
-       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], '
-       'defaults=[])',
+       'ctx=Load()))], kwonlyargs=[], kw_defaults=[], defaults=[])',
        ()),
       (('body', 8),)),
      (('body', 0), 'ImportFrom', (), ()),
@@ -4024,9 +4089,8 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
      (('body', 2),
       'If',
       ("Compare(left=Call(func=Name(id='len', ctx=Load()), "
-       "args=[Name(id='registrations', ctx=Load())], "
-       'keywords=[]), ops=[NotEq()], '
-       'comparators=[Constant(value=1)])',),
+       "args=[Name(id='registrations', ctx=Load())], keywords=[]), "
+       'ops=[NotEq()], comparators=[Constant(value=1)])',),
       (('body', 1), ('orelse', 0))),
      (('body', 2, 'body', 0),
       'Raise',
@@ -4039,10 +4103,9 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
      (('body', 5),
       'If',
       ('BoolOp(op=Or(), '
-       "values=[Compare(left=Call(func=Name(id='len', "
-       "ctx=Load()), args=[Name(id='rows', ctx=Load())], "
-       'keywords=[]), ops=[NotEq()], '
-       'comparators=[Constant(value=1)]), '
+       "values=[Compare(left=Call(func=Name(id='len', ctx=Load()), "
+       "args=[Name(id='rows', ctx=Load())], keywords=[]), "
+       'ops=[NotEq()], comparators=[Constant(value=1)]), '
        "Compare(left=Call(func=Name(id='len', ctx=Load()), "
        "args=[Subscript(value=Name(id='rows', ctx=Load()), "
        'slice=Constant(value=0), ctx=Load())], keywords=[]), '
@@ -4051,14 +4114,13 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
        "args=[Subscript(value=Subscript(value=Name(id='rows', "
        'ctx=Load()), slice=Constant(value=0), ctx=Load()), '
        'slice=Constant(value=0), ctx=Load())], keywords=[]), '
-       "ops=[IsNot()], comparators=[Name(id='str', "
-       'ctx=Load())])])',),
+       "ops=[IsNot()], comparators=[Name(id='str', ctx=Load())])])",),
       (('body', 1), ('orelse', 0))),
      (('body', 5, 'body', 0),
       'Raise',
       ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
-       "ctx=Load()), args=[Constant(value='実scope "
-       "bindingを確認できない')], keywords=[]))",),
+       "ctx=Load()), args=[Constant(value='実scope bindingを確認できない')], "
+       'keywords=[]))',),
       ()),
      (('body', 6),
       'Try',
@@ -4067,7 +4129,7 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
        ('handlers', 1),
        ('orelse', 0),
        ('finalbody', 0))),
-     (('body', 6, 'body', 0), 'Assign', (), ()),
+     (('body', 6, 'body', 0), 'ImportFrom', (), ()),
      (('body', 6, 'handlers', 0),
       'ExceptHandler',
       ("Name(id='ImportError', ctx=Load())", None),
@@ -4075,9 +4137,8 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
      (('body', 6, 'handlers', 0, 'body', 0),
       'Raise',
       ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
-       "ctx=Load()), args=[Constant(value='固定RG1 "
-       "binding型が未供給')], keywords=[]), "
-       'cause=Constant(value=None))',),
+       "ctx=Load()), args=[Constant(value='固定RG1 binding型が未供給')], "
+       'keywords=[]), cause=Constant(value=None))',),
       ()),
      (('body', 7),
       'Try',
@@ -4094,24 +4155,20 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
        "values=[Compare(left=Attribute(value=Name(id='binding', "
        "ctx=Load()), attr='system_identifier', ctx=Load()), "
        'ops=[NotEq()], '
-       "comparators=[Attribute(value=Name(id='config', "
-       "ctx=Load()), attr='system_identifier', ctx=Load())]), "
-       "Compare(left=Attribute(value=Name(id='binding', "
-       "ctx=Load()), attr='database_oid', ctx=Load()), "
-       'ops=[NotEq()], '
-       "comparators=[Attribute(value=Name(id='config', "
-       "ctx=Load()), attr='database_oid', ctx=Load())]), "
-       "Compare(left=Attribute(value=Name(id='binding', "
-       "ctx=Load()), attr='database_name', ctx=Load()), "
-       'ops=[NotEq()], '
-       "comparators=[Attribute(value=Name(id='config', "
-       "ctx=Load()), attr='database_name', ctx=Load())]), "
-       "Compare(left=Attribute(value=Name(id='binding', "
-       "ctx=Load()), attr='postmaster_started_at', "
-       'ctx=Load()), ops=[NotEq()], '
-       "comparators=[Attribute(value=Name(id='config', "
-       "ctx=Load()), attr='postmaster_started_at', "
-       'ctx=Load())])])',),
+       "comparators=[Attribute(value=Name(id='config', ctx=Load()), "
+       "attr='system_identifier', ctx=Load())]), "
+       "Compare(left=Attribute(value=Name(id='binding', ctx=Load()), "
+       "attr='database_oid', ctx=Load()), ops=[NotEq()], "
+       "comparators=[Attribute(value=Name(id='config', ctx=Load()), "
+       "attr='database_oid', ctx=Load())]), "
+       "Compare(left=Attribute(value=Name(id='binding', ctx=Load()), "
+       "attr='database_name', ctx=Load()), ops=[NotEq()], "
+       "comparators=[Attribute(value=Name(id='config', ctx=Load()), "
+       "attr='database_name', ctx=Load())]), "
+       "Compare(left=Attribute(value=Name(id='binding', ctx=Load()), "
+       "attr='postmaster_started_at', ctx=Load()), ops=[NotEq()], "
+       "comparators=[Attribute(value=Name(id='config', ctx=Load()), "
+       "attr='postmaster_started_at', ctx=Load())])])",),
       (('body', 1), ('orelse', 0))),
      (('body', 7, 'body', 2, 'body', 0),
       'Raise',
@@ -4121,16 +4178,13 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
       ()),
      (('body', 7, 'handlers', 0),
       'ExceptHandler',
-      ("Attribute(value=Name(id='provider', ctx=Load()), "
-       "attr='RG1ControlUnavailable', ctx=Load())",
-       None),
+      ("Name(id='RG1ControlUnavailable', ctx=Load())", None),
       (('body', 1),)),
      (('body', 7, 'handlers', 0, 'body', 0),
       'Raise',
       ("Raise(exc=Call(func=Name(id='InitialGrantUnavailable', "
-       "ctx=Load()), args=[Constant(value='実scope "
-       "bindingを確認できない')], keywords=[]), "
-       'cause=Constant(value=None))',),
+       "ctx=Load()), args=[Constant(value='実scope bindingを確認できない')], "
+       'keywords=[]), cause=Constant(value=None))',),
       ())),
     '_issue_initial_grant_impl':
     (((),
@@ -5379,14 +5433,14 @@ def _assert_removed_matches_declared_relaxations(
     *,
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
+    source_root: Path,
     **_: Any,
 ) -> None:
     """宣言対象の減分がすべて宣言済み緩和で説明できることを検証する。"""
-    _exact_keys(
-        predicate,
-        {"id", "set", "code", "quantifier", "requirement"},
-        predicate["id"],
-    )
+    allowed_keys = {"id", "set", "code", "quantifier", "requirement"}
+    if "declared_relaxations" in predicate:
+        allowed_keys.add("declared_relaxations")
+    _exact_keys(predicate, allowed_keys, predicate["id"])
     assert predicate.get("quantifier") == "every"
     assert predicate.get("requirement") == "matches_declared_relaxation"
     set_name = _string(predicate.get("set"), f"{predicate['id']}.set")
@@ -5400,6 +5454,7 @@ def _assert_removed_matches_declared_relaxations(
     _assert_removed_tb007_matches_declared_relaxations(
         selected,
         expected_code=code,
+        declared=_declared_relaxation_identities(predicate, source_root=source_root),
     )
 
 
@@ -5502,6 +5557,71 @@ def _validated_rg1_condition2_identities(
         assert all(i[4] == "TB002" for i in difference)
         result.update(difference)
     return frozenset(result)
+
+
+def _validated_first_ball_condition2_identities(
+    *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """初球6pathの条件2有限登録を実source/hashと全7fieldの抑止差分へ束縛する。"""
+    owners = current_contract.first_ball_condition2_owners
+    assert len(owners) == len(checker.FIRST_BALL_CONDITION2_SCOPES)
+    assert {owner.path for owner in owners} == set(
+        checker.FIRST_BALL_CONDITION2_SCOPES
+    )
+    unsuppressed = replace(current_contract, first_ball_condition2_owners=())
+    result: set[CensusIdentity] = set()
+    for owner in owners:
+        assert owner.findings == checker.FIRST_BALL_CONDITION2_SCOPES[owner.path]
+        relative = owner.path.removeprefix("backend/src/")
+        path = source_root / relative
+        if not path.is_file():
+            continue
+        source = path.read_text(encoding="utf-8")
+        if hashlib.sha256(source.encode()).hexdigest() != owner.source_sha256:
+            continue
+
+        def census(contract: Any) -> frozenset[CensusIdentity]:
+            """当該sourceの全7fieldを保った実走査を得る。"""
+            return frozenset(
+                (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                for v in checker.scan_source(source, path=relative, contract=contract)
+            )
+
+        before, after = census(unsuppressed), census(current_contract)
+        difference = before - after
+        assert not after - before
+        assert {(i[1], i[5]) for i in difference} == owner.findings
+        assert all(i[4] == "TB002" for i in difference)
+        result.update(difference)
+    return frozenset(result)
+
+
+def _first_ball_registration_explains(
+    identity: CensusIdentity,
+    *,
+    source_root: Path,
+    current_contract: Any,
+) -> bool:
+    """anchor側の短いsymbol綴りも、同一siteの登録所見へ束縛して説明する。"""
+    path, line, _, _, code, symbol, _ = identity
+    if code != "TB002":
+        return False
+    for owner in current_contract.first_ball_condition2_owners:
+        if owner.path.removeprefix("backend/src/") != path:
+            continue
+        target = source_root / path
+        if not target.is_file():
+            return False
+        if hashlib.sha256(target.read_bytes()).hexdigest() != owner.source_sha256:
+            return False
+        return any(
+            finding_line == line
+            and _matches_equal_or_delimited_prefix(
+                finding_symbol, symbol, delimiter=".",
+            )
+            for finding_line, finding_symbol in owner.findings
+        )
+    return False
 
 
 def _scoped_identity_digest(identities: frozenset[CensusIdentity]) -> str:
@@ -5803,7 +5923,7 @@ def _validated_pure_fingerprint_decrements(
         ("pitchlog/repositories/game_start.py", 296, 305,
          "pitchlog.repositories.game_start.bind_initial_start_request",
          checker._scope_proof_source_sha256("game_start_caller")),
-        ("pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
+        ("pitchlog/recording_rights/initial_grant_broker.py", 1468, 1477,
          "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
          checker._scope_proof_source_sha256("initial_grant_broker_caller")),
     }
@@ -5978,6 +6098,9 @@ def _assert_unadjudicated_removed_remains(
     rg1_removed = _validated_rg1_condition2_identities(
         source_root=source_root, current_contract=current_contract
     )
+    first_ball_removed = _validated_first_ball_condition2_identities(
+        source_root=source_root, current_contract=current_contract
+    )
     pure_decrements = _validated_pure_fingerprint_decrements(
         predicate.get("pure_helper_references"), source_root=source_root,
     )
@@ -5987,7 +6110,13 @@ def _assert_unadjudicated_removed_remains(
     for identity in data_sets[set_name]:
         if (
             identity in initial_removed or identity in scoped_removed or identity in ledger_removed
-            or identity in rg1_removed or identity in pure_decrements
+            or identity in rg1_removed or identity in first_ball_removed
+            or identity in pure_decrements
+            or _first_ball_registration_explains(
+                identity,
+                source_root=source_root,
+                current_contract=current_contract,
+            )
         ):
             continue
         if _condition2_owned_path(
@@ -6139,6 +6268,15 @@ def _assert_added_equals_independently_derived_candidates(
         declaration, source_root=source_root, current_contract=current_contract,
     )
     expected -= _canonical_proven_builtin_identities(initial, source_root)
+    first_ball_suppressed = _validated_first_ball_condition2_identities(
+        source_root=source_root, current_contract=current_contract,
+    )
+    # 独立列挙は変数名、実scannerは型名を返すため、登録siteの(path,行,code)で控除する。
+    suppressed_sites = {(i[0], i[1], i[4]) for i in first_ball_suppressed}
+    expected = frozenset(
+        identity for identity in expected
+        if (identity[0], identity[1], identity[4]) not in suppressed_sites
+    )
     actual = _canonical_proven_builtin_identities(data_sets[set_name], source_root)
     expected = _canonical_proven_builtin_identities(expected, source_root)
     assert actual == expected, (
@@ -8473,7 +8611,7 @@ def test_pure_helper_decrements_are_bound_to_all_source_bytes(tmp_path: Path) ->
                     checker._scope_proof_source_sha256("game_start_caller"),
                 ),
                 (
-                    "pitchlog/recording_rights/initial_grant_broker.py", 1466, 1475,
+                    "pitchlog/recording_rights/initial_grant_broker.py", 1468, 1477,
                     "pitchlog.recording_rights.initial_grant_broker._worker_resolve_start",
                     checker._scope_proof_source_sha256("initial_grant_broker_caller"),
                 ),
@@ -8622,16 +8760,16 @@ def test_pure_helper_source_and_declaration_cannot_move_together(
 
 
 def test_initial_population_census_measures_exact_finite_effect() -> None:
-    """出力件数だけでなく正本73siteと実抑止の全identityを比較する。"""
+    """出力件数だけでなく正本70siteと実抑止の全identityを比較する。"""
     identities = _validated_initial_population_suppression(
         _load_census_baseline_declaration(),
         source_root=REPOSITORY_ROOT / 'backend/src',
         current_contract=checker.load_contract(REPOSITORY_ROOT),
     )
-    assert len(identities) == 73
+    assert len(identities) == 70
     assert {code: sum(i[4] == code for i in identities)
             for code in ('TB001', 'TB002', 'TB005', 'TB007')} == {
-        'TB001': 2, 'TB002': 50, 'TB005': 19, 'TB007': 2,
+        'TB001': 2, 'TB002': 48, 'TB005': 18, 'TB007': 2,
     }
 
 
@@ -8709,7 +8847,7 @@ def test_initial_population_census_rejects_forged_source_and_original(
 def test_initial_population_census_rejects_additional_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """既site外の所見までcheckerが抑止しても正本73siteとの実効果比較で拒否する。"""
+    """既site外の所見までcheckerが抑止しても正本70siteとの実効果比較で拒否する。"""
     original = checker._initial_population_evidence
     extra = (143, 'TB005', 'sqlalchemy.text',
              'pitchlog.db.recording_rights.models.EvacuatedEventOriginal.<module>')
@@ -8774,8 +8912,8 @@ _INITIAL_CENSUS_EXISTING_NORM_MUTATIONS = (('recording_rights/initial_grant_brok
   'pass  # checkout removed',
   'checkout-binding'),
  ('recording_rights/initial_grant_broker.py',
-  'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")',
-  'provider = import_module("other.module")',
+  'from pitchlog.recording_rights.rg1_lifecycle import (',
+  'from other.module import (',
   'fixed-import'),
  ('recording_rights/initial_grant_broker.py',
   'channel.connect(str(self._endpoint.path))',

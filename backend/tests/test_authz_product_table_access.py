@@ -30,6 +30,414 @@ from pitchlog.authz.product_table_access import (
 )
 from pitchlog.authz.runtime_contract_state import RuntimeContractState
 
+_EXPECTED_FIRST_BALL_POLICIES = [
+    {
+        "policy_id": "POLICY:writer_bindings:binding_owner",
+        "table_id": "writer_bindings",
+        "profile": "function_only",
+        "policy_name": "binding_owner",
+        "command": "ALL",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_binding_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "true",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": "true",
+    },
+    {
+        "policy_id": "POLICY:writer_admissions:admission_owner",
+        "table_id": "writer_admissions",
+        "profile": "function_only",
+        "policy_name": "admission_owner",
+        "command": "ALL",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_binding_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "true",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": "true",
+    },
+    {
+        "policy_id": "POLICY:rg1_restore_gate:binding_gate",
+        "table_id": "rg1_restore_gate",
+        "profile": "function_only",
+        "policy_name": "binding_gate",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_binding_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "singleton_id=1",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:trusted_devices:sync_first_ball_select",
+        "table_id": "trusted_devices",
+        "profile": "function_only",
+        "policy_name": "sync_first_ball_select",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": (
+            "tenant_id=NULLIF(pg_catalog.current_setting("
+            "'app.tenant_id',true),'')::uuid"
+        ),
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:recording_generations:sync_first_ball_select",
+        "table_id": "recording_generations",
+        "profile": "function_only",
+        "policy_name": "sync_first_ball_select",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": (
+            "tenant_id=NULLIF(pg_catalog.current_setting("
+            "'app.tenant_id',true),'')::uuid"
+        ),
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:trusted_devices:sync_first_ball_device_lock",
+        "table_id": "trusted_devices",
+        "profile": "function_only",
+        "policy_name": "sync_first_ball_device_lock",
+        "command": "UPDATE",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": (
+            "tenant_id=NULLIF(pg_catalog.current_setting("
+            "'app.tenant_id',true),'')::uuid"
+        ),
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": (
+            "tenant_id=NULLIF(pg_catalog.current_setting("
+            "'app.tenant_id',true),'')::uuid"
+        ),
+    },
+    {
+        "policy_id": "POLICY:rg1_restore_gate:sync_first_ball_gate",
+        "table_id": "rg1_restore_gate",
+        "profile": "function_only",
+        "policy_name": "sync_first_ball_gate",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "singleton_id=1",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": (
+            "POLICY:first_ball_write_admissions:"
+            "first_ball_stamp_first_ball_write_admissions"
+        ),
+        "table_id": "first_ball_write_admissions",
+        "profile": "function_only",
+        "policy_name": "first_ball_stamp_first_ball_write_admissions",
+        "command": "ALL",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid",
+    },
+    {
+        "policy_id": "POLICY:writer_bindings:first_ball_stamp_writer_bindings",
+        "table_id": "writer_bindings",
+        "profile": "function_only",
+        "policy_name": "first_ball_stamp_writer_bindings",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:writer_admissions:first_ball_stamp_writer_admissions",
+        "table_id": "writer_admissions",
+        "profile": "function_only",
+        "policy_name": "first_ball_stamp_writer_admissions",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:operation_events:first_ball_stamp_operation_events",
+        "table_id": "operation_events",
+        "profile": "function_only",
+        "policy_name": "first_ball_stamp_operation_events",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:idempotency_ledger:first_ball_stamp_idempotency_ledger",
+        "table_id": "idempotency_ledger",
+        "profile": "function_only",
+        "policy_name": "first_ball_stamp_idempotency_ledger",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+]
+_EXPECTED_FIRST_BALL_POLICY_SQL = {
+    "POLICY:writer_bindings:binding_owner": "-- ELEMENT-TYPE: policy\n"
+    "-- ELEMENT-ID: "
+    "POLICY:writer_bindings:binding_owner\n"
+    "\n"
+    "CREATE POLICY "
+    "binding_owner ON "
+    "sync_fence.writer_bindings "
+    "FOR ALL TO "
+    "pitchlog_sync_binding_fn_owner "
+    "USING (true) WITH CHECK "
+    "(true);\n",
+    "POLICY:writer_admissions:admission_owner": "-- ELEMENT-TYPE: "
+    "policy\n"
+    "-- ELEMENT-ID: "
+    "POLICY:writer_admissions:admission_owner\n"
+    "\n"
+    "CREATE POLICY "
+    "admission_owner ON "
+    "sync_fence.writer_admissions "
+    "FOR ALL TO "
+    "pitchlog_sync_binding_fn_owner "
+    "USING (true) WITH "
+    "CHECK (true);\n",
+    "POLICY:rg1_restore_gate:binding_gate": "-- ELEMENT-TYPE: policy\n"
+    "-- ELEMENT-ID: "
+    "POLICY:rg1_restore_gate:binding_gate\n"
+    "\n"
+    "CREATE POLICY binding_gate "
+    "ON public.rg1_restore_gate "
+    "FOR SELECT TO "
+    "pitchlog_sync_binding_fn_owner "
+    "USING (singleton_id=1);\n",
+    "POLICY:trusted_devices:sync_first_ball_select": "-- ELEMENT-TYPE: "
+    "policy\n"
+    "-- ELEMENT-ID: "
+    "POLICY:trusted_devices:sync_first_ball_select\n"
+    "\n"
+    "CREATE POLICY "
+    "sync_first_ball_select "
+    "ON "
+    "public.trusted_devices "
+    "FOR SELECT TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:recording_generations:sync_first_ball_select": "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:recording_generations:sync_first_ball_select\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "sync_first_ball_select "
+    "ON "
+    "public.recording_generations "
+    "FOR SELECT "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:trusted_devices:sync_first_ball_device_lock": "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:trusted_devices:sync_first_ball_device_lock\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "sync_first_ball_device_lock "
+    "ON "
+    "public.trusted_devices "
+    "FOR UPDATE "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid) "
+    "WITH CHECK "
+    "(tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:rg1_restore_gate:sync_first_ball_gate": "-- ELEMENT-TYPE: "
+    "policy\n"
+    "-- ELEMENT-ID: "
+    "POLICY:rg1_restore_gate:sync_first_ball_gate\n"
+    "\n"
+    "CREATE POLICY "
+    "sync_first_ball_gate "
+    "ON "
+    "public.rg1_restore_gate "
+    "FOR SELECT TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(singleton_id=1);\n",
+    (
+        "POLICY:first_ball_write_admissions:"
+        "first_ball_stamp_first_ball_write_admissions"
+    ): "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:first_ball_write_admissions:first_ball_stamp_first_ball_write_admissions\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "first_ball_stamp_first_ball_write_admissions "
+    "ON "
+    "sync_fence.first_ball_write_admissions "
+    "FOR "
+    "ALL "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id "
+    "= "
+    "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid) "
+    "WITH "
+    "CHECK "
+    "(tenant_id "
+    "= "
+    "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:writer_bindings:first_ball_stamp_writer_bindings": "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:writer_bindings:first_ball_stamp_writer_bindings\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "first_ball_stamp_writer_bindings "
+    "ON "
+    "sync_fence.writer_bindings "
+    "FOR "
+    "SELECT "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id "
+    "= "
+    "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:writer_admissions:first_ball_stamp_writer_admissions": "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:writer_admissions:first_ball_stamp_writer_admissions\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "first_ball_stamp_writer_admissions "
+    "ON "
+    "sync_fence.writer_admissions "
+    "FOR "
+    "SELECT "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id "
+    "= "
+    "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:operation_events:first_ball_stamp_operation_events": "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:operation_events:first_ball_stamp_operation_events\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "first_ball_stamp_operation_events "
+    "ON "
+    "public.operation_events "
+    "FOR "
+    "SELECT "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id "
+    "= "
+    "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+    "POLICY:idempotency_ledger:first_ball_stamp_idempotency_ledger": "-- "
+    "ELEMENT-TYPE: "
+    "policy\n"
+    "-- "
+    "ELEMENT-ID: "
+    "POLICY:idempotency_ledger:first_ball_stamp_idempotency_ledger\n"
+    "\n"
+    "CREATE "
+    "POLICY "
+    "first_ball_stamp_idempotency_ledger "
+    "ON "
+    "public.idempotency_ledger "
+    "FOR "
+    "SELECT "
+    "TO "
+    "pitchlog_sync_right_fn_owner "
+    "USING "
+    "(tenant_id "
+    "= "
+    "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid);\n",
+}
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
 _TABLE_CLASSIFICATION = (
@@ -397,6 +805,18 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
     }
     _assert_initial_policy_ids(asset)
     owner_policy_ids |= _INITIAL_POLICY_IDS
+    first_ball_ids = {r["policy_id"] for r in _EXPECTED_FIRST_BALL_POLICIES}
+    assert [r for r in asset["policies"] if r["policy_id"] in first_ball_ids] == (
+        _EXPECTED_FIRST_BALL_POLICIES
+    )
+    assert {
+        key: value
+        for key, value in actual_sql.items()
+        if key[0] == "policy" and key[1] in first_ball_ids
+    } == {
+        ("policy", key): value for key, value in _EXPECTED_FIRST_BALL_POLICY_SQL.items()
+    }
+    owner_policy_ids |= first_ball_ids
     assert {
         element_id
         for element_type, element_id in actual_sql
@@ -524,3 +944,50 @@ def test_each_initial_policy_id_mutation_is_rejected(mutation: str) -> None:
             policy["policy_id"] = policy_id + "_unknown"
         with pytest.raises(AssertionError):
             _assert_initial_policy_ids(candidate)
+
+
+@pytest.mark.parametrize(
+    "policy_id", [r["policy_id"] for r in _EXPECTED_FIRST_BALL_POLICIES]
+)
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("policy_id", "POLICY:unknown:unknown"),
+        ("role_ids", ["pitchlog_app"]),
+        ("using_expression", "false"),
+    ],
+)
+def test_first_ball_policy_full_declarations_are_closed(
+    policy_id: str, field: str, value: object
+) -> None:
+    """新12policyのID/主体/式付替えを拒否する。"""
+    asset = _product_asset()
+    row = next(r for r in asset["policies"] if r["policy_id"] == policy_id)
+    row[field] = value
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize(
+    "table_id", ["writer_bindings", "writer_admissions", "first_ball_write_admissions"]
+)
+@pytest.mark.parametrize("privilege", ["SELECT", "UPDATE", "DELETE"])
+def test_private_binding_tables_reject_app_direct_grants(
+    table_id: str, privilege: str
+) -> None:
+    """私有3表へappの直接読取・更新・削除を付与できない。"""
+    asset = _product_asset()
+    asset["acl_expectations"].append(
+        dict(
+            acl_id=f"ACL:{table_id}:pitchlog_app",
+            object_kind="table",
+            object_schema="sync_fence",
+            object_id=table_id,
+            profile="function_only",
+            grantee_role_id="pitchlog_app",
+            privilege_ids=[privilege],
+            grant_option=False,
+        )
+    )
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)

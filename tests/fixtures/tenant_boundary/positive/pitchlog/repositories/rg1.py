@@ -2,8 +2,8 @@
 
 from typing import Literal
 
-from sqlalchemy import Uuid, bindparam, func, select  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy import Uuid, bindparam, func, select
+from sqlalchemy.sql.selectable import Select
 
 
 def _build_rg1_read_statement(kind: Literal["precheck", "commit_check"]) -> Select[tuple[bool]]:

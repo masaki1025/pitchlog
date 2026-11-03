@@ -143,3 +143,65 @@ def test_decision_row_branch_id_is_authoritative() -> None:
     game_end["decisionRows"][0]["branchId"] = "NOT-IN-REGISTER"
     with pytest.raises(checker.BranchRowMappingError, match="規範行の座標が一意に実在しない"):
         checker.check_documents(mapping, schema, coverage, register, state, game_end, fixtures)
+
+
+@pytest.mark.parametrize(("value", "expected"), ((0, True), (1, True), (2, False)))
+def test_finite_in_leaf_uses_exact_membership(value: int, expected: bool) -> None:
+    """有限guardの代表/非代表と範囲外を、集合の等値ではなく所属で照合する。"""
+    assert checker._predicate_holds(
+        {"op": "in", "axisId": "state.count.strikes", "values": [0, 1]},
+        {"state.count.strikes": value},
+    ) is expected
+
+
+@pytest.mark.parametrize("value", (False, True, "0", 0.0, None))
+def test_finite_in_does_not_coerce_fixture_value(value: Any) -> None:
+    """bool/int・文字列・浮動小数を同じcount値へcoercionしない。"""
+    assert checker._predicate_holds(
+        {"op": "in", "axisId": "state.count.strikes", "values": [0, 1]},
+        {"state.count.strikes": value},
+    ) is False
+
+
+@pytest.mark.parametrize("mutation", (
+    "empty", "not-array", "duplicate", "mixed-type", "structured", "extra",
+    "unknown-axis", "missing-axis", "unknown-op",
+))
+def test_finite_in_rejects_unknown_shape_and_values(mutation: str) -> None:
+    """in対応を未知field/軸/式や不定形値の補完へ広げない。"""
+    predicate: dict[str, Any] = {
+        "op": "in", "axisId": "state.count.strikes", "values": [0, 1]
+    }
+    coordinate = {"state.count.strikes": 0}
+    if mutation == "empty":
+        predicate["values"] = []
+    elif mutation == "not-array":
+        predicate["values"] = "0,1"
+    elif mutation == "duplicate":
+        predicate["values"] = [0, 0]
+    elif mutation == "mixed-type":
+        predicate["values"] = [0, True]
+    elif mutation == "structured":
+        predicate["values"] = [{"unknown": True}]
+    elif mutation == "extra":
+        predicate["unknown"] = True
+    elif mutation == "unknown-axis":
+        predicate["axisId"] = "unknown"
+    elif mutation == "missing-axis":
+        predicate.pop("axisId")
+    else:
+        predicate["op"] = "unknown"
+    with pytest.raises(checker.BranchRowMappingError):
+        checker._predicate_holds(predicate, coordinate)
+
+
+def test_finite_in_composes_with_existing_boolean_predicates() -> None:
+    """既and/or/notの評価を変えず、新finite葉だけを子にできる。"""
+    leaf = {"op": "in", "axisId": "state.count.strikes", "values": [0, 1]}
+    assert checker._predicate_holds(
+        {"op": "and", "args": [leaf, {"op": "eq", "axisId": "state.outs", "value": 0}]},
+        {"state.count.strikes": 1, "state.outs": 0},
+    )
+    assert not checker._predicate_holds(
+        {"op": "not", "args": [leaf]}, {"state.count.strikes": 1}
+    )

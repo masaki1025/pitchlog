@@ -39,10 +39,10 @@ describe('StrikeZone', () => {
   it.each([
     ['右打者・捕手側', '右', 'catcher', 80],
     ['左打者・捕手側', '左', 'catcher', 80],
-    ['右打者・投手後方', '右', 'pitcher', 183],
-    ['左打者・投手後方', '左', 'pitcher', 183],
+    ['右打者・投手後方', '右', 'pitcher', 80],
+    ['左打者・投手後方', '左', 'pitcher', 80],
   ] as const)(
-    '%s はタップ座標を捕手側保存座標へ変換する',
+    '%s は画面座標を保ち、artifactでの量子化より前に反転しない',
     (_label, plateSide, viewpoint, expectedStoredX) => {
       const wrapper = mount(StrikeZone, {
         props: {
@@ -127,3 +127,20 @@ describe('StrikeZone', () => {
     expect(lines[3].y1).toBe(lines[3].y2)
   })
 })
+
+it.each(['catcher', 'pitcher'] as const)(
+  '量子化境界131.5を%sでもそのまま渡す',
+  (viewpoint) => {
+    const wrapper = mount(StrikeZone, {
+      props: { plateSide: '右', point: null, viewpoint },
+    })
+    wrapper.get('svg').element.dispatchEvent(
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        clientX: 141.5,
+        clientY: 144,
+      }),
+    )
+    expect(wrapper.emitted('tap')).toEqual([[131.5, 124]])
+  },
+)

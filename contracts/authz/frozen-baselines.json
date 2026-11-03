@@ -842,6 +842,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
       "approved_at": "2026-10-31"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#189",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "6a214c9dc33c7f6e54530510d6d625f25a39348f"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "706846283aca477b338d29352ac6323fdf3b9684"
+          }
+        ]
+      },
+      "reason": "採用済み初球・試合作成・球種供給の8入力を3dd1bfa1へ固定。非作者REPORT9edd03ecbcadf299e7e2677bdb1299480ad009f08f9bc357638d64208bb406acで旧AUTH187全field/digest・旧全正負cell・4lock・実HTTP3/C2/CAPを照合し採用。旧全履歴と規範状態を保持し、6oracleの意味本文・期待/拒否を変えずcommit参照だけ伝播する。専用再封印後の差分レビュー・正式7.7/全件CIは別証拠。PO本人の直接確認/署名・新規実機/運用実測を代記しない。 固定8入力のbyteを変えず、旧ordinary4pinの独立JSON（非作者REPORTd6980069…で旧ad658値完全一致）を含むcc0e87a8へ最終参照を更新する。未正式受理の#189末尾1recordのみを最終実値へ揃え、旧16履歴は変更しない。\n\n2026-11-03 追記: 状態遷移coverageの代表割当を、in guardを宣言順の先頭値のeqとみなして従来割当を先に、拡張で新たに通る値を後段に回す方式へ安定化し、契約119件・GAP-07 39件・通常33受理record/schema/pinsの9資産digestを実値へ追随した。派生caseの履歴は代表caseのbefore→after差分を新値へ適用する。固定8入力のbyte・旧16履歴・個人レビュー/署名・実機/運用実測を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
+      "approved_at": "2026-11-02"
     }
   ]
 }

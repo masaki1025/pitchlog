@@ -28,9 +28,10 @@ from product_authz_tenant_owned_cases import (
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import ProvisionedProductCatalog, first_ball_guard_disabled
 
 pytestmark = pytest.mark.requires_db
+
 
 _APP_ROLE = "pitchlog_app"
 _HELPER_SCHEMA = "authz_private"
@@ -79,11 +80,12 @@ class _AttachedTrigger:
 
 def _seed_all_tables(catalog: ProvisionedProductCatalog) -> None:
     """外部適用主体で全プロファイルの対象行を FK 順に作る。"""
-    with catalog.applicator.cursor() as cursor:
-        for row in other_profile_seed_rows():
-            statement, params = insert_statement(row)
-            cursor.execute(statement, params)
-    catalog.applicator.commit()
+    with first_ball_guard_disabled(catalog.owner_dsn):
+        with catalog.applicator.cursor() as cursor:
+            for row in other_profile_seed_rows():
+                statement, params = insert_statement(row)
+                cursor.execute(statement, params)
+        catalog.applicator.commit()
 
 
 def _attached_triggers(
@@ -358,6 +360,12 @@ def test_force_rls_applies_to_owner_with_unbound_context(
             cursor.execute("SELECT pg_catalog.current_setting('app.tenant_id', true)")
             assert cursor.fetchone() == (None,)
             for table in manifest_table_names():
+                if table in {
+                    "writer_bindings",
+                    "writer_admissions",
+                    "first_ball_write_admissions",
+                }:
+                    continue
                 cursor.execute(
                     sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
                         sql.Identifier("public", table)

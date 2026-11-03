@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
-from typing import Literal, cast
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -758,3 +758,103 @@ def test_d5_stored_result_and_conflict_do_not_start_new_writes() -> None:
     assert conflict is not None
     assert conflict.boundary == "B3b"
     assert not conflict.accepted
+
+
+def _w2_view_scope(original: object, fingerprint: str):
+    """既W2の2読取だけを返すpure double。DB資格ではない。"""
+    from pitchlog.sync.tokens import RejectedOriginalReadToken
+
+    class OriginalScope:
+        def run(self, token):
+            if type(token) is IdempotencyLedgerReadToken:
+                data: dict[str, Any] = {
+                    "kind": "rejected",
+                    "source_fingerprint": fingerprint,
+                }
+                columns = prefix_path._LEDGER_COLUMNS
+            else:
+                assert type(token) is RejectedOriginalReadToken
+                data = {"payload": original}
+                columns = prefix_path._REJECTION_COLUMNS
+            return TenantOperationResult(
+                (tuple(cast(ImmutableValue, data.get(k)) for k in columns),)
+            )
+
+    return cast(_TenantTransaction, OriginalScope())
+
+
+def _w2_event(kind="1"):
+    return SyncEvent(
+        str(uuid4()),
+        GAME,
+        1,
+        "epoch",
+        v5=kind,
+        v9={"revision": True, "rejected_d5": D5},
+        v10={"game": GAME, "d4": "epoch", "d1": 1},
+    )
+
+
+@pytest.mark.parametrize("wire", (False, True))
+def test_w2_closed_view_connects_wire_and_keeps_legacy(wire):
+    """Wire decoderをpayload抽出直後に接ぎ、旧flatも同じW2へ通す。"""
+    from pitchlog.sync.idempotency import source_fingerprint
+    from pitchlog.sync.wire_fingerprint import freeze_wire_event, wire_event_fingerprint
+    from pitchlog.sync.wire_original import encode_wire_original
+
+    raw = {"game_id": GAME, "d4": "epoch", "d1": 1, "d5": D5, "event_kind": "1"}
+    if wire:
+        event = freeze_wire_event(raw)
+        digest = wire_event_fingerprint(event)
+        original = json.loads(encode_wire_original(event))
+    else:
+        digest = source_fingerprint(raw)
+        original = raw
+    _require_rejected_original(_w2_view_scope(original, digest), _w2_event(), UUID(D5))
+
+
+@pytest.mark.parametrize(
+    "fault,reason",
+    (("scope", "D1 が置換対象"), ("kind", "参加区分"), ("d2", "D2 を継承")),
+)
+def test_w2_legacy_multiple_fault_reason_precedes_fingerprint(
+    monkeypatch, fault, reason
+):
+    """旧scope/kind/D2拒否をhash不一致より先に保ち、新helperで前倒ししない。"""
+    original = {
+        "game_id": GAME,
+        "d4": "epoch",
+        "d1": 1,
+        "d5": D5,
+        "event_kind": "1",
+        "operation_fingerprint": "wrong",
+    }
+    if fault == "scope":
+        original["game_id"] = str(uuid4())
+    elif fault == "kind":
+        original["event_kind"] = "other-kind"
+    else:
+        original["d2"] = 1
+
+    def forbidden(original):
+        raise AssertionError("旧先行拒否より前にhashを評価した")
+
+    monkeypatch.setattr(prefix_path, "_original_fingerprint", forbidden)
+    with pytest.raises(P1PreconditionError, match=reason) as error:
+        _require_rejected_original(
+            _w2_view_scope(original, "a" * 64), _w2_event(), UUID(D5)
+        )
+    assert error.value.category == "w2_violation"
+
+
+@pytest.mark.parametrize("source", (None, False, "legacy", object()))
+def test_e1_source_absence_never_selects_legacy_fingerprint(monkeypatch, source):
+    """E1 helperの欠落/自由scalarを旧式へfallbackしない。"""
+    from pitchlog.sync.source_binding import SourceBindingError
+
+    def forbidden(*args):
+        raise AssertionError("E1から旧fingerprintを選択した")
+
+    monkeypatch.setattr(prefix_path, "operation_fingerprint", forbidden)
+    with pytest.raises(SourceBindingError):
+        prefix_path._locked_source_fingerprint(None, _w2_event(), "P2", None, source)

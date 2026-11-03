@@ -15,7 +15,10 @@ from pitchlog.api.schemas.game_start import (
     InitialGameStartResponse,
 )
 from pitchlog.api.schemas.games import (
+    PreparationOptionsRequest,
+    PreparingGameCreate,
     PreparingGameListRequest,
+    PreparingGamePreparationOptions,
     PreparingGameRead,
     _decode_preparing_snapshot,
     encode_preparing_game_cursor,
@@ -39,8 +42,14 @@ from pitchlog.recording_rights.initial_grant_broker import (
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.game_start import InitialStartPayload, _entries
 from pitchlog.repositories.games import PreparingGameDetailToken, PreparingGameListToken
+from pitchlog.repositories.rule_resolution import RuleResolutionError
 from pitchlog.repositories.tokens import ImmutableValue
 from pitchlog.repositories.transaction import tenant_transaction_scope
+from pitchlog.services.game_creation import (
+    PreparingGameCreationError,
+    create_preparing_game,
+    read_preparation_options,
+)
 
 router = APIRouter(tags=["準備中試合"], route_class=TenantMatchedRoute)
 _FIELDS = (
@@ -90,6 +99,59 @@ def list_preparing_games(
         return page
     except Exception:
         # rollback後に固定外形だけを返し、DB値や原例外を公開しない。
+        raise HTTPException(status_code=503) from None
+
+
+@router.get(
+    "/games/preparation-options",
+    response_model=PreparingGamePreparationOptions,
+    operation_id="preparing_game_preparation_options",
+)
+def preparation_options(
+    query: Annotated[PreparationOptionsRequest, Query()],
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> PreparingGamePreparationOptions:
+    """認証/C2を先に確認し、有効大会の1ページと固定区分を返す。"""
+    try:
+        with tenant_transaction_scope(context) as scope:
+            page = read_preparation_options(scope, query)
+        return page
+    except Exception:
+        raise HTTPException(status_code=503) from None
+
+
+@router.post(
+    "/games",
+    response_model=PreparingGameRead,
+    status_code=201,
+    operation_id="preparing_game_create",
+)
+def create_game(
+    body: PreparingGameCreate,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> PreparingGameRead:
+    """正規serviceの例外をscope外へ伝播し、commit完了後だけ201を返す。"""
+    try:
+        with tenant_transaction_scope(context) as scope:
+            candidate = create_preparing_game(scope, body)
+        return candidate
+    except RuleResolutionError as error:
+        status = {
+            "stage_a_unsupported": 422,
+            "rule_not_available": 404,
+            "invalid_rule": 409,
+            "outcome_unconfirmed": 503,
+        }[error.code]
+        raise HTTPException(status_code=status) from None
+    except PreparingGameCreationError as error:
+        status = {
+            "not_available": 404,
+            "tournament_name_conflict": 409,
+            "outcome_unconfirmed": 503,
+        }[error.code]
+        raise HTTPException(status_code=status) from None
+    except Exception:
+        # 実RG1常閉・競合・commit失敗もrollback後の非成功に閉じる。
         raise HTTPException(status_code=503) from None
 
 

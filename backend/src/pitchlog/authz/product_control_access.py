@@ -333,6 +333,11 @@ def generate_function_owner_column_acl_sql(
     declaration: dict[str, object],
 ) -> str:
     """関数所有者の列SELECTと閉じた列UPDATE SQLを生成する。"""
+    from pitchlog.authz.first_ball_product import require_row
+
+    added = require_row("column_acl_expectations", dict(declaration))
+    if added is not None:
+        return added
     from pitchlog.authz.initial_start_sql import (
         generate_start_column_acl_sql,
         is_start_column_acl,

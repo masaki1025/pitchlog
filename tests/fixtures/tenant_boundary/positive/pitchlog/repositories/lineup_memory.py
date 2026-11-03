@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Union
 
-from sqlalchemy import (  # ty: ignore[unresolved-import]
+from sqlalchemy import (
     Column,
     Integer,
     MetaData,
@@ -13,8 +13,8 @@ from sqlalchemy import (  # ty: ignore[unresolved-import]
     select,
     update,
 )
-from sqlalchemy.sql.dml import Insert, Update  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy.sql.dml import Insert, Update
+from sqlalchemy.sql.selectable import Select
 
 _TEAMS = Table("team_records", MetaData(), Column("id", Integer))
 _MEMORIES = Table("lineup_memories", MetaData(), Column("id", Integer))

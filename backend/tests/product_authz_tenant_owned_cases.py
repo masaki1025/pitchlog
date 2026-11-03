@@ -13,6 +13,7 @@ from uuid import UUID, uuid5
 
 from psycopg import sql
 from psycopg.types.json import Jsonb
+from test_schema_manifest import Base, _contract_table_name
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _REPOSITORY_ROOT / "contracts/db/schema-manifest.json"
@@ -137,12 +138,34 @@ def _column_names(table: dict[str, object]) -> tuple[str, ...]:
     return tuple(result)
 
 
+def private_function_only_table_names() -> tuple[str, ...]:
+    """汎用seed/DMLへ渡さない既知の私有3表を宣言順で返す。"""
+    return tuple(
+        _table_name(table)
+        for table in manifest_tables()
+        if table_schema(_table_name(table)) == "sync_fence"
+    )
+
+
+def table_schema(table: str) -> str:
+    """実ORMのschemaを既public/私有3表の有限対応で検査する。"""
+    if table not in {_table_name(row) for row in manifest_tables()}:
+        raise AssertionError(f"manifest外の表: {table}")
+    matches = [row for row in Base.metadata.tables.values() if row.name == table]
+    if len(matches) != 1:
+        raise AssertionError(f"表schemaの欠落/同名衝突: {table}")
+    model = matches[0]
+    _contract_table_name(model.schema, model.name)
+    return "public" if model.schema is None else model.schema
+
+
 def tenant_id_table_names() -> tuple[str, ...]:
-    """Manifest で tenant_id 列を持つ全表を返す。"""
+    """従来のpublic seed対象32表だけを返し、私有3表を分ける。"""
     return tuple(
         _table_name(table)
         for table in manifest_tables()
         if "tenant_id" in _column_names(table)
+        and table_schema(_table_name(table)) == "public"
     )
 
 
@@ -1071,9 +1094,12 @@ def insert_candidate(table: str, tenant_id: UUID) -> SeedRow:
 
 def insert_statement(row: SeedRow) -> tuple[sql.Composed, tuple[object, ...]]:
     """SeedRow から識別子を引用した INSERT と束縛値を作る。"""
+    schema = table_schema(row.table)
+    if schema != "public":
+        raise AssertionError("私有表への汎用INSERTは禁止")
     columns = tuple(row.values)
     statement = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
-        sql.Identifier("public", row.table),
+        sql.Identifier(schema, row.table),
         sql.SQL(", ").join(sql.Identifier(column) for column in columns),
         sql.SQL(", ").join(sql.Placeholder() for _ in columns),
     )

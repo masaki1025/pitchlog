@@ -1,0 +1,2593 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "const": "batting-result.called-pitch"
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "const": "top"
+                },
+                "state.count.strikes": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1"
+                  ]
+                },
+                "state.count.balls": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1",
+                    "2",
+                    "3"
+                  ]
+                },
+                "state.outs": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "state.runners": {
+                  "const": "empty"
+                },
+                "state.battingOrder": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.score": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "type": "object",
+              "properties": {
+                "inningScores": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                },
+                "hits": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "errors": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "strikeouts": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "walks": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "required": [
+                "inningScores",
+                "hits",
+                "errors",
+                "strikeouts",
+                "walks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard"
+          ],
+          "additionalProperties": false
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "confirmed-play"
+                  },
+                  "difference": {
+                    "type": "object",
+                    "properties": {
+                      "stateFields": {
+                        "type": "object",
+                        "properties": {
+                          "state.half": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.strikes": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.balls": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.outs": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.runners": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.battingOrder": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.tiebreakActive": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.gameEnded": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.inning": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.score": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "scoreboard": {
+                        "type": "object",
+                        "properties": {
+                          "inningScores": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "hits": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "errors": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "strikeouts": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "walks": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "statFlags": {
+                        "type": "object",
+                        "properties": {
+                          "投球回算入アウト": {
+                            "type": "boolean"
+                          },
+                          "投球数": {
+                            "type": "boolean"
+                          },
+                          "奪三振": {
+                            "type": "boolean"
+                          },
+                          "与四球": {
+                            "type": "boolean"
+                          },
+                          "与死球": {
+                            "type": "boolean"
+                          },
+                          "被安打": {
+                            "type": "boolean"
+                          },
+                          "被本塁打": {
+                            "type": "boolean"
+                          },
+                          "失点": {
+                            "type": "boolean"
+                          },
+                          "失策": {
+                            "type": "boolean"
+                          },
+                          "打席": {
+                            "type": "boolean"
+                          },
+                          "打数": {
+                            "type": "boolean"
+                          },
+                          "安打": {
+                            "type": "boolean"
+                          },
+                          "本塁打": {
+                            "type": "boolean"
+                          },
+                          "塁打": {
+                            "type": "boolean"
+                          },
+                          "犠打": {
+                            "type": "boolean"
+                          },
+                          "犠飛": {
+                            "type": "boolean"
+                          },
+                          "四球": {
+                            "type": "boolean"
+                          },
+                          "死球": {
+                            "type": "boolean"
+                          },
+                          "三振": {
+                            "type": "boolean"
+                          },
+                          "打撃妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "走塁妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "得点": {
+                            "type": "boolean"
+                          },
+                          "打点": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "投球回算入アウト",
+                          "投球数",
+                          "奪三振",
+                          "与四球",
+                          "与死球",
+                          "被安打",
+                          "被本塁打",
+                          "失点",
+                          "失策",
+                          "打席",
+                          "打数",
+                          "安打",
+                          "本塁打",
+                          "塁打",
+                          "犠打",
+                          "犠飛",
+                          "四球",
+                          "死球",
+                          "三振",
+                          "打撃妨害出塁",
+                          "走塁妨害出塁",
+                          "得点",
+                          "打点"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "stateFields",
+                      "scoreboard",
+                      "statFlags"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "difference"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "const": "batting-result.swinging-strike"
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "const": "top"
+                },
+                "state.count.strikes": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1"
+                  ]
+                },
+                "state.count.balls": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1",
+                    "2",
+                    "3"
+                  ]
+                },
+                "state.outs": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "state.runners": {
+                  "const": "empty"
+                },
+                "state.battingOrder": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.score": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "type": "object",
+              "properties": {
+                "inningScores": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                },
+                "hits": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "errors": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "strikeouts": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "walks": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "required": [
+                "inningScores",
+                "hits",
+                "errors",
+                "strikeouts",
+                "walks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard"
+          ],
+          "additionalProperties": false
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "confirmed-play"
+                  },
+                  "difference": {
+                    "type": "object",
+                    "properties": {
+                      "stateFields": {
+                        "type": "object",
+                        "properties": {
+                          "state.half": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.strikes": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.balls": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.outs": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.runners": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.battingOrder": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.tiebreakActive": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.gameEnded": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.inning": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.score": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "scoreboard": {
+                        "type": "object",
+                        "properties": {
+                          "inningScores": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "hits": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "errors": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "strikeouts": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "walks": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "statFlags": {
+                        "type": "object",
+                        "properties": {
+                          "投球回算入アウト": {
+                            "type": "boolean"
+                          },
+                          "投球数": {
+                            "type": "boolean"
+                          },
+                          "奪三振": {
+                            "type": "boolean"
+                          },
+                          "与四球": {
+                            "type": "boolean"
+                          },
+                          "与死球": {
+                            "type": "boolean"
+                          },
+                          "被安打": {
+                            "type": "boolean"
+                          },
+                          "被本塁打": {
+                            "type": "boolean"
+                          },
+                          "失点": {
+                            "type": "boolean"
+                          },
+                          "失策": {
+                            "type": "boolean"
+                          },
+                          "打席": {
+                            "type": "boolean"
+                          },
+                          "打数": {
+                            "type": "boolean"
+                          },
+                          "安打": {
+                            "type": "boolean"
+                          },
+                          "本塁打": {
+                            "type": "boolean"
+                          },
+                          "塁打": {
+                            "type": "boolean"
+                          },
+                          "犠打": {
+                            "type": "boolean"
+                          },
+                          "犠飛": {
+                            "type": "boolean"
+                          },
+                          "四球": {
+                            "type": "boolean"
+                          },
+                          "死球": {
+                            "type": "boolean"
+                          },
+                          "三振": {
+                            "type": "boolean"
+                          },
+                          "打撃妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "走塁妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "得点": {
+                            "type": "boolean"
+                          },
+                          "打点": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "投球回算入アウト",
+                          "投球数",
+                          "奪三振",
+                          "与四球",
+                          "与死球",
+                          "被安打",
+                          "被本塁打",
+                          "失点",
+                          "失策",
+                          "打席",
+                          "打数",
+                          "安打",
+                          "本塁打",
+                          "塁打",
+                          "犠打",
+                          "犠飛",
+                          "四球",
+                          "死球",
+                          "三振",
+                          "打撃妨害出塁",
+                          "走塁妨害出塁",
+                          "得点",
+                          "打点"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "stateFields",
+                      "scoreboard",
+                      "statFlags"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "difference"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "const": "batting-result.foul"
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "const": "top"
+                },
+                "state.count.strikes": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1"
+                  ]
+                },
+                "state.count.balls": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1",
+                    "2",
+                    "3"
+                  ]
+                },
+                "state.outs": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "state.runners": {
+                  "const": "empty"
+                },
+                "state.battingOrder": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.score": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "type": "object",
+              "properties": {
+                "inningScores": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                },
+                "hits": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "errors": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "strikeouts": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "walks": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "required": [
+                "inningScores",
+                "hits",
+                "errors",
+                "strikeouts",
+                "walks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard"
+          ],
+          "additionalProperties": false
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "confirmed-play"
+                  },
+                  "difference": {
+                    "type": "object",
+                    "properties": {
+                      "stateFields": {
+                        "type": "object",
+                        "properties": {
+                          "state.half": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.strikes": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.balls": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.outs": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.runners": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.battingOrder": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.tiebreakActive": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.gameEnded": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.inning": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.score": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "scoreboard": {
+                        "type": "object",
+                        "properties": {
+                          "inningScores": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "hits": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "errors": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "strikeouts": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "walks": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "statFlags": {
+                        "type": "object",
+                        "properties": {
+                          "投球回算入アウト": {
+                            "type": "boolean"
+                          },
+                          "投球数": {
+                            "type": "boolean"
+                          },
+                          "奪三振": {
+                            "type": "boolean"
+                          },
+                          "与四球": {
+                            "type": "boolean"
+                          },
+                          "与死球": {
+                            "type": "boolean"
+                          },
+                          "被安打": {
+                            "type": "boolean"
+                          },
+                          "被本塁打": {
+                            "type": "boolean"
+                          },
+                          "失点": {
+                            "type": "boolean"
+                          },
+                          "失策": {
+                            "type": "boolean"
+                          },
+                          "打席": {
+                            "type": "boolean"
+                          },
+                          "打数": {
+                            "type": "boolean"
+                          },
+                          "安打": {
+                            "type": "boolean"
+                          },
+                          "本塁打": {
+                            "type": "boolean"
+                          },
+                          "塁打": {
+                            "type": "boolean"
+                          },
+                          "犠打": {
+                            "type": "boolean"
+                          },
+                          "犠飛": {
+                            "type": "boolean"
+                          },
+                          "四球": {
+                            "type": "boolean"
+                          },
+                          "死球": {
+                            "type": "boolean"
+                          },
+                          "三振": {
+                            "type": "boolean"
+                          },
+                          "打撃妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "走塁妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "得点": {
+                            "type": "boolean"
+                          },
+                          "打点": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "投球回算入アウト",
+                          "投球数",
+                          "奪三振",
+                          "与四球",
+                          "与死球",
+                          "被安打",
+                          "被本塁打",
+                          "失点",
+                          "失策",
+                          "打席",
+                          "打数",
+                          "安打",
+                          "本塁打",
+                          "塁打",
+                          "犠打",
+                          "犠飛",
+                          "四球",
+                          "死球",
+                          "三振",
+                          "打撃妨害出塁",
+                          "走塁妨害出塁",
+                          "得点",
+                          "打点"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "stateFields",
+                      "scoreboard",
+                      "statFlags"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "difference"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "const": "batting-result.ball"
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "const": "top"
+                },
+                "state.count.strikes": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1",
+                    "2"
+                  ]
+                },
+                "state.count.balls": {
+                  "type": "string",
+                  "enum": [
+                    "0",
+                    "1",
+                    "2"
+                  ]
+                },
+                "state.outs": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "state.runners": {
+                  "const": "empty"
+                },
+                "state.battingOrder": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "type": "string",
+                  "const": "1"
+                },
+                "state.score": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "type": "object",
+              "properties": {
+                "inningScores": {
+                  "type": "object",
+                  "properties": {
+                    "home": {
+                      "type": "string",
+                      "const": "0"
+                    },
+                    "away": {
+                      "type": "string",
+                      "const": "0"
+                    }
+                  },
+                  "required": [
+                    "home",
+                    "away"
+                  ],
+                  "additionalProperties": false
+                },
+                "hits": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "errors": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "strikeouts": {
+                  "type": "string",
+                  "const": "0"
+                },
+                "walks": {
+                  "type": "string",
+                  "const": "0"
+                }
+              },
+              "required": [
+                "inningScores",
+                "hits",
+                "errors",
+                "strikeouts",
+                "walks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard"
+          ],
+          "additionalProperties": false
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "confirmed-play"
+                  },
+                  "difference": {
+                    "type": "object",
+                    "properties": {
+                      "stateFields": {
+                        "type": "object",
+                        "properties": {
+                          "state.half": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "top",
+                                  "bottom"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.strikes": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.count.balls": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.outs": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.runners": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              },
+                              "after": {
+                                "enum": [
+                                  "empty",
+                                  "first",
+                                  "second",
+                                  "third",
+                                  "first-second",
+                                  "first-third",
+                                  "second-third",
+                                  "loaded"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.battingOrder": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.tiebreakActive": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.gameEnded": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "boolean"
+                              },
+                              "after": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.inning": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "state.score": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "scoreboard": {
+                        "type": "object",
+                        "properties": {
+                          "inningScores": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  },
+                                  "away": {
+                                    "type": "string",
+                                    "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "hits": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "errors": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "strikeouts": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "walks": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              },
+                              "after": {
+                                "type": "string",
+                                "pattern": "^(?:0|[1-9][0-9]*|-[1-9][0-9]*)$"
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [],
+                        "additionalProperties": false
+                      },
+                      "statFlags": {
+                        "type": "object",
+                        "properties": {
+                          "投球回算入アウト": {
+                            "type": "boolean"
+                          },
+                          "投球数": {
+                            "type": "boolean"
+                          },
+                          "奪三振": {
+                            "type": "boolean"
+                          },
+                          "与四球": {
+                            "type": "boolean"
+                          },
+                          "与死球": {
+                            "type": "boolean"
+                          },
+                          "被安打": {
+                            "type": "boolean"
+                          },
+                          "被本塁打": {
+                            "type": "boolean"
+                          },
+                          "失点": {
+                            "type": "boolean"
+                          },
+                          "失策": {
+                            "type": "boolean"
+                          },
+                          "打席": {
+                            "type": "boolean"
+                          },
+                          "打数": {
+                            "type": "boolean"
+                          },
+                          "安打": {
+                            "type": "boolean"
+                          },
+                          "本塁打": {
+                            "type": "boolean"
+                          },
+                          "塁打": {
+                            "type": "boolean"
+                          },
+                          "犠打": {
+                            "type": "boolean"
+                          },
+                          "犠飛": {
+                            "type": "boolean"
+                          },
+                          "四球": {
+                            "type": "boolean"
+                          },
+                          "死球": {
+                            "type": "boolean"
+                          },
+                          "三振": {
+                            "type": "boolean"
+                          },
+                          "打撃妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "走塁妨害出塁": {
+                            "type": "boolean"
+                          },
+                          "得点": {
+                            "type": "boolean"
+                          },
+                          "打点": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "投球回算入アウト",
+                          "投球数",
+                          "奪三振",
+                          "与四球",
+                          "与死球",
+                          "被安打",
+                          "被本塁打",
+                          "失点",
+                          "失策",
+                          "打席",
+                          "打数",
+                          "安打",
+                          "本塁打",
+                          "塁打",
+                          "犠打",
+                          "犠飛",
+                          "四球",
+                          "死球",
+                          "三振",
+                          "打撃妨害出塁",
+                          "走塁妨害出塁",
+                          "得点",
+                          "打点"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "stateFields",
+                      "scoreboard",
+                      "statFlags"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "kind",
+                  "difference"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before",
+        "history"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

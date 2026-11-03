@@ -12,6 +12,7 @@ from uuid import UUID
 
 from sqlalchemy import bindparam, select
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.engine.interfaces import Dialect
 from sqlalchemy.sql.elements import BindParameter, Label
 from sqlalchemy.sql.functions import Function
 from sqlalchemy.sql.selectable import Select, TableValuedAlias
@@ -19,6 +20,7 @@ from sqlalchemy.sql.sqltypes import (
     UUID as SqlUUID,
 )
 from sqlalchemy.sql.sqltypes import (
+    BigInteger,
     Boolean,
     Integer,
     LargeBinary,
@@ -26,6 +28,7 @@ from sqlalchemy.sql.sqltypes import (
     String,
     Uuid,
 )
+from sqlalchemy.sql.type_api import TypeDecorator
 
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
@@ -199,6 +202,67 @@ def _valid_db_identifier(name: object) -> bool:
     )
 
 
+_SYNC_FIRST_BALL_COMMON = (
+    ("attempt_id", UUID),
+    ("phase_id", UUID),
+    ("binding_nonce", bytes),
+    ("device_id", UUID),
+    ("game_id", UUID),
+)
+_SYNC_FIRST_BALL_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.read_device_state": (
+            (("device_id", UUID),),
+            (("device_active", bool),),
+            (),
+            (),
+        ),
+        "sync_right_api.bind_device": (
+            (*_SYNC_FIRST_BALL_COMMON, ("credential_digest", bytes)),
+            (("device_matches", bool),),
+            (),
+            (),
+        ),
+        "sync_right_api.check_current_right": (
+            (
+                *_SYNC_FIRST_BALL_COMMON,
+                ("internal_generation", int),
+                ("recovery_generation", int),
+                ("proof_digest", bytes),
+            ),
+            (("recovery_matches", bool), ("right_matches", bool)),
+            (),
+            (),
+        ),
+    }
+)
+
+
+_SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_fence_api.read_writer_identity": (
+            (),
+            (
+                ("system_identifier", str),
+                ("database_oid", str),
+                ("postmaster_started_at", datetime),
+                ("backend_pid", int),
+                ("backend_start", datetime),
+                ("transaction_id", str),
+            ),
+            (),
+            ("postmaster_started_at", "backend_start"),
+        ),
+        "sync_fence_api.assert_writer_binding": (
+            _SYNC_FIRST_BALL_COMMON,
+            (("asserted", bool),),
+            ("asserted",),
+            (),
+        ),
+    }
+)
+
+
 def _valid_function_schema(name: object) -> bool:
     """接続ごとに指す先が変わる一時schemaとシステムschemaを拒否する。"""
     return (
@@ -211,6 +275,19 @@ def _valid_function_schema(name: object) -> bool:
 
 class FunctionOperationError(RuntimeError):
     """固定関数の登録、入力、結果の契約違反。"""
+
+
+class _WriterAssertVoidResult(TypeDecorator[None]):
+    """固定writer assertの実driver空文字だけを内部NULLへ正規化する。"""
+
+    impl = NullType
+    cache_ok = True
+
+    def process_result_value(self, value: object, dialect: Dialect) -> None:
+        """PostgreSQL voidのTEXT表現以外は値を漏らさず拒否する。"""
+        if type(value) is not str or value != "":
+            raise FunctionOperationError("writer assertのdriver応答が不一致")
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -272,6 +349,8 @@ class FunctionOperationRegistration:
             initial = _INITIAL_ENROLL_FUNCTION_TYPES.get(self.function_id)
         if initial is None:
             initial = _INITIAL_RESOLVE_FUNCTION_TYPES.get(self.function_id)
+        first_ball = _SYNC_FIRST_BALL_FUNCTION_TYPES.get(self.function_id)
+        writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         extended = (
             self.input_fields,
             self.result_fields,
@@ -286,6 +365,28 @@ class FunctionOperationRegistration:
                 or self.capability_id != f"CAP:initial_right:{name}"
             ):
                 raise FunctionOperationError("初期権関数の有限型宣言が不一致")
+        elif first_ball is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != first_ball
+                or self.operation_id != f"SYNC_FIRST_BALL:{name}"
+                or self.capability_id != f"CAP:sync_first_ball:{name}"
+                or self.min_rows != 1
+                or self.max_rows != 1
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("初球関数の有限型宣言が不一致")
+        elif writer_binding is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != writer_binding
+                or self.operation_id != f"SYNC_WRITER_BINDING:{name}"
+                or self.capability_id != f"CAP:sync_writer_binding:{name}"
+                or self.min_rows != 1
+                or self.max_rows != 1
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("writer binding関数の有限型宣言が不一致")
         elif (
             self.nullable_results
             or self.aware_datetime_results
@@ -378,10 +479,24 @@ class FunctionOperationRegistration:
                 )
             if type(argument.type) is NullType:
                 continue
-            if type(argument.type) not in _SAFE_BIND_TYPES and not (
-                initial is not None
-                and expected_type is bytes
-                and type(argument.type) is LargeBinary
+            if (
+                type(argument.type) not in _SAFE_BIND_TYPES
+                and not (
+                    (
+                        initial is not None
+                        or first_ball is not None
+                        or writer_binding is not None
+                    )
+                    and expected_type is bytes
+                    and type(argument.type) is LargeBinary
+                )
+                and not (
+                    first_ball is not None
+                    and self.function_id == "sync_right_api.check_current_right"
+                    and argument.key in ("internal_generation", "recovery_generation")
+                    and expected_type is int
+                    and type(argument.type) is BigInteger
+                )
             ):
                 raise FunctionOperationError("固定関数bindに未許可のSQL型")
             try:
@@ -412,9 +527,26 @@ def _build_fixed_function_statement(
     """検証済み宣言から固定関数のSelectだけを組み立てる。"""
     safe_arguments = (
         _canonical_bind("tenant_id", UUID),
-        *(_canonical_bind(name, field_type) for name, field_type in input_fields),
+        *(
+            bindparam(name, type_=BigInteger())
+            if (
+                schema == "sync_right_api"
+                and function_name == "check_current_right"
+                and name in ("internal_generation", "recovery_generation")
+                and field_type is int
+            )
+            else _canonical_bind(name, field_type)
+            for name, field_type in input_fields
+        ),
     )
     safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if (
+        schema == "sync_fence_api"
+        and function_name == "assert_writer_binding"
+        and not table_valued
+        and result_names == ("asserted",)
+    ):
+        safe_function.type = _WriterAssertVoidResult()
     if not table_valued:
         return select(safe_function.label(result_names[0]))
     safe_table = safe_function.table_valued(*result_names)
@@ -493,6 +625,14 @@ def prepare_function_operation(
                 raise FunctionOperationError("初期権の整数は正bigintが必要")
             if expected_type is str and not value:
                 raise FunctionOperationError("初期権の文字列を空にできない")
+        if (
+            spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES
+            or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
+        ):
+            if expected_type is bytes and len(value) != 32:
+                raise FunctionOperationError("初球の固定byte長が不一致")
+            if expected_type is int and not 0 < value < 2**63:
+                raise FunctionOperationError("初球の整数は正bigintが必要")
         if name in spec.nonempty_inputs and value == "":
             raise FunctionOperationError(f"固定関数入力{name}は空文字を許可しない")
         parameters[name] = value

@@ -255,6 +255,7 @@ _PRODUCT_FUNCTION_KINDS = (
     "definer",
     "migration_trigger",
     "migration_function",
+    "invoker",
 )
 
 
@@ -413,6 +414,11 @@ def _validate_element_coverage(
             ):
                 expected_groups.add("functions:definer")
             if any(
+                isinstance(row, dict) and row.get("function_kind") == "invoker"
+                for row in raw_rows
+            ):
+                expected_groups.add("functions:invoker")
+            if any(
                 isinstance(row, dict)
                 and row.get("function_kind") == "migration_function"
                 for row in raw_rows
@@ -472,6 +478,22 @@ def _validate_element_coverage(
                     raise AuthzApplicationStepsError(
                         f"{label}の関数ACL付与先は配列で宣言しなければならない"
                     )
+                if function_kind == "invoker":
+                    from pitchlog.authz.first_ball_write_stamp import (
+                        is_formal_stamp_lock_declaration,
+                    )
+
+                    legacy_identity = (
+                        raw_row.get("function_id")
+                        == "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
+                        and raw_row.get("security_mode") == "invoker"
+                    )
+                    if not legacy_identity and not is_formal_stamp_lock_declaration(
+                        raw_row
+                    ):
+                        raise AuthzApplicationStepsError(
+                            "初球invokerは既identityと正式lockのexact2だけ"
+                        )
                 if (
                     function_kind == "definer"
                     and raw_row.get("security_mode") != "definer"
@@ -593,6 +615,11 @@ def validate_product_application_steps(
         for row in functions
     ):
         expected_groups[2].append("functions:definer")
+    if isinstance(functions, list) and any(
+        isinstance(row, dict) and row.get("function_kind") == "invoker"
+        for row in functions
+    ):
+        expected_groups[2].append("functions:invoker")
     if isinstance(functions, list) and any(
         isinstance(row, dict) and row.get("function_kind") == "migration_function"
         for row in functions

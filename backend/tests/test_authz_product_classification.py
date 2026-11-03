@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+from test_schema_manifest import _model_table_names
 
 from pitchlog.authz.classification import (
     ProductClassificationError,
@@ -107,11 +108,17 @@ _INITIAL_RIGHT_STORAGE_TABLES = {
     "game_start_attempts",
     "recording_right_deliveries",
 }
-# data-model v1.4の初期権4表だけを旧46表profileへ加える。
+_SYNC_BINDING_TABLES = {
+    "writer_bindings",
+    "writer_admissions",
+    "first_ball_write_admissions",
+}
+# 旧46表と初期権4表を保ち、私有3表だけをfunction_onlyへ加える。
 _EXPECTED_PROFILES = {
     **_EXPECTED_LEGACY_PROFILES,
     "function_only": _EXPECTED_LEGACY_PROFILES["function_only"]
-    | _INITIAL_RIGHT_STORAGE_TABLES,
+    | _INITIAL_RIGHT_STORAGE_TABLES
+    | _SYNC_BINDING_TABLES,
 }
 _EXPECTED_LEGACY_FACT_TABLES = {
     "rg1_control": {"rg1_restore_gate"},
@@ -152,6 +159,7 @@ _EXPECTED_LEGACY_FACT_TABLES = {
 _EXPECTED_FACT_TABLES = {
     **_EXPECTED_LEGACY_FACT_TABLES,
     "initial_right_storage": _INITIAL_RIGHT_STORAGE_TABLES,
+    "sync_writer_binding_storage": _SYNC_BINDING_TABLES,
 }
 _EXPECTED_LEGACY_SECRET_COLUMNS = {
     ("tenant_credentials", "password_hash"),
@@ -164,6 +172,9 @@ _EXPECTED_SECRET_COLUMNS = _EXPECTED_LEGACY_SECRET_COLUMNS | {
     ("recording_generations", "recovery_generation"),
 }
 _PROFILE_MUTATIONS = (
+    ("writer_bindings", "tenant_owned"),
+    ("writer_admissions", "tenant_owned"),
+    ("first_ball_write_admissions", "tenant_owned"),
     ("admin_credentials", "global_read_only"),
     ("tenant_credentials", "tenant_owned"),
     ("analysis_groups", "tenant_owned"),
@@ -194,7 +205,7 @@ def documents() -> tuple[
         load_json_object(_EXPOSURE_FACTS_PATH),
         load_json_object(_MANIFEST_PATH),
         _DATA_MODEL_PATH.read_text(encoding="utf-8"),
-        frozenset(Base.metadata.tables),
+        frozenset(_model_table_names(Base.metadata)),
     )
 
 
@@ -326,7 +337,7 @@ def test_design_assignment_satisfies_all_classification_conditions(
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 18,
+        "function_only": 18 + len(_SYNC_BINDING_TABLES),
     }
     assert (
         _row_for_table(classification, "rule_sets")["access_path"]["owner_unit"]
@@ -357,7 +368,7 @@ def test_manifest_models_and_classification_have_the_same_population(
         row["table"] for row in _classification_rows(classification)
     }
 
-    assert len(manifest_tables) == len(model_tables) == 50
+    assert len(manifest_tables) == len(model_tables) == 50 + len(_SYNC_BINDING_TABLES)
     assert manifest_tables == model_tables == classification_tables
 
 

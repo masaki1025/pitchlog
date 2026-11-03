@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import cast
 
 from pitchlog.domaincheck.boot import phase2, stall
+from pitchlog.domaincheck.boot.operation_bindings import load_bindings
 from pitchlog.domaincheck.boot.phase2 import Phase2Decision
 from pitchlog.domaincheck.boot.snapshot import collect_semantic_snapshot
 from pitchlog.domaincheck.cli import (
@@ -378,6 +379,9 @@ def measure_resolved_element_ids(
             for element in _sealed_elements(sealed_asset)
             if element.target_id is not None
         )
+        operation_bindings = load_bindings(
+            root, allowed_targets, read_asset=input_collector.read_json
+        )
         manifest_schema = input_collector.read_json(root / MANIFEST_SCHEMA)
         manifest = input_collector.read_json(manifest_path)
         validate_asset(manifest, manifest_schema)
@@ -394,6 +398,7 @@ def measure_resolved_element_ids(
                 before = collect_semantic_snapshot(
                     base_manifest,
                     allowed_target_ids=allowed_targets,
+                    operation_bindings=operation_bindings,
                     path_exists=lambda path: input_collector.observe_at_commit(
                         base_oid, path
                     ),
@@ -401,6 +406,7 @@ def measure_resolved_element_ids(
         after = collect_semantic_snapshot(
             manifest,
             allowed_target_ids=allowed_targets,
+            operation_bindings=operation_bindings,
             path_exists=input_collector.observe_path,
         )
         state = stall.activate(

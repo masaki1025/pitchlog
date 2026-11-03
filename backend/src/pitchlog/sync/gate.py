@@ -95,3 +95,23 @@ def delivery_writer(
         yield writer
     finally:
         writer._close()
+
+
+@contextmanager
+def gated_e1_writer(
+    scope: _TenantTransaction, rights: RecordingRightsPort
+) -> Iterator[GatedWriter]:
+    """実bound E1だけを判定phaseへ束縛し、既legacy gateは変更しない。"""
+    from pitchlog.repositories.transaction import _port_predecision_phase
+
+    writer = _issue_port_writer(scope.run)
+    gated = GatedWriter(writer)
+    try:
+        with _port_predecision_phase(scope, "rg1-precheck"):
+            read_before_d5(rights, writer)
+        yield gated
+        if gated.written:
+            with _port_predecision_phase(scope, "rg1-commit"):
+                check_before_commit(rights, writer)
+    finally:
+        writer._close()

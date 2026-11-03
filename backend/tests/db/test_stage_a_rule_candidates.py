@@ -375,7 +375,7 @@ def test_formal_stage_a_startup_preserves_closed_publication(
         assert result.publishable is False
         with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")
-            assert cursor.fetchone() == ("0036_initial_right_storage",)
+            assert cursor.fetchone() == ("0038_first_ball_write_admission",)
             cursor.execute("SELECT count(*) FROM public.game_type_rule_defaults")
             assert cursor.fetchone() == (5,)
             cursor.execute(
@@ -456,7 +456,7 @@ def test_formal_stage_a_startup_authz_failure_keeps_placement_closed(
             )
         with psycopg.connect(admin_dsn) as admin, admin.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")
-            assert cursor.fetchone() == ("0036_initial_right_storage",)
+            assert cursor.fetchone() == ("0038_first_ball_write_admission",)
             cursor.execute("SELECT count(*) FROM public.game_type_rule_defaults")
             assert cursor.fetchone() == (5,)
             cursor.execute(

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "bindings": [
+    {
+      "operation": "course-input-quantization",
+      "targetId": "nfr018-alpha-02",
+      "coverage": "partial",
+      "source": "frontend/src/domain/courseQuantization.ts",
+      "authority": "ADR-003 D-14-m 座標入力形成の量子化",
+      "scope": "座標入力形成の量子化およびquantizeCourse内部のB-7変換。入力と表示の座標変換全体の供給ではない。"
+    }
+  ]
+}

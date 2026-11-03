@@ -1210,6 +1210,8 @@ def _write_test_repository_sources(
         _copy_ledger_deployment_assets(repository)
     if "pitchlog/recording_rights/rg1_lifecycle.py" in sources:
         _copy_rg1_deployment_assets(repository)
+    if "pitchlog/sync/control_provider/binding_control.py" in sources:
+        _copy_writer_binding_assets(repository)
     for relative, source in sources.items():
         path = repository / "backend" / "src" / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -8479,7 +8481,7 @@ def test_rg1_owned_condition2_requires_each_source_path_and_occurrence() -> None
         checker.RG1_CONDITION2_OWNER_PATHS
     )
     assert len(contract.condition2_scoped_findings) == 47
-    assert len(contract.ledger_condition2_findings) == 17
+    assert len(contract.ledger_condition2_findings) == 20
     for owner in contract.rg1_condition2_owners:
         relative = owner.path.removeprefix("backend/src/")
         source = (REPOSITORY_ROOT / owner.path).read_text()
@@ -9003,8 +9005,8 @@ _INITIAL_POPULATION_MUTATIONS = (
     ),
     (
         'recording_rights/initial_grant_broker.py',
-        'provider = import_module("pitchlog.recording_rights.rg1_lifecycle")',
-        'provider = import_module("other.module")',
+        'from pitchlog.recording_rights.rg1_lifecycle import (',
+        'from other.module import (',
         'fixed-import',
     ),
     (
@@ -9308,3 +9310,531 @@ def test_initial_population_semantics_rejects_even_a_forged_matching_original(
         assert checker._initial_population_evidence(changed, path), reason
     assert not validate(ast.parse(changed), path), reason
     assert not checker._initial_population_evidence(changed, path), reason
+
+
+def test_fixed_first_ball_builder_keeps_current_and_legacy_complete_shapes() -> None:
+    """189現形と旧simpleだけを全本文で受理し、他期待へ許可を広げない。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    for root in (REPOSITORY_ROOT / "backend/src", POSITIVE_ROOT):
+        source = _fixture_source(root / relative)
+        assert checker.scan_source(source, path=relative, contract=contract) == []
+        function = next(
+            node for node in ast.parse(source).body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_build_fixed_function_statement"
+        )
+        assert checker._is_fixed_builder_body(function, checker._FIXED_BUILDER_BODY)
+        assert not checker._is_fixed_builder_body(function, checker._FIXED_BIND_BODY)
+        function.decorator_list = [ast.Name(id="unapproved", ctx=ast.Load())]
+        assert not checker._is_fixed_builder_body(function, checker._FIXED_BUILDER_BODY)
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        ('type_=BigInteger()', 'type_=Float()'),
+        ('type_=BigInteger()', 'type_=String()'),
+        ('name in ("internal_generation", "recovery_generation")',
+         'name in ("internal_generation",)'),
+        ('name in ("internal_generation", "recovery_generation")',
+         'name in ("internal_generation", "recovery_generation", "other")'),
+        ('function_name == "check_current_right"',
+         'function_name == "unapproved"'),
+        ('schema == "sync_right_api"', 'schema == "other_api"'),
+        ('and field_type is int', 'and field_type is bool'),
+        ('_canonical_bind("tenant_id", UUID)', '_canonical_bind("tenant_id", str)'),
+        ('schema == "sync_fence_api"', 'schema == "other_api"'),
+        ('function_name == "assert_writer_binding"',
+         'function_name == "unapproved"'),
+        ('and not table_valued', 'and table_valued'),
+        ('and result_names == ("asserted",)', 'and result_names == ("other",)'),
+        ('and result_names == ("asserted",)',
+         'and result_names == ("asserted", "other")'),
+        ('safe_function.type = _WriterAssertVoidResult()',
+         'safe_function.type = Integer()'),
+    ],
+    ids=[
+        "bigint-float", "bigint-text", "missing-generation", "extra-generation",
+        "bigint-function", "bigint-schema", "bigint-bool", "tenant-bind-type",
+        "void-schema", "void-function", "void-table", "void-result-name",
+        "void-extra-result", "void-result-type",
+    ],
+)
+def test_fixed_first_ball_builder_rejects_each_finite_shape_change(
+    before: str, after: str,
+) -> None:
+    """2入力BigIntegerと専用voidの各境界を1箇所ずつ変えて拒否する。"""
+    relative = "pitchlog/repositories/function_operations.py"
+    source = _fixture_source(REPOSITORY_ROOT / "backend/src" / relative)
+    assert source.count(before) == 1
+    mutated = source.replace(before, after, 1)
+    violations = _scan_diff_mutation(
+        source, mutated, path=relative,
+        changed_lines=_changed_lines_containing(mutated, after),
+        contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert (
+        "TB005", "pitchlog.repositories.function_operations._build_fixed_function_statement"
+    ) in {(item.code, item.symbol) for item in violations}
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-field", "missing-path", "extra-path", "digest", "extra-finding",
+        "missing-finding", "changed-symbol", "zero-line", "bool-line",
+        "empty-symbol", "extra-key",
+    ),
+)
+def test_first_ball_condition2_shape_is_closed(mutation: str) -> None:
+    """初球6pathの条件2登録を欠落・余剰・別記号へ広げられない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    key = "condition_2_first_ball_scoped_findings"
+    groups = value[key]
+    path = sorted(groups)[0]
+    if mutation == "missing-field":
+        del value[key]
+    elif mutation == "missing-path":
+        del groups[path]
+    elif mutation == "extra-path":
+        groups["backend/src/pitchlog/other.py"] = copy.deepcopy(groups[path])
+    elif mutation == "digest":
+        groups[path]["source_sha256"] = "not-a-digest"
+    elif mutation == "extra-finding":
+        groups[path]["findings"].append(copy.deepcopy(groups[path]["findings"][0]))
+    elif mutation == "missing-finding":
+        groups[path]["findings"].pop()
+    elif mutation == "changed-symbol":
+        groups[path]["findings"][0]["symbol"] = "other_generation"
+    elif mutation == "zero-line":
+        groups[path]["findings"][0]["line"] = 0
+    elif mutation == "bool-line":
+        groups[path]["findings"][0]["line"] = True
+    elif mutation == "empty-symbol":
+        groups[path]["findings"][0]["symbol"] = ""
+    else:
+        groups[path]["findings"][0]["condition"] = 5
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis = checker.load_contract(REPOSITORY_ROOT).apis
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory, apis)
+
+
+def test_first_ball_condition2_requires_each_source_path_and_occurrence() -> None:
+    """同source/位置/記号だけを束縛し、変更sourceと追加識別子は残す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert {owner.path for owner in contract.first_ball_condition2_owners} == set(
+        checker.FIRST_BALL_CONDITION2_SCOPES
+    )
+    assert sum(
+        len(owner.findings) for owner in contract.first_ball_condition2_owners
+    ) == 66
+    for owner in contract.first_ball_condition2_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        source = (REPOSITORY_ROOT / owner.path).read_text()
+        assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
+        raw = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, first_ball_condition2_owners=()),
+        )
+        assert owner.findings <= {
+            (v.line, v.symbol) for v in raw if v.code == "TB002"
+        }
+        clean = checker.scan_source(source, path=relative, contract=contract)
+        assert not any(
+            v.code == "TB002" and (v.line, v.symbol) in owner.findings for v in clean
+        )
+        for broken in (
+            source + "\n# sourceの完全同一性を壊す\n",
+            source + "\nextra_generation = 1\n",
+        ):
+            found = checker.scan_source(broken, path=relative, contract=contract)
+            assert owner.findings <= {
+                (v.line, v.symbol) for v in found if v.code == "TB002"
+            }
+        for replacement in (
+            replace(owner, source_sha256="0" * 64),
+            replace(owner, findings=frozenset({(next(iter(owner.findings))[0], "wrong")})),
+        ):
+            owners = tuple(
+                replacement if o.path == owner.path else o
+                for o in contract.first_ball_condition2_owners
+            )
+            found = checker.scan_source(
+                source, path=relative,
+                contract=replace(contract, first_ball_condition2_owners=owners),
+            )
+            assert owner.findings <= {
+                (v.line, v.symbol) for v in found if v.code == "TB002"
+            }
+        changed = source + "\nunregistered_generation = 1\n"
+        # source hashを追随しても、登録外の追加識別子は条件2の免除で消せない。
+        replacement = replace(
+            owner, source_sha256=hashlib.sha256(changed.encode()).hexdigest()
+        )
+        owners = tuple(
+            replacement if o.path == owner.path else o
+            for o in contract.first_ball_condition2_owners
+        )
+        found = checker.scan_source(
+            changed, path=relative,
+            contract=replace(contract, first_ball_condition2_owners=owners),
+        )
+        assert any(
+            v.code == "TB002" and (v.line, v.symbol) not in owner.findings
+            for v in found
+        )
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "duplicate", "widened"))
+def test_first_ball_condition2_synthetic_contract_is_not_an_escape(
+    mutation: str,
+) -> None:
+    """合成Contractでも固定6path・固定出現以外への免除を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owners = contract.first_ball_condition2_owners
+    if mutation == "missing":
+        owners = owners[:-1]
+    elif mutation == "duplicate":
+        owners = (*owners, owners[0])
+    elif mutation == "extra":
+        owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
+    else:
+        owners = (replace(owners[0], findings=frozenset({(1, "generation")})), *owners[1:])
+    owner = contract.first_ball_condition2_owners[0]
+    source = (REPOSITORY_ROOT / owner.path).read_text()
+    found = checker.scan_source(
+        source, path=owner.path.removeprefix("backend/src/"),
+        contract=replace(contract, first_ball_condition2_owners=owners),
+    )
+    assert owner.findings <= {
+        (v.line, v.symbol) for v in found if v.code == "TB002"
+    }
+
+
+_FIRST_BALL_OPERATION_API_SETS = {
+    "pitchlog.repositories.recorded_snapshot_operations._registration": frozenset(
+        {"SQLA_SELECT"}
+    ),
+    "pitchlog.repositories.started_snapshot_operations._registration": frozenset(
+        {"SQLA_SELECT"}
+    ),
+    "pitchlog.sync.control_provider.binding_control._BindingAuthority._call": frozenset(
+        {
+            "PSYCOPG_ASYNC_CONNECTION_EXECUTE",
+            "PSYCOPG_ASYNC_CURSOR_EXECUTE",
+            "PSYCOPG_CONNECTION_EXECUTE",
+            "PSYCOPG_CURSOR_EXECUTE",
+            "SQLA_ASYNC_CONNECTION_EXECUTE",
+            "SQLA_ASYNC_SESSION_EXECUTE",
+            "SQLA_CONNECTION_EXECUTE",
+            "SQLA_SESSION_EXECUTE",
+        }
+    ),
+    "pitchlog.sync.control_provider.binding_control.BindingControl._channel": frozenset(
+        {"SQLA_ENGINE_CONNECT", "SQLA_ASYNC_ENGINE_CONNECT"}
+    ),
+}
+
+
+def test_first_ball_operation_registration_api_sets_are_exact() -> None:
+    """初球操作4symbolの許可APIに余分な拡張がないことを確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    actual = {
+        item.symbol: item.allowed_api_ids
+        for item in contract.allowed_symbols
+        if item.symbol in _FIRST_BALL_OPERATION_API_SETS
+    }
+    assert actual == _FIRST_BALL_OPERATION_API_SETS
+
+
+def test_first_ball_operation_unlisted_symbol_is_rejected() -> None:
+    """同じモジュールでも未登録関数のSQL構築は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/repositories/recorded_snapshot_operations.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    mutated = (
+        f"{source.rstrip()}\n\n\ndef _unlisted_statement() -> Any:\n"
+        "    return select(1)\n"
+    )
+    lines = frozenset(range(source.count("\n") + 1, mutated.count("\n") + 2))
+    violations = checker.scan_source(
+        mutated, path=relative, contract=contract, changed_lines=lines,
+    )
+    assert any(
+        item.code == "TB005" and item.symbol == "sqlalchemy.select"
+        for item in violations
+    )
+
+
+def test_first_ball_operation_registered_symbol_rejects_extra_db_api() -> None:
+    """登録済みsymbolでも許可外のDB API追加は拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    relative = "pitchlog/sync/control_provider/binding_control.py"
+    source = (REPOSITORY_ROOT / "backend/src" / relative).read_text()
+    marker = '            identity = c.execute(\n'
+    assert source.count(marker) == 1
+    mutated = source.replace(
+        marker, '            psycopg.connect("dbname=unapproved")\n' + marker, 1,
+    )
+    lines = _changed_lines_containing(mutated, "psycopg.connect(")
+    violations = checker.scan_source(
+        mutated, path=relative, contract=contract, changed_lines=lines,
+    )
+    assert any(
+        item.code == "TB005" and item.symbol == "psycopg.connect"
+        for item in violations
+    )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing-field", "missing-path", "extra-path", "digest", "extra-finding",
+        "missing-finding", "changed-scope", "changed-code", "zero-line",
+        "bool-line", "empty-symbol", "extra-key",
+    ),
+)
+def test_first_ball_condition5_shape_is_closed(mutation: str) -> None:
+    """初球9pathの条件5登録を欠落・余剰・別scope/別codeへ広げられない。"""
+    value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
+    key = "condition_5_first_ball_scoped_findings"
+    groups = value[key]
+    path = sorted(groups)[0]
+    if mutation == "missing-field":
+        del value[key]
+    elif mutation == "missing-path":
+        del groups[path]
+    elif mutation == "extra-path":
+        groups["backend/src/pitchlog/other.py"] = copy.deepcopy(groups[path])
+    elif mutation == "digest":
+        groups[path]["source_sha256"] = "not-a-digest"
+    elif mutation == "extra-finding":
+        groups[path]["findings"].append(copy.deepcopy(groups[path]["findings"][0]))
+    elif mutation == "missing-finding":
+        groups[path]["findings"].pop()
+    elif mutation == "changed-scope":
+        groups[path]["findings"][0]["scope"] = "pitchlog.other.<module>"
+    elif mutation == "changed-code":
+        groups[path]["findings"][0]["code"] = "TB002"
+    elif mutation == "zero-line":
+        groups[path]["findings"][0]["line"] = 0
+    elif mutation == "bool-line":
+        groups[path]["findings"][0]["line"] = True
+    elif mutation == "empty-symbol":
+        groups[path]["findings"][0]["symbol"] = ""
+    else:
+        groups[path]["findings"][0]["condition"] = 5
+    inventory = (REPOSITORY_ROOT / checker.DEFAULT_INVENTORY).read_bytes()
+    apis = checker.load_contract(REPOSITORY_ROOT).apis
+    with pytest.raises(checker.ContractError):
+        checker._load_allowlist(value, inventory, apis)
+
+
+def test_first_ball_condition5_requires_each_source_path_and_occurrence() -> None:
+    """同source/位置/記号/scopeだけを束縛し、変更sourceと追加siteは残す。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert {owner.path for owner in contract.first_ball_condition5_owners} == set(
+        checker.FIRST_BALL_CONDITION5_SCOPES
+    )
+    assert sum(
+        len(owner.findings) for owner in contract.first_ball_condition5_owners
+    ) == 24
+    for owner in contract.first_ball_condition5_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        source = (REPOSITORY_ROOT / owner.path).read_text()
+        assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
+        raw = checker.scan_source(
+            source, path=relative,
+            contract=replace(contract, first_ball_condition5_owners=()),
+        )
+        assert owner.findings <= {
+            (v.line, v.code, v.symbol, v.scope) for v in raw
+        }
+        clean = checker.scan_source(source, path=relative, contract=contract)
+        assert not any(
+            (v.line, v.code, v.symbol, v.scope) in owner.findings for v in clean
+        )
+        broken = source + "\n# sourceの完全同一性を壊す\n"
+        found = checker.scan_source(broken, path=relative, contract=contract)
+        assert owner.findings <= {
+            (v.line, v.code, v.symbol, v.scope) for v in found
+        }
+        for replacement in (
+            replace(owner, source_sha256="0" * 64),
+            replace(
+                owner,
+                findings=frozenset({
+                    (next(iter(owner.findings))[0], "TB007", "other", "other.<module>")
+                }),
+            ),
+        ):
+            owners = tuple(
+                replacement if o.path == owner.path else o
+                for o in contract.first_ball_condition5_owners
+            )
+            found = checker.scan_source(
+                source, path=relative,
+                contract=replace(contract, first_ball_condition5_owners=owners),
+            )
+            assert owner.findings <= {
+                (v.line, v.code, v.symbol, v.scope) for v in found
+            }
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "duplicate", "widened"))
+def test_first_ball_condition5_synthetic_contract_is_not_an_escape(
+    mutation: str,
+) -> None:
+    """合成Contractでも固定9path・固定出現以外への免除を拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owners = contract.first_ball_condition5_owners
+    if mutation == "missing":
+        owners = owners[:-1]
+    elif mutation == "duplicate":
+        owners = (*owners, owners[0])
+    elif mutation == "extra":
+        owners = (*owners, replace(owners[0], path="backend/src/pitchlog/other.py"))
+    else:
+        owners = (
+            replace(
+                owners[0],
+                findings=frozenset({(1, "TB007", "object.__new__", "<module>")}),
+            ),
+            *owners[1:],
+        )
+    owner = contract.first_ball_condition5_owners[0]
+    source = (REPOSITORY_ROOT / owner.path).read_text()
+    found = checker.scan_source(
+        source, path=owner.path.removeprefix("backend/src/"),
+        contract=replace(contract, first_ball_condition5_owners=owners),
+    )
+    assert owner.findings <= {
+        (v.line, v.code, v.symbol, v.scope) for v in found
+    }
+
+
+def _copy_writer_binding_assets(root: Path) -> None:
+    """未統合候補4資産を試験用rootへ複写する。"""
+    for relative in checker._WRITER_BINDING_DEPLOYMENT_ASSETS:
+        target = root / "backend/src" / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / "backend/src" / relative).read_bytes())
+
+
+def test_writer_binding_candidate_manifest_is_closed() -> None:
+    """候補manifestは閉じた宣言と実SQL構造面の完全一致だけを受理する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    assert checker._validated_writer_binding_deployment_assets(
+        REPOSITORY_ROOT, contract,
+    )
+    manifest_path = REPOSITORY_ROOT / "backend/src" / (
+        checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    )
+    manifest = json.loads(manifest_path.read_text())
+    assert set(manifest) == set(checker._WRITER_BINDING_CLOSED_MANIFEST) | {"files"}
+    for key, expected in checker._WRITER_BINDING_CLOSED_MANIFEST.items():
+        assert manifest[key] == expected
+    assert manifest["deployment_authority"] == "none_unintegrated_candidate"
+    assert manifest["status"] == "unintegrated_candidate"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ("status", "extra", "files", "authority", "boundaries", "duplicate-key"),
+)
+def test_writer_binding_candidate_manifest_rejects_unknown_values(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """状態・権限・境界・file集合を自己申告で変えられない。"""
+    _copy_writer_binding_assets(tmp_path)
+    relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    path = tmp_path / "backend/src" / relative
+    original = path.read_text()
+    value = json.loads(original)
+    if mutation == "status":
+        value["status"] = "integrated"
+        raw = json.dumps(value)
+    elif mutation == "extra":
+        value["unexpected"] = True
+        raw = json.dumps(value)
+    elif mutation == "files":
+        value["files"].pop(next(iter(value["files"])))
+        raw = json.dumps(value)
+    elif mutation == "authority":
+        value["deployment_authority"] = "full"
+        raw = json.dumps(value)
+    elif mutation == "boundaries":
+        value["evidence_boundaries"] = ["trusted"]
+        raw = json.dumps(value)
+    else:
+        raw = original.replace(
+            '"schema_version": 1,', '"schema_version": 1,"schema_version": 1,', 1,
+        )
+    path.write_text(raw)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    declared[f"backend/src/{relative}"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_cannot_self_authorize_new_ddl(
+    tmp_path: Path,
+) -> None:
+    """SQLとmanifestのSHAを協調して追随しても閉じた構造面を越えられない。"""
+    _copy_writer_binding_assets(tmp_path)
+    sql_relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[0]
+    sql = tmp_path / "backend/src" / sql_relative
+    sql.write_bytes(
+        sql.read_bytes()
+        + b"\nCREATE TABLE sync_control.unapproved (id UUID NOT NULL);\n"
+    )
+    manifest_relative = checker._WRITER_BINDING_DEPLOYMENT_ASSETS[3]
+    manifest_path = tmp_path / "backend/src" / manifest_relative
+    value = json.loads(manifest_path.read_text())
+    value["files"]["control-phase-schema.sql"] = hashlib.sha256(
+        sql.read_bytes()
+    ).hexdigest()
+    manifest_path.write_text(json.dumps(value))
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    for relative in (sql_relative, manifest_relative):
+        declared[f"backend/src/{relative}"] = hashlib.sha256(
+            (tmp_path / "backend/src" / relative).read_bytes()
+        ).hexdigest()
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_path_set_cannot_widen(tmp_path: Path) -> None:
+    """allowlistで候補集合の外へpathを足せない。"""
+    _copy_writer_binding_assets(tmp_path)
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    declared = dict(contract.writer_binding_deployment_assets)
+    declared["backend/src/pitchlog/sync/control_provider/sql/other.sql"] = "0" * 64
+    contract = replace(contract, writer_binding_deployment_assets=tuple(declared.items()))
+    assert not checker._validated_writer_binding_deployment_assets(tmp_path, contract)
+
+
+def test_writer_binding_candidate_unlisted_python_change_still_reports_tb000(
+    tmp_path: Path,
+) -> None:
+    """候補4資産が揃っていても、宣言外の非Python変更はTB000のまま残す。"""
+    _copy_writer_binding_assets(tmp_path)
+    extra = tmp_path / "backend/src/pitchlog/sync/control_provider/sql/other.sql"
+    extra.write_text("CREATE TABLE x (id int);\n")
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    violations = checker._changed_source_violations(
+        tmp_path,
+        {"pitchlog/sync/control_provider/sql/other.sql": frozenset()},
+        contract,
+        head_sources={},
+        baseline_sources={},
+    )
+    assert any(
+        item.code == "TB000"
+        and item.path.endswith("control_provider/sql/other.sql")
+        for item in violations
+    )

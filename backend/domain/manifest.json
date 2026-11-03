@@ -1,0 +1,90 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/course-quantization-property-catalog.json",
+    "schema": "backend/domain/course-quantization-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "course-input-quantization",
+      "source": {
+        "path": "frontend/src/domain/courseQuantization.ts",
+        "provenance": "付録A-1 座標の丸め"
+      },
+      "generated": [
+        {
+          "generatedId": "courseQuantizationArtifact",
+          "path": "frontend/public/domain/pitchlog-domain.js",
+          "artifactKind": "js-artifact"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "courseQuantizationBrowser",
+          "module": "frontend/src/lib/generated/wrappers/domainArtifact.ts",
+          "symbol": "invokeFirstBallDomain",
+          "adapter": "frontend/src/lib/generated/wrappers/domainArtifact.ts"
+        },
+        {
+          "entrypointId": "courseQuantizationServer",
+          "module": "backend/src/pitchlog/domainrt/course_quantization.py",
+          "symbol": "CourseQuantizationAdapter.execute",
+          "adapter": "backend/src/pitchlog/domainrt/course_quantization.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "courseQuantizationDirect",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "courseQuantizationArtifact",
+          "hash": "sha256:1a415cbf4ff6b986fefec281005c84b5acf6a4e622178684aed2c02387f515f7",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domainrt/course_quantization.py",
+            "operation": "quantizeCourse"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "courseQuantizationVectors",
+          "calculation": "course-input-quantization",
+          "path": "contracts/display-geometry/course_input_quantization_contract_v1.json",
+          "runner": "both",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "付録A-1 座標の丸め"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "courseRange",
+          "propertyKind": "invariant",
+          "path": "backend/tests/domain/test_course_quantization_host.py",
+          "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+        },
+        {
+          "propertyId": "courseHostParity",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domain/test_course_quantization_host.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "courseQuantizationMutations",
+          "target": "frontend/src/domain/courseQuantization.ts",
+          "operators": [
+            "replace-half-up-comparison",
+            "remove-view-reflection",
+            "remove-range-check"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": []
+}

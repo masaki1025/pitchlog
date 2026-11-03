@@ -627,14 +627,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -835,14 +843,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -923,14 +939,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",
@@ -1055,14 +1079,22 @@
                 "value": "empty"
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.strikes",
-                "value": 0
+                "values": [
+                  0,
+                  1
+                ]
               },
               {
-                "op": "eq",
+                "op": "in",
                 "axisId": "state.count.balls",
-                "value": 0
+                "values": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
               },
               {
                 "op": "eq",

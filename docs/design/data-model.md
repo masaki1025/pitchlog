@@ -7,6 +7,8 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.5 | 2026-10-28 | **6-1-aの実装追随(書込印unit A+B結合 — 版は上げない・設計書 7.6-3 前段)**: 初球PlayRow INSERT用の書込印`sync_fence.first_ball_write_admissions`の構造(31列・PK・FK3・CHECK5)・状態・権限の限定と、`schema-manifest.json`の表登録への追随を記した。既存の2表・記録権・認可・D5消費規則は変更しない。PO委任Claude主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
+| 1.5 | 2026-10-27 | **同期writer資格の補助2表とnamespace・一意制約を限定7.3で確定**。6-1-aへ既採用N1-U2の`sync_fence.writer_bindings`/`writer_admissions`の構造・不変列・閉鎖/追記・権限・UNKNOWN隔離を記載し、3-4へlease/nonce一意2行と既初期権一意2行の参照を整合。初回の版上げ不要という分類を撤回し、非作者第1回P1=2を全採用・反映1周・第2回0/0/0。PO委任によるCodex /root判断で本文を確定（本人の個別確認・署名ではない）。既1.4までの本文・履歴と野球結果/D5/認可の意味を保持する。正式7.7/個別認可供給/実DB/HTTP/1球保存は別未達。 | **approved** |
 | 1.4 | 2026-10-25 | 既承認6065063b §6.2/6.3の初期記録権4表・世代証拠2列と既前提2主体の制限関数境界を3-2/6-1へ写す。既存1.3/旧1.2両系列の承認・指摘・反映履歴は保持。今回確定する範囲は物理保存と認可の最小構造だけ。個別DDL/ACL/9API・内部trigger・0036・schema-manifest/正式7.7・実DB・broker/enrollment/開始UIは別途検証する。新たな野球結果/D5意味・端末役割を追加しない。限定7.3は初回P1=2全採用・反映1周・第2回0/0/0、PO委任によるCodex root判断で59966185本文を確定（本人の実値逐行確認/署名ではない）。 | **approved** |
 | 1.3 | 2026-10-24 | 正式基線となる外部耐久台帳1.2と、別枝で確定済みのRG1制限主体/安全条件（旧枝内1.2）を通常接合する候補。両方の旧承認/指摘採用/反映周/履歴を保持し、RG1の内容を本版へ再採番する。新たな記録意味や権限緩和は行わず、既606の初回世代束縛/初期peer前提と業務identity観測を有限具体化し、13製品主体/14batch込みの正式登録対象へ整合する。追加限定7.3は非作者0/0/0。PO委任によるCodex root判断で62ed6efe本文を確認し確定（本人の実値逐行確認・署名ではない）。正式資産/7.7/実DBは別。 | **approved** |
 | **1.2** | 2026-10-24 | **RG1制限制御の主体分離と安全な成功条件（初回MVP）を確定**。本改訂で確定する範囲: 3-2の制御owner/peer actor・singleton限定列ACL/RLS・appの同Session実識別読取・実authority/lease/commitの安全条件、およびロール数の参照追随。実装時に確定する範囲: 有限DDL/適用・撤去、認可/tenant生成資産、正式7.7の実値、実DB/HTTP検証を既存featureステップ3/4で具体化する。本改訂で確定しない範囲: 全域closeProof/epoch更新・非zero復元の具体的Port、野球の結果意味、D5消費/拒否優先順。既存RG1 read ownerの状態更新権・app直接表権・継承/SET ROLEを増やさない。確定ゲートは全文1回＋反映差分1回、反映1周、P1=1/P2=1を全採用・不採用0、最終0/0/0。PO委任によるCodex主担当/root判断でda78a862の実値・採否を確認し承認（人間本人の個別確認/署名ではない）。具体記録はmvp-rg1-lifecycle-connection/research。 | **approved** |
@@ -479,6 +481,10 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 | 11-2 | 無効化意図は意図 ID で 1 件 | `UNIQUE (tenant_id, 意図 ID)` | ✅ テナント内(**`B03`**。論理無効化 1 回につき対象範囲ごとに 1 件 — v0.10。意図 ID は対象イベントの識別 + 範囲から決定的に導く — `I5` は `V10` + 対象の確定版 + 範囲、D1 付き経路は D5 + 範囲。**同期を通らないトリガーは `B06`** — 操作 ID と行の識別子から作る) |
 | 10-3 | 語彙のうち**システム固定の層** | `UNIQUE (キー名)` | ➖ **対象外**(テナントに属さない — 規則 1 の例外) |
 | 10-4 | 付録C のシステム設定値 | `UNIQUE (キー名)` | ➖ **対象外**(同前) |
+| 6-1 | 初期開始要求のpending attemptは1件 | UNIQUE (tenant_id, game_id, start_request_id) WHERE outcome = 'pending' | ✅ テナント内（既6-1の初期記録権保存制約の再記載） |
+| 6-1 | 初期記録権の同一開始要求への交付は1件 | UNIQUE (tenant_id, game_id, start_request_id) | ✅ テナント内（既6-1の初期記録権保存制約の再記載） |
+| 6-1-a | 同期writer資格のlease | lease_id | ➖ 対象外（業務データの識別ではない同期実TX資格の再利用防止。既採用モデルの全DB一意を再記載） |
+| 6-1-a | 同期writer資格のnonce digest | nonce_digest | ➖ 対象外（業務データの識別ではない同期実TX資格の再利用防止。既採用モデルの全DB一意を再記載） |
 
 **一意制約を意図的に置かない箇所**(要件が「置かない」と定めているもの):
 
@@ -1275,6 +1281,31 @@ PostgreSQL の制約では表せない**。**分散させると「同じ `D5` �
 予約前の短いintentを耐久commitし、業務scope内ではdevice共有lock→同じSessionのrequest/attempt排他→既単一発行器のreserve/claimへ進む。短intentのcommit後にlockが残るとは扱わない。generation/delivery/attempt成功markは同一業務transactionに保存し、片側故障を全取消する。台帳のclaim済みD4を業務rollbackで未使用へ戻さず、結果不明はpendingを保持する。期限や成功行の欠損だけでrolled_backへ補完せず、旧業務transaction終結・同ownerの外部耐久状態を照合する正規の限定解決経路が成立するまで新attemptを発行しない。
 
 同requestの再送は現在の権利/owner/資格/失効/epochを照合し、確定済み同V12の再交付と追加予約0を要求する。単なるV12暗号文の存在で現在の記録権を与えない。試合の開始status/started_at・side/単一名簿・U-M2とgrantの同一transaction接合、enrollment/revoke/実Cookie再検証、通常rollback後再試行と再起動後解決は後続開始接合の必須条件として残す。このscopeの保存成功で開始/1球保存を完成扱いにしない。
+
+#### 6-1-a. 同期writer bindingのsecurity補助原本
+
+同期writer bindingのsecurity補助原本はsync_fence.writer_bindingsとsync_fence.writer_admissionsの2表とする。app/control actorは直接表DMLを持たず、固定関数だけで利用する。writer_bindingsは不変owner/physical TX/nonce digest/期限を保持し、stateとclose_idの一度限りの閉鎖だけを許す。writer_admissionsは同top-level TXの追記専用証跡であり、baseball適用成功やD5結果の証明ではない。
+
+本項は既採用N1-U2のモデルとmigration `0037_sync_writer_binding`への実装追随である。新たな記録権・認可・D5消費規則を定義せず、初期記録権actorの権限を拡張しない。対応要件はFR-013・NFR-009、既存6-1節と3-2節の資格・復元境界を維持する。manifestの論理名は`writer_bindings`・`writer_admissions`、物理schemaは両方とも`sync_fence`であり、既存public表と同名の別表を作らない。
+
+| 表 | 全列と型（記載のない既定値は全てなし） | 制約 |
+| --- | --- | --- |
+| `sync_fence.writer_bindings` | 非NULL uuid: `tenant_id,attempt_id,phase_id,authority_id,control_instance,business_instance,restore_epoch,issuer,lease_id,device_id,game_id,d5`。非NULL bigint: `control_version,internal_generation,recovery_generation,codec_version`。非NULL text: `wire_d4,request_fingerprint,event_fingerprint,system_identifier,database_oid,transaction_id,state`。非NULL timestamptz: `postmaster_started_at,backend_start,expires_at`。非NULL integer: `backend_pid`。非NULL bytea: `nonce_digest`。NULL可uuid: `close_id` | PK `(tenant_id,attempt_id,phase_id)`、一意`lease_id`、一意`nonce_digest`。`tenant_id→tenants.id`と`(tenant_id,game_id)→games(tenant_id,id)`はMATCH FULL/ON DELETE NO ACTION。nonce digestは32byte。4 bigintとbackend_pidは正数。`wire_d4,request_fingerprint,event_fingerprint,system_identifier,database_oid`は空文字禁止。`transaction_id`は1〜20桁の正十進文字列かつ18446744073709551615以下。stateは`open/closed`、open時close_idはNULL、closed時は非NULL |
+| `sync_fence.writer_admissions` | 非NULL uuid: `tenant_id,attempt_id,phase_id,lease_id`。非NULL text: `transaction_id` | PK `(tenant_id,attempt_id,phase_id)`。同3列→`sync_fence.writer_bindings`同3列はMATCH FULL/ON DELETE NO ACTION。transaction_idは上記と同じ正十進xid8制約 |
+
+両表にPK/一意制約以外の追加indexはない。bindingsは所有・試行・lease・端末・試合・世代・fingerprint・実PG identity・nonce digest・期限の27列を不変とし、`state/close_id`だけを`open/NULL`から`closed/非NULL`へ一度変更できる。同じclose_idの終結要求の再送で新しい変更は作らず、別close_idへの書換えは拒否する。admissionsは全5列を不変とする追記専用である。両表は業務オブジェクトの削除系統では対象外だが、物理DELETE/TRUNCATEは許可しない。退役述語を持たず、履歴を失うdowngradeも拒否する。
+
+初球PlayRow INSERT用の書込印sync_fence.first_ball_write_admissionsは、writer_bindingsの27不変列の写しと同top-level TXの状態だけを保持し、app/control actorは直接表DMLを持たず、固定関数だけで利用する。本項は書込印unit A(migration `0038_first_ball_write_admission`)のモデルへの実装追随であり、上記2表の定義、新たな記録権・認可・D5消費規則、初期記録権actorの権限を変えない。対応要件はFR-013・NFR-009、manifestの論理名は`first_ball_write_admissions`、物理schemaは`sync_fence`である。
+
+| 表 | 全列と型（記載のない既定値は全てなし） | 制約 |
+| --- | --- | --- |
+| `sync_fence.first_ball_write_admissions` | writer_bindingsの不変27列と同名・同型・同じNOT NULL（`tenant_id,attempt_id,phase_id,authority_id,control_instance,business_instance,restore_epoch,control_version,issuer,lease_id,device_id,game_id,wire_d4,internal_generation,recovery_generation,codec_version,request_fingerprint,d5,event_fingerprint,system_identifier,database_oid,postmaster_started_at,backend_pid,backend_start,transaction_id,nonce_digest,expires_at`）に加え、非NULL text: `state`。NULL可uuid: `source_event_id,play_row_id`。NULL可timestamptz: `consumed_at` | PK `(tenant_id,attempt_id,phase_id)`。同3列→`sync_fence.writer_bindings`同3列はMATCH FULL/ON DELETE NO ACTION。`(tenant_id,source_event_id)→operation_events(tenant_id,id)`と`(tenant_id,play_row_id)→play_rows(tenant_id,id)`はMATCH SIMPLE/ON DELETE NO ACTION（後者はDEFERRABLE INITIALLY DEFERRED）。stateは`device_verified/right_verified/invalid/consumed`で、consumedのときだけ`source_event_id,play_row_id,consumed_at`が全て非NULL。nonce digestは32byte、4 bigintとbackend_pidは正数、`wire_d4,request_fingerprint,event_fingerprint,system_identifier,database_oid`は空文字禁止、`transaction_id`は1〜20桁の正十進文字列かつ18446744073709551615以下 |
+
+書込印は、固定関数`bind_device`と`check_current_right`が同じ関数呼び出しの中で、writer_bindingsの行から不変27列をそのまま写して追加（最初の事象）またはstateだけを更新（以後の事象）する。stateの遷移は、端末資格と現在の記録権の照合が成立したときだけ`device_verified`から`right_verified`へ進み、失敗・逆順・識別の不一致は`invalid`へ進める。`invalid`と`consumed`は終端で再開しない。`consumed`への更新と消費3列の書込は、PlayRowのINSERTを検査する固定guardだけが行う。印の書込は同top-level TXでだけ成立し、savepoint内の書込は拒否する。書込印は業務成功・D5結果・記録権の現在性の証明ではない。印がrejectした事象と、正式profile・runtime登録・activationは別に扱い、本項はそれらの完了を意味しない。
+
+migration単独ではRLS ENABLE/FORCE・PUBLIC権限撤去によるdefault-denyで配置する。業務DBの狭いSECURITY DEFINER関数は専用NOLOGIN ownerで所有し、固定search_path・完全修飾とPUBLIC EXECUTE剥奪を用いる。app/control actorへ表の直接SELECT/INSERT/UPDATE/DELETE/TRUNCATEを与えない。`read_writer_identity`の1関数だけはSECURITY INVOKERで、実`session_user/current_user`のapp照合を保ったまま同じ業務接続のPG PID/full xid8を得る。実system_identifier/database_oid/postmaster_started_at・PID・full xid8・tenant/device/game・世代・期限と外部leaseを照合し、別接続・別transaction・savepoint初進入を正当なadmissionに代替しない。control側の固定関数・資格主体は別DB境界のままである。
+
+生の端末資格・鍵・Cookie・V12・raw nonceを2表へ保存しない。bindingsへ保存するnonce情報は32byte digestのみであり、照合用raw nonceをログへ出さない。bindingの公開やadmission挿入を業務成功・D5結果の証明とはしない。業務transactionのcommit/rollbackをPGの実状態とadmissionへ照合し、`ENTRY_CLOSED_UNADMITTED`や`UNKNOWN`を成功・全取消へ補完しない。不明は耐久quarantineを維持し、期限切れ・行欠損だけで資格を解放しない。正式runtime/ACL登録・実DB故障系・HTTP/1球保存の成立はそれぞれ別の接続・検証義務であり、2表のモデル/migration存在から推定しない。
 
 ### 6-2. 交代はイベントとして永続化し、投影として「出場区間」を持つ(FR-011)
 

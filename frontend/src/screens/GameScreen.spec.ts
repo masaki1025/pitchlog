@@ -223,7 +223,7 @@ describe('GameScreen の入力下書き', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(zone.props('point')).toEqual({ x: 183, y: 68 })
+    expect(zone.props('point')).toEqual({ x: 80, y: 68 })
     expect(wrapper.get('[data-testid="course-status"]').text()).toContain(
       '選択済み',
     )
@@ -236,7 +236,7 @@ describe('GameScreen の入力下書き', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(zone.props('point')).toEqual({ x: 173, y: 78 })
+    expect(zone.props('point')).toEqual({ x: 90, y: 78 })
 
     await wrapper.get('button[data-testid="clear-course"]').trigger('click')
     expect(zone.props('point')).toBeNull()

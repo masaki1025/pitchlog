@@ -87,6 +87,14 @@ def build_product_function_acl_declaration(
     execute_grantees: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """migration由来の関数の所有者とACL期待を組み立てる。"""
+    from pitchlog.authz.first_ball_product import declaration
+
+    key = f"FUNCTION:{schema_name}:{function_name}({identity_args})"
+    added = declaration("functions", key)
+    if added is not None:
+        if function_kind != added["function_kind"]:
+            raise ValueError("初球migration関数種別が不一致")
+        return added
     if function_kind not in {"migration_trigger", "migration_function"}:
         raise ValueError(f"migration関数種別が不正: {function_kind}")
     if (schema_name, function_name, identity_args) == (
@@ -137,6 +145,18 @@ def generate_product_function_acl_sql(
     execute_grantees: tuple[str, ...] = (),
 ) -> str:
     """PUBLICを剥奪し、宣言したロールだけへ実行権を与えるSQLを生成する。"""
+    from pitchlog.authz.first_ball_product import body, declaration
+
+    key = f"FUNCTION:{schema_name}:{function_name}({identity_args})"
+    added = declaration("functions", key)
+    if added is not None:
+        expected = tuple(r["grantee"] for r in added["acl_expectations"])
+        if execute_grantees != expected:
+            raise ValueError("初球function EXECUTEの全集合が不一致")
+        sql = body("function", key)
+        if sql is None:
+            raise ValueError("初球function本文がない")
+        return sql
     if (schema_name, function_name, identity_args) == (
         "public",
         "protect_initial_right_storage",
@@ -184,6 +204,15 @@ BUILTIN_EXECUTE_GRANTEES = frozenset(
 
 def build_builtin_execute_declaration(grantee: str) -> dict[str, object]:
     """pg_control_system引数無しへの追加明示EXECUTEだけを宣言する。"""
+    from pitchlog.authz.first_ball_product import BINDING_OWNER, declaration
+
+    if grantee == BINDING_OWNER:
+        row = declaration(
+            "acl_expectations", f"ACL:pg_catalog:pg_control_system():{grantee}"
+        )
+        if row is None:
+            raise ValueError("初球builtin宣言がない")
+        return row
     if grantee not in BUILTIN_EXECUTE_GRANTEES:
         raise ValueError("builtinの追加EXECUTE主体が閉集合にない")
     return {
@@ -204,7 +233,7 @@ def is_builtin_execute_declaration(declaration: dict[str, object]) -> bool:
     return (
         declaration.get("grant_option") is False
         and isinstance(grantee, str)
-        and grantee in BUILTIN_EXECUTE_GRANTEES
+        and grantee in BUILTIN_EXECUTE_GRANTEES | {"pitchlog_sync_binding_fn_owner"}
         and (declaration == build_builtin_execute_declaration(grantee))
     )
 

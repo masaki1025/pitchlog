@@ -5,8 +5,8 @@ from pitchlog.repositories.tokens import (  # ty: ignore
     TenantOperationResult,
     TenantOperationToken,
 )
-from sqlalchemy import text  # ty: ignore
-from sqlalchemy.orm import Session  # ty: ignore
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
 class TenantRepositoryBase:

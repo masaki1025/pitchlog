@@ -1405,6 +1405,7 @@ def _ci_wiring_errors(
     required_shard_commands = [
         "corepack enable",
         "pnpm install --frozen-lockfile",
+        "pnpm exec playwright install --with-deps chromium",
         "uv python install",
         "uv sync --locked --dev",
         BACKEND_SHARD_PYTEST_COMMAND,
@@ -3735,3 +3736,53 @@ def test_pytest_shard_config_matches_the_ci_command() -> None:
     for ignored in harness["ignore"]:
         assert f"--ignore={ignored}" in tokens
     assert backend["targets"] == ["tests/"] and backend["ignore"] == []
+
+
+def _assert_pr_body_gate6_connection(workflow: dict[str, Any]) -> None:
+    """既required core-guard内で旧commandと公開Gate6検査を常時順に実行する。"""
+    assert tuple(workflow['jobs']) == EXPECTED_BODY_JOB_ORDER
+    assert workflow['permissions'] == {'contents': 'read'}
+    job = workflow['jobs']['core-guard']
+    assert set(job) == {'runs-on', 'permissions', 'steps'}
+    assert job['runs-on'] == 'ubuntu-latest'
+    assert job['permissions'] == {'contents': 'read', 'pull-requests': 'read'}
+    runs = [step for step in job['steps'] if 'run' in step]
+    assert runs == [
+        {'run': 'uv python install'},
+        {'run': 'uv run python scripts/core_guard.py'},
+        {'run': 'uv run python scripts/check_human_review_signature.py --gate6-carry --ci'},
+    ]
+    assert 'env' not in workflow and 'env' not in job
+    checkout = job['steps'][0]
+    assert checkout['with']['fetch-depth'] == 0
+
+
+def test_pr_body_required_core_guard_runs_public_gate6_ci_without_new_token() -> None:
+    """既job/permissions/contextを保ち、無認証の既公開APIを使うCLIを接続する。"""
+    workflow = _load_workflow(BODY_WORKFLOW_PATH.read_text())
+    _assert_pr_body_gate6_connection(workflow)
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'local-only', 'conditional', 'skip-error',
+                                    'permissions', 'job-name', 'token'])
+def test_pr_body_gate6_connection_cannot_be_omitted_or_made_optional(mutation: str) -> None:
+    """Gate6の欠落/ci除去/条件skip/失敗無視/権限拡大を拒否する。"""
+    workflow = _load_workflow(BODY_WORKFLOW_PATH.read_text())
+    job = workflow['jobs']['core-guard']
+    step = job['steps'][-1]
+    if mutation == 'missing':
+        job['steps'].pop()
+    elif mutation == 'local-only':
+        step['run'] = step['run'].removesuffix(' --ci')
+    elif mutation == 'conditional':
+        step['if'] = 'false'
+    elif mutation == 'skip-error':
+        step['continue-on-error'] = True
+    elif mutation == 'permissions':
+        job['permissions']['contents'] = 'write'
+    elif mutation == 'job-name':
+        workflow['jobs']['new-gate6-job'] = workflow['jobs'].pop('core-guard')
+    else:
+        step['env'] = {'GH_TOKEN': '${{ secrets.GITHUB_TOKEN }}'}
+    with pytest.raises(AssertionError):
+        _assert_pr_body_gate6_connection(workflow)

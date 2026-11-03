@@ -40,11 +40,15 @@ def _case() -> dict[str, Any]:
             _ROOT / "contracts/state-transition/state_transition_contract_v1.json"
         ).read_text()
     )
-    return next(
-        case
-        for case in contract["cases"]
-        if case["caseId"] == "ST-MATRIX-0529a0eb116d64a9"
-    )
+    migrations = json.loads(
+        (
+            _ROOT / "contracts/state-transition/ordinary_pitch_vectors_v1.json"
+        ).read_text()
+    )["caseIdMigrations"]["caseIds"]
+    current_id = migrations["ST-MATRIX-0529a0eb116d64a9"]
+    if current_id != "ST-MATRIX-99b1523fb41399e3":
+        raise ValueError("正式初球caseのID移行が不一致")
+    return next(case for case in contract["cases"] if case["caseId"] == current_id)
 
 
 def _request(case: dict[str, Any]) -> dict[str, Any]:

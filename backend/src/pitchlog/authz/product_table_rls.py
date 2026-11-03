@@ -18,6 +18,11 @@ def generate_product_table_rls_sql(table_id: str) -> str:
     Raises:
         ValueError: 表識別子が閉じた字句規則に合わない場合。
     """
+    from pitchlog.authz.first_ball_product import body
+
+    added = body("table", table_id)
+    if added is not None:
+        return added
     if (
         not table_id
         or table_id[0] not in _IDENTIFIER_INITIALS

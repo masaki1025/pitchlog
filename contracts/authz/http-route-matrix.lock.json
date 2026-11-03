@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_http_route_matrix",
   "asset_path": "contracts/authz/http-route-matrix.json",
-  "asset_digest": "2e98975dcbdf4721db8fd96c45e06e6a7e084e7ac17212855d1008a425a7fdbd",
-  "entry_count": 63,
-  "aggregate_decision_digest": "4c07c77bfacd2ee5afe5eadcb10342bfd18efe0c59f27619c911cd4405dbc691",
+  "asset_digest": "19042fadf8e41027b45ec2b4182e7da7f7973e7c3643ba8a5bd0d86f42bc8a25",
+  "entry_count": 65,
+  "aggregate_decision_digest": "7485bb21b2c557489bd03dde937dac2c251980b5bc44ab2b17d48e1628b72f1b",
   "entries": [
     {
       "entry_id": "route:HTTP:ROUTE:FR-020",
@@ -668,6 +668,32 @@
         }
       },
       "decision_digest": "1290347919afb386b21c0fd22c37fc1a9d355362eac47e628ca5ff849795690f"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:games:insert",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:games:insert",
+        "route_id": "ROUTE:RECORD:games:insert",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_authz_first_ball_routes.py::test_first_ball_create_and_pitch_options_routes_match_source",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "103df663d8bc0ef10842cc2a528e11bba966f633faae967e223bb52d53dc3f22"
+    },
+    {
+      "entry_id": "route:HTTP:ROUTE:RECORD:tenant_vocabularies:read",
+      "decision": {
+        "matrix_route_id": "HTTP:ROUTE:RECORD:tenant_vocabularies:read",
+        "route_id": "ROUTE:RECORD:tenant_vocabularies:read",
+        "disposition": "conditional",
+        "test_owner": {
+          "id": "tests/test_authz_first_ball_routes.py::test_first_ball_create_and_pitch_options_routes_match_source",
+          "status": "planned"
+        }
+      },
+      "decision_digest": "fd15f86cea3c5d9c4563c79b5403a8ebe54090c6cbf35cc568e67b47dca2c72e"
     },
     {
       "entry_id": "cell:CELL:shared_screen:team_metrics:screen",

@@ -34,6 +34,7 @@ _FUNCTION_ONLY_FACT_KINDS = frozenset(
         "migration_only",
         "rg1_control",
         "initial_right_storage",
+        "sync_writer_binding_storage",
     }
 )
 

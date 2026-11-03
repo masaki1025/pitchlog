@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate-not-source-implemented",
+  "operation": "course-input-quantization",
+  "targetId": "nfr018-alpha-02",
+  "cases": [
+    {
+      "id": "BIND-01",
+      "input": "actual manifest + exact binding; verified_checks absent",
+      "expected": {
+        "accepted": true,
+        "resolutionTargetIds": [],
+        "sealedElementsRemainUnresolved": true
+      }
+    },
+    {
+      "id": "BIND-02",
+      "input": "actual manifest + exact binding; vector/property/mutation verified green for operation",
+      "expected": {
+        "accepted": true,
+        "resolutionTargetIds": [],
+        "targetInFullLayerSets": false
+      }
+    },
+    {
+      "id": "BIND-03",
+      "mutation": "operation=unknown-operation with valid existing targetId",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-04",
+      "mutation": "targetId=nfr018-alpha-01",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-05",
+      "mutation": "targetId=unknown-target",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-06",
+      "mutation": "coverage=complete",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-07",
+      "mutation": "duplicate binding",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-08",
+      "mutation": "missing binding asset for operation manifest",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-09",
+      "mutation": "extra unrecognized binding property",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-10",
+      "input": "same operation before legacy manifest without embedded binding and after current manifest + external exact binding",
+      "expected": {
+        "accepted": true,
+        "preserveBeforeBlob": true,
+        "resolutionTargetIds": []
+      }
+    },
+    {
+      "id": "BIND-11",
+      "input": "existing direct stable target without operation binding",
+      "expected": {
+        "preserveExistingSemantics": true
+      }
+    },
+    {
+      "id": "BIND-12",
+      "input": "partial operation and additional stable target row for same target",
+      "expected": {
+        "accepted": false
+      }
+    },
+    {
+      "id": "BIND-13",
+      "input": "partial operation with missing source or generated or entrypoint or invocation adapter or layer registration target",
+      "expected": {
+        "noComplete": true,
+        "preserveExistingMissingPathSemantics": true
+      }
+    },
+    {
+      "id": "BIND-14",
+      "input": "partial target plus distinct other complete target with verified checks",
+      "expected": {
+        "partialNotResolved": true,
+        "otherTargetPreservesExistingSemantics": true
+      }
+    },
+    {
+      "id": "BIND-15",
+      "mutation": "source mismatch against binding",
+      "expected": {
+        "accepted": false
+      }
+    }
+  ]
+}

@@ -8,19 +8,17 @@ import {
 } from '../../lib/displayGeometry'
 import {
   courseInputViewLabel,
-  courseScreenXToStoredX,
-  courseStoredXToScreenX,
   type CourseInputView,
 } from '../../lib/courseInputView'
 import { cx } from '../../lib/format'
 import { moveSpatialPoint } from '../../lib/spatialInput'
 
 interface Props {
-  /** タップ済みコース（0〜263 float、従来の捕手側保存座標） */
+  /** タップ済み画面座標（0〜263 float）。保存用量子化と反転はartifactが担当 */
   point: { x: number; y: number } | null
   /** 打席左右（右打者=三塁側=左にシルエット） */
   plateSide: string
-  /** 画面の視点。保存座標は常に従来の捕手側視点へ正規化する。 */
+  /** 画面の視点。入力点は画面座標のままemitする。 */
   viewpoint: CourseInputView
   highlight?: boolean
   disabled?: boolean
@@ -48,7 +46,7 @@ function handlePointer(e: PointerEvent) {
   )
   emit(
     'tap',
-    courseScreenXToStoredX(clampedScreenX, props.viewpoint),
+    clampedScreenX,
     Math.max(0.1, Math.min(DISPLAY_COORD_SIZE - 0.1, y)),
   )
 }
@@ -57,7 +55,7 @@ function handleKeyDown(e: KeyboardEvent) {
   if (props.disabled) return
   const screenPoint = props.point
     ? {
-        x: courseStoredXToScreenX(props.point.x, props.viewpoint),
+        x: props.point.x,
         y: props.point.y,
       }
     : null
@@ -67,7 +65,7 @@ function handleKeyDown(e: KeyboardEvent) {
   })
   if (!next) return
   e.preventDefault()
-  emit('tap', courseScreenXToStoredX(next.x, props.viewpoint), next.y)
+  emit('tap', next.x, next.y)
 }
 
 const thirdW = (Z.right - Z.left) / 3
@@ -101,9 +99,7 @@ const homePlatePath = computed(() =>
     ? 'M 106 252 L 157 252 L 157 240 L 131.5 226 L 106 240 Z'
     : 'M 106 226 L 157 226 L 157 238 L 131.5 252 L 106 238 Z',
 )
-const markerX = computed(() =>
-  props.point ? courseStoredXToScreenX(props.point.x, props.viewpoint) : null,
-)
+const markerX = computed(() => (props.point ? props.point.x : null))
 const viewpointBadgeLabel = computed(() =>
   courseInputViewLabel(props.viewpoint),
 )

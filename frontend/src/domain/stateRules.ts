@@ -15,3 +15,19 @@ export const FIRST_BALL_RULE: Rule = {
   ballEffect: 'delta',
   ballDelta: 1n,
 }
+
+/** 打席が終了しない見逃し・空振り・ファウルの共通カウント規則。 */
+export const ORDINARY_STRIKE_RULE: Rule = {
+  pa: false,
+  batter: 'continue',
+  batterBase: 0n,
+  outs: 0n,
+  targets: [],
+  advance: 'hold_all',
+  step: 0n,
+  explicit: {},
+  strikeEffect: 'delta',
+  strikeDelta: 1n,
+  ballEffect: 'unchanged',
+  ballDelta: 0n,
+}

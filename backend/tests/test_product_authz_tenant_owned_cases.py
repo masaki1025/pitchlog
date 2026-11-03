@@ -3,9 +3,104 @@
 from __future__ import annotations
 
 import inspect
+from typing import cast
 
 import product_authz_tenant_owned_cases as cases
-from psycopg import sql
+import pytest
+from psycopg import Connection, sql
+
+# c2e5e4ddの旧public50/tenant32を全順序付きで固定する。
+_EXPECTED_PUBLIC_TABLES = (
+    "tenants",
+    "team_records",
+    "players",
+    "games",
+    "lineup_memories",
+    "game_lineups",
+    "participation_intervals",
+    "rule_sets",
+    "game_type_rule_defaults",
+    "tournament_rule_assignments",
+    "event_slots",
+    "operation_events",
+    "play_rows",
+    "play_runners",
+    "temporary_player_id_mappings",
+    "idempotency_ledger",
+    "rejected_event_originals",
+    "evacuated_event_originals",
+    "recording_generations",
+    "medical_notes",
+    "medical_note_versions",
+    "pdf_export_records",
+    "system_vocabularies",
+    "admin_vocabularies",
+    "tenant_vocabularies",
+    "system_settings",
+    "tenant_auth_subjects",
+    "tenant_credentials",
+    "admin_credentials",
+    "admin_sessions",
+    "tenant_tokens",
+    "admin_operation_logs",
+    "player_merge_events",
+    "player_move_records",
+    "rate_limit_counters",
+    "analysis_groups",
+    "group_memberships",
+    "sharing_grants",
+    "group_invitations",
+    "invalidation_intents",
+    "migration_quarantine",
+    "migrated_final_lineups",
+    "migration_runs",
+    "migration_resolution_reports",
+    "migration_warning_reports",
+    "rg1_restore_gate",
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+)
+_EXPECTED_PUBLIC_TENANT_TABLES = (
+    "team_records",
+    "players",
+    "games",
+    "lineup_memories",
+    "game_lineups",
+    "participation_intervals",
+    "tournament_rule_assignments",
+    "event_slots",
+    "operation_events",
+    "play_rows",
+    "play_runners",
+    "temporary_player_id_mappings",
+    "idempotency_ledger",
+    "rejected_event_originals",
+    "evacuated_event_originals",
+    "recording_generations",
+    "medical_notes",
+    "medical_note_versions",
+    "pdf_export_records",
+    "tenant_vocabularies",
+    "tenant_auth_subjects",
+    "tenant_tokens",
+    "admin_operation_logs",
+    "player_merge_events",
+    "player_move_records",
+    "group_memberships",
+    "invalidation_intents",
+    "migrated_final_lineups",
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+)
+_EXPECTED_PRIVATE_TABLES = (
+    "writer_bindings",
+    "writer_admissions",
+    "first_ball_write_admissions",
+)
 
 
 def _manifest_by_name() -> dict[str, dict[str, object]]:
@@ -374,3 +469,183 @@ def test_owned_seed_database_closure_rejects_foreign_or_wrong_database(
     with pytest.raises(AssertionError):
         db_fixtures._close_owned_seed_database_access(cluster)
     assert executed == []
+
+
+def test_public_seed_population_and_private_function_only_population_are_exact() -> (
+    None
+):
+    """旧public50/tenant32全表を保ち、私有3表をseed/DMLから分ける。"""
+    assert (
+        tuple(
+            row["name"]
+            for row in cases.manifest_tables()
+            if cases.table_schema(str(row["name"])) == "public"
+        )
+        == _EXPECTED_PUBLIC_TABLES
+    )
+    assert cases.tenant_id_table_names() == _EXPECTED_PUBLIC_TENANT_TABLES
+    assert cases.private_function_only_table_names() == _EXPECTED_PRIVATE_TABLES
+    assert {row.table for row in cases.seed_rows()}.isdisjoint(_EXPECTED_PRIVATE_TABLES)
+    for table in _EXPECTED_PRIVATE_TABLES:
+        assert cases.table_schema(table) == "sync_fence"
+        with pytest.raises(AssertionError, match="汎用INSERTは禁止"):
+            cases.insert_statement(cases.SeedRow(table, {}))
+        with pytest.raises(AssertionError, match="未定義"):
+            cases.insert_candidate(table, cases.TENANT_A)
+    with pytest.raises(AssertionError, match="manifest外"):
+        cases.table_schema("unregistered")
+
+
+@pytest.mark.parametrize("schema", ("unknown", "", "sync_fence"))
+def test_table_schema_rejects_wrong_public_namespace(monkeypatch, schema: str) -> None:
+    """既public表を誤namespaceへ移したモデルを正規fixtureへ使わない。"""
+    from types import SimpleNamespace
+
+    from sqlalchemy import Column, Integer, MetaData, Table
+
+    metadata = MetaData()
+    Table("games", metadata, Column("id", Integer), schema=schema)
+    monkeypatch.setattr(cases, "Base", SimpleNamespace(metadata=metadata))
+    with pytest.raises(AssertionError, match="未登録"):
+        cases.table_schema("games")
+
+
+def test_table_schema_rejects_name_collision_and_private_downgrade(monkeypatch) -> None:
+    """同名衝突と私有表のpublic降格をSQL生成前に拒否する。"""
+    from types import SimpleNamespace
+
+    from sqlalchemy import Column, Integer, MetaData, Table
+
+    metadata = MetaData()
+    Table("games", metadata, Column("id", Integer))
+    Table("games", metadata, Column("id", Integer), schema="sync_fence")
+    Table("writer_bindings", metadata, Column("id", Integer), schema="public")
+    monkeypatch.setattr(cases, "Base", SimpleNamespace(metadata=metadata))
+    with pytest.raises(AssertionError, match="同名衝突"):
+        cases.table_schema("games")
+    with pytest.raises(AssertionError, match="未登録"):
+        cases.table_schema("writer_bindings")
+
+
+@pytest.mark.parametrize("schema", ("public", "sync_fence"))
+def test_index_catalog_lookup_binds_schema_and_preserves_five_values(
+    schema: str,
+) -> None:
+    """同名索引をschemaで分け、既定public呼出と5返却値を保持する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db.test_alembic_migrations import _index_catalog_contract
+
+    calls = []
+    rows = {
+        ("same_index", "public"): ("public sql", "games", ["id"], None, True),
+        ("same_index", "sync_fence"): (
+            "private sql",
+            "writer_bindings",
+            ["lease_id"],
+            None,
+            True,
+        ),
+    }
+
+    @contextmanager
+    def cursor():
+        def execute(query, params):
+            assert "namespace.nspname = %s" in query
+            assert "namespace.oid = index_relation.relnamespace" in query
+            calls.append(params)
+
+        yield SimpleNamespace(execute=execute, fetchone=lambda: rows.get(calls[-1]))
+
+    connection = cast(Connection[tuple[object, ...]], SimpleNamespace(cursor=cursor))
+    result = (
+        _index_catalog_contract(connection, "same_index")
+        if schema == "public"
+        else _index_catalog_contract(connection, "same_index", schema=schema)
+    )
+    assert result == rows[("same_index", schema)]
+    assert calls == [("same_index", schema)]
+    with pytest.raises(AssertionError, match="存在しない"):
+        _index_catalog_contract(connection, "missing", schema=schema)
+    before = list(calls)
+    with pytest.raises(AssertionError, match="未登録"):
+        _index_catalog_contract(connection, "same_index", schema="unknown")
+    assert calls == before
+
+
+@pytest.mark.parametrize(
+    "constraint", ("uq_sync_writer_binding_lease", "uq_sync_writer_binding_nonce")
+)
+@pytest.mark.parametrize("field", ("columns", "source_row", "roles", "predicate"))
+def test_schema_audit_private_unique_exception_is_exact(
+    constraint: str, field: str
+) -> None:
+    """旧31/対象外5を保ち、6-1-aの2制約だけへ全field例外を閉じる。"""
+    import copy
+
+    from db import test_schema_audit as audit
+
+    manifest = audit._load_manifest()
+    rows = [
+        c
+        for t in manifest["tables"]
+        for c in t["unique_constraints"]
+        if "business_unique" in c["roles"]
+    ]
+    assert len(rows) == 31 + 2
+    assert len([c for c in rows if c["source_row"].get("scope") == "outside"]) == 5 + 2
+    changed = copy.deepcopy(manifest)
+    table = next(t for t in changed["tables"] if t["name"] == "writer_bindings")
+    row = next(c for c in table["unique_constraints"] if c["name"] == constraint)
+    row[field] = (
+        [] if field in ("columns", "roles") else {} if field == "source_row" else "true"
+    )
+    # rolesを外す改変も、有限2件の欠落として拒否する。
+    with pytest.raises(ValueError, match="exact2"):
+        audit._cross_table_audit_violations(
+            changed,
+            audit._manifest_columns(changed),
+            audit._manifest_unique_constraints(changed),
+            audit._manifest_foreign_keys(changed),
+        )
+
+
+@pytest.mark.parametrize(
+    "mode", ("extra", "wrong_table", "unknown_source", "duplicate")
+)
+def test_schema_audit_unique_exception_cannot_expand(mode: str) -> None:
+    """例外の余剰・別表への移動・原典の付替えを拒否する。"""
+    import copy
+
+    from db import test_schema_audit as audit
+
+    changed = copy.deepcopy(audit._load_manifest())
+    table = next(t for t in changed["tables"] if t["name"] == "writer_bindings")
+    row = next(
+        c
+        for c in table["unique_constraints"]
+        if c["name"] == "uq_sync_writer_binding_lease"
+    )
+    if mode == "extra":
+        table["unique_constraints"].append(
+            {**copy.deepcopy(row), "name": "unknown_unique"}
+        )
+    elif mode == "duplicate":
+        next(t for t in changed["tables"] if t["name"] == "games")[
+            "unique_constraints"
+        ].append(copy.deepcopy(row))
+    elif mode == "wrong_table":
+        table["unique_constraints"].remove(row)
+        next(t for t in changed["tables"] if t["name"] == "games")[
+            "unique_constraints"
+        ].append(row)
+    else:
+        row["source_row"]["section"] = "unknown"
+    with pytest.raises(ValueError, match="exact2"):
+        audit._cross_table_audit_violations(
+            changed,
+            audit._manifest_columns(changed),
+            audit._manifest_unique_constraints(changed),
+            audit._manifest_foreign_keys(changed),
+        )

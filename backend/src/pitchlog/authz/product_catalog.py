@@ -153,7 +153,8 @@ JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespac
 JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
 JOIN pg_catalog.pg_language AS language ON language.oid = routine.prolang
 WHERE namespace.nspname IN (
-    'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api'
+    'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api',
+    'sync_fence_api', 'sync_right_api'
 ) OR (namespace.nspname = 'public' AND routine.proname IN (
     'protect_initial_right_storage', 'protect_recording_generations_updates'
 ))
@@ -559,6 +560,7 @@ class CatalogQueryId(Enum):
     FUNCTION_ACL = "function_acl"
     BUILTIN_FUNCTION_ACL = "builtin_function_acl"
     LIFECYCLE_FUNCTION_DETAILS = "lifecycle_function_details"
+    FIRST_BALL_TRIGGERS = "first_ball_triggers"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
     UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
@@ -1079,9 +1081,15 @@ def _load_migration_batch_expectations() -> _MigrationBatchExpectations:
 def _load_product_expectations() -> _ProductExpectations:
     """Staged 資産と適用手順資産から exact-set 期待値を導出する。"""
     asset = _load_product_asset()
+    from pitchlog.authz.first_ball_product import validate
+
+    try:
+        validate(asset)
+    except ValueError as error:
+        raise ProductCatalogError(str(error)) from error
     try:
         validate_initial_verifier_declarations(asset)
-    except ValueError as error:
+    except (ValueError, TypeError, AttributeError) as error:
         raise ProductCatalogError(str(error)) from error
     _validate_initial_function_declarations(asset)
     _validated_initial_column_rows(asset)
@@ -1307,7 +1315,12 @@ def _load_product_expectations() -> _ProductExpectations:
         function_names.append(function_name)
         if function_kind == "migration_trigger":
             trigger_function_keys.append(key)
-        elif function_kind not in {"rls_helper", "definer", "migration_function"}:
+        elif function_kind not in {
+            "rls_helper",
+            "definer",
+            "migration_function",
+            "invoker",
+        }:
             raise ProductCatalogError(f"未知の製品関数種別: {function_kind}")
         for grantee, privilege, grantable in _direct_acl(
             row, "acl_expectations", "functions"
@@ -1365,6 +1378,11 @@ def _catalog_requests(
         _CatalogRequest(CatalogQueryId.FUNCTION_ACL, (schemas, functions)),
         _CatalogRequest(CatalogQueryId.BUILTIN_FUNCTION_ACL, ()),
         _CatalogRequest(CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS, ()),
+        *(
+            (_CatalogRequest(CatalogQueryId.FIRST_BALL_TRIGGERS, ()),)
+            if "guard_first_ball_projection_admission" in expectations.function_names
+            else ()
+        ),
         _CatalogRequest(CatalogQueryId.MEMBERSHIPS, (roles, roles)),
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
@@ -1440,6 +1458,10 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _FUNCTIONS_QUERY
     if query_id is CatalogQueryId.FUNCTION_ACL:
         return _FUNCTION_ACL_QUERY
+    if query_id is CatalogQueryId.FIRST_BALL_TRIGGERS:
+        from pitchlog.authz.first_ball_write_stamp import STAMP_TRIGGER_QUERY
+
+        return STAMP_TRIGGER_QUERY
     if query_id is CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS:
         return _LIFECYCLE_FUNCTION_DETAILS_QUERY
     if query_id is CatalogQueryId.BUILTIN_FUNCTION_ACL:
@@ -1802,6 +1824,11 @@ def _compare_builtin_acl(
         sorted(
             ("pg_catalog", "pg_control_system", "", role, "EXECUTE", False)
             for role in BUILTIN_EXECUTE_GRANTEES
+            | (
+                {"pitchlog_sync_binding_fn_owner"}
+                if any(row[3] == "pitchlog_sync_binding_fn_owner" for row in declared)
+                else set()
+            )
         )
     )
     report.compare(
@@ -1917,6 +1944,10 @@ def _expected_lifecycle_function_details() -> tuple[tuple[object, ...], ...]:
                 parts[1].strip(),
             )
         )
+    from pitchlog.authz.first_ball_product import function_details, validate
+
+    if validate(asset):
+        result.extend(function_details())
     return tuple(sorted(result))
 
 
@@ -2265,6 +2296,22 @@ def inspect_product_authz_catalog(
         (),
         _actual_trigger_definers(function_rows, expectations.trigger_function_keys),
     )
+    if "guard_first_ball_projection_admission" in expectations.function_names:
+        from pitchlog.authz.first_ball_write_stamp import stamp_trigger_expectations
+
+        rows = _observed_rows(frozen_observations, CatalogQueryId.FIRST_BALL_TRIGGERS)
+        if any(len(row) != 1 or type(row[0]) is not list for row in rows):
+            raise ProductCatalogError("初球triggerのカタログ観測形が不一致")
+        actual = []
+        for row in rows:
+            values = row[0]
+            assert isinstance(values, list)  # 上の形検査で確定したJSON配列。
+            actual.append(tuple(values))
+        report.compare(
+            "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS",
+            stamp_trigger_expectations(),
+            tuple(actual),
+        )
     owner_oid = _owner_role_oid(role_rows, "pitchlog_owner")
     expected_dangerous_oids = tuple(sorted((*privileged_role_oids, owner_oid)))
     actual_dangerous_oids = tuple(
@@ -2578,6 +2625,12 @@ def _validate_initial_table_acls(asset: dict[str, object]) -> None:
 
 def _validate_initial_schema_roles(asset: dict[str, object]) -> None:
     """初期namespaceと初期主体/PUBLIC/appの有限schema権限を照合する。"""
+    from pitchlog.authz.first_ball_product import legacy_asset
+
+    try:
+        asset = legacy_asset(asset)
+    except ValueError as error:
+        raise ProductCatalogError(str(error)) from error
     from pitchlog.authz.initial_start_sql import _exact_value, start_assets_present
 
     rows = _rows(asset, "schemas")

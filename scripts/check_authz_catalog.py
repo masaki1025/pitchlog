@@ -2327,6 +2327,248 @@ def _validate_claim_dispositions(
     return dispositions_by_key
 
 
+_FIRST_BALL_OPTIONS_PLAN = "docs/features/mvp-first-ball-screen-vertical/plan.md"
+_FIRST_BALL_OPTIONS_BINDINGS = (
+    ("preparing_game_create", "post", "/games", "create_game", "games",
+     "games:insert", "preparing_game_creation", "PreparingGameInsertToken", "games:insert"),
+    ("preparing_game_preparation_options", "get", "/games/preparation-options",
+     "preparation_options", "games", "tenant_vocabularies:read", "preparing_game_creation",
+     "PreparingTournamentOptionsToken", "tenant_vocabularies:read"),
+    ("pitch_type_options", "get", "/vocabularies/pitch-types", "pitch_type_options",
+     "pitch_type_options", "tenant_vocabularies:read", "pitch_type_options",
+     "PitchTypeOptionsToken", "tenant_vocabularies:read"),
+)
+
+
+def _first_ball_options_http_provenance(root: Path) -> dict[str, dict[str, str]]:
+    """閉じた3operationを実C2・scope・token能力の原文に束縛する。"""
+    def read(path: str) -> tuple[str, ast.Module]:
+        text = _read_text(root / path, "first ball options source")
+        try:
+            return text, ast.parse(text)
+        except SyntaxError as error:
+            raise CatalogError("first ball options source ASTが不正") from error
+
+    def canonical_bindings(tree: ast.Module) -> None:
+        expected = {
+            "APIRouter": ("fastapi", "APIRouter"),
+            "Depends": ("fastapi", "Depends"),
+            "require_tenant_access": ("pitchlog.api.tenant_access", "require_tenant_access"),
+            "TenantMatchedRoute": ("pitchlog.api.tenant_access", "TenantMatchedRoute"),
+            "tenant_transaction_scope": (
+                "pitchlog.repositories.transaction", "tenant_transaction_scope"
+            ),
+        }
+        bindings: dict[str, list[tuple[str | None, str]]] = {
+            key: [] for key in expected
+        }
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                if node.level != 0 or any(alias.name == "*" for alias in node.names):
+                    raise CatalogError("first ball options importの再束縛を拒否")
+                for alias in node.names:
+                    local = alias.asname or alias.name
+                    if local in bindings:
+                        bindings[local].append((node.module, alias.name))
+            if isinstance(node, ast.Import):
+                if any(
+                    (a.asname or a.name.split('.')[0]) in expected for a in node.names
+                ):
+                    raise CatalogError("first ball options import alias不一致")
+            if (
+                isinstance(node, ast.Name)
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+                and node.id in expected
+            ):
+                raise CatalogError("first ball options認可束縛の上書きを拒否")
+            if isinstance(node, ast.arg) and node.arg in expected:
+                raise CatalogError("first ball options認可束縛の引数shadowを拒否")
+            if (
+                isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                and node.name in expected
+            ):
+                raise CatalogError("first ball options認可束縛の定義shadowを拒否")
+            if (
+                isinstance(node, ast.Attribute)
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+            ):
+                base = node.value
+                while isinstance(base, ast.Attribute):
+                    base = base.value
+                if isinstance(base, ast.Name) and base.id in expected:
+                    raise CatalogError("first ball options認可束縛の属性上書きを拒否")
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id in {"globals", "locals", "exec", "eval"}
+            ):
+                raise CatalogError("first ball options動的な束縛変更を拒否")
+        if any(bindings[name] != [value] for name, value in expected.items()):
+            raise CatalogError("first ball options canonical import不一致")
+
+    def segment(text: str, node: ast.FunctionDef | ast.ClassDef) -> str:
+        start = min(
+            [node.lineno, *(n.lineno for n in getattr(node, "decorator_list", []))]
+        ) - 1
+        return "".join(text.splitlines(keepends=True)[start:node.end_lineno]).strip()
+
+    _, access_tree = read("backend/src/pitchlog/api/tenant_access.py")
+    matched = next(
+        (
+            n.value for n in access_tree.body
+            if isinstance(n, ast.Assign)
+            and any(
+                isinstance(t, ast.Name) and t.id == "_MATCH_OPERATIONS"
+                for t in n.targets
+            )
+        ),
+        None,
+    )
+    if not isinstance(matched, ast.Call) or len(matched.args) != 1:
+        raise CatalogError("first ball options C2登録を解釈できない")
+    try:
+        operations = ast.literal_eval(matched.args[0])
+    except (ValueError, SyntaxError) as error:
+        raise CatalogError("first ball options C2登録が閉集合でない") from error
+    result: dict[str, dict[str, str]] = {}
+    for (
+        operation, verb, path, function, api_module, _, repo_module, token, capability
+    ) in _FIRST_BALL_OPTIONS_BINDINGS:
+        if operation not in operations:
+            raise CatalogError("first ball options C2登録欠落")
+        api_path = f"backend/src/pitchlog/api/routers/{api_module}.py"
+        text, tree = read(api_path)
+        canonical_bindings(tree)
+        functions = [
+            n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == function
+        ]
+        if len(functions) != 1:
+            raise CatalogError("first ball options HTTP関数が一意でない")
+        fn = functions[0]
+        decorators = [d for d in fn.decorator_list if isinstance(d, ast.Call)
+                      and isinstance(d.func, ast.Attribute) and isinstance(d.func.value, ast.Name)
+                      and d.func.value.id == "router" and d.func.attr == verb]
+        if (
+            len(decorators) != 1
+            or not decorators[0].args
+            or not isinstance(decorators[0].args[0], ast.Constant)
+            or decorators[0].args[0].value != path
+        ):
+            raise CatalogError("first ball options HTTP path/method不一致")
+        ids = [
+            k.value.value for k in decorators[0].keywords
+            if k.arg == "operation_id" and isinstance(k.value, ast.Constant)
+        ]
+        calls = list(ast.walk(fn))
+        auth = any(
+            isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+            and n.func.id == "Depends" and len(n.args) == 1
+            and isinstance(n.args[0], ast.Name)
+            and n.args[0].id == "require_tenant_access" for n in calls
+        )
+        scope = any(
+            isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+            and n.func.id == "tenant_transaction_scope" and len(n.args) == 1
+            and isinstance(n.args[0], ast.Name) and n.args[0].id == "context"
+            for n in calls
+        )
+        routers = [n.value for n in tree.body if isinstance(n, ast.Assign)
+                   and any(isinstance(t, ast.Name) and t.id == "router" for t in n.targets)]
+        c2 = (
+            len(routers) == 1 and isinstance(routers[0], ast.Call)
+            and isinstance(routers[0].func, ast.Name)
+            and routers[0].func.id == "APIRouter"
+            and any(
+                k.arg == "route_class" and isinstance(k.value, ast.Name)
+                and k.value.id == "TenantMatchedRoute" for k in routers[0].keywords
+            )
+        )
+        if ids != [operation] or not auth or not scope or not c2:
+            raise CatalogError("first ball options HTTP認証/scope/C2結合が不一致")
+        result["HTTP:" + operation] = {"provenance_id": "HTTP:" + operation,
+                                      "path": api_path, "extracted_text": segment(text, fn)}
+        repo_path = f"backend/src/pitchlog/repositories/{repo_module}.py"
+        repo, repo_tree = read(repo_path)
+        classes = [n for n in repo_tree.body if isinstance(n, ast.ClassDef) and n.name == token]
+        if len(classes) != 1:
+            raise CatalogError("first ball options tokenが一意でない")
+        cap = [
+            n for n in classes[0].body
+            if isinstance(n, ast.FunctionDef) and n.name == "capability_id"
+        ]
+        values = [
+            n.value.value for n in ast.walk(cap[0])
+            if isinstance(n, ast.Return) and isinstance(n.value, ast.Constant)
+        ] if len(cap) == 1 else []
+        if values != ["CAP:" + capability]:
+            raise CatalogError("first ball options tokenの実CAPが不一致")
+        key = "FIRST-BALL-OPTION-TOKEN:" + token
+        result[key] = {"provenance_id": key, "path": repo_path,
+                       "extracted_text": segment(repo, classes[0])}
+    plan = _read_text(root / _FIRST_BALL_OPTIONS_PLAN, "first ball options plan")
+    lines = [line for line in plan.splitlines() if "専用 `GET /vocabularies/pitch-types`" in line]
+    if len(lines) != 1:
+        raise CatalogError("first ball options計画根拠が一意でない")
+    result["PLAN-MVP-FIRST-BALL-OPTIONS"] = {
+        "provenance_id": "PLAN-MVP-FIRST-BALL-OPTIONS",
+        "path": _FIRST_BALL_OPTIONS_PLAN, "extracted_text": lines[0],
+    }
+    return result
+
+
+def _validate_first_ball_options_http_routes(
+    routes: dict[str, dict[str, object]], provenance: object, root: Path,
+) -> None:
+    """未知route/CAP、原文不一致、別routeへの付替えを閉じて拒否する。"""
+    if not isinstance(provenance, list):
+        raise CatalogError("first ball options provenanceが配列でない")
+    prefix = (
+        "HTTP:preparing_game_create", "HTTP:preparing_game_preparation_options",
+        "HTTP:pitch_type_options", "FIRST-BALL-OPTION-TOKEN:",
+        "PLAN-MVP-FIRST-BALL-OPTIONS",
+    )
+    actual = {
+        row.get("provenance_id"): row for row in provenance
+        if isinstance(row, dict) and isinstance(row.get("provenance_id"), str)
+        and row["provenance_id"].startswith(prefix)
+    }
+    target_routes = {
+        "ROUTE:RECORD:" + binding[5] for binding in _FIRST_BALL_OPTIONS_BINDINGS
+    }
+    has_reference = any(
+        isinstance(key, str) and key.startswith(prefix)
+        for row in routes.values()
+        for key in _expect_string_list(
+            row.get("provenance_ids", []), "first ball options route provenance"
+        )
+    )
+    if not (target_routes & routes.keys()) and not actual and not has_reference:
+        # 既合成fixtureの個別意味検査では、この新HTTP群の実sourceを要求しない。
+        # 製品registryの欠落は呼出元の先行exact12で拒否される。
+        return
+    expected = _first_ball_options_http_provenance(root)
+    if actual != expected:
+        raise CatalogError("first ball options HTTP/CAP原文provenance不一致")
+    allowed: dict[str, list[str]] = {}
+    for op, _, _, _, _, target, _, token, _ in _FIRST_BALL_OPTIONS_BINDINGS:
+        route = "ROUTE:RECORD:" + target
+        allowed.setdefault(
+            route, ["PLAN-TSK446-RECORD-AND-AGGREGATE", "PLAN-MVP-FIRST-BALL-OPTIONS"]
+        )
+        allowed[route].extend(["HTTP:" + op, "FIRST-BALL-OPTION-TOKEN:" + token])
+    for route, ids in allowed.items():
+        row = routes.get(route)
+        if not isinstance(row, dict) or row.get("provenance_ids") != ids:
+            raise CatalogError("first ball options論理routeの有限対応不一致")
+    for route, row in routes.items():
+        if route not in allowed and any(isinstance(key, str) and key.startswith(prefix)
+                                        for key in _expect_string_list(
+                                            row.get("provenance_ids", []),
+                                            "first ball options route provenance",
+                                        )):
+            raise CatalogError("first ball optionsを別routeへ付け替えている")
+
+
 def _validate_record_and_aggregate_route_ids(
     route_by_id: dict[str, dict[str, object]],
 ) -> None:
@@ -2339,6 +2581,8 @@ def _validate_record_and_aggregate_route_ids(
     expected_route_ids: frozenset[str] = frozenset(
         {
             "ROUTE:RECORD:games:read",
+            "ROUTE:RECORD:games:insert",
+            "ROUTE:RECORD:tenant_vocabularies:read",
             "ROUTE:RECORD:games:update",
             "ROUTE:RECORD:trusted_devices:insert",
             "ROUTE:RECORD:lineup_memories:read",
@@ -2629,6 +2873,247 @@ def _validate_initial_http_routes(
     read_ids = _expect_string_list(read.get("provenance_ids"), "games:read provenance")
     if any(key in read_ids for key in expected):
         raise CatalogError("resolveを含むinitial HTTPをgames:readへ接続している")
+
+_STARTED_READ_HTTP_API_PATH = "backend/src/pitchlog/api/routers/started_games.py"
+_STARTED_READ_HTTP_PLAN_PATH = "docs/features/mvp-started-read-http/plan.md"
+_STARTED_READ_HTTP_PLAN_ID = "PLAN-MVP-STARTED-READ-HTTP"
+# 計画書側の根拠行は行頭の固定語で一意に特定する(原文の逐語抽出)。
+_STARTED_READ_HTTP_PLAN_LINE_PREFIX = "開始済み試合readのGET"
+_STARTED_READ_HTTP_ROUTE = "ROUTE:RECORD:games:read"
+_STARTED_READ_HTTP_SOURCE_TOKENS = "backend/src/pitchlog/sync/tokens.py"
+_STARTED_READ_HTTP_SOURCE_OPERATIONS = (
+    "backend/src/pitchlog/repositories/started_snapshot_operations.py"
+)
+_STARTED_READ_HTTP_SOURCE_ROSTER = "backend/src/pitchlog/repositories/roster.py"
+_STARTED_READ_HTTP_SOURCE_RECORDED = (
+    "backend/src/pitchlog/repositories/recorded_snapshot_operations.py"
+)
+_STARTED_READ_HTTP_READER_PATHS = (
+    "backend/src/pitchlog/repositories/started_read.py",
+    "backend/src/pitchlog/repositories/started_snapshot.py",
+    "backend/src/pitchlog/repositories/recorded_snapshot.py",
+)
+# 新しい論理routeも独自CAPも作らず、既存games:readの論理routeへ、実operationと
+# 読取tokenの実CAPを個別に結ぶ。(operation_id, path, 関数名, 論理route, (token型, 実CAP)...)
+_STARTED_READ_HTTP_BINDINGS = (
+    ("started_game_detail", "/games/{game_id}/started", "read_started_game_detail",
+     _STARTED_READ_HTTP_ROUTE,
+     (("GameLockToken", "CAP:games:read"),
+      ("GameReadToken", "CAP:games:read"),
+      ("RecordingGenerationReadToken", "CAP:recording_generations:read"),
+      ("RecordingGenerationLockToken", "CAP:recording_generations:read"),
+      ("StartedLineupsReadToken", "CAP:game_lineups:read"),
+      ("StartedEventSlotsExistenceToken", "CAP:event_slots:read"),
+      ("StartedOperationEventsExistenceToken", "CAP:operation_events:read"),
+      ("StartedPlayRowsExistenceToken", "CAP:play_rows:read"),
+      ("PlayerReadToken", "CAP:players:read"),
+      # 記録後read（保存初球1件）が同じ論理routeで使う既CAP。
+      ("IdempotencyLedgerReadToken", "CAP:idempotency_ledger:read"),
+      ("RecordedEventRowsReadToken", "CAP:operation_events:read"),
+      ("RecordedEventSlotsReadToken", "CAP:event_slots:read"),
+      ("RecordedPlayRowsReadToken", "CAP:play_rows:read"))),
+)
+# token型ごとの宣言source と、宣言の種別(class直下の代入名 / property名)。
+_STARTED_READ_HTTP_TOKEN_DECLARATIONS = {
+    "GameLockToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "GameReadToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "RecordingGenerationReadToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "RecordingGenerationLockToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "StartedLineupsReadToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "StartedEventSlotsExistenceToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "StartedOperationEventsExistenceToken": (
+        _STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "StartedPlayRowsExistenceToken": (_STARTED_READ_HTTP_SOURCE_OPERATIONS, "_capability"),
+    "PlayerReadToken": (_STARTED_READ_HTTP_SOURCE_ROSTER, "capability_id"),
+    "IdempotencyLedgerReadToken": (_STARTED_READ_HTTP_SOURCE_TOKENS, "_capability_id"),
+    "RecordedEventRowsReadToken": (_STARTED_READ_HTTP_SOURCE_RECORDED, "_capability"),
+    "RecordedEventSlotsReadToken": (_STARTED_READ_HTTP_SOURCE_RECORDED, "_capability"),
+    "RecordedPlayRowsReadToken": (_STARTED_READ_HTTP_SOURCE_RECORDED, "_capability"),
+}
+_STARTED_READ_HTTP_TOKEN_PREFIX = "STARTED-READ-TOKEN:"
+_STARTED_READ_HTTP_OPERATION_KEY = "HTTP:" + _STARTED_READ_HTTP_BINDINGS[0][0]
+
+
+def _started_read_http_route_ids() -> list[str]:
+    """games:readの論理routeが持つべきprovenance IDの完全な並びを返す。
+
+    既存の準備中2GETの2件を先頭に保ち、その後ろへ新規を足す。
+    """
+    return [
+        "PLAN-TSK446-RECORD-AND-AGGREGATE", "PLAN-MVP-PREPARING-READ-REGISTRATION",
+        _STARTED_READ_HTTP_PLAN_ID, _STARTED_READ_HTTP_OPERATION_KEY,
+        *(_STARTED_READ_HTTP_TOKEN_PREFIX + token
+          for token, _ in _STARTED_READ_HTTP_BINDINGS[0][4]),
+    ]
+
+
+def _started_read_http_provenance(root: Path) -> dict[str, dict[str, str]]:
+    """実GET・C2・読取tokenの実CAP・計画根拠の原文を読み、有限対応を検査する。"""
+    def source(path: str) -> tuple[str, ast.Module]:
+        text = _read_text(root / path, "started read HTTP source")
+        try:
+            return text, ast.parse(text)
+        except SyntaxError as error:
+            raise CatalogError("started read HTTP sourceのASTが不正") from error
+
+    def segment(text: str, node: ast.AST) -> str:
+        value = ast.get_source_segment(text, node)
+        if value is None:
+            raise CatalogError("started read HTTP sourceの原文を取り出せない")
+        return value.strip()
+
+    def excerpt(text: str, node: ast.FunctionDef) -> str:
+        start = min([node.lineno, *(n.lineno for n in node.decorator_list)]) - 1
+        return "".join(text.splitlines(keepends=True)[start:node.end_lineno]).strip()
+
+    operation, route_path, function_name, _, tokens = _STARTED_READ_HTTP_BINDINGS[0]
+    api, tree = source(_STARTED_READ_HTTP_API_PATH)
+    routers = [n.value for n in tree.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "router" for t in n.targets)]
+    if (len(routers) != 1 or not isinstance(routers[0], ast.Call)
+            or not isinstance(routers[0].func, ast.Name) or routers[0].func.id != "APIRouter"
+            or [k.value.id if isinstance(k.value, ast.Name) else None
+                for k in routers[0].keywords if k.arg == "route_class"] != ["TenantMatchedRoute"]):
+        raise CatalogError("started read HTTPの実routerがC2 classへ接続されていない")
+    found: list[ast.FunctionDef] = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not (isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Attribute)
+                    and isinstance(decorator.func.value, ast.Name)
+                    and decorator.func.value.id == "router"):
+                continue
+            operations = [k.value for k in decorator.keywords if k.arg == "operation_id"]
+            if (decorator.func.attr != "get" or len(operations) != 1
+                    or not isinstance(operations[0], ast.Constant)
+                    or type(operations[0].value) is not str):
+                raise CatalogError("started read HTTPの実routeがGET1本の形でない")
+            if (operations[0].value != operation or node.name != function_name
+                    or len(decorator.args) != 1
+                    or not isinstance(decorator.args[0], ast.Constant)
+                    or decorator.args[0].value != route_path):
+                raise CatalogError("started read HTTPの実GET/operationが不一致")
+            found.append(node)
+    if len(found) != 1:
+        raise CatalogError("started read HTTPの実GETが欠落又は重複")
+    _, tenant = source("backend/src/pitchlog/api/tenant_access.py")
+    matches = [n.value for n in tenant.body if isinstance(n, ast.Assign)
+               and any(isinstance(t, ast.Name) and t.id == "_MATCH_OPERATIONS" for t in n.targets)]
+    if (len(matches) != 1 or not isinstance(matches[0], ast.Call)
+            or not isinstance(matches[0].func, ast.Name) or matches[0].func.id != "frozenset"
+            or matches[0].keywords or len(matches[0].args) != 1):
+        raise CatalogError("started read HTTPのC2宣言が不正")
+    try:
+        matched = ast.literal_eval(matches[0].args[0])
+    except (ValueError, TypeError) as error:
+        raise CatalogError("started read HTTPのC2宣言が不正") from error
+    if not isinstance(matched, set) or operation not in matched:
+        raise CatalogError("started read HTTPのC2登録が欠落")
+    # 読取tokenの実CAP: 型ごとに宣言を1つへ特定し、literalと完全一致させる。
+    result: dict[str, dict[str, str]] = {}
+    for token_name, capability in tokens:
+        path, kind = _STARTED_READ_HTTP_TOKEN_DECLARATIONS[token_name]
+        text, module = source(path)
+        classes = [n for n in module.body if isinstance(n, ast.ClassDef) and n.name == token_name]
+        if len(classes) != 1:
+            raise CatalogError("started read HTTPの実CAP tokenが欠落/重複")
+        key = _STARTED_READ_HTTP_TOKEN_PREFIX + token_name
+        if kind == "capability_id":
+            methods = [n for n in classes[0].body
+                       if isinstance(n, ast.FunctionDef) and n.name == kind]
+            if len(methods) != 1:
+                raise CatalogError("started read HTTPの実CAP宣言が欠落/重複")
+            body = [n for n in methods[0].body if not (isinstance(n, ast.Expr)
+                    and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str))]
+            if (len(body) != 1 or not isinstance(body[0], ast.Return)
+                    or not isinstance(body[0].value, ast.Constant)
+                    or body[0].value.value != capability
+                    or [ast.dump(n) for n in methods[0].decorator_list]
+                    != [ast.dump(ast.Name(id="property", ctx=ast.Load()))]):
+                raise CatalogError("started read HTTPの実CAP/provenanceが不一致")
+            result[key] = {"provenance_id": key, "path": path,
+                           "extracted_text": excerpt(text, methods[0])}
+        else:
+            assigns = [n for n in classes[0].body if isinstance(n, ast.Assign)
+                       and [t.id for t in n.targets if isinstance(t, ast.Name)] == [kind]]
+            if (len(assigns) != 1 or not isinstance(assigns[0].value, ast.Constant)
+                    or assigns[0].value.value != capability):
+                raise CatalogError("started read HTTPの実CAP/provenanceが不一致")
+            result[key] = {"provenance_id": key, "path": path,
+                           "extracted_text": segment(text, assigns[0])}
+    # 組立器とN2が実際に使う読取tokenの集合が、結線した種類と完全一致すること。
+    used: set[str] = set()
+    for path in _STARTED_READ_HTTP_READER_PATHS:
+        _, module = source(path)
+        for node in ast.walk(module):
+            if (isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+                    and node.id.endswith("Token") and node.id != "TenantOperationToken"):
+                used.add(node.id)
+    if used != {token for token, _ in tokens}:
+        raise CatalogError("started read HTTPの読取tokenが結線の集合と一致しない")
+    plan = _read_text(root / _STARTED_READ_HTTP_PLAN_PATH, "started read HTTP plan")
+    lines = [line for line in plan.splitlines()
+             if line.startswith(_STARTED_READ_HTTP_PLAN_LINE_PREFIX)]
+    if len(lines) != 1:
+        raise CatalogError("started read HTTPの計画根拠が一意でない")
+    result[_STARTED_READ_HTTP_PLAN_ID] = {"provenance_id": _STARTED_READ_HTTP_PLAN_ID,
+        "path": _STARTED_READ_HTTP_PLAN_PATH, "extracted_text": lines[0]}
+    result[_STARTED_READ_HTTP_OPERATION_KEY] = {
+        "provenance_id": _STARTED_READ_HTTP_OPERATION_KEY,
+        "path": _STARTED_READ_HTTP_API_PATH, "extracted_text": excerpt(api, found[0])}
+    return result
+
+
+def _is_started_read_http_key(key: str) -> bool:
+    """started read HTTPが所有するprovenance IDか。"""
+    return (key == _STARTED_READ_HTTP_PLAN_ID or key == _STARTED_READ_HTTP_OPERATION_KEY
+            or key.startswith(_STARTED_READ_HTTP_TOKEN_PREFIX))
+
+
+def _validate_started_read_http_routes(
+    routes: dict[str, dict[str, object]], provenance: object, root: Path,
+) -> None:
+    """既存games:readの論理routeへ、実GET・実CAPを個別かつ完全一致で対応させる。
+
+    新しいprovenanceもrouteの結線も無い入力は、旧fixtureの個別意味試験として扱う。
+    製品の正式registryがこの登録を持つことは、別の試験が固定する。
+    """
+    if not isinstance(provenance, list):
+        raise CatalogError("started read HTTP provenanceの型が不正")
+    actual: dict[str, dict[str, object]] = {}
+    for row in provenance:
+        if not isinstance(row, dict):
+            raise CatalogError("started read HTTP provenanceの型が不正")
+        key = _expect_string(row.get("provenance_id"), "started read HTTP provenance ID")
+        if key in actual:
+            raise CatalogError("started read HTTP provenanceが重複")
+        actual[key] = row
+    read = routes.get(_STARTED_READ_HTTP_ROUTE)
+    read_ids = (
+        [] if read is None
+        else _expect_string_list(read.get("provenance_ids"), "games:read provenance")
+    )
+    if not any(_is_started_read_http_key(key) for key in (*actual, *read_ids)):
+        return
+    expected = _started_read_http_provenance(root)
+    for key in actual:
+        if _is_started_read_http_key(key) and key not in expected:
+            raise CatalogError("started read HTTPに未知provenance/CAPがある")
+    for key, value in expected.items():
+        if actual.get(key) != value:
+            raise CatalogError("started read HTTP operation/CAP provenanceが不一致")
+    if read_ids != _started_read_http_route_ids():
+        raise CatalogError("started read HTTP論理routeのoperation/CAP対応が不一致")
+    for route_id, row in routes.items():
+        if route_id == _STARTED_READ_HTTP_ROUTE:
+            continue
+        ids = row.get("provenance_ids")
+        if isinstance(ids, list) and any(
+                isinstance(key, str) and _is_started_read_http_key(key) for key in ids):
+            raise CatalogError("started read HTTPをgames:read以外へ接続している")
+
 
 def _validate_authentication_entry_route_ids(
     route_by_id: dict[str, dict[str, object]],
@@ -2967,7 +3452,9 @@ def validate_route_registry(
     ):
         raise CatalogError("operation_ids と管理 route が exact-set 不一致")
     _validate_record_and_aggregate_route_ids(route_by_id)
+    _validate_first_ball_options_http_routes(route_by_id, raw["design_provenance"], root)
     _validate_initial_http_routes(route_by_id, raw["design_provenance"], root)
+    _validate_started_read_http_routes(route_by_id, raw["design_provenance"], root)
     _validate_authentication_entry_route_ids(route_by_id)
     routed_route_ids_by_claim: dict[str, set[str]] = defaultdict(set)
     for route_id, route in route_by_id.items():
@@ -3723,6 +4210,13 @@ def _validate_product_database_expectations(
     value: object, *, lifecycle_required: bool = False,
 ) -> None:
     """製品DBの所有者とACLをdesign.md 2-1へ照合する。"""
+    from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+        legacy_database_rows,
+    )
+    try:
+        value = legacy_database_rows(value)
+    except ValueError as error:
+        raise CatalogError(str(error)) from error
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.databasesは配列でなければならない")
     actual: dict[str, dict[str, object]] = {}
@@ -3797,6 +4291,13 @@ def _validate_product_schema_expectations(
     start_required: bool = False,
 ) -> None:
     """製品スキーマの所有者とACLをdesign.md 2-1へ照合する。"""
+    from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+        legacy_schema_rows,
+    )
+    try:
+        value = legacy_schema_rows(value)
+    except ValueError as error:
+        raise CatalogError(str(error)) from error
     if not isinstance(value, list):
         raise CatalogError("製品DDL manifest.schemasは配列でなければならない")
     actual: dict[str, dict[str, object]] = {}
@@ -4087,7 +4588,11 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     present = manifest_set & initial_tables
     if present and (present != initial_tables or 'rg1_restore_gate' not in manifest_set):
         raise CatalogError('初期4表はRG1既基線と共にexact-setで必要')
-    expected_tables = baseline_tables | present
+    binding_ids = {'writer_bindings','writer_admissions','first_ball_write_admissions'}
+    binding = manifest_set & binding_ids
+    if binding and binding != binding_ids:
+        raise CatalogError('同期binding表はexact3表が必要')
+    expected_tables = baseline_tables | present | binding
     if "rg1_restore_gate" in manifest_set:
         expected_tables |= {'rg1_restore_gate'}
     if manifest_set != classification_set or manifest_set != expected_tables:
@@ -4271,7 +4776,15 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
             raise CatalogError(f"{label}.table_idが重複している: {table_id}")
         declared_tables.add(table_id)
         if (
-            row_value["schema_name"] != "public"
+            row_value['schema_name'] != (
+                'sync_fence'
+                if table_id in {
+                    'writer_bindings',
+                    'writer_admissions',
+                    'first_ball_write_admissions',
+                }
+                else 'public'
+            )
             or row_value["enable_row_level_security"] is not True
             or row_value["force_row_level_security"] is not True
         ):
@@ -4362,7 +4875,12 @@ def _validate_product_access_bodies(
         if policy_paths[policy_id] != expected_path:
             raise CatalogError(f"{policy_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"ポリシーbody[{policy_id}]")
-        if policy_id in start_policy_declarations():
+        from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+            body as binding_body,
+        )
+        if binding_body('policy', policy_id) is not None:
+            expected_body = binding_body('policy', policy_id)
+        elif policy_id in start_policy_declarations():
             expected_body = generate_start_policy_sql(policy_id)
         elif policy_id in build_enrollment_policy_declarations():
             expected_body = generate_enrollment_policy_sql()
@@ -4390,8 +4908,13 @@ def _validate_product_access_bodies(
         if acl_paths[acl_id] != expected_path:
             raise CatalogError(f"{acl_id}のbody manifest対応が不正")
         body = _read_text(root / expected_path, f"表ACL body[{acl_id}]")
+        from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+            body as binding_body,
+        )
         expected_body = (
-            generate_product_table_acl_sql(table_id, str(declaration["profile"]))
+            binding_body('acl_expectation', acl_id)
+            if binding_body('acl_expectation', acl_id) is not None
+            else generate_product_table_acl_sql(table_id, str(declaration["profile"]))
             if acl_id in expected_acls
             else generate_builtin_execute_sql(declaration)
             if declaration.get("object_kind") == "builtin_function"
@@ -4483,6 +5006,12 @@ def _validate_product_table_access_expectations(
             raise CatalogError(str(error)) from error
         expected_policies.update(start_policy_declarations())
 
+    from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+        ADDITIONS,
+        validate,
+    )
+    if validate(raw):
+        expected_policies.update({row['policy_id']:row for row in ADDITIONS['policies']})
     policies = _product_declarations_by_id(
         raw["policies"],
         "policy_id",
@@ -4519,6 +5048,11 @@ def _validate_product_table_access_expectations(
         if declaration.get("object_kind") == "builtin_function":
             if not is_builtin_execute_declaration(declaration):
                 raise CatalogError("builtin追加EXECUTEが有限集合と一致しない")
+            continue
+        from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+            require_row,
+        )
+        if require_row('acl_expectations', declaration) is not None:
             continue
         if is_forbidden_rg1_table_acl(declaration):
             raise CatalogError("RG1状態表と専用ownerには表単位ACLを許可しない")
@@ -4560,7 +5094,9 @@ def _validate_product_table_access_expectations(
         }
         expected_builtin = {
             str(row["acl_id"]): row
-            for role in BUILTIN_EXECUTE_GRANTEES
+            for role in BUILTIN_EXECUTE_GRANTEES | (
+                {'pitchlog_sync_binding_fn_owner'} if validate(raw) else set()
+            )
             for row in (build_builtin_execute_declaration(role),)
         }
         if builtin_acls != expected_builtin:
@@ -4657,6 +5193,11 @@ def _validate_product_membership_helper(
         "製品DDL manifest.column_acl_expectations",
     )
     for expectation_id, declaration in column_acls.items():
+        from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+            require_row,
+        )
+        if require_row('column_acl_expectations', declaration) is not None:
+            continue
         if (is_start_column_acl(declaration) or is_initial_column_acl(declaration)
             or is_enrollment_column_acl(declaration)):
             continue
@@ -4978,7 +5519,9 @@ def _validate_lifecycle_function_assets(raw: dict[str, object], root: Path) -> N
     actual = {
         key: row for key, row in rows.items()
         if row.get("schema_name") in {"rg1_control", "pitchlog_ledger_observer"}
-        or row.get("owner_role_id") in BUILTIN_EXECUTE_GRANTEES
+        or row.get("owner_role_id") in {
+            "pitchlog_rg1_control_owner", "pitchlog_ledger_identity_owner"
+        }
     }
     expected = build_lifecycle_function_declarations()
     if actual != expected:
@@ -5220,6 +5763,14 @@ def _validate_product_ddl_elements(
     state: RuntimeContractState,
 ) -> dict[str, object]:
     """製品ロール・DB・スキーマ・表の宣言を閉集合と照合する。"""
+    from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+        validate,
+    )
+    if isinstance(raw, dict):
+        try:
+            validate(raw)
+        except ValueError as error:
+            raise CatalogError(str(error)) from error
     if not isinstance(raw, dict):
         raise CatalogError("製品DDL manifestはオブジェクトでなければならない")
     expected_keys = {

@@ -4,8 +4,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from pitchlog.repositories.context import TenantContext
-from sqlalchemy import text  # ty: ignore
-from sqlalchemy.orm import Session  # ty: ignore
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 
 @contextmanager

@@ -199,3 +199,55 @@ def test_probe_spec_rejects_asset_with_non_probe_scope(
     mutated_check = _run_body_checker(copied_repository, explicit_probe=True)
     assert mutated_check.returncode == 2
     assert b"scope.status" in mutated_check.stderr
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "function_id",
+        "identity_args",
+        "owner_role_id",
+        "security_mode",
+        "returns",
+        "search_path",
+        "acl_expectations",
+        "revoked_acl_expectations",
+    ),
+)
+def test_formal_stamp_invoker_is_the_exact_closed_declaration(field: str) -> None:
+    """正式lock以外の署名/owner/EXECUTE増加を一般invokerとして許可しない。"""
+    import copy
+    import json
+
+    from pitchlog.authz.asset_spec import (
+        AuthzApplicationStepsError,
+        validate_product_application_steps,
+    )
+    from pitchlog.authz.first_ball_write_stamp import formal_declarations
+
+    asset = json.loads((_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text())
+    steps_path = PRODUCT_SPEC.application_steps_path
+    assert steps_path is not None
+    steps = json.loads((_REPOSITORY_ROOT / steps_path).read_text())
+    canonical = next(
+        row
+        for row in formal_declarations()["functions"]
+        if row["security_mode"] == "invoker"
+    )
+    assert validate_product_application_steps(steps, asset, PRODUCT_SPEC)
+    changed = copy.deepcopy(asset)
+    row = next(
+        row
+        for row in changed["functions"]
+        if row["function_id"] == canonical["function_id"]
+    )
+    if field == "acl_expectations":
+        row[field] = [
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+        ]
+    elif field in {"search_path", "revoked_acl_expectations"}:
+        row[field] = []
+    else:
+        row[field] = "unregistered"
+    with pytest.raises(AuthzApplicationStepsError):
+        validate_product_application_steps(steps, changed, PRODUCT_SPEC)

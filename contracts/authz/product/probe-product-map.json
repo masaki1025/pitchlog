@@ -1093,6 +1093,166 @@
     {
       "product": "table:trusted_devices",
       "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:pg_catalog:pg_control_system():pitchlog_sync_binding_fn_owner:EXECUTE",
+      "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:first_ball_write_admissions:pitchlog_sync_right_fn_owner:SELECT",
+      "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:writer_admissions:pitchlog_sync_binding_fn_owner:INSERT",
+      "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:writer_admissions:pitchlog_sync_binding_fn_owner:SELECT",
+      "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:writer_admissions:pitchlog_sync_right_fn_owner:SELECT",
+      "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:writer_bindings:pitchlog_sync_binding_fn_owner:INSERT",
+      "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:writer_bindings:pitchlog_sync_binding_fn_owner:SELECT",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:assert_writer_binding(uuid, uuid, uuid, bytea, uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:close_writer_binding(uuid, uuid, uuid, uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:guard_writer_records()",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:observe_writer_binding(uuid, uuid, uuid, uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:publish_writer_binding(uuid, uuid, uuid, jsonb, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:read_writer_database_identity(uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_fence_api:read_writer_identity(uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:bind_device(uuid, uuid, uuid, bytea, uuid, uuid, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:check_current_right(uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:guard_first_ball_projection_admission()",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:guard_first_ball_projection_lock()",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_device_state(uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:first_ball_write_admissions:first_ball_stamp_first_ball_write_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:idempotency_ledger:first_ball_stamp_idempotency_ledger",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:operation_events:first_ball_stamp_operation_events",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:recording_generations:sync_first_ball_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:rg1_restore_gate:binding_gate",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:rg1_restore_gate:sync_first_ball_gate",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:trusted_devices:sync_first_ball_device_lock",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:trusted_devices:sync_first_ball_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:writer_admissions:admission_owner",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:writer_admissions:first_ball_stamp_writer_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:writer_bindings:binding_owner",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:writer_bindings:first_ball_stamp_writer_bindings",
+      "reason": "product_only"
+    },
+    {
+      "product": "role:pitchlog_sync_binding_actor",
+      "reason": "product_only"
+    },
+    {
+      "product": "role:pitchlog_sync_binding_fn_owner",
+      "reason": "product_only"
+    },
+    {
+      "product": "role:pitchlog_sync_right_fn_owner",
+      "reason": "product_only"
+    },
+    {
+      "product": "schema:sync_fence",
+      "reason": "product_only"
+    },
+    {
+      "product": "schema:sync_fence_api",
+      "reason": "product_only"
+    },
+    {
+      "product": "schema:sync_right_api",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:first_ball_write_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:writer_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:writer_bindings",
+      "reason": "product_only"
     }
   ]
 }

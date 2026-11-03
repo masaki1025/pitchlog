@@ -18,7 +18,11 @@ from psycopg import sql
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 
-from .conftest import DisposablePostgres, ProvisionedProductCatalog
+from .conftest import (
+    DisposablePostgres,
+    ProvisionedProductCatalog,
+    first_ball_guard_disabled,
+)
 from .test_alembic_migrations import (
     _alembic_config,
     _normalize_sql,
@@ -30,8 +34,14 @@ from .test_product_authz_catalog import _bootstrap_superuser_oid
 
 pytestmark = pytest.mark.requires_db
 
+
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
+
+# sync_fence の private 3表は専用の authz 試験が担う。
+_NON_PUBLIC_MANIFEST_TABLES = frozenset(
+    {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+)
 _CHECK_VIOLATION_PATTERN = re.compile(
     r"\bRAISE\b.*?(?:USING\s+ERRCODE\s*=\s*|SQLSTATE\s*)'23514'",
     re.IGNORECASE | re.DOTALL,
@@ -269,6 +279,7 @@ def _manifest_population(manifest: dict[str, Any]) -> tuple[_ManifestTable, ...]
             append_only=table["lifecycle"]["append_mode"] == "追記専用",
         )
         for table in manifest["tables"]
+        if table["name"] not in _NON_PUBLIC_MANIFEST_TABLES
     )
 
 
@@ -568,7 +579,7 @@ def _observed_contract(
             conditional_update_columns=frozenset(),
         )
     else:
-        assert revision == [("0036_initial_right_storage",)]
+        assert revision == [("0038_first_ball_write_admission",)]
         assert rg1_table.protected_columns == {"singleton_id"}
         assert rg1_table.allowed_update_columns == {"state"}
         assert rg1_table.conditional_update_columns == {"recovery_generation"}
@@ -616,7 +627,13 @@ def _validate_observed_contract(
 ) -> list[str]:
     """観測済みの宣言・表・トリガを全表判定へ渡す。"""
     return _enforcement_violations(
-        manifest_table_count=len(manifest["tables"]),
+        manifest_table_count=len(
+            [
+                table
+                for table in manifest["tables"]
+                if table["name"] not in _NON_PUBLIC_MANIFEST_TABLES
+            ]
+        ),
         population=population,
         database_tables=database_tables,
         triggers=triggers,
@@ -691,7 +708,17 @@ def test_all_manifest_immutability_declarations_are_enforced(
             connection, privileged_role_oids=privileged
         )
 
-    counts = _population_counts(len(manifest["tables"]), population, database_tables)
+    counts = _population_counts(
+        len(
+            [
+                table
+                for table in manifest["tables"]
+                if table["name"] not in _NON_PUBLIC_MANIFEST_TABLES
+            ]
+        ),
+        population,
+        database_tables,
+    )
     assert counts.manifest > 0
     assert counts.manifest == counts.population == counts.database
     assert (
@@ -838,9 +865,10 @@ def test_initial_storage_rows_enforce_protected_and_one_time_updates(
 
     connection = provisioned_product_catalog.applicator
     with connection.transaction(force_rollback=True):
-        for row in seed_rows():
-            statement, params = insert_statement(row)
-            connection.execute(statement, params)
+        with first_ball_guard_disabled(connection):
+            for row in seed_rows():
+                statement, params = insert_statement(row)
+                connection.execute(statement, params)
         for tenant in TENANT_IDS:
             for table in _INITIAL_STORAGE_POLICY:
                 relation = sql.Identifier("public", table)

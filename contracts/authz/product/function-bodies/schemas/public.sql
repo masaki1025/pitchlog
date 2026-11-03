@@ -10,3 +10,5 @@ GRANT USAGE ON SCHEMA public TO pitchlog_initial_fn_owner;
 REVOKE CREATE ON SCHEMA public FROM pitchlog_initial_fn_owner;
 GRANT USAGE ON SCHEMA public TO pitchlog_initial_actor;
 REVOKE CREATE ON SCHEMA public FROM pitchlog_initial_actor;
+
+GRANT USAGE ON SCHEMA public TO pitchlog_sync_binding_fn_owner, pitchlog_sync_right_fn_owner;

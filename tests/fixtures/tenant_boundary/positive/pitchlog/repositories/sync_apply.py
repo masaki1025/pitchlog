@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import Table, insert, select, update  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.dml import Insert, Update  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy import Table, insert, select, update
+from sqlalchemy.sql.dml import Insert, Update
+from sqlalchemy.sql.selectable import Select
 
 
 def _build_sync_statement(

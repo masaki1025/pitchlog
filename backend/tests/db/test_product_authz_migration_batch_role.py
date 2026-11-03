@@ -29,9 +29,10 @@ from pitchlog.authz.product_catalog import (
     inspect_product_authz_catalog,
 )
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import ProvisionedProductCatalog, first_ball_guard_disabled
 
 pytestmark = pytest.mark.requires_db
+
 
 _UUID_NAMESPACE = UUID("4a87afbd-4ae3-4c93-a53a-9a8d22bad95d")
 
@@ -104,11 +105,12 @@ def _assert_active_red(
 
 def _seed_dependencies(catalog: ProvisionedProductCatalog) -> None:
     """19 表の INSERT・UPDATE に必要な依存行を外部主体で作る。"""
-    with catalog.applicator.cursor() as cursor:
-        for row in other_profile_seed_rows():
-            statement, params = insert_statement(row)
-            cursor.execute(statement, params)
-    catalog.applicator.commit()
+    with first_ball_guard_disabled(catalog.owner_dsn):
+        with catalog.applicator.cursor() as cursor:
+            for row in other_profile_seed_rows():
+                statement, params = insert_statement(row)
+                cursor.execute(statement, params)
+        catalog.applicator.commit()
 
 
 def _current_database(cursor: psycopg.Cursor[Any]) -> str:
@@ -349,7 +351,8 @@ def test_asset_role_performs_minimum_operations_and_matches_active_shape(
         report = _inspect_active(catalog.observer, role.oid)
         assert report.ok
         assert report.violations == ()
-        _exercise_minimum_operations(role)
+        with first_ball_guard_disabled(catalog.owner_dsn):
+            _exercise_minimum_operations(role)
 
         with psycopg.connect(role.dsn) as connection:
             with connection.cursor() as cursor:

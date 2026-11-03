@@ -45,7 +45,7 @@ CONTRACT_SCHEMA_PAIRS = (
         "contracts/display-geometry/field_geometry_vector_contract_schema_v1.json",
     ),
 )
-EXPECTED_CONTRACT_DIRECTORY_JSON_COUNT = 5  # 両ディレクトリの実資産 3 本と schema 2 本。
+EXPECTED_CONTRACT_DIRECTORY_JSON_COUNT = 6  # 両ディレクトリの実資産 4 本と schema 2 本。
 SCHEMA_ANNOTATIONS = frozenset(
     {"$schema", "$id", "$defs", "$comment", "title", "description", "version"}
 )
