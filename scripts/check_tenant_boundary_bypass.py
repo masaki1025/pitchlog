@@ -1222,7 +1222,7 @@ def _resolution_owner_shape_is_exact(registration: ResolutionOwnershipRegistrati
             "pitchlog.repositories.transaction._assert_existing_resolution_owner"
         )
         and registration.scope == "pitchlog.repositories.transaction.<module>"
-        and type(registration.line) is int and registration.line == 935
+        and type(registration.line) is int and registration.line == 945
         and registration.symbol == "_assert_existing_resolution_owner"
         and type(registration.source_sha256) is str
         and re.fullmatch(r"[0-9a-f]{64}", registration.source_sha256) is not None

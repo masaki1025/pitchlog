@@ -64,27 +64,33 @@ APPROVED_CONDITION2_OWNER_PATHS = frozenset(
 )
 # 外部台帳候補のProtocol実装だけを、独立確認したsource/全所見へ固定する。
 LEDGER_CONDITION2_PATH = "backend/src/pitchlog/durable_rights_ledger/adapter.py"
-LEDGER_CONDITION2_FINDINGS = frozenset({(21, 'DurableGenerationSource'),
- (21, 'ReservedGeneration'),
- (379, 'generation'),
- (383, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
- (383, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
- (387, 'generation'),
- (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
- (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
- (568, 'current_recovery_generation'),
- (1075, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
- (1384,
-  'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation'),
- (1419, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
- (1501, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
- (1544, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
- (1741, 'generation'),
- (1755, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
- (1793, 'current_recovery_generation'),
- (1801, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
- (1818, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
- (1838, 'advance_recovery_generation')})
+LEDGER_CONDITION2_FINDINGS = frozenset(
+    {
+        (21, 'DurableGenerationSource'),
+        (21, 'ReservedGeneration'),
+        (379, 'generation'),
+        (383, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (383, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (387, 'generation'),
+        (390, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (401, 'pitchlog.durable_rights_ledger.adapter.DurableLedger._generation'),
+        (568, 'current_recovery_generation'),
+        (1075, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (
+            1384,
+            'pitchlog.durable_rights_ledger.adapter.DurableLedger._pair.current_recovery_generation'
+        ),
+        (1419, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1501, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1544, 'pitchlog.durable_rights_ledger.adapter._RemoteFence.generation'),
+        (1741, 'generation'),
+        (1755, 'pitchlog.recording_rights.initial_grant.DurableGenerationSource'),
+        (1793, 'current_recovery_generation'),
+        (1801, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1818, 'pitchlog.recording_rights.initial_grant.ReservedGeneration'),
+        (1838, 'advance_recovery_generation'),
+    }
+)
 
 # RG1の物理所有境界だけを追加する。位置/記号/hashは凍結資産が保持する。
 RG1_CONDITION2_OWNER_PATHS = frozenset(
@@ -93,6 +99,315 @@ RG1_CONDITION2_OWNER_PATHS = frozenset(
         "backend/src/pitchlog/recording_rights/rg1_lifecycle.py",
     }
 )
+
+# 初球縦断の既承認read/model境界だけを追加する。位置/記号/hashは凍結資産が保持する。
+FIRST_BALL_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str]]] = {
+    "backend/src/pitchlog/repositories/first_ball.py": frozenset({
+        (43, 'int'),
+        (44, 'int'),
+    }),
+    "backend/src/pitchlog/repositories/first_ball_operations.py": frozenset({
+        (14, 'IdempotencyLedger'),
+        (26, 'IdempotencyLedgerReadToken'),
+        (31, 'pitchlog.db.sync_protocol.models.IdempotencyLedger'),
+        (31, 'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys'),
+        (150, 'pitchlog.repositories.tokens.TenantOperationToken.generation'),
+        (151, 'pitchlog.repositories.tokens.TenantOperationToken.generation'),
+        (252, 'pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation'),
+        (292, 'pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken.generation'),
+        (293, 'pitchlog.sync.tokens.IdempotencyLedgerReadToken'),
+    }),
+    "backend/src/pitchlog/repositories/recorded_snapshot.py": frozenset({
+        (20, 'IdempotencyLedger'),
+        (64, '_GENERATION_READ_COLUMNS'),
+        (73, 'IdempotencyLedgerReadToken'),
+        (73, 'RecordingGenerationLockToken'),
+        (73, 'RecordingGenerationReadToken'),
+        (110, 'int'),
+        (246, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (246, 'pitchlog.sync.tokens.RecordingGenerationReadToken'),
+        (248, 'int'),
+        (249, 'locked_generation'),
+        (250, 'int'),
+        (250, 'pitchlog.sync.tokens.RecordingGenerationLockToken'),
+        (251, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (253, 'locked_generation'),
+        (280, 'generation'),
+        (280, 'int'),
+        (284, 'is_tombstone'),
+        (290, 'target_generation'),
+        (303, 'generation'),
+        (303, 'int'),
+        (326, 'pitchlog.sync.tokens.IdempotencyLedgerReadToken'),
+        (327, 'pitchlog.db.sync_protocol.models.IdempotencyLedger'),
+        (327, 'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys'),
+        (438, 'int'),
+    }),
+    "backend/src/pitchlog/repositories/started_read.py": frozenset({
+        (41, '_GENERATION_READ_COLUMNS'),
+        (46, 'RecordingGenerationLockToken'),
+        (46, 'RecordingGenerationReadToken'),
+        (206, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (206, 'pitchlog.sync.tokens.RecordingGenerationReadToken'),
+        (211, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (211, 'pitchlog.sync.tokens.RecordingGenerationLockToken'),
+        (236, 'candidate.generation'),
+        (264, 'candidate.generation'),
+        (296, 'snapshot.generation'),
+    }),
+    "backend/src/pitchlog/repositories/started_snapshot.py": frozenset({
+        (34, '_GENERATION_READ_COLUMNS'),
+        (37, 'RecordingGenerationLockToken'),
+        (37, 'RecordingGenerationReadToken'),
+        (77, 'dict'),
+        (257, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (257, 'pitchlog.sync.tokens.RecordingGenerationReadToken'),
+        (259, 'dict'),
+        (260, 'dict'),
+        (262, 'dict'),
+        (263, 'dict'),
+        (263, 'pitchlog.sync.tokens.RecordingGenerationLockToken'),
+        (264, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (267, 'dict'),
+        (351, 'dict'),
+    }),
+}
+
+
+# 通常投球接合の条件2登録は、承認済み2path/16出現のexact-setだけを許す。
+ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
+    "backend/src/pitchlog/repositories/ordinary_pitch_operations.py": frozenset({
+        (
+            15,
+            'IdempotencyLedger',
+            'pitchlog.repositories.ordinary_pitch_operations.<module>',
+        ),
+        (
+            25,
+            'IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_pitch_operations.<module>',
+        ),
+        (
+            78,
+            'token.generation',
+            'pitchlog.repositories.ordinary_pitch_operations._row',
+        ),
+        (
+            139,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
+        ),
+        (
+            139,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
+        ),
+        (
+            147,
+            'token.generation',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
+        ),
+        (
+            190,
+            'token.generation',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight',
+        ),
+        (
+            191,
+            'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/transaction.py": frozenset({
+        (
+            1079,
+            'RecordingGenerationByNumberReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1079,
+            'RecordingGenerationReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1091,
+            'pitchlog.sync.tokens.RecordingGenerationByNumberReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1091,
+            'pitchlog.sync.tokens.RecordingGenerationReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1376,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1377,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1397,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1408,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+    }),
+}
+
+
+# 初球縦断の既承認な不変値/固定宣言siteだけを追加する。code/位置/記号/scopeは凍結資産が保持する。
+FIRST_BALL_CONDITION5_SCOPES: dict[str, frozenset[tuple[int, str, str, str]]] = {
+    "backend/src/pitchlog/repositories/started_read.py": frozenset({
+        (223, 'TB007', 'token_type', 'pitchlog.repositories.started_read._assemble'),
+    }),
+    "backend/src/pitchlog/repositories/started_snapshot.py": frozenset({
+        (
+            318,
+            'TB007',
+            'token_type',
+            'pitchlog.repositories.started_snapshot.read_initial_started_snapshot',
+        ),
+    }),
+    "backend/src/pitchlog/sync/control_provider/store_contract.py": frozenset({
+        (
+            34,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__',
+        ),
+        (
+            41,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.control_provider.store_contract.StoredRequest.__post_init__',
+        ),
+        (
+            85,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            86,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            87,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            88,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+        (
+            89,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.control_provider.store_contract.StoredPhaseReceipt.__init__',
+        ),
+    }),
+    "backend/src/pitchlog/sync/control_provider/writer_binding.py": frozenset({
+        (
+            262,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.control_provider.writer_binding._issue_device_presentation',
+        ),
+    }),
+    "backend/src/pitchlog/sync/first_ball_bridge.py": frozenset({
+        (
+            166,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.first_ball_bridge._bind_source_first_ball',
+        ),
+        (
+            299,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.first_ball_bridge.evaluate_first_ball_frame',
+        ),
+        (
+            332,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.first_ball_bridge.consume_first_ball_frame',
+        ),
+        (
+            361,
+            'TB007',
+            'dataclasses.replace',
+            'pitchlog.sync.first_ball_bridge._read_ready_first_ball_frame',
+        ),
+    }),
+    "backend/src/pitchlog/sync/source_binding.py": frozenset({
+        (205, 'TB007', 'builtins.object.__new__', 'pitchlog.sync.source_binding._select'),
+        (
+            450,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.source_binding._legacy_entry_scope',
+        ),
+        (547, 'TB007', 'builtins.object.__new__', 'pitchlog.sync.source_binding._e1_receipt_scope'),
+    }),
+    "backend/src/pitchlog/sync/stop_contract.py": frozenset({
+        (
+            72,
+            'TB007',
+            '<unresolved-callable>',
+            'pitchlog.sync.stop_contract.AttemptIdentity.from_mapping',
+        ),
+    }),
+    "backend/src/pitchlog/sync/wire_fingerprint.py": frozenset({
+        (
+            122,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+        (
+            123,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+        (
+            124,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+        (
+            125,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_fingerprint.freeze_wire_event',
+        ),
+    }),
+    "backend/src/pitchlog/sync/wire_source.py": frozenset({
+        (91, 'TB007', 'builtins.object.__new__', 'pitchlog.sync.wire_source.freeze_wire_source'),
+        (
+            103,
+            'TB007',
+            'builtins.object.__setattr__',
+            'pitchlog.sync.wire_source.freeze_wire_source',
+        ),
+    }),
+}
 
 DEFAULT_NEGATIVE_FIXTURES = Path(
     "contracts/tenant_boundary/negative-fixtures.json"
@@ -245,13 +560,8 @@ class ScopedCondition2Owner:
 
 
 @dataclass(frozen=True)
-class InitialStartCondition2Owner:
-    """開始接合の実sourceとscope付き出現を有限集合へ束縛する。
-
-    ``source_sha256`` は ``base-allowlist.json`` の宣言から読んだ値で、検査器の
-    ソースには持たない。走査時の照合は改行を正規化した本文に対して行う
-    (RG1・ledger所有と同じ)。raw byteの固定は試験側で行う。
-    """
+class OrdinaryCondition2Owner:
+    """通常投球接合で承認された物理所有境界の出現と実sourceを束縛する。"""
 
     path: str
     source_sha256: str
@@ -259,573 +569,12 @@ class InitialStartCondition2Owner:
 
 
 @dataclass(frozen=True)
-class InitialStartCondition2Scope:
-    """開始接合の審査済みpathとscope付き出現を有限集合へ束縛する(source SHAを含まない)。"""
+class ScopedCondition5Owner:
+    """承認された条件5 siteの完全出現と実sourceを束縛する。"""
 
     path: str
-    findings: frozenset[tuple[int, str, str]]
-
-
-# 限定受理2e8a816fからのsource追随候補。exact7path・49出現を独立差分確認する。
-# 実sourceのSHA-256は本定数に持たない(*.pyへ64桁を直書きしない — 凍結基準の走査規則・7.7-1)。
-# 値の正は base-allowlist.json の宣言で、その移動は凍結資産の履歴(受理記録)が統制する。
-INITIAL_START_CONDITION2_SCOPES = (
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/api/schemas/game_start.py',
-        frozenset({
-            (
-                189,
-                'str',
-                (
-                    'pitchlog.api.schemas.game_start.InitialGameStartResponse.<module>'
-                ),
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/authz/capability_catalog.py',
-        frozenset({
-            (
-                180,
-                'generation',
-                'pitchlog.authz.capability_catalog._initial_storage_profile',
-            ),
-            (
-                183,
-                'generation',
-                'pitchlog.authz.capability_catalog._initial_storage_profile',
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/authz/product_function_acl.py',
-        frozenset({
-            (
-                177,
-                (
-                    'pitchlog.authz.product_function_acl.generate_generation_guard_sql'
-                ),
-                (
-                    'pitchlog.authz.product_function_acl.generate_product_function_acl'
-                    '_sql'
-                ),
-            ),
-            (
-                2614,
-                'generate_generation_guard_sql',
-                'pitchlog.authz.product_function_acl.<module>',
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/db/recording_rights/models.py',
-        frozenset({
-            (
-                66,
-                'sqlalchemy.orm.Mapped',
-                'pitchlog.db.recording_rights.models.RG1RestoreGate.<module>',
-            ),
-            (
-                194,
-                'RecordingGeneration',
-                'pitchlog.db.recording_rights.models.<module>',
-            ),
-            (
-                267,
-                'sqlalchemy.orm.Mapped',
-                (
-                    'pitchlog.db.recording_rights.models.RecordingGeneration.<module>'
-                ),
-            ),
-            (
-                567,
-                'sqlalchemy.orm.Mapped',
-                (
-                    'pitchlog.db.recording_rights.models.RecordingRightDelivery.<modul'
-                    'e>'
-                ),
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/recording_rights/initial_grant_broker.py',
-        frozenset({
-            (
-                35,
-                'DurableGenerationSource',
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                35,
-                'assert_write_recovery_generation',
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                327,
-                (
-                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
-                ),
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                406,
-                (
-                    'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
-                    'eration'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
-                    'nt_impl'
-                ),
-            ),
-            (
-                407,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
-                    'eration'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._issue_initial_gra'
-                    'nt_impl'
-                ),
-            ),
-            (
-                431,
-                (
-                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
-                ),
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                446,
-                (
-                    'pitchlog.recording_rights.initial_grant.DurableGenerationSource'
-                ),
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                486,
-                'generation',
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                493,
-                'int',
-                'pitchlog.recording_rights.initial_grant_broker._broker_d4',
-            ),
-            (
-                498,
-                '_broker_generation',
-                'pitchlog.recording_rights.initial_grant_broker.<module>',
-            ),
-            (
-                512,
-                'int',
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-            ),
-            (
-                516,
-                'int',
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-            ),
-            (
-                522,
-                'int',
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-            ),
-            (
-                806,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.generation'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
-                    'response'
-                ),
-            ),
-            (
-                807,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
-                    'eration'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
-                    'response'
-                ),
-            ),
-            (
-                807,
-                'recovery_generation',
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._postcommit_start_'
-                    'response'
-                ),
-            ),
-            (
-                931,
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._broker_generation'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._decode_initial_re'
-                    'ply'
-                ),
-            ),
-            (
-                1462,
-                'pitchlog.sync.idempotency',
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
-                    'art'
-                ),
-            ),
-            (
-                1519,
-                (
-                    'pitchlog.recording_rights.initial_grant.assert_write_recovery_gen'
-                    'eration'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
-                    'art'
-                ),
-            ),
-            (
-                1520,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_gen'
-                    'eration'
-                ),
-                (
-                    'pitchlog.recording_rights.initial_grant_broker._worker_resolve_st'
-                    'art'
-                ),
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/repositories/game_start.py',
-        frozenset({
-            (
-                23,
-                'pitchlog.sync.idempotency',
-                'pitchlog.repositories.game_start.<module>',
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/repositories/initial_recording_right.py',
-        frozenset({
-            (
-                47,
-                '_positive_generation',
-                'pitchlog.repositories.initial_recording_right.<module>',
-            ),
-            (
-                158,
-                'int',
-                (
-                    'pitchlog.repositories.initial_recording_right._CheckBusinessEpoch'
-                    'Token.<module>'
-                ),
-            ),
-            (
-                174,
-                'int',
-                (
-                    'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
-                    'Token.<module>'
-                ),
-            ),
-            (
-                175,
-                'int',
-                (
-                    'pitchlog.repositories.initial_recording_right._InsertInitialGrant'
-                    'Token.<module>'
-                ),
-            ),
-            (
-                264,
-                (
-                    'pitchlog.repositories.initial_recording_right._positive_generatio'
-                    'n'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            ),
-            (
-                276,
-                'int',
-                (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            ),
-            (
-                278,
-                'int',
-                (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            ),
-            (
-                279,
-                'int',
-                (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            ),
-            (
-                279,
-                (
-                    'pitchlog.repositories.initial_recording_right._positive_generatio'
-                    'n'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right._decode_initial_res'
-                    'ult'
-                ),
-            ),
-            (
-                466,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.__init__'
-                ),
-            ),
-            (
-                559,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.lock_valid_device'
-                ),
-            ),
-            (
-                593,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope._record'
-                ),
-            ),
-            (
-                666,
-                'assert_recovery_generation',
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.<module>'
-                ),
-            ),
-            (
-                669,
-                (
-                    'pitchlog.repositories.initial_recording_right._positive_generatio'
-                    'n'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.assert_recovery_generation'
-                ),
-            ),
-            (
-                700,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            ),
-            (
-                701,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
-                    'ry_generation'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            ),
-            (
-                715,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            ),
-            (
-                716,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recove'
-                    'ry_generation'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            ),
-            (
-                725,
-                (
-                    'pitchlog.recording_rights.initial_grant.InitialGrantRecord.genera'
-                    'tion'
-                ),
-                (
-                    'pitchlog.repositories.initial_recording_right.InitialRecordingRig'
-                    'htScope.insert_initial_grant'
-                ),
-            ),
-        }),
-    ),
-)
-
-
-ORDINARY_CONDITION2_SCOPES = (
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/repositories/ordinary_pitch_operations.py',
-        frozenset({
-            (
-                15,
-                'IdempotencyLedger',
-                'pitchlog.repositories.ordinary_pitch_operations.<module>',
-            ),
-            (
-                25,
-                'IdempotencyLedgerReadToken',
-                'pitchlog.repositories.ordinary_pitch_operations.<module>',
-            ),
-            (
-                78,
-                'token.generation',
-                'pitchlog.repositories.ordinary_pitch_operations._row',
-            ),
-            (
-                139,
-                'pitchlog.db.sync_protocol.models.IdempotencyLedger',
-                (
-                    'pitchlog.repositories.ordinary_pitch_operations._preflight.valida'
-                    'te'
-                ),
-            ),
-            (
-                139,
-                (
-                    'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.ke'
-                    'ys'
-                ),
-                (
-                    'pitchlog.repositories.ordinary_pitch_operations._preflight.valida'
-                    'te'
-                ),
-            ),
-            (
-                147,
-                'token.generation',
-                (
-                    'pitchlog.repositories.ordinary_pitch_operations._preflight.valida'
-                    'te'
-                ),
-            ),
-            (
-                190,
-                'token.generation',
-                'pitchlog.repositories.ordinary_pitch_operations._preflight',
-            ),
-            (
-                191,
-                'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
-                'pitchlog.repositories.ordinary_pitch_operations._preflight',
-            ),
-        }),
-    ),
-    InitialStartCondition2Scope(
-        'backend/src/pitchlog/repositories/transaction.py',
-        frozenset({
-            (
-                1079,
-                'RecordingGenerationByNumberReadToken',
-                'pitchlog.repositories.transaction._port_read_types',
-            ),
-            (
-                1079,
-                'RecordingGenerationReadToken',
-                'pitchlog.repositories.transaction._port_read_types',
-            ),
-            (
-                1091,
-                'pitchlog.sync.tokens.RecordingGenerationByNumberReadToken',
-                'pitchlog.repositories.transaction._port_read_types',
-            ),
-            (
-                1091,
-                'pitchlog.sync.tokens.RecordingGenerationReadToken',
-                'pitchlog.repositories.transaction._port_read_types',
-            ),
-            (
-                1376,
-                (
-                    'pitchlog.repositories.tokens.TenantOperationToken.recovery_genera'
-                    'tion'
-                ),
-                'pitchlog.repositories.transaction._execute_port_command',
-            ),
-            (
-                1377,
-                (
-                    'pitchlog.repositories.tokens.TenantOperationToken.recovery_genera'
-                    'tion'
-                ),
-                'pitchlog.repositories.transaction._execute_port_command',
-            ),
-            (
-                1397,
-                (
-                    'pitchlog.repositories.tokens.TenantOperationToken.recovery_genera'
-                    'tion'
-                ),
-                'pitchlog.repositories.transaction._execute_port_command',
-            ),
-            (
-                1408,
-                (
-                    'pitchlog.repositories.tokens.TenantOperationToken.recovery_genera'
-                    'tion'
-                ),
-                'pitchlog.repositories.transaction._execute_port_command',
-            ),
-        }),
-    ),
-)
+    source_sha256: str
+    findings: frozenset[tuple[int, str, str, str]]
 
 
 @dataclass(frozen=True)
@@ -857,15 +606,17 @@ class Contract:
     ledger_condition2_findings: frozenset[tuple[int, str]]
     ledger_condition2_source_sha256: str
     rg1_condition2_owners: tuple[ScopedCondition2Owner, ...]
-    initial_start_condition2_owners: tuple[InitialStartCondition2Owner, ...]
+    first_ball_condition2_owners: tuple[ScopedCondition2Owner, ...]
+    ordinary_condition2_owners: tuple[OrdinaryCondition2Owner, ...]
+    first_ball_condition5_owners: tuple[ScopedCondition5Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
     rg1_deployment_assets: tuple[tuple[str, str], ...]
+    writer_binding_deployment_assets: tuple[tuple[str, str], ...]
     sync_protocol_paths: tuple[str, ...]
     negative_fixtures: tuple[NegativeFixture, ...]
     tenant_context: TenantContextConstructionContract
     cache_invalidation: CacheInvalidationBypassContract
     diff_command: tuple[str, ...]
-    ordinary_condition2_owners: tuple[InitialStartCondition2Owner, ...] = ()
     resolution_owner: ResolutionOwnershipRegistration | None = None
 
 
@@ -1444,81 +1195,6 @@ def _load_inventory(
     )
 
 
-def _initial_start_scope_projection(
-    owners: tuple[InitialStartCondition2Owner, ...],
-) -> tuple[InitialStartCondition2Scope, ...]:
-    """所有登録からsource SHAを除いた審査済みpath/出現の射影を返す。"""
-    return tuple(
-        InitialStartCondition2Scope(owner.path, owner.findings) for owner in owners
-    )
-
-
-def _load_initial_start_condition2_owners(
-    value: object,
-) -> tuple[InitialStartCondition2Owner, ...]:
-    """開始接合の登録を審査済みのpath/hash/line/symbol/scope全値へ閉じる。"""
-    location = "allowlist.condition_2_initial_start_scoped_findings"
-    owners: list[InitialStartCondition2Owner] = []
-    seen_paths: set[str] = set()
-    for raw in _array(value, location):
-        entry = _object(raw, location)
-        _strict_keys(entry, {"path", "source_sha256", "findings"}, location)
-        path = _string(entry["path"], location)
-        digest = _string(entry["source_sha256"], location)
-        if path in seen_paths or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
-            raise ContractError("開始条件2登録は一意pathと実source SHA-256が必要")
-        seen_paths.add(path)
-        findings: set[tuple[int, str, str]] = set()
-        for item in _array(entry["findings"], location):
-            finding = _object(item, location)
-            _strict_keys(finding, {"line", "symbol", "scope"}, location)
-            line = _integer(finding["line"], location)
-            symbol = _string(finding["symbol"], location)
-            scope = _string(finding["scope"], location)
-            identity = (line, symbol, scope)
-            if line < 1 or not symbol or not scope or identity in findings:
-                raise ContractError("開始条件2登録は正の行と一意の記号/scopeが必要")
-            findings.add(identity)
-        owners.append(InitialStartCondition2Owner(path, digest, frozenset(findings)))
-    result = tuple(sorted(owners, key=lambda owner: owner.path))
-    if _initial_start_scope_projection(result) != INITIAL_START_CONDITION2_SCOPES:
-        raise ContractError("開始条件2登録は審査対象7path/49出現のexact-setが必要")
-    return result
-
-
-def _load_ordinary_condition2_owners(
-    value: object,
-) -> tuple[InitialStartCondition2Owner, ...]:
-    """通常物理境界接合の登録を審査済みのpath/hash/line/symbol/scope全値へ閉じる。"""
-    location = "allowlist.condition_2_ordinary_scoped_findings"
-    owners: list[InitialStartCondition2Owner] = []
-    seen_paths: set[str] = set()
-    for raw in _array(value, location):
-        entry = _object(raw, location)
-        _strict_keys(entry, {"path", "source_sha256", "findings"}, location)
-        path = _string(entry["path"], location)
-        digest = _string(entry["source_sha256"], location)
-        if path in seen_paths or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
-            raise ContractError("通常物理境界条件2登録は一意pathと実source SHA-256が必要")
-        seen_paths.add(path)
-        findings: set[tuple[int, str, str]] = set()
-        for item in _array(entry["findings"], location):
-            finding = _object(item, location)
-            _strict_keys(finding, {"line", "symbol", "scope"}, location)
-            line = _integer(finding["line"], location)
-            symbol = _string(finding["symbol"], location)
-            scope = _string(finding["scope"], location)
-            identity = (line, symbol, scope)
-            if line < 1 or not symbol or not scope or identity in findings:
-                raise ContractError("通常物理境界条件2登録は正の行と一意の記号/scopeが必要")
-            findings.add(identity)
-        owners.append(InitialStartCondition2Owner(path, digest, frozenset(findings)))
-    result = tuple(sorted(owners, key=lambda owner: owner.path))
-    if _initial_start_scope_projection(result) != ORDINARY_CONDITION2_SCOPES:
-        raise ContractError("通常物理境界条件2登録は審査対象2path/16出現のexact-setが必要")
-    return result
-
-
 def _load_resolution_owner(value: object) -> ResolutionOwnershipRegistration:
     """再交付照合の実現物1path/1scope/1所見を閉読取する。"""
     location = "allowlist.condition_1_resolve_scoped_finding"
@@ -1553,6 +1229,141 @@ def _resolution_owner_shape_is_exact(registration: ResolutionOwnershipRegistrati
     )
 
 
+def _load_first_ball_condition2_owners(
+    value: object,
+) -> tuple[ScopedCondition2Owner, ...]:
+    """初球縦断の条件2登録を審査済みpath/hash/行/記号のexact-setへ閉じる。
+
+    Args:
+        value: allowlist の ``condition_2_first_ball_scoped_findings``。
+
+    Returns:
+        固定6pathと実source SHA・出現集合を持つ所有者。
+
+    Raises:
+        ContractError: path・SHA・出現が固定投影と一致しない場合。
+    """
+    location = "allowlist.condition_2_first_ball_scoped_findings"
+    scopes = _object(value, location)
+    _strict_keys(scopes, frozenset(FIRST_BALL_CONDITION2_SCOPES), location)
+    owners: list[ScopedCondition2Owner] = []
+    for full_path in sorted(FIRST_BALL_CONDITION2_SCOPES):
+        entry = _object(scopes[full_path], f"{location}.{full_path}")
+        _strict_keys(entry, {"source_sha256", "findings"}, location)
+        digest = _string(entry["source_sha256"], f"{location}.{full_path}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("初球条件2登録には実source SHA-256が必要")
+        findings: set[tuple[int, str]] = set()
+        for raw in _array(entry["findings"], location):
+            finding = _object(raw, location)
+            _strict_keys(finding, {"line", "symbol"}, location)
+            line = _integer(finding["line"], location)
+            symbol = _string(finding["symbol"], location)
+            if line < 1 or not symbol or (line, symbol) in findings:
+                raise ContractError("初球条件2登録は正の行と一意の記号が必要")
+            findings.add((line, symbol))
+        if frozenset(findings) != FIRST_BALL_CONDITION2_SCOPES[full_path]:
+            raise ContractError(
+                "初球条件2登録は審査済み5path/59出現のexact-setが必要"
+            )
+        owners.append(ScopedCondition2Owner(full_path, digest, frozenset(findings)))
+    return tuple(owners)
+
+
+def _load_ordinary_condition2_owners(
+    value: object,
+) -> tuple[OrdinaryCondition2Owner, ...]:
+    """通常投球接合の条件2登録を審査済みpath/hash/行/記号/scopeのexact-setへ閉じる。
+
+    Args:
+        value: allowlist の ``condition_2_ordinary_scoped_findings``。
+
+    Returns:
+        固定2pathと実source SHA・出現集合を持つ所有者。
+
+    Raises:
+        ContractError: path・SHA・出現が固定投影と一致しない場合。
+    """
+    location = "allowlist.condition_2_ordinary_scoped_findings"
+    scopes = _object(value, location)
+    _strict_keys(scopes, frozenset(ORDINARY_CONDITION2_SCOPES), location)
+    owners: list[OrdinaryCondition2Owner] = []
+    for full_path in sorted(ORDINARY_CONDITION2_SCOPES):
+        entry = _object(scopes[full_path], f"{location}.{full_path}")
+        _strict_keys(entry, {"source_sha256", "findings"}, location)
+        digest = _string(entry["source_sha256"], f"{location}.{full_path}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("通常条件2登録には実source SHA-256が必要")
+        findings: set[tuple[int, str, str]] = set()
+        for raw in _array(entry["findings"], location):
+            finding = _object(raw, location)
+            _strict_keys(finding, {"line", "symbol", "scope"}, location)
+            line = _integer(finding["line"], location)
+            symbol = _string(finding["symbol"], location)
+            scope = _string(finding["scope"], location)
+            if line < 1 or not symbol or not scope or (line, symbol, scope) in findings:
+                raise ContractError(
+                    "通常条件2登録は正の行と一意の記号/scopeが必要"
+                )
+            findings.add((line, symbol, scope))
+        if frozenset(findings) != ORDINARY_CONDITION2_SCOPES[full_path]:
+            raise ContractError("通常条件2登録は審査対象2path/16出現のexact-setが必要")
+        owners.append(
+            OrdinaryCondition2Owner(full_path, digest, frozenset(findings))
+        )
+    return tuple(owners)
+
+
+def _load_first_ball_condition5_owners(
+    value: object,
+) -> tuple[ScopedCondition5Owner, ...]:
+    """初球縦断の条件5登録を審査済みpath/hash/出現のexact-setへ閉じる。
+
+    Args:
+        value: allowlist の ``condition_5_first_ball_scoped_findings``。
+
+    Returns:
+        固定9pathと実source SHA・出現集合を持つ所有者。
+
+    Raises:
+        ContractError: path・SHA・出現が固定投影と一致しない場合。
+    """
+    location = "allowlist.condition_5_first_ball_scoped_findings"
+    scopes = _object(value, location)
+    _strict_keys(scopes, frozenset(FIRST_BALL_CONDITION5_SCOPES), location)
+    owners: list[ScopedCondition5Owner] = []
+    for full_path in sorted(FIRST_BALL_CONDITION5_SCOPES):
+        entry = _object(scopes[full_path], f"{location}.{full_path}")
+        _strict_keys(entry, {"source_sha256", "findings"}, location)
+        digest = _string(entry["source_sha256"], f"{location}.{full_path}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("初球条件5登録には実source SHA-256が必要")
+        findings: set[tuple[int, str, str, str]] = set()
+        for raw in _array(entry["findings"], location):
+            finding = _object(raw, location)
+            _strict_keys(finding, {"line", "code", "symbol", "scope"}, location)
+            line = _integer(finding["line"], location)
+            code = _string(finding["code"], location)
+            symbol = _string(finding["symbol"], location)
+            scope = _string(finding["scope"], location)
+            identity = (line, code, symbol, scope)
+            if (
+                line < 1
+                or code not in {"TB005", "TB007"}
+                or not symbol
+                or not scope
+                or identity in findings
+            ):
+                raise ContractError("初球条件5登録は条件5の一意な完全出現が必要")
+            findings.add(identity)
+        if frozenset(findings) != FIRST_BALL_CONDITION5_SCOPES[full_path]:
+            raise ContractError(
+                "初球条件5登録は審査済み9path/24出現のexact-setが必要"
+            )
+        owners.append(ScopedCondition5Owner(full_path, digest, frozenset(findings)))
+    return tuple(owners)
+
+
 def _load_allowlist(
     value: dict[str, Any], inventory_bytes: bytes, apis: tuple[ApiSpec, ...]
 ) -> tuple[
@@ -1565,7 +1376,10 @@ def _load_allowlist(
     frozenset[tuple[int, str]],
     str,
     tuple[ScopedCondition2Owner, ...],
-    tuple[InitialStartCondition2Owner, ...],
+    tuple[ScopedCondition2Owner, ...],
+    tuple[OrdinaryCondition2Owner, ...],
+    tuple[ScopedCondition5Owner, ...],
+    tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
     tuple[str, ...],
@@ -1585,11 +1399,13 @@ def _load_allowlist(
             "condition_2_scoped_findings",
             "condition_2_ledger_scoped_findings",
             "condition_2_rg1_scoped_findings",
-            "condition_2_initial_start_scoped_findings",
+            "condition_2_first_ball_scoped_findings",
             "condition_2_ordinary_scoped_findings",
+            "condition_5_first_ball_scoped_findings",
             "condition_1_resolve_scoped_finding",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
+            "writer_binding_deployment_assets",
             "baseline_control",
         },
         "base-allowlist.json",
@@ -1831,7 +1647,7 @@ def _load_allowlist(
             raise ContractError("台帳条件2登録は正の行番号と一意の記号が必要")
         ledger_findings.add((line, symbol))
     if frozenset(ledger_findings) != LEDGER_CONDITION2_FINDINGS:
-        raise ContractError("台帳条件2登録は独立確認対象20所見のexact-setが必要")
+        raise ContractError("台帳条件2登録は独立確認済み20所見のexact-setが必要")
     rg1_location = "allowlist.condition_2_rg1_scoped_findings"
     rg1_scopes = _object(value["condition_2_rg1_scoped_findings"], rg1_location)
     _strict_keys(rg1_scopes, RG1_CONDITION2_OWNER_PATHS, rg1_location)
@@ -1864,11 +1680,20 @@ def _load_allowlist(
         frozenset(ledger_findings),
         ledger_digest,
         tuple(rg1_owners),
-        _load_initial_start_condition2_owners(
-            value["condition_2_initial_start_scoped_findings"]
+        _load_first_ball_condition2_owners(
+            value["condition_2_first_ball_scoped_findings"]
+        ),
+        _load_ordinary_condition2_owners(
+            value["condition_2_ordinary_scoped_findings"]
+        ),
+        _load_first_ball_condition5_owners(
+            value["condition_5_first_ball_scoped_findings"]
         ),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
+        _load_writer_binding_deployment_assets(
+            value["writer_binding_deployment_assets"]
+        ),
         command,
     )
 
@@ -1954,6 +1779,45 @@ def _load_negative_fixtures(value: dict[str, Any]) -> tuple[NegativeFixture, ...
     if {fixture.condition for fixture in fixtures} != CONDITION_IDS:
         raise ContractError("負例 fixture は条件 1〜5 をすべて含まなければならない")
     return tuple(fixtures)
+
+
+_INITIAL_BROKER_FUNCTION = "_issue_initial_broker_context"
+_INITIAL_BROKER_EXPECTED_AST = ast.parse(
+    'def _issue_initial_broker_context(cookie: object, expected_tenant_id: objec'
+    't, verifier_runtime: object) -> tuple[TenantContext, datetime] | None:\n'
+    '    """私有verifierの実照合tenantだけを既module内で発行する。"""\n'
+    '    from uuid import UUID\n'
+    '    from pydantic import SecretStr\n'
+    '    from pitchlog.recording_rights.initial_grant_broker import _broker_inva'
+    'lid, _verify_initial_cookie\n'
+    '    if type(cookie) is not SecretStr or type(expected_tenant_id) is not UUID:\n'
+    '        raise _broker_invalid()\n'
+    '    verified = _verify_initial_cookie(verifier_runtime, cookie)\n'
+    '    if verified is None or verified[0] != expected_tenant_id:\n'
+    '        return None\n'
+    '    tenant_id, expires_at = verified\n'
+    '    return (TenantContext(tenant_id, _ISSUANCE_CAPABILITY), expires_at)'
+).body[0]
+
+
+def _is_fixed_initial_broker_context(
+    tree: ast.Module, *, path: str, scope: str, contract: Contract,
+) -> bool:
+    """契約の発行module内で実cookie/tenant/Capabilityの固定関数だけを照合する。"""
+    issuer_module, separator, _ = contract.tenant_context.issuance_entrypoint_symbol.rpartition(".")
+    expected_path = issuer_module.replace(".", "/") + ".py"
+    expected_scope = f"{issuer_module}.{_INITIAL_BROKER_FUNCTION}"
+    if (
+        not separator or not issuer_module
+        or issuer_module not in contract.tenant_context.allowed_product_modules
+        or path != expected_path or scope != expected_scope
+    ):
+        return False
+    nodes = [
+        node for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == _INITIAL_BROKER_FUNCTION
+    ]
+    return len(nodes) == 1 and ast.dump(nodes[0]) == ast.dump(_INITIAL_BROKER_EXPECTED_AST)
 
 
 def _load_tenant_context_allowlist(
@@ -2424,9 +2288,12 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_findings,
         ledger_condition2_source_sha256,
         rg1_condition2_owners,
-        initial_start_condition2_owners,
+        first_ball_condition2_owners,
+        ordinary_condition2_owners,
+        first_ball_condition5_owners,
         ledger_deployment_assets,
         rg1_deployment_assets,
+        writer_binding_deployment_assets,
         diff_command,
     ) = _load_allowlist(allowlist_value, inventory_bytes, apis)
     negative_fixtures = _load_negative_fixtures(negative_value)
@@ -2474,20 +2341,18 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_findings=ledger_condition2_findings,
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
         rg1_condition2_owners=rg1_condition2_owners,
-        initial_start_condition2_owners=initial_start_condition2_owners,
-        ordinary_condition2_owners=_load_ordinary_condition2_owners(
-            allowlist_value["condition_2_ordinary_scoped_findings"]
-        ),
-        resolution_owner=_load_resolution_owner(
-            allowlist_value["condition_1_resolve_scoped_finding"]
-        ),
+        first_ball_condition2_owners=first_ball_condition2_owners,
+        ordinary_condition2_owners=ordinary_condition2_owners,
+        first_ball_condition5_owners=first_ball_condition5_owners,
         ledger_deployment_assets=ledger_deployment_assets,
         rg1_deployment_assets=rg1_deployment_assets,
+        writer_binding_deployment_assets=writer_binding_deployment_assets,
         sync_protocol_paths=_load_sync_protocol_paths(repository_root),
         negative_fixtures=negative_fixtures,
         tenant_context=tenant_context,
         cache_invalidation=cache_invalidation,
         diff_command=diff_command,
+        resolution_owner=_load_resolution_owner(allowlist_value["condition_1_resolve_scoped_finding"]),
     )
 
 
@@ -3042,7 +2907,41 @@ _FIXED_BIND_BODY = _expected_function_body(
 )
 
 
-# 承認済みの有限BigInteger枝だけを別の完全形として保持する。旧形も回帰用に保持。
+
+# 初球の採用済み2入力bind/単一void返値だけの完全形。旧simpleも保持する。
+_FIXED_FIRST_BALL_BUILDER_BODY = _expected_function_body(
+    """def expected():
+    safe_arguments = (
+        _canonical_bind("tenant_id", UUID),
+        *(
+            bindparam(name, type_=BigInteger())
+            if (
+                schema == "sync_right_api"
+                and function_name == "check_current_right"
+                and name in ("internal_generation", "recovery_generation")
+                and field_type is int
+            )
+            else _canonical_bind(name, field_type)
+            for name, field_type in input_fields
+        ),
+    )
+    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if (
+        schema == "sync_fence_api"
+        and function_name == "assert_writer_binding"
+        and not table_valued
+        and result_names == ("asserted",)
+    ):
+        safe_function.type = _WriterAssertVoidResult()
+    if not table_valued:
+        return select(safe_function.label(result_names[0]))
+    safe_table = safe_function.table_valued(*result_names)
+    return select(*(safe_table.c[name] for name in result_names))
+"""
+)
+
+
+# 通常投球の有限BigInteger枝と限定prefix型だけを別の完全形として保持する。
 _FIXED_ORDINARY_BUILDER_BODY = _expected_function_body(
     """def expected():
     safe_arguments = (
@@ -3091,6 +2990,7 @@ _FIXED_ORDINARY_BUILDER_BODY = _expected_function_body(
 """
 )
 
+
 def _is_fixed_builder_body(
     node: ast.FunctionDef | ast.AsyncFunctionDef, expected: list[ast.stmt]
 ) -> bool:
@@ -3101,7 +3001,11 @@ def _is_fixed_builder_body(
     ) and isinstance(body[0].value.value, str):
         body = body[1:]
     expected_bodies = (
-        (expected, _FIXED_ORDINARY_BUILDER_BODY)
+        (
+            expected,
+            _FIXED_FIRST_BALL_BUILDER_BODY,
+            _FIXED_ORDINARY_BUILDER_BODY,
+        )
         if expected is _FIXED_BUILDER_BODY
         else (expected,)
     )
@@ -3833,6 +3737,7 @@ class _FlowProvenance:
         self.function_returns: dict[str, _FlowValue] = {}
         self.return_value_stack: list[list[_FlowValue]] = []
         self.class_members: dict[str, _FlowValue] = {}
+        self.instance_constructor_members: dict[str, _FlowValue] = {}
         self.class_base_values: dict[int, _FlowValue] = {}
         self.class_stack: list[str] = []
         self.storage_states: dict[int, _StorageState] = {}
@@ -4135,6 +4040,23 @@ class _FlowProvenance:
             receiver.kind == "symbol"
             and self.tenant_context_symbol in receiver.origins
         )
+        # 同じ既知型のfieldへ実際に書かれたconstructor起源を、別メソッドの
+        # selfでも保持する。未知method一般をconstructorとみなすのではない。
+        if receiver.symbol is not None:
+            stored = self.instance_constructor_members.get(
+                self.canonical(f"{receiver.symbol}.{node.attr}")
+            )
+            if stored is not None:
+                return stored, receiver
+        # dict の格納データが不明でも、実 builtins.dict の method 自体は
+        # 格納された constructor ではない。返値の起源は後段で保持する。
+        if (
+            receiver.symbol == "builtins.dict"
+            and receiver.kind == "non_db"
+            and callable(vars(dict).get(node.attr))
+        ):
+            symbol = f"builtins.dict.{node.attr}"
+            return _FlowValue(symbol, "non_db_attribute"), receiver
         if receiver.unresolved:
             return (
                 _FlowValue(
@@ -4253,11 +4175,16 @@ class _FlowProvenance:
                     unresolved=target.unresolved,
                     external_input=target.external_input,
                 )
-            elif callable_value.symbol == "builtins.dict.get" and receiver.elements:
-                candidates = [*receiver.elements]
-                if len(argument_values) >= 2:
-                    candidates.append(argument_values[1])
-                result = self._joined_value(candidates)
+            elif callable_value.symbol in {"builtins.dict.get", "builtins.dict.pop"}:
+                # callable とデータ返値を分ける。未解決の格納値の起源を消すと
+                # dict.get("callback")() 経由の constructor を見落とす。
+                if receiver.unresolved or not receiver.elements:
+                    result = self._unresolved_from(receiver)
+                else:
+                    candidates = [*receiver.elements]
+                    if len(argument_values) >= 2:
+                        candidates.append(argument_values[1])
+                    result = self._joined_value(candidates)
             else:
                 result = self._call_result(callable_value)
             if callable_value.kind in {"class_non_db", "class_unknown"}:
@@ -4537,7 +4464,17 @@ class _FlowProvenance:
             self._assign_target(target.value, value, environment)
             return
         if isinstance(target, ast.Attribute):
-            self._expression(target.value, environment)
+            receiver = self._expression(target.value, environment)
+            if (
+                receiver.symbol is not None
+                and self.tenant_context_symbol in value.origins
+                and value.kind != "tenant_context"
+            ):
+                member = self.canonical(f"{receiver.symbol}.{target.attr}")
+                previous = self.instance_constructor_members.get(member)
+                self.instance_constructor_members[member] = (
+                    value if previous is None else self._joined_value((previous, value))
+                )
             self._invalidate_storage(target.value, value, environment)
             return
         if isinstance(target, ast.Subscript):
@@ -5190,7 +5127,15 @@ class _FlowProvenance:
                     symbol,
                     "function",
                 )
-        self._analyze_block(tree.body, builtins_environment)
+        # fieldに格納された既知constructorは別メソッド/後続代入からも
+        # 見える。構文上の属性数を上限に起源の追加だけを再伝播し、定義順で
+        # constructor呼出しが消えないよう固定点まで確認する。
+        bound = sum(isinstance(node, ast.Attribute) for node in ast.walk(tree)) + 1
+        for _ in range(bound):
+            before = frozenset(self.instance_constructor_members)
+            self._analyze_block(tree.body, builtins_environment)
+            if frozenset(self.instance_constructor_members) == before:
+                break
 
     def receiver_provenance(self, node: ast.Call) -> str:
         """属性呼び出し receiver の呼び出し時点の由来を返す。"""
@@ -5240,6 +5185,26 @@ class _SourceScanner(ast.NodeVisitor):
         self.reexport_map = reexport_map
         binding_source = source if source is not None else ast.unparse(tree)
         self.module_bindings = _module_bindings(binding_source, path)
+        # 現行の真正scope guardだけを全module bytesと呼出ASTへ束縛する有限証明。
+        # selfの格納field由来をcallableと誤認する1siteを補い、任意の
+        # instance method/callbackには拡張しない。本文/所有/失効の変更で失効する。
+        self.bound_scope_guard_call_ids = frozenset(
+            id(node) for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and ast.dump(node, include_attributes=False) == (
+                "Call(func=Attribute(value=Name(id='self', ctx=Load()), "
+                "attr='assert_bound_tenant', ctx=Load()), args=[Attribute("
+                "value=Name(id='owner', ctx=Load()), attr='tenant_id', "
+                "ctx=Load())], keywords=[])"
+            )
+        ) if (
+            path == "pitchlog/repositories/initial_recording_right.py"
+            and hashlib.sha256(
+                binding_source.encode("utf-8")
+            ).hexdigest() == (
+                _scope_proof_source_sha256("initial_recording_right_guard")
+            )
+        ) else frozenset()
         self.fixed_builder_binding_nodes = (
             _fixed_builder_binding_nodes(tree)
             if module == "pitchlog.repositories.function_operations"
@@ -5917,6 +5882,11 @@ class _SourceScanner(ast.NodeVisitor):
             if rebound_bare_name
             else self.flow.callable_value(node)
         )
+        if id(node) in self.bound_scope_guard_call_ids:
+            callable_value = _FlowValue(
+                "pitchlog.repositories.initial_recording_right."
+                "InitialRecordingRightScope.assert_bound_tenant", "function"
+            )
         known_callable = callable_value.symbol
         allowed_modules = (
             self.contract.tenant_context.allowed_test_modules
@@ -6660,6 +6630,921 @@ def _assert_existing_resolution_owner(handle, context, runtime, owner, bound) ->
 ).body[0]
 
 
+# 初期開始の既レビュー済みsiteだけを、用途付き不変原典と全ASTへ束縛する。
+# 件数ではなく実owner/式/引数/receiverを固定し、新規SQL・呼出し・語彙は許可しない。
+_INITIAL_POPULATION_POLICY: dict[str, tuple[str, tuple[tuple[int, str, str, str], ...]]] = {
+    "pitchlog/api/schemas/game_start.py": ("initial_response_annotations", (
+        (189, "TB002", "str", "InitialGameStartResponse.<module>"),
+    )),
+    "pitchlog/authz/capability_catalog.py": ("initial_storage_classification", (
+        (180, "TB002", "generation", "_initial_storage_profile"),
+        (183, "TB002", "generation", "_initial_storage_profile"),
+    )),
+    "pitchlog/authz/product_function_acl.py": ("initial_generation_guard_ddl", (
+        (
+            177,
+            'TB002',
+            'pitchlog.authz.product_function_acl.generate_generation_guard_sql',
+            'generate_product_function_acl_sql',
+        ),
+        (2614, 'TB002', 'generate_generation_guard_sql', '<module>'),
+    )),
+    "pitchlog/db/recording_rights/models.py": ("initial_storage_model_declarations", (
+        (194, "TB002", "RecordingGeneration", "<module>"),
+        (267, "TB002", "sqlalchemy.orm.Mapped", "RecordingGeneration.<module>"),
+        (344, "TB005", "sqlalchemy.text", "TrustedDevice.<module>"),
+        (407, "TB005", "sqlalchemy.text", "GameStartRequest.<module>"),
+        (470, "TB005", "sqlalchemy.text", "GameStartAttempt.<module>"),
+        (481, "TB005", "sqlalchemy.text", "GameStartAttempt.<module>"),
+        (487, "TB005", "sqlalchemy.text", "GameStartAttempt.<module>"),
+        (567, "TB002", "sqlalchemy.orm.Mapped", "RecordingRightDelivery.<module>"),
+        (576, "TB005", "sqlalchemy.text", "RecordingRightDelivery.<module>"),
+    )),
+    "pitchlog/recording_rights/initial_grant_broker.py": ("initial_grant_broker_caller", (
+        (35, 'TB002', 'DurableGenerationSource', '<module>'),
+        (35, 'TB002', 'assert_write_recovery_generation', '<module>'),
+        (165, 'TB005', 'psycopg.Connection.cursor', '_verify_initial_actor_checkout'),
+        (166, 'TB005', 'psycopg.Cursor.execute', '_verify_initial_actor_checkout'),
+        (185, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
+        (188, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
+        (255, 'TB005', 'sqlalchemy.create_engine', '_load_initial_actor_runtime'),
+        (
+            327,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+            '<module>',
+        ),
+        (
+            406,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+            '_issue_initial_grant_impl',
+        ),
+        (
+            407,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+            '_issue_initial_grant_impl',
+        ),
+        (
+            431,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+            '<module>',
+        ),
+        (
+            446,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+            '<module>',
+        ),
+        (486, 'TB002', 'generation', '<module>'),
+        (493, 'TB002', 'int', '_broker_d4'),
+        (498, 'TB002', '_broker_generation', '<module>'),
+        (512, 'TB002', 'int', '_broker_generation'),
+        (516, 'TB002', 'int', '_broker_generation'),
+        (522, 'TB002', 'int', '_broker_generation'),
+        (
+            806,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
+            '_postcommit_start_response',
+        ),
+        (
+            807,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+            '_postcommit_start_response',
+        ),
+        (807, 'TB002', 'recovery_generation', '_postcommit_start_response'),
+        (
+            931,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
+            '_decode_initial_reply',
+        ),
+        (
+            1121,
+            'TB005',
+            'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
+            '_InitialBrokerClient.call',
+        ),
+        (1212, 'TB005', 'psycopg.Connection.cursor', '_verify_auth_verifier_checkout'),
+        (1213, 'TB005', 'psycopg.Cursor.execute', '_verify_auth_verifier_checkout'),
+        (1218, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
+        (1221, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
+        (1281, 'TB005', 'sqlalchemy.create_engine', '_load_initial_auth_verifier_runtime'),
+        (1462, 'TB002', 'pitchlog.sync.idempotency', '_worker_resolve_start'),
+        (
+            1519,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+            '_worker_resolve_start',
+        ),
+        (
+            1520,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+            '_worker_resolve_start',
+        ),
+        (
+            1747,
+            'TB005',
+            'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
+            'serve_initial_broker',
+        ),
+        (1760, 'TB007', 'pitchlog.durable_rights_ledger.DurableLedger', 'serve_initial_broker'),
+    )),
+    "pitchlog/repositories/game_start.py": ("game_start_caller", (
+        (23, "TB002", "pitchlog.sync.idempotency", "<module>"),
+        (340, "TB007", "cls", "_start_token"),
+    )),
+    "pitchlog/repositories/initial_recording_right.py": ("initial_recording_right_guard", (
+        (47, "TB002", "_positive_generation", "<module>"),
+        (158, "TB002", "int", "_CheckBusinessEpochToken.<module>"),
+        (174, "TB002", "int", "_InsertInitialGrantToken.<module>"),
+        (175, "TB002", "int", "_InsertInitialGrantToken.<module>"),
+        (
+            264,
+            'TB002',
+            'pitchlog.repositories.initial_recording_right._positive_generation',
+            '_decode_initial_result',
+        ),
+        (276, "TB002", "int", "_decode_initial_result"),
+        (278, "TB002", "int", "_decode_initial_result"),
+        (279, "TB002", "int", "_decode_initial_result"),
+        (
+            279,
+            'TB002',
+            'pitchlog.repositories.initial_recording_right._positive_generation',
+            '_decode_initial_result',
+        ),
+        (
+            466,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.__init__',
+        ),
+        (
+            559,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.lock_valid_device',
+        ),
+        (
+            593,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope._record',
+        ),
+        (666, "TB002", "assert_recovery_generation", "InitialRecordingRightScope.<module>"),
+        (
+            669,
+            'TB002',
+            'pitchlog.repositories.initial_recording_right._positive_generation',
+            'InitialRecordingRightScope.assert_recovery_generation',
+        ),
+        (
+            700,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            701,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            715,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            716,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.recovery_generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (
+            725,
+            'TB002',
+            'pitchlog.recording_rights.initial_grant.InitialGrantRecord.generation',
+            'InitialRecordingRightScope.insert_initial_grant',
+        ),
+        (761, "TB001", "_assert_existing_resolution_owner", "_existing_start_scope_on_handle"),
+        (
+            763,
+            'TB001',
+            'pitchlog.repositories.transaction._assert_existing_resolution_owner',
+            '_existing_start_scope_on_handle',
+        ),
+    )),
+}
+
+
+
+def _initial_population_semantics(tree: ast.Module, path: str) -> bool:
+    """不変原典照合とは別に、既規範の有限安全条件を実ASTへ検査する。
+
+    原典byteも改変した試験でこの検査自体の拒否を確認する。呼出しの
+    名前存在だけでなくreceiver・全引数・列/型・制御順序を閉じて比較する。
+    """
+    def shape(node: ast.AST) -> str:
+        return ast.dump(node, include_attributes=False)
+
+    def expression(text: str) -> str:
+        return shape(ast.parse(text, mode="eval").body)
+
+    def function(name: str) -> ast.FunctionDef | None:
+        names = name.split(".")
+        owner: ast.Module | ast.FunctionDef | ast.ClassDef = tree
+        for part in names:
+            found = [n for n in owner.body if isinstance(
+                n, (ast.FunctionDef, ast.ClassDef),
+            ) and n.name == part]
+            if len(found) != 1:
+                return None
+            owner = found[0]
+        return owner if isinstance(owner, ast.FunctionDef) else None
+
+    def body(node: ast.FunctionDef | ast.ClassDef) -> list[ast.stmt]:
+        return [n for n in node.body if not (
+            isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+            and isinstance(n.value.value, str)
+        )]
+
+    def has(node: ast.AST | None, text: str) -> bool:
+        if node is None:
+            return False
+        expected = ast.parse(text).body
+        return all(any(shape(n) == shape(
+            target.value if isinstance(target, ast.Expr) else target,
+        ) for n in ast.walk(node)) for target in expected)
+
+    def calls(node: ast.AST, name: str) -> list[ast.Call]:
+        return [n for n in ast.walk(node) if isinstance(n, ast.Call)
+                and shape(n.func) == expression(name)]
+
+    def assignment(name: str, value: str) -> bool:
+        expected = ast.parse(f"{name} = {value}").body[0]
+        stores = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                  and n.id == name and isinstance(n.ctx, (ast.Store, ast.Del))]
+        others = [n for n in ast.walk(tree) if (
+            isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name == name
+        ) or (isinstance(n, ast.arg) and n.arg == name) or (
+            isinstance(n, ast.alias) and (n.asname or n.name.split(".")[0]) == name
+        )]
+        return len(stores) == 1 and not others and any(
+            shape(n) == shape(expected) for n in tree.body
+        )
+
+    # 宣言はDB実行ではない。許可するSQL片はdefault/partial indexの3定数のみ。
+    if path == "pitchlog/db/recording_rights/models.py":
+        names = {
+            "RecordingGeneration": "recording_generations",
+            "TrustedDevice": "trusted_devices",
+            "GameStartRequest": "game_start_requests",
+            "GameStartAttempt": "game_start_attempts",
+            "RecordingRightDelivery": "recording_right_deliveries",
+        }
+        for name, table in names.items():
+            declared = [n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name]
+            if len(declared) != 1 or not has(declared[0], f"__tablename__ = {table!r}"):
+                return False
+        checks = {
+            "RecordingGeneration": (
+                "recovery_generation: Mapped[int | None] = mapped_column("
+                "BigInteger, nullable=True)",
+            ),
+            "TrustedDevice": (
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+            "GameStartRequest": (
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+            "GameStartAttempt": (
+                'Index("uq_game_start_attempts_pending", "tenant_id", "game_id", '
+                '"start_request_id", unique=True, postgresql_where=text("outcome = \'pending\'"), '
+                'info={"roles": ("business_unique",)})',
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+                'outcome: Mapped[str] = mapped_column(Text, nullable=False, '
+                'server_default=text("\'pending\'"))',
+            ),
+            "RecordingRightDelivery": (
+                'generation: Mapped[int] = mapped_column(BigInteger, nullable=False)',
+                'created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), '
+                'nullable=False, server_default=text("CURRENT_TIMESTAMP"))',
+            ),
+        }
+        for name, expected in checks.items():
+            declared = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == name)
+            if any(isinstance(n, (ast.If, ast.Try, ast.With)) for n in declared.body):
+                return False
+            for statement in expected:
+                parsed = ast.parse(statement).body[0]
+                if isinstance(parsed, ast.AnnAssign) and isinstance(parsed.target, ast.Name):
+                    definitions = [n for n in declared.body if isinstance(n, ast.AnnAssign)
+                                   and isinstance(n.target, ast.Name)
+                                   and n.target.id == parsed.target.id]
+                    if len(definitions) != 1 or shape(definitions[0]) != shape(parsed):
+                        return False
+                elif not has(declared, statement):
+                    return False
+            if name != "RecordingGeneration":
+                sql_calls = calls(declared, "text")
+                expected_sql = (["outcome = 'pending'", "CURRENT_TIMESTAMP", "'pending'"]
+                                if name == "GameStartAttempt" else ["CURRENT_TIMESTAMP"])
+                if sorted(shape(n) for n in sql_calls) != sorted(
+                    expression(f"text({value!r})") for value in expected_sql
+                ):
+                    return False
+        return True
+    if path == "pitchlog/api/schemas/game_start.py":
+        declared = [n for n in tree.body if isinstance(n, ast.ClassDef)
+                    and n.name == "InitialGameStartResponse"]
+        return len(declared) == 1 and has(declared[0], "recovery_generation: str")
+    if path == "pitchlog/authz/capability_catalog.py":
+        fn = function("_initial_storage_profile")
+        expected = ast.parse('''generation = [
+    row for row in rows if _optional(row, "table") == "recording_generations"
+]
+if len(generation) != 1 or generation[0] != {
+    "table": "recording_generations", "profile": "tenant_owned",
+}:
+    violations.append("初期保存でも記録権世代の既存tenant_owned分類が必要")
+if violations:
+    raise CapabilityCatalogError(violations)
+return True
+''').body
+        return fn is not None and [shape(n) for n in body(fn)[-4:]] == [
+            shape(n) for n in expected
+        ]
+    if path == "pitchlog/authz/product_function_acl.py":
+        fn = function("generate_generation_guard_sql")
+        if fn is None:
+            return False
+        expected = ast.parse('''
+migration = root / "backend/migrations/versions/0036_initial_recording_right_storage.py"
+try:
+    tree = ast.parse(migration.read_text(encoding="utf-8"))
+    bindings = [node for node in ast.walk(tree) if isinstance(node, ast.Name)
+                and isinstance(node.ctx, (ast.Store, ast.Del))
+                and node.id == "_GENERATION_GUARD_SQL"]
+    declarations = [node for node in tree.body if isinstance(node, ast.Assign)
+                    and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "_GENERATION_GUARD_SQL"]
+    other_bindings = any(
+        (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+         and node.name == "_GENERATION_GUARD_SQL")
+        or (isinstance(node, ast.alias)
+            and (node.asname or node.name.split(".")[0]) == "_GENERATION_GUARD_SQL")
+        for node in ast.walk(tree))
+    if other_bindings or len(bindings) != 1 or len(declarations) != 1:
+        raise ValueError("固定定数の単一トップレベル代入でない")
+    declaration = declarations[0]
+    values = ast.literal_eval(declaration.value)
+    if type(values) is not tuple or len(values) != 3 or any(
+        type(value) is not str or not value.strip() for value in values):
+        raise ValueError("固定DDL三要素でない")
+    sql = values[0]
+except (OSError, SyntaxError, ValueError, TypeError) as exc:
+    raise ValueError("0036の世代guard供給が不正") from exc
+return (
+    "-- ELEMENT-TYPE: function\\n"
+    "-- ELEMENT-ID: FUNCTION:public:protect_recording_generations_updates()\\n\\n"
+    + sql.rstrip(";\\n") + ";\\n"
+    "REVOKE EXECUTE ON FUNCTION public.protect_recording_generations_updates() "
+    "FROM PUBLIC, pitchlog_app;\\n")
+''').body
+        return [shape(n) for n in body(fn)] == [shape(n) for n in expected] and has(
+            function("generate_product_function_acl_sql"),
+            "return generate_generation_guard_sql(_REPOSITORY_ROOT)",
+        )
+    if path == "pitchlog/repositories/game_start.py":
+        fn = function("_start_token")
+        if fn is None:
+            return False
+        # 2型ternary以外のconstructorやowner/原bytesの変更を許可しない。
+        expected = ast.parse('''
+from pitchlog.repositories.initial_recording_right import (
+    _PersistInitialStartToken, _ReadInitialStartContextToken,
+)
+bound.__post_init__()
+owner = bound.owner
+cls = _PersistInitialStartToken if save else _ReadInitialStartContextToken
+return cls(owner.game_id, owner.start_request_id, owner.attempt_id,
+           owner.request_digest, bound.canonical_bytes.decode("utf-8"))
+''').body
+        return [shape(n) for n in body(fn)] == [shape(n) for n in expected]
+    if path == "pitchlog/repositories/initial_recording_right.py":
+        fn = function("_existing_start_scope_on_handle")
+        positive = function("_positive_generation")
+        if fn is None or positive is None:
+            return False
+        expected = ast.parse('''
+from pitchlog.repositories.transaction import _assert_existing_resolution_owner
+_assert_existing_resolution_owner(transaction, context, actor_runtime, owner, bound)
+with _bound_initial_adapter(context, transaction, owner, bound) as scope:
+    yield scope
+''').body
+        return ([shape(n) for n in body(fn)] == [shape(n) for n in expected]
+                and len(body(positive)) == 1 and has(positive,
+                    "return type(value) is int and 0 < value < 2**63"))
+    if path != "pitchlog/recording_rights/initial_grant_broker.py":
+        return False
+
+    sql = """SELECT session_user::text, current_user::text,
+        r.rolcanlogin, r.rolsuper, r.rolbypassrls, r.rolinherit,
+        r.rolcreaterole, r.rolcreatedb, r.rolreplication,
+        (SELECT count(*) FROM pg_catalog.pg_auth_members AS m
+         WHERE m.member = r.oid OR m.roleid = r.oid),
+        pg_catalog.current_setting('app.tenant_id', true),
+        pg_catalog.current_database()::text, d.oid::integer,
+        pg_catalog.pg_postmaster_start_time(), pg_catalog.pg_backend_pid()
+        FROM pg_catalog.pg_roles AS r JOIN pg_catalog.pg_database AS d
+        ON d.datname = pg_catalog.current_database() WHERE r.rolname = session_user"""
+    def normalize_sql(value: str) -> str:
+        return " ".join(value.split())
+    if not assignment("_ACTOR_ROLE", "'pitchlog_initial_actor'") or not assignment(
+        "_INITIAL_AUTH_VERIFIER_ROLE", "'pitchlog_initial_auth_verifier'",
+    ):
+        return False
+    actor = function("_validate_actor_observation")
+    verifier = function("_validate_auth_verifier_observation")
+    if actor is None or verifier is None:
+        return False
+    actor_conditions = (
+        "len(row) != 15 or row[:2] != (_ACTOR_ROLE, _ACTOR_ROLE)",
+        "tuple(row[2:9]) != (True, False, False, False, False, False, False) "
+        "or any(type(v) is not bool for v in row[2:9])",
+        "type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '')",
+        "row[11] != config.database_name or type(row[12]) is not int "
+        "or row[12] != config.database_oid or type(row[13]) is not datetime "
+        "or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0",
+    )
+    actor_checks = body(actor)
+    if len(actor_checks) != 4 or any(
+        not isinstance(node, ast.If) or shape(node.test) != expression(test)
+        or len(node.body) != 1 or not isinstance(node.body[0], ast.Raise) or node.orelse
+        for node, test in zip(actor_checks, actor_conditions, strict=True)
+    ):
+        return False
+    verifier_condition = (
+        "len(row) != 15 or row[:2] != (_INITIAL_AUTH_VERIFIER_ROLE, _INITIAL_AUTH_VERIFIER_ROLE) "
+        "or tuple(row[2:9]) != (True, False, False, False, False, False, False) "
+        "or any(type(v) is not bool for v in row[2:9]) "
+        "or type(row[9]) is not int or row[9] != 0 or row[10] not in (None, '') "
+        "or row[11] != config.database_name or type(row[12]) is not int "
+        "or row[12] != config.database_oid or type(row[13]) is not datetime "
+        "or row[13] != config.postmaster_started_at or type(row[14]) is not int or row[14] <= 0"
+    )
+    verifier_checks = body(verifier)
+    if len(verifier_checks) != 1 or not isinstance(verifier_checks[0], ast.If) or (
+        shape(verifier_checks[0].test) != expression(verifier_condition)
+    ) or len(verifier_checks[0].body) != 1 or not isinstance(
+        verifier_checks[0].body[0], ast.Raise,
+    ):
+        return False
+    constants = [n.value.value for n in tree.body if isinstance(n, ast.Assign)
+                 and any(isinstance(t, ast.Name) and t.id == "_AUTH_VERIFIER_CHECKOUT_SQL"
+                         for t in n.targets) and isinstance(n.value, ast.Constant)]
+    sql_stores = [n for n in ast.walk(tree) if isinstance(n, ast.Name)
+                  and n.id == "_AUTH_VERIFIER_CHECKOUT_SQL"
+                  and isinstance(n.ctx, (ast.Store, ast.Del))]
+    if len(sql_stores) != 1:
+        return False
+    if len(constants) != 1 or type(constants[0]) is not str or (
+        normalize_sql(constants[0]) != normalize_sql(sql)
+    ):
+        return False
+    for fn_name, validate in (
+        ("_verify_initial_actor_checkout", "_validate_actor_observation"),
+        ("_verify_auth_verifier_checkout", "_validate_auth_verifier_observation"),
+    ):
+        fn = function(fn_name)
+        if fn is None or len(body(fn)) != 1 or not isinstance(body(fn)[0], ast.Try):
+            return False
+        block = body(fn)[0]
+        if not isinstance(block, ast.Try):
+            return False
+        if len(block.body) != 2 or not isinstance(block.body[0], ast.With) or (
+            not isinstance(block.body[1], ast.Expr)
+            or shape(block.body[1].value) != expression("connection.rollback()")
+        ):
+            return False
+        context = block.body[0]
+        if len(context.items) != 1 or shape(context.items[0].context_expr) != expression(
+            "connection.cursor()",
+        ) or not isinstance(context.items[0].optional_vars, ast.Name) or (
+            context.items[0].optional_vars.id != "cursor"
+        ) or len(context.body) != 4:
+            return False
+        execute = context.body[0]
+        if not isinstance(execute, ast.Expr) or not isinstance(execute.value, ast.Call):
+            return False
+        call = execute.value
+        if shape(call.func) != expression("cursor.execute") or call.keywords or len(call.args) != 1:
+            return False
+        if fn_name == "_verify_initial_actor_checkout":
+            if (not isinstance(call.args[0], ast.Constant)
+                or type(call.args[0].value) is not str or (
+                normalize_sql(call.args[0].value) != normalize_sql(sql)
+            )):
+                return False
+        elif shape(call.args[0]) != expression("_AUTH_VERIFIER_CHECKOUT_SQL"):
+            return False
+        expected_tail = ast.parse(f'''
+row = cursor.fetchone()
+if row is None or cursor.fetchone() is not None:
+    raise REJECT()
+{validate}(tuple(row), config)
+''').body
+        expected_if = expected_tail[1]
+        assert isinstance(expected_if, ast.If)
+        if shape(context.body[1]) != shape(expected_tail[0]) or (
+            not isinstance(context.body[2], ast.If)
+            or shape(context.body[2].test) != shape(expected_if.test)
+            or len(context.body[2].body) != 1
+            or not isinstance(context.body[2].body[0], ast.Raise)
+        ) or shape(context.body[3]) != shape(expected_tail[2]):
+            return False
+        if len(block.handlers) != 1 or block.orelse or block.finalbody:
+            return False
+        handler = block.handlers[0]
+        if handler.type is None or shape(handler.type) != expression("Exception") or (
+            len(handler.body) != 2 or not isinstance(handler.body[0], ast.Try)
+            or not isinstance(handler.body[1], ast.Raise)
+        ):
+            return False
+        rollback = handler.body[0]
+        if [shape(n) for n in rollback.body] != [shape(ast.parse(
+            "connection.rollback()",
+        ).body[0])] or len(rollback.handlers) != 1 or (
+            rollback.handlers[0].type is None
+            or shape(rollback.handlers[0].type) != expression("BaseException")
+            or len(rollback.handlers[0].body) != 1
+            or not isinstance(rollback.handlers[0].body[0], ast.Pass)
+        ):
+            return False
+    for name, url in (
+        ("_load_initial_actor_runtime", "normalize_postgresql_url(config.database_url)"),
+        ("_load_initial_auth_verifier_runtime", "_initial_auth_verifier_url(config)"),
+    ):
+        fn = function(name)
+        if fn is None:
+            return False
+        main_tries = [n for n in body(fn) if isinstance(n, ast.Try)]
+        if len(main_tries) != 1:
+            return False
+        prefix = (f"url = {url}\n" if name == "_load_initial_auth_verifier_runtime" else "")
+        suffix = (f"url = {url}\n" if name == "_load_initial_actor_runtime" else "")
+        passfile = ('args["passfile"] = "/dev/null"\n'
+                    if name == "_load_initial_auth_verifier_runtime" else "")
+        validate_checkout = ("_verify_initial_actor_checkout"
+                             if name == "_load_initial_actor_runtime"
+                             else "_verify_auth_verifier_checkout")
+        expected_suffix = ast.parse(prefix + '''args = engine_connect_args(False)
+args["gssencmode"] = "disable"
+args["connect_timeout"] = 1
+args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"
+''' + passfile + suffix + f'''require_database_transport(url, args)
+engine = create_engine(url, connect_args=args, hide_parameters=True,
+                       pool_size=3, max_overflow=0, pool_timeout=0.5)
+def checkout(connection: Any, record: Any, proxy: Any) -> None:
+    del record, proxy
+    {validate_checkout}(connection, config)
+event.listen(engine, "checkout", checkout)
+''').body
+        actual_suffix = main_tries[0].body[-len(expected_suffix):]
+        # nested callbackのdocstringだけを意味比較から除く。body/引数は完全比較。
+        actual_shapes = []
+        for stmt in actual_suffix:
+            if isinstance(stmt, ast.FunctionDef):
+                stmt = copy.deepcopy(stmt)
+                stmt.body = body(stmt)
+            actual_shapes.append(shape(stmt))
+        if actual_shapes != [shape(n) for n in expected_suffix]:
+            return False
+        expected_engine = expression(
+            "create_engine(url, connect_args=args, hide_parameters=True, "
+            "pool_size=3, max_overflow=0, pool_timeout=0.5)",
+        )
+        engines = calls(fn, "create_engine")
+        transports = calls(fn, "require_database_transport")
+        if len(engines) != 1 or shape(engines[0]) != expected_engine or len(transports) != 1 or (
+            shape(transports[0]) != expression("require_database_transport(url, args)")
+            or transports[0].lineno >= engines[0].lineno
+        ):
+            return False
+        required = (
+            "args = engine_connect_args(False)", 'args["gssencmode"] = "disable"',
+            'args["connect_timeout"] = 1',
+            'args["options"] = "-c statement_timeout=1500 -c lock_timeout=1000"',
+            f"url = {url}", 'event.listen(engine, "checkout", checkout)',
+        )
+        if not all(has(fn, statement) for statement in required):
+            return False
+        validate = ("_verify_initial_actor_checkout" if name == "_load_initial_actor_runtime"
+                    else "_verify_auth_verifier_checkout")
+        if not has(fn, f'''def checkout(connection: Any, record: Any, proxy: Any) -> None:
+            del record, proxy
+            {validate}(connection, config)'''):
+            # docstringは振舞いではなく、別の不変全byte照合が保持する。
+            nested = [n for n in ast.walk(fn) if isinstance(n, ast.FunctionDef)
+                      and n.name == "checkout"]
+            expected = ast.parse(f"del record, proxy\n{validate}(connection, config)").body
+            if len(nested) != 1 or [shape(n) for n in body(nested[0])] != [
+                shape(n) for n in expected
+            ]:
+                return False
+    def exact_body(name: str, expected: str) -> bool:
+        actual = function(name)
+        return actual is not None and [shape(n) for n in body(actual)] == [
+            shape(n) for n in ast.parse(expected).body
+        ]
+
+    if not exact_body("_broker_generation", '''
+try:
+    if type(value) is not str or len(value) != 60 or not value.startswith("d4.1."):
+        raise ValueError
+    encoded = value[5:]
+    if any(ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+           for ch in encoded):
+        raise ValueError
+    raw = base64.b64decode(encoded + "=", altchars=b"-_", validate=True)
+    if len(raw) != 41 or raw[0] != 1:
+        raise ValueError
+    generation = int.from_bytes(raw[33:], "big")
+    if (raw[1:17] != tenant_id.bytes or raw[17:33] != game_id.bytes
+        or _broker_d4(tenant_id, game_id, generation) != value):
+        raise ValueError
+except (ValueError, TypeError, AttributeError):
+    pass
+else:
+    return generation
+raise _broker_invalid()
+'''):
+        return False
+
+    # 実registryの消費/所有poolだけのcleanupとUnix/専用role制約。
+    if not exact_body("_close_initial_actor_runtime", '''
+state = _actor_state(runtime)
+assert type(runtime) is _InitialActorRuntime
+_ACTOR_RUNTIMES.pop(runtime._key)
+state.engine.dispose()
+''') or not exact_body("_close_initial_auth_verifier_runtime", '''
+state = _auth_verifier_state(runtime)
+assert type(runtime) is _InitialAuthVerifierRuntime
+del _AUTH_VERIFIER_RUNTIMES[runtime._key]
+try:
+    state.engine.dispose()
+except Exception:
+    pass
+else:
+    return
+raise _broker_invalid()
+''') or not exact_body("_initial_auth_verifier_url", '''
+from sqlalchemy.engine import make_url
+try:
+    url = make_url(normalize_postgresql_url(config.database_url))
+    query = dict(url.query)
+    host = query.get("host", url.host)
+    if (url.username != _ACTOR_ROLE or url.password is not None
+        or type(host) is not str or not host.startswith("/") or "," in host
+        or any(k not in {"host", "port", "sslmode", "gssencmode"} for k in query)
+        or query.get("sslmode", "disable") != "disable"
+        or query.get("gssencmode", "disable") != "disable"
+        or url.database != config.database_name):
+        raise ValueError
+    return url.set(username=_INITIAL_AUTH_VERIFIER_ROLE).render_as_string(hide_password=False)
+except (ValueError, TypeError, AttributeError):
+    pass
+raise _broker_invalid()
+'''):
+        return False
+    verifier_loader = function("_load_initial_auth_verifier_runtime")
+    actor_loader = function("_load_initial_actor_runtime")
+    if verifier_loader is None or actor_loader is None:
+        return False
+    verifier_tries = [n for n in body(verifier_loader) if isinstance(n, ast.Try)]
+    expected_handler = ast.parse('''try:
+    pass
+except Exception:
+    if engine is not None:
+        try:
+            engine.dispose()
+        except Exception:
+            pass
+else:
+    key = object()
+    _AUTH_VERIFIER_RUNTIMES[key] = _AuthVerifierState(engine, config, presentation)
+    return _InitialAuthVerifierRuntime(key, _RUNTIME_CREATION)
+''').body[0]
+    assert isinstance(expected_handler, ast.Try)
+    if len(verifier_tries) != 1 or [shape(n) for n in verifier_tries[0].handlers] != [
+        shape(n) for n in expected_handler.handlers
+    ] or [shape(n) for n in verifier_tries[0].orelse] != [
+        shape(n) for n in expected_handler.orelse
+    ]:
+        return False
+    actor_tail = ast.parse('''key = object()
+_ACTOR_RUNTIMES[key] = _ActorState(engine, config, box)
+return _InitialActorRuntime(key, _RUNTIME_CREATION)
+''').body
+    if [shape(n) for n in body(actor_loader)[-3:]] != [shape(n) for n in actor_tail]:
+        return False
+    # 副作用のない名称の存在ではなく、外部guardの実import束縛を固定する。
+    imported: dict[str, list[str]] = {}
+    for n in tree.body:
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                imported.setdefault(a.asname or a.name.split(".")[0], []).append(a.name)
+        elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
+            for a in n.names:
+                imported.setdefault(a.asname or a.name, []).append(f"{n.module}.{a.name}")
+    for name, origin in {
+        "socket": "socket", "os": "os", "create_engine": "sqlalchemy.create_engine",
+        "event": "sqlalchemy.event",
+        "encode_d4_reference": "pitchlog.sync.d4_reference.encode_d4_reference",
+        "D4ReferenceInvalid": "pitchlog.sync.d4_reference.D4ReferenceInvalid",
+        "require_database_transport": (
+            "pitchlog.authz.database_transport.require_database_transport"
+        ),
+        "engine_connect_args": "pitchlog.db.engine.engine_connect_args",
+    }.items():
+        if imported.get(name) != [origin] or any(
+            isinstance(n, ast.Name) and n.id == name and isinstance(n.ctx, (ast.Store, ast.Del))
+            for n in ast.walk(tree)
+        ):
+            return False
+
+    client = function("_InitialBrokerClient.call")
+    server = function("serve_initial_broker")
+    if client is None or server is None:
+        return False
+    sockets = [n for n in ast.walk(client) if isinstance(n, ast.With) and len(n.items) == 1
+               and shape(n.items[0].context_expr) == expression(
+                   "socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)",
+               ) and n.items[0].optional_vars is not None
+               and shape(n.items[0].optional_vars) == shape(
+                   ast.Name(id="channel", ctx=ast.Store()),
+               )]
+    client_tries = [n for n in body(client) if isinstance(n, ast.Try)]
+    socket_body = ast.parse('''_broker_remaining(channel, deadline)
+channel.connect(str(self._endpoint.path))
+_check_broker_peer(channel)
+_check_broker_socket(self._endpoint)
+_broker_remaining(channel, deadline)
+channel.sendall(frame)
+channel.shutdown(socket.SHUT_WR)
+response = _broker_receive(channel, deadline)
+''').body
+    if len(sockets) != 1 or len(client_tries) != 1 or sockets[0] not in client_tries[0].body or (
+        [shape(n) for n in sockets[0].body] != [shape(n) for n in socket_body]
+    ):
+        return False
+    if len(sockets) != 1 or len(calls(client, "channel.connect")) != 1 or not has(
+        sockets[0], "channel.connect(str(self._endpoint.path))",
+    ):
+        return False
+    files = [n for n in ast.walk(server) if isinstance(n, ast.With) and len(n.items) == 1
+             and shape(n.items[0].context_expr) == expression('os.fdopen(fd, "wb")')
+             and n.items[0].optional_vars is not None
+             and shape(n.items[0].optional_vars) == shape(ast.Name(id="output", ctx=ast.Store()))]
+    expected_file = ast.parse('''os.fchmod(output.fileno(), 0o644)
+output.write(_broker_json(endpoint_body))
+output.flush()
+os.fsync(output.fileno())''').body
+    server_tries = [n for n in body(server) if isinstance(n, ast.Try)]
+    if len(files) != 1 or len(server_tries) != 1 or files[0] not in server_tries[0].body or (
+        [shape(n) for n in files[0].body] != [shape(n) for n in expected_file]
+    ):
+        return False
+    durable_assignment = ast.parse(
+        'source = DurableLedger(Path(config["ledger_endpoint"]))',
+    ).body[0]
+    if not any(shape(n) == shape(durable_assignment) for n in server_tries[0].body) or not has(
+        server, "from pitchlog.durable_rights_ledger import DurableLedger",
+    ):
+        return False
+    imported_ledger = ast.parse(
+        "from pitchlog.durable_rights_ledger import DurableLedger",
+    ).body[0]
+    if sum(shape(n) == shape(imported_ledger) for n in body(server)) != 1 or any(
+        isinstance(n, ast.Name) and n.id == "DurableLedger"
+        and isinstance(n.ctx, (ast.Store, ast.Del)) for n in ast.walk(server)
+    ):
+        return False
+    # importの固定先、実owner復旧世代照合、および純bigint codecの委譲先を保持。
+    business = function("_verify_business_binding")
+    if business is None or not has(
+        business,
+        "from pitchlog.recording_rights.rg1_lifecycle import "
+        "BusinessBinding, RG1ControlUnavailable",
+    ) or not has(business, "binding = BusinessBinding.from_text(rows[0][0])"):
+        return False
+    if not any(
+        handler.type is not None
+        and shape(handler.type) == expression("RG1ControlUnavailable")
+        for node in ast.walk(business)
+        if isinstance(node, ast.Try)
+        for handler in node.handlers
+    ):
+        return False
+    # 符号化の型/範囲検査は単一実装が持つ(NFR-018)。本文の委譲だけを固定する。
+    return (
+        has(function("_issue_initial_grant_impl"),
+                "assert_write_recovery_generation(scope, source, fence, "
+                "int(grant.recovery_generation))")
+        and has(function("_worker_resolve_start"),
+                "assert_write_recovery_generation(scope, state.source, fence, "
+                "int(grant.recovery_generation))")
+        and exact_body("_broker_d4", '''
+try:
+    return encode_d4_reference(tenant_id, game_id, generation)
+except D4ReferenceInvalid:
+    raise _broker_invalid() from None
+''')
+    )
+
+
+def _initial_population_evidence(
+    source: str, path: str,
+) -> frozenset[tuple[int, str, str, str]]:
+    """既承認の単一siteを、不変Git原典の実owner/全ASTへ束縛する。
+
+    書式・import/再束縛も含む原典全byteを前提とするが、許可は下記の
+    有限siteだけである。型・DB API・module・未知callableへの一般免除ではない。
+    """
+    policy = _INITIAL_POPULATION_POLICY.get(path)
+    if policy is None:
+        return frozenset()
+    source_key, sites = policy
+    if not _initial_population_semantics(ast.parse(source, filename=path), path):
+        return frozenset()
+    original = _scope_proof_source_bytes(source_key)
+    if source.encode("utf-8") != original:
+        return frozenset()
+    expected_tree = ast.parse(original, filename=path)
+    current_tree = ast.parse(source, filename=path)
+    module = _module_name(path)
+    def owners(tree: ast.Module) -> dict[str, ast.AST]:
+        result: dict[str, ast.AST] = {"<module>": tree}
+
+        def collect(node: ast.AST, prefix: str) -> None:
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    name = f"{prefix}.{child.name}" if prefix else child.name
+                    if name in result:
+                        # 同名再定義も単一ownerとして採用しない。
+                        result.pop(name)
+                        continue
+                    result[name] = child
+                    collect(child, name)
+                else:
+                    collect(child, prefix)
+
+        collect(tree, "")
+        return result
+
+    expected_owners, current_owners = owners(expected_tree), owners(current_tree)
+    evidence: set[tuple[int, str, str, str]] = set()
+    for line, code, symbol, owner in sites:
+        owner_name = owner.removesuffix(".<module>")
+        expected_owner = expected_owners.get(owner_name)
+        current_owner = current_owners.get(owner_name)
+        if expected_owner is None or current_owner is None:
+            continue
+        # owner全ASTによりrole/identity/TLS設定・SQL・rollback・callback束縛を保持。
+        if ast.dump(expected_owner, include_attributes=False) != ast.dump(
+            current_owner, include_attributes=False,
+        ):
+            continue
+        # 呼出しならreceiverと全引数を含むCall、注釈/参照なら実statement全体。
+        expected_nodes = [
+            node for node in ast.walk(expected_tree)
+            if getattr(node, "lineno", None) == line
+            and isinstance(node, (ast.stmt, ast.Call, ast.expr))
+        ]
+        current_nodes = [
+            node for node in ast.walk(current_tree)
+            if getattr(node, "lineno", None) == line
+            and isinstance(node, (ast.stmt, ast.Call, ast.expr))
+        ]
+        if not expected_nodes or [
+            ast.dump(node, include_attributes=False) for node in expected_nodes
+        ] != [ast.dump(node, include_attributes=False) for node in current_nodes]:
+            continue
+        evidence.add((line, code, symbol, f"{module}.{owner}"))
+    return frozenset(evidence)
+
+
 def scan_source(
     source: str,
     *,
@@ -6761,60 +7646,54 @@ def scan_source(
                 if violation.code != "TB002"
                 or (violation.line, violation.symbol) not in owner.findings
             ]
-    # 合成Contractも固定集合と実sourceの完全一致以外は免除しない。
-    initial_owners = contract.initial_start_condition2_owners
-    valid_initial_owners = (
-        all(type(owner) is InitialStartCondition2Owner for owner in initial_owners)
-        and _initial_start_scope_projection(initial_owners)
-        == INITIAL_START_CONDITION2_SCOPES
+    first_ball_owners = contract.first_ball_condition2_owners
+    # 合成Contractでも固定6path・固定出現以外の所有境界を認めない。
+    valid_first_ball_owners = (
+        len(first_ball_owners) == len(FIRST_BALL_CONDITION2_SCOPES)
+        and {owner.path for owner in first_ball_owners}
+        == set(FIRST_BALL_CONDITION2_SCOPES)
         and all(
-            type(owner.source_sha256) is str
-            and re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
-            and type(owner.findings) is frozenset
-            and all(
-                type(line) is int and type(symbol) is str and type(scope) is str
-                for line, symbol, scope in owner.findings
-            )
-            for owner in initial_owners
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and owner.findings == FIRST_BALL_CONDITION2_SCOPES[owner.path]
+            for owner in first_ball_owners
         )
     )
-    for owner in initial_owners if valid_initial_owners else ():
+    for owner in first_ball_owners if valid_first_ball_owners else ():
         if (
             path == owner.path.removeprefix("backend/src/")
-            and hashlib.sha256(source.encode("utf-8")).hexdigest() == owner.source_sha256
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
         ):
             violations = [
-                violation for violation in violations
+                violation
+                for violation in violations
                 if violation.code != "TB002"
-                or (violation.line, violation.symbol, violation.scope) not in owner.findings
+                or (violation.line, violation.symbol) not in owner.findings
             ]
-    # 合成Contractも固定集合と実sourceの完全一致以外は免除しない。
     ordinary_owners = contract.ordinary_condition2_owners
+    # 合成Contractでも固定2path・固定出現以外の所有境界を認めない。
     valid_ordinary_owners = (
-        type(ordinary_owners) is tuple
-        and all(type(owner) is InitialStartCondition2Owner for owner in ordinary_owners)
-        and _initial_start_scope_projection(ordinary_owners)
-        == ORDINARY_CONDITION2_SCOPES
+        len(ordinary_owners) == len(ORDINARY_CONDITION2_SCOPES)
+        and {owner.path for owner in ordinary_owners}
+        == set(ORDINARY_CONDITION2_SCOPES)
         and all(
-            type(owner.source_sha256) is str
-            and re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
-            and type(owner.findings) is frozenset
-            and all(
-                type(line) is int and type(symbol) is str and type(scope) is str
-                for line, symbol, scope in owner.findings
-            )
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and owner.findings == ORDINARY_CONDITION2_SCOPES[owner.path]
             for owner in ordinary_owners
         )
     )
     for owner in ordinary_owners if valid_ordinary_owners else ():
         if (
             path == owner.path.removeprefix("backend/src/")
-            and hashlib.sha256(source.encode("utf-8")).hexdigest() == owner.source_sha256
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
         ):
             violations = [
-                violation for violation in violations
+                violation
+                for violation in violations
                 if violation.code != "TB002"
-                or (violation.line, violation.symbol, violation.scope) not in owner.findings
+                or (violation.line, violation.symbol, violation.scope)
+                not in owner.findings
             ]
     resolution = contract.resolution_owner
     if (
@@ -6834,6 +7713,34 @@ def scan_source(
             violations = [v for v in violations if v.code != "TB001"
                           or (v.line, v.symbol, v.scope)
                           != (resolution.line, resolution.symbol, resolution.scope)]
+    initial_evidence = _initial_population_evidence(source, path)
+    violations = [
+        item for item in violations
+        if (item.line, item.code, item.symbol, item.scope) not in initial_evidence
+    ]
+    condition5_owners = contract.first_ball_condition5_owners
+    # 合成Contractでも固定9path・固定出現以外の条件5免除を認めない。
+    valid_condition5_owners = (
+        len(condition5_owners) == len(FIRST_BALL_CONDITION5_SCOPES)
+        and {owner.path for owner in condition5_owners}
+        == set(FIRST_BALL_CONDITION5_SCOPES)
+        and all(
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and owner.findings == FIRST_BALL_CONDITION5_SCOPES[owner.path]
+            for owner in condition5_owners
+        )
+    )
+    for owner in condition5_owners if valid_condition5_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
+        ):
+            violations = [
+                item for item in violations
+                if (item.line, item.code, item.symbol, item.scope)
+                not in owner.findings
+            ]
     return sorted(violations)
 
 
@@ -7272,6 +8179,101 @@ def _git_regular_blob(
     return True
 
 
+def _scope_proof_source_bytes(
+    source_key: str,
+    *,
+    declaration_repository_root: Path | None = None,
+    git_repository_root: Path | None = None,
+) -> bytes:
+    """目的付き不変Git原典の固定8pathから全byteを読む。
+
+    Args:
+        source_key: 既承認の有限sourceの用途キー。
+        declaration_repository_root: 原典revisionを登録した正式資産のroot。
+        git_repository_root: 不変Gitobjectを解決するroot。検査source rootとは別。
+
+    Returns:
+        固定revisionの通常Gitblob全byte。
+
+    Raises:
+        ContractError: 未知用途、宣言不足、不正revision、Git参照失敗の場合。
+    """
+    paths = {
+        "initial_recording_right_guard": (
+            "backend/src/pitchlog/repositories/initial_recording_right.py"
+        ),
+        "source_fingerprint_callee": "backend/src/pitchlog/sync/idempotency.py",
+        "game_start_caller": "backend/src/pitchlog/repositories/game_start.py",
+        "initial_grant_broker_caller": (
+            "backend/src/pitchlog/recording_rights/initial_grant_broker.py"
+        ),
+    }
+    paths.update({
+        "initial_response_annotations": "backend/src/pitchlog/api/schemas/game_start.py",
+        "initial_storage_classification": "backend/src/pitchlog/authz/capability_catalog.py",
+        "initial_generation_guard_ddl": "backend/src/pitchlog/authz/product_function_acl.py",
+        "initial_storage_model_declarations": "backend/src/pitchlog/db/recording_rights/models.py",
+    })
+    if source_key not in paths:
+        raise ContractError("scope proofの未知source用途")
+    declaration_root = declaration_repository_root or Path(__file__).resolve().parents[1]
+    git_root = git_repository_root or declaration_root
+    asset_path = "contracts/tenant_boundary/frozen-inputs.json"
+    try:
+        source = frozen_history.read_repository_file(
+            declaration_root, asset_path, "scope proof原典",
+        )
+        asset = _object(
+            json.loads(source, object_pairs_hook=_unique_json_object), "scope proof資産",
+        )
+    except (ValueError, OSError, frozen_history.ContractError) as error:
+        raise ContractError(f"scope proof原典を解決できない: {error}") from error
+    inputs = _object(asset.get("frozen_inputs"), "scope proof frozen_inputs")
+    entry = _object(
+        inputs.get("ci_scope_proof_source_revision"), "scope proof revision登録",
+    )
+    _strict_keys(entry, {"value", "purpose", "sources"}, "scope proof revision登録")
+    _string(entry["purpose"], "scope proof purpose")
+    if _string_array(entry["sources"], "scope proof sources") != (
+        "scripts/check_tenant_boundary_bypass.py:bound_scope_guard_call_ids",
+        "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
+        "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
+        "tests/test_census_baseline_check.py:_validated_initial_population_suppression",
+    ):
+        raise ContractError("scope proofのconsumer閉集合が不一致")
+    revision = _string(entry["value"], "scope proof revision")
+    if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+        raise ContractError("scope proof原典はfull commit SHAが必要")
+    resolved = _run_git(git_root, ["rev-parse", "--verify", f"{revision}^{{commit}}"])
+    if resolved.strip() != revision:
+        raise ContractError("scope proof原典は直接のcommit objectが必要")
+    _run_git(git_root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+    path = Path(paths[source_key])
+    _git_regular_blob(git_root, revision, path)
+    result = subprocess.run(
+        ["git", "show", f"{revision}:{path.as_posix()}"],
+        cwd=git_root, capture_output=True, check=False,
+    )
+    if result.returncode != 0:
+        raise ContractError("scope proofのGit原典byteを取得できない")
+    return result.stdout
+
+
+
+def _scope_proof_source_sha256(
+    source_key: str,
+    *,
+    declaration_repository_root: Path | None = None,
+    git_repository_root: Path | None = None,
+) -> str:
+    """既承認の用途別原典全byteからSHA256を導く。"""
+    return hashlib.sha256(_scope_proof_source_bytes(
+        source_key,
+        declaration_repository_root=declaration_repository_root,
+        git_repository_root=git_repository_root,
+    )).hexdigest()
+
+
 def _asset_external_files(asset: Mapping[str, object], location: str) -> tuple[str, ...]:
     """資産宣言から外部凍結対象を取得する。"""
     control = _object(asset.get("baseline_control"), f"{location}.baseline_control")
@@ -7654,6 +8656,68 @@ def _validated_ledger_deployment_assets(repository_root: Path, contract: Contrac
     return True
 
 
+_WRITER_BINDING_DEPLOYMENT_ASSETS = (
+    "pitchlog/sync/control_provider/sql/control-phase-schema.sql",
+    "pitchlog/sync/control_provider/sql/writer-binding-control.sql",
+    "pitchlog/sync/control_provider/sql/writer-binding-functions.sql",
+    "pitchlog/sync/control_provider/sql/writer-binding-manifest.json",
+)
+
+# 未統合候補の閉じた構造面。manifestの自己申告ではなく実SQL本文から抽出して比較する。
+_WRITER_BINDING_CLOSED_MANIFEST = {
+    "schema_version": 1,
+    "status": "unintegrated_candidate",
+    "purpose": "別PG専用のwriter-binding制御候補。製品runtimeからの配備・実行権は未提供。",
+    "deployment_authority": "none_unintegrated_candidate",
+    "evidence_boundaries": [
+        "tests_only_application",
+        "no_product_runtime_deployment",
+        "no_trusted_operational_acceptance",
+    ],
+}
+_WRITER_BINDING_CLOSED_SURFACE = {
+    "schemas": frozenset({"sync_control", "sync_fence_api"}),
+    "tables": frozenset({
+        "sync_control.authorities",
+        "sync_control.attempts",
+        "sync_control.event_phases",
+    }),
+    "indexes": frozenset({
+        "ix_sync_control_phase_d5",
+        "ix_sync_one_active_authority",
+    }),
+    "functions": frozenset({
+        "sync_control.read_first_ball_phase(uuid,uuid,uuid)",
+        "sync_control.register_first_ball_phase(uuid,jsonb)",
+        "sync_fence_api.assert_writer_binding(uuid,uuid,uuid,bytea,uuid,uuid)",
+        "sync_fence_api.close_writer_binding(uuid,uuid,uuid,uuid,uuid)",
+        "sync_fence_api.guard_writer_records()",
+        "sync_fence_api.observe_writer_binding(uuid,uuid,uuid,uuid,uuid)",
+        "sync_fence_api.publish_writer_binding(uuid,uuid,uuid,jsonb,bytea)",
+        "sync_fence_api.read_writer_database_identity(uuid)",
+        "sync_fence_api.read_writer_identity(uuid)",
+    }),
+    "policies": frozenset({
+        "sync_control.authorities.binding_owner",
+        "sync_control.attempts.binding_owner",
+        "sync_control.event_phases.binding_owner",
+        "sync_fence.writer_admissions.admission_owner",
+        "sync_fence.writer_bindings.binding_owner",
+        "public.rg1_restore_gate.binding_gate",
+    }),
+    "triggers": frozenset({
+        "sync_fence.writer_admissions.sync_writer_admission_immutable",
+        "sync_fence.writer_admissions.sync_writer_admission_no_truncate",
+        "sync_fence.writer_bindings.sync_writer_binding_immutable",
+        "sync_fence.writer_bindings.sync_writer_binding_no_truncate",
+    }),
+    "roles": frozenset({
+        "pitchlog_sync_binding_actor",
+        "pitchlog_sync_binding_fn_owner",
+    }),
+}
+
+
 _RG1_DEPLOYMENT_ASSETS = (
     "pitchlog/recording_rights/rg1_lifecycle.sql",
     "pitchlog/recording_rights/rg1_lifecycle_manifest.json",
@@ -7823,6 +8887,136 @@ def _validated_rg1_deployment_assets(repository_root: Path, contract: Contract) 
     return True
 
 
+def _load_writer_binding_deployment_assets(
+    value: object,
+) -> tuple[tuple[str, str], ...]:
+    """未統合候補の固定4pathとSHAを読み、任意pathへの拡張を拒否する。"""
+    location = "allowlist.writer_binding_deployment_assets"
+    assets = _object(value, location)
+    paths = tuple(
+        f"backend/src/{relative}" for relative in _WRITER_BINDING_DEPLOYMENT_ASSETS
+    )
+    _strict_keys(assets, frozenset(paths), location)
+    result: list[tuple[str, str]] = []
+    for relative in paths:
+        digest = _string(assets[relative], f"{location}.{relative}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError(f"{location}.{relative}: SHA-256が不正")
+        result.append((relative, digest))
+    return tuple(result)
+
+
+def _writer_binding_surface(sql_texts: tuple[str, ...]) -> dict[str, frozenset[str]]:
+    """実SQL本文から閉じた構造面だけを抽出する。"""
+    joined = "\n".join(sql_texts)
+    def signatures(pattern: str) -> frozenset[str]:
+        found = set()
+        for raw in re.findall(pattern, joined, re.MULTILINE):
+            name, _, rest = raw.partition("(")
+            args = rest.rsplit(")", 1)[0]
+            types = [
+                parts[1] if len(parts) > 1 else parts[0]
+                for parts in (arg.split() for arg in args.split(","))
+                if parts
+            ]
+            found.add(f"{name}({','.join(types)})")
+        return frozenset(found)
+    return {
+        "schemas": frozenset(re.findall(
+            r"^\s*CREATE\s+SCHEMA\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
+        )),
+        "tables": frozenset(re.findall(
+            r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_.]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
+        )),
+        "indexes": frozenset(re.findall(
+            r"^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+([a-z0-9_]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
+        )),
+        "functions": signatures(
+            r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-z_.]+\([^)]*\))",
+        ),
+        "policies": frozenset(
+            f"{table}.{name}"
+            for name, table in re.findall(
+                r"^\s*CREATE\s+POLICY\s+([a-z_]+)\s+ON\s+([a-z0-9_.]+)", joined, re.MULTILINE,
+            )
+        ),
+        "triggers": frozenset(
+            f"{table}.{name}"
+            for name, table in re.findall(
+                r"^\s*CREATE\s+TRIGGER\s+([a-z_]+).*?\sON\s+([a-z0-9_.]+)", joined, re.MULTILINE,
+            )
+        ),
+        "roles": frozenset(re.findall(
+            r"CREATE\s+ROLE\s+([a-z_]+)", joined,
+            re.MULTILINE | re.IGNORECASE,
+        )),
+    }
+
+
+def _validated_writer_binding_deployment_assets(
+    repository_root: Path, contract: Contract,
+) -> bool:
+    """未統合候補4資産を実byte・閉manifest・実SQL構造面で検査する。
+
+    製品runtimeからの配備・実行権は与えない。未知path/bytes/構造は従来の
+    TB000へ戻す。
+    """
+    contents: dict[str, bytes] = {}
+    try:
+        expected_assets = _load_writer_binding_deployment_assets(
+            dict(contract.writer_binding_deployment_assets)
+        )
+        if expected_assets != contract.writer_binding_deployment_assets:
+            return False
+        for relative, expected in expected_assets:
+            path = repository_root / relative
+            for component in (path, *path.parents):
+                if component == repository_root:
+                    break
+                if component.is_symlink():
+                    return False
+            if not path.is_file():
+                return False
+            content = path.read_bytes()
+            if hashlib.sha256(content).hexdigest() != expected:
+                return False
+            contents[Path(relative).name] = content
+        manifest = json.loads(
+            contents["writer-binding-manifest.json"],
+            object_pairs_hook=_unique_json_object,
+        )
+        sql_names = {
+            name for name in contents if name.endswith(".sql")
+        }
+        if type(manifest) is not dict or set(manifest) != (
+            set(_WRITER_BINDING_CLOSED_MANIFEST) | {"files"}
+        ):
+            return False
+        for key, expected in _WRITER_BINDING_CLOSED_MANIFEST.items():
+            if manifest[key] != expected:
+                return False
+        declared = manifest["files"]
+        if type(declared) is not dict or set(declared) != sql_names:
+            return False
+        declared_assets = dict(expected_assets)
+        for name in sql_names:
+            digest = hashlib.sha256(contents[name]).hexdigest()
+            if declared[name] != digest:
+                return False
+            if declared_assets[f"backend/src/pitchlog/sync/control_provider/sql/{name}"] != digest:
+                return False
+        if _writer_binding_surface(
+            tuple(contents[name].decode("utf-8") for name in sorted(sql_names))
+        ) != _WRITER_BINDING_CLOSED_SURFACE:
+            return False
+    except (OSError, ValueError, KeyError, TypeError, UnicodeDecodeError):
+        return False
+    return True
+
+
 def _changed_source_violations(
     repository_root: Path,
     inspection_population: Mapping[str, frozenset[int]],
@@ -7851,8 +9045,13 @@ def _changed_source_violations(
     if rg1 in head_sources or rg1 in (baseline_sources or {}):
         for relative in _RG1_DEPLOYMENT_ASSETS:
             population.setdefault(relative, frozenset())
+    writer_binding = "pitchlog/sync/control_provider/binding_control.py"
+    if writer_binding in head_sources or writer_binding in (baseline_sources or {}):
+        for relative in _WRITER_BINDING_DEPLOYMENT_ASSETS:
+            population.setdefault(relative, frozenset())
     deployment_valid: bool | None = None
     rg1_deployment_valid: bool | None = None
+    writer_binding_valid: bool | None = None
     for relative, lines in sorted(population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
@@ -7869,6 +9068,15 @@ def _changed_source_violations(
                         repository_root, contract,
                     )
                 if rg1_deployment_valid:
+                    continue
+            if relative in _WRITER_BINDING_DEPLOYMENT_ASSETS:
+                if writer_binding_valid is None:
+                    writer_binding_valid = (
+                        _validated_writer_binding_deployment_assets(
+                            repository_root, contract,
+                        )
+                    )
+                if writer_binding_valid:
                     continue
             violations.append(
                 Violation(
