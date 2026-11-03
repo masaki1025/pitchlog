@@ -17,25 +17,34 @@ CROSS_TENANT_FUNCTION_REGISTRY_SYMBOL = (
 )
 TRANSACTION_SCOPE_ENTRY = "pitchlog.repositories.transaction.tenant_transaction_scope"
 FUNCTION_REGISTRATION_TYPE = (
-    "pitchlog.repositories.function_operations.FunctionOperationRegistration"
+    "pitchlog.repositories.function_operations.FunctionOperationR"
+    "egistration"
 )
 FUNCTION_TRANSACTION_ENTRY = (
-    "pitchlog.repositories.transaction._TenantTransaction.run_function"
+    "pitchlog.repositories.transaction._TenantTransaction.run_fun"
+    "ction"
 )
 FUNCTION_OPERATION_REGISTRY = (
-    "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
+    "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OP"
+    "ERATIONS"
 )
-FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
+FUNCTION_EXECUTOR_SYMBOL = (
+    "pitchlog.repositories.transaction._TenantTransaction.run_fun"
+    "ction"
+)
 FUNCTION_EXECUTOR_SIGNATURE = (
-    "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
+    "run_function(self, operation: TenantOperationToken) -> Tenan"
+    "tOperationResult"
 )
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
-    "_execute_operation(self, context: TenantContext, "
-    "operation: TenantOperationToken) -> TenantOperationResult"
+    "_execute_operation(self, context: TenantContext, operation: "
+    "TenantOperationToken) -> TenantOperationResult"
 )
 
-ALLOWED_DTOS = ("pitchlog.repositories.tokens.TenantOperationResult",)
+ALLOWED_DTOS = (
+    "pitchlog.repositories.tokens.TenantOperationResult",
+)
 SCALAR_TYPE_MATCH = "exact"
 CONTAINER_TYPE_MATCH = "exact"
 IMMUTABLE_SCALAR_TYPES = (
@@ -61,7 +70,8 @@ UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
 UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
 TENANT_PRIMARY_KEY_BIND = "injected_context_bind_only"
 ROW_LOCK = (
-    "declared_plain_for_update_with_complete_primary_key_and_explicit_specialized_shape"
+    "declared_plain_for_update_with_complete_primary_key_and_expl"
+    "icit_specialized_shape"
 )
 UNLOCKED_READ = "for_update_absent_when_undeclared"
 SYNC_APPLY_SCOPE = "contextvar_rejects_new_tenant_transaction_scope"
@@ -81,7 +91,7 @@ FORBIDDEN_TYPES = (
     "non_frozen_dataclass",
 )
 
-PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
+PRODUCT_CAPABILITY_IDS = (
     "CAP:players:read",
     "CAP:players:insert",
     "CAP:players:update",
@@ -119,7 +129,7 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:tenant_vocabularies:insert",
     "CAP:tenant_vocabularies:read",
 )
-PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
+PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.roster.PlayerReadToken",
     "pitchlog.repositories.roster.PlayerCreateToken",
     "pitchlog.repositories.roster.PlayerUpdateToken",
@@ -186,8 +196,8 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
 )
-CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
-PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
+CROSS_TENANT_FUNCTIONS = ()
+PRODUCT_FUNCTION_OPERATION_IDS = (
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",
