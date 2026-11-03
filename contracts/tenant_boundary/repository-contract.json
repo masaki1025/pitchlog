@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 34,
+  "contract_revision": 35,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:34"
+        "contract_revision:35"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -264,5 +264,5 @@
     "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
     "SYNC_ORDINARY_PITCH:read_ordinary_order_summary"
   ],
-  "source_digest": "c69e47545f92d3dfa47c0aa5ea81a4ae85e8d6acce71033545b20dd97530467e"
+  "source_digest": "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
 }

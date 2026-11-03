@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 48,
+  "contract_revision": 49,
   "writer_binding_deployment_assets": {
     "backend/src/pitchlog/sync/control_provider/sql/control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
     "backend/src/pitchlog/sync/control_provider/sql/writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
@@ -12,7 +12,7 @@
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:48"
+        "contract_revision:49"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -32618,31 +32618,31 @@
         },
         "new_baseline_identifiers": {
           "contracts/tenant_boundary/base-allowlist.json": [
-            "contract_revision:48"
+            "contract_revision:49"
           ],
           "contracts/tenant_boundary/cache-invalidation-contract.json": [
-            "contract_revision:25"
+            "contract_revision:26"
           ],
           "contracts/tenant_boundary/census-baseline.json": [
-            "contract_revision:25"
+            "contract_revision:26"
           ],
           "contracts/tenant_boundary/db-api-inventory.json": [
-            "inventory_revision:25"
+            "inventory_revision:26"
           ],
           "contracts/tenant_boundary/frozen-inputs.json": [
-            "contract_revision:13"
+            "contract_revision:14"
           ],
           "contracts/tenant_boundary/negative-fixtures.json": [
-            "fixture_set_revision:27"
+            "fixture_set_revision:28"
           ],
           "contracts/tenant_boundary/repository-contract.json": [
-            "contract_revision:34"
+            "contract_revision:35"
           ],
           "contracts/tenant_boundary/runtime-authz-contract.json": [
-            "runtime_contract_revision:28"
+            "runtime_contract_revision:29"
           ],
           "contracts/tenant_boundary/tenant-context-allowlist.json": [
-            "contract_revision:26"
+            "contract_revision:27"
           ]
         },
         "change": {
@@ -33147,7 +33147,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:48"
+                    "contract_revision:49"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33172,7 +33172,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:25"
+                    "contract_revision:26"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33197,7 +33197,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:25"
+                    "contract_revision:26"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33223,7 +33223,7 @@
                   "scheme": "integer_revision_field",
                   "field": "inventory_revision",
                   "current_identifiers": [
-                    "inventory_revision:25"
+                    "inventory_revision:26"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33248,7 +33248,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:13"
+                    "contract_revision:14"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33277,7 +33277,7 @@
                   "scheme": "integer_revision_field",
                   "field": "fixture_set_revision",
                   "current_identifiers": [
-                    "fixture_set_revision:27"
+                    "fixture_set_revision:28"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33302,7 +33302,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:34"
+                    "contract_revision:35"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33327,7 +33327,7 @@
                   "scheme": "integer_revision_field",
                   "field": "runtime_contract_revision",
                   "current_identifiers": [
-                    "runtime_contract_revision:28"
+                    "runtime_contract_revision:29"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33352,7 +33352,7 @@
                   "scheme": "integer_revision_field",
                   "field": "contract_revision",
                   "current_identifiers": [
-                    "contract_revision:26"
+                    "contract_revision:27"
                   ],
                   "no_baseline_marker": "NO_BASELINE",
                   "frozen_projection": {
@@ -33541,8 +33541,8 @@
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
-                "sha256": "b4bb75abadd8f59ffb3acdd96d266f38e89dcce87ad8151f518e4f5279e38338",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b4bb75abadd8f59ffb3acdd96d266f38e89dcce87ad8151f518e4f5279e38338"
+                "sha256": "eeaf34e573787c29d79a07c8c4cdefb608c887370c852f9a622fe7b8cfd76f56",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/eeaf34e573787c29d79a07c8c4cdefb608c887370c852f9a622fe7b8cfd76f56"
               },
               {
                 "path": "scripts/frozen_archive.py",
@@ -33561,8 +33561,8 @@
               },
               {
                 "path": "tests/test_census_baseline_check.py",
-                "sha256": "cbe6736b7cee1407ba125ed87e42ba3793b3c310e9dbfcbcdb04711467d29e79",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cbe6736b7cee1407ba125ed87e42ba3793b3c310e9dbfcbcdb04711467d29e79"
+                "sha256": "0be6846b9ee9e3075510edde1f5dc50f890dba3fadc6c22441a2cb23d27dc0ed",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0be6846b9ee9e3075510edde1f5dc50f890dba3fadc6c22441a2cb23d27dc0ed"
               },
               {
                 "path": "tests/test_check_authz_catalog.py",
@@ -33583,48 +33583,48 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "102ed12433bb0e14bea21e23061f168dc4ae71e9a9ff2fbe7595a82f0f7bd2fc",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/102ed12433bb0e14bea21e23061f168dc4ae71e9a9ff2fbe7595a82f0f7bd2fc"
+                "sha256": "e127d970736fd6f73d818aadac72a57d59cbd1a2c58e9f49424a1f37c93db332",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e127d970736fd6f73d818aadac72a57d59cbd1a2c58e9f49424a1f37c93db332"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "64de38e9db0c4a8808e949526aae33bfed0b69a55a706b858e4ca46e63de1006",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/64de38e9db0c4a8808e949526aae33bfed0b69a55a706b858e4ca46e63de1006"
+                "sha256": "538ce8695020e863c73742bf69df8538ea5a032cd2189087f14945d6e0f7cccd",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/538ce8695020e863c73742bf69df8538ea5a032cd2189087f14945d6e0f7cccd"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "39b8d0b970a71a17101eec48336393f347958285dbbf77a07e6e1c7c57e78994",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/39b8d0b970a71a17101eec48336393f347958285dbbf77a07e6e1c7c57e78994"
+                "sha256": "2aa5c96aacc7bea0f16712b0d38f3c93434024dd0f1468c04e851abc9002b46b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2aa5c96aacc7bea0f16712b0d38f3c93434024dd0f1468c04e851abc9002b46b"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "67f3d85a1dc2be664af3d333e3015223699e531d2d34cbd1222d77049635615f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/67f3d85a1dc2be664af3d333e3015223699e531d2d34cbd1222d77049635615f"
+                "sha256": "e352364dc7751acb1be671825adf09670ee5da3d8a398295681e8f81947f545e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e352364dc7751acb1be671825adf09670ee5da3d8a398295681e8f81947f545e"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "8e988929dc4bcdcef6454a16ad197f2d189b27083a1af18407c39b05c3537a2d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8e988929dc4bcdcef6454a16ad197f2d189b27083a1af18407c39b05c3537a2d"
+                "sha256": "db743e8c6f9ca73995b15a84aad354796a20e512aa2a0237ad058c2db6873bc6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/db743e8c6f9ca73995b15a84aad354796a20e512aa2a0237ad058c2db6873bc6"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "45c23c0bb2a603d4cdd033b224298b96a21e74782dd30bbafae29df6f1462a33",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/45c23c0bb2a603d4cdd033b224298b96a21e74782dd30bbafae29df6f1462a33"
+                "sha256": "257fab6e2afaa9ffca3b04b18307783dc74b4a8c52fe3062a0a8d13f085aed70",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/257fab6e2afaa9ffca3b04b18307783dc74b4a8c52fe3062a0a8d13f085aed70"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "9707889ef724ae23313c031c6e2dcb872fcd7e86872a44f61d7f96dbb5d58173",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9707889ef724ae23313c031c6e2dcb872fcd7e86872a44f61d7f96dbb5d58173"
+                "sha256": "6fecd6a2dcd4f947c0fb1f525a449f4589c95163207238138793473a8126211e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6fecd6a2dcd4f947c0fb1f525a449f4589c95163207238138793473a8126211e"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "4cfaa2c45fc22c2a7b0fa6f1d0949abdd41757d2776bef9efb864a5f1e8f5ab7",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4cfaa2c45fc22c2a7b0fa6f1d0949abdd41757d2776bef9efb864a5f1e8f5ab7"
+                "sha256": "d7dc9042127c7ac5cf82bf46124bc5cae6f6ff8655bed0fbc897cbdda64c7c34",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d7dc9042127c7ac5cf82bf46124bc5cae6f6ff8655bed0fbc897cbdda64c7c34"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "77842abd2cfe01b716e265768efb1ca19bc88f1cc42e2f2fb86a6f2b17b726bb",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/77842abd2cfe01b716e265768efb1ca19bc88f1cc42e2f2fb86a6f2b17b726bb"
+                "sha256": "575f0eaa7f2399e21825e986c93b4ef449c62c56c6dc8b09bd42e0bb5d3f345c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/575f0eaa7f2399e21825e986c93b4ef449c62c56c6dc8b09bd42e0bb5d3f345c"
               }
             ]
           }
@@ -33653,7 +33653,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "a6cdc210291e907b5047d9b6d4fa3c62f6653e41faa1c78bbffdf2716629c672"
+    "sha256": "751d6c423b26f56b1f64f74893002a136d69c8a7009536439a337a939b48a0ff"
   },
   "allowed_symbols": [
     {

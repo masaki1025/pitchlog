@@ -12,15 +12,15 @@ from pitchlog.api.schemas.started_games import StartedRecordedPrefixGameRead
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / "frontend/src/api/fixtures/recordedPrefixGame.v1.json"
+PIN_PATH = Path(__file__).parent / "fixtures/ordinary_prefix_dto_fixture_pin_v1.json"
+PIN = json.loads(PIN_PATH.read_text())
 POSITIVES = json.loads(FIXTURE.read_text())["positive"]
 
 
 def test_fixed_fixture_identity():
     """他担当の固定版を読み、期待値を製品sourceから生成しない。"""
-    assert (
-        hashlib.sha256(FIXTURE.read_bytes()).hexdigest()
-        == "5c0bfa1a21839dace0c5f24a627981bad6387de6cc407d7135694a87b9c9b43e"
-    )
+    assert PIN["fixture"] == "frontend/src/api/fixtures/recordedPrefixGame.v1.json"
+    assert hashlib.sha256(FIXTURE.read_bytes()).hexdigest() == PIN["sha256"]
     assert [case["id"] for case in POSITIVES] == [
         "prefix-0",
         "prefix-1",

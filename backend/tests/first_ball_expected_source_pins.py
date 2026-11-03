@@ -40,6 +40,13 @@ _EXPECTED_KEYS = {
             "SYNC_FIRST_BALL:check_current_right",
             "SYNC_FIRST_BALL:read_device_state",
             "SYNC_WRITER_BINDING:read_writer_identity",
+            "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+            "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+            "SYNC_ORDINARY_PITCH:check_ordinary_right",
+            "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+            "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+            "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+            "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
         ]
     ),
     "test_sync_right_sql.py": frozenset(

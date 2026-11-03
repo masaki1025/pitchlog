@@ -2013,7 +2013,8 @@ def _measured_resolution_owner_suppression(
     return suppression
 
 
-_INITIAL_CENSUS_SITES: tuple[tuple[str, str, int, str, str, str], ...] = (('pitchlog/api/schemas/game_start.py',
+_INITIAL_CENSUS_SITES: tuple[tuple[str, str, int, str, str, str], ...] = (
+('pitchlog/api/schemas/game_start.py',
   'initial_response_annotations',
   189,
   'TB002',
@@ -8717,7 +8718,7 @@ def test_pure_helper_source_and_declaration_cannot_move_together(
 
 
 def test_initial_population_census_measures_exact_finite_effect() -> None:
-    """出力件数だけでなく正本70siteと実抑止の全identityを比較する。"""
+    """出力件数だけでなく正本63siteと実抑止の全identityを比較する。"""
     identities = _validated_initial_population_suppression(
         _load_census_baseline_declaration(),
         source_root=REPOSITORY_ROOT / 'backend/src',
@@ -8804,7 +8805,7 @@ def test_initial_population_census_rejects_forged_source_and_original(
 def test_initial_population_census_rejects_additional_effect(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """既site外の所見までcheckerが抑止しても正本70siteとの実効果比較で拒否する。"""
+    """既site外の所見までcheckerが抑止しても正本63siteとの実効果比較で拒否する。"""
     original = checker._initial_population_evidence
     extra = (143, 'TB005', 'sqlalchemy.text',
              'pitchlog.db.recording_rights.models.EvacuatedEventOriginal.<module>')
