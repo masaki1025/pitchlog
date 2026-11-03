@@ -885,6 +885,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
       "approved_at": "2026-11-02"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#190",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "17124756e95f96ce84c2d5600c78b29660418dc0"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "6a214c9dc33c7f6e54530510d6d625f25a39348f"
+          }
+        ]
+      },
+      "reason": "通常投球の連続保存・prefix再読込の統合に伴い、started_game_detailの設計来歴を現行sourceへ一致させたroute-registryと、通常投球3表の認可DDL・schema manifestを8入力の実byteへ固定する。旧全履歴・規範状態・拒否対向を保持し、6oracleの意味本文と期待を変えずcommit参照だけを伝播する。PO委任による主担当判断であり、本人の直接確認・署名・実機/運用実測を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任による主担当判断（本人直接確認・署名の代記ではない）",
+      "approved_at": "2026-11-04"
     }
   ]
 }
