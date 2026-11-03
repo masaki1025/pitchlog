@@ -1,7 +1,7 @@
 ---
 feature: post-189-integration
 status: in-review
-承認: 未
+承認: 済(2026-11-03・masaki1025)
 重さ分類: コア領域
 worktree: ../../..
 notion: 未設定
