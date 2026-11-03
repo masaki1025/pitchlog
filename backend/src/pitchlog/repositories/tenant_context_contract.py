@@ -1,11 +1,11 @@
 """テナント文脈の生成元 allowlist を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 23
+CONTRACT_REVISION = 24
 ASSET_KIND = "tenant_context_construction_allowlist"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/tenant-context-allowlist.json"
-SOURCE_DIGEST = "981bc31f44fe68fd509baa5ca1877cc8c478fefec103ef26ae3300f610388c70"
+SOURCE_DIGEST = "edeb216dd80cb3045afe7e40c80b87686f85c4fce79c26b4897540da4d20aa00"
 CONSTRUCTOR_SYMBOL = "pitchlog.repositories.context.TenantContext"
 FORBIDDEN_CONSTRUCTION_SYMBOLS = (
     "builtins.object.__new__",
