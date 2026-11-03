@@ -32481,8 +32481,8 @@
             "external_snapshots": [
               {
                 "path": ".github/workflows/ci.yml",
-                "sha256": "d9c82f5820695b0954bba21ed965a55320d911acd8046db2748c10728353bb6f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d9c82f5820695b0954bba21ed965a55320d911acd8046db2748c10728353bb6f"
+                "sha256": "05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43"
               },
               {
                 "path": "backend/tests/test_api_conventions.py",
@@ -32521,8 +32521,8 @@
               },
               {
                 "path": "tests/test_ci_wiring.py",
-                "sha256": "f3cf00d41ba1399393d35a90bf342a5503a4157b6b52be7ee242f3fdc0181806",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f3cf00d41ba1399393d35a90bf342a5503a4157b6b52be7ee242f3fdc0181806"
+                "sha256": "3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762"
               },
               {
                 "path": "tests/test_plan_generation.py",
