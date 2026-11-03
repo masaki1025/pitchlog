@@ -4474,60 +4474,54 @@ _INITIAL_CENSUS_CONTROL_FRAMES = {
     (((),
       'FunctionDef',
       ('call',
-       "arguments(posonlyargs=[], args=[arg(arg='self'), "
-       "arg(arg='command', "
-       "annotation=Name(id='_BrokerCommand', ctx=Load()))], "
-       'kwonlyargs=[], kw_defaults=[], defaults=[])',
+       "arguments(posonlyargs=[], args=[arg(arg='self'), arg(arg='command', "
+       "annotation=Name(id='_BrokerCommand', ctx=Load()))], kwonlyargs=[], "
+       'kw_defaults=[], defaults=[])',
        ()),
       (('body', 2),)),
      (('body', 0),
       'Try',
       (),
-      (('body', 5),
-       ('handlers', 1),
-       ('orelse', 0),
-       ('finalbody', 0))),
+      (('body', 6), ('handlers', 1), ('orelse', 0), ('finalbody', 0))),
      (('body', 0, 'body', 0), 'Assign', (), ()),
      (('body', 0, 'body', 1), 'Expr', (), ()),
      (('body', 0, 'body', 2), 'Assign', (), ()),
-     (('body', 0, 'body', 3),
+     (('body', 0, 'body', 3), 'Assign', (), ()),
+     (('body', 0, 'body', 4),
       'With',
       (("withitem(context_expr=Call(func=Attribute(value=Name(id='socket', "
         "ctx=Load()), attr='socket', ctx=Load()), "
-        "args=[Attribute(value=Name(id='socket', ctx=Load()), "
-        "attr='AF_UNIX', ctx=Load()), "
-        "Attribute(value=Name(id='socket', ctx=Load()), "
+        "args=[Attribute(value=Name(id='socket', ctx=Load()), attr='AF_UNIX', "
+        "ctx=Load()), Attribute(value=Name(id='socket', ctx=Load()), "
         "attr='SOCK_STREAM', ctx=Load())], keywords=[]), "
         "optional_vars=Name(id='channel', ctx=Store()))",),),
       (('body', 8),)),
-     (('body', 0, 'body', 3, 'body', 0), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 1), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 2), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 3), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 4), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 5), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 6), 'Expr', (), ()),
-     (('body', 0, 'body', 3, 'body', 7), 'Assign', (), ()),
-     (('body', 0, 'body', 4),
+     (('body', 0, 'body', 4, 'body', 0), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 1), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 2), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 3), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 4), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 5), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 6), 'Expr', (), ()),
+     (('body', 0, 'body', 4, 'body', 7), 'Assign', (), ()),
+     (('body', 0, 'body', 5),
       'Return',
-      ("Return(value=Call(func=Name(id='_decode_initial_reply', "
-       "ctx=Load()), args=[Name(id='response', ctx=Load()), "
-       "Name(id='command', ctx=Load())], keywords=[]))",),
+      ("Return(value=Call(func=Name(id='_decode_initial_reply', ctx=Load()), "
+       "args=[Name(id='response', ctx=Load()), Name(id='command', ctx=Load())], "
+       'keywords=[]))',),
       ()),
      (('body', 0, 'handlers', 0),
       'ExceptHandler',
-      ("Tuple(elts=[Name(id='OSError', ctx=Load()), "
-       "Name(id='ValueError', ctx=Load()), "
-       "Name(id='TypeError', ctx=Load()), "
-       "Name(id='InitialBrokerUnavailable', ctx=Load())], "
-       'ctx=Load())',
+      ("Tuple(elts=[Name(id='OSError', ctx=Load()), Name(id='ValueError', ctx=Load()), "
+       "Name(id='TypeError', ctx=Load()), Name(id='InitialBrokerUnavailable', "
+       'ctx=Load())], ctx=Load())',
        None),
       (('body', 1),)),
      (('body', 0, 'handlers', 0, 'body', 0), 'Pass', (), ()),
      (('body', 1),
       'Raise',
-      ("Raise(exc=Call(func=Name(id='_broker_invalid', "
-       'ctx=Load()), args=[], keywords=[]))',),
+      ("Raise(exc=Call(func=Name(id='_broker_invalid', ctx=Load()), args=[], "
+       'keywords=[]))',),
       ())),
     'serve_initial_broker':
     (((),
