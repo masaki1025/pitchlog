@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（#192実画面成立・CI修復中、安打画面と実語彙接続を保存）
+
+- **利用者操作/実証**: #192候補9747faaaは診断bootstrapなしの同一実HTTPS/owned PGで、新規画面作成→開始→三振3PA/9球→攻守交代→相手側1球→実ACK喪失→既認証再確認/GET→reload→元body/attempt再送を1pass309.720秒。event/play/slot/ledger各10、二重保存なし、追跡3627pathのSHA/HEAD前後一致。cache mvp-resume-20261104/pr192-ui-final-r12-result.json・log/xml/source-beforeへ保存。期限切れ試験TLS+ignoreHTTPSの隔離技術実証であり、実機/運用HTTPS/全offline受入ではない。旧create503はcold3回と最終GUIで非再現・原因未確定、故障/負荷受入の留保へ残す。
+- **通常統合/赤**: develop eb8b31cd/run41871502390は歴史checker fixtureの1件が未統合修復。#192公開9747のCI41908083319は赤で、マージ不可。公開SHA誤検知1件・既validated基線参照・AST不変format修復を2f0430feへ保存。coreは旧署名を維持して採用済み191/192有限差分だけを固定Gitで検査するexact2の候補を独立敵対確認中。harnessは追加24case/16rowへの参照追随・認可digest参照・合成fixture原典を修復中。backend4shardも31failをpr192-harness-repair-20261105/backend-failures.jsonへ保存し、旧固定期待と実不具合を分類する。成功へ読み替えず、修復をまとめて正式R4/公開証拠/必須CIを実施する。
+- **安打製品接続**: author4実語彙read86a3497a、FE14（ページ跨ぎ修復含む）e2b72672、root共有登録/最小role・ACL・stable関数/partial index25pathを3633f95dへコミット。root反映2packet34a3933c…/非作者b784baf1…で旧権限保持と公式生成一致を確認。実語彙画面/正式受理は未実証。最初の同版owned PGは0040 migrationまで進むがfullprofileカタログ不一致でsetup error（vocab-bootstrap-r1、13.86秒）。実処理成功は数えず、原reportを保持するcache診断r2で不一致項目を確認中。所有container掃除済み。
+- **成績後半**: stats-native-functions-reflection1-20261105/ のSQL4候補は不足通常SELECT12+xmin4/tenant policy3を最小追加、SQL本体不変。非作者de9d8cb3…採用可。最小PGのxmin資格probeと実native4の成功を分離し、正式producer/registry・sameframe T5 hook・RR/RO接続→実DBが残る。private stats migration0040は安打0040採用後0041へ正常再基線化する。未回答4意味判断・全MVP機能/両CSV/実機運用義務を保持。
+- **次/再開**: #192 core検査中はHEAD79840a90を固定し、rootは別exact3の未commit参照修復（26pytest成功）だけを保持。別WTの安打実PG診断を直列実行する。共有正式資産/台帳writerはroot。作業停止・Goal完了にはしない。
+
+
 
 ## 続き：2026-11-05（4安打の実API保存・再取得・拒否と全取消が成立）
 
